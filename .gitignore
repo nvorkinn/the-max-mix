@@ -7,3 +7,4 @@ spotify-token.json.*.tmp
 *.log
 .idea/
 release-out
+coverage
