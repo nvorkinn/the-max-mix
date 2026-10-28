@@ -1,0 +1,257 @@
+import React, { useState, useEffect } from 'react';
+import AlbumArtPlayer from './AlbumArtPlayer.jsx';
+import SpotifyJamQueue from './SpotifyJamQueue.jsx';
+import TouchRipples from './TouchRipples.jsx';
+import SettingsModal from './SettingsModal.jsx';
+import SpeakerSelectorModal from './SpeakerSelectorModal.jsx';
+import JamSettingsModal from './JamSettingsModal.jsx';
+import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer.js';
+import { extractPalette } from '../utils/colorExtractor.js';
+import { AudioLines, Clock, Settings, Speaker, ArrowUpRight } from 'lucide-react';
+import { requestJSON, postJSON } from '../utils/api.js';
+
+export default function TabletView() {
+  const {
+    isReady,
+    playbackState,
+    isAuthenticated,
+    isDemoMode,
+    isConfigured,
+    isLoading,
+    playbackMode,
+    browserDeviceId,
+    error,
+    refreshPlayback,
+    togglePlay,
+    nextTrack,
+    previousTrack,
+    seek,
+    setVolume,
+    transferPlayback
+  } = useSpotifyPlayer();
+
+  const [queue, setQueue] = useState([]);
+  const [currentTime, setCurrentTime] = useState('');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSpeakerModalOpen, setIsSpeakerModalOpen] = useState(false);
+  const [isJamSettingsOpen, setIsJamSettingsOpen] = useState(false);
+  const [queueError, setQueueError] = useState(null);
+  const [toastMessage, setToastMessage] = useState(null);
+  const [theme, setTheme] = useState(() => (localStorage.getItem('maxmix_theme') === 'minimal' ? 'minimal' : 'neon'));
+
+  const handleThemeChange = (newTheme) => {
+    setTheme(newTheme);
+    localStorage.setItem('maxmix_theme', newTheme);
+    showToast(`Skin updated to ${newTheme === 'minimal' ? 'Paper' : 'Studio'}`);
+  };
+
+  const [palette, setPalette] = useState({
+    primary: 'rgba(29, 185, 84, 0.45)',
+    secondary: 'rgba(6, 182, 212, 0.35)',
+    dark: 'rgba(10, 12, 18, 0.95)'
+  });
+
+  const isPlaying = Boolean(playbackState?.is_playing);
+  const currentTrack = playbackState?.item;
+
+  // Clock
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!isDemoMode && !isAuthenticated) {
+      setQueue([]);
+      setQueueError(null);
+      return;
+    }
+    let cancelled = false;
+    let timer;
+    let failures = 0;
+    const poll = async () => {
+      let delay = 10000;
+      try {
+        const data = await requestJSON('/api/queue');
+        if (cancelled) return;
+        setQueue(data.queue);
+        setQueueError(null);
+        failures = 0;
+      } catch (error) {
+        if (cancelled) return;
+        setQueueError(error.message);
+        delay = Math.max(Math.min(60000, 10000 * 2 ** ++failures), error.retryAfter * 1000 || 0);
+      }
+      if (!cancelled) timer = setTimeout(poll, delay);
+    };
+    poll();
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [currentTrack?.id, isDemoMode, isAuthenticated]);
+
+  // Dynamic ambient palette extraction from album art
+  useEffect(() => {
+    const artUrl = currentTrack?.album?.images?.[0]?.url;
+    if (artUrl) {
+      extractPalette(artUrl).then((colors) => {
+        setPalette(colors);
+      });
+    }
+  }, [currentTrack?.album?.images?.[0]?.url]);
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleReorderQueue = async (newQueue) => {
+    try {
+      const data = await postJSON('/api/queue/reorder', { queue: newQueue });
+      setQueue(data.queue);
+      showToast('Demo queue order updated.');
+      return true;
+    } catch (err) {
+      showToast(err.message);
+      return false;
+    }
+  };
+
+  const handlePlaySongNow = async (trackId, track) => {
+    try {
+      const data = await postJSON('/api/queue/play-now', { trackId });
+      setQueue(data.remainingQueue);
+      await refreshPlayback();
+      showToast(`Demo playing: ${track.name || track.title}`);
+    } catch (err) {
+      showToast(err.message);
+    }
+  };
+
+  return (
+    <div
+      className="tablet-container"
+      data-theme={theme}
+      style={{
+        '--ambient-primary': palette.primary,
+        '--ambient-secondary': palette.secondary
+      }}
+    >
+      {/* 60 FPS Interactive Touch Ripple Canvas */}
+      <TouchRipples theme={theme} />
+
+      <header className="app-header">
+        <div className="brand">
+          <div className="brand-mark"><AudioLines size={22} strokeWidth={2.5} /></div>
+          <div className="brand-copy">
+            <h1>THE MAX MIX<span className="brand-dot">.</span></h1>
+            <span>Your people. Your soundtrack.</span>
+          </div>
+        </div>
+        <div className="session-status" role="status">
+          <span className={`status-dot ${isReady ? '' : 'status-dot-idle'}`} />
+          {isDemoMode ? 'Demo session' : isLoading ? 'Connecting...' : isReady ? playbackState.device.name : isAuthenticated ? 'Select a Spotify device' : 'Sign in to Spotify'}
+        </div>
+        <div className="header-actions">
+          <button
+            onClick={() => setIsSpeakerModalOpen(true)}
+            className="button button-secondary speaker-button"
+            title="Choose a Spotify Connect device"
+            aria-label="Choose a Spotify Connect device"
+          >
+            <Speaker size={15} />
+            <span>Speakers</span>
+          </button>
+          <button onClick={() => setIsJamSettingsOpen(true)} className="button button-primary header-jam-button">
+            Jam in Spotify <ArrowUpRight size={15} />
+          </button>
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="icon-button"
+            title="Settings & Skins"
+            aria-label="Open settings and skins"
+          >
+            <Settings size={18} />
+          </button>
+        </div>
+      </header>
+
+      {(error || (!isLoading && !isDemoMode && !isAuthenticated)) && (
+        <div className="connection-banner" role={error ? 'alert' : 'status'}>
+          <span>{error || 'Connect your Spotify account in Settings. Demo mode is off.'}</span>
+          <button onClick={() => setIsSettingsOpen(true)}>Settings</button>
+        </div>
+      )}
+
+      <main className="listening-room">
+        <section className="player-section" aria-label="Now playing">
+          <AlbumArtPlayer
+            playback={playbackState}
+            isPlaying={isPlaying}
+            onPlayPause={togglePlay}
+            onNext={nextTrack}
+            onPrevious={previousTrack}
+            onSeek={seek}
+            onVolumeChange={(vol) => setVolume(vol / 100)}
+            theme={theme}
+            isDemoMode={isDemoMode}
+            controlsEnabled={(isDemoMode || isAuthenticated) && !playbackState?.device?.is_restricted}
+          />
+        </section>
+
+        <section className="queue-section" aria-label="Upcoming tracks">
+          <SpotifyJamQueue
+            queue={queue}
+            onReorderQueue={handleReorderQueue}
+            onPlaySongNow={handlePlaySongNow}
+            onOpenJamSettings={() => setIsJamSettingsOpen(true)}
+            theme={theme}
+            isDemoMode={isDemoMode}
+            error={queueError}
+          />
+        </section>
+      </main>
+
+      <footer className="app-footer">
+        <span><span className="status-dot" /> {isDemoMode ? 'DEMO / simulated playback' : playbackMode === 'remote' ? 'Spotify Connect remote' : 'Spotify browser player'}</span>
+        <span className="footer-clock"><Clock size={12} /> {currentTime}</span>
+        <span>POWERED BY SPOTIFY</span>
+      </footer>
+
+      {toastMessage && (
+        <div className="app-toast" role="status">{toastMessage}</div>
+      )}
+
+      {/* Speaker Selector Modal (Bluetooth / Sonos / AirPlay) */}
+      <SpeakerSelectorModal
+        isOpen={isSpeakerModalOpen}
+        onClose={() => setIsSpeakerModalOpen(false)}
+        onSelectSpeaker={(id) => transferPlayback(id)}
+        browserDeviceId={browserDeviceId}
+        isDemoMode={isDemoMode}
+      />
+
+      <JamSettingsModal
+        isOpen={isJamSettingsOpen}
+        onClose={() => setIsJamSettingsOpen(false)}
+      />
+
+      {/* General Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        authInfo={{
+          authenticated: isAuthenticated,
+          configured: isConfigured,
+          demoMode: isDemoMode,
+          playbackMode
+        }}
+        currentTheme={theme}
+        onThemeChange={handleThemeChange}
+      />
+    </div>
+  );
+}

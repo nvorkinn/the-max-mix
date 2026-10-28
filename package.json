@@ -1,0 +1,24 @@
+{
+  "name": "the-max-mix",
+  "version": "1.0.0",
+  "description": "THE MAX MIX: a fun collaborative Spotify tablet for Raspberry Pi 4 with Waveshare 7-inch touchscreen",
+  "license": "MIT",
+  "main": "server/src/index.js",
+  "scripts": {
+    "start": "node server/src/index.js",
+    "server": "node server/src/index.js",
+    "client": "npm --prefix client run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build": "npm --prefix client run build",
+    "kiosk:mac": "bash scripts/start-kiosk-mac.sh",
+    "test": "npm --prefix server test && npm --prefix client test && bash scripts/test-kiosk.sh",
+    "install:all": "npm install && npm --prefix server install && npm --prefix client install",
+    "lint": "npm --prefix server run lint && npm --prefix client run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

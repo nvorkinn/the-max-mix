@@ -1,0 +1,26 @@
+[Unit]
+Description=THE MAX MIX server
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory="@ROOT@"
+ExecStart="@NODE@" "@ROOT@/server/src/index.js"
+Environment=NODE_ENV=production
+EnvironmentFile="@ROOT@/server/.env"
+StateDirectory=the-max-mix
+StateDirectoryMode=0700
+UMask=0077
+Restart=always
+RestartSec=5
+TimeoutStopSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

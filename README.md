@@ -1,0 +1,205 @@
+# THE MAX MIX
+
+A music-first Spotify touchscreen for a Raspberry Pi, including the Waveshare
+7-inch 1024x600 display. Studio and Paper appearances adapt to tablets,
+larger screens, and phones.
+
+## What works
+
+- Display the active Spotify track, progress, device, and upcoming queue.
+- Play, pause, skip, seek, adjust supported device volume, and transfer playback
+  using Spotify's real APIs. Device restrictions and API failures are shown.
+- **Browser mode** registers Chromium as THE MAX MIX, a Spotify Connect player.
+  Select it in Speakers before playing; opening the UI does not steal playback.
+- **Remote mode** controls an existing Spotify Connect device without loading
+  the Web Playback SDK or requiring DRM on the Pi.
+- Explicit **demo mode** supplies simulated tracks and a reorderable demo queue.
+  Live errors never switch the app into demo mode.
+
+Spotify Premium and access to a Spotify developer app are required for real
+playback. Browser streaming also requires a working encrypted-media/Widevine
+setup on the exact Pi OS/Chromium image. Validate audio on the device; kiosk mode
+alone does not make DRM available.
+
+### Native Spotify Jam limitations
+
+Start a Jam, invite friends, manage guest permissions, reorder songs, and end the
+Jam **in the official Spotify app**. This display reads the playback queue and
+controls the active device. The public API does not expose Jam membership,
+contributor identities, Jam status, or live queue reordering.
+
+Accordingly, live queues have no invented guest avatars, fake "Live Jam" badge,
+drag handles, or pretend play-now action. Playing an arbitrary URI can replace
+playback context; this app does not do that under a promise to preserve a Jam
+queue. The Jam button explains the supported phone workflow.
+
+The small waveform is decorative, driven by playback state, not an analysis of
+Spotify's encrypted audio. Canvas animations stop while hidden or idle where
+applicable and respect reduced-motion preferences.
+
+## Local setup
+
+Use Node.js 24 LTS (minimum 22).
+
+```bash
+npm --prefix client ci
+npm --prefix server ci
+cp server/.env.example server/.env
+chmod 600 server/.env
+npm run build
+npm start
+```
+
+Open **http://127.0.0.1:3000**. For a UI-only demonstration, set `DEMO_MODE=true`
+in `server/.env` and restart. Otherwise leave it `false` and configure Spotify.
+The server loads this file regardless of the working directory; existing process
+environment values take precedence.
+
+For frontend development, `npm --prefix client run dev` proxies API requests to
+the separately running server on port 3000. `npm test` runs backend and kiosk
+launcher checks; `npm run build` checks the frontend production build.
+
+To preview the kiosk on macOS, start the server (`npm start`) and run
+`npm run kiosk:mac`. It opens Chromium or Google Chrome fullscreen with the Pi's
+flags and a separate profile; quit with Cmd+Q. Set `KIOSK_WINDOWED=true` for a
+1024x600 window instead, or `KIOSK_BROWSER`, `KIOSK_URL`, `KIOSK_PROFILE` to
+override the defaults. It approximates the Pi's layout only; audio/DRM and touch
+still need the device.
+
+## Spotify configuration
+
+1. Create an app in the [Spotify developer dashboard](https://developer.spotify.com/dashboard).
+2. Register **exactly** `http://127.0.0.1:3000/api/auth/callback` as its redirect URI.
+3. Set the following in `server/.env`:
+
+   ```ini
+   SPOTIFY_CLIENT_ID=your_client_id
+   SPOTIFY_CLIENT_SECRET=your_client_secret
+   SPOTIFY_REDIRECT_URI=http://127.0.0.1:3000/api/auth/callback
+   DEMO_MODE=false
+   PLAYBACK_MODE=browser
+   HOST=127.0.0.1
+   PORT=3000
+   ```
+
+4. Restart the server and sign in through Settings **on the Pi's Chromium browser**.
+5. In Speakers, select THE MAX MIX or an existing Spotify Connect device. Press
+   Play when ready. For remote mode, first open Spotify on the target device so it
+   is discoverable.
+
+Set `PLAYBACK_MODE=remote` if the Pi should only control another player or if its
+browser cannot stream Spotify audio. Remote mode follows the active device's real
+playback state and controls, not the browser player's local state.
+
+Spotify no longer accepts `localhost` redirect URIs. HTTP is allowed only with a
+literal loopback address such as `127.0.0.1`; other callbacks require HTTPS. Use the
+same hostname for sign-in and callback so the OAuth state cookie matches. Do not
+sign in from a phone using the Pi's loopback callback: it points to the phone.
+
+Refresh tokens are saved atomically with owner-only permissions in
+`~/.local/share/the-max-mix/spotify-token.json`, or `DATA_DIR` when configured.
+Access tokens and the client secret are not written to that file. The installed
+system service instead uses `/var/lib/the-max-mix`. Sign in after installing the
+service; a previous manual-development login is not automatically migrated.
+Revoked logins require signing in again. Never commit `.env` or token files.
+
+## Raspberry Pi kiosk installation
+
+### 1. Prepare the operating system
+
+Use **Raspberry Pi OS 64-bit Desktop**, a reliable power supply, and a Pi 4 or
+newer. Configure Wi-Fi/Ethernet, an ordinary desktop user, and SSH in Raspberry Pi
+Imager. Install a system-wide Node.js 24 LTS and npm before running the installer.
+The installer checks Node's version but does not download or install Node.
+
+In Raspberry Pi OS settings or `sudo raspi-config`:
+
+- Enable **Desktop Autologin** for the kiosk user.
+- Disable **Screen Blanking**.
+- Select the intended audio output for browser playback.
+
+Autologin and fullscreen Chromium are appliance conveniences, not a security
+boundary. Keep SSH key-protected, restrict physical access, and keep the OS and
+browser updated.
+
+### 2. Clone and install as the desktop user
+
+```bash
+git clone https://github.com/nvorkinn/the-max-mix.git ~/the-max-mix
+cd ~/the-max-mix
+bash scripts/install-kiosk.sh
+```
+
+Do **not** invoke the installer with sudo. It uses sudo only to install OS packages
+and the system service. It:
+
+- Installs Chromium and curl, restores locked npm dependencies, and builds the UI.
+- Creates `server/.env` with mode 0600 only if absent; existing configuration is kept.
+- Renders `the-max-mix.service` with the actual username, checkout, and Node path.
+- Starts the server at boot as that non-root user, with automatic restarts and
+  a private persistent token directory.
+- Adds a user-managed Chromium service started after desktop login. It preserves
+  existing labwc autostart entries and also supplies an XDG autostart entry for
+  desktops that use it. Starting the same user service twice is harmless.
+- Uses Wayland/labwc on current Raspberry Pi OS, with an X11 fallback.
+- Waits for `/api/health` to return success before launching Chromium, with a
+  bounded timeout and automatic service retry. The browser keeps its own profile
+  under `~/.config/the-max-mix/chromium`, with its sandbox enabled.
+
+Edit `server/.env` with your credentials and desired playback mode, then:
+
+```bash
+sudo systemctl restart the-max-mix.service
+sudo reboot
+```
+
+The service defaults to loopback access. Do not expose port 3000 to the internet:
+the app is a single-owner local appliance, not a multi-user authenticated service.
+Any LAN deployment needs access control and HTTPS in front of it; the installer
+does not configure those.
+
+### 3. Configure the touchscreen
+
+Connect the display's HDMI input and USB touch connection. Use the desktop's
+display settings to select **1024x600** and the correct orientation. Confirm touch
+coordinates match after rotating.
+
+Current Raspberry Pi OS uses KMS. Prefer EDID/desktop configuration; do not copy
+old `hdmi_group`, `hdmi_mode`, or `display_rotate` settings into a modern setup.
+See `scripts/waveshare-7inch-config.txt` for notes. The installer intentionally
+does not edit `/boot/firmware/config.txt` or overwrite monitor settings.
+
+### Operations and updates
+
+```bash
+# Server and browser logs
+journalctl -u the-max-mix.service -f
+journalctl --user -u the-max-mix-kiosk.service -f
+
+# Local readiness (also checks that the built frontend exists)
+curl --fail http://127.0.0.1:3000/api/health
+
+# Restart the browser from the kiosk user's session
+systemctl --user restart the-max-mix-kiosk.service
+
+# Update, rebuild, and refresh generated units without resetting login/config
+cd ~/the-max-mix
+git pull --ff-only
+bash scripts/install-kiosk.sh
+systemctl --user restart the-max-mix-kiosk.service
+```
+
+If you change `PORT`, rerun the installer so the browser URL is regenerated, and
+update the exact Spotify callback in both `.env` and the developer dashboard.
+For a manual launcher, `KIOSK_URL`, `KIOSK_PROFILE`, and
+`KIOSK_STARTUP_TIMEOUT` (seconds, default 120) can be overridden.
+
+Before leaving the device unattended, verify cold boot without a keyboard,
+touch input, actual audio on the selected output, login persistence across a
+server restart and reboot, network recovery, browser restart, and a multi-hour
+temperature/memory soak test. These hardware checks cannot be replaced by the
+development-machine tests.
+
+References: [Raspberry Pi kiosk guide](https://www.raspberrypi.com/tutorials/how-to-use-a-raspberry-pi-in-kiosk-mode/),
+[Spotify redirect requirements](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri),
+[Web Playback SDK](https://developer.spotify.com/documentation/web-playback-sdk).

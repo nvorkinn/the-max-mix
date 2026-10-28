@@ -1,0 +1,29 @@
+{
+  "name": "the-max-mix-server",
+  "version": "1.0.0",
+  "description": "Backend server for THE MAX MIX handling OAuth, collaborative queues, and real-time sockets",
+  "license": "MIT",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test",
+    "dev": "node --watch src/index.js",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^17.13.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

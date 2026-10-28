@@ -1,0 +1,13 @@
+[Unit]
+Description=THE MAX MIX Chromium kiosk
+PartOf=graphical-session.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/bin/bash "@ROOT@/scripts/start-kiosk.sh"
+Environment="KIOSK_URL=@URL@"
+Environment="KIOSK_PROFILE=@HOME@/.config/the-max-mix/chromium"
+Restart=always
+RestartSec=5
+TimeoutStopSec=15

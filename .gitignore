@@ -1,0 +1,8 @@
+node_modules
+dist
+.env
+spotify-token.json
+spotify-token.json.*.tmp
+.DS_Store
+*.log
+.idea/
