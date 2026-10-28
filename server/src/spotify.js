@@ -40,7 +40,7 @@ export class SpotifyService {
       await chmod(this.tokenFile, 0o600);
       this.refreshToken = stored.refreshToken;
     } catch (error) {
-      if (error.code !== 'ENOENT') throw error;
+      if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') throw error;
     }
   }
 

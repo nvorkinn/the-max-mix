@@ -8,6 +8,11 @@ import path from 'node:path';
 import { createApp } from '../src/app.js';
 import { SpotifyError } from '../src/spotify.js';
 
+/**
+ * @param {import('node:test').TestContext} t
+ * @param {{ demoMode?: boolean, overrides?: object, playbackMode?: string, distPath?: string,
+ *   rateLimits?: object, allowedHosts?: string[] }} [options]
+ */
 async function start(
   t,
   { demoMode = false, overrides = {}, playbackMode = 'remote', distPath, rateLimits, allowedHosts } = {}
@@ -39,7 +44,7 @@ async function start(
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(() => new Promise(resolve => server.close(resolve)));
-  const base = `http://127.0.0.1:${server.address().port}`;
+  const base = `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`;
   const request = async (endpoint, body) => {
     const response = await fetch(base + endpoint, {
       method: body === undefined ? 'GET' : 'POST',
@@ -121,8 +126,8 @@ test('upstream errors remain errors, including rate-limit headers', async t => {
 test('OAuth requires the matching state cookie before exchanging a code', async t => {
   const { base, calls } = await start(t);
   const login = await fetch(`${base}/api/auth/login`, { redirect: 'manual' });
-  const state = new URL(login.headers.get('Location')).searchParams.get('state');
-  const cookie = login.headers.get('Set-Cookie').split(';')[0];
+  const state = new URL(/** @type {string} */ (login.headers.get('Location'))).searchParams.get('state');
+  const cookie = /** @type {string} */ (login.headers.get('Set-Cookie')).split(';')[0];
   assert.equal(
     (await fetch(`${base}/api/auth/callback?code=code&state=wrong`, { headers: { Cookie: cookie } })).status,
     400
@@ -186,6 +191,10 @@ test('the general API limit applies across API routes', async t => {
 });
 
 // fetch() cannot set Host or Sec-Fetch-* headers, so these tests use node:http.
+/**
+ * @param {string} base
+ * @param {{ method?: string, endpoint: string, headers?: Record<string, string>, body?: string }} options
+ */
 function rawRequest(base, { method = 'GET', endpoint, headers = {}, body }) {
   const { hostname, port } = new URL(base);
   return new Promise((resolve, reject) => {
