@@ -9,9 +9,14 @@ permissions:
   contents: read
 
 jobs:
-  eslint:
+  checks:
+    name: npm run ${{ matrix.check }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [lint, typecheck, format:check]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -27,9 +32,7 @@ jobs:
       - run: npm ci
       - run: npm --prefix client ci
       - run: npm --prefix server ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run format:check
+      - run: npm run ${{ matrix.check }}
 
   shellcheck:
     runs-on: ubuntu-latest

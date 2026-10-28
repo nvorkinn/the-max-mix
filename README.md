@@ -66,9 +66,19 @@ flags and a separate profile; quit with Cmd+Q. Set `KIOSK_WINDOWED=true` for a
 override the defaults. It approximates the Pi's layout only; audio/DRM and touch
 still need the device.
 
-### Git hooks (optional)
+### Checks and Git hooks
 
-`npm install` at the repo root installs a [Husky](https://typicode.github.io/husky/) pre-commit hook that runs ESLint (`--max-warnings 0`, using each package's own config) on staged `.js`/`.jsx` files in `server/` and `client/` via lint-staged. It is skipped automatically when there is no `.git` directory or when dev dependencies are absent (CI, release builds). Set `HUSKY=0` or use `git commit --no-verify` to bypass it.
+`npm run check` runs everything CI's Lint workflow runs: `npm run lint` (ESLint with `--max-warnings 0` in `server/`,
+`client/` and the repository's own scripts and config files), `npm run typecheck` (TypeScript over JSDoc),
+`npm run format:check` (Prettier; `npm run format` fixes) and `npm run lint:shell` (ShellCheck over `scripts/*.sh`).
+ShellCheck is a system tool, not an npm package: install it with `brew install shellcheck` or `apt install shellcheck`
+(CI pins 0.11.0).
+
+`npm install` at the repo root also installs a [Husky](https://typicode.github.io/husky/) pre-commit hook. For staged
+files, lint-staged formats them with Prettier, lints them with ESLint (each package's own config) and checks shell
+scripts with ShellCheck when it is installed. Type checking covers the whole project, so it only runs in CI. The hook is
+skipped automatically when there is no `.git` directory or when dev dependencies are absent (CI, release builds). Set
+`HUSKY=0` or use `git commit --no-verify` to bypass it.
 
 ## Spotify configuration
 
