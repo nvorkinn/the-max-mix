@@ -2,15 +2,7 @@ import React, { useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2 } from 'lucide-react';
 import AudioVisualizer from './AudioVisualizer.jsx';
 
-export default function VinylPlayer({
-  playback,
-  isPlaying,
-  onPlayPause,
-  onNext,
-  onPrevious,
-  onSeek,
-  onVolumeChange
-}) {
+export default function VinylPlayer({ playback, isPlaying, onPlayPause, onNext, onPrevious, onSeek, onVolumeChange }) {
   const [isScratching, setIsScratching] = useState(false);
   const [scratchAngle, setScratchAngle] = useState(0);
   const [volume, setVolume] = useState(80);
@@ -18,7 +10,7 @@ export default function VinylPlayer({
   const item = playback?.item || playback?.track_window?.current_track || {};
   const title = item.name || item.title || 'Ready to Jam';
   const artist = item.artists
-    ? item.artists.map((a) => a.name).join(', ')
+    ? item.artists.map(a => a.name).join(', ')
     : item.artist || 'Select "Party Tablet" in Spotify';
   const albumArt =
     item.album?.images?.[0]?.url ||
@@ -29,21 +21,21 @@ export default function VinylPlayer({
   const durationMs = item.duration_ms || playback?.duration || 180000;
   const progressPercent = Math.min(100, Math.max(0, (progressMs / durationMs) * 100));
 
-  const formatTime = (ms) => {
+  const formatTime = ms => {
     const totalSecs = Math.floor(ms / 1000);
     const mins = Math.floor(totalSecs / 60);
     const secs = totalSecs % 60;
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  const handleProgressBarClick = (e) => {
+  const handleProgressBarClick = e => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const ratio = Math.max(0, Math.min(1, clickX / rect.width));
     onSeek(ratio * durationMs);
   };
 
-  const handleVolumeSlide = (e) => {
+  const handleVolumeSlide = e => {
     const val = Number(e.target.value);
     setVolume(val);
     if (onVolumeChange) {
@@ -53,19 +45,17 @@ export default function VinylPlayer({
 
   return (
     <div className="flex flex-col justify-between h-full p-3 select-none">
-      
       {/* Top Section: Interactive Touch Turntable */}
       <div className="relative flex items-center justify-center pt-1 pb-2">
         <div className="relative w-56 h-56 rounded-full flex items-center justify-center shadow-2xl bg-black/60 border border-white/10 backdrop-blur-md">
-          
           {/* Animated / Scratchable Vinyl Record */}
           <div
             onPointerDown={() => setIsScratching(true)}
             onPointerUp={() => setIsScratching(false)}
             onPointerLeave={() => setIsScratching(false)}
-            onPointerMove={(e) => {
+            onPointerMove={e => {
               if (isScratching) {
-                setScratchAngle((prev) => prev + e.movementX * 1.5);
+                setScratchAngle(prev => prev + e.movementX * 1.5);
               }
             }}
             className={`relative w-48 h-48 rounded-full flex items-center justify-center shadow-2xl transition-transform cursor-grab active:cursor-grabbing ${
@@ -86,11 +76,7 @@ export default function VinylPlayer({
 
             {/* Vinyl Center Label (Album Artwork) */}
             <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-emerald-500/50 shadow-inner flex items-center justify-center">
-              <img
-                src={albumArt}
-                alt="Album Art"
-                className="w-full h-full object-cover pointer-events-none"
-              />
+              <img src={albumArt} alt="Album Art" className="w-full h-full object-cover pointer-events-none" />
               {/* Spindle hole */}
               <div className="absolute w-3.5 h-3.5 rounded-full bg-neutral-900 border-2 border-white/80 shadow-sm" />
             </div>
@@ -105,13 +91,7 @@ export default function VinylPlayer({
               className={`tonearm ${isPlaying ? 'tonearm-playing' : 'tonearm-paused'}`}
             >
               <circle cx="15" cy="15" r="9" fill="#333" stroke="#888" strokeWidth="2" />
-              <path
-                d="M 15 15 L 25 70 L 40 95"
-                fill="none"
-                stroke="#d1d5db"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-              />
+              <path d="M 15 15 L 25 70 L 40 95" fill="none" stroke="#d1d5db" strokeWidth="3.5" strokeLinecap="round" />
               <rect x="36" y="92" width="10" height="15" rx="2" fill="#10b981" />
             </svg>
           </div>
@@ -125,12 +105,8 @@ export default function VinylPlayer({
 
       {/* Track Info Marquee */}
       <div className="text-center px-3 py-1">
-        <h2 className="text-xl font-black tracking-tight text-white glow-text truncate">
-          {title}
-        </h2>
-        <p className="text-xs font-semibold text-neutral-300 mt-0.5 truncate">
-          {artist}
-        </p>
+        <h2 className="text-xl font-black tracking-tight text-white glow-text truncate">{title}</h2>
+        <p className="text-xs font-semibold text-neutral-300 mt-0.5 truncate">{artist}</p>
       </div>
 
       {/* Bottom Section: Scrubber & Transport Controls */}

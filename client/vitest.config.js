@@ -11,7 +11,13 @@ export default defineConfig({
       include: ['src/**/*.{js,jsx}'],
       exclude: ['src/**/*.test.{js,jsx}', 'src/test/**', 'src/main.jsx'],
       reporter: ['text-summary', 'lcov', 'json-summary'],
-      reportsDirectory: './coverage'
+      reportsDirectory: './coverage',
+      thresholds: {
+        lines: 92,
+        statements: 90,
+        functions: 88,
+        branches: 85
+      }
     }
   }
 });

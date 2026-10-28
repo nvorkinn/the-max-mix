@@ -8,7 +8,6 @@ export default function QRCodeModal({ isOpen, onClose, remoteUrl }) {
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
       <div className="bg-linear-to-b from-neutral-900 to-neutral-950 border border-white/20 rounded-3xl p-6 max-w-sm w-full text-center relative shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -22,18 +21,11 @@ export default function QRCodeModal({ isOpen, onClose, remoteUrl }) {
           <Sparkles className="w-5 h-5 animate-pulse" />
           <h3 className="text-lg font-black text-white">Join the Jam Session!</h3>
         </div>
-        <p className="text-xs text-neutral-400 mb-4">
-          Scan to queue songs & send live emoji reactions
-        </p>
+        <p className="text-xs text-neutral-400 mb-4">Scan to queue songs & send live emoji reactions</p>
 
         {/* QR Code Container */}
         <div className="p-4 bg-white rounded-2xl inline-block shadow-[0_0_30px_rgba(16,185,129,0.3)] border-4 border-emerald-500/30">
-          <QRCodeSVG
-            value={remoteUrl || 'http://localhost:5173/remote'}
-            size={180}
-            level="H"
-            includeMargin={false}
-          />
+          <QRCodeSVG value={remoteUrl || 'http://localhost:5173/remote'} size={180} level="H" includeMargin={false} />
         </div>
 
         {/* URL Link */}

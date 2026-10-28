@@ -10,6 +10,8 @@ import { extractPalette } from '../utils/colorExtractor.js';
 import { AudioLines, Clock, Settings, Speaker, ArrowUpRight } from 'lucide-react';
 import { requestJSON, postJSON } from '../utils/api.js';
 
+const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
 export default function TabletView() {
   const {
     isReady,
@@ -31,7 +33,7 @@ export default function TabletView() {
   } = useSpotifyPlayer();
 
   const [queue, setQueue] = useState([]);
-  const [currentTime, setCurrentTime] = useState('');
+  const [currentTime, setCurrentTime] = useState(formatClock);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSpeakerModalOpen, setIsSpeakerModalOpen] = useState(false);
   const [isJamSettingsOpen, setIsJamSettingsOpen] = useState(false);
@@ -39,7 +41,7 @@ export default function TabletView() {
   const [toastMessage, setToastMessage] = useState(null);
   const [theme, setTheme] = useState(() => (localStorage.getItem('maxmix_theme') === 'minimal' ? 'minimal' : 'neon'));
 
-  const handleThemeChange = (newTheme) => {
+  const handleThemeChange = newTheme => {
     setTheme(newTheme);
     localStorage.setItem('maxmix_theme', newTheme);
     showToast(`Skin updated to ${newTheme === 'minimal' ? 'Paper' : 'Studio'}`);
@@ -56,21 +58,23 @@ export default function TabletView() {
 
   // Clock
   useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
+    const interval = setInterval(() => setCurrentTime(formatClock()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    if (!isDemoMode && !isAuthenticated) {
+  // Drop the queue and its error as soon as polling stops (adjusted during render, not in an effect).
+  const canPollQueue = isDemoMode || isAuthenticated;
+  const [couldPollQueue, setCouldPollQueue] = useState(canPollQueue);
+  if (couldPollQueue !== canPollQueue) {
+    setCouldPollQueue(canPollQueue);
+    if (!canPollQueue) {
       setQueue([]);
       setQueueError(null);
-      return;
     }
+  }
+
+  useEffect(() => {
+    if (!canPollQueue) return;
     let cancelled = false;
     let timer;
     let failures = 0;
@@ -90,25 +94,28 @@ export default function TabletView() {
       if (!cancelled) timer = setTimeout(poll, delay);
     };
     poll();
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [currentTrack?.id, isDemoMode, isAuthenticated]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [currentTrack?.id, canPollQueue]);
 
   // Dynamic ambient palette extraction from album art
   const artUrl = currentTrack?.album?.images?.[0]?.url;
   useEffect(() => {
     if (artUrl) {
-      extractPalette(artUrl).then((colors) => {
+      extractPalette(artUrl).then(colors => {
         setPalette(colors);
       });
     }
   }, [artUrl]);
 
-  const showToast = (msg) => {
+  const showToast = msg => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleReorderQueue = async (newQueue) => {
+  const handleReorderQueue = async newQueue => {
     try {
       const data = await postJSON('/api/queue/reorder', { queue: newQueue });
       setQueue(data.queue);
@@ -135,25 +142,39 @@ export default function TabletView() {
     <div
       className="tablet-container"
       data-theme={theme}
-      style={/** @type {import('react').CSSProperties} */ ({
-        '--ambient-primary': palette.primary,
-        '--ambient-secondary': palette.secondary
-      })}
+      style={
+        /** @type {import('react').CSSProperties} */ ({
+          '--ambient-primary': palette.primary,
+          '--ambient-secondary': palette.secondary
+        })
+      }
     >
       {/* 60 FPS Interactive Touch Ripple Canvas */}
       <TouchRipples theme={theme} />
 
       <header className="app-header">
         <div className="brand">
-          <div className="brand-mark"><AudioLines size={22} strokeWidth={2.5} /></div>
+          <div className="brand-mark">
+            <AudioLines size={22} strokeWidth={2.5} />
+          </div>
           <div className="brand-copy">
-            <h1>THE MAX MIX<span className="brand-dot">.</span></h1>
+            <h1>
+              THE MAX MIX<span className="brand-dot">.</span>
+            </h1>
             <span>Your people. Your soundtrack.</span>
           </div>
         </div>
         <div className="session-status" role="status">
           <span className={`status-dot ${isReady ? '' : 'status-dot-idle'}`} />
-          {isDemoMode ? 'Demo session' : isLoading ? 'Connecting...' : isReady ? playbackState.device.name : isAuthenticated ? 'Select a Spotify device' : 'Sign in to Spotify'}
+          {isDemoMode
+            ? 'Demo session'
+            : isLoading
+              ? 'Connecting...'
+              : isReady
+                ? playbackState.device.name
+                : isAuthenticated
+                  ? 'Select a Spotify device'
+                  : 'Sign in to Spotify'}
         </div>
         <div className="header-actions">
           <button
@@ -195,7 +216,7 @@ export default function TabletView() {
             onNext={nextTrack}
             onPrevious={previousTrack}
             onSeek={seek}
-            onVolumeChange={(vol) => setVolume(vol / 100)}
+            onVolumeChange={vol => setVolume(vol / 100)}
             theme={theme}
             isDemoMode={isDemoMode}
             controlsEnabled={(isDemoMode || isAuthenticated) && !playbackState?.device?.is_restricted}
@@ -216,28 +237,36 @@ export default function TabletView() {
       </main>
 
       <footer className="app-footer">
-        <span><span className="status-dot" /> {isDemoMode ? 'DEMO / simulated playback' : playbackMode === 'remote' ? 'Spotify Connect remote' : 'Spotify browser player'}</span>
-        <span className="footer-clock"><Clock size={12} /> {currentTime}</span>
+        <span>
+          <span className="status-dot" />{' '}
+          {isDemoMode
+            ? 'DEMO / simulated playback'
+            : playbackMode === 'remote'
+              ? 'Spotify Connect remote'
+              : 'Spotify browser player'}
+        </span>
+        <span className="footer-clock">
+          <Clock size={12} /> {currentTime}
+        </span>
         <span>POWERED BY SPOTIFY</span>
       </footer>
 
       {toastMessage && (
-        <div className="app-toast" role="status">{toastMessage}</div>
+        <div className="app-toast" role="status">
+          {toastMessage}
+        </div>
       )}
 
       {/* Speaker Selector Modal (Bluetooth / Sonos / AirPlay) */}
       <SpeakerSelectorModal
         isOpen={isSpeakerModalOpen}
         onClose={() => setIsSpeakerModalOpen(false)}
-        onSelectSpeaker={(id) => transferPlayback(id)}
+        onSelectSpeaker={id => transferPlayback(id)}
         browserDeviceId={browserDeviceId}
         isDemoMode={isDemoMode}
       />
 
-      <JamSettingsModal
-        isOpen={isJamSettingsOpen}
-        onClose={() => setIsJamSettingsOpen(false)}
-      />
+      <JamSettingsModal isOpen={isJamSettingsOpen} onClose={() => setIsJamSettingsOpen(false)} />
 
       {/* General Settings Modal */}
       <SettingsModal

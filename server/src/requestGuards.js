@@ -17,12 +17,18 @@ function hostnameOf(hostHeader) {
  * including the access token; browsers always send the page's own domain as Host, so unknown names are refused.
  */
 export function hostGuard({ allowedHosts = [], machineName = os.hostname() } = {}) {
-  const names = new Set(['localhost', machineName.toLowerCase(), `${machineName.toLowerCase()}.local`,
-    ...allowedHosts.map(host => host.toLowerCase())]);
+  const names = new Set([
+    'localhost',
+    machineName.toLowerCase(),
+    `${machineName.toLowerCase()}.local`,
+    ...allowedHosts.map(host => host.toLowerCase())
+  ]);
   return (req, res, next) => {
     const hostname = hostnameOf(req.headers.host ?? '');
     if (hostname && (net.isIP(hostname) !== 0 || names.has(hostname))) return next();
-    return res.status(403).json({ error: 'Unrecognized host name. Open the app by IP address, localhost, or add the name to ALLOWED_HOSTS.' });
+    return res.status(403).json({
+      error: 'Unrecognized host name. Open the app by IP address, localhost, or add the name to ALLOWED_HOSTS.'
+    });
   };
 }
 
@@ -48,7 +54,9 @@ export function sameOriginWrites() {
   return (req, res, next) => {
     if (SAFE_METHODS.has(req.method)) return next();
     if (isCrossSite(req)) return res.status(403).json({ error: 'Cross-site requests are not allowed.' });
-    if (!req.is('application/json')) return res.status(415).json({ error: 'Send a JSON body with Content-Type: application/json.' });
+    if (!req.is('application/json')) {
+      return res.status(415).json({ error: 'Send a JSON body with Content-Type: application/json.' });
+    }
     return next();
   };
 }

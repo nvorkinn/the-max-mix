@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Users, Disc3, GripVertical, Play, ArrowUpRight, ListMusic, Headphones } from 'lucide-react';
 import { getDivaForUser } from '../utils/divas.js';
+import { trackKeys } from '../utils/trackKeys.js';
 import confetti from 'canvas-confetti';
 
 export default function SpotifyJamQueue({
@@ -15,11 +16,14 @@ export default function SpotifyJamQueue({
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [hoverIndex, setHoverIndex] = useState(null);
   const listRef = useRef(null);
+  const keys = trackKeys(queue);
   const queueRef = useRef(queue);
   const dragRef = useRef(null);
   const cleanupDragRef = useRef(null);
 
-  useEffect(() => { queueRef.current = queue; }, [queue]);
+  useEffect(() => {
+    queueRef.current = queue;
+  }, [queue]);
   useEffect(() => () => cleanupDragRef.current?.(), []);
 
   const moveTrack = async (from, to) => {
@@ -39,9 +43,9 @@ export default function SpotifyJamQueue({
     setDraggedIndex(index);
     setHoverIndex(index);
 
-    const handlePointerMove = (event) => {
+    const handlePointerMove = event => {
       const children = Array.from(listRef.current?.children || []);
-      const target = children.findIndex((child) => {
+      const target = children.findIndex(child => {
         const rect = child.getBoundingClientRect();
         return event.clientY >= rect.top && event.clientY <= rect.bottom;
       });
@@ -56,7 +60,7 @@ export default function SpotifyJamQueue({
       window.removeEventListener('pointercancel', handlePointerCancel);
       cleanupDragRef.current = null;
     };
-    const finish = (commit) => {
+    const finish = commit => {
       const drag = dragRef.current;
       cleanup();
       dragRef.current = null;
@@ -78,36 +82,62 @@ export default function SpotifyJamQueue({
     <div className="queue-panel">
       <div className="queue-heading">
         <div>
-          <span className="eyebrow"><ListMusic size={14} /> The shared soundtrack</span>
-          <h2>Up next<span className="queue-count">{String(queue.length).padStart(2, '0')}</span></h2>
+          <span className="eyebrow">
+            <ListMusic size={14} /> The shared soundtrack
+          </span>
+          <h2>
+            Up next<span className="queue-count">{String(queue.length).padStart(2, '0')}</span>
+          </h2>
         </div>
-        <span className="session-pill"><Headphones size={13} /> {isDemoMode ? 'Demo queue' : 'Spotify queue'}</span>
+        <span className="session-pill">
+          <Headphones size={13} /> {isDemoMode ? 'Demo queue' : 'Spotify queue'}
+        </span>
       </div>
 
       <div className="jam-invitation">
-        <div className="jam-icon"><Users size={20} /></div>
+        <div className="jam-icon">
+          <Users size={20} />
+        </div>
         <div className="jam-copy">
           <h3>Good music. Better company.</h3>
           <p>Start and manage a Jam in the Spotify app.</p>
         </div>
-        <button onClick={onOpenJamSettings} className="jam-start" aria-label="How to start a Jam in Spotify"><ArrowUpRight size={21} /></button>
+        <button onClick={onOpenJamSettings} className="jam-start" aria-label="How to start a Jam in Spotify">
+          <ArrowUpRight size={21} />
+        </button>
       </div>
 
-      {error && <p role="alert" className="queue-error">{error}</p>}
-      <div className="queue-columns" aria-hidden="true"><span>#</span><span>TRACK / ARTIST</span><span>{isDemoMode ? 'DEMO GUEST' : 'IN SPOTIFY'}</span></div>
+      {error && (
+        <p role="alert" className="queue-error">
+          {error}
+        </p>
+      )}
+      <div className="queue-columns" aria-hidden="true">
+        <span>#</span>
+        <span>TRACK / ARTIST</span>
+        <span>{isDemoMode ? 'DEMO GUEST' : 'IN SPOTIFY'}</span>
+      </div>
       {queue.length === 0 ? (
         <div className="queue-empty">
-          <div className="empty-record"><Disc3 size={32} strokeWidth={1} /></div>
+          <div className="empty-record">
+            <Disc3 size={32} strokeWidth={1} />
+          </div>
           <h3>A little quiet in here.</h3>
-          <p>Add a track in Spotify.<br />Your next great discovery goes here.</p>
+          <p>
+            Add a track in Spotify.
+            <br />
+            Your next great discovery goes here.
+          </p>
         </div>
       ) : (
         <div ref={listRef} className="queue-list" role="list" aria-label="Track queue">
           {queue.map((track, idx) => {
             const title = track.name || track.title;
-            const albumArt = track.album?.images?.[0]?.url || track.albumArt ||
+            const albumArt =
+              track.album?.images?.[0]?.url ||
+              track.albumArt ||
               'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=400&auto=format&fit=crop&q=80';
-            const artist = track.artists ? track.artists.map((a) => a.name).join(', ') : track.artist || 'Unknown artist';
+            const artist = track.artists ? track.artists.map(a => a.name).join(', ') : track.artist || 'Unknown artist';
             const rawAddedBy = track.added_by || track.addedBy || {};
             const guestName = isDemoMode ? rawAddedBy.name : null;
             const assignedDiva = getDivaForUser(guestName || '', idx, theme);
@@ -115,56 +145,81 @@ export default function SpotifyJamQueue({
 
             return (
               <div
-                key={`${track.id || track.uri || title}-${idx}`}
+                key={keys[idx]}
                 role="listitem"
                 className={`queue-track ${idx === 0 ? 'is-next' : ''} ${draggedIndex === idx ? 'is-dragging' : ''} ${hoverIndex === idx && draggedIndex !== null && draggedIndex !== idx ? 'is-drop-target' : ''}`}
               >
-                {isDemoMode ? <button
-                  className="queue-play"
-                  aria-label={`Play ${title} now`}
-                  onClick={() => {
-                    confetti({ particleCount: 18, spread: 45, origin: { x: 0.65, y: 0.4 } });
-                    onPlaySongNow?.(track.id || track.uri, track);
-                  }}
-                >
-                  <span className="queue-number">{String(idx + 1).padStart(2, '0')}</span>
-                  <Play className="queue-play-icon" size={14} fill="currentColor" />
-                </button> : <span className="queue-play queue-number">{String(idx + 1).padStart(2, '0')}</span>}
+                {isDemoMode ? (
+                  <button
+                    className="queue-play"
+                    aria-label={`Play ${title} now`}
+                    onClick={() => {
+                      confetti({ particleCount: 18, spread: 45, origin: { x: 0.65, y: 0.4 } });
+                      onPlaySongNow?.(track.id || track.uri, track);
+                    }}
+                  >
+                    <span className="queue-number">{String(idx + 1).padStart(2, '0')}</span>
+                    <Play className="queue-play-icon" size={14} fill="currentColor" />
+                  </button>
+                ) : (
+                  <span className="queue-play queue-number">{String(idx + 1).padStart(2, '0')}</span>
+                )}
                 <img className="queue-art" src={albumArt} alt="" />
                 <div className="queue-track-copy">
-                  <div className="queue-title"><h3 title={title}>{title}</h3>{idx === 0 && <span className="next-label">NEXT</span>}</div>
+                  <div className="queue-title">
+                    <h3 title={title}>{title}</h3>
+                    {idx === 0 && <span className="next-label">NEXT</span>}
+                  </div>
                   <p title={artist}>{artist}</p>
                 </div>
-                <span className="queue-duration">{seconds > 0 ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '--:--'}</span>
-                {guestName && <div className="queue-guest" aria-label={`Demo guest ${guestName}`} title={`Demo guest ${guestName}`}>
-                  <img
-                    src={rawAddedBy.avatar || assignedDiva.image}
-                    alt=""
-                    onError={(e) => { e.currentTarget.src = assignedDiva.image; }}
-                  />
-                  <span>{guestName}</span>
-                </div>}
-                {isDemoMode ? <button
-                  className="queue-drag"
-                  aria-label={`Reorder ${title}`}
-                  aria-describedby="queue-reorder-help"
-                  onPointerDown={(e) => handleHandlePointerDown(e, idx)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      const target = idx + (e.key === 'ArrowUp' ? -1 : 1);
-                      moveTrack(idx, target).then(success => {
-                        if (success) {
-                          requestAnimationFrame(() => {
-                            listRef.current?.children[target]?.querySelector('.queue-drag')?.focus();
-                          });
-                        }
-                      });
-                    }
-                  }}
-                >
-                  <GripVertical size={17} />
-                </button> : <a className="queue-link" href={track.external_urls?.spotify || 'https://open.spotify.com'} target="_blank" rel="noreferrer" aria-label={`Open ${title} in Spotify`}><ArrowUpRight size={16} /></a>}
+                <span className="queue-duration">
+                  {seconds > 0 ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '--:--'}
+                </span>
+                {guestName && (
+                  <div className="queue-guest" aria-label={`Demo guest ${guestName}`} title={`Demo guest ${guestName}`}>
+                    <img
+                      src={rawAddedBy.avatar || assignedDiva.image}
+                      alt=""
+                      onError={e => {
+                        e.currentTarget.src = assignedDiva.image;
+                      }}
+                    />
+                    <span>{guestName}</span>
+                  </div>
+                )}
+                {isDemoMode ? (
+                  <button
+                    className="queue-drag"
+                    aria-label={`Reorder ${title}`}
+                    aria-describedby="queue-reorder-help"
+                    onPointerDown={e => handleHandlePointerDown(e, idx)}
+                    onKeyDown={e => {
+                      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        const target = idx + (e.key === 'ArrowUp' ? -1 : 1);
+                        moveTrack(idx, target).then(success => {
+                          if (success) {
+                            requestAnimationFrame(() => {
+                              listRef.current?.children[target]?.querySelector('.queue-drag')?.focus();
+                            });
+                          }
+                        });
+                      }
+                    }}
+                  >
+                    <GripVertical size={17} />
+                  </button>
+                ) : (
+                  <a
+                    className="queue-link"
+                    href={track.external_urls?.spotify || 'https://open.spotify.com'}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Open ${title} in Spotify`}
+                  >
+                    <ArrowUpRight size={16} />
+                  </a>
+                )}
               </div>
             );
           })}
@@ -172,8 +227,19 @@ export default function SpotifyJamQueue({
       )}
 
       <div className="queue-footer">
-        <span id="queue-reorder-help">{isDemoMode ? <>Reorder demo tracks<span className="sr-only"> with a drag handle or its up and down arrow keys.</span></> : 'Reorder and manage tracks in Spotify'}</span>
-        <span>{queue.length} {queue.length === 1 ? 'track' : 'tracks'}{totalMinutes > 0 ? ` / ${totalMinutes} min` : ''}</span>
+        <span id="queue-reorder-help">
+          {isDemoMode ? (
+            <>
+              Reorder demo tracks<span className="sr-only"> with a drag handle or its up and down arrow keys.</span>
+            </>
+          ) : (
+            'Reorder and manage tracks in Spotify'
+          )}
+        </span>
+        <span>
+          {queue.length} {queue.length === 1 ? 'track' : 'tracks'}
+          {totalMinutes > 0 ? ` / ${totalMinutes} min` : ''}
+        </span>
       </div>
     </div>
   );

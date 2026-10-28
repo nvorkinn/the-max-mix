@@ -31,14 +31,15 @@ export default [
       'prefer-template': 'off',
       // Several files still import React explicitly.
       'no-unused-vars': ['error', { varsIgnorePattern: '^React$', caughtErrors: 'none' }],
-      // @eslint-react is stricter than eslint-plugin-react was (which does not support ESLint 10). These rules need
-      // behavior changes (fetch cancellation, effect state resets, stable keys) and are left off to keep the same bar.
-      // exhaustive-deps duplicates react-hooks/exhaustive-deps below.
-      '@eslint-react/set-state-in-effect': 'off',
-      '@eslint-react/use-state': 'off',
-      '@eslint-react/web-api-no-leaked-fetch': 'off',
-      '@eslint-react/no-array-index-key': 'off',
-      '@eslint-react/naming-convention-ref-name': 'off',
+      // @eslint-react's stricter rules (set-state-in-effect, use-state, web-api-no-leaked-fetch, no-array-index-key,
+      // naming-convention-ref-name, dom-no-unknown-property) are enforced as errors. exhaustive-deps is off only because it duplicates
+      // react-hooks/exhaustive-deps below.
+      '@eslint-react/set-state-in-effect': 'error',
+      '@eslint-react/use-state': 'error',
+      '@eslint-react/web-api-no-leaked-fetch': 'error',
+      '@eslint-react/no-array-index-key': 'error',
+      '@eslint-react/naming-convention-ref-name': 'error',
+      '@eslint-react/dom-no-unknown-property': 'error',
       '@eslint-react/exhaustive-deps': 'off',
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'error'

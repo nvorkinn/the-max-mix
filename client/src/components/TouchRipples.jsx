@@ -56,7 +56,7 @@ export default function TouchRipples({ theme = 'neon' }) {
       }
     };
 
-    const handlePointerDown = (e) => {
+    const handlePointerDown = e => {
       if (document.hidden) return;
       spawnRipple(e.clientX, e.clientY);
       if (!animFrameRef.current) animFrameRef.current = requestAnimationFrame(render);
