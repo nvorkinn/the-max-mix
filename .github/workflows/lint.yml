@@ -28,6 +28,7 @@ jobs:
       - run: npm --prefix client ci
       - run: npm --prefix server ci
       - run: npm run lint
+      - run: npm run typecheck
       - run: npm run format:check
 
   shellcheck:

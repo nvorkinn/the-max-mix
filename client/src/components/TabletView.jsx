@@ -142,10 +142,12 @@ export default function TabletView() {
     <div
       className="tablet-container"
       data-theme={theme}
-      style={{
-        '--ambient-primary': palette.primary,
-        '--ambient-secondary': palette.secondary
-      }}
+      style={
+        /** @type {import('react').CSSProperties} */ ({
+          '--ambient-primary': palette.primary,
+          '--ambient-secondary': palette.secondary
+        })
+      }
     >
       {/* 60 FPS Interactive Touch Ripple Canvas */}
       <TouchRipples theme={theme} />

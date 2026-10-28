@@ -15,6 +15,7 @@
     "install:all": "npm install && npm --prefix server install && npm --prefix client install",
     "lint": "npm --prefix server run lint && npm --prefix client run lint",
     "lint:shell": "shellcheck scripts/*.sh",
+    "typecheck": "npm --prefix server run typecheck && npm --prefix client run typecheck",
     "test:coverage": "npm --prefix server run test:coverage && npm --prefix client run test:coverage",
     "format": "prettier --write server/src server/test client/src \"*.json\" \"client/*.{js,json,html}\" \"server/*.{js,json}\" \".github/**/*.yml\"",
     "format:check": "prettier --check server/src server/test client/src \"*.json\" \"client/*.{js,json,html}\" \"server/*.{js,json}\" \".github/**/*.yml\"",
