@@ -138,7 +138,7 @@ export default function MobileRemoteView({ socket }) {
               type="text"
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
-              className="bg-transparent font-bold text-sm text-white focus:outline-none border-b border-transparent focus:border-emerald-400 max-w-[140px]"
+              className="bg-transparent font-bold text-sm text-white focus:outline-hidden border-b border-transparent focus:border-emerald-400 max-w-[140px]"
               placeholder="Your Name"
             />
           </div>
@@ -182,7 +182,7 @@ export default function MobileRemoteView({ socket }) {
                 <button
                   key={r.label}
                   onClick={() => handleSendReaction(r.emoji)}
-                  className="h-28 rounded-3xl bg-gradient-to-b from-neutral-800/80 to-neutral-900 border border-white/10 active:scale-95 active:border-emerald-400 transition-all flex flex-col items-center justify-center shadow-lg relative overflow-hidden group"
+                  className="h-28 rounded-3xl bg-linear-to-b from-neutral-800/80 to-neutral-900 border border-white/10 active:scale-95 active:border-emerald-400 transition-all flex flex-col items-center justify-center shadow-lg relative overflow-hidden group"
                 >
                   <span className="text-4xl group-active:scale-125 transition-transform">
                     {r.emoji}
@@ -267,7 +267,7 @@ export default function MobileRemoteView({ socket }) {
                 placeholder="Search tracks or artists..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-neutral-900 border border-white/20 rounded-2xl px-4 py-3 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-400"
+                className="flex-1 bg-neutral-900 border border-white/20 rounded-2xl px-4 py-3 text-sm text-white placeholder-neutral-500 focus:outline-hidden focus:border-emerald-400"
                 autoFocus
               />
               <button

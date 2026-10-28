@@ -7,7 +7,7 @@ export default function QRCodeModal({ isOpen, onClose, remoteUrl }) {
 
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-      <div className="bg-gradient-to-b from-neutral-900 to-neutral-950 border border-white/20 rounded-3xl p-6 max-w-sm w-full text-center relative shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-linear-to-b from-neutral-900 to-neutral-950 border border-white/20 rounded-3xl p-6 max-w-sm w-full text-center relative shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         
         {/* Close Button */}
         <button
