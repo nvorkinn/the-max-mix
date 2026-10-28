@@ -3,7 +3,9 @@ import { renderHook, act } from '@testing-library/react';
 
 const socket = vi.hoisted(() => ({
   handlers: {},
-  on: vi.fn(function on(event, fn) { this.handlers[event] = fn; }),
+  on: vi.fn(function on(event, fn) {
+    this.handlers[event] = fn;
+  }),
   emit: vi.fn(),
   disconnect: vi.fn()
 }));

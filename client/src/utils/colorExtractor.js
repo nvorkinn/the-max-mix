@@ -10,7 +10,7 @@ export async function extractPalette(imageUrl) {
 
   if (!imageUrl) return fallback;
 
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const img = new Image();
     img.crossOrigin = 'Anonymous';
     img.src = imageUrl;
@@ -22,9 +22,12 @@ export async function extractPalette(imageUrl) {
         canvas.width = 10;
         canvas.height = 10;
         ctx.drawImage(img, 0, 0, 10, 10);
-        
+
         const imageData = ctx.getImageData(0, 0, 10, 10).data;
-        let r = 0, g = 0, b = 0, count = 0;
+        let r = 0,
+          g = 0,
+          b = 0,
+          count = 0;
 
         for (let i = 0; i < imageData.length; i += 4) {
           // Ignore ultra-dark or ultra-white pixels to find vibrant tones

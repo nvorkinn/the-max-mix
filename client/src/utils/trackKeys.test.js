@@ -3,8 +3,14 @@ import { trackKeys } from './trackKeys.js';
 
 describe('trackKeys', () => {
   it('uses id, then uri, then name and artist', () => {
-    expect(trackKeys([{ id: 'a' }, { uri: 'spotify:x' }, { name: 'Song', artists: [{ name: 'A' }, { name: 'B' }] }, { title: 'T', artist: 'Z' }]))
-      .toEqual(['a', 'spotify:x', 'Song|A,B', 'T|Z']);
+    expect(
+      trackKeys([
+        { id: 'a' },
+        { uri: 'spotify:x' },
+        { name: 'Song', artists: [{ name: 'A' }, { name: 'B' }] },
+        { title: 'T', artist: 'Z' }
+      ])
+    ).toEqual(['a', 'spotify:x', 'Song|A,B', 'T|Z']);
   });
 
   it('keeps keys unique for repeated tracks without using the position', () => {

@@ -66,10 +66,10 @@ export default function ReactionCanvas({ socket }) {
 
     // Socket listener for new reactions
     if (socket) {
-      const handleReaction = (data) => {
+      const handleReaction = data => {
         // Spawn 3 to 5 particles per reaction for a lively pop!
         const count = 3;
-        const startX = Math.random() * (canvas.width * 0.7) + (canvas.width * 0.15);
+        const startX = Math.random() * (canvas.width * 0.7) + canvas.width * 0.15;
 
         for (let j = 0; j < count; j++) {
           particlesRef.current.push({
