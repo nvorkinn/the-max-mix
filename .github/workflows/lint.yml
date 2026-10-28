@@ -21,8 +21,10 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: |
+            package-lock.json
             client/package-lock.json
             server/package-lock.json
+      - run: npm ci
       - run: npm --prefix client ci
       - run: npm --prefix server ci
       - run: npm run lint
