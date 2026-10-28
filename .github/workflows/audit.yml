@@ -1,0 +1,23 @@
+name: Audit
+
+# Weekly dependency vulnerability scan of everything the lockfiles resolve, including dev tooling. It is not a pull
+# request check (a new advisory must not block unrelated PRs), so it is not listed in all-checks.yml; a failing run
+# notifies the repository owner instead. Run it by hand from the Actions tab with "Run workflow".
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm --prefix server audit --audit-level=moderate
+      - run: npm --prefix client audit --audit-level=moderate

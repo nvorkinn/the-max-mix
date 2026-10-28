@@ -82,10 +82,10 @@ export default function TabletView() {
         setQueue(data.queue);
         setQueueError(null);
         failures = 0;
-      } catch (error) {
+      } catch (caught) {
         if (cancelled) return;
-        setQueueError(error.message);
-        delay = Math.max(Math.min(60000, 10000 * 2 ** ++failures), error.retryAfter * 1000 || 0);
+        setQueueError(caught.message);
+        delay = Math.max(Math.min(60000, 10000 * 2 ** ++failures), caught.retryAfter * 1000 || 0);
       }
       if (!cancelled) timer = setTimeout(poll, delay);
     };
@@ -94,14 +94,14 @@ export default function TabletView() {
   }, [currentTrack?.id, isDemoMode, isAuthenticated]);
 
   // Dynamic ambient palette extraction from album art
+  const artUrl = currentTrack?.album?.images?.[0]?.url;
   useEffect(() => {
-    const artUrl = currentTrack?.album?.images?.[0]?.url;
     if (artUrl) {
       extractPalette(artUrl).then((colors) => {
         setPalette(colors);
       });
     }
-  }, [currentTrack?.album?.images?.[0]?.url]);
+  }, [artUrl]);
 
   const showToast = (msg) => {
     setToastMessage(msg);

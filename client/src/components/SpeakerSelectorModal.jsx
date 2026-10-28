@@ -14,9 +14,9 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
       const data = await requestJSON('/api/spotify/devices');
       setDevices(data.devices || []);
       setError(null);
-    } catch (error) {
+    } catch (caught) {
       setDevices([]);
-      setError(error.message);
+      setError(caught.message);
     } finally {
       setLoading(false);
     }
@@ -31,8 +31,8 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
     try {
       await onSelectSpeaker(deviceId);
       await fetchDevices();
-    } catch (error) {
-      setError(error.message);
+    } catch (caught) {
+      setError(caught.message);
     } finally {
       setSelecting(false);
     }
