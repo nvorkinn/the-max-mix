@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { requestJSON, postJSON } from './api.js';
 
+/**
+ * @param {unknown} body
+ * @param {{ ok?: boolean, status?: number, headers?: Record<string, string> }} [options]
+ */
 function mockResponse(body, { ok = true, status = 200, headers = {} } = {}) {
   return { ok, status, json: async () => body, headers: new Headers(headers) };
 }

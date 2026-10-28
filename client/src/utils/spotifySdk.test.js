@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const win = window; // Spotify globals are not part of the Window type
 
 describe('loadSpotifySDK', () => {
+  /** @type {typeof import('./spotifySdk.js').loadSpotifySDK} */
   let loadSpotifySDK;
 
   beforeEach(async () => {
