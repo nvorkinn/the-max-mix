@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { trackKeys } from '../utils/trackKeys.js';
 import { Search, Flame, Sparkles, Plus, ChevronUp, Music, PartyPopper } from 'lucide-react';
 
 const AVATARS = ['🎧', '💃', '⚡', '🥑', '🚀', '🍾', '🔥', '👑', '🦄', '🕺'];
@@ -23,7 +24,8 @@ export default function MobileRemoteView({ socket }) {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [queue, setQueue] = useState([]);
-  const [, setPlayback] = useState(null);
+  // /api/queue currently answers with an object, so don't assume an array before the queue tab renders.
+  const queueKeys = Array.isArray(queue) ? trackKeys(queue) : [];
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
@@ -34,8 +36,10 @@ export default function MobileRemoteView({ socket }) {
 
   // Initial fetch
   useEffect(() => {
-    fetch('/api/queue').then(r => r.json()).then(setQueue).catch(console.error);
-    fetch('/api/spotify/current').then(r => r.json()).then(setPlayback).catch(console.error);
+    const controller = new AbortController();
+    const ignoreAbort = (error) => { if (error.name !== 'AbortError') console.error(error); };
+    fetch('/api/queue', { signal: controller.signal }).then(r => r.json()).then(setQueue).catch(ignoreAbort);
+    return () => controller.abort();
   }, []);
 
   // Socket sync
@@ -46,13 +50,8 @@ export default function MobileRemoteView({ socket }) {
       setQueue(newQueue);
     });
 
-    socket.on('playback:state_changed', state => {
-      setPlayback(prev => ({ ...prev, ...state }));
-    });
-
     return () => {
       socket.off('queue:updated');
-      socket.off('playback:state_changed');
     };
   }, [socket]);
 
@@ -221,7 +220,7 @@ export default function MobileRemoteView({ socket }) {
             ) : (
               queue.map((track, idx) => (
                 <div
-                  key={track.id || idx}
+                  key={queueKeys[idx]}
                   className="flex items-center justify-between p-3 rounded-2xl bg-neutral-900/70 border border-white/10"
                 >
                   <div className="flex items-center space-x-3">
