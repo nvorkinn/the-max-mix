@@ -24,6 +24,7 @@ export function parseConfig(env) {
   return {
     port,
     host: env.HOST || '127.0.0.1',
+    allowedHosts: (env.ALLOWED_HOSTS || '').split(',').map(host => host.trim()).filter(Boolean),
     demoMode: env.DEMO_MODE === 'true',
     playbackMode,
     clientId: env.SPOTIFY_CLIENT_ID || '',

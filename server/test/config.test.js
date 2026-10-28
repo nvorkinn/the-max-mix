@@ -17,3 +17,8 @@ test('rejects misleading configuration instead of silently choosing a mode', () 
   ]) assert.throws(() => parseConfig(env));
   assert.equal(parseConfig({ PLAYBACK_MODE: 'remote', DEMO_MODE: 'true' }).demoMode, true);
 });
+
+test('ALLOWED_HOSTS is a trimmed comma-separated list', () => {
+  assert.deepEqual(parseConfig({}).allowedHosts, []);
+  assert.deepEqual(parseConfig({ ALLOWED_HOSTS: ' maxmix.lan, pi.local ,,' }).allowedHosts, ['maxmix.lan', 'pi.local']);
+});

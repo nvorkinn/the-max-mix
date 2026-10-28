@@ -92,9 +92,12 @@ test('installer fetches the latest release, renders units, preserves configurati
   assert.equal(await readFile(path.join(install, 'current/VERSION'), 'utf8'), 'v1.2.3\n');
   assert.equal(await readFile(path.join(install, 'current/server/.env'), 'utf8'), 'KEEP_EXISTING_CONFIG=true\n');
   const urls = (await readFile(path.join(temporary, 'curl-urls'), 'utf8')).trim().split('\n');
-  assert(urls.includes('https://github.com/test/repo/releases/latest'));
-  assert(urls.includes('https://github.com/test/repo/releases/download/v1.2.3/the-max-mix-v1.2.3.tar.gz'));
-  assert.equal(urls.filter(url => url.endsWith('.tar.gz')).length, 1, 'second run reuses the downloaded release');
+  const download = 'https://github.com/test/repo/releases/download/v1.2.3/the-max-mix-v1.2.3.tar.gz';
+  // The second run asks for the latest release again but reuses the downloaded one.
+  assert.deepEqual(urls, [
+    'https://github.com/test/repo/releases/latest', download, `${download}.sha256`,
+    'https://github.com/test/repo/releases/latest'
+  ]);
 
   const serverUnit = await readFile(path.join(temporary, 'the-max-mix.service'), 'utf8');
   assert.match(serverUnit, /User=kioskuser/);

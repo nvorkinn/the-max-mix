@@ -96,6 +96,12 @@ literal loopback address such as `127.0.0.1`; other callbacks require HTTPS. Use
 same hostname for sign-in and callback so the OAuth state cookie matches. Do not
 sign in from a phone using the Pi's loopback callback: it points to the phone.
 
+The server also protects itself from other websites open in a browser on the same network. State-changing
+requests must be same-origin JSON, and requests are refused unless the `Host` header is an IP address, `localhost`, the
+machine's own name (`<hostname>` or `<hostname>.local`), or a name listed in `ALLOWED_HOSTS` (comma-separated, in
+`server/.env`). Open the app by IP address or add any custom DNS name to `ALLOWED_HOSTS`; otherwise you will see a 403
+"Unrecognized host name" page.
+
 Refresh tokens are saved atomically with owner-only permissions in
 `~/.local/share/the-max-mix/spotify-token.json`, or `DATA_DIR` when configured.
 Access tokens and the client secret are not written to that file. The installed

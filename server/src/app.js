@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { SpotifyError } from './spotify.js';
 import { createDemo } from './demo.js';
+import { hostGuard, sameOriginWrites } from './requestGuards.js';
 
 // Requests per minute per client address. The UI polls playback and the queue every few seconds, so these are far above
 // normal use; they exist to keep a misbehaving client on the network from hammering the server or Spotify's API.
@@ -24,6 +25,8 @@ export function createApp({ config, spotify, distPath = fileURLToPath(new URL('.
   const app = express();
   const demo = createDemo();
   app.disable('x-powered-by');
+  app.use(hostGuard({ allowedHosts: config.allowedHosts }));
+  app.use('/api', sameOriginWrites());
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
   app.use('/api', limiter(limits.api));
