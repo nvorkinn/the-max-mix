@@ -1,0 +1,17 @@
+name: Lint
+
+# Placeholder: registered now so all-checks.yml (read from main) can list it. The real linting lands in a follow-up.
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: echo "Lint is a placeholder for now."

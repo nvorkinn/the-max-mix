@@ -11,6 +11,9 @@ still need a manual merge. Fork pull requests get no check.
 `tests.yml` runs lint, tests and the production build on every pull request and push to `main`; it is listed in
 `all-checks.yml`, so Global PR Status waits for it.
 
+`lint.yml` (**Lint**) is a placeholder for now: it only echoes a message. It is listed in `all-checks.yml` so the real
+linting can be added later and gate Global PR Status.
+
 `audit.yml` scans the lockfiles weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in
 `all-checks.yml`.
 
