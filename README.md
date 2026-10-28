@@ -143,7 +143,9 @@ bash install-kiosk.sh            # the latest release, or: bash install-kiosk.sh
 
 `latest` skips prereleases; pass a tag such as `v1.3.0-rc.1` to install one. Releases are
 unpacked to `~/the-max-mix/releases/<version>`, and `~/the-max-mix/current` points at the active one
-(`KIOSK_INSTALL_DIR` and `KIOSK_REPO` override the location and source).
+(`KIOSK_INSTALL_DIR` and `KIOSK_REPO` override the location and source). After each install the
+three most recently activated releases are kept for quick rollback and the rest are deleted; set
+`KIOSK_KEEP_RELEASES` to keep a different number (the active release is always kept).
 
 Do **not** invoke the installer with sudo. It uses sudo only to install OS packages
 and the system service. It:
@@ -201,7 +203,7 @@ curl --fail http://127.0.0.1:3000/api/health
 systemctl --user restart the-max-mix-kiosk.service
 
 # Update to the latest release (or roll back with a tag: bash ... v1.2.3) without
-# resetting login or config; the previous release stays in ~/the-max-mix/releases
+# resetting login or config; recent releases stay in ~/the-max-mix/releases
 bash ~/the-max-mix/current/scripts/install-kiosk.sh
 systemctl --user restart the-max-mix-kiosk.service
 ```
