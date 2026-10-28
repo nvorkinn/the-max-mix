@@ -5,6 +5,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { SpotifyError, SpotifyService } from '../src/spotify.js';
 
+/**
+ * @param {import('node:test').TestContext} t
+ * @param {(url: string, init: any) => Promise<Response>} fetchImpl
+ */
 async function setup(t, fetchImpl) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'max-mix-auth-'));
   t.after(() => rm(dataDir, { recursive: true, force: true }));
@@ -13,15 +17,21 @@ async function setup(t, fetchImpl) {
     clientId: 'test-client',
     clientSecret: 'test-secret',
     redirectUri: 'http://127.0.0.1:3000/api/auth/callback',
-    fetchImpl
+    fetchImpl: /** @type {typeof fetch} */ (/** @type {unknown} */ (fetchImpl))
   };
   const service = new SpotifyService(options);
   await service.initialize();
   return { service, options };
 }
+/**
+ * @param {unknown} body
+ * @param {number} [status]
+ * @param {Record<string, string>} [headers]
+ */
 const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers });
 
 test('OAuth persists only the refresh token with owner-only permissions and restores after restart', async t => {
+  /** @type {{ url: string, init: any }[]} */
   const calls = [];
   const { service, options } = await setup(t, async (url, init) => {
     calls.push({ url, init });

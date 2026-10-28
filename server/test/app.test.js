@@ -15,8 +15,9 @@ import { SpotifyError } from '../src/spotify.js';
  */
 async function start(
   t,
-  { demoMode = false, overrides = {}, playbackMode = 'remote', distPath, rateLimits, allowedHosts } = {}
+  { demoMode = false, overrides = {}, playbackMode = 'remote', distPath, rateLimits, allowedHosts = [] } = {}
 ) {
+  /** @type {unknown[][]} */
   const calls = [];
   const spotify = {
     isConfigured: () => true,
@@ -25,11 +26,14 @@ async function start(
     getPlaybackState: async () => null,
     getQueue: async () => ({ currently_playing: null, queue: [] }),
     spotifyFetch: async () => ({ devices: [] }),
+    /** @param {string} state */
     getAuthUrl: state => `https://accounts.spotify.com/authorize?state=${state}`,
+    /** @param {string} code */
     handleAuthCallback: async code => calls.push(['auth', code]),
     ...Object.fromEntries(
       ['play', 'pause', 'next', 'previous', 'seek', 'setVolume', 'transferPlayback'].map(action => [
         action,
+        /** @param {unknown[]} args */
         async (...args) => calls.push([action, ...args])
       ])
     ),
@@ -37,7 +41,7 @@ async function start(
   };
   const app = createApp({
     config: { demoMode, playbackMode, port: 3000, allowedHosts },
-    spotify,
+    spotify: /** @type {import('../src/spotify.js').SpotifyService} */ (/** @type {unknown} */ (spotify)),
     distPath,
     rateLimits
   });
@@ -45,6 +49,10 @@ async function start(
   await once(server, 'listening');
   t.after(() => new Promise(resolve => server.close(resolve)));
   const base = `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`;
+  /**
+   * @param {string} endpoint
+   * @param {unknown} [body]
+   */
   const request = async (endpoint, body) => {
     const response = await fetch(base + endpoint, {
       method: body === undefined ? 'GET' : 'POST',
@@ -193,7 +201,7 @@ test('the general API limit applies across API routes', async t => {
 // fetch() cannot set Host or Sec-Fetch-* headers, so these tests use node:http.
 /**
  * @param {string} base
- * @param {{ method?: string, endpoint: string, headers?: Record<string, string>, body?: string }} options
+ * @param {{ method?: string, endpoint: string, headers?: http.OutgoingHttpHeaders, body?: string }} options
  */
 function rawRequest(base, { method = 'GET', endpoint, headers = {}, body }) {
   const { hostname, port } = new URL(base);
@@ -213,6 +221,7 @@ function rawRequest(base, { method = 'GET', endpoint, headers = {}, body }) {
 test('state-changing requests from other websites are refused and have no effect', async t => {
   const { base, request } = await start(t, { demoMode: true });
   const json = { 'Content-Type': 'application/json' };
+  /** @param {http.OutgoingHttpHeaders} headers */
   const pause = headers => rawRequest(base, { method: 'POST', endpoint: '/api/spotify/pause', headers, body: '{}' });
   const playing = async () => (await request('/api/spotify/current')).data.is_playing;
 
@@ -255,6 +264,7 @@ test('safe requests are not blocked as cross-site, so the Spotify sign-in redire
 
 test('unknown Host headers are refused, while IP addresses, localhost and configured names work', async t => {
   const { base } = await start(t, { demoMode: true, allowedHosts: ['maxmix.example.lan'] });
+  /** @param {string} host */
   const get = host => rawRequest(base, { endpoint: '/api/token', headers: { Host: host } });
   for (const host of [
     'evil.example',

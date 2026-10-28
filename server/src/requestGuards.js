@@ -3,6 +3,7 @@ import os from 'node:os';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
+/** @param {string} hostHeader */
 function hostnameOf(hostHeader) {
   try {
     return new URL(`http://${hostHeader}`).hostname.replace(/^\[|\]$/g, '').toLowerCase();
@@ -16,6 +17,7 @@ function hostnameOf(hostHeader) {
  * page can point its own domain at the kiosk's address (DNS rebinding) and then read the API as if it were same-origin,
  * including the access token; browsers always send the page's own domain as Host, so unknown names are refused.
  */
+/** @param {{ allowedHosts?: string[], machineName?: string }} [options] */
 export function hostGuard({ allowedHosts = [], machineName = os.hostname() } = {}) {
   const names = new Set([
     'localhost',
@@ -23,6 +25,7 @@ export function hostGuard({ allowedHosts = [], machineName = os.hostname() } = {
     `${machineName.toLowerCase()}.local`,
     ...allowedHosts.map(host => host.toLowerCase())
   ]);
+  /** @type {import('express').RequestHandler} */
   return (req, res, next) => {
     const hostname = hostnameOf(req.headers.host ?? '');
     if (hostname && (net.isIP(hostname) !== 0 || names.has(hostname))) return next();
@@ -32,6 +35,7 @@ export function hostGuard({ allowedHosts = [], machineName = os.hostname() } = {
   };
 }
 
+/** @param {import('express').Request} req */
 function isCrossSite(req) {
   const site = req.get('Sec-Fetch-Site');
   if (site) return !['same-origin', 'none'].includes(site);
@@ -51,6 +55,7 @@ function isCrossSite(req) {
  * or form posts without a preflight, but not application/json.
  */
 export function sameOriginWrites() {
+  /** @type {import('express').RequestHandler} */
   return (req, res, next) => {
     if (SAFE_METHODS.has(req.method)) return next();
     if (isCrossSite(req)) return res.status(403).json({ error: 'Cross-site requests are not allowed.' });

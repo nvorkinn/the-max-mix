@@ -16,15 +16,21 @@ export class SpotifyError extends Error {
 }
 
 export class SpotifyService {
+  /**
+   * @param {{ clientId: string, clientSecret: string, redirectUri: string, dataDir: string, fetchImpl?: typeof fetch }} options
+   */
   constructor({ clientId, clientSecret, redirectUri, dataDir, fetchImpl = fetch }) {
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.redirectUri = redirectUri;
     this.tokenFile = path.join(dataDir, 'spotify-token.json');
     this.fetch = fetchImpl;
+    /** @type {string | null} */
     this.accessToken = null;
+    /** @type {string | null} */
     this.refreshToken = null;
     this.tokenExpiresAt = 0;
+    /** @type {Promise<string> | null} */
     this.refreshPromise = null;
   }
 
@@ -52,6 +58,7 @@ export class SpotifyService {
     return Boolean(this.accessToken || this.refreshToken);
   }
 
+  /** @param {string} state */
   getAuthUrl(state) {
     if (!this.isConfigured()) {
       throw new SpotifyError('Configure SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET before signing in.', 400);
@@ -67,6 +74,7 @@ export class SpotifyService {
     return `https://accounts.spotify.com/authorize?${params}`;
   }
 
+  /** @param {string} refreshToken */
   async storeRefreshToken(refreshToken) {
     await mkdir(path.dirname(this.tokenFile), { recursive: true, mode: 0o700 });
     const temporaryFile = `${this.tokenFile}.${randomUUID()}.tmp`;
@@ -80,6 +88,10 @@ export class SpotifyService {
     }
   }
 
+  /**
+   * @param {Record<string, string>} parameters
+   * @returns {Promise<string>}
+   */
   async exchangeToken(parameters) {
     const response = await this.fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
@@ -115,11 +127,13 @@ export class SpotifyService {
     if (!refreshToken) throw new SpotifyError('Spotify did not provide a refresh token. Sign in again.');
     await this.storeRefreshToken(refreshToken);
     this.refreshToken = refreshToken;
-    this.accessToken = data.access_token;
+    const accessToken = data.access_token;
+    this.accessToken = accessToken;
     this.tokenExpiresAt = Date.now() + data.expires_in * 1000 - 60000;
-    return this.accessToken;
+    return accessToken;
   }
 
+  /** @param {string} code */
   async handleAuthCallback(code) {
     return this.exchangeToken({ grant_type: 'authorization_code', code, redirect_uri: this.redirectUri });
   }
@@ -138,13 +152,23 @@ export class SpotifyService {
     return this.refreshPromise;
   }
 
+  /**
+   * @param {string} endpoint
+   * @param {RequestInit} [options]
+   * @param {boolean} [retry]
+   * @returns {Promise<any>} the parsed Spotify response, or null for 204
+   */
   async spotifyFetch(endpoint, options = {}, retry = true) {
     const token = await this.getValidAccessToken();
     if (!token) throw new SpotifyError('Sign in to Spotify in Settings to control playback.', 401);
     const response = await this.fetch(`https://api.spotify.com/v1${endpoint}`, {
       ...options,
       signal: AbortSignal.timeout(15000),
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...options.headers }
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        .../** @type {Record<string, string> | undefined} */ (options.headers)
+      }
     });
     if (response.status === 401 && retry && this.refreshToken) {
       this.tokenExpiresAt = 0;
@@ -152,6 +176,7 @@ export class SpotifyService {
     }
     if (response.status === 204) return null;
     if (!response.ok) {
+      /** @type {Record<number, string>} */
       const messages = {
         401: 'Spotify authorization failed. Sign in again in Settings.',
         403: 'Spotify denied this action. Check Premium, app access, and device restrictions.',
@@ -167,6 +192,10 @@ export class SpotifyService {
     return response.json();
   }
 
+  /**
+   * @param {string} deviceId
+   * @param {boolean} [play]
+   */
   transferPlayback(deviceId, play = false) {
     return this.spotifyFetch('/me/player', { method: 'PUT', body: JSON.stringify({ device_ids: [deviceId], play }) });
   }
@@ -189,9 +218,11 @@ export class SpotifyService {
   previous() {
     return this.spotifyFetch('/me/player/previous', { method: 'POST' });
   }
+  /** @param {number} position */
   seek(position) {
     return this.spotifyFetch(`/me/player/seek?position_ms=${position}`, { method: 'PUT' });
   }
+  /** @param {number} volume */
   setVolume(volume) {
     return this.spotifyFetch(`/me/player/volume?volume_percent=${volume}`, { method: 'PUT' });
   }

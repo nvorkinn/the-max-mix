@@ -3,12 +3,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+/** @param {NodeJS.ProcessEnv} [env] */
 export function loadConfig(env = process.env) {
   const result = dotenv.config({ path: fileURLToPath(new URL('../.env', import.meta.url)), processEnv: env });
   if (result.error && result.error.code !== 'ENOENT') throw result.error;
   return parseConfig(env);
 }
 
+/** @param {NodeJS.ProcessEnv} env */
 export function parseConfig(env) {
   const port = Number(env.PORT || 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be between 1 and 65535.');
