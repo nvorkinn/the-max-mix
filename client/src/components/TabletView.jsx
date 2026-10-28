@@ -10,6 +10,8 @@ import { extractPalette } from '../utils/colorExtractor.js';
 import { AudioLines, Clock, Settings, Speaker, ArrowUpRight } from 'lucide-react';
 import { requestJSON, postJSON } from '../utils/api.js';
 
+const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
 export default function TabletView() {
   const {
     isReady,
@@ -31,7 +33,7 @@ export default function TabletView() {
   } = useSpotifyPlayer();
 
   const [queue, setQueue] = useState([]);
-  const [currentTime, setCurrentTime] = useState('');
+  const [currentTime, setCurrentTime] = useState(formatClock);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSpeakerModalOpen, setIsSpeakerModalOpen] = useState(false);
   const [isJamSettingsOpen, setIsJamSettingsOpen] = useState(false);
@@ -56,21 +58,23 @@ export default function TabletView() {
 
   // Clock
   useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
+    const interval = setInterval(() => setCurrentTime(formatClock()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    if (!isDemoMode && !isAuthenticated) {
+  // Drop the queue and its error as soon as polling stops (adjusted during render, not in an effect).
+  const canPollQueue = isDemoMode || isAuthenticated;
+  const [couldPollQueue, setCouldPollQueue] = useState(canPollQueue);
+  if (couldPollQueue !== canPollQueue) {
+    setCouldPollQueue(canPollQueue);
+    if (!canPollQueue) {
       setQueue([]);
       setQueueError(null);
-      return;
     }
+  }
+
+  useEffect(() => {
+    if (!canPollQueue) return;
     let cancelled = false;
     let timer;
     let failures = 0;
@@ -91,7 +95,7 @@ export default function TabletView() {
     };
     poll();
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [currentTrack?.id, isDemoMode, isAuthenticated]);
+  }, [currentTrack?.id, canPollQueue]);
 
   // Dynamic ambient palette extraction from album art
   const artUrl = currentTrack?.album?.images?.[0]?.url;
