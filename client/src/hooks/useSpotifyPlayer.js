@@ -49,6 +49,8 @@ export function useSpotifyPlayer() {
     poll();
     return () => {
       cancelled = true;
+      // Intentionally the latest value: bumping the counter invalidates any in-flight request.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       playbackRequest.current++;
       clearTimeout(timer);
     };
