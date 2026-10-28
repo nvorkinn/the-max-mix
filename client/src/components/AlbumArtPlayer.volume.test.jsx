@@ -4,8 +4,8 @@ import AlbumArtPlayer from './AlbumArtPlayer.jsx';
 
 vi.mock('./AudioVisualizer.jsx', () => ({ default: () => null }));
 
-const withVolume = (volume_percent) => ({ device: { volume_percent, supports_volume: true } });
-const player = (playback) => <AlbumArtPlayer playback={playback} controlsEnabled />;
+const withVolume = volume_percent => ({ device: { volume_percent, supports_volume: true } });
+const player = playback => <AlbumArtPlayer playback={playback} controlsEnabled />;
 
 describe('AlbumArtPlayer volume', () => {
   it('starts at the device volume and follows device changes', () => {

@@ -13,16 +13,33 @@ vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
 
 import TabletView from './TabletView.jsx';
 
-const track = { id: 'tr1', name: 'Now Song', duration_ms: 1000, artists: [{ name: 'Art' }], album: { images: [{ url: 'http://art/a.jpg' }] } };
+const track = {
+  id: 'tr1',
+  name: 'Now Song',
+  duration_ms: 1000,
+  artists: [{ name: 'Art' }],
+  album: { images: [{ url: 'http://art/a.jpg' }] }
+};
 const queued = [{ id: 'q1', name: 'Queued One', artists: [{ name: 'Q' }], duration_ms: 1000 }];
 
 function setPlayer(overrides = {}) {
   player.current = {
-    isReady: true, playbackState: { is_playing: false, item: track, device: { name: 'Kitchen' } },
-    isAuthenticated: true, isDemoMode: false, isConfigured: true, isLoading: false,
-    playbackMode: 'remote', browserDeviceId: null, error: null,
-    refreshPlayback: vi.fn().mockResolvedValue(), togglePlay: vi.fn(), nextTrack: vi.fn(),
-    previousTrack: vi.fn(), seek: vi.fn(), setVolume: vi.fn(), transferPlayback: vi.fn().mockResolvedValue(),
+    isReady: true,
+    playbackState: { is_playing: false, item: track, device: { name: 'Kitchen' } },
+    isAuthenticated: true,
+    isDemoMode: false,
+    isConfigured: true,
+    isLoading: false,
+    playbackMode: 'remote',
+    browserDeviceId: null,
+    error: null,
+    refreshPlayback: vi.fn().mockResolvedValue(),
+    togglePlay: vi.fn(),
+    nextTrack: vi.fn(),
+    previousTrack: vi.fn(),
+    seek: vi.fn(),
+    setVolume: vi.fn(),
+    transferPlayback: vi.fn().mockResolvedValue(),
     ...overrides
   };
 }
@@ -93,11 +110,17 @@ describe('TabletView', () => {
     const rateLimited = Object.assign(new Error('Slow down'), { retryAfter: 30 });
     api.requestJSON.mockRejectedValueOnce(rateLimited).mockResolvedValue({ queue: queued });
     render(<TabletView />);
-    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
     expect(screen.getByRole('alert')).toHaveTextContent('Slow down');
-    await act(async () => { await vi.advanceTimersByTimeAsync(29000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(29000);
+    });
     expect(api.requestJSON).toHaveBeenCalledTimes(1);
-    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
     expect(api.requestJSON).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByRole('heading', { name: 'Queued One' })).toBeInTheDocument();
@@ -106,7 +129,9 @@ describe('TabletView', () => {
   it('stops polling on unmount', async () => {
     vi.useFakeTimers();
     const { unmount } = render(<TabletView />);
-    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
     unmount();
     await vi.advanceTimersByTimeAsync(60000);
     expect(api.requestJSON).toHaveBeenCalledTimes(1);
@@ -129,14 +154,18 @@ describe('TabletView', () => {
   it('persists the theme and toasts the change', async () => {
     vi.useFakeTimers();
     const { container } = render(<TabletView />);
-    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
     expect(container.firstChild).toHaveAttribute('data-theme', 'neon');
     fireEvent.click(screen.getByRole('button', { name: 'Open settings and skins' }));
     fireEvent.click(screen.getByRole('button', { name: /paper/i }));
     expect(container.firstChild).toHaveAttribute('data-theme', 'minimal');
     expect(localStorage.getItem('maxmix_theme')).toBe('minimal');
     expect(screen.getByText('Skin updated to Paper')).toBeInTheDocument();
-    act(() => { vi.advanceTimersByTime(3600); });
+    act(() => {
+      vi.advanceTimersByTime(3600);
+    });
     expect(screen.queryByText('Skin updated to Paper')).toBeNull();
   });
 
@@ -153,7 +182,13 @@ describe('TabletView', () => {
   });
 
   it('routes player controls to the hook, converting volume to 0..1', async () => {
-    setPlayer({ playbackState: { is_playing: true, item: { ...track, duration_ms: 1000 }, device: { name: 'K', volume_percent: 20 } } });
+    setPlayer({
+      playbackState: {
+        is_playing: true,
+        item: { ...track, duration_ms: 1000 },
+        device: { name: 'K', volume_percent: 20 }
+      }
+    });
     render(<TabletView />);
     await flush();
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
@@ -176,7 +211,13 @@ describe('TabletView', () => {
   });
 
   describe('demo mode', () => {
-    beforeEach(() => setPlayer({ isDemoMode: true, isAuthenticated: false, playbackState: { is_playing: false, item: track, device: { name: 'Demo' } } }));
+    beforeEach(() =>
+      setPlayer({
+        isDemoMode: true,
+        isAuthenticated: false,
+        playbackState: { is_playing: false, item: track, device: { name: 'Demo' } }
+      })
+    );
 
     it('reorders the queue through the API and toasts the result', async () => {
       api.requestJSON.mockResolvedValue({ queue: [{ ...queued[0] }, { id: 'q2', name: 'Two', duration_ms: 1000 }] });
@@ -185,7 +226,9 @@ describe('TabletView', () => {
       await flush();
       fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Two' }), { key: 'ArrowUp' });
       await flush();
-      expect(api.postJSON).toHaveBeenCalledWith('/api/queue/reorder', { queue: expect.arrayContaining([expect.objectContaining({ id: 'q2' })]) });
+      expect(api.postJSON).toHaveBeenCalledWith('/api/queue/reorder', {
+        queue: expect.arrayContaining([expect.objectContaining({ id: 'q2' })])
+      });
       expect(screen.getByText('Demo queue order updated.')).toBeInTheDocument();
     });
 
@@ -223,7 +266,9 @@ describe('TabletView', () => {
   });
 
   it('selects a speaker through transferPlayback', async () => {
-    api.requestJSON.mockImplementation(async (url) => (url === '/api/queue' ? { queue: [] } : { devices: [{ id: 'dev1', name: 'Soundbar' }] }));
+    api.requestJSON.mockImplementation(async url =>
+      url === '/api/queue' ? { queue: [] } : { devices: [{ id: 'dev1', name: 'Soundbar' }] }
+    );
     render(<TabletView />);
     await flush();
     fireEvent.click(screen.getByRole('button', { name: 'Choose a Spotify Connect device' }));
@@ -236,7 +281,9 @@ describe('TabletView', () => {
   it('shows the clock in the footer', async () => {
     vi.useFakeTimers({ now: new Date('2026-01-01T09:05:00') });
     render(<TabletView />);
-    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
     expect(document.querySelector('.footer-clock').textContent).toMatch(/9:05|09:05/);
   });
 });

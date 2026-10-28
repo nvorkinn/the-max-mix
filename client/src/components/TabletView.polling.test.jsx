@@ -12,12 +12,22 @@ vi.mock('./SettingsModal.jsx', () => ({ default: () => null }));
 vi.mock('./SpeakerSelectorModal.jsx', () => ({ default: () => null }));
 vi.mock('./JamSettingsModal.jsx', () => ({ default: () => null }));
 vi.mock('./SpotifyJamQueue.jsx', () => ({
-  default: ({ queue, error }) => <div data-testid="queue">{queue.map((t) => t.name).join(',')}|{error ?? 'no-error'}</div>
+  default: ({ queue, error }) => (
+    <div data-testid="queue">
+      {queue.map(t => t.name).join(',')}|{error ?? 'no-error'}
+    </div>
+  )
 }));
 
 import TabletView from './TabletView.jsx';
 
-const player = (overrides) => ({ isReady: false, playbackState: null, isDemoMode: false, isAuthenticated: false, ...overrides });
+const player = overrides => ({
+  isReady: false,
+  playbackState: null,
+  isDemoMode: false,
+  isAuthenticated: false,
+  ...overrides
+});
 
 describe('TabletView', () => {
   beforeEach(() => {

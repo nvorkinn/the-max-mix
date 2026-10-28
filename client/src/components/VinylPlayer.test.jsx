@@ -5,7 +5,12 @@ import VinylPlayer from './VinylPlayer.jsx';
 
 const playback = {
   progress_ms: 30000,
-  item: { name: 'Vinyl Song', duration_ms: 120000, artists: [{ name: 'Q' }], album: { images: [{ url: 'http://x/y.jpg' }] } }
+  item: {
+    name: 'Vinyl Song',
+    duration_ms: 120000,
+    artists: [{ name: 'Q' }],
+    album: { images: [{ url: 'http://x/y.jpg' }] }
+  }
 };
 
 beforeEach(() => {

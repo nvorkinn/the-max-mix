@@ -2,15 +2,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import MobileRemoteView from './MobileRemoteView.jsx';
 
-const queue = [{ id: 't1', title: 'Queued', artist: 'A', votes: 2, albumArt: 'q.jpg', addedBy: { name: 'Bo', avatar: '🔥' } }];
+const queue = [
+  { id: 't1', title: 'Queued', artist: 'A', votes: 2, albumArt: 'q.jpg', addedBy: { name: 'Bo', avatar: '🔥' } }
+];
 const found = [{ id: 'r1', title: 'Result', artist: 'R', albumArt: 'r.jpg' }];
 
 function mockFetch(overrides = {}) {
   const calls = [];
   const fn = vi.fn(async (url, options) => {
     calls.push([url, options]);
-    const key = Object.keys(overrides).find((k) => url.startsWith(k));
-    const body = key ? overrides[key] : url.startsWith('/api/queue') && options?.method !== 'POST' ? queue : url.startsWith('/api/spotify/search') ? found : {};
+    const key = Object.keys(overrides).find(k => url.startsWith(k));
+    const body = key
+      ? overrides[key]
+      : url.startsWith('/api/queue') && options?.method !== 'POST'
+        ? queue
+        : url.startsWith('/api/spotify/search')
+          ? found
+          : {};
     if (body instanceof Error) throw body;
     return { json: async () => body };
   });
@@ -22,13 +30,15 @@ function fakeSocket() {
   const handlers = {};
   return {
     handlers,
-    on: vi.fn((event, fn) => { handlers[event] = fn; }),
+    on: vi.fn((event, fn) => {
+      handlers[event] = fn;
+    }),
     off: vi.fn(),
     emit: vi.fn()
   };
 }
 
-const tab = (name) => fireEvent.click(screen.getByText(name).closest('button'));
+const tab = name => fireEvent.click(screen.getByText(name).closest('button'));
 
 beforeEach(() => {
   localStorage.clear();

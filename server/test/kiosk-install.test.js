@@ -27,7 +27,11 @@ async function makeRelease(fixtures, tag, { badChecksum = false } = {}) {
   await writeFile(path.join(root, 'VERSION'), `${tag}\n`);
   const archive = path.join(fixtures, `${name}.tar.gz`);
   await run('tar', ['-czf', archive, '-C', stage, name]);
-  const hash = badChecksum ? '0'.repeat(64) : createHash('sha256').update(await readFile(archive)).digest('hex');
+  const hash = badChecksum
+    ? '0'.repeat(64)
+    : createHash('sha256')
+        .update(await readFile(archive))
+        .digest('hex');
   await writeFile(`${archive}.sha256`, `${hash}  ${name}.tar.gz\n`);
 }
 
@@ -37,7 +41,9 @@ async function setup(t) {
   const home = path.join(temporary, 'desktop home');
   const bin = path.join(temporary, 'bin');
   const fixtures = path.join(temporary, 'fixtures');
-  for (const directory of [bin, fixtures, path.join(home, '.config/labwc')]) await mkdir(directory, { recursive: true });
+  for (const directory of [bin, fixtures, path.join(home, '.config/labwc')]) {
+    await mkdir(directory, { recursive: true });
+  }
   const stubs = {
     uname: 'echo Linux',
     id: 'if [[ $1 == -u ]]; then echo 1000; else echo kioskuser; fi',
@@ -95,7 +101,9 @@ test('installer fetches the latest release, renders units, preserves configurati
   const download = 'https://github.com/test/repo/releases/download/v1.2.3/the-max-mix-v1.2.3.tar.gz';
   // The second run asks for the latest release again but reuses the downloaded one.
   assert.deepEqual(urls, [
-    'https://github.com/test/repo/releases/latest', download, `${download}.sha256`,
+    'https://github.com/test/repo/releases/latest',
+    download,
+    `${download}.sha256`,
     'https://github.com/test/repo/releases/latest'
   ]);
 
@@ -109,7 +117,10 @@ test('installer fetches the latest release, renders units, preserves configurati
   const autostart = await readFile(path.join(home, '.config/labwc/autostart'), 'utf8');
   assert.equal(autostart.match(/BEGIN THE MAX MIX KIOSK/g).length, 1);
   assert.match(autostart, /existing_desktop_command &/);
-  assert.match(await readFile(path.join(home, '.config/autostart/the-max-mix-kiosk.desktop'), 'utf8'), /Exec=\/bin\/bash "/);
+  assert.match(
+    await readFile(path.join(home, '.config/autostart/the-max-mix-kiosk.desktop'), 'utf8'),
+    /Exec=\/bin\/bash "/
+  );
 });
 
 test('installer creates a private config from the release template and switches versions without losing it', async t => {
@@ -152,7 +163,11 @@ test('installer keeps the most recently activated releases and prunes the rest',
     await run('bash', [installer, tag], { env: limited });
     await new Promise(resolve => setTimeout(resolve, 20));
   }
-  const present = async tag => access(path.join(install, 'releases', tag)).then(() => true, () => false);
+  const present = async tag =>
+    access(path.join(install, 'releases', tag)).then(
+      () => true,
+      () => false
+    );
   assert.deepEqual(await Promise.all(tags.map(present)), [false, false, true, true]);
   await access(path.join(install, 'releases/.staging.leftover'));
   assert.equal(await readFile(path.join(install, 'server.env'), 'utf8'), 'KEEP=1\n');
@@ -170,5 +185,8 @@ test('installer never prunes the active release and rejects a bad keep count', a
   await makeRelease(fixtures, 'v1.2.0');
   await run('bash', [installer, 'v1.2.0'], { env: { ...env, KIOSK_KEEP_RELEASES: '1' } });
   await access(path.join(install, 'releases/v1.2.0'));
-  await assert.rejects(run('bash', [installer, 'v1.2.0'], { env: { ...env, KIOSK_KEEP_RELEASES: '0' } }), /KIOSK_KEEP_RELEASES must be a positive integer/);
+  await assert.rejects(
+    run('bash', [installer, 'v1.2.0'], { env: { ...env, KIOSK_KEEP_RELEASES: '0' } }),
+    /KIOSK_KEEP_RELEASES must be a positive integer/
+  );
 });

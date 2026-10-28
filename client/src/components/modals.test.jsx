@@ -71,7 +71,12 @@ describe('SettingsModal', () => {
     ['demo mode', { demoMode: true, configured: true }, /simulated/i, null],
     ['unconfigured', { configured: false }, /configure the spotify client id/i, null],
     ['signed out', { configured: true }, /sign in with a spotify premium/i, 'Log in with Spotify'],
-    ['signed in', { configured: true, authenticated: true, playbackMode: 'remote' }, /playback mode: remote/i, 'Re-authenticate with Spotify']
+    [
+      'signed in',
+      { configured: true, authenticated: true, playbackMode: 'remote' },
+      /playback mode: remote/i,
+      'Re-authenticate with Spotify'
+    ]
   ])('explains the %s state', (_, authInfo, message, loginLabel) => {
     render(<SettingsModal {...base} authInfo={authInfo} />);
     expect(screen.getByText(message)).toBeInTheDocument();
@@ -98,7 +103,9 @@ describe('SpeakerSelectorModal', () => {
     { id: 'b', name: 'Locked', is_restricted: true },
     { name: 'No id' }
   ];
-  beforeEach(() => { api.requestJSON.mockReset(); });
+  beforeEach(() => {
+    api.requestJSON.mockReset();
+  });
 
   it('does not fetch while closed', () => {
     render(<SpeakerSelectorModal isOpen={false} />);
@@ -124,7 +131,9 @@ describe('SpeakerSelectorModal', () => {
   });
 
   it('shows the error and clears devices when loading fails', async () => {
-    api.requestJSON.mockImplementation(async () => { throw new Error('Spotify down'); });
+    api.requestJSON.mockImplementation(async () => {
+      throw new Error('Spotify down');
+    });
     render(<SpeakerSelectorModal isOpen />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Spotify down');
     expect(screen.queryByText(/No available devices/)).toBeNull();
@@ -141,7 +150,9 @@ describe('SpeakerSelectorModal', () => {
 
   it('surfaces a failed selection', async () => {
     api.requestJSON.mockResolvedValue({ devices });
-    const onSelectSpeaker = vi.fn(async () => { throw new Error('Transfer failed'); });
+    const onSelectSpeaker = vi.fn(async () => {
+      throw new Error('Transfer failed');
+    });
     render(<SpeakerSelectorModal isOpen onSelectSpeaker={onSelectSpeaker} />);
     await userEvent.click(await screen.findByRole('button', { name: /Kitchen/ }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Transfer failed');

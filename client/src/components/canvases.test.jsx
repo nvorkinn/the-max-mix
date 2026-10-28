@@ -41,7 +41,7 @@ describe('AudioVisualizer', () => {
     render(<AudioVisualizer isPlaying={false} />);
     const before = canvas.ctx.clearRect.mock.calls.length;
     fireEvent(window, new Event('resize'));
-    mql.listeners.forEach((fn) => fn());
+    mql.listeners.forEach(fn => fn());
     expect(canvas.ctx.clearRect.mock.calls.length).toBe(before + 2);
   });
 });
@@ -51,8 +51,12 @@ describe('ReactionCanvas', () => {
     const handlers = {};
     return {
       handlers,
-      on: vi.fn((event, fn) => { handlers[event] = fn; }),
-      off: vi.fn((event) => { delete handlers[event]; })
+      on: vi.fn((event, fn) => {
+        handlers[event] = fn;
+      }),
+      off: vi.fn(event => {
+        delete handlers[event];
+      })
     };
   }
 
@@ -95,7 +99,8 @@ describe('ReactionCanvas', () => {
 });
 
 describe('TouchRipples', () => {
-  const tap = (x = 10, y = 20) => fireEvent(window, Object.assign(new Event('pointerdown'), { clientX: x, clientY: y }));
+  const tap = (x = 10, y = 20) =>
+    fireEvent(window, Object.assign(new Event('pointerdown'), { clientX: x, clientY: y }));
 
   beforeEach(() => stubMatchMedia(false));
 

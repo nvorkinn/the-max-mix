@@ -13,7 +13,8 @@ const playback = {
   progress_ms: 65000,
   device: { name: 'Kitchen', volume_percent: 30 },
   item: {
-    name: 'Song', duration_ms: 200000,
+    name: 'Song',
+    duration_ms: 200000,
     artists: [{ name: 'A' }, { name: 'B' }],
     album: { images: [{ url: 'http://art/1.jpg' }] },
     added_by: { name: 'Ann' }
@@ -126,7 +127,13 @@ describe('AlbumArtPlayer', () => {
 
 describe('SpotifyJamQueue', () => {
   const tracks = [
-    { id: 'a', name: 'One', artists: [{ name: 'X' }], duration_ms: 125000, added_by: { name: 'Ann', avatar: 'ann.png' } },
+    {
+      id: 'a',
+      name: 'One',
+      artists: [{ name: 'X' }],
+      duration_ms: 125000,
+      added_by: { name: 'Ann', avatar: 'ann.png' }
+    },
     { id: 'b', title: 'Two', artist: 'Y', duration_ms: 60000 },
     { uri: 'spotify:track:c', name: 'Three', external_urls: { spotify: 'https://open.spotify.com/track/c' } }
   ];
@@ -160,8 +167,14 @@ describe('SpotifyJamQueue', () => {
 
   it('links to Spotify and hides demo-only controls outside demo mode', () => {
     renderQueue();
-    expect(screen.getByRole('link', { name: 'Open Three in Spotify' })).toHaveAttribute('href', tracks[2].external_urls.spotify);
-    expect(screen.getByRole('link', { name: 'Open One in Spotify' })).toHaveAttribute('href', 'https://open.spotify.com');
+    expect(screen.getByRole('link', { name: 'Open Three in Spotify' })).toHaveAttribute(
+      'href',
+      tracks[2].external_urls.spotify
+    );
+    expect(screen.getByRole('link', { name: 'Open One in Spotify' })).toHaveAttribute(
+      'href',
+      'https://open.spotify.com'
+    );
     expect(screen.queryByRole('button', { name: /reorder/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /play .* now/i })).toBeNull();
   });
@@ -188,7 +201,7 @@ describe('SpotifyJamQueue', () => {
   });
 
   it('reorders with the keyboard and ignores moves past the ends', async () => {
-    vi.stubGlobal('requestAnimationFrame', (fn) => fn());
+    vi.stubGlobal('requestAnimationFrame', fn => fn());
     const h = renderQueue({ isDemoMode: true });
     fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Two' }), { key: 'ArrowUp' });
     await vi.waitFor(() => expect(h.onReorderQueue).toHaveBeenCalledWith([tracks[1], tracks[0], tracks[2]]));

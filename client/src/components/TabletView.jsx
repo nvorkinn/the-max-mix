@@ -41,7 +41,7 @@ export default function TabletView() {
   const [toastMessage, setToastMessage] = useState(null);
   const [theme, setTheme] = useState(() => (localStorage.getItem('maxmix_theme') === 'minimal' ? 'minimal' : 'neon'));
 
-  const handleThemeChange = (newTheme) => {
+  const handleThemeChange = newTheme => {
     setTheme(newTheme);
     localStorage.setItem('maxmix_theme', newTheme);
     showToast(`Skin updated to ${newTheme === 'minimal' ? 'Paper' : 'Studio'}`);
@@ -94,25 +94,28 @@ export default function TabletView() {
       if (!cancelled) timer = setTimeout(poll, delay);
     };
     poll();
-    return () => { cancelled = true; clearTimeout(timer); };
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [currentTrack?.id, canPollQueue]);
 
   // Dynamic ambient palette extraction from album art
   const artUrl = currentTrack?.album?.images?.[0]?.url;
   useEffect(() => {
     if (artUrl) {
-      extractPalette(artUrl).then((colors) => {
+      extractPalette(artUrl).then(colors => {
         setPalette(colors);
       });
     }
   }, [artUrl]);
 
-  const showToast = (msg) => {
+  const showToast = msg => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleReorderQueue = async (newQueue) => {
+  const handleReorderQueue = async newQueue => {
     try {
       const data = await postJSON('/api/queue/reorder', { queue: newQueue });
       setQueue(data.queue);
@@ -149,15 +152,27 @@ export default function TabletView() {
 
       <header className="app-header">
         <div className="brand">
-          <div className="brand-mark"><AudioLines size={22} strokeWidth={2.5} /></div>
+          <div className="brand-mark">
+            <AudioLines size={22} strokeWidth={2.5} />
+          </div>
           <div className="brand-copy">
-            <h1>THE MAX MIX<span className="brand-dot">.</span></h1>
+            <h1>
+              THE MAX MIX<span className="brand-dot">.</span>
+            </h1>
             <span>Your people. Your soundtrack.</span>
           </div>
         </div>
         <div className="session-status" role="status">
           <span className={`status-dot ${isReady ? '' : 'status-dot-idle'}`} />
-          {isDemoMode ? 'Demo session' : isLoading ? 'Connecting...' : isReady ? playbackState.device.name : isAuthenticated ? 'Select a Spotify device' : 'Sign in to Spotify'}
+          {isDemoMode
+            ? 'Demo session'
+            : isLoading
+              ? 'Connecting...'
+              : isReady
+                ? playbackState.device.name
+                : isAuthenticated
+                  ? 'Select a Spotify device'
+                  : 'Sign in to Spotify'}
         </div>
         <div className="header-actions">
           <button
@@ -199,7 +214,7 @@ export default function TabletView() {
             onNext={nextTrack}
             onPrevious={previousTrack}
             onSeek={seek}
-            onVolumeChange={(vol) => setVolume(vol / 100)}
+            onVolumeChange={vol => setVolume(vol / 100)}
             theme={theme}
             isDemoMode={isDemoMode}
             controlsEnabled={(isDemoMode || isAuthenticated) && !playbackState?.device?.is_restricted}
@@ -220,28 +235,36 @@ export default function TabletView() {
       </main>
 
       <footer className="app-footer">
-        <span><span className="status-dot" /> {isDemoMode ? 'DEMO / simulated playback' : playbackMode === 'remote' ? 'Spotify Connect remote' : 'Spotify browser player'}</span>
-        <span className="footer-clock"><Clock size={12} /> {currentTime}</span>
+        <span>
+          <span className="status-dot" />{' '}
+          {isDemoMode
+            ? 'DEMO / simulated playback'
+            : playbackMode === 'remote'
+              ? 'Spotify Connect remote'
+              : 'Spotify browser player'}
+        </span>
+        <span className="footer-clock">
+          <Clock size={12} /> {currentTime}
+        </span>
         <span>POWERED BY SPOTIFY</span>
       </footer>
 
       {toastMessage && (
-        <div className="app-toast" role="status">{toastMessage}</div>
+        <div className="app-toast" role="status">
+          {toastMessage}
+        </div>
       )}
 
       {/* Speaker Selector Modal (Bluetooth / Sonos / AirPlay) */}
       <SpeakerSelectorModal
         isOpen={isSpeakerModalOpen}
         onClose={() => setIsSpeakerModalOpen(false)}
-        onSelectSpeaker={(id) => transferPlayback(id)}
+        onSelectSpeaker={id => transferPlayback(id)}
         browserDeviceId={browserDeviceId}
         isDemoMode={isDemoMode}
       />
 
-      <JamSettingsModal
-        isOpen={isJamSettingsOpen}
-        onClose={() => setIsJamSettingsOpen(false)}
-      />
+      <JamSettingsModal isOpen={isJamSettingsOpen} onClose={() => setIsJamSettingsOpen(false)} />
 
       {/* General Settings Modal */}
       <SettingsModal

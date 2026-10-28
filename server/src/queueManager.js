@@ -33,7 +33,10 @@ export class QueueManager {
       title: track.title || track.name || 'Unknown Title',
       artist: track.artist || (track.artists ? track.artists.map(a => a.name).join(', ') : 'Unknown Artist'),
       album: track.album?.name || track.album || 'Unknown Album',
-      albumArt: track.albumArt || track.album?.images?.[0]?.url || 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=400&auto=format&fit=crop&q=80',
+      albumArt:
+        track.albumArt ||
+        track.album?.images?.[0]?.url ||
+        'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=400&auto=format&fit=crop&q=80',
       duration_ms: track.duration_ms || 180000,
       addedBy: {
         id: guest.id,

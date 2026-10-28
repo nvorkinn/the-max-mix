@@ -7,8 +7,10 @@ describe('isTrackByFemaleSinger', () => {
   });
 
   it('matches artists given as objects or strings, case-insensitively', () => {
-    expect(isTrackByFemaleSinger({ artists: [{ name: 'Some Band' }, { name: 'ADELE' }] }))
-      .toEqual({ isFemale: true, artist: 'adele' });
+    expect(isTrackByFemaleSinger({ artists: [{ name: 'Some Band' }, { name: 'ADELE' }] })).toEqual({
+      isFemale: true,
+      artist: 'adele'
+    });
     expect(isTrackByFemaleSinger({ artists: ['Dua Lipa'] }).isFemale).toBe(true);
   });
 

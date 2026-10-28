@@ -56,7 +56,8 @@ export class SpotifyService {
       client_id: this.clientId,
       redirect_uri: this.redirectUri,
       state,
-      scope: 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing'
+      scope:
+        'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing'
     });
     return `https://accounts.spotify.com/authorize?${params}`;
   }
@@ -96,7 +97,10 @@ export class SpotifyService {
           throw new SpotifyError('Spotify login expired or was revoked. Sign in again in Settings.', 401);
         }
       }
-      throw new SpotifyError(`Spotify authentication failed (${response.status}). Check your app credentials and sign in again.`, 502);
+      throw new SpotifyError(
+        `Spotify authentication failed (${response.status}). Check your app credentials and sign in again.`,
+        502
+      );
     }
     const data = await response.json();
     if (!data.access_token || !Number.isFinite(data.expires_in)) {
@@ -119,8 +123,12 @@ export class SpotifyService {
     if (this.accessToken && Date.now() < this.tokenExpiresAt) return this.accessToken;
     if (!this.refreshToken) return null;
     if (!this.refreshPromise) {
-      this.refreshPromise = this.exchangeToken({ grant_type: 'refresh_token', refresh_token: this.refreshToken })
-        .finally(() => { this.refreshPromise = null; });
+      this.refreshPromise = this.exchangeToken({
+        grant_type: 'refresh_token',
+        refresh_token: this.refreshToken
+      }).finally(() => {
+        this.refreshPromise = null;
+      });
     }
     return this.refreshPromise;
   }
@@ -145,7 +153,11 @@ export class SpotifyService {
         404: 'No available Spotify device. Open Spotify on a speaker or phone, then select it here.',
         429: 'Spotify rate limit reached. Wait before trying again.'
       };
-      throw new SpotifyError(messages[response.status] || `Spotify request failed (${response.status}).`, response.status, response.headers.get('retry-after'));
+      throw new SpotifyError(
+        messages[response.status] || `Spotify request failed (${response.status}).`,
+        response.status,
+        response.headers.get('retry-after')
+      );
     }
     return response.json();
   }
@@ -154,12 +166,28 @@ export class SpotifyService {
     return this.spotifyFetch('/me/player', { method: 'PUT', body: JSON.stringify({ device_ids: [deviceId], play }) });
   }
 
-  getQueue() { return this.spotifyFetch('/me/player/queue'); }
-  getPlaybackState() { return this.spotifyFetch('/me/player'); }
-  play() { return this.spotifyFetch('/me/player/play', { method: 'PUT' }); }
-  pause() { return this.spotifyFetch('/me/player/pause', { method: 'PUT' }); }
-  next() { return this.spotifyFetch('/me/player/next', { method: 'POST' }); }
-  previous() { return this.spotifyFetch('/me/player/previous', { method: 'POST' }); }
-  seek(position) { return this.spotifyFetch(`/me/player/seek?position_ms=${position}`, { method: 'PUT' }); }
-  setVolume(volume) { return this.spotifyFetch(`/me/player/volume?volume_percent=${volume}`, { method: 'PUT' }); }
+  getQueue() {
+    return this.spotifyFetch('/me/player/queue');
+  }
+  getPlaybackState() {
+    return this.spotifyFetch('/me/player');
+  }
+  play() {
+    return this.spotifyFetch('/me/player/play', { method: 'PUT' });
+  }
+  pause() {
+    return this.spotifyFetch('/me/player/pause', { method: 'PUT' });
+  }
+  next() {
+    return this.spotifyFetch('/me/player/next', { method: 'POST' });
+  }
+  previous() {
+    return this.spotifyFetch('/me/player/previous', { method: 'POST' });
+  }
+  seek(position) {
+    return this.spotifyFetch(`/me/player/seek?position_ms=${position}`, { method: 'PUT' });
+  }
+  setVolume(volume) {
+    return this.spotifyFetch(`/me/player/volume?volume_percent=${volume}`, { method: 'PUT' });
+  }
 }

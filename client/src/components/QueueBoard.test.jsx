@@ -9,8 +9,11 @@ const queue = [
 
 const setup = (props = {}) => {
   const handlers = {
-    onUpvote: vi.fn(), onRemove: vi.fn(), onAddSong: vi.fn(),
-    onSearchSpotify: vi.fn().mockResolvedValue([]), onOpenQR: vi.fn()
+    onUpvote: vi.fn(),
+    onRemove: vi.fn(),
+    onAddSong: vi.fn(),
+    onSearchSpotify: vi.fn().mockResolvedValue([]),
+    onOpenQR: vi.fn()
   };
   const all = { queue, ...handlers, ...props };
   render(<QueueBoard {...all} />);
@@ -31,7 +34,7 @@ describe('QueueBoard', () => {
     const h = setup();
     fireEvent.click(screen.getByText('3').closest('button'));
     expect(h.onUpvote).toHaveBeenCalledWith('t1');
-    const removeButtons = screen.getAllByRole('button').filter((b) => b.querySelector('svg.lucide-trash-2'));
+    const removeButtons = screen.getAllByRole('button').filter(b => b.querySelector('svg.lucide-trash-2'));
     fireEvent.click(removeButtons[1]);
     expect(h.onRemove).toHaveBeenCalledWith('t2');
   });
@@ -65,7 +68,11 @@ describe('QueueBoard', () => {
 
   it('survives a failed search and re-enables the form', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    const h = setup({ onSearchSpotify: vi.fn(async () => { throw new Error('nope'); }) });
+    const h = setup({
+      onSearchSpotify: vi.fn(async () => {
+        throw new Error('nope');
+      })
+    });
     fireEvent.click(screen.getByRole('button', { name: /add track/i }));
     fireEvent.change(screen.getByPlaceholderText(/search song/i), { target: { value: 'x' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));

@@ -18,7 +18,9 @@ function makeSdk({ connectResult = true } = {}) {
       this.connect = vi.fn(async () => connectResult);
       players.push(this);
     }
-    addListener(event, fn) { this.listeners[event] = fn; }
+    addListener(event, fn) {
+      this.listeners[event] = fn;
+    }
   }
   return { Player, players };
 }
@@ -30,7 +32,7 @@ const browserSession = {
 };
 
 function route(table) {
-  api.requestJSON.mockImplementation(async (url) => {
+  api.requestJSON.mockImplementation(async url => {
     const entry = table[url];
     if (entry instanceof Error) throw entry;
     if (entry === undefined) throw new Error(`unexpected ${url}`);
@@ -89,11 +91,14 @@ describe('useSpotifyPlayer browser playback', () => {
     expect(result.current.error).toMatch(/tablet player disconnected/i);
   });
 
-  it.each(['initialization_error', 'authentication_error', 'account_error', 'playback_error'])('surfaces %s from the SDK', async (event) => {
-    const { result, player } = await connect();
-    act(() => player.listeners[event]({ message: 'Premium required.' }));
-    expect(result.current.error).toMatch(/Browser playback: Premium required\./);
-  });
+  it.each(['initialization_error', 'authentication_error', 'account_error', 'playback_error'])(
+    'surfaces %s from the SDK',
+    async event => {
+      const { result, player } = await connect();
+      act(() => player.listeners[event]({ message: 'Premium required.' }));
+      expect(result.current.error).toMatch(/Browser playback: Premium required\./);
+    }
+  );
 
   it('disconnects the player on unmount', async () => {
     const { unmount, player } = await connect();
@@ -127,41 +132,66 @@ describe('useSpotifyPlayer polling', () => {
     vi.useFakeTimers();
     const infoCalls = () => api.requestJSON.mock.calls.filter(([url]) => url === '/api/info').length;
     const rateLimited = Object.assign(new Error('Too many requests'), { retryAfter: 45 });
-    api.requestJSON.mockRejectedValueOnce(new Error('blip')).mockRejectedValueOnce(rateLimited).mockResolvedValue({ demoMode: true });
+    api.requestJSON
+      .mockRejectedValueOnce(new Error('blip'))
+      .mockRejectedValueOnce(rateLimited)
+      .mockResolvedValue({ demoMode: true });
     renderHook(() => useSpotifyPlayer());
-    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
     expect(infoCalls()).toBe(1);
     // first failure: 8s delay (4s * 2^1)
-    await act(async () => { await vi.advanceTimersByTimeAsync(7999); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(7999);
+    });
     expect(infoCalls()).toBe(1);
-    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
     expect(infoCalls()).toBe(2);
     // second failure: max(16s, retryAfter 45s)
-    await act(async () => { await vi.advanceTimersByTimeAsync(44999); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(44999);
+    });
     expect(infoCalls()).toBe(2);
-    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
     expect(infoCalls()).toBe(3);
   });
 
   it('clears the error once a poll succeeds and keeps polling every 4s', async () => {
     vi.useFakeTimers();
     api.requestJSON.mockRejectedValueOnce(new Error('blip'));
-    api.requestJSON.mockImplementation(async (url) => (url === '/api/info' ? { demoMode: true } : { device: { id: 'd' } }));
+    api.requestJSON.mockImplementation(async url =>
+      url === '/api/info' ? { demoMode: true } : { device: { id: 'd' } }
+    );
     const { result } = renderHook(() => useSpotifyPlayer());
-    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
     expect(result.current.error).toBe('blip');
-    await act(async () => { await vi.advanceTimersByTimeAsync(8000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8000);
+    });
     expect(result.current.error).toBeNull();
     const calls = api.requestJSON.mock.calls.length;
-    await act(async () => { await vi.advanceTimersByTimeAsync(4000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
     expect(api.requestJSON.mock.calls.length).toBeGreaterThan(calls);
   });
 
   it('stops polling after unmount', async () => {
     vi.useFakeTimers();
-    api.requestJSON.mockImplementation(async (url) => (url === '/api/info' ? { demoMode: true } : { device: { id: 'd' } }));
+    api.requestJSON.mockImplementation(async url =>
+      url === '/api/info' ? { demoMode: true } : { device: { id: 'd' } }
+    );
     const { unmount } = renderHook(() => useSpotifyPlayer());
-    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
     unmount();
     const calls = api.requestJSON.mock.calls.length;
     await vi.advanceTimersByTimeAsync(30000);

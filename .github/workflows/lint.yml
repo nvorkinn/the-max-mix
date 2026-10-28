@@ -3,7 +3,7 @@ name: Lint
 on:
   pull_request:
   push:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   contents: read
@@ -21,11 +21,14 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: |
+            package-lock.json
             client/package-lock.json
             server/package-lock.json
+      - run: npm ci
       - run: npm --prefix client ci
       - run: npm --prefix server ci
       - run: npm run lint
+      - run: npm run format:check
 
   shellcheck:
     runs-on: ubuntu-latest
