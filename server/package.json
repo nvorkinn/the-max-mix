@@ -9,7 +9,7 @@
     "start": "node src/index.js",
     "test": "node --test",
     "dev": "node --watch src/index.js",
-    "lint": "eslint ."
+    "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",

@@ -154,9 +154,11 @@ export default function SpotifyJamQueue({
                       e.preventDefault();
                       const target = idx + (e.key === 'ArrowUp' ? -1 : 1);
                       moveTrack(idx, target).then(success => {
-                        if (success) requestAnimationFrame(() => {
-                          listRef.current?.children[target]?.querySelector('.queue-drag')?.focus();
-                        });
+                        if (success) {
+                          requestAnimationFrame(() => {
+                            listRef.current?.children[target]?.querySelector('.queue-drag')?.focus();
+                          });
+                        }
                       });
                     }
                   }}

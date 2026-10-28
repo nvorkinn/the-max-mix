@@ -59,10 +59,10 @@ export class QueueManager {
       item.voters.push(guestId);
       item.votes = item.voters.length;
       return { success: true, action: 'upvoted', item, queue: this.getQueue() };
-    } else {
-      // Toggle upvote off if already voted (or keep vote - keep vote is friendlier for parties)
-      return { success: true, action: 'already_voted', item, queue: this.getQueue() };
     }
+
+    // Toggle upvote off if already voted (or keep vote - keep vote is friendlier for parties)
+    return { success: true, action: 'already_voted', item, queue: this.getQueue() };
   }
 
   removeTrack(trackId) {

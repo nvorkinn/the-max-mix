@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, copyFile, writeFile, readFile, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdtemp, mkdir, copyFile, writeFile, readFile, readlink, realpath, rm, access } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,29 +10,53 @@ import { execFile } from 'node:child_process';
 
 const run = promisify(execFile);
 const repository = fileURLToPath(new URL('../../', import.meta.url));
+const installer = path.join(repository, 'scripts/install-kiosk.sh');
 
-test('installer renders user-specific units, preserves configuration and is idempotent', async t => {
-  const temporary = await mkdtemp(path.join(os.tmpdir(), 'max-mix-install-'));
-  t.after(() => rm(temporary, { recursive: true, force: true }));
-  const root = path.join(temporary, 'checkout with spaces %test');
-  const home = path.join(temporary, 'desktop home');
-  const bin = path.join(temporary, 'bin');
-  for (const directory of [bin, path.join(root, 'scripts'), path.join(root, 'server/src'), path.join(home, '.config/labwc')]) {
-    await mkdir(directory, { recursive: true });
-  }
-  for (const name of ['install-kiosk.sh', 'the-max-mix.service', 'the-max-mix-kiosk.service']) {
-    await copyFile(path.join(repository, 'scripts', name), path.join(root, 'scripts', name));
+// Builds a minimal release tarball and checksum the way scripts/package-release.sh lays them out.
+async function makeRelease(fixtures, tag, { badChecksum = false } = {}) {
+  const name = `the-max-mix-${tag}`;
+  const stage = await mkdtemp(path.join(fixtures, 'stage-'));
+  const root = path.join(stage, name);
+  for (const directory of ['scripts', 'server/src']) await mkdir(path.join(root, directory), { recursive: true });
+  for (const unit of ['the-max-mix.service', 'the-max-mix-kiosk.service']) {
+    await copyFile(path.join(repository, 'scripts', unit), path.join(root, 'scripts', unit));
   }
   await writeFile(path.join(root, 'server/package.json'), '{"type":"module"}');
+  await writeFile(path.join(root, 'server/.env.example'), 'SPOTIFY_CLIENT_ID=\n');
   await writeFile(path.join(root, 'server/src/config.js'), 'export function loadConfig() { return { port: 3999 }; }\n');
-  await writeFile(path.join(root, 'server/.env'), 'KEEP_EXISTING_CONFIG=true\n', { mode: 0o600 });
-  await writeFile(path.join(home, '.config/labwc/autostart'), 'existing_desktop_command &\n');
+  await writeFile(path.join(root, 'VERSION'), `${tag}\n`);
+  const archive = path.join(fixtures, `${name}.tar.gz`);
+  await run('tar', ['-czf', archive, '-C', stage, name]);
+  const hash = badChecksum ? '0'.repeat(64) : createHash('sha256').update(await readFile(archive)).digest('hex');
+  await writeFile(`${archive}.sha256`, `${hash}  ${name}.tar.gz\n`);
+}
+
+async function setup(t) {
+  const temporary = await mkdtemp(path.join(os.tmpdir(), 'max-mix-install-'));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  const home = path.join(temporary, 'desktop home');
+  const bin = path.join(temporary, 'bin');
+  const fixtures = path.join(temporary, 'fixtures');
+  for (const directory of [bin, fixtures, path.join(home, '.config/labwc')]) await mkdir(directory, { recursive: true });
   const stubs = {
     uname: 'echo Linux',
     id: 'if [[ $1 == -u ]]; then echo 1000; else echo kioskuser; fi',
-    npm: 'exit 0',
-    curl: 'exit 0',
     systemctl: 'exit 0',
+    curl: `output=; write=; url=
+      while (( $# )); do
+        case $1 in
+          --output) output=$2; shift 2 ;;
+          --write-out) write=$2; shift 2 ;;
+          --*) shift ;;
+          *) url=$1; shift ;;
+        esac
+      done
+      echo "$url" >> "$KIOSK_TEST_STATE/curl-urls"
+      if [[ -n $write ]]; then printf '%s' "https://github.com/test/repo/releases/tag/$KIOSK_TEST_LATEST"; exit 0; fi
+      case $url in
+        */releases/download/*) cp "$KIOSK_TEST_FIXTURES/\${url##*/}" "$output" ;;
+        *) exit 22 ;;
+      esac`,
     sudo: `case "$1" in
       -v|apt-get|systemctl) exit 0 ;;
       install) cp "$4" "$KIOSK_TEST_STATE/the-max-mix.service" ;;
@@ -41,12 +66,39 @@ test('installer renders user-specific units, preserves configuration and is idem
   for (const [name, body] of Object.entries(stubs)) {
     await writeFile(path.join(bin, name), `#!/usr/bin/env bash\nset -euo pipefail\n${body}\n`, { mode: 0o755 });
   }
-  const env = { ...process.env, HOME: home, PATH: `${bin}:${process.env.PATH}`, KIOSK_TEST_STATE: temporary };
-  for (let attempt = 0; attempt < 2; attempt++) await run('bash', [path.join(root, 'scripts/install-kiosk.sh')], { env });
-  assert.equal(await readFile(path.join(root, 'server/.env'), 'utf8'), 'KEEP_EXISTING_CONFIG=true\n');
+  const install = path.join(temporary, 'install dir with spaces %test');
+  const env = {
+    ...process.env,
+    HOME: home,
+    PATH: `${bin}:${process.env.PATH}`,
+    KIOSK_TEST_STATE: temporary,
+    KIOSK_TEST_FIXTURES: fixtures,
+    KIOSK_TEST_LATEST: 'v1.2.3',
+    KIOSK_INSTALL_DIR: install,
+    KIOSK_REPO: 'test/repo'
+  };
+  return { temporary, home, fixtures, install, env };
+}
+
+test('installer fetches the latest release, renders units, preserves configuration and is idempotent', async t => {
+  const { temporary, home, fixtures, install, env } = await setup(t);
+  await makeRelease(fixtures, 'v1.2.3');
+  await mkdir(install, { recursive: true });
+  await writeFile(path.join(install, 'server.env'), 'KEEP_EXISTING_CONFIG=true\n', { mode: 0o600 });
+  await writeFile(path.join(home, '.config/labwc/autostart'), 'existing_desktop_command &\n');
+  for (let attempt = 0; attempt < 2; attempt++) await run('bash', [installer], { env });
+
+  assert.equal(await readlink(path.join(install, 'current')), path.join(install, 'releases/v1.2.3'));
+  assert.equal(await readFile(path.join(install, 'current/VERSION'), 'utf8'), 'v1.2.3\n');
+  assert.equal(await readFile(path.join(install, 'current/server/.env'), 'utf8'), 'KEEP_EXISTING_CONFIG=true\n');
+  const urls = (await readFile(path.join(temporary, 'curl-urls'), 'utf8')).trim().split('\n');
+  assert(urls.includes('https://github.com/test/repo/releases/latest'));
+  assert(urls.includes('https://github.com/test/repo/releases/download/v1.2.3/the-max-mix-v1.2.3.tar.gz'));
+  assert.equal(urls.filter(url => url.endsWith('.tar.gz')).length, 1, 'second run reuses the downloaded release');
+
   const serverUnit = await readFile(path.join(temporary, 'the-max-mix.service'), 'utf8');
   assert.match(serverUnit, /User=kioskuser/);
-  assert(serverUnit.includes(root.replaceAll('%', '%%')));
+  assert(serverUnit.includes(path.join(install, 'current').replaceAll('%', '%%')));
   assert.match(serverUnit, /StateDirectoryMode=0700/);
   assert(!/@ROOT@|@USER@|@NODE@/.test(serverUnit));
   const browserUnit = await readFile(path.join(home, '.config/systemd/user/the-max-mix-kiosk.service'), 'utf8');
@@ -55,4 +107,32 @@ test('installer renders user-specific units, preserves configuration and is idem
   assert.equal(autostart.match(/BEGIN THE MAX MIX KIOSK/g).length, 1);
   assert.match(autostart, /existing_desktop_command &/);
   assert.match(await readFile(path.join(home, '.config/autostart/the-max-mix-kiosk.desktop'), 'utf8'), /Exec=\/bin\/bash "/);
+});
+
+test('installer creates a private config from the release template and switches versions without losing it', async t => {
+  const { install, fixtures, env } = await setup(t);
+  await makeRelease(fixtures, 'v1.2.3');
+  await makeRelease(fixtures, 'v1.3.0');
+  await run('bash', [installer, 'v1.3.0'], { env });
+  assert.equal(await readFile(path.join(install, 'current/VERSION'), 'utf8'), 'v1.3.0\n');
+  assert.equal(await readFile(path.join(install, 'server.env'), 'utf8'), 'SPOTIFY_CLIENT_ID=\n');
+  await writeFile(path.join(install, 'server.env'), 'SPOTIFY_CLIENT_ID=mine\n', { mode: 0o600 });
+
+  await run('bash', [installer, 'v1.2.3'], { env });
+  assert.equal(await realpath(path.join(install, 'current')), await realpath(path.join(install, 'releases/v1.2.3')));
+  assert.equal(await readFile(path.join(install, 'current/server/.env'), 'utf8'), 'SPOTIFY_CLIENT_ID=mine\n');
+  await access(path.join(install, 'releases/v1.3.0/VERSION'));
+});
+
+test('installer refuses a release whose checksum does not match', async t => {
+  const { install, fixtures, env } = await setup(t);
+  await makeRelease(fixtures, 'v1.2.3', { badChecksum: true });
+  await assert.rejects(run('bash', [installer, 'v1.2.3'], { env }), /Checksum verification failed/);
+  await assert.rejects(access(path.join(install, 'current')));
+  await assert.rejects(access(path.join(install, 'releases/v1.2.3')));
+});
+
+test('installer rejects a version that is not a release tag', async t => {
+  const { env } = await setup(t);
+  await assert.rejects(run('bash', [installer, 'main'], { env }), /Could not determine a release version/);
 });

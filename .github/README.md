@@ -8,6 +8,9 @@ completes it, and approves the PR, once every other workflow and check on that c
 `tests.yml` runs lint, tests and the production build on every pull request and push to `main`; it is listed in
 `all-checks.yml`, so Global PR Status waits for it.
 
+`audit.yml` scans the lockfiles weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in
+`all-checks.yml`.
+
 `dependabot.yml` opens daily grouped update PRs for the three npm projects and the GitHub Actions used here.
 
 - **Required check:** `Global PR Status`.
