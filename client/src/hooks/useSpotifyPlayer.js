@@ -10,12 +10,12 @@ export function useSpotifyPlayer() {
   const [connectionError, setConnectionError] = useState(null);
   const [actionError, setActionError] = useState(() => new URLSearchParams(location.search).get('auth_error'));
   const [sdkError, setSdkError] = useState(null);
-  const playbackRequest = useRef(0);
+  const playbackRequestRef = useRef(0);
 
   const refreshPlayback = useCallback(async () => {
-    const requestId = ++playbackRequest.current;
+    const requestId = ++playbackRequestRef.current;
     const state = await requestJSON('/api/spotify/current');
-    if (requestId === playbackRequest.current) setPlaybackState(state);
+    if (requestId === playbackRequestRef.current) setPlaybackState(state);
   }, []);
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export function useSpotifyPlayer() {
       cancelled = true;
       // Intentionally the latest value: bumping the counter invalidates any in-flight request.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      playbackRequest.current++;
+      playbackRequestRef.current++;
       clearTimeout(timer);
     };
   }, [refreshPlayback]);
