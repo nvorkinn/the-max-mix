@@ -103,6 +103,16 @@ system service instead uses `/var/lib/the-max-mix`. Sign in after installing the
 service; a previous manual-development login is not automatically migrated.
 Revoked logins require signing in again. Never commit `.env` or token files.
 
+## Releases
+
+Pushing a tag such as `v1.2.3` (or `v1.2.3-rc.1` for a prerelease) runs the lint, tests and
+production build, then publishes `the-max-mix-v1.2.3.tar.gz` and its `.sha256` to GitHub Releases
+with generated notes. The tarball holds the built UI, the server with production dependencies,
+the scripts and docs, so it runs without a build step: extract it, create `server/.env` from
+`server/.env.example`, and run `npm start` (Node 22+). The kiosk installer still expects a git
+checkout. To build the tarball locally, run `npm run build` and then
+`bash scripts/package-release.sh v1.2.3`; it is written to `release-out/`.
+
 ## Raspberry Pi kiosk installation
 
 ### 1. Prepare the operating system

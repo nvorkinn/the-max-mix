@@ -1,0 +1,38 @@
+name: Release
+
+# Pushing a version tag (e.g. v1.2.3, or v1.2.3-rc.1 for a prerelease) tests and builds the app, then publishes the
+# assembled tarball and its checksum to a GitHub Release with generated notes.
+on:
+  push:
+    tags: [ 'v[0-9]+.[0-9]+.[0-9]+*' ]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+      - run: npm --prefix client ci
+      - run: npm --prefix server ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: bash scripts/package-release.sh "$GITHUB_REF_NAME"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          flags=()
+          if [[ $TAG == *-* ]]; then flags+=(--prerelease); fi
+          gh release create "$TAG" release-out/*.tar.gz release-out/*.sha256 \
+            --title "$TAG" --generate-notes --verify-tag "${flags[@]}"
