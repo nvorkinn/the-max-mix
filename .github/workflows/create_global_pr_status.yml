@@ -1,9 +1,13 @@
 name: Create Global PR Status
 
-# Opens the "Global PR Status" check on a pull request's head commit; All checks completes it. The logic is shared: see
-# nvorkinn/.github/.github/workflows/create-global-pr-status.yml.
+# Opens the "Global PR Status" check on a pull request's head commit, in progress, for every pull request from a branch
+# in this repository, Dependabot's included; All checks completes it once everything else on the commit has finished.
+# It runs on pull_request_target so that Dependabot pull requests, whose pull_request token is read-only, can create
+# the check too. That event runs this file from the default branch, so a change to it takes effect only after merging.
+# It never checks out or runs the pull request's code: it only calls the API with the head commit's SHA. Pull requests
+# from forks are skipped.
 on:
-  pull_request:
+  pull_request_target:
     types: [ opened, synchronize, reopened ]
 
 permissions:
@@ -11,4 +15,17 @@ permissions:
 
 jobs:
   create-global-pr-status:
-    uses: nvorkinn/.github/.github/workflows/create-global-pr-status.yml@8bb6e7191533a6fecf141a0359cf18e6b9d841e2 # main
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 5
+    steps:
+      - name: Create the check run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh api --method POST "repos/$REPO/check-runs" \
+            -f name='Global PR Status' -f head_sha="$SHA" -f status=in_progress \
+            --jq .id
