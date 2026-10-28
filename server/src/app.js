@@ -13,6 +13,14 @@ import { hostGuard, sameOriginWrites } from './requestGuards.js';
 // normal use; they exist to keep a misbehaving client on the network from hammering the server or Spotify's API.
 const DEFAULT_RATE_LIMITS = { windowMs: 60_000, api: 600, auth: 20, pages: 300 };
 
+/**
+ * @param {{
+ *   config: Pick<ReturnType<typeof import('./config.js').parseConfig>, 'port' | 'playbackMode' | 'demoMode' | 'allowedHosts'>,
+ *   spotify: import('./spotify.js').SpotifyService,
+ *   distPath?: string,
+ *   rateLimits?: Partial<typeof DEFAULT_RATE_LIMITS>
+ * }} options
+ */
 export function createApp({
   config,
   spotify,
@@ -20,6 +28,7 @@ export function createApp({
   rateLimits = {}
 }) {
   const limits = { ...DEFAULT_RATE_LIMITS, ...rateLimits };
+  /** @param {number} limit */
   const limiter = limit =>
     rateLimit({
       windowMs: limits.windowMs,
@@ -37,11 +46,18 @@ export function createApp({
   app.use(cookieParser());
   app.use('/api', limiter(limits.api));
   app.use('/api/auth', limiter(limits.auth));
-  app.use('/api', (req, res, next) => {
+  /** @type {import('express').RequestHandler} */
+  const noStore = (req, res, next) => {
     res.set('Cache-Control', 'no-store');
     next();
-  });
-  const route = handler => (req, res, next) => Promise.resolve(handler(req, res)).catch(next);
+  };
+  app.use('/api', noStore);
+  /** @param {(req: import('express').Request, res: import('express').Response) => any} handler */
+  const route =
+    handler =>
+    /** @type {import('express').RequestHandler} */
+    (req, res, next) =>
+      Promise.resolve(handler(req, res)).catch(next);
   const liveOnly = () => {
     if (config.demoMode) {
       throw new SpotifyError('Turn off DEMO_MODE and restart the server to connect to Spotify.', 409);
@@ -55,11 +71,18 @@ export function createApp({
       );
     }
   };
-  const requireInteger = (value, min, max, label) => {
-    if (!Number.isInteger(value) || value < min || value > max) {
+  /**
+   * @param {unknown} value
+   * @param {number} min
+   * @param {number} max
+   * @param {string} label
+   * @returns {asserts value is number}
+   */
+  function requireInteger(value, min, max, label) {
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) {
       throw new SpotifyError(`${label} must be an integer between ${min} and ${max}.`, 400);
     }
-  };
+  }
 
   app.get('/api/health', (req, res) => {
     const ready = existsSync(path.join(distPath, 'index.html'));
@@ -131,7 +154,7 @@ export function createApp({
     route(async (req, res) => {
       if (config.demoMode) return res.json({ currently_playing: demo.playback.item, queue: demo.queue });
       const data = await spotify.getQueue();
-      res.json({ currently_playing: data?.currently_playing || null, queue: data?.queue || [] });
+      return res.json({ currently_playing: data?.currently_playing || null, queue: data?.queue || [] });
     })
   );
   app.get(
@@ -189,7 +212,7 @@ export function createApp({
       res.json({ remainingQueue: demo.queue });
     })
   );
-  for (const action of ['play', 'pause', 'next', 'previous']) {
+  for (const action of /** @type {const} */ (['play', 'pause', 'next', 'previous'])) {
     app.post(
       `/api/spotify/${action}`,
       route(async (req, res) => {
@@ -242,11 +265,13 @@ export function createApp({
       if (error) next(new SpotifyError('Frontend build missing. Run npm run build.', 503));
     });
   });
-  app.use((error, req, res, next) => {
+  /** @type {import('express').ErrorRequestHandler} */
+  const errorHandler = (error, req, res, next) => {
     console.error(`${req.method} ${req.path}: ${error.message}`);
     if (res.headersSent) return next(error);
     if (error.retryAfter) res.set('Retry-After', error.retryAfter);
     res.status(error.status || 500).json({ error: error.message });
-  });
+  };
+  app.use(errorHandler);
   return app;
 }

@@ -13,6 +13,11 @@ const repository = fileURLToPath(new URL('../../', import.meta.url));
 const installer = path.join(repository, 'scripts/install-kiosk.sh');
 
 // Builds a minimal release tarball and checksum the way scripts/package-release.sh lays them out.
+/**
+ * @param {string} fixtures
+ * @param {string} tag
+ * @param {{ badChecksum?: boolean }} [options]
+ */
 async function makeRelease(fixtures, tag, { badChecksum = false } = {}) {
   const name = `the-max-mix-${tag}`;
   const stage = await mkdtemp(path.join(fixtures, 'stage-'));
@@ -35,6 +40,7 @@ async function makeRelease(fixtures, tag, { badChecksum = false } = {}) {
   await writeFile(`${archive}.sha256`, `${hash}  ${name}.tar.gz\n`);
 }
 
+/** @param {import('node:test').TestContext} t */
 async function setup(t) {
   const temporary = await mkdtemp(path.join(os.tmpdir(), 'max-mix-install-'));
   t.after(() => rm(temporary, { recursive: true, force: true }));
@@ -163,6 +169,7 @@ test('installer keeps the most recently activated releases and prunes the rest',
     await run('bash', [installer, tag], { env: limited });
     await new Promise(resolve => setTimeout(resolve, 20));
   }
+  /** @param {string} tag */
   const present = async tag =>
     access(path.join(install, 'releases', tag)).then(
       () => true,

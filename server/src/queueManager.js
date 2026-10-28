@@ -3,9 +3,23 @@
  * Manages tracks queued by party guests, tracks upvotes, and determines playback order
  */
 
+/**
+ * @typedef {{ id: string, name?: string, avatar?: string }} Guest
+ * @typedef {{
+ *   id?: string, uri?: string, title?: string, name?: string, artist?: string, artists?: { name: string }[],
+ *   album?: string | { name?: string, images?: { url: string }[] }, albumArt?: string, duration_ms?: number
+ * }} TrackInput
+ * @typedef {{
+ *   id: string, uri: string, title: string, artist: string, album: string, albumArt: string, duration_ms: number,
+ *   addedBy: { id: string, name: string, avatar: string }, addedAt: number, votes: number, voters: string[]
+ * }} QueueItem
+ */
+
 export class QueueManager {
   constructor() {
+    /** @type {QueueItem[]} */
     this.queue = [];
+    /** @type {QueueItem[]} */
     this.playedHistory = [];
   }
 
@@ -19,12 +33,16 @@ export class QueueManager {
     });
   }
 
+  /**
+   * @param {TrackInput} track
+   * @param {Guest} [guest]
+   */
   addTrack(track, guest = { id: 'host', name: 'Host' }) {
     // Check if track is already in queue
     const existingIndex = this.queue.findIndex(item => item.id === track.id);
     if (existingIndex !== -1) {
       // If already in queue, automatically count as an upvote from this guest
-      return this.upvoteTrack(track.id, guest.id);
+      return this.upvoteTrack(this.queue[existingIndex].id, guest.id);
     }
 
     const queueItem = {
@@ -32,10 +50,10 @@ export class QueueManager {
       uri: track.uri || `spotify:track:${track.id}`,
       title: track.title || track.name || 'Unknown Title',
       artist: track.artist || (track.artists ? track.artists.map(a => a.name).join(', ') : 'Unknown Artist'),
-      album: track.album?.name || track.album || 'Unknown Album',
+      album: (typeof track.album === 'string' ? track.album : track.album?.name) || 'Unknown Album',
       albumArt:
         track.albumArt ||
-        track.album?.images?.[0]?.url ||
+        (typeof track.album === 'object' ? track.album.images?.[0]?.url : undefined) ||
         'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=400&auto=format&fit=crop&q=80',
       duration_ms: track.duration_ms || 180000,
       addedBy: {
@@ -52,6 +70,10 @@ export class QueueManager {
     return { success: true, item: queueItem, queue: this.getQueue() };
   }
 
+  /**
+   * @param {string} trackId
+   * @param {string} guestId
+   */
   upvoteTrack(trackId, guestId) {
     const item = this.queue.find(t => t.id === trackId);
     if (!item) {
@@ -68,6 +90,7 @@ export class QueueManager {
     return { success: true, action: 'already_voted', item, queue: this.getQueue() };
   }
 
+  /** @param {string} trackId */
   removeTrack(trackId) {
     const initialLen = this.queue.length;
     this.queue = this.queue.filter(t => t.id !== trackId);

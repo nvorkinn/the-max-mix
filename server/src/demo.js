@@ -1,5 +1,14 @@
+/** @param {string} id */
 const image = id => `https://images.unsplash.com/${id}?w=600&auto=format&fit=crop&q=80`;
 /** @typedef {ReturnType<typeof track>} DemoTrack */
+/**
+ * @param {string} id
+ * @param {string} name
+ * @param {string} artist
+ * @param {string} art
+ * @param {number} duration
+ * @param {string} guest
+ */
 const track = (id, name, artist, art, duration, guest) => ({
   id,
   name,
