@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, AudioLines } from 'lucide-react';
 import AudioVisualizer from './AudioVisualizer.jsx';
 import { getDivaForUser } from '../utils/divas.js';
@@ -16,8 +16,14 @@ export default function AlbumArtPlayer({
   isDemoMode = false,
   controlsEnabled = false
 }) {
-  const [volume, setVolume] = useState(0);
-  useEffect(() => { setVolume(playback?.device?.volume_percent ?? 0); }, [playback?.device?.volume_percent]);
+  // Local slider value, reset whenever the device reports a different volume (adjusted during render, not in an effect).
+  const deviceVolume = playback?.device?.volume_percent ?? 0;
+  const [volume, setVolume] = useState(deviceVolume);
+  const [syncedDeviceVolume, setSyncedDeviceVolume] = useState(deviceVolume);
+  if (syncedDeviceVolume !== deviceVolume) {
+    setSyncedDeviceVolume(deviceVolume);
+    setVolume(deviceVolume);
+  }
   const volumeEnabled = controlsEnabled && playback?.device?.supports_volume !== false && playback?.device?.volume_percent != null;
   const item = playback?.item || playback?.track_window?.current_track || {};
   const title = item.name || item.title || 'Ready when you are';

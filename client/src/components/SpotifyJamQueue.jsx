@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Users, Disc3, GripVertical, Play, ArrowUpRight, ListMusic, Headphones } from 'lucide-react';
 import { getDivaForUser } from '../utils/divas.js';
+import { trackKeys } from '../utils/trackKeys.js';
 import confetti from 'canvas-confetti';
 
 export default function SpotifyJamQueue({
@@ -15,6 +16,7 @@ export default function SpotifyJamQueue({
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [hoverIndex, setHoverIndex] = useState(null);
   const listRef = useRef(null);
+  const keys = trackKeys(queue);
   const queueRef = useRef(queue);
   const dragRef = useRef(null);
   const cleanupDragRef = useRef(null);
@@ -115,7 +117,7 @@ export default function SpotifyJamQueue({
 
             return (
               <div
-                key={`${track.id || track.uri || title}-${idx}`}
+                key={keys[idx]}
                 role="listitem"
                 className={`queue-track ${idx === 0 ? 'is-next' : ''} ${draggedIndex === idx ? 'is-dragging' : ''} ${hoverIndex === idx && draggedIndex !== null && draggedIndex !== idx ? 'is-drop-target' : ''}`}
               >

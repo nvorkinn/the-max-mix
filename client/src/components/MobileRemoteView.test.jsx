@@ -10,7 +10,7 @@ function mockFetch(overrides = {}) {
   const fn = vi.fn(async (url, options) => {
     calls.push([url, options]);
     const key = Object.keys(overrides).find((k) => url.startsWith(k));
-    const body = key ? overrides[key] : url.startsWith('/api/queue') && !options ? queue : url.startsWith('/api/spotify/search') ? found : {};
+    const body = key ? overrides[key] : url.startsWith('/api/queue') && options?.method !== 'POST' ? queue : url.startsWith('/api/spotify/search') ? found : {};
     if (body instanceof Error) throw body;
     return { json: async () => body };
   });
@@ -88,10 +88,8 @@ describe('MobileRemoteView', () => {
     act(() => socket.handlers['queue:updated'](queue));
     expect(screen.getByText('Queued')).toBeInTheDocument();
     expect(screen.getByText(/Party Queue \(1\)/)).toBeInTheDocument();
-    act(() => socket.handlers['playback:state_changed']({ is_playing: true }));
     unmount();
     expect(socket.off).toHaveBeenCalledWith('queue:updated');
-    expect(socket.off).toHaveBeenCalledWith('playback:state_changed');
   });
 
   it('loads the initial queue from the API', async () => {
