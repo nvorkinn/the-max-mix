@@ -1,20 +1,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+/** @type {any} */
+const win = window; // Spotify globals are not part of the Window type
+
 describe('loadSpotifySDK', () => {
   let loadSpotifySDK;
 
   beforeEach(async () => {
     vi.resetModules();
-    delete window.Spotify;
-    delete window.onSpotifyWebPlaybackSDKReady;
+    delete win.Spotify;
+    delete win.onSpotifyWebPlaybackSDKReady;
     document.head.innerHTML = '';
     ({ loadSpotifySDK } = await import('./spotifySdk.js'));
   });
   afterEach(() => vi.useRealTimers());
 
   it('resolves immediately when the SDK is already present', async () => {
-    window.Spotify = { Player: class {} };
-    await expect(loadSpotifySDK()).resolves.toBe(window.Spotify);
+    win.Spotify = { Player: class {} };
+    await expect(loadSpotifySDK()).resolves.toBe(win.Spotify);
     expect(document.head.querySelector('script')).toBeNull();
   });
 
@@ -23,15 +26,17 @@ describe('loadSpotifySDK', () => {
     const second = loadSpotifySDK();
     expect(second).toBe(first);
     expect(document.head.querySelectorAll('script')).toHaveLength(1);
-    expect(document.head.querySelector('script').src).toBe('https://sdk.scdn.co/spotify-player.js');
-    window.Spotify = { ok: true };
-    window.onSpotifyWebPlaybackSDKReady();
+    expect(/** @type {HTMLScriptElement} */ (document.head.querySelector('script')).src).toBe(
+      'https://sdk.scdn.co/spotify-player.js'
+    );
+    win.Spotify = { ok: true };
+    win.onSpotifyWebPlaybackSDKReady();
     await expect(first).resolves.toEqual({ ok: true });
   });
 
   it('rejects, removes the script and allows a retry on load error', async () => {
     const promise = loadSpotifySDK();
-    document.head.querySelector('script').onerror();
+    /** @type {any} */ (document.head.querySelector('script')).onerror(new Event('error'));
     await expect(promise).rejects.toThrow(/Could not load the Spotify SDK/);
     expect(document.head.querySelector('script')).toBeNull();
     loadSpotifySDK().catch(() => {});

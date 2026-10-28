@@ -33,13 +33,13 @@ function setPlayer(overrides = {}) {
     playbackMode: 'remote',
     browserDeviceId: null,
     error: null,
-    refreshPlayback: vi.fn().mockResolvedValue(),
+    refreshPlayback: vi.fn().mockResolvedValue(undefined),
     togglePlay: vi.fn(),
     nextTrack: vi.fn(),
     previousTrack: vi.fn(),
     seek: vi.fn(),
     setVolume: vi.fn(),
-    transferPlayback: vi.fn().mockResolvedValue(),
+    transferPlayback: vi.fn().mockResolvedValue(undefined),
     ...overrides
   };
 }
@@ -73,7 +73,7 @@ describe('TabletView', () => {
     const { container } = render(<TabletView />);
     await flush();
     expect(palette.extractPalette).toHaveBeenCalledWith('http://art/a.jpg');
-    expect(container.firstChild.style.getPropertyValue('--ambient-primary')).toBe('red');
+    expect(/** @type {HTMLElement} */ (container.firstChild).style.getPropertyValue('--ambient-primary')).toBe('red');
   });
 
   it.each([
@@ -284,6 +284,6 @@ describe('TabletView', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(document.querySelector('.footer-clock').textContent).toMatch(/9:05|09:05/);
+    expect(/** @type {Element} */ (document.querySelector('.footer-clock')).textContent).toMatch(/9:05|09:05/);
   });
 });

@@ -2,10 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 const socket = vi.hoisted(() => ({
+  /** @type {Record<string, (...args: any[]) => void>} */
   handlers: {},
-  on: vi.fn(function on(event, fn) {
-    this.handlers[event] = fn;
-  }),
+  on: vi.fn(
+    /**
+     * @this {{ handlers: Record<string, Function> }}
+     * @param {string} event
+     * @param {Function} fn
+     */
+    function on(event, fn) {
+      this.handlers[event] = fn;
+    }
+  ),
   emit: vi.fn(),
   disconnect: vi.fn()
 }));

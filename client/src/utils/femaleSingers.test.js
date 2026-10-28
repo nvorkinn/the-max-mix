@@ -11,7 +11,7 @@ describe('isTrackByFemaleSinger', () => {
       isFemale: true,
       artist: 'adele'
     });
-    expect(isTrackByFemaleSinger({ artists: ['Dua Lipa'] }).isFemale).toBe(true);
+    expect(/** @type {any} */ (isTrackByFemaleSinger({ artists: ['Dua Lipa'] })).isFemale).toBe(true);
   });
 
   it('splits comma separated artist strings', () => {
@@ -25,7 +25,7 @@ describe('isTrackByFemaleSinger', () => {
 
   // Known bug: matching is by substring, so "Asia" contains "sia". Remove `.fails` once fixed.
   it.fails('does not flag unrelated artists whose names merely contain a catalog entry', () => {
-    expect(isTrackByFemaleSinger({ artist: 'Asia' }).isFemale).toBe(false);
+    expect(/** @type {any} */ (isTrackByFemaleSinger({ artist: 'Asia' })).isFemale).toBe(false);
   });
 });
 

@@ -5,10 +5,16 @@ import userEvent from '../test/user.js';
 const api = vi.hoisted(() => ({ requestJSON: vi.fn() }));
 vi.mock('../utils/api.js', () => api);
 
-import QRCodeModal from './QRCodeModal.jsx';
-import JamSettingsModal from './JamSettingsModal.jsx';
-import SettingsModal from './SettingsModal.jsx';
-import SpeakerSelectorModal from './SpeakerSelectorModal.jsx';
+import QRCodeModalFull from './QRCodeModal.jsx';
+import JamSettingsModalFull from './JamSettingsModal.jsx';
+import SettingsModalFull from './SettingsModal.jsx';
+import SpeakerSelectorModalFull from './SpeakerSelectorModal.jsx';
+import { partialProps } from '../test/partialProps.js';
+
+const QRCodeModal = partialProps(QRCodeModalFull);
+const JamSettingsModal = partialProps(JamSettingsModalFull);
+const SettingsModal = partialProps(SettingsModalFull);
+const SpeakerSelectorModal = partialProps(SpeakerSelectorModalFull);
 
 describe('QRCodeModal', () => {
   it('renders nothing when closed', () => {
@@ -141,7 +147,7 @@ describe('SpeakerSelectorModal', () => {
 
   it('selects a device then refreshes the list', async () => {
     api.requestJSON.mockResolvedValue({ devices });
-    const onSelectSpeaker = vi.fn().mockResolvedValue();
+    const onSelectSpeaker = vi.fn().mockResolvedValue(undefined);
     render(<SpeakerSelectorModal isOpen onSelectSpeaker={onSelectSpeaker} />);
     await userEvent.click(await screen.findByRole('button', { name: /Kitchen/ }));
     expect(onSelectSpeaker).toHaveBeenCalledWith('a');
@@ -160,7 +166,7 @@ describe('SpeakerSelectorModal', () => {
 
   it('offers this tablet only when it is not already listed', async () => {
     api.requestJSON.mockResolvedValue({ devices });
-    const onSelectSpeaker = vi.fn().mockResolvedValue();
+    const onSelectSpeaker = vi.fn().mockResolvedValue(undefined);
     const { rerender } = render(<SpeakerSelectorModal isOpen browserDeviceId="a" onSelectSpeaker={onSelectSpeaker} />);
     await screen.findByRole('button', { name: /Kitchen/ });
     expect(screen.queryByRole('button', { name: 'Use this tablet' })).toBeNull();

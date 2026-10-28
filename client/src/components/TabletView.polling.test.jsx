@@ -37,7 +37,7 @@ describe('TabletView', () => {
   it('shows the clock on the first render', () => {
     state.player = player();
     const { container } = render(<TabletView />);
-    expect(container.querySelector('.footer-clock').textContent.trim()).toMatch(/\d/);
+    expect(/** @type {Element} */ (container.querySelector('.footer-clock')).textContent.trim()).toMatch(/\d/);
   });
 
   it('does not poll the queue while signed out', () => {
