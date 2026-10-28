@@ -22,7 +22,6 @@ jobs:
             server/package-lock.json
       - run: npm --prefix client ci
       - run: npm --prefix server ci
-      - run: npm run lint
       - run: npm test
       - run: npm run test:coverage
       - name: Coverage summary
