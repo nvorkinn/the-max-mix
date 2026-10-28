@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
+import http from 'node:http';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createApp } from '../src/app.js';
 import { SpotifyError } from '../src/spotify.js';
 
-async function start(t, { demoMode = false, overrides = {}, playbackMode = 'remote', distPath, rateLimits } = {}) {
+async function start(t, { demoMode = false, overrides = {}, playbackMode = 'remote', distPath, rateLimits, allowedHosts } = {}) {
   const calls = [];
   const spotify = {
     isConfigured: () => true,
@@ -23,7 +24,7 @@ async function start(t, { demoMode = false, overrides = {}, playbackMode = 'remo
     ])),
     ...overrides
   };
-  const app = createApp({ config: { demoMode, playbackMode, port: 3000 }, spotify, distPath, rateLimits });
+  const app = createApp({ config: { demoMode, playbackMode, port: 3000, allowedHosts }, spotify, distPath, rateLimits });
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(() => new Promise(resolve => server.close(resolve)));
@@ -141,4 +142,61 @@ test('the general API limit applies across API routes', async t => {
   const { request } = await start(t, { rateLimits: { api: 3 } });
   for (const endpoint of ['/api/info', '/api/token', '/api/spotify/devices']) assert.equal((await request(endpoint)).response.status, 200);
   assert.equal((await request('/api/info')).response.status, 429);
+});
+
+// fetch() cannot set Host or Sec-Fetch-* headers, so these tests use node:http.
+function rawRequest(base, { method = 'GET', endpoint, headers = {}, body }) {
+  const { hostname, port } = new URL(base);
+  return new Promise((resolve, reject) => {
+    const request = http.request({ hostname, port, path: endpoint, method, headers }, response => {
+      let text = '';
+      response.on('data', chunk => { text += chunk; });
+      response.on('end', () => resolve({ status: response.statusCode, text }));
+    });
+    request.on('error', reject);
+    request.end(body);
+  });
+}
+
+test('state-changing requests from other websites are refused and have no effect', async t => {
+  const { base, request } = await start(t, { demoMode: true });
+  const json = { 'Content-Type': 'application/json' };
+  const pause = headers => rawRequest(base, { method: 'POST', endpoint: '/api/spotify/pause', headers, body: '{}' });
+  const playing = async () => (await request('/api/spotify/current')).data.is_playing;
+
+  assert.equal(await playing(), true);
+  for (const headers of [
+    { ...json, 'Sec-Fetch-Site': 'cross-site' },
+    { ...json, 'Sec-Fetch-Site': 'same-site' },
+    { ...json, Origin: 'https://evil.example' },
+    { ...json, Origin: 'null' },
+    { 'Content-Type': 'text/plain', 'Sec-Fetch-Site': 'cross-site', Origin: 'https://evil.example' }
+  ]) assert.equal((await pause(headers)).status, 403, JSON.stringify(headers));
+  assert.equal(await playing(), true, 'refused requests did not pause playback');
+
+  assert.equal((await pause({ 'Content-Type': 'text/plain' })).status, 415, 'a same-origin client must send JSON');
+  assert.equal((await pause({})).status, 415);
+  assert.equal(await playing(), true);
+
+  const host = new URL(base).host;
+  for (const headers of [json, { ...json, 'Sec-Fetch-Site': 'same-origin' }, { ...json, 'Sec-Fetch-Site': 'none' }, { ...json, Origin: `http://${host}` }]) {
+    assert.equal((await pause(headers)).status, 200, JSON.stringify(headers));
+  }
+  assert.equal(await playing(), false);
+});
+
+test('safe requests are not blocked as cross-site, so the Spotify sign-in redirect still works', async t => {
+  const { base } = await start(t, { demoMode: true });
+  const response = await rawRequest(base, { endpoint: '/api/info', headers: { 'Sec-Fetch-Site': 'cross-site', Origin: 'https://accounts.spotify.com' } });
+  assert.equal(response.status, 200);
+});
+
+test('unknown Host headers are refused, while IP addresses, localhost and configured names work', async t => {
+  const { base } = await start(t, { demoMode: true, allowedHosts: ['maxmix.example.lan'] });
+  const get = host => rawRequest(base, { endpoint: '/api/token', headers: { Host: host } });
+  for (const host of ['evil.example', 'evil.example:3000', 'rebind.attacker.test', 'localhost.evil.example', '127.0.0.1.evil.example']) assert.equal((await get(host)).status, 403, host);
+  for (const host of ['127.0.0.1:3000', '192.168.1.20', '[::1]:3000', 'localhost:3000', 'LocalHost', 'maxmix.example.lan:3000']) {
+    assert.equal((await get(host)).status, 200, host);
+  }
+  assert.equal((await get(`${os.hostname()}.local:3000`)).status, 200);
 });
