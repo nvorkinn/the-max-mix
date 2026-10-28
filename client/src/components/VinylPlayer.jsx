@@ -92,7 +92,7 @@ export default function VinylPlayer({
                 className="w-full h-full object-cover pointer-events-none"
               />
               {/* Spindle hole */}
-              <div className="absolute w-3.5 h-3.5 rounded-full bg-neutral-900 border-2 border-white/80 shadow" />
+              <div className="absolute w-3.5 h-3.5 rounded-full bg-neutral-900 border-2 border-white/80 shadow-sm" />
             </div>
           </div>
 
@@ -139,10 +139,10 @@ export default function VinylPlayer({
         <div className="space-y-1">
           <div
             onClick={handleProgressBarClick}
-            className="group relative h-2.5 bg-white/10 rounded-full cursor-pointer overflow-hidden backdrop-blur-sm"
+            className="group relative h-2.5 bg-white/10 rounded-full cursor-pointer overflow-hidden backdrop-blur-xs"
           >
             <div
-              className="h-full bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 rounded-full transition-all duration-300 relative shadow-[0_0_12px_rgba(52,211,153,0.7)]"
+              className="h-full bg-linear-to-r from-emerald-400 via-teal-400 to-cyan-400 rounded-full transition-all duration-300 relative shadow-[0_0_12px_rgba(52,211,153,0.7)]"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -179,7 +179,7 @@ export default function VinylPlayer({
 
             <button
               onClick={onPlayPause}
-              className="w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 active:scale-90 text-black flex items-center justify-center transition-all shadow-[0_0_25px_rgba(16,185,129,0.5)] border-2 border-white/40"
+              className="w-14 h-14 rounded-full bg-linear-to-tr from-emerald-500 to-teal-400 active:scale-90 text-black flex items-center justify-center transition-all shadow-[0_0_25px_rgba(16,185,129,0.5)] border-2 border-white/40"
               title={isPlaying ? 'Pause' : 'Play'}
             >
               {isPlaying ? (
