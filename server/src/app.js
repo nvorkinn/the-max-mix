@@ -148,7 +148,7 @@ export function createApp({ config, spotify, distPath = fileURLToPath(new URL('.
 
   app.use('/api', (req, res) => res.status(404).json({ error: 'API not found.' }));
   app.use(express.static(distPath));
-  app.get('*', (req, res, next) => {
+  app.get('/{*splat}', (req, res, next) => {
     res.sendFile(path.join(distPath, 'index.html'), error => {
       if (error) next(new SpotifyError('Frontend build missing. Run npm run build.', 503));
     });
