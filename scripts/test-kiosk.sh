@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
-bash -n "$root/scripts/start-kiosk.sh" "$root/scripts/install-kiosk.sh" "$root/scripts/start-kiosk-session.sh" "$root/scripts/start-kiosk-mac.sh"
+bash -n "$root/scripts/start-kiosk.sh" "$root/scripts/install-kiosk.sh" "$root/scripts/start-kiosk-session.sh" "$root/scripts/start-kiosk-mac.sh" "$root/scripts/package-release.sh"
 temporary=$(mktemp -d)
 trap 'rm -f "$temporary/bin/id" "$temporary/bin/curl" "$temporary/bin/chromium" "$temporary/bin/xset" "$temporary/arguments" "$temporary/curl-count"; rmdir "$temporary/bin"; rmdir "$temporary/profile"; rmdir "$temporary"' EXIT
 mkdir "$temporary/bin" "$temporary/profile"
