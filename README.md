@@ -66,6 +66,10 @@ flags and a separate profile; quit with Cmd+Q. Set `KIOSK_WINDOWED=true` for a
 override the defaults. It approximates the Pi's layout only; audio/DRM and touch
 still need the device.
 
+### Git hooks (optional)
+
+`npm install` at the repo root installs a [Husky](https://typicode.github.io/husky/) pre-commit hook that runs ESLint (`--max-warnings 0`, using each package's own config) on staged `.js`/`.jsx` files in `server/` and `client/` via lint-staged. It is skipped automatically when there is no `.git` directory or when dev dependencies are absent (CI, release builds). Set `HUSKY=0` or use `git commit --no-verify` to bypass it.
+
 ## Spotify configuration
 
 1. Create an app in the [Spotify developer dashboard](https://developer.spotify.com/dashboard).

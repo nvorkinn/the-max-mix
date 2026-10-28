@@ -14,10 +14,13 @@
     "test": "npm --prefix server test && npm --prefix client test && bash scripts/test-kiosk.sh",
     "install:all": "npm install && npm --prefix server install && npm --prefix client install",
     "lint": "npm --prefix server run lint && npm --prefix client run lint",
-    "test:coverage": "npm --prefix server run test:coverage && npm --prefix client run test:coverage"
+    "test:coverage": "npm --prefix server run test:coverage && npm --prefix client run test:coverage",
+    "prepare": "node scripts/install-hooks.js"
   },
   "devDependencies": {
-    "concurrently": "^10.0.6"
+    "concurrently": "^10.0.6",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0"
   },
   "engines": {
     "node": ">=22"
