@@ -59,9 +59,9 @@ test('revoked refresh tokens are removed and require a new login', async t => {
   await service.handleAuthCallback('code');
   service.tokenExpiresAt = 0;
   revoked = true;
-  await assert.rejects(service.getValidAccessToken(), error => error.status === 401);
+  await assert.rejects(service.getValidAccessToken(), { status: 401 });
   assert.equal(service.isAuthenticated(), false);
-  await assert.rejects(readFile(service.tokenFile), error => error.code === 'ENOENT');
+  await assert.rejects(readFile(service.tokenFile), { code: 'ENOENT' });
 });
 
 test('a non-JSON 400 from the token endpoint is a SpotifyError and keeps the saved login', async t => {
@@ -100,7 +100,7 @@ test('Spotify errors and Retry-After propagate instead of returning mock success
       : json({}, status, { 'Retry-After': '30' })
   );
   await service.handleAuthCallback('code');
-  await assert.rejects(service.next(), error => error.status === 429 && error.retryAfter === '30');
+  await assert.rejects(service.next(), { status: 429, retryAfter: '30' });
   status = 403;
-  await assert.rejects(service.next(), error => error.status === 403 && /Premium/.test(error.message));
+  await assert.rejects(service.next(), { status: 403, message: /Premium/ });
 });

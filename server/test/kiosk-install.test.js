@@ -115,7 +115,7 @@ test('installer fetches the latest release, renders units, preserves configurati
   const browserUnit = await readFile(path.join(home, '.config/systemd/user/the-max-mix-kiosk.service'), 'utf8');
   assert.match(browserUnit, /KIOSK_URL=http:\/\/127\.0\.0\.1:3999/);
   const autostart = await readFile(path.join(home, '.config/labwc/autostart'), 'utf8');
-  assert.equal(autostart.match(/BEGIN THE MAX MIX KIOSK/g).length, 1);
+  assert.equal(autostart.match(/BEGIN THE MAX MIX KIOSK/g)?.length, 1);
   assert.match(autostart, /existing_desktop_command &/);
   assert.match(
     await readFile(path.join(home, '.config/autostart/the-max-mix-kiosk.desktop'), 'utf8'),
