@@ -1,0 +1,34 @@
+name: Create Global PR Status (Dependabot)
+
+# The shared Create Global PR Status workflow skips Dependabot pull requests, because on the pull_request event they
+# get a read-only token that cannot create a check run. This opens the same "Global PR Status" check for them from
+# pull_request_target, which runs this file from the default branch with a token that can write checks. All Checks
+# then settles it as usual once Tests and CodeQL finish. It never checks out or runs the pull request's code: it only
+# calls the API with the head commit's SHA.
+on:
+  pull_request_target:
+    types: [ opened, synchronize, reopened ]
+
+permissions:
+  checks: write
+
+jobs:
+  create-for-dependabot:
+    runs-on: ubuntu-latest
+    if: >-
+      ${{
+        github.actor == 'dependabot[bot]' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      }}
+    timeout-minutes: 5
+    steps:
+      - name: Create the check run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh api --method POST "repos/$REPO/check-runs" \
+            -f name='Global PR Status' -f head_sha="$SHA" -f status=in_progress \
+            --jq .id
