@@ -6,15 +6,15 @@ import React, { useEffect, useRef } from 'react';
  * Adapts to ink drops in minimal mode or neon rings in party mode.
  */
 export default function TouchRipples({ theme = 'neon' }) {
-  const canvasRef = useRef(null);
-  const animFrameRef = useRef(null);
-  const ripplesRef = useRef([]);
+  const canvasRef = useRef(/** @type {HTMLCanvasElement | null} */ (null));
+  const animFrameRef = useRef(/** @type {number | null} */ (null));
+  const ripplesRef = useRef(/** @type {any[]} */ ([]));
   const isMinimal = theme === 'minimal';
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const resize = () => {
@@ -111,7 +111,7 @@ export default function TouchRipples({ theme = 'neon' }) {
 
     const handleVisibility = () => {
       if (document.hidden) {
-        cancelAnimationFrame(animFrameRef.current);
+        cancelAnimationFrame(/** @type {number} */ (animFrameRef.current));
         animFrameRef.current = null;
         ripplesRef.current = [];
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -123,7 +123,7 @@ export default function TouchRipples({ theme = 'neon' }) {
       window.removeEventListener('resize', resize);
       window.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('visibilitychange', handleVisibility);
-      cancelAnimationFrame(animFrameRef.current);
+      cancelAnimationFrame(/** @type {number} */ (animFrameRef.current));
       animFrameRef.current = null;
     };
   }, [theme, isMinimal]);

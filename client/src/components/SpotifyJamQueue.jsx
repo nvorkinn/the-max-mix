@@ -5,7 +5,7 @@ import { trackKeys } from '../utils/trackKeys.js';
 import confetti from 'canvas-confetti';
 
 export default function SpotifyJamQueue({
-  queue = [],
+  queue = /** @type {import('../types.js').Track[]} */ ([]),
   onReorderQueue,
   onPlaySongNow,
   onOpenJamSettings,
@@ -13,13 +13,13 @@ export default function SpotifyJamQueue({
   isDemoMode = false,
   error
 }) {
-  const [draggedIndex, setDraggedIndex] = useState(null);
-  const [hoverIndex, setHoverIndex] = useState(null);
-  const listRef = useRef(null);
+  const [draggedIndex, setDraggedIndex] = useState(/** @type {number | null} */ (null));
+  const [hoverIndex, setHoverIndex] = useState(/** @type {number | null} */ (null));
+  const listRef = useRef(/** @type {HTMLDivElement | null} */ (null));
   const keys = trackKeys(queue);
   const queueRef = useRef(queue);
-  const dragRef = useRef(null);
-  const cleanupDragRef = useRef(null);
+  const dragRef = useRef(/** @type {{ from: number, to: number } | null} */ (null));
+  const cleanupDragRef = useRef(/** @type {(() => void) | null} */ (null));
 
   useEffect(() => {
     queueRef.current = queue;
@@ -50,7 +50,7 @@ export default function SpotifyJamQueue({
         return event.clientY >= rect.top && event.clientY <= rect.bottom;
       });
       if (target !== -1) {
-        dragRef.current.to = target;
+        /** @type {{ from: number, to: number }} */ (dragRef.current).to = target;
         setHoverIndex(target);
       }
     };
@@ -200,7 +200,9 @@ export default function SpotifyJamQueue({
                         moveTrack(idx, target).then(success => {
                           if (success) {
                             requestAnimationFrame(() => {
-                              listRef.current?.children[target]?.querySelector('.queue-drag')?.focus();
+                              /** @type {HTMLElement | null | undefined} */ (
+                                listRef.current?.children[target]?.querySelector('.queue-drag')
+                              )?.focus();
                             });
                           }
                         });

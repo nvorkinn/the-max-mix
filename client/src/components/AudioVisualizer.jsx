@@ -4,18 +4,18 @@ import React, { useEffect, useRef } from 'react';
  * Decorative waveform driven by playback state, not an audio analysis.
  */
 export default function AudioVisualizer({ isPlaying, primaryColor = '#10b981', secondaryColor = '#6366f1' }) {
-  const canvasRef = useRef(null);
-  const animFrameRef = useRef(null);
+  const canvasRef = useRef(/** @type {HTMLCanvasElement | null} */ (null));
+  const animFrameRef = useRef(/** @type {number | null} */ (null));
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
     const resize = () => {
-      canvas.width = canvas.parentElement.clientWidth || 400;
-      canvas.height = canvas.parentElement.clientHeight || 120;
+      canvas.width = /** @type {HTMLElement} */ (canvas.parentElement).clientWidth || 400;
+      canvas.height = /** @type {HTMLElement} */ (canvas.parentElement).clientHeight || 120;
     };
     resize();
 
@@ -89,7 +89,7 @@ export default function AudioVisualizer({ isPlaying, primaryColor = '#10b981', s
     };
 
     const restart = () => {
-      cancelAnimationFrame(animFrameRef.current);
+      cancelAnimationFrame(/** @type {number} */ (animFrameRef.current));
       resize();
       render();
     };
@@ -102,7 +102,7 @@ export default function AudioVisualizer({ isPlaying, primaryColor = '#10b981', s
       window.removeEventListener('resize', restart);
       document.removeEventListener('visibilitychange', restart);
       reducedMotion.removeEventListener('change', restart);
-      cancelAnimationFrame(animFrameRef.current);
+      cancelAnimationFrame(/** @type {number} */ (animFrameRef.current));
     };
   }, [isPlaying, primaryColor, secondaryColor]);
 

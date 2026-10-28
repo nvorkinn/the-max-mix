@@ -32,13 +32,13 @@ export default function TabletView() {
     transferPlayback
   } = useSpotifyPlayer();
 
-  const [queue, setQueue] = useState([]);
+  const [queue, setQueue] = useState(/** @type {import('../types.js').Track[]} */ ([]));
   const [currentTime, setCurrentTime] = useState(formatClock);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSpeakerModalOpen, setIsSpeakerModalOpen] = useState(false);
   const [isJamSettingsOpen, setIsJamSettingsOpen] = useState(false);
-  const [queueError, setQueueError] = useState(null);
-  const [toastMessage, setToastMessage] = useState(null);
+  const [queueError, setQueueError] = useState(/** @type {string | null} */ (null));
+  const [toastMessage, setToastMessage] = useState(/** @type {string | null} */ (null));
   const [theme, setTheme] = useState(() => (localStorage.getItem('maxmix_theme') === 'minimal' ? 'minimal' : 'neon'));
 
   const handleThemeChange = newTheme => {
@@ -88,8 +88,9 @@ export default function TabletView() {
         failures = 0;
       } catch (caught) {
         if (cancelled) return;
-        setQueueError(caught.message);
-        delay = Math.max(Math.min(60000, 10000 * 2 ** ++failures), caught.retryAfter * 1000 || 0);
+        const apiError = /** @type {import('../types.js').ApiError} */ (caught);
+        setQueueError(apiError.message);
+        delay = Math.max(Math.min(60000, 10000 * 2 ** ++failures), (apiError.retryAfter ?? 0) * 1000 || 0);
       }
       if (!cancelled) timer = setTimeout(poll, delay);
     };
@@ -122,7 +123,7 @@ export default function TabletView() {
       showToast('Demo queue order updated.');
       return true;
     } catch (err) {
-      showToast(err.message);
+      showToast(/** @type {Error} */ (err).message);
       return false;
     }
   };
@@ -134,7 +135,7 @@ export default function TabletView() {
       await refreshPlayback();
       showToast(`Demo playing: ${track.name || track.title}`);
     } catch (err) {
-      showToast(err.message);
+      showToast(/** @type {Error} */ (err).message);
     }
   };
 
@@ -171,7 +172,7 @@ export default function TabletView() {
             : isLoading
               ? 'Connecting...'
               : isReady
-                ? playbackState.device.name
+                ? playbackState?.device?.name
                 : isAuthenticated
                   ? 'Select a Spotify device'
                   : 'Sign in to Spotify'}

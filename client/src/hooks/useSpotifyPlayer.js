@@ -3,13 +3,13 @@ import { requestJSON, postJSON } from '../utils/api.js';
 import { loadSpotifySDK } from '../utils/spotifySdk.js';
 
 export function useSpotifyPlayer() {
-  const [config, setConfig] = useState(null);
+  const [config, setConfig] = useState(/** @type {import('../types.js').ServerConfig | null} */ (null));
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [playbackState, setPlaybackState] = useState(null);
-  const [browserDeviceId, setBrowserDeviceId] = useState(null);
-  const [connectionError, setConnectionError] = useState(null);
+  const [playbackState, setPlaybackState] = useState(/** @type {import('../types.js').PlaybackState | null} */ (null));
+  const [browserDeviceId, setBrowserDeviceId] = useState(/** @type {string | null} */ (null));
+  const [connectionError, setConnectionError] = useState(/** @type {string | null} */ (null));
   const [actionError, setActionError] = useState(() => new URLSearchParams(location.search).get('auth_error'));
-  const [sdkError, setSdkError] = useState(null);
+  const [sdkError, setSdkError] = useState(/** @type {string | null} */ (null));
   const playbackRequestRef = useRef(0);
 
   const refreshPlayback = useCallback(async () => {
@@ -37,12 +37,13 @@ export function useSpotifyPlayer() {
         failures = 0;
       } catch (error) {
         if (cancelled) return;
-        setConnectionError(error.message);
-        if (error.status === 401) {
+        const apiError = /** @type {import('../types.js').ApiError} */ (error);
+        setConnectionError(apiError.message);
+        if (apiError.status === 401) {
           setIsAuthenticated(false);
           setPlaybackState(null);
         }
-        delay = Math.max(Math.min(60000, 4000 * 2 ** ++failures), error.retryAfter * 1000 || 0);
+        delay = Math.max(Math.min(60000, 4000 * 2 ** ++failures), (apiError.retryAfter ?? 0) * 1000 || 0);
       }
       if (!cancelled) timer = setTimeout(poll, delay);
     };
@@ -73,7 +74,7 @@ export function useSpotifyPlayer() {
                 else if (!cancelled) setSdkError('Spotify login expired. Sign in again in Settings.');
               })
               .catch(error => {
-                if (!cancelled) setSdkError(error.message);
+                if (!cancelled) setSdkError(/** @type {Error} */ (error).message);
               });
           },
           volume: 0.8
@@ -99,7 +100,7 @@ export function useSpotifyPlayer() {
         }
         if (!(await player.connect()) && !cancelled) setSdkError('Could not connect the tablet player to Spotify.');
       } catch (error) {
-        if (!cancelled) setSdkError(error.message);
+        if (!cancelled) setSdkError(/** @type {Error} */ (error).message);
       }
     };
     initialize();
@@ -118,7 +119,7 @@ export function useSpotifyPlayer() {
         setActionError(null);
         return true;
       } catch (error) {
-        setActionError(error.message);
+        setActionError(/** @type {Error} */ (error).message);
         return false;
       }
     },
@@ -132,7 +133,7 @@ export function useSpotifyPlayer() {
       setActionError(null);
       return true;
     } catch (error) {
-      setActionError(error.message);
+      setActionError(/** @type {Error} */ (error).message);
       throw error;
     }
   };

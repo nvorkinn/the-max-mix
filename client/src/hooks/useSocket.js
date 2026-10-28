@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 
 export function useSocket() {
-  const socketRef = useRef(null);
+  const socketRef = useRef(/** @type {import('socket.io-client').Socket | null} */ (null));
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
