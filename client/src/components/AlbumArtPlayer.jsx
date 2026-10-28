@@ -17,14 +17,19 @@ export default function AlbumArtPlayer({
   controlsEnabled = false
 }) {
   const [volume, setVolume] = useState(0);
-  useEffect(() => { setVolume(playback?.device?.volume_percent ?? 0); }, [playback?.device?.volume_percent]);
-  const volumeEnabled = controlsEnabled && playback?.device?.supports_volume !== false && playback?.device?.volume_percent != null;
+  useEffect(() => {
+    setVolume(playback?.device?.volume_percent ?? 0);
+  }, [playback?.device?.volume_percent]);
+  const volumeEnabled =
+    controlsEnabled && playback?.device?.supports_volume !== false && playback?.device?.volume_percent != null;
   const item = playback?.item || playback?.track_window?.current_track || {};
   const title = item.name || item.title || 'Ready when you are';
   const artist = item.artists
-    ? item.artists.map((a) => a.name).join(', ')
+    ? item.artists.map(a => a.name).join(', ')
     : item.artist || 'Choose your next favorite in Spotify';
-  const albumArt = item.album?.images?.[0]?.url || item.albumArt ||
+  const albumArt =
+    item.album?.images?.[0]?.url ||
+    item.albumArt ||
     'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80';
   const progressMs = playback?.progress_ms ?? playback?.position ?? 0;
   const durationMs = item.duration_ms || playback?.duration || 180000;
@@ -33,11 +38,9 @@ export default function AlbumArtPlayer({
   const guestName = isDemoMode ? rawAddedBy.name : null;
   const assignedDiva = getDivaForUser(guestName || '', 0, theme);
   const userAvatar = rawAddedBy.avatar || assignedDiva.image;
-  const visualizerColors = theme === 'minimal'
-    ? ['#242820', '#747a6b']
-    : ['#d5f580', '#8dab64'];
+  const visualizerColors = theme === 'minimal' ? ['#242820', '#747a6b'] : ['#d5f580', '#8dab64'];
 
-  const formatTime = (ms) => {
+  const formatTime = ms => {
     const seconds = Math.floor(ms / 1000);
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   };
@@ -45,7 +48,9 @@ export default function AlbumArtPlayer({
   return (
     <div className="now-playing">
       <div className="player-heading">
-        <span className="eyebrow"><AudioLines size={14} /> Now playing</span>
+        <span className="eyebrow">
+          <AudioLines size={14} /> Now playing
+        </span>
         <span className="playback-label">{isPlaying ? 'ON REPEAT? WE GET IT.' : 'TAKE YOUR TIME.'}</span>
       </div>
 
@@ -57,9 +62,14 @@ export default function AlbumArtPlayer({
       >
         <img src={albumArt} alt={`${title} album artwork`} className="album-cover" />
         <span className="album-shade" />
-        <span className="art-caption"><span className="status-dot" /> THE SOUNDTRACK STARTS HERE</span>
+        <span className="art-caption">
+          <span className="status-dot" /> THE SOUNDTRACK STARTS HERE
+        </span>
         <span className={`art-equalizer ${isPlaying ? 'is-playing' : ''}`} aria-hidden="true">
-          <i /><i /><i /><i />
+          <i />
+          <i />
+          <i />
+          <i />
         </span>
       </button>
 
@@ -70,17 +80,29 @@ export default function AlbumArtPlayer({
             <p title={artist}>{artist}</p>
           </div>
           <div className="track-visualizer" aria-hidden="true">
-            <AudioVisualizer isPlaying={isPlaying} primaryColor={visualizerColors[0]} secondaryColor={visualizerColors[1]} />
+            <AudioVisualizer
+              isPlaying={isPlaying}
+              primaryColor={visualizerColors[0]}
+              secondaryColor={visualizerColors[1]}
+            />
           </div>
         </div>
-        {guestName ? <div className="track-credit">
-          <img
-            src={userAvatar}
-            alt=""
-            onError={(e) => { e.currentTarget.src = assignedDiva.image; }}
-          />
-          <span>Demo pick by <strong>{guestName}</strong></span>
-        </div> : <div className="track-credit">{playback?.device?.name || 'Select a device in Speakers'}</div>}
+        {guestName ? (
+          <div className="track-credit">
+            <img
+              src={userAvatar}
+              alt=""
+              onError={e => {
+                e.currentTarget.src = assignedDiva.image;
+              }}
+            />
+            <span>
+              Demo pick by <strong>{guestName}</strong>
+            </span>
+          </div>
+        ) : (
+          <div className="track-credit">{playback?.device?.name || 'Select a device in Speakers'}</div>
+        )}
       </div>
 
       <div className="player-controls">
@@ -91,13 +113,16 @@ export default function AlbumArtPlayer({
             min="0"
             max={durationMs}
             value={Math.min(progressMs, durationMs)}
-            onChange={(e) => onSeek(Number(e.target.value))}
+            onChange={e => onSeek(Number(e.target.value))}
             aria-label="Playback position"
             aria-valuetext={`${formatTime(progressMs)} of ${formatTime(durationMs)}`}
             className="range-control seek-range"
             style={{ '--range-progress': `${progressPercent}%` }}
           />
-          <div className="track-times"><span>{formatTime(progressMs)}</span><span>{formatTime(durationMs)}</span></div>
+          <div className="track-times">
+            <span>{formatTime(progressMs)}</span>
+            <span>{formatTime(durationMs)}</span>
+          </div>
         </div>
         <div className="transport-row">
           <label className="volume-control">
@@ -109,7 +134,7 @@ export default function AlbumArtPlayer({
               max="100"
               value={volume}
               aria-label="Volume"
-              onChange={(e) => {
+              onChange={e => {
                 const value = Number(e.target.value);
                 setVolume(value);
                 onVolumeChange?.(value);
@@ -119,11 +144,33 @@ export default function AlbumArtPlayer({
             />
           </label>
           <div className="transport-buttons">
-            <button disabled={!controlsEnabled || playback?.actions?.disallows?.skipping_prev} className="transport-skip" onClick={onPrevious} aria-label="Previous track"><SkipBack size={20} fill="currentColor" /></button>
-            <button disabled={!controlsEnabled || (isPlaying ? playback?.actions?.disallows?.pausing : playback?.actions?.disallows?.resuming)} className="transport-play" onClick={onPlayPause} aria-label={isPlaying ? 'Pause' : 'Play'}>
+            <button
+              disabled={!controlsEnabled || playback?.actions?.disallows?.skipping_prev}
+              className="transport-skip"
+              onClick={onPrevious}
+              aria-label="Previous track"
+            >
+              <SkipBack size={20} fill="currentColor" />
+            </button>
+            <button
+              disabled={
+                !controlsEnabled ||
+                (isPlaying ? playback?.actions?.disallows?.pausing : playback?.actions?.disallows?.resuming)
+              }
+              className="transport-play"
+              onClick={onPlayPause}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+            >
               {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
             </button>
-            <button disabled={!controlsEnabled || playback?.actions?.disallows?.skipping_next} className="transport-skip" onClick={onNext} aria-label="Next track"><SkipForward size={20} fill="currentColor" /></button>
+            <button
+              disabled={!controlsEnabled || playback?.actions?.disallows?.skipping_next}
+              className="transport-skip"
+              onClick={onNext}
+              aria-label="Next track"
+            >
+              <SkipForward size={20} fill="currentColor" />
+            </button>
           </div>
           <span className="transport-status">{isPlaying ? 'Playing' : 'Paused'}</span>
         </div>

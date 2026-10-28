@@ -8,7 +8,7 @@ vi.mock('../utils/spotifySdk.js', () => ({ loadSpotifySDK: vi.fn() }));
 import { useSpotifyPlayer } from './useSpotifyPlayer.js';
 
 function route(table) {
-  api.requestJSON.mockImplementation(async (url) => {
+  api.requestJSON.mockImplementation(async url => {
     const entry = table[url];
     if (entry instanceof Error) throw entry;
     if (entry === undefined) throw new Error(`unexpected ${url}`);
@@ -72,7 +72,9 @@ describe('useSpotifyPlayer', () => {
     await waitFor(() => expect(result.current.isReady).toBe(true));
 
     let ok;
-    await act(async () => { ok = await result.current.togglePlay(); });
+    await act(async () => {
+      ok = await result.current.togglePlay();
+    });
     expect(ok).toBe(true);
     expect(api.postJSON).toHaveBeenCalledWith('/api/spotify/pause', undefined);
   });
@@ -87,7 +89,9 @@ describe('useSpotifyPlayer', () => {
     await waitFor(() => expect(result.current.isReady).toBe(true));
 
     let ok;
-    await act(async () => { ok = await result.current.nextTrack(); });
+    await act(async () => {
+      ok = await result.current.nextTrack();
+    });
     expect(ok).toBe(false);
     expect(result.current.error).toBe('No active device');
 
@@ -104,9 +108,13 @@ describe('useSpotifyPlayer', () => {
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.isReady).toBe(true));
 
-    await act(async () => { await result.current.seek(1234.6); });
+    await act(async () => {
+      await result.current.seek(1234.6);
+    });
     expect(api.postJSON).toHaveBeenCalledWith('/api/spotify/seek', { position_ms: 1235 });
-    await act(async () => { await result.current.setVolume(0.456); });
+    await act(async () => {
+      await result.current.setVolume(0.456);
+    });
     expect(api.postJSON).toHaveBeenCalledWith('/api/spotify/volume', { volume_percent: 46 });
   });
 

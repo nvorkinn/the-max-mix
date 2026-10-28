@@ -5,7 +5,7 @@ name: Release
 # repeated here: the Tests workflow already runs them on pull requests and on main.
 on:
   push:
-    tags: [ 'v[0-9]+.[0-9]+.[0-9]+*' ]
+    tags: ['v[0-9]+.[0-9]+.[0-9]+*']
 
 permissions:
   contents: write

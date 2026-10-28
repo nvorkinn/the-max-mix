@@ -8,7 +8,10 @@ import path from 'node:path';
 import { createApp } from '../src/app.js';
 import { SpotifyError } from '../src/spotify.js';
 
-async function start(t, { demoMode = false, overrides = {}, playbackMode = 'remote', distPath, rateLimits, allowedHosts } = {}) {
+async function start(
+  t,
+  { demoMode = false, overrides = {}, playbackMode = 'remote', distPath, rateLimits, allowedHosts } = {}
+) {
   const calls = [];
   const spotify = {
     isConfigured: () => true,
@@ -19,12 +22,20 @@ async function start(t, { demoMode = false, overrides = {}, playbackMode = 'remo
     spotifyFetch: async () => ({ devices: [] }),
     getAuthUrl: state => `https://accounts.spotify.com/authorize?state=${state}`,
     handleAuthCallback: async code => calls.push(['auth', code]),
-    ...Object.fromEntries(['play', 'pause', 'next', 'previous', 'seek', 'setVolume', 'transferPlayback'].map(action => [
-      action, async (...args) => calls.push([action, ...args])
-    ])),
+    ...Object.fromEntries(
+      ['play', 'pause', 'next', 'previous', 'seek', 'setVolume', 'transferPlayback'].map(action => [
+        action,
+        async (...args) => calls.push([action, ...args])
+      ])
+    ),
     ...overrides
   };
-  const app = createApp({ config: { demoMode, playbackMode, port: 3000, allowedHosts }, spotify, distPath, rateLimits });
+  const app = createApp({
+    config: { demoMode, playbackMode, port: 3000, allowedHosts },
+    spotify,
+    distPath,
+    rateLimits
+  });
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(() => new Promise(resolve => server.close(resolve)));
@@ -42,7 +53,9 @@ async function start(t, { demoMode = false, overrides = {}, playbackMode = 'remo
 }
 
 test('remote mode does not expose browser tokens, and unauthenticated live mode is not demo', async t => {
-  const { request } = await start(t, { overrides: { getValidAccessToken: async () => null, isAuthenticated: () => false } });
+  const { request } = await start(t, {
+    overrides: { getValidAccessToken: async () => null, isAuthenticated: () => false }
+  });
   const { data } = await request('/api/token');
   assert.equal(data.token, null);
   assert.equal(data.authenticated, false);
@@ -51,7 +64,9 @@ test('remote mode does not expose browser tokens, and unauthenticated live mode 
 });
 
 test('empty real device and queue results stay empty with no invented contributors', async t => {
-  const { request } = await start(t, { overrides: { getQueue: async () => ({ queue: [{ id: 'real-track', name: 'Real track' }] }) } });
+  const { request } = await start(t, {
+    overrides: { getQueue: async () => ({ queue: [{ id: 'real-track', name: 'Real track' }] }) }
+  });
   assert.deepEqual((await request('/api/spotify/devices')).data, { devices: [] });
   assert.deepEqual((await request('/api/queue')).data.queue, [{ id: 'real-track', name: 'Real track' }]);
   assert.equal((await request('/api/spotify/current')).data, null);
@@ -62,22 +77,40 @@ test('empty real device and queue results stay empty with no invented contributo
 
 test('live controls call Spotify exactly once with validated arguments', async t => {
   const { request, calls } = await start(t);
-  for (const action of ['play', 'pause', 'next', 'previous']) assert.equal((await request(`/api/spotify/${action}`, {})).response.status, 200);
+  for (const action of ['play', 'pause', 'next', 'previous']) {
+    assert.equal((await request(`/api/spotify/${action}`, {})).response.status, 200);
+  }
   await request('/api/spotify/seek', { position_ms: 12000 });
   await request('/api/spotify/volume', { volume_percent: 0 });
   await request('/api/transfer', { deviceId: 'actual-speaker' });
-  assert.deepEqual(calls, [['play'], ['pause'], ['next'], ['previous'], ['seek', 12000], ['setVolume', 0], ['transferPlayback', 'actual-speaker', false]]);
-  for (const value of [-1, 101, '50', null, 1.5]) assert.equal((await request('/api/spotify/volume', { volume_percent: value })).response.status, 400);
+  assert.deepEqual(calls, [
+    ['play'],
+    ['pause'],
+    ['next'],
+    ['previous'],
+    ['seek', 12000],
+    ['setVolume', 0],
+    ['transferPlayback', 'actual-speaker', false]
+  ]);
+  for (const value of [-1, 101, '50', null, 1.5]) {
+    assert.equal((await request('/api/spotify/volume', { volume_percent: value })).response.status, 400);
+  }
   assert.equal((await request('/api/spotify/seek', { position_ms: -1 })).response.status, 400);
   assert.equal((await request('/api/transfer', { deviceId: '' })).response.status, 400);
   assert.equal(calls.length, 7);
 });
 
 test('upstream errors remain errors, including rate-limit headers', async t => {
-  const { request } = await start(t, { overrides: {
-    getQueue: async () => { throw new SpotifyError('Spotify rate limit reached.', 429, '45'); },
-    next: async () => { throw new SpotifyError('No active device.', 404); }
-  } });
+  const { request } = await start(t, {
+    overrides: {
+      getQueue: async () => {
+        throw new SpotifyError('Spotify rate limit reached.', 429, '45');
+      },
+      next: async () => {
+        throw new SpotifyError('No active device.', 404);
+      }
+    }
+  });
   const queue = await request('/api/queue');
   assert.equal(queue.response.status, 429);
   assert.equal(queue.response.headers.get('Retry-After'), '45');
@@ -90,9 +123,15 @@ test('OAuth requires the matching state cookie before exchanging a code', async 
   const login = await fetch(`${base}/api/auth/login`, { redirect: 'manual' });
   const state = new URL(login.headers.get('Location')).searchParams.get('state');
   const cookie = login.headers.get('Set-Cookie').split(';')[0];
-  assert.equal((await fetch(`${base}/api/auth/callback?code=code&state=wrong`, { headers: { Cookie: cookie } })).status, 400);
+  assert.equal(
+    (await fetch(`${base}/api/auth/callback?code=code&state=wrong`, { headers: { Cookie: cookie } })).status,
+    400
+  );
   assert.deepEqual(calls, []);
-  const callback = await fetch(`${base}/api/auth/callback?code=code&state=${state}`, { headers: { Cookie: cookie }, redirect: 'manual' });
+  const callback = await fetch(`${base}/api/auth/callback?code=code&state=${state}`, {
+    headers: { Cookie: cookie },
+    redirect: 'manual'
+  });
   assert.equal(callback.status, 302);
   assert.deepEqual(calls, [['auth', 'code']]);
 });
@@ -140,7 +179,9 @@ test('API, sign-in and page requests are rate limited per client with a JSON 429
 
 test('the general API limit applies across API routes', async t => {
   const { request } = await start(t, { rateLimits: { api: 3 } });
-  for (const endpoint of ['/api/info', '/api/token', '/api/spotify/devices']) assert.equal((await request(endpoint)).response.status, 200);
+  for (const endpoint of ['/api/info', '/api/token', '/api/spotify/devices']) {
+    assert.equal((await request(endpoint)).response.status, 200);
+  }
   assert.equal((await request('/api/info')).response.status, 429);
 });
 
@@ -150,7 +191,9 @@ function rawRequest(base, { method = 'GET', endpoint, headers = {}, body }) {
   return new Promise((resolve, reject) => {
     const request = http.request({ hostname, port, path: endpoint, method, headers }, response => {
       let text = '';
-      response.on('data', chunk => { text += chunk; });
+      response.on('data', chunk => {
+        text += chunk;
+      });
       response.on('end', () => resolve({ status: response.statusCode, text }));
     });
     request.on('error', reject);
@@ -171,7 +214,9 @@ test('state-changing requests from other websites are refused and have no effect
     { ...json, Origin: 'https://evil.example' },
     { ...json, Origin: 'null' },
     { 'Content-Type': 'text/plain', 'Sec-Fetch-Site': 'cross-site', Origin: 'https://evil.example' }
-  ]) assert.equal((await pause(headers)).status, 403, JSON.stringify(headers));
+  ]) {
+    assert.equal((await pause(headers)).status, 403, JSON.stringify(headers));
+  }
   assert.equal(await playing(), true, 'refused requests did not pause playback');
 
   assert.equal((await pause({ 'Content-Type': 'text/plain' })).status, 415, 'a same-origin client must send JSON');
@@ -179,7 +224,12 @@ test('state-changing requests from other websites are refused and have no effect
   assert.equal(await playing(), true);
 
   const host = new URL(base).host;
-  for (const headers of [json, { ...json, 'Sec-Fetch-Site': 'same-origin' }, { ...json, 'Sec-Fetch-Site': 'none' }, { ...json, Origin: `http://${host}` }]) {
+  for (const headers of [
+    json,
+    { ...json, 'Sec-Fetch-Site': 'same-origin' },
+    { ...json, 'Sec-Fetch-Site': 'none' },
+    { ...json, Origin: `http://${host}` }
+  ]) {
     assert.equal((await pause(headers)).status, 200, JSON.stringify(headers));
   }
   assert.equal(await playing(), false);
@@ -187,15 +237,33 @@ test('state-changing requests from other websites are refused and have no effect
 
 test('safe requests are not blocked as cross-site, so the Spotify sign-in redirect still works', async t => {
   const { base } = await start(t, { demoMode: true });
-  const response = await rawRequest(base, { endpoint: '/api/info', headers: { 'Sec-Fetch-Site': 'cross-site', Origin: 'https://accounts.spotify.com' } });
+  const response = await rawRequest(base, {
+    endpoint: '/api/info',
+    headers: { 'Sec-Fetch-Site': 'cross-site', Origin: 'https://accounts.spotify.com' }
+  });
   assert.equal(response.status, 200);
 });
 
 test('unknown Host headers are refused, while IP addresses, localhost and configured names work', async t => {
   const { base } = await start(t, { demoMode: true, allowedHosts: ['maxmix.example.lan'] });
   const get = host => rawRequest(base, { endpoint: '/api/token', headers: { Host: host } });
-  for (const host of ['evil.example', 'evil.example:3000', 'rebind.attacker.test', 'localhost.evil.example', '127.0.0.1.evil.example']) assert.equal((await get(host)).status, 403, host);
-  for (const host of ['127.0.0.1:3000', '192.168.1.20', '[::1]:3000', 'localhost:3000', 'LocalHost', 'maxmix.example.lan:3000']) {
+  for (const host of [
+    'evil.example',
+    'evil.example:3000',
+    'rebind.attacker.test',
+    'localhost.evil.example',
+    '127.0.0.1.evil.example'
+  ]) {
+    assert.equal((await get(host)).status, 403, host);
+  }
+  for (const host of [
+    '127.0.0.1:3000',
+    '192.168.1.20',
+    '[::1]:3000',
+    'localhost:3000',
+    'LocalHost',
+    'maxmix.example.lan:3000'
+  ]) {
     assert.equal((await get(host)).status, 200, host);
   }
   assert.equal((await get(`${os.hostname()}.local:3000`)).status, 200);

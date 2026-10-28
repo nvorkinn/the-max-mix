@@ -17,14 +17,22 @@ export function parseConfig(env) {
   if (env.DEMO_MODE && !['true', 'false'].includes(env.DEMO_MODE)) throw new Error('DEMO_MODE must be true or false.');
   const redirectUri = env.SPOTIFY_REDIRECT_URI || `http://127.0.0.1:${port}/api/auth/callback`;
   const redirect = new URL(redirectUri);
-  if (redirect.hostname === 'localhost' || (redirect.protocol !== 'https:' &&
-    !(redirect.protocol === 'http:' && ['127.0.0.1', '[::1]'].includes(redirect.hostname)))) {
-    throw new Error('Spotify redirect URI must use HTTPS, or HTTP with the literal loopback address 127.0.0.1 or [::1].');
+  if (
+    redirect.hostname === 'localhost' ||
+    (redirect.protocol !== 'https:' &&
+      !(redirect.protocol === 'http:' && ['127.0.0.1', '[::1]'].includes(redirect.hostname)))
+  ) {
+    throw new Error(
+      'Spotify redirect URI must use HTTPS, or HTTP with the literal loopback address 127.0.0.1 or [::1].'
+    );
   }
   return {
     port,
     host: env.HOST || '127.0.0.1',
-    allowedHosts: (env.ALLOWED_HOSTS || '').split(',').map(host => host.trim()).filter(Boolean),
+    allowedHosts: (env.ALLOWED_HOSTS || '')
+      .split(',')
+      .map(host => host.trim())
+      .filter(Boolean),
     demoMode: env.DEMO_MODE === 'true',
     playbackMode,
     clientId: env.SPOTIFY_CLIENT_ID || '',

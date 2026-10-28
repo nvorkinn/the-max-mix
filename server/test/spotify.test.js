@@ -8,7 +8,13 @@ import { SpotifyError, SpotifyService } from '../src/spotify.js';
 async function setup(t, fetchImpl) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'max-mix-auth-'));
   t.after(() => rm(dataDir, { recursive: true, force: true }));
-  const options = { dataDir, clientId: 'test-client', clientSecret: 'test-secret', redirectUri: 'http://127.0.0.1:3000/api/auth/callback', fetchImpl };
+  const options = {
+    dataDir,
+    clientId: 'test-client',
+    clientSecret: 'test-secret',
+    redirectUri: 'http://127.0.0.1:3000/api/auth/callback',
+    fetchImpl
+  };
   const service = new SpotifyService(options);
   await service.initialize();
   return { service, options };
@@ -36,16 +42,20 @@ test('OAuth persists only the refresh token with owner-only permissions and rest
 });
 
 test('corrupt login data does not silently become demo mode', async t => {
-  const { service, options } = await setup(t, async () => { throw new Error('Unexpected request'); });
+  const { service, options } = await setup(t, async () => {
+    throw new Error('Unexpected request');
+  });
   await writeFile(service.tokenFile, '{bad json');
   await assert.rejects(new SpotifyService(options).initialize(), SyntaxError);
 });
 
 test('revoked refresh tokens are removed and require a new login', async t => {
   let revoked = false;
-  const { service } = await setup(t, async () => revoked
-    ? json({ error: 'invalid_grant' }, 400)
-    : json({ access_token: 'access', refresh_token: 'refresh', expires_in: 3600 }));
+  const { service } = await setup(t, async () =>
+    revoked
+      ? json({ error: 'invalid_grant' }, 400)
+      : json({ access_token: 'access', refresh_token: 'refresh', expires_in: 3600 })
+  );
   await service.handleAuthCallback('code');
   service.tokenExpiresAt = 0;
   revoked = true;
@@ -56,9 +66,11 @@ test('revoked refresh tokens are removed and require a new login', async t => {
 
 test('a non-JSON 400 from the token endpoint is a SpotifyError and keeps the saved login', async t => {
   let broken = false;
-  const { service } = await setup(t, async () => broken
-    ? new Response('<html>Bad Request</html>', { status: 400 })
-    : json({ access_token: 'access', refresh_token: 'refresh', expires_in: 3600 }));
+  const { service } = await setup(t, async () =>
+    broken
+      ? new Response('<html>Bad Request</html>', { status: 400 })
+      : json({ access_token: 'access', refresh_token: 'refresh', expires_in: 3600 })
+  );
   await service.handleAuthCallback('code');
   service.tokenExpiresAt = 0;
   broken = true;
@@ -82,9 +94,11 @@ test('real API requests use bearer auth, refresh once on 401, and preserve 204 r
 
 test('Spotify errors and Retry-After propagate instead of returning mock success', async t => {
   let status = 429;
-  const { service } = await setup(t, async url => url.endsWith('/api/token')
-    ? json({ access_token: 'access', refresh_token: 'refresh', expires_in: 3600 })
-    : json({}, status, { 'Retry-After': '30' }));
+  const { service } = await setup(t, async url =>
+    url.endsWith('/api/token')
+      ? json({ access_token: 'access', refresh_token: 'refresh', expires_in: 3600 })
+      : json({}, status, { 'Retry-After': '30' })
+  );
   await service.handleAuthCallback('code');
   await assert.rejects(service.next(), error => error.status === 429 && error.retryAfter === '30');
   status = 403;

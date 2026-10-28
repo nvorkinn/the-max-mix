@@ -66,11 +66,15 @@ export function useSpotifyPlayer() {
         if (cancelled) return;
         player = new sdk.Player({
           name: 'THE MAX MIX',
-          getOAuthToken: (callback) => {
-            requestJSON('/api/token').then(data => {
-              if (data.token) callback(data.token);
-              else if (!cancelled) setSdkError('Spotify login expired. Sign in again in Settings.');
-            }).catch(error => { if (!cancelled) setSdkError(error.message); });
+          getOAuthToken: callback => {
+            requestJSON('/api/token')
+              .then(data => {
+                if (data.token) callback(data.token);
+                else if (!cancelled) setSdkError('Spotify login expired. Sign in again in Settings.');
+              })
+              .catch(error => {
+                if (!cancelled) setSdkError(error.message);
+              });
           },
           volume: 0.8
         });
@@ -86,10 +90,14 @@ export function useSpotifyPlayer() {
         });
         for (const event of ['initialization_error', 'authentication_error', 'account_error', 'playback_error']) {
           player.addListener(event, ({ message }) => {
-            if (!cancelled) setSdkError(`Browser playback: ${message} Remote playback mode is available if this Pi cannot stream audio.`);
+            if (!cancelled) {
+              setSdkError(
+                `Browser playback: ${message} Remote playback mode is available if this Pi cannot stream audio.`
+              );
+            }
           });
         }
-        if (!await player.connect() && !cancelled) setSdkError('Could not connect the tablet player to Spotify.');
+        if (!(await player.connect()) && !cancelled) setSdkError('Could not connect the tablet player to Spotify.');
       } catch (error) {
         if (!cancelled) setSdkError(error.message);
       }
@@ -102,19 +110,22 @@ export function useSpotifyPlayer() {
     };
   }, [isAuthenticated, config?.demoMode, config?.playbackMode]);
 
-  const runCommand = useCallback(async (action, body) => {
-    try {
-      await postJSON(`/api/spotify/${action}`, body);
-      await refreshPlayback();
-      setActionError(null);
-      return true;
-    } catch (error) {
-      setActionError(error.message);
-      return false;
-    }
-  }, [refreshPlayback]);
+  const runCommand = useCallback(
+    async (action, body) => {
+      try {
+        await postJSON(`/api/spotify/${action}`, body);
+        await refreshPlayback();
+        setActionError(null);
+        return true;
+      } catch (error) {
+        setActionError(error.message);
+        return false;
+      }
+    },
+    [refreshPlayback]
+  );
 
-  const transferPlayback = async (deviceId) => {
+  const transferPlayback = async deviceId => {
     try {
       await postJSON('/api/transfer', { deviceId, play: false });
       await refreshPlayback();
@@ -127,7 +138,9 @@ export function useSpotifyPlayer() {
   };
 
   return {
-    playbackState, browserDeviceId, isAuthenticated,
+    playbackState,
+    browserDeviceId,
+    isAuthenticated,
     isDemoMode: Boolean(config?.demoMode),
     isConfigured: Boolean(config?.spotifyConfigured),
     playbackMode: config?.playbackMode,
@@ -138,8 +151,9 @@ export function useSpotifyPlayer() {
     togglePlay: () => runCommand(playbackState?.is_playing ? 'pause' : 'play'),
     nextTrack: () => runCommand('next'),
     previousTrack: () => runCommand('previous'),
-    seek: (position) => runCommand('seek', { position_ms: Math.round(position) }),
-    setVolume: (volume) => runCommand('volume', { volume_percent: Math.round(volume * 100) }),
-    transferPlayback, refreshPlayback
+    seek: position => runCommand('seek', { position_ms: Math.round(position) }),
+    setVolume: volume => runCommand('volume', { volume_percent: Math.round(volume * 100) }),
+    transferPlayback,
+    refreshPlayback
   };
 }

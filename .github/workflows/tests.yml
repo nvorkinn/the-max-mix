@@ -3,7 +3,7 @@ name: Tests
 on:
   pull_request:
   push:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   contents: read
@@ -23,6 +23,7 @@ jobs:
       - run: npm --prefix client ci
       - run: npm --prefix server ci
       - run: npm run lint
+      - run: npm run format:check
       - run: npm test
       - run: npm run test:coverage
       - name: Coverage summary

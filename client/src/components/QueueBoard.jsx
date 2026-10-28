@@ -1,20 +1,13 @@
 import React, { useState } from 'react';
 import { ChevronUp, Plus, Trash2, Music2, Sparkles, Search, X } from 'lucide-react';
 
-export default function QueueBoard({
-  queue,
-  onUpvote,
-  onRemove,
-  onAddSong,
-  onSearchSpotify,
-  onOpenQR
-}) {
+export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSearchSpotify, onOpenQR }) {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
 
-  const handleSearch = async (e) => {
+  const handleSearch = async e => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     setSearching(true);
@@ -28,7 +21,7 @@ export default function QueueBoard({
     }
   };
 
-  const handleSelectTrack = (track) => {
+  const handleSelectTrack = track => {
     onAddSong(track, { id: 'tablet-host', name: 'Tablet Touch', avatar: '📱' });
     setShowSearchModal(false);
     setSearchQuery('');
@@ -122,18 +115,14 @@ export default function QueueBoard({
                   {/* Title & Artist */}
                   <div className="max-w-[210px]">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-bold text-white truncate">
-                        {track.title}
-                      </p>
+                      <p className="text-sm font-bold text-white truncate">{track.title}</p>
                       {isTop && (
                         <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/30 text-emerald-300 px-1.5 py-0.2 rounded-sm border border-emerald-400/30">
                           Next Up
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-neutral-400 truncate">
-                      {track.artist}
-                    </p>
+                    <p className="text-xs text-neutral-400 truncate">{track.artist}</p>
                   </div>
                 </div>
 
@@ -180,7 +169,7 @@ export default function QueueBoard({
               type="text"
               placeholder="Search song or artist..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={e => setSearchQuery(e.target.value)}
               className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-sm text-white placeholder-neutral-500 focus:outline-hidden focus:border-emerald-400"
               autoFocus
             />
@@ -195,29 +184,19 @@ export default function QueueBoard({
 
           <div className="flex-1 overflow-y-auto mt-3 space-y-2">
             {searchResults.length === 0 && !searching && (
-              <p className="text-center text-xs text-neutral-500 mt-6">
-                Type song title or artist and tap Search
-              </p>
+              <p className="text-center text-xs text-neutral-500 mt-6">Type song title or artist and tap Search</p>
             )}
-            {searchResults.map((track) => (
+            {searchResults.map(track => (
               <div
                 key={track.id}
                 onClick={() => handleSelectTrack(track)}
                 className="flex items-center justify-between p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer active:scale-98 transition-all"
               >
                 <div className="flex items-center space-x-3">
-                  <img
-                    src={track.albumArt}
-                    alt={track.title}
-                    className="w-10 h-10 rounded-lg object-cover"
-                  />
+                  <img src={track.albumArt} alt={track.title} className="w-10 h-10 rounded-lg object-cover" />
                   <div>
-                    <p className="text-xs font-bold text-white truncate max-w-[280px]">
-                      {track.title}
-                    </p>
-                    <p className="text-[11px] text-neutral-400 truncate max-w-[280px]">
-                      {track.artist}
-                    </p>
+                    <p className="text-xs font-bold text-white truncate max-w-[280px]">{track.title}</p>
+                    <p className="text-[11px] text-neutral-400 truncate max-w-[280px]">{track.artist}</p>
                   </div>
                 </div>
                 <button className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/40">
