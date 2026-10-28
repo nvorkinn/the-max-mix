@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import MobileRemoteView from './MobileRemoteView.jsx';
+import MobileRemoteViewFull from './MobileRemoteView.jsx';
+import { partialProps } from '../test/partialProps.js';
+
+const MobileRemoteView = partialProps(MobileRemoteViewFull);
 
 const queue = [
   { id: 't1', title: 'Queued', artist: 'A', votes: 2, albumArt: 'q.jpg', addedBy: { name: 'Bo', avatar: '🔥' } }
@@ -38,7 +41,7 @@ function fakeSocket() {
   };
 }
 
-const tab = name => fireEvent.click(screen.getByText(name).closest('button'));
+const tab = name => fireEvent.click(/** @type {Element} */ (screen.getByText(name).closest('button')));
 
 beforeEach(() => {
   localStorage.clear();
@@ -49,9 +52,11 @@ describe('MobileRemoteView', () => {
   it('generates a guest identity and persists it', () => {
     mockFetch();
     render(<MobileRemoteView />);
-    expect(screen.getByPlaceholderText('Your Name').value).toMatch(/^Guest \d{3}$/);
+    expect(/** @type {HTMLInputElement} */ (screen.getByPlaceholderText('Your Name')).value).toMatch(/^Guest \d{3}$/);
     expect(localStorage.getItem('guest_id')).toMatch(/^guest_/);
-    expect(localStorage.getItem('guest_name')).toBe(screen.getByPlaceholderText('Your Name').value);
+    expect(localStorage.getItem('guest_name')).toBe(
+      /** @type {HTMLInputElement} */ (screen.getByPlaceholderText('Your Name')).value
+    );
   });
 
   it('restores a stored identity and persists edits', () => {
@@ -77,16 +82,16 @@ describe('MobileRemoteView', () => {
     localStorage.setItem('guest_id', 'g-1');
     const socket = fakeSocket();
     render(<MobileRemoteView socket={socket} />);
-    fireEvent.click(screen.getByText('Fire').closest('button'));
+    fireEvent.click(/** @type {Element} */ (screen.getByText('Fire').closest('button')));
     expect(socket.emit).toHaveBeenCalledWith('guest:reaction', { emoji: '🔥', guestName: 'Zed', guestId: 'g-1' });
     expect(vibrate).toHaveBeenCalledWith(35);
-    delete navigator.vibrate;
+    delete (/** @type {any} */ (navigator).vibrate);
   });
 
   it('tolerates reactions without a socket', () => {
     mockFetch();
     render(<MobileRemoteView />);
-    fireEvent.click(screen.getByText('Love').closest('button'));
+    fireEvent.click(/** @type {Element} */ (screen.getByText('Love').closest('button')));
   });
 
   it('updates the queue from socket events and unsubscribes on unmount', async () => {
@@ -116,7 +121,7 @@ describe('MobileRemoteView', () => {
     render(<MobileRemoteView />);
     tab('Queue');
     await screen.findByText('Queued');
-    fireEvent.click(screen.getByText('2').closest('button'));
+    fireEvent.click(/** @type {Element} */ (screen.getByText('2').closest('button')));
     await waitFor(() => expect(calls.some(([url]) => url === '/api/queue/upvote')).toBe(true));
     const [, options] = calls.find(([url]) => url === '/api/queue/upvote');
     expect(JSON.parse(options.body)).toEqual({ trackId: 't1', guestId: 'g-1' });
@@ -128,11 +133,11 @@ describe('MobileRemoteView', () => {
     tab('Search');
     const input = screen.getByPlaceholderText(/search tracks/i);
     fireEvent.change(input, { target: { value: '  ' } });
-    fireEvent.submit(input.closest('form'));
+    fireEvent.submit(/** @type {Element} */ (input.closest('form')));
     expect(calls.some(([url]) => url.startsWith('/api/spotify/search'))).toBe(false);
 
     fireEvent.change(input, { target: { value: 'a & b' } });
-    fireEvent.submit(input.closest('form'));
+    fireEvent.submit(/** @type {Element} */ (input.closest('form')));
     expect(await screen.findByText('Result')).toBeInTheDocument();
     expect(calls.some(([url]) => url === '/api/spotify/search?q=a%20%26%20b')).toBe(true);
   });
@@ -146,7 +151,7 @@ describe('MobileRemoteView', () => {
     tab('Search');
     const input = screen.getByPlaceholderText(/search tracks/i);
     fireEvent.change(input, { target: { value: 'x' } });
-    fireEvent.submit(input.closest('form'));
+    fireEvent.submit(/** @type {Element} */ (input.closest('form')));
     fireEvent.click(await screen.findByText('+ Queue'));
     expect(await screen.findByText('Added "Result" to queue!')).toBeInTheDocument();
     expect(screen.getByText(/Party Queue/)).toBeInTheDocument();
@@ -160,7 +165,7 @@ describe('MobileRemoteView', () => {
     tab('Search');
     const input = screen.getByPlaceholderText(/search tracks/i);
     fireEvent.change(input, { target: { value: 'x' } });
-    fireEvent.submit(input.closest('form'));
+    fireEvent.submit(/** @type {Element} */ (input.closest('form')));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Search' })).toBeEnabled());
     expect(screen.queryByText('+ Queue')).toBeNull();
   });

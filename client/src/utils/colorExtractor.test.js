@@ -10,6 +10,11 @@ const FALLBACK = {
 let imageBehavior;
 
 class FakeImage {
+  /** @type {(() => void) | undefined} */
+  onload;
+  /** @type {(() => void) | undefined} */
+  onerror;
+
   set src(value) {
     this._src = value;
     queueMicrotask(() => {
@@ -27,7 +32,7 @@ function stubCanvas(pixels, { throws = false } = {}) {
       return { data: Uint8ClampedArray.from(pixels) };
     })
   };
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx);
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(/** @type {any} */ (ctx)); // partial 2d context stub
   return ctx;
 }
 

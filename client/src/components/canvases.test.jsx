@@ -3,8 +3,11 @@ import { render, fireEvent, act } from '@testing-library/react';
 import { installCanvasStub, stubMatchMedia } from '../test/canvas.js';
 
 import AudioVisualizer from './AudioVisualizer.jsx';
-import ReactionCanvas from './ReactionCanvas.jsx';
+import ReactionCanvasFull from './ReactionCanvas.jsx';
 import TouchRipples from './TouchRipples.jsx';
+import { partialProps } from '../test/partialProps.js';
+
+const ReactionCanvas = partialProps(ReactionCanvasFull);
 
 let canvas;
 beforeEach(() => {
@@ -141,7 +144,7 @@ describe('TouchRipples', () => {
       tap();
       expect(canvas.pending()).toBe(0);
     } finally {
-      delete document.hidden;
+      delete (/** @type {any} */ (document).hidden);
     }
   });
 

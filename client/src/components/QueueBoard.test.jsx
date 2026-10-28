@@ -32,7 +32,7 @@ describe('QueueBoard', () => {
 
   it('upvotes and removes by track id', () => {
     const h = setup();
-    fireEvent.click(screen.getByText('3').closest('button'));
+    fireEvent.click(/** @type {Element} */ (screen.getByText('3').closest('button')));
     expect(h.onUpvote).toHaveBeenCalledWith('t1');
     const removeButtons = screen.getAllByRole('button').filter(b => b.querySelector('svg.lucide-trash-2'));
     fireEvent.click(removeButtons[1]);

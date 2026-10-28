@@ -15,6 +15,5 @@
     "skipLibCheck": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["src/**/*.js", "src/**/*.jsx", "vite.config.js", "vitest.config.js"],
-  "exclude": ["src/**/*.test.js", "src/**/*.test.jsx", "src/test/**"]
+  "include": ["src/**/*.js", "src/**/*.jsx", "vite.config.js", "vitest.config.js"]
 }

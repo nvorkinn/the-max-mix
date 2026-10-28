@@ -7,9 +7,10 @@ describe('MobileRemoteView', () => {
 
   it('aborts the initial queue fetch on unmount and ignores the AbortError', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    let signal;
+    // Assigned when fetch is called, before the first read below.
+    let signal = /** @type {AbortSignal} */ (/** @type {unknown} */ (undefined));
     const fetchMock = vi.fn((url, options) => {
-      signal = options.signal;
+      signal = /** @type {AbortSignal} */ (options.signal);
       return new Promise((resolve, reject) => {
         options.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
       });

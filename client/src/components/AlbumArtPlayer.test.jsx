@@ -5,8 +5,12 @@ import { installCanvasStub, stubMatchMedia } from '../test/canvas.js';
 const confetti = vi.hoisted(() => vi.fn());
 vi.mock('canvas-confetti', () => ({ default: confetti }));
 
-import AlbumArtPlayer from './AlbumArtPlayer.jsx';
-import SpotifyJamQueue from './SpotifyJamQueue.jsx';
+import AlbumArtPlayerFull from './AlbumArtPlayer.jsx';
+import SpotifyJamQueueFull from './SpotifyJamQueue.jsx';
+import { partialProps } from '../test/partialProps.js';
+
+const AlbumArtPlayer = partialProps(AlbumArtPlayerFull);
+const SpotifyJamQueue = partialProps(SpotifyJamQueueFull);
 
 const playback = {
   is_playing: true,
@@ -105,7 +109,7 @@ describe('AlbumArtPlayer', () => {
   it('credits the demo guest only in demo mode, falling back to a diva image on error', () => {
     const { unmount } = render(<AlbumArtPlayer playback={playback} isDemoMode controlsEnabled onSeek={() => {}} />);
     expect(screen.getByText('Ann')).toBeInTheDocument();
-    const avatar = document.querySelector('.track-credit img');
+    const avatar = /** @type {Element} */ (document.querySelector('.track-credit img'));
     fireEvent.error(avatar);
     expect(avatar.getAttribute('src')).toMatch(/^\/divas\//);
     unmount();
@@ -169,7 +173,7 @@ describe('SpotifyJamQueue', () => {
     renderQueue();
     expect(screen.getByRole('link', { name: 'Open Three in Spotify' })).toHaveAttribute(
       'href',
-      tracks[2].external_urls.spotify
+      /** @type {{ spotify: string }} */ (tracks[2].external_urls).spotify
     );
     expect(screen.getByRole('link', { name: 'Open One in Spotify' })).toHaveAttribute(
       'href',
@@ -216,7 +220,8 @@ describe('SpotifyJamQueue', () => {
     const h = renderQueue({ isDemoMode: true });
     const rows = document.querySelectorAll('.queue-track');
     rows.forEach((row, i) => {
-      row.getBoundingClientRect = () => ({ top: i * 50, bottom: i * 50 + 49 });
+      row.getBoundingClientRect = () =>
+        /** @type {DOMRect} */ (/** @type {unknown} */ ({ top: i * 50, bottom: i * 50 + 49 })); // only the fields the component reads;
     });
     const handle = screen.getByRole('button', { name: 'Reorder One' });
     fireEvent.pointerDown(handle, { button: 0, pointerType: 'mouse' });
