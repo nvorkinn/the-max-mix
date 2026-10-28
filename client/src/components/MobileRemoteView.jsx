@@ -27,12 +27,12 @@ export default function MobileRemoteView({ socket }) {
 
   const [activeTab, setActiveTab] = useState('react'); // 'react' | 'queue' | 'search'
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState(/** @type {import('../types.js').Track[]} */ ([]));
   const [searching, setSearching] = useState(false);
-  const [queue, setQueue] = useState([]);
+  const [queue, setQueue] = useState(/** @type {import('../types.js').Track[]} */ ([]));
   // /api/queue currently answers with an object, so don't assume an array before the queue tab renders.
   const queueKeys = Array.isArray(queue) ? trackKeys(queue) : [];
-  const [toast, setToast] = useState(null);
+  const [toast, setToast] = useState(/** @type {string | null} */ (null));
 
   useEffect(() => {
     localStorage.setItem('guest_name', guestName);

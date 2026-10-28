@@ -6,7 +6,7 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
   const keys = trackKeys(queue);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState(/** @type {import('../types.js').Track[]} */ ([]));
   const [searching, setSearching] = useState(false);
 
   const handleSearch = async e => {

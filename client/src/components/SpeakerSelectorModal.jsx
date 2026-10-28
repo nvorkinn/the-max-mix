@@ -3,10 +3,10 @@ import { X, Speaker, Check, RefreshCw } from 'lucide-react';
 import { requestJSON } from '../utils/api.js';
 
 export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker, browserDeviceId, isDemoMode }) {
-  const [devices, setDevices] = useState([]);
+  const [devices, setDevices] = useState(/** @type {import('../types.js').SpotifyDevice[]} */ ([]));
   const [loading, setLoading] = useState(false);
   const [selecting, setSelecting] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(/** @type {string | null} */ (null));
 
   const fetchDevices = async () => {
     setLoading(true);
@@ -16,7 +16,7 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
       setError(null);
     } catch (caught) {
       setDevices([]);
-      setError(caught.message);
+      setError(/** @type {Error} */ (caught).message);
     } finally {
       setLoading(false);
     }
@@ -32,7 +32,7 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
       await onSelectSpeaker(deviceId);
       await fetchDevices();
     } catch (caught) {
-      setError(caught.message);
+      setError(/** @type {Error} */ (caught).message);
     } finally {
       setSelecting(false);
     }

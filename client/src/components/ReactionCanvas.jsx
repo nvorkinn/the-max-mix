@@ -5,18 +5,18 @@ import React, { useEffect, useRef } from 'react';
  * Zero DOM strain on Raspberry Pi 4 GPU
  */
 export default function ReactionCanvas({ socket }) {
-  const canvasRef = useRef(null);
-  const particlesRef = useRef([]);
-  const animFrameRef = useRef(null);
+  const canvasRef = useRef(/** @type {HTMLCanvasElement | null} */ (null));
+  const particlesRef = useRef(/** @type {any[]} */ ([]));
+  const animFrameRef = useRef(/** @type {number | null} */ (null));
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
 
     const resize = () => {
-      canvas.width = canvas.parentElement.clientWidth || 1024;
-      canvas.height = canvas.parentElement.clientHeight || 600;
+      canvas.width = /** @type {HTMLElement} */ (canvas.parentElement).clientWidth || 1024;
+      canvas.height = /** @type {HTMLElement} */ (canvas.parentElement).clientHeight || 600;
     };
     resize();
     window.addEventListener('resize', resize);
@@ -94,13 +94,13 @@ export default function ReactionCanvas({ socket }) {
       return () => {
         socket.off('screen:reaction', handleReaction);
         window.removeEventListener('resize', resize);
-        cancelAnimationFrame(animFrameRef.current);
+        cancelAnimationFrame(/** @type {number} */ (animFrameRef.current));
       };
     }
 
     return () => {
       window.removeEventListener('resize', resize);
-      cancelAnimationFrame(animFrameRef.current);
+      cancelAnimationFrame(/** @type {number} */ (animFrameRef.current));
     };
   }, [socket]);
 
