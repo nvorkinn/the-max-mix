@@ -89,7 +89,7 @@ const FEMALE_ARTISTS_CATALOG = [
  * Checks if a track features any known female artists
  */
 export function isTrackByFemaleSinger(track) {
-  if (!track) return { isFemale: false, artist: null };
+  if (!track) return false;
 
   const artistsToCheck = [];
 
@@ -120,7 +120,7 @@ export function findFemaleSingersInQueue(queue = []) {
 
   for (const track of queue) {
     const check = isTrackByFemaleSinger(track);
-    if (check.isFemale) {
+    if (check && check.isFemale) {
       found.push({
         trackTitle: track.name || track.title || 'Unknown Title',
         artist: check.artist
