@@ -7,7 +7,9 @@ const AlbumArtPlayer = partialProps(AlbumArtPlayerFull);
 
 vi.mock('./AudioVisualizer.jsx', () => ({ default: () => null }));
 
+/** @param {number} volume_percent */
 const withVolume = volume_percent => ({ device: { volume_percent, supports_volume: true } });
+/** @param {any} playback partial playback state */
 const player = playback => <AlbumArtPlayer playback={playback} controlsEnabled />;
 
 describe('AlbumArtPlayer volume', () => {

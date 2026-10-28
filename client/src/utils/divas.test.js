@@ -24,7 +24,7 @@ describe('getDivaForUser', () => {
   });
 
   it('accepts numeric ids', () => {
-    expect(GLOBAL_DIVAS).toContain(getDivaForUser(42));
+    expect(GLOBAL_DIVAS).toContain(getDivaForUser(/** @type {any} */ (42)));
   });
 
   it('rosters have unique names and images', () => {

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { installCanvasStub, stubMatchMedia } from '../test/canvas.js';
 
-const player = vi.hoisted(() => ({ current: {} }));
+const player = vi.hoisted(() => ({ current: /** @type {Record<string, any>} */ ({}) }));
 const api = vi.hoisted(() => ({ requestJSON: vi.fn(), postJSON: vi.fn() }));
 const palette = vi.hoisted(() => ({ extractPalette: vi.fn() }));
 

@@ -10,9 +10,11 @@ const queue = [
 ];
 const found = [{ id: 'r1', title: 'Result', artist: 'R', albumArt: 'r.jpg' }];
 
+/** @param {Record<string, unknown>} [overrides] */
 function mockFetch(overrides = {}) {
+  /** @type {[string, RequestInit | undefined][]} */
   const calls = [];
-  const fn = vi.fn(async (url, options) => {
+  const fn = vi.fn(async (/** @type {string} */ url, /** @type {RequestInit | undefined} */ options) => {
     calls.push([url, options]);
     const key = Object.keys(overrides).find(k => url.startsWith(k));
     const body = key
@@ -29,7 +31,9 @@ function mockFetch(overrides = {}) {
   return { fn, calls };
 }
 
+/** @returns {any} a partial socket stand-in */
 function fakeSocket() {
+  /** @type {Record<string, (...args: any[]) => void>} */
   const handlers = {};
   return {
     handlers,
@@ -41,6 +45,7 @@ function fakeSocket() {
   };
 }
 
+/** @param {string} name */
 const tab = name => fireEvent.click(/** @type {Element} */ (screen.getByText(name).closest('button')));
 
 beforeEach(() => {
@@ -123,8 +128,8 @@ describe('MobileRemoteView', () => {
     await screen.findByText('Queued');
     fireEvent.click(/** @type {Element} */ (screen.getByText('2').closest('button')));
     await waitFor(() => expect(calls.some(([url]) => url === '/api/queue/upvote')).toBe(true));
-    const [, options] = calls.find(([url]) => url === '/api/queue/upvote');
-    expect(JSON.parse(options.body)).toEqual({ trackId: 't1', guestId: 'g-1' });
+    const [, options] = /** @type {[string, RequestInit]} */ (calls.find(([url]) => url === '/api/queue/upvote'));
+    expect(JSON.parse(/** @type {string} */ (options.body))).toEqual({ trackId: 't1', guestId: 'g-1' });
   });
 
   it('searches with an encoded query and ignores blank input', async () => {
@@ -155,8 +160,11 @@ describe('MobileRemoteView', () => {
     fireEvent.click(await screen.findByText('+ Queue'));
     expect(await screen.findByText('Added "Result" to queue!')).toBeInTheDocument();
     expect(screen.getByText(/Party Queue/)).toBeInTheDocument();
-    const [, options] = calls.find(([url]) => url === '/api/queue/add');
-    expect(JSON.parse(options.body)).toEqual({ track: found[0], guest: { id: 'g-1', name: 'Zed', avatar: '🚀' } });
+    const [, options] = /** @type {[string, RequestInit]} */ (calls.find(([url]) => url === '/api/queue/add'));
+    expect(JSON.parse(/** @type {string} */ (options.body))).toEqual({
+      track: found[0],
+      guest: { id: 'g-1', name: 'Zed', avatar: '🚀' }
+    });
   });
 
   it('keeps the UI usable when search fails', async () => {

@@ -9,6 +9,7 @@ import { partialProps } from '../test/partialProps.js';
 
 const ReactionCanvas = partialProps(ReactionCanvasFull);
 
+/** @type {ReturnType<typeof installCanvasStub>} */
 let canvas;
 beforeEach(() => {
   canvas = installCanvasStub();
@@ -50,7 +51,9 @@ describe('AudioVisualizer', () => {
 });
 
 describe('ReactionCanvas', () => {
+  /** @returns {any} a partial socket stand-in */
   function fakeSocket() {
+    /** @type {Record<string, (...args: any[]) => void>} */
     const handlers = {};
     return {
       handlers,
@@ -75,7 +78,7 @@ describe('ReactionCanvas', () => {
     render(<ReactionCanvas socket={socket} />);
     act(() => socket.handlers['screen:reaction']({ emoji: '🎉', guestName: 'Ann' }));
     canvas.step();
-    const drawn = canvas.ctx.fillText.mock.calls;
+    const drawn = /** @type {[string][]} */ (canvas.ctx.fillText.mock.calls);
     expect(drawn.filter(([text]) => text === '🎉')).toHaveLength(3);
     expect(drawn.filter(([text]) => text === 'Ann')).toHaveLength(1);
   });
@@ -85,7 +88,7 @@ describe('ReactionCanvas', () => {
     render(<ReactionCanvas socket={socket} />);
     act(() => socket.handlers['screen:reaction']({}));
     canvas.step();
-    expect(canvas.ctx.fillText.mock.calls.some(([text]) => text === '🔥')).toBe(true);
+    expect(/** @type {[string][]} */ (canvas.ctx.fillText.mock.calls).some(([text]) => text === '🔥')).toBe(true);
     for (let i = 0; i < 100; i++) canvas.step();
     canvas.ctx.fillText.mockClear();
     canvas.step();

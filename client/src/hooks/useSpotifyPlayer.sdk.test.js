@@ -8,16 +8,24 @@ vi.mock('../utils/spotifySdk.js', () => sdk);
 
 import { useSpotifyPlayer } from './useSpotifyPlayer.js';
 
+/** @param {{ connectResult?: boolean }} [options] */
 function makeSdk({ connectResult = true } = {}) {
+  /** @type {Player[]} */
   const players = [];
   class Player {
+    /** @param {{ name: string, getOAuthToken: (callback: (token: string) => void) => void }} options */
     constructor(options) {
       this.options = options;
+      /** @type {Record<string, (...args: any[]) => void>} */
       this.listeners = {};
       this.disconnect = vi.fn();
       this.connect = vi.fn(async () => connectResult);
       players.push(this);
     }
+    /**
+     * @param {string} event
+     * @param {(...args: any[]) => void} fn
+     */
     addListener(event, fn) {
       this.listeners[event] = fn;
     }
@@ -31,6 +39,7 @@ const browserSession = {
   '/api/spotify/current': { is_playing: false }
 };
 
+/** @param {Record<string, unknown>} table */
 function route(table) {
   api.requestJSON.mockImplementation(async url => {
     const entry = table[url];
