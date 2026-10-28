@@ -41,6 +41,7 @@ export default function TabletView() {
   const [toastMessage, setToastMessage] = useState(/** @type {string | null} */ (null));
   const [theme, setTheme] = useState(() => (localStorage.getItem('maxmix_theme') === 'minimal' ? 'minimal' : 'neon'));
 
+  /** @param {string} newTheme */
   const handleThemeChange = newTheme => {
     setTheme(newTheme);
     localStorage.setItem('maxmix_theme', newTheme);
@@ -76,6 +77,7 @@ export default function TabletView() {
   useEffect(() => {
     if (!canPollQueue) return;
     let cancelled = false;
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
     let timer;
     let failures = 0;
     const poll = async () => {
@@ -111,11 +113,13 @@ export default function TabletView() {
     }
   }, [artUrl]);
 
+  /** @param {string} msg */
   const showToast = msg => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  /** @param {import('../types.js').Track[]} newQueue */
   const handleReorderQueue = async newQueue => {
     try {
       const data = await postJSON('/api/queue/reorder', { queue: newQueue });
@@ -128,6 +132,10 @@ export default function TabletView() {
     }
   };
 
+  /**
+   * @param {string | undefined} trackId
+   * @param {import('../types.js').Track} track
+   */
   const handlePlaySongNow = async (trackId, track) => {
     try {
       const data = await postJSON('/api/queue/play-now', { trackId });
@@ -217,7 +225,7 @@ export default function TabletView() {
             onNext={nextTrack}
             onPrevious={previousTrack}
             onSeek={seek}
-            onVolumeChange={vol => setVolume(vol / 100)}
+            onVolumeChange={(/** @type {number} */ vol) => setVolume(vol / 100)}
             theme={theme}
             isDemoMode={isDemoMode}
             controlsEnabled={(isDemoMode || isAuthenticated) && !playbackState?.device?.is_restricted}
@@ -262,7 +270,7 @@ export default function TabletView() {
       <SpeakerSelectorModal
         isOpen={isSpeakerModalOpen}
         onClose={() => setIsSpeakerModalOpen(false)}
-        onSelectSpeaker={id => transferPlayback(id)}
+        onSelectSpeaker={(/** @type {string} */ id) => transferPlayback(id)}
         browserDeviceId={browserDeviceId}
         isDemoMode={isDemoMode}
       />

@@ -43,6 +43,9 @@ export const MINIMALIST_AVATARS = [
 
 /**
  * Returns the appropriate avatar based on the selected theme
+ * @param {string | null | undefined} userNameOrId
+ * @param {number} [fallbackIndex]
+ * @param {string} [theme]
  */
 export function getDivaForUser(userNameOrId, fallbackIndex = 0, theme = 'neon') {
   /** @type {{ name: string, image: string, title?: string }[]} */

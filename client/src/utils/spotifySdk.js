@@ -1,6 +1,7 @@
 /** @type {any} */
 const sdkWindow = window;
-let sdkPromise;
+/** @type {Promise<any> | null} */
+let sdkPromise = null;
 
 export function loadSpotifySDK() {
   if (sdkWindow.Spotify) return Promise.resolve(sdkWindow.Spotify);
@@ -8,6 +9,7 @@ export function loadSpotifySDK() {
   sdkPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     const timeout = setTimeout(() => fail(new Error('Spotify SDK timed out. Check the internet connection.')), 20000);
+    /** @param {Error} error */
     const fail = error => {
       clearTimeout(timeout);
       script.remove();

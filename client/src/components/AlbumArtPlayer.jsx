@@ -4,6 +4,9 @@ import AudioVisualizer from './AudioVisualizer.jsx';
 import { getDivaForUser } from '../utils/divas.js';
 import confetti from 'canvas-confetti';
 
+/**
+ * @param {import('../types.js').PlayerControls & { theme?: string, isDemoMode?: boolean, controlsEnabled?: boolean }} props
+ */
 export default function AlbumArtPlayer({
   playback,
   isPlaying,
@@ -26,7 +29,8 @@ export default function AlbumArtPlayer({
   }
   const volumeEnabled =
     controlsEnabled && playback?.device?.supports_volume !== false && playback?.device?.volume_percent != null;
-  const item = playback?.item || playback?.track_window?.current_track || {};
+  const item =
+    playback?.item || playback?.track_window?.current_track || /** @type {import('../types.js').Track} */ ({});
   const title = item.name || item.title || 'Ready when you are';
   const artist = item.artists
     ? item.artists.map(a => a.name).join(', ')
@@ -44,6 +48,7 @@ export default function AlbumArtPlayer({
   const userAvatar = rawAddedBy.avatar || assignedDiva.image;
   const visualizerColors = theme === 'minimal' ? ['#242820', '#747a6b'] : ['#d5f580', '#8dab64'];
 
+  /** @param {number} ms */
   const formatTime = ms => {
     const seconds = Math.floor(ms / 1000);
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;

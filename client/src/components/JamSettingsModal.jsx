@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Users } from 'lucide-react';
 
+/** @param {{ isOpen: boolean, onClose: () => void }} props */
 export default function JamSettingsModal({ isOpen, onClose }) {
   if (!isOpen) return null;
   return (

@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
  * High-performance 60 FPS HTML5 Canvas particle system for emoji bursts
  * Zero DOM strain on Raspberry Pi 4 GPU
  */
+/** @param {{ socket: import('socket.io-client').Socket | null }} props */
 export default function ReactionCanvas({ socket }) {
   const canvasRef = useRef(/** @type {HTMLCanvasElement | null} */ (null));
   const particlesRef = useRef(/** @type {any[]} */ ([]));
@@ -66,6 +67,7 @@ export default function ReactionCanvas({ socket }) {
 
     // Socket listener for new reactions
     if (socket) {
+      /** @param {{ emoji: string, [key: string]: any }} data */
       const handleReaction = data => {
         // Spawn 3 to 5 particles per reaction for a lively pop!
         const count = 3;

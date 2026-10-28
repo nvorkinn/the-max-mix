@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 
 /**
  * Decorative waveform driven by playback state, not an audio analysis.
+ * @param {{ isPlaying: boolean, primaryColor?: string, secondaryColor?: string }} props
  */
 export default function AudioVisualizer({ isPlaying, primaryColor = '#10b981', secondaryColor = '#6366f1' }) {
   const canvasRef = useRef(/** @type {HTMLCanvasElement | null} */ (null));

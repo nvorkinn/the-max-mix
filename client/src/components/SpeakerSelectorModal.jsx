@@ -2,6 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { X, Speaker, Check, RefreshCw } from 'lucide-react';
 import { requestJSON } from '../utils/api.js';
 
+/**
+ * @param {{
+ *   isOpen: boolean,
+ *   onClose: () => void,
+ *   onSelectSpeaker: (deviceId: string) => Promise<unknown>,
+ *   browserDeviceId?: string | null,
+ *   isDemoMode?: boolean
+ * }} props
+ */
 export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker, browserDeviceId, isDemoMode }) {
   const [devices, setDevices] = useState(/** @type {import('../types.js').SpotifyDevice[]} */ ([]));
   const [loading, setLoading] = useState(false);
@@ -26,6 +35,7 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
   }, [isOpen, browserDeviceId]);
 
   if (!isOpen) return null;
+  /** @param {string} deviceId */
   const selectDevice = async deviceId => {
     setSelecting(true);
     try {

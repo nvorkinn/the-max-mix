@@ -35,6 +35,7 @@
  * @property {boolean} [is_active]
  * @property {boolean} [is_restricted]
  * @property {number | null} [volume_percent]
+ * @property {boolean} [supports_volume]
  */
 
 /**
@@ -42,8 +43,12 @@
  * @typedef {object} PlaybackState
  * @property {boolean} [is_playing]
  * @property {SpotifyDevice} [device]
- * @property {any} [item]
+ * @property {Track} [item]
+ * @property {{ current_track?: Track }} [track_window]
  * @property {number} [progress_ms]
+ * @property {number} [position]
+ * @property {number} [duration]
+ * @property {{ disallows?: Record<string, boolean | undefined> }} [actions]
  */
 
 /**
@@ -52,6 +57,26 @@
  * @property {boolean} [demoMode]
  * @property {boolean} [spotifyConfigured]
  * @property {string} [playbackMode]
+ */
+
+/**
+ * The guest who requested or upvoted a track.
+ * @typedef {object} Guest
+ * @property {string} id
+ * @property {string} name
+ * @property {string} [avatar]
+ */
+
+/**
+ * Player props shared by AlbumArtPlayer and VinylPlayer.
+ * @typedef {object} PlayerControls
+ * @property {PlaybackState | null | undefined} playback
+ * @property {boolean} isPlaying
+ * @property {() => unknown} onPlayPause
+ * @property {() => unknown} onNext
+ * @property {() => unknown} onPrevious
+ * @property {(positionMs: number) => unknown} onSeek
+ * @property {(volumePercent: number) => unknown} onVolumeChange
  */
 
 export {};

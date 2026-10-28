@@ -1,3 +1,8 @@
+/**
+ * @param {string} url
+ * @param {RequestInit} [options]
+ * @returns {Promise<any>}
+ */
 export async function requestJSON(url, options = {}) {
   const response = await fetch(url, { ...options, signal: AbortSignal.timeout(20000) });
   const data = await response.json();
@@ -10,6 +15,10 @@ export async function requestJSON(url, options = {}) {
   return data;
 }
 
+/**
+ * @param {string} url
+ * @param {object} [body]
+ */
 export function postJSON(url, body = {}) {
   return requestJSON(url, {
     method: 'POST',

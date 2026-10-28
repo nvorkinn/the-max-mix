@@ -14,6 +14,7 @@ const REACTIONS = [
   { emoji: '💩', label: 'Skip' }
 ];
 
+/** @param {{ socket: import('socket.io-client').Socket | null }} props */
 export default function MobileRemoteView({ socket }) {
   const [guestName, setGuestName] = useState(
     () => localStorage.getItem('guest_name') || 'Guest ' + Math.floor(Math.random() * 900 + 100)
@@ -43,6 +44,7 @@ export default function MobileRemoteView({ socket }) {
   // Initial fetch
   useEffect(() => {
     const controller = new AbortController();
+    /** @param {Error} error */
     const ignoreAbort = error => {
       if (error.name !== 'AbortError') console.error(error);
     };
@@ -57,7 +59,7 @@ export default function MobileRemoteView({ socket }) {
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('queue:updated', newQueue => {
+    socket.on('queue:updated', (/** @type {import('../types.js').Track[]} */ newQueue) => {
       setQueue(newQueue);
     });
 
@@ -72,6 +74,7 @@ export default function MobileRemoteView({ socket }) {
     }
   };
 
+  /** @param {string} emoji */
   const handleSendReaction = emoji => {
     triggerHaptic();
     if (socket) {
@@ -83,6 +86,7 @@ export default function MobileRemoteView({ socket }) {
     }
   };
 
+  /** @param {import('react').FormEvent} e */
   const handleSearch = async e => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
@@ -98,6 +102,7 @@ export default function MobileRemoteView({ socket }) {
     }
   };
 
+  /** @param {import('../types.js').Track} track */
   const handleAddTrack = async track => {
     triggerHaptic();
     try {
@@ -118,6 +123,7 @@ export default function MobileRemoteView({ socket }) {
     }
   };
 
+  /** @param {string | undefined} trackId */
   const handleUpvote = async trackId => {
     triggerHaptic();
     try {
@@ -131,6 +137,7 @@ export default function MobileRemoteView({ socket }) {
     }
   };
 
+  /** @param {string} msg */
   const showToast = msg => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);

@@ -4,6 +4,17 @@ import { getDivaForUser } from '../utils/divas.js';
 import { trackKeys } from '../utils/trackKeys.js';
 import confetti from 'canvas-confetti';
 
+/**
+ * @param {{
+ *   queue?: import('../types.js').Track[],
+ *   onReorderQueue?: (queue: import('../types.js').Track[]) => unknown,
+ *   onPlaySongNow?: (trackId: string | undefined, track: import('../types.js').Track) => unknown,
+ *   onOpenJamSettings?: () => void,
+ *   theme?: string,
+ *   isDemoMode?: boolean,
+ *   error?: string | null
+ * }} props
+ */
 export default function SpotifyJamQueue({
   queue = /** @type {import('../types.js').Track[]} */ ([]),
   onReorderQueue,
@@ -26,6 +37,10 @@ export default function SpotifyJamQueue({
   }, [queue]);
   useEffect(() => () => cleanupDragRef.current?.(), []);
 
+  /**
+   * @param {number} from
+   * @param {number} to
+   */
   const moveTrack = async (from, to) => {
     if (from === to || to < 0 || to >= queueRef.current.length) return;
     const updated = [...queueRef.current];
@@ -34,6 +49,10 @@ export default function SpotifyJamQueue({
     return onReorderQueue?.(updated);
   };
 
+  /**
+   * @param {import('react').PointerEvent<HTMLElement>} e
+   * @param {number} index
+   */
   const handleHandlePointerDown = (e, index) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     e.preventDefault();
@@ -43,6 +62,7 @@ export default function SpotifyJamQueue({
     setDraggedIndex(index);
     setHoverIndex(index);
 
+    /** @param {PointerEvent} event */
     const handlePointerMove = event => {
       const children = Array.from(listRef.current?.children || []);
       const target = children.findIndex(child => {
@@ -60,6 +80,7 @@ export default function SpotifyJamQueue({
       window.removeEventListener('pointercancel', handlePointerCancel);
       cleanupDragRef.current = null;
     };
+    /** @param {boolean} commit */
     const finish = commit => {
       const drag = dragRef.current;
       cleanup();

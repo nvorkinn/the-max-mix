@@ -30,18 +30,31 @@ export function useSocket() {
     };
   }, []);
 
+  /**
+   * @param {string} emoji
+   * @param {string} [guestName]
+   * @param {string} [color]
+   */
   const sendReaction = (emoji, guestName = 'Party Guest', color = '#ff4757') => {
     if (socketRef.current) {
       socketRef.current.emit('guest:reaction', { emoji, guestName, color });
     }
   };
 
+  /**
+   * @param {import('../types.js').Track} track
+   * @param {unknown} guest
+   */
   const requestTrack = (track, guest) => {
     if (socketRef.current) {
       socketRef.current.emit('guest:queue_request', { track, guest });
     }
   };
 
+  /**
+   * @param {string} trackId
+   * @param {string} guestId
+   */
   const upvoteTrack = (trackId, guestId) => {
     if (socketRef.current) {
       socketRef.current.emit('guest:upvote', { trackId, guestId });
