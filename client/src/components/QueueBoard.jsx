@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { trackKeys } from '../utils/trackKeys.js';
 import { ChevronUp, Plus, Trash2, Music2, Sparkles, Search, X } from 'lucide-react';
 
 export default function QueueBoard({
@@ -9,6 +10,7 @@ export default function QueueBoard({
   onSearchSpotify,
   onOpenQR
 }) {
+  const keys = trackKeys(queue);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -91,7 +93,7 @@ export default function QueueBoard({
             const isTop = index === 0;
             return (
               <div
-                key={track.id || index}
+                key={keys[index]}
                 className={`flex items-center justify-between p-2.5 rounded-2xl transition-all duration-300 border ${
                   isTop
                     ? 'bg-linear-to-r from-emerald-950/40 to-teal-950/30 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
