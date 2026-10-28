@@ -24,7 +24,7 @@ const FEMALE_ARTISTS_CATALOG = [
  * Checks if a track features any known female artists
  */
 export function isTrackByFemaleSinger(track) {
-  if (!track) return false;
+  if (!track) return { isFemale: false, artist: null };
 
   const artistsToCheck = [];
 

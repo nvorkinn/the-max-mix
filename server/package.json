@@ -10,6 +10,7 @@
     "test": "node --test",
     "dev": "node --watch src/index.js",
     "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc -p . --noEmit",
     "test:coverage": "mkdir -p coverage && node --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info"
   },
   "dependencies": {
@@ -22,8 +23,13 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.6",
     "eslint": "^10.13.0",
-    "globals": "^17.13.0"
+    "globals": "^17.13.0",
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=22"

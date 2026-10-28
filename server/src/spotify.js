@@ -3,6 +3,11 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 export class SpotifyError extends Error {
+  /**
+   * @param {string} message
+   * @param {number} [status]
+   * @param {string | null} [retryAfter]
+   */
   constructor(message, status = 502, retryAfter = null) {
     super(message);
     this.status = status;

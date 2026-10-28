@@ -17,6 +17,7 @@ export const GLOBAL_DIVAS = [
 ];
 
 // 2. MINIMALIST SKIN: Clean monochrome studio portraits
+/** @type {{ name: string, image: string, title?: string }[]} */
 export const MINIMALIST_AVATARS = [
   { name: 'Studio A', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80' },
   { name: 'Studio B', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80' },
@@ -29,6 +30,7 @@ export const MINIMALIST_AVATARS = [
  * Returns the appropriate avatar based on the selected theme
  */
 export function getDivaForUser(userNameOrId, fallbackIndex = 0, theme = 'neon') {
+  /** @type {{ name: string, image: string, title?: string }[]} */
   let roster = GLOBAL_DIVAS;
 
   if (theme === 'minimal') {

@@ -1,4 +1,5 @@
 const image = (id) => `https://images.unsplash.com/${id}?w=600&auto=format&fit=crop&q=80`;
+/** @typedef {ReturnType<typeof track>} DemoTrack */
 const track = (id, name, artist, art, duration, guest) => ({
   id, name, artists: [{ name: artist }], duration_ms: duration,
   album: { images: [{ url: image(art) }] }, added_by: { name: guest }
@@ -17,6 +18,7 @@ export function createDemo() {
       track('demo-queue-3', 'Music Sounds Better with You', 'Stardust', 'photo-1508700115892-45ecd05ae2ad', 260000, 'Dave'),
       track('demo-queue-4', 'Midnight City', 'M83', 'photo-1518609878373-06d740f60d8b', 244000, 'Chloe')
     ],
+    /** @type {DemoTrack[]} */
     history: []
   };
 }

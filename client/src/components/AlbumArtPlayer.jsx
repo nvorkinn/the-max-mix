@@ -95,7 +95,7 @@ export default function AlbumArtPlayer({
             aria-label="Playback position"
             aria-valuetext={`${formatTime(progressMs)} of ${formatTime(durationMs)}`}
             className="range-control seek-range"
-            style={{ '--range-progress': `${progressPercent}%` }}
+            style={/** @type {import('react').CSSProperties} */ ({ '--range-progress': `${progressPercent}%` })}
           />
           <div className="track-times"><span>{formatTime(progressMs)}</span><span>{formatTime(durationMs)}</span></div>
         </div>
@@ -115,7 +115,7 @@ export default function AlbumArtPlayer({
                 onVolumeChange?.(value);
               }}
               className="range-control volume-range"
-              style={{ '--range-progress': `${volume}%` }}
+              style={/** @type {import('react').CSSProperties} */ ({ '--range-progress': `${volume}%` })}
             />
           </label>
           <div className="transport-buttons">
