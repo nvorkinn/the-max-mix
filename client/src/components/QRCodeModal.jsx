@@ -2,6 +2,7 @@ import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { X, Smartphone, ExternalLink, Sparkles } from 'lucide-react';
 
+/** @param {{ isOpen: boolean, onClose: () => void, remoteUrl: string }} props */
 export default function QRCodeModal({ isOpen, onClose, remoteUrl }) {
   if (!isOpen) return null;
 

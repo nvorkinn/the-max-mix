@@ -20,6 +20,7 @@ export function useSpotifyPlayer() {
 
   useEffect(() => {
     let cancelled = false;
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
     let timer;
     let failures = 0;
     const poll = async () => {
@@ -60,6 +61,7 @@ export function useSpotifyPlayer() {
   useEffect(() => {
     if (!isAuthenticated || config?.demoMode || config?.playbackMode !== 'browser') return;
     let cancelled = false;
+    /** @type {any} */
     let player;
     const initialize = async () => {
       try {
@@ -67,7 +69,7 @@ export function useSpotifyPlayer() {
         if (cancelled) return;
         player = new sdk.Player({
           name: 'THE MAX MIX',
-          getOAuthToken: callback => {
+          getOAuthToken: (/** @type {(token: string) => void} */ callback) => {
             requestJSON('/api/token')
               .then(data => {
                 if (data.token) callback(data.token);
@@ -79,7 +81,7 @@ export function useSpotifyPlayer() {
           },
           volume: 0.8
         });
-        player.addListener('ready', ({ device_id }) => {
+        player.addListener('ready', (/** @type {{ device_id: string }} */ { device_id }) => {
           if (cancelled) return;
           setBrowserDeviceId(device_id);
           setSdkError(null);
@@ -90,7 +92,7 @@ export function useSpotifyPlayer() {
           setSdkError('The tablet player disconnected. Check the connection or select another speaker.');
         });
         for (const event of ['initialization_error', 'authentication_error', 'account_error', 'playback_error']) {
-          player.addListener(event, ({ message }) => {
+          player.addListener(event, (/** @type {{ message: string }} */ { message }) => {
             if (!cancelled) {
               setSdkError(
                 `Browser playback: ${message} Remote playback mode is available if this Pi cannot stream audio.`
@@ -112,6 +114,10 @@ export function useSpotifyPlayer() {
   }, [isAuthenticated, config?.demoMode, config?.playbackMode]);
 
   const runCommand = useCallback(
+    /**
+     * @param {string} action
+     * @param {object} [body]
+     */
     async (action, body) => {
       try {
         await postJSON(`/api/spotify/${action}`, body);
@@ -126,6 +132,7 @@ export function useSpotifyPlayer() {
     [refreshPlayback]
   );
 
+  /** @param {string} deviceId */
   const transferPlayback = async deviceId => {
     try {
       await postJSON('/api/transfer', { deviceId, play: false });
@@ -152,8 +159,8 @@ export function useSpotifyPlayer() {
     togglePlay: () => runCommand(playbackState?.is_playing ? 'pause' : 'play'),
     nextTrack: () => runCommand('next'),
     previousTrack: () => runCommand('previous'),
-    seek: position => runCommand('seek', { position_ms: Math.round(position) }),
-    setVolume: volume => runCommand('volume', { volume_percent: Math.round(volume * 100) }),
+    seek: (/** @type {number} */ position) => runCommand('seek', { position_ms: Math.round(position) }),
+    setVolume: (/** @type {number} */ volume) => runCommand('volume', { volume_percent: Math.round(volume * 100) }),
     transferPlayback,
     refreshPlayback
   };

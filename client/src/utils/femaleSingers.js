@@ -87,10 +87,12 @@ const FEMALE_ARTISTS_CATALOG = [
 
 /**
  * Checks if a track features any known female artists
+ * @param {import('../types.js').Track | null | undefined} track
  */
 export function isTrackByFemaleSinger(track) {
   if (!track) return false;
 
+  /** @type {string[]} */
   const artistsToCheck = [];
 
   if (Array.isArray(track.artists)) {
@@ -114,6 +116,7 @@ export function isTrackByFemaleSinger(track) {
 
 /**
  * Checks if any track in the queue features a female singer
+ * @param {import('../types.js').Track[]} [queue]
  */
 export function findFemaleSingersInQueue(queue = []) {
   const found = [];

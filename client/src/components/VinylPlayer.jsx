@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2 } from 'lucide-react';
 import AudioVisualizer from './AudioVisualizer.jsx';
 
+/** @param {import('../types.js').PlayerControls} props */
 export default function VinylPlayer({ playback, isPlaying, onPlayPause, onNext, onPrevious, onSeek, onVolumeChange }) {
   const [isScratching, setIsScratching] = useState(false);
   const [scratchAngle, setScratchAngle] = useState(0);
   const [volume, setVolume] = useState(80);
 
-  const item = playback?.item || playback?.track_window?.current_track || {};
+  const item =
+    playback?.item || playback?.track_window?.current_track || /** @type {import('../types.js').Track} */ ({});
   const title = item.name || item.title || 'Ready to Jam';
   const artist = item.artists
     ? item.artists.map(a => a.name).join(', ')
@@ -21,6 +23,7 @@ export default function VinylPlayer({ playback, isPlaying, onPlayPause, onNext, 
   const durationMs = item.duration_ms || playback?.duration || 180000;
   const progressPercent = Math.min(100, Math.max(0, (progressMs / durationMs) * 100));
 
+  /** @param {number} ms */
   const formatTime = ms => {
     const totalSecs = Math.floor(ms / 1000);
     const mins = Math.floor(totalSecs / 60);
@@ -28,6 +31,7 @@ export default function VinylPlayer({ playback, isPlaying, onPlayPause, onNext, 
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
+  /** @param {import('react').MouseEvent<HTMLElement>} e */
   const handleProgressBarClick = e => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -35,6 +39,7 @@ export default function VinylPlayer({ playback, isPlaying, onPlayPause, onNext, 
     onSeek(ratio * durationMs);
   };
 
+  /** @param {import('react').ChangeEvent<HTMLInputElement>} e */
   const handleVolumeSlide = e => {
     const val = Number(e.target.value);
     setVolume(val);

@@ -2,6 +2,16 @@ import React, { useState } from 'react';
 import { trackKeys } from '../utils/trackKeys.js';
 import { ChevronUp, Plus, Trash2, Music2, Sparkles, Search, X } from 'lucide-react';
 
+/**
+ * @param {{
+ *   queue: import('../types.js').Track[],
+ *   onUpvote: (trackId?: string) => unknown,
+ *   onRemove: (trackId?: string) => unknown,
+ *   onAddSong: (track: import('../types.js').Track, guest: import('../types.js').Guest) => unknown,
+ *   onSearchSpotify: (query: string) => Promise<import('../types.js').Track[] | undefined>,
+ *   onOpenQR: () => void
+ * }} props
+ */
 export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSearchSpotify, onOpenQR }) {
   const keys = trackKeys(queue);
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -9,6 +19,7 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
   const [searchResults, setSearchResults] = useState(/** @type {import('../types.js').Track[]} */ ([]));
   const [searching, setSearching] = useState(false);
 
+  /** @param {import('react').FormEvent} e */
   const handleSearch = async e => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
@@ -23,6 +34,7 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
     }
   };
 
+  /** @param {import('../types.js').Track} track */
   const handleSelectTrack = track => {
     onAddSong(track, { id: 'tablet-host', name: 'Tablet Touch', avatar: '📱' });
     setShowSearchModal(false);
@@ -98,7 +110,7 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
                   <button
                     onClick={() => onUpvote(track.id)}
                     className={`flex flex-col items-center justify-center w-11 h-11 rounded-xl transition-all active:scale-90 border ${
-                      track.votes > 1
+                      (track.votes ?? 0) > 1
                         ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 font-extrabold'
                         : 'bg-white/5 text-neutral-300 border-white/10 font-bold'
                     }`}

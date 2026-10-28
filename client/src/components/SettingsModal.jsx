@@ -1,6 +1,15 @@
 import React from 'react';
 import { X, Key, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feather } from 'lucide-react';
 
+/**
+ * @param {{
+ *   isOpen: boolean,
+ *   onClose: () => void,
+ *   authInfo?: { authenticated?: boolean, configured?: boolean, demoMode?: boolean, playbackMode?: string },
+ *   currentTheme?: string,
+ *   onThemeChange?: (theme: string) => void
+ * }} props
+ */
 export default function SettingsModal({ isOpen, onClose, authInfo, currentTheme = 'neon', onThemeChange }) {
   if (!isOpen) return null;
 

@@ -24,6 +24,10 @@ export default function TouchRipples({ theme = 'neon' }) {
     resize();
     window.addEventListener('resize', resize);
 
+    /**
+     * @param {number} x
+     * @param {number} y
+     */
     const spawnRipple = (x, y) => {
       // Add soundwave / ink ring
       const ringColors = isMinimal
@@ -56,6 +60,7 @@ export default function TouchRipples({ theme = 'neon' }) {
       }
     };
 
+    /** @param {PointerEvent} e */
     const handlePointerDown = e => {
       if (document.hidden) return;
       spawnRipple(e.clientX, e.clientY);
