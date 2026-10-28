@@ -16,10 +16,13 @@
     "lint": "npm --prefix server run lint && npm --prefix client run lint",
     "test:coverage": "npm --prefix server run test:coverage && npm --prefix client run test:coverage",
     "format": "prettier --write server/src server/test client/src \"*.json\" \"client/*.{js,json,html}\" \"server/*.{js,json}\" \".github/**/*.yml\"",
-    "format:check": "prettier --check server/src server/test client/src \"*.json\" \"client/*.{js,json,html}\" \"server/*.{js,json}\" \".github/**/*.yml\""
+    "format:check": "prettier --check server/src server/test client/src \"*.json\" \"client/*.{js,json,html}\" \"server/*.{js,json}\" \".github/**/*.yml\"",
+    "prepare": "node scripts/install-hooks.js"
   },
   "devDependencies": {
     "concurrently": "^10.0.6",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "prettier": "3.9.10"
   },
   "engines": {
