@@ -139,6 +139,6 @@ test('API, sign-in and page requests are rate limited per client with a JSON 429
 
 test('the general API limit applies across API routes', async t => {
   const { request } = await start(t, { rateLimits: { api: 3 } });
-  for (const endpoint of ['/api/info', '/api/health', '/api/token']) assert.equal((await request(endpoint)).response.status, 200);
+  for (const endpoint of ['/api/info', '/api/token', '/api/spotify/devices']) assert.equal((await request(endpoint)).response.status, 200);
   assert.equal((await request('/api/info')).response.status, 429);
 });
