@@ -5,6 +5,9 @@
 `create_global_pr_status.yml` opens a **Global PR Status** check on each PR's head commit, and `all-checks.yml`
 completes it, and approves the PR, once every other workflow and check on that commit has passed.
 
+`tests.yml` runs lint, tests and the production build on every pull request and push to `main`; it is listed in
+`all-checks.yml`, so Global PR Status waits for it.
+
 - **Required check:** `Global PR Status`.
 - **Repository setting:** Settings > Actions > General > Workflow permissions >
   **Allow GitHub Actions to create and approve pull requests** must stay enabled.
