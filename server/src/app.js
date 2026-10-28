@@ -1,5 +1,6 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -7,12 +8,26 @@ import path from 'node:path';
 import { SpotifyError } from './spotify.js';
 import { createDemo } from './demo.js';
 
-export function createApp({ config, spotify, distPath = fileURLToPath(new URL('../../client/dist', import.meta.url)) }) {
+// Requests per minute per client address. The UI polls playback and the queue every few seconds, so these are far above
+// normal use; they exist to keep a misbehaving client on the network from hammering the server or Spotify's API.
+const DEFAULT_RATE_LIMITS = { windowMs: 60_000, api: 600, auth: 20, pages: 300 };
+
+export function createApp({ config, spotify, distPath = fileURLToPath(new URL('../../client/dist', import.meta.url)), rateLimits = {} }) {
+  const limits = { ...DEFAULT_RATE_LIMITS, ...rateLimits };
+  const limiter = limit => rateLimit({
+    windowMs: limits.windowMs,
+    limit,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: (req, res) => res.status(429).json({ error: 'Too many requests. Try again in a moment.' })
+  });
   const app = express();
   const demo = createDemo();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
+  app.use('/api', limiter(limits.api));
+  app.use('/api/auth', limiter(limits.auth));
   app.use('/api', (req, res, next) => {
     res.set('Cache-Control', 'no-store');
     next();
@@ -147,8 +162,9 @@ export function createApp({ config, spotify, distPath = fileURLToPath(new URL('.
   }));
 
   app.use('/api', (req, res) => res.status(404).json({ error: 'API not found.' }));
+  app.use(limiter(limits.pages));
   app.use(express.static(distPath));
-  app.get('*', (req, res, next) => {
+  app.get('/{*splat}', (req, res, next) => {
     res.sendFile(path.join(distPath, 'index.html'), error => {
       if (error) next(new SpotifyError('Frontend build missing. Run npm run build.', 503));
     });

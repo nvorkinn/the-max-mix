@@ -18,6 +18,6 @@ permissions:
 
 jobs:
   all-checks:
-    uses: nvorkinn/.github/.github/workflows/all-checks.yml@8bb6e7191533a6fecf141a0359cf18e6b9d841e2 # main
+    uses: nvorkinn/.github/.github/workflows/all-checks.yml@f4cc5b93340aeecf852000d1a7f3017f87796f48 # main
     with:
       approve: true
