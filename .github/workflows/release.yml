@@ -1,7 +1,8 @@
 name: Release
 
-# Pushing a version tag (e.g. v1.2.3, or v1.2.3-rc.1 for a prerelease) tests and builds the app, then publishes the
-# assembled tarball and its checksum to a GitHub Release with generated notes.
+# Pushing a version tag (e.g. v1.2.3, or v1.2.3-rc.1 for a prerelease) builds the app and publishes the assembled
+# tarball, its checksum and the standalone installer to a GitHub Release with generated notes. Lint and tests are not
+# repeated here: the Tests workflow already runs them on pull requests and on main.
 on:
   push:
     tags: [ 'v[0-9]+.[0-9]+.[0-9]+*' ]
@@ -23,8 +24,6 @@ jobs:
             server/package-lock.json
       - run: npm --prefix client ci
       - run: npm --prefix server ci
-      - run: npm run lint
-      - run: npm test
       - run: npm run build
       - run: bash scripts/package-release.sh "$GITHUB_REF_NAME"
       - name: Publish release
@@ -34,5 +33,5 @@ jobs:
         run: |
           flags=()
           if [[ $TAG == *-* ]]; then flags+=(--prerelease); fi
-          gh release create "$TAG" release-out/*.tar.gz release-out/*.sha256 \
+          gh release create "$TAG" release-out/*.tar.gz release-out/*.sha256 scripts/install-kiosk.sh \
             --title "$TAG" --generate-notes --verify-tag "${flags[@]}"
