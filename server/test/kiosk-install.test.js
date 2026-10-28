@@ -136,3 +136,36 @@ test('installer rejects a version that is not a release tag', async t => {
   const { env } = await setup(t);
   await assert.rejects(run('bash', [installer, 'main'], { env }), /Could not determine a release version/);
 });
+
+test('installer keeps the most recently activated releases and prunes the rest', async t => {
+  const { install, fixtures, env } = await setup(t);
+  const tags = ['v1.0.0', 'v1.1.0', 'v1.2.0', 'v1.3.0'];
+  for (const tag of tags) await makeRelease(fixtures, tag);
+  await mkdir(install, { recursive: true });
+  await writeFile(path.join(install, 'server.env'), 'KEEP=1\n', { mode: 0o600 });
+  await mkdir(path.join(install, 'releases/.staging.leftover'), { recursive: true });
+  const limited = { ...env, KIOSK_KEEP_RELEASES: '2' };
+  for (const tag of tags) {
+    await run('bash', [installer, tag], { env: limited });
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  const present = async tag => access(path.join(install, 'releases', tag)).then(() => true, () => false);
+  assert.deepEqual(await Promise.all(tags.map(present)), [false, false, true, true]);
+  await access(path.join(install, 'releases/.staging.leftover'));
+  assert.equal(await readFile(path.join(install, 'server.env'), 'utf8'), 'KEEP=1\n');
+
+  // Rolling back to a kept release makes it the newest, so the other kept one is what a later install prunes first.
+  await run('bash', [installer, 'v1.2.0'], { env: limited });
+  assert.equal(await readFile(path.join(install, 'current/VERSION'), 'utf8'), 'v1.2.0\n');
+  await new Promise(resolve => setTimeout(resolve, 20));
+  await run('bash', [installer, 'v1.1.0'], { env: limited });
+  assert.deepEqual(await Promise.all(tags.map(present)), [false, true, true, false]);
+});
+
+test('installer never prunes the active release and rejects a bad keep count', async t => {
+  const { install, fixtures, env } = await setup(t);
+  await makeRelease(fixtures, 'v1.2.0');
+  await run('bash', [installer, 'v1.2.0'], { env: { ...env, KIOSK_KEEP_RELEASES: '1' } });
+  await access(path.join(install, 'releases/v1.2.0'));
+  await assert.rejects(run('bash', [installer, 'v1.2.0'], { env: { ...env, KIOSK_KEEP_RELEASES: '0' } }), /KIOSK_KEEP_RELEASES must be a positive integer/);
+});

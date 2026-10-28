@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Installs THE MAX MIX from a GitHub Release: no git checkout and no build on the device.
 # Usage: bash install-kiosk.sh [vX.Y.Z]    (default: the latest release; an older tag rolls back)
-# Environment: KIOSK_INSTALL_DIR (default ~/the-max-mix), KIOSK_REPO (default nvorkinn/the-max-mix)
+# Environment: KIOSK_INSTALL_DIR (default ~/the-max-mix), KIOSK_REPO (default nvorkinn/the-max-mix),
+#              KIOSK_KEEP_RELEASES (how many releases to keep on disk, default 3)
 set -euo pipefail
 
 if [[ $(uname -s) != Linux || $(id -u) -eq 0 ]]; then
@@ -16,6 +17,11 @@ node -e 'if (Number(process.versions.node.split(".")[0]) < 22) { console.error("
 repo=${KIOSK_REPO:-nvorkinn/the-max-mix}
 if [[ ! $repo =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
   echo "KIOSK_REPO must look like owner/name." >&2
+  exit 1
+fi
+keep=${KIOSK_KEEP_RELEASES:-3}
+if [[ ! $keep =~ ^[1-9][0-9]*$ ]]; then
+  echo "KIOSK_KEEP_RELEASES must be a positive integer." >&2
   exit 1
 fi
 install=${KIOSK_INSTALL_DIR:-$HOME/the-max-mix}
@@ -93,6 +99,8 @@ const next = `${root}.new`;
 fs.rmSync(next, { force: true });
 fs.symlinkSync(release, next);
 fs.renameSync(next, root);
+// Releases are pruned by activation time, so touch this one: a rollback counts as the newest.
+fs.utimesSync(release, new Date(), new Date());
 const { loadConfig } = await import(pathToFileURL(path.join(release, 'server/src/config.js')));
 const config = loadConfig();
 const quoteUnit = value => value.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('%', '%%');
@@ -125,6 +133,24 @@ sudo systemctl daemon-reload
 sudo systemctl enable the-max-mix.service
 sudo systemctl restart the-max-mix.service
 systemctl --user daemon-reload
+
+# Keep the active release and the most recently activated ones (KIOSK_KEEP_RELEASES in total); remove the rest.
+node --input-type=module - "$install" "$keep" <<'NODE'
+import fs from 'node:fs';
+import path from 'node:path';
+const [install, keep] = process.argv.slice(2);
+const releases = path.join(install, 'releases');
+const active = fs.realpathSync(path.join(install, 'current'));
+const candidates = fs.readdirSync(releases, { withFileTypes: true })
+  .filter(entry => entry.isDirectory() && /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(entry.name))
+  .map(entry => path.join(releases, entry.name))
+  .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+for (const directory of candidates.slice(Number(keep))) {
+  if (fs.realpathSync(directory) === active) continue;
+  fs.rmSync(directory, { recursive: true, force: true });
+  console.log(`Removed old release ${path.basename(directory)}.`);
+}
+NODE
 
 echo "Installed $tag. Edit $install/server.env for Spotify credentials and playback mode."
 echo "Enable Desktop Autologin and disable screen blanking in Raspberry Pi OS, then reboot."
