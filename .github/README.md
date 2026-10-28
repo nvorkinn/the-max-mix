@@ -8,8 +8,12 @@ with the other repositories (for example [countdown](https://github.com/nvorkinn
 once every other workflow and check on that commit has passed. Dependabot pull requests are not auto-approved, so they
 still need a manual merge. Fork pull requests get no check.
 
-`tests.yml` runs lint, tests and the production build on every pull request and push to `main`; it is listed in
-`all-checks.yml`, so Global PR Status waits for it.
+`tests.yml` runs the tests and the production build on every pull request and push to `main`; it no longer lints. It is
+listed in `all-checks.yml`, so Global PR Status waits for it.
+
+`lint.yml` (**Lint**) runs on the same triggers with three jobs: ESLint (`npm run lint`), ShellCheck over `scripts/*.sh`
+and actionlint over `.github/workflows/*.yml`. ShellCheck and actionlint are downloaded as pinned release binaries and
+checked against a SHA-256 before running. It is listed in `all-checks.yml` too.
 
 `audit.yml` scans the lockfiles weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in
 `all-checks.yml`.
