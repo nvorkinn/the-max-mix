@@ -1,13 +1,7 @@
 import React from 'react';
 import { X, Key, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feather } from 'lucide-react';
 
-export default function SettingsModal({
-  isOpen,
-  onClose,
-  authInfo,
-  currentTheme = 'neon',
-  onThemeChange
-}) {
+export default function SettingsModal({ isOpen, onClose, authInfo, currentTheme = 'neon', onThemeChange }) {
   if (!isOpen) return null;
 
   const THEMES = [
@@ -31,8 +25,12 @@ export default function SettingsModal({
 
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 select-none">
-      <div role="dialog" aria-modal="true" aria-labelledby="settings-title" className="app-modal-panel border rounded-3xl p-6 max-w-md w-full relative shadow-2xl text-left max-h-[92vh] overflow-y-auto">
-        
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+        className="app-modal-panel border rounded-3xl p-6 max-w-md w-full relative shadow-2xl text-left max-h-[92vh] overflow-y-auto"
+      >
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -58,7 +56,7 @@ export default function SettingsModal({
           </div>
 
           <div className="grid grid-cols-1 gap-2">
-            {THEMES.map((t) => {
+            {THEMES.map(t => {
               const isSelected = currentTheme === t.id;
 
               return (
@@ -121,22 +119,24 @@ export default function SettingsModal({
             {authInfo?.demoMode
               ? 'Playback is simulated. Set DEMO_MODE=false in the server environment and restart to use Spotify.'
               : authInfo?.authenticated
-              ? `Connected to Spotify. Playback mode: ${authInfo.playbackMode}.`
-              : authInfo?.configured
-              ? 'Sign in with a Spotify Premium account to control a real device.'
-              : 'Configure the Spotify client ID and secret in the server environment, then restart.'}
+                ? `Connected to Spotify. Playback mode: ${authInfo.playbackMode}.`
+                : authInfo?.configured
+                  ? 'Sign in with a Spotify Premium account to control a real device.'
+                  : 'Configure the Spotify client ID and secret in the server environment, then restart.'}
           </p>
         </div>
 
         {/* Action Button */}
         <div className="space-y-3">
-          {!authInfo?.demoMode && authInfo?.configured && <a
-            href="/api/auth/login"
-            className="w-full py-3 px-4 bg-[#1DB954] hover:bg-[#1aa34a] text-black font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
-          >
-            <Music className="w-4 h-4 fill-black" />
-            {authInfo?.authenticated ? 'Re-authenticate with Spotify' : 'Log in with Spotify'}
-          </a>}
+          {!authInfo?.demoMode && authInfo?.configured && (
+            <a
+              href="/api/auth/login"
+              className="w-full py-3 px-4 bg-[#1DB954] hover:bg-[#1aa34a] text-black font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
+            >
+              <Music className="w-4 h-4 fill-black" />
+              {authInfo?.authenticated ? 'Re-authenticate with Spotify' : 'Log in with Spotify'}
+            </a>
+          )}
         </div>
       </div>
     </div>

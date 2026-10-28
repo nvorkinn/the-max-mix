@@ -15,9 +15,15 @@ const REACTIONS = [
 ];
 
 export default function MobileRemoteView({ socket }) {
-  const [guestName, setGuestName] = useState(() => localStorage.getItem('guest_name') || 'Guest ' + Math.floor(Math.random() * 900 + 100));
-  const [avatar, setAvatar] = useState(() => localStorage.getItem('guest_avatar') || AVATARS[Math.floor(Math.random() * AVATARS.length)]);
-  const [guestId] = useState(() => localStorage.getItem('guest_id') || `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`);
+  const [guestName, setGuestName] = useState(
+    () => localStorage.getItem('guest_name') || 'Guest ' + Math.floor(Math.random() * 900 + 100)
+  );
+  const [avatar, setAvatar] = useState(
+    () => localStorage.getItem('guest_avatar') || AVATARS[Math.floor(Math.random() * AVATARS.length)]
+  );
+  const [guestId] = useState(
+    () => localStorage.getItem('guest_id') || `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`
+  );
 
   const [activeTab, setActiveTab] = useState('react'); // 'react' | 'queue' | 'search'
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,8 +43,13 @@ export default function MobileRemoteView({ socket }) {
   // Initial fetch
   useEffect(() => {
     const controller = new AbortController();
-    const ignoreAbort = (error) => { if (error.name !== 'AbortError') console.error(error); };
-    fetch('/api/queue', { signal: controller.signal }).then(r => r.json()).then(setQueue).catch(ignoreAbort);
+    const ignoreAbort = error => {
+      if (error.name !== 'AbortError') console.error(error);
+    };
+    fetch('/api/queue', { signal: controller.signal })
+      .then(r => r.json())
+      .then(setQueue)
+      .catch(ignoreAbort);
     return () => controller.abort();
   }, []);
 
@@ -61,7 +72,7 @@ export default function MobileRemoteView({ socket }) {
     }
   };
 
-  const handleSendReaction = (emoji) => {
+  const handleSendReaction = emoji => {
     triggerHaptic();
     if (socket) {
       socket.emit('guest:reaction', {
@@ -72,7 +83,7 @@ export default function MobileRemoteView({ socket }) {
     }
   };
 
-  const handleSearch = async (e) => {
+  const handleSearch = async e => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     setSearching(true);
@@ -87,7 +98,7 @@ export default function MobileRemoteView({ socket }) {
     }
   };
 
-  const handleAddTrack = async (track) => {
+  const handleAddTrack = async track => {
     triggerHaptic();
     try {
       await fetch('/api/queue/add', {
@@ -107,7 +118,7 @@ export default function MobileRemoteView({ socket }) {
     }
   };
 
-  const handleUpvote = async (trackId) => {
+  const handleUpvote = async trackId => {
     triggerHaptic();
     try {
       await fetch('/api/queue/upvote', {
@@ -120,14 +131,13 @@ export default function MobileRemoteView({ socket }) {
     }
   };
 
-  const showToast = (msg) => {
+  const showToast = msg => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-between max-w-md mx-auto relative select-none">
-      
       {/* Top Bar with Guest Profile */}
       <header className="p-4 bg-neutral-900/80 backdrop-blur-md border-b border-white/10 sticky top-0 z-30">
         <div className="flex items-center justify-between">
@@ -136,14 +146,14 @@ export default function MobileRemoteView({ socket }) {
             <input
               type="text"
               value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
+              onChange={e => setGuestName(e.target.value)}
               className="bg-transparent font-bold text-sm text-white focus:outline-hidden border-b border-transparent focus:border-emerald-400 max-w-[140px]"
               placeholder="Your Name"
             />
           </div>
 
           <div className="flex space-x-1">
-            {AVATARS.slice(0, 5).map((a) => (
+            {AVATARS.slice(0, 5).map(a => (
               <button
                 key={a}
                 onClick={() => {
@@ -177,18 +187,14 @@ export default function MobileRemoteView({ socket }) {
             </div>
 
             <div className="grid grid-cols-2 gap-3.5">
-              {REACTIONS.map((r) => (
+              {REACTIONS.map(r => (
                 <button
                   key={r.label}
                   onClick={() => handleSendReaction(r.emoji)}
                   className="h-28 rounded-3xl bg-linear-to-b from-neutral-800/80 to-neutral-900 border border-white/10 active:scale-95 active:border-emerald-400 transition-all flex flex-col items-center justify-center shadow-lg relative overflow-hidden group"
                 >
-                  <span className="text-4xl group-active:scale-125 transition-transform">
-                    {r.emoji}
-                  </span>
-                  <span className="text-xs font-bold text-neutral-300 mt-2 uppercase tracking-wider">
-                    {r.label}
-                  </span>
+                  <span className="text-4xl group-active:scale-125 transition-transform">{r.emoji}</span>
+                  <span className="text-xs font-bold text-neutral-300 mt-2 uppercase tracking-wider">{r.label}</span>
                 </button>
               ))}
             </div>
@@ -231,18 +237,10 @@ export default function MobileRemoteView({ socket }) {
                       <ChevronUp className="w-4 h-4 -mb-1" />
                       <span className="text-xs">{track.votes}</span>
                     </button>
-                    <img
-                      src={track.albumArt}
-                      alt={track.title}
-                      className="w-12 h-12 rounded-xl object-cover"
-                    />
+                    <img src={track.albumArt} alt={track.title} className="w-12 h-12 rounded-xl object-cover" />
                     <div className="max-w-[150px]">
-                      <p className="text-sm font-bold text-white truncate">
-                        {track.title}
-                      </p>
-                      <p className="text-xs text-neutral-400 truncate">
-                        {track.artist}
-                      </p>
+                      <p className="text-sm font-bold text-white truncate">{track.title}</p>
+                      <p className="text-xs text-neutral-400 truncate">{track.artist}</p>
                     </div>
                   </div>
 
@@ -265,7 +263,7 @@ export default function MobileRemoteView({ socket }) {
                 type="text"
                 placeholder="Search tracks or artists..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={e => setSearchQuery(e.target.value)}
                 className="flex-1 bg-neutral-900 border border-white/20 rounded-2xl px-4 py-3 text-sm text-white placeholder-neutral-500 focus:outline-hidden focus:border-emerald-400"
                 autoFocus
               />
@@ -279,24 +277,16 @@ export default function MobileRemoteView({ socket }) {
             </form>
 
             <div className="space-y-2 pt-2">
-              {searchResults.map((track) => (
+              {searchResults.map(track => (
                 <div
                   key={track.id}
                   className="flex items-center justify-between p-2.5 rounded-2xl bg-neutral-900 border border-white/10"
                 >
                   <div className="flex items-center space-x-3">
-                    <img
-                      src={track.albumArt}
-                      alt={track.title}
-                      className="w-11 h-11 rounded-xl object-cover"
-                    />
+                    <img src={track.albumArt} alt={track.title} className="w-11 h-11 rounded-xl object-cover" />
                     <div className="max-w-[170px]">
-                      <p className="text-xs font-bold text-white truncate">
-                        {track.title}
-                      </p>
-                      <p className="text-[11px] text-neutral-400 truncate">
-                        {track.artist}
-                      </p>
+                      <p className="text-xs font-bold text-white truncate">{track.title}</p>
+                      <p className="text-[11px] text-neutral-400 truncate">{track.artist}</p>
                     </div>
                   </div>
 

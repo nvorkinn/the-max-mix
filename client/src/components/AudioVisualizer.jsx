@@ -54,7 +54,7 @@ export default function AudioVisualizer({ isPlaying, primaryColor = '#10b981', s
           const wave2 = Math.cos(time * 0.6 + bar.phase * 2);
           const wave3 = Math.sin(time * 1.4 + i * 0.4);
           const energy = Math.abs(wave1 * 0.5 + wave2 * 0.3 + wave3 * 0.2);
-          
+
           bar.targetHeight = Math.max(8, energy * (height * 0.85));
         } else {
           bar.targetHeight = 4;
@@ -106,10 +106,5 @@ export default function AudioVisualizer({ isPlaying, primaryColor = '#10b981', s
     };
   }, [isPlaying, primaryColor, secondaryColor]);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className="w-full h-full pointer-events-none"
-    />
-  );
+  return <canvas ref={canvasRef} className="w-full h-full pointer-events-none" />;
 }
