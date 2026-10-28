@@ -7,6 +7,7 @@ vi.mock('../utils/spotifySdk.js', () => ({ loadSpotifySDK: vi.fn() }));
 
 import { useSpotifyPlayer } from './useSpotifyPlayer.js';
 
+/** @param {Record<string, unknown>} table */
 function route(table) {
   api.requestJSON.mockImplementation(async url => {
     const entry = table[url];

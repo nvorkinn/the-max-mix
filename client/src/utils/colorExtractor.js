@@ -1,6 +1,6 @@
 /**
  * Extracts ambient colors from album art image using an offscreen canvas
- * @param {string | null | undefined} imageUrl
+ * @param {string | null} [imageUrl]
  * @returns {Promise<{ primary: string, secondary: string, dark: string }>}
  */
 export async function extractPalette(imageUrl) {

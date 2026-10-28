@@ -7,7 +7,8 @@ const FALLBACK = {
   dark: 'rgba(15, 17, 26, 0.95)'
 };
 
-let imageBehavior;
+/** @type {'load' | 'error'} */
+let imageBehavior = 'load';
 
 class FakeImage {
   /** @type {(() => void) | undefined} */
@@ -15,6 +16,7 @@ class FakeImage {
   /** @type {(() => void) | undefined} */
   onerror;
 
+  /** @param {string} value */
   set src(value) {
     this._src = value;
     queueMicrotask(() => {
@@ -24,6 +26,10 @@ class FakeImage {
   }
 }
 
+/**
+ * @param {number[]} pixels
+ * @param {{ throws?: boolean }} [options]
+ */
 function stubCanvas(pixels, { throws = false } = {}) {
   const ctx = {
     drawImage: vi.fn(),

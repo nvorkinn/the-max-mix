@@ -17,13 +17,14 @@ export function installCanvasStub() {
   });
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(/** @type {any} */ (ctx)); // partial 2d context stub
 
+  /** @type {{ id: number, fn: FrameRequestCallback }[]} */
   let frames = [];
   let nextId = 1;
-  vi.stubGlobal('requestAnimationFrame', fn => {
+  vi.stubGlobal('requestAnimationFrame', (/** @type {FrameRequestCallback} */ fn) => {
     frames.push({ id: nextId, fn });
     return nextId++;
   });
-  vi.stubGlobal('cancelAnimationFrame', id => {
+  vi.stubGlobal('cancelAnimationFrame', (/** @type {number} */ id) => {
     frames = frames.filter(f => f.id !== id);
   });
 

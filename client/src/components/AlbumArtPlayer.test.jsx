@@ -25,9 +25,10 @@ const playback = {
   }
 };
 
+/** @param {Record<string, unknown>} [props] */
 function setup(props = {}) {
   const h = { onPlayPause: vi.fn(), onNext: vi.fn(), onPrevious: vi.fn(), onSeek: vi.fn(), onVolumeChange: vi.fn() };
-  render(<AlbumArtPlayer playback={playback} isPlaying controlsEnabled {...h} {...props} />);
+  render(<AlbumArtPlayer playback={/** @type {any} */ (playback)} isPlaying controlsEnabled {...h} {...props} />);
   return h;
 }
 
@@ -107,7 +108,9 @@ describe('AlbumArtPlayer', () => {
   });
 
   it('credits the demo guest only in demo mode, falling back to a diva image on error', () => {
-    const { unmount } = render(<AlbumArtPlayer playback={playback} isDemoMode controlsEnabled onSeek={() => {}} />);
+    const { unmount } = render(
+      <AlbumArtPlayer playback={/** @type {any} */ (playback)} isDemoMode controlsEnabled onSeek={() => {}} />
+    );
     expect(screen.getByText('Ann')).toBeInTheDocument();
     const avatar = /** @type {Element} */ (document.querySelector('.track-credit img'));
     fireEvent.error(avatar);
@@ -205,7 +208,7 @@ describe('SpotifyJamQueue', () => {
   });
 
   it('reorders with the keyboard and ignores moves past the ends', async () => {
-    vi.stubGlobal('requestAnimationFrame', fn => fn());
+    vi.stubGlobal('requestAnimationFrame', (/** @type {FrameRequestCallback} */ fn) => fn(0));
     const h = renderQueue({ isDemoMode: true });
     fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Two' }), { key: 'ArrowUp' });
     await vi.waitFor(() => expect(h.onReorderQueue).toHaveBeenCalledWith([tracks[1], tracks[0], tracks[2]]));

@@ -11,7 +11,9 @@ describe('isTrackByFemaleSinger', () => {
       isFemale: true,
       artist: 'adele'
     });
-    expect(/** @type {any} */ (isTrackByFemaleSinger({ artists: ['Dua Lipa'] })).isFemale).toBe(true);
+    expect(/** @type {any} */ (isTrackByFemaleSinger(/** @type {any} */ ({ artists: ['Dua Lipa'] }))).isFemale).toBe(
+      true
+    );
   });
 
   it('splits comma separated artist strings', () => {
