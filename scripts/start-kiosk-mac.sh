@@ -41,7 +41,7 @@ chmod 700 "$profile"
 
 # KIOSK_WINDOWED=true opens a 1024x600 window (the Waveshare resolution) instead of fullscreen kiosk.
 if [[ ${KIOSK_WINDOWED:-} == true ]]; then
-  mode=(--window-size=1024,600)
+  mode=("--window-size=1024,600")
 else
   mode=(--kiosk)
 fi
