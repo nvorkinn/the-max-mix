@@ -169,7 +169,10 @@ export function createApp({
       ) {
         throw new SpotifyError('Reordering requires each existing demo track exactly once.', 400);
       }
-      demo.queue = queue.map(track => demo.queue.find(existing => existing.id === track.id));
+      // Validated above: every submitted id matches exactly one existing demo track.
+      demo.queue = queue.map(
+        track => /** @type {import('./demo.js').DemoTrack} */ (demo.queue.find(existing => existing.id === track.id))
+      );
       res.json({ queue: demo.queue });
     })
   );
@@ -197,7 +200,10 @@ export function createApp({
         } else {
           const source = action === 'next' ? demo.queue : demo.history;
           if (!source.length) throw new SpotifyError(`No ${action} demo track available.`, 409);
-          const target = action === 'next' ? source.shift() : source.pop();
+          // source is non-empty (checked above), so shift/pop always yield a track.
+          const target = /** @type {import('./demo.js').DemoTrack} */ (
+            action === 'next' ? source.shift() : source.pop()
+          );
           if (action === 'next') demo.history.push(demo.playback.item);
           else demo.queue.unshift(demo.playback.item);
           demo.playback.item = target;

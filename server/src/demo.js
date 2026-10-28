@@ -1,4 +1,5 @@
 const image = id => `https://images.unsplash.com/${id}?w=600&auto=format&fit=crop&q=80`;
+/** @typedef {ReturnType<typeof track>} DemoTrack */
 const track = (id, name, artist, art, duration, guest) => ({
   id,
   name,
@@ -29,6 +30,7 @@ export function createDemo() {
       ),
       track('demo-queue-4', 'Midnight City', 'M83', 'photo-1518609878373-06d740f60d8b', 244000, 'Chloe')
     ],
+    /** @type {DemoTrack[]} */
     history: []
   };
 }

@@ -1,7 +1,9 @@
+/** @type {any} */
+const sdkWindow = window;
 let sdkPromise;
 
 export function loadSpotifySDK() {
-  if (window.Spotify) return Promise.resolve(window.Spotify);
+  if (sdkWindow.Spotify) return Promise.resolve(sdkWindow.Spotify);
   if (sdkPromise) return sdkPromise;
   sdkPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -12,9 +14,9 @@ export function loadSpotifySDK() {
       sdkPromise = null;
       reject(error);
     };
-    window.onSpotifyWebPlaybackSDKReady = () => {
+    sdkWindow.onSpotifyWebPlaybackSDKReady = () => {
       clearTimeout(timeout);
-      resolve(window.Spotify);
+      resolve(sdkWindow.Spotify);
     };
     script.onerror = () => fail(new Error('Could not load the Spotify SDK. Check the internet connection.'));
     script.src = 'https://sdk.scdn.co/spotify-player.js';
