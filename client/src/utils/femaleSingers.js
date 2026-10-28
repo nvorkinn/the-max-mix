@@ -85,12 +85,20 @@ const FEMALE_ARTISTS_CATALOG = [
   'dolly parton'
 ];
 
+/** @param {string} text */
+const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// A catalog name only counts as a whole name, so "Asia" does not match "sia" and "Cherry" does not match "cher".
+const CATALOG_MATCHERS = FEMALE_ARTISTS_CATALOG.map(
+  name => new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(name)}(?![\\p{L}\\p{N}])`, 'u')
+);
+
 /**
  * Checks if a track features any known female artists
  * @param {import('../types.js').Track | null | undefined} track
  */
 export function isTrackByFemaleSinger(track) {
-  if (!track) return false;
+  if (!track) return { isFemale: false, artist: null };
 
   /** @type {string[]} */
   const artistsToCheck = [];
@@ -104,8 +112,8 @@ export function isTrackByFemaleSinger(track) {
   const artistsLower = artistsToCheck.map(a => a.toLowerCase().trim());
 
   for (const artist of artistsLower) {
-    for (const femaleName of FEMALE_ARTISTS_CATALOG) {
-      if (artist.includes(femaleName)) {
+    for (const matcher of CATALOG_MATCHERS) {
+      if (matcher.test(artist)) {
         return { isFemale: true, artist };
       }
     }
@@ -123,7 +131,7 @@ export function findFemaleSingersInQueue(queue = []) {
 
   for (const track of queue) {
     const check = isTrackByFemaleSinger(track);
-    if (check && check.isFemale) {
+    if (check.isFemale) {
       found.push({
         trackTitle: track.name || track.title || 'Unknown Title',
         artist: check.artist

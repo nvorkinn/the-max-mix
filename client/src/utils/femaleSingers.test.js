@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { isTrackByFemaleSinger, findFemaleSingersInQueue } from './femaleSingers.js';
 
 describe('isTrackByFemaleSinger', () => {
-  it('returns a falsy value for missing tracks', () => {
-    expect(isTrackByFemaleSinger(null)).toBeFalsy();
+  it('reports no match for missing tracks', () => {
+    expect(isTrackByFemaleSinger(null)).toEqual({ isFemale: false, artist: null });
+    expect(isTrackByFemaleSinger(undefined)).toEqual({ isFemale: false, artist: null });
   });
 
   it('matches artists given as objects or strings, case-insensitively', () => {
@@ -23,9 +24,18 @@ describe('isTrackByFemaleSinger', () => {
     expect(isTrackByFemaleSinger({ title: 'x' })).toEqual({ isFemale: false, artist: null });
   });
 
-  // Known bug: matching is by substring, so "Asia" contains "sia". Remove `.fails` once fixed.
-  it.fails('does not flag unrelated artists whose names merely contain a catalog entry', () => {
-    expect(/** @type {any} */ (isTrackByFemaleSinger({ artist: 'Asia' })).isFemale).toBe(false);
+  it('does not flag unrelated artists whose names merely contain a catalog entry', () => {
+    expect(isTrackByFemaleSinger({ artist: 'Asia' }).isFemale).toBe(false);
+    expect(isTrackByFemaleSinger({ artist: 'Cherry Poppin Daddies' }).isFemale).toBe(false);
+    expect(isTrackByFemaleSinger({ artist: 'Madonnas Of Rock' }).isFemale).toBe(false);
+  });
+
+  it('still matches catalog names with accents, punctuation or extra words', () => {
+    expect(isTrackByFemaleSinger({ artist: 'Céline Dion' }).isFemale).toBe(true);
+    expect(isTrackByFemaleSinger({ artist: 'St. Vincent' }).isFemale).toBe(true);
+    expect(isTrackByFemaleSinger({ artist: 'Florence + The Machine' }).isFemale).toBe(true);
+    expect(isTrackByFemaleSinger({ artist: 'Sia' }).isFemale).toBe(true);
+    expect(isTrackByFemaleSinger({ artist: 'Cher feat. Nobody' }).isFemale).toBe(true);
   });
 });
 

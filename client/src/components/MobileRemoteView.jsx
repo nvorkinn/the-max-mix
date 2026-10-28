@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { trackKeys } from '../utils/trackKeys.js';
 import { Search, Flame, Sparkles, Plus, ChevronUp, Music, PartyPopper } from 'lucide-react';
 
@@ -31,8 +31,7 @@ export default function MobileRemoteView({ socket }) {
   const [searchResults, setSearchResults] = useState(/** @type {import('../types.js').Track[]} */ ([]));
   const [searching, setSearching] = useState(false);
   const [queue, setQueue] = useState(/** @type {import('../types.js').Track[]} */ ([]));
-  // /api/queue currently answers with an object, so don't assume an array before the queue tab renders.
-  const queueKeys = Array.isArray(queue) ? trackKeys(queue) : [];
+  const queueKeys = trackKeys(queue);
   const [toast, setToast] = useState(/** @type {string | null} */ (null));
 
   useEffect(() => {
@@ -49,8 +48,12 @@ export default function MobileRemoteView({ socket }) {
       if (error.name !== 'AbortError') console.error(error);
     };
     fetch('/api/queue', { signal: controller.signal })
-      .then(r => r.json())
-      .then(setQueue)
+      .then(r => {
+        if (!r.ok) throw new Error(`Queue request failed (${r.status}).`);
+        return r.json();
+      })
+      // The server answers with { currently_playing, queue }.
+      .then(data => setQueue(Array.isArray(data?.queue) ? data.queue : []))
       .catch(ignoreAbort);
     return () => controller.abort();
   }, []);
@@ -93,6 +96,7 @@ export default function MobileRemoteView({ socket }) {
     setSearching(true);
     try {
       const res = await fetch(`/api/spotify/search?q=${encodeURIComponent(searchQuery)}`);
+      if (!res.ok) throw new Error(`Search failed (${res.status}).`);
       const data = await res.json();
       setSearchResults(data || []);
     } catch (err) {
@@ -106,7 +110,7 @@ export default function MobileRemoteView({ socket }) {
   const handleAddTrack = async track => {
     triggerHaptic();
     try {
-      await fetch('/api/queue/add', {
+      const res = await fetch('/api/queue/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -114,6 +118,7 @@ export default function MobileRemoteView({ socket }) {
           guest: { id: guestId, name: guestName, avatar }
         })
       });
+      if (!res.ok) throw new Error(`Could not add the track (${res.status}).`);
       showToast(`Added "${track.title}" to queue!`);
       setActiveTab('queue');
       setSearchQuery('');
@@ -127,20 +132,25 @@ export default function MobileRemoteView({ socket }) {
   const handleUpvote = async trackId => {
     triggerHaptic();
     try {
-      await fetch('/api/queue/upvote', {
+      const res = await fetch('/api/queue/upvote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ trackId, guestId })
       });
+      if (!res.ok) throw new Error(`Could not upvote the track (${res.status}).`);
     } catch (err) {
       console.error(err);
     }
   };
 
+  const toastTimerRef = useRef(/** @type {ReturnType<typeof setTimeout> | undefined} */ (undefined));
+  useEffect(() => () => clearTimeout(toastTimerRef.current), []);
+
   /** @param {string} msg */
   const showToast = msg => {
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   };
 
   return (

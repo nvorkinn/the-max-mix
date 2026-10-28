@@ -169,6 +169,30 @@ describe('TabletView', () => {
     expect(screen.queryByText('Skin updated to Paper')).toBeNull();
   });
 
+  it('does not let an earlier toast timer cut a newer toast short', async () => {
+    vi.useFakeTimers();
+    render(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open settings and skins' }));
+    fireEvent.click(screen.getByRole('button', { name: /paper/i }));
+    expect(screen.getByText('Skin updated to Paper')).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    fireEvent.click(screen.getByRole('button', { name: /studio|neon/i }));
+    expect(screen.getByText('Skin updated to Studio')).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(1600);
+    });
+    expect(screen.getByText('Skin updated to Studio')).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(screen.queryByText('Skin updated to Studio')).toBeNull();
+  });
+
   it('restores a saved theme and ignores unknown values', async () => {
     localStorage.setItem('maxmix_theme', 'minimal');
     const first = render(<TabletView />);
