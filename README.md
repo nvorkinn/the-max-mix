@@ -70,7 +70,7 @@ still need the device.
 
 1. Create an app in the [Spotify developer dashboard](https://developer.spotify.com/dashboard).
 2. Register **exactly** `http://127.0.0.1:3000/api/auth/callback` as its redirect URI.
-3. Set the following in `server/.env`:
+3. Set the following in `server/.env` (`~/the-max-mix/server.env` on an installed kiosk):
 
    ```ini
    SPOTIFY_CLIENT_ID=your_client_id
@@ -105,13 +105,13 @@ Revoked logins require signing in again. Never commit `.env` or token files.
 
 ## Releases
 
-Pushing a tag such as `v1.2.3` (or `v1.2.3-rc.1` for a prerelease) runs the lint, tests and
-production build, then publishes `the-max-mix-v1.2.3.tar.gz` and its `.sha256` to GitHub Releases
-with generated notes. The tarball holds the built UI, the server with production dependencies,
-the scripts and docs, so it runs without a build step: extract it, create `server/.env` from
-`server/.env.example`, and run `npm start` (Node 22+). The kiosk installer still expects a git
-checkout. To build the tarball locally, run `npm run build` and then
-`bash scripts/package-release.sh v1.2.3`; it is written to `release-out/`.
+Pushing a tag such as `v1.2.3` (or `v1.2.3-rc.1` for a prerelease) builds the app and publishes
+`the-max-mix-v1.2.3.tar.gz`, its `.sha256` and `install-kiosk.sh` to GitHub Releases with generated
+notes. Lint and tests run on pull requests and `main`, not again at release time. The tarball holds
+the built UI, the server with production dependencies, the scripts and docs, so it runs without a
+build step: extract it, create `server/.env` from `server/.env.example`, and run `npm start`
+(Node 22+). The Raspberry Pi installer below uses this tarball. To build one locally, run
+`npm run build` and then `bash scripts/package-release.sh v1.2.3`; it is written to `release-out/`.
 
 ## Raspberry Pi kiosk installation
 
@@ -132,20 +132,28 @@ Autologin and fullscreen Chromium are appliance conveniences, not a security
 boundary. Keep SSH key-protected, restrict physical access, and keep the OS and
 browser updated.
 
-### 2. Clone and install as the desktop user
+### 2. Install a release as the desktop user
+
+The installer downloads a published release, so the Pi needs neither git nor a build toolchain:
 
 ```bash
-git clone https://github.com/nvorkinn/the-max-mix.git ~/the-max-mix
-cd ~/the-max-mix
-bash scripts/install-kiosk.sh
+curl -fsSLO https://github.com/nvorkinn/the-max-mix/releases/latest/download/install-kiosk.sh
+bash install-kiosk.sh            # the latest release, or: bash install-kiosk.sh v1.2.3
 ```
+
+`latest` skips prereleases; pass a tag such as `v1.3.0-rc.1` to install one. Releases are
+unpacked to `~/the-max-mix/releases/<version>`, and `~/the-max-mix/current` points at the active one
+(`KIOSK_INSTALL_DIR` and `KIOSK_REPO` override the location and source).
 
 Do **not** invoke the installer with sudo. It uses sudo only to install OS packages
 and the system service. It:
 
-- Installs Chromium and curl, restores locked npm dependencies, and builds the UI.
-- Creates `server/.env` with mode 0600 only if absent; existing configuration is kept.
-- Renders `the-max-mix.service` with the actual username, checkout, and Node path.
+- Downloads the release tarball and verifies its SHA-256 checksum before unpacking; a mismatch
+  aborts without changing the installation.
+- Installs Chromium and curl. Nothing is built or installed with npm on the device.
+- Creates `~/the-max-mix/server.env` with mode 0600 only if absent; existing configuration is kept
+  and shared by every release through a symlink.
+- Renders `the-max-mix.service` with the actual username, install path, and Node path.
 - Starts the server at boot as that non-root user, with automatic restarts and
   a private persistent token directory.
 - Adds a user-managed Chromium service started after desktop login. It preserves
@@ -156,7 +164,7 @@ and the system service. It:
   bounded timeout and automatic service retry. The browser keeps its own profile
   under `~/.config/the-max-mix/chromium`, with its sandbox enabled.
 
-Edit `server/.env` with your credentials and desired playback mode, then:
+Edit `~/the-max-mix/server.env` with your credentials and desired playback mode, then:
 
 ```bash
 sudo systemctl restart the-max-mix.service
@@ -192,10 +200,9 @@ curl --fail http://127.0.0.1:3000/api/health
 # Restart the browser from the kiosk user's session
 systemctl --user restart the-max-mix-kiosk.service
 
-# Update, rebuild, and refresh generated units without resetting login/config
-cd ~/the-max-mix
-git pull --ff-only
-bash scripts/install-kiosk.sh
+# Update to the latest release (or roll back with a tag: bash ... v1.2.3) without
+# resetting login or config; the previous release stays in ~/the-max-mix/releases
+bash ~/the-max-mix/current/scripts/install-kiosk.sh
 systemctl --user restart the-max-mix-kiosk.service
 ```
 
