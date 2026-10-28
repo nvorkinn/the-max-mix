@@ -13,16 +13,19 @@
     "kiosk:mac": "bash scripts/start-kiosk-mac.sh",
     "test": "npm --prefix server test && npm --prefix client test && bash scripts/test-kiosk.sh",
     "install:all": "npm install && npm --prefix server install && npm --prefix client install",
-    "lint": "npm --prefix server run lint && npm --prefix client run lint",
+    "lint": "npm --prefix server run lint && npm --prefix client run lint && npm run lint:root",
+    "lint:root": "eslint . --max-warnings 0",
     "lint:shell": "shellcheck scripts/*.sh",
     "typecheck": "npm --prefix server run typecheck && npm --prefix client run typecheck",
     "test:coverage": "npm --prefix server run test:coverage && npm --prefix client run test:coverage",
-    "format": "prettier --write server/src server/test client/src \"*.json\" \"client/*.{js,json,html}\" \"server/*.{js,json}\" \".github/**/*.yml\"",
-    "format:check": "prettier --check server/src server/test client/src \"*.json\" \"client/*.{js,json,html}\" \"server/*.{js,json}\" \".github/**/*.yml\"",
-    "prepare": "node scripts/install-hooks.js"
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "node scripts/install-hooks.js",
+    "check": "npm run lint && npm run typecheck && npm run format:check && npm run lint:shell"
   },
   "devDependencies": {
     "concurrently": "^10.0.6",
+    "eslint": "^10.13.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
     "prettier": "3.9.10"
