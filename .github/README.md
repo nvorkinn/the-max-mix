@@ -11,6 +11,8 @@ completes it, and approves the PR, once every other workflow and check on that c
 `audit.yml` scans the lockfiles weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in
 `all-checks.yml`.
 
+`dependabot.yml` opens daily grouped update PRs for the three npm projects and the GitHub Actions used here.
+
 - **Required check:** `Global PR Status`.
 - **Repository setting:** Settings > Actions > General > Workflow permissions >
   **Allow GitHub Actions to create and approve pull requests** must stay enabled.
