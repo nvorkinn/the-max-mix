@@ -35,7 +35,7 @@ grep -Fx -- '--ozone-platform=wayland' "$temporary/arguments"
 grep -Fx -- "--user-data-dir=$temporary/profile" "$temporary/arguments"
 grep -Fx -- 'http://127.0.0.1:3999' "$temporary/arguments"
 if grep -q -- '--no-sandbox' "$temporary/arguments"; then exit 1; fi
-WAYLAND_DISPLAY= DISPLAY=:0 bash "$root/scripts/start-kiosk.sh"
+WAYLAND_DISPLAY='' DISPLAY=:0 bash "$root/scripts/start-kiosk.sh"
 grep -Fx -- '--ozone-platform=x11' "$temporary/arguments"
 if WAYLAND_DISPLAY=wayland-0 KIOSK_TEST_FAILURE=true KIOSK_STARTUP_TIMEOUT=1 bash "$root/scripts/start-kiosk.sh"; then
   echo "Readiness failures must not launch the browser." >&2

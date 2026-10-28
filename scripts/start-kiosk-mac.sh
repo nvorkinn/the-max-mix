@@ -41,6 +41,7 @@ chmod 700 "$profile"
 
 # KIOSK_WINDOWED=true opens a 1024x600 window (the Waveshare resolution) instead of fullscreen kiosk.
 if [[ ${KIOSK_WINDOWED:-} == true ]]; then
+  # shellcheck disable=SC2054 # the comma is part of the Chrome flag value, not an array separator
   mode=(--window-size=1024,600)
 else
   mode=(--kiosk)

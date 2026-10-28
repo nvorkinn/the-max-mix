@@ -14,6 +14,7 @@
     "test": "npm --prefix server test && npm --prefix client test && bash scripts/test-kiosk.sh",
     "install:all": "npm install && npm --prefix server install && npm --prefix client install",
     "lint": "npm --prefix server run lint && npm --prefix client run lint",
+    "lint:shell": "shellcheck scripts/*.sh",
     "test:coverage": "npm --prefix server run test:coverage && npm --prefix client run test:coverage"
   },
   "devDependencies": {
