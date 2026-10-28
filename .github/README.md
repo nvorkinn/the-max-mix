@@ -1,13 +1,12 @@
 # Pull request workflows
 
-`create_global_pr_status.yml` opens a **Global PR Status** check on the head commit of every pull request from a branch in
-this repository, Dependabot's included, and `all-checks.yml` completes it, and approves the PR, once every other workflow
-and check on that commit has passed. `all-checks.yml` is a thin caller of the reusable workflow in
-[nvorkinn/.github](https://github.com/nvorkinn/.github/tree/main/.github/workflows), pinned to a commit.
-
-The status workflow runs on `pull_request_target`, the one event that gives Dependabot pull requests a token that can create
-a check. That event runs the workflow from the default branch and the workflow never checks out the pull request's code, so
-it is safe; forks are skipped. Dependabot pull requests are not auto-approved, so they still need a manual merge.
+`all-checks.yml` and `create_global_pr_status.yml` are thin callers of the reusable workflows in
+[nvorkinn/.github](https://github.com/nvorkinn/.github/tree/main/.github/workflows), pinned to a commit and kept in line
+with the other repositories (for example [countdown](https://github.com/nvorkinn/countdown/tree/main/.github/workflows)).
+`create_global_pr_status.yml` opens a **Global PR Status** check on each PR's head commit, Dependabot's included (its
+`permissions: checks: write` raises Dependabot's read-only token), and `all-checks.yml` completes it, and approves the PR,
+once every other workflow and check on that commit has passed. Dependabot pull requests are not auto-approved, so they
+still need a manual merge. Fork pull requests get no check.
 
 `tests.yml` runs lint, tests and the production build on every pull request and push to `main`; it is listed in
 `all-checks.yml`, so Global PR Status waits for it.
