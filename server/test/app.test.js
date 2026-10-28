@@ -1,10 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { createApp } from '../src/app.js';
 import { SpotifyError } from '../src/spotify.js';
 
-async function start(t, { demoMode = false, overrides = {}, playbackMode = 'remote', distPath } = {}) {
+async function start(t, { demoMode = false, overrides = {}, playbackMode = 'remote', distPath, rateLimits } = {}) {
   const calls = [];
   const spotify = {
     isConfigured: () => true,
@@ -20,7 +23,7 @@ async function start(t, { demoMode = false, overrides = {}, playbackMode = 'remo
     ])),
     ...overrides
   };
-  const app = createApp({ config: { demoMode, playbackMode, port: 3000 }, spotify, distPath });
+  const app = createApp({ config: { demoMode, playbackMode, port: 3000 }, spotify, distPath, rateLimits });
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(() => new Promise(resolve => server.close(resolve)));
@@ -114,4 +117,28 @@ test('explicit demo controls share backend state without calling Spotify', async
 test('health fails when production frontend is missing', async t => {
   const { request } = await start(t, { distPath: '/nonexistent-max-mix-build' });
   assert.equal((await request('/api/health')).response.status, 503);
+});
+
+test('API, sign-in and page requests are rate limited per client with a JSON 429', async t => {
+  const dist = await mkdtemp(path.join(os.tmpdir(), 'max-mix-dist-'));
+  t.after(() => rm(dist, { recursive: true, force: true }));
+  await writeFile(path.join(dist, 'index.html'), '<!doctype html>');
+  const { request, base } = await start(t, { distPath: dist, rateLimits: { api: 100, auth: 2, pages: 3 } });
+
+  assert.equal((await request('/api/auth/login')).response.status, 302);
+  assert.equal((await request('/api/auth/login')).response.status, 302);
+  const limited = await request('/api/auth/login');
+  assert.equal(limited.response.status, 429);
+  assert.match(limited.data.error, /Too many requests/);
+  assert(limited.response.headers.get('RateLimit'), 'standard rate limit headers are sent');
+  assert.equal((await request('/api/info')).response.status, 200, 'the sign-in limit does not affect other routes');
+
+  for (const route of ['/', '/deep/link', '/another']) assert.equal((await fetch(base + route)).status, 200);
+  assert.equal((await fetch(base + '/blocked')).status, 429);
+});
+
+test('the general API limit applies across API routes', async t => {
+  const { request } = await start(t, { rateLimits: { api: 3 } });
+  for (const endpoint of ['/api/info', '/api/health', '/api/token']) assert.equal((await request(endpoint)).response.status, 200);
+  assert.equal((await request('/api/info')).response.status, 429);
 });
