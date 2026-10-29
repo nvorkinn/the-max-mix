@@ -1,0 +1,5 @@
+{
+  "default": true,
+  // Prose is not hard-wrapped (Prettier keeps line breaks as written), so a line length limit only produces noise.
+  "MD013": false
+}

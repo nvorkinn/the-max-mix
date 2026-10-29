@@ -1,0 +1,5 @@
+{
+  "globs": ["**/*.md"],
+  "ignores": ["**/node_modules/**", "**/coverage/**", "release-out/**", "e2e/playwright-report/**"],
+  "config": { "extends": "./.markdownlint.jsonc" }
+}

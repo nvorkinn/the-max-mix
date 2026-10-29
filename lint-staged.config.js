@@ -1,5 +1,5 @@
 // The checks CI's Lint workflow runs, limited to staged files: Prettier (rewrites and re-stages), ESLint with each
-// package's own config, and ShellCheck. Type checking is whole-project, so it only runs in CI (`npm run typecheck`).
+// package's own config, ShellCheck, markdownlint, yamllint and Stylelint. Type checking is whole-project, so it only runs in CI (`npm run typecheck`).
 // Each file matches one pattern, so its Prettier and ESLint tasks run one after the other, never concurrently.
 const path = require('node:path');
 /** @param {string[]} files */
@@ -38,5 +38,8 @@ module.exports = {
   'client/**/*.{js,jsx}': [prettier, lintPackage('client')],
   '{*.{js,mjs},scripts/*.{js,mjs}}': [prettier, lintRoot],
   'scripts/*.sh': shellcheck,
-  '*.{json,html,css,yml,yaml,md}': formatAndLintData
+  '*.md': [prettier, (/** @type {string[]} */ files) => `markdownlint-cli2 ${quote(files)}`],
+  '*.{yml,yaml}': [prettier, (/** @type {string[]} */ files) => `yamllint ${quote(files)}`],
+  '*.css': [prettier, (/** @type {string[]} */ files) => `stylelint --max-warnings 0 ${quote(files)}`],
+  '*.{json,html}': formatAndLintData
 };

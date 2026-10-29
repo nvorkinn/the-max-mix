@@ -17,6 +17,9 @@
     "lint": "npm --prefix server run lint && npm --prefix client run lint && npm run lint:root",
     "lint:root": "eslint . --max-warnings 0",
     "lint:shell": "shellcheck scripts/*.sh",
+    "lint:md": "markdownlint-cli2",
+    "lint:yaml": "yamllint \".github/**/*.{yml,yaml}\" \"*.{yml,yaml}\" \"client/*.{yml,yaml}\" \"server/*.{yml,yaml}\"",
+    "lint:css": "stylelint \"client/src/**/*.css\" --max-warnings 0",
     "knip": "knip",
     "lint:package-json": "npmPkgJsonLint . client server && node scripts/check-version-ranges.mjs",
     "lint:lockfiles": "lockfile-lint --type npm --allowed-hosts npm --validate-https --validate-integrity --path package-lock.json --path client/package-lock.json --path server/package-lock.json && npm ci --dry-run --ignore-scripts --no-audit --no-fund && npm --prefix client ci --dry-run --ignore-scripts --no-audit --no-fund && npm --prefix server ci --dry-run --ignore-scripts --no-audit --no-fund",
@@ -25,7 +28,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "node scripts/install-hooks.js",
-    "check": "npm run lint && npm run typecheck && npm run format:check && npm run lint:shell && npm run knip && npm run lint:package-json && npm run lint:lockfiles",
+    "check": "npm run lint && npm run typecheck && npm run format:check && npm run lint:shell && npm run knip && npm run lint:md && npm run lint:yaml && npm run lint:css && npm run lint:package-json && npm run lint:lockfiles",
     "test:e2e": "playwright test --config e2e/playwright.config.js"
   },
   "devDependencies": {
@@ -37,8 +40,16 @@
     "knip": "6.43.0",
     "lint-staged": "^17.6.0",
     "lockfile-lint": "5.1.0",
+    "markdownlint-cli2": "0.24.0",
     "npm-package-json-lint": "11.0.0",
-    "prettier": "^3.9.10"
+    "prettier": "^3.9.10",
+    "stylelint": "17.16.0",
+    "stylelint-config-standard": "40.0.0",
+    "yaml-lint": "1.7.0"
+  },
+  "overrides": {
+    "katex": "0.19.1",
+    "re2js": "2.9.1"
   },
   "engines": {
     "node": ">=24"
