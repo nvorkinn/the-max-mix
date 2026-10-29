@@ -36,10 +36,10 @@ describe('useSocket', () => {
     expect(io).toHaveBeenCalledWith('/', expect.objectContaining({ reconnectionAttempts: 10 }));
     expect(result.current.connected).toBe(false);
 
-    act(() => defined(socket.handlers.connect)());
+    act(() => defined(socket.handlers['connect'])());
     expect(result.current.connected).toBe(true);
 
-    act(() => defined(socket.handlers.disconnect)());
+    act(() => defined(socket.handlers['disconnect'])());
     expect(result.current.connected).toBe(false);
   });
 

@@ -149,7 +149,7 @@ export class SpotifyService {
       body: new URLSearchParams({ client_id: this.clientId, ...parameters })
     });
     if (!response.ok) {
-      if (response.status === 400 && parameters.grant_type === 'refresh_token') {
+      if (response.status === 400 && parameters['grant_type'] === 'refresh_token') {
         const data = /** @type {SpotifyTokenResponse} */ (await readJson(response).catch(() => ({})));
         if (data.error === 'invalid_grant') {
           await unlink(this.tokenFile).catch((/** @type {unknown} */ error) => {

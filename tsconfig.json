@@ -8,6 +8,9 @@
     "checkJs": true,
     "noEmit": true,
     "strict": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "isolatedModules": true,
+    "erasableSyntaxOnly": true,
     "skipLibCheck": true,
     "types": ["node"]
   },
