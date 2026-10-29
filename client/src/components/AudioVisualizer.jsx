@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
  * Decorative waveform driven by playback state, not an audio analysis.
@@ -46,9 +46,7 @@ export default function AudioVisualizer({ isPlaying, primaryColor = '#10b981', s
       gradient.addColorStop(1, secondaryColor);
       ctx.fillStyle = gradient;
 
-      for (let i = 0; i < BAR_COUNT; i++) {
-        const bar = bars[i];
-
+      for (const [i, bar] of bars.entries()) {
         if (isPlaying) {
           // Dynamic beat simulation with multiple harmonics
           const wave1 = Math.sin(time + bar.phase * 3);

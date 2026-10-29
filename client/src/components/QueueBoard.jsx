@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { trackKeys } from '../utils/trackKeys.js';
 import { ChevronUp, Plus, Trash2, Music2, Sparkles, Search, X } from 'lucide-react';
 

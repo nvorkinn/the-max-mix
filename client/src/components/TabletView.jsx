@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import AlbumArtPlayer from './AlbumArtPlayer.jsx';
 import SpotifyJamQueue from './SpotifyJamQueue.jsx';
 import TouchRipples from './TouchRipples.jsx';

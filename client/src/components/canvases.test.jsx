@@ -6,6 +6,7 @@ import AudioVisualizer from './AudioVisualizer.jsx';
 import ReactionCanvasFull from './ReactionCanvas.jsx';
 import TouchRipples from './TouchRipples.jsx';
 import { partialProps } from '../test/partialProps.js';
+import { defined } from '../test/defined.js';
 
 const ReactionCanvas = partialProps(ReactionCanvasFull);
 
@@ -50,20 +51,24 @@ describe('AudioVisualizer', () => {
   });
 });
 
+/** @typedef {import('socket.io-client').Socket & { handlers: Record<string, (payload?: unknown) => void> }} FakeSocket */
+
 describe('ReactionCanvas', () => {
-  /** @returns {any} a partial socket stand-in */
+  /** @returns {FakeSocket} a partial socket stand-in */
   function fakeSocket() {
-    /** @type {Record<string, (...args: any[]) => void>} */
+    /** @type {Record<string, (payload?: unknown) => void>} */
     const handlers = {};
-    return {
-      handlers,
-      on: vi.fn((event, fn) => {
-        handlers[event] = fn;
-      }),
-      off: vi.fn(event => {
-        delete handlers[event];
+    return /** @type {FakeSocket} */ (
+      /** @type {unknown} */ ({
+        handlers,
+        on: vi.fn((event, fn) => {
+          handlers[event] = fn;
+        }),
+        off: vi.fn(event => {
+          delete handlers[event];
+        })
       })
-    };
+    );
   }
 
   it('renders a canvas without a socket and cleans up', () => {
@@ -76,7 +81,7 @@ describe('ReactionCanvas', () => {
   it('spawns particles per reaction, tagging only one with the guest name', () => {
     const socket = fakeSocket();
     render(<ReactionCanvas socket={socket} />);
-    act(() => socket.handlers['screen:reaction']({ emoji: '🎉', guestName: 'Ann' }));
+    act(() => defined(socket.handlers['screen:reaction'])({ emoji: '🎉', guestName: 'Ann' }));
     canvas.step();
     const drawn = /** @type {[string][]} */ (canvas.ctx.fillText.mock.calls);
     expect(drawn.filter(([text]) => text === '🎉')).toHaveLength(3);
@@ -86,7 +91,7 @@ describe('ReactionCanvas', () => {
   it('defaults the emoji and expires particles after they fade', () => {
     const socket = fakeSocket();
     render(<ReactionCanvas socket={socket} />);
-    act(() => socket.handlers['screen:reaction']({}));
+    act(() => defined(socket.handlers['screen:reaction'])({}));
     canvas.step();
     expect(/** @type {[string][]} */ (canvas.ctx.fillText.mock.calls).some(([text]) => text === '🔥')).toBe(true);
     for (let i = 0; i < 100; i++) canvas.step();
@@ -147,7 +152,7 @@ describe('TouchRipples', () => {
       tap();
       expect(canvas.pending()).toBe(0);
     } finally {
-      delete (/** @type {any} */ (document).hidden);
+      Reflect.deleteProperty(document, 'hidden');
     }
   });
 

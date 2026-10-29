@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 const socket = vi.hoisted(() => ({
-  /** @type {Record<string, (...args: any[]) => void>} */
+  /** @type {Record<string, (payload?: unknown) => void>} */
   handlers: {},
   on: vi.fn(
     /**
-     * @this {{ handlers: Record<string, Function> }}
+     * @this {{ handlers: Record<string, (payload?: unknown) => void> }}
      * @param {string} event
-     * @param {Function} fn
+     * @param {(payload?: unknown) => void} fn
      */
     function on(event, fn) {
       this.handlers[event] = fn;
@@ -22,6 +22,7 @@ const io = vi.hoisted(() => vi.fn());
 vi.mock('socket.io-client', () => ({ io }));
 
 import { useSocket } from './useSocket.js';
+import { defined } from '../test/defined.js';
 
 describe('useSocket', () => {
   beforeEach(() => {
@@ -35,10 +36,10 @@ describe('useSocket', () => {
     expect(io).toHaveBeenCalledWith('/', expect.objectContaining({ reconnectionAttempts: 10 }));
     expect(result.current.connected).toBe(false);
 
-    act(() => socket.handlers.connect());
+    act(() => defined(socket.handlers.connect)());
     expect(result.current.connected).toBe(true);
 
-    act(() => socket.handlers.disconnect());
+    act(() => defined(socket.handlers.disconnect)());
     expect(result.current.connected).toBe(false);
   });
 

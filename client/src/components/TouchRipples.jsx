@@ -1,4 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
+
+/**
+ * @typedef {{ x: number, y: number, radius: number, maxRadius: number, opacity: number, color: string,
+ *   isSparkle?: undefined }} Ring
+ * @typedef {{ x: number, y: number, vx: number, vy: number, size: number, opacity: number, color: string,
+ *   isSparkle: true }} Sparkle
+ */
 
 /**
  * 60 FPS Touch & Tap ripple canvas
@@ -8,7 +15,7 @@ import React, { useEffect, useRef } from 'react';
 export default function TouchRipples({ theme = 'neon' }) {
   const canvasRef = useRef(/** @type {HTMLCanvasElement | null} */ (null));
   const animFrameRef = useRef(/** @type {number | null} */ (null));
-  const ripplesRef = useRef(/** @type {any[]} */ ([]));
+  const ripplesRef = useRef(/** @type {(Ring | Sparkle)[]} */ ([]));
   const isMinimal = theme === 'minimal';
 
   useEffect(() => {
@@ -40,7 +47,7 @@ export default function TouchRipples({ theme = 'neon' }) {
         radius: 10,
         maxRadius: isMinimal ? 80 : 100,
         opacity: isMinimal ? 0.9 : 0.8,
-        color: ringColors[Math.floor(Math.random() * ringColors.length)]
+        color: ringColors[Math.floor(Math.random() * ringColors.length)] ?? '#ffffff'
       });
 
       // Add a few sparkles or ink spritzes
@@ -75,6 +82,7 @@ export default function TouchRipples({ theme = 'neon' }) {
 
       for (let i = ripples.length - 1; i >= 0; i--) {
         const r = ripples[i];
+        if (!r) continue;
 
         if (r.isSparkle) {
           r.x += r.vx;

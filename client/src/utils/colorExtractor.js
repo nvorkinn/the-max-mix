@@ -33,9 +33,9 @@ export async function extractPalette(imageUrl) {
 
         for (let i = 0; i < imageData.length; i += 4) {
           // Ignore ultra-dark or ultra-white pixels to find vibrant tones
-          const red = imageData[i];
-          const green = imageData[i + 1];
-          const blue = imageData[i + 2];
+          const red = imageData[i] ?? 0;
+          const green = imageData[i + 1] ?? 0;
+          const blue = imageData[i + 2] ?? 0;
           const brightness = (red + green + blue) / 3;
 
           if (brightness > 30 && brightness < 230) {

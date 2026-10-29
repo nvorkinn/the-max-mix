@@ -41,14 +41,27 @@ export const MINIMALIST_AVATARS = [
   }
 ];
 
+/** @typedef {{ name: string, image: string, title?: string }} Avatar */
+
+/**
+ * The roster entry at `index` (wrapping around); the rosters are never empty.
+ * @param {Avatar[]} roster
+ * @param {number} index
+ * @returns {Avatar}
+ */
+function pick(roster, index) {
+  return /** @type {Avatar} */ (roster[index % roster.length]);
+}
+
 /**
  * Returns the appropriate avatar based on the selected theme
+ * @returns {Avatar}
  * @param {string | null | undefined} userNameOrId
  * @param {number} [fallbackIndex]
  * @param {string} [theme]
  */
 export function getDivaForUser(userNameOrId, fallbackIndex = 0, theme = 'neon') {
-  /** @type {{ name: string, image: string, title?: string }[]} */
+  /** @type {Avatar[]} */
   let roster = GLOBAL_DIVAS;
 
   if (theme === 'minimal') {
@@ -56,7 +69,7 @@ export function getDivaForUser(userNameOrId, fallbackIndex = 0, theme = 'neon') 
   }
 
   if (!userNameOrId) {
-    return roster[fallbackIndex % roster.length];
+    return pick(roster, fallbackIndex);
   }
 
   let hash = 0;
@@ -67,5 +80,5 @@ export function getDivaForUser(userNameOrId, fallbackIndex = 0, theme = 'neon') 
   }
 
   const index = Math.abs(hash) % roster.length;
-  return roster[index];
+  return pick(roster, index);
 }

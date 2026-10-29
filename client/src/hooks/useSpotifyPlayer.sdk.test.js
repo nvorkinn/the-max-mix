@@ -7,6 +7,7 @@ vi.mock('../utils/api.js', () => api);
 vi.mock('../utils/spotifySdk.js', () => sdk);
 
 import { useSpotifyPlayer } from './useSpotifyPlayer.js';
+import { defined } from '../test/defined.js';
 
 /** @param {{ connectResult?: boolean }} [options] */
 function makeSdk({ connectResult = true } = {}) {
@@ -16,7 +17,7 @@ function makeSdk({ connectResult = true } = {}) {
     /** @param {{ name: string, getOAuthToken: (callback: (token: string) => void) => void }} options */
     constructor(options) {
       this.options = options;
-      /** @type {Record<string, (...args: any[]) => void>} */
+      /** @type {Record<string, (payload?: unknown) => void>} */
       this.listeners = {};
       this.disconnect = vi.fn();
       this.connect = vi.fn(async () => connectResult);
@@ -24,7 +25,7 @@ function makeSdk({ connectResult = true } = {}) {
     }
     /**
      * @param {string} event
-     * @param {(...args: any[]) => void} fn
+     * @param {(payload?: unknown) => void} fn
      */
     addListener(event, fn) {
       this.listeners[event] = fn;
@@ -63,14 +64,15 @@ describe('useSpotifyPlayer browser playback', () => {
     route(browserSession);
     const hook = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(fake.players).toHaveLength(1));
-    await waitFor(() => expect(fake.players[0].connect).toHaveBeenCalled());
-    return { ...hook, player: fake.players[0] };
+    const player = defined(fake.players[0]);
+    await waitFor(() => expect(player.connect).toHaveBeenCalled());
+    return { ...hook, player };
   }
 
   it('registers a Web Playback device and exposes its id', async () => {
     const { result, player } = await connect();
     expect(player.options.name).toBe('THE MAX MIX');
-    act(() => player.listeners.ready({ device_id: 'web-1' }));
+    act(() => defined(player.listeners.ready)({ device_id: 'web-1' }));
     expect(result.current.browserDeviceId).toBe('web-1');
   });
 
@@ -94,8 +96,8 @@ describe('useSpotifyPlayer browser playback', () => {
 
   it('clears the device and warns when the tablet player disconnects', async () => {
     const { result, player } = await connect();
-    act(() => player.listeners.ready({ device_id: 'web-1' }));
-    act(() => player.listeners.not_ready());
+    act(() => defined(player.listeners.ready)({ device_id: 'web-1' }));
+    act(() => defined(player.listeners.not_ready)());
     expect(result.current.browserDeviceId).toBeNull();
     expect(result.current.error).toMatch(/tablet player disconnected/i);
   });
@@ -104,7 +106,7 @@ describe('useSpotifyPlayer browser playback', () => {
     'surfaces %s from the SDK',
     async event => {
       const { result, player } = await connect();
-      act(() => player.listeners[event]({ message: 'Premium required.' }));
+      act(() => defined(player.listeners[event])({ message: 'Premium required.' }));
       expect(result.current.error).toMatch(/Browser playback: Premium required\./);
     }
   );
