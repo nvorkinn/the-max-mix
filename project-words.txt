@@ -47,6 +47,7 @@ eilish
 esac
 extrabold
 faye
+firstboot
 fulfill
 getent
 goulding
@@ -82,6 +83,7 @@ netplan
 nicki
 nikolaivorkinn
 noblank
+nocolor
 noerrdialogs
 nonexistent
 nonint
@@ -99,6 +101,7 @@ pipefail
 piwiz
 pkce
 poppin
+prerun
 pubkey
 pwned
 qrcode
@@ -113,6 +116,7 @@ rihanna
 rootfs
 rosalia
 rosalía
+runcmd
 scratchable
 sha256sum
 shakira
