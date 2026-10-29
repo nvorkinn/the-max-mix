@@ -12,7 +12,6 @@ const api = vi.hoisted(() => ({ getDevices: vi.fn() }));
 const auth = vi.hoisted(() => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
 const settings = vi.hoisted(() => ({
   getClientId: vi.fn(),
-  setClientId: vi.fn(),
   setPlaybackMode: vi.fn(),
   setDemoMode: vi.fn(),
   getRedirectUri: vi.fn()
@@ -92,7 +91,7 @@ describe('SettingsModal', () => {
 
   it.each([
     ['demo mode', { demoMode: true, configured: true }, /playback is simulated/i, null],
-    ['no client ID', { configured: false }, /enter a spotify client id/i, null],
+    ['no client ID', { configured: false }, /this build has no client id/i, null],
     ['signed out', { configured: true }, /sign in with a spotify premium/i, 'Log in with Spotify'],
     [
       'signed in',
@@ -139,28 +138,12 @@ describe('SettingsModal', () => {
     expect(screen.getByText('http://127.0.0.1:3000/')).toBeInTheDocument();
   });
 
-  it('asks for the client ID only when none is built in or stored, and shows the redirect address', async () => {
-    settings.getClientId.mockReturnValue('');
-    render(<SettingsModal {...base} authInfo={{ configured: false }} />);
-    expect(screen.getByText('http://127.0.0.1:3000/')).toBeInTheDocument();
-    await userEvent.type(screen.getByLabelText('Spotify client ID'), '  abc123  ');
-    await userEvent.click(screen.getByRole('button', { name: 'Save client ID' }));
-    expect(settings.setClientId).toHaveBeenCalledWith('  abc123  ');
-    expect(base.onReload).toHaveBeenCalled();
-  });
-
-  it('does not save an empty client ID', async () => {
-    settings.getClientId.mockReturnValue('');
-    render(<SettingsModal {...base} authInfo={{ configured: false }} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Save client ID' }));
-    expect(settings.setClientId).not.toHaveBeenCalled();
-    expect(base.onReload).not.toHaveBeenCalled();
-  });
-
-  it('hides the client ID field and the redirect address when a client ID is set', () => {
-    render(<SettingsModal {...base} authInfo={{ configured: true }} />);
+  it('has no client ID field, and shows the redirect address only after a sign-in error', () => {
+    const { rerender } = render(<SettingsModal {...base} authInfo={{ configured: false }} />);
     expect(screen.queryByLabelText('Spotify client ID')).not.toBeInTheDocument();
     expect(screen.queryByText('http://127.0.0.1:3000/')).not.toBeInTheDocument();
+    rerender(<SettingsModal {...base} authInfo={{ configured: true }} signInError="Invalid redirect URI" />);
+    expect(screen.getByText('http://127.0.0.1:3000/')).toBeInTheDocument();
   });
 
   it('signs out and reloads', async () => {

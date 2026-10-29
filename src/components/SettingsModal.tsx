@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Key, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feather, LogOut } from 'lucide-react';
 import { signOut, startSignIn } from '../spotify/auth';
-import { getClientId, getRedirectUri, setClientId, setDemoMode, setPlaybackMode } from '../spotify/settings';
+import { getRedirectUri, setDemoMode, setPlaybackMode } from '../spotify/settings';
 
 /** Applies a changed setting by reloading the page, which starts everything again from the stored settings. */
 function reloadPage() {
@@ -62,7 +62,6 @@ export default function SettingsModal({
   currentTheme = 'neon',
   onThemeChange
 }: Readonly<SettingsModalProps>) {
-  const [clientIdInput, setClientIdInput] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
   if (!isOpen) return null;
 
@@ -85,10 +84,9 @@ export default function SettingsModal({
     }
   ];
 
-  const needsClientId = !getClientId();
   const error = actionError || signInError;
 
-  let spotifyStatus = 'Enter a Spotify client ID below to connect.';
+  let spotifyStatus = 'Spotify is not set up: this build has no client ID.';
   if (authInfo?.demoMode) {
     spotifyStatus = 'Playback is simulated. Turn demo mode off below to use Spotify.';
   } else if (authInfo?.authenticated) {
@@ -201,35 +199,7 @@ export default function SettingsModal({
             </p>
           )}
 
-          {needsClientId && (
-            <form
-              className="space-y-2"
-              onSubmit={event => {
-                event.preventDefault();
-                if (!clientIdInput.trim()) return;
-                setClientId(clientIdInput);
-                onReload();
-              }}
-            >
-              <label htmlFor="spotify-client-id" className="block text-xs font-semibold text-neutral-300">
-                Spotify client ID
-              </label>
-              <input
-                id="spotify-client-id"
-                type="text"
-                value={clientIdInput}
-                onChange={event => setClientIdInput(event.target.value)}
-                autoComplete="off"
-                spellCheck={false}
-                className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white"
-              />
-              <button type="submit" className="button button-secondary w-full">
-                Save client ID
-              </button>
-            </form>
-          )}
-
-          {(needsClientId || signInError) && (
+          {signInError && (
             <p className="text-[11px] text-neutral-400">
               Register this exact redirect address in your Spotify app settings:{' '}
               <code className="text-[#d5f580] break-all">{getRedirectUri()}</code>

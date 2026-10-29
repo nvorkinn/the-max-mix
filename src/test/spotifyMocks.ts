@@ -28,7 +28,6 @@ export function createSpotifyMocks() {
   };
   const settings = {
     getClientId: vi.fn(),
-    setClientId: vi.fn(),
     getPlaybackMode: vi.fn(),
     setPlaybackMode: vi.fn(),
     isDemoMode: vi.fn(),

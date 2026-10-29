@@ -12,6 +12,8 @@ const SCOPES =
 const EXPIRY_MARGIN_MS = 60_000;
 const REPLY_PARAMETERS = ['code', 'state', 'error', 'error_description'];
 
+const NO_CLIENT_ID = 'This build has no Spotify client ID (VITE_SPOTIFY_CLIENT_ID), so sign-in is unavailable.';
+
 interface StoredLogin {
   clientId: string;
   refreshToken: string;
@@ -118,7 +120,7 @@ async function requestTokens(
 /** Starts sign-in: stores a PKCE verifier and state, then navigates to Spotify. Throws if no client ID is set. */
 export async function startSignIn(): Promise<void> {
   const clientId = getClientId();
-  if (!clientId) throw new Error('Set a Spotify client ID in Settings before signing in.');
+  if (!clientId) throw new Error(NO_CLIENT_ID);
   const verifier = randomString(64);
   const state = randomString(32);
   const challenge = await challengeFor(verifier);
@@ -170,7 +172,7 @@ async function finishSignIn(query: URLSearchParams): Promise<SignInResult> {
   if (!code) return failure('Missing Spotify authorization code.');
   try {
     const clientId = getClientId();
-    if (!clientId) return failure('Set a Spotify client ID in Settings first.');
+    if (!clientId) return failure(NO_CLIENT_ID);
     const tokens = await requestTokens({
       grant_type: 'authorization_code',
       code,
