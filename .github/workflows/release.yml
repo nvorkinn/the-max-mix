@@ -1,8 +1,9 @@
 name: Release
 
 # Pushing a version tag (e.g. v1.2.3, or v1.2.3-rc.1 for a prerelease) builds the app and publishes the assembled
-# tarball, its checksum and the standalone installer to a GitHub Release with generated notes. Lint and tests are not
-# repeated here: the Tests and Lint workflows already run them on pull requests and on main, so tag a commit on main.
+# tarball, its checksum and the standalone installer to a GitHub Release with generated notes. If the release already
+# exists (creating one in the web UI also creates the tag, and a job can be re-run), the files are attached to it
+# instead. Lint and tests are not repeated here: the Tests and Lint workflows already run them on pull requests and on main, so tag a commit on main.
 # The tag is the only source of the version: package-release.sh stamps it into the packaged package.json files (the
 # repository keeps a 0.0.0 placeholder). The tarball also gets a build provenance attestation: verify a download with
 # `gh attestation verify <file> --repo nvorkinn/the-max-mix`.
@@ -41,7 +42,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          flags=()
-          if [[ $TAG == *-* ]]; then flags+=(--prerelease); fi
-          gh release create "$TAG" release-out/*.tar.gz release-out/*.sha256 scripts/install-kiosk.sh \
-            --title "$TAG" --generate-notes --verify-tag "${flags[@]}"
+          files=(release-out/*.tar.gz release-out/*.sha256 scripts/install-kiosk.sh)
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            # Creating a release in the web UI also creates the tag, so the release (with its notes) can exist before
+            # this runs, and so can a re-run of this job. Attach the files to it instead of failing.
+            gh release upload "$TAG" "${files[@]}" --clobber
+          else
+            flags=()
+            if [[ $TAG == *-* ]]; then flags+=(--prerelease); fi
+            gh release create "$TAG" "${files[@]}" --title "$TAG" --generate-notes --verify-tag "${flags[@]}"
+          fi

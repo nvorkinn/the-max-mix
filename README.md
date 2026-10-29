@@ -125,7 +125,8 @@ Revoked logins require signing in again. Never commit `.env` or token files.
 
 ## Releases
 
-To release, push a tag such as `v1.2.3` (or `v1.2.3-rc.1` for a prerelease): `git tag v1.2.3 && git push origin v1.2.3`.
+To release, push a tag such as `v1.2.3` (or `v1.2.3-rc.1` for a prerelease): `git tag v1.2.3 && git push origin v1.2.3`. Creating the release in the GitHub web UI (which creates the tag) works
+too: the workflow then attaches the files to that release instead of creating one.
 The tag is the only source of the version, so there is nothing to bump first; the `version` fields in the repository's
 `package.json` files are a `0.0.0` placeholder, and the release stamps the real version into the packaged copies. The
 release workflow does not repeat the tests and lint (they run on every pull request and on `main`), so tag a commit on
