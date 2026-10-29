@@ -18,8 +18,8 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 // The app lives in src/; everything else that is JavaScript is repository tooling.
-const APP_FILES = ['src/**/*.{js,jsx}'];
-const APP_TEST_FILES = ['src/**/*.test.{js,jsx}'];
+const APP_FILES = ['src/**/*.{js,jsx,ts,tsx}'];
+const APP_TEST_FILES = ['src/**/*.test.{js,jsx,ts,tsx}'];
 const TOOLING_FILES = ['**/*.{js,mjs,cjs}'];
 const TOOLING_IGNORES = ['src/**'];
 
@@ -311,6 +311,15 @@ export default defineConfig([
           'newlines-between': 'never'
         }
       ]
+    }
+  },
+  {
+    // The base rule misreads parameter names in TypeScript function types as unused variables; TypeScript files use the
+    // typescript-eslint version, with the same options.
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^React$', caughtErrors: 'none' }]
     }
   },
   {
