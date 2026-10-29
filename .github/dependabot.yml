@@ -17,6 +17,10 @@ updates:
     directory: /client
     schedule:
       interval: daily
+    # typescript-eslint cannot load TypeScript 7 (the native compiler has no JS API) yet; its peer range is <6.1.
+    ignore:
+      - dependency-name: typescript
+        update-types: [version-update:semver-major, version-update:semver-minor]
     commit-message:
       prefix: 'chore(deps)'
     groups:
