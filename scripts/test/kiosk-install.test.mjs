@@ -243,7 +243,7 @@ test('a stored address from the old hosted setup is replaced by the local app', 
   assert.match(stdout, /will open http:\/\/127\.0\.0\.1:4173\//);
   const settings = await readFile(config, 'utf8');
   assert.match(settings, /^KIOSK_PORT=4173$/m);
-  assert.ok(!settings.includes(legacyUrl));
+  assert.doesNotMatch(settings, /^KIOSK_URL=/m);
 });
 
 test('installer accepts a quoted stored address and the last assignment wins', async t => {
