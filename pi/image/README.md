@@ -19,15 +19,19 @@ The [Pi image workflow](../../.github/workflows/pi-image.yml) builds it with
 (the image is a workflow artifact), or push a `v*` tag to attach `the-max-mix-<version>.img.xz` and its `.sha256` to the
 release.
 
-By hand, on an arm64 Linux machine with Docker:
+By hand, with Docker, use `pi/image/build-local.sh`. Build on an ARM machine (a Raspberry Pi 5, Apple Silicon): on x86
+every `apt install` in the image runs through QEMU emulation, which is much slower.
 
 ```bash
-pi/image/prepare.sh
-git clone --branch 2026-10-06-raspios-trixie-arm64 --depth 1 https://github.com/RPi-Distro/pi-gen
-cp -r pi/image/stage-kiosk pi-gen/
-cd pi-gen
-./build-docker.sh -c ../pi/image/config
+pi/image/build-local.sh full   # first time, and to refresh the stock stages
+pi/image/build-local.sh        # afterwards: reuses stage0 to stage2, reruns only stage-kiosk
 ```
+
+The fast rebuild keeps pi-gen's build container (`PRESERVE_CONTAINER=1`, `CONTINUE=1`) and marks stage0 to stage2 with
+`SKIP` files, so only the kiosk stage runs. Local images are not compressed (`DEPLOY_COMPRESSION=none` in
+`pi/image/config`). To avoid downloading packages on every build, run
+[apt-cacher-ng](https://www.unix-ag.uni-kl.de/~bloch/acng/) (for example in a Docker container) and set
+`APT_PROXY=http://host.docker.internal:3142` when running the script; it works without a proxy too.
 
 `stage-kiosk` runs after `stage2` and is the only stage exported as an image. It holds no configuration of its own:
 `00-packages` installs Ansible, git and `python3-apt`, and `01-install/00-run.sh` runs the playbook
