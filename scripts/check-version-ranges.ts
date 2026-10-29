@@ -6,12 +6,12 @@ const manifests = ['package.json'];
 const sections = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
 const floating = new Set(['', '*', 'x', 'latest', 'next', '>=0', '>=0.0.0']);
 
-/** @type {string[]} */
-const problems = [];
+const problems: string[] = [];
 for (const manifest of manifests) {
-  /** @type {unknown} */
-  const parsed = JSON.parse(readFileSync(new URL(`../${manifest}`, import.meta.url), 'utf8'));
-  const pkg = /** @type {Record<string, Record<string, string> | undefined>} */ (parsed);
+  const pkg = JSON.parse(readFileSync(new URL(`../${manifest}`, import.meta.url), 'utf8')) as Record<
+    string,
+    Record<string, string> | undefined
+  >;
   for (const section of sections) {
     const dependencies = Object.entries(pkg[section] ?? {});
     for (const [name, range] of dependencies) {

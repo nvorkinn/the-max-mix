@@ -55,36 +55,21 @@ export default defineConfig([
     },
     linterOptions: { reportUnusedDisableDirectives: 'error' },
     rules: {
-      // unicorn and sonarjs are enabled with their recommended presets; the rules below are left off because they are
-      // style preferences, would force renames or rewrites without catching bugs, or flag deliberate patterns here.
-      // File names (queueManager.js) are camelCase throughout; renaming them would churn every import for no gain.
-      'unicorn/filename-case': 'off',
-      // Abbreviations like req, res, err, env, args and params are the Node vocabulary.
-      'unicorn/name-replacements': 'off',
-      // Booleans named ready, play or retry read fine; an is/has prefix everywhere is only naming taste.
-      'unicorn/consistent-boolean-name': 'off',
-      // null is part of the JSON payloads the scripts read, so avoiding it is not an option.
+      // The root config files are JavaScript typed with JSDoc, whose single-line `/** @type */` comments these rules reject.
+      'unicorn/single-line-block-comment-style': 'off',
+      'unicorn/no-asterisk-prefix-in-documentation-comments': 'off',
+      // Stylelint's config uses `null` to switch rules off, and the scripts read JSON.
       'unicorn/no-null': 'off',
       // `(await x).y` is short and clear.
       'unicorn/no-await-expression-member': 'off',
-      // Comment formatting taste, and the leading asterisks are what typed JSDoc is written with.
-      'unicorn/single-line-block-comment-style': 'off',
-      'unicorn/no-asterisk-prefix-in-documentation-comments': 'off',
-      // Digit grouping such as 10_000 is purely cosmetic.
-      'unicorn/numeric-separators-style': 'off',
-      // Request handlers use .then/.catch/.finally on purpose to turn a failure into a response.
-      'unicorn/prefer-await': 'off',
-      'unicorn/prefer-then-catch': 'off',
-      // Same reason as n/no-process-exit below: the entry point and scripts exit on purpose.
+      // The scripts are CLI entry points that exit with a status on purpose.
       'unicorn/no-process-exit': 'off',
-      // Helpers are kept general (requireInteger takes a min) even if every current call passes the same value.
-      'unicorn/no-unnecessary-parameters': 'off',
-      // Reordering a condition can skip side effects; whether the "simple" part is cheaper is not worth a rule.
-      'unicorn/prefer-simple-condition-first': 'off',
+      'n/no-process-exit': 'off',
+      // `env` and `pkg` are the Node vocabulary.
+      'unicorn/name-replacements': 'off',
       // The only matches are the literal 'todo' flag name in this file, which is not a task.
       'sonarjs/todo-tag': 'off',
-      // The one Math.random() builds a fallback id for tracks without one; nothing security-related depends on it.
-      'sonarjs/pseudo-random': 'off',
+
       // Import hygiene. `recommended` already covers named/default/namespace/export/no-named-as-default and friends.
       'import-x/no-cycle': 'error',
       'import-x/no-duplicates': 'error',
@@ -128,12 +113,6 @@ export default defineConfig([
       ],
       // Numbers in template literals are safe and clearer than String(n); anything else (objects, undefined) stays an error.
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
-      // Early-return responses such as `return res.end()` are idiomatic in request handlers; the rule flags them as
-      // returning a void expression.
-      '@typescript-eslint/no-confusing-void-expression': 'off',
-      // process.exit() is only used by entry points (repository scripts), where exiting
-      // the process is the intent; the rule targets libraries.
-      'n/no-process-exit': 'off',
       // Private application, never published, so devDependencies (eslint plugins, test helpers) may be imported freely.
       'n/no-unpublished-import': 'off',
       // detect-non-literal-fs-filename flags every fs call whose path is not a string literal, such as the temporary
@@ -146,7 +125,7 @@ export default defineConfig([
   },
   {
     // Leftover `.only` / `.skip` / `.todo` would silently disable the rest of a suite, in the Node test runner and in Vitest.
-    files: ['**/test/**/*.{js,mjs,ts,tsx}', '**/*.test.{js,mjs,ts,tsx}'],
+    files: ['**/test/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
     rules: {
       'no-restricted-syntax': [
         'error',
@@ -163,8 +142,7 @@ export default defineConfig([
   },
   {
     // Node's test runner: the promises returned by test() and describe() are handled by the runner itself.
-    files: ['**/test/**/*.js', '**/*.test.{js,mjs}'],
-    ignores: TOOLING_IGNORES,
+    files: ['scripts/test/*.ts'],
     rules: {
       // Tests issue requests in order on purpose, so awaiting in a loop is the intent.
       'no-await-in-loop': 'off',

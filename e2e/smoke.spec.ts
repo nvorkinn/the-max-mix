@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 // Demo mode is switched on per page with `?demo=true`; the simulated player runs in the browser, so no network is needed.
 const DEMO_URL = '/?demo=true';
@@ -12,14 +12,11 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-/** @param {import('@playwright/test').Page} page */
-const nowPlaying = page => page.getByRole('region', { name: 'Now playing' });
-/** @param {import('@playwright/test').Page} page */
-const upcoming = page => page.getByRole('region', { name: 'Upcoming tracks' });
+const nowPlaying = (page: Page) => page.getByRole('region', { name: 'Now playing' });
+const upcoming = (page: Page) => page.getByRole('region', { name: 'Upcoming tracks' });
 
 test('loads in demo mode without console errors', async ({ page }) => {
-  /** @type {string[]} */
-  const errors = [];
+  const errors: string[] = [];
   page.on('console', message => {
     if (message.type() === 'error') errors.push(message.text());
   });

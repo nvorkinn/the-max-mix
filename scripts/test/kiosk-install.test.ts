@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, copyFile, writeFile, readFile, readdir, readlink, rm, access, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
@@ -19,16 +19,13 @@ const kioskScripts = [
   'the-max-mix-kiosk.service',
   'the-max-mix-server.service'
 ];
-const sha256 = (/** @type {Buffer | string} */ data) => createHash('sha256').update(data).digest('hex');
+const sha256 = (data: Buffer | string) => createHash('sha256').update(data).digest('hex');
 
 /**
  * What the production deployment serves under /kiosk/ for a release: the app as the build leaves it, packed with its
  * checksum (named for the file it sits next to) and the version.
- * @param {string} temporary
- * @param {string} fixtures
- * @param {string} version
  */
-async function publishRelease(temporary, fixtures, version) {
+async function publishRelease(temporary: string, fixtures: string, version: string) {
   const app = path.join(temporary, `dist-${version}`);
   await mkdir(path.join(app, 'assets'), { recursive: true });
   await writeFile(path.join(app, 'index.html'), `<!doctype html><title>THE MAX MIX ${version}</title>`);
@@ -39,8 +36,7 @@ async function publishRelease(temporary, fixtures, version) {
   await writeFile(path.join(fixtures, 'latest-version'), `${version}\n`);
 }
 
-/** @param {import('node:test').TestContext} t */
-async function setup(t) {
+async function setup(t: TestContext) {
   const temporary = await mkdtemp(path.join(os.tmpdir(), 'max-mix-install-'));
   t.after(() => rm(temporary, { recursive: true, force: true }));
   const home = path.join(temporary, 'desktop home');
@@ -79,8 +75,7 @@ async function setup(t) {
     await writeFile(path.join(bin, name), `#!/usr/bin/env bash\nset -euo pipefail\n${body}\n`, { mode: 0o755 });
   }
   const install = path.join(temporary, 'install dir with spaces %test');
-  /** @type {NodeJS.ProcessEnv} */
-  const env = {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     HOME: home,
     PATH: `${bin}:${process.env['PATH']}`,
@@ -103,16 +98,18 @@ async function setup(t) {
     env,
     config,
     unit,
-    publish: (/** @type {string} */ version) => publishRelease(temporary, fixtures, version)
+    publish: (version: string) => publishRelease(temporary, fixtures, version)
   };
 }
 
-/** @param {string} file */
-const exists = file =>
-  access(file).then(
-    () => true,
-    () => false
-  );
+const isPresent = async (file: string) => {
+  try {
+    await access(file);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 test('installer downloads the release from the production address and sets up the server, the kiosk, the env file and autostart', async t => {
   const { temporary, home, install, env, config, unit, publish } = await setup(t);
@@ -206,10 +203,10 @@ test('a download that fails its checksum installs nothing', async t => {
     `${'0'.repeat(64)}  the-max-mix-latest.tar.gz\n`
   );
   await assert.rejects(run('bash', [installer], { env }), /checksum .* does not match/);
-  assert.ok(!(await exists(install)));
-  assert.ok(!(await exists(config)));
-  assert.ok(!(await exists(path.join(home, '.config/systemd'))));
-  assert.ok(!(await exists(path.join(temporary, 'sudo-calls'))));
+  assert.ok(!(await isPresent(install)));
+  assert.ok(!(await isPresent(config)));
+  assert.ok(!(await isPresent(path.join(home, '.config/systemd'))));
+  assert.ok(!(await isPresent(path.join(temporary, 'sudo-calls'))));
 });
 
 test('a release without a built app is refused, and so is a version that is not one', async t => {
@@ -223,7 +220,7 @@ test('a release without a built app is refused, and so is a version that is not 
   await assert.rejects(run('bash', [installer], { env }), /no index\.html/);
   await writeFile(path.join(fixtures, 'latest-version'), '../etc\n');
   await assert.rejects(run('bash', [installer], { env }), /does not name a version/);
-  assert.ok(!(await exists(install)));
+  assert.ok(!(await isPresent(install)));
 });
 
 test('installer stores KIOSK_PORT and a custom KIOSK_URL from the environment', async t => {
@@ -281,7 +278,7 @@ test('installer accepts a quoted stored address and the last assignment wins', a
   });
   const { stdout } = await run('bash', [installer], { env });
   assert.match(stdout, /will open https:\/\/new\.example\.com\//);
-  assert.ok(await exists(path.join(temporary, 'sudo-calls')));
+  assert.ok(await isPresent(path.join(temporary, 'sudo-calls')));
 });
 
 test('installer accepts http only for the local machine', async t => {
@@ -338,12 +335,12 @@ test('installer rejects a bad address, port or version before changing anything'
       /KIOSK_RELEASE_URL must be an https address/
     );
   }
-  assert.ok(!(await exists(config)));
-  assert.ok(!(await exists(install)));
-  assert.ok(!(await exists(path.join(home, '.config/autostart'))));
-  assert.ok(!(await exists(path.join(temporary, 'sudo-calls'))));
-  assert.ok(!(await exists(path.join(temporary, 'curl-urls'))));
-  assert.ok(!(await exists(path.join(temporary, 'pwned'))));
+  assert.ok(!(await isPresent(config)));
+  assert.ok(!(await isPresent(install)));
+  assert.ok(!(await isPresent(path.join(home, '.config/autostart'))));
+  assert.ok(!(await isPresent(path.join(temporary, 'sudo-calls'))));
+  assert.ok(!(await isPresent(path.join(temporary, 'curl-urls'))));
+  assert.ok(!(await isPresent(path.join(temporary, 'pwned'))));
 
   // Stored settings are checked too, so a hand edit cannot smuggle something into the unit.
   await mkdir(path.dirname(config), { recursive: true });
@@ -351,7 +348,7 @@ test('installer rejects a bad address, port or version before changing anything'
   await assert.rejects(run('bash', [installer], { env }), /KIOSK_URL must be an https address/);
   await writeFile(config, 'KIOSK_PORT=22\n', { mode: 0o600 });
   await assert.rejects(run('bash', [installer], { env }), /KIOSK_PORT must be a number/);
-  assert.ok(!(await exists(install)));
+  assert.ok(!(await isPresent(install)));
 });
 
 test('installer outside a checkout downloads the kiosk scripts from GitHub', async t => {
@@ -383,17 +380,19 @@ test('serve-kiosk.sh serves the app on the loopback address, with query paramete
   const port = '48173';
   const controller = new AbortController();
   // Stopping the server rejects this promise; it is only awaited to keep the rejection handled.
-  const stopped = run('bash', [server], {
-    env: { ...env, KIOSK_APP_DIR: app, KIOSK_PORT: port },
-    signal: controller.signal
-  }).catch(() => 'stopped');
+  const stopped = (async () => {
+    try {
+      await run('bash', [server], { env: { ...env, KIOSK_APP_DIR: app, KIOSK_PORT: port }, signal: controller.signal });
+    } catch {
+      // Aborted below.
+    }
+  })();
   t.after(async () => {
     controller.abort();
     await stopped;
   });
-  /** @type {Response | null} */
-  let response = null;
-  for (let attempt = 0; attempt < 50 && !response; attempt++) {
+  let response: Response | undefined;
+  for (let attempt = 0; !response && attempt < 50; attempt++) {
     try {
       response = await fetch(`http://127.0.0.1:${port}/?demo=true`);
     } catch {
@@ -419,7 +418,7 @@ test('KIOSK_RELEASE_URL is required when none is stored, and nothing is changed 
   const withoutAddress = { ...env };
   delete withoutAddress['KIOSK_RELEASE_URL'];
   await assert.rejects(run('bash', [installer], { env: withoutAddress }), /KIOSK_RELEASE_URL is required/);
-  assert.ok(!(await exists(install)));
-  assert.ok(!(await exists(config)));
-  assert.ok(!(await exists(path.join(temporary, 'sudo-calls'))));
+  assert.ok(!(await isPresent(install)));
+  assert.ok(!(await isPresent(config)));
+  assert.ok(!(await isPresent(path.join(temporary, 'sudo-calls'))));
 });
