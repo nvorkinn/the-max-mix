@@ -125,14 +125,14 @@ Revoked logins require signing in again. Never commit `.env` or token files.
 
 ## Releases
 
-To release, push a tag such as `v1.2.3` (or `v1.2.3-rc.1` for a prerelease): `git tag v1.2.3 && git push origin v1.2.3`. Creating the release in the GitHub web UI (which creates the tag) works
-too: the workflow then attaches the files to that release instead of creating one.
-The tag is the only source of the version, so there is nothing to bump first; the `version` fields in the repository's
-`package.json` files are a `0.0.0` placeholder, and the release stamps the real version into the packaged copies. The
-release workflow does not repeat the tests and lint (they run on every pull request and on `main`), so tag a commit on
-`main` whose checks passed. It builds the app and publishes
-`the-max-mix-v1.2.3.tar.gz`, its `.sha256` and `install-kiosk.sh` to GitHub Releases with
-generated notes. The tarball has a build provenance attestation; check a download with
+To release, create a release in the GitHub web UI (Releases > Draft a new release), choosing a new tag such as `v1.2.3`
+(or `v1.2.3-rc.1`, marked as a pre-release) on a commit on `main` whose checks passed, and let it generate the notes.
+Publishing the release creates the tag; the tag push runs the release workflow, which builds the app and attaches
+`the-max-mix-v1.2.3.tar.gz`, its `.sha256` and `install-kiosk.sh` to that release. The workflow fails if there is no
+release for the tag (pushing a bare tag does not create one), and a failed run can simply be re-run. The tag is the only
+source of the version, so there is nothing to bump first; the `version` fields in the repository's `package.json` files
+are a `0.0.0` placeholder, and the release stamps the real version into the packaged copies. The workflow does not
+repeat the tests and lint (they run on every pull request and on `main`). The tarball has a build provenance attestation; check a download with
 `gh attestation verify the-max-mix-v1.2.3.tar.gz --repo nvorkinn/the-max-mix`. The tarball holds
 the built UI, the server with production dependencies, the scripts and docs, so it runs without a
 build step: extract it, create `server/.env` from `server/.env.example`, and run `npm start`
