@@ -195,6 +195,10 @@ unpacked to `~/the-max-mix/releases/<version>`, and `~/the-max-mix/current` poin
 three most recently activated releases are kept for quick rollback and the rest are deleted; set
 `KIOSK_KEEP_RELEASES` to keep a different number (the active release is always kept).
 
+To have the installer fill in your Spotify client ID (it is not secret; there is no client secret), pass it as an
+environment variable: `SPOTIFY_CLIENT_ID=your_client_id bash install-kiosk.sh`. It is written to
+`~/the-max-mix/server.env` only when that file has no client ID yet, so an ID you already set is never replaced.
+
 Do **not** invoke the installer with sudo. It uses sudo only to install OS packages
 and the system service. It:
 

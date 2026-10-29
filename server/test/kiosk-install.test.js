@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, copyFile, writeFile, readFile, readlink, realpath, rm, access } from 'node:fs/promises';
+import { mkdtemp, mkdir, copyFile, writeFile, readFile, readlink, realpath, rm, access, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -196,4 +196,52 @@ test('installer never prunes the active release and rejects a bad keep count', a
     run('bash', [installer, 'v1.2.0'], { env: { ...env, KIOSK_KEEP_RELEASES: '0' } }),
     /KIOSK_KEEP_RELEASES must be a positive integer/
   );
+});
+
+test('installer writes SPOTIFY_CLIENT_ID into a new config', async t => {
+  const { install, fixtures, env } = await setup(t);
+  await makeRelease(fixtures, 'v1.2.3');
+  await run('bash', [installer, 'v1.2.3'], { env: { ...env, SPOTIFY_CLIENT_ID: 'abc123DEF456' } });
+  assert.equal(await readFile(path.join(install, 'server.env'), 'utf8'), 'SPOTIFY_CLIENT_ID=abc123DEF456\n');
+  assert.equal((await stat(path.join(install, 'server.env'))).mode & 0o777, 0o600);
+  assert.equal(await readFile(path.join(install, 'current/server/.env'), 'utf8'), 'SPOTIFY_CLIENT_ID=abc123DEF456\n');
+});
+
+test('installer fills in an empty client ID but never replaces or duplicates a set one', async t => {
+  const { install, fixtures, env } = await setup(t);
+  await makeRelease(fixtures, 'v1.2.3');
+  await mkdir(install, { recursive: true });
+  const config = path.join(install, 'server.env');
+
+  await writeFile(config, 'PORT=3000\nSPOTIFY_CLIENT_ID=\nPLAYBACK_MODE=remote\n', { mode: 0o600 });
+  await run('bash', [installer, 'v1.2.3'], { env: { ...env, SPOTIFY_CLIENT_ID: 'newid' } });
+  assert.equal(await readFile(config, 'utf8'), 'PORT=3000\nSPOTIFY_CLIENT_ID=newid\nPLAYBACK_MODE=remote\n');
+
+  const second = await run('bash', [installer, 'v1.2.3'], { env: { ...env, SPOTIFY_CLIENT_ID: 'otherid' } });
+  assert.equal(await readFile(config, 'utf8'), 'PORT=3000\nSPOTIFY_CLIENT_ID=newid\nPLAYBACK_MODE=remote\n');
+  assert.match(second.stdout, /Keeping the Spotify client ID already in/);
+
+  await writeFile(config, 'PORT=3000\n', { mode: 0o600 });
+  await run('bash', [installer, 'v1.2.3'], { env: { ...env, SPOTIFY_CLIENT_ID: 'addedid' } });
+  assert.equal(await readFile(config, 'utf8'), 'PORT=3000\nSPOTIFY_CLIENT_ID=addedid\n');
+});
+
+test('installer leaves the client ID alone when none is given', async t => {
+  const { install, fixtures, env } = await setup(t);
+  await makeRelease(fixtures, 'v1.2.3');
+  await run('bash', [installer, 'v1.2.3'], { env });
+  assert.equal(await readFile(path.join(install, 'server.env'), 'utf8'), 'SPOTIFY_CLIENT_ID=\n');
+});
+
+test('installer rejects a malformed client ID before downloading anything', async t => {
+  const { temporary, fixtures, env } = await setup(t);
+  await makeRelease(fixtures, 'v1.2.3');
+  for (const bad of ['has space', 'semi;colon', 'slash/id', 'a'.repeat(65), '$(touch pwned)']) {
+    await assert.rejects(
+      run('bash', [installer, 'v1.2.3'], { env: { ...env, SPOTIFY_CLIENT_ID: bad } }),
+      /SPOTIFY_CLIENT_ID must be letters and digits only/
+    );
+  }
+  await assert.rejects(readFile(path.join(temporary, 'curl-urls'), 'utf8'), { code: 'ENOENT' });
+  await assert.rejects(access(path.join(temporary, 'pwned')), { code: 'ENOENT' });
 });
