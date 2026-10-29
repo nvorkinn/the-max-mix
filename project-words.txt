@@ -17,6 +17,7 @@ bebe
 beyonce
 beyoncé
 björk
+blockinfile
 bridgers
 buildx
 cabello
@@ -32,6 +33,7 @@ copyfile
 céline
 dion
 doja
+dpms
 dtoverlay
 edid
 eilish
@@ -39,6 +41,7 @@ esac
 extrabold
 faye
 fulfill
+getent
 goulding
 hayley
 imager
@@ -66,6 +69,8 @@ minaj
 minogue
 morissette
 nicki
+nikolaivorkinn
+noblank
 noerrdialogs
 nonexistent
 nonint
@@ -113,6 +118,8 @@ widevine
 wifi
 winehouse
 writable
+xauthority
+xset
 nosniff
 foutside
 coutside
@@ -125,7 +132,6 @@ WPA
 WPA2
 WPA3
 PSK
-qrcodegen
 passphrase
 unittest
 pointerdown

@@ -1,0 +1,13 @@
+---
+# https anywhere, plain http only for this machine. No quotes, spaces, backslashes, dollars, backticks or percent signs,
+# so the value is safe in the env file, the systemd unit and the shell.
+kiosk_url_pattern: '^(https://[A-Za-z0-9._~:/?&=+,@-]+|http://(127\.0\.0\.1|localhost)(:[0-9]{1,5})?(/[A-Za-z0-9._~:/?&=+,@-]*)?)\Z'
+# Home directories are put in unit files, a desktop entry and a shell script, so only plain characters are accepted.
+kiosk_home_pattern: '^/[A-Za-z0-9._/-]+\Z'
+# What Chromium opens: kiosk_url with kiosk=1 added (after an existing query string if there is one), which makes the app
+# show its kiosk-only settings. kiosk_url itself, the validation and the Spotify redirect URI stay the plain address.
+kiosk_launch_url: >-
+  {{ kiosk_url if kiosk_url is search('[?&]kiosk=')
+  else kiosk_url ~ ('&' if '?' in kiosk_url else '?') ~ 'kiosk=1' }}
+kiosk_scripts_dir: '{{ kiosk_home }}/.local/share/the-max-mix/scripts'
+kiosk_config_dir: '{{ kiosk_home }}/.config/the-max-mix'

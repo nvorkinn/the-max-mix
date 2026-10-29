@@ -1,0 +1,11 @@
+---
+# The desktop user the kiosk runs as: the user running ansible-pull, or SUDO_USER when it is run with sudo. Never root.
+kiosk_user: "{{ lookup('ansible.builtin.env', 'SUDO_USER') or ansible_facts['user_id'] }}"
+# Seconds start-kiosk.sh waits for kiosk_url to answer before it gives up (the service then retries).
+kiosk_startup_timeout: 120
+# Turn desktop autologin on and screen blanking off with raspi-config (once; see the marker file below).
+kiosk_configure_raspi_config: true
+kiosk_raspi_config_marker: /var/lib/the-max-mix-kiosk/raspi-config.done
+# The address the kiosk opens: the deployed app on Vercel. Override it with -e kiosk_url=... (it is validated either way).
+# Register exactly this address, trailing slash included, as a redirect URI in the Spotify dashboard.
+kiosk_url: https://the-max-mix.vercel.app/
