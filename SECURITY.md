@@ -18,7 +18,7 @@ THE MAX MIX is a client-only app: static files hosted by Vercel that run in each
 included. There is no backend of ours and no server-side secret.
 
 - **No client secret.** Sign-in uses the Authorization Code flow with PKCE, which Spotify provides for apps that cannot
-  keep a secret. The Spotify client ID is public by design and is built into the site (`VITE_SPOTIFY_CLIENT_ID`, committed in `.env`).
+  keep a secret. The Spotify client ID is public by design and is a constant in the code (`src/spotify/settings.ts`).
 - **The refresh token lives in the browser.** It is stored in the browser's `localStorage` (key `maxmix.auth`) and the
   page calls the Spotify Web API directly. Anyone who can use the kiosk's browser profile, or read its files, has the
   Spotify login. Treat the device and its profile like the account: restrict physical access, keep SSH key-protected and

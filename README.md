@@ -62,8 +62,8 @@ Set it up once:
    [`vercel.json`](vercel.json) in the repository root (the Vite framework preset, install `npm ci`, build
    `npm run build`, output `dist`, plus the single-page rewrite and the response headers), so leave the framework
    preset and the commands as detected.
-2. Nothing to set for the client ID: the committed [`.env`](.env) holds it (it is public by design, not a secret). To use
-   another Spotify app, add `VITE_SPOTIFY_CLIENT_ID` under **Settings > Environment Variables**, which wins over the file.
+2. Nothing to set for the client ID: it is a constant in [`src/spotify/settings.ts`](src/spotify/settings.ts) (public by
+   design, not a secret).
 3. Under **Settings > Domains** add `spotify.dev.nikolaivorkinn.com`. The DNS record is a DNS-only CNAME to
    `cname.vercel-dns.com` (not proxied by Cloudflare), managed in the
    [countdown-server](https://github.com/nvorkinn/countdown-server) project. The `<project>.vercel.app` address works too.
@@ -118,8 +118,8 @@ skipped automatically when there is no `.git` directory or when dev dependencies
    - `https://spotify.dev.nikolaivorkinn.com/` for the hosted site (the Pi kiosk uses this too);
    - `https://<project>.vercel.app/` if you also want to sign in at the Vercel address;
    - `http://127.0.0.1:5173/` for local development.
-3. The client ID is built in from the committed [`.env`](.env) (`VITE_SPOTIFY_CLIENT_ID`); users never type it in. To use
-   another Spotify app, set that variable in Vercel or in an uncommitted `.env.local`.
+3. The client ID is a constant in `src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
+   it there.
 4. Open Settings **in the browser that will play** (on the kiosk, the Pi's Chromium) and sign in. Choose the playback mode there too: browser (the
    default) or remote. Settings also has the demo mode switch; `?demo=true` on the address turns it on for a visit.
 5. In Speakers, select THE MAX MIX or an existing Spotify Connect device. Press

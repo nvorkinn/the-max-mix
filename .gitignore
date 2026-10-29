@@ -1,6 +1,6 @@
 node_modules
 dist
-.env.local
+.env
 spotify-token.json
 spotify-token.json.*.tmp
 .DS_Store

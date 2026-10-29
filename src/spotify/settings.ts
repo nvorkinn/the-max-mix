@@ -1,6 +1,9 @@
 // Settings that used to live in the server's environment. They are read from the browser's own storage, so the app
 // needs no backend. Storage can be unavailable (private windows, blocked site data): every access tolerates that.
 
+// The app's Spotify client ID. It is public by design (sign-in uses PKCE and there is no client secret), so it lives in the
+// code and users never enter it.
+const SPOTIFY_CLIENT_ID = '79012ca710ca4dd5ad18c2973510b670';
 const PLAYBACK_MODE_KEY = 'maxmix.playbackMode';
 const DEMO_KEY = 'maxmix.demo';
 
@@ -22,10 +25,8 @@ function write(key: string, value: string | null): void {
   }
 }
 
-/** The Spotify client ID, built in at build time (VITE_SPOTIFY_CLIENT_ID, defaulted in the committed .env). Not a secret. */
 export function getClientId(): string {
-  const built: unknown = import.meta.env['VITE_SPOTIFY_CLIENT_ID'];
-  return typeof built === 'string' ? built.trim() : '';
+  return SPOTIFY_CLIENT_ID;
 }
 
 /** browser: this page is the speaker (Web Playback SDK). remote: it only controls another Spotify Connect device. */
