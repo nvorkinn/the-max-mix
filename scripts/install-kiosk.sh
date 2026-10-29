@@ -2,15 +2,17 @@
 # Sets up THE MAX MIX on Raspberry Pi OS as a kiosk app: the prebuilt release is downloaded and served from the Pi itself
 # (python3, loopback only), and Chromium opens it in fullscreen after desktop login. Nothing is built on the device and
 # it needs no Node.js and no git.
-# Usage: bash install-kiosk.sh        (from a checkout, or fetched with curl from GitHub, see the README)
-#        Run it again to update: it downloads the newest release (or KIOSK_VERSION) and keeps the previous one for rollback.
-# Environment: KIOSK_VERSION (a release tag such as v1.2.3, default latest), KIOSK_REPO (default nvorkinn/the-max-mix),
+# Usage: KIOSK_RELEASE_URL=https://<production address> bash install-kiosk.sh   (from a checkout, or fetched with curl from
+#        GitHub, see the README). Run it again to update: it downloads the newest release and keeps the previous one for rollback.
+# Environment: KIOSK_RELEASE_URL (required the first time; the https address of the production deployment, which serves
+#              the release under /kiosk/. It is remembered in the settings file, so an update needs no variable),
+#              KIOSK_REPO (default nvorkinn/the-max-mix, where the kiosk scripts are downloaded from),
 #              KIOSK_PORT (the local port, default 4173, so the Spotify redirect URI is http://127.0.0.1:4173/),
 #              KIOSK_URL (open another address instead of the local app; only https, or http://127.0.0.1 and
 #              http://localhost, are accepted), KIOSK_INSTALL_DIR (default ~/.local/share/the-max-mix) and KIOSK_REF
 #              (default main), which says where the kiosk scripts are downloaded from when this is not run from a checkout.
 # The settings are kept in ~/.config/the-max-mix/kiosk.env. It is created on first install and left alone on a re-run,
-# unless KIOSK_PORT or KIOSK_URL is given again.
+# unless KIOSK_RELEASE_URL, KIOSK_PORT or KIOSK_URL is given again.
 set -euo pipefail
 
 default_port=4173
@@ -32,6 +34,10 @@ valid_url() {
   local pattern="^(https://${characters}+|http://(127\\.0\\.0\\.1|localhost)(:[0-9]{1,5})?(/${characters}*)?)\$"
   [[ $1 =~ $pattern ]]
 }
+valid_release_url() {
+  # https only, no query, quotes, spaces, backslashes, dollars, backticks or percent signs: it is kept in the env file.
+  [[ $1 =~ ^https://[A-Za-z0-9._~:/@-]+$ ]]
+}
 valid_port() {
   [[ $1 =~ ^[1-9][0-9]{3,4}$ ]] && (( $1 >= 1024 && $1 <= 65535 ))
 }
@@ -42,17 +48,12 @@ stored() {
 
 repo=${KIOSK_REPO:-nvorkinn/the-max-mix}
 ref=${KIOSK_REF:-main}
-version=${KIOSK_VERSION:-latest}
 if [[ ! $repo =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
   echo "KIOSK_REPO must look like owner/name." >&2
   exit 1
 fi
 if [[ ! $ref =~ ^[A-Za-z0-9._/-]+$ ]]; then
   echo "KIOSK_REF may contain only letters, digits, dots, slashes, underscores and hyphens." >&2
-  exit 1
-fi
-if [[ ! $version =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
-  echo "KIOSK_VERSION must be latest or a release tag such as v1.2.3." >&2
   exit 1
 fi
 install=${KIOSK_INSTALL_DIR:-$HOME/.local/share/the-max-mix}
@@ -67,12 +68,14 @@ config=$config_dir/kiosk.env
 # http://127.0.0.1:<port>/.
 port=$default_port
 url=
+release_url=
 write_config=true
 if [[ -f $config ]]; then
   write_config=false
   port=$(stored KIOSK_PORT)
   port=${port:-$default_port}
   url=$(stored KIOSK_URL)
+  release_url=$(stored KIOSK_RELEASE_URL)
   if [[ $url == "$legacy_url" ]]; then
     url=
     write_config=true
@@ -85,6 +88,20 @@ fi
 if [[ -n ${KIOSK_URL:-} ]]; then
   url=$KIOSK_URL
   write_config=true
+fi
+if [[ -n ${KIOSK_RELEASE_URL:-} ]]; then
+  release_url=$KIOSK_RELEASE_URL
+  write_config=true
+fi
+release_url=${release_url%/}
+if [[ -z $release_url ]]; then
+  echo "KIOSK_RELEASE_URL is required: the https address of the production deployment that serves the kiosk download" >&2
+  echo "under /kiosk/, for example: KIOSK_RELEASE_URL=https://example.vercel.app bash install-kiosk.sh" >&2
+  exit 1
+fi
+if ! valid_release_url "$release_url"; then
+  echo "KIOSK_RELEASE_URL must be an https address without spaces, quotes or a query string, got: $release_url" >&2
+  exit 1
 fi
 if ! valid_port "$port"; then
   echo "KIOSK_PORT must be a number from 1024 to 65535, got: $port" >&2
@@ -116,24 +133,19 @@ for name in "${scripts[@]}"; do
   fi
 done
 
-if [[ $version == latest ]]; then
-  # /releases/latest redirects to /releases/tag/<tag>.
-  latest=$(curl --fail --silent --show-error --location --output /dev/null --write-out '%{url_effective}' \
-    "https://github.com/$repo/releases/latest")
-  tag=${latest##*/}
-  if [[ $latest != */releases/tag/* || ! $tag =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
-    echo "Could not find the latest release of $repo. Has a release been published? Got: $latest" >&2
-    exit 1
-  fi
-else
-  tag=$version
+download() {
+  curl --fail --silent --show-error --location --output "$workdir/$1" "$release_url/kiosk/$1"
+}
+echo "Downloading the latest release from $release_url..."
+download latest-version
+version=$(tr -d '\r\n' < "$workdir/latest-version")
+if [[ ! $version =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+  echo "$release_url/kiosk/latest-version does not name a version; nothing was installed." >&2
+  exit 1
 fi
-archive=the-max-mix-${tag#v}.tar.gz
-echo "Downloading $archive from $repo..."
-for file in "$archive" "$archive.sha256"; do
-  curl --fail --silent --show-error --location --output "$workdir/$file" \
-    "https://github.com/$repo/releases/download/$tag/$file"
-done
+archive=the-max-mix-latest.tar.gz
+download "$archive"
+download "$archive.sha256"
 (cd "$workdir" && sha256sum --check --status "$archive.sha256") || {
   echo "The checksum of $archive does not match $archive.sha256; nothing was installed." >&2
   exit 1
@@ -157,9 +169,9 @@ for name in the-max-mix-kiosk.service the-max-mix-server.service; do
   install -m 644 "$workdir/$name" "$install/scripts/$name"
 done
 
-# Switch to the new release atomically: app is a symlink to releases/<tag>, and the release it replaced stays as
-# app.previous (for rollback: run the installer with KIOSK_VERSION set to the old tag, or repoint the symlink).
-release=$install/releases/$tag
+# Switch to the new release atomically: app is a symlink to releases/<version>, and the release it replaced stays as
+# app.previous (for rollback, point the app symlink back at it and restart the server).
+release=$install/releases/$version
 rm -rf "$release.new"
 mv "$workdir/app" "$release.new"
 rm -rf "$release"
@@ -180,6 +192,7 @@ if [[ $write_config == true ]]; then
     printf '# THE MAX MIX kiosk settings. Change them, then: systemctl --user restart the-max-mix-server.service the-max-mix-kiosk.service\n'
     printf '# The app is served on this port of 127.0.0.1; register http://127.0.0.1:<port>/ as the Spotify redirect URI.\n'
     printf 'KIOSK_PORT=%s\n' "$port"
+    printf '# Where the installer downloads releases from (re-run the installer to update).\nKIOSK_RELEASE_URL=%s\n' "$release_url"
     if [[ -n $url ]]; then
       printf '# Open this address instead of the local app.\nKIOSK_URL=%s\n' "$url"
     fi
@@ -237,8 +250,8 @@ systemctl --user daemon-reload
 systemctl --user enable the-max-mix-server.service
 systemctl --user try-restart the-max-mix-server.service
 
-echo "Installed THE MAX MIX $tag. The kiosk will open $open_url after desktop login."
+echo "Installed THE MAX MIX $version. The kiosk will open $open_url after desktop login."
 echo "Register this redirect URI in the Spotify dashboard (exact match, trailing slash included): ${url:-$open_url}"
 echo "Enable Desktop Autologin and disable screen blanking in Raspberry Pi OS, then reboot."
-echo "To update, run this installer again. To change the port or address, edit $config (or run this again with KIOSK_PORT or KIOSK_URL set), then: systemctl --user restart the-max-mix-server.service the-max-mix-kiosk.service"
+echo "To update, run this installer again. To change the port or address, edit $config (or run this again with KIOSK_RELEASE_URL, KIOSK_PORT or KIOSK_URL set), then: systemctl --user restart the-max-mix-server.service the-max-mix-kiosk.service"
 echo "Logs: journalctl --user -u the-max-mix-server.service -u the-max-mix-kiosk.service -f"

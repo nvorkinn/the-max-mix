@@ -15,10 +15,11 @@ listed in `all-checks.yml`, so Global PR Status waits for it.
 and actionlint over `.github/workflows/*.yml`. ShellCheck and actionlint are downloaded as pinned release binaries and
 checked against a SHA-256 before running. It is listed in `all-checks.yml` too.
 
-`release.yml` runs on a version tag (`v*`) or by hand with an existing tag: it builds the app and attaches
-`the-max-mix-<version>.tar.gz` (the contents of `dist/`) and its `.sha256` to the GitHub release, which the Raspberry Pi
-installer downloads. It has `contents: write` for that job only and does not run on pull requests, so it is not in
-`all-checks.yml`.
+`release.yml` runs on a version tag (`v*`) or by hand with an existing tag: it builds the app, packs the Raspberry Pi
+kiosk download into `public/kiosk/` and deploys to Vercel production with a pinned Vercel CLI. It is the only way
+production is deployed (`vercel.json` turns off Vercel's deploy of `main`). It needs the repository secrets
+`VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` and fails clearly if one is missing. It has read-only
+`contents` access and does not run on pull requests, so it is not in `all-checks.yml`.
 
 `audit.yml` scans the lockfile weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in
 `all-checks.yml`.

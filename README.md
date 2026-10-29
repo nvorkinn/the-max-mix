@@ -50,6 +50,29 @@ The small waveform is decorative, driven by playback state, not an analysis of
 Spotify's encrypted audio. Canvas animations stop while hidden or idle where
 applicable and respect reduced-motion preferences.
 
+## Hosting and releases
+
+THE MAX MIX is plain static files on [Vercel](https://vercel.com). Production deploys happen only from a release:
+[`release.yml`](.github/workflows/release.yml) runs when a version tag is pushed (or by hand for an existing tag), builds
+the app (`npm ci && npm run build`, with the version set from the tag) and deploys it to Vercel production with the Vercel
+CLI. `vercel.json` turns off Vercel's own deploy of `main` (`git.deploymentEnabled`), so a merge to `main` does not
+change production; pull requests still get preview deployments. The build settings, the single-page rewrite and the
+response headers are in [`vercel.json`](vercel.json).
+
+Set it up once:
+
+1. In the GitHub repository add the secrets `VERCEL_TOKEN` (a Vercel access token), `VERCEL_ORG_ID` and
+   `VERCEL_PROJECT_ID` (both in the project's `.vercel/project.json` after `vercel link`, or in the Vercel dashboard).
+   The workflow fails with a clear message if one is missing.
+2. In the Vercel dashboard (**Settings > Git**) check that pushes to the production branch no longer deploy `main`.
+3. Push a tag to release: `git tag v1.2.3 && git push origin v1.2.3`.
+4. Register the redirect URI of any address you sign in from in the Spotify dashboard (see
+   [Spotify configuration](#spotify-configuration)).
+
+Every deployment also serves the Raspberry Pi kiosk download under `/kiosk/`: `the-max-mix-latest.tar.gz` and its
+`.sha256` (the built app), a copy named for the version, and `latest-version`. The tarball is packed from the finished
+build before those files are added, so it holds only the app. The Pi installer downloads it from there.
+
 ## Local development
 
 Use Node.js 24 LTS (the minimum).
@@ -94,6 +117,7 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 2. Register the redirect URI **exactly**, including the trailing slash:
    - `http://127.0.0.1:4173/` for the Raspberry Pi kiosk, which serves the app itself on that port (and for
      `npm start`);
+   - `https://<production address>/` only if you also want to sign in on the deployed site;
    - `http://127.0.0.1:5173/` for local development.
 3. The client ID is a constant in `src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
    it there.
@@ -127,10 +151,10 @@ registered: an address that is not registered cannot sign in.
 
 ## Raspberry Pi kiosk installation
 
-The Pi runs THE MAX MIX itself: a prebuilt release (the built app, attached to a GitHub release) is downloaded and
-served from the Pi at `http://127.0.0.1:4173/` by a small user service (Python's built-in web server, bound to the
-loopback address only), and Chromium opens that address in fullscreen kiosk mode. The Pi needs no Node.js, no git and no
-build; Raspberry Pi OS already has Python 3.
+The Pi runs THE MAX MIX itself: the installer downloads the latest release (the built app, served by the production
+deployment under `/kiosk/`) and serves it from the Pi at `http://127.0.0.1:4173/` with a small user service (Python's
+built-in web server, bound to the loopback address only), and Chromium opens that address in fullscreen kiosk mode. The
+Pi needs no Node.js, no git and no build; Raspberry Pi OS already has Python 3.
 
 ### 1. Prepare the operating system
 
@@ -159,23 +183,30 @@ curl -fsSLO https://raw.githubusercontent.com/nvorkinn/the-max-mix/main/scripts/
 bash install-kiosk.sh
 ```
 
-The installer downloads the newest release (`KIOSK_VERSION=v1.2.3` picks a tag), checks its SHA-256 and unpacks it.
-Register `http://127.0.0.1:4173/` as a redirect URI in the Spotify dashboard (exact match, trailing slash included),
-open the kiosk and sign in once in Settings. Spotify only accepts `http` redirect URIs for a loopback IP address, which
-is why the app is served on `127.0.0.1` and not under a hostname.
+Give it the https address of the production deployment, which serves the download:
+
+```bash
+KIOSK_RELEASE_URL=https://<production address> bash install-kiosk.sh
+```
+
+`KIOSK_RELEASE_URL` is required the first time (it is stored, so later runs need no variable). Register
+`http://127.0.0.1:4173/` as a redirect URI in the Spotify dashboard (exact match, trailing slash included), open the
+kiosk and sign in once in Settings. Spotify only accepts `http` redirect URIs for a loopback IP address, which is why the
+app is served on `127.0.0.1` and not under a hostname.
 
 Do **not** invoke the installer with sudo. It uses sudo only to install OS packages. It:
 
 - Installs Chromium, curl and Python 3. Nothing is built on the device.
-- Downloads the release (`KIOSK_REPO` chooses the repository) and unpacks it to
-  `~/.local/share/the-max-mix/releases/<tag>`, with `app` pointing at the current one and `app.previous` at the one it
-  replaced (`KIOSK_INSTALL_DIR` changes the place). Older releases are removed.
+- Downloads `latest-version`, `the-max-mix-latest.tar.gz` and its `.sha256` from `<KIOSK_RELEASE_URL>/kiosk/`, checks the
+  SHA-256 and unpacks the app to `~/.local/share/the-max-mix/releases/<version>`, with `app` pointing at the current one
+  and `app.previous` at the one it replaced (`KIOSK_INSTALL_DIR` changes the place). Older releases are removed. Nothing
+  is changed if the download or the checksum fails.
 - Copies the kiosk scripts to `~/.local/share/the-max-mix/scripts`. When it is not run from a checkout it downloads them
-  from GitHub (`KIOSK_REF` chooses the branch or tag).
-- Stores the settings in `~/.config/the-max-mix/kiosk.env` (mode 600): `KIOSK_PORT` (default 4173) and, only if you
-  set one, `KIOSK_URL`, an address to open instead of the local app (`https`, or `http://127.0.0.1` and
-  `http://localhost`). It is created on the first install and left alone on a re-run, unless `KIOSK_PORT` or `KIOSK_URL` is
-  given again. If you change the port, register the new redirect URI too.
+  from GitHub (`KIOSK_REPO` and `KIOSK_REF` choose the repository and branch or tag).
+- Stores the settings in `~/.config/the-max-mix/kiosk.env` (mode 600): `KIOSK_RELEASE_URL`, `KIOSK_PORT` (default 4173)
+  and, only if you set one, `KIOSK_URL`, an address to open instead of the local app (`https`, or `http://127.0.0.1` and
+  `http://localhost`). It is created on the first install and left alone on a re-run, unless one of them is given
+  again. If you change the port, register the new redirect URI too.
 - Adds two user services: `the-max-mix-server.service` (the local web server, enabled so it starts at login) and
   `the-max-mix-kiosk.service` (Chromium, started after desktop login). It preserves existing labwc autostart entries and
   also supplies an XDG autostart entry for desktops that use it. Starting the same user service twice is harmless.
@@ -211,25 +242,16 @@ journalctl --user -u the-max-mix-server.service -u the-max-mix-kiosk.service -f
 systemctl --user restart the-max-mix-server.service the-max-mix-kiosk.service
 ```
 
-To update the Pi, run the installer again: it downloads the newest release, switches to it and restarts the server (then
-restart the kiosk service or reboot to reload the page). A merge to `main` does not change the kiosk; only a published
-release does.
+To update the Pi, run the installer again: it downloads the newest release from the stored `KIOSK_RELEASE_URL`,
+switches to it and restarts the server (then restart the kiosk service or reboot to reload the page). A merge to `main`
+does not change the kiosk or the site; only a release does (see [Hosting and releases](#hosting-and-releases)).
 
 ```bash
 bash ~/.local/share/the-max-mix/scripts/install-kiosk.sh
-# or a specific release
-KIOSK_VERSION=v1.2.3 bash ~/.local/share/the-max-mix/scripts/install-kiosk.sh
 ```
 
-To roll back, run it with the older `KIOSK_VERSION`, or point `app` at the previous release
-(`ln -sfn "$(readlink ~/.local/share/the-max-mix/app.previous)" ~/.local/share/the-max-mix/app`) and restart the server.
-
-### Publishing a release
-
-[`release.yml`](.github/workflows/release.yml) builds the app (`npm ci && npm run build`) and attaches
-`the-max-mix-<version>.tar.gz` (the contents of `dist/`) and its `.sha256` file to a GitHub release. Push a version tag
-to publish one: `git tag v1.2.3 && git push origin v1.2.3`. Run the workflow by hand with an existing tag to rebuild its
-assets. The installer's `latest` is the newest published release.
+To roll back, point `app` at the previous release and restart the server:
+`ln -sfn "$(readlink ~/.local/share/the-max-mix/app.previous)" ~/.local/share/the-max-mix/app`.
 
 For a manual launcher, `KIOSK_URL`, `KIOSK_PORT`, `KIOSK_PROFILE`, and `KIOSK_STARTUP_TIMEOUT` (seconds, default 120)
 can be overridden.

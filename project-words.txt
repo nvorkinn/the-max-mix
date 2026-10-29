@@ -106,6 +106,7 @@ unconfigured
 upvotes
 utimes
 vars
+vercel
 waveshare
 weeknd
 widevine

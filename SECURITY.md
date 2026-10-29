@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the latest release (and the `main` branch) receives security fixes.
+Only the latest release receives security fixes.
 
 ## Reporting a vulnerability
 
@@ -31,8 +31,9 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
 - **The kiosk's local server.** It serves static files from the unpacked release with Python's built-in web server,
   bound to `127.0.0.1` so nothing else on the network can reach it, and it has no API, no token file and no write access.
   Other users or programs on the Pi itself can reach the port, so treat the Pi as single-user. The installer verifies
-  the release's SHA-256, which is published next to it, so the security of the release is the security of the
-  repository's tags and GitHub account: protect them with two-factor authentication.
+  the release's SHA-256, which is published next to it on the same deployment, so it catches a damaged download but
+  not a compromised deployment: the security of a release is the security of the repository's tags, the `VERCEL_TOKEN`
+  secret and the Vercel account. Protect them with two-factor authentication.
 - **The app is public static code.** Anyone who runs it can sign in with their own Spotify account, and each browser
   keeps its own login; a shared browser profile is a shared login. Only addresses registered as redirect URIs in the
   Spotify dashboard can sign in.
