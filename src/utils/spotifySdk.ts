@@ -10,7 +10,7 @@ export function loadSpotifySDK(): Promise<SpotifySdk> {
   if (sdkPromise) return sdkPromise;
   sdkPromise = new Promise<SpotifySdk>((resolve, reject) => {
     const script = document.createElement('script');
-    const timeout = setTimeout(() => fail(new Error('Spotify SDK timed out. Check the internet connection.')), 20000);
+    const timeout = setTimeout(() => fail(new Error('Spotify SDK timed out. Check the internet connection.')), 20_000);
     const fail = (error: Error) => {
       clearTimeout(timeout);
       script.remove();

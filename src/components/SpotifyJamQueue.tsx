@@ -65,7 +65,7 @@ export default function SpotifyJamQueue({
         return event.clientY >= rect.top && event.clientY <= rect.bottom;
       });
       if (target !== -1) {
-        (dragRef.current as { from: number; to: number }).to = target;
+        if (dragRef.current) dragRef.current.to = target;
         setHoverIndex(target);
       }
     };
@@ -91,7 +91,7 @@ export default function SpotifyJamQueue({
     window.addEventListener('pointercancel', handlePointerCancel);
   };
 
-  const totalMinutes = Math.round(queue.reduce((sum, track) => sum + (track.duration_ms || 0), 0) / 60000);
+  const totalMinutes = Math.round(queue.reduce((sum, track) => sum + (track.duration_ms || 0), 0) / 60_000);
 
   return (
     <div className="queue-panel">

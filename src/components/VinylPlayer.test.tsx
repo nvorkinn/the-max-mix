@@ -5,10 +5,10 @@ import { defined } from '../test/defined';
 import VinylPlayer from './VinylPlayer';
 
 const playback = {
-  progress_ms: 30000,
+  progress_ms: 30_000,
   item: {
     name: 'Vinyl Song',
-    duration_ms: 120000,
+    duration_ms: 120_000,
     artists: [{ name: 'Q' }],
     album: { images: [{ url: 'http://x/y.jpg' }] }
   }
@@ -64,9 +64,9 @@ describe('VinylPlayer', () => {
     const bar = defined(document.querySelector<HTMLElement>('.cursor-pointer'));
     bar.getBoundingClientRect = () => ({ left: 100, width: 200 }) as unknown as DOMRect; // only the fields the component reads
     fireEvent.click(bar, { clientX: 150 });
-    expect(h.onSeek).toHaveBeenLastCalledWith(30000);
+    expect(h.onSeek).toHaveBeenLastCalledWith(30_000);
     fireEvent.click(bar, { clientX: 900 });
-    expect(h.onSeek).toHaveBeenLastCalledWith(120000);
+    expect(h.onSeek).toHaveBeenLastCalledWith(120_000);
     fireEvent.click(bar, { clientX: 0 });
     expect(h.onSeek).toHaveBeenLastCalledWith(0);
   });
@@ -75,9 +75,9 @@ describe('VinylPlayer', () => {
     const h = setup();
     const bar = screen.getByRole('slider', { name: 'Seek' });
     fireEvent.keyDown(bar, { key: 'ArrowRight' });
-    expect(h.onSeek).toHaveBeenLastCalledWith(35000);
+    expect(h.onSeek).toHaveBeenLastCalledWith(35_000);
     fireEvent.keyDown(bar, { key: 'ArrowLeft' });
-    expect(h.onSeek).toHaveBeenLastCalledWith(25000);
+    expect(h.onSeek).toHaveBeenLastCalledWith(25_000);
   });
 
   it('reports volume changes', () => {

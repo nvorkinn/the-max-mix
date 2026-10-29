@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { resetSpotifyMocks } from '../test/spotifyMocks';
+import { SpotifyApiError } from '../spotify/http';
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 
 const mocks = await vi.hoisted(async () => {
@@ -61,7 +62,7 @@ describe('useSpotifyPlayer', () => {
   it('surfaces connection errors and signs out the view on a revoked login', async () => {
     mocks.settings.isDemoMode.mockReturnValue(false);
     mocks.auth.isSignedIn.mockReturnValueOnce(true).mockReturnValue(false);
-    mocks.api.getPlaybackState.mockRejectedValue(Object.assign(new Error('Not logged in'), { status: 401 }));
+    mocks.api.getPlaybackState.mockRejectedValue(new SpotifyApiError('Not logged in', 401));
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.error).toBe('Not logged in'));
     expect(result.current.isAuthenticated).toBe(false);

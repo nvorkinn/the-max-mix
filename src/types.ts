@@ -1,8 +1,5 @@
 /** Shared types for the Spotify data the app reads and the Web Playback SDK parts it uses. */
 
-/** Error thrown by the Spotify calls (see spotify/api). */
-export type ApiError = Error & { status?: number; retryAfter?: number };
-
 /** A track in the party queue, in a search result or in Spotify playback. */
 export interface Track {
   id?: string;

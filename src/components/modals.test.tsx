@@ -34,9 +34,9 @@ describe('QRCodeModal', () => {
     const onClose = vi.fn();
     const { container } = render(<QRCodeModal isOpen onClose={onClose} remoteUrl="http://192.168.1.5/remote" />);
     expect(screen.getByRole('link')).toHaveAttribute('href', 'http://192.168.1.5/remote');
-    expect(container.querySelector('svg[role="img"], svg')).toBeTruthy();
+    expect(container.querySelector('svg')).toBeInTheDocument();
     await userEvent.click(defined(screen.getAllByRole('button')[0]));
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -3,6 +3,7 @@ import type { Mock } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { installCanvasStub, stubMatchMedia } from '../test/canvas';
 import { defined } from '../test/defined';
+import { SpotifyApiError } from '../spotify/http';
 import TabletView from './TabletView';
 
 const player = vi.hoisted(() => {
@@ -123,7 +124,7 @@ describe('TabletView', () => {
 
   it('backs off and surfaces queue polling errors, then recovers', async () => {
     vi.useFakeTimers();
-    const rateLimited = Object.assign(new Error('Slow down'), { retryAfter: 30 });
+    const rateLimited = new SpotifyApiError('Slow down', 429, 30);
     api.getQueue.mockRejectedValueOnce(rateLimited).mockResolvedValue({ queue: queued });
     render(<TabletView />);
     await act(async () => {
@@ -131,7 +132,7 @@ describe('TabletView', () => {
     });
     expect(screen.getByRole('alert')).toHaveTextContent('Slow down');
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(29000);
+      await vi.advanceTimersByTimeAsync(29_000);
     });
     expect(api.getQueue).toHaveBeenCalledTimes(1);
     await act(async () => {
@@ -193,7 +194,7 @@ describe('TabletView', () => {
       await vi.advanceTimersByTimeAsync(0);
     });
     unmount();
-    await vi.advanceTimersByTimeAsync(60000);
+    await vi.advanceTimersByTimeAsync(60_000);
     expect(api.getQueue).toHaveBeenCalledTimes(1);
   });
 
