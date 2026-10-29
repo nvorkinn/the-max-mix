@@ -131,7 +131,7 @@ export default function SettingsModal({ isOpen, onClose, authInfo, currentTheme 
                 ? `Connected to Spotify. Playback mode: ${authInfo.playbackMode}.`
                 : authInfo?.configured
                   ? 'Sign in with a Spotify Premium account to control a real device.'
-                  : 'Configure the Spotify client ID and secret in the server environment, then restart.'}
+                  : 'Configure the Spotify client ID in the server environment, then restart.'}
           </p>
         </div>
 
