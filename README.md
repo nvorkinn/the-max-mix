@@ -125,10 +125,12 @@ Revoked logins require signing in again. Never commit `.env` or token files.
 
 ## Releases
 
-To release, set `version` in the root `package.json` (for example `npm version 1.2.3 --no-git-tag-version`), merge
-that, then push a matching tag such as `v1.2.3` (or `v1.2.3-rc.1` with version `1.2.3-rc.1` for a prerelease). The
-release workflow refuses a tag that differs from `package.json`, re-runs the tests and lint on the tagged commit, then
-builds the app and publishes `the-max-mix-v1.2.3.tar.gz`, its `.sha256` and `install-kiosk.sh` to GitHub Releases with
+To release, push a tag such as `v1.2.3` (or `v1.2.3-rc.1` for a prerelease): `git tag v1.2.3 && git push origin v1.2.3`.
+The tag is the only source of the version, so there is nothing to bump first; the `version` fields in the repository's
+`package.json` files are a `0.0.0` placeholder, and the release stamps the real version into the packaged copies. The
+release workflow does not repeat the tests and lint (they run on every pull request and on `main`), so tag a commit on
+`main` whose checks passed. It builds the app and publishes
+`the-max-mix-v1.2.3.tar.gz`, its `.sha256` and `install-kiosk.sh` to GitHub Releases with
 generated notes. The tarball has a build provenance attestation; check a download with
 `gh attestation verify the-max-mix-v1.2.3.tar.gz --repo nvorkinn/the-max-mix`. The tarball holds
 the built UI, the server with production dependencies, the scripts and docs, so it runs without a

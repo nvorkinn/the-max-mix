@@ -1,9 +1,11 @@
 name: Release
 
-# Pushing a version tag (e.g. v1.2.3, or v1.2.3-rc.1 for a prerelease) checks that the tag matches package.json's
-# version, re-runs the Tests and Lint workflows on the tagged commit, then builds the app and publishes the assembled
-# tarball, its checksum and the standalone installer to a GitHub Release with generated notes. The tarball also gets a
-# build provenance attestation: verify a download with `gh attestation verify <file> --repo nvorkinn/the-max-mix`.
+# Pushing a version tag (e.g. v1.2.3, or v1.2.3-rc.1 for a prerelease) builds the app and publishes the assembled
+# tarball, its checksum and the standalone installer to a GitHub Release with generated notes. Lint and tests are not
+# repeated here: the Tests and Lint workflows already run them on pull requests and on main, so tag a commit on main.
+# The tag is the only source of the version: package-release.sh stamps it into the packaged package.json files (the
+# repository keeps a 0.0.0 placeholder). The tarball also gets a build provenance attestation: verify a download with
+# `gh attestation verify <file> --repo nvorkinn/the-max-mix`.
 on:
   push:
     tags: ['v[0-9]+.[0-9]+.[0-9]+*']
@@ -12,31 +14,7 @@ permissions:
   contents: read
 
 jobs:
-  version:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Check the tag matches package.json
-        env:
-          TAG: ${{ github.ref_name }}
-        run: |
-          version=$(node -p "require('./package.json').version")
-          if [[ $TAG != "v$version" ]]; then
-            echo "::error::Tag $TAG does not match the package.json version ($version). Bump the version, merge it, then tag."
-            exit 1
-          fi
-
-  tests:
-    uses: ./.github/workflows/tests.yml
-
-  lint:
-    uses: ./.github/workflows/lint.yml
-
   release:
-    needs: [version, tests, lint]
     runs-on: ubuntu-latest
     permissions:
       contents: write

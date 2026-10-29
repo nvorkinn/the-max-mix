@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Assembles a runnable release tarball from an already-built checkout:
 #   release-out/the-max-mix-<version>.tar.gz (+ .sha256)
-# Contents: server sources with production dependencies, the built client, scripts, and docs.
+# Contents: server sources with production dependencies, the built client, scripts, and docs. The version in the
+# packaged package.json files is set from the argument; the checkout's own files are not changed.
 # Usage: npm run build && bash scripts/package-release.sh v1.2.3
 set -euo pipefail
 
@@ -27,6 +28,10 @@ cp -R "$root/scripts" "$stage/scripts"
 cp -R "$root/client/dist" "$stage/client/dist"
 cp -R "$root/server/src" "$stage/server/src"
 cp "$root/server/package.json" "$root/server/package-lock.json" "$root/server/.env.example" "$stage/server/"
+# The repository keeps a 0.0.0 placeholder; the release version comes from the tag, so stamp it into the copies only.
+for dir in "$stage" "$stage/server"; do
+  (cd "$dir" && npm version "${version#v}" --no-git-tag-version --ignore-scripts --allow-same-version > /dev/null)
+done
 (cd "$stage/server" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund)
 
 COPYFILE_DISABLE=1 tar -czf "$out/$name.tar.gz" -C "$out" "$name"
