@@ -16,3 +16,9 @@ trim_trailing_whitespace = true
 trim_trailing_whitespace = false
 # Prettier indents nested content of numbered lists by 3 spaces, and fenced code inside them to match.
 indent_size = unset
+
+# A binary X cursor file (one transparent pixel).
+[ansible/roles/kiosk/files/icons/left_ptr]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset

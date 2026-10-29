@@ -38,6 +38,7 @@ dpms
 dtoverlay
 edid
 eilish
+equalto
 esac
 extrabold
 faye
@@ -60,6 +61,7 @@ knip
 kylie
 labwc
 lavigne
+lineinfile
 linted
 lipa
 lizzo
@@ -78,6 +80,7 @@ netdev
 nicki
 nikolaivorkinn
 noblank
+nocolor
 noerrdialogs
 nonexistent
 nonint
@@ -86,6 +89,7 @@ norah
 nums
 nvmrc
 nvorkinn
+oneshot
 otherid
 overscroll
 paramore
@@ -98,11 +102,14 @@ qrcode
 raspi
 rebecca
 readlink
+reflash
+reflashing
 regdom
 remi
 rexha
 rihanna
 rootfstype
+rootwait
 rosalia
 rosalía
 scratchable
@@ -111,11 +118,13 @@ shania
 shellcheck
 sonos
 soundwave
+splitlines
 starboy
 stefani
 testclient
 tmpfiles
 tonearm
+tzdata
 uchis
 unconfigured
 upvotes
@@ -223,3 +232,4 @@ ncccc
 cretpass
 longenough
 wrongpass
+zoneinfo
