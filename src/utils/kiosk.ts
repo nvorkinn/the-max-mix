@@ -4,8 +4,13 @@
 
 const KIOSK_KEY = 'maxmix.kiosk';
 
-/** The Wi-Fi setup page that runs on the Pi itself. A constant, so nothing a visitor types can change where it leads. */
-export const WIFI_PORTAL_URL = 'http://127.0.0.1:8088/';
+/** The kiosk image's native Wi-Fi panel, opened by navigating to this custom scheme. A constant, so nothing a visitor types can change where it leads. */
+export const WIFI_SETTINGS_URL = 'kiosk-wifi://open';
+
+/** Asks the kiosk image to show its Wi-Fi panel. A top-level navigation, never window.open. */
+export function openWifiSettings(): void {
+  location.assign(WIFI_SETTINGS_URL);
+}
 
 function read(): boolean {
   try {
