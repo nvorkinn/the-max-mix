@@ -13,7 +13,7 @@
     "kiosk:mac": "bash scripts/start-kiosk-mac.sh",
     "test": "vitest run && node --test \"scripts/test/*.test.mjs\" && bash scripts/test-kiosk.sh",
     "test:coverage": "vitest run --coverage && node --test \"scripts/test/*.test.mjs\"",
-    "test:e2e": "playwright test --config e2e/playwright.config.js",
+    "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "lint": "eslint . --max-warnings 0",
     "lint:shell": "shellcheck scripts/*.sh",
     "lint:md": "markdownlint-cli2",

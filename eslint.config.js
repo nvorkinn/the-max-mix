@@ -17,13 +17,13 @@ import unicorn from 'eslint-plugin-unicorn';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-// The app lives in src/; everything else that is JavaScript is repository tooling.
-const APP_FILES = ['src/**/*.{js,jsx,ts,tsx}'];
-const APP_TEST_FILES = ['src/**/*.test.{js,jsx,ts,tsx}'];
-const TOOLING_FILES = ['**/*.{js,mjs,cjs}'];
+// The app lives in src/; everything else (scripts, e2e, the config files) is repository tooling.
+const APP_FILES = ['src/**/*.{ts,tsx}'];
+const APP_TEST_FILES = ['src/**/*.test.{ts,tsx}'];
+const TOOLING_FILES = ['**/*.{js,mjs,cjs,ts}'];
 const TOOLING_IGNORES = ['src/**'];
 
-// Node's test runner exposes these; a call to any of them with `.only`, `.skip` or `.todo`, or with that option, would
+// The test runners expose these; a call to any of them with `.only`, `.skip` or `.todo`, or with that option, would
 // silently disable other tests once merged.
 const TEST_FUNCTIONS = 'test|it|describe|suite';
 const LEFTOVER_TEST_FLAGS = 'only|skip|todo';
@@ -145,10 +145,8 @@ export default defineConfig([
     }
   },
   {
-    // Node's test runner: leftover `.only` / `.skip` / `.todo` would silently disable the rest of the suite, and the
-    // promises returned by test() and describe() are handled by the runner itself.
-    files: ['**/test/**/*.js', '**/*.test.{js,mjs}'],
-    ignores: TOOLING_IGNORES,
+    // Leftover `.only` / `.skip` / `.todo` would silently disable the rest of a suite, in the Node test runner and in Vitest.
+    files: ['**/test/**/*.{js,mjs,ts,tsx}', '**/*.test.{js,mjs,ts,tsx}'],
     rules: {
       'no-restricted-syntax': [
         'error',
@@ -160,7 +158,14 @@ export default defineConfig([
           selector: `CallExpression[callee.name=/^(${TEST_FUNCTIONS})$/] > ObjectExpression > Property[key.name=/^(${LEFTOVER_TEST_FLAGS})$/]`,
           message: 'Remove the leftover only / skip / todo option so every test runs.'
         }
-      ],
+      ]
+    }
+  },
+  {
+    // Node's test runner: the promises returned by test() and describe() are handled by the runner itself.
+    files: ['**/test/**/*.js', '**/*.test.{js,mjs}'],
+    ignores: TOOLING_IGNORES,
+    rules: {
       // Tests issue requests in order on purpose, so awaiting in a loop is the intent.
       'no-await-in-loop': 'off',
       // Tests use made-up LAN addresses and http://localhost URLs as fixtures for the host and redirect checks.
@@ -193,7 +198,7 @@ export default defineConfig([
   },
 
   // Part 2: the app in src/ (React, browser, Vitest).
-  // Type-aware typescript-eslint over the JS/JSX files, using the types from the JSDoc and tsconfig.app.json.
+  // Type-aware typescript-eslint over the app, using tsconfig.app.json.
   {
     files: APP_FILES,
     extends: [tseslint.configs.strictTypeChecked, tseslint.configs.stylisticTypeChecked],
@@ -231,8 +236,9 @@ export default defineConfig([
       curly: ['error', 'multi-line'],
       'object-shorthand': 'error',
       'prefer-template': 'error',
-      // Several files still import React explicitly.
-      'no-unused-vars': ['error', { varsIgnorePattern: '^React$', caughtErrors: 'none' }],
+      // The base rule misreads parameter names in TypeScript function types as unused variables.
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { caughtErrors: 'none' }],
       // @eslint-react's stricter rules (set-state-in-effect, use-state, web-api-no-leaked-fetch, no-array-index-key,
       // naming-convention-ref-name, dom-no-unknown-property) are enforced as errors. exhaustive-deps is off only because it duplicates
       // react-hooks/exhaustive-deps below.
@@ -311,15 +317,6 @@ export default defineConfig([
           'newlines-between': 'never'
         }
       ]
-    }
-  },
-  {
-    // The base rule misreads parameter names in TypeScript function types as unused variables; TypeScript files use the
-    // typescript-eslint version, with the same options.
-    files: ['src/**/*.{ts,tsx}'],
-    rules: {
-      'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^React$', caughtErrors: 'none' }]
     }
   },
   {
