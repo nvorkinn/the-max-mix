@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { X, Key, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feather, LogOut } from 'lucide-react';
+import { X, Key, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feather, LogOut, Wifi } from 'lucide-react';
 import { signOut, startSignIn } from '../spotify/auth';
 import { errorMessage } from '../utils/errorMessage';
+import { isKiosk, WIFI_PORTAL_URL } from '../utils/kiosk';
 import { getRedirectUri, setDemoMode, setPlaybackMode } from '../spotify/settings';
 
 /** Applies a changed setting by reloading the page, which starts everything again from the stored settings. */
@@ -242,6 +243,20 @@ export default function SettingsModal({
               onReload();
             }}
           />
+          {isKiosk() && (
+            <button
+              type="button"
+              onClick={() => location.assign(WIFI_PORTAL_URL)}
+              className="w-full flex items-center justify-between gap-3 p-3 min-h-14 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 active:scale-98 text-left transition-all"
+            >
+              <span>
+                <span className="block text-xs font-bold text-white">Wi-Fi network</span>
+                <span className="block text-[10px] text-neutral-400 mt-0.5">Change the network this device uses</span>
+              </span>
+              <Wifi className="w-5 h-5 shrink-0 text-[#d5f580]" aria-hidden="true" />
+            </button>
+          )}
+
           <SwitchRow
             label="Demo mode"
             description="Simulated playback and queue, no Spotify account needed."

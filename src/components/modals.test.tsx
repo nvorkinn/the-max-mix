@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '../test/user';
 import { partialProps } from '../test/partialProps';
@@ -141,6 +141,45 @@ describe('SettingsModal', () => {
     expect(screen.queryByText('http://127.0.0.1:3000/')).not.toBeInTheDocument();
     rerender(<SettingsModal {...base} authInfo={{}} signInError="Invalid redirect URI" />);
     expect(screen.getByText('http://127.0.0.1:3000/')).toBeInTheDocument();
+  });
+
+  describe('Wi-Fi network setting', () => {
+    const wifi = () => screen.queryByRole('button', { name: /wi-fi network/i });
+
+    beforeEach(() => {
+      localStorage.clear();
+      history.replaceState(null, '', '/');
+    });
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('is hidden by default and shown after ?kiosk=1, which is remembered on reload', () => {
+      const { unmount } = render(<SettingsModal {...base} authInfo={{}} />);
+      expect(wifi()).not.toBeInTheDocument();
+      unmount();
+      history.replaceState(null, '', '/?kiosk=1');
+      const kiosk = render(<SettingsModal {...base} authInfo={{}} />);
+      expect(wifi()).toHaveTextContent('Change the network this device uses');
+      kiosk.unmount();
+      history.replaceState(null, '', '/');
+      render(<SettingsModal {...base} authInfo={{}} />);
+      expect(wifi()).toBeInTheDocument();
+    });
+
+    it('is forgotten with ?kiosk=0', () => {
+      history.replaceState(null, '', '/?kiosk=1');
+      render(<SettingsModal {...base} authInfo={{}} />).unmount();
+      history.replaceState(null, '', '/?kiosk=0');
+      render(<SettingsModal {...base} authInfo={{}} />);
+      expect(wifi()).not.toBeInTheDocument();
+    });
+
+    it('navigates to the setup portal on the Pi', async () => {
+      const assign = vi.fn();
+      vi.stubGlobal('location', { origin: 'http://x', search: '?kiosk=1', assign });
+      render(<SettingsModal {...base} authInfo={{}} />);
+      await userEvent.click(defined(wifi()));
+      expect(assign).toHaveBeenCalledWith('http://127.0.0.1:8088/');
+    });
   });
 
   it('signs out and reloads', async () => {

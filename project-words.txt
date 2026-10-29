@@ -115,6 +115,7 @@ vercel
 waveshare
 weeknd
 widevine
+wifi
 winehouse
 writable
 xauthority

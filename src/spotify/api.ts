@@ -5,6 +5,7 @@ import type { PlaybackState, SpotifyDevice, Track } from '../types';
 import { discardAccessToken, getAccessToken, isSignedIn } from './auth';
 import { createDemoPlayer, DEMO_ONLY_MESSAGE } from './demo';
 import { fetchSpotify, parseJson, readJson, SpotifyApiError } from './http';
+import { isRecord, parseDevices, parsePlaybackState, parseQueue } from './parse';
 import { isDemoMode } from './settings';
 
 export { SpotifyApiError } from './http';
@@ -21,8 +22,8 @@ const MESSAGES: Record<number, string> = {
 /** Spotify's own explanation of a refused request, when it gave one ({"error": {"message": "..."}}). */
 async function spotifyReason(response: Response): Promise<string> {
   try {
-    const body = parseJson(await response.text()) as { error?: { message?: unknown } } | null;
-    const message = body?.error?.message;
+    const body = parseJson(await response.text());
+    const message = isRecord(body) && isRecord(body['error']) ? body['error']['message'] : undefined;
     return typeof message === 'string' ? message : '';
   } catch {
     return '';
@@ -84,22 +85,15 @@ const settle = async <T>(run: () => T): Promise<T> => {
 
 /** Resolves to null when nothing is playing anywhere. */
 export async function getPlaybackState(): Promise<PlaybackState | null> {
-  return isDemoMode() ? demo.getPlaybackState() : ((await spotifyFetch('/me/player')) as PlaybackState | null);
+  return isDemoMode() ? demo.getPlaybackState() : parsePlaybackState(await spotifyFetch('/me/player'));
 }
 
 export async function getQueue(): Promise<{ currently_playing: Track | null; queue: Track[] }> {
-  if (isDemoMode()) return demo.getQueue();
-  const data = (await spotifyFetch('/me/player/queue')) as {
-    currently_playing?: Track | null;
-    queue?: Track[];
-  } | null;
-  return { currently_playing: data?.currently_playing ?? null, queue: data?.queue ?? [] };
+  return isDemoMode() ? demo.getQueue() : parseQueue(await spotifyFetch('/me/player/queue'));
 }
 
 export async function getDevices(): Promise<{ devices: SpotifyDevice[] }> {
-  if (isDemoMode()) return demo.getDevices();
-  const data = (await spotifyFetch('/me/player/devices')) as { devices?: SpotifyDevice[] } | null;
-  return { devices: data?.devices ?? [] };
+  return isDemoMode() ? demo.getDevices() : parseDevices(await spotifyFetch('/me/player/devices'));
 }
 
 export async function transferPlayback(deviceId: string, startPlaying = false): Promise<{ success: true }> {

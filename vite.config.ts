@@ -1,8 +1,10 @@
+import tailwindcss from '@tailwindcss/postcss';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react()],
+  css: { postcss: { plugins: [tailwindcss()] } },
   server: {
     // Spotify requires a loopback IP literal for http redirect URIs, so dev serves on exactly http://127.0.0.1:5173/
     // (register that address in the Spotify dashboard) and fails rather than moving to another port.

@@ -2,21 +2,18 @@
 // markdownlint, yamllint and Stylelint. Type checking is whole-project, so it only runs in CI (`npm run typecheck`).
 // Each file matches one pattern, so its Prettier and ESLint tasks run one after the other, never concurrently.
 import path from 'node:path';
-/** @param {string[]} files */
-const quote = files => files.map(file => JSON.stringify(file)).join(' ');
+
+const quote = (files: string[]) => files.map(file => JSON.stringify(file)).join(' ');
 const prettier = 'prettier --write';
-/** @param {string[]} files */
-const lint = files => `eslint --max-warnings 0 --no-warn-ignored ${quote(files)}`;
+const lint = (files: string[]) => `eslint --max-warnings 0 --no-warn-ignored ${quote(files)}`;
 // ShellCheck is a system tool, not an npm dependency: skip it (CI still runs it) rather than block the commit.
-/** @param {string[]} files */
-const shellcheck = files =>
+const shellcheck = (files: string[]) =>
   `bash -c 'command -v shellcheck >/dev/null || { echo "shellcheck not installed; skipping"; exit 0; }; shellcheck "$@"' _ ${quote(files)}`;
 
 // Prettier for every data/doc file, then the package.json and lockfile checks on the staged manifests (npmPkgJsonLint takes
 // directories). The whole-repo lockfile sync check (`npm ci --dry-run`) only runs in CI.
-/** @param {string[]} files */
-const formatAndLintData = files => {
-  const named = (/** @type {string} */ name) => files.filter(file => path.basename(file) === name);
+const formatAndLintData = (files: string[]) => {
+  const named = (name: string) => files.filter(file => path.basename(file) === name);
   const manifests = named('package.json');
   const lockfiles = named('package-lock.json');
   return [
@@ -33,21 +30,19 @@ const formatAndLintData = files => {
 const tasks = {
   '{*.{js,mjs,ts},{src,scripts,e2e}/**/*.{js,mjs,ts,tsx}}': [prettier, lint],
   '{scripts,pi/wifi}/*.sh': shellcheck,
-  '*.md': [prettier, (/** @type {string[]} */ files) => `markdownlint-cli2 ${quote(files)}`],
-  '*.{yml,yaml}': [prettier, (/** @type {string[]} */ files) => `yamllint ${quote(files)}`],
-  '*.css': [prettier, (/** @type {string[]} */ files) => `stylelint --max-warnings 0 ${quote(files)}`],
+  '*.md': [prettier, (files: string[]) => `markdownlint-cli2 ${quote(files)}`],
+  '*.{yml,yaml}': [prettier, (files: string[]) => `yamllint ${quote(files)}`],
+  '*.css': [prettier, (files: string[]) => `stylelint --max-warnings 0 ${quote(files)}`],
   '*.{json,html}': formatAndLintData
 };
 
 // Spelling and .editorconfig checks run last in every pattern's task list, so they never race with Prettier's rewrite.
 // editorconfig-checker is a system binary like ShellCheck: skipped, not failed, when it is not installed (CI still runs it).
-/** @param {string[]} files */
-const spelling = files => `cspell --no-progress --no-must-find-files ${quote(files)}`;
-/** @param {string[]} files */
-const editorconfig = files =>
+const spelling = (files: string[]) => `cspell --no-progress --no-must-find-files ${quote(files)}`;
+const editorconfig = (files: string[]) =>
   `bash -c 'command -v editorconfig-checker >/dev/null || { echo "editorconfig-checker not installed; skipping"; exit 0; }; editorconfig-checker "$@"' _ ${quote(files)}`;
-/** @param {string | ((files: string[]) => string | string[]) | (string | ((files: string[]) => string | string[]))[]} task */
-const withChecks = task => (/** @type {string[]} */ files) => {
+type Task = string | ((files: string[]) => string | string[]);
+const withChecks = (task: Task | Task[]) => (files: string[]) => {
   const own = (Array.isArray(task) ? task : [task]).flatMap(item =>
     typeof item === 'function' ? item(files) : `${item} ${quote(files)}`
   );
