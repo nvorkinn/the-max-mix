@@ -19,14 +19,14 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
   const [searchResults, setSearchResults] = useState(/** @type {import('../types.js').Track[]} */ ([]));
   const [searching, setSearching] = useState(false);
 
-  /** @param {import('react').FormEvent} e */
+  /** @param {import('react').SubmitEvent} e */
   const handleSearch = async e => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     setSearching(true);
     try {
       const results = await onSearchSpotify(searchQuery);
-      setSearchResults(results || []);
+      setSearchResults(results ?? []);
     } catch (err) {
       console.error(err);
     } finally {

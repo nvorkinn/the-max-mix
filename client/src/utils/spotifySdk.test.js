@@ -11,7 +11,7 @@ describe('loadSpotifySDK', () => {
     vi.resetModules();
     delete win.Spotify;
     delete win.onSpotifyWebPlaybackSDKReady;
-    document.head.innerHTML = '';
+    document.head.replaceChildren();
     ({ loadSpotifySDK } = await import('./spotifySdk.js'));
   });
   afterEach(() => vi.useRealTimers());
