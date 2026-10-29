@@ -6,7 +6,6 @@ spotify-token.json.*.tmp
 .DS_Store
 *.log
 .idea/
-release-out
 coverage
 playwright-report
 test-results

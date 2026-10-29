@@ -5,7 +5,7 @@
   "description": "THE MAX MIX: a fun collaborative Spotify tablet for Raspberry Pi 4 with Waveshare 7-inch touchscreen",
   "license": "MIT",
   "scripts": {
-    "start": "node scripts/serve.mjs",
+    "start": "npm --prefix client run preview",
     "dev": "npm --prefix client run dev",
     "build": "npm --prefix client run build",
     "kiosk:mac": "bash scripts/start-kiosk-mac.sh",

@@ -17,14 +17,7 @@ const LEFTOVER_TEST_FLAGS = 'only|skip|todo';
 
 export default defineConfig([
   {
-    ignores: [
-      'client/**',
-      'node_modules/**',
-      'release-out/**',
-      'coverage/**',
-      'e2e/playwright-report/**',
-      'e2e/test-results/**'
-    ]
+    ignores: ['client/**', 'node_modules/**', 'coverage/**', 'e2e/playwright-report/**', 'e2e/test-results/**']
   },
   js.configs.recommended,
   {
@@ -122,14 +115,13 @@ export default defineConfig([
       // Early-return responses such as `return res.end()` are idiomatic in request handlers; the rule flags them as
       // returning a void expression.
       '@typescript-eslint/no-confusing-void-expression': 'off',
-      // process.exit() is only used by entry points (the static server's shutdown handler, repository scripts), where exiting
+      // process.exit() is only used by entry points (repository scripts), where exiting
       // the process is the intent; the rule targets libraries.
       'n/no-process-exit': 'off',
       // Private application, never published, so devDependencies (eslint plugins, test helpers) may be imported freely.
       'n/no-unpublished-import': 'off',
-      // detect-non-literal-fs-filename flags every fs call whose path is not a string literal, such as temporary test
-      // directories and the files scripts/serve.mjs serves. That server validates each request path itself (see its
-      // tests), which a lint rule cannot see, so the rule only produced false positives.
+      // detect-non-literal-fs-filename flags every fs call whose path is not a string literal, such as the temporary
+      // directories the script tests create. It only produced false positives here.
       'security/detect-non-literal-fs-filename': 'off',
       // detect-object-injection flags every `object[variable]`, which is how maps and lookups are normally written.
       // It cannot tell safe keys from unsafe ones, and noUncheckedIndexedAccess already covers the real risk.
@@ -157,6 +149,8 @@ export default defineConfig([
       // Tests use made-up LAN addresses and http://localhost URLs as fixtures for the host and redirect checks.
       'sonarjs/no-hardcoded-ip': 'off',
       'sonarjs/no-clear-text-protocols': 'off',
+      // The kiosk installer tests feed it plain http addresses on purpose, to check that only loopback ones are accepted.
+      'unicorn/prefer-https': 'off',
       // Catches `assert.rejects(...)` / `assert.doesNotReject(...)` without await, which would pass whatever happens.
       // Test doubles are async only to return a promise like the real thing, and test bodies need not await.
       '@typescript-eslint/require-await': 'off',

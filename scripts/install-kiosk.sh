@@ -1,166 +1,150 @@
 #!/usr/bin/env bash
-# Installs THE MAX MIX from a GitHub Release: no git checkout and no build on the device.
-# Usage: bash install-kiosk.sh [vX.Y.Z]    (default: the latest release; an older tag rolls back)
-# Environment: KIOSK_INSTALL_DIR (default ~/the-max-mix), KIOSK_REPO (default nvorkinn/the-max-mix),
-#              KIOSK_KEEP_RELEASES (how many releases to keep on disk, default 3)
-# The Spotify client ID is baked into the release's built files at build time, so it is not asked for here.
-# Runtime settings (PORT, HOST) live in $KIOSK_INSTALL_DIR/kiosk.env, created from the release's template on first
-# install and kept across upgrades and rollbacks.
+# Sets up the THE MAX MIX kiosk on Raspberry Pi OS: Chromium opens the hosted site in fullscreen after desktop login.
+# Nothing runs a server on the device and nothing is built there; the app is the hosted site.
+# Usage: bash install-kiosk.sh        (from a checkout, or fetched with curl from GitHub, see the README)
+# Environment: KIOSK_URL (the address to open; default https://spotify.dev.nikolaivorkinn.com/. Only https, or
+#              http://127.0.0.1 and http://localhost for local testing, are accepted),
+#              KIOSK_INSTALL_DIR (default ~/.local/share/the-max-mix), KIOSK_REPO (default nvorkinn/the-max-mix) and
+#              KIOSK_REF (default main), which say where the kiosk scripts are downloaded from when this is not run from a checkout.
+# The address is kept in ~/.config/the-max-mix/kiosk.env. It is created on first install and left alone on a re-run,
+# unless KIOSK_URL is given again.
 set -euo pipefail
+
+default_url=https://spotify.dev.nikolaivorkinn.com/
 
 if [[ $(uname -s) != Linux || $(id -u) -eq 0 ]]; then
   echo "Run this installer on Raspberry Pi OS as the normal desktop user, not with sudo." >&2
   exit 1
 fi
-for dependency in node curl tar systemctl; do
+for dependency in curl systemctl; do
   command -v "$dependency" >/dev/null || { echo "Missing dependency: $dependency" >&2; exit 1; }
 done
-node -e 'if (Number(process.versions.node.split(".")[0]) < 24) { console.error("Node.js 24 or newer is required; use Node.js 24 LTS."); process.exit(1); }'
+
+valid_url() {
+  # https anywhere, plain http only for this machine. No quotes, spaces, backslashes, dollars, backticks or percent signs,
+  # so the value is safe in the env file, the systemd unit and the shell.
+  local characters='[A-Za-z0-9._~:/?&=+,@-]'
+  local pattern="^(https://${characters}+|http://(127\\.0\\.0\\.1|localhost)(:[0-9]{1,5})?(/${characters}*)?)\$"
+  [[ $1 =~ $pattern ]]
+}
 
 repo=${KIOSK_REPO:-nvorkinn/the-max-mix}
+ref=${KIOSK_REF:-main}
 if [[ ! $repo =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
   echo "KIOSK_REPO must look like owner/name." >&2
   exit 1
 fi
-keep=${KIOSK_KEEP_RELEASES:-3}
-if [[ ! $keep =~ ^[1-9][0-9]*$ ]]; then
-  echo "KIOSK_KEEP_RELEASES must be a positive integer." >&2
+if [[ ! $ref =~ ^[A-Za-z0-9._/-]+$ ]]; then
+  echo "KIOSK_REF may contain only letters, digits, dots, slashes, underscores and hyphens." >&2
   exit 1
 fi
-install=${KIOSK_INSTALL_DIR:-$HOME/the-max-mix}
+install=${KIOSK_INSTALL_DIR:-$HOME/.local/share/the-max-mix}
 if [[ $install != /* || $install == *$'\n'* || $HOME == *$'\n'* ]]; then
   echo "The install directory must be an absolute path without newlines." >&2
   exit 1
 fi
-node_bin=$(command -v node)
-username=$(id -un)
+config_dir=$HOME/.config/the-max-mix
+config=$config_dir/kiosk.env
 
-download() { curl --fail --silent --show-error --location --output "$2" "$1"; }
-
-tag=${1:-}
-if [[ -z $tag ]]; then
-  latest=$(curl --fail --silent --show-error --location --output /dev/null \
-    --write-out '%{url_effective}' "https://github.com/$repo/releases/latest")
-  tag=${latest##*/}
-fi
-if [[ ! $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-  echo "Could not determine a release version (got '$tag'). Pass one explicitly, e.g. v1.2.3." >&2
-  exit 1
-fi
-
-name=the-max-mix-$tag
-workdir=$(mktemp -d)
-staging=
-cleanup() { rm -rf "$workdir" ${staging:+"$staging"}; }
-trap cleanup EXIT
-
-release=$install/releases/$tag
-if [[ ! -d $release ]]; then
-  echo "Downloading $name from $repo..."
-  base=https://github.com/$repo/releases/download/$tag
-  download "$base/$name.tar.gz" "$workdir/$name.tar.gz"
-  download "$base/$name.tar.gz.sha256" "$workdir/$name.tar.gz.sha256"
-  node --input-type=module - "$workdir/$name.tar.gz" "$workdir/$name.tar.gz.sha256" "$name.tar.gz" <<'NODE'
-import fs from 'node:fs';
-import crypto from 'node:crypto';
-const [archive, checksum, expectedName] = process.argv.slice(2);
-const [hash, file] = fs.readFileSync(checksum, 'utf8').trim().split(/\s+/);
-const actual = crypto.createHash('sha256').update(fs.readFileSync(archive)).digest('hex');
-if (file?.replace(/^\*/, '') !== expectedName || actual !== hash?.toLowerCase()) {
-  console.error(`Checksum verification failed for ${expectedName}; refusing to install.`);
-  process.exit(1);
-}
-NODE
-  mkdir -p "$install/releases"
-  staging=$(mktemp -d "$install/releases/.staging.XXXXXX")
-  tar -xzf "$workdir/$name.tar.gz" -C "$staging"
-  [[ -d $staging/$name ]] || { echo "Unexpected archive layout in $name.tar.gz." >&2; exit 1; }
-  mv "$staging/$name" "$release"
+# Decide the address before anything is written.
+if [[ -n ${KIOSK_URL:-} ]]; then
+  url=$KIOSK_URL
+  write_config=true
+elif [[ -f $config ]]; then
+  # The last KIOSK_URL= line wins (as in systemd); it may be quoted.
+  url=$(sed -n 's/^KIOSK_URL=//p' "$config" | tail -n 1 | tr -d "\"'\r")
+  url=${url:-$default_url}
+  write_config=false
 else
-  echo "$tag is already downloaded; reusing it."
+  url=$default_url
+  write_config=true
 fi
-
-# Configuration lives outside the release so upgrades and rollbacks keep it.
-config=$install/kiosk.env
-if [[ ! -e $config ]]; then
-  [[ -f $release/scripts/kiosk.env.example ]] || { echo "This release has no scripts/kiosk.env.example." >&2; exit 1; }
-  install -m 600 "$release/scripts/kiosk.env.example" "$config"
-fi
-chmod 600 "$config"
-# The last PORT= line wins (as in systemd); it may be quoted. Default 3000 when absent or empty.
-port=$(sed -n 's/^PORT=//p' "$config" | tail -n 1 | tr -d "\"'\r")
-port=${port:-3000}
-if [[ ! $port =~ ^[1-9][0-9]{0,4}$ ]] || (( port > 65535 )); then
-  echo "PORT in $config must be a number from 1 to 65535, got: $port" >&2
+if ! valid_url "$url"; then
+  echo "KIOSK_URL must be an https address (or http://127.0.0.1 or http://localhost for testing) without spaces or quotes, got: $url" >&2
   exit 1
 fi
+
+# The scripts the kiosk runs are copied to the install directory, from this checkout or from GitHub.
+scripts=(start-kiosk.sh start-kiosk-session.sh the-max-mix-kiosk.service)
+source_dir=
+if [[ -n ${BASH_SOURCE[0]:-} ]]; then
+  source_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+fi
+workdir=$(mktemp -d)
+cleanup() { rm -rf "$workdir"; }
+trap cleanup EXIT
+for name in "${scripts[@]}"; do
+  if [[ -n $source_dir && -f $source_dir/$name ]]; then
+    cp "$source_dir/$name" "$workdir/$name"
+  else
+    echo "Downloading $name from $repo ($ref)..."
+    curl --fail --silent --show-error --location --output "$workdir/$name" \
+      "https://raw.githubusercontent.com/$repo/$ref/scripts/$name"
+  fi
+done
 
 sudo -v
 sudo apt-get update
 sudo apt-get install -y chromium curl
 
-node --input-type=module - "$install" "$release" "$HOME" "$username" "$node_bin" "$workdir" "$port" <<'NODE'
-import fs from 'node:fs';
-import path from 'node:path';
-const [install, release, home, user, node, temporary, port] = process.argv.slice(2);
-// Units and autostart entries point at "current" so a new release only needs the symlink and a restart.
-const root = path.join(install, 'current');
-const next = `${root}.new`;
-fs.rmSync(next, { force: true });
-fs.symlinkSync(release, next);
-fs.renameSync(next, root);
-// Releases are pruned by activation time, so touch this one: a rollback counts as the newest.
-fs.utimesSync(release, new Date(), new Date());
-const quoteUnit = value => value.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('%', '%%');
-const shellQuote = value => "'" + value.replaceAll("'", "'\\''") + "'";
-const replacements = { ROOT: root, HOME: home, USER: user, NODE: node, ENV: path.join(install, 'kiosk.env'), URL: `http://127.0.0.1:${port}` };
-const render = name => fs.readFileSync(path.join(release, 'scripts', name), 'utf8')
-  .replace(/@(ROOT|HOME|USER|NODE|ENV|URL)@/g, (_, key) => quoteUnit(replacements[key]));
-fs.writeFileSync(path.join(temporary, 'the-max-mix.service'), render('the-max-mix.service'));
-const userUnits = path.join(home, '.config/systemd/user');
-fs.mkdirSync(userUnits, { recursive: true });
-fs.writeFileSync(path.join(userUnits, 'the-max-mix-kiosk.service'), render('the-max-mix-kiosk.service'));
-const sessionCommand = `/bin/bash ${shellQuote(path.join(root, 'scripts/start-kiosk-session.sh'))}`;
-const labwc = path.join(home, '.config/labwc');
-fs.mkdirSync(labwc, { recursive: true });
-const autostart = path.join(labwc, 'autostart');
-const current = fs.existsSync(autostart) ? fs.readFileSync(autostart, 'utf8') : '';
-const start = '# BEGIN THE MAX MIX KIOSK';
-const end = '# END THE MAX MIX KIOSK';
-const managed = new RegExp(`${start}[\\s\\S]*?${end}\\n?`, 'g');
-fs.writeFileSync(autostart, current.replace(managed, '').trimEnd() + `\n\n${start}\n${sessionCommand} &\n${end}\n`);
-const xdgAutostart = path.join(home, '.config/autostart');
-fs.mkdirSync(xdgAutostart, { recursive: true });
-const desktopPath = path.join(root, 'scripts/start-kiosk-session.sh')
-  .replace(/[\\`"$]/g, '\\$&').replaceAll('%', '%%');
-fs.writeFileSync(path.join(xdgAutostart, 'the-max-mix-kiosk.desktop'),
-  `[Desktop Entry]\nType=Application\nName=THE MAX MIX kiosk\nExec=/bin/bash "${desktopPath}"\nTerminal=false\n`);
-NODE
-sudo install -m 644 "$workdir/the-max-mix.service" /etc/systemd/system/the-max-mix.service
-sudo systemctl daemon-reload
-sudo systemctl enable the-max-mix.service
-sudo systemctl restart the-max-mix.service
+mkdir -p "$install/scripts" "$config_dir"
+for name in start-kiosk.sh start-kiosk-session.sh; do
+  install -m 755 "$workdir/$name" "$install/scripts/$name"
+done
+install -m 644 "$workdir/the-max-mix-kiosk.service" "$install/scripts/the-max-mix-kiosk.service"
+
+if [[ $write_config == true ]]; then
+  printf '# The address THE MAX MIX kiosk opens. Change it, then: systemctl --user restart the-max-mix-kiosk.service\nKIOSK_URL=%s\n' "$url" > "$workdir/kiosk.env"
+  install -m 600 "$workdir/kiosk.env" "$config"
+fi
+chmod 600 "$config"
+
+# Bash 5.2 treats "&" in a replacement string specially; paths are substituted literally below.
+shopt -u patsub_replacement 2>/dev/null || true
+quote_unit() {
+  local value=${1//\\/\\\\}
+  value=${value//\"/\\\"}
+  printf '%s' "${value//%/%%}"
+}
+root=$install
+unit=${workdir}/rendered.service
+rendered=$(<"$install/scripts/the-max-mix-kiosk.service")
+rendered=${rendered//@ROOT@/$(quote_unit "$root")}
+rendered=${rendered//@HOME@/$(quote_unit "$HOME")}
+rendered=${rendered//@ENV@/$(quote_unit "$config")}
+printf '%s\n' "$rendered" > "$unit"
+mkdir -p "$HOME/.config/systemd/user"
+install -m 644 "$unit" "$HOME/.config/systemd/user/the-max-mix-kiosk.service"
+
+# Autostart entries run the session script, which starts the user service. labwc: a managed block that leaves the
+# user's own entries alone. XDG: a desktop entry for desktops that use it.
+session=$root/scripts/start-kiosk-session.sh
+quote="'"
+escaped_quote="'\\''"
+mkdir -p "$HOME/.config/labwc" "$HOME/.config/autostart"
+autostart=$HOME/.config/labwc/autostart
+start_marker='# BEGIN THE MAX MIX KIOSK'
+end_marker='# END THE MAX MIX KIOSK'
+current=
+if [[ -f $autostart ]]; then
+  current=$(awk -v start="$start_marker" -v end="$end_marker" '
+    $0 == start { skip = 1 }
+    !skip { print }
+    $0 == end { skip = 0 }
+  ' "$autostart")
+fi
+{
+  [[ -z $current ]] || printf '%s\n\n' "$current"
+  printf '%s\n/bin/bash %s &\n%s\n' "$start_marker" "'${session//$quote/$escaped_quote}'" "$end_marker"
+} > "$workdir/autostart"
+cp "$workdir/autostart" "$autostart"
+desktop_path=$(printf '%s' "$session" | sed -e 's/[\\`"$]/\\&/g' -e 's/%/%%/g')
+printf '[Desktop Entry]\nType=Application\nName=THE MAX MIX kiosk\nExec=/bin/bash "%s"\nTerminal=false\n' "$desktop_path" \
+  > "$HOME/.config/autostart/the-max-mix-kiosk.desktop"
 systemctl --user daemon-reload
 
-# Keep the active release and the most recently activated ones (KIOSK_KEEP_RELEASES in total); remove the rest.
-node --input-type=module - "$install" "$keep" <<'NODE'
-import fs from 'node:fs';
-import path from 'node:path';
-const [install, keep] = process.argv.slice(2);
-const releases = path.join(install, 'releases');
-const active = fs.realpathSync(path.join(install, 'current'));
-const candidates = fs.readdirSync(releases, { withFileTypes: true })
-  .filter(entry => entry.isDirectory() && /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(entry.name))
-  .map(entry => path.join(releases, entry.name))
-  .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
-for (const directory of candidates.slice(Number(keep))) {
-  if (fs.realpathSync(directory) === active) continue;
-  fs.rmSync(directory, { recursive: true, force: true });
-  console.log(`Removed old release ${path.basename(directory)}.`);
-}
-NODE
-
-echo "Installed $tag. Edit $install/kiosk.env to change PORT or HOST, then: sudo systemctl restart the-max-mix.service"
+echo "Installed. The kiosk will open $url after desktop login."
+echo "Register that address as a redirect URI in the Spotify dashboard (exact match, trailing slash included)."
 echo "Enable Desktop Autologin and disable screen blanking in Raspberry Pi OS, then reboot."
-echo "Server logs: journalctl -u the-max-mix.service -f"
+echo "To change the address, edit $config (or run this again with KIOSK_URL set), then: systemctl --user restart the-max-mix-kiosk.service"
 echo "Kiosk logs: journalctl --user -u the-max-mix-kiosk.service -f"

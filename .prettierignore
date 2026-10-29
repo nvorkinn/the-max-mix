@@ -1,7 +1,6 @@
 node_modules
 dist
 coverage
-release-out
 package-lock.json
 client/public
 playwright-report

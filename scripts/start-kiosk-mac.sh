@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Development approximation of start-kiosk.sh for macOS: same Chromium flags, separate profile.
-# It does not start the server (build the client, then run `npm start`: it serves client/dist) and cannot verify Widevine or touch on the Pi.
+# It opens KIOSK_URL (default: the hosted site). To try a local build instead, run `npm run build && npm start` and set
+# KIOSK_URL to the vite preview address (http://127.0.0.1:4173/). It cannot verify Widevine or touch on the Pi.
 set -euo pipefail
 
 if [[ $(uname -s) != Darwin ]]; then
@@ -21,7 +22,7 @@ if [[ -z $browser || ! -x $browser ]]; then
   exit 1
 fi
 
-url=${KIOSK_URL:-http://127.0.0.1:3000}
+url=${KIOSK_URL:-https://spotify.dev.nikolaivorkinn.com/}
 profile=${KIOSK_PROFILE:-$HOME/Library/Application Support/the-max-mix/chromium-dev}
 timeout=${KIOSK_STARTUP_TIMEOUT:-30}
 if [[ ! $timeout =~ ^[1-9][0-9]*$ ]]; then
@@ -29,9 +30,9 @@ if [[ ! $timeout =~ ^[1-9][0-9]*$ ]]; then
   exit 1
 fi
 deadline=$((SECONDS + timeout))
-until curl --fail --silent --show-error --max-time 2 "${url%/}/api/health" >/dev/null; do
+until curl --fail --silent --show-error --location --max-time 5 --output /dev/null "$url"; do
   if (( SECONDS >= deadline )); then
-    echo "Server did not become ready at $url within $timeout seconds. Run 'npm start' first (after 'npm run build'; it serves the built client)." >&2
+    echo "$url did not answer within $timeout seconds. For a local build run 'npm run build && npm start' first." >&2
     exit 1
   fi
   sleep 1

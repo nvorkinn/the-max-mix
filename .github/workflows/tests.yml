@@ -34,7 +34,7 @@ jobs:
           if-no-files-found: ignore
       - run: npm run build
 
-  # Browser smoke test of the built app in demo mode, served by scripts/serve.mjs. Runs in parallel with `tests` and uses the Google Chrome that
+  # Browser smoke test of the built app in demo mode, served by `vite preview`. Runs in parallel with `tests` and uses the Google Chrome that
   # ships on ubuntu-latest, so no browser download is needed.
   e2e:
     runs-on: ubuntu-latest
@@ -59,14 +59,3 @@ jobs:
             e2e/playwright-report
             e2e/test-results
           if-no-files-found: ignore
-
-  # The Dockerfile's image, started and probed (scripts/test-container.sh). Plain docker, so no actions to pin.
-  container:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - run: docker build --build-arg SPOTIFY_CLIENT_ID=ci1234 --tag the-max-mix:test .
-      - run: bash scripts/test-container.sh the-max-mix:test ci1234
