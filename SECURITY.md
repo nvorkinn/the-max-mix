@@ -14,8 +14,7 @@ Spotify refresh token). You can expect an initial reply within a few days.
 
 ## Threat model
 
-THE MAX MIX is a client-only app: static files that run in the browser. The kiosk serves a prebuilt release from the Pi itself, on
-`127.0.0.1` only. There is no backend of ours and no server-side secret.
+THE MAX MIX is a client-only app: static files that run in the browser. The kiosk is Chromium opening the deployed site. There is no backend of ours and no server-side secret.
 
 - **No client secret.** Sign-in uses the Authorization Code flow with PKCE, which Spotify provides for apps that cannot
   keep a secret. The Spotify client ID is public by design and is a constant in the code (`src/spotify/settings.ts`).
@@ -26,14 +25,12 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
   Spotify account's apps. Access tokens are short-lived and kept in memory only.
 - **Cross-site scripting matters more.** Script running in the page's origin can read `localStorage`. The app renders
   Spotify's text as plain text and ships no user-supplied HTML, but keep the origin dedicated: do not host other apps
-  on the same origin, and keep dependencies up to date. The kiosk's server sends no security headers and the app sets
-  no Content-Security-Policy, because the Spotify Web Playback SDK loads from several hosts.
-- **The kiosk's local server.** It serves static files from the unpacked release with Python's built-in web server,
-  bound to `127.0.0.1` so nothing else on the network can reach it, and it has no API, no token file and no write access.
-  Other users or programs on the Pi itself can reach the port, so treat the Pi as single-user. The installer verifies
-  the release's SHA-256, which is published next to it on the same deployment, so it catches a damaged download but
-  not a compromised deployment: the security of a release is the security of the repository's tags, the `VERCEL_TOKEN`
-  secret and the Vercel account. Protect them with two-factor authentication.
+  on the same origin, and keep dependencies up to date. The site sets `X-Content-Type-Options` and
+  `Referrer-Policy` (in `vercel.json`) but no Content-Security-Policy, because the Spotify Web Playback SDK loads from several hosts.
+- **The kiosk's playbook.** The Pi runs `ansible-pull` against this repository's `main` branch, as the desktop user,
+  with `sudo` for packages, lingering and `raspi-config`. Whoever can push to `main` can change what runs on the Pi,
+  so protect the repository and its branch rules, and pin `-C` to a reviewed tag if you want updates only on request.
+  Chromium keeps its sandbox enabled.
 - **The app is public static code.** Anyone who runs it can sign in with their own Spotify account, and each browser
   keeps its own login; a shared browser profile is a shared login. Only addresses registered as redirect URIs in the
   Spotify dashboard can sign in.

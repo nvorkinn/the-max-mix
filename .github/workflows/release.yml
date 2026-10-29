@@ -2,9 +2,8 @@ name: Release
 
 # Production deploys happen here and only here (vercel.json turns off Vercel's own deploy of main). Push a version tag
 # (git tag v1.2.3 && git push origin v1.2.3) to build the app and deploy it to Vercel production; run it by hand with an
-# existing tag to redeploy that release. The deployment also carries the Raspberry Pi kiosk download under /kiosk/
-# (scripts/install-kiosk.sh fetches it): the-max-mix-latest.tar.gz and its .sha256, a copy named for the version, and
-# latest-version. Needs the repository secrets VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID.
+# existing tag to redeploy that release. The Raspberry Pi kiosk simply opens this deployment. Needs the repository
+# secrets VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID.
 on:
   push:
     tags: ['v*']
@@ -59,21 +58,8 @@ jobs:
       - name: Set the version from the tag
         run: npm version "${TAG#v}" --no-git-tag-version --allow-same-version
       - run: npm ci
+      # Fails the release before anything is deployed if the app does not build. Vercel then builds it again from the same
+      # source with the settings in vercel.json.
       - run: npm run build
-      # The kiosk download is packed from the finished build, before anything else is added, so the tarball holds only the
-      # app itself. The files go into public/kiosk/, which the Vercel build copies into the deployment under /kiosk/.
-      - name: Pack the kiosk download
-        run: |
-          test -f dist/index.html || { echo "::error::The build has no dist/index.html"; exit 1; }
-          version=${TAG#v}
-          mkdir public/kiosk
-          tar -czf "public/kiosk/the-max-mix-$version.tar.gz" -C dist .
-          cp "public/kiosk/the-max-mix-$version.tar.gz" public/kiosk/the-max-mix-latest.tar.gz
-          printf '%s\n' "$version" > public/kiosk/latest-version
-          # The checksum files name the file they sit next to, which is what sha256sum --check needs after a download.
-          (cd public/kiosk && for name in "the-max-mix-$version.tar.gz" the-max-mix-latest.tar.gz; do
-            sha256sum "$name" > "$name.sha256"
-          done)
-          ls -l public/kiosk
       - name: Deploy to Vercel production
         run: npx --yes "$VERCEL_CLI" deploy --prod --yes --token="$VERCEL_TOKEN"
