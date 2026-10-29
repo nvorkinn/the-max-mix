@@ -111,13 +111,6 @@
  */
 
 /**
- * A `screen:reaction` socket event, or its emoji and guest name when drawn as a particle.
- * @typedef {object} Reaction
- * @property {string} [emoji]
- * @property {string} [guestName]
- */
-
-/**
  * Player props shared by AlbumArtPlayer and VinylPlayer.
  * @typedef {object} PlayerControls
  * @property {PlaybackState | null | undefined} playback
