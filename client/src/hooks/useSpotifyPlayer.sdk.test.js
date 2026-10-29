@@ -72,7 +72,7 @@ describe('useSpotifyPlayer browser playback', () => {
   it('registers a Web Playback device and exposes its id', async () => {
     const { result, player } = await connect();
     expect(player.options.name).toBe('THE MAX MIX');
-    act(() => defined(player.listeners.ready)({ device_id: 'web-1' }));
+    act(() => defined(player.listeners['ready'])({ device_id: 'web-1' }));
     expect(result.current.browserDeviceId).toBe('web-1');
   });
 
@@ -96,8 +96,8 @@ describe('useSpotifyPlayer browser playback', () => {
 
   it('clears the device and warns when the tablet player disconnects', async () => {
     const { result, player } = await connect();
-    act(() => defined(player.listeners.ready)({ device_id: 'web-1' }));
-    act(() => defined(player.listeners.not_ready)());
+    act(() => defined(player.listeners['ready'])({ device_id: 'web-1' }));
+    act(() => defined(player.listeners['not_ready'])());
     expect(result.current.browserDeviceId).toBeNull();
     expect(result.current.error).toMatch(/tablet player disconnected/i);
   });
