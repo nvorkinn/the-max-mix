@@ -5,7 +5,7 @@ import { getRedirectUri } from '../spotify/settings';
 import { NETWORK_ERROR_MESSAGE } from '../spotify/http';
 import TabletView from './TabletView';
 
-const state = vi.hoisted(() => ({ player: {} as Record<string, unknown> }));
+const state = vi.hoisted((): { player: Record<string, unknown> } => ({ player: {} }));
 vi.mock('../spotify/api', () => ({ getQueue: vi.fn() }));
 vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => state.player }));
 vi.mock('../utils/colorExtractor', () => ({ extractPalette: vi.fn() }));
@@ -68,7 +68,9 @@ describe('offline state in TabletView', () => {
     state.player = { ...state.player, error: NETWORK_ERROR_MESSAGE };
     render(<TabletView />);
     expect(screen.getByRole('alert')).toHaveTextContent(NETWORK_ERROR_MESSAGE);
-    act(() => vi.advanceTimersByTime(20_000));
+    act(() => {
+      vi.advanceTimersByTime(20_000);
+    });
     expect(screen.getByRole('alert')).toHaveTextContent('No internet connection');
     expect(screen.queryByText(NETWORK_ERROR_MESSAGE)).not.toBeInTheDocument();
   });

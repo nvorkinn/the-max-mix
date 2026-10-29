@@ -54,13 +54,17 @@ describe('useIsOffline', () => {
 
   it('turns true after network errors persist, and clears when they stop', () => {
     vi.useFakeTimers();
-    const { result, rerender } = renderHook(({ error }) => useIsOffline(error), {
-      initialProps: { error: NETWORK_ERROR_MESSAGE as string | null }
+    const { result, rerender } = renderHook(({ error }: { error: string | null }) => useIsOffline(error), {
+      initialProps: { error: NETWORK_ERROR_MESSAGE }
     });
     expect(result.current).toBe(false);
-    act(() => vi.advanceTimersByTime(19_000));
+    act(() => {
+      vi.advanceTimersByTime(19_000);
+    });
     expect(result.current).toBe(false);
-    act(() => vi.advanceTimersByTime(1_000));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
     expect(result.current).toBe(true);
     rerender({ error: null });
     expect(result.current).toBe(false);
@@ -69,7 +73,9 @@ describe('useIsOffline', () => {
   it('ignores other errors', () => {
     vi.useFakeTimers();
     const { result } = renderHook(() => useIsOffline('Spotify said no'));
-    act(() => vi.advanceTimersByTime(60_000));
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
     expect(result.current).toBe(false);
   });
 });

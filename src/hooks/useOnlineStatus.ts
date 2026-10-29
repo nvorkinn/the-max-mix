@@ -28,8 +28,7 @@ export function useIsOffline(playerError: string | null | undefined): boolean {
   const [failingLong, setFailingLong] = useState(false);
   const networkFailing = playerError === NETWORK_ERROR_MESSAGE;
   useEffect(() => {
-    if (!networkFailing) return undefined;
-    const timer = setTimeout(() => setFailingLong(true), NETWORK_FAILURE_GRACE_MS);
+    const timer = networkFailing ? setTimeout(() => setFailingLong(true), NETWORK_FAILURE_GRACE_MS) : undefined;
     return () => {
       clearTimeout(timer);
       setFailingLong(false);
