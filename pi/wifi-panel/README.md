@@ -37,15 +37,10 @@ Without `--can-cancel` there is no way to leave except connecting.
 
 ## Install
 
-As root, on a live Pi or inside an image-build chroot (idempotent, no network):
-
-```bash
-sudo pi/wifi-panel/install.sh
-```
-
-It copies the app to `/opt/the-max-mix/wifi-panel` and writes the launcher `/usr/local/bin/wifi-panel`. The apt
-packages in [`packages.txt`](packages.txt) (Raspberry Pi OS trixie, arm64; PySide6 6.8 is in the Debian archive) must be
-installed first. The script stops with a message if PySide6 cannot be imported.
+The Ansible role in [`ansible/roles/kiosk`](../../ansible/roles/kiosk) installs it: the apt packages in
+[`packages.txt`](packages.txt) (Raspberry Pi OS trixie, arm64; PySide6 6.8 is in the Debian archive), the files in this
+directory into `/opt/the-max-mix/wifi-panel`, and the launcher `/usr/local/bin/wifi-panel`. A change here reaches a deployed
+Pi through its `ansible-pull` timer.
 
 ## Running
 

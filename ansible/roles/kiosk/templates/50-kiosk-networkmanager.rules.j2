@@ -1,6 +1,7 @@
+// {{ ansible_managed }}
 // The kiosk user manages Wi-Fi connections through NetworkManager without sudo.
 polkit.addRule(function (action, subject) {
-  if (action.id.indexOf('org.freedesktop.NetworkManager.') === 0 && subject.user === 'kiosk') {
+  if (action.id.indexOf('org.freedesktop.NetworkManager.') === 0 && subject.user === '{{ kiosk_user }}') {
     return polkit.Result.YES;
   }
 });

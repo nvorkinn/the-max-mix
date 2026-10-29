@@ -33,9 +33,16 @@ The fast rebuild keeps pi-gen's build container (`PRESERVE_CONTAINER=1`, `CONTIN
 [apt-cacher-ng](https://www.unix-ag.uni-kl.de/~bloch/acng/) (for example in a Docker container) and set
 `APT_PROXY=http://host.docker.internal:3142` when running the script; it works without a proxy too.
 
-`stage-kiosk` runs after `stage2` and is the only stage exported as an image. It installs the packages in
-`stage-kiosk/00-packages/00-packages` and the Wi-Fi panel (`pi/wifi-panel/`), then copies everything under `pi/rootfs/` into the
-image and enables the services.
+`stage-kiosk` runs after `stage2` and is the only stage exported as an image. It holds no configuration of its own:
+`00-packages` installs Ansible, git and `python3-apt`, and `01-install/00-run.sh` runs the playbook
+[`ansible/local.yml`](../../ansible/local.yml) inside the image's chroot with `kiosk_image_build=true`, so services are
+enabled and nothing is started. [`prepare.sh`](prepare.sh) only copies `ansible/` and `pi/wifi-panel/` into the stage, the
+one directory pi-gen's build can see. Everything installed and configured on the device is in the Ansible role
+([`ansible/roles/kiosk`](../../ansible/roles/kiosk)); [`config`](config) keeps pi-gen's own base settings (host name, the
+`kiosk` user, locale, keyboard, Wi-Fi country, no SSH), which the playbook sets again.
+
+The image bakes in the same `kiosk_pull_ref` (`stable`) that the device's update timer pulls. Reflashing is only for fresh
+devices: a deployed one gets playbook changes by `ansible-pull` (see the [README](../../README.md#raspberry-pi-kiosk)).
 
 ## Flash
 
@@ -55,6 +62,9 @@ image and enables the services.
    `network-test.debian.org`, set in `/etc/NetworkManager/conf.d/20-connectivity.conf`). If it does, it runs Chromium; if
    not, it runs `/usr/local/bin/wifi-panel` until it connects.
 5. The panel offers Cancel only when a connection already works. Connect, and the session loop starts Chromium.
+6. `kiosk-pull.timer` runs the first `ansible-pull` three minutes after boot and then every four hours. If there is no
+   network yet, or the `stable` ref does not exist, the run fails and only logs (`journalctl -u kiosk-pull`); the kiosk is
+   not affected. A pull that changed kiosk files makes `kiosk-restart.timer` restart the kiosk at 04:30.
 
 The app's Wi-Fi button (shown with `?kiosk=1`) opens `kiosk-wifi://open`. Chromium's managed policy lets
 `https://the-max-mix.vercel.app` do that without a prompt, `xdg-open` finds `kiosk-wifi.desktop` through
@@ -96,4 +106,7 @@ Nobody has built or booted this yet. On the first real image, check:
    `xdg-open` runs the handler with no desktop was checked, Chromium's side was not. If Chromium shows an "open this
    app?" prompt or nothing happens, check `chrome://policy` for `AutoLaunchProtocolsFromOrigins`.
 4. **Reboot:** it goes straight to the app.
-5. **Cursor:** none shows. If one does, the transparent theme in `/usr/share/icons/blank` is not being picked up.
+5. **Updates:** with a `stable` ref pushed, `sudo systemctl start kiosk-pull` on a live Pi pulls and applies it (journal:
+   `journalctl -u kiosk-pull`) and a second run changes nothing. A pull with no network or a missing ref fails without
+   touching the kiosk. After a change to a kiosk file, `/run/kiosk/restart-needed` exists until the 04:30 restart.
+6. **Cursor:** none shows. If one does, the transparent theme in `/usr/share/icons/blank` is not being picked up.

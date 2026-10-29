@@ -47,7 +47,7 @@ jobs:
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-      # pi-gen's build only sees the custom stage's own directory, so the kiosk files and the Wi-Fi panel are copied into it.
+      # pi-gen's build only sees the custom stage's own directory, so the playbook (ansible/) and the Wi-Fi panel are copied into it.
       - name: Stage the repository files for pi-gen
         run: pi/image/prepare.sh
       # pi-gen refuses to switch off the first-boot user rename without a password. This one is random, never printed, and

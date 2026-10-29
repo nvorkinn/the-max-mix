@@ -1,10 +1,14 @@
 ---
-# Sets up Raspberry Pi OS as a THE MAX MIX kiosk: Chromium in fullscreen opens the hosted app after desktop login.
-# Run it on the Pi with ansible-pull as the desktop user (see the README, "Raspberry Pi kiosk installation"):
-#   ansible-pull -U https://github.com/nvorkinn/the-max-mix.git -C main -d ~/.cache/the-max-mix-ansible \
-#     -i localhost, ansible/local.yml
+# The single source of truth for everything installed and configured on the THE MAX MIX kiosk (Raspberry Pi OS Lite,
+# trixie). It runs in three ways, all with this same file:
+#   - in the image build (pi/image): ansible-playbook -c local -i localhost, -e kiosk_image_build=true ansible/local.yml
+#   - on the device, by the kiosk-pull.timer: ansible-pull (see roles/kiosk/templates/kiosk-pull.service.j2)
+#   - by hand, as root on the device: ansible-playbook -c local -i localhost, ansible/local.yml
+# The variables and their defaults are listed in roles/kiosk/defaults/main.yml.
 - name: Set up the THE MAX MIX kiosk
   hosts: localhost
   connection: local
+  # Nothing here needs facts, and gathering them is slow and fragile inside an image-build chroot.
+  gather_facts: false
   roles:
     - kiosk

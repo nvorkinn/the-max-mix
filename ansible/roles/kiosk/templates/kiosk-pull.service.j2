@@ -1,0 +1,19 @@
+# {{ ansible_managed }}
+# Applies this repository's playbook (ansible/local.yml) at kiosk_pull_ref, so a fix reaches a deployed device without
+# reflashing it. A failure only shows up in the journal (journalctl -u kiosk-pull); nothing depends on this unit, so the
+# kiosk keeps running, and the timer tries again later. It never restarts the kiosk: see kiosk-restart.timer.
+[Unit]
+Description=Update THE MAX MIX kiosk with ansible-pull
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=HOME=/root
+Environment=LC_ALL=C.UTF-8
+Environment=ANSIBLE_NOCOLOR=1
+Environment=GIT_TERMINAL_PROMPT=0
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=30min
+ExecStart=/usr/bin/ansible-pull --url {{ kiosk_pull_repo }} --checkout {{ kiosk_pull_ref }} --directory {{ kiosk_pull_dir }} --inventory localhost, ansible/local.yml

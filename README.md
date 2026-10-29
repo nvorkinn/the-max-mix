@@ -69,7 +69,7 @@ Set it up once:
 4. Register the redirect URI of any address you sign in from in the Spotify dashboard (see
    [Spotify configuration](#spotify-configuration)).
 
-The Raspberry Pi kiosk opens the deployed app (see [Raspberry Pi kiosk installation](#raspberry-pi-kiosk-installation)), so
+The Raspberry Pi kiosk opens the deployed app (see [Raspberry Pi kiosk](#raspberry-pi-kiosk)), so
 a release is also how a change reaches the kiosk.
 
 ## Local development
@@ -88,13 +88,13 @@ Register `http://127.0.0.1:5173/` as a redirect URI in the Spotify dashboard to 
 To try the production build (the same files the Pi serves), run
 `npm run build && npm start` and open
 **<http://127.0.0.1:4173/>** (`vite preview`). Register that address too if you want to sign in there. `npm test` runs the
-app and kiosk script tests; `npm run build` checks the frontend production build.
+app and Wi-Fi panel tests; `npm run build` checks the frontend production build.
 
 ### Checks and Git hooks
 
 `npm run check` runs everything CI's Lint workflow runs: `npm run lint` (ESLint with `--max-warnings 0` over the app in `src/` and the repository's own scripts and config files),
 `npm run typecheck` (TypeScript over the app and the TypeScript scripts; the few JavaScript config files are checked through their JSDoc),
-`npm run format:check` (Prettier; `npm run format` fixes) and `npm run lint:shell` (ShellCheck over `scripts/*.sh`).
+`npm run format:check` (Prettier; `npm run format` fixes) and `npm run lint:shell` (ShellCheck over the kiosk shell scripts).
 ShellCheck is a system tool, not an npm package: install it with `brew install shellcheck` or `apt install shellcheck`
 (CI pins 0.11.0).
 
@@ -144,123 +144,41 @@ Spotify no longer accepts `localhost` redirect URIs. HTTP is allowed only with a
 literal loopback address such as `127.0.0.1`; other redirect addresses require HTTPS. Sign in from the same address you
 registered: an address that is not registered cannot sign in.
 
-## Raspberry Pi kiosk image
+## Raspberry Pi kiosk
 
-The simplest way to run the app on a Raspberry Pi 4 or 5 with the Waveshare 7-inch touch screen is the ready-made image:
-flash it with Raspberry Pi Imager (**Use custom**) and power on. It boots straight into the app in Chromium (through the
-Cage kiosk compositor), or shows a Wi-Fi setup panel when there is no connection. See
-[`pi/image/README.md`](pi/image/README.md) for how it is built, what it does and what is still to be verified.
+The kiosk is a Raspberry Pi 4 or 5 with the Waveshare 7-inch 1024x600 touch screen, running the deployed app in Chromium
+under the Cage kiosk compositor, with a Wi-Fi setup panel when there is no connection. Flash the ready-made image with
+Raspberry Pi Imager (**Use custom**) and power on; [`pi/image/README.md`](pi/image/README.md) covers building it, first
+boot, troubleshooting and what is still to be verified on a device.
 
-## Raspberry Pi kiosk installation
+**[Ansible](https://docs.ansible.com) is the single source of truth** for everything installed and configured on the device:
+packages, the `kiosk` user and its service, `kiosk-session`, the `kiosk-wifi://` handler, the Wi-Fi panel, the Chromium
+policy, Plymouth, boot settings (`cmdline.txt`, `config.txt`), locale, time zone, unattended upgrades and the update timer.
+It is one role, [`ansible/roles/kiosk`](ansible/roles/kiosk), run by [`ansible/local.yml`](ansible/local.yml); its
+variables and defaults are in [`defaults/main.yml`](ansible/roles/kiosk/defaults/main.yml). Nothing else configures the
+device, so change the role, not the device.
 
-The Pi runs Chromium in fullscreen kiosk mode and opens the deployed app on Vercel (the address of the `release.yml`
-deployment). An [Ansible](https://docs.ansible.com) playbook in [`ansible/`](ansible), run on the Pi with `ansible-pull`,
-sets it all up. The Pi needs no Node.js and no build, and runs no server of its own.
+- **Image build:** pi-gen installs Ansible and runs the playbook against the image with `kiosk_image_build=true`, which
+  only enables services and starts nothing. Reflash only for a fresh device.
+- **On-device updates:** `kiosk-pull.timer` runs `ansible-pull` 3 minutes after boot and then every 4 hours (with a random
+  delay), against this repository's `stable` ref (`kiosk_pull_ref`). It is public, so no credentials are needed. A
+  deployed Pi therefore gets fixes to the Wi-Fi panel, the session script, the Chromium policy and so on without a
+  reflash. The playbook is idempotent, so repeated runs are safe.
+- **The `stable` ref** is a branch or tag that you create and move yourself when a change is ready for deployed devices:
+  `git push origin <commit>:refs/heads/stable --force`. Never point it at a development branch. Until it exists, pulls
+  fail and only log. The image bakes in the same ref.
+- **A failing pull never affects the kiosk.** Nothing depends on `kiosk-pull.service`; a failure is only in the journal
+  and the next timer run tries again. A pull never restarts the kiosk either: it leaves a marker when kiosk files changed,
+  and `kiosk-restart.timer` restarts the kiosk at 04:30 if the marker is there (a reboot also applies the changes).
+- **Check the last pull:** `journalctl -u kiosk-pull -n 100`, and `systemctl list-timers 'kiosk-*'` for the next runs.
+- **Roll back:** move `stable` back to the earlier commit. Devices return to it at their next pull.
+- **Run it by hand** on a Pi you can log in to, as root, from a clone of the repository:
+  `sudo ansible-playbook -c local -i localhost, ansible/local.yml`, or the same pull the timer runs:
+  `sudo systemctl start kiosk-pull`. Add `--check --diff` to see what it would change.
 
-### 1. Prepare the operating system
-
-Use **Raspberry Pi OS 64-bit Desktop**, a reliable power supply, and a Pi 4 or
-newer. Configure Wi-Fi/Ethernet, an ordinary desktop user, and SSH in Raspberry Pi
-Imager.
-
-In Raspberry Pi OS settings or `sudo raspi-config`:
-
-- Enable **Desktop Autologin** for the kiosk user.
-- Disable **Screen Blanking**.
-- Select the intended audio output for browser playback.
-
-Autologin and fullscreen Chromium are appliance conveniences, not a security
-boundary. Keep SSH key-protected, restrict physical access, and keep the OS and
-browser updated.
-
-### 2. Run the playbook as the desktop user
-
-On the Pi, as the ordinary desktop user (not root; Raspberry Pi OS lets that user run `sudo` without a password, which
-the playbook uses for packages and `raspi-config`; add `--ask-become-pass` if yours asks):
-
-```bash
-sudo apt install -y ansible git
-ansible-pull -U https://github.com/nvorkinn/the-max-mix.git -C main -d ~/.cache/the-max-mix-ansible \
-  -i localhost, ansible/local.yml
-```
-
-The kiosk opens `https://the-max-mix.vercel.app/` (the deployed app) unless you pass another `kiosk_url`: `https://`, or `http://127.0.0.1` and
-`http://localhost` for testing, without spaces or quotes. Register **exactly that address, trailing slash included,** as
-a redirect URI in the Spotify dashboard (`https://the-max-mix.vercel.app/`), then open the kiosk and sign in once in Settings. The playbook opens the address with `?kiosk=1` added, which turns on
-the app's kiosk-only settings; the redirect URI is still the plain address. To
-change a setting, put it in `~/the-max-mix-kiosk.yml` (for example `kiosk_url: ...`) and add `-e @$HOME/the-max-mix-kiosk.yml`
-to the command, so every pull is repeatable. [`ansible/vars.example.yml`](ansible/vars.example.yml) lists the settings
-(`kiosk_url`, `kiosk_user`, `kiosk_startup_timeout`, `kiosk_configure_raspi_config`).
-
-The playbook is idempotent and supports `--check`. It:
-
-- Installs Chromium and curl.
-- Copies the kiosk scripts to `~/.local/share/the-max-mix/scripts` and stores the address in
-  `~/.config/the-max-mix/kiosk.env` (mode 600).
-- Adds the user service `the-max-mix-kiosk.service` (Chromium) and starts it after desktop login: a managed block in the
-  labwc autostart that leaves your own entries alone, plus an XDG autostart entry for desktops that use it. Starting the
-  same user service twice is harmless. It uses Wayland/labwc on current Raspberry Pi OS, with an X11 fallback.
-- Enables lingering for the user, so the user's systemd manager can be reached when a pull runs over SSH or from cron.
-- Turns on desktop autologin and turns off screen blanking with `raspi-config nonint` (once, recorded in
-  `/var/lib/the-max-mix-kiosk/raspi-config.done`; delete that file to apply them again, or set
-  `kiosk_configure_raspi_config: false` to skip them).
-- Does not touch `/boot/firmware/config.txt` or the monitor settings (see step 3).
-
-The kiosk waits for the address to answer before launching Chromium, with a bounded timeout and an automatic service
-retry. The browser keeps its own profile under `~/.config/the-max-mix/chromium`, with its sandbox enabled, so the login
-survives reboots. Then reboot to check it comes up on its own:
-
-```bash
-sudo reboot
-```
-
-### 3. Configure the touchscreen
-
-Connect the display's HDMI input and USB touch connection. Use the desktop's
-display settings to select **1024x600** and the correct orientation. Confirm touch
-coordinates match after rotating.
-
-Current Raspberry Pi OS uses KMS. Prefer EDID/desktop configuration; do not copy
-old `hdmi_group`, `hdmi_mode`, or `display_rotate` settings into a modern setup.
-See `scripts/waveshare-7inch-config.txt` for notes. The playbook intentionally
-does not edit `/boot/firmware/config.txt` or overwrite monitor settings.
-
-### Wi-Fi setup
-
-A fresh Pi has no network, so it cannot run `ansible-pull`. The kiosk image shows a native Wi-Fi panel instead when it is
-offline: see [`pi/wifi-panel/README.md`](pi/wifi-panel/README.md) and [`pi/image/README.md`](pi/image/README.md).
-
-### Operations and updates
-
-```bash
-# Browser logs
-journalctl --user -u the-max-mix-kiosk.service -f
-
-# Restart the browser from the kiosk user's session
-systemctl --user restart the-max-mix-kiosk.service
-```
-
-- **Site updates:** the kiosk opens the live site, so a new release (see [Hosting and releases](#hosting-and-releases))
-  reaches the Pi the next time the page loads; restart the service to reload it now. Nothing is installed on the Pi for
-  that.
-- **Playbook updates and re-runs:** run the same `ansible-pull` command again. It fetches `main`, so use `-C <tag or
-branch>` to pin a version of the playbook.
-- **Change the address:** set `kiosk_url` in `~/the-max-mix-kiosk.yml` and pull again with `-e @$HOME/the-max-mix-kiosk.yml` (the running kiosk is
-  restarted), and register the new address in the Spotify dashboard.
-- **Pull on a schedule (optional):** a user crontab line such as
-  `17 4 * * 0 ansible-pull -U https://github.com/nvorkinn/the-max-mix.git -C main -d $HOME/.cache/the-max-mix-ansible -i
-localhost, ansible/local.yml` (written on one line) applies playbook changes weekly.
-- **Roll back:** pin the playbook with `-C <earlier tag or commit>` and pull again. To undo a site release, redeploy the
-  previous tag with the Release workflow. To remove the kiosk, delete the autostart block in
-  `~/.config/labwc/autostart` and the `~/.config/autostart/the-max-mix-kiosk.desktop` file, then run
-  `systemctl --user disable --now the-max-mix-kiosk.service`.
-
-For a manual launcher, `KIOSK_URL`, `KIOSK_PROFILE` and `KIOSK_STARTUP_TIMEOUT` (seconds, default 120) can be set.
-
-Before leaving the device unattended, verify cold boot without a keyboard,
-touch input, actual audio on the selected output, login persistence across a
-reboot (the login is in the browser profile), network recovery (the page needs the internet), browser restart, and a
-multi-hour temperature/memory soak test. These hardware checks cannot be replaced by the development-machine tests.
+Any change on the device that is not in the role is undone at the next pull (for example, SSH is switched off again unless
+`kiosk_ssh_enabled` is true). A CI job runs the playbook in a Debian trixie container and checks that it is idempotent;
+booting the result on a real Pi is not covered.
 
 References: [Raspberry Pi kiosk guide](https://www.raspberrypi.com/tutorials/how-to-use-a-raspberry-pi-in-kiosk-mode/),
 [Spotify redirect requirements](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri),

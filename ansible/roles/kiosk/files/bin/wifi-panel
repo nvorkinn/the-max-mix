@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /usr/bin/python3 /opt/the-max-mix/wifi-panel/wifi_panel.py "$@"

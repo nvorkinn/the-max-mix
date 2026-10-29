@@ -11,7 +11,7 @@ once every other workflow and check on that commit has passed. Dependabot pull r
 `tests.yml` runs the tests and the production build on every pull request and push to `main`; it no longer lints. It is
 listed in `all-checks.yml`, so Global PR Status waits for it.
 
-`lint.yml` (**Lint**) runs on the same triggers with three jobs: ESLint (`npm run lint`), ShellCheck over `scripts/*.sh`
+`lint.yml` (**Lint**) runs on the same triggers with three jobs: ESLint (`npm run lint`), ShellCheck over the kiosk shell scripts
 and actionlint over `.github/workflows/*.yml`. ShellCheck and actionlint are downloaded as pinned release binaries and
 checked against a SHA-256 before running. It is listed in `all-checks.yml` too.
 
@@ -22,6 +22,9 @@ production is deployed (`vercel.json` turns off Vercel's deploy of `main`). It n
 
 `lint.yml` also lints the Raspberry Pi kiosk playbook in `ansible/` with a pinned `ansible-lint` and `ansible-playbook
 --syntax-check`.
+
+`tests.yml` also runs that playbook as the image build does (`kiosk_image_build=true`) in a Debian trixie container, checks the key files and that
+the units are enabled but not started, and runs it again to check that nothing changes (`ansible/tests/image-build.sh`).
 
 `audit.yml` scans the lockfile weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in
 `all-checks.yml`.

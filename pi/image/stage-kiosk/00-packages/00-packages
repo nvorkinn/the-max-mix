@@ -1,22 +1,5 @@
-# Display: Cage runs one app full screen on Wayland. kbd provides chvt, xkb-data the keyboard layouts.
-cage
-kbd
-xkb-data
-fonts-dejavu-core
-fonts-noto-color-emoji
-# Browser; libwidevinecdm0 is the Widevine DRM module Spotify's player needs. Both come from the Raspberry Pi archive.
-chromium
-rpi-chromium-mods
-libwidevinecdm0
-xdg-utils
-# Boot splash
-plymouth
-plymouth-themes
-# Networking is NetworkManager (already in Raspberry Pi OS); polkit lets the kiosk user manage connections.
-polkitd
-# Audio (Bluetooth comes later)
-pipewire
-pipewire-pulse
-wireplumber
-# Security updates
-unattended-upgrades
+# Just enough to run the playbook, which installs everything else (ansible/roles/kiosk).
+ansible-core
+ca-certificates
+git
+python3-apt
