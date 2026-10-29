@@ -30,7 +30,7 @@ async function setup(t, fetchImpl) {
  * @param {number} [status]
  * @param {Record<string, string>} [headers]
  */
-const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers });
+const json = (body, status = 200, headers = {}) => Response.json(body, { status, headers });
 
 /** @param {SpotifyService} service */
 async function readStored(service) {
@@ -63,7 +63,7 @@ test('OAuth persists only the refresh token with owner-only permissions and rest
   assert.equal((await stat(service.tokenFile)).mode & 0o777, 0o600);
   const restarted = new SpotifyService(options);
   await restarted.initialize();
-  assert(restarted.isAuthenticated());
+  assert.ok(restarted.isAuthenticated());
   const tokens = await Promise.all([restarted.getValidAccessToken(), restarted.getValidAccessToken()]);
   assert.deepEqual(tokens, ['access-2', 'access-2']);
   assert.equal(calls.length, 2, 'Concurrent callers share a single refresh');
@@ -105,7 +105,7 @@ test('a non-JSON 400 from the token endpoint is a SpotifyError and keeps the sav
   service.tokenExpiresAt = 0;
   broken = true;
   await assert.rejects(service.getValidAccessToken(), error => error instanceof SpotifyError && error.status === 502);
-  assert(service.isAuthenticated());
+  assert.ok(service.isAuthenticated());
   assert.equal((await readStored(service)).refreshToken, 'refresh');
 });
 
@@ -147,13 +147,13 @@ test('sign-in uses PKCE: the challenge is the hash of a verifier that only the t
   assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
   assert.equal(url.searchParams.has('client_secret'), false);
   const challenge = url.searchParams.get('code_challenge');
-  assert(challenge, 'the authorize URL carries a code challenge');
+  assert.ok(challenge, 'the authorize URL carries a code challenge');
   assert.equal(calls.length, 0, 'nothing is sent to Spotify before the callback');
 
   await service.handleAuthCallback('the-code', 'state-1');
   assert.equal(calls.length, 1);
   const init = calls[0]?.init;
-  assert(init);
+  assert.ok(init);
   assert.equal(init.headers.Authorization, undefined, 'no client secret, so no Basic authorization');
   const body = init.body;
   assert.equal(body.get('grant_type'), 'authorization_code');
@@ -161,7 +161,7 @@ test('sign-in uses PKCE: the challenge is the hash of a verifier that only the t
   assert.equal(body.get('client_id'), 'test-client');
   assert.equal(body.has('client_secret'), false);
   const verifier = body.get('code_verifier');
-  assert(verifier);
+  assert.ok(verifier);
   assert.match(verifier, /^[A-Za-z0-9_-]{43,128}$/, 'RFC 7636 verifier alphabet and length');
   assert.equal(createHash('sha256').update(verifier).digest('base64url'), challenge);
 });
@@ -184,7 +184,7 @@ test('refreshing a login sends the client ID but no secret', async t => {
   service.tokenExpiresAt = 0;
   assert.equal(await service.getValidAccessToken(), 'access-2');
   const init = calls[1]?.init;
-  assert(init);
+  assert.ok(init);
   assert.equal(init.headers.Authorization, undefined);
   assert.equal(init.body.get('grant_type'), 'refresh_token');
   assert.equal(init.body.get('refresh_token'), 'refresh');
@@ -219,7 +219,7 @@ test('an abandoned sign-in expires', async t => {
   const { service } = await setup(t, async () => json({}));
   service.getAuthUrl('old');
   const pending = service.pendingSignIns.get('old');
-  assert(pending);
+  assert.ok(pending);
   pending.expiresAt = Date.now() - 1;
   await assert.rejects(service.handleAuthCallback('code', 'old'), { status: 400 });
 });
@@ -227,7 +227,7 @@ test('an abandoned sign-in expires', async t => {
 test('abandoned sign-ins cannot pile up', async t => {
   const { service } = await setup(t, async () => json({}));
   for (let i = 0; i < 50; i++) service.getAuthUrl(`state-${i}`);
-  assert(service.pendingSignIns.size <= 20);
+  assert.ok(service.pendingSignIns.size <= 20);
   assert.equal(service.pendingSignIns.has('state-0'), false, 'the oldest is dropped first');
   assert.equal(service.pendingSignIns.has('state-49'), true);
 });

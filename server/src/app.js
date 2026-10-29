@@ -23,6 +23,45 @@ const bodyOf = req => {
   return /** @type {Record<string, unknown>} */ (typeof body === 'object' && body !== null ? body : {});
 };
 
+/** @type {import('express').RequestHandler} */
+const noStore = (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  return next();
+};
+
+/** @param {(req: import('express').Request, res: import('express').Response) => unknown} handler */
+const route =
+  handler =>
+  /** @type {import('express').RequestHandler} */
+  (req, res, next) =>
+    Promise.resolve(handler(req, res)).catch(next);
+
+/**
+ * @param {unknown} value
+ * @param {number} min
+ * @param {number} max
+ * @param {string} label
+ * @returns {asserts value is number}
+ */
+function requireInteger(value, min, max, label) {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < min || value > max) {
+    throw new SpotifyError(`${label} must be an integer between ${min} and ${max}.`, 400);
+  }
+}
+
+/**
+ * @param {Error & { status?: number, retryAfter?: string | null }} error
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+const errorHandler = (error, req, res, next) => {
+  console.error(`${req.method} ${req.path}: ${error.message}`);
+  if (res.headersSent) return next(error);
+  if (error.retryAfter) res.set('Retry-After', error.retryAfter);
+  return res.status(error.status || 500).json({ error: error.message });
+};
+
 /**
  * @param {{
  *   config: Pick<ReturnType<typeof import('./config.js').parseConfig>, 'port' | 'playbackMode' | 'demoMode' | 'allowedHosts'>,
@@ -56,18 +95,7 @@ export function createApp({
   app.use(cookieParser());
   app.use('/api', limiter(limits.api));
   app.use('/api/auth', limiter(limits.auth));
-  /** @type {import('express').RequestHandler} */
-  const noStore = (_req, res, next) => {
-    res.set('Cache-Control', 'no-store');
-    return next();
-  };
   app.use('/api', noStore);
-  /** @param {(req: import('express').Request, res: import('express').Response) => unknown} handler */
-  const route =
-    handler =>
-    /** @type {import('express').RequestHandler} */
-    (req, res, next) =>
-      Promise.resolve(handler(req, res)).catch(next);
   const liveOnly = () => {
     if (config.demoMode) {
       throw new SpotifyError('Turn off DEMO_MODE and restart the server to connect to Spotify.', 409);
@@ -81,19 +109,6 @@ export function createApp({
       );
     }
   };
-  /**
-   * @param {unknown} value
-   * @param {number} min
-   * @param {number} max
-   * @param {string} label
-   * @returns {asserts value is number}
-   */
-  function requireInteger(value, min, max, label) {
-    if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) {
-      throw new SpotifyError(`${label} must be an integer between ${min} and ${max}.`, 400);
-    }
-  }
-
   app.get('/api/health', (_req, res) => {
     const ready = existsSync(path.join(distPath, 'index.html'));
     res.status(ready ? 200 : 503).json({ ready, error: ready ? null : 'Frontend build missing. Run npm run build.' });
@@ -216,7 +231,7 @@ export function createApp({
     route((req, res) => {
       demoOnly();
       const index = demo.queue.findIndex(track => track.id === bodyOf(req).trackId);
-      if (index < 0) throw new SpotifyError('Demo track not found.', 404);
+      if (index === -1) throw new SpotifyError('Demo track not found.', 404);
       const [track] = demo.queue.splice(index, 1);
       if (!track) throw new SpotifyError('Demo track not found.', 404);
       demo.history.push(demo.playback.item);
@@ -236,7 +251,7 @@ export function createApp({
           demo.playback.is_playing = action === 'play';
         } else {
           const source = action === 'next' ? demo.queue : demo.history;
-          if (!source.length) throw new SpotifyError(`No ${action} demo track available.`, 409);
+          if (source.length === 0) throw new SpotifyError(`No ${action} demo track available.`, 409);
           // source is non-empty (checked above), so shift/pop always yield a track.
           const target = /** @type {import('./demo.js').DemoTrack} */ (
             action === 'next' ? source.shift() : source.pop()
@@ -279,18 +294,6 @@ export function createApp({
       if (error) next(new SpotifyError('Frontend build missing. Run npm run build.', 503));
     });
   });
-  /**
-   * @param {Error & { status?: number, retryAfter?: string | null }} error
-   * @param {import('express').Request} req
-   * @param {import('express').Response} res
-   * @param {import('express').NextFunction} next
-   */
-  const errorHandler = (error, req, res, next) => {
-    console.error(`${req.method} ${req.path}: ${error.message}`);
-    if (res.headersSent) return next(error);
-    if (error.retryAfter) res.set('Retry-After', error.retryAfter);
-    return res.status(error.status || 500).json({ error: error.message });
-  };
   app.use(errorHandler);
   return app;
 }

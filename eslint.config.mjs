@@ -21,6 +21,12 @@ export default defineConfig([
     files: ['scripts/install-hooks.js', 'lint-staged.config.js'],
     languageOptions: { sourceType: 'commonjs' },
     // require() is the module system of these files, and husky is an optional dev dependency that they load on purpose.
-    rules: { '@typescript-eslint/no-require-imports': 'off', 'n/no-unpublished-require': 'off' }
+    // unicorn/prefer-module and import-style push towards ESM, which a CommonJS package cannot use.
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+      'n/no-unpublished-require': 'off',
+      'unicorn/prefer-module': 'off',
+      'unicorn/import-style': 'off'
+    }
   }
 ]);

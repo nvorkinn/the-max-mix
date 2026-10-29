@@ -129,9 +129,9 @@ test('installer fetches the latest release, renders units, preserves configurati
 
   const serverUnit = await readFile(path.join(temporary, 'the-max-mix.service'), 'utf8');
   assert.match(serverUnit, /User=kioskuser/);
-  assert(serverUnit.includes(path.join(install, 'current').replaceAll('%', '%%')));
+  assert.ok(serverUnit.includes(path.join(install, 'current').replaceAll('%', '%%')));
   assert.match(serverUnit, /StateDirectoryMode=0700/);
-  assert(!/@ROOT@|@USER@|@NODE@/.test(serverUnit));
+  assert.ok(!/@ROOT@|@USER@|@NODE@/.test(serverUnit));
   const browserUnit = await readFile(path.join(home, '.config/systemd/user/the-max-mix-kiosk.service'), 'utf8');
   assert.match(browserUnit, /KIOSK_URL=http:\/\/127\.0\.0\.1:3999/);
   const autostart = await readFile(path.join(home, '.config/labwc/autostart'), 'utf8');
@@ -189,7 +189,7 @@ test('installer keeps the most recently activated releases and prunes the rest',
       () => true,
       () => false
     );
-  assert.deepEqual(await Promise.all(tags.map(present)), [false, false, true, true]);
+  assert.deepEqual(await Promise.all(tags.map(tag => present(tag))), [false, false, true, true]);
   await access(path.join(install, 'releases/.staging.leftover'));
   assert.equal(await readFile(path.join(install, 'server.env'), 'utf8'), 'KEEP=1\nSPOTIFY_CLIENT_ID=testclient\n');
 
@@ -198,7 +198,7 @@ test('installer keeps the most recently activated releases and prunes the rest',
   assert.equal(await readFile(path.join(install, 'current/VERSION'), 'utf8'), 'v1.2.0\n');
   await new Promise(resolve => setTimeout(resolve, 20));
   await run('bash', [installer, 'v1.1.0'], { env: limited });
-  assert.deepEqual(await Promise.all(tags.map(present)), [false, true, true, false]);
+  assert.deepEqual(await Promise.all(tags.map(tag => present(tag))), [false, true, true, false]);
 });
 
 test('installer never prunes the active release and rejects a bad keep count', async t => {

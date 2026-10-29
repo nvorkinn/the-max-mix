@@ -15,6 +15,9 @@
  * }} QueueItem
  */
 
+/** @type {Guest} */
+const HOST_GUEST = Object.freeze({ id: 'host', name: 'Host' });
+
 export class QueueManager {
   constructor() {
     /** @type {QueueItem[]} */
@@ -25,11 +28,8 @@ export class QueueManager {
 
   getQueue() {
     // Return queue sorted by votes (descending), then addedAt (ascending)
-    return [...this.queue].sort((a, b) => {
-      if (b.votes !== a.votes) {
-        return b.votes - a.votes;
-      }
-      return a.addedAt - b.addedAt;
+    return this.queue.toSorted((a, b) => {
+      return b.votes === a.votes ? a.addedAt - b.addedAt : b.votes - a.votes;
     });
   }
 
@@ -37,7 +37,7 @@ export class QueueManager {
    * @param {TrackInput} track
    * @param {Guest} [guest]
    */
-  addTrack(track, guest = { id: 'host', name: 'Host' }) {
+  addTrack(track, guest = HOST_GUEST) {
     // Check if track is already in queue
     const existing = this.queue.find(item => item.id === track.id);
     if (existing) {
@@ -46,7 +46,7 @@ export class QueueManager {
     }
 
     const queueItem = {
-      id: track.id || `track_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      id: track.id || `track_${Date.now()}_${Math.random().toString(36).slice(7)}`,
       uri: track.uri || `spotify:track:${track.id}`,
       title: track.title || track.name || 'Unknown Title',
       artist: track.artist || (track.artists ? track.artists.map(a => a.name).join(', ') : 'Unknown Artist'),
