@@ -24,10 +24,10 @@ It is not logged. Every nmcli call is an argument list; no shell is involved.
 
 ## Flags and exit codes
 
-| Flag           | Effect                                                                         |
-| -------------- | ------------------------------------------------------------------------------ |
-| `--can-cancel` | Shows a Cancel button. Cancel exits with code 2 and changes nothing.           |
-| `--windowed`   | A 1024x600 window instead of full screen (development).                        |
+| Flag           | Effect                                                               |
+| -------------- | -------------------------------------------------------------------- |
+| `--can-cancel` | Shows a Cancel button. Cancel exits with code 2 and changes nothing. |
+| `--windowed`   | A 1024x600 window instead of full screen (development).              |
 
 | Exit code | Meaning                              |
 | --------- | ------------------------------------ |
