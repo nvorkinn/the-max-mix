@@ -164,14 +164,16 @@ device, so change the role, not the device.
   delay), against this repository's `stable` ref (`kiosk_pull_ref`). It is public, so no credentials are needed. A
   deployed Pi therefore gets fixes to the Wi-Fi panel, the session script, the Chromium policy and so on without a
   reflash. The playbook is idempotent, so repeated runs are safe.
-- **The `stable` ref** is a branch or tag that you create and move yourself when a change is ready for deployed devices:
-  `git push origin <commit>:refs/heads/stable --force`. Never point it at a development branch. Until it exists, pulls
-  fail and only log. The image bakes in the same ref.
+- **The `stable` branch** is what deployed devices follow. It is protected: it cannot be deleted or force-pushed, and it
+  only moves through a pull request from `main` into `stable`. It needs no extra checks, because everything on `main` has
+  already passed them (use a merge commit, not squash or rebase, so `stable` keeps `main`'s history). Never merge a development branch into it. Until it
+  exists, pulls fail and only log. The image bakes in the same ref.
 - **A failing pull never affects the kiosk.** Nothing depends on `kiosk-pull.service`; a failure is only in the journal
   and the next timer run tries again. A pull never restarts the kiosk either: it leaves a marker when kiosk files changed,
   and `kiosk-restart.timer` restarts the kiosk at 04:30 if the marker is there (a reboot also applies the changes).
 - **Check the last pull:** `journalctl -u kiosk-pull -n 100`, and `systemctl list-timers 'kiosk-*'` for the next runs.
-- **Roll back:** move `stable` back to the earlier commit. Devices return to it at their next pull.
+- **Roll back:** merge a revert pull request into `stable`. A repository admin can instead move `stable` back to the
+  earlier commit with a force push, which the ruleset allows only to them. Devices return to it at their next pull.
 - **Run it by hand** on a Pi you can log in to, as root, from a clone of the repository:
   `sudo ansible-playbook -c local -i localhost, ansible/local.yml`, or the same pull the timer runs:
   `sudo systemctl start kiosk-pull`. Add `--check --diff` to see what it would change.
