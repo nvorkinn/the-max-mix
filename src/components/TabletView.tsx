@@ -25,7 +25,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     playbackState,
     isAuthenticated,
     isDemoMode,
-    isConfigured,
     isLoading,
     playbackMode,
     browserDeviceId,
@@ -296,7 +295,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         onClose={() => setIsSettingsOpen(false)}
         authInfo={{
           authenticated: isAuthenticated,
-          configured: isConfigured,
           demoMode: isDemoMode,
           playbackMode
         }}

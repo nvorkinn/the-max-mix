@@ -11,8 +11,6 @@ import SpeakerSelectorModalFull from './SpeakerSelectorModal';
 const api = vi.hoisted(() => ({ getDevices: vi.fn() }));
 const auth = vi.hoisted(() => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
 const settings = vi.hoisted(() => ({
-  getClientId: vi.fn(),
-  setClientId: vi.fn(),
   setPlaybackMode: vi.fn(),
   setDemoMode: vi.fn(),
   getRedirectUri: vi.fn()
@@ -59,7 +57,6 @@ describe('SettingsModal', () => {
 
   beforeEach(() => {
     for (const mock of [...Object.values(auth), ...Object.values(settings), base.onReload]) mock.mockReset();
-    settings.getClientId.mockReturnValue('client-id');
     settings.getRedirectUri.mockReturnValue('http://127.0.0.1:3000/');
     auth.startSignIn.mockResolvedValue(undefined);
   });
@@ -91,12 +88,11 @@ describe('SettingsModal', () => {
   });
 
   it.each([
-    ['demo mode', { demoMode: true, configured: true }, /playback is simulated/i, null],
-    ['no client ID', { configured: false }, /enter a spotify client id/i, null],
-    ['signed out', { configured: true }, /sign in with a spotify premium/i, 'Log in with Spotify'],
+    ['demo mode', { demoMode: true }, /playback is simulated/i, null],
+    ['signed out', {}, /sign in with a spotify premium/i, 'Log in with Spotify'],
     [
       'signed in',
-      { configured: true, authenticated: true, playbackMode: 'remote' },
+      { authenticated: true, playbackMode: 'remote' },
       /playback mode: remote/i,
       'Re-authenticate with Spotify'
     ]
@@ -121,69 +117,53 @@ describe('SettingsModal', () => {
   });
 
   it('starts the Spotify sign-in from the login button', async () => {
-    render(<SettingsModal {...base} authInfo={{ configured: true }} />);
+    render(<SettingsModal {...base} authInfo={{}} />);
     await userEvent.click(screen.getByRole('button', { name: 'Log in with Spotify' }));
     expect(auth.startSignIn).toHaveBeenCalledTimes(1);
   });
 
   it('shows why the sign-in could not start', async () => {
     auth.startSignIn.mockRejectedValue(new Error('Add a Spotify client ID first.'));
-    render(<SettingsModal {...base} authInfo={{ configured: true }} />);
+    render(<SettingsModal {...base} authInfo={{}} />);
     await userEvent.click(screen.getByRole('button', { name: 'Log in with Spotify' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Add a Spotify client ID first.');
   });
 
   it('shows a sign-in failure and the redirect address to register', () => {
-    render(<SettingsModal {...base} authInfo={{ configured: true }} signInError="Invalid redirect URI" />);
+    render(<SettingsModal {...base} authInfo={{}} signInError="Invalid redirect URI" />);
     expect(screen.getByRole('alert')).toHaveTextContent('Invalid redirect URI');
     expect(screen.getByText('http://127.0.0.1:3000/')).toBeInTheDocument();
   });
 
-  it('asks for the client ID only when none is built in or stored, and shows the redirect address', async () => {
-    settings.getClientId.mockReturnValue('');
-    render(<SettingsModal {...base} authInfo={{ configured: false }} />);
-    expect(screen.getByText('http://127.0.0.1:3000/')).toBeInTheDocument();
-    await userEvent.type(screen.getByLabelText('Spotify client ID'), '  abc123  ');
-    await userEvent.click(screen.getByRole('button', { name: 'Save client ID' }));
-    expect(settings.setClientId).toHaveBeenCalledWith('  abc123  ');
-    expect(base.onReload).toHaveBeenCalled();
-  });
-
-  it('does not save an empty client ID', async () => {
-    settings.getClientId.mockReturnValue('');
-    render(<SettingsModal {...base} authInfo={{ configured: false }} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Save client ID' }));
-    expect(settings.setClientId).not.toHaveBeenCalled();
-    expect(base.onReload).not.toHaveBeenCalled();
-  });
-
-  it('hides the client ID field and the redirect address when a client ID is set', () => {
-    render(<SettingsModal {...base} authInfo={{ configured: true }} />);
+  it('has no client ID field, and shows the redirect address only after a sign-in error', () => {
+    const { rerender } = render(<SettingsModal {...base} authInfo={{}} />);
     expect(screen.queryByLabelText('Spotify client ID')).not.toBeInTheDocument();
     expect(screen.queryByText('http://127.0.0.1:3000/')).not.toBeInTheDocument();
+    rerender(<SettingsModal {...base} authInfo={{}} signInError="Invalid redirect URI" />);
+    expect(screen.getByText('http://127.0.0.1:3000/')).toBeInTheDocument();
   });
 
   it('signs out and reloads', async () => {
-    render(<SettingsModal {...base} authInfo={{ configured: true, authenticated: true }} />);
+    render(<SettingsModal {...base} authInfo={{ authenticated: true }} />);
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(auth.signOut).toHaveBeenCalledTimes(1);
     expect(base.onReload).toHaveBeenCalled();
   });
 
   it('offers no sign out while signed out', () => {
-    render(<SettingsModal {...base} authInfo={{ configured: true }} />);
+    render(<SettingsModal {...base} authInfo={{}} />);
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
   });
 
   it('switches the playback mode and demo mode, then reloads', async () => {
-    const { rerender } = render(<SettingsModal {...base} authInfo={{ configured: true, playbackMode: 'browser' }} />);
+    const { rerender } = render(<SettingsModal {...base} authInfo={{ playbackMode: 'browser' }} />);
     const playback = screen.getByRole('switch', { name: 'Play in this browser' });
     expect(playback).toBeChecked();
     await userEvent.click(playback);
     expect(settings.setPlaybackMode).toHaveBeenCalledWith('remote');
     expect(base.onReload).toHaveBeenCalledTimes(1);
 
-    rerender(<SettingsModal {...base} authInfo={{ configured: true, playbackMode: 'remote' }} />);
+    rerender(<SettingsModal {...base} authInfo={{ playbackMode: 'remote' }} />);
     expect(screen.getByRole('switch', { name: 'Play in this browser' })).not.toBeChecked();
     await userEvent.click(screen.getByRole('switch', { name: 'Play in this browser' }));
     expect(settings.setPlaybackMode).toHaveBeenLastCalledWith('browser');

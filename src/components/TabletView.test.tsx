@@ -45,7 +45,6 @@ function setPlayer(overrides: Record<string, unknown> = {}) {
     playbackState: { is_playing: false, item: track, device: { name: 'Kitchen' } },
     isAuthenticated: true,
     isDemoMode: false,
-    isConfigured: true,
     isLoading: false,
     playbackMode: 'remote',
     browserDeviceId: null,

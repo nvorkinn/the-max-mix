@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import type { ApiError, PlaybackState, SdkPlaybackState, SpotifyPlayer, Track } from '../types';
 import * as spotify from '../spotify/api';
 import { getAccessToken, isSignedIn } from '../spotify/auth';
-import { getClientId, getPlaybackMode, isDemoMode as readDemoMode } from '../spotify/settings';
+import { getPlaybackMode, isDemoMode as readDemoMode } from '../spotify/settings';
 import { loadSpotifySDK } from '../utils/spotifySdk';
 
 // Spotify's playback state lags a play/pause command by a second or more, so a read right after one still reports the
@@ -36,7 +36,6 @@ export interface UseSpotifyPlayer {
   browserDeviceId: string | null;
   isAuthenticated: boolean;
   isDemoMode: boolean;
-  isConfigured: boolean;
   playbackMode: ReturnType<typeof getPlaybackMode>;
   isLoading: boolean;
   isReady: boolean;
@@ -84,7 +83,6 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   // Settings change only through a reload, so they are read once.
   const [isDemoMode] = useState(readDemoMode);
   const [playbackMode] = useState(getPlaybackMode);
-  const [isConfigured] = useState(() => Boolean(getClientId()));
   const [isAuthenticated, setIsAuthenticated] = useState(isSignedIn);
   const [snapshot, setSnapshot] = useState<{ state: PlaybackOrNull; at: number }>({ state: null, at: 0 });
   const [now, setNow] = useState(Date.now);
@@ -446,7 +444,6 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     browserDeviceId,
     isAuthenticated,
     isDemoMode,
-    isConfigured,
     playbackMode,
     isLoading: (isDemoMode || isAuthenticated) && !loaded,
     isReady: Boolean(playbackState?.device),

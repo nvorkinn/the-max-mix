@@ -27,8 +27,6 @@ export function createSpotifyMocks() {
     signOut: vi.fn()
   };
   const settings = {
-    getClientId: vi.fn(),
-    setClientId: vi.fn(),
     getPlaybackMode: vi.fn(),
     setPlaybackMode: vi.fn(),
     isDemoMode: vi.fn(),
@@ -43,7 +41,6 @@ export function resetSpotifyMocks({ api, auth, settings }: ReturnType<typeof cre
   for (const group of [api, auth, settings]) for (const mock of Object.values(group)) mock.mockReset();
   auth.isSignedIn.mockReturnValue(true);
   auth.getAccessToken.mockResolvedValue('tok');
-  settings.getClientId.mockReturnValue('client-id');
   settings.getPlaybackMode.mockReturnValue('browser');
   settings.isDemoMode.mockReturnValue(false);
   settings.getRedirectUri.mockReturnValue('http://127.0.0.1:3000/');

@@ -115,10 +115,9 @@ async function requestTokens(
   };
 }
 
-/** Starts sign-in: stores a PKCE verifier and state, then navigates to Spotify. Throws if no client ID is set. */
+/** Starts sign-in: stores a PKCE verifier and state, then navigates to Spotify. */
 export async function startSignIn(): Promise<void> {
   const clientId = getClientId();
-  if (!clientId) throw new Error('Set a Spotify client ID in Settings before signing in.');
   const verifier = randomString(64);
   const state = randomString(32);
   const challenge = await challengeFor(verifier);
@@ -170,7 +169,6 @@ async function finishSignIn(query: URLSearchParams): Promise<SignInResult> {
   if (!code) return failure('Missing Spotify authorization code.');
   try {
     const clientId = getClientId();
-    if (!clientId) return failure('Set a Spotify client ID in Settings first.');
     const tokens = await requestTokens({
       grant_type: 'authorization_code',
       code,
