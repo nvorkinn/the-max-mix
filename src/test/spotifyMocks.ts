@@ -39,7 +39,7 @@ export function createSpotifyMocks() {
 }
 
 /** Puts every mock back to a signed-in, browser-mode, non-demo default with a client ID. */
-export function resetSpotifyMocks(/** @type {ReturnType<typeof createSpotifyMocks>} */ { api, auth, settings }) {
+export function resetSpotifyMocks({ api, auth, settings }: ReturnType<typeof createSpotifyMocks>) {
   for (const group of [api, auth, settings]) for (const mock of Object.values(group)) mock.mockReset();
   auth.isSignedIn.mockReturnValue(true);
   auth.getAccessToken.mockResolvedValue('tok');
@@ -48,7 +48,7 @@ export function resetSpotifyMocks(/** @type {ReturnType<typeof createSpotifyMock
   settings.isDemoMode.mockReturnValue(false);
   settings.getRedirectUri.mockReturnValue('http://127.0.0.1:3000/');
   api.transferPlayback.mockResolvedValue(undefined);
-  for (const name of ['play', 'pause', 'next', 'previous', 'seek', 'setVolume']) {
-    api[/** @type {'play'} */ (name)].mockResolvedValue(undefined);
+  for (const name of ['play', 'pause', 'next', 'previous', 'seek', 'setVolume'] as const) {
+    api[name].mockResolvedValue(undefined);
   }
 }

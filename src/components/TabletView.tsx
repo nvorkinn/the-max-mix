@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
+import type { CSSProperties } from 'react';
 import { AudioLines, Clock, Settings, Speaker, ArrowUpRight } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { extractPalette } from '../utils/colorExtractor';
 import { getQueue, reorderDemoQueue, playDemoTrackNow } from '../spotify/api';
+import type { ApiError, Track } from '../types';
 import AlbumArtPlayer from './AlbumArtPlayer';
 import SpotifyJamQueue from './SpotifyJamQueue';
 import TouchRipples from './TouchRipples';
@@ -16,8 +18,8 @@ const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', m
 const QUEUE_POLL_MS = 10_000;
 const SDK_QUEUE_POLL_MS = 20_000;
 
-/** @param {{ signInError?: string | null | undefined }} props signInError: why finishing the Spotify sign-in failed */
-export default function TabletView({ signInError = null }) {
+// signInError: why finishing the Spotify sign-in failed
+export default function TabletView({ signInError = null }: Readonly<{ signInError?: string | null | undefined }>) {
   const {
     isReady,
     playbackState,
@@ -40,17 +42,16 @@ export default function TabletView({ signInError = null }) {
   } = useSpotifyPlayer();
   const error = playerError || signInError;
 
-  const [queue, setQueue] = useState(/** @type {import('../types').Track[]} */ ([]));
+  const [queue, setQueue] = useState<Track[]>([]);
   const [currentTime, setCurrentTime] = useState(formatClock);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSpeakerModalOpen, setIsSpeakerModalOpen] = useState(false);
   const [isJamSettingsOpen, setIsJamSettingsOpen] = useState(false);
-  const [queueError, setQueueError] = useState(/** @type {string | null} */ (null));
-  const [toastMessage, setToastMessage] = useState(/** @type {string | null} */ (null));
+  const [queueError, setQueueError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [theme, setTheme] = useState(() => (localStorage.getItem('maxmix_theme') === 'minimal' ? 'minimal' : 'neon'));
 
-  /** @param {string} newTheme */
-  const handleThemeChange = newTheme => {
+  const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
     localStorage.setItem('maxmix_theme', newTheme);
     showToast(`Skin updated to ${newTheme === 'minimal' ? 'Paper' : 'Studio'}`);
@@ -87,8 +88,7 @@ export default function TabletView({ signInError = null }) {
     let cancelled = false;
     // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
     const isCancelled = () => cancelled;
-    /** @type {ReturnType<typeof setTimeout> | undefined} */
-    let timer;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     let failures = 0;
     const base = sdkActive ? SDK_QUEUE_POLL_MS : QUEUE_POLL_MS;
     const poll = async () => {
@@ -101,7 +101,7 @@ export default function TabletView({ signInError = null }) {
         failures = 0;
       } catch (caught) {
         if (isCancelled()) return;
-        const apiError = /** @type {import('../types').ApiError} */ (caught);
+        const apiError = caught as ApiError;
         setQueueError(apiError.message);
         delay = Math.max(Math.min(60_000, base * 2 ** ++failures), (apiError.retryAfter ?? 0) * 1000 || 0);
       }
@@ -124,46 +124,39 @@ export default function TabletView({ signInError = null }) {
     }
   }, [artUrl]);
 
-  const toastTimerRef = useRef(/** @type {ReturnType<typeof setTimeout> | undefined} */ (undefined));
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(toastTimerRef.current), []);
 
-  /** @param {string} msg */
-  const showToast = msg => {
+  const showToast = (msg: string) => {
     setToastMessage(msg);
     clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToastMessage(null), 3500);
   };
 
-  /** @param {import('../types').Track[]} newQueue */
-  const handleReorderQueue = async newQueue => {
+  const handleReorderQueue = async (newQueue: Track[]) => {
     try {
       const data = await reorderDemoQueue(newQueue);
       setQueue(data.queue);
       showToast('Demo queue order updated.');
       return true;
     } catch (err) {
-      showToast(/** @type {Error} */ (err).message);
+      showToast((err as Error).message);
       return false;
     }
   };
 
-  /**
-   * @param {string | undefined} trackId
-   * @param {import('../types').Track} track
-   */
-  const handlePlaySongNow = async (trackId, track) => {
+  const handlePlaySongNow = async (trackId: string | undefined, track: Track) => {
     try {
       const data = await playDemoTrackNow(String(trackId));
       setQueue(data.remainingQueue);
       await refreshPlayback();
       showToast(`Demo playing: ${track.name || track.title}`);
     } catch (err) {
-      showToast(/** @type {Error} */ (err).message);
+      showToast((err as Error).message);
     }
   };
 
-  /** @type {string | undefined} */
-  let sessionStatus = isAuthenticated ? 'Select a Spotify device' : 'Sign in to Spotify';
+  let sessionStatus: string | undefined = isAuthenticated ? 'Select a Spotify device' : 'Sign in to Spotify';
   if (isDemoMode) sessionStatus = 'Demo session';
   else if (isLoading) sessionStatus = 'Connecting...';
   else if (isReady) sessionStatus = playbackState?.device?.name;
@@ -177,10 +170,10 @@ export default function TabletView({ signInError = null }) {
       className="tablet-container"
       data-theme={theme}
       style={
-        /** @type {import('react').CSSProperties} */ ({
+        {
           '--ambient-primary': palette.primary,
           '--ambient-secondary': palette.secondary
-        })
+        } as CSSProperties
       }
     >
       {/* 60 FPS Interactive Touch Ripple Canvas */}
@@ -250,7 +243,7 @@ export default function TabletView({ signInError = null }) {
             onNext={nextTrack}
             onPrevious={previousTrack}
             onSeek={seek}
-            onVolumeChange={(/** @type {number} */ vol) => setVolume(vol / 100)}
+            onVolumeChange={(vol: number) => setVolume(vol / 100)}
             theme={theme}
             isDemoMode={isDemoMode}
             controlsEnabled={(isDemoMode || isAuthenticated) && !playbackState?.device?.is_restricted}
@@ -290,7 +283,7 @@ export default function TabletView({ signInError = null }) {
       <SpeakerSelectorModal
         isOpen={isSpeakerModalOpen}
         onClose={() => setIsSpeakerModalOpen(false)}
-        onSelectSpeaker={(/** @type {string} */ id) => transferPlayback(id)}
+        onSelectSpeaker={(id: string) => transferPlayback(id)}
         browserDeviceId={browserDeviceId}
         isDemoMode={isDemoMode}
       />

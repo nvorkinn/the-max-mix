@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import App from './App';
 
 vi.mock('./components/TabletView', () => ({
-  default: (/** @type {{ signInError?: string }} */ { signInError }) => <div>tablet-view {signInError}</div>
+  default: ({ signInError }: { signInError?: string }) => <div>tablet-view {signInError}</div>
 }));
 
 describe('App', () => {

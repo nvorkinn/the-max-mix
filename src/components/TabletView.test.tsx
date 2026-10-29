@@ -1,9 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { Mock } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { installCanvasStub, stubMatchMedia } from '../test/canvas';
+import { defined } from '../test/defined';
 import TabletView from './TabletView';
 
-const player = vi.hoisted(() => ({ current: /** @type {Record<string, unknown>} */ ({}) }));
+const player = vi.hoisted(() => {
+  type PlayerMock = Record<string, unknown> &
+    Partial<
+      Record<
+        'togglePlay' | 'nextTrack' | 'previousTrack' | 'setVolume' | 'seek' | 'refreshPlayback' | 'transferPlayback',
+        Mock
+      >
+    >;
+  const current: PlayerMock = {};
+  return { current };
+});
 const api = vi.hoisted(() => ({
   getQueue: vi.fn(),
   getDevices: vi.fn(),
@@ -27,7 +39,7 @@ const track = {
 };
 const queued = [{ id: 'q1', name: 'Queued One', artists: [{ name: 'Q' }], duration_ms: 1000 }];
 
-function setPlayer(overrides = {}) {
+function setPlayer(overrides: Record<string, unknown> = {}) {
   player.current = {
     isReady: true,
     playbackState: { is_playing: false, item: track, device: { name: 'Kitchen' } },
@@ -78,7 +90,7 @@ describe('TabletView', () => {
     const { container } = render(<TabletView />);
     await flush();
     expect(palette.extractPalette).toHaveBeenCalledWith('http://art/a.jpg');
-    expect(/** @type {HTMLElement} */ (container.firstChild).style.getPropertyValue('--ambient-primary')).toBe('red');
+    expect((container.firstChild as HTMLElement).style.getPropertyValue('--ambient-primary')).toBe('red');
   });
 
   it.each([
@@ -269,11 +281,11 @@ describe('TabletView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Previous track' }));
     fireEvent.change(screen.getByRole('slider', { name: 'Volume' }), { target: { value: '50' } });
     fireEvent.change(screen.getByRole('slider', { name: 'Playback position' }), { target: { value: '400' } });
-    expect(player.current['togglePlay']).toHaveBeenCalled();
-    expect(player.current['nextTrack']).toHaveBeenCalled();
-    expect(player.current['previousTrack']).toHaveBeenCalled();
-    expect(player.current['setVolume']).toHaveBeenCalledWith(0.5);
-    expect(player.current['seek']).toHaveBeenCalledWith(400);
+    expect(player.current.togglePlay).toHaveBeenCalled();
+    expect(player.current.nextTrack).toHaveBeenCalled();
+    expect(player.current.previousTrack).toHaveBeenCalled();
+    expect(player.current.setVolume).toHaveBeenCalledWith(0.5);
+    expect(player.current.seek).toHaveBeenCalledWith(400);
   });
 
   it('disables transport when the device is restricted', async () => {
@@ -299,7 +311,7 @@ describe('TabletView', () => {
       await flush();
       fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Two' }), { key: 'ArrowUp' });
       await flush();
-      const reordered = /** @type {unknown} */ (expect.arrayContaining([expect.objectContaining({ id: 'q2' })]));
+      const reordered = expect.arrayContaining([expect.objectContaining({ id: 'q2' })]) as unknown;
       expect(api.reorderDemoQueue).toHaveBeenCalledWith(reordered);
       expect(screen.getByText('Demo queue order updated.')).toBeInTheDocument();
     });
@@ -321,7 +333,7 @@ describe('TabletView', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Play Queued One now' }));
       await flush();
       expect(api.playDemoTrackNow).toHaveBeenCalledWith('q1');
-      expect(player.current['refreshPlayback']).toHaveBeenCalled();
+      expect(player.current.refreshPlayback).toHaveBeenCalled();
       expect(screen.getByText('Demo playing: Queued One')).toBeInTheDocument();
       expect(screen.getByText('A little quiet in here.')).toBeInTheDocument();
     });
@@ -333,7 +345,7 @@ describe('TabletView', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Play Queued One now' }));
       await flush();
       expect(screen.getByText('Nope')).toBeInTheDocument();
-      expect(player.current['refreshPlayback']).not.toHaveBeenCalled();
+      expect(player.current.refreshPlayback).not.toHaveBeenCalled();
     });
   });
 
@@ -345,7 +357,7 @@ describe('TabletView', () => {
     await flush();
     fireEvent.click(screen.getByRole('button', { name: /Soundbar/ }));
     await flush();
-    expect(player.current['transferPlayback']).toHaveBeenCalledWith('dev1');
+    expect(player.current.transferPlayback).toHaveBeenCalledWith('dev1');
   });
 
   it('shows the clock in the footer', async () => {
@@ -354,6 +366,6 @@ describe('TabletView', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(/** @type {Element} */ (document.querySelector('.footer-clock'))).toHaveTextContent(/9:05|09:05/);
+    expect(defined(document.querySelector('.footer-clock'))).toHaveTextContent(/9:05|09:05/);
   });
 });

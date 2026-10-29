@@ -1,28 +1,31 @@
 import { useState, useEffect } from 'react';
 import { X, Speaker, Check, RefreshCw } from 'lucide-react';
 import { getDevices } from '../spotify/api';
+import type { SpotifyDevice } from '../types';
 
-/** @param {import('../types').SpotifyDevice} device */
-function describeDevice(device) {
+function describeDevice(device: SpotifyDevice) {
   if (device.is_restricted) return 'Playback control restricted';
   const volume = device.volume_percent == null ? '' : ` / ${device.volume_percent}% volume`;
   return `${device.type || 'Device'}${volume}`;
 }
 
-/**
- * @param {{
- *   isOpen: boolean,
- *   onClose: () => void,
- *   onSelectSpeaker: (deviceId: string) => Promise<unknown>,
- *   browserDeviceId?: string | null,
- *   isDemoMode?: boolean
- * }} props
- */
-export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker, browserDeviceId, isDemoMode }) {
-  const [devices, setDevices] = useState(/** @type {import('../types').SpotifyDevice[]} */ ([]));
+export default function SpeakerSelectorModal({
+  isOpen,
+  onClose,
+  onSelectSpeaker,
+  browserDeviceId,
+  isDemoMode
+}: Readonly<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectSpeaker: (deviceId: string) => Promise<unknown>;
+  browserDeviceId?: string | null;
+  isDemoMode?: boolean;
+}>) {
+  const [devices, setDevices] = useState<SpotifyDevice[]>([]);
   const [loading, setLoading] = useState(false);
   const [selecting, setSelecting] = useState(false);
-  const [error, setError] = useState(/** @type {string | null} */ (null));
+  const [error, setError] = useState<string | null>(null);
 
   const fetchDevices = async () => {
     setLoading(true);
@@ -32,7 +35,7 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
       setError(null);
     } catch (caught) {
       setDevices([]);
-      setError(/** @type {Error} */ (caught).message);
+      setError((caught as Error).message);
     } finally {
       setLoading(false);
     }
@@ -42,14 +45,13 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
   }, [isOpen, browserDeviceId]);
 
   if (!isOpen) return null;
-  /** @param {string} deviceId */
-  const selectDevice = async deviceId => {
+  const selectDevice = async (deviceId: string) => {
     setSelecting(true);
     try {
       await onSelectSpeaker(deviceId);
       await fetchDevices();
     } catch (caught) {
-      setError(/** @type {Error} */ (caught).message);
+      setError((caught as Error).message);
     } finally {
       setSelecting(false);
     }
