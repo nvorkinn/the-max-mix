@@ -11,5 +11,5 @@
 - [ ] `npm run check` passes (lint, type check, formatting, ShellCheck)
 - [ ] `npm test` passes
 - [ ] `npm run build` passes (if the client changed)
-- [ ] README or docs updated if behavior changed
+- [ ] README or docs updated if behaviour changed
 - [ ] No secrets or `server/.env` values committed

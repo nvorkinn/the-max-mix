@@ -49,7 +49,7 @@ export default function TouchRipples({ theme = 'neon' }) {
         color: ringColors[Math.floor(Math.random() * ringColors.length)] ?? '#ffffff'
       });
 
-      // Add a few sparkles or ink spritzes
+      // Add a few sparkles or ink splashes
       for (let i = 0; i < 4; i++) {
         const angle = Math.random() * Math.PI * 2;
         const speed = Math.random() * 3 + 1;
