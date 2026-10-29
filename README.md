@@ -101,7 +101,7 @@ approximates the Pi's layout only; audio/DRM and touch still need the device.
 ### Checks and Git hooks
 
 `npm run check` runs everything CI's Lint workflow runs: `npm run lint` (ESLint with `--max-warnings 0` over the app in `src/` and the repository's own scripts and config files),
-`npm run typecheck` (TypeScript over JSDoc),
+`npm run typecheck` (TypeScript; the plain-JavaScript tooling files are checked through their JSDoc),
 `npm run format:check` (Prettier; `npm run format` fixes) and `npm run lint:shell` (ShellCheck over `scripts/*.sh`).
 ShellCheck is a system tool, not an npm package: install it with `brew install shellcheck` or `apt install shellcheck`
 (CI pins 0.11.0).
