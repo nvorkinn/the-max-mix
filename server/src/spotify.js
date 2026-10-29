@@ -1,6 +1,6 @@
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile, rename, chmod, unlink } from 'node:fs/promises';
 import path from 'node:path';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 // A sign-in must finish within this long, and at most this many can be waiting, so abandoned ones cannot pile up.
 const SIGN_IN_TTL_MS = 10 * 60 * 1000;

@@ -1,10 +1,11 @@
 import js from '@eslint/js';
 import { defineConfig } from 'eslint/config';
-import globals from 'globals';
+import { flatConfigs as importConfigs } from 'eslint-plugin-import-x';
 import nodePlugin from 'eslint-plugin-n';
 import security from 'eslint-plugin-security';
 import sonarjs from 'eslint-plugin-sonarjs';
 import unicorn from 'eslint-plugin-unicorn';
+import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 // Node's test runner exposes these; a call to any of them with `.only`, `.skip` or `.todo`, or with that option, would
@@ -29,7 +30,8 @@ export function createConfig({ tsconfigRootDir, allowDefaultProject = [] }) {
         nodePlugin.configs['flat/recommended-module'],
         security.configs.recommended,
         unicorn.configs.recommended,
-        sonarjs.configs.recommended
+        sonarjs.configs.recommended,
+        importConfigs.recommended
       ],
       languageOptions: {
         ecmaVersion: 'latest',
@@ -69,6 +71,21 @@ export function createConfig({ tsconfigRootDir, allowDefaultProject = [] }) {
         'sonarjs/todo-tag': 'off',
         // The one Math.random() builds a fallback id for tracks without one; nothing security-related depends on it.
         'sonarjs/pseudo-random': 'off',
+        // Import hygiene. `recommended` already covers named/default/namespace/export/no-named-as-default and friends.
+        'import-x/no-cycle': 'error',
+        'import-x/no-duplicates': 'error',
+        'import-x/no-self-import': 'error',
+        'import-x/no-useless-path-segments': 'error',
+        'import-x/first': 'error',
+        'import-x/newline-after-import': 'error',
+        'import-x/order': [
+          'error',
+          {
+            groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+            'newlines-between': 'never',
+            alphabetize: { order: 'asc', caseInsensitive: true }
+          }
+        ],
 
         // `x == null` is the idiom for "null or undefined"; every other loose comparison is an error.
         eqeqeq: ['error', 'always', { null: 'ignore' }],

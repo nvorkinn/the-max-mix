@@ -1,5 +1,5 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import test from 'node:test';
 import { parseConfig } from '../src/config.js';
 
 test('configuration defaults to loopback, real playback, and a valid Spotify callback', () => {

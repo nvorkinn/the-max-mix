@@ -1,6 +1,6 @@
+import { createApp } from './app.js';
 import { loadConfig } from './config.js';
 import { SpotifyService } from './spotify.js';
-import { createApp } from './app.js';
 
 const config = loadConfig();
 const spotify = new SpotifyService(config);

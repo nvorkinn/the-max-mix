@@ -1,13 +1,13 @@
-import express from 'express';
-import cookieParser from 'cookie-parser';
-import rateLimit from 'express-rate-limit';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { SpotifyError } from './spotify.js';
+import { fileURLToPath } from 'node:url';
+import cookieParser from 'cookie-parser';
+import express from 'express';
+import { rateLimit } from 'express-rate-limit';
 import { createDemo } from './demo.js';
 import { hostGuard, sameOriginWrites } from './requestGuards.js';
+import { SpotifyError } from './spotify.js';
 
 // Requests per minute per client address. The UI polls playback and the queue every few seconds, so these are far above
 // normal use; they exist to keep a misbehaving client on the network from hammering the server or Spotify's API.

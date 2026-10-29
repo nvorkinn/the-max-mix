@@ -1,10 +1,10 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import http from 'node:http';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import test from 'node:test';
 import { createApp } from '../src/app.js';
 import { SpotifyError } from '../src/spotify.js';
 

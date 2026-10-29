@@ -1,12 +1,12 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, copyFile, writeFile, readFile, readlink, realpath, rm, access, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { execFile } from 'node:child_process';
 
 const run = promisify(execFile);
 const repository = fileURLToPath(new URL('../../', import.meta.url));
