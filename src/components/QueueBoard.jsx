@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { ChevronUp, Plus, Trash2, Music2, Sparkles, Search, X } from 'lucide-react';
-import { trackKeys } from '../utils/trackKeys.js';
+import { trackKeys } from '../utils/trackKeys';
 
 /**
  * @param {{
- *   queue: import('../types.js').Track[],
+ *   queue: import('../types').Track[],
  *   onUpvote: (trackId?: string) => unknown,
  *   onRemove: (trackId?: string) => unknown,
- *   onAddSong: (track: import('../types.js').Track, guest: import('../types.js').Guest) => unknown,
- *   onSearchSpotify: (query: string) => Promise<import('../types.js').Track[] | undefined>,
+ *   onAddSong: (track: import('../types').Track, guest: import('../types').Guest) => unknown,
+ *   onSearchSpotify: (query: string) => Promise<import('../types').Track[] | undefined>,
  *   onOpenQR: () => void
  * }} props
  */
@@ -16,7 +16,7 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
   const keys = trackKeys(queue);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState(/** @type {import('../types.js').Track[]} */ ([]));
+  const [searchResults, setSearchResults] = useState(/** @type {import('../types').Track[]} */ ([]));
   const [searching, setSearching] = useState(false);
 
   /** @param {import('react').SubmitEvent} e */
@@ -34,7 +34,7 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
     }
   };
 
-  /** @param {import('../types.js').Track} track */
+  /** @param {import('../types').Track} track */
   const handleSelectTrack = track => {
     onAddSong(track, { id: 'tablet-host', name: 'Tablet Touch', avatar: '📱' });
     setShowSearchModal(false);

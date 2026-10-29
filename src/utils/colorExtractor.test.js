@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { extractPalette } from './colorExtractor.js';
+import { extractPalette } from './colorExtractor';
 
 const FALLBACK = {
   primary: 'rgba(29, 185, 84, 0.4)',

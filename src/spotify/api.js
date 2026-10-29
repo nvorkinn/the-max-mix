@@ -1,16 +1,16 @@
 // Spotify Web API calls made straight from the browser (Spotify allows CORS for them). In demo mode every function
 // answers from a simulated player instead and never touches the network.
 
-import { discardAccessToken, getAccessToken, isSignedIn } from './auth.js';
-import { createDemoPlayer, DEMO_ONLY_MESSAGE } from './demo.js';
-import { fetchSpotify, parseJson, readJson, SpotifyApiError } from './http.js';
-import { isDemoMode } from './settings.js';
+import { discardAccessToken, getAccessToken, isSignedIn } from './auth';
+import { createDemoPlayer, DEMO_ONLY_MESSAGE } from './demo';
+import { fetchSpotify, parseJson, readJson, SpotifyApiError } from './http';
+import { isDemoMode } from './settings';
 
-export { SpotifyApiError } from './http.js';
+export { SpotifyApiError } from './http';
 
-/** @typedef {import('../types.js').PlaybackState} PlaybackState */
-/** @typedef {import('../types.js').Track} Track */
-/** @typedef {import('../types.js').SpotifyDevice} SpotifyDevice */
+/** @typedef {import('../types').PlaybackState} PlaybackState */
+/** @typedef {import('../types').Track} Track */
+/** @typedef {import('../types').SpotifyDevice} SpotifyDevice */
 
 const demo = createDemoPlayer();
 

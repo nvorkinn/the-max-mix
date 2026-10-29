@@ -1,18 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { defined } from '../test/defined.js';
-import { resetSpotifyMocks } from '../test/spotifyMocks.js';
-import { useSpotifyPlayer } from './useSpotifyPlayer.js';
+import { defined } from '../test/defined';
+import { resetSpotifyMocks } from '../test/spotifyMocks';
+import { useSpotifyPlayer } from './useSpotifyPlayer';
 
 const mocks = await vi.hoisted(async () => {
-  const { createSpotifyMocks } = await import('../test/spotifyMocks.js');
+  const { createSpotifyMocks } = await import('../test/spotifyMocks');
   return createSpotifyMocks();
 });
 const sdk = vi.hoisted(() => ({ loadSpotifySDK: vi.fn() }));
-vi.mock('../spotify/api.js', () => mocks.api);
-vi.mock('../spotify/auth.js', () => mocks.auth);
-vi.mock('../spotify/settings.js', () => mocks.settings);
-vi.mock('../utils/spotifySdk.js', () => sdk);
+vi.mock('../spotify/api', () => mocks.api);
+vi.mock('../spotify/auth', () => mocks.auth);
+vi.mock('../spotify/settings', () => mocks.settings);
+vi.mock('../utils/spotifySdk', () => sdk);
 
 /** @param {{ connectResult?: boolean, currentState?: unknown }} [options] */
 function makeSdk({ connectResult = true, currentState = null } = {}) {

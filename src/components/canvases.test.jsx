@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
-import { installCanvasStub, stubMatchMedia } from '../test/canvas.js';
-import AudioVisualizer from './AudioVisualizer.jsx';
-import TouchRipples from './TouchRipples.jsx';
+import { installCanvasStub, stubMatchMedia } from '../test/canvas';
+import AudioVisualizer from './AudioVisualizer';
+import TouchRipples from './TouchRipples';
 
 /** @type {ReturnType<typeof installCanvasStub>} */
 let canvas;

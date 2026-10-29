@@ -1,4 +1,4 @@
-/** @typedef {import('../types.js').SpotifySdk} SpotifySdk */
+/** @typedef {import('../types').SpotifySdk} SpotifySdk */
 
 /** `window` as the Web Playback SDK script extends it. */
 const sdkWindow = /** @type {Window & { Spotify?: SpotifySdk, onSpotifyWebPlaybackSDKReady?: () => void }} */ (window);

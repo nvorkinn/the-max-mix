@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { trackKeys } from './trackKeys.js';
+import { trackKeys } from './trackKeys';
 
 describe('trackKeys', () => {
   it('uses id, then uri, then name and artist', () => {

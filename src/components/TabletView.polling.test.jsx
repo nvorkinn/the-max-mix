@@ -1,18 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import TabletView from './TabletView.jsx';
+import TabletView from './TabletView';
 
 const state = vi.hoisted(() => ({ player: {} }));
 const api = vi.hoisted(() => ({ getQueue: vi.fn() }));
-vi.mock('../spotify/api.js', () => api);
-vi.mock('../hooks/useSpotifyPlayer.js', () => ({ useSpotifyPlayer: () => state.player }));
-vi.mock('../utils/colorExtractor.js', () => ({ extractPalette: vi.fn() }));
-vi.mock('./AlbumArtPlayer.jsx', () => ({ default: () => null }));
-vi.mock('./TouchRipples.jsx', () => ({ default: () => null }));
-vi.mock('./SettingsModal.jsx', () => ({ default: () => null }));
-vi.mock('./SpeakerSelectorModal.jsx', () => ({ default: () => null }));
-vi.mock('./JamSettingsModal.jsx', () => ({ default: () => null }));
-vi.mock('./SpotifyJamQueue.jsx', () => ({
+vi.mock('../spotify/api', () => api);
+vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => state.player }));
+vi.mock('../utils/colorExtractor', () => ({ extractPalette: vi.fn() }));
+vi.mock('./AlbumArtPlayer', () => ({ default: () => null }));
+vi.mock('./TouchRipples', () => ({ default: () => null }));
+vi.mock('./SettingsModal', () => ({ default: () => null }));
+vi.mock('./SpeakerSelectorModal', () => ({ default: () => null }));
+vi.mock('./JamSettingsModal', () => ({ default: () => null }));
+vi.mock('./SpotifyJamQueue', () => ({
   default: (/** @type {{ queue: { name: string }[], error?: string | null }} */ { queue, error }) => (
     <div data-testid="queue">
       {queue.map(t => t.name).join(',')}|{error ?? 'no-error'}

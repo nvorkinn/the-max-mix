@@ -95,7 +95,7 @@ const CATALOG_MATCHERS = FEMALE_ARTISTS_CATALOG.map(
 
 /**
  * Checks if a track features any known female artists
- * @param {import('../types.js').Track | null | undefined} track
+ * @param {import('../types').Track | null | undefined} track
  */
 export function isTrackByFemaleSinger(track) {
   if (!track) return { isFemale: false, artist: null };
@@ -124,7 +124,7 @@ export function isTrackByFemaleSinger(track) {
 
 /**
  * Checks if any track in the queue features a female singer
- * @param {import('../types.js').Track[]} [queue]
+ * @param {import('../types').Track[]} [queue]
  */
 export function findFemaleSingersInQueue(queue = []) {
   const found = [];

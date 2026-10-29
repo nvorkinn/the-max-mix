@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { installCanvasStub, stubMatchMedia } from '../test/canvas.js';
-import TabletView from './TabletView.jsx';
+import { installCanvasStub, stubMatchMedia } from '../test/canvas';
+import TabletView from './TabletView';
 
 const player = vi.hoisted(() => ({ current: /** @type {Record<string, unknown>} */ ({}) }));
 const api = vi.hoisted(() => ({
@@ -12,10 +12,10 @@ const api = vi.hoisted(() => ({
 }));
 const palette = vi.hoisted(() => ({ extractPalette: vi.fn() }));
 
-vi.mock('../hooks/useSpotifyPlayer.js', () => ({ useSpotifyPlayer: () => player.current }));
-vi.mock('../spotify/api.js', () => api);
-vi.mock('../spotify/auth.js', () => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
-vi.mock('../utils/colorExtractor.js', () => palette);
+vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => player.current }));
+vi.mock('../spotify/api', () => api);
+vi.mock('../spotify/auth', () => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
+vi.mock('../utils/colorExtractor', () => palette);
 vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
 
 const track = {

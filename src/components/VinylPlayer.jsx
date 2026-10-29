@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2 } from 'lucide-react';
-import AudioVisualizer from './AudioVisualizer.jsx';
+import AudioVisualizer from './AudioVisualizer';
 
-/** @param {import('../types.js').PlayerControls} props */
+/** @param {import('../types').PlayerControls} props */
 export default function VinylPlayer({ playback, isPlaying, onPlayPause, onNext, onPrevious, onSeek, onVolumeChange }) {
   const [isScratching, setIsScratching] = useState(false);
   const [scratchAngle, setScratchAngle] = useState(0);
   const [volume, setVolume] = useState(80);
 
-  const item =
-    playback?.item ?? playback?.track_window?.current_track ?? /** @type {import('../types.js').Track} */ ({});
+  const item = playback?.item ?? playback?.track_window?.current_track ?? /** @type {import('../types').Track} */ ({});
   const title = item.name || item.title || 'Ready to Jam';
   const artist = item.artists
     ? item.artists.map(a => a.name).join(', ')

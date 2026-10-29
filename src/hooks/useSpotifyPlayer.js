@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import * as spotify from '../spotify/api.js';
-import { getAccessToken, isSignedIn } from '../spotify/auth.js';
-import { getClientId, getPlaybackMode, isDemoMode as readDemoMode } from '../spotify/settings.js';
-import { loadSpotifySDK } from '../utils/spotifySdk.js';
+import * as spotify from '../spotify/api';
+import { getAccessToken, isSignedIn } from '../spotify/auth';
+import { getClientId, getPlaybackMode, isDemoMode as readDemoMode } from '../spotify/settings';
+import { loadSpotifySDK } from '../utils/spotifySdk';
 
 // Spotify's playback state lags a play/pause command by a second or more, so a read right after one still reports the
 // old state. For this long after a command the button keeps the state the command asked for.
@@ -37,12 +37,12 @@ async function withTimeout(promise, ms, message) {
   }
 }
 
-/** @typedef {import('../types.js').PlaybackState | null} PlaybackOrNull */
+/** @typedef {import('../types').PlaybackState | null} PlaybackOrNull */
 /** @typedef {PlaybackOrNull | ((current: PlaybackOrNull) => PlaybackOrNull)} PlaybackUpdate */
 
 /**
  * A playback state moved on to `now`: while playing, the progress keeps growing between events without any request.
- * @param {import('../types.js').PlaybackState | null} state
+ * @param {import('../types').PlaybackState | null} state
  * @param {number} at when `state` was received
  * @param {number} now
  */
@@ -57,7 +57,7 @@ function project(state, at, now) {
  * `state` with a new playing flag. Spotify's `actions.disallows` says "resuming" while playing and "pausing" while
  * paused, so after the flag is changed here (by a press or an SDK event) those two are out of date and are dropped;
  * left in, they would keep the Play button disabled until the next read from Spotify.
- * @param {import('../types.js').PlaybackState} state
+ * @param {import('../types').PlaybackState} state
  * @param {boolean} playing
  */
 function withPlaying(state, playing) {
@@ -67,7 +67,7 @@ function withPlaying(state, playing) {
   return { ...state, is_playing: playing, actions: { ...state.actions, disallows } };
 }
 
-/** @param {import('../types.js').SdkPlaybackState} state */
+/** @param {import('../types').SdkPlaybackState} state */
 function nextTracksKey(state) {
   return (state?.track_window?.next_tracks ?? []).map(track => track.id ?? track.uri ?? '').join(',');
 }
@@ -79,7 +79,7 @@ export function useSpotifyPlayer() {
   const [isConfigured] = useState(() => Boolean(getClientId()));
   const [isAuthenticated, setIsAuthenticated] = useState(isSignedIn);
   const [snapshot, setSnapshot] = useState({
-    state: /** @type {import('../types.js').PlaybackState | null} */ (null),
+    state: /** @type {import('../types').PlaybackState | null} */ (null),
     at: 0
   });
   const [now, setNow] = useState(Date.now);
@@ -98,7 +98,7 @@ export function useSpotifyPlayer() {
   const expectedPlayingRef = useRef(/** @type {{ playing: boolean, until: number } | null} */ (null));
   const playPauseInFlightRef = useRef(false);
   // The Web Playback SDK player this page runs ("THE MAX MIX"), once it is connected.
-  const playerRef = useRef(/** @type {import('../types.js').SpotifyPlayer | null} */ (null));
+  const playerRef = useRef(/** @type {import('../types').SpotifyPlayer | null} */ (null));
   const sdkActiveRef = useRef(false);
   const lastTrackIdRef = useRef(/** @type {string | null} */ (null));
   const lastNextTracksRef = useRef(/** @type {string | null} */ (null));
@@ -189,7 +189,7 @@ export function useSpotifyPlayer() {
         failures = 0;
       } catch (error) {
         if (isCancelled()) return;
-        const apiError = /** @type {import('../types.js').ApiError} */ (error);
+        const apiError = /** @type {import('../types').ApiError} */ (error);
         setConnectionError(apiError.message);
         if (apiError.status === 401 && !isSignedIn()) {
           setIsAuthenticated(false);
@@ -233,17 +233,17 @@ export function useSpotifyPlayer() {
     let cancelled = false;
     // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
     const isCancelled = () => cancelled;
-    /** @type {import('../types.js').SpotifyPlayer | undefined} */
+    /** @type {import('../types').SpotifyPlayer | undefined} */
     let player;
 
-    /** @param {import('../types.js').SdkPlaybackState} state */
+    /** @param {import('../types').SdkPlaybackState} state */
     const applySdkState = state => {
       if (isCancelled()) return;
       markSdkActive(Boolean(state));
       if (!state) return;
       holdPlaying(!state.paused);
       if (!state.paused) setSdkError(null);
-      const track = /** @type {import('../types.js').Track | undefined} */ (state.track_window?.current_track);
+      const track = /** @type {import('../types').Track | undefined} */ (state.track_window?.current_track);
       const trackId = track?.id ?? null;
       setPlayback(current => ({
         ...withPlaying(current ?? {}, !state.paused),
@@ -374,7 +374,7 @@ export function useSpotifyPlayer() {
 
   /**
    * Runs an SDK transport command; its state change arrives as a `player_state_changed` event.
-   * @param {(player: import('../types.js').SpotifyPlayer) => Promise<void>} command
+   * @param {(player: import('../types').SpotifyPlayer) => Promise<void>} command
    */
   const runSdkCommand = async command => {
     const player = sdkPlayer();
@@ -447,7 +447,7 @@ export function useSpotifyPlayer() {
   };
 
   /**
-   * @param {(player: import('../types.js').SpotifyPlayer) => Promise<void>} command
+   * @param {(player: import('../types').SpotifyPlayer) => Promise<void>} command
    * @param {() => Promise<unknown>} apiCommand
    */
   const transport = async (command, apiCommand) => (await runSdkCommand(command)) ?? runCommand(apiCommand);

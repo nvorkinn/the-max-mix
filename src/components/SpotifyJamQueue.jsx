@@ -1,17 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import { Users, Disc3, GripVertical, Play, ArrowUpRight, ListMusic, Headphones } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { getDivaForUser } from '../utils/divas.js';
-import { trackKeys } from '../utils/trackKeys.js';
+import { getDivaForUser } from '../utils/divas';
+import { trackKeys } from '../utils/trackKeys';
 
-/** @type {import('../types.js').Track[]} */
+/** @type {import('../types').Track[]} */
 const EMPTY_QUEUE = [];
 
 /**
  * @param {{
- *   queue?: import('../types.js').Track[],
- *   onReorderQueue?: (queue: import('../types.js').Track[]) => unknown,
- *   onPlaySongNow?: (trackId: string | undefined, track: import('../types.js').Track) => unknown,
+ *   queue?: import('../types').Track[],
+ *   onReorderQueue?: (queue: import('../types').Track[]) => unknown,
+ *   onPlaySongNow?: (trackId: string | undefined, track: import('../types').Track) => unknown,
  *   onOpenJamSettings?: () => void,
  *   theme?: string,
  *   isDemoMode?: boolean,

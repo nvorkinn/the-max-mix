@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getDivaForUser, GLOBAL_DIVAS, MINIMALIST_AVATARS } from './divas.js';
+import { getDivaForUser, GLOBAL_DIVAS, MINIMALIST_AVATARS } from './divas';
 
 describe('getDivaForUser', () => {
   it('is deterministic for the same user', () => {
