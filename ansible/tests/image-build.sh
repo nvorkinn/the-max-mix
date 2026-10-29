@@ -18,7 +18,7 @@ apt-get install --yes --quiet --no-install-recommends ansible-core ca-certificat
 mkdir -p /boot/firmware
 echo 'console=serial0,115200 console=tty1 root=PARTUUID=00000000-02 rootfstype=ext4 fsck.repair=yes rootwait' > /boot/firmware/cmdline.txt
 printf '# For more options and information see\n[all]\n' > /boot/firmware/config.txt
-groupadd sudo
+getent group sudo > /dev/null || groupadd sudo
 useradd --create-home --shell /bin/bash --groups sudo kiosk
 echo 'kiosk:throwaway' | chpasswd
 
