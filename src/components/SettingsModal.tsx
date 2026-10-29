@@ -46,7 +46,7 @@ function SwitchRow({
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  authInfo?: { authenticated?: boolean; configured?: boolean; demoMode?: boolean; playbackMode?: string | undefined };
+  authInfo?: { authenticated?: boolean; demoMode?: boolean; playbackMode?: string | undefined };
   signInError?: string | null;
   onReload?: () => void;
   currentTheme?: string;
@@ -86,13 +86,11 @@ export default function SettingsModal({
 
   const error = actionError || signInError;
 
-  let spotifyStatus = 'Spotify is not set up: this build has no client ID.';
+  let spotifyStatus = 'Sign in with a Spotify Premium account to control a real device.';
   if (authInfo?.demoMode) {
     spotifyStatus = 'Playback is simulated. Turn demo mode off below to use Spotify.';
   } else if (authInfo?.authenticated) {
     spotifyStatus = `Connected to Spotify. Playback mode: ${authInfo.playbackMode}.`;
-  } else if (authInfo?.configured) {
-    spotifyStatus = 'Sign in with a Spotify Premium account to control a real device.';
   }
 
   return (
@@ -206,7 +204,7 @@ export default function SettingsModal({
             </p>
           )}
 
-          {!authInfo?.demoMode && authInfo?.configured && (
+          {!authInfo?.demoMode && (
             <button
               type="button"
               onClick={() => {
@@ -216,7 +214,7 @@ export default function SettingsModal({
               className="w-full py-3 px-4 bg-[#1DB954] hover:bg-[#1aa34a] text-black font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
             >
               <Music className="w-4 h-4 fill-black" />
-              {authInfo.authenticated ? 'Re-authenticate with Spotify' : 'Log in with Spotify'}
+              {authInfo?.authenticated ? 'Re-authenticate with Spotify' : 'Log in with Spotify'}
             </button>
           )}
 

@@ -46,18 +46,15 @@ describe('useSpotifyPlayer', () => {
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.isReady).toBe(true));
     expect(result.current.isAuthenticated).toBe(true);
-    expect(result.current.isConfigured).toBe(true);
     expect(result.current.playbackMode).toBe('remote');
   });
 
   it('does not fetch playback when signed out', async () => {
     mocks.settings.isDemoMode.mockReturnValue(false);
-    mocks.settings.getClientId.mockReturnValue('');
     const { result } = renderHook(() => useSpotifyPlayer());
     await act(async () => {});
     expect(result.current.isLoading).toBe(false);
     expect(result.current.isAuthenticated).toBe(false);
-    expect(result.current.isConfigured).toBe(false);
     expect(mocks.api.getPlaybackState).not.toHaveBeenCalled();
   });
 
