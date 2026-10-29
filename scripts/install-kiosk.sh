@@ -3,7 +3,8 @@
 # Usage: bash install-kiosk.sh [vX.Y.Z]    (default: the latest release; an older tag rolls back)
 # Environment: KIOSK_INSTALL_DIR (default ~/the-max-mix), KIOSK_REPO (default nvorkinn/the-max-mix),
 #              KIOSK_KEEP_RELEASES (how many releases to keep on disk, default 3)
-#              SPOTIFY_CLIENT_ID (optional: written to server.env if it has no client ID yet; it is not a secret)
+#              SPOTIFY_CLIENT_ID (optional: written to server.env if it has no client ID yet; it is not a secret.
+#              Without it, the client ID bundled into the release, if any, is used the same way)
 set -euo pipefail
 
 if [[ $(uname -s) != Linux || $(id -u) -eq 0 ]]; then
@@ -81,6 +82,14 @@ NODE
   mv "$staging/$name" "$release"
 else
   echo "$tag is already downloaded; reusing it."
+fi
+
+# A release built with a client ID carries it in its config template; use that when none was given.
+if [[ -z $client_id && -f $release/server/.env.example ]]; then
+  bundled=$(sed -n 's/^SPOTIFY_CLIENT_ID=//p' "$release/server/.env.example" | head -n 1)
+  if [[ $bundled =~ ^[A-Za-z0-9]{1,64}$ ]]; then
+    client_id=$bundled
+  fi
 fi
 
 sudo -v

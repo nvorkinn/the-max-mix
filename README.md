@@ -149,6 +149,10 @@ A release is a GitHub Release whose tag starts the Release workflow, which build
 
 Things to know:
 
+- **The Spotify client ID can ship with the release.** Add `SPOTIFY_CLIENT_ID` once under **Settings > Secrets and
+  variables > Actions > Variables** (a variable, not a secret: the ID is public and PKCE needs no secret). The workflow
+  writes it into the packaged `server/.env.example`, so the installer sets it on every Pi with nothing to type. Without
+  the variable the template's ID stays empty.
 - **The tag is the only source of the version.** There is nothing to bump: the `version` fields in the repository's
   `package.json` files are a `0.0.0` placeholder, and the release stamps the real version into the packaged copies.
 - **Create the release in the web UI; do not push a bare tag.** Publishing the release creates the tag, and the workflow
@@ -195,9 +199,12 @@ unpacked to `~/the-max-mix/releases/<version>`, and `~/the-max-mix/current` poin
 three most recently activated releases are kept for quick rollback and the rest are deleted; set
 `KIOSK_KEEP_RELEASES` to keep a different number (the active release is always kept).
 
-To have the installer fill in your Spotify client ID (it is not secret; there is no client secret), pass it as an
-environment variable: `SPOTIFY_CLIENT_ID=your_client_id bash install-kiosk.sh`. It is written to
-`~/the-max-mix/server.env` only when that file has no client ID yet, so an ID you already set is never replaced.
+The Spotify client ID is not secret (there is no client secret), so the installer can set it for you. A release made
+with the `SPOTIFY_CLIENT_ID` repository variable set (see [Releases](#releases)) carries the ID in its config template,
+and the installer fills it in with no arguments. To use a different one, pass it as an environment variable:
+`SPOTIFY_CLIENT_ID=your_client_id bash install-kiosk.sh`. Either way it is written to `~/the-max-mix/server.env` only
+when that file has no client ID yet, so an ID already in the file is never replaced (a new config already has the
+release's ID, so edit the file to change it).
 
 Do **not** invoke the installer with sudo. It uses sudo only to install OS packages
 and the system service. It:

@@ -16,9 +16,9 @@ const installer = path.join(repository, 'scripts/install-kiosk.sh');
 /**
  * @param {string} fixtures
  * @param {string} tag
- * @param {{ badChecksum?: boolean }} [options]
+ * @param {{ badChecksum?: boolean, clientId?: string }} [options]
  */
-async function makeRelease(fixtures, tag, { badChecksum = false } = {}) {
+async function makeRelease(fixtures, tag, { badChecksum = false, clientId = '' } = {}) {
   const name = `the-max-mix-${tag}`;
   const stage = await mkdtemp(path.join(fixtures, 'stage-'));
   const root = path.join(stage, name);
@@ -27,7 +27,7 @@ async function makeRelease(fixtures, tag, { badChecksum = false } = {}) {
     await copyFile(path.join(repository, 'scripts', unit), path.join(root, 'scripts', unit));
   }
   await writeFile(path.join(root, 'server/package.json'), '{"type":"module"}');
-  await writeFile(path.join(root, 'server/.env.example'), 'SPOTIFY_CLIENT_ID=\n');
+  await writeFile(path.join(root, 'server/.env.example'), `SPOTIFY_CLIENT_ID=${clientId}\n`);
   await writeFile(path.join(root, 'server/src/config.js'), 'export function loadConfig() { return { port: 3999 }; }\n');
   await writeFile(path.join(root, 'VERSION'), `${tag}\n`);
   const archive = path.join(fixtures, `${name}.tar.gz`);
@@ -229,6 +229,33 @@ test('installer fills in an empty client ID but never replaces or duplicates a s
 test('installer leaves the client ID alone when none is given', async t => {
   const { install, fixtures, env } = await setup(t);
   await makeRelease(fixtures, 'v1.2.3');
+  await run('bash', [installer, 'v1.2.3'], { env });
+  assert.equal(await readFile(path.join(install, 'server.env'), 'utf8'), 'SPOTIFY_CLIENT_ID=\n');
+});
+
+test('installer uses the client ID bundled into the release when none is given', async t => {
+  const { install, fixtures, env } = await setup(t);
+  await makeRelease(fixtures, 'v1.2.3', { clientId: 'bundled123' });
+  const config = path.join(install, 'server.env');
+
+  await run('bash', [installer, 'v1.2.3'], { env });
+  assert.equal(await readFile(config, 'utf8'), 'SPOTIFY_CLIENT_ID=bundled123\n');
+  assert.equal((await stat(config)).mode & 0o777, 0o600);
+
+  // An existing config with an empty ID is filled in; one with an ID is left alone.
+  await writeFile(config, 'PORT=3000\nSPOTIFY_CLIENT_ID=\n', { mode: 0o600 });
+  await run('bash', [installer, 'v1.2.3'], { env });
+  assert.equal(await readFile(config, 'utf8'), 'PORT=3000\nSPOTIFY_CLIENT_ID=bundled123\n');
+  await writeFile(config, 'SPOTIFY_CLIENT_ID=mine\n', { mode: 0o600 });
+  await run('bash', [installer, 'v1.2.3'], { env });
+  assert.equal(await readFile(config, 'utf8'), 'SPOTIFY_CLIENT_ID=mine\n');
+});
+
+test('installer ignores a malformed client ID in the release template', async t => {
+  const { install, fixtures, env } = await setup(t);
+  await makeRelease(fixtures, 'v1.2.3', { clientId: 'bad;id' });
+  await mkdir(install, { recursive: true });
+  await writeFile(path.join(install, 'server.env'), 'SPOTIFY_CLIENT_ID=\n', { mode: 0o600 });
   await run('bash', [installer, 'v1.2.3'], { env });
   assert.equal(await readFile(path.join(install, 'server.env'), 'utf8'), 'SPOTIFY_CLIENT_ID=\n');
 });
