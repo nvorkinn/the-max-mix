@@ -16,12 +16,13 @@
     "lint": "npm --prefix server run lint && npm --prefix client run lint && npm run lint:root",
     "lint:root": "eslint . --max-warnings 0",
     "lint:shell": "shellcheck scripts/*.sh",
+    "knip": "knip",
     "typecheck": "npm --prefix server run typecheck && npm --prefix client run typecheck",
     "test:coverage": "npm --prefix server run test:coverage && npm --prefix client run test:coverage",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "node scripts/install-hooks.js",
-    "check": "npm run lint && npm run typecheck && npm run format:check && npm run lint:shell",
+    "check": "npm run lint && npm run typecheck && npm run format:check && npm run lint:shell && npm run knip",
     "test:e2e": "playwright test --config e2e/playwright.config.js"
   },
   "devDependencies": {
@@ -30,6 +31,7 @@
     "concurrently": "^10.0.6",
     "eslint": "^10.13.0",
     "husky": "^9.1.7",
+    "knip": "6.43.0",
     "lint-staged": "^17.6.0",
     "prettier": "^3.9.10"
   },
