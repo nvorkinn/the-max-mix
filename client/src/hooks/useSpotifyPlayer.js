@@ -2,6 +2,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { requestJSON, postJSON } from '../utils/api.js';
 import { loadSpotifySDK } from '../utils/spotifySdk.js';
 
+// Spotify's playback state lags a play/pause command by a second or more, so a read right after one still reports the
+// old state. For this long after a command the button keeps the state the command asked for.
+const EXPECTED_PLAYING_MS = 5000;
+
 export function useSpotifyPlayer() {
   const [config, setConfig] = useState(/** @type {import('../types.js').ServerConfig | null} */ (null));
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -11,6 +15,8 @@ export function useSpotifyPlayer() {
   const [actionError, setActionError] = useState(() => new URLSearchParams(location.search).get('auth_error'));
   const [sdkError, setSdkError] = useState(/** @type {string | null} */ (null));
   const playbackRequestRef = useRef(0);
+  const expectedPlayingRef = useRef(/** @type {{ playing: boolean, until: number } | null} */ (null));
+  const playPauseInFlightRef = useRef(false);
 
   // Bumping the counter makes any in-flight playback request discard its result.
   const invalidatePlayback = useCallback(() => {
@@ -20,7 +26,17 @@ export function useSpotifyPlayer() {
   const refreshPlayback = useCallback(async () => {
     const requestId = ++playbackRequestRef.current;
     const state = /** @type {import('../types.js').PlaybackState | null} */ (await requestJSON('/api/spotify/current'));
-    if (requestId === playbackRequestRef.current) setPlaybackState(state);
+    if (requestId !== playbackRequestRef.current) return;
+    const expected = expectedPlayingRef.current;
+    if (expected && state) {
+      // Spotify agreeing, or the window passing, ends the hold; until then a stale read must not flip the button back.
+      if (state.is_playing === expected.playing || Date.now() > expected.until) expectedPlayingRef.current = null;
+      else {
+        setPlaybackState({ ...state, is_playing: expected.playing });
+        return;
+      }
+    }
+    setPlaybackState(state);
   }, []);
 
   useEffect(() => {
@@ -143,6 +159,28 @@ export function useSpotifyPlayer() {
     [refreshPlayback]
   );
 
+  // Flips the button at once and holds that state against stale reads; a second press while the first command is still
+  // in flight is ignored (it would otherwise send the same command twice and Spotify refuses the second).
+  const togglePlay = async () => {
+    if (playPauseInFlightRef.current) return false;
+    playPauseInFlightRef.current = true;
+    const playing = !playbackState?.is_playing;
+    const previous = playbackState;
+    expectedPlayingRef.current = { playing, until: Date.now() + EXPECTED_PLAYING_MS };
+    invalidatePlayback();
+    setPlaybackState(current => (current ? { ...current, is_playing: playing } : current));
+    try {
+      const ok = await runCommand(playing ? 'play' : 'pause');
+      if (!ok) {
+        expectedPlayingRef.current = null;
+        setPlaybackState(previous);
+      }
+      return ok;
+    } finally {
+      playPauseInFlightRef.current = false;
+    }
+  };
+
   /** @param {string} deviceId */
   const transferPlayback = async deviceId => {
     try {
@@ -167,7 +205,7 @@ export function useSpotifyPlayer() {
     isReady: Boolean(playbackState?.device),
     error: actionError || connectionError || sdkError,
     clearError: () => setActionError(null),
-    togglePlay: () => runCommand(playbackState?.is_playing ? 'pause' : 'play'),
+    togglePlay,
     nextTrack: () => runCommand('next'),
     previousTrack: () => runCommand('previous'),
     seek: (/** @type {number} */ position) => runCommand('seek', { position_ms: Math.round(position) }),
