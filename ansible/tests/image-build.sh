@@ -42,6 +42,7 @@ check() {
 }
 
 for file in /usr/local/bin/kiosk-session /usr/local/bin/kiosk-open-wifi /usr/local/bin/wifi-panel \
+  /usr/local/bin/kiosk-bluetooth-pair /etc/the-max-mix/bluetooth-devices /etc/systemd/system/kiosk-bluetooth-pair.service \
   /opt/the-max-mix/wifi-panel/wifi_panel.py /opt/the-max-mix/wifi-panel/qml/Main.qml \
   /etc/systemd/system/kiosk.service /etc/systemd/system/kiosk-pull.service /etc/systemd/system/kiosk-pull.timer \
   /etc/systemd/system/kiosk-restart.timer /etc/chromium/policies/managed/kiosk.json \
@@ -50,7 +51,7 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/kiosk-open-wifi /usr/loc
   /usr/share/icons/blank/cursors/left_ptr /etc/apt/apt.conf.d/52kiosk-unattended-upgrades; do
   check test -e "$file"
 done
-for unit in kiosk.service kiosk-pull.timer kiosk-restart.timer; do
+for unit in kiosk.service kiosk-bluetooth-pair.service bluetooth.service kiosk-pull.timer kiosk-restart.timer; do
   check systemctl is-enabled --quiet "$unit"
   # Enabled only: nothing is started in an image build.
   if systemctl is-active --quiet "$unit"; then
@@ -58,6 +59,7 @@ for unit in kiosk.service kiosk-pull.timer kiosk-restart.timer; do
     fail=1
   fi
 done
+check grep -q '^DE:E3:A5:BE:A8:00 mouse$' /etc/the-max-mix/bluetooth-devices
 check grep -q ' console=tty3 ' /boot/firmware/cmdline.txt
 check grep -q 'video=HDMI-A-1:1024x600@60' /boot/firmware/cmdline.txt
 check grep -q 'kernel=kernel8.img' /boot/firmware/config.txt

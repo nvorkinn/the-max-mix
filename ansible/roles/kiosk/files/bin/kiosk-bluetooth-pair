@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Pairs the Bluetooth devices listed in /etc/the-max-mix/bluetooth-devices (one "ADDRESS name" per line), so a keyboard and
+# mouse work on a device with no network and no touch screen. Put each device in pairing mode while this runs. Devices with
+# the same name are alternatives (the channels of a multi-channel device): one paired address satisfies the name.
+# Scans for 30 seconds, rests for 30 and repeats until every name is paired, then exits. Paired devices are trusted so that
+# they reconnect by themselves after a reboot. Progress goes to the journal (journalctl -u kiosk-bluetooth-pair).
+set -u
+
+list=${KIOSK_BLUETOOTH_DEVICES:-/etc/the-max-mix/bluetooth-devices}
+scan_seconds=${KIOSK_BLUETOOTH_SCAN_SECONDS:-30}
+rest_seconds=${KIOSK_BLUETOOTH_REST_SECONDS:-30}
+
+addresses=()
+names=()
+while read -r address name; do
+  [[ -n $address && $address != \#* ]] || continue
+  addresses+=("${address^^}")
+  names+=("${name:-$address}")
+done < "$list"
+
+if ((${#addresses[@]} == 0)); then
+  echo "No devices in $list."
+  exit 0
+fi
+
+paired() {
+  bluetoothctl info "$1" 2> /dev/null | grep -q 'Paired: yes'
+}
+
+# Echoes the unpaired names, one per line.
+missing_names() {
+  local i j found
+  for i in "${!names[@]}"; do
+    found=false
+    for j in "${!addresses[@]}"; do
+      if [[ ${names[j]} == "${names[i]}" ]] && paired "${addresses[j]}"; then found=true; fi
+    done
+    "$found" || echo "${names[i]}"
+  done | sort -u
+}
+
+try_pair() {
+  local address=$1 name=$2 i
+  # bluetoothctl can only pair a device it has seen in this scan.
+  for ((i = 0; i < scan_seconds; i++)); do
+    if bluetoothctl devices | grep -qi "$address"; then break; fi
+    sleep 1
+  done
+  bluetoothctl devices | grep -qi "$address" || return 0
+  echo "Found $name ($address), pairing."
+  bluetoothctl trust "$address"
+  timeout 30 bluetoothctl pair "$address"
+  bluetoothctl trust "$address"
+  timeout 20 bluetoothctl connect "$address"
+  if paired "$address"; then echo "Paired $name ($address)."; fi
+}
+
+rfkill unblock bluetooth 2> /dev/null || true
+
+while true; do
+  mapfile -t missing < <(missing_names)
+  # Keep every paired device trusted, so it reconnects after a reboot.
+  for address in "${addresses[@]}"; do
+    if paired "$address"; then bluetoothctl trust "$address" > /dev/null; fi
+  done
+  if ((${#missing[@]} == 0)); then
+    echo "All devices are paired."
+    exit 0
+  fi
+  echo "Waiting for: ${missing[*]}. Put them in pairing mode."
+  # One session keeps the pairing agent registered and scanning on for the whole attempt; it is a default agent that
+  # accepts "just works" pairing (keyboards that ask for a passkey are not supported).
+  {
+    echo 'power on'
+    echo 'pairable on'
+    echo 'agent NoInputNoOutput'
+    echo 'default-agent'
+    echo 'scan on'
+    sleep $((scan_seconds + 45))
+    echo 'scan off'
+  } | bluetoothctl > /dev/null 2>&1 &
+  session=$!
+  for i in "${!addresses[@]}"; do
+    # shellcheck disable=SC2310
+    if printf '%s\n' "${missing[@]}" | grep -qx -- "${names[i]}"; then try_pair "${addresses[i]}" "${names[i]}"; fi
+  done
+  kill "$session" 2> /dev/null || true
+  wait "$session" 2> /dev/null || true
+  sleep "$rest_seconds"
+done

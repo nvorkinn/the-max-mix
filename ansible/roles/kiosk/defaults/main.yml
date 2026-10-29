@@ -35,8 +35,20 @@ kiosk_ssh_enabled: false
 # Regenerate the initramfs when the Plymouth theme changes. Needs a kernel, so tests in a plain container turn it off.
 kiosk_update_initramfs: true
 
+# Bluetooth keyboard and mouse, paired on first boot by kiosk-bluetooth-pair (no network or touch screen needed). Put each
+# device in pairing mode when the Pi first starts. Several addresses with the same name are alternatives, for devices whose
+# channels have their own address; one paired address is enough. Use [] for none.
+kiosk_bluetooth_devices:
+  - { name: mouse, address: 'DE:E3:A5:BE:A8:00' }
+  # - { name: keyboard, address: 'AA:BB:CC:DD:EE:FF' }
+
+# Hide the mouse pointer (a blank cursor theme). Turn on while a mouse is the only way to touch the screen.
+kiosk_hide_cursor: false
+kiosk_cursor_theme: whiteglass
+
 # Packages from the Raspberry Pi archive only (not in Debian). Tests in a plain Debian container set this to [].
 kiosk_rpi_packages:
+  - pi-bluetooth
   - rpi-chromium-mods
   - libwidevinecdm0
 # Packages the playbook needs to run again with ansible-pull.
@@ -64,7 +76,9 @@ kiosk_packages:
   - tzdata
   - network-manager
   - polkitd
-  # Audio (Bluetooth comes later)
+  # Bluetooth, for the keyboard and mouse (and audio later)
+  - bluez
+  - rfkill
   - pipewire
   - pipewire-pulse
   - wireplumber

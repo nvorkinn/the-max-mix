@@ -24,6 +24,7 @@ StandardError=journal
 # Show VT 7 (the + runs this as root). Cage cannot take the display while another VT is in front.
 ExecStartPre=+/usr/bin/chvt 7
 Environment=WLR_LIBINPUT_NO_DEVICES=1
+Environment=KIOSK_CURSOR_THEME={{ 'blank' if kiosk_hide_cursor | bool else kiosk_cursor_theme }}
 Environment="KIOSK_URL={{ kiosk_url | replace('%', '%%') }}"
 ExecStart=/usr/bin/cage -d -- /usr/local/bin/kiosk-session
 Restart=always

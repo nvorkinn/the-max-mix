@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Pair the Bluetooth keyboard and mouse
+After=bluetooth.service
+Wants=bluetooth.service
+ConditionPathExists=/etc/the-max-mix/bluetooth-devices
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/kiosk-bluetooth-pair
+# Exits at once when every device is already paired.
+TimeoutStopSec=5
+
+[Install]
+WantedBy=multi-user.target
