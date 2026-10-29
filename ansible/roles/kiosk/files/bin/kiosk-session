@@ -3,7 +3,8 @@
 # working connection), otherwise Chromium.
 set -u
 
-url='https://the-max-mix.vercel.app/?kiosk=1'
+# The address comes from kiosk.service (kiosk_url in the Ansible role).
+url=${KIOSK_URL:?KIOSK_URL is not set}
 wifi_flag=/run/kiosk/show-wifi
 chromium_pid=/run/kiosk/chromium.pid
 

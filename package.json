@@ -17,7 +17,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "lint": "eslint . --max-warnings 0",
-    "lint:shell": "shellcheck scripts/*.sh pi/wifi/*.sh pi/wifi-panel/*.sh pi/image/*.sh pi/image/stage-kiosk/prerun.sh pi/image/stage-kiosk/*/*.sh pi/rootfs/usr/local/bin/*",
+    "lint:shell": "shellcheck scripts/*.sh pi/wifi/*.sh pi/image/*.sh pi/image/stage-kiosk/prerun.sh pi/image/stage-kiosk/*/*.sh ansible/roles/kiosk/files/bin/* ansible/tests/*.sh",
     "lint:md": "markdownlint-cli2",
     "lint:yaml": "yamllint \".github/**/*.{yml,yaml}\" \"ansible/**/*.{yml,yaml}\" \"*.{yml,yaml}\"",
     "lint:css": "stylelint \"src/**/*.css\" --max-warnings 0",

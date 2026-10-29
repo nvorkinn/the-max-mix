@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Restart THE MAX MIX kiosk at a quiet time if an update needs it
+
+[Timer]
+OnCalendar=*-*-* {{ kiosk_restart_time }}:00
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

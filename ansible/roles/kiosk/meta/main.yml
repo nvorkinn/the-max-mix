@@ -1,11 +1,11 @@
 ---
 galaxy_info:
   author: nvorkinn
-  description: Chromium kiosk that opens the hosted THE MAX MIX app on Raspberry Pi OS
+  description: THE MAX MIX kiosk (Cage, Chromium and the Wi-Fi panel) on Raspberry Pi OS Lite
   license: MIT
   min_ansible_version: '2.16'
   platforms:
     - name: Debian
       versions:
-        - bookworm
+        - trixie
 dependencies: []

@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Update THE MAX MIX kiosk regularly
+
+[Timer]
+OnBootSec={{ kiosk_pull_boot_delay }}
+OnUnitInactiveSec={{ kiosk_pull_interval }}
+RandomizedDelaySec={{ kiosk_pull_random_delay }}
+
+[Install]
+WantedBy=timers.target

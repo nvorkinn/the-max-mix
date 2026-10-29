@@ -35,6 +35,17 @@ jobs:
           if-no-files-found: ignore
       - run: npm run build
 
+  # Runs the kiosk playbook as the image build does (kiosk_image_build=true) in a Debian trixie container, checks the key
+  # files and that the units are enabled but not started, and runs it again to check it changes nothing.
+  ansible-playbook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: docker run --rm --volume "$PWD:/repo:ro" debian:trixie bash /repo/ansible/tests/image-build.sh
+
   # Browser smoke test of the built app in demo mode, served by `vite preview`. Runs in parallel with `tests` and uses the Google Chrome that
   # ships on ubuntu-latest, so no browser download is needed.
   e2e:

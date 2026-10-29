@@ -27,10 +27,11 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
   Spotify's text as plain text and ships no user-supplied HTML, but keep the origin dedicated: do not host other apps
   on the same origin, and keep dependencies up to date. The site sets `X-Content-Type-Options` and
   `Referrer-Policy` (in `vercel.json`) but no Content-Security-Policy, because the Spotify Web Playback SDK loads from several hosts.
-- **The kiosk's playbook.** The Pi runs `ansible-pull` against this repository's `main` branch, as the desktop user,
-  with `sudo` for packages, lingering and `raspi-config`. Whoever can push to `main` can change what runs on the Pi,
-  so protect the repository and its branch rules, and pin `-C` to a reviewed tag if you want updates only on request.
-  Chromium keeps its sandbox enabled.
+- **The kiosk's playbook.** Ansible is the single source of truth for the device, and a systemd timer on the Pi runs
+  `ansible-pull` as root against this repository's `stable` ref (a branch or tag only the owner moves). Whoever can
+  move that ref, or push to a branch it follows, can change what runs on every deployed Pi, so protect the repository,
+  its branch and tag rules, and never point `stable` at a development branch. The `kiosk` user has no password, no
+  `sudo` and no SSH; Chromium keeps its sandbox enabled.
 - **The app is public static code.** Anyone who runs it can sign in with their own Spotify account, and each browser
   keeps its own login; a shared browser profile is a shared login. Only addresses registered as redirect URIs in the
   Spotify dashboard can sign in.

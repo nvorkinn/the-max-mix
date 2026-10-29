@@ -27,6 +27,7 @@ carly
 celine
 chappell
 charli
+chpasswd
 clairo
 clarkson
 copyfile
@@ -40,10 +41,14 @@ eilish
 esac
 extrabold
 faye
+fsck
 fulfill
 getent
+getty
 goulding
+groupadd
 hayley
+ieee
 imager
 jepsen
 journalctl
@@ -58,6 +63,7 @@ lavigne
 linted
 lipa
 lizzo
+localtime
 lockfiles
 lorde
 madonnas
@@ -68,6 +74,7 @@ miley
 minaj
 minogue
 morissette
+netdev
 nicki
 nikolaivorkinn
 noblank
@@ -82,6 +89,7 @@ nvorkinn
 otherid
 overscroll
 paramore
+partuuid
 pipefail
 pkce
 poppin
@@ -90,9 +98,11 @@ qrcode
 raspi
 rebecca
 readlink
+regdom
 remi
 rexha
 rihanna
+rootfstype
 rosalia
 rosalía
 scratchable
@@ -104,10 +114,13 @@ soundwave
 starboy
 stefani
 testclient
+tmpfiles
 tonearm
 uchis
 unconfigured
 upvotes
+useradd
+usermod
 utimes
 vars
 venv

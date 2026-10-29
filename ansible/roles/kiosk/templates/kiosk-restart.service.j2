@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+# Restarts the kiosk so that files changed by an update take effect. Skipped unless an update left the marker.
+[Unit]
+Description=Restart THE MAX MIX kiosk after an update
+ConditionPathExists={{ kiosk_restart_marker }}
+
+[Service]
+Type=oneshot
+ExecStartPre=/usr/bin/rm -f {{ kiosk_restart_marker }}
+ExecStart=/usr/bin/systemctl restart kiosk.service

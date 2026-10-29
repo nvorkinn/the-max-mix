@@ -1,11 +1,91 @@
 ---
-# The desktop user the kiosk runs as: the user running ansible-pull, or SUDO_USER when it is run with sudo. Never root.
-kiosk_user: "{{ lookup('ansible.builtin.env', 'SUDO_USER') or ansible_facts['user_id'] }}"
-# Seconds start-kiosk.sh waits for kiosk_url to answer before it gives up (the service then retries).
-kiosk_startup_timeout: 120
-# Turn desktop autologin on and screen blanking off with raspi-config (once; see the marker file below).
-kiosk_configure_raspi_config: true
-kiosk_raspi_config_marker: /var/lib/the-max-mix-kiosk/raspi-config.done
-# The address the kiosk opens: the deployed app on Vercel. Override it with -e kiosk_url=... (it is validated either way).
-# Register exactly this address, trailing slash included, as a redirect URI in the Spotify dashboard.
-kiosk_url: https://the-max-mix.vercel.app/
+# True while an image is being built (pi-gen passes -e kiosk_image_build=true). Services are then only enabled, never
+# started or restarted, and nothing that needs a running systemd, D-Bus or NetworkManager is run.
+kiosk_image_build: false
+
+# The account Cage and Chromium run as. pi-gen creates it as the image's first user (FIRST_USER_NAME in pi/image/config).
+kiosk_user: kiosk
+# The only groups the kiosk user is in (the user has no sudo and no password).
+kiosk_groups: [audio, input, netdev, render, video]
+# The origin of the hosted app and the address the kiosk opens (?kiosk=1 turns on the app's kiosk-only settings).
+# Register the redirect URI of this address in the Spotify dashboard.
+kiosk_app_origin: https://the-max-mix.vercel.app
+kiosk_url: '{{ kiosk_app_origin }}/?kiosk=1'
+
+# System settings.
+kiosk_locale: en_GB.UTF-8
+kiosk_timezone: Europe/London
+kiosk_wifi_country: GB
+# The 1024x600 HDMI screen (Waveshare 7 inch). Forced on both HDMI ports because the firmware sets no mode.
+kiosk_video_mode: 1024x600@60
+# Added to the kernel command line (/boot/firmware/cmdline.txt) if missing; console=tty1 becomes tty3. Quiet boot with
+# the Plymouth splash, no logo or cursor, the screen mode, and the Wi-Fi regulatory domain.
+kiosk_cmdline_params:
+  - quiet
+  - splash
+  - plymouth.ignore-serial-consoles
+  - logo.nologo
+  - vt.global_cursor_default=0
+  - loglevel=3
+  - 'video=HDMI-A-1:{{ kiosk_video_mode }}'
+  - 'video=HDMI-A-2:{{ kiosk_video_mode }}'
+  - 'cfg80211.ieee80211_regdom={{ kiosk_wifi_country }}'
+# SSH stays off. Set to true to leave the ssh service alone (for example while debugging a device).
+kiosk_ssh_enabled: false
+# Regenerate the initramfs when the Plymouth theme changes. Needs a kernel, so tests in a plain container turn it off.
+kiosk_update_initramfs: true
+
+# Packages from the Raspberry Pi archive only (not in Debian). Tests in a plain Debian container set this to [].
+kiosk_rpi_packages:
+  - rpi-chromium-mods
+  - libwidevinecdm0
+# Packages the playbook needs to run again with ansible-pull.
+kiosk_ansible_packages:
+  - ansible-core
+  - ca-certificates
+  - git
+  - python3-apt
+kiosk_packages:
+  # Display: Cage runs one app full screen on Wayland. kbd provides chvt, xkb-data the keyboard layouts.
+  - cage
+  - kbd
+  - xkb-data
+  - fonts-dejavu-core
+  - fonts-noto-color-emoji
+  # Browser; libwidevinecdm0 (kiosk_rpi_packages) is the Widevine DRM module Spotify's player needs.
+  - chromium
+  - xdg-utils
+  # Boot splash
+  - initramfs-tools
+  - plymouth
+  - plymouth-themes
+  # Locale, time zone and NetworkManager (polkit lets the kiosk user manage connections)
+  - locales
+  - tzdata
+  - network-manager
+  - polkitd
+  # Audio (Bluetooth comes later)
+  - pipewire
+  - pipewire-pulse
+  - wireplumber
+  # Security updates
+  - unattended-upgrades
+
+# The Wi-Fi panel's source and its package list (one package per line, # comments allowed) live in the pulled repository.
+kiosk_panel_src: '{{ playbook_dir }}/../pi/wifi-panel'
+kiosk_panel_dir: /opt/the-max-mix/wifi-panel
+
+# On-device updates: kiosk-pull.timer runs ansible-pull against this repository and ref. The ref is a branch or tag that
+# the owner moves on purpose (never a development branch); the image build bakes in the same value. To roll a device
+# back, move the ref back. The repository is public, so no credentials are needed.
+kiosk_pull_repo: https://github.com/nvorkinn/the-max-mix.git
+kiosk_pull_ref: stable
+kiosk_pull_dir: /var/lib/the-max-mix/ansible-pull
+# First run this long after boot, then again this long after each run finishes, plus up to the random delay.
+kiosk_pull_boot_delay: 3min
+kiosk_pull_interval: 4h
+kiosk_pull_random_delay: 15min
+# A pull that changed kiosk files leaves this marker (in /run, so a reboot clears it); kiosk-restart.timer restarts the
+# kiosk at this time of day if the marker is there.
+kiosk_restart_time: '04:30'
+kiosk_restart_marker: /run/kiosk/restart-needed

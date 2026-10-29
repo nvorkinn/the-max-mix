@@ -1,21 +1,36 @@
 ---
-- name: Reload the user units
+# Nothing here restarts the kiosk. In an image build nothing is started at all, so most handlers are skipped.
+- name: Reload systemd
   ansible.builtin.systemd_service:
-    scope: user
     daemon_reload: true
-  become: "{{ kiosk_user != ansible_facts['user_id'] }}"
-  become_user: '{{ kiosk_user }}'
-  environment:
-    XDG_RUNTIME_DIR: '/run/user/{{ kiosk_uid }}'
-  listen: Restart the kiosk
+  when: not kiosk_image_build
 
-# try-restart only restarts a kiosk that is running, so a headless first run starts nothing and the kiosk starts at the
-# next login. The systemd module has no equivalent (state: restarted would start it too).
-- name: Restart a running kiosk
-  ansible.builtin.command: systemctl --user try-restart the-max-mix-kiosk.service # noqa: command-instead-of-module
-  become: "{{ kiosk_user != ansible_facts['user_id'] }}"
-  become_user: '{{ kiosk_user }}'
-  environment:
-    XDG_RUNTIME_DIR: '/run/user/{{ kiosk_uid }}'
-  changed_when: false
-  listen: Restart the kiosk
+- name: Reload NetworkManager
+  ansible.builtin.systemd_service:
+    name: NetworkManager.service
+    state: reloaded
+  when: not kiosk_image_build
+
+- name: Create the run directory
+  ansible.builtin.command: systemd-tmpfiles --create /etc/tmpfiles.d/kiosk.conf
+  changed_when: true
+  when: not kiosk_image_build
+
+- name: Generate the locale
+  ansible.builtin.command: locale-gen
+  changed_when: true
+
+- name: Update the initramfs
+  ansible.builtin.command: update-initramfs -u -k all
+  changed_when: true
+  when: kiosk_update_initramfs | bool
+
+# Leaves a marker; kiosk-restart.timer restarts the kiosk at a quiet time of day.
+- name: Ask for a kiosk restart
+  ansible.builtin.file:
+    path: '{{ kiosk_restart_marker }}'
+    state: touch
+    mode: '0644'
+    modification_time: preserve
+    access_time: preserve
+  when: not kiosk_image_build
