@@ -48,7 +48,8 @@ bundle=$(grep -o '/assets/[^"]*\.js' <<< "$index" | head -n 1)
 [[ -n $bundle ]] || fail "index.html does not reference a JavaScript bundle"
 headers=$(curl --silent --fail --dump-header - --output /dev/null "$base$bundle") || fail "$bundle does not answer"
 grep -qi '^cache-control:.*immutable' <<< "$headers" || fail "$bundle is not served as immutable"
-curl --silent --fail "$base$bundle" | grep -qF "$client_id" || fail "the client ID $client_id is not in $bundle (was the image built with --build-arg SPOTIFY_CLIENT_ID=$client_id?)"
+script=$(curl --silent --fail "$base$bundle") || fail "$bundle does not answer"
+grep -qF "$client_id" <<< "$script" || fail "the client ID $client_id is not in $bundle (was the image built with --build-arg SPOTIFY_CLIENT_ID=$client_id?)"
 
 echo "The image keeps no server settings or state"
 environment=$(docker exec "$container" printenv)
