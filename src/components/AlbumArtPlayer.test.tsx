@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import type { Track } from '../types';
 import { installCanvasStub, stubMatchMedia } from '../test/canvas';
+import { defined } from '../test/defined';
 import { partialProps } from '../test/partialProps';
 import AlbumArtPlayerFull from './AlbumArtPlayer';
 import SpotifyJamQueueFull from './SpotifyJamQueue';
@@ -24,8 +26,7 @@ const playback = {
   }
 };
 
-/** @param {Record<string, unknown>} [props] */
-function setup(props = {}) {
+function setup(props: Record<string, unknown> = {}) {
   const h = { onPlayPause: vi.fn(), onNext: vi.fn(), onPrevious: vi.fn(), onSeek: vi.fn(), onVolumeChange: vi.fn() };
   render(<AlbumArtPlayer playback={playback} isPlaying controlsEnabled {...h} {...props} />);
   return h;
@@ -109,7 +110,7 @@ describe('AlbumArtPlayer', () => {
   it('credits the demo guest only in demo mode, falling back to a diva image on error', () => {
     const { unmount } = render(<AlbumArtPlayer playback={playback} isDemoMode controlsEnabled onSeek={() => {}} />);
     expect(screen.getByText('Ann')).toBeInTheDocument();
-    const avatar = /** @type {Element} */ (document.querySelector('.track-credit img'));
+    const avatar = defined(document.querySelector('.track-credit img'));
     fireEvent.error(avatar);
     expect(avatar).toHaveAttribute('src', expect.stringMatching(/^\/divas\//));
     unmount();
@@ -130,8 +131,7 @@ describe('AlbumArtPlayer', () => {
 });
 
 describe('SpotifyJamQueue', () => {
-  /** @type {[import('../types').Track, import('../types').Track, import('../types').Track]} */
-  const tracks = [
+  const tracks: [Track, Track, Track] = [
     {
       id: 'a',
       name: 'One',
@@ -174,7 +174,7 @@ describe('SpotifyJamQueue', () => {
     setupQueue();
     expect(screen.getByRole('link', { name: 'Open Three in Spotify' })).toHaveAttribute(
       'href',
-      /** @type {{ spotify: string }} */ (tracks[2].external_urls).spotify
+      defined(tracks[2].external_urls?.spotify)
     );
     expect(screen.getByRole('link', { name: 'Open One in Spotify' })).toHaveAttribute(
       'href',
@@ -206,7 +206,7 @@ describe('SpotifyJamQueue', () => {
   });
 
   it('reorders with the keyboard and ignores moves past the ends', async () => {
-    vi.stubGlobal('requestAnimationFrame', (/** @type {FrameRequestCallback} */ fn) => fn(0));
+    vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => fn(0));
     const h = setupQueue({ isDemoMode: true });
     fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Two' }), { key: 'ArrowUp' });
     await vi.waitFor(() => expect(h.onReorderQueue).toHaveBeenCalledWith([tracks[1], tracks[0], tracks[2]]));
@@ -221,8 +221,7 @@ describe('SpotifyJamQueue', () => {
     const h = setupQueue({ isDemoMode: true });
     const rows = document.querySelectorAll('.queue-track');
     rows.forEach((row, i) => {
-      row.getBoundingClientRect = () =>
-        /** @type {DOMRect} */ (/** @type {unknown} */ ({ top: i * 50, bottom: i * 50 + 49 })); // only the fields the component reads;
+      row.getBoundingClientRect = () => ({ top: i * 50, bottom: i * 50 + 49 }) as unknown as DOMRect; // only the fields the component reads
     });
     const handle = screen.getByRole('button', { name: 'Reorder One' });
     fireEvent.pointerDown(handle, { button: 0, pointerType: 'mouse' });

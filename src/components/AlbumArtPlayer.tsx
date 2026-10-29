@@ -1,12 +1,17 @@
 import { useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, AudioLines } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import type { CSSProperties } from 'react';
 import { getDivaForUser } from '../utils/divas';
+import type { PlayerControls } from '../types';
 import AudioVisualizer from './AudioVisualizer';
 
-/**
- * @param {import('../types').PlayerControls & { theme?: string, isDemoMode?: boolean, controlsEnabled?: boolean }} props
- */
+type AlbumArtPlayerProps = Readonly<PlayerControls> & {
+  theme?: string;
+  isDemoMode?: boolean;
+  controlsEnabled?: boolean;
+};
+
 export default function AlbumArtPlayer({
   playback,
   isPlaying,
@@ -18,7 +23,7 @@ export default function AlbumArtPlayer({
   theme = 'neon',
   isDemoMode = false,
   controlsEnabled = false
-}) {
+}: AlbumArtPlayerProps) {
   // Local slider value, reset whenever the device reports a different volume (adjusted during render, not in an effect).
   const deviceVolume = playback?.device?.volume_percent ?? 0;
   const [volume, setVolume] = useState(deviceVolume);
@@ -29,7 +34,7 @@ export default function AlbumArtPlayer({
   }
   const volumeEnabled =
     controlsEnabled && playback?.device?.supports_volume !== false && playback?.device?.volume_percent != null;
-  const item = playback?.item ?? playback?.track_window?.current_track ?? /** @type {import('../types').Track} */ ({});
+  const item = playback?.item ?? playback?.track_window?.current_track ?? {};
   const title = item.name || item.title || 'Ready when you are';
   const artist = item.artists
     ? item.artists.map(a => a.name).join(', ')
@@ -45,11 +50,9 @@ export default function AlbumArtPlayer({
   const guestName = isDemoMode ? rawAddedBy.name : null;
   const assignedDiva = getDivaForUser(guestName || '', 0, theme);
   const userAvatar = rawAddedBy.avatar || assignedDiva.image;
-  /** @type {[string, string]} */
-  const visualizerColors = theme === 'minimal' ? ['#242820', '#747a6b'] : ['#d5f580', '#8dab64'];
+  const visualizerColors: [string, string] = theme === 'minimal' ? ['#242820', '#747a6b'] : ['#d5f580', '#8dab64'];
 
-  /** @param {number} ms */
-  const formatTime = ms => {
+  const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   };
@@ -126,7 +129,7 @@ export default function AlbumArtPlayer({
             aria-label="Playback position"
             aria-valuetext={`${formatTime(progressMs)} of ${formatTime(durationMs)}`}
             className="range-control seek-range"
-            style={/** @type {import('react').CSSProperties} */ ({ '--range-progress': `${progressPercent}%` })}
+            style={{ '--range-progress': `${progressPercent}%` } as CSSProperties}
           />
           <div className="track-times">
             <span>{formatTime(progressMs)}</span>
@@ -149,7 +152,7 @@ export default function AlbumArtPlayer({
                 onVolumeChange?.(value);
               }}
               className="range-control volume-range"
-              style={/** @type {import('react').CSSProperties} */ ({ '--range-progress': `${volume}%` })}
+              style={{ '--range-progress': `${volume}%` } as CSSProperties}
             />
           </label>
           <div className="transport-buttons">

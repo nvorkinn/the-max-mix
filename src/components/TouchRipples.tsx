@@ -1,27 +1,42 @@
 import { useEffect, useRef } from 'react';
 
-/**
- * @typedef {{ x: number, y: number, radius: number, maxRadius: number, opacity: number, color: string,
- *   isSparkle?: undefined }} Ring
- * @typedef {{ x: number, y: number, vx: number, vy: number, size: number, opacity: number, color: string,
- *   isSparkle: true }} Sparkle
- */
+interface Ring {
+  x: number;
+  y: number;
+  radius: number;
+  maxRadius: number;
+  opacity: number;
+  color: string;
+  isSparkle?: undefined;
+}
+
+interface Sparkle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  opacity: number;
+  color: string;
+  isSparkle: true;
+}
 
 /**
  * 60 FPS Touch & Tap ripple canvas
  * Spawns glowing sonic rings and stardust sparkles wherever the user touches the Waveshare screen.
  * Adapts to ink drops in minimal mode or neon rings in party mode.
  */
-export default function TouchRipples({ theme = 'neon' }) {
-  const canvasRef = useRef(/** @type {HTMLCanvasElement | null} */ (null));
-  const animFrameRef = useRef(/** @type {number | null} */ (null));
-  const ripplesRef = useRef(/** @type {(Ring | Sparkle)[]} */ ([]));
+export default function TouchRipples({ theme = 'neon' }: Readonly<{ theme?: string }>) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const ripplesRef = useRef<(Ring | Sparkle)[]>([]);
   const isMinimal = theme === 'minimal';
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
     const resize = () => {
       canvas.width = window.innerWidth;
@@ -30,11 +45,7 @@ export default function TouchRipples({ theme = 'neon' }) {
     resize();
     window.addEventListener('resize', resize);
 
-    /**
-     * @param {number} x
-     * @param {number} y
-     */
-    const spawnRipple = (x, y) => {
+    const spawnRipple = (x: number, y: number) => {
       // Add soundwave / ink ring
       const ringColors = isMinimal
         ? ['#000000', '#222222', '#444444']
@@ -66,8 +77,7 @@ export default function TouchRipples({ theme = 'neon' }) {
       }
     };
 
-    /** @param {PointerEvent} e */
-    const handlePointerDown = e => {
+    const handlePointerDown = (e: PointerEvent) => {
       if (document.hidden) return;
       spawnRipple(e.clientX, e.clientY);
       if (!animFrameRef.current) animFrameRef.current = requestAnimationFrame(render);
@@ -122,7 +132,7 @@ export default function TouchRipples({ theme = 'neon' }) {
 
     const handleVisibility = () => {
       if (document.hidden) {
-        cancelAnimationFrame(/** @type {number} */ (animFrameRef.current));
+        cancelAnimationFrame(animFrameRef.current ?? 0);
         animFrameRef.current = null;
         ripplesRef.current = [];
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -134,7 +144,7 @@ export default function TouchRipples({ theme = 'neon' }) {
       window.removeEventListener('resize', resize);
       window.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('visibilitychange', handleVisibility);
-      cancelAnimationFrame(/** @type {number} */ (animFrameRef.current));
+      cancelAnimationFrame(animFrameRef.current ?? 0);
       animFrameRef.current = null;
     };
   }, [theme, isMinimal]);

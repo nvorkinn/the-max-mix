@@ -1,22 +1,33 @@
 import { useEffect, useRef } from 'react';
 
-/**
- * Decorative waveform driven by playback state, not an audio analysis.
- * @param {{ isPlaying: boolean, primaryColor?: string, secondaryColor?: string }} props
- */
-export default function AudioVisualizer({ isPlaying, primaryColor = '#10b981', secondaryColor = '#6366f1' }) {
-  const canvasRef = useRef(/** @type {HTMLCanvasElement | null} */ (null));
-  const animFrameRef = useRef(/** @type {number | null} */ (null));
+interface AudioVisualizerProps {
+  isPlaying: boolean;
+  primaryColor?: string;
+  secondaryColor?: string;
+}
+
+/** Decorative waveform driven by playback state, not an audio analysis. */
+export default function AudioVisualizer({
+  isPlaying,
+  primaryColor = '#10b981',
+  secondaryColor = '#6366f1'
+}: Readonly<AudioVisualizerProps>) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const animFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
+    const parent = canvas.parentElement;
+    if (!parent) return;
+
     const resize = () => {
-      canvas.width = /** @type {HTMLElement} */ (canvas.parentElement).clientWidth || 400;
-      canvas.height = /** @type {HTMLElement} */ (canvas.parentElement).clientHeight || 120;
+      canvas.width = parent.clientWidth || 400;
+      canvas.height = parent.clientHeight || 120;
     };
     resize();
 
@@ -88,7 +99,7 @@ export default function AudioVisualizer({ isPlaying, primaryColor = '#10b981', s
     };
 
     const restart = () => {
-      cancelAnimationFrame(/** @type {number} */ (animFrameRef.current));
+      cancelAnimationFrame(animFrameRef.current ?? 0);
       resize();
       render();
     };
@@ -101,7 +112,7 @@ export default function AudioVisualizer({ isPlaying, primaryColor = '#10b981', s
       window.removeEventListener('resize', restart);
       document.removeEventListener('visibilitychange', restart);
       reducedMotion.removeEventListener('change', restart);
-      cancelAnimationFrame(/** @type {number} */ (animFrameRef.current));
+      cancelAnimationFrame(animFrameRef.current ?? 0);
     };
   }, [isPlaying, primaryColor, secondaryColor]);
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { installCanvasStub, stubMatchMedia } from '../test/canvas';
+import { defined } from '../test/defined';
 import VinylPlayer from './VinylPlayer';
 
 const playback = {
@@ -18,7 +19,7 @@ beforeEach(() => {
   stubMatchMedia(false);
 });
 
-function setup(props = {}) {
+function setup(props: Record<string, unknown> = {}) {
   const h = { onPlayPause: vi.fn(), onNext: vi.fn(), onPrevious: vi.fn(), onSeek: vi.fn(), onVolumeChange: vi.fn() };
   const all = { playback, isPlaying: false, ...h, ...props };
   render(<VinylPlayer {...all} />);
@@ -60,8 +61,8 @@ describe('VinylPlayer', () => {
 
   it('seeks proportionally to where the progress bar was clicked, clamped to the bar', () => {
     const h = setup();
-    const bar = /** @type {HTMLElement} */ (document.querySelector('.cursor-pointer'));
-    bar.getBoundingClientRect = () => /** @type {DOMRect} */ (/** @type {unknown} */ ({ left: 100, width: 200 })); // only the fields the component reads;
+    const bar = defined(document.querySelector<HTMLElement>('.cursor-pointer'));
+    bar.getBoundingClientRect = () => ({ left: 100, width: 200 }) as unknown as DOMRect; // only the fields the component reads
     fireEvent.click(bar, { clientX: 150 });
     expect(h.onSeek).toHaveBeenLastCalledWith(30000);
     fireEvent.click(bar, { clientX: 900 });
@@ -90,7 +91,7 @@ describe('VinylPlayer', () => {
 
   it('only rotates the record while scratching', () => {
     setup({ isPlaying: true });
-    const record = /** @type {HTMLElement} */ (document.querySelector('.cursor-grab'));
+    const record = defined(document.querySelector<HTMLElement>('.cursor-grab'));
     expect(record).toHaveClass('spinning-record');
     fireEvent.pointerMove(record, { movementX: 10 });
     expect(record.getAttribute('style') ?? '').not.toContain('transform');
