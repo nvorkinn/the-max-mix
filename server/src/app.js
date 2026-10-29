@@ -140,7 +140,7 @@ export function createApp({
       if (typeof req.query.code !== 'string' || !req.query.code) {
         throw new SpotifyError('Missing Spotify authorization code.', 400);
       }
-      await spotify.handleAuthCallback(req.query.code);
+      await spotify.handleAuthCallback(req.query.code, supplied);
       res.redirect('/');
     })
   );

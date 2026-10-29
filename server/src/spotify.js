@@ -1,6 +1,10 @@
 import { mkdir, readFile, writeFile, rename, chmod, unlink } from 'node:fs/promises';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+
+// A sign-in must finish within this long, and at most this many can be waiting, so abandoned ones cannot pile up.
+const SIGN_IN_TTL_MS = 10 * 60 * 1000;
+const MAX_PENDING_SIGN_INS = 20;
 
 export class SpotifyError extends Error {
   /**
@@ -17,11 +21,10 @@ export class SpotifyError extends Error {
 
 export class SpotifyService {
   /**
-   * @param {{ clientId: string, clientSecret: string, redirectUri: string, dataDir: string, fetchImpl?: typeof fetch }} options
+   * @param {{ clientId: string, redirectUri: string, dataDir: string, fetchImpl?: typeof fetch }} options
    */
-  constructor({ clientId, clientSecret, redirectUri, dataDir, fetchImpl = fetch }) {
+  constructor({ clientId, redirectUri, dataDir, fetchImpl = fetch }) {
     this.clientId = clientId;
-    this.clientSecret = clientSecret;
     this.redirectUri = redirectUri;
     this.tokenFile = path.join(dataDir, 'spotify-token.json');
     this.fetch = fetchImpl;
@@ -32,6 +35,8 @@ export class SpotifyService {
     this.tokenExpiresAt = 0;
     /** @type {Promise<string> | null} */
     this.refreshPromise = null;
+    /** PKCE code verifiers of sign-ins that have started, by OAuth state. @type {Map<string, { verifier: string, expiresAt: number }>} */
+    this.pendingSignIns = new Map();
   }
 
   async initialize() {
@@ -51,23 +56,40 @@ export class SpotifyService {
   }
 
   isConfigured() {
-    return Boolean(this.clientId && this.clientSecret);
+    return Boolean(this.clientId);
   }
 
   isAuthenticated() {
     return Boolean(this.accessToken || this.refreshToken);
   }
 
-  /** @param {string} state */
+  /**
+   * Starts a sign-in with PKCE (RFC 7636): the server keeps a random code verifier and sends only its SHA-256 hash to
+   * Spotify, then proves it holds the verifier when exchanging the code. This replaces the client secret, so the app
+   * has nothing secret to deploy.
+   * @param {string} state
+   */
   getAuthUrl(state) {
     if (!this.isConfigured()) {
-      throw new SpotifyError('Configure SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET before signing in.', 400);
+      throw new SpotifyError('Configure SPOTIFY_CLIENT_ID before signing in.', 400);
     }
+    const now = Date.now();
+    for (const [pendingState, pending] of this.pendingSignIns) {
+      if (pending.expiresAt <= now) this.pendingSignIns.delete(pendingState);
+    }
+    if (this.pendingSignIns.size >= MAX_PENDING_SIGN_INS) {
+      // Map keys are in insertion order, so this drops the oldest.
+      this.pendingSignIns.delete(/** @type {string} */ (this.pendingSignIns.keys().next().value));
+    }
+    const verifier = randomBytes(64).toString('base64url');
+    this.pendingSignIns.set(state, { verifier, expiresAt: now + SIGN_IN_TTL_MS });
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: this.clientId,
       redirect_uri: this.redirectUri,
       state,
+      code_challenge_method: 'S256',
+      code_challenge: createHash('sha256').update(verifier).digest('base64url'),
       scope:
         'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing'
     });
@@ -96,11 +118,8 @@ export class SpotifyService {
     const response = await this.fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       signal: AbortSignal.timeout(15000),
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64')}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: new URLSearchParams(parameters)
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: this.clientId, ...parameters })
     });
     if (!response.ok) {
       if (response.status === 400 && parameters.grant_type === 'refresh_token') {
@@ -115,7 +134,7 @@ export class SpotifyService {
         }
       }
       throw new SpotifyError(
-        `Spotify authentication failed (${response.status}). Check your app credentials and sign in again.`,
+        `Spotify authentication failed (${response.status}). Check SPOTIFY_CLIENT_ID and the redirect URI, then sign in again.`,
         502
       );
     }
@@ -133,9 +152,23 @@ export class SpotifyService {
     return accessToken;
   }
 
-  /** @param {string} code */
-  async handleAuthCallback(code) {
-    return this.exchangeToken({ grant_type: 'authorization_code', code, redirect_uri: this.redirectUri });
+  /**
+   * @param {string} code
+   * @param {string} state the OAuth state the sign-in was started with
+   */
+  async handleAuthCallback(code, state) {
+    const pending = this.pendingSignIns.get(state);
+    // A verifier is good for one exchange: remove it before using it, so a replayed callback cannot reuse it.
+    this.pendingSignIns.delete(state);
+    if (!pending || pending.expiresAt <= Date.now()) {
+      throw new SpotifyError('Spotify sign-in expired or was not started here. Start again from Settings.', 400);
+    }
+    return this.exchangeToken({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: this.redirectUri,
+      code_verifier: pending.verifier
+    });
   }
 
   async getValidAccessToken() {

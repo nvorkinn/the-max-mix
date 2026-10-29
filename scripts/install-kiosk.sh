@@ -152,7 +152,7 @@ for (const directory of candidates.slice(Number(keep))) {
 }
 NODE
 
-echo "Installed $tag. Edit $install/server.env for Spotify credentials and playback mode."
+echo "Installed $tag. Edit $install/server.env for the Spotify client ID and playback mode."
 echo "Enable Desktop Autologin and disable screen blanking in Raspberry Pi OS, then reboot."
 echo "Server logs: journalctl -u the-max-mix.service -f"
 echo "Kiosk logs: journalctl --user -u the-max-mix-kiosk.service -f"

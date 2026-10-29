@@ -38,7 +38,6 @@ export function parseConfig(env) {
     demoMode: env.DEMO_MODE === 'true',
     playbackMode,
     clientId: env.SPOTIFY_CLIENT_ID || '',
-    clientSecret: env.SPOTIFY_CLIENT_SECRET || '',
     redirectUri,
     dataDir: path.resolve(env.STATE_DIRECTORY || env.DATA_DIR || path.join(os.homedir(), '.local/share/the-max-mix'))
   };

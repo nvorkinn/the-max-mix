@@ -28,8 +28,11 @@ async function start(
     spotifyFetch: async () => ({ devices: [] }),
     /** @param {string} state */
     getAuthUrl: state => `https://accounts.spotify.com/authorize?state=${state}`,
-    /** @param {string} code */
-    handleAuthCallback: async code => calls.push(['auth', code]),
+    /**
+     * @param {string} code
+     * @param {string} state
+     */
+    handleAuthCallback: async (code, state) => calls.push(['auth', code, state]),
     ...Object.fromEntries(
       ['play', 'pause', 'next', 'previous', 'seek', 'setVolume', 'transferPlayback'].map(action => [
         action,
@@ -146,7 +149,7 @@ test('OAuth requires the matching state cookie before exchanging a code', async 
     redirect: 'manual'
   });
   assert.equal(callback.status, 302);
-  assert.deepEqual(calls, [['auth', 'code']]);
+  assert.deepEqual(calls, [['auth', 'code', state]]);
 });
 
 test('explicit demo controls share backend state without calling Spotify', async t => {

@@ -88,7 +88,6 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 
    ```ini
    SPOTIFY_CLIENT_ID=your_client_id
-   SPOTIFY_CLIENT_SECRET=your_client_secret
    SPOTIFY_REDIRECT_URI=http://127.0.0.1:3000/api/auth/callback
    DEMO_MODE=false
    PLAYBACK_MODE=browser
@@ -100,6 +99,13 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 5. In Speakers, select THE MAX MIX or an existing Spotify Connect device. Press
    Play when ready. For remote mode, first open Spotify on the target device so it
    is discoverable.
+
+There is no client secret to configure. Sign-in uses the Authorization Code flow with PKCE, which Spotify provides for
+apps that cannot keep a secret: the server creates a one-time code verifier for each sign-in, sends only its SHA-256
+hash to Spotify, and proves it holds the verifier when exchanging the code. The client ID is not secret, so it can be
+written to the configuration by an installer or checked into private provisioning. The saved refresh token in
+`spotify-token.json` is the one sensitive file; it is created by signing in on the device. A login saved before this
+change used the secret-based flow and may need one new sign-in.
 
 Set `PLAYBACK_MODE=remote` if the Pi should only control another player or if its
 browser cannot stream Spotify audio. Remote mode follows the active device's real
@@ -118,7 +124,7 @@ machine's own name (`<hostname>` or `<hostname>.local`), or a name listed in `AL
 
 Refresh tokens are saved atomically with owner-only permissions in
 `~/.local/share/the-max-mix/spotify-token.json`, or `DATA_DIR` when configured.
-Access tokens and the client secret are not written to that file. The installed
+Access tokens are not written to that file. The installed
 system service instead uses `/var/lib/the-max-mix`. Sign in after installing the
 service; a previous manual-development login is not automatically migrated.
 Revoked logins require signing in again. Never commit `.env` or token files.
@@ -208,7 +214,7 @@ and the system service. It:
   bounded timeout and automatic service retry. The browser keeps its own profile
   under `~/.config/the-max-mix/chromium`, with its sandbox enabled.
 
-Edit `~/the-max-mix/server.env` with your credentials and desired playback mode, then:
+Edit `~/the-max-mix/server.env` with your Spotify client ID and desired playback mode, then:
 
 ```bash
 sudo systemctl restart the-max-mix.service
