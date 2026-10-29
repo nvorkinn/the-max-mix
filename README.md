@@ -166,6 +166,32 @@ build step: extract it, create `server/.env` from `server/.env.example`, and run
 installer below uses this tarball. To build one locally, run `npm run build` and then
 `bash scripts/package-release.sh v1.2.3`; it is written to `release-out/`.
 
+## Container
+
+Every release also publishes a container image, `ghcr.io/nvorkinn/the-max-mix`, for linux/arm64. It is tagged with the
+version and, unless the release is a prerelease, `latest`. The image runs the server as a non-root user and serves the
+built UI on port 3000. It keeps its Spotify login in the `/data` volume and has the release's client ID built in as the
+default `SPOTIFY_CLIENT_ID` (it is not secret; the `SPOTIFY_CLIENT_ID` repository variable the release already needs is
+passed as a build argument). Build one yourself with
+`docker build --build-arg SPOTIFY_CLIENT_ID=<client ID> -t the-max-mix .`.
+
+```bash
+docker run -d --name the-max-mix -p 127.0.0.1:3000:3000 -v the_max_mix_data:/data \
+  -e DEMO_MODE=true ghcr.io/nvorkinn/the-max-mix:latest
+```
+
+Behind a reverse proxy at a real address, set `PUBLIC_URL` (an https address with no path, for example
+`https://maxmix.example.com`) instead of `SPOTIFY_REDIRECT_URI` and `ALLOWED_HOSTS`: it sets the Spotify redirect URI to
+`<PUBLIC_URL>/api/auth/callback` (register that in the Spotify dashboard) and the one host name the app accepts, and it
+trusts one reverse proxy for the client's address and HTTPS (`TRUST_PROXY`, the number of proxies, changes that).
+
+The app has no sign-in of its own and hands the Spotify access token to whoever can open it, so a public address needs
+something in front that signs people in (authentik, Cloudflare Access, Tailscale, or basic auth in the proxy), and the
+container's port should be reachable by that proxy only (`-p 127.0.0.1:3000:3000`).
+
+The [countdown-server](https://github.com/nvorkinn/countdown-server) project runs this image on its dev/QA host at
+`spotify.dev.nikolaivorkinn.com`, behind its authentik: every one of its dev/QA releases pulls `latest`.
+
 ## Raspberry Pi kiosk installation
 
 ### 1. Prepare the operating system

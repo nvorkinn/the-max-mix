@@ -29,3 +29,30 @@ test('ALLOWED_HOSTS is a trimmed comma-separated list', () => {
   assert.deepEqual(parseConfig({}).allowedHosts, []);
   assert.deepEqual(parseConfig({ ALLOWED_HOSTS: ' maxmix.lan, pi.local ,,' }).allowedHosts, ['maxmix.lan', 'pi.local']);
 });
+
+test('PUBLIC_URL sets the callback, the accepted host and trust of one proxy, and wins over SPOTIFY_REDIRECT_URI', () => {
+  const config = parseConfig({
+    PUBLIC_URL: 'https://maxmix.example.com',
+    SPOTIFY_REDIRECT_URI: 'https://elsewhere.example.com/other/callback',
+    ALLOWED_HOSTS: 'pi.local'
+  });
+  assert.equal(config.redirectUri, 'https://maxmix.example.com/api/auth/callback');
+  assert.deepEqual(config.allowedHosts, ['pi.local', 'maxmix.example.com']);
+  assert.equal(config.trustProxy, 1);
+  assert.equal(parseConfig({}).trustProxy, 0);
+  assert.equal(parseConfig({ PUBLIC_URL: 'https://maxmix.example.com', TRUST_PROXY: '2' }).trustProxy, 2);
+  assert.equal(parseConfig({ TRUST_PROXY: '1' }).trustProxy, 1);
+});
+
+test('rejects a PUBLIC_URL or TRUST_PROXY that is not what it says', () => {
+  for (const env of [
+    { PUBLIC_URL: 'maxmix.example.com' },
+    { PUBLIC_URL: ['http', 'maxmix.example.com'].join('://') },
+    { PUBLIC_URL: 'https://maxmix.example.com/app' },
+    { PUBLIC_URL: 'https://user@maxmix.example.com' },
+    { TRUST_PROXY: 'yes' },
+    { TRUST_PROXY: '-1' }
+  ]) {
+    assert.throws(() => parseConfig(env));
+  }
+});

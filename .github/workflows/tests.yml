@@ -66,3 +66,14 @@ jobs:
             e2e/playwright-report
             e2e/test-results
           if-no-files-found: ignore
+
+  # The Dockerfile's image, started and probed (scripts/test-container.sh). Plain docker, so no actions to pin.
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: docker build --build-arg SPOTIFY_CLIENT_ID=ci1234 --tag the-max-mix:test .
+      - run: bash scripts/test-container.sh the-max-mix:test

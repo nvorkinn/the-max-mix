@@ -20,11 +20,20 @@ import { SpotifyError } from '../src/spotify.js';
 /**
  * @param {import('node:test').TestContext} t
  * @param {{ demoMode?: boolean, overrides?: Record<string, unknown>, playbackMode?: string, distPath?: string,
- *   rateLimits?: Partial<{ windowMs: number, api: number, auth: number, pages: number }>, allowedHosts?: string[] }} [options]
+ *   rateLimits?: Partial<{ windowMs: number, api: number, auth: number, pages: number }>, allowedHosts?: string[],
+ *   trustProxy?: number }} [options]
  */
 async function start(
   t,
-  { demoMode = false, overrides = {}, playbackMode = 'remote', distPath, rateLimits, allowedHosts = [] } = {}
+  {
+    demoMode = false,
+    overrides = {},
+    playbackMode = 'remote',
+    distPath,
+    rateLimits,
+    allowedHosts = [],
+    trustProxy
+  } = {}
 ) {
   /** @type {unknown[][]} */
   const calls = [];
@@ -56,7 +65,13 @@ async function start(
     ...overrides
   };
   const app = createApp({
-    config: { demoMode, playbackMode, port: 3000, allowedHosts },
+    config: {
+      demoMode,
+      playbackMode,
+      port: 3000,
+      allowedHosts,
+      ...(trustProxy !== undefined && { trustProxy })
+    },
     spotify: /** @type {import('../src/spotify.js').SpotifyService} */ (/** @type {unknown} */ (spotify)),
     ...(distPath !== undefined && { distPath }),
     ...(rateLimits !== undefined && { rateLimits })
@@ -309,4 +324,14 @@ test('unknown Host headers are refused, while IP addresses, localhost and config
     assert.equal((await get(host)).status, 200, host);
   }
   assert.equal((await get(`${os.hostname()}.local:3000`)).status, 200);
+});
+
+test('behind a trusted proxy the client address and HTTPS come from X-Forwarded-*', async t => {
+  const { base } = await start(t, { trustProxy: 1, allowedHosts: ['maxmix.example.com'] });
+  const response = await fetch(`${base}/api/auth/login`, {
+    headers: { Host: 'maxmix.example.com', 'X-Forwarded-Proto': 'https', 'X-Forwarded-For': '203.0.113.9' },
+    redirect: 'manual'
+  });
+  // The OAuth state cookie is only marked Secure when the app knows the request arrived over HTTPS.
+  assert.match(response.headers.get('set-cookie') ?? '', /spotify_oauth_state=.*Secure/i);
 });

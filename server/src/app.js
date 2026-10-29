@@ -64,7 +64,8 @@ const errorHandler = (error, req, res, next) => {
 
 /**
  * @param {{
- *   config: Pick<ReturnType<typeof import('./config.js').parseConfig>, 'port' | 'playbackMode' | 'demoMode' | 'allowedHosts'>,
+ *   config: Pick<ReturnType<typeof import('./config.js').parseConfig>, 'port' | 'playbackMode' | 'demoMode' | 'allowedHosts'>
+ *     & Partial<Pick<ReturnType<typeof import('./config.js').parseConfig>, 'trustProxy'>>,
  *   spotify: import('./spotify.js').SpotifyService,
  *   distPath?: string,
  *   rateLimits?: Partial<typeof DEFAULT_RATE_LIMITS>
@@ -89,6 +90,8 @@ export function createApp({
   const app = express();
   const demo = createDemo();
   app.disable('x-powered-by');
+  // Behind a reverse proxy: the client's address and whether the request was HTTPS come from its X-Forwarded-* headers.
+  if (config.trustProxy) app.set('trust proxy', config.trustProxy);
   app.use(hostGuard({ allowedHosts: config.allowedHosts }));
   app.use('/api', sameOriginWrites());
   app.use(express.json({ limit: '100kb' }));
