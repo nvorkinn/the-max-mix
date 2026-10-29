@@ -55,7 +55,7 @@ export default defineConfig([
     },
     linterOptions: { reportUnusedDisableDirectives: 'error' },
     rules: {
-      // The root config files are JavaScript typed with JSDoc, whose single-line `/** @type */` comments these rules reject.
+      // The ESLint and Stylelint configs are JavaScript typed with JSDoc, whose single-line `/** @type */` comments these rules reject.
       'unicorn/single-line-block-comment-style': 'off',
       'unicorn/no-asterisk-prefix-in-documentation-comments': 'off',
       // Stylelint's config uses `null` to switch rules off, and the scripts read JSON.
@@ -142,8 +142,8 @@ export default defineConfig([
   },
   {
     // The lockfile-lint command is built from a list of files; the inner template literal is clearer than a helper here.
-    // (lint-staged.config.js belongs to the lint tooling; adjust it there to drop this override.)
-    files: ['lint-staged.config.js'],
+    // (lint-staged.config.ts belongs to the lint tooling; adjust it there to drop this override.)
+    files: ['lint-staged.config.ts'],
     rules: { 'sonarjs/no-nested-template-literals': 'off' }
   },
 

@@ -121,6 +121,9 @@ skipped automatically when there is no `.git` directory or when dev dependencies
    it there.
 4. Open Settings **in the browser that will play** (on the kiosk, the Pi's Chromium) and sign in. Choose the playback mode there too: browser (the
    default) or remote. Settings also has the demo mode switch; `?demo=true` on the address turns it on for a visit.
+   On the Pi kiosk, which is opened with `?kiosk=1` (the app remembers that, so it survives the Spotify sign-in redirect;
+   `?kiosk=0` forgets it), Settings also shows **Wi-Fi network**. It opens the Pi's local setup page at
+   `http://127.0.0.1:8088/`, which only exists on the Pi, so other visitors never see the entry.
 5. In Speakers, select THE MAX MIX or an existing Spotify Connect device. Press
    Play when ready. For remote mode, first open Spotify on the target device so it
    is discoverable.
@@ -198,7 +201,8 @@ ansible-pull -U https://github.com/nvorkinn/the-max-mix.git -C main -d ~/.cache/
 
 The kiosk opens `https://the-max-mix.vercel.app/` (the deployed app) unless you pass another `kiosk_url`: `https://`, or `http://127.0.0.1` and
 `http://localhost` for testing, without spaces or quotes. Register **exactly that address, trailing slash included,** as
-a redirect URI in the Spotify dashboard (`https://the-max-mix.vercel.app/`), then open the kiosk and sign in once in Settings. To
+a redirect URI in the Spotify dashboard (`https://the-max-mix.vercel.app/`), then open the kiosk and sign in once in Settings. The playbook opens the address with `?kiosk=1` added, which turns on
+the app's kiosk-only settings; the redirect URI is still the plain address. To
 change a setting, put it in `~/the-max-mix-kiosk.yml` (for example `kiosk_url: ...`) and add `-e @$HOME/the-max-mix-kiosk.yml`
 to the command, so every pull is repeatable. [`ansible/vars.example.yml`](ansible/vars.example.yml) lists the settings
 (`kiosk_url`, `kiosk_user`, `kiosk_startup_timeout`, `kiosk_configure_raspi_config`).
@@ -235,6 +239,15 @@ Current Raspberry Pi OS uses KMS. Prefer EDID/desktop configuration; do not copy
 old `hdmi_group`, `hdmi_mode`, or `display_rotate` settings into a modern setup.
 See `scripts/waveshare-7inch-config.txt` for notes. The playbook intentionally
 does not edit `/boot/firmware/config.txt` or overwrite monitor settings.
+
+### Wi-Fi setup portal
+
+A fresh Pi has no network, so it cannot run `ansible-pull`. [`pi/wifi/`](pi/wifi) holds an offline service
+(`the-max-mix-wifi.service`, Python standard library and `nmcli` only) installed by `sudo pi/wifi/install.sh`. Without
+internet it opens a `THE-MAX-MIX-SETUP` hotspot whose password and QR code `http://127.0.0.1:8088/` shows on the Pi's
+screen, where you can also type the credentials on the page's own on-screen keyboard; with internet that page lets you
+switch networks. See [`pi/wifi/README.md`](pi/wifi/README.md) for the modes, security and troubleshooting
+(`journalctl -u the-max-mix-wifi`). It has not been tried on a real Pi yet.
 
 ### Operations and updates
 

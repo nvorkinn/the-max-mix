@@ -3,6 +3,7 @@
 
 import { getClientId, getRedirectUri } from './settings';
 import { fetchSpotify, parseJson, readJson, SpotifyApiError } from './http';
+import { recordOf } from './parse';
 
 const AUTH_KEY = 'maxmix.auth';
 const PKCE_KEY = 'maxmix.pkce';
@@ -21,6 +22,16 @@ interface TokenResponse {
   refresh_token?: string;
   expires_in?: number;
   error?: string;
+}
+/** Picks the token fields out of a token endpoint reply; anything of the wrong type counts as missing. */
+function parseTokenResponse(value: unknown): TokenResponse {
+  const { access_token: accessToken, refresh_token: refreshToken, expires_in: expiresIn, error } = recordOf(value);
+  return {
+    ...(typeof accessToken === 'string' && { access_token: accessToken }),
+    ...(typeof refreshToken === 'string' && { refresh_token: refreshToken }),
+    ...(typeof expiresIn === 'number' && { expires_in: expiresIn }),
+    ...(typeof error === 'string' && { error })
+  };
 }
 type SignInResult = { ok: true } | { ok: false; error: string };
 
@@ -54,9 +65,9 @@ function readLogin(): StoredLogin | null {
   }
   if (raw === null) return null;
   try {
-    const stored = parseJson(raw) as { clientId?: unknown; refreshToken?: unknown } | null;
-    if (typeof stored?.clientId === 'string' && typeof stored.refreshToken === 'string' && stored.refreshToken) {
-      return { clientId: stored.clientId, refreshToken: stored.refreshToken };
+    const { clientId, refreshToken } = recordOf(parseJson(raw));
+    if (typeof clientId === 'string' && typeof refreshToken === 'string' && refreshToken) {
+      return { clientId, refreshToken };
     }
   } catch {
     // Unreadable: treated as signed out.
@@ -92,8 +103,8 @@ async function requestTokens(
   });
   if (!response.ok) {
     if (response.status === 400 && parameters['grant_type'] === 'refresh_token') {
-      const data = (await readJson(response)) as TokenResponse | null;
-      if (data?.error === 'invalid_grant') {
+      const data = parseTokenResponse(await readJson(response));
+      if (data.error === 'invalid_grant') {
         writeLogin(null);
         cachedAccess = null;
         throw new SpotifyApiError('Spotify login expired or was revoked. Sign in again in Settings.', 401);
@@ -104,8 +115,8 @@ async function requestTokens(
       502
     );
   }
-  const data = (await readJson(response)) as TokenResponse | null;
-  if (!data?.access_token || typeof data.expires_in !== 'number' || !Number.isFinite(data.expires_in)) {
+  const data = parseTokenResponse(await readJson(response));
+  if (!data.access_token || typeof data.expires_in !== 'number' || !Number.isFinite(data.expires_in)) {
     throw new SpotifyApiError('Spotify returned an invalid token response.');
   }
   return {
@@ -144,10 +155,8 @@ function takePkce(): { state: string; verifier: string } | null {
     // A verifier is good for one exchange: remove it before using it, so a replayed reply cannot reuse it.
     sessionStorage.removeItem(PKCE_KEY);
     if (raw === null) return null;
-    const stored = parseJson(raw) as { state?: unknown; verifier?: unknown } | null;
-    if (typeof stored?.state === 'string' && typeof stored.verifier === 'string' && stored.verifier) {
-      return { state: stored.state, verifier: stored.verifier };
-    }
+    const { state, verifier } = recordOf(parseJson(raw));
+    if (typeof state === 'string' && typeof verifier === 'string' && verifier) return { state, verifier };
   } catch {
     // Unavailable or unreadable: treated as missing.
   }
