@@ -1,14 +1,23 @@
 import { useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2 } from 'lucide-react';
+import type { ChangeEvent, KeyboardEvent, MouseEvent } from 'react';
+import type { PlayerControls } from '../types';
 import AudioVisualizer from './AudioVisualizer';
 
-/** @param {import('../types').PlayerControls} props */
-export default function VinylPlayer({ playback, isPlaying, onPlayPause, onNext, onPrevious, onSeek, onVolumeChange }) {
+export default function VinylPlayer({
+  playback,
+  isPlaying,
+  onPlayPause,
+  onNext,
+  onPrevious,
+  onSeek,
+  onVolumeChange
+}: Readonly<PlayerControls>) {
   const [isScratching, setIsScratching] = useState(false);
   const [scratchAngle, setScratchAngle] = useState(0);
   const [volume, setVolume] = useState(80);
 
-  const item = playback?.item ?? playback?.track_window?.current_track ?? /** @type {import('../types').Track} */ ({});
+  const item = playback?.item ?? playback?.track_window?.current_track ?? {};
   const title = item.name || item.title || 'Ready to Jam';
   const artist = item.artists
     ? item.artists.map(a => a.name).join(', ')
@@ -22,31 +31,27 @@ export default function VinylPlayer({ playback, isPlaying, onPlayPause, onNext, 
   const durationMs = item.duration_ms || playback?.duration || 180000;
   const progressPercent = Math.min(100, Math.max(0, (progressMs / durationMs) * 100));
 
-  /** @param {number} ms */
-  const formatTime = ms => {
+  const formatTime = (ms: number) => {
     const totalSecs = Math.floor(ms / 1000);
     const mins = Math.floor(totalSecs / 60);
     const secs = totalSecs % 60;
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  /** @param {import('react').MouseEvent<HTMLElement>} e */
-  const handleProgressBarClick = e => {
+  const handleProgressBarClick = (e: MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const ratio = Math.max(0, Math.min(1, clickX / rect.width));
     onSeek(ratio * durationMs);
   };
 
-  /** @param {import('react').KeyboardEvent<HTMLElement>} e */
-  const handleProgressBarKeyDown = e => {
+  const handleProgressBarKeyDown = (e: KeyboardEvent<HTMLElement>) => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     e.preventDefault();
     onSeek(Math.max(0, Math.min(durationMs, progressMs + (e.key === 'ArrowRight' ? 5000 : -5000))));
   };
 
-  /** @param {import('react').ChangeEvent<HTMLInputElement>} e */
-  const handleVolumeSlide = e => {
+  const handleVolumeSlide = (e: ChangeEvent<HTMLInputElement>) => {
     const val = Number(e.target.value);
     setVolume(val);
     if (onVolumeChange) {

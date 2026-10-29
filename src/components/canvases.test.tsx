@@ -4,8 +4,7 @@ import { installCanvasStub, stubMatchMedia } from '../test/canvas';
 import AudioVisualizer from './AudioVisualizer';
 import TouchRipples from './TouchRipples';
 
-/** @type {ReturnType<typeof installCanvasStub>} */
-let canvas;
+let canvas: ReturnType<typeof installCanvasStub>;
 beforeEach(() => {
   canvas = installCanvasStub();
 });

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import type { PlaybackState } from '../types';
 import { partialProps } from '../test/partialProps';
 import AlbumArtPlayerFull from './AlbumArtPlayer';
 
@@ -7,10 +8,10 @@ const AlbumArtPlayer = partialProps(AlbumArtPlayerFull);
 
 vi.mock('./AudioVisualizer', () => ({ default: () => null }));
 
-/** @param {number} volume_percent */
-const withVolume = volume_percent => ({ device: { id: 'd1', name: 'Speaker', volume_percent, supports_volume: true } });
-/** @param {import('../types').PlaybackState} playback */
-const player = playback => <AlbumArtPlayer playback={playback} controlsEnabled />;
+const withVolume = (volume_percent: number) => ({
+  device: { id: 'd1', name: 'Speaker', volume_percent, supports_volume: true }
+});
+const player = (playback: PlaybackState) => <AlbumArtPlayer playback={playback} controlsEnabled />;
 
 describe('AlbumArtPlayer volume', () => {
   it('starts at the device volume and follows device changes', () => {
