@@ -114,7 +114,7 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 
 1. Create an app in the [Spotify developer dashboard](https://developer.spotify.com/dashboard).
 2. Register the redirect URI **exactly**, including the trailing slash:
-   - the kiosk address (`kiosk_url`, the `https://<project>.vercel.app/` address of the deployed app) for the Raspberry Pi
+   - `https://the-max-mix.vercel.app/` (the deployed app, which is also the kiosk's `kiosk_url`) for the Raspberry Pi
      kiosk and for signing in on the deployed site;
    - `http://127.0.0.1:5173/` for local development, and `http://127.0.0.1:4173/` for `npm start`.
 3. The client ID is a constant in `src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
@@ -176,16 +176,16 @@ the playbook uses for packages and `raspi-config`; add `--ask-become-pass` if yo
 
 ```bash
 sudo apt install -y ansible git
-printf 'kiosk_url: https://<project>.vercel.app/\n' > ~/the-max-mix-kiosk.yml
 ansible-pull -U https://github.com/nvorkinn/the-max-mix.git -C main -d ~/.cache/the-max-mix-ansible \
-  -i localhost, -e @$HOME/the-max-mix-kiosk.yml ansible/local.yml
+  -i localhost, ansible/local.yml
 ```
 
-`kiosk_url` is required and has no default: it is the address of the deployed app, `https://` (or `http://127.0.0.1` and
-`http://localhost` for testing), without spaces or quotes. Register **exactly that address, trailing slash included,** as
-a redirect URI in the Spotify dashboard, then open the kiosk and sign in once in Settings. The variables file is read on
-every pull, so a pull is repeatable. [`ansible/vars.example.yml`](ansible/vars.example.yml) lists the optional settings
-(`kiosk_user`, `kiosk_startup_timeout`, `kiosk_configure_raspi_config`).
+The kiosk opens `https://the-max-mix.vercel.app/` (the deployed app) unless you pass another `kiosk_url`: `https://`, or `http://127.0.0.1` and
+`http://localhost` for testing, without spaces or quotes. Register **exactly that address, trailing slash included,** as
+a redirect URI in the Spotify dashboard (`https://the-max-mix.vercel.app/`), then open the kiosk and sign in once in Settings. To
+change a setting, put it in `~/the-max-mix-kiosk.yml` (for example `kiosk_url: ...`) and add `-e @$HOME/the-max-mix-kiosk.yml`
+to the command, so every pull is repeatable. [`ansible/vars.example.yml`](ansible/vars.example.yml) lists the settings
+(`kiosk_url`, `kiosk_user`, `kiosk_startup_timeout`, `kiosk_configure_raspi_config`).
 
 The playbook is idempotent and supports `--check`. It:
 
@@ -235,11 +235,11 @@ systemctl --user restart the-max-mix-kiosk.service
   that.
 - **Playbook updates and re-runs:** run the same `ansible-pull` command again. It fetches `main`, so use `-C <tag or
 branch>` to pin a version of the playbook.
-- **Change the address:** edit `kiosk_url` in `~/the-max-mix-kiosk.yml` and pull again (the running kiosk is
+- **Change the address:** set `kiosk_url` in `~/the-max-mix-kiosk.yml` and pull again with `-e @$HOME/the-max-mix-kiosk.yml` (the running kiosk is
   restarted), and register the new address in the Spotify dashboard.
 - **Pull on a schedule (optional):** a user crontab line such as
   `17 4 * * 0 ansible-pull -U https://github.com/nvorkinn/the-max-mix.git -C main -d $HOME/.cache/the-max-mix-ansible -i
-localhost, -e @$HOME/the-max-mix-kiosk.yml ansible/local.yml` (written on one line) applies playbook changes weekly.
+localhost, ansible/local.yml` (written on one line) applies playbook changes weekly.
 - **Roll back:** pin the playbook with `-C <earlier tag or commit>` and pull again. To undo a site release, redeploy the
   previous tag with the Release workflow. To remove the kiosk, delete the autostart block in
   `~/.config/labwc/autostart` and the `~/.config/autostart/the-max-mix-kiosk.desktop` file, then run

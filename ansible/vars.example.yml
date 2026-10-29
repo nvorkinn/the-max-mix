@@ -1,10 +1,10 @@
 ---
-# Copy to ~/the-max-mix-kiosk.yml on the Pi and pass it to ansible-pull with -e @~/the-max-mix-kiosk.yml, so every pull
-# uses the same settings.
+# Only needed to change a default. Copy to ~/the-max-mix-kiosk.yml on the Pi and pass it to ansible-pull with
+# -e @$HOME/the-max-mix-kiosk.yml, so every pull uses the same settings.
 
-# Required: the address the kiosk opens, the hosted app on Vercel. Register exactly this address (trailing slash
-# included) as a redirect URI in the Spotify dashboard.
-kiosk_url: https://example.vercel.app/
+# The address the kiosk opens (default: the deployed app). Register exactly this address, trailing slash included, as a
+# redirect URI in the Spotify dashboard.
+# kiosk_url: https://the-max-mix.vercel.app/
 
 # Optional: the desktop user that runs the kiosk (default: the user running ansible-pull, or SUDO_USER).
 # kiosk_user: pi

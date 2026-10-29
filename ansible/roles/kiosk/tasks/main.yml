@@ -2,15 +2,14 @@
 - name: Check the variables before anything is changed
   ansible.builtin.assert:
     that:
-      - kiosk_url is defined
       - kiosk_url is string
       - kiosk_url is match(kiosk_url_pattern)
       - kiosk_user is string
       - kiosk_user != 'root'
       - kiosk_startup_timeout | string is match('^[1-9][0-9]*\Z')
     fail_msg: >-
-      kiosk_url is required: the https address of the hosted app (http only for 127.0.0.1 or localhost), without spaces or
-      quotes, for example -e kiosk_url=https://example.vercel.app/. kiosk_user must be the desktop user, never root, and
+      kiosk_url must be the https address of the hosted app (http only for 127.0.0.1 or localhost), without spaces or
+      quotes, for example -e kiosk_url=https://the-max-mix.vercel.app/. kiosk_user must be the desktop user, never root, and
       kiosk_startup_timeout a positive number of seconds.
     quiet: true
 
