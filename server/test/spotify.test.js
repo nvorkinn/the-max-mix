@@ -1,9 +1,9 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, readFile, stat, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { createHash, randomUUID } from 'node:crypto';
+import test from 'node:test';
 import { SpotifyError, SpotifyService } from '../src/spotify.js';
 
 /** @typedef {Omit<RequestInit, 'body' | 'headers'> & { body: URLSearchParams, headers: Record<string, string> }} TokenRequestInit */
