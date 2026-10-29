@@ -3,8 +3,9 @@
 # Usage: bash install-kiosk.sh [vX.Y.Z]    (default: the latest release; an older tag rolls back)
 # Environment: KIOSK_INSTALL_DIR (default ~/the-max-mix), KIOSK_REPO (default nvorkinn/the-max-mix),
 #              KIOSK_KEEP_RELEASES (how many releases to keep on disk, default 3)
-#              SPOTIFY_CLIENT_ID (optional: written to server.env if it has no client ID yet; it is not a secret.
-#              Without it, the client ID bundled into the release, if any, is used the same way)
+#              SPOTIFY_CLIENT_ID (written to server.env if it has no client ID yet; it is not a secret. Without it, the
+#              client ID bundled into the release is used the same way. The install fails if no client ID is found
+#              in the variable, the release or an existing server.env)
 set -euo pipefail
 
 if [[ $(uname -s) != Linux || $(id -u) -eq 0 ]]; then
@@ -90,6 +91,11 @@ if [[ -z $client_id && -f $release/server/.env.example ]]; then
   if [[ $bundled =~ ^[A-Za-z0-9]{1,64}$ ]]; then
     client_id=$bundled
   fi
+fi
+if [[ -z $client_id ]] && ! grep -Eqs '^SPOTIFY_CLIENT_ID=.+' "$install/server.env"; then
+  echo "No Spotify client ID: this release has none bundled, $install/server.env has none, and SPOTIFY_CLIENT_ID is not set." >&2
+  echo "Run again as: SPOTIFY_CLIENT_ID=your_client_id bash install-kiosk.sh" >&2
+  exit 1
 fi
 
 sudo -v

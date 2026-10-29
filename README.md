@@ -151,8 +151,9 @@ Things to know:
 
 - **The Spotify client ID can ship with the release.** Add `SPOTIFY_CLIENT_ID` once under **Settings > Secrets and
   variables > Actions > Variables** (a variable, not a secret: the ID is public and PKCE needs no secret). The workflow
-  writes it into the packaged `server/.env.example`, so the installer sets it on every Pi with nothing to type. Without
-  the variable the template's ID stays empty.
+  writes it into the packaged `server/.env.example`, so the installer sets it on every Pi with nothing to type. The
+  release job fails at its first step if the variable is not set, and the installer refuses to run when it finds no ID
+  (no `SPOTIFY_CLIENT_ID` in the environment, none in the release, none already in `server.env`).
 - **The tag is the only source of the version.** There is nothing to bump: the `version` fields in the repository's
   `package.json` files are a `0.0.0` placeholder, and the release stamps the real version into the packaged copies.
 - **Create the release in the web UI; do not push a bare tag.** Publishing the release creates the tag, and the workflow

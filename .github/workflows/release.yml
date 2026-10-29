@@ -6,7 +6,8 @@ name: Release
 # there is no release for the tag; a failed job can be re-run. Lint and tests are not repeated here: the Tests and Lint
 # workflows already run them on pull requests and on main, so release a commit on main. The tag is the only source of
 # the version: package-release.sh stamps it into the packaged package.json files (the repository keeps a 0.0.0
-# placeholder). The tarball also gets a build provenance attestation: verify a download with
+# placeholder). The SPOTIFY_CLIENT_ID repository variable (not a secret) is baked into the packaged config template so
+# the installer can set it on the Pi; the job fails early if the variable is missing. The tarball also gets a build provenance attestation: verify a download with
 # `gh attestation verify <file> --repo nvorkinn/the-max-mix`.
 on:
   push:
@@ -23,6 +24,14 @@ jobs:
       id-token: write
       attestations: write
     steps:
+      - name: Require the Spotify client ID
+        env:
+          SPOTIFY_CLIENT_ID: ${{ vars.SPOTIFY_CLIENT_ID }}
+        run: |
+          if [[ -z $SPOTIFY_CLIENT_ID ]]; then
+            echo "::error::The SPOTIFY_CLIENT_ID repository variable is not set. Add it under Settings > Secrets and variables > Actions > Variables, then re-run this job."
+            exit 1
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
