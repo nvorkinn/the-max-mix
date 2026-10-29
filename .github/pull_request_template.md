@@ -12,4 +12,4 @@
 - [ ] `npm test` passes
 - [ ] `npm run build` passes (if the client changed)
 - [ ] README or docs updated if behaviour changed
-- [ ] No secrets or `server/.env` values committed
+- [ ] No secrets or Spotify refresh tokens committed

@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
 
+// Demo mode is switched on per page with `?demo=true`; the simulated player runs in the browser, so no network is needed.
+const DEMO_URL = '/?demo=true';
+
 // Demo track art comes from a remote CDN; serve a 1x1 GIF instead so the run is offline-safe and deterministic.
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 
@@ -24,14 +27,14 @@ test('loads in demo mode without console errors', async ({ page }) => {
     errors.push(error.message);
   });
 
-  await page.goto('/');
+  await page.goto(DEMO_URL);
   await expect(page.getByRole('heading', { name: /THE MAX MIX/ })).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: 'Demo session' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
 test('shows the demo track and queue', async ({ page }) => {
-  await page.goto('/');
+  await page.goto(DEMO_URL);
   await expect(nowPlaying(page)).toContainText('One More Time');
   await expect(nowPlaying(page)).toContainText('Daft Punk');
   await expect(upcoming(page)).toContainText('Starboy');
@@ -39,20 +42,17 @@ test('shows the demo track and queue', async ({ page }) => {
 });
 
 test('pause and play toggle the playback state', async ({ page }) => {
-  await page.goto('/');
+  await page.goto(DEMO_URL);
   await nowPlaying(page).getByRole('button', { name: 'Pause' }).click();
   await expect(nowPlaying(page).getByRole('button', { name: 'Play' })).toBeVisible();
-  /** @type {unknown} */
-  const body = await (await page.request.get('/api/spotify/current')).json();
-  const playback = /** @type {{ is_playing: boolean }} */ (body);
-  expect(playback.is_playing).toBe(false);
+  await expect(nowPlaying(page).getByRole('button', { name: 'Pause' })).toBeHidden();
 
   await nowPlaying(page).getByRole('button', { name: 'Play' }).click();
   await expect(nowPlaying(page).getByRole('button', { name: 'Pause' })).toBeVisible();
 });
 
 test('next and previous change the current track', async ({ page }) => {
-  await page.goto('/');
+  await page.goto(DEMO_URL);
   await nowPlaying(page).getByRole('button', { name: 'Next track' }).click();
   await expect(nowPlaying(page)).toContainText('Starboy');
   await expect(upcoming(page)).not.toContainText('Starboy');
@@ -63,7 +63,7 @@ test('next and previous change the current track', async ({ page }) => {
 });
 
 test('settings modal opens and closes', async ({ page }) => {
-  await page.goto('/');
+  await page.goto(DEMO_URL);
   await page.getByRole('button', { name: 'Open settings and skins' }).click();
   const dialog = page.getByRole('dialog', { name: 'Make it yours' });
   await expect(dialog).toBeVisible();

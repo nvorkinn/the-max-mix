@@ -2,6 +2,13 @@
 set -euo pipefail
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
 bash -n "$root/scripts/start-kiosk.sh" "$root/scripts/install-kiosk.sh" "$root/scripts/start-kiosk-session.sh" "$root/scripts/start-kiosk-mac.sh" "$root/scripts/package-release.sh"
+grep -Fq '"@ROOT@/scripts/serve.mjs"' "$root/scripts/the-max-mix.service"
+grep -Fq 'EnvironmentFile="@ENV@"' "$root/scripts/the-max-mix.service"
+grep -Eqx 'PORT=[0-9]+' "$root/scripts/kiosk.env.example"
+if grep -Eq 'StateDirectory|server/' "$root/scripts/the-max-mix.service"; then
+  echo "The service must not use a state directory or the removed server." >&2
+  exit 1
+fi
 temporary=$(mktemp -d)
 trap 'rm -f "$temporary/bin/id" "$temporary/bin/curl" "$temporary/bin/chromium" "$temporary/bin/xset" "$temporary/arguments" "$temporary/curl-count"; rmdir "$temporary/bin"; rmdir "$temporary/profile"; rmdir "$temporary"' EXIT
 mkdir "$temporary/bin" "$temporary/profile"

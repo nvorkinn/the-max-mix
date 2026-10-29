@@ -3,8 +3,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import TabletView from './TabletView.jsx';
 
 const state = vi.hoisted(() => ({ player: {} }));
-const api = vi.hoisted(() => ({ requestJSON: vi.fn(), postJSON: vi.fn() }));
-vi.mock('../utils/api.js', () => api);
+const api = vi.hoisted(() => ({ getQueue: vi.fn() }));
+vi.mock('../spotify/api.js', () => api);
 vi.mock('../hooks/useSpotifyPlayer.js', () => ({ useSpotifyPlayer: () => state.player }));
 vi.mock('../utils/colorExtractor.js', () => ({ extractPalette: vi.fn() }));
 vi.mock('./AlbumArtPlayer.jsx', () => ({ default: () => null }));
@@ -31,7 +31,7 @@ const player = overrides => ({
 
 describe('TabletView', () => {
   beforeEach(() => {
-    api.requestJSON.mockReset();
+    api.getQueue.mockReset();
   });
 
   it('shows the clock on the first render', () => {
@@ -43,12 +43,12 @@ describe('TabletView', () => {
   it('does not poll the queue while signed out', () => {
     state.player = player();
     render(<TabletView />);
-    expect(api.requestJSON).not.toHaveBeenCalledWith('/api/queue');
+    expect(api.getQueue).not.toHaveBeenCalled();
     expect(screen.getByTestId('queue')).toHaveTextContent('|no-error');
   });
 
   it('clears the queue and error when polling stops', async () => {
-    api.requestJSON.mockResolvedValue({ queue: [{ id: '1', name: 'Song' }] });
+    api.getQueue.mockResolvedValue({ queue: [{ id: '1', name: 'Song' }] });
     state.player = player({ isAuthenticated: true });
     const { rerender } = render(<TabletView />);
     await waitFor(() => expect(screen.getByTestId('queue')).toHaveTextContent('Song|no-error'));

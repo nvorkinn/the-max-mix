@@ -1,15 +1,63 @@
-import { X, Key, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feather } from 'lucide-react';
+import { useState } from 'react';
+import { X, Key, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feather, LogOut } from 'lucide-react';
+import { signOut, startSignIn } from '../spotify/auth.js';
+import { getClientId, getRedirectUri, setClientId, setDemoMode, setPlaybackMode } from '../spotify/settings.js';
+
+/** Applies a changed setting by reloading the page, which starts everything again from the stored settings. */
+function reloadPage() {
+  const url = new URL(location.href);
+  // A ?demo=true address would switch demo mode straight back on.
+  url.searchParams.delete('demo');
+  location.assign(url.href);
+}
+
+/**
+ * A labelled on/off switch.
+ * @param {{ label: string, description: string, checked: boolean, onChange: (checked: boolean) => void }} props
+ */
+function SwitchRow({ label, description, checked, onChange }) {
+  return (
+    <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+      <div>
+        <div className="text-xs font-bold text-white">{label}</div>
+        <p className="text-[10px] text-neutral-400 mt-0.5">{description}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        onClick={() => onChange(!checked)}
+        className={`shrink-0 w-11 h-6 rounded-full p-0.5 transition-all ${checked ? 'bg-emerald-500' : 'bg-neutral-600'}`}
+      >
+        <span className={`block w-5 h-5 rounded-full bg-white transition-all ${checked ? 'translate-x-5' : ''}`} />
+      </button>
+    </div>
+  );
+}
 
 /**
  * @param {{
  *   isOpen: boolean,
  *   onClose: () => void,
  *   authInfo?: { authenticated?: boolean, configured?: boolean, demoMode?: boolean, playbackMode?: string | undefined },
+ *   signInError?: string | null,
+ *   onReload?: () => void,
  *   currentTheme?: string,
  *   onThemeChange?: (theme: string) => void
  * }} props
  */
-export default function SettingsModal({ isOpen, onClose, authInfo, currentTheme = 'neon', onThemeChange }) {
+export default function SettingsModal({
+  isOpen,
+  onClose,
+  authInfo,
+  signInError = null,
+  onReload = reloadPage,
+  currentTheme = 'neon',
+  onThemeChange
+}) {
+  const [clientIdInput, setClientIdInput] = useState('');
+  const [actionError, setActionError] = useState(/** @type {string | null} */ (null));
   if (!isOpen) return null;
 
   const THEMES = [
@@ -31,9 +79,12 @@ export default function SettingsModal({ isOpen, onClose, authInfo, currentTheme 
     }
   ];
 
-  let spotifyStatus = 'Configure the Spotify client ID in the server environment, then restart.';
+  const needsClientId = !getClientId();
+  const error = actionError || signInError;
+
+  let spotifyStatus = 'Enter a Spotify client ID below to connect.';
   if (authInfo?.demoMode) {
-    spotifyStatus = 'Playback is simulated. Set DEMO_MODE=false in the server environment and restart to use Spotify.';
+    spotifyStatus = 'Playback is simulated. Turn demo mode off below to use Spotify.';
   } else if (authInfo?.authenticated) {
     spotifyStatus = `Connected to Spotify. Playback mode: ${authInfo.playbackMode}.`;
   } else if (authInfo?.configured) {
@@ -136,17 +187,97 @@ export default function SettingsModal({ isOpen, onClose, authInfo, currentTheme 
           <p className="text-[11px] text-neutral-400">{spotifyStatus}</p>
         </div>
 
-        {/* Action Button */}
+        {/* Connection */}
         <div className="space-y-3">
+          {error && (
+            <p role="alert" className="text-xs text-rose-300">
+              {error}
+            </p>
+          )}
+
+          {needsClientId && (
+            <form
+              className="space-y-2"
+              onSubmit={event => {
+                event.preventDefault();
+                if (!clientIdInput.trim()) return;
+                setClientId(clientIdInput);
+                onReload();
+              }}
+            >
+              <label htmlFor="spotify-client-id" className="block text-xs font-semibold text-neutral-300">
+                Spotify client ID
+              </label>
+              <input
+                id="spotify-client-id"
+                type="text"
+                value={clientIdInput}
+                onChange={event => setClientIdInput(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white"
+              />
+              <button type="submit" className="button button-secondary w-full">
+                Save client ID
+              </button>
+            </form>
+          )}
+
+          {(needsClientId || signInError) && (
+            <p className="text-[11px] text-neutral-400">
+              Register this exact redirect address in your Spotify app settings:{' '}
+              <code className="text-[#d5f580] break-all">{getRedirectUri()}</code>
+            </p>
+          )}
+
           {!authInfo?.demoMode && authInfo?.configured && (
-            <a
-              href="/api/auth/login"
+            <button
+              type="button"
+              onClick={() => {
+                setActionError(null);
+                startSignIn().catch((/** @type {unknown} */ caught) =>
+                  setActionError(/** @type {Error} */ (caught).message)
+                );
+              }}
               className="w-full py-3 px-4 bg-[#1DB954] hover:bg-[#1aa34a] text-black font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
             >
               <Music className="w-4 h-4 fill-black" />
               {authInfo.authenticated ? 'Re-authenticate with Spotify' : 'Log in with Spotify'}
-            </a>
+            </button>
           )}
+
+          {authInfo?.authenticated && (
+            <button
+              type="button"
+              onClick={() => {
+                signOut();
+                onReload();
+              }}
+              className="button button-secondary w-full flex items-center justify-center gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign out
+            </button>
+          )}
+
+          <SwitchRow
+            label="Play in this browser"
+            description="On: this screen is the speaker. Off: it only controls another Spotify device."
+            checked={authInfo?.playbackMode !== 'remote'}
+            onChange={browser => {
+              setPlaybackMode(browser ? 'browser' : 'remote');
+              onReload();
+            }}
+          />
+          <SwitchRow
+            label="Demo mode"
+            description="Simulated playback and queue, no Spotify account needed."
+            checked={Boolean(authInfo?.demoMode)}
+            onChange={on => {
+              setDemoMode(on);
+              onReload();
+            }}
+          />
         </div>
       </div>
     </div>

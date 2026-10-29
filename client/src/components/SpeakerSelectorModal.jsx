@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Speaker, Check, RefreshCw } from 'lucide-react';
-import { requestJSON } from '../utils/api.js';
+import { getDevices } from '../spotify/api.js';
 
 /** @param {import('../types.js').SpotifyDevice} device */
 function describeDevice(device) {
@@ -27,8 +27,8 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
   const fetchDevices = async () => {
     setLoading(true);
     try {
-      const data = /** @type {import('../types.js').DevicesResponse} */ (await requestJSON('/api/spotify/devices'));
-      setDevices(data.devices ?? []);
+      const data = await getDevices();
+      setDevices(data.devices);
       setError(null);
     } catch (caught) {
       setDevices([]);

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Development approximation of start-kiosk.sh for macOS: same Chromium flags, separate profile.
-# It does not start the server (run `npm start` first) and cannot verify Widevine or touch on the Pi.
+# It does not start the server (build the client, then run `npm start`: it serves client/dist) and cannot verify Widevine or touch on the Pi.
 set -euo pipefail
 
 if [[ $(uname -s) != Darwin ]]; then
@@ -31,7 +31,7 @@ fi
 deadline=$((SECONDS + timeout))
 until curl --fail --silent --show-error --max-time 2 "${url%/}/api/health" >/dev/null; do
   if (( SECONDS >= deadline )); then
-    echo "Server did not become ready at $url within $timeout seconds. Run 'npm start' first." >&2
+    echo "Server did not become ready at $url within $timeout seconds. Run 'npm start' first (after 'npm run build'; it serves the built client)." >&2
     exit 1
   fi
   sleep 1

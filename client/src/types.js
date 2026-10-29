@@ -4,7 +4,7 @@
  */
 
 /**
- * Error thrown by `requestJSON` / `postJSON` (see utils/api.js).
+ * Error thrown by the Spotify calls (see spotify/api.js).
  * @typedef {Error & { status?: number, retryAfter?: number }} ApiError
  */
 
@@ -39,7 +39,7 @@
  */
 
 /**
- * Response of `/api/spotify/current`.
+ * The playback state, as `getPlaybackState()` returns it (and as the hook keeps it).
  * @typedef {object} PlaybackState
  * @property {boolean} [is_playing]
  * @property {SpotifyDevice} [device]
@@ -52,14 +52,6 @@
  */
 
 /**
- * Response of `/api/info`.
- * @typedef {object} ServerConfig
- * @property {boolean} [demoMode]
- * @property {boolean} [spotifyConfigured]
- * @property {string} [playbackMode]
- */
-
-/**
  * The guest who requested or upvoted a track.
  * @typedef {object} Guest
  * @property {string} id
@@ -68,28 +60,21 @@
  */
 
 /**
- * Response of `/api/queue`.
+ * Response of `getQueue()` and `reorderDemoQueue()`.
  * @typedef {object} QueueResponse
  * @property {Track[]} queue
  */
 
 /**
- * Response of `/api/queue/play-now`.
+ * Response of `playDemoTrackNow()`.
  * @typedef {object} PlayNowResponse
  * @property {Track[]} remainingQueue
  */
 
 /**
- * Response of `/api/spotify/devices`.
+ * Response of `getDevices()`.
  * @typedef {object} DevicesResponse
  * @property {SpotifyDevice[]} [devices]
- */
-
-/**
- * Response of `/api/token`.
- * @typedef {object} TokenStatus
- * @property {boolean} authenticated
- * @property {string} [token]
  */
 
 /**
@@ -104,11 +89,17 @@
  * @property {(positionMs: number) => Promise<void>} seek
  * @property {(volume: number) => Promise<void>} setVolume
  * @property {() => Promise<void>} activateElement
+ * @property {() => Promise<SdkPlaybackState>} getCurrentState
  */
 
 /**
  * What the Web Playback SDK reports on `player_state_changed` (null when this player is no longer the active device).
- * @typedef {{ paused: boolean, position: number, track_window?: { current_track?: { id?: string | null } } } | null} SdkPlaybackState
+ * @typedef {{
+ *   paused: boolean,
+ *   position: number,
+ *   duration?: number,
+ *   track_window?: { current_track?: Track, next_tracks?: { id?: string | null, uri?: string }[] }
+ * } | null} SdkPlaybackState
  */
 
 /**
