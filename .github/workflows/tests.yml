@@ -22,8 +22,10 @@ jobs:
             server/package-lock.json
       - run: npm --prefix client ci
       - run: npm --prefix server ci
-      - run: npm test
+      # The coverage run executes the server and client tests (and enforces the thresholds), so `npm test` would run
+      # them twice; only the kiosk script test is left to run on its own.
       - run: npm run test:coverage
+      - run: bash scripts/test-kiosk.sh
       - name: Coverage summary
         if: ${{ !cancelled() }}
         run: node scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
