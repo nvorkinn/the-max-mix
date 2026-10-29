@@ -10,8 +10,8 @@ import { SpotifyError } from '../src/spotify.js';
 
 /**
  * @param {import('node:test').TestContext} t
- * @param {{ demoMode?: boolean, overrides?: object, playbackMode?: string, distPath?: string,
- *   rateLimits?: object, allowedHosts?: string[] }} [options]
+ * @param {{ demoMode?: boolean, overrides?: Record<string, unknown>, playbackMode?: string, distPath?: string,
+ *   rateLimits?: Partial<{ windowMs: number, api: number, auth: number, pages: number }>, allowedHosts?: string[] }} [options]
  */
 async function start(
   t,
@@ -25,7 +25,7 @@ async function start(
     getValidAccessToken: async () => 'secret-access-token',
     getPlaybackState: async () => null,
     getQueue: async () => ({ currently_playing: null, queue: [] }),
-    spotifyFetch: async () => ({ devices: [] }),
+    getDevices: async () => ({ devices: [] }),
     /** @param {string} state */
     getAuthUrl: state => `https://accounts.spotify.com/authorize?state=${state}`,
     /**
@@ -45,8 +45,8 @@ async function start(
   const app = createApp({
     config: { demoMode, playbackMode, port: 3000, allowedHosts },
     spotify: /** @type {import('../src/spotify.js').SpotifyService} */ (/** @type {unknown} */ (spotify)),
-    distPath,
-    rateLimits
+    ...(distPath === undefined ? {} : { distPath }),
+    ...(rateLimits === undefined ? {} : { rateLimits })
   });
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
@@ -138,7 +138,7 @@ test('OAuth requires the matching state cookie before exchanging a code', async 
   const { base, calls } = await start(t);
   const login = await fetch(`${base}/api/auth/login`, { redirect: 'manual' });
   const state = new URL(/** @type {string} */ (login.headers.get('Location'))).searchParams.get('state');
-  const cookie = /** @type {string} */ (login.headers.get('Set-Cookie')).split(';')[0];
+  const cookie = /** @type {string} */ (login.headers.get('Set-Cookie')).split(';')[0] ?? '';
   assert.equal(
     (await fetch(`${base}/api/auth/callback?code=code&state=wrong`, { headers: { Cookie: cookie } })).status,
     400
