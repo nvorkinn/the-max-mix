@@ -1,5 +1,12 @@
-# One word per line, case-insensitive. Keep sorted.
 # Project dictionary for cspell: product names, hardware and OS terms, and the artist names used by the divas theme.
+# One word per line, case-insensitive. Keep sorted.
+PSK
+SSID
+SSIDs
+VITE
+WPA
+WPA2
+WPA3
 acng
 addedid
 aguilera
@@ -152,7 +159,6 @@ polkit
 polkitd
 poppin
 prerun
-PSK
 pwned
 pycache
 pyside
@@ -189,8 +195,6 @@ shiboken
 sonos
 soundwave
 splitlines
-SSID
-SSIDs
 starboy
 stdin
 stefani
@@ -220,7 +224,6 @@ vars
 venv
 vercel
 virtualkeyboard
-VITE
 waveshare
 wayland
 weeknd
@@ -230,9 +233,6 @@ widevine
 wifi
 winehouse
 wireplumber
-WPA
-WPA2
-WPA3
 writable
 wrongpass
 xauthority
