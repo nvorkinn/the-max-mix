@@ -98,6 +98,17 @@
  * @property {(event: string, listener: (payload: never) => void) => unknown} addListener
  * @property {() => Promise<boolean>} connect
  * @property {() => unknown} disconnect
+ * @property {() => Promise<void>} togglePlay
+ * @property {() => Promise<void>} nextTrack
+ * @property {() => Promise<void>} previousTrack
+ * @property {(positionMs: number) => Promise<void>} seek
+ * @property {(volume: number) => Promise<void>} setVolume
+ * @property {() => Promise<void>} activateElement
+ */
+
+/**
+ * What the Web Playback SDK reports on `player_state_changed` (null when this player is no longer the active device).
+ * @typedef {{ paused: boolean, position: number, track_window?: { current_track?: { id?: string | null } } } | null} SdkPlaybackState
  */
 
 /**
