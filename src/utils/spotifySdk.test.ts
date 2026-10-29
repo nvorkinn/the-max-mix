@@ -44,6 +44,6 @@ describe('loadSpotifySDK', () => {
   it('rejects after 20 seconds without the ready callback', async () => {
     vi.useFakeTimers();
     const promise = loadSpotifySDK();
-    await Promise.all([expect(promise).rejects.toThrow(/timed out/), vi.advanceTimersByTimeAsync(20000)]);
+    await Promise.all([expect(promise).rejects.toThrow(/timed out/), vi.advanceTimersByTimeAsync(20_000)]);
   });
 });

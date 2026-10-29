@@ -22,7 +22,7 @@ export const readJson = (response: Response): Promise<unknown> => response.json(
 /** fetch with a 15 second timeout. Network failures and timeouts become a SpotifyApiError with a readable message. */
 export async function fetchSpotify(url: string, init: RequestInit): Promise<Response> {
   try {
-    return await fetch(url, { ...init, signal: AbortSignal.timeout(15000) });
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(15_000) });
   } catch (error) {
     if (typeof error === 'object' && error !== null && 'name' in error && error.name === 'TimeoutError') {
       throw new SpotifyApiError('Spotify did not answer in time. Try again.', 504);

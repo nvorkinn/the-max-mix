@@ -54,19 +54,19 @@ function pick(roster: Avatar[], index: number): Avatar {
 }
 
 /** Returns the appropriate avatar based on the selected theme */
-export function getDivaForUser(userNameOrId: string | null | undefined, fallbackIndex = 0, theme = 'neon'): Avatar {
+export function getDivaForUser(usernameOrId: string | null | undefined, fallbackIndex = 0, theme = 'neon'): Avatar {
   let roster = GLOBAL_DIVAS;
 
   if (theme === 'minimal') {
     roster = MINIMALIST_AVATARS;
   }
 
-  if (!userNameOrId) {
+  if (!usernameOrId) {
     return pick(roster, fallbackIndex);
   }
 
   let hash = 0;
-  const str = userNameOrId;
+  const str = usernameOrId;
   for (let i = 0; i < str.length; i++) {
     hash = (hash << 5) - hash + str.charCodeAt(i);
     hash |= 0;

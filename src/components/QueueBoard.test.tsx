@@ -33,7 +33,7 @@ describe('QueueBoard', () => {
 
   it('upvotes and removes by track id', () => {
     const h = setup();
-    fireEvent.click(screen.getByText('3').closest('button') as Element);
+    fireEvent.click(defined(screen.getByText('3').closest('button')));
     expect(h.onUpvote).toHaveBeenCalledWith('t1');
     const removeButtons = screen.getAllByRole('button').filter(b => b.querySelector('svg.lucide-trash-2'));
     fireEvent.click(defined(removeButtons[1]));
@@ -62,7 +62,7 @@ describe('QueueBoard', () => {
   it('ignores blank searches', () => {
     const h = setup();
     fireEvent.click(screen.getByRole('button', { name: /add track/i }));
-    fireEvent.change(screen.getByPlaceholderText(/search song/i), { target: { value: '   ' } });
+    fireEvent.change(screen.getByPlaceholderText(/search song/i), { target: { value: ' '.repeat(3) } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
     expect(h.onSearchSpotify).not.toHaveBeenCalled();
   });

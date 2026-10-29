@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Key, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feather, LogOut } from 'lucide-react';
 import { signOut, startSignIn } from '../spotify/auth';
+import { errorMessage } from '../utils/errorMessage';
 import { getRedirectUri, setDemoMode, setPlaybackMode } from '../spotify/settings';
 
 /** Applies a changed setting by reloading the page, which starts everything again from the stored settings. */
@@ -209,7 +210,7 @@ export default function SettingsModal({
               type="button"
               onClick={() => {
                 setActionError(null);
-                startSignIn().catch((caught: unknown) => setActionError((caught as Error).message));
+                startSignIn().catch((caught: unknown) => setActionError(errorMessage(caught)));
               }}
               className="w-full py-3 px-4 bg-[#1DB954] hover:bg-[#1aa34a] text-black font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
             >

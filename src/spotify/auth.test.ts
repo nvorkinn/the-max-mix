@@ -29,7 +29,7 @@ const storedJson = (key: string) => parseJson(localStorage.getItem(key) ?? 'null
 
 const requestOf = (fetchMock: Mock, call = 0) => fetchMock.mock.calls[call] as [string, RequestInit];
 
-const visit = (address: string) => window.history.replaceState(null, '', address);
+const visit = (address: string) => history.replaceState(null, '', address);
 
 const formOf = (fetchMock: Mock, call = 0) => {
   const init = requestOf(fetchMock, call)[1];
@@ -116,7 +116,7 @@ describe('spotify/auth', () => {
       visit('/?demo=true');
       const { completeSignIn } = await load();
       expect(await completeSignIn()).toBeNull();
-      expect(window.location.search).toBe('?demo=true');
+      expect(location.search).toBe('?demo=true');
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
@@ -137,7 +137,7 @@ describe('spotify/auth', () => {
         client_id: 'client-1',
         grant_type: 'authorization_code',
         code: 'abc',
-        redirect_uri: `${window.location.origin}/`,
+        redirect_uri: `${location.origin}/`,
         code_verifier: 'the-verifier'
       });
       expect(storedJson('maxmix.auth')).toEqual({
@@ -145,7 +145,7 @@ describe('spotify/auth', () => {
         refreshToken: 'refresh-1'
       });
       expect(sessionStorage.getItem('maxmix.pkce')).toBeNull();
-      expect(`${window.location.pathname}${window.location.search}${window.location.hash}`).toBe('/?demo=false#top');
+      expect(`${location.pathname}${location.search}${location.hash}`).toBe('/?demo=false#top');
       expect(isSignedIn()).toBe(true);
       // The access token from the exchange is reused rather than refreshed at once.
       expect(await getAccessToken()).toBe('access-1');
@@ -159,7 +159,7 @@ describe('spotify/auth', () => {
       visit('/?code=abc&state=s1');
       fetchMock.mockResolvedValue(json({ access_token: 'a', refresh_token: 'r', expires_in: 3600 }));
       await completeSignIn();
-      expect(`${window.location.pathname}${window.location.search}`).toBe('/');
+      expect(`${location.pathname}${location.search}`).toBe('/');
     });
 
     it('rejects a state that does not match and never calls Spotify', async () => {
@@ -173,7 +173,7 @@ describe('spotify/auth', () => {
       });
       expect(fetchMock).not.toHaveBeenCalled();
       expect(isSignedIn()).toBe(false);
-      expect(window.location.search).toBe('');
+      expect(location.search).toBe('');
       expect(sessionStorage.getItem('maxmix.pkce')).toBeNull();
     });
 
@@ -232,7 +232,7 @@ describe('spotify/auth', () => {
       startedSignIn('s1');
       visit('/?error=access_denied&state=s1');
       expect(await completeSignIn()).toEqual({ ok: false, error: 'Spotify sign-in was declined.' });
-      expect(window.location.search).toBe('');
+      expect(location.search).toBe('');
       expect(sessionStorage.getItem('maxmix.pkce')).toBeNull();
       expect(fetchMock).not.toHaveBeenCalled();
     });

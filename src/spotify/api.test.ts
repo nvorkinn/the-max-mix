@@ -24,7 +24,7 @@ describe('spotify/api', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    window.history.replaceState(null, '', '/');
+    history.replaceState(null, '', '/');
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     vi.mocked(auth.getAccessToken).mockResolvedValue('token-1');
@@ -296,7 +296,7 @@ describe('spotify/api', () => {
 
     it('is switched on by the address too, and never uses the network or a token', async () => {
       setDemoMode(false);
-      window.history.replaceState(null, '', '/?demo=true');
+      history.replaceState(null, '', '/?demo=true');
       const demo = await freshApi();
       await expect(demo.getPlaybackState()).resolves.toMatchObject({ item: { name: 'One More Time' } });
       expect(fetchMock).not.toHaveBeenCalled();
@@ -307,7 +307,7 @@ describe('spotify/api', () => {
       const demo = await freshApi();
       await expect(demo.getPlaybackState()).resolves.toMatchObject({
         is_playing: true,
-        progress_ms: 45000,
+        progress_ms: 45_000,
         device: { id: 'demo-tablet', volume_percent: 80 }
       });
       await expect(demo.getQueue()).resolves.toMatchObject({ currently_playing: { id: 'demo-track-1' } });
@@ -331,7 +331,7 @@ describe('spotify/api', () => {
       await demo.seek(1000);
       await expect(demo.getPlaybackState()).resolves.toMatchObject({ progress_ms: 1000 });
       await demo.seek(99_999_999);
-      await expect(demo.getPlaybackState()).resolves.toMatchObject({ progress_ms: 320000 });
+      await expect(demo.getPlaybackState()).resolves.toMatchObject({ progress_ms: 320_000 });
       await demo.setVolume(30);
       await expect(demo.getPlaybackState()).resolves.toMatchObject({ device: { volume_percent: 30 } });
     });
