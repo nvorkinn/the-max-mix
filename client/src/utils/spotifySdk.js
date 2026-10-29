@@ -1,10 +1,13 @@
-/** @type {any} */
-const sdkWindow = window;
-/** @type {Promise<any> | null} */
+/** @typedef {import('../types.js').SpotifySdk} SpotifySdk */
+
+/** `window` as the Web Playback SDK script extends it. */
+const sdkWindow = /** @type {Window & { Spotify?: SpotifySdk, onSpotifyWebPlaybackSDKReady?: () => void }} */ (window);
+/** @type {Promise<SpotifySdk> | null} */
 let sdkPromise = null;
 
 export function loadSpotifySDK() {
-  if (sdkWindow.Spotify) return Promise.resolve(sdkWindow.Spotify);
+  const loaded = sdkWindow.Spotify;
+  if (loaded) return Promise.resolve(loaded);
   if (sdkPromise) return sdkPromise;
   sdkPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -18,7 +21,7 @@ export function loadSpotifySDK() {
     };
     sdkWindow.onSpotifyWebPlaybackSDKReady = () => {
       clearTimeout(timeout);
-      resolve(sdkWindow.Spotify);
+      resolve(/** @type {SpotifySdk} */ (sdkWindow.Spotify));
     };
     script.onerror = () => fail(new Error('Could not load the Spotify SDK. Check the internet connection.'));
     script.src = 'https://sdk.scdn.co/spotify-player.js';

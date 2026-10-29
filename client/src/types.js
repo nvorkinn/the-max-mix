@@ -68,6 +68,38 @@
  */
 
 /**
+ * Response of `/api/token`.
+ * @typedef {object} TokenStatus
+ * @property {boolean} authenticated
+ * @property {string} [token]
+ */
+
+/**
+ * The part of the Spotify Web Playback SDK player that the app uses.
+ * @typedef {object} SpotifyPlayer
+ * @property {(event: string, listener: (payload: never) => void) => unknown} addListener
+ * @property {() => Promise<boolean>} connect
+ * @property {() => unknown} disconnect
+ */
+
+/**
+ * The `Spotify` namespace that the Web Playback SDK script puts on `window`.
+ * @typedef {object} SpotifySdk
+ * @property {new (options: {
+ *   name: string,
+ *   getOAuthToken: (callback: (token: string) => void) => void,
+ *   volume?: number
+ * }) => SpotifyPlayer} Player
+ */
+
+/**
+ * A `screen:reaction` socket event, or its emoji and guest name when drawn as a particle.
+ * @typedef {object} Reaction
+ * @property {string} [emoji]
+ * @property {string} [guestName]
+ */
+
+/**
  * Player props shared by AlbumArtPlayer and VinylPlayer.
  * @typedef {object} PlayerControls
  * @property {PlaybackState | null | undefined} playback

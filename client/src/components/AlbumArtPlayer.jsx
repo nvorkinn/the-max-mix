@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, AudioLines } from 'lucide-react';
 import AudioVisualizer from './AudioVisualizer.jsx';
 import { getDivaForUser } from '../utils/divas.js';
@@ -46,6 +46,7 @@ export default function AlbumArtPlayer({
   const guestName = isDemoMode ? rawAddedBy.name : null;
   const assignedDiva = getDivaForUser(guestName || '', 0, theme);
   const userAvatar = rawAddedBy.avatar || assignedDiva.image;
+  /** @type {[string, string]} */
   const visualizerColors = theme === 'minimal' ? ['#242820', '#747a6b'] : ['#d5f580', '#8dab64'];
 
   /** @param {number} ms */

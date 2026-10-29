@@ -15,7 +15,7 @@ const SpotifyJamQueue = partialProps(SpotifyJamQueueFull);
 const playback = {
   is_playing: true,
   progress_ms: 65000,
-  device: { name: 'Kitchen', volume_percent: 30 },
+  device: { id: 'dev1', name: 'Kitchen', volume_percent: 30 },
   item: {
     name: 'Song',
     duration_ms: 200000,
@@ -28,7 +28,7 @@ const playback = {
 /** @param {Record<string, unknown>} [props] */
 function setup(props = {}) {
   const h = { onPlayPause: vi.fn(), onNext: vi.fn(), onPrevious: vi.fn(), onSeek: vi.fn(), onVolumeChange: vi.fn() };
-  render(<AlbumArtPlayer playback={/** @type {any} */ (playback)} isPlaying controlsEnabled {...h} {...props} />);
+  render(<AlbumArtPlayer playback={playback} isPlaying controlsEnabled {...h} {...props} />);
   return h;
 }
 
@@ -91,7 +91,7 @@ describe('AlbumArtPlayer', () => {
     setup({
       playback: {
         ...playback,
-        device: { name: 'TV', volume_percent: 10, supports_volume: false },
+        device: { id: 'dev1', name: 'TV', volume_percent: 10, supports_volume: false },
         actions: { disallows: { skipping_next: true, pausing: true, seeking: true } }
       }
     });
@@ -108,9 +108,7 @@ describe('AlbumArtPlayer', () => {
   });
 
   it('credits the demo guest only in demo mode, falling back to a diva image on error', () => {
-    const { unmount } = render(
-      <AlbumArtPlayer playback={/** @type {any} */ (playback)} isDemoMode controlsEnabled onSeek={() => {}} />
-    );
+    const { unmount } = render(<AlbumArtPlayer playback={playback} isDemoMode controlsEnabled onSeek={() => {}} />);
     expect(screen.getByText('Ann')).toBeInTheDocument();
     const avatar = /** @type {Element} */ (document.querySelector('.track-credit img'));
     fireEvent.error(avatar);
@@ -133,6 +131,7 @@ describe('AlbumArtPlayer', () => {
 });
 
 describe('SpotifyJamQueue', () => {
+  /** @type {[import('../types.js').Track, import('../types.js').Track, import('../types.js').Track]} */
   const tracks = [
     {
       id: 'a',

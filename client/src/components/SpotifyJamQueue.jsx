@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Users, Disc3, GripVertical, Play, ArrowUpRight, ListMusic, Headphones } from 'lucide-react';
 import { getDivaForUser } from '../utils/divas.js';
 import { trackKeys } from '../utils/trackKeys.js';
@@ -45,6 +45,7 @@ export default function SpotifyJamQueue({
     if (from === to || to < 0 || to >= queueRef.current.length) return;
     const updated = [...queueRef.current];
     const [track] = updated.splice(from, 1);
+    if (!track) return;
     updated.splice(to, 0, track);
     return onReorderQueue?.(updated);
   };

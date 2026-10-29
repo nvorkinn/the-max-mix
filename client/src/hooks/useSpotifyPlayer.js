@@ -14,7 +14,7 @@ export function useSpotifyPlayer() {
 
   const refreshPlayback = useCallback(async () => {
     const requestId = ++playbackRequestRef.current;
-    const state = await requestJSON('/api/spotify/current');
+    const state = /** @type {import('../types.js').PlaybackState | null} */ (await requestJSON('/api/spotify/current'));
     if (requestId === playbackRequestRef.current) setPlaybackState(state);
   }, []);
 
@@ -26,10 +26,13 @@ export function useSpotifyPlayer() {
     const poll = async () => {
       let delay = 4000;
       try {
-        const info = await requestJSON('/api/info');
+        const info = /** @type {import('../types.js').ServerConfig} */ (await requestJSON('/api/info'));
         if (cancelled) return;
         setConfig(info);
-        const auth = info.demoMode ? { authenticated: false } : await requestJSON('/api/token');
+        /** @type {import('../types.js').TokenStatus} */
+        const auth = info.demoMode
+          ? { authenticated: false }
+          : /** @type {import('../types.js').TokenStatus} */ (await requestJSON('/api/token'));
         if (cancelled) return;
         setIsAuthenticated(auth.authenticated);
         if (info.demoMode || auth.authenticated) await refreshPlayback();
@@ -61,7 +64,7 @@ export function useSpotifyPlayer() {
   useEffect(() => {
     if (!isAuthenticated || config?.demoMode || config?.playbackMode !== 'browser') return;
     let cancelled = false;
-    /** @type {any} */
+    /** @type {import('../types.js').SpotifyPlayer | undefined} */
     let player;
     const initialize = async () => {
       try {
@@ -71,7 +74,8 @@ export function useSpotifyPlayer() {
           name: 'THE MAX MIX',
           getOAuthToken: (/** @type {(token: string) => void} */ callback) => {
             requestJSON('/api/token')
-              .then(data => {
+              .then(response => {
+                const data = /** @type {import('../types.js').TokenStatus} */ (response);
                 if (data.token) callback(data.token);
                 else if (!cancelled) setSdkError('Spotify login expired. Sign in again in Settings.');
               })
