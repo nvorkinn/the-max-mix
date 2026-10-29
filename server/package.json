@@ -11,7 +11,7 @@
     "dev": "node --watch src/index.js",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -p . --noEmit",
-    "test:coverage": "mkdir -p coverage && node --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info"
+    "test:coverage": "mkdir -p coverage && node --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=88 --test-coverage-branches=83 --test-coverage-functions=80 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",
