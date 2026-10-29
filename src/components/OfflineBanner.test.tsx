@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import userEvent from '../test/user';
 import { getRedirectUri } from '../spotify/settings';
 import { NETWORK_ERROR_MESSAGE } from '../spotify/http';
 import TabletView from './TabletView';
