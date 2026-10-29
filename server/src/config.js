@@ -13,7 +13,7 @@ export function loadConfig(env = process.env) {
 /** @param {NodeJS.ProcessEnv} env */
 export function parseConfig(env) {
   const port = Number(env['PORT'] || 3000);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be between 1 and 65535.');
+  if (!Number.isSafeInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be between 1 and 65535.');
   const playbackMode = env['PLAYBACK_MODE'] || 'browser';
   if (!['browser', 'remote'].includes(playbackMode)) throw new Error('PLAYBACK_MODE must be browser or remote.');
   if (env['DEMO_MODE'] && !['true', 'false'].includes(env['DEMO_MODE'])) {

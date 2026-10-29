@@ -20,7 +20,9 @@ test('loads in demo mode without console errors', async ({ page }) => {
   page.on('console', message => {
     if (message.type() === 'error') errors.push(message.text());
   });
-  page.on('pageerror', error => errors.push(error.message));
+  page.on('pageerror', error => {
+    errors.push(error.message);
+  });
 
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /THE MAX MIX/ })).toBeVisible();

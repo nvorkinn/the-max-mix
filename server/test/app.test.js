@@ -41,12 +41,16 @@ async function start(
      * @param {string} code
      * @param {string} state
      */
-    handleAuthCallback: async (code, state) => calls.push(['auth', code, state]),
+    handleAuthCallback: async (code, state) => {
+      calls.push(['auth', code, state]);
+    },
     ...Object.fromEntries(
       ['play', 'pause', 'next', 'previous', 'seek', 'setVolume', 'transferPlayback'].map(action => [
         action,
         /** @param {unknown[]} args */
-        async (...args) => calls.push([action, ...args])
+        async (...args) => {
+          calls.push([action, ...args]);
+        }
       ])
     ),
     ...overrides
@@ -54,8 +58,8 @@ async function start(
   const app = createApp({
     config: { demoMode, playbackMode, port: 3000, allowedHosts },
     spotify: /** @type {import('../src/spotify.js').SpotifyService} */ (/** @type {unknown} */ (spotify)),
-    ...(distPath === undefined ? {} : { distPath }),
-    ...(rateLimits === undefined ? {} : { rateLimits })
+    ...(distPath !== undefined && { distPath }),
+    ...(rateLimits !== undefined && { rateLimits })
   });
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
@@ -69,7 +73,7 @@ async function start(
     const response = await fetch(base + endpoint, {
       method: body === undefined ? 'GET' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(body !== undefined && { body: JSON.stringify(body) }),
       redirect: 'manual'
     });
     /** @type {unknown} */
@@ -149,7 +153,7 @@ test('OAuth requires the matching state cookie before exchanging a code', async 
   const { base, calls } = await start(t);
   const login = await fetch(`${base}/api/auth/login`, { redirect: 'manual' });
   const state = new URL(/** @type {string} */ (login.headers.get('Location'))).searchParams.get('state');
-  const cookie = /** @type {string} */ (login.headers.get('Set-Cookie')).split(';')[0] ?? '';
+  const cookie = /** @type {string} */ (login.headers.get('Set-Cookie')).split(';', 1)[0] ?? '';
   assert.equal(
     (await fetch(`${base}/api/auth/callback?code=code&state=wrong`, { headers: { Cookie: cookie } })).status,
     400
@@ -168,7 +172,7 @@ test('explicit demo controls share backend state without calling Spotify', async
   const initial = (await request('/api/queue')).data.queue;
   const first = initial[0];
   const last = initial.at(-1);
-  assert(first && last);
+  assert.ok(first && last);
   assert.equal((await request('/api/queue/reorder', { queue: initial.toReversed() })).response.status, 200);
   assert.equal((await request('/api/queue')).data.queue[0]?.id, last.id);
   assert.equal((await request('/api/queue/reorder', { queue: [] })).response.status, 400);
@@ -200,7 +204,7 @@ test('API, sign-in and page requests are rate limited per client with a JSON 429
   const limited = await request('/api/auth/login');
   assert.equal(limited.response.status, 429);
   assert.match(limited.data.error, /Too many requests/);
-  assert(limited.response.headers.get('RateLimit'), 'standard rate limit headers are sent');
+  assert.ok(limited.response.headers.get('RateLimit'), 'standard rate limit headers are sent');
   assert.equal((await request('/api/info')).response.status, 200, 'the sign-in limit does not affect other routes');
 
   for (const route of ['/', '/deep/link', '/another']) assert.equal((await fetch(`${base}${route}`)).status, 200);

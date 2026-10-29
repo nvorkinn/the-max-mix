@@ -3,6 +3,8 @@ import { defineConfig } from 'eslint/config';
 import { flatConfigs as importConfigs } from 'eslint-plugin-import-x';
 import nodePlugin from 'eslint-plugin-n';
 import security from 'eslint-plugin-security';
+import sonarjs from 'eslint-plugin-sonarjs';
+import unicorn from 'eslint-plugin-unicorn';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
@@ -27,6 +29,8 @@ export function createConfig({ tsconfigRootDir, allowDefaultProject = [] }) {
         tseslint.configs.stylisticTypeChecked,
         nodePlugin.configs['flat/recommended-module'],
         security.configs.recommended,
+        unicorn.configs.recommended,
+        sonarjs.configs.recommended,
         importConfigs.recommended
       ],
       languageOptions: {
@@ -37,6 +41,36 @@ export function createConfig({ tsconfigRootDir, allowDefaultProject = [] }) {
       },
       linterOptions: { reportUnusedDisableDirectives: 'error' },
       rules: {
+        // unicorn and sonarjs are enabled with their recommended presets; the rules below are left off because they are
+        // style preferences, would force renames or rewrites without catching bugs, or flag deliberate patterns here.
+        // File names (queueManager.js) are camelCase throughout; renaming them would churn every import for no gain.
+        'unicorn/filename-case': 'off',
+        // Abbreviations like req, res, err, env, args and params are the Express and Node vocabulary.
+        'unicorn/name-replacements': 'off',
+        // Booleans named ready, play or retry read fine; an is/has prefix everywhere is only naming taste.
+        'unicorn/consistent-boolean-name': 'off',
+        // null is part of the Spotify and JSON payloads this server passes through, so avoiding it is not an option.
+        'unicorn/no-null': 'off',
+        // `(await x).y` is short and clear.
+        'unicorn/no-await-expression-member': 'off',
+        // Comment formatting taste, and the leading asterisks are what typed JSDoc is written with.
+        'unicorn/single-line-block-comment-style': 'off',
+        'unicorn/no-asterisk-prefix-in-documentation-comments': 'off',
+        // Digit grouping such as 10_000 is purely cosmetic.
+        'unicorn/numeric-separators-style': 'off',
+        // Express handlers and Spotify requests use .then/.catch/.finally on purpose to hand errors to next().
+        'unicorn/prefer-await': 'off',
+        'unicorn/prefer-then-catch': 'off',
+        // Same reason as n/no-process-exit below: the entry point and scripts exit on purpose.
+        'unicorn/no-process-exit': 'off',
+        // Helpers are kept general (requireInteger takes a min) even if every current call passes the same value.
+        'unicorn/no-unnecessary-parameters': 'off',
+        // Reordering a condition can skip side effects; whether the "simple" part is cheaper is not worth a rule.
+        'unicorn/prefer-simple-condition-first': 'off',
+        // The only matches are the literal 'todo' flag name in this file, which is not a task.
+        'sonarjs/todo-tag': 'off',
+        // The one Math.random() builds a fallback id for tracks without one; nothing security-related depends on it.
+        'sonarjs/pseudo-random': 'off',
         // Import hygiene. `recommended` already covers named/default/namespace/export/no-named-as-default and friends.
         'import-x/no-cycle': 'error',
         'import-x/no-duplicates': 'error',
@@ -65,9 +99,8 @@ export function createConfig({ tsconfigRootDir, allowDefaultProject = [] }) {
         'no-useless-return': 'error',
         'no-else-return': 'error',
         'no-param-reassign': 'error',
-        // Left off: all 17 hits are tests that issue requests in order on purpose (rate limits, shared demo state), and
-        // there is no loop in src/ that awaits.
-        'no-await-in-loop': 'off',
+        // On for src/, where no loop awaits and a new one would serialize work by accident. Tests are exempt below.
+        'no-await-in-loop': 'error',
         curly: ['error', 'multi-line'],
         'object-shorthand': 'error',
         'prefer-template': 'error',
@@ -94,7 +127,8 @@ export function createConfig({ tsconfigRootDir, allowDefaultProject = [] }) {
         // so it only produced false positives.
         'security/detect-non-literal-fs-filename': 'off',
         // detect-object-injection flags every `object[variable]`, which is how maps and lookups are normally written.
-        // It cannot tell safe keys from unsafe ones, and noUncheckedIndexedAccess already covers the real risk.
+        // It cannot tell safe keys from unsafe ones, and noUncheckedIndexedAccess already covers the real risk. Rechecked:
+        // its only hit in src/ is `spotify[action]()` where action is one of four literals.
         'security/detect-object-injection': 'off'
       }
     },
@@ -114,6 +148,11 @@ export function createConfig({ tsconfigRootDir, allowDefaultProject = [] }) {
             message: 'Remove the leftover only / skip / todo option so every test runs.'
           }
         ],
+        // Tests issue requests in order on purpose (rate limits, shared demo state), so awaiting in a loop is the intent.
+        'no-await-in-loop': 'off',
+        // Tests use made-up LAN addresses and http://localhost URLs as fixtures for the host and redirect checks.
+        'sonarjs/no-hardcoded-ip': 'off',
+        'sonarjs/no-clear-text-protocols': 'off',
         // Catches `assert.rejects(...)` / `assert.doesNotReject(...)` without await, which would pass whatever happens.
         // Test doubles are async only to return a promise like the real thing, and test bodies need not await.
         '@typescript-eslint/require-await': 'off',

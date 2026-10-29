@@ -13,7 +13,8 @@ for (const manifest of manifests) {
   const parsed = JSON.parse(readFileSync(new URL(`../${manifest}`, import.meta.url), 'utf8'));
   const pkg = /** @type {Record<string, Record<string, string> | undefined>} */ (parsed);
   for (const section of sections) {
-    for (const [name, range] of Object.entries(pkg[section] ?? {})) {
+    const dependencies = Object.entries(pkg[section] ?? {});
+    for (const [name, range] of dependencies) {
       if (floating.has(range.trim().toLowerCase())) {
         problems.push(`${manifest}: ${section}.${name} uses the floating range "${range}"`);
       }

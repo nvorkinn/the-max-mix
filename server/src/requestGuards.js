@@ -6,7 +6,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 /** @param {string} hostHeader */
 function hostnameOf(hostHeader) {
   try {
-    return new URL(`http://${hostHeader}`).hostname.replace(/^\[|\]$/g, '').toLowerCase();
+    return new URL(`http://${hostHeader}`).hostname.replaceAll(/^\[|\]$/g, '').toLowerCase();
   } catch {
     return '';
   }
@@ -55,13 +55,15 @@ function isCrossSite(req) {
  * or form posts without a preflight, but not application/json.
  */
 export function sameOriginWrites() {
-  /** @type {import('express').RequestHandler} */
-  return (req, res, next) => {
-    if (SAFE_METHODS.has(req.method)) return next();
-    if (isCrossSite(req)) return res.status(403).json({ error: 'Cross-site requests are not allowed.' });
-    if (!req.is('application/json')) {
-      return res.status(415).json({ error: 'Send a JSON body with Content-Type: application/json.' });
-    }
-    return next();
-  };
+  return rejectUnsafeWrites;
 }
+
+/** @type {import('express').RequestHandler} */
+const rejectUnsafeWrites = (req, res, next) => {
+  if (SAFE_METHODS.has(req.method)) return next();
+  if (isCrossSite(req)) return res.status(403).json({ error: 'Cross-site requests are not allowed.' });
+  if (!req.is('application/json')) {
+    return res.status(415).json({ error: 'Send a JSON body with Content-Type: application/json.' });
+  }
+  return next();
+};
