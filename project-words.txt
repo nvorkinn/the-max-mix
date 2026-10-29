@@ -193,3 +193,14 @@ hunspell
 rescan
 unescapes
 unescaped
+color
+math
+behavior
+flickable
+polkit
+offscreen
+nbbbb
+ncccc
+cretpass
+longenough
+wrongpass
