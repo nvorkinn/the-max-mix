@@ -1,0 +1,135 @@
+---
+- name: Check the variables before anything is changed
+  ansible.builtin.assert:
+    that:
+      - kiosk_url is string
+      - kiosk_url is match(kiosk_url_pattern)
+      - kiosk_user is string
+      - kiosk_user != 'root'
+      - kiosk_startup_timeout | string is match('^[1-9][0-9]*\Z')
+    fail_msg: >-
+      kiosk_url must be the https address of the hosted app (http only for 127.0.0.1 or localhost), without spaces or
+      quotes, for example -e kiosk_url=https://the-max-mix.vercel.app/. kiosk_user must be the desktop user, never root, and
+      kiosk_startup_timeout a positive number of seconds.
+    quiet: true
+
+- name: Look up the kiosk user
+  ansible.builtin.getent:
+    database: passwd
+    key: '{{ kiosk_user }}'
+
+- name: Remember where the kiosk user lives
+  ansible.builtin.set_fact:
+    kiosk_uid: "{{ ansible_facts['getent_passwd'][kiosk_user][1] }}"
+    kiosk_home: "{{ ansible_facts['getent_passwd'][kiosk_user][4] }}"
+
+- name: Check the kiosk user's home directory
+  ansible.builtin.assert:
+    that:
+      - kiosk_home is match(kiosk_home_pattern)
+      - kiosk_uid != '0'
+    fail_msg: The kiosk user must be an ordinary user with a home directory made of letters, digits, dots, hyphens and slashes.
+    quiet: true
+
+- name: Install Chromium and curl
+  ansible.builtin.apt:
+    name:
+      - chromium
+      - curl
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+  tags: [packages]
+
+# Everything below belongs to the kiosk user. When ansible-pull runs as that user these tasks need no privileges.
+- name: Set up the kiosk user's files
+  become: "{{ kiosk_user != ansible_facts['user_id'] }}"
+  become_user: '{{ kiosk_user }}'
+  block:
+    - name: Create the directories
+      ansible.builtin.file:
+        path: '{{ item.path }}'
+        state: directory
+        mode: '{{ item.mode }}'
+      loop:
+        - { path: '{{ kiosk_scripts_dir }}', mode: '0755' }
+        - { path: '{{ kiosk_config_dir }}', mode: '0700' }
+        - { path: '{{ kiosk_home }}/.config/systemd/user', mode: '0755' }
+        - { path: '{{ kiosk_home }}/.config/labwc', mode: '0755' }
+        - { path: '{{ kiosk_home }}/.config/autostart', mode: '0755' }
+      loop_control:
+        label: '{{ item.path }}'
+
+    - name: Install the kiosk scripts
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../scripts/{{ item }}'
+        dest: '{{ kiosk_scripts_dir }}/{{ item }}'
+        mode: '0755'
+      loop:
+        - start-kiosk.sh
+        - start-kiosk-session.sh
+      notify: Restart the kiosk
+
+    - name: Store the kiosk address
+      ansible.builtin.template:
+        src: kiosk.env.j2
+        dest: '{{ kiosk_config_dir }}/kiosk.env'
+        mode: '0600'
+      notify: Restart the kiosk
+
+    - name: Install the kiosk service
+      ansible.builtin.template:
+        src: the-max-mix-kiosk.service.j2
+        dest: '{{ kiosk_home }}/.config/systemd/user/the-max-mix-kiosk.service'
+        mode: '0644'
+      notify: Restart the kiosk
+
+    # The user's own labwc autostart entries stay as they are; only the block between the markers is managed.
+    - name: Start the kiosk from the labwc autostart
+      ansible.builtin.blockinfile:
+        path: '{{ kiosk_home }}/.config/labwc/autostart'
+        create: true
+        mode: '0644'
+        marker: '# {mark} THE MAX MIX KIOSK'
+        marker_begin: BEGIN
+        marker_end: END
+        block: "/bin/bash {{ (kiosk_scripts_dir ~ '/start-kiosk-session.sh') | quote }} &"
+
+    - name: Start the kiosk from the XDG autostart (desktops that do not use labwc)
+      ansible.builtin.template:
+        src: the-max-mix-kiosk.desktop.j2
+        dest: '{{ kiosk_home }}/.config/autostart/the-max-mix-kiosk.desktop'
+        mode: '0644'
+
+# The user's systemd manager has to be reachable for daemon-reload and try-restart when ansible-pull runs outside the
+# desktop session (over SSH or from cron).
+- name: Keep the kiosk user's systemd manager available
+  ansible.builtin.command: loginctl enable-linger {{ kiosk_user | quote }}
+  args:
+    creates: '/var/lib/systemd/linger/{{ kiosk_user }}'
+  become: true
+
+# raspi-config reports these settings differently across releases, so they are applied once and a marker file records it.
+# Delete the marker to apply them again. The display itself (resolution, rotation) is not touched: see
+# scripts/waveshare-7inch-config.txt, and /boot/firmware/config.txt is deliberately left alone.
+- name: Check for raspi-config
+  ansible.builtin.stat:
+    path: /usr/bin/raspi-config
+  register: kiosk_raspi_config
+  when: kiosk_configure_raspi_config | bool
+
+- name: Turn on desktop autologin and turn off screen blanking
+  ansible.builtin.shell:
+    cmd: |
+      set -e
+      raspi-config nonint do_boot_behaviour B4
+      raspi-config nonint do_blanking 1
+      mkdir -p "$(dirname {{ kiosk_raspi_config_marker | quote }})"
+      touch {{ kiosk_raspi_config_marker | quote }}
+    executable: /bin/bash
+    creates: '{{ kiosk_raspi_config_marker }}'
+  become: true
+  when:
+    - kiosk_configure_raspi_config | bool
+    - kiosk_raspi_config.stat.exists

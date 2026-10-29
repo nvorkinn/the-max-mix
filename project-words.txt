@@ -17,6 +17,7 @@ bebe
 beyonce
 beyoncé
 björk
+blockinfile
 bridgers
 buildx
 cabello
@@ -40,6 +41,7 @@ esac
 extrabold
 faye
 fulfill
+getent
 goulding
 hayley
 imager
@@ -71,6 +73,8 @@ nikolaivorkinn
 noblank
 noerrdialogs
 nonexistent
+nonint
+noqa
 norah
 nums
 nvmrc
@@ -106,6 +110,7 @@ unconfigured
 upvotes
 utimes
 vars
+venv
 vercel
 waveshare
 weeknd

@@ -24,5 +24,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["scripts/*.ts", "scripts/test/*.ts", "e2e/*.ts", "*.config.js", "*.config.mjs"]
+  "include": ["scripts/*.ts", "e2e/*.ts", "*.config.js", "*.config.mjs"]
 }

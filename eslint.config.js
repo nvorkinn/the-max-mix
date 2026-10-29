@@ -124,8 +124,8 @@ export default defineConfig([
     }
   },
   {
-    // Leftover `.only` / `.skip` / `.todo` would silently disable the rest of a suite, in the Node test runner and in Vitest.
-    files: ['**/test/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
+    // Leftover `.only` / `.skip` / `.todo` would silently disable the rest of a suite.
+    files: ['src/test/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
     rules: {
       'no-restricted-syntax': [
         'error',
@@ -136,34 +136,6 @@ export default defineConfig([
         {
           selector: `CallExpression[callee.name=/^(${TEST_FUNCTIONS})$/] > ObjectExpression > Property[key.name=/^(${LEFTOVER_TEST_FLAGS})$/]`,
           message: 'Remove the leftover only / skip / todo option so every test runs.'
-        }
-      ]
-    }
-  },
-  {
-    // Node's test runner: the promises returned by test() and describe() are handled by the runner itself.
-    files: ['scripts/test/*.ts'],
-    rules: {
-      // Tests issue requests in order on purpose, so awaiting in a loop is the intent.
-      'no-await-in-loop': 'off',
-      // Tests use made-up LAN addresses and http://localhost URLs as fixtures for the host and redirect checks.
-      'sonarjs/no-hardcoded-ip': 'off',
-      'sonarjs/no-clear-text-protocols': 'off',
-      // The kiosk installer tests feed it plain http addresses on purpose, to check that only loopback ones are accepted.
-      'unicorn/prefer-https': 'off',
-      // Catches `assert.rejects(...)` / `assert.doesNotReject(...)` without await, which would pass whatever happens.
-      // Test doubles are async only to return a promise like the real thing, and test bodies need not await.
-      '@typescript-eslint/require-await': 'off',
-      '@typescript-eslint/no-floating-promises': [
-        'error',
-        {
-          allowForKnownSafeCalls: [
-            {
-              from: 'package',
-              package: 'node:test',
-              name: ['test', 'it', 'describe', 'suite', 'before', 'after', 'beforeEach', 'afterEach']
-            }
-          ]
         }
       ]
     }
