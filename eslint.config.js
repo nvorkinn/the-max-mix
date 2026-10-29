@@ -236,8 +236,7 @@ export default defineConfig([
       curly: ['error', 'multi-line'],
       'object-shorthand': 'error',
       'prefer-template': 'error',
-      // The base rule misreads parameter names in TypeScript function types as unused variables.
-      'no-unused-vars': 'off',
+      // The typescript-eslint rule: the base rule misreads parameter names in function types as unused variables.
       '@typescript-eslint/no-unused-vars': ['error', { caughtErrors: 'none' }],
       // @eslint-react's stricter rules (set-state-in-effect, use-state, web-api-no-leaked-fetch, no-array-index-key,
       // naming-convention-ref-name, dom-no-unknown-property) are enforced as errors. exhaustive-deps is off only because it duplicates
