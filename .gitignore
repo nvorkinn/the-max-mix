@@ -8,3 +8,5 @@ spotify-token.json.*.tmp
 .idea/
 release-out
 coverage
+playwright-report
+test-results
