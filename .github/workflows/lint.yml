@@ -80,6 +80,7 @@ jobs:
           echo "$SHA256  $RUNNER_TEMP/actionlint.tar.gz" | sha256sum -c -
           mkdir "$RUNNER_TEMP/actionlint"
           tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP/actionlint" actionlint
+          # cspell:ignore color (an actionlint flag)
           "$RUNNER_TEMP/actionlint/actionlint" -color .github/workflows/*.yml
 
   editorconfig:

@@ -99,8 +99,8 @@ export default [
       'unicorn/no-useless-undefined': 'off', // Strips `fn(undefined)` arguments that the JSDoc signatures require.
       'unicorn/prefer-string-repeat': 'off', // Whitespace-only literals in tests read better as written.
       'unicorn/prefer-await': 'off', // A short fire-and-forget `.then().catch()` chain reads fine and avoids an async wrapper.
-      'unicorn/prefer-observer-apis': 'off', // Swapping resize listeners for ResizeObserver would change behavior.
-      'unicorn/prefer-code-point': 'off', // Would change behavior for characters outside the BMP.
+      'unicorn/prefer-observer-apis': 'off', // Swapping resize listeners for ResizeObserver would change behaviour.
+      'unicorn/prefer-code-point': 'off', // Would change behaviour for characters outside the BMP.
       'unicorn/prefer-math-trunc': 'off', // `| 0` is 32-bit wrapping (hashing), not a truncation; Math.trunc differs.
       'unicorn/no-top-level-assignment-in-function': 'off', // Module-level memoised promise and test stub state are intended.
       'unicorn/consistent-function-scoping': 'off', // Test helpers are kept next to the tests that use them.

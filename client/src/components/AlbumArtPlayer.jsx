@@ -34,7 +34,7 @@ export default function AlbumArtPlayer({
   const title = item.name || item.title || 'Ready when you are';
   const artist = item.artists
     ? item.artists.map(a => a.name).join(', ')
-    : item.artist || 'Choose your next favorite in Spotify';
+    : item.artist || 'Choose your next favourite in Spotify';
   const albumArt =
     item.album?.images?.[0]?.url ||
     item.albumArt ||
