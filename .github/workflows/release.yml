@@ -40,6 +40,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # The build gets the release's version (v1.2.3 becomes 1.2.3) without committing anything; npm rejects a tag that is
+      # not a valid semantic version.
+      - name: Set the version from the tag
+        run: npm version "${TAG#v}" --no-git-tag-version --allow-same-version
       - run: npm run build
       - name: Package dist
         run: |
