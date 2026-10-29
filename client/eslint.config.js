@@ -10,6 +10,7 @@ import jestDom from 'eslint-plugin-jest-dom';
 import jsxA11y from 'eslint-plugin-jsx-a11y-x';
 import unicorn from 'eslint-plugin-unicorn';
 import sonarjs from 'eslint-plugin-sonarjs';
+import importX from 'eslint-plugin-import-x';
 
 export default [
   { ignores: ['dist/**', 'node_modules/**'] },
@@ -115,6 +116,25 @@ export default [
       'sonarjs/cognitive-complexity': 'off', // The two hits are large render/animation functions; splitting them is a refactor, not a lint fix.
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'error'
+    }
+  },
+  {
+    files: ['**/*.{js,jsx}'],
+    plugins: { 'import-x': importX },
+    rules: {
+      'import-x/no-cycle': 'error',
+      'import-x/no-duplicates': 'error',
+      'import-x/no-self-import': 'error',
+      'import-x/no-useless-path-segments': 'error',
+      'import-x/first': 'error',
+      'import-x/newline-after-import': 'error',
+      'import-x/order': [
+        'error',
+        {
+          groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+          'newlines-between': 'never'
+        }
+      ]
     }
   },
   {

@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Users, Disc3, GripVertical, Play, ArrowUpRight, ListMusic, Headphones } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { getDivaForUser } from '../utils/divas.js';
 import { trackKeys } from '../utils/trackKeys.js';
-import confetti from 'canvas-confetti';
 
 /** @type {import('../types.js').Track[]} */
 const EMPTY_QUEUE = [];

@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
+import { AudioLines, Clock, Settings, Speaker, ArrowUpRight } from 'lucide-react';
+import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer.js';
+import { extractPalette } from '../utils/colorExtractor.js';
+import { requestJSON, postJSON } from '../utils/api.js';
 import AlbumArtPlayer from './AlbumArtPlayer.jsx';
 import SpotifyJamQueue from './SpotifyJamQueue.jsx';
 import TouchRipples from './TouchRipples.jsx';
 import SettingsModal from './SettingsModal.jsx';
 import SpeakerSelectorModal from './SpeakerSelectorModal.jsx';
 import JamSettingsModal from './JamSettingsModal.jsx';
-import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer.js';
-import { extractPalette } from '../utils/colorExtractor.js';
-import { AudioLines, Clock, Settings, Speaker, ArrowUpRight } from 'lucide-react';
-import { requestJSON, postJSON } from '../utils/api.js';
 
 const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 

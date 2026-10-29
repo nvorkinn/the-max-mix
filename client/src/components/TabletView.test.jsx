@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { installCanvasStub, stubMatchMedia } from '../test/canvas.js';
+import TabletView from './TabletView.jsx';
 
 const player = vi.hoisted(() => ({ current: /** @type {Record<string, unknown>} */ ({}) }));
 const api = vi.hoisted(() => ({ requestJSON: vi.fn(), postJSON: vi.fn() }));
@@ -10,8 +11,6 @@ vi.mock('../hooks/useSpotifyPlayer.js', () => ({ useSpotifyPlayer: () => player.
 vi.mock('../utils/api.js', () => api);
 vi.mock('../utils/colorExtractor.js', () => palette);
 vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
-
-import TabletView from './TabletView.jsx';
 
 const track = {
   id: 'tr1',
@@ -220,11 +219,11 @@ describe('TabletView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Previous track' }));
     fireEvent.change(screen.getByRole('slider', { name: 'Volume' }), { target: { value: '50' } });
     fireEvent.change(screen.getByRole('slider', { name: 'Playback position' }), { target: { value: '400' } });
-    expect(player.current.togglePlay).toHaveBeenCalled();
-    expect(player.current.nextTrack).toHaveBeenCalled();
-    expect(player.current.previousTrack).toHaveBeenCalled();
-    expect(player.current.setVolume).toHaveBeenCalledWith(0.5);
-    expect(player.current.seek).toHaveBeenCalledWith(400);
+    expect(player.current['togglePlay']).toHaveBeenCalled();
+    expect(player.current['nextTrack']).toHaveBeenCalled();
+    expect(player.current['previousTrack']).toHaveBeenCalled();
+    expect(player.current['setVolume']).toHaveBeenCalledWith(0.5);
+    expect(player.current['seek']).toHaveBeenCalledWith(400);
   });
 
   it('disables transport when the device is restricted', async () => {
@@ -272,7 +271,7 @@ describe('TabletView', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Play Queued One now' }));
       await flush();
       expect(api.postJSON).toHaveBeenCalledWith('/api/queue/play-now', { trackId: 'q1' });
-      expect(player.current.refreshPlayback).toHaveBeenCalled();
+      expect(player.current['refreshPlayback']).toHaveBeenCalled();
       expect(screen.getByText('Demo playing: Queued One')).toBeInTheDocument();
       expect(screen.getByText('A little quiet in here.')).toBeInTheDocument();
     });
@@ -284,7 +283,7 @@ describe('TabletView', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Play Queued One now' }));
       await flush();
       expect(screen.getByText('Nope')).toBeInTheDocument();
-      expect(player.current.refreshPlayback).not.toHaveBeenCalled();
+      expect(player.current['refreshPlayback']).not.toHaveBeenCalled();
     });
   });
 
@@ -298,7 +297,7 @@ describe('TabletView', () => {
     await flush();
     fireEvent.click(screen.getByRole('button', { name: /Soundbar/ }));
     await flush();
-    expect(player.current.transferPlayback).toHaveBeenCalledWith('dev1');
+    expect(player.current['transferPlayback']).toHaveBeenCalledWith('dev1');
   });
 
   it('shows the clock in the footer', async () => {

@@ -1,12 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent, act } from '@testing-library/react';
 import { installCanvasStub, stubMatchMedia } from '../test/canvas.js';
-
+import { partialProps } from '../test/partialProps.js';
+import { defined } from '../test/defined.js';
 import AudioVisualizer from './AudioVisualizer.jsx';
 import ReactionCanvasFull from './ReactionCanvas.jsx';
 import TouchRipples from './TouchRipples.jsx';
-import { partialProps } from '../test/partialProps.js';
-import { defined } from '../test/defined.js';
 
 const ReactionCanvas = partialProps(ReactionCanvasFull);
 

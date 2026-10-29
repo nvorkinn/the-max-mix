@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, AudioLines } from 'lucide-react';
-import AudioVisualizer from './AudioVisualizer.jsx';
-import { getDivaForUser } from '../utils/divas.js';
 import confetti from 'canvas-confetti';
+import { getDivaForUser } from '../utils/divas.js';
+import AudioVisualizer from './AudioVisualizer.jsx';
 
 /**
  * @param {import('../types.js').PlayerControls & { theme?: string, isDemoMode?: boolean, controlsEnabled?: boolean }} props

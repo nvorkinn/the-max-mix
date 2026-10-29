@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { requestJSON, postJSON } from './api.js';
 import { defined } from '../test/defined.js';
+import { requestJSON, postJSON } from './api.js';
 
 /**
  * @param {unknown} body

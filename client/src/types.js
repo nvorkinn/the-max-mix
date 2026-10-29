@@ -48,7 +48,7 @@
  * @property {number} [progress_ms]
  * @property {number} [position]
  * @property {number} [duration]
- * @property {{ disallows?: Record<string, boolean | undefined> }} [actions]
+ * @property {{ disallows?: { seeking?: boolean, skipping_prev?: boolean, skipping_next?: boolean, pausing?: boolean, resuming?: boolean } }} [actions]
  */
 
 /**
