@@ -57,6 +57,8 @@ jobs:
           password=$(openssl rand -hex 24)
           echo "::add-mask::$password"
           echo "PI_PASSWORD=$password" >> "$GITHUB_ENV"
+      # The arm64 runner has about 100 GiB free, enough for a Lite build; pi-gen-action's own disk clean-up purges x64-only
+      # packages and fails here, so it is not used.
       - run: df -h /
       # Raspberry Pi OS Lite (stage0 to stage2), then this repository's stage, which is the only one exported as an image.
       - name: Build the image
@@ -68,7 +70,6 @@ jobs:
           release: trixie
           stage-list: stage0 stage1 stage2 ./pi/image/stage-kiosk
           export-last-stage-only: true
-          increase-runner-disk-size: true
           compression: xz
           compression-level: 6
           hostname: the-max-mix
@@ -83,6 +84,7 @@ jobs:
           enable-ssh: 0
           enable-cloud-init: 0
           verbose-output: true
+      - run: df -h /
       - name: Name the image, checksum it and check its size
         env:
           IMAGE_PATH: ${{ steps.pi-gen.outputs.image-path }}
