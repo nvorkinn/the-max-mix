@@ -32,6 +32,13 @@ async function setup(t, fetchImpl) {
  */
 const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers });
 
+/** @param {SpotifyService} service */
+async function readStored(service) {
+  /** @type {unknown} */
+  const stored = JSON.parse(await readFile(service.tokenFile, 'utf8'));
+  return /** @type {{ clientId: string, refreshToken: string }} */ (stored);
+}
+
 /**
  * Starts a sign-in and finishes it with the given code, the way the login and callback routes do.
  * @param {SpotifyService} service
@@ -51,7 +58,7 @@ test('OAuth persists only the refresh token with owner-only permissions and rest
     return json({ access_token: `access-${calls.length}`, refresh_token: `refresh-${calls.length}`, expires_in: 3600 });
   });
   assert.equal(await signIn(service, 'authorization-code'), 'access-1');
-  const stored = JSON.parse(await readFile(service.tokenFile, 'utf8'));
+  const stored = await readStored(service);
   assert.deepEqual(stored, { clientId: 'test-client', refreshToken: 'refresh-1' });
   assert.equal((await stat(service.tokenFile)).mode & 0o777, 0o600);
   const restarted = new SpotifyService(options);
@@ -61,7 +68,7 @@ test('OAuth persists only the refresh token with owner-only permissions and rest
   assert.deepEqual(tokens, ['access-2', 'access-2']);
   assert.equal(calls.length, 2, 'Concurrent callers share a single refresh');
   assert.equal(calls[1]?.init.body.get('refresh_token'), 'refresh-1');
-  assert.equal(JSON.parse(await readFile(service.tokenFile, 'utf8')).refreshToken, 'refresh-2');
+  assert.equal((await readStored(service)).refreshToken, 'refresh-2');
 });
 
 test('corrupt login data does not silently become demo mode', async t => {
@@ -99,7 +106,7 @@ test('a non-JSON 400 from the token endpoint is a SpotifyError and keeps the sav
   broken = true;
   await assert.rejects(service.getValidAccessToken(), error => error instanceof SpotifyError && error.status === 502);
   assert(service.isAuthenticated());
-  assert.equal(JSON.parse(await readFile(service.tokenFile, 'utf8')).refreshToken, 'refresh');
+  assert.equal((await readStored(service)).refreshToken, 'refresh');
 });
 
 test('real API requests use bearer auth, refresh once on 401, and preserve 204 responses', async t => {

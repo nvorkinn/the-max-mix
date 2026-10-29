@@ -9,12 +9,17 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
+/** @param {import('@playwright/test').Page} page */
 const nowPlaying = page => page.getByRole('region', { name: 'Now playing' });
+/** @param {import('@playwright/test').Page} page */
 const upcoming = page => page.getByRole('region', { name: 'Upcoming tracks' });
 
 test('loads in demo mode without console errors', async ({ page }) => {
+  /** @type {string[]} */
   const errors = [];
-  page.on('console', message => message.type() === 'error' && errors.push(message.text()));
+  page.on('console', message => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
   page.on('pageerror', error => errors.push(error.message));
 
   await page.goto('/');
@@ -35,7 +40,10 @@ test('pause and play toggle the playback state', async ({ page }) => {
   await page.goto('/');
   await nowPlaying(page).getByRole('button', { name: 'Pause' }).click();
   await expect(nowPlaying(page).getByRole('button', { name: 'Play' })).toBeVisible();
-  expect((await (await page.request.get('/api/spotify/current')).json()).is_playing).toBe(false);
+  /** @type {unknown} */
+  const body = await (await page.request.get('/api/spotify/current')).json();
+  const playback = /** @type {{ is_playing: boolean }} */ (body);
+  expect(playback.is_playing).toBe(false);
 
   await nowPlaying(page).getByRole('button', { name: 'Play' }).click();
   await expect(nowPlaying(page).getByRole('button', { name: 'Pause' })).toBeVisible();

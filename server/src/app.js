@@ -14,6 +14,16 @@ import { hostGuard, sameOriginWrites } from './requestGuards.js';
 const DEFAULT_RATE_LIMITS = { windowMs: 60_000, api: 600, auth: 20, pages: 300 };
 
 /**
+ * The parsed JSON body; Express leaves it undefined when the request had none, which then fails validation.
+ * @param {import('express').Request} req
+ */
+const bodyOf = req => {
+  /** @type {unknown} */
+  const body = req.body;
+  return /** @type {Record<string, unknown>} */ (typeof body === 'object' && body !== null ? body : {});
+};
+
+/**
  * @param {{
  *   config: Pick<ReturnType<typeof import('./config.js').parseConfig>, 'port' | 'playbackMode' | 'demoMode' | 'allowedHosts'>,
  *   spotify: import('./spotify.js').SpotifyService,
@@ -49,7 +59,7 @@ export function createApp({
   /** @type {import('express').RequestHandler} */
   const noStore = (_req, res, next) => {
     res.set('Cache-Control', 'no-store');
-    next();
+    return next();
   };
   app.use('/api', noStore);
   /** @param {(req: import('express').Request, res: import('express').Response) => unknown} handler */
@@ -125,7 +135,7 @@ export function createApp({
     '/api/auth/callback',
     route(async (req, res) => {
       liveOnly();
-      const expected = req.cookies.spotify_oauth_state;
+      const expected = /** @type {Record<string, unknown>} */ (req.cookies).spotify_oauth_state;
       const supplied = req.query.state;
       res.clearCookie('spotify_oauth_state', { httpOnly: true, sameSite: 'lax', secure: req.secure });
       if (
@@ -154,7 +164,7 @@ export function createApp({
     route(async (_req, res) => {
       if (config.demoMode) return res.json({ currently_playing: demo.playback.item, queue: demo.queue });
       const data = await spotify.getQueue();
-      return res.json({ currently_playing: data?.currently_playing || null, queue: data?.queue || [] });
+      return res.json({ currently_playing: data?.currently_playing ?? null, queue: data?.queue ?? [] });
     })
   );
   app.get(
@@ -166,7 +176,7 @@ export function createApp({
   app.post(
     '/api/transfer',
     route(async (req, res) => {
-      const { deviceId, play = false } = req.body;
+      const { deviceId, play = false } = bodyOf(req);
       if (typeof deviceId !== 'string' || !deviceId || typeof play !== 'boolean') {
         throw new SpotifyError('A deviceId and a boolean play value are required.', 400);
       }
@@ -183,19 +193,21 @@ export function createApp({
     '/api/queue/reorder',
     route((req, res) => {
       demoOnly();
-      const queue = req.body.queue;
+      const submitted = bodyOf(req).queue;
+      const reordered = Array.isArray(submitted)
+        ? submitted.map((/** @type {{ id?: unknown } | null | undefined} */ track) =>
+            demo.queue.find(existing => existing.id === track?.id)
+          )
+        : [];
       if (
-        !Array.isArray(queue) ||
-        queue.length !== demo.queue.length ||
-        new Set(queue.map(track => track?.id)).size !== demo.queue.length ||
-        queue.some(track => !demo.queue.some(existing => existing.id === track?.id))
+        reordered.length !== demo.queue.length ||
+        new Set(reordered).size !== demo.queue.length ||
+        reordered.includes(undefined)
       ) {
         throw new SpotifyError('Reordering requires each existing demo track exactly once.', 400);
       }
-      // Validated above: every submitted id matches exactly one existing demo track.
-      demo.queue = queue.map(
-        track => /** @type {import('./demo.js').DemoTrack} */ (demo.queue.find(existing => existing.id === track.id))
-      );
+      // Validated above: every submitted id matched exactly one existing demo track, and none twice.
+      demo.queue = /** @type {import('./demo.js').DemoTrack[]} */ (reordered);
       res.json({ queue: demo.queue });
     })
   );
@@ -203,7 +215,7 @@ export function createApp({
     '/api/queue/play-now',
     route((req, res) => {
       demoOnly();
-      const index = demo.queue.findIndex(track => track.id === req.body.trackId);
+      const index = demo.queue.findIndex(track => track.id === bodyOf(req).trackId);
       if (index < 0) throw new SpotifyError('Demo track not found.', 404);
       const [track] = demo.queue.splice(index, 1);
       if (!track) throw new SpotifyError('Demo track not found.', 404);
@@ -241,7 +253,7 @@ export function createApp({
   app.post(
     '/api/spotify/seek',
     route(async (req, res) => {
-      const position = req.body.position_ms;
+      const position = bodyOf(req).position_ms;
       requireInteger(position, 0, Number.MAX_SAFE_INTEGER, 'position_ms');
       if (config.demoMode) demo.playback.progress_ms = Math.min(position, demo.playback.item.duration_ms);
       else await spotify.seek(position);
@@ -251,7 +263,7 @@ export function createApp({
   app.post(
     '/api/spotify/volume',
     route(async (req, res) => {
-      const volume = req.body.volume_percent;
+      const volume = bodyOf(req).volume_percent;
       requireInteger(volume, 0, 100, 'volume_percent');
       if (config.demoMode) demo.playback.device.volume_percent = volume;
       else await spotify.setVolume(volume);
@@ -277,7 +289,7 @@ export function createApp({
     console.error(`${req.method} ${req.path}: ${error.message}`);
     if (res.headersSent) return next(error);
     if (error.retryAfter) res.set('Retry-After', error.retryAfter);
-    res.status(error.status || 500).json({ error: error.message });
+    return res.status(error.status || 500).json({ error: error.message });
   };
   app.use(errorHandler);
   return app;

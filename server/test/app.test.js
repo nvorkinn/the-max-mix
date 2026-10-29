@@ -9,6 +9,15 @@ import { createApp } from '../src/app.js';
 import { SpotifyError } from '../src/spotify.js';
 
 /**
+ * The JSON bodies the API returns; each endpoint returns only some of these fields.
+ * @typedef {{
+ *   token: string | null, authenticated: boolean, demoMode: boolean, playbackMode: string, error: string,
+ *   queue: { id: string }[], is_playing: boolean, progress_ms: number, device: { volume_percent: number },
+ *   item: { id: string }
+ * }} ApiBody
+ */
+
+/**
  * @param {import('node:test').TestContext} t
  * @param {{ demoMode?: boolean, overrides?: Record<string, unknown>, playbackMode?: string, distPath?: string,
  *   rateLimits?: Partial<{ windowMs: number, api: number, auth: number, pages: number }>, allowedHosts?: string[] }} [options]
@@ -63,7 +72,9 @@ async function start(
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       redirect: 'manual'
     });
-    return { response, data: response.headers.get('Content-Type')?.includes('json') ? await response.json() : null };
+    /** @type {unknown} */
+    const data = response.headers.get('Content-Type')?.includes('json') ? await response.json() : null;
+    return { response, data: /** @type {ApiBody} */ (data) };
   };
   return { request, calls, base };
 }
@@ -155,11 +166,14 @@ test('OAuth requires the matching state cookie before exchanging a code', async 
 test('explicit demo controls share backend state without calling Spotify', async t => {
   const { request, calls } = await start(t, { demoMode: true });
   const initial = (await request('/api/queue')).data.queue;
+  const first = initial[0];
+  const last = initial.at(-1);
+  assert(first && last);
   assert.equal((await request('/api/queue/reorder', { queue: initial.toReversed() })).response.status, 200);
-  assert.equal((await request('/api/queue')).data.queue[0].id, initial.at(-1).id);
+  assert.equal((await request('/api/queue')).data.queue[0]?.id, last.id);
   assert.equal((await request('/api/queue/reorder', { queue: [] })).response.status, 400);
-  await request('/api/queue/play-now', { trackId: initial[0].id });
-  assert.equal((await request('/api/spotify/current')).data.item.id, initial[0].id);
+  await request('/api/queue/play-now', { trackId: first.id });
+  assert.equal((await request('/api/spotify/current')).data.item.id, first.id);
   await request('/api/spotify/pause', {});
   await request('/api/spotify/seek', { position_ms: 1234 });
   await request('/api/spotify/volume', { volume_percent: 0 });
@@ -189,8 +203,8 @@ test('API, sign-in and page requests are rate limited per client with a JSON 429
   assert(limited.response.headers.get('RateLimit'), 'standard rate limit headers are sent');
   assert.equal((await request('/api/info')).response.status, 200, 'the sign-in limit does not affect other routes');
 
-  for (const route of ['/', '/deep/link', '/another']) assert.equal((await fetch(base + route)).status, 200);
-  assert.equal((await fetch(base + '/blocked')).status, 429);
+  for (const route of ['/', '/deep/link', '/another']) assert.equal((await fetch(`${base}${route}`)).status, 200);
+  assert.equal((await fetch(`${base}/blocked`)).status, 429);
 });
 
 test('the general API limit applies across API routes', async t => {
@@ -208,17 +222,19 @@ test('the general API limit applies across API routes', async t => {
  */
 function rawRequest(base, { method = 'GET', endpoint, headers = {}, body }) {
   const { hostname, port } = new URL(base);
-  return new Promise((resolve, reject) => {
-    const request = http.request({ hostname, port, path: endpoint, method, headers }, response => {
-      let text = '';
-      response.on('data', chunk => {
-        text += chunk;
+  return /** @type {Promise<{ status: number | undefined, text: string }>} */ (
+    new Promise((resolve, reject) => {
+      const request = http.request({ hostname, port, path: endpoint, method, headers }, response => {
+        let text = '';
+        response.on('data', (/** @type {Buffer} */ chunk) => {
+          text += chunk.toString();
+        });
+        response.on('end', () => resolve({ status: response.statusCode, text }));
       });
-      response.on('end', () => resolve({ status: response.statusCode, text }));
-    });
-    request.on('error', reject);
-    request.end(body);
-  });
+      request.on('error', reject);
+      request.end(body);
+    })
+  );
 }
 
 test('state-changing requests from other websites are refused and have no effect', async t => {
