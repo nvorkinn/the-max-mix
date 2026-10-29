@@ -87,7 +87,7 @@ hand_over() {
 
 current=
 while true; do
-  if [[ -e $marker || $(bootstrap_state) == done ]]; then
+  if [[ -e $marker || $(bootstrap_state) == "done" ]]; then
     hand_over
   fi
   want=$(wanted_page)

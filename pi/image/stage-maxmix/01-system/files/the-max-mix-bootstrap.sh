@@ -35,7 +35,7 @@ echo "$attempt" >"$attempts_file"
 # state, message shown on the touchscreen, optional technical detail (made safe for JSON and cut short).
 write_status() {
   local state=$1 message=$2 detail=${3:-}
-  detail=$(printf '%s' "$detail" | tr '[:cntrl:]' ' ' | tr -d '"\\' | cut -c1-300)
+  detail=$(printf '%s' "$detail" | tr '[:cntrl:]' ' ' | tr -d '"\134' | cut -c1-300)
   printf '{"state":"%s","message":"%s","detail":"%s","attempt":%s,"updated":%s}\n' \
     "$state" "$message" "$detail" "$attempt" "$(date +%s)" >"$status_file.tmp"
   chmod 644 "$status_file.tmp"
@@ -106,5 +106,5 @@ if ! ansible-pull -U "$repo" -C "$ref" -d "$checkout" -i localhost, -e "$extra_v
 fi
 
 touch "$marker"
-write_status done "All set. Starting THE MAX MIX."
+write_status "done" "All set. Starting THE MAX MIX."
 echo "THE MAX MIX is installed."
