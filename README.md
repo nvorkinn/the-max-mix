@@ -39,7 +39,7 @@ applicable and respect reduced-motion preferences.
 
 ## Local setup
 
-Use Node.js 24 LTS (minimum 22).
+Use Node.js 24 LTS (the minimum).
 
 ```bash
 npm --prefix client ci
@@ -133,7 +133,7 @@ generated notes. The tarball has a build provenance attestation; check a downloa
 `gh attestation verify the-max-mix-v1.2.3.tar.gz --repo nvorkinn/the-max-mix`. The tarball holds
 the built UI, the server with production dependencies, the scripts and docs, so it runs without a
 build step: extract it, create `server/.env` from `server/.env.example`, and run `npm start`
-(Node 22+). The Raspberry Pi installer below uses this tarball. To build one locally, run
+(Node 24+). The Raspberry Pi installer below uses this tarball. To build one locally, run
 `npm run build` and then `bash scripts/package-release.sh v1.2.3`; it is written to `release-out/`.
 
 ## Raspberry Pi kiosk installation

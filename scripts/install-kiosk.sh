@@ -12,7 +12,7 @@ fi
 for dependency in node curl tar systemctl; do
   command -v "$dependency" >/dev/null || { echo "Missing dependency: $dependency" >&2; exit 1; }
 done
-node -e 'if (Number(process.versions.node.split(".")[0]) < 22) { console.error("Node.js 22 or newer is required; use Node.js 24 LTS."); process.exit(1); }'
+node -e 'if (Number(process.versions.node.split(".")[0]) < 24) { console.error("Node.js 24 or newer is required; use Node.js 24 LTS."); process.exit(1); }'
 
 repo=${KIOSK_REPO:-nvorkinn/the-max-mix}
 if [[ ! $repo =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
