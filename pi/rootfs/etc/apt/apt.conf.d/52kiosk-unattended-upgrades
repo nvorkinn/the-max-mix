@@ -1,0 +1,2 @@
+// Debian's security updates are on by default; also take Raspberry Pi's own archive (Chromium and the kernel come from it).
+Unattended-Upgrade::Origins-Pattern:: "origin=Raspberry Pi Foundation,codename=${distro_codename}";

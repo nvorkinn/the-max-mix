@@ -1,0 +1,95 @@
+# THE MAX MIX kiosk image
+
+A ready-to-flash Raspberry Pi OS Lite (64-bit, Debian 13 "trixie") image for a Raspberry Pi 4 or 5 with a Waveshare 7-inch
+1024x600 HDMI + USB-touch screen. Flashing it is the only setup step: there is no SSH, no provisioning and no Wi-Fi
+configured in advance.
+
+> The image has not been built or booted on a real Pi yet. See "Still to verify" below.
+
+## What you see
+
+- **Online:** the app, full screen in Chromium (`https://the-max-mix.vercel.app/?kiosk=1`).
+- **Offline:** a black screen with a centred Wi-Fi setup panel and an on-screen keyboard.
+- Never a desktop, a terminal, boot text, browser controls or a mouse cursor.
+
+## Build
+
+The [Pi image workflow](../../.github/workflows/pi-image.yml) builds it with
+[pi-gen](https://github.com/RPi-Distro/pi-gen), Raspberry Pi's own image builder. Run it from Actions > Pi image > Run workflow
+(the image is a workflow artifact), or push a `v*` tag to attach `the-max-mix-<version>.img.xz` and its `.sha256` to the
+release.
+
+By hand, on an arm64 Linux machine with Docker:
+
+```bash
+pi/image/prepare.sh
+git clone --branch 2026-10-06-raspios-trixie-arm64 --depth 1 https://github.com/RPi-Distro/pi-gen
+cp -r pi/image/stage-kiosk pi-gen/
+cd pi-gen
+./build-docker.sh -c ../pi/image/config
+```
+
+`stage-kiosk` runs after `stage2` and is the only stage exported as an image. It installs the packages in
+`stage-kiosk/00-packages/00-packages` and the Wi-Fi panel (`pi/wifi-panel/`), then copies everything under `pi/rootfs/` into the
+image and enables the services.
+
+## Flash
+
+1. Download and unpack the `.img.xz` (or give it to Raspberry Pi Imager as it is).
+2. In [Raspberry Pi Imager](https://www.raspberrypi.com/software/) choose **Use custom** and select the image. Do not apply
+   OS customisation: the image sets up everything itself.
+3. Put the card in the Pi, connect the screen and power.
+
+## First boot
+
+1. The file system expands to fill the card (pi-gen's default) and the Pi reboots once.
+2. A black Plymouth splash covers the boot. The Wi-Fi country (GB), locale (`en_GB.UTF-8`) and time zone
+   (`Europe/London`) are already set.
+3. `kiosk.service` starts [Cage](https://github.com/cage-kiosk/cage), a single-app Wayland compositor, on tty7 as the
+   `kiosk` user. Cage runs `/usr/local/bin/kiosk-session` forever.
+4. `kiosk-session` waits up to 30 seconds for NetworkManager to report full connectivity (a check against
+   `network-test.debian.org`, set in `/etc/NetworkManager/conf.d/20-connectivity.conf`). If it does, it runs Chromium; if
+   not, it runs `/usr/local/bin/wifi-panel` until it connects.
+5. The panel offers Cancel only when a connection already works. Connect, and the session loop starts Chromium.
+
+The app's Wi-Fi button (shown with `?kiosk=1`) opens `kiosk-wifi://open`. Chromium's managed policy lets
+`https://the-max-mix.vercel.app` do that without a prompt, `xdg-open` finds `kiosk-wifi.desktop` through
+`/etc/xdg/mimeapps.list`, and `kiosk-open-wifi` creates `/run/kiosk/show-wifi` and stops Chromium. The session loop then runs
+the panel and starts Chromium again afterwards. Moving house is covered by the boot-time check; nothing watches the network
+while Chromium runs.
+
+The image sets, among other things:
+
+- no SSH, no password for any account (the `kiosk` user is locked and not in `sudo`), no Wi-Fi networks;
+- `kiosk` manages NetworkManager connections without sudo through `etc/polkit-1/rules.d/50-kiosk-networkmanager.rules`;
+- PipeWire, `pipewire-pulse` and WirePlumber, ready for Bluetooth audio later;
+- `unattended-upgrades` for Debian security updates and the Raspberry Pi archive (Chromium, kernel);
+- `config.txt` and the kernel command line for the 1024x600 screen, a quiet boot and no cursor. The mode is forced to
+  1024x600 on both HDMI ports; change `video=` in `cmdline.txt` for another screen. The screen is not rotated.
+
+## Troubleshooting
+
+There is deliberately no way in over the network and no login, so debug from the SD card on another computer: its
+`bootfs` partition holds `config.txt` and `cmdline.txt` (remove `quiet splash` and change `console=tty3` back to `tty1` to
+see boot messages). The kiosk logs go to the journal (`journalctl -u kiosk` on a Pi you can log in to).
+
+- **Black screen, no panel or app:** the service may not have a display. Check `kiosk.service` started on tty7.
+- **Panel never offers Cancel / always appears:** the connectivity check failed. `network-test.debian.org` must be reachable
+  over plain HTTP; a captive portal that needs a browser login is not supported.
+- **Sound does not play, or the player says DRM is missing:** Widevine. See "Still to verify".
+- **`kiosk-wifi://` does nothing:** see "Still to verify".
+
+## Still to verify
+
+Nobody has built or booted this yet. On the first real image, check:
+
+1. **Boot:** the black splash, then the panel when offline (no Wi-Fi configured), with a working on-screen keyboard.
+2. **Widevine on Pi 4 and Pi 5:** the app plays sound. The Pi 5 normally boots a 16 KB-page kernel; the image sets
+   `kernel=kernel8.img` for the Pi 5 (`[pi5]` section in `config.txt`), the 4 KB-page kernel the Pi 4 uses. That Widevine
+   needs 4 KB pages is unconfirmed (searching found no report either way), so test both. `getconf PAGESIZE` should print 4096.
+3. **`kiosk-wifi://` handover:** with a connection up, tap the app's Wi-Fi button. The panel should appear with Cancel, and
+   the app should come back after Cancel. Chromium has to hand the link to `xdg-open` without a desktop environment; that
+   `xdg-open` runs the handler with no desktop was checked, Chromium's side was not. If Chromium shows an "open this
+   app?" prompt or nothing happens, check `chrome://policy` for `AutoLaunchProtocolsFromOrigins`.
+4. **Reboot:** it goes straight to the app.
+5. **Cursor:** none shows. If one does, the transparent theme in `/usr/share/icons/blank` is not being picked up.

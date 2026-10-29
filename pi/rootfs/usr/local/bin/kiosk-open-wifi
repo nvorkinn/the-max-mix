@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Handler for kiosk-wifi:// links (see kiosk-wifi.desktop). Asks kiosk-session to show the Wi-Fi panel: it leaves a flag
+# file, then stops Chromium so the session loop notices it.
+set -eu
+
+touch /run/kiosk/show-wifi
+if pid=$(cat /run/kiosk/chromium.pid 2> /dev/null); then
+  kill -TERM "$pid" 2> /dev/null || true
+fi

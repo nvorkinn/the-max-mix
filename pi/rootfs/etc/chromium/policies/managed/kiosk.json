@@ -1,0 +1,16 @@
+{
+  "AutoLaunchProtocolsFromOrigins": [
+    { "protocol": "kiosk-wifi", "allowed_origins": ["https://the-max-mix.vercel.app"] }
+  ],
+  "TranslateEnabled": false,
+  "PasswordManagerEnabled": false,
+  "AutofillAddressEnabled": false,
+  "AutofillCreditCardEnabled": false,
+  "BrowserSignin": 0,
+  "SyncDisabled": true,
+  "MetricsReportingEnabled": false,
+  "DefaultBrowserSettingEnabled": false,
+  "PromotionalTabsEnabled": false,
+  "BrowserAddPersonEnabled": false,
+  "BackgroundModeEnabled": false
+}
