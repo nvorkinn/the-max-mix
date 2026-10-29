@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { installCanvasStub, stubMatchMedia } from '../test/canvas.js';
+import TabletView from './TabletView.jsx';
 
 const player = vi.hoisted(() => ({ current: /** @type {Record<string, unknown>} */ ({}) }));
 const api = vi.hoisted(() => ({ requestJSON: vi.fn(), postJSON: vi.fn() }));
@@ -10,8 +11,6 @@ vi.mock('../hooks/useSpotifyPlayer.js', () => ({ useSpotifyPlayer: () => player.
 vi.mock('../utils/api.js', () => api);
 vi.mock('../utils/colorExtractor.js', () => palette);
 vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
-
-import TabletView from './TabletView.jsx';
 
 const track = {
   id: 'tr1',

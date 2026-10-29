@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { defined } from '../test/defined.js';
+import { useSpotifyPlayer } from './useSpotifyPlayer.js';
 
 const api = vi.hoisted(() => ({ requestJSON: vi.fn(), postJSON: vi.fn() }));
 const sdk = vi.hoisted(() => ({ loadSpotifySDK: vi.fn() }));
 vi.mock('../utils/api.js', () => api);
 vi.mock('../utils/spotifySdk.js', () => sdk);
-
-import { useSpotifyPlayer } from './useSpotifyPlayer.js';
-import { defined } from '../test/defined.js';
 
 /** @param {{ connectResult?: boolean }} [options] */
 function makeSdk({ connectResult = true } = {}) {
