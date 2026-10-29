@@ -158,3 +158,16 @@ dataclass
 healthz
 nmconnection
 keymgmt
+pycache
+referer
+connecttest
+ncsi
+fwlink
+wifistub
+mgmt
+qwertyuiop
+asdfghjkl
+zxcvbnm
+vendored
+networkmanager
+tunables
