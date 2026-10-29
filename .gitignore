@@ -9,3 +9,4 @@ spotify-token.json.*.tmp
 coverage
 playwright-report
 test-results
+__pycache__/

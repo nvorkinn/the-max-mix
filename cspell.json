@@ -16,6 +16,7 @@
     "**/playwright-report/**",
     "**/test-results/**",
     "project-words.txt",
-    "LICENSE"
+    "LICENSE",
+    "pi/wifi/qrcodegen.py"
   ]
 }
