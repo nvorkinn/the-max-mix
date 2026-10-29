@@ -44,6 +44,18 @@ one directory pi-gen's build can see. Everything installed and configured on the
 The image bakes in the same `kiosk_pull_ref` (`stable`) that the device's update timer pulls. Reflashing is only for fresh
 devices: a deployed one gets playbook changes by `ansible-pull` (see the [README](../../README.md#raspberry-pi-kiosk)).
 
+## Bluetooth keyboard and mouse
+
+The devices in `kiosk_bluetooth_devices` ([`defaults/main.yml`](../../ansible/roles/kiosk/defaults/main.yml)) are paired on
+first boot, with no network and no touch screen. Put each device in pairing mode (on the channel you want for the Pi) when
+the Pi starts. `kiosk-bluetooth-pair.service` scans for 30 seconds, rests for 30 and repeats until every device is paired
+and trusted, then exits; later boots reconnect by themselves. Progress is in `journalctl -u kiosk-bluetooth-pair`. Give a
+device's channels the same `name` when they have different addresses: one paired address is enough. Keyboards that ask for a
+passkey are not supported.
+
+While a mouse is the only way to use the screen, `kiosk_hide_cursor` is `false` so the pointer shows. Set it back to `true`
+when the touch screen is in use.
+
 ## Flash
 
 1. Download and unpack the `.img.xz` (or give it to Raspberry Pi Imager as it is).

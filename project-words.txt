@@ -18,6 +18,8 @@ beyonce
 beyoncé
 björk
 blockinfile
+bluetoothctl
+bluez
 bridgers
 buildx
 cabello
@@ -38,6 +40,7 @@ dpms
 dtoverlay
 edid
 eilish
+endfor
 equalto
 esac
 extrabold
@@ -69,6 +72,7 @@ localtime
 lockfiles
 lorde
 madonnas
+mapfile
 mariah
 maxmix
 mcrae
@@ -92,6 +96,7 @@ nvorkinn
 oneshot
 otherid
 overscroll
+pairable
 paramore
 partuuid
 pipefail
@@ -107,6 +112,7 @@ reflashing
 regdom
 remi
 rexha
+rfkill
 rihanna
 rootfstype
 rootwait
@@ -136,6 +142,7 @@ venv
 vercel
 waveshare
 weeknd
+whiteglass
 widevine
 wifi
 winehouse

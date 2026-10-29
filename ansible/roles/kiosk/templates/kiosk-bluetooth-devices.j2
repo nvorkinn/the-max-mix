@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+# One "ADDRESS name" per line. Lines with the same name are alternatives (for example the channels of one device).
+{% for device in kiosk_bluetooth_devices %}
+{{ device.address }} {{ device.name }}
+{% endfor %}
