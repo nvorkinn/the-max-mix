@@ -21,6 +21,17 @@ playback. Browser streaming also requires a working encrypted-media/Widevine
 setup on the exact Pi OS/Chromium image. Validate audio on the device; kiosk mode
 alone does not make DRM available.
 
+### How playback is controlled
+
+In browser mode (the default) this page is the speaker: it registers a Spotify Connect device called "THE MAX MIX"
+with the Web Playback SDK and drives it directly, so play, pause, next, previous, seek and volume act on it at once and
+the play/pause button follows its state without waiting for the Web API. The first Play press makes it the active
+device (pressing, not loading the page, so it never takes over what is playing elsewhere). The queue, track details and
+the Speakers list still come from the Web API, which reads and changes the active device, that is, this page. If you
+pick another device under Speakers (or run `PLAYBACK_MODE=remote`), the page is that device's remote and uses the Web
+API for everything, until you pick "THE MAX MIX" again. Browsers only start audio after a click, so the very first Play
+press is also what unlocks sound.
+
 ### Native Spotify Jam limitations
 
 Start a Jam, invite friends, manage guest permissions, reorder songs, and end the
