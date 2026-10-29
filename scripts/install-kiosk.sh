@@ -3,6 +3,9 @@
 # Usage: bash install-kiosk.sh [vX.Y.Z]    (default: the latest release; an older tag rolls back)
 # Environment: KIOSK_INSTALL_DIR (default ~/the-max-mix), KIOSK_REPO (default nvorkinn/the-max-mix),
 #              KIOSK_KEEP_RELEASES (how many releases to keep on disk, default 3)
+#              SPOTIFY_CLIENT_ID (written to server.env if it has no client ID yet; it is not a secret. Without it, the
+#              client ID bundled into the release is used the same way. The install fails if no client ID is found
+#              in the variable, the release or an existing server.env)
 set -euo pipefail
 
 if [[ $(uname -s) != Linux || $(id -u) -eq 0 ]]; then
@@ -22,6 +25,11 @@ fi
 keep=${KIOSK_KEEP_RELEASES:-3}
 if [[ ! $keep =~ ^[1-9][0-9]*$ ]]; then
   echo "KIOSK_KEEP_RELEASES must be a positive integer." >&2
+  exit 1
+fi
+client_id=${SPOTIFY_CLIENT_ID:-}
+if [[ -n $client_id && ! $client_id =~ ^[A-Za-z0-9]{1,64}$ ]]; then
+  echo "SPOTIFY_CLIENT_ID must be letters and digits only (as shown in the Spotify dashboard)." >&2
   exit 1
 fi
 install=${KIOSK_INSTALL_DIR:-$HOME/the-max-mix}
@@ -77,6 +85,19 @@ else
   echo "$tag is already downloaded; reusing it."
 fi
 
+# A release built with a client ID carries it in its config template; use that when none was given.
+if [[ -z $client_id && -f $release/server/.env.example ]]; then
+  bundled=$(sed -n 's/^SPOTIFY_CLIENT_ID=//p' "$release/server/.env.example" | head -n 1)
+  if [[ $bundled =~ ^[A-Za-z0-9]{1,64}$ ]]; then
+    client_id=$bundled
+  fi
+fi
+if [[ -z $client_id ]] && ! grep -Eqs '^SPOTIFY_CLIENT_ID=.+' "$install/server.env"; then
+  echo "No Spotify client ID: this release has none bundled, $install/server.env has none, and SPOTIFY_CLIENT_ID is not set." >&2
+  echo "Run again as: SPOTIFY_CLIENT_ID=your_client_id bash install-kiosk.sh" >&2
+  exit 1
+fi
+
 sudo -v
 sudo apt-get update
 sudo apt-get install -y chromium curl
@@ -86,6 +107,16 @@ if [[ ! -e $install/server.env ]]; then
   install -m 600 "$release/server/.env.example" "$install/server.env"
 fi
 chmod 600 "$install/server.env"
+# Fill in the Spotify client ID when asked to, but never replace one that is already set.
+if [[ -n $client_id ]]; then
+  if grep -Eq '^SPOTIFY_CLIENT_ID=.+' "$install/server.env"; then
+    echo "Keeping the Spotify client ID already in $install/server.env."
+  elif grep -q '^SPOTIFY_CLIENT_ID=' "$install/server.env"; then
+    sed -i "s/^SPOTIFY_CLIENT_ID=.*/SPOTIFY_CLIENT_ID=$client_id/" "$install/server.env"
+  else
+    echo "SPOTIFY_CLIENT_ID=$client_id" >> "$install/server.env"
+  fi
+fi
 ln -sfn "$install/server.env" "$release/server/.env"
 
 node --input-type=module - "$install" "$release" "$HOME" "$username" "$node_bin" "$workdir" <<'NODE'
@@ -152,7 +183,11 @@ for (const directory of candidates.slice(Number(keep))) {
 }
 NODE
 
-echo "Installed $tag. Edit $install/server.env for the Spotify client ID and playback mode."
+if [[ -n $client_id ]]; then
+  echo "Installed $tag. Edit $install/server.env to change the playback mode."
+else
+  echo "Installed $tag. Edit $install/server.env for the Spotify client ID and playback mode."
+fi
 echo "Enable Desktop Autologin and disable screen blanking in Raspberry Pi OS, then reboot."
 echo "Server logs: journalctl -u the-max-mix.service -f"
 echo "Kiosk logs: journalctl --user -u the-max-mix-kiosk.service -f"
