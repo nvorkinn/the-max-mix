@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AlbumArtPlayer from './AlbumArtPlayer.jsx';
 import SpotifyJamQueue from './SpotifyJamQueue.jsx';
 import TouchRipples from './TouchRipples.jsx';
@@ -113,10 +113,14 @@ export default function TabletView() {
     }
   }, [artUrl]);
 
+  const toastTimerRef = useRef(/** @type {ReturnType<typeof setTimeout> | undefined} */ (undefined));
+  useEffect(() => () => clearTimeout(toastTimerRef.current), []);
+
   /** @param {string} msg */
   const showToast = msg => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 3500);
   };
 
   /** @param {import('../types.js').Track[]} newQueue */

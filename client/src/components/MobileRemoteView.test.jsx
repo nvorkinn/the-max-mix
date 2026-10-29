@@ -20,12 +20,12 @@ function mockFetch(overrides = {}) {
     const body = key
       ? overrides[key]
       : url.startsWith('/api/queue') && options?.method !== 'POST'
-        ? queue
+        ? { currently_playing: null, queue }
         : url.startsWith('/api/spotify/search')
           ? found
           : {};
     if (body instanceof Error) throw body;
-    return { json: async () => body };
+    return { ok: true, status: 200, json: async () => body };
   });
   vi.stubGlobal('fetch', fn);
   return { fn, calls };
@@ -100,7 +100,7 @@ describe('MobileRemoteView', () => {
   });
 
   it('updates the queue from socket events and unsubscribes on unmount', async () => {
-    mockFetch({ '/api/queue': [] });
+    mockFetch({ '/api/queue': { currently_playing: null, queue: [] } });
     const socket = fakeSocket();
     const { unmount } = render(<MobileRemoteView socket={socket} />);
     tab('Queue');
@@ -165,6 +165,24 @@ describe('MobileRemoteView', () => {
       track: found[0],
       guest: { id: 'g-1', name: 'Zed', avatar: '🚀' }
     });
+  });
+
+  it('does not announce or switch tabs when adding a track fails', async () => {
+    const fn = vi.fn(async (/** @type {string} */ url) => ({
+      ok: url !== '/api/queue/add',
+      status: url === '/api/queue/add' ? 404 : 200,
+      json: async () => (url.startsWith('/api/spotify/search') ? found : { currently_playing: null, queue: [] })
+    }));
+    vi.stubGlobal('fetch', fn);
+    render(<MobileRemoteView />);
+    tab('Search');
+    const input = screen.getByPlaceholderText(/search tracks/i);
+    fireEvent.change(input, { target: { value: 'x' } });
+    fireEvent.submit(/** @type {Element} */ (input.closest('form')));
+    fireEvent.click(await screen.findByText('+ Queue'));
+    await waitFor(() => expect(console.error).toHaveBeenCalled());
+    expect(screen.queryByText(/Added "Result"/)).toBeNull();
+    expect(screen.queryByText(/Party Queue/)).toBeNull();
   });
 
   it('keeps the UI usable when search fails', async () => {
