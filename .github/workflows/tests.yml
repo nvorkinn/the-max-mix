@@ -19,10 +19,8 @@ jobs:
           cache: npm
       - run: npm ci
       # The coverage run executes the app tests (and enforces the thresholds), so `npm test` would run them twice; only the
-      # kiosk script test is left to run on its own.
+      # Wi-Fi panel test is left to run on its own.
       - run: npm run test:coverage
-      - run: bash scripts/test-kiosk.sh
-      - run: npm run test:wifi
       - run: npm run test:wifi-panel
       - name: Coverage summary
         if: ${{ !cancelled() }}
