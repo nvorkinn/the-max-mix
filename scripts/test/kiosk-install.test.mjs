@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { execFile, spawn } from 'node:child_process';
 import { mkdtemp, mkdir, copyFile, writeFile, readFile, readdir, readlink, rm, access, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -167,7 +167,10 @@ test('an update swaps the app atomically and keeps the previous release for roll
   assert.match(await readFile(path.join(install, 'app/index.html'), 'utf8'), /THE MAX MIX 1\.3\.0/);
   assert.equal(await readlink(path.join(install, 'app.previous')), path.join(install, 'releases/v1.2.3'));
   assert.match(await readFile(path.join(install, 'app.previous/index.html'), 'utf8'), /THE MAX MIX 1\.2\.3/);
-  assert.deepEqual((await readdir(path.join(install, 'releases'))).sort(), ['v1.2.3', 'v1.3.0']);
+  assert.deepEqual(
+    (await readdir(path.join(install, 'releases'))).toSorted((a, b) => a.localeCompare(b)),
+    ['v1.2.3', 'v1.3.0']
+  );
   // Installing the same version again changes nothing about the rollback target.
   await run('bash', [installer], { env });
   assert.equal(await readlink(path.join(install, 'app.previous')), path.join(install, 'releases/v1.2.3'));
@@ -341,23 +344,35 @@ test('serve-kiosk.sh serves the app on the loopback address, with query paramete
   const server = path.join(repository, 'scripts/serve-kiosk.sh');
   const app = path.join(temporary, 'dist-1.3.0');
   const port = '48173';
-  const child = spawn('bash', [server], { env: { ...env, KIOSK_APP_DIR: app, KIOSK_PORT: port }, stdio: 'ignore' });
-  t.after(() => child.kill());
-  let response;
+  const controller = new AbortController();
+  // Stopping the server rejects this promise; it is only awaited to keep the rejection handled.
+  const stopped = run('bash', [server], {
+    env: { ...env, KIOSK_APP_DIR: app, KIOSK_PORT: port },
+    signal: controller.signal
+  }).catch(() => 'stopped');
+  t.after(async () => {
+    controller.abort();
+    await stopped;
+  });
+  /** @type {Response | null} */
+  let response = null;
   for (let attempt = 0; attempt < 50 && !response; attempt++) {
-    response = await fetch(`http://127.0.0.1:${port}/?demo=true`).catch(() => undefined);
-    if (!response) await new Promise(resolve => setTimeout(resolve, 100));
+    try {
+      response = await fetch(`http://127.0.0.1:${port}/?demo=true`);
+    } catch {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
   }
   assert.ok(response, 'the server answers on 127.0.0.1');
   assert.equal(response.status, 200);
   assert.match(await response.text(), /THE MAX MIX 1\.3\.0/);
 
-  const failure = await run('bash', [server], { env: { ...env, KIOSK_APP_DIR: app, KIOSK_PORT: '22' } }).catch(
-    (/** @type {Error} */ error) => error
+  await assert.rejects(
+    run('bash', [server], { env: { ...env, KIOSK_APP_DIR: app, KIOSK_PORT: '22' } }),
+    /KIOSK_PORT must be a number/
   );
-  assert.match(String(failure), /KIOSK_PORT must be a number/);
-  const missing = await run('bash', [server], { env: { ...env, KIOSK_APP_DIR: temporary, KIOSK_PORT: port } }).catch(
-    (/** @type {Error} */ error) => error
+  await assert.rejects(
+    run('bash', [server], { env: { ...env, KIOSK_APP_DIR: temporary, KIOSK_PORT: port } }),
+    /No app found/
   );
-  assert.match(String(missing), /No app found/);
 });
