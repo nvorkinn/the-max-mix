@@ -1,23 +1,52 @@
 name: Release
 
-# Pushing a version tag (e.g. v1.2.3, or v1.2.3-rc.1 for a prerelease) builds the app and publishes the assembled
-# tarball, its checksum and the standalone installer to a GitHub Release with generated notes. Lint and tests are not
-# repeated here: the Tests workflow already runs them on pull requests and on main.
+# Pushing a version tag (e.g. v1.2.3, or v1.2.3-rc.1 for a prerelease) checks that the tag matches package.json's
+# version, re-runs the Tests and Lint workflows on the tagged commit, then builds the app and publishes the assembled
+# tarball, its checksum and the standalone installer to a GitHub Release with generated notes. The tarball also gets a
+# build provenance attestation: verify a download with `gh attestation verify <file> --repo nvorkinn/the-max-mix`.
 on:
   push:
     tags: ['v[0-9]+.[0-9]+.[0-9]+*']
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
+  version:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the tag matches package.json
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [[ $TAG != "v$version" ]]; then
+            echo "::error::Tag $TAG does not match the package.json version ($version). Bump the version, merge it, then tag."
+            exit 1
+          fi
+
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  lint:
+    uses: ./.github/workflows/lint.yml
+
+  release:
+    needs: [version, tests, lint]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: |
             client/package-lock.json
@@ -26,6 +55,9 @@ jobs:
       - run: npm --prefix server ci
       - run: npm run build
       - run: bash scripts/package-release.sh "$GITHUB_REF_NAME"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: release-out/*.tar.gz
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
