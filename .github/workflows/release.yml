@@ -1,0 +1,58 @@
+name: Release
+
+# Builds the app and attaches it to a GitHub release, which is what the Raspberry Pi installer downloads
+# (scripts/install-kiosk.sh). Push a version tag (git tag v1.2.3 && git push origin v1.2.3) to publish; run it by hand
+# with an existing tag to rebuild that release's assets.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and publish (for example v1.2.3)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Check the tag
+        run: |
+          if [[ ! $TAG =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+            echo "The tag must look like v1.2.3, got: $TAG" >&2
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Package dist
+        run: |
+          mkdir release
+          archive="the-max-mix-${TAG#v}.tar.gz"
+          tar -czf "release/$archive" -C dist .
+          (cd release && sha256sum "$archive" > "$archive.sha256")
+      - name: Publish the release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/* --clobber
+          else
+            gh release create "$TAG" release/* --verify-tag --title "$TAG" --generate-notes
+          fi

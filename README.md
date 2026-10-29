@@ -50,29 +50,6 @@ The small waveform is decorative, driven by playback state, not an analysis of
 Spotify's encrypted audio. Canvas animations stop while hidden or idle where
 applicable and respect reduced-motion preferences.
 
-## Hosting
-
-THE MAX MIX is plain static files, hosted by [Vercel](https://vercel.com) at **<https://spotify.dev.nikolaivorkinn.com/>**.
-Every browser, the Raspberry Pi kiosk included, opens that address. Nothing of ours runs a server, and the site has no
-secrets: each visitor signs in to their own Spotify account.
-
-Set it up once:
-
-1. In Vercel, **Add New > Project** and import this GitHub repository. Vercel reads the build settings from
-   [`vercel.json`](vercel.json) in the repository root (the Vite framework preset, install `npm ci`, build
-   `npm run build`, output `dist`, plus the single-page rewrite and the response headers), so leave the framework
-   preset and the commands as detected.
-2. Nothing to set for the client ID: it is a constant in [`src/spotify/settings.ts`](src/spotify/settings.ts) (public by
-   design, not a secret).
-3. Under **Settings > Domains** add `spotify.dev.nikolaivorkinn.com`. The DNS record is a DNS-only CNAME to
-   `cname.vercel-dns.com` (not proxied by Cloudflare), managed in the
-   [countdown-server](https://github.com/nvorkinn/countdown-server) project. The `<project>.vercel.app` address works too.
-4. Under **Settings > Git** keep the production branch `main`, so every merge to `main` deploys to production.
-5. Register the redirect URI in the Spotify dashboard (see [Spotify configuration](#spotify-configuration)).
-
-Pull requests get preview deployments on other addresses. Those are not registered with Spotify, so signing in does not
-work on them; the demo mode (`?demo=true`) does.
-
 ## Local development
 
 Use Node.js 24 LTS (the minimum).
@@ -86,14 +63,14 @@ Open **<http://127.0.0.1:5173/>**; the dev server uses exactly that address and 
 another port). For a UI-only demonstration open **<http://127.0.0.1:5173/?demo=true>**; no Spotify account is needed.
 Register `http://127.0.0.1:5173/` as a redirect URI in the Spotify dashboard to sign in during development.
 
-To try the production build the way the host serves it, run
+To try the production build (the same files the Pi serves), run
 `npm run build && npm start` and open
 **<http://127.0.0.1:4173/>** (`vite preview`). Register that address too if you want to sign in there. `npm test` runs the
 app, script and kiosk installer tests; `npm run build` checks the frontend production build.
 
 To preview the kiosk on macOS run `npm run kiosk:mac`. It opens Chromium or Google Chrome fullscreen with the Pi's
-flags and a separate profile; quit with Cmd+Q. It opens the hosted site by default; set `KIOSK_URL` to a local
-`vite preview` address (for example `KIOSK_URL=http://127.0.0.1:4173/ npm run kiosk:mac`) to try a local build. Set
+flags and a separate profile; quit with Cmd+Q. It opens the `vite preview` address (`http://127.0.0.1:4173/`), so run
+`npm run build && npm start` first; set `KIOSK_URL` to open another address. Set
 `KIOSK_WINDOWED=true` for a 1024x600 window instead, or `KIOSK_BROWSER`, `KIOSK_PROFILE` to override the defaults. It
 approximates the Pi's layout only; audio/DRM and touch still need the device.
 
@@ -115,8 +92,8 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 
 1. Create an app in the [Spotify developer dashboard](https://developer.spotify.com/dashboard).
 2. Register the redirect URI **exactly**, including the trailing slash:
-   - `https://spotify.dev.nikolaivorkinn.com/` for the hosted site (the Pi kiosk uses this too);
-   - `https://<project>.vercel.app/` if you also want to sign in at the Vercel address;
+   - `http://127.0.0.1:4173/` for the Raspberry Pi kiosk, which serves the app itself on that port (and for
+     `npm start`);
    - `http://127.0.0.1:5173/` for local development.
 3. The client ID is a constant in `src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
    it there.
@@ -146,12 +123,14 @@ playback state and controls, not the browser player's local state.
 
 Spotify no longer accepts `localhost` redirect URIs. HTTP is allowed only with a
 literal loopback address such as `127.0.0.1`; other redirect addresses require HTTPS. Sign in from the same address you
-registered: an address that is not registered (a Vercel preview deployment, for example) cannot sign in.
+registered: an address that is not registered cannot sign in.
 
 ## Raspberry Pi kiosk installation
 
-The kiosk is Chromium in fullscreen opening the hosted site. The Pi needs no Node.js, no git and no build, and runs no
-server of its own.
+The Pi runs THE MAX MIX itself: a prebuilt release (the built app, attached to a GitHub release) is downloaded and
+served from the Pi at `http://127.0.0.1:4173/` by a small user service (Python's built-in web server, bound to the
+loopback address only), and Chromium opens that address in fullscreen kiosk mode. The Pi needs no Node.js, no git and no
+build; Raspberry Pi OS already has Python 3.
 
 ### 1. Prepare the operating system
 
@@ -180,24 +159,30 @@ curl -fsSLO https://raw.githubusercontent.com/nvorkinn/the-max-mix/main/scripts/
 bash install-kiosk.sh
 ```
 
-The kiosk opens `https://spotify.dev.nikolaivorkinn.com/` unless you pass another address:
-`KIOSK_URL=https://my-project.vercel.app/ bash install-kiosk.sh`. Only `https` addresses are accepted, plus
-`http://127.0.0.1` and `http://localhost` for testing. Register the address you use as a redirect URI in the Spotify
-dashboard (exact match, trailing slash included), open the kiosk and sign in once in Settings.
+The installer downloads the newest release (`KIOSK_VERSION=v1.2.3` picks a tag), checks its SHA-256 and unpacks it.
+Register `http://127.0.0.1:4173/` as a redirect URI in the Spotify dashboard (exact match, trailing slash included),
+open the kiosk and sign in once in Settings. Spotify only accepts `http` redirect URIs for a loopback IP address, which
+is why the app is served on `127.0.0.1` and not under a hostname.
 
 Do **not** invoke the installer with sudo. It uses sudo only to install OS packages. It:
 
-- Installs Chromium and curl. Nothing else is installed or built on the device.
-- Copies the kiosk scripts to `~/.local/share/the-max-mix/scripts` (`KIOSK_INSTALL_DIR` changes the place). When it is
-  not run from a checkout it downloads them from GitHub (`KIOSK_REPO` and `KIOSK_REF` choose the repository and branch or tag).
-- Stores the address in `~/.config/the-max-mix/kiosk.env` (mode 600). It is created on the first install and left alone
-  on a re-run, unless `KIOSK_URL` is given again.
-- Adds a user-managed Chromium service started after desktop login. It preserves
-  existing labwc autostart entries and also supplies an XDG autostart entry for
-  desktops that use it. Starting the same user service twice is harmless.
+- Installs Chromium, curl and Python 3. Nothing is built on the device.
+- Downloads the release (`KIOSK_REPO` chooses the repository) and unpacks it to
+  `~/.local/share/the-max-mix/releases/<tag>`, with `app` pointing at the current one and `app.previous` at the one it
+  replaced (`KIOSK_INSTALL_DIR` changes the place). Older releases are removed.
+- Copies the kiosk scripts to `~/.local/share/the-max-mix/scripts`. When it is not run from a checkout it downloads them
+  from GitHub (`KIOSK_REF` chooses the branch or tag).
+- Stores the settings in `~/.config/the-max-mix/kiosk.env` (mode 600): `KIOSK_PORT` (default 4173) and, only if you
+  set one, `KIOSK_URL`, an address to open instead of the local app (`https`, or `http://127.0.0.1` and
+  `http://localhost`). It is created on the first install and left alone on a re-run, unless `KIOSK_PORT` or `KIOSK_URL` is
+  given again. If you change the port, register the new redirect URI too.
+- Adds two user services: `the-max-mix-server.service` (the local web server, enabled so it starts at login) and
+  `the-max-mix-kiosk.service` (Chromium, started after desktop login). It preserves existing labwc autostart entries and
+  also supplies an XDG autostart entry for desktops that use it. Starting the same user service twice is harmless.
 - Uses Wayland/labwc on current Raspberry Pi OS, with an X11 fallback.
-- Waits for the address to answer before launching Chromium, with a bounded timeout and automatic service retry. The
-  browser keeps its own profile under `~/.config/the-max-mix/chromium`, with its sandbox enabled.
+- Waits for the local server to answer before launching Chromium, with a bounded timeout and automatic service retry.
+  The browser keeps its own profile under `~/.config/the-max-mix/chromium`, with its sandbox enabled, so the login
+  survives reboots.
 
 Then reboot to check it comes up on its own:
 
@@ -219,21 +204,39 @@ does not edit `/boot/firmware/config.txt` or overwrite monitor settings.
 ### Operations and updates
 
 ```bash
-# Browser logs
-journalctl --user -u the-max-mix-kiosk.service -f
+# Server and browser logs
+journalctl --user -u the-max-mix-server.service -u the-max-mix-kiosk.service -f
 
-# Restart the browser from the kiosk user's session
-systemctl --user restart the-max-mix-kiosk.service
+# Restart the server and the browser from the kiosk user's session
+systemctl --user restart the-max-mix-server.service the-max-mix-kiosk.service
 ```
 
-There is nothing to update on the Pi: a merge to `main` deploys the site and the kiosk loads it the next time the page is
-opened. To point the kiosk at another address, edit `~/.config/the-max-mix/kiosk.env` (or run the installer again with
-`KIOSK_URL` set) and restart the service. To change the scripts themselves, run the installer again. For a manual
-launcher, `KIOSK_URL`, `KIOSK_PROFILE`, and `KIOSK_STARTUP_TIMEOUT` (seconds, default 120) can be overridden.
+To update the Pi, run the installer again: it downloads the newest release, switches to it and restarts the server (then
+restart the kiosk service or reboot to reload the page). A merge to `main` does not change the kiosk; only a published
+release does.
+
+```bash
+bash ~/.local/share/the-max-mix/scripts/install-kiosk.sh
+# or a specific release
+KIOSK_VERSION=v1.2.3 bash ~/.local/share/the-max-mix/scripts/install-kiosk.sh
+```
+
+To roll back, run it with the older `KIOSK_VERSION`, or point `app` at the previous release
+(`ln -sfn "$(readlink ~/.local/share/the-max-mix/app.previous)" ~/.local/share/the-max-mix/app`) and restart the server.
+
+### Publishing a release
+
+[`release.yml`](.github/workflows/release.yml) builds the app (`npm ci && npm run build`) and attaches
+`the-max-mix-<version>.tar.gz` (the contents of `dist/`) and its `.sha256` file to a GitHub release. Push a version tag
+to publish one: `git tag v1.2.3 && git push origin v1.2.3`. Run the workflow by hand with an existing tag to rebuild its
+assets. The installer's `latest` is the newest published release.
+
+For a manual launcher, `KIOSK_URL`, `KIOSK_PORT`, `KIOSK_PROFILE`, and `KIOSK_STARTUP_TIMEOUT` (seconds, default 120)
+can be overridden.
 
 Before leaving the device unattended, verify cold boot without a keyboard,
 touch input, actual audio on the selected output, login persistence across a
-reboot (the login is in the browser profile), network recovery (the page needs the internet), browser restart, and a
+reboot (the login is in the browser profile), network recovery (the app is local, but playback needs the internet), browser restart, and a
 multi-hour temperature/memory soak test. These hardware checks cannot be replaced by the development-machine tests.
 
 References: [Raspberry Pi kiosk guide](https://www.raspberrypi.com/tutorials/how-to-use-a-raspberry-pi-in-kiosk-mode/),

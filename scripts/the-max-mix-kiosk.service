@@ -1,6 +1,8 @@
 [Unit]
 Description=THE MAX MIX Chromium kiosk
 PartOf=graphical-session.target
+Wants=the-max-mix-server.service
+After=the-max-mix-server.service
 StartLimitIntervalSec=0
 
 [Service]

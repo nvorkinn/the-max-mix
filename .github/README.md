@@ -15,6 +15,11 @@ listed in `all-checks.yml`, so Global PR Status waits for it.
 and actionlint over `.github/workflows/*.yml`. ShellCheck and actionlint are downloaded as pinned release binaries and
 checked against a SHA-256 before running. It is listed in `all-checks.yml` too.
 
+`release.yml` runs on a version tag (`v*`) or by hand with an existing tag: it builds the app and attaches
+`the-max-mix-<version>.tar.gz` (the contents of `dist/`) and its `.sha256` to the GitHub release, which the Raspberry Pi
+installer downloads. It has `contents: write` for that job only and does not run on pull requests, so it is not in
+`all-checks.yml`.
+
 `audit.yml` scans the lockfile weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in
 `all-checks.yml`.
 
