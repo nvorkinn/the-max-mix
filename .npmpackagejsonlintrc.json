@@ -1,0 +1,22 @@
+{
+  "rules": {
+    "require-name": "error",
+    "require-version": "error",
+    "require-license": "error",
+    "require-engines": "error",
+    "valid-values-license": ["error", ["MIT"]],
+    "valid-values-private": ["error", [true]],
+    "name-format": "error",
+    "version-format": "error",
+    "no-duplicate-properties": "error",
+    "no-repeated-dependencies": "error",
+    "no-git-dependencies": "error",
+    "no-git-devDependencies": "error",
+    "no-file-dependencies": "error",
+    "no-file-devDependencies": "error",
+    "no-archive-dependencies": "error",
+    "no-archive-devDependencies": "error",
+    "prefer-alphabetical-dependencies": "error",
+    "prefer-alphabetical-devDependencies": "error"
+  }
+}
