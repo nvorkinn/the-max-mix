@@ -13,6 +13,11 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      compression_level:
+        description: xz compression level, 0 (fastest) to 9 (smallest)
+        default: '6'
+        type: string
 
 permissions:
   contents: read
@@ -71,7 +76,7 @@ jobs:
           stage-list: stage0 stage1 stage2 ./pi/image/stage-kiosk
           export-last-stage-only: true
           compression: xz
-          compression-level: 6
+          compression-level: ${{ inputs.compression_level || '6' }}
           hostname: the-max-mix
           username: kiosk
           password: ${{ env.PI_PASSWORD }}
