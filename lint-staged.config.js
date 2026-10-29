@@ -31,7 +31,7 @@ const formatAndLintData = files => {
 };
 
 const tasks = {
-  '{*.{js,mjs},{src,scripts,e2e}/**/*.{js,ts,tsx,mjs}}': [prettier, lint],
+  '{*.{js,mjs,ts},{src,scripts,e2e}/**/*.{js,mjs,ts,tsx}}': [prettier, lint],
   'scripts/*.sh': shellcheck,
   '*.md': [prettier, (/** @type {string[]} */ files) => `markdownlint-cli2 ${quote(files)}`],
   '*.{yml,yaml}': [prettier, (/** @type {string[]} */ files) => `yamllint ${quote(files)}`],
