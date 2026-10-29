@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Development approximation of start-kiosk.sh for macOS: same Chromium flags, separate profile.
-# It opens KIOSK_URL (default: the hosted site). To try a local build instead, run `npm run build && npm start` and set
-# KIOSK_URL to the vite preview address (http://127.0.0.1:4173/). It cannot verify Widevine or touch on the Pi.
+# It opens KIOSK_URL (default: the vite preview address http://127.0.0.1:4173/, so run `npm run build && npm start` first).
+# It cannot verify Widevine or touch on the Pi.
 set -euo pipefail
 
 if [[ $(uname -s) != Darwin ]]; then
@@ -22,7 +22,7 @@ if [[ -z $browser || ! -x $browser ]]; then
   exit 1
 fi
 
-url=${KIOSK_URL:-https://spotify.dev.nikolaivorkinn.com/}
+url=${KIOSK_URL:-http://127.0.0.1:4173/}
 profile=${KIOSK_PROFILE:-$HOME/Library/Application Support/the-max-mix/chromium-dev}
 timeout=${KIOSK_STARTUP_TIMEOUT:-30}
 if [[ ! $timeout =~ ^[1-9][0-9]*$ ]]; then

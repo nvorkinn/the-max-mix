@@ -1,0 +1,79 @@
+name: Release
+
+# Production deploys happen here and only here (vercel.json turns off Vercel's own deploy of main). Push a version tag
+# (git tag v1.2.3 && git push origin v1.2.3) to build the app and deploy it to Vercel production; run it by hand with an
+# existing tag to redeploy that release. The deployment also carries the Raspberry Pi kiosk download under /kiosk/
+# (scripts/install-kiosk.sh fetches it): the-max-mix-latest.tar.gz and its .sha256, a copy named for the version, and
+# latest-version. Needs the repository secrets VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and deploy (for example v1.2.3)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Never run two production deploys at once, and never cancel one that is under way.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      VERCEL_CLI: vercel@64.4.0
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Check the tag and the secrets
+        run: |
+          if [[ ! $TAG =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+            echo "::error::The tag must look like v1.2.3, got: $TAG"
+            exit 1
+          fi
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [[ -z ${!name} ]]; then
+              echo "::error::The repository secret $name is not set (Settings > Secrets and variables > Actions)."
+              exit 1
+            fi
+          done
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # The build gets the release's version (v1.2.3 becomes 1.2.3) without committing anything; npm rejects a tag that is
+      # not a valid semantic version.
+      - name: Set the version from the tag
+        run: npm version "${TAG#v}" --no-git-tag-version --allow-same-version
+      - run: npm ci
+      - run: npm run build
+      # The kiosk download is packed from the finished build, before anything else is added, so the tarball holds only the
+      # app itself. The files go into public/kiosk/, which the Vercel build copies into the deployment under /kiosk/.
+      - name: Pack the kiosk download
+        run: |
+          test -f dist/index.html || { echo "::error::The build has no dist/index.html"; exit 1; }
+          version=${TAG#v}
+          mkdir public/kiosk
+          tar -czf "public/kiosk/the-max-mix-$version.tar.gz" -C dist .
+          cp "public/kiosk/the-max-mix-$version.tar.gz" public/kiosk/the-max-mix-latest.tar.gz
+          printf '%s\n' "$version" > public/kiosk/latest-version
+          # The checksum files name the file they sit next to, which is what sha256sum --check needs after a download.
+          (cd public/kiosk && for name in "the-max-mix-$version.tar.gz" the-max-mix-latest.tar.gz; do
+            sha256sum "$name" > "$name.sha256"
+          done)
+          ls -l public/kiosk
+      - name: Deploy to Vercel production
+        run: npx --yes "$VERCEL_CLI" deploy --prod --yes --token="$VERCEL_TOKEN"
