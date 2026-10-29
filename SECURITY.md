@@ -34,10 +34,10 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
 - **The app is public static code.** Anyone who runs it can sign in with their own Spotify account, and each browser
   keeps its own login; a shared browser profile is a shared login. Only addresses registered as redirect URIs in the
   Spotify dashboard can sign in.
-- **The Wi-Fi setup portal.** On the Pi, `the-max-mix-wifi.service` runs as root (to manage NetworkManager) and serves a
-  small page on `127.0.0.1:8088` and, only while the `THE-MAX-MIX-SETUP` hotspot is up, on the hotspot gateway. It checks
-  the `Host` header (against DNS rebinding), needs a CSRF token and a same-host `Origin` on every POST, rate-limits and
-  size-limits connect attempts, validates input and calls `nmcli` with argument lists only, never logs passwords, and
-  runs with systemd hardening. The hotspot is WPA2 with a random password regenerated each time; anyone who has it can
-  reach the page and try to change the Pi's Wi-Fi, so treat the Pi's screen as showing a secret. Wi-Fi passwords are kept
-  by NetworkManager (root-only files), not by the portal. See [`pi/wifi/README.md`](pi/wifi/README.md).
+- **The Wi-Fi panel.** A native Qt panel (`pi/wifi-panel/`) runs as the non-root `kiosk` user and joins networks with
+  `nmcli`; a polkit rule (`pi/rootfs/etc/polkit-1/rules.d/50-kiosk-networkmanager.rules`) lets only that user manage
+  NetworkManager connections. The password reaches `nmcli` on stdin, never in argv, and is not logged; every call is an
+  argument list with no shell, and the panel has no network listener. The app opens it through the `kiosk-wifi://` link,
+  which Chromium's managed policy (`AutoLaunchProtocolsFromOrigins` in
+  `pi/rootfs/etc/chromium/policies/managed/kiosk.json`) allows without a prompt only from `https://the-max-mix.vercel.app`.
+  The flashed image also has SSH off and no password for any account. See [`pi/wifi-panel/README.md`](pi/wifi-panel/README.md).

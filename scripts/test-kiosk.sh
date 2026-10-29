@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
-bash -n "$root/scripts/start-kiosk.sh" "$root/scripts/start-kiosk-session.sh" "$root/scripts/start-kiosk-mac.sh"
+bash -n "$root/scripts/start-kiosk.sh" "$root/scripts/start-kiosk-session.sh"
 unit="$root/ansible/roles/kiosk/templates/the-max-mix-kiosk.service.j2"
 grep -Fq 'EnvironmentFile="{{ kiosk_config_dir' "$unit"
 grep -Fq '/start-kiosk.sh"' "$unit"
