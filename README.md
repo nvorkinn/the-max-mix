@@ -165,8 +165,8 @@ device, so change the role, not the device.
   deployed Pi therefore gets fixes to the Wi-Fi panel, the session script, the Chromium policy and so on without a
   reflash. The playbook is idempotent, so repeated runs are safe.
 - **The `stable` branch** is what deployed devices follow. It is protected: it cannot be deleted or force-pushed, and it
-  only moves through a pull request from `main` into `stable` that passes the same checks as any other PR (use a merge
-  commit, not squash or rebase, so `stable` keeps `main`'s history). Never merge a development branch into it. Until it
+  only moves through a pull request from `main` into `stable`. It needs no extra checks, because everything on `main` has
+  already passed them (use a merge commit, not squash or rebase, so `stable` keeps `main`'s history). Never merge a development branch into it. Until it
   exists, pulls fail and only log. The image bakes in the same ref.
 - **A failing pull never affects the kiosk.** Nothing depends on `kiosk-pull.service`; a failure is only in the journal
   and the next timer run tries again. A pull never restarts the kiosk either: it leaves a marker when kiosk files changed,
