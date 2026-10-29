@@ -1,5 +1,7 @@
 {
+  "//": "The app (src/) and the Vite and Vitest configs that build and test it. Type-checks the JavaScript through its JSDoc.",
   "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "ES2022",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",

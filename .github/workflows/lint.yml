@@ -37,11 +37,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            client/package-lock.json
       - run: npm ci
-      - run: npm --prefix client ci
       - run: npm run ${{ matrix.check }}
 
   shellcheck:

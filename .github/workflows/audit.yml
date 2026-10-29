@@ -20,4 +20,3 @@ jobs:
         with:
           node-version-file: .nvmrc
       - run: npm audit --audit-level=moderate
-      - run: npm --prefix client audit --audit-level=moderate

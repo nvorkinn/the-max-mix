@@ -17,9 +17,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-          cache-dependency-path: client/package-lock.json
-      - run: npm --prefix client ci
-      # The coverage run executes the client tests (and enforces the thresholds) and the script tests (scripts/test), so
+      - run: npm ci
+      # The coverage run executes the app tests (and enforces the thresholds) and the script tests (scripts/test), so
       # `npm test` would run them twice; only the kiosk script test is left to run on its own.
       - run: npm run test:coverage
       - run: bash scripts/test-kiosk.sh
@@ -30,7 +29,7 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: coverage
-          path: client/coverage
+          path: coverage
           if-no-files-found: ignore
       - run: npm run build
 
@@ -44,11 +43,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            client/package-lock.json
       - run: npm ci --ignore-scripts
-      - run: npm --prefix client ci
       - run: npm run build
       - run: npm run test:e2e
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

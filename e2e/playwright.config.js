@@ -20,8 +20,9 @@ export default defineConfig({
     trace: 'retain-on-failure'
   },
   webServer: {
-    // Serves the built client (run `npm run build` first) the way a static host does.
-    command: `npm --prefix ../client run preview -- --host 127.0.0.1 --port ${port} --strictPort`,
+    // Serves the built app (run `npm run build` first) the way a static host does, from the repository root.
+    command: `npm run preview -- --host 127.0.0.1 --port ${port} --strictPort`,
+    cwd: '..',
     url: `http://127.0.0.1:${port}/`,
     reuseExistingServer: false,
     timeout: 30_000

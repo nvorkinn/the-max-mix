@@ -1,15 +1,12 @@
-// The checks CI's Lint workflow runs, limited to staged files: Prettier (rewrites and re-stages), ESLint with each
-// package's own config, ShellCheck, markdownlint, yamllint and Stylelint. Type checking is whole-project, so it only runs in CI (`npm run typecheck`).
+// The checks CI's Lint workflow runs, limited to staged files: Prettier (rewrites and re-stages), ESLint, ShellCheck,
+// markdownlint, yamllint and Stylelint. Type checking is whole-project, so it only runs in CI (`npm run typecheck`).
 // Each file matches one pattern, so its Prettier and ESLint tasks run one after the other, never concurrently.
-const path = require('node:path');
+import path from 'node:path';
 /** @param {string[]} files */
 const quote = files => files.map(file => JSON.stringify(file)).join(' ');
 const prettier = 'prettier --write';
-/** @param {string} pkg */
-const lintPackage = pkg => (/** @type {string[]} */ files) =>
-  `npm --prefix ${pkg} exec --no -- eslint --max-warnings 0 --no-warn-ignored ${quote(files)}`;
 /** @param {string[]} files */
-const lintRoot = files => `eslint --max-warnings 0 --no-warn-ignored ${quote(files)}`;
+const lint = files => `eslint --max-warnings 0 --no-warn-ignored ${quote(files)}`;
 // ShellCheck is a system tool, not an npm dependency: skip it (CI still runs it) rather than block the commit.
 /** @param {string[]} files */
 const shellcheck = files =>
@@ -34,8 +31,7 @@ const formatAndLintData = files => {
 };
 
 const tasks = {
-  'client/**/*.{js,jsx}': [prettier, lintPackage('client')],
-  '{*.{js,mjs},scripts/**/*.{js,mjs}}': [prettier, lintRoot],
+  '{*.{js,mjs},{src,scripts,e2e}/**/*.{js,jsx,mjs}}': [prettier, lint],
   'scripts/*.sh': shellcheck,
   '*.md': [prettier, (/** @type {string[]} */ files) => `markdownlint-cli2 ${quote(files)}`],
   '*.{yml,yaml}': [prettier, (/** @type {string[]} */ files) => `yamllint ${quote(files)}`],
@@ -58,4 +54,4 @@ const withChecks = task => (/** @type {string[]} */ files) => {
   return [...own, spelling(files), editorconfig(files)];
 };
 
-module.exports = Object.fromEntries(Object.entries(tasks).map(([glob, task]) => [glob, withChecks(task)]));
+export default Object.fromEntries(Object.entries(tasks).map(([glob, task]) => [glob, withChecks(task)]));
