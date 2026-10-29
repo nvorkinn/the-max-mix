@@ -64,6 +64,7 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
         <div className="flex items-center space-x-2">
           {/* Quick Add Song Button */}
           <button
+            type="button"
             onClick={() => setShowSearchModal(true)}
             className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 active:scale-95 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold transition-all shadow-md"
           >
@@ -87,6 +88,7 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
               </p>
             </div>
             <button
+              type="button"
               onClick={onOpenQR}
               className="px-4 py-2 bg-linear-to-r from-emerald-500 to-teal-500 text-black font-extrabold text-xs rounded-xl shadow-lg active:scale-95"
             >
@@ -108,6 +110,7 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
                 {/* Left: Rank & Upvote Button */}
                 <div className="flex items-center space-x-3">
                   <button
+                    type="button"
                     onClick={() => onUpvote(track.id)}
                     className={`flex flex-col items-center justify-center w-11 h-11 rounded-xl transition-all active:scale-90 border ${
                       (track.votes ?? 0) > 1
@@ -150,6 +153,7 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => onRemove(track.id)}
                     className="w-8 h-8 rounded-lg text-neutral-500 hover:text-rose-400 hover:bg-rose-500/10 active:scale-90 flex items-center justify-center transition-colors"
                   >
@@ -171,6 +175,7 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
               Add Track to Party Queue
             </h4>
             <button
+              type="button"
               onClick={() => setShowSearchModal(false)}
               className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center active:scale-90"
             >
@@ -178,7 +183,7 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
             </button>
           </div>
 
-          <form onSubmit={handleSearch} className="flex gap-2 mt-3">
+          <form onSubmit={e => void handleSearch(e)} className="flex gap-2 mt-3">
             <input
               type="text"
               placeholder="Search song or artist..."
@@ -203,6 +208,8 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
             {searchResults.map(track => (
               <div
                 key={track.id}
+                // The row is a bigger tap target; the "+ Add" button inside it is the keyboard-accessible control.
+                role="presentation"
                 onClick={() => handleSelectTrack(track)}
                 className="flex items-center justify-between p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer active:scale-98 transition-all"
               >
@@ -213,7 +220,10 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
                     <p className="text-[11px] text-neutral-400 truncate max-w-[280px]">{track.artist}</p>
                   </div>
                 </div>
-                <button className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/40">
+                <button
+                  type="button"
+                  className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/40"
+                >
                   + Add
                 </button>
               </div>

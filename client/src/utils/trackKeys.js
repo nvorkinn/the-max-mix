@@ -12,6 +12,6 @@ export function trackKeys(tracks) {
     const base = track.id ?? track.uri ?? `${track.name || track.title}|${artist}`;
     const occurrence = seen.get(base) ?? 0;
     seen.set(base, occurrence + 1);
-    return occurrence === 0 ? String(base) : `${base}#${occurrence}`;
+    return occurrence === 0 ? base : `${base}#${occurrence}`;
   });
 }

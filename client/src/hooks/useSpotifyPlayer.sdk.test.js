@@ -20,7 +20,7 @@ function makeSdk({ connectResult = true } = {}) {
       /** @type {Record<string, (payload?: unknown) => void>} */
       this.listeners = {};
       this.disconnect = vi.fn();
-      this.connect = vi.fn(async () => connectResult);
+      this.connect = vi.fn(() => Promise.resolve(connectResult));
       players.push(this);
     }
     /**
@@ -42,11 +42,11 @@ const browserSession = {
 
 /** @param {Record<string, unknown>} table */
 function route(table) {
-  api.requestJSON.mockImplementation(async url => {
+  api.requestJSON.mockImplementation((/** @type {string} */ url) => {
     const entry = table[url];
-    if (entry instanceof Error) throw entry;
-    if (entry === undefined) throw new Error(`unexpected ${url}`);
-    return entry;
+    if (entry instanceof Error) return Promise.reject(entry);
+    if (entry === undefined) return Promise.reject(new Error(`unexpected ${url}`));
+    return Promise.resolve(entry);
   });
 }
 
@@ -175,8 +175,8 @@ describe('useSpotifyPlayer polling', () => {
   it('clears the error once a poll succeeds and keeps polling every 4s', async () => {
     vi.useFakeTimers();
     api.requestJSON.mockRejectedValueOnce(new Error('blip'));
-    api.requestJSON.mockImplementation(async url =>
-      url === '/api/info' ? { demoMode: true } : { device: { id: 'd' } }
+    api.requestJSON.mockImplementation((/** @type {string} */ url) =>
+      Promise.resolve(url === '/api/info' ? { demoMode: true } : { device: { id: 'd' } })
     );
     const { result } = renderHook(() => useSpotifyPlayer());
     await act(async () => {
@@ -196,8 +196,8 @@ describe('useSpotifyPlayer polling', () => {
 
   it('stops polling after unmount', async () => {
     vi.useFakeTimers();
-    api.requestJSON.mockImplementation(async url =>
-      url === '/api/info' ? { demoMode: true } : { device: { id: 'd' } }
+    api.requestJSON.mockImplementation((/** @type {string} */ url) =>
+      Promise.resolve(url === '/api/info' ? { demoMode: true } : { device: { id: 'd' } })
     );
     const { unmount } = renderHook(() => useSpotifyPlayer());
     await act(async () => {
@@ -206,7 +206,7 @@ describe('useSpotifyPlayer polling', () => {
     unmount();
     const calls = api.requestJSON.mock.calls.length;
     await vi.advanceTimersByTimeAsync(30000);
-    expect(api.requestJSON.mock.calls.length).toBe(calls);
+    expect(api.requestJSON.mock.calls).toHaveLength(calls);
   });
 
   it('shows an auth_error from the login redirect', () => {

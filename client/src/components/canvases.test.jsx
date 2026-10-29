@@ -47,7 +47,7 @@ describe('AudioVisualizer', () => {
     const before = canvas.ctx.clearRect.mock.calls.length;
     fireEvent(window, new Event('resize'));
     mql.listeners.forEach(fn => fn());
-    expect(canvas.ctx.clearRect.mock.calls.length).toBe(before + 2);
+    expect(canvas.ctx.clearRect.mock.calls).toHaveLength(before + 2);
   });
 });
 
@@ -57,15 +57,16 @@ describe('ReactionCanvas', () => {
   /** @returns {FakeSocket} a partial socket stand-in */
   function fakeSocket() {
     /** @type {Record<string, (payload?: unknown) => void>} */
+    /** @type {Record<string, (payload?: unknown) => void>} */
     const handlers = {};
     return /** @type {FakeSocket} */ (
       /** @type {unknown} */ ({
         handlers,
-        on: vi.fn((event, fn) => {
+        on: vi.fn((/** @type {string} */ event, /** @type {(payload?: unknown) => void} */ fn) => {
           handlers[event] = fn;
         }),
-        off: vi.fn(event => {
-          delete handlers[event];
+        off: vi.fn((/** @type {string} */ event) => {
+          Reflect.deleteProperty(handlers, event);
         })
       })
     );

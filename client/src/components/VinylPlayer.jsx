@@ -39,6 +39,13 @@ export default function VinylPlayer({ playback, isPlaying, onPlayPause, onNext, 
     onSeek(ratio * durationMs);
   };
 
+  /** @param {import('react').KeyboardEvent<HTMLElement>} e */
+  const handleProgressBarKeyDown = e => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    onSeek(Math.max(0, Math.min(durationMs, progressMs + (e.key === 'ArrowRight' ? 5000 : -5000))));
+  };
+
   /** @param {import('react').ChangeEvent<HTMLInputElement>} e */
   const handleVolumeSlide = e => {
     const val = Number(e.target.value);
@@ -119,7 +126,15 @@ export default function VinylPlayer({ playback, isPlaying, onPlayPause, onNext, 
         {/* Scrubber Bar */}
         <div className="space-y-1">
           <div
+            role="slider"
+            tabIndex={0}
+            aria-label="Seek"
+            aria-valuemin={0}
+            aria-valuemax={Math.round(durationMs)}
+            aria-valuenow={Math.round(progressMs)}
+            aria-valuetext={`${formatTime(progressMs)} of ${formatTime(durationMs)}`}
             onClick={handleProgressBarClick}
+            onKeyDown={handleProgressBarKeyDown}
             className="group relative h-2.5 bg-white/10 rounded-full cursor-pointer overflow-hidden backdrop-blur-xs"
           >
             <div
@@ -140,6 +155,7 @@ export default function VinylPlayer({ playback, isPlaying, onPlayPause, onNext, 
             <Volume2 className="w-4 h-4 text-neutral-400" />
             <input
               type="range"
+              aria-label="Volume"
               min="0"
               max="100"
               value={volume}
@@ -151,6 +167,7 @@ export default function VinylPlayer({ playback, isPlaying, onPlayPause, onNext, 
           {/* Transport Buttons */}
           <div className="flex items-center space-x-3">
             <button
+              type="button"
               onClick={onPrevious}
               className="w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center justify-center transition-all border border-white/10 shadow-md"
               title="Previous Track"
@@ -159,6 +176,7 @@ export default function VinylPlayer({ playback, isPlaying, onPlayPause, onNext, 
             </button>
 
             <button
+              type="button"
               onClick={onPlayPause}
               className="w-14 h-14 rounded-full bg-linear-to-tr from-emerald-500 to-teal-400 active:scale-90 text-black flex items-center justify-center transition-all shadow-[0_0_25px_rgba(16,185,129,0.5)] border-2 border-white/40"
               title={isPlaying ? 'Pause' : 'Play'}
@@ -171,6 +189,7 @@ export default function VinylPlayer({ playback, isPlaying, onPlayPause, onNext, 
             </button>
 
             <button
+              type="button"
               onClick={onNext}
               className="w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center justify-center transition-all border border-white/10 shadow-md"
               title="Next Track"

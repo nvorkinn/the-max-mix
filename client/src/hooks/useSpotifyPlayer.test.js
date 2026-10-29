@@ -9,11 +9,11 @@ import { useSpotifyPlayer } from './useSpotifyPlayer.js';
 
 /** @param {Record<string, unknown>} table */
 function route(table) {
-  api.requestJSON.mockImplementation(async url => {
+  api.requestJSON.mockImplementation((/** @type {string} */ url) => {
     const entry = table[url];
-    if (entry instanceof Error) throw entry;
-    if (entry === undefined) throw new Error(`unexpected ${url}`);
-    return entry;
+    if (entry instanceof Error) return Promise.reject(entry);
+    if (entry === undefined) return Promise.reject(new Error(`unexpected ${url}`));
+    return Promise.resolve(entry);
   });
 }
 

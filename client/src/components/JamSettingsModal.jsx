@@ -12,6 +12,7 @@ export default function JamSettingsModal({ isOpen, onClose }) {
         className="app-modal-panel border rounded-3xl p-6 max-w-md w-full relative shadow-2xl max-h-[92dvh] overflow-y-auto"
       >
         <button
+          type="button"
           onClick={onClose}
           aria-label="Close Jam instructions"
           className="absolute right-4 top-4 p-2 rounded-full bg-white/10 text-white"

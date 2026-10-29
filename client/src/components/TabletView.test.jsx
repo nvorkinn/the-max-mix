@@ -122,7 +122,7 @@ describe('TabletView', () => {
       await vi.advanceTimersByTimeAsync(2000);
     });
     expect(api.requestJSON).toHaveBeenCalledTimes(2);
-    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Queued One' })).toBeInTheDocument();
   });
 
@@ -143,7 +143,7 @@ describe('TabletView', () => {
     fireEvent.click(screen.getByRole('button', { name: /^jam in spotify/i }));
     expect(screen.getByRole('dialog', { name: /start a jam/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Close Jam instructions' }));
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     api.requestJSON.mockResolvedValue({ devices: [] });
     fireEvent.click(screen.getByRole('button', { name: 'Choose a Spotify Connect device' }));
@@ -166,7 +166,7 @@ describe('TabletView', () => {
     act(() => {
       vi.advanceTimersByTime(3600);
     });
-    expect(screen.queryByText('Skin updated to Paper')).toBeNull();
+    expect(screen.queryByText('Skin updated to Paper')).not.toBeInTheDocument();
   });
 
   it('does not let an earlier toast timer cut a newer toast short', async () => {
@@ -190,7 +190,7 @@ describe('TabletView', () => {
     act(() => {
       vi.advanceTimersByTime(2000);
     });
-    expect(screen.queryByText('Skin updated to Studio')).toBeNull();
+    expect(screen.queryByText('Skin updated to Studio')).not.toBeInTheDocument();
   });
 
   it('restores a saved theme and ignores unknown values', async () => {
@@ -250,9 +250,8 @@ describe('TabletView', () => {
       await flush();
       fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Two' }), { key: 'ArrowUp' });
       await flush();
-      expect(api.postJSON).toHaveBeenCalledWith('/api/queue/reorder', {
-        queue: expect.arrayContaining([expect.objectContaining({ id: 'q2' })])
-      });
+      const reordered = /** @type {unknown} */ (expect.arrayContaining([expect.objectContaining({ id: 'q2' })]));
+      expect(api.postJSON).toHaveBeenCalledWith('/api/queue/reorder', { queue: reordered });
       expect(screen.getByText('Demo queue order updated.')).toBeInTheDocument();
     });
 
@@ -290,8 +289,8 @@ describe('TabletView', () => {
   });
 
   it('selects a speaker through transferPlayback', async () => {
-    api.requestJSON.mockImplementation(async url =>
-      url === '/api/queue' ? { queue: [] } : { devices: [{ id: 'dev1', name: 'Soundbar' }] }
+    api.requestJSON.mockImplementation((/** @type {string} */ url) =>
+      Promise.resolve(url === '/api/queue' ? { queue: [] } : { devices: [{ id: 'dev1', name: 'Soundbar' }] })
     );
     render(<TabletView />);
     await flush();
@@ -308,6 +307,6 @@ describe('TabletView', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(/** @type {Element} */ (document.querySelector('.footer-clock')).textContent).toMatch(/9:05|09:05/);
+    expect(/** @type {Element} */ (document.querySelector('.footer-clock'))).toHaveTextContent(/9:05|09:05/);
   });
 });

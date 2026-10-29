@@ -41,6 +41,7 @@ export default function SettingsModal({ isOpen, onClose, authInfo, currentTheme 
       >
         {/* Close Button */}
         <button
+          type="button"
           onClick={onClose}
           aria-label="Close settings"
           className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-white flex items-center justify-center transition-all"
@@ -72,7 +73,7 @@ export default function SettingsModal({ isOpen, onClose, authInfo, currentTheme 
                   type="button"
                   key={t.id}
                   aria-pressed={isSelected}
-                  onClick={() => onThemeChange && onThemeChange(t.id)}
+                  onClick={() => onThemeChange?.(t.id)}
                   className={`p-3 rounded-2xl text-left cursor-pointer transition-all border flex items-center justify-between ${
                     isSelected
                       ? `bg-white/10 ${t.border} shadow-lg ring-1 ring-white/20`
@@ -142,7 +143,7 @@ export default function SettingsModal({ isOpen, onClose, authInfo, currentTheme 
               className="w-full py-3 px-4 bg-[#1DB954] hover:bg-[#1aa34a] text-black font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
             >
               <Music className="w-4 h-4 fill-black" />
-              {authInfo?.authenticated ? 'Re-authenticate with Spotify' : 'Log in with Spotify'}
+              {authInfo.authenticated ? 'Re-authenticate with Spotify' : 'Log in with Spotify'}
             </a>
           )}
         </div>

@@ -59,7 +59,7 @@ export function installCanvasStub() {
 }
 
 export function stubMatchMedia(matches = false) {
-  const listeners = new Set();
+  const listeners = /** @type {Set<() => void>} */ (new Set());
   const mql = {
     matches,
     addEventListener: (/** @type {string} */ _, /** @type {() => void} */ fn) => listeners.add(fn),

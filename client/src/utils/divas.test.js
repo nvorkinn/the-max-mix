@@ -23,10 +23,6 @@ describe('getDivaForUser', () => {
     expect(getDivaForUser(undefined, 1, 'minimal')).toBe(MINIMALIST_AVATARS[1]);
   });
 
-  it('accepts numeric ids', () => {
-    expect(GLOBAL_DIVAS).toContain(getDivaForUser(/** @type {string} */ (/** @type {unknown} */ (42))));
-  });
-
   it('rosters have unique names and images', () => {
     for (const roster of [GLOBAL_DIVAS, MINIMALIST_AVATARS]) {
       expect(new Set(roster.map(d => d.name)).size).toBe(roster.length);

@@ -7,11 +7,16 @@ import { defined } from '../test/defined.js';
  * @param {{ ok?: boolean, status?: number, headers?: Record<string, string> }} [options]
  */
 function mockResponse(body, { ok = true, status = 200, headers = {} } = {}) {
-  return { ok, status, json: async () => body, headers: new Headers(headers) };
+  return { ok, status, json: () => Promise.resolve(body), headers: new Headers(headers) };
 }
 
+/** @typedef {{ signal: AbortSignal, method: string, headers: Record<string, string>, body: string }} FetchOptions */
+
 /** The stubbed global fetch, typed as a vitest mock. */
-const fetchMock = () => /** @type {import('vitest').Mock} */ (/** @type {unknown} */ (fetch));
+const fetchMock = () =>
+  /** @type {import('vitest').Mock<(url: string, options: FetchOptions) => unknown>} */ (
+    /** @type {unknown} */ (fetch)
+  );
 
 describe('api', () => {
   beforeEach(() => {
