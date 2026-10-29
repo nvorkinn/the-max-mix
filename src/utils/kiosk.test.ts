@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getRedirectUri } from '../spotify/settings';
-import { isKiosk, WIFI_PORTAL_URL } from './kiosk';
+import { isKiosk, openWifiSettings, WIFI_SETTINGS_URL } from './kiosk';
 
 function visit(search: string) {
   history.replaceState(null, '', `/${search}`);
@@ -71,7 +71,11 @@ describe('isKiosk', () => {
     expect(isKiosk()).toBe(false);
   });
 
-  it('points at the portal on the Pi itself', () => {
-    expect(WIFI_PORTAL_URL).toBe('http://127.0.0.1:8088/');
+  it('opens the Wi-Fi panel through the custom scheme', () => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { assign });
+    openWifiSettings();
+    expect(WIFI_SETTINGS_URL).toBe('kiosk-wifi://open');
+    expect(assign).toHaveBeenCalledWith('kiosk-wifi://open');
   });
 });

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X, Key, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feather, LogOut, Wifi } from 'lucide-react';
 import { signOut, startSignIn } from '../spotify/auth';
 import { errorMessage } from '../utils/errorMessage';
-import { isKiosk, WIFI_PORTAL_URL } from '../utils/kiosk';
+import { isKiosk, openWifiSettings } from '../utils/kiosk';
 import { getRedirectUri, setDemoMode, setPlaybackMode } from '../spotify/settings';
 
 /** Applies a changed setting by reloading the page, which starts everything again from the stored settings. */
@@ -246,7 +246,7 @@ export default function SettingsModal({
           {isKiosk() && (
             <button
               type="button"
-              onClick={() => location.assign(WIFI_PORTAL_URL)}
+              onClick={openWifiSettings}
               className="w-full flex items-center justify-between gap-3 p-3 min-h-14 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 active:scale-98 text-left transition-all"
             >
               <span>
