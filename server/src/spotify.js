@@ -6,6 +6,16 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 const SIGN_IN_TTL_MS = 10 * 60 * 1000;
 const MAX_PENDING_SIGN_INS = 20;
 
+/**
+ * The parts of Spotify's Web API responses that this app reads.
+ * @typedef {{ id: string, name: string, artists: { name: string }[], duration_ms: number, album: { images: { url: string }[] } }} SpotifyTrack
+ * @typedef {{ id: string, name: string, is_active: boolean, volume_percent: number | null, supports_volume: boolean }} SpotifyDevice
+ * @typedef {{ is_playing: boolean, progress_ms: number | null, device: SpotifyDevice, item: SpotifyTrack | null }} SpotifyPlaybackState
+ * @typedef {{ currently_playing: SpotifyTrack | null, queue: SpotifyTrack[] }} SpotifyQueue
+ * @typedef {{ devices: SpotifyDevice[] }} SpotifyDevices
+ * @typedef {{ access_token?: string, refresh_token?: string, expires_in?: number, error?: string }} SpotifyTokenResponse
+ */
+
 export class SpotifyError extends Error {
   /**
    * @param {string} message
@@ -41,6 +51,7 @@ export class SpotifyService {
 
   async initialize() {
     try {
+      /** @type {{ clientId?: unknown, refreshToken?: unknown }} */
       const stored = JSON.parse(await readFile(this.tokenFile, 'utf8'));
       if (stored.clientId !== this.clientId) {
         throw new Error('Saved Spotify login belongs to another app. Remove spotify-token.json and sign in again.');
@@ -104,7 +115,7 @@ export class SpotifyService {
       await writeFile(temporaryFile, JSON.stringify({ clientId: this.clientId, refreshToken }), { mode: 0o600 });
       await rename(temporaryFile, this.tokenFile);
     } finally {
-      await unlink(temporaryFile).catch(error => {
+      await unlink(temporaryFile).catch((/** @type {NodeJS.ErrnoException} */ error) => {
         if (error.code !== 'ENOENT') throw error;
       });
     }
@@ -123,9 +134,10 @@ export class SpotifyService {
     });
     if (!response.ok) {
       if (response.status === 400 && parameters.grant_type === 'refresh_token') {
+        /** @type {SpotifyTokenResponse} */
         const data = await response.json().catch(() => ({}));
         if (data.error === 'invalid_grant') {
-          await unlink(this.tokenFile).catch(error => {
+          await unlink(this.tokenFile).catch((/** @type {NodeJS.ErrnoException} */ error) => {
             if (error.code !== 'ENOENT') throw error;
           });
           this.accessToken = null;
@@ -138,8 +150,9 @@ export class SpotifyService {
         502
       );
     }
+    /** @type {SpotifyTokenResponse} */
     const data = await response.json();
-    if (!data.access_token || !Number.isFinite(data.expires_in)) {
+    if (!data.access_token || data.expires_in === undefined || !Number.isFinite(data.expires_in)) {
       throw new SpotifyError('Spotify returned an invalid token response.');
     }
     const refreshToken = data.refresh_token || this.refreshToken;
@@ -189,7 +202,7 @@ export class SpotifyService {
    * @param {string} endpoint
    * @param {RequestInit} [options]
    * @param {boolean} [retry]
-   * @returns {Promise<any>} the parsed Spotify response, or null for 204
+   * @returns {Promise<unknown>} the parsed Spotify response, or null for 204; callers narrow it to the endpoint's shape
    */
   async spotifyFetch(endpoint, options = {}, retry = true) {
     const token = await this.getValidAccessToken();
@@ -233,11 +246,17 @@ export class SpotifyService {
     return this.spotifyFetch('/me/player', { method: 'PUT', body: JSON.stringify({ device_ids: [deviceId], play }) });
   }
 
+  /** @returns {Promise<SpotifyQueue | null>} */
   getQueue() {
-    return this.spotifyFetch('/me/player/queue');
+    return /** @type {Promise<SpotifyQueue | null>} */ (this.spotifyFetch('/me/player/queue'));
   }
+  /** @returns {Promise<SpotifyPlaybackState | null>} */
   getPlaybackState() {
-    return this.spotifyFetch('/me/player');
+    return /** @type {Promise<SpotifyPlaybackState | null>} */ (this.spotifyFetch('/me/player'));
+  }
+  /** @returns {Promise<SpotifyDevices | null>} */
+  getDevices() {
+    return /** @type {Promise<SpotifyDevices | null>} */ (this.spotifyFetch('/me/player/devices'));
   }
   play() {
     return this.spotifyFetch('/me/player/play', { method: 'PUT' });

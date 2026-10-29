@@ -39,10 +39,10 @@ export class QueueManager {
    */
   addTrack(track, guest = { id: 'host', name: 'Host' }) {
     // Check if track is already in queue
-    const existingIndex = this.queue.findIndex(item => item.id === track.id);
-    if (existingIndex !== -1) {
+    const existing = this.queue.find(item => item.id === track.id);
+    if (existing) {
       // If already in queue, automatically count as an upvote from this guest
-      return this.upvoteTrack(this.queue[existingIndex].id, guest.id);
+      return this.upvoteTrack(existing.id, guest.id);
     }
 
     const queueItem = {
@@ -98,10 +98,9 @@ export class QueueManager {
   }
 
   popNextTrack() {
-    const sorted = this.getQueue();
-    if (sorted.length === 0) return null;
+    const nextTrack = this.getQueue()[0];
+    if (!nextTrack) return null;
 
-    const nextTrack = sorted[0];
     this.queue = this.queue.filter(t => t.id !== nextTrack.id);
     this.playedHistory.unshift(nextTrack);
     if (this.playedHistory.length > 50) {

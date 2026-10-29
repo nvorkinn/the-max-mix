@@ -35,7 +35,7 @@ export function createApp({
       limit,
       standardHeaders: 'draft-8',
       legacyHeaders: false,
-      handler: (req, res) => res.status(429).json({ error: 'Too many requests. Try again in a moment.' })
+      handler: (_req, res) => res.status(429).json({ error: 'Too many requests. Try again in a moment.' })
     });
   const app = express();
   const demo = createDemo();
@@ -47,12 +47,12 @@ export function createApp({
   app.use('/api', limiter(limits.api));
   app.use('/api/auth', limiter(limits.auth));
   /** @type {import('express').RequestHandler} */
-  const noStore = (req, res, next) => {
+  const noStore = (_req, res, next) => {
     res.set('Cache-Control', 'no-store');
     next();
   };
   app.use('/api', noStore);
-  /** @param {(req: import('express').Request, res: import('express').Response) => any} handler */
+  /** @param {(req: import('express').Request, res: import('express').Response) => unknown} handler */
   const route =
     handler =>
     /** @type {import('express').RequestHandler} */
@@ -84,11 +84,11 @@ export function createApp({
     }
   }
 
-  app.get('/api/health', (req, res) => {
+  app.get('/api/health', (_req, res) => {
     const ready = existsSync(path.join(distPath, 'index.html'));
     res.status(ready ? 200 : 503).json({ ready, error: ready ? null : 'Frontend build missing. Run npm run build.' });
   });
-  app.get('/api/info', (req, res) =>
+  app.get('/api/info', (_req, res) =>
     res.json({
       name: 'THE MAX MIX',
       port: config.port,
@@ -100,7 +100,7 @@ export function createApp({
   );
   app.get(
     '/api/token',
-    route(async (req, res) => {
+    route(async (_req, res) => {
       const token = config.demoMode ? null : await spotify.getValidAccessToken();
       res.json({
         token: config.playbackMode === 'browser' ? token : null,
@@ -147,11 +147,11 @@ export function createApp({
 
   app.get(
     '/api/spotify/current',
-    route(async (req, res) => res.json(config.demoMode ? demo.playback : await spotify.getPlaybackState()))
+    route(async (_req, res) => res.json(config.demoMode ? demo.playback : await spotify.getPlaybackState()))
   );
   app.get(
     '/api/queue',
-    route(async (req, res) => {
+    route(async (_req, res) => {
       if (config.demoMode) return res.json({ currently_playing: demo.playback.item, queue: demo.queue });
       const data = await spotify.getQueue();
       return res.json({ currently_playing: data?.currently_playing || null, queue: data?.queue || [] });
@@ -159,8 +159,8 @@ export function createApp({
   );
   app.get(
     '/api/spotify/devices',
-    route(async (req, res) =>
-      res.json(config.demoMode ? { devices: [demo.playback.device] } : await spotify.spotifyFetch('/me/player/devices'))
+    route(async (_req, res) =>
+      res.json(config.demoMode ? { devices: [demo.playback.device] } : await spotify.getDevices())
     )
   );
   app.post(
@@ -205,8 +205,10 @@ export function createApp({
       demoOnly();
       const index = demo.queue.findIndex(track => track.id === req.body.trackId);
       if (index < 0) throw new SpotifyError('Demo track not found.', 404);
+      const [track] = demo.queue.splice(index, 1);
+      if (!track) throw new SpotifyError('Demo track not found.', 404);
       demo.history.push(demo.playback.item);
-      [demo.playback.item] = demo.queue.splice(index, 1);
+      demo.playback.item = track;
       demo.playback.progress_ms = 0;
       demo.playback.is_playing = true;
       res.json({ remainingQueue: demo.queue });
@@ -215,7 +217,7 @@ export function createApp({
   for (const action of /** @type {const} */ (['play', 'pause', 'next', 'previous'])) {
     app.post(
       `/api/spotify/${action}`,
-      route(async (req, res) => {
+      route(async (_req, res) => {
         if (!config.demoMode) {
           await spotify[action]();
         } else if (action === 'play' || action === 'pause') {
@@ -257,15 +259,20 @@ export function createApp({
     })
   );
 
-  app.use('/api', (req, res) => res.status(404).json({ error: 'API not found.' }));
+  app.use('/api', (_req, res) => res.status(404).json({ error: 'API not found.' }));
   app.use(limiter(limits.pages));
   app.use(express.static(distPath));
-  app.get('/{*splat}', (req, res, next) => {
+  app.get('/{*splat}', (_req, res, next) => {
     res.sendFile(path.join(distPath, 'index.html'), error => {
       if (error) next(new SpotifyError('Frontend build missing. Run npm run build.', 503));
     });
   });
-  /** @type {import('express').ErrorRequestHandler} */
+  /**
+   * @param {Error & { status?: number, retryAfter?: string | null }} error
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @param {import('express').NextFunction} next
+   */
   const errorHandler = (error, req, res, next) => {
     console.error(`${req.method} ${req.path}: ${error.message}`);
     if (res.headersSent) return next(error);

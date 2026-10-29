@@ -6,9 +6,11 @@ import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { SpotifyError, SpotifyService } from '../src/spotify.js';
 
+/** @typedef {Omit<RequestInit, 'body' | 'headers'> & { body: URLSearchParams, headers: Record<string, string> }} TokenRequestInit */
+
 /**
  * @param {import('node:test').TestContext} t
- * @param {(url: string, init: any) => Promise<Response>} fetchImpl
+ * @param {(url: string, init: TokenRequestInit) => Promise<Response>} fetchImpl
  */
 async function setup(t, fetchImpl) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'max-mix-auth-'));
@@ -42,7 +44,7 @@ async function signIn(service, code = 'code') {
 }
 
 test('OAuth persists only the refresh token with owner-only permissions and restores after restart', async t => {
-  /** @type {{ url: string, init: any }[]} */
+  /** @type {{ url: string, init: TokenRequestInit }[]} */
   const calls = [];
   const { service, options } = await setup(t, async (url, init) => {
     calls.push({ url, init });
@@ -58,7 +60,7 @@ test('OAuth persists only the refresh token with owner-only permissions and rest
   const tokens = await Promise.all([restarted.getValidAccessToken(), restarted.getValidAccessToken()]);
   assert.deepEqual(tokens, ['access-2', 'access-2']);
   assert.equal(calls.length, 2, 'Concurrent callers share a single refresh');
-  assert.equal(calls[1].init.body.get('refresh_token'), 'refresh-1');
+  assert.equal(calls[1]?.init.body.get('refresh_token'), 'refresh-1');
   assert.equal(JSON.parse(await readFile(service.tokenFile, 'utf8')).refreshToken, 'refresh-2');
 });
 
@@ -127,7 +129,7 @@ test('Spotify errors and Retry-After propagate instead of returning mock success
 });
 
 test('sign-in uses PKCE: the challenge is the hash of a verifier that only the token exchange reveals', async t => {
-  /** @type {{ url: string, init: any }[]} */
+  /** @type {{ url: string, init: TokenRequestInit }[]} */
   const calls = [];
   const { service } = await setup(t, async (url, init) => {
     calls.push({ url, init });
@@ -143,7 +145,8 @@ test('sign-in uses PKCE: the challenge is the hash of a verifier that only the t
 
   await service.handleAuthCallback('the-code', 'state-1');
   assert.equal(calls.length, 1);
-  const { init } = calls[0];
+  const init = calls[0]?.init;
+  assert(init);
   assert.equal(init.headers.Authorization, undefined, 'no client secret, so no Basic authorization');
   const body = init.body;
   assert.equal(body.get('grant_type'), 'authorization_code');
@@ -151,6 +154,7 @@ test('sign-in uses PKCE: the challenge is the hash of a verifier that only the t
   assert.equal(body.get('client_id'), 'test-client');
   assert.equal(body.has('client_secret'), false);
   const verifier = body.get('code_verifier');
+  assert(verifier);
   assert.match(verifier, /^[A-Za-z0-9_-]{43,128}$/, 'RFC 7636 verifier alphabet and length');
   assert.equal(createHash('sha256').update(verifier).digest('base64url'), challenge);
 });
@@ -163,7 +167,7 @@ test('each sign-in gets its own verifier', async t => {
 });
 
 test('refreshing a login sends the client ID but no secret', async t => {
-  /** @type {{ url: string, init: any }[]} */
+  /** @type {{ url: string, init: TokenRequestInit }[]} */
   const calls = [];
   const { service } = await setup(t, async (url, init) => {
     calls.push({ url, init });
@@ -172,7 +176,8 @@ test('refreshing a login sends the client ID but no secret', async t => {
   await signIn(service);
   service.tokenExpiresAt = 0;
   assert.equal(await service.getValidAccessToken(), 'access-2');
-  const { init } = calls[1];
+  const init = calls[1]?.init;
+  assert(init);
   assert.equal(init.headers.Authorization, undefined);
   assert.equal(init.body.get('grant_type'), 'refresh_token');
   assert.equal(init.body.get('refresh_token'), 'refresh');
