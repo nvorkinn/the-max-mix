@@ -122,6 +122,51 @@ test('real API requests use bearer auth, refresh once on 401, and preserve 204 r
   assert.equal(playerCalls, 2);
 });
 
+test('a player command that answers 200 with a plain-text id succeeds without parsing it', async t => {
+  let body = 'dQaFzg-NHa3xQ';
+  const { service } = await setup(t, async url =>
+    url.endsWith('/api/token')
+      ? json({ access_token: 'access', refresh_token: 'refresh', expires_in: 3600 })
+      : new Response(body, { status: 200, headers: { 'Content-Type': 'text/plain' } })
+  );
+  await signIn(service);
+  assert.equal(await service.play(), null);
+  assert.equal(await service.pause(), null);
+  // Opaque ids that start like a number made JSON.parse fail differently ("non-whitespace character after JSON").
+  body = '1x9Zc-oPq';
+  assert.equal(await service.next(), null);
+  assert.equal(await service.seek(1000), null);
+  assert.equal(await service.setVolume(40), null);
+});
+
+test('a read that does not return JSON is still an error', async t => {
+  const { service } = await setup(t, async url =>
+    url.endsWith('/api/token')
+      ? json({ access_token: 'access', refresh_token: 'refresh', expires_in: 3600 })
+      : new Response('not json', { status: 200 })
+  );
+  await signIn(service);
+  await assert.rejects(service.getPlaybackState(), SyntaxError);
+});
+
+test('a 403 carries the reason Spotify gives for it', async t => {
+  let reply = json({ error: { status: 403, message: 'Player command failed: Restriction violated' } }, 403);
+  const { service } = await setup(t, async url =>
+    url.endsWith('/api/token') ? json({ access_token: 'access', refresh_token: 'refresh', expires_in: 3600 }) : reply
+  );
+  await signIn(service);
+  await assert.rejects(service.pause(), {
+    status: 403,
+    message: /Premium.*Spotify says: Player command failed: Restriction violated/
+  });
+  // No explanation, or not JSON: the usual message alone.
+  reply = new Response('Forbidden', { status: 403 });
+  await assert.rejects(service.pause(), {
+    status: 403,
+    message: /^Spotify denied this action\. Check Premium[^:]*\.$/
+  });
+});
+
 test('Spotify errors and Retry-After propagate instead of returning mock success', async t => {
   let status = 429;
   const { service } = await setup(t, async url =>

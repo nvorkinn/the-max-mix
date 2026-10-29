@@ -28,6 +28,20 @@ const parseJson = text => JSON.parse(text);
  */
 const readJson = response => response.json();
 
+/**
+ * Spotify's own explanation of a refused request, when it gave one ({"error": {"message": "..."}}).
+ * @param {Response} response
+ */
+async function spotifyReason(response) {
+  try {
+    const body = /** @type {{ error?: { message?: unknown } } | null} */ (parseJson(await response.text()));
+    const message = body?.error?.message;
+    return typeof message === 'string' ? message : '';
+  } catch {
+    return '';
+  }
+}
+
 /** @param {unknown} error */
 const isMissingFile = error => error instanceof Error && 'code' in error && error.code === 'ENOENT';
 
@@ -240,13 +254,18 @@ export class SpotifyService {
         404: 'No available Spotify device. Open Spotify on a speaker or phone, then select it here.',
         429: 'Spotify rate limit reached. Wait before trying again.'
       };
+      const message = messages[response.status] || `Spotify request failed (${response.status}).`;
+      // A 403 has several causes (Premium, app access, a command the player refuses); Spotify says which.
+      const reason = response.status === 403 ? await spotifyReason(response) : '';
       throw new SpotifyError(
-        messages[response.status] || `Spotify request failed (${response.status}).`,
+        reason ? `${message} Spotify says: ${reason}` : message,
         response.status,
         response.headers.get('retry-after')
       );
     }
-    return response.json();
+    // A player command (anything but a read) answers 204, or 200 with an opaque id as plain text: its body is not
+    // data, and parsing it as JSON turned a command that worked into a 500.
+    return options.method === undefined || options.method === 'GET' ? readJson(response) : null;
   }
 
   /**
