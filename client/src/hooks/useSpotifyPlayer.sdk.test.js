@@ -422,6 +422,105 @@ describe('useSpotifyPlayer drives its own SDK player', () => {
   });
 });
 
+describe('useSpotifyPlayer keeps the Play button usable', () => {
+  const playingWithRestrictions = {
+    ...webState('web-1', true),
+    actions: { disallows: { resuming: true, skipping_prev: true } }
+  };
+
+  it('drops the stale resuming restriction when an SDK event pauses, and keeps the others', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(playingWithRestrictions);
+    const { result, emit } = await ready();
+    await waitFor(() => expect(result.current.playbackState?.actions?.disallows?.resuming).toBe(true));
+    emit('player_state_changed', sdkState('t1', { paused: true }));
+    expect(result.current.playbackState?.is_playing).toBe(false);
+    expect(result.current.playbackState?.actions?.disallows).toEqual({ skipping_prev: true });
+  });
+
+  it('drops the stale restriction on a press and while a stale read is held', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(playingWithRestrictions);
+    const { result, emit } = await ready();
+    emit('player_state_changed', sdkState('t1'));
+    await act(async () => {
+      await result.current.togglePlay();
+    });
+    expect(result.current.playbackState?.actions?.disallows?.resuming).toBeUndefined();
+    await act(async () => {
+      await result.current.refreshPlayback();
+    });
+    expect(result.current.playbackState?.is_playing).toBe(false);
+    expect(result.current.playbackState?.actions?.disallows?.resuming).toBeUndefined();
+  });
+
+  it('shows an SDK event even before any playback has been read', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(null);
+    const { result, emit } = await ready();
+    emit('player_state_changed', sdkState('t1', { paused: true }));
+    expect(result.current.playbackState?.is_playing).toBe(false);
+  });
+});
+
+describe('useSpotifyPlayer recovers after the page was in the background', () => {
+  it('gives up on an SDK command that never answers, so the next press works', async () => {
+    const { result, player, emit } = await ready();
+    emit('player_state_changed', sdkState('t1'));
+    vi.useFakeTimers();
+    player.togglePlay.mockReturnValueOnce(new Promise(() => {}));
+    /** @type {Promise<boolean>} */
+    let pressed = Promise.resolve(true);
+    act(() => {
+      pressed = result.current.togglePlay();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8000);
+    });
+    expect(await pressed).toBe(false);
+    expect(result.current.error).toMatch(/did not answer/i);
+    await act(async () => {
+      expect(await result.current.togglePlay()).toBe(true);
+    });
+    expect(player.togglePlay).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads playback and the queue again, and the player state, when the tab comes back', async () => {
+    const { result, player } = await ready({ currentState: sdkState('t9', { paused: true }) });
+    await waitFor(() => expect(player.getCurrentState).toHaveBeenCalled());
+    await act(async () => {});
+    const reads = playbackCalls();
+    const queue = result.current.queueVersion;
+    player.getCurrentState.mockClear();
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await waitFor(() => expect(playbackCalls()).toBe(reads + 1));
+    expect(result.current.queueVersion).toBe(queue + 1);
+    expect(player.getCurrentState).toHaveBeenCalled();
+    expect(player.connect).toHaveBeenCalledTimes(1);
+  });
+
+  it('connects a dropped player again when the page returns or the network is back', async () => {
+    const { player, emit } = await ready();
+    emit('not_ready');
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+    expect(player.connect).toHaveBeenCalledTimes(2);
+  });
+
+  it('does nothing while the page is hidden', async () => {
+    const { player } = await ready();
+    const reads = playbackCalls();
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    visibility.mockRestore();
+    await act(async () => {});
+    expect(playbackCalls()).toBe(reads);
+    expect(player.connect).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('useSpotifyPlayer polling in remote mode', () => {
   beforeEach(() => {
     mocks.settings.getPlaybackMode.mockReturnValue('remote');

@@ -11,6 +11,31 @@ const EXPECTED_PLAYING_MS = 5000;
 const REMOTE_POLL_MS = 4000;
 // While this page is the active SDK player the events carry the changes; this is only a safety net.
 const SDK_POLL_MS = 30_000;
+// An SDK command that has not answered by now is given up on, so one lost reply cannot leave the buttons dead.
+const SDK_COMMAND_TIMEOUT_MS = 8000;
+
+/**
+ * Rejects when `promise` has not settled within `ms`.
+ * @template T
+ * @param {Promise<T>} promise
+ * @param {number} ms
+ * @param {string} message
+ * @returns {Promise<T>}
+ */
+async function withTimeout(promise, ms, message) {
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let timer;
+  const timeout = /** @type {Promise<never>} */ (
+    new Promise((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), ms);
+    })
+  );
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /** @typedef {import('../types.js').PlaybackState | null} PlaybackOrNull */
 /** @typedef {PlaybackOrNull | ((current: PlaybackOrNull) => PlaybackOrNull)} PlaybackUpdate */
@@ -26,6 +51,20 @@ function project(state, at, now) {
   const progress = (state.progress_ms ?? state.position ?? 0) + Math.max(0, now - at);
   const duration = state.item?.duration_ms ?? state.duration;
   return { ...state, progress_ms: duration ? Math.min(duration, progress) : progress };
+}
+
+/**
+ * `state` with a new playing flag. Spotify's `actions.disallows` says "resuming" while playing and "pausing" while
+ * paused, so after the flag is changed here (by a press or an SDK event) those two are out of date and are dropped;
+ * left in, they would keep the Play button disabled until the next read from Spotify.
+ * @param {import('../types.js').PlaybackState} state
+ * @param {boolean} playing
+ */
+function withPlaying(state, playing) {
+  const disallows = Object.fromEntries(
+    Object.entries(state.actions?.disallows ?? {}).filter(([action]) => action !== 'pausing' && action !== 'resuming')
+  );
+  return { ...state, is_playing: playing, actions: { ...state.actions, disallows } };
 }
 
 /** @param {import('../types.js').SdkPlaybackState} state */
@@ -63,6 +102,9 @@ export function useSpotifyPlayer() {
   const sdkActiveRef = useRef(false);
   const lastTrackIdRef = useRef(/** @type {string | null} */ (null));
   const lastNextTracksRef = useRef(/** @type {string | null} */ (null));
+  const deviceIdRef = useRef(/** @type {string | null} */ (null));
+  // Brings the SDK player back in step after the page was in the background (set while the player exists).
+  const resumeRef = useRef(/** @type {(() => void) | null} */ (null));
 
   const setPlayback = useCallback(
     /** @param {PlaybackUpdate} next */
@@ -119,7 +161,7 @@ export function useSpotifyPlayer() {
       // Spotify agreeing, or the window passing, ends the hold; until then a stale read must not flip the button back.
       if (state.is_playing === expected.playing || Date.now() > expected.until) expectedPlayingRef.current = null;
       else {
-        setPlayback({ ...state, is_playing: expected.playing });
+        setPlayback(withPlaying(state, expected.playing));
         return;
       }
     }
@@ -166,6 +208,26 @@ export function useSpotifyPlayer() {
     };
   }, [isDemoMode, isAuthenticated, sdkDriven, refreshPlayback, invalidatePlayback, setPlayback]);
 
+  // A background tab's timers are throttled to about one a minute and its connections can drop, so when the page comes
+  // back to the front it reads everything again at once instead of waiting for the next (late) timer.
+  useEffect(() => {
+    if (!isDemoMode && !isAuthenticated) return;
+    const wake = () => {
+      if (document.visibilityState === 'hidden') return;
+      refreshPlayback().catch(() => {});
+      bumpQueue();
+      resumeRef.current?.();
+    };
+    document.addEventListener('visibilitychange', wake);
+    window.addEventListener('focus', wake);
+    window.addEventListener('online', wake);
+    return () => {
+      document.removeEventListener('visibilitychange', wake);
+      window.removeEventListener('focus', wake);
+      window.removeEventListener('online', wake);
+    };
+  }, [isDemoMode, isAuthenticated, refreshPlayback, bumpQueue]);
+
   useEffect(() => {
     if (!isAuthenticated || isDemoMode || playbackMode !== 'browser') return;
     let cancelled = false;
@@ -184,8 +246,7 @@ export function useSpotifyPlayer() {
       const track = /** @type {import('../types.js').Track | undefined} */ (state.track_window?.current_track);
       const trackId = track?.id ?? null;
       setPlayback(current => ({
-        ...current,
-        is_playing: !state.paused,
+        ...withPlaying(current ?? {}, !state.paused),
         progress_ms: state.position,
         ...(state.duration !== undefined && { duration: state.duration }),
         // The Web API's track has more detail than the SDK's, so it is only replaced when the track changed.
@@ -225,6 +286,7 @@ export function useSpotifyPlayer() {
         player.addListener('player_state_changed', applySdkState);
         player.addListener('ready', (/** @type {{ device_id: string }} */ { device_id }) => {
           if (isCancelled()) return;
+          deviceIdRef.current = device_id;
           setBrowserDeviceId(device_id);
           setSdkError(null);
           refreshPlayback().catch(() => {});
@@ -239,6 +301,7 @@ export function useSpotifyPlayer() {
         });
         player.addListener('not_ready', () => {
           if (isCancelled()) return;
+          deviceIdRef.current = null;
           setBrowserDeviceId(null);
           markSdkActive(false);
           setSdkError('The tablet player disconnected. Check the connection or select another speaker.');
@@ -256,6 +319,16 @@ export function useSpotifyPlayer() {
           });
         }
         const connected = await player.connect();
+        resumeRef.current = () => {
+          // A dropped player registers again by connecting; a live one only needs its current state read.
+          if (!deviceIdRef.current) player?.connect().catch(() => {});
+          player
+            ?.getCurrentState()
+            .then(state => {
+              if (state) applySdkState(state);
+            })
+            .catch(() => {});
+        };
         if (connected) playerRef.current = player;
         else if (!isCancelled()) setSdkError('Could not connect the tablet player to Spotify.');
       } catch (error) {
@@ -267,6 +340,8 @@ export function useSpotifyPlayer() {
       cancelled = true;
       player?.disconnect();
       playerRef.current = null;
+      resumeRef.current = null;
+      deviceIdRef.current = null;
       sdkActiveRef.current = false;
       lastTrackIdRef.current = null;
       lastNextTracksRef.current = null;
@@ -305,11 +380,13 @@ export function useSpotifyPlayer() {
     const player = sdkPlayer();
     if (!player || !isThisPlayerActive()) return null;
     try {
-      await command(player);
+      await withTimeout(command(player), SDK_COMMAND_TIMEOUT_MS, 'Spotify did not answer. Try again.');
       setActionError(null);
       return true;
     } catch (error) {
       setActionError(/** @type {Error} */ (error).message);
+      // The player may have dropped; reconnect it and read where it really is.
+      resumeRef.current?.();
       return false;
     }
   };
@@ -341,7 +418,7 @@ export function useSpotifyPlayer() {
     const playing = !playbackState?.is_playing;
     const previous = playbackState;
     holdPlaying(playing);
-    setPlayback(current => (current ? { ...current, is_playing: playing } : current));
+    setPlayback(current => (current ? withPlaying(current, playing) : current));
     try {
       const player = sdkPlayer();
       // Browsers only start audio from a user gesture, and this press is one.
