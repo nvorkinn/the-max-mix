@@ -100,7 +100,7 @@ approximates the Pi's layout only; audio/DRM and touch still need the device.
 
 `npm run check` runs everything CI's Lint workflow runs: `npm run lint` (ESLint with `--max-warnings 0` over the app in `src/` and the repository's own scripts and config files),
 `npm run typecheck` (TypeScript over the app and the TypeScript scripts; the few JavaScript config files are checked through their JSDoc),
-`npm run format:check` (Prettier; `npm run format` fixes) and `npm run lint:shell` (ShellCheck over `scripts/*.sh`).
+`npm run format:check` (Prettier; `npm run format` fixes) and `npm run lint:shell` (ShellCheck over `scripts/*.sh` and the Raspberry Pi image stage in `pi/image/`).
 ShellCheck is a system tool, not an npm package: install it with `brew install shellcheck` or `apt install shellcheck`
 (CI pins 0.11.0).
 
@@ -147,11 +147,27 @@ Spotify no longer accepts `localhost` redirect URIs. HTTP is allowed only with a
 literal loopback address such as `127.0.0.1`; other redirect addresses require HTTPS. Sign in from the same address you
 registered: an address that is not registered cannot sign in.
 
+## Ready-to-flash Raspberry Pi image
+
+The easiest way to set up a Pi: flash a ready-made image, power it on, and enter the home Wi-Fi password on the Pi's own
+touchscreen. The image holds Raspberry Pi OS 64-bit with the desktop, Chromium, Ansible and the Wi-Fi setup portal. After
+the Wi-Fi is set it runs the playbook below by itself (`the-max-mix-bootstrap.service`), shows the progress on the screen
+and then starts the kiosk. No keyboard, terminal or password is needed, and the image ships with no password and SSH off.
+
+1. Download `the-max-mix-<version>.img.xz` from the [latest release](https://github.com/nvorkinn/the-max-mix/releases/latest).
+2. Flash it with Raspberry Pi Imager (**Use custom**).
+3. Boot the Pi, choose the Wi-Fi network on the touchscreen and wait a few minutes.
+
+The [Pi image workflow](.github/workflows/pi-image.yml) builds it when a version tag is pushed (or by hand). Building,
+forks, getting a shell with an SSH key and troubleshooting (`journalctl -u the-max-mix-bootstrap -u the-max-mix-wifi`) are
+in [`pi/image/README.md`](pi/image/README.md). The image has not been built or tried on a Pi yet; until it has, use the
+manual steps below.
+
 ## Raspberry Pi kiosk installation
 
 The Pi runs Chromium in fullscreen kiosk mode and opens the deployed app on Vercel (the address of the `release.yml`
 deployment). An [Ansible](https://docs.ansible.com) playbook in [`ansible/`](ansible), run on the Pi with `ansible-pull`,
-sets it all up. The Pi needs no Node.js and no build, and runs no server of its own.
+sets it all up. The Pi needs no Node.js and no build, and runs no server of its own. The image above runs this playbook for you; the steps here are for a Pi you set up by hand.
 
 ### 1. Prepare the operating system
 

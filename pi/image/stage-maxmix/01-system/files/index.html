@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>THE MAX MIX setup</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #111418;
+        color: #f4f4f5;
+        font-family: system-ui, sans-serif;
+        text-align: center;
+      }
+      main {
+        max-width: 760px;
+        padding: 24px;
+      }
+      .brand {
+        margin: 0 0 32px;
+        font-size: 20px;
+        letter-spacing: 0.3em;
+        color: #a1a1aa;
+      }
+      .spinner {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto 28px;
+        border: 6px solid #3f3f46;
+        border-top-color: #f4f4f5;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      .spinner.still {
+        animation: none;
+        border-top-color: #3f3f46;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .spinner {
+          animation: none;
+        }
+      }
+      h1 {
+        margin: 0 0 16px;
+        font-size: 40px;
+        line-height: 1.2;
+      }
+      p {
+        margin: 0 0 12px;
+        font-size: 24px;
+        line-height: 1.4;
+        color: #d4d4d8;
+      }
+      .detail {
+        font-size: 15px;
+        color: #a1a1aa;
+        word-break: break-word;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="brand">THE MAX MIX</p>
+      <div class="spinner" id="spinner"></div>
+      <h1 id="heading">Starting up</h1>
+      <p id="message">Looking for an internet connection.</p>
+      <p class="detail" id="detail"></p>
+    </main>
+    <script>
+      // The first-boot kiosk reads this file, which the bootstrap service keeps up to date.
+      const statusUrl = 'file:///var/lib/the-max-mix/status.json';
+      const headings = {
+        starting: 'Starting up',
+        waiting_for_network: 'Waiting for Wi-Fi',
+        running: 'Connecting, setting up THE MAX MIX',
+        failed: 'Setup hit a snag',
+        done: 'All set'
+      };
+      const heading = document.getElementById('heading');
+      const message = document.getElementById('message');
+      const detail = document.getElementById('detail');
+      const spinner = document.getElementById('spinner');
+      let runningSince = 0;
+
+      function show(status) {
+        const state = status.state || 'starting';
+        heading.textContent = headings[state] || headings.starting;
+        message.textContent = status.message || '';
+        let extra = status.detail || '';
+        if (state === 'running') {
+          runningSince = runningSince || Date.now();
+          const minutes = Math.floor((Date.now() - runningSince) / 60000);
+          extra = minutes > 0 ? 'Running for ' + minutes + ' min. Please keep the power on.' : '';
+        } else {
+          runningSince = 0;
+        }
+        detail.textContent = extra;
+        spinner.classList.toggle('still', state === 'failed' || state === 'done');
+      }
+
+      function poll() {
+        const request = new XMLHttpRequest();
+        request.open('GET', statusUrl);
+        request.onload = () => {
+          try {
+            show(JSON.parse(request.responseText));
+          } catch {
+            show({ state: 'starting', message: 'Looking for an internet connection.' });
+          }
+        };
+        request.onerror = () => show({ state: 'starting', message: 'Looking for an internet connection.' });
+        request.send();
+      }
+
+      poll();
+      setInterval(poll, 2000);
+    </script>
+  </body>
+</html>

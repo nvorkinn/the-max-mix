@@ -15,7 +15,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "lint": "eslint . --max-warnings 0",
-    "lint:shell": "shellcheck scripts/*.sh",
+    "lint:shell": "shellcheck scripts/*.sh pi/image/stage-maxmix/prerun.sh pi/image/stage-maxmix/*/*.sh pi/image/stage-maxmix/*/files/*.sh",
     "lint:md": "markdownlint-cli2",
     "lint:yaml": "yamllint \".github/**/*.{yml,yaml}\" \"ansible/**/*.{yml,yaml}\" \"*.{yml,yaml}\"",
     "lint:css": "stylelint \"src/**/*.css\" --max-warnings 0",

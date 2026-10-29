@@ -1,0 +1,13 @@
+[Unit]
+Description=THE MAX MIX first-boot screen
+ConditionPathExists=!/var/lib/the-max-mix/bootstrapped
+# The installed kiosk and this screen never run at once: starting either stops the other.
+Conflicts=the-max-mix-kiosk.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/opt/the-max-mix/bin/the-max-mix-firstboot-kiosk
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15

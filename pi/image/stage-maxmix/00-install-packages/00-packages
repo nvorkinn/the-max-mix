@@ -1,0 +1,14 @@
+# Everything the Pi needs before it has ever seen the internet. pi-gen stage3 already brings the labwc desktop and
+# NetworkManager; stage4 (office, games, extra apps) is deliberately not used, to keep the image small.
+chromium
+curl
+git
+ca-certificates
+python3
+# ansible-core is enough: the kiosk role only uses ansible.builtin modules. python3-apt is needed by the apt module, and
+# acl lets ansible-pull (run as root) become the unprivileged desktop user.
+ansible-core
+python3-apt
+acl
+# NetworkManager's hotspot ("shared") mode starts dnsmasq itself; the Wi-Fi setup portal needs it with no internet.
+dnsmasq-base

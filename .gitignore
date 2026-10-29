@@ -9,3 +9,7 @@ spotify-token.json.*.tmp
 coverage
 playwright-report
 test-results
+
+# Copied into the Raspberry Pi image stage by the Pi image workflow
+pi/image/stage-maxmix/build.env
+pi/image/stage-maxmix/02-wifi/files/

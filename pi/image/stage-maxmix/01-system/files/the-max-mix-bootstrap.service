@@ -1,0 +1,24 @@
+[Unit]
+Description=THE MAX MIX first-boot setup (ansible-pull)
+Documentation=https://github.com/nvorkinn/the-max-mix/blob/main/pi/image/README.md
+Wants=network-online.target
+After=network-online.target
+# Runs until it has succeeded once; later boots skip it.
+ConditionPathExists=!/var/lib/the-max-mix/bootstrapped
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/the-max-mix/bootstrap.env
+ExecStart=/opt/the-max-mix/bin/the-max-mix-bootstrap
+Nice=10
+TimeoutStartSec=45min
+Restart=on-failure
+RestartSec=15
+RestartSteps=6
+RestartMaxDelaySec=10min
+# Exit code 78 means a setting is invalid; retrying cannot fix that.
+RestartPreventExitStatus=78
+
+[Install]
+WantedBy=multi-user.target
