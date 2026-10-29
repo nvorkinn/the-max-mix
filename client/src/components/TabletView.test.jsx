@@ -4,11 +4,17 @@ import { installCanvasStub, stubMatchMedia } from '../test/canvas.js';
 import TabletView from './TabletView.jsx';
 
 const player = vi.hoisted(() => ({ current: /** @type {Record<string, unknown>} */ ({}) }));
-const api = vi.hoisted(() => ({ requestJSON: vi.fn(), postJSON: vi.fn() }));
+const api = vi.hoisted(() => ({
+  getQueue: vi.fn(),
+  getDevices: vi.fn(),
+  reorderDemoQueue: vi.fn(),
+  playDemoTrackNow: vi.fn()
+}));
 const palette = vi.hoisted(() => ({ extractPalette: vi.fn() }));
 
 vi.mock('../hooks/useSpotifyPlayer.js', () => ({ useSpotifyPlayer: () => player.current }));
-vi.mock('../utils/api.js', () => api);
+vi.mock('../spotify/api.js', () => api);
+vi.mock('../spotify/auth.js', () => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
 vi.mock('../utils/colorExtractor.js', () => palette);
 vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
 
@@ -49,9 +55,9 @@ beforeEach(() => {
   localStorage.clear();
   installCanvasStub();
   stubMatchMedia(false);
-  api.requestJSON.mockReset();
-  api.postJSON.mockReset();
-  api.requestJSON.mockResolvedValue({ queue: queued });
+  for (const mock of Object.values(api)) mock.mockReset();
+  api.getQueue.mockResolvedValue({ queue: queued });
+  api.getDevices.mockResolvedValue({ devices: [{ id: 'dev1', name: 'Soundbar' }] });
   palette.extractPalette.mockReset();
   palette.extractPalette.mockResolvedValue({ primary: 'red', secondary: 'blue', dark: 'black' });
   setPlayer();
@@ -64,7 +70,7 @@ describe('TabletView', () => {
     await flush();
     expect(screen.getAllByText('Kitchen').length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Queued One' })).toBeInTheDocument();
-    expect(api.requestJSON).toHaveBeenCalledWith('/api/queue');
+    expect(api.getQueue).toHaveBeenCalled();
     expect(screen.getByText('Spotify Connect remote')).toBeInTheDocument();
   });
 
@@ -92,7 +98,7 @@ describe('TabletView', () => {
     render(<TabletView />);
     await flush();
     expect(screen.getByText(/Connect your Spotify account in Settings/)).toBeInTheDocument();
-    expect(api.requestJSON).not.toHaveBeenCalled();
+    expect(api.getQueue).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
     expect(screen.getByRole('dialog', { name: /make it yours/i })).toBeInTheDocument();
   });
@@ -107,7 +113,7 @@ describe('TabletView', () => {
   it('backs off and surfaces queue polling errors, then recovers', async () => {
     vi.useFakeTimers();
     const rateLimited = Object.assign(new Error('Slow down'), { retryAfter: 30 });
-    api.requestJSON.mockRejectedValueOnce(rateLimited).mockResolvedValue({ queue: queued });
+    api.getQueue.mockRejectedValueOnce(rateLimited).mockResolvedValue({ queue: queued });
     render(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
@@ -116,13 +122,57 @@ describe('TabletView', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(29000);
     });
-    expect(api.requestJSON).toHaveBeenCalledTimes(1);
+    expect(api.getQueue).toHaveBeenCalledTimes(1);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2000);
     });
-    expect(api.requestJSON).toHaveBeenCalledTimes(2);
+    expect(api.getQueue).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Queued One' })).toBeInTheDocument();
+  });
+
+  it('shows a failed sign-in as an alert', async () => {
+    render(<TabletView signInError="Spotify said no" />);
+    await flush();
+    expect(screen.getByRole('alert')).toHaveTextContent('Spotify said no');
+  });
+
+  it('re-reads the queue when the player says it changed, without polling while the SDK is active', async () => {
+    vi.useFakeTimers();
+    setPlayer({ sdkActive: true, queueVersion: 1 });
+    const { rerender } = render(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(api.getQueue).toHaveBeenCalledTimes(1);
+    // The remote-mode rate (10 s) is not used while the SDK reports changes; the safety net is 20 s.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(19_000);
+    });
+    expect(api.getQueue).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(api.getQueue).toHaveBeenCalledTimes(2);
+
+    setPlayer({ sdkActive: true, queueVersion: 2 });
+    rerender(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(api.getQueue).toHaveBeenCalledTimes(3);
+  });
+
+  it('polls the queue every 10 seconds when no SDK events arrive', async () => {
+    vi.useFakeTimers();
+    render(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_500);
+    });
+    expect(api.getQueue).toHaveBeenCalledTimes(2);
   });
 
   it('stops polling on unmount', async () => {
@@ -133,7 +183,7 @@ describe('TabletView', () => {
     });
     unmount();
     await vi.advanceTimersByTimeAsync(60000);
-    expect(api.requestJSON).toHaveBeenCalledTimes(1);
+    expect(api.getQueue).toHaveBeenCalledTimes(1);
   });
 
   it('opens the modals from the header', async () => {
@@ -144,7 +194,7 @@ describe('TabletView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close Jam instructions' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-    api.requestJSON.mockResolvedValue({ devices: [] });
+    api.getDevices.mockResolvedValue({ devices: [] });
     fireEvent.click(screen.getByRole('button', { name: 'Choose a Spotify Connect device' }));
     await flush();
     expect(screen.getByRole('dialog', { name: /choose a spotify device/i })).toBeInTheDocument();
@@ -243,20 +293,20 @@ describe('TabletView', () => {
     );
 
     it('reorders the queue through the API and toasts the result', async () => {
-      api.requestJSON.mockResolvedValue({ queue: [{ ...queued[0] }, { id: 'q2', name: 'Two', duration_ms: 1000 }] });
-      api.postJSON.mockResolvedValue({ queue: [{ id: 'q2', name: 'Two' }, queued[0]] });
+      api.getQueue.mockResolvedValue({ queue: [{ ...queued[0] }, { id: 'q2', name: 'Two', duration_ms: 1000 }] });
+      api.reorderDemoQueue.mockResolvedValue({ queue: [{ id: 'q2', name: 'Two' }, queued[0]] });
       render(<TabletView />);
       await flush();
       fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Two' }), { key: 'ArrowUp' });
       await flush();
       const reordered = /** @type {unknown} */ (expect.arrayContaining([expect.objectContaining({ id: 'q2' })]));
-      expect(api.postJSON).toHaveBeenCalledWith('/api/queue/reorder', { queue: reordered });
+      expect(api.reorderDemoQueue).toHaveBeenCalledWith(reordered);
       expect(screen.getByText('Demo queue order updated.')).toBeInTheDocument();
     });
 
     it('toasts the API error when reordering fails', async () => {
-      api.requestJSON.mockResolvedValue({ queue: [queued[0], { id: 'q2', name: 'Two' }] });
-      api.postJSON.mockRejectedValue(new Error('Reorder rejected'));
+      api.getQueue.mockResolvedValue({ queue: [queued[0], { id: 'q2', name: 'Two' }] });
+      api.reorderDemoQueue.mockRejectedValue(new Error('Reorder rejected'));
       render(<TabletView />);
       await flush();
       fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Two' }), { key: 'ArrowUp' });
@@ -265,19 +315,19 @@ describe('TabletView', () => {
     });
 
     it('plays a track now, replaces the queue and refreshes playback', async () => {
-      api.postJSON.mockResolvedValue({ remainingQueue: [] });
+      api.playDemoTrackNow.mockResolvedValue({ remainingQueue: [] });
       render(<TabletView />);
       await flush();
       fireEvent.click(screen.getByRole('button', { name: 'Play Queued One now' }));
       await flush();
-      expect(api.postJSON).toHaveBeenCalledWith('/api/queue/play-now', { trackId: 'q1' });
+      expect(api.playDemoTrackNow).toHaveBeenCalledWith('q1');
       expect(player.current['refreshPlayback']).toHaveBeenCalled();
       expect(screen.getByText('Demo playing: Queued One')).toBeInTheDocument();
       expect(screen.getByText('A little quiet in here.')).toBeInTheDocument();
     });
 
     it('toasts when play-now fails', async () => {
-      api.postJSON.mockRejectedValue(new Error('Nope'));
+      api.playDemoTrackNow.mockRejectedValue(new Error('Nope'));
       render(<TabletView />);
       await flush();
       fireEvent.click(screen.getByRole('button', { name: 'Play Queued One now' }));
@@ -288,9 +338,7 @@ describe('TabletView', () => {
   });
 
   it('selects a speaker through transferPlayback', async () => {
-    api.requestJSON.mockImplementation((/** @type {string} */ url) =>
-      Promise.resolve(url === '/api/queue' ? { queue: [] } : { devices: [{ id: 'dev1', name: 'Soundbar' }] })
-    );
+    api.getQueue.mockResolvedValue({ queue: [] });
     render(<TabletView />);
     await flush();
     fireEvent.click(screen.getByRole('button', { name: 'Choose a Spotify Connect device' }));

@@ -6,8 +6,9 @@ name: Release
 # there is no release for the tag; a failed job can be re-run. Lint and tests are not repeated here: the Tests and Lint
 # workflows already run them on pull requests and on main, so release a commit on main. The tag is the only source of
 # the version: package-release.sh stamps it into the packaged package.json files (the repository keeps a 0.0.0
-# placeholder). The SPOTIFY_CLIENT_ID repository variable (not a secret) is baked into the packaged config template so
-# the installer can set it on the Pi; the job fails early if the variable is missing. The tarball also gets a build provenance attestation: verify a download with
+# placeholder). The SPOTIFY_CLIENT_ID repository variable (not a secret) is baked into the built client as
+# VITE_SPOTIFY_CLIENT_ID (sign-in uses PKCE, so the ID is public); the job fails early if the variable is missing. The
+# tarball also gets a build provenance attestation: verify a download with
 # `gh attestation verify <file> --repo nvorkinn/the-max-mix`. The container image (the Dockerfile) is built and pushed
 # to ghcr.io/nvorkinn/the-max-mix once the tarball is attached, tagged with the version and, unless it is a prerelease,
 # `latest`, which is what the dev/QA host pulls; it carries the same client ID and the same provenance attestation.
@@ -39,16 +40,13 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-          cache-dependency-path: |
-            client/package-lock.json
-            server/package-lock.json
+          cache-dependency-path: client/package-lock.json
       - run: npm --prefix client ci
-      - run: npm --prefix server ci
       - run: npm run build
-      - run: bash scripts/package-release.sh "$GITHUB_REF_NAME"
         env:
           # A repository variable (Settings > Secrets and variables > Actions > Variables), not a secret.
-          SPOTIFY_CLIENT_ID: ${{ vars.SPOTIFY_CLIENT_ID }}
+          VITE_SPOTIFY_CLIENT_ID: ${{ vars.SPOTIFY_CLIENT_ID }}
+      - run: bash scripts/package-release.sh "$GITHUB_REF_NAME"
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: release-out/*.tar.gz

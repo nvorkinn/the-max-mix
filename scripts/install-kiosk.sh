@@ -3,9 +3,9 @@
 # Usage: bash install-kiosk.sh [vX.Y.Z]    (default: the latest release; an older tag rolls back)
 # Environment: KIOSK_INSTALL_DIR (default ~/the-max-mix), KIOSK_REPO (default nvorkinn/the-max-mix),
 #              KIOSK_KEEP_RELEASES (how many releases to keep on disk, default 3)
-#              SPOTIFY_CLIENT_ID (written to server.env if it has no client ID yet; it is not a secret. Without it, the
-#              client ID bundled into the release is used the same way. The install fails if no client ID is found
-#              in the variable, the release or an existing server.env)
+# The Spotify client ID is baked into the release's built files at build time, so it is not asked for here.
+# Runtime settings (PORT, HOST) live in $KIOSK_INSTALL_DIR/kiosk.env, created from the release's template on first
+# install and kept across upgrades and rollbacks.
 set -euo pipefail
 
 if [[ $(uname -s) != Linux || $(id -u) -eq 0 ]]; then
@@ -25,11 +25,6 @@ fi
 keep=${KIOSK_KEEP_RELEASES:-3}
 if [[ ! $keep =~ ^[1-9][0-9]*$ ]]; then
   echo "KIOSK_KEEP_RELEASES must be a positive integer." >&2
-  exit 1
-fi
-client_id=${SPOTIFY_CLIENT_ID:-}
-if [[ -n $client_id && ! $client_id =~ ^[A-Za-z0-9]{1,64}$ ]]; then
-  echo "SPOTIFY_CLIENT_ID must be letters and digits only (as shown in the Spotify dashboard)." >&2
   exit 1
 fi
 install=${KIOSK_INSTALL_DIR:-$HOME/the-max-mix}
@@ -85,16 +80,18 @@ else
   echo "$tag is already downloaded; reusing it."
 fi
 
-# A release built with a client ID carries it in its config template; use that when none was given.
-if [[ -z $client_id && -f $release/server/.env.example ]]; then
-  bundled=$(sed -n 's/^SPOTIFY_CLIENT_ID=//p' "$release/server/.env.example" | head -n 1)
-  if [[ $bundled =~ ^[A-Za-z0-9]{1,64}$ ]]; then
-    client_id=$bundled
-  fi
+# Configuration lives outside the release so upgrades and rollbacks keep it.
+config=$install/kiosk.env
+if [[ ! -e $config ]]; then
+  [[ -f $release/scripts/kiosk.env.example ]] || { echo "This release has no scripts/kiosk.env.example." >&2; exit 1; }
+  install -m 600 "$release/scripts/kiosk.env.example" "$config"
 fi
-if [[ -z $client_id ]] && ! grep -Eqs '^SPOTIFY_CLIENT_ID=.+' "$install/server.env"; then
-  echo "No Spotify client ID: this release has none bundled, $install/server.env has none, and SPOTIFY_CLIENT_ID is not set." >&2
-  echo "Run again as: SPOTIFY_CLIENT_ID=your_client_id bash install-kiosk.sh" >&2
+chmod 600 "$config"
+# The last PORT= line wins (as in systemd); it may be quoted. Default 3000 when absent or empty.
+port=$(sed -n 's/^PORT=//p' "$config" | tail -n 1 | tr -d "\"'\r")
+port=${port:-3000}
+if [[ ! $port =~ ^[1-9][0-9]{0,4}$ ]] || (( port > 65535 )); then
+  echo "PORT in $config must be a number from 1 to 65535, got: $port" >&2
   exit 1
 fi
 
@@ -102,28 +99,10 @@ sudo -v
 sudo apt-get update
 sudo apt-get install -y chromium curl
 
-# Configuration lives outside the release so upgrades and rollbacks keep it.
-if [[ ! -e $install/server.env ]]; then
-  install -m 600 "$release/server/.env.example" "$install/server.env"
-fi
-chmod 600 "$install/server.env"
-# Fill in the Spotify client ID when asked to, but never replace one that is already set.
-if [[ -n $client_id ]]; then
-  if grep -Eq '^SPOTIFY_CLIENT_ID=.+' "$install/server.env"; then
-    echo "Keeping the Spotify client ID already in $install/server.env."
-  elif grep -q '^SPOTIFY_CLIENT_ID=' "$install/server.env"; then
-    sed -i "s/^SPOTIFY_CLIENT_ID=.*/SPOTIFY_CLIENT_ID=$client_id/" "$install/server.env"
-  else
-    echo "SPOTIFY_CLIENT_ID=$client_id" >> "$install/server.env"
-  fi
-fi
-ln -sfn "$install/server.env" "$release/server/.env"
-
-node --input-type=module - "$install" "$release" "$HOME" "$username" "$node_bin" "$workdir" <<'NODE'
+node --input-type=module - "$install" "$release" "$HOME" "$username" "$node_bin" "$workdir" "$port" <<'NODE'
 import fs from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-const [install, release, home, user, node, temporary] = process.argv.slice(2);
+const [install, release, home, user, node, temporary, port] = process.argv.slice(2);
 // Units and autostart entries point at "current" so a new release only needs the symlink and a restart.
 const root = path.join(install, 'current');
 const next = `${root}.new`;
@@ -132,13 +111,11 @@ fs.symlinkSync(release, next);
 fs.renameSync(next, root);
 // Releases are pruned by activation time, so touch this one: a rollback counts as the newest.
 fs.utimesSync(release, new Date(), new Date());
-const { loadConfig } = await import(pathToFileURL(path.join(release, 'server/src/config.js')));
-const config = loadConfig();
 const quoteUnit = value => value.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('%', '%%');
 const shellQuote = value => "'" + value.replaceAll("'", "'\\''") + "'";
-const replacements = { ROOT: root, HOME: home, USER: user, NODE: node, URL: `http://127.0.0.1:${config.port}` };
+const replacements = { ROOT: root, HOME: home, USER: user, NODE: node, ENV: path.join(install, 'kiosk.env'), URL: `http://127.0.0.1:${port}` };
 const render = name => fs.readFileSync(path.join(release, 'scripts', name), 'utf8')
-  .replace(/@(ROOT|HOME|USER|NODE|URL)@/g, (_, key) => quoteUnit(replacements[key]));
+  .replace(/@(ROOT|HOME|USER|NODE|ENV|URL)@/g, (_, key) => quoteUnit(replacements[key]));
 fs.writeFileSync(path.join(temporary, 'the-max-mix.service'), render('the-max-mix.service'));
 const userUnits = path.join(home, '.config/systemd/user');
 fs.mkdirSync(userUnits, { recursive: true });
@@ -183,11 +160,7 @@ for (const directory of candidates.slice(Number(keep))) {
 }
 NODE
 
-if [[ -n $client_id ]]; then
-  echo "Installed $tag. Edit $install/server.env to change the playback mode."
-else
-  echo "Installed $tag. Edit $install/server.env for the Spotify client ID and playback mode."
-fi
+echo "Installed $tag. Edit $install/kiosk.env to change PORT or HOST, then: sudo systemctl restart the-max-mix.service"
 echo "Enable Desktop Autologin and disable screen blanking in Raspberry Pi OS, then reboot."
 echo "Server logs: journalctl -u the-max-mix.service -f"
 echo "Kiosk logs: journalctl --user -u the-max-mix-kiosk.service -f"

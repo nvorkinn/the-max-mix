@@ -1,5 +1,5 @@
 [Unit]
-Description=THE MAX MIX server
+Description=THE MAX MIX static server
 Wants=network-online.target
 After=network-online.target
 StartLimitIntervalSec=0
@@ -8,11 +8,9 @@ StartLimitIntervalSec=0
 Type=simple
 User=@USER@
 WorkingDirectory="@ROOT@"
-ExecStart="@NODE@" "@ROOT@/server/src/index.js"
+ExecStart="@NODE@" "@ROOT@/scripts/serve.mjs"
 Environment=NODE_ENV=production
-EnvironmentFile="@ROOT@/server/.env"
-StateDirectory=the-max-mix
-StateDirectoryMode=0700
+EnvironmentFile="@ENV@"
 UMask=0077
 Restart=always
 RestartSec=5

@@ -5,7 +5,7 @@ const port = 3100;
 export default defineConfig({
   testDir: '.',
   testMatch: '*.spec.js',
-  // The demo server keeps its playback state in memory, so tests share it and run in order.
+  // The demo player lives in each page, so tests do not share state; a single worker keeps the run simple and quiet.
   workers: 1,
   fullyParallel: false,
   retries: 0,
@@ -20,10 +20,11 @@ export default defineConfig({
     trace: 'retain-on-failure'
   },
   webServer: {
-    command: 'node ../server/src/index.js',
+    // Serves the built client (run `npm run build` first).
+    command: 'node ../scripts/serve.mjs',
     url: `http://127.0.0.1:${port}/api/health`,
     reuseExistingServer: false,
     timeout: 30_000,
-    env: { DEMO_MODE: 'true', PORT: String(port), HOST: '127.0.0.1' }
+    env: { PORT: String(port), HOST: '127.0.0.1' }
   }
 });

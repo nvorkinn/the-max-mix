@@ -8,8 +8,18 @@ import JamSettingsModalFull from './JamSettingsModal.jsx';
 import SettingsModalFull from './SettingsModal.jsx';
 import SpeakerSelectorModalFull from './SpeakerSelectorModal.jsx';
 
-const api = vi.hoisted(() => ({ requestJSON: vi.fn() }));
-vi.mock('../utils/api.js', () => api);
+const api = vi.hoisted(() => ({ getDevices: vi.fn() }));
+const auth = vi.hoisted(() => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
+const settings = vi.hoisted(() => ({
+  getClientId: vi.fn(),
+  setClientId: vi.fn(),
+  setPlaybackMode: vi.fn(),
+  setDemoMode: vi.fn(),
+  getRedirectUri: vi.fn()
+}));
+vi.mock('../spotify/api.js', () => api);
+vi.mock('../spotify/auth.js', () => auth);
+vi.mock('../spotify/settings.js', () => settings);
 
 const QRCodeModal = partialProps(QRCodeModalFull);
 const JamSettingsModal = partialProps(JamSettingsModalFull);
@@ -45,7 +55,14 @@ describe('JamSettingsModal', () => {
 });
 
 describe('SettingsModal', () => {
-  const base = { isOpen: true, onClose: vi.fn(), onThemeChange: vi.fn() };
+  const base = { isOpen: true, onClose: vi.fn(), onThemeChange: vi.fn(), onReload: vi.fn() };
+
+  beforeEach(() => {
+    for (const mock of [...Object.values(auth), ...Object.values(settings), base.onReload]) mock.mockReset();
+    settings.getClientId.mockReturnValue('client-id');
+    settings.getRedirectUri.mockReturnValue('http://127.0.0.1:3000/');
+    auth.startSignIn.mockResolvedValue(undefined);
+  });
 
   it('renders nothing when closed', () => {
     render(<SettingsModal {...base} isOpen={false} />);
@@ -74,8 +91,8 @@ describe('SettingsModal', () => {
   });
 
   it.each([
-    ['demo mode', { demoMode: true, configured: true }, /simulated/i, null],
-    ['unconfigured', { configured: false }, /configure the spotify client id/i, null],
+    ['demo mode', { demoMode: true, configured: true }, /playback is simulated/i, null],
+    ['no client ID', { configured: false }, /enter a spotify client id/i, null],
     ['signed out', { configured: true }, /sign in with a spotify premium/i, 'Log in with Spotify'],
     [
       'signed in',
@@ -86,17 +103,98 @@ describe('SettingsModal', () => {
   ])('explains the %s state', (_, authInfo, message, loginLabel) => {
     render(<SettingsModal {...base} authInfo={authInfo} />);
     expect(screen.getByText(message)).toBeInTheDocument();
-    const links = screen.queryAllByRole('link').map(link => [link.textContent.trim(), link.getAttribute('href')]);
-    expect(links).toEqual(loginLabel ? [[loginLabel, '/api/auth/login']] : []);
+    expect(screen.queryAllByRole('button', { name: /log in with|re-authenticate/i })).toHaveLength(loginLabel ? 1 : 0);
+    expect(screen.queryByRole('button', { name: loginLabel ?? 'none' })).toBe(
+      loginLabel ? screen.getByRole('button', { name: loginLabel }) : null
+    );
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/server environment|restart/i);
   });
 
   it('shows connected status only when authenticated', () => {
     const { rerender } = render(<SettingsModal {...base} authInfo={{ authenticated: true }} />);
     expect(screen.getByText('Connected')).toBeInTheDocument();
     rerender(<SettingsModal {...base} authInfo={{ demoMode: true }} />);
-    expect(screen.getByText('Demo mode')).toBeInTheDocument();
+    expect(screen.getByText('Demo mode', { selector: 'span' })).toBeInTheDocument();
     rerender(<SettingsModal {...base} authInfo={{}} />);
     expect(screen.getByText('Not connected')).toBeInTheDocument();
+  });
+
+  it('starts the Spotify sign-in from the login button', async () => {
+    render(<SettingsModal {...base} authInfo={{ configured: true }} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Log in with Spotify' }));
+    expect(auth.startSignIn).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows why the sign-in could not start', async () => {
+    auth.startSignIn.mockRejectedValue(new Error('Add a Spotify client ID first.'));
+    render(<SettingsModal {...base} authInfo={{ configured: true }} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Log in with Spotify' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Add a Spotify client ID first.');
+  });
+
+  it('shows a sign-in failure and the redirect address to register', () => {
+    render(<SettingsModal {...base} authInfo={{ configured: true }} signInError="Invalid redirect URI" />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Invalid redirect URI');
+    expect(screen.getByText('http://127.0.0.1:3000/')).toBeInTheDocument();
+  });
+
+  it('asks for the client ID only when none is built in or stored, and shows the redirect address', async () => {
+    settings.getClientId.mockReturnValue('');
+    render(<SettingsModal {...base} authInfo={{ configured: false }} />);
+    expect(screen.getByText('http://127.0.0.1:3000/')).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Spotify client ID'), '  abc123  ');
+    await userEvent.click(screen.getByRole('button', { name: 'Save client ID' }));
+    expect(settings.setClientId).toHaveBeenCalledWith('  abc123  ');
+    expect(base.onReload).toHaveBeenCalled();
+  });
+
+  it('does not save an empty client ID', async () => {
+    settings.getClientId.mockReturnValue('');
+    render(<SettingsModal {...base} authInfo={{ configured: false }} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Save client ID' }));
+    expect(settings.setClientId).not.toHaveBeenCalled();
+    expect(base.onReload).not.toHaveBeenCalled();
+  });
+
+  it('hides the client ID field and the redirect address when a client ID is set', () => {
+    render(<SettingsModal {...base} authInfo={{ configured: true }} />);
+    expect(screen.queryByLabelText('Spotify client ID')).not.toBeInTheDocument();
+    expect(screen.queryByText('http://127.0.0.1:3000/')).not.toBeInTheDocument();
+  });
+
+  it('signs out and reloads', async () => {
+    render(<SettingsModal {...base} authInfo={{ configured: true, authenticated: true }} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    expect(auth.signOut).toHaveBeenCalledTimes(1);
+    expect(base.onReload).toHaveBeenCalled();
+  });
+
+  it('offers no sign out while signed out', () => {
+    render(<SettingsModal {...base} authInfo={{ configured: true }} />);
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
+  });
+
+  it('switches the playback mode and demo mode, then reloads', async () => {
+    const { rerender } = render(<SettingsModal {...base} authInfo={{ configured: true, playbackMode: 'browser' }} />);
+    const playback = screen.getByRole('switch', { name: 'Play in this browser' });
+    expect(playback).toBeChecked();
+    await userEvent.click(playback);
+    expect(settings.setPlaybackMode).toHaveBeenCalledWith('remote');
+    expect(base.onReload).toHaveBeenCalledTimes(1);
+
+    rerender(<SettingsModal {...base} authInfo={{ configured: true, playbackMode: 'remote' }} />);
+    expect(screen.getByRole('switch', { name: 'Play in this browser' })).not.toBeChecked();
+    await userEvent.click(screen.getByRole('switch', { name: 'Play in this browser' }));
+    expect(settings.setPlaybackMode).toHaveBeenLastCalledWith('browser');
+
+    const demo = screen.getByRole('switch', { name: 'Demo mode' });
+    expect(demo).not.toBeChecked();
+    await userEvent.click(demo);
+    expect(settings.setDemoMode).toHaveBeenCalledWith(true);
+    rerender(<SettingsModal {...base} authInfo={{ demoMode: true }} />);
+    await userEvent.click(screen.getByRole('switch', { name: 'Demo mode' }));
+    expect(settings.setDemoMode).toHaveBeenLastCalledWith(false);
   });
 });
 
@@ -107,16 +205,16 @@ describe('SpeakerSelectorModal', () => {
     { name: 'No id' }
   ];
   beforeEach(() => {
-    api.requestJSON.mockReset();
+    api.getDevices.mockReset();
   });
 
   it('does not fetch while closed', () => {
     render(<SpeakerSelectorModal isOpen={false} />);
-    expect(api.requestJSON).not.toHaveBeenCalled();
+    expect(api.getDevices).not.toHaveBeenCalled();
   });
 
   it('lists devices and disables restricted or id-less ones', async () => {
-    api.requestJSON.mockResolvedValue({ devices });
+    api.getDevices.mockResolvedValue({ devices });
     render(<SpeakerSelectorModal isOpen onClose={() => {}} onSelectSpeaker={vi.fn()} />);
     const kitchen = await screen.findByRole('button', { name: /Kitchen/ });
     expect(kitchen).toBeEnabled();
@@ -128,29 +226,29 @@ describe('SpeakerSelectorModal', () => {
   });
 
   it('shows an empty state when there are no devices', async () => {
-    api.requestJSON.mockResolvedValue({});
+    api.getDevices.mockResolvedValue({ devices: [] });
     render(<SpeakerSelectorModal isOpen />);
     expect(await screen.findByText(/No available devices/)).toBeInTheDocument();
   });
 
   it('shows the error and clears devices when loading fails', async () => {
-    api.requestJSON.mockImplementation(() => Promise.reject(new Error('Spotify down')));
+    api.getDevices.mockImplementation(() => Promise.reject(new Error('Spotify down')));
     render(<SpeakerSelectorModal isOpen />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Spotify down');
     expect(screen.queryByText(/No available devices/)).not.toBeInTheDocument();
   });
 
   it('selects a device then refreshes the list', async () => {
-    api.requestJSON.mockResolvedValue({ devices });
+    api.getDevices.mockResolvedValue({ devices });
     const onSelectSpeaker = vi.fn().mockResolvedValue(undefined);
     render(<SpeakerSelectorModal isOpen onSelectSpeaker={onSelectSpeaker} />);
     await userEvent.click(await screen.findByRole('button', { name: /Kitchen/ }));
     expect(onSelectSpeaker).toHaveBeenCalledWith('a');
-    await waitFor(() => expect(api.requestJSON).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(api.getDevices).toHaveBeenCalledTimes(2));
   });
 
   it('surfaces a failed selection', async () => {
-    api.requestJSON.mockResolvedValue({ devices });
+    api.getDevices.mockResolvedValue({ devices });
     const onSelectSpeaker = vi.fn(() => Promise.reject(new Error('Transfer failed')));
     render(<SpeakerSelectorModal isOpen onSelectSpeaker={onSelectSpeaker} />);
     await userEvent.click(await screen.findByRole('button', { name: /Kitchen/ }));
@@ -158,7 +256,7 @@ describe('SpeakerSelectorModal', () => {
   });
 
   it('offers this tablet only when it is not already listed', async () => {
-    api.requestJSON.mockResolvedValue({ devices });
+    api.getDevices.mockResolvedValue({ devices });
     const onSelectSpeaker = vi.fn().mockResolvedValue(undefined);
     const { rerender } = render(<SpeakerSelectorModal isOpen browserDeviceId="a" onSelectSpeaker={onSelectSpeaker} />);
     await screen.findByRole('button', { name: /Kitchen/ });
@@ -170,13 +268,13 @@ describe('SpeakerSelectorModal', () => {
   });
 
   it('refreshes on demand and closes', async () => {
-    api.requestJSON.mockResolvedValue({ devices: [] });
+    api.getDevices.mockResolvedValue({ devices: [] });
     const onClose = vi.fn();
     render(<SpeakerSelectorModal isOpen onClose={onClose} isDemoMode />);
     await screen.findByText(/No available devices/);
     expect(screen.getByText(/Simulated device/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Refresh devices' }));
-    await waitFor(() => expect(api.requestJSON).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(api.getDevices).toHaveBeenCalledTimes(2));
     await userEvent.click(screen.getByRole('button', { name: 'Close speakers' }));
     expect(onClose).toHaveBeenCalled();
   });

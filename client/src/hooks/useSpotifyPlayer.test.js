@@ -1,61 +1,70 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { resetSpotifyMocks } from '../test/spotifyMocks.js';
 import { useSpotifyPlayer } from './useSpotifyPlayer.js';
 
-const api = vi.hoisted(() => ({ requestJSON: vi.fn(), postJSON: vi.fn() }));
-vi.mock('../utils/api.js', () => api);
+const mocks = await vi.hoisted(async () => {
+  const { createSpotifyMocks } = await import('../test/spotifyMocks.js');
+  return createSpotifyMocks();
+});
+vi.mock('../spotify/api.js', () => mocks.api);
+vi.mock('../spotify/auth.js', () => mocks.auth);
+vi.mock('../spotify/settings.js', () => mocks.settings);
 vi.mock('../utils/spotifySdk.js', () => ({ loadSpotifySDK: vi.fn() }));
 
-/** @param {Record<string, unknown>} table */
-function route(table) {
-  api.requestJSON.mockImplementation((/** @type {string} */ url) => {
-    const entry = table[url];
-    if (entry instanceof Error) return Promise.reject(entry);
-    if (entry === undefined) return Promise.reject(new Error(`unexpected ${url}`));
-    return Promise.resolve(entry);
-  });
-}
+const playing = { is_playing: true, device: { id: 'd' } };
 
 describe('useSpotifyPlayer', () => {
   beforeEach(() => {
-    api.requestJSON.mockReset();
-    api.postJSON.mockReset();
+    resetSpotifyMocks(mocks);
+    // Demo mode: no SDK, no sign-in needed.
+    mocks.settings.isDemoMode.mockReturnValue(true);
+    mocks.auth.isSignedIn.mockReturnValue(false);
   });
 
   it('starts in a loading state', () => {
-    api.requestJSON.mockReturnValue(new Promise(() => {}));
+    mocks.api.getPlaybackState.mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useSpotifyPlayer());
     expect(result.current.isLoading).toBe(true);
     expect(result.current.isAuthenticated).toBe(false);
   });
 
-  it('loads playback in demo mode without asking for a token', async () => {
-    route({
-      '/api/info': { demoMode: true, spotifyConfigured: false },
-      '/api/spotify/current': { is_playing: true, device: { id: 'd' } }
-    });
+  it('loads playback in demo mode without needing a login', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(playing);
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.isReady).toBe(true));
     expect(result.current.isDemoMode).toBe(true);
-    expect(api.requestJSON).not.toHaveBeenCalledWith('/api/token');
+    expect(result.current.isLoading).toBe(false);
+    expect(mocks.auth.getAccessToken).not.toHaveBeenCalled();
   });
 
-  it('does not fetch playback when unauthenticated', async () => {
-    route({
-      '/api/info': { demoMode: false, spotifyConfigured: true },
-      '/api/token': { authenticated: false }
-    });
+  it('reads the configuration from the settings and the stored login', async () => {
+    mocks.settings.isDemoMode.mockReturnValue(false);
+    mocks.auth.isSignedIn.mockReturnValue(true);
+    mocks.settings.getPlaybackMode.mockReturnValue('remote');
+    mocks.api.getPlaybackState.mockResolvedValue(playing);
     const { result } = renderHook(() => useSpotifyPlayer());
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    await waitFor(() => expect(api.requestJSON).toHaveBeenCalledWith('/api/token'));
-    expect(result.current.isAuthenticated).toBe(false);
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+    expect(result.current.isAuthenticated).toBe(true);
     expect(result.current.isConfigured).toBe(true);
-    expect(api.requestJSON).not.toHaveBeenCalledWith('/api/spotify/current');
+    expect(result.current.playbackMode).toBe('remote');
   });
 
-  it('surfaces connection errors and clears auth on 401', async () => {
-    const error = Object.assign(new Error('Not logged in'), { status: 401 });
-    route({ '/api/info': error });
+  it('does not fetch playback when signed out', async () => {
+    mocks.settings.isDemoMode.mockReturnValue(false);
+    mocks.settings.getClientId.mockReturnValue('');
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await act(async () => {});
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isAuthenticated).toBe(false);
+    expect(result.current.isConfigured).toBe(false);
+    expect(mocks.api.getPlaybackState).not.toHaveBeenCalled();
+  });
+
+  it('surfaces connection errors and signs out the view on a revoked login', async () => {
+    mocks.settings.isDemoMode.mockReturnValue(false);
+    mocks.auth.isSignedIn.mockReturnValueOnce(true).mockReturnValue(false);
+    mocks.api.getPlaybackState.mockRejectedValue(Object.assign(new Error('Not logged in'), { status: 401 }));
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.error).toBe('Not logged in'));
     expect(result.current.isAuthenticated).toBe(false);
@@ -63,11 +72,7 @@ describe('useSpotifyPlayer', () => {
   });
 
   it('togglePlay pauses when playing and refreshes playback', async () => {
-    route({
-      '/api/info': { demoMode: true },
-      '/api/spotify/current': { is_playing: true, device: { id: 'd' } }
-    });
-    api.postJSON.mockResolvedValue({});
+    mocks.api.getPlaybackState.mockResolvedValue(playing);
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.isReady).toBe(true));
 
@@ -76,16 +81,13 @@ describe('useSpotifyPlayer', () => {
       ok = await result.current.togglePlay();
     });
     expect(ok).toBe(true);
-    expect(api.postJSON).toHaveBeenCalledWith('/api/spotify/pause', undefined);
+    expect(mocks.api.pause).toHaveBeenCalledTimes(1);
   });
 
   it('togglePlay flips the button at once and keeps it there while Spotify still reports the old state', async () => {
-    route({
-      '/api/info': { demoMode: true },
-      '/api/spotify/current': { is_playing: true, device: { id: 'd' } }
-    });
-    let finishPost = () => {};
-    api.postJSON.mockImplementation(() => new Promise(resolve => (finishPost = () => resolve({}))));
+    mocks.api.getPlaybackState.mockResolvedValue(playing);
+    let finishCommand = () => {};
+    mocks.api.pause.mockImplementation(() => new Promise(resolve => (finishCommand = () => resolve(undefined))));
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.isReady).toBe(true));
 
@@ -94,7 +96,7 @@ describe('useSpotifyPlayer', () => {
     act(() => {
       pending = result.current.togglePlay();
     });
-    // Flipped before the server has answered.
+    // Flipped before Spotify has answered.
     expect(result.current.playbackState?.is_playing).toBe(false);
     // A second press while the first is in flight sends nothing.
     let second;
@@ -102,10 +104,10 @@ describe('useSpotifyPlayer', () => {
       second = await result.current.togglePlay();
     });
     expect(second).toBe(false);
-    expect(api.postJSON).toHaveBeenCalledTimes(1);
+    expect(mocks.api.pause).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      finishPost();
+      finishCommand();
       await pending;
     });
     // The read after the command still says "playing" (Spotify lags); the button keeps "paused".
@@ -116,21 +118,20 @@ describe('useSpotifyPlayer', () => {
     expect(result.current.playbackState?.is_playing).toBe(false);
 
     // The next press plays again, as the button shows.
-    api.postJSON.mockResolvedValue({});
+    mocks.api.pause.mockResolvedValue(undefined);
     await act(async () => {
       await result.current.togglePlay();
     });
-    expect(api.postJSON).toHaveBeenLastCalledWith('/api/spotify/play', undefined);
+    expect(mocks.api.play).toHaveBeenCalledTimes(1);
   });
 
   it('togglePlay goes back to what Spotify says once it agrees or the hold runs out', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     try {
-      let playing = true;
-      api.requestJSON.mockImplementation((/** @type {string} */ url) =>
-        Promise.resolve(url === '/api/info' ? { demoMode: true } : { is_playing: playing, device: { id: 'd' } })
+      let isPlaying = true;
+      mocks.api.getPlaybackState.mockImplementation(() =>
+        Promise.resolve({ is_playing: isPlaying, device: { id: 'd' } })
       );
-      api.postJSON.mockResolvedValue({});
       const { result } = renderHook(() => useSpotifyPlayer());
       await waitFor(() => expect(result.current.isReady).toBe(true));
       await act(async () => {
@@ -138,12 +139,12 @@ describe('useSpotifyPlayer', () => {
       });
       expect(result.current.playbackState?.is_playing).toBe(false);
 
-      // Spotify catches up, then something else starts playback: the button follows the server again.
-      playing = false;
+      // Spotify catches up, then something else starts playback: the button follows Spotify again.
+      isPlaying = false;
       await act(async () => {
         await result.current.refreshPlayback();
       });
-      playing = true;
+      isPlaying = true;
       await act(async () => {
         await result.current.refreshPlayback();
       });
@@ -164,11 +165,8 @@ describe('useSpotifyPlayer', () => {
   });
 
   it('a failed play or pause puts the button back and reports the error', async () => {
-    route({
-      '/api/info': { demoMode: true },
-      '/api/spotify/current': { is_playing: true, device: { id: 'd' } }
-    });
-    api.postJSON.mockRejectedValue(new Error('Spotify denied this action.'));
+    mocks.api.getPlaybackState.mockResolvedValue(playing);
+    mocks.api.pause.mockRejectedValue(new Error('Spotify denied this action.'));
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.isReady).toBe(true));
 
@@ -180,7 +178,7 @@ describe('useSpotifyPlayer', () => {
     expect(result.current.playbackState?.is_playing).toBe(true);
     expect(result.current.error).toBe('Spotify denied this action.');
     // And a failed command does not keep later presses blocked.
-    api.postJSON.mockResolvedValue({});
+    mocks.api.pause.mockResolvedValue(undefined);
     await act(async () => {
       ok = await result.current.togglePlay();
     });
@@ -188,11 +186,8 @@ describe('useSpotifyPlayer', () => {
   });
 
   it('records command failures as an action error that can be cleared', async () => {
-    route({
-      '/api/info': { demoMode: true },
-      '/api/spotify/current': { is_playing: false, device: { id: 'd' } }
-    });
-    api.postJSON.mockRejectedValue(new Error('No active device'));
+    mocks.api.getPlaybackState.mockResolvedValue({ is_playing: false, device: { id: 'd' } });
+    mocks.api.next.mockRejectedValue(new Error('No active device'));
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.isReady).toBe(true));
 
@@ -207,38 +202,31 @@ describe('useSpotifyPlayer', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('rounds seek and volume values', async () => {
-    route({
-      '/api/info': { demoMode: true },
-      '/api/spotify/current': { device: { id: 'd' } }
-    });
-    api.postJSON.mockResolvedValue({});
+  it('sends previous, rounds seek and converts volume to a percentage', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue({ device: { id: 'd' } });
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.isReady).toBe(true));
 
     await act(async () => {
+      await result.current.previousTrack();
       await result.current.seek(1234.6);
-    });
-    expect(api.postJSON).toHaveBeenCalledWith('/api/spotify/seek', { position_ms: 1235 });
-    await act(async () => {
       await result.current.setVolume(0.456);
     });
-    expect(api.postJSON).toHaveBeenCalledWith('/api/spotify/volume', { volume_percent: 46 });
+    expect(mocks.api.previous).toHaveBeenCalledTimes(1);
+    expect(mocks.api.seek).toHaveBeenCalledWith(1235);
+    expect(mocks.api.setVolume).toHaveBeenCalledWith(46);
   });
 
   it('transferPlayback rethrows after recording the error', async () => {
-    route({
-      '/api/info': { demoMode: true },
-      '/api/spotify/current': { device: { id: 'd' } }
-    });
-    api.postJSON.mockRejectedValue(new Error('Transfer failed'));
+    mocks.api.getPlaybackState.mockResolvedValue({ device: { id: 'd' } });
+    mocks.api.transferPlayback.mockRejectedValue(new Error('Transfer failed'));
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.isReady).toBe(true));
 
     await act(async () => {
       await expect(result.current.transferPlayback('abc')).rejects.toThrow('Transfer failed');
     });
-    expect(api.postJSON).toHaveBeenCalledWith('/api/transfer', { deviceId: 'abc', play: false });
+    expect(mocks.api.transferPlayback).toHaveBeenCalledWith('abc', false);
     expect(result.current.error).toBe('Transfer failed');
   });
 });

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { AudioLines, Clock, Settings, Speaker, ArrowUpRight } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer.js';
 import { extractPalette } from '../utils/colorExtractor.js';
-import { requestJSON, postJSON } from '../utils/api.js';
+import { getQueue, reorderDemoQueue, playDemoTrackNow } from '../spotify/api.js';
 import AlbumArtPlayer from './AlbumArtPlayer.jsx';
 import SpotifyJamQueue from './SpotifyJamQueue.jsx';
 import TouchRipples from './TouchRipples.jsx';
@@ -12,7 +12,12 @@ import JamSettingsModal from './JamSettingsModal.jsx';
 
 const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-export default function TabletView() {
+// While this page's player is active the queue is re-read when the SDK says it changed; this is only a safety net.
+const QUEUE_POLL_MS = 10_000;
+const SDK_QUEUE_POLL_MS = 20_000;
+
+/** @param {{ signInError?: string | null | undefined }} props signInError: why finishing the Spotify sign-in failed */
+export default function TabletView({ signInError = null }) {
   const {
     isReady,
     playbackState,
@@ -22,7 +27,9 @@ export default function TabletView() {
     isLoading,
     playbackMode,
     browserDeviceId,
-    error,
+    sdkActive,
+    queueVersion,
+    error: playerError,
     refreshPlayback,
     togglePlay,
     nextTrack,
@@ -31,6 +38,7 @@ export default function TabletView() {
     setVolume,
     transferPlayback
   } = useSpotifyPlayer();
+  const error = playerError || signInError;
 
   const [queue, setQueue] = useState(/** @type {import('../types.js').Track[]} */ ([]));
   const [currentTime, setCurrentTime] = useState(formatClock);
@@ -82,10 +90,11 @@ export default function TabletView() {
     /** @type {ReturnType<typeof setTimeout> | undefined} */
     let timer;
     let failures = 0;
+    const base = sdkActive ? SDK_QUEUE_POLL_MS : QUEUE_POLL_MS;
     const poll = async () => {
-      let delay = 10000;
+      let delay = base;
       try {
-        const data = /** @type {import('../types.js').QueueResponse} */ (await requestJSON('/api/queue'));
+        const data = await getQueue();
         if (isCancelled()) return;
         setQueue(data.queue);
         setQueueError(null);
@@ -94,7 +103,7 @@ export default function TabletView() {
         if (isCancelled()) return;
         const apiError = /** @type {import('../types.js').ApiError} */ (caught);
         setQueueError(apiError.message);
-        delay = Math.max(Math.min(60000, 10000 * 2 ** ++failures), (apiError.retryAfter ?? 0) * 1000 || 0);
+        delay = Math.max(Math.min(60_000, base * 2 ** ++failures), (apiError.retryAfter ?? 0) * 1000 || 0);
       }
       if (!isCancelled()) timer = setTimeout(() => void poll(), delay);
     };
@@ -103,7 +112,7 @@ export default function TabletView() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [currentTrack?.id, canPollQueue]);
+  }, [currentTrack?.id, canPollQueue, sdkActive, queueVersion]);
 
   // Dynamic ambient palette extraction from album art
   const artUrl = currentTrack?.album?.images?.[0]?.url;
@@ -128,9 +137,7 @@ export default function TabletView() {
   /** @param {import('../types.js').Track[]} newQueue */
   const handleReorderQueue = async newQueue => {
     try {
-      const data = /** @type {import('../types.js').QueueResponse} */ (
-        await postJSON('/api/queue/reorder', { queue: newQueue })
-      );
+      const data = await reorderDemoQueue(newQueue);
       setQueue(data.queue);
       showToast('Demo queue order updated.');
       return true;
@@ -146,9 +153,7 @@ export default function TabletView() {
    */
   const handlePlaySongNow = async (trackId, track) => {
     try {
-      const data = /** @type {import('../types.js').PlayNowResponse} */ (
-        await postJSON('/api/queue/play-now', { trackId })
-      );
+      const data = await playDemoTrackNow(String(trackId));
       setQueue(data.remainingQueue);
       await refreshPlayback();
       showToast(`Demo playing: ${track.name || track.title}`);
@@ -302,6 +307,7 @@ export default function TabletView() {
           demoMode: isDemoMode,
           playbackMode
         }}
+        signInError={signInError}
         currentTheme={theme}
         onThemeChange={handleThemeChange}
       />

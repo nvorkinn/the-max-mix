@@ -34,9 +34,8 @@ const formatAndLintData = files => {
 };
 
 const tasks = {
-  'server/**/*.{js,jsx}': [prettier, lintPackage('server')],
   'client/**/*.{js,jsx}': [prettier, lintPackage('client')],
-  '{*.{js,mjs},scripts/*.{js,mjs}}': [prettier, lintRoot],
+  '{*.{js,mjs},scripts/**/*.{js,mjs}}': [prettier, lintRoot],
   'scripts/*.sh': shellcheck,
   '*.md': [prettier, (/** @type {string[]} */ files) => `markdownlint-cli2 ${quote(files)}`],
   '*.{yml,yaml}': [prettier, (/** @type {string[]} */ files) => `yamllint ${quote(files)}`],

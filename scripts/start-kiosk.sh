@@ -23,7 +23,7 @@ fi
 deadline=$((SECONDS + timeout))
 until curl --fail --silent --show-error --max-time 2 "${url%/}/api/health" >/dev/null; do
   if (( SECONDS >= deadline )); then
-    echo "Server did not become ready at $url within $timeout seconds." >&2
+    echo "Server did not become ready at $url within $timeout seconds. Check: journalctl -u the-max-mix.service" >&2
     exit 1
   fi
   sleep 1

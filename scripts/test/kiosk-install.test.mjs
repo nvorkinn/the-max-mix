@@ -16,19 +16,19 @@ const installer = path.join(repository, 'scripts/install-kiosk.sh');
 /**
  * @param {string} fixtures
  * @param {string} tag
- * @param {{ badChecksum?: boolean, clientId?: string }} [options]
+ * @param {{ badChecksum?: boolean, template?: boolean }} [options]
  */
-async function makeRelease(fixtures, tag, { badChecksum = false, clientId = '' } = {}) {
+async function makeRelease(fixtures, tag, { badChecksum = false, template = true } = {}) {
   const name = `the-max-mix-${tag}`;
   const stage = await mkdtemp(path.join(fixtures, 'stage-'));
   const root = path.join(stage, name);
-  for (const directory of ['scripts', 'server/src']) await mkdir(path.join(root, directory), { recursive: true });
+  for (const directory of ['scripts']) await mkdir(path.join(root, directory), { recursive: true });
   for (const unit of ['the-max-mix.service', 'the-max-mix-kiosk.service']) {
     await copyFile(path.join(repository, 'scripts', unit), path.join(root, 'scripts', unit));
   }
-  await writeFile(path.join(root, 'server/package.json'), '{"type":"module"}');
-  await writeFile(path.join(root, 'server/.env.example'), `SPOTIFY_CLIENT_ID=${clientId}\n`);
-  await writeFile(path.join(root, 'server/src/config.js'), 'export function loadConfig() { return { port: 3999 }; }\n');
+  if (template) {
+    await copyFile(path.join(repository, 'scripts/kiosk.env.example'), path.join(root, 'scripts/kiosk.env.example'));
+  }
   await writeFile(path.join(root, 'VERSION'), `${tag}\n`);
   const archive = path.join(fixtures, `${name}.tar.gz`);
   await run('tar', ['-czf', archive, '-C', stage, name]);
@@ -38,16 +38,6 @@ async function makeRelease(fixtures, tag, { badChecksum = false, clientId = '' }
         .update(await readFile(archive))
         .digest('hex');
   await writeFile(`${archive}.sha256`, `${hash}  ${name}.tar.gz\n`);
-}
-
-/**
- * The environment without a client ID.
- * @param {NodeJS.ProcessEnv} env
- */
-function withoutClientId(env) {
-  const copy = { ...env };
-  delete copy['SPOTIFY_CLIENT_ID'];
-  return copy;
 }
 
 /** @param {import('node:test').TestContext} t */
@@ -97,8 +87,7 @@ async function setup(t) {
     KIOSK_TEST_FIXTURES: fixtures,
     KIOSK_TEST_LATEST: 'v1.2.3',
     KIOSK_INSTALL_DIR: install,
-    KIOSK_REPO: 'test/repo',
-    SPOTIFY_CLIENT_ID: 'testclient'
+    KIOSK_REPO: 'test/repo'
   };
   return { temporary, home, fixtures, install, env };
 }
@@ -107,16 +96,13 @@ test('installer fetches the latest release, renders units, preserves configurati
   const { temporary, home, fixtures, install, env } = await setup(t);
   await makeRelease(fixtures, 'v1.2.3');
   await mkdir(install, { recursive: true });
-  await writeFile(path.join(install, 'server.env'), 'KEEP_EXISTING_CONFIG=true\n', { mode: 0o600 });
+  await writeFile(path.join(install, 'kiosk.env'), 'KEEP_EXISTING_CONFIG=true\nPORT=3999\n', { mode: 0o600 });
   await writeFile(path.join(home, '.config/labwc/autostart'), 'existing_desktop_command &\n');
   for (let attempt = 0; attempt < 2; attempt++) await run('bash', [installer], { env });
 
   assert.equal(await readlink(path.join(install, 'current')), path.join(install, 'releases/v1.2.3'));
   assert.equal(await readFile(path.join(install, 'current/VERSION'), 'utf8'), 'v1.2.3\n');
-  assert.equal(
-    await readFile(path.join(install, 'current/server/.env'), 'utf8'),
-    'KEEP_EXISTING_CONFIG=true\nSPOTIFY_CLIENT_ID=testclient\n'
-  );
+  assert.equal(await readFile(path.join(install, 'kiosk.env'), 'utf8'), 'KEEP_EXISTING_CONFIG=true\nPORT=3999\n');
   const urls = (await readFile(path.join(temporary, 'curl-urls'), 'utf8')).trim().split('\n');
   const download = 'https://github.com/test/repo/releases/download/v1.2.3/the-max-mix-v1.2.3.tar.gz';
   // The second run asks for the latest release again but reuses the downloaded one.
@@ -130,8 +116,12 @@ test('installer fetches the latest release, renders units, preserves configurati
   const serverUnit = await readFile(path.join(temporary, 'the-max-mix.service'), 'utf8');
   assert.match(serverUnit, /User=kioskuser/);
   assert.ok(serverUnit.includes(path.join(install, 'current').replaceAll('%', '%%')));
-  assert.match(serverUnit, /StateDirectoryMode=0700/);
-  assert.ok(!/@ROOT@|@USER@|@NODE@/.test(serverUnit));
+  assert.ok(serverUnit.includes(`"${path.join(install, 'current/scripts/serve.mjs').replaceAll('%', '%%')}"`));
+  assert.ok(serverUnit.includes(`EnvironmentFile="${path.join(install, 'kiosk.env').replaceAll('%', '%%')}"`));
+  assert.ok(!/StateDirectory|server\//.test(serverUnit));
+  assert.match(serverUnit, /ProtectSystem=strict/);
+  assert.match(serverUnit, /NoNewPrivileges=true/);
+  assert.ok(!/@[A-Z]+@/.test(serverUnit));
   const browserUnit = await readFile(path.join(home, '.config/systemd/user/the-max-mix-kiosk.service'), 'utf8');
   assert.match(browserUnit, /KIOSK_URL=http:\/\/127\.0\.0\.1:3999/);
   const autostart = await readFile(path.join(home, '.config/labwc/autostart'), 'utf8');
@@ -149,12 +139,14 @@ test('installer creates a private config from the release template and switches 
   await makeRelease(fixtures, 'v1.3.0');
   await run('bash', [installer, 'v1.3.0'], { env });
   assert.equal(await readFile(path.join(install, 'current/VERSION'), 'utf8'), 'v1.3.0\n');
-  assert.equal(await readFile(path.join(install, 'server.env'), 'utf8'), 'SPOTIFY_CLIENT_ID=testclient\n');
-  await writeFile(path.join(install, 'server.env'), 'SPOTIFY_CLIENT_ID=mine\n', { mode: 0o600 });
+  const template = await readFile(path.join(repository, 'scripts/kiosk.env.example'), 'utf8');
+  assert.equal(await readFile(path.join(install, 'kiosk.env'), 'utf8'), template);
+  assert.equal((await stat(path.join(install, 'kiosk.env'))).mode & 0o777, 0o600);
+  await writeFile(path.join(install, 'kiosk.env'), 'PORT=3111\n', { mode: 0o600 });
 
   await run('bash', [installer, 'v1.2.3'], { env });
   assert.equal(await realpath(path.join(install, 'current')), await realpath(path.join(install, 'releases/v1.2.3')));
-  assert.equal(await readFile(path.join(install, 'current/server/.env'), 'utf8'), 'SPOTIFY_CLIENT_ID=mine\n');
+  assert.equal(await readFile(path.join(install, 'kiosk.env'), 'utf8'), 'PORT=3111\n');
   await access(path.join(install, 'releases/v1.3.0/VERSION'));
 });
 
@@ -176,7 +168,7 @@ test('installer keeps the most recently activated releases and prunes the rest',
   const tags = ['v1.0.0', 'v1.1.0', 'v1.2.0', 'v1.3.0'];
   for (const tag of tags) await makeRelease(fixtures, tag);
   await mkdir(install, { recursive: true });
-  await writeFile(path.join(install, 'server.env'), 'KEEP=1\n', { mode: 0o600 });
+  await writeFile(path.join(install, 'kiosk.env'), 'KEEP=1\n', { mode: 0o600 });
   await mkdir(path.join(install, 'releases/.staging.leftover'), { recursive: true });
   const limited = { ...env, KIOSK_KEEP_RELEASES: '2' };
   for (const tag of tags) {
@@ -191,7 +183,7 @@ test('installer keeps the most recently activated releases and prunes the rest',
     );
   assert.deepEqual(await Promise.all(tags.map(tag => present(tag))), [false, false, true, true]);
   await access(path.join(install, 'releases/.staging.leftover'));
-  assert.equal(await readFile(path.join(install, 'server.env'), 'utf8'), 'KEEP=1\nSPOTIFY_CLIENT_ID=testclient\n');
+  assert.equal(await readFile(path.join(install, 'kiosk.env'), 'utf8'), 'KEEP=1\n');
 
   // Rolling back to a kept release makes it the newest, so the other kept one is what a later install prunes first.
   await run('bash', [installer, 'v1.2.0'], { env: limited });
@@ -212,90 +204,48 @@ test('installer never prunes the active release and rejects a bad keep count', a
   );
 });
 
-test('installer writes SPOTIFY_CLIENT_ID into a new config', async t => {
-  const { install, fixtures, env } = await setup(t);
-  await makeRelease(fixtures, 'v1.2.3');
-  await run('bash', [installer, 'v1.2.3'], { env: { ...env, SPOTIFY_CLIENT_ID: 'abc123DEF456' } });
-  assert.equal(await readFile(path.join(install, 'server.env'), 'utf8'), 'SPOTIFY_CLIENT_ID=abc123DEF456\n');
-  assert.equal((await stat(path.join(install, 'server.env'))).mode & 0o777, 0o600);
-  assert.equal(await readFile(path.join(install, 'current/server/.env'), 'utf8'), 'SPOTIFY_CLIENT_ID=abc123DEF456\n');
+test('shipped env template holds only PORT and HOST with valid defaults', async () => {
+  const template = await readFile(path.join(repository, 'scripts/kiosk.env.example'), 'utf8');
+  const assignments = template.split('\n').filter(line => line.trim() !== '' && !line.startsWith('#'));
+  assert.deepEqual(assignments, ['PORT=3000', 'HOST=127.0.0.1']);
 });
 
-test('installer fills in an empty client ID but never replaces or duplicates a set one', async t => {
-  const { install, fixtures, env } = await setup(t);
+test('installer uses PORT from the config for the kiosk URL, accepting quotes and the last assignment', async t => {
+  const { home, install, fixtures, env } = await setup(t);
   await makeRelease(fixtures, 'v1.2.3');
   await mkdir(install, { recursive: true });
-  const config = path.join(install, 'server.env');
-
-  await writeFile(config, 'PORT=3000\nSPOTIFY_CLIENT_ID=\nPLAYBACK_MODE=remote\n', { mode: 0o600 });
-  await run('bash', [installer, 'v1.2.3'], { env: { ...env, SPOTIFY_CLIENT_ID: 'newid' } });
-  assert.equal(await readFile(config, 'utf8'), 'PORT=3000\nSPOTIFY_CLIENT_ID=newid\nPLAYBACK_MODE=remote\n');
-
-  const second = await run('bash', [installer, 'v1.2.3'], { env: { ...env, SPOTIFY_CLIENT_ID: 'otherid' } });
-  assert.equal(await readFile(config, 'utf8'), 'PORT=3000\nSPOTIFY_CLIENT_ID=newid\nPLAYBACK_MODE=remote\n');
-  assert.match(second.stdout, /Keeping the Spotify client ID already in/);
-
-  await writeFile(config, 'PORT=3000\n', { mode: 0o600 });
-  await run('bash', [installer, 'v1.2.3'], { env: { ...env, SPOTIFY_CLIENT_ID: 'addedid' } });
-  assert.equal(await readFile(config, 'utf8'), 'PORT=3000\nSPOTIFY_CLIENT_ID=addedid\n');
+  await writeFile(path.join(install, 'kiosk.env'), 'PORT=3000\nHOST=0.0.0.0\nPORT="4123"\n', { mode: 0o600 });
+  await run('bash', [installer, 'v1.2.3'], { env });
+  const unit = await readFile(path.join(home, '.config/systemd/user/the-max-mix-kiosk.service'), 'utf8');
+  assert.match(unit, /KIOSK_URL=http:\/\/127\.0\.0\.1:4123/);
 });
 
-test('installer fails before touching anything when no client ID is available', async t => {
+test('installer defaults to port 3000 when the config has no PORT', async t => {
+  const { home, install, fixtures, env } = await setup(t);
+  await makeRelease(fixtures, 'v1.2.3');
+  await mkdir(install, { recursive: true });
+  await writeFile(path.join(install, 'kiosk.env'), 'HOST=127.0.0.1\n', { mode: 0o600 });
+  await run('bash', [installer, 'v1.2.3'], { env });
+  const unit = await readFile(path.join(home, '.config/systemd/user/the-max-mix-kiosk.service'), 'utf8');
+  assert.match(unit, /KIOSK_URL=http:\/\/127\.0\.0\.1:3000/);
+});
+
+test('installer rejects an invalid PORT before installing anything', async t => {
   const { temporary, install, fixtures, env } = await setup(t);
   await makeRelease(fixtures, 'v1.2.3');
-  const noId = withoutClientId(env);
-  const message = /No Spotify client ID/;
-  await assert.rejects(run('bash', [installer, 'v1.2.3'], { env: noId }), message);
-  // An existing config with an empty ID is not enough either.
   await mkdir(install, { recursive: true });
-  await writeFile(path.join(install, 'server.env'), 'SPOTIFY_CLIENT_ID=\n', { mode: 0o600 });
-  await assert.rejects(run('bash', [installer, 'v1.2.3'], { env: noId }), message);
+  for (const bad of ['abc', '0', '65536', '80;reboot', '$(touch pwned)']) {
+    await writeFile(path.join(install, 'kiosk.env'), `PORT=${bad}\n`, { mode: 0o600 });
+    await assert.rejects(run('bash', [installer, 'v1.2.3'], { env }), /PORT in .* must be a number from 1 to 65535/);
+  }
   await assert.rejects(access(path.join(install, 'current')), { code: 'ENOENT' });
   await assert.rejects(access(path.join(temporary, 'the-max-mix.service')), { code: 'ENOENT' });
-  // An ID already in the config is enough, with nothing passed and nothing bundled.
-  await writeFile(path.join(install, 'server.env'), 'SPOTIFY_CLIENT_ID=mine\n', { mode: 0o600 });
-  await run('bash', [installer, 'v1.2.3'], { env: noId });
-  assert.equal(await readFile(path.join(install, 'server.env'), 'utf8'), 'SPOTIFY_CLIENT_ID=mine\n');
-});
-
-test('installer uses the client ID bundled into the release when none is given', async t => {
-  const { install, fixtures, env } = await setup(t);
-  await makeRelease(fixtures, 'v1.2.3', { clientId: 'bundled123' });
-  const noId = withoutClientId(env);
-  const config = path.join(install, 'server.env');
-
-  await run('bash', [installer, 'v1.2.3'], { env: noId });
-  assert.equal(await readFile(config, 'utf8'), 'SPOTIFY_CLIENT_ID=bundled123\n');
-  assert.equal((await stat(config)).mode & 0o777, 0o600);
-
-  // An existing config with an empty ID is filled in; one with an ID is left alone.
-  await writeFile(config, 'PORT=3000\nSPOTIFY_CLIENT_ID=\n', { mode: 0o600 });
-  await run('bash', [installer, 'v1.2.3'], { env: noId });
-  assert.equal(await readFile(config, 'utf8'), 'PORT=3000\nSPOTIFY_CLIENT_ID=bundled123\n');
-  await writeFile(config, 'SPOTIFY_CLIENT_ID=mine\n', { mode: 0o600 });
-  await run('bash', [installer, 'v1.2.3'], { env: noId });
-  assert.equal(await readFile(config, 'utf8'), 'SPOTIFY_CLIENT_ID=mine\n');
-});
-
-test('installer does not accept a malformed client ID from the release template', async t => {
-  const { install, fixtures, env } = await setup(t);
-  await makeRelease(fixtures, 'v1.2.3', { clientId: 'bad;id' });
-  const noId = withoutClientId(env);
-  await mkdir(install, { recursive: true });
-  await writeFile(path.join(install, 'server.env'), 'SPOTIFY_CLIENT_ID=\n', { mode: 0o600 });
-  await assert.rejects(run('bash', [installer, 'v1.2.3'], { env: noId }), /No Spotify client ID/);
-  assert.equal(await readFile(path.join(install, 'server.env'), 'utf8'), 'SPOTIFY_CLIENT_ID=\n');
-});
-
-test('installer rejects a malformed client ID before downloading anything', async t => {
-  const { temporary, fixtures, env } = await setup(t);
-  await makeRelease(fixtures, 'v1.2.3');
-  for (const bad of ['has space', 'semi;colon', 'slash/id', 'a'.repeat(65), '$(touch pwned)']) {
-    await assert.rejects(
-      run('bash', [installer, 'v1.2.3'], { env: { ...env, SPOTIFY_CLIENT_ID: bad } }),
-      /SPOTIFY_CLIENT_ID must be letters and digits only/
-    );
-  }
-  await assert.rejects(readFile(path.join(temporary, 'curl-urls'), 'utf8'), { code: 'ENOENT' });
   await assert.rejects(access(path.join(temporary, 'pwned')), { code: 'ENOENT' });
+});
+
+test('installer refuses a release without the env template', async t => {
+  const { install, fixtures, env } = await setup(t);
+  await makeRelease(fixtures, 'v1.2.3', { template: false });
+  await assert.rejects(run('bash', [installer, 'v1.2.3'], { env }), /no scripts\/kiosk\.env\.example/);
+  await assert.rejects(access(path.join(install, 'current')), { code: 'ENOENT' });
 });

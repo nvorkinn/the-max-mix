@@ -112,3 +112,8 @@ winehouse
 writable
 xauthority
 xset
+nosniff
+foutside
+coutside
+VITE
+unstub
