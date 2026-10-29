@@ -88,19 +88,13 @@ Register `http://127.0.0.1:5173/` as a redirect URI in the Spotify dashboard to 
 To try the production build (the same files the Pi serves), run
 `npm run build && npm start` and open
 **<http://127.0.0.1:4173/>** (`vite preview`). Register that address too if you want to sign in there. `npm test` runs the
-app and kiosk script tests; `npm run build` checks the frontend production build.
-
-To preview the kiosk on macOS run `npm run kiosk:mac`. It opens Chromium or Google Chrome fullscreen with the Pi's
-flags and a separate profile; quit with Cmd+Q. It opens the `vite preview` address (`http://127.0.0.1:4173/`), so run
-`npm run build && npm start` first; set `KIOSK_URL` to open another address. Set
-`KIOSK_WINDOWED=true` for a 1024x600 window instead, or `KIOSK_BROWSER`, `KIOSK_PROFILE` to override the defaults. It
-approximates the Pi's layout only; audio/DRM and touch still need the device.
+app and Wi-Fi panel tests; `npm run build` checks the frontend production build.
 
 ### Checks and Git hooks
 
 `npm run check` runs everything CI's Lint workflow runs: `npm run lint` (ESLint with `--max-warnings 0` over the app in `src/` and the repository's own scripts and config files),
 `npm run typecheck` (TypeScript over the app and the TypeScript scripts; the few JavaScript config files are checked through their JSDoc),
-`npm run format:check` (Prettier; `npm run format` fixes) and `npm run lint:shell` (ShellCheck over `scripts/*.sh`).
+`npm run format:check` (Prettier; `npm run format` fixes) and `npm run lint:shell` (ShellCheck over the kiosk shell scripts).
 ShellCheck is a system tool, not an npm package: install it with `brew install shellcheck` or `apt install shellcheck`
 (CI pins 0.11.0).
 
@@ -122,8 +116,8 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 4. Open Settings **in the browser that will play** (on the kiosk, the Pi's Chromium) and sign in. Choose the playback mode there too: browser (the
    default) or remote. Settings also has the demo mode switch; `?demo=true` on the address turns it on for a visit.
    On the Pi kiosk, which is opened with `?kiosk=1` (the app remembers that, so it survives the Spotify sign-in redirect;
-   `?kiosk=0` forgets it), Settings also shows **Wi-Fi network**. It opens the Pi's local setup page at
-   `http://127.0.0.1:8088/`, which only exists on the Pi, so other visitors never see the entry.
+   `?kiosk=0` forgets it), Settings also shows **Wi-Fi network**, which opens the Pi's native Wi-Fi panel (it asks the
+   kiosk to open `kiosk-wifi://open`). Other visitors never see the entry.
 5. In Speakers, select THE MAX MIX or an existing Spotify Connect device. Press
    Play when ready. For remote mode, first open Spotify on the target device so it
    is discoverable.

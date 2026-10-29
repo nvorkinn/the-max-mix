@@ -11,7 +11,7 @@ once every other workflow and check on that commit has passed. Dependabot pull r
 `tests.yml` runs the tests and the production build on every pull request and push to `main`; it no longer lints. It is
 listed in `all-checks.yml`, so Global PR Status waits for it.
 
-`lint.yml` (**Lint**) runs on the same triggers with three jobs: ESLint (`npm run lint`), ShellCheck over `scripts/*.sh`
+`lint.yml` (**Lint**) runs on the same triggers with three jobs: ESLint (`npm run lint`), ShellCheck over the kiosk shell scripts
 and actionlint over `.github/workflows/*.yml`. ShellCheck and actionlint are downloaded as pinned release binaries and
 checked against a SHA-256 before running. It is listed in `all-checks.yml` too.
 

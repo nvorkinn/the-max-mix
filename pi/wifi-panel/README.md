@@ -4,8 +4,6 @@ A small native Qt app for the kiosk. Cage shows it when the Pi is offline, or wh
 button. It lists the visible networks (name, signal, lock), asks for the password on the Qt Virtual Keyboard and joins
 the network with `nmcli`. It is PySide6 and QML only: no network access at runtime, no pip.
 
-It does not replace `pi/wifi/` (the older Python hotspot portal).
-
 ## What it does
 
 - Scans with `nmcli -t -f SSID,SIGNAL,SECURITY device wifi list --rescan yes` and parses the escaped terse output
