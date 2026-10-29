@@ -15,7 +15,7 @@ listed in `all-checks.yml`, so Global PR Status waits for it.
 and actionlint over `.github/workflows/*.yml`. ShellCheck and actionlint are downloaded as pinned release binaries and
 checked against a SHA-256 before running. It is listed in `all-checks.yml` too.
 
-`audit.yml` scans the lockfiles weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in
+`audit.yml` scans the lockfile weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in
 `all-checks.yml`.
 
 `dependabot-auto-merge.yml` turns on auto-merge for Dependabot pull requests whose updates are all patch or minor
@@ -23,7 +23,7 @@ checked against a SHA-256 before running. It is listed in `all-checks.yml` too.
 satisfied, and Dependabot pull requests are not auto-approved, so if the `main` rule requires an approving review these
 still wait for one manual approval; the workflow does not approve them itself.
 
-`dependabot.yml` opens daily grouped update PRs for the three npm projects and the GitHub Actions used here.
+`dependabot.yml` opens daily grouped update PRs for the npm project and the GitHub Actions used here.
 
 - **Required check:** `Global PR Status`.
 - **Repository setting:** Settings > Actions > General > Workflow permissions >

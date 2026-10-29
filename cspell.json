@@ -9,7 +9,7 @@
   "ignorePaths": [
     ".git",
     "**/package-lock.json",
-    "client/public/**",
+    "public/**",
     "**/node_modules/**",
     "**/dist/**",
     "**/coverage/**",

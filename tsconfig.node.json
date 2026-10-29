@@ -1,0 +1,20 @@
+{
+  "//": "The repository tooling: scripts, e2e tests and the config files at the root (the Vite and Vitest configs belong to tsconfig.app.json). Used by `tsc -b` and by ESLint's type-aware rules.",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "isolatedModules": true,
+    "erasableSyntaxOnly": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["scripts/*.js", "scripts/*.mjs", "scripts/test/*.mjs", "e2e/*.js", "*.config.js", "*.config.mjs"],
+  "exclude": ["vite.config.js", "vitest.config.js"]
+}

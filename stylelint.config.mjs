@@ -1,4 +1,4 @@
-// Stylelint for the Tailwind CSS 4 stylesheet(s) in client/. Prettier owns formatting, so this only holds the
+// Stylelint for the Tailwind CSS 4 stylesheet(s) in src/. Prettier owns formatting, so this only holds the
 // non-formatting rules of stylelint-config-standard (Stylelint 15+ ships no formatting rules of its own).
 /** @type {import('stylelint').Config} */
 export default {

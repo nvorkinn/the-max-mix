@@ -1,17 +1,17 @@
-// Installs the Husky git hooks. Runs from the root `prepare` script and never fails an install:
+// Installs the Husky git hooks. Runs from the `prepare` script and never fails an install:
 // it does nothing outside a git checkout (release tarballs, CI without .git) or without husky (--omit=dev).
-const { existsSync } = require('node:fs');
-const { join } = require('node:path');
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 
-const root = join(__dirname, '..');
-process.chdir(root);
+process.chdir(path.join(import.meta.dirname, '..'));
 if (!existsSync('.git')) process.exit(0);
 
-let install;
+/** @type {typeof import('husky')} */
+let husky;
 try {
-  install = require('husky').default;
+  husky = await import('husky');
 } catch {
   process.exit(0);
 }
-const message = install();
+const message = husky.default();
 if (message) console.warn(message);

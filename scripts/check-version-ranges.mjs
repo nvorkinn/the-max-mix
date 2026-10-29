@@ -1,8 +1,8 @@
-// Fails when a package.json depends on a wildcard or `latest` version, which would make installs unreproducible.
+// Fails when package.json depends on a wildcard or `latest` version, which would make installs unreproducible.
 // npm-package-json-lint has no rule for this (its range rules force one style, but this repository mixes ^, ~ and exact pins).
 import { readFileSync } from 'node:fs';
 
-const manifests = ['package.json', 'client/package.json'];
+const manifests = ['package.json'];
 const sections = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
 const floating = new Set(['', '*', 'x', 'latest', 'next', '>=0', '>=0.0.0']);
 

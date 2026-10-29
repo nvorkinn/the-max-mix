@@ -59,9 +59,9 @@ secrets: each visitor signs in to their own Spotify account.
 Set it up once:
 
 1. In Vercel, **Add New > Project** and import this GitHub repository. Vercel reads the build settings from
-   [`vercel.json`](vercel.json) in the repository root (install `npm --prefix client ci`, build
-   `npm --prefix client run build`, output `client/dist`, plus the single-page rewrite and the response headers), so
-   leave the framework preset and the commands as detected.
+   [`vercel.json`](vercel.json) in the repository root (the Vite framework preset, install `npm ci`, build
+   `npm run build`, output `dist`, plus the single-page rewrite and the response headers), so leave the framework
+   preset and the commands as detected.
 2. Under **Settings > Environment Variables** add `VITE_SPOTIFY_CLIENT_ID` with your Spotify client ID, for the
    Production environment (and Preview if you want one). It is public by design, not a secret. Without it, the client ID
    can still be typed into Settings in the app.
@@ -79,8 +79,8 @@ work on them; the demo mode (`?demo=true`) does.
 Use Node.js 24 LTS (the minimum).
 
 ```bash
-npm --prefix client ci
-npm --prefix client run dev
+npm ci
+npm run dev
 ```
 
 Open **<http://127.0.0.1:5173/>**; the dev server uses exactly that address and port (it stops rather than choosing
@@ -90,7 +90,7 @@ Register `http://127.0.0.1:5173/` as a redirect URI in the Spotify dashboard to 
 To try the production build the way the host serves it, run
 `VITE_SPOTIFY_CLIENT_ID=your_client_id npm run build && npm start` (the ID is optional) and open
 **<http://127.0.0.1:4173/>** (`vite preview`). Register that address too if you want to sign in there. `npm test` runs the
-client and script tests; `npm run build` checks the frontend production build.
+app, script and kiosk installer tests; `npm run build` checks the frontend production build.
 
 To preview the kiosk on macOS run `npm run kiosk:mac`. It opens Chromium or Google Chrome fullscreen with the Pi's
 flags and a separate profile; quit with Cmd+Q. It opens the hosted site by default; set `KIOSK_URL` to a local
@@ -100,13 +100,14 @@ approximates the Pi's layout only; audio/DRM and touch still need the device.
 
 ### Checks and Git hooks
 
-`npm run check` runs everything CI's Lint workflow runs: `npm run lint` (ESLint with `--max-warnings 0` in `client/` and the repository's own scripts and config files), `npm run typecheck` (TypeScript over JSDoc),
+`npm run check` runs everything CI's Lint workflow runs: `npm run lint` (ESLint with `--max-warnings 0` over the app in `src/` and the repository's own scripts and config files),
+`npm run typecheck` (TypeScript over JSDoc),
 `npm run format:check` (Prettier; `npm run format` fixes) and `npm run lint:shell` (ShellCheck over `scripts/*.sh`).
 ShellCheck is a system tool, not an npm package: install it with `brew install shellcheck` or `apt install shellcheck`
 (CI pins 0.11.0).
 
 `npm install` at the repo root also installs a [Husky](https://typicode.github.io/husky/) pre-commit hook. For staged
-files, lint-staged formats them with Prettier, lints them with ESLint (each package's own config) and checks shell
+files, lint-staged formats them with Prettier, lints them with ESLint and checks shell
 scripts with ShellCheck when it is installed. Type checking covers the whole project, so it only runs in CI. The hook is
 skipped automatically when there is no `.git` directory or when dev dependencies are absent (CI). Set
 `HUSKY=0` or use `git commit --no-verify` to bypass it.

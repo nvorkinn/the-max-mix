@@ -10,6 +10,6 @@
 
 - [ ] `npm run check` passes (lint, type check, formatting, ShellCheck)
 - [ ] `npm test` passes
-- [ ] `npm run build` passes (if the client changed)
+- [ ] `npm run build` passes (if the app changed)
 - [ ] README or docs updated if behaviour changed
 - [ ] No secrets or Spotify refresh tokens committed
