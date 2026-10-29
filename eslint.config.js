@@ -18,8 +18,8 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 // The app lives in src/; everything else that is JavaScript is repository tooling.
-const APP_FILES = ['src/**/*.{js,jsx,ts,tsx}'];
-const APP_TEST_FILES = ['src/**/*.test.{js,jsx,ts,tsx}'];
+const APP_FILES = ['src/**/*.{ts,tsx}'];
+const APP_TEST_FILES = ['src/**/*.test.{ts,tsx}'];
 const TOOLING_FILES = ['**/*.{js,mjs,cjs}'];
 const TOOLING_IGNORES = ['src/**'];
 
@@ -193,7 +193,7 @@ export default defineConfig([
   },
 
   // Part 2: the app in src/ (React, browser, Vitest).
-  // Type-aware typescript-eslint over the JS/JSX files, using the types from the JSDoc and tsconfig.app.json.
+  // Type-aware typescript-eslint over the app, using tsconfig.app.json.
   {
     files: APP_FILES,
     extends: [tseslint.configs.strictTypeChecked, tseslint.configs.stylisticTypeChecked],
@@ -231,8 +231,8 @@ export default defineConfig([
       curly: ['error', 'multi-line'],
       'object-shorthand': 'error',
       'prefer-template': 'error',
-      // Several files still import React explicitly.
-      'no-unused-vars': ['error', { varsIgnorePattern: '^React$', caughtErrors: 'none' }],
+      // The typescript-eslint rule: the base rule misreads parameter names in function types as unused variables.
+      '@typescript-eslint/no-unused-vars': ['error', { caughtErrors: 'none' }],
       // @eslint-react's stricter rules (set-state-in-effect, use-state, web-api-no-leaked-fetch, no-array-index-key,
       // naming-convention-ref-name, dom-no-unknown-property) are enforced as errors. exhaustive-deps is off only because it duplicates
       // react-hooks/exhaustive-deps below.
@@ -311,15 +311,6 @@ export default defineConfig([
           'newlines-between': 'never'
         }
       ]
-    }
-  },
-  {
-    // The base rule misreads parameter names in TypeScript function types as unused variables; TypeScript files use the
-    // typescript-eslint version, with the same options.
-    files: ['src/**/*.{ts,tsx}'],
-    rules: {
-      'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^React$', caughtErrors: 'none' }]
     }
   },
   {
