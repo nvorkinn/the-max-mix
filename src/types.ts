@@ -58,21 +58,6 @@ export interface Guest {
   avatar?: string;
 }
 
-/** Response of `getQueue()` and `reorderDemoQueue()`. */
-export interface QueueResponse {
-  queue: Track[];
-}
-
-/** Response of `playDemoTrackNow()`. */
-export interface PlayNowResponse {
-  remainingQueue: Track[];
-}
-
-/** Response of `getDevices()`. */
-export interface DevicesResponse {
-  devices?: SpotifyDevice[];
-}
-
 /**
  * What the Web Playback SDK reports on `player_state_changed` (null when this player is no longer the active device).
  */
