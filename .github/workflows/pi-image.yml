@@ -1,0 +1,136 @@
+name: Pi image
+
+# Builds the ready-to-flash Raspberry Pi image (see pi/image/README.md). It runs when a version tag is pushed and by hand
+# (Actions > Pi image > Run workflow), never on pull requests: a build takes a long time and is not a PR check.
+#
+# - A tag build attaches the-max-mix-<version>.img.xz and its .sha256 to the GitHub release for the tag (creating the
+#   release when there is none yet).
+# - A manual run only uploads the image as a workflow artifact, built from the branch or tag it was started on.
+#
+# pi-gen is Raspberry Pi's own image builder. It is run through usimd/pi-gen-action, which sets up pi-gen's Docker build on
+# the runner; the action and the pi-gen release it checks out are both pinned. A native arm64 runner avoids slow emulation.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One build per ref at a time; never cancel a build that is under way.
+concurrency:
+  group: pi-image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+    env:
+      REF_NAME: ${{ github.ref_name }}
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Work out the version
+        id: meta
+        run: |
+          if [[ $GITHUB_REF_TYPE == tag ]]; then
+            version="${REF_NAME#v}"
+          else
+            version="dev-${REF_NAME//[^A-Za-z0-9._-]/-}-${GITHUB_SHA::7}"
+          fi
+          if [[ ! $version =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+            echo "::error::The version must be made of letters, digits, dots, hyphens and underscores, got: $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      # pi-gen's build only sees the custom stage's own directory, so the kiosk files and the Wi-Fi panel are copied into it.
+      - name: Stage the repository files for pi-gen
+        run: pi/image/prepare.sh
+      # pi-gen refuses to switch off the first-boot user rename without a password. This one is random, never printed, and
+      # replaced by a locked one in the kiosk stage, so the image ships with no usable password at all.
+      - name: Make a throwaway password
+        run: |
+          password=$(openssl rand -hex 24)
+          echo "::add-mask::$password"
+          echo "PI_PASSWORD=$password" >> "$GITHUB_ENV"
+      - run: df -h /
+      # Raspberry Pi OS Lite (stage0 to stage2), then this repository's stage, which is the only one exported as an image.
+      - name: Build the image
+        id: pi-gen
+        uses: usimd/pi-gen-action@cec66cba86bdcd23984e6a79ea4e9251d90bc798 # v1.11.0
+        with:
+          image-name: the-max-mix-${{ steps.meta.outputs.version }}
+          pi-gen-version: 2026-10-06-raspios-trixie-arm64
+          release: trixie
+          stage-list: stage0 stage1 stage2 ./pi/image/stage-kiosk
+          export-last-stage-only: true
+          increase-runner-disk-size: true
+          compression: xz
+          compression-level: 6
+          hostname: the-max-mix
+          username: kiosk
+          password: ${{ env.PI_PASSWORD }}
+          disable-first-boot-user-rename: 1
+          locale: en_GB.UTF-8
+          timezone: Europe/London
+          keyboard-layout: English (UK)
+          keyboard-keymap: gb
+          wpa-country: GB
+          enable-ssh: 0
+          enable-cloud-init: 0
+          verbose-output: true
+      - name: Name the image, checksum it and check its size
+        env:
+          IMAGE_PATH: ${{ steps.pi-gen.outputs.image-path }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          if [[ $IMAGE_PATH != *.img.xz ]]; then
+            echo "::error::Expected an .img.xz image from pi-gen, got: $IMAGE_PATH"
+            exit 1
+          fi
+          mkdir dist
+          mv "$IMAGE_PATH" "dist/the-max-mix-$VERSION.img.xz"
+          (cd dist && sha256sum "the-max-mix-$VERSION.img.xz" > "the-max-mix-$VERSION.img.xz.sha256")
+          ls -l dist
+          size=$(stat -c %s "dist/the-max-mix-$VERSION.img.xz")
+          # GitHub rejects release assets of 2 GiB or more.
+          if ((size >= 2 * 1024 * 1024 * 1024)); then
+            echo "::error::The compressed image is $size bytes, over GitHub's 2 GiB limit for a release asset."
+            exit 1
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pi-image
+          path: dist/
+          # The image is already xz-compressed.
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: pi-image
+          path: dist
+      - name: Attach the image to the release
+        run: |
+          (cd dist && sha256sum --check ./*.sha256)
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes
+          fi
+          gh release upload "$TAG" dist/* --clobber

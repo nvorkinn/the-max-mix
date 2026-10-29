@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Wi-Fi setup
+Exec=/usr/local/bin/kiosk-open-wifi %u
+NoDisplay=true
+MimeType=x-scheme-handler/kiosk-wifi;

@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# The one program Cage runs. Loops forever, running one app at a time: the Wi-Fi panel when asked for (or when there is no
+# working connection), otherwise Chromium.
+set -u
+
+url='https://the-max-mix.vercel.app/?kiosk=1'
+wifi_flag=/run/kiosk/show-wifi
+chromium_pid=/run/kiosk/chromium.pid
+
+export QT_QPA_PLATFORM=wayland
+export QT_IM_MODULE=qtvirtualkeyboard
+# A transparent cursor theme, in case the touch screen also presents itself as a mouse.
+export XCURSOR_THEME=blank
+
+# NetworkManager's connectivity check (conf.d/20-connectivity.conf) makes "full" mean the internet is reachable.
+online() {
+  [[ $(nmcli networking connectivity check 2> /dev/null) == full ]]
+}
+
+# NetworkManager can take a while to bring Wi-Fi up after boot or after the panel connected.
+wait_online() {
+  local i
+  for ((i = 0; i < 30; i++)); do
+    online && return 0
+    sleep 1
+  done
+  return 1
+}
+
+run_wifi_panel() {
+  local args=()
+  # Cancel only makes sense when there is a connection to go back to.
+  online && args+=(--can-cancel)
+  /usr/local/bin/wifi-panel "${args[@]}"
+  rm -f "$wifi_flag"
+}
+
+run_chromium() {
+  chromium --kiosk --ozone-platform=wayland --noerrdialogs --disable-infobars --no-first-run --password-store=basic \
+    --autoplay-policy=no-user-gesture-required --disable-session-crashed-bubble --overscroll-history-navigation=0 \
+    "$url" &
+  echo $! > "$chromium_pid"
+  wait $!
+  rm -f "$chromium_pid"
+}
+
+while true; do
+  if [[ -e $wifi_flag ]] || ! wait_online; then
+    run_wifi_panel
+  else
+    run_chromium
+  fi
+  # Never spin if an app fails to start.
+  sleep 1
+done

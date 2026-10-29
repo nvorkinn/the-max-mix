@@ -150,6 +150,13 @@ Spotify no longer accepts `localhost` redirect URIs. HTTP is allowed only with a
 literal loopback address such as `127.0.0.1`; other redirect addresses require HTTPS. Sign in from the same address you
 registered: an address that is not registered cannot sign in.
 
+## Raspberry Pi kiosk image
+
+The simplest way to run the app on a Raspberry Pi 4 or 5 with the Waveshare 7-inch touch screen is the ready-made image:
+flash it with Raspberry Pi Imager (**Use custom**) and power on. It boots straight into the app in Chromium (through the
+Cage kiosk compositor), or shows a Wi-Fi setup panel when there is no connection. See
+[`pi/image/README.md`](pi/image/README.md) for how it is built, what it does and what is still to be verified.
+
 ## Raspberry Pi kiosk installation
 
 The Pi runs Chromium in fullscreen kiosk mode and opens the deployed app on Vercel (the address of the `release.yml`
