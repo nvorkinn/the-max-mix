@@ -9,14 +9,14 @@ export default defineConfig({
   workers: 1,
   fullyParallel: false,
   retries: 0,
-  forbidOnly: !!process.env.CI,
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]] : 'list',
+  forbidOnly: !!process.env['CI'],
+  reporter: process.env['CI'] ? [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]] : 'list',
   outputDir: 'test-results',
   use: {
     baseURL: `http://127.0.0.1:${port}`,
     // CI uses the Chrome preinstalled on ubuntu-latest; locally Playwright's own Chromium is used, or the binary in E2E_BROWSER_PATH.
-    channel: process.env.CI ? 'chrome' : undefined,
-    launchOptions: { executablePath: process.env.E2E_BROWSER_PATH || undefined },
+    channel: process.env['CI'] ? 'chrome' : undefined,
+    launchOptions: { executablePath: process.env['E2E_BROWSER_PATH'] || undefined },
     trace: 'retain-on-failure'
   },
   webServer: {

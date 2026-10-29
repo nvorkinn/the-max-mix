@@ -28,5 +28,11 @@ export default defineConfig([
       'unicorn/prefer-module': 'off',
       'unicorn/import-style': 'off'
     }
+  },
+  {
+    // The lockfile-lint command is built from a list of files; the inner template literal is clearer than a helper here.
+    // (lint-staged.config.js belongs to the lint tooling; adjust it there to drop this override.)
+    files: ['lint-staged.config.js'],
+    rules: { 'sonarjs/no-nested-template-literals': 'off' }
   }
 ]);

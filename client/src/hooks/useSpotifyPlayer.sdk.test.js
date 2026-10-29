@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { defined } from '../test/defined.js';
+import { useSpotifyPlayer } from './useSpotifyPlayer.js';
 
 const api = vi.hoisted(() => ({ requestJSON: vi.fn(), postJSON: vi.fn() }));
 const sdk = vi.hoisted(() => ({ loadSpotifySDK: vi.fn() }));
 vi.mock('../utils/api.js', () => api);
 vi.mock('../utils/spotifySdk.js', () => sdk);
-
-import { useSpotifyPlayer } from './useSpotifyPlayer.js';
-import { defined } from '../test/defined.js';
 
 /** @param {{ connectResult?: boolean }} [options] */
 function makeSdk({ connectResult = true } = {}) {
@@ -72,7 +71,7 @@ describe('useSpotifyPlayer browser playback', () => {
   it('registers a Web Playback device and exposes its id', async () => {
     const { result, player } = await connect();
     expect(player.options.name).toBe('THE MAX MIX');
-    act(() => defined(player.listeners.ready)({ device_id: 'web-1' }));
+    act(() => defined(player.listeners['ready'])({ device_id: 'web-1' }));
     expect(result.current.browserDeviceId).toBe('web-1');
   });
 
@@ -96,8 +95,8 @@ describe('useSpotifyPlayer browser playback', () => {
 
   it('clears the device and warns when the tablet player disconnects', async () => {
     const { result, player } = await connect();
-    act(() => defined(player.listeners.ready)({ device_id: 'web-1' }));
-    act(() => defined(player.listeners.not_ready)());
+    act(() => defined(player.listeners['ready'])({ device_id: 'web-1' }));
+    act(() => defined(player.listeners['not_ready'])());
     expect(result.current.browserDeviceId).toBeNull();
     expect(result.current.error).toMatch(/tablet player disconnected/i);
   });

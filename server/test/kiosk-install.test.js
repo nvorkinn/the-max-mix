@@ -46,7 +46,7 @@ async function makeRelease(fixtures, tag, { badChecksum = false, clientId = '' }
  */
 function withoutClientId(env) {
   const copy = { ...env };
-  delete copy.SPOTIFY_CLIENT_ID;
+  delete copy['SPOTIFY_CLIENT_ID'];
   return copy;
 }
 
@@ -92,7 +92,7 @@ async function setup(t) {
   const env = {
     ...process.env,
     HOME: home,
-    PATH: `${bin}:${process.env.PATH}`,
+    PATH: `${bin}:${process.env['PATH']}`,
     KIOSK_TEST_STATE: temporary,
     KIOSK_TEST_FIXTURES: fixtures,
     KIOSK_TEST_LATEST: 'v1.2.3',

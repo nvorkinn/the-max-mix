@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { defined } from '../test/defined.js';
+import { useSocket } from './useSocket.js';
 
 const socket = vi.hoisted(() => ({
   /** @type {Record<string, (payload?: unknown) => void>} */
@@ -21,9 +23,6 @@ const io = vi.hoisted(() => vi.fn());
 
 vi.mock('socket.io-client', () => ({ io }));
 
-import { useSocket } from './useSocket.js';
-import { defined } from '../test/defined.js';
-
 describe('useSocket', () => {
   beforeEach(() => {
     socket.handlers = {};
@@ -36,10 +35,10 @@ describe('useSocket', () => {
     expect(io).toHaveBeenCalledWith('/', expect.objectContaining({ reconnectionAttempts: 10 }));
     expect(result.current.connected).toBe(false);
 
-    act(() => defined(socket.handlers.connect)());
+    act(() => defined(socket.handlers['connect'])());
     expect(result.current.connected).toBe(true);
 
-    act(() => defined(socket.handlers.disconnect)());
+    act(() => defined(socket.handlers['disconnect'])());
     expect(result.current.connected).toBe(false);
   });
 
