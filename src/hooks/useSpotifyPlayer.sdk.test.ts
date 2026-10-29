@@ -4,6 +4,11 @@ import { defined } from '../test/defined';
 import { resetSpotifyMocks } from '../test/spotifyMocks';
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 
+interface SdkOptions {
+  connectResult?: boolean;
+  currentState?: unknown;
+}
+
 const mocks = await vi.hoisted(async () => {
   const { createSpotifyMocks } = await import('../test/spotifyMocks');
   return createSpotifyMocks();
@@ -14,44 +19,37 @@ vi.mock('../spotify/auth', () => mocks.auth);
 vi.mock('../spotify/settings', () => mocks.settings);
 vi.mock('../utils/spotifySdk', () => sdk);
 
-/** @param {{ connectResult?: boolean, currentState?: unknown }} [options] */
-function makeSdk({ connectResult = true, currentState = null } = {}) {
-  /** @type {Player[]} */
-  const players = [];
+function makeSdk({ connectResult = true, currentState = null }: SdkOptions = {}) {
+  type Listener = (payload?: unknown) => void;
+  const players: Player[] = [];
   class Player {
-    /** @param {{ name: string, getOAuthToken: (callback: (token: string) => void) => void }} options */
-    constructor(options) {
+    listeners: Record<string, Listener> = {};
+    disconnect = vi.fn();
+    connect = vi.fn(() => Promise.resolve(connectResult));
+    getCurrentState = vi.fn(() => Promise.resolve(currentState));
+    togglePlay = vi.fn(() => Promise.resolve());
+    nextTrack = vi.fn(() => Promise.resolve());
+    previousTrack = vi.fn(() => Promise.resolve());
+    seek = vi.fn(() => Promise.resolve());
+    setVolume = vi.fn(() => Promise.resolve());
+    activateElement = vi.fn(() => Promise.resolve());
+    options: { name: string; getOAuthToken: (callback: (token: string) => void) => void };
+    constructor(options: Player['options']) {
       this.options = options;
-      /** @type {Record<string, (payload?: unknown) => void>} */
-      this.listeners = {};
-      this.disconnect = vi.fn();
-      this.connect = vi.fn(() => Promise.resolve(connectResult));
-      this.getCurrentState = vi.fn(() => Promise.resolve(currentState));
-      this.togglePlay = vi.fn(() => Promise.resolve());
-      this.nextTrack = vi.fn(() => Promise.resolve());
-      this.previousTrack = vi.fn(() => Promise.resolve());
-      this.seek = vi.fn(() => Promise.resolve());
-      this.setVolume = vi.fn(() => Promise.resolve());
-      this.activateElement = vi.fn(() => Promise.resolve());
       players.push(this);
     }
-    /**
-     * @param {string} event
-     * @param {(payload?: unknown) => void} fn
-     */
-    addListener(event, fn) {
+    addListener(event: string, fn: Listener) {
       this.listeners[event] = fn;
     }
   }
   return { Player, players };
 }
 
-/**
- * An SDK state event.
- * @param {string} id
- * @param {{ paused?: boolean, position?: number, next?: string[] }} [options]
- */
-const sdkState = (id, { paused = false, position = 0, next = ['n1'] } = {}) => ({
+/** An SDK state event. */
+const sdkState = (
+  id: string,
+  { paused = false, position = 0, next = ['n1'] }: { paused?: boolean; position?: number; next?: string[] } = {}
+) => ({
   paused,
   position,
   duration: 200_000,
@@ -61,7 +59,7 @@ const sdkState = (id, { paused = false, position = 0, next = ['n1'] } = {}) => (
   }
 });
 
-const webState = (/** @type {string} */ deviceId, isPlaying = true) => ({
+const webState = (deviceId: string, isPlaying = true) => ({
   is_playing: isPlaying,
   progress_ms: 1000,
   item: { id: 't1', name: 'Song t1', duration_ms: 200_000 },
@@ -75,24 +73,19 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-/** @param {{ currentState?: unknown }} [options] */
-async function connect(options) {
+async function connect(options?: SdkOptions) {
   const fake = makeSdk(options);
   sdk.loadSpotifySDK.mockResolvedValue({ Player: fake.Player });
   const hook = renderHook(() => useSpotifyPlayer());
   await waitFor(() => expect(fake.players).toHaveLength(1));
   const player = defined(fake.players[0]);
   await waitFor(() => expect(player.connect).toHaveBeenCalled());
-  /** @param {string} event @param {unknown} [payload] */
-  const emit = (event, payload) => act(() => defined(player.listeners[event])(payload));
+  const emit = (event: string, payload?: unknown) => act(() => defined(player.listeners[event])(payload));
   return { ...hook, player, emit };
 }
 
-/**
- * Connects and announces the device, as the SDK does once it is registered.
- * @param {{ currentState?: unknown }} [options]
- */
-async function ready(options) {
+/** Connects and announces the device, as the SDK does once it is registered. */
+async function ready(options?: SdkOptions) {
   const connected = await connect(options);
   connected.emit('ready', { device_id: 'web-1' });
   await act(async () => {});
@@ -313,8 +306,8 @@ describe('useSpotifyPlayer is driven by SDK events', () => {
 });
 
 describe('useSpotifyPlayer drives its own SDK player', () => {
-  /** @param {boolean} active whether this page's player is the active device */
-  async function setup(active) {
+  // `active`: whether this page's player is the active device
+  async function setup(active: boolean) {
     const connected = await ready();
     if (active) connected.emit('player_state_changed', sdkState('t1'));
     return connected;
@@ -466,8 +459,7 @@ describe('useSpotifyPlayer recovers after the page was in the background', () =>
     emit('player_state_changed', sdkState('t1'));
     vi.useFakeTimers();
     player.togglePlay.mockReturnValueOnce(new Promise(() => {}));
-    /** @type {Promise<boolean>} */
-    let pressed = Promise.resolve(true);
+    let pressed: Promise<boolean> = Promise.resolve(true);
     act(() => {
       pressed = result.current.togglePlay();
     });

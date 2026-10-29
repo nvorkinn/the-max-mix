@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import type { ApiError, PlaybackState, SdkPlaybackState, SpotifyPlayer, Track } from '../types';
 import * as spotify from '../spotify/api';
 import { getAccessToken, isSignedIn } from '../spotify/auth';
 import { getClientId, getPlaybackMode, isDemoMode as readDemoMode } from '../spotify/settings';
@@ -14,22 +15,12 @@ const SDK_POLL_MS = 30_000;
 // An SDK command that has not answered by now is given up on, so one lost reply cannot leave the buttons dead.
 const SDK_COMMAND_TIMEOUT_MS = 8000;
 
-/**
- * Rejects when `promise` has not settled within `ms`.
- * @template T
- * @param {Promise<T>} promise
- * @param {number} ms
- * @param {string} message
- * @returns {Promise<T>}
- */
-async function withTimeout(promise, ms, message) {
-  /** @type {ReturnType<typeof setTimeout> | undefined} */
-  let timer;
-  const timeout = /** @type {Promise<never>} */ (
-    new Promise((_resolve, reject) => {
-      timer = setTimeout(() => reject(new Error(message)), ms);
-    })
-  );
+/** Rejects when `promise` has not settled within `ms`. */
+async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
   try {
     return await Promise.race([promise, timeout]);
   } finally {
@@ -37,16 +28,36 @@ async function withTimeout(promise, ms, message) {
   }
 }
 
-/** @typedef {import('../types').PlaybackState | null} PlaybackOrNull */
-/** @typedef {PlaybackOrNull | ((current: PlaybackOrNull) => PlaybackOrNull)} PlaybackUpdate */
+type PlaybackOrNull = PlaybackState | null;
+
+/** What the hook gives the components. */
+export interface UseSpotifyPlayer {
+  playbackState: PlaybackOrNull;
+  browserDeviceId: string | null;
+  isAuthenticated: boolean;
+  isDemoMode: boolean;
+  isConfigured: boolean;
+  playbackMode: ReturnType<typeof getPlaybackMode>;
+  isLoading: boolean;
+  isReady: boolean;
+  sdkActive: boolean;
+  queueVersion: number;
+  error: string | null;
+  clearError: () => void;
+  togglePlay: () => Promise<boolean>;
+  nextTrack: () => Promise<boolean>;
+  previousTrack: () => Promise<boolean>;
+  seek: (position: number) => Promise<boolean>;
+  setVolume: (volume: number) => Promise<boolean>;
+  transferPlayback: (deviceId: string) => Promise<boolean>;
+  refreshPlayback: () => Promise<void>;
+}
 
 /**
  * A playback state moved on to `now`: while playing, the progress keeps growing between events without any request.
- * @param {import('../types').PlaybackState | null} state
- * @param {number} at when `state` was received
- * @param {number} now
+ * `at` is when `state` was received.
  */
-function project(state, at, now) {
+function project(state: PlaybackOrNull, at: number, now: number): PlaybackOrNull {
   if (!state?.is_playing) return state;
   const progress = (state.progress_ms ?? state.position ?? 0) + Math.max(0, now - at);
   const duration = state.item?.duration_ms ?? state.duration;
@@ -57,37 +68,31 @@ function project(state, at, now) {
  * `state` with a new playing flag. Spotify's `actions.disallows` says "resuming" while playing and "pausing" while
  * paused, so after the flag is changed here (by a press or an SDK event) those two are out of date and are dropped;
  * left in, they would keep the Play button disabled until the next read from Spotify.
- * @param {import('../types').PlaybackState} state
- * @param {boolean} playing
  */
-function withPlaying(state, playing) {
+function withPlaying(state: PlaybackState, playing: boolean): PlaybackState {
   const disallows = Object.fromEntries(
     Object.entries(state.actions?.disallows ?? {}).filter(([action]) => action !== 'pausing' && action !== 'resuming')
   );
   return { ...state, is_playing: playing, actions: { ...state.actions, disallows } };
 }
 
-/** @param {import('../types').SdkPlaybackState} state */
-function nextTracksKey(state) {
+function nextTracksKey(state: SdkPlaybackState): string {
   return (state?.track_window?.next_tracks ?? []).map(track => track.id ?? track.uri ?? '').join(',');
 }
 
-export function useSpotifyPlayer() {
+export function useSpotifyPlayer(): UseSpotifyPlayer {
   // Settings change only through a reload, so they are read once.
   const [isDemoMode] = useState(readDemoMode);
   const [playbackMode] = useState(getPlaybackMode);
   const [isConfigured] = useState(() => Boolean(getClientId()));
   const [isAuthenticated, setIsAuthenticated] = useState(isSignedIn);
-  const [snapshot, setSnapshot] = useState({
-    state: /** @type {import('../types').PlaybackState | null} */ (null),
-    at: 0
-  });
+  const [snapshot, setSnapshot] = useState<{ state: PlaybackOrNull; at: number }>({ state: null, at: 0 });
   const [now, setNow] = useState(Date.now);
   const [loaded, setLoaded] = useState(false);
-  const [browserDeviceId, setBrowserDeviceId] = useState(/** @type {string | null} */ (null));
-  const [connectionError, setConnectionError] = useState(/** @type {string | null} */ (null));
-  const [actionError, setActionError] = useState(/** @type {string | null} */ (null));
-  const [sdkError, setSdkError] = useState(/** @type {string | null} */ (null));
+  const [browserDeviceId, setBrowserDeviceId] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [sdkError, setSdkError] = useState<string | null>(null);
   // True while the SDK reports this player as the active device (it reports null once another device takes over).
   const [sdkActive, setSdkActive] = useState(false);
   // True once a different device was picked under Speakers: play/pause then go to that device through the Web API.
@@ -95,28 +100,24 @@ export function useSpotifyPlayer() {
   // Counts the moments the queue is likely to have changed, so the queue view re-reads it.
   const [queueVersion, setQueueVersion] = useState(0);
   const playbackRequestRef = useRef(0);
-  const expectedPlayingRef = useRef(/** @type {{ playing: boolean, until: number } | null} */ (null));
+  const expectedPlayingRef = useRef<{ playing: boolean; until: number } | null>(null);
   const playPauseInFlightRef = useRef(false);
   // The Web Playback SDK player this page runs ("THE MAX MIX"), once it is connected.
-  const playerRef = useRef(/** @type {import('../types').SpotifyPlayer | null} */ (null));
+  const playerRef = useRef<SpotifyPlayer | null>(null);
   const sdkActiveRef = useRef(false);
-  const lastTrackIdRef = useRef(/** @type {string | null} */ (null));
-  const lastNextTracksRef = useRef(/** @type {string | null} */ (null));
-  const deviceIdRef = useRef(/** @type {string | null} */ (null));
+  const lastTrackIdRef = useRef<string | null>(null);
+  const lastNextTracksRef = useRef<string | null>(null);
+  const deviceIdRef = useRef<string | null>(null);
   // Brings the SDK player back in step after the page was in the background (set while the player exists).
-  const resumeRef = useRef(/** @type {(() => void) | null} */ (null));
+  const resumeRef = useRef<(() => void) | null>(null);
 
-  const setPlayback = useCallback(
-    /** @param {PlaybackUpdate} next */
-    next => {
-      const at = Date.now();
-      setSnapshot(previous => {
-        const current = project(previous.state, previous.at, at);
-        return { state: typeof next === 'function' ? next(current) : next, at };
-      });
-    },
-    []
-  );
+  const setPlayback = useCallback((next: PlaybackOrNull | ((current: PlaybackOrNull) => PlaybackOrNull)) => {
+    const at = Date.now();
+    setSnapshot(previous => {
+      const current = project(previous.state, previous.at, at);
+      return { state: typeof next === 'function' ? next(current) : next, at };
+    });
+  }, []);
 
   const playbackState = useMemo(() => project(snapshot.state, snapshot.at, now), [snapshot, now]);
   const isPlayingNow = Boolean(snapshot.state?.is_playing);
@@ -127,14 +128,10 @@ export function useSpotifyPlayer() {
     return () => clearInterval(timer);
   }, [isPlayingNow]);
 
-  const markSdkActive = useCallback(
-    /** @param {boolean} active */
-    active => {
-      sdkActiveRef.current = active;
-      setSdkActive(active);
-    },
-    []
-  );
+  const markSdkActive = useCallback((active: boolean) => {
+    sdkActiveRef.current = active;
+    setSdkActive(active);
+  }, []);
   const bumpQueue = useCallback(() => setQueueVersion(version => version + 1), []);
 
   // Bumping the counter makes any in-flight playback request discard its result.
@@ -143,14 +140,10 @@ export function useSpotifyPlayer() {
   }, []);
 
   // Keeps the button on `playing` against reads that predate it, until Spotify agrees or the hold runs out.
-  const holdPlaying = useCallback(
-    /** @param {boolean} playing */
-    playing => {
-      expectedPlayingRef.current = { playing, until: Date.now() + EXPECTED_PLAYING_MS };
-      playbackRequestRef.current++;
-    },
-    []
-  );
+  const holdPlaying = useCallback((playing: boolean) => {
+    expectedPlayingRef.current = { playing, until: Date.now() + EXPECTED_PLAYING_MS };
+    playbackRequestRef.current++;
+  }, []);
 
   const refreshPlayback = useCallback(async () => {
     const requestId = ++playbackRequestRef.current;
@@ -176,8 +169,7 @@ export function useSpotifyPlayer() {
     let cancelled = false;
     // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
     const isCancelled = () => cancelled;
-    /** @type {ReturnType<typeof setTimeout> | undefined} */
-    let timer;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     let failures = 0;
     const poll = async () => {
       const base = sdkDriven ? SDK_POLL_MS : REMOTE_POLL_MS;
@@ -189,7 +181,7 @@ export function useSpotifyPlayer() {
         failures = 0;
       } catch (error) {
         if (isCancelled()) return;
-        const apiError = /** @type {import('../types').ApiError} */ (error);
+        const apiError = error as ApiError;
         setConnectionError(apiError.message);
         if (apiError.status === 401 && !isSignedIn()) {
           setIsAuthenticated(false);
@@ -233,17 +225,15 @@ export function useSpotifyPlayer() {
     let cancelled = false;
     // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
     const isCancelled = () => cancelled;
-    /** @type {import('../types').SpotifyPlayer | undefined} */
-    let player;
+    let player: SpotifyPlayer | undefined;
 
-    /** @param {import('../types').SdkPlaybackState} state */
-    const applySdkState = state => {
+    const applySdkState = (state: SdkPlaybackState) => {
       if (isCancelled()) return;
       markSdkActive(Boolean(state));
       if (!state) return;
       holdPlaying(!state.paused);
       if (!state.paused) setSdkError(null);
-      const track = /** @type {import('../types').Track | undefined} */ (state.track_window?.current_track);
+      const track: Track | undefined = state.track_window?.current_track;
       const trackId = track?.id ?? null;
       setPlayback(current => ({
         ...withPlaying(current ?? {}, !state.paused),
@@ -270,21 +260,21 @@ export function useSpotifyPlayer() {
         if (isCancelled()) return;
         player = new sdk.Player({
           name: 'THE MAX MIX',
-          getOAuthToken: (/** @type {(token: string) => void} */ callback) => {
+          getOAuthToken: callback => {
             getAccessToken()
               .then(token => {
                 if (token) callback(token);
                 else if (!isCancelled()) setSdkError('Spotify login expired. Sign in again in Settings.');
               })
-              .catch((/** @type {unknown} */ error) => {
-                if (!isCancelled()) setSdkError(/** @type {Error} */ (error).message);
+              .catch((error: unknown) => {
+                if (!isCancelled()) setSdkError((error as Error).message);
               });
           },
           volume: 0.8
         });
         // The SDK reports every change at once, which the Web API's state endpoint only does a second or so later.
         player.addListener('player_state_changed', applySdkState);
-        player.addListener('ready', (/** @type {{ device_id: string }} */ { device_id }) => {
+        player.addListener('ready', ({ device_id }: { device_id: string }) => {
           if (isCancelled()) return;
           deviceIdRef.current = device_id;
           setBrowserDeviceId(device_id);
@@ -310,7 +300,7 @@ export function useSpotifyPlayer() {
           if (!isCancelled()) setSdkError('The browser blocked autoplay. Tap Play on the screen to start the music.');
         });
         for (const event of ['initialization_error', 'authentication_error', 'account_error', 'playback_error']) {
-          player.addListener(event, (/** @type {{ message: string }} */ { message }) => {
+          player.addListener(event, ({ message }: { message: string }) => {
             if (!isCancelled()) {
               setSdkError(
                 `Browser playback: ${message} Remote playback mode is available if this Pi cannot stream audio.`
@@ -332,7 +322,7 @@ export function useSpotifyPlayer() {
         if (connected) playerRef.current = player;
         else if (!isCancelled()) setSdkError('Could not connect the tablet player to Spotify.');
       } catch (error) {
-        if (!isCancelled()) setSdkError(/** @type {Error} */ (error).message);
+        if (!isCancelled()) setSdkError((error as Error).message);
       }
     };
     void initialize();
@@ -351,15 +341,14 @@ export function useSpotifyPlayer() {
   }, [isAuthenticated, isDemoMode, playbackMode, holdPlaying, refreshPlayback, setPlayback, markSdkActive, bumpQueue]);
 
   const runCommand = useCallback(
-    /** @param {() => Promise<unknown>} command */
-    async command => {
+    async (command: () => Promise<unknown>) => {
       try {
         await command();
         await refreshPlayback();
         setActionError(null);
         return true;
       } catch (error) {
-        setActionError(/** @type {Error} */ (error).message);
+        setActionError((error as Error).message);
         return false;
       }
     },
@@ -372,11 +361,8 @@ export function useSpotifyPlayer() {
   const isThisPlayerActive = () =>
     sdkActiveRef.current || Boolean(browserDeviceId && playbackState?.device?.id === browserDeviceId);
 
-  /**
-   * Runs an SDK transport command; its state change arrives as a `player_state_changed` event.
-   * @param {(player: import('../types').SpotifyPlayer) => Promise<void>} command
-   */
-  const runSdkCommand = async command => {
+  /** Runs an SDK transport command; its state change arrives as a `player_state_changed` event. */
+  const runSdkCommand = async (command: (player: SpotifyPlayer) => Promise<void>) => {
     const player = sdkPlayer();
     if (!player || !isThisPlayerActive()) return null;
     try {
@@ -384,7 +370,7 @@ export function useSpotifyPlayer() {
       setActionError(null);
       return true;
     } catch (error) {
-      setActionError(/** @type {Error} */ (error).message);
+      setActionError((error as Error).message);
       // The player may have dropped; reconnect it and read where it really is.
       resumeRef.current?.();
       return false;
@@ -393,11 +379,7 @@ export function useSpotifyPlayer() {
 
   /** Moves playback to a device through the Web API and brings the state up to date. */
   const transferTo = useCallback(
-    /**
-     * @param {string} deviceId
-     * @param {boolean} play
-     */
-    async (deviceId, play) => {
+    async (deviceId: string, play: boolean) => {
       await spotify.transferPlayback(deviceId, play);
       const toThisPage = deviceId === browserDeviceId;
       setRemoteSelected(!toThisPage);
@@ -423,7 +405,7 @@ export function useSpotifyPlayer() {
       const player = sdkPlayer();
       // Browsers only start audio from a user gesture, and this press is one.
       player?.activateElement().catch(() => {});
-      let ok;
+      let ok: boolean;
       if (player && isThisPlayerActive()) ok = (await runSdkCommand(active => active.togglePlay())) === true;
       else if (player && playing && browserDeviceId) {
         // Not the active device yet: the first Play makes this page the player (on a press, so loading the page
@@ -432,7 +414,7 @@ export function useSpotifyPlayer() {
           await transferTo(browserDeviceId, true);
           ok = true;
         } catch (error) {
-          setActionError(/** @type {Error} */ (error).message);
+          setActionError((error as Error).message);
           ok = false;
         }
       } else ok = await runCommand(() => (playing ? spotify.play() : spotify.pause()));
@@ -446,19 +428,15 @@ export function useSpotifyPlayer() {
     }
   };
 
-  /**
-   * @param {(player: import('../types').SpotifyPlayer) => Promise<void>} command
-   * @param {() => Promise<unknown>} apiCommand
-   */
-  const transport = async (command, apiCommand) => (await runSdkCommand(command)) ?? runCommand(apiCommand);
+  const transport = async (command: (player: SpotifyPlayer) => Promise<void>, apiCommand: () => Promise<unknown>) =>
+    (await runSdkCommand(command)) ?? runCommand(apiCommand);
 
-  /** @param {string} deviceId */
-  const transferPlayback = async deviceId => {
+  const transferPlayback = async (deviceId: string) => {
     try {
       await transferTo(deviceId, false);
       return true;
     } catch (error) {
-      setActionError(/** @type {Error} */ (error).message);
+      setActionError((error as Error).message);
       throw error;
     }
   };
@@ -487,12 +465,12 @@ export function useSpotifyPlayer() {
         player => player.previousTrack(),
         () => spotify.previous()
       ),
-    seek: (/** @type {number} */ position) =>
+    seek: (position: number) =>
       transport(
         player => player.seek(Math.round(position)),
         () => spotify.seek(Math.round(position))
       ),
-    setVolume: (/** @type {number} */ volume) =>
+    setVolume: (volume: number) =>
       transport(
         player => player.setVolume(volume),
         () => spotify.setVolume(Math.round(volume * 100))

@@ -91,8 +91,7 @@ describe('useSpotifyPlayer', () => {
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.isReady).toBe(true));
 
-    /** @type {Promise<boolean> | undefined} */
-    let pending;
+    let pending: Promise<boolean> | undefined;
     act(() => {
       pending = result.current.togglePlay();
     });
