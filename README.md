@@ -185,7 +185,8 @@ ansible-pull -U https://github.com/nvorkinn/the-max-mix.git -C main -d ~/.cache/
 
 The kiosk opens `https://the-max-mix.vercel.app/` (the deployed app) unless you pass another `kiosk_url`: `https://`, or `http://127.0.0.1` and
 `http://localhost` for testing, without spaces or quotes. Register **exactly that address, trailing slash included,** as
-a redirect URI in the Spotify dashboard (`https://the-max-mix.vercel.app/`), then open the kiosk and sign in once in Settings. To
+a redirect URI in the Spotify dashboard (`https://the-max-mix.vercel.app/`), then open the kiosk and sign in once in Settings. The playbook opens the address with `?kiosk=1` added, which turns on
+the app's kiosk-only settings; the redirect URI is still the plain address. To
 change a setting, put it in `~/the-max-mix-kiosk.yml` (for example `kiosk_url: ...`) and add `-e @$HOME/the-max-mix-kiosk.yml`
 to the command, so every pull is repeatable. [`ansible/vars.example.yml`](ansible/vars.example.yml) lists the settings
 (`kiosk_url`, `kiosk_user`, `kiosk_startup_timeout`, `kiosk_configure_raspi_config`).
