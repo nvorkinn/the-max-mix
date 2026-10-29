@@ -54,7 +54,7 @@ describe('useIsOffline', () => {
 
   it('turns true after network errors persist, and clears when they stop', () => {
     vi.useFakeTimers();
-    const { result, rerender } = renderHook(({ error }: { error: string | null }) => useIsOffline(error), {
+    const { result, rerender } = renderHook<boolean, { error: string | null }>(({ error }) => useIsOffline(error), {
       initialProps: { error: NETWORK_ERROR_MESSAGE }
     });
     expect(result.current).toBe(false);
