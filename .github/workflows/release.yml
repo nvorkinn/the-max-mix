@@ -1,10 +1,12 @@
 name: Release
 
-# Pushing a version tag (e.g. v1.2.3, or v1.2.3-rc.1 for a prerelease) builds the app and publishes the assembled
-# tarball, its checksum and the standalone installer to a GitHub Release with generated notes. Lint and tests are not
-# repeated here: the Tests and Lint workflows already run them on pull requests and on main, so tag a commit on main.
-# The tag is the only source of the version: package-release.sh stamps it into the packaged package.json files (the
-# repository keeps a 0.0.0 placeholder). The tarball also gets a build provenance attestation: verify a download with
+# Creating a release in the GitHub web UI also creates its version tag (e.g. v1.2.3, or v1.2.3-rc.1 for a prerelease);
+# the tag push runs this, which builds the app and attaches the assembled tarball, its checksum and the standalone
+# installer to that release. The release, its notes and its prerelease flag come from the web UI, so the job fails if
+# there is no release for the tag; a failed job can be re-run. Lint and tests are not repeated here: the Tests and Lint
+# workflows already run them on pull requests and on main, so release a commit on main. The tag is the only source of
+# the version: package-release.sh stamps it into the packaged package.json files (the repository keeps a 0.0.0
+# placeholder). The tarball also gets a build provenance attestation: verify a download with
 # `gh attestation verify <file> --repo nvorkinn/the-max-mix`.
 on:
   push:
@@ -36,12 +38,13 @@ jobs:
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: release-out/*.tar.gz
-      - name: Publish release
+      - name: Attach the files to the release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          flags=()
-          if [[ $TAG == *-* ]]; then flags+=(--prerelease); fi
-          gh release create "$TAG" release-out/*.tar.gz release-out/*.sha256 scripts/install-kiosk.sh \
-            --title "$TAG" --generate-notes --verify-tag "${flags[@]}"
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            echo "::error::No release found for $TAG. Create the release in the GitHub web UI (it also creates the tag); this job attaches the files to it."
+            exit 1
+          fi
+          gh release upload "$TAG" release-out/*.tar.gz release-out/*.sha256 scripts/install-kiosk.sh --clobber
