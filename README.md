@@ -125,19 +125,35 @@ Revoked logins require signing in again. Never commit `.env` or token files.
 
 ## Releases
 
-To release, create a release in the GitHub web UI (Releases > Draft a new release), choosing a new tag such as `v1.2.3`
-(or `v1.2.3-rc.1`, marked as a pre-release) on a commit on `main` whose checks passed, and let it generate the notes.
-Publishing the release creates the tag; the tag push runs the release workflow, which builds the app and attaches
-`the-max-mix-v1.2.3.tar.gz`, its `.sha256` and `install-kiosk.sh` to that release. The workflow fails if there is no
-release for the tag (pushing a bare tag does not create one), and a failed run can simply be re-run. The tag is the only
-source of the version, so there is nothing to bump first; the `version` fields in the repository's `package.json` files
-are a `0.0.0` placeholder, and the release stamps the real version into the packaged copies. The workflow does not
-repeat the tests and lint (they run on every pull request and on `main`). The tarball has a build provenance attestation; check a download with
-`gh attestation verify the-max-mix-v1.2.3.tar.gz --repo nvorkinn/the-max-mix`. The tarball holds
-the built UI, the server with production dependencies, the scripts and docs, so it runs without a
-build step: extract it, create `server/.env` from `server/.env.example`, and run `npm start`
-(Node 24+). The Raspberry Pi installer below uses this tarball. To build one locally, run
-`npm run build` and then `bash scripts/package-release.sh v1.2.3`; it is written to `release-out/`.
+A release is a GitHub Release whose tag starts the Release workflow, which builds the app and attaches the files to it.
+
+1. Make sure the commit you want to release is on `main` and its checks passed. The release workflow does not repeat the
+   tests and lint, so this is the only gate.
+2. On GitHub, open **Releases > Draft a new release**.
+3. In **Choose a tag**, type a new tag such as `v1.2.3` and pick **Create new tag on publish**, with the target set to
+   `main` (or the exact commit). For a trial, use `v1.2.3-rc.1` and tick **Set as a pre-release**.
+4. Click **Generate release notes** (the categories come from `.github/release.yml`), then **Publish release**.
+5. Open the **Release** run under **Actions**. It builds the client, packages the server with its production
+   dependencies, attests the tarball's build provenance and uploads the files. This takes a minute or less. If a step
+   fails, fix the cause and re-run the failed job; uploading again replaces the files.
+6. Check the release page. It should list `the-max-mix-v1.2.3.tar.gz`, its `.sha256` and `install-kiosk.sh`. To verify a
+   download: `gh attestation verify the-max-mix-v1.2.3.tar.gz --repo nvorkinn/the-max-mix`.
+7. Update the Pi with the installer (see [Operations and updates](#operations-and-updates)). The installer's "latest"
+   skips pre-releases; pass a tag to install one.
+
+Things to know:
+
+- **The tag is the only source of the version.** There is nothing to bump: the `version` fields in the repository's
+  `package.json` files are a `0.0.0` placeholder, and the release stamps the real version into the packaged copies.
+- **Create the release in the web UI; do not push a bare tag.** Publishing the release creates the tag, and the workflow
+  attaches the files to that release. With no release for the tag, the workflow fails with a message saying so.
+- **A re-run uses the workflow from the tagged commit.** A fix to the release workflow only applies to a release made on
+  a commit that includes it.
+
+The tarball holds the built UI, the server with production dependencies, the scripts and docs, so it runs without a
+build step: extract it, create `server/.env` from `server/.env.example`, and run `npm start` (Node 24+). The Raspberry Pi
+installer below uses this tarball. To build one locally, run `npm run build` and then
+`bash scripts/package-release.sh v1.2.3`; it is written to `release-out/`.
 
 ## Raspberry Pi kiosk installation
 
