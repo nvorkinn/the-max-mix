@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import TabletView from './TabletView.jsx';
 
 const state = vi.hoisted(() => ({ player: {} }));
 const api = vi.hoisted(() => ({ requestJSON: vi.fn(), postJSON: vi.fn() }));
@@ -18,8 +19,6 @@ vi.mock('./SpotifyJamQueue.jsx', () => ({
     </div>
   )
 }));
-
-import TabletView from './TabletView.jsx';
 
 /** @param {Record<string, unknown>} [overrides] */
 const player = overrides => ({

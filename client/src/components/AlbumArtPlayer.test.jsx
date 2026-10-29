@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { installCanvasStub, stubMatchMedia } from '../test/canvas.js';
+import { partialProps } from '../test/partialProps.js';
+import AlbumArtPlayerFull from './AlbumArtPlayer.jsx';
+import SpotifyJamQueueFull from './SpotifyJamQueue.jsx';
 
 const confetti = vi.hoisted(() => vi.fn());
 vi.mock('canvas-confetti', () => ({ default: confetti }));
-
-import AlbumArtPlayerFull from './AlbumArtPlayer.jsx';
-import SpotifyJamQueueFull from './SpotifyJamQueue.jsx';
-import { partialProps } from '../test/partialProps.js';
 
 const AlbumArtPlayer = partialProps(AlbumArtPlayerFull);
 const SpotifyJamQueue = partialProps(SpotifyJamQueueFull);

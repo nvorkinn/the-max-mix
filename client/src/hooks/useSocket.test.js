@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { defined } from '../test/defined.js';
+import { useSocket } from './useSocket.js';
 
 const socket = vi.hoisted(() => ({
   /** @type {Record<string, (payload?: unknown) => void>} */
@@ -20,9 +22,6 @@ const socket = vi.hoisted(() => ({
 const io = vi.hoisted(() => vi.fn());
 
 vi.mock('socket.io-client', () => ({ io }));
-
-import { useSocket } from './useSocket.js';
-import { defined } from '../test/defined.js';
 
 describe('useSocket', () => {
   beforeEach(() => {
