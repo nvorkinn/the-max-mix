@@ -1,6 +1,6 @@
 {
   "name": "the-max-mix-server",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "Backend server for THE MAX MIX handling OAuth, collaborative queues, and real-time sockets",
   "license": "MIT",
   "main": "src/index.js",
