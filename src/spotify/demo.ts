@@ -37,22 +37,22 @@ export function createDemoPlayer() {
     item: DemoTrack;
   } = {
     is_playing: true,
-    progress_ms: 45000,
+    progress_ms: 45_000,
     device: { id: 'demo-tablet', name: 'Demo tablet', is_active: true, volume_percent: 80, supports_volume: true },
-    item: track('demo-track-1', 'One More Time', 'Daft Punk', 'photo-1514525253161-7a46d19cd819', 320000, 'Sarah')
+    item: track('demo-track-1', 'One More Time', 'Daft Punk', 'photo-1514525253161-7a46d19cd819', 320_000, 'Sarah')
   };
   let queue: DemoTrack[] = [
-    track('demo-queue-1', 'Starboy', 'The Weeknd, Daft Punk', 'photo-1511671782779-c97d3d27a1d4', 230000, 'Marcus'),
-    track('demo-queue-2', 'Levitating', 'Dua Lipa', 'photo-1470225620780-dba8ba36b745', 203000, 'Elena'),
+    track('demo-queue-1', 'Starboy', 'The Weeknd, Daft Punk', 'photo-1511671782779-c97d3d27a1d4', 230_000, 'Marcus'),
+    track('demo-queue-2', 'Levitating', 'Dua Lipa', 'photo-1470225620780-dba8ba36b745', 203_000, 'Elena'),
     track(
       'demo-queue-3',
       'Music Sounds Better with You',
       'Stardust',
       'photo-1508700115892-45ecd05ae2ad',
-      260000,
+      260_000,
       'Dave'
     ),
-    track('demo-queue-4', 'Midnight City', 'M83', 'photo-1518609878373-06d740f60d8b', 244000, 'Chloe')
+    track('demo-queue-4', 'Midnight City', 'M83', 'photo-1518609878373-06d740f60d8b', 244_000, 'Chloe')
   ];
   const history: DemoTrack[] = [];
 
@@ -88,17 +88,13 @@ export function createDemoPlayer() {
     },
     reorder(submitted: ({ id?: unknown } | null)[]) {
       const reordered = Array.isArray(submitted)
-        ? submitted.map(entry => queue.find(existing => existing.id === entry?.id))
+        ? submitted.flatMap(entry => queue.find(existing => existing.id === entry?.id) ?? [])
         : [];
-      if (
-        reordered.length !== queue.length ||
-        new Set(reordered).size !== queue.length ||
-        reordered.includes(undefined)
-      ) {
+      // A submitted id that matches no existing track is dropped by flatMap, so a short result also catches unknown ids.
+      if (reordered.length !== queue.length || new Set(reordered).size !== queue.length) {
         throw new SpotifyApiError('Reordering requires each existing demo track exactly once.', 400);
       }
-      // Validated above: every submitted id matched exactly one existing demo track, and none twice.
-      queue = reordered as DemoTrack[];
+      queue = reordered;
       return structuredClone({ queue });
     },
     playNow(trackId: string) {

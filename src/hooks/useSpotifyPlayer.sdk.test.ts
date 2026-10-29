@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { defined } from '../test/defined';
 import { resetSpotifyMocks } from '../test/spotifyMocks';
+import { SpotifyApiError } from '../spotify/http';
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 
 interface SdkOptions {
@@ -542,7 +543,7 @@ describe('useSpotifyPlayer polling in remote mode', () => {
 
   it('backs off exponentially after failures and honours Retry-After', async () => {
     vi.useFakeTimers();
-    const rateLimited = Object.assign(new Error('Too many requests'), { retryAfter: 45 });
+    const rateLimited = new SpotifyApiError('Too many requests', 429, 45);
     mocks.api.getPlaybackState
       .mockRejectedValueOnce(new Error('blip'))
       .mockRejectedValueOnce(rateLimited)

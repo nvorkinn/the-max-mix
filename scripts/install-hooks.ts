@@ -6,8 +6,7 @@ import path from 'node:path';
 process.chdir(path.join(import.meta.dirname, '..'));
 if (!existsSync('.git')) process.exit(0);
 
-/** @type {typeof import('husky')} */
-let husky;
+let husky: typeof import('husky');
 try {
   husky = await import('husky');
 } catch {

@@ -4,7 +4,7 @@ const port = 3100;
 
 export default defineConfig({
   testDir: '.',
-  testMatch: '*.spec.js',
+  testMatch: '*.spec.ts',
   // The demo player lives in each page, so tests do not share state; a single worker keeps the run simple and quiet.
   workers: 1,
   fullyParallel: false,
@@ -15,8 +15,8 @@ export default defineConfig({
   use: {
     baseURL: `http://127.0.0.1:${port}`,
     // CI uses the Chrome preinstalled on ubuntu-latest; locally Playwright's own Chromium is used, or the binary in E2E_BROWSER_PATH.
-    channel: process.env['CI'] ? 'chrome' : undefined,
-    launchOptions: { executablePath: process.env['E2E_BROWSER_PATH'] || undefined },
+    ...(process.env['CI'] && { channel: 'chrome' }),
+    launchOptions: { ...(process.env['E2E_BROWSER_PATH'] && { executablePath: process.env['E2E_BROWSER_PATH'] }) },
     trace: 'retain-on-failure'
   },
   webServer: {

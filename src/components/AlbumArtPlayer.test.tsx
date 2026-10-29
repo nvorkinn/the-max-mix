@@ -15,11 +15,11 @@ const SpotifyJamQueue = partialProps(SpotifyJamQueueFull);
 
 const playback = {
   is_playing: true,
-  progress_ms: 65000,
+  progress_ms: 65_000,
   device: { id: 'dev1', name: 'Kitchen', volume_percent: 30 },
   item: {
     name: 'Song',
-    duration_ms: 200000,
+    duration_ms: 200_000,
     artists: [{ name: 'A' }, { name: 'B' }],
     album: { images: [{ url: 'http://art/1.jpg' }] },
     added_by: { name: 'Ann' }
@@ -71,7 +71,7 @@ describe('AlbumArtPlayer', () => {
   it('seeks with a numeric position and reports volume changes', () => {
     const h = setup();
     fireEvent.change(screen.getByRole('slider', { name: 'Playback position' }), { target: { value: '90000' } });
-    expect(h.onSeek).toHaveBeenCalledWith(90000);
+    expect(h.onSeek).toHaveBeenCalledWith(90_000);
     const volume = screen.getByRole('slider', { name: 'Volume' });
     expect(volume).toHaveValue('30');
     fireEvent.change(volume, { target: { value: '55' } });
@@ -119,7 +119,7 @@ describe('AlbumArtPlayer', () => {
   });
 
   it('clamps progress past the end of the track', () => {
-    setup({ playback: { ...playback, progress_ms: 999999 } });
+    setup({ playback: { ...playback, progress_ms: 999_999 } });
     expect(screen.getByRole('slider', { name: 'Playback position' })).toHaveValue('200000');
   });
 
@@ -136,10 +136,10 @@ describe('SpotifyJamQueue', () => {
       id: 'a',
       name: 'One',
       artists: [{ name: 'X' }],
-      duration_ms: 125000,
+      duration_ms: 125_000,
       added_by: { name: 'Ann', avatar: 'ann.png' }
     },
-    { id: 'b', title: 'Two', artist: 'Y', duration_ms: 60000 },
+    { id: 'b', title: 'Two', artist: 'Y', duration_ms: 60_000 },
     { uri: 'spotify:track:c', name: 'Three', external_urls: { spotify: 'https://open.spotify.com/track/c' } }
   ];
   const setupQueue = (props = {}) => {

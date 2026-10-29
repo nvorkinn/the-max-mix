@@ -55,36 +55,21 @@ export default defineConfig([
     },
     linterOptions: { reportUnusedDisableDirectives: 'error' },
     rules: {
-      // unicorn and sonarjs are enabled with their recommended presets; the rules below are left off because they are
-      // style preferences, would force renames or rewrites without catching bugs, or flag deliberate patterns here.
-      // File names (queueManager.js) are camelCase throughout; renaming them would churn every import for no gain.
-      'unicorn/filename-case': 'off',
-      // Abbreviations like req, res, err, env, args and params are the Node vocabulary.
-      'unicorn/name-replacements': 'off',
-      // Booleans named ready, play or retry read fine; an is/has prefix everywhere is only naming taste.
-      'unicorn/consistent-boolean-name': 'off',
-      // null is part of the JSON payloads the scripts read, so avoiding it is not an option.
+      // The root config files are JavaScript typed with JSDoc, whose single-line `/** @type */` comments these rules reject.
+      'unicorn/single-line-block-comment-style': 'off',
+      'unicorn/no-asterisk-prefix-in-documentation-comments': 'off',
+      // Stylelint's config uses `null` to switch rules off, and the scripts read JSON.
       'unicorn/no-null': 'off',
       // `(await x).y` is short and clear.
       'unicorn/no-await-expression-member': 'off',
-      // Comment formatting taste, and the leading asterisks are what typed JSDoc is written with.
-      'unicorn/single-line-block-comment-style': 'off',
-      'unicorn/no-asterisk-prefix-in-documentation-comments': 'off',
-      // Digit grouping such as 10_000 is purely cosmetic.
-      'unicorn/numeric-separators-style': 'off',
-      // Request handlers use .then/.catch/.finally on purpose to turn a failure into a response.
-      'unicorn/prefer-await': 'off',
-      'unicorn/prefer-then-catch': 'off',
-      // Same reason as n/no-process-exit below: the entry point and scripts exit on purpose.
+      // The scripts are CLI entry points that exit with a status on purpose.
       'unicorn/no-process-exit': 'off',
-      // Helpers are kept general (requireInteger takes a min) even if every current call passes the same value.
-      'unicorn/no-unnecessary-parameters': 'off',
-      // Reordering a condition can skip side effects; whether the "simple" part is cheaper is not worth a rule.
-      'unicorn/prefer-simple-condition-first': 'off',
+      'n/no-process-exit': 'off',
+      // `env` and `pkg` are the Node vocabulary.
+      'unicorn/name-replacements': 'off',
       // The only matches are the literal 'todo' flag name in this file, which is not a task.
       'sonarjs/todo-tag': 'off',
-      // The one Math.random() builds a fallback id for tracks without one; nothing security-related depends on it.
-      'sonarjs/pseudo-random': 'off',
+
       // Import hygiene. `recommended` already covers named/default/namespace/export/no-named-as-default and friends.
       'import-x/no-cycle': 'error',
       'import-x/no-duplicates': 'error',
@@ -128,12 +113,6 @@ export default defineConfig([
       ],
       // Numbers in template literals are safe and clearer than String(n); anything else (objects, undefined) stays an error.
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
-      // Early-return responses such as `return res.end()` are idiomatic in request handlers; the rule flags them as
-      // returning a void expression.
-      '@typescript-eslint/no-confusing-void-expression': 'off',
-      // process.exit() is only used by entry points (repository scripts), where exiting
-      // the process is the intent; the rule targets libraries.
-      'n/no-process-exit': 'off',
       // Private application, never published, so devDependencies (eslint plugins, test helpers) may be imported freely.
       'n/no-unpublished-import': 'off',
       // detect-non-literal-fs-filename flags every fs call whose path is not a string literal, such as the temporary
@@ -145,8 +124,8 @@ export default defineConfig([
     }
   },
   {
-    // Leftover `.only` / `.skip` / `.todo` would silently disable the rest of a suite, in the Node test runner and in Vitest.
-    files: ['**/test/**/*.{js,mjs,ts,tsx}', '**/*.test.{js,mjs,ts,tsx}'],
+    // Leftover `.only` / `.skip` / `.todo` would silently disable the rest of a suite.
+    files: ['src/test/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
     rules: {
       'no-restricted-syntax': [
         'error',
@@ -157,35 +136,6 @@ export default defineConfig([
         {
           selector: `CallExpression[callee.name=/^(${TEST_FUNCTIONS})$/] > ObjectExpression > Property[key.name=/^(${LEFTOVER_TEST_FLAGS})$/]`,
           message: 'Remove the leftover only / skip / todo option so every test runs.'
-        }
-      ]
-    }
-  },
-  {
-    // Node's test runner: the promises returned by test() and describe() are handled by the runner itself.
-    files: ['**/test/**/*.js', '**/*.test.{js,mjs}'],
-    ignores: TOOLING_IGNORES,
-    rules: {
-      // Tests issue requests in order on purpose, so awaiting in a loop is the intent.
-      'no-await-in-loop': 'off',
-      // Tests use made-up LAN addresses and http://localhost URLs as fixtures for the host and redirect checks.
-      'sonarjs/no-hardcoded-ip': 'off',
-      'sonarjs/no-clear-text-protocols': 'off',
-      // The kiosk installer tests feed it plain http addresses on purpose, to check that only loopback ones are accepted.
-      'unicorn/prefer-https': 'off',
-      // Catches `assert.rejects(...)` / `assert.doesNotReject(...)` without await, which would pass whatever happens.
-      // Test doubles are async only to return a promise like the real thing, and test bodies need not await.
-      '@typescript-eslint/require-await': 'off',
-      '@typescript-eslint/no-floating-promises': [
-        'error',
-        {
-          allowForKnownSafeCalls: [
-            {
-              from: 'package',
-              package: 'node:test',
-              name: ['test', 'it', 'describe', 'suite', 'before', 'after', 'beforeEach', 'afterEach']
-            }
-          ]
         }
       ]
     }
@@ -215,8 +165,7 @@ export default defineConfig([
   },
   {
     files: APP_FILES,
-    // The plugin's `configs` typing is stricter than ESLint's `Plugin` type; the plugin itself is a regular flat-config plugin.
-    plugins: { 'react-hooks': /** @type {import('eslint').ESLint.Plugin} */ (/** @type {unknown} */ (reactHooks)) },
+    plugins: reactHooks.configs.flat.recommended.plugins,
     languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: globals.browser },
     linterOptions: { reportUnusedDisableDirectives: 'error' },
     rules: {
@@ -262,39 +211,28 @@ export default defineConfig([
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
       // Empty arrow functions are how tests silence mocks (`mockImplementation(() => {})`).
       '@typescript-eslint/no-empty-function': ['error', { allow: ['arrowFunctions'] }],
-      // unicorn: noisy or opinionated rules left off.
+      // unicorn and sonarjs run with their recommended presets; the rules below stay off because they only express
+      // naming or style taste, or cannot tell the code here from the bug they look for.
       'unicorn/filename-case': 'off', // React components are PascalCase files.
       'unicorn/name-replacements': 'off', // Wants `error`/`event_` instead of the conventional `e`, `err`, `props`, `ref`.
       'unicorn/no-null': 'off', // null is how JSON, React refs and the Spotify API express "no value".
-      'unicorn/single-line-block-comment-style': 'off', // Single-line JSDoc (`/** @type {X} */`) is the JS type-annotation idiom.
-      'unicorn/no-asterisk-prefix-in-documentation-comments': 'off', // Conflicts with JSDoc comment formatting used for types.
-      'unicorn/numeric-separators-style': 'off', // Cosmetic.
       'unicorn/prefer-global-this': 'off', // `window` is clearer in browser-only code.
-      'unicorn/consistent-boolean-name': 'off', // Naming preference.
-      'unicorn/catch-error-name': 'off', // `err` is fine; renaming is cosmetic.
-      'unicorn/no-non-function-verb-prefix': 'off', // Naming preference.
-      'unicorn/consistent-compound-words': 'off', // Naming preference.
-      'unicorn/prefer-add-event-listener': 'off', // One-shot `img.onload`/`script.onerror` handlers; the test fakes implement the properties.
+      'unicorn/single-line-block-comment-style': 'off', // One-line `/** ... */` doc comments are kept as one line.
+      'unicorn/no-asterisk-prefix-in-documentation-comments': 'off', // Editors and TSDoc expect the leading asterisks.
+      'unicorn/consistent-boolean-name': 'off', // Naming preference; flags names that mirror the Spotify API (`play`).
+      'unicorn/catch-error-name': 'off', // Wants `error_` where `err` or `caught` reads better.
+      'unicorn/no-non-function-verb-prefix': 'off', // Naming preference; `onRemove` style handler props are conventional.
+      'unicorn/prefer-await': 'off', // A short fire-and-forget `.then().catch()` chain avoids an async wrapper.
       'unicorn/prefer-early-return': 'off', // The autofix produces negated compound conditions that read worse than the nested `if`.
       'unicorn/prefer-continue': 'off', // Same as prefer-early-return.
-      'unicorn/no-useless-undefined': 'off', // Strips `fn(undefined)` arguments that the JSDoc signatures require.
-      'unicorn/prefer-string-repeat': 'off', // Whitespace-only literals in tests read better as written.
-      'unicorn/prefer-await': 'off', // A short fire-and-forget `.then().catch()` chain reads fine and avoids an async wrapper.
+      'unicorn/prefer-add-event-listener': 'off', // One-shot `img.onload`/`script.onerror` handlers; the test fakes implement the properties.
       'unicorn/prefer-observer-apis': 'off', // Swapping resize listeners for ResizeObserver would change behaviour.
       'unicorn/prefer-code-point': 'off', // Would change behaviour for characters outside the BMP.
       'unicorn/prefer-math-trunc': 'off', // `| 0` is 32-bit wrapping (hashing), not a truncation; Math.trunc differs.
-      'unicorn/no-top-level-assignment-in-function': 'off', // Module-level memoised promise and test stub state are intended.
-      'unicorn/consistent-function-scoping': 'off', // Test helpers are kept next to the tests that use them.
-      'unicorn/no-unnecessary-parameters': 'off', // Test helpers keep explicit defaults for readability.
-      'unicorn/no-this-outside-of-class': 'off', // Mock `on` methods use `this` with a JSDoc @this type.
-      'unicorn/no-undeclared-class-members': 'off', // Test stubs set members from the constructor on purpose.
-      'unicorn/no-computed-property-existence-check': 'off', // The canvas stub lazily creates mock methods by name.
-      'unicorn/no-incorrect-template-string-interpolation': 'off', // False positive on the `\p{L}` regex classes in femaleSingers.js.
-      'unicorn/no-nested-ternary': 'off', // Duplicates sonarjs/no-nested-conditional.
-      // sonarjs: noisy rules left off.
+      'unicorn/no-top-level-assignment-in-function': 'off', // Module-level caches and in-flight promises (auth, SDK loader) are the design.
+      'unicorn/no-unnecessary-parameters': 'off', // Helpers keep a general signature even if every call passes the same value.
       'sonarjs/pseudo-random': 'off', // Math.random is only used for visuals and shuffling, never for security.
-      'sonarjs/no-clear-text-protocols': 'off', // http://localhost URLs in dev config and tests.
-      'sonarjs/cognitive-complexity': 'off', // The two hits are large render/animation functions; splitting them is a refactor, not a lint fix.
+      'sonarjs/cognitive-complexity': 'off', // The one hit is a large animation function; splitting it is a refactor, not a lint fix.
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'error'
     }
@@ -320,7 +258,12 @@ export default defineConfig([
   },
   {
     files: [...APP_TEST_FILES, 'src/test/**'],
-    languageOptions: { globals: { ...globals.node, ...globals.browser } }
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    rules: {
+      'sonarjs/no-clear-text-protocols': 'off', // http://localhost and example URLs are fixtures.
+      'unicorn/consistent-function-scoping': 'off', // Test helpers are kept next to the tests that use them.
+      'unicorn/no-computed-property-existence-check': 'off' // The canvas stub lazily creates mock methods by name.
+    }
   },
   {
     files: APP_TEST_FILES,

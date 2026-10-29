@@ -44,7 +44,7 @@ export default function AlbumArtPlayer({
     item.albumArt ||
     'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80';
   const progressMs = playback?.progress_ms ?? playback?.position ?? 0;
-  const durationMs = item.duration_ms || playback?.duration || 180000;
+  const durationMs = item.duration_ms || playback?.duration || 180_000;
   const progressPercent = Math.min(100, Math.max(0, (progressMs / durationMs) * 100));
   const rawAddedBy = item.added_by ?? item.addedBy ?? {};
   const guestName = isDemoMode ? rawAddedBy.name : null;

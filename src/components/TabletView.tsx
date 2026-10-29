@@ -3,8 +3,10 @@ import type { CSSProperties } from 'react';
 import { AudioLines, Clock, Settings, Speaker, ArrowUpRight } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { extractPalette } from '../utils/colorExtractor';
+import { errorMessage } from '../utils/errorMessage';
 import { getQueue, reorderDemoQueue, playDemoTrackNow } from '../spotify/api';
-import type { ApiError, Track } from '../types';
+import { SpotifyApiError } from '../spotify/http';
+import type { Track } from '../types';
 import AlbumArtPlayer from './AlbumArtPlayer';
 import SpotifyJamQueue from './SpotifyJamQueue';
 import TouchRipples from './TouchRipples';
@@ -100,9 +102,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         failures = 0;
       } catch (caught) {
         if (isCancelled()) return;
-        const apiError = caught as ApiError;
-        setQueueError(apiError.message);
-        delay = Math.max(Math.min(60_000, base * 2 ** ++failures), (apiError.retryAfter ?? 0) * 1000 || 0);
+        setQueueError(errorMessage(caught));
+        const retryAfter = caught instanceof SpotifyApiError ? caught.retryAfter : 0;
+        delay = Math.max(Math.min(60_000, base * 2 ** ++failures), retryAfter * 1000);
       }
       if (!isCancelled()) timer = setTimeout(() => void poll(), delay);
     };
@@ -139,7 +141,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       showToast('Demo queue order updated.');
       return true;
     } catch (err) {
-      showToast((err as Error).message);
+      showToast(errorMessage(err));
       return false;
     }
   };
@@ -151,7 +153,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       await refreshPlayback();
       showToast(`Demo playing: ${track.name || track.title}`);
     } catch (err) {
-      showToast((err as Error).message);
+      showToast(errorMessage(err));
     }
   };
 

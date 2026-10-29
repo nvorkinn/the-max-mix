@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Speaker, Check, RefreshCw } from 'lucide-react';
 import { getDevices } from '../spotify/api';
+import { errorMessage } from '../utils/errorMessage';
 import type { SpotifyDevice } from '../types';
 
 function describeDevice(device: SpotifyDevice) {
@@ -35,7 +36,7 @@ export default function SpeakerSelectorModal({
       setError(null);
     } catch (caught) {
       setDevices([]);
-      setError((caught as Error).message);
+      setError(errorMessage(caught));
     } finally {
       setLoading(false);
     }
@@ -51,7 +52,7 @@ export default function SpeakerSelectorModal({
       await onSelectSpeaker(deviceId);
       await fetchDevices();
     } catch (caught) {
-      setError((caught as Error).message);
+      setError(errorMessage(caught));
     } finally {
       setSelecting(false);
     }

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import type { ApiError, PlaybackState, SdkPlaybackState, SpotifyPlayer, Track } from '../types';
+import type { PlaybackState, SdkPlaybackState, SpotifyPlayer, Track } from '../types';
 import * as spotify from '../spotify/api';
 import { getAccessToken, isSignedIn } from '../spotify/auth';
+import { SpotifyApiError } from '../spotify/http';
 import { getPlaybackMode, isDemoMode as readDemoMode } from '../spotify/settings';
+import { errorMessage } from '../utils/errorMessage';
 import { loadSpotifySDK } from '../utils/spotifySdk';
 
 // Spotify's playback state lags a play/pause command by a second or more, so a read right after one still reports the
@@ -179,13 +181,13 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         failures = 0;
       } catch (error) {
         if (isCancelled()) return;
-        const apiError = error as ApiError;
-        setConnectionError(apiError.message);
-        if (apiError.status === 401 && !isSignedIn()) {
+        setConnectionError(errorMessage(error));
+        const apiError = error instanceof SpotifyApiError ? error : null;
+        if (apiError?.status === 401 && !isSignedIn()) {
           setIsAuthenticated(false);
           setPlayback(null);
         }
-        delay = Math.max(Math.min(60_000, base * 2 ** ++failures), (apiError.retryAfter ?? 0) * 1000 || 0);
+        delay = Math.max(Math.min(60_000, base * 2 ** ++failures), (apiError?.retryAfter ?? 0) * 1000);
       }
       setLoaded(true);
       if (!isCancelled()) timer = setTimeout(() => void poll(), delay);
@@ -265,7 +267,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
                 else if (!isCancelled()) setSdkError('Spotify login expired. Sign in again in Settings.');
               })
               .catch((error: unknown) => {
-                if (!isCancelled()) setSdkError((error as Error).message);
+                if (!isCancelled()) setSdkError(errorMessage(error));
               });
           },
           volume: 0.8
@@ -320,7 +322,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         if (connected) playerRef.current = player;
         else if (!isCancelled()) setSdkError('Could not connect the tablet player to Spotify.');
       } catch (error) {
-        if (!isCancelled()) setSdkError((error as Error).message);
+        if (!isCancelled()) setSdkError(errorMessage(error));
       }
     };
     void initialize();
@@ -346,7 +348,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         setActionError(null);
         return true;
       } catch (error) {
-        setActionError((error as Error).message);
+        setActionError(errorMessage(error));
         return false;
       }
     },
@@ -368,7 +370,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       setActionError(null);
       return true;
     } catch (error) {
-      setActionError((error as Error).message);
+      setActionError(errorMessage(error));
       // The player may have dropped; reconnect it and read where it really is.
       resumeRef.current?.();
       return false;
@@ -412,7 +414,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
           await transferTo(browserDeviceId, true);
           ok = true;
         } catch (error) {
-          setActionError((error as Error).message);
+          setActionError(errorMessage(error));
           ok = false;
         }
       } else ok = await runCommand(() => (playing ? spotify.play() : spotify.pause()));
@@ -434,7 +436,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       await transferTo(deviceId, false);
       return true;
     } catch (error) {
-      setActionError((error as Error).message);
+      setActionError(errorMessage(error));
       throw error;
     }
   };
