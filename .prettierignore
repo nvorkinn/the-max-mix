@@ -4,3 +4,5 @@ coverage
 release-out
 package-lock.json
 client/public
+playwright-report
+test-results

@@ -3,6 +3,16 @@
 import serverConfig from './server/eslint.config.js';
 
 export default [
-  { ignores: ['client/**', 'server/**', 'node_modules/**', 'release-out/**', 'coverage/**'] },
+  {
+    ignores: [
+      'client/**',
+      'server/**',
+      'node_modules/**',
+      'release-out/**',
+      'coverage/**',
+      'e2e/playwright-report/**',
+      'e2e/test-results/**'
+    ]
+  },
   ...serverConfig
 ];
