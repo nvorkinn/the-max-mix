@@ -224,6 +224,15 @@ old `hdmi_group`, `hdmi_mode`, or `display_rotate` settings into a modern setup.
 See `scripts/waveshare-7inch-config.txt` for notes. The playbook intentionally
 does not edit `/boot/firmware/config.txt` or overwrite monitor settings.
 
+### Wi-Fi setup portal
+
+A fresh Pi has no network, so it cannot run `ansible-pull`. [`pi/wifi/`](pi/wifi) holds an offline service
+(`the-max-mix-wifi.service`, Python standard library and `nmcli` only) installed by `sudo pi/wifi/install.sh`. Without
+internet it opens a `THE-MAX-MIX-SETUP` hotspot whose password and QR code `http://127.0.0.1:8088/` shows on the Pi's
+screen, where you can also type the credentials on the page's own on-screen keyboard; with internet that page lets you
+switch networks. See [`pi/wifi/README.md`](pi/wifi/README.md) for the modes, security and troubleshooting
+(`journalctl -u the-max-mix-wifi`). It has not been tried on a real Pi yet.
+
 ### Operations and updates
 
 ```bash
