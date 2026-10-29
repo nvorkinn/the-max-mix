@@ -20,11 +20,10 @@ export default defineConfig({
     trace: 'retain-on-failure'
   },
   webServer: {
-    // Serves the built client (run `npm run build` first).
-    command: 'node ../scripts/serve.mjs',
-    url: `http://127.0.0.1:${port}/api/health`,
+    // Serves the built client (run `npm run build` first) the way a static host does.
+    command: `npm --prefix ../client run preview -- --host 127.0.0.1 --port ${port} --strictPort`,
+    url: `http://127.0.0.1:${port}/`,
     reuseExistingServer: false,
-    timeout: 30_000,
-    env: { PORT: String(port), HOST: '127.0.0.1' }
+    timeout: 30_000
   }
 });

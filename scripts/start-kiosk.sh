@@ -13,7 +13,7 @@ browser=$(command -v chromium || command -v chromium-browser) || {
   echo "Chromium is missing. Install the Raspberry Pi OS chromium package." >&2
   exit 1
 }
-url=${KIOSK_URL:-http://127.0.0.1:3000}
+url=${KIOSK_URL:-https://spotify.dev.nikolaivorkinn.com/}
 profile=${KIOSK_PROFILE:-${XDG_CONFIG_HOME:-$HOME/.config}/the-max-mix/chromium}
 timeout=${KIOSK_STARTUP_TIMEOUT:-120}
 if [[ ! $timeout =~ ^[1-9][0-9]*$ ]]; then
@@ -21,9 +21,9 @@ if [[ ! $timeout =~ ^[1-9][0-9]*$ ]]; then
   exit 1
 fi
 deadline=$((SECONDS + timeout))
-until curl --fail --silent --show-error --max-time 2 "${url%/}/api/health" >/dev/null; do
+until curl --fail --silent --show-error --location --max-time 5 --output /dev/null "$url"; do
   if (( SECONDS >= deadline )); then
-    echo "Server did not become ready at $url within $timeout seconds. Check: journalctl -u the-max-mix.service" >&2
+    echo "$url did not answer within $timeout seconds. Check the network and the address in ~/.config/the-max-mix/kiosk.env." >&2
     exit 1
   fi
   sleep 1

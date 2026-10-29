@@ -6,7 +6,7 @@ StartLimitIntervalSec=0
 [Service]
 Type=simple
 ExecStart=/bin/bash "@ROOT@/scripts/start-kiosk.sh"
-Environment="KIOSK_URL=@URL@"
+EnvironmentFile="@ENV@"
 Environment="KIOSK_PROFILE=@HOME@/.config/the-max-mix/chromium"
 Restart=always
 RestartSec=5
