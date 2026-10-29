@@ -16,7 +16,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [lint, typecheck, format:check, knip, lint:md, lint:yaml, lint:css, lint:package-json, lint:lockfiles]
+        check:
+          [
+            lint,
+            typecheck,
+            format:check,
+            knip,
+            lint:spelling,
+            lint:md,
+            lint:yaml,
+            lint:css,
+            lint:package-json,
+            lint:lockfiles
+          ]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,3 +81,21 @@ jobs:
           mkdir "$RUNNER_TEMP/actionlint"
           tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP/actionlint" actionlint
           "$RUNNER_TEMP/actionlint/actionlint" -color .github/workflows/*.yml
+
+  editorconfig:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run editorconfig-checker
+        env:
+          VERSION: 4.0.2
+          SHA256: 44efaef3ed14c6ab52eb87481d78e5e5c204796dccf26e2f4598a61ba17f8003
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/editorconfig-checker.tar.gz" "https://github.com/editorconfig-checker/editorconfig-checker/releases/download/v${VERSION}/editorconfig-checker-linux-amd64.tar.gz"
+          echo "$SHA256  $RUNNER_TEMP/editorconfig-checker.tar.gz" | sha256sum -c -
+          mkdir "$RUNNER_TEMP/editorconfig-checker"
+          tar -xzf "$RUNNER_TEMP/editorconfig-checker.tar.gz" -C "$RUNNER_TEMP/editorconfig-checker" editorconfig-checker
+          "$RUNNER_TEMP/editorconfig-checker/editorconfig-checker"

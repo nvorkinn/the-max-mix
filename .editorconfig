@@ -1,3 +1,7 @@
+# Keep in step with .prettierrc.json: Prettier reads this file too, and .prettierrc.json wins where both set a value.
+# indent_size 2 is Prettier's default tabWidth. There is deliberately no max_line_length: Prettier's printWidth (120,
+# in .prettierrc.json) cannot wrap comments, strings or URLs, so a hard limit here would flag lines Prettier accepts.
+# CI checks the repository against this file with editorconfig-checker.
 root = true
 
 [*]
@@ -10,3 +14,5 @@ trim_trailing_whitespace = true
 
 [*.md]
 trim_trailing_whitespace = false
+# Prettier indents nested content of numbered lists by 3 spaces, and fenced code inside them to match.
+indent_size = unset
