@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { AudioLines, Clock, Settings, Speaker, ArrowUpRight } from 'lucide-react';
-import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer.js';
-import { extractPalette } from '../utils/colorExtractor.js';
-import { getQueue, reorderDemoQueue, playDemoTrackNow } from '../spotify/api.js';
-import AlbumArtPlayer from './AlbumArtPlayer.jsx';
-import SpotifyJamQueue from './SpotifyJamQueue.jsx';
-import TouchRipples from './TouchRipples.jsx';
-import SettingsModal from './SettingsModal.jsx';
-import SpeakerSelectorModal from './SpeakerSelectorModal.jsx';
-import JamSettingsModal from './JamSettingsModal.jsx';
+import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
+import { extractPalette } from '../utils/colorExtractor';
+import { getQueue, reorderDemoQueue, playDemoTrackNow } from '../spotify/api';
+import AlbumArtPlayer from './AlbumArtPlayer';
+import SpotifyJamQueue from './SpotifyJamQueue';
+import TouchRipples from './TouchRipples';
+import SettingsModal from './SettingsModal';
+import SpeakerSelectorModal from './SpeakerSelectorModal';
+import JamSettingsModal from './JamSettingsModal';
 
 const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -40,7 +40,7 @@ export default function TabletView({ signInError = null }) {
   } = useSpotifyPlayer();
   const error = playerError || signInError;
 
-  const [queue, setQueue] = useState(/** @type {import('../types.js').Track[]} */ ([]));
+  const [queue, setQueue] = useState(/** @type {import('../types').Track[]} */ ([]));
   const [currentTime, setCurrentTime] = useState(formatClock);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSpeakerModalOpen, setIsSpeakerModalOpen] = useState(false);
@@ -101,7 +101,7 @@ export default function TabletView({ signInError = null }) {
         failures = 0;
       } catch (caught) {
         if (isCancelled()) return;
-        const apiError = /** @type {import('../types.js').ApiError} */ (caught);
+        const apiError = /** @type {import('../types').ApiError} */ (caught);
         setQueueError(apiError.message);
         delay = Math.max(Math.min(60_000, base * 2 ** ++failures), (apiError.retryAfter ?? 0) * 1000 || 0);
       }
@@ -134,7 +134,7 @@ export default function TabletView({ signInError = null }) {
     toastTimerRef.current = setTimeout(() => setToastMessage(null), 3500);
   };
 
-  /** @param {import('../types.js').Track[]} newQueue */
+  /** @param {import('../types').Track[]} newQueue */
   const handleReorderQueue = async newQueue => {
     try {
       const data = await reorderDemoQueue(newQueue);
@@ -149,7 +149,7 @@ export default function TabletView({ signInError = null }) {
 
   /**
    * @param {string | undefined} trackId
-   * @param {import('../types.js').Track} track
+   * @param {import('../types').Track} track
    */
   const handlePlaySongNow = async (trackId, track) => {
     try {

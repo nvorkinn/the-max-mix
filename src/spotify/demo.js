@@ -1,7 +1,7 @@
 // A simulated Spotify player for demo mode, ported from the old server. It answers like the real Web API does but
 // keeps everything in memory, so demo mode needs no network and no Spotify account.
 
-import { SpotifyApiError } from './http.js';
+import { SpotifyApiError } from './http';
 
 /** @param {string} id */
 const image = id => `https://images.unsplash.com/${id}?w=600&auto=format&fit=crop&q=80`;

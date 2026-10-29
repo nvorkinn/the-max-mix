@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { defined } from '../test/defined.js';
-import QueueBoard from './QueueBoard.jsx';
+import { defined } from '../test/defined';
+import QueueBoard from './QueueBoard';
 
 const queue = [
   { id: 't1', title: 'First', artist: 'A', votes: 3, albumArt: 'a.jpg', addedBy: { name: 'Ann', avatar: '🎧' } },

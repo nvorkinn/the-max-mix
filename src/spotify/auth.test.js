@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { parseJson } from './http.js';
+import { parseJson } from './http';
 
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 
@@ -9,8 +9,8 @@ const json = (body, status = 200) => Response.json(body, { status });
 /** A fresh copy of the modules, so the in-memory token cache of one test cannot leak into the next. */
 async function load() {
   vi.resetModules();
-  const auth = await import('./auth.js');
-  const settings = await import('./settings.js');
+  const auth = await import('./auth');
+  const settings = await import('./settings');
   return { ...auth, ...settings };
 }
 

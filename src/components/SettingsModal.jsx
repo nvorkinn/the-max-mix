@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Key, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feather, LogOut } from 'lucide-react';
-import { signOut, startSignIn } from '../spotify/auth.js';
-import { getClientId, getRedirectUri, setClientId, setDemoMode, setPlaybackMode } from '../spotify/settings.js';
+import { signOut, startSignIn } from '../spotify/auth';
+import { getClientId, getRedirectUri, setClientId, setDemoMode, setPlaybackMode } from '../spotify/settings';
 
 /** Applies a changed setting by reloading the page, which starts everything again from the stored settings. */
 function reloadPage() {

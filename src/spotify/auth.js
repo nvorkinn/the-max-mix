@@ -1,8 +1,8 @@
 // Spotify sign-in with PKCE, entirely in the browser (RFC 7636): a random code verifier stays in sessionStorage while
 // Spotify's page is open, and only its SHA-256 hash is sent. The long-lived refresh token is kept in localStorage.
 
-import { getClientId, getRedirectUri } from './settings.js';
-import { fetchSpotify, parseJson, readJson, SpotifyApiError } from './http.js';
+import { getClientId, getRedirectUri } from './settings';
+import { fetchSpotify, parseJson, readJson, SpotifyApiError } from './http';
 
 const AUTH_KEY = 'maxmix.auth';
 const PKCE_KEY = 'maxmix.pkce';

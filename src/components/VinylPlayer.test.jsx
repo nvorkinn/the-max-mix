@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { installCanvasStub, stubMatchMedia } from '../test/canvas.js';
-import VinylPlayer from './VinylPlayer.jsx';
+import { installCanvasStub, stubMatchMedia } from '../test/canvas';
+import VinylPlayer from './VinylPlayer';
 
 const playback = {
   progress_ms: 30000,

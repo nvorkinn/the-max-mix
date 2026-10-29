@@ -1,15 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { partialProps } from '../test/partialProps.js';
-import AlbumArtPlayerFull from './AlbumArtPlayer.jsx';
+import { partialProps } from '../test/partialProps';
+import AlbumArtPlayerFull from './AlbumArtPlayer';
 
 const AlbumArtPlayer = partialProps(AlbumArtPlayerFull);
 
-vi.mock('./AudioVisualizer.jsx', () => ({ default: () => null }));
+vi.mock('./AudioVisualizer', () => ({ default: () => null }));
 
 /** @param {number} volume_percent */
 const withVolume = volume_percent => ({ device: { id: 'd1', name: 'Speaker', volume_percent, supports_volume: true } });
-/** @param {import('../types.js').PlaybackState} playback */
+/** @param {import('../types').PlaybackState} playback */
 const player = playback => <AlbumArtPlayer playback={playback} controlsEnabled />;
 
 describe('AlbumArtPlayer volume', () => {

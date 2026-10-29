@@ -1,4 +1,4 @@
-import TabletView from './components/TabletView.jsx';
+import TabletView from './components/TabletView';
 
 /** @param {{ signInError?: string | null }} props signInError: why finishing the Spotify sign-in failed */
 export default function App({ signInError = null }) {

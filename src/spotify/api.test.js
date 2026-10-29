@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as auth from './auth.js';
-import * as api from './api.js';
-import { parseJson } from './http.js';
-import { setDemoMode } from './settings.js';
+import * as auth from './auth';
+import * as api from './api';
+import { parseJson } from './http';
+import { setDemoMode } from './settings';
 
-vi.mock('./auth.js', () => ({
+vi.mock('./auth', () => ({
   getAccessToken: vi.fn(),
   isSignedIn: vi.fn(),
   discardAccessToken: vi.fn()
@@ -19,7 +19,7 @@ const callOf = (fetchMock, call = 0) => {
   return { url, init, headers: /** @type {Record<string, string>} */ (init.headers) };
 };
 
-/** @typedef {import('../types.js').Track} Track */
+/** @typedef {import('../types').Track} Track */
 
 describe('spotify/api', () => {
   /** @type {ReturnType<typeof vi.fn>} */
@@ -294,7 +294,7 @@ describe('spotify/api', () => {
     });
 
     /** A fresh demo player for each test. */
-    const freshApi = async () => import('./api.js');
+    const freshApi = async () => import('./api');
     const ALL_QUEUED = ['demo-queue-1', 'demo-queue-2', 'demo-queue-3', 'demo-queue-4'];
     /** @param {typeof api} demo */
     const queueIds = async demo => {

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, AudioLines } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { getDivaForUser } from '../utils/divas.js';
-import AudioVisualizer from './AudioVisualizer.jsx';
+import { getDivaForUser } from '../utils/divas';
+import AudioVisualizer from './AudioVisualizer';
 
 /**
- * @param {import('../types.js').PlayerControls & { theme?: string, isDemoMode?: boolean, controlsEnabled?: boolean }} props
+ * @param {import('../types').PlayerControls & { theme?: string, isDemoMode?: boolean, controlsEnabled?: boolean }} props
  */
 export default function AlbumArtPlayer({
   playback,
@@ -29,8 +29,7 @@ export default function AlbumArtPlayer({
   }
   const volumeEnabled =
     controlsEnabled && playback?.device?.supports_volume !== false && playback?.device?.volume_percent != null;
-  const item =
-    playback?.item ?? playback?.track_window?.current_track ?? /** @type {import('../types.js').Track} */ ({});
+  const item = playback?.item ?? playback?.track_window?.current_track ?? /** @type {import('../types').Track} */ ({});
   const title = item.name || item.title || 'Ready when you are';
   const artist = item.artists
     ? item.artists.map(a => a.name).join(', ')

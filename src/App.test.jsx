@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import App from './App.jsx';
+import App from './App';
 
-vi.mock('./components/TabletView.jsx', () => ({
+vi.mock('./components/TabletView', () => ({
   default: (/** @type {{ signInError?: string }} */ { signInError }) => <div>tablet-view {signInError}</div>
 }));
 

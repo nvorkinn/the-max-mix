@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isTrackByFemaleSinger, findFemaleSingersInQueue } from './femaleSingers.js';
+import { isTrackByFemaleSinger, findFemaleSingersInQueue } from './femaleSingers';
 
 describe('isTrackByFemaleSinger', () => {
   it('reports no match for missing tracks', () => {
@@ -14,7 +14,7 @@ describe('isTrackByFemaleSinger', () => {
     });
     expect(
       isTrackByFemaleSinger(
-        /** @type {import('../types.js').Track} */ (/** @type {unknown} */ ({ artists: ['Dua Lipa'] }))
+        /** @type {import('../types').Track} */ (/** @type {unknown} */ ({ artists: ['Dua Lipa'] }))
       ).isFemale
     ).toBe(true);
   });

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { defined } from '../test/defined.js';
+import { defined } from '../test/defined';
 
 const win = /** @type {Window & { Spotify?: unknown, onSpotifyWebPlaybackSDKReady?: () => void }} */ (window); // Spotify globals are not part of the Window type
 
 describe('loadSpotifySDK', () => {
-  /** @type {typeof import('./spotifySdk.js').loadSpotifySDK} */
+  /** @type {typeof import('./spotifySdk').loadSpotifySDK} */
   let loadSpotifySDK;
 
   beforeEach(async () => {
@@ -12,7 +12,7 @@ describe('loadSpotifySDK', () => {
     delete win.Spotify;
     delete win.onSpotifyWebPlaybackSDKReady;
     document.head.replaceChildren();
-    ({ loadSpotifySDK } = await import('./spotifySdk.js'));
+    ({ loadSpotifySDK } = await import('./spotifySdk'));
   });
   afterEach(() => vi.useRealTimers());
 

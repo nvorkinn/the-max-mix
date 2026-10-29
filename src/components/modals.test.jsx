@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '../test/user.js';
-import { partialProps } from '../test/partialProps.js';
-import { defined } from '../test/defined.js';
-import QRCodeModalFull from './QRCodeModal.jsx';
-import JamSettingsModalFull from './JamSettingsModal.jsx';
-import SettingsModalFull from './SettingsModal.jsx';
-import SpeakerSelectorModalFull from './SpeakerSelectorModal.jsx';
+import userEvent from '../test/user';
+import { partialProps } from '../test/partialProps';
+import { defined } from '../test/defined';
+import QRCodeModalFull from './QRCodeModal';
+import JamSettingsModalFull from './JamSettingsModal';
+import SettingsModalFull from './SettingsModal';
+import SpeakerSelectorModalFull from './SpeakerSelectorModal';
 
 const api = vi.hoisted(() => ({ getDevices: vi.fn() }));
 const auth = vi.hoisted(() => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
@@ -17,9 +17,9 @@ const settings = vi.hoisted(() => ({
   setDemoMode: vi.fn(),
   getRedirectUri: vi.fn()
 }));
-vi.mock('../spotify/api.js', () => api);
-vi.mock('../spotify/auth.js', () => auth);
-vi.mock('../spotify/settings.js', () => settings);
+vi.mock('../spotify/api', () => api);
+vi.mock('../spotify/auth', () => auth);
+vi.mock('../spotify/settings', () => settings);
 
 const QRCodeModal = partialProps(QRCodeModalFull);
 const JamSettingsModal = partialProps(JamSettingsModalFull);

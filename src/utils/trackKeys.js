@@ -2,7 +2,7 @@
 // and the same track can legitimately appear twice, so build the key deliberately: the track's own identity plus an
 // occurrence counter for repeats. Unlike the list index, this key follows the track when the queue is reordered.
 /**
- * @param {import('../types.js').Track[]} tracks
+ * @param {import('../types').Track[]} tracks
  * @returns {string[]}
  */
 export function trackKeys(tracks) {

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X, Speaker, Check, RefreshCw } from 'lucide-react';
-import { getDevices } from '../spotify/api.js';
+import { getDevices } from '../spotify/api';
 
-/** @param {import('../types.js').SpotifyDevice} device */
+/** @param {import('../types').SpotifyDevice} device */
 function describeDevice(device) {
   if (device.is_restricted) return 'Playback control restricted';
   const volume = device.volume_percent == null ? '' : ` / ${device.volume_percent}% volume`;
@@ -19,7 +19,7 @@ function describeDevice(device) {
  * }} props
  */
 export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker, browserDeviceId, isDemoMode }) {
-  const [devices, setDevices] = useState(/** @type {import('../types.js').SpotifyDevice[]} */ ([]));
+  const [devices, setDevices] = useState(/** @type {import('../types').SpotifyDevice[]} */ ([]));
   const [loading, setLoading] = useState(false);
   const [selecting, setSelecting] = useState(false);
   const [error, setError] = useState(/** @type {string | null} */ (null));
