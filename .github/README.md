@@ -23,6 +23,6 @@ checked against a SHA-256 before running. It is listed in `all-checks.yml` too.
 - **Required check:** `Global PR Status`.
 - **Repository setting:** Settings > Actions > General > Workflow permissions >
   **Allow GitHub Actions to create and approve pull requests** must stay enabled.
-- `CodeQL` (code scanning, configured as GitHub's default setup under Settings > Code security) is listed in
+- `CodeQL` (code scanning, an advanced setup defined in `codeql.yml`) is listed in
   `all-checks.yml` too, so Global PR Status is also re-evaluated when CodeQL finishes, which is usually the last check.
 - When you add a workflow that runs on pull requests, add its `name` to `workflows:` in `all-checks.yml`.
