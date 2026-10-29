@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { defined } from '../test/defined.js';
 
-/** @type {any} */
-const win = window; // Spotify globals are not part of the Window type
+const win = /** @type {Window & { Spotify?: unknown, onSpotifyWebPlaybackSDKReady?: () => void }} */ (window); // Spotify globals are not part of the Window type
 
 describe('loadSpotifySDK', () => {
   /** @type {typeof import('./spotifySdk.js').loadSpotifySDK} */
@@ -31,13 +31,13 @@ describe('loadSpotifySDK', () => {
       'https://sdk.scdn.co/spotify-player.js'
     );
     win.Spotify = { ok: true };
-    win.onSpotifyWebPlaybackSDKReady();
+    defined(win.onSpotifyWebPlaybackSDKReady)();
     await expect(first).resolves.toEqual({ ok: true });
   });
 
   it('rejects, removes the script and allows a retry on load error', async () => {
     const promise = loadSpotifySDK();
-    /** @type {any} */ (document.head.querySelector('script')).onerror(new Event('error'));
+    defined(defined(document.head.querySelector('script')).onerror)(new Event('error'));
     await expect(promise).rejects.toThrow(/Could not load the Spotify SDK/);
     expect(document.head.querySelector('script')).toBeNull();
     loadSpotifySDK().catch(() => {});

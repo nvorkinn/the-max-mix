@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { requestJSON, postJSON } from './api.js';
+import { defined } from '../test/defined.js';
 
 /**
  * @param {unknown} body
@@ -20,7 +21,7 @@ describe('api', () => {
   it('returns parsed JSON on success and passes a timeout signal', async () => {
     fetchMock().mockResolvedValue(mockResponse({ hello: 'world' }));
     await expect(requestJSON('/api/info')).resolves.toEqual({ hello: 'world' });
-    const [url, options] = fetchMock().mock.calls[0];
+    const [url, options] = defined(fetchMock().mock.calls[0]);
     expect(url).toBe('/api/info');
     expect(options.signal).toBeInstanceOf(AbortSignal);
   });
@@ -44,7 +45,7 @@ describe('api', () => {
   it('postJSON sends a JSON body with the right headers', async () => {
     fetchMock().mockResolvedValue(mockResponse({ ok: true }));
     await postJSON('/api/spotify/seek', { position_ms: 5 });
-    const [, options] = fetchMock().mock.calls[0];
+    const [, options] = defined(fetchMock().mock.calls[0]);
     expect(options.method).toBe('POST');
     expect(options.headers).toEqual({ 'Content-Type': 'application/json' });
     expect(JSON.parse(options.body)).toEqual({ position_ms: 5 });
@@ -53,6 +54,6 @@ describe('api', () => {
   it('postJSON defaults to an empty object body', async () => {
     fetchMock().mockResolvedValue(mockResponse({}));
     await postJSON('/x');
-    expect(fetchMock().mock.calls[0][1].body).toBe('{}');
+    expect(defined(fetchMock().mock.calls[0])[1].body).toBe('{}');
   });
 });

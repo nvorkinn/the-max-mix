@@ -38,7 +38,9 @@ function stubCanvas(pixels, { throws = false } = {}) {
       return { data: Uint8ClampedArray.from(pixels) };
     })
   };
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(/** @type {any} */ (ctx)); // partial 2d context stub
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+    /** @type {CanvasRenderingContext2D} */ (/** @type {unknown} */ (ctx))
+  ); // partial 2d context stub
   return ctx;
 }
 

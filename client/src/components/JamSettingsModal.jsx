@@ -1,4 +1,3 @@
-import React from 'react';
 import { X, Users } from 'lucide-react';
 
 /** @param {{ isOpen: boolean, onClose: () => void }} props */

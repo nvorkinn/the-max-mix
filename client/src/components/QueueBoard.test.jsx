@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import QueueBoard from './QueueBoard.jsx';
+import { defined } from '../test/defined.js';
 
 const queue = [
   { id: 't1', title: 'First', artist: 'A', votes: 3, albumArt: 'a.jpg', addedBy: { name: 'Ann', avatar: '🎧' } },
@@ -35,7 +36,7 @@ describe('QueueBoard', () => {
     fireEvent.click(/** @type {Element} */ (screen.getByText('3').closest('button')));
     expect(h.onUpvote).toHaveBeenCalledWith('t1');
     const removeButtons = screen.getAllByRole('button').filter(b => b.querySelector('svg.lucide-trash-2'));
-    fireEvent.click(removeButtons[1]);
+    fireEvent.click(defined(removeButtons[1]));
     expect(h.onRemove).toHaveBeenCalledWith('t2');
   });
 

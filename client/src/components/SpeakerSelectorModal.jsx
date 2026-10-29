@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Speaker, Check, RefreshCw } from 'lucide-react';
 import { requestJSON } from '../utils/api.js';
 

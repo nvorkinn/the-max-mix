@@ -10,6 +10,7 @@ import JamSettingsModalFull from './JamSettingsModal.jsx';
 import SettingsModalFull from './SettingsModal.jsx';
 import SpeakerSelectorModalFull from './SpeakerSelectorModal.jsx';
 import { partialProps } from '../test/partialProps.js';
+import { defined } from '../test/defined.js';
 
 const QRCodeModal = partialProps(QRCodeModalFull);
 const JamSettingsModal = partialProps(JamSettingsModalFull);
@@ -27,7 +28,7 @@ describe('QRCodeModal', () => {
     const { container } = render(<QRCodeModal isOpen onClose={onClose} remoteUrl="http://192.168.1.5/remote" />);
     expect(screen.getByRole('link')).toHaveAttribute('href', 'http://192.168.1.5/remote');
     expect(container.querySelector('svg[role="img"], svg')).toBeTruthy();
-    await userEvent.click(screen.getAllByRole('button')[0]);
+    await userEvent.click(defined(screen.getAllByRole('button')[0]));
     expect(onClose).toHaveBeenCalled();
   });
 });

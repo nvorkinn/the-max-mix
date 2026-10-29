@@ -1,11 +1,10 @@
-import React from 'react';
 import { X, Key, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feather } from 'lucide-react';
 
 /**
  * @param {{
  *   isOpen: boolean,
  *   onClose: () => void,
- *   authInfo?: { authenticated?: boolean, configured?: boolean, demoMode?: boolean, playbackMode?: string },
+ *   authInfo?: { authenticated?: boolean, configured?: boolean, demoMode?: boolean, playbackMode?: string | undefined },
  *   currentTheme?: string,
  *   onThemeChange?: (theme: string) => void
  * }} props

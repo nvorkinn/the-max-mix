@@ -1,4 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
+
+/**
+ * @typedef {{ x: number, y: number, vx: number, vy: number, vRot: number, rotation: number, wobble: number,
+ *   size: number, scale: number, opacity: number, emoji: string, guestName: string | null }} Particle
+ */
 
 /**
  * High-performance 60 FPS HTML5 Canvas particle system for emoji bursts
@@ -7,7 +12,7 @@ import React, { useEffect, useRef } from 'react';
 /** @param {{ socket: import('socket.io-client').Socket | null }} props */
 export default function ReactionCanvas({ socket }) {
   const canvasRef = useRef(/** @type {HTMLCanvasElement | null} */ (null));
-  const particlesRef = useRef(/** @type {any[]} */ ([]));
+  const particlesRef = useRef(/** @type {Particle[]} */ ([]));
   const animFrameRef = useRef(/** @type {number | null} */ (null));
 
   useEffect(() => {
@@ -29,6 +34,7 @@ export default function ReactionCanvas({ socket }) {
 
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
+        if (!p) continue;
         p.y += p.vy;
         p.x += Math.sin(p.wobble) * 1.5 + p.vx;
         p.wobble += 0.08;
@@ -67,7 +73,7 @@ export default function ReactionCanvas({ socket }) {
 
     // Socket listener for new reactions
     if (socket) {
-      /** @param {{ emoji: string, [key: string]: any }} data */
+      /** @param {import('../types.js').Reaction} data */
       const handleReaction = data => {
         // Spawn 3 to 5 particles per reaction for a lively pop!
         const count = 3;
@@ -86,7 +92,7 @@ export default function ReactionCanvas({ socket }) {
             scale: 0.8,
             opacity: 1,
             emoji: data.emoji || '🔥',
-            guestName: j === 0 ? data.guestName : null // Only tag one particle
+            guestName: j === 0 ? (data.guestName ?? null) : null // Only tag one particle
           });
         }
       };
