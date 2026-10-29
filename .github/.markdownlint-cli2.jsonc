@@ -1,0 +1,4 @@
+{
+  // The pull request template is pasted under GitHub's own PR title, so it deliberately starts at heading level 2.
+  "config": { "extends": "../.markdownlint.jsonc", "MD041": false }
+}

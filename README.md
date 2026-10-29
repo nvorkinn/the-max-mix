@@ -50,7 +50,7 @@ npm run build
 npm start
 ```
 
-Open **http://127.0.0.1:3000**. For a UI-only demonstration, set `DEMO_MODE=true`
+Open **<http://127.0.0.1:3000>**. For a UI-only demonstration, set `DEMO_MODE=true`
 in `server/.env` and restart. Otherwise leave it `false` and configure Spotify.
 The server loads this file regardless of the working directory; existing process
 environment values take precedence.
