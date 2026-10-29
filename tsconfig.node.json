@@ -15,5 +15,13 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["scripts/*.js", "scripts/*.mjs", "scripts/test/*.mjs", "e2e/*.js", "e2e/*.ts", "*.config.js", "*.config.mjs"]
+  "include": [
+    "scripts/*.js",
+    "scripts/*.mjs",
+    "scripts/test/*.mjs",
+    "e2e/*.js",
+    "e2e/*.ts",
+    "*.config.js",
+    "*.config.mjs"
+  ]
 }
