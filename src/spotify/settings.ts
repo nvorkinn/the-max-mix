@@ -22,7 +22,7 @@ function write(key: string, value: string | null): void {
   }
 }
 
-/** The Spotify client ID, built in at build time (VITE_SPOTIFY_CLIENT_ID). Not a secret, and never entered in the app. */
+/** The Spotify client ID, built in at build time (VITE_SPOTIFY_CLIENT_ID, defaulted in the committed .env). Not a secret. */
 export function getClientId(): string {
   const built: unknown = import.meta.env['VITE_SPOTIFY_CLIENT_ID'];
   return typeof built === 'string' ? built.trim() : '';
