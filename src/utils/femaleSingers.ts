@@ -1,3 +1,5 @@
+import type { Track } from '../types';
+
 /**
  * Known female artists / singers catalog for the Jam Settings Lockout Rule
  */
@@ -85,23 +87,18 @@ const FEMALE_ARTISTS_CATALOG = [
   'dolly parton'
 ];
 
-/** @param {string} text */
-const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // A catalog name only counts as a whole name, so "Asia" does not match "sia" and "Cherry" does not match "cher".
 const CATALOG_MATCHERS = FEMALE_ARTISTS_CATALOG.map(
   name => new RegExp(String.raw`(?<![\p{L}\p{N}])${escapeRegExp(name)}(?![\p{L}\p{N}])`, 'u')
 );
 
-/**
- * Checks if a track features any known female artists
- * @param {import('../types').Track | null | undefined} track
- */
-export function isTrackByFemaleSinger(track) {
+/** Checks if a track features any known female artists */
+export function isTrackByFemaleSinger(track: Track | null | undefined): { isFemale: boolean; artist: string | null } {
   if (!track) return { isFemale: false, artist: null };
 
-  /** @type {string[]} */
-  const artistsToCheck = [];
+  const artistsToCheck: string[] = [];
 
   if (Array.isArray(track.artists)) {
     artistsToCheck.push(...track.artists.map(a => (typeof a === 'string' ? a : a.name || '')));
@@ -122,12 +119,9 @@ export function isTrackByFemaleSinger(track) {
   return { isFemale: false, artist: null };
 }
 
-/**
- * Checks if any track in the queue features a female singer
- * @param {import('../types').Track[]} [queue]
- */
-export function findFemaleSingersInQueue(queue = []) {
-  const found = [];
+/** Checks if any track in the queue features a female singer */
+export function findFemaleSingersInQueue(queue: Track[] = []): { trackTitle: string; artist: string | null }[] {
+  const found: { trackTitle: string; artist: string | null }[] = [];
 
   for (const track of queue) {
     const check = isTrackByFemaleSinger(track);

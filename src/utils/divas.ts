@@ -3,8 +3,14 @@
  * Supports Neon (Global Divas) and Minimalist Studio themes.
  */
 
+interface Avatar {
+  name: string;
+  image: string;
+  title?: string;
+}
+
 // 1. NEON SKIN: Iconic Global Divas
-export const GLOBAL_DIVAS = [
+export const GLOBAL_DIVAS: Avatar[] = [
   { name: 'Britney Spears', image: '/divas/britney.jpg', title: 'Pop Princess' },
   { name: 'Ariana Grande', image: '/divas/ariana.jpg', title: 'Vocal Diva' },
   { name: 'Christina Aguilera', image: '/divas/christina.jpg', title: 'Voice of a Generation' },
@@ -17,8 +23,7 @@ export const GLOBAL_DIVAS = [
 ];
 
 // 2. MINIMALIST SKIN: Clean monochrome studio portraits
-/** @type {{ name: string, image: string, title?: string }[]} */
-export const MINIMALIST_AVATARS = [
+export const MINIMALIST_AVATARS: Avatar[] = [
   {
     name: 'Studio A',
     image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
@@ -41,27 +46,15 @@ export const MINIMALIST_AVATARS = [
   }
 ];
 
-/** @typedef {{ name: string, image: string, title?: string }} Avatar */
-
-/**
- * The roster entry at `index` (wrapping around); the rosters are never empty.
- * @param {Avatar[]} roster
- * @param {number} index
- * @returns {Avatar}
- */
-function pick(roster, index) {
-  return /** @type {Avatar} */ (roster[index % roster.length]);
+/** The roster entry at `index` (wrapping around); the rosters are never empty. */
+function pick(roster: Avatar[], index: number): Avatar {
+  const avatar = roster[index % roster.length];
+  if (!avatar) throw new Error('The avatar roster is empty.');
+  return avatar;
 }
 
-/**
- * Returns the appropriate avatar based on the selected theme
- * @returns {Avatar}
- * @param {string | null | undefined} userNameOrId
- * @param {number} [fallbackIndex]
- * @param {string} [theme]
- */
-export function getDivaForUser(userNameOrId, fallbackIndex = 0, theme = 'neon') {
-  /** @type {Avatar[]} */
+/** Returns the appropriate avatar based on the selected theme */
+export function getDivaForUser(userNameOrId: string | null | undefined, fallbackIndex = 0, theme = 'neon'): Avatar {
   let roster = GLOBAL_DIVAS;
 
   if (theme === 'minimal') {

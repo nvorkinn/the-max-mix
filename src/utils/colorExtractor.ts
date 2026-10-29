@@ -1,10 +1,12 @@
-/**
- * Extracts ambient colors from album art image using an offscreen canvas
- * @param {string | null} [imageUrl]
- * @returns {Promise<{ primary: string, secondary: string, dark: string }>}
- */
-export async function extractPalette(imageUrl) {
-  const fallback = {
+interface Palette {
+  primary: string;
+  secondary: string;
+  dark: string;
+}
+
+/** Extracts ambient colors from album art image using an offscreen canvas */
+export async function extractPalette(imageUrl?: string | null): Promise<Palette> {
+  const fallback: Palette = {
     primary: 'rgba(29, 185, 84, 0.4)', // Spotify green
     secondary: 'rgba(125, 42, 232, 0.3)',
     dark: 'rgba(15, 17, 26, 0.95)'
@@ -12,7 +14,7 @@ export async function extractPalette(imageUrl) {
 
   if (!imageUrl) return fallback;
 
-  return new Promise(resolve => {
+  return new Promise<Palette>(resolve => {
     const img = new Image();
     img.crossOrigin = 'Anonymous';
     img.src = imageUrl;
@@ -20,7 +22,8 @@ export async function extractPalette(imageUrl) {
     img.onload = () => {
       try {
         const canvas = document.createElement('canvas');
-        const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('No 2d canvas context');
         canvas.width = 10;
         canvas.height = 10;
         ctx.drawImage(img, 0, 0, 10, 10);

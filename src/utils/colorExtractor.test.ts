@@ -7,18 +7,13 @@ const FALLBACK = {
   dark: 'rgba(15, 17, 26, 0.95)'
 };
 
-/** @type {'load' | 'error'} */
-let imageBehavior = 'load';
+let imageBehavior: 'load' | 'error' = 'load';
 
 class FakeImage {
-  /** @type {(() => void) | undefined} */
-  onload;
-  /** @type {(() => void) | undefined} */
-  onerror;
+  onload: (() => void) | undefined;
+  onerror: (() => void) | undefined;
 
-  /** @param {string} value */
-  set src(value) {
-    this._src = value;
+  set src(_value: string) {
     queueMicrotask(() => {
       if (imageBehavior === 'error') this.onerror?.();
       else this.onload?.();
@@ -26,11 +21,7 @@ class FakeImage {
   }
 }
 
-/**
- * @param {number[]} pixels
- * @param {{ throws?: boolean }} [options]
- */
-function stubCanvas(pixels, { throws = false } = {}) {
+function stubCanvas(pixels: number[], { throws = false }: { throws?: boolean } = {}) {
   const ctx = {
     drawImage: vi.fn(),
     getImageData: vi.fn(() => {
@@ -38,9 +29,7 @@ function stubCanvas(pixels, { throws = false } = {}) {
       return { data: Uint8ClampedArray.from(pixels) };
     })
   };
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
-    /** @type {CanvasRenderingContext2D} */ (/** @type {unknown} */ (ctx))
-  ); // partial 2d context stub
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as unknown as CanvasRenderingContext2D); // partial 2d context stub
   return ctx;
 }
 
