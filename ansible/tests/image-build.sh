@@ -60,6 +60,7 @@ for unit in kiosk.service kiosk-bluetooth-pair.service bluetooth.service kiosk-p
   fi
 done
 check grep -q '^DE:E3:A5:BE:A8:00 mouse$' /etc/the-max-mix/bluetooth-devices
+check grep -q '^D1:B9:E3:A0:7A:9D keyboard$' /etc/the-max-mix/bluetooth-devices
 check grep -q ' console=tty3 ' /boot/firmware/cmdline.txt
 check grep -q 'video=HDMI-A-1:1024x600@60' /boot/firmware/cmdline.txt
 check grep -q 'kernel=kernel8.img' /boot/firmware/config.txt
