@@ -5,8 +5,8 @@
   // Files those do not reach directly (scripts/*.mjs, scripts/install-hooks.js) are entries via package.json scripts.
   "workspaces": {
     ".": {
-      // ShellCheck is a system binary installed separately (apt/brew/CI download), not an npm dependency.
-      "ignoreBinaries": ["shellcheck"]
+      // ShellCheck and editorconfig-checker are system binaries installed separately (apt/brew/CI download), not npm dependencies.
+      "ignoreBinaries": ["shellcheck", "editorconfig-checker"]
     },
     "client": {},
     "server": {}

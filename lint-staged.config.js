@@ -33,7 +33,7 @@ const formatAndLintData = files => {
   ];
 };
 
-module.exports = {
+const tasks = {
   'server/**/*.{js,jsx}': [prettier, lintPackage('server')],
   'client/**/*.{js,jsx}': [prettier, lintPackage('client')],
   '{*.{js,mjs},scripts/*.{js,mjs}}': [prettier, lintRoot],
@@ -43,3 +43,20 @@ module.exports = {
   '*.css': [prettier, (/** @type {string[]} */ files) => `stylelint --max-warnings 0 ${quote(files)}`],
   '*.{json,html}': formatAndLintData
 };
+
+// Spelling and .editorconfig checks run last in every pattern's task list, so they never race with Prettier's rewrite.
+// editorconfig-checker is a system binary like ShellCheck: skipped, not failed, when it is not installed (CI still runs it).
+/** @param {string[]} files */
+const spelling = files => `cspell --no-progress --no-must-find-files ${quote(files)}`;
+/** @param {string[]} files */
+const editorconfig = files =>
+  `bash -c 'command -v editorconfig-checker >/dev/null || { echo "editorconfig-checker not installed; skipping"; exit 0; }; editorconfig-checker "$@"' _ ${quote(files)}`;
+/** @param {string | ((files: string[]) => string | string[]) | (string | ((files: string[]) => string | string[]))[]} task */
+const withChecks = task => (/** @type {string[]} */ files) => {
+  const own = (Array.isArray(task) ? task : [task]).flatMap(item =>
+    typeof item === 'function' ? item(files) : `${item} ${quote(files)}`
+  );
+  return [...own, spelling(files), editorconfig(files)];
+};
+
+module.exports = Object.fromEntries(Object.entries(tasks).map(([glob, task]) => [glob, withChecks(task)]));

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
+  "version": "0.2",
+  "language": "en-US",
+  "dictionaryDefinitions": [{ "name": "project-words", "path": "./project-words.txt", "addWords": true }],
+  "dictionaries": ["project-words"],
+  "useGitignore": true,
+  "ignoreRegExpList": ["/'[A-Za-z0-9+/]{32,}={0,2}'/"],
+  "ignorePaths": [
+    ".git",
+    "**/package-lock.json",
+    "client/public/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "release-out/**",
+    "**/playwright-report/**",
+    "**/test-results/**",
+    "project-words.txt",
+    "LICENSE"
+  ]
+}
