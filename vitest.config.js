@@ -4,12 +4,12 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.js'],
-    include: ['src/**/*.test.{js,jsx}'],
+    include: ['src/**/*.test.{js,jsx,ts,tsx}'],
     restoreMocks: true,
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.{js,jsx}'],
-      exclude: ['src/**/*.test.{js,jsx}', 'src/test/**', 'src/main.jsx'],
+      include: ['src/**/*.{js,jsx,ts,tsx}'],
+      exclude: ['src/**/*.test.{js,jsx,ts,tsx}', 'src/test/**', 'src/main.jsx', 'src/main.tsx', 'src/types.ts'],
       reporter: ['text-summary', 'lcov', 'json-summary'],
       reportsDirectory: './coverage',
       thresholds: {
