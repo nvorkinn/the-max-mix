@@ -113,7 +113,7 @@ test('real API requests use bearer auth, refresh once on 401, and preserve 204 r
   let playerCalls = 0;
   const { service } = await setup(t, async (url, init) => {
     if (url.endsWith('/api/token')) return json({ access_token: 'valid', refresh_token: 'refresh', expires_in: 3600 });
-    assert.equal(init.headers.Authorization, 'Bearer valid');
+    assert.equal(init.headers['Authorization'], 'Bearer valid');
     playerCalls++;
     return playerCalls === 1 ? json({}, 401) : new Response(null, { status: 204 });
   });
@@ -154,7 +154,7 @@ test('sign-in uses PKCE: the challenge is the hash of a verifier that only the t
   assert.equal(calls.length, 1);
   const init = calls[0]?.init;
   assert(init);
-  assert.equal(init.headers.Authorization, undefined, 'no client secret, so no Basic authorization');
+  assert.equal(init.headers['Authorization'], undefined, 'no client secret, so no Basic authorization');
   const body = init.body;
   assert.equal(body.get('grant_type'), 'authorization_code');
   assert.equal(body.get('code'), 'the-code');
@@ -185,7 +185,7 @@ test('refreshing a login sends the client ID but no secret', async t => {
   assert.equal(await service.getValidAccessToken(), 'access-2');
   const init = calls[1]?.init;
   assert(init);
-  assert.equal(init.headers.Authorization, undefined);
+  assert.equal(init.headers['Authorization'], undefined);
   assert.equal(init.body.get('grant_type'), 'refresh_token');
   assert.equal(init.body.get('refresh_token'), 'refresh');
   assert.equal(init.body.get('client_id'), 'test-client');

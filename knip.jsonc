@@ -1,0 +1,14 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  // Entry points come from knip's plugins rather than a list kept here: package.json scripts, the Vite and Vitest
+  // configs (client), the Node test runner (server/test), ESLint, Playwright (e2e/*.spec.js), lint-staged and husky.
+  // Files those do not reach directly (scripts/*.mjs, scripts/install-hooks.js) are entries via package.json scripts.
+  "workspaces": {
+    ".": {
+      // ShellCheck is a system binary installed separately (apt/brew/CI download), not an npm dependency.
+      "ignoreBinaries": ["shellcheck"]
+    },
+    "client": {},
+    "server": {}
+  }
+}

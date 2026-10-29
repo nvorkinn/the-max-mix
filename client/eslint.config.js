@@ -8,6 +8,7 @@ import vitest from '@vitest/eslint-plugin';
 import testingLibrary from 'eslint-plugin-testing-library';
 import jestDom from 'eslint-plugin-jest-dom';
 import jsxA11y from 'eslint-plugin-jsx-a11y-x';
+import importX from 'eslint-plugin-import-x';
 
 export default [
   { ignores: ['dist/**', 'node_modules/**'] },
@@ -72,6 +73,25 @@ export default [
       '@typescript-eslint/no-empty-function': ['error', { allow: ['arrowFunctions'] }],
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'error'
+    }
+  },
+  {
+    files: ['**/*.{js,jsx}'],
+    plugins: { 'import-x': importX },
+    rules: {
+      'import-x/no-cycle': 'error',
+      'import-x/no-duplicates': 'error',
+      'import-x/no-self-import': 'error',
+      'import-x/no-useless-path-segments': 'error',
+      'import-x/first': 'error',
+      'import-x/newline-after-import': 'error',
+      'import-x/order': [
+        'error',
+        {
+          groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+          'newlines-between': 'never'
+        }
+      ]
     }
   },
   {

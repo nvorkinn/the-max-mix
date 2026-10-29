@@ -1,16 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '../test/user.js';
-
-const api = vi.hoisted(() => ({ requestJSON: vi.fn() }));
-vi.mock('../utils/api.js', () => api);
-
+import { partialProps } from '../test/partialProps.js';
+import { defined } from '../test/defined.js';
 import QRCodeModalFull from './QRCodeModal.jsx';
 import JamSettingsModalFull from './JamSettingsModal.jsx';
 import SettingsModalFull from './SettingsModal.jsx';
 import SpeakerSelectorModalFull from './SpeakerSelectorModal.jsx';
-import { partialProps } from '../test/partialProps.js';
-import { defined } from '../test/defined.js';
+
+const api = vi.hoisted(() => ({ requestJSON: vi.fn() }));
+vi.mock('../utils/api.js', () => api);
 
 const QRCodeModal = partialProps(QRCodeModalFull);
 const JamSettingsModal = partialProps(JamSettingsModalFull);

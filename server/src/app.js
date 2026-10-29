@@ -135,8 +135,8 @@ export function createApp({
     '/api/auth/callback',
     route(async (req, res) => {
       liveOnly();
-      const expected = /** @type {Record<string, unknown>} */ (req.cookies).spotify_oauth_state;
-      const supplied = req.query.state;
+      const expected = /** @type {Record<string, unknown>} */ (req.cookies)['spotify_oauth_state'];
+      const supplied = req.query['state'];
       res.clearCookie('spotify_oauth_state', { httpOnly: true, sameSite: 'lax', secure: req.secure });
       if (
         typeof expected !== 'string' ||
@@ -146,11 +146,11 @@ export function createApp({
       ) {
         throw new SpotifyError('Spotify sign-in expired or has an invalid state. Start again from Settings.', 400);
       }
-      if (req.query.error) return res.redirect('/?auth_error=Spotify%20sign-in%20was%20declined.');
-      if (typeof req.query.code !== 'string' || !req.query.code) {
+      if (req.query['error']) return res.redirect('/?auth_error=Spotify%20sign-in%20was%20declined.');
+      if (typeof req.query['code'] !== 'string' || !req.query['code']) {
         throw new SpotifyError('Missing Spotify authorization code.', 400);
       }
-      await spotify.handleAuthCallback(req.query.code, supplied);
+      await spotify.handleAuthCallback(req.query['code'], supplied);
       res.redirect('/');
     })
   );
@@ -193,7 +193,7 @@ export function createApp({
     '/api/queue/reorder',
     route((req, res) => {
       demoOnly();
-      const submitted = bodyOf(req).queue;
+      const submitted = bodyOf(req)['queue'];
       const reordered = Array.isArray(submitted)
         ? submitted.map((/** @type {{ id?: unknown } | null | undefined} */ track) =>
             demo.queue.find(existing => existing.id === track?.id)
@@ -215,7 +215,7 @@ export function createApp({
     '/api/queue/play-now',
     route((req, res) => {
       demoOnly();
-      const index = demo.queue.findIndex(track => track.id === bodyOf(req).trackId);
+      const index = demo.queue.findIndex(track => track.id === bodyOf(req)['trackId']);
       if (index < 0) throw new SpotifyError('Demo track not found.', 404);
       const [track] = demo.queue.splice(index, 1);
       if (!track) throw new SpotifyError('Demo track not found.', 404);
@@ -253,7 +253,7 @@ export function createApp({
   app.post(
     '/api/spotify/seek',
     route(async (req, res) => {
-      const position = bodyOf(req).position_ms;
+      const position = bodyOf(req)['position_ms'];
       requireInteger(position, 0, Number.MAX_SAFE_INTEGER, 'position_ms');
       if (config.demoMode) demo.playback.progress_ms = Math.min(position, demo.playback.item.duration_ms);
       else await spotify.seek(position);
@@ -263,7 +263,7 @@ export function createApp({
   app.post(
     '/api/spotify/volume',
     route(async (req, res) => {
-      const volume = bodyOf(req).volume_percent;
+      const volume = bodyOf(req)['volume_percent'];
       requireInteger(volume, 0, 100, 'volume_percent');
       if (config.demoMode) demo.playback.device.volume_percent = volume;
       else await spotify.setVolume(volume);

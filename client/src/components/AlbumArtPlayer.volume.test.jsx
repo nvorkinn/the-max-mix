@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import AlbumArtPlayerFull from './AlbumArtPlayer.jsx';
 import { partialProps } from '../test/partialProps.js';
+import AlbumArtPlayerFull from './AlbumArtPlayer.jsx';
 
 const AlbumArtPlayer = partialProps(AlbumArtPlayerFull);
 

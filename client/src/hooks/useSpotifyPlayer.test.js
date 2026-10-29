@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { useSpotifyPlayer } from './useSpotifyPlayer.js';
 
 const api = vi.hoisted(() => ({ requestJSON: vi.fn(), postJSON: vi.fn() }));
 vi.mock('../utils/api.js', () => api);
 vi.mock('../utils/spotifySdk.js', () => ({ loadSpotifySDK: vi.fn() }));
-
-import { useSpotifyPlayer } from './useSpotifyPlayer.js';
 
 /** @param {Record<string, unknown>} table */
 function route(table) {
