@@ -186,16 +186,11 @@ Behind a reverse proxy at a real address, set `PUBLIC_URL` (an https address wit
 trusts one reverse proxy for the client's address and HTTPS (`TRUST_PROXY`, the number of proxies, changes that).
 
 The app has no sign-in of its own and hands the Spotify access token to whoever can open it, so a public address needs
-something in front. It checks for [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/)
-itself: with `PUBLIC_URL` set, every request must carry the signed token Access adds
-(`Cf-Access-Jwt-Assertion`, checked against the team's published keys, the team and the application's audience tag),
-which also stops anyone who finds the server's own address from skipping Cloudflare. Set `ACCESS_TEAM_DOMAIN`
-(`your-team.cloudflareaccess.com`) and `ACCESS_AUD` (the application's audience tag); until both are set the app answers
-503 to everything except `/api/health`. `ACCESS_REQUIRED=false` turns the check off for a deployment guarded some other
-way.
+something in front that signs people in (authentik, Cloudflare Access, Tailscale, or basic auth in the proxy), and the
+container's port should be reachable by that proxy only (`-p 127.0.0.1:3000:3000`).
 
 The [countdown-server](https://github.com/nvorkinn/countdown-server) project runs this image on its dev/QA host at
-`spotify.dev.nikolaivorkinn.com`: every one of its dev/QA releases pulls `latest`.
+`spotify.dev.nikolaivorkinn.com`, behind its authentik: every one of its dev/QA releases pulls `latest`.
 
 ## Raspberry Pi kiosk installation
 

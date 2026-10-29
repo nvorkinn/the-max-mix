@@ -40,41 +40,6 @@ function parseTrustProxy(value) {
   return Number(value);
 }
 
-/** @param {string | undefined} value */
-function parseTeamDomain(value) {
-  const teamDomain = (value || '').trim().toLowerCase();
-  if (teamDomain && !/^[a-z0-9-]+\.cloudflareaccess\.com$/.test(teamDomain)) {
-    throw new Error('ACCESS_TEAM_DOMAIN must look like your-team.cloudflareaccess.com (no https://).');
-  }
-  return teamDomain;
-}
-
-/** @param {string | undefined} value */
-function parseAudience(value) {
-  const audience = (value || '').trim();
-  if (audience && !/^[A-Za-z0-9]{16,128}$/.test(audience)) {
-    throw new Error('ACCESS_AUD must be the Access application audience tag (letters and digits).');
-  }
-  return audience;
-}
-
-/**
- * Cloudflare Access: the team's sign-in host (<team>.cloudflareaccess.com) and the application's audience tag, which
- * the signed token Access adds to each request is checked against.
- * @param {NodeJS.ProcessEnv} env
- * @param {boolean} exposed Whether the app is behind a public address (PUBLIC_URL), which makes Access required.
- */
-function parseAccess(env, exposed) {
-  const teamDomain = parseTeamDomain(env['ACCESS_TEAM_DOMAIN']);
-  const audience = parseAudience(env['ACCESS_AUD']);
-  const requirement = env['ACCESS_REQUIRED'];
-  if (requirement && !['true', 'false'].includes(requirement)) {
-    throw new Error('ACCESS_REQUIRED must be true or false.');
-  }
-  const required = requirement ? requirement === 'true' : exposed || Boolean(teamDomain);
-  return { required, teamDomain, audience, configured: Boolean(teamDomain && audience) };
-}
-
 /** @param {NodeJS.ProcessEnv} env */
 export function parseConfig(env) {
   const port = Number(env['PORT'] || 3000);
@@ -109,7 +74,6 @@ export function parseConfig(env) {
       ...(publicUrl ? [publicUrl.hostname] : [])
     ],
     trustProxy: parseTrustProxy(env['TRUST_PROXY']) ?? (publicUrl ? 1 : 0),
-    access: parseAccess(env, Boolean(publicUrl)),
     demoMode: env['DEMO_MODE'] === 'true',
     playbackMode,
     clientId: env['SPOTIFY_CLIENT_ID'] || '',

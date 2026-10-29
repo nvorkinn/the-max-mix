@@ -8,6 +8,7 @@ anitta
 aqabaiaaaaaaap
 ariana
 ashnikko
+authentik
 autologin
 autoplay
 avenir
@@ -27,7 +28,6 @@ chappell
 charli
 clairo
 clarkson
-cloudflareaccess
 copyfile
 céline
 dion

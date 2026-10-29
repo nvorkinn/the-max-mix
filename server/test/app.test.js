@@ -6,7 +6,6 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { createApp } from '../src/app.js';
-import { AccessError } from '../src/cloudflareAccess.js';
 import { SpotifyError } from '../src/spotify.js';
 
 /**
@@ -22,8 +21,7 @@ import { SpotifyError } from '../src/spotify.js';
  * @param {import('node:test').TestContext} t
  * @param {{ demoMode?: boolean, overrides?: Record<string, unknown>, playbackMode?: string, distPath?: string,
  *   rateLimits?: Partial<{ windowMs: number, api: number, auth: number, pages: number }>, allowedHosts?: string[],
- *   access?: { required: boolean, teamDomain: string, audience: string, configured: boolean },
- *   accessVerifier?: (token?: string) => Promise<unknown>, trustProxy?: number }} [options]
+ *   trustProxy?: number }} [options]
  */
 async function start(
   t,
@@ -34,8 +32,6 @@ async function start(
     distPath,
     rateLimits,
     allowedHosts = [],
-    access,
-    accessVerifier,
     trustProxy
   } = {}
 ) {
@@ -74,13 +70,11 @@ async function start(
       playbackMode,
       port: 3000,
       allowedHosts,
-      ...(access !== undefined && { access }),
       ...(trustProxy !== undefined && { trustProxy })
     },
     spotify: /** @type {import('../src/spotify.js').SpotifyService} */ (/** @type {unknown} */ (spotify)),
     ...(distPath !== undefined && { distPath }),
-    ...(rateLimits !== undefined && { rateLimits }),
-    ...(accessVerifier !== undefined && { accessVerifier })
+    ...(rateLimits !== undefined && { rateLimits })
   });
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
@@ -330,44 +324,6 @@ test('unknown Host headers are refused, while IP addresses, localhost and config
     assert.equal((await get(host)).status, 200, host);
   }
   assert.equal((await get(`${os.hostname()}.local:3000`)).status, 200);
-});
-
-test('with Cloudflare Access required, only requests that carry a valid Access token get in', async t => {
-  /** @type {(string | undefined)[]} */
-  const seen = [];
-  const accepted = new Set(['good-token']);
-  const access = {
-    required: true,
-    teamDomain: 'team.cloudflareaccess.com',
-    audience: 'a'.repeat(64),
-    configured: true
-  };
-  const { base } = await start(t, {
-    demoMode: true,
-    access,
-    accessVerifier: async token => {
-      seen.push(token);
-      if (!token) throw new AccessError('Missing Cloudflare Access token.', 401);
-      if (!accepted.has(token)) throw new AccessError('Cloudflare Access token rejected.', 403);
-      return {};
-    }
-  });
-  assert.equal((await fetch(`${base}/api/info`)).status, 401);
-  assert.equal((await fetch(`${base}/api/info`, { headers: { 'Cf-Access-Jwt-Assertion': 'bad' } })).status, 403);
-  assert.equal((await fetch(`${base}/api/info`, { headers: { 'Cf-Access-Jwt-Assertion': 'good-token' } })).status, 200);
-  assert.deepEqual(seen, [undefined, 'bad', 'good-token']);
-});
-
-test('Access required but not configured refuses everything except the health check', async t => {
-  const access = { required: true, teamDomain: '', audience: '', configured: false };
-  const { base } = await start(t, { demoMode: true, access });
-  const refused = await fetch(`${base}/api/token`);
-  assert.equal(refused.status, 503);
-  /** @type {unknown} */
-  const body = await refused.json();
-  assert.match(/** @type {{ error: string }} */ (body).error, /Access is not configured/);
-  assert.equal((await fetch(`${base}/`)).status, 503);
-  assert.notEqual((await fetch(`${base}/api/health`)).status, 503);
 });
 
 test('behind a trusted proxy the client address and HTTPS come from X-Forwarded-*', async t => {
