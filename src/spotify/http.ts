@@ -13,6 +13,9 @@ export class SpotifyApiError extends Error {
   }
 }
 
+/** Shown when fetch itself fails, which is how a lost internet connection looks. */
+export const NETWORK_ERROR_MESSAGE = 'Could not reach Spotify. Check the network connection.';
+
 /** JSON.parse and Response.json return any; parsed data is untrusted until checked, so it is typed unknown. */
 export const parseJson = (text: string): unknown => JSON.parse(text);
 
@@ -27,6 +30,6 @@ export async function fetchSpotify(url: string, init: RequestInit): Promise<Resp
     if (typeof error === 'object' && error !== null && 'name' in error && error.name === 'TimeoutError') {
       throw new SpotifyApiError('Spotify did not answer in time. Try again.', 504);
     }
-    throw new SpotifyApiError('Could not reach Spotify. Check the network connection.', 502);
+    throw new SpotifyApiError(NETWORK_ERROR_MESSAGE, 502);
   }
 }

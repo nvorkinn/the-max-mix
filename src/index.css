@@ -884,6 +884,22 @@
   padding: 4px;
   flex-shrink: 0;
 }
+.offline-banner {
+  justify-content: flex-start;
+  padding: 14px 30px;
+  font-size: 13px;
+}
+.offline-banner span {
+  flex: 1;
+}
+.offline-banner button {
+  min-height: 48px;
+  padding: 0 24px;
+  border-radius: 14px;
+  border: 1px solid var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+}
 .queue-error {
   color: #fda4af;
   font-size: 11px;

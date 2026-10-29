@@ -3,10 +3,12 @@ import type { CSSProperties } from 'react';
 import { AudioLines, Clock, Settings, Speaker, ArrowUpRight } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { extractPalette } from '../utils/colorExtractor';
+import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
 import { getQueue, reorderDemoQueue, playDemoTrackNow } from '../spotify/api';
 import { SpotifyApiError } from '../spotify/http';
 import type { Track } from '../types';
+import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
 import SpotifyJamQueue from './SpotifyJamQueue';
 import TouchRipples from './TouchRipples';
@@ -42,6 +44,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     transferPlayback
   } = useSpotifyPlayer();
   const error = playerError || signInError;
+  const isOffline = useIsOffline(playerError);
 
   const [queue, setQueue] = useState<Track[]>([]);
   const [currentTime, setCurrentTime] = useState(formatClock);
@@ -226,7 +229,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         </div>
       </header>
 
-      {(error || (!isLoading && !isDemoMode && !isAuthenticated)) && (
+      {isOffline && <OfflineBanner />}
+      {!isOffline && (error || (!isLoading && !isDemoMode && !isAuthenticated)) && (
         <div className="connection-banner" role={error ? 'alert' : 'status'}>
           <span>{error || 'Connect your Spotify account in Settings. Demo mode is off.'}</span>
           <button type="button" onClick={() => setIsSettingsOpen(true)}>

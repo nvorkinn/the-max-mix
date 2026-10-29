@@ -173,12 +173,12 @@ describe('SettingsModal', () => {
       expect(wifi()).not.toBeInTheDocument();
     });
 
-    it('navigates to the setup portal on the Pi', async () => {
+    it('navigates to the Wi-Fi panel by URL scheme', async () => {
       const assign = vi.fn();
       vi.stubGlobal('location', { origin: 'http://x', search: '?kiosk=1', assign });
       render(<SettingsModal {...base} authInfo={{}} />);
       await userEvent.click(defined(wifi()));
-      expect(assign).toHaveBeenCalledWith('http://127.0.0.1:8088/');
+      expect(assign).toHaveBeenCalledWith('kiosk-wifi://open');
     });
   });
 

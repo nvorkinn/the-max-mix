@@ -56,7 +56,7 @@ jobs:
           echo "$SHA256  $RUNNER_TEMP/shellcheck.tar.xz" | sha256sum -c -
           mkdir "$RUNNER_TEMP/shellcheck"
           tar -xJf "$RUNNER_TEMP/shellcheck.tar.xz" -C "$RUNNER_TEMP/shellcheck" --strip-components=1 "shellcheck-v${VERSION}/shellcheck"
-          "$RUNNER_TEMP/shellcheck/shellcheck" scripts/*.sh pi/wifi/*.sh pi/image/*.sh pi/image/stage-kiosk/prerun.sh pi/image/stage-kiosk/*/*.sh pi/rootfs/usr/local/bin/*
+          "$RUNNER_TEMP/shellcheck/shellcheck" scripts/*.sh pi/wifi/*.sh pi/wifi-panel/*.sh pi/image/*.sh pi/image/stage-kiosk/prerun.sh pi/image/stage-kiosk/*/*.sh pi/rootfs/usr/local/bin/*
 
   # The Raspberry Pi kiosk playbook. Both tools are pinned and installed into a virtual environment.
   ansible:
