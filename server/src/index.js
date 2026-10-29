@@ -5,6 +5,11 @@ import { SpotifyService } from './spotify.js';
 const config = loadConfig();
 const spotify = new SpotifyService(config);
 if (!config.demoMode) await spotify.initialize();
+if (config.access.required && !config.access.configured) {
+  console.warn(
+    'Cloudflare Access is required but ACCESS_TEAM_DOMAIN or ACCESS_AUD is not set: every request is refused.'
+  );
+}
 const app = createApp({ config, spotify });
 const server = app.listen(config.port, config.host, () => {
   console.log(`THE MAX MIX listening on http://${config.host}:${config.port}`);

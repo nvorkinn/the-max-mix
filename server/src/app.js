@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import { rateLimit } from 'express-rate-limit';
+import { accessGuard, createAccessVerifier } from './cloudflareAccess.js';
 import { createDemo } from './demo.js';
 import { hostGuard, sameOriginWrites } from './requestGuards.js';
 import { SpotifyError } from './spotify.js';
@@ -64,17 +65,20 @@ const errorHandler = (error, req, res, next) => {
 
 /**
  * @param {{
- *   config: Pick<ReturnType<typeof import('./config.js').parseConfig>, 'port' | 'playbackMode' | 'demoMode' | 'allowedHosts'>,
+ *   config: Pick<ReturnType<typeof import('./config.js').parseConfig>, 'port' | 'playbackMode' | 'demoMode' | 'allowedHosts'>
+ *     & Partial<Pick<ReturnType<typeof import('./config.js').parseConfig>, 'trustProxy' | 'access'>>,
  *   spotify: import('./spotify.js').SpotifyService,
  *   distPath?: string,
- *   rateLimits?: Partial<typeof DEFAULT_RATE_LIMITS>
+ *   rateLimits?: Partial<typeof DEFAULT_RATE_LIMITS>,
+ *   accessVerifier?: (token?: string) => Promise<unknown>
  * }} options
  */
 export function createApp({
   config,
   spotify,
   distPath = fileURLToPath(new URL('../../client/dist', import.meta.url)),
-  rateLimits = {}
+  rateLimits = {},
+  accessVerifier
 }) {
   const limits = { ...DEFAULT_RATE_LIMITS, ...rateLimits };
   /** @param {number} limit */
@@ -89,7 +93,20 @@ export function createApp({
   const app = express();
   const demo = createDemo();
   app.disable('x-powered-by');
+  // Behind a reverse proxy: the client's address and whether the request was HTTPS come from its X-Forwarded-* headers.
+  if (config.trustProxy) app.set('trust proxy', config.trustProxy);
   app.use(hostGuard({ allowedHosts: config.allowedHosts }));
+  const access = config.access ?? { required: false, teamDomain: '', audience: '', configured: false };
+  app.use(
+    accessGuard({
+      access,
+      verifyToken:
+        accessVerifier ??
+        (access.configured
+          ? createAccessVerifier({ teamDomain: access.teamDomain, audience: access.audience })
+          : undefined)
+    })
+  );
   app.use('/api', sameOriginWrites());
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());

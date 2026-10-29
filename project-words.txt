@@ -17,6 +17,7 @@ beyonce
 beyoncé
 björk
 bridgers
+buildx
 cabello
 camila
 cardi
@@ -26,6 +27,7 @@ chappell
 charli
 clairo
 clarkson
+cloudflareaccess
 copyfile
 céline
 dion
@@ -65,6 +67,7 @@ minaj
 minogue
 morissette
 nicki
+nikolaivorkinn
 noblank
 noerrdialogs
 nonexistent
@@ -106,5 +109,6 @@ waveshare
 weeknd
 widevine
 winehouse
+writable
 xauthority
 xset
