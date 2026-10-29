@@ -121,6 +121,9 @@ skipped automatically when there is no `.git` directory or when dev dependencies
    it there.
 4. Open Settings **in the browser that will play** (on the kiosk, the Pi's Chromium) and sign in. Choose the playback mode there too: browser (the
    default) or remote. Settings also has the demo mode switch; `?demo=true` on the address turns it on for a visit.
+   On the Pi kiosk, which is opened with `?kiosk=1` (the app remembers that, so it survives the Spotify sign-in redirect;
+   `?kiosk=0` forgets it), Settings also shows **Wi-Fi network**. It opens the Pi's local setup page at
+   `http://127.0.0.1:8088/`, which only exists on the Pi, so other visitors never see the entry.
 5. In Speakers, select THE MAX MIX or an existing Spotify Connect device. Press
    Play when ready. For remote mode, first open Spotify on the target device so it
    is discoverable.
