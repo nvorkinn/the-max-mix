@@ -1,5 +1,5 @@
 // Installs the Husky git hooks. Runs from the `prepare` script and never fails an install:
-// it does nothing outside a git checkout (release tarballs, CI without .git) or without husky (--omit=dev).
+// it does nothing outside a git checkout (CI without .git) or without husky (--omit=dev).
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 

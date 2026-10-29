@@ -1,7 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   // Entry points come from knip's plugins rather than a list kept here: package.json scripts, index.html and the Vite and
-  // Vitest configs, the Node test runner (scripts/test), ESLint, Playwright (e2e/*.spec.js), lint-staged and husky.
+  // Vitest configs, ESLint, Playwright (e2e/*.spec.js), lint-staged and husky.
   // Files those do not reach directly (scripts/*.mjs, scripts/install-hooks.js) are entries via package.json scripts.
   // ShellCheck and editorconfig-checker are system binaries installed separately (apt/brew/CI download), not npm dependencies.
   "ignoreBinaries": ["shellcheck", "editorconfig-checker"]
