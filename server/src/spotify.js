@@ -16,6 +16,21 @@ const MAX_PENDING_SIGN_INS = 20;
  * @typedef {{ access_token?: string, refresh_token?: string, expires_in?: number, error?: string }} SpotifyTokenResponse
  */
 
+// JSON.parse() and Response.json() return any; parsed data is untrusted until checked, so type it as unknown.
+/**
+ * @param {string} text
+ * @returns {unknown}
+ */
+const parseJson = text => JSON.parse(text);
+/**
+ * @param {Response} response
+ * @returns {Promise<unknown>}
+ */
+const readJson = response => response.json();
+
+/** @param {unknown} error */
+const isMissingFile = error => error instanceof Error && 'code' in error && error.code === 'ENOENT';
+
 export class SpotifyError extends Error {
   /**
    * @param {string} message
@@ -51,8 +66,9 @@ export class SpotifyService {
 
   async initialize() {
     try {
-      /** @type {{ clientId?: unknown, refreshToken?: unknown }} */
-      const stored = JSON.parse(await readFile(this.tokenFile, 'utf8'));
+      const stored = /** @type {{ clientId?: unknown, refreshToken?: unknown }} */ (
+        parseJson(await readFile(this.tokenFile, 'utf8'))
+      );
       if (stored.clientId !== this.clientId) {
         throw new Error('Saved Spotify login belongs to another app. Remove spotify-token.json and sign in again.');
       }
@@ -62,7 +78,7 @@ export class SpotifyService {
       await chmod(this.tokenFile, 0o600);
       this.refreshToken = stored.refreshToken;
     } catch (error) {
-      if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') throw error;
+      if (!isMissingFile(error)) throw error;
     }
   }
 
@@ -115,8 +131,8 @@ export class SpotifyService {
       await writeFile(temporaryFile, JSON.stringify({ clientId: this.clientId, refreshToken }), { mode: 0o600 });
       await rename(temporaryFile, this.tokenFile);
     } finally {
-      await unlink(temporaryFile).catch((/** @type {NodeJS.ErrnoException} */ error) => {
-        if (error.code !== 'ENOENT') throw error;
+      await unlink(temporaryFile).catch((/** @type {unknown} */ error) => {
+        if (!isMissingFile(error)) throw error;
       });
     }
   }
@@ -134,11 +150,10 @@ export class SpotifyService {
     });
     if (!response.ok) {
       if (response.status === 400 && parameters.grant_type === 'refresh_token') {
-        /** @type {SpotifyTokenResponse} */
-        const data = await response.json().catch(() => ({}));
+        const data = /** @type {SpotifyTokenResponse} */ (await readJson(response).catch(() => ({})));
         if (data.error === 'invalid_grant') {
-          await unlink(this.tokenFile).catch((/** @type {NodeJS.ErrnoException} */ error) => {
-            if (error.code !== 'ENOENT') throw error;
+          await unlink(this.tokenFile).catch((/** @type {unknown} */ error) => {
+            if (!isMissingFile(error)) throw error;
           });
           this.accessToken = null;
           this.refreshToken = null;
@@ -150,8 +165,7 @@ export class SpotifyService {
         502
       );
     }
-    /** @type {SpotifyTokenResponse} */
-    const data = await response.json();
+    const data = /** @type {SpotifyTokenResponse} */ (await readJson(response));
     if (!data.access_token || data.expires_in === undefined || !Number.isFinite(data.expires_in)) {
       throw new SpotifyError('Spotify returned an invalid token response.');
     }
@@ -187,20 +201,18 @@ export class SpotifyService {
   async getValidAccessToken() {
     if (this.accessToken && Date.now() < this.tokenExpiresAt) return this.accessToken;
     if (!this.refreshToken) return null;
-    if (!this.refreshPromise) {
-      this.refreshPromise = this.exchangeToken({
-        grant_type: 'refresh_token',
-        refresh_token: this.refreshToken
-      }).finally(() => {
-        this.refreshPromise = null;
-      });
-    }
+    this.refreshPromise ??= this.exchangeToken({
+      grant_type: 'refresh_token',
+      refresh_token: this.refreshToken
+    }).finally(() => {
+      this.refreshPromise = null;
+    });
     return this.refreshPromise;
   }
 
   /**
    * @param {string} endpoint
-   * @param {RequestInit} [options]
+   * @param {Omit<RequestInit, 'headers'>} [options] request options; the headers are always set here
    * @param {boolean} [retry]
    * @returns {Promise<unknown>} the parsed Spotify response, or null for 204; callers narrow it to the endpoint's shape
    */
@@ -212,8 +224,7 @@ export class SpotifyService {
       signal: AbortSignal.timeout(15000),
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        .../** @type {Record<string, string> | undefined} */ (options.headers)
+        'Content-Type': 'application/json'
       }
     });
     if (response.status === 401 && retry && this.refreshToken) {

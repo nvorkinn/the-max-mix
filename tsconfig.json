@@ -1,0 +1,15 @@
+{
+  "//": "Only used by ESLint's type-aware rules for the repository tooling; client/ and server/ have their own tsconfig.json.",
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["scripts/*.js", "scripts/*.mjs", "e2e/*.js", "*.config.js", "*.config.mjs"]
+}
