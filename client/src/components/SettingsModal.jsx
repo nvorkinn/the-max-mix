@@ -31,6 +31,15 @@ export default function SettingsModal({ isOpen, onClose, authInfo, currentTheme 
     }
   ];
 
+  let spotifyStatus = 'Configure the Spotify client ID in the server environment, then restart.';
+  if (authInfo?.demoMode) {
+    spotifyStatus = 'Playback is simulated. Set DEMO_MODE=false in the server environment and restart to use Spotify.';
+  } else if (authInfo?.authenticated) {
+    spotifyStatus = `Connected to Spotify. Playback mode: ${authInfo.playbackMode}.`;
+  } else if (authInfo?.configured) {
+    spotifyStatus = 'Sign in with a Spotify Premium account to control a real device.';
+  }
+
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 select-none">
       <div
@@ -124,15 +133,7 @@ export default function SettingsModal({ isOpen, onClose, authInfo, currentTheme 
               </span>
             )}
           </div>
-          <p className="text-[11px] text-neutral-400">
-            {authInfo?.demoMode
-              ? 'Playback is simulated. Set DEMO_MODE=false in the server environment and restart to use Spotify.'
-              : authInfo?.authenticated
-                ? `Connected to Spotify. Playback mode: ${authInfo.playbackMode}.`
-                : authInfo?.configured
-                  ? 'Sign in with a Spotify Premium account to control a real device.'
-                  : 'Configure the Spotify client ID in the server environment, then restart.'}
-          </p>
+          <p className="text-[11px] text-neutral-400">{spotifyStatus}</p>
         </div>
 
         {/* Action Button */}

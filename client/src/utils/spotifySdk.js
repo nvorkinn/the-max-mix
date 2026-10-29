@@ -25,7 +25,7 @@ export function loadSpotifySDK() {
     };
     script.onerror = () => fail(new Error('Could not load the Spotify SDK. Check the internet connection.'));
     script.src = 'https://sdk.scdn.co/spotify-player.js';
-    document.head.appendChild(script);
+    document.head.append(script);
   });
   return sdkPromise;
 }

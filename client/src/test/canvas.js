@@ -53,7 +53,7 @@ export function installCanvasStub() {
     step() {
       const run = frames;
       frames = [];
-      run.forEach(f => f.fn(0));
+      for (const f of run) f.fn(0);
     }
   };
 }

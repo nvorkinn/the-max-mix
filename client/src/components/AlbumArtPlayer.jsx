@@ -30,7 +30,7 @@ export default function AlbumArtPlayer({
   const volumeEnabled =
     controlsEnabled && playback?.device?.supports_volume !== false && playback?.device?.volume_percent != null;
   const item =
-    playback?.item || playback?.track_window?.current_track || /** @type {import('../types.js').Track} */ ({});
+    playback?.item ?? playback?.track_window?.current_track ?? /** @type {import('../types.js').Track} */ ({});
   const title = item.name || item.title || 'Ready when you are';
   const artist = item.artists
     ? item.artists.map(a => a.name).join(', ')
@@ -42,7 +42,7 @@ export default function AlbumArtPlayer({
   const progressMs = playback?.progress_ms ?? playback?.position ?? 0;
   const durationMs = item.duration_ms || playback?.duration || 180000;
   const progressPercent = Math.min(100, Math.max(0, (progressMs / durationMs) * 100));
-  const rawAddedBy = item.added_by || item.addedBy || {};
+  const rawAddedBy = item.added_by ?? item.addedBy ?? {};
   const guestName = isDemoMode ? rawAddedBy.name : null;
   const assignedDiva = getDivaForUser(guestName || '', 0, theme);
   const userAvatar = rawAddedBy.avatar || assignedDiva.image;

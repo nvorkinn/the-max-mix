@@ -90,7 +90,7 @@ const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // A catalog name only counts as a whole name, so "Asia" does not match "sia" and "Cherry" does not match "cher".
 const CATALOG_MATCHERS = FEMALE_ARTISTS_CATALOG.map(
-  name => new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(name)}(?![\\p{L}\\p{N}])`, 'u')
+  name => new RegExp(String.raw`(?<![\p{L}\p{N}])${escapeRegExp(name)}(?![\p{L}\p{N}])`, 'u')
 );
 
 /**

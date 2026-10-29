@@ -20,9 +20,8 @@ export default function TouchRipples({ theme = 'neon' }) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const resize = () => {
       canvas.width = window.innerWidth;
@@ -98,7 +97,6 @@ export default function TouchRipples({ theme = 'neon' }) {
           ctx.beginPath();
           ctx.arc(r.x, r.y, r.size, 0, Math.PI * 2);
           ctx.fill();
-          ctx.restore();
         } else {
           r.radius += 2.5;
           r.opacity -= isMinimal ? 0.03 : 0.02;
@@ -115,11 +113,11 @@ export default function TouchRipples({ theme = 'neon' }) {
           ctx.beginPath();
           ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
           ctx.stroke();
-          ctx.restore();
         }
+        ctx.restore();
       }
 
-      animFrameRef.current = ripples.length ? requestAnimationFrame(render) : null;
+      animFrameRef.current = ripples.length > 0 ? requestAnimationFrame(render) : null;
     };
 
     const handleVisibility = () => {

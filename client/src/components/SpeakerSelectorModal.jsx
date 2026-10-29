@@ -2,6 +2,13 @@ import { useState, useEffect } from 'react';
 import { X, Speaker, Check, RefreshCw } from 'lucide-react';
 import { requestJSON } from '../utils/api.js';
 
+/** @param {import('../types.js').SpotifyDevice} device */
+function describeDevice(device) {
+  if (device.is_restricted) return 'Playback control restricted';
+  const volume = device.volume_percent == null ? '' : ` / ${device.volume_percent}% volume`;
+  return `${device.type || 'Device'}${volume}`;
+}
+
 /**
  * @param {{
  *   isOpen: boolean,
@@ -21,7 +28,7 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
     setLoading(true);
     try {
       const data = /** @type {import('../types.js').DevicesResponse} */ (await requestJSON('/api/spotify/devices'));
-      setDevices(data.devices || []);
+      setDevices(data.devices ?? []);
       setError(null);
     } catch (caught) {
       setDevices([]);
@@ -109,11 +116,7 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
               <Speaker size={20} className="shrink-0 text-[#d5f580]" />
               <span className="flex-1 min-w-0">
                 <span className="block text-sm truncate">{device.name}</span>
-                <span className="text-[11px] text-neutral-400">
-                  {device.is_restricted
-                    ? 'Playback control restricted'
-                    : `${device.type || 'Device'}${device.volume_percent != null ? ` / ${device.volume_percent}% volume` : ''}`}
-                </span>
+                <span className="text-[11px] text-neutral-400">{describeDevice(device)}</span>
               </span>
               {device.is_active && (
                 <span className="text-xs text-[#d5f580] flex items-center gap-1">
@@ -122,7 +125,7 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
               )}
             </button>
           ))}
-          {browserDeviceId && !devices.some(device => device.id === browserDeviceId) && (
+          {browserDeviceId && devices.every(device => device.id !== browserDeviceId) && (
             <button
               type="button"
               disabled={selecting}

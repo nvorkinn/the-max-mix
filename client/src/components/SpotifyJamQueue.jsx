@@ -68,7 +68,7 @@ export default function SpotifyJamQueue({
 
     /** @param {PointerEvent} event */
     const handlePointerMove = event => {
-      const children = Array.from(listRef.current?.children || []);
+      const children = [...(listRef.current?.children ?? [])];
       const target = children.findIndex(child => {
         const rect = child.getBoundingClientRect();
         return event.clientY >= rect.top && event.clientY <= rect.bottom;
@@ -168,7 +168,7 @@ export default function SpotifyJamQueue({
               track.albumArt ||
               'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=400&auto=format&fit=crop&q=80';
             const artist = track.artists ? track.artists.map(a => a.name).join(', ') : track.artist || 'Unknown artist';
-            const rawAddedBy = track.added_by || track.addedBy || {};
+            const rawAddedBy = track.added_by ?? track.addedBy ?? {};
             const guestName = isDemoMode ? rawAddedBy.name : null;
             const assignedDiva = getDivaForUser(guestName || '', idx, theme);
             const seconds = Math.floor((track.duration_ms || 0) / 1000);

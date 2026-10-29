@@ -157,6 +157,16 @@ export default function TabletView() {
     }
   };
 
+  /** @type {string | undefined} */
+  let sessionStatus = isAuthenticated ? 'Select a Spotify device' : 'Sign in to Spotify';
+  if (isDemoMode) sessionStatus = 'Demo session';
+  else if (isLoading) sessionStatus = 'Connecting...';
+  else if (isReady) sessionStatus = playbackState?.device?.name;
+
+  let footerStatus = 'Spotify browser player';
+  if (isDemoMode) footerStatus = 'DEMO / simulated playback';
+  else if (playbackMode === 'remote') footerStatus = 'Spotify Connect remote';
+
   return (
     <div
       className="tablet-container"
@@ -185,15 +195,7 @@ export default function TabletView() {
         </div>
         <div className="session-status" role="status">
           <span className={`status-dot ${isReady ? '' : 'status-dot-idle'}`} />
-          {isDemoMode
-            ? 'Demo session'
-            : isLoading
-              ? 'Connecting...'
-              : isReady
-                ? playbackState?.device?.name
-                : isAuthenticated
-                  ? 'Select a Spotify device'
-                  : 'Sign in to Spotify'}
+          {sessionStatus}
         </div>
         <div className="header-actions">
           <button
@@ -265,12 +267,7 @@ export default function TabletView() {
 
       <footer className="app-footer">
         <span>
-          <span className="status-dot" />{' '}
-          {isDemoMode
-            ? 'DEMO / simulated playback'
-            : playbackMode === 'remote'
-              ? 'Spotify Connect remote'
-              : 'Spotify browser player'}
+          <span className="status-dot" /> {footerStatus}
         </span>
         <span className="footer-clock">
           <Clock size={12} /> {currentTime}

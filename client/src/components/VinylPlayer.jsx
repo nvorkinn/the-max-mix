@@ -9,7 +9,7 @@ export default function VinylPlayer({ playback, isPlaying, onPlayPause, onNext, 
   const [volume, setVolume] = useState(80);
 
   const item =
-    playback?.item || playback?.track_window?.current_track || /** @type {import('../types.js').Track} */ ({});
+    playback?.item ?? playback?.track_window?.current_track ?? /** @type {import('../types.js').Track} */ ({});
   const title = item.name || item.title || 'Ready to Jam';
   const artist = item.artists
     ? item.artists.map(a => a.name).join(', ')
