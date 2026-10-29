@@ -11,11 +11,18 @@ function reloadPage() {
   location.assign(url.href);
 }
 
-/**
- * A labelled on/off switch.
- * @param {{ label: string, description: string, checked: boolean, onChange: (checked: boolean) => void }} props
- */
-function SwitchRow({ label, description, checked, onChange }) {
+/** A labelled on/off switch. */
+function SwitchRow({
+  label,
+  description,
+  checked,
+  onChange
+}: Readonly<{
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}>) {
   return (
     <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
       <div>
@@ -36,17 +43,16 @@ function SwitchRow({ label, description, checked, onChange }) {
   );
 }
 
-/**
- * @param {{
- *   isOpen: boolean,
- *   onClose: () => void,
- *   authInfo?: { authenticated?: boolean, configured?: boolean, demoMode?: boolean, playbackMode?: string | undefined },
- *   signInError?: string | null,
- *   onReload?: () => void,
- *   currentTheme?: string,
- *   onThemeChange?: (theme: string) => void
- * }} props
- */
+interface SettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  authInfo?: { authenticated?: boolean; configured?: boolean; demoMode?: boolean; playbackMode?: string | undefined };
+  signInError?: string | null;
+  onReload?: () => void;
+  currentTheme?: string;
+  onThemeChange?: (theme: string) => void;
+}
+
 export default function SettingsModal({
   isOpen,
   onClose,
@@ -55,9 +61,9 @@ export default function SettingsModal({
   onReload = reloadPage,
   currentTheme = 'neon',
   onThemeChange
-}) {
+}: Readonly<SettingsModalProps>) {
   const [clientIdInput, setClientIdInput] = useState('');
-  const [actionError, setActionError] = useState(/** @type {string | null} */ (null));
+  const [actionError, setActionError] = useState<string | null>(null);
   if (!isOpen) return null;
 
   const THEMES = [
@@ -235,9 +241,7 @@ export default function SettingsModal({
               type="button"
               onClick={() => {
                 setActionError(null);
-                startSignIn().catch((/** @type {unknown} */ caught) =>
-                  setActionError(/** @type {Error} */ (caught).message)
-                );
+                startSignIn().catch((caught: unknown) => setActionError((caught as Error).message));
               }}
               className="w-full py-3 px-4 bg-[#1DB954] hover:bg-[#1aa34a] text-black font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
             >

@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { defined } from '../test/defined';
 import TabletView from './TabletView';
 
-const state = vi.hoisted(() => ({ player: {} }));
+const state = vi.hoisted(() => {
+  const player: Record<string, unknown> = {};
+  return { player };
+});
 const api = vi.hoisted(() => ({ getQueue: vi.fn() }));
 vi.mock('../spotify/api', () => api);
 vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => state.player }));
@@ -13,15 +17,14 @@ vi.mock('./SettingsModal', () => ({ default: () => null }));
 vi.mock('./SpeakerSelectorModal', () => ({ default: () => null }));
 vi.mock('./JamSettingsModal', () => ({ default: () => null }));
 vi.mock('./SpotifyJamQueue', () => ({
-  default: (/** @type {{ queue: { name: string }[], error?: string | null }} */ { queue, error }) => (
+  default: ({ queue, error }: { queue: { name: string }[]; error?: string | null }) => (
     <div data-testid="queue">
       {queue.map(t => t.name).join(',')}|{error ?? 'no-error'}
     </div>
   )
 }));
 
-/** @param {Record<string, unknown>} [overrides] */
-const player = overrides => ({
+const player = (overrides?: Record<string, unknown>) => ({
   isReady: false,
   playbackState: null,
   isDemoMode: false,
@@ -37,7 +40,7 @@ describe('TabletView', () => {
   it('shows the clock on the first render', () => {
     state.player = player();
     const { container } = render(<TabletView />);
-    expect(/** @type {Element} */ (container.querySelector('.footer-clock')).textContent.trim()).toMatch(/\d/);
+    expect(defined(container.querySelector('.footer-clock')).textContent.trim()).toMatch(/\d/);
   });
 
   it('does not poll the queue while signed out', () => {

@@ -1,26 +1,33 @@
 import { useState } from 'react';
+import type { SubmitEvent } from 'react';
 import { ChevronUp, Plus, Trash2, Music2, Sparkles, Search, X } from 'lucide-react';
 import { trackKeys } from '../utils/trackKeys';
+import type { Guest, Track } from '../types';
 
-/**
- * @param {{
- *   queue: import('../types').Track[],
- *   onUpvote: (trackId?: string) => unknown,
- *   onRemove: (trackId?: string) => unknown,
- *   onAddSong: (track: import('../types').Track, guest: import('../types').Guest) => unknown,
- *   onSearchSpotify: (query: string) => Promise<import('../types').Track[] | undefined>,
- *   onOpenQR: () => void
- * }} props
- */
-export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSearchSpotify, onOpenQR }) {
+interface QueueBoardProps {
+  queue: Track[];
+  onUpvote: (trackId?: string) => unknown;
+  onRemove: (trackId?: string) => unknown;
+  onAddSong: (track: Track, guest: Guest) => unknown;
+  onSearchSpotify: (query: string) => Promise<Track[] | undefined>;
+  onOpenQR: () => void;
+}
+
+export default function QueueBoard({
+  queue,
+  onUpvote,
+  onRemove,
+  onAddSong,
+  onSearchSpotify,
+  onOpenQR
+}: Readonly<QueueBoardProps>) {
   const keys = trackKeys(queue);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState(/** @type {import('../types').Track[]} */ ([]));
+  const [searchResults, setSearchResults] = useState<Track[]>([]);
   const [searching, setSearching] = useState(false);
 
-  /** @param {import('react').SubmitEvent} e */
-  const handleSearch = async e => {
+  const handleSearch = async (e: SubmitEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     setSearching(true);
@@ -34,8 +41,7 @@ export default function QueueBoard({ queue, onUpvote, onRemove, onAddSong, onSea
     }
   };
 
-  /** @param {import('../types').Track} track */
-  const handleSelectTrack = track => {
+  const handleSelectTrack = (track: Track) => {
     onAddSong(track, { id: 'tablet-host', name: 'Tablet Touch', avatar: '📱' });
     setShowSearchModal(false);
     setSearchQuery('');

@@ -1,23 +1,23 @@
 import { useState, useRef, useEffect } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import { Users, Disc3, GripVertical, Play, ArrowUpRight, ListMusic, Headphones } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { getDivaForUser } from '../utils/divas';
 import { trackKeys } from '../utils/trackKeys';
+import type { Track } from '../types';
 
-/** @type {import('../types').Track[]} */
-const EMPTY_QUEUE = [];
+const EMPTY_QUEUE: Track[] = [];
 
-/**
- * @param {{
- *   queue?: import('../types').Track[],
- *   onReorderQueue?: (queue: import('../types').Track[]) => unknown,
- *   onPlaySongNow?: (trackId: string | undefined, track: import('../types').Track) => unknown,
- *   onOpenJamSettings?: () => void,
- *   theme?: string,
- *   isDemoMode?: boolean,
- *   error?: string | null
- * }} props
- */
+interface SpotifyJamQueueProps {
+  queue?: Track[];
+  onReorderQueue?: (queue: Track[]) => unknown;
+  onPlaySongNow?: (trackId: string | undefined, track: Track) => unknown;
+  onOpenJamSettings?: () => void;
+  theme?: string;
+  isDemoMode?: boolean;
+  error?: string | null;
+}
+
 export default function SpotifyJamQueue({
   queue = EMPTY_QUEUE,
   onReorderQueue,
@@ -26,25 +26,21 @@ export default function SpotifyJamQueue({
   theme = 'neon',
   isDemoMode = false,
   error
-}) {
-  const [draggedIndex, setDraggedIndex] = useState(/** @type {number | null} */ (null));
-  const [hoverIndex, setHoverIndex] = useState(/** @type {number | null} */ (null));
-  const listRef = useRef(/** @type {HTMLDivElement | null} */ (null));
+}: Readonly<SpotifyJamQueueProps>) {
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const keys = trackKeys(queue);
   const queueRef = useRef(queue);
-  const dragRef = useRef(/** @type {{ from: number, to: number } | null} */ (null));
-  const cleanupDragRef = useRef(/** @type {(() => void) | null} */ (null));
+  const dragRef = useRef<{ from: number; to: number } | null>(null);
+  const cleanupDragRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     queueRef.current = queue;
   }, [queue]);
   useEffect(() => () => cleanupDragRef.current?.(), []);
 
-  /**
-   * @param {number} from
-   * @param {number} to
-   */
-  const moveTrack = async (from, to) => {
+  const moveTrack = async (from: number, to: number) => {
     if (from === to || to < 0 || to >= queueRef.current.length) return;
     const updated = [...queueRef.current];
     const [track] = updated.splice(from, 1);
@@ -53,11 +49,7 @@ export default function SpotifyJamQueue({
     return await onReorderQueue?.(updated);
   };
 
-  /**
-   * @param {import('react').PointerEvent<HTMLElement>} e
-   * @param {number} index
-   */
-  const handleHandlePointerDown = (e, index) => {
+  const handleHandlePointerDown = (e: ReactPointerEvent<HTMLElement>, index: number) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     e.preventDefault();
     e.currentTarget.focus();
@@ -66,15 +58,14 @@ export default function SpotifyJamQueue({
     setDraggedIndex(index);
     setHoverIndex(index);
 
-    /** @param {PointerEvent} event */
-    const handlePointerMove = event => {
+    const handlePointerMove = (event: PointerEvent) => {
       const children = [...(listRef.current?.children ?? [])];
       const target = children.findIndex(child => {
         const rect = child.getBoundingClientRect();
         return event.clientY >= rect.top && event.clientY <= rect.bottom;
       });
       if (target !== -1) {
-        /** @type {{ from: number, to: number }} */ (dragRef.current).to = target;
+        (dragRef.current as { from: number; to: number }).to = target;
         setHoverIndex(target);
       }
     };
@@ -84,8 +75,7 @@ export default function SpotifyJamQueue({
       window.removeEventListener('pointercancel', handlePointerCancel);
       cleanupDragRef.current = null;
     };
-    /** @param {boolean} commit */
-    const finish = commit => {
+    const finish = (commit: boolean) => {
       const drag = dragRef.current;
       cleanup();
       dragRef.current = null;
@@ -232,9 +222,7 @@ export default function SpotifyJamQueue({
                         void moveTrack(idx, target).then(success => {
                           if (success) {
                             requestAnimationFrame(() => {
-                              /** @type {HTMLElement | null | undefined} */ (
-                                listRef.current?.children[target]?.querySelector('.queue-drag')
-                              )?.focus();
+                              listRef.current?.children[target]?.querySelector<HTMLElement>('.queue-drag')?.focus();
                             });
                           }
                         });

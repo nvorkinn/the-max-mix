@@ -1,7 +1,6 @@
 import { X, Users } from 'lucide-react';
 
-/** @param {{ isOpen: boolean, onClose: () => void }} props */
-export default function JamSettingsModal({ isOpen, onClose }) {
+export default function JamSettingsModal({ isOpen, onClose }: Readonly<{ isOpen: boolean; onClose: () => void }>) {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
