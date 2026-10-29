@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import type { Track } from '../types';
 import * as auth from './auth';
 import * as api from './api';
 import { parseJson } from './http';
@@ -10,20 +11,16 @@ vi.mock('./auth', () => ({
   discardAccessToken: vi.fn()
 }));
 
-/** @param {unknown} body @param {number} [status] @param {Record<string, string>} [headers] */
-const json = (body, status = 200, headers = {}) => Response.json(body, { status, headers });
+const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
+  Response.json(body, { status, headers });
 
-/** @param {ReturnType<typeof vi.fn>} fetchMock @param {number} [call] */
-const callOf = (fetchMock, call = 0) => {
-  const [url, init] = /** @type {[string, RequestInit]} */ (fetchMock.mock.calls[call]);
-  return { url, init, headers: /** @type {Record<string, string>} */ (init.headers) };
+const callOf = (fetchMock: Mock, call = 0) => {
+  const [url, init] = fetchMock.mock.calls[call] as [string, RequestInit];
+  return { url, init, headers: init.headers as Record<string, string> };
 };
 
-/** @typedef {import('../types').Track} Track */
-
 describe('spotify/api', () => {
-  /** @type {ReturnType<typeof vi.fn>} */
-  let fetchMock;
+  let fetchMock: Mock;
 
   beforeEach(() => {
     localStorage.clear();
@@ -86,21 +83,21 @@ describe('spotify/api', () => {
       const { url, init, headers } = callOf(fetchMock);
       expect(url).toBe('https://api.spotify.com/v1/me/player');
       expect(init.method).toBe('PUT');
-      expect(parseJson(/** @type {string} */ (init.body))).toEqual({ device_ids: ['device-1'], play: true });
+      expect(parseJson(init.body as string)).toEqual({ device_ids: ['device-1'], play: true });
       expect(headers['Content-Type']).toBe('application/json');
     });
 
     it('does not start playing on transfer unless asked', async () => {
       fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
       await api.transferPlayback('device-1');
-      expect(parseJson(/** @type {string} */ (callOf(fetchMock).init.body))).toMatchObject({ play: false });
+      expect(parseJson(callOf(fetchMock).init.body as string)).toMatchObject({ play: false });
     });
 
     it.each([
       ['empty device', '', false],
       ['non-boolean play', 'd', 'yes']
     ])('rejects a transfer with %s before calling Spotify', async (_name, deviceId, playValue) => {
-      await expect(api.transferPlayback(deviceId, /** @type {boolean} */ (playValue))).rejects.toMatchObject({
+      await expect(api.transferPlayback(deviceId, playValue as boolean)).rejects.toMatchObject({
         status: 400,
         message: 'A deviceId and a boolean play value are required.'
       });
@@ -132,11 +129,7 @@ describe('spotify/api', () => {
     it.each([
       ['seek negative', () => api.seek(-1), 'position_ms must be an integer between 0 and 9007199254740991.'],
       ['seek fraction', () => api.seek(1.5), 'position_ms must be an integer between 0 and 9007199254740991.'],
-      [
-        'seek text',
-        () => api.seek(/** @type {never} */ ('1')),
-        'position_ms must be an integer between 0 and 9007199254740991.'
-      ],
+      ['seek text', () => api.seek('1' as never), 'position_ms must be an integer between 0 and 9007199254740991.'],
       ['volume high', () => api.setVolume(101), 'volume_percent must be an integer between 0 and 100.'],
       ['volume fraction', () => api.setVolume(0.5), 'volume_percent must be an integer between 0 and 100.']
     ])('rejects %s before calling Spotify', async (_name, run, message) => {
@@ -223,7 +216,7 @@ describe('spotify/api', () => {
 
     it('reads Retry-After as seconds', async () => {
       fetchMock.mockResolvedValue(json({}, 429, { 'Retry-After': '7' }));
-      const error = await api.pause().catch((/** @type {unknown} */ e) => e);
+      const error = await api.pause().catch((e: unknown) => e);
       expect(error).toBeInstanceOf(api.SpotifyApiError);
       expect(error).toMatchObject({ status: 429, retryAfter: 7 });
     });
@@ -260,7 +253,7 @@ describe('spotify/api', () => {
 
     it('does not read the reason of other errors', async () => {
       fetchMock.mockResolvedValue(json({ error: { message: 'secret' } }, 404));
-      const error = /** @type {Error} */ (await api.play().catch((/** @type {unknown} */ e) => e));
+      const error = (await api.play().catch((e: unknown) => e)) as Error;
       expect(error.message).not.toContain('secret');
     });
 
@@ -296,8 +289,7 @@ describe('spotify/api', () => {
     /** A fresh demo player for each test. */
     const freshApi = async () => import('./api');
     const ALL_QUEUED = ['demo-queue-1', 'demo-queue-2', 'demo-queue-3', 'demo-queue-4'];
-    /** @param {typeof api} demo */
-    const queueIds = async demo => {
+    const queueIds = async (demo: typeof api) => {
       const { queue } = await demo.getQueue();
       return queue.map(track => track.id);
     };
@@ -399,15 +391,15 @@ describe('spotify/api', () => {
     it('refuses a reorder that is not a permutation of the queue', async () => {
       const demo = await freshApi();
       const { queue } = await demo.getQueue();
-      const [first, second, third] = /** @type {[Track, Track, Track]} */ (queue);
+      const [first, second, third] = queue as [Track, Track, Track, Track];
       const message = 'Reordering requires each existing demo track exactly once.';
       await expect(demo.reorderDemoQueue([first, second, third])).rejects.toMatchObject({ status: 400, message });
       await expect(demo.reorderDemoQueue([first, first, second, third])).rejects.toMatchObject({ status: 400 });
       await expect(demo.reorderDemoQueue([...queue.slice(0, 3), { id: 'unknown' }])).rejects.toMatchObject({
         status: 400
       });
-      await expect(demo.reorderDemoQueue(/** @type {never} */ ('nope'))).rejects.toMatchObject({ status: 400 });
-      await expect(demo.reorderDemoQueue(/** @type {never} */ ([null, null, null, null]))).rejects.toMatchObject({
+      await expect(demo.reorderDemoQueue('nope' as never)).rejects.toMatchObject({ status: 400 });
+      await expect(demo.reorderDemoQueue([null, null, null, null] as never)).rejects.toMatchObject({
         status: 400
       });
     });

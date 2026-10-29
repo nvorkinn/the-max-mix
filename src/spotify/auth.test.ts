@@ -1,10 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { parseJson } from './http';
 
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 
-/** @param {unknown} body @param {number} [status] */
-const json = (body, status = 200) => Response.json(body, { status });
+const json = (body: unknown, status = 200) => Response.json(body, { status });
 
 /** A fresh copy of the modules, so the in-memory token cache of one test cannot leak into the next. */
 async function load() {
@@ -14,25 +13,19 @@ async function load() {
   return { ...auth, ...settings };
 }
 
-/** @param {string} key */
-const storedJson = key =>
-  /** @type {Record<string, unknown> | null} */ (parseJson(localStorage.getItem(key) ?? 'null'));
+const storedJson = (key: string) => parseJson(localStorage.getItem(key) ?? 'null') as Record<string, unknown> | null;
 
-/** @param {ReturnType<typeof vi.fn>} fetchMock @param {number} [call] */
-const requestOf = (fetchMock, call = 0) => /** @type {[string, RequestInit]} */ (fetchMock.mock.calls[call]);
+const requestOf = (fetchMock: Mock, call = 0) => fetchMock.mock.calls[call] as [string, RequestInit];
 
-/** @param {string} address */
-const visit = address => window.history.replaceState(null, '', address);
+const visit = (address: string) => window.history.replaceState(null, '', address);
 
-/** @param {ReturnType<typeof vi.fn>} fetchMock @param {number} [call] */
-const formOf = (fetchMock, call = 0) => {
+const formOf = (fetchMock: Mock, call = 0) => {
   const init = requestOf(fetchMock, call)[1];
-  return new URLSearchParams(/** @type {URLSearchParams} */ (init.body));
+  return new URLSearchParams(init.body as URLSearchParams);
 };
 
 describe('spotify/auth', () => {
-  /** @type {ReturnType<typeof vi.fn>} */
-  let fetchMock;
+  let fetchMock: Mock;
 
   beforeEach(() => {
     localStorage.clear();
@@ -56,7 +49,7 @@ describe('spotify/auth', () => {
 
       await startSignIn();
 
-      const url = new URL(/** @type {string} */ (/** @type {unknown[]} */ (assign.mock.calls[0])[0]));
+      const url = new URL((assign.mock.calls[0] as unknown[])[0] as string);
       expect(`${url.origin}${url.pathname}`).toBe('https://accounts.spotify.com/authorize');
       expect(url.searchParams.get('client_id')).toBe('client-1');
       expect(url.searchParams.get('response_type')).toBe('code');
@@ -65,9 +58,10 @@ describe('spotify/auth', () => {
       expect(url.searchParams.get('scope')).toBe(
         'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing'
       );
-      const { state, verifier } = /** @type {{ state: string, verifier: string }} */ (
-        parseJson(sessionStorage.getItem('maxmix.pkce') ?? 'null')
-      );
+      const { state, verifier } = parseJson(sessionStorage.getItem('maxmix.pkce') ?? 'null') as {
+        state: string;
+        verifier: string;
+      };
       expect(state).toBe(url.searchParams.get('state'));
       expect(verifier).toMatch(/^[\w-]{43,128}$/);
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
@@ -110,8 +104,7 @@ describe('spotify/auth', () => {
   });
 
   describe('completeSignIn', () => {
-    /** @param {string} state */
-    const startedSignIn = state =>
+    const startedSignIn = (state: string) =>
       sessionStorage.setItem('maxmix.pkce', JSON.stringify({ state, verifier: 'the-verifier' }));
 
     it('returns null when the address is not a sign-in reply', async () => {
@@ -365,8 +358,7 @@ describe('spotify/auth', () => {
   });
 
   describe('getAccessToken', () => {
-    /** @param {Awaited<ReturnType<typeof load>>} auth */
-    const signedIn = auth => {
+    const signedIn = (auth: Awaited<ReturnType<typeof load>>) => {
       auth.setClientId('client-1');
       localStorage.setItem('maxmix.auth', JSON.stringify({ clientId: 'client-1', refreshToken: 'refresh-1' }));
     };
@@ -482,12 +474,10 @@ describe('spotify/auth', () => {
       signedIn(auth);
       const answer = json({ access_token: 'late', refresh_token: 'late-refresh', expires_in: 3600 });
       // The person signs out while Spotify is still answering.
-      const slowFetch = /** @type {typeof fetch} */ (
-        () => {
-          auth.signOut();
-          return Promise.resolve(answer);
-        }
-      );
+      const slowFetch = (() => {
+        auth.signOut();
+        return Promise.resolve(answer);
+      }) as typeof fetch;
       vi.stubGlobal('fetch', slowFetch);
       expect(await auth.getAccessToken()).toBeNull();
       expect(localStorage.getItem('maxmix.auth')).toBeNull();

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { Track } from '../types';
 import { isTrackByFemaleSinger, findFemaleSingersInQueue } from './femaleSingers';
 
 describe('isTrackByFemaleSinger', () => {
@@ -12,11 +13,7 @@ describe('isTrackByFemaleSinger', () => {
       isFemale: true,
       artist: 'adele'
     });
-    expect(
-      isTrackByFemaleSinger(
-        /** @type {import('../types').Track} */ (/** @type {unknown} */ ({ artists: ['Dua Lipa'] }))
-      ).isFemale
-    ).toBe(true);
+    expect(isTrackByFemaleSinger({ artists: ['Dua Lipa'] } as unknown as Track).isFemale).toBe(true);
   });
 
   it('splits comma separated artist strings', () => {

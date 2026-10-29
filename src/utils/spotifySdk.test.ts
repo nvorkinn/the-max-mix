@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { defined } from '../test/defined';
 
-const win = /** @type {Window & { Spotify?: unknown, onSpotifyWebPlaybackSDKReady?: () => void }} */ (window); // Spotify globals are not part of the Window type
+const win = window as Window & { Spotify?: unknown; onSpotifyWebPlaybackSDKReady?: () => void }; // Spotify globals are not part of the Window type
 
 describe('loadSpotifySDK', () => {
-  /** @type {typeof import('./spotifySdk').loadSpotifySDK} */
-  let loadSpotifySDK;
+  let loadSpotifySDK: typeof import('./spotifySdk').loadSpotifySDK;
 
   beforeEach(async () => {
     vi.resetModules();
@@ -27,9 +26,7 @@ describe('loadSpotifySDK', () => {
     const second = loadSpotifySDK();
     expect(second).toBe(first);
     expect(document.head.querySelectorAll('script')).toHaveLength(1);
-    expect(/** @type {HTMLScriptElement} */ (document.head.querySelector('script')).src).toBe(
-      'https://sdk.scdn.co/spotify-player.js'
-    );
+    expect(defined(document.head.querySelector('script')).src).toBe('https://sdk.scdn.co/spotify-player.js');
     win.Spotify = { ok: true };
     defined(win.onSpotifyWebPlaybackSDKReady)();
     await expect(first).resolves.toEqual({ ok: true });
