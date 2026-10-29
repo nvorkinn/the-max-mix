@@ -1,14 +1,14 @@
 /**
  * The response shape is not checked at runtime; callers name it with a `@type` cast on the awaited result.
- * @template T
  * @param {string} url
  * @param {RequestInit} [options]
- * @returns {Promise<T>}
+ * @returns {Promise<unknown>}
  */
 export async function requestJSON(url, options = {}) {
   const response = await fetch(url, { ...options, signal: AbortSignal.timeout(20000) });
-  /** @type {T & { error?: string }} */
-  const data = await response.json();
+  /** @type {unknown} */
+  const body = await response.json();
+  const data = /** @type {{ error?: string }} */ (body);
   if (!response.ok) {
     throw Object.assign(new Error(data.error || `Request failed (${response.status}).`), {
       status: response.status,

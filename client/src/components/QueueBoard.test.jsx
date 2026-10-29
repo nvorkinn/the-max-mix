@@ -56,7 +56,7 @@ describe('QueueBoard', () => {
     fireEvent.click(await screen.findByText('Found Song'));
     expect(h.onSearchSpotify).toHaveBeenCalledWith('found');
     expect(h.onAddSong).toHaveBeenCalledWith(results[0], { id: 'tablet-host', name: 'Tablet Touch', avatar: '📱' });
-    expect(screen.queryByPlaceholderText(/search song/i)).toBeNull();
+    expect(screen.queryByPlaceholderText(/search song/i)).not.toBeInTheDocument();
   });
 
   it('ignores blank searches', () => {
@@ -70,9 +70,7 @@ describe('QueueBoard', () => {
   it('survives a failed search and re-enables the form', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const h = setup({
-      onSearchSpotify: vi.fn(async () => {
-        throw new Error('nope');
-      })
+      onSearchSpotify: vi.fn(() => Promise.reject(new Error('nope')))
     });
     fireEvent.click(screen.getByRole('button', { name: /add track/i }));
     fireEvent.change(screen.getByPlaceholderText(/search song/i), { target: { value: 'x' } });

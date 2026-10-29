@@ -112,10 +112,10 @@ describe('AlbumArtPlayer', () => {
     expect(screen.getByText('Ann')).toBeInTheDocument();
     const avatar = /** @type {Element} */ (document.querySelector('.track-credit img'));
     fireEvent.error(avatar);
-    expect(avatar.getAttribute('src')).toMatch(/^\/divas\//);
+    expect(avatar).toHaveAttribute('src', expect.stringMatching(/^\/divas\//));
     unmount();
     setup();
-    expect(screen.queryByText(/Demo pick by/)).toBeNull();
+    expect(screen.queryByText(/Demo pick by/)).not.toBeInTheDocument();
   });
 
   it('clamps progress past the end of the track', () => {
@@ -143,14 +143,14 @@ describe('SpotifyJamQueue', () => {
     { id: 'b', title: 'Two', artist: 'Y', duration_ms: 60000 },
     { uri: 'spotify:track:c', name: 'Three', external_urls: { spotify: 'https://open.spotify.com/track/c' } }
   ];
-  const renderQueue = (props = {}) => {
+  const setupQueue = (props = {}) => {
     const h = { onReorderQueue: vi.fn().mockResolvedValue(true), onPlaySongNow: vi.fn(), onOpenJamSettings: vi.fn() };
     render(<SpotifyJamQueue queue={tracks} {...h} {...props} />);
     return h;
   };
 
   it('renders tracks, durations, count and total length', () => {
-    renderQueue();
+    setupQueue();
     const items = screen.getAllByRole('listitem');
     expect(items).toHaveLength(3);
     expect(items[0]).toHaveTextContent('One');
@@ -172,7 +172,7 @@ describe('SpotifyJamQueue', () => {
   });
 
   it('links to Spotify and hides demo-only controls outside demo mode', () => {
-    renderQueue();
+    setupQueue();
     expect(screen.getByRole('link', { name: 'Open Three in Spotify' })).toHaveAttribute(
       'href',
       /** @type {{ spotify: string }} */ (tracks[2].external_urls).spotify
@@ -181,19 +181,19 @@ describe('SpotifyJamQueue', () => {
       'href',
       'https://open.spotify.com'
     );
-    expect(screen.queryByRole('button', { name: /reorder/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /play .* now/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /reorder/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /play .* now/i })).not.toBeInTheDocument();
   });
 
   it('shows an error alert and opens Jam instructions', () => {
-    const h = renderQueue({ error: 'Queue unavailable' });
+    const h = setupQueue({ error: 'Queue unavailable' });
     expect(screen.getByRole('alert')).toHaveTextContent('Queue unavailable');
     fireEvent.click(screen.getByRole('button', { name: /how to start a jam/i }));
     expect(h.onOpenJamSettings).toHaveBeenCalled();
   });
 
   it('plays a demo track immediately with confetti', () => {
-    const h = renderQueue({ isDemoMode: true });
+    const h = setupQueue({ isDemoMode: true });
     fireEvent.click(screen.getByRole('button', { name: 'Play Two now' }));
     expect(confetti).toHaveBeenCalled();
     expect(h.onPlaySongNow).toHaveBeenCalledWith('b', tracks[1]);
@@ -202,13 +202,13 @@ describe('SpotifyJamQueue', () => {
   });
 
   it('shows the demo guest', () => {
-    renderQueue({ isDemoMode: true });
+    setupQueue({ isDemoMode: true });
     expect(screen.getByLabelText('Demo guest Ann')).toBeInTheDocument();
   });
 
   it('reorders with the keyboard and ignores moves past the ends', async () => {
     vi.stubGlobal('requestAnimationFrame', (/** @type {FrameRequestCallback} */ fn) => fn(0));
-    const h = renderQueue({ isDemoMode: true });
+    const h = setupQueue({ isDemoMode: true });
     fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Two' }), { key: 'ArrowUp' });
     await vi.waitFor(() => expect(h.onReorderQueue).toHaveBeenCalledWith([tracks[1], tracks[0], tracks[2]]));
     fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder One' }), { key: 'ArrowUp' });
@@ -219,7 +219,7 @@ describe('SpotifyJamQueue', () => {
   });
 
   it('reorders by dragging the handle to another row', () => {
-    const h = renderQueue({ isDemoMode: true });
+    const h = setupQueue({ isDemoMode: true });
     const rows = document.querySelectorAll('.queue-track');
     rows.forEach((row, i) => {
       row.getBoundingClientRect = () =>
@@ -236,7 +236,7 @@ describe('SpotifyJamQueue', () => {
   });
 
   it('cancels a drag without reordering and ignores non-primary mouse buttons', () => {
-    const h = renderQueue({ isDemoMode: true });
+    const h = setupQueue({ isDemoMode: true });
     const handle = screen.getByRole('button', { name: 'Reorder One' });
     fireEvent.pointerDown(handle, { button: 2, pointerType: 'mouse' });
     expect(document.querySelector('.is-dragging')).toBeNull();

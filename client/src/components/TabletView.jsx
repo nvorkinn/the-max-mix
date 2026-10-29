@@ -77,26 +77,28 @@ export default function TabletView() {
   useEffect(() => {
     if (!canPollQueue) return;
     let cancelled = false;
+    // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
+    const isCancelled = () => cancelled;
     /** @type {ReturnType<typeof setTimeout> | undefined} */
     let timer;
     let failures = 0;
     const poll = async () => {
       let delay = 10000;
       try {
-        const data = await requestJSON('/api/queue');
-        if (cancelled) return;
+        const data = /** @type {import('../types.js').QueueResponse} */ (await requestJSON('/api/queue'));
+        if (isCancelled()) return;
         setQueue(data.queue);
         setQueueError(null);
         failures = 0;
       } catch (caught) {
-        if (cancelled) return;
+        if (isCancelled()) return;
         const apiError = /** @type {import('../types.js').ApiError} */ (caught);
         setQueueError(apiError.message);
         delay = Math.max(Math.min(60000, 10000 * 2 ** ++failures), (apiError.retryAfter ?? 0) * 1000 || 0);
       }
-      if (!cancelled) timer = setTimeout(poll, delay);
+      if (!isCancelled()) timer = setTimeout(() => void poll(), delay);
     };
-    poll();
+    void poll();
     return () => {
       cancelled = true;
       clearTimeout(timer);
@@ -107,7 +109,7 @@ export default function TabletView() {
   const artUrl = currentTrack?.album?.images?.[0]?.url;
   useEffect(() => {
     if (artUrl) {
-      extractPalette(artUrl).then(colors => {
+      void extractPalette(artUrl).then(colors => {
         setPalette(colors);
       });
     }
@@ -126,7 +128,9 @@ export default function TabletView() {
   /** @param {import('../types.js').Track[]} newQueue */
   const handleReorderQueue = async newQueue => {
     try {
-      const data = await postJSON('/api/queue/reorder', { queue: newQueue });
+      const data = /** @type {import('../types.js').QueueResponse} */ (
+        await postJSON('/api/queue/reorder', { queue: newQueue })
+      );
       setQueue(data.queue);
       showToast('Demo queue order updated.');
       return true;
@@ -142,7 +146,9 @@ export default function TabletView() {
    */
   const handlePlaySongNow = async (trackId, track) => {
     try {
-      const data = await postJSON('/api/queue/play-now', { trackId });
+      const data = /** @type {import('../types.js').PlayNowResponse} */ (
+        await postJSON('/api/queue/play-now', { trackId })
+      );
       setQueue(data.remainingQueue);
       await refreshPlayback();
       showToast(`Demo playing: ${track.name || track.title}`);
@@ -191,6 +197,7 @@ export default function TabletView() {
         </div>
         <div className="header-actions">
           <button
+            type="button"
             onClick={() => setIsSpeakerModalOpen(true)}
             className="button button-secondary speaker-button"
             title="Choose a Spotify Connect device"
@@ -199,10 +206,15 @@ export default function TabletView() {
             <Speaker size={15} />
             <span>Speakers</span>
           </button>
-          <button onClick={() => setIsJamSettingsOpen(true)} className="button button-primary header-jam-button">
+          <button
+            type="button"
+            onClick={() => setIsJamSettingsOpen(true)}
+            className="button button-primary header-jam-button"
+          >
             Jam in Spotify <ArrowUpRight size={15} />
           </button>
           <button
+            type="button"
             onClick={() => setIsSettingsOpen(true)}
             className="icon-button"
             title="Settings & Skins"
@@ -216,7 +228,9 @@ export default function TabletView() {
       {(error || (!isLoading && !isDemoMode && !isAuthenticated)) && (
         <div className="connection-banner" role={error ? 'alert' : 'status'}>
           <span>{error || 'Connect your Spotify account in Settings. Demo mode is off.'}</span>
-          <button onClick={() => setIsSettingsOpen(true)}>Settings</button>
+          <button type="button" onClick={() => setIsSettingsOpen(true)}>
+            Settings
+          </button>
         </div>
       )}
 

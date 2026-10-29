@@ -68,7 +68,7 @@ export default function AlbumArtPlayer({
         type="button"
         className="album-art"
         aria-label={`Celebrate ${title}`}
-        onClick={() => confetti({ particleCount: 25, spread: 60, origin: { x: 0.25, y: 0.45 } })}
+        onClick={() => void confetti({ particleCount: 25, spread: 60, origin: { x: 0.25, y: 0.45 } })}
       >
         <img src={albumArt} alt={`${title} album artwork`} className="album-cover" />
         <span className="album-shade" />
@@ -155,6 +155,7 @@ export default function AlbumArtPlayer({
           </label>
           <div className="transport-buttons">
             <button
+              type="button"
               disabled={!controlsEnabled || playback?.actions?.disallows?.skipping_prev}
               className="transport-skip"
               onClick={onPrevious}
@@ -163,6 +164,7 @@ export default function AlbumArtPlayer({
               <SkipBack size={20} fill="currentColor" />
             </button>
             <button
+              type="button"
               disabled={
                 !controlsEnabled ||
                 (isPlaying ? playback?.actions?.disallows?.pausing : playback?.actions?.disallows?.resuming)
@@ -174,6 +176,7 @@ export default function AlbumArtPlayer({
               {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
             </button>
             <button
+              type="button"
               disabled={!controlsEnabled || playback?.actions?.disallows?.skipping_next}
               className="transport-skip"
               onClick={onNext}

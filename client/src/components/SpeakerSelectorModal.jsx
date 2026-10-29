@@ -20,7 +20,7 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
   const fetchDevices = async () => {
     setLoading(true);
     try {
-      const data = await requestJSON('/api/spotify/devices');
+      const data = /** @type {import('../types.js').DevicesResponse} */ (await requestJSON('/api/spotify/devices'));
       setDevices(data.devices || []);
       setError(null);
     } catch (caught) {
@@ -31,7 +31,7 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
     }
   };
   useEffect(() => {
-    if (isOpen) fetchDevices();
+    if (isOpen) void fetchDevices();
   }, [isOpen, browserDeviceId]);
 
   if (!isOpen) return null;
@@ -67,14 +67,20 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
           </div>
           <div className="flex gap-2">
             <button
-              onClick={fetchDevices}
+              type="button"
+              onClick={() => void fetchDevices()}
               disabled={loading || selecting}
               aria-label="Refresh devices"
               className="p-2 rounded-full bg-white/5"
             >
               <RefreshCw size={16} />
             </button>
-            <button onClick={onClose} aria-label="Close speakers" className="p-2 rounded-full bg-white/10">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close speakers"
+              className="p-2 rounded-full bg-white/10"
+            >
               <X size={18} />
             </button>
           </div>
@@ -94,9 +100,10 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
           )}
           {devices.map(device => (
             <button
+              type="button"
               key={device.id || device.name}
               disabled={!device.id || device.is_restricted || selecting}
-              onClick={() => selectDevice(device.id)}
+              onClick={() => void selectDevice(device.id)}
               className="w-full p-3 flex gap-3 items-center text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10"
             >
               <Speaker size={20} className="shrink-0 text-[#d5f580]" />
@@ -117,9 +124,10 @@ export default function SpeakerSelectorModal({ isOpen, onClose, onSelectSpeaker,
           ))}
           {browserDeviceId && !devices.some(device => device.id === browserDeviceId) && (
             <button
+              type="button"
               disabled={selecting}
               className="button button-primary w-full"
-              onClick={() => selectDevice(browserDeviceId)}
+              onClick={() => void selectDevice(browserDeviceId)}
             >
               Use this tablet
             </button>

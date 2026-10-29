@@ -4,6 +4,9 @@ import { getDivaForUser } from '../utils/divas.js';
 import { trackKeys } from '../utils/trackKeys.js';
 import confetti from 'canvas-confetti';
 
+/** @type {import('../types.js').Track[]} */
+const EMPTY_QUEUE = [];
+
 /**
  * @param {{
  *   queue?: import('../types.js').Track[],
@@ -16,7 +19,7 @@ import confetti from 'canvas-confetti';
  * }} props
  */
 export default function SpotifyJamQueue({
-  queue = /** @type {import('../types.js').Track[]} */ ([]),
+  queue = EMPTY_QUEUE,
   onReorderQueue,
   onPlaySongNow,
   onOpenJamSettings,
@@ -47,7 +50,7 @@ export default function SpotifyJamQueue({
     const [track] = updated.splice(from, 1);
     if (!track) return;
     updated.splice(to, 0, track);
-    return onReorderQueue?.(updated);
+    return await onReorderQueue?.(updated);
   };
 
   /**
@@ -88,7 +91,7 @@ export default function SpotifyJamQueue({
       dragRef.current = null;
       setDraggedIndex(null);
       setHoverIndex(null);
-      if (commit && drag) moveTrack(drag.from, drag.to);
+      if (commit && drag) void moveTrack(drag.from, drag.to);
     };
     const handlePointerUp = () => finish(true);
     const handlePointerCancel = () => finish(false);
@@ -124,7 +127,12 @@ export default function SpotifyJamQueue({
           <h3>Good music. Better company.</h3>
           <p>Start and manage a Jam in the Spotify app.</p>
         </div>
-        <button onClick={onOpenJamSettings} className="jam-start" aria-label="How to start a Jam in Spotify">
+        <button
+          type="button"
+          onClick={onOpenJamSettings}
+          className="jam-start"
+          aria-label="How to start a Jam in Spotify"
+        >
           <ArrowUpRight size={21} />
         </button>
       </div>
@@ -173,10 +181,11 @@ export default function SpotifyJamQueue({
               >
                 {isDemoMode ? (
                   <button
+                    type="button"
                     className="queue-play"
                     aria-label={`Play ${title} now`}
                     onClick={() => {
-                      confetti({ particleCount: 18, spread: 45, origin: { x: 0.65, y: 0.4 } });
+                      void confetti({ particleCount: 18, spread: 45, origin: { x: 0.65, y: 0.4 } });
                       onPlaySongNow?.(track.id || track.uri, track);
                     }}
                   >
@@ -211,6 +220,7 @@ export default function SpotifyJamQueue({
                 )}
                 {isDemoMode ? (
                   <button
+                    type="button"
                     className="queue-drag"
                     aria-label={`Reorder ${title}`}
                     aria-describedby="queue-reorder-help"
@@ -219,7 +229,7 @@ export default function SpotifyJamQueue({
                       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                         e.preventDefault();
                         const target = idx + (e.key === 'ArrowUp' ? -1 : 1);
-                        moveTrack(idx, target).then(success => {
+                        void moveTrack(idx, target).then(success => {
                           if (success) {
                             requestAnimationFrame(() => {
                               /** @type {HTMLElement | null | undefined} */ (

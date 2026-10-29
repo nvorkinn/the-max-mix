@@ -73,7 +73,7 @@ export function getDivaForUser(userNameOrId, fallbackIndex = 0, theme = 'neon') 
   }
 
   let hash = 0;
-  const str = String(userNameOrId);
+  const str = userNameOrId;
   for (let i = 0; i < str.length; i++) {
     hash = (hash << 5) - hash + str.charCodeAt(i);
     hash |= 0;

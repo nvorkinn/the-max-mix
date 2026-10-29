@@ -68,6 +68,24 @@
  */
 
 /**
+ * Response of `/api/queue`.
+ * @typedef {object} QueueResponse
+ * @property {Track[]} queue
+ */
+
+/**
+ * Response of `/api/queue/play-now`.
+ * @typedef {object} PlayNowResponse
+ * @property {Track[]} remainingQueue
+ */
+
+/**
+ * Response of `/api/spotify/devices`.
+ * @typedef {object} DevicesResponse
+ * @property {SpotifyDevice[]} [devices]
+ */
+
+/**
  * Response of `/api/token`.
  * @typedef {object} TokenStatus
  * @property {boolean} authenticated
@@ -108,7 +126,7 @@
  * @property {() => unknown} onNext
  * @property {() => unknown} onPrevious
  * @property {(positionMs: number) => unknown} onSeek
- * @property {(volumePercent: number) => unknown} onVolumeChange
+ * @property {(volumePercent: number) => unknown} [onVolumeChange]
  */
 
 export {};

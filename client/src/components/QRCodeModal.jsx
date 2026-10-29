@@ -10,6 +10,7 @@ export default function QRCodeModal({ isOpen, onClose, remoteUrl }) {
       <div className="bg-linear-to-b from-neutral-900 to-neutral-950 border border-white/20 rounded-3xl p-6 max-w-sm w-full text-center relative shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         {/* Close Button */}
         <button
+          type="button"
           onClick={onClose}
           className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-white flex items-center justify-center transition-all"
         >
@@ -25,7 +26,7 @@ export default function QRCodeModal({ isOpen, onClose, remoteUrl }) {
 
         {/* QR Code Container */}
         <div className="p-4 bg-white rounded-2xl inline-block shadow-[0_0_30px_rgba(16,185,129,0.3)] border-4 border-emerald-500/30">
-          <QRCodeSVG value={remoteUrl || 'http://localhost:5173/remote'} size={180} level="H" includeMargin={false} />
+          <QRCodeSVG value={remoteUrl || 'http://localhost:5173/remote'} size={180} level="H" marginSize={0} />
         </div>
 
         {/* URL Link */}

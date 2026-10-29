@@ -70,9 +70,18 @@ describe('VinylPlayer', () => {
     expect(h.onSeek).toHaveBeenLastCalledWith(0);
   });
 
+  it('seeks five seconds per arrow key on the progress bar', () => {
+    const h = setup();
+    const bar = screen.getByRole('slider', { name: 'Seek' });
+    fireEvent.keyDown(bar, { key: 'ArrowRight' });
+    expect(h.onSeek).toHaveBeenLastCalledWith(35000);
+    fireEvent.keyDown(bar, { key: 'ArrowLeft' });
+    expect(h.onSeek).toHaveBeenLastCalledWith(25000);
+  });
+
   it('reports volume changes', () => {
     const h = setup();
-    const slider = screen.getByRole('slider');
+    const slider = screen.getByRole('slider', { name: 'Volume' });
     expect(slider).toHaveValue('80');
     fireEvent.change(slider, { target: { value: '25' } });
     expect(h.onVolumeChange).toHaveBeenCalledWith(25);
@@ -84,7 +93,7 @@ describe('VinylPlayer', () => {
     const record = /** @type {HTMLElement} */ (document.querySelector('.cursor-grab'));
     expect(record).toHaveClass('spinning-record');
     fireEvent.pointerMove(record, { movementX: 10 });
-    expect(record.style.transform).toBe('');
+    expect(record.getAttribute('style') ?? '').not.toContain('transform');
     fireEvent.pointerDown(record);
     expect(record).toHaveClass('paused-record');
     fireEvent.pointerMove(record, { movementX: 10 });

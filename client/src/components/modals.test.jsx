@@ -36,7 +36,7 @@ describe('QRCodeModal', () => {
 describe('JamSettingsModal', () => {
   it('is hidden when closed and closable when open', async () => {
     const { rerender } = render(<JamSettingsModal isOpen={false} />);
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     const onClose = vi.fn();
     rerender(<JamSettingsModal isOpen onClose={onClose} />);
     expect(screen.getByRole('dialog', { name: /start a jam/i })).toBeInTheDocument();
@@ -50,7 +50,7 @@ describe('SettingsModal', () => {
 
   it('renders nothing when closed', () => {
     render(<SettingsModal {...base} isOpen={false} />);
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('marks the current theme and reports theme changes', async () => {
@@ -64,7 +64,7 @@ describe('SettingsModal', () => {
 
   it('does not throw when no theme handler is given', async () => {
     render(<SettingsModal isOpen onClose={() => {}} authInfo={{}} />);
-    await userEvent.click(screen.getByRole('button', { name: /paper/i }));
+    await expect(userEvent.click(screen.getByRole('button', { name: /paper/i }))).resolves.toBeUndefined();
   });
 
   it('closes via the close button', async () => {
@@ -87,11 +87,8 @@ describe('SettingsModal', () => {
   ])('explains the %s state', (_, authInfo, message, loginLabel) => {
     render(<SettingsModal {...base} authInfo={authInfo} />);
     expect(screen.getByText(message)).toBeInTheDocument();
-    if (loginLabel) {
-      expect(screen.getByRole('link', { name: loginLabel })).toHaveAttribute('href', '/api/auth/login');
-    } else {
-      expect(screen.queryByRole('link')).toBeNull();
-    }
+    const links = screen.queryAllByRole('link').map(link => [link.textContent.trim(), link.getAttribute('href')]);
+    expect(links).toEqual(loginLabel ? [[loginLabel, '/api/auth/login']] : []);
   });
 
   it('shows connected status only when authenticated', () => {
@@ -138,12 +135,10 @@ describe('SpeakerSelectorModal', () => {
   });
 
   it('shows the error and clears devices when loading fails', async () => {
-    api.requestJSON.mockImplementation(async () => {
-      throw new Error('Spotify down');
-    });
+    api.requestJSON.mockImplementation(() => Promise.reject(new Error('Spotify down')));
     render(<SpeakerSelectorModal isOpen />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Spotify down');
-    expect(screen.queryByText(/No available devices/)).toBeNull();
+    expect(screen.queryByText(/No available devices/)).not.toBeInTheDocument();
   });
 
   it('selects a device then refreshes the list', async () => {
@@ -157,9 +152,7 @@ describe('SpeakerSelectorModal', () => {
 
   it('surfaces a failed selection', async () => {
     api.requestJSON.mockResolvedValue({ devices });
-    const onSelectSpeaker = vi.fn(async () => {
-      throw new Error('Transfer failed');
-    });
+    const onSelectSpeaker = vi.fn(() => Promise.reject(new Error('Transfer failed')));
     render(<SpeakerSelectorModal isOpen onSelectSpeaker={onSelectSpeaker} />);
     await userEvent.click(await screen.findByRole('button', { name: /Kitchen/ }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Transfer failed');
@@ -170,7 +163,7 @@ describe('SpeakerSelectorModal', () => {
     const onSelectSpeaker = vi.fn().mockResolvedValue(undefined);
     const { rerender } = render(<SpeakerSelectorModal isOpen browserDeviceId="a" onSelectSpeaker={onSelectSpeaker} />);
     await screen.findByRole('button', { name: /Kitchen/ });
-    expect(screen.queryByRole('button', { name: 'Use this tablet' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Use this tablet' })).not.toBeInTheDocument();
 
     rerender(<SpeakerSelectorModal isOpen browserDeviceId="web-1" onSelectSpeaker={onSelectSpeaker} />);
     await userEvent.click(await screen.findByRole('button', { name: 'Use this tablet' }));

@@ -65,7 +65,7 @@ export async function extractPalette(imageUrl) {
           secondary: `rgba(${sR}, ${sG}, ${sB}, 0.45)`,
           dark: `rgba(${Math.floor(r * 0.15)}, ${Math.floor(g * 0.15)}, ${Math.floor(b * 0.15)}, 0.95)`
         });
-      } catch (e) {
+      } catch {
         resolve(fallback);
       }
     };

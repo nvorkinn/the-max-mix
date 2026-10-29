@@ -12,6 +12,11 @@ export function useSpotifyPlayer() {
   const [sdkError, setSdkError] = useState(/** @type {string | null} */ (null));
   const playbackRequestRef = useRef(0);
 
+  // Bumping the counter makes any in-flight playback request discard its result.
+  const invalidatePlayback = useCallback(() => {
+    playbackRequestRef.current++;
+  }, []);
+
   const refreshPlayback = useCallback(async () => {
     const requestId = ++playbackRequestRef.current;
     const state = /** @type {import('../types.js').PlaybackState | null} */ (await requestJSON('/api/spotify/current'));
@@ -20,6 +25,8 @@ export function useSpotifyPlayer() {
 
   useEffect(() => {
     let cancelled = false;
+    // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
+    const isCancelled = () => cancelled;
     /** @type {ReturnType<typeof setTimeout> | undefined} */
     let timer;
     let failures = 0;
@@ -27,20 +34,20 @@ export function useSpotifyPlayer() {
       let delay = 4000;
       try {
         const info = /** @type {import('../types.js').ServerConfig} */ (await requestJSON('/api/info'));
-        if (cancelled) return;
+        if (isCancelled()) return;
         setConfig(info);
         /** @type {import('../types.js').TokenStatus} */
         const auth = info.demoMode
           ? { authenticated: false }
           : /** @type {import('../types.js').TokenStatus} */ (await requestJSON('/api/token'));
-        if (cancelled) return;
+        if (isCancelled()) return;
         setIsAuthenticated(auth.authenticated);
         if (info.demoMode || auth.authenticated) await refreshPlayback();
         else setPlaybackState(null);
-        if (!cancelled) setConnectionError(null);
+        if (!isCancelled()) setConnectionError(null);
         failures = 0;
       } catch (error) {
-        if (cancelled) return;
+        if (isCancelled()) return;
         const apiError = /** @type {import('../types.js').ApiError} */ (error);
         setConnectionError(apiError.message);
         if (apiError.status === 401) {
@@ -49,27 +56,27 @@ export function useSpotifyPlayer() {
         }
         delay = Math.max(Math.min(60000, 4000 * 2 ** ++failures), (apiError.retryAfter ?? 0) * 1000 || 0);
       }
-      if (!cancelled) timer = setTimeout(poll, delay);
+      if (!isCancelled()) timer = setTimeout(() => void poll(), delay);
     };
-    poll();
+    void poll();
     return () => {
       cancelled = true;
-      // Intentionally the latest value: bumping the counter invalidates any in-flight request.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      playbackRequestRef.current++;
+      invalidatePlayback();
       clearTimeout(timer);
     };
-  }, [refreshPlayback]);
+  }, [refreshPlayback, invalidatePlayback]);
 
   useEffect(() => {
     if (!isAuthenticated || config?.demoMode || config?.playbackMode !== 'browser') return;
     let cancelled = false;
+    // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
+    const isCancelled = () => cancelled;
     /** @type {import('../types.js').SpotifyPlayer | undefined} */
     let player;
     const initialize = async () => {
       try {
         const sdk = await loadSpotifySDK();
-        if (cancelled) return;
+        if (isCancelled()) return;
         player = new sdk.Player({
           name: 'THE MAX MIX',
           getOAuthToken: (/** @type {(token: string) => void} */ callback) => {
@@ -77,39 +84,39 @@ export function useSpotifyPlayer() {
               .then(response => {
                 const data = /** @type {import('../types.js').TokenStatus} */ (response);
                 if (data.token) callback(data.token);
-                else if (!cancelled) setSdkError('Spotify login expired. Sign in again in Settings.');
+                else if (!isCancelled()) setSdkError('Spotify login expired. Sign in again in Settings.');
               })
-              .catch(error => {
-                if (!cancelled) setSdkError(/** @type {Error} */ (error).message);
+              .catch((/** @type {unknown} */ error) => {
+                if (!isCancelled()) setSdkError(/** @type {Error} */ (error).message);
               });
           },
           volume: 0.8
         });
         player.addListener('ready', (/** @type {{ device_id: string }} */ { device_id }) => {
-          if (cancelled) return;
+          if (isCancelled()) return;
           setBrowserDeviceId(device_id);
           setSdkError(null);
         });
         player.addListener('not_ready', () => {
-          if (cancelled) return;
+          if (isCancelled()) return;
           setBrowserDeviceId(null);
           setSdkError('The tablet player disconnected. Check the connection or select another speaker.');
         });
         for (const event of ['initialization_error', 'authentication_error', 'account_error', 'playback_error']) {
           player.addListener(event, (/** @type {{ message: string }} */ { message }) => {
-            if (!cancelled) {
+            if (!isCancelled()) {
               setSdkError(
                 `Browser playback: ${message} Remote playback mode is available if this Pi cannot stream audio.`
               );
             }
           });
         }
-        if (!(await player.connect()) && !cancelled) setSdkError('Could not connect the tablet player to Spotify.');
+        if (!(await player.connect()) && !isCancelled()) setSdkError('Could not connect the tablet player to Spotify.');
       } catch (error) {
-        if (!cancelled) setSdkError(/** @type {Error} */ (error).message);
+        if (!isCancelled()) setSdkError(/** @type {Error} */ (error).message);
       }
     };
-    initialize();
+    void initialize();
     return () => {
       cancelled = true;
       player?.disconnect();

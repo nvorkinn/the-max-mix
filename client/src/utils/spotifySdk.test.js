@@ -17,7 +17,7 @@ describe('loadSpotifySDK', () => {
   afterEach(() => vi.useRealTimers());
 
   it('resolves immediately when the SDK is already present', async () => {
-    win.Spotify = { Player: class {} };
+    win.Spotify = { Player: vi.fn() };
     await expect(loadSpotifySDK()).resolves.toBe(win.Spotify);
     expect(document.head.querySelector('script')).toBeNull();
   });
@@ -47,8 +47,6 @@ describe('loadSpotifySDK', () => {
   it('rejects after 20 seconds without the ready callback', async () => {
     vi.useFakeTimers();
     const promise = loadSpotifySDK();
-    const assertion = expect(promise).rejects.toThrow(/timed out/);
-    await vi.advanceTimersByTimeAsync(20000);
-    await assertion;
+    await Promise.all([expect(promise).rejects.toThrow(/timed out/), vi.advanceTimersByTimeAsync(20000)]);
   });
 });
