@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '../test/user';
 import { partialProps } from '../test/partialProps';
 import { defined } from '../test/defined';
@@ -157,9 +157,9 @@ describe('SettingsModal', () => {
       expect(wifi()).not.toBeInTheDocument();
       unmount();
       history.replaceState(null, '', '/?kiosk=1');
-      render(<SettingsModal {...base} authInfo={{}} />);
+      const kiosk = render(<SettingsModal {...base} authInfo={{}} />);
       expect(wifi()).toHaveTextContent('Change the network this device uses');
-      cleanup();
+      kiosk.unmount();
       history.replaceState(null, '', '/');
       render(<SettingsModal {...base} authInfo={{}} />);
       expect(wifi()).toBeInTheDocument();
@@ -167,8 +167,7 @@ describe('SettingsModal', () => {
 
     it('is forgotten with ?kiosk=0', () => {
       history.replaceState(null, '', '/?kiosk=1');
-      render(<SettingsModal {...base} authInfo={{}} />);
-      cleanup();
+      render(<SettingsModal {...base} authInfo={{}} />).unmount();
       history.replaceState(null, '', '/?kiosk=0');
       render(<SettingsModal {...base} authInfo={{}} />);
       expect(wifi()).not.toBeInTheDocument();

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { isKiosk, WIFI_PORTAL_URL } from './kiosk';
 import { getRedirectUri } from '../spotify/settings';
+import { isKiosk, WIFI_PORTAL_URL } from './kiosk';
 
 function visit(search: string) {
   history.replaceState(null, '', `/${search}`);
