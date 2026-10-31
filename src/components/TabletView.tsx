@@ -371,7 +371,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         <span>POWERED BY SPOTIFY</span>
       </footer>
 
-      {toastMessage && (
+      {toastMessage && !isSettingsOpen && (
         <div className="app-toast" role="status">
           {toastMessage}
         </div>
@@ -422,6 +422,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         signInError={signInError}
         currentTheme={theme}
         onThemeChange={handleThemeChange}
+        statusMessage={toastMessage}
       />
     </div>
   );

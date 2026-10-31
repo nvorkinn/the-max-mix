@@ -54,6 +54,8 @@ dbus
 dejavu
 deluser
 devicechange
+dialog
+dialogs
 dion
 disallocate
 doja

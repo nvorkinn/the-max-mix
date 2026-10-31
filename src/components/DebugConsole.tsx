@@ -3,6 +3,7 @@ import { X, Bug, RotateCw, Trash2 } from 'lucide-react';
 import { clearDebugLog, getDebugEntries, subscribeDebugLog } from '../utils/debugLog';
 import type { DebugEntry } from '../utils/debugLog';
 import { widevineProblem } from '../utils/widevine';
+import Modal from './Modal';
 
 /** Set by vite.config.ts at build time; tests and other tooling run without it. */
 const APP_VERSION: string = import.meta.env.VITE_APP_VERSION ?? 'dev';
@@ -64,42 +65,46 @@ function DebugConsolePanel({
   ];
 
   return (
-    <div className="debug-console-backdrop">
-      <div role="dialog" aria-modal="true" aria-labelledby="debug-console-title" className="debug-console">
-        <header className="debug-console-header">
-          <Bug size={16} aria-hidden="true" />
-          <h2 id="debug-console-title">Debug console</h2>
-          <div className="debug-console-actions">
-            <button type="button" onClick={clearDebugLog} disabled={entries.length === 0}>
-              <Trash2 size={14} aria-hidden="true" /> Clear log
-            </button>
-            <button type="button" onClick={onReload}>
-              <RotateCw size={14} aria-hidden="true" /> Reload page
-            </button>
-            <button type="button" onClick={onClose} aria-label="Close debug console" className="debug-console-close">
-              <X size={16} />
-            </button>
+    <Modal labelledBy="debug-console-title" onClose={onClose} className="debug-console">
+      <header className="debug-console-header">
+        <Bug size={16} aria-hidden="true" />
+        <h2 id="debug-console-title">Debug console</h2>
+        <div className="debug-console-actions">
+          <button type="button" onClick={clearDebugLog} disabled={entries.length === 0}>
+            <Trash2 size={14} aria-hidden="true" /> Clear log
+          </button>
+          <button type="button" onClick={onReload}>
+            <RotateCw size={14} aria-hidden="true" /> Reload page
+          </button>
+          <button
+            type="button"
+            data-modal-autofocus
+            onClick={onClose}
+            aria-label="Close debug console"
+            className="debug-console-close"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      </header>
+      <dl className="debug-status">
+        {rows.map(([label, value]) => (
+          <div key={label} className={value.length > 40 ? 'debug-status-wide' : undefined}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
           </div>
-        </header>
-        <dl className="debug-status">
-          {rows.map(([label, value]) => (
-            <div key={label} className={value.length > 40 ? 'debug-status-wide' : undefined}>
-              <dt>{label}</dt>
-              <dd>{value}</dd>
-            </div>
+        ))}
+      </dl>
+      {entries.length === 0 ? (
+        <p className="debug-empty">Nothing logged since the page loaded.</p>
+      ) : (
+        <ol className="debug-log" aria-label="Log, newest first">
+          {entries.toReversed().map(entry => (
+            <EntryRow key={entry.id} entry={entry} />
           ))}
-        </dl>
-        {entries.length === 0 ? (
-          <p className="debug-empty">Nothing logged since the page loaded.</p>
-        ) : (
-          <ol className="debug-log" aria-label="Log, newest first">
-            {entries.toReversed().map(entry => (
-              <EntryRow key={entry.id} entry={entry} />
-            ))}
-          </ol>
-        )}
-      </div>
-    </div>
+        </ol>
+      )}
+    </Modal>
   );
 }
 
