@@ -20,6 +20,46 @@
     cache_valid_time: 3600
     lock_timeout: 300
 
+# Node.js for the audio service, from NodeSource (Debian's is too old to run TypeScript).
+- name: Create the APT keyring directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install NodeSource's signing key
+  ansible.builtin.get_url:
+    url: '{{ kiosk_nodesource_key_url }}'
+    dest: /etc/apt/keyrings/nodesource.asc
+    checksum: 'sha256:{{ kiosk_nodesource_key_sha256 }}'
+    owner: root
+    group: root
+    mode: '0644'
+  register: kiosk_nodesource_key
+
+- name: Add NodeSource's archive
+  ansible.builtin.copy:
+    content: |
+      Types: deb
+      URIs: https://deb.nodesource.com/node_{{ kiosk_nodejs_major }}.x
+      Suites: nodistro
+      Components: main
+      Signed-By: /etc/apt/keyrings/nodesource.asc
+    dest: /etc/apt/sources.list.d/nodesource.sources
+    owner: root
+    group: root
+    mode: '0644'
+  register: kiosk_nodesource_list
+
+- name: Install Node.js
+  ansible.builtin.apt:
+    name: nodejs
+    state: present
+    update_cache: '{{ kiosk_nodesource_key is changed or kiosk_nodesource_list is changed }}'
+    lock_timeout: 300
+
 # System settings -----------------------------------------------------------------------------------------------------
 - name: Enable the locale
   ansible.builtin.lineinfile:
@@ -212,8 +252,9 @@
     group: root
     mode: '0644'
   loop:
-    - kiosk_audio.py
-    - pipewire.py
+    - kiosk-audio.ts
+    - pipewire.ts
+    - service.ts
   notify: Ask for a kiosk restart
 
 - name: Install the AirPlay and audio service settings

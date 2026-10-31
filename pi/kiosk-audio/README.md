@@ -1,8 +1,17 @@
 # THE MAX MIX audio service
 
 A small HTTP service on the kiosk that sends the browser's sound to AirPlay speakers (Sonos and other AirPlay 2
-speakers that also accept RAOP) through PipeWire. It is what the app's **AirPlay** mode under Speakers talks to. Python
-standard library only, no pip.
+speakers that also accept RAOP) through PipeWire. It is what the app's **AirPlay** mode under Speakers talks to. TypeScript
+with Node's standard library only (no npm packages on the Pi): Node runs the `.ts` files directly, so Ansible copies
+them as they are and nothing is built. That needs Node 22.18 or later, so the role installs Node
+`kiosk_nodejs_major` (24, as in `.nvmrc`) from NodeSource's archive, since Debian trixie has Node 20. Its signing key
+is pinned by checksum and unattended upgrades cover it.
+
+| File             | What it is                                                                 |
+| ---------------- | -------------------------------------------------------------------------- |
+| `kiosk-audio.ts` | The program the systemd unit starts: arguments, the check loop, listening. |
+| `service.ts`     | The HTTP API and the router that keeps the links in line with the choice.  |
+| `pipewire.ts`    | `pw-dump` parsing, the link plan, and running `pw-link`.                   |
 
 ## The two playback modes
 
@@ -44,7 +53,7 @@ PipeWire being unavailable is a `503`.
   the browser send a preflight first, so no other site can change the routing blind. The preflight answers Chrome's
   private network access check, and the Chromium policy `LocalNetworkAccessAllowedForUrls` lets the app's origin reach
   the loopback address without a prompt.
-- Requests are small (4 KB, at most 16 speakers) and every PipeWire call is an argument list; no shell is involved.
+- Requests are small (4 KB, at most 16 speakers) and `pw-dump` and `pw-link` are run by absolute path with an argument list; no shell is involved.
 - It runs as the `kiosk` user in that user's systemd session (`/etc/systemd/user/kiosk-audio.service`, started for the
   kiosk user only), next to the user's PipeWire.
 
@@ -55,5 +64,6 @@ PipeWire being unavailable is a `503`.
 
 ## Tests
 
-`npm run test:kiosk-audio` (or `python3 -B -m unittest discover -s pi/kiosk-audio/tests`) runs the tests, with
-`pw-dump` replies stubbed.
+The Vitest suite (`npm test`) includes `pi/kiosk-audio/*.test.ts`, with `pw-dump` replies stubbed and the HTTP API
+called over a real loopback socket. It is type-checked and linted with the repository's tooling rules (`tsconfig.node.json`).
+Run it by hand with `node pi/kiosk-audio/kiosk-audio.ts --port 47878 --origin http://127.0.0.1:5173`.

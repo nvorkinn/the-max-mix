@@ -8,7 +8,7 @@ Wants=pipewire.service wireplumber.service
 After=pipewire.service wireplumber.service
 
 [Service]
-ExecStart=/usr/bin/python3 {{ kiosk_audio_dir }}/kiosk_audio.py --port {{ kiosk_audio_port }} --origin {{ kiosk_app_origin }}
+ExecStart=/usr/bin/node {{ kiosk_audio_dir }}/kiosk-audio.ts --port {{ kiosk_audio_port }} --origin {{ kiosk_app_origin }}
 Restart=always
 RestartSec=2
 NoNewPrivileges=yes

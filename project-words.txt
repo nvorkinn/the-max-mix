@@ -250,3 +250,5 @@ alsa
 libpipewire
 pavucontrol
 wpctl
+nodesource
+nodistro

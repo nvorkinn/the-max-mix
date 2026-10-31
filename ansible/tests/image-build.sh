@@ -49,7 +49,7 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/kiosk-open-wifi /usr/loc
   /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules /etc/NetworkManager/conf.d/20-connectivity.conf \
   /etc/tmpfiles.d/kiosk.conf /usr/share/plymouth/themes/the-max-mix/the-max-mix.plymouth \
   /usr/share/icons/blank/cursors/left_ptr /etc/apt/apt.conf.d/52kiosk-unattended-upgrades \
-  /opt/the-max-mix/kiosk-audio/kiosk_audio.py /opt/the-max-mix/kiosk-audio/pipewire.py \
+  /opt/the-max-mix/kiosk-audio/kiosk-audio.ts /opt/the-max-mix/kiosk-audio/service.ts \
   /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf /etc/systemd/user/default.target.wants/kiosk-audio.service; do
   check test -e "$file"
 done
@@ -75,6 +75,9 @@ if id -nG kiosk | grep -qw sudo; then
   fail=1
 fi
 check grep -q 'ansible-pull --url https://github.com/nvorkinn/the-max-mix.git --checkout stable ' /etc/systemd/system/kiosk-pull.service
+# Node runs the audio service's TypeScript directly.
+check node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)'
+check node --check /opt/the-max-mix/kiosk-audio/service.ts
 check grep -q 'raop.latency.ms = 500' /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf
 check grep -q -- '--port 47878 --origin https://the-max-mix.vercel.app$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'en_GB.UTF-8' /etc/default/locale

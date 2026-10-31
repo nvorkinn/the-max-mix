@@ -88,7 +88,6 @@ kiosk_packages:
   - libpipewire-0.3-modules
   - pipewire-audio-client-libraries
   - pipewire-bin
-  - python3
   # Security updates
   - unattended-upgrades
 
@@ -104,6 +103,11 @@ kiosk_audio_port: 47878
 # PipeWire's AirPlay buffer. Shorter means play, pause and skip are heard sooner on the speakers; too short and a busy
 # Wi-Fi network makes them drop out.
 kiosk_raop_latency_ms: 500
+# The audio service is TypeScript that Node runs directly, which needs Node 22.18 or later; Debian trixie has 20, so
+# Node comes from NodeSource's archive (the same major version as .nvmrc). The key is pinned by its checksum.
+kiosk_nodejs_major: 24
+kiosk_nodesource_key_url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
+kiosk_nodesource_key_sha256: b42e0321dabdc24e892115da705cf061167eac12a317f23d329862d0aa0a271d
 
 # On-device updates: kiosk-pull.timer runs ansible-pull against this repository and ref. The ref is a branch or tag that
 # the owner moves on purpose (never a development branch); the image build bakes in the same value. To roll a device
