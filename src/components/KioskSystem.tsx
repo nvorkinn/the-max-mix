@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Download, Power, RotateCw } from 'lucide-react';
-import { latestCommit, piVersion, rebootPi, restartKiosk, updateKiosk } from '../utils/kiosk';
+import { isRelease, latestCommit, latestRelease, piVersion, rebootPi, restartKiosk, updateKiosk } from '../utils/kiosk';
 
 /** How long a first tap waits for the confirming second tap. */
 const CONFIRM_MS = 4000;
@@ -41,29 +41,43 @@ function ConfirmButton({
   );
 }
 
-/** The kiosk's own section of the settings: which commit the Pi runs, whether a newer one is out, update, restart and reboot. */
+/**
+ * The kiosk's own section of the settings: which release (or pinned ref and commit) the Pi runs, whether a newer one is
+ * out, update, restart and reboot.
+ */
 export default function KioskSystem() {
   const [version] = useState(piVersion);
   const [isUpdating, setIsUpdating] = useState(false);
-  type Latest = { state: 'checking' } | { state: 'unknown' } | { state: 'known'; commit: string };
+  // The newest release tag on GitHub for a Pi on a release, otherwise the newest commit of the ref it is pinned to.
+  type Latest = { state: 'checking' } | { state: 'unknown' } | { state: 'known'; value: string };
   const [latest, setLatest] = useState<Latest>({ state: version ? 'checking' : 'unknown' });
 
   useEffect(() => {
     if (!version) return;
     const controller = new AbortController();
-    void latestCommit(version.ref, controller.signal).then(commit => {
-      if (!controller.signal.aborted) setLatest(commit ? { state: 'known', commit } : { state: 'unknown' });
+    const latestValue = isRelease(version.ref)
+      ? latestRelease(controller.signal)
+      : latestCommit(version.ref, controller.signal);
+    void latestValue.then(value => {
+      if (!controller.signal.aborted) setLatest(value ? { state: 'known', value } : { state: 'unknown' });
     });
     return () => controller.abort();
   }, [version]);
 
-  const updateWaiting = Boolean(version && latest.state === 'known' && !latest.commit.startsWith(version.commit));
+  const release = Boolean(version && isRelease(version.ref));
+  const newer = (() => {
+    if (!version || latest.state !== 'known') return null;
+    if (release) return latest.value === version.ref ? null : `${latest.value} is out`;
+    return latest.value.startsWith(version.commit) ? null : `${version.ref} is now ${latest.value.slice(0, 7)}`;
+  })();
+  const updateWaiting = newer !== null;
+  const what = release ? 'release' : version?.ref;
   let status = 'The Pi did not say which version it runs.';
-  if (version && latest.state === 'checking') status = `Checking GitHub for a newer ${version.ref}…`;
-  if (version && latest.state === 'unknown') status = `Could not check GitHub for a newer ${version.ref}.`;
+  if (version && latest.state === 'checking') status = `Checking GitHub for a newer ${what}…`;
+  if (version && latest.state === 'unknown') status = `Could not check GitHub for a newer ${what}.`;
   if (version && latest.state === 'known') {
-    status = updateWaiting
-      ? `${version.ref} is now ${latest.commit.slice(0, 7)}. Tap Update now, or the Pi picks it up within 6 hours and applies it at 04:30.`
+    status = newer
+      ? `${newer}. Tap Update now, or the Pi picks it up within 6 hours and applies it at 04:30.`
       : 'Up to date.';
   }
   if (isUpdating) status = 'Updating. If there is a newer version, the kiosk restarts by itself in a few minutes.';
@@ -80,7 +94,7 @@ export default function KioskSystem() {
           Pi software{' '}
           {version && (
             <span className="font-mono text-neutral-300">
-              {version.ref} {version.commit}
+              {release ? version.ref : `${version.ref} ${version.commit}`}
             </span>
           )}
         </div>

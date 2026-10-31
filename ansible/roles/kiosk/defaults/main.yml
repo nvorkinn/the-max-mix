@@ -10,19 +10,26 @@ kiosk_user: kiosk
 kiosk_groups: [audio, input, netdev, render, video]
 # The origin of the hosted app and the address the kiosk opens (?kiosk=1 turns on the app's kiosk-only settings,
 # ?cursor=hidden|shown follows kiosk_hide_cursor, in case Chromium ignores the session's blank cursor theme, and
-# ?pi_ref=&pi_commit= name the kiosk_pull_ref and commit this playbook ran from, which the app's settings show).
+# ?pi_ref=&pi_commit= name the release (or other ref) and commit this playbook ran from, which the app's settings show).
 # Register the redirect URI of this address in the Spotify dashboard.
 kiosk_app_origin: https://the-max-mix.vercel.app
 kiosk_url: >-
   {{ kiosk_app_origin }}/?kiosk=1&cursor={{ 'hidden' if kiosk_hide_cursor | bool else 'shown' }}
-  {{- ('&pi_ref=' ~ (kiosk_pull_ref | urlencode) ~ '&pi_commit=' ~ kiosk_commit) if kiosk_commit else '' }}
+  {{- ('&pi_ref=' ~ (kiosk_version | urlencode) ~ '&pi_commit=' ~ kiosk_commit) if kiosk_commit and kiosk_version else '' }}
 # The commit this playbook runs from: ansible-pull runs it from a Git checkout. Empty without one. Because the
-# commit is in kiosk_url, every new commit on kiosk_pull_ref changes kiosk.service and so restarts the kiosk at
-# kiosk_restart_time, after which the settings show the new commit.
+# commit is in kiosk_url, every new release (or commit on a pinned branch) changes kiosk.service and so restarts the
+# kiosk at kiosk_restart_time, after which the settings show the new version.
 kiosk_commit: >-
   {{ lookup('ansible.builtin.pipe',
     'git -C ' ~ (playbook_dir | quote) ~ ' rev-parse --short=7 HEAD 2> /dev/null || true')
     | regex_search('^[0-9a-f]{7,40}$') | default('', true) }}
+# What the settings call the running version: the release tag of the checkout when following releases (kiosk_pull_ref
+# latest), otherwise kiosk_pull_ref itself. Empty when the checkout is not at a tag.
+kiosk_version: >-
+  {{ (lookup('ansible.builtin.pipe',
+    'git -C ' ~ (playbook_dir | quote) ~ ' describe --tags --exact-match --match "v*" HEAD 2> /dev/null || true')
+    | regex_search('^v[0-9A-Za-z][0-9A-Za-z._-]*$') | default('', true))
+    if kiosk_pull_ref == 'latest' else kiosk_pull_ref }}
 
 # System settings.
 # The host name cloud-init (pi/cloud-init/user-data) gives the Pi; the playbook only adds it to /etc/hosts.
@@ -74,6 +81,7 @@ kiosk_rpi_packages:
 kiosk_ansible_packages:
   - ansible-core
   - ca-certificates
+  - curl
   - git
   - python3-apt
 kiosk_packages:
@@ -129,14 +137,16 @@ kiosk_nodejs_major: 24
 kiosk_nodesource_key_url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
 kiosk_nodesource_key_sha256: b42e0321dabdc24e892115da705cf061167eac12a317f23d329862d0aa0a271d
 
-# On-device updates: kiosk-pull.timer runs ansible-pull against this repository and ref. The ref is a branch or tag that
-# the owner moves on purpose (never a development branch); pi/cloud-init/user-data pulls the same ref first. To roll a device
-# back, move the ref back. The repository is public, so no credentials are needed.
+# On-device updates: kiosk-pull.timer runs ansible-pull (through /usr/local/sbin/kiosk-pull) against this repository and
+# ref. "latest" follows the repository's latest GitHub release, which the Release workflow publishes for each v* tag;
+# pi/cloud-init/user-data pulls the same on the first boot. To roll every device back, mark an older release as Latest
+# (run the Release workflow with its tag). A tag such as v1.12.0 pins a device to that release, and a branch is only for
+# testing on your own Pi. The repository is public, so no credentials are needed.
 kiosk_pull_repo: https://github.com/nvorkinn/the-max-mix.git
-kiosk_pull_ref: stable
+kiosk_pull_ref: latest
 kiosk_pull_dir: /var/lib/the-max-mix/ansible-pull
 # First run this long after boot, then again this long after each run finishes, plus up to the random delay. A run only
-# fetches the ref and applies the playbook when the ref has moved (ansible-pull --only-if-changed). The app's Update now
+# fetches the ref and applies the playbook when it has moved (ansible-pull --only-if-changed). The app's Update now
 # button (kiosk-update-now.service) runs the same pull at once, so the timer only catches what nobody asked for.
 kiosk_pull_boot_delay: 3min
 kiosk_pull_interval: 6h

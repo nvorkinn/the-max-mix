@@ -143,11 +143,11 @@ skipped automatically when there is no `.git` directory or when dev dependencies
    default) or remote. Settings also has the demo mode switch; `?demo=true` on the address turns it on for a visit.
    On the Pi kiosk, which is opened with `?kiosk=1` (the app remembers that, so it survives the Spotify sign-in redirect;
    `?kiosk=0` forgets it), Settings also shows **Wi-Fi network**, which opens the Pi's native Wi-Fi panel (it asks the
-   kiosk to open `kiosk-wifi://open`). Other visitors never see the entry. The kiosk's Settings also show which commit
-   of `stable` the Pi is running (from `?pi_ref=&pi_commit=` in `kiosk_url`), say when a newer one is on GitHub, and
-   have **Update now**, **Restart kiosk** and **Reboot Pi** buttons (`kiosk-power://` links). **Update now** pulls
-   `stable` at once and restarts the kiosk if anything changed; otherwise a new `stable` commit reaches the Pi within
-   about 6 hours and is fully applied after the next kiosk restart: at 04:30, on a reboot, or with the button.
+   kiosk to open `kiosk-wifi://open`). Other visitors never see the entry. The kiosk's Settings also show which release
+   the Pi is running (for example `v1.12.0`, from `?pi_ref=&pi_commit=` in `kiosk_url`), say when a newer release is
+   on GitHub, and have **Update now**, **Restart kiosk** and **Reboot Pi** buttons (`kiosk-power://` links). **Update
+   now** pulls the latest release at once and restarts the kiosk if anything changed; otherwise a new release reaches the
+   Pi within about 6 hours and is fully applied after the next kiosk restart: at 04:30, on a reboot, or with the button.
 5. In Speakers, select THE MAX MIX or an existing Spotify Connect device. Press
    Play when ready. For remote mode, first open Spotify on the target device so it
    is discoverable.
@@ -188,27 +188,30 @@ It is one role, [`ansible/roles/kiosk`](ansible/roles/kiosk), run by [`ansible/l
 variables and defaults are in [`defaults/main.yml`](ansible/roles/kiosk/defaults/main.yml). Nothing else configures the
 device, so change the role, not the device.
 
-- **First boot:** cloud-init's `user-data` installs Ansible and runs the same `ansible-pull` from `stable`, then reboots.
-  Reflash only for a fresh device.
-- **On-device updates:** `kiosk-pull.timer` checks this repository's `stable` ref (`kiosk_pull_ref`) 3 minutes after boot
-  and then every 6 hours (with up to 10 minutes of random delay), and at once when the kiosk's **Update now** button
-  starts `kiosk-update-now.service`. `ansible-pull --only-if-changed` applies the playbook
-  only when `stable` has moved since the last run, so a check with nothing new is a single git fetch. It is public, so no credentials are needed. A
-  deployed Pi therefore gets fixes to the Wi-Fi panel, the session script, the Chromium policy and so on without a
-  reflash. The playbook is idempotent, so repeated runs are safe.
-- **The `stable` branch** is what deployed devices follow. It is protected: it cannot be deleted or force-pushed, and it
-  only moves through a pull request from `main` into `stable`. It needs no extra checks, because everything on `main` has
-  already passed them (use a merge commit, not squash or rebase, so `stable` keeps `main`'s history). Never merge a development branch into it. Until it
-  exists, pulls fail and only log. The first boot pulls the same ref.
+- **Releases** are what deployed devices follow. Push a version tag from `main` (`git tag v1.12.0 && git push origin
+v1.12.0`): the Release workflow deploys the web app to Vercel and, once that has worked, publishes the GitHub release
+  for the tag with notes generated from the merged pull requests. That one tag ships both the web app and the Pi, and
+  the version in the kiosk's Settings is the release's name.
+- **First boot:** cloud-init's `user-data` installs Ansible and runs `ansible-pull` from the latest release, then
+  reboots. Reflash only for a fresh device.
+- **On-device updates:** `kiosk-pull.timer` runs `/usr/local/sbin/kiosk-pull` 3 minutes after boot and then every 6 hours
+  (with up to 10 minutes of random delay), and at once when the kiosk's **Update now** button starts
+  `kiosk-update-now.service`. With `kiosk_pull_ref: latest` (the default) it looks up the tag that
+  `github.com/nvorkinn/the-max-mix/releases/latest` redirects to (no API call or token) and runs `ansible-pull` at that
+  tag. `--only-if-changed` applies the playbook only when the release has changed since the last run, so a check with
+  nothing new is a single git fetch. A deployed Pi therefore gets fixes to the Wi-Fi panel, the session script, the
+  Chromium policy and so on without a reflash. The playbook is idempotent, so repeated runs are safe. To pin one Pi,
+  set `kiosk_pull_ref` to a tag (`v1.12.0`), or to a branch to test unreleased work on your own Pi.
 - **A failing pull never affects the kiosk.** Nothing depends on `kiosk-pull.service`; a failure is only in the journal
   and the next timer run tries again. A pull never restarts the kiosk either: it leaves a marker when kiosk files changed,
   and `kiosk-restart.timer` restarts the kiosk at 04:30 if the marker is there (a reboot also applies the changes).
 - **Check the last pull:** `journalctl -u kiosk-pull -n 100`, and `systemctl list-timers 'kiosk-*'` for the next runs.
-- **Roll back:** merge a revert pull request into `stable`. A repository admin can instead move `stable` back to the
-  earlier commit with a force push, which the ruleset allows only to them. Devices return to it at their next pull.
+- **Roll back:** run the Release workflow by hand (Actions > Release > Run workflow) with the earlier tag. It redeploys
+  that version of the web app and marks its release as the latest again, and the Pis return to it at their next pull
+  (or straight away with **Update now**). Publishing a newer tag later moves everything forward again.
 - **Run it by hand** on a Pi you can log in to, as root, from a clone of the repository:
   `sudo ansible-playbook -c local -i localhost, ansible/local.yml` (which always applies the playbook), or the same pull
-  the timer runs: `sudo systemctl start kiosk-pull` (which does nothing if `stable` has not moved). Add `--check --diff` to
+  the timer runs: `sudo systemctl start kiosk-pull` (which does nothing if the latest release has not changed). Add `--check --diff` to
   the playbook run to see what it would change.
 
 Any change on the device that is not in the role is undone at the next pull (for example, SSH is switched off again when

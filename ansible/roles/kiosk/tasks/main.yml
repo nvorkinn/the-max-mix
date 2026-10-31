@@ -287,6 +287,7 @@
     - { src: bin/kiosk-open-audio, dest: /usr/local/bin/kiosk-open-audio, mode: '0755' }
     - { src: bin/kiosk-open-power, dest: /usr/local/bin/kiosk-open-power, mode: '0755' }
     - { src: bin/kiosk-handover, dest: /usr/local/sbin/kiosk-handover, mode: '0755' }
+    - { src: bin/kiosk-pull, dest: /usr/local/sbin/kiosk-pull, mode: '0755' }
     - { src: kiosk-wifi.desktop, dest: /usr/share/applications/kiosk-wifi.desktop, mode: '0644' }
     - { src: kiosk-audio.desktop, dest: /usr/share/applications/kiosk-audio.desktop, mode: '0644' }
     - { src: kiosk-power.desktop, dest: /usr/share/applications/kiosk-power.desktop, mode: '0644' }

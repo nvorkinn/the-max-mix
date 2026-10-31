@@ -1,16 +1,21 @@
 name: Release
 
-# Production deploys happen here and only here (vercel.json turns off Vercel's own deploy of main). Push a version tag
-# (git tag v1.2.3 && git push origin v1.2.3) to build the app and deploy it to Vercel production; run it by hand with an
-# existing tag to redeploy that release. The Raspberry Pi kiosk simply opens this deployment. Needs the repository
-# secrets VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID.
+# Releases happen here and only here (vercel.json turns off Vercel's own deploy of main). Push a version tag from main
+# (git tag v1.2.3 && git push origin v1.2.3) to build the app, deploy it to Vercel production and then publish the GitHub
+# release for the tag, with notes generated from the merged pull requests. The Raspberry Pi kiosks follow the latest
+# GitHub release (kiosk_pull_ref: latest), so the release is published only once the deploy has worked, and the Pis and
+# the web app move together.
+#
+# Run it by hand with an existing tag to redeploy that release and mark it as the latest one again, which also rolls the
+# Pis back (or forward) to it at their next update. Needs the repository secrets VERCEL_TOKEN, VERCEL_ORG_ID and
+# VERCEL_PROJECT_ID.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing tag to build and deploy (for example v1.2.3)
+        description: Existing tag to deploy and mark as the latest release (for example v1.2.3)
         required: true
         type: string
 
@@ -63,3 +68,24 @@ jobs:
       - run: npm run build
       - name: Deploy to Vercel production
         run: npx --yes "$VERCEL_CLI" deploy --prod --yes --token="$VERCEL_TOKEN"
+
+  # A separate job, so that only this step, which runs no code from the repository, can write to it.
+  publish:
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      # A new tag gets a new release; a tag that already has one (a redeploy or rollback) only becomes the latest again.
+      - name: Publish the GitHub release
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --draft=false --prerelease=false --latest
+          else
+            gh release create "$TAG" --verify-tag --generate-notes --latest --title "$TAG"
+          fi

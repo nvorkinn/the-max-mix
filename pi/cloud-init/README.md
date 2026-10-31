@@ -25,8 +25,8 @@ same; the playbook boots it with the 4 KB-page kernel (`kernel=kernel8.img`) for
      next to a copy of `user-data` and a `meta-data` file holding one line, `instance-id: the-max-mix-1`. cloud-init's
      NoCloud source reads a drive with that label at boot. Unplug it after the first boot.
 3. Put the card in the Pi, connect the screen and power it on. cloud-init names the Pi `the-max-mix`, creates the
-   locked `kiosk` user and starts `kiosk-first-pull.service`. That installs Ansible and runs the playbook from `stable`,
-   the same run the Pi's update timer repeats later, then reboots. Expect 15 to 30 minutes. It tries again every minute
+   locked `kiosk` user and starts `kiosk-first-pull.service`. That installs Ansible and runs the playbook from the latest
+   GitHub release, the same run the Pi's update timer repeats later, then reboots. Expect 15 to 30 minutes. It tries again every minute
    until it has worked (`journalctl -u kiosk-first-pull`).
 4. After the reboot the kiosk starts. On its first run Chromium downloads Widevine, the module Spotify needs, and the
    kiosk restarts by itself once that is done (`kiosk-widevine.path`), a minute or two later. Test it: sign in to
@@ -63,7 +63,7 @@ Wi-Fi panel. `--no-poweroff` starts the kiosk again instead, for trying it out.
    not, it runs `/usr/local/bin/wifi-panel` until it connects. The panel offers Cancel only when a connection already
    works.
 4. `kiosk-pull.timer` runs `ansible-pull` three minutes after boot and then every six hours (or at once from the app's
-   Update now button), applying the playbook only when `stable` has moved. A failed run only logs
+   Update now button), applying the playbook only when there is a new release. A failed run only logs
    (`journalctl -u kiosk-pull`). A pull that changed kiosk files makes `kiosk-restart.timer` restart the kiosk at 04:30.
 
 The app's Wi-Fi button (shown with `?kiosk=1`) opens `kiosk-wifi://open`. Chromium's managed policy lets
