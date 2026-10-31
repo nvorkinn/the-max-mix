@@ -984,6 +984,9 @@ body:has(.app-dialog[open]) {
   color: var(--muted);
   opacity: 0.75;
 }
+.lyrics-list[data-following='false'] {
+  scroll-behavior: auto;
+}
 .lyrics-list.is-synced .lyrics-line.is-past {
   opacity: 0.45;
 }

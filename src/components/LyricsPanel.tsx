@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ListMusic, MicVocal, RotateCcw } from 'lucide-react';
 import { useLyrics } from '../hooks/useLyrics';
 import { activeLineIndex } from '../lyrics/lrc';
@@ -34,19 +34,50 @@ function EmptyState({ title, text }: Readonly<{ title: string; text: string }>) 
   );
 }
 
-/** The current track's lyrics. Synced lyrics follow playback and keep the line being sung in the middle. */
-export default function LyricsPanel({ track, progressMs, onClose, provider }: Readonly<LyricsPanelProps>) {
+function LyricsPanelContent({ track, progressMs, onClose, provider }: Readonly<LyricsPanelProps>) {
   const { status, lyrics, error, retry } = useLyrics(track, true, provider);
   const listRef = useRef<HTMLOListElement | null>(null);
+  const [isFollowing, setIsFollowing] = useState(true);
   const active = lyrics?.kind === 'synced' ? activeLineIndex(lyrics.lines, progressMs) : -1;
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || lyrics?.kind !== 'synced') return;
+    const pauseFollow = () => setIsFollowing(false);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) pauseFollow();
+    };
+    list.addEventListener('wheel', pauseFollow, { passive: true });
+    list.addEventListener('pointerdown', pauseFollow);
+    list.addEventListener('keydown', onKeyDown);
+    return () => {
+      list.removeEventListener('wheel', pauseFollow);
+      list.removeEventListener('pointerdown', pauseFollow);
+      list.removeEventListener('keydown', onKeyDown);
+    };
+  }, [lyrics]);
 
   // The list is positioned, so a line's offsetTop is measured from the list's top.
   useEffect(() => {
     const list = listRef.current;
     const line = list?.children[Math.max(0, active)];
-    if (!list || !(line instanceof HTMLElement)) return;
+    if (!isFollowing || !list || lyrics?.kind !== 'synced' || !(line instanceof HTMLElement)) return;
     list.scrollTop = line.offsetTop - list.clientHeight / 2 + line.clientHeight / 2;
-  }, [active, lyrics]);
+  }, [active, lyrics, isFollowing]);
+
+  const followStatus = lyrics
+    ? {
+        plain: 'Not time-synced',
+        instrumental: 'Instrumental',
+        synced: isFollowing ? 'Follows the song' : 'Reading lyrics'
+      }[lyrics.kind]
+    : {
+        idle: 'Play a song to see lyrics',
+        loading: 'Looking for lyrics',
+        missing: 'Lyrics unavailable',
+        error: 'Lyrics unavailable',
+        ready: 'Lyrics unavailable'
+      }[status];
 
   const body = () => {
     switch (status) {
@@ -85,6 +116,9 @@ export default function LyricsPanel({ track, progressMs, onClose, provider }: Re
       <ol
         ref={listRef}
         className={`lyrics-list ${lyrics.kind === 'synced' ? 'is-synced' : ''}`}
+        data-following={isFollowing}
+        // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- Keyboard users need focus for native list scrolling.
+        tabIndex={0}
         aria-label={`Lyrics of ${track?.name || track?.title || 'this song'}`}
       >
         {lines.map((line, idx) => (
@@ -115,20 +149,44 @@ export default function LyricsPanel({ track, progressMs, onClose, provider }: Re
       </div>
       {body()}
       <div className="queue-footer">
-        <span>{lyrics?.kind === 'plain' ? 'Not time-synced' : 'Follows the song'}</span>
-        <span>
-          {!lyrics || lyrics.source === 'LRCLIB' ? (
-            <>
-              Lyrics from{' '}
-              <a href="https://lrclib.net" target="_blank" rel="noreferrer">
-                LRCLIB
-              </a>
-            </>
-          ) : (
-            `Lyrics from ${lyrics.source}`
-          )}
-        </span>
+        <span aria-live="polite">{followStatus}</span>
+        {lyrics?.kind === 'synced' && !isFollowing && (
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={() => {
+              setIsFollowing(true);
+              listRef.current?.focus({ preventScroll: true });
+            }}
+          >
+            <RotateCcw size={14} /> Follow song
+          </button>
+        )}
+        {lyrics && (
+          <span>
+            {lyrics.source === 'LRCLIB' ? (
+              <>
+                Lyrics from{' '}
+                <a href="https://lrclib.net" target="_blank" rel="noreferrer">
+                  LRCLIB
+                </a>
+              </>
+            ) : (
+              `Lyrics from ${lyrics.source}`
+            )}
+          </span>
+        )}
       </div>
     </div>
   );
+}
+
+/** A track change resets reading mode, including when returning to a previously viewed song. */
+export default function LyricsPanel(props: Readonly<LyricsPanelProps>) {
+  const { track } = props;
+  const key =
+    track?.id ||
+    track?.uri ||
+    JSON.stringify([track?.name || track?.title, track?.artists?.[0]?.name || track?.artist]);
+  return <LyricsPanelContent key={key} {...props} />;
 }

@@ -31,6 +31,9 @@ describe('AirPlaySpeakerList', () => {
     render(<AirPlaySpeakerList isPlayerReady />);
     expect(await screen.findByRole('button', { name: /Lounge/ })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: /Kitchen/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /Kitchen/ })).toHaveTextContent('Selected');
+    expect(screen.getByRole('button', { name: /Kitchen/ })).toHaveTextContent('Available on this network');
+    expect(screen.queryByText('Playing here')).not.toBeInTheDocument();
   });
 
   it('adds and removes speakers, remembering and routing each change', async () => {
@@ -47,6 +50,7 @@ describe('AirPlaySpeakerList', () => {
     render(<AirPlaySpeakerList isPlayerReady />);
     const kitchen = await screen.findByRole('button', { name: /Kitchen/ });
     expect(kitchen).toHaveTextContent('Not on the network');
+    expect(kitchen).toHaveTextContent('Selected');
   });
 
   it('reads the outputs again when they change', async () => {
@@ -65,11 +69,27 @@ describe('AirPlaySpeakerList', () => {
     airplay.listAudioOutputs.mockRejectedValue(new Error('Not allowed'));
     render(<AirPlaySpeakerList isPlayerReady />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Not allowed');
+    const kitchen = screen.getByRole('button', { name: /Kitchen/ });
+    expect(kitchen).toHaveTextContent('Selected');
+    expect(kitchen).toHaveTextContent('Availability unknown');
+    expect(kitchen).not.toHaveTextContent('Not on the network');
   });
 
   it('cannot route before the tablet player is ready', async () => {
     render(<AirPlaySpeakerList isPlayerReady={false} />);
     expect(await screen.findByRole('button', { name: /Lounge/ })).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent(/Play in this browser/);
+    expect(screen.getByRole('button', { name: /Kitchen/ })).toHaveTextContent('Selected');
+    expect(screen.queryByText('Playing here')).not.toBeInTheDocument();
+    expect(airplay.routeAudio).not.toHaveBeenCalled();
+  });
+
+  it('does not report a saved speaker as absent while discovery is pending', () => {
+    airplay.listAudioOutputs.mockImplementation(() => new Promise(() => {}));
+    render(<AirPlaySpeakerList isPlayerReady />);
+    const kitchen = screen.getByRole('button', { name: /Kitchen/ });
+    expect(kitchen).toHaveTextContent('Selected');
+    expect(kitchen).toHaveTextContent('Checking availability');
+    expect(kitchen).not.toHaveTextContent('Not on the network');
   });
 });
