@@ -77,6 +77,15 @@
     group: root
     mode: '0644'
 
+# Debian's sudo and some tools look the host name up; Raspberry Pi OS's cloud-init does not add it to /etc/hosts.
+- name: Resolve the host name locally
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1\s'
+    line: '127.0.1.1 {{ kiosk_hostname }}'
+    # A container's /etc/hosts (the playbook test) is a bind mount, which cannot be replaced by a rename.
+    unsafe_writes: true
+
 - name: Set the time zone name
   ansible.builtin.copy:
     content: |
@@ -474,6 +483,8 @@
     - kiosk-restart.service
     - kiosk-restart.timer
     - kiosk-update-now.service
+    - kiosk-widevine.path
+    - kiosk-widevine.service
   notify: Reload systemd
 
 # The units must be known to systemd before they are enabled and started.
@@ -508,3 +519,4 @@
   loop:
     - kiosk-pull.timer
     - kiosk-restart.timer
+    - kiosk-widevine.path

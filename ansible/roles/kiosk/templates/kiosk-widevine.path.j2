@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+# Chromium downloads Widevine (Spotify's DRM module) into the kiosk's profile on its first run, but only loads it when it
+# starts again, so until then the player fails with "Failed to initialize player". This watches for that download.
+[Unit]
+Description=Watch for Chromium's Widevine download
+
+[Path]
+PathChanged=/home/{{ kiosk_user }}/.config/chromium/WidevineCdm/latest-component-updated-widevine-cdm
+Unit=kiosk-widevine.service
+
+[Install]
+WantedBy=multi-user.target

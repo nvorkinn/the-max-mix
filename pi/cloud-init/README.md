@@ -28,7 +28,8 @@ your own Wi-Fi, then scrub your Wi-Fi before the Pi goes to its new home. There 
    locked `kiosk` user and starts `kiosk-first-pull.service`. That installs Ansible and runs the playbook from `stable`,
    the same run the Pi's update timer repeats later, then reboots. Expect 15 to 30 minutes. It tries again every minute
    until it has worked (`journalctl -u kiosk-first-pull`, once you can log in).
-4. After the reboot the kiosk starts. Test it: sign in to Spotify, play something, try the speakers.
+4. After the reboot the kiosk starts. On its first run Chromium downloads Widevine, the module Spotify needs, and the
+   kiosk restarts by itself once that is done (kiosk-widevine.path), a minute or two later. Test it: sign in to Spotify, play something, try the speakers.
 
 ## Hand it over
 
