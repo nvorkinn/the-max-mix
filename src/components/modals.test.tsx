@@ -10,7 +10,6 @@ const api = vi.hoisted(() => ({ getDevices: vi.fn() }));
 const auth = vi.hoisted(() => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
 const settings = vi.hoisted(() => ({
   setPlaybackMode: vi.fn(),
-  setDemoMode: vi.fn(),
   reloadSettings: vi.fn(),
   getRedirectUri: vi.fn()
 }));
@@ -72,7 +71,6 @@ describe('SettingsModal', () => {
   });
 
   it.each([
-    ['demo mode', { demoMode: true }, /playback is simulated/i, null],
     ['signed out', {}, /sign in with a spotify premium/i, 'Log in with Spotify'],
     [
       'signed in',
@@ -83,10 +81,8 @@ describe('SettingsModal', () => {
   ])('explains the %s state', (_, authInfo, message, loginLabel) => {
     render(<SettingsModal {...base} authInfo={authInfo} />);
     expect(screen.getByText(message)).toBeInTheDocument();
-    expect(screen.queryAllByRole('button', { name: /log in with|re-authenticate/i })).toHaveLength(loginLabel ? 1 : 0);
-    expect(screen.queryByRole('button', { name: loginLabel ?? 'none' })).toBe(
-      loginLabel ? screen.getByRole('button', { name: loginLabel }) : null
-    );
+    expect(screen.getAllByRole('button', { name: /log in with|re-authenticate/i })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: loginLabel })).toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/server environment|restart/i);
   });
@@ -94,8 +90,6 @@ describe('SettingsModal', () => {
   it('shows connected status only when authenticated', () => {
     const { rerender } = render(<SettingsModal {...base} authInfo={{ authenticated: true }} />);
     expect(screen.getByText('Connected')).toBeInTheDocument();
-    rerender(<SettingsModal {...base} authInfo={{ demoMode: true }} />);
-    expect(screen.getByText('Demo mode', { selector: 'span' })).toBeInTheDocument();
     rerender(<SettingsModal {...base} authInfo={{}} />);
     expect(screen.getByText('Not connected')).toBeInTheDocument();
   });
@@ -178,7 +172,7 @@ describe('SettingsModal', () => {
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
   });
 
-  it('stages playback and demo changes until Apply and reload', async () => {
+  it('stages playback changes until Apply and reload', async () => {
     const { rerender } = render(<SettingsModal {...base} authInfo={{ playbackMode: 'browser' }} />);
     const playback = screen.getByRole('radio', { name: 'This device' });
     expect(playback).toBeChecked();
@@ -195,17 +189,6 @@ describe('SettingsModal', () => {
     await userEvent.click(screen.getByRole('radio', { name: 'This device' }));
     await userEvent.click(screen.getByRole('button', { name: 'Apply and reload' }));
     expect(settings.setPlaybackMode).toHaveBeenLastCalledWith('browser');
-
-    const demo = screen.getByRole('switch', { name: 'Demo mode' });
-    expect(demo).not.toBeChecked();
-    await userEvent.click(demo);
-    expect(settings.setDemoMode).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('button', { name: 'Apply and reload' }));
-    expect(settings.setDemoMode).toHaveBeenCalledWith(true);
-    rerender(<SettingsModal {...base} authInfo={{ demoMode: true }} />);
-    await userEvent.click(screen.getByRole('switch', { name: 'Demo mode' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Apply and reload' }));
-    expect(settings.setDemoMode).toHaveBeenLastCalledWith(false);
   });
 
   it('explains unavailable browser playback without changing the saved mode', async () => {
@@ -310,9 +293,8 @@ describe('SpeakerSelectorModal', () => {
   it('refreshes on demand and closes', async () => {
     api.getDevices.mockResolvedValue({ devices: [] });
     const onClose = vi.fn();
-    render(<SpeakerSelectorModal isOpen onClose={onClose} isDemoMode />);
+    render(<SpeakerSelectorModal isOpen onClose={onClose} />);
     await screen.findByText(/No available devices/);
-    expect(screen.getByText(/Simulated device/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Refresh devices' }));
     await waitFor(() => expect(api.getDevices).toHaveBeenCalledTimes(2));
     await userEvent.click(screen.getByRole('button', { name: 'Close speakers' }));

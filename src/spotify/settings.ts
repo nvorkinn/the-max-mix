@@ -5,7 +5,6 @@
 // code and users never enter it.
 const SPOTIFY_CLIENT_ID = '79012ca710ca4dd5ad18c2973510b670';
 const PLAYBACK_MODE_KEY = 'maxmix.playbackMode';
-const DEMO_KEY = 'maxmix.demo';
 const AUDIO_ROUTE_KEY = 'maxmix.audioRoute';
 
 function read(key: string): string | null {
@@ -53,20 +52,9 @@ export function setAudioRoute(route: AudioRoute): void {
   write(AUDIO_ROUTE_KEY, route === 'airplay' ? 'airplay' : null);
 }
 
-/** Demo mode simulates playback; it is on when the address has ?demo=true or it was switched on in Settings. */
-export function isDemoMode(): boolean {
-  return new URLSearchParams(location.search).get('demo') === 'true' || read(DEMO_KEY) === 'true';
-}
-
-export function setDemoMode(on: boolean): void {
-  write(DEMO_KEY, on ? 'true' : null);
-}
-
-/** Reload stored preferences without letting a demo query override the saved choice. */
+/** Reload the app so it picks up the stored preferences. */
 export function reloadSettings(): void {
-  const url = new URL(location.href);
-  url.searchParams.delete('demo');
-  location.assign(url.href);
+  location.reload();
 }
 
 /** The address Spotify sends the browser back to after sign-in. Register exactly this in the Spotify dashboard. */

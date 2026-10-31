@@ -1,13 +1,10 @@
 import { useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, AudioLines, Speaker } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
-import { getDivaForUser } from '../utils/divas';
 import type { PlayerControls } from '../types';
-import { Artwork, GuestAvatar } from './TrackImages';
+import { Artwork } from './TrackImages';
 
 type AlbumArtPlayerProps = Readonly<PlayerControls> & {
-  theme?: string;
-  isDemoMode?: boolean;
   controlsEnabled?: boolean;
   notice?: ReactNode;
 };
@@ -20,8 +17,6 @@ export default function AlbumArtPlayer({
   onPrevious,
   onSeek,
   onVolumeChange,
-  theme = 'neon',
-  isDemoMode = false,
   controlsEnabled = false,
   notice
 }: AlbumArtPlayerProps) {
@@ -45,10 +40,6 @@ export default function AlbumArtPlayer({
   const progressMs = hasTrack ? (playback?.progress_ms ?? playback?.position ?? 0) : 0;
   const durationMs = hasTrack ? item.duration_ms || playback?.duration || 0 : 0;
   const progressPercent = durationMs > 0 ? Math.min(100, Math.max(0, (progressMs / durationMs) * 100)) : 0;
-  const rawAddedBy = item.added_by ?? item.addedBy ?? {};
-  const guestName = isDemoMode ? rawAddedBy.name : null;
-  const assignedDiva = getDivaForUser(guestName || '', 0, theme);
-  const userAvatar = rawAddedBy.avatar || assignedDiva.image;
 
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
@@ -86,14 +77,6 @@ export default function AlbumArtPlayer({
           <Speaker size={14} aria-hidden="true" />
           <span>{playback?.device?.name || 'Select a device in Speakers'}</span>
         </div>
-        {guestName && (
-          <div className="track-credit">
-            <GuestAvatar src={userAvatar} name={guestName} />
-            <span>
-              Demo pick by <strong>{guestName}</strong>
-            </span>
-          </div>
-        )}
       </div>
 
       <div className="player-controls">

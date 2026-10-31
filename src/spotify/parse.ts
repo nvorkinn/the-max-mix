@@ -22,13 +22,6 @@ const parseAll = <T>(value: unknown, parse: (entry: unknown) => T | undefined): 
     return parsed === undefined ? [] : [parsed];
   });
 
-function parsePerson(value: unknown): { avatar?: string; name?: string } | undefined {
-  if (!isRecord(value)) return undefined;
-  const avatar = text(value['avatar']);
-  const name = text(value['name']);
-  return { ...(avatar !== undefined && { avatar }), ...(name !== undefined && { name }) };
-}
-
 export function parseTrack(value: unknown): Track | undefined {
   if (!isRecord(value)) return undefined;
   const track: Track = {};
@@ -38,10 +31,6 @@ export function parseTrack(value: unknown): Track | undefined {
   }
   const durationMs = finite(value['duration_ms']);
   if (durationMs !== undefined) track.duration_ms = durationMs;
-  const addedBy = parsePerson(value['addedBy']);
-  if (addedBy) track.addedBy = addedBy;
-  const addedByAlias = parsePerson(value['added_by']);
-  if (addedByAlias) track.added_by = addedByAlias;
   if (isRecord(value['album'])) {
     track.album = {
       images: parseAll(value['album']['images'], image => {

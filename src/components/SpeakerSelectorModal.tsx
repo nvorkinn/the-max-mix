@@ -23,7 +23,6 @@ export default function SpeakerSelectorModal({
   onClose,
   onSelectSpeaker,
   browserDeviceId,
-  isDemoMode,
   canUseAirPlay = false,
   audioRoute = 'spotify-connect',
   onAudioRouteChange
@@ -32,7 +31,6 @@ export default function SpeakerSelectorModal({
   onClose: () => void;
   onSelectSpeaker: (deviceId: string) => Promise<unknown>;
   browserDeviceId?: string | null;
-  isDemoMode?: boolean;
   /** The Pi kiosk, whose audio service can send this tablet's sound to AirPlay speakers. */
   canUseAirPlay?: boolean;
   audioRoute?: AudioRoute;
@@ -98,8 +96,7 @@ export default function SpeakerSelectorModal({
             {isAirPlay ? 'Choose AirPlay speakers' : 'Choose a Spotify device'}
           </h2>
           <p className="text-xs text-muted mt-1">
-            {isDemoMode && 'Simulated device / demo mode'}
-            {!isDemoMode && (isAirPlay ? 'Speakers found on this network' : 'Devices reported by your Spotify account')}
+            {isAirPlay ? 'Speakers found on this network' : 'Devices reported by your Spotify account'}
           </p>
         </div>
         <div className="flex gap-2">

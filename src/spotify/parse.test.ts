@@ -20,8 +20,6 @@ describe('spotify/parse', () => {
         albumArt: 'https://art/a.jpg',
         uri: 'spotify:track:a',
         duration_ms: 1000,
-        addedBy: { name: 'Ann', avatar: 'x' },
-        added_by: { name: 'Bob' },
         album: { images: [{ url: 'https://art/b.jpg' }] },
         artists: [{ name: 'Singer' }],
         external_urls: { spotify: 'https://open.spotify.com/track/a' }

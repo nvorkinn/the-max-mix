@@ -18,31 +18,18 @@ const playing = { is_playing: true, device: { id: 'd' } };
 describe('useSpotifyPlayer', () => {
   beforeEach(() => {
     resetSpotifyMocks(mocks);
-    // Demo mode: no SDK, no sign-in needed.
-    mocks.settings.isDemoMode.mockReturnValue(true);
-    mocks.auth.isSignedIn.mockReturnValue(false);
+    // Remote mode: signed in, no SDK.
+    mocks.settings.getPlaybackMode.mockReturnValue('remote');
   });
 
   it('starts in a loading state', () => {
     mocks.api.getPlaybackState.mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useSpotifyPlayer());
     expect(result.current.isLoading).toBe(true);
-    expect(result.current.isAuthenticated).toBe(false);
-  });
-
-  it('loads playback in demo mode without needing a login', async () => {
-    mocks.api.getPlaybackState.mockResolvedValue(playing);
-    const { result } = renderHook(() => useSpotifyPlayer());
-    await waitFor(() => expect(result.current.isReady).toBe(true));
-    expect(result.current.isDemoMode).toBe(true);
-    expect(result.current.isLoading).toBe(false);
-    expect(mocks.auth.getAccessToken).not.toHaveBeenCalled();
+    expect(result.current.isAuthenticated).toBe(true);
   });
 
   it('reads the configuration from the settings and the stored login', async () => {
-    mocks.settings.isDemoMode.mockReturnValue(false);
-    mocks.auth.isSignedIn.mockReturnValue(true);
-    mocks.settings.getPlaybackMode.mockReturnValue('remote');
     mocks.api.getPlaybackState.mockResolvedValue(playing);
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.isReady).toBe(true));
@@ -51,7 +38,7 @@ describe('useSpotifyPlayer', () => {
   });
 
   it('does not fetch playback when signed out', async () => {
-    mocks.settings.isDemoMode.mockReturnValue(false);
+    mocks.auth.isSignedIn.mockReturnValue(false);
     const { result } = renderHook(() => useSpotifyPlayer());
     await act(async () => {});
     expect(result.current.isLoading).toBe(false);
@@ -60,7 +47,6 @@ describe('useSpotifyPlayer', () => {
   });
 
   it('surfaces connection errors and signs out the view on a revoked login', async () => {
-    mocks.settings.isDemoMode.mockReturnValue(false);
     mocks.auth.isSignedIn.mockReturnValueOnce(true).mockReturnValue(false);
     mocks.api.getPlaybackState.mockRejectedValue(new SpotifyApiError('Not logged in', 401));
     const { result } = renderHook(() => useSpotifyPlayer());

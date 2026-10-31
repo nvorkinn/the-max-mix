@@ -3,7 +3,7 @@ import { X, Settings, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feath
 import { signOut, startSignIn } from '../spotify/auth';
 import { errorMessage } from '../utils/errorMessage';
 import { isKiosk, openWifiSettings } from '../utils/kiosk';
-import { getRedirectUri, reloadSettings, setDemoMode, setPlaybackMode } from '../spotify/settings';
+import { getRedirectUri, reloadSettings, setPlaybackMode } from '../spotify/settings';
 import { widevineProblem } from '../utils/widevine';
 import { SCREEN_SLEEP_CHOICES } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
@@ -43,49 +43,10 @@ function ScreenSleepRow({
   );
 }
 
-/** A labelled on/off switch. */
-function SwitchRow({
-  label,
-  description,
-  checked,
-  disabled = false,
-  onChange
-}: Readonly<{
-  label: string;
-  description: string;
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (checked: boolean) => void;
-}>) {
-  return (
-    <div className="modal-card flex items-center justify-between gap-3 p-3 rounded-2xl border">
-      <div>
-        <div className="text-xs font-bold">{label}</div>
-        <p className="text-muted text-[10px] mt-0.5">{description}</p>
-      </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className="appearance-switch shrink-0 w-11 h-11 grid place-items-center disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        <span aria-hidden="true" className="switch-track block w-11 h-6 rounded-full p-0.5 transition-all">
-          <span
-            className={`switch-thumb block w-5 h-5 rounded-full transition-all ${checked ? 'translate-x-5' : ''}`}
-          />
-        </span>
-      </button>
-    </div>
-  );
-}
-
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  authInfo?: { authenticated?: boolean; demoMode?: boolean; playbackMode?: string | undefined };
+  authInfo?: { authenticated?: boolean; playbackMode?: string | undefined };
   signInError?: string | null;
   onReload?: () => void;
   currentTheme?: string;
@@ -109,18 +70,11 @@ function SettingsContent({
 }: Readonly<SettingsModalProps>) {
   const [actionError, setActionError] = useState<string | null>(null);
   const savedMode = authInfo?.playbackMode === 'remote' ? 'remote' : 'browser';
-  const savedDemo = Boolean(authInfo?.demoMode);
   const [previousMode, setPreviousMode] = useState(savedMode);
-  const [previousDemo, setPreviousDemo] = useState(savedDemo);
   const [pendingMode, setPendingMode] = useState<'browser' | 'remote'>(savedMode);
-  const [pendingDemo, setPendingDemo] = useState(savedDemo);
   if (previousMode !== savedMode) {
     setPreviousMode(savedMode);
     setPendingMode(savedMode);
-  }
-  if (previousDemo !== savedDemo) {
-    setPreviousDemo(savedDemo);
-    setPendingDemo(savedDemo);
   }
   // Why this browser cannot be the speaker (no Widevine), checked each time Settings opens; null while it can.
   const [cannotPlay, setCannotPlay] = useState<string | null>(null);
@@ -142,7 +96,6 @@ function SettingsContent({
     };
   }, []);
   const modeChanged = pendingMode !== savedMode;
-  const demoChanged = pendingDemo !== savedDemo;
   let browserDescription =
     'Play audio on this tablet. Requires Spotify Premium, HTTPS and browser encrypted media support.';
   if (checkingPlayback) browserDescription = 'Checking browser playback support...';
@@ -168,11 +121,7 @@ function SettingsContent({
   const error = actionError || signInError;
 
   let spotifyStatus = 'Sign in with a Spotify Premium account to control a real device.';
-  if (authInfo?.demoMode) {
-    spotifyStatus = 'Playback is simulated. Turn demo mode off below to use Spotify.';
-  } else if (authInfo?.authenticated) {
-    spotifyStatus = 'Connected to Spotify. Choose a playback destination below.';
-  }
+  if (authInfo?.authenticated) spotifyStatus = 'Connected to Spotify. Choose a playback destination below.';
 
   return (
     <Modal
@@ -207,7 +156,7 @@ function SettingsContent({
             </span>
           ) : (
             <span className="modal-status status-warning flex items-center text-xs font-bold gap-1 px-2 py-0.5 rounded-full border">
-              <AlertCircle className="w-3.5 h-3.5" /> {authInfo?.demoMode ? 'Demo mode' : 'Not connected'}
+              <AlertCircle className="w-3.5 h-3.5" /> Not connected
             </span>
           )}
         </div>
@@ -229,19 +178,17 @@ function SettingsContent({
           </p>
         )}
 
-        {!authInfo?.demoMode && (
-          <button
-            type="button"
-            onClick={() => {
-              setActionError(null);
-              startSignIn().catch((caught: unknown) => setActionError(errorMessage(caught)));
-            }}
-            className="spotify-sign-in w-full py-3 px-4 font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
-          >
-            <Music className="w-4 h-4 fill-current" />
-            {authInfo?.authenticated ? 'Re-authenticate with Spotify' : 'Log in with Spotify'}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => {
+            setActionError(null);
+            startSignIn().catch((caught: unknown) => setActionError(errorMessage(caught)));
+          }}
+          className="spotify-sign-in w-full py-3 px-4 font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
+        >
+          <Music className="w-4 h-4 fill-current" />
+          {authInfo?.authenticated ? 'Re-authenticate with Spotify' : 'Log in with Spotify'}
+        </button>
 
         {authInfo?.authenticated && (
           <button
@@ -292,25 +239,17 @@ function SettingsContent({
             </span>
           </label>
         </fieldset>
-        <SwitchRow
-          label="Demo mode"
-          description="Simulated playback and queue, no Spotify account needed."
-          checked={pendingDemo}
-          onChange={setPendingDemo}
-        />
         <p className="text-[11px] text-muted">
-          Apply destination or demo changes to reload the app. This won't move or start your music automatically.
+          Apply destination changes to reload the app. This won't move or start your music automatically.
         </p>
         <button
           type="button"
           className="button button-secondary w-full"
           disabled={
-            (!modeChanged && !demoChanged) ||
-            (modeChanged && pendingMode === 'browser' && (checkingPlayback || Boolean(cannotPlay)))
+            !modeChanged || (pendingMode === 'browser' && (checkingPlayback || Boolean(cannotPlay)))
           }
           onClick={() => {
-            if (modeChanged) setPlaybackMode(pendingMode);
-            if (demoChanged) setDemoMode(pendingDemo);
+            setPlaybackMode(pendingMode);
             onReload();
           }}
         >

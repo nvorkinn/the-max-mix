@@ -1,6 +1,6 @@
 /** Shared types for the Spotify data the app reads and the Web Playback SDK parts it uses. */
 
-/** A track in Spotify playback or the live/demo queue. */
+/** A track in Spotify playback or the queue. */
 export interface Track {
   id?: string;
   title?: string;
@@ -8,8 +8,6 @@ export interface Track {
   artist?: string;
   albumArt?: string;
   duration_ms?: number;
-  addedBy?: { avatar?: string; name?: string };
-  added_by?: { avatar?: string; name?: string };
   album?: { images?: { url?: string }[] };
   artists?: { name?: string }[];
   uri?: string;

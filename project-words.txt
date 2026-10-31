@@ -1,15 +1,13 @@
-# Project dictionary for cspell: product names, hardware and OS terms, and the artist names used by the divas theme.
+# Project dictionary for cspell: product names, hardware and OS terms, and artist names.
 # One word per line, case-insensitive. Keep sorted.
 acng
 addedid
-aguilera
 alanis
 alessia
 alsa
 anitta
 aqabaiaaaaaaap
 argv
-ariana
 ashnikko
 authentik
 autologin
@@ -19,8 +17,6 @@ avenir
 avril
 bebe
 behavior
-beyonce
-beyoncé
 björk
 blockinfile
 bluetoothctl
@@ -33,7 +29,6 @@ cacher
 camila
 cardi
 carly
-celine
 cenc
 chappell
 charli
@@ -48,7 +43,6 @@ color
 copyfile
 coutside
 cretpass
-céline
 dataclass
 dbus
 dejavu
@@ -56,7 +50,6 @@ deluser
 devicechange
 dialog
 dialogs
-dion
 disallocate
 doja
 dpms
@@ -113,9 +106,7 @@ loglevel
 longenough
 lorde
 lrclib
-madonnas
 mapfile
-mariah
 math
 maxmix
 mcrae

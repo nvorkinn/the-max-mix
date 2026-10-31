@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { fakeSpotify } from './fakeSpotify.ts';
 
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 
@@ -6,6 +7,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://images.unsplash.com/**', route =>
     route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
   );
+  await fakeSpotify(page);
 });
 
 for (const appearance of [
@@ -13,7 +15,7 @@ for (const appearance of [
   { name: 'Paper', id: 'minimal', surface: 'rgb(250, 250, 246)', ink: 'rgb(35, 41, 31)', scheme: 'light' }
 ]) {
   test(`${appearance.name} appearance applies to dialogs, status and kiosk controls`, async ({ page }) => {
-    await page.goto('/?demo=true&kiosk=1');
+    await page.goto('/?kiosk=1');
     await page.getByRole('button', { name: 'Open settings' }).click();
     const settings = page.getByRole('dialog', { name: 'Settings' });
     await settings
@@ -79,7 +81,7 @@ for (const appearance of [
     const speakers = page.getByRole('dialog', { name: 'Choose a Spotify device' });
     await expect(speakers).toHaveCSS('background-color', appearance.surface);
     await expect(speakers).toHaveCSS('color', appearance.ink);
-    await expect(speakers.getByRole('button', { name: /Demo tablet/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(speakers.getByRole('button', { name: /Test speaker/ })).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.press('Escape');
 
     await page.keyboard.press('Control+Shift+D');

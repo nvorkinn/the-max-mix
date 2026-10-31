@@ -6,7 +6,6 @@ export type PlaybackNoticeState =
 
 interface PlaybackNoticeProps {
   notice: PlaybackNoticeState;
-  isDemoMode: boolean;
   busy: boolean;
   onSettings: () => void;
   onChooseSpeaker: () => void;
@@ -18,7 +17,6 @@ interface PlaybackNoticeProps {
 
 export default function PlaybackNotice({
   notice,
-  isDemoMode,
   busy,
   onSettings,
   onChooseSpeaker,
@@ -79,7 +77,7 @@ export default function PlaybackNotice({
         action: { label: 'Connect Spotify', run: onSettings }
       },
       connecting: {
-        title: isDemoMode ? 'Loading demo playback...' : 'Connecting to Spotify...',
+        title: 'Connecting to Spotify...',
         text: 'Waiting for playback status.',
         action: undefined
       },
@@ -100,7 +98,7 @@ export default function PlaybackNotice({
       },
       idle: {
         title: 'No track playing',
-        text: isDemoMode ? 'Choose a demo track from the queue.' : 'Choose music in Spotify, then press Play.',
+        text: 'Choose music in Spotify, then press Play.',
         action: undefined
       }
     }[notice.kind];

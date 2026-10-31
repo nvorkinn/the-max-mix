@@ -242,17 +242,13 @@ describe('useSpotifyPlayer browser playback', () => {
     expect(result.current.problem?.recovery).toBe('reconnect');
   });
 
-  it('does not load the SDK in remote playback mode, in demo mode or when signed out', async () => {
+  it('does not load the SDK in remote playback mode or when signed out', async () => {
     mocks.settings.getPlaybackMode.mockReturnValue('remote');
     const remote = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(remote.result.current.isReady).toBe(true));
     remote.unmount();
 
     mocks.settings.getPlaybackMode.mockReturnValue('browser');
-    mocks.settings.isDemoMode.mockReturnValue(true);
-    renderHook(() => useSpotifyPlayer()).unmount();
-
-    mocks.settings.isDemoMode.mockReturnValue(false);
     mocks.auth.isSignedIn.mockReturnValue(false);
     renderHook(() => useSpotifyPlayer()).unmount();
     expect(sdk.loadSpotifySDK).not.toHaveBeenCalled();

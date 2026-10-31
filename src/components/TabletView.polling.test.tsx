@@ -25,7 +25,6 @@ vi.mock('./TrackQueue', () => ({
 const player = (overrides?: Record<string, unknown>) => ({
   isReady: false,
   playbackState: null,
-  isDemoMode: false,
   isAuthenticated: false,
   ...overrides
 });

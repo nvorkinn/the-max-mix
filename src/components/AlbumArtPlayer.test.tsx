@@ -17,8 +17,7 @@ const playback = {
     name: 'Song',
     duration_ms: 200_000,
     artists: [{ name: 'A' }, { name: 'B' }],
-    album: { images: [{ url: 'http://art/1.jpg' }] },
-    added_by: { name: 'Ann' }
+    album: { images: [{ url: 'http://art/1.jpg' }] }
   }
 };
 
@@ -102,19 +101,6 @@ describe('AlbumArtPlayer', () => {
     expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
   });
 
-  it('credits the demo guest only in demo mode, falling back to initials on error', () => {
-    const { unmount } = render(<AlbumArtPlayer playback={playback} isDemoMode controlsEnabled onSeek={() => {}} />);
-    expect(screen.getByText('Ann')).toBeInTheDocument();
-    expect(screen.getByText('Kitchen')).toBeInTheDocument();
-    const avatar = defined(document.querySelector('.track-credit img'));
-    fireEvent.error(avatar);
-    expect(avatar).not.toBeInTheDocument();
-    expect(screen.getByText('A', { selector: '.guest-avatar' })).toBeInTheDocument();
-    unmount();
-    setup();
-    expect(screen.queryByText(/Demo pick by/)).not.toBeInTheDocument();
-  });
-
   it('clamps progress past the end of the track', () => {
     setup({ playback: { ...playback, progress_ms: 999_999 } });
     expect(screen.getByRole('slider', { name: 'Playback position' })).toHaveValue('200000');
@@ -157,17 +143,12 @@ describe('TrackQueue', () => {
       id: 'a',
       name: 'One',
       artists: [{ name: 'X' }],
-      duration_ms: 125_000,
-      added_by: { name: 'Ann', avatar: 'ann.png' }
+      duration_ms: 125_000
     },
     { id: 'b', title: 'Two', artist: 'Y', duration_ms: 60_000 },
     { uri: 'spotify:track:c', name: 'Three', external_urls: { spotify: 'https://open.spotify.com/track/c' } }
   ];
-  const setupQueue = (props = {}) => {
-    const h = { onReorderQueue: vi.fn().mockResolvedValue(true), onPlaySongNow: vi.fn() };
-    render(<TrackQueue queue={tracks} {...h} {...props} />);
-    return h;
-  };
+  const setupQueue = (props = {}) => render(<TrackQueue queue={tracks} {...props} />);
 
   it('renders tracks, durations, count and total length', () => {
     setupQueue();
@@ -191,7 +172,7 @@ describe('TrackQueue', () => {
     expect(screen.getByText('0 tracks')).toBeInTheDocument();
   });
 
-  it('links to Spotify and hides demo-only controls outside demo mode', () => {
+  it('links each track to Spotify', () => {
     setupQueue();
     expect(screen.getByRole('link', { name: 'Open Three in Spotify' })).toHaveAttribute(
       'href',
@@ -201,8 +182,6 @@ describe('TrackQueue', () => {
       'href',
       'https://open.spotify.com'
     );
-    expect(screen.queryByRole('button', { name: /reorder/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /play .* now/i })).not.toBeInTheDocument();
   });
 
   it('shows an error alert', () => {
@@ -231,57 +210,5 @@ describe('TrackQueue', () => {
     setupQueue({ status: 'error', error: 'Slow down', onRetry: retry, retryAllowed: false });
     fireEvent.click(screen.getByRole('button', { name: 'Waiting to retry...' }));
     expect(retry).not.toHaveBeenCalled();
-  });
-
-  it('plays a demo track immediately', () => {
-    const h = setupQueue({ isDemoMode: true });
-    fireEvent.click(screen.getByRole('button', { name: 'Play Two now' }));
-    expect(h.onPlaySongNow).toHaveBeenCalledWith('b', tracks[1]);
-    fireEvent.click(screen.getByRole('button', { name: 'Play Three now' }));
-    expect(h.onPlaySongNow).toHaveBeenLastCalledWith('spotify:track:c', tracks[2]);
-  });
-
-  it('shows the demo guest', () => {
-    setupQueue({ isDemoMode: true });
-    expect(screen.getByLabelText('Demo guest Ann')).toBeInTheDocument();
-  });
-
-  it('reorders with the keyboard and ignores moves past the ends', async () => {
-    vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => fn(0));
-    const h = setupQueue({ isDemoMode: true });
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Two' }), { key: 'ArrowUp' });
-    await vi.waitFor(() => expect(h.onReorderQueue).toHaveBeenCalledWith([tracks[1], tracks[0], tracks[2]]));
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder One' }), { key: 'ArrowUp' });
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Three' }), { key: 'ArrowDown' });
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Three' }), { key: 'Enter' });
-    await Promise.resolve();
-    expect(h.onReorderQueue).toHaveBeenCalledTimes(1);
-  });
-
-  it('reorders by dragging the handle to another row', () => {
-    const h = setupQueue({ isDemoMode: true });
-    const rows = document.querySelectorAll('.queue-track');
-    rows.forEach((row, i) => {
-      row.getBoundingClientRect = () => ({ top: i * 50, bottom: i * 50 + 49 }) as unknown as DOMRect; // only the fields the component reads
-    });
-    const handle = screen.getByRole('button', { name: 'Reorder One' });
-    fireEvent.pointerDown(handle, { button: 0, pointerType: 'mouse' });
-    expect(rows[0]).toHaveClass('is-dragging');
-    fireEvent.pointerMove(window, { clientY: 120 });
-    expect(rows[2]).toHaveClass('is-drop-target');
-    fireEvent.pointerUp(window);
-    expect(h.onReorderQueue).toHaveBeenCalledWith([tracks[1], tracks[2], tracks[0]]);
-    expect(rows[0]).not.toHaveClass('is-dragging');
-  });
-
-  it('cancels a drag without reordering and ignores non-primary mouse buttons', () => {
-    const h = setupQueue({ isDemoMode: true });
-    const handle = screen.getByRole('button', { name: 'Reorder One' });
-    fireEvent.pointerDown(handle, { button: 2, pointerType: 'mouse' });
-    expect(document.querySelector('.is-dragging')).toBeNull();
-    fireEvent.pointerDown(handle, { button: 0, pointerType: 'mouse' });
-    fireEvent.pointerCancel(window);
-    fireEvent.pointerUp(window);
-    expect(h.onReorderQueue).not.toHaveBeenCalled();
   });
 });

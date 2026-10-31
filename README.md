@@ -13,8 +13,6 @@ phone and desktop layouts are not supported.
   Select it in Speakers before playing; opening the UI does not steal playback.
 - **Remote mode** controls an existing Spotify Connect device without loading
   the Web Playback SDK or requiring DRM on the Pi.
-- Explicit **demo mode** supplies simulated tracks and a reorderable demo queue.
-  Live errors never switch the app into demo mode.
 
 Spotify Premium and access to a Spotify developer app are required for real
 playback. Browser streaming also requires a working encrypted-media/Widevine
@@ -109,7 +107,7 @@ npm run dev
 ```
 
 Open **<http://127.0.0.1:5173/>**; the dev server uses exactly that address and port (it stops rather than choosing
-another port). For a UI-only demonstration open **<http://127.0.0.1:5173/?demo=true>**; no Spotify account is needed.
+another port).
 Register `http://127.0.0.1:5173/` as a redirect URI in the Spotify dashboard to sign in during development.
 
 To try the production build (the same files the Pi serves), run
@@ -142,7 +140,7 @@ skipped automatically when there is no `.git` directory or when dev dependencies
    it there.
 4. Choose **Connect Spotify** in the browser that will play (on the kiosk, the Pi's Chromium).
    In Settings, choose **This device** (browser playback, the default) or **Another Spotify device** (remote),
-   then **Apply and reload**. **Try demo** supplies simulated playback; `?demo=true` enables it for a visit.
+   then **Apply and reload**.
    On the Pi kiosk, which is opened with `?kiosk=1` (the app remembers that, so it survives the Spotify sign-in redirect;
    `?kiosk=0` forgets it), Settings also shows **Wi-Fi network**, which opens the Pi's native Wi-Fi panel (it asks the
    kiosk to open `kiosk-wifi://open`). Other visitors never see the entry. The kiosk's Settings also show which release

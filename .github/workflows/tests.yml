@@ -34,7 +34,7 @@ jobs:
           if-no-files-found: ignore
       - run: npm run build
 
-  # Browser smoke test of the built app in demo mode, served by `vite preview`. Runs in parallel with `tests` and uses the Google Chrome that
+  # Browser tests of the built app with Spotify faked, served by `vite preview`. Runs in parallel with `tests` and uses the Google Chrome that
   # ships on ubuntu-latest, so no browser download is needed.
   e2e:
     runs-on: ubuntu-latest

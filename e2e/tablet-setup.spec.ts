@@ -31,7 +31,6 @@ for (const appearance of ['neon', 'minimal']) {
       await page.goto('/');
       const setup = page.getByRole('region', { name: 'Now playing' });
       await expect(setup.getByRole('button', { name: 'Connect Spotify' })).toBeInViewport();
-      await expect(setup.getByRole('button', { name: 'Try demo' })).toBeInViewport();
       await expect(setup.getByRole('slider')).toHaveCount(0);
       await expect(page.getByRole('region', { name: 'Upcoming tracks' })).toHaveCount(0);
       await setup.getByRole('button', { name: 'Connection settings' }).click();
@@ -47,16 +46,6 @@ for (const appearance of ['neon', 'minimal']) {
       await expect(settings.getByRole('radio', { name: 'Another Spotify device' })).toBeChecked();
       await expect(settings.getByRole('button', { name: 'Apply and reload' })).toBeDisabled();
       await settings.getByRole('button', { name: 'Close settings' }).click();
-
-      await setup.getByRole('button', { name: 'Try demo' }).click();
-      await expect(page.locator('.app-footer')).toContainText('DEMO / simulated playback');
-      await page.getByRole('button', { name: 'Open settings' }).click();
-      await expect(settings.getByRole('radio', { name: 'Another Spotify device' })).toBeChecked();
-      await settings.getByRole('switch', { name: 'Demo mode' }).click();
-      await expect(page.locator('.app-footer')).toContainText('DEMO / simulated playback');
-      await settings.getByRole('button', { name: 'Apply and reload' }).click();
-      await expect(setup.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
-      await expect(page.locator('.app-footer')).not.toContainText('simulated playback');
       expect(commands).toEqual([]);
       expect(await page.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     });
@@ -74,12 +63,11 @@ test('the primary Connect action goes directly to Spotify rather than through Se
   await expect(page.getByRole('heading', { name: 'Test sign-in page' })).toBeVisible();
 });
 
-test('failed sign-in retains recovery and diagnostics without automatically enabling demo', async ({ page }) => {
+test('failed sign-in retains recovery and diagnostics', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 600 });
   await page.goto('/?error=access_denied');
   await expect(page.getByRole('alert')).toContainText(/Spotify|sign-in/i);
   await expect(page.getByRole('button', { name: 'Connect Spotify' })).toBeEnabled();
-  await expect(page.locator('.app-footer')).not.toContainText('simulated playback');
   await page.getByRole('button', { name: 'Details' }).click();
   await expect(page.getByRole('dialog', { name: 'Debug console' })).toBeVisible();
 });

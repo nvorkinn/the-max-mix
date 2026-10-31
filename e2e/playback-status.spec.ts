@@ -116,7 +116,6 @@ for (const theme of ['neon', 'minimal']) {
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     await expect(player.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
     await expect(player.getByRole('slider', { name: 'Playback position' })).toHaveCount(0);
-    await expect(player.getByRole('button', { name: 'Try demo' })).toBeVisible();
     await expect(page.locator('.session-status .status-dot')).toHaveClass(/status-dot-idle/);
     await expect(page.locator('.app-footer .status-dot')).toHaveClass(/status-dot-idle/);
     await expect(page.getByText('0 tracks', { exact: true })).toHaveCount(0);
@@ -156,7 +155,7 @@ for (const theme of ['neon', 'minimal']) {
     expect(api.commands).toEqual([]);
   });
 
-  test(`offline controls recover without demo fallback in ${theme}`, async ({ page }) => {
+  test(`offline controls recover in ${theme}`, async ({ page }) => {
     await mockSpotify(page, theme);
     await page.goto('/');
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
@@ -169,7 +168,6 @@ for (const theme of ['neon', 'minimal']) {
     await expectControlsFit(page, player);
     await page.context().setOffline(false);
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
-    await expect(page.locator('.app-footer')).not.toContainText('simulated playback');
   });
 
   test(`queue loading, failure and confirmed empty are distinct in ${theme}`, async ({ page }) => {
@@ -215,6 +213,5 @@ for (const { width, height, theme } of [
     await expect(player.getByRole('alert')).toHaveCount(0);
     expect(api.playbackReads).toBeGreaterThan(reads);
     expect(api.commands).toEqual(['/v1/me/player/next']);
-    await expect(page.locator('.app-footer')).not.toContainText('simulated playback');
   });
 }

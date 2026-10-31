@@ -6,7 +6,7 @@ import { useScreenSleep } from '../hooks/useScreenSleep';
 import { extractPalette } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
-import { getQueue, reorderDemoQueue, playDemoTrackNow } from '../spotify/api';
+import { getQueue } from '../spotify/api';
 import { SpotifyApiError } from '../spotify/http';
 import { getAudioRoute, setAudioRoute } from '../spotify/settings';
 import type { AudioRoute } from '../spotify/settings';
@@ -66,7 +66,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     isReady,
     playbackState,
     isAuthenticated,
-    isDemoMode,
     isLoading,
     isConnecting,
     playbackMode,
@@ -78,7 +77,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     retryPlayback,
     reconnectPlayer,
     allowBrowserAudio,
-    refreshPlayback,
     togglePlay,
     nextTrack,
     previousTrack,
@@ -88,7 +86,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   } = useSpotifyPlayer();
   const error = playerError || signInError;
   const isOffline = useIsOffline(playerError);
-  const canPollQueue = isDemoMode || isAuthenticated;
+  const canPollQueue = isAuthenticated;
 
   const [queue, setQueue] = useState<Track[]>([]);
   const [queueStatus, setQueueStatus] = useState<QueueStatus>(canPollQueue ? 'loading' : 'idle');
@@ -106,9 +104,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [theme, setTheme] = useState(() => (localStorage.getItem('maxmix_theme') === 'minimal' ? 'minimal' : 'neon'));
   // Lyrics take the queue's place while shown; remembered so the kiosk comes back the way it was left.
   const [showLyrics, setShowLyrics] = useState(() => localStorage.getItem('maxmix_lyrics') === 'on');
-  // AirPlay needs the Pi's audio service, so it is offered on the kiosk only (and not with simulated playback).
+  // AirPlay needs the Pi's audio service, so it is offered on the kiosk only.
   const [onKiosk] = useState(isKiosk);
-  const canUseAirPlay = onKiosk && !isDemoMode;
+  const canUseAirPlay = onKiosk;
   const [storedAudioRoute, setStoredAudioRoute] = useState(getAudioRoute);
   const audioRoute: AudioRoute = canUseAirPlay ? storedAudioRoute : 'spotify-connect';
 
@@ -255,29 +253,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     toastTimerRef.current = setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleReorderQueue = async (newQueue: Track[]) => {
-    try {
-      const data = await reorderDemoQueue(newQueue);
-      setQueue(data.queue);
-      showToast('Demo queue order updated.');
-      return true;
-    } catch (err) {
-      showToast(errorMessage(err));
-      return false;
-    }
-  };
-
-  const handlePlaySongNow = async (trackId: string | undefined, track: Track) => {
-    try {
-      const data = await playDemoTrackNow(String(trackId));
-      setQueue(data.remainingQueue);
-      await refreshPlayback();
-      showToast(`Demo playing: ${track.name || track.title}`);
-    } catch (err) {
-      showToast(errorMessage(err));
-    }
-  };
-
   const showSettings = () => setIsSettingsOpen(true);
   const chooseSpeaker = () => setIsSpeakerModalOpen(true);
   const recoverPlayback = async (action: () => Promise<boolean>) => {
@@ -290,37 +265,35 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     }
   };
   const problem = signInError ? { message: signInError, recovery: 'sign-in' as const } : playerProblem;
-  const needsConnection = !isDemoMode && !isLoading && (!isAuthenticated || problem?.recovery === 'sign-in');
+  const needsConnection = !isLoading && (!isAuthenticated || problem?.recovery === 'sign-in');
   const restricted = Boolean(playbackState?.device?.is_restricted);
   let notice: PlaybackNoticeState | null = null;
-  if (!isDemoMode && isOffline) notice = { kind: 'offline' };
+  if (isOffline) notice = { kind: 'offline' };
   else if (signInError && problem) notice = { kind: 'problem', problem };
-  else if (!isDemoMode && !isAuthenticated) notice = { kind: 'signed-out' };
+  else if (!isAuthenticated) notice = { kind: 'signed-out' };
   else if (restricted) notice = { kind: 'restricted' };
   else if (problem) notice = { kind: 'problem', problem };
   else if (isLoading || (!isReady && isConnecting)) notice = { kind: 'connecting' };
-  else if (!isDemoMode && !isReady && !browserDeviceId) notice = { kind: 'no-device' };
+  else if (!isReady && !browserDeviceId) notice = { kind: 'no-device' };
   else if (!currentTrack) notice = { kind: 'idle' };
   let sessionStatus: string;
   if (notice) {
     sessionStatus = {
       offline: 'Offline',
       'signed-out': 'Spotify not connected',
-      connecting: isDemoMode ? 'Loading demo playback...' : 'Connecting to Spotify...',
+      connecting: 'Connecting to Spotify...',
       restricted: 'Device controls unavailable',
       problem: 'Playback problem',
       'no-device': 'Choose a Spotify speaker',
       idle: 'No track playing'
     }[notice.kind];
-  } else if (isDemoMode) sessionStatus = 'Demo session';
-  else sessionStatus = `${isPlaying ? 'Playing' : 'Paused'} on ${playbackState?.device?.name || 'Spotify'}`;
+  } else sessionStatus = `${isPlaying ? 'Playing' : 'Paused'} on ${playbackState?.device?.name || 'Spotify'}`;
   let statusDotClass = '';
   if (notice?.kind === 'problem') statusDotClass = 'status-dot-error';
   else if (notice || !isPlaying) statusDotClass = 'status-dot-idle';
 
   let footerStatus = 'Spotify browser player';
-  if (isDemoMode) footerStatus = 'DEMO / simulated playback';
-  else if (audioRoute === 'airplay') footerStatus = 'AirPlay from this tablet';
+  if (audioRoute === 'airplay') footerStatus = 'AirPlay from this tablet';
   else if (playbackMode === 'remote') footerStatus = 'Spotify Connect remote';
 
   return (
@@ -403,10 +376,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               onPrevious={previousTrack}
               onSeek={seek}
               onVolumeChange={(vol: number) => setVolume(vol / 100)}
-              theme={theme}
-              isDemoMode={isDemoMode}
               controlsEnabled={
-                (isDemoMode || (isAuthenticated && !isOffline && (isReady || Boolean(browserDeviceId)))) &&
+                isAuthenticated &&
+                !isOffline &&
+                (isReady || Boolean(browserDeviceId)) &&
                 !restricted &&
                 !isLoading
               }
@@ -414,7 +387,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 notice && (
                   <PlaybackNotice
                     notice={notice}
-                    isDemoMode={isDemoMode}
                     busy={isRefreshingPlayback}
                     onSettings={showSettings}
                     onChooseSpeaker={chooseSpeaker}
@@ -442,10 +414,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             <section className="queue-section" aria-label="Upcoming tracks">
               <TrackQueue
                 queue={queue}
-                onReorderQueue={handleReorderQueue}
-                onPlaySongNow={handlePlaySongNow}
-                theme={theme}
-                isDemoMode={isDemoMode}
                 error={queueError}
                 status={queueStatus}
                 onRetry={() => setQueueRequestVersion(version => version + 1)}
@@ -485,7 +453,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         onClose={() => setIsSpeakerModalOpen(false)}
         onSelectSpeaker={(id: string) => transferPlayback(id)}
         browserDeviceId={browserDeviceId}
-        isDemoMode={isDemoMode}
         canUseAirPlay={canUseAirPlay}
         audioRoute={audioRoute}
         onAudioRouteChange={changeAudioRoute}
@@ -498,7 +465,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           ['Connection', isOffline ? 'Offline' : 'Online'],
           ['Kiosk', onKiosk ? 'Yes' : 'No'],
           ['Signed in', isAuthenticated ? 'Yes' : 'No'],
-          ['Demo mode', isDemoMode ? 'On' : 'Off'],
           ['Playback mode', playbackMode],
           ['Audio route', audioRoute],
           ['Browser player', browserDeviceId ? `Ready (${browserDeviceId})` : 'Not connected'],
@@ -519,7 +485,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         onClose={() => setIsSettingsOpen(false)}
         authInfo={{
           authenticated: isAuthenticated && problem?.recovery !== 'sign-in',
-          demoMode: isDemoMode,
           playbackMode
         }}
         signInError={signInError || (playerProblem?.recovery === 'sign-in' ? playerProblem.message : null)}
