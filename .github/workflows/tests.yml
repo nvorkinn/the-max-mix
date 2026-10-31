@@ -34,7 +34,7 @@ jobs:
           if-no-files-found: ignore
       - run: npm run build
 
-  # Runs the kiosk playbook as the image build does (kiosk_image_build=true) in a Debian trixie container, checks the key
+  # Runs the kiosk playbook with kiosk_enable_only=true (enable services, start nothing) in a Debian trixie container, checks the key
   # files and that the units are enabled but not started, and runs it again to check it changes nothing.
   ansible-playbook:
     runs-on: ubuntu-latest

@@ -177,9 +177,9 @@ registered: an address that is not registered cannot sign in.
 ## Raspberry Pi kiosk
 
 The kiosk is a Raspberry Pi 4 or 5 with the Waveshare 7-inch 1024x600 touch screen, running the deployed app in Chromium
-under the Cage kiosk compositor, with a Wi-Fi setup panel when there is no connection. Flash the ready-made image with
-Raspberry Pi Imager (**Use custom**) and power on; [`pi/image/README.md`](pi/image/README.md) covers building it, first
-boot, troubleshooting and what is still to be verified on a device.
+under the Cage kiosk compositor, with a Wi-Fi setup panel when there is no connection. Flash stock Raspberry Pi OS Lite, add the cloud-init files and
+power on; [`pi/cloud-init/README.md`](pi/cloud-init/README.md) covers the setup, handing a Pi over, how the kiosk runs,
+SSH, troubleshooting and what is still to be verified on a device.
 
 **[Ansible](https://docs.ansible.com) is the single source of truth** for everything installed and configured on the device:
 packages, the `kiosk` user and its service, `kiosk-session`, the `kiosk-wifi://` handler, the Wi-Fi panel, the AirPlay
@@ -188,8 +188,8 @@ It is one role, [`ansible/roles/kiosk`](ansible/roles/kiosk), run by [`ansible/l
 variables and defaults are in [`defaults/main.yml`](ansible/roles/kiosk/defaults/main.yml). Nothing else configures the
 device, so change the role, not the device.
 
-- **Image build:** pi-gen installs Ansible and runs the playbook against the image with `kiosk_image_build=true`, which
-  only enables services and starts nothing. Reflash only for a fresh device.
+- **First boot:** cloud-init's `user-data` installs Ansible and runs the same `ansible-pull` from `stable`, then reboots.
+  Reflash only for a fresh device.
 - **On-device updates:** `kiosk-pull.timer` checks this repository's `stable` ref (`kiosk_pull_ref`) 3 minutes after boot
   and then every 6 hours (with up to 10 minutes of random delay), and at once when the kiosk's **Update now** button
   starts `kiosk-update-now.service`. `ansible-pull --only-if-changed` applies the playbook
@@ -199,7 +199,7 @@ device, so change the role, not the device.
 - **The `stable` branch** is what deployed devices follow. It is protected: it cannot be deleted or force-pushed, and it
   only moves through a pull request from `main` into `stable`. It needs no extra checks, because everything on `main` has
   already passed them (use a merge commit, not squash or rebase, so `stable` keeps `main`'s history). Never merge a development branch into it. Until it
-  exists, pulls fail and only log. The image bakes in the same ref.
+  exists, pulls fail and only log. The first boot pulls the same ref.
 - **A failing pull never affects the kiosk.** Nothing depends on `kiosk-pull.service`; a failure is only in the journal
   and the next timer run tries again. A pull never restarts the kiosk either: it leaves a marker when kiosk files changed,
   and `kiosk-restart.timer` restarts the kiosk at 04:30 if the marker is there (a reboot also applies the changes).

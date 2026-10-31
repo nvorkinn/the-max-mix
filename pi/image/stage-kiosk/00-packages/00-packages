@@ -1,5 +1,0 @@
-# Just enough to run the playbook, which installs everything else (ansible/roles/kiosk).
-ansible-core
-ca-certificates
-git
-python3-apt

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the kiosk playbook the way the image build does (kiosk_image_build=true) in a plain Debian trixie container, then
+# Runs the kiosk playbook with kiosk_enable_only=true (enable services, start nothing) in a plain Debian trixie container, then
 # checks the main files and that the units are enabled but not started, and runs it a second time to check that nothing
 # changes. CI starts it with: docker run --rm -v "$PWD:/repo:ro" debian:trixie bash /repo/ansible/tests/image-build.sh
 set -euo pipefail
@@ -13,7 +13,7 @@ echo update_initramfs=no > /etc/initramfs-tools/update-initramfs.conf
 apt-get update --quiet
 apt-get install --yes --quiet --no-install-recommends ansible-core ca-certificates git python3-apt systemd
 
-# What Raspberry Pi OS and pi-gen provide before the playbook runs: the boot files and the kiosk user, with a password and
+# What Raspberry Pi OS and cloud-init provide before the playbook runs: the boot files and the kiosk user, with a password and
 # in the sudo group.
 mkdir -p /boot/firmware
 echo 'console=serial0,115200 console=tty1 root=PARTUUID=00000000-02 rootfstype=ext4 fsck.repair=yes rootwait' > /boot/firmware/cmdline.txt
@@ -28,7 +28,7 @@ cd /work
 # The Raspberry Pi archive's packages are not in Debian, and there is no kernel to build an initramfs for.
 play() {
   ansible-playbook --connection local --inventory localhost, ansible/local.yml \
-    --extra-vars kiosk_image_build=true --extra-vars '{"kiosk_rpi_packages": [], "kiosk_update_initramfs": false}' | tee "$1"
+    --extra-vars kiosk_enable_only=true --extra-vars '{"kiosk_rpi_packages": [], "kiosk_update_initramfs": false}' | tee "$1"
 }
 play /tmp/first-run.log
 play /tmp/second-run.log
@@ -60,7 +60,7 @@ done
 for unit in kiosk.service kiosk-bluetooth-pair.service bluetooth.service avahi-daemon.service kiosk-pull.timer \
   kiosk-restart.timer ssh.service kiosk-widevine.path; do
   check systemctl is-enabled --quiet "$unit"
-  # Enabled only: nothing is started in an image build.
+  # Enabled only: nothing is started with kiosk_enable_only.
   if systemctl is-active --quiet "$unit"; then
     echo "FAILED: $unit is active" >&2
     fail=1
