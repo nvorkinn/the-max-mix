@@ -110,7 +110,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       return;
     }
     const speakers = getChosenSpeakers();
-    if (speakers.length > 0) routeAudio(speakers);
+    if (browserDeviceId && speakers.length > 0) routeAudio(speakers);
     if (browserDeviceId && playbackState?.device?.id !== browserDeviceId) await transferPlayback(browserDeviceId);
   };
 

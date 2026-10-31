@@ -480,6 +480,41 @@ describe('TabletView', () => {
       expect(airplay.routeAudio).not.toHaveBeenCalled();
     });
 
+    it('can switch to AirPlay and clear a saved speaker without a ready browser player', async () => {
+      setPlayer({ isReady: false, isAuthenticated: false, browserDeviceId: null, playbackState: null });
+      render(<TabletView />);
+      await flush();
+      fireEvent.click(screen.getByRole('button', { name: 'Choose speakers' }));
+      await flush();
+      fireEvent.click(screen.getByRole('button', { name: 'AirPlay' }));
+      await flush();
+      const kitchen = screen.getByRole('button', { name: /Kitchen/ });
+      expect(kitchen).toHaveTextContent('Not on the network');
+      fireEvent.click(kitchen);
+      expect(airplay.setChosenSpeakers).toHaveBeenCalledExactlyOnceWith([]);
+      expect(airplay.routeAudio).not.toHaveBeenCalled();
+      expect(player.current.transferPlayback).not.toHaveBeenCalled();
+      expect(player.current.togglePlay).not.toHaveBeenCalled();
+    });
+
+    it.each(['web-1', null])(
+      'opening a saved AirPlay dialog with browser device %s does not route or play',
+      async browserDeviceId => {
+        localStorage.setItem('maxmix.audioRoute', 'airplay');
+        setPlayer({ browserDeviceId, isReady: Boolean(browserDeviceId) });
+        render(<TabletView />);
+        await flush();
+        fireEvent.click(screen.getByRole('button', { name: 'Choose speakers' }));
+        await flush();
+        expect(screen.getByRole('heading', { name: 'Choose AirPlay speakers' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Kitchen/ })).toHaveTextContent('Selected');
+        expect(airplay.setChosenSpeakers).not.toHaveBeenCalled();
+        expect(airplay.routeAudio).not.toHaveBeenCalled();
+        expect(player.current.transferPlayback).not.toHaveBeenCalled();
+        expect(player.current.togglePlay).not.toHaveBeenCalled();
+      }
+    );
+
     it('goes back to Spotify Connect, handing the sound back to the Pi', async () => {
       localStorage.setItem('maxmix.audioRoute', 'airplay');
       render(<TabletView />);
