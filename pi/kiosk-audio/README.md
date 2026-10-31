@@ -21,7 +21,8 @@ the Wi-Fi panel.
    output (through pipewire-pulse), and the app lists them with `navigator.mediaDevices.enumerateDevices()`, updating on
    `devicechange`. Chromium only names outputs once the page has opened the microphone, so the Chromium policy grants it
    to the app's origin (`AudioCaptureAllowedUrls`), and the app opens it once and closes it at once when the names are
-   hidden. Without that, the list stays empty.
+   hidden. The Pi has no microphone of its own (Chromium skips the speakers' monitor sources), so
+   `/etc/pipewire/pipewire.conf.d/50-kiosk-mic.conf` adds a silent one for this. Without it, the list stays empty.
 2. **Routing.** Picking speakers opens `kiosk-audio://route?speaker=Kitchen&speaker=Lounge` (the names Chromium shows,
    which are the sinks' descriptions). Chromium hands the link to `/usr/local/bin/kiosk-open-audio` (registered by
    `kiosk-audio.desktop` and `/etc/xdg/mimeapps.list`; only the app's origin may open it), which runs
