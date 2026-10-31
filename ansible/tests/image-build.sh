@@ -77,7 +77,8 @@ fi
 check grep -q 'ansible-pull --url https://github.com/nvorkinn/the-max-mix.git --checkout stable ' /etc/systemd/system/kiosk-pull.service
 # Node runs the audio service's TypeScript directly.
 check node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)'
-check node --check /opt/the-max-mix/kiosk-audio/service.ts
+# (node --check does not strip types, so load the modules instead; importing them starts nothing.)
+check node -e "await import('/opt/the-max-mix/kiosk-audio/service.ts')"
 check grep -q 'raop.latency.ms = 500' /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf
 check grep -q -- '--port 47878 --origin https://the-max-mix.vercel.app$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'en_GB.UTF-8' /etc/default/locale
