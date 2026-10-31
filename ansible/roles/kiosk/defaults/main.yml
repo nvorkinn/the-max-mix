@@ -42,8 +42,8 @@ kiosk_bluetooth_devices:
   - { name: mouse, address: 'DE:E3:A5:BE:A8:00' }
   - { name: keyboard, address: 'D1:B9:E3:A0:7A:9D' }
 
-# Hide the mouse pointer (a blank cursor theme). Turn on while a mouse is the only way to touch the screen.
-kiosk_hide_cursor: false
+# Hide the mouse pointer (a blank cursor theme) for the touch screen. Turn off while a mouse is the only way to use it.
+kiosk_hide_cursor: true
 kiosk_cursor_theme: whiteglass
 
 # Packages from the Raspberry Pi archive only (not in Debian). Tests in a plain Debian container set this to [].

@@ -27,7 +27,9 @@ Window {
         ssidField.text = ""
         passwordField.text = ""
         page = "join"
-        (hidden ? ssidField : passwordField).forceActiveFocus()
+        // Not a line starting with "(": without semicolons it would continue the line above and call "join".
+        const field = hidden ? ssidField : passwordField
+        field.forceActiveFocus()
     }
 
     function pick(network) {
