@@ -95,10 +95,12 @@ kiosk_panel_dir: /opt/the-max-mix/wifi-panel
 kiosk_pull_repo: https://github.com/nvorkinn/the-max-mix.git
 kiosk_pull_ref: stable
 kiosk_pull_dir: /var/lib/the-max-mix/ansible-pull
-# First run this long after boot, then again this long after each run finishes, plus up to the random delay.
+# First run this long after boot, then again this long after each run finishes, plus up to the random delay. A run only
+# fetches the ref and applies the playbook when the ref has moved (ansible-pull --only-if-changed), so a short interval
+# costs one git fetch.
 kiosk_pull_boot_delay: 3min
-kiosk_pull_interval: 4h
-kiosk_pull_random_delay: 15min
+kiosk_pull_interval: 5min
+kiosk_pull_random_delay: 1min
 # A pull that changed kiosk files leaves this marker (in /run, so a reboot clears it); kiosk-restart.timer restarts the
 # kiosk at this time of day if the marker is there.
 kiosk_restart_time: '04:30'

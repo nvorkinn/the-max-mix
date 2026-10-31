@@ -160,8 +160,9 @@ device, so change the role, not the device.
 
 - **Image build:** pi-gen installs Ansible and runs the playbook against the image with `kiosk_image_build=true`, which
   only enables services and starts nothing. Reflash only for a fresh device.
-- **On-device updates:** `kiosk-pull.timer` runs `ansible-pull` 3 minutes after boot and then every 4 hours (with a random
-  delay), against this repository's `stable` ref (`kiosk_pull_ref`). It is public, so no credentials are needed. A
+- **On-device updates:** `kiosk-pull.timer` checks this repository's `stable` ref (`kiosk_pull_ref`) 3 minutes after boot
+  and then every 5 minutes (with up to a minute of random delay). `ansible-pull --only-if-changed` applies the playbook
+  only when `stable` has moved since the last run, so a check with nothing new is a single git fetch. It is public, so no credentials are needed. A
   deployed Pi therefore gets fixes to the Wi-Fi panel, the session script, the Chromium policy and so on without a
   reflash. The playbook is idempotent, so repeated runs are safe.
 - **The `stable` branch** is what deployed devices follow. It is protected: it cannot be deleted or force-pushed, and it
@@ -175,8 +176,9 @@ device, so change the role, not the device.
 - **Roll back:** merge a revert pull request into `stable`. A repository admin can instead move `stable` back to the
   earlier commit with a force push, which the ruleset allows only to them. Devices return to it at their next pull.
 - **Run it by hand** on a Pi you can log in to, as root, from a clone of the repository:
-  `sudo ansible-playbook -c local -i localhost, ansible/local.yml`, or the same pull the timer runs:
-  `sudo systemctl start kiosk-pull`. Add `--check --diff` to see what it would change.
+  `sudo ansible-playbook -c local -i localhost, ansible/local.yml` (which always applies the playbook), or the same pull
+  the timer runs: `sudo systemctl start kiosk-pull` (which does nothing if `stable` has not moved). Add `--check --diff` to
+  the playbook run to see what it would change.
 
 Any change on the device that is not in the role is undone at the next pull (for example, SSH is switched off again unless
 `kiosk_ssh_enabled` is true). A CI job runs the playbook in a Debian trixie container and checks that it is idempotent;
