@@ -117,10 +117,16 @@ export default function LyricsPanel({ track, progressMs, onClose, provider }: Re
       <div className="queue-footer">
         <span>{lyrics?.kind === 'plain' ? 'Not time-synced' : 'Follows the song'}</span>
         <span>
-          Lyrics from{' '}
-          <a href="https://lrclib.net" target="_blank" rel="noreferrer">
-            LRCLIB
-          </a>
+          {!lyrics || lyrics.source === 'LRCLIB' ? (
+            <>
+              Lyrics from{' '}
+              <a href="https://lrclib.net" target="_blank" rel="noreferrer">
+                LRCLIB
+              </a>
+            </>
+          ) : (
+            `Lyrics from ${lyrics.source}`
+          )}
         </span>
       </div>
     </div>
