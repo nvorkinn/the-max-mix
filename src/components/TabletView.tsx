@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
-import { AudioLines, Clock, Settings, Speaker, ArrowUpRight } from 'lucide-react';
+import { AudioLines, Clock, Settings, Speaker, ArrowUpRight, MicVocal } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { extractPalette } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
@@ -11,6 +11,7 @@ import type { Track } from '../types';
 import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
 import SpotifyJamQueue from './SpotifyJamQueue';
+import LyricsPanel from './LyricsPanel';
 import SettingsModal from './SettingsModal';
 import SpeakerSelectorModal from './SpeakerSelectorModal';
 import JamSettingsModal from './JamSettingsModal';
@@ -53,6 +54,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [queueError, setQueueError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [theme, setTheme] = useState(() => (localStorage.getItem('maxmix_theme') === 'minimal' ? 'minimal' : 'neon'));
+  // Lyrics take the queue's place while shown; remembered so the kiosk comes back the way it was left.
+  const [showLyrics, setShowLyrics] = useState(() => localStorage.getItem('maxmix_lyrics') === 'on');
+
+  const toggleLyrics = (show: boolean) => {
+    setShowLyrics(show);
+    localStorage.setItem('maxmix_lyrics', show ? 'on' : 'off');
+  };
 
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
@@ -208,6 +216,16 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           </button>
           <button
             type="button"
+            onClick={() => toggleLyrics(!showLyrics)}
+            className="button button-secondary lyrics-button"
+            aria-pressed={showLyrics}
+            title="Show the lyrics of the current song"
+          >
+            <MicVocal size={15} />
+            <span>Lyrics</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setIsJamSettingsOpen(true)}
             className="button button-primary header-jam-button"
           >
@@ -251,17 +269,27 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           />
         </section>
 
-        <section className="queue-section" aria-label="Upcoming tracks">
-          <SpotifyJamQueue
-            queue={queue}
-            onReorderQueue={handleReorderQueue}
-            onPlaySongNow={handlePlaySongNow}
-            onOpenJamSettings={() => setIsJamSettingsOpen(true)}
-            theme={theme}
-            isDemoMode={isDemoMode}
-            error={queueError}
-          />
-        </section>
+        {showLyrics ? (
+          <section className="queue-section" aria-label="Lyrics">
+            <LyricsPanel
+              track={currentTrack}
+              progressMs={playbackState?.progress_ms ?? playbackState?.position ?? 0}
+              onClose={() => toggleLyrics(false)}
+            />
+          </section>
+        ) : (
+          <section className="queue-section" aria-label="Upcoming tracks">
+            <SpotifyJamQueue
+              queue={queue}
+              onReorderQueue={handleReorderQueue}
+              onPlaySongNow={handlePlaySongNow}
+              onOpenJamSettings={() => setIsJamSettingsOpen(true)}
+              theme={theme}
+              isDemoMode={isDemoMode}
+              error={queueError}
+            />
+          </section>
+        )}
       </main>
 
       <footer className="app-footer">

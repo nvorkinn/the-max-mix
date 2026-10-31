@@ -66,6 +66,11 @@ describe('SettingsModal', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('shows the app version', () => {
+    render(<SettingsModal {...base} authInfo={{}} />);
+    expect(screen.getByText(/^Version/)).toBeInTheDocument();
+  });
+
   it('marks the current theme and reports theme changes', async () => {
     const onThemeChange = vi.fn();
     render(<SettingsModal {...base} onThemeChange={onThemeChange} currentTheme="minimal" authInfo={{}} />);
