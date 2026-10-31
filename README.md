@@ -68,6 +68,14 @@ The small waveform is decorative, driven by playback state, not an analysis of
 Spotify's encrypted audio. Canvas animations stop while hidden or idle where
 applicable and respect reduced-motion preferences.
 
+### Debug console
+
+Hold the clock in the footer for two seconds (or press Ctrl+Shift+D with a keyboard) to open a hidden debug console.
+It shows the app's state (version, connection, sign-in, playback mode, audio route, the browser player's device, the
+active device and whether Widevine works) and a log of recent problems, browser player events and console errors,
+newest first. Playback errors go there instead of a banner over the screen; while one is current the footer status
+turns red and links to it. The log lives in memory, keeps the last 200 entries, and is cleared by a reload.
+
 ## Hosting and releases
 
 THE MAX MIX is plain static files on [Vercel](https://vercel.com). Production deploys happen only from a release:

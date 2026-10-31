@@ -833,7 +833,8 @@
   color: var(--muted);
   z-index: 20;
 }
-.app-footer > span:first-child {
+.app-footer > span:first-child,
+.footer-problem-button {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -847,6 +848,9 @@
   align-items: center;
   gap: 6px;
   font-variant-numeric: tabular-nums;
+  /* Held for two seconds to open the debug console, so no long-press menu or zoom may claim it. */
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
 }
 .app-toast {
   position: fixed;
@@ -1280,6 +1284,121 @@ input:disabled {
   .transport-buttons {
     gap: 3px;
   }
+}
+
+/* Hidden debug console, opened by holding the footer clock. Always dark, so it reads the same on either skin. */
+.footer-problem {
+  color: #fda4af;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.status-dot-error {
+  background: #f87171;
+}
+.debug-console-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  padding: 12px;
+  background: rgb(0 0 0 / 85%);
+}
+.debug-console {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 16px;
+  background: #0b0d0b;
+  color: #e5e7e1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  user-select: text;
+}
+.debug-console-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.debug-console-header h2 {
+  font-size: 13px;
+  font-weight: 700;
+}
+.debug-console-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+.debug-console-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 8%);
+}
+.debug-console-actions button:disabled {
+  opacity: 0.4;
+}
+.debug-console-actions .debug-console-close {
+  padding: 0 12px;
+}
+.debug-status {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 4px 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
+.debug-status div {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.debug-status .debug-status-wide {
+  grid-column: 1 / -1;
+}
+.debug-status dt {
+  flex-shrink: 0;
+  color: #9aa194;
+}
+.debug-status dd {
+  overflow-wrap: anywhere;
+}
+.debug-empty {
+  color: #9aa194;
+}
+.debug-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.debug-entry {
+  display: grid;
+  grid-template-columns: 64px 64px 1fr;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgb(255 255 255 / 4%);
+}
+.debug-entry-time,
+.debug-entry-source,
+.debug-entry-count {
+  color: #9aa194;
+}
+.debug-entry-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.debug-entry-warn .debug-entry-message {
+  color: #fcd34d;
+}
+.debug-entry-error .debug-entry-message {
+  color: #fda4af;
 }
 
 @media (prefers-reduced-motion: reduce) {

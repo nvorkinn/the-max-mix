@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Mock } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { installCanvasStub, stubMatchMedia } from '../test/canvas';
 import { defined } from '../test/defined';
 import { SpotifyApiError } from '../spotify/http';
@@ -154,11 +154,48 @@ describe('TabletView', () => {
     expect(screen.getByRole('dialog', { name: /make it yours/i })).toBeInTheDocument();
   });
 
-  it('shows hook errors as alerts', async () => {
+  it('keeps hook errors out of a banner: the footer links to them in the debug console', async () => {
     setPlayer({ error: 'Device offline' });
     render(<TabletView />);
     await flush();
-    expect(screen.getByRole('alert')).toHaveTextContent('Device offline');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /problem, see details/i }));
+    const panel = screen.getByRole('dialog', { name: 'Debug console' });
+    expect(within(panel).getAllByText('Device offline').length).toBeGreaterThan(0);
+    fireEvent.click(within(panel).getByRole('button', { name: 'Close debug console' }));
+    expect(screen.queryByRole('dialog', { name: 'Debug console' })).not.toBeInTheDocument();
+  });
+
+  it('opens the debug console when the clock is held for two seconds, not on a tap', async () => {
+    vi.useFakeTimers();
+    render(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    const clock = defined(document.querySelector('.footer-clock'));
+    fireEvent.pointerDown(clock, { button: 0 });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    fireEvent.pointerUp(clock);
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(screen.queryByRole('dialog', { name: 'Debug console' })).not.toBeInTheDocument();
+    fireEvent.pointerDown(clock, { button: 0 });
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(screen.getByRole('dialog', { name: 'Debug console' })).toBeInTheDocument();
+  });
+
+  it('toggles the debug console with Ctrl+Shift+D', async () => {
+    render(<TabletView />);
+    await flush();
+    fireEvent.keyDown(window, { key: 'D', ctrlKey: true, shiftKey: true });
+    expect(screen.getByRole('dialog', { name: 'Debug console' })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'D', ctrlKey: true, shiftKey: true });
+    expect(screen.queryByRole('dialog', { name: 'Debug console' })).not.toBeInTheDocument();
   });
 
   it('backs off and surfaces queue polling errors, then recovers', async () => {

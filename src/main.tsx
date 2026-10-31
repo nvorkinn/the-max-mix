@@ -2,9 +2,13 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { completeSignIn } from './spotify/auth';
+import { captureBrowserErrors } from './utils/debugLog';
 import { errorMessage } from './utils/errorMessage';
 import { hidesCursor, isKiosk } from './utils/kiosk';
 import './index.css';
+
+// Copies console errors and uncaught errors into the hidden debug console from the start.
+captureBrowserErrors();
 
 // Remembers ?kiosk=1 and ?cursor=hidden before anything can navigate away (the sign-in redirect returns without the query).
 isKiosk();
