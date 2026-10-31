@@ -35,8 +35,8 @@ of this Web API cooldown.
 On the Pi kiosk, Speakers also switches between two playback modes. **Spotify Connect** is the above: the tablet plays,
 or Spotify moves playback to a Connect speaker. **AirPlay** keeps playback on the tablet and the Pi sends its sound on
 to the AirPlay speakers you pick (Sonos included), several at once, through PipeWire. The speakers are the audio
-outputs Chromium lists; picking them opens a `kiosk-audio://` link that the Pi's
-[audio routing](pi/kiosk-audio/README.md) handles, the same way `kiosk-wifi://` opens the Wi-Fi panel.
+AirPlay sinks PipeWire made; picking them asks the Pi's local
+[audio service](pi/kiosk-audio/README.md) (127.0.0.1, answering only the app) to route the sound.
 
 ### Native Spotify Jam limitations
 
@@ -146,9 +146,9 @@ skipped automatically when there is no `.git` directory or when dev dependencies
    then **Apply and reload**.
    On the Pi kiosk, which is opened with `?kiosk=1` (the app remembers that, so it survives the Spotify sign-in redirect;
    `?kiosk=0` forgets it), Settings also shows **Wi-Fi network**, which opens the Pi's native Wi-Fi panel (it asks the
-   kiosk to open `kiosk-wifi://open`). Other visitors never see the entry. The kiosk's Settings also show which release
+   kiosk's local service to show it). Other visitors never see the entry. The kiosk's Settings also show which release
    the Pi is running (for example `v1.12.0`, from `?pi_ref=&pi_commit=` in `kiosk_url`), say when a newer release is
-   on GitHub, and have **Update now**, **Restart kiosk** and **Reboot Pi** buttons (`kiosk-power://` links). **Update
+   on GitHub, and have **Update now**, **Restart kiosk** and **Reboot Pi** buttons (requests to that local service). **Update
    now** pulls the latest release at once and restarts the kiosk if anything changed; otherwise a new release reaches the
    Pi within about 6 hours and is fully applied after the next kiosk restart: at 04:30, on a reboot, or with the button.
    **Screen sleep** sets how long the kiosk's screen stays on without a touch while nothing plays (5 minutes by default,
@@ -187,7 +187,7 @@ power on; [`pi/cloud-init/README.md`](pi/cloud-init/README.md) covers the setup,
 SSH, troubleshooting and what is still to be verified on a device.
 
 **[Ansible](https://docs.ansible.com) is the single source of truth** for everything installed and configured on the device:
-packages, the `kiosk` user and its service, `kiosk-session`, the `kiosk-wifi://` handler, the Wi-Fi panel, the AirPlay
+packages, the `kiosk` user and its service, `kiosk-session`, the local kiosk service, the Wi-Fi panel, the AirPlay
 audio routing and PipeWire's AirPlay settings, the Chromium policy, Plymouth, boot settings (`cmdline.txt`, `config.txt`), locale, time zone, unattended upgrades and the update timer.
 It is one role, [`ansible/roles/kiosk`](ansible/roles/kiosk), run by [`ansible/local.yml`](ansible/local.yml); its
 variables and defaults are in [`defaults/main.yml`](ansible/roles/kiosk/defaults/main.yml). Nothing else configures the

@@ -152,12 +152,13 @@ describe('SettingsModal', () => {
       expect(wifi()).not.toBeInTheDocument();
     });
 
-    it('navigates to the Wi-Fi panel by URL scheme', async () => {
-      const assign = vi.fn();
-      vi.stubGlobal('location', { origin: 'http://x', search: '?kiosk=1', assign });
+    it('asks the kiosk service to show the Wi-Fi panel', async () => {
+      vi.stubGlobal('location', { origin: 'http://x', search: '?kiosk=1' });
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+      vi.stubGlobal('fetch', fetchMock);
       render(<SettingsModal {...base} authInfo={{}} />);
       await userEvent.click(defined(wifi()));
-      expect(assign).toHaveBeenCalledWith('kiosk-wifi://open');
+      expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi', { method: 'POST' });
     });
   });
 

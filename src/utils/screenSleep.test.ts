@@ -34,11 +34,11 @@ describe('screen sleep setting', () => {
 });
 
 describe('wakeDisplay', () => {
-  it('opens the kiosk-display wake link', () => {
-    const assign = vi.fn();
-    vi.stubGlobal('location', { assign });
+  it('asks the kiosk service to turn the screen on', () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
     wakeDisplay();
-    expect(assign).toHaveBeenCalledWith('kiosk-display://wake');
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/display/wake', { method: 'POST' });
     vi.unstubAllGlobals();
   });
 });

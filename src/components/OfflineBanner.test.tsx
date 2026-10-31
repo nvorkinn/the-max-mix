@@ -43,14 +43,14 @@ describe('offline state in TabletView', () => {
     expect(screen.queryByRole('button', { name: 'Wi-Fi settings' })).not.toBeInTheDocument();
   });
 
-  it('offers the Wi-Fi panel on the kiosk and navigates to it', async () => {
+  it('offers the Wi-Fi panel on the kiosk and asks the service to show it', async () => {
     history.replaceState(null, '', '/?kiosk=1');
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-    const assign = vi.fn();
-    vi.stubGlobal('location', { origin: 'http://x', search: '?kiosk=1', assign });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
     render(<TabletView />);
     await userEvent.click(screen.getByRole('button', { name: 'Wi-Fi settings' }));
-    expect(assign).toHaveBeenCalledWith('kiosk-wifi://open');
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi', { method: 'POST' });
   });
 
   it('appears when the browser goes offline and disappears when it comes back', () => {

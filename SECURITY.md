@@ -37,22 +37,18 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
 - **The app is public static code.** Anyone who runs it can sign in with their own Spotify account, and each browser
   keeps its own login; a shared browser profile is a shared login. Only addresses registered as redirect URIs in the
   Spotify dashboard can sign in.
-- **The audio routing.** `pi/kiosk-audio/` runs as the `kiosk` user and opens no network port. Only the app's origin
-  may open `kiosk-audio://` links (Chromium's `AutoLaunchProtocolsFromOrigins`); the handler accepts only
-  `kiosk-audio://route` with at most 16 short speaker names, and all it can do is link the browser's audio stream to
-  PipeWire sinks with `pw-link`, run by absolute path without a shell. To list the speakers by name, the app's origin
-  is granted microphone permission (`AudioCaptureAllowedUrls`), which Chromium requires before it names audio outputs;
-  the kiosk has no microphone. Node comes from NodeSource's apt archive (Debian's is too old to run TypeScript), whose
-  signing key the playbook pins by checksum; that archive is trusted like Debian's and Raspberry Pi's.
-- **Restart and reboot.** The Restart kiosk and Reboot Pi buttons in the app's kiosk settings open
-  `kiosk-power://restart` and `kiosk-power://reboot`, which only the app's origin may open without a prompt. The handler
-  accepts only those two links, and a polkit rule (`50-kiosk-power.rules`) lets the `kiosk` user restart
-  `kiosk.service` and reboot, and nothing else to do with units or power. A page on the app's origin can therefore
-  restart or reboot the kiosk, which is a nuisance at worst.
+- **The kiosk's local service.** `pi/kiosk-audio/` runs as the `kiosk` user and listens on 127.0.0.1:7341 only (the unit
+  also denies every other address). It answers the app's origin alone: CORS names that origin, and every POST without
+  its `Origin` header is refused, so no other web page can trigger an action. A request names one of a few fixed actions
+  and carries no command: update, restart or reboot the Pi, turn the screen on, show the Wi-Fi panel, or route the
+  sound to at most 16 speaker names. Routing only links the browser's audio stream to PipeWire sinks with `pw-link`;
+  commands run by absolute path with an argument list and no shell. The polkit rule (`50-kiosk-power.rules`) lets the
+  `kiosk` user restart `kiosk.service`, start `kiosk-update-now.service` and reboot, and nothing else to do with units or
+  power. A page on the app's origin can therefore restart or reboot the kiosk, which is a nuisance at worst. Node comes
+  from NodeSource's apt archive (Debian's is too old to run TypeScript), whose signing key the playbook pins by checksum;
+  that archive is trusted like Debian's and Raspberry Pi's.
 - **The Wi-Fi panel.** A native Qt panel (`pi/wifi-panel/`) runs as the non-root `kiosk` user and joins networks with
   `nmcli`; a polkit rule (`pi/rootfs/etc/polkit-1/rules.d/50-kiosk-networkmanager.rules`) lets only that user manage
   NetworkManager connections. The password reaches `nmcli` on stdin, never in argv, and is not logged; every call is an
-  argument list with no shell, and the panel has no network listener. The app opens it through the `kiosk-wifi://` link,
-  which Chromium's managed policy (`AutoLaunchProtocolsFromOrigins` in
-  `pi/rootfs/etc/chromium/policies/managed/kiosk.json`) allows without a prompt only from `https://the-max-mix.vercel.app`.
+  argument list with no shell, and the panel has no network listener. The app asks the local service above to show it.
   A kiosk has no password for any account, and SSH only by key for `admin`. See [`pi/wifi-panel/README.md`](pi/wifi-panel/README.md).

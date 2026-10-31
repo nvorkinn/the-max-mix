@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { dump, silence } from './fixtures.ts';
 import { parseDump } from './pipewire.ts';
 import type { Plan } from './pipewire.ts';
-import { loadSpeakers, parseLink, route, saveSpeakers, validSpeakers } from './speakers.ts';
+import { loadSpeakers, route, saveSpeakers, validSpeakers } from './speakers.ts';
 import type { AudioGraph } from './speakers.ts';
 
 class FakePipeWire implements AudioGraph {
@@ -22,39 +22,11 @@ class FakePipeWire implements AudioGraph {
   }
 }
 
-const tooMany = new URL('kiosk-audio://route');
-for (let index = 0; index < 17; index++) tooMany.searchParams.append('speaker', String(index));
-
-describe('parseLink', () => {
-  it('reads the speakers of a route link', () => {
-    expect(parseLink('kiosk-audio://route?speaker=Kitchen&speaker=Living%20Room&speaker=Kitchen')).toEqual([
-      'Kitchen',
-      'Living Room'
-    ]);
-    expect(parseLink('kiosk-audio:route?speaker=Kitchen')).toEqual(['Kitchen']);
-  });
-
-  it('reads a route link without speakers as the default output', () => {
-    expect(parseLink('kiosk-audio://route')).toEqual([]);
-    expect(parseLink('kiosk-audio://route/')).toEqual([]);
-  });
-
-  it('refuses anything else', () => {
-    for (const link of [
-      'not a url',
-      'https://route?speaker=Kitchen',
-      'kiosk-audio://other?speaker=Kitchen',
-      'kiosk-audio://route?speaker=',
-      tooMany.href
-    ]) {
-      expect(parseLink(link)).toBeNull();
-    }
-  });
-});
-
 describe('validSpeakers', () => {
   it('accepts only a short list of short names', () => {
     expect(validSpeakers(['a', 'a'])).toEqual(['a']);
+    expect(validSpeakers([])).toEqual([]);
+    expect(validSpeakers(Array.from({ length: 17 }, (_, index) => String(index)))).toBeNull();
     for (const bad of ['a', [1], [''], ['x'.repeat(300)], null]) expect(validSpeakers(bad)).toBeNull();
   });
 });

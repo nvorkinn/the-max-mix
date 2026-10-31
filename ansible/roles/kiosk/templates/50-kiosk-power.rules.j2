@@ -1,5 +1,5 @@
 // {{ ansible_managed }}
-// The kiosk user may update the kiosk now, restart it and reboot the Pi (kiosk-open-power), and nothing else to do with
+// The kiosk user may update the kiosk now, restart it and reboot the Pi (the kiosk-audio service), and nothing else to do with
 // power or units.
 polkit.addRule(function (action, subject) {
   if (subject.user !== '{{ kiosk_user }}') {

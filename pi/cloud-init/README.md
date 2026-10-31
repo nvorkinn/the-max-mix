@@ -69,12 +69,11 @@ Wi-Fi panel. `--no-poweroff` starts the kiosk again instead, for trying it out.
    default), by holding a screen wake lock that Chromium passes to Cage. After that, the app shows a black sleep screen
    and lets go. A minute later without a touch (`kiosk_screen_off_after`), `swayidle` runs `kiosk-display off`, which
    turns the HDMI output off with `wlr-randr`. The next touch turns it on again, and that tap only dismisses the sleep
-   screen. Music that starts while the screen sleeps wakes it through `kiosk-display://wake`. The Wi-Fi panel holds no
+   screen. Music that starts while the screen sleeps wakes it through the kiosk service (`POST /display/wake`). The Wi-Fi panel holds no
    wake lock, so it goes dark after a minute without a touch.
 
-The app's Wi-Fi button (shown with `?kiosk=1`) opens `kiosk-wifi://open`. Chromium's managed policy lets
-`https://the-max-mix.vercel.app` do that without a prompt, `xdg-open` finds `kiosk-wifi.desktop` through
-`/etc/xdg/mimeapps.list`, and `kiosk-open-wifi` creates `/run/kiosk/show-wifi` and stops Chromium. The session loop then runs
+The app's Wi-Fi button (shown with `?kiosk=1`) sends `POST /wifi` to the kiosk service on 127.0.0.1 (pi/kiosk-audio), which
+creates `/run/kiosk/show-wifi` and stops Chromium. The session loop then runs
 the panel and starts Chromium again afterwards. Nothing watches the network while Chromium runs.
 
 The playbook also sets, among other things:
@@ -112,8 +111,9 @@ The `bootfs` partition holds `config.txt` and `cmdline.txt` (remove `quiet splas
 - **The screen goes dark while music plays, or never goes dark:** the debug console's Screen row shows whether the app
   holds its wake lock, and `journalctl -u kiosk` shows `wlr-randr` errors from `kiosk-display`. Set
   `kiosk_screen_off_after: 0` to keep the output on for good.
-- **`kiosk-wifi://`, `kiosk-power://`, `kiosk-display://` or `kiosk-audio://` does nothing:** check `chrome://policy` for
-  `AutoLaunchProtocolsFromOrigins` and `journalctl -b | grep polkit`.
+- **The Wi-Fi, update, restart, reboot or speaker buttons do nothing:** the app talks to the kiosk service. Check
+  `curl -s http://127.0.0.1:7341/speakers`, `journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service` (as root) and
+  `journalctl -b | grep polkit`. Chromium 156 may also need its `LocalNetworkAccessAllowedForUrls` policy (`chrome://policy`).
 
 ## Still to verify
 

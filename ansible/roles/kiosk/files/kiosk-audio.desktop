@@ -1,6 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Audio routing
-Exec=/usr/local/bin/kiosk-open-audio %u
-NoDisplay=true
-MimeType=x-scheme-handler/kiosk-audio;
