@@ -618,7 +618,6 @@ describe('TabletView', () => {
       expect(localStorage.getItem('maxmix.audioRoute')).toBeNull();
       expect(screen.getByText('Spotify browser player')).toBeInTheDocument();
     });
-
   });
 
   it('shows the clock in the footer', async () => {

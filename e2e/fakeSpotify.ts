@@ -16,7 +16,7 @@ const track = (id: string, name: string, artist: string, durationMs: number): Tr
  */
 export async function fakeSpotify(page: Page) {
   const playback = {
-    is_playing: true,
+    is_playing: true as boolean,
     progress_ms: 45_000,
     device: {
       id: 'test-speaker',

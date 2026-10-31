@@ -245,9 +245,7 @@ function SettingsContent({
         <button
           type="button"
           className="button button-secondary w-full"
-          disabled={
-            !modeChanged || (pendingMode === 'browser' && (checkingPlayback || Boolean(cannotPlay)))
-          }
+          disabled={!modeChanged || (pendingMode === 'browser' && (checkingPlayback || Boolean(cannotPlay)))}
           onClick={() => {
             setPlaybackMode(pendingMode);
             onReload();

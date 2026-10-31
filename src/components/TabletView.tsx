@@ -377,11 +377,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               onSeek={seek}
               onVolumeChange={(vol: number) => setVolume(vol / 100)}
               controlsEnabled={
-                isAuthenticated &&
-                !isOffline &&
-                (isReady || Boolean(browserDeviceId)) &&
-                !restricted &&
-                !isLoading
+                isAuthenticated && !isOffline && (isReady || Boolean(browserDeviceId)) && !restricted && !isLoading
               }
               notice={
                 notice && (
