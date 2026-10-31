@@ -4,7 +4,6 @@ import userEvent from '../test/user';
 import { partialProps } from '../test/partialProps';
 import { defined } from '../test/defined';
 import QRCodeModalFull from './QRCodeModal';
-import JamSettingsModalFull from './JamSettingsModal';
 import SettingsModalFull from './SettingsModal';
 import SpeakerSelectorModalFull from './SpeakerSelectorModal';
 
@@ -18,6 +17,8 @@ const settings = vi.hoisted(() => ({
 vi.mock('../spotify/api', () => api);
 vi.mock('../spotify/auth', () => auth);
 vi.mock('../spotify/settings', () => settings);
+const widevine = vi.hoisted(() => ({ widevineProblem: vi.fn() }));
+vi.mock('../utils/widevine', () => widevine);
 vi.mock('../audio/airplay', () => ({
   listAudioOutputs: vi.fn().mockResolvedValue([]),
   watchAudioOutputs: vi.fn(() => vi.fn()),
@@ -27,7 +28,6 @@ vi.mock('../audio/airplay', () => ({
 }));
 
 const QRCodeModal = partialProps(QRCodeModalFull);
-const JamSettingsModal = partialProps(JamSettingsModalFull);
 const SettingsModal = partialProps(SettingsModalFull);
 const SpeakerSelectorModal = partialProps(SpeakerSelectorModalFull);
 
@@ -47,18 +47,6 @@ describe('QRCodeModal', () => {
   });
 });
 
-describe('JamSettingsModal', () => {
-  it('is hidden when closed and closable when open', async () => {
-    const { rerender } = render(<JamSettingsModal isOpen={false} />);
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    const onClose = vi.fn();
-    rerender(<JamSettingsModal isOpen onClose={onClose} />);
-    expect(screen.getByRole('dialog', { name: /start a jam/i })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /close jam/i }));
-    expect(onClose).toHaveBeenCalled();
-  });
-});
-
 describe('SettingsModal', () => {
   const base = { isOpen: true, onClose: vi.fn(), onThemeChange: vi.fn(), onReload: vi.fn() };
 
@@ -66,6 +54,7 @@ describe('SettingsModal', () => {
     for (const mock of [...Object.values(auth), ...Object.values(settings), base.onReload]) mock.mockReset();
     settings.getRedirectUri.mockReturnValue('http://127.0.0.1:3000/');
     auth.startSignIn.mockResolvedValue(undefined);
+    widevine.widevineProblem.mockResolvedValue(null);
   });
 
   it('renders nothing when closed', () => {
@@ -226,6 +215,15 @@ describe('SettingsModal', () => {
     rerender(<SettingsModal {...base} authInfo={{ demoMode: true }} />);
     await userEvent.click(screen.getByRole('switch', { name: 'Demo mode' }));
     expect(settings.setDemoMode).toHaveBeenLastCalledWith(false);
+  });
+
+  it('turns off and locks browser playback when Widevine is missing', async () => {
+    widevine.widevineProblem.mockResolvedValue('Widevine is not available in this browser.');
+    render(<SettingsModal {...base} authInfo={{ playbackMode: 'browser' }} />);
+    const playback = screen.getByRole('switch', { name: 'Play in this browser' });
+    await waitFor(() => expect(playback).toBeDisabled());
+    expect(playback).not.toBeChecked();
+    expect(screen.getByText(/Unavailable: Widevine is not available/)).toBeInTheDocument();
   });
 });
 

@@ -14,7 +14,6 @@ vi.mock('../utils/colorExtractor', () => ({ extractPalette: vi.fn() }));
 vi.mock('./AlbumArtPlayer', () => ({ default: () => null }));
 vi.mock('./SettingsModal', () => ({ default: () => null }));
 vi.mock('./SpeakerSelectorModal', () => ({ default: () => null }));
-vi.mock('./JamSettingsModal', () => ({ default: () => null }));
 vi.mock('./SpotifyJamQueue', () => ({
   default: ({ queue, error }: { queue: { name: string }[]; error?: string | null }) => (
     <div data-testid="queue">

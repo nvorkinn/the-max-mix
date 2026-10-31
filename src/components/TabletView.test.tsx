@@ -277,11 +277,7 @@ describe('TabletView', () => {
   it('opens the modals from the header', async () => {
     render(<TabletView />);
     await flush();
-    fireEvent.click(screen.getByRole('button', { name: /^jam in spotify/i }));
-    expect(screen.getByRole('dialog', { name: /start a jam/i })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Close Jam instructions' }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-
+    expect(screen.queryByRole('button', { name: /jam in spotify/i })).not.toBeInTheDocument();
     api.getDevices.mockResolvedValue({ devices: [] });
     fireEvent.click(screen.getByRole('button', { name: 'Choose a Spotify Connect device' }));
     await flush();

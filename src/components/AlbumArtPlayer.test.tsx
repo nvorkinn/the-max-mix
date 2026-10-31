@@ -143,7 +143,7 @@ describe('SpotifyJamQueue', () => {
     { uri: 'spotify:track:c', name: 'Three', external_urls: { spotify: 'https://open.spotify.com/track/c' } }
   ];
   const setupQueue = (props = {}) => {
-    const h = { onReorderQueue: vi.fn().mockResolvedValue(true), onPlaySongNow: vi.fn(), onOpenJamSettings: vi.fn() };
+    const h = { onReorderQueue: vi.fn().mockResolvedValue(true), onPlaySongNow: vi.fn() };
     render(<SpotifyJamQueue queue={tracks} {...h} {...props} />);
     return h;
   };
@@ -184,11 +184,9 @@ describe('SpotifyJamQueue', () => {
     expect(screen.queryByRole('button', { name: /play .* now/i })).not.toBeInTheDocument();
   });
 
-  it('shows an error alert and opens Jam instructions', () => {
-    const h = setupQueue({ error: 'Queue unavailable' });
+  it('shows an error alert', () => {
+    setupQueue({ error: 'Queue unavailable' });
     expect(screen.getByRole('alert')).toHaveTextContent('Queue unavailable');
-    fireEvent.click(screen.getByRole('button', { name: /how to start a jam/i }));
-    expect(h.onOpenJamSettings).toHaveBeenCalled();
   });
 
   it('plays a demo track immediately with confetti', () => {

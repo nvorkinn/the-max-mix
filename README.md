@@ -47,7 +47,7 @@ contributor identities, Jam status, or live queue reordering.
 Accordingly, live queues have no invented guest avatars, fake "Live Jam" badge,
 drag handles, or pretend play-now action. Playing an arbitrary URI can replace
 playback context; this app does not do that under a promise to preserve a Jam
-queue. The Jam button explains the supported phone workflow.
+queue.
 
 Guests add songs through the Spotify app. This page sees queue changes when the track changes and through the SDK's
 upcoming-tracks list, so a guest add can take a moment to show.

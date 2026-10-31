@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { Users, Disc3, GripVertical, Play, ArrowUpRight, ListMusic, Headphones } from 'lucide-react';
+import { Disc3, GripVertical, Play, ArrowUpRight, ListMusic } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { getDivaForUser } from '../utils/divas';
 import { trackKeys } from '../utils/trackKeys';
@@ -12,7 +12,6 @@ interface SpotifyJamQueueProps {
   queue?: Track[];
   onReorderQueue?: (queue: Track[]) => unknown;
   onPlaySongNow?: (trackId: string | undefined, track: Track) => unknown;
-  onOpenJamSettings?: () => void;
   theme?: string;
   isDemoMode?: boolean;
   error?: string | null;
@@ -22,7 +21,6 @@ export default function SpotifyJamQueue({
   queue = EMPTY_QUEUE,
   onReorderQueue,
   onPlaySongNow,
-  onOpenJamSettings,
   theme = 'neon',
   isDemoMode = false,
   error
@@ -104,27 +102,6 @@ export default function SpotifyJamQueue({
             Up next<span className="queue-count">{String(queue.length).padStart(2, '0')}</span>
           </h2>
         </div>
-        <span className="session-pill">
-          <Headphones size={13} /> {isDemoMode ? 'Demo queue' : 'Spotify queue'}
-        </span>
-      </div>
-
-      <div className="jam-invitation">
-        <div className="jam-icon">
-          <Users size={20} />
-        </div>
-        <div className="jam-copy">
-          <h3>Good music. Better company.</h3>
-          <p>Start and manage a Jam in the Spotify app.</p>
-        </div>
-        <button
-          type="button"
-          onClick={onOpenJamSettings}
-          className="jam-start"
-          aria-label="How to start a Jam in Spotify"
-        >
-          <ArrowUpRight size={21} />
-        </button>
       </div>
 
       {error && (
