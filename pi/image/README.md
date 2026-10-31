@@ -53,8 +53,8 @@ and trusted, then exits; later boots reconnect by themselves. Progress is in `jo
 device's channels the same `name` when they have different addresses: one paired address is enough. Keyboards that ask for a
 passkey are not supported.
 
-While a mouse is the only way to use the screen, `kiosk_hide_cursor` is `false` so the pointer shows. Set it back to `true`
-when the touch screen is in use.
+`kiosk_hide_cursor` is `true`, so no pointer shows on the touch screen. Set it to `false` while a mouse is the only way to
+use the screen.
 
 ## Flash
 
