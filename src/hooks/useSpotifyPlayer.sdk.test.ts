@@ -147,6 +147,8 @@ describe('useSpotifyPlayer browser playback', () => {
     await waitFor(() =>
       expect(result.current.error).toMatch(/Failed to initialize player Widevine is not available in this browser./)
     );
+    expect(result.current.error).toMatch(/Switched to remote playback/);
+    expect(result.current.playbackMode).toBe('remote');
   });
 
   it('explains an autoplay failure and clears the message once music plays', async () => {

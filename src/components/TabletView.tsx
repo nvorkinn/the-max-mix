@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
-import { AudioLines, Clock, Settings, Speaker, ArrowUpRight, MicVocal } from 'lucide-react';
+import { AudioLines, Clock, Settings, Speaker, MicVocal } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { extractPalette } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
@@ -18,7 +18,6 @@ import SpotifyJamQueue from './SpotifyJamQueue';
 import LyricsPanel from './LyricsPanel';
 import SettingsModal from './SettingsModal';
 import SpeakerSelectorModal from './SpeakerSelectorModal';
-import JamSettingsModal from './JamSettingsModal';
 
 const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -54,7 +53,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [currentTime, setCurrentTime] = useState(formatClock);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSpeakerModalOpen, setIsSpeakerModalOpen] = useState(false);
-  const [isJamSettingsOpen, setIsJamSettingsOpen] = useState(false);
   const [queueError, setQueueError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [theme, setTheme] = useState(() => (localStorage.getItem('maxmix_theme') === 'minimal' ? 'minimal' : 'neon'));
@@ -221,7 +219,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             <h1>
               THE MAX MIX<span className="brand-dot">.</span>
             </h1>
-            <span>Your people. Your soundtrack.</span>
           </div>
         </div>
         <div className="session-status" role="status">
@@ -248,13 +245,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           >
             <MicVocal size={15} />
             <span>Lyrics</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsJamSettingsOpen(true)}
-            className="button button-primary header-jam-button"
-          >
-            Jam in Spotify <ArrowUpRight size={15} />
           </button>
           <button
             type="button"
@@ -308,7 +298,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               queue={queue}
               onReorderQueue={handleReorderQueue}
               onPlaySongNow={handlePlaySongNow}
-              onOpenJamSettings={() => setIsJamSettingsOpen(true)}
               theme={theme}
               isDemoMode={isDemoMode}
               error={queueError}
@@ -344,8 +333,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         audioRoute={audioRoute}
         onAudioRouteChange={changeAudioRoute}
       />
-
-      <JamSettingsModal isOpen={isJamSettingsOpen} onClose={() => setIsJamSettingsOpen(false)} />
 
       {/* General Settings Modal */}
       <SettingsModal

@@ -83,9 +83,10 @@ function nextTracksKey(state: SdkPlaybackState): string {
 }
 
 export function useSpotifyPlayer(): UseSpotifyPlayer {
-  // Settings change only through a reload, so they are read once.
+  // Settings change only through a reload, so they are read once. The one exception: a browser that cannot play
+  // (no Widevine) drops to remote mode for this page, without changing the stored setting.
   const [isDemoMode] = useState(readDemoMode);
-  const [playbackMode] = useState(getPlaybackMode);
+  const [playbackMode, setPlaybackMode] = useState(getPlaybackMode);
   const [isAuthenticated, setIsAuthenticated] = useState(isSignedIn);
   const [snapshot, setSnapshot] = useState<{ state: PlaybackOrNull; at: number }>({ state: null, at: 0 });
   const [now, setNow] = useState(Date.now);
@@ -303,21 +304,16 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         for (const event of ['initialization_error', 'authentication_error', 'account_error', 'playback_error']) {
           player.addListener(event, ({ message }: { message: string }) => {
             if (isCancelled()) return;
-            const showError = (reason: string | null) =>
-              setSdkError(
-                [
-                  `Browser playback: ${message}`,
-                  reason,
-                  'Remote playback mode is available if this Pi cannot stream audio.'
-                ]
-                  .filter(Boolean)
-                  .join(' ')
-              );
-            showError(null);
-            // A player that cannot start is nearly always missing Widevine; ask the browser and say so if it is.
+            const showError = (reason: string | null, hint: string) =>
+              setSdkError([`Browser playback: ${message}`, reason, hint].filter(Boolean).join(' '));
+            showError(null, 'Remote playback mode is available if this Pi cannot stream audio.');
+            // A player that cannot start is nearly always missing Widevine; ask the browser and say so if it is. This
+            // browser then cannot be the speaker, so the page only controls another Spotify Connect device.
             if (event === 'initialization_error') {
               void widevineProblem().then(reason => {
-                if (reason && !isCancelled()) showError(reason);
+                if (!reason || isCancelled()) return;
+                showError(reason, 'Switched to remote playback: choose a Spotify device under Speakers.');
+                setPlaybackMode('remote');
               });
             }
           });

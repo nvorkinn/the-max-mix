@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Key, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feather, LogOut, Wifi } from 'lucide-react';
 import { signOut, startSignIn } from '../spotify/auth';
 import { errorMessage } from '../utils/errorMessage';
 import { isKiosk, openWifiSettings } from '../utils/kiosk';
 import { getRedirectUri, setDemoMode, setPlaybackMode } from '../spotify/settings';
+import { widevineProblem } from '../utils/widevine';
 
 /** Set by vite.config.ts at build time; tests and other tooling run without it. */
 const APP_VERSION: string = import.meta.env.VITE_APP_VERSION ?? 'dev';
@@ -21,11 +22,13 @@ function SwitchRow({
   label,
   description,
   checked,
+  disabled = false,
   onChange
 }: Readonly<{
   label: string;
   description: string;
   checked: boolean;
+  disabled?: boolean;
   onChange: (checked: boolean) => void;
 }>) {
   return (
@@ -39,8 +42,9 @@ function SwitchRow({
         role="switch"
         aria-checked={checked}
         aria-label={label}
+        disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`shrink-0 w-11 h-6 rounded-full p-0.5 transition-all ${checked ? 'bg-emerald-500' : 'bg-neutral-600'}`}
+        className={`shrink-0 w-11 h-6 rounded-full p-0.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed ${checked ? 'bg-emerald-500' : 'bg-neutral-600'}`}
       >
         <span className={`block w-5 h-5 rounded-full bg-white transition-all ${checked ? 'translate-x-5' : ''}`} />
       </button>
@@ -68,6 +72,20 @@ export default function SettingsModal({
   onThemeChange
 }: Readonly<SettingsModalProps>) {
   const [actionError, setActionError] = useState<string | null>(null);
+  // Why this browser cannot be the speaker (no Widevine), checked each time Settings opens; null while it can.
+  const [cannotPlay, setCannotPlay] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    widevineProblem()
+      .then(problem => {
+        if (!cancelled) setCannotPlay(problem);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
   if (!isOpen) return null;
 
   const THEMES = [
@@ -239,8 +257,13 @@ export default function SettingsModal({
 
           <SwitchRow
             label="Play in this browser"
-            description="On: this screen is the speaker. Off: it only controls another Spotify device."
-            checked={authInfo?.playbackMode !== 'remote'}
+            description={
+              cannotPlay
+                ? `Unavailable: ${cannotPlay}`
+                : 'On: this screen is the speaker. Off: it only controls another Spotify device.'
+            }
+            checked={!cannotPlay && authInfo?.playbackMode !== 'remote'}
+            disabled={Boolean(cannotPlay)}
             onChange={browser => {
               setPlaybackMode(browser ? 'browser' : 'remote');
               onReload();
