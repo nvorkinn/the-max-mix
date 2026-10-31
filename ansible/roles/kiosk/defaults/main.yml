@@ -23,11 +23,11 @@ kiosk_commit: >-
   {{ lookup('ansible.builtin.pipe',
     'git -C ' ~ (playbook_dir | quote) ~ ' rev-parse --short=7 HEAD 2> /dev/null || true')
     | regex_search('^[0-9a-f]{7,40}$') | default('', true) }}
-# What the settings call the running version: the release tag of the checkout when following releases (kiosk_pull_ref
-# latest), otherwise kiosk_pull_ref itself. Empty when the checkout is not at a tag.
+# What the settings call the running version: the newest release tag at the checkout when following releases (kiosk_pull_ref
+# latest; two tags can sit on one commit), otherwise kiosk_pull_ref itself. Empty when the checkout is not at a tag.
 kiosk_version: >-
   {{ (lookup('ansible.builtin.pipe',
-    'git -C ' ~ (playbook_dir | quote) ~ ' describe --tags --exact-match --match "v*" HEAD 2> /dev/null || true')
+    'git -C ' ~ (playbook_dir | quote) ~ ' tag --points-at HEAD --list "v*" --sort=-version:refname 2> /dev/null | head -n 1 || true')
     | regex_search('^v[0-9A-Za-z][0-9A-Za-z._-]*$') | default('', true))
     if kiosk_pull_ref == 'latest' else kiosk_pull_ref }}
 
