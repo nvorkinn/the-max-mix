@@ -23,7 +23,7 @@ production is deployed (`vercel.json` turns off Vercel's deploy of `main`). It n
 `lint.yml` also lints the Raspberry Pi kiosk playbook in `ansible/` with a pinned `ansible-lint` and `ansible-playbook
 --syntax-check`.
 
-`tests.yml` also runs that playbook with `kiosk_enable_only=true` (enable services, start nothing) in a Debian trixie container, checks the key files and that
+`ansible.yml` runs that playbook, only when `ansible/`, `pi/wifi-panel/`, `pi/kiosk-audio/` or the workflow changes, with `kiosk_enable_only=true` (enable services, start nothing) in a Debian trixie container, checks the key files and that
 the units are enabled but not started, and runs it again to check that nothing changes (`ansible/tests/image-build.sh`).
 
 `audit.yml` scans the lockfile weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in

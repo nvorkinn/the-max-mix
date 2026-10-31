@@ -23,9 +23,13 @@ permissions:
   contents: read
 
 jobs:
-  # A placeholder until the playbook test moves here from tests.yml, so that All checks already knows this workflow.
+  # Runs the kiosk playbook with kiosk_enable_only=true (enable services, start nothing) in a Debian trixie container, checks
+  # the key files and that the units are enabled but not started, and runs it again to check it changes nothing.
   ansible-playbook:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
     steps:
-      - run: echo "The playbook test still runs in tests.yml; it moves here next."
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: docker run --rm --volume "$PWD:/repo:ro" debian:trixie bash /repo/ansible/tests/image-build.sh
