@@ -1,0 +1,30 @@
+#!/bin/bash
+# Usage: kiosk-pull REPO_URL REF DIRECTORY [ansible-pull options...]
+# Applies the kiosk playbook (ansible/local.yml) from REPO_URL with ansible-pull. REF "latest" means the repository's
+# latest GitHub release: the tag github.com/<owner>/<repo>/releases/latest redirects to, so no API call, token or JSON is
+# involved. Any other REF (a tag such as v1.12.0, or a branch for testing) is pulled as it is. Run by kiosk-pull.service
+# (with --only-if-changed) and, on the first boot, by cloud-init's kiosk-first-pull.
+set -euo pipefail
+
+if (($# < 3)); then
+  echo "usage: $0 REPO_URL REF DIRECTORY [ansible-pull options...]" >&2
+  exit 2
+fi
+repo=$1
+ref=$2
+directory=$3
+shift 3
+
+if [[ $ref == latest ]]; then
+  releases=${repo%.git}/releases/latest
+  location=$(curl --fail --silent --show-error --max-time 60 --retry 3 --head --output /dev/null \
+    --write-out '%{redirect_url}' "$releases")
+  ref=${location##*/releases/tag/}
+  if [[ $location != */releases/tag/* || ! $ref =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+    echo "Could not find the latest release at $releases (got: ${location:-no redirect})" >&2
+    exit 1
+  fi
+  echo "The latest release is $ref"
+fi
+
+exec ansible-pull --url "$repo" --checkout "$ref" --directory "$directory" "$@" --inventory localhost, ansible/local.yml

@@ -3,7 +3,9 @@ import { getRedirectUri } from '../spotify/settings';
 import {
   hidesCursor,
   isKiosk,
+  isRelease,
   latestCommit,
+  latestRelease,
   openWifiSettings,
   piVersion,
   rebootPi,
@@ -134,14 +136,14 @@ describe('piVersion', () => {
   });
 
   it('reads the kiosk address and remembers it without the query', () => {
-    visit('?kiosk=1&cursor=hidden&pi_ref=stable&pi_commit=5a39e9a');
-    expect(piVersion()).toEqual({ ref: 'stable', commit: '5a39e9a' });
+    visit('?kiosk=1&cursor=hidden&pi_ref=v1.12.0&pi_commit=5a39e9a');
+    expect(piVersion()).toEqual({ ref: 'v1.12.0', commit: '5a39e9a' });
     visit('?code=abc');
-    expect(piVersion()).toEqual({ ref: 'stable', commit: '5a39e9a' });
+    expect(piVersion()).toEqual({ ref: 'v1.12.0', commit: '5a39e9a' });
   });
 
   it('is forgotten by a kiosk address without it', () => {
-    visit('?kiosk=1&pi_ref=stable&pi_commit=5a39e9a');
+    visit('?kiosk=1&pi_ref=v1.12.0&pi_commit=5a39e9a');
     piVersion();
     visit('?kiosk=1');
     expect(piVersion()).toBeNull();
@@ -157,7 +159,7 @@ describe('piVersion', () => {
   });
 
   it('ignores the parameters without ?kiosk=1', () => {
-    visit('?pi_ref=stable&pi_commit=5a39e9a');
+    visit('?pi_ref=v1.12.0&pi_commit=5a39e9a');
     expect(piVersion()).toBeNull();
   });
 });
@@ -172,6 +174,40 @@ describe('update, restart and reboot', () => {
     restartKiosk();
     rebootPi();
     expect(assign.mock.calls).toEqual([['kiosk-power://update'], ['kiosk-power://restart'], ['kiosk-power://reboot']]);
+  });
+});
+
+describe('isRelease', () => {
+  it('tells release tags from branches', () => {
+    expect(isRelease('v1.12.0')).toBe(true);
+    expect(isRelease('stable')).toBe(false);
+    expect(isRelease('main')).toBe(false);
+    expect(isRelease('v')).toBe(false);
+  });
+});
+
+describe('latestRelease', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("asks GitHub for the latest release's tag", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ tag_name: 'v1.12.0', name: 'v1.12.0' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(latestRelease()).resolves.toBe('v1.12.0');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.github.com/repos/nvorkinn/the-max-mix/releases/latest',
+      expect.objectContaining({ headers: { Accept: 'application/vnd.github+json' } })
+    );
+  });
+
+  it('is null when GitHub fails or answers something else', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('rate limited', { status: 403 })));
+    await expect(latestRelease()).resolves.toBeNull();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ tag_name: 'stable' })));
+    await expect(latestRelease()).resolves.toBeNull();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>')));
+    await expect(latestRelease()).resolves.toBeNull();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
+    await expect(latestRelease()).resolves.toBeNull();
   });
 });
 

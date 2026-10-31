@@ -66,7 +66,10 @@ export function rebootPi(): void {
   location.assign(REBOOT_PI_URL);
 }
 
-/** What the Pi runs: the branch or tag it follows (kiosk_pull_ref) and the commit its playbook ran from at the kiosk's last start. */
+/**
+ * What the Pi runs, at the kiosk's last start: the release tag it pulled (v1.2.3, when it follows the latest release) or
+ * the branch or tag it is pinned to (kiosk_pull_ref), and the commit its playbook ran from.
+ */
 export interface PiVersion {
   ref: string;
   commit: string;
@@ -110,6 +113,29 @@ export function piVersion(): PiVersion | null {
 
 /** The repository the Pi pulls (kiosk_pull_repo). */
 const PI_REPO = 'nvorkinn/the-max-mix';
+
+const RELEASE_PATTERN = /^v[0-9A-Za-z][0-9A-Za-z._-]*$/;
+
+/** True when the Pi's ref is a release tag (v1.2.3), so a newer version is a newer release rather than a newer commit. */
+export function isRelease(ref: string): boolean {
+  return RELEASE_PATTERN.test(ref);
+}
+
+/** The tag of the repository's latest GitHub release, or null when GitHub cannot be asked (offline, rate limited). */
+export async function latestRelease(signal: AbortSignal | null = null): Promise<string | null> {
+  try {
+    const response = await fetch(`https://api.github.com/repos/${PI_REPO}/releases/latest`, {
+      headers: { Accept: 'application/vnd.github+json' },
+      signal
+    });
+    if (!response.ok) return null;
+    const body: unknown = await response.json();
+    const tag = typeof body === 'object' && body !== null && 'tag_name' in body ? body.tag_name : null;
+    return typeof tag === 'string' && isRelease(tag) ? tag : null;
+  } catch {
+    return null;
+  }
+}
 
 /** The commit `ref` points at on GitHub now, or null when GitHub cannot be asked (offline, rate limited). */
 export async function latestCommit(ref: string, signal: AbortSignal | null = null): Promise<string | null> {

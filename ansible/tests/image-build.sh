@@ -88,7 +88,8 @@ mkdir -p /run/sshd
 check /usr/sbin/sshd -t
 check test "$(stat -c %a /home/admin/.ssh)" = 700
 check grep -q '^127.0.1.1 the-max-mix$' /etc/hosts
-check grep -q 'ansible-pull --url https://github.com/nvorkinn/the-max-mix.git --checkout stable ' /etc/systemd/system/kiosk-pull.service
+check grep -q '^ExecStart=/usr/local/sbin/kiosk-pull https://github.com/nvorkinn/the-max-mix.git latest ' /etc/systemd/system/kiosk-pull.service
+check test -x /usr/local/sbin/kiosk-pull
 # Node runs the audio routing's TypeScript directly.
 check node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)'
 # (node --check does not strip types, so load the modules instead; importing them starts nothing.)
