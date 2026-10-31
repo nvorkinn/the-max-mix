@@ -1,5 +1,5 @@
 {
-  "//": "The repository tooling: scripts, e2e tests and the config files at the root (the Vite and Vitest configs belong to tsconfig.app.json). Node runs the TypeScript scripts directly. Only the ESLint and Stylelint configs are JavaScript, because those tools load them as such; `allowJs` and `checkJs` type-check those through their JSDoc. Used by `tsc -b` and by ESLint's type-aware rules.",
+  "//": "The repository tooling and the Pi's audio service (pi/kiosk-audio): scripts, e2e tests and the config files at the root (the Vite and Vitest configs belong to tsconfig.app.json). Node runs the TypeScript scripts directly. Only the ESLint and Stylelint configs are JavaScript, because those tools load them as such; `allowJs` and `checkJs` type-check those through their JSDoc. Used by `tsc -b` and by ESLint's type-aware rules.",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
     "target": "ES2023",
@@ -8,6 +8,7 @@
     "allowJs": true,
     "checkJs": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "strict": true,
     "noPropertyAccessFromIndexSignature": true,
     "isolatedModules": true,
@@ -24,5 +25,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["scripts/*.ts", "e2e/*.ts", "lint-staged.config.ts", "*.config.js", "*.config.mjs"]
+  "include": ["scripts/*.ts", "e2e/*.ts", "pi/kiosk-audio/*.ts", "lint-staged.config.ts", "*.config.js", "*.config.mjs"]
 }

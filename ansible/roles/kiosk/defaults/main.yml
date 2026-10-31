@@ -83,12 +83,30 @@ kiosk_packages:
   - pipewire
   - pipewire-pulse
   - wireplumber
+  # AirPlay: PipeWire's RAOP modules find speakers over mDNS (Avahi); pw-dump and pw-link route the sound to them.
+  - avahi-daemon
+  - libpipewire-0.3-modules
+  - pipewire-audio-client-libraries
+  - pipewire-bin
   # Security updates
   - unattended-upgrades
 
 # The Wi-Fi panel's source and its package list (one package per line, # comments allowed) live in the pulled repository.
 kiosk_panel_src: '{{ playbook_dir }}/../pi/wifi-panel'
 kiosk_panel_dir: /opt/the-max-mix/wifi-panel
+
+# The audio routing (pi/kiosk-audio): the app opens kiosk-audio:// links to send its sound to AirPlay speakers, and a
+# user unit keeps the links in place. kiosk-open-audio and kiosk-audio.desktop name kiosk_audio_dir's default.
+kiosk_audio_src: '{{ playbook_dir }}/../pi/kiosk-audio'
+kiosk_audio_dir: /opt/the-max-mix/kiosk-audio
+# PipeWire's AirPlay buffer. Shorter means play, pause and skip are heard sooner on the speakers; too short and a busy
+# Wi-Fi network makes them drop out.
+kiosk_raop_latency_ms: 500
+# The audio routing is TypeScript that Node runs directly, which needs Node 22.18 or later; Debian trixie has 20, so
+# Node comes from NodeSource's archive (the same major version as .nvmrc). The key is pinned by its checksum.
+kiosk_nodejs_major: 24
+kiosk_nodesource_key_url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
+kiosk_nodesource_key_sha256: b42e0321dabdc24e892115da705cf061167eac12a317f23d329862d0aa0a271d
 
 # On-device updates: kiosk-pull.timer runs ansible-pull against this repository and ref. The ref is a branch or tag that
 # the owner moves on purpose (never a development branch); the image build bakes in the same value. To roll a device

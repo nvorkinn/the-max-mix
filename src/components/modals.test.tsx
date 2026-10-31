@@ -18,6 +18,13 @@ const settings = vi.hoisted(() => ({
 vi.mock('../spotify/api', () => api);
 vi.mock('../spotify/auth', () => auth);
 vi.mock('../spotify/settings', () => settings);
+vi.mock('../audio/airplay', () => ({
+  listAudioOutputs: vi.fn().mockResolvedValue([]),
+  watchAudioOutputs: vi.fn(() => vi.fn()),
+  routeAudio: vi.fn(),
+  getChosenSpeakers: vi.fn(() => []),
+  setChosenSpeakers: vi.fn()
+}));
 
 const QRCodeModal = partialProps(QRCodeModalFull);
 const JamSettingsModal = partialProps(JamSettingsModalFull);
@@ -301,5 +308,49 @@ describe('SpeakerSelectorModal', () => {
     await waitFor(() => expect(api.getDevices).toHaveBeenCalledTimes(2));
     await userEvent.click(screen.getByRole('button', { name: 'Close speakers' }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('offers no playback modes off the kiosk', async () => {
+    api.getDevices.mockResolvedValue({ devices: [] });
+    render(<SpeakerSelectorModal isOpen />);
+    expect(await screen.findByText(/selected in Spotify or the operating system/)).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Playback mode' })).not.toBeInTheDocument();
+  });
+
+  it('switches between Spotify Connect and AirPlay on the kiosk', async () => {
+    api.getDevices.mockResolvedValue({ devices: [] });
+    const onAudioRouteChange = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = render(
+      <SpeakerSelectorModal isOpen canUseAirPlay onAudioRouteChange={onAudioRouteChange} browserDeviceId="web-1" />
+    );
+    expect(await screen.findByText(/switch to AirPlay above/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Spotify Connect' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(screen.getByRole('button', { name: 'Spotify Connect' }));
+    expect(onAudioRouteChange).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'AirPlay' }));
+    expect(onAudioRouteChange).toHaveBeenCalledWith('airplay');
+
+    api.getDevices.mockClear();
+    rerender(
+      <SpeakerSelectorModal
+        isOpen
+        canUseAirPlay
+        audioRoute="airplay"
+        onAudioRouteChange={onAudioRouteChange}
+        browserDeviceId="web-1"
+      />
+    );
+    expect(screen.getByRole('heading', { name: 'Choose AirPlay speakers' })).toBeInTheDocument();
+    expect(await screen.findByText(/Looking for AirPlay speakers/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Refresh devices' })).not.toBeInTheDocument();
+    expect(api.getDevices).not.toHaveBeenCalled();
+  });
+
+  it('shows a failed mode change', async () => {
+    api.getDevices.mockResolvedValue({ devices: [] });
+    const onAudioRouteChange = vi.fn(() => Promise.reject(new Error('Transfer failed')));
+    render(<SpeakerSelectorModal isOpen canUseAirPlay audioRoute="airplay" onAudioRouteChange={onAudioRouteChange} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Spotify Connect' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Transfer failed');
   });
 });

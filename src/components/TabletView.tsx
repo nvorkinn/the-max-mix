@@ -7,6 +7,10 @@ import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
 import { getQueue, reorderDemoQueue, playDemoTrackNow } from '../spotify/api';
 import { SpotifyApiError } from '../spotify/http';
+import { getAudioRoute, setAudioRoute } from '../spotify/settings';
+import type { AudioRoute } from '../spotify/settings';
+import { getChosenSpeakers, routeAudio } from '../audio/airplay';
+import { isKiosk } from '../utils/kiosk';
 import type { Track } from '../types';
 import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
@@ -56,6 +60,26 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [theme, setTheme] = useState(() => (localStorage.getItem('maxmix_theme') === 'minimal' ? 'minimal' : 'neon'));
   // Lyrics take the queue's place while shown; remembered so the kiosk comes back the way it was left.
   const [showLyrics, setShowLyrics] = useState(() => localStorage.getItem('maxmix_lyrics') === 'on');
+  // AirPlay needs the Pi's audio service, so it is offered on the kiosk only (and not with simulated playback).
+  const [onKiosk] = useState(isKiosk);
+  const canUseAirPlay = onKiosk && !isDemoMode;
+  const [storedAudioRoute, setStoredAudioRoute] = useState(getAudioRoute);
+  const audioRoute: AudioRoute = canUseAirPlay ? storedAudioRoute : 'spotify-connect';
+
+  // AirPlay plays what this tablet's own player plays, so playback moves here and the Pi sends it on to the speakers
+  // chosen last time. Spotify Connect hands the sound back to the Pi's own output, ready for a Connect speaker to be
+  // picked. The mode changes even if moving playback fails, so the tablet never gets stuck in AirPlay.
+  const changeAudioRoute = async (route: AudioRoute) => {
+    setStoredAudioRoute(route);
+    setAudioRoute(route);
+    if (route === 'spotify-connect') {
+      routeAudio([]);
+      return;
+    }
+    const speakers = getChosenSpeakers();
+    if (speakers.length > 0) routeAudio(speakers);
+    if (browserDeviceId && playbackState?.device?.id !== browserDeviceId) await transferPlayback(browserDeviceId);
+  };
 
   const toggleLyrics = (show: boolean) => {
     setShowLyrics(show);
@@ -174,6 +198,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   let footerStatus = 'Spotify browser player';
   if (isDemoMode) footerStatus = 'DEMO / simulated playback';
+  else if (audioRoute === 'airplay') footerStatus = 'AirPlay from this tablet';
   else if (playbackMode === 'remote') footerStatus = 'Spotify Connect remote';
 
   return (
@@ -208,8 +233,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             type="button"
             onClick={() => setIsSpeakerModalOpen(true)}
             className="button button-secondary speaker-button"
-            title="Choose a Spotify Connect device"
-            aria-label="Choose a Spotify Connect device"
+            title={canUseAirPlay ? 'Choose speakers' : 'Choose a Spotify Connect device'}
+            aria-label={canUseAirPlay ? 'Choose speakers' : 'Choose a Spotify Connect device'}
           >
             <Speaker size={15} />
             <span>Speakers</span>
@@ -315,6 +340,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         onSelectSpeaker={(id: string) => transferPlayback(id)}
         browserDeviceId={browserDeviceId}
         isDemoMode={isDemoMode}
+        canUseAirPlay={canUseAirPlay}
+        audioRoute={audioRoute}
+        onAudioRouteChange={changeAudioRoute}
       />
 
       <JamSettingsModal isOpen={isJamSettingsOpen} onClose={() => setIsJamSettingsOpen(false)} />

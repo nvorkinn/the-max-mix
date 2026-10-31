@@ -6,6 +6,7 @@
 const SPOTIFY_CLIENT_ID = '79012ca710ca4dd5ad18c2973510b670';
 const PLAYBACK_MODE_KEY = 'maxmix.playbackMode';
 const DEMO_KEY = 'maxmix.demo';
+const AUDIO_ROUTE_KEY = 'maxmix.audioRoute';
 
 function read(key: string): string | null {
   try {
@@ -36,6 +37,20 @@ export function getPlaybackMode(): 'browser' | 'remote' {
 
 export function setPlaybackMode(mode: 'browser' | 'remote'): void {
   write(PLAYBACK_MODE_KEY, mode === 'remote' ? 'remote' : null);
+}
+
+/**
+ * Where the kiosk's sound goes. spotify-connect: Spotify plays on this tablet or on a Spotify Connect speaker it is moved
+ * to. airplay: Spotify plays on this tablet and the Pi sends the sound on to AirPlay speakers (the Pi's audio service).
+ */
+export type AudioRoute = 'spotify-connect' | 'airplay';
+
+export function getAudioRoute(): AudioRoute {
+  return read(AUDIO_ROUTE_KEY) === 'airplay' ? 'airplay' : 'spotify-connect';
+}
+
+export function setAudioRoute(route: AudioRoute): void {
+  write(AUDIO_ROUTE_KEY, route === 'airplay' ? 'airplay' : null);
 }
 
 /** Demo mode simulates playback; it is on when the address has ?demo=true or it was switched on in Settings. */

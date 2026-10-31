@@ -1,7 +1,9 @@
 {
   "AutoLaunchProtocolsFromOrigins": [
-    { "protocol": "kiosk-wifi", "allowed_origins": ["{{ kiosk_app_origin }}"] }
+    { "protocol": "kiosk-wifi", "allowed_origins": ["{{ kiosk_app_origin }}"] },
+    { "protocol": "kiosk-audio", "allowed_origins": ["{{ kiosk_app_origin }}"] }
   ],
+  "AudioCaptureAllowedUrls": ["{{ kiosk_app_origin }}"],
   "TranslateEnabled": false,
   "PasswordManagerEnabled": false,
   "AutofillAddressEnabled": false,

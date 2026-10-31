@@ -36,9 +36,9 @@ The fast rebuild keeps pi-gen's build container (`PRESERVE_CONTAINER=1`, `CONTIN
 `stage-kiosk` runs after `stage2` and is the only stage exported as an image. It holds no configuration of its own:
 `00-packages` installs Ansible, git and `python3-apt`, and `01-install/00-run.sh` runs the playbook
 [`ansible/local.yml`](../../ansible/local.yml) inside the image's chroot with `kiosk_image_build=true`, so services are
-enabled and nothing is started. [`prepare.sh`](prepare.sh) only copies `ansible/` and `pi/wifi-panel/` into the stage, the
-one directory pi-gen's build can see. Everything installed and configured on the device is in the Ansible role
-([`ansible/roles/kiosk`](../../ansible/roles/kiosk)); [`config`](config) keeps pi-gen's own base settings (host name, the
+enabled and nothing is started. [`prepare.sh`](prepare.sh) only copies `ansible/`, `pi/wifi-panel/` and
+`pi/kiosk-audio/` into the stage, the one directory pi-gen's build can see. Everything installed and configured on the
+device is in the Ansible role ([`ansible/roles/kiosk`](../../ansible/roles/kiosk)); [`config`](config) keeps pi-gen's own base settings (host name, the
 `kiosk` user, locale, keyboard, Wi-Fi country, no SSH), which the playbook sets again.
 
 The image bakes in the same `kiosk_pull_ref` (`stable`) that the device's update timer pulls. Reflashing is only for fresh

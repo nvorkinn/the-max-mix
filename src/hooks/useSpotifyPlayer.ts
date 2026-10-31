@@ -102,7 +102,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   const playbackRequestRef = useRef(0);
   const expectedPlayingRef = useRef<{ playing: boolean; until: number } | null>(null);
   const playPauseInFlightRef = useRef(false);
-  // The Web Playback SDK player this page runs ("THE MAX MIX"), once it is connected.
+  // The Web Playback SDK player this page runs ("The Max Mix"), once it is connected.
   const playerRef = useRef<SpotifyPlayer | null>(null);
   const sdkActiveRef = useRef(false);
   const lastTrackIdRef = useRef<string | null>(null);
@@ -259,7 +259,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         const sdk = await loadSpotifySDK();
         if (isCancelled()) return;
         player = new sdk.Player({
-          name: 'THE MAX MIX',
+          name: 'The Max Mix',
           getOAuthToken: callback => {
             getAccessToken()
               .then(token => {

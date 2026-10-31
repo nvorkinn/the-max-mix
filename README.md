@@ -23,13 +23,19 @@ alone does not make DRM available.
 
 ### How playback is controlled
 
-In browser mode (the default) this page is the speaker: it registers a Spotify Connect device called "THE MAX MIX"
+In browser mode (the default) this page is the speaker: it registers a Spotify Connect device called "The Max Mix"
 with the Web Playback SDK and drives it directly. The SDK reports every change as an event, so while this page is the
 player there is no polling: the play/pause button, progress and track follow the events at once. A slow safety-net
 refresh from the Web API catches anything missed. The first Play press makes it the active device (pressing, not
 loading the page, so it never takes over what is playing elsewhere). If you pick another device under Speakers (or
-choose remote mode in Settings), the page is that device's remote and polls the Web API until you pick "THE MAX MIX"
+choose remote mode in Settings), the page is that device's remote and polls the Web API until you pick "The Max Mix"
 again. Browsers only start audio after a click, so the very first Play press is also what unlocks sound.
+
+On the Pi kiosk, Speakers also switches between two playback modes. **Spotify Connect** is the above: the tablet plays,
+or Spotify moves playback to a Connect speaker. **AirPlay** keeps playback on the tablet and the Pi sends its sound on
+to the AirPlay speakers you pick (Sonos included), several at once, through PipeWire. The speakers are the audio
+outputs Chromium lists; picking them opens a `kiosk-audio://` link that the Pi's
+[audio routing](pi/kiosk-audio/README.md) handles, the same way `kiosk-wifi://` opens the Wi-Fi panel.
 
 ### Native Spotify Jam limitations
 
@@ -100,7 +106,7 @@ Register `http://127.0.0.1:5173/` as a redirect URI in the Spotify dashboard to 
 To try the production build (the same files the Pi serves), run
 `npm run build && npm start` and open
 **<http://127.0.0.1:4173/>** (`vite preview`). Register that address too if you want to sign in there. `npm test` runs the
-app and Wi-Fi panel tests; `npm run build` checks the frontend production build.
+app, audio routing and Wi-Fi panel tests; `npm run build` checks the frontend production build.
 
 ### Checks and Git hooks
 
@@ -164,8 +170,8 @@ Raspberry Pi Imager (**Use custom**) and power on; [`pi/image/README.md`](pi/ima
 boot, troubleshooting and what is still to be verified on a device.
 
 **[Ansible](https://docs.ansible.com) is the single source of truth** for everything installed and configured on the device:
-packages, the `kiosk` user and its service, `kiosk-session`, the `kiosk-wifi://` handler, the Wi-Fi panel, the Chromium
-policy, Plymouth, boot settings (`cmdline.txt`, `config.txt`), locale, time zone, unattended upgrades and the update timer.
+packages, the `kiosk` user and its service, `kiosk-session`, the `kiosk-wifi://` handler, the Wi-Fi panel, the AirPlay
+audio routing and PipeWire's AirPlay settings, the Chromium policy, Plymouth, boot settings (`cmdline.txt`, `config.txt`), locale, time zone, unattended upgrades and the update timer.
 It is one role, [`ansible/roles/kiosk`](ansible/roles/kiosk), run by [`ansible/local.yml`](ansible/local.yml); its
 variables and defaults are in [`defaults/main.yml`](ansible/roles/kiosk/defaults/main.yml). Nothing else configures the
 device, so change the role, not the device.

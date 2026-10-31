@@ -24,6 +24,13 @@ const api = vi.hoisted(() => ({
   playDemoTrackNow: vi.fn()
 }));
 const palette = vi.hoisted(() => ({ extractPalette: vi.fn() }));
+const airplay = vi.hoisted(() => ({
+  listAudioOutputs: vi.fn(),
+  watchAudioOutputs: vi.fn(),
+  routeAudio: vi.fn(),
+  getChosenSpeakers: vi.fn(),
+  setChosenSpeakers: vi.fn()
+}));
 const lyrics = vi.hoisted(() => ({ lrclib: vi.fn() }));
 
 vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => player.current }));
@@ -31,6 +38,7 @@ vi.mock('../spotify/api', () => api);
 vi.mock('../spotify/auth', () => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
 vi.mock('../utils/colorExtractor', () => palette);
 vi.mock('../lyrics/lrclib', () => lyrics);
+vi.mock('../audio/airplay', () => airplay);
 vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
 
 const track = {
@@ -389,6 +397,79 @@ describe('TabletView', () => {
     fireEvent.click(screen.getByRole('button', { name: /Soundbar/ }));
     await flush();
     expect(player.current.transferPlayback).toHaveBeenCalledWith('dev1');
+  });
+
+  describe('on the kiosk', () => {
+    beforeEach(() => {
+      localStorage.setItem('maxmix.kiosk', 'true');
+      for (const mock of Object.values(airplay)) mock.mockReset();
+      airplay.listAudioOutputs.mockResolvedValue([]);
+      airplay.watchAudioOutputs.mockReturnValue(vi.fn());
+      airplay.getChosenSpeakers.mockReturnValue(['Kitchen']);
+      setPlayer({
+        playbackMode: 'browser',
+        browserDeviceId: 'web-1',
+        playbackState: { is_playing: true, item: track, device: { id: 'dev1', name: 'Soundbar' } }
+      });
+    });
+
+    it('switches to AirPlay, moving playback to this tablet, and remembers it', async () => {
+      render(<TabletView />);
+      await flush();
+      fireEvent.click(screen.getByRole('button', { name: 'Choose speakers' }));
+      await flush();
+      fireEvent.click(screen.getByRole('button', { name: 'AirPlay' }));
+      await flush();
+      expect(player.current.transferPlayback).toHaveBeenCalledWith('web-1');
+      expect(airplay.routeAudio).toHaveBeenCalledWith(['Kitchen']);
+      expect(localStorage.getItem('maxmix.audioRoute')).toBe('airplay');
+      expect(screen.getByText('AirPlay from this tablet')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Choose AirPlay speakers' })).toBeInTheDocument();
+    });
+
+    it('does not move playback that is already on this tablet', async () => {
+      setPlayer({ playbackMode: 'browser', browserDeviceId: 'web-1', playbackState: { device: { id: 'web-1' } } });
+      render(<TabletView />);
+      await flush();
+      fireEvent.click(screen.getByRole('button', { name: 'Choose speakers' }));
+      await flush();
+      fireEvent.click(screen.getByRole('button', { name: 'AirPlay' }));
+      await flush();
+      expect(player.current.transferPlayback).not.toHaveBeenCalled();
+    });
+
+    it('does not route before any speaker was chosen', async () => {
+      airplay.getChosenSpeakers.mockReturnValue([]);
+      render(<TabletView />);
+      await flush();
+      fireEvent.click(screen.getByRole('button', { name: 'Choose speakers' }));
+      await flush();
+      fireEvent.click(screen.getByRole('button', { name: 'AirPlay' }));
+      await flush();
+      expect(airplay.routeAudio).not.toHaveBeenCalled();
+    });
+
+    it('goes back to Spotify Connect, handing the sound back to the Pi', async () => {
+      localStorage.setItem('maxmix.audioRoute', 'airplay');
+      render(<TabletView />);
+      await flush();
+      fireEvent.click(screen.getByRole('button', { name: 'Choose speakers' }));
+      await flush();
+      fireEvent.click(screen.getByRole('button', { name: 'Spotify Connect' }));
+      await flush();
+      expect(airplay.routeAudio).toHaveBeenCalledWith([]);
+      expect(localStorage.getItem('maxmix.audioRoute')).toBeNull();
+      expect(screen.getByText('Spotify browser player')).toBeInTheDocument();
+    });
+
+    it('ignores a saved AirPlay mode in demo mode', async () => {
+      localStorage.setItem('maxmix.audioRoute', 'airplay');
+      setPlayer({ isDemoMode: true });
+      render(<TabletView />);
+      await flush();
+      expect(screen.queryByText('AirPlay from this tablet')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Choose a Spotify Connect device' })).toBeInTheDocument();
+    });
   });
 
   it('shows the clock in the footer', async () => {
