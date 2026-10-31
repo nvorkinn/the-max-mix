@@ -60,7 +60,7 @@ for (const viewport of [{ width: 1024, height: 600 }]) {
     await page.keyboard.press('Escape');
     await expect(settings).toBeHidden();
 
-    await page.getByRole('button', { name: 'Choose a Spotify Connect device' }).click();
+    await page.getByRole('button', { name: 'Choose speakers' }).click();
     const speakers = page.getByRole('dialog', { name: 'Choose a Spotify device' });
     await expect(speakers.getByRole('button', { name: /Test speaker/ })).toBeVisible();
     await expectTouchTargets(speakers);

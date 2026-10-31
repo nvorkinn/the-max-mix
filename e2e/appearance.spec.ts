@@ -77,7 +77,7 @@ for (const appearance of [
     await page.keyboard.press('Escape');
     await page.reload();
     await expect(page.locator('.tablet-container')).toHaveAttribute('data-theme', appearance.id);
-    await page.getByRole('button', { name: 'Choose a Spotify Connect device' }).click();
+    await page.getByRole('button', { name: 'Choose speakers' }).click();
     const speakers = page.getByRole('dialog', { name: 'Choose a Spotify device' });
     await expect(speakers).toHaveCSS('background-color', appearance.surface);
     await expect(speakers).toHaveCSS('color', appearance.ink);
