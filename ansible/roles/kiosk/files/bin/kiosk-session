@@ -53,7 +53,14 @@ if [[ $screen_off_after =~ ^[1-9][0-9]*$ ]] && command -v swayidle > /dev/null; 
   swayidle timeout "$screen_off_after" '/usr/local/bin/kiosk-display off' resume '/usr/local/bin/kiosk-display on' &
 fi
 
+# Cage does not signal this script when it stops: it closes its Wayland socket and waits for us to exit. Without this check the
+# loop would start a new app with no compositor and the stop would hang until systemd kills Cage after 90 seconds.
+display_gone() {
+  [[ -n ${WAYLAND_DISPLAY:-} && -n ${XDG_RUNTIME_DIR:-} && ! -S $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY ]]
+}
+
 while true; do
+  display_gone && exit 0
   if [[ -e $wifi_flag ]] || ! wait_online; then
     run_wifi_panel
   else
