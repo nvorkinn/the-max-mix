@@ -8,10 +8,22 @@ kiosk_user: kiosk
 # The only groups the kiosk user is in (the user has no sudo and no password).
 kiosk_groups: [audio, input, netdev, render, video]
 # The origin of the hosted app and the address the kiosk opens (?kiosk=1 turns on the app's kiosk-only settings,
-# ?cursor=hidden|shown follows kiosk_hide_cursor, in case Chromium ignores the session's blank cursor theme).
+# ?cursor=hidden|shown follows kiosk_hide_cursor, in case Chromium ignores the session's blank cursor theme, and
+# ?pi_ref=&pi_commit= name the kiosk_pull_ref and commit this playbook ran from, which the app's settings show).
 # Register the redirect URI of this address in the Spotify dashboard.
 kiosk_app_origin: https://the-max-mix.vercel.app
-kiosk_url: "{{ kiosk_app_origin }}/?kiosk=1&cursor={{ 'hidden' if kiosk_hide_cursor | bool else 'shown' }}"
+kiosk_url: >-
+  {{ kiosk_app_origin }}/?kiosk=1&cursor={{ 'hidden' if kiosk_hide_cursor | bool else 'shown' }}
+  {{- ('&pi_ref=' ~ (kiosk_pull_ref | urlencode) ~ '&pi_commit=' ~ kiosk_commit) if kiosk_commit else '' }}
+# The commit this playbook runs from: ansible-pull runs it from a Git checkout, and the image build, which has no .git,
+# from the copy pi/image/prepare.sh makes, with the commit in ansible/COMMIT. Empty when neither is there. Because the
+# commit is in kiosk_url, every new commit on kiosk_pull_ref changes kiosk.service and so restarts the kiosk at
+# kiosk_restart_time, after which the settings show the new commit.
+kiosk_commit: >-
+  {{ lookup('ansible.builtin.pipe',
+    'git -C ' ~ (playbook_dir | quote) ~ ' rev-parse --short=7 HEAD 2> /dev/null || cat '
+    ~ ((playbook_dir ~ '/COMMIT') | quote) ~ ' 2> /dev/null || true')
+    | regex_search('^[0-9a-f]{7,40}$') | default('', true) }}
 
 # System settings.
 kiosk_locale: en_GB.UTF-8

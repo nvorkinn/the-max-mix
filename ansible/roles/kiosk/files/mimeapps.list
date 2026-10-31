@@ -1,3 +1,4 @@
 [Default Applications]
 x-scheme-handler/kiosk-wifi=kiosk-wifi.desktop
 x-scheme-handler/kiosk-audio=kiosk-audio.desktop
+x-scheme-handler/kiosk-power=kiosk-power.desktop

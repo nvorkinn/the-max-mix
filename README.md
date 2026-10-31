@@ -143,7 +143,10 @@ skipped automatically when there is no `.git` directory or when dev dependencies
    default) or remote. Settings also has the demo mode switch; `?demo=true` on the address turns it on for a visit.
    On the Pi kiosk, which is opened with `?kiosk=1` (the app remembers that, so it survives the Spotify sign-in redirect;
    `?kiosk=0` forgets it), Settings also shows **Wi-Fi network**, which opens the Pi's native Wi-Fi panel (it asks the
-   kiosk to open `kiosk-wifi://open`). Other visitors never see the entry.
+   kiosk to open `kiosk-wifi://open`). Other visitors never see the entry. The kiosk's Settings also show which commit
+   of `stable` the Pi is running (from `?pi_ref=&pi_commit=` in `kiosk_url`), say when a newer one is on GitHub, and
+   have **Restart kiosk** and **Reboot Pi** buttons (`kiosk-power://` links). A new `stable` commit reaches the Pi
+   within about 5 minutes and is fully applied after the next kiosk restart: at 04:30, on a reboot, or with the button.
 5. In Speakers, select THE MAX MIX or an existing Spotify Connect device. Press
    Play when ready. For remote mode, first open Spotify on the target device so it
    is discoverable.
