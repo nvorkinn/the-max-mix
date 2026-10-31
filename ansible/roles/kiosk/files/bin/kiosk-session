@@ -45,6 +45,14 @@ run_chromium() {
   rm -f "$chromium_pid"
 }
 
+# Screen sleep: once nothing holds the screen awake (the app's wake lock reaches Cage as an idle inhibitor) and nobody
+# has touched it for this long, turn the output off; the next touch turns it on. The Wi-Fi panel holds nothing, so it
+# goes dark after the same time. swayidle ends with Cage.
+screen_off_after=${KIOSK_SCREEN_OFF_AFTER:-0}
+if [[ $screen_off_after =~ ^[1-9][0-9]*$ ]] && command -v swayidle > /dev/null; then
+  swayidle timeout "$screen_off_after" '/usr/local/bin/kiosk-display off' resume '/usr/local/bin/kiosk-display on' &
+fi
+
 while true; do
   if [[ -e $wifi_flag ]] || ! wait_online; then
     run_wifi_panel

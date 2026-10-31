@@ -148,6 +148,8 @@ skipped automatically when there is no `.git` directory or when dev dependencies
    on GitHub, and have **Update now**, **Restart kiosk** and **Reboot Pi** buttons (`kiosk-power://` links). **Update
    now** pulls the latest release at once and restarts the kiosk if anything changed; otherwise a new release reaches the
    Pi within about 6 hours and is fully applied after the next kiosk restart: at 04:30, on a reboot, or with the button.
+   **Screen sleep** sets how long the kiosk's screen stays on without a touch while nothing plays (5 minutes by default,
+   or never). It always stays on while music plays, and the tap that wakes it never presses anything.
 5. In Speakers, select THE MAX MIX or an existing Spotify Connect device. Press
    Play when ready. For remote mode, first open Spotify on the target device so it
    is discoverable.

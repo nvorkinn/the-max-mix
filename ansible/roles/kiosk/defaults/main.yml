@@ -68,6 +68,11 @@ kiosk_bluetooth_devices:
   - { name: mouse, address: 'DE:E3:A5:BE:A8:00' }
   - { name: keyboard, address: 'D1:B9:E3:A0:7A:9D' }
 
+# Screen sleep. The app decides when the screen may sleep (never while music plays, otherwise after the idle minutes chosen
+# in its settings) and shows a black sleep screen. This many seconds later without a touch, swayidle turns the HDMI output
+# off; the first touch turns it on again. Also how long the Wi-Fi panel stays lit without a touch. 0 never turns it off.
+kiosk_screen_off_after: 60
+
 # Hide the mouse pointer (a blank cursor theme) for the touch screen. Turn off while a mouse is the only way to use it.
 kiosk_hide_cursor: true
 kiosk_cursor_theme: whiteglass
@@ -88,6 +93,9 @@ kiosk_packages:
   # Display: Cage runs one app full screen on Wayland. kbd provides chvt, xkb-data the keyboard layouts.
   - cage
   - kbd
+  # Screen sleep: swayidle notices when nobody touches the screen, wlr-randr turns the output off and on (kiosk-display).
+  - swayidle
+  - wlr-randr
   - xkb-data
   - fonts-dejavu-core
   - fonts-noto-color-emoji

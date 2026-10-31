@@ -1388,3 +1388,14 @@ input:disabled {
     scroll-behavior: auto !important;
   }
 }
+
+/* The kiosk's sleep screen (components/SleepScreen.tsx): black over everything, catching the tap that wakes it. */
+.sleep-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  border: 0;
+  padding: 0;
+  background: #000;
+  touch-action: none;
+}

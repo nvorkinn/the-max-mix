@@ -48,6 +48,7 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/kiosk-open-wifi /usr/loc
   /etc/systemd/system/kiosk-restart.timer /etc/chromium/policies/managed/kiosk.json \
   /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules /etc/polkit-1/rules.d/50-kiosk-power.rules \
   /usr/local/bin/kiosk-open-power /usr/share/applications/kiosk-power.desktop /usr/local/sbin/kiosk-handover \
+  /usr/local/bin/kiosk-display /usr/share/applications/kiosk-display.desktop \
   /etc/systemd/system/kiosk-update-now.service /etc/systemd/system/kiosk-widevine.path \
   /etc/systemd/system/kiosk-widevine.service /etc/NetworkManager/conf.d/20-connectivity.conf \
   /etc/tmpfiles.d/kiosk.conf /usr/share/plymouth/themes/the-max-mix/the-max-mix.plymouth \
@@ -97,6 +98,10 @@ check node -e "await import('/opt/the-max-mix/kiosk-audio/speakers.ts')"
 check grep -q 'raop.latency.ms = 500' /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf
 check grep -q 'kiosk-audio.ts watch$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'kiosk-audio=kiosk-audio.desktop' /etc/xdg/mimeapps.list
+check grep -q 'kiosk-display=kiosk-display.desktop' /etc/xdg/mimeapps.list
+check grep -q '"protocol": "kiosk-display"' /etc/chromium/policies/managed/kiosk.json
+check grep -q '^Environment=KIOSK_SCREEN_OFF_AFTER=60$' /etc/systemd/system/kiosk.service
+check command -v swayidle wlr-randr
 check grep -q 'en_GB.UTF-8' /etc/default/locale
 check test "$(cat /etc/timezone)" = Europe/London
 

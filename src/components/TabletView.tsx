@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, CSSProperties } from 'react';
 import { AudioLines, Clock, Settings, Speaker, MicVocal } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
+import { useScreenSleep } from '../hooks/useScreenSleep';
 import { extractPalette } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
@@ -12,6 +13,8 @@ import type { AudioRoute } from '../spotify/settings';
 import { getChosenSpeakers, routeAudio } from '../audio/airplay';
 import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
+import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
+import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import type { Track } from '../types';
 import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
@@ -20,6 +23,7 @@ import LyricsPanel from './LyricsPanel';
 import SettingsModal from './SettingsModal';
 import SpeakerSelectorModal from './SpeakerSelectorModal';
 import DebugConsole from './DebugConsole';
+import SleepScreen from './SleepScreen';
 
 const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -129,6 +133,19 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   const isPlaying = Boolean(playbackState?.is_playing);
   const currentTrack = playbackState?.item;
+
+  // The kiosk's screen stays on while music plays and sleeps after the chosen idle minutes otherwise.
+  const [screenSleepMinutes, setScreenSleepMinutes] = useState(getScreenSleep);
+  const changeScreenSleep = (minutes: ScreenSleepMinutes) => {
+    setScreenSleepMinutes(minutes);
+    setScreenSleep(minutes);
+  };
+  const sleep = useScreenSleep({
+    enabled: onKiosk,
+    keepAwake: isPlaying,
+    idleMs: screenSleepMinutes === 0 ? null : screenSleepMinutes * 60_000
+  });
+  const screenStatus = `${sleep.asleep ? 'Asleep' : 'Awake'}, wake lock ${sleep.wakeLock}`;
 
   // Problems are kept in the debug console rather than in a banner over the screen.
   useLogChanges(playerError, 'player');
@@ -406,6 +423,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             'Now playing',
             currentTrack ? (currentTrack.name ?? currentTrack.title ?? currentTrack.id ?? '?') : 'Nothing'
           ],
+          ['Screen', onKiosk ? screenStatus : 'Not managed'],
           ['Current problem', error ?? 'None']
         ]}
       />
@@ -423,7 +441,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         currentTheme={theme}
         onThemeChange={handleThemeChange}
         statusMessage={toastMessage}
+        screenSleep={screenSleepMinutes}
+        onScreenSleepChange={changeScreenSleep}
       />
+
+      {sleep.asleep && <SleepScreen onWake={sleep.wake} />}
     </div>
   );
 }

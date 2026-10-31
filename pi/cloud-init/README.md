@@ -65,6 +65,12 @@ Wi-Fi panel. `--no-poweroff` starts the kiosk again instead, for trying it out.
 4. `kiosk-pull.timer` runs `ansible-pull` three minutes after boot and then every six hours (or at once from the app's
    Update now button), applying the playbook only when there is a new release. A failed run only logs
    (`journalctl -u kiosk-pull`). A pull that changed kiosk files makes `kiosk-restart.timer` restart the kiosk at 04:30.
+5. The screen sleeps. The app keeps it on while music plays and for the idle minutes chosen in its settings (5 by
+   default), by holding a screen wake lock that Chromium passes to Cage. After that, the app shows a black sleep screen
+   and lets go. A minute later without a touch (`kiosk_screen_off_after`), `swayidle` runs `kiosk-display off`, which
+   turns the HDMI output off with `wlr-randr`. The next touch turns it on again, and that tap only dismisses the sleep
+   screen. Music that starts while the screen sleeps wakes it through `kiosk-display://wake`. The Wi-Fi panel holds no
+   wake lock, so it goes dark after a minute without a touch.
 
 The app's Wi-Fi button (shown with `?kiosk=1`) opens `kiosk-wifi://open`. Chromium's managed policy lets
 `https://the-max-mix.vercel.app` do that without a prompt, `xdg-open` finds `kiosk-wifi.desktop` through
@@ -103,7 +109,10 @@ The `bootfs` partition holds `config.txt` and `cmdline.txt` (remove `quiet splas
 - **Black screen, no panel or app:** check that `kiosk.service` started on tty7.
 - **Panel never offers Cancel / always appears:** the connectivity check failed. `network-test.debian.org` must be reachable
   over plain HTTP; a captive portal that needs a browser login is not supported.
-- **`kiosk-wifi://`, `kiosk-power://` or `kiosk-audio://` does nothing:** check `chrome://policy` for
+- **The screen goes dark while music plays, or never goes dark:** the debug console's Screen row shows whether the app
+  holds its wake lock, and `journalctl -u kiosk` shows `wlr-randr` errors from `kiosk-display`. Set
+  `kiosk_screen_off_after: 0` to keep the output on for good.
+- **`kiosk-wifi://`, `kiosk-power://`, `kiosk-display://` or `kiosk-audio://` does nothing:** check `chrome://policy` for
   `AutoLaunchProtocolsFromOrigins` and `journalctl -b | grep polkit`.
 
 ## Still to verify
@@ -116,3 +125,5 @@ and reboot, SSH, and Widevine after a restart. Still to check:
 3. After `kiosk-handover`, `nmcli connection show` lists no Wi-Fi, `/etc/netplan/` has no Wi-Fi file, and the next boot
    shows the Wi-Fi panel.
 4. On a Pi 5, Widevine plays with the 4 KB-page kernel (`getconf PAGESIZE` prints 4096).
+5. Screen sleep: the Waveshare turns its backlight off when `kiosk-display off` disables the output, Chromium's wake
+   lock keeps it on while music plays, and the first touch brings it back at 1024x600.
