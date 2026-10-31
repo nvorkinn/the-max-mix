@@ -16,10 +16,14 @@ let onDeviceChange: () => void = () => {
   // Replaced when the list subscribes.
 };
 
-beforeEach(() => {
+beforeEach(async () => {
+  const saved = await vi.importActual<typeof import('../audio/airplay')>('../audio/airplay');
+  localStorage.clear();
+  saved.setChosenSpeakers(['Kitchen']);
   for (const mock of Object.values(airplay)) mock.mockReset();
   airplay.listAudioOutputs.mockResolvedValue(['Kitchen', 'Lounge']);
-  airplay.getChosenSpeakers.mockReturnValue(['Kitchen']);
+  airplay.getChosenSpeakers.mockImplementation(saved.getChosenSpeakers);
+  airplay.setChosenSpeakers.mockImplementation(saved.setChosenSpeakers);
   airplay.watchAudioOutputs.mockImplementation((listener: () => void) => {
     onDeviceChange = listener;
     return vi.fn();
@@ -77,10 +81,63 @@ describe('AirPlaySpeakerList', () => {
 
   it('cannot route before the tablet player is ready', async () => {
     render(<AirPlaySpeakerList isPlayerReady={false} />);
-    expect(await screen.findByRole('button', { name: /Lounge/ })).toBeDisabled();
+    const lounge = await screen.findByRole('button', { name: /Lounge/ });
+    expect(lounge).toBeDisabled();
+    await userEvent.click(lounge);
+    expect(airplay.setChosenSpeakers).not.toHaveBeenCalled();
     expect(screen.getByRole('status')).toHaveTextContent(/Play in this browser/);
     expect(screen.getByRole('button', { name: /Kitchen/ })).toHaveTextContent('Selected');
     expect(screen.queryByText('Playing here')).not.toBeInTheDocument();
+    expect(airplay.routeAudio).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['absent', ['Lounge']],
+    ['available', ['Kitchen', 'Lounge']]
+  ])('removes an %s saved speaker while unready and remembers it when reopened without routing', async (_, outputs) => {
+    airplay.listAudioOutputs.mockResolvedValue(outputs);
+    const { unmount } = render(<AirPlaySpeakerList isPlayerReady={false} />);
+    await screen.findByRole('button', { name: /Lounge/ });
+    const kitchen = screen.getByRole('button', { name: /Kitchen/ });
+    expect(kitchen).toBeEnabled();
+    expect(kitchen).toHaveTextContent('Selected');
+    expect(kitchen).toHaveTextContent(outputs.includes('Kitchen') ? 'Available on this network' : 'Not on the network');
+    await userEvent.click(kitchen);
+    expect(airplay.setChosenSpeakers).toHaveBeenCalledExactlyOnceWith([]);
+    expect(localStorage.getItem('maxmix.airplaySpeakers')).toBe('[]');
+    unmount();
+    render(<AirPlaySpeakerList isPlayerReady />);
+    await screen.findByRole('button', { name: /Lounge/ });
+    expect(screen.queryByRole('button', { name: /Kitchen/, pressed: true })).not.toBeInTheDocument();
+    expect(Boolean(screen.queryByRole('button', { name: /Kitchen/ }))).toBe(outputs.includes('Kitchen'));
+    expect(airplay.routeAudio).not.toHaveBeenCalled();
+  });
+
+  it('routes back to the Pi output when the last saved speaker is removed with a ready player', async () => {
+    render(<AirPlaySpeakerList isPlayerReady />);
+    await userEvent.click(await screen.findByRole('button', { name: /Kitchen/ }));
+    expect(airplay.setChosenSpeakers).toHaveBeenCalledExactlyOnceWith([]);
+    expect(airplay.routeAudio).toHaveBeenCalledExactlyOnceWith([]);
+  });
+
+  it('removes only the chosen speaker without routing the remaining selection while unready', async () => {
+    localStorage.setItem('maxmix.airplaySpeakers', '["Kitchen","Lounge"]');
+    render(<AirPlaySpeakerList isPlayerReady={false} />);
+    await userEvent.click(await screen.findByRole('button', { name: /Kitchen/ }));
+    expect(airplay.setChosenSpeakers).toHaveBeenCalledExactlyOnceWith(['Lounge']);
+    expect(screen.getByRole('button', { name: /Lounge/ })).toHaveTextContent('Selected');
+    expect(screen.getByRole('button', { name: /Kitchen/ })).toBeDisabled();
+    expect(airplay.routeAudio).not.toHaveBeenCalled();
+  });
+
+  it('can clear a saved speaker before discovery finishes without confirming absence or routing', async () => {
+    airplay.listAudioOutputs.mockImplementation(() => new Promise(() => {}));
+    render(<AirPlaySpeakerList isPlayerReady={false} />);
+    const kitchen = screen.getByRole('button', { name: /Kitchen/ });
+    expect(kitchen).toHaveTextContent('Checking availability');
+    expect(kitchen).not.toHaveTextContent('Not on the network');
+    await userEvent.click(kitchen);
+    expect(airplay.setChosenSpeakers).toHaveBeenCalledExactlyOnceWith([]);
     expect(airplay.routeAudio).not.toHaveBeenCalled();
   });
 

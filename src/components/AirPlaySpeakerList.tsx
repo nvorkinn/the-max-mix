@@ -11,7 +11,8 @@ import { errorMessage } from '../utils/errorMessage';
 
 /**
  * The audio outputs Chromium sees (the Pi makes one for each AirPlay speaker it finds). Each tap adds or removes one,
- * requesting a route to the chosen speakers. Chromium cannot confirm playback on that route.
+ * requesting a route to the chosen speakers only when the player is ready. Saved choices can be removed before then.
+ * Chromium cannot confirm playback on that route.
  */
 export default function AirPlaySpeakerList({ isPlayerReady }: Readonly<{ isPlayerReady: boolean }>) {
   const [outputs, setOutputs] = useState<string[] | null>(null);
@@ -33,10 +34,12 @@ export default function AirPlaySpeakerList({ isPlayerReady }: Readonly<{ isPlaye
   }, [refresh]);
 
   const toggle = (name: string) => {
-    const next = chosen.includes(name) ? chosen.filter(other => other !== name) : [...chosen, name];
+    const isChosen = chosen.includes(name);
+    if (!isPlayerReady && !isChosen) return;
+    const next = isChosen ? chosen.filter(other => other !== name) : [...chosen, name];
     setChosen(next);
     setChosenSpeakers(next);
-    routeAudio(next);
+    if (isPlayerReady) routeAudio(next);
   };
 
   // Chosen speakers that are not on the network right now stay listed, so they can be removed.
@@ -44,13 +47,13 @@ export default function AirPlaySpeakerList({ isPlayerReady }: Readonly<{ isPlaye
   return (
     <div className="mt-4 space-y-2">
       <p className="text-xs text-muted">
-        Tap a speaker to add or remove it from this tablet&apos;s audio route. Selection requests routing; this screen
-        cannot confirm sound is playing there.
+        Tap a speaker to add or remove it from this tablet&apos;s saved audio route. Changes request routing only when
+        the player is ready; this screen cannot confirm sound is playing there.
       </p>
       {!isPlayerReady && (
         <p role="status" className="text-xs status-warning">
           The tablet&apos;s Spotify player is not ready. Turn on &quot;Play in this browser&quot; in Settings and sign
-          in to Spotify.
+          in to Spotify. You can still remove saved selections without changing playback.
         </p>
       )}
       {error && (
@@ -73,7 +76,7 @@ export default function AirPlaySpeakerList({ isPlayerReady }: Readonly<{ isPlaye
             type="button"
             key={name}
             aria-pressed={isChosen}
-            disabled={!isPlayerReady}
+            disabled={!isPlayerReady && !isChosen}
             onClick={() => toggle(name)}
             className="modal-option w-full p-3 flex gap-3 items-center text-left rounded-xl border"
           >
