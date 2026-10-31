@@ -62,8 +62,8 @@ test('next and previous change the current track', async ({ page }) => {
 
 test('settings modal opens and closes', async ({ page }) => {
   await page.goto(DEMO_URL);
-  await page.getByRole('button', { name: 'Open settings and skins' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Make it yours' });
+  await page.getByRole('button', { name: 'Open settings' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Settings' });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Close settings' }).click();
   await expect(dialog).toBeHidden();

@@ -43,22 +43,22 @@ export default function AirPlaySpeakerList({ isPlayerReady }: Readonly<{ isPlaye
   const names = [...new Set([...(outputs ?? []), ...chosen])];
   return (
     <div className="mt-4 space-y-2">
-      <p className="text-xs text-neutral-400">
+      <p className="text-xs text-muted">
         This tablet plays, and the sound goes to every speaker you pick. Tap a speaker to add or remove it.
       </p>
       {!isPlayerReady && (
-        <p role="status" className="text-xs text-amber-300">
+        <p role="status" className="text-xs status-warning">
           The tablet&apos;s Spotify player is not ready. Turn on &quot;Play in this browser&quot; in Settings and sign
           in to Spotify.
         </p>
       )}
       {error && (
-        <p role="alert" className="text-xs text-rose-300">
+        <p role="alert" className="text-xs status-danger">
           {error}
         </p>
       )}
       {outputs && names.length === 0 && (
-        <p className="text-xs leading-relaxed text-neutral-400 py-4">
+        <p className="text-xs leading-relaxed text-muted py-4">
           Looking for AirPlay speakers on this network. Sonos speakers show up once AirPlay is on in the Sonos app.
         </p>
       )}
@@ -72,17 +72,15 @@ export default function AirPlaySpeakerList({ isPlayerReady }: Readonly<{ isPlaye
             aria-pressed={isChosen}
             disabled={!isPlayerReady}
             onClick={() => toggle(name)}
-            className={`w-full p-3 flex gap-3 items-center text-left rounded-xl border hover:bg-white/10 ${
-              isChosen ? 'border-[#d5f580]/60 bg-white/10' : 'border-white/10 bg-white/5'
-            }`}
+            className="modal-option w-full p-3 flex gap-3 items-center text-left rounded-xl border"
           >
-            <Speaker size={20} className="shrink-0 text-[#d5f580]" />
+            <Speaker size={20} className="shrink-0 text-accent" />
             <span className="flex-1 min-w-0">
               <span className="block text-sm truncate">{name}</span>
-              {!isPresent && <span className="text-[11px] text-neutral-400">Not on the network</span>}
+              {!isPresent && <span className="text-[11px] text-muted">Not on the network</span>}
             </span>
             {isChosen && (
-              <span className="text-xs text-[#d5f580] flex items-center gap-1">
+              <span className="text-xs text-accent flex items-center gap-1">
                 <Check size={14} /> Playing here
               </span>
             )}

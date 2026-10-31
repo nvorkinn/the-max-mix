@@ -4,6 +4,10 @@ A music-first Spotify touchscreen for a Raspberry Pi, including the Waveshare
 7-inch 1024x600 display. Studio and Paper appearances adapt to tablets,
 larger screens, and phones.
 
+Settings > Appearance changes the whole interface, including Settings, Speakers and the Pi's system controls.
+Studio and Paper use matching surfaces, accents and readable status colours; the technical debug console deliberately
+stays dark. Existing saved appearance choices are preserved.
+
 ## What works
 
 - Display the active Spotify track, progress, device, and upcoming queue.
