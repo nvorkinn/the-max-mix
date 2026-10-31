@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getRedirectUri } from '../spotify/settings';
-import { hidesCursor, isKiosk, openWifiSettings, WIFI_SETTINGS_URL } from './kiosk';
+import {
+  hidesCursor,
+  isKiosk,
+  latestCommit,
+  openWifiSettings,
+  piVersion,
+  rebootPi,
+  restartKiosk,
+  WIFI_SETTINGS_URL
+} from './kiosk';
 
 function visit(search: string) {
   history.replaceState(null, '', `/${search}`);
@@ -110,5 +119,80 @@ describe('hidesCursor', () => {
     visit('?kiosk=1');
     expect(hidesCursor()).toBe(false);
     expect(isKiosk()).toBe(true);
+  });
+});
+
+describe('piVersion', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    visit('');
+  });
+
+  it('is unknown by default', () => {
+    expect(piVersion()).toBeNull();
+  });
+
+  it('reads the kiosk address and remembers it without the query', () => {
+    visit('?kiosk=1&cursor=hidden&pi_ref=stable&pi_commit=5a39e9a');
+    expect(piVersion()).toEqual({ ref: 'stable', commit: '5a39e9a' });
+    visit('?code=abc');
+    expect(piVersion()).toEqual({ ref: 'stable', commit: '5a39e9a' });
+  });
+
+  it('is forgotten by a kiosk address without it', () => {
+    visit('?kiosk=1&pi_ref=stable&pi_commit=5a39e9a');
+    piVersion();
+    visit('?kiosk=1');
+    expect(piVersion()).toBeNull();
+    visit('');
+    expect(piVersion()).toBeNull();
+  });
+
+  it('rejects values that are not a ref and a commit', () => {
+    for (const query of ['pi_ref=stable&pi_commit=xyz1234', 'pi_ref=a b&pi_commit=5a39e9a', 'pi_ref=stable']) {
+      visit(`?kiosk=1&${query}`);
+      expect(piVersion()).toBeNull();
+    }
+  });
+
+  it('ignores the parameters without ?kiosk=1', () => {
+    visit('?pi_ref=stable&pi_commit=5a39e9a');
+    expect(piVersion()).toBeNull();
+  });
+});
+
+describe('restart and reboot', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('open the kiosk-power scheme', () => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { assign });
+    restartKiosk();
+    rebootPi();
+    expect(assign.mock.calls).toEqual([['kiosk-power://restart'], ['kiosk-power://reboot']]);
+  });
+});
+
+describe('latestCommit', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const sha = '0123456789abcdef0123456789abcdef01234567';
+
+  it("asks GitHub for the ref's commit", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(`${sha}\n`));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(latestCommit('stable')).resolves.toBe(sha);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.github.com/repos/nvorkinn/the-max-mix/commits/stable',
+      expect.objectContaining({ headers: { Accept: 'application/vnd.github.sha' } })
+    );
+  });
+
+  it('is null when GitHub fails or answers something else', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('rate limited', { status: 403 })));
+    await expect(latestCommit('stable')).resolves.toBeNull();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>')));
+    await expect(latestCommit('stable')).resolves.toBeNull();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
+    await expect(latestCommit('stable')).resolves.toBeNull();
   });
 });

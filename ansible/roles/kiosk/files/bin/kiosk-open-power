@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Handler for kiosk-power:// links (see kiosk-power.desktop), from the buttons in the app's settings:
+#   kiosk-power://restart  restarts the kiosk (Cage and Chromium), which applies an update that waits for the restart
+#   kiosk-power://reboot   reboots the Pi
+# Anything else does nothing. polkit (50-kiosk-power.rules) lets the kiosk user do exactly these two things.
+set -eu
+
+case ${1:-} in
+  kiosk-power://restart | kiosk-power://restart/) exec systemctl restart --no-block kiosk.service ;;
+  kiosk-power://reboot | kiosk-power://reboot/) exec systemctl reboot ;;
+  *)
+    echo "kiosk-open-power: unknown link: ${1:-}" >&2
+    exit 1
+    ;;
+esac

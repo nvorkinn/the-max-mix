@@ -18,3 +18,5 @@ mkdir -p "$repo/pi"
 cp -a "$root/ansible" "$repo/ansible"
 cp -a "$root/pi/wifi-panel" "$repo/pi/wifi-panel"
 cp -a "$root/pi/kiosk-audio" "$repo/pi/kiosk-audio"
+# The image has no .git, so the playbook reads the commit it was built from here (kiosk_commit).
+git -C "$root" rev-parse --short=7 HEAD > "$repo/ansible/COMMIT" 2> /dev/null || rm -f "$repo/ansible/COMMIT"

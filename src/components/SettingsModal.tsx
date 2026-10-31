@@ -5,6 +5,7 @@ import { errorMessage } from '../utils/errorMessage';
 import { isKiosk, openWifiSettings } from '../utils/kiosk';
 import { getRedirectUri, setDemoMode, setPlaybackMode } from '../spotify/settings';
 import { widevineProblem } from '../utils/widevine';
+import KioskSystem from './KioskSystem';
 
 /** Set by vite.config.ts at build time; tests and other tooling run without it. */
 const APP_VERSION: string = import.meta.env.VITE_APP_VERSION ?? 'dev';
@@ -282,6 +283,7 @@ export default function SettingsModal({
               <Wifi className="w-5 h-5 shrink-0 text-[#d5f580]" aria-hidden="true" />
             </button>
           )}
+          {isKiosk() && <KioskSystem />}
 
           <SwitchRow
             label="Demo mode"
