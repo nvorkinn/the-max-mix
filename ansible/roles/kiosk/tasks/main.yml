@@ -263,7 +263,7 @@
     - /usr/share/plymouth/themes/the-max-mix
     - /var/lib/the-max-mix
 
-- name: Install the kiosk programs and the kiosk-wifi:// and kiosk-audio:// handlers
+- name: Install the kiosk programs and the kiosk-wifi://, kiosk-audio:// and kiosk-power:// handlers
   ansible.builtin.copy:
     src: '{{ item.src }}'
     dest: '{{ item.dest }}'
@@ -276,8 +276,10 @@
     - { src: bin/wifi-panel, dest: /usr/local/bin/wifi-panel, mode: '0755' }
     - { src: bin/kiosk-bluetooth-pair, dest: /usr/local/bin/kiosk-bluetooth-pair, mode: '0755' }
     - { src: bin/kiosk-open-audio, dest: /usr/local/bin/kiosk-open-audio, mode: '0755' }
+    - { src: bin/kiosk-open-power, dest: /usr/local/bin/kiosk-open-power, mode: '0755' }
     - { src: kiosk-wifi.desktop, dest: /usr/share/applications/kiosk-wifi.desktop, mode: '0644' }
     - { src: kiosk-audio.desktop, dest: /usr/share/applications/kiosk-audio.desktop, mode: '0644' }
+    - { src: kiosk-power.desktop, dest: /usr/share/applications/kiosk-power.desktop, mode: '0644' }
     - { src: mimeapps.list, dest: /etc/xdg/mimeapps.list, mode: '0644' }
   loop_control:
     label: '{{ item.dest }}'
@@ -370,6 +372,15 @@
   ansible.builtin.template:
     src: 50-kiosk-networkmanager.rules.j2
     dest: /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules
+    owner: root
+    group: root
+    mode: '0644'
+
+# The Restart kiosk and Reboot Pi buttons in the app's settings (kiosk-power:// links).
+- name: Allow the kiosk user to restart the kiosk and reboot the Pi
+  ansible.builtin.template:
+    src: 50-kiosk-power.rules.j2
+    dest: /etc/polkit-1/rules.d/50-kiosk-power.rules
     owner: root
     group: root
     mode: '0644'
