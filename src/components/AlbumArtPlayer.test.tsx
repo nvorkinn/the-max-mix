@@ -5,13 +5,13 @@ import { installCanvasStub, stubMatchMedia } from '../test/canvas';
 import { defined } from '../test/defined';
 import { partialProps } from '../test/partialProps';
 import AlbumArtPlayerFull from './AlbumArtPlayer';
-import SpotifyJamQueueFull from './SpotifyJamQueue';
+import TrackQueueFull from './TrackQueue';
 
 const confetti = vi.hoisted(() => vi.fn());
 vi.mock('canvas-confetti', () => ({ default: confetti }));
 
 const AlbumArtPlayer = partialProps(AlbumArtPlayerFull);
-const SpotifyJamQueue = partialProps(SpotifyJamQueueFull);
+const TrackQueue = partialProps(TrackQueueFull);
 
 const playback = {
   is_playing: true,
@@ -131,7 +131,7 @@ describe('AlbumArtPlayer', () => {
   });
 });
 
-describe('SpotifyJamQueue', () => {
+describe('TrackQueue', () => {
   const tracks: [Track, Track, Track] = [
     {
       id: 'a',
@@ -145,7 +145,7 @@ describe('SpotifyJamQueue', () => {
   ];
   const setupQueue = (props = {}) => {
     const h = { onReorderQueue: vi.fn().mockResolvedValue(true), onPlaySongNow: vi.fn() };
-    render(<SpotifyJamQueue queue={tracks} {...h} {...props} />);
+    render(<TrackQueue queue={tracks} {...h} {...props} />);
     return h;
   };
 
@@ -163,10 +163,10 @@ describe('SpotifyJamQueue', () => {
   });
 
   it('uses the singular for a single track and shows an empty state', () => {
-    const { unmount } = render(<SpotifyJamQueue queue={[tracks[1]]} />);
+    const { unmount } = render(<TrackQueue queue={[tracks[1]]} />);
     expect(screen.getByText('1 track / 1 min')).toBeInTheDocument();
     unmount();
-    render(<SpotifyJamQueue />);
+    render(<TrackQueue />);
     expect(screen.getByText('A little quiet in here.')).toBeInTheDocument();
     expect(screen.getByText('0 tracks')).toBeInTheDocument();
   });

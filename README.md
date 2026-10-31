@@ -49,6 +49,10 @@ drag handles, or pretend play-now action. Playing an arbitrary URI can replace
 playback context; this app does not do that under a promise to preserve a Jam
 queue.
 
+`TrackQueue` (`src/components/TrackQueue.tsx`) renders both the read-only live queue and the explicitly simulated demo
+queue. Guest credits, reordering and play-now controls are demo-only. There is no in-app voting or QR guest remote;
+guests manage their contributions in Spotify.
+
 Guests add songs through the Spotify app. This page sees queue changes when the track changes and through the SDK's
 upcoming-tracks list, so a guest add can take a moment to show.
 

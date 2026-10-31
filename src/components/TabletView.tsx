@@ -15,7 +15,7 @@ import { debugLog } from '../utils/debugLog';
 import type { Track } from '../types';
 import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
-import SpotifyJamQueue from './SpotifyJamQueue';
+import TrackQueue from './TrackQueue';
 import LyricsPanel from './LyricsPanel';
 import SettingsModal from './SettingsModal';
 import SpeakerSelectorModal from './SpeakerSelectorModal';
@@ -342,7 +342,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           </section>
         ) : (
           <section className="queue-section" aria-label="Upcoming tracks">
-            <SpotifyJamQueue
+            <TrackQueue
               queue={queue}
               onReorderQueue={handleReorderQueue}
               onPlaySongNow={handlePlaySongNow}

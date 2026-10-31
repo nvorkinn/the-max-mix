@@ -38,8 +38,6 @@ export function parseTrack(value: unknown): Track | undefined {
   }
   const durationMs = finite(value['duration_ms']);
   if (durationMs !== undefined) track.duration_ms = durationMs;
-  const votes = finite(value['votes']);
-  if (votes !== undefined) track.votes = votes;
   const addedBy = parsePerson(value['addedBy']);
   if (addedBy) track.addedBy = addedBy;
   const addedByAlias = parsePerson(value['added_by']);

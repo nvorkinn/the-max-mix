@@ -12,7 +12,7 @@ vi.mock('../utils/colorExtractor', () => ({ extractPalette: vi.fn() }));
 vi.mock('./AlbumArtPlayer', () => ({ default: () => null }));
 vi.mock('./SettingsModal', () => ({ default: () => null }));
 vi.mock('./SpeakerSelectorModal', () => ({ default: () => null }));
-vi.mock('./SpotifyJamQueue', () => ({ default: () => null }));
+vi.mock('./TrackQueue', () => ({ default: () => null }));
 
 function setOnLine(value: boolean) {
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(value);
