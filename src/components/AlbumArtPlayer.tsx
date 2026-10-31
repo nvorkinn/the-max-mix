@@ -5,6 +5,7 @@ import type { CSSProperties } from 'react';
 import { getDivaForUser } from '../utils/divas';
 import type { PlayerControls } from '../types';
 import AudioVisualizer from './AudioVisualizer';
+import { Artwork, GuestAvatar } from './TrackImages';
 
 type AlbumArtPlayerProps = Readonly<PlayerControls> & {
   theme?: string;
@@ -39,10 +40,7 @@ export default function AlbumArtPlayer({
   const artist = item.artists
     ? item.artists.map(a => a.name).join(', ')
     : item.artist || 'Choose your next favourite in Spotify';
-  const albumArt =
-    item.album?.images?.[0]?.url ||
-    item.albumArt ||
-    'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80';
+  const albumArt = item.album?.images?.[0]?.url || item.albumArt;
   const progressMs = playback?.progress_ms ?? playback?.position ?? 0;
   const durationMs = item.duration_ms || playback?.duration || 180_000;
   const progressPercent = Math.min(100, Math.max(0, (progressMs / durationMs) * 100));
@@ -72,7 +70,7 @@ export default function AlbumArtPlayer({
         aria-label={`Celebrate ${title}`}
         onClick={() => void confetti({ particleCount: 25, spread: 60, origin: { x: 0.25, y: 0.45 } })}
       >
-        <img src={albumArt} alt={`${title} album artwork`} className="album-cover" />
+        <Artwork src={albumArt} alt={`${title} album artwork`} className="album-cover" />
         <span className="album-shade" />
         <span className="art-caption">
           <span className="status-dot" /> THE SOUNDTRACK STARTS HERE
@@ -101,13 +99,7 @@ export default function AlbumArtPlayer({
         </div>
         {guestName ? (
           <div className="track-credit">
-            <img
-              src={userAvatar}
-              alt=""
-              onError={e => {
-                e.currentTarget.src = assignedDiva.image;
-              }}
-            />
+            <GuestAvatar src={userAvatar} name={guestName} />
             <span>
               Demo pick by <strong>{guestName}</strong>
             </span>

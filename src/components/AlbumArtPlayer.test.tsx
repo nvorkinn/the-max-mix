@@ -107,12 +107,13 @@ describe('AlbumArtPlayer', () => {
     expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
   });
 
-  it('credits the demo guest only in demo mode, falling back to a diva image on error', () => {
+  it('credits the demo guest only in demo mode, falling back to initials on error', () => {
     const { unmount } = render(<AlbumArtPlayer playback={playback} isDemoMode controlsEnabled onSeek={() => {}} />);
     expect(screen.getByText('Ann')).toBeInTheDocument();
     const avatar = defined(document.querySelector('.track-credit img'));
     fireEvent.error(avatar);
-    expect(avatar).toHaveAttribute('src', expect.stringMatching(/^\/divas\//));
+    expect(avatar).not.toBeInTheDocument();
+    expect(screen.getByText('A', { selector: '.guest-avatar' })).toBeInTheDocument();
     unmount();
     setup();
     expect(screen.queryByText(/Demo pick by/)).not.toBeInTheDocument();

@@ -167,7 +167,7 @@
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .status-dot {
   display: inline-block;
@@ -191,9 +191,10 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: 44px;
+  min-width: 44px;
   border-radius: 10px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 650;
   transition:
     background 160ms,
@@ -226,7 +227,7 @@
   transform: scale(0.96);
 }
 .icon-button {
-  width: 40px;
+  width: 44px;
   color: var(--muted);
 }
 .listening-room {
@@ -303,6 +304,22 @@
   height: 100%;
   object-fit: cover;
   transition: transform 600ms;
+}
+.image-placeholder {
+  display: grid;
+  place-items: center;
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+.image-placeholder svg {
+  width: 45%;
+  height: 45%;
+  max-width: 80px;
+  max-height: 80px;
+}
+.guest-avatar {
+  font-size: 10px;
+  font-weight: 700;
 }
 .album-art:hover .album-cover {
   transform: scale(1.025);
@@ -381,7 +398,7 @@
 }
 .track-copy p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
   margin-top: 5px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -399,9 +416,9 @@
   gap: 7px;
   margin-top: 10px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
-.track-credit img {
+.track-credit .guest-avatar {
   width: 19px;
   height: 19px;
   border-radius: 50%;
@@ -420,6 +437,8 @@
   background: transparent;
   cursor: pointer;
   margin: 0;
+  min-width: 44px;
+  min-height: 44px;
 }
 .range-control::-webkit-slider-runnable-track {
   height: 3px;
@@ -453,7 +472,7 @@
 .track-times {
   display: flex;
   justify-content: space-between;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -486,7 +505,7 @@
   gap: 9px;
 }
 .transport-skip {
-  width: 40px;
+  width: 44px;
   height: 44px;
   display: grid;
   place-items: center;
@@ -509,7 +528,7 @@
 }
 .transport-status {
   justify-self: end;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--muted);
 }
 .queue-panel {
@@ -540,7 +559,7 @@
   line-height: 1.2;
 }
 .queue-count {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--muted);
   background: var(--surface-raised);
@@ -624,6 +643,9 @@
   display: none;
   color: var(--accent);
 }
+button.queue-play {
+  width: 44px;
+}
 .queue-play:hover .queue-number,
 .queue-play:focus-visible .queue-number {
   display: none;
@@ -652,7 +674,7 @@
   gap: 7px;
 }
 .queue-title h3 {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.15px;
   overflow: hidden;
@@ -660,7 +682,7 @@
   white-space: nowrap;
 }
 .queue-track-copy p {
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 5px;
   color: var(--muted);
   overflow: hidden;
@@ -675,7 +697,7 @@
   flex-shrink: 0;
 }
 .queue-duration {
-  font-size: 9px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
   margin: 0 5px;
@@ -686,10 +708,10 @@
   gap: 7px;
   width: 80px;
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
 }
-.queue-guest img {
+.queue-guest .guest-avatar {
   width: 24px;
   height: 24px;
   flex-shrink: 0;
@@ -705,7 +727,7 @@
   display: grid;
   place-items: center;
   min-height: 44px;
-  width: 24px;
+  width: 44px;
   flex-shrink: 0;
   color: var(--muted);
   opacity: 0.55;
@@ -726,10 +748,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  flex-wrap: wrap;
   border-top: 1px solid var(--border);
   padding-top: 12px;
   margin-top: 4px;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--muted);
 }
 .queue-empty {
@@ -757,7 +780,7 @@
   font-weight: 550;
 }
 .queue-empty p {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.7;
   color: var(--muted);
 }
@@ -767,7 +790,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 15px;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--muted);
   z-index: 20;
 }
@@ -806,11 +829,39 @@
   font-size: 12px;
   font-weight: 600;
 }
+.app-dialog {
+  margin: auto;
+  width: calc(100% - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.app-dialog:not([open]) {
+  display: none;
+}
+.app-dialog::backdrop {
+  background: rgb(0 0 0 / 85%);
+  backdrop-filter: blur(12px);
+}
+body:has(.app-dialog[open]) {
+  overflow: hidden;
+}
 .app-modal-panel {
   background: #1b1f1b;
   border-color: rgb(215 225 205 / 15%);
   color: #f2f3ed;
   color-scheme: dark;
+}
+.app-modal-panel button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.app-modal-panel p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.app-modal-panel .text-xs {
+  font-size: 14px;
 }
 .connection-banner {
   position: relative;
@@ -822,7 +873,7 @@
   padding: 10px 30px;
   background: var(--accent-soft);
   border-bottom: 1px solid var(--border);
-  font-size: 11px;
+  font-size: 13px;
 }
 .connection-banner span {
   min-width: 0;
@@ -831,6 +882,8 @@
   color: var(--accent);
   padding: 4px;
   flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
 }
 .offline-banner {
   justify-content: flex-start;
@@ -892,15 +945,24 @@
 .lyrics-panel .queue-footer a {
   color: inherit;
   text-decoration: underline;
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
 }
 .queue-error {
   color: #fda4af;
-  font-size: 11px;
+  font-size: 13px;
   padding: 8px 0;
 }
 .queue-link {
   padding: 10px;
   color: var(--muted);
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
 }
 button:disabled,
 input:disabled {
@@ -1063,7 +1125,8 @@ input:disabled {
   }
   .speaker-button,
   .lyrics-button {
-    padding: 0 10px;
+    width: 44px;
+    padding: 0;
   }
   .speaker-button span,
   .lyrics-button span {
@@ -1120,19 +1183,20 @@ input:disabled {
   }
   .queue-heading .button {
     padding: 0 10px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .queue-track {
     gap: 7px;
   }
   .queue-guest {
-    width: 64px;
-    gap: 5px;
-    font-size: 9px;
+    width: 24px;
   }
-  .queue-guest img {
-    width: 21px;
-    height: 21px;
+  .queue-guest .guest-avatar {
+    width: 24px;
+    height: 24px;
+  }
+  .queue-guest > span:not(.guest-avatar) {
+    display: none;
   }
   .queue-art {
     width: 36px;
@@ -1142,16 +1206,10 @@ input:disabled {
     gap: 5px;
   }
   .queue-title h3 {
-    font-size: 11px;
+    font-size: 14px;
   }
   .queue-columns {
     grid-template-columns: 29px 1fr 88px;
-  }
-  .queue-drag {
-    width: 20px;
-  }
-  .queue-play {
-    width: 20px;
   }
   .live-badge {
     font-size: 7px;
@@ -1160,7 +1218,7 @@ input:disabled {
   .app-footer {
     padding: 4px 20px 22px;
     flex-wrap: wrap;
-    font-size: 8px;
+    font-size: 12px;
   }
   .app-footer > span:last-child {
     font-size: 7px;
@@ -1183,10 +1241,12 @@ input:disabled {
 }
 
 @media (width <= 380px) {
-  .queue-guest {
-    width: 24px;
+  .app-header {
+    padding-inline: 16px;
   }
-  .queue-guest span {
+  .brand-mark,
+  .queue-art,
+  .transport-status {
     display: none;
   }
   .queue-columns {
@@ -1199,6 +1259,9 @@ input:disabled {
   .transport-buttons {
     gap: 3px;
   }
+  .transport-row {
+    grid-template-columns: minmax(68px, 1fr) auto;
+  }
 }
 
 /* Hidden debug console, opened by holding the footer clock. Always dark, so it reads the same on either skin. */
@@ -1207,19 +1270,14 @@ input:disabled {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+.footer-problem-button {
+  min-height: 44px;
+}
 .status-dot-error {
   background: #f87171;
 }
-.debug-console-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  display: flex;
-  padding: 12px;
-  background: rgb(0 0 0 / 85%);
-}
 .debug-console {
-  flex: 1;
+  height: calc(100dvh - 32px);
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -1237,6 +1295,7 @@ input:disabled {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 .debug-console-header h2 {
   font-size: 13px;
@@ -1246,12 +1305,14 @@ input:disabled {
   margin-left: auto;
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 .debug-console-actions button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 40px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 0 14px;
   border-radius: 10px;
   background: rgb(255 255 255 / 8%);

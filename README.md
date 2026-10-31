@@ -68,6 +68,17 @@ The small waveform is decorative, driven by playback state, not an analysis of
 Spotify's encrypted audio. Canvas animations stop while hidden or idle where
 applicable and respect reduced-motion preferences.
 
+### Touch and accessibility
+
+Playback, queue and dialog controls have touch areas of at least 44x44 CSS pixels, including the sliders and settings
+switches. Secondary text is sized for the 1024x600 kiosk, and browser zoom remains available on phones and computers.
+Settings, Speakers and the debug console keep keyboard focus inside while open. Escape closes the topmost dialog
+and returns focus to its trigger; background controls cannot be activated through an open dialog.
+
+Missing or failed artwork uses a bundled record icon, and failed demo avatars show the guest's initials. These
+placeholders need no network access. Image failures are recorded in the debug log without repeatedly retrying the
+failed URL; changing to another image still loads the new source.
+
 ### Debug console
 
 Hold the clock in the footer for two seconds (or press Ctrl+Shift+D with a keyboard) to open a hidden debug console.

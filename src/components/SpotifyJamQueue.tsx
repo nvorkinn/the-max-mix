@@ -5,6 +5,7 @@ import confetti from 'canvas-confetti';
 import { getDivaForUser } from '../utils/divas';
 import { trackKeys } from '../utils/trackKeys';
 import type { Track } from '../types';
+import { Artwork, GuestAvatar } from './TrackImages';
 
 const EMPTY_QUEUE: Track[] = [];
 
@@ -130,10 +131,7 @@ export default function SpotifyJamQueue({
         <div ref={listRef} className="queue-list" role="list" aria-label="Track queue">
           {queue.map((track, idx) => {
             const title = track.name || track.title;
-            const albumArt =
-              track.album?.images?.[0]?.url ||
-              track.albumArt ||
-              'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=400&auto=format&fit=crop&q=80';
+            const albumArt = track.album?.images?.[0]?.url || track.albumArt;
             const artist = track.artists ? track.artists.map(a => a.name).join(', ') : track.artist || 'Unknown artist';
             const rawAddedBy = track.added_by ?? track.addedBy ?? {};
             const guestName = isDemoMode ? rawAddedBy.name : null;
@@ -162,7 +160,7 @@ export default function SpotifyJamQueue({
                 ) : (
                   <span className="queue-play queue-number">{String(idx + 1).padStart(2, '0')}</span>
                 )}
-                <img className="queue-art" src={albumArt} alt="" />
+                <Artwork className="queue-art" src={albumArt} alt="" />
                 <div className="queue-track-copy">
                   <div className="queue-title">
                     <h3 title={title}>{title}</h3>
@@ -175,13 +173,7 @@ export default function SpotifyJamQueue({
                 </span>
                 {guestName && (
                   <div className="queue-guest" aria-label={`Demo guest ${guestName}`} title={`Demo guest ${guestName}`}>
-                    <img
-                      src={rawAddedBy.avatar || assignedDiva.image}
-                      alt=""
-                      onError={e => {
-                        e.currentTarget.src = assignedDiva.image;
-                      }}
-                    />
+                    <GuestAvatar src={rawAddedBy.avatar || assignedDiva.image} name={guestName} />
                     <span>{guestName}</span>
                   </div>
                 )}

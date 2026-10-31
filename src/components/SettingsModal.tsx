@@ -6,6 +6,7 @@ import { isKiosk, openWifiSettings } from '../utils/kiosk';
 import { getRedirectUri, setDemoMode, setPlaybackMode } from '../spotify/settings';
 import { widevineProblem } from '../utils/widevine';
 import KioskSystem from './KioskSystem';
+import Modal from './Modal';
 
 /** Set by vite.config.ts at build time; tests and other tooling run without it. */
 const APP_VERSION: string = import.meta.env.VITE_APP_VERSION ?? 'dev';
@@ -45,9 +46,14 @@ function SwitchRow({
         aria-label={label}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`shrink-0 w-11 h-6 rounded-full p-0.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed ${checked ? 'bg-emerald-500' : 'bg-neutral-600'}`}
+        className="shrink-0 w-11 h-11 grid place-items-center disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        <span className={`block w-5 h-5 rounded-full bg-white transition-all ${checked ? 'translate-x-5' : ''}`} />
+        <span
+          aria-hidden="true"
+          className={`block w-11 h-6 rounded-full p-0.5 transition-all ${checked ? 'bg-emerald-500' : 'bg-neutral-600'}`}
+        >
+          <span className={`block w-5 h-5 rounded-full bg-white transition-all ${checked ? 'translate-x-5' : ''}`} />
+        </span>
       </button>
     </div>
   );
@@ -61,6 +67,7 @@ interface SettingsModalProps {
   onReload?: () => void;
   currentTheme?: string;
   onThemeChange?: (theme: string) => void;
+  statusMessage?: string | null;
 }
 
 export default function SettingsModal({
@@ -70,7 +77,8 @@ export default function SettingsModal({
   signInError = null,
   onReload = reloadPage,
   currentTheme = 'neon',
-  onThemeChange
+  onThemeChange,
+  statusMessage
 }: Readonly<SettingsModalProps>) {
   const [actionError, setActionError] = useState<string | null>(null);
   // Why this browser cannot be the speaker (no Widevine), checked each time Settings opens; null while it can.
@@ -118,188 +126,189 @@ export default function SettingsModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 select-none">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-title"
-        className="app-modal-panel border rounded-3xl p-6 max-w-md w-full relative shadow-2xl text-left max-h-[92vh] overflow-y-auto"
+    <Modal
+      labelledBy="settings-title"
+      onClose={onClose}
+      className="app-modal-panel border rounded-3xl p-6 max-w-md relative shadow-2xl text-left select-none"
+    >
+      {/* Close Button */}
+      <button
+        type="button"
+        data-modal-autofocus
+        onClick={onClose}
+        aria-label="Close settings"
+        className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-white flex items-center justify-center transition-all"
       >
-        {/* Close Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close settings"
-          className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-white flex items-center justify-center transition-all"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <X className="w-5 h-5" />
+      </button>
 
-        <h3 id="settings-title" className="text-lg font-semibold text-white flex items-center gap-2 mb-1">
-          <Key className="w-5 h-5 text-[#d5f580]" />
-          Make it yours
-        </h3>
-        <p className="text-xs text-neutral-400 mb-4">
-          Customize the visual design and Spotify connection of THE MAX MIX
-        </p>
+      <h3 id="settings-title" className="text-lg font-semibold text-white flex items-center gap-2 mb-1 pr-12">
+        <Key className="w-5 h-5 text-[#d5f580]" />
+        Make it yours
+      </h3>
+      <p className="text-xs text-neutral-400 mb-4">Customize the visual design and Spotify connection of THE MAX MIX</p>
 
-        {/* Skin / Theme Selector Section */}
-        <div className="mb-5 space-y-2">
-          <div className="flex items-center space-x-1.5 text-xs font-bold text-neutral-300">
-            <Palette className="w-3.5 h-3.5 text-purple-400" />
-            <span>APPEARANCE</span>
-          </div>
+      {/* Skin / Theme Selector Section */}
+      <div className="mb-5 space-y-2">
+        <div className="flex items-center space-x-1.5 text-xs font-bold text-neutral-300">
+          <Palette className="w-3.5 h-3.5 text-purple-400" />
+          <span>APPEARANCE</span>
+        </div>
 
-          <div className="grid grid-cols-1 gap-2">
-            {THEMES.map(t => {
-              const isSelected = currentTheme === t.id;
+        <div className="grid grid-cols-1 gap-2">
+          {THEMES.map(t => {
+            const isSelected = currentTheme === t.id;
 
-              return (
-                <button
-                  type="button"
-                  key={t.id}
-                  aria-pressed={isSelected}
-                  onClick={() => onThemeChange?.(t.id)}
-                  className={`p-3 rounded-2xl text-left cursor-pointer transition-all border flex items-center justify-between ${
-                    isSelected
-                      ? `bg-white/10 ${t.border} shadow-lg ring-1 ring-white/20`
-                      : 'bg-white/5 border-white/5 hover:bg-white/10'
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                      {t.icon}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-white">{t.name}</span>
-                        <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded-full bg-white/10 text-neutral-300">
-                          {t.badge}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-neutral-400 mt-0.5">{t.desc}</p>
-                    </div>
+            return (
+              <button
+                type="button"
+                key={t.id}
+                aria-pressed={isSelected}
+                onClick={() => onThemeChange?.(t.id)}
+                className={`p-3 rounded-2xl text-left cursor-pointer transition-all border flex items-center justify-between ${
+                  isSelected
+                    ? `bg-white/10 ${t.border} shadow-lg ring-1 ring-white/20`
+                    : 'bg-white/5 border-white/5 hover:bg-white/10'
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                    {t.icon}
                   </div>
-
-                  <div className="shrink-0 pl-2">
-                    <div
-                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                        isSelected ? 'border-emerald-400 bg-emerald-500' : 'border-neutral-500'
-                      }`}
-                    >
-                      {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-white">{t.name}</span>
+                      <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded-full bg-white/10 text-neutral-300">
+                        {t.badge}
+                      </span>
                     </div>
+                    <p className="text-[10px] text-neutral-400 mt-0.5">{t.desc}</p>
                   </div>
-                </button>
-              );
-            })}
-          </div>
+                </div>
+
+                <div className="shrink-0 pl-2">
+                  <div
+                    className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                      isSelected ? 'border-emerald-400 bg-emerald-500' : 'border-neutral-500'
+                    }`}
+                  >
+                    {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
-
-        {/* Status Card */}
-        <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 mb-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-neutral-300">Spotify Link Status:</span>
-            {authInfo?.authenticated ? (
-              <span className="flex items-center text-xs font-bold text-emerald-400 gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Connected
-              </span>
-            ) : (
-              <span className="flex items-center text-xs font-bold text-amber-400 gap-1 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                <AlertCircle className="w-3.5 h-3.5" /> {authInfo?.demoMode ? 'Demo mode' : 'Not connected'}
-              </span>
-            )}
-          </div>
-          <p className="text-[11px] text-neutral-400">{spotifyStatus}</p>
-        </div>
-
-        {/* Connection */}
-        <div className="space-y-3">
-          {error && (
-            <p role="alert" className="text-xs text-rose-300">
-              {error}
-            </p>
-          )}
-
-          {signInError && (
-            <p className="text-[11px] text-neutral-400">
-              Register this exact redirect address in your Spotify app settings:{' '}
-              <code className="text-[#d5f580] break-all">{getRedirectUri()}</code>
-            </p>
-          )}
-
-          {!authInfo?.demoMode && (
-            <button
-              type="button"
-              onClick={() => {
-                setActionError(null);
-                startSignIn().catch((caught: unknown) => setActionError(errorMessage(caught)));
-              }}
-              className="w-full py-3 px-4 bg-[#1DB954] hover:bg-[#1aa34a] text-black font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
-            >
-              <Music className="w-4 h-4 fill-black" />
-              {authInfo?.authenticated ? 'Re-authenticate with Spotify' : 'Log in with Spotify'}
-            </button>
-          )}
-
-          {authInfo?.authenticated && (
-            <button
-              type="button"
-              onClick={() => {
-                signOut();
-                onReload();
-              }}
-              className="button button-secondary w-full flex items-center justify-center gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign out
-            </button>
-          )}
-
-          <SwitchRow
-            label="Play in this browser"
-            description={
-              cannotPlay
-                ? `Unavailable: ${cannotPlay}`
-                : 'On: this screen is the speaker. Off: it only controls another Spotify device.'
-            }
-            checked={!cannotPlay && authInfo?.playbackMode !== 'remote'}
-            disabled={Boolean(cannotPlay)}
-            onChange={browser => {
-              setPlaybackMode(browser ? 'browser' : 'remote');
-              onReload();
-            }}
-          />
-          {isKiosk() && (
-            <button
-              type="button"
-              onClick={openWifiSettings}
-              className="w-full flex items-center justify-between gap-3 p-3 min-h-14 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 active:scale-98 text-left transition-all"
-            >
-              <span>
-                <span className="block text-xs font-bold text-white">Wi-Fi network</span>
-                <span className="block text-[10px] text-neutral-400 mt-0.5">Change the network this device uses</span>
-              </span>
-              <Wifi className="w-5 h-5 shrink-0 text-[#d5f580]" aria-hidden="true" />
-            </button>
-          )}
-          {isKiosk() && <KioskSystem />}
-
-          <SwitchRow
-            label="Demo mode"
-            description="Simulated playback and queue, no Spotify account needed."
-            checked={Boolean(authInfo?.demoMode)}
-            onChange={on => {
-              setDemoMode(on);
-              onReload();
-            }}
-          />
-        </div>
-
-        <p className="mt-5 text-center text-[10px] text-neutral-500">
-          Version <span className="font-mono">{APP_VERSION}</span>
-        </p>
       </div>
-    </div>
+
+      {/* Status Card */}
+      <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 mb-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-neutral-300">Spotify Link Status:</span>
+          {authInfo?.authenticated ? (
+            <span className="flex items-center text-xs font-bold text-emerald-400 gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              <CheckCircle2 className="w-3.5 h-3.5" /> Connected
+            </span>
+          ) : (
+            <span className="flex items-center text-xs font-bold text-amber-400 gap-1 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+              <AlertCircle className="w-3.5 h-3.5" /> {authInfo?.demoMode ? 'Demo mode' : 'Not connected'}
+            </span>
+          )}
+        </div>
+        <p className="text-[11px] text-neutral-400">{spotifyStatus}</p>
+      </div>
+
+      {/* Connection */}
+      <div className="space-y-3">
+        {error && (
+          <p role="alert" className="text-xs text-rose-300">
+            {error}
+          </p>
+        )}
+
+        {signInError && (
+          <p className="text-[11px] text-neutral-400">
+            Register this exact redirect address in your Spotify app settings:{' '}
+            <code className="text-[#d5f580] break-all">{getRedirectUri()}</code>
+          </p>
+        )}
+
+        {!authInfo?.demoMode && (
+          <button
+            type="button"
+            onClick={() => {
+              setActionError(null);
+              startSignIn().catch((caught: unknown) => setActionError(errorMessage(caught)));
+            }}
+            className="w-full py-3 px-4 bg-[#1DB954] hover:bg-[#1aa34a] text-black font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
+          >
+            <Music className="w-4 h-4 fill-black" />
+            {authInfo?.authenticated ? 'Re-authenticate with Spotify' : 'Log in with Spotify'}
+          </button>
+        )}
+
+        {authInfo?.authenticated && (
+          <button
+            type="button"
+            onClick={() => {
+              signOut();
+              onReload();
+            }}
+            className="button button-secondary w-full flex items-center justify-center gap-2"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign out
+          </button>
+        )}
+
+        <SwitchRow
+          label="Play in this browser"
+          description={
+            cannotPlay
+              ? `Unavailable: ${cannotPlay}`
+              : 'On: this screen is the speaker. Off: it only controls another Spotify device.'
+          }
+          checked={!cannotPlay && authInfo?.playbackMode !== 'remote'}
+          disabled={Boolean(cannotPlay)}
+          onChange={browser => {
+            setPlaybackMode(browser ? 'browser' : 'remote');
+            onReload();
+          }}
+        />
+        {isKiosk() && (
+          <button
+            type="button"
+            onClick={openWifiSettings}
+            className="w-full flex items-center justify-between gap-3 p-3 min-h-14 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 active:scale-98 text-left transition-all"
+          >
+            <span>
+              <span className="block text-xs font-bold text-white">Wi-Fi network</span>
+              <span className="block text-[10px] text-neutral-400 mt-0.5">Change the network this device uses</span>
+            </span>
+            <Wifi className="w-5 h-5 shrink-0 text-[#d5f580]" aria-hidden="true" />
+          </button>
+        )}
+        {isKiosk() && <KioskSystem />}
+
+        <SwitchRow
+          label="Demo mode"
+          description="Simulated playback and queue, no Spotify account needed."
+          checked={Boolean(authInfo?.demoMode)}
+          onChange={on => {
+            setDemoMode(on);
+            onReload();
+          }}
+        />
+      </div>
+
+      <p className="mt-5 text-center text-[10px] text-neutral-500">
+        Version <span className="font-mono">{APP_VERSION}</span>
+      </p>
+      {statusMessage && (
+        <div className="app-toast" role="status">
+          {statusMessage}
+        </div>
+      )}
+    </Modal>
   );
 }
