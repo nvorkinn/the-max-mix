@@ -28,7 +28,7 @@ with the Web Playback SDK and drives it directly. The SDK reports every change a
 player there is no polling: the play/pause button, progress and track follow the events at once. A slow safety-net
 refresh from the Web API catches anything missed. The first Play press makes it the active device (pressing, not
 loading the page, so it never takes over what is playing elsewhere). If you pick another device under Speakers (or
-choose remote mode in Settings), the page is that device's remote and polls the Web API until you pick "The Max Mix"
+choose Another Spotify device in Settings), the page is that device's remote and polls the Web API until you pick "The Max Mix"
 again. Browsers only start audio after a click, so the very first Play press is also what unlocks sound.
 
 On the Pi kiosk, Speakers also switches between two playback modes. **Spotify Connect** is the above: the tablet plays,
@@ -140,8 +140,9 @@ skipped automatically when there is no `.git` directory or when dev dependencies
    - `http://127.0.0.1:5173/` for local development, and `http://127.0.0.1:4173/` for `npm start`.
 3. The client ID is a constant in `src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
    it there.
-4. Open Settings **in the browser that will play** (on the kiosk, the Pi's Chromium) and sign in. Choose the playback mode there too: browser (the
-   default) or remote. Settings also has the demo mode switch; `?demo=true` on the address turns it on for a visit.
+4. Choose **Connect Spotify** in the browser that will play (on the kiosk, the Pi's Chromium).
+   In Settings, choose **This device** (browser playback, the default) or **Another Spotify device** (remote),
+   then **Apply and reload**. **Try demo** supplies simulated playback; `?demo=true` enables it for a visit.
    On the Pi kiosk, which is opened with `?kiosk=1` (the app remembers that, so it survives the Spotify sign-in redirect;
    `?kiosk=0` forgets it), Settings also shows **Wi-Fi network**, which opens the Pi's native Wi-Fi panel (it asks the
    kiosk to open `kiosk-wifi://open`). Other visitors never see the entry. The kiosk's Settings also show which release

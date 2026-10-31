@@ -165,9 +165,11 @@ describe('TabletView', () => {
     render(<TabletView />);
     await flush();
     const panel = screen.getByRole('region', { name: 'Now playing' });
-    expect(within(panel).getByText('Sign in with your Spotify Premium account.')).toBeInTheDocument();
+    expect(within(panel).getByRole('heading', { name: 'Bring your music to the tablet' })).toBeInTheDocument();
     expect(api.getQueue).not.toHaveBeenCalled();
-    fireEvent.click(within(panel).getByRole('button', { name: 'Connect Spotify' }));
+    expect(within(panel).getByRole('button', { name: 'Try demo' })).toBeInTheDocument();
+    expect(screen.queryByRole('slider', { name: 'Playback position' })).not.toBeInTheDocument();
+    fireEvent.click(within(panel).getByRole('button', { name: 'Connection settings' }));
     expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
   });
 
@@ -364,7 +366,7 @@ describe('TabletView', () => {
   it('shows a failed sign-in as an alert', async () => {
     render(<TabletView signInError="Spotify said no" />);
     await flush();
-    expect(screen.getByRole('alert')).toHaveTextContent('Your Spotify sign-in needs attention.');
+    expect(screen.getByRole('alert')).toHaveTextContent('Spotify said no');
     fireEvent.click(screen.getByRole('button', { name: 'Details' }));
     expect(
       within(screen.getByRole('dialog', { name: 'Debug console' })).getAllByText('Spotify said no').length

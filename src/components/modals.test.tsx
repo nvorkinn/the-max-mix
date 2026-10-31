@@ -11,6 +11,7 @@ const auth = vi.hoisted(() => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
 const settings = vi.hoisted(() => ({
   setPlaybackMode: vi.fn(),
   setDemoMode: vi.fn(),
+  reloadSettings: vi.fn(),
   getRedirectUri: vi.fn()
 }));
 vi.mock('../spotify/api', () => api);
@@ -76,7 +77,7 @@ describe('SettingsModal', () => {
     [
       'signed in',
       { authenticated: true, playbackMode: 'remote' },
-      /playback mode: remote/i,
+      /connected to spotify. choose a playback destination/i,
       'Re-authenticate with Spotify'
     ]
   ])('explains the %s state', (_, authInfo, message, loginLabel) => {
@@ -177,35 +178,63 @@ describe('SettingsModal', () => {
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
   });
 
-  it('switches the playback mode and demo mode, then reloads', async () => {
+  it('stages playback and demo changes until Apply and reload', async () => {
     const { rerender } = render(<SettingsModal {...base} authInfo={{ playbackMode: 'browser' }} />);
-    const playback = screen.getByRole('switch', { name: 'Play in this browser' });
+    const playback = screen.getByRole('radio', { name: 'This device' });
     expect(playback).toBeChecked();
-    await userEvent.click(playback);
+    await userEvent.click(screen.getByRole('radio', { name: 'Another Spotify device' }));
+    expect(settings.setPlaybackMode).not.toHaveBeenCalled();
+    expect(base.onReload).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Apply and reload' }));
     expect(settings.setPlaybackMode).toHaveBeenCalledWith('remote');
     expect(base.onReload).toHaveBeenCalledTimes(1);
 
     rerender(<SettingsModal {...base} authInfo={{ playbackMode: 'remote' }} />);
-    expect(screen.getByRole('switch', { name: 'Play in this browser' })).not.toBeChecked();
-    await userEvent.click(screen.getByRole('switch', { name: 'Play in this browser' }));
+    expect(screen.getByRole('radio', { name: 'This device' })).not.toBeChecked();
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'This device' })).toBeEnabled());
+    await userEvent.click(screen.getByRole('radio', { name: 'This device' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Apply and reload' }));
     expect(settings.setPlaybackMode).toHaveBeenLastCalledWith('browser');
 
     const demo = screen.getByRole('switch', { name: 'Demo mode' });
     expect(demo).not.toBeChecked();
     await userEvent.click(demo);
+    expect(settings.setDemoMode).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Apply and reload' }));
     expect(settings.setDemoMode).toHaveBeenCalledWith(true);
     rerender(<SettingsModal {...base} authInfo={{ demoMode: true }} />);
     await userEvent.click(screen.getByRole('switch', { name: 'Demo mode' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Apply and reload' }));
     expect(settings.setDemoMode).toHaveBeenLastCalledWith(false);
   });
 
-  it('turns off and locks browser playback when Widevine is missing', async () => {
+  it('explains unavailable browser playback without changing the saved mode', async () => {
     widevine.widevineProblem.mockResolvedValue('Widevine is not available in this browser.');
     render(<SettingsModal {...base} authInfo={{ playbackMode: 'browser' }} />);
-    const playback = screen.getByRole('switch', { name: 'Play in this browser' });
+    const playback = screen.getByRole('radio', { name: 'This device' });
     await waitFor(() => expect(playback).toBeDisabled());
-    expect(playback).not.toBeChecked();
+    expect(playback).toBeChecked();
     expect(screen.getByText(/Unavailable: Widevine is not available/)).toBeInTheDocument();
+    expect(settings.setPlaybackMode).not.toHaveBeenCalled();
+    expect(base.onReload).not.toHaveBeenCalled();
+  });
+
+  it('discards pending changes when Settings closes', async () => {
+    const { rerender } = render(<SettingsModal {...base} authInfo={{ playbackMode: 'browser' }} />);
+    await userEvent.click(screen.getByRole('radio', { name: 'Another Spotify device' }));
+    rerender(<SettingsModal {...base} isOpen={false} authInfo={{ playbackMode: 'browser' }} />);
+    rerender(<SettingsModal {...base} authInfo={{ playbackMode: 'browser' }} />);
+    expect(screen.getByRole('radio', { name: 'This device' })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Apply and reload' })).toBeDisabled();
+    expect(settings.setPlaybackMode).not.toHaveBeenCalled();
+  });
+
+  it('surfaces a capability check failure and still offers remote playback', async () => {
+    widevine.widevineProblem.mockRejectedValueOnce(new Error('Playback check failed'));
+    render(<SettingsModal {...base} authInfo={{ playbackMode: 'browser' }} />);
+    expect(await screen.findByText(/Browser playback could not be checked: Playback check failed/)).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'This device' })).toBeDisabled();
+    expect(screen.getByRole('radio', { name: 'Another Spotify device' })).toBeEnabled();
   });
 });
 

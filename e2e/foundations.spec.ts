@@ -74,7 +74,7 @@ test('settings contain keyboard focus, wrap both ways and restore the trigger', 
   await trigger.click();
   const settings = page.getByRole('dialog', { name: 'Settings' });
   const close = settings.getByRole('button', { name: 'Close settings' });
-  const last = settings.getByRole('switch', { name: 'Demo mode' });
+  const last = settings.getByRole('button', { name: /Paper/ });
   await expect(close).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(last).toBeFocused();
