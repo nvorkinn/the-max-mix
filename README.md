@@ -28,6 +28,9 @@ refresh from the Web API catches anything missed. The first Play press makes it 
 loading the page, so it never takes over what is playing elsewhere). If you pick another device under Speakers (or
 choose Another Spotify device in Settings), the page is that device's remote and polls the Web API until you pick "The Max Mix"
 again. Browsers only start audio after a click, so the very first Play press is also what unlocks sound.
+If Spotify provides a retry deadline, Web API playback, queue and device requests all wait for it. Status reads
+resume after the wait; failed controls are not automatically sent again. Active SDK controls remain independent
+of this Web API cooldown.
 
 On the Pi kiosk, Speakers also switches between two playback modes. **Spotify Connect** is the above: the tablet plays,
 or Spotify moves playback to a Connect speaker. **AirPlay** keeps playback on the tablet and the Pi sends its sound on

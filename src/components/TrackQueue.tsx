@@ -4,7 +4,7 @@ import type { Track } from '../types';
 import { Artwork } from './TrackImages';
 
 const EMPTY_QUEUE: Track[] = [];
-export type QueueStatus = 'idle' | 'loading' | 'ready' | 'error';
+export type QueueStatus = 'idle' | 'loading' | 'ready' | 'error' | 'waiting';
 
 interface TrackQueueProps {
   queue?: Track[];
@@ -36,6 +36,13 @@ export default function TrackQueue({
         return (
           <div className="queue-empty" role="status">
             <p>Loading queue...</p>
+          </div>
+        );
+      }
+      case 'waiting': {
+        return (
+          <div className="queue-empty" role="status">
+            <p>Waiting for Spotify...</p>
           </div>
         );
       }
@@ -88,12 +95,19 @@ export default function TrackQueue({
           Updating queue...
         </p>
       )}
-      {error && queue.length > 0 && <p className="queue-status">Showing the last known queue.</p>}
+      {status === 'waiting' && queue.length > 0 && (
+        <p className="queue-status" role="status">
+          Waiting for Spotify before updating the queue.
+        </p>
+      )}
+      {(error || status === 'waiting') && queue.length > 0 && (
+        <p className="queue-status">Showing the last known queue.</p>
+      )}
       {(status === 'error' || error) && onRetry && (
         <button
           type="button"
           className="button button-secondary queue-retry"
-          disabled={status === 'loading' || !retryAllowed}
+          disabled={status === 'loading' || status === 'waiting' || !retryAllowed}
           onClick={onRetry}
         >
           {retryLabel}

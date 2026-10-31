@@ -2,7 +2,15 @@
 
 import type { PlaybackState, SpotifyDevice, Track } from '../types';
 import { discardAccessToken, getAccessToken, isSignedIn } from './auth';
-import { fetchSpotify, parseJson, readJson, SpotifyApiError } from './http';
+import {
+  checkSpotifyRetryWindow,
+  fetchSpotify,
+  getSpotifyRetryAt,
+  parseJson,
+  readJson,
+  spotifyRetryAfter,
+  SpotifyApiError
+} from './http';
 import { isRecord, parseDevices, parsePlaybackState, parseQueue } from './parse';
 
 export { SpotifyApiError } from './http';
@@ -30,6 +38,7 @@ async function spotifyFetch(endpoint: string, options: { method?: string; body?:
   const method = options.method ?? 'GET';
   const hasBody = options.body !== undefined;
   const send = async () => {
+    checkSpotifyRetryWindow();
     const token = await getAccessToken();
     if (!token) throw new SpotifyApiError('Sign in to Spotify in Settings to control playback.', 401);
     return fetchSpotify(`https://api.spotify.com/v1${endpoint}`, {
@@ -46,14 +55,16 @@ async function spotifyFetch(endpoint: string, options: { method?: string; body?:
   }
   if (response.status === 204) return null;
   if (!response.ok) {
+    const retryAfter = spotifyRetryAfter(response);
+    const retryAt = getSpotifyRetryAt();
     const message = MESSAGES[response.status] || `Spotify request failed (${response.status}).`;
     // A 403 has several causes (Premium, app access, a command the player refuses); Spotify says which.
     const reason = response.status === 403 ? await spotifyReason(response) : '';
-    const retryAfter = Math.ceil(Number(response.headers.get('retry-after')));
     throw new SpotifyApiError(
       reason ? `${message} Spotify says: ${reason}` : message,
       response.status,
-      Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 0
+      retryAfter,
+      retryAt
     );
   }
   // A player command (anything but a read) answers 204, or 200 with an opaque id as plain text: its body is not

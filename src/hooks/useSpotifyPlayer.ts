@@ -2,7 +2,13 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import type { PlaybackState, SdkPlaybackState, SpotifyPlayer, Track } from '../types';
 import * as spotify from '../spotify/api';
 import { getAccessToken, isSignedIn } from '../spotify/auth';
-import { NETWORK_ERROR_MESSAGE, SpotifyApiError } from '../spotify/http';
+import {
+  checkSpotifyRetryWindow,
+  getSpotifyRetryDelay,
+  NETWORK_ERROR_MESSAGE,
+  recordSpotifyRetryAfter,
+  SpotifyApiError
+} from '../spotify/http';
 import { getPlaybackMode } from '../spotify/settings';
 import { errorMessage } from '../utils/errorMessage';
 import { loadSpotifySDK } from '../utils/spotifySdk';
@@ -148,22 +154,14 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   const lastTrackIdRef = useRef<string | null>(null);
   const lastNextTracksRef = useRef<string | null>(null);
   const deviceIdRef = useRef<string | null>(null);
-  const retryAfterRef = useRef(0);
   // Brings the SDK player back in step after the page was in the background (set while the player exists).
   const resumeRef = useRef<(() => void) | null>(null);
 
   const problemForApi = useCallback((error: unknown) => {
-    if (error instanceof SpotifyApiError && error.retryAfter > 0) {
-      retryAfterRef.current = Date.now() + error.retryAfter * 1000;
-    }
+    if (error instanceof SpotifyApiError) recordSpotifyRetryAfter(error);
     return apiProblem(error);
   }, []);
-  const checkRetryWindow = useCallback(() => {
-    const remaining = retryAfterRef.current - Date.now();
-    if (remaining > 0) {
-      throw new SpotifyApiError('Spotify asked this app to wait before retrying.', 429, Math.ceil(remaining / 1000));
-    }
-  }, []);
+  const checkRetryWindow = checkSpotifyRetryWindow;
 
   const setPlayback = useCallback((next: PlaybackOrNull | ((current: PlaybackOrNull) => PlaybackOrNull)) => {
     const at = Date.now();
@@ -268,8 +266,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       } catch (error) {
         if (isCancelled()) return;
         reportConnectionError(error);
-        const apiError = error instanceof SpotifyApiError ? error : null;
-        delay = Math.max(Math.min(60_000, base * 2 ** ++failures), (apiError?.retryAfter ?? 0) * 1000);
+        delay = Math.max(Math.min(60_000, base * 2 ** ++failures), getSpotifyRetryDelay());
       }
       setLoaded(true);
       if (!isCancelled()) timer = setTimeout(() => void poll(), delay);

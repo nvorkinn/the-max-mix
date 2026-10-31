@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Speaker, Check, RefreshCw } from 'lucide-react';
 import { getDevices } from '../spotify/api';
+import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
+import { recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import type { AudioRoute } from '../spotify/settings';
 import { errorMessage } from '../utils/errorMessage';
 import type { SpotifyDevice } from '../types';
@@ -40,8 +42,14 @@ export default function SpeakerSelectorModal({
   const [loading, setLoading] = useState(false);
   const [selecting, setSelecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const retryAt = useSpotifyCooldown();
+  const waitingForSpotify = retryAt > 0;
+  const reportError = useCallback((caught: unknown) => {
+    if (caught instanceof SpotifyApiError) recordSpotifyRetryAfter(caught);
+    setError(errorMessage(caught));
+  }, []);
 
-  const fetchDevices = async () => {
+  const fetchDevices = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getDevices();
@@ -49,15 +57,15 @@ export default function SpeakerSelectorModal({
       setError(null);
     } catch (caught) {
       setDevices([]);
-      setError(errorMessage(caught));
+      reportError(caught);
     } finally {
       setLoading(false);
     }
-  };
+  }, [reportError]);
   const isAirPlay = canUseAirPlay && audioRoute === 'airplay';
   useEffect(() => {
     if (isOpen && !isAirPlay) void fetchDevices();
-  }, [isOpen, browserDeviceId, isAirPlay]);
+  }, [isOpen, browserDeviceId, isAirPlay, fetchDevices]);
 
   if (!isOpen) return null;
   const changeRoute = async (route: AudioRoute) => {
@@ -67,7 +75,7 @@ export default function SpeakerSelectorModal({
       await onAudioRouteChange(route);
       setError(null);
     } catch (caught) {
-      setError(errorMessage(caught));
+      reportError(caught);
     } finally {
       setSelecting(false);
     }
@@ -78,7 +86,7 @@ export default function SpeakerSelectorModal({
       await onSelectSpeaker(deviceId);
       await fetchDevices();
     } catch (caught) {
-      setError(errorMessage(caught));
+      reportError(caught);
     } finally {
       setSelecting(false);
     }
@@ -104,7 +112,7 @@ export default function SpeakerSelectorModal({
             <button
               type="button"
               onClick={() => void fetchDevices()}
-              disabled={loading || selecting}
+              disabled={loading || selecting || waitingForSpotify}
               aria-label="Refresh devices"
               className="modal-icon-button p-2 rounded-full"
             >
@@ -143,6 +151,11 @@ export default function SpeakerSelectorModal({
           {error}
         </p>
       )}
+      {waitingForSpotify && !isAirPlay && (
+        <p role="status" className="text-xs text-muted my-4">
+          Spotify asked this app to wait before refreshing devices.
+        </p>
+      )}
       {isAirPlay ? (
         <AirPlaySpeakerList isPlayerReady={Boolean(browserDeviceId)} />
       ) : (
@@ -159,7 +172,7 @@ export default function SpeakerSelectorModal({
             <button
               type="button"
               key={device.id || device.name}
-              disabled={!device.id || device.is_restricted || selecting}
+              disabled={!device.id || device.is_restricted || selecting || waitingForSpotify}
               aria-pressed={Boolean(device.is_active)}
               onClick={() => void selectDevice(device.id)}
               className="modal-option w-full p-3 flex gap-3 items-center text-left rounded-xl border"
@@ -179,7 +192,7 @@ export default function SpeakerSelectorModal({
           {browserDeviceId && devices.every(device => device.id !== browserDeviceId) && (
             <button
               type="button"
-              disabled={selecting}
+              disabled={selecting || waitingForSpotify}
               className="button button-primary w-full"
               onClick={() => void selectDevice(browserDeviceId)}
             >

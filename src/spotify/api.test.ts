@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { deferred } from '../test/deferred';
 import * as auth from './auth';
 import * as api from './api';
-import { parseJson } from './http';
+import { fetchSpotify, getSpotifyRetryAt, parseJson } from './http';
 
 vi.mock('./auth', () => ({
   getAccessToken: vi.fn(),
@@ -201,6 +202,74 @@ describe('spotify/api', () => {
     });
   });
 
+  describe('shared cooldown', () => {
+    it.each([
+      ['playback', api.getPlaybackState],
+      ['queue', api.getQueue],
+      ['devices', api.getDevices]
+    ])('a %s rate limit blocks other reads and commands until exact expiry', async (_name, source) => {
+      vi.useFakeTimers();
+      fetchMock.mockResolvedValueOnce(json({}, 429, { 'Retry-After': '30' }));
+      await expect(source()).rejects.toMatchObject({ status: 429, retryAfter: 30 });
+      const tokenCalls = vi.mocked(auth.getAccessToken).mock.calls.length;
+      const retryAt = getSpotifyRetryAt();
+      await Promise.all(
+        [
+          api.getPlaybackState,
+          api.getQueue,
+          api.getDevices,
+          api.next,
+          api.pause,
+          () => api.transferPlayback('speaker')
+        ].map(request => expect(request()).rejects.toMatchObject({ status: 429, retryAt }))
+      );
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(auth.getAccessToken).toHaveBeenCalledTimes(tokenCalls);
+      await vi.advanceTimersByTimeAsync(29_999);
+      await expect(api.next()).rejects.toMatchObject({ status: 429, retryAfter: 1, retryAt });
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetchMock).toHaveBeenCalledOnce();
+      fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+      await api.getPlaybackState();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(callOf(fetchMock, 1).init.method).toBe('GET');
+      await api.next();
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(callOf(fetchMock, 2).init.method).toBe('POST');
+    });
+
+    it('checks again after token acquisition if another request establishes a wait', async () => {
+      const token = deferred<string>();
+      vi.mocked(auth.getAccessToken).mockReturnValueOnce(token.promise);
+      const playbackRead = api.getPlaybackState();
+      fetchMock.mockResolvedValueOnce(json({}, 429, { 'Retry-After': '30' }));
+      await fetchSpotify('https://api.spotify.com/v1/me/player/queue', {});
+      token.resolve('token');
+      await expect(playbackRead).rejects.toMatchObject({ status: 429, retryAfter: 30 });
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    it('does not reset a deadline while reading provider diagnostics', async () => {
+      vi.useFakeTimers();
+      const details = deferred<string>();
+      const response = json({}, 403, { 'Retry-After': '30' });
+      response.text = () => details.promise;
+      fetchMock.mockResolvedValueOnce(response);
+      const request = api.pause();
+      await vi.waitFor(() => expect(getSpotifyRetryAt()).toBeGreaterThan(0));
+      const retryAt = getSpotifyRetryAt();
+      await vi.advanceTimersByTimeAsync(30_000);
+      details.resolve(JSON.stringify({ error: { message: 'Provider diagnostic' } }));
+      await expect(request).rejects.toMatchObject({
+        status: 403,
+        retryAt,
+        message:
+          'Spotify denied this action. Check Premium, app access, and device restrictions. Spotify says: Provider diagnostic'
+      });
+      expect(getSpotifyRetryAt()).toBe(0);
+    });
+  });
+
   describe('errors', () => {
     it.each([
       [404, 'No available Spotify device. Open Spotify on a speaker or phone, then select it here.'],
@@ -219,12 +288,13 @@ describe('spotify/api', () => {
       expect(error).toMatchObject({ status: 429, retryAfter: 7 });
     });
 
-    it('rounds a fractional Retry-After up and ignores nonsense', async () => {
+    it('rounds a fractional Retry-After up', async () => {
       fetchMock.mockResolvedValueOnce(json({}, 429, { 'Retry-After': '1.2' }));
       await expect(api.pause()).rejects.toMatchObject({ retryAfter: 2 });
-      fetchMock.mockResolvedValueOnce(json({}, 429, { 'Retry-After': 'soon' }));
-      await expect(api.pause()).rejects.toMatchObject({ retryAfter: 0 });
-      fetchMock.mockResolvedValueOnce(json({}, 429, { 'Retry-After': '-3' }));
+    });
+
+    it.each(['soon', '-3'])('ignores invalid Retry-After %s', async header => {
+      fetchMock.mockResolvedValueOnce(json({}, 429, { 'Retry-After': header }));
       await expect(api.pause()).rejects.toMatchObject({ retryAfter: 0 });
     });
 
