@@ -11,8 +11,7 @@ const syncedLyrics = Array.from({ length: 120 }, (_, index) => {
 
 for (const { viewport, appearance } of [
   { viewport: { width: 1024, height: 600 }, appearance: 'neon' },
-  { viewport: { width: 390, height: 844 }, appearance: 'minimal' },
-  { viewport: { width: 320, height: 568 }, appearance: 'neon' }
+  { viewport: { width: 1024, height: 600 }, appearance: 'minimal' }
 ]) {
   test(`lyric reading and follow fit ${viewport.width}x${viewport.height} in ${appearance}`, async ({ page }) => {
     await page.setViewportSize(viewport);

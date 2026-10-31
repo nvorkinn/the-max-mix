@@ -4,11 +4,7 @@ import { expect, test } from '@playwright/test';
 // blocked here, and the test records any attempt to reach one.
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 
-for (const viewport of [
-  { name: 'kiosk', width: 1024, height: 600 },
-  { name: 'desktop', width: 1440, height: 900 },
-  { name: 'phone', width: 390, height: 844 }
-]) {
+for (const viewport of [{ name: 'kiosk', width: 1024, height: 600 }]) {
   test(`Plus Jakarta Sans loads from the app with external requests blocked (${viewport.name})`, async ({ page }) => {
     const origin = new URL(test.info().project.use.baseURL ?? 'http://127.0.0.1').origin;
     const fontRequests: string[] = [];

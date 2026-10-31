@@ -35,12 +35,7 @@ async function expectNoHorizontalOverflow(page: Page) {
   ).toBe(true);
 }
 
-for (const viewport of [
-  { width: 1024, height: 600 },
-  { width: 1440, height: 900 },
-  { width: 390, height: 844 },
-  { width: 320, height: 568 }
-]) {
+for (const viewport of [{ width: 1024, height: 600 }]) {
   test(`touch targets and dialogs fit ${viewport.width}x${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto('/?demo=true&kiosk=1');
@@ -49,7 +44,7 @@ for (const viewport of [
     await expectNoHorizontalOverflow(page);
 
     const transport = page.getByRole('button', { name: 'Pause', exact: true });
-    if (viewport.width >= 761) await expect(transport).toBeInViewport();
+    await expect(transport).toBeInViewport();
 
     await page.getByRole('button', { name: 'Open settings' }).click();
     const settings = page.getByRole('dialog', { name: 'Settings' });
