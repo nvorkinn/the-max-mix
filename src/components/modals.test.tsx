@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import { recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import userEvent from '../test/user';
 import { partialProps } from '../test/partialProps';
 import { defined } from '../test/defined';
@@ -268,6 +269,27 @@ describe('SpeakerSelectorModal', () => {
     await userEvent.click(await screen.findByRole('button', { name: /Kitchen/ }));
     expect(onSelectSpeaker).toHaveBeenCalledWith('a');
     await waitFor(() => expect(api.getDevices).toHaveBeenCalledTimes(2));
+  });
+
+  it('disables device refresh and selection during a shared wait without replaying a transfer', async () => {
+    api.getDevices.mockResolvedValue({ devices });
+    const onSelectSpeaker = vi.fn();
+    render(<SpeakerSelectorModal isOpen onSelectSpeaker={onSelectSpeaker} browserDeviceId="web-1" />);
+    await screen.findByRole('button', { name: /Kitchen/ });
+    vi.useFakeTimers();
+    act(() => recordSpotifyRetryAfter(new SpotifyApiError('Queue rate limited', 429, 30)));
+    expect(screen.getByRole('status')).toHaveTextContent('wait before refreshing devices');
+    expect(screen.getByRole('button', { name: 'Refresh devices' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Kitchen/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Use this tablet' })).toBeDisabled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(screen.getByRole('button', { name: 'Refresh devices' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Kitchen/ })).toBeEnabled();
+    expect(api.getDevices).toHaveBeenCalledOnce();
+    expect(onSelectSpeaker).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 
   it('surfaces a failed selection', async () => {

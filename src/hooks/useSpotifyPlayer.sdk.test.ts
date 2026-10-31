@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { defined } from '../test/defined';
 import { resetSpotifyMocks } from '../test/spotifyMocks';
-import { SpotifyApiError } from '../spotify/http';
+import { recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 
 interface SdkOptions {
@@ -406,12 +406,27 @@ describe('useSpotifyPlayer drives its own SDK player', () => {
       await result.current.seek(1234.6);
       await result.current.setVolume(0.4);
     });
+
     expect(player.nextTrack).toHaveBeenCalled();
     expect(player.previousTrack).toHaveBeenCalled();
     expect(player.seek).toHaveBeenCalledWith(1235);
     expect(player.setVolume).toHaveBeenCalledWith(0.4);
     expect(mocks.api.next).not.toHaveBeenCalled();
     expect(mocks.api.setVolume).not.toHaveBeenCalled();
+  });
+
+  it('keeps active SDK controls usable while Web API transfers are waiting', async () => {
+    const { result, player } = await setup(true);
+    act(() => recordSpotifyRetryAfter(new SpotifyApiError('Rate limited', 429, 30)));
+    await act(async () => {
+      expect(await result.current.nextTrack()).toBe(true);
+      expect(await result.current.togglePlay()).toBe(true);
+      await expect(result.current.transferPlayback('another-device')).rejects.toMatchObject({ status: 429 });
+    });
+    expect(player.nextTrack).toHaveBeenCalledOnce();
+    expect(player.togglePlay).toHaveBeenCalledOnce();
+    expect(mocks.api.next).not.toHaveBeenCalled();
+    expect(mocks.api.transferPlayback).not.toHaveBeenCalled();
   });
 
   it('Pause goes to the active device through the Web API when another device is playing', async () => {
@@ -617,10 +632,9 @@ describe('useSpotifyPlayer polling in remote mode', () => {
 
   it('backs off exponentially after failures and honours Retry-After', async () => {
     vi.useFakeTimers();
-    const rateLimited = new SpotifyApiError('Too many requests', 429, 45);
     mocks.api.getPlaybackState
       .mockRejectedValueOnce(new Error('blip'))
-      .mockRejectedValueOnce(rateLimited)
+      .mockImplementationOnce(() => Promise.reject(new SpotifyApiError('Too many requests', 429, 45)))
       .mockResolvedValue(webState('d'));
     renderHook(() => useSpotifyPlayer());
     await act(async () => {

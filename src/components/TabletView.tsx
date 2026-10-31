@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, CSSProperties } from 'react';
 import { AudioLines, Clock, Settings, Speaker, MicVocal } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
+import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useScreenSleep } from '../hooks/useScreenSleep';
 import { extractPalette } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
 import { getQueue } from '../spotify/api';
-import { SpotifyApiError } from '../spotify/http';
+import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import { getAudioRoute, setAudioRoute } from '../spotify/settings';
 import type { AudioRoute } from '../spotify/settings';
 import { getChosenSpeakers, routeAudio } from '../audio/airplay';
@@ -87,12 +88,12 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const error = playerError || signInError;
   const isOffline = useIsOffline(playerError);
   const canPollQueue = isAuthenticated;
+  const spotifyRetryAt = useSpotifyCooldown();
+  const waitingForSpotify = spotifyRetryAt > 0;
 
   const [queue, setQueue] = useState<Track[]>([]);
   const [queueStatus, setQueueStatus] = useState<QueueStatus>(canPollQueue ? 'loading' : 'idle');
   const [queueRequestVersion, setQueueRequestVersion] = useState(0);
-  const [queueRetryAllowed, setQueueRetryAllowed] = useState(true);
-  const queueRetryAfterRef = useRef(0);
   const [isRefreshingPlayback, setIsRefreshingPlayback] = useState(false);
   const [currentTime, setCurrentTime] = useState(formatClock);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -201,13 +202,12 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     let failures = 0;
     const base = sdkActive ? SDK_QUEUE_POLL_MS : QUEUE_POLL_MS;
     const poll = async () => {
-      const retryWait = queueRetryAfterRef.current - Date.now();
+      const retryWait = getSpotifyRetryDelay();
       if (retryWait > 0) {
         timer = setTimeout(() => void poll(), retryWait);
         return;
       }
       setQueueStatus('loading');
-      setQueueRetryAllowed(true);
       let delay = base;
       try {
         const data = await getQueue();
@@ -220,10 +220,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         if (isCancelled()) return;
         setQueueError(errorMessage(caught));
         setQueueStatus('error');
-        const retryAfter = caught instanceof SpotifyApiError ? caught.retryAfter : 0;
-        queueRetryAfterRef.current = Date.now() + retryAfter * 1000;
-        setQueueRetryAllowed(retryAfter <= 0);
-        delay = Math.max(Math.min(60_000, base * 2 ** ++failures), retryAfter * 1000);
+        if (caught instanceof SpotifyApiError) recordSpotifyRetryAfter(caught);
+        delay = Math.max(Math.min(60_000, base * 2 ** ++failures), getSpotifyRetryDelay());
       }
       if (!isCancelled()) timer = setTimeout(() => void poll(), delay);
     };
@@ -272,8 +270,16 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   else if (signInError && problem) notice = { kind: 'problem', problem };
   else if (!isAuthenticated) notice = { kind: 'signed-out' };
   else if (restricted) notice = { kind: 'restricted' };
-  else if (problem) notice = { kind: 'problem', problem };
-  else if (isLoading || (!isReady && isConnecting)) notice = { kind: 'connecting' };
+  else if (problem?.recovery === 'sign-in') notice = { kind: 'problem', problem };
+  else if (waitingForSpotify) {
+    notice = {
+      kind: 'problem',
+      problem: { message: playerError || 'Spotify asked this app to wait before retrying.', recovery: 'wait' }
+    };
+  } else if (problem) {
+    const recovery = problem.recovery === 'wait' ? 'refresh' : problem.recovery;
+    notice = { kind: 'problem', problem: { ...problem, recovery } };
+  } else if (isLoading || (!isReady && isConnecting)) notice = { kind: 'connecting' };
   else if (!isReady && !browserDeviceId) notice = { kind: 'no-device' };
   else if (!currentTrack) notice = { kind: 'idle' };
   let sessionStatus: string;
@@ -288,8 +294,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       idle: 'No track playing'
     }[notice.kind];
   } else sessionStatus = `${isPlaying ? 'Playing' : 'Paused'} on ${playbackState?.device?.name || 'Spotify'}`;
+  if (notice?.kind === 'problem' && notice.problem.recovery === 'wait') sessionStatus = 'Waiting for Spotify';
   let statusDotClass = '';
-  if (notice?.kind === 'problem') statusDotClass = 'status-dot-error';
+  if (notice?.kind === 'problem' && notice.problem.recovery !== 'wait') statusDotClass = 'status-dot-error';
   else if (notice || !isPlaying) statusDotClass = 'status-dot-idle';
 
   let footerStatus = 'Spotify browser player';
@@ -377,7 +384,12 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               onSeek={seek}
               onVolumeChange={(vol: number) => setVolume(vol / 100)}
               controlsEnabled={
-                isAuthenticated && !isOffline && (isReady || Boolean(browserDeviceId)) && !restricted && !isLoading
+                isAuthenticated &&
+                !isOffline &&
+                (isReady || Boolean(browserDeviceId)) &&
+                !restricted &&
+                (!waitingForSpotify || sdkActive) &&
+                !isLoading
               }
               notice={
                 notice && (
@@ -411,10 +423,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               <TrackQueue
                 queue={queue}
                 error={queueError}
-                status={queueStatus}
+                status={waitingForSpotify ? 'waiting' : queueStatus}
                 onRetry={() => setQueueRequestVersion(version => version + 1)}
                 onConnect={showSettings}
-                retryAllowed={queueRetryAllowed}
+                retryAllowed={!waitingForSpotify}
               />
             </section>
           ))}

@@ -3,7 +3,7 @@ import type { Mock } from 'vitest';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { installCanvasStub } from '../test/canvas';
 import { defined } from '../test/defined';
-import { SpotifyApiError } from '../spotify/http';
+import { recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import TabletView from './TabletView';
 
 const player = vi.hoisted(() => {
@@ -98,6 +98,55 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('TabletView', () => {
+  it('allows safe manual recovery at short cooldown expiry without waiting for caller backoff', async () => {
+    vi.useFakeTimers();
+    setPlayer({ problem: { message: 'Rate limited', recovery: 'wait' } });
+    api.getQueue.mockRejectedValueOnce(new SpotifyApiError('Rate limited', 429, 1));
+    render(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByRole('button', { name: 'Waiting to retry...' })).toBeDisabled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(api.getQueue).toHaveBeenCalledOnce();
+    expect(screen.getByRole('button', { name: 'Retry queue' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Refresh playback' })).toBeEnabled();
+    expect(player.current.nextTrack).not.toHaveBeenCalled();
+    expect(player.current.retryPlayback).not.toHaveBeenCalled();
+  });
+
+  it('shares waiting state across playback and a cached queue, then enables explicit commands after expiry', async () => {
+    vi.useFakeTimers();
+    api.getQueue.mockResolvedValue({ queue: queued });
+    render(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    const nowPlaying = screen.getByRole('region', { name: 'Now playing' });
+    const upcoming = screen.getByRole('region', { name: 'Upcoming tracks' });
+    act(() => recordSpotifyRetryAfter(new SpotifyApiError('Device discovery rate limited', 429, 30)));
+    expect(within(nowPlaying).getByText('Waiting for Spotify')).toBeInTheDocument();
+    expect(within(upcoming).getByText('Showing the last known queue.')).toBeInTheDocument();
+    expect(within(upcoming).getByText('Queued One')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next track' }));
+    expect(player.current.nextTrack).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(29_999);
+    });
+    expect(api.getQueue).toHaveBeenCalledOnce();
+    expect(screen.getByRole('button', { name: 'Next track' })).toBeDisabled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(api.getQueue).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('button', { name: 'Next track' })).toBeEnabled();
+    expect(player.current.nextTrack).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Next track' }));
+    expect(player.current.nextTrack).toHaveBeenCalledOnce();
+  });
+
   it('swaps the queue for the lyrics and remembers the choice', async () => {
     const { unmount } = render(<TabletView />);
     await flush();

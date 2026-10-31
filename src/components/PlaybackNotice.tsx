@@ -105,7 +105,11 @@ export default function PlaybackNotice({
     ({ title, text, action } = state);
   }
   return (
-    <div className="playback-notice" role={notice.kind === 'problem' ? 'alert' : 'status'} aria-busy={busy}>
+    <div
+      className="playback-notice"
+      role={notice.kind === 'problem' && notice.problem.recovery !== 'wait' ? 'alert' : 'status'}
+      aria-busy={busy}
+    >
       <div>
         <strong>{title}</strong>
         <p>{text}</p>
