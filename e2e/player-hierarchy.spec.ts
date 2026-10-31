@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
-import { fakeSpotify } from './fakeSpotify.ts';
+import { fakeSpotify } from './fake-spotify.ts';
 
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 const LONG_TITLE = `${'An extended placeholder title with extra recording details '.repeat(8)}${'Unbroken'.repeat(24)}`;

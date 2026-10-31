@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { fakeSpotify } from './fakeSpotify.ts';
+import { fakeSpotify } from './fake-spotify.ts';
 
 // Track art comes from a remote CDN; serve a 1x1 GIF instead so the run is offline-safe and deterministic.
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fakeSpotify } from './fakeSpotify.ts';
+import { fakeSpotify } from './fake-spotify.ts';
 
 // The kiosk can boot without DNS, so the app font must come from the app's own origin. Every other host is
 // blocked here, and the test records any attempt to reach one.
