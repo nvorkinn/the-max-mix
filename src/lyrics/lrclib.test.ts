@@ -3,6 +3,7 @@ import { lrclib } from './lrclib';
 
 const json = (body: unknown, status = 200) => Response.json(body, { status });
 const notFound = () => json({ code: 404, name: 'TrackNotFound' }, 404);
+const overloaded = () => json({ name: 'ServerOverloaded', statusCode: 503 }, 503);
 const query = { title: 'Placeholder Song', artist: 'Placeholder Artist', durationMs: 200_400 };
 const signal = () => new AbortController().signal;
 
@@ -27,7 +28,7 @@ describe('lyrics/lrclib', () => {
       source: 'LRCLIB'
     });
     const url = urlOf();
-    expect(url.origin + url.pathname).toBe('https://lrclib.net/api/get');
+    expect(url.origin + url.pathname).toBe('https://lrclib.net/api/get-cached');
     expect(Object.fromEntries(url.searchParams)).toEqual({
       track_name: 'Placeholder Song',
       artist_name: 'Placeholder Artist',
@@ -82,6 +83,22 @@ describe('lyrics/lrclib', () => {
     });
   });
 
+  it('treats a 503 as not found and falls back to the search, then the live lookup', async () => {
+    fetchMock
+      .mockResolvedValueOnce(overloaded())
+      .mockResolvedValueOnce(overloaded())
+      .mockResolvedValueOnce(json({ syncedLyrics: '[00:01.00]Fetched placeholder' }));
+    await expect(lrclib(query, signal())).resolves.toMatchObject({ kind: 'synced' });
+    expect([0, 1, 2].map(call => urlOf(call).pathname)).toEqual(['/api/get-cached', '/api/search', '/api/get']);
+    expect(Object.fromEntries(urlOf(2).searchParams)).toMatchObject({ duration: '200' });
+  });
+
+  it('resolves to null when every lookup answers 503', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(overloaded()));
+    await expect(lrclib(query, signal())).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it('searches when the exact match has no words and accepts plain results', async () => {
     fetchMock
       .mockResolvedValueOnce(json({ plainLyrics: '  ' }))
@@ -90,18 +107,24 @@ describe('lyrics/lrclib', () => {
   });
 
   it('resolves to null when nothing is found', async () => {
-    fetchMock.mockResolvedValueOnce(notFound()).mockResolvedValueOnce(json({ unexpected: true }));
+    fetchMock
+      .mockResolvedValueOnce(notFound())
+      .mockResolvedValueOnce(json({ unexpected: true }))
+      .mockResolvedValueOnce(notFound());
     await expect(lrclib(query, signal())).resolves.toBeNull();
   });
 
   it('treats a body that is not JSON as no answer', async () => {
-    fetchMock.mockResolvedValueOnce(new Response('oops')).mockResolvedValueOnce(json([]));
+    fetchMock
+      .mockResolvedValueOnce(new Response('oops'))
+      .mockResolvedValueOnce(json([]))
+      .mockResolvedValueOnce(notFound());
     await expect(lrclib(query, signal())).resolves.toBeNull();
   });
 
   it('rejects with a readable message when the service fails or cannot be reached', async () => {
-    fetchMock.mockResolvedValueOnce(json({}, 503));
-    await expect(lrclib(query, signal())).rejects.toThrow('The lyrics service answered 503.');
+    fetchMock.mockResolvedValueOnce(json({}, 500));
+    await expect(lrclib(query, signal())).rejects.toThrow('The lyrics service answered 500.');
     fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
     await expect(lrclib(query, signal())).rejects.toThrow('Could not reach the lyrics service.');
   });

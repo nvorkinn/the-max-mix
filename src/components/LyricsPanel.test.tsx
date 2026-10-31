@@ -74,6 +74,7 @@ describe('LyricsPanel', () => {
     expect(lines.map(line => line.textContent)).toEqual(['Plain placeholder', '\u{A0}']);
     expect(lines[0]).not.toHaveAttribute('aria-current');
     expect(screen.getByText('Not time-synced')).toBeInTheDocument();
+    expect(screen.getByText('Lyrics from Test')).toBeInTheDocument();
   });
 
   it.each([

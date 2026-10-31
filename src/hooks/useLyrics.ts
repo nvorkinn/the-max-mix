@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { lrclib } from '../lyrics/lrclib';
+import { defaultLyricsProvider } from '../lyrics/providers';
 import type { Lyrics, LyricsProvider, LyricsQuery } from '../lyrics/types';
 import type { Track } from '../types';
 import { errorMessage } from '../utils/errorMessage';
@@ -38,7 +38,11 @@ function toQuery(track: Track | undefined): LyricsQuery | null {
  * The lyrics of `track`, looked up only while `enabled` (the lyrics panel is open) so a closed panel makes no requests.
  * A track change cancels the lookup for the previous one.
  */
-export function useLyrics(track: Track | undefined, enabled: boolean, provider: LyricsProvider = lrclib): UseLyrics {
+export function useLyrics(
+  track: Track | undefined,
+  enabled: boolean,
+  provider: LyricsProvider = defaultLyricsProvider
+): UseLyrics {
   const query = toQuery(track);
   const key = query ? (track?.id ?? `${query.title}\n${query.artist}`) : null;
   const [failure, setFailure] = useState<{ key: string; message: string } | null>(null);

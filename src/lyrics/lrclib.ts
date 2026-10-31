@@ -36,6 +36,10 @@ function toLyrics(record: LrclibRecord): Lyrics | null {
   return plain.some(Boolean) ? { kind: 'plain', lines: plain, source: SOURCE } : null;
 }
 
+// LRCLIB answers 503 "ServerOverloaded" not only when it is busy but also for a song it does not have (it then tries
+// to fetch it from elsewhere and gives up), so a 503 counts as "nothing found" and the next lookup is tried.
+const NOT_FOUND = new Set([404, 503]);
+
 async function request(path: string, params: Record<string, string>, signal: AbortSignal): Promise<unknown> {
   let response: Response;
   try {
@@ -47,23 +51,13 @@ async function request(path: string, params: Record<string, string>, signal: Abo
     if (signal.aborted) throw error;
     throw new Error('Could not reach the lyrics service.', { cause: error });
   }
-  if (response.status === 404) return null;
+  if (NOT_FOUND.has(response.status)) return null;
   if (!response.ok) throw new Error(`The lyrics service answered ${response.status}.`);
   return response.json().catch(() => null);
 }
 
-/** Looks a track up by exact title, artist and length first, then falls back to a search for the closest match. */
-export const lrclib: LyricsProvider = async (query: LyricsQuery, signal: AbortSignal) => {
-  const params: Record<string, string> = { track_name: query.title, artist_name: query.artist };
-  if (query.album) params['album_name'] = query.album;
-  const seconds = query.durationMs ? Math.round(query.durationMs / 1000) : undefined;
-  if (seconds) params['duration'] = String(seconds);
-
-  const exact = parseRecord(await request('get', params, signal));
-  const exactLyrics = exact && toLyrics(exact);
-  if (exactLyrics) return exactLyrics;
-
-  const found = await request('search', { track_name: query.title, artist_name: query.artist }, signal);
+/** The best search hit: synced lyrics first, then plain; within each, LRCLIB's own ranking. */
+function bestMatch(found: unknown, seconds: number | undefined): Lyrics | null {
   const candidates = (Array.isArray(found) ? found : [])
     .map(record => parseRecord(record))
     .filter((record): record is LrclibRecord => record !== undefined)
@@ -73,11 +67,30 @@ export const lrclib: LyricsProvider = async (query: LyricsQuery, signal: AbortSi
         record.duration === undefined ||
         Math.abs(record.duration - seconds) <= MAX_DURATION_DIFF_S
     );
-  // Synced lyrics first, then plain; within each, LRCLIB's own ranking.
-  const ranked = [...candidates.filter(record => record.syncedLyrics), ...candidates];
-  for (const record of ranked) {
+  for (const record of [...candidates.filter(entry => entry.syncedLyrics), ...candidates]) {
     const lyrics = toLyrics(record);
     if (lyrics) return lyrics;
   }
   return null;
+}
+
+/**
+ * Looks a track up in LRCLIB's own database by exact title, artist and length, then by a search for the closest match,
+ * and only then with the lookup that may make LRCLIB fetch the song from elsewhere (slow, and often a 503).
+ */
+export const lrclib: LyricsProvider = async (query: LyricsQuery, signal: AbortSignal) => {
+  const params: Record<string, string> = { track_name: query.title, artist_name: query.artist };
+  if (query.album) params['album_name'] = query.album;
+  const seconds = query.durationMs ? Math.round(query.durationMs / 1000) : undefined;
+  if (seconds) params['duration'] = String(seconds);
+  const exact = async (path: string) => {
+    const record = parseRecord(await request(path, params, signal));
+    return record ? toLyrics(record) : null;
+  };
+
+  return (
+    (await exact('get-cached')) ??
+    bestMatch(await request('search', { track_name: query.title, artist_name: query.artist }, signal), seconds) ??
+    (await exact('get'))
+  );
 };
