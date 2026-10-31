@@ -149,7 +149,7 @@ skipped automatically when there is no `.git` directory or when dev dependencies
    kiosk's local service to show it). Other visitors never see the entry. The kiosk's Settings also show which release
    the Pi is running (for example `v1.12.0`, from `?pi_ref=&pi_commit=` in `kiosk_url`), say when a newer release is
    on GitHub, and have **Update now**, **Restart kiosk** and **Reboot Pi** buttons (requests to that local service). **Update
-   now** pulls the latest release at once and restarts the kiosk if anything changed; otherwise a new release reaches the
+   now** pulls the latest release at once, shows the pull's progress in Settings (every line also goes to the debug console), and restarts the kiosk if anything changed; otherwise a new release reaches the
    Pi within about 6 hours and is fully applied after the next kiosk restart: at 04:30, on a reboot, or with the button.
    **Screen sleep** sets how long the kiosk's screen stays on without a touch while nothing plays (5 minutes by default,
    or never). It always stays on while music plays, and the tap that wakes it never presses anything.

@@ -15,6 +15,11 @@ ref=$2
 directory=$3
 shift 3
 
+# Keep a copy of this run's output for the app's update progress (GET /update/status); the journal still gets it.
+if [[ -d /run/kiosk ]]; then
+  exec > >(tee /run/kiosk/update.log) 2>&1
+fi
+
 if [[ $ref == latest ]]; then
   releases=${repo%.git}/releases/latest
   location=$(curl --fail --silent --show-error --max-time 60 --retry 3 --head --output /dev/null \

@@ -1,6 +1,12 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Download, Power, RotateCw } from 'lucide-react';
+import { debugLog } from '../utils/debugLog';
+import { getUpdateStatus } from '../utils/kioskService';
 import { isRelease, latestCommit, latestRelease, piVersion, rebootPi, restartKiosk, updateKiosk } from '../utils/kiosk';
+
+const POLL_MS = 1500;
+/** Give up following an update after this long; a pull of a big release can take minutes. */
+const GIVE_UP_MS = 20 * 60 * 1000;
 
 /** How long a first tap waits for the confirming second tap. */
 const CONFIRM_MS = 4000;
@@ -44,9 +50,47 @@ function ConfirmButton({
 export default function KioskSystem() {
   const [version] = useState(piVersion);
   const [isUpdating, setIsUpdating] = useState(false);
+  // What the update says it is doing, from the kiosk service; null until it has said anything.
+  const [progress, setProgress] = useState<string | null>(null);
   // The newest release tag on GitHub for a Pi on a release, otherwise the newest commit of the ref it is pinned to.
   type Latest = { state: 'checking' } | { state: 'unknown' } | { state: 'known'; value: string };
   const [latest, setLatest] = useState<Latest>({ state: version ? 'checking' : 'unknown' });
+
+  // While an update runs, follow it: show its latest line, and write every line to the debug console.
+  useEffect(() => {
+    if (!isUpdating) return;
+    const started = Date.now();
+    let logged = 0;
+    let hasSeenRunning = false;
+    let misses = 0;
+    const timer = setInterval(() => {
+      void getUpdateStatus().then(status => {
+        if (!status) {
+          misses += 1;
+          // The service ends with the kiosk: after it was seen running, no answer means the kiosk is restarting.
+          if (hasSeenRunning) setProgress('Restarting the kiosk…');
+          else if (misses >= 5) setProgress('The kiosk service is not answering.');
+          return;
+        }
+        misses = 0;
+        // Nothing has started yet (any log is from an earlier pull), or the log began again.
+        if (status.state === 'idle') return;
+        if (status.total < logged) logged = 0;
+        const count = Math.min(status.total - logged, status.lines.length);
+        const fresh = count > 0 ? status.lines.slice(-count) : [];
+        for (const line of fresh) debugLog('info', 'update', line);
+        logged = status.total;
+        const last = status.lines.at(-1);
+        if (status.state === 'running') hasSeenRunning = true;
+        if (status.state === 'done') setProgress('Update finished. Nothing needed a restart.');
+        else if (status.state === 'failed') setProgress(`The update failed. ${last ?? ''}`.trim());
+        else if (last) setProgress(last);
+        if (status.state === 'done' || status.state === 'failed') setIsUpdating(false);
+      });
+      if (Date.now() - started > GIVE_UP_MS) setIsUpdating(false);
+    }, POLL_MS);
+    return () => clearInterval(timer);
+  }, [isUpdating]);
 
   useEffect(() => {
     if (!version) return;
@@ -76,9 +120,11 @@ export default function KioskSystem() {
       ? `${newer}. Tap Update now, or the Pi picks it up within 6 hours and applies it at 04:30.`
       : 'Up to date.';
   }
-  if (isUpdating) status = 'Updating. If there is a newer version, the kiosk restarts by itself in a few minutes.';
+  if (isUpdating) status = progress ?? 'Updating…';
+  else if (progress) status = progress;
 
   const update = () => {
+    setProgress(null);
     setIsUpdating(true);
     updateKiosk();
   };
