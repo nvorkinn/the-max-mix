@@ -55,7 +55,7 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/kiosk-open-wifi /usr/loc
   check test -e "$file"
 done
 for unit in kiosk.service kiosk-bluetooth-pair.service bluetooth.service avahi-daemon.service kiosk-pull.timer \
-  kiosk-restart.timer; do
+  kiosk-restart.timer ssh.service; do
   check systemctl is-enabled --quiet "$unit"
   # Enabled only: nothing is started in an image build.
   if systemctl is-active --quiet "$unit"; then
@@ -75,6 +75,15 @@ if id -nG kiosk | grep -qw sudo; then
   echo "FAILED: kiosk is still in the sudo group" >&2
   fail=1
 fi
+# The admin account: no password, sudo without one, SSH by key only.
+check test "$(getent shadow admin | cut -d: -f2)" = '*'
+check bash -c 'id -nG admin | grep -qw sudo'
+check /usr/sbin/visudo -cf /etc/sudoers.d/50-kiosk-admin
+check grep -q '^PasswordAuthentication no$' /etc/ssh/sshd_config.d/10-kiosk.conf
+check grep -q '^AllowUsers admin$' /etc/ssh/sshd_config.d/10-kiosk.conf
+mkdir -p /run/sshd
+check /usr/sbin/sshd -t
+check test "$(stat -c %a /home/admin/.ssh)" = 700
 check grep -q 'ansible-pull --url https://github.com/nvorkinn/the-max-mix.git --checkout stable ' /etc/systemd/system/kiosk-pull.service
 # Node runs the audio routing's TypeScript directly.
 check node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)'

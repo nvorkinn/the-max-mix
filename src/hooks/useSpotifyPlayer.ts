@@ -6,6 +6,7 @@ import { SpotifyApiError } from '../spotify/http';
 import { getPlaybackMode, isDemoMode as readDemoMode } from '../spotify/settings';
 import { errorMessage } from '../utils/errorMessage';
 import { loadSpotifySDK } from '../utils/spotifySdk';
+import { widevineProblem } from '../utils/widevine';
 
 // Spotify's playback state lags a play/pause command by a second or more, so a read right after one still reports the
 // old state. For this long after a command the button keeps the state the command asked for.
@@ -301,10 +302,23 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         });
         for (const event of ['initialization_error', 'authentication_error', 'account_error', 'playback_error']) {
           player.addListener(event, ({ message }: { message: string }) => {
-            if (!isCancelled()) {
+            if (isCancelled()) return;
+            const showError = (reason: string | null) =>
               setSdkError(
-                `Browser playback: ${message} Remote playback mode is available if this Pi cannot stream audio.`
+                [
+                  `Browser playback: ${message}`,
+                  reason,
+                  'Remote playback mode is available if this Pi cannot stream audio.'
+                ]
+                  .filter(Boolean)
+                  .join(' ')
               );
+            showError(null);
+            // A player that cannot start is nearly always missing Widevine; ask the browser and say so if it is.
+            if (event === 'initialization_error') {
+              void widevineProblem().then(reason => {
+                if (reason && !isCancelled()) showError(reason);
+              });
             }
           });
         }

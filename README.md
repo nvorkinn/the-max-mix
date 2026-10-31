@@ -198,8 +198,8 @@ device, so change the role, not the device.
   the timer runs: `sudo systemctl start kiosk-pull` (which does nothing if `stable` has not moved). Add `--check --diff` to
   the playbook run to see what it would change.
 
-Any change on the device that is not in the role is undone at the next pull (for example, SSH is switched off again unless
-`kiosk_ssh_enabled` is true). A CI job runs the playbook in a Debian trixie container and checks that it is idempotent;
+Any change on the device that is not in the role is undone at the next pull (for example, SSH is switched off again when
+`kiosk_ssh_enabled` is false). A CI job runs the playbook in a Debian trixie container and checks that it is idempotent;
 booting the result on a real Pi is not covered.
 
 References: [Raspberry Pi kiosk guide](https://www.raspberrypi.com/tutorials/how-to-use-a-raspberry-pi-in-kiosk-mode/),
