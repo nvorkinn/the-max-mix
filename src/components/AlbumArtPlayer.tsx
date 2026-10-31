@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, AudioLines } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { Play, Pause, SkipBack, SkipForward, Volume2, AudioLines, Speaker } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { getDivaForUser } from '../utils/divas';
 import type { PlayerControls } from '../types';
-import AudioVisualizer from './AudioVisualizer';
 import { Artwork, GuestAvatar } from './TrackImages';
 
 type AlbumArtPlayerProps = Readonly<PlayerControls> & {
@@ -48,7 +46,6 @@ export default function AlbumArtPlayer({
   const guestName = isDemoMode ? rawAddedBy.name : null;
   const assignedDiva = getDivaForUser(guestName || '', 0, theme);
   const userAvatar = rawAddedBy.avatar || assignedDiva.image;
-  const visualizerColors: [string, string] = theme === 'minimal' ? ['#242820', '#747a6b'] : ['#d5f580', '#8dab64'];
 
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
@@ -61,51 +58,34 @@ export default function AlbumArtPlayer({
         <span className="eyebrow">
           <AudioLines size={14} /> Now playing
         </span>
-        <span className="playback-label">{isPlaying ? 'ON REPEAT? WE GET IT.' : 'TAKE YOUR TIME.'}</span>
       </div>
 
-      <button
-        type="button"
-        className="album-art"
-        aria-label={`Celebrate ${title}`}
-        onClick={() => void confetti({ particleCount: 25, spread: 60, origin: { x: 0.25, y: 0.45 } })}
-      >
+      <div className="album-art">
         <Artwork src={albumArt} alt={`${title} album artwork`} className="album-cover" />
-        <span className="album-shade" />
-        <span className="art-caption">
-          <span className="status-dot" /> THE SOUNDTRACK STARTS HERE
-        </span>
-        <span className={`art-equalizer ${isPlaying ? 'is-playing' : ''}`} aria-hidden="true">
-          <i />
-          <i />
-          <i />
-          <i />
-        </span>
-      </button>
+      </div>
 
       <div className="track-details">
-        <div className="track-title-row">
-          <div className="track-copy">
-            <h2 title={title}>{title}</h2>
-            <p title={artist}>{artist}</p>
-          </div>
-          <div className="track-visualizer" aria-hidden="true">
-            <AudioVisualizer
-              isPlaying={isPlaying}
-              primaryColor={visualizerColors[0]}
-              secondaryColor={visualizerColors[1]}
-            />
-          </div>
+        <div
+          className="track-copy"
+          role="region"
+          aria-label="Track information"
+          // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- Oversized metadata must remain keyboard-scrollable on the kiosk.
+          tabIndex={0}
+        >
+          <h2 title={title}>{title}</h2>
+          <p title={artist}>{artist}</p>
         </div>
-        {guestName ? (
+        <div className="track-credit">
+          <Speaker size={14} aria-hidden="true" />
+          <span>{playback?.device?.name || 'Select a device in Speakers'}</span>
+        </div>
+        {guestName && (
           <div className="track-credit">
             <GuestAvatar src={userAvatar} name={guestName} />
             <span>
               Demo pick by <strong>{guestName}</strong>
             </span>
           </div>
-        ) : (
-          <div className="track-credit">{playback?.device?.name || 'Select a device in Speakers'}</div>
         )}
       </div>
 
@@ -179,7 +159,14 @@ export default function AlbumArtPlayer({
               <SkipForward size={20} fill="currentColor" />
             </button>
           </div>
-          <span className="transport-status">{isPlaying ? 'Playing' : 'Paused'}</span>
+          <span className="transport-status">
+            <span className={`playback-equalizer ${isPlaying ? 'is-playing' : ''}`} aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
+            {isPlaying ? 'Playing' : 'Paused'}
+          </span>
         </div>
       </div>
     </div>

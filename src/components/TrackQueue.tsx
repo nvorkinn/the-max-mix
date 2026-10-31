@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { Disc3, GripVertical, Play, ArrowUpRight, ListMusic } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { Disc3, GripVertical, Play, ArrowUpRight } from 'lucide-react';
 import { getDivaForUser } from '../utils/divas';
 import { trackKeys } from '../utils/trackKeys';
 import type { Track } from '../types';
@@ -95,14 +94,9 @@ export default function TrackQueue({
   return (
     <div className="queue-panel">
       <div className="queue-heading">
-        <div>
-          <span className="eyebrow">
-            <ListMusic size={14} /> The shared soundtrack
-          </span>
-          <h2>
-            Up next<span className="queue-count">{String(queue.length).padStart(2, '0')}</span>
-          </h2>
-        </div>
+        <h2>
+          Up next<span className="queue-count">{String(queue.length).padStart(2, '0')}</span>
+        </h2>
       </div>
 
       {error && (
@@ -121,11 +115,7 @@ export default function TrackQueue({
             <Disc3 size={32} strokeWidth={1} />
           </div>
           <h3>A little quiet in here.</h3>
-          <p>
-            Add a track in Spotify.
-            <br />
-            Your next great discovery goes here.
-          </p>
+          <p>Add a track in Spotify.</p>
         </div>
       ) : (
         <div ref={listRef} className="queue-list" role="list" aria-label="Track queue">
@@ -149,10 +139,7 @@ export default function TrackQueue({
                     type="button"
                     className="queue-play"
                     aria-label={`Play ${title} now`}
-                    onClick={() => {
-                      void confetti({ particleCount: 18, spread: 45, origin: { x: 0.65, y: 0.4 } });
-                      onPlaySongNow?.(track.id || track.uri, track);
-                    }}
+                    onClick={() => onPlaySongNow?.(track.id || track.uri, track)}
                   >
                     <span className="queue-number">{String(idx + 1).padStart(2, '0')}</span>
                     <Play className="queue-play-icon" size={14} fill="currentColor" />

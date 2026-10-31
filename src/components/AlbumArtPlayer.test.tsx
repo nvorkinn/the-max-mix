@@ -1,14 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { Track } from '../types';
-import { installCanvasStub, stubMatchMedia } from '../test/canvas';
 import { defined } from '../test/defined';
 import { partialProps } from '../test/partialProps';
 import AlbumArtPlayerFull from './AlbumArtPlayer';
 import TrackQueueFull from './TrackQueue';
-
-const confetti = vi.hoisted(() => vi.fn());
-vi.mock('canvas-confetti', () => ({ default: confetti }));
 
 const AlbumArtPlayer = partialProps(AlbumArtPlayerFull);
 const TrackQueue = partialProps(TrackQueueFull);
@@ -31,11 +27,6 @@ function setup(props: Record<string, unknown> = {}) {
   render(<AlbumArtPlayer playback={playback} isPlaying controlsEnabled {...h} {...props} />);
   return h;
 }
-
-beforeEach(() => {
-  installCanvasStub();
-  stubMatchMedia(false);
-});
 
 describe('AlbumArtPlayer', () => {
   it('shows track metadata, times and device', () => {
@@ -110,6 +101,7 @@ describe('AlbumArtPlayer', () => {
   it('credits the demo guest only in demo mode, falling back to initials on error', () => {
     const { unmount } = render(<AlbumArtPlayer playback={playback} isDemoMode controlsEnabled onSeek={() => {}} />);
     expect(screen.getByText('Ann')).toBeInTheDocument();
+    expect(screen.getByText('Kitchen')).toBeInTheDocument();
     const avatar = defined(document.querySelector('.track-credit img'));
     fireEvent.error(avatar);
     expect(avatar).not.toBeInTheDocument();
@@ -124,10 +116,26 @@ describe('AlbumArtPlayer', () => {
     expect(screen.getByRole('slider', { name: 'Playback position' })).toHaveValue('200000');
   });
 
-  it('celebrates with confetti when the artwork is pressed', () => {
-    setup();
-    fireEvent.click(screen.getByRole('button', { name: /celebrate song/i }));
-    expect(confetti).toHaveBeenCalled();
+  it.each([true, false])('keeps artwork static and decoration separate from metadata (playing: %s)', isPlaying => {
+    setup({ isPlaying });
+    expect(screen.queryByRole('button', { name: /celebrate/i })).not.toBeInTheDocument();
+    expect(document.querySelector('canvas')).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Track information' })).toHaveAttribute('tabindex', '0');
+    expect(screen.queryByText('ON REPEAT? WE GET IT.')).not.toBeInTheDocument();
+    expect(screen.queryByText('THE SOUNDTRACK STARTS HERE')).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.playback-equalizer')).toHaveLength(1);
+    expect(document.querySelector('.playback-equalizer')?.classList.contains('is-playing')).toBe(isPlaying);
+    expect(screen.queryByText('TAKE YOUR TIME.')).not.toBeInTheDocument();
+  });
+
+  it('preserves complete long titles and artist names in the scrollable metadata region', () => {
+    const title = 'An extended placeholder title '.repeat(20);
+    const artist = 'A very long placeholder artist name '.repeat(10);
+    setup({ playback: { ...playback, item: { ...playback.item, name: title, artists: [{ name: artist }] } } });
+    expect(screen.getByRole('heading', { name: title.trim() })).toHaveTextContent(title.trim());
+    expect(screen.getByRole('region', { name: 'Track information' })).toHaveTextContent(artist.trim());
+    expect(screen.getByText('Kitchen')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled();
   });
 });
 
@@ -190,10 +198,9 @@ describe('TrackQueue', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Queue unavailable');
   });
 
-  it('plays a demo track immediately with confetti', () => {
+  it('plays a demo track immediately', () => {
     const h = setupQueue({ isDemoMode: true });
     fireEvent.click(screen.getByRole('button', { name: 'Play Two now' }));
-    expect(confetti).toHaveBeenCalled();
     expect(h.onPlaySongNow).toHaveBeenCalledWith('b', tracks[1]);
     fireEvent.click(screen.getByRole('button', { name: 'Play Three now' }));
     expect(h.onPlaySongNow).toHaveBeenLastCalledWith('spotify:track:c', tracks[2]);
