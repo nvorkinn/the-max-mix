@@ -19,8 +19,11 @@ vi.mock('../spotify/api', () => api);
 vi.mock('../spotify/auth', () => auth);
 vi.mock('../spotify/settings', () => settings);
 vi.mock('../audio/airplay', () => ({
-  getAirPlayStatus: vi.fn().mockResolvedValue({ speakers: [], selected: [], playing: false }),
-  setAirPlaySpeakers: vi.fn()
+  listAudioOutputs: vi.fn().mockResolvedValue([]),
+  watchAudioOutputs: vi.fn(() => vi.fn()),
+  routeAudio: vi.fn(),
+  getChosenSpeakers: vi.fn(() => []),
+  setChosenSpeakers: vi.fn()
 }));
 
 const QRCodeModal = partialProps(QRCodeModalFull);
@@ -345,11 +348,9 @@ describe('SpeakerSelectorModal', () => {
 
   it('shows a failed mode change', async () => {
     api.getDevices.mockResolvedValue({ devices: [] });
-    const onAudioRouteChange = vi.fn(() =>
-      Promise.reject(new Error('The AirPlay service on this device is not running.'))
-    );
+    const onAudioRouteChange = vi.fn(() => Promise.reject(new Error('Transfer failed')));
     render(<SpeakerSelectorModal isOpen canUseAirPlay audioRoute="airplay" onAudioRouteChange={onAudioRouteChange} />);
     await userEvent.click(screen.getByRole('button', { name: 'Spotify Connect' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('not running');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Transfer failed');
   });
 });

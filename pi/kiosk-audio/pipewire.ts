@@ -82,10 +82,6 @@ export interface Graph {
 
 const isSink = (node: Node): boolean => node.mediaClass === 'Audio/Sink';
 
-/** A sink made by libpipewire-module-raop-sink (raop-discover names them raop_sink.<host>.<ip>.<port>). */
-export const isAirPlay = (node: Node): boolean =>
-  isSink(node) && (node.name.startsWith('raop_sink.') || Object.keys(node.props).some(key => key.startsWith('raop.')));
-
 /** An output stream of the kiosk's browser, which is where the Web Playback SDK plays. */
 function isPlayer(node: Node): boolean {
   if (node.mediaClass !== 'Stream/Output/Audio') return false;
@@ -94,10 +90,6 @@ function isPlayer(node: Node): boolean {
     name => typeof name === 'string' && PLAYER_NAMES.some(player => name.toLowerCase().includes(player))
   );
 }
-
-/** The AirPlay sinks, sorted by name for a stable list on screen. */
-export const speakersOf = (graph: Graph): Node[] =>
-  graph.nodes.filter(node => isAirPlay(node)).toSorted((a, b) => a.description.localeCompare(b.description));
 
 export const playersOf = (graph: Graph): Node[] => graph.nodes.filter(node => isPlayer(node));
 
@@ -198,9 +190,12 @@ export interface Plan {
 
 export const isEmptyPlan = (plan: Plan): boolean => plan.connect.length === 0 && plan.disconnect.length === 0;
 
-/** The sinks the browser should play to: the chosen speakers that are on the network, or else the default output. */
+/**
+ * The sinks the browser should play to: the chosen speakers that are on the network, or else the default output.
+ * Speakers are named by their description, which is the label Chromium gives the same output (through pipewire-pulse).
+ */
 function targetsOf(graph: Graph, speakers: readonly string[]): Node[] {
-  if (speakers.length > 0) return speakersOf(graph).filter(node => speakers.includes(node.name));
+  if (speakers.length > 0) return graph.nodes.filter(node => isSink(node) && speakers.includes(node.description));
   const fallback = graph.nodes.find(node => node.name === graph.defaultSink);
   return fallback && isSink(fallback) ? [fallback] : [];
 }
@@ -231,7 +226,7 @@ function planPlayer(graph: Graph, player: Node, targets: Node[], plan: Plan): vo
 }
 
 /**
- * The changes that send every browser stream to exactly these AirPlay sinks (by node name), or, with no speakers, back
+ * The changes that send every browser stream to exactly these sinks (by description), or, with no speakers, back
  * to the default sink only. Links to anything other than a sink (a level meter, a recorder) are left alone. When none of
  * the chosen speakers is on the network, nothing changes, so the music is never cut off by a speaker that went away.
  */

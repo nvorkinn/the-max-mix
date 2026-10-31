@@ -252,3 +252,4 @@ pavucontrol
 wpctl
 nodesource
 nodistro
+devicechange

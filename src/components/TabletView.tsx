@@ -9,7 +9,7 @@ import { getQueue, reorderDemoQueue, playDemoTrackNow } from '../spotify/api';
 import { SpotifyApiError } from '../spotify/http';
 import { getAudioRoute, setAudioRoute } from '../spotify/settings';
 import type { AudioRoute } from '../spotify/settings';
-import { setAirPlaySpeakers } from '../audio/airplay';
+import { getChosenSpeakers, routeAudio } from '../audio/airplay';
 import { isKiosk } from '../utils/kiosk';
 import type { Track } from '../types';
 import OfflineBanner from './OfflineBanner';
@@ -66,14 +66,19 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [storedAudioRoute, setStoredAudioRoute] = useState(getAudioRoute);
   const audioRoute: AudioRoute = canUseAirPlay ? storedAudioRoute : 'spotify-connect';
 
-  // AirPlay plays what this tablet's own player plays, so playback moves here. Spotify Connect hands the sound back to
-  // the Pi's own output, ready for a Connect speaker to be picked. The mode changes even if that step fails, so a stopped
-  // audio service never keeps the tablet stuck in AirPlay.
+  // AirPlay plays what this tablet's own player plays, so playback moves here and the Pi sends it on to the speakers
+  // chosen last time. Spotify Connect hands the sound back to the Pi's own output, ready for a Connect speaker to be
+  // picked. The mode changes even if moving playback fails, so the tablet never gets stuck in AirPlay.
   const changeAudioRoute = async (route: AudioRoute) => {
     setStoredAudioRoute(route);
     setAudioRoute(route);
-    if (route === 'spotify-connect') await setAirPlaySpeakers([]);
-    else if (browserDeviceId && playbackState?.device?.id !== browserDeviceId) await transferPlayback(browserDeviceId);
+    if (route === 'spotify-connect') {
+      routeAudio([]);
+      return;
+    }
+    const speakers = getChosenSpeakers();
+    if (speakers.length > 0) routeAudio(speakers);
+    if (browserDeviceId && playbackState?.device?.id !== browserDeviceId) await transferPlayback(browserDeviceId);
   };
 
   const toggleLyrics = (show: boolean) => {

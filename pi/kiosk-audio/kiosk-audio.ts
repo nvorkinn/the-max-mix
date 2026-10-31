@@ -1,40 +1,41 @@
-// Starts the audio service (see service.ts and README.md): the HTTP API on 127.0.0.1, and a check every few seconds
-// while speakers are chosen, so a stream Chromium opens again or a speaker that comes back is routed too.
-//   node kiosk-audio.ts [--port 47878] [--origin https://app.example]... [--state path]
+// The kiosk's audio routing (see README.md). Two commands, both run as the kiosk user, next to its PipeWire:
+//   node kiosk-audio.ts open <kiosk-audio://route?speaker=…>   the link handler Chromium starts (kiosk-audio.desktop):
+//                                                              saves the speakers and routes the sound to them at once
+//   node kiosk-audio.ts watch                                  the background unit: every few seconds, routes any stream
+//                                                              Chromium opened again and any chosen speaker that came back
+// Neither listens on the network.
 import { homedir } from 'node:os';
 import path from 'node:path';
-import { parseArgs } from 'node:util';
 import { PipeWire } from './pipewire.ts';
-import { DEFAULT_PORT, makeServer, Router } from './service.ts';
+import { loadSpeakers, parseLink, route, saveSpeakers } from './speakers.ts';
 
+const WATCH_MS = 2000;
 const stateHome = process.env['XDG_STATE_HOME'] || path.join(homedir(), '.local', 'state');
-const { values } = parseArgs({
-  options: {
-    port: { type: 'string', default: String(DEFAULT_PORT) },
-    origin: { type: 'string', multiple: true, default: [] },
-    state: { type: 'string', default: path.join(stateHome, 'the-max-mix', 'airplay.json') }
-  }
-});
-const port = Number(values.port);
-if (!Number.isSafeInteger(port) || port <= 0 || port > 65_535) {
-  console.error(`Not a port: ${values.port}`);
-  process.exit(2);
-}
+const stateFile = path.join(stateHome, 'the-max-mix', 'speakers.json');
+const pipewire = new PipeWire();
+const [command, link = ''] = process.argv.slice(2);
 
-const RECONCILE_MS = 2000;
-const router = new Router(new PipeWire(), values.state);
-await router.load();
-
-async function reconcile(): Promise<void> {
+async function watchOnce(): Promise<void> {
   try {
-    await router.reconcile();
+    const speakers = await loadSpeakers(stateFile);
+    // With no speakers chosen, PipeWire's own policy decides; the open command already handed the sound back.
+    if (speakers.length > 0) await route(pipewire, speakers);
   } catch (error) {
     console.debug(String(error));
   }
 }
-setInterval(() => void reconcile(), RECONCILE_MS);
 
-const origins = new Set(values.origin);
-makeServer(router, port, origins).listen(port, '127.0.0.1', () => {
-  console.info(`Listening on http://127.0.0.1:${port} for ${[...origins].join(', ') || 'local programs only'}`);
-});
+if (command === 'open') {
+  const speakers = parseLink(link);
+  if (!speakers) {
+    console.error('Expected kiosk-audio://route?speaker=<name>…');
+    process.exit(2);
+  }
+  await saveSpeakers(stateFile, speakers);
+  await route(pipewire, speakers);
+} else if (command === 'watch') {
+  setInterval(() => void watchOnce(), WATCH_MS);
+} else {
+  console.error('Usage: kiosk-audio.ts open <kiosk-audio://route?speaker=…> | watch');
+  process.exit(2);
+}

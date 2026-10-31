@@ -20,7 +20,7 @@
     cache_valid_time: 3600
     lock_timeout: 300
 
-# Node.js for the audio service, from NodeSource (Debian's is too old to run TypeScript).
+# Node.js for the audio routing, from NodeSource (Debian's is too old to run TypeScript).
 - name: Create the APT keyring directory
   ansible.builtin.file:
     path: /etc/apt/keyrings
@@ -209,7 +209,7 @@
     - /usr/share/plymouth/themes/the-max-mix
     - /var/lib/the-max-mix
 
-- name: Install the kiosk programs and the kiosk-wifi:// handler
+- name: Install the kiosk programs and the kiosk-wifi:// and kiosk-audio:// handlers
   ansible.builtin.copy:
     src: '{{ item.src }}'
     dest: '{{ item.dest }}'
@@ -221,7 +221,9 @@
     - { src: bin/kiosk-open-wifi, dest: /usr/local/bin/kiosk-open-wifi, mode: '0755' }
     - { src: bin/wifi-panel, dest: /usr/local/bin/wifi-panel, mode: '0755' }
     - { src: bin/kiosk-bluetooth-pair, dest: /usr/local/bin/kiosk-bluetooth-pair, mode: '0755' }
+    - { src: bin/kiosk-open-audio, dest: /usr/local/bin/kiosk-open-audio, mode: '0755' }
     - { src: kiosk-wifi.desktop, dest: /usr/share/applications/kiosk-wifi.desktop, mode: '0644' }
+    - { src: kiosk-audio.desktop, dest: /usr/share/applications/kiosk-audio.desktop, mode: '0644' }
     - { src: mimeapps.list, dest: /etc/xdg/mimeapps.list, mode: '0644' }
   loop_control:
     label: '{{ item.dest }}'
@@ -242,9 +244,9 @@
     - qml/PanelField.qml
   notify: Ask for a kiosk restart
 
-# AirPlay: PipeWire makes a sink for each speaker Avahi finds, and the audio service routes the browser's audio to the
-# ones chosen in the app.
-- name: Install the audio service
+# AirPlay: PipeWire makes a sink for each speaker Avahi finds; kiosk-audio:// links from the app route the browser's
+# audio to the chosen ones, and the kiosk-audio user unit keeps it there.
+- name: Install the audio routing
   ansible.builtin.copy:
     src: '{{ kiosk_audio_src }}/{{ item }}'
     dest: '{{ kiosk_audio_dir }}/{{ item }}'
@@ -254,10 +256,10 @@
   loop:
     - kiosk-audio.ts
     - pipewire.ts
-    - service.ts
+    - speakers.ts
   notify: Ask for a kiosk restart
 
-- name: Install the AirPlay and audio service settings
+- name: Install the AirPlay settings and the audio routing unit
   ansible.builtin.template:
     src: '{{ item.src }}'
     dest: '{{ item.dest }}'
@@ -272,7 +274,7 @@
   notify: Ask for a kiosk restart
 
 # What `systemctl --global enable` does, as a link, so it also works in the image build's chroot.
-- name: Start the audio service in the kiosk user's session
+- name: Start the audio routing in the kiosk user's session
   ansible.builtin.file:
     src: ../kiosk-audio.service
     dest: /etc/systemd/user/default.target.wants/kiosk-audio.service

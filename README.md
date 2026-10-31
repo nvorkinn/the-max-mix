@@ -33,8 +33,9 @@ again. Browsers only start audio after a click, so the very first Play press is 
 
 On the Pi kiosk, Speakers also switches between two playback modes. **Spotify Connect** is the above: the tablet plays,
 or Spotify moves playback to a Connect speaker. **AirPlay** keeps playback on the tablet and the Pi sends its sound on
-to the AirPlay speakers you pick (Sonos included), several at once, through PipeWire. The Pi's
-[audio service](pi/kiosk-audio/README.md) does the routing; it listens on the Pi's loopback address only.
+to the AirPlay speakers you pick (Sonos included), several at once, through PipeWire. The speakers are the audio
+outputs Chromium lists; picking them opens a `kiosk-audio://` link that the Pi's
+[audio routing](pi/kiosk-audio/README.md) handles, the same way `kiosk-wifi://` opens the Wi-Fi panel.
 
 ### Native Spotify Jam limitations
 
@@ -104,7 +105,7 @@ Register `http://127.0.0.1:5173/` as a redirect URI in the Spotify dashboard to 
 To try the production build (the same files the Pi serves), run
 `npm run build && npm start` and open
 **<http://127.0.0.1:4173/>** (`vite preview`). Register that address too if you want to sign in there. `npm test` runs the
-app, audio service and Wi-Fi panel tests; `npm run build` checks the frontend production build.
+app, audio routing and Wi-Fi panel tests; `npm run build` checks the frontend production build.
 
 ### Checks and Git hooks
 
@@ -169,7 +170,7 @@ boot, troubleshooting and what is still to be verified on a device.
 
 **[Ansible](https://docs.ansible.com) is the single source of truth** for everything installed and configured on the device:
 packages, the `kiosk` user and its service, `kiosk-session`, the `kiosk-wifi://` handler, the Wi-Fi panel, the AirPlay
-audio service and PipeWire's AirPlay settings, the Chromium policy, Plymouth, boot settings (`cmdline.txt`, `config.txt`), locale, time zone, unattended upgrades and the update timer.
+audio routing and PipeWire's AirPlay settings, the Chromium policy, Plymouth, boot settings (`cmdline.txt`, `config.txt`), locale, time zone, unattended upgrades and the update timer.
 It is one role, [`ansible/roles/kiosk`](ansible/roles/kiosk), run by [`ansible/local.yml`](ansible/local.yml); its
 variables and defaults are in [`defaults/main.yml`](ansible/roles/kiosk/defaults/main.yml). Nothing else configures the
 device, so change the role, not the device.

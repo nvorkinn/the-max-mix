@@ -1,69 +1,65 @@
-# THE MAX MIX audio service
+# THE MAX MIX audio routing
 
-A small HTTP service on the kiosk that sends the browser's sound to AirPlay speakers (Sonos and other AirPlay 2
-speakers that also accept RAOP) through PipeWire. It is what the app's **AirPlay** mode under Speakers talks to. TypeScript
-with Node's standard library only (no npm packages on the Pi): Node runs the `.ts` files directly, so Ansible copies
-them as they are and nothing is built. That needs Node 22.18 or later, so the role installs Node
-`kiosk_nodejs_major` (24, as in `.nvmrc`) from NodeSource's archive, since Debian trixie has Node 20. Its signing key
-is pinned by checksum and unattended upgrades cover it.
-
-| File             | What it is                                                                 |
-| ---------------- | -------------------------------------------------------------------------- |
-| `kiosk-audio.ts` | The program the systemd unit starts: arguments, the check loop, listening. |
-| `service.ts`     | The HTTP API and the router that keeps the links in line with the choice.  |
-| `pipewire.ts`    | `pw-dump` parsing, the link plan, and running `pw-link`.                   |
+Sends the kiosk browser's sound to AirPlay speakers (Sonos and other AirPlay 2 speakers that also accept RAOP) through
+PipeWire. It is what the app's **AirPlay** mode under Speakers drives. There is no server: the app finds the speakers
+through Chromium, and asks the Pi to route the sound with a `kiosk-audio://` link, the same way `kiosk-wifi://` opens
+the Wi-Fi panel.
 
 ## The two playback modes
 
 - **Spotify Connect** (the default): Spotify plays on the tablet's Web Playback SDK player, or on any Spotify Connect
-  speaker it is moved to under Speakers. The Pi's sound goes to its own output and this service changes nothing.
-- **AirPlay**: playback stays on the tablet's own player, and this service links Chromium's PipeWire stream to every
-  AirPlay speaker picked in the app, all at once, and off the Pi's own output. Speakers can be added and removed while
-  the music plays. Switching back to Spotify Connect hands the sound back to the Pi's default output.
+  speaker it is moved to under Speakers. Switching to it opens `kiosk-audio://route`, which hands the sound back to the
+  Pi's default output.
+- **AirPlay**: playback stays on the tablet's own player, and the Pi links Chromium's PipeWire stream to every speaker
+  picked in the app, all at once, and off the Pi's own output. Speakers can be added and removed while the music plays.
 
 ## How it works
 
-- `libpipewire-module-raop-discover` (enabled by `/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf`) finds RAOP
-  speakers through Avahi and makes a PipeWire sink for each, with `raop.latency.ms = 500` (`kiosk_raop_latency_ms`) so
-  play, pause and skip reach the speakers quickly.
-- The service reads the graph with `pw-dump` (JSON: nodes, ports, links and the default sink). AirPlay sinks are the
-  `Audio/Sink` nodes made by the RAOP module (`raop_sink.*`); the player is Chromium's `Stream/Output/Audio` node.
-- `pw-link <output port> <input port>` connects each of the player's channels to the same channel of every chosen
-  sink; `pw-link --disconnect <link>` removes its links to other sinks. New links are made before old ones go, so the
-  music does not drop out. Links to anything that is not a sink (a level meter, a recorder) are left alone.
-- While speakers are chosen it checks every 2 seconds, so a stream Chromium opens again, or a speaker that drops off
-  the network and comes back, is routed again. If none of the chosen speakers is on the network, nothing changes.
-- The choice is saved in `~/.local/state/the-max-mix/airplay.json`, so it survives a restart.
+1. **Discovery.** `libpipewire-module-raop-discover` (enabled by `/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf`)
+   finds RAOP speakers through Avahi and makes a PipeWire sink for each, with `raop.latency.ms = 500`
+   (`kiosk_raop_latency_ms`) so play, pause and skip reach the speakers quickly. Chromium sees each sink as an audio
+   output (through pipewire-pulse), and the app lists them with `navigator.mediaDevices.enumerateDevices()`, updating on
+   `devicechange`. Chromium only names outputs for a page with microphone permission, so the Chromium policy grants it
+   to the app's origin (`AudioCaptureAllowedUrls`).
+2. **Routing.** Picking speakers opens `kiosk-audio://route?speaker=Kitchen&speaker=Lounge` (the names Chromium shows,
+   which are the sinks' descriptions). Chromium hands the link to `/usr/local/bin/kiosk-open-audio` (registered by
+   `kiosk-audio.desktop` and `/etc/xdg/mimeapps.list`; only the app's origin may open it), which runs
+   `node kiosk-audio.ts open <link>`. That saves the choice in `~/.local/state/the-max-mix/speakers.json` and links each
+   of Chromium's channels to the same channel of every chosen sink with `pw-link`, before removing its links to other
+   sinks, so the music does not drop out. Links to anything that is not a sink (a level meter) are left alone.
+3. **Keeping it there.** The `kiosk-audio` user unit (`node kiosk-audio.ts watch`) reads the saved choice every 2
+   seconds and routes again when needed, so a stream Chromium opens again, or a speaker that drops off the network and
+   comes back, plays in the right place. If none of the chosen speakers is on the network, nothing changes.
 
-## API
+The link only goes one way, so the app remembers the chosen speakers itself (`maxmix.airplaySpeakers` in its storage).
 
-| Request                                  | Answer                                                                            |
-| ---------------------------------------- | --------------------------------------------------------------------------------- |
-| `GET /v1/airplay`                        | `{"speakers": [{"id", "nodeId", "name", "selected"}], "selected": [], "playing"}` |
-| `PUT /v1/airplay` `{"speakers": ["id"]}` | The same, after routing. `[]` hands the sound back to the default output.         |
+| File             | What it is                                                                       |
+| ---------------- | -------------------------------------------------------------------------------- |
+| `kiosk-audio.ts` | The program: `open <link>` (the link handler) and `watch` (the background unit). |
+| `speakers.ts`    | Reading `kiosk-audio://route` links, the saved choice, and routing to it.        |
+| `pipewire.ts`    | `pw-dump` parsing, the link plan, and running `pw-link`.                         |
 
-`id` is PipeWire's node name, which stays the same when a speaker comes back; `nodeId` is the current numeric id.
-PipeWire being unavailable is a `503`.
+It is TypeScript with Node's standard library only (no npm packages on the Pi): Node runs the `.ts` files directly, so
+Ansible copies them as they are and nothing is built. That needs Node 22.18 or later, so the role installs Node
+`kiosk_nodejs_major` (24, as in `.nvmrc`) from NodeSource's archive, since Debian trixie has Node 20. Its signing key is
+pinned by checksum and unattended upgrades cover it.
 
 ## Security
 
-- It listens on `127.0.0.1` only (`kiosk_audio_port`, 47878; the app has the same number in `src/audio/airplay.ts`).
-- It answers only requests whose `Host` is that address, so a DNS rebinding page cannot reach it under another name.
-- From a browser, only the app's origin (`kiosk_app_origin`) is allowed (CORS). `PUT` needs a JSON body, which makes
-  the browser send a preflight first, so no other site can change the routing blind. The preflight answers Chrome's
-  private network access check, and the Chromium policy `LocalNetworkAccessAllowedForUrls` lets the app's origin reach
-  the loopback address without a prompt.
-- Requests are small (4 KB, at most 16 speakers) and `pw-dump` and `pw-link` are run by absolute path with an argument list; no shell is involved.
-- It runs as the `kiosk` user in that user's systemd session (`/etc/systemd/user/kiosk-audio.service`, started for the
-  kiosk user only), next to the user's PipeWire.
+- Nothing listens on the network. Only the app's origin may open `kiosk-audio://` links (the Chromium policy's
+  `AutoLaunchProtocolsFromOrigins`).
+- The handler accepts only `kiosk-audio://route` with at most 16 speaker names of up to 256 characters, and can only
+  link the browser's stream to existing sinks. `pw-dump` and `pw-link` run by absolute path with an argument list; no
+  shell is involved.
+- Everything runs as the `kiosk` user, next to that user's PipeWire.
 
 ## On the device
 
 - `systemctl --user -M kiosk@ status kiosk-audio` and `journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service` (as root).
-- `curl -s http://127.0.0.1:47878/v1/airplay` lists the speakers; `wpctl status` shows the same sinks.
+- `wpctl status` lists the AirPlay sinks; `pw-link -l` shows where Chromium's stream goes.
+- As the kiosk user: `kiosk-open-audio 'kiosk-audio://route?speaker=Kitchen'` routes by hand.
 
 ## Tests
 
-The Vitest suite (`npm test`) includes `pi/kiosk-audio/*.test.ts`, with `pw-dump` replies stubbed and the HTTP API
-called over a real loopback socket. It is type-checked and linted with the repository's tooling rules (`tsconfig.node.json`).
-Run it by hand with `node pi/kiosk-audio/kiosk-audio.ts --port 47878 --origin http://127.0.0.1:5173`.
+The Vitest suite (`npm test`) includes `pi/kiosk-audio/*.test.ts`, with `pw-dump` replies stubbed. It is type-checked
+and linted with the repository's tooling rules (`tsconfig.node.json`).

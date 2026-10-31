@@ -1,8 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
-import { dump, KITCHEN, link, LOUNGE, silence } from './fixtures.ts';
+import { dump, link, silence } from './fixtures.ts';
 import {
-  isAirPlay,
   isEmptyPlan,
   pairPorts,
   parseDump,
@@ -12,8 +11,7 @@ import {
   playersOf,
   PW_DUMP,
   PW_LINK,
-  runCommand,
-  speakersOf
+  runCommand
 } from './pipewire.ts';
 import type { Node, Port, Run } from './pipewire.ts';
 
@@ -43,8 +41,7 @@ const stub = (replies: Record<string, { code: number; stderr?: string; stdout?: 
 const planWith = (links: unknown[], speakers: string[]) => planRoutes(parseDump(dump([], links)), speakers);
 
 describe('parseDump', () => {
-  it('reads the speakers, the players and the default sink', () => {
-    expect(speakersOf(GRAPH).map(node => node.description)).toEqual(['Kitchen', 'lounge']);
+  it('reads the players and the default sink', () => {
     expect(playersOf(GRAPH).map(node => node.id)).toEqual([70]);
     expect(GRAPH.defaultSink).toBe('alsa_output.hdmi');
     expect(GRAPH.links).toHaveLength(3);
@@ -65,9 +62,9 @@ describe('parseDump', () => {
     expect(() => parseDump('{}')).toThrow(PipeWireError);
   });
 
-  it('only counts RAOP sinks as speakers, by a raop. property or by name', () => {
-    expect(isAirPlay(nodeAt(40))).toBe(false);
-    expect(isAirPlay(nodeAt(60))).toBe(true);
+  it("keeps each node's description, the name Chromium shows for it", () => {
+    expect(nodeAt(50).description).toBe('Kitchen');
+    expect(nodeAt(40).description).toBe('Built-in Audio');
   });
 
   it('only counts browser streams as players', () => {
@@ -82,8 +79,8 @@ describe('parseDump', () => {
 });
 
 describe('planRoutes', () => {
-  it('routes to every chosen speaker and off the local output', () => {
-    const plan = planRoutes(GRAPH, [KITCHEN, LOUNGE]);
+  it('routes to every chosen speaker, by description, and off the local output', () => {
+    const plan = planRoutes(GRAPH, ['Kitchen', 'Lounge']);
     expect(plan.connect).toEqual([
       [71, 51],
       [71, 61],
@@ -95,12 +92,12 @@ describe('planRoutes', () => {
   });
 
   it('has nothing to do once routed', () => {
-    const plan = planWith([link(83, 71, 51), link(84, 72, 52)], [KITCHEN]);
+    const plan = planWith([link(83, 71, 51), link(84, 72, 52)], ['Kitchen']);
     expect(isEmptyPlan(plan)).toBe(true);
   });
 
   it('drops a speaker that is no longer chosen', () => {
-    const plan = planWith([link(83, 71, 51), link(84, 72, 52), link(85, 71, 61), link(86, 72, 62)], [LOUNGE]);
+    const plan = planWith([link(83, 71, 51), link(84, 72, 52), link(85, 71, 61), link(86, 72, 62)], ['Lounge']);
     expect(plan).toEqual({ connect: [], disconnect: [83, 84] });
   });
 
@@ -116,7 +113,7 @@ describe('planRoutes', () => {
   });
 
   it('leaves the music alone when no chosen speaker is on the network', () => {
-    expect(isEmptyPlan(planRoutes(GRAPH, ['raop_sink.Gone']))).toBe(true);
+    expect(isEmptyPlan(planRoutes(GRAPH, ['Gone']))).toBe(true);
   });
 });
 
@@ -149,7 +146,7 @@ describe('PipeWire', () => {
   it('reads the graph with pw-dump', async () => {
     const run = stub({ [PW_DUMP]: { code: 0, stdout: dump() } });
     const graph = await new PipeWire(run).graph();
-    expect(speakersOf(graph)).toHaveLength(2);
+    expect(playersOf(graph)).toHaveLength(1);
     expect(run).toHaveBeenCalledWith([PW_DUMP, '--no-colors']);
   });
 

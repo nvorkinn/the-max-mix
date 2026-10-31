@@ -2,9 +2,6 @@
 // local output, with a level meter (90) also listening to Chromium.
 import { vi } from 'vitest';
 
-export const KITCHEN = 'raop_sink.Kitchen.local.192.168.1.20.7000';
-export const LOUNGE = 'raop_sink.Lounge.local.192.168.1.21.7000';
-
 const node = (id: number, name: string, mediaClass: string, props: Record<string, unknown> = {}) => ({
   id,
   type: 'PipeWire:Interface:Node',
@@ -37,10 +34,13 @@ export function dump(extra: unknown[] = [], links?: unknown[]): string {
     port(41, 40, 'input', 'FL'),
     port(42, 40, 'input', 'FR'),
     port(43, 40, 'output', 'FL', true),
-    node(50, KITCHEN, 'Audio/Sink', { 'node.description': 'Kitchen', 'raop.hostname': 'Kitchen.local' }),
+    node(50, 'raop_sink.Kitchen.local.7000', 'Audio/Sink', {
+      'node.description': 'Kitchen',
+      'raop.hostname': 'Kitchen.local'
+    }),
     port(51, 50, 'input', 'FL'),
     port(52, 50, 'input', 'FR'),
-    node(60, LOUNGE, 'Audio/Sink', { 'node.description': 'lounge' }),
+    node(60, 'raop_sink.Lounge.local.7000', 'Audio/Sink', { 'node.description': 'Lounge' }),
     port(61, 60, 'input', 'FL'),
     port(62, 60, 'input', 'FR'),
     node(70, 'Chromium', 'Stream/Output/Audio', {
