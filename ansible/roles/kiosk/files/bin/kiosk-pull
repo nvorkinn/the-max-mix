@@ -4,7 +4,17 @@
 # latest GitHub release: the tag github.com/<owner>/<repo>/releases/latest redirects to, so no API call, token or JSON is
 # involved. Any other REF (a tag such as v1.12.0, or a branch for testing) is pulled as it is. Run by kiosk-pull.service
 # (with --only-if-changed) and, on the first boot, by cloud-init's kiosk-first-pull.
+#
+# Progress goes to $KIOSK_UPDATE_STATUS (one key=value per line), which kiosk-update-status serves to the app's settings:
+#   state    checking | downloading | installing | up-to-date | installed | restart-needed | failed
+#   ref      the release tag (or ref) being pulled, once known
+#   commit   the commit the playbook ran from, at the end
+#   started  updated   when this run started, and when the status last changed (seconds since the epoch)
+#   step     total     the playbook task being run, and how many tasks the last complete run had (0 when unknown)
+#   detail   the task's name while installing, the reason when failed
+# Writing the status never stops an update.
 set -euo pipefail
+shopt -s lastpipe
 
 if (($# < 3)); then
   echo "usage: $0 REPO_URL REF DIRECTORY [ansible-pull options...]" >&2
@@ -15,16 +25,119 @@ ref=$2
 directory=$3
 shift 3
 
+status_file=${KIOSK_UPDATE_STATUS:-/run/kiosk-update/status}
+steps_file=${KIOSK_UPDATE_STEPS:-/var/lib/the-max-mix/update-steps}
+restart_marker=${KIOSK_RESTART_MARKER:-/run/kiosk/restart-needed}
+started=$(date +%s)
+state=checking
+step=0
+total=$(cat "$steps_file" 2> /dev/null || true)
+[[ $total =~ ^[0-9]+$ ]] || total=0
+commit=
+detail=
+
+status() {
+  state=$1
+  detail=${2:-}
+  # One line each, and short: the app shows the detail as it is.
+  detail=${detail//[$'\t\r\n']/ }
+  detail=${detail:0:200}
+  {
+    mkdir -p "${status_file%/*}" &&
+      printf 'state=%s\nref=%s\ncommit=%s\nstarted=%s\nupdated=%s\nstep=%s\ntotal=%s\ndetail=%s\n' "$state" \
+        "${ref#latest}" "$commit" "$started" "$(date +%s)" "$step" "$total" "$detail" > "$status_file.tmp" &&
+      mv -f "$status_file.tmp" "$status_file"
+  } 2> /dev/null || true
+}
+
+# Any exit before a final state was written (a lookup that failed, the service being stopped) is a failure.
+finish() {
+  local code=$?
+  trap - TERM INT
+  case $state in
+    checking | downloading | installing)
+      if [[ $state == installing ]]; then
+        status failed "The update stopped during: $detail"
+      else
+        status failed "The update stopped (exit code $code)."
+      fi
+      ;;
+  esac
+}
+trap finish EXIT
+trap 'exit 143' TERM INT
+
+status checking
 if [[ $ref == latest ]]; then
   releases=${repo%.git}/releases/latest
-  location=$(curl --fail --silent --show-error --max-time 60 --retry 3 --head --output /dev/null \
-    --write-out '%{redirect_url}' "$releases")
+  if ! location=$(curl --fail --silent --show-error --max-time 60 --retry 3 --head --output /dev/null \
+    --write-out '%{redirect_url}' "$releases"); then
+    status failed 'Could not reach GitHub to look up the latest release. Is the Pi online?'
+    exit 1
+  fi
   ref=${location##*/releases/tag/}
   if [[ $location != */releases/tag/* || ! $ref =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
     echo "Could not find the latest release at $releases (got: ${location:-no redirect})" >&2
+    ref=latest
+    status failed 'GitHub did not say which release is the latest.'
     exit 1
   fi
   echo "The latest release is $ref"
 fi
 
-exec ansible-pull --url "$repo" --checkout "$ref" --directory "$directory" "$@" --inventory localhost, ansible/local.yml
+status downloading
+# ansible-pull prints its own progress; follow it line by line, and keep printing it for the journal.
+unchanged=false
+reason=
+follow() {
+  local line
+  while IFS= read -r line; do
+    printf '%s\n' "$line"
+    case $line in
+      'Repository has not changed, quitting.'*) unchanged=true ;;
+      'TASK ['*)
+        step=$((step + 1))
+        reason=
+        line=${line#TASK \[}
+        line=${line%%]*}
+        status installing "${line#kiosk : }"
+        ;;
+      *'FAILED!'* | *'UNREACHABLE!'* | 'ERROR!'* | 'fatal:'*)
+        # Ansible's own reason ("msg": "…") is the most useful part of a failure.
+        if [[ $line =~ \"msg\":\ \"([^\"]*)\" ]]; then reason=${BASH_REMATCH[1]}; else reason=$line; fi
+        ;;
+      *'"msg": "'*)
+        [[ -n $reason && $line =~ \"msg\":\ \"([^\"]*)\" ]] && reason=${BASH_REMATCH[1]}
+        ;;
+    esac
+  done
+}
+
+code=0
+ansible-pull --url "$repo" --checkout "$ref" --directory "$directory" "$@" --inventory localhost, ansible/local.yml 2>&1 |
+  follow || code=$?
+commit=$(git -C "$directory" rev-parse HEAD 2> /dev/null || true)
+
+if ((code != 0)); then
+  if [[ $state == installing ]]; then
+    status failed "${detail}: ${reason:-the step failed}"
+  else
+    status failed "${reason:-Could not download $ref from GitHub.}"
+  fi
+  exit "$code"
+fi
+
+if [[ $unchanged == true ]]; then
+  status up-to-date
+elif ((step == 0)); then
+  # Nothing to install was found, though the checkout moved (only an ansible-pull change can do that).
+  status up-to-date
+else
+  total=$step
+  echo "$total" > "$steps_file" 2> /dev/null || true
+  if [[ -e $restart_marker ]]; then
+    status restart-needed
+  else
+    status installed
+  fi
+fi

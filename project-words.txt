@@ -1,5 +1,15 @@
-# Project dictionary for cspell: product names, hardware and OS terms, and the artist names used by the divas theme.
 # One word per line, case-insensitive. Keep sorted.
+# Project dictionary for cspell: product names, hardware and OS terms, and the artist names used by the divas theme.
+CIDATA
+EUID
+NOPASSWD
+PSK
+SSID
+SSIDs
+VITE
+WPA
+WPA2
+WPA3
 acng
 addedid
 aguilera
@@ -40,7 +50,6 @@ charli
 chpasswd
 chroot
 chvt
-CIDATA
 clairo
 clarkson
 cmdline
@@ -63,10 +72,10 @@ dpms
 dtoverlay
 edid
 eilish
+elif
 endfor
 equalto
 esac
-EUID
 extrabold
 faye
 firstrun
@@ -98,6 +107,7 @@ kioskuser
 knip
 kylie
 labwc
+lastpipe
 lavigne
 libinput
 libpipewire
@@ -142,7 +152,6 @@ nologo
 nonexistent
 nonint
 noninteractive
-NOPASSWD
 noqa
 norah
 nosniff
@@ -172,7 +181,6 @@ polkitd
 poppin
 poweroff
 prerun
-PSK
 publickey
 pwauth
 pwned
@@ -215,8 +223,6 @@ shopt
 sonos
 soundwave
 splitlines
-SSID
-SSIDs
 starboy
 stdin
 stefani
@@ -249,7 +255,6 @@ vars
 venv
 vercel
 virtualkeyboard
-VITE
 waveshare
 wayland
 weeknd
@@ -263,9 +268,6 @@ winehouse
 wireplumber
 wlan
 wlr
-WPA
-WPA2
-WPA3
 wpctl
 writable
 wrongpass

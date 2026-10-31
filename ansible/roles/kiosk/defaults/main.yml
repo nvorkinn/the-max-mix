@@ -136,6 +136,13 @@ kiosk_panel_dir: /opt/the-max-mix/wifi-panel
 # user unit keeps the links in place. kiosk-open-audio and kiosk-audio.desktop name kiosk_audio_dir's default.
 kiosk_audio_src: '{{ playbook_dir }}/../pi/kiosk-audio'
 kiosk_audio_dir: /opt/the-max-mix/kiosk-audio
+
+# The update status (pi/kiosk-update-status): kiosk-pull writes its progress to kiosk_update_status_file, and a small
+# service serves it to the app's settings on the loopback address only. The app asks this port (src/utils/piUpdate.ts).
+kiosk_update_status_src: '{{ playbook_dir }}/../pi/kiosk-update-status'
+kiosk_update_status_dir: /opt/the-max-mix/kiosk-update-status
+kiosk_update_status_file: /run/kiosk-update/status
+kiosk_update_status_port: 7457
 # PipeWire's AirPlay buffer. Shorter means play, pause and skip are heard sooner on the speakers; too short and a busy
 # Wi-Fi network makes them drop out.
 kiosk_raop_latency_ms: 500

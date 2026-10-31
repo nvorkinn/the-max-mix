@@ -50,6 +50,8 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/kiosk-open-wifi /usr/loc
   /usr/local/bin/kiosk-open-power /usr/share/applications/kiosk-power.desktop /usr/local/sbin/kiosk-handover \
   /usr/local/bin/kiosk-display /usr/share/applications/kiosk-display.desktop \
   /etc/systemd/system/kiosk-update-now.service /etc/systemd/system/kiosk-widevine.path \
+  /etc/systemd/system/kiosk-update-status.service /opt/the-max-mix/kiosk-update-status/kiosk-update-status.ts \
+  /opt/the-max-mix/kiosk-update-status/status.ts \
   /etc/systemd/system/kiosk-widevine.service /etc/NetworkManager/conf.d/20-connectivity.conf \
   /etc/tmpfiles.d/kiosk.conf /usr/share/plymouth/themes/the-max-mix/the-max-mix.plymouth \
   /usr/share/icons/blank/cursors/left_ptr /etc/apt/apt.conf.d/52kiosk-unattended-upgrades \
@@ -59,7 +61,7 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/kiosk-open-wifi /usr/loc
   check test -e "$file"
 done
 for unit in kiosk.service kiosk-bluetooth-pair.service bluetooth.service avahi-daemon.service kiosk-pull.timer \
-  kiosk-restart.timer ssh.service kiosk-widevine.path; do
+  kiosk-restart.timer ssh.service kiosk-widevine.path kiosk-update-status.service; do
   check systemctl is-enabled --quiet "$unit"
   # Enabled only: nothing is started with kiosk_enable_only.
   if systemctl is-active --quiet "$unit"; then

@@ -5,6 +5,7 @@
   // Files those do not reach directly (scripts/*.ts) are entries via package.json scripts.
   // ShellCheck and editorconfig-checker are system binaries installed separately (apt/brew/CI download), not npm dependencies.
   // The Pi's audio service is started by its systemd unit (ansible/roles/kiosk/templates/kiosk-audio.service.j2).
-  "entry": ["pi/kiosk-audio/kiosk-audio.ts"],
+  // So is the update status service (kiosk-update-status.service.j2).
+  "entry": ["pi/kiosk-audio/kiosk-audio.ts", "pi/kiosk-update-status/kiosk-update-status.ts"],
   "ignoreBinaries": ["shellcheck", "editorconfig-checker"]
 }

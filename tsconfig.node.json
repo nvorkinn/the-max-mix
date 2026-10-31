@@ -25,5 +25,13 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["scripts/*.ts", "e2e/*.ts", "pi/kiosk-audio/*.ts", "lint-staged.config.ts", "*.config.js", "*.config.mjs"]
+  "include": [
+    "scripts/*.ts",
+    "e2e/*.ts",
+    "pi/kiosk-audio/*.ts",
+    "pi/kiosk-update-status/*.ts",
+    "lint-staged.config.ts",
+    "*.config.js",
+    "*.config.mjs"
+  ]
 }

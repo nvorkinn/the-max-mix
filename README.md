@@ -149,6 +149,9 @@ skipped automatically when there is no `.git` directory or when dev dependencies
    on GitHub, and have **Update now**, **Restart kiosk** and **Reboot Pi** buttons (`kiosk-power://` links). **Update
    now** pulls the latest release at once and restarts the kiosk if anything changed; otherwise a new release reaches the
    Pi within about 6 hours and is fully applied after the next kiosk restart: at 04:30, on a reboot, or with the button.
+   While an update runs, Settings show what it is doing (checking GitHub, downloading, installing step by step with a
+   progress bar, already up to date, installed and waiting for a restart, or failed and why), and each step is also
+   written to the debug console ([pi/kiosk-update-status](pi/kiosk-update-status/README.md)).
    **Screen sleep** sets how long the kiosk's screen stays on without a touch while nothing plays (5 minutes by default,
    or never). It always stays on while music plays, and the tap that wakes it never presses anything.
 5. In Speakers, select THE MAX MIX or an existing Spotify Connect device. Press
@@ -208,7 +211,9 @@ v1.12.0`): the Release workflow deploys the web app to Vercel and, once that has
 - **A failing pull never affects the kiosk.** Nothing depends on `kiosk-pull.service`; a failure is only in the journal
   and the next timer run tries again. A pull never restarts the kiosk either: it leaves a marker when kiosk files changed,
   and `kiosk-restart.timer` restarts the kiosk at 04:30 if the marker is there (a reboot also applies the changes).
-- **Check the last pull:** `journalctl -u kiosk-pull -n 100`, and `systemctl list-timers 'kiosk-*'` for the next runs.
+- **Check the last pull:** the kiosk's Settings and debug console show its progress and result
+  (`/run/kiosk-update/status`, served by `kiosk-update-status.service`); `journalctl -u kiosk-pull -n 100` has the whole
+  output, and `systemctl list-timers 'kiosk-*'` the next runs.
 - **Roll back:** run the Release workflow by hand (Actions > Release > Run workflow) with the earlier tag. It redeploys
   that version of the web app and marks its release as the latest again, and the Pis return to it at their next pull
   (or straight away with **Update now**). Publishing a newer tag later moves everything forward again.

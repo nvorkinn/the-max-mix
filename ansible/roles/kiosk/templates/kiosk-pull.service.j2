@@ -16,6 +16,9 @@ Environment=HOME=/root
 Environment=LC_ALL=C.UTF-8
 Environment=ANSIBLE_NOCOLOR=1
 Environment=GIT_TERMINAL_PROMPT=0
+# Where kiosk-pull writes its progress for the app's settings (kiosk-update-status.service).
+Environment=KIOSK_UPDATE_STATUS={{ kiosk_update_status_file }}
+Environment=KIOSK_RESTART_MARKER={{ kiosk_restart_marker }}
 Nice=10
 IOSchedulingClass=idle
 TimeoutStartSec=30min

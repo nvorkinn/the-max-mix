@@ -266,6 +266,7 @@
     - '{{ kiosk_panel_dir }}'
     - '{{ kiosk_panel_dir }}/qml'
     - '{{ kiosk_audio_dir }}'
+    - '{{ kiosk_update_status_dir }}'
     - /usr/share/applications
     - /usr/share/icons/blank
     - /usr/share/icons/blank/cursors
@@ -351,6 +352,19 @@
     force: true
     follow: false
   notify: Ask for a kiosk restart
+
+# The update progress in the app's settings: kiosk-pull writes it, kiosk-update-status serves it on 127.0.0.1.
+- name: Install the update status service
+  ansible.builtin.copy:
+    src: '{{ kiosk_update_status_src }}/{{ item }}'
+    dest: '{{ kiosk_update_status_dir }}/{{ item }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - kiosk-update-status.ts
+    - status.ts
+  notify: Restart the update status service
 
 - name: Install the kiosk service
   ansible.builtin.template:
@@ -486,6 +500,7 @@
     - kiosk-restart.service
     - kiosk-restart.timer
     - kiosk-update-now.service
+    - kiosk-update-status.service
     - kiosk-widevine.path
     - kiosk-widevine.service
   notify: Reload systemd
@@ -514,12 +529,13 @@
     enabled: true
     state: "{{ 'started' if not kiosk_enable_only else omit }}"
 
-- name: Enable the update timers
+- name: Enable the update timers and the update status
   ansible.builtin.systemd_service:
     name: '{{ item }}'
     enabled: true
     state: "{{ 'started' if not kiosk_enable_only else omit }}"
   loop:
+    - kiosk-update-status.service
     - kiosk-pull.timer
     - kiosk-restart.timer
     - kiosk-widevine.path

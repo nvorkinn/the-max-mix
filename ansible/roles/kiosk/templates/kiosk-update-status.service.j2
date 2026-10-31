@@ -1,0 +1,33 @@
+# {{ ansible_managed }}
+# Serves kiosk-pull's progress ({{ kiosk_update_status_file }}) to the app's settings, so Update now shows what it is
+# doing. Answers only on 127.0.0.1:{{ kiosk_update_status_port }}, only lets {{ kiosk_app_origin }} read the answer, and
+# only reads that file. See pi/kiosk-update-status/README.md.
+[Unit]
+Description=THE MAX MIX update status for the app's settings
+
+[Service]
+ExecStart=/usr/bin/node {{ kiosk_update_status_dir }}/kiosk-update-status.ts
+Environment=KIOSK_UPDATE_STATUS={{ kiosk_update_status_file }}
+Environment=KIOSK_UPDATE_STATUS_PORT={{ kiosk_update_status_port }}
+Environment=KIOSK_APP_ORIGIN={{ kiosk_app_origin }}
+Restart=always
+RestartSec=2
+DynamicUser=yes
+NoNewPrivileges=yes
+LockPersonality=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictAddressFamilies=AF_INET
+IPAddressDeny=any
+IPAddressAllow=localhost
+CapabilityBoundingSet=
+MemoryMax=96M
+
+[Install]
+WantedBy=multi-user.target
