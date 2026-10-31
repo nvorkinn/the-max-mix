@@ -2,7 +2,7 @@
   "//": "The repository tooling and the Pi's audio service (pi/kiosk-audio): scripts, e2e tests and the config files at the root (the Vite and Vitest configs belong to tsconfig.app.json). Node runs the TypeScript scripts directly. Only the ESLint and Stylelint configs are JavaScript, because those tools load them as such; `allowJs` and `checkJs` type-check those through their JSDoc. Used by `tsc -b` and by ESLint's type-aware rules.",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
-    "target": "ES2023",
+    "target": "ES2024",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "allowJs": true,

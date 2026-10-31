@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { resetSpotifyMocks } from '../test/spotifyMocks';
-import { SpotifyApiError } from '../spotify/http';
+import { NETWORK_ERROR_MESSAGE, SpotifyApiError } from '../spotify/http';
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 
 const mocks = await vi.hoisted(async () => {
@@ -194,9 +194,104 @@ describe('useSpotifyPlayer', () => {
     });
     expect(ok).toBe(false);
     expect(result.current.error).toBe('No active device');
-
     act(() => result.current.clearError());
     expect(result.current.error).toBeNull();
+  });
+
+  it.each([
+    [401, 'sign-in'],
+    [403, 'settings'],
+    [404, 'choose-speaker'],
+    [429, 'wait'],
+    [502, 'refresh']
+  ] as const)('offers the appropriate recovery for HTTP %s', async (status, recovery) => {
+    mocks.api.getPlaybackState.mockResolvedValue(playing);
+    mocks.api.next.mockRejectedValue(new SpotifyApiError('Playback rejected', status));
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+    await act(async () => {
+      await result.current.nextTrack();
+    });
+    expect(result.current.problem).toEqual({ message: 'Playback rejected', recovery });
+  });
+
+  it('refreshes without resending a skip whose reply was uncertain', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(playing);
+    mocks.api.next.mockRejectedValueOnce(new Error('Reply lost'));
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+    await act(async () => {
+      await result.current.nextTrack();
+    });
+    expect(result.current.error).toBe('Reply lost');
+    const queueVersion = result.current.queueVersion;
+    await act(async () => {
+      expect(await result.current.retryPlayback()).toBe(true);
+    });
+    expect(mocks.api.next).toHaveBeenCalledOnce();
+    expect(result.current.error).toBeNull();
+    expect(result.current.queueVersion).toBe(queueVersion + 1);
+  });
+
+  it('keeps refresh failures explicit and recovers on a successful retry', async () => {
+    mocks.api.getPlaybackState.mockRejectedValueOnce(new Error('Connection down')).mockResolvedValue(playing);
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.error).toBe('Connection down'));
+    mocks.api.getPlaybackState.mockRejectedValueOnce(new Error('Still down'));
+    await act(async () => {
+      expect(await result.current.retryPlayback()).toBe(false);
+    });
+    expect(result.current.error).toBe('Still down');
+    await act(async () => {
+      expect(await result.current.retryPlayback()).toBe(true);
+    });
+    expect(result.current.error).toBeNull();
+  });
+
+  it('does not retain a network action error after a playback read confirms recovery', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(playing);
+    mocks.api.next.mockRejectedValue(new SpotifyApiError(NETWORK_ERROR_MESSAGE));
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+    await act(async () => {
+      await result.current.nextTrack();
+    });
+    expect(result.current.error).toBe(NETWORK_ERROR_MESSAGE);
+    await act(async () => {
+      await result.current.refreshPlayback();
+    });
+    expect(result.current.error).toBeNull();
+  });
+
+  it('respects Retry-After during refreshes and commands, then recovers without resending the failed skip', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      mocks.api.getPlaybackState.mockResolvedValue(playing);
+      mocks.api.next.mockRejectedValueOnce(new SpotifyApiError('Slow down', 429, 30));
+      const { result } = renderHook(() => useSpotifyPlayer());
+      await waitFor(() => expect(result.current.isReady).toBe(true));
+      await act(async () => {
+        await result.current.nextTrack();
+      });
+      const reads = mocks.api.getPlaybackState.mock.calls.length;
+      await act(async () => {
+        expect(await result.current.retryPlayback()).toBe(false);
+      });
+      expect(mocks.api.getPlaybackState).toHaveBeenCalledTimes(reads);
+      expect(result.current.problem?.recovery).toBe('wait');
+      await act(async () => {
+        expect(await result.current.previousTrack()).toBe(false);
+      });
+      expect(mocks.api.previous).not.toHaveBeenCalled();
+      vi.setSystemTime(Date.now() + 30_000);
+      await act(async () => {
+        expect(await result.current.retryPlayback()).toBe(true);
+      });
+      expect(result.current.error).toBeNull();
+      expect(mocks.api.next).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('sends previous, rounds seek and converts volume to a percentage', async () => {

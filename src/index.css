@@ -349,9 +349,13 @@
 }
 .track-details {
   padding: 16px 0 10px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .track-copy {
   min-width: 0;
+  min-height: 32px;
   max-height: 20dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -377,6 +381,7 @@
   color: var(--muted);
   font-size: 12px;
   overflow-wrap: anywhere;
+  flex-shrink: 0;
 }
 .track-credit .guest-avatar {
   width: 19px;
@@ -390,6 +395,44 @@
 }
 .player-controls {
   margin-top: auto;
+  flex-shrink: 0;
+}
+.playback-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 12px;
+}
+.playback-notice p {
+  margin-top: 4px;
+  color: var(--muted);
+}
+.playback-notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.now-playing.has-notice .track-copy {
+  max-height: 12dvh;
+}
+.now-playing.has-notice .album-art {
+  min-height: 60px;
+}
+.queue-status {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.queue-retry {
+  align-self: start;
+  margin-bottom: 8px;
 }
 .range-control {
   appearance: none;
@@ -1050,6 +1093,10 @@ input:disabled {
 }
 
 @media (width <= 1050px) {
+  .playback-notice {
+    flex-direction: column;
+    align-items: stretch;
+  }
   .session-status {
     display: none;
   }
@@ -1101,6 +1148,16 @@ input:disabled {
 }
 
 @media (width <= 760px) {
+  .playback-notice {
+    flex-direction: column;
+    align-items: start;
+  }
+  .now-playing.has-notice .track-copy {
+    max-height: none;
+  }
+  .now-playing.has-notice .album-art {
+    min-height: 0;
+  }
   .tablet-container {
     height: auto;
     min-height: 100dvh;

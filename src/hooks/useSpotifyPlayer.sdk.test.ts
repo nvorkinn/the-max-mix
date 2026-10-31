@@ -6,7 +6,7 @@ import { SpotifyApiError } from '../spotify/http';
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 
 interface SdkOptions {
-  connectResult?: boolean;
+  connectResult?: boolean | Promise<boolean>;
   currentState?: unknown;
 }
 
@@ -159,6 +159,49 @@ describe('useSpotifyPlayer browser playback', () => {
     expect(result.current.error).toBeNull();
   });
 
+  it('allows browser audio from a gesture without moving or toggling playback', async () => {
+    const { result, player, emit } = await ready();
+    emit('autoplay_failed');
+    expect(result.current.problem?.recovery).toBe('enable-audio');
+    await act(async () => {
+      expect(await result.current.allowBrowserAudio()).toBe(true);
+    });
+    expect(player.activateElement).toHaveBeenCalledOnce();
+    expect(player.togglePlay).not.toHaveBeenCalled();
+    expect(mocks.api.transferPlayback).not.toHaveBeenCalled();
+    expect(result.current.error).toBeNull();
+  });
+
+  it('keeps audio activation failures visible', async () => {
+    const { result, player } = await ready();
+    player.activateElement.mockRejectedValueOnce(new Error('Audio blocked'));
+    await act(async () => {
+      expect(await result.current.allowBrowserAudio()).toBe(false);
+    });
+    expect(result.current.problem).toEqual({ message: 'Audio blocked', recovery: 'enable-audio' });
+  });
+
+  it('reconnects the browser player without taking over Spotify playback', async () => {
+    const fake = makeSdk();
+    sdk.loadSpotifySDK.mockResolvedValue({ Player: fake.Player });
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(fake.players).toHaveLength(1));
+    const first = defined(fake.players[0]);
+    act(() => defined(first.listeners['ready'])({ device_id: 'web-1' }));
+    act(() => defined(first.listeners['not_ready'])());
+    expect(result.current.problem?.recovery).toBe('reconnect');
+    act(() => result.current.reconnectPlayer());
+    await waitFor(() => expect(fake.players).toHaveLength(2));
+    expect(first.disconnect).toHaveBeenCalledOnce();
+    expect(result.current.isConnecting).toBe(true);
+    const second = defined(fake.players[1]);
+    act(() => defined(second.listeners['ready'])({ device_id: 'web-2' }));
+    expect(result.current.browserDeviceId).toBe('web-2');
+    expect(result.current.isConnecting).toBe(false);
+    expect(mocks.api.transferPlayback).not.toHaveBeenCalled();
+    expect(mocks.api.play).not.toHaveBeenCalled();
+  });
+
   it('disconnects the player on unmount', async () => {
     const { unmount, player } = await connect();
     unmount();
@@ -175,6 +218,28 @@ describe('useSpotifyPlayer browser playback', () => {
     sdk.loadSpotifySDK.mockRejectedValue(new Error('SDK blocked'));
     const second = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(second.result.current.error).toBe('SDK blocked'));
+  });
+
+  it('ends a browser connection attempt that never answers', async () => {
+    vi.useFakeTimers();
+    const fake = makeSdk({ connectResult: new Promise<boolean>(() => {}) });
+    sdk.loadSpotifySDK.mockResolvedValue({ Player: fake.Player });
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.isConnecting).toBe(true);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8000);
+    });
+    expect(result.current.isConnecting).toBe(false);
+    expect(result.current.problem?.recovery).toBe('reconnect');
+    expect(result.current.error).toBe('The tablet player did not connect. Try reconnecting.');
+    const player = defined(fake.players[0]);
+    expect(player.disconnect).toHaveBeenCalledOnce();
+    act(() => defined(player.listeners['ready'])({ device_id: 'late-player' }));
+    expect(result.current.browserDeviceId).toBeNull();
+    expect(result.current.problem?.recovery).toBe('reconnect');
   });
 
   it('does not load the SDK in remote playback mode, in demo mode or when signed out', async () => {

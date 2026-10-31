@@ -7,6 +7,7 @@ import type { Track } from '../types';
 import { Artwork, GuestAvatar } from './TrackImages';
 
 const EMPTY_QUEUE: Track[] = [];
+export type QueueStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 interface TrackQueueProps {
   queue?: Track[];
@@ -15,6 +16,10 @@ interface TrackQueueProps {
   theme?: string;
   isDemoMode?: boolean;
   error?: string | null;
+  status?: QueueStatus;
+  onRetry?: () => void;
+  onConnect?: () => void;
+  retryAllowed?: boolean;
 }
 
 export default function TrackQueue({
@@ -23,7 +28,11 @@ export default function TrackQueue({
   onPlaySongNow,
   theme = 'neon',
   isDemoMode = false,
-  error
+  error,
+  status = 'ready',
+  onRetry,
+  onConnect,
+  retryAllowed = true
 }: Readonly<TrackQueueProps>) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
@@ -90,13 +99,56 @@ export default function TrackQueue({
   };
 
   const totalMinutes = Math.round(queue.reduce((sum, track) => sum + (track.duration_ms || 0), 0) / 60_000);
+  const showCount = queue.length > 0 || (status === 'ready' && !error);
+  let retryLabel = 'Waiting to retry...';
+  if (status === 'loading') retryLabel = 'Retrying...';
+  else if (retryAllowed) retryLabel = 'Retry queue';
+  const emptyState = () => {
+    switch (status) {
+      case 'loading': {
+        return (
+          <div className="queue-empty" role="status">
+            <p>Loading queue...</p>
+          </div>
+        );
+      }
+      case 'idle': {
+        return (
+          <div className="queue-empty">
+            <h3>Connect Spotify to see the queue.</h3>
+            {onConnect && (
+              <button type="button" className="button button-secondary" onClick={onConnect}>
+                Connect Spotify
+              </button>
+            )}
+          </div>
+        );
+      }
+      default:
+    }
+    if (status === 'error' || error) {
+      return (
+        <div className="queue-empty">
+          <h3>Queue unavailable.</h3>
+          <p>The queue could not be loaded.</p>
+        </div>
+      );
+    }
+    return (
+      <div className="queue-empty">
+        <div className="empty-record">
+          <Disc3 size={32} strokeWidth={1} />
+        </div>
+        <h3>A little quiet in here.</h3>
+        <p>Add a track in Spotify.</p>
+      </div>
+    );
+  };
 
   return (
     <div className="queue-panel">
       <div className="queue-heading">
-        <h2>
-          Up next<span className="queue-count">{String(queue.length).padStart(2, '0')}</span>
-        </h2>
+        <h2>Up next{showCount && <span className="queue-count">{String(queue.length).padStart(2, '0')}</span>}</h2>
       </div>
 
       {error && (
@@ -104,19 +156,29 @@ export default function TrackQueue({
           {error}
         </p>
       )}
+      {status === 'loading' && queue.length > 0 && (
+        <p className="queue-status" role="status">
+          Updating queue...
+        </p>
+      )}
+      {error && queue.length > 0 && <p className="queue-status">Showing the last known queue.</p>}
+      {(status === 'error' || error) && onRetry && (
+        <button
+          type="button"
+          className="button button-secondary queue-retry"
+          disabled={status === 'loading' || !retryAllowed}
+          onClick={onRetry}
+        >
+          {retryLabel}
+        </button>
+      )}
       <div className="queue-columns" aria-hidden="true">
         <span>#</span>
         <span>TRACK / ARTIST</span>
         <span>{isDemoMode ? 'DEMO GUEST' : 'IN SPOTIFY'}</span>
       </div>
       {queue.length === 0 ? (
-        <div className="queue-empty">
-          <div className="empty-record">
-            <Disc3 size={32} strokeWidth={1} />
-          </div>
-          <h3>A little quiet in here.</h3>
-          <p>Add a track in Spotify.</p>
-        </div>
+        emptyState()
       ) : (
         <div ref={listRef} className="queue-list" role="list" aria-label="Track queue">
           {queue.map((track, idx) => {
@@ -204,21 +266,24 @@ export default function TrackQueue({
         </div>
       )}
 
-      <div className="queue-footer">
-        <span id="queue-reorder-help">
-          {isDemoMode ? (
-            <>
-              Reorder demo tracks<span className="sr-only"> with a drag handle or its up and down arrow keys.</span>
-            </>
-          ) : (
-            'Reorder and manage tracks in Spotify'
-          )}
-        </span>
-        <span>
-          {queue.length} {queue.length === 1 ? 'track' : 'tracks'}
-          {totalMinutes > 0 ? ` / ${totalMinutes} min` : ''}
-        </span>
-      </div>
+      {showCount && (
+        <div className="queue-footer">
+          <span id="queue-reorder-help">
+            {isDemoMode ? (
+              <>
+                Reorder demo tracks<span className="sr-only"> with a drag handle or its up and down arrow keys.</span>
+              </>
+            ) : (
+              'Reorder and manage tracks in Spotify'
+            )}
+          </span>
+          <span>
+            {queue.length} {queue.length === 1 ? 'track' : 'tracks'}
+            {status !== 'ready' || error ? ' last known' : ''}
+            {totalMinutes > 0 ? ` / ${totalMinutes} min` : ''}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

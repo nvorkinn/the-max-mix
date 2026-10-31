@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, AudioLines, Speaker } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { getDivaForUser } from '../utils/divas';
 import type { PlayerControls } from '../types';
 import { Artwork, GuestAvatar } from './TrackImages';
@@ -9,6 +9,7 @@ type AlbumArtPlayerProps = Readonly<PlayerControls> & {
   theme?: string;
   isDemoMode?: boolean;
   controlsEnabled?: boolean;
+  notice?: ReactNode;
 };
 
 export default function AlbumArtPlayer({
@@ -21,7 +22,8 @@ export default function AlbumArtPlayer({
   onVolumeChange,
   theme = 'neon',
   isDemoMode = false,
-  controlsEnabled = false
+  controlsEnabled = false,
+  notice
 }: AlbumArtPlayerProps) {
   // Local slider value, reset whenever the device reports a different volume (adjusted during render, not in an effect).
   const deviceVolume = playback?.device?.volume_percent ?? 0;
@@ -34,14 +36,15 @@ export default function AlbumArtPlayer({
   const volumeEnabled =
     controlsEnabled && playback?.device?.supports_volume !== false && playback?.device?.volume_percent != null;
   const item = playback?.item ?? playback?.track_window?.current_track ?? {};
+  const hasTrack = Boolean(item.id || item.uri || item.name || item.title);
   const title = item.name || item.title || 'Ready when you are';
   const artist = item.artists
     ? item.artists.map(a => a.name).join(', ')
     : item.artist || 'Choose your next favourite in Spotify';
   const albumArt = item.album?.images?.[0]?.url || item.albumArt;
-  const progressMs = playback?.progress_ms ?? playback?.position ?? 0;
-  const durationMs = item.duration_ms || playback?.duration || 180_000;
-  const progressPercent = Math.min(100, Math.max(0, (progressMs / durationMs) * 100));
+  const progressMs = hasTrack ? (playback?.progress_ms ?? playback?.position ?? 0) : 0;
+  const durationMs = hasTrack ? item.duration_ms || playback?.duration || 0 : 0;
+  const progressPercent = durationMs > 0 ? Math.min(100, Math.max(0, (progressMs / durationMs) * 100)) : 0;
   const rawAddedBy = item.added_by ?? item.addedBy ?? {};
   const guestName = isDemoMode ? rawAddedBy.name : null;
   const assignedDiva = getDivaForUser(guestName || '', 0, theme);
@@ -51,9 +54,13 @@ export default function AlbumArtPlayer({
     const seconds = Math.floor(ms / 1000);
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   };
+  const elapsedTime = hasTrack ? formatTime(progressMs) : '--:--';
+  const totalTime = durationMs > 0 ? formatTime(durationMs) : '--:--';
+  let playbackLabel = 'No track playing';
+  if (hasTrack) playbackLabel = isPlaying ? 'Playing' : 'Paused';
 
   return (
-    <div className="now-playing">
+    <div className={`now-playing${notice ? 'has-notice' : ''}`}>
       <div className="player-heading">
         <span className="eyebrow">
           <AudioLines size={14} /> Now playing
@@ -90,22 +97,23 @@ export default function AlbumArtPlayer({
       </div>
 
       <div className="player-controls">
+        {notice}
         <div className="seek-control">
           <input
             type="range"
-            disabled={!controlsEnabled || !item.duration_ms || playback?.actions?.disallows?.seeking}
+            disabled={!controlsEnabled || durationMs <= 0 || playback?.actions?.disallows?.seeking}
             min="0"
-            max={durationMs}
+            max={durationMs || 1}
             value={Math.min(progressMs, durationMs)}
             onChange={e => onSeek(Number(e.target.value))}
             aria-label="Playback position"
-            aria-valuetext={`${formatTime(progressMs)} of ${formatTime(durationMs)}`}
+            aria-valuetext={durationMs > 0 ? `${elapsedTime} of ${totalTime}` : 'Playback time unavailable'}
             className="range-control seek-range"
             style={{ '--range-progress': `${progressPercent}%` } as CSSProperties}
           />
           <div className="track-times">
-            <span>{formatTime(progressMs)}</span>
-            <span>{formatTime(durationMs)}</span>
+            <span>{elapsedTime}</span>
+            <span>{totalTime}</span>
           </div>
         </div>
         <div className="transport-row">
@@ -130,7 +138,7 @@ export default function AlbumArtPlayer({
           <div className="transport-buttons">
             <button
               type="button"
-              disabled={!controlsEnabled || playback?.actions?.disallows?.skipping_prev}
+              disabled={!controlsEnabled || !hasTrack || playback?.actions?.disallows?.skipping_prev}
               className="transport-skip"
               onClick={onPrevious}
               aria-label="Previous track"
@@ -151,7 +159,7 @@ export default function AlbumArtPlayer({
             </button>
             <button
               type="button"
-              disabled={!controlsEnabled || playback?.actions?.disallows?.skipping_next}
+              disabled={!controlsEnabled || !hasTrack || playback?.actions?.disallows?.skipping_next}
               className="transport-skip"
               onClick={onNext}
               aria-label="Next track"
@@ -160,12 +168,12 @@ export default function AlbumArtPlayer({
             </button>
           </div>
           <span className="transport-status">
-            <span className={`playback-equalizer ${isPlaying ? 'is-playing' : ''}`} aria-hidden="true">
+            <span className={`playback-equalizer ${isPlaying && hasTrack ? 'is-playing' : ''}`} aria-hidden="true">
               <i />
               <i />
               <i />
             </span>
-            {isPlaying ? 'Playing' : 'Paused'}
+            {playbackLabel}
           </span>
         </div>
       </div>

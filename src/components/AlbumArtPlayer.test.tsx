@@ -44,9 +44,13 @@ describe('AlbumArtPlayer', () => {
     setup({ playback: null, isPlaying: false });
     expect(screen.getByRole('heading', { name: 'Ready when you are' })).toBeInTheDocument();
     expect(screen.getByText('Select a device in Speakers')).toBeInTheDocument();
-    expect(screen.getByText('0:00')).toBeInTheDocument();
-    expect(screen.getByText('3:00')).toBeInTheDocument();
-    expect(screen.getByText('Paused')).toBeInTheDocument();
+    expect(screen.getAllByText('--:--')).toHaveLength(2);
+    expect(screen.queryByText('3:00')).not.toBeInTheDocument();
+    expect(screen.getByText('No track playing')).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Playback position' })).toHaveAttribute(
+      'aria-valuetext',
+      'Playback time unavailable'
+    );
   });
 
   it('wires transport buttons and toggles the play label', () => {
@@ -114,6 +118,14 @@ describe('AlbumArtPlayer', () => {
   it('clamps progress past the end of the track', () => {
     setup({ playback: { ...playback, progress_ms: 999_999 } });
     expect(screen.getByRole('slider', { name: 'Playback position' })).toHaveValue('200000');
+  });
+
+  it('does not invent a duration for a known track with missing timing data', () => {
+    setup({ playback: { ...playback, item: { name: 'Untimed track', artists: [{ name: 'Artist' }] } } });
+    expect(screen.getByText('1:05')).toBeInTheDocument();
+    expect(screen.getByText('--:--')).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Playback position' })).toBeDisabled();
+    expect(screen.queryByText('3:00')).not.toBeInTheDocument();
   });
 
   it.each([true, false])('keeps artwork static and decoration separate from metadata (playing: %s)', isPlaying => {
@@ -196,6 +208,29 @@ describe('TrackQueue', () => {
   it('shows an error alert', () => {
     setupQueue({ error: 'Queue unavailable' });
     expect(screen.getByRole('alert')).toHaveTextContent('Queue unavailable');
+  });
+
+  it.each(['loading', 'idle', 'error'] as const)('does not claim an empty queue or count while %s', status => {
+    render(<TrackQueue queue={[]} status={status} />);
+    expect(screen.queryByText('A little quiet in here.')).not.toBeInTheDocument();
+    expect(screen.queryByText('0 tracks')).not.toBeInTheDocument();
+    expect(document.querySelector('.queue-count')).not.toBeInTheDocument();
+  });
+
+  it('labels stale results and allows a queue retry', () => {
+    const retry = vi.fn();
+    setupQueue({ status: 'error', error: 'Queue unavailable', onRetry: retry });
+    expect(screen.getByText('Showing the last known queue.')).toBeInTheDocument();
+    expect(screen.getByText('3 tracks last known / 3 min')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry queue' }));
+    expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it('does not allow a retry while Spotify asks it to wait', () => {
+    const retry = vi.fn();
+    setupQueue({ status: 'error', error: 'Slow down', onRetry: retry, retryAllowed: false });
+    fireEvent.click(screen.getByRole('button', { name: 'Waiting to retry...' }));
+    expect(retry).not.toHaveBeenCalled();
   });
 
   it('plays a demo track immediately', () => {
