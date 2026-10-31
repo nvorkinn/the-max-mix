@@ -23,12 +23,12 @@ alone does not make DRM available.
 
 ### How playback is controlled
 
-In browser mode (the default) this page is the speaker: it registers a Spotify Connect device called "THE MAX MIX"
+In browser mode (the default) this page is the speaker: it registers a Spotify Connect device called "The Max Mix"
 with the Web Playback SDK and drives it directly. The SDK reports every change as an event, so while this page is the
 player there is no polling: the play/pause button, progress and track follow the events at once. A slow safety-net
 refresh from the Web API catches anything missed. The first Play press makes it the active device (pressing, not
 loading the page, so it never takes over what is playing elsewhere). If you pick another device under Speakers (or
-choose remote mode in Settings), the page is that device's remote and polls the Web API until you pick "THE MAX MIX"
+choose remote mode in Settings), the page is that device's remote and polls the Web API until you pick "The Max Mix"
 again. Browsers only start audio after a click, so the very first Play press is also what unlocks sound.
 
 On the Pi kiosk, Speakers also switches between two playback modes. **Spotify Connect** is the above: the tablet plays,

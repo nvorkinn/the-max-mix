@@ -98,7 +98,7 @@ const playbackCalls = () => mocks.api.getPlaybackState.mock.calls.length;
 describe('useSpotifyPlayer browser playback', () => {
   it('registers a Web Playback device and exposes its id', async () => {
     const { result, player, emit } = await connect();
-    expect(player.options.name).toBe('THE MAX MIX');
+    expect(player.options.name).toBe('The Max Mix');
     emit('ready', { device_id: 'web-1' });
     expect(result.current.browserDeviceId).toBe('web-1');
   });
