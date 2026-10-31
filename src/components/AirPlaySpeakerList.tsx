@@ -11,7 +11,7 @@ import { errorMessage } from '../utils/errorMessage';
 
 /**
  * The audio outputs Chromium sees (the Pi makes one for each AirPlay speaker it finds). Each tap adds or removes one,
- * and every chosen speaker plays at once.
+ * requesting a route to the chosen speakers. Chromium cannot confirm playback on that route.
  */
 export default function AirPlaySpeakerList({ isPlayerReady }: Readonly<{ isPlayerReady: boolean }>) {
   const [outputs, setOutputs] = useState<string[] | null>(null);
@@ -44,7 +44,8 @@ export default function AirPlaySpeakerList({ isPlayerReady }: Readonly<{ isPlaye
   return (
     <div className="mt-4 space-y-2">
       <p className="text-xs text-muted">
-        This tablet plays, and the sound goes to every speaker you pick. Tap a speaker to add or remove it.
+        Tap a speaker to add or remove it from this tablet&apos;s audio route. Selection requests routing; this screen
+        cannot confirm sound is playing there.
       </p>
       {!isPlayerReady && (
         <p role="status" className="text-xs status-warning">
@@ -64,7 +65,9 @@ export default function AirPlaySpeakerList({ isPlayerReady }: Readonly<{ isPlaye
       )}
       {names.map(name => {
         const isChosen = chosen.includes(name);
-        const isPresent = outputs?.includes(name) ?? false;
+        let availability = 'Checking availability';
+        if (error) availability = 'Availability unknown';
+        else if (outputs) availability = outputs.includes(name) ? 'Available on this network' : 'Not on the network';
         return (
           <button
             type="button"
@@ -77,11 +80,11 @@ export default function AirPlaySpeakerList({ isPlayerReady }: Readonly<{ isPlaye
             <Speaker size={20} className="shrink-0 text-accent" />
             <span className="flex-1 min-w-0">
               <span className="block text-sm truncate">{name}</span>
-              {!isPresent && <span className="text-[11px] text-muted">Not on the network</span>}
+              <span className="text-[11px] text-muted">{availability}</span>
             </span>
             {isChosen && (
               <span className="text-xs text-accent flex items-center gap-1">
-                <Check size={14} /> Playing here
+                <Check size={14} /> Selected
               </span>
             )}
           </button>
