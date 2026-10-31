@@ -28,6 +28,7 @@ function fakes(overrides: Partial<Deps> = {}) {
       performed.push(action);
       return Promise.resolve();
     },
+    updateStatus: () => Promise.resolve({ state: 'running', lines: ['TASK [kiosk]'], total: 1 }),
     ...overrides
   };
   return { deps, performed, routed };
@@ -67,6 +68,14 @@ describe('GET /speakers', () => {
   it('says when PipeWire cannot be read', async () => {
     const base = await start(fakes({ graph: () => Promise.reject(new Error('no PipeWire')) }).deps);
     expect((await fetch(`${base}/speakers`)).status).toBe(503);
+  });
+});
+
+describe('GET /update/status', () => {
+  it('tells the app how the update is going', async () => {
+    const base = await start(fakes().deps);
+    const response = await fetch(`${base}/update/status`);
+    await expect(response.json()).resolves.toEqual({ state: 'running', lines: ['TASK [kiosk]'], total: 1 });
   });
 });
 

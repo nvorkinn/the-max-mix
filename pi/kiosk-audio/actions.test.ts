@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { perform } from './actions.ts';
+import { perform, updateStatus } from './actions.ts';
 
 describe('perform', () => {
   let directory: string;
@@ -51,5 +51,39 @@ describe('perform', () => {
     await perform('wifi', vi.fn(), files);
     await expect(readFile(files.flag, 'utf8')).resolves.toBe('');
     expect(terminate).not.toHaveBeenCalled();
+  });
+});
+
+const unit = (active: string, result: string) => () => Promise.resolve(`ActiveState=${active}\nResult=${result}\n`);
+
+describe('updateStatus', () => {
+  let directory: string;
+  let log: string;
+  beforeEach(async () => {
+    directory = await mkdtemp(path.join(tmpdir(), 'kiosk-update-'));
+    log = path.join(directory, 'update.log');
+  });
+  afterEach(async () => {
+    await rm(directory, { recursive: true, force: true });
+  });
+
+  it('is idle until an update is asked for, whatever the unit last did', async () => {
+    await expect(updateStatus(unit('inactive', 'exit-code'), log, false)).resolves.toEqual({
+      state: 'idle',
+      lines: [],
+      total: 0
+    });
+  });
+
+  it('follows the update: running with the last lines, then done or failed', async () => {
+    const numbered = Array.from({ length: 25 }, (_, index) => `line ${index + 1}`);
+    await writeFile(log, `${numbered.join('\n')}\n\n`);
+    const running = await updateStatus(unit('activating', 'success'), log, true);
+    expect(running.state).toBe('running');
+    expect(running.total).toBe(25);
+    expect(running.lines).toHaveLength(20);
+    expect(running.lines.at(-1)).toBe('line 25');
+    expect((await updateStatus(unit('inactive', 'success'), log, true)).state).toBe('done');
+    expect((await updateStatus(unit('failed', 'exit-code'), log, true)).state).toBe('failed');
   });
 });

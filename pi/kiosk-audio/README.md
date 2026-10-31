@@ -36,13 +36,14 @@ The service does not report the chosen speakers, so the app remembers them itsel
 
 ## The requests
 
-| Request                                                 | What it does                                           |
-| ------------------------------------------------------- | ------------------------------------------------------ |
-| `GET /speakers`                                         | `{"speakers": [...]}`, the AirPlay sinks, sorted       |
-| `POST /audio/route`                                     | Routes the sound to the speakers in the JSON body      |
-| `POST /power/update`, `/power/restart`, `/power/reboot` | Pulls the playbook now; restarts the kiosk; reboots    |
-| `POST /display/wake`                                    | Turns the screen on (`kiosk-display on`)               |
-| `POST /wifi`                                            | Shows the Wi-Fi panel (flag file, then stops Chromium) |
+| Request                                                 | What it does                                                                                                                                   |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /speakers`                                         | `{"speakers": [...]}`, the AirPlay sinks, sorted                                                                                               |
+| `GET /update/status`                                    | `{"state", "lines", "total"}`: how Update now is going, from the unit and `/run/kiosk/update.log` (the pull's output, written by `kiosk-pull`) |
+| `POST /audio/route`                                     | Routes the sound to the speakers in the JSON body                                                                                              |
+| `POST /power/update`, `/power/restart`, `/power/reboot` | Pulls the playbook now; restarts the kiosk; reboots                                                                                            |
+| `POST /display/wake`                                    | Turns the screen on (`kiosk-display on`)                                                                                                       |
+| `POST /wifi`                                            | Shows the Wi-Fi panel (flag file, then stops Chromium)                                                                                         |
 
 | File             | What it is                                                              |
 | ---------------- | ----------------------------------------------------------------------- |
