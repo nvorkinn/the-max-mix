@@ -14,6 +14,7 @@ const output = (deviceId: string, label: string, kind: MediaDeviceKind = 'audioo
 function stubMediaDevices(devices: MediaDeviceInfo[]) {
   const mediaDevices = {
     enumerateDevices: vi.fn().mockResolvedValue(devices),
+    getUserMedia: vi.fn(),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn()
   };
@@ -21,7 +22,10 @@ function stubMediaDevices(devices: MediaDeviceInfo[]) {
   return mediaDevices;
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  vi.resetModules();
+});
 afterEach(() => vi.unstubAllGlobals());
 
 describe('listAudioOutputs', () => {
@@ -32,10 +36,33 @@ describe('listAudioOutputs', () => {
       output('a', 'Living Room'),
       output('b', 'Kitchen'),
       output('c', 'Kitchen'),
-      output('d', ''),
       output('e', 'Monitor of Kitchen', 'audioinput')
     ]);
     await expect(listAudioOutputs()).resolves.toEqual(['Kitchen', 'Living Room']);
+  });
+
+  it('opens the microphone once, and closes it, when Chromium hides the names', async () => {
+    const { listAudioOutputs: list } = await import('./airplay');
+    const mediaDevices = stubMediaDevices([]);
+    const stop = vi.fn();
+    mediaDevices.enumerateDevices
+      .mockResolvedValueOnce([output('default', ''), output('a', '')])
+      .mockResolvedValue([output('default', 'Default'), output('a', 'Kitchen')]);
+    mediaDevices.getUserMedia.mockResolvedValue({ getTracks: () => [{ stop }] });
+    await expect(list()).resolves.toEqual(['Kitchen']);
+    expect(mediaDevices.getUserMedia).toHaveBeenCalledWith({ audio: true });
+    expect(stop).toHaveBeenCalled();
+    await list();
+    expect(mediaDevices.getUserMedia).toHaveBeenCalledTimes(1);
+  });
+
+  it('says why when the microphone permission fails, and tries again next time', async () => {
+    const { listAudioOutputs: list } = await import('./airplay');
+    const mediaDevices = stubMediaDevices([output('a', '')]);
+    mediaDevices.getUserMedia.mockRejectedValue(new Error('Permission denied'));
+    await expect(list()).rejects.toThrow(/hides the speakers.*Permission denied/);
+    await expect(list()).rejects.toThrow(/Permission denied/);
+    expect(mediaDevices.getUserMedia).toHaveBeenCalledTimes(2);
   });
 
   it('follows outputs appearing and going away', () => {
