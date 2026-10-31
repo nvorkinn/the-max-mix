@@ -62,12 +62,16 @@ jobs:
       # not a valid semantic version.
       - name: Set the version from the tag
         run: npm version "${TAG#v}" --no-git-tag-version --allow-same-version
-      - run: npm ci
-      # Fails the release before anything is deployed if the app does not build. Vercel then builds it again from the same
-      # source with the settings in vercel.json.
-      - run: npm run build
+      # Build on this runner and upload only the finished files (--prebuilt). Without it Vercel downloads the source and
+      # runs npm ci and the build again on its own machine, which took about 90 of the 115 seconds of the deploy.
+      # `vercel build` runs the install and build commands from vercel.json here (npm ci uses the npm cache from
+      # setup-node), so a release that does not build still fails before anything is deployed.
+      - name: Get the Vercel production settings
+        run: npx --yes "$VERCEL_CLI" pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Build
+        run: npx --yes "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
       - name: Deploy to Vercel production
-        run: npx --yes "$VERCEL_CLI" deploy --prod --yes --token="$VERCEL_TOKEN"
+        run: npx --yes "$VERCEL_CLI" deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN"
 
   # A separate job, so that only this step, which runs no code from the repository, can write to it.
   publish:

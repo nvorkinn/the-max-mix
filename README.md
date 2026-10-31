@@ -80,8 +80,9 @@ turns red and links to it. The log lives in memory, keeps the last 200 entries, 
 
 THE MAX MIX is plain static files on [Vercel](https://vercel.com). Production deploys happen only from a release:
 [`release.yml`](.github/workflows/release.yml) runs when a version tag is pushed (or by hand for an existing tag), builds
-the app (`npm ci && npm run build`, with the version set from the tag) and deploys it to Vercel production with the Vercel
-CLI. `vercel.json` turns off Vercel's own deploy of `main` (`git.deploymentEnabled`), so a merge to `main` does not
+the app on the GitHub runner with `vercel build` (`npm ci && npm run build`, with the version set from the tag) and
+uploads only the built files to Vercel production (`vercel deploy --prebuilt`), so Vercel does not install and build it a
+second time. `vercel.json` turns off Vercel's own deploy of `main` (`git.deploymentEnabled`), so a merge to `main` does not
 change production; pull requests still get preview deployments. The build settings, the single-page rewrite and the
 response headers are in [`vercel.json`](vercel.json).
 
