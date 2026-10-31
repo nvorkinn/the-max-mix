@@ -36,6 +36,8 @@ Environment="KIOSK_URL={{ kiosk_url | replace('%', '%%') }}"
 ExecStart=/usr/bin/cage -d -- /usr/local/bin/kiosk-session
 Restart=always
 RestartSec=2
+# Cage or Chromium sometimes ignores the stop signal, and the default wait is 90 seconds with a blank screen.
+TimeoutStopSec=10
 
 [Install]
 WantedBy=multi-user.target
