@@ -4,10 +4,6 @@ A music-first Spotify touchscreen for a Raspberry Pi, including the Waveshare
 7-inch 1024x600 display. Studio and Paper appearances adapt to tablets,
 larger screens, and phones.
 
-Settings > Appearance changes the whole interface, including Settings, Speakers and the Pi's system controls.
-Studio and Paper use matching surfaces, accents and readable status colours; the technical debug console deliberately
-stays dark. Existing saved appearance choices are preserved.
-
 ## What works
 
 - Display the active Spotify track, progress, device, and upcoming queue.
@@ -53,10 +49,6 @@ drag handles, or pretend play-now action. Playing an arbitrary URI can replace
 playback context; this app does not do that under a promise to preserve a Jam
 queue.
 
-`TrackQueue` (`src/components/TrackQueue.tsx`) renders both the read-only live queue and the explicitly simulated demo
-queue. Guest credits, reordering and play-now controls are demo-only. There is no in-app voting or QR guest remote;
-guests manage their contributions in Spotify.
-
 Guests add songs through the Spotify app. This page sees queue changes when the track changes and through the SDK's
 upcoming-tracks list, so a guest add can take a moment to show.
 
@@ -75,17 +67,6 @@ a signed-in web-player cookie (`sp_dc`) and a server to call it, and is against 
 The small waveform is decorative, driven by playback state, not an analysis of
 Spotify's encrypted audio. Canvas animations stop while hidden or idle where
 applicable and respect reduced-motion preferences.
-
-### Touch and accessibility
-
-Playback, queue and dialog controls have touch areas of at least 44x44 CSS pixels, including the sliders and settings
-switches. Secondary text is sized for the 1024x600 kiosk, and browser zoom remains available on phones and computers.
-Settings, Speakers and the debug console keep keyboard focus inside while open. Escape closes the topmost dialog
-and returns focus to its trigger; background controls cannot be activated through an open dialog.
-
-Missing or failed artwork uses a bundled record icon, and failed demo avatars show the guest's initials. These
-placeholders need no network access. Image failures are recorded in the debug log without repeatedly retrying the
-failed URL; changing to another image still loads the new source.
 
 ### Debug console
 
