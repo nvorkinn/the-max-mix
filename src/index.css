@@ -247,6 +247,12 @@
   gap: 28px;
   padding: 24px 30px 18px;
 }
+/* The kiosk's touch screen (?cursor=hidden, see utils/kiosk.ts): no mouse pointer, whatever an element asks for. */
+.hide-cursor,
+.hide-cursor * {
+  cursor: none !important;
+}
+
 .player-section,
 .queue-section {
   min-width: 0;

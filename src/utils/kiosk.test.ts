@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getRedirectUri } from '../spotify/settings';
-import { isKiosk, openWifiSettings, WIFI_SETTINGS_URL } from './kiosk';
+import { hidesCursor, isKiosk, openWifiSettings, WIFI_SETTINGS_URL } from './kiosk';
 
 function visit(search: string) {
   history.replaceState(null, '', `/${search}`);
@@ -77,5 +77,38 @@ describe('isKiosk', () => {
     openWifiSettings();
     expect(WIFI_SETTINGS_URL).toBe('kiosk-wifi://open');
     expect(assign).toHaveBeenCalledWith('kiosk-wifi://open');
+  });
+});
+
+describe('hidesCursor', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    visit('');
+  });
+
+  it('is off by default', () => {
+    expect(hidesCursor()).toBe(false);
+  });
+
+  it('turns on with ?cursor=hidden and is remembered without the query', () => {
+    visit('?kiosk=1&cursor=hidden');
+    expect(hidesCursor()).toBe(true);
+    visit('');
+    expect(hidesCursor()).toBe(true);
+  });
+
+  it('is forgotten with ?cursor=shown', () => {
+    visit('?cursor=hidden');
+    hidesCursor();
+    visit('?cursor=shown');
+    expect(hidesCursor()).toBe(false);
+    visit('');
+    expect(hidesCursor()).toBe(false);
+  });
+
+  it('is independent of the kiosk flag', () => {
+    visit('?kiosk=1');
+    expect(hidesCursor()).toBe(false);
+    expect(isKiosk()).toBe(true);
   });
 });
