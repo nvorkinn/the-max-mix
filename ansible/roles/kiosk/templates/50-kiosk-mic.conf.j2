@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+# A silent microphone. Chromium only tells the page the names of the audio outputs (the AirPlay speakers) once the page
+# has opened a microphone, and the Pi has none: Chromium skips the speakers' monitor sources. The app opens this one for
+# a moment and closes it again; nothing ever records from it.
+context.objects = [
+    {   factory = adapter
+        args = {
+            factory.name = support.null-audio-sink
+            node.name = kiosk-silent-mic
+            node.description = "Silent microphone"
+            media.class = Audio/Source/Virtual
+            audio.position = [ FL FR ]
+        }
+    }
+]
