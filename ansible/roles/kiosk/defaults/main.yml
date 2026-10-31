@@ -26,6 +26,9 @@ kiosk_commit: >-
     | regex_search('^[0-9a-f]{7,40}$') | default('', true) }}
 
 # System settings.
+# The host name pi-gen (pi/image/config) and cloud-init (pi/cloud-init/user-data) give the Pi; the playbook only adds it
+# to /etc/hosts.
+kiosk_hostname: the-max-mix
 kiosk_locale: en_GB.UTF-8
 kiosk_timezone: Europe/London
 kiosk_wifi_country: GB
@@ -144,3 +147,5 @@ kiosk_pull_random_delay: 10min
 # kiosk at this time of day if the marker is there.
 kiosk_restart_time: '04:30'
 kiosk_restart_marker: /run/kiosk/restart-needed
+# Left once the kiosk restarted for its first Widevine download (kiosk-widevine.service); kiosk-handover removes it.
+kiosk_widevine_marker: /var/lib/the-max-mix/widevine-loaded

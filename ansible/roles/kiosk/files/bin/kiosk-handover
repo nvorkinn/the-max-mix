@@ -2,7 +2,8 @@
 # Gets a Pi that was set up on the owner's Wi-Fi (pi/cloud-init/README.md) ready for its new home, then powers it off:
 #   - forgets every Wi-Fi network, with the copies cloud-init left (network-config, its netplan file, its cache);
 #   - turns cloud-init off, so it never applies the setup network again;
-#   - clears what testing left in the kiosk: the Chromium profile (the Spotify login), the chosen speakers, the logs.
+#   - clears what testing left in the kiosk: the Chromium profile (the Spotify login; the downloaded Widevine stays), the
+#     chosen speakers, the logs.
 # At the next start there is no network, so the kiosk shows its Wi-Fi panel. The admin SSH keys and the paired Bluetooth
 # devices stay. Run it over SSH: sudo kiosk-handover [--yes] [--no-poweroff]
 set -euo pipefail
@@ -44,7 +45,11 @@ systemctl stop kiosk.service || true
 echo "Clearing the kiosk's browser profile and state"
 home=$(getent passwd "$kiosk_user" | cut -d: -f6)
 if [[ -n $home && -d $home ]]; then
-  rm -rf "$home/.config/chromium" "$home/.cache/chromium" "$home/.local/state/the-max-mix" "$home/.bash_history"
+  # Everything but the Widevine module Chromium downloaded, so the player works at once in its new home.
+  if [[ -d $home/.config/chromium ]]; then
+    find "$home/.config/chromium" -mindepth 1 -maxdepth 1 ! -name WidevineCdm -exec rm -rf {} +
+  fi
+  rm -rf "$home/.cache/chromium" "$home/.local/state/the-max-mix" "$home/.bash_history"
 fi
 
 echo "Turning cloud-init off and removing its files"

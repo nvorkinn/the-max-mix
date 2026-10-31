@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+# Started by kiosk-widevine.path when Chromium has downloaded Widevine. The first download (a new Pi, or after
+# kiosk-handover cleared the profile) restarts the kiosk at once, so music plays; a later Widevine update waits for the
+# {{ kiosk_restart_time }} restart (kiosk-restart.timer), so it never cuts the music off.
+[Unit]
+Description=Load the Widevine module Chromium downloaded
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'if [ -e {{ kiosk_widevine_marker }} ]; then touch {{ kiosk_restart_marker }}; else touch {{ kiosk_widevine_marker }} && systemctl restart --no-block kiosk.service; fi'

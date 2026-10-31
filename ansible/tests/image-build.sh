@@ -48,7 +48,8 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/kiosk-open-wifi /usr/loc
   /etc/systemd/system/kiosk-restart.timer /etc/chromium/policies/managed/kiosk.json \
   /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules /etc/polkit-1/rules.d/50-kiosk-power.rules \
   /usr/local/bin/kiosk-open-power /usr/share/applications/kiosk-power.desktop /usr/local/sbin/kiosk-handover \
-  /etc/systemd/system/kiosk-update-now.service /etc/NetworkManager/conf.d/20-connectivity.conf \
+  /etc/systemd/system/kiosk-update-now.service /etc/systemd/system/kiosk-widevine.path \
+  /etc/systemd/system/kiosk-widevine.service /etc/NetworkManager/conf.d/20-connectivity.conf \
   /etc/tmpfiles.d/kiosk.conf /usr/share/plymouth/themes/the-max-mix/the-max-mix.plymouth \
   /usr/share/icons/blank/cursors/left_ptr /etc/apt/apt.conf.d/52kiosk-unattended-upgrades \
   /opt/the-max-mix/kiosk-audio/kiosk-audio.ts /opt/the-max-mix/kiosk-audio/speakers.ts \
@@ -57,7 +58,7 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/kiosk-open-wifi /usr/loc
   check test -e "$file"
 done
 for unit in kiosk.service kiosk-bluetooth-pair.service bluetooth.service avahi-daemon.service kiosk-pull.timer \
-  kiosk-restart.timer ssh.service; do
+  kiosk-restart.timer ssh.service kiosk-widevine.path; do
   check systemctl is-enabled --quiet "$unit"
   # Enabled only: nothing is started in an image build.
   if systemctl is-active --quiet "$unit"; then
@@ -86,6 +87,7 @@ check grep -q '^AllowUsers admin$' /etc/ssh/sshd_config.d/10-kiosk.conf
 mkdir -p /run/sshd
 check /usr/sbin/sshd -t
 check test "$(stat -c %a /home/admin/.ssh)" = 700
+check grep -q '^127.0.1.1 the-max-mix$' /etc/hosts
 check grep -q 'ansible-pull --url https://github.com/nvorkinn/the-max-mix.git --checkout stable ' /etc/systemd/system/kiosk-pull.service
 # Node runs the audio routing's TypeScript directly.
 check node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)'
