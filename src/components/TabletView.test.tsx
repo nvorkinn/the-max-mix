@@ -24,11 +24,13 @@ const api = vi.hoisted(() => ({
   playDemoTrackNow: vi.fn()
 }));
 const palette = vi.hoisted(() => ({ extractPalette: vi.fn() }));
+const lyrics = vi.hoisted(() => ({ lrclib: vi.fn() }));
 
 vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => player.current }));
 vi.mock('../spotify/api', () => api);
 vi.mock('../spotify/auth', () => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
 vi.mock('../utils/colorExtractor', () => palette);
+vi.mock('../lyrics/lrclib', () => lyrics);
 vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
 
 const track = {
@@ -72,11 +74,40 @@ beforeEach(() => {
   api.getDevices.mockResolvedValue({ devices: [{ id: 'dev1', name: 'Soundbar' }] });
   palette.extractPalette.mockReset();
   palette.extractPalette.mockResolvedValue({ primary: 'red', secondary: 'blue', dark: 'black' });
+  lyrics.lrclib.mockReset();
+  lyrics.lrclib.mockResolvedValue({ kind: 'plain', lines: ['Placeholder lyric'], source: 'LRCLIB' });
   setPlayer();
 });
 afterEach(() => vi.useRealTimers());
 
 describe('TabletView', () => {
+  it('swaps the queue for the lyrics and remembers the choice', async () => {
+    const { unmount } = render(<TabletView />);
+    await flush();
+    expect(lyrics.lrclib).not.toHaveBeenCalled();
+    const toggle = screen.getByRole('button', { name: 'Lyrics' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(toggle);
+    await flush();
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('region', { name: 'Upcoming tracks' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Lyrics' })).toHaveTextContent('Placeholder lyric');
+    expect(lyrics.lrclib).toHaveBeenCalledWith(
+      { title: 'Now Song', artist: 'Art', durationMs: 1000 },
+      expect.any(AbortSignal)
+    );
+    expect(localStorage.getItem('maxmix_lyrics')).toBe('on');
+
+    unmount();
+    render(<TabletView />);
+    await flush();
+    expect(screen.getByRole('region', { name: 'Lyrics' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Up next' }));
+    expect(screen.getByRole('region', { name: 'Upcoming tracks' })).toBeInTheDocument();
+    expect(localStorage.getItem('maxmix_lyrics')).toBe('off');
+  });
+
   it('shows the connected device and loads the queue', async () => {
     render(<TabletView />);
     await flush();

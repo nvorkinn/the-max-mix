@@ -46,6 +46,17 @@ queue. The Jam button explains the supported phone workflow.
 Guests add songs through the Spotify app. This page sees queue changes when the track changes and through the SDK's
 upcoming-tracks list, so a guest add can take a moment to show.
 
+### Lyrics
+
+**Lyrics** in the header swaps the queue for the current song's lyrics (and **Up next** swaps back; the choice is
+remembered). They come from [LRCLIB](https://lrclib.net), a free, open lyrics database that needs no key and allows
+browser requests, so the app still has no backend. Time-synced lyrics follow playback and keep the current line in the
+middle; songs with only plain lyrics show them unsynced. Lookups happen only while the lyrics are shown, once per
+track. Another source can be plugged in by writing a `LyricsProvider` (`src/lyrics/types.ts`).
+
+Spotify's own lyrics are not used: they come from an internal endpoint that is not part of the public Web API, needs
+a signed-in web-player cookie (`sp_dc`) and a server to call it, and is against Spotify's terms.
+
 The small waveform is decorative, driven by playback state, not an analysis of
 Spotify's encrypted audio. Canvas animations stop while hidden or idle where
 applicable and respect reduced-motion preferences.
