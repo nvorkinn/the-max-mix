@@ -8,70 +8,44 @@ import {
   watchAudioOutputs
 } from './airplay';
 
-const output = (deviceId: string, label: string, kind: MediaDeviceKind = 'audiooutput') =>
-  ({ deviceId, label, kind, groupId: '' }) as MediaDeviceInfo;
-
-function stubMediaDevices(devices: MediaDeviceInfo[]) {
-  const mediaDevices = {
-    enumerateDevices: vi.fn().mockResolvedValue(devices),
-    getUserMedia: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn()
-  };
-  vi.stubGlobal('navigator', { mediaDevices });
-  return mediaDevices;
-}
-
-beforeEach(() => {
-  localStorage.clear();
-  vi.resetModules();
+beforeEach(() => localStorage.clear());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
-afterEach(() => vi.unstubAllGlobals());
+
+const answer = (body: unknown, status = 200) =>
+  vi.fn().mockResolvedValue({ ok: status === 200, status, json: () => Promise.resolve(body) });
 
 describe('listAudioOutputs', () => {
-  it('lists the named outputs once each, without the virtual ones or inputs', async () => {
-    stubMediaDevices([
-      output('default', 'Default - Built-in Audio'),
-      output('communications', 'Communications'),
-      output('a', 'Living Room'),
-      output('b', 'Kitchen'),
-      output('c', 'Kitchen'),
-      output('e', 'Monitor of Kitchen', 'audioinput')
-    ]);
+  it('asks the kiosk’s audio service and lists each speaker once, sorted', async () => {
+    const fetchMock = answer({ speakers: ['Living Room', 'Kitchen', 'Kitchen', 3] });
+    vi.stubGlobal('fetch', fetchMock);
     await expect(listAudioOutputs()).resolves.toEqual(['Kitchen', 'Living Room']);
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/speakers', { cache: 'no-store' });
   });
 
-  it('opens the microphone once, and closes it, when Chromium hides the names', async () => {
-    const { listAudioOutputs: list } = await import('./airplay');
-    const mediaDevices = stubMediaDevices([]);
-    const stop = vi.fn();
-    mediaDevices.enumerateDevices
-      .mockResolvedValueOnce([output('default', ''), output('a', '')])
-      .mockResolvedValue([output('default', 'Default'), output('a', 'Kitchen')]);
-    mediaDevices.getUserMedia.mockResolvedValue({ getTracks: () => [{ stop }] });
-    await expect(list()).resolves.toEqual(['Kitchen']);
-    expect(mediaDevices.getUserMedia).toHaveBeenCalledWith({ audio: true });
-    expect(stop).toHaveBeenCalled();
-    await list();
-    expect(mediaDevices.getUserMedia).toHaveBeenCalledTimes(1);
+  it('treats a missing list as none', async () => {
+    vi.stubGlobal('fetch', answer({}));
+    await expect(listAudioOutputs()).resolves.toEqual([]);
   });
 
-  it('says why when the microphone permission fails, and tries again next time', async () => {
-    const { listAudioOutputs: list } = await import('./airplay');
-    const mediaDevices = stubMediaDevices([output('a', '')]);
-    mediaDevices.getUserMedia.mockRejectedValue(new Error('Permission denied'));
-    await expect(list()).rejects.toThrow(/hides the speakers.*Permission denied/);
-    await expect(list()).rejects.toThrow(/Permission denied/);
-    expect(mediaDevices.getUserMedia).toHaveBeenCalledTimes(2);
+  it('says so when the service is not there or cannot read PipeWire', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    await expect(listAudioOutputs()).rejects.toThrow(/audio service did not answer.*Failed to fetch/);
+    vi.stubGlobal('fetch', answer({}, 503));
+    await expect(listAudioOutputs()).rejects.toThrow(/could not read PipeWire \(503\)/);
   });
 
-  it('follows outputs appearing and going away', () => {
-    const mediaDevices = stubMediaDevices([]);
+  it('checks again every few seconds until stopped', () => {
+    vi.useFakeTimers();
     const onChange = vi.fn();
     const stop = watchAudioOutputs(onChange);
-    expect(mediaDevices.addEventListener).toHaveBeenCalledWith('devicechange', onChange);
+    vi.advanceTimersByTime(10_000);
+    expect(onChange).toHaveBeenCalledTimes(2);
     stop();
-    expect(mediaDevices.removeEventListener).toHaveBeenCalledWith('devicechange', onChange);
+    vi.advanceTimersByTime(10_000);
+    expect(onChange).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -55,8 +55,7 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/kiosk-open-wifi /usr/loc
   /usr/share/icons/blank/cursors/left_ptr /etc/apt/apt.conf.d/52kiosk-unattended-upgrades \
   /opt/the-max-mix/kiosk-audio/kiosk-audio.ts /opt/the-max-mix/kiosk-audio/speakers.ts \
   /usr/local/bin/kiosk-open-audio /usr/share/applications/kiosk-audio.desktop \
-  /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf /etc/pipewire/pipewire.conf.d/50-kiosk-mic.conf \
-  /etc/systemd/user/default.target.wants/kiosk-audio.service; do
+  /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf /etc/systemd/user/default.target.wants/kiosk-audio.service; do
   check test -e "$file"
 done
 for unit in kiosk.service kiosk-bluetooth-pair.service bluetooth.service avahi-daemon.service kiosk-pull.timer \
@@ -97,7 +96,6 @@ check node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 
 # (node --check does not strip types, so load the modules instead; importing them starts nothing.)
 check node -e "await import('/opt/the-max-mix/kiosk-audio/speakers.ts')"
 check grep -q 'raop.latency.ms = 500' /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf
-check grep -q 'media.class = Audio/Source/Virtual' /etc/pipewire/pipewire.conf.d/50-kiosk-mic.conf
 check grep -q 'kiosk-audio.ts watch$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'kiosk-audio=kiosk-audio.desktop' /etc/xdg/mimeapps.list
 check grep -q 'kiosk-display=kiosk-display.desktop' /etc/xdg/mimeapps.list

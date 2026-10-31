@@ -8,13 +8,16 @@ Wants=pipewire.service wireplumber.service
 After=pipewire.service wireplumber.service
 
 [Service]
+Environment=KIOSK_APP_ORIGIN={{ kiosk_app_origin }}
 ExecStart=/usr/bin/node {{ kiosk_audio_dir }}/kiosk-audio.ts watch
 Restart=always
 RestartSec=2
 NoNewPrivileges=yes
 LockPersonality=yes
-# PipeWire's socket only; it never touches the network.
-RestrictAddressFamilies=AF_UNIX
+# PipeWire's socket, and the speaker list on 127.0.0.1 only.
+RestrictAddressFamilies=AF_UNIX AF_INET
+IPAddressDeny=any
+IPAddressAllow=localhost
 
 [Install]
 WantedBy=default.target

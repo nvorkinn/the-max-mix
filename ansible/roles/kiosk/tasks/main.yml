@@ -337,7 +337,6 @@
     mode: '0644'
   loop:
     - { src: 50-kiosk-raop.conf.j2, dest: /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf }
-    - { src: 50-kiosk-mic.conf.j2, dest: /etc/pipewire/pipewire.conf.d/50-kiosk-mic.conf }
     - { src: kiosk-audio.service.j2, dest: /etc/systemd/user/kiosk-audio.service }
   loop_control:
     label: '{{ item.dest }}'

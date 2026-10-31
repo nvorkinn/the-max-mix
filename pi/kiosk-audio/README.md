@@ -17,14 +17,11 @@ the Wi-Fi panel.
 
 1. **Discovery.** `libpipewire-module-raop-discover` (enabled by `/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf`)
    finds RAOP speakers through Avahi and makes a PipeWire sink for each, with `raop.latency.ms = 500`
-   (`kiosk_raop_latency_ms`) so play, pause and skip reach the speakers quickly. Chromium sees each sink as an audio
-   output (through pipewire-pulse), and the app lists them with `navigator.mediaDevices.enumerateDevices()`, updating on
-   `devicechange`. Chromium only names outputs once the page has opened the microphone, so the Chromium policy grants it
-   to the app's origin (`AudioCaptureAllowedUrls`), and the app opens it once and closes it at once when the names are
-   hidden. The Pi has no microphone of its own (Chromium skips the speakers' monitor sources), so
-   `/etc/pipewire/pipewire.conf.d/50-kiosk-mic.conf` adds a silent one for this. Without it, the list stays empty.
-2. **Routing.** Picking speakers opens `kiosk-audio://route?speaker=Kitchen&speaker=Lounge` (the names Chromium shows,
-   which are the sinks' descriptions). Chromium hands the link to `/usr/local/bin/kiosk-open-audio` (registered by
+   (`kiosk_raop_latency_ms`) so play, pause and skip reach the speakers quickly. The audio service
+   also answers `GET http://127.0.0.1:7341/speakers` (`server.ts`, localhost only, readable by the app's origin alone) with
+   the names of those sinks, and the app lists them every 5 seconds. Chromium's own device list is not used: it hides
+   the names until a microphone is open, and the Pi has none.
+2. **Routing.** Picking speakers opens `kiosk-audio://route?speaker=Kitchen&speaker=Lounge` (the sinks' descriptions). Chromium hands the link to `/usr/local/bin/kiosk-open-audio` (registered by
    `kiosk-audio.desktop` and `/etc/xdg/mimeapps.list`; only the app's origin may open it), which runs
    `node kiosk-audio.ts open <link>`. That saves the choice in `~/.local/state/the-max-mix/speakers.json` and links each
    of Chromium's channels to the same channel of every chosen sink with `pw-link`, before removing its links to other
@@ -39,6 +36,7 @@ The link only goes one way, so the app remembers the chosen speakers itself (`ma
 | ---------------- | -------------------------------------------------------------------------------- |
 | `kiosk-audio.ts` | The program: `open <link>` (the link handler) and `watch` (the background unit). |
 | `speakers.ts`    | Reading `kiosk-audio://route` links, the saved choice, and routing to it.        |
+| `server.ts`      | The speaker list on 127.0.0.1:7341.                                              |
 | `pipewire.ts`    | `pw-dump` parsing, the link plan, and running `pw-link`.                         |
 
 It is TypeScript with Node's standard library only (no npm packages on the Pi): Node runs the `.ts` files directly, so
