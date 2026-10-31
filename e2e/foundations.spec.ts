@@ -52,13 +52,13 @@ for (const viewport of [
     const transport = page.getByRole('button', { name: 'Pause', exact: true });
     if (viewport.width >= 761) await expect(transport).toBeInViewport();
 
-    await page.getByRole('button', { name: 'Open settings and skins' }).click();
-    const settings = page.getByRole('dialog', { name: 'Make it yours' });
+    await page.getByRole('button', { name: 'Open settings' }).click();
+    const settings = page.getByRole('dialog', { name: 'Settings' });
     await expect(settings).toBeVisible();
     await expectTouchTargets(settings);
     await expectNoHorizontalOverflow(page);
     await settings.getByRole('button', { name: /Paper Light/ }).click();
-    await expect(settings.getByRole('status')).toHaveText('Skin updated to Paper');
+    await expect(settings.getByRole('status')).toHaveText('Appearance updated to Paper');
     await expectTouchTargets(settings);
     await expectNoHorizontalOverflow(page);
     await page.keyboard.press('Escape');
@@ -76,9 +76,9 @@ for (const viewport of [
 
 test('settings contain keyboard focus, wrap both ways and restore the trigger', async ({ page }) => {
   await page.goto('/?demo=true');
-  const trigger = page.getByRole('button', { name: 'Open settings and skins' });
+  const trigger = page.getByRole('button', { name: 'Open settings' });
   await trigger.click();
-  const settings = page.getByRole('dialog', { name: 'Make it yours' });
+  const settings = page.getByRole('dialog', { name: 'Settings' });
   const close = settings.getByRole('button', { name: 'Close settings' });
   const last = settings.getByRole('switch', { name: 'Demo mode' });
   await expect(close).toBeFocused();
@@ -113,7 +113,7 @@ test('speakers wrap focus after devices load and restore focus on close', async 
 
 test('Escape dismisses only the topmost dialog and restores the underlying focus', async ({ page }) => {
   await page.goto('/?demo=true');
-  await page.getByRole('button', { name: 'Open settings and skins' }).click();
+  await page.getByRole('button', { name: 'Open settings' }).click();
   const studio = page.getByRole('button', { name: /Studio Signature/ });
   await studio.focus();
   await page.keyboard.press('Control+Shift+D');
@@ -122,7 +122,7 @@ test('Escape dismisses only the topmost dialog and restores the underlying focus
   await expect(debug.getByRole('button', { name: 'Close debug console' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(debug).toBeHidden();
-  await expect(page.getByRole('dialog', { name: 'Make it yours' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
   await expect(studio).toBeFocused();
 });
 
@@ -135,7 +135,7 @@ test('failed images become local artwork and initials rather than retrying URLs'
   await expect(page.locator('.guest-avatar.image-placeholder')).toHaveCount(5);
   await expect(page.locator('.track-credit .guest-avatar')).toHaveText('S');
 
-  await page.getByRole('button', { name: 'Open settings and skins' }).click();
+  await page.getByRole('button', { name: 'Open settings' }).click();
   await page.getByRole('button', { name: /Paper Light/ }).click();
   await page.keyboard.press('Escape');
   await expect(page.locator('.guest-avatar.image-placeholder')).toHaveCount(5);

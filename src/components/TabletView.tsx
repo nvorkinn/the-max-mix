@@ -118,7 +118,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
     localStorage.setItem('maxmix_theme', newTheme);
-    showToast(`Skin updated to ${newTheme === 'minimal' ? 'Paper' : 'Studio'}`);
+    showToast(`Appearance updated to ${newTheme === 'minimal' ? 'Paper' : 'Studio'}`);
   };
 
   const [palette, setPalette] = useState({
@@ -298,8 +298,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             type="button"
             onClick={() => setIsSettingsOpen(true)}
             className="icon-button"
-            title="Settings & Skins"
-            aria-label="Open settings and skins"
+            title="Settings"
+            aria-label="Open settings"
           >
             <Settings size={18} />
           </button>

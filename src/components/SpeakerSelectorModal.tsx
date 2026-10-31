@@ -92,12 +92,12 @@ export default function SpeakerSelectorModal({
       onClose={onClose}
       className="app-modal-panel border rounded-3xl p-6 max-w-md shadow-2xl"
     >
-      <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10">
+      <div className="modal-divider flex items-center justify-between gap-3 pb-3 border-b">
         <div>
           <h2 id="speakers-title" className="text-base font-semibold">
             {isAirPlay ? 'Choose AirPlay speakers' : 'Choose a Spotify device'}
           </h2>
-          <p className="text-xs text-neutral-400 mt-1">
+          <p className="text-xs text-muted mt-1">
             {isDemoMode && 'Simulated device / demo mode'}
             {!isDemoMode && (isAirPlay ? 'Speakers found on this network' : 'Devices reported by your Spotify account')}
           </p>
@@ -109,7 +109,7 @@ export default function SpeakerSelectorModal({
               onClick={() => void fetchDevices()}
               disabled={loading || selecting}
               aria-label="Refresh devices"
-              className="p-2 rounded-full bg-white/5"
+              className="modal-icon-button p-2 rounded-full"
             >
               <RefreshCw size={16} />
             </button>
@@ -119,14 +119,14 @@ export default function SpeakerSelectorModal({
             onClick={onClose}
             data-modal-autofocus
             aria-label="Close speakers"
-            className="p-2 rounded-full bg-white/10"
+            className="modal-icon-button p-2 rounded-full"
           >
             <X size={18} />
           </button>
         </div>
       </div>
       {canUseAirPlay && (
-        <div role="group" aria-label="Playback mode" className="mt-4 grid grid-cols-2 gap-1 p-1 rounded-xl bg-white/5">
+        <div role="group" aria-label="Playback mode" className="modal-card mt-4 grid grid-cols-2 gap-1 p-1 rounded-xl">
           {ROUTES.map(route => (
             <button
               type="button"
@@ -134,9 +134,7 @@ export default function SpeakerSelectorModal({
               aria-pressed={audioRoute === route.id}
               disabled={selecting}
               onClick={() => void changeRoute(route.id)}
-              className={`py-2 rounded-lg text-xs font-semibold ${
-                audioRoute === route.id ? 'bg-[#d5f580] text-black' : 'text-neutral-300 hover:bg-white/10'
-              }`}
+              className="modal-segment py-2 rounded-lg text-xs font-semibold"
             >
               {route.label}
             </button>
@@ -144,7 +142,7 @@ export default function SpeakerSelectorModal({
         </div>
       )}
       {error && (
-        <p role="alert" className="text-xs text-rose-300 my-4">
+        <p role="alert" className="text-xs status-danger my-4">
           {error}
         </p>
       )}
@@ -153,7 +151,7 @@ export default function SpeakerSelectorModal({
       ) : (
         <div className="mt-4 space-y-2">
           {!loading && !error && devices.length === 0 && (
-            <p className="text-xs leading-relaxed text-neutral-400 py-6">
+            <p className="text-xs leading-relaxed text-muted py-6">
               No available devices. Open Spotify on a phone, computer, or Spotify Connect speaker, then refresh.
               {canUseAirPlay
                 ? ' For AirPlay speakers such as Sonos, switch to AirPlay above.'
@@ -165,16 +163,17 @@ export default function SpeakerSelectorModal({
               type="button"
               key={device.id || device.name}
               disabled={!device.id || device.is_restricted || selecting}
+              aria-pressed={Boolean(device.is_active)}
               onClick={() => void selectDevice(device.id)}
-              className="w-full p-3 flex gap-3 items-center text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10"
+              className="modal-option w-full p-3 flex gap-3 items-center text-left rounded-xl border"
             >
-              <Speaker size={20} className="shrink-0 text-[#d5f580]" />
+              <Speaker size={20} className="shrink-0 text-accent" />
               <span className="flex-1 min-w-0">
                 <span className="block text-sm truncate">{device.name}</span>
-                <span className="text-[11px] text-neutral-400">{describeDevice(device)}</span>
+                <span className="text-[11px] text-muted">{describeDevice(device)}</span>
               </span>
               {device.is_active && (
-                <span className="text-xs text-[#d5f580] flex items-center gap-1">
+                <span className="text-xs text-accent flex items-center gap-1">
                   <Check size={14} /> Active
                 </span>
               )}
@@ -192,7 +191,7 @@ export default function SpeakerSelectorModal({
           )}
         </div>
       )}
-      <p className="text-[11px] text-neutral-400 border-t border-white/10 pt-3 mt-4">
+      <p className="modal-divider text-[11px] text-muted border-t pt-3 mt-4">
         {isAirPlay
           ? 'AirPlay speakers lag the screen by about half a second.'
           : 'Selection transfers playback without automatically starting music. Press Play when ready.'}

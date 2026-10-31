@@ -151,7 +151,7 @@ describe('TabletView', () => {
     expect(screen.getByText(/Connect your Spotify account in Settings/)).toBeInTheDocument();
     expect(api.getQueue).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
-    expect(screen.getByRole('dialog', { name: /make it yours/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
   });
 
   it('keeps hook errors out of a banner: the footer links to them in the debug console', async () => {
@@ -291,15 +291,15 @@ describe('TabletView', () => {
       await vi.advanceTimersByTimeAsync(0);
     });
     expect(container.firstChild).toHaveAttribute('data-theme', 'neon');
-    fireEvent.click(screen.getByRole('button', { name: 'Open settings and skins' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
     fireEvent.click(screen.getByRole('button', { name: /paper/i }));
     expect(container.firstChild).toHaveAttribute('data-theme', 'minimal');
     expect(localStorage.getItem('maxmix_theme')).toBe('minimal');
-    expect(screen.getByText('Skin updated to Paper')).toBeInTheDocument();
+    expect(screen.getByText('Appearance updated to Paper')).toBeInTheDocument();
     act(() => {
       vi.advanceTimersByTime(3600);
     });
-    expect(screen.queryByText('Skin updated to Paper')).not.toBeInTheDocument();
+    expect(screen.queryByText('Appearance updated to Paper')).not.toBeInTheDocument();
   });
 
   it('does not let an earlier toast timer cut a newer toast short', async () => {
@@ -308,22 +308,22 @@ describe('TabletView', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Open settings and skins' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
     fireEvent.click(screen.getByRole('button', { name: /paper/i }));
-    expect(screen.getByText('Skin updated to Paper')).toBeInTheDocument();
+    expect(screen.getByText('Appearance updated to Paper')).toBeInTheDocument();
     act(() => {
       vi.advanceTimersByTime(2000);
     });
     fireEvent.click(screen.getByRole('button', { name: /studio|neon/i }));
-    expect(screen.getByText('Skin updated to Studio')).toBeInTheDocument();
+    expect(screen.getByText('Appearance updated to Studio')).toBeInTheDocument();
     act(() => {
       vi.advanceTimersByTime(1600);
     });
-    expect(screen.getByText('Skin updated to Studio')).toBeInTheDocument();
+    expect(screen.getByText('Appearance updated to Studio')).toBeInTheDocument();
     act(() => {
       vi.advanceTimersByTime(2000);
     });
-    expect(screen.queryByText('Skin updated to Studio')).not.toBeInTheDocument();
+    expect(screen.queryByText('Appearance updated to Studio')).not.toBeInTheDocument();
   });
 
   it('restores a saved theme and ignores unknown values', async () => {

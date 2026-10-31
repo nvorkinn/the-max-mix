@@ -37,7 +37,7 @@
     font: inherit;
   }
   :focus-visible {
-    outline: 2px solid #b9d879;
+    outline: 2px solid var(--focus, #b9d879);
     outline-offset: 4px;
   }
 }
@@ -52,6 +52,12 @@
   --ink: #f2f3ed;
   --muted: #9aa194;
   --border: rgb(215 225 205 / 10%);
+  --focus: #d5f580;
+  --success: #86efac;
+  --warning: #fcd34d;
+  --danger: #fda4af;
+  --spotify-brand: #1db954;
+  --spotify-brand-ink: #000;
   width: 100%;
   min-height: 100svh;
   height: 100dvh;
@@ -76,6 +82,10 @@
   --ink: #23291f;
   --muted: #656b5e;
   --border: rgb(35 41 31 / 13%);
+  --focus: #293a27;
+  --success: #166534;
+  --warning: #854d0e;
+  --danger: #9f1239;
   color-scheme: light;
 }
 
@@ -804,10 +814,93 @@ body:has(.app-dialog[open]) {
   overflow: hidden;
 }
 .app-modal-panel {
-  background: #1b1f1b;
-  border-color: rgb(215 225 205 / 15%);
-  color: #f2f3ed;
-  color-scheme: dark;
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+  color-scheme: inherit;
+}
+.text-muted {
+  color: var(--muted);
+}
+.text-accent {
+  color: var(--accent);
+}
+.modal-card,
+.modal-badge,
+.modal-icon-button {
+  background: var(--surface-raised);
+  border-color: var(--border);
+}
+.modal-badge {
+  color: var(--muted);
+}
+.modal-option {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+}
+.modal-option:hover,
+.modal-icon-button:hover,
+.modal-segment:hover {
+  background: var(--surface-raised);
+}
+.modal-option[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.appearance-indicator {
+  border-color: var(--muted);
+}
+[aria-pressed='true'] .appearance-indicator {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.appearance-indicator > div {
+  background: var(--accent-ink);
+}
+.switch-track {
+  background: var(--muted);
+}
+.switch-thumb {
+  background: var(--page);
+}
+.appearance-switch[aria-checked='true'] .switch-track {
+  background: var(--accent);
+}
+.appearance-switch[aria-checked='true'] .switch-thumb {
+  background: var(--accent-ink);
+}
+.modal-divider {
+  border-color: var(--border);
+}
+.modal-segment {
+  color: var(--muted);
+}
+.modal-segment[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.status-success {
+  color: var(--success);
+}
+.status-warning {
+  color: var(--warning);
+}
+.status-danger,
+.modal-option.modal-confirm-armed {
+  color: var(--danger);
+}
+.modal-status,
+.modal-option.modal-confirm-armed {
+  background: color-mix(in srgb, currentcolor 8%, var(--surface));
+  border-color: color-mix(in srgb, currentcolor 40%, var(--surface));
+}
+.spotify-sign-in {
+  background: var(--spotify-brand);
+  color: var(--spotify-brand-ink);
+}
+.spotify-sign-in:hover {
+  filter: brightness(0.95);
 }
 .app-modal-panel button {
   min-width: 44px;
@@ -1179,7 +1272,7 @@ input:disabled {
   }
 }
 
-/* Hidden debug console, opened by holding the footer clock. Always dark, so it reads the same on either skin. */
+/* The technical debug console stays dark regardless of appearance. */
 .footer-problem {
   color: #fda4af;
   text-decoration: underline;
@@ -1192,6 +1285,7 @@ input:disabled {
   background: #f87171;
 }
 .debug-console {
+  --focus: #b9d879;
   height: calc(100dvh - 32px);
   min-width: 0;
   display: flex;
@@ -1202,6 +1296,7 @@ input:disabled {
   border-radius: 16px;
   background: #0b0d0b;
   color: #e5e7e1;
+  color-scheme: dark;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
   user-select: text;

@@ -29,11 +29,7 @@ function ConfirmButton({
         setArmed(true);
         timerRef.current = setTimeout(() => setArmed(false), CONFIRM_MS);
       }}
-      className={`flex-1 flex items-center justify-center gap-2 p-3 min-h-12 rounded-2xl border text-xs font-bold active:scale-98 transition-all ${
-        armed
-          ? 'bg-rose-500/20 border-rose-400/40 text-rose-200'
-          : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
-      }`}
+      className={`modal-option flex-1 flex items-center justify-center gap-2 p-3 min-h-12 rounded-2xl border text-xs font-bold active:scale-98 transition-all ${armed ? 'modal-confirm-armed' : ''}`}
     >
       {icon}
       {armed ? confirmLabel : label}
@@ -89,34 +85,32 @@ export default function KioskSystem() {
 
   return (
     <div className="space-y-2">
-      <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
-        <div className="text-xs font-bold text-white">
+      <div className="modal-card p-3 rounded-2xl border">
+        <div className="text-xs font-bold">
           Pi software{' '}
           {version && (
-            <span className="font-mono text-neutral-300">
-              {release ? version.ref : `${version.ref} ${version.commit}`}
-            </span>
+            <span className="font-mono text-muted">{release ? version.ref : `${version.ref} ${version.commit}`}</span>
           )}
         </div>
-        <p className={`text-[10px] mt-0.5 ${updateWaiting ? 'text-amber-300' : 'text-neutral-400'}`}>{status}</p>
+        <p className={`text-[10px] mt-0.5 ${updateWaiting ? 'status-warning' : 'text-muted'}`}>{status}</p>
       </div>
       <div className="flex gap-2">
         <ConfirmButton
           label="Update now"
           confirmLabel="Tap again to update"
-          icon={<Download className="w-4 h-4 shrink-0 text-[#d5f580]" aria-hidden="true" />}
+          icon={<Download className="w-4 h-4 shrink-0" aria-hidden="true" />}
           onConfirm={update}
         />
         <ConfirmButton
           label="Restart kiosk"
           confirmLabel="Tap again to restart"
-          icon={<RotateCw className="w-4 h-4 shrink-0 text-[#d5f580]" aria-hidden="true" />}
+          icon={<RotateCw className="w-4 h-4 shrink-0" aria-hidden="true" />}
           onConfirm={restartKiosk}
         />
         <ConfirmButton
           label="Reboot Pi"
           confirmLabel="Tap again to reboot"
-          icon={<Power className="w-4 h-4 shrink-0 text-[#d5f580]" aria-hidden="true" />}
+          icon={<Power className="w-4 h-4 shrink-0" aria-hidden="true" />}
           onConfirm={rebootPi}
         />
       </div>

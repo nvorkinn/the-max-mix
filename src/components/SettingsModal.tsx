@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Key, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feather, LogOut, Wifi } from 'lucide-react';
+import { X, Settings, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feather, LogOut, Wifi } from 'lucide-react';
 import { signOut, startSignIn } from '../spotify/auth';
 import { errorMessage } from '../utils/errorMessage';
 import { isKiosk, openWifiSettings } from '../utils/kiosk';
@@ -34,10 +34,10 @@ function SwitchRow({
   onChange: (checked: boolean) => void;
 }>) {
   return (
-    <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+    <div className="modal-card flex items-center justify-between gap-3 p-3 rounded-2xl border">
       <div>
-        <div className="text-xs font-bold text-white">{label}</div>
-        <p className="text-[10px] text-neutral-400 mt-0.5">{description}</p>
+        <div className="text-xs font-bold">{label}</div>
+        <p className="text-muted text-[10px] mt-0.5">{description}</p>
       </div>
       <button
         type="button"
@@ -46,13 +46,12 @@ function SwitchRow({
         aria-label={label}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className="shrink-0 w-11 h-11 grid place-items-center disabled:opacity-40 disabled:cursor-not-allowed"
+        className="appearance-switch shrink-0 w-11 h-11 grid place-items-center disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        <span
-          aria-hidden="true"
-          className={`block w-11 h-6 rounded-full p-0.5 transition-all ${checked ? 'bg-emerald-500' : 'bg-neutral-600'}`}
-        >
-          <span className={`block w-5 h-5 rounded-full bg-white transition-all ${checked ? 'translate-x-5' : ''}`} />
+        <span aria-hidden="true" className="switch-track block w-11 h-6 rounded-full p-0.5 transition-all">
+          <span
+            className={`switch-thumb block w-5 h-5 rounded-full transition-all ${checked ? 'translate-x-5' : ''}`}
+          />
         </span>
       </button>
     </div>
@@ -103,16 +102,14 @@ export default function SettingsModal({
       name: 'Studio',
       badge: 'Signature',
       desc: 'Soft charcoal, fresh lime accents, and an album-inspired atmosphere',
-      icon: <Sparkles className="w-4 h-4 text-[#d5f580]" />,
-      border: 'border-[#d5f580]/40'
+      icon: <Sparkles className="w-4 h-4 text-accent" />
     },
     {
       id: 'minimal',
       name: 'Paper',
       badge: 'Light',
       desc: 'Warm paper surfaces, forest-green accents, and understated contrast',
-      icon: <Feather className="w-4 h-4 text-stone-300" />,
-      border: 'border-stone-300/40'
+      icon: <Feather className="w-4 h-4 text-accent" />
     }
   ];
 
@@ -137,21 +134,21 @@ export default function SettingsModal({
         data-modal-autofocus
         onClick={onClose}
         aria-label="Close settings"
-        className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-white flex items-center justify-center transition-all"
+        className="modal-icon-button absolute top-4 right-4 w-11 h-11 rounded-full active:scale-90 flex items-center justify-center transition-all"
       >
         <X className="w-5 h-5" />
       </button>
 
-      <h3 id="settings-title" className="text-lg font-semibold text-white flex items-center gap-2 mb-1 pr-12">
-        <Key className="w-5 h-5 text-[#d5f580]" />
-        Make it yours
+      <h3 id="settings-title" className="text-lg font-semibold flex items-center gap-2 mb-1 pr-12">
+        <Settings className="w-5 h-5 text-accent" />
+        Settings
       </h3>
-      <p className="text-xs text-neutral-400 mb-4">Customize the visual design and Spotify connection of THE MAX MIX</p>
+      <p className="text-xs text-muted mb-4">Personalise the appearance and Spotify connection of THE MAX MIX</p>
 
-      {/* Skin / Theme Selector Section */}
+      {/* Appearance */}
       <div className="mb-5 space-y-2">
-        <div className="flex items-center space-x-1.5 text-xs font-bold text-neutral-300">
-          <Palette className="w-3.5 h-3.5 text-purple-400" />
+        <div className="flex items-center space-x-1.5 text-xs font-bold text-muted">
+          <Palette className="w-3.5 h-3.5 text-accent" />
           <span>APPEARANCE</span>
         </div>
 
@@ -165,34 +162,24 @@ export default function SettingsModal({
                 key={t.id}
                 aria-pressed={isSelected}
                 onClick={() => onThemeChange?.(t.id)}
-                className={`p-3 rounded-2xl text-left cursor-pointer transition-all border flex items-center justify-between ${
-                  isSelected
-                    ? `bg-white/10 ${t.border} shadow-lg ring-1 ring-white/20`
-                    : 'bg-white/5 border-white/5 hover:bg-white/10'
-                }`}
+                className="modal-option p-3 rounded-2xl text-left cursor-pointer transition-all border flex items-center justify-between"
               >
                 <div className="flex items-center space-x-3">
-                  <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                    {t.icon}
-                  </div>
+                  <div className="modal-card w-9 h-9 rounded-xl border flex items-center justify-center">{t.icon}</div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-white">{t.name}</span>
-                      <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded-full bg-white/10 text-neutral-300">
+                      <span className="text-xs font-bold">{t.name}</span>
+                      <span className="modal-badge text-[9px] uppercase font-bold px-1.5 py-0.2 rounded-full">
                         {t.badge}
                       </span>
                     </div>
-                    <p className="text-[10px] text-neutral-400 mt-0.5">{t.desc}</p>
+                    <p className="text-[10px] text-muted mt-0.5">{t.desc}</p>
                   </div>
                 </div>
 
                 <div className="shrink-0 pl-2">
-                  <div
-                    className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                      isSelected ? 'border-emerald-400 bg-emerald-500' : 'border-neutral-500'
-                    }`}
-                  >
-                    {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
+                  <div className="appearance-indicator w-4 h-4 rounded-full border-2 flex items-center justify-center">
+                    {isSelected && <div className="w-1.5 h-1.5 rounded-full" />}
                   </div>
                 </div>
               </button>
@@ -202,34 +189,34 @@ export default function SettingsModal({
       </div>
 
       {/* Status Card */}
-      <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 mb-4 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-neutral-300">Spotify Link Status:</span>
+      <div className="modal-card p-3.5 rounded-2xl border mb-4 space-y-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <span className="text-xs font-semibold text-muted">Spotify connection:</span>
           {authInfo?.authenticated ? (
-            <span className="flex items-center text-xs font-bold text-emerald-400 gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+            <span className="modal-status status-success flex items-center text-xs font-bold gap-1 px-2 py-0.5 rounded-full border">
               <CheckCircle2 className="w-3.5 h-3.5" /> Connected
             </span>
           ) : (
-            <span className="flex items-center text-xs font-bold text-amber-400 gap-1 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+            <span className="modal-status status-warning flex items-center text-xs font-bold gap-1 px-2 py-0.5 rounded-full border">
               <AlertCircle className="w-3.5 h-3.5" /> {authInfo?.demoMode ? 'Demo mode' : 'Not connected'}
             </span>
           )}
         </div>
-        <p className="text-[11px] text-neutral-400">{spotifyStatus}</p>
+        <p className="text-[11px] text-muted">{spotifyStatus}</p>
       </div>
 
       {/* Connection */}
       <div className="space-y-3">
         {error && (
-          <p role="alert" className="text-xs text-rose-300">
+          <p role="alert" className="text-xs status-danger">
             {error}
           </p>
         )}
 
         {signInError && (
-          <p className="text-[11px] text-neutral-400">
+          <p className="text-[11px] text-muted">
             Register this exact redirect address in your Spotify app settings:{' '}
-            <code className="text-[#d5f580] break-all">{getRedirectUri()}</code>
+            <code className="text-accent break-all">{getRedirectUri()}</code>
           </p>
         )}
 
@@ -240,9 +227,9 @@ export default function SettingsModal({
               setActionError(null);
               startSignIn().catch((caught: unknown) => setActionError(errorMessage(caught)));
             }}
-            className="w-full py-3 px-4 bg-[#1DB954] hover:bg-[#1aa34a] text-black font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
+            className="spotify-sign-in w-full py-3 px-4 font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
           >
-            <Music className="w-4 h-4 fill-black" />
+            <Music className="w-4 h-4 fill-current" />
             {authInfo?.authenticated ? 'Re-authenticate with Spotify' : 'Log in with Spotify'}
           </button>
         )}
@@ -279,13 +266,13 @@ export default function SettingsModal({
           <button
             type="button"
             onClick={openWifiSettings}
-            className="w-full flex items-center justify-between gap-3 p-3 min-h-14 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 active:scale-98 text-left transition-all"
+            className="modal-option w-full flex items-center justify-between gap-3 p-3 min-h-14 rounded-2xl border active:scale-98 text-left transition-all"
           >
             <span>
-              <span className="block text-xs font-bold text-white">Wi-Fi network</span>
-              <span className="block text-[10px] text-neutral-400 mt-0.5">Change the network this device uses</span>
+              <span className="block text-xs font-bold">Wi-Fi network</span>
+              <span className="block text-[10px] text-muted mt-0.5">Change the network this device uses</span>
             </span>
-            <Wifi className="w-5 h-5 shrink-0 text-[#d5f580]" aria-hidden="true" />
+            <Wifi className="w-5 h-5 shrink-0 text-accent" aria-hidden="true" />
           </button>
         )}
         {isKiosk() && <KioskSystem />}
@@ -301,7 +288,7 @@ export default function SettingsModal({
         />
       </div>
 
-      <p className="mt-5 text-center text-[10px] text-neutral-500">
+      <p className="mt-5 text-center text-[10px] text-muted">
         Version <span className="font-mono">{APP_VERSION}</span>
       </p>
       {statusMessage && (
