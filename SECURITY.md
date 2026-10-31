@@ -48,7 +48,7 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
   from NodeSource's apt archive (Debian's is too old to run TypeScript), whose signing key the playbook pins by checksum;
   that archive is trusted like Debian's and Raspberry Pi's.
 - **The Wi-Fi panel.** A native Qt panel (`pi/wifi-panel/`) runs as the non-root `kiosk` user and joins networks with
-  `nmcli`; a polkit rule (`pi/rootfs/etc/polkit-1/rules.d/50-kiosk-networkmanager.rules`) lets only that user manage
+  `nmcli`; a polkit rule (`50-kiosk-networkmanager.rules`, installed by the Ansible role) lets only that user manage
   NetworkManager connections. The password reaches `nmcli` on stdin, never in argv, and is not logged; every call is an
   argument list with no shell, and the panel has no network listener. The app asks the local service above to show it.
   A kiosk has no password for any account, and SSH only by key for `admin`. See [`pi/wifi-panel/README.md`](pi/wifi-panel/README.md).

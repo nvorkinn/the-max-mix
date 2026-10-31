@@ -63,7 +63,7 @@ jobs:
       - name: Set the version from the tag
         run: npm version "${TAG#v}" --no-git-tag-version --allow-same-version
       # Build on this runner and upload only the finished files (--prebuilt). Without it Vercel downloads the source and
-      # runs npm ci and the build again on its own machine, which took about 90 of the 115 seconds of the deploy.
+      # runs npm ci and the build again on its own machine.
       # `vercel build` runs the install and build commands from vercel.json here (npm ci uses the npm cache from
       # setup-node), so a release that does not build still fails before anything is deployed.
       - name: Get the Vercel production settings

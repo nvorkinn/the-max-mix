@@ -45,11 +45,6 @@ Jam **in the official Spotify app**. This display reads the playback queue and
 controls the active device. The public API does not expose Jam membership,
 contributor identities, Jam status, or live queue reordering.
 
-Accordingly, live queues have no invented guest avatars, fake "Live Jam" badge,
-drag handles, or pretend play-now action. Playing an arbitrary URI can replace
-playback context; this app does not do that under a promise to preserve a Jam
-queue.
-
 Guests add songs through the Spotify app. This page sees queue changes when the track changes and through the SDK's
 upcoming-tracks list, so a guest add can take a moment to show.
 
@@ -57,17 +52,13 @@ upcoming-tracks list, so a guest add can take a moment to show.
 
 **Lyrics** in the header swaps the queue for the current song's lyrics (and **Up next** swaps back; the choice is
 remembered). They come from [LRCLIB](https://lrclib.net), a free, open lyrics database that needs no key and allows
-browser requests, so the app still has no backend. Time-synced lyrics follow playback and keep the current line in the
+browser requests, so the app needs no backend. Time-synced lyrics follow playback and keep the current line in the
 middle; songs with only plain lyrics show them unsynced. Lookups happen only while the lyrics are shown, once per
 track. Another source can be added as a `LyricsProvider` (`src/lyrics/types.ts`) in the list in `src/lyrics/providers.ts`;
 the sources are asked in order and the first one with lyrics wins.
 
 Spotify's own lyrics are not used: they come from an internal endpoint that is not part of the public Web API, needs
 a signed-in web-player cookie (`sp_dc`) and a server to call it, and is against Spotify's terms.
-
-The small waveform is decorative, driven by playback state, not an analysis of
-Spotify's encrypted audio. Canvas animations stop while hidden or idle where
-applicable and respect reduced-motion preferences.
 
 ### Debug console
 
@@ -81,18 +72,17 @@ turns red and links to it. The log lives in memory, keeps the last 200 entries, 
 
 THE MAX MIX is plain static files on [Vercel](https://vercel.com). Production deploys happen only from a release:
 [`release.yml`](.github/workflows/release.yml) runs when a version tag is pushed (or by hand for an existing tag), builds
-the app on the GitHub runner with `vercel build` (`npm ci && npm run build`, with the version set from the tag) and
-uploads only the built files to Vercel production (`vercel deploy --prebuilt`), so Vercel does not install and build it a
-second time. `vercel.json` turns off Vercel's own deploy of `main` (`git.deploymentEnabled`), so a merge to `main` does not
-change production; pull requests still get preview deployments. The build settings, the single-page rewrite and the
-response headers are in [`vercel.json`](vercel.json).
+the app on the GitHub runner and uploads the built files to Vercel production. `vercel.json` turns off Vercel's own
+deploy of `main` (`git.deploymentEnabled`), so a merge to `main` does not change production; pull requests still get
+preview deployments. The build settings, the single-page rewrite and the response headers are in
+[`vercel.json`](vercel.json).
 
 Set it up once:
 
 1. In the GitHub repository add the secrets `VERCEL_TOKEN` (a Vercel access token), `VERCEL_ORG_ID` and
    `VERCEL_PROJECT_ID` (both in the project's `.vercel/project.json` after `vercel link`, or in the Vercel dashboard).
    The workflow fails with a clear message if one is missing.
-2. In the Vercel dashboard (**Settings > Git**) check that pushes to the production branch no longer deploy `main`.
+2. In the Vercel dashboard (**Settings > Git**) check that pushes to `main` do not deploy production.
 3. Push a tag to release: `git tag v1.2.3 && git push origin v1.2.3`.
 4. Register the redirect URI of any address you sign in from in the Spotify dashboard (see
    [Spotify configuration](#spotify-configuration)).
@@ -109,22 +99,19 @@ npm ci
 npm run dev
 ```
 
-Open **<http://127.0.0.1:5173/>**; the dev server uses exactly that address and port (it stops rather than choosing
-another port).
+Open **<http://127.0.0.1:5173/>**; the dev server uses exactly that address and port (it stops rather than choosing another port).
 Register `http://127.0.0.1:5173/` as a redirect URI in the Spotify dashboard to sign in during development.
 
 To try the production build (the same files the Pi serves), run
 `npm run build && npm start` and open
 **<http://127.0.0.1:4173/>** (`vite preview`). Register that address too if you want to sign in there. `npm test` runs the
-app, audio routing and Wi-Fi panel tests; `npm run build` checks the frontend production build.
+app, kiosk service and Wi-Fi panel tests.
 
 ### Checks and Git hooks
 
-`npm run check` runs everything CI's Lint workflow runs: `npm run lint` (ESLint with `--max-warnings 0` over the app in `src/` and the repository's own scripts and config files),
-`npm run typecheck` (TypeScript over the app and the TypeScript scripts; the few JavaScript config files are checked through their JSDoc),
-`npm run format:check` (Prettier; `npm run format` fixes) and `npm run lint:shell` (ShellCheck over the kiosk shell scripts).
-ShellCheck is a system tool, not an npm package: install it with `brew install shellcheck` or `apt install shellcheck`
-(CI pins 0.11.0).
+`npm run check` runs the checks CI's Lint workflow runs, among them ESLint, TypeScript, Prettier (`npm run format`
+fixes), ShellCheck, spelling, markdownlint, yamllint and Stylelint. ShellCheck and editorconfig-checker are system
+tools, not npm packages: install them with `brew` or `apt`.
 
 `npm install` at the repo root also installs a [Husky](https://typicode.github.io/husky/) pre-commit hook. For staged
 files, lint-staged formats them with Prettier, lints them with ESLint and checks shell
@@ -144,15 +131,6 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 4. Choose **Connect Spotify** in the browser that will play (on the kiosk, the Pi's Chromium).
    In Settings, choose **This device** (browser playback, the default) or **Another Spotify device** (remote),
    then **Apply and reload**.
-   On the Pi kiosk, which is opened with `?kiosk=1` (the app remembers that, so it survives the Spotify sign-in redirect;
-   `?kiosk=0` forgets it), Settings also shows **Wi-Fi network**, which opens the Pi's native Wi-Fi panel (it asks the
-   kiosk's local service to show it). Other visitors never see the entry. The kiosk's Settings also show which release
-   the Pi is running (for example `v1.12.0`, from `?pi_ref=&pi_commit=` in `kiosk_url`), say when a newer release is
-   on GitHub, and have **Update now**, **Restart kiosk** and **Reboot Pi** buttons (requests to that local service). **Update
-   now** pulls the latest release at once and restarts the kiosk if anything changed; otherwise a new release reaches the
-   Pi within about 6 hours and is fully applied after the next kiosk restart: at 04:30, on a reboot, or with the button.
-   **Screen sleep** sets how long the kiosk's screen stays on without a touch while nothing plays (5 minutes by default,
-   or never). It always stays on while music plays, and the tap that wakes it never presses anything.
 5. In Speakers, select THE MAX MIX or an existing Spotify Connect device. Press
    Play when ready. For remote mode, first open Spotify on the target device so it
    is discoverable.
@@ -175,7 +153,7 @@ Choose remote mode if the Pi should only control another player or if its
 browser cannot stream Spotify audio. Remote mode follows the active device's real
 playback state and controls, not the browser player's local state.
 
-Spotify no longer accepts `localhost` redirect URIs. HTTP is allowed only with a
+Spotify does not accept `localhost` redirect URIs. HTTP is allowed only with a
 literal loopback address such as `127.0.0.1`; other redirect addresses require HTTPS. Sign in from the same address you
 registered: an address that is not registered cannot sign in.
 
@@ -218,6 +196,12 @@ v1.12.0`): the Release workflow deploys the web app to Vercel and, once that has
   `sudo ansible-playbook -c local -i localhost, ansible/local.yml` (which always applies the playbook), or the same pull
   the timer runs: `sudo systemctl start kiosk-pull` (which does nothing if the latest release has not changed). Add `--check --diff` to
   the playbook run to see what it would change.
+
+The kiosk opens the app with `?kiosk=1` (remembered across the Spotify sign-in redirect; `?kiosk=0` forgets it), which
+adds kiosk-only entries to Settings: **Wi-Fi network** (the Pi's native Wi-Fi panel), the release the Pi runs and whether
+a newer one is out, **Update now**, **Restart kiosk**, **Reboot Pi** and **Screen sleep** (how long the screen stays on
+without a touch while nothing plays; it always stays on while music plays). These go through the Pi's
+[local service](pi/kiosk-audio/README.md).
 
 Any change on the device that is not in the role is undone at the next pull (for example, SSH is switched off again when
 `kiosk_ssh_enabled` is false). A CI job runs the playbook in a Debian trixie container and checks that it is idempotent;

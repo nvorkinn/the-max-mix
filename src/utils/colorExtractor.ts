@@ -58,7 +58,6 @@ export async function extractPalette(imageUrl?: string | null): Promise<Palette>
         g = Math.floor(g / count);
         b = Math.floor(b / count);
 
-        // Generate secondary hue shift
         const sR = Math.min(255, Math.floor(b * 1.2));
         const sG = Math.floor(r * 0.7);
         const sB = Math.min(255, Math.floor(g * 1.3));

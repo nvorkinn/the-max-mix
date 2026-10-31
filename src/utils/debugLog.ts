@@ -1,5 +1,5 @@
-// A small in-memory log for the hidden debug console. Problems that used to sit in a banner on the screen are written
-// here instead, together with the browser's own console errors and warnings, so they can be read on the kiosk itself.
+// A small in-memory log for the hidden debug console: the app's problems, together with the browser's own console errors
+// and warnings, so they can be read on the kiosk itself.
 
 export type DebugLevel = 'info' | 'warn' | 'error';
 
