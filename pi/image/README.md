@@ -74,9 +74,9 @@ use the screen.
    `network-test.debian.org`, set in `/etc/NetworkManager/conf.d/20-connectivity.conf`). If it does, it runs Chromium; if
    not, it runs `/usr/local/bin/wifi-panel` until it connects.
 5. The panel offers Cancel only when a connection already works. Connect, and the session loop starts Chromium.
-6. `kiosk-pull.timer` runs the first `ansible-pull` three minutes after boot and then every four hours. If there is no
-   network yet, or the `stable` ref does not exist, the run fails and only logs (`journalctl -u kiosk-pull`); the kiosk is
-   not affected. A pull that changed kiosk files makes `kiosk-restart.timer` restart the kiosk at 04:30.
+6. `kiosk-pull.timer` runs the first `ansible-pull` three minutes after boot and then every five minutes, applying the
+   playbook only when `stable` has moved. If there is no network yet, or the `stable` ref does not exist, the run fails
+   and only logs (`journalctl -u kiosk-pull`); the kiosk is not affected. A pull that changed kiosk files makes `kiosk-restart.timer` restart the kiosk at 04:30.
 
 The app's Wi-Fi button (shown with `?kiosk=1`) opens `kiosk-wifi://open`. Chromium's managed policy lets
 `https://the-max-mix.vercel.app` do that without a prompt, `xdg-open` finds `kiosk-wifi.desktop` through
@@ -119,6 +119,6 @@ Nobody has built or booted this yet. On the first real image, check:
    app?" prompt or nothing happens, check `chrome://policy` for `AutoLaunchProtocolsFromOrigins`.
 4. **Reboot:** it goes straight to the app.
 5. **Updates:** with a `stable` ref pushed, `sudo systemctl start kiosk-pull` on a live Pi pulls and applies it (journal:
-   `journalctl -u kiosk-pull`) and a second run changes nothing. A pull with no network or a missing ref fails without
+   `journalctl -u kiosk-pull`) and a second run skips the playbook because `stable` has not moved. A pull with no network or a missing ref fails without
    touching the kiosk. After a change to a kiosk file, `/run/kiosk/restart-needed` exists until the 04:30 restart.
 6. **Cursor:** none shows. If one does, the transparent theme in `/usr/share/icons/blank` is not being picked up.

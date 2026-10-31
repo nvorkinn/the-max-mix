@@ -5,6 +5,9 @@ import { errorMessage } from '../utils/errorMessage';
 import { isKiosk, openWifiSettings } from '../utils/kiosk';
 import { getRedirectUri, setDemoMode, setPlaybackMode } from '../spotify/settings';
 
+/** Set by vite.config.ts at build time; tests and other tooling run without it. */
+const APP_VERSION: string = import.meta.env.VITE_APP_VERSION ?? 'dev';
+
 /** Applies a changed setting by reloading the page, which starts everything again from the stored settings. */
 function reloadPage() {
   const url = new URL(location.href);
@@ -267,6 +270,10 @@ export default function SettingsModal({
             }}
           />
         </div>
+
+        <p className="mt-5 text-center text-[10px] text-neutral-500">
+          Version <span className="font-mono">{APP_VERSION}</span>
+        </p>
       </div>
     </div>
   );

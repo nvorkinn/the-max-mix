@@ -2,6 +2,7 @@
 # Applies this repository's playbook (ansible/local.yml) at kiosk_pull_ref, so a fix reaches a deployed device without
 # reflashing it. A failure only shows up in the journal (journalctl -u kiosk-pull); nothing depends on this unit, so the
 # kiosk keeps running, and the timer tries again later. It never restarts the kiosk: see kiosk-restart.timer.
+# --only-if-changed skips the playbook when the ref has not moved since the last run, so most runs are only a git fetch.
 [Unit]
 Description=Update THE MAX MIX kiosk with ansible-pull
 After=network-online.target
@@ -16,4 +17,4 @@ Environment=GIT_TERMINAL_PROMPT=0
 Nice=10
 IOSchedulingClass=idle
 TimeoutStartSec=30min
-ExecStart=/usr/bin/ansible-pull --url {{ kiosk_pull_repo }} --checkout {{ kiosk_pull_ref }} --directory {{ kiosk_pull_dir }} --inventory localhost, ansible/local.yml
+ExecStart=/usr/bin/ansible-pull --url {{ kiosk_pull_repo }} --checkout {{ kiosk_pull_ref }} --directory {{ kiosk_pull_dir }} --only-if-changed --inventory localhost, ansible/local.yml
