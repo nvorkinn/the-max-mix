@@ -900,6 +900,51 @@
   font-size: 14px;
   font-weight: 700;
 }
+.lyrics-button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.lyrics-list {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  mask-image: linear-gradient(transparent, #000 10%, #000 85%, transparent);
+  margin-top: 14px;
+  padding: 8px 4px 40%;
+  list-style: none;
+}
+.lyrics-line {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: -0.3px;
+  padding: 5px 0;
+  overflow-wrap: anywhere;
+  transition:
+    color 300ms,
+    opacity 300ms;
+}
+.lyrics-list.is-synced .lyrics-line {
+  color: var(--muted);
+  opacity: 0.75;
+}
+.lyrics-list.is-synced .lyrics-line.is-past {
+  opacity: 0.45;
+}
+.lyrics-list.is-synced .lyrics-line.is-active {
+  color: var(--ink);
+  opacity: 1;
+  font-size: 21px;
+}
+.lyrics-panel .queue-footer a {
+  color: inherit;
+  text-decoration: underline;
+}
 .queue-error {
   color: #fda4af;
   font-size: 11px;
@@ -1078,10 +1123,12 @@ input:disabled {
   .header-jam-button {
     display: none;
   }
-  .speaker-button {
+  .speaker-button,
+  .lyrics-button {
     padding: 0 10px;
   }
-  .speaker-button span {
+  .speaker-button span,
+  .lyrics-button span {
     display: none;
   }
   .listening-room {
@@ -1122,7 +1169,8 @@ input:disabled {
     min-height: 360px;
     padding: 18px;
   }
-  .queue-list {
+  .queue-list,
+  .lyrics-list {
     max-height: 480px;
     flex: auto;
   }
