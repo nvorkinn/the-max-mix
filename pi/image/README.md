@@ -8,7 +8,7 @@ configured in advance.
 
 ## What you see
 
-- **Online:** the app, full screen in Chromium (`https://the-max-mix.vercel.app/?kiosk=1`).
+- **Online:** the app, full screen in Chromium (`https://the-max-mix.vercel.app/?kiosk=1&cursor=hidden`).
 - **Offline:** a black screen with a centred Wi-Fi setup panel and an on-screen keyboard.
 - Never a desktop, a terminal, boot text, browser controls or a mouse cursor.
 
@@ -53,8 +53,8 @@ and trusted, then exits; later boots reconnect by themselves. Progress is in `jo
 device's channels the same `name` when they have different addresses: one paired address is enough. Keyboards that ask for a
 passkey are not supported.
 
-`kiosk_hide_cursor` is `true`, so no pointer shows on the touch screen. Set it to `false` while a mouse is the only way to
-use the screen.
+`kiosk_hide_cursor` is `true`, so no pointer shows on the touch screen: a blank cursor theme for the session, and
+`?cursor=hidden` in the app's address for Chromium. Set it to `false` while a mouse is the only way to use the screen.
 
 ## Flash
 

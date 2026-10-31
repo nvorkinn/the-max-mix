@@ -7,10 +7,11 @@ kiosk_image_build: false
 kiosk_user: kiosk
 # The only groups the kiosk user is in (the user has no sudo and no password).
 kiosk_groups: [audio, input, netdev, render, video]
-# The origin of the hosted app and the address the kiosk opens (?kiosk=1 turns on the app's kiosk-only settings).
+# The origin of the hosted app and the address the kiosk opens (?kiosk=1 turns on the app's kiosk-only settings,
+# ?cursor=hidden|shown follows kiosk_hide_cursor, in case Chromium ignores the session's blank cursor theme).
 # Register the redirect URI of this address in the Spotify dashboard.
 kiosk_app_origin: https://the-max-mix.vercel.app
-kiosk_url: '{{ kiosk_app_origin }}/?kiosk=1'
+kiosk_url: "{{ kiosk_app_origin }}/?kiosk=1&cursor={{ 'hidden' if kiosk_hide_cursor | bool else 'shown' }}"
 
 # System settings.
 kiosk_locale: en_GB.UTF-8

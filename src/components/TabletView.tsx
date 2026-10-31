@@ -12,7 +12,6 @@ import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
 import SpotifyJamQueue from './SpotifyJamQueue';
 import LyricsPanel from './LyricsPanel';
-import TouchRipples from './TouchRipples';
 import SettingsModal from './SettingsModal';
 import SpeakerSelectorModal from './SpeakerSelectorModal';
 import JamSettingsModal from './JamSettingsModal';
@@ -188,9 +187,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         } as CSSProperties
       }
     >
-      {/* 60 FPS Interactive Touch Ripple Canvas */}
-      <TouchRipples theme={theme} />
-
       <header className="app-header">
         <div className="brand">
           <div className="brand-mark">

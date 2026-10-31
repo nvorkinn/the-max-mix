@@ -12,7 +12,6 @@ vi.mock('../spotify/api', () => api);
 vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => state.player }));
 vi.mock('../utils/colorExtractor', () => ({ extractPalette: vi.fn() }));
 vi.mock('./AlbumArtPlayer', () => ({ default: () => null }));
-vi.mock('./TouchRipples', () => ({ default: () => null }));
 vi.mock('./SettingsModal', () => ({ default: () => null }));
 vi.mock('./SpeakerSelectorModal', () => ({ default: () => null }));
 vi.mock('./JamSettingsModal', () => ({ default: () => null }));
