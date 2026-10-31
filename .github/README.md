@@ -15,7 +15,7 @@ listed in `all-checks.yml`, so Global PR Status waits for it.
 and actionlint over `.github/workflows/*.yml`. ShellCheck and actionlint are downloaded as pinned release binaries and
 checked against a SHA-256 before running. It is listed in `all-checks.yml` too.
 
-`release.yml` runs on a version tag (`v*`) or by hand with an existing tag: it builds the app and deploys to Vercel production with a pinned Vercel CLI. It is the only way
+`release.yml` runs on a version tag (`v*`) or by hand with an existing tag: it builds the app on the runner with a pinned Vercel CLI (`vercel build`) and uploads only the built files to Vercel production (`vercel deploy --prebuilt`). It is the only way
 production is deployed (`vercel.json` turns off Vercel's deploy of `main`). It needs the repository secrets
 `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` and fails clearly if one is missing. It has read-only
 `contents` access and does not run on pull requests, so it is not in `all-checks.yml`.
