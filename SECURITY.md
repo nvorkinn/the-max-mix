@@ -35,6 +35,10 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
 - **The app is public static code.** Anyone who runs it can sign in with their own Spotify account, and each browser
   keeps its own login; a shared browser profile is a shared login. Only addresses registered as redirect URIs in the
   Spotify dashboard can sign in.
+- **The audio service.** `pi/kiosk-audio/` runs as the `kiosk` user and listens on `127.0.0.1` only. It answers only
+  requests addressed to that loopback host (against DNS rebinding) and, from a browser, only the app's own origin; a
+  change needs a JSON `PUT`, so a CORS preflight always comes first. All it can do is link the browser's audio stream
+  to AirPlay sinks with `pw-link`, without a shell.
 - **The Wi-Fi panel.** A native Qt panel (`pi/wifi-panel/`) runs as the non-root `kiosk` user and joins networks with
   `nmcli`; a polkit rule (`pi/rootfs/etc/polkit-1/rules.d/50-kiosk-networkmanager.rules`) lets only that user manage
   NetworkManager connections. The password reaches `nmcli` on stdin, never in argv, and is not logged; every call is an

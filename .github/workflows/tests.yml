@@ -20,9 +20,10 @@ jobs:
           cache: npm
       - run: npm ci
       # The coverage run executes the app tests (and enforces the thresholds), so `npm test` would run them twice; only the
-      # Wi-Fi panel tests are left to run on their own.
+      # Wi-Fi panel and audio service tests are left to run on their own.
       - run: npm run test:coverage
       - run: npm run test:wifi-panel
+      - run: npm run test:kiosk-audio
       - name: Coverage summary
         if: ${{ !cancelled() }}
         run: node scripts/coverage-summary.ts >> "$GITHUB_STEP_SUMMARY"

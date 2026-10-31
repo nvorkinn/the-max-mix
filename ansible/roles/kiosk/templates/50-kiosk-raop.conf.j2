@@ -1,0 +1,19 @@
+# {{ ansible_managed }}
+# Finds AirPlay (RAOP) speakers through Avahi and makes a PipeWire sink for each, with a short latency so the music
+# follows the touch screen's controls quickly. The audio service links the browser's stream to the chosen sinks.
+context.modules = [
+    {   name = libpipewire-module-raop-discover
+        args = {
+            raop.latency.ms = {{ kiosk_raop_latency_ms }}
+            stream.rules = [
+                {   matches = [ { raop.ip = "~.*" } ]
+                    actions = {
+                        create-stream = {
+                            raop.latency.ms = {{ kiosk_raop_latency_ms }}
+                        }
+                    }
+                }
+            ]
+        }
+    }
+]

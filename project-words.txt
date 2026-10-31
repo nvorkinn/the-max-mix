@@ -244,3 +244,9 @@ cacher
 acng
 pigen
 lrclib
+avahi
+raop
+alsa
+libpipewire
+pavucontrol
+wpctl

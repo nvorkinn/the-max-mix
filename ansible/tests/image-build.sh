@@ -48,10 +48,13 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/kiosk-open-wifi /usr/loc
   /etc/systemd/system/kiosk-restart.timer /etc/chromium/policies/managed/kiosk.json \
   /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules /etc/NetworkManager/conf.d/20-connectivity.conf \
   /etc/tmpfiles.d/kiosk.conf /usr/share/plymouth/themes/the-max-mix/the-max-mix.plymouth \
-  /usr/share/icons/blank/cursors/left_ptr /etc/apt/apt.conf.d/52kiosk-unattended-upgrades; do
+  /usr/share/icons/blank/cursors/left_ptr /etc/apt/apt.conf.d/52kiosk-unattended-upgrades \
+  /opt/the-max-mix/kiosk-audio/kiosk_audio.py /opt/the-max-mix/kiosk-audio/pipewire.py \
+  /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf /etc/systemd/user/default.target.wants/kiosk-audio.service; do
   check test -e "$file"
 done
-for unit in kiosk.service kiosk-bluetooth-pair.service bluetooth.service kiosk-pull.timer kiosk-restart.timer; do
+for unit in kiosk.service kiosk-bluetooth-pair.service bluetooth.service avahi-daemon.service kiosk-pull.timer \
+  kiosk-restart.timer; do
   check systemctl is-enabled --quiet "$unit"
   # Enabled only: nothing is started in an image build.
   if systemctl is-active --quiet "$unit"; then
@@ -72,6 +75,8 @@ if id -nG kiosk | grep -qw sudo; then
   fail=1
 fi
 check grep -q 'ansible-pull --url https://github.com/nvorkinn/the-max-mix.git --checkout stable ' /etc/systemd/system/kiosk-pull.service
+check grep -q 'raop.latency.ms = 500' /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf
+check grep -q -- '--port 47878 --origin https://the-max-mix.vercel.app$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'en_GB.UTF-8' /etc/default/locale
 check test "$(cat /etc/timezone)" = Europe/London
 

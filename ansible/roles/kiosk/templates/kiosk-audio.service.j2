@@ -1,0 +1,19 @@
+# {{ ansible_managed }}
+# A user unit, enabled for every user but run only for the kiosk user: it needs that user's PipeWire session, which
+# kiosk.service's login session starts.
+[Unit]
+Description=THE MAX MIX audio service (AirPlay routing on 127.0.0.1:{{ kiosk_audio_port }})
+ConditionUser={{ kiosk_user }}
+Wants=pipewire.service wireplumber.service
+After=pipewire.service wireplumber.service
+
+[Service]
+ExecStart=/usr/bin/python3 {{ kiosk_audio_dir }}/kiosk_audio.py --port {{ kiosk_audio_port }} --origin {{ kiosk_app_origin }}
+Restart=always
+RestartSec=2
+NoNewPrivileges=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=default.target

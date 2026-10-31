@@ -151,13 +151,18 @@
   loop:
     - /etc/chromium/policies/managed
     - /etc/the-max-mix
+    - /etc/pipewire
+    - /etc/pipewire/pipewire.conf.d
     - /etc/plymouth
     - /etc/systemd/system
+    - /etc/systemd/user
+    - /etc/systemd/user/default.target.wants
     - /etc/tmpfiles.d
     - /etc/xdg
     - /opt/the-max-mix
     - '{{ kiosk_panel_dir }}'
     - '{{ kiosk_panel_dir }}/qml'
+    - '{{ kiosk_audio_dir }}'
     - /usr/share/applications
     - /usr/share/icons/blank
     - /usr/share/icons/blank/cursors
@@ -195,6 +200,44 @@
     - qml/Main.qml
     - qml/PanelButton.qml
     - qml/PanelField.qml
+  notify: Ask for a kiosk restart
+
+# AirPlay: PipeWire makes a sink for each speaker Avahi finds, and the audio service routes the browser's audio to the
+# ones chosen in the app.
+- name: Install the audio service
+  ansible.builtin.copy:
+    src: '{{ kiosk_audio_src }}/{{ item }}'
+    dest: '{{ kiosk_audio_dir }}/{{ item }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - kiosk_audio.py
+    - pipewire.py
+  notify: Ask for a kiosk restart
+
+- name: Install the AirPlay and audio service settings
+  ansible.builtin.template:
+    src: '{{ item.src }}'
+    dest: '{{ item.dest }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - { src: 50-kiosk-raop.conf.j2, dest: /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf }
+    - { src: kiosk-audio.service.j2, dest: /etc/systemd/user/kiosk-audio.service }
+  loop_control:
+    label: '{{ item.dest }}'
+  notify: Ask for a kiosk restart
+
+# What `systemctl --global enable` does, as a link, so it also works in the image build's chroot.
+- name: Start the audio service in the kiosk user's session
+  ansible.builtin.file:
+    src: ../kiosk-audio.service
+    dest: /etc/systemd/user/default.target.wants/kiosk-audio.service
+    state: link
+    force: true
+    follow: false
   notify: Ask for a kiosk restart
 
 - name: Install the kiosk service
@@ -340,6 +383,12 @@
     - bluetooth.service
     - kiosk-bluetooth-pair.service
   when: kiosk_bluetooth_devices | length > 0
+
+- name: Enable Avahi, which finds the AirPlay speakers
+  ansible.builtin.systemd_service:
+    name: avahi-daemon.service
+    enabled: true
+    state: "{{ 'started' if not kiosk_image_build else omit }}"
 
 - name: Enable the update timers
   ansible.builtin.systemd_service:
