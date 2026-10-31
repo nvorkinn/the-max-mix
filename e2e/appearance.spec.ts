@@ -3,7 +3,6 @@ import { expect, test } from '@playwright/test';
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 
 test.beforeEach(async ({ page }) => {
-  await page.route('https://fonts.googleapis.com/**', route => route.fulfill({ contentType: 'text/css', body: '' }));
   await page.route('https://images.unsplash.com/**', route =>
     route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
   );

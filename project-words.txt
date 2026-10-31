@@ -251,6 +251,7 @@ waveshare
 wayland
 weeknd
 wep
+wght
 whiteglass
 widevine
 wifi
