@@ -195,10 +195,7 @@ for (const theme of ['neon', 'minimal']) {
 
 for (const { width, height, theme } of [
   { width: 1024, height: 600, theme: 'neon' },
-  { width: 1024, height: 600, theme: 'minimal' },
-  { width: 390, height: 844, theme: 'minimal' },
-  { width: 320, height: 568, theme: 'neon' },
-  { width: 1440, height: 900, theme: 'neon' }
+  { width: 1024, height: 600, theme: 'minimal' }
 ]) {
   test(`playback recovery fits ${width}x${height} in ${theme} without repeating a skip`, async ({ page }) => {
     await page.setViewportSize({ width, height });
@@ -209,10 +206,8 @@ for (const { width, height, theme } of [
     await player.getByRole('button', { name: 'Next track' }).click();
     await expect(player.getByRole('alert')).toContainText('Playback problem');
     await expectControlsFit(page, player);
-    if (width >= 761) {
-      await expect(player.getByRole('button', { name: 'Refresh playback' })).toBeInViewport();
-      await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeInViewport();
-    }
+    await expect(player.getByRole('button', { name: 'Refresh playback' })).toBeInViewport();
+    await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeInViewport();
     await player.getByRole('button', { name: 'Details', exact: true }).click();
     const debug = page.getByRole('dialog', { name: 'Debug console' });
     await expect(debug).toContainText('Spotify request failed (500).');

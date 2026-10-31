@@ -13,12 +13,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const appearance of ['neon', 'minimal']) {
-  for (const viewport of [
-    { width: 1024, height: 600 },
-    { width: 1440, height: 900 },
-    { width: 390, height: 844 },
-    { width: 320, height: 568 }
-  ]) {
+  for (const viewport of [{ width: 1024, height: 600 }]) {
     test(`complete track metadata fits ${viewport.width}x${viewport.height} in ${appearance}`, async ({ page }) => {
       await page.setViewportSize(viewport);
       await page.route('https://accounts.spotify.com/api/token', route =>
@@ -86,14 +81,12 @@ for (const appearance of ['neon', 'minimal']) {
       await expect(player.locator('canvas, .art-caption, .art-equalizer, .track-visualizer')).toHaveCount(0);
       expect(await page.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
 
-      if (viewport.width >= 761) {
-        expect(await metadata.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true);
-        await metadata.focus();
-        await page.keyboard.press('End');
-        await expect.poll(() => metadata.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
-        await expect(player.getByRole('button', { name: 'Pause' })).toBeInViewport();
-        await expect(player.locator('.album-art')).toBeInViewport();
-      }
+      expect(await metadata.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true);
+      await metadata.focus();
+      await page.keyboard.press('End');
+      await expect.poll(() => metadata.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+      await expect(player.getByRole('button', { name: 'Pause' })).toBeInViewport();
+      await expect(player.locator('.album-art')).toBeInViewport();
       const targets = await player
         .getByRole('button', { name: /^(Pause|Next track|Previous track)$/ })
         .evaluateAll(elements =>

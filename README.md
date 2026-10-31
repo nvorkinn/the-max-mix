@@ -1,8 +1,8 @@
 # THE MAX MIX
 
 A music-first Spotify touchscreen for a Raspberry Pi, including the Waveshare
-7-inch 1024x600 display. Studio and Paper appearances adapt to tablets,
-larger screens, and phones.
+7-inch 1024x600 display. It is designed for tablet-sized touch screens only;
+phone and desktop layouts are not supported.
 
 ## What works
 
