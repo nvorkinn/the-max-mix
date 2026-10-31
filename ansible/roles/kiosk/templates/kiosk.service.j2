@@ -27,6 +27,7 @@ ExecStartPre=+/usr/bin/chvt 7
 ExecStartPre=+/usr/bin/rm -f {{ kiosk_restart_marker }}
 Environment=WLR_LIBINPUT_NO_DEVICES=1
 Environment=KIOSK_CURSOR_THEME={{ 'blank' if kiosk_hide_cursor | bool else kiosk_cursor_theme }}
+Environment=KIOSK_SCREEN_OFF_AFTER={{ kiosk_screen_off_after | int }}
 Environment="KIOSK_URL={{ kiosk_url | replace('%', '%%') }}"
 ExecStart=/usr/bin/cage -d -- /usr/local/bin/kiosk-session
 Restart=always

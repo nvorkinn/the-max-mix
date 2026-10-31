@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Turns the screen off and on, inside the Cage session (it needs Cage's WAYLAND_DISPLAY):
+#   kiosk-display off                  from swayidle (kiosk-session), once the app let the screen sleep and nobody touched it
+#   kiosk-display on                   from swayidle at the first touch after that
+#   kiosk-display kiosk-display://wake the handler for kiosk-display:// links (kiosk-display.desktop): the app wakes the
+#                                      screen for music that starts while it sleeps
+# Cage has no output power protocol, so the HDMI output is disabled and enabled again through wlr-randr. Without a signal
+# the Waveshare screen should turn its backlight off; the app's black sleep screen covers it if it does not.
+set -u
+
+# The outputs Cage has: wlr-randr starts each one's block with its name at the start of a line.
+outputs() {
+  wlr-randr | awk '/^[^ \t]/ { print $1 }'
+}
+
+turn() {
+  local state=$1 output status=0
+  while read -r output; do
+    [[ -n $output ]] || continue
+    if [[ $state == on ]]; then
+      # Enabling without a mode can fail where the firmware set none; the preferred mode is the one Cage started with.
+      wlr-randr --output "$output" --on || wlr-randr --output "$output" --on --preferred || status=1
+    else
+      wlr-randr --output "$output" --off || status=1
+    fi
+  done < <(outputs)
+  return "$status"
+}
+
+case ${1:-} in
+  on | kiosk-display://wake | kiosk-display://wake/) turn on ;;
+  off) turn off ;;
+  *)
+    echo "kiosk-display: unknown command or link: ${1:-}" >&2
+    exit 1
+    ;;
+esac

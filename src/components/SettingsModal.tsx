@@ -5,6 +5,8 @@ import { errorMessage } from '../utils/errorMessage';
 import { isKiosk, openWifiSettings } from '../utils/kiosk';
 import { getRedirectUri, setDemoMode, setPlaybackMode } from '../spotify/settings';
 import { widevineProblem } from '../utils/widevine';
+import { SCREEN_SLEEP_CHOICES } from '../utils/screenSleep';
+import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import KioskSystem from './KioskSystem';
 import Modal from './Modal';
 
@@ -17,6 +19,36 @@ function reloadPage() {
   // A ?demo=true address would switch demo mode straight back on.
   url.searchParams.delete('demo');
   location.assign(url.href);
+}
+
+/** The kiosk's screen sleep delay: off, or minutes without a touch while nothing plays. */
+function ScreenSleepRow({
+  minutes,
+  onChange
+}: Readonly<{ minutes: ScreenSleepMinutes; onChange: (minutes: ScreenSleepMinutes) => void }>) {
+  return (
+    <div className="modal-card p-3 rounded-2xl border">
+      <div className="text-xs font-bold" id="screen-sleep-label">
+        Screen sleep
+      </div>
+      <p className="text-muted text-[10px] mt-0.5">
+        Turns the screen off when nobody has touched it for a while and nothing is playing. A tap wakes it.
+      </p>
+      <div className="flex gap-1.5 mt-2" role="group" aria-labelledby="screen-sleep-label">
+        {SCREEN_SLEEP_CHOICES.map(choice => (
+          <button
+            type="button"
+            key={choice}
+            aria-pressed={minutes === choice}
+            onClick={() => onChange(choice)}
+            className="modal-option flex-1 min-h-11 rounded-xl border text-xs font-bold"
+          >
+            {choice === 0 ? 'Never' : `${choice} min`}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 /** A labelled on/off switch. */
@@ -67,6 +99,9 @@ interface SettingsModalProps {
   currentTheme?: string;
   onThemeChange?: (theme: string) => void;
   statusMessage?: string | null;
+  /** The kiosk's screen sleep delay, shown on the kiosk only. */
+  screenSleep?: ScreenSleepMinutes;
+  onScreenSleepChange?: (minutes: ScreenSleepMinutes) => void;
 }
 
 export default function SettingsModal({
@@ -77,7 +112,9 @@ export default function SettingsModal({
   onReload = reloadPage,
   currentTheme = 'neon',
   onThemeChange,
-  statusMessage
+  statusMessage,
+  screenSleep,
+  onScreenSleepChange
 }: Readonly<SettingsModalProps>) {
   const [actionError, setActionError] = useState<string | null>(null);
   // Why this browser cannot be the speaker (no Widevine), checked each time Settings opens; null while it can.
@@ -274,6 +311,9 @@ export default function SettingsModal({
             </span>
             <Wifi className="w-5 h-5 shrink-0 text-accent" aria-hidden="true" />
           </button>
+        )}
+        {isKiosk() && screenSleep !== undefined && onScreenSleepChange && (
+          <ScreenSleepRow minutes={screenSleep} onChange={onScreenSleepChange} />
         )}
         {isKiosk() && <KioskSystem />}
 

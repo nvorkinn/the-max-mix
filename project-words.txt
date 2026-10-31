@@ -185,6 +185,7 @@ qtgui
 qtqml
 qtquick
 qtvirtualkeyboard
+randr
 raop
 raspi
 raspios
@@ -219,6 +220,7 @@ SSIDs
 starboy
 stdin
 stefani
+swayidle
 testclient
 timezone
 tmpfiles
@@ -258,6 +260,7 @@ wifis
 winehouse
 wireplumber
 wlan
+wlr
 WPA
 WPA2
 WPA3
