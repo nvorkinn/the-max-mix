@@ -1,0 +1,31 @@
+name: Ansible
+
+# The kiosk playbook's test, kept apart from Tests so it runs only when something the playbook reads changes: ansible/,
+# the two pi/ folders it installs, or this workflow. All checks completes "Global PR Status" once the workflows that did
+# run have passed, so a PR that does not touch these paths is not held up.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ansible/**'
+      - 'pi/wifi-panel/**'
+      - 'pi/kiosk-audio/**'
+      - '.github/workflows/ansible.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ansible/**'
+      - 'pi/wifi-panel/**'
+      - 'pi/kiosk-audio/**'
+      - '.github/workflows/ansible.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  # A placeholder until the playbook test moves here from tests.yml, so that All checks already knows this workflow.
+  ansible-playbook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: echo "The playbook test still runs in tests.yml; it moves here next."
