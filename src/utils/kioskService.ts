@@ -18,3 +18,20 @@ export function kioskPost(path: string, body?: unknown): void {
     })
     .catch((error: unknown) => console.warn(`The kiosk did not answer ${path}`, error));
 }
+
+/** How the update the person asked for is going (GET /update/status): see pi/kiosk-audio/actions.ts. */
+export interface UpdateStatus {
+  state: 'idle' | 'running' | 'done' | 'failed';
+  lines: string[];
+  total: number;
+}
+
+/** The update's status, or null when the service does not answer (it ends with the kiosk when an update restarts it). */
+export async function getUpdateStatus(): Promise<UpdateStatus | null> {
+  try {
+    const response = await fetch(`${KIOSK_SERVICE}/update/status`, { cache: 'no-store' });
+    return response.ok ? ((await response.json()) as UpdateStatus) : null;
+  } catch {
+    return null;
+  }
+}
