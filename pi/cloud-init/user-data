@@ -1,5 +1,5 @@
 #cloud-config
-# THE MAX MIX on stock Raspberry Pi OS Lite (64-bit, trixie), instead of the pi-gen image. Copy this file over the
+# THE MAX MIX on stock Raspberry Pi OS Lite (64-bit, trixie). Copy this file over the
 # user-data on the SD card's boot partition (see README.md). cloud-init only does offline work here: it names the Pi,
 # creates the locked kiosk user and installs kiosk-first-pull.service. That unit waits for the network, runs this
 # repository's playbook from stable with ansible-pull (the same run kiosk-pull.timer repeats later), and reboots once it

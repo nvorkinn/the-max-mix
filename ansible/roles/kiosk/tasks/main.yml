@@ -1,6 +1,6 @@
 ---
 # One file, in order: packages, system settings, the kiosk user, the kiosk itself, then updates. Every task is idempotent.
-# Services are only enabled when kiosk_image_build is true; nothing restarts the running kiosk (see handlers).
+# Services are only enabled when kiosk_enable_only is true; nothing restarts the running kiosk (see handlers).
 
 # Packages ------------------------------------------------------------------------------------------------------------
 - name: Read the Wi-Fi panel's package list
@@ -158,8 +158,8 @@
     system: true
   loop: '{{ kiosk_groups }}'
 
-# pi-gen creates this user with a throwaway password and in the sudo group. Locked password, only the groups the kiosk
-# needs, so nothing can log in and nothing can use sudo.
+# Locked password and only the groups the kiosk needs, so nothing can log in as it and nothing can use sudo, whatever
+# created the user.
 - name: Set up the kiosk user
   ansible.builtin.user:
     name: '{{ kiosk_user }}'
@@ -240,7 +240,7 @@
     name: ssh.service
     enabled: '{{ kiosk_ssh_enabled | bool }}'
     state: >-
-      {{ omit if kiosk_image_build else ('stopped' if not kiosk_ssh_enabled | bool
+      {{ omit if kiosk_enable_only else ('stopped' if not kiosk_ssh_enabled | bool
       else ('restarted' if kiosk_sshd_config is changed else 'started')) }}
 
 # The kiosk -----------------------------------------------------------------------------------------------------------
@@ -339,7 +339,7 @@
     label: '{{ item.dest }}'
   notify: Ask for a kiosk restart
 
-# What `systemctl --global enable` does, as a link, so it also works in the image build's chroot.
+# What `systemctl --global enable` does, as a link, so it also works without a running systemd (kiosk_enable_only).
 - name: Start the audio routing in the kiosk user's session
   ansible.builtin.file:
     src: ../kiosk-audio.service
@@ -509,13 +509,13 @@
   ansible.builtin.systemd_service:
     name: avahi-daemon.service
     enabled: true
-    state: "{{ 'started' if not kiosk_image_build else omit }}"
+    state: "{{ 'started' if not kiosk_enable_only else omit }}"
 
 - name: Enable the update timers
   ansible.builtin.systemd_service:
     name: '{{ item }}'
     enabled: true
-    state: "{{ 'started' if not kiosk_image_build else omit }}"
+    state: "{{ 'started' if not kiosk_enable_only else omit }}"
   loop:
     - kiosk-pull.timer
     - kiosk-restart.timer

@@ -1,9 +1,10 @@
 ---
-# True while an image is being built (pi-gen passes -e kiosk_image_build=true). Services are then only enabled, never
-# started or restarted, and nothing that needs a running systemd, D-Bus or NetworkManager is run.
-kiosk_image_build: false
+# True where nothing may be started: the playbook test in a container (ansible/tests/image-build.sh) passes
+# -e kiosk_enable_only=true. Services are then only enabled, never started or restarted, and nothing that needs a running
+# systemd, D-Bus or NetworkManager is run.
+kiosk_enable_only: false
 
-# The account Cage and Chromium run as. pi-gen creates it as the image's first user (FIRST_USER_NAME in pi/image/config).
+# The account Cage and Chromium run as. cloud-init creates it on the first boot (pi/cloud-init/user-data).
 kiosk_user: kiosk
 # The only groups the kiosk user is in (the user has no sudo and no password).
 kiosk_groups: [audio, input, netdev, render, video]
@@ -15,19 +16,16 @@ kiosk_app_origin: https://the-max-mix.vercel.app
 kiosk_url: >-
   {{ kiosk_app_origin }}/?kiosk=1&cursor={{ 'hidden' if kiosk_hide_cursor | bool else 'shown' }}
   {{- ('&pi_ref=' ~ (kiosk_pull_ref | urlencode) ~ '&pi_commit=' ~ kiosk_commit) if kiosk_commit else '' }}
-# The commit this playbook runs from: ansible-pull runs it from a Git checkout, and the image build, which has no .git,
-# from the copy pi/image/prepare.sh makes, with the commit in ansible/COMMIT. Empty when neither is there. Because the
+# The commit this playbook runs from: ansible-pull runs it from a Git checkout. Empty without one. Because the
 # commit is in kiosk_url, every new commit on kiosk_pull_ref changes kiosk.service and so restarts the kiosk at
 # kiosk_restart_time, after which the settings show the new commit.
 kiosk_commit: >-
   {{ lookup('ansible.builtin.pipe',
-    'git -C ' ~ (playbook_dir | quote) ~ ' rev-parse --short=7 HEAD 2> /dev/null || cat '
-    ~ ((playbook_dir ~ '/COMMIT') | quote) ~ ' 2> /dev/null || true')
+    'git -C ' ~ (playbook_dir | quote) ~ ' rev-parse --short=7 HEAD 2> /dev/null || true')
     | regex_search('^[0-9a-f]{7,40}$') | default('', true) }}
 
 # System settings.
-# The host name pi-gen (pi/image/config) and cloud-init (pi/cloud-init/user-data) give the Pi; the playbook only adds it
-# to /etc/hosts.
+# The host name cloud-init (pi/cloud-init/user-data) gives the Pi; the playbook only adds it to /etc/hosts.
 kiosk_hostname: the-max-mix
 kiosk_locale: en_GB.UTF-8
 kiosk_timezone: Europe/London
@@ -132,7 +130,7 @@ kiosk_nodesource_key_url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.
 kiosk_nodesource_key_sha256: b42e0321dabdc24e892115da705cf061167eac12a317f23d329862d0aa0a271d
 
 # On-device updates: kiosk-pull.timer runs ansible-pull against this repository and ref. The ref is a branch or tag that
-# the owner moves on purpose (never a development branch); the image build bakes in the same value. To roll a device
+# the owner moves on purpose (never a development branch); pi/cloud-init/user-data pulls the same ref first. To roll a device
 # back, move the ref back. The repository is public, so no credentials are needed.
 kiosk_pull_repo: https://github.com/nvorkinn/the-max-mix.git
 kiosk_pull_ref: stable

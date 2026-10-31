@@ -1,14 +1,14 @@
 ---
 # The single source of truth for everything installed and configured on the THE MAX MIX kiosk (Raspberry Pi OS Lite,
 # trixie). It runs in three ways, all with this same file:
-#   - in the image build (pi/image): ansible-playbook -c local -i localhost, -e kiosk_image_build=true ansible/local.yml
+#   - on the first boot, by kiosk-first-pull.service (pi/cloud-init/user-data): ansible-pull
 #   - on the device, by the kiosk-pull.timer: ansible-pull (see roles/kiosk/templates/kiosk-pull.service.j2)
 #   - by hand, as root on the device: ansible-playbook -c local -i localhost, ansible/local.yml
 # The variables and their defaults are listed in roles/kiosk/defaults/main.yml.
 - name: Set up the THE MAX MIX kiosk
   hosts: localhost
   connection: local
-  # Nothing here needs facts, and gathering them is slow and fragile inside an image-build chroot.
+  # Nothing here needs facts, and gathering them is slow and fragile in the playbook test's container.
   gather_facts: false
   roles:
     - kiosk

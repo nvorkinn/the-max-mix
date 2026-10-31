@@ -1,20 +1,20 @@
 ---
-# Nothing here restarts the kiosk. In an image build nothing is started at all, so most handlers are skipped.
+# Nothing here restarts the kiosk. With kiosk_enable_only nothing is started at all, so most handlers are skipped.
 - name: Reload systemd
   ansible.builtin.systemd_service:
     daemon_reload: true
-  when: not kiosk_image_build
+  when: not kiosk_enable_only
 
 - name: Reload NetworkManager
   ansible.builtin.systemd_service:
     name: NetworkManager.service
     state: reloaded
-  when: not kiosk_image_build
+  when: not kiosk_enable_only
 
 - name: Create the run directory
   ansible.builtin.command: systemd-tmpfiles --create /etc/tmpfiles.d/kiosk.conf
   changed_when: true
-  when: not kiosk_image_build
+  when: not kiosk_enable_only
 
 - name: Generate the locale
   ansible.builtin.command: locale-gen
@@ -33,4 +33,4 @@
     mode: '0644'
     modification_time: preserve
     access_time: preserve
-  when: not kiosk_image_build
+  when: not kiosk_enable_only

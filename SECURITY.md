@@ -55,4 +55,4 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
   argument list with no shell, and the panel has no network listener. The app opens it through the `kiosk-wifi://` link,
   which Chromium's managed policy (`AutoLaunchProtocolsFromOrigins` in
   `pi/rootfs/etc/chromium/policies/managed/kiosk.json`) allows without a prompt only from `https://the-max-mix.vercel.app`.
-  The flashed image has no password for any account, and SSH only by key for `admin`. See [`pi/wifi-panel/README.md`](pi/wifi-panel/README.md).
+  A kiosk has no password for any account, and SSH only by key for `admin`. See [`pi/wifi-panel/README.md`](pi/wifi-panel/README.md).

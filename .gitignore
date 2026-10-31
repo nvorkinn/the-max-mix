@@ -11,5 +11,3 @@ playwright-report
 test-results
 __pycache__/
 
-# Copied into the Raspberry Pi image stage by pi/image/prepare.sh
-pi/image/stage-kiosk/01-install/files/
