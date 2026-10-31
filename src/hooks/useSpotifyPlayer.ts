@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import type { PlaybackState, SdkPlaybackState, SpotifyPlayer, Track } from '../types';
 import * as spotify from '../spotify/api';
 import { getAccessToken, isSignedIn } from '../spotify/auth';
-import { SpotifyApiError } from '../spotify/http';
+import { NETWORK_ERROR_MESSAGE, SpotifyApiError } from '../spotify/http';
 import { getPlaybackMode, isDemoMode as readDemoMode } from '../spotify/settings';
 import { errorMessage } from '../utils/errorMessage';
 import { loadSpotifySDK } from '../utils/spotifySdk';
@@ -34,6 +34,38 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, message: string):
 
 type PlaybackOrNull = PlaybackState | null;
 
+export interface PlaybackProblem {
+  message: string;
+  recovery: 'sign-in' | 'choose-speaker' | 'settings' | 'reconnect' | 'refresh' | 'enable-audio' | 'wait';
+}
+
+function apiProblem(error: unknown): PlaybackProblem {
+  let recovery: PlaybackProblem['recovery'] = 'refresh';
+  if (error instanceof SpotifyApiError) {
+    switch (error.status) {
+      case 401: {
+        recovery = 'sign-in';
+        break;
+      }
+      case 403: {
+        recovery = 'settings';
+        break;
+      }
+      case 404: {
+        recovery = 'choose-speaker';
+        break;
+      }
+      case 429: {
+        recovery = 'wait';
+        break;
+      }
+      default:
+    }
+    if (error instanceof SpotifyApiError && error.retryAfter > 0) recovery = 'wait';
+  }
+  return { message: errorMessage(error), recovery };
+}
+
 /** What the hook gives the components. */
 export interface UseSpotifyPlayer {
   playbackState: PlaybackOrNull;
@@ -42,10 +74,12 @@ export interface UseSpotifyPlayer {
   isDemoMode: boolean;
   playbackMode: ReturnType<typeof getPlaybackMode>;
   isLoading: boolean;
+  isConnecting: boolean;
   isReady: boolean;
   sdkActive: boolean;
   queueVersion: number;
   error: string | null;
+  problem: PlaybackProblem | null;
   clearError: () => void;
   togglePlay: () => Promise<boolean>;
   nextTrack: () => Promise<boolean>;
@@ -54,6 +88,9 @@ export interface UseSpotifyPlayer {
   setVolume: (volume: number) => Promise<boolean>;
   transferPlayback: (deviceId: string) => Promise<boolean>;
   refreshPlayback: () => Promise<void>;
+  retryPlayback: () => Promise<boolean>;
+  reconnectPlayer: () => void;
+  allowBrowserAudio: () => Promise<boolean>;
 }
 
 /**
@@ -93,9 +130,11 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   const [now, setNow] = useState(Date.now);
   const [loaded, setLoaded] = useState(false);
   const [browserDeviceId, setBrowserDeviceId] = useState<string | null>(null);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [sdkError, setSdkError] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<PlaybackProblem | null>(null);
+  const [actionError, setActionError] = useState<PlaybackProblem | null>(null);
+  const [sdkError, setSdkError] = useState<PlaybackProblem | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionVersion, setConnectionVersion] = useState(0);
   // True while the SDK reports this player as the active device (it reports null once another device takes over).
   const [sdkActive, setSdkActive] = useState(false);
   // True once a different device was picked under Speakers: play/pause then go to that device through the Web API.
@@ -111,8 +150,22 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   const lastTrackIdRef = useRef<string | null>(null);
   const lastNextTracksRef = useRef<string | null>(null);
   const deviceIdRef = useRef<string | null>(null);
+  const retryAfterRef = useRef(0);
   // Brings the SDK player back in step after the page was in the background (set while the player exists).
   const resumeRef = useRef<(() => void) | null>(null);
+
+  const problemForApi = useCallback((error: unknown) => {
+    if (error instanceof SpotifyApiError && error.retryAfter > 0) {
+      retryAfterRef.current = Date.now() + error.retryAfter * 1000;
+    }
+    return apiProblem(error);
+  }, []);
+  const checkRetryWindow = useCallback(() => {
+    const remaining = retryAfterRef.current - Date.now();
+    if (remaining > 0) {
+      throw new SpotifyApiError('Spotify asked this app to wait before retrying.', 429, Math.ceil(remaining / 1000));
+    }
+  }, []);
 
   const setPlayback = useCallback((next: PlaybackOrNull | ((current: PlaybackOrNull) => PlaybackOrNull)) => {
     const at = Date.now();
@@ -150,8 +203,13 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
 
   const refreshPlayback = useCallback(async () => {
     const requestId = ++playbackRequestRef.current;
+    checkRetryWindow();
     const state = await spotify.getPlaybackState();
     if (requestId !== playbackRequestRef.current) return;
+    setConnectionError(null);
+    setActionError(current =>
+      current?.message === NETWORK_ERROR_MESSAGE || current?.recovery === 'wait' ? null : current
+    );
     const expected = expectedPlayingRef.current;
     if (expected && state) {
       // Spotify agreeing, or the window passing, ends the hold; until then a stale read must not flip the button back.
@@ -162,7 +220,34 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       }
     }
     setPlayback(state);
-  }, [setPlayback]);
+  }, [setPlayback, checkRetryWindow]);
+
+  const reportConnectionError = useCallback(
+    (error: unknown) => {
+      setConnectionError(problemForApi(error));
+      if (error instanceof SpotifyApiError && error.status === 401 && !isSignedIn()) {
+        setIsAuthenticated(false);
+        setPlayback(null);
+      }
+    },
+    [setPlayback, problemForApi]
+  );
+
+  // Refreshing confirms state only: resending a skip after an uncertain reply could skip a second track.
+  const retryPlayback = async () => {
+    try {
+      await refreshPlayback();
+      setConnectionError(null);
+      setActionError(null);
+      bumpQueue();
+      return true;
+    } catch (error) {
+      reportConnectionError(error);
+      return false;
+    } finally {
+      setLoaded(true);
+    }
+  };
 
   // Reads playback from Spotify: at once, then every 4 s while another device plays (or in demo mode), and only as a
   // slow safety net while this page's SDK player is active and tells us about every change itself.
@@ -184,12 +269,8 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         failures = 0;
       } catch (error) {
         if (isCancelled()) return;
-        setConnectionError(errorMessage(error));
+        reportConnectionError(error);
         const apiError = error instanceof SpotifyApiError ? error : null;
-        if (apiError?.status === 401 && !isSignedIn()) {
-          setIsAuthenticated(false);
-          setPlayback(null);
-        }
         delay = Math.max(Math.min(60_000, base * 2 ** ++failures), (apiError?.retryAfter ?? 0) * 1000);
       }
       setLoaded(true);
@@ -201,7 +282,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       invalidatePlayback();
       clearTimeout(timer);
     };
-  }, [isDemoMode, isAuthenticated, sdkDriven, refreshPlayback, invalidatePlayback, setPlayback]);
+  }, [isDemoMode, isAuthenticated, sdkDriven, refreshPlayback, invalidatePlayback, reportConnectionError]);
 
   // A background tab's timers are throttled to about one a minute and its connections can drop, so when the page comes
   // back to the front it reads everything again at once instead of waiting for the next (late) timer.
@@ -257,7 +338,23 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       }
     };
 
+    const disconnect = () => {
+      cancelled = true;
+      player?.disconnect();
+      playerRef.current = null;
+      resumeRef.current = null;
+      deviceIdRef.current = null;
+      sdkActiveRef.current = false;
+      lastTrackIdRef.current = null;
+      lastNextTracksRef.current = null;
+      setSdkActive(false);
+      setBrowserDeviceId(null);
+      setIsConnecting(false);
+    };
+
     const initialize = async () => {
+      setIsConnecting(true);
+      setSdkError(null);
       try {
         const sdk = await loadSpotifySDK();
         if (isCancelled()) return;
@@ -267,10 +364,17 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
             getAccessToken()
               .then(token => {
                 if (token) callback(token);
-                else if (!isCancelled()) setSdkError('Spotify login expired. Sign in again in Settings.');
+                else if (!isCancelled()) {
+                  setIsConnecting(false);
+                  setSdkError({ message: 'Spotify login expired. Sign in again in Settings.', recovery: 'sign-in' });
+                }
               })
               .catch((error: unknown) => {
-                if (!isCancelled()) setSdkError(errorMessage(error));
+                if (!isCancelled()) {
+                  setIsConnecting(false);
+                  const problem = apiProblem(error);
+                  setSdkError({ ...problem, recovery: problem.recovery === 'sign-in' ? 'sign-in' : 'reconnect' });
+                }
               });
           },
           volume: 0.8
@@ -282,6 +386,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
           debugLog('info', 'sdk', `Browser player ready as device ${device_id}`);
           deviceIdRef.current = device_id;
           setBrowserDeviceId(device_id);
+          setIsConnecting(false);
           setSdkError(null);
           refreshPlayback().catch(() => {});
           bumpQueue();
@@ -299,31 +404,57 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
           deviceIdRef.current = null;
           setBrowserDeviceId(null);
           markSdkActive(false);
-          setSdkError('The tablet player disconnected. Check the connection or select another speaker.');
+          setIsConnecting(false);
+          setSdkError({
+            message: 'The tablet player disconnected. Check the connection or select another speaker.',
+            recovery: 'reconnect'
+          });
         });
         player.addListener('autoplay_failed', () => {
-          if (!isCancelled()) setSdkError('The browser blocked autoplay. Tap Play on the screen to start the music.');
+          if (!isCancelled()) {
+            setIsConnecting(false);
+            setSdkError({
+              message: 'The browser blocked autoplay. Tap Play on the screen to start the music.',
+              recovery: 'enable-audio'
+            });
+          }
         });
         for (const event of ['initialization_error', 'authentication_error', 'account_error', 'playback_error']) {
           player.addListener(event, ({ message }: { message: string }) => {
             if (isCancelled()) return;
             debugLog('error', 'sdk', `${event}: ${message}`);
-            const showError = (reason: string | null, hint: string) =>
-              setSdkError([`Browser playback: ${message}`, reason, hint].filter(Boolean).join(' '));
+            setIsConnecting(false);
+            let recovery: PlaybackProblem['recovery'] = 'settings';
+            if (event === 'authentication_error') recovery = 'sign-in';
+            else if (event === 'playback_error') recovery = 'reconnect';
+            const showError = (reason: string | null, hint: string, action: PlaybackProblem['recovery'] = recovery) =>
+              setSdkError({
+                message: [`Browser playback: ${message}`, reason, hint].filter(Boolean).join(' '),
+                recovery: action
+              });
             showError(null, 'Remote playback mode is available if this Pi cannot stream audio.');
             // A player that cannot start is nearly always missing Widevine; ask the browser and say so if it is. This
             // browser then cannot be the speaker, so the page only controls another Spotify Connect device.
             if (event === 'initialization_error') {
               void widevineProblem().then(reason => {
                 if (!reason || isCancelled()) return;
-                showError(reason, 'Switched to remote playback: choose a Spotify device under Speakers.');
+                showError(
+                  reason,
+                  'Switched to remote playback: choose a Spotify device under Speakers.',
+                  'choose-speaker'
+                );
                 setPlaybackMode('remote');
               });
             }
           });
         }
         debugLog('info', 'sdk', 'Connecting the browser player');
-        const connected = await player.connect();
+        const connected = await withTimeout(
+          player.connect(),
+          SDK_COMMAND_TIMEOUT_MS,
+          'The tablet player did not connect. Try reconnecting.'
+        );
+        if (isCancelled()) return;
         resumeRef.current = () => {
           // A dropped player registers again by connecting; a live one only needs its current state read.
           if (!deviceIdRef.current) player?.connect().catch(() => {});
@@ -335,39 +466,45 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
             .catch(() => {});
         };
         if (connected) playerRef.current = player;
-        else if (!isCancelled()) setSdkError('Could not connect the tablet player to Spotify.');
+        else if (!isCancelled()) {
+          setIsConnecting(false);
+          setSdkError({ message: 'Could not connect the tablet player to Spotify.', recovery: 'reconnect' });
+        }
       } catch (error) {
-        if (!isCancelled()) setSdkError(errorMessage(error));
+        if (!isCancelled()) {
+          disconnect();
+          setSdkError(current => current ?? { message: errorMessage(error), recovery: 'reconnect' });
+        }
       }
     };
     void initialize();
-    return () => {
-      cancelled = true;
-      player?.disconnect();
-      playerRef.current = null;
-      resumeRef.current = null;
-      deviceIdRef.current = null;
-      sdkActiveRef.current = false;
-      lastTrackIdRef.current = null;
-      lastNextTracksRef.current = null;
-      setSdkActive(false);
-      setBrowserDeviceId(null);
-    };
-  }, [isAuthenticated, isDemoMode, playbackMode, holdPlaying, refreshPlayback, setPlayback, markSdkActive, bumpQueue]);
+    return disconnect;
+  }, [
+    isAuthenticated,
+    isDemoMode,
+    playbackMode,
+    holdPlaying,
+    refreshPlayback,
+    setPlayback,
+    markSdkActive,
+    bumpQueue,
+    connectionVersion
+  ]);
 
   const runCommand = useCallback(
     async (command: () => Promise<unknown>) => {
       try {
+        checkRetryWindow();
         await command();
         await refreshPlayback();
         setActionError(null);
         return true;
       } catch (error) {
-        setActionError(errorMessage(error));
+        setActionError(problemForApi(error));
         return false;
       }
     },
-    [refreshPlayback]
+    [refreshPlayback, checkRetryWindow, problemForApi]
   );
 
   // The SDK player is the one to drive while this page is the player: browser mode, connected, and no other device
@@ -385,7 +522,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       setActionError(null);
       return true;
     } catch (error) {
-      setActionError(errorMessage(error));
+      setActionError(problemForApi(error));
       // The player may have dropped; reconnect it and read where it really is.
       resumeRef.current?.();
       return false;
@@ -395,6 +532,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   /** Moves playback to a device through the Web API and brings the state up to date. */
   const transferTo = useCallback(
     async (deviceId: string, play: boolean) => {
+      checkRetryWindow();
       await spotify.transferPlayback(deviceId, play);
       const toThisPage = deviceId === browserDeviceId;
       setRemoteSelected(!toThisPage);
@@ -404,7 +542,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       bumpQueue();
       setActionError(null);
     },
-    [browserDeviceId, markSdkActive, refreshPlayback, bumpQueue]
+    [browserDeviceId, markSdkActive, refreshPlayback, bumpQueue, checkRetryWindow]
   );
 
   // Flips the button at once and holds that state against stale reads; a second press while the first command is still
@@ -429,7 +567,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
           await transferTo(browserDeviceId, true);
           ok = true;
         } catch (error) {
-          setActionError(errorMessage(error));
+          setActionError(problemForApi(error));
           ok = false;
         }
       } else ok = await runCommand(() => (playing ? spotify.play() : spotify.pause()));
@@ -451,11 +589,32 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       await transferTo(deviceId, false);
       return true;
     } catch (error) {
-      setActionError(errorMessage(error));
+      setActionError(problemForApi(error));
       throw error;
     }
   };
 
+  const allowBrowserAudio = async () => {
+    const player = playerRef.current;
+    if (!player) {
+      setSdkError({ message: 'The browser player is not connected.', recovery: 'reconnect' });
+      return false;
+    }
+    try {
+      await withTimeout(
+        player.activateElement(),
+        SDK_COMMAND_TIMEOUT_MS,
+        'The browser did not enable audio. Try again.'
+      );
+      setSdkError(null);
+      return true;
+    } catch (error) {
+      setSdkError({ message: errorMessage(error), recovery: 'enable-audio' });
+      return false;
+    }
+  };
+
+  const problem = actionError ?? connectionError ?? sdkError;
   return {
     playbackState,
     browserDeviceId,
@@ -463,10 +622,12 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     isDemoMode,
     playbackMode,
     isLoading: (isDemoMode || isAuthenticated) && !loaded,
+    isConnecting,
     isReady: Boolean(playbackState?.device),
     sdkActive: sdkDriven,
     queueVersion,
-    error: actionError || connectionError || sdkError,
+    error: problem?.message ?? null,
+    problem,
     clearError: () => setActionError(null),
     togglePlay,
     nextTrack: () =>
@@ -490,6 +651,9 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         () => spotify.setVolume(Math.round(volume * 100))
       ),
     transferPlayback,
-    refreshPlayback
+    refreshPlayback,
+    retryPlayback,
+    allowBrowserAudio,
+    reconnectPlayer: () => setConnectionVersion(version => version + 1)
   };
 }

@@ -9,7 +9,7 @@ export default function OfflineBanner() {
       <span>
         <strong>No internet connection</strong>
         <br />
-        Music will carry on when the connection comes back.
+        Reconnect to use Spotify controls. Music on another speaker may continue.
       </span>
       {isKiosk() && (
         <button type="button" onClick={openWifiSettings}>

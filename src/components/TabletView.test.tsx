@@ -10,7 +10,16 @@ const player = vi.hoisted(() => {
   type PlayerMock = Record<string, unknown> &
     Partial<
       Record<
-        'togglePlay' | 'nextTrack' | 'previousTrack' | 'setVolume' | 'seek' | 'refreshPlayback' | 'transferPlayback',
+        | 'togglePlay'
+        | 'nextTrack'
+        | 'previousTrack'
+        | 'setVolume'
+        | 'seek'
+        | 'refreshPlayback'
+        | 'transferPlayback'
+        | 'retryPlayback'
+        | 'reconnectPlayer'
+        | 'allowBrowserAudio',
         Mock
       >
     >;
@@ -56,9 +65,11 @@ function setPlayer(overrides: Record<string, unknown> = {}) {
     isAuthenticated: true,
     isDemoMode: false,
     isLoading: false,
+    isConnecting: false,
     playbackMode: 'remote',
     browserDeviceId: null,
     error: null,
+    problem: typeof overrides['error'] === 'string' ? { message: overrides['error'], recovery: 'refresh' } : null,
     refreshPlayback: vi.fn().mockResolvedValue(undefined),
     togglePlay: vi.fn(),
     nextTrack: vi.fn(),
@@ -66,6 +77,9 @@ function setPlayer(overrides: Record<string, unknown> = {}) {
     seek: vi.fn(),
     setVolume: vi.fn(),
     transferPlayback: vi.fn().mockResolvedValue(undefined),
+    retryPlayback: vi.fn().mockResolvedValue(true),
+    reconnectPlayer: vi.fn(),
+    allowBrowserAudio: vi.fn().mockResolvedValue(true),
     ...overrides
   };
 }
@@ -131,10 +145,14 @@ describe('TabletView', () => {
   });
 
   it.each([
-    ['loading', { isLoading: true, isReady: false, isAuthenticated: false, playbackState: null }, 'Connecting...'],
-    ['demo', { isDemoMode: true, isReady: false, playbackState: null }, 'Demo session'],
-    ['no device', { isReady: false, playbackState: null }, 'Select a Spotify device'],
-    ['signed out', { isReady: false, isAuthenticated: false, playbackState: null }, 'Sign in to Spotify']
+    [
+      'loading',
+      { isLoading: true, isReady: false, isAuthenticated: true, playbackState: null },
+      'Connecting to Spotify...'
+    ],
+    ['demo', { isDemoMode: true, isReady: false, playbackState: null }, 'No track playing'],
+    ['no device', { isReady: false, playbackState: null }, 'Choose a Spotify speaker'],
+    ['signed out', { isReady: false, isAuthenticated: false, playbackState: null }, 'Spotify not connected']
   ])('describes the %s session state', async (_, overrides, label) => {
     setPlayer(overrides);
     render(<TabletView />);
@@ -146,17 +164,102 @@ describe('TabletView', () => {
     setPlayer({ isAuthenticated: false, isReady: false, playbackState: null });
     render(<TabletView />);
     await flush();
-    expect(screen.getByText(/Connect your Spotify account in Settings/)).toBeInTheDocument();
+    const panel = screen.getByRole('region', { name: 'Now playing' });
+    expect(within(panel).getByText('Sign in with your Spotify Premium account.')).toBeInTheDocument();
     expect(api.getQueue).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    fireEvent.click(within(panel).getByRole('button', { name: 'Connect Spotify' }));
     expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
   });
 
-  it('keeps hook errors out of a banner: the footer links to them in the debug console', async () => {
+  it('does not show confirmed playback indicators or fabricated times without a track', async () => {
+    setPlayer({ playbackState: { device: { name: 'Kitchen' } } });
+    render(<TabletView />);
+    await flush();
+    const panel = screen.getByRole('region', { name: 'Now playing' });
+    expect(within(panel).getAllByText('--:--')).toHaveLength(2);
+    expect(within(panel).queryByText('3:00')).not.toBeInTheDocument();
+    for (const dot of document.querySelectorAll('.session-status .status-dot, .app-footer .status-dot')) {
+      expect(dot).toHaveClass('status-dot-idle');
+    }
+  });
+
+  it('offers a speaker chooser without transferring playback when no device is active', async () => {
+    setPlayer({ isReady: false, playbackState: null });
+    render(<TabletView />);
+    await flush();
+    fireEvent.click(screen.getByRole('button', { name: 'Choose speaker' }));
+    await flush();
+    expect(screen.getByRole('dialog', { name: 'Choose a Spotify device' })).toBeInTheDocument();
+    expect(player.current.transferPlayback).not.toHaveBeenCalled();
+    expect(player.current.togglePlay).not.toHaveBeenCalled();
+  });
+
+  it('keeps explicit Play available for a ready browser device without an active track', async () => {
+    setPlayer({ isReady: false, playbackState: null, browserDeviceId: 'this-browser' });
+    render(<TabletView />);
+    await flush();
+    expect(screen.getByRole('button', { name: 'Play' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Next track' })).toBeDisabled();
+    expect(player.current.transferPlayback).not.toHaveBeenCalled();
+  });
+
+  it('marks offline playback distinctly and disables live controls', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    render(<TabletView />);
+    await flush();
+    expect(screen.getByRole('alert')).toHaveTextContent('No internet connection');
+    expect(screen.getByText('Playback controls are offline')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
+    expect(document.querySelector('.session-status')).toHaveTextContent('Offline');
+  });
+
+  it.each([
+    ['refresh', 'Refresh playback', 'retryPlayback'],
+    ['reconnect', 'Reconnect player', 'reconnectPlayer'],
+    ['enable-audio', 'Allow browser audio', 'allowBrowserAudio']
+  ] as const)('wires %s recovery without reissuing transport commands', async (recovery, label, method) => {
+    setPlayer({ error: 'Playback failed', problem: { message: 'Playback failed', recovery } });
+    render(<TabletView />);
+    await flush();
+    fireEvent.click(screen.getByRole('button', { name: label }));
+    await flush();
+    expect(player.current[method]).toHaveBeenCalledOnce();
+    expect(player.current.nextTrack).not.toHaveBeenCalled();
+    expect(player.current.togglePlay).not.toHaveBeenCalled();
+    expect(player.current.transferPlayback).not.toHaveBeenCalled();
+  });
+
+  it('keeps refresh busy and prevents duplicate requests', async () => {
+    let finish = () => {};
+    setPlayer({ error: 'Playback failed' });
+    player.current.retryPlayback = vi.fn(
+      () =>
+        new Promise<boolean>(resolve => {
+          finish = () => resolve(true);
+        })
+    );
+    render(<TabletView />);
+    await flush();
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh playback' }));
+    const pending = screen.getByRole('button', { name: 'Checking...' });
+    expect(pending).toBeDisabled();
+    fireEvent.click(pending);
+    expect(player.current.retryPlayback).toHaveBeenCalledOnce();
+    act(() => {
+      finish();
+    });
+    await flush();
+    expect(screen.getByRole('button', { name: 'Refresh playback' })).toBeEnabled();
+  });
+
+  it('shows recovery beside controls and preserves exact hook errors in the debug console', async () => {
     setPlayer({ error: 'Device offline' });
     render(<TabletView />);
     await flush();
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Now playing' })).getByRole('alert')).toHaveTextContent(
+      'Playback problem'
+    );
+    expect(screen.getByRole('button', { name: 'Refresh playback' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /problem, see details/i }));
     const panel = screen.getByRole('dialog', { name: 'Debug console' });
     expect(within(panel).getAllByText('Device offline').length).toBeGreaterThan(0);
@@ -200,11 +303,15 @@ describe('TabletView', () => {
     vi.useFakeTimers();
     const rateLimited = new SpotifyApiError('Slow down', 429, 30);
     api.getQueue.mockRejectedValueOnce(rateLimited).mockResolvedValue({ queue: queued });
-    render(<TabletView />);
+    const { rerender } = render(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
     expect(screen.getByRole('alert')).toHaveTextContent('Slow down');
+    expect(screen.getByRole('button', { name: 'Waiting to retry...' })).toBeDisabled();
+    setPlayer({ queueVersion: 2 });
+    rerender(<TabletView />);
+    await flush();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(29_000);
     });
@@ -217,10 +324,51 @@ describe('TabletView', () => {
     expect(screen.getByRole('heading', { name: 'Queued One' })).toBeInTheDocument();
   });
 
+  it('shows queue loading instead of an empty queue before a first result', () => {
+    api.getQueue.mockReturnValue(new Promise(() => {}));
+    render(<TabletView />);
+    expect(screen.getByText('Loading queue...')).toBeInTheDocument();
+    expect(screen.queryByText('A little quiet in here.')).not.toBeInTheDocument();
+    expect(screen.queryByText('0 tracks')).not.toBeInTheDocument();
+  });
+
+  it('retries a failed queue immediately and only shows empty after a successful response', async () => {
+    api.getQueue.mockRejectedValueOnce(new Error('Queue down')).mockResolvedValue({ queue: [] });
+    render(<TabletView />);
+    await flush();
+    expect(screen.getByText('Queue unavailable.')).toBeInTheDocument();
+    expect(screen.queryByText('A little quiet in here.')).not.toBeInTheDocument();
+    expect(screen.queryByText('0 tracks')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry queue' }));
+    await flush();
+    expect(api.getQueue).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('A little quiet in here.')).toBeInTheDocument();
+    expect(screen.getByText('0 tracks')).toBeInTheDocument();
+  });
+
+  it('labels cached queue contents when a later refresh fails', async () => {
+    vi.useFakeTimers();
+    api.getQueue.mockResolvedValueOnce({ queue: queued }).mockRejectedValueOnce(new Error('Queue down'));
+    render(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(screen.getByRole('heading', { name: 'Queued One' })).toBeInTheDocument();
+    expect(screen.getByText('Showing the last known queue.')).toBeInTheDocument();
+    expect(screen.getByText('1 track last known')).toBeInTheDocument();
+  });
+
   it('shows a failed sign-in as an alert', async () => {
     render(<TabletView signInError="Spotify said no" />);
     await flush();
-    expect(screen.getByRole('alert')).toHaveTextContent('Spotify said no');
+    expect(screen.getByRole('alert')).toHaveTextContent('Your Spotify sign-in needs attention.');
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }));
+    expect(
+      within(screen.getByRole('dialog', { name: 'Debug console' })).getAllByText('Spotify said no').length
+    ).toBeGreaterThan(0);
   });
 
   it('re-reads the queue when the player says it changed, without polling while the SDK is active', async () => {

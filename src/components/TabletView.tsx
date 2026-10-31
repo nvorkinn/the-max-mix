@@ -18,7 +18,8 @@ import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import type { Track } from '../types';
 import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
-import TrackQueue from './TrackQueue';
+import TrackQueue, { type QueueStatus } from './TrackQueue';
+import PlaybackNotice, { type PlaybackNoticeState } from './PlaybackNotice';
 import LyricsPanel from './LyricsPanel';
 import SettingsModal from './SettingsModal';
 import SpeakerSelectorModal from './SpeakerSelectorModal';
@@ -66,11 +67,16 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     isAuthenticated,
     isDemoMode,
     isLoading,
+    isConnecting,
     playbackMode,
     browserDeviceId,
     sdkActive,
     queueVersion,
     error: playerError,
+    problem: playerProblem,
+    retryPlayback,
+    reconnectPlayer,
+    allowBrowserAudio,
     refreshPlayback,
     togglePlay,
     nextTrack,
@@ -81,8 +87,14 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   } = useSpotifyPlayer();
   const error = playerError || signInError;
   const isOffline = useIsOffline(playerError);
+  const canPollQueue = isDemoMode || isAuthenticated;
 
   const [queue, setQueue] = useState<Track[]>([]);
+  const [queueStatus, setQueueStatus] = useState<QueueStatus>(canPollQueue ? 'loading' : 'idle');
+  const [queueRequestVersion, setQueueRequestVersion] = useState(0);
+  const [queueRetryAllowed, setQueueRetryAllowed] = useState(true);
+  const queueRetryAfterRef = useRef(0);
+  const [isRefreshingPlayback, setIsRefreshingPlayback] = useState(false);
   const [currentTime, setCurrentTime] = useState(formatClock);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSpeakerModalOpen, setIsSpeakerModalOpen] = useState(false);
@@ -171,10 +183,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   }, []);
 
   // Drop the queue and its error as soon as polling stops (adjusted during render, not in an effect).
-  const canPollQueue = isDemoMode || isAuthenticated;
   const [couldPollQueue, setCouldPollQueue] = useState(canPollQueue);
   if (couldPollQueue !== canPollQueue) {
     setCouldPollQueue(canPollQueue);
+    setQueueStatus(canPollQueue ? 'loading' : 'idle');
     if (!canPollQueue) {
       setQueue([]);
       setQueueError(null);
@@ -190,17 +202,28 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     let failures = 0;
     const base = sdkActive ? SDK_QUEUE_POLL_MS : QUEUE_POLL_MS;
     const poll = async () => {
+      const retryWait = queueRetryAfterRef.current - Date.now();
+      if (retryWait > 0) {
+        timer = setTimeout(() => void poll(), retryWait);
+        return;
+      }
+      setQueueStatus('loading');
+      setQueueRetryAllowed(true);
       let delay = base;
       try {
         const data = await getQueue();
         if (isCancelled()) return;
         setQueue(data.queue);
+        setQueueStatus('ready');
         setQueueError(null);
         failures = 0;
       } catch (caught) {
         if (isCancelled()) return;
         setQueueError(errorMessage(caught));
+        setQueueStatus('error');
         const retryAfter = caught instanceof SpotifyApiError ? caught.retryAfter : 0;
+        queueRetryAfterRef.current = Date.now() + retryAfter * 1000;
+        setQueueRetryAllowed(retryAfter <= 0);
         delay = Math.max(Math.min(60_000, base * 2 ** ++failures), retryAfter * 1000);
       }
       if (!isCancelled()) timer = setTimeout(() => void poll(), delay);
@@ -210,7 +233,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [currentTrack?.id, canPollQueue, sdkActive, queueVersion]);
+  }, [currentTrack?.id, canPollQueue, sdkActive, queueVersion, queueRequestVersion]);
 
   // Dynamic ambient palette extraction from album art
   const artUrl = currentTrack?.album?.images?.[0]?.url;
@@ -254,10 +277,44 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     }
   };
 
-  let sessionStatus: string | undefined = isAuthenticated ? 'Select a Spotify device' : 'Sign in to Spotify';
-  if (isDemoMode) sessionStatus = 'Demo session';
-  else if (isLoading) sessionStatus = 'Connecting...';
-  else if (isReady) sessionStatus = playbackState?.device?.name;
+  const showSettings = () => setIsSettingsOpen(true);
+  const chooseSpeaker = () => setIsSpeakerModalOpen(true);
+  const recoverPlayback = async (action: () => Promise<boolean>) => {
+    if (isRefreshingPlayback) return;
+    setIsRefreshingPlayback(true);
+    try {
+      await action();
+    } finally {
+      setIsRefreshingPlayback(false);
+    }
+  };
+  const problem = signInError ? { message: signInError, recovery: 'sign-in' as const } : playerProblem;
+  const restricted = Boolean(playbackState?.device?.is_restricted);
+  let notice: PlaybackNoticeState | null = null;
+  if (!isDemoMode && isOffline) notice = { kind: 'offline' };
+  else if (signInError && problem) notice = { kind: 'problem', problem };
+  else if (!isDemoMode && !isAuthenticated) notice = { kind: 'signed-out' };
+  else if (restricted) notice = { kind: 'restricted' };
+  else if (problem) notice = { kind: 'problem', problem };
+  else if (isLoading || (!isReady && isConnecting)) notice = { kind: 'connecting' };
+  else if (!isDemoMode && !isReady && !browserDeviceId) notice = { kind: 'no-device' };
+  else if (!currentTrack) notice = { kind: 'idle' };
+  let sessionStatus: string;
+  if (notice) {
+    sessionStatus = {
+      offline: 'Offline',
+      'signed-out': 'Spotify not connected',
+      connecting: isDemoMode ? 'Loading demo playback...' : 'Connecting to Spotify...',
+      restricted: 'Device controls unavailable',
+      problem: 'Playback problem',
+      'no-device': 'Choose a Spotify speaker',
+      idle: 'No track playing'
+    }[notice.kind];
+  } else if (isDemoMode) sessionStatus = 'Demo session';
+  else sessionStatus = `${isPlaying ? 'Playing' : 'Paused'} on ${playbackState?.device?.name || 'Spotify'}`;
+  let statusDotClass = '';
+  if (notice?.kind === 'problem') statusDotClass = 'status-dot-error';
+  else if (notice || !isPlaying) statusDotClass = 'status-dot-idle';
 
   let footerStatus = 'Spotify browser player';
   if (isDemoMode) footerStatus = 'DEMO / simulated playback';
@@ -287,7 +344,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           </div>
         </div>
         <div className="session-status" role="status">
-          <span className={`status-dot ${isReady ? '' : 'status-dot-idle'}`} />
+          <span className={`status-dot ${statusDotClass}`} />
           {sessionStatus}
         </div>
         <div className="header-actions">
@@ -324,14 +381,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       </header>
 
       {isOffline && <OfflineBanner />}
-      {!isOffline && (signInError || (!isLoading && !isDemoMode && !isAuthenticated)) && (
-        <div className="connection-banner" role={signInError ? 'alert' : 'status'}>
-          <span>{signInError || 'Connect your Spotify account in Settings. Demo mode is off.'}</span>
-          <button type="button" onClick={() => setIsSettingsOpen(true)}>
-            Settings
-          </button>
-        </div>
-      )}
 
       <main className="listening-room">
         <section className="player-section" aria-label="Now playing">
@@ -345,7 +394,26 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             onVolumeChange={(vol: number) => setVolume(vol / 100)}
             theme={theme}
             isDemoMode={isDemoMode}
-            controlsEnabled={(isDemoMode || isAuthenticated) && !playbackState?.device?.is_restricted}
+            controlsEnabled={
+              (isDemoMode || (isAuthenticated && !isOffline && (isReady || Boolean(browserDeviceId)))) &&
+              !restricted &&
+              !isLoading
+            }
+            notice={
+              notice && (
+                <PlaybackNotice
+                  notice={notice}
+                  isDemoMode={isDemoMode}
+                  busy={isRefreshingPlayback}
+                  onSettings={showSettings}
+                  onChooseSpeaker={chooseSpeaker}
+                  onRefresh={() => void recoverPlayback(retryPlayback)}
+                  onReconnect={reconnectPlayer}
+                  onAllowAudio={() => void recoverPlayback(allowBrowserAudio)}
+                  onDetails={() => setIsDebugOpen(true)}
+                />
+              )
+            }
           />
         </section>
 
@@ -366,6 +434,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               theme={theme}
               isDemoMode={isDemoMode}
               error={queueError}
+              status={queueStatus}
+              onRetry={() => setQueueRequestVersion(version => version + 1)}
+              onConnect={showSettings}
+              retryAllowed={queueRetryAllowed}
             />
           </section>
         )}
@@ -379,7 +451,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           </button>
         ) : (
           <span>
-            <span className="status-dot" /> {footerStatus}
+            <span className={`status-dot ${statusDotClass}`} /> {footerStatus}
           </span>
         )}
         <span className="footer-clock" {...debugHold}>
@@ -433,11 +505,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         authInfo={{
-          authenticated: isAuthenticated,
+          authenticated: isAuthenticated && problem?.recovery !== 'sign-in',
           demoMode: isDemoMode,
           playbackMode
         }}
-        signInError={signInError}
+        signInError={signInError || (playerProblem?.recovery === 'sign-in' ? playerProblem.message : null)}
         currentTheme={theme}
         onThemeChange={handleThemeChange}
         statusMessage={toastMessage}
