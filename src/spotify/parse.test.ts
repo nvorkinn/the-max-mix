@@ -20,7 +20,6 @@ describe('spotify/parse', () => {
         albumArt: 'https://art/a.jpg',
         uri: 'spotify:track:a',
         duration_ms: 1000,
-        votes: 2,
         addedBy: { name: 'Ann', avatar: 'x' },
         added_by: { name: 'Bob' },
         album: { images: [{ url: 'https://art/b.jpg' }] },
@@ -31,7 +30,7 @@ describe('spotify/parse', () => {
     });
 
     it('drops unknown fields and fields of the wrong type', () => {
-      expect(parseTrack({ id: 1, name: 'Song', duration_ms: '3', votes: NaN, extra: true, addedBy: 'Ann' })).toEqual({
+      expect(parseTrack({ id: 1, name: 'Song', duration_ms: '3', votes: 2, extra: true, addedBy: 'Ann' })).toEqual({
         name: 'Song'
       });
     });

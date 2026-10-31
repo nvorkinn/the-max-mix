@@ -3,7 +3,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '../test/user';
 import { partialProps } from '../test/partialProps';
 import { defined } from '../test/defined';
-import QRCodeModalFull from './QRCodeModal';
 import SettingsModalFull from './SettingsModal';
 import SpeakerSelectorModalFull from './SpeakerSelectorModal';
 
@@ -27,25 +26,8 @@ vi.mock('../audio/airplay', () => ({
   setChosenSpeakers: vi.fn()
 }));
 
-const QRCodeModal = partialProps(QRCodeModalFull);
 const SettingsModal = partialProps(SettingsModalFull);
 const SpeakerSelectorModal = partialProps(SpeakerSelectorModalFull);
-
-describe('QRCodeModal', () => {
-  it('renders nothing when closed', () => {
-    const { container } = render(<QRCodeModal isOpen={false} remoteUrl="http://x" />);
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it('shows the remote url as a link and closes on request', async () => {
-    const onClose = vi.fn();
-    const { container } = render(<QRCodeModal isOpen onClose={onClose} remoteUrl="http://192.168.1.5/remote" />);
-    expect(screen.getByRole('link')).toHaveAttribute('href', 'http://192.168.1.5/remote');
-    expect(container.querySelector('svg')).toBeInTheDocument();
-    await userEvent.click(defined(screen.getAllByRole('button')[0]));
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-});
 
 describe('SettingsModal', () => {
   const base = { isOpen: true, onClose: vi.fn(), onThemeChange: vi.fn(), onReload: vi.fn() };

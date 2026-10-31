@@ -9,7 +9,7 @@ import { Artwork, GuestAvatar } from './TrackImages';
 
 const EMPTY_QUEUE: Track[] = [];
 
-interface SpotifyJamQueueProps {
+interface TrackQueueProps {
   queue?: Track[];
   onReorderQueue?: (queue: Track[]) => unknown;
   onPlaySongNow?: (trackId: string | undefined, track: Track) => unknown;
@@ -18,14 +18,14 @@ interface SpotifyJamQueueProps {
   error?: string | null;
 }
 
-export default function SpotifyJamQueue({
+export default function TrackQueue({
   queue = EMPTY_QUEUE,
   onReorderQueue,
   onPlaySongNow,
   theme = 'neon',
   isDemoMode = false,
   error
-}: Readonly<SpotifyJamQueueProps>) {
+}: Readonly<TrackQueueProps>) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);

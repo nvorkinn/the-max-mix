@@ -1,6 +1,6 @@
 /** Shared types for the Spotify data the app reads and the Web Playback SDK parts it uses. */
 
-/** A track in the party queue, in a search result or in Spotify playback. */
+/** A track in Spotify playback or the live/demo queue. */
 export interface Track {
   id?: string;
   title?: string;
@@ -8,7 +8,6 @@ export interface Track {
   artist?: string;
   albumArt?: string;
   duration_ms?: number;
-  votes?: number;
   addedBy?: { avatar?: string; name?: string };
   added_by?: { avatar?: string; name?: string };
   album?: { images?: { url?: string }[] };
@@ -48,13 +47,6 @@ export interface PlaybackState {
   };
 }
 
-/** The guest who requested or upvoted a track. */
-export interface Guest {
-  id: string;
-  name: string;
-  avatar?: string;
-}
-
 /**
  * What the Web Playback SDK reports on `player_state_changed` (null when this player is no longer the active device).
  */
@@ -88,7 +80,7 @@ export interface SpotifySdk {
   }) => SpotifyPlayer;
 }
 
-/** Player props shared by AlbumArtPlayer and VinylPlayer. */
+/** Playback controls used by AlbumArtPlayer. */
 export interface PlayerControls {
   playback: PlaybackState | null | undefined;
   isPlaying: boolean;
