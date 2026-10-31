@@ -1,51 +1,31 @@
-// AirPlay mode on the kiosk. Chromium lists the speakers: PipeWire makes an audio output for each AirPlay speaker it
-// finds, and Chromium shows those outputs to the page. The Pi routes the sound: the page opens a kiosk-audio:// link,
-// which the kiosk image hands to its audio handler (pi/kiosk-audio), the same way kiosk-wifi:// opens the Wi-Fi panel.
-// The link only goes one way, so the page remembers the chosen speakers itself.
+// AirPlay mode on the kiosk. PipeWire makes an audio output for each AirPlay speaker it finds; the kiosk's audio service
+// (pi/kiosk-audio/server.ts) lists them over http://127.0.0.1. The Pi routes the sound: the page opens a kiosk-audio://
+// link, which the kiosk image hands to its audio handler (pi/kiosk-audio), the same way kiosk-wifi:// opens the Wi-Fi
+// panel. The link only goes one way, so the page remembers the chosen speakers itself.
 import { errorMessage } from '../utils/errorMessage';
 
 const SPEAKERS_KEY = 'maxmix.airplaySpeakers';
-// Chromium's stand-ins for "whatever the system uses"; they are not speakers.
-const VIRTUAL_OUTPUTS = new Set(['default', 'communications']);
+const SPEAKERS_URL = 'http://127.0.0.1:7341/speakers';
+const POLL_MS = 5000;
 
-const isSpeaker = (device: MediaDeviceInfo) => device.kind === 'audiooutput' && !VIRTUAL_OUTPUTS.has(device.deviceId);
-
-let labelAccess: Promise<void> | null = null;
-
-/**
- * Chromium names the outputs only once the page has used the microphone, even with the policy that allows it
- * (AudioCaptureAllowedUrls). Opening it once, and closing it at once, is enough; the policy means nobody is asked.
- */
-async function unlockLabels(): Promise<void> {
-  labelAccess ??= navigator.mediaDevices
-    .getUserMedia({ audio: true })
-    .then(stream => {
-      for (const track of stream.getTracks()) track.stop();
-    })
-    .catch((error: unknown) => {
-      labelAccess = null;
-      throw new Error(
-        `Chromium hides the speakers’ names, and the microphone permission that shows them failed: ${errorMessage(error)}`
-      );
-    });
-  return labelAccess;
-}
-
-/** The names of the audio outputs Chromium can see, sorted. */
+/** The names of the AirPlay speakers the Pi found, sorted. */
 export async function listAudioOutputs(): Promise<string[]> {
-  let devices = await navigator.mediaDevices.enumerateDevices();
-  if (devices.some(device => isSpeaker(device) && !device.label)) {
-    await unlockLabels();
-    devices = await navigator.mediaDevices.enumerateDevices();
+  let response: Response;
+  try {
+    response = await fetch(SPEAKERS_URL, { cache: 'no-store' });
+  } catch (error) {
+    throw new Error(`The kiosk’s audio service did not answer: ${errorMessage(error)}`, { cause: error });
   }
-  const names = devices.filter(device => isSpeaker(device) && device.label).map(device => device.label);
+  if (!response.ok) throw new Error(`The kiosk’s audio service could not read PipeWire (${response.status}).`);
+  const body = (await response.json()) as { speakers?: unknown };
+  const names = Array.isArray(body.speakers) ? body.speakers.filter(name => typeof name === 'string') : [];
   return [...new Set(names)].toSorted((a, b) => a.localeCompare(b));
 }
 
-/** Calls `onChange` whenever an output appears or goes away; returns the unsubscribe function. */
+/** Calls `onChange` every few seconds, since speakers come and go on the network; returns the unsubscribe function. */
 export function watchAudioOutputs(onChange: () => void): () => void {
-  navigator.mediaDevices.addEventListener('devicechange', onChange);
-  return () => navigator.mediaDevices.removeEventListener('devicechange', onChange);
+  const timer = setInterval(onChange, POLL_MS);
+  return () => clearInterval(timer);
 }
 
 /** The link that asks the Pi to play to exactly these outputs; with none, the Pi's own output. */

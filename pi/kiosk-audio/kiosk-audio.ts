@@ -2,11 +2,12 @@
 //   node kiosk-audio.ts open <kiosk-audio://route?speaker=…>   the link handler Chromium starts (kiosk-audio.desktop):
 //                                                              saves the speakers and routes the sound to them at once
 //   node kiosk-audio.ts watch                                  the background unit: every few seconds, routes any stream
-//                                                              Chromium opened again and any chosen speaker that came back
-// Neither listens on the network.
+//                                                              Chromium opened again and any chosen speaker that came back,
+//                                                              and answers the app's speaker list on 127.0.0.1 (server.ts)
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { PipeWire } from './pipewire.ts';
+import { serveSpeakers } from './server.ts';
 import { loadSpeakers, parseLink, route, saveSpeakers } from './speakers.ts';
 
 const WATCH_MS = 2000;
@@ -35,6 +36,7 @@ if (command === 'open') {
   await route(pipewire, speakers);
 } else if (command === 'watch') {
   setInterval(() => void watchOnce(), WATCH_MS);
+  serveSpeakers(process.env['KIOSK_APP_ORIGIN'] ?? '', () => pipewire.graph());
 } else {
   console.error('Usage: kiosk-audio.ts open <kiosk-audio://route?speaker=…> | watch');
   process.exit(2);
