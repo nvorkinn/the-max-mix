@@ -31,7 +31,9 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
   `ansible-pull` as root against this repository's `stable` ref (a branch or tag only the owner moves). Whoever can
   move that ref, or push to a branch it follows, can change what runs on every deployed Pi, so protect the repository,
   its branch and tag rules, and never point `stable` at a development branch. The `kiosk` user has no password, no
-  `sudo` and no SSH; Chromium keeps its sandbox enabled.
+  `sudo` and no SSH; Chromium keeps its sandbox enabled. The `admin` account has no password either: SSH lets it in
+  by key only (the keys of the GitHub account in `kiosk_admin_github_user`, fetched at every pull), and it has `sudo`.
+  Whoever can add a key to that GitHub account can log in to the Pi.
 - **The app is public static code.** Anyone who runs it can sign in with their own Spotify account, and each browser
   keeps its own login; a shared browser profile is a shared login. Only addresses registered as redirect URIs in the
   Spotify dashboard can sign in.
@@ -48,4 +50,4 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
   argument list with no shell, and the panel has no network listener. The app opens it through the `kiosk-wifi://` link,
   which Chromium's managed policy (`AutoLaunchProtocolsFromOrigins` in
   `pi/rootfs/etc/chromium/policies/managed/kiosk.json`) allows without a prompt only from `https://the-max-mix.vercel.app`.
-  The flashed image also has SSH off and no password for any account. See [`pi/wifi-panel/README.md`](pi/wifi-panel/README.md).
+  The flashed image has no password for any account, and SSH only by key for `admin`. See [`pi/wifi-panel/README.md`](pi/wifi-panel/README.md).

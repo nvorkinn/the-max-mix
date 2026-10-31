@@ -93,25 +93,6 @@
     state: link
     force: true
 
-- name: Look for the SSH units
-  ansible.builtin.stat:
-    path: '/usr/lib/systemd/system/{{ item }}'
-  loop:
-    - ssh.service
-    - ssh.socket
-  register: kiosk_ssh_units
-
-- name: Keep SSH off
-  ansible.builtin.systemd_service:
-    name: '{{ item.item }}'
-    enabled: false
-  loop: '{{ kiosk_ssh_units.results }}'
-  loop_control:
-    label: '{{ item.item }}'
-  when:
-    - item.stat.exists
-    - not kiosk_ssh_enabled | bool
-
 # Boot: console on tty3 and a quiet splash, the screen mode, the Wi-Fi country. cmdline.txt is a single line. The params
 # are appended only if missing; [ \t]*$ (not \s*$) keeps the final newline.
 - name: Move the console to tty3
@@ -179,6 +160,79 @@
     groups: '{{ kiosk_groups }}'
     append: false
     create_home: true
+
+# Maintenance over SSH ------------------------------------------------------------------------------------------------
+# The admin account: no password ('*' cannot match one, but unlike '!' it does not lock out SSH keys), sudo without one,
+# and the GitHub account's public keys as its only way in.
+- name: Set up the admin user
+  ansible.builtin.user:
+    name: '{{ kiosk_admin_user }}'
+    comment: THE MAX MIX admin
+    shell: /bin/bash
+    password: '*'
+    groups: [sudo]
+    append: true
+    create_home: true
+
+- name: Let the admin user use sudo without a password
+  ansible.builtin.copy:
+    content: |
+      {{ kiosk_admin_user }} ALL=(ALL:ALL) NOPASSWD: ALL
+    dest: /etc/sudoers.d/50-kiosk-admin
+    owner: root
+    group: root
+    mode: '0440'
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Create the admin user's SSH directory
+  ansible.builtin.file:
+    path: '/home/{{ kiosk_admin_user }}/.ssh'
+    state: directory
+    owner: '{{ kiosk_admin_user }}'
+    group: '{{ kiosk_admin_user }}'
+    mode: '0700'
+
+# Without a network (a Pi offline at its pull) the keys from the last run stay, so this never fails the playbook.
+- name: Fetch the admin user's SSH keys from GitHub
+  ansible.builtin.get_url:
+    url: 'https://github.com/{{ kiosk_admin_github_user }}.keys'
+    dest: '/home/{{ kiosk_admin_user }}/.ssh/authorized_keys'
+    force: true
+    owner: '{{ kiosk_admin_user }}'
+    group: '{{ kiosk_admin_user }}'
+    mode: '0600'
+  register: kiosk_admin_keys
+  failed_when: false
+  when: kiosk_admin_github_user | length > 0
+
+- name: Report a failed key download
+  ansible.builtin.debug:
+    msg: 'Could not fetch the SSH keys, the previous ones stay: {{ kiosk_admin_keys.msg | default("") }}'
+  when: (kiosk_admin_keys.status_code | default(200)) != 200
+
+# sshd uses the first value it reads and Debian's sshd_config includes sshd_config.d first, so these settings win.
+- name: Allow SSH for the admin user, by key only
+  ansible.builtin.copy:
+    content: |
+      # Installed by the kiosk playbook (ansible/roles/kiosk).
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      AuthenticationMethods publickey
+      AllowUsers {{ kiosk_admin_user }}
+    dest: /etc/ssh/sshd_config.d/10-kiosk.conf
+    owner: root
+    group: root
+    mode: '0644'
+  register: kiosk_sshd_config
+
+- name: Turn SSH on or off
+  ansible.builtin.systemd_service:
+    name: ssh.service
+    enabled: '{{ kiosk_ssh_enabled | bool }}'
+    state: >-
+      {{ omit if kiosk_image_build else ('stopped' if not kiosk_ssh_enabled | bool
+      else ('restarted' if kiosk_sshd_config is changed else 'started')) }}
 
 # The kiosk -----------------------------------------------------------------------------------------------------------
 - name: Create the directories

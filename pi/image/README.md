@@ -1,8 +1,8 @@
 # THE MAX MIX kiosk image
 
 A ready-to-flash Raspberry Pi OS Lite (64-bit, Debian 13 "trixie") image for a Raspberry Pi 4 or 5 with a Waveshare 7-inch
-1024x600 HDMI + USB-touch screen. Flashing it is the only setup step: there is no SSH, no provisioning and no Wi-Fi
-configured in advance.
+1024x600 HDMI + USB-touch screen. Flashing it is the only setup step: there is no provisioning and no Wi-Fi configured in advance.
+For maintenance, SSH is on for the `admin` account, by key only (see "Maintenance over SSH").
 
 > The image has not been built or booted on a real Pi yet. See "Still to verify" below.
 
@@ -39,7 +39,7 @@ The fast rebuild keeps pi-gen's build container (`PRESERVE_CONTAINER=1`, `CONTIN
 enabled and nothing is started. [`prepare.sh`](prepare.sh) only copies `ansible/`, `pi/wifi-panel/` and
 `pi/kiosk-audio/` into the stage, the one directory pi-gen's build can see. Everything installed and configured on the
 device is in the Ansible role ([`ansible/roles/kiosk`](../../ansible/roles/kiosk)); [`config`](config) keeps pi-gen's own base settings (host name, the
-`kiosk` user, locale, keyboard, Wi-Fi country, no SSH), which the playbook sets again.
+`kiosk` user, locale, keyboard, Wi-Fi country, SSH), which the playbook sets again.
 
 The image bakes in the same `kiosk_pull_ref` (`stable`) that the device's update timer pulls. Reflashing is only for fresh
 devices: a deployed one gets playbook changes by `ansible-pull` (see the [README](../../README.md#raspberry-pi-kiosk)).
@@ -86,7 +86,8 @@ while Chromium runs.
 
 The image sets, among other things:
 
-- no SSH, no password for any account (the `kiosk` user is locked and not in `sudo`), no Wi-Fi networks;
+- no password for any account (the `kiosk` user is locked and not in `sudo`), no Wi-Fi networks;
+- SSH for the `admin` account only, by key only, with `sudo` (see "Maintenance over SSH");
 - `kiosk` manages NetworkManager connections without sudo through `etc/polkit-1/rules.d/50-kiosk-networkmanager.rules`;
 - PipeWire, `pipewire-pulse` and WirePlumber, ready for Bluetooth audio later;
 - `unattended-upgrades` for Debian security updates and the Raspberry Pi archive (Chromium, kernel);
@@ -104,6 +105,14 @@ see boot messages). The kiosk logs go to the journal (`journalctl -u kiosk` on a
   over plain HTTP; a captive portal that needs a browser login is not supported.
 - **Sound does not play, or the player says DRM is missing:** Widevine. See "Still to verify".
 - **`kiosk-wifi://` does nothing:** see "Still to verify".
+
+## Maintenance over SSH
+
+The image has an `admin` account for maintenance. It has no password, so the only way in is SSH with a key:
+`ssh admin@the-max-mix.local`. Its keys are the public keys of the GitHub account in `kiosk_admin_github_user`
+(`https://github.com/nvorkinn.keys`), which the image build and every pull fetch again, so add your key on GitHub
+(Settings > SSH and GPG keys) and it reaches the Pi at its next pull. `admin` uses `sudo` without a password. Password
+and root logins are off (`/etc/ssh/sshd_config.d/10-kiosk.conf`). Set `kiosk_ssh_enabled: false` to turn SSH off.
 
 ## Still to verify
 

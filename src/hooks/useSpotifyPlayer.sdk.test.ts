@@ -19,6 +19,8 @@ vi.mock('../spotify/api', () => mocks.api);
 vi.mock('../spotify/auth', () => mocks.auth);
 vi.mock('../spotify/settings', () => mocks.settings);
 vi.mock('../utils/spotifySdk', () => sdk);
+const widevine = vi.hoisted(() => ({ widevineProblem: vi.fn(() => Promise.resolve<string | null>(null)) }));
+vi.mock('../utils/widevine', () => widevine);
 
 function makeSdk({ connectResult = true, currentState = null }: SdkOptions = {}) {
   type Listener = (payload?: unknown) => void;
@@ -137,6 +139,15 @@ describe('useSpotifyPlayer browser playback', () => {
       expect(result.current.error).toMatch(/Browser playback: Premium required\./);
     }
   );
+
+  it('adds the Widevine problem to an initialization error', async () => {
+    widevine.widevineProblem.mockResolvedValueOnce('Widevine is not available in this browser.');
+    const { result, emit } = await connect();
+    emit('initialization_error', { message: 'Failed to initialize player' });
+    await waitFor(() =>
+      expect(result.current.error).toMatch(/Failed to initialize player Widevine is not available in this browser./)
+    );
+  });
 
   it('explains an autoplay failure and clears the message once music plays', async () => {
     const { result, emit } = await ready();

@@ -7,7 +7,7 @@ TIMEZONE_DEFAULT=Europe/London
 KEYBOARD_KEYMAP=gb
 KEYBOARD_LAYOUT="English (UK)"
 WPA_COUNTRY=GB
-ENABLE_SSH=0
+ENABLE_SSH=1
 # The kiosk account is pi-gen's first user. pi-gen insists on a password when it must not be renamed on first boot, so
 # set one here: the kiosk stage replaces it with a locked one.
 FIRST_USER_NAME=kiosk

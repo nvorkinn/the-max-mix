@@ -253,3 +253,6 @@ wpctl
 nodesource
 nodistro
 devicechange
+NOPASSWD
+publickey
+cenc

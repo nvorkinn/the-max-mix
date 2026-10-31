@@ -82,7 +82,7 @@ jobs:
           keyboard-layout: English (UK)
           keyboard-keymap: gb
           wpa-country: GB
-          enable-ssh: 0
+          enable-ssh: 1
           enable-cloud-init: 0
           verbose-output: true
       - run: df -h /

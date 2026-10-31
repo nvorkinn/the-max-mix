@@ -31,8 +31,13 @@ kiosk_cmdline_params:
   - 'video=HDMI-A-1:{{ kiosk_video_mode }}'
   - 'video=HDMI-A-2:{{ kiosk_video_mode }}'
   - 'cfg80211.ieee80211_regdom={{ kiosk_wifi_country }}'
-# SSH stays off. Set to true to leave the ssh service alone (for example while debugging a device).
-kiosk_ssh_enabled: false
+# SSH for maintenance, by key only and only for the admin account below. Set to false to turn SSH off.
+kiosk_ssh_enabled: true
+# The maintenance account. It has no password, so it can only log in over SSH with a key; it uses sudo without one.
+kiosk_admin_user: admin
+# The admin account's SSH keys are this GitHub account's public keys (https://github.com/<name>.keys), fetched again at
+# every playbook run, so a key added or removed on GitHub reaches the Pi at its next pull. Empty for no keys.
+kiosk_admin_github_user: nvorkinn
 # Regenerate the initramfs when the Plymouth theme changes. Needs a kernel, so tests in a plain container turn it off.
 kiosk_update_initramfs: true
 
@@ -68,6 +73,9 @@ kiosk_packages:
   # Browser; libwidevinecdm0 (kiosk_rpi_packages) is the Widevine DRM module Spotify's player needs.
   - chromium
   - xdg-utils
+  # Maintenance over SSH (kiosk_ssh_enabled)
+  - openssh-server
+  - sudo
   # Boot splash
   - initramfs-tools
   - plymouth
