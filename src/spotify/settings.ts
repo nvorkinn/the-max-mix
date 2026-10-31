@@ -1,5 +1,5 @@
-// Settings that used to live in the server's environment. They are read from the browser's own storage, so the app
-// needs no backend. Storage can be unavailable (private windows, blocked site data): every access tolerates that.
+// The app's settings, kept in the browser's own storage, so the app needs no backend. Storage can be unavailable
+// (private windows, blocked site data): every access tolerates that.
 
 // The app's Spotify client ID. It is public by design (sign-in uses PKCE and there is no client secret), so it lives in the
 // code and users never enter it.

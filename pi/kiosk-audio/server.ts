@@ -1,5 +1,4 @@
-// The kiosk's local service for the app, on 127.0.0.1 only. It replaces the custom links (kiosk-wifi://, kiosk-power://,
-// kiosk-display://, kiosk-audio://) the app used to open:
+// The kiosk's local service for the app, on 127.0.0.1 only:
 //   GET  /speakers          {"speakers": ["Kitchen", …]}   the AirPlay sinks PipeWire made, by the names routing uses
 //   GET  /update/status     {"state", "lines", "total"}    how the update the app asked for is going
 //   POST /audio/route       {"speakers": [...]}            route the sound to those speakers (none: the Pi's own output)

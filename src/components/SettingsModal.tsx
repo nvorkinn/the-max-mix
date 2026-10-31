@@ -129,7 +129,6 @@ function SettingsContent({
       onClose={onClose}
       className="app-modal-panel border rounded-3xl p-6 max-w-md relative shadow-2xl text-left select-none"
     >
-      {/* Close Button */}
       <button
         type="button"
         data-modal-autofocus
@@ -146,7 +145,6 @@ function SettingsContent({
       </h3>
       <p className="text-xs text-muted mb-4">Connect Spotify and choose where this tablet plays.</p>
 
-      {/* Status Card */}
       <div className="modal-card p-3.5 rounded-2xl border mb-4 space-y-2">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <span className="text-xs font-semibold text-muted">Spotify connection:</span>
@@ -163,7 +161,6 @@ function SettingsContent({
         <p className="text-[11px] text-muted">{spotifyStatus}</p>
       </div>
 
-      {/* Connection */}
       <div className="space-y-3">
         {error && (
           <p role="alert" className="text-xs status-danger">

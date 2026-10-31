@@ -2,7 +2,7 @@
 
 A kiosk is stock Raspberry Pi OS Lite plus this repository's Ansible playbook. You flash the OS, cloud-init and the
 playbook build the kiosk on your own Wi-Fi, and `kiosk-handover` scrubs your Wi-Fi before the Pi goes to its new home.
-There, it shows the Wi-Fi panel so its owner can pick their own network. There is no image to build.
+There, it shows the Wi-Fi panel so its owner can pick their own network.
 
 Tested on a Raspberry Pi 4 Model B with a Waveshare 7-inch 1024x600 HDMI and USB touch screen. A Pi 5 should work the
 same; the playbook boots it with the 4 KB-page kernel (`kernel=kernel8.img`) for Widevine.

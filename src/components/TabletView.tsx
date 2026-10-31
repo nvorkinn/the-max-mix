@@ -159,7 +159,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   });
   const screenStatus = `${sleep.asleep ? 'Asleep' : 'Awake'}, wake lock ${sleep.wakeLock}`;
 
-  // Problems are kept in the debug console rather than in a banner over the screen.
+  // Problems go to the debug console.
   useLogChanges(playerError, 'player');
   useLogChanges(signInError, 'sign-in');
   useLogChanges(queueError, 'queue');
@@ -176,7 +176,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Clock
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(formatClock()), 1000);
     return () => clearInterval(interval);
@@ -232,7 +231,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     };
   }, [currentTrack?.id, canPollQueue, sdkActive, queueVersion, queueRequestVersion]);
 
-  // Dynamic ambient palette extraction from album art
   const artUrl = currentTrack?.album?.images?.[0]?.url;
   useEffect(() => {
     if (artUrl) {
@@ -455,7 +453,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         </div>
       )}
 
-      {/* Speaker Selector Modal (Bluetooth / Sonos / AirPlay) */}
       <SpeakerSelectorModal
         isOpen={isSpeakerModalOpen}
         onClose={() => setIsSpeakerModalOpen(false)}
@@ -487,7 +484,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         ]}
       />
 
-      {/* General Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}

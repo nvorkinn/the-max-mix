@@ -8,20 +8,20 @@ with the other repositories (for example [countdown](https://github.com/nvorkinn
 once every other workflow and check on that commit has passed. Dependabot pull requests are not auto-approved (see
 `dependabot-auto-merge.yml` below for what that means for merging them). Fork pull requests get no check.
 
-`tests.yml` runs the tests and the production build on every pull request and push to `main`; it no longer lints. It is
+`tests.yml` runs the tests, the browser tests and the production build on every pull request and push to `main`. It is
 listed in `all-checks.yml`, so Global PR Status waits for it.
 
-`lint.yml` (**Lint**) runs on the same triggers with three jobs: ESLint (`npm run lint`), ShellCheck over the kiosk shell scripts
-and actionlint over `.github/workflows/*.yml`. ShellCheck and actionlint are downloaded as pinned release binaries and
-checked against a SHA-256 before running. It is listed in `all-checks.yml` too.
+`lint.yml` (**Lint**) runs on the same triggers: the `npm run` checks (ESLint, TypeScript, Prettier, knip, spelling,
+markdownlint, yamllint, Stylelint, package.json and lockfile checks), ShellCheck over the kiosk shell scripts,
+editorconfig-checker, actionlint over `.github/workflows/*.yml`, and `ansible-lint` and `ansible-playbook --syntax-check`
+over the kiosk playbook in `ansible/`. The system tools are pinned and checked against a SHA-256 before running. It is
+listed in `all-checks.yml` too.
 
-`release.yml` runs on a version tag (`v*`) or by hand with an existing tag: it builds the app on the runner with a pinned Vercel CLI (`vercel build`) and uploads only the built files to Vercel production (`vercel deploy --prebuilt`). It is the only way
-production is deployed (`vercel.json` turns off Vercel's deploy of `main`). It needs the repository secrets
+`release.yml` runs on a version tag (`v*`) or by hand with an existing tag: it builds the app on the runner with a pinned
+Vercel CLI (`vercel build`), uploads only the built files to Vercel production (`vercel deploy --prebuilt`) and then
+publishes the GitHub release the Pis pull. It is the only way production is deployed (`vercel.json` turns off Vercel's deploy of `main`). It needs the repository secrets
 `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` and fails clearly if one is missing. It has read-only
 `contents` access and does not run on pull requests, so it is not in `all-checks.yml`.
-
-`lint.yml` also lints the Raspberry Pi kiosk playbook in `ansible/` with a pinned `ansible-lint` and `ansible-playbook
---syntax-check`.
 
 `ansible.yml` runs that playbook, only when `ansible/`, `pi/wifi-panel/`, `pi/kiosk-audio/` or the workflow changes, with `kiosk_enable_only=true` (enable services, start nothing) in a Debian trixie container, checks the key files and that
 the units are enabled but not started, and runs it again to check that nothing changes (`ansible/tests/image-build.sh`).

@@ -6,8 +6,7 @@ app on `127.0.0.1:7341`. It does two jobs:
 - **AirPlay.** It lists the AirPlay speakers PipeWire found, and sends the kiosk browser's sound to the ones picked in the
   app (Sonos and other AirPlay 2 speakers that also accept RAOP). It is what the app's **AirPlay** mode under Speakers
   drives.
-- **The kiosk buttons.** Update now, Restart kiosk, Reboot Pi, the Wi-Fi panel and waking the screen. These used to be
-  `kiosk-power://`, `kiosk-wifi://` and `kiosk-display://` links with a handler script and a `.desktop` file each.
+- **The kiosk buttons.** Update now, Restart kiosk, Reboot Pi, the Wi-Fi panel and waking the screen.
 
 ## The two playback modes
 
