@@ -129,5 +129,9 @@ Nobody has built or booted this yet. On the first real image, check:
 4. **Reboot:** it goes straight to the app.
 5. **Updates:** with a `stable` ref pushed, `sudo systemctl start kiosk-pull` on a live Pi pulls and applies it (journal:
    `journalctl -u kiosk-pull`) and a second run skips the playbook because `stable` has not moved. A pull with no network or a missing ref fails without
-   touching the kiosk. After a change to a kiosk file, `/run/kiosk/restart-needed` exists until the 04:30 restart.
-6. **Cursor:** none shows. If one does, the transparent theme in `/usr/share/icons/blank` is not being picked up.
+   touching the kiosk. After a change to a kiosk file, `/run/kiosk/restart-needed` exists until the 04:30 restart (or
+   any other start of the kiosk). Every new commit counts, because the commit is in `kiosk_url`; after the restart the
+   app's settings show it.
+6. **Restart and reboot:** the app's Restart kiosk button brings the app back within seconds, and Reboot Pi reboots.
+   If nothing happens, check `chrome://policy` for `kiosk-power` and `journalctl -b | grep polkit`.
+7. **Cursor:** none shows. If one does, the transparent theme in `/usr/share/icons/blank` is not being picked up.

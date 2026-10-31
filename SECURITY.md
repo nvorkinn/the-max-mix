@@ -44,6 +44,11 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
   is granted microphone permission (`AudioCaptureAllowedUrls`), which Chromium requires before it names audio outputs;
   the kiosk has no microphone. Node comes from NodeSource's apt archive (Debian's is too old to run TypeScript), whose
   signing key the playbook pins by checksum; that archive is trusted like Debian's and Raspberry Pi's.
+- **Restart and reboot.** The Restart kiosk and Reboot Pi buttons in the app's kiosk settings open
+  `kiosk-power://restart` and `kiosk-power://reboot`, which only the app's origin may open without a prompt. The handler
+  accepts only those two links, and a polkit rule (`50-kiosk-power.rules`) lets the `kiosk` user restart
+  `kiosk.service` and reboot, and nothing else to do with units or power. A page on the app's origin can therefore
+  restart or reboot the kiosk, which is a nuisance at worst.
 - **The Wi-Fi panel.** A native Qt panel (`pi/wifi-panel/`) runs as the non-root `kiosk` user and joins networks with
   `nmcli`; a polkit rule (`pi/rootfs/etc/polkit-1/rules.d/50-kiosk-networkmanager.rules`) lets only that user manage
   NetworkManager connections. The password reaches `nmcli` on stdin, never in argv, and is not logged; every call is an

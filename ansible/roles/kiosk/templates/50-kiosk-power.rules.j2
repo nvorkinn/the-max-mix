@@ -1,0 +1,21 @@
+// {{ ansible_managed }}
+// The kiosk user may restart the kiosk and reboot the Pi (kiosk-open-power), and nothing else to do with power or units.
+polkit.addRule(function (action, subject) {
+  if (subject.user !== '{{ kiosk_user }}') {
+    return polkit.Result.NOT_HANDLED;
+  }
+  if (
+    action.id === 'org.freedesktop.systemd1.manage-units' &&
+    action.lookup('unit') === 'kiosk.service' &&
+    action.lookup('verb') === 'restart'
+  ) {
+    return polkit.Result.YES;
+  }
+  if (
+    action.id === 'org.freedesktop.login1.reboot' ||
+    action.id === 'org.freedesktop.login1.reboot-multiple-sessions'
+  ) {
+    return polkit.Result.YES;
+  }
+  return polkit.Result.NOT_HANDLED;
+});
