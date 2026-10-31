@@ -29,6 +29,9 @@ ExecStartPre=+/usr/bin/rm -f {{ kiosk_restart_marker }}
 # files again and restart it (the - ignores a failure, as when the kiosk user's manager is not running yet).
 ExecStartPre=-+/usr/bin/systemctl --user -M {{ kiosk_user }}@ daemon-reload
 ExecStartPre=-+/usr/bin/systemctl --user -M {{ kiosk_user }}@ try-restart kiosk-audio.service
+# PAMName=login puts Cage and its children in the login session scope, so systemd signals only Cage, which then waits for
+# kiosk-session to exit. Tell kiosk-session to stop first (the + runs this as root, the - ignores a failure).
+ExecStop=-+/usr/bin/pkill -TERM -f "^bash /usr/local/bin/kiosk-session"
 Environment=WLR_LIBINPUT_NO_DEVICES=1
 Environment=KIOSK_CURSOR_THEME={{ 'blank' if kiosk_hide_cursor | bool else kiosk_cursor_theme }}
 Environment=KIOSK_SCREEN_OFF_AFTER={{ kiosk_screen_off_after | int }}
