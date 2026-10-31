@@ -24,7 +24,8 @@ production is deployed (`vercel.json` turns off Vercel's deploy of `main`). It n
 --syntax-check`.
 
 `tests.yml` also runs that playbook with `kiosk_enable_only=true` (enable services, start nothing) in a Debian trixie container, checks the key files and that
-the units are enabled but not started, and runs it again to check that nothing changes (`ansible/tests/image-build.sh`).
+the units are enabled but not started, and runs it again to check that nothing changes (`ansible/tests/image-build.sh`). It only does that when `ansible/`, `pi/wifi-panel/`, `pi/kiosk-audio/`
+or `tests.yml` changed; otherwise the job passes straight away, so the required check is never left waiting.
 
 `audit.yml` scans the lockfile weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in
 `all-checks.yml`.

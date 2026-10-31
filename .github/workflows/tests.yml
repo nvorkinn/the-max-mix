@@ -36,6 +36,10 @@ jobs:
 
   # Runs the kiosk playbook with kiosk_enable_only=true (enable services, start nothing) in a Debian trixie container, checks the key
   # files and that the units are enabled but not started, and runs it again to check it changes nothing.
+  #
+  # It only runs when something the playbook reads changed: ansible/, the two pi/ folders it installs, or this workflow.
+  # The job itself always runs and passes when there is nothing to test, so "Global PR Status" never waits for a check
+  # that was skipped.
   ansible-playbook:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -43,7 +47,23 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: docker run --rm --volume "$PWD:/repo:ro" debian:trixie bash /repo/ansible/tests/image-build.sh
+          fetch-depth: 0
+      - name: Check whether the playbook or its files changed
+        id: changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          paths=(ansible pi/wifi-panel pi/kiosk-audio .github/workflows/tests.yml)
+          # A new branch or an unknown base has nothing to compare with, so it is tested.
+          run=true
+          if [[ -n $BASE && ! $BASE =~ ^0+$ ]] && git cat-file -e "$BASE^{commit}" 2> /dev/null &&
+            git diff --quiet "$BASE...HEAD" -- "${paths[@]}"; then
+            echo "Nothing the playbook reads changed; skipping the playbook test."
+            run=false
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+      - if: steps.changes.outputs.run == 'true'
+        run: docker run --rm --volume "$PWD:/repo:ro" debian:trixie bash /repo/ansible/tests/image-build.sh
 
   # Browser smoke test of the built app in demo mode, served by `vite preview`. Runs in parallel with `tests` and uses the Google Chrome that
   # ships on ubuntu-latest, so no browser download is needed.
