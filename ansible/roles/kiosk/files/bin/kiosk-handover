@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# Gets a Pi that was set up on the owner's Wi-Fi (pi/cloud-init/README.md) ready for its new home, then powers it off:
+#   - forgets every Wi-Fi network, with the copies cloud-init left (network-config, its netplan file, its cache);
+#   - turns cloud-init off, so it never applies the setup network again;
+#   - clears what testing left in the kiosk: the Chromium profile (the Spotify login), the chosen speakers, the logs.
+# At the next start there is no network, so the kiosk shows its Wi-Fi panel. The admin SSH keys and the paired Bluetooth
+# devices stay. Run it over SSH: sudo kiosk-handover [--yes] [--no-poweroff]
+set -euo pipefail
+
+kiosk_user=kiosk
+poweroff=true
+confirmed=false
+for arg in "$@"; do
+  case $arg in
+    --yes) confirmed=true ;;
+    --no-poweroff) poweroff=false ;;
+    *)
+      echo "Usage: sudo kiosk-handover [--yes] [--no-poweroff]" >&2
+      exit 2
+      ;;
+  esac
+done
+
+if ((EUID != 0)); then
+  echo "kiosk-handover: run it with sudo." >&2
+  exit 1
+fi
+
+if ! $confirmed; then
+  echo "This forgets every Wi-Fi network, clears the kiosk's Spotify login and logs, and turns cloud-init off."
+  echo "An SSH session over Wi-Fi drops part way; the rest still runs. The Pi then powers off."
+  read -r -p "Type yes to go on: " answer
+  [[ $answer == yes ]] || exit 1
+fi
+
+echo "Working. The Pi powers off when it is done."
+# Dropping the Wi-Fi ends an SSH session over it: carry on without a terminal.
+trap '' HUP PIPE
+exec > >(systemd-cat --identifier=kiosk-handover) 2>&1
+
+echo "Stopping the kiosk"
+systemctl stop kiosk.service || true
+
+echo "Clearing the kiosk's browser profile and state"
+home=$(getent passwd "$kiosk_user" | cut -d: -f6)
+if [[ -n $home && -d $home ]]; then
+  rm -rf "$home/.config/chromium" "$home/.cache/chromium" "$home/.local/state/the-max-mix" "$home/.bash_history"
+fi
+
+echo "Turning cloud-init off and removing its files"
+if command -v cloud-init > /dev/null; then
+  cloud-init clean --logs || true
+fi
+mkdir -p /etc/cloud
+touch /etc/cloud/cloud-init.disabled
+rm -f /boot/firmware/network-config /boot/firmware/user-data /boot/firmware/firstrun.sh
+
+echo "Forgetting the Wi-Fi networks"
+shopt -s nullglob
+for file in /etc/netplan/*.yaml; do
+  if grep -q 'wifis:' "$file"; then
+    rm -f "$file"
+  fi
+done
+if command -v netplan > /dev/null; then
+  netplan generate || true
+fi
+while IFS=: read -r uuid type; do
+  if [[ $type == 802-11-wireless ]]; then
+    nmcli connection delete uuid "$uuid" || true
+  fi
+done < <(nmcli --terse --fields UUID,TYPE connection show)
+
+echo "Clearing the logs"
+journalctl --rotate || true
+journalctl --vacuum-time=1s || true
+rm -f /root/.bash_history
+
+sync
+if $poweroff; then
+  systemctl poweroff
+else
+  systemctl start kiosk.service
+fi

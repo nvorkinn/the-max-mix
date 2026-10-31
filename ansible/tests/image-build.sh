@@ -47,7 +47,8 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/kiosk-open-wifi /usr/loc
   /etc/systemd/system/kiosk.service /etc/systemd/system/kiosk-pull.service /etc/systemd/system/kiosk-pull.timer \
   /etc/systemd/system/kiosk-restart.timer /etc/chromium/policies/managed/kiosk.json \
   /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules /etc/polkit-1/rules.d/50-kiosk-power.rules \
-  /usr/local/bin/kiosk-open-power /usr/share/applications/kiosk-power.desktop /etc/NetworkManager/conf.d/20-connectivity.conf \
+  /usr/local/bin/kiosk-open-power /usr/share/applications/kiosk-power.desktop /usr/local/sbin/kiosk-handover \
+  /etc/systemd/system/kiosk-update-now.service /etc/NetworkManager/conf.d/20-connectivity.conf \
   /etc/tmpfiles.d/kiosk.conf /usr/share/plymouth/themes/the-max-mix/the-max-mix.plymouth \
   /usr/share/icons/blank/cursors/left_ptr /etc/apt/apt.conf.d/52kiosk-unattended-upgrades \
   /opt/the-max-mix/kiosk-audio/kiosk-audio.ts /opt/the-max-mix/kiosk-audio/speakers.ts \

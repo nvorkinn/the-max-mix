@@ -145,8 +145,9 @@ skipped automatically when there is no `.git` directory or when dev dependencies
    `?kiosk=0` forgets it), Settings also shows **Wi-Fi network**, which opens the Pi's native Wi-Fi panel (it asks the
    kiosk to open `kiosk-wifi://open`). Other visitors never see the entry. The kiosk's Settings also show which commit
    of `stable` the Pi is running (from `?pi_ref=&pi_commit=` in `kiosk_url`), say when a newer one is on GitHub, and
-   have **Restart kiosk** and **Reboot Pi** buttons (`kiosk-power://` links). A new `stable` commit reaches the Pi
-   within about 5 minutes and is fully applied after the next kiosk restart: at 04:30, on a reboot, or with the button.
+   have **Update now**, **Restart kiosk** and **Reboot Pi** buttons (`kiosk-power://` links). **Update now** pulls
+   `stable` at once and restarts the kiosk if anything changed; otherwise a new `stable` commit reaches the Pi within
+   about 6 hours and is fully applied after the next kiosk restart: at 04:30, on a reboot, or with the button.
 5. In Speakers, select THE MAX MIX or an existing Spotify Connect device. Press
    Play when ready. For remote mode, first open Spotify on the target device so it
    is discoverable.
@@ -190,7 +191,8 @@ device, so change the role, not the device.
 - **Image build:** pi-gen installs Ansible and runs the playbook against the image with `kiosk_image_build=true`, which
   only enables services and starts nothing. Reflash only for a fresh device.
 - **On-device updates:** `kiosk-pull.timer` checks this repository's `stable` ref (`kiosk_pull_ref`) 3 minutes after boot
-  and then every 5 minutes (with up to a minute of random delay). `ansible-pull --only-if-changed` applies the playbook
+  and then every 6 hours (with up to 10 minutes of random delay), and at once when the kiosk's **Update now** button
+  starts `kiosk-update-now.service`. `ansible-pull --only-if-changed` applies the playbook
   only when `stable` has moved since the last run, so a check with nothing new is a single git fetch. It is public, so no credentials are needed. A
   deployed Pi therefore gets fixes to the Wi-Fi panel, the session script, the Chromium policy and so on without a
   reflash. The playbook is idempotent, so repeated runs are safe.

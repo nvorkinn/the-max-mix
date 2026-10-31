@@ -7,7 +7,8 @@ const kiosk = vi.hoisted(() => ({
   piVersion: vi.fn(),
   latestCommit: vi.fn(),
   restartKiosk: vi.fn(),
-  rebootPi: vi.fn()
+  rebootPi: vi.fn(),
+  updateKiosk: vi.fn()
 }));
 vi.mock('../utils/kiosk', () => kiosk);
 
@@ -30,7 +31,7 @@ describe('KioskSystem', () => {
   it('says when a newer commit is waiting', async () => {
     kiosk.latestCommit.mockResolvedValue('abcdef0123456789abcdef0123456789abcdef01');
     render(<KioskSystem />);
-    expect(await screen.findByText(/stable is now abcdef0\. It reaches the Pi/)).toBeInTheDocument();
+    expect(await screen.findByText(/stable is now abcdef0\. Tap Update now/)).toBeInTheDocument();
   });
 
   it('says when GitHub cannot be asked', async () => {
@@ -44,6 +45,16 @@ describe('KioskSystem', () => {
     render(<KioskSystem />);
     expect(screen.getByText('The Pi did not say which version it runs.')).toBeInTheDocument();
     expect(kiosk.latestCommit).not.toHaveBeenCalled();
+  });
+
+  it('updates only on a second tap and says it is updating', async () => {
+    kiosk.latestCommit.mockResolvedValue(null);
+    render(<KioskSystem />);
+    await userEvent.click(screen.getByRole('button', { name: 'Update now' }));
+    expect(kiosk.updateKiosk).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Tap again to update' }));
+    expect(kiosk.updateKiosk).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/Updating\. If there is a newer version/)).toBeInTheDocument();
   });
 
   it('restarts and reboots only on a second tap', async () => {

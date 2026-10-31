@@ -46,9 +46,15 @@ export function hidesCursor(): boolean {
   return flag === 'hidden' || (flag !== 'shown' && read(HIDE_CURSOR_KEY));
 }
 
-/** The kiosk's restart and reboot, opened like the Wi-Fi panel. Constants, so nothing a visitor types can change them. */
+/** The kiosk's update, restart and reboot, opened like the Wi-Fi panel. Constants, so nothing a visitor types can change them. */
+const UPDATE_KIOSK_URL = 'kiosk-power://update';
 const RESTART_KIOSK_URL = 'kiosk-power://restart';
 const REBOOT_PI_URL = 'kiosk-power://reboot';
+
+/** Asks the kiosk image to pull its update now; when that changes anything, the kiosk restarts by itself. */
+export function updateKiosk(): void {
+  location.assign(UPDATE_KIOSK_URL);
+}
 
 /** Asks the kiosk image to restart the kiosk (Cage and Chromium), which applies an update that waits for a restart. */
 export function restartKiosk(): void {

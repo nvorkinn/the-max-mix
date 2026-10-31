@@ -1,0 +1,15 @@
+# The Wi-Fi the Pi uses for its setup, at the owner's place. Copy this file to network-config on the SD card's boot
+# partition and fill in the network (or let Raspberry Pi Imager write it). kiosk-handover removes it again, with every
+# other copy, before the Pi goes to its new home. See README.md.
+network:
+  version: 2
+  wifis:
+    renderer: NetworkManager
+    wlan0:
+      dhcp4: true
+      optional: true
+      # Raspberry Pi OS keeps Wi-Fi off until the country is set (the playbook sets kiosk_wifi_country later).
+      regulatory-domain: GB
+      access-points:
+        'Your Wi-Fi name':
+          password: 'your Wi-Fi password'

@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+# The app's Update now button (kiosk-power://update): runs the same pull as kiosk-pull.timer straight away and, when it
+# changed kiosk files, restarts the kiosk at once instead of waiting for {{ kiosk_restart_time }}. The kiosk user may only
+# start this unit (50-kiosk-power.rules); a pull that fails stops here and only logs (journalctl -u kiosk-pull).
+[Unit]
+Description=Update THE MAX MIX kiosk now
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl start kiosk-pull.service
+ExecStart=/usr/bin/systemctl start kiosk-restart.service

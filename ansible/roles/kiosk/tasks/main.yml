@@ -277,6 +277,7 @@
     - { src: bin/kiosk-bluetooth-pair, dest: /usr/local/bin/kiosk-bluetooth-pair, mode: '0755' }
     - { src: bin/kiosk-open-audio, dest: /usr/local/bin/kiosk-open-audio, mode: '0755' }
     - { src: bin/kiosk-open-power, dest: /usr/local/bin/kiosk-open-power, mode: '0755' }
+    - { src: bin/kiosk-handover, dest: /usr/local/sbin/kiosk-handover, mode: '0755' }
     - { src: kiosk-wifi.desktop, dest: /usr/share/applications/kiosk-wifi.desktop, mode: '0644' }
     - { src: kiosk-audio.desktop, dest: /usr/share/applications/kiosk-audio.desktop, mode: '0644' }
     - { src: kiosk-power.desktop, dest: /usr/share/applications/kiosk-power.desktop, mode: '0644' }
@@ -376,8 +377,8 @@
     group: root
     mode: '0644'
 
-# The Restart kiosk and Reboot Pi buttons in the app's settings (kiosk-power:// links).
-- name: Allow the kiosk user to restart the kiosk and reboot the Pi
+# The Update now, Restart kiosk and Reboot Pi buttons in the app's settings (kiosk-power:// links).
+- name: Allow the kiosk user to update and restart the kiosk and reboot the Pi
   ansible.builtin.template:
     src: 50-kiosk-power.rules.j2
     dest: /etc/polkit-1/rules.d/50-kiosk-power.rules
@@ -472,6 +473,7 @@
     - kiosk-pull.timer
     - kiosk-restart.service
     - kiosk-restart.timer
+    - kiosk-update-now.service
   notify: Reload systemd
 
 # The units must be known to systemd before they are enabled and started.
