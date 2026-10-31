@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import type { Graph } from './pipewire.ts';
 
-export const SPEAKERS_PORT = 7341;
+const SPEAKERS_PORT = 7341;
 
 /** The AirPlay (RAOP) sinks' names, sorted, once each. */
 export const speakerNames = (graph: Graph): string[] =>
