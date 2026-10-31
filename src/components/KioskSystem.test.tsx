@@ -17,12 +17,10 @@ vi.mock('../utils/kiosk', () => kiosk);
 
 // The Pi's update status: the real descriptions, with a snapshot each test sets.
 const NOW = 1_800_000_000_000;
-const piUpdate = vi.hoisted(() => ({
-  snapshot: { status: null, reachable: null, requestedAt: null, checkedAt: 0 },
-  listeners: new Set<() => void>(),
-  watchPiUpdates: vi.fn(),
-  noteUpdateRequested: vi.fn()
-}));
+const piUpdate = vi.hoisted(() => {
+  const snapshot: PiUpdate = { status: null, reachable: null, requestedAt: null, checkedAt: 0 };
+  return { snapshot, listeners: new Set<() => void>(), watchPiUpdates: vi.fn(), noteUpdateRequested: vi.fn() };
+});
 vi.mock('../utils/piUpdate', async importOriginal => ({
   ...(await importOriginal<typeof import('../utils/piUpdate')>()),
   watchPiUpdates: piUpdate.watchPiUpdates,
@@ -119,7 +117,7 @@ describe('KioskSystem', () => {
       })
     );
     expect(screen.getByRole('status')).toHaveTextContent('Installing v1.13.0: step 20 of about 80 (Install Node.js)…');
-    expect(screen.getByRole('progressbar')).toHaveValue('25');
+    expect(screen.getByRole('progressbar')).toHaveValue(25);
 
     act(() => setUpdate({ status: run({ state: 'restart-needed', ref: 'v1.13.0' }) }));
     expect(screen.getByRole('status')).toHaveTextContent('Installed v1.13.0. Restarting the kiosk…');
