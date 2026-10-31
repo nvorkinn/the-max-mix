@@ -62,6 +62,13 @@ export function setDemoMode(on: boolean): void {
   write(DEMO_KEY, on ? 'true' : null);
 }
 
+/** Reload stored preferences without letting a demo query override the saved choice. */
+export function reloadSettings(): void {
+  const url = new URL(location.href);
+  url.searchParams.delete('demo');
+  location.assign(url.href);
+}
+
 /** The address Spotify sends the browser back to after sign-in. Register exactly this in the Spotify dashboard. */
 export function getRedirectUri(): string {
   return `${location.origin}/`;

@@ -3,7 +3,7 @@ import { X, Settings, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feath
 import { signOut, startSignIn } from '../spotify/auth';
 import { errorMessage } from '../utils/errorMessage';
 import { isKiosk, openWifiSettings } from '../utils/kiosk';
-import { getRedirectUri, setDemoMode, setPlaybackMode } from '../spotify/settings';
+import { getRedirectUri, reloadSettings, setDemoMode, setPlaybackMode } from '../spotify/settings';
 import { widevineProblem } from '../utils/widevine';
 import { SCREEN_SLEEP_CHOICES } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
@@ -12,14 +12,6 @@ import Modal from './Modal';
 
 /** Set by vite.config.ts at build time; tests and other tooling run without it. */
 const APP_VERSION: string = import.meta.env.VITE_APP_VERSION ?? 'dev';
-
-/** Applies a changed setting by reloading the page, which starts everything again from the stored settings. */
-function reloadPage() {
-  const url = new URL(location.href);
-  // A ?demo=true address would switch demo mode straight back on.
-  url.searchParams.delete('demo');
-  location.assign(url.href);
-}
 
 /** The kiosk's screen sleep delay: off, or minutes without a touch while nothing plays. */
 function ScreenSleepRow({
@@ -104,12 +96,11 @@ interface SettingsModalProps {
   onScreenSleepChange?: (minutes: ScreenSleepMinutes) => void;
 }
 
-export default function SettingsModal({
-  isOpen,
+function SettingsContent({
   onClose,
   authInfo,
   signInError = null,
-  onReload = reloadPage,
+  onReload = reloadSettings,
   currentTheme = 'neon',
   onThemeChange,
   statusMessage,
@@ -117,21 +108,45 @@ export default function SettingsModal({
   onScreenSleepChange
 }: Readonly<SettingsModalProps>) {
   const [actionError, setActionError] = useState<string | null>(null);
+  const savedMode = authInfo?.playbackMode === 'remote' ? 'remote' : 'browser';
+  const savedDemo = Boolean(authInfo?.demoMode);
+  const [previousMode, setPreviousMode] = useState(savedMode);
+  const [previousDemo, setPreviousDemo] = useState(savedDemo);
+  const [pendingMode, setPendingMode] = useState<'browser' | 'remote'>(savedMode);
+  const [pendingDemo, setPendingDemo] = useState(savedDemo);
+  if (previousMode !== savedMode) {
+    setPreviousMode(savedMode);
+    setPendingMode(savedMode);
+  }
+  if (previousDemo !== savedDemo) {
+    setPreviousDemo(savedDemo);
+    setPendingDemo(savedDemo);
+  }
   // Why this browser cannot be the speaker (no Widevine), checked each time Settings opens; null while it can.
   const [cannotPlay, setCannotPlay] = useState<string | null>(null);
+  const [checkingPlayback, setCheckingPlayback] = useState(true);
   useEffect(() => {
-    if (!isOpen) return;
     let cancelled = false;
     widevineProblem()
       .then(problem => {
         if (!cancelled) setCannotPlay(problem);
       })
-      .catch(() => {});
+      .catch((caught: unknown) => {
+        if (!cancelled) setCannotPlay(`Browser playback could not be checked: ${errorMessage(caught)}`);
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingPlayback(false);
+      });
     return () => {
       cancelled = true;
     };
-  }, [isOpen]);
-  if (!isOpen) return null;
+  }, []);
+  const modeChanged = pendingMode !== savedMode;
+  const demoChanged = pendingDemo !== savedDemo;
+  let browserDescription =
+    'Play audio on this tablet. Requires Spotify Premium, HTTPS and browser encrypted media support.';
+  if (checkingPlayback) browserDescription = 'Checking browser playback support...';
+  else if (cannotPlay) browserDescription = `Unavailable: ${cannotPlay}`;
 
   const THEMES = [
     {
@@ -156,7 +171,7 @@ export default function SettingsModal({
   if (authInfo?.demoMode) {
     spotifyStatus = 'Playback is simulated. Turn demo mode off below to use Spotify.';
   } else if (authInfo?.authenticated) {
-    spotifyStatus = `Connected to Spotify. Playback mode: ${authInfo.playbackMode}.`;
+    spotifyStatus = 'Connected to Spotify. Choose a playback destination below.';
   }
 
   return (
@@ -180,50 +195,7 @@ export default function SettingsModal({
         <Settings className="w-5 h-5 text-accent" />
         Settings
       </h3>
-      <p className="text-xs text-muted mb-4">Personalise the appearance and Spotify connection of THE MAX MIX</p>
-
-      {/* Appearance */}
-      <div className="mb-5 space-y-2">
-        <div className="flex items-center space-x-1.5 text-xs font-bold text-muted">
-          <Palette className="w-3.5 h-3.5 text-accent" />
-          <span>APPEARANCE</span>
-        </div>
-
-        <div className="grid grid-cols-1 gap-2">
-          {THEMES.map(t => {
-            const isSelected = currentTheme === t.id;
-
-            return (
-              <button
-                type="button"
-                key={t.id}
-                aria-pressed={isSelected}
-                onClick={() => onThemeChange?.(t.id)}
-                className="modal-option p-3 rounded-2xl text-left cursor-pointer transition-all border flex items-center justify-between"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="modal-card w-9 h-9 rounded-xl border flex items-center justify-center">{t.icon}</div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold">{t.name}</span>
-                      <span className="modal-badge text-[9px] uppercase font-bold px-1.5 py-0.2 rounded-full">
-                        {t.badge}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-muted mt-0.5">{t.desc}</p>
-                  </div>
-                </div>
-
-                <div className="shrink-0 pl-2">
-                  <div className="appearance-indicator w-4 h-4 rounded-full border-2 flex items-center justify-center">
-                    {isSelected && <div className="w-1.5 h-1.5 rounded-full" />}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <p className="text-xs text-muted mb-4">Connect Spotify and choose where this tablet plays.</p>
 
       {/* Status Card */}
       <div className="modal-card p-3.5 rounded-2xl border mb-4 space-y-2">
@@ -285,20 +257,65 @@ export default function SettingsModal({
           </button>
         )}
 
+        <fieldset className="space-y-2">
+          <legend className="text-xs font-bold mb-2">Playback destination</legend>
+          <label className="playback-choice">
+            <input
+              type="radio"
+              name="playback-destination"
+              value="browser"
+              checked={pendingMode === 'browser'}
+              disabled={checkingPlayback || Boolean(cannotPlay)}
+              onChange={() => setPendingMode('browser')}
+              aria-label="This device"
+            />
+            <span>
+              <span className="block text-xs font-bold">This device</span>
+              <span className="block text-[11px] text-muted mt-1">{browserDescription}</span>
+            </span>
+          </label>
+          <label className="playback-choice">
+            <input
+              type="radio"
+              name="playback-destination"
+              value="remote"
+              checked={pendingMode === 'remote'}
+              onChange={() => setPendingMode('remote')}
+              aria-label="Another Spotify device"
+            />
+            <span>
+              <span className="block text-xs font-bold">Another Spotify device</span>
+              <span className="block text-[11px] text-muted mt-1">
+                Control a Spotify Connect speaker without streaming audio here. Start music in Spotify, then choose
+                Speakers.
+              </span>
+            </span>
+          </label>
+        </fieldset>
         <SwitchRow
-          label="Play in this browser"
-          description={
-            cannotPlay
-              ? `Unavailable: ${cannotPlay}`
-              : 'On: this screen is the speaker. Off: it only controls another Spotify device.'
+          label="Demo mode"
+          description="Simulated playback and queue, no Spotify account needed."
+          checked={pendingDemo}
+          onChange={setPendingDemo}
+        />
+        <p className="text-[11px] text-muted">
+          Apply destination or demo changes to reload the app. This won't move or start your music automatically.
+        </p>
+        <button
+          type="button"
+          className="button button-secondary w-full"
+          disabled={
+            (!modeChanged && !demoChanged) ||
+            (modeChanged && pendingMode === 'browser' && (checkingPlayback || Boolean(cannotPlay)))
           }
-          checked={!cannotPlay && authInfo?.playbackMode !== 'remote'}
-          disabled={Boolean(cannotPlay)}
-          onChange={browser => {
-            setPlaybackMode(browser ? 'browser' : 'remote');
+          onClick={() => {
+            if (modeChanged) setPlaybackMode(pendingMode);
+            if (demoChanged) setDemoMode(pendingDemo);
             onReload();
           }}
-        />
+        >
+          Apply and reload
+        </button>
         {isKiosk() && (
           <button
             type="button"
@@ -316,18 +333,37 @@ export default function SettingsModal({
           <ScreenSleepRow minutes={screenSleep} onChange={onScreenSleepChange} />
         )}
         {isKiosk() && <KioskSystem />}
-
-        <SwitchRow
-          label="Demo mode"
-          description="Simulated playback and queue, no Spotify account needed."
-          checked={Boolean(authInfo?.demoMode)}
-          onChange={on => {
-            setDemoMode(on);
-            onReload();
-          }}
-        />
       </div>
 
+      <div className="mt-5 space-y-2">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-muted">
+          <Palette className="w-3.5 h-3.5 text-accent" />
+          <span>APPEARANCE</span>
+        </div>
+        {THEMES.map(theme => (
+          <button
+            type="button"
+            key={theme.id}
+            aria-pressed={currentTheme === theme.id}
+            onClick={() => onThemeChange?.(theme.id)}
+            className="modal-option p-3 rounded-2xl text-left transition-all border flex items-center justify-between w-full"
+          >
+            <div className="flex items-center gap-3">
+              <div className="modal-card w-9 h-9 rounded-xl border flex items-center justify-center">{theme.icon}</div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold">{theme.name}</span>
+                  <span className="modal-badge text-[9px] uppercase font-bold px-1.5 rounded-full">{theme.badge}</span>
+                </div>
+                <p className="text-[10px] text-muted mt-0.5">{theme.desc}</p>
+              </div>
+            </div>
+            <div className="appearance-indicator w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0">
+              {currentTheme === theme.id && <div className="w-1.5 h-1.5 rounded-full" />}
+            </div>
+          </button>
+        ))}
+      </div>
       <p className="mt-5 text-center text-[10px] text-muted">
         Version <span className="font-mono">{APP_VERSION}</span>
       </p>
@@ -338,4 +374,8 @@ export default function SettingsModal({
       )}
     </Modal>
   );
+}
+
+export default function SettingsModal(props: Readonly<SettingsModalProps>) {
+  return props.isOpen ? <SettingsContent {...props} /> : null;
 }

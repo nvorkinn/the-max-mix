@@ -45,7 +45,7 @@ describe('TabletView', () => {
     state.player = player();
     render(<TabletView />);
     expect(api.getQueue).not.toHaveBeenCalled();
-    expect(screen.getByTestId('queue')).toHaveTextContent('|no-error');
+    expect(screen.queryByTestId('queue')).not.toBeInTheDocument();
   });
 
   it('clears the queue and error when polling stops', async () => {
@@ -55,7 +55,12 @@ describe('TabletView', () => {
     await waitFor(() => expect(screen.getByTestId('queue')).toHaveTextContent('Song|no-error'));
     state.player = player({ isAuthenticated: false });
     rerender(<TabletView />);
+    expect(screen.queryByTestId('queue')).not.toBeInTheDocument();
+    api.getQueue.mockResolvedValue({ queue: [] });
+    state.player = player({ isAuthenticated: true });
+    rerender(<TabletView />);
     expect(screen.getByTestId('queue')).toHaveTextContent('|no-error');
     expect(screen.getByTestId('queue')).not.toHaveTextContent('Song');
+    await waitFor(() => expect(api.getQueue).toHaveBeenCalledTimes(2));
   });
 });

@@ -115,16 +115,14 @@ for (const theme of ['neon', 'minimal']) {
     await page.goto('/');
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     await expect(player.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
-    await expect(player.getByRole('slider', { name: 'Playback position' })).toHaveAttribute(
-      'aria-valuetext',
-      'Playback time unavailable'
-    );
+    await expect(player.getByRole('slider', { name: 'Playback position' })).toHaveCount(0);
+    await expect(player.getByRole('button', { name: 'Try demo' })).toBeVisible();
     await expect(page.locator('.session-status .status-dot')).toHaveClass(/status-dot-idle/);
     await expect(page.locator('.app-footer .status-dot')).toHaveClass(/status-dot-idle/);
     await expect(page.getByText('0 tracks', { exact: true })).toHaveCount(0);
     await expect(page.getByText('A little quiet in here.')).toHaveCount(0);
     await expectControlsFit(page, player);
-    await player.getByRole('button', { name: 'Connect Spotify' }).click();
+    await player.getByRole('button', { name: 'Connection settings' }).click();
     await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
   });
 

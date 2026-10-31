@@ -18,6 +18,7 @@ import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import type { Track } from '../types';
 import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
+import SpotifySetup from './SpotifySetup';
 import TrackQueue, { type QueueStatus } from './TrackQueue';
 import PlaybackNotice, { type PlaybackNoticeState } from './PlaybackNotice';
 import LyricsPanel from './LyricsPanel';
@@ -289,6 +290,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     }
   };
   const problem = signInError ? { message: signInError, recovery: 'sign-in' as const } : playerProblem;
+  const needsConnection = !isDemoMode && !isLoading && (!isAuthenticated || problem?.recovery === 'sign-in');
   const restricted = Boolean(playbackState?.device?.is_restricted);
   let notice: PlaybackNoticeState | null = null;
   if (!isDemoMode && isOffline) notice = { kind: 'offline' };
@@ -362,6 +364,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             type="button"
             onClick={() => toggleLyrics(!showLyrics)}
             className="button button-secondary lyrics-button"
+            disabled={needsConnection}
             aria-pressed={showLyrics}
             title="Show the lyrics of the current song"
           >
@@ -382,65 +385,75 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
       {isOffline && <OfflineBanner />}
 
-      <main className="listening-room">
+      <main className={`listening-room${needsConnection ? ' is-setup' : ''}`}>
         <section className="player-section" aria-label="Now playing">
-          <AlbumArtPlayer
-            playback={playbackState}
-            isPlaying={isPlaying}
-            onPlayPause={togglePlay}
-            onNext={nextTrack}
-            onPrevious={previousTrack}
-            onSeek={seek}
-            onVolumeChange={(vol: number) => setVolume(vol / 100)}
-            theme={theme}
-            isDemoMode={isDemoMode}
-            controlsEnabled={
-              (isDemoMode || (isAuthenticated && !isOffline && (isReady || Boolean(browserDeviceId)))) &&
-              !restricted &&
-              !isLoading
-            }
-            notice={
-              notice && (
-                <PlaybackNotice
-                  notice={notice}
-                  isDemoMode={isDemoMode}
-                  busy={isRefreshingPlayback}
-                  onSettings={showSettings}
-                  onChooseSpeaker={chooseSpeaker}
-                  onRefresh={() => void recoverPlayback(retryPlayback)}
-                  onReconnect={reconnectPlayer}
-                  onAllowAudio={() => void recoverPlayback(allowBrowserAudio)}
-                  onDetails={() => setIsDebugOpen(true)}
-                />
-              )
-            }
-          />
-        </section>
-
-        {showLyrics ? (
-          <section className="queue-section" aria-label="Lyrics">
-            <LyricsPanel
-              track={currentTrack}
-              progressMs={playbackState?.progress_ms ?? playbackState?.position ?? 0}
-              onClose={() => toggleLyrics(false)}
+          {needsConnection ? (
+            <SpotifySetup
+              offline={isOffline}
+              signInError={signInError || (problem?.recovery === 'sign-in' ? problem.message : null)}
+              onSettings={showSettings}
+              onDetails={() => setIsDebugOpen(true)}
             />
-          </section>
-        ) : (
-          <section className="queue-section" aria-label="Upcoming tracks">
-            <TrackQueue
-              queue={queue}
-              onReorderQueue={handleReorderQueue}
-              onPlaySongNow={handlePlaySongNow}
+          ) : (
+            <AlbumArtPlayer
+              playback={playbackState}
+              isPlaying={isPlaying}
+              onPlayPause={togglePlay}
+              onNext={nextTrack}
+              onPrevious={previousTrack}
+              onSeek={seek}
+              onVolumeChange={(vol: number) => setVolume(vol / 100)}
               theme={theme}
               isDemoMode={isDemoMode}
-              error={queueError}
-              status={queueStatus}
-              onRetry={() => setQueueRequestVersion(version => version + 1)}
-              onConnect={showSettings}
-              retryAllowed={queueRetryAllowed}
+              controlsEnabled={
+                (isDemoMode || (isAuthenticated && !isOffline && (isReady || Boolean(browserDeviceId)))) &&
+                !restricted &&
+                !isLoading
+              }
+              notice={
+                notice && (
+                  <PlaybackNotice
+                    notice={notice}
+                    isDemoMode={isDemoMode}
+                    busy={isRefreshingPlayback}
+                    onSettings={showSettings}
+                    onChooseSpeaker={chooseSpeaker}
+                    onRefresh={() => void recoverPlayback(retryPlayback)}
+                    onReconnect={reconnectPlayer}
+                    onAllowAudio={() => void recoverPlayback(allowBrowserAudio)}
+                    onDetails={() => setIsDebugOpen(true)}
+                  />
+                )
+              }
             />
-          </section>
-        )}
+          )}
+        </section>
+
+        {!needsConnection &&
+          (showLyrics ? (
+            <section className="queue-section" aria-label="Lyrics">
+              <LyricsPanel
+                track={currentTrack}
+                progressMs={playbackState?.progress_ms ?? playbackState?.position ?? 0}
+                onClose={() => toggleLyrics(false)}
+              />
+            </section>
+          ) : (
+            <section className="queue-section" aria-label="Upcoming tracks">
+              <TrackQueue
+                queue={queue}
+                onReorderQueue={handleReorderQueue}
+                onPlaySongNow={handlePlaySongNow}
+                theme={theme}
+                isDemoMode={isDemoMode}
+                error={queueError}
+                status={queueStatus}
+                onRetry={() => setQueueRequestVersion(version => version + 1)}
+                onConnect={showSettings}
+                retryAllowed={queueRetryAllowed}
+              />
+            </section>
+          ))}
       </main>
 
       <footer className="app-footer">
