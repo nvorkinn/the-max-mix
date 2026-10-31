@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { CSSProperties } from 'react';
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, CSSProperties } from 'react';
 import { AudioLines, Clock, Settings, Speaker, MicVocal } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { extractPalette } from '../utils/colorExtractor';
@@ -11,6 +11,7 @@ import { getAudioRoute, setAudioRoute } from '../spotify/settings';
 import type { AudioRoute } from '../spotify/settings';
 import { getChosenSpeakers, routeAudio } from '../audio/airplay';
 import { isKiosk } from '../utils/kiosk';
+import { debugLog } from '../utils/debugLog';
 import type { Track } from '../types';
 import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
@@ -18,12 +19,40 @@ import SpotifyJamQueue from './SpotifyJamQueue';
 import LyricsPanel from './LyricsPanel';
 import SettingsModal from './SettingsModal';
 import SpeakerSelectorModal from './SpeakerSelectorModal';
+import DebugConsole from './DebugConsole';
 
 const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 // While this page's player is active the queue is re-read when the SDK says it changed; this is only a safety net.
 const QUEUE_POLL_MS = 10_000;
 const SDK_QUEUE_POLL_MS = 20_000;
+// Holding the footer clock this long opens the debug console; long enough that nobody opens it by accident.
+const DEBUG_HOLD_MS = 2000;
+
+/** Pointer handlers that call `onHold` once the element has been held down for `ms`. */
+function useHold(onHold: () => void, ms: number) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+  const cancel = () => clearTimeout(timerRef.current);
+  return {
+    onPointerDown: (event: ReactPointerEvent) => {
+      if (event.button !== 0) return;
+      cancel();
+      timerRef.current = setTimeout(onHold, ms);
+    },
+    onPointerUp: cancel,
+    onPointerLeave: cancel,
+    onPointerCancel: cancel,
+    onContextMenu: (event: ReactMouseEvent) => event.preventDefault()
+  };
+}
+
+/** Writes `message` to the debug log each time it changes to a new, non-empty value. */
+function useLogChanges(message: string | null | undefined, source: string) {
+  useEffect(() => {
+    if (message) debugLog('error', source, message);
+  }, [message, source]);
+}
 
 // signInError: why finishing the Spotify sign-in failed
 export default function TabletView({ signInError = null }: Readonly<{ signInError?: string | null | undefined }>) {
@@ -53,6 +82,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [currentTime, setCurrentTime] = useState(formatClock);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSpeakerModalOpen, setIsSpeakerModalOpen] = useState(false);
+  const [isDebugOpen, setIsDebugOpen] = useState(false);
+  const debugHold = useHold(() => setIsDebugOpen(true), DEBUG_HOLD_MS);
   const [queueError, setQueueError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [theme, setTheme] = useState(() => (localStorage.getItem('maxmix_theme') === 'minimal' ? 'minimal' : 'neon'));
@@ -98,6 +129,23 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   const isPlaying = Boolean(playbackState?.is_playing);
   const currentTrack = playbackState?.item;
+
+  // Problems are kept in the debug console rather than in a banner over the screen.
+  useLogChanges(playerError, 'player');
+  useLogChanges(signInError, 'sign-in');
+  useLogChanges(queueError, 'queue');
+
+  // Ctrl+Shift+D opens the debug console too, for a browser with a keyboard.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'd') {
+        event.preventDefault();
+        setIsDebugOpen(open => !open);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Clock
   useEffect(() => {
@@ -259,9 +307,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       </header>
 
       {isOffline && <OfflineBanner />}
-      {!isOffline && (error || (!isLoading && !isDemoMode && !isAuthenticated)) && (
-        <div className="connection-banner" role={error ? 'alert' : 'status'}>
-          <span>{error || 'Connect your Spotify account in Settings. Demo mode is off.'}</span>
+      {!isOffline && (signInError || (!isLoading && !isDemoMode && !isAuthenticated)) && (
+        <div className="connection-banner" role={signInError ? 'alert' : 'status'}>
+          <span>{signInError || 'Connect your Spotify account in Settings. Demo mode is off.'}</span>
           <button type="button" onClick={() => setIsSettingsOpen(true)}>
             Settings
           </button>
@@ -307,10 +355,17 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       </main>
 
       <footer className="app-footer">
-        <span>
-          <span className="status-dot" /> {footerStatus}
-        </span>
-        <span className="footer-clock">
+        {playerError && !isOffline ? (
+          <button type="button" className="footer-problem-button" onClick={() => setIsDebugOpen(true)}>
+            <span className="status-dot status-dot-error" /> {footerStatus} ·{' '}
+            <span className="footer-problem">Problem, see details</span>
+          </button>
+        ) : (
+          <span>
+            <span className="status-dot" /> {footerStatus}
+          </span>
+        )}
+        <span className="footer-clock" {...debugHold}>
           <Clock size={12} /> {currentTime}
         </span>
         <span>POWERED BY SPOTIFY</span>
@@ -332,6 +387,27 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         canUseAirPlay={canUseAirPlay}
         audioRoute={audioRoute}
         onAudioRouteChange={changeAudioRoute}
+      />
+
+      <DebugConsole
+        isOpen={isDebugOpen}
+        onClose={() => setIsDebugOpen(false)}
+        status={[
+          ['Connection', isOffline ? 'Offline' : 'Online'],
+          ['Kiosk', onKiosk ? 'Yes' : 'No'],
+          ['Signed in', isAuthenticated ? 'Yes' : 'No'],
+          ['Demo mode', isDemoMode ? 'On' : 'Off'],
+          ['Playback mode', playbackMode],
+          ['Audio route', audioRoute],
+          ['Browser player', browserDeviceId ? `Ready (${browserDeviceId})` : 'Not connected'],
+          ['SDK driving', sdkActive ? 'Yes' : 'No'],
+          ['Active device', playbackState?.device?.name ?? 'None'],
+          [
+            'Now playing',
+            currentTrack ? (currentTrack.name ?? currentTrack.title ?? currentTrack.id ?? '?') : 'Nothing'
+          ],
+          ['Current problem', error ?? 'None']
+        ]}
       />
 
       {/* General Settings Modal */}

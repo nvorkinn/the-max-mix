@@ -7,6 +7,7 @@ import { getPlaybackMode, isDemoMode as readDemoMode } from '../spotify/settings
 import { errorMessage } from '../utils/errorMessage';
 import { loadSpotifySDK } from '../utils/spotifySdk';
 import { widevineProblem } from '../utils/widevine';
+import { debugLog } from '../utils/debugLog';
 
 // Spotify's playback state lags a play/pause command by a second or more, so a read right after one still reports the
 // old state. For this long after a command the button keeps the state the command asked for.
@@ -278,6 +279,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         player.addListener('player_state_changed', applySdkState);
         player.addListener('ready', ({ device_id }: { device_id: string }) => {
           if (isCancelled()) return;
+          debugLog('info', 'sdk', `Browser player ready as device ${device_id}`);
           deviceIdRef.current = device_id;
           setBrowserDeviceId(device_id);
           setSdkError(null);
@@ -293,6 +295,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         });
         player.addListener('not_ready', () => {
           if (isCancelled()) return;
+          debugLog('warn', 'sdk', 'Browser player went offline (not_ready)');
           deviceIdRef.current = null;
           setBrowserDeviceId(null);
           markSdkActive(false);
@@ -304,6 +307,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         for (const event of ['initialization_error', 'authentication_error', 'account_error', 'playback_error']) {
           player.addListener(event, ({ message }: { message: string }) => {
             if (isCancelled()) return;
+            debugLog('error', 'sdk', `${event}: ${message}`);
             const showError = (reason: string | null, hint: string) =>
               setSdkError([`Browser playback: ${message}`, reason, hint].filter(Boolean).join(' '));
             showError(null, 'Remote playback mode is available if this Pi cannot stream audio.');
@@ -318,6 +322,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
             }
           });
         }
+        debugLog('info', 'sdk', 'Connecting the browser player');
         const connected = await player.connect();
         resumeRef.current = () => {
           // A dropped player registers again by connecting; a live one only needs its current state read.

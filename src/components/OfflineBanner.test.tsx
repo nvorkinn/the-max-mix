@@ -61,11 +61,11 @@ describe('offline state in TabletView', () => {
     expect(screen.queryByText('No internet connection')).not.toBeInTheDocument();
   });
 
-  it('replaces the generic connection banner after lasting network errors', () => {
+  it('shows the offline banner after lasting network errors', () => {
     vi.useFakeTimers();
     state.player = { ...state.player, error: NETWORK_ERROR_MESSAGE };
     render(<TabletView />);
-    expect(screen.getByRole('alert')).toHaveTextContent(NETWORK_ERROR_MESSAGE);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     act(() => {
       vi.advanceTimersByTime(20_000);
     });
