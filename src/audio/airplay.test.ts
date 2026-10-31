@@ -1,12 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  getChosenSpeakers,
-  listAudioOutputs,
-  routeAudio,
-  routeLink,
-  setChosenSpeakers,
-  watchAudioOutputs
-} from './airplay';
+import { getChosenSpeakers, listAudioOutputs, routeAudio, setChosenSpeakers, watchAudioOutputs } from './airplay';
 
 beforeEach(() => localStorage.clear());
 afterEach(() => {
@@ -49,19 +42,34 @@ describe('listAudioOutputs', () => {
   });
 });
 
-describe('routing links', () => {
-  it('names every speaker, or none for the Pi’s own output', () => {
-    expect(routeLink(['Kitchen', 'Living Room & Bar'])).toBe(
-      'kiosk-audio://route?speaker=Kitchen&speaker=Living+Room+%26+Bar'
-    );
-    expect(routeLink([])).toBe('kiosk-audio://route');
+describe('routing', () => {
+  it('sends the speakers to the kiosk service, none for the Pi’s own output', () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    routeAudio(['Kitchen', 'Living Room & Bar']);
+    routeAudio([]);
+    expect(fetchMock.mock.calls).toEqual([
+      [
+        'http://127.0.0.1:7341/audio/route',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{"speakers":["Kitchen","Living Room & Bar"]}'
+        }
+      ],
+      [
+        'http://127.0.0.1:7341/audio/route',
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"speakers":[]}' }
+      ]
+    ]);
   });
 
-  it('opens the link as a navigation', () => {
-    const assign = vi.fn();
-    vi.stubGlobal('location', { assign });
+  it('only warns when the service cannot be reached', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
     routeAudio(['Kitchen']);
-    expect(assign).toHaveBeenCalledWith('kiosk-audio://route?speaker=Kitchen');
+    await vi.waitFor(() => expect(warn).toHaveBeenCalled());
+    warn.mockRestore();
   });
 });
 

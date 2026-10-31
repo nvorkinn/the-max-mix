@@ -10,8 +10,7 @@ import {
   piVersion,
   rebootPi,
   restartKiosk,
-  updateKiosk,
-  WIFI_SETTINGS_URL
+  updateKiosk
 } from './kiosk';
 
 function visit(search: string) {
@@ -77,12 +76,11 @@ describe('isKiosk', () => {
     expect(isKiosk()).toBe(false);
   });
 
-  it('opens the Wi-Fi panel through the custom scheme', () => {
-    const assign = vi.fn();
-    vi.stubGlobal('location', { assign });
+  it('asks the kiosk service to show the Wi-Fi panel', () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
     openWifiSettings();
-    expect(WIFI_SETTINGS_URL).toBe('kiosk-wifi://open');
-    expect(assign).toHaveBeenCalledWith('kiosk-wifi://open');
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi', { method: 'POST' });
   });
 });
 
@@ -161,13 +159,17 @@ describe('piVersion', () => {
 describe('update, restart and reboot', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('open the kiosk-power scheme', () => {
-    const assign = vi.fn();
-    vi.stubGlobal('location', { assign });
+  it('ask the kiosk service', () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
     updateKiosk();
     restartKiosk();
     rebootPi();
-    expect(assign.mock.calls).toEqual([['kiosk-power://update'], ['kiosk-power://restart'], ['kiosk-power://reboot']]);
+    expect(fetchMock.mock.calls).toEqual([
+      ['http://127.0.0.1:7341/power/update', { method: 'POST' }],
+      ['http://127.0.0.1:7341/power/restart', { method: 'POST' }],
+      ['http://127.0.0.1:7341/power/reboot', { method: 'POST' }]
+    ]);
   });
 });
 

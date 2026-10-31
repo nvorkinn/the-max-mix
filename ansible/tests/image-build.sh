@@ -41,20 +41,19 @@ check() {
   fi
 }
 
-for file in /usr/local/bin/kiosk-session /usr/local/bin/kiosk-open-wifi /usr/local/bin/wifi-panel \
+for file in /usr/local/bin/kiosk-session /usr/local/bin/wifi-panel \
   /usr/local/bin/kiosk-bluetooth-pair /etc/the-max-mix/bluetooth-devices /etc/systemd/system/kiosk-bluetooth-pair.service \
   /opt/the-max-mix/wifi-panel/wifi_panel.py /opt/the-max-mix/wifi-panel/qml/Main.qml \
   /etc/systemd/system/kiosk.service /etc/systemd/system/kiosk-pull.service /etc/systemd/system/kiosk-pull.timer \
   /etc/systemd/system/kiosk-restart.timer /etc/chromium/policies/managed/kiosk.json \
   /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules /etc/polkit-1/rules.d/50-kiosk-power.rules \
-  /usr/local/bin/kiosk-open-power /usr/share/applications/kiosk-power.desktop /usr/local/sbin/kiosk-handover \
-  /usr/local/bin/kiosk-display /usr/share/applications/kiosk-display.desktop \
+  /usr/local/sbin/kiosk-handover /usr/local/bin/kiosk-display \
   /etc/systemd/system/kiosk-update-now.service /etc/systemd/system/kiosk-widevine.path \
   /etc/systemd/system/kiosk-widevine.service /etc/NetworkManager/conf.d/20-connectivity.conf \
   /etc/tmpfiles.d/kiosk.conf /usr/share/plymouth/themes/the-max-mix/the-max-mix.plymouth \
   /usr/share/icons/blank/cursors/left_ptr /etc/apt/apt.conf.d/52kiosk-unattended-upgrades \
   /opt/the-max-mix/kiosk-audio/kiosk-audio.ts /opt/the-max-mix/kiosk-audio/speakers.ts \
-  /usr/local/bin/kiosk-open-audio /usr/share/applications/kiosk-audio.desktop \
+  /opt/the-max-mix/kiosk-audio/server.ts /opt/the-max-mix/kiosk-audio/actions.ts \
   /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf /etc/systemd/user/default.target.wants/kiosk-audio.service; do
   check test -e "$file"
 done
@@ -97,9 +96,8 @@ check node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 
 check node -e "await import('/opt/the-max-mix/kiosk-audio/speakers.ts')"
 check grep -q 'raop.latency.ms = 500' /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf
 check grep -q 'kiosk-audio.ts watch$' /etc/systemd/user/kiosk-audio.service
-check grep -q 'kiosk-audio=kiosk-audio.desktop' /etc/xdg/mimeapps.list
-check grep -q 'kiosk-display=kiosk-display.desktop' /etc/xdg/mimeapps.list
-check grep -q '"protocol": "kiosk-display"' /etc/chromium/policies/managed/kiosk.json
+check grep -q 'KIOSK_APP_ORIGIN=https://the-max-mix.vercel.app' /etc/systemd/user/kiosk-audio.service
+check grep -q '"LocalNetworkAccessAllowedForUrls"' /etc/chromium/policies/managed/kiosk.json
 check grep -q '^Environment=KIOSK_SCREEN_OFF_AFTER=60$' /etc/systemd/system/kiosk.service
 check command -v swayidle wlr-randr
 check grep -q 'en_GB.UTF-8' /etc/default/locale

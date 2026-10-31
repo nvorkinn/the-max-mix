@@ -1,6 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Wake the screen
-Exec=/usr/local/bin/kiosk-display %u
-NoDisplay=true
-MimeType=x-scheme-handler/kiosk-display;

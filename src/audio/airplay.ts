@@ -1,18 +1,17 @@
 // AirPlay mode on the kiosk. PipeWire makes an audio output for each AirPlay speaker it finds; the kiosk's audio service
-// (pi/kiosk-audio/server.ts) lists them over http://127.0.0.1. The Pi routes the sound: the page opens a kiosk-audio://
-// link, which the kiosk image hands to its audio handler (pi/kiosk-audio), the same way kiosk-wifi:// opens the Wi-Fi
-// panel. The link only goes one way, so the page remembers the chosen speakers itself.
+// (pi/kiosk-audio/server.ts) lists them over http://127.0.0.1. The Pi routes the sound: the page asks the
+// service to (POST /audio/route). The service does not report which speakers are chosen, so the page remembers them.
 import { errorMessage } from '../utils/errorMessage';
+import { KIOSK_SERVICE, kioskPost } from '../utils/kioskService';
 
 const SPEAKERS_KEY = 'maxmix.airplaySpeakers';
-const SPEAKERS_URL = 'http://127.0.0.1:7341/speakers';
 const POLL_MS = 5000;
 
 /** The names of the AirPlay speakers the Pi found, sorted. */
 export async function listAudioOutputs(): Promise<string[]> {
   let response: Response;
   try {
-    response = await fetch(SPEAKERS_URL, { cache: 'no-store' });
+    response = await fetch(`${KIOSK_SERVICE}/speakers`, { cache: 'no-store' });
   } catch (error) {
     throw new Error(`The kiosk’s audio service did not answer: ${errorMessage(error)}`, { cause: error });
   }
@@ -28,15 +27,9 @@ export function watchAudioOutputs(onChange: () => void): () => void {
   return () => clearInterval(timer);
 }
 
-/** The link that asks the Pi to play to exactly these outputs; with none, the Pi's own output. */
-export function routeLink(speakers: readonly string[]): string {
-  const query = new URLSearchParams(speakers.map(name => ['speaker', name])).toString();
-  return query ? `kiosk-audio://route?${query}` : 'kiosk-audio://route';
-}
-
-/** Asks the Pi to route the sound. A top-level navigation, like the Wi-Fi link; the page stays where it is. */
+/** Asks the Pi to play to exactly these outputs; with none, the Pi's own output. */
 export function routeAudio(speakers: readonly string[]): void {
-  location.assign(routeLink(speakers));
+  kioskPost('/audio/route', { speakers });
 }
 
 export function getChosenSpeakers(): string[] {

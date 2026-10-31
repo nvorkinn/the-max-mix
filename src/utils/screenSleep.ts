@@ -4,6 +4,8 @@
 // first touch turns it back on (ansible/roles/kiosk/files/bin/kiosk-display). Storage can be unavailable: every access
 // tolerates that.
 
+import { kioskPost } from './kioskService';
+
 const SCREEN_SLEEP_KEY = 'maxmix.screenSleep';
 
 /** The choices the settings offer, in minutes; 0 keeps the screen on. */
@@ -36,10 +38,7 @@ export function setScreenSleep(minutes: ScreenSleepMinutes): void {
   }
 }
 
-/** Opened like the kiosk's other links. A constant, so nothing a visitor types can change where it leads. */
-const WAKE_DISPLAY_URL = 'kiosk-display://wake';
-
-/** Asks the kiosk image to turn its screen back on, for music that starts while it sleeps (from a phone, say). */
+/** Asks the kiosk to turn its screen back on, for music that starts while it sleeps (from a phone, say). */
 export function wakeDisplay(): void {
-  location.assign(WAKE_DISPLAY_URL);
+  kioskPost('/display/wake');
 }

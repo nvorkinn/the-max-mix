@@ -1,6 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Restart or reboot
-Exec=/usr/local/bin/kiosk-open-power %u
-NoDisplay=true
-MimeType=x-scheme-handler/kiosk-power;

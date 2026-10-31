@@ -2,15 +2,14 @@
 // Spotify sign-in redirect, which returns to the plain redirect address without the query. Storage can be unavailable
 // (private windows, blocked site data): every access tolerates that.
 
+import { kioskPost } from './kioskService';
+
 const KIOSK_KEY = 'maxmix.kiosk';
 const HIDE_CURSOR_KEY = 'maxmix.hideCursor';
 
-/** The kiosk image's native Wi-Fi panel, opened by navigating to this custom scheme. A constant, so nothing a visitor types can change where it leads. */
-export const WIFI_SETTINGS_URL = 'kiosk-wifi://open';
-
-/** Asks the kiosk image to show its Wi-Fi panel. A top-level navigation, never window.open. */
+/** Asks the kiosk to show its native Wi-Fi panel. */
 export function openWifiSettings(): void {
-  location.assign(WIFI_SETTINGS_URL);
+  kioskPost('/wifi');
 }
 
 function read(key: string): boolean {
@@ -46,24 +45,19 @@ export function hidesCursor(): boolean {
   return flag === 'hidden' || (flag !== 'shown' && read(HIDE_CURSOR_KEY));
 }
 
-/** The kiosk's update, restart and reboot, opened like the Wi-Fi panel. Constants, so nothing a visitor types can change them. */
-const UPDATE_KIOSK_URL = 'kiosk-power://update';
-const RESTART_KIOSK_URL = 'kiosk-power://restart';
-const REBOOT_PI_URL = 'kiosk-power://reboot';
-
-/** Asks the kiosk image to pull its update now; when that changes anything, the kiosk restarts by itself. */
+/** Asks the kiosk to pull its update now; when that changes anything, the kiosk restarts by itself. */
 export function updateKiosk(): void {
-  location.assign(UPDATE_KIOSK_URL);
+  kioskPost('/power/update');
 }
 
-/** Asks the kiosk image to restart the kiosk (Cage and Chromium), which applies an update that waits for a restart. */
+/** Asks the kiosk to restart the kiosk (Cage and Chromium), which applies an update that waits for a restart. */
 export function restartKiosk(): void {
-  location.assign(RESTART_KIOSK_URL);
+  kioskPost('/power/restart');
 }
 
-/** Asks the kiosk image to reboot the Pi. */
+/** Asks the kiosk to reboot the Pi. */
 export function rebootPi(): void {
-  location.assign(REBOOT_PI_URL);
+  kioskPost('/power/reboot');
 }
 
 /**

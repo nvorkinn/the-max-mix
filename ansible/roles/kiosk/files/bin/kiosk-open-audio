@@ -1,3 +1,0 @@
-#!/bin/sh
-# Handler for kiosk-audio:// links (see kiosk-audio.desktop): routes the kiosk's sound to the speakers the link names.
-exec /usr/bin/node /opt/the-max-mix/kiosk-audio/kiosk-audio.ts open "$1"

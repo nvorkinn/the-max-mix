@@ -1,13 +1,9 @@
-// The chosen speakers: read from a kiosk-audio:// link, saved to a file, and turned into PipeWire links.
-//
-//   kiosk-audio://route?speaker=Kitchen&speaker=Lounge   plays to those outputs (by the name Chromium shows for them)
-//   kiosk-audio://route                                  hands the sound back to the Pi's default output
+// The chosen speakers: checked, saved to a file, and turned into PipeWire links.
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { isEmptyPlan, planRoutes } from './pipewire.ts';
 import type { Graph, Plan } from './pipewire.ts';
 
-const SCHEME = 'kiosk-audio:';
 const MAX_SPEAKERS = 16;
 const MAX_NAME_LENGTH = 256;
 
@@ -19,24 +15,11 @@ export interface AudioGraph {
 
 const isBadName = (name: unknown) => typeof name !== 'string' || name.length === 0 || name.length > MAX_NAME_LENGTH;
 
-/** The speaker list from a link or the saved file, or null when it is not a short list of short names. */
+/** The speaker list from a request or the saved file, or null when it is not a short list of short names. */
 export function validSpeakers(value: unknown): string[] | null {
   if (!Array.isArray(value) || value.length > MAX_SPEAKERS) return null;
   const names = value as unknown[];
   return names.some(name => isBadName(name)) ? null : [...new Set(names as string[])];
-}
-
-/** The speakers a kiosk-audio://route link asks for, or null for any other link. A page made the link, so it is checked. */
-export function parseLink(link: string): string[] | null {
-  let url: URL;
-  try {
-    url = new URL(link);
-  } catch {
-    return null;
-  }
-  // Chromium hands over kiosk-audio://route or kiosk-audio:route, depending on how the page wrote it.
-  const target = (url.host || url.pathname).split('/').filter(Boolean).join('/');
-  return target === 'route' && url.protocol === SCHEME ? validSpeakers(url.searchParams.getAll('speaker')) : null;
 }
 
 export async function loadSpeakers(file: string): Promise<string[]> {
