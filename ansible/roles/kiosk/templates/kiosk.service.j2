@@ -25,6 +25,10 @@ StandardError=journal
 ExecStartPre=+/usr/bin/chvt 7
 # Any start of the kiosk applies the changes an update left, so the scheduled restart is not needed.
 ExecStartPre=+/usr/bin/rm -f {{ kiosk_restart_marker }}
+# The kiosk-audio user unit outlives a restart of this service, so it would keep running its old files: load the unit
+# files again and restart it (the - ignores a failure, as when the kiosk user's manager is not running yet).
+ExecStartPre=-+/usr/bin/systemctl --user -M {{ kiosk_user }}@ daemon-reload
+ExecStartPre=-+/usr/bin/systemctl --user -M {{ kiosk_user }}@ try-restart kiosk-audio.service
 Environment=WLR_LIBINPUT_NO_DEVICES=1
 Environment=KIOSK_CURSOR_THEME={{ 'blank' if kiosk_hide_cursor | bool else kiosk_cursor_theme }}
 Environment=KIOSK_SCREEN_OFF_AFTER={{ kiosk_screen_off_after | int }}
