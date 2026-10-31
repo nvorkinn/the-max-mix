@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Mock } from 'vitest';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
-import { installCanvasStub, stubMatchMedia } from '../test/canvas';
+import { installCanvasStub } from '../test/canvas';
 import { defined } from '../test/defined';
 import { SpotifyApiError } from '../spotify/http';
 import TabletView from './TabletView';
@@ -39,7 +39,6 @@ vi.mock('../spotify/auth', () => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
 vi.mock('../utils/colorExtractor', () => palette);
 vi.mock('../lyrics/lrclib', () => lyrics);
 vi.mock('../audio/airplay', () => airplay);
-vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
 
 const track = {
   id: 'tr1',
@@ -76,7 +75,6 @@ const flush = () => act(async () => {});
 beforeEach(() => {
   localStorage.clear();
   installCanvasStub();
-  stubMatchMedia(false);
   for (const mock of Object.values(api)) mock.mockReset();
   api.getQueue.mockResolvedValue({ queue: queued });
   api.getDevices.mockResolvedValue({ devices: [{ id: 'dev1', name: 'Soundbar' }] });

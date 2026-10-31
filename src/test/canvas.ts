@@ -47,18 +47,3 @@ export function installCanvasStub() {
     }
   };
 }
-
-export function stubMatchMedia(matches = false) {
-  const listeners = new Set<() => void>();
-  const mql = {
-    matches,
-    addEventListener: (_: string, fn: () => void) => listeners.add(fn),
-    removeEventListener: (_: string, fn: () => void) => listeners.delete(fn),
-    listeners
-  };
-  vi.stubGlobal(
-    'matchMedia',
-    vi.fn(() => mql)
-  );
-  return mql;
-}

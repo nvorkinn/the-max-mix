@@ -31,7 +31,6 @@
     "check": "npm run lint && npm run typecheck && npm run format:check && npm run lint:shell && npm run knip && npm run lint:spelling && npm run lint:editorconfig && npm run lint:md && npm run lint:yaml && npm run lint:css && npm run lint:package-json && npm run lint:lockfiles"
   },
   "dependencies": {
-    "canvas-confetti": "^1.9.4",
     "lucide-react": "^1.62.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -43,7 +42,6 @@
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
-    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
