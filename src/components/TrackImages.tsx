@@ -9,8 +9,6 @@ interface ImageProps {
   className: string;
 }
 
-const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
-
 function ImageWithFallback({ src, alt, className, fallback }: Readonly<ImageProps & { fallback: ReactNode }>) {
   const [failedSource, setFailedSource] = useState<string | null>(null);
 
@@ -34,7 +32,7 @@ function ImageWithFallback({ src, alt, className, fallback }: Readonly<ImageProp
       className={className}
       onError={() => {
         setFailedSource(src);
-        debugLog('warn', 'image', `Could not load ${alt || 'demo avatar'}; showing a placeholder.`);
+        debugLog('warn', 'image', `Could not load ${alt || 'an image'}; showing a placeholder.`);
       }}
     />
   );
@@ -42,16 +40,4 @@ function ImageWithFallback({ src, alt, className, fallback }: Readonly<ImageProp
 
 export function Artwork(props: Readonly<ImageProps>) {
   return <ImageWithFallback {...props} fallback={<Disc3 aria-hidden="true" />} />;
-}
-
-export function GuestAvatar({ src, name }: Readonly<{ src?: string | undefined; name: string }>) {
-  const initials = name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map(part => [...segmenter.segment(part)][0]?.segment ?? '')
-    .join('')
-    .toLocaleUpperCase();
-
-  return <ImageWithFallback src={src} alt="" className="guest-avatar" fallback={initials || '?'} />;
 }

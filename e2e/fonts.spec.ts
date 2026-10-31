@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { fakeSpotify } from './fake-spotify.ts';
 
 // The kiosk can boot without DNS, so the app font must come from the app's own origin. Every other host is
 // blocked here, and the test records any attempt to reach one.
@@ -14,14 +15,16 @@ for (const viewport of [{ name: 'kiosk', width: 1024, height: 600 }]) {
     await page.route(
       url => url.origin !== origin,
       route =>
-        // Demo artwork is remote; answer it locally so the page renders as usual, and abort everything else.
+        // Track artwork is remote; answer it locally so the page renders as usual, and abort everything else.
         route.request().resourceType() === 'image'
           ? route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
           : route.abort()
     );
+    // Registered after the block above, so these answer Spotify's hosts first.
+    await fakeSpotify(page);
 
     await page.setViewportSize(viewport);
-    await page.goto('/?demo=true&kiosk=1');
+    await page.goto('/?kiosk=1');
     await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
 
     // document.fonts.check() also passes when no @font-face matches, so look at the bundled faces' own status.

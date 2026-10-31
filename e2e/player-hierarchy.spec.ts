@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
+import { fakeSpotify } from './fake-spotify.ts';
 
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 const LONG_TITLE = `${'An extended placeholder title with extra recording details '.repeat(8)}${'Unbroken'.repeat(24)}`;
@@ -111,13 +112,14 @@ for (const appearance of ['neon', 'minimal']) {
       /* eslint-disable-next-line n/no-unsupported-features/node-builtins -- This init script runs in the browser, not Node. */
       localStorage.setItem('maxmix_theme', theme);
     }, appearance);
-    await page.goto('/?demo=true');
+    await fakeSpotify(page);
+    await page.goto('/');
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     const indicator = player.locator('.playback-equalizer');
     await expect(indicator).toHaveCount(1);
     await expect(indicator).toBeVisible();
     await expect(indicator.locator('i').first()).toHaveCSS('animation-name', 'equalize');
-    await expect(player.getByText('Demo tablet', { exact: true })).toBeVisible();
+    await expect(player.getByText('Test speaker', { exact: true })).toBeVisible();
     await player.getByRole('button', { name: 'Pause' }).click();
     await expect(indicator.locator('i').first()).toHaveCSS('animation-name', 'none');
     await expect(player.getByText('Paused', { exact: true })).toBeVisible();

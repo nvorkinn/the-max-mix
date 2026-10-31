@@ -28,9 +28,7 @@ const player = vi.hoisted(() => {
 });
 const api = vi.hoisted(() => ({
   getQueue: vi.fn(),
-  getDevices: vi.fn(),
-  reorderDemoQueue: vi.fn(),
-  playDemoTrackNow: vi.fn()
+  getDevices: vi.fn()
 }));
 const palette = vi.hoisted(() => ({ extractPalette: vi.fn() }));
 const airplay = vi.hoisted(() => ({
@@ -63,7 +61,6 @@ function setPlayer(overrides: Record<string, unknown> = {}) {
     isReady: true,
     playbackState: { is_playing: false, item: track, device: { name: 'Kitchen' } },
     isAuthenticated: true,
-    isDemoMode: false,
     isLoading: false,
     isConnecting: false,
     playbackMode: 'remote',
@@ -150,7 +147,6 @@ describe('TabletView', () => {
       { isLoading: true, isReady: false, isAuthenticated: true, playbackState: null },
       'Connecting to Spotify...'
     ],
-    ['demo', { isDemoMode: true, isReady: false, playbackState: null }, 'No track playing'],
     ['no device', { isReady: false, playbackState: null }, 'Choose a Spotify speaker'],
     ['signed out', { isReady: false, isAuthenticated: false, playbackState: null }, 'Spotify not connected']
   ])('describes the %s session state', async (_, overrides, label) => {
@@ -167,7 +163,6 @@ describe('TabletView', () => {
     const panel = screen.getByRole('region', { name: 'Now playing' });
     expect(within(panel).getByRole('heading', { name: 'Bring your music to the tablet' })).toBeInTheDocument();
     expect(api.getQueue).not.toHaveBeenCalled();
-    expect(within(panel).getByRole('button', { name: 'Try demo' })).toBeInTheDocument();
     expect(screen.queryByRole('slider', { name: 'Playback position' })).not.toBeInTheDocument();
     fireEvent.click(within(panel).getByRole('button', { name: 'Connection settings' }));
     expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
@@ -515,60 +510,6 @@ describe('TabletView', () => {
     expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
   });
 
-  describe('demo mode', () => {
-    beforeEach(() =>
-      setPlayer({
-        isDemoMode: true,
-        isAuthenticated: false,
-        playbackState: { is_playing: false, item: track, device: { name: 'Demo' } }
-      })
-    );
-
-    it('reorders the queue through the API and toasts the result', async () => {
-      api.getQueue.mockResolvedValue({ queue: [{ ...queued[0] }, { id: 'q2', name: 'Two', duration_ms: 1000 }] });
-      api.reorderDemoQueue.mockResolvedValue({ queue: [{ id: 'q2', name: 'Two' }, queued[0]] });
-      render(<TabletView />);
-      await flush();
-      fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Two' }), { key: 'ArrowUp' });
-      await flush();
-      const reordered = expect.arrayContaining([expect.objectContaining({ id: 'q2' })]) as unknown;
-      expect(api.reorderDemoQueue).toHaveBeenCalledWith(reordered);
-      expect(screen.getByText('Demo queue order updated.')).toBeInTheDocument();
-    });
-
-    it('toasts the API error when reordering fails', async () => {
-      api.getQueue.mockResolvedValue({ queue: [queued[0], { id: 'q2', name: 'Two' }] });
-      api.reorderDemoQueue.mockRejectedValue(new Error('Reorder rejected'));
-      render(<TabletView />);
-      await flush();
-      fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Two' }), { key: 'ArrowUp' });
-      await flush();
-      expect(screen.getByText('Reorder rejected')).toBeInTheDocument();
-    });
-
-    it('plays a track now, replaces the queue and refreshes playback', async () => {
-      api.playDemoTrackNow.mockResolvedValue({ remainingQueue: [] });
-      render(<TabletView />);
-      await flush();
-      fireEvent.click(screen.getByRole('button', { name: 'Play Queued One now' }));
-      await flush();
-      expect(api.playDemoTrackNow).toHaveBeenCalledWith('q1');
-      expect(player.current.refreshPlayback).toHaveBeenCalled();
-      expect(screen.getByText('Demo playing: Queued One')).toBeInTheDocument();
-      expect(screen.getByText('A little quiet in here.')).toBeInTheDocument();
-    });
-
-    it('toasts when play-now fails', async () => {
-      api.playDemoTrackNow.mockRejectedValue(new Error('Nope'));
-      render(<TabletView />);
-      await flush();
-      fireEvent.click(screen.getByRole('button', { name: 'Play Queued One now' }));
-      await flush();
-      expect(screen.getByText('Nope')).toBeInTheDocument();
-      expect(player.current.refreshPlayback).not.toHaveBeenCalled();
-    });
-  });
-
   it('selects a speaker through transferPlayback', async () => {
     api.getQueue.mockResolvedValue({ queue: [] });
     render(<TabletView />);
@@ -676,15 +617,6 @@ describe('TabletView', () => {
       expect(airplay.routeAudio).toHaveBeenCalledWith([]);
       expect(localStorage.getItem('maxmix.audioRoute')).toBeNull();
       expect(screen.getByText('Spotify browser player')).toBeInTheDocument();
-    });
-
-    it('ignores a saved AirPlay mode in demo mode', async () => {
-      localStorage.setItem('maxmix.audioRoute', 'airplay');
-      setPlayer({ isDemoMode: true });
-      render(<TabletView />);
-      await flush();
-      expect(screen.queryByText('AirPlay from this tablet')).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Choose a Spotify Connect device' })).toBeInTheDocument();
     });
   });
 

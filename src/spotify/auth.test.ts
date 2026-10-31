@@ -113,10 +113,10 @@ describe('spotify/auth', () => {
       sessionStorage.setItem('maxmix.pkce', JSON.stringify({ state, verifier: 'the-verifier' }));
 
     it('returns null when the address is not a sign-in reply', async () => {
-      visit('/?demo=true');
+      visit('/?kiosk=1');
       const { completeSignIn } = await load();
       expect(await completeSignIn()).toBeNull();
-      expect(location.search).toBe('?demo=true');
+      expect(location.search).toBe('?kiosk=1');
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
@@ -124,7 +124,7 @@ describe('spotify/auth', () => {
       const { completeSignIn, isSignedIn, getAccessToken } = await load();
       setClientId('client-1');
       startedSignIn('s1');
-      visit('/?demo=false&code=abc&state=s1#top');
+      visit('/?kiosk=1&code=abc&state=s1#top');
       fetchMock.mockResolvedValue(json({ access_token: 'access-1', refresh_token: 'refresh-1', expires_in: 3600 }));
 
       expect(await completeSignIn()).toEqual({ ok: true });
@@ -145,7 +145,7 @@ describe('spotify/auth', () => {
         refreshToken: 'refresh-1'
       });
       expect(sessionStorage.getItem('maxmix.pkce')).toBeNull();
-      expect(`${location.pathname}${location.search}${location.hash}`).toBe('/?demo=false#top');
+      expect(`${location.pathname}${location.search}${location.hash}`).toBe('/?kiosk=1#top');
       expect(isSignedIn()).toBe(true);
       // The access token from the exchange is reused rather than refreshed at once.
       expect(await getAccessToken()).toBe('access-1');

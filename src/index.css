@@ -379,10 +379,6 @@
   max-width: 80px;
   max-height: 80px;
 }
-.guest-avatar {
-  font-size: 10px;
-  font-weight: 700;
-}
 .playback-equalizer {
   display: inline-flex;
   align-items: end;
@@ -445,16 +441,6 @@
   font-size: 12px;
   overflow-wrap: anywhere;
   flex-shrink: 0;
-}
-.track-credit .guest-avatar {
-  width: 19px;
-  height: 19px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-.track-credit strong {
-  color: var(--ink);
-  font-weight: 550;
 }
 .player-controls {
   margin-top: auto;
@@ -679,14 +665,6 @@
   background: var(--accent-soft);
   border-color: var(--border);
 }
-.queue-track.is-dragging {
-  opacity: 0.45;
-  border-color: var(--accent);
-}
-.queue-track.is-drop-target {
-  background: var(--accent-soft);
-  border-top-color: var(--accent);
-}
 .queue-play {
   position: relative;
   width: 24px;
@@ -698,21 +676,6 @@
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   border-radius: 5px;
-}
-.queue-play-icon {
-  display: none;
-  color: var(--accent);
-}
-button.queue-play {
-  width: 44px;
-}
-.queue-play:hover .queue-number,
-.queue-play:focus-visible .queue-number {
-  display: none;
-}
-.queue-play:hover .queue-play-icon,
-.queue-play:focus-visible .queue-play-icon {
-  display: block;
 }
 .is-next .queue-number {
   color: var(--accent);
@@ -761,47 +724,6 @@ button.queue-play {
   font-variant-numeric: tabular-nums;
   color: var(--muted);
   margin: 0 5px;
-}
-.queue-guest {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: 80px;
-  flex-shrink: 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-.queue-guest .guest-avatar {
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  object-fit: cover;
-}
-.queue-guest span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.queue-drag {
-  display: grid;
-  place-items: center;
-  min-height: 44px;
-  width: 44px;
-  flex-shrink: 0;
-  color: var(--muted);
-  opacity: 0.55;
-  cursor: grab;
-  touch-action: none;
-  border-radius: 5px;
-}
-.queue-drag:hover,
-.queue-drag:focus-visible {
-  opacity: 1;
-  color: var(--accent);
-}
-.queue-drag:active {
-  cursor: grabbing;
 }
 .queue-footer {
   display: flex;
@@ -949,18 +871,6 @@ body:has(.app-dialog[open]) {
   border-color: var(--accent);
 }
 .appearance-indicator > div {
-  background: var(--accent-ink);
-}
-.switch-track {
-  background: var(--muted);
-}
-.switch-thumb {
-  background: var(--page);
-}
-.appearance-switch[aria-checked='true'] .switch-track {
-  background: var(--accent);
-}
-.appearance-switch[aria-checked='true'] .switch-thumb {
   background: var(--accent-ink);
 }
 .modal-divider {

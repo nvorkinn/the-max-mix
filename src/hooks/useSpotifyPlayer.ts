@@ -3,7 +3,7 @@ import type { PlaybackState, SdkPlaybackState, SpotifyPlayer, Track } from '../t
 import * as spotify from '../spotify/api';
 import { getAccessToken, isSignedIn } from '../spotify/auth';
 import { NETWORK_ERROR_MESSAGE, SpotifyApiError } from '../spotify/http';
-import { getPlaybackMode, isDemoMode as readDemoMode } from '../spotify/settings';
+import { getPlaybackMode } from '../spotify/settings';
 import { errorMessage } from '../utils/errorMessage';
 import { loadSpotifySDK } from '../utils/spotifySdk';
 import { widevineProblem } from '../utils/widevine';
@@ -12,7 +12,7 @@ import { debugLog } from '../utils/debugLog';
 // Spotify's playback state lags a play/pause command by a second or more, so a read right after one still reports the
 // old state. For this long after a command the button keeps the state the command asked for.
 const EXPECTED_PLAYING_MS = 5000;
-// While another device plays (or in demo mode) there are no SDK events, so the state is read this often.
+// While another device plays there are no SDK events, so the state is read this often.
 const REMOTE_POLL_MS = 4000;
 // While this page is the active SDK player the events carry the changes; this is only a safety net.
 const SDK_POLL_MS = 30_000;
@@ -71,7 +71,6 @@ export interface UseSpotifyPlayer {
   playbackState: PlaybackOrNull;
   browserDeviceId: string | null;
   isAuthenticated: boolean;
-  isDemoMode: boolean;
   playbackMode: ReturnType<typeof getPlaybackMode>;
   isLoading: boolean;
   isConnecting: boolean;
@@ -123,7 +122,6 @@ function nextTracksKey(state: SdkPlaybackState): string {
 export function useSpotifyPlayer(): UseSpotifyPlayer {
   // Settings change only through a reload, so they are read once. The one exception: a browser that cannot play
   // (no Widevine) drops to remote mode for this page, without changing the stored setting.
-  const [isDemoMode] = useState(readDemoMode);
   const [playbackMode, setPlaybackMode] = useState(getPlaybackMode);
   const [isAuthenticated, setIsAuthenticated] = useState(isSignedIn);
   const [snapshot, setSnapshot] = useState<{ state: PlaybackOrNull; at: number }>({ state: null, at: 0 });
@@ -249,11 +247,11 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     }
   };
 
-  // Reads playback from Spotify: at once, then every 4 s while another device plays (or in demo mode), and only as a
-  // slow safety net while this page's SDK player is active and tells us about every change itself.
+  // Reads playback from Spotify: at once, then every 4 s while another device plays, and only as a slow safety
+  // net while this page's SDK player is active and tells us about every change itself.
   const sdkDriven = sdkActive && !remoteSelected;
   useEffect(() => {
-    if (!isDemoMode && !isAuthenticated) return;
+    if (!isAuthenticated) return;
     let cancelled = false;
     // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
     const isCancelled = () => cancelled;
@@ -282,12 +280,12 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       invalidatePlayback();
       clearTimeout(timer);
     };
-  }, [isDemoMode, isAuthenticated, sdkDriven, refreshPlayback, invalidatePlayback, reportConnectionError]);
+  }, [isAuthenticated, sdkDriven, refreshPlayback, invalidatePlayback, reportConnectionError]);
 
   // A background tab's timers are throttled to about one a minute and its connections can drop, so when the page comes
   // back to the front it reads everything again at once instead of waiting for the next (late) timer.
   useEffect(() => {
-    if (!isDemoMode && !isAuthenticated) return;
+    if (!isAuthenticated) return;
     const wake = () => {
       if (document.visibilityState === 'hidden') return;
       refreshPlayback().catch(() => {});
@@ -302,10 +300,10 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       window.removeEventListener('focus', wake);
       window.removeEventListener('online', wake);
     };
-  }, [isDemoMode, isAuthenticated, refreshPlayback, bumpQueue]);
+  }, [isAuthenticated, refreshPlayback, bumpQueue]);
 
   useEffect(() => {
-    if (!isAuthenticated || isDemoMode || playbackMode !== 'browser') return;
+    if (!isAuthenticated || playbackMode !== 'browser') return;
     let cancelled = false;
     // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
     const isCancelled = () => cancelled;
@@ -481,7 +479,6 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     return disconnect;
   }, [
     isAuthenticated,
-    isDemoMode,
     playbackMode,
     holdPlaying,
     refreshPlayback,
@@ -619,9 +616,8 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     playbackState,
     browserDeviceId,
     isAuthenticated,
-    isDemoMode,
     playbackMode,
-    isLoading: (isDemoMode || isAuthenticated) && !loaded,
+    isLoading: isAuthenticated && !loaded,
     isConnecting,
     isReady: Boolean(playbackState?.device),
     sdkActive: sdkDriven,

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Music } from 'lucide-react';
 import { startSignIn } from '../spotify/auth';
-import { reloadSettings, setDemoMode } from '../spotify/settings';
 import { errorMessage } from '../utils/errorMessage';
 import { debugLog } from '../utils/debugLog';
 
@@ -47,7 +46,7 @@ export default function SpotifySetup({ offline, signInError, onSettings, onDetai
           </button>
         </div>
       )}
-      {offline && <p>Reconnect to the network to sign in or reload into demo mode.</p>}
+      {offline && <p>Reconnect to the network to sign in.</p>}
       <button
         type="button"
         className="spotify-sign-in button"
@@ -56,20 +55,6 @@ export default function SpotifySetup({ offline, signInError, onSettings, onDetai
       >
         {connecting ? 'Connecting...' : 'Connect Spotify'}
       </button>
-      <div>
-        <button
-          type="button"
-          className="button button-secondary"
-          disabled={offline || connecting}
-          onClick={() => {
-            setDemoMode(true);
-            reloadSettings();
-          }}
-        >
-          Try demo
-        </button>
-        <p>Simulated playback and queue. No account needed. Reloads the app.</p>
-      </div>
       <button type="button" className="button button-secondary" onClick={onSettings}>
         Connection settings
       </button>

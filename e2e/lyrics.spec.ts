@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { fakeSpotify } from './fake-spotify.ts';
 
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 const syncedLyrics = Array.from({ length: 120 }, (_, index) => {
@@ -28,7 +29,8 @@ for (const { viewport, appearance } of [
       localStorage.setItem('maxmix_lyrics', 'on');
       /* eslint-enable n/no-unsupported-features/node-builtins */
     }, appearance);
-    await page.goto('/?demo=true');
+    await fakeSpotify(page);
+    await page.goto('/');
     const panel = page.getByRole('region', { name: 'Lyrics', exact: true });
     const list = panel.getByRole('list');
     const active = list.locator('[aria-current="true"]');

@@ -1,6 +1,6 @@
 import type { Track } from '../types';
 
-// React keys for a list of tracks. Queue entries are not guaranteed to carry an id (demo data, Spotify local files)
+// React keys for a list of tracks. Queue entries are not guaranteed to carry an id (Spotify local files)
 // and the same track can legitimately appear twice, so build the key deliberately: the track's own identity plus an
 // occurrence counter for repeats. Unlike the list index, this key follows the track when the queue is reordered.
 export function trackKeys(tracks: Track[]): string[] {

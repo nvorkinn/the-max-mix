@@ -5,7 +5,7 @@ const port = 3100;
 export default defineConfig({
   testDir: '.',
   testMatch: '*.spec.ts',
-  // The demo player lives in each page, so tests do not share state; a single worker keeps the run simple and quiet.
+  // Each page fakes its own Spotify, so tests do not share state; a single worker keeps the run simple and quiet.
   workers: 1,
   fullyParallel: false,
   retries: 0,

@@ -1,16 +1,11 @@
-// Spotify Web API calls made straight from the browser (Spotify allows CORS for them). In demo mode every function
-// answers from a simulated player instead and never touches the network.
+// Spotify Web API calls made straight from the browser (Spotify allows CORS for them).
 
 import type { PlaybackState, SpotifyDevice, Track } from '../types';
 import { discardAccessToken, getAccessToken, isSignedIn } from './auth';
-import { createDemoPlayer, DEMO_ONLY_MESSAGE } from './demo';
 import { fetchSpotify, parseJson, readJson, SpotifyApiError } from './http';
 import { isRecord, parseDevices, parsePlaybackState, parseQueue } from './parse';
-import { isDemoMode } from './settings';
 
 export { SpotifyApiError } from './http';
-
-const demo = createDemoPlayer();
 
 const MESSAGES: Record<number, string> = {
   401: 'Spotify authorization failed. Sign in again in Settings.',
@@ -77,82 +72,50 @@ function requireInteger(value: unknown, min: number, max: number, label: string)
   }
 }
 
-/** Runs a simulated call and turns what it throws into a rejected promise, like a failed network call. */
-const settle = async <T>(run: () => T): Promise<T> => {
-  const result = await Promise.resolve(run());
-  return result;
-};
-
 /** Resolves to null when nothing is playing anywhere. */
 export async function getPlaybackState(): Promise<PlaybackState | null> {
-  return isDemoMode() ? demo.getPlaybackState() : parsePlaybackState(await spotifyFetch('/me/player'));
+  return parsePlaybackState(await spotifyFetch('/me/player'));
 }
 
 export async function getQueue(): Promise<{ currently_playing: Track | null; queue: Track[] }> {
-  return isDemoMode() ? demo.getQueue() : parseQueue(await spotifyFetch('/me/player/queue'));
+  return parseQueue(await spotifyFetch('/me/player/queue'));
 }
 
 export async function getDevices(): Promise<{ devices: SpotifyDevice[] }> {
-  return isDemoMode() ? demo.getDevices() : parseDevices(await spotifyFetch('/me/player/devices'));
+  return parseDevices(await spotifyFetch('/me/player/devices'));
 }
 
 export async function transferPlayback(deviceId: string, startPlaying = false): Promise<{ success: true }> {
   if (typeof deviceId !== 'string' || !deviceId || typeof startPlaying !== 'boolean') {
     throw new SpotifyApiError('A deviceId and a boolean play value are required.', 400);
   }
-  await (isDemoMode()
-    ? settle(() => demo.transferPlayback(deviceId, startPlaying))
-    : spotifyFetch('/me/player', { method: 'PUT', body: { device_ids: [deviceId], play: startPlaying } }));
+  await spotifyFetch('/me/player', { method: 'PUT', body: { device_ids: [deviceId], play: startPlaying } });
   return { success: true };
 }
 
 export async function play(): Promise<{ success: true }> {
-  if (!isDemoMode()) return command('/me/player/play', 'PUT');
-  demo.play();
-  return { success: true };
+  return command('/me/player/play', 'PUT');
 }
 
 export async function pause(): Promise<{ success: true }> {
-  if (!isDemoMode()) return command('/me/player/pause', 'PUT');
-  demo.pause();
-  return { success: true };
+  return command('/me/player/pause', 'PUT');
 }
 
 export async function next(): Promise<{ success: true }> {
-  if (!isDemoMode()) return command('/me/player/next', 'POST');
-  demo.skip('next');
-  return { success: true };
+  return command('/me/player/next', 'POST');
 }
 
 export async function previous(): Promise<{ success: true }> {
-  if (!isDemoMode()) return command('/me/player/previous', 'POST');
-  demo.skip('previous');
-  return { success: true };
+  return command('/me/player/previous', 'POST');
 }
 
 export async function seek(positionMs: number): Promise<{ success: true }> {
   requireInteger(positionMs, 0, Number.MAX_SAFE_INTEGER, 'position_ms');
-  if (!isDemoMode()) return command(`/me/player/seek?position_ms=${positionMs}`, 'PUT');
-  demo.seek(positionMs);
-  return { success: true };
+  return command(`/me/player/seek?position_ms=${positionMs}`, 'PUT');
 }
 
 /** `percent` is 0 to 100. */
 export async function setVolume(percent: number): Promise<{ success: true }> {
   requireInteger(percent, 0, 100, 'volume_percent');
-  if (!isDemoMode()) return command(`/me/player/volume?volume_percent=${percent}`, 'PUT');
-  demo.setVolume(percent);
-  return { success: true };
-}
-
-/** Demo mode only: replaces the demo queue with the same tracks in a new order (others get a 409). */
-export function reorderDemoQueue(queue: Track[]) {
-  return isDemoMode() ? settle(() => demo.reorder(queue)) : Promise.reject(new SpotifyApiError(DEMO_ONLY_MESSAGE, 409));
-}
-
-/** Demo mode only: plays a queued demo track now (others get a 409). */
-export function playDemoTrackNow(trackId: string) {
-  return isDemoMode()
-    ? settle(() => demo.playNow(trackId))
-    : Promise.reject(new SpotifyApiError(DEMO_ONLY_MESSAGE, 409));
+  return command(`/me/player/volume?volume_percent=${percent}`, 'PUT');
 }

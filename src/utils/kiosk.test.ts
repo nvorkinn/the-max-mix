@@ -51,12 +51,6 @@ describe('isKiosk', () => {
     expect(localStorage.getItem('maxmix.kiosk')).toBeNull();
   });
 
-  it('coexists with ?demo=true', () => {
-    visit('?kiosk=1&demo=true');
-    expect(isKiosk()).toBe(true);
-    expect(new URLSearchParams(location.search).get('demo')).toBe('true');
-  });
-
   it('never changes the Spotify redirect address', () => {
     visit('?kiosk=1');
     isKiosk();

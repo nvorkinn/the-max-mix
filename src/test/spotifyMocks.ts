@@ -15,9 +15,7 @@ export function createSpotifyMocks() {
     next: vi.fn(),
     previous: vi.fn(),
     seek: vi.fn(),
-    setVolume: vi.fn(),
-    reorderDemoQueue: vi.fn(),
-    playDemoTrackNow: vi.fn()
+    setVolume: vi.fn()
   };
   const auth = {
     startSignIn: vi.fn(),
@@ -29,20 +27,17 @@ export function createSpotifyMocks() {
   const settings = {
     getPlaybackMode: vi.fn(),
     setPlaybackMode: vi.fn(),
-    isDemoMode: vi.fn(),
-    setDemoMode: vi.fn(),
     getRedirectUri: vi.fn()
   };
   return { api, auth, settings };
 }
 
-/** Puts every mock back to a signed-in, browser-mode, non-demo default with a client ID. */
+/** Puts every mock back to a signed-in, browser-mode default with a client ID. */
 export function resetSpotifyMocks({ api, auth, settings }: ReturnType<typeof createSpotifyMocks>) {
   for (const group of [api, auth, settings]) for (const mock of Object.values(group)) mock.mockReset();
   auth.isSignedIn.mockReturnValue(true);
   auth.getAccessToken.mockResolvedValue('tok');
   settings.getPlaybackMode.mockReturnValue('browser');
-  settings.isDemoMode.mockReturnValue(false);
   settings.getRedirectUri.mockReturnValue('http://127.0.0.1:3000/');
   api.transferPlayback.mockResolvedValue(undefined);
   for (const name of ['play', 'pause', 'next', 'previous', 'seek', 'setVolume'] as const) {

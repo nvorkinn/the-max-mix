@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { fakeSpotify } from './fake-spotify.ts';
 
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 
@@ -6,6 +7,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://images.unsplash.com/**', route =>
     route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
   );
+  await fakeSpotify(page);
 });
 
 async function expectTouchTargets(scope: Locator) {
@@ -38,7 +40,7 @@ async function expectNoHorizontalOverflow(page: Page) {
 for (const viewport of [{ width: 1024, height: 600 }]) {
   test(`touch targets and dialogs fit ${viewport.width}x${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
-    await page.goto('/?demo=true&kiosk=1');
+    await page.goto('/?kiosk=1');
     await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
     await expectTouchTargets(page.locator('body'));
     await expectNoHorizontalOverflow(page);
@@ -58,9 +60,9 @@ for (const viewport of [{ width: 1024, height: 600 }]) {
     await page.keyboard.press('Escape');
     await expect(settings).toBeHidden();
 
-    await page.getByRole('button', { name: 'Choose a Spotify Connect device' }).click();
+    await page.getByRole('button', { name: 'Choose speakers' }).click();
     const speakers = page.getByRole('dialog', { name: 'Choose a Spotify device' });
-    await expect(speakers.getByRole('button', { name: /Demo tablet/ })).toBeVisible();
+    await expect(speakers.getByRole('button', { name: /Test speaker/ })).toBeVisible();
     await expectTouchTargets(speakers);
     await expectNoHorizontalOverflow(page);
     await speakers.getByRole('button', { name: 'Close speakers' }).click();
@@ -69,7 +71,7 @@ for (const viewport of [{ width: 1024, height: 600 }]) {
 }
 
 test('settings contain keyboard focus, wrap both ways and restore the trigger', async ({ page }) => {
-  await page.goto('/?demo=true');
+  await page.goto('/');
   const trigger = page.getByRole('button', { name: 'Open settings' });
   await trigger.click();
   const settings = page.getByRole('dialog', { name: 'Settings' });
@@ -89,11 +91,11 @@ test('settings contain keyboard focus, wrap both ways and restore the trigger', 
 });
 
 test('speakers wrap focus after devices load and restore focus on close', async ({ page }) => {
-  await page.goto('/?demo=true');
+  await page.goto('/');
   const trigger = page.getByRole('button', { name: 'Choose a Spotify Connect device' });
   await trigger.click();
   const speakers = page.getByRole('dialog', { name: 'Choose a Spotify device' });
-  const device = speakers.getByRole('button', { name: /Demo tablet/ });
+  const device = speakers.getByRole('button', { name: /Test speaker/ });
   await expect(device).toBeVisible();
   await device.focus();
   await page.keyboard.press('Tab');
@@ -106,7 +108,7 @@ test('speakers wrap focus after devices load and restore focus on close', async 
 });
 
 test('Escape dismisses only the topmost dialog and restores the underlying focus', async ({ page }) => {
-  await page.goto('/?demo=true');
+  await page.goto('/');
   await page.getByRole('button', { name: 'Open settings' }).click();
   const studio = page.getByRole('button', { name: /Studio Signature/ });
   await studio.focus();
@@ -120,20 +122,15 @@ test('Escape dismisses only the topmost dialog and restores the underlying focus
   await expect(studio).toBeFocused();
 });
 
-test('failed images become local artwork and initials rather than retrying URLs', async ({ page }) => {
+test('failed images become local artwork rather than retrying URLs', async ({ page }) => {
   await page.route('https://images.unsplash.com/**', route => route.abort());
-  await page.route('**/divas/**', route => route.abort());
-  await page.goto('/?demo=true');
+  await page.goto('/');
   await expect(page.locator('.album-cover.image-placeholder')).toBeVisible();
   await expect(page.locator('.queue-art.image-placeholder')).toHaveCount(4);
-  await expect(page.locator('.guest-avatar.image-placeholder')).toHaveCount(5);
-  await expect(page.locator('.track-credit .guest-avatar')).toHaveText('S');
 
   await page.getByRole('button', { name: 'Open settings' }).click();
   await page.getByRole('button', { name: /Paper Light/ }).click();
   await page.keyboard.press('Escape');
-  await expect(page.locator('.guest-avatar.image-placeholder')).toHaveCount(5);
-  await expect(page.locator('img.guest-avatar')).toHaveCount(0);
   await expect(page.locator('.album-cover.image-placeholder')).toBeVisible();
 
   await page.unroute('https://images.unsplash.com/**');
@@ -146,7 +143,7 @@ test('failed images become local artwork and initials rather than retrying URLs'
 });
 
 test('the viewport does not restrict browser zoom', async ({ page }) => {
-  await page.goto('/?demo=true');
+  await page.goto('/');
   await expect(page.locator('meta[name="viewport"]')).toHaveAttribute(
     'content',
     'width=device-width, initial-scale=1.0'
