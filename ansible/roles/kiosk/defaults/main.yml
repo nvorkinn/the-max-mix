@@ -135,11 +135,11 @@ kiosk_pull_repo: https://github.com/nvorkinn/the-max-mix.git
 kiosk_pull_ref: stable
 kiosk_pull_dir: /var/lib/the-max-mix/ansible-pull
 # First run this long after boot, then again this long after each run finishes, plus up to the random delay. A run only
-# fetches the ref and applies the playbook when the ref has moved (ansible-pull --only-if-changed), so a short interval
-# costs one git fetch.
+# fetches the ref and applies the playbook when the ref has moved (ansible-pull --only-if-changed). The app's Update now
+# button (kiosk-update-now.service) runs the same pull at once, so the timer only catches what nobody asked for.
 kiosk_pull_boot_delay: 3min
-kiosk_pull_interval: 5min
-kiosk_pull_random_delay: 1min
+kiosk_pull_interval: 6h
+kiosk_pull_random_delay: 10min
 # A pull that changed kiosk files leaves this marker (in /run, so a reboot clears it); kiosk-restart.timer restarts the
 # kiosk at this time of day if the marker is there.
 kiosk_restart_time: '04:30'

@@ -1,0 +1,63 @@
+#cloud-config
+# THE MAX MIX on stock Raspberry Pi OS Lite (64-bit, trixie), instead of the pi-gen image. Copy this file over the
+# user-data on the SD card's boot partition (see README.md). cloud-init only does offline work here: it names the Pi,
+# creates the locked kiosk user and installs kiosk-first-pull.service. That unit waits for the network, runs this
+# repository's playbook from stable with ansible-pull (the same run kiosk-pull.timer repeats later), and reboots once it
+# has worked. Until then it tries again every minute.
+hostname: the-max-mix
+create_hostname_file: true
+# The playbook sets up the kiosk user's groups and the admin account; cloud-init only has to create a user, so that the
+# first boot does not stop to ask for one. The kiosk user has no password.
+users:
+  - name: kiosk
+    gecos: THE MAX MIX kiosk
+    shell: /bin/bash
+    lock_passwd: true
+ssh_pwauth: false
+
+write_files:
+  - path: /usr/local/sbin/kiosk-first-pull
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      # Installs Ansible and applies the kiosk playbook from stable, then reboots for the boot settings it changed.
+      set -euo pipefail
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update
+      apt-get install --yes --no-install-recommends ansible-core ca-certificates git python3-apt
+      ansible-pull --url https://github.com/nvorkinn/the-max-mix.git --checkout stable \
+        --directory /var/lib/the-max-mix/ansible-pull --inventory localhost, ansible/local.yml
+      mkdir -p /var/lib/the-max-mix
+      touch /var/lib/the-max-mix/first-pull-done
+      systemctl --no-block reboot
+  - path: /etc/systemd/system/kiosk-first-pull.service
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Set up THE MAX MIX kiosk from GitHub (first boot)
+      Wants=network-online.target
+      After=network-online.target
+      ConditionPathExists=!/var/lib/the-max-mix/first-pull-done
+      # Keep trying for as long as it takes (no network yet, GitHub or apt down).
+      StartLimitIntervalSec=0
+
+      [Service]
+      Type=oneshot
+      Environment=HOME=/root
+      Environment=LC_ALL=C.UTF-8
+      Environment=ANSIBLE_NOCOLOR=1
+      Environment=GIT_TERMINAL_PROMPT=0
+      ExecStart=/usr/local/sbin/kiosk-first-pull
+      Restart=on-failure
+      RestartSec=60s
+      TimeoutStartSec=90min
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, kiosk-first-pull.service]
+  - [systemctl, start, --no-block, kiosk-first-pull.service]

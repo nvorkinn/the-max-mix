@@ -8,6 +8,7 @@ import {
   piVersion,
   rebootPi,
   restartKiosk,
+  updateKiosk,
   WIFI_SETTINGS_URL
 } from './kiosk';
 
@@ -161,15 +162,16 @@ describe('piVersion', () => {
   });
 });
 
-describe('restart and reboot', () => {
+describe('update, restart and reboot', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('open the kiosk-power scheme', () => {
     const assign = vi.fn();
     vi.stubGlobal('location', { assign });
+    updateKiosk();
     restartKiosk();
     rebootPi();
-    expect(assign.mock.calls).toEqual([['kiosk-power://restart'], ['kiosk-power://reboot']]);
+    expect(assign.mock.calls).toEqual([['kiosk-power://update'], ['kiosk-power://restart'], ['kiosk-power://reboot']]);
   });
 });
 

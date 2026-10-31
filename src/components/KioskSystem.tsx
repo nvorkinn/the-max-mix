@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Power, RotateCw } from 'lucide-react';
-import { latestCommit, piVersion, rebootPi, restartKiosk } from '../utils/kiosk';
+import { Download, Power, RotateCw } from 'lucide-react';
+import { latestCommit, piVersion, rebootPi, restartKiosk, updateKiosk } from '../utils/kiosk';
 
 /** How long a first tap waits for the confirming second tap. */
 const CONFIRM_MS = 4000;
@@ -41,9 +41,10 @@ function ConfirmButton({
   );
 }
 
-/** The kiosk's own section of the settings: which commit the Pi runs, whether a newer one is out, and restart and reboot. */
+/** The kiosk's own section of the settings: which commit the Pi runs, whether a newer one is out, update, restart and reboot. */
 export default function KioskSystem() {
   const [version] = useState(piVersion);
+  const [isUpdating, setIsUpdating] = useState(false);
   type Latest = { state: 'checking' } | { state: 'unknown' } | { state: 'known'; commit: string };
   const [latest, setLatest] = useState<Latest>({ state: version ? 'checking' : 'unknown' });
 
@@ -62,9 +63,15 @@ export default function KioskSystem() {
   if (version && latest.state === 'unknown') status = `Could not check GitHub for a newer ${version.ref}.`;
   if (version && latest.state === 'known') {
     status = updateWaiting
-      ? `${version.ref} is now ${latest.commit.slice(0, 7)}. It reaches the Pi within about 5 minutes and applies at 04:30, or restart the kiosk once it has arrived.`
+      ? `${version.ref} is now ${latest.commit.slice(0, 7)}. Tap Update now, or the Pi picks it up within 6 hours and applies it at 04:30.`
       : 'Up to date.';
   }
+  if (isUpdating) status = 'Updating. If there is a newer version, the kiosk restarts by itself in a few minutes.';
+
+  const update = () => {
+    setIsUpdating(true);
+    updateKiosk();
+  };
 
   return (
     <div className="space-y-2">
@@ -80,6 +87,12 @@ export default function KioskSystem() {
         <p className={`text-[10px] mt-0.5 ${updateWaiting ? 'text-amber-300' : 'text-neutral-400'}`}>{status}</p>
       </div>
       <div className="flex gap-2">
+        <ConfirmButton
+          label="Update now"
+          confirmLabel="Tap again to update"
+          icon={<Download className="w-4 h-4 shrink-0 text-[#d5f580]" aria-hidden="true" />}
+          onConfirm={update}
+        />
         <ConfirmButton
           label="Restart kiosk"
           confirmLabel="Tap again to restart"

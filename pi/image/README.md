@@ -6,6 +6,8 @@ For maintenance, SSH is on for the `admin` account, by key only (see "Maintenanc
 
 > The image has not been built or booted on a real Pi yet. See "Still to verify" below.
 
+To set a Pi up from stock Raspberry Pi OS instead, on your own Wi-Fi first, see [`pi/cloud-init`](../cloud-init/README.md).
+
 ## What you see
 
 - **Online:** the app, full screen in Chromium (`https://the-max-mix.vercel.app/?kiosk=1&cursor=hidden`).
@@ -74,7 +76,8 @@ passkey are not supported.
    `network-test.debian.org`, set in `/etc/NetworkManager/conf.d/20-connectivity.conf`). If it does, it runs Chromium; if
    not, it runs `/usr/local/bin/wifi-panel` until it connects.
 5. The panel offers Cancel only when a connection already works. Connect, and the session loop starts Chromium.
-6. `kiosk-pull.timer` runs the first `ansible-pull` three minutes after boot and then every five minutes, applying the
+6. `kiosk-pull.timer` runs the first `ansible-pull` three minutes after boot and then every six hours (or at once from the
+   app's Update now button), applying the
    playbook only when `stable` has moved. If there is no network yet, or the `stable` ref does not exist, the run fails
    and only logs (`journalctl -u kiosk-pull`); the kiosk is not affected. A pull that changed kiosk files makes `kiosk-restart.timer` restart the kiosk at 04:30.
 
