@@ -281,8 +281,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   else if (!isReady && !browserDeviceId) notice = { kind: 'no-device' };
   else if (!currentTrack) notice = { kind: 'idle' };
   // Only trouble needing the user's attention goes in the banner; idle and connecting states are the player's own.
-  const banner: BannerNotice | null =
-    !needsConnection && (notice?.kind === 'problem' || notice?.kind === 'restricted') ? notice : null;
+  let banner: BannerNotice | null = null;
+  if (!needsConnection && notice?.kind === 'problem') banner = notice;
+  else if (!needsConnection && notice?.kind === 'restricted') banner = { kind: 'restricted' };
   let sessionStatus: string;
   if (notice) {
     sessionStatus = {
