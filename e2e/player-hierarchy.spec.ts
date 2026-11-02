@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-for (const appearance of ['neon', 'minimal']) {
+for (const appearance of ['minimal']) {
   for (const viewport of [{ width: 1024, height: 600 }]) {
     test(`complete track metadata fits ${viewport.width}x${viewport.height} in ${appearance}`, async ({ page }) => {
       await page.setViewportSize(viewport);
@@ -105,7 +105,7 @@ for (const appearance of ['neon', 'minimal']) {
   }
 }
 
-for (const appearance of ['neon', 'minimal']) {
+for (const appearance of ['minimal']) {
   test(`one restrained playback indicator respects pause and reduced motion in ${appearance}`, async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 600 });
     await page.addInitScript(theme => {

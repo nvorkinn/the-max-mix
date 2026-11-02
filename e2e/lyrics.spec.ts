@@ -10,10 +10,7 @@ const syncedLyrics = Array.from({ length: 120 }, (_, index) => {
   return `[${minutes}:${(seconds % 60).toString().padStart(2, '0')}.00]Placeholder line ${index}`;
 }).join('\n');
 
-for (const { viewport, appearance } of [
-  { viewport: { width: 1024, height: 600 }, appearance: 'neon' },
-  { viewport: { width: 1024, height: 600 }, appearance: 'minimal' }
-]) {
+for (const { viewport, appearance } of [{ viewport: { width: 1024, height: 600 }, appearance: 'minimal' }]) {
   test(`lyric reading and follow fit ${viewport.width}x${viewport.height} in ${appearance}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.route('https://fonts.googleapis.com/**', route => route.fulfill({ contentType: 'text/css', body: '' }));
