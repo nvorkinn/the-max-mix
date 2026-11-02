@@ -427,7 +427,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
                 message: [`Browser playback: ${message}`, reason, hint].filter(Boolean).join(' '),
                 recovery: action
               });
-            showError(null, 'Remote playback mode is available if this Pi cannot stream audio.');
+            showError(null, '');
             // A player that cannot start is nearly always missing Widevine; ask the browser and say so if it is. This
             // browser then cannot be the speaker, so the page only controls another Spotify Connect device.
             if (event === 'initialization_error') {

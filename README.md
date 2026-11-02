@@ -21,12 +21,12 @@ alone does not make DRM available.
 
 ### How playback is controlled
 
-In browser mode (the default) this page is the speaker: it registers a Spotify Connect device called "The Max Mix"
+In browser mode (the default, and the fallback when the browser cannot play) this page is the speaker: it registers a Spotify Connect device called "The Max Mix"
 with the Web Playback SDK and drives it directly. The SDK reports every change as an event, so while this page is the
 player there is no polling: the play/pause button, progress and track follow the events at once. A slow safety-net
 refresh from the Web API catches anything missed. The first Play press makes it the active device (pressing, not
 loading the page, so it never takes over what is playing elsewhere). If you pick another device under Speakers (or
-choose Another Spotify device in Settings), the page is that device's remote and polls the Web API until you pick "The Max Mix"
+the browser cannot play audio), the page is that device's remote and polls the Web API until you pick "The Max Mix"
 again. Browsers only start audio after a click, so the very first Play press is also what unlocks sound.
 If Spotify provides a retry deadline, Web API playback, queue and device requests all wait for it. Status reads
 resume after the wait; failed controls are not automatically sent again. Active SDK controls remain independent
@@ -129,11 +129,8 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 3. The client ID is a constant in `src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
    it there.
 4. Choose **Connect Spotify** in the browser that will play (on the kiosk, the Pi's Chromium).
-   In Settings, choose **This device** (browser playback, the default) or **Another Spotify device** (remote),
-   then **Apply and reload**.
-5. In Speakers, select THE MAX MIX or an existing Spotify Connect device. Press
-   Play when ready. For remote mode, first open Spotify on the target device so it
-   is discoverable.
+5. In Speakers, select This tablet, an AirPlay speaker (kiosk only, several at once) or a Spotify Connect device. Press
+   Play when ready. For a Connect device, first open Spotify on it so it is discoverable.
 
 There is no backend and no client secret. Sign-in uses the Authorization Code flow with PKCE, which Spotify provides
 for apps that cannot keep a secret: the browser creates a one-time code verifier for each sign-in, sends only its

@@ -11,7 +11,7 @@ import { getQueue } from '../spotify/api';
 import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import { getAudioRoute, setAudioRoute } from '../spotify/settings';
 import type { AudioRoute } from '../spotify/settings';
-import { getChosenSpeakers, routeAudio } from '../audio/airplay';
+import { routeAudio, setChosenSpeakers } from '../audio/airplay';
 import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
 import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
@@ -111,19 +111,33 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [storedAudioRoute, setStoredAudioRoute] = useState(getAudioRoute);
   const audioRoute: AudioRoute = canUseAirPlay ? storedAudioRoute : 'spotify-connect';
 
-  // AirPlay plays what this tablet's own player plays, so playback moves here and the Pi sends it on to the speakers
-  // chosen last time. Spotify Connect hands the sound back to the Pi's own output, ready for a Connect speaker to be
-  // picked. The mode changes even if moving playback fails, so the tablet never gets stuck in AirPlay.
-  const changeAudioRoute = async (route: AudioRoute) => {
+  // AirPlay plays what this tablet's own player plays, so choosing a speaker moves playback here and the Pi sends it on
+  // to the chosen speakers. Choosing this tablet or a Spotify Connect speaker hands the sound back to the Pi's own
+  // output and forgets the AirPlay speakers. The route changes even if moving playback fails, so the tablet never gets
+  // stuck in AirPlay.
+  const changeAudioRoute = (route: AudioRoute) => {
     setStoredAudioRoute(route);
     setAudioRoute(route);
-    if (route === 'spotify-connect') {
-      routeAudio([]);
+  };
+
+  const chooseAirPlaySpeakers = async (speakers: string[]) => {
+    if (speakers.length === 0) {
+      changeAudioRoute('spotify-connect');
       return;
     }
-    const speakers = getChosenSpeakers();
-    if (browserDeviceId && speakers.length > 0) routeAudio(speakers);
-    if (browserDeviceId && playbackState?.device?.id !== browserDeviceId) await transferPlayback(browserDeviceId);
+    changeAudioRoute('airplay');
+    if (!browserDeviceId) return;
+    routeAudio(speakers);
+    if (playbackState?.device?.id !== browserDeviceId) await transferPlayback(browserDeviceId);
+  };
+
+  const chooseSpotifyDevice = async (deviceId: string) => {
+    if (audioRoute === 'airplay') {
+      changeAudioRoute('spotify-connect');
+      setChosenSpeakers([]);
+      routeAudio([]);
+    }
+    await transferPlayback(deviceId);
   };
 
   const toggleLyrics = (show: boolean) => {
@@ -456,11 +470,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       <SpeakerSelectorModal
         isOpen={isSpeakerModalOpen}
         onClose={() => setIsSpeakerModalOpen(false)}
-        onSelectSpeaker={(id: string) => transferPlayback(id)}
+        onSelectSpeaker={chooseSpotifyDevice}
         browserDeviceId={browserDeviceId}
         canUseAirPlay={canUseAirPlay}
         audioRoute={audioRoute}
-        onAudioRouteChange={changeAudioRoute}
+        onAirPlayChange={chooseAirPlaySpeakers}
       />
 
       <DebugConsole
@@ -488,8 +502,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         authInfo={{
-          authenticated: isAuthenticated && problem?.recovery !== 'sign-in',
-          playbackMode
+          authenticated: isAuthenticated && problem?.recovery !== 'sign-in'
         }}
         signInError={signInError || (playerProblem?.recovery === 'sign-in' ? playerProblem.message : null)}
         currentTheme={theme}

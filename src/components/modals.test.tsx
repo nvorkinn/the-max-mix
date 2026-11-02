@@ -10,15 +10,12 @@ import SpeakerSelectorModalFull from './SpeakerSelectorModal';
 const api = vi.hoisted(() => ({ getDevices: vi.fn() }));
 const auth = vi.hoisted(() => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
 const settings = vi.hoisted(() => ({
-  setPlaybackMode: vi.fn(),
   reloadSettings: vi.fn(),
   getRedirectUri: vi.fn()
 }));
 vi.mock('../spotify/api', () => api);
 vi.mock('../spotify/auth', () => auth);
 vi.mock('../spotify/settings', () => settings);
-const widevine = vi.hoisted(() => ({ widevineProblem: vi.fn() }));
-vi.mock('../utils/widevine', () => widevine);
 vi.mock('../audio/airplay', () => ({
   listAudioOutputs: vi.fn().mockResolvedValue([]),
   watchAudioOutputs: vi.fn(() => vi.fn()),
@@ -37,7 +34,6 @@ describe('SettingsModal', () => {
     for (const mock of [...Object.values(auth), ...Object.values(settings), base.onReload]) mock.mockReset();
     settings.getRedirectUri.mockReturnValue('http://127.0.0.1:3000/');
     auth.startSignIn.mockResolvedValue(undefined);
-    widevine.widevineProblem.mockResolvedValue(null);
   });
 
   it('renders nothing when closed', () => {
@@ -72,16 +68,11 @@ describe('SettingsModal', () => {
   });
 
   it.each([
-    ['signed out', {}, /sign in with a spotify premium/i, 'Log in with Spotify'],
-    [
-      'signed in',
-      { authenticated: true, playbackMode: 'remote' },
-      /connected to spotify. choose a playback destination/i,
-      'Re-authenticate with Spotify'
-    ]
-  ])('explains the %s state', (_, authInfo, message, loginLabel) => {
+    ['signed out', {}, 'Not connected', 'Log in with Spotify'],
+    ['signed in', { authenticated: true }, 'Connected', 'Re-authenticate with Spotify']
+  ])('shows the %s state', (_, authInfo, status, loginLabel) => {
     render(<SettingsModal {...base} authInfo={authInfo} />);
-    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(screen.getByText(status)).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /log in with|re-authenticate/i })).toHaveLength(1);
     expect(screen.getByRole('button', { name: loginLabel })).toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
@@ -137,7 +128,7 @@ describe('SettingsModal', () => {
       unmount();
       history.replaceState(null, '', '/?kiosk=1');
       const kiosk = render(<SettingsModal {...base} authInfo={{}} />);
-      expect(wifi()).toHaveTextContent('Change the network this device uses');
+      expect(wifi()).toHaveTextContent('Wi-Fi network');
       kiosk.unmount();
       history.replaceState(null, '', '/');
       render(<SettingsModal {...base} authInfo={{}} />);
@@ -174,52 +165,16 @@ describe('SettingsModal', () => {
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
   });
 
-  it('stages playback changes until Apply and reload', async () => {
-    const { rerender } = render(<SettingsModal {...base} authInfo={{ playbackMode: 'browser' }} />);
-    const playback = screen.getByRole('radio', { name: 'This device' });
-    expect(playback).toBeChecked();
-    await userEvent.click(screen.getByRole('radio', { name: 'Another Spotify device' }));
-    expect(settings.setPlaybackMode).not.toHaveBeenCalled();
-    expect(base.onReload).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('button', { name: 'Apply and reload' }));
-    expect(settings.setPlaybackMode).toHaveBeenCalledWith('remote');
-    expect(base.onReload).toHaveBeenCalledTimes(1);
-
-    rerender(<SettingsModal {...base} authInfo={{ playbackMode: 'remote' }} />);
-    expect(screen.getByRole('radio', { name: 'This device' })).not.toBeChecked();
-    await waitFor(() => expect(screen.getByRole('radio', { name: 'This device' })).toBeEnabled());
-    await userEvent.click(screen.getByRole('radio', { name: 'This device' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Apply and reload' }));
-    expect(settings.setPlaybackMode).toHaveBeenLastCalledWith('browser');
+  it('has no playback destination setting', () => {
+    render(<SettingsModal {...base} authInfo={{ authenticated: true }} />);
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Playback destination/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Apply and reload' })).not.toBeInTheDocument();
   });
 
-  it('explains unavailable browser playback without changing the saved mode', async () => {
-    widevine.widevineProblem.mockResolvedValue('Widevine is not available in this browser.');
-    render(<SettingsModal {...base} authInfo={{ playbackMode: 'browser' }} />);
-    const playback = screen.getByRole('radio', { name: 'This device' });
-    await waitFor(() => expect(playback).toBeDisabled());
-    expect(playback).toBeChecked();
-    expect(screen.getByText(/Unavailable: Widevine is not available/)).toBeInTheDocument();
-    expect(settings.setPlaybackMode).not.toHaveBeenCalled();
-    expect(base.onReload).not.toHaveBeenCalled();
-  });
-
-  it('discards pending changes when Settings closes', async () => {
-    const { rerender } = render(<SettingsModal {...base} authInfo={{ playbackMode: 'browser' }} />);
-    await userEvent.click(screen.getByRole('radio', { name: 'Another Spotify device' }));
-    rerender(<SettingsModal {...base} isOpen={false} authInfo={{ playbackMode: 'browser' }} />);
-    rerender(<SettingsModal {...base} authInfo={{ playbackMode: 'browser' }} />);
-    expect(screen.getByRole('radio', { name: 'This device' })).toBeChecked();
-    expect(screen.getByRole('button', { name: 'Apply and reload' })).toBeDisabled();
-    expect(settings.setPlaybackMode).not.toHaveBeenCalled();
-  });
-
-  it('surfaces a capability check failure and still offers remote playback', async () => {
-    widevine.widevineProblem.mockRejectedValueOnce(new Error('Playback check failed'));
-    render(<SettingsModal {...base} authInfo={{ playbackMode: 'browser' }} />);
-    expect(await screen.findByText(/Browser playback could not be checked: Playback check failed/)).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'This device' })).toBeDisabled();
-    expect(screen.getByRole('radio', { name: 'Another Spotify device' })).toBeEnabled();
+  it('keeps developer-facing wording out of the screen', () => {
+    render(<SettingsModal {...base} authInfo={{ authenticated: true }} />);
+    expect(document.body).not.toHaveTextContent(/HTTPS|encrypted media|Premium/i);
   });
 });
 
@@ -255,14 +210,14 @@ describe('SpeakerSelectorModal', () => {
   it('shows an empty state when there are no devices', async () => {
     api.getDevices.mockResolvedValue({ devices: [] });
     render(<SpeakerSelectorModal isOpen />);
-    expect(await screen.findByText(/No available devices/)).toBeInTheDocument();
+    expect(await screen.findByText(/No Spotify speakers found/)).toBeInTheDocument();
   });
 
   it('shows the error and clears devices when loading fails', async () => {
     api.getDevices.mockImplementation(() => Promise.reject(new Error('Spotify down')));
     render(<SpeakerSelectorModal isOpen />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Spotify down');
-    expect(screen.queryByText(/No available devices/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No Spotify speakers found/)).not.toBeInTheDocument();
   });
 
   it('selects a device then refreshes the list', async () => {
@@ -284,7 +239,7 @@ describe('SpeakerSelectorModal', () => {
     expect(screen.getByRole('status')).toHaveTextContent('wait before refreshing devices');
     expect(screen.getByRole('button', { name: 'Refresh devices' })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Kitchen/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Use this tablet' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'This tablet' })).toBeDisabled();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(30_000);
     });
@@ -303,70 +258,69 @@ describe('SpeakerSelectorModal', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Transfer failed');
   });
 
-  it('offers this tablet only when it is not already listed', async () => {
+  it('always offers this tablet, listed once, and marks it active when it is', async () => {
+    api.getDevices.mockResolvedValue({ devices: [{ id: 'web-1', name: 'Max Mix', is_active: true }, ...devices] });
+    const onSelectSpeaker = vi.fn().mockResolvedValue(undefined);
+    render(<SpeakerSelectorModal isOpen browserDeviceId="web-1" onSelectSpeaker={onSelectSpeaker} />);
+    const tablet = await screen.findByRole('button', { name: /This tablet/ });
+    await screen.findByRole('button', { name: /Kitchen/ });
+    expect(tablet).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('button', { name: /Max Mix/ })).not.toBeInTheDocument();
+    await userEvent.click(tablet);
+    expect(onSelectSpeaker).toHaveBeenCalledWith('web-1');
+  });
+
+  it('offers this tablet when Spotify does not list it yet', async () => {
     api.getDevices.mockResolvedValue({ devices });
     const onSelectSpeaker = vi.fn().mockResolvedValue(undefined);
-    const { rerender } = render(<SpeakerSelectorModal isOpen browserDeviceId="a" onSelectSpeaker={onSelectSpeaker} />);
+    render(<SpeakerSelectorModal isOpen browserDeviceId="web-1" onSelectSpeaker={onSelectSpeaker} />);
     await screen.findByRole('button', { name: /Kitchen/ });
-    expect(screen.queryByRole('button', { name: 'Use this tablet' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /This tablet/ })).toHaveAttribute('aria-pressed', 'false');
+  });
 
-    rerender(<SpeakerSelectorModal isOpen browserDeviceId="web-1" onSelectSpeaker={onSelectSpeaker} />);
-    await userEvent.click(await screen.findByRole('button', { name: 'Use this tablet' }));
-    expect(onSelectSpeaker).toHaveBeenCalledWith('web-1');
+  it('has no tablet entry before the tablet player exists', async () => {
+    api.getDevices.mockResolvedValue({ devices });
+    render(<SpeakerSelectorModal isOpen />);
+    await screen.findByRole('button', { name: /Kitchen/ });
+    expect(screen.queryByRole('button', { name: /This tablet/ })).not.toBeInTheDocument();
   });
 
   it('refreshes on demand and closes', async () => {
     api.getDevices.mockResolvedValue({ devices: [] });
     const onClose = vi.fn();
     render(<SpeakerSelectorModal isOpen onClose={onClose} />);
-    await screen.findByText(/No available devices/);
+    await screen.findByText(/No Spotify speakers found/);
     await userEvent.click(screen.getByRole('button', { name: 'Refresh devices' }));
     await waitFor(() => expect(api.getDevices).toHaveBeenCalledTimes(2));
     await userEvent.click(screen.getByRole('button', { name: 'Close speakers' }));
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('offers no playback modes off the kiosk', async () => {
+  it('offers no AirPlay section off the kiosk, and no mode switch anywhere', async () => {
     api.getDevices.mockResolvedValue({ devices: [] });
     render(<SpeakerSelectorModal isOpen />);
-    expect(await screen.findByText(/selected in Spotify or the operating system/)).toBeInTheDocument();
+    expect(await screen.findByText(/No Spotify speakers found/)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'AirPlay' })).not.toBeInTheDocument();
     expect(screen.queryByRole('group', { name: 'Playback mode' })).not.toBeInTheDocument();
   });
 
-  it('switches between Spotify Connect and AirPlay on the kiosk', async () => {
-    api.getDevices.mockResolvedValue({ devices: [] });
-    const onAudioRouteChange = vi.fn().mockResolvedValue(undefined);
-    const { rerender } = render(
-      <SpeakerSelectorModal isOpen canUseAirPlay onAudioRouteChange={onAudioRouteChange} browserDeviceId="web-1" />
-    );
-    expect(await screen.findByText(/switch to AirPlay above/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Spotify Connect' })).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.click(screen.getByRole('button', { name: 'Spotify Connect' }));
-    expect(onAudioRouteChange).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('button', { name: 'AirPlay' }));
-    expect(onAudioRouteChange).toHaveBeenCalledWith('airplay');
-
-    api.getDevices.mockClear();
-    rerender(
-      <SpeakerSelectorModal
-        isOpen
-        canUseAirPlay
-        audioRoute="airplay"
-        onAudioRouteChange={onAudioRouteChange}
-        browserDeviceId="web-1"
-      />
-    );
-    expect(screen.getByRole('heading', { name: 'Choose AirPlay speakers' })).toBeInTheDocument();
+  it('lists tablet, AirPlay and Spotify Connect speakers together on the kiosk', async () => {
+    api.getDevices.mockResolvedValue({ devices });
+    render(<SpeakerSelectorModal isOpen canUseAirPlay browserDeviceId="web-1" onSelectSpeaker={vi.fn()} />);
+    expect(await screen.findByRole('button', { name: /This tablet/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'AirPlay' })).toBeInTheDocument();
     expect(await screen.findByText(/Looking for AirPlay speakers/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Refresh devices' })).not.toBeInTheDocument();
-    expect(api.getDevices).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Spotify Connect' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Kitchen/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Refresh devices' })).toBeInTheDocument();
   });
 
-  it('shows a failed mode change', async () => {
-    api.getDevices.mockResolvedValue({ devices: [] });
-    const onAudioRouteChange = vi.fn(() => Promise.reject(new Error('Transfer failed')));
-    render(<SpeakerSelectorModal isOpen canUseAirPlay audioRoute="airplay" onAudioRouteChange={onAudioRouteChange} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Spotify Connect' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Transfer failed');
+  it('does not mark a Connect device or the tablet active while AirPlay is the route', async () => {
+    api.getDevices.mockResolvedValue({ devices: [{ id: 'web-1', name: 'Max Mix', is_active: true }, ...devices] });
+    render(<SpeakerSelectorModal isOpen canUseAirPlay audioRoute="airplay" browserDeviceId="web-1" />);
+    const kitchen = await screen.findByRole('button', { name: /Kitchen/ });
+    expect(kitchen).toHaveAttribute('aria-pressed', 'false');
+    expect(kitchen).not.toHaveTextContent('Active');
+    expect(screen.getByRole('button', { name: /This tablet/ })).toHaveAttribute('aria-pressed', 'false');
   });
 });
