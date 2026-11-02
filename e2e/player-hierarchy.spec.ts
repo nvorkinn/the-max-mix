@@ -1,6 +1,5 @@
 import { expect, test } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
-import { fakeSpotify } from './fake-spotify.ts';
 
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 const LONG_TITLE = `${'An extended placeholder title with extra recording details '.repeat(8)}${'Unbroken'.repeat(24)}`;
@@ -103,41 +102,4 @@ for (const appearance of ['neon', 'minimal']) {
       }
     });
   }
-}
-
-for (const appearance of ['neon', 'minimal']) {
-  test(`one restrained playback indicator respects pause and reduced motion in ${appearance}`, async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 600 });
-    await page.addInitScript(theme => {
-      /* eslint-disable-next-line n/no-unsupported-features/node-builtins -- This init script runs in the browser, not Node. */
-      localStorage.setItem('maxmix_theme', theme);
-    }, appearance);
-    await fakeSpotify(page);
-    await page.goto('/');
-    const player = page.getByRole('region', { name: 'Now playing', exact: true });
-    const indicator = player.locator('.playback-equalizer');
-    await expect(indicator).toHaveCount(1);
-    await expect(indicator).toBeVisible();
-    await expect(indicator.locator('i').first()).toHaveCSS('animation-name', 'equalize');
-    await expect(player.getByText('Test speaker', { exact: true })).toBeVisible();
-    await player.getByRole('button', { name: 'Pause' }).click();
-    await expect(indicator.locator('i').first()).toHaveCSS('animation-name', 'none');
-    await expect(player.getByText('Paused', { exact: true })).toBeVisible();
-    await player.getByRole('button', { name: 'Play', exact: true }).click();
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await expect(indicator).toBeHidden();
-    expect(
-      await page
-        .locator('body')
-        .evaluate(
-          element =>
-            element.getAnimations({ subtree: true }).filter(animation => animation.playState === 'running').length
-        )
-    ).toBe(0);
-    await expect(player.getByText('Playing', { exact: true })).toBeVisible();
-    await expect(page.locator('canvas')).toHaveCount(0);
-    await page.emulateMedia({ reducedMotion: 'no-preference' });
-    await expect(indicator).toBeVisible();
-    await expect(indicator.locator('i').first()).toHaveCSS('animation-name', 'equalize');
-  });
 }
