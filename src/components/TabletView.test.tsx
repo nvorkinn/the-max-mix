@@ -124,10 +124,9 @@ describe('TabletView', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    const nowPlaying = screen.getByRole('region', { name: 'Now playing' });
     const upcoming = screen.getByRole('region', { name: 'Upcoming tracks' });
     act(() => recordSpotifyRetryAfter(new SpotifyApiError('Device discovery rate limited', 429, 30)));
-    expect(within(nowPlaying).getByText('Waiting for Spotify')).toBeInTheDocument();
+    expect(screen.getByText('Waiting for Spotify', { selector: 'strong' })).toBeInTheDocument();
     expect(within(upcoming).getByText('Showing the last known queue.')).toBeInTheDocument();
     expect(within(upcoming).getByText('Queued One')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next track' }));
@@ -147,17 +146,16 @@ describe('TabletView', () => {
     expect(player.current.nextTrack).toHaveBeenCalledOnce();
   });
 
-  it('swaps the queue for the lyrics and remembers the choice', async () => {
+  it('swaps the artwork for the lyrics in place and remembers the choice', async () => {
     const { unmount } = render(<TabletView />);
     await flush();
     expect(lyrics.lrclib).not.toHaveBeenCalled();
-    const toggle = screen.getByRole('button', { name: 'Lyrics' });
-    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByRole('button', { name: 'Lyrics' })).not.toBeInTheDocument();
 
-    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole('button', { name: 'Show lyrics' }));
     await flush();
-    expect(toggle).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.queryByRole('region', { name: 'Upcoming tracks' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Upcoming tracks' })).toBeInTheDocument();
+    expect(screen.queryByAltText('Now Song album artwork')).not.toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Lyrics' })).toHaveTextContent('Placeholder lyric');
     expect(lyrics.lrclib).toHaveBeenCalledWith(
       { title: 'Now Song', artist: 'Art', durationMs: 1000 },
@@ -169,9 +167,18 @@ describe('TabletView', () => {
     render(<TabletView />);
     await flush();
     expect(screen.getByRole('region', { name: 'Lyrics' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Up next' }));
-    expect(screen.getByRole('region', { name: 'Upcoming tracks' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Show artwork' }));
+    expect(screen.queryByRole('region', { name: 'Lyrics' })).not.toBeInTheDocument();
+    expect(screen.getByAltText('Now Song album artwork')).toBeInTheDocument();
     expect(localStorage.getItem('maxmix_lyrics')).toBe('off');
+  });
+
+  it('shows the clock in 24-hour time', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 0, 1, 16, 46));
+    render(<TabletView />);
+    expect(document.querySelector('.footer-clock')).toHaveTextContent(/^\s*16:46\s*$/);
+    expect(document.querySelector('.footer-clock')).not.toHaveTextContent(/AM|PM/i);
   });
 
   it('shows the connected device and loads the queue', async () => {
@@ -233,7 +240,8 @@ describe('TabletView', () => {
     setPlayer({ isReady: false, playbackState: null });
     render(<TabletView />);
     await flush();
-    fireEvent.click(screen.getByRole('button', { name: 'Choose speaker' }));
+    expect(screen.getByRole('heading', { name: 'Nothing playing' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Choose a Spotify Connect device' }));
     await flush();
     expect(screen.getByRole('dialog', { name: 'Choose a Spotify device' })).toBeInTheDocument();
     expect(player.current.transferPlayback).not.toHaveBeenCalled();
@@ -254,7 +262,6 @@ describe('TabletView', () => {
     render(<TabletView />);
     await flush();
     expect(screen.getByRole('alert')).toHaveTextContent('No internet connection');
-    expect(screen.getByText('Playback controls are offline')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
     expect(document.querySelector('.session-status')).toHaveTextContent('Offline');
   });
@@ -298,13 +305,11 @@ describe('TabletView', () => {
     expect(screen.getByRole('button', { name: 'Refresh playback' })).toBeEnabled();
   });
 
-  it('shows recovery beside controls and preserves exact hook errors in the debug console', async () => {
+  it('shows recovery in a top banner and preserves exact hook errors in the debug console', async () => {
     setPlayer({ error: 'Device offline' });
     render(<TabletView />);
     await flush();
-    expect(within(screen.getByRole('region', { name: 'Now playing' })).getByRole('alert')).toHaveTextContent(
-      'Playback problem'
-    );
+    expect(screen.getByRole('alert')).toHaveTextContent('Playback problem');
     expect(screen.getByRole('button', { name: 'Refresh playback' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /problem, see details/i }));
     const panel = screen.getByRole('dialog', { name: 'Debug console' });
