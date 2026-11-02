@@ -56,7 +56,10 @@ export function parseTrack(value: unknown): Track | undefined {
 
 export function parseDevice(value: unknown): SpotifyDevice | undefined {
   if (!isRecord(value)) return undefined;
-  const id = text(value['id']);
+  // Spotify reports a null id for devices it lists but cannot address (e.g. some Sonos speakers); keep them so the
+  // picker can show them as unavailable. Any other non-string id is malformed.
+  const rawId = value['id'];
+  const id = rawId === null || rawId === undefined ? null : text(rawId);
   const name = text(value['name']);
   if (id === undefined || name === undefined) return undefined;
   const device: SpotifyDevice = { id, name };

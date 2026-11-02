@@ -248,6 +248,8 @@ describe('SpeakerSelectorModal', () => {
     expect(screen.getByRole('button', { name: /Locked/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: /No id/ })).toBeDisabled();
     expect(screen.getByText('Playback control restricted')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /No id/ })).toHaveTextContent('Not available to select');
+    expect(screen.getByText(/only after they have recently played through Spotify/)).toBeInTheDocument();
   });
 
   it('shows an empty state when there are no devices', async () => {

@@ -52,7 +52,16 @@ describe('spotify/parse', () => {
     it('needs a string id and name', () => {
       expect(parseDevice({ id: 'd' })).toBeUndefined();
       expect(parseDevice({ id: 1, name: 'n' })).toBeUndefined();
+      expect(parseDevice({ id: null })).toBeUndefined();
       expect(parseDevice('d')).toBeUndefined();
+    });
+
+    it('keeps a device with a null id so it can be shown as unavailable', () => {
+      expect(parseDevice({ id: null, name: 'Sonos Roam', type: 'Speaker' })).toEqual({
+        id: null,
+        name: 'Sonos Roam',
+        type: 'Speaker'
+      });
     });
 
     it('keeps the optional fields, including a null volume', () => {

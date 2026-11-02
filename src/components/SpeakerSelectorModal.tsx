@@ -15,6 +15,7 @@ const ROUTES: { id: AudioRoute; label: string }[] = [
 ];
 
 function describeDevice(device: SpotifyDevice) {
+  if (!device.id) return 'Not available to select from this app';
   if (device.is_restricted) return 'Playback control restricted';
   const volume = device.volume_percent == null ? '' : ` / ${device.volume_percent}% volume`;
   return `${device.type || 'Device'}${volume}`;
@@ -171,10 +172,10 @@ export default function SpeakerSelectorModal({
           {devices.map(device => (
             <button
               type="button"
-              key={device.id || device.name}
+              key={device.id ?? `unavailable:${device.name}`}
               disabled={!device.id || device.is_restricted || selecting || waitingForSpotify}
               aria-pressed={Boolean(device.is_active)}
-              onClick={() => void selectDevice(device.id)}
+              onClick={() => device.id && void selectDevice(device.id)}
               className="modal-option w-full p-3 flex gap-3 items-center text-left rounded-xl border"
             >
               <Speaker size={20} className="shrink-0 text-accent" />
@@ -189,6 +190,12 @@ export default function SpeakerSelectorModal({
               )}
             </button>
           ))}
+          {!loading && !error && (
+            <p className="text-[11px] leading-relaxed text-muted">
+              Sonos and other Connect speakers show up here only after they have recently played through Spotify. Play
+              to one from the Spotify app on your phone, then refresh.
+            </p>
+          )}
           {browserDeviceId && devices.every(device => device.id !== browserDeviceId) && (
             <button
               type="button"
