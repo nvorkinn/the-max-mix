@@ -125,7 +125,6 @@ test('failed images become local artwork rather than retrying URLs', async ({ pa
   await expect(page.locator('.queue-art.image-placeholder')).toHaveCount(4);
 
   await page.getByRole('button', { name: 'Open settings' }).click();
-  await page.getByRole('button', { name: /Paper Light/ }).click();
   await page.keyboard.press('Escape');
   await expect(page.locator('.album-cover.image-placeholder')).toBeVisible();
 
