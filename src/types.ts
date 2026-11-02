@@ -16,7 +16,8 @@ export interface Track {
 
 /** A Spotify Connect device. */
 export interface SpotifyDevice {
-  id: string;
+  /** Null for a device Spotify lists but cannot address, so it cannot be selected. */
+  id: string | null;
   name: string;
   type?: string;
   is_active?: boolean;
