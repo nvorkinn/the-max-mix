@@ -72,7 +72,7 @@ test('settings contain keyboard focus, wrap both ways and restore the trigger', 
   await trigger.click();
   const settings = page.getByRole('dialog', { name: 'Settings' });
   const close = settings.getByRole('button', { name: 'Close settings' });
-  const last = settings.getByRole('button', { name: /Paper/ });
+  const last = settings.getByRole('radio', { checked: true });
   await expect(close).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(last).toBeFocused();
@@ -106,7 +106,7 @@ test('speakers wrap focus after devices load and restore focus on close', async 
 test('Escape dismisses only the topmost dialog and restores the underlying focus', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open settings' }).click();
-  const wifi = page.getByRole('button', { name: 'This device' });
+  const wifi = page.getByRole('radio', { checked: true });
   await wifi.focus();
   await page.keyboard.press('Control+Shift+D');
   const debug = page.getByRole('dialog', { name: 'Debug console' });
