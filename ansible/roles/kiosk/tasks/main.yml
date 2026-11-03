@@ -9,56 +9,90 @@
       {{ lookup('ansible.builtin.file', kiosk_panel_src ~ '/packages.txt').splitlines()
       | map('regex_replace', '\s*#.*$', '') | map('trim') | reject('equalto', '') | list }}
 
-- name: Install the packages
-  ansible.builtin.apt:
-    name: >-
+# Installing packages is slow on a Pi even when nothing is missing (apt's cache is loaded from Python), and so are the
+# NodeSource key and archive checks. They are done again only when what they depend on changed: a stamp records the
+# packages, the Node.js version and the NodeSource key as last installed. The stamp is written after a successful install
+# only, so a failed run tries again. A package removed by hand is not put back until the list changes; the nightly
+# unattended-upgrades run keeps what is installed up to date.
+- name: Work out what the package step depends on
+  ansible.builtin.set_fact:
+    kiosk_all_packages: >-
       {{ (kiosk_ansible_packages + kiosk_packages + kiosk_rpi_packages + kiosk_panel_packages
       + ([] if kiosk_hide_cursor | bool else ['xcursor-themes'])) | unique }}
-    state: present
-    install_recommends: false
-    update_cache: true
-    cache_valid_time: 3600
-    lock_timeout: 300
+    kiosk_packages_done: >-
+      {{ (lookup('ansible.builtin.file', kiosk_packages_stamp, errors='ignore') | default('', true)) | string | trim }}
 
-# Node.js for the audio routing, from NodeSource (Debian's is too old to run TypeScript).
-- name: Create the APT keyring directory
-  ansible.builtin.file:
-    path: /etc/apt/keyrings
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
+- name: Install the packages, Node.js and their sources
+  when: >-
+    ([kiosk_all_packages, kiosk_nodejs_major, kiosk_nodesource_key_url, kiosk_nodesource_key_sha256] | to_json | hash('sha1'))
+    != kiosk_packages_done
+  block:
+    - name: Install the packages
+      ansible.builtin.apt:
+        name: '{{ kiosk_all_packages }}'
+        state: present
+        install_recommends: false
+        update_cache: true
+        cache_valid_time: 3600
+        lock_timeout: 300
 
-- name: Install NodeSource's signing key
-  ansible.builtin.get_url:
-    url: '{{ kiosk_nodesource_key_url }}'
-    dest: /etc/apt/keyrings/nodesource.asc
-    checksum: 'sha256:{{ kiosk_nodesource_key_sha256 }}'
-    owner: root
-    group: root
-    mode: '0644'
-  register: kiosk_nodesource_key
+    # Node.js for the audio routing, from NodeSource (Debian's is too old to run TypeScript).
+    - name: Create the APT keyring directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
 
-- name: Add NodeSource's archive
-  ansible.builtin.copy:
-    content: |
-      Types: deb
-      URIs: https://deb.nodesource.com/node_{{ kiosk_nodejs_major }}.x
-      Suites: nodistro
-      Components: main
-      Signed-By: /etc/apt/keyrings/nodesource.asc
-    dest: /etc/apt/sources.list.d/nodesource.sources
-    owner: root
-    group: root
-    mode: '0644'
-  register: kiosk_nodesource_list
+    - name: Install NodeSource's signing key
+      ansible.builtin.get_url:
+        url: '{{ kiosk_nodesource_key_url }}'
+        dest: /etc/apt/keyrings/nodesource.asc
+        checksum: 'sha256:{{ kiosk_nodesource_key_sha256 }}'
+        owner: root
+        group: root
+        mode: '0644'
+      register: kiosk_nodesource_key
 
-- name: Install Node.js
-  ansible.builtin.apt:
-    name: nodejs
-    state: present
-    update_cache: '{{ kiosk_nodesource_key is changed or kiosk_nodesource_list is changed }}'
-    lock_timeout: 300
+    - name: Add NodeSource's archive
+      ansible.builtin.copy:
+        content: |
+          Types: deb
+          URIs: https://deb.nodesource.com/node_{{ kiosk_nodejs_major }}.x
+          Suites: nodistro
+          Components: main
+          Signed-By: /etc/apt/keyrings/nodesource.asc
+        dest: /etc/apt/sources.list.d/nodesource.sources
+        owner: root
+        group: root
+        mode: '0644'
+      register: kiosk_nodesource_list
+
+    - name: Install Node.js
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+        update_cache: '{{ kiosk_nodesource_key is changed or kiosk_nodesource_list is changed }}'
+        lock_timeout: 300
+
+    - name: Create the directory for the package stamp
+      ansible.builtin.file:
+        path: '{{ kiosk_packages_stamp | dirname }}'
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Record what was installed
+      ansible.builtin.copy:
+        content: >-
+          {{ [kiosk_all_packages, kiosk_nodejs_major, kiosk_nodesource_key_url, kiosk_nodesource_key_sha256]
+          | to_json | hash('sha1') }}
+        dest: '{{ kiosk_packages_stamp }}'
+        owner: root
+        group: root
+        mode: '0644'
 
 # System settings -----------------------------------------------------------------------------------------------------
 - name: Enable the locale
@@ -201,18 +235,34 @@
     group: '{{ kiosk_admin_user }}'
     mode: '0700'
 
-# Without a network (a Pi offline at its pull) the keys from the last run stay, so this never fails the playbook.
+- name: Check when the admin user's SSH keys were last fetched
+  ansible.builtin.stat:
+    path: '/home/{{ kiosk_admin_user }}/.ssh/authorized_keys'
+    get_checksum: false
+    get_mime: false
+    get_attributes: false
+  register: kiosk_admin_keys_file
+  when: kiosk_admin_github_user | length > 0
+
+# Fetched again only when the keys are older than kiosk_admin_keys_max_age_hours: the download can take many seconds on a
+# slow connection. Without a network (a Pi offline at its pull) the keys from the last run stay, so this never fails the
+# playbook, and a failed fetch leaves the old file in place, so the next run tries again.
 - name: Fetch the admin user's SSH keys from GitHub
   ansible.builtin.get_url:
     url: 'https://github.com/{{ kiosk_admin_github_user }}.keys'
     dest: '/home/{{ kiosk_admin_user }}/.ssh/authorized_keys'
     force: true
+    timeout: 10
     owner: '{{ kiosk_admin_user }}'
     group: '{{ kiosk_admin_user }}'
     mode: '0600'
   register: kiosk_admin_keys
   failed_when: false
-  when: kiosk_admin_github_user | length > 0
+  when:
+    - kiosk_admin_github_user | length > 0
+    - >-
+      not kiosk_admin_keys_file.stat.exists
+      or (now(utc=true).timestamp() - kiosk_admin_keys_file.stat.mtime) > kiosk_admin_keys_max_age_hours * 3600
 
 - name: Report a failed key download
   ansible.builtin.debug:
@@ -244,33 +294,33 @@
       else ('restarted' if kiosk_sshd_config is changed else 'started')) }}
 
 # The kiosk -----------------------------------------------------------------------------------------------------------
+# One program makes all of them: a module run costs about a second on a Pi, and there are twenty directories.
+# `install -d` creates what is missing and sets the owner and mode of what exists, so it can run every time.
 - name: Create the directories
-  ansible.builtin.file:
-    path: '{{ item }}'
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  loop:
-    - /etc/chromium/policies/managed
-    - /etc/the-max-mix
-    - /etc/pipewire
-    - /etc/pipewire/pipewire.conf.d
-    - /etc/plymouth
-    - /etc/systemd/system
-    - /etc/systemd/user
-    - /etc/systemd/user/default.target.wants
-    - /etc/tmpfiles.d
-    - /etc/xdg
-    - /opt/the-max-mix
-    - '{{ kiosk_panel_dir }}'
-    - '{{ kiosk_panel_dir }}/qml'
-    - '{{ kiosk_audio_dir }}'
-    - /usr/share/applications
-    - /usr/share/icons/blank
-    - /usr/share/icons/blank/cursors
-    - /usr/share/plymouth/themes/the-max-mix
-    - /var/lib/the-max-mix
+  ansible.builtin.command:
+    argv: "{{ ['install', '-d', '-m', '0755', '-o', 'root', '-g', 'root'] + kiosk_directories }}"
+  vars:
+    kiosk_directories:
+      - /etc/chromium/policies/managed
+      - /etc/the-max-mix
+      - /etc/pipewire
+      - /etc/pipewire/pipewire.conf.d
+      - /etc/plymouth
+      - /etc/systemd/system
+      - /etc/systemd/user
+      - /etc/systemd/user/default.target.wants
+      - /etc/tmpfiles.d
+      - /etc/xdg
+      - /opt/the-max-mix
+      - '{{ kiosk_panel_dir }}'
+      - '{{ kiosk_panel_dir }}/qml'
+      - '{{ kiosk_audio_dir }}'
+      - /usr/share/applications
+      - /usr/share/icons/blank
+      - /usr/share/icons/blank/cursors
+      - /usr/share/plymouth/themes/the-max-mix
+      - /var/lib/the-max-mix
+  changed_when: false
 
 - name: Install the kiosk programs
   ansible.builtin.copy:
@@ -436,26 +486,28 @@
   loop_control:
     label: '{{ item.dest }}'
 
+# One program makes all the links, for the same reason as the directories above. `ln -sfn` replaces a link that exists.
 - name: Point the cursor names at the blank cursor
-  ansible.builtin.file:
-    src: left_ptr
-    dest: '/usr/share/icons/blank/cursors/{{ item }}'
-    state: link
-  loop:
-    - default
-    - arrow
-    - text
-    - xterm
-    - pointer
-    - hand1
-    - hand2
-    - grab
-    - grabbing
-    - crosshair
-    - wait
-    - watch
-    - progress
-    - not-allowed
+  ansible.builtin.command:
+    argv: '{{ [''bash'', ''-c'', ''for name in "$@"; do ln -sfn left_ptr "$name"; done'', ''bash''] + kiosk_cursor_names }}'
+    chdir: /usr/share/icons/blank/cursors
+  vars:
+    kiosk_cursor_names:
+      - default
+      - arrow
+      - text
+      - xterm
+      - pointer
+      - hand1
+      - hand2
+      - grab
+      - grabbing
+      - crosshair
+      - wait
+      - watch
+      - progress
+      - not-allowed
+  changed_when: false
 
 # The kiosk takes the display on tty7 and tty1 shows nothing.
 - name: Mask the login prompt on tty1
