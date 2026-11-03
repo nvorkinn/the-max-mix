@@ -28,6 +28,42 @@ const TOOLING_IGNORES = ['src/**'];
 const TEST_FUNCTIONS = 'test|it|describe|suite';
 const LEFTOVER_TEST_FLAGS = 'only|skip|todo';
 
+// Rules the tooling and the app share, so the two halves of this config cannot drift apart.
+/** @type {import('eslint').Linter.RulesRecord} */
+const STYLE_RULES = {
+  // `x == null` is the idiom for "null or undefined"; every other loose comparison is an error.
+  eqeqeq: ['error', 'always', { null: 'ignore' }],
+  'no-var': 'error',
+  'prefer-const': 'error',
+  'no-throw-literal': 'error',
+  'no-implicit-coercion': ['error', { allow: ['!!'] }],
+  'no-shadow': 'error',
+  'no-unused-expressions': 'error',
+  'no-return-assign': 'error',
+  'no-useless-return': 'error',
+  'no-else-return': 'error',
+  'no-param-reassign': 'error',
+  // On, so a new loop cannot serialize work by accident. Tests may opt out locally.
+  'no-await-in-loop': 'error',
+  curly: ['error', 'multi-line'],
+  'object-shorthand': 'error',
+  'prefer-template': 'error'
+};
+/** @type {import('eslint').Linter.RulesRecord} */
+const IMPORT_RULES = {
+  'import-x/no-cycle': 'error',
+  'import-x/no-duplicates': 'error',
+  'import-x/no-self-import': 'error',
+  'import-x/no-useless-path-segments': 'error',
+  'import-x/first': 'error',
+  'import-x/newline-after-import': 'error'
+};
+/** @type {{ groups: string[]; 'newlines-between': 'never' }} */
+const IMPORT_ORDER = {
+  groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+  'newlines-between': 'never'
+};
+
 export default defineConfig([
   {
     ignores: ['node_modules/**', 'dist/**', 'coverage/**', 'e2e/playwright-report/**', 'e2e/test-results/**']
@@ -71,38 +107,10 @@ export default defineConfig([
       'sonarjs/todo-tag': 'off',
 
       // Import hygiene. `recommended` already covers named/default/namespace/export/no-named-as-default and friends.
-      'import-x/no-cycle': 'error',
-      'import-x/no-duplicates': 'error',
-      'import-x/no-self-import': 'error',
-      'import-x/no-useless-path-segments': 'error',
-      'import-x/first': 'error',
-      'import-x/newline-after-import': 'error',
-      'import-x/order': [
-        'error',
-        {
-          groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
-          'newlines-between': 'never',
-          alphabetize: { order: 'asc', caseInsensitive: true }
-        }
-      ],
+      ...IMPORT_RULES,
+      'import-x/order': ['error', { ...IMPORT_ORDER, alphabetize: { order: 'asc', caseInsensitive: true } }],
 
-      // `x == null` is the idiom for "null or undefined"; every other loose comparison is an error.
-      eqeqeq: ['error', 'always', { null: 'ignore' }],
-      'no-var': 'error',
-      'prefer-const': 'error',
-      'no-throw-literal': 'error',
-      'no-implicit-coercion': ['error', { allow: ['!!'] }],
-      'no-shadow': 'error',
-      'no-unused-expressions': 'error',
-      'no-return-assign': 'error',
-      'no-useless-return': 'error',
-      'no-else-return': 'error',
-      'no-param-reassign': 'error',
-      // On, so a new loop cannot serialize work by accident. Tests are exempt below.
-      'no-await-in-loop': 'error',
-      curly: ['error', 'multi-line'],
-      'object-shorthand': 'error',
-      'prefer-template': 'error',
+      ...STYLE_RULES,
       'no-console': 'off',
 
       // `||` is deliberate on strings and numbers: an empty string or 0 (an unset or blank env var, a missing id) must
@@ -169,22 +177,7 @@ export default defineConfig([
     languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: globals.browser },
     linterOptions: { reportUnusedDisableDirectives: 'error' },
     rules: {
-      // `x == null` is the idiom for "null or undefined"; every other loose comparison is an error.
-      eqeqeq: ['error', 'always', { null: 'ignore' }],
-      'no-var': 'error',
-      'prefer-const': 'error',
-      'no-throw-literal': 'error',
-      'no-implicit-coercion': ['error', { allow: ['!!'] }],
-      'no-shadow': 'error',
-      'no-unused-expressions': 'error',
-      'no-return-assign': 'error',
-      'no-useless-return': 'error',
-      'no-else-return': 'error',
-      'no-param-reassign': 'error',
-      'no-await-in-loop': 'error',
-      curly: ['error', 'multi-line'],
-      'object-shorthand': 'error',
-      'prefer-template': 'error',
+      ...STYLE_RULES,
       // The typescript-eslint rule: the base rule misreads parameter names in function types as unused variables.
       '@typescript-eslint/no-unused-vars': ['error', { caughtErrors: 'none' }],
       // @eslint-react's stricter rules (set-state-in-effect, use-state, web-api-no-leaked-fetch, no-array-index-key,
@@ -240,21 +233,7 @@ export default defineConfig([
   {
     files: APP_FILES,
     plugins: { 'import-x': importX },
-    rules: {
-      'import-x/no-cycle': 'error',
-      'import-x/no-duplicates': 'error',
-      'import-x/no-self-import': 'error',
-      'import-x/no-useless-path-segments': 'error',
-      'import-x/first': 'error',
-      'import-x/newline-after-import': 'error',
-      'import-x/order': [
-        'error',
-        {
-          groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
-          'newlines-between': 'never'
-        }
-      ]
-    }
+    rules: { ...IMPORT_RULES, 'import-x/order': ['error', IMPORT_ORDER] }
   },
   {
     files: [...APP_TEST_FILES, 'src/test/**'],
