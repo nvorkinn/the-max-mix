@@ -364,57 +364,59 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         />
       )}
 
-      <main className={`listening-room${needsConnection ? ' is-setup' : ''}`}>
-        <section className="player-section" aria-label="Now playing">
-          {needsConnection ? (
-            <SpotifySetup
-              offline={isOffline}
-              signInError={signInError || (problem?.recovery === 'sign-in' ? problem.message : null)}
-              onSettings={showSettings}
-              onDetails={() => setIsDebugOpen(true)}
-            />
-          ) : (
-            <AlbumArtPlayer
-              playback={playbackState}
-              isPlaying={isPlaying}
-              onPlayPause={togglePlay}
-              onNext={nextTrack}
-              onPrevious={previousTrack}
-              onSeek={seek}
-              onVolumeChange={(vol: number) => setVolume(vol / 100)}
-              controlsEnabled={
-                isAuthenticated &&
-                !isOffline &&
-                (isReady || Boolean(browserDeviceId)) &&
-                !restricted &&
-                (!waitingForSpotify || sdkActive) &&
-                !isLoading
-              }
-              lyricsOpen={showLyrics}
-              onToggleLyrics={() => toggleLyrics(!showLyrics)}
-              lyrics={
-                <LyricsPanel
-                  track={currentTrack}
-                  progressMs={playbackState?.progress_ms ?? playbackState?.position ?? 0}
-                />
-              }
-            />
-          )}
-        </section>
-
-        {!needsConnection && (
-          <section className="queue-section" aria-label="Upcoming tracks">
-            <TrackQueue
-              queue={queue}
-              error={queueError}
-              status={waitingForSpotify ? 'waiting' : queueStatus}
-              onRetry={() => setQueueRequestVersion(version => version + 1)}
-              onConnect={showSettings}
-              retryAllowed={!waitingForSpotify}
-            />
+      <div className="room-frame">
+        <main className={`listening-room${needsConnection ? ' is-setup' : ''}`}>
+          <section className="player-section" aria-label="Now playing">
+            {needsConnection ? (
+              <SpotifySetup
+                offline={isOffline}
+                signInError={signInError || (problem?.recovery === 'sign-in' ? problem.message : null)}
+                onSettings={showSettings}
+                onDetails={() => setIsDebugOpen(true)}
+              />
+            ) : (
+              <AlbumArtPlayer
+                playback={playbackState}
+                isPlaying={isPlaying}
+                onPlayPause={togglePlay}
+                onNext={nextTrack}
+                onPrevious={previousTrack}
+                onSeek={seek}
+                onVolumeChange={(vol: number) => setVolume(vol / 100)}
+                controlsEnabled={
+                  isAuthenticated &&
+                  !isOffline &&
+                  (isReady || Boolean(browserDeviceId)) &&
+                  !restricted &&
+                  (!waitingForSpotify || sdkActive) &&
+                  !isLoading
+                }
+                lyricsOpen={showLyrics}
+                onToggleLyrics={() => toggleLyrics(!showLyrics)}
+                lyrics={
+                  <LyricsPanel
+                    track={currentTrack}
+                    progressMs={playbackState?.progress_ms ?? playbackState?.position ?? 0}
+                  />
+                }
+              />
+            )}
           </section>
-        )}
-      </main>
+
+          {!needsConnection && (
+            <section className="queue-section" aria-label="Upcoming tracks">
+              <TrackQueue
+                queue={queue}
+                error={queueError}
+                status={waitingForSpotify ? 'waiting' : queueStatus}
+                onRetry={() => setQueueRequestVersion(version => version + 1)}
+                onConnect={showSettings}
+                retryAllowed={!waitingForSpotify}
+              />
+            </section>
+          )}
+        </main>
+      </div>
 
       <footer className="app-footer">
         {playerError && !isOffline ? (
