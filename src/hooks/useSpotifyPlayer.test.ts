@@ -295,42 +295,28 @@ describe('useSpotifyPlayer', () => {
     expect(mocks.api.setVolume).toHaveBeenCalledWith(46);
   });
 
-  it('toggles shuffle and steps repeat through Spotify, showing the new value at once', async () => {
+  it('sends shuffle and the next repeat mode, and leaves the buttons to what Spotify reports', async () => {
     mocks.api.getPlaybackState.mockReturnValue(new Promise(() => {}));
     mocks.api.getPlaybackState.mockResolvedValueOnce({
       device: { id: 'd' },
       shuffle_state: false,
-      repeat_state: 'off'
+      repeat_state: 'track'
     });
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.isReady).toBe(true));
 
     await act(async () => {
       expect(await result.current.toggleShuffle()).toBe(true);
+      expect(await result.current.cycleRepeat()).toBe(true);
     });
     expect(mocks.api.setShuffle).toHaveBeenCalledWith(true);
-    expect(result.current.playbackState?.shuffle_state).toBe(true);
-
-    const repeatModes: string[] = [];
-    await act(async () => {
-      await result.current.cycleRepeat();
-    });
-    repeatModes.push(String(result.current.playbackState?.repeat_state));
-    await act(async () => {
-      await result.current.cycleRepeat();
-    });
-    repeatModes.push(String(result.current.playbackState?.repeat_state));
-    await act(async () => {
-      await result.current.cycleRepeat();
-    });
-    repeatModes.push(String(result.current.playbackState?.repeat_state));
-    expect(repeatModes).toEqual(['context', 'track', 'off']);
-    expect(mocks.api.setRepeat.mock.calls).toEqual([['context'], ['track'], ['off']]);
+    expect(mocks.api.setRepeat).toHaveBeenCalledWith('off');
+    expect(result.current.playbackState).toMatchObject({ shuffle_state: false, repeat_state: 'track' });
   });
 
-  it('puts shuffle back and reports the error when Spotify refuses it', async () => {
+  it('reports the error when Spotify refuses a shuffle change', async () => {
     mocks.api.getPlaybackState.mockReturnValue(new Promise(() => {}));
-    mocks.api.getPlaybackState.mockResolvedValueOnce({ device: { id: 'd' }, shuffle_state: false });
+    mocks.api.getPlaybackState.mockResolvedValueOnce({ device: { id: 'd' } });
     mocks.api.setShuffle.mockRejectedValue(new SpotifyApiError('Refused', 403));
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.isReady).toBe(true));
@@ -338,7 +324,6 @@ describe('useSpotifyPlayer', () => {
     await act(async () => {
       expect(await result.current.toggleShuffle()).toBe(false);
     });
-    expect(result.current.playbackState?.shuffle_state).toBe(false);
     expect(result.current.error).toBe('Refused');
   });
 
