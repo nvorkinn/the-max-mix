@@ -12,6 +12,9 @@ type AlbumArtPlayerProps = Readonly<PlayerControls> & {
   onToggleLyrics?: () => void;
 };
 
+/** Past this far into a song, Previous starts the song over instead of going to the one before it. */
+const RESTART_AFTER_MS = 5000;
+
 export default function AlbumArtPlayer({
   playback,
   isPlaying,
@@ -43,6 +46,12 @@ export default function AlbumArtPlayer({
   const progressMs = hasTrack ? (playback?.progress_ms ?? playback?.position ?? 0) : 0;
   const durationMs = hasTrack ? item.duration_ms || playback?.duration || 0 : 0;
   const progressPercent = durationMs > 0 ? Math.min(100, Math.max(0, (progressMs / durationMs) * 100)) : 0;
+
+  // Like most players: well into a song, Previous replays it from the start; near the start it goes back a song.
+  const previous = () => {
+    if (progressMs > RESTART_AFTER_MS && !playback?.actions?.disallows?.seeking) onSeek(0);
+    else onPrevious();
+  };
 
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
@@ -126,7 +135,7 @@ export default function AlbumArtPlayer({
               type="button"
               disabled={!controlsEnabled || !hasTrack || playback?.actions?.disallows?.skipping_prev}
               className="transport-skip"
-              onClick={onPrevious}
+              onClick={previous}
               aria-label="Previous track"
             >
               <SkipBack size={20} fill="currentColor" />
