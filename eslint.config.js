@@ -29,6 +29,7 @@ const TEST_FUNCTIONS = 'test|it|describe|suite';
 const LEFTOVER_TEST_FLAGS = 'only|skip|todo';
 
 // Rules the tooling and the app share, so the two halves of this config cannot drift apart.
+/** @type {import('eslint').Linter.RulesRecord} */
 const STYLE_RULES = {
   // `x == null` is the idiom for "null or undefined"; every other loose comparison is an error.
   eqeqeq: ['error', 'always', { null: 'ignore' }],
@@ -48,6 +49,7 @@ const STYLE_RULES = {
   'object-shorthand': 'error',
   'prefer-template': 'error'
 };
+/** @type {import('eslint').Linter.RulesRecord} */
 const IMPORT_RULES = {
   'import-x/no-cycle': 'error',
   'import-x/no-duplicates': 'error',
@@ -56,6 +58,7 @@ const IMPORT_RULES = {
   'import-x/first': 'error',
   'import-x/newline-after-import': 'error'
 };
+/** @type {{ groups: string[]; 'newlines-between': 'never' }} */
 const IMPORT_ORDER = {
   groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
   'newlines-between': 'never'
