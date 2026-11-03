@@ -330,7 +330,7 @@
   z-index: 61;
   left: 30px;
   bottom: 122px;
-  top: 78px;
+  max-height: calc(100% - 200px);
   width: min(420px, calc(100% - 60px));
   display: flex;
   flex-direction: column;
