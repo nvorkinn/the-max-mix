@@ -35,10 +35,8 @@ const STYLE_RULES = {
   eqeqeq: ['error', 'always', { null: 'ignore' }],
   'no-var': 'error',
   'prefer-const': 'error',
-  'no-throw-literal': 'error',
   'no-implicit-coercion': ['error', { allow: ['!!'] }],
   'no-shadow': 'error',
-  'no-unused-expressions': 'error',
   'no-return-assign': 'error',
   'no-useless-return': 'error',
   'no-else-return': 'error',
@@ -48,6 +46,24 @@ const STYLE_RULES = {
   curly: ['error', 'multi-line'],
   'object-shorthand': 'error',
   'prefer-template': 'error'
+};
+// The sonarjs and unicorn presets repeat checks another rule already makes, so each problem would be reported twice.
+// typescript-eslint's strict preset already covers no-throw-literal (only-throw-error) and no-unused-expressions.
+/** @type {import('eslint').Linter.RulesRecord} */
+const DUPLICATE_RULES_OFF = {
+  'sonarjs/no-unused-vars': 'off', // @typescript-eslint/no-unused-vars and tsc's noUnused* options.
+  'sonarjs/unused-import': 'off', // The same.
+  'sonarjs/deprecation': 'off', // @typescript-eslint/no-deprecated.
+  'sonarjs/no-array-delete': 'off', // @typescript-eslint/no-array-delete.
+  'sonarjs/prefer-regexp-exec': 'off', // @typescript-eslint/prefer-regexp-exec.
+  'sonarjs/no-useless-catch': 'off', // ESLint's no-useless-catch.
+  'unicorn/no-useless-else': 'off', // no-else-return.
+  // sonarjs/no-nested-conditional covers nested ternaries; this one also fights Prettier's parentheses.
+  'unicorn/no-nested-ternary': 'off',
+  // Formatting, which Prettier owns.
+  'unicorn/empty-brace-spaces': 'off',
+  'unicorn/number-literal-case': 'off',
+  'unicorn/template-indent': 'off'
 };
 /** @type {import('eslint').Linter.RulesRecord} */
 const IMPORT_RULES = {
@@ -111,6 +127,7 @@ export default defineConfig([
       'import-x/order': ['error', { ...IMPORT_ORDER, alphabetize: { order: 'asc', caseInsensitive: true } }],
 
       ...STYLE_RULES,
+      ...DUPLICATE_RULES_OFF,
       'no-console': 'off',
 
       // `||` is deliberate on strings and numbers: an empty string or 0 (an unset or blank env var, a missing id) must
@@ -178,6 +195,7 @@ export default defineConfig([
     linterOptions: { reportUnusedDisableDirectives: 'error' },
     rules: {
       ...STYLE_RULES,
+      ...DUPLICATE_RULES_OFF,
       // The typescript-eslint rule: the base rule misreads parameter names in function types as unused variables.
       '@typescript-eslint/no-unused-vars': ['error', { caughtErrors: 'none' }],
       // @eslint-react's stricter rules (set-state-in-effect, use-state, web-api-no-leaked-fetch, no-array-index-key,

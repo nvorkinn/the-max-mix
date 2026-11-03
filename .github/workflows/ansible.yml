@@ -1,6 +1,6 @@
 name: Ansible
 
-# The kiosk playbook's test, kept apart from Tests so it runs only when something the playbook reads changes: ansible/,
+# The kiosk playbook's test and ansible-lint, kept apart from Tests and Lint so they run only when something the playbook reads changes: ansible/,
 # the two pi/ folders it installs, or this workflow. All checks completes "Global PR Status" once the workflows that did
 # run have passed, so a PR that does not touch these paths is not held up.
 on:
@@ -33,3 +33,20 @@ jobs:
         with:
           persist-credentials: false
       - run: docker run --rm --volume "$PWD:/repo:ro" debian:trixie bash /repo/ansible/tests/image-build.sh
+
+  # ansible-lint also checks the playbook's syntax. Both tools are pinned and installed into a virtual environment.
+  ansible-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install ansible-core and ansible-lint
+        run: |
+          python3 -m venv "$RUNNER_TEMP/ansible"
+          "$RUNNER_TEMP/ansible/bin/pip" install --quiet ansible-core==2.21.5 ansible-lint==26.10.1
+      - name: Run ansible-lint
+        run: |
+          export PATH="$RUNNER_TEMP/ansible/bin:$PATH"
+          ansible-lint ansible/
