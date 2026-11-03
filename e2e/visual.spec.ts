@@ -53,6 +53,19 @@ test('speakers drawer', async ({ page }) => {
   });
 });
 
+test('player screen', async ({ page }) => {
+  await fakeSpotify(page);
+  await page.setViewportSize({ width: 1024, height: 600 });
+  await page.goto('/');
+  await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
+  // The clock and the seek bar with its times change as the song plays, so they are masked out of the comparison.
+  await expect(page).toHaveScreenshot('player.png', {
+    ...SHOT,
+    mask: [page.locator('.header-clock'), page.locator('.seek-control')]
+  });
+});
+
 test('signed-out setup screen', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
