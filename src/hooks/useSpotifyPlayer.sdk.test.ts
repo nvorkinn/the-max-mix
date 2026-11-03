@@ -151,6 +151,14 @@ describe('useSpotifyPlayer browser playback', () => {
     expect(result.current.playbackMode).toBe('remote');
   });
 
+  it('takes shuffle and repeat from the SDK state', async () => {
+    const { result, emit } = await ready();
+    emit('player_state_changed', { ...sdkState('t1'), shuffle: true, repeat_mode: 2 });
+    expect(result.current.playbackState).toMatchObject({ shuffle_state: true, repeat_state: 'track' });
+    emit('player_state_changed', { ...sdkState('t1'), shuffle: false, repeat_mode: 1 });
+    expect(result.current.playbackState).toMatchObject({ shuffle_state: false, repeat_state: 'context' });
+  });
+
   it('explains an autoplay failure and clears the message once music plays', async () => {
     const { result, emit } = await ready();
     emit('autoplay_failed');

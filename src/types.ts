@@ -26,6 +26,9 @@ export interface SpotifyDevice {
   supports_volume?: boolean;
 }
 
+/** Spotify's repeat setting: off, the whole album or playlist, or the one track. */
+export type RepeatMode = 'off' | 'context' | 'track';
+
 /** The playback state, as `getPlaybackState()` returns it (and as the hook keeps it). */
 export interface PlaybackState {
   is_playing?: boolean;
@@ -35,6 +38,8 @@ export interface PlaybackState {
   progress_ms?: number;
   position?: number;
   duration?: number;
+  shuffle_state?: boolean;
+  repeat_state?: RepeatMode;
   actions?: {
     disallows?: {
       seeking?: boolean;
@@ -42,6 +47,9 @@ export interface PlaybackState {
       skipping_next?: boolean;
       pausing?: boolean;
       resuming?: boolean;
+      toggling_shuffle?: boolean;
+      toggling_repeat_context?: boolean;
+      toggling_repeat_track?: boolean;
     };
   };
 }
@@ -53,6 +61,9 @@ export type SdkPlaybackState = {
   paused: boolean;
   position: number;
   duration?: number;
+  shuffle?: boolean;
+  /** 0 off, 1 the album or playlist, 2 the track. */
+  repeat_mode?: number;
   track_window?: { current_track?: Track; next_tracks?: { id?: string | null; uri?: string }[] };
 } | null;
 
@@ -88,4 +99,9 @@ export interface PlayerControls {
   onPrevious: () => unknown;
   onSeek: (positionMs: number) => unknown;
   onVolumeChange?: (volumePercent: number) => unknown;
+  onToggleShuffle?: () => unknown;
+  onCycleRepeat?: () => unknown;
+  /** Whether the current track is in Liked Songs; null while unknown (then the heart is disabled). */
+  liked?: boolean | null;
+  onToggleLike?: () => unknown;
 }

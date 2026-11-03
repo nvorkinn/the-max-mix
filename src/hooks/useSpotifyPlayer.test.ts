@@ -295,6 +295,87 @@ describe('useSpotifyPlayer', () => {
     expect(mocks.api.setVolume).toHaveBeenCalledWith(46);
   });
 
+  it('toggles shuffle and steps repeat through Spotify, showing the new value at once', async () => {
+    mocks.api.getPlaybackState.mockReturnValue(new Promise(() => {}));
+    mocks.api.getPlaybackState.mockResolvedValueOnce({
+      device: { id: 'd' },
+      shuffle_state: false,
+      repeat_state: 'off'
+    });
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+
+    await act(async () => {
+      expect(await result.current.toggleShuffle()).toBe(true);
+    });
+    expect(mocks.api.setShuffle).toHaveBeenCalledWith(true);
+    expect(result.current.playbackState?.shuffle_state).toBe(true);
+
+    const repeatModes: string[] = [];
+    await act(async () => {
+      await result.current.cycleRepeat();
+    });
+    repeatModes.push(String(result.current.playbackState?.repeat_state));
+    await act(async () => {
+      await result.current.cycleRepeat();
+    });
+    repeatModes.push(String(result.current.playbackState?.repeat_state));
+    await act(async () => {
+      await result.current.cycleRepeat();
+    });
+    repeatModes.push(String(result.current.playbackState?.repeat_state));
+    expect(repeatModes).toEqual(['context', 'track', 'off']);
+    expect(mocks.api.setRepeat.mock.calls).toEqual([['context'], ['track'], ['off']]);
+  });
+
+  it('puts shuffle back and reports the error when Spotify refuses it', async () => {
+    mocks.api.getPlaybackState.mockReturnValue(new Promise(() => {}));
+    mocks.api.getPlaybackState.mockResolvedValueOnce({ device: { id: 'd' }, shuffle_state: false });
+    mocks.api.setShuffle.mockRejectedValue(new SpotifyApiError('Refused', 403));
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+
+    await act(async () => {
+      expect(await result.current.toggleShuffle()).toBe(false);
+    });
+    expect(result.current.playbackState?.shuffle_state).toBe(false);
+    expect(result.current.error).toBe('Refused');
+  });
+
+  it('looks up whether the track is liked and saves or removes it', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue({ device: { id: 'd' }, item: { id: 't1', uri: 'spotify:track:t1' } });
+    const { result } = renderHook(() => useSpotifyPlayer());
+    expect(result.current.liked).toBeNull();
+    await waitFor(() => expect(result.current.liked).toBe(false));
+    expect(mocks.api.isTrackSaved).toHaveBeenCalledWith('spotify:track:t1');
+
+    await act(async () => {
+      expect(await result.current.toggleLike()).toBe(true);
+    });
+    expect(mocks.api.setTrackSaved).toHaveBeenCalledWith('spotify:track:t1', true);
+    expect(result.current.liked).toBe(true);
+
+    mocks.api.setTrackSaved.mockRejectedValue(new Error('No library access'));
+    await act(async () => {
+      expect(await result.current.toggleLike()).toBe(false);
+    });
+    expect(result.current.liked).toBe(true);
+    expect(result.current.error).toBe('No library access');
+  });
+
+  it('leaves the heart unknown when the lookup fails or there is no track', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue({ device: { id: 'd' }, item: { id: 't1', uri: 'spotify:track:t1' } });
+    mocks.api.isTrackSaved.mockRejectedValue(new SpotifyApiError('Insufficient scope', 403));
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(mocks.api.isTrackSaved).toHaveBeenCalled());
+    await act(async () => {});
+    expect(result.current.liked).toBeNull();
+    await act(async () => {
+      expect(await result.current.toggleLike()).toBe(false);
+    });
+    expect(mocks.api.setTrackSaved).not.toHaveBeenCalled();
+  });
+
   it('transferPlayback rethrows after recording the error', async () => {
     mocks.api.getPlaybackState.mockResolvedValue({ device: { id: 'd' } });
     mocks.api.transferPlayback.mockRejectedValue(new Error('Transfer failed'));
