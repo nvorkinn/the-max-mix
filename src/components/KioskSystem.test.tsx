@@ -78,7 +78,9 @@ describe('KioskSystem', () => {
     expect(kiosk.updateKiosk).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'Tap again to update' }));
     expect(kiosk.updateKiosk).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('Updating…')).toBeInTheDocument();
+    expect(screen.getByText('Updating… this can take a few minutes.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Updating…' })).toBeDisabled();
+    expect(screen.getByLabelText('Update output')).toHaveTextContent('Starting the update…');
   });
 
   describe('while an update runs', () => {
@@ -93,7 +95,7 @@ describe('KioskSystem', () => {
     beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
     afterEach(() => vi.useRealTimers());
 
-    it('shows the latest line, writes each line once to the debug console and ends when done', async () => {
+    it('shows the output as it arrives, writes each line once to the debug console and ends when done', async () => {
       service.getUpdateStatus
         .mockResolvedValueOnce({ state: 'idle', lines: ['old'], total: 1 })
         .mockResolvedValueOnce({ state: 'running', lines: ['The latest release is v1.14.0'], total: 1 })
@@ -102,11 +104,14 @@ describe('KioskSystem', () => {
       await tap();
       await poll();
       await poll();
-      expect(screen.getByText('The latest release is v1.14.0')).toBeInTheDocument();
+      expect(screen.getByLabelText('Update output')).toHaveTextContent('The latest release is v1.14.0');
       await poll();
-      expect(screen.getByText('TASK [kiosk]')).toBeInTheDocument();
+      expect(screen.getByLabelText('Update output')).toHaveTextContent('The latest release is v1.14.0 TASK [kiosk]');
       await poll();
       expect(screen.getByText('Update finished. Nothing needed a restart.')).toBeInTheDocument();
+      // The output stays on screen after the update ends, and the Update button is usable again.
+      expect(screen.getByLabelText('Update output')).toHaveTextContent('TASK [kiosk]');
+      expect(screen.getByRole('button', { name: 'Update now' })).toBeEnabled();
       expect(debug.debugLog.mock.calls.map(call => String(call.at(2)))).toEqual([
         'The latest release is v1.14.0',
         'TASK [kiosk]'
@@ -125,6 +130,7 @@ describe('KioskSystem', () => {
       await tap();
       await poll();
       expect(screen.getByText('The update failed. fatal: could not resolve host')).toBeInTheDocument();
+      expect(screen.getByLabelText('Update output')).toHaveTextContent('fatal: could not resolve host');
     });
 
     it('says the kiosk is restarting when the service stops answering after it ran', async () => {
