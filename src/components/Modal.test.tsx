@@ -33,4 +33,26 @@ describe('Modal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(dialog).toHaveAttribute('open');
   });
+
+  it('closes on a click on the backdrop but not on the dialog box or its content', () => {
+    const onClose = vi.fn();
+    render(
+      <Modal labelledBy="title" onClose={onClose} className="app-modal-panel">
+        <h2 id="title">Settings</h2>
+      </Modal>
+    );
+    const dialog = screen.getByRole('dialog');
+    vi.spyOn(dialog, 'getBoundingClientRect').mockReturnValue({
+      left: 100,
+      right: 300,
+      top: 100,
+      bottom: 300
+    } as DOMRect);
+    fireEvent.click(screen.getByText('Settings'), { clientX: 50, clientY: 50 });
+    fireEvent.click(dialog, { clientX: 150, clientY: 150 });
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(dialog, { clientX: 50, clientY: 150 });
+    fireEvent.click(dialog, { clientX: 150, clientY: 350 });
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
 });

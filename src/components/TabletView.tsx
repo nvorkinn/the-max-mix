@@ -101,8 +101,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const debugHold = useHold(() => setIsDebugOpen(true), DEBUG_HOLD_MS);
   const [queueError, setQueueError] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [theme, setTheme] = useState(() => (localStorage.getItem('maxmix_theme') === 'minimal' ? 'minimal' : 'neon'));
   // Lyrics take the queue's place while shown; remembered so the kiosk comes back the way it was left.
   const [showLyrics, setShowLyrics] = useState(() => localStorage.getItem('maxmix_lyrics') === 'on');
   // AirPlay needs the Pi's audio service, so it is offered on the kiosk only.
@@ -129,12 +127,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const toggleLyrics = (show: boolean) => {
     setShowLyrics(show);
     localStorage.setItem('maxmix_lyrics', show ? 'on' : 'off');
-  };
-
-  const handleThemeChange = (newTheme: string) => {
-    setTheme(newTheme);
-    localStorage.setItem('maxmix_theme', newTheme);
-    showToast(`Appearance updated to ${newTheme === 'minimal' ? 'Paper' : 'Studio'}`);
   };
 
   const [palette, setPalette] = useState({
@@ -240,15 +232,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     }
   }, [artUrl]);
 
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => () => clearTimeout(toastTimerRef.current), []);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setToastMessage(null), 3500);
-  };
-
   const showSettings = () => setIsSettingsOpen(true);
   const chooseSpeaker = () => setIsSpeakerModalOpen(true);
   const recoverPlayback = async (action: () => Promise<boolean>) => {
@@ -308,7 +291,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   return (
     <div
       className="tablet-container"
-      data-theme={theme}
       style={
         {
           '--ambient-primary': palette.primary,
@@ -437,12 +419,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         <span>POWERED BY SPOTIFY</span>
       </footer>
 
-      {toastMessage && !isSettingsOpen && (
-        <div className="app-toast" role="status">
-          {toastMessage}
-        </div>
-      )}
-
       <SpeakerSelectorModal
         isOpen={isSpeakerModalOpen}
         onClose={() => setIsSpeakerModalOpen(false)}
@@ -482,9 +458,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           playbackMode
         }}
         signInError={signInError || (playerProblem?.recovery === 'sign-in' ? playerProblem.message : null)}
-        currentTheme={theme}
-        onThemeChange={handleThemeChange}
-        statusMessage={toastMessage}
         screenSleep={screenSleepMinutes}
         onScreenSleepChange={changeScreenSleep}
       />

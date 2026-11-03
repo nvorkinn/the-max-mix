@@ -53,7 +53,7 @@
   }
   body {
     margin: 0;
-    background: #101210;
+    background: #f1f1e9;
     font-family: 'Plus Jakarta Sans', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
   }
   button,
@@ -72,36 +72,6 @@
 }
 
 .tablet-container {
-  --accent: #d5f580;
-  --accent-ink: #202719;
-  --accent-soft: rgb(213 245 128 / 7%);
-  --surface: #191c19;
-  --surface-raised: #202420;
-  --page: #101210;
-  --ink: #f2f3ed;
-  --muted: #9aa194;
-  --border: rgb(215 225 205 / 10%);
-  --focus: #d5f580;
-  --success: #86efac;
-  --warning: #fcd34d;
-  --danger: #fda4af;
-  --spotify-brand: #1db954;
-  --spotify-brand-ink: #000;
-  width: 100%;
-  min-height: 100svh;
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  position: relative;
-  isolation: isolate;
-  user-select: none;
-  background: var(--page);
-  color: var(--ink);
-  color-scheme: dark;
-}
-
-.tablet-container[data-theme='minimal'] {
   --accent: #293a27;
   --accent-ink: #fff;
   --accent-soft: rgb(41 58 39 / 5%);
@@ -115,24 +85,22 @@
   --success: #166534;
   --warning: #854d0e;
   --danger: #9f1239;
+  --spotify-brand: #1db954;
+  --spotify-brand-ink: #000;
+  width: 100%;
+  min-height: 100svh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  isolation: isolate;
+  user-select: none;
+  background: var(--page);
+  color: var(--ink);
   color-scheme: light;
 }
 
-.tablet-container::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.13;
-  background:
-    radial-gradient(ellipse at 10% 50%, var(--ambient-primary), transparent 55%),
-    radial-gradient(ellipse at 85% 0%, var(--ambient-secondary), transparent 50%);
-}
-
-.tablet-container[data-theme='minimal']::before {
-  display: none;
-}
 .app-header {
   min-height: 82px;
   padding: 0 30px;
@@ -800,22 +768,6 @@
   touch-action: manipulation;
   -webkit-touch-callout: none;
 }
-.app-toast {
-  position: fixed;
-  top: 92px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 60;
-  max-width: calc(100% - 32px);
-  width: max-content;
-  padding: 12px 18px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-radius: 12px;
-  box-shadow: 0 10px 40px #0004;
-  font-size: 12px;
-  font-weight: 600;
-}
 .app-dialog {
   margin: auto;
   width: calc(100% - 32px);
@@ -832,6 +784,14 @@
 }
 body:has(.app-dialog[open]) {
   overflow: hidden;
+}
+.app-modal-panel .modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: -24px -24px 12px;
+  padding: 24px 24px 12px;
+  background: var(--surface);
 }
 .app-modal-panel {
   background: var(--surface);
@@ -867,16 +827,6 @@ body:has(.app-dialog[open]) {
 .modal-option[aria-pressed='true'] {
   background: var(--accent-soft);
   border-color: var(--accent);
-}
-.appearance-indicator {
-  border-color: var(--muted);
-}
-[aria-pressed='true'] .appearance-indicator {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-.appearance-indicator > div {
-  background: var(--accent-ink);
 }
 .modal-divider {
   border-color: var(--border);

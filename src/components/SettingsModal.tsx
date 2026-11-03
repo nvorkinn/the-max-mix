@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Settings, Music, CheckCircle2, AlertCircle, Palette, Sparkles, Feather, LogOut, Wifi } from 'lucide-react';
+import { X, Settings, Music, CheckCircle2, AlertCircle, LogOut, Wifi } from 'lucide-react';
 import { signOut, startSignIn } from '../spotify/auth';
 import { errorMessage } from '../utils/errorMessage';
 import { isKiosk, openWifiSettings } from '../utils/kiosk';
@@ -49,9 +49,6 @@ interface SettingsModalProps {
   authInfo?: { authenticated?: boolean; playbackMode?: string | undefined };
   signInError?: string | null;
   onReload?: () => void;
-  currentTheme?: string;
-  onThemeChange?: (theme: string) => void;
-  statusMessage?: string | null;
   /** The kiosk's screen sleep delay, shown on the kiosk only. */
   screenSleep?: ScreenSleepMinutes;
   onScreenSleepChange?: (minutes: ScreenSleepMinutes) => void;
@@ -62,9 +59,6 @@ function SettingsContent({
   authInfo,
   signInError = null,
   onReload = reloadSettings,
-  currentTheme = 'neon',
-  onThemeChange,
-  statusMessage,
   screenSleep,
   onScreenSleepChange
 }: Readonly<SettingsModalProps>) {
@@ -101,23 +95,6 @@ function SettingsContent({
   if (checkingPlayback) browserDescription = 'Checking browser playback support...';
   else if (cannotPlay) browserDescription = `Unavailable: ${cannotPlay}`;
 
-  const THEMES = [
-    {
-      id: 'neon',
-      name: 'Studio',
-      badge: 'Signature',
-      desc: 'Soft charcoal, fresh lime accents, and an album-inspired atmosphere',
-      icon: <Sparkles className="w-4 h-4 text-accent" />
-    },
-    {
-      id: 'minimal',
-      name: 'Paper',
-      badge: 'Light',
-      desc: 'Warm paper surfaces, forest-green accents, and understated contrast',
-      icon: <Feather className="w-4 h-4 text-accent" />
-    }
-  ];
-
   const error = actionError || signInError;
 
   let spotifyStatus = 'Sign in with a Spotify Premium account to control a real device.';
@@ -129,20 +106,21 @@ function SettingsContent({
       onClose={onClose}
       className="app-modal-panel border rounded-3xl p-6 max-w-md relative shadow-2xl text-left select-none"
     >
-      <button
-        type="button"
-        data-modal-autofocus
-        onClick={onClose}
-        aria-label="Close settings"
-        className="modal-icon-button absolute top-4 right-4 w-11 h-11 rounded-full active:scale-90 flex items-center justify-center transition-all"
-      >
-        <X className="w-5 h-5" />
-      </button>
-
-      <h3 id="settings-title" className="text-lg font-semibold flex items-center gap-2 mb-1 pr-12">
-        <Settings className="w-5 h-5 text-accent" />
-        Settings
-      </h3>
+      <div className="modal-header mb-1 flex items-center justify-between gap-2">
+        <h3 id="settings-title" className="text-lg font-semibold flex items-center gap-2">
+          <Settings className="w-5 h-5 text-accent" />
+          Settings
+        </h3>
+        <button
+          type="button"
+          data-modal-autofocus
+          onClick={onClose}
+          aria-label="Close settings"
+          className="modal-icon-button w-11 h-11 rounded-full active:scale-90 flex items-center justify-center transition-all"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
       <p className="text-xs text-muted mb-4">Connect Spotify and choose where this tablet plays.</p>
 
       <div className="modal-card p-3.5 rounded-2xl border mb-4 space-y-2">
@@ -269,43 +247,9 @@ function SettingsContent({
         {isKiosk() && <KioskSystem />}
       </div>
 
-      <div className="mt-5 space-y-2">
-        <div className="flex items-center gap-1.5 text-xs font-bold text-muted">
-          <Palette className="w-3.5 h-3.5 text-accent" />
-          <span>APPEARANCE</span>
-        </div>
-        {THEMES.map(theme => (
-          <button
-            type="button"
-            key={theme.id}
-            aria-pressed={currentTheme === theme.id}
-            onClick={() => onThemeChange?.(theme.id)}
-            className="modal-option p-3 rounded-2xl text-left transition-all border flex items-center justify-between w-full"
-          >
-            <div className="flex items-center gap-3">
-              <div className="modal-card w-9 h-9 rounded-xl border flex items-center justify-center">{theme.icon}</div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold">{theme.name}</span>
-                  <span className="modal-badge text-[9px] uppercase font-bold px-1.5 rounded-full">{theme.badge}</span>
-                </div>
-                <p className="text-[10px] text-muted mt-0.5">{theme.desc}</p>
-              </div>
-            </div>
-            <div className="appearance-indicator w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0">
-              {currentTheme === theme.id && <div className="w-1.5 h-1.5 rounded-full" />}
-            </div>
-          </button>
-        ))}
-      </div>
       <p className="mt-5 text-center text-[10px] text-muted">
         Version <span className="font-mono">{APP_VERSION}</span>
       </p>
-      {statusMessage && (
-        <div className="app-toast" role="status">
-          {statusMessage}
-        </div>
-      )}
     </Modal>
   );
 }
