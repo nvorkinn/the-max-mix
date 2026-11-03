@@ -79,6 +79,48 @@ describe('AlbumArtPlayer', () => {
     expect(h.onNext).toHaveBeenCalled();
   });
 
+  describe('shuffle, repeat and like', () => {
+    const modes = () => ({ onToggleShuffle: vi.fn(), onCycleRepeat: vi.fn(), onToggleLike: vi.fn() });
+
+    it('shows the current settings and sends a press', () => {
+      const h = modes();
+      setup({ ...h, liked: true, playback: { ...playback, shuffle_state: true, repeat_state: 'track' } });
+      const shuffle = screen.getByRole('button', { name: 'Shuffle' });
+      expect(shuffle).toHaveAttribute('aria-pressed', 'true');
+      fireEvent.click(shuffle);
+      fireEvent.click(screen.getByRole('button', { name: 'Repeat one' }));
+      const heart = screen.getByRole('button', { name: 'Save to Liked Songs' });
+      expect(heart).toHaveAttribute('aria-pressed', 'true');
+      expect(heart).toHaveAttribute('title', 'Remove from Liked Songs');
+      fireEvent.click(heart);
+      expect(h.onToggleShuffle).toHaveBeenCalledTimes(1);
+      expect(h.onCycleRepeat).toHaveBeenCalledTimes(1);
+      expect(h.onToggleLike).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows shuffle and repeat off, and disables what Spotify or an unknown like state rule out', () => {
+      setup({
+        ...modes(),
+        liked: null,
+        playback: {
+          ...playback,
+          repeat_state: 'off',
+          actions: { disallows: { toggling_shuffle: true, toggling_repeat_context: true, toggling_repeat_track: true } }
+        }
+      });
+      expect(screen.getByRole('button', { name: 'Shuffle' })).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByRole('button', { name: 'Shuffle' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Repeat off' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Save to Liked Songs' })).toBeDisabled();
+    });
+
+    it('shows repeat all', () => {
+      setup({ ...modes(), liked: false, playback: { ...playback, repeat_state: 'context' } });
+      expect(screen.getByRole('button', { name: 'Repeat all' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Save to Liked Songs' })).toHaveAttribute('aria-pressed', 'false');
+    });
+  });
+
   describe('previous track', () => {
     const press = () => fireEvent.click(screen.getByRole('button', { name: 'Previous track' }));
 

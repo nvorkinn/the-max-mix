@@ -108,6 +108,14 @@ describe('spotify/parse', () => {
       });
     });
 
+    it('keeps the shuffle and repeat settings and drops an unknown repeat mode', () => {
+      expect(parsePlaybackState({ shuffle_state: true, repeat_state: 'track' })).toEqual({
+        shuffle_state: true,
+        repeat_state: 'track'
+      });
+      expect(parsePlaybackState({ shuffle_state: 'yes', repeat_state: 'forever' })).toEqual({});
+    });
+
     it('treats a null item (an ad) and an invalid device as missing', () => {
       expect(parsePlaybackState({ is_playing: false, item: null, device: { id: 1 } })).toEqual({ is_playing: false });
     });
