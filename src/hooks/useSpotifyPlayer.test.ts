@@ -326,12 +326,13 @@ describe('useSpotifyPlayer', () => {
     await waitFor(() => expect(result.current.isReady).toBe(true));
 
     let first: Promise<boolean> | undefined;
-    // The first request reaches the API a few microtasks later (after the SDK check), so act flushes them.
-    await act(async () => {
+    act(() => {
       first = result.current.setVolume(0.4);
       void result.current.setVolume(0.5);
       void result.current.setVolume(0.6);
     });
+    // The first request reaches the API a few microtasks later (after the SDK check).
+    await act(async () => {});
     expect(result.current.playbackState?.device?.volume_percent).toBe(60);
     expect(mocks.api.setVolume).toHaveBeenCalledTimes(1);
     await act(async () => {
