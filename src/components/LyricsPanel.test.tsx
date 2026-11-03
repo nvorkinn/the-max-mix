@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { clearLyricsCache } from '../hooks/useLyrics';
 import type { Lyrics, LyricsProvider } from '../lyrics/types';
@@ -24,6 +24,7 @@ function renderPanel(props: Partial<Parameters<typeof LyricsPanel>[0]> = {}) {
 }
 
 beforeEach(() => clearLyricsCache());
+afterEach(() => vi.useRealTimers());
 
 describe('LyricsPanel', () => {
   it('asks the provider for the current track and highlights the line being sung', async () => {
@@ -65,6 +66,7 @@ describe('LyricsPanel', () => {
   it.each(['wheel', 'touch', 'scrollbar', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '])(
     'pauses following on %s input and resumes at the current line',
     async input => {
+      vi.useFakeTimers();
       const provider = providerOf(synced);
       const { rerender } = renderPanel({ provider, progressMs: 1500 });
       await flush();
@@ -84,13 +86,14 @@ describe('LyricsPanel', () => {
       rerender(<LyricsPanel track={track} progressMs={4200} provider={provider} />);
       expect(list.scrollTop).toBe(17);
       expect(screen.getAllByRole('listitem')[3]).toHaveAttribute('aria-current', 'true');
-      expect(screen.getByText('Reading lyrics')).toBeInTheDocument();
+      expect(list).toHaveAttribute('data-following', 'false');
 
-      fireEvent.click(screen.getByRole('button', { name: 'Follow song' }));
+      // Left alone for a few seconds, the lyrics follow the song again.
+      act(() => {
+        vi.advanceTimersByTime(8000);
+      });
+      expect(list).toHaveAttribute('data-following', 'true');
       expect(list.scrollTop).toBe(260);
-      expect(list).toHaveFocus();
-      expect(screen.getByText('Follows the song')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Follow song' })).not.toBeInTheDocument();
     }
   );
 
@@ -99,8 +102,7 @@ describe('LyricsPanel', () => {
     await flush();
     fireEvent.scroll(screen.getByRole('list'));
     fireEvent.keyDown(screen.getByRole('list'), { key: 'Tab' });
-    expect(screen.getByText('Follows the song')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Follow song' })).not.toBeInTheDocument();
+    expect(screen.getByRole('list')).toHaveAttribute('data-following', 'true');
   });
 
   it.each([
@@ -114,13 +116,13 @@ describe('LyricsPanel', () => {
     const { rerender } = renderPanel({ provider, track: previous });
     await flush();
     fireEvent.wheel(screen.getByRole('list'), { deltaY: 100 });
-    expect(screen.getByText('Reading lyrics')).toBeInTheDocument();
+    expect(screen.getByRole('list')).toHaveAttribute('data-following', 'false');
     rerender(<LyricsPanel track={next} progressMs={0} provider={provider} />);
     await flush();
-    expect(screen.getByText('Follows the song')).toBeInTheDocument();
+    expect(screen.getByRole('list')).toHaveAttribute('data-following', 'true');
     rerender(<LyricsPanel track={previous} progressMs={0} provider={provider} />);
     await flush();
-    expect(screen.getByText('Follows the song')).toBeInTheDocument();
+    expect(screen.getByRole('list')).toHaveAttribute('data-following', 'true');
   });
 
   it('shows plain lyrics without following the song', async () => {
@@ -130,14 +132,11 @@ describe('LyricsPanel', () => {
     const lines = screen.getAllByRole('listitem');
     expect(lines.map(line => line.textContent)).toEqual(['Plain placeholder', '\u{A0}']);
     expect(lines[0]).not.toHaveAttribute('aria-current');
-    expect(screen.getByText('Not time-synced')).toBeInTheDocument();
-    expect(screen.getByText('Lyrics from Test')).toBeInTheDocument();
     const list = screen.getByRole('list');
     list.scrollTop = 17;
     fireEvent.wheel(list, { deltaY: 100 });
     rerender(<LyricsPanel track={track} progressMs={4200} provider={provider} />);
     expect(list.scrollTop).toBe(17);
-    expect(screen.queryByRole('button', { name: 'Follow song' })).not.toBeInTheDocument();
   });
 
   it.each([
@@ -147,8 +146,6 @@ describe('LyricsPanel', () => {
     renderPanel({ provider: providerOf(result) });
     await flush();
     expect(screen.getByRole('heading', { name: message })).toBeInTheDocument();
-    expect(screen.queryByText('Follows the song')).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'LRCLIB' })).not.toBeInTheDocument();
   });
 
   it('asks for something to play when there is no track', () => {
@@ -156,9 +153,6 @@ describe('LyricsPanel', () => {
     renderPanel({ provider, track: undefined });
     expect(screen.getByRole('heading', { name: 'Nothing to sing along to yet.' })).toBeInTheDocument();
     expect(provider).not.toHaveBeenCalled();
-    expect(screen.getByText('Play a song to see lyrics')).toBeInTheDocument();
-    expect(screen.queryByText('Follows the song')).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'LRCLIB' })).not.toBeInTheDocument();
   });
 
   it('looks a track without an id up by title and artist', async () => {
@@ -176,21 +170,16 @@ describe('LyricsPanel', () => {
     renderPanel({ provider });
     await flush();
     expect(screen.getByRole('alert')).toHaveTextContent('Could not reach the lyrics service.');
-    expect(screen.getByText('Lyrics unavailable')).toBeInTheDocument();
-    expect(screen.queryByText('Follows the song')).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'LRCLIB' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     await flush();
     expect(provider).toHaveBeenCalledTimes(2);
     expect(screen.getAllByRole('listitem')).toHaveLength(4);
   });
 
-  it('does not claim following or source attribution while looking up lyrics', () => {
+  it('says it is looking while looking up lyrics', () => {
     const provider = vi.fn<LyricsProvider>().mockImplementation(() => new Promise(() => {}));
     renderPanel({ provider });
-    expect(screen.getByText('Looking for lyrics')).toBeInTheDocument();
-    expect(screen.queryByText('Follows the song')).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'LRCLIB' })).not.toBeInTheDocument();
+    expect(screen.getByText('Looking for the lyrics...')).toBeInTheDocument();
   });
 
   it('drops the answer for a track that is no longer playing', async () => {

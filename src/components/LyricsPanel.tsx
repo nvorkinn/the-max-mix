@@ -21,6 +21,9 @@ function lineKeys(lines: readonly string[]): string[] {
   });
 }
 
+/** After this long without touching the lyrics, they follow the song again. */
+const FOLLOW_RESUME_MS = 8000;
+
 function EmptyState({ title, text }: Readonly<{ title: string; text: string }>) {
   return (
     <div className="queue-empty">
@@ -42,7 +45,13 @@ function LyricsPanelContent({ track, progressMs, provider }: Readonly<LyricsPane
   useEffect(() => {
     const list = listRef.current;
     if (!list || lyrics?.kind !== 'synced') return;
-    const pauseFollow = () => setIsFollowing(false);
+    let resumeTimer: ReturnType<typeof setTimeout> | undefined;
+    // Reading pauses the following; leaving the lyrics alone for a while picks it up again.
+    const pauseFollow = () => {
+      setIsFollowing(false);
+      clearTimeout(resumeTimer);
+      resumeTimer = setTimeout(() => setIsFollowing(true), FOLLOW_RESUME_MS);
+    };
     const onKeyDown = (event: KeyboardEvent) => {
       if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) pauseFollow();
     };
@@ -50,6 +59,7 @@ function LyricsPanelContent({ track, progressMs, provider }: Readonly<LyricsPane
     list.addEventListener('pointerdown', pauseFollow);
     list.addEventListener('keydown', onKeyDown);
     return () => {
+      clearTimeout(resumeTimer);
       list.removeEventListener('wheel', pauseFollow);
       list.removeEventListener('pointerdown', pauseFollow);
       list.removeEventListener('keydown', onKeyDown);
@@ -63,20 +73,6 @@ function LyricsPanelContent({ track, progressMs, provider }: Readonly<LyricsPane
     if (!isFollowing || !list || lyrics?.kind !== 'synced' || !(line instanceof HTMLElement)) return;
     list.scrollTop = line.offsetTop - list.clientHeight / 2 + line.clientHeight / 2;
   }, [active, lyrics, isFollowing]);
-
-  const followStatus = lyrics
-    ? {
-        plain: 'Not time-synced',
-        instrumental: 'Instrumental',
-        synced: isFollowing ? 'Follows the song' : 'Reading lyrics'
-      }[lyrics.kind]
-    : {
-        idle: 'Play a song to see lyrics',
-        loading: 'Looking for lyrics',
-        missing: 'Lyrics unavailable',
-        error: 'Lyrics unavailable',
-        ready: 'Lyrics unavailable'
-      }[status];
 
   const body = () => {
     switch (status) {
@@ -136,35 +132,6 @@ function LyricsPanelContent({ track, progressMs, provider }: Readonly<LyricsPane
   return (
     <div className="lyrics-panel" role="region" aria-label="Lyrics">
       {body()}
-      <div className="queue-footer">
-        <span aria-live="polite">{followStatus}</span>
-        {lyrics?.kind === 'synced' && !isFollowing && (
-          <button
-            type="button"
-            className="button button-secondary"
-            onClick={() => {
-              setIsFollowing(true);
-              listRef.current?.focus({ preventScroll: true });
-            }}
-          >
-            <RotateCcw size={14} /> Follow song
-          </button>
-        )}
-        {lyrics && (
-          <span>
-            {lyrics.source === 'LRCLIB' ? (
-              <>
-                Lyrics from{' '}
-                <a href="https://lrclib.net" target="_blank" rel="noreferrer">
-                  LRCLIB
-                </a>
-              </>
-            ) : (
-              `Lyrics from ${lyrics.source}`
-            )}
-          </span>
-        )}
-      </div>
     </div>
   );
 }

@@ -232,7 +232,7 @@
   the room is tall, which keeps the artwork square on any kiosk height.
 */
 .listening-room:not(.is-setup) {
-  --bar-height: 108px;
+  --bar-height: 100px;
   --row-gap: 14px;
   --room-padding-y: 32px;
   padding-block: 16px;
@@ -270,15 +270,12 @@
 .listening-room:not(.is-setup) .player-controls {
   grid-area: bar;
   margin: 0;
-  padding: 4px 22px;
+  padding: 0;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   grid-template-rows: auto 1fr;
   align-items: center;
   column-gap: 16px;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  background: var(--surface);
 }
 .listening-room:not(.is-setup) .seek-control {
   grid-column: 1 / -1;
@@ -401,9 +398,6 @@
   min-height: 0;
   padding: 14px 60px 10px 18px;
   background: var(--surface);
-}
-.lyrics-panel .queue-footer {
-  margin-top: 6px;
 }
 .album-cover {
   position: absolute;
@@ -705,18 +699,6 @@
   color: var(--muted);
   margin: 0 5px;
 }
-.queue-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--muted);
-}
 .queue-empty {
   flex: 1;
   min-height: 130px;
@@ -929,14 +911,6 @@ body:has(.app-dialog[open]) {
   color: var(--ink);
   opacity: 1;
   font-size: 21px;
-}
-.lyrics-panel .queue-footer a {
-  color: inherit;
-  text-decoration: underline;
-  display: inline-flex;
-  align-items: center;
-  min-width: 44px;
-  min-height: 44px;
 }
 .queue-error {
   color: #fda4af;
