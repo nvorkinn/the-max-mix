@@ -18,6 +18,13 @@ export default {
     // them to satisfy this heuristic risks changing which declaration wins, so it is not enforced.
     'no-descending-specificity': null,
     // Tailwind documents `@import 'tailwindcss';` (a string), not the `url()` notation this rule would demand.
-    'import-notation': 'string'
+    'import-notation': 'string',
+    // !important escalates specificity wars; the few justified uses carry a disable comment explaining why.
+    'declaration-no-important': true,
+    // Ids and long selector chains make rules hard to override and tie CSS to markup structure.
+    'selector-max-id': 0,
+    'selector-max-compound-selectors': 4,
+    // Colours come from hex or the design tokens, never CSS keywords such as `red`.
+    'color-named': 'never'
   }
 };

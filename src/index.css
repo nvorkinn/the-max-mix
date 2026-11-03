@@ -177,10 +177,6 @@
   padding: 0 15px;
   white-space: nowrap;
 }
-.button-primary {
-  color: var(--accent-ink);
-  background: var(--accent);
-}
 .button-secondary,
 .icon-button {
   border: 1px solid var(--border);
@@ -190,9 +186,6 @@
 .button-secondary:hover,
 .icon-button:hover {
   background: var(--surface-raised);
-}
-.button-primary:hover {
-  filter: brightness(1.08);
 }
 .button:active,
 .icon-button:active,
@@ -219,6 +212,7 @@
 /* The kiosk's touch screen (?cursor=hidden, see utils/kiosk.ts): no mouse pointer, whatever an element asks for. */
 .hide-cursor,
 .hide-cursor * {
+  /* stylelint-disable-next-line declaration-no-important -- must beat every element's own cursor rule */
   cursor: none !important;
 }
 
@@ -268,40 +262,6 @@
 .spotify-setup .button + p {
   margin-top: 6px;
   font-size: 12px;
-}
-.playback-choice {
-  display: flex;
-  align-items: start;
-  gap: 12px;
-  padding: 12px;
-  min-height: 64px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  cursor: pointer;
-}
-.playback-choice input {
-  margin-top: 3px;
-  accent-color: var(--accent);
-}
-.playback-choice:has(input:checked) {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-.playback-choice:has(input:disabled) {
-  cursor: not-allowed;
-}
-.eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 1.8px;
-  font-weight: 650;
-  color: var(--muted);
-}
-.eyebrow svg {
-  color: var(--accent);
 }
 .now-playing {
   height: 100%;
@@ -809,13 +769,9 @@ body:has(.app-dialog[open]) {
   color: var(--accent);
 }
 .modal-card,
-.modal-badge,
 .modal-icon-button {
   background: var(--surface-raised);
   border-color: var(--border);
-}
-.modal-badge {
-  color: var(--muted);
 }
 .modal-option {
   background: var(--surface);
@@ -823,8 +779,7 @@ body:has(.app-dialog[open]) {
   color: var(--ink);
 }
 .modal-option:hover,
-.modal-icon-button:hover,
-.modal-segment:hover {
+.modal-icon-button:hover {
   background: var(--surface-raised);
 }
 .modal-option[aria-pressed='true'] {
@@ -833,13 +788,6 @@ body:has(.app-dialog[open]) {
 }
 .modal-divider {
   border-color: var(--border);
-}
-.modal-segment {
-  color: var(--muted);
-}
-.modal-segment[aria-pressed='true'] {
-  background: var(--accent);
-  color: var(--accent-ink);
 }
 .status-success {
   color: var(--success);
@@ -986,10 +934,6 @@ input:disabled {
   }
   .queue-duration {
     display: none;
-  }
-  .queue-heading .eyebrow {
-    font-size: 8px;
-    letter-spacing: 1.2px;
   }
 }
 
@@ -1143,6 +1087,7 @@ input:disabled {
   color: #fda4af;
 }
 
+/* stylelint-disable declaration-no-important -- reduced motion has to beat every component's own durations */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1153,6 +1098,7 @@ input:disabled {
     scroll-behavior: auto !important;
   }
 }
+/* stylelint-enable declaration-no-important */
 
 /* The kiosk's sleep screen (components/SleepScreen.tsx): black over everything, catching the tap that wakes it. */
 .sleep-screen {
