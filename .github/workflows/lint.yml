@@ -27,6 +27,7 @@ jobs:
             lint:md,
             lint:yaml,
             lint:css,
+            lint:unused-css,
             lint:package-json,
             lint:lockfiles
           ]
