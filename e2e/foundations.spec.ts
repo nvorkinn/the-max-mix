@@ -56,7 +56,7 @@ for (const viewport of [{ width: 1024, height: 600 }]) {
     await page.keyboard.press('Escape');
     await expect(settings).toBeHidden();
 
-    await page.getByRole('button', { name: 'Choose speakers' }).click();
+    await page.getByRole('button', { name: /^Speakers:/ }).click();
     const speakers = page.getByRole('dialog', { name: 'Speakers' });
     await expect(speakers.getByRole('button', { name: /Test speaker/ })).toBeVisible();
     await expectTouchTargets(speakers);
@@ -86,21 +86,27 @@ test('settings contain keyboard focus, wrap both ways and restore the trigger', 
   await expect(trigger).toBeFocused();
 });
 
-test('speakers wrap focus after devices load and restore focus on close', async ({ page }) => {
+test('the speakers drawer takes focus when opened and gives it back on Escape', async ({ page }) => {
   await page.goto('/');
-  const trigger = page.getByRole('button', { name: 'Choose a Spotify Connect device' });
+  const trigger = page.getByRole('button', { name: /^Speakers:/ });
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
   const speakers = page.getByRole('dialog', { name: 'Speakers' });
-  const device = speakers.getByRole('button', { name: /Test speaker/ });
-  await expect(device).toBeVisible();
-  await device.focus();
-  await page.keyboard.press('Tab');
-  await expect(speakers.getByRole('button', { name: 'Refresh devices' })).toBeFocused();
-  await page.keyboard.press('Shift+Tab');
-  await expect(device).toBeFocused();
+  await expect(speakers.getByRole('button', { name: /Test speaker/ })).toBeVisible();
+  await expect(speakers.getByRole('button', { name: 'Close speakers' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(speakers).toBeHidden();
   await expect(trigger).toBeFocused();
+});
+
+test('tapping outside the speakers drawer closes it', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /^Speakers:/ }).click();
+  const speakers = page.getByRole('dialog', { name: 'Speakers' });
+  await expect(speakers).toBeVisible();
+  await page.mouse.click(900, 300);
+  await expect(speakers).toBeHidden();
 });
 
 test('Escape dismisses only the topmost dialog and restores the underlying focus', async ({ page }) => {
