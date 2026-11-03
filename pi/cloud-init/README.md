@@ -89,8 +89,9 @@ The playbook also sets, among other things:
 ## Maintenance over SSH
 
 The `admin` account has no password, so the only way in is SSH with a key: `ssh admin@the-max-mix.local`. Its keys are
-the public keys of the GitHub account in `kiosk_admin_github_user` (`https://github.com/nvorkinn.keys`), which every
-pull fetches again, so add your key on GitHub (Settings > SSH and GPG keys) and it reaches the Pi at its next pull.
+the public keys of the GitHub account in `kiosk_admin_github_user` (`https://github.com/nvorkinn.keys`), which a
+pull fetches again when the keys on the Pi are over a day old (`kiosk_admin_keys_max_age_hours`), so add your key on GitHub
+(Settings > SSH and GPG keys) and it reaches the Pi at the first pull after that.
 `admin` uses `sudo` without a password. Password and root logins are off (`/etc/ssh/sshd_config.d/10-kiosk.conf`). Set
 `kiosk_ssh_enabled: false` to turn SSH off.
 
