@@ -297,7 +297,11 @@ describe('useSpotifyPlayer', () => {
 
   it('toggles shuffle and steps repeat through Spotify, showing the new value at once', async () => {
     mocks.api.getPlaybackState.mockReturnValue(new Promise(() => {}));
-    mocks.api.getPlaybackState.mockResolvedValueOnce({ device: { id: 'd' }, shuffle_state: false, repeat_state: 'off' });
+    mocks.api.getPlaybackState.mockResolvedValueOnce({
+      device: { id: 'd' },
+      shuffle_state: false,
+      repeat_state: 'off'
+    });
     const { result } = renderHook(() => useSpotifyPlayer());
     await waitFor(() => expect(result.current.isReady).toBe(true));
 
