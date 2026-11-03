@@ -58,6 +58,15 @@ test('next and previous change the current track', async ({ page }) => {
   await expect(upcoming(page)).toContainText('Starboy');
 });
 
+test('tapping a queued song plays it and drops the songs before it from the queue', async ({ page }) => {
+  await page.goto('/');
+  await upcoming(page).getByRole('button', { name: 'Play Music Sounds Better with You by Stardust' }).click();
+  await expect(nowPlaying(page)).toContainText('Music Sounds Better with You');
+  await expect(upcoming(page)).not.toContainText('Starboy');
+  await expect(upcoming(page)).not.toContainText('Levitating');
+  await expect(upcoming(page)).toContainText('Midnight City');
+});
+
 test('settings modal opens and closes', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open settings' }).click();

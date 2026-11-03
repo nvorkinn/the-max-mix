@@ -12,6 +12,7 @@ const player = vi.hoisted(() => {
       Record<
         | 'togglePlay'
         | 'nextTrack'
+        | 'skipAhead'
         | 'previousTrack'
         | 'setVolume'
         | 'seek'
@@ -70,6 +71,7 @@ function setPlayer(overrides: Record<string, unknown> = {}) {
     refreshPlayback: vi.fn().mockResolvedValue(undefined),
     togglePlay: vi.fn(),
     nextTrack: vi.fn(),
+    skipAhead: vi.fn().mockResolvedValue(true),
     previousTrack: vi.fn(),
     seek: vi.fn(),
     setVolume: vi.fn(),
@@ -187,6 +189,33 @@ describe('TabletView', () => {
     expect(screen.getAllByText('Kitchen').length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Queued One' })).toBeInTheDocument();
     expect(api.getQueue).toHaveBeenCalled();
+  });
+
+  it('plays a tapped queue song by skipping past the ones before it, once at a time', async () => {
+    let finish = () => {};
+    api.getQueue.mockResolvedValue({
+      queue: [...queued, { id: 'q2', name: 'Queued Two', artists: [{ name: 'Q' }], duration_ms: 1000 }]
+    });
+    setPlayer({
+      skipAhead: vi.fn(
+        () =>
+          new Promise<boolean>(resolve => {
+            finish = () => resolve(true);
+          })
+      )
+    });
+    render(<TabletView />);
+    await flush();
+    const second = screen.getByRole('button', { name: 'Play Queued Two by Q' });
+    fireEvent.click(second);
+    expect(player.current.skipAhead).toHaveBeenCalledExactlyOnceWith(2);
+    // While the jump runs, the rows cannot be tapped again.
+    expect(second).toBeDisabled();
+    act(() => {
+      finish();
+    });
+    await flush();
+    expect(second).toBeEnabled();
   });
 
   it('applies the extracted album palette to the container', async () => {

@@ -88,6 +88,8 @@ export interface UseSpotifyPlayer {
   clearError: () => void;
   togglePlay: () => Promise<boolean>;
   nextTrack: () => Promise<boolean>;
+  /** Skips forward this many songs, one after the other, stopping at the first that fails. */
+  skipAhead: (steps: number) => Promise<boolean>;
   previousTrack: () => Promise<boolean>;
   seek: (position: number) => Promise<boolean>;
   setVolume: (volume: number) => Promise<boolean>;
@@ -608,6 +610,12 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     }
   };
 
+  const nextTrack = () =>
+    transport(
+      player => player.nextTrack(),
+      () => spotify.next()
+    );
+
   const problem = actionError ?? connectionError ?? sdkError;
   return {
     playbackState,
@@ -623,11 +631,15 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     problem,
     clearError: () => setActionError(null),
     togglePlay,
-    nextTrack: () =>
-      transport(
-        player => player.nextTrack(),
-        () => spotify.next()
-      ),
+    nextTrack,
+    skipAhead: async (steps: number) => {
+      for (let step = 0; step < steps; step++) {
+        // Each skip must land before the next, so the loop waits on every one.
+        // eslint-disable-next-line no-await-in-loop
+        if (!(await nextTrack())) return false;
+      }
+      return true;
+    },
     previousTrack: () =>
       transport(
         player => player.previousTrack(),

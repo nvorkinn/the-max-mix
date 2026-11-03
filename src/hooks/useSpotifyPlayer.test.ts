@@ -184,6 +184,27 @@ describe('useSpotifyPlayer', () => {
     expect(result.current.error).toBeNull();
   });
 
+  it('skips ahead one song at a time and stops at the first skip that fails', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(playing);
+    mocks.api.next.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('No active device'));
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+    let ok;
+    await act(async () => {
+      ok = await result.current.skipAhead(3);
+    });
+    expect(ok).toBe(false);
+    expect(mocks.api.next).toHaveBeenCalledTimes(2);
+
+    mocks.api.next.mockReset();
+    mocks.api.next.mockResolvedValue(undefined);
+    await act(async () => {
+      ok = await result.current.skipAhead(3);
+    });
+    expect(ok).toBe(true);
+    expect(mocks.api.next).toHaveBeenCalledTimes(3);
+  });
+
   it.each([
     [401, 'sign-in'],
     [403, 'settings'],

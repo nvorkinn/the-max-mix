@@ -80,6 +80,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     allowBrowserAudio,
     togglePlay,
     nextTrack,
+    skipAhead,
     previousTrack,
     seek,
     setVolume,
@@ -95,6 +96,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [queueStatus, setQueueStatus] = useState<QueueStatus>(canPollQueue ? 'loading' : 'idle');
   const [queueRequestVersion, setQueueRequestVersion] = useState(0);
   const [isRefreshingPlayback, setIsRefreshingPlayback] = useState(false);
+  // True while a tapped queue song is being skipped to, so a second tap cannot start another jump.
+  const [isJumping, setIsJumping] = useState(false);
   const [currentTime, setCurrentTime] = useState(formatClock);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSpeakerModalOpen, setIsSpeakerModalOpen] = useState(false);
@@ -281,6 +284,22 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   let banner: BannerNotice | null = null;
   if (!needsConnection && notice?.kind === 'problem') banner = notice;
   else if (!needsConnection && notice?.kind === 'restricted') banner = { kind: 'restricted' };
+  const controlsEnabled =
+    isAuthenticated &&
+    !isOffline &&
+    (isReady || Boolean(browserDeviceId)) &&
+    !restricted &&
+    (!waitingForSpotify || sdkActive) &&
+    !isLoading;
+  /** Plays the queue song at this position by skipping past the ones before it. */
+  const playQueueTrack = async (index: number) => {
+    setIsJumping(true);
+    try {
+      await skipAhead(index + 1);
+    } finally {
+      setIsJumping(false);
+    }
+  };
   let sessionStatus: string;
   if (notice) {
     sessionStatus = {
@@ -382,14 +401,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 onPrevious={previousTrack}
                 onSeek={seek}
                 onVolumeChange={(vol: number) => setVolume(vol / 100)}
-                controlsEnabled={
-                  isAuthenticated &&
-                  !isOffline &&
-                  (isReady || Boolean(browserDeviceId)) &&
-                  !restricted &&
-                  (!waitingForSpotify || sdkActive) &&
-                  !isLoading
-                }
+                controlsEnabled={controlsEnabled}
                 lyricsOpen={showLyrics}
                 onToggleLyrics={() => toggleLyrics(!showLyrics)}
                 lyrics={
@@ -411,6 +423,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 onRetry={() => setQueueRequestVersion(version => version + 1)}
                 onConnect={showSettings}
                 retryAllowed={!waitingForSpotify}
+                onPlay={playQueueTrack}
+                playDisabled={!controlsEnabled || isJumping}
               />
             </section>
           )}
