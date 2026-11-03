@@ -6,6 +6,7 @@ import {
   SkipForward,
   Volume2,
   Speaker,
+  ChevronUp,
   MicVocal,
   Image,
   Shuffle,
@@ -23,6 +24,12 @@ type AlbumArtPlayerProps = Readonly<PlayerControls> & {
   lyrics?: ReactNode;
   lyricsOpen?: boolean;
   onToggleLyrics?: () => void;
+  /** What the device indicator names as playing; defaults to the playing device's name. */
+  speakerLabel?: string | undefined;
+  /** Whether the speakers drawer the indicator opens is open. */
+  speakersOpen?: boolean;
+  /** Makes the indicator a button that opens the speakers drawer. */
+  onOpenSpeakers?: () => void;
 };
 
 /** Past this far into a song, Previous starts the song over instead of going to the one before it. */
@@ -41,6 +48,9 @@ export default function AlbumArtPlayer({
   liked = null,
   onToggleLike,
   controlsEnabled = false,
+  speakerLabel,
+  speakersOpen = false,
+  onOpenSpeakers,
   lyrics,
   lyricsOpen = false,
   onToggleLyrics
@@ -69,6 +79,17 @@ export default function AlbumArtPlayer({
     if (progressMs > RESTART_AFTER_MS && !playback?.actions?.disallows?.seeking) onSeek(0);
     else onPrevious();
   };
+
+  const deviceName = speakerLabel ?? playback?.device?.name;
+  const speakerState = deviceName ? `Playing on ${deviceName}` : 'Select a device';
+  const speakerAriaLabel = `Speakers: ${speakerState}`;
+  const deviceText = deviceName ? (
+    <>
+      Playing on <b>{deviceName}</b>
+    </>
+  ) : (
+    <b>Select a device in Speakers</b>
+  );
 
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
@@ -159,10 +180,25 @@ export default function AlbumArtPlayer({
           />
           <span className="track-time">{totalTime}</span>
         </div>
-        <div className="player-device">
-          <Speaker size={14} aria-hidden="true" />
-          <span>{playback?.device?.name || 'Select a device in Speakers'}</span>
-        </div>
+        {onOpenSpeakers ? (
+          <button
+            type="button"
+            className={`player-device${speakersOpen ? ' is-open' : ''}`}
+            onClick={onOpenSpeakers}
+            aria-haspopup="dialog"
+            aria-expanded={speakersOpen}
+            aria-label={speakerAriaLabel}
+          >
+            <Speaker size={14} aria-hidden="true" />
+            <span>{deviceText}</span>
+            <ChevronUp size={14} className="player-device-chevron" aria-hidden="true" />
+          </button>
+        ) : (
+          <div className="player-device">
+            <Speaker size={14} aria-hidden="true" />
+            <span>{deviceText}</span>
+          </div>
+        )}
         <div className="transport-row">
           <div className="transport-buttons">
             {onToggleShuffle && (

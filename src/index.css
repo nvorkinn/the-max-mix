@@ -282,17 +282,70 @@
 }
 .listening-room:not(.is-setup) .player-device {
   grid-column: 1;
+  justify-self: start;
   min-width: 0;
-  display: flex;
+  max-width: 100%;
+  min-height: 44px;
+  display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  margin-left: -10px;
+  padding: 0 12px 0 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 12.5px;
 }
 .listening-room:not(.is-setup) .player-device span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.player-device b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.player-device.is-open {
+  background: var(--surface);
+  border-color: var(--border);
+}
+.player-device-chevron {
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: transform 160ms;
+}
+.player-device.is-open .player-device-chevron {
+  transform: rotate(180deg);
+}
+/* The speakers drawer: a popover above the device indicator that dims the screen behind it. */
+.speaker-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: rgb(20 24 18 / 22%);
+  cursor: default;
+}
+.speaker-drawer {
+  position: absolute;
+  z-index: 61;
+  left: 30px;
+  bottom: 122px;
+  max-height: calc(100% - 200px);
+  width: min(420px, calc(100% - 60px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 24px 48px -20px rgb(0 0 0 / 45%);
+}
+.speaker-drawer-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 .listening-room:not(.is-setup) .transport-row {
   grid-column: 2;
@@ -838,9 +891,6 @@ body:has(.app-dialog[open]) {
 .modal-option[aria-pressed='true'] {
   background: var(--accent-soft);
   border-color: var(--accent);
-}
-.modal-divider {
-  border-color: var(--border);
 }
 .status-success {
   color: var(--success);

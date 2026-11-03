@@ -12,7 +12,7 @@ phone and desktop layouts are not supported.
   Previous restarts the song when it is more than 5 seconds in, and goes to the
   song before it only within the first 5 seconds.
 - **Browser mode** registers Chromium as THE MAX MIX, a Spotify Connect player.
-  Select it in Speakers before playing; opening the UI does not steal playback.
+  Select it in the speakers drawer before playing; opening the UI does not steal playback.
 - **Remote mode** controls an existing Spotify Connect device without loading
   the Web Playback SDK or requiring DRM on the Pi.
 
@@ -26,12 +26,19 @@ alone does not make DRM available.
 The player is laid out for the 1024x600 panel. A square artwork sits on the left, as wide as the room is tall minus the
 control bar, so the cover is never stretched into a strip. The song title and artist and the upcoming queue are beside
 it. One bar across the bottom holds the seek bar with the elapsed and total time, the previous, play/pause and next
-buttons, the volume slider, and the name of the device that is playing. The clock is in the top right of the header.
+buttons, the volume slider, and, at the bottom left, the device that is playing. Tap that to open the speakers drawer
+(see below). The clock is in the top right of the header.
 Playback problems show in a banner at the top, with buttons to fix them.
 
 Tap a song in the queue to play it. Spotify's public API cannot start a queue item directly, so the app skips forward
 past the songs before it, one at a time, which also takes them out of the queue. Removing or reordering queue items is
 not possible with the public API; do that in the Spotify app.
+
+### The speakers drawer
+
+Tapping the device indicator at the bottom left of the control bar opens a drawer above it. It lists the Spotify Connect
+devices, with the one that is playing first and marked Playing, and then (on the kiosk) the AirPlay speakers. Tapping
+outside the drawer, the close button or Escape closes it.
 
 ### How playback is controlled
 
@@ -39,16 +46,17 @@ In browser mode (the default, and the fallback when the browser cannot play) thi
 with the Web Playback SDK and drives it directly. The SDK reports every change as an event, so while this page is the
 player there is no polling: the play/pause button, progress and track follow the events at once. A slow safety-net
 refresh from the Web API catches anything missed. The first Play press makes it the active device (pressing, not
-loading the page, so it never takes over what is playing elsewhere). If you pick another device under Speakers (or
+loading the page, so it never takes over what is playing elsewhere). If you pick another device in the speakers drawer (or
 the browser cannot play audio), the page is that device's remote and polls the Web API until you pick "The Max Mix"
 again. Browsers only start audio after a click, so the very first Play press is also what unlocks sound.
 If Spotify provides a retry deadline, Web API playback, queue and device requests all wait for it. Status reads
 resume after the wait; failed controls are not automatically sent again. Active SDK controls remain independent
 of this Web API cooldown.
 
-On the Pi kiosk, Speakers also switches between two playback modes. **Spotify Connect** is the above: the tablet plays,
+On the Pi kiosk, the speakers drawer also switches between two playback modes. **Spotify Connect** is the above: the tablet plays,
 or Spotify moves playback to a Connect speaker. **AirPlay** keeps playback on the tablet and the Pi sends its sound on
-to the AirPlay speakers you pick (Sonos included), several at once, through PipeWire. The speakers are the audio
+to the AirPlay speakers you pick (Sonos included), several at once, through PipeWire. The AirPlay speakers stay disabled
+until this tablet is the device that is playing, so choose This tablet first. The speakers are the audio
 AirPlay sinks PipeWire made; picking them asks the Pi's local
 [audio service](pi/kiosk-audio/README.md) (127.0.0.1, answering only the app) to route the sound.
 
@@ -143,7 +151,7 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 3. The client ID is a constant in `src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
    it there.
 4. Choose **Connect Spotify** in the browser that will play (on the kiosk, the Pi's Chromium).
-5. In Speakers, select This tablet, an AirPlay speaker (kiosk only, several at once) or a Spotify Connect device. Press
+5. Tap the device indicator at the bottom left to open the speakers drawer, then select This tablet, an AirPlay speaker (kiosk only, several at once) or a Spotify Connect device. Press
    Play when ready. For a Connect device, first open Spotify on it so it is discoverable.
 
 There is no backend and no client secret. Sign-in uses the Authorization Code flow with PKCE, which Spotify provides

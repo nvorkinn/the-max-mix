@@ -40,10 +40,10 @@ test('shows the current track and queue', async ({ page }) => {
 test('pause and play toggle the playback state', async ({ page }) => {
   await page.goto('/');
   await nowPlaying(page).getByRole('button', { name: 'Pause' }).click();
-  await expect(nowPlaying(page).getByRole('button', { name: 'Play' })).toBeVisible();
+  await expect(nowPlaying(page).getByRole('button', { name: 'Play', exact: true })).toBeVisible();
   await expect(nowPlaying(page).getByRole('button', { name: 'Pause' })).toBeHidden();
 
-  await nowPlaying(page).getByRole('button', { name: 'Play' }).click();
+  await nowPlaying(page).getByRole('button', { name: 'Play', exact: true }).click();
   await expect(nowPlaying(page).getByRole('button', { name: 'Pause' })).toBeVisible();
 });
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, CSSProperties } from 'react';
-import { AudioLines, Clock, Settings, Speaker } from 'lucide-react';
+import { AudioLines, Clock, Settings } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useScreenSleep } from '../hooks/useScreenSleep';
@@ -11,7 +11,7 @@ import { getQueue } from '../spotify/api';
 import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import { getAudioRoute, setAudioRoute } from '../spotify/settings';
 import type { AudioRoute } from '../spotify/settings';
-import { routeAudio, setChosenSpeakers } from '../audio/airplay';
+import { getChosenSpeakers, routeAudio, setChosenSpeakers } from '../audio/airplay';
 import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
 import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
@@ -24,7 +24,7 @@ import TrackQueue, { type QueueStatus } from './TrackQueue';
 import PlaybackBanner, { type PlaybackNoticeState, type BannerNotice } from './PlaybackNotice';
 import LyricsPanel from './LyricsPanel';
 import SettingsModal from './SettingsModal';
-import SpeakerSelectorModal from './SpeakerSelectorModal';
+import SpeakerDrawer from './SpeakerDrawer';
 import DebugConsole from './DebugConsole';
 import SleepScreen from './SleepScreen';
 
@@ -116,24 +116,21 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [storedAudioRoute, setStoredAudioRoute] = useState(getAudioRoute);
   const audioRoute: AudioRoute = canUseAirPlay ? storedAudioRoute : 'spotify-connect';
 
-  // AirPlay plays what this tablet's own player plays, so choosing a speaker moves playback here and the Pi sends it on
-  // to the chosen speakers. Choosing this tablet or a Spotify Connect speaker hands the sound back to the Pi's own
-  // output and forgets the AirPlay speakers. The route changes even if moving playback fails, so the tablet never gets
-  // stuck in AirPlay.
+  // AirPlay plays what this tablet's own player plays, so its speakers can only be picked while this tablet is the one
+  // playing; the Pi then sends the sound on to the chosen speakers. Choosing a Spotify Connect speaker (or this tablet
+  // again) hands the sound back to the Pi's own output and forgets the AirPlay speakers.
   const changeAudioRoute = (route: AudioRoute) => {
     setStoredAudioRoute(route);
     setAudioRoute(route);
   };
 
-  const chooseAirPlaySpeakers = async (speakers: string[]) => {
+  const chooseAirPlaySpeakers = (speakers: string[]) => {
     if (speakers.length === 0) {
       changeAudioRoute('spotify-connect');
       return;
     }
     changeAudioRoute('airplay');
-    if (!browserDeviceId) return;
-    routeAudio(speakers);
-    if (playbackState?.device?.id !== browserDeviceId) await transferPlayback(browserDeviceId);
+    if (browserDeviceId) routeAudio(speakers);
   };
 
   const chooseSpotifyDevice = async (deviceId: string) => {
@@ -296,6 +293,14 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     !restricted &&
     (!waitingForSpotify || sdkActive) &&
     !isLoading;
+  // What the device indicator in the control bar says is playing.
+  let speakerLabel: string | undefined;
+  if (audioRoute === 'airplay') {
+    const count = getChosenSpeakers().length;
+    speakerLabel = 'AirPlay';
+    if (count === 1) speakerLabel = 'AirPlay, 1 speaker';
+    else if (count > 1) speakerLabel = `AirPlay, ${count} speakers`;
+  } else if (browserDeviceId && playbackState?.device?.id === browserDeviceId) speakerLabel = 'This tablet';
   /** Plays the queue song at this position by skipping past the ones before it. */
   const playQueueTrack = async (index: number) => {
     setIsJumping(true);
@@ -353,16 +358,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           </span>
           <button
             type="button"
-            onClick={() => setIsSpeakerModalOpen(true)}
-            className="button button-secondary speaker-button"
-            title={canUseAirPlay ? 'Choose speakers' : 'Choose a Spotify Connect device'}
-            aria-label={canUseAirPlay ? 'Choose speakers' : 'Choose a Spotify Connect device'}
-          >
-            <Speaker size={15} />
-            <span>Speakers</span>
-          </button>
-          <button
-            type="button"
             onClick={() => setIsSettingsOpen(true)}
             className="icon-button"
             title="Settings"
@@ -411,6 +406,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 liked={liked}
                 onToggleLike={toggleLike}
                 controlsEnabled={controlsEnabled}
+                speakerLabel={speakerLabel}
+                speakersOpen={isSpeakerModalOpen}
+                onOpenSpeakers={() => setIsSpeakerModalOpen(true)}
                 lyricsOpen={showLyrics}
                 onToggleLyrics={() => toggleLyrics(!showLyrics)}
                 lyrics={
@@ -440,11 +438,12 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         </main>
       </div>
 
-      <SpeakerSelectorModal
+      <SpeakerDrawer
         isOpen={isSpeakerModalOpen}
         onClose={() => setIsSpeakerModalOpen(false)}
         onSelectSpeaker={chooseSpotifyDevice}
         browserDeviceId={browserDeviceId}
+        activeDeviceId={playbackState?.device?.id ?? null}
         canUseAirPlay={canUseAirPlay}
         audioRoute={audioRoute}
         onAirPlayChange={chooseAirPlaySpeakers}
