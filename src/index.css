@@ -177,14 +177,12 @@
   padding: 0 15px;
   white-space: nowrap;
 }
-.button-secondary,
-.icon-button {
+.button-secondary {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--ink);
 }
-.button-secondary:hover,
-.icon-button:hover {
+.button-secondary:hover {
   background: var(--surface-raised);
 }
 .button:active,
@@ -194,7 +192,12 @@
 }
 .icon-button {
   width: 44px;
+  border: 0;
+  background: transparent;
   color: var(--muted);
+}
+.icon-button:hover {
+  color: var(--ink);
 }
 .room-frame {
   flex: 1;

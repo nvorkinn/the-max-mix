@@ -368,7 +368,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             title="Settings"
             aria-label="Open settings"
           >
-            <Settings size={18} />
+            <Settings size={22} />
           </button>
         </div>
       </header>
