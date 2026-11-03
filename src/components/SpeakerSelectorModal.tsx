@@ -87,7 +87,7 @@ export default function SpeakerSelectorModal({
       onClose={onClose}
       className="app-modal-panel border rounded-3xl p-6 max-w-md shadow-2xl"
     >
-      <div className="modal-divider flex items-center justify-between gap-3 pb-3 border-b">
+      <div className="modal-header modal-divider flex items-center justify-between gap-3 pb-3 border-b">
         <h2 id="speakers-title" className="text-base font-semibold">
           Speakers
         </h2>

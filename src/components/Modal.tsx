@@ -1,6 +1,23 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 
+function closeOnBackdropClick(onClose: () => void) {
+  return (event: MouseEvent) => {
+    const dialog = event.currentTarget;
+    if (event.target !== dialog || !(dialog instanceof HTMLDialogElement)) return;
+    // The dialog's own padding also targets the dialog, so only the backdrop lies outside its box.
+    const box = dialog.getBoundingClientRect();
+    if (
+      event.clientX < box.left ||
+      event.clientX > box.right ||
+      event.clientY < box.top ||
+      event.clientY > box.bottom
+    ) {
+      onClose();
+    }
+  };
+}
+
 function keepFocusInDialog(event: KeyboardEvent) {
   if (event.key !== 'Tab') return;
   const dialog = event.currentTarget;
@@ -28,6 +45,10 @@ export default function Modal({
   children
 }: Readonly<{ labelledBy: string; onClose: () => void; className: string; children: ReactNode }>) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const onCloseRef = useRef(onClose);
+  useLayoutEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useLayoutEffect(() => {
     const dialog = dialogRef.current;
@@ -36,9 +57,12 @@ export default function Modal({
     // Close before React removes the element so native modal cleanup runs while it is connected.
     dialog.showModal();
     dialog.querySelector<HTMLElement>('[data-modal-autofocus]')?.focus();
+    const onBackdropClick = closeOnBackdropClick(() => onCloseRef.current());
     dialog.addEventListener('keydown', keepFocusInDialog);
+    dialog.addEventListener('click', onBackdropClick);
     return () => {
       dialog.removeEventListener('keydown', keepFocusInDialog);
+      dialog.removeEventListener('click', onBackdropClick);
       dialog.close();
       if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
     };

@@ -28,7 +28,7 @@ const SettingsModal = partialProps(SettingsModalFull);
 const SpeakerSelectorModal = partialProps(SpeakerSelectorModalFull);
 
 describe('SettingsModal', () => {
-  const base = { isOpen: true, onClose: vi.fn(), onThemeChange: vi.fn(), onReload: vi.fn() };
+  const base = { isOpen: true, onClose: vi.fn(), onReload: vi.fn() };
 
   beforeEach(() => {
     for (const mock of [...Object.values(auth), ...Object.values(settings), base.onReload]) mock.mockReset();
@@ -46,18 +46,10 @@ describe('SettingsModal', () => {
     expect(screen.getByText(/^Version/)).toBeInTheDocument();
   });
 
-  it('marks the current theme and reports theme changes', async () => {
-    const onThemeChange = vi.fn();
-    render(<SettingsModal {...base} onThemeChange={onThemeChange} currentTheme="minimal" authInfo={{}} />);
-    expect(screen.getByRole('button', { name: /paper/i })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: /studio/i })).toHaveAttribute('aria-pressed', 'false');
-    await userEvent.click(screen.getByRole('button', { name: /studio/i }));
-    expect(onThemeChange).toHaveBeenCalledWith('neon');
-  });
-
-  it('does not throw when no theme handler is given', async () => {
-    render(<SettingsModal isOpen onClose={() => {}} authInfo={{}} />);
-    await expect(userEvent.click(screen.getByRole('button', { name: /paper/i }))).resolves.toBeUndefined();
+  it('offers no appearance choice', () => {
+    render(<SettingsModal {...base} authInfo={{}} />);
+    expect(screen.queryByText(/appearance/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /studio|paper/i })).not.toBeInTheDocument();
   });
 
   it('closes via the close button', async () => {

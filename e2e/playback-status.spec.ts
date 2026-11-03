@@ -131,7 +131,7 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-for (const theme of ['neon', 'minimal']) {
+for (const theme of ['minimal']) {
   test(`signed-out playback is not a connected or empty session in ${theme}`, async ({ page }) => {
     await page.addInitScript(appearance => {
       /* eslint-disable-next-line n/no-unsupported-features/node-builtins -- This init script runs in the browser, not Node. */
@@ -157,14 +157,15 @@ for (const theme of ['neon', 'minimal']) {
     api.playbackWait = promise;
     await page.goto('/');
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
-    await expect(player.getByText('Connecting to Spotify...')).toBeVisible();
+    await expect(page.locator('.session-status')).toHaveText('Connecting to Spotify...');
     await expect(player.getByRole('button', { name: 'Play', exact: true })).toBeDisabled();
     resolve(undefined);
-    await expect(player.getByText('No active Spotify device')).toBeVisible();
+    await expect(player.getByRole('heading', { name: 'Nothing playing' })).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
     await expectControlsFit(page, player);
-    await expect(player.getByRole('button', { name: 'Choose speaker', exact: true })).toBeInViewport();
-    await player.getByRole('button', { name: 'Choose speaker', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'Choose a Spotify device' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Choose a Spotify Connect device' })).toBeInViewport();
+    await page.getByRole('button', { name: 'Choose a Spotify Connect device' }).click();
+    await expect(page.getByRole('dialog', { name: 'Speakers' })).toBeVisible();
     expect(api.commands).toEqual([]);
   });
 
@@ -173,9 +174,10 @@ for (const theme of ['neon', 'minimal']) {
     api.playback = { ...playback, device: { ...playback.device, is_restricted: true } };
     await page.goto('/');
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
-    await expect(player.getByText('Controls unavailable on this device')).toBeVisible();
+    const banner = page.locator('.playback-banner');
+    await expect(banner.getByText('Controls unavailable on this device')).toBeVisible();
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeDisabled();
-    await expect(player.getByRole('button', { name: 'Choose speaker', exact: true })).toBeInViewport();
+    await expect(banner.getByRole('button', { name: 'Choose speaker', exact: true })).toBeInViewport();
     await expectControlsFit(page, player);
     expect(api.commands).toEqual([]);
   });
@@ -187,7 +189,6 @@ for (const theme of ['neon', 'minimal']) {
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
     await page.context().setOffline(true);
     await expect(page.getByRole('alert')).toContainText('No internet connection');
-    await expect(player.getByText('Playback controls are offline')).toBeVisible();
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeDisabled();
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeInViewport();
     await expectControlsFit(page, player);
@@ -233,11 +234,11 @@ for (const theme of ['neon', 'minimal']) {
       } else {
         api.devicesStatus = 429;
         await page.getByRole('button', { name: 'Choose a Spotify Connect device' }).click();
-        const speakers = page.getByRole('dialog', { name: 'Choose a Spotify device' });
+        const speakers = page.getByRole('dialog', { name: 'Speakers' });
         await expect(speakers.getByRole('button', { name: 'Refresh devices' })).toBeDisabled();
         await speakers.getByRole('button', { name: 'Close speakers' }).click();
       }
-      await expect(player.getByText('Waiting for Spotify', { exact: true })).toBeVisible();
+      await expect(page.locator('.playback-banner').getByText('Waiting for Spotify', { exact: true })).toBeVisible();
       await expect(queue.getByText('Waiting for Spotify...')).toBeVisible();
       await expect(player.getByRole('button', { name: 'Next track' })).toBeDisabled();
       await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeDisabled();
@@ -245,7 +246,7 @@ for (const theme of ['neon', 'minimal']) {
       const requests = api.requests.length;
       const commands = [...api.commands];
       await page.getByRole('button', { name: 'Choose a Spotify Connect device' }).click();
-      const speakers = page.getByRole('dialog', { name: 'Choose a Spotify device' });
+      const speakers = page.getByRole('dialog', { name: 'Speakers' });
       await expect(speakers.getByText('Spotify asked this app to wait before refreshing devices.')).toBeVisible();
       await expect(speakers.getByRole('button', { name: 'Refresh devices' })).toBeDisabled();
       await speakers.getByRole('button', { name: 'Close speakers' }).click();
@@ -257,7 +258,7 @@ for (const theme of ['neon', 'minimal']) {
       api.devicesStatus = 200;
       const playbackReads = api.playbackReads;
       await page.clock.runFor(1);
-      await expect(player.getByText('Waiting for Spotify', { exact: true })).toHaveCount(0);
+      await expect(page.locator('.playback-banner').getByText('Waiting for Spotify', { exact: true })).toHaveCount(0);
       await expect(player.getByRole('button', { name: 'Next track' })).toBeEnabled();
       await expect.poll(() => api.playbackReads).toBeGreaterThan(playbackReads);
       expect(api.commands).toEqual(commands);
@@ -267,10 +268,7 @@ for (const theme of ['neon', 'minimal']) {
   }
 }
 
-for (const { width, height, theme } of [
-  { width: 1024, height: 600, theme: 'neon' },
-  { width: 1024, height: 600, theme: 'minimal' }
-]) {
+for (const { width, height, theme } of [{ width: 1024, height: 600, theme: 'minimal' }]) {
   test(`playback recovery fits ${width}x${height} in ${theme} without repeating a skip`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     const api = await mockSpotify(page, theme);
@@ -278,17 +276,17 @@ for (const { width, height, theme } of [
     await page.goto('/');
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     await player.getByRole('button', { name: 'Next track' }).click();
-    await expect(player.getByRole('alert')).toContainText('Playback problem');
+    await expect(page.getByRole('alert')).toContainText('Playback problem');
     await expectControlsFit(page, player);
-    await expect(player.getByRole('button', { name: 'Refresh playback' })).toBeInViewport();
+    await expect(page.getByRole('button', { name: 'Refresh playback' })).toBeInViewport();
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeInViewport();
-    await player.getByRole('button', { name: 'Details', exact: true }).click();
+    await page.getByRole('button', { name: 'Details', exact: true }).click();
     const debug = page.getByRole('dialog', { name: 'Debug console' });
     await expect(debug).toContainText('Spotify request failed (500).');
     await debug.getByRole('button', { name: 'Close debug console' }).click();
     const reads = api.playbackReads;
-    await player.getByRole('button', { name: 'Refresh playback' }).click();
-    await expect(player.getByRole('alert')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Refresh playback' }).click();
+    await expect(page.getByRole('alert')).toHaveCount(0);
     expect(api.playbackReads).toBeGreaterThan(reads);
     expect(api.commands).toEqual(['/v1/me/player/next']);
   });

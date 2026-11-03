@@ -10,18 +10,11 @@ test.beforeEach(async ({ page }) => {
   await fakeSpotify(page);
 });
 
-for (const appearance of [
-  { name: 'Studio', id: 'neon', surface: 'rgb(25, 28, 25)', ink: 'rgb(242, 243, 237)', scheme: 'dark' },
-  { name: 'Paper', id: 'minimal', surface: 'rgb(250, 250, 246)', ink: 'rgb(35, 41, 31)', scheme: 'light' }
-]) {
+for (const appearance of [{ name: 'Paper', surface: 'rgb(250, 250, 246)', ink: 'rgb(35, 41, 31)', scheme: 'light' }]) {
   test(`${appearance.name} appearance applies to dialogs, status and kiosk controls`, async ({ page }) => {
     await page.goto('/?kiosk=1');
     await page.getByRole('button', { name: 'Open settings' }).click();
     const settings = page.getByRole('dialog', { name: 'Settings' });
-    await settings
-      .getByRole('button', { name: appearance.id === 'minimal' ? /Paper Light/ : /Studio Signature/ })
-      .click();
-    await expect(page.locator('.tablet-container')).toHaveAttribute('data-theme', appearance.id);
     await expect(settings).toHaveCSS('background-color', appearance.surface);
     await expect(settings).toHaveCSS('color', appearance.ink);
     await expect(settings).toHaveCSS('color-scheme', appearance.scheme);
@@ -76,9 +69,8 @@ for (const appearance of [
     await expect(settings.getByRole('button', { name: 'Tap again to restart' })).toHaveClass(/modal-confirm-armed/);
     await page.keyboard.press('Escape');
     await page.reload();
-    await expect(page.locator('.tablet-container')).toHaveAttribute('data-theme', appearance.id);
     await page.getByRole('button', { name: 'Choose speakers' }).click();
-    const speakers = page.getByRole('dialog', { name: 'Choose a Spotify device' });
+    const speakers = page.getByRole('dialog', { name: 'Speakers' });
     await expect(speakers).toHaveCSS('background-color', appearance.surface);
     await expect(speakers).toHaveCSS('color', appearance.ink);
     await expect(speakers.getByRole('button', { name: /Test speaker/ })).toHaveAttribute('aria-pressed', 'true');
