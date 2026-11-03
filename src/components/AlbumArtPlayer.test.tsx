@@ -77,7 +77,33 @@ describe('AlbumArtPlayer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Previous track' }));
     expect(h.onPlayPause).toHaveBeenCalled();
     expect(h.onNext).toHaveBeenCalled();
-    expect(h.onPrevious).toHaveBeenCalled();
+  });
+
+  describe('previous track', () => {
+    const press = () => fireEvent.click(screen.getByRole('button', { name: 'Previous track' }));
+
+    it('restarts the song when it is more than 5 seconds in', () => {
+      const h = setup({ playback: { ...playback, progress_ms: 5001 } });
+      press();
+      expect(h.onSeek).toHaveBeenCalledWith(0);
+      expect(h.onPrevious).not.toHaveBeenCalled();
+    });
+
+    it('goes to the previous song within the first 5 seconds', () => {
+      const h = setup({ playback: { ...playback, progress_ms: 5000 } });
+      press();
+      expect(h.onPrevious).toHaveBeenCalledTimes(1);
+      expect(h.onSeek).not.toHaveBeenCalled();
+    });
+
+    it('goes to the previous song when the song cannot be seeked', () => {
+      const h = setup({
+        playback: { ...playback, progress_ms: 60_000, actions: { disallows: { seeking: true } } }
+      });
+      press();
+      expect(h.onPrevious).toHaveBeenCalledTimes(1);
+      expect(h.onSeek).not.toHaveBeenCalled();
+    });
   });
 
   it('seeks with a numeric position and reports volume changes', () => {
