@@ -101,7 +101,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const debugHold = useHold(() => setIsDebugOpen(true), DEBUG_HOLD_MS);
   const [queueError, setQueueError] = useState<string | null>(null);
-  // Lyrics take the queue's place while shown; remembered so the kiosk comes back the way it was left.
+  // Lyrics take the artwork's place while shown; remembered so the kiosk comes back the way it was left.
   const [showLyrics, setShowLyrics] = useState(() => localStorage.getItem('maxmix_lyrics') === 'on');
   // AirPlay needs the Pi's audio service, so it is offered on the kiosk only.
   const [onKiosk] = useState(isKiosk);
