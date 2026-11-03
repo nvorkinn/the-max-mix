@@ -789,11 +789,14 @@ body:has(.app-dialog[open]) {
   position: sticky;
   top: 0;
   z-index: 1;
-  margin: -24px -24px 12px;
+  margin: 0 -24px 12px;
   padding: 24px 24px 12px;
+  border-radius: 23px 23px 0 0;
   background: var(--surface);
 }
 .app-modal-panel {
+  /* The sticky header carries the top padding, so scrolled content never shows in a gap above it. */
+  padding-top: 0;
   background: var(--surface);
   border-color: var(--border);
   color: var(--ink);
