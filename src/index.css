@@ -616,7 +616,7 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: currentColor;
+  background: currentcolor;
 }
 .transport-play {
   width: 50px;
