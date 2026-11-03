@@ -28,10 +28,4 @@ describe('AlbumArtPlayer volume', () => {
     rerender(player(withVolume(55)));
     expect(screen.getByLabelText('Volume')).toHaveValue('55');
   });
-
-  it('says where the volume is set when the device does not report one', () => {
-    render(player({ device: { id: 'p', name: 'Pixel', volume_percent: null, supports_volume: false } }));
-    expect(screen.queryByLabelText('Volume')).toBeNull();
-    expect(screen.getByText('Volume is set on Pixel')).toBeInTheDocument();
-  });
 });

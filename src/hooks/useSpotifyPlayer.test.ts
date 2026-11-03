@@ -316,6 +316,34 @@ describe('useSpotifyPlayer', () => {
     expect(mocks.api.setVolume).toHaveBeenCalledWith(46);
   });
 
+  it('sends one volume request at a time, ending on the newest value, and holds it against stale reads', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue({ device: { id: 'phone', volume_percent: 30 } });
+    let finishFirst = () => {};
+    mocks.api.setVolume
+      .mockImplementationOnce(() => new Promise(resolve => (finishFirst = () => resolve({ success: true }))))
+      .mockResolvedValue({ success: true });
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+
+    let first: Promise<boolean> | undefined;
+    // The first request reaches the API a few microtasks later (after the SDK check), so act flushes them.
+    await act(async () => {
+      first = result.current.setVolume(0.4);
+      void result.current.setVolume(0.5);
+      void result.current.setVolume(0.6);
+    });
+    expect(result.current.playbackState?.device?.volume_percent).toBe(60);
+    expect(mocks.api.setVolume).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      finishFirst();
+      expect(await first).toBe(true);
+    });
+    // 50 was replaced by 60 before it was sent.
+    expect(mocks.api.setVolume.mock.calls).toEqual([[40], [60]]);
+    // The phone still reports 30 right after; the slider stays on 60.
+    expect(result.current.playbackState?.device?.volume_percent).toBe(60);
+  });
+
   it('sends shuffle and the next repeat mode, and leaves the buttons to what Spotify reports', async () => {
     mocks.api.getPlaybackState.mockReturnValue(new Promise(() => {}));
     mocks.api.getPlaybackState.mockResolvedValueOnce({

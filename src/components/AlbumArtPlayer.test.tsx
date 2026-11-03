@@ -179,8 +179,7 @@ describe('AlbumArtPlayer', () => {
     expect(screen.getByRole('button', { name: 'Previous track' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Pause' })).toBeDisabled();
     expect(screen.getByRole('slider', { name: 'Playback position' })).toBeDisabled();
-    expect(screen.queryByRole('slider', { name: 'Volume' })).toBeNull();
-    expect(screen.getByText('Volume is set on TV')).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Volume' })).toBeDisabled();
   });
 
   it('uses the resume restriction while paused', () => {

@@ -18,6 +18,8 @@ import { debugLog } from '../utils/debugLog';
 // Spotify's playback state lags a play/pause command by a second or more, so a read right after one still reports the
 // old state. For this long after a command the button keeps the state the command asked for.
 const EXPECTED_PLAYING_MS = 5000;
+// Another device (a phone) can take seconds to report a new volume; until then reads still carry the old one.
+const EXPECTED_VOLUME_MS = 5000;
 // While another device plays there are no SDK events, so the state is read this often.
 const REMOTE_POLL_MS = 4000;
 // While this page is the active SDK player the events carry the changes; this is only a safety net.
@@ -131,6 +133,11 @@ function withPlaying(state: PlaybackState, playing: boolean): PlaybackState {
   return { ...state, is_playing: playing, actions: { ...state.actions, disallows } };
 }
 
+/** `state` with the device volume replaced by one just set here. */
+function withVolume(state: PlaybackState, percent: number): PlaybackState {
+  return state.device ? { ...state, device: { ...state.device, volume_percent: percent } } : state;
+}
+
 function nextTracksKey(state: SdkPlaybackState): string {
   return (state?.track_window?.next_tracks ?? []).map(track => track.id ?? track.uri ?? '').join(',');
 }
@@ -158,6 +165,10 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   const playbackRequestRef = useRef(0);
   const expectedPlayingRef = useRef<{ playing: boolean; until: number } | null>(null);
   const playPauseInFlightRef = useRef(false);
+  const expectedVolumeRef = useRef<{ percent: number; until: number } | null>(null);
+  // The newest volume the slider asked for that is not sent yet, and whether a volume request is on its way.
+  const pendingVolumeRef = useRef<number | null>(null);
+  const volumeInFlightRef = useRef(false);
   // The Web Playback SDK player this page runs ("The Max Mix"), once it is connected.
   const playerRef = useRef<SpotifyPlayer | null>(null);
   const sdkActiveRef = useRef(false);
@@ -210,12 +221,19 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   const refreshPlayback = useCallback(async () => {
     const requestId = ++playbackRequestRef.current;
     checkRetryWindow();
-    const state = await spotify.getPlaybackState();
+    let state = await spotify.getPlaybackState();
     if (requestId !== playbackRequestRef.current) return;
     setConnectionError(null);
     setActionError(current =>
       current?.message === NETWORK_ERROR_MESSAGE || current?.recovery === 'wait' ? null : current
     );
+    const expectedVolume = expectedVolumeRef.current;
+    if (expectedVolume && state?.device) {
+      // Like the play hold: a read that predates the new volume must not move the slider back.
+      if (state.device.volume_percent === expectedVolume.percent || Date.now() > expectedVolume.until) {
+        expectedVolumeRef.current = null;
+      } else state = withVolume(state, expectedVolume.percent);
+    }
     const expected = expectedPlayingRef.current;
     if (expected && state) {
       // Spotify agreeing, or the window passing, ends the hold; until then a stale read must not flip the button back.
@@ -592,6 +610,37 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     (await runSdkCommand(command)) ?? runCommand(apiCommand);
 
   /**
+   * Dragging the slider asks for a new volume many times a second. Only one request is on its way at a time and the
+   * next one sends the newest value, so requests cannot arrive out of order (leaving the device at an older value) or
+   * run into Spotify's rate limit.
+   */
+  const setVolume = async (volume: number) => {
+    const percent = Math.round(volume * 100);
+    expectedVolumeRef.current = { percent, until: Date.now() + EXPECTED_VOLUME_MS };
+    setPlayback(current => (current ? withVolume(current, percent) : current));
+    pendingVolumeRef.current = percent;
+    if (volumeInFlightRef.current) return true;
+    volumeInFlightRef.current = true;
+    let ok = true;
+    try {
+      while (pendingVolumeRef.current !== null) {
+        const next = pendingVolumeRef.current;
+        pendingVolumeRef.current = null;
+        // Each request must land before the next is sent.
+        // eslint-disable-next-line no-await-in-loop
+        ok = await transport(
+          player => player.setVolume(next / 100),
+          () => spotify.setVolume(next)
+        );
+      }
+    } finally {
+      volumeInFlightRef.current = false;
+    }
+    if (!ok) expectedVolumeRef.current = null;
+    return ok;
+  };
+
+  /**
    * Sends a shuffle or repeat change. The buttons only follow what Spotify reports (the SDK's state event, or the next
    * poll while another device plays), so the press itself changes nothing on screen.
    */
@@ -710,11 +759,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         player => player.seek(Math.round(position)),
         () => spotify.seek(Math.round(position))
       ),
-    setVolume: (volume: number) =>
-      transport(
-        player => player.setVolume(volume),
-        () => spotify.setVolume(Math.round(volume * 100))
-      ),
+    setVolume,
     toggleShuffle: () => {
       const on = !playbackState?.shuffle_state;
       return runSetting(() => spotify.setShuffle(on));

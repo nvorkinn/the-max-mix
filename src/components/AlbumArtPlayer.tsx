@@ -63,10 +63,8 @@ export default function AlbumArtPlayer({
     setSyncedDeviceVolume(deviceVolume);
     setVolume(deviceVolume);
   }
-  const device = playback?.device;
-  // Phones (every iPhone) tell Spotify nothing about their volume, so there is no value to show or set from here.
-  const volumeHidden = Boolean(device) && (device?.supports_volume === false || device?.volume_percent == null);
-  const volumeEnabled = controlsEnabled && !volumeHidden;
+  const volumeEnabled =
+    controlsEnabled && playback?.device?.supports_volume !== false && playback?.device?.volume_percent != null;
   const item = playback?.item ?? playback?.track_window?.current_track ?? {};
   const hasTrack = Boolean(item.id || item.uri || item.name || item.title);
   const title = item.name || item.title || 'Nothing playing';
@@ -263,31 +261,24 @@ export default function AlbumArtPlayer({
             )}
           </div>
         </div>
-        {volumeHidden ? (
-          <p className="volume-control volume-note">
-            <Volume2 size={16} aria-hidden="true" />
-            <span>Volume is set on {device?.name || 'the device'}</span>
-          </p>
-        ) : (
-          <label className="volume-control">
-            <Volume2 size={16} aria-hidden="true" />
-            <input
-              type="range"
-              disabled={!volumeEnabled}
-              min="0"
-              max="100"
-              value={volume}
-              aria-label="Volume"
-              onChange={e => {
-                const value = Number(e.target.value);
-                setVolume(value);
-                onVolumeChange?.(value);
-              }}
-              className="range-control volume-range"
-              style={{ '--range-progress': `${volume}%` } as CSSProperties}
-            />
-          </label>
-        )}
+        <label className="volume-control">
+          <Volume2 size={16} aria-hidden="true" />
+          <input
+            type="range"
+            disabled={!volumeEnabled}
+            min="0"
+            max="100"
+            value={volume}
+            aria-label="Volume"
+            onChange={e => {
+              const value = Number(e.target.value);
+              setVolume(value);
+              onVolumeChange?.(value);
+            }}
+            className="range-control volume-range"
+            style={{ '--range-progress': `${volume}%` } as CSSProperties}
+          />
+        </label>
       </div>
     </div>
   );
