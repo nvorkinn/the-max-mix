@@ -33,7 +33,7 @@ const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', m
 // While this page's player is active the queue is re-read when the SDK says it changed; this is only a safety net.
 const QUEUE_POLL_MS = 10_000;
 const SDK_QUEUE_POLL_MS = 20_000;
-// Holding the footer clock this long opens the debug console; long enough that nobody opens it by accident.
+// Holding the header clock this long opens the debug console; long enough that nobody opens it by accident.
 const DEBUG_HOLD_MS = 2000;
 
 /** Pointer handlers that call `onHold` once the element has been held down for `ms`. */
@@ -298,10 +298,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   if (notice?.kind === 'problem' && notice.problem.recovery !== 'wait') statusDotClass = 'status-dot-error';
   else if (notice || !isPlaying) statusDotClass = 'status-dot-idle';
 
-  let footerStatus = 'Spotify browser player';
-  if (audioRoute === 'airplay') footerStatus = 'AirPlay from this tablet';
-  else if (playbackMode === 'remote') footerStatus = 'Spotify Connect remote';
-
   return (
     <div
       className="tablet-container"
@@ -328,6 +324,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           {sessionStatus}
         </div>
         <div className="header-actions">
+          <span className="header-clock" {...debugHold}>
+            <Clock size={14} /> {currentTime}
+          </span>
           <button
             type="button"
             onClick={() => setIsSpeakerModalOpen(true)}
@@ -417,23 +416,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           )}
         </main>
       </div>
-
-      <footer className="app-footer">
-        {playerError && !isOffline ? (
-          <button type="button" className="footer-problem-button" onClick={() => setIsDebugOpen(true)}>
-            <span className="status-dot status-dot-error" /> {footerStatus} ·{' '}
-            <span className="footer-problem">Problem, see details</span>
-          </button>
-        ) : (
-          <span>
-            <span className={`status-dot ${statusDotClass}`} /> {footerStatus}
-          </span>
-        )}
-        <span className="footer-clock" {...debugHold}>
-          <Clock size={12} /> {currentTime}
-        </span>
-        <span>POWERED BY SPOTIFY</span>
-      </footer>
 
       <SpeakerSelectorModal
         isOpen={isSpeakerModalOpen}

@@ -1,4 +1,4 @@
-import { Disc3, ArrowUpRight } from 'lucide-react';
+import { Disc3 } from 'lucide-react';
 import { trackKeys } from '../utils/trackKeys';
 import type { Track } from '../types';
 import { Artwork } from './TrackImages';
@@ -25,8 +25,6 @@ export default function TrackQueue({
 }: Readonly<TrackQueueProps>) {
   const keys = trackKeys(queue);
 
-  const totalMinutes = Math.round(queue.reduce((sum, track) => sum + (track.duration_ms || 0), 0) / 60_000);
-  const showCount = queue.length > 0 || (status === 'ready' && !error);
   let retryLabel = 'Waiting to retry...';
   if (status === 'loading') retryLabel = 'Retrying...';
   else if (retryAllowed) retryLabel = 'Retry queue';
@@ -81,10 +79,6 @@ export default function TrackQueue({
 
   return (
     <div className="queue-panel">
-      <div className="queue-heading">
-        <h2>Up next{showCount && <span className="queue-count">{String(queue.length).padStart(2, '0')}</span>}</h2>
-      </div>
-
       {error && (
         <p role="alert" className="queue-error">
           {error}
@@ -113,11 +107,6 @@ export default function TrackQueue({
           {retryLabel}
         </button>
       )}
-      <div className="queue-columns" aria-hidden="true">
-        <span>#</span>
-        <span>TRACK / ARTIST</span>
-        <span>IN SPOTIFY</span>
-      </div>
       {queue.length === 0 ? (
         emptyState()
       ) : (
@@ -142,28 +131,9 @@ export default function TrackQueue({
                 <span className="queue-duration">
                   {seconds > 0 ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '--:--'}
                 </span>
-                <a
-                  className="queue-link"
-                  href={track.external_urls?.spotify || 'https://open.spotify.com'}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={`Open ${title} in Spotify`}
-                >
-                  <ArrowUpRight size={16} />
-                </a>
               </div>
             );
           })}
-        </div>
-      )}
-
-      {showCount && (
-        <div className="queue-footer">
-          <span>
-            {queue.length} {queue.length === 1 ? 'track' : 'tracks'}
-            {status !== 'ready' || error ? ' last known' : ''}
-            {totalMinutes > 0 ? ` / ${totalMinutes} min` : ''}
-          </span>
         </div>
       )}
     </div>

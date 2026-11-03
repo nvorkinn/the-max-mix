@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { Track } from '../types';
-import { defined } from '../test/defined';
 import { partialProps } from '../test/partialProps';
 import AlbumArtPlayerFull from './AlbumArtPlayer';
 import TrackQueueFull from './TrackQueue';
@@ -28,13 +27,13 @@ function setup(props: Record<string, unknown> = {}) {
 }
 
 describe('AlbumArtPlayer', () => {
-  it('shows track metadata, times and device', () => {
+  it('shows track metadata, times and the playing device', () => {
     setup();
+    expect(screen.getByText('Kitchen')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Song' })).toBeInTheDocument();
     expect(screen.getByText('A, B')).toBeInTheDocument();
     expect(screen.getByText('1:05')).toBeInTheDocument();
     expect(screen.getByText('3:20')).toBeInTheDocument();
-    expect(screen.getByText('Kitchen')).toBeInTheDocument();
     expect(screen.getByAltText('Song album artwork')).toHaveAttribute('src', 'http://art/1.jpg');
     expect(screen.getByRole('slider', { name: 'Playback position' })).toHaveAttribute('aria-valuetext', '1:05 of 3:20');
   });
@@ -149,7 +148,6 @@ describe('AlbumArtPlayer', () => {
     setup({ playback: { ...playback, item: { ...playback.item, name: title, artists: [{ name: artist }] } } });
     expect(screen.getByRole('heading', { name: title.trim() })).toHaveTextContent(title.trim());
     expect(screen.getByRole('region', { name: 'Track information' })).toHaveTextContent(artist.trim());
-    expect(screen.getByText('Kitchen')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled();
   });
 });
@@ -163,11 +161,11 @@ describe('TrackQueue', () => {
       duration_ms: 125_000
     },
     { id: 'b', title: 'Two', artist: 'Y', duration_ms: 60_000 },
-    { uri: 'spotify:track:c', name: 'Three', external_urls: { spotify: 'https://open.spotify.com/track/c' } }
+    { uri: 'spotify:track:c', name: 'Three' }
   ];
   const setupQueue = (props = {}) => render(<TrackQueue queue={tracks} {...props} />);
 
-  it('renders tracks, durations, count and total length', () => {
+  it('renders tracks and durations', () => {
     setupQueue();
     const items = screen.getAllByRole('listitem');
     expect(items).toHaveLength(3);
@@ -177,28 +175,16 @@ describe('TrackQueue', () => {
     expect(items[1]).toHaveTextContent('Y');
     expect(items[2]).toHaveTextContent('Unknown artist');
     expect(items[2]).toHaveTextContent('--:--');
-    expect(screen.getByText('3 tracks / 3 min')).toBeInTheDocument();
   });
 
-  it('uses the singular for a single track and shows an empty state', () => {
-    const { unmount } = render(<TrackQueue queue={[tracks[1]]} />);
-    expect(screen.getByText('1 track / 1 min')).toBeInTheDocument();
-    unmount();
+  it('shows an empty state', () => {
     render(<TrackQueue />);
     expect(screen.getByText('A little quiet in here.')).toBeInTheDocument();
-    expect(screen.getByText('0 tracks')).toBeInTheDocument();
   });
 
-  it('links each track to Spotify', () => {
+  it('does not link tracks out to Spotify', () => {
     setupQueue();
-    expect(screen.getByRole('link', { name: 'Open Three in Spotify' })).toHaveAttribute(
-      'href',
-      defined(tracks[2].external_urls?.spotify)
-    );
-    expect(screen.getByRole('link', { name: 'Open One in Spotify' })).toHaveAttribute(
-      'href',
-      'https://open.spotify.com'
-    );
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('shows an error alert', () => {
@@ -206,18 +192,15 @@ describe('TrackQueue', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Queue unavailable');
   });
 
-  it.each(['loading', 'idle', 'error'] as const)('does not claim an empty queue or count while %s', status => {
+  it.each(['loading', 'idle', 'error'] as const)('does not claim an empty queue while %s', status => {
     render(<TrackQueue queue={[]} status={status} />);
     expect(screen.queryByText('A little quiet in here.')).not.toBeInTheDocument();
-    expect(screen.queryByText('0 tracks')).not.toBeInTheDocument();
-    expect(document.querySelector('.queue-count')).not.toBeInTheDocument();
   });
 
   it('labels stale results and allows a queue retry', () => {
     const retry = vi.fn();
     setupQueue({ status: 'error', error: 'Queue unavailable', onRetry: retry });
     expect(screen.getByText('Showing the last known queue.')).toBeInTheDocument();
-    expect(screen.getByText('3 tracks last known / 3 min')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry queue' }));
     expect(retry).toHaveBeenCalledOnce();
   });
