@@ -302,6 +302,7 @@
   vars:
     kiosk_directories:
       - /etc/chromium/policies/managed
+      - /etc/systemd/journald.conf.d
       - /etc/the-max-mix
       - /etc/pipewire
       - /etc/pipewire/pipewire.conf.d
@@ -321,6 +322,17 @@
       - /usr/share/plymouth/themes/the-max-mix
       - /var/lib/the-max-mix
   changed_when: false
+
+# Raspberry Pi OS keeps the journal in memory, so every log is lost at a reboot, including the one that shows why a shutdown
+# was slow. This keeps it on disk, capped so that it does not wear the SD card or fill it.
+- name: Keep the journal across reboots
+  ansible.builtin.template:
+    src: kiosk-journald.conf.j2
+    dest: /etc/systemd/journald.conf.d/kiosk.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Apply the journal settings
 
 - name: Install the kiosk programs
   ansible.builtin.copy:
