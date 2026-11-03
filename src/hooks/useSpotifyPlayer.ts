@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import type { PlaybackState, SdkPlaybackState, SpotifyPlayer, Track } from '../types';
+import type { PlaybackState, RepeatMode, SdkPlaybackState, SpotifyPlayer, Track } from '../types';
 import * as spotify from '../spotify/api';
 import { getAccessToken, isSignedIn } from '../spotify/auth';
 import {
@@ -24,6 +24,9 @@ const REMOTE_POLL_MS = 4000;
 const SDK_POLL_MS = 30_000;
 // An SDK command that has not answered by now is given up on, so one lost reply cannot leave the buttons dead.
 const SDK_COMMAND_TIMEOUT_MS = 8000;
+// The SDK numbers the repeat modes; the Web API names them.
+const SDK_REPEAT_MODES: readonly RepeatMode[] = ['off', 'context', 'track'];
+const NEXT_REPEAT: Record<RepeatMode, RepeatMode> = { off: 'context', context: 'track', track: 'off' };
 
 /** Rejects when `promise` has not settled within `ms`. */
 async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
@@ -91,6 +94,11 @@ export interface UseSpotifyPlayer {
   previousTrack: () => Promise<boolean>;
   seek: (position: number) => Promise<boolean>;
   setVolume: (volume: number) => Promise<boolean>;
+  toggleShuffle: () => Promise<boolean>;
+  cycleRepeat: () => Promise<boolean>;
+  /** Whether the current track is in Liked Songs; null while unknown. */
+  liked: boolean | null;
+  toggleLike: () => Promise<boolean>;
   transferPlayback: (deviceId: string) => Promise<boolean>;
   refreshPlayback: () => Promise<void>;
   retryPlayback: () => Promise<boolean>;
@@ -119,6 +127,11 @@ function withPlaying(state: PlaybackState, playing: boolean): PlaybackState {
     Object.entries(state.actions?.disallows ?? {}).filter(([action]) => action !== 'pausing' && action !== 'resuming')
   );
   return { ...state, is_playing: playing, actions: { ...state.actions, disallows } };
+}
+
+/** The fields of `state` that `patch` sets, so a failed change can be put back. */
+function pick(state: PlaybackState, patch: Partial<PlaybackState>): Partial<PlaybackState> {
+  return Object.fromEntries(Object.keys(patch).map(key => [key, state[key as keyof PlaybackState]]));
 }
 
 function nextTracksKey(state: SdkPlaybackState): string {
@@ -314,10 +327,13 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       if (!state.paused) setSdkError(null);
       const track: Track | undefined = state.track_window?.current_track;
       const trackId = track?.id ?? null;
+      const repeat = state.repeat_mode === undefined ? undefined : SDK_REPEAT_MODES[state.repeat_mode];
       setPlayback(current => ({
         ...withPlaying(current ?? {}, !state.paused),
         progress_ms: state.position,
         ...(state.duration !== undefined && { duration: state.duration }),
+        ...(state.shuffle !== undefined && { shuffle_state: state.shuffle }),
+        ...(repeat && { repeat_state: repeat }),
         // The Web API's track has more detail than the SDK's, so it is only replaced when the track changed.
         ...(track && current?.item?.id !== track.id && { item: track })
       }));
@@ -578,6 +594,58 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   const transport = async (command: (player: SpotifyPlayer) => Promise<void>, apiCommand: () => Promise<unknown>) =>
     (await runSdkCommand(command)) ?? runCommand(apiCommand);
 
+  /**
+   * Shows `patch` at once and sends `apiCommand`; Spotify's state can lag the change, so it is not read back here
+   * (the next poll or SDK event confirms it). A refused command puts the old values back.
+   */
+  const runSetting = async (patch: Partial<PlaybackState>, apiCommand: () => Promise<unknown>) => {
+    const previous = playbackState;
+    setPlayback(current => (current ? { ...current, ...patch } : current));
+    try {
+      checkRetryWindow();
+      await apiCommand();
+      setActionError(null);
+      return true;
+    } catch (error) {
+      setPlayback(current => (current && previous ? { ...current, ...pick(previous, patch) } : current));
+      setActionError(problemForApi(error));
+      return false;
+    }
+  };
+
+  // Liked Songs is looked up once per track.
+  const trackUri = playbackState?.item?.uri ?? null;
+  const [saved, setSaved] = useState<{ uri: string; liked: boolean } | null>(null);
+  useEffect(() => {
+    if (!isAuthenticated || !trackUri?.startsWith('spotify:track:')) return;
+    let cancelled = false;
+    spotify
+      .isTrackSaved(trackUri)
+      .then(liked => {
+        if (!cancelled) setSaved({ uri: trackUri, liked });
+      })
+      .catch((error: unknown) => debugLog('warn', 'api', `Liked Songs check failed: ${errorMessage(error)}`));
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, trackUri]);
+  const liked = saved && saved.uri === trackUri ? saved.liked : null;
+
+  const toggleLike = async () => {
+    if (!trackUri || liked === null) return false;
+    setSaved({ uri: trackUri, liked: !liked });
+    try {
+      checkRetryWindow();
+      await spotify.setTrackSaved(trackUri, !liked);
+      setActionError(null);
+      return true;
+    } catch (error) {
+      setSaved(current => (current?.uri === trackUri ? { uri: trackUri, liked } : current));
+      setActionError(problemForApi(error));
+      return false;
+    }
+  };
+
   const transferPlayback = async (deviceId: string) => {
     try {
       await transferTo(deviceId, false);
@@ -643,6 +711,16 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         player => player.setVolume(volume),
         () => spotify.setVolume(Math.round(volume * 100))
       ),
+    toggleShuffle: () => {
+      const on = !playbackState?.shuffle_state;
+      return runSetting({ shuffle_state: on }, () => spotify.setShuffle(on));
+    },
+    cycleRepeat: () => {
+      const mode = NEXT_REPEAT[playbackState?.repeat_state ?? 'off'];
+      return runSetting({ repeat_state: mode }, () => spotify.setRepeat(mode));
+    },
+    liked,
+    toggleLike,
     transferPlayback,
     refreshPlayback,
     retryPlayback,

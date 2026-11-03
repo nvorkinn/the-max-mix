@@ -77,7 +77,17 @@ export function parseDevice(value: unknown): SpotifyDevice | undefined {
   return device;
 }
 
-const DISALLOWS = ['seeking', 'skipping_prev', 'skipping_next', 'pausing', 'resuming'] as const;
+const DISALLOWS = [
+  'seeking',
+  'skipping_prev',
+  'skipping_next',
+  'pausing',
+  'resuming',
+  'toggling_shuffle',
+  'toggling_repeat_context',
+  'toggling_repeat_track'
+] as const;
+const REPEAT_MODES = ['off', 'context', 'track'] as const;
 
 export function parsePlaybackState(value: unknown): PlaybackState | null {
   if (!isRecord(value)) return null;
@@ -91,6 +101,10 @@ export function parsePlaybackState(value: unknown): PlaybackState | null {
   if (item) state.item = item;
   const progress = finite(value['progress_ms']);
   if (progress !== undefined) state.progress_ms = progress;
+  const shuffle = flag(value['shuffle_state']);
+  if (shuffle !== undefined) state.shuffle_state = shuffle;
+  const repeat = REPEAT_MODES.find(mode => mode === value['repeat_state']);
+  if (repeat) state.repeat_state = repeat;
   if (isRecord(value['actions']) && isRecord(value['actions']['disallows'])) {
     const source = value['actions']['disallows'];
     const disallows: NonNullable<NonNullable<PlaybackState['actions']>['disallows']> = {};
