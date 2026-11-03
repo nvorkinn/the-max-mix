@@ -9,6 +9,8 @@ phone and desktop layouts are not supported.
 - Display the active Spotify track, progress, device, and upcoming queue.
 - Play, pause, skip, seek, adjust supported device volume, and transfer playback
   using Spotify's real APIs. Device restrictions and API failures are shown.
+  Previous restarts the song when it is more than 5 seconds in, and goes to the
+  song before it only within the first 5 seconds.
 - **Browser mode** registers Chromium as THE MAX MIX, a Spotify Connect player.
   Select it in Speakers before playing; opening the UI does not steal playback.
 - **Remote mode** controls an existing Spotify Connect device without loading
@@ -18,6 +20,14 @@ Spotify Premium and access to a Spotify developer app are required for real
 playback. Browser streaming also requires a working encrypted-media/Widevine
 setup on the exact Pi OS/Chromium image. Validate audio on the device; kiosk mode
 alone does not make DRM available.
+
+### The screen
+
+The player is laid out for the 1024x600 panel. A square artwork sits on the left, as wide as the room is tall minus the
+control bar, so the cover is never stretched into a strip. The song title and artist and the upcoming queue are beside
+it. One bar across the bottom holds the seek bar with the elapsed and total time, the previous, play/pause and next
+buttons, the volume slider, and the name of the device that is playing. The clock is in the top right of the header.
+Playback problems show in a banner at the top, with buttons to fix them.
 
 ### How playback is controlled
 
@@ -50,12 +60,13 @@ upcoming-tracks list, so a guest add can take a moment to show.
 
 ### Lyrics
 
-**Lyrics** in the header swaps the queue for the current song's lyrics (and **Up next** swaps back; the choice is
-remembered). They come from [LRCLIB](https://lrclib.net), a free, open lyrics database that needs no key and allows
-browser requests, so the app needs no backend. Time-synced lyrics follow playback and keep the current line in the
-middle; songs with only plain lyrics show them unsynced. Lookups happen only while the lyrics are shown, once per
-track. Another source can be added as a `LyricsProvider` (`src/lyrics/types.ts`) in the list in `src/lyrics/providers.ts`;
-the sources are asked in order and the first one with lyrics wins.
+Tap the artwork (the microphone button in its corner) to show the current song's lyrics in place of the artwork; tap
+the picture button to bring the artwork back. The choice is remembered. Lyrics come from [LRCLIB](https://lrclib.net),
+a free, open lyrics database that needs no key and allows browser requests, so the app needs no backend. Time-synced
+lyrics follow playback and keep the current line in the middle. Scrolling them pauses that, and they follow the song
+again after 8 seconds of being left alone. Songs with only plain lyrics show them unsynced. Lookups happen only while
+the lyrics are shown, once per track. Another source can be added as a `LyricsProvider` (`src/lyrics/types.ts`) in the
+list in `src/lyrics/providers.ts`; the sources are asked in order and the first one with lyrics wins.
 
 Spotify's own lyrics are not used: they come from an internal endpoint that is not part of the public Web API, needs
 a signed-in web-player cookie (`sp_dc`) and a server to call it, and is against Spotify's terms.
