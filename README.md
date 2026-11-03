@@ -29,6 +29,10 @@ it. One bar across the bottom holds the seek bar with the elapsed and total time
 buttons, the volume slider, and the name of the device that is playing. The clock is in the top right of the header.
 Playback problems show in a banner at the top, with buttons to fix them.
 
+Tap a song in the queue to play it. Spotify's public API cannot start a queue item directly, so the app skips forward
+past the songs before it, one at a time, which also takes them out of the queue. Removing or reordering queue items is
+not possible with the public API; do that in the Spotify app.
+
 ### How playback is controlled
 
 In browser mode (the default, and the fallback when the browser cannot play) this page is the speaker: it registers a Spotify Connect device called "The Max Mix"
