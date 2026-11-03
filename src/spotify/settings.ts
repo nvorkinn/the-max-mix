@@ -29,13 +29,13 @@ export function getClientId(): string {
   return SPOTIFY_CLIENT_ID;
 }
 
-/** browser: this page is the speaker (Web Playback SDK). remote: it only controls another Spotify Connect device. */
+/**
+ * browser: this page is the speaker (Web Playback SDK). remote: it only controls another Spotify Connect device. There is
+ * no setting for it: the player falls back to remote by itself when the browser cannot play. Only tests and tooling
+ * set the stored value (end-to-end tests run without a Widevine player).
+ */
 export function getPlaybackMode(): 'browser' | 'remote' {
   return read(PLAYBACK_MODE_KEY) === 'remote' ? 'remote' : 'browser';
-}
-
-export function setPlaybackMode(mode: 'browser' | 'remote'): void {
-  write(PLAYBACK_MODE_KEY, mode === 'remote' ? 'remote' : null);
 }
 
 /**

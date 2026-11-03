@@ -57,7 +57,7 @@ for (const viewport of [{ width: 1024, height: 600 }]) {
     await expect(settings).toBeHidden();
 
     await page.getByRole('button', { name: 'Choose speakers' }).click();
-    const speakers = page.getByRole('dialog', { name: 'Choose a Spotify device' });
+    const speakers = page.getByRole('dialog', { name: 'Speakers' });
     await expect(speakers.getByRole('button', { name: /Test speaker/ })).toBeVisible();
     await expectTouchTargets(speakers);
     await expectNoHorizontalOverflow(page);
@@ -72,7 +72,7 @@ test('settings contain keyboard focus, wrap both ways and restore the trigger', 
   await trigger.click();
   const settings = page.getByRole('dialog', { name: 'Settings' });
   const close = settings.getByRole('button', { name: 'Close settings' });
-  const last = settings.getByRole('radio', { checked: true });
+  const last = settings.getByRole('button').last();
   await expect(close).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(last).toBeFocused();
@@ -90,7 +90,7 @@ test('speakers wrap focus after devices load and restore focus on close', async 
   await page.goto('/');
   const trigger = page.getByRole('button', { name: 'Choose a Spotify Connect device' });
   await trigger.click();
-  const speakers = page.getByRole('dialog', { name: 'Choose a Spotify device' });
+  const speakers = page.getByRole('dialog', { name: 'Speakers' });
   const device = speakers.getByRole('button', { name: /Test speaker/ });
   await expect(device).toBeVisible();
   await device.focus();
@@ -106,7 +106,7 @@ test('speakers wrap focus after devices load and restore focus on close', async 
 test('Escape dismisses only the topmost dialog and restores the underlying focus', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open settings' }).click();
-  const wifi = page.getByRole('radio', { checked: true });
+  const wifi = page.getByRole('dialog', { name: 'Settings' }).getByRole('button').last();
   await wifi.focus();
   await page.keyboard.press('Control+Shift+D');
   const debug = page.getByRole('dialog', { name: 'Debug console' });

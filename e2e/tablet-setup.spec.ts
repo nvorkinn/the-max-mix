@@ -36,15 +36,7 @@ for (const appearance of ['minimal']) {
       await setup.getByRole('button', { name: 'Connection settings' }).click();
       const settings = page.getByRole('dialog', { name: 'Settings' });
       await expect(settings.getByRole('button', { name: 'Log in with Spotify' })).toBeInViewport();
-      await expect(settings.getByRole('radio', { name: 'This device' })).toBeDisabled();
-      await expect(settings.getByText(/Unavailable: This browser has no encrypted media/)).toBeVisible();
-      await expect(settings.getByRole('button', { name: 'Apply and reload' })).toBeDisabled();
-      await settings.getByRole('radio', { name: 'Another Spotify device' }).click();
-      await settings.getByRole('button', { name: 'Apply and reload' }).click();
-      await expect(setup.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
-      await setup.getByRole('button', { name: 'Connection settings' }).click();
-      await expect(settings.getByRole('radio', { name: 'Another Spotify device' })).toBeChecked();
-      await expect(settings.getByRole('button', { name: 'Apply and reload' })).toBeDisabled();
+      await expect(settings.getByRole('radio')).toHaveCount(0);
       await settings.getByRole('button', { name: 'Close settings' }).click();
       expect(commands).toEqual([]);
       expect(await page.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);

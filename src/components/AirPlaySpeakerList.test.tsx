@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, waitFor } from '@testing-library/react';
 import userEvent from '../test/user';
 import AirPlaySpeakerList from './AirPlaySpeakerList';
 
@@ -49,6 +49,31 @@ describe('AirPlaySpeakerList', () => {
     expect(airplay.routeAudio).toHaveBeenLastCalledWith(['Lounge']);
   });
 
+  it('reports each change so playback can move to this tablet', async () => {
+    const onChange = vi.fn();
+    render(<AirPlaySpeakerList isPlayerReady onChange={onChange} />);
+    await userEvent.click(await screen.findByRole('button', { name: /Lounge/ }));
+    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith(['Kitchen', 'Lounge']));
+    await userEvent.click(screen.getByRole('button', { name: /Kitchen/ }));
+    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith(['Lounge']));
+  });
+
+  it('shows a failed change', async () => {
+    render(<AirPlaySpeakerList isPlayerReady onChange={() => Promise.reject(new Error('Transfer failed'))} />);
+    await userEvent.click(await screen.findByRole('button', { name: /Lounge/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Transfer failed');
+  });
+
+  it('chooses nothing while inactive, and starts a new selection on the next tap', async () => {
+    const onChange = vi.fn();
+    render(<AirPlaySpeakerList isPlayerReady active={false} onChange={onChange} />);
+    const lounge = await screen.findByRole('button', { name: /Lounge/ });
+    expect(screen.getByRole('button', { name: /Kitchen/ })).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(lounge);
+    expect(airplay.setChosenSpeakers).toHaveBeenLastCalledWith(['Lounge']);
+    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith(['Lounge']));
+  });
+
   it('keeps a chosen speaker that left the network, so it can be removed', async () => {
     airplay.listAudioOutputs.mockResolvedValue(['Lounge']);
     render(<AirPlaySpeakerList isPlayerReady />);
@@ -85,7 +110,7 @@ describe('AirPlaySpeakerList', () => {
     expect(lounge).toBeDisabled();
     await userEvent.click(lounge);
     expect(airplay.setChosenSpeakers).not.toHaveBeenCalled();
-    expect(screen.getByRole('status')).toHaveTextContent(/Play in this browser/);
+    expect(screen.getByRole('status')).toHaveTextContent(/player isn.t ready/);
     expect(screen.getByRole('button', { name: /Kitchen/ })).toHaveTextContent('Selected');
     expect(screen.queryByText('Playing here')).not.toBeInTheDocument();
     expect(airplay.routeAudio).not.toHaveBeenCalled();

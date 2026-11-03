@@ -9,11 +9,6 @@ import type { SpotifyDevice } from '../types';
 import AirPlaySpeakerList from './AirPlaySpeakerList';
 import Modal from './Modal';
 
-const ROUTES: { id: AudioRoute; label: string }[] = [
-  { id: 'spotify-connect', label: 'Spotify Connect' },
-  { id: 'airplay', label: 'AirPlay' }
-];
-
 function describeDevice(device: SpotifyDevice) {
   if (!device.id) return 'Not available to select from this app';
   if (device.is_restricted) return 'Playback control restricted';
@@ -28,16 +23,18 @@ export default function SpeakerSelectorModal({
   browserDeviceId,
   canUseAirPlay = false,
   audioRoute = 'spotify-connect',
-  onAudioRouteChange
+  onAirPlayChange
 }: Readonly<{
   isOpen: boolean;
   onClose: () => void;
+  /** Plays on this tablet (its own device id) or on a Spotify Connect speaker. */
   onSelectSpeaker: (deviceId: string) => Promise<unknown>;
   browserDeviceId?: string | null;
   /** The Pi kiosk, whose audio service can send this tablet's sound to AirPlay speakers. */
   canUseAirPlay?: boolean;
   audioRoute?: AudioRoute;
-  onAudioRouteChange?: (route: AudioRoute) => Promise<unknown>;
+  /** The AirPlay speakers now chosen; none means AirPlay is off. */
+  onAirPlayChange?: (speakers: string[]) => Promise<unknown>;
 }>) {
   const [devices, setDevices] = useState<SpotifyDevice[]>([]);
   const [loading, setLoading] = useState(false);
@@ -65,22 +62,10 @@ export default function SpeakerSelectorModal({
   }, [reportError]);
   const isAirPlay = canUseAirPlay && audioRoute === 'airplay';
   useEffect(() => {
-    if (isOpen && !isAirPlay) void fetchDevices();
-  }, [isOpen, browserDeviceId, isAirPlay, fetchDevices]);
+    if (isOpen) void fetchDevices();
+  }, [isOpen, browserDeviceId, fetchDevices]);
 
   if (!isOpen) return null;
-  const changeRoute = async (route: AudioRoute) => {
-    if (route === audioRoute || !onAudioRouteChange) return;
-    setSelecting(true);
-    try {
-      await onAudioRouteChange(route);
-      setError(null);
-    } catch (caught) {
-      reportError(caught);
-    } finally {
-      setSelecting(false);
-    }
-  };
   const selectDevice = async (deviceId: string) => {
     setSelecting(true);
     try {
@@ -93,6 +78,9 @@ export default function SpeakerSelectorModal({
     }
   };
 
+  const connectDevices = devices.filter(device => !browserDeviceId || device.id !== browserDeviceId);
+  const tabletIsActive = !isAirPlay && devices.some(device => device.id === browserDeviceId && device.is_active);
+
   return (
     <Modal
       labelledBy="speakers-title"
@@ -100,26 +88,19 @@ export default function SpeakerSelectorModal({
       className="app-modal-panel border rounded-3xl p-6 max-w-md shadow-2xl"
     >
       <div className="modal-header modal-divider flex items-center justify-between gap-3 pb-3 border-b">
-        <div>
-          <h2 id="speakers-title" className="text-base font-semibold">
-            {isAirPlay ? 'Choose AirPlay speakers' : 'Choose a Spotify device'}
-          </h2>
-          <p className="text-xs text-muted mt-1">
-            {isAirPlay ? 'Speakers found on this network' : 'Devices reported by your Spotify account'}
-          </p>
-        </div>
+        <h2 id="speakers-title" className="text-base font-semibold">
+          Speakers
+        </h2>
         <div className="flex gap-2">
-          {!isAirPlay && (
-            <button
-              type="button"
-              onClick={() => void fetchDevices()}
-              disabled={loading || selecting || waitingForSpotify}
-              aria-label="Refresh devices"
-              className="modal-icon-button p-2 rounded-full"
-            >
-              <RefreshCw size={16} />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => void fetchDevices()}
+            disabled={loading || selecting || waitingForSpotify}
+            aria-label="Refresh devices"
+            className="modal-icon-button p-2 rounded-full"
+          >
+            <RefreshCw size={16} />
+          </button>
           <button
             type="button"
             onClick={onClose}
@@ -131,50 +112,63 @@ export default function SpeakerSelectorModal({
           </button>
         </div>
       </div>
-      {canUseAirPlay && (
-        <div role="group" aria-label="Playback mode" className="modal-card mt-4 grid grid-cols-2 gap-1 p-1 rounded-xl">
-          {ROUTES.map(route => (
-            <button
-              type="button"
-              key={route.id}
-              aria-pressed={audioRoute === route.id}
-              disabled={selecting}
-              onClick={() => void changeRoute(route.id)}
-              className="modal-segment py-2 rounded-lg text-xs font-semibold"
-            >
-              {route.label}
-            </button>
-          ))}
-        </div>
-      )}
       {error && (
         <p role="alert" className="text-xs status-danger my-4">
           {error}
         </p>
       )}
-      {waitingForSpotify && !isAirPlay && (
+      {waitingForSpotify && (
         <p role="status" className="text-xs text-muted my-4">
           Spotify asked this app to wait before refreshing devices.
         </p>
       )}
-      {isAirPlay ? (
-        <AirPlaySpeakerList isPlayerReady={Boolean(browserDeviceId)} />
-      ) : (
-        <div className="mt-4 space-y-2">
-          {!loading && !error && devices.length === 0 && (
-            <p className="text-xs leading-relaxed text-muted py-6">
-              No available devices. Open Spotify on a phone, computer, or Spotify Connect speaker, then refresh.
-              {canUseAirPlay
-                ? ' For AirPlay speakers such as Sonos, switch to AirPlay above.'
-                : ' Bluetooth and AirPlay outputs are selected in Spotify or the operating system, not discovered directly by this app.'}
+      <div className="mt-4 space-y-2">
+        {browserDeviceId && (
+          <button
+            type="button"
+            disabled={selecting || waitingForSpotify}
+            aria-pressed={tabletIsActive}
+            onClick={() => void selectDevice(browserDeviceId)}
+            className="modal-option w-full p-3 flex gap-3 items-center text-left rounded-xl border"
+          >
+            <Speaker size={20} className="shrink-0 text-accent" />
+            <span className="flex-1 min-w-0 text-sm truncate">This tablet</span>
+            {tabletIsActive && (
+              <span className="text-xs text-accent flex items-center gap-1">
+                <Check size={14} /> Active
+              </span>
+            )}
+          </button>
+        )}
+        {canUseAirPlay && (
+          <section aria-labelledby="airplay-title" className="space-y-2 pt-2">
+            <h3 id="airplay-title" className="text-xs font-bold">
+              AirPlay
+            </h3>
+            <p className="text-[11px] text-muted">Pick several. Plays from this tablet, a little behind the screen.</p>
+            <AirPlaySpeakerList
+              isPlayerReady={Boolean(browserDeviceId)}
+              active={isAirPlay}
+              onChange={onAirPlayChange}
+            />
+          </section>
+        )}
+        <section aria-labelledby="connect-title" className="space-y-2 pt-2">
+          <h3 id="connect-title" className="text-xs font-bold">
+            Spotify Connect
+          </h3>
+          <p className="text-[11px] text-muted">Plays on one speaker, even when this tablet is off.</p>
+          {!loading && !error && connectDevices.length === 0 && (
+            <p className="text-xs leading-relaxed text-muted py-2">
+              No Spotify speakers found. Open Spotify on a phone, computer, or Connect speaker, then refresh.
             </p>
           )}
-          {devices.map(device => (
+          {connectDevices.map(device => (
             <button
               type="button"
               key={device.id ?? `unavailable:${device.name}`}
               disabled={!device.id || device.is_restricted || selecting || waitingForSpotify}
-              aria-pressed={Boolean(device.is_active)}
+              aria-pressed={!isAirPlay && Boolean(device.is_active)}
               onClick={() => device.id && void selectDevice(device.id)}
               className="modal-option w-full p-3 flex gap-3 items-center text-left rounded-xl border"
             >
@@ -183,7 +177,7 @@ export default function SpeakerSelectorModal({
                 <span className="block text-sm truncate">{device.name}</span>
                 <span className="text-[11px] text-muted">{describeDevice(device)}</span>
               </span>
-              {device.is_active && (
+              {!isAirPlay && device.is_active && (
                 <span className="text-xs text-accent flex items-center gap-1">
                   <Check size={14} /> Active
                 </span>
@@ -196,23 +190,8 @@ export default function SpeakerSelectorModal({
               to one from the Spotify app on your phone, then refresh.
             </p>
           )}
-          {browserDeviceId && devices.every(device => device.id !== browserDeviceId) && (
-            <button
-              type="button"
-              disabled={selecting || waitingForSpotify}
-              className="button button-primary w-full"
-              onClick={() => void selectDevice(browserDeviceId)}
-            >
-              Use this tablet
-            </button>
-          )}
-        </div>
-      )}
-      <p className="modal-divider text-[11px] text-muted border-t pt-3 mt-4">
-        {isAirPlay
-          ? 'AirPlay speakers lag the screen by about half a second.'
-          : 'Selection transfers playback without automatically starting music. Press Play when ready.'}
-      </p>
+        </section>
+      </div>
     </Modal>
   );
 }

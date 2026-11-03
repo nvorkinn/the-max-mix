@@ -26,7 +26,6 @@ export function createSpotifyMocks() {
   };
   const settings = {
     getPlaybackMode: vi.fn(),
-    setPlaybackMode: vi.fn(),
     getRedirectUri: vi.fn()
   };
   return { api, auth, settings };
