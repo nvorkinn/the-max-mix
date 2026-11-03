@@ -626,6 +626,10 @@
 .volume-control svg {
   flex-shrink: 0;
 }
+.volume-note {
+  min-height: 44px;
+  font-size: 0.875rem;
+}
 .volume-range {
   flex: 1;
   min-width: 0;
