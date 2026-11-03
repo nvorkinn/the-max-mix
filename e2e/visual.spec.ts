@@ -38,15 +38,19 @@ test('settings modal at the top and scrolled', async ({ page }) => {
   await expect(dialog).toHaveScreenshot('settings-scrolled.png', SHOT);
 });
 
-test('speakers modal at the top and scrolled', async ({ page }) => {
+test('speakers drawer', async ({ page }) => {
   await fakeSpotify(page);
+  // The drawer needs the height of a real screen, unlike the modals above, which are checked on a short one.
+  await page.setViewportSize({ width: 1024, height: 600 });
   await page.goto('/');
-  await page.getByRole('button', { name: /^Choose (speakers|a Spotify Connect device)$/ }).click();
+  await page.getByRole('button', { name: /^Speakers:/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Speakers' });
   await expect(dialog.getByRole('button', { name: /Test speaker/ })).toBeVisible();
-  await expect(dialog).toHaveScreenshot('speakers-top.png', SHOT);
-  await scrollToBottom(dialog);
-  await expect(dialog).toHaveScreenshot('speakers-scrolled.png', SHOT);
+  // The clock and the seek position change as time passes, so they are masked out of the comparison.
+  await expect(page).toHaveScreenshot('speakers-drawer.png', {
+    ...SHOT,
+    mask: [page.locator('.header-clock'), page.getByRole('slider', { name: 'Playback position' })]
+  });
 });
 
 test('signed-out setup screen', async ({ page }) => {

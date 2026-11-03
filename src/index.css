@@ -321,13 +321,13 @@
 .speaker-scrim {
   position: absolute;
   inset: 0;
-  z-index: 40;
+  z-index: 60;
   background: rgb(20 24 18 / 22%);
   cursor: default;
 }
 .speaker-drawer {
   position: absolute;
-  z-index: 41;
+  z-index: 61;
   left: 30px;
   bottom: 122px;
   top: 78px;
