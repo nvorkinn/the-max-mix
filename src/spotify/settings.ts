@@ -4,7 +4,7 @@
 // The app's Spotify client ID. It is public by design (sign-in uses PKCE and there is no client secret), so it lives in the
 // code and users never enter it.
 const SPOTIFY_CLIENT_ID = '79012ca710ca4dd5ad18c2973510b670';
-const LEGACY_PLAYBACK_MODE_KEY = 'maxmix.playbackMode';
+const PLAYBACK_MODE_KEY = 'maxmix.playbackMode';
 const AUDIO_ROUTE_KEY = 'maxmix.audioRoute';
 
 function read(key: string): string | null {
@@ -31,11 +31,11 @@ export function getClientId(): string {
 
 /**
  * browser: this page is the speaker (Web Playback SDK). remote: it only controls another Spotify Connect device. There is
- * no setting for it: the player falls back to remote by itself when the browser cannot play. An older setting is dropped.
+ * no setting for it: the player falls back to remote by itself when the browser cannot play. Only tests and tooling
+ * set the stored value (end-to-end tests run without a Widevine player).
  */
 export function getPlaybackMode(): 'browser' | 'remote' {
-  write(LEGACY_PLAYBACK_MODE_KEY, null);
-  return 'browser';
+  return read(PLAYBACK_MODE_KEY) === 'remote' ? 'remote' : 'browser';
 }
 
 /**

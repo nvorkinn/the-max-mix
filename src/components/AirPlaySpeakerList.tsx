@@ -21,9 +21,9 @@ export default function AirPlaySpeakerList({
   onChange
 }: Readonly<{
   isPlayerReady: boolean;
-  active?: boolean;
+  active?: boolean | undefined;
   /** Called with the speakers now chosen, after they were saved and (with a ready player) routed. */
-  onChange?: (speakers: string[]) => unknown;
+  onChange?: ((speakers: string[]) => unknown) | undefined;
 }>) {
   const [outputs, setOutputs] = useState<string[] | null>(null);
   const [chosen, setChosen] = useState(getChosenSpeakers);
