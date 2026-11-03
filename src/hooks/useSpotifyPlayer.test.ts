@@ -311,13 +311,21 @@ describe('useSpotifyPlayer', () => {
     expect(mocks.api.setShuffle).toHaveBeenCalledWith(true);
     expect(result.current.playbackState?.shuffle_state).toBe(true);
 
-    for (const mode of ['context', 'track', 'off']) {
-      await act(async () => {
-        await result.current.cycleRepeat();
-      });
-      expect(mocks.api.setRepeat).toHaveBeenLastCalledWith(mode);
-      expect(result.current.playbackState?.repeat_state).toBe(mode);
-    }
+    const repeatModes: string[] = [];
+    await act(async () => {
+      await result.current.cycleRepeat();
+    });
+    repeatModes.push(String(result.current.playbackState?.repeat_state));
+    await act(async () => {
+      await result.current.cycleRepeat();
+    });
+    repeatModes.push(String(result.current.playbackState?.repeat_state));
+    await act(async () => {
+      await result.current.cycleRepeat();
+    });
+    repeatModes.push(String(result.current.playbackState?.repeat_state));
+    expect(repeatModes).toEqual(['context', 'track', 'off']);
+    expect(mocks.api.setRepeat.mock.calls).toEqual([['context'], ['track'], ['off']]);
   });
 
   it('puts shuffle back and reports the error when Spotify refuses it', async () => {

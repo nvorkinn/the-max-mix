@@ -629,7 +629,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       cancelled = true;
     };
   }, [isAuthenticated, trackUri]);
-  const liked = saved?.uri === trackUri ? saved.liked : null;
+  const liked = trackUri !== null && saved?.uri === trackUri ? saved.liked : null;
 
   const toggleLike = async () => {
     if (!trackUri || liked === null) return false;
