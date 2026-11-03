@@ -208,6 +208,8 @@ v1.12.0`): the Release workflow deploys the web app to Vercel and, once that has
   and the next timer run tries again. A pull never restarts the kiosk either: it leaves a marker when kiosk files changed,
   and `kiosk-restart.timer` restarts the kiosk at 04:30 if the marker is there (a reboot also applies the changes).
 - **Check the last pull:** `journalctl -u kiosk-pull -n 100`, and `systemctl list-timers 'kiosk-*'` for the next runs.
+  Every pull ends with how long it took and a list of the slowest playbook tasks (`ansible/callback_plugins/task_timer.py`),
+  which is also what the app's update output shows.
 - **Roll back:** run the Release workflow by hand (Actions > Release > Run workflow) with the earlier tag. It redeploys
   that version of the web app and marks its release as the latest again, and the Pis return to it at their next pull
   (or straight away with **Update now**). Publishing a newer tag later moves everything forward again.
