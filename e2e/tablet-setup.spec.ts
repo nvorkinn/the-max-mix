@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-for (const appearance of ['neon', 'minimal']) {
+for (const appearance of ['minimal']) {
   for (const viewport of [
     { width: 1024, height: 600 },
     { width: 768, height: 1024 }

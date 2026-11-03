@@ -476,58 +476,11 @@ describe('TabletView', () => {
     expect(screen.getByRole('dialog', { name: /choose a spotify device/i })).toBeInTheDocument();
   });
 
-  it('persists the theme and toasts the change', async () => {
-    vi.useFakeTimers();
+  it('always uses the Paper appearance', async () => {
+    localStorage.setItem('maxmix_theme', 'neon');
     const { container } = render(<TabletView />);
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-    expect(container.firstChild).toHaveAttribute('data-theme', 'neon');
-    fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
-    fireEvent.click(screen.getByRole('button', { name: /paper/i }));
-    expect(container.firstChild).toHaveAttribute('data-theme', 'minimal');
-    expect(localStorage.getItem('maxmix_theme')).toBe('minimal');
-    expect(screen.getByText('Appearance updated to Paper')).toBeInTheDocument();
-    act(() => {
-      vi.advanceTimersByTime(3600);
-    });
-    expect(screen.queryByText('Appearance updated to Paper')).not.toBeInTheDocument();
-  });
-
-  it('does not let an earlier toast timer cut a newer toast short', async () => {
-    vi.useFakeTimers();
-    render(<TabletView />);
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
-    fireEvent.click(screen.getByRole('button', { name: /paper/i }));
-    expect(screen.getByText('Appearance updated to Paper')).toBeInTheDocument();
-    act(() => {
-      vi.advanceTimersByTime(2000);
-    });
-    fireEvent.click(screen.getByRole('button', { name: /studio|neon/i }));
-    expect(screen.getByText('Appearance updated to Studio')).toBeInTheDocument();
-    act(() => {
-      vi.advanceTimersByTime(1600);
-    });
-    expect(screen.getByText('Appearance updated to Studio')).toBeInTheDocument();
-    act(() => {
-      vi.advanceTimersByTime(2000);
-    });
-    expect(screen.queryByText('Appearance updated to Studio')).not.toBeInTheDocument();
-  });
-
-  it('restores a saved theme and ignores unknown values', async () => {
-    localStorage.setItem('maxmix_theme', 'minimal');
-    const first = render(<TabletView />);
     await flush();
-    expect(first.container.firstChild).toHaveAttribute('data-theme', 'minimal');
-    first.unmount();
-    localStorage.setItem('maxmix_theme', 'bogus');
-    const second = render(<TabletView />);
-    await flush();
-    expect(second.container.firstChild).toHaveAttribute('data-theme', 'neon');
+    expect(container.firstChild).not.toHaveAttribute('data-theme');
   });
 
   it('routes player controls to the hook, converting volume to 0..1', async () => {

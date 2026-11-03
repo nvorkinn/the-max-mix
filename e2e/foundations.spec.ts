@@ -53,10 +53,6 @@ for (const viewport of [{ width: 1024, height: 600 }]) {
     await expect(settings).toBeVisible();
     await expectTouchTargets(settings);
     await expectNoHorizontalOverflow(page);
-    await settings.getByRole('button', { name: /Paper Light/ }).click();
-    await expect(settings.getByRole('status')).toHaveText('Appearance updated to Paper');
-    await expectTouchTargets(settings);
-    await expectNoHorizontalOverflow(page);
     await page.keyboard.press('Escape');
     await expect(settings).toBeHidden();
 
@@ -76,7 +72,7 @@ test('settings contain keyboard focus, wrap both ways and restore the trigger', 
   await trigger.click();
   const settings = page.getByRole('dialog', { name: 'Settings' });
   const close = settings.getByRole('button', { name: 'Close settings' });
-  const last = settings.getByRole('button', { name: /Paper/ });
+  const last = settings.getByRole('radio', { checked: true });
   await expect(close).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(last).toBeFocused();
@@ -110,8 +106,8 @@ test('speakers wrap focus after devices load and restore focus on close', async 
 test('Escape dismisses only the topmost dialog and restores the underlying focus', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open settings' }).click();
-  const studio = page.getByRole('button', { name: /Studio Signature/ });
-  await studio.focus();
+  const wifi = page.getByRole('radio', { checked: true });
+  await wifi.focus();
   await page.keyboard.press('Control+Shift+D');
   const debug = page.getByRole('dialog', { name: 'Debug console' });
   await expect(debug).toBeVisible();
@@ -119,7 +115,7 @@ test('Escape dismisses only the topmost dialog and restores the underlying focus
   await page.keyboard.press('Escape');
   await expect(debug).toBeHidden();
   await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
-  await expect(studio).toBeFocused();
+  await expect(wifi).toBeFocused();
 });
 
 test('failed images become local artwork rather than retrying URLs', async ({ page }) => {
@@ -129,7 +125,6 @@ test('failed images become local artwork rather than retrying URLs', async ({ pa
   await expect(page.locator('.queue-art.image-placeholder')).toHaveCount(4);
 
   await page.getByRole('button', { name: 'Open settings' }).click();
-  await page.getByRole('button', { name: /Paper Light/ }).click();
   await page.keyboard.press('Escape');
   await expect(page.locator('.album-cover.image-placeholder')).toBeVisible();
 

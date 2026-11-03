@@ -131,7 +131,7 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-for (const theme of ['neon', 'minimal']) {
+for (const theme of ['minimal']) {
   test(`signed-out playback is not a connected or empty session in ${theme}`, async ({ page }) => {
     await page.addInitScript(appearance => {
       /* eslint-disable-next-line n/no-unsupported-features/node-builtins -- This init script runs in the browser, not Node. */
@@ -267,10 +267,7 @@ for (const theme of ['neon', 'minimal']) {
   }
 }
 
-for (const { width, height, theme } of [
-  { width: 1024, height: 600, theme: 'neon' },
-  { width: 1024, height: 600, theme: 'minimal' }
-]) {
+for (const { width, height, theme } of [{ width: 1024, height: 600, theme: 'minimal' }]) {
   test(`playback recovery fits ${width}x${height} in ${theme} without repeating a skip`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     const api = await mockSpotify(page, theme);
