@@ -110,7 +110,7 @@ app, kiosk service and Wi-Fi panel tests.
 ### Checks and Git hooks
 
 `npm run check` runs the checks CI's Lint workflow runs, among them ESLint, TypeScript, Prettier (`npm run format`
-fixes), ShellCheck, spelling, markdownlint, yamllint and Stylelint. ShellCheck and editorconfig-checker are system
+fixes), ShellCheck, spelling, markdownlint and Stylelint. ShellCheck and editorconfig-checker are system
 tools, not npm packages: install them with `brew` or `apt`.
 
 `npm install` at the repo root also installs a [Husky](https://typicode.github.io/husky/) pre-commit hook. For staged
