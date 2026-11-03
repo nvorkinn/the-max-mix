@@ -52,5 +52,6 @@ test('speakers modal at the top and scrolled', async ({ page }) => {
 test('signed-out setup screen', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
-  await expect(page).toHaveScreenshot('setup.png', SHOT);
+  // The header clock changes every minute, so it is masked out of the comparison.
+  await expect(page).toHaveScreenshot('setup.png', { ...SHOT, mask: [page.locator('.header-clock')] });
 });
