@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Download, Power, RotateCw } from 'lucide-react';
+import { Download, LoaderCircle, Power, RotateCw } from 'lucide-react';
 import { debugLog } from '../utils/debugLog';
 import { getUpdateStatus } from '../utils/kioskService';
 import { isRelease, latestCommit, latestRelease, piVersion, rebootPi, restartKiosk, updateKiosk } from '../utils/kiosk';
@@ -16,11 +16,32 @@ function ConfirmButton({
   label,
   confirmLabel,
   icon,
+  busyLabel,
   onConfirm
-}: Readonly<{ label: string; confirmLabel: string; icon: ReactNode; onConfirm: () => void }>) {
+}: Readonly<{
+  label: string;
+  confirmLabel: string;
+  icon: ReactNode;
+  /** While set, the button is disabled and shows this with a spinner: the action it starts is still running. */
+  busyLabel?: string | undefined;
+  onConfirm: () => void;
+}>) {
   const [armed, setArmed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  if (busyLabel) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="modal-option flex-1 flex items-center justify-center gap-2 p-3 min-h-12 rounded-2xl border text-xs font-bold"
+      >
+        <LoaderCircle className="w-4 h-4 shrink-0 animate-spin" aria-hidden="true" />
+        {busyLabel}
+      </button>
+    );
+  }
 
   return (
     <button
@@ -52,6 +73,9 @@ export default function KioskSystem() {
   const [isUpdating, setIsUpdating] = useState(false);
   // What the update says it is doing, from the kiosk service; null until it has said anything.
   const [progress, setProgress] = useState<string | null>(null);
+  // The last lines the update has printed, shown as they arrive.
+  const [output, setOutput] = useState<string[]>([]);
+  const outputRef = useRef<HTMLPreElement>(null);
   // The newest release tag on GitHub for a Pi on a release, otherwise the newest commit of the ref it is pinned to.
   type Latest = { state: 'checking' } | { state: 'unknown' } | { state: 'known'; value: string };
   const [latest, setLatest] = useState<Latest>({ state: version ? 'checking' : 'unknown' });
@@ -81,16 +105,27 @@ export default function KioskSystem() {
         for (const line of fresh) debugLog('info', 'update', line);
         logged = status.total;
         const last = status.lines.at(-1);
-        if (status.state === 'running') hasSeenRunning = true;
-        if (status.state === 'done') setProgress('Update finished. Nothing needed a restart.');
-        else if (status.state === 'failed') setProgress(`The update failed. ${last ?? ''}`.trim());
-        else if (last) setProgress(last);
-        if (status.state === 'done' || status.state === 'failed') setIsUpdating(false);
+        setOutput(status.lines);
+        if (status.state === 'running') {
+          hasSeenRunning = true;
+        } else if (status.state === 'done') {
+          setProgress('Update finished. Nothing needed a restart.');
+          setIsUpdating(false);
+        } else {
+          setProgress(`The update failed. ${last ?? ''}`.trim());
+          setIsUpdating(false);
+        }
       });
       if (Date.now() - started > GIVE_UP_MS) setIsUpdating(false);
     }, POLL_MS);
     return () => clearInterval(timer);
   }, [isUpdating]);
+
+  // Keep the newest output in view.
+  useEffect(() => {
+    const element = outputRef.current;
+    if (element) element.scrollTop = element.scrollHeight;
+  }, [output]);
 
   useEffect(() => {
     if (!version) return;
@@ -120,11 +155,12 @@ export default function KioskSystem() {
       ? `${newer}. Tap Update now, or the Pi picks it up within 6 hours and applies it at 04:30.`
       : 'Up to date.';
   }
-  if (isUpdating) status = progress ?? 'Updating…';
+  if (isUpdating) status = progress ?? 'Updating… this can take a few minutes.';
   else if (progress) status = progress;
 
   const update = () => {
     setProgress(null);
+    setOutput([]);
     setIsUpdating(true);
     updateKiosk();
   };
@@ -138,12 +174,27 @@ export default function KioskSystem() {
             <span className="font-mono text-muted">{release ? version.ref : `${version.ref} ${version.commit}`}</span>
           )}
         </div>
-        <p className={`text-[10px] mt-0.5 ${updateWaiting ? 'status-warning' : 'text-muted'}`}>{status}</p>
+        <p
+          role="status"
+          className={`${isUpdating ? 'text-xs font-semibold' : 'text-[10px]'} mt-0.5 ${updateWaiting ? 'status-warning' : 'text-muted'}`}
+        >
+          {status}
+        </p>
       </div>
+      {(isUpdating || output.length > 0) && (
+        <pre
+          ref={outputRef}
+          aria-label="Update output"
+          className="modal-card rounded-xl border p-2 font-mono text-[10px] leading-4 max-h-28 overflow-y-auto whitespace-pre-wrap break-words select-text"
+        >
+          {output.length > 0 ? output.join('\n') : 'Starting the update…'}
+        </pre>
+      )}
       <div className="flex gap-2">
         <ConfirmButton
           label="Update now"
           confirmLabel="Tap again to update"
+          busyLabel={isUpdating ? 'Updating…' : undefined}
           icon={<Download className="w-4 h-4 shrink-0" aria-hidden="true" />}
           onConfirm={update}
         />
