@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, CSSProperties } from 'react';
-import { AudioLines, Clock, Settings, Speaker, MicVocal } from 'lucide-react';
+import { AudioLines, Clock, Settings, Speaker } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useScreenSleep } from '../hooks/useScreenSleep';
@@ -21,14 +21,14 @@ import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
 import SpotifySetup from './SpotifySetup';
 import TrackQueue, { type QueueStatus } from './TrackQueue';
-import PlaybackNotice, { type PlaybackNoticeState } from './PlaybackNotice';
+import PlaybackBanner, { type PlaybackNoticeState, type BannerNotice } from './PlaybackNotice';
 import LyricsPanel from './LyricsPanel';
 import SettingsModal from './SettingsModal';
 import SpeakerSelectorModal from './SpeakerSelectorModal';
 import DebugConsole from './DebugConsole';
 import SleepScreen from './SleepScreen';
 
-const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
 // While this page's player is active the queue is re-read when the SDK says it changed; this is only a safety net.
 const QUEUE_POLL_MS = 10_000;
@@ -263,6 +263,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   } else if (isLoading || (!isReady && isConnecting)) notice = { kind: 'connecting' };
   else if (!isReady && !browserDeviceId) notice = { kind: 'no-device' };
   else if (!currentTrack) notice = { kind: 'idle' };
+  // Only trouble needing the user's attention goes in the banner; idle and connecting states are the player's own.
+  let banner: BannerNotice | null = null;
+  if (!needsConnection && notice?.kind === 'problem') banner = notice;
+  else if (!needsConnection && notice?.kind === 'restricted') banner = { kind: 'restricted' };
   let sessionStatus: string;
   if (notice) {
     sessionStatus = {
@@ -322,17 +326,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           </button>
           <button
             type="button"
-            onClick={() => toggleLyrics(!showLyrics)}
-            className="button button-secondary lyrics-button"
-            disabled={needsConnection}
-            aria-pressed={showLyrics}
-            title="Show the lyrics of the current song"
-          >
-            <MicVocal size={15} />
-            <span>Lyrics</span>
-          </button>
-          <button
-            type="button"
             onClick={() => setIsSettingsOpen(true)}
             className="icon-button"
             title="Settings"
@@ -344,6 +337,18 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       </header>
 
       {isOffline && <OfflineBanner />}
+      {banner && (
+        <PlaybackBanner
+          notice={banner}
+          busy={isRefreshingPlayback}
+          onSettings={showSettings}
+          onChooseSpeaker={chooseSpeaker}
+          onRefresh={() => void recoverPlayback(retryPlayback)}
+          onReconnect={reconnectPlayer}
+          onAllowAudio={() => void recoverPlayback(allowBrowserAudio)}
+          onDetails={() => setIsDebugOpen(true)}
+        />
+      )}
 
       <main className={`listening-room${needsConnection ? ' is-setup' : ''}`}>
         <section className="player-section" aria-label="Now playing">
@@ -371,45 +376,30 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 (!waitingForSpotify || sdkActive) &&
                 !isLoading
               }
-              notice={
-                notice && (
-                  <PlaybackNotice
-                    notice={notice}
-                    busy={isRefreshingPlayback}
-                    onSettings={showSettings}
-                    onChooseSpeaker={chooseSpeaker}
-                    onRefresh={() => void recoverPlayback(retryPlayback)}
-                    onReconnect={reconnectPlayer}
-                    onAllowAudio={() => void recoverPlayback(allowBrowserAudio)}
-                    onDetails={() => setIsDebugOpen(true)}
-                  />
-                )
+              lyricsOpen={showLyrics}
+              onToggleLyrics={() => toggleLyrics(!showLyrics)}
+              lyrics={
+                <LyricsPanel
+                  track={currentTrack}
+                  progressMs={playbackState?.progress_ms ?? playbackState?.position ?? 0}
+                />
               }
             />
           )}
         </section>
 
-        {!needsConnection &&
-          (showLyrics ? (
-            <section className="queue-section" aria-label="Lyrics">
-              <LyricsPanel
-                track={currentTrack}
-                progressMs={playbackState?.progress_ms ?? playbackState?.position ?? 0}
-                onClose={() => toggleLyrics(false)}
-              />
-            </section>
-          ) : (
-            <section className="queue-section" aria-label="Upcoming tracks">
-              <TrackQueue
-                queue={queue}
-                error={queueError}
-                status={waitingForSpotify ? 'waiting' : queueStatus}
-                onRetry={() => setQueueRequestVersion(version => version + 1)}
-                onConnect={showSettings}
-                retryAllowed={!waitingForSpotify}
-              />
-            </section>
-          ))}
+        {!needsConnection && (
+          <section className="queue-section" aria-label="Upcoming tracks">
+            <TrackQueue
+              queue={queue}
+              error={queueError}
+              status={waitingForSpotify ? 'waiting' : queueStatus}
+              onRetry={() => setQueueRequestVersion(version => version + 1)}
+              onConnect={showSettings}
+              retryAllowed={!waitingForSpotify}
+            />
+          </section>
+        )}
       </main>
 
       <footer className="app-footer">

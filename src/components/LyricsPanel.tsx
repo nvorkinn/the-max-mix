@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ListMusic, MicVocal, RotateCcw } from 'lucide-react';
+import { MicVocal, RotateCcw } from 'lucide-react';
 import { useLyrics } from '../hooks/useLyrics';
 import { activeLineIndex } from '../lyrics/lrc';
 import type { LyricsProvider } from '../lyrics/types';
@@ -8,7 +8,6 @@ import type { Track } from '../types';
 interface LyricsPanelProps {
   track?: Track | undefined;
   progressMs: number;
-  onClose: () => void;
   provider?: LyricsProvider;
 }
 
@@ -34,7 +33,7 @@ function EmptyState({ title, text }: Readonly<{ title: string; text: string }>) 
   );
 }
 
-function LyricsPanelContent({ track, progressMs, onClose, provider }: Readonly<LyricsPanelProps>) {
+function LyricsPanelContent({ track, progressMs, provider }: Readonly<LyricsPanelProps>) {
   const { status, lyrics, error, retry } = useLyrics(track, true, provider);
   const listRef = useRef<HTMLOListElement | null>(null);
   const [isFollowing, setIsFollowing] = useState(true);
@@ -135,18 +134,7 @@ function LyricsPanelContent({ track, progressMs, onClose, provider }: Readonly<L
   };
 
   return (
-    <div className="queue-panel lyrics-panel">
-      <div className="queue-heading">
-        <div>
-          <span className="eyebrow">
-            <MicVocal size={14} /> Sing along
-          </span>
-          <h2>Lyrics</h2>
-        </div>
-        <button type="button" className="button button-secondary" onClick={onClose}>
-          <ListMusic size={15} /> Up next
-        </button>
-      </div>
+    <div className="lyrics-panel" role="region" aria-label="Lyrics">
       {body()}
       <div className="queue-footer">
         <span aria-live="polite">{followStatus}</span>

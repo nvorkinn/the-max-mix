@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, AudioLines, Speaker } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Speaker, MicVocal, Image } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { PlayerControls } from '../types';
 import { Artwork } from './TrackImages';
 
 type AlbumArtPlayerProps = Readonly<PlayerControls> & {
   controlsEnabled?: boolean;
-  notice?: ReactNode;
+  /** Synced lyrics shown in place of the artwork while `lyricsOpen`. */
+  lyrics?: ReactNode;
+  lyricsOpen?: boolean;
+  onToggleLyrics?: () => void;
 };
 
 export default function AlbumArtPlayer({
@@ -18,7 +21,9 @@ export default function AlbumArtPlayer({
   onSeek,
   onVolumeChange,
   controlsEnabled = false,
-  notice
+  lyrics,
+  lyricsOpen = false,
+  onToggleLyrics
 }: AlbumArtPlayerProps) {
   // Local slider value, reset whenever the device reports a different volume (adjusted during render, not in an effect).
   const deviceVolume = playback?.device?.volume_percent ?? 0;
@@ -32,10 +37,8 @@ export default function AlbumArtPlayer({
     controlsEnabled && playback?.device?.supports_volume !== false && playback?.device?.volume_percent != null;
   const item = playback?.item ?? playback?.track_window?.current_track ?? {};
   const hasTrack = Boolean(item.id || item.uri || item.name || item.title);
-  const title = item.name || item.title || 'Ready when you are';
-  const artist = item.artists
-    ? item.artists.map(a => a.name).join(', ')
-    : item.artist || 'Choose your next favourite in Spotify';
+  const title = item.name || item.title || 'Nothing playing';
+  const artist = item.artists ? item.artists.map(a => a.name).join(', ') : item.artist || '';
   const albumArt = item.album?.images?.[0]?.url || item.albumArt;
   const progressMs = hasTrack ? (playback?.progress_ms ?? playback?.position ?? 0) : 0;
   const durationMs = hasTrack ? item.duration_ms || playback?.duration || 0 : 0;
@@ -47,19 +50,40 @@ export default function AlbumArtPlayer({
   };
   const elapsedTime = hasTrack ? formatTime(progressMs) : '--:--';
   const totalTime = durationMs > 0 ? formatTime(durationMs) : '--:--';
-  let playbackLabel = 'No track playing';
-  if (hasTrack) playbackLabel = isPlaying ? 'Playing' : 'Paused';
 
   return (
-    <div className={`now-playing${notice ? 'has-notice' : ''}`}>
-      <div className="player-heading">
-        <span className="eyebrow">
-          <AudioLines size={14} /> Now playing
-        </span>
-      </div>
-
+    <div className="now-playing">
       <div className="album-art">
-        <Artwork src={albumArt} alt={`${title} album artwork`} className="album-cover" />
+        {lyricsOpen && onToggleLyrics ? (
+          <>
+            {lyrics}
+            <button
+              type="button"
+              className="art-corner-button"
+              onClick={onToggleLyrics}
+              aria-label="Show artwork"
+              title="Show artwork"
+            >
+              <Image size={18} />
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="art-toggle"
+            onClick={onToggleLyrics}
+            disabled={!onToggleLyrics}
+            aria-label="Show lyrics"
+            title="Show lyrics"
+          >
+            <Artwork src={albumArt} alt={`${title} album artwork`} className="album-cover" />
+            {onToggleLyrics && (
+              <span className="art-corner-button" aria-hidden="true">
+                <MicVocal size={18} />
+              </span>
+            )}
+          </button>
+        )}
       </div>
 
       <div className="track-details">
@@ -71,7 +95,7 @@ export default function AlbumArtPlayer({
           tabIndex={0}
         >
           <h2 title={title}>{title}</h2>
-          <p title={artist}>{artist}</p>
+          {artist && <p title={artist}>{artist}</p>}
         </div>
         <div className="track-credit">
           <Speaker size={14} aria-hidden="true" />
@@ -80,7 +104,6 @@ export default function AlbumArtPlayer({
       </div>
 
       <div className="player-controls">
-        {notice}
         <div className="seek-control">
           <input
             type="range"
@@ -100,24 +123,6 @@ export default function AlbumArtPlayer({
           </div>
         </div>
         <div className="transport-row">
-          <label className="volume-control">
-            <Volume2 size={16} aria-hidden="true" />
-            <input
-              type="range"
-              disabled={!volumeEnabled}
-              min="0"
-              max="100"
-              value={volume}
-              aria-label="Volume"
-              onChange={e => {
-                const value = Number(e.target.value);
-                setVolume(value);
-                onVolumeChange?.(value);
-              }}
-              className="range-control volume-range"
-              style={{ '--range-progress': `${volume}%` } as CSSProperties}
-            />
-          </label>
           <div className="transport-buttons">
             <button
               type="button"
@@ -150,15 +155,25 @@ export default function AlbumArtPlayer({
               <SkipForward size={20} fill="currentColor" />
             </button>
           </div>
-          <span className="transport-status">
-            <span className={`playback-equalizer ${isPlaying && hasTrack ? 'is-playing' : ''}`} aria-hidden="true">
-              <i />
-              <i />
-              <i />
-            </span>
-            {playbackLabel}
-          </span>
         </div>
+        <label className="volume-control">
+          <Volume2 size={16} aria-hidden="true" />
+          <input
+            type="range"
+            disabled={!volumeEnabled}
+            min="0"
+            max="100"
+            value={volume}
+            aria-label="Volume"
+            onChange={e => {
+              const value = Number(e.target.value);
+              setVolume(value);
+              onVolumeChange?.(value);
+            }}
+            className="range-control volume-range"
+            style={{ '--range-progress': `${volume}%` } as CSSProperties}
+          />
+        </label>
       </div>
     </div>
   );

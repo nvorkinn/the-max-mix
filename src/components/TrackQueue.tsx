@@ -159,7 +159,6 @@ export default function TrackQueue({
 
       {showCount && (
         <div className="queue-footer">
-          <span>Reorder and manage tracks in Spotify</span>
           <span>
             {queue.length} {queue.length === 1 ? 'track' : 'tracks'}
             {status !== 'ready' || error ? ' last known' : ''}

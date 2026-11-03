@@ -41,15 +41,34 @@ describe('AlbumArtPlayer', () => {
 
   it('renders placeholders when nothing is playing', () => {
     setup({ playback: null, isPlaying: false });
-    expect(screen.getByRole('heading', { name: 'Ready when you are' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Nothing playing' })).toBeInTheDocument();
     expect(screen.getByText('Select a device in Speakers')).toBeInTheDocument();
+    expect(
+      screen.queryByText(/now playing|no track playing|ready when you are|choose your next/i)
+    ).not.toBeInTheDocument();
     expect(screen.getAllByText('--:--')).toHaveLength(2);
     expect(screen.queryByText('3:00')).not.toBeInTheDocument();
-    expect(screen.getByText('No track playing')).toBeInTheDocument();
     expect(screen.getByRole('slider', { name: 'Playback position' })).toHaveAttribute(
       'aria-valuetext',
       'Playback time unavailable'
     );
+  });
+
+  it('toggles lyrics from the artwork', () => {
+    const onToggleLyrics = vi.fn();
+    const { rerender } = render(
+      <AlbumArtPlayer playback={playback} isPlaying onToggleLyrics={onToggleLyrics} lyrics={<p>Words</p>} />
+    );
+    expect(screen.queryByText('Words')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Show lyrics' }));
+    expect(onToggleLyrics).toHaveBeenCalledOnce();
+    rerender(
+      <AlbumArtPlayer playback={playback} isPlaying lyricsOpen onToggleLyrics={onToggleLyrics} lyrics={<p>Words</p>} />
+    );
+    expect(screen.getByText('Words')).toBeInTheDocument();
+    expect(screen.queryByAltText('Song album artwork')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Show artwork' }));
+    expect(onToggleLyrics).toHaveBeenCalledTimes(2);
   });
 
   it('wires transport buttons and toggles the play label', () => {
@@ -121,8 +140,6 @@ describe('AlbumArtPlayer', () => {
     expect(screen.getByRole('region', { name: 'Track information' })).toHaveAttribute('tabindex', '0');
     expect(screen.queryByText('ON REPEAT? WE GET IT.')).not.toBeInTheDocument();
     expect(screen.queryByText('THE SOUNDTRACK STARTS HERE')).not.toBeInTheDocument();
-    expect(document.querySelectorAll('.playback-equalizer')).toHaveLength(1);
-    expect(document.querySelector('.playback-equalizer')?.classList.contains('is-playing')).toBe(isPlaying);
     expect(screen.queryByText('TAKE YOUR TIME.')).not.toBeInTheDocument();
   });
 
