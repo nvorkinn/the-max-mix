@@ -15,7 +15,11 @@ export function createSpotifyMocks() {
     next: vi.fn(),
     previous: vi.fn(),
     seek: vi.fn(),
-    setVolume: vi.fn()
+    setVolume: vi.fn(),
+    setShuffle: vi.fn(),
+    setRepeat: vi.fn(),
+    isTrackSaved: vi.fn(),
+    setTrackSaved: vi.fn()
   };
   const auth = {
     startSignIn: vi.fn(),
@@ -39,7 +43,19 @@ export function resetSpotifyMocks({ api, auth, settings }: ReturnType<typeof cre
   settings.getPlaybackMode.mockReturnValue('browser');
   settings.getRedirectUri.mockReturnValue('http://127.0.0.1:3000/');
   api.transferPlayback.mockResolvedValue(undefined);
-  for (const name of ['play', 'pause', 'next', 'previous', 'seek', 'setVolume'] as const) {
+  api.isTrackSaved.mockResolvedValue(false);
+  const commands = [
+    'play',
+    'pause',
+    'next',
+    'previous',
+    'seek',
+    'setVolume',
+    'setShuffle',
+    'setRepeat',
+    'setTrackSaved'
+  ] as const;
+  for (const name of commands) {
     api[name].mockResolvedValue(undefined);
   }
 }

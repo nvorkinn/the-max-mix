@@ -1,5 +1,18 @@
 import { useState } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Speaker, MicVocal, Image } from 'lucide-react';
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  Speaker,
+  MicVocal,
+  Image,
+  Shuffle,
+  Repeat,
+  Repeat1,
+  Heart
+} from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { PlayerControls } from '../types';
 import { Artwork } from './TrackImages';
@@ -23,6 +36,10 @@ export default function AlbumArtPlayer({
   onPrevious,
   onSeek,
   onVolumeChange,
+  onToggleShuffle,
+  onCycleRepeat,
+  liked = null,
+  onToggleLike,
   controlsEnabled = false,
   lyrics,
   lyricsOpen = false,
@@ -57,6 +74,10 @@ export default function AlbumArtPlayer({
     const seconds = Math.floor(ms / 1000);
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   };
+  const disallows = playback?.actions?.disallows;
+  const shuffleOn = Boolean(playback?.shuffle_state);
+  const repeatMode = playback?.repeat_state ?? 'off';
+  const repeatLabel = { off: 'Repeat off', context: 'Repeat all', track: 'Repeat one' }[repeatMode];
   const elapsedTime = hasTrack ? formatTime(progressMs) : '--:--';
   const totalTime = durationMs > 0 ? formatTime(durationMs) : '--:--';
 
@@ -106,6 +127,19 @@ export default function AlbumArtPlayer({
           <h2 title={title}>{title}</h2>
           {artist && <p title={artist}>{artist}</p>}
         </div>
+        {onToggleLike && (
+          <button
+            type="button"
+            className={`track-like${liked ? ' is-on' : ''}`}
+            disabled={!controlsEnabled || !hasTrack || liked === null}
+            onClick={onToggleLike}
+            aria-label="Save to Liked Songs"
+            aria-pressed={Boolean(liked)}
+            title={liked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
+          >
+            <Heart size={24} fill={liked ? 'currentColor' : 'none'} />
+          </button>
+        )}
       </div>
 
       <div className="player-controls">
@@ -131,6 +165,18 @@ export default function AlbumArtPlayer({
         </div>
         <div className="transport-row">
           <div className="transport-buttons">
+            {onToggleShuffle && (
+              <button
+                type="button"
+                disabled={!controlsEnabled || !hasTrack || disallows?.toggling_shuffle}
+                className={`transport-skip transport-mode${shuffleOn ? ' is-on' : ''}`}
+                onClick={onToggleShuffle}
+                aria-label="Shuffle"
+                aria-pressed={shuffleOn}
+              >
+                <Shuffle size={18} />
+              </button>
+            )}
             <button
               type="button"
               disabled={!controlsEnabled || !hasTrack || playback?.actions?.disallows?.skipping_prev}
@@ -161,6 +207,22 @@ export default function AlbumArtPlayer({
             >
               <SkipForward size={20} fill="currentColor" />
             </button>
+            {onCycleRepeat && (
+              <button
+                type="button"
+                disabled={
+                  !controlsEnabled ||
+                  !hasTrack ||
+                  (disallows?.toggling_repeat_context && disallows.toggling_repeat_track)
+                }
+                className={`transport-skip transport-mode${repeatMode === 'off' ? '' : ' is-on'}`}
+                onClick={onCycleRepeat}
+                aria-label={repeatLabel}
+                title={repeatLabel}
+              >
+                {repeatMode === 'track' ? <Repeat1 size={18} /> : <Repeat size={18} />}
+              </button>
+            )}
           </div>
         </div>
         <label className="volume-control">

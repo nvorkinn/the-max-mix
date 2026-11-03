@@ -84,6 +84,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     previousTrack,
     seek,
     setVolume,
+    toggleShuffle,
+    cycleRepeat,
+    liked,
+    toggleLike,
     transferPlayback
   } = useSpotifyPlayer();
   const error = playerError || signInError;
@@ -401,6 +405,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 onPrevious={previousTrack}
                 onSeek={seek}
                 onVolumeChange={(vol: number) => setVolume(vol / 100)}
+                onToggleShuffle={toggleShuffle}
+                onCycleRepeat={cycleRepeat}
+                liked={liked}
+                onToggleLike={toggleLike}
                 controlsEnabled={controlsEnabled}
                 lyricsOpen={showLyrics}
                 onToggleLyrics={() => toggleLyrics(!showLyrics)}
