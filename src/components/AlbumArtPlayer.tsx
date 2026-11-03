@@ -97,10 +97,6 @@ export default function AlbumArtPlayer({
           <h2 title={title}>{title}</h2>
           {artist && <p title={artist}>{artist}</p>}
         </div>
-        <div className="track-credit">
-          <Speaker size={14} aria-hidden="true" />
-          <span>{playback?.device?.name || 'Select a device in Speakers'}</span>
-        </div>
       </div>
 
       <div className="player-controls">
@@ -119,6 +115,10 @@ export default function AlbumArtPlayer({
             style={{ '--range-progress': `${progressPercent}%` } as CSSProperties}
           />
           <span className="track-time">{totalTime}</span>
+        </div>
+        <div className="player-device">
+          <Speaker size={14} aria-hidden="true" />
+          <span>{playback?.device?.name || 'Select a device in Speakers'}</span>
         </div>
         <div className="transport-row">
           <div className="transport-buttons">

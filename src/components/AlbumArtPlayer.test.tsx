@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { Track } from '../types';
-import { defined } from '../test/defined';
 import { partialProps } from '../test/partialProps';
 import AlbumArtPlayerFull from './AlbumArtPlayer';
 import TrackQueueFull from './TrackQueue';
@@ -28,13 +27,13 @@ function setup(props: Record<string, unknown> = {}) {
 }
 
 describe('AlbumArtPlayer', () => {
-  it('shows track metadata, times and device', () => {
+  it('shows track metadata, times and the playing device', () => {
     setup();
+    expect(screen.getByText('Kitchen')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Song' })).toBeInTheDocument();
     expect(screen.getByText('A, B')).toBeInTheDocument();
     expect(screen.getByText('1:05')).toBeInTheDocument();
     expect(screen.getByText('3:20')).toBeInTheDocument();
-    expect(screen.getByText('Kitchen')).toBeInTheDocument();
     expect(screen.getByAltText('Song album artwork')).toHaveAttribute('src', 'http://art/1.jpg');
     expect(screen.getByRole('slider', { name: 'Playback position' })).toHaveAttribute('aria-valuetext', '1:05 of 3:20');
   });
@@ -149,7 +148,6 @@ describe('AlbumArtPlayer', () => {
     setup({ playback: { ...playback, item: { ...playback.item, name: title, artists: [{ name: artist }] } } });
     expect(screen.getByRole('heading', { name: title.trim() })).toHaveTextContent(title.trim());
     expect(screen.getByRole('region', { name: 'Track information' })).toHaveTextContent(artist.trim());
-    expect(screen.getByText('Kitchen')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled();
   });
 });
@@ -163,7 +161,7 @@ describe('TrackQueue', () => {
       duration_ms: 125_000
     },
     { id: 'b', title: 'Two', artist: 'Y', duration_ms: 60_000 },
-    { uri: 'spotify:track:c', name: 'Three', external_urls: { spotify: 'https://open.spotify.com/track/c' } }
+    { uri: 'spotify:track:c', name: 'Three' }
   ];
   const setupQueue = (props = {}) => render(<TrackQueue queue={tracks} {...props} />);
 
@@ -189,16 +187,9 @@ describe('TrackQueue', () => {
     expect(screen.getByText('0 tracks')).toBeInTheDocument();
   });
 
-  it('links each track to Spotify', () => {
+  it('does not link tracks out to Spotify', () => {
     setupQueue();
-    expect(screen.getByRole('link', { name: 'Open Three in Spotify' })).toHaveAttribute(
-      'href',
-      defined(tracks[2].external_urls?.spotify)
-    );
-    expect(screen.getByRole('link', { name: 'Open One in Spotify' })).toHaveAttribute(
-      'href',
-      'https://open.spotify.com'
-    );
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('shows an error alert', () => {

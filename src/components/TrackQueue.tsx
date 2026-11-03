@@ -1,4 +1,4 @@
-import { Disc3, ArrowUpRight } from 'lucide-react';
+import { Disc3 } from 'lucide-react';
 import { trackKeys } from '../utils/trackKeys';
 import type { Track } from '../types';
 import { Artwork } from './TrackImages';
@@ -113,11 +113,6 @@ export default function TrackQueue({
           {retryLabel}
         </button>
       )}
-      <div className="queue-columns" aria-hidden="true">
-        <span>#</span>
-        <span>TRACK / ARTIST</span>
-        <span>IN SPOTIFY</span>
-      </div>
       {queue.length === 0 ? (
         emptyState()
       ) : (
@@ -142,15 +137,6 @@ export default function TrackQueue({
                 <span className="queue-duration">
                   {seconds > 0 ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '--:--'}
                 </span>
-                <a
-                  className="queue-link"
-                  href={track.external_urls?.spotify || 'https://open.spotify.com'}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={`Open ${title} in Spotify`}
-                >
-                  <ArrowUpRight size={16} />
-                </a>
               </div>
             );
           })}

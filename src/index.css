@@ -234,8 +234,8 @@
 .listening-room:not(.is-setup) {
   --bar-height: 108px;
   --row-gap: 14px;
-  --room-padding-y: 26px;
-  padding-block: 16px 10px;
+  --room-padding-y: 32px;
+  padding-block: 16px;
   grid-template:
     'art details' auto
     'art queue' minmax(0, 1fr)
@@ -288,6 +288,20 @@
 }
 .listening-room:not(.is-setup) .seek-control {
   grid-column: 1 / -1;
+}
+.listening-room:not(.is-setup) .player-device {
+  grid-column: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.listening-room:not(.is-setup) .player-device span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .listening-room:not(.is-setup) .transport-row {
   grid-column: 2;
@@ -441,16 +455,6 @@
   font-size: 15px;
   margin-top: 5px;
   overflow-wrap: anywhere;
-}
-.track-credit {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: 10px;
-  color: var(--muted);
-  font-size: 12px;
-  overflow-wrap: anywhere;
-  flex-shrink: 0;
 }
 .player-controls {
   margin-top: auto;
@@ -643,15 +647,6 @@
   letter-spacing: 0;
   font-variant-numeric: tabular-nums;
 }
-.queue-columns {
-  display: grid;
-  grid-template-columns: 35px 1fr 106px;
-  padding: 0 10px 9px;
-  font-size: 8px;
-  letter-spacing: 1.2px;
-  color: var(--muted);
-  border-bottom: 1px solid var(--border);
-}
 .queue-list {
   flex: 1;
   min-height: 0;
@@ -785,30 +780,13 @@
   line-height: 1.7;
   color: var(--muted);
 }
-.app-footer {
-  padding: 0 30px 16px;
+.header-clock {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 15px;
-  font-size: 12px;
+  gap: 6px;
+  margin-right: 8px;
+  font-size: 14px;
   color: var(--muted);
-  z-index: 20;
-}
-.app-footer > span:first-child,
-.footer-problem-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.app-footer > span:last-child {
-  font-size: 8px;
-  letter-spacing: 1.5px;
-}
-.footer-clock {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   font-variant-numeric: tabular-nums;
   /* Held for two seconds to open the debug console, so no long-press menu or zoom may claim it. */
   touch-action: manipulation;
@@ -999,15 +977,6 @@ body:has(.app-dialog[open]) {
   font-size: 13px;
   padding: 8px 0;
 }
-.queue-link {
-  padding: 10px;
-  color: var(--muted);
-  min-width: 44px;
-  min-height: 44px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
 button:disabled,
 input:disabled {
   cursor: not-allowed;
@@ -1050,23 +1019,9 @@ input:disabled {
   .track-copy h2 {
     font-size: 26px;
   }
-  .track-credit {
-    margin-top: 6px;
-  }
-  .app-footer {
-    padding-bottom: 12px;
-  }
 }
 
 /* The technical debug console stays dark regardless of appearance. */
-.footer-problem {
-  color: #fda4af;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.footer-problem-button {
-  min-height: 44px;
-}
 .status-dot-error {
   background: #f87171;
 }

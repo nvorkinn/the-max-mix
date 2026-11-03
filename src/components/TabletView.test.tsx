@@ -177,17 +177,16 @@ describe('TabletView', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 0, 1, 16, 46));
     render(<TabletView />);
-    expect(document.querySelector('.footer-clock')).toHaveTextContent(/^\s*16:46\s*$/);
-    expect(document.querySelector('.footer-clock')).not.toHaveTextContent(/AM|PM/i);
+    expect(document.querySelector('.header-clock')).toHaveTextContent(/^\s*16:46\s*$/);
+    expect(document.querySelector('.header-clock')).not.toHaveTextContent(/AM|PM/i);
   });
 
-  it('shows the connected device and loads the queue', async () => {
+  it('shows the playing device and loads the queue', async () => {
     render(<TabletView />);
     await flush();
     expect(screen.getAllByText('Kitchen').length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Queued One' })).toBeInTheDocument();
     expect(api.getQueue).toHaveBeenCalled();
-    expect(screen.getByText('Spotify Connect remote')).toBeInTheDocument();
   });
 
   it('applies the extracted album palette to the container', async () => {
@@ -231,7 +230,7 @@ describe('TabletView', () => {
     const panel = screen.getByRole('region', { name: 'Now playing' });
     expect(within(panel).getAllByText('--:--')).toHaveLength(2);
     expect(within(panel).queryByText('3:00')).not.toBeInTheDocument();
-    for (const dot of document.querySelectorAll('.session-status .status-dot, .app-footer .status-dot')) {
+    for (const dot of document.querySelectorAll('.session-status .status-dot')) {
       expect(dot).toHaveClass('status-dot-idle');
     }
   });
@@ -311,7 +310,7 @@ describe('TabletView', () => {
     await flush();
     expect(screen.getByRole('alert')).toHaveTextContent('Playback problem');
     expect(screen.getByRole('button', { name: 'Refresh playback' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /problem, see details/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }));
     const panel = screen.getByRole('dialog', { name: 'Debug console' });
     expect(within(panel).getAllByText('Device offline').length).toBeGreaterThan(0);
     fireEvent.click(within(panel).getByRole('button', { name: 'Close debug console' }));
@@ -324,7 +323,7 @@ describe('TabletView', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    const clock = defined(document.querySelector('.footer-clock'));
+    const clock = defined(document.querySelector('.header-clock'));
     fireEvent.pointerDown(clock, { button: 0 });
     act(() => {
       vi.advanceTimersByTime(500);
@@ -558,7 +557,6 @@ describe('TabletView', () => {
       expect(airplay.routeAudio).toHaveBeenCalledWith(['Kitchen']);
       expect(player.current.transferPlayback).toHaveBeenCalledWith('web-1');
       expect(localStorage.getItem('maxmix.audioRoute')).toBe('airplay');
-      expect(screen.getByText('AirPlay from this tablet')).toBeInTheDocument();
     });
 
     it('does not move playback that is already on this tablet', async () => {
@@ -609,7 +607,6 @@ describe('TabletView', () => {
       expect(airplay.setChosenSpeakers).toHaveBeenCalledWith([]);
       expect(player.current.transferPlayback).toHaveBeenCalledWith('dev2');
       expect(localStorage.getItem('maxmix.audioRoute')).toBeNull();
-      expect(screen.getByText('Spotify browser player')).toBeInTheDocument();
     });
 
     it('choosing this tablet while on AirPlay goes back to the tablet output', async () => {
@@ -623,12 +620,12 @@ describe('TabletView', () => {
     });
   });
 
-  it('shows the clock in the footer', async () => {
+  it('shows the clock in the header', async () => {
     vi.useFakeTimers({ now: new Date('2026-01-01T09:05:00') });
     render(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(defined(document.querySelector('.footer-clock'))).toHaveTextContent(/9:05|09:05/);
+    expect(defined(document.querySelector('.header-clock'))).toHaveTextContent(/9:05|09:05/);
   });
 });
