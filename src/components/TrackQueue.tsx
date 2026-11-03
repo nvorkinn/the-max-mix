@@ -84,11 +84,6 @@ export default function TrackQueue({
           {error}
         </p>
       )}
-      {status === 'loading' && queue.length > 0 && (
-        <p className="queue-status" role="status">
-          Updating queue...
-        </p>
-      )}
       {status === 'waiting' && queue.length > 0 && (
         <p className="queue-status" role="status">
           Waiting for Spotify before updating the queue.

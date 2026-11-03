@@ -212,8 +212,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         timer = setTimeout(() => void poll(), retryWait);
         return;
       }
-      // A background re-read keeps the shown queue as it is; "Updating queue..." is only for a first load or a retry.
-      setQueueStatus(status => (status === 'ready' ? status : 'loading'));
+      setQueueStatus('loading');
       let delay = base;
       try {
         const data = await getQueue();
