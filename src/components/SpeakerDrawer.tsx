@@ -173,7 +173,7 @@ export default function SpeakerDrawer({
               onClick={() => void fetchDevices()}
               disabled={loading || selecting || waitingForSpotify}
               aria-label="Refresh devices"
-              className="modal-icon-button p-2 rounded-full"
+              className="modal-icon-button w-11 h-11 rounded-full flex items-center justify-center"
             >
               <RefreshCw size={16} />
             </button>
@@ -182,7 +182,7 @@ export default function SpeakerDrawer({
               onClick={onClose}
               data-modal-autofocus
               aria-label="Close speakers"
-              className="modal-icon-button p-2 rounded-full"
+              className="modal-icon-button w-11 h-11 rounded-full flex items-center justify-center"
             >
               <X size={18} />
             </button>
