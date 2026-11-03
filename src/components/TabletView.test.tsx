@@ -55,6 +55,7 @@ const track = {
   artists: [{ name: 'Art' }],
   album: { images: [{ url: 'http://art/a.jpg' }] }
 };
+const playing = { is_playing: true, item: track, device: { name: 'Kitchen' } };
 const queued = [{ id: 'q1', name: 'Queued One', artists: [{ name: 'Q' }], duration_ms: 1000 }];
 
 function setPlayer(overrides: Record<string, unknown> = {}) {
@@ -121,6 +122,7 @@ describe('TabletView', () => {
 
   it('shares waiting state across playback and a cached queue, then enables explicit commands after expiry', async () => {
     vi.useFakeTimers();
+    setPlayer({ playbackState: playing });
     api.getQueue.mockResolvedValue({ queue: queued });
     render(<TabletView />);
     await act(async () => {
@@ -424,6 +426,7 @@ describe('TabletView', () => {
 
   it('labels cached queue contents when a later refresh fails', async () => {
     vi.useFakeTimers();
+    setPlayer({ playbackState: playing });
     api.getQueue.mockResolvedValueOnce({ queue: queued }).mockRejectedValueOnce(new Error('Queue down'));
     render(<TabletView />);
     await act(async () => {
@@ -448,7 +451,7 @@ describe('TabletView', () => {
 
   it('re-reads the queue when the player says it changed, without polling while the SDK is active', async () => {
     vi.useFakeTimers();
-    setPlayer({ sdkActive: true, queueVersion: 1 });
+    setPlayer({ sdkActive: true, queueVersion: 1, playbackState: playing });
     const { rerender } = render(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
@@ -464,7 +467,7 @@ describe('TabletView', () => {
     });
     expect(api.getQueue).toHaveBeenCalledTimes(2);
 
-    setPlayer({ sdkActive: true, queueVersion: 2 });
+    setPlayer({ sdkActive: true, queueVersion: 2, playbackState: playing });
     rerender(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
@@ -474,6 +477,7 @@ describe('TabletView', () => {
 
   it('polls the queue every 10 seconds when no SDK events arrive', async () => {
     vi.useFakeTimers();
+    setPlayer({ playbackState: playing });
     render(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
@@ -482,6 +486,21 @@ describe('TabletView', () => {
       await vi.advanceTimersByTimeAsync(10_500);
     });
     expect(api.getQueue).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads the queue once while paused and polls again once playback starts', async () => {
+    vi.useFakeTimers();
+    const { rerender } = render(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(api.getQueue).toHaveBeenCalledTimes(1);
+    setPlayer({ playbackState: playing });
+    rerender(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_500);
+    });
+    expect(api.getQueue).toHaveBeenCalledTimes(3);
   });
 
   it('stops polling on unmount', async () => {

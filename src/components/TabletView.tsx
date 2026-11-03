@@ -235,14 +235,15 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         if (caught instanceof SpotifyApiError) recordSpotifyRetryAfter(caught);
         delay = Math.max(Math.min(60_000, base * 2 ** ++failures), getSpotifyRetryDelay());
       }
-      if (!isCancelled()) timer = setTimeout(() => void poll(), delay);
+      // Nothing playing means nothing moves through the queue; playing again or a new track reads it at once.
+      if (isPlaying && !isCancelled()) timer = setTimeout(() => void poll(), delay);
     };
     void poll();
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [currentTrack?.id, canPollQueue, sdkActive, queueVersion, queueRequestVersion]);
+  }, [currentTrack?.id, canPollQueue, sdkActive, isPlaying, queueVersion, queueRequestVersion]);
 
   const artUrl = currentTrack?.album?.images?.[0]?.url;
   useEffect(() => {
