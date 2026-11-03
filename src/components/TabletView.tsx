@@ -236,7 +236,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         delay = Math.max(Math.min(60_000, base * 2 ** ++failures), getSpotifyRetryDelay());
       }
       // Nothing playing means nothing moves through the queue; playing again or a new track reads it at once.
-      if (!isCancelled() && isPlaying) timer = setTimeout(() => void poll(), delay);
+      if (isPlaying && !isCancelled()) timer = setTimeout(() => void poll(), delay);
     };
     void poll();
     return () => {
