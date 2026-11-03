@@ -326,7 +326,8 @@ describe('useSpotifyPlayer', () => {
     await waitFor(() => expect(result.current.isReady).toBe(true));
 
     let first: Promise<boolean> | undefined;
-    act(() => {
+    // The first request reaches the API a few microtasks later (after the SDK check), so act flushes them.
+    await act(async () => {
       first = result.current.setVolume(0.4);
       void result.current.setVolume(0.5);
       void result.current.setVolume(0.6);
