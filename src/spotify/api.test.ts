@@ -157,7 +157,7 @@ describe('spotify/api', () => {
       expect(await api.isTrackSaved('spotify:track:t1')).toBe(true);
       await api.setTrackSaved('spotify:track:t1', true);
       await api.setTrackSaved('spotify:track:t1', false);
-      const uris = 'uris=spotify%3Atrack%3At1';
+      const uris = `uris=${encodeURIComponent('spotify:track:t1')}`;
       expect(callOf(fetchMock, 0).url).toBe(`https://api.spotify.com/v1/me/library/contains?${uris}`);
       expect(callOf(fetchMock, 1)).toMatchObject({ url: `https://api.spotify.com/v1/me/library?${uris}` });
       expect(callOf(fetchMock, 1).init.method).toBe('PUT');
