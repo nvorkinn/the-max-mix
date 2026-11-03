@@ -13,6 +13,10 @@ interface TrackQueueProps {
   onRetry?: () => void;
   onConnect?: () => void;
   retryAllowed?: boolean;
+  /** Plays the song at this position in the queue. Without it the rows are not tappable. */
+  onPlay?: (index: number) => unknown;
+  /** True while playing a song is not possible (controls unavailable, or a jump is under way). */
+  playDisabled?: boolean;
 }
 
 export default function TrackQueue({
@@ -21,7 +25,9 @@ export default function TrackQueue({
   status = 'ready',
   onRetry,
   onConnect,
-  retryAllowed = true
+  retryAllowed = true,
+  onPlay,
+  playDisabled = false
 }: Readonly<TrackQueueProps>) {
   const keys = trackKeys(queue);
 
@@ -114,18 +120,26 @@ export default function TrackQueue({
 
             return (
               <div key={keys[idx]} role="listitem" className={`queue-track ${idx === 0 ? 'is-next' : ''}`}>
-                <span className="queue-play queue-number">{String(idx + 1).padStart(2, '0')}</span>
-                <Artwork className="queue-art" src={albumArt} alt="" />
-                <div className="queue-track-copy">
-                  <div className="queue-title">
-                    <h3 title={title}>{title}</h3>
-                    {idx === 0 && <span className="next-label">NEXT</span>}
+                <button
+                  type="button"
+                  className="queue-track-button"
+                  disabled={!onPlay || playDisabled}
+                  onClick={() => void onPlay?.(idx)}
+                  aria-label={`Play ${title} by ${artist}`}
+                >
+                  <span className="queue-play queue-number">{String(idx + 1).padStart(2, '0')}</span>
+                  <Artwork className="queue-art" src={albumArt} alt="" />
+                  <div className="queue-track-copy">
+                    <div className="queue-title">
+                      <h3 title={title}>{title}</h3>
+                      {idx === 0 && <span className="next-label">NEXT</span>}
+                    </div>
+                    <p title={artist}>{artist}</p>
                   </div>
-                  <p title={artist}>{artist}</p>
-                </div>
-                <span className="queue-duration">
-                  {seconds > 0 ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '--:--'}
-                </span>
+                  <span className="queue-duration">
+                    {seconds > 0 ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '--:--'}
+                  </span>
+                </button>
               </div>
             );
           })}

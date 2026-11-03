@@ -250,6 +250,19 @@ describe('TrackQueue', () => {
     expect(screen.getByText('A little quiet in here.')).toBeInTheDocument();
   });
 
+  it('plays the tapped song and is not tappable without a way to play', () => {
+    const onPlay = vi.fn();
+    const { unmount } = render(<TrackQueue queue={tracks} onPlay={onPlay} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Play Two by Y' }));
+    expect(onPlay).toHaveBeenCalledWith(1);
+    unmount();
+    const { unmount: unmountDisabled } = render(<TrackQueue queue={tracks} onPlay={onPlay} playDisabled />);
+    expect(screen.getByRole('button', { name: 'Play Two by Y' })).toBeDisabled();
+    unmountDisabled();
+    render(<TrackQueue queue={tracks} />);
+    expect(screen.getByRole('button', { name: 'Play Two by Y' })).toBeDisabled();
+  });
+
   it('does not link tracks out to Spotify', () => {
     setupQueue();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
