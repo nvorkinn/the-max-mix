@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+# Keeps the journal across reboots, so a slow shutdown or a boot problem can be read afterwards (journalctl -b -1).
+[Journal]
+Storage=persistent
+SystemMaxUse={{ kiosk_journal_max_use }}

@@ -11,6 +11,21 @@
     state: reloaded
   when: not kiosk_enable_only
 
+# journald creates /var/log/journal when it restarts with Storage=persistent; the flush then moves what this boot logged so
+# far from memory to disk.
+- name: Restart journald
+  ansible.builtin.systemd_service:
+    name: systemd-journald.service
+    state: restarted
+  listen: Apply the journal settings
+  when: not kiosk_enable_only
+
+- name: Flush the journal to disk
+  ansible.builtin.command: journalctl --flush
+  changed_when: true
+  listen: Apply the journal settings
+  when: not kiosk_enable_only
+
 - name: Create the run directory
   ansible.builtin.command: systemd-tmpfiles --create /etc/tmpfiles.d/kiosk.conf
   changed_when: true

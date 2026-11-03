@@ -63,6 +63,8 @@ kiosk_admin_keys_max_age_hours: 24
 # Where the playbook records which packages (and Node.js) it last installed, so that it skips that slow step when nothing
 # changed.
 kiosk_packages_stamp: /var/lib/the-max-mix/packages.sha1
+# The journal is kept on disk (it is in memory by default, so a reboot loses it), up to this much of the SD card.
+kiosk_journal_max_use: 64M
 # Regenerate the initramfs when the Plymouth theme changes. Needs a kernel, so tests in a plain container turn it off.
 kiosk_update_initramfs: true
 
