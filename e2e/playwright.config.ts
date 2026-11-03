@@ -12,6 +12,8 @@ export default defineConfig({
   forbidOnly: !!process.env['CI'],
   reporter: process.env['CI'] ? [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]] : 'list',
   outputDir: 'test-results',
+  // One baseline per screenshot, not per OS: they are only compared on the CI browser (see visual.spec.ts).
+  snapshotPathTemplate: '{testDir}/screenshots/{testFileName}/{arg}{ext}',
   use: {
     baseURL: `http://127.0.0.1:${port}`,
     // CI uses the Chrome preinstalled on ubuntu-latest; locally Playwright's own Chromium is used, or the binary in E2E_BROWSER_PATH.
