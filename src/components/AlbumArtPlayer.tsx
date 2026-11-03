@@ -105,6 +105,7 @@ export default function AlbumArtPlayer({
 
       <div className="player-controls">
         <div className="seek-control">
+          <span className="track-time">{elapsedTime}</span>
           <input
             type="range"
             disabled={!controlsEnabled || durationMs <= 0 || playback?.actions?.disallows?.seeking}
@@ -117,10 +118,7 @@ export default function AlbumArtPlayer({
             className="range-control seek-range"
             style={{ '--range-progress': `${progressPercent}%` } as CSSProperties}
           />
-          <div className="track-times">
-            <span>{elapsedTime}</span>
-            <span>{totalTime}</span>
-          </div>
+          <span className="track-time">{totalTime}</span>
         </div>
         <div className="transport-row">
           <div className="transport-buttons">
