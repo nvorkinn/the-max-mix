@@ -379,7 +379,6 @@ describe('TabletView', () => {
     render(<TabletView />);
     expect(screen.getByText('Loading queue...')).toBeInTheDocument();
     expect(screen.queryByText('A little quiet in here.')).not.toBeInTheDocument();
-    expect(screen.queryByText('0 tracks')).not.toBeInTheDocument();
   });
 
   it('retries a failed queue immediately and only shows empty after a successful response', async () => {
@@ -388,12 +387,10 @@ describe('TabletView', () => {
     await flush();
     expect(screen.getByText('Queue unavailable.')).toBeInTheDocument();
     expect(screen.queryByText('A little quiet in here.')).not.toBeInTheDocument();
-    expect(screen.queryByText('0 tracks')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry queue' }));
     await flush();
     expect(api.getQueue).toHaveBeenCalledTimes(2);
     expect(screen.getByText('A little quiet in here.')).toBeInTheDocument();
-    expect(screen.getByText('0 tracks')).toBeInTheDocument();
   });
 
   it('labels cached queue contents when a later refresh fails', async () => {
@@ -408,7 +405,6 @@ describe('TabletView', () => {
     });
     expect(screen.getByRole('heading', { name: 'Queued One' })).toBeInTheDocument();
     expect(screen.getByText('Showing the last known queue.')).toBeInTheDocument();
-    expect(screen.getByText('1 track last known')).toBeInTheDocument();
   });
 
   it('shows a failed sign-in as an alert', async () => {

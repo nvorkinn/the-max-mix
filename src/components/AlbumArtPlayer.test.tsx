@@ -165,7 +165,7 @@ describe('TrackQueue', () => {
   ];
   const setupQueue = (props = {}) => render(<TrackQueue queue={tracks} {...props} />);
 
-  it('renders tracks, durations, count and total length', () => {
+  it('renders tracks and durations', () => {
     setupQueue();
     const items = screen.getAllByRole('listitem');
     expect(items).toHaveLength(3);
@@ -175,16 +175,11 @@ describe('TrackQueue', () => {
     expect(items[1]).toHaveTextContent('Y');
     expect(items[2]).toHaveTextContent('Unknown artist');
     expect(items[2]).toHaveTextContent('--:--');
-    expect(screen.getByText('3 tracks / 3 min')).toBeInTheDocument();
   });
 
-  it('uses the singular for a single track and shows an empty state', () => {
-    const { unmount } = render(<TrackQueue queue={[tracks[1]]} />);
-    expect(screen.getByText('1 track / 1 min')).toBeInTheDocument();
-    unmount();
+  it('shows an empty state', () => {
     render(<TrackQueue />);
     expect(screen.getByText('A little quiet in here.')).toBeInTheDocument();
-    expect(screen.getByText('0 tracks')).toBeInTheDocument();
   });
 
   it('does not link tracks out to Spotify', () => {
@@ -197,18 +192,15 @@ describe('TrackQueue', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Queue unavailable');
   });
 
-  it.each(['loading', 'idle', 'error'] as const)('does not claim an empty queue or count while %s', status => {
+  it.each(['loading', 'idle', 'error'] as const)('does not claim an empty queue while %s', status => {
     render(<TrackQueue queue={[]} status={status} />);
     expect(screen.queryByText('A little quiet in here.')).not.toBeInTheDocument();
-    expect(screen.queryByText('0 tracks')).not.toBeInTheDocument();
-    expect(document.querySelector('.queue-count')).not.toBeInTheDocument();
   });
 
   it('labels stale results and allows a queue retry', () => {
     const retry = vi.fn();
     setupQueue({ status: 'error', error: 'Queue unavailable', onRetry: retry });
     expect(screen.getByText('Showing the last known queue.')).toBeInTheDocument();
-    expect(screen.getByText('3 tracks last known / 3 min')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry queue' }));
     expect(retry).toHaveBeenCalledOnce();
   });

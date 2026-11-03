@@ -264,12 +264,6 @@
 .listening-room:not(.is-setup) .queue-panel {
   padding: 12px 18px;
 }
-.listening-room:not(.is-setup) .queue-heading {
-  margin-bottom: 6px;
-}
-.listening-room:not(.is-setup) .queue-heading h2 {
-  font-size: 20px;
-}
 .listening-room:not(.is-setup) .queue-track {
   min-height: 52px;
 }
@@ -618,34 +612,6 @@
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 22px;
-}
-.queue-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.queue-heading h2 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 28px;
-  font-weight: 650;
-  letter-spacing: -1px;
-  margin-top: 5px;
-  line-height: 1.2;
-}
-.queue-count {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--muted);
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  padding: 4px 7px;
-  border-radius: 7px;
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
 }
 .queue-list {
   flex: 1;
@@ -1003,9 +969,6 @@ input:disabled {
   }
   .queue-panel {
     padding: 18px;
-  }
-  .queue-heading h2 {
-    font-size: 25px;
   }
   .queue-track {
     min-height: 62px;

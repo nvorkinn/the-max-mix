@@ -142,7 +142,6 @@ for (const theme of ['minimal']) {
     await expect(player.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
     await expect(player.getByRole('slider', { name: 'Playback position' })).toHaveCount(0);
     await expect(page.locator('.session-status .status-dot')).toHaveClass(/status-dot-idle/);
-    await expect(page.getByText('0 tracks', { exact: true })).toHaveCount(0);
     await expect(page.getByText('A little quiet in here.')).toHaveCount(0);
     await expectControlsFit(page, player);
     await player.getByRole('button', { name: 'Connection settings' }).click();
@@ -203,14 +202,12 @@ for (const theme of ['minimal']) {
     await page.goto('/');
     const queue = page.getByRole('region', { name: 'Upcoming tracks' });
     await expect(queue.getByText('Loading queue...')).toBeVisible();
-    await expect(queue.getByText('0 tracks', { exact: true })).toHaveCount(0);
     resolve(undefined);
     await expect(queue.getByText('Queue unavailable.')).toBeVisible();
     await expect(queue.getByText('A little quiet in here.')).toHaveCount(0);
     api.queueStatus = 200;
     await queue.getByRole('button', { name: 'Retry queue' }).click();
     await expect(queue.getByText('A little quiet in here.')).toBeVisible();
-    await expect(queue.getByText('0 tracks', { exact: true })).toBeVisible();
   });
 
   for (const source of ['skip', 'queue', 'devices']) {

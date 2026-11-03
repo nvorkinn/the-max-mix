@@ -25,8 +25,6 @@ export default function TrackQueue({
 }: Readonly<TrackQueueProps>) {
   const keys = trackKeys(queue);
 
-  const totalMinutes = Math.round(queue.reduce((sum, track) => sum + (track.duration_ms || 0), 0) / 60_000);
-  const showCount = queue.length > 0 || (status === 'ready' && !error);
   let retryLabel = 'Waiting to retry...';
   if (status === 'loading') retryLabel = 'Retrying...';
   else if (retryAllowed) retryLabel = 'Retry queue';
@@ -81,10 +79,6 @@ export default function TrackQueue({
 
   return (
     <div className="queue-panel">
-      <div className="queue-heading">
-        <h2>Up next{showCount && <span className="queue-count">{String(queue.length).padStart(2, '0')}</span>}</h2>
-      </div>
-
       {error && (
         <p role="alert" className="queue-error">
           {error}
@@ -140,16 +134,6 @@ export default function TrackQueue({
               </div>
             );
           })}
-        </div>
-      )}
-
-      {showCount && (
-        <div className="queue-footer">
-          <span>
-            {queue.length} {queue.length === 1 ? 'track' : 'tracks'}
-            {status !== 'ready' || error ? ' last known' : ''}
-            {totalMinutes > 0 ? ` / ${totalMinutes} min` : ''}
-          </span>
         </div>
       )}
     </div>
