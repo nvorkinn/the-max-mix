@@ -157,7 +157,7 @@ for (const theme of ['neon', 'minimal']) {
     api.playbackWait = promise;
     await page.goto('/');
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
-    await expect(page.getByRole('status').filter({ hasText: 'Connecting to Spotify...' })).toBeVisible();
+    await expect(page.locator('.session-status')).toHaveText('Connecting to Spotify...');
     await expect(player.getByRole('button', { name: 'Play', exact: true })).toBeDisabled();
     resolve(undefined);
     await expect(player.getByRole('heading', { name: 'Nothing playing' })).toBeVisible();
