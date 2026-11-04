@@ -14,7 +14,7 @@ browser. Run them with `npm run build && npm run test:e2e`.
 | `lyrics.spec.ts`     | Lyrics (`@lyrics`)                                                          |
 | `settings.spec.ts`   | Settings (`@settings`)                                                      |
 | `dialogs.spec.ts`    | Focus and dismissal of the dialogs: Settings, Speakers, debug (`@dialogs`)  |
-| `update.spec.ts`     | Software update (`@update`)                                                 |
+| `update.spec.ts`     | Software update (`@update`): popup, streamed console, restart, failure      |
 | `setup.spec.ts`      | Setup and signing in (`@setup`)                                             |
 | `status.spec.ts`     | Playback status, errors, offline, rate limits (`@status`)                   |
 | `appearance.spec.ts` | Colours and contrast of dialogs (`@appearance`)                             |
