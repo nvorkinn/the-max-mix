@@ -311,12 +311,10 @@
       - /etc/systemd/user
       - /etc/systemd/user/default.target.wants
       - /etc/tmpfiles.d
-      - /etc/xdg
       - /opt/the-max-mix
       - '{{ kiosk_panel_dir }}'
       - '{{ kiosk_panel_dir }}/qml'
       - '{{ kiosk_audio_dir }}'
-      - /usr/share/applications
       - /usr/share/icons/blank
       - /usr/share/icons/blank/cursors
       - /usr/share/plymouth/themes/the-max-mix
@@ -566,6 +564,17 @@
   notify: Reload systemd
 
 # Updates -------------------------------------------------------------------------------------------------------------
+# What an earlier version of the playbook installed and this one no longer does: the playbook never removes a file it
+# stopped installing, so it would stay on every Pi that already had it. kiosk-update-now.service was the app's Update now
+# (the kiosk-audio service starts the pull and the restart itself now).
+- name: Remove units an earlier version installed
+  ansible.builtin.file:
+    path: '/etc/systemd/system/{{ item }}'
+    state: absent
+  loop:
+    - kiosk-update-now.service
+  notify: Reload systemd
+
 - name: Install the update units
   ansible.builtin.template:
     src: '{{ item }}.j2'

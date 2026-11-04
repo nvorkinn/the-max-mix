@@ -38,15 +38,19 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
   keeps its own login; a shared browser profile is a shared login. Only addresses registered as redirect URIs in the
   Spotify dashboard can sign in.
 - **The kiosk's local service.** `pi/kiosk-audio/` runs as the `kiosk` user and listens on 127.0.0.1:7341 only (the unit
-  also denies every other address). It answers the app's origin alone: CORS names that origin, and every POST without
-  its `Origin` header is refused, so no other web page can trigger an action. A request names one of a few fixed actions
-  and carries no command: update, restart or reboot the Pi, turn the screen on, show the Wi-Fi panel, or route the
+  also denies every other address). It answers the app's origin alone: CORS names that origin, and every POST and every
+  WebSocket without its `Origin` header is refused (browsers do not apply CORS to a WebSocket), so no other web page can
+  trigger an action. A request names one of a few fixed actions and carries no command: update (a WebSocket that streams
+  the pull's and the restart's journal), restart or reboot the Pi, turn the screen on, show the Wi-Fi panel, or route the
   sound to at most 16 speaker names. Routing only links the browser's audio stream to PipeWire sinks with `pw-link`;
   commands run by absolute path with an argument list and no shell. The polkit rule (`50-kiosk-power.rules`) lets the
-  `kiosk` user restart `kiosk.service`, start `kiosk-update-now.service` and reboot, and nothing else to do with units or
-  power. A page on the app's origin can therefore restart or reboot the kiosk, which is a nuisance at worst. Node comes
+  `kiosk` user restart `kiosk.service`, start `kiosk-pull.service` and `kiosk-restart.service`, and reboot, and nothing
+  else to do with units or power. The `kiosk` user is in the `systemd-journal` group, so it can read the journal (which
+  holds the output of the pull, not secrets). A page on the app's origin can therefore restart or reboot the kiosk, which is a nuisance at worst. Node comes
   from NodeSource's apt archive (Debian's is too old to run TypeScript), whose signing key the playbook pins by checksum;
-  that archive is trusted like Debian's and Raspberry Pi's.
+  that archive is trusted like Debian's and Raspberry Pi's. The service's one npm package, `ws`, is installed with
+  `npm ci` from a committed lockfile (`ansible/roles/kiosk/files/kiosk-audio/package-lock.json`, integrity-checked and
+  watched by Dependabot) with install scripts off.
 - **The Wi-Fi panel.** A native Qt panel (`pi/wifi-panel/`) runs as the non-root `kiosk` user and joins networks with
   `nmcli`; a polkit rule (`50-kiosk-networkmanager.rules`, installed by the Ansible role) lets only that user manage
   NetworkManager connections. The password reaches `nmcli` on stdin, never in argv, and is not logged; every call is an
