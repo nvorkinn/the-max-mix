@@ -1,5 +1,7 @@
 import { expect, test, type Page, type Locator } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
+import { advance } from './clock.ts';
+import { countPlaybackReads, fakeSpotify } from './fake-spotify.ts';
 import type { PlaybackState } from '../src/types.ts';
 
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
@@ -270,5 +272,72 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     await expect(page.getByRole('alert')).toHaveCount(0);
     expect(api.playbackReads).toBeGreaterThan(reads);
     expect(api.commands).toEqual(['/v1/me/player/next']);
+  });
+
+  test.describe('when Spotify refuses with a 429', () => {
+    // The fake account answers as usual until a test makes Spotify say 429 to the playback read.
+    let refusal: { reason?: string } | null = null;
+
+    test.beforeEach(async ({ page }) => {
+      refusal = null;
+      await fakeSpotify(page);
+      await page.route('https://api.spotify.com/v1/me/player', route =>
+        refusal
+          ? route.fulfill({
+              status: 429,
+              json: { error: { status: 429, message: 'Refused', ...refusal } }
+            })
+          : route.fallback()
+      );
+      // The polling and the cooldown are counted on a clock that only moves when the test moves it.
+      await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
+      await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
+    });
+
+    test('QUOTA_EXCEEDED stops all polling for good and says so, in the banner and in Settings', async ({ page }) => {
+      const reads = countPlaybackReads(page);
+      await page.goto('/');
+      await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+
+      refusal = { reason: 'QUOTA_EXCEEDED' };
+      await advance(page, 6000);
+      const banner = page.locator('.playback-banner');
+      await expect(banner).toContainText('Spotify quota used up');
+      await expect(banner).toContainText('stopped reading Spotify by itself');
+      await expect(page.locator('.session-status')).toContainText('Spotify quota used up');
+
+      // Nothing asks again, however long the tablet runs, even once Spotify would answer.
+      refusal = null;
+      const stopped = reads();
+      await advance(page, 120_000);
+      expect(reads()).toBe(stopped);
+      await expect(banner).toContainText('Spotify quota used up');
+
+      await page.getByRole('button', { name: 'Open settings' }).click();
+      const settings = page.getByRole('dialog', { name: 'Settings' });
+      await expect(settings).toContainText("Stopped: Spotify's quota is used up");
+    });
+
+    test('an ordinary 429 waits a while, says so, and carries on by itself', async ({ page }) => {
+      const reads = countPlaybackReads(page);
+      await page.goto('/');
+      await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+
+      refusal = {};
+      await advance(page, 6000);
+      const banner = page.locator('.playback-banner');
+      await expect(banner).toContainText('Waiting for Spotify');
+      await expect(banner).not.toContainText('quota');
+
+      // Nothing is asked while it waits (Spotify's wait is not readable by the browser, so a short one is assumed).
+      const waiting = reads();
+      await advance(page, 20_000);
+      expect(reads()).toBe(waiting);
+
+      refusal = null;
+      await advance(page, 40_000);
+      await expect(banner).toHaveCount(0);
+      expect(reads()).toBeGreaterThan(waiting);
+    });
   });
 });

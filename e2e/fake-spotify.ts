@@ -4,6 +4,7 @@ import type { PlaybackState, Track } from '../src/types.ts';
 
 const track = (id: string, name: string, artist: string, durationMs: number): Track => ({
   id,
+  uri: `spotify:track:${id}`,
   name,
   artists: [{ name: artist }],
   duration_ms: durationMs,
@@ -12,11 +13,16 @@ const track = (id: string, name: string, artist: string, durationMs: number): Tr
 
 /**
  * Signs the page in to a fake Spotify account that answers in memory: one track playing on a Spotify Connect speaker
- * and four queued. Play, pause, seek, next and previous change what it reports, like the real Web API does.
+ * and four queued. Play, pause, seek, next, previous, shuffle, repeat, volume and saving a song change what it reports, like
+ * the real Web API does. Returns what a test may want to look at: every command it was sent, and the saved songs.
  */
 export async function fakeSpotify(page: Page) {
+  const commands: string[] = [];
+  const saved = new Set<string>();
   const playback = {
     is_playing: true as boolean,
+    shuffle_state: false as boolean,
+    repeat_state: 'off' as 'off' | 'context' | 'track',
     progress_ms: 45_000,
     device: {
       id: 'test-speaker',
@@ -44,7 +50,9 @@ export async function fakeSpotify(page: Page) {
     route.fulfill({ json: { access_token: 'not-a-real-access-token', expires_in: 3600 } })
   );
   await page.route('https://api.spotify.com/v1/**', route => {
-    const path = new URL(route.request().url()).pathname;
+    const url = new URL(route.request().url());
+    const path = url.pathname;
+    if (route.request().method() !== 'GET') commands.push(`${route.request().method()} ${path}${url.search}`);
     switch (`${route.request().method()} ${path}`) {
       case 'GET /v1/me/player': {
         return route.fulfill({ json: playback });
@@ -61,6 +69,29 @@ export async function fakeSpotify(page: Page) {
       }
       case 'PUT /v1/me/player/pause': {
         playback.is_playing = false;
+        return route.fulfill({ status: 204 });
+      }
+      case 'PUT /v1/me/player/shuffle': {
+        playback.shuffle_state = url.searchParams.get('state') === 'true';
+        return route.fulfill({ status: 204 });
+      }
+      case 'PUT /v1/me/player/repeat': {
+        playback.repeat_state = url.searchParams.get('state') as typeof playback.repeat_state;
+        return route.fulfill({ status: 204 });
+      }
+      case 'PUT /v1/me/player/volume': {
+        playback.device.volume_percent = Number(url.searchParams.get('volume_percent'));
+        return route.fulfill({ status: 204 });
+      }
+      case 'GET /v1/me/library/contains': {
+        return route.fulfill({ json: [saved.has(url.searchParams.get('uris') ?? '')] });
+      }
+      case 'PUT /v1/me/library': {
+        saved.add(url.searchParams.get('uris') ?? '');
+        return route.fulfill({ status: 204 });
+      }
+      case 'DELETE /v1/me/library': {
+        saved.delete(url.searchParams.get('uris') ?? '');
         return route.fulfill({ status: 204 });
       }
       case 'PUT /v1/me/player/seek': {
@@ -90,4 +121,5 @@ export async function fakeSpotify(page: Page) {
     localStorage.setItem('maxmix.playbackMode', 'remote');
     localStorage.setItem('maxmix.auth', JSON.stringify({ clientId, refreshToken: 'not-a-real-refresh-token' }));
   }, getClientId());
+  return { commands, saved };
 }
