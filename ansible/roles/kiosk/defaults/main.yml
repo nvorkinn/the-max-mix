@@ -109,14 +109,12 @@ kiosk_packages:
   - fonts-noto-color-emoji
   # Browser; libwidevinecdm0 (kiosk_rpi_packages) is the Widevine DRM module Spotify's player needs.
   - chromium
-  - xdg-utils
   # Maintenance over SSH (kiosk_ssh_enabled)
   - openssh-server
   - sudo
   # Boot splash
   - initramfs-tools
   - plymouth
-  - plymouth-themes
   # Locale, time zone and NetworkManager (polkit lets the kiosk user manage connections)
   - locales
   - tzdata
@@ -131,7 +129,6 @@ kiosk_packages:
   # AirPlay: PipeWire's RAOP modules find speakers over mDNS (Avahi); pw-dump and pw-link route the sound to them.
   - avahi-daemon
   - libpipewire-0.3-modules
-  - pipewire-audio-client-libraries
   - pipewire-bin
   # Security updates
   - unattended-upgrades
