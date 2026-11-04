@@ -528,15 +528,18 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         kioskUpdate={kioskUpdate}
       />
 
-      {/* A newer version is asked about once, when nothing else is open and the screen is awake. */}
-      {kioskUpdate.prompting &&
-        kioskUpdate.newer &&
-        !sleep.asleep &&
-        !isSettingsOpen &&
-        !isSpeakerModalOpen &&
-        !isDebugOpen && (
-          <UpdatePrompt newer={kioskUpdate.newer} onUpdate={kioskUpdate.start} onLater={kioskUpdate.dismissPrompt} />
-        )}
+      {/* A newer version is asked about once, with the screen awake and no speakers or debug dialog open. It also shows over
+          the settings (which check again each time they open), and starting the update from it closes them: the console takes over. */}
+      {kioskUpdate.prompting && kioskUpdate.newer && !sleep.asleep && !isSpeakerModalOpen && !isDebugOpen && (
+        <UpdatePrompt
+          newer={kioskUpdate.newer}
+          onUpdate={() => {
+            kioskUpdate.start();
+            setIsSettingsOpen(false);
+          }}
+          onLater={kioskUpdate.dismissPrompt}
+        />
+      )}
       <UpdateConsole update={kioskUpdate} />
 
       {sleep.asleep && <SleepScreen onWake={sleep.wake} />}
