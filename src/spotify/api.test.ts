@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { deferred } from '../test/deferred';
+import { clearDebugLog, getDebugEntries } from '../utils/debugLog';
 import * as auth from './auth';
 import * as api from './api';
 import { fetchSpotify, getSpotifyRetryAt, getSpotifyRetryDelay, parseJson, resetSpotifyRateLimit } from './http';
@@ -318,6 +319,15 @@ describe('spotify/api', () => {
       // The cooldown holds the next request back without sending it.
       await expect(api.getPlaybackState()).rejects.toMatchObject({ status: 429 });
       expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs the headers and body of a 429', async () => {
+      clearDebugLog();
+      fetchMock.mockResolvedValue(json({ error: { message: 'API rate limit exceeded' } }, 429, { 'X-Test': 'yes' }));
+      await api.getPlaybackState().catch(() => {});
+      const logged = getDebugEntries().find(entry => entry.message.startsWith('429 from /v1/me/player'));
+      expect(logged?.message).toContain('x-test: yes');
+      expect(logged?.message).toContain('API rate limit exceeded');
     });
 
     it('doubles the assumed wait for every 429 in a row, up to five minutes, and starts over after a good reply', async () => {
