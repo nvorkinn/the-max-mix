@@ -60,15 +60,18 @@ logind
 loglevel
 longenough
 lrclib
+magicdns
 mapfile
 math
 maxmix
+mktemp
 nbbbb
 ncccc
 netdev
 netplan
 networkmanager
 nmcli
+noarmor
 nocolor
 nodesource
 nodistro
@@ -96,6 +99,7 @@ pavucontrol
 pipefail
 pipewire
 pkce
+pkgs
 plymouthd
 pointerdown
 polkit
@@ -134,6 +138,9 @@ starboy
 startswith
 stdin
 swayidle
+tailnet
+tailscale
+tailscaled
 timezone
 tmpfiles
 trixie
@@ -177,4 +184,3 @@ xcursor
 xkb
 xterm
 zoneinfo
-mktemp
