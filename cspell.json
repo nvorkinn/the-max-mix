@@ -6,10 +6,5 @@
   "dictionaries": ["project-words"],
   "useGitignore": true,
   "ignoreRegExpList": ["/'[A-Za-z0-9+/]{32,}={0,2}'/"],
-  "ignorePaths": [
-    ".git",
-    "**/package-lock.json",
-    "project-words.txt",
-    "LICENSE"
-  ]
+  "ignorePaths": [".git", "**/package-lock.json", "project-words.txt", "LICENSE"]
 }
