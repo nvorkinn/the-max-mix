@@ -1,11 +1,10 @@
-// The Raspberry Pi kiosk opens the app with ?kiosk=1 (and ?cursor=hidden for its touch screen). Each flag is remembered in the browser's storage so it survives the
+// The Raspberry Pi kiosk opens the app with ?kiosk=1. The flag is remembered in the browser's storage so it survives the
 // Spotify sign-in redirect, which returns to the plain redirect address without the query. Storage can be unavailable
 // (private windows, blocked site data): every access tolerates that.
 
 import { kioskPost } from './kioskService';
 
 const KIOSK_KEY = 'maxmix.kiosk';
-const HIDE_CURSOR_KEY = 'maxmix.hideCursor';
 
 /** Asks the kiosk to show its native Wi-Fi panel. */
 export function openWifiSettings(): void {
@@ -35,14 +34,6 @@ export function isKiosk(): boolean {
   if (flag === '1') write(KIOSK_KEY, true);
   else if (flag === '0') write(KIOSK_KEY, false);
   return flag === '1' || (flag !== '0' && read(KIOSK_KEY));
-}
-
-/** True when the mouse pointer should be hidden (the kiosk's touch screen). ?cursor=hidden remembers that, ?cursor=shown forgets it. */
-export function hidesCursor(): boolean {
-  const flag = new URLSearchParams(location.search).get('cursor');
-  if (flag === 'hidden') write(HIDE_CURSOR_KEY, true);
-  else if (flag === 'shown') write(HIDE_CURSOR_KEY, false);
-  return flag === 'hidden' || (flag !== 'shown' && read(HIDE_CURSOR_KEY));
 }
 
 /** Asks the kiosk to restart the kiosk (Cage and Chromium), which applies an update that waits for a restart. */

@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getRedirectUri } from '../spotify/settings';
 import {
-  hidesCursor,
   isKiosk,
   isRelease,
   latestCommit,
@@ -83,39 +82,6 @@ describe('isKiosk', () => {
   });
 });
 
-describe('hidesCursor', () => {
-  beforeEach(() => {
-    localStorage.clear();
-    visit('');
-  });
-
-  it('is off by default', () => {
-    expect(hidesCursor()).toBe(false);
-  });
-
-  it('turns on with ?cursor=hidden and is remembered without the query', () => {
-    visit('?kiosk=1&cursor=hidden');
-    expect(hidesCursor()).toBe(true);
-    visit('');
-    expect(hidesCursor()).toBe(true);
-  });
-
-  it('is forgotten with ?cursor=shown', () => {
-    visit('?cursor=hidden');
-    hidesCursor();
-    visit('?cursor=shown');
-    expect(hidesCursor()).toBe(false);
-    visit('');
-    expect(hidesCursor()).toBe(false);
-  });
-
-  it('is independent of the kiosk flag', () => {
-    visit('?kiosk=1');
-    expect(hidesCursor()).toBe(false);
-    expect(isKiosk()).toBe(true);
-  });
-});
-
 describe('piVersion', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -127,7 +93,7 @@ describe('piVersion', () => {
   });
 
   it('reads the kiosk address and remembers it without the query', () => {
-    visit('?kiosk=1&cursor=hidden&pi_ref=v1.12.0&pi_commit=5a39e9a');
+    visit('?kiosk=1&pi_ref=v1.12.0&pi_commit=5a39e9a');
     expect(piVersion()).toEqual({ ref: 'v1.12.0', commit: '5a39e9a' });
     visit('?code=abc');
     expect(piVersion()).toEqual({ ref: 'v1.12.0', commit: '5a39e9a' });

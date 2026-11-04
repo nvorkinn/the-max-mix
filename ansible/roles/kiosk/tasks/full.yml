@@ -18,8 +18,7 @@
 - name: Work out what the package step depends on
   ansible.builtin.set_fact:
     kiosk_all_packages: >-
-      {{ (kiosk_ansible_packages + kiosk_packages + kiosk_rpi_packages + kiosk_panel_packages
-      + ([] if kiosk_hide_cursor | bool else ['xcursor-themes'])) | unique }}
+      {{ (kiosk_ansible_packages + kiosk_packages + kiosk_rpi_packages + kiosk_panel_packages) | unique }}
     kiosk_packages_done: >-
       {{ (lookup('ansible.builtin.file', kiosk_packages_stamp, errors='ignore') | default('', true)) | string | trim }}
 

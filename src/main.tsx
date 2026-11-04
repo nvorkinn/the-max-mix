@@ -5,17 +5,16 @@ import { completeSignIn } from './spotify/auth';
 import { captureBrowserErrors } from './utils/debugLog';
 import { installHttpLog } from './utils/httpLog';
 import { errorMessage } from './utils/errorMessage';
-import { hidesCursor, isKiosk, piVersion } from './utils/kiosk';
+import { isKiosk, piVersion } from './utils/kiosk';
 import './index.css';
 
 // Copies console errors and uncaught errors into the hidden debug console from the start.
 captureBrowserErrors();
 installHttpLog();
 
-// Remembers ?kiosk=1, ?cursor=hidden and the Pi version before anything can navigate away (the sign-in redirect returns without the query).
-isKiosk();
+// Remembers ?kiosk=1 and the Pi version before anything can navigate away (the sign-in redirect returns without the query).
 piVersion();
-if (hidesCursor()) document.documentElement.classList.add('hide-cursor');
+if (isKiosk()) document.documentElement.classList.add('hide-cursor');
 
 // Finishes a sign-in first (Spotify sends the browser back with ?code=), so the app starts with the auth state final.
 const signedIn = completeSignIn().catch((error: unknown) => ({
