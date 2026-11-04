@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, CSSProperties } from 'react';
-import { AudioLines, Clock, Settings } from 'lucide-react';
+import { AudioLines, Clock, Moon, Settings } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useScreenSleep } from '../hooks/useScreenSleep';
@@ -90,7 +90,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     cycleRepeat,
     liked,
     toggleLike,
-    transferPlayback
+    transferPlayback,
+    setSlowPolling
   } = useSpotifyPlayer();
   const error = playerError || signInError;
   const isOffline = useIsOffline(playerError);
@@ -174,6 +175,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     keepAwake: isPlaying,
     idleMs: screenSleepMinutes === 0 ? null : screenSleepMinutes * 60_000
   });
+  // A sleeping screen has no one watching it, so Spotify is asked about it less often (see ASLEEP_POLL_MS).
+  useEffect(() => {
+    setSlowPolling(sleep.asleep);
+  }, [sleep.asleep, setSlowPolling]);
   const screenStatus = `${sleep.asleep ? 'Asleep' : 'Awake'}, wake lock ${sleep.wakeLock}`;
 
   // Problems go to the debug console.
@@ -210,7 +215,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   }
 
   useEffect(() => {
-    if (!canPollQueue) return;
+    // The queue is not shown while the screen sleeps; waking it reads the queue again at once.
+    if (!canPollQueue || sleep.asleep) return;
     let cancelled = false;
     // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
     const isCancelled = () => cancelled;
@@ -247,7 +253,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [currentTrack?.id, canPollQueue, sdkActive, isPlaying, queueVersion, queueRequestVersion]);
+  }, [currentTrack?.id, canPollQueue, sleep.asleep, sdkActive, isPlaying, queueVersion, queueRequestVersion]);
 
   const artUrl = currentTrack?.album?.images?.[0]?.url;
   useEffect(() => {
@@ -364,6 +370,17 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           <span className="header-clock" {...debugHold}>
             <Clock size={14} /> {currentTime}
           </span>
+          {onKiosk && (
+            <button
+              type="button"
+              onClick={sleep.sleepNow}
+              className="icon-button"
+              title="Sleep"
+              aria-label="Put the screen to sleep"
+            >
+              <Moon size={28} />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setIsSettingsOpen(true)}
@@ -371,7 +388,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             title="Settings"
             aria-label="Open settings"
           >
-            <Settings size={22} />
+            <Settings size={28} />
           </button>
         </div>
       </header>

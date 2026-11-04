@@ -224,6 +224,11 @@ a newer one is out, **Update now** (which shows the pull's progress), **Restart 
 without a touch while nothing plays; it always stays on while music plays). These go through the Pi's
 [local service](pi/kiosk-audio/README.md).
 
+The moon button beside Settings puts the screen to sleep straight away, even while music plays; only a touch wakes it
+(music that starts later does not). The Pi turns its display off a minute after that. While the screen sleeps the app
+asks Spotify about playback every 45 seconds instead of every 4 and stops reading the queue, so an idle tablet does not
+use up the account's rate limit.
+
 Any change on the device that is not in the role is undone at the next pull (for example, SSH is switched off again when
 `kiosk_ssh_enabled` is false). A CI job runs the playbook in a Debian trixie container and checks that it is idempotent;
 booting the result on a real Pi is not covered.

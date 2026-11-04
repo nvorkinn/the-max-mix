@@ -159,6 +159,37 @@ describe('AlbumArtPlayer', () => {
     expect(volume).toHaveValue('55');
   });
 
+  it('rewinds and fast-forwards 15 seconds, stopping at the start and the end of the song', () => {
+    const h = setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Back 15 seconds' }));
+    expect(h.onSeek).toHaveBeenLastCalledWith(50_000);
+    fireEvent.click(screen.getByRole('button', { name: 'Forward 15 seconds' }));
+    expect(h.onSeek).toHaveBeenLastCalledWith(80_000);
+  });
+
+  it('clamps the 15 second jumps to the song', () => {
+    const near = (progress_ms: number) => ({ ...playback, progress_ms });
+    const onSeek = vi.fn();
+    const { rerender } = render(<AlbumArtPlayer playback={near(5000)} isPlaying controlsEnabled onSeek={onSeek} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Back 15 seconds' }));
+    expect(onSeek).toHaveBeenLastCalledWith(0);
+    rerender(<AlbumArtPlayer playback={near(195_000)} isPlaying controlsEnabled onSeek={onSeek} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Forward 15 seconds' }));
+    expect(onSeek).toHaveBeenLastCalledWith(200_000);
+  });
+
+  it('turns the 15 second jumps off when seeking is not possible', () => {
+    setup({ controlsEnabled: false });
+    expect(screen.getByRole('button', { name: 'Back 15 seconds' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Forward 15 seconds' })).toBeDisabled();
+  });
+
+  it('turns the 15 second jumps off when Spotify disallows seeking', () => {
+    setup({ playback: { ...playback, actions: { disallows: { seeking: true } } } });
+    expect(screen.getByRole('button', { name: 'Back 15 seconds' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Forward 15 seconds' })).toBeDisabled();
+  });
+
   it('disables controls when they are not enabled', () => {
     setup({ controlsEnabled: false });
     expect(screen.getByRole('button', { name: 'Pause' })).toBeDisabled();

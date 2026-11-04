@@ -12,7 +12,7 @@ const track = (id: string, name: string, artist: string, durationMs: number): Tr
 
 /**
  * Signs the page in to a fake Spotify account that answers in memory: one track playing on a Spotify Connect speaker
- * and four queued. Play, pause, next and previous change what it reports, like the real Web API does.
+ * and four queued. Play, pause, seek, next and previous change what it reports, like the real Web API does.
  */
 export async function fakeSpotify(page: Page) {
   const playback = {
@@ -61,6 +61,10 @@ export async function fakeSpotify(page: Page) {
       }
       case 'PUT /v1/me/player/pause': {
         playback.is_playing = false;
+        return route.fulfill({ status: 204 });
+      }
+      case 'PUT /v1/me/player/seek': {
+        playback.progress_ms = Number(new URL(route.request().url()).searchParams.get('position_ms'));
         return route.fulfill({ status: 204 });
       }
       case 'POST /v1/me/player/next': {

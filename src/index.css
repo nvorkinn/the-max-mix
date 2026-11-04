@@ -177,7 +177,12 @@
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 12px;
+}
+/* Sleep and settings are tapped from across the room, so they are bigger than the other icon buttons. */
+.header-actions .icon-button {
+  min-height: 56px;
+  min-width: 56px;
 }
 .button,
 .icon-button {
@@ -256,7 +261,7 @@
   the room is tall, which keeps the artwork square on any kiosk height.
 */
 .listening-room:not(.is-setup) {
-  --bar-height: 100px;
+  --bar-height: 112px;
   --row-gap: 14px;
   --room-padding-y: 32px;
   padding-block: 16px;
@@ -664,11 +669,11 @@
 .transport-buttons {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 16px;
 }
 .transport-skip {
-  width: 44px;
-  height: 44px;
+  width: 56px;
+  height: 56px;
   display: grid;
   place-items: center;
   color: var(--ink);
@@ -695,9 +700,19 @@
   border-radius: 50%;
   background: currentcolor;
 }
+/* Rewind and fast-forward 15 seconds: the turning arrow with the number over its middle. */
+.transport-seek {
+  position: relative;
+}
+.transport-seek span {
+  position: absolute;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+}
 .transport-play {
-  width: 50px;
-  height: 50px;
+  width: 68px;
+  height: 68px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -1052,6 +1067,24 @@ input:disabled {
   }
   .queue-duration {
     display: none;
+  }
+}
+
+/* A narrow window has less room for the seven transport buttons beside the volume, so they close up a little. */
+@media (width <= 900px) {
+  .transport-buttons {
+    gap: 8px;
+  }
+  .transport-skip {
+    width: 48px;
+    height: 48px;
+  }
+  .transport-play {
+    width: 60px;
+    height: 60px;
+  }
+  .listening-room:not(.is-setup) .volume-control {
+    width: 160px;
   }
 }
 

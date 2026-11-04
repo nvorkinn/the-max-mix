@@ -11,6 +11,7 @@ const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel'] as const;
  * while `keepAwake` (music playing) is false, and stays true until `wake` is called, so the tap that wakes the screen
  * never reaches the page behind the sleep screen. Music starting while asleep wakes the screen by itself. While awake
  * the page holds a screen wake lock; idleMs null holds it for good. Does nothing when not `enabled` (not on the kiosk).
+ * `sleepNow` sleeps at once, music or not, and music then does not wake the screen: only a touch does.
  */
 export function useScreenSleep({
   enabled,
@@ -19,11 +20,14 @@ export function useScreenSleep({
 }: Readonly<{ enabled: boolean; keepAwake: boolean; idleMs: number | null }>) {
   const [asleep, setAsleep] = useState(false);
   const [lockHeld, setLockHeld] = useState(false);
+  // Set by the sleep button: a screen put to sleep on purpose stays that way while music plays.
+  const [forced, setForced] = useState(false);
   // Bumped by every touch and by wake(), which starts the idle countdown again.
   const [activity, setActivity] = useState(0);
 
   const wake = useCallback(() => {
     setAsleep(false);
+    setForced(false);
     setActivity(count => count + 1);
   }, []);
 
@@ -40,6 +44,12 @@ export function useScreenSleep({
     };
   }, [enabled, asleep, wake]);
 
+  const sleepNow = useCallback(() => {
+    debugLog('info', 'screen', 'Sleep button: the screen sleeps');
+    setForced(true);
+    setAsleep(true);
+  }, []);
+
   // The countdown, from the last touch or from the moment the music stopped.
   useEffect(() => {
     if (!enabled || asleep || keepAwake || idleMs === null) return;
@@ -53,7 +63,7 @@ export function useScreenSleep({
   // Music that starts while the screen sleeps (from a phone, say) brings it back. Only a touch turns the Pi's output on
   // by itself, so the app asks for it.
   const [wokenForMusic, setWokenForMusic] = useState(false);
-  if (enabled && asleep && keepAwake && !wokenForMusic) {
+  if (enabled && asleep && !forced && keepAwake && !wokenForMusic) {
     setWokenForMusic(true);
     setAsleep(false);
   } else if (wokenForMusic && !keepAwake) {
@@ -104,5 +114,5 @@ export function useScreenSleep({
   // held: the screen is kept on. released: the Pi may turn it off. unsupported: the browser has no wake lock.
   let wakeLock: 'held' | 'released' | 'unsupported' = lockHeld ? 'held' : 'released';
   if (!supported) wakeLock = 'unsupported';
-  return { asleep, wake, wakeLock };
+  return { asleep, wake, sleepNow, wakeLock };
 }

@@ -23,7 +23,13 @@ describe('offline state in TabletView', () => {
   beforeEach(() => {
     localStorage.clear();
     history.replaceState(null, '', '/');
-    state.player = { isReady: false, playbackState: null, isAuthenticated: false, isLoading: false };
+    state.player = {
+      isReady: false,
+      playbackState: null,
+      isAuthenticated: false,
+      isLoading: false,
+      setSlowPolling: vi.fn()
+    };
   });
   afterEach(() => {
     vi.restoreAllMocks();
