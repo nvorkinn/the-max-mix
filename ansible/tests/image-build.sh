@@ -24,6 +24,8 @@ echo 'kiosk:throwaway' | chpasswd
 
 cp -a /repo /work
 cd /work
+# cp -a keeps the runner's owner, and git refuses to read a repository another user owns (the Pi's checkout is root's own).
+git config --global --add safe.directory /work
 
 # The Raspberry Pi archive's packages are not in Debian, and there is no kernel to build an initramfs for.
 play() {
