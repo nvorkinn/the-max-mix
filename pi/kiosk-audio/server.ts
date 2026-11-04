@@ -3,6 +3,7 @@
 //   POST /audio/route       {"speakers": [...]}            route the sound to those speakers (none: the Pi's own output)
 //   POST /power/restart     restart the kiosk              POST /power/reboot    reboot the Pi
 //   POST /display/wake      turn the screen back on        POST /wifi            show the Wi-Fi panel
+//   POST /heartbeat         the app is alive (watchdog.ts)  POST /log  {"level", "source", "message"}  an app error, to the journal
 //   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
 //                           (update-socket.ts)
 // Only the app's origin is answered (CORS, and every POST and WebSocket is refused without its Origin header, so no other
@@ -16,9 +17,13 @@ import { validSpeakers } from './speakers.ts';
 import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
 import { runUpdate } from './update.ts';
+import { chromiumPid, CHECK_MS, stopChromium, Watchdog } from './watchdog.ts';
 
 const SPEAKERS_PORT = 7341;
 const MAX_BODY = 4096;
+const MAX_MESSAGE = 2000;
+/** At most this many app log lines a minute reach the journal, so a page stuck in an error loop cannot flood it. */
+const LOGS_PER_MINUTE = 30;
 const POST_ACTIONS: Record<string, Action> = {
   '/power/restart': 'restart',
   '/power/reboot': 'reboot',
@@ -31,6 +36,49 @@ export interface Deps {
   graph: () => Promise<Graph>;
   route: (speakers: string[]) => Promise<void>;
   perform: (action: Action) => Promise<void>;
+  heartbeat: () => void;
+  log: (entry: AppLog) => void;
+}
+
+/** An error the app reported, for the journal. */
+export interface AppLog {
+  level: 'error' | 'warn';
+  source: string;
+  message: string;
+}
+
+/** The body of POST /log as an entry (cut to a sensible length), or null when it is not one. */
+export function parseAppLog(value: unknown): AppLog | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const { level, source, message } = value as Record<string, unknown>;
+  if ((level !== 'error' && level !== 'warn') || typeof message !== 'string') return null;
+  return {
+    level,
+    source: typeof source === 'string' ? source.replaceAll(/[^\w.-]/g, '').slice(0, 40) : '',
+    // One journal line per entry: a stack trace's lines are joined.
+    message: message.slice(0, MAX_MESSAGE).replaceAll(/\s*\n\s*/g, ' | ')
+  };
+}
+
+/** Writes app log entries to the journal (this service's stderr), at most LOGS_PER_MINUTE a minute. */
+export function journalLog(write: (line: string) => void = line => console.error(line), now = () => Date.now()) {
+  let windowStart = 0;
+  let written = 0;
+  let dropped = 0;
+  return (entry: AppLog): void => {
+    if (now() - windowStart >= 60_000) {
+      if (dropped > 0) write(`app: ${dropped} more log lines were dropped`);
+      windowStart = now();
+      written = 0;
+      dropped = 0;
+    }
+    if (written >= LOGS_PER_MINUTE) {
+      dropped += 1;
+      return;
+    }
+    written += 1;
+    write(`app ${entry.level}${entry.source ? ` (${entry.source})` : ''}: ${entry.message}`);
+  };
 }
 
 /** The AirPlay (RAOP) sinks' names, sorted, once each. */
@@ -58,6 +106,15 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
   const action = POST_ACTIONS[request.url ?? ''];
   if (action) {
     await deps.perform(action);
+  } else if (request.url === '/heartbeat') {
+    deps.heartbeat();
+  } else if (request.url === '/log') {
+    const entry = parseAppLog(JSON.parse(await readBody(request)));
+    if (!entry) {
+      response.writeHead(400).end();
+      return;
+    }
+    deps.log(entry);
   } else if (request.url === '/audio/route') {
     const speakers = validSpeakers((JSON.parse(await readBody(request)) as { speakers?: unknown } | null)?.speakers);
     if (!speakers) {
@@ -99,7 +156,14 @@ export function handleRequest(origin: string, deps: Deps) {
 }
 
 export function serveSpeakers(origin: string, deps: Pick<Deps, 'graph' | 'route'>, update: Update = runUpdate): Server {
-  const handler = handleRequest(origin, { ...deps, perform });
+  const watchdog = new Watchdog({
+    now: () => Date.now(),
+    chromiumPid: () => chromiumPid(),
+    stop: pid => stopChromium(pid),
+    log: message => console.warn(message)
+  });
+  setInterval(() => void watchdog.check().catch((error: unknown) => console.warn(String(error))), CHECK_MS);
+  const handler = handleRequest(origin, { ...deps, perform, heartbeat: () => watchdog.beat(), log: journalLog() });
   const server = createServer((request, response) => void handler(request, response));
   attachUpdateSocket(server, origin, update);
   return server.listen(SPEAKERS_PORT, '127.0.0.1');
