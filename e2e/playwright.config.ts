@@ -6,8 +6,8 @@ export default defineConfig({
   testDir: '.',
   testMatch: '*.spec.ts',
   // Each page fakes its own Spotify and the preview server only serves static files, so tests share no state and can
-  // run side by side. The ubuntu-latest runner has 4 CPUs.
-  workers: 4,
+  // run side by side. Two workers, as the filmed and traced CI tests use most of the 4-CPU runner.
+  workers: 2,
   fullyParallel: true,
   retries: 0,
   forbidOnly: !!process.env['CI'],
