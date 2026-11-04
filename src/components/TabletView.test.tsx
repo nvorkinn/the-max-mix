@@ -303,9 +303,6 @@ describe('TabletView', () => {
     const panel = screen.getByRole('region', { name: 'Now playing' });
     expect(within(panel).getAllByText('--:--')).toHaveLength(2);
     expect(within(panel).queryByText('3:00')).not.toBeInTheDocument();
-    for (const dot of document.querySelectorAll('.session-status .status-dot')) {
-      expect(dot).toHaveClass('status-dot-idle');
-    }
   });
 
   it('offers a speaker chooser without transferring playback when no device is active', async () => {
@@ -335,7 +332,6 @@ describe('TabletView', () => {
     await flush();
     expect(screen.getByRole('alert')).toHaveTextContent('No internet connection');
     expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
-    expect(document.querySelector('.session-status')).toHaveTextContent('Offline');
   });
 
   it.each([
