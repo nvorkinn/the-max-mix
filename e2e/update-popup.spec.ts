@@ -13,10 +13,8 @@ test('the update popup is on top of Settings, where it can be read and tapped', 
   await page.route('https://api.github.com/**', route => route.fulfill({ json: { tag_name: newest } }));
   await page.route('http://127.0.0.1:7341/**', route => route.fulfill({ status: 204 }));
   await page.addInitScript(() => {
-    /* eslint-disable n/no-unsupported-features/node-builtins -- This init script runs in the browser, not Node. */
     localStorage.setItem('maxmix.kiosk', 'true');
     localStorage.setItem('maxmix.piVersion', 'v1.12.0 5a39e9a');
-    /* eslint-enable n/no-unsupported-features/node-builtins */
   });
   await page.setViewportSize({ width: 1024, height: 600 });
   await page.goto('/');
