@@ -11,7 +11,7 @@ auto-merged, so each one waits for a manual review and merge. Fork pull requests
 `tests.yml` runs the tests, the browser tests and the production build on every pull request and push to `main`. It is
 listed in `all-checks.yml`, so Global PR Status waits for it.
 
-On a pull request, its `screenshots` job copies the Playwright report (with a video of every e2e test) and the
+On a pull request, its `screenshots` job copies the Playwright report (with a video and a trace of every e2e test) and the
 screenshots that differ from their baselines to the `gh-pages` branch, under `pr-<number>/`, and keeps one comment on
 the PR up to date: baseline, new and difference images for each screen that changed, before and after images for each
 baseline the PR updates, and a link to the report on GitHub Pages. `pr-screenshots-cleanup.yml` removes the PR's folder

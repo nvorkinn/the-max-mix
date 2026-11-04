@@ -19,8 +19,9 @@ export default defineConfig({
     // CI uses the Chrome preinstalled on ubuntu-latest; locally Playwright's own Chromium is used, or the binary in E2E_BROWSER_PATH.
     ...(process.env['CI'] && { channel: 'chrome' }),
     launchOptions: { ...(process.env['E2E_BROWSER_PATH'] && { executablePath: process.env['E2E_BROWSER_PATH'] }) },
-    trace: 'retain-on-failure',
-    // In CI every test is filmed, so the report linked from the pull request shows each screen as it is used.
+    // In CI every test is filmed and traced, so the report linked from the pull request shows each screen as it is used
+    // and opens the Trace Viewer, which the HTML report bundles, from the same site.
+    trace: process.env['CI'] ? 'on' : 'retain-on-failure',
     video: process.env['CI'] ? 'on' : 'off'
   },
   webServer: {

@@ -60,7 +60,7 @@ const body = [
   MARKER,
   '### Screenshots',
   '',
-  `${summary} [Open the full report](${env('REPORT_URL')}) to watch a video of every test.`,
+  `${summary} [Open the full report](${env('REPORT_URL')}) to watch a video and open the trace of every test.`,
   '',
   ...(failed.length > 0
     ? ["#### Screens that don't match their baseline", '', ...failed]
