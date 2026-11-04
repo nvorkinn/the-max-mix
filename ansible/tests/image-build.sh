@@ -136,6 +136,7 @@ check grep -Eq 'changed=0 ' /tmp/third-run.log
 check second_run_skips 'Install the packages'
 check second_run_skips 'Install Node.js'
 check test -L /usr/share/icons/blank/cursors/not-allowed
+check test -f /usr/share/kiosk-cursors/default/cursors/left_ptr
 check test -d /usr/share/plymouth/themes/the-max-mix
 # The boot splash theme uses Plymouth's script module, which comes with the plymouth package (no plymouth-themes).
 check bash -c 'ls /usr/lib/*/plymouth/script.so'
