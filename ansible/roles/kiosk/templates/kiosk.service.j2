@@ -33,9 +33,9 @@ ExecStartPre=-+/usr/bin/systemctl --user -M {{ kiosk_user }}@ try-restart kiosk-
 # kiosk-session to exit. Tell kiosk-session to stop first (the + runs this as root, the - ignores a failure).
 ExecStop=-+/usr/bin/pkill -TERM -f "^bash /usr/local/bin/kiosk-session"
 Environment=WLR_LIBINPUT_NO_DEVICES=1
-# Cage draws the pointer itself (its own default, and the shapes Chromium asks for over the cursor-shape protocol) from
-# the theme named here, and passes it on to the apps.
-Environment=XCURSOR_THEME={{ 'blank' if kiosk_hide_cursor | bool else kiosk_cursor_theme }}
+# No mouse pointer on the touch screen: Cage draws the pointer itself (its own default, and the shapes Chromium asks for
+# over the cursor-shape protocol) from this theme of one transparent pixel, and passes it on to the apps.
+Environment=XCURSOR_THEME=blank
 Environment=KIOSK_SCREEN_OFF_AFTER={{ kiosk_screen_off_after | int }}
 Environment="KIOSK_URL={{ kiosk_url | replace('%', '%%') }}"
 ExecStart=/usr/bin/cage -d -- /usr/local/bin/kiosk-session

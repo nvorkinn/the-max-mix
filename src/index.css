@@ -258,7 +258,7 @@
   gap: 28px;
   padding: 24px 30px 18px;
 }
-/* The kiosk's touch screen (?cursor=hidden, see utils/kiosk.ts): no mouse pointer, whatever an element asks for. */
+/* The kiosk's touch screen (?kiosk=1, see utils/kiosk.ts): no mouse pointer, whatever an element asks for. */
 .hide-cursor,
 .hide-cursor * {
   /* stylelint-disable-next-line declaration-no-important -- must beat every element's own cursor rule */
