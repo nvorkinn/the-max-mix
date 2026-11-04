@@ -4,6 +4,7 @@ import { fetchSpotify, recordSpotifyRetryAfter, resetSpotifyRateLimit, SpotifyAp
 import userEvent from '../test/user';
 import { partialProps } from '../test/partialProps';
 import { defined } from '../test/defined';
+import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import SettingsModalFull from './SettingsModal';
 import SpeakerDrawerFull from './SpeakerDrawer';
 
@@ -55,6 +56,20 @@ describe('SettingsModal', () => {
     expect(screen.getByText(/Stopped: Spotify's quota is used up/)).toBeInTheDocument();
     vi.unstubAllGlobals();
     resetSpotifyRateLimit();
+  });
+
+  it('asks for a fresh update check each time it opens, and not while closed', () => {
+    const checkNow = vi.fn();
+    const update = { checkNow } as unknown as KioskUpdate;
+    const { rerender } = render(<SettingsModal {...base} isOpen={false} kioskUpdate={update} />);
+    expect(checkNow).not.toHaveBeenCalled();
+    rerender(<SettingsModal {...base} isOpen kioskUpdate={update} />);
+    expect(checkNow).toHaveBeenCalledOnce();
+    rerender(<SettingsModal {...base} isOpen kioskUpdate={update} />);
+    expect(checkNow).toHaveBeenCalledOnce();
+    rerender(<SettingsModal {...base} isOpen={false} kioskUpdate={update} />);
+    rerender(<SettingsModal {...base} isOpen kioskUpdate={update} />);
+    expect(checkNow).toHaveBeenCalledTimes(2);
   });
 
   it('renders nothing when closed', () => {

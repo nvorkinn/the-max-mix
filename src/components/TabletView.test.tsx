@@ -682,6 +682,17 @@ describe('TabletView', () => {
         expect(await screen.findByRole('dialog', { name: 'Update available' })).toBeInTheDocument();
       });
 
+      it('asks GitHub again each time Settings opens, and shows what it finds', async () => {
+        render(<TabletView />);
+        await screen.findByRole('dialog', { name: 'Update available' });
+        fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+        const asked = fetchMock.mock.calls.length;
+        fetchMock.mockImplementation(() => Promise.resolve(Response.json({ tag_name: 'v1.14.0' })));
+        fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
+        expect(await screen.findByText(/v1\.14\.0 is out\. Tap Update now/)).toBeInTheDocument();
+        expect(fetchMock.mock.calls.length).toBeGreaterThan(asked);
+      });
+
       it('starting the update from Settings closes Settings and opens the console', async () => {
         render(<TabletView />);
         await screen.findByRole('dialog', { name: 'Update available' });

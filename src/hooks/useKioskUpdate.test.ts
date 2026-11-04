@@ -77,6 +77,34 @@ describe('useKioskUpdate', () => {
     expect(newest.result.current.prompting).toBe(true);
   });
 
+  it('asks GitHub again on checkNow, and keeps the last answer when it cannot be had', async () => {
+    kiosk.latestRelease.mockResolvedValue('v1.12.0');
+    const { result } = renderHook(() => useKioskUpdate(true));
+    await flush();
+    expect(result.current.newer).toBeNull();
+    expect(kiosk.latestRelease).toHaveBeenCalledTimes(1);
+
+    kiosk.latestRelease.mockResolvedValue('v1.13.0');
+    act(() => result.current.checkNow());
+    await flush();
+    expect(kiosk.latestRelease).toHaveBeenCalledTimes(2);
+    expect(result.current.newer).toBe('v1.13.0 is out');
+
+    // GitHub cannot be asked (offline, rate limited): the version already found stays.
+    kiosk.latestRelease.mockResolvedValue(null);
+    act(() => result.current.checkNow());
+    await flush();
+    expect(kiosk.latestRelease).toHaveBeenCalledTimes(3);
+    expect(result.current.newer).toBe('v1.13.0 is out');
+  });
+
+  it('does nothing on checkNow off the kiosk', async () => {
+    const { result } = renderHook(() => useKioskUpdate(false));
+    act(() => result.current.checkNow());
+    await flush();
+    expect(kiosk.latestRelease).not.toHaveBeenCalled();
+  });
+
   it('ignores "Not now" until GitHub has said what is newer', () => {
     kiosk.latestRelease.mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useKioskUpdate(true));

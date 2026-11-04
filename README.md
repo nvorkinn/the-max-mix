@@ -235,7 +235,8 @@ without a touch while nothing plays; it always stays on while music plays). Thes
 [local service](pi/kiosk-audio/README.md).
 
 When the kiosk finds that a newer release is out (or, for a Pi pinned to a branch, a newer commit), a popup asks whether to
-**Update now** or **Not now**; it asks once for each new version, and not while the screen sleeps or another dialog is open.
+**Update now** or **Not now**; it asks once for each new version, and not while the screen sleeps or another dialog is open. The kiosk asks GitHub when it starts and again every time Settings opens, so
+the answer shown there is fresh (an answer that cannot be had, offline or rate limited, keeps the last one found).
 Updating, from the popup or from Settings, opens a full-screen update console. The app connects a WebSocket to the
 kiosk service (`ws://127.0.0.1:7341/power/update`); connecting starts the update, and the service sends the journal of
 the pull and then of the restart (`journalctl -u kiosk-pull`, `-u kiosk-restart`, with the journal's timestamps) as the
