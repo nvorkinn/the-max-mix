@@ -354,7 +354,8 @@
   background: rgb(20 24 18 / 22%);
   cursor: default;
 }
-.speaker-drawer {
+/* Two classes so this padding beats .app-modal-panel, which drops the top padding for panels with a sticky header. */
+.speaker-drawer.app-modal-panel {
   position: absolute;
   z-index: 61;
   left: 30px;
