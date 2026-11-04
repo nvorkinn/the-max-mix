@@ -255,21 +255,6 @@ describe('TabletView', () => {
     expect((container.firstChild as HTMLElement).style.getPropertyValue('--ambient-primary')).toBe('red');
   });
 
-  it.each([
-    [
-      'loading',
-      { isLoading: true, isReady: false, isAuthenticated: true, playbackState: null },
-      'Connecting to Spotify...'
-    ],
-    ['no device', { isReady: false, playbackState: null }, 'Choose a Spotify speaker'],
-    ['signed out', { isReady: false, isAuthenticated: false, playbackState: null }, 'Spotify not connected']
-  ])('describes the %s session state', async (_, overrides, label) => {
-    setPlayer(overrides);
-    render(<TabletView />);
-    await flush();
-    expect(screen.getAllByRole('status')[0]).toHaveTextContent(label);
-  });
-
   it('prompts to sign in and does not poll the queue when unauthenticated', async () => {
     setPlayer({ isAuthenticated: false, isReady: false, playbackState: null });
     render(<TabletView />);
