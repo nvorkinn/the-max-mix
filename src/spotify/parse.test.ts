@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { parseDevice, parseDevices, parsePlaybackState, parseQueue, parseTrack, recordOf } from './parse';
+import {
+  parseDevice,
+  parseDevices,
+  parsePlaybackState,
+  parsePlaylists,
+  parseQueue,
+  parseRecentlyPlayed,
+  parseTrack,
+  recordOf
+} from './parse';
 
 describe('spotify/parse', () => {
   describe('recordOf', () => {
@@ -118,6 +127,60 @@ describe('spotify/parse', () => {
 
     it('treats a null item (an ad) and an invalid device as missing', () => {
       expect(parsePlaybackState({ is_playing: false, item: null, device: { id: 1 } })).toEqual({ is_playing: false });
+    });
+  });
+
+  describe('parseRecentlyPlayed and parsePlaylists', () => {
+    it('keeps each recent track once, with its artists, art and context', () => {
+      const track = {
+        uri: 'spotify:track:t',
+        name: 'Song',
+        artists: [{ name: 'A' }, { name: 'B' }, {}],
+        album: { images: [{}, { url: 'https://art/t.jpg' }] }
+      };
+      expect(
+        parseRecentlyPlayed({
+          items: [
+            { track, context: { uri: 'spotify:playlist:p' } },
+            { track, context: null },
+            { track: { uri: 'spotify:track:u', name: 'Other' }, context: { uri: 3 } },
+            { track: { name: 'No uri' } },
+            'junk'
+          ]
+        })
+      ).toEqual([
+        {
+          uri: 'spotify:track:t',
+          name: 'Song',
+          detail: 'A, B',
+          image: 'https://art/t.jpg',
+          contextUri: 'spotify:playlist:p'
+        },
+        { uri: 'spotify:track:u', name: 'Other' }
+      ]);
+      expect(parseRecentlyPlayed(null)).toEqual([]);
+    });
+
+    it('keeps playlists with a name and uri, their owner and their art', () => {
+      expect(
+        parsePlaylists({
+          items: [
+            {
+              uri: 'spotify:playlist:p',
+              name: 'Mix',
+              owner: { display_name: 'Max' },
+              images: [{ url: 'https://art/p.jpg' }]
+            },
+            { uri: 'spotify:playlist:q', name: 'Bare', owner: {}, images: null },
+            { uri: 'spotify:playlist:r' },
+            null
+          ]
+        })
+      ).toEqual([
+        { uri: 'spotify:playlist:p', name: 'Mix', detail: 'By Max', image: 'https://art/p.jpg' },
+        { uri: 'spotify:playlist:q', name: 'Bare' }
+      ]);
+      expect(parsePlaylists({ items: 'x' })).toEqual([]);
     });
   });
 

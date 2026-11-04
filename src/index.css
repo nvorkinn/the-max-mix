@@ -927,6 +927,19 @@ body:has(.app-dialog[open]) {
 .colour-swatch {
   background: var(--swatch);
 }
+.music-choice-art {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+}
+.music-choice-liked {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
 .colour-swatch[aria-pressed='true'] {
   box-shadow:
     0 0 0 3px var(--surface),

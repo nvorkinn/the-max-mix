@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import type { PlaybackState, RepeatMode, SdkPlaybackState, SpotifyPlayer, Track } from '../types';
+import type { MusicChoice, PlaybackState, RepeatMode, SdkPlaybackState, SpotifyPlayer, Track } from '../types';
 import * as spotify from '../spotify/api';
 import { getAccessToken, isSignedIn } from '../spotify/auth';
 import {
@@ -107,6 +107,8 @@ export interface UseSpotifyPlayer {
   liked: boolean | null;
   toggleLike: () => Promise<boolean>;
   transferPlayback: (deviceId: string) => Promise<boolean>;
+  /** Starts a playlist, Liked Songs or a track: on the device that is playing, otherwise on this page's player. */
+  playMusic: (choice: MusicChoice) => Promise<boolean>;
   refreshPlayback: () => Promise<void>;
   /** Reads playback seldom (instead of every 4 s) while another device plays and nobody is watching the screen. */
   setSlowPolling: (slow: boolean) => void;
@@ -698,6 +700,23 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       () => spotify.next()
     );
 
+  const playMusic = async (choice: MusicChoice) => {
+    const player = sdkPlayer();
+    // Browsers only start audio from a user gesture, and the tap on the choice is one.
+    player?.activateElement().catch(() => {});
+    const activeId = playbackState?.device?.id ?? null;
+    const deviceId = remoteSelected && activeId ? activeId : (browserDeviceId ?? activeId);
+    const ok = await runCommand(() => spotify.playChoice(choice, deviceId));
+    if (ok) {
+      if (deviceId && deviceId === browserDeviceId) {
+        setRemoteSelected(false);
+        markSdkActive(true);
+      }
+      bumpQueue();
+    }
+    return ok;
+  };
+
   const problem = actionError ?? connectionError ?? sdkError;
   return {
     playbackState,
@@ -748,6 +767,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     liked,
     toggleLike,
     transferPlayback,
+    playMusic,
     refreshPlayback,
     setSlowPolling,
     retryPlayback,

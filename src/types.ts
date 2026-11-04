@@ -26,6 +26,18 @@ export interface SpotifyDevice {
   supports_volume?: boolean;
 }
 
+/** Something the music picker can start: a playlist, Liked Songs, or a recently played track. */
+export interface MusicChoice {
+  /** A playlist or Liked Songs context, or a track. */
+  uri: string;
+  name: string;
+  /** A second line: the owner, the artists. */
+  detail?: string;
+  image?: string;
+  /** For a track: the album or playlist it was played from, to carry on from there. */
+  contextUri?: string;
+}
+
 /** Spotify's repeat setting: off, the whole album or playlist, or the one track. */
 export type RepeatMode = 'off' | 'context' | 'track';
 

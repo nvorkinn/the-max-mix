@@ -70,6 +70,14 @@ contributor identities, Jam status, or live queue reordering.
 Guests add songs through the Spotify app. This page sees queue changes when the track changes and through the SDK's
 upcoming-tracks list, so a guest add can take a moment to show.
 
+### Choosing music
+
+The library button in the header opens **Choose music**: Liked Songs and your playlists, or the tracks played recently.
+Tapping one starts it on this tablet (or on the speaker picked under Speakers); a recent track carries on with the album
+or playlist it was played from. This needs the
+`user-read-recently-played` and `playlist-read-private` scopes, so a login from before them has to sign in again in
+Settings.
+
 ### Lyrics
 
 Tap the artwork (the microphone button in its corner) to show the current song's lyrics in place of the artwork; tap

@@ -10,6 +10,8 @@ const track = (id: string, name: string, artist: string, durationMs: number): Tr
   album: { images: [{ url: `https://images.unsplash.com/${id}` }] }
 });
 
+const art = (id: string) => [{ url: `https://images.unsplash.com/${id}` }];
+
 /**
  * Signs the page in to a fake Spotify account that answers in memory: one track playing on a Spotify Connect speaker
  * and four queued. Play, pause, seek, next and previous change what it reports, like the real Web API does.
@@ -35,6 +37,14 @@ export async function fakeSpotify(page: Page) {
     track('queue-4', 'Midnight City', 'M83', 244_000)
   ];
   const history: Track[] = [];
+  const playlists = [
+    { uri: 'spotify:playlist:friday', name: 'Friday Mix', owner: { display_name: 'Max' }, images: art('friday') },
+    { uri: 'spotify:playlist:focus', name: 'Deep Focus', owner: { display_name: 'Spotify' }, images: art('focus') }
+  ];
+  const recentlyPlayed = [
+    { track: { ...track('recent-1', 'Get Lucky', 'Daft Punk', 248_000), uri: 'spotify:track:recent1' }, context: null },
+    { track: { ...track('recent-2', 'Blinding Lights', 'The Weeknd', 200_000), uri: 'spotify:track:recent2' } }
+  ];
   const play = (target: Track) => {
     playback.item = target;
     playback.progress_ms = 0;
@@ -52,11 +62,27 @@ export async function fakeSpotify(page: Page) {
       case 'GET /v1/me/player/queue': {
         return route.fulfill({ json: { currently_playing: playback.item, queue } });
       }
+      case 'GET /v1/me': {
+        return route.fulfill({ json: { id: 'max' } });
+      }
+      case 'GET /v1/me/playlists': {
+        return route.fulfill({ json: { items: playlists } });
+      }
+      case 'GET /v1/me/player/recently-played': {
+        return route.fulfill({ json: { items: recentlyPlayed } });
+      }
       case 'GET /v1/me/player/devices': {
         return route.fulfill({ json: { devices: [playback.device] } });
       }
       case 'PUT /v1/me/player/play': {
         playback.is_playing = true;
+        // A choice from the music picker: a playlist or Liked Songs, or a recently played track.
+        const body = (route.request().postDataJSON() ?? {}) as { context_uri?: string; uris?: string[] };
+        if (body.context_uri) {
+          play(track(`from-${body.context_uri}`, `First of ${body.context_uri}`, 'Someone', 180_000));
+        }
+        const picked = recentlyPlayed.find(({ track: recent }) => recent.uri === body.uris?.[0]);
+        if (picked) play(picked.track);
         return route.fulfill({ status: 204 });
       }
       case 'PUT /v1/me/player/pause': {

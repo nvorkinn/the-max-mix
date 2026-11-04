@@ -11,6 +11,7 @@ browser. Run them with `npm run build && npm run test:e2e`.
 | `app.spec.ts`        | The app as a whole (`@app`): loads without errors, zoom                     |
 | `player.spec.ts`     | Player controls (`@player`)                                                 |
 | `queue.spec.ts`      | The queue (`@queue`)                                                        |
+| `music.spec.ts`      | Choosing music on the screen: playlists, Liked Songs, recent (`@music`)     |
 | `lyrics.spec.ts`     | Lyrics (`@lyrics`)                                                          |
 | `settings.spec.ts`   | Settings (`@settings`): colour, polling, screen sleep, kiosk-only buttons   |
 | `sleep.spec.ts`      | Screen sleep (`@sleep`): sleep button, idle sleep, polling while asleep     |
