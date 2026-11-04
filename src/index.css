@@ -1192,6 +1192,26 @@ input:disabled {
 .debug-empty {
   color: #9aa194;
 }
+.debug-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
+.debug-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+.debug-options input {
+  width: 22px;
+  height: 22px;
+}
+.debug-options label:has(input:disabled) {
+  opacity: 0.4;
+}
 .debug-log {
   flex: 1;
   min-height: 0;

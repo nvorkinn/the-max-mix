@@ -3,12 +3,14 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { completeSignIn } from './spotify/auth';
 import { captureBrowserErrors } from './utils/debugLog';
+import { installHttpLog } from './utils/httpLog';
 import { errorMessage } from './utils/errorMessage';
 import { hidesCursor, isKiosk, piVersion } from './utils/kiosk';
 import './index.css';
 
 // Copies console errors and uncaught errors into the hidden debug console from the start.
 captureBrowserErrors();
+installHttpLog();
 
 // Remembers ?kiosk=1, ?cursor=hidden and the Pi version before anything can navigate away (the sign-in redirect returns without the query).
 isKiosk();

@@ -27,6 +27,25 @@ describe('DebugConsole', () => {
     expect(items[1]).toHaveTextContent('first');
   });
 
+  it('switches HTTP call logging and its headers on and off, and remembers them', async () => {
+    localStorage.removeItem('maxmix.httpLog');
+    render(<DebugConsole isOpen onClose={vi.fn()} status={[]} />);
+    await screen.findByText('Widevine is not available');
+    const calls = screen.getByRole('checkbox', { name: 'Log every HTTP call and response' });
+    const headers = screen.getByRole('checkbox', { name: 'Include headers' });
+    expect(calls).not.toBeChecked();
+    expect(headers).toBeDisabled();
+    fireEvent.click(calls);
+    expect(localStorage.getItem('maxmix.httpLog')).toBe('calls');
+    expect(headers).toBeEnabled();
+    fireEvent.click(headers);
+    expect(localStorage.getItem('maxmix.httpLog')).toBe('headers');
+    fireEvent.click(headers);
+    expect(localStorage.getItem('maxmix.httpLog')).toBe('calls');
+    fireEvent.click(calls);
+    expect(localStorage.getItem('maxmix.httpLog')).toBeNull();
+  });
+
   it('clears the log, reloads and closes', async () => {
     debugLog('info', 'sdk', 'something');
     const onClose = vi.fn();
