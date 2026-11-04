@@ -1054,24 +1054,6 @@ input:disabled {
   opacity: 0.4;
 }
 
-/* A narrow window has less room for the seven transport buttons beside the volume, so they close up a little. */
-@media (width <= 900px) {
-  .transport-buttons {
-    gap: 8px;
-  }
-  .transport-skip {
-    width: 48px;
-    height: 48px;
-  }
-  .transport-play {
-    width: 60px;
-    height: 60px;
-  }
-  .listening-room:not(.is-setup) .volume-control {
-    width: 160px;
-  }
-}
-
 @media (height <= 640px) {
   .app-header {
     min-height: 66px;
