@@ -9,6 +9,7 @@ import { SCREEN_SLEEP_CHOICES } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import { THEME_COLOURS } from '../utils/themeColour';
 import type { ThemeColour } from '../utils/themeColour';
+import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import KioskSystem from './KioskSystem';
 import Modal from './Modal';
 
@@ -80,6 +81,8 @@ interface SettingsModalProps {
   onScreenSleepChange?: (minutes: ScreenSleepMinutes) => void;
   themeColour?: ThemeColour;
   onThemeColourChange?: (colour: ThemeColour) => void;
+  /** The kiosk's software update, shown on the kiosk only. */
+  kioskUpdate?: KioskUpdate;
 }
 
 function SettingsContent({
@@ -90,7 +93,8 @@ function SettingsContent({
   screenSleep,
   onScreenSleepChange,
   themeColour,
-  onThemeColourChange
+  onThemeColourChange,
+  kioskUpdate
 }: Readonly<SettingsModalProps>) {
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -188,7 +192,16 @@ function SettingsContent({
         {isKiosk() && screenSleep !== undefined && onScreenSleepChange && (
           <ScreenSleepRow minutes={screenSleep} onChange={onScreenSleepChange} />
         )}
-        {isKiosk() && <KioskSystem />}
+        {isKiosk() && kioskUpdate && (
+          <KioskSystem
+            update={kioskUpdate}
+            onUpdate={() => {
+              // The update console takes over the screen, so the settings behind it are closed.
+              kioskUpdate.start();
+              onClose();
+            }}
+          />
+        )}
       </div>
 
       <p className="mt-5 text-center text-[10px] text-muted">

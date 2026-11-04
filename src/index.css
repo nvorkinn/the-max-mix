@@ -1167,6 +1167,34 @@ input:disabled {
 .debug-console-actions .debug-console-close {
   padding: 0 12px;
 }
+.update-console {
+  font-size: 18px;
+}
+.update-console .debug-console-header h2 {
+  font-size: 22px;
+}
+.update-console-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 22px;
+  font-weight: 700;
+}
+.update-console-output {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  line-height: 1.45;
+}
+.update-console-hint {
+  color: #9ca3a0;
+  font-size: 15px;
+}
 .debug-status {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

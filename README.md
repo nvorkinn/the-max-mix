@@ -226,9 +226,15 @@ v1.12.0`): the Release workflow deploys the web app to Vercel and, once that has
 
 The kiosk opens the app with `?kiosk=1` (remembered across the Spotify sign-in redirect; `?kiosk=0` forgets it), which
 adds kiosk-only entries to Settings: **Wi-Fi network** (the Pi's native Wi-Fi panel), the release the Pi runs and whether
-a newer one is out, **Update now** (which shows the pull's progress), **Restart kiosk**, **Reboot Pi** and **Screen sleep** (how long the screen stays on
+a newer one is out, **Update now** (which opens the update console), **Restart kiosk**, **Reboot Pi** and **Screen sleep** (how long the screen stays on
 without a touch while nothing plays; it always stays on while music plays). These go through the Pi's
 [local service](pi/kiosk-audio/README.md).
+
+When the kiosk finds that a newer release is out (or, for a Pi pinned to a branch, a newer commit), a popup asks whether to
+**Update now** or **Not now**; it asks once for each new version, and not while the screen sleeps or another dialog is open.
+Updating, from the popup or from Settings, opens a full-screen update console that shows what the pull is doing and
+everything it prints. It has no way back while the update runs, because the kiosk restarts by itself when the update
+needs it; if nothing needed a restart, or the update failed, it can be closed.
 
 The moon button beside Settings puts the screen to sleep straight away, even while music plays; only a touch wakes it
 (music that starts later does not). The Pi turns its display off a minute after that. While the screen sleeps the app

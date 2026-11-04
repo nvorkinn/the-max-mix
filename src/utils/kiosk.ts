@@ -105,6 +105,25 @@ export function piVersion(): PiVersion | null {
   }
 }
 
+const DISMISSED_UPDATE_KEY = 'maxmix.updateDismissed';
+
+/** The newer version (release tag or commit) the person last said "Not now" to, or null. */
+export function getDismissedUpdate(): string | null {
+  try {
+    return localStorage.getItem(DISMISSED_UPDATE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setDismissedUpdate(version: string): void {
+  try {
+    localStorage.setItem(DISMISSED_UPDATE_KEY, version);
+  } catch {
+    // Storage is unavailable; the question then comes back after the next reload.
+  }
+}
+
 /** The repository the Pi pulls (kiosk_pull_repo). */
 const PI_REPO = 'nvorkinn/the-max-mix';
 
