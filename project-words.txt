@@ -271,3 +271,4 @@ xkb
 xset
 xterm
 zoneinfo
+caplevel
