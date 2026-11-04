@@ -211,6 +211,7 @@ splitlines
 SSID
 SSIDs
 starboy
+startswith
 stdin
 stefani
 swayidle
