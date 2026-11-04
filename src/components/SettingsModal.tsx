@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { X, Settings, Music, CheckCircle2, AlertCircle, LogOut, Wifi } from 'lucide-react';
 import { signOut, startSignIn } from '../spotify/auth';
@@ -130,6 +130,12 @@ function SettingsContent({
   kioskUpdate
 }: Readonly<SettingsModalProps>) {
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Opening the settings asks GitHub again whether a newer version is out, so the answer is never the one from hours ago.
+  const checkForUpdate = kioskUpdate?.checkNow;
+  useEffect(() => {
+    checkForUpdate?.();
+  }, [checkForUpdate]);
 
   const error = actionError || signInError;
 
