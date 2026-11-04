@@ -1,4 +1,5 @@
 // Shared HTTP errors and timeouts; a known Web API cooldown does not block the separate OAuth token endpoint.
+import { debugLog } from '../utils/debugLog';
 
 /** Error with the HTTP status of the failing Spotify call; `retryAfter` is in seconds (0 when none was given). */
 export class SpotifyApiError extends Error {
@@ -68,6 +69,39 @@ export function checkSpotifyRetryWindow(): void {
   if (spotifyRetryAt !== 0) setRetryAt(0);
 }
 
+// Spotify does not let the browser read Retry-After (its CORS headers do not expose it), so a 429 usually says nothing
+// about how long to wait. The app then waits this long, doubling for every 429 in a row up to the maximum, and starts
+// over after a reply that worked. Without it nothing would hold the polling back from asking again and again.
+const DEFAULT_RETRY_MS = 30_000;
+const MAX_DEFAULT_RETRY_MS = 5 * 60_000;
+let rateLimitStreak = 0;
+
+/** Forgets the cooldown and the 429 streak; for tests, which share this module's state. */
+export function resetSpotifyRateLimit(): void {
+  rateLimitStreak = 0;
+  setRetryAt(0);
+}
+
+/** The cooldown for a 429 that gave no wait time: records it, and logs it so the debug console shows the retries. */
+function assumeRetryWindow(status: number): void {
+  // A request that was already in flight when the cooldown began gets its own 429; that is the same event, not another.
+  if (spotifyRetryAt > Date.now()) return;
+  const wait = Math.min(MAX_DEFAULT_RETRY_MS, DEFAULT_RETRY_MS * 2 ** rateLimitStreak++);
+  debugLog(
+    'warn',
+    'spotify',
+    `Rate limited (${status}) with no Retry-After to read: waiting ${Math.round(wait / 1000)} s`
+  );
+  recordSpotifyRetryAfter(
+    new SpotifyApiError(
+      'Spotify asked this app to wait before retrying.',
+      status,
+      Math.ceil(wait / 1000),
+      Date.now() + wait
+    )
+  );
+}
+
 /** Retry-After accepts seconds or an HTTP date; absent, invalid and expired values impose no known deadline. */
 function responseRetryAt(response: Response): number {
   const raw = response.headers.get('retry-after');
@@ -102,8 +136,10 @@ export async function fetchSpotify(url: string, init: RequestInit): Promise<Resp
     }
     throw new SpotifyApiError(NETWORK_ERROR_MESSAGE, 502);
   }
+  if (webApi && response.ok) rateLimitStreak = 0;
   if (webApi && !response.ok) {
     const retryAt = responseRetryAt(response);
+    if (retryAt === 0 && response.status === 429) assumeRetryWindow(response.status);
     if (retryAt > 0) {
       const error = new SpotifyApiError(
         'Spotify asked this app to wait before retrying.',

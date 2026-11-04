@@ -6,6 +6,7 @@ import {
   checkSpotifyRetryWindow,
   fetchSpotify,
   getSpotifyRetryAt,
+  getSpotifyRetryDelay,
   parseJson,
   readJson,
   spotifyRetryAfter,
@@ -55,8 +56,9 @@ async function spotifyFetch(endpoint: string, options: { method?: string; body?:
   }
   if (response.status === 204) return null;
   if (!response.ok) {
-    const retryAfter = spotifyRetryAfter(response);
     const retryAt = getSpotifyRetryAt();
+    // The header when Spotify sent a readable one; otherwise the wait the app assumed for a 429 (see fetchSpotify).
+    const retryAfter = Math.max(spotifyRetryAfter(response), Math.ceil(getSpotifyRetryDelay() / 1000));
     const message = MESSAGES[response.status] || `Spotify request failed (${response.status}).`;
     // A 403 has several causes (Premium, app access, a command the player refuses); Spotify says which.
     const reason = response.status === 403 ? await spotifyReason(response) : '';
