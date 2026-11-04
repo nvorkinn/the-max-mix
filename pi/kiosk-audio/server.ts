@@ -1,6 +1,8 @@
 // The kiosk's local service for the app, on 127.0.0.1 only:
 //   GET  /speakers          {"speakers": ["Kitchen", …]}   the AirPlay sinks PipeWire made, by the names routing uses
+//                           plus {"volumes": {"Kitchen": 40, …}}, each speaker's volume in percent
 //   POST /audio/route       {"speakers": [...]}            route the sound to those speakers (none: the Pi's own output)
+//   POST /audio/volume      {"speaker": "Kitchen", "volume": 40}   set one speaker's volume (404: not on the network)
 //   POST /power/restart     restart the kiosk              POST /power/reboot    reboot the Pi
 //   POST /display/wake      turn the screen back on        POST /wifi            show the Wi-Fi panel
 //   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
@@ -12,7 +14,7 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { perform } from './actions.ts';
 import type { Action } from './actions.ts';
 import type { Graph } from './pipewire.ts';
-import { validSpeakers } from './speakers.ts';
+import { airPlaySinks, validSpeakers, validVolume } from './speakers.ts';
 import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
 import { runUpdate } from './update.ts';
@@ -30,18 +32,23 @@ const POST_ACTIONS: Record<string, Action> = {
 export interface Deps {
   graph: () => Promise<Graph>;
   route: (speakers: string[]) => Promise<void>;
+  /** Sets a speaker's volume in percent; false when no speaker has that name. */
+  setVolume: (speaker: string, volume: number) => Promise<boolean>;
   perform: (action: Action) => Promise<void>;
 }
 
 /** The AirPlay (RAOP) sinks' names, sorted, once each. */
 export const speakerNames = (graph: Graph): string[] =>
-  [
-    ...new Set(
-      graph.nodes
-        .filter(node => node.mediaClass === 'Audio/Sink' && node.name.startsWith('raop_sink.'))
-        .map(node => node.description)
-    )
-  ].toSorted((a, b) => a.localeCompare(b));
+  [...new Set(airPlaySinks(graph).map(node => node.description))].toSorted((a, b) => a.localeCompare(b));
+
+/** Each AirPlay speaker's volume in percent, for the ones that report one. */
+export function speakerVolumes(graph: Graph): Record<string, number> {
+  const volumes: Record<string, number> = {};
+  for (const node of airPlaySinks(graph)) {
+    if (node.volume !== null) volumes[node.description] ??= Math.round(node.volume * 100);
+  }
+  return volumes;
+}
 
 async function readBody(request: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
@@ -65,6 +72,16 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
       return;
     }
     await deps.route(speakers);
+  } else if (request.url === '/audio/volume') {
+    const body = validVolume(JSON.parse(await readBody(request)) as unknown);
+    if (!body) {
+      response.writeHead(400).end();
+      return;
+    }
+    if (!(await deps.setVolume(body.speaker, body.volume))) {
+      response.writeHead(404).end();
+      return;
+    }
   } else {
     response.writeHead(404).end();
     return;
@@ -84,8 +101,9 @@ export function handleRequest(origin: string, deps: Deps) {
       if (request.method === 'OPTIONS') {
         response.writeHead(204).end();
       } else if (request.method === 'GET' && request.url === '/speakers') {
-        const speakers = speakerNames(await deps.graph());
-        response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ speakers }));
+        const graph = await deps.graph();
+        const body = { speakers: speakerNames(graph), volumes: speakerVolumes(graph) };
+        response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(body));
       } else if (request.method === 'POST') {
         if (request.headers.origin === origin) await post(request, response, deps);
         else response.writeHead(403).end();
@@ -98,7 +116,7 @@ export function handleRequest(origin: string, deps: Deps) {
   };
 }
 
-export function serveSpeakers(origin: string, deps: Pick<Deps, 'graph' | 'route'>, update: Update = runUpdate): Server {
+export function serveSpeakers(origin: string, deps: Omit<Deps, 'perform'>, update: Update = runUpdate): Server {
   const handler = handleRequest(origin, { ...deps, perform });
   const server = createServer((request, response) => void handler(request, response));
   attachUpdateSocket(server, origin, update);

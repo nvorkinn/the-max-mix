@@ -6,7 +6,7 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { PipeWire } from './pipewire.ts';
 import { serveSpeakers } from './server.ts';
-import { loadSpeakers, route, saveSpeakers } from './speakers.ts';
+import { loadSpeakers, route, saveSpeakers, setSpeakerVolume } from './speakers.ts';
 import { stopFollowers } from './update.ts';
 
 const WATCH_MS = 2000;
@@ -34,7 +34,8 @@ if (process.argv[2] === 'watch') {
     route: async speakers => {
       await saveSpeakers(stateFile, speakers);
       await route(pipewire, speakers);
-    }
+    },
+    setVolume: (speaker, volume) => setSpeakerVolume(pipewire, speaker, volume)
   });
 } else {
   console.error('Usage: kiosk-audio.ts watch');

@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Action } from './actions.ts';
 import { dump } from './fixtures.ts';
 import { parseDump } from './pipewire.ts';
-import { handleRequest, speakerNames } from './server.ts';
+import { handleRequest, speakerNames, speakerVolumes } from './server.ts';
 import type { Deps } from './server.ts';
 
 const ORIGIN = 'https://the-max-mix.vercel.app';
@@ -18,11 +18,16 @@ afterEach(() => {
 function fakes(overrides: Partial<Deps> = {}) {
   const performed: Action[] = [];
   const routed: string[][] = [];
+  const volumes: [string, number][] = [];
   const deps: Deps = {
     graph: () => Promise.resolve(parseDump(dump())),
     route: speakers => {
       routed.push(speakers);
       return Promise.resolve();
+    },
+    setVolume: (speaker, volume) => {
+      volumes.push([speaker, volume]);
+      return Promise.resolve(speaker !== 'Gone');
     },
     perform: action => {
       performed.push(action);
@@ -30,7 +35,7 @@ function fakes(overrides: Partial<Deps> = {}) {
     },
     ...overrides
   };
-  return { deps, performed, routed };
+  return { deps, performed, routed, volumes };
 }
 
 async function start(deps: Deps): Promise<string> {
@@ -53,6 +58,10 @@ describe('speakerNames', () => {
     const graph = parseDump(dump());
     expect(speakerNames(graph)).toEqual(['Kitchen', 'Lounge']);
   });
+
+  it('gives the volume of each speaker that reports one, in percent', () => {
+    expect(speakerVolumes(parseDump(dump()))).toEqual({ Kitchen: 40 });
+  });
 });
 
 describe('GET /speakers', () => {
@@ -61,7 +70,7 @@ describe('GET /speakers', () => {
     const response = await fetch(`${base}/speakers`);
     expect(response.status).toBe(200);
     expect(response.headers.get('access-control-allow-origin')).toBe(ORIGIN);
-    await expect(response.json()).resolves.toEqual({ speakers: ['Kitchen', 'Lounge'] });
+    await expect(response.json()).resolves.toEqual({ speakers: ['Kitchen', 'Lounge'], volumes: { Kitchen: 40 } });
   });
 
   it('says when PipeWire cannot be read', async () => {
@@ -94,6 +103,32 @@ describe('POST', () => {
     expect((await post(base, '/audio/route', { body: { speakers: 'Kitchen' } })).status).toBe(400);
     expect((await post(base, '/audio/route', { body: { speakers: [''] } })).status).toBe(400);
     expect(routed).toEqual([]);
+  });
+
+  it('sets one speaker’s volume, and says when it is not on the network', async () => {
+    const { deps, volumes } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/audio/volume', { body: { speaker: 'Kitchen', volume: 55 } })).status).toBe(204);
+    expect((await post(base, '/audio/volume', { body: { speaker: 'Gone', volume: 10 } })).status).toBe(404);
+    expect(volumes).toEqual([
+      ['Kitchen', 55],
+      ['Gone', 10]
+    ]);
+  });
+
+  it('refuses a bad volume', async () => {
+    const { deps, volumes } = fakes();
+    const base = await start(deps);
+    for (const body of [
+      { speaker: 'Kitchen', volume: 101 },
+      { speaker: 'Kitchen', volume: 0.5 },
+      { volume: 5 },
+      null
+    ]) {
+      // eslint-disable-next-line no-await-in-loop
+      expect((await post(base, '/audio/volume', { body })).status).toBe(400);
+    }
+    expect(volumes).toEqual([]);
   });
 
   it('does nothing for another web page', async () => {

@@ -18,11 +18,12 @@ vi.mock('../spotify/api', () => api);
 vi.mock('../spotify/auth', () => auth);
 vi.mock('../spotify/settings', () => settings);
 vi.mock('../audio/airplay', () => ({
-  listAudioOutputs: vi.fn().mockResolvedValue([]),
+  listAudioOutputs: vi.fn().mockResolvedValue({ names: [], volumes: {} }),
   watchAudioOutputs: vi.fn(() => vi.fn()),
   routeAudio: vi.fn(),
   getChosenSpeakers: vi.fn(() => []),
-  setChosenSpeakers: vi.fn()
+  setChosenSpeakers: vi.fn(),
+  setSpeakerVolume: vi.fn()
 }));
 
 const SettingsModal = partialProps(SettingsModalFull);

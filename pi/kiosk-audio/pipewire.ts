@@ -7,6 +7,8 @@ const COMMAND_TIMEOUT_MS = 10_000;
 // Absolute paths, so nothing on PATH can stand in for them (both come with the pipewire-bin package).
 export const PW_DUMP = '/usr/bin/pw-dump';
 export const PW_LINK = '/usr/bin/pw-link';
+// WirePlumber's control tool; it sets a node's volume on the same cubic scale it reports (and as volume sliders do).
+export const WPCTL = '/usr/bin/wpctl';
 // Chromium's audio reaches PipeWire through pipewire-pulse as an output stream named after the browser.
 const PLAYER_NAMES = ['chromium', 'chrome'];
 
@@ -57,6 +59,8 @@ export interface Node {
   description: string;
   mediaClass: string;
   props: Record<string, unknown>;
+  /** The node's volume, 0 to 1 on the cubic scale wpctl uses, or null when it has none. */
+  volume: number | null;
 }
 
 export interface Port {
@@ -118,6 +122,24 @@ function defaultSinkOf(entries: unknown): string | null {
   return typeof name === 'string' ? name : null;
 }
 
+/**
+ * A node's volume from its Props params: the mean of its channel volumes (linear), as the cube root, which is how wpctl
+ * and volume sliders show it. An AirPlay sink passes it on to the speaker.
+ */
+export function volumeOf(info: Json): number | null {
+  const params: unknown = asRecord(info['params'])['Props'];
+  const entries: unknown[] = Array.isArray(params) ? params : [];
+  for (const entry of entries) {
+    const channels: unknown = asRecord(entry)['channelVolumes'];
+    if (!Array.isArray(channels) || channels.length === 0) continue;
+    const values = channels as unknown[];
+    if (!values.every(value => typeof value === 'number' && Number.isFinite(value) && value >= 0)) continue;
+    const mean = (values as number[]).reduce((sum, value) => sum + value, 0) / values.length;
+    return Math.min(1, Math.cbrt(mean));
+  }
+  return null;
+}
+
 /** Adds one pw-dump object to the graph; objects that are malformed or were removed (no info) are skipped. */
 function addObject(graph: Graph, item: Json, id: number): void {
   const info = asRecord(item['info']);
@@ -126,7 +148,14 @@ function addObject(graph: Graph, item: Json, id: number): void {
   if (type === 'PipeWire:Interface:Node' && Object.keys(props).length > 0) {
     const name = asString(props['node.name']);
     const description = asString(props['node.description']) || asString(props['node.nick']) || name;
-    graph.nodes.push({ id, name, description, mediaClass: asString(props['media.class']), props });
+    graph.nodes.push({
+      id,
+      name,
+      description,
+      mediaClass: asString(props['media.class']),
+      props,
+      volume: volumeOf(info)
+    });
   } else if (type === 'PipeWire:Interface:Port' && typeof props['node.id'] === 'number') {
     const direction = asString(info['direction']) || asString(props['port.direction']);
     graph.ports.push({
@@ -275,5 +304,12 @@ export class PipeWire {
       isComplete = false;
     }
     return isComplete;
+  }
+
+  /** Sets a node's volume, 0 to 1 on wpctl's cubic scale. */
+  async setVolume(node: number, volume: number): Promise<void> {
+    const level = Math.min(1, Math.max(0, volume)).toFixed(2);
+    const { code, stderr } = await this.run([WPCTL, 'set-volume', String(node), level]);
+    if (code !== 0) throw new PipeWireError(`wpctl set-volume ${node} ${level} failed (${code}): ${stderr.trim()}`);
   }
 }
