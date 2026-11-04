@@ -204,7 +204,7 @@ v1.12.0`): the Release workflow deploys the web app to Vercel and, once that has
   reboots. Reflash only for a fresh device.
 - **On-device updates:** `kiosk-pull.timer` runs `/usr/local/sbin/kiosk-pull` 3 minutes after boot and then every 6 hours
   (with up to 10 minutes of random delay), and at once when the kiosk's **Update now** button starts
-  `kiosk-update-now.service`. With `kiosk_pull_ref: latest` (the default) it looks up the tag that
+  `kiosk-pull.service` (through the kiosk-audio service, which also streams the pull's journal to the app). With `kiosk_pull_ref: latest` (the default) it looks up the tag that
   `github.com/nvorkinn/the-max-mix/releases/latest` redirects to (no API call or token) and runs `ansible-pull` at that
   tag. `--only-if-changed` applies the playbook only when the release has changed since the last run, so a check with
   nothing new is a single git fetch. A deployed Pi therefore gets fixes to the Wi-Fi panel, the session script, the
@@ -232,9 +232,11 @@ without a touch while nothing plays; it always stays on while music plays). Thes
 
 When the kiosk finds that a newer release is out (or, for a Pi pinned to a branch, a newer commit), a popup asks whether to
 **Update now** or **Not now**; it asks once for each new version, and not while the screen sleeps or another dialog is open.
-Updating, from the popup or from Settings, opens a full-screen update console that shows what the pull is doing and
-everything it prints. It has no way back while the update runs, because the kiosk restarts by itself when the update
-needs it; if nothing needed a restart, or the update failed, it can be closed.
+Updating, from the popup or from Settings, opens a full-screen update console. The app connects a WebSocket to the
+kiosk service (`ws://127.0.0.1:7341/power/update`); connecting starts the update, and the service sends the journal of
+the pull and then of the restart (`journalctl -u kiosk-pull`, `-u kiosk-restart`, with the journal's timestamps) as the
+lines are written. The console has no way back while the update runs, because the kiosk restarts by itself when the
+update needs it (which ends the connection); if nothing needed a restart, or the update failed, it can be closed.
 
 The moon button beside Settings puts the screen to sleep straight away, even while music plays; only a touch wakes it
 (music that starts later does not). The Pi turns its display off a minute after that. While the screen sleeps the app

@@ -45,11 +45,6 @@ export function hidesCursor(): boolean {
   return flag === 'hidden' || (flag !== 'shown' && read(HIDE_CURSOR_KEY));
 }
 
-/** Asks the kiosk to pull its update now; when that changes anything, the kiosk restarts by itself. */
-export function updateKiosk(): void {
-  kioskPost('/power/update');
-}
-
 /** Asks the kiosk to restart the kiosk (Cage and Chromium), which applies an update that waits for a restart. */
 export function restartKiosk(): void {
   kioskPost('/power/restart');

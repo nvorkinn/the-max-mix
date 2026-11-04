@@ -48,12 +48,14 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/wifi-panel \
   /etc/systemd/system/kiosk-restart.timer /etc/chromium/policies/managed/kiosk.json \
   /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules /etc/polkit-1/rules.d/50-kiosk-power.rules \
   /usr/local/sbin/kiosk-handover /usr/local/bin/kiosk-display \
-  /etc/systemd/system/kiosk-update-now.service /etc/systemd/system/kiosk-widevine.path \
+  /etc/systemd/system/kiosk-widevine.path \
   /etc/systemd/system/kiosk-widevine.service /etc/NetworkManager/conf.d/20-connectivity.conf \
   /etc/tmpfiles.d/kiosk.conf /usr/share/plymouth/themes/the-max-mix/the-max-mix.plymouth \
   /usr/share/icons/blank/cursors/left_ptr /etc/apt/apt.conf.d/52kiosk-unattended-upgrades \
   /opt/the-max-mix/kiosk-audio/kiosk-audio.ts /opt/the-max-mix/kiosk-audio/speakers.ts \
   /opt/the-max-mix/kiosk-audio/server.ts /opt/the-max-mix/kiosk-audio/actions.ts \
+  /opt/the-max-mix/kiosk-audio/update.ts /opt/the-max-mix/kiosk-audio/update-socket.ts \
+  /opt/the-max-mix/kiosk-audio/node_modules/ws/package.json /var/lib/the-max-mix/kiosk-audio-deps.sha1 \
   /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf /etc/systemd/user/default.target.wants/kiosk-audio.service; do
   check test -e "$file"
 done

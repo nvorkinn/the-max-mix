@@ -9,8 +9,7 @@ import {
   openWifiSettings,
   piVersion,
   rebootPi,
-  restartKiosk,
-  updateKiosk
+  restartKiosk
 } from './kiosk';
 
 function visit(search: string) {
@@ -156,17 +155,15 @@ describe('piVersion', () => {
   });
 });
 
-describe('update, restart and reboot', () => {
+describe('restart and reboot', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('ask the kiosk service', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-    updateKiosk();
     restartKiosk();
     rebootPi();
     expect(fetchMock.mock.calls).toEqual([
-      ['http://127.0.0.1:7341/power/update', { method: 'POST' }],
       ['http://127.0.0.1:7341/power/restart', { method: 'POST' }],
       ['http://127.0.0.1:7341/power/reboot', { method: 'POST' }]
     ]);

@@ -6,8 +6,9 @@ kiosk_enable_only: false
 
 # The account Cage and Chromium run as. cloud-init creates it on the first boot (pi/cloud-init/user-data).
 kiosk_user: kiosk
-# The only groups the kiosk user is in (the user has no sudo and no password).
-kiosk_groups: [audio, input, netdev, render, video]
+# The only groups the kiosk user is in (the user has no sudo and no password). systemd-journal lets the kiosk-audio
+# service read the journal of the pull and the restart, which it streams to the app's update console.
+kiosk_groups: [audio, input, netdev, render, systemd-journal, video]
 # The origin of the hosted app and the address the kiosk opens (?kiosk=1 turns on the app's kiosk-only settings,
 # ?cursor=hidden|shown follows kiosk_hide_cursor, in case Chromium ignores the session's blank cursor theme, and
 # ?pi_ref=&pi_commit= name the release (or other ref) and commit this playbook ran from, which the app's settings show).
@@ -139,10 +140,13 @@ kiosk_packages:
 kiosk_panel_src: '{{ playbook_dir }}/../pi/wifi-panel'
 kiosk_panel_dir: /opt/the-max-mix/wifi-panel
 
-# The kiosk-audio service (pi/kiosk-audio): a user unit that answers the app on 127.0.0.1 (speakers, routing, update,
-# restart, reboot, Wi-Fi panel, screen wake) and keeps the audio links in place.
+# The kiosk-audio service (pi/kiosk-audio): a user unit that answers the app on 127.0.0.1 (speakers, routing, the update
+# stream, restart, reboot, Wi-Fi panel, screen wake) and keeps the audio links in place. Its one npm package (ws, for the
+# update stream) is installed from files/kiosk-audio/package-lock.json with npm ci; kiosk_audio_deps_stamp records which
+# lockfile was installed.
 kiosk_audio_src: '{{ playbook_dir }}/../pi/kiosk-audio'
 kiosk_audio_dir: /opt/the-max-mix/kiosk-audio
+kiosk_audio_deps_stamp: /var/lib/the-max-mix/kiosk-audio-deps.sha1
 # PipeWire's AirPlay buffer. Shorter means play, pause and skip are heard sooner on the speakers; too short and a busy
 # Wi-Fi network makes them drop out.
 kiosk_raop_latency_ms: 500
@@ -162,7 +166,7 @@ kiosk_pull_ref: latest
 kiosk_pull_dir: /var/lib/the-max-mix/ansible-pull
 # First run this long after boot, then again this long after each run finishes, plus up to the random delay. A run only
 # fetches the ref and applies the playbook when it has moved (ansible-pull --only-if-changed). The app's Update now
-# button (kiosk-update-now.service) runs the same pull at once, so the timer only catches what nobody asked for.
+# button starts the same pull at once (through the kiosk-audio service), so the timer only catches what nobody asked for.
 kiosk_pull_boot_delay: 3min
 kiosk_pull_interval: 6h
 kiosk_pull_random_delay: 10min
