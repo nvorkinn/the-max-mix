@@ -3,8 +3,8 @@
 # GitHub release, which /usr/local/sbin/kiosk-pull looks up), so a release reaches a deployed device without
 # reflashing it. A failure only shows up in the journal (journalctl -u kiosk-pull); nothing depends on this unit, so the
 # kiosk keeps running, and the timer tries again later. It never restarts the kiosk: see kiosk-restart.timer.
-# --only-if-changed skips the playbook when the checkout has not moved since the last run, so most runs are only a look at
-# GitHub and a git fetch.
+# Every run starts the playbook, which applies the slow part only when the files it installs changed since the last run and
+# otherwise only refreshes the SSH keys and kiosk.service (ansible/roles/kiosk/tasks/main.yml).
 [Unit]
 Description=Update THE MAX MIX kiosk with ansible-pull
 After=network-online.target
@@ -19,4 +19,4 @@ Environment=GIT_TERMINAL_PROMPT=0
 Nice=10
 IOSchedulingClass=idle
 TimeoutStartSec=30min
-ExecStart=/usr/local/sbin/kiosk-pull {{ kiosk_pull_repo }} {{ kiosk_pull_ref }} {{ kiosk_pull_dir }} --only-if-changed
+ExecStart=/usr/local/sbin/kiosk-pull {{ kiosk_pull_repo }} {{ kiosk_pull_ref }} {{ kiosk_pull_dir }}

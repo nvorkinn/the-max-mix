@@ -206,8 +206,11 @@ v1.12.0`): the Release workflow deploys the web app to Vercel and, once that has
   (with up to 10 minutes of random delay), and at once when the kiosk's **Update now** button starts
   `kiosk-pull.service` (through the kiosk-audio service, which also streams the pull's journal to the app). With `kiosk_pull_ref: latest` (the default) it looks up the tag that
   `github.com/nvorkinn/the-max-mix/releases/latest` redirects to (no API call or token) and runs `ansible-pull` at that
-  tag. `--only-if-changed` applies the playbook only when the release has changed since the last run, so a check with
-  nothing new is a single git fetch. A deployed Pi therefore gets fixes to the Wi-Fi panel, the session script, the
+  tag. Every run starts the playbook, which applies its slow part only when `ansible/`, `pi/kiosk-audio` or
+  `pi/wifi-panel` differ from the last complete run (git's tree ids, kept in `/var/lib/the-max-mix/applied.sha1`; most
+  releases only change the web app, which the Pi loads from the internet). Two things run every time regardless: the
+  admin SSH keys are refreshed from GitHub when they are over a day old, and `kiosk.service` is rewritten, because it
+  carries the release the settings show. A deployed Pi therefore gets fixes to the Wi-Fi panel, the session script, the
   Chromium policy and so on without a reflash. The playbook is idempotent, so repeated runs are safe. To pin one Pi,
   set `kiosk_pull_ref` to a tag (`v1.12.0`), or to a branch to test unreleased work on your own Pi.
 - **A failing pull never affects the kiosk.** Nothing depends on `kiosk-pull.service`; a failure is only in the journal
@@ -220,9 +223,10 @@ v1.12.0`): the Release workflow deploys the web app to Vercel and, once that has
   that version of the web app and marks its release as the latest again, and the Pis return to it at their next pull
   (or straight away with **Update now**). Publishing a newer tag later moves everything forward again.
 - **Run it by hand** on a Pi you can log in to, as root, from a clone of the repository:
-  `sudo ansible-playbook -c local -i localhost, ansible/local.yml` (which always applies the playbook), or the same pull
-  the timer runs: `sudo systemctl start kiosk-pull` (which does nothing if the latest release has not changed). Add `--check --diff` to
-  the playbook run to see what it would change.
+  `sudo ansible-playbook -c local -i localhost, ansible/local.yml` (which, like a pull, applies only what changed since the
+  last complete run; delete `/var/lib/the-max-mix/applied.sha1` to apply everything, and note that it compares committed
+  files, not edits in the working tree), or the same pull the timer runs: `sudo systemctl start kiosk-pull`. Add
+  `--check --diff` to the playbook run to see what it would change.
 
 The kiosk opens the app with `?kiosk=1` (remembered across the Spotify sign-in redirect; `?kiosk=0` forgets it), which
 adds kiosk-only entries to Settings: **Wi-Fi network** (the Pi's native Wi-Fi panel), the release the Pi runs and whether

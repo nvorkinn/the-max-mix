@@ -33,7 +33,12 @@ play() {
 # A unit an earlier version of the playbook installed: a Pi that has it must lose it.
 echo '[Unit]' > /etc/systemd/system/kiosk-update-now.service
 play /tmp/first-run.log
+# A run that finds nothing changed skips the slow part, so the idempotency check below needs the first run's record of what
+# it applied removed. The third run checks that skip.
+cp /var/lib/the-max-mix/applied.sha1 /tmp/applied.sha1
+rm /var/lib/the-max-mix/applied.sha1
 play /tmp/second-run.log
+play /tmp/third-run.log
 
 fail=0
 check() {
@@ -117,6 +122,17 @@ second_run_skips() {
   grep -A1 "TASK \\[kiosk : $1\\]" /tmp/second-run.log | grep -q '^skipping'
 }
 check test -s /var/lib/the-max-mix/packages.sha1
+# The second run applied everything again and recorded the same ids as the first; the third found nothing to apply: only
+# the SSH keys and kiosk.service were looked at, nothing changed and the slow tasks did not even run.
+check test -s /var/lib/the-max-mix/applied.sha1
+check cmp /tmp/applied.sha1 /var/lib/the-max-mix/applied.sha1
+check grep -q 'TASK \[kiosk : Refresh the admin user.s SSH keys and kiosk.service\]' /tmp/third-run.log
+check grep -q 'TASK \[kiosk : Install the kiosk service\]' /tmp/third-run.log
+if grep -q 'TASK \[kiosk : Install the packages' /tmp/third-run.log; then
+  echo "FAILED: the third run did not skip the slow part" >&2
+  fail=1
+fi
+check grep -Eq 'changed=0 ' /tmp/third-run.log
 check second_run_skips 'Install the packages'
 check second_run_skips 'Install Node.js'
 check test -L /usr/share/icons/blank/cursors/not-allowed

@@ -1,0 +1,589 @@
+---
+# Everything the playbook installs and configures, in order: packages, system settings, the kiosk user, the kiosk itself,
+# then updates. Run by main.yml only when the files it installs have changed. Every task is idempotent. Services are only
+# enabled when kiosk_enable_only is true; nothing restarts the running kiosk (see handlers).
+
+# Packages ------------------------------------------------------------------------------------------------------------
+- name: Read the Wi-Fi panel's package list
+  ansible.builtin.set_fact:
+    kiosk_panel_packages: >-
+      {{ lookup('ansible.builtin.file', kiosk_panel_src ~ '/packages.txt').splitlines()
+      | map('regex_replace', '\s*#.*$', '') | map('trim') | reject('equalto', '') | list }}
+
+# Installing packages is slow on a Pi even when nothing is missing (apt's cache is loaded from Python), and so are the
+# NodeSource key and archive checks. They are done again only when what they depend on changed: a stamp records the
+# packages, the Node.js version and the NodeSource key as last installed. The stamp is written after a successful install
+# only, so a failed run tries again. A package removed by hand is not put back until the list changes; the nightly
+# unattended-upgrades run keeps what is installed up to date.
+- name: Work out what the package step depends on
+  ansible.builtin.set_fact:
+    kiosk_all_packages: >-
+      {{ (kiosk_ansible_packages + kiosk_packages + kiosk_rpi_packages + kiosk_panel_packages
+      + ([] if kiosk_hide_cursor | bool else ['xcursor-themes'])) | unique }}
+    kiosk_packages_done: >-
+      {{ (lookup('ansible.builtin.file', kiosk_packages_stamp, errors='ignore') | default('', true)) | string | trim }}
+
+- name: Install the packages, Node.js and their sources
+  when: >-
+    ([kiosk_all_packages, kiosk_nodejs_major, kiosk_nodesource_key_url, kiosk_nodesource_key_sha256] | to_json | hash('sha1'))
+    != kiosk_packages_done
+  block:
+    - name: Install the packages
+      ansible.builtin.apt:
+        name: '{{ kiosk_all_packages }}'
+        state: present
+        install_recommends: false
+        update_cache: true
+        cache_valid_time: 3600
+        lock_timeout: 300
+
+    # Node.js for the audio routing, from NodeSource (Debian's is too old to run TypeScript).
+    - name: Create the APT keyring directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install NodeSource's signing key
+      ansible.builtin.get_url:
+        url: '{{ kiosk_nodesource_key_url }}'
+        dest: /etc/apt/keyrings/nodesource.asc
+        checksum: 'sha256:{{ kiosk_nodesource_key_sha256 }}'
+        owner: root
+        group: root
+        mode: '0644'
+      register: kiosk_nodesource_key
+
+    - name: Add NodeSource's archive
+      ansible.builtin.copy:
+        content: |
+          Types: deb
+          URIs: https://deb.nodesource.com/node_{{ kiosk_nodejs_major }}.x
+          Suites: nodistro
+          Components: main
+          Signed-By: /etc/apt/keyrings/nodesource.asc
+        dest: /etc/apt/sources.list.d/nodesource.sources
+        owner: root
+        group: root
+        mode: '0644'
+      register: kiosk_nodesource_list
+
+    - name: Install Node.js
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+        update_cache: '{{ kiosk_nodesource_key is changed or kiosk_nodesource_list is changed }}'
+        lock_timeout: 300
+
+    - name: Create the directory for the package stamp
+      ansible.builtin.file:
+        path: '{{ kiosk_packages_stamp | dirname }}'
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Record what was installed
+      ansible.builtin.copy:
+        content: >-
+          {{ [kiosk_all_packages, kiosk_nodejs_major, kiosk_nodesource_key_url, kiosk_nodesource_key_sha256]
+          | to_json | hash('sha1') }}
+        dest: '{{ kiosk_packages_stamp }}'
+        owner: root
+        group: root
+        mode: '0644'
+
+# System settings -----------------------------------------------------------------------------------------------------
+- name: Enable the locale
+  ansible.builtin.lineinfile:
+    path: /etc/locale.gen
+    regexp: '^#?\s*{{ kiosk_locale | regex_escape }}\s+UTF-8'
+    line: '{{ kiosk_locale }} UTF-8'
+  notify: Generate the locale
+
+- name: Set the default locale
+  ansible.builtin.copy:
+    content: |
+      LANG={{ kiosk_locale }}
+    dest: /etc/default/locale
+    owner: root
+    group: root
+    mode: '0644'
+
+# Debian's sudo and some tools look the host name up; Raspberry Pi OS's cloud-init does not add it to /etc/hosts.
+- name: Resolve the host name locally
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1\s'
+    line: '127.0.1.1 {{ kiosk_hostname }}'
+    # A container's /etc/hosts (the playbook test) is a bind mount, which cannot be replaced by a rename.
+    unsafe_writes: true
+
+- name: Set the time zone name
+  ansible.builtin.copy:
+    content: |
+      {{ kiosk_timezone }}
+    dest: /etc/timezone
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Set the time zone
+  ansible.builtin.file:
+    src: '/usr/share/zoneinfo/{{ kiosk_timezone }}'
+    dest: /etc/localtime
+    state: link
+    force: true
+
+# Boot: console on tty3 and a quiet splash, the screen mode, the Wi-Fi country. cmdline.txt is a single line. The params
+# are appended only if missing; [ \t]*$ (not \s*$) keeps the final newline.
+- name: Move the console to tty3
+  ansible.builtin.replace:
+    path: /boot/firmware/cmdline.txt
+    regexp: '\bconsole=tty1\b'
+    replace: console=tty3
+
+- name: Add the kernel command line parameters
+  ansible.builtin.replace:
+    path: /boot/firmware/cmdline.txt
+    regexp: '^(?!.*(?:^|\s){{ item | regex_escape }}(?:\s|$))(.*?)[ \t]*$'
+    replace: '\1 {{ item }}'
+  loop: '{{ kiosk_cmdline_params }}'
+
+# disable_splash hides the firmware's rainbow screen. The Pi 5 would boot a kernel with 16 KB memory pages; kernel8.img
+# is the 4 KB-page kernel the Pi 4 already uses, which Widevine's module is built for.
+- name: Configure the boot firmware
+  ansible.builtin.blockinfile:
+    path: /boot/firmware/config.txt
+    marker: '# {mark} THE MAX MIX KIOSK'
+    block: |
+      disable_splash=1
+
+      [pi5]
+      kernel=kernel8.img
+
+      [all]
+
+- name: Install the unattended-upgrades settings
+  ansible.builtin.copy:
+    src: '{{ item }}'
+    dest: '/etc/apt/apt.conf.d/{{ item }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - 20auto-upgrades
+    - 52kiosk-unattended-upgrades
+
+- name: Make NetworkManager's connectivity check reach the internet
+  ansible.builtin.copy:
+    src: 20-connectivity.conf
+    dest: /etc/NetworkManager/conf.d/20-connectivity.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload NetworkManager
+
+# The kiosk user ------------------------------------------------------------------------------------------------------
+- name: Make sure the kiosk user's groups exist
+  ansible.builtin.group:
+    name: '{{ item }}'
+    system: true
+  loop: '{{ kiosk_groups }}'
+
+# Locked password and only the groups the kiosk needs, so nothing can log in as it and nothing can use sudo, whatever
+# created the user.
+- name: Set up the kiosk user
+  ansible.builtin.user:
+    name: '{{ kiosk_user }}'
+    comment: THE MAX MIX kiosk
+    shell: /bin/bash
+    password: '*'
+    groups: '{{ kiosk_groups }}'
+    append: false
+    create_home: true
+
+# Maintenance over SSH ------------------------------------------------------------------------------------------------
+# The admin account: no password ('*' cannot match one, but unlike '!' it does not lock out SSH keys), sudo without one,
+# and the GitHub account's public keys as its only way in.
+- name: Set up the admin user
+  ansible.builtin.user:
+    name: '{{ kiosk_admin_user }}'
+    comment: THE MAX MIX admin
+    shell: /bin/bash
+    password: '*'
+    groups: [sudo]
+    append: true
+    create_home: true
+
+- name: Let the admin user use sudo without a password
+  ansible.builtin.copy:
+    content: |
+      {{ kiosk_admin_user }} ALL=(ALL:ALL) NOPASSWD: ALL
+    dest: /etc/sudoers.d/50-kiosk-admin
+    owner: root
+    group: root
+    mode: '0440'
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Create the admin user's SSH directory
+  ansible.builtin.file:
+    path: '/home/{{ kiosk_admin_user }}/.ssh'
+    state: directory
+    owner: '{{ kiosk_admin_user }}'
+    group: '{{ kiosk_admin_user }}'
+    mode: '0700'
+
+- name: Refresh the admin user's SSH keys
+  ansible.builtin.include_tasks: ssh-keys.yml
+
+# sshd uses the first value it reads and Debian's sshd_config includes sshd_config.d first, so these settings win.
+- name: Allow SSH for the admin user, by key only
+  ansible.builtin.copy:
+    content: |
+      # Installed by the kiosk playbook (ansible/roles/kiosk).
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      AuthenticationMethods publickey
+      AllowUsers {{ kiosk_admin_user }}
+    dest: /etc/ssh/sshd_config.d/10-kiosk.conf
+    owner: root
+    group: root
+    mode: '0644'
+  register: kiosk_sshd_config
+
+- name: Turn SSH on or off
+  ansible.builtin.systemd_service:
+    name: ssh.service
+    enabled: '{{ kiosk_ssh_enabled | bool }}'
+    state: >-
+      {{ omit if kiosk_enable_only else ('stopped' if not kiosk_ssh_enabled | bool
+      else ('restarted' if kiosk_sshd_config is changed else 'started')) }}
+
+# The kiosk -----------------------------------------------------------------------------------------------------------
+# One program makes all of them: a module run costs about a second on a Pi, and there are twenty directories.
+# `install -d` creates what is missing and sets the owner and mode of what exists, so it can run every time.
+- name: Create the directories
+  ansible.builtin.command:
+    argv: "{{ ['install', '-d', '-m', '0755', '-o', 'root', '-g', 'root'] + kiosk_directories }}"
+  vars:
+    kiosk_directories:
+      - /etc/chromium/policies/managed
+      - /etc/systemd/journald.conf.d
+      - /etc/the-max-mix
+      - /etc/pipewire
+      - /etc/pipewire/pipewire.conf.d
+      - /etc/plymouth
+      - /etc/systemd/system
+      - /etc/systemd/user
+      - /etc/systemd/user/default.target.wants
+      - /etc/tmpfiles.d
+      - /opt/the-max-mix
+      - '{{ kiosk_panel_dir }}'
+      - '{{ kiosk_panel_dir }}/qml'
+      - '{{ kiosk_audio_dir }}'
+      - /usr/share/icons/blank
+      - /usr/share/icons/blank/cursors
+      - /usr/share/plymouth/themes/the-max-mix
+      - /var/lib/the-max-mix
+  changed_when: false
+
+# Raspberry Pi OS keeps the journal in memory, so every log is lost at a reboot, including the one that shows why a shutdown
+# was slow. This keeps it on disk, capped so that it does not wear the SD card or fill it.
+- name: Keep the journal across reboots
+  ansible.builtin.template:
+    src: kiosk-journald.conf.j2
+    dest: /etc/systemd/journald.conf.d/kiosk.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Apply the journal settings
+
+- name: Install the kiosk programs
+  ansible.builtin.copy:
+    src: '{{ item.src }}'
+    dest: '{{ item.dest }}'
+    owner: root
+    group: root
+    mode: '{{ item.mode }}'
+  loop:
+    - { src: bin/kiosk-session, dest: /usr/local/bin/kiosk-session, mode: '0755' }
+    - { src: bin/wifi-panel, dest: /usr/local/bin/wifi-panel, mode: '0755' }
+    - { src: bin/kiosk-bluetooth-pair, dest: /usr/local/bin/kiosk-bluetooth-pair, mode: '0755' }
+    - { src: bin/kiosk-display, dest: /usr/local/bin/kiosk-display, mode: '0755' }
+    - { src: bin/kiosk-handover, dest: /usr/local/sbin/kiosk-handover, mode: '0755' }
+    - { src: bin/kiosk-pull, dest: /usr/local/sbin/kiosk-pull, mode: '0755' }
+  loop_control:
+    label: '{{ item.dest }}'
+  notify: Ask for a kiosk restart
+
+- name: Install the Wi-Fi panel
+  ansible.builtin.copy:
+    src: '{{ kiosk_panel_src }}/{{ item }}'
+    dest: '{{ kiosk_panel_dir }}/{{ item }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - wifi_panel.py
+    - nmcli.py
+    - qml/Main.qml
+    - qml/PanelButton.qml
+    - qml/PanelField.qml
+  notify: Ask for a kiosk restart
+
+# AirPlay: PipeWire makes a sink for each speaker Avahi finds; the app asks the kiosk-audio service (127.0.0.1) to route
+# the browser's audio to the chosen ones, and the same user unit keeps it there.
+- name: Install the audio routing
+  ansible.builtin.copy:
+    src: '{{ kiosk_audio_src }}/{{ item }}'
+    dest: '{{ kiosk_audio_dir }}/{{ item }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - actions.ts
+    - kiosk-audio.ts
+    - pipewire.ts
+    - server.ts
+    - speakers.ts
+    - update.ts
+    - update-socket.ts
+  notify: Ask for a kiosk restart
+
+# ws, the one npm package, for the update stream (the WebSocket). Installed from the lockfile, so it is the version that
+# was reviewed; --ignore-scripts because nothing it needs has to build. Only when the lockfile is not the one installed.
+- name: Install the audio routing's package list
+  ansible.builtin.copy:
+    src: kiosk-audio/{{ item }}
+    dest: '{{ kiosk_audio_dir }}/{{ item }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - package.json
+    - package-lock.json
+  notify: Ask for a kiosk restart
+
+- name: Install the audio routing's npm packages
+  when: >-
+    (lookup('ansible.builtin.file', 'kiosk-audio/package-lock.json') | hash('sha1'))
+    != (lookup('ansible.builtin.file', kiosk_audio_deps_stamp, errors='ignore') | default('', true) | string | trim)
+  block:
+    - name: Run npm ci
+      ansible.builtin.command:
+        cmd: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+        chdir: '{{ kiosk_audio_dir }}'
+      changed_when: true
+      notify: Ask for a kiosk restart
+
+    - name: Record which lockfile was installed
+      ansible.builtin.copy:
+        content: "{{ lookup('ansible.builtin.file', 'kiosk-audio/package-lock.json') | hash('sha1') }}"
+        dest: '{{ kiosk_audio_deps_stamp }}'
+        owner: root
+        group: root
+        mode: '0644'
+
+- name: Install the AirPlay settings and the audio routing unit
+  ansible.builtin.template:
+    src: '{{ item.src }}'
+    dest: '{{ item.dest }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - { src: 50-kiosk-raop.conf.j2, dest: /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf }
+    - { src: kiosk-audio.service.j2, dest: /etc/systemd/user/kiosk-audio.service }
+  loop_control:
+    label: '{{ item.dest }}'
+  notify: Ask for a kiosk restart
+
+# What `systemctl --global enable` does, as a link, so it also works without a running systemd (kiosk_enable_only).
+- name: Start the audio routing in the kiosk user's session
+  ansible.builtin.file:
+    src: ../kiosk-audio.service
+    dest: /etc/systemd/user/default.target.wants/kiosk-audio.service
+    state: link
+    force: true
+    follow: false
+  notify: Ask for a kiosk restart
+
+- name: Install the kiosk service
+  ansible.builtin.include_tasks: kiosk-service.yml
+
+- name: List the Bluetooth devices to pair
+  ansible.builtin.template:
+    src: kiosk-bluetooth-devices.j2
+    dest: /etc/the-max-mix/bluetooth-devices
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Install the Chromium policy
+  ansible.builtin.template:
+    src: kiosk-policy.json.j2
+    dest: /etc/chromium/policies/managed/kiosk.json
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Ask for a kiosk restart
+
+# polkitd reads rules.d itself; the kiosk user manages Wi-Fi connections without sudo.
+- name: Allow the kiosk user to manage NetworkManager
+  ansible.builtin.template:
+    src: 50-kiosk-networkmanager.rules.j2
+    dest: /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules
+    owner: root
+    group: root
+    mode: '0644'
+
+# The Update now (a WebSocket), Restart kiosk and Reboot Pi buttons in the app's settings (requests to the kiosk-audio service).
+- name: Allow the kiosk user to update and restart the kiosk and reboot the Pi
+  ansible.builtin.template:
+    src: 50-kiosk-power.rules.j2
+    dest: /etc/polkit-1/rules.d/50-kiosk-power.rules
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Create /run/kiosk at every boot
+  ansible.builtin.template:
+    src: kiosk-tmpfiles.conf.j2
+    dest: /etc/tmpfiles.d/kiosk.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Create the run directory
+
+- name: Install the Plymouth theme
+  ansible.builtin.copy:
+    src: plymouth/{{ item }}
+    dest: /usr/share/plymouth/themes/the-max-mix/{{ item }}
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - the-max-mix.plymouth
+    - the-max-mix.script
+  notify: Update the initramfs
+
+- name: Select the Plymouth theme
+  ansible.builtin.copy:
+    src: plymouthd.conf
+    dest: /etc/plymouth/plymouthd.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Update the initramfs
+
+# A cursor theme made of one transparent pixel (kiosk-session selects it), for touch screens that also look like a mouse.
+- name: Install the blank cursor theme
+  ansible.builtin.copy:
+    src: icons/{{ item.src }}
+    dest: /usr/share/icons/blank/{{ item.dest }}
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - { src: index.theme, dest: index.theme }
+    - { src: left_ptr, dest: cursors/left_ptr }
+  loop_control:
+    label: '{{ item.dest }}'
+
+# One program makes all the links, for the same reason as the directories above. `ln -sfn` replaces a link that exists.
+- name: Point the cursor names at the blank cursor
+  ansible.builtin.command:
+    argv: '{{ [''bash'', ''-c'', ''for name in "$@"; do ln -sfn left_ptr "$name"; done'', ''bash''] + kiosk_cursor_names }}'
+    chdir: /usr/share/icons/blank/cursors
+  vars:
+    kiosk_cursor_names:
+      - default
+      - arrow
+      - text
+      - xterm
+      - pointer
+      - hand1
+      - hand2
+      - grab
+      - grabbing
+      - crosshair
+      - wait
+      - watch
+      - progress
+      - not-allowed
+  changed_when: false
+
+# The kiosk takes the display on tty7 and tty1 shows nothing.
+- name: Mask the login prompt on tty1
+  ansible.builtin.file:
+    src: /dev/null
+    dest: /etc/systemd/system/getty@tty1.service
+    state: link
+  notify: Reload systemd
+
+# Updates -------------------------------------------------------------------------------------------------------------
+# What an earlier version of the playbook installed and this one no longer does: the playbook never removes a file it
+# stopped installing, so it would stay on every Pi that already had it. kiosk-update-now.service was the app's Update now
+# (the kiosk-audio service starts the pull and the restart itself now).
+- name: Remove units an earlier version installed
+  ansible.builtin.file:
+    path: '/etc/systemd/system/{{ item }}'
+    state: absent
+  loop:
+    - kiosk-update-now.service
+  notify: Reload systemd
+
+- name: Install the update units
+  ansible.builtin.template:
+    src: '{{ item }}.j2'
+    dest: '/etc/systemd/system/{{ item }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - kiosk-bluetooth-pair.service
+    - kiosk-pull.service
+    - kiosk-pull.timer
+    - kiosk-restart.service
+    - kiosk-restart.timer
+    - kiosk-widevine.path
+    - kiosk-widevine.service
+  notify: Reload systemd
+
+# The units must be known to systemd before they are enabled and started.
+- name: Apply the pending changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable the kiosk
+  ansible.builtin.systemd_service:
+    name: kiosk.service
+    enabled: true
+
+- name: Enable Bluetooth and the pairing of the keyboard and mouse
+  ansible.builtin.systemd_service:
+    name: '{{ item }}'
+    enabled: true
+  loop:
+    - bluetooth.service
+    - kiosk-bluetooth-pair.service
+  when: kiosk_bluetooth_devices | length > 0
+
+- name: Enable Avahi, which finds the AirPlay speakers
+  ansible.builtin.systemd_service:
+    name: avahi-daemon.service
+    enabled: true
+    state: "{{ 'started' if not kiosk_enable_only else omit }}"
+
+- name: Enable the update timers
+  ansible.builtin.systemd_service:
+    name: '{{ item }}'
+    enabled: true
+    state: "{{ 'started' if not kiosk_enable_only else omit }}"
+  loop:
+    - kiosk-pull.timer
+    - kiosk-restart.timer
+    - kiosk-widevine.path

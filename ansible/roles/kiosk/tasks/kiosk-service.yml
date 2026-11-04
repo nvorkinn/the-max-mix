@@ -1,0 +1,13 @@
+---
+# kiosk.service carries the version the settings show (kiosk_url), so it is written at every pull: a release that changed
+# nothing else still restarts the kiosk at kiosk_restart_time and the app then shows the new version. See main.yml.
+- name: Install the kiosk service
+  ansible.builtin.template:
+    src: kiosk.service.j2
+    dest: /etc/systemd/system/kiosk.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Ask for a kiosk restart
