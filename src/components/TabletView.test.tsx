@@ -3,7 +3,7 @@ import type { Mock } from 'vitest';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { installCanvasStub } from '../test/canvas';
 import { defined } from '../test/defined';
-import { recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
+import { fetchSpotify, recordSpotifyRetryAfter, resetSpotifyRateLimit, SpotifyApiError } from '../spotify/http';
 import TabletView from './TabletView';
 
 const player = vi.hoisted(() => {
@@ -103,6 +103,12 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('TabletView', () => {
+  afterEach(() => {
+    // A test that hit Spotify's quota must not stop the polling in the tests after it.
+    resetSpotifyRateLimit();
+    vi.unstubAllGlobals();
+  });
+
   it('allows safe manual recovery at short cooldown expiry without waiting for caller backoff', async () => {
     vi.useFakeTimers();
     setPlayer({ problem: { message: 'Rate limited', recovery: 'wait' } });
@@ -177,6 +183,20 @@ describe('TabletView', () => {
     expect(screen.queryByRole('region', { name: 'Lyrics' })).not.toBeInTheDocument();
     expect(screen.getByAltText('Now Song album artwork')).toBeInTheDocument();
     expect(localStorage.getItem('maxmix_lyrics')).toBe('off');
+  });
+
+  it('says so, and stops reading the queue, when Spotify says the quota is used up', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(Response.json({ error: { reason: 'QUOTA_EXCEEDED' } }, { status: 429 }))
+    );
+    render(<TabletView />);
+    await flush();
+    const reads = api.getQueue.mock.calls.length;
+    await act(() => fetchSpotify('https://api.spotify.com/v1/me/player', {}));
+    // The banner and the status line next to the logo both say it.
+    expect(screen.getByRole('alert')).toHaveTextContent('Spotify quota used up');
+    expect(api.getQueue.mock.calls).toHaveLength(reads);
   });
 
   it('has no sleep button off the kiosk', () => {

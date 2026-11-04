@@ -3,7 +3,14 @@ import { deferred } from '../test/deferred';
 import { clearDebugLog, getDebugEntries } from '../utils/debugLog';
 import * as auth from './auth';
 import * as api from './api';
-import { fetchSpotify, getSpotifyRetryAt, getSpotifyRetryDelay, parseJson, resetSpotifyRateLimit } from './http';
+import {
+  fetchSpotify,
+  getSpotifyRetryAt,
+  getSpotifyRetryDelay,
+  isSpotifyQuotaExceeded,
+  parseJson,
+  resetSpotifyRateLimit
+} from './http';
 
 vi.mock('./auth', () => ({
   getAccessToken: vi.fn(),
@@ -319,6 +326,22 @@ describe('spotify/api', () => {
       // The cooldown holds the next request back without sending it.
       await expect(api.getPlaybackState()).rejects.toMatchObject({ status: 429 });
       expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('treats a QUOTA_EXCEEDED 429 as no longer worth waiting for: flags it and assumes no cooldown', async () => {
+      const quota = { error: { status: 429, message: 'Quota', reason: 'QUOTA_EXCEEDED' } };
+      fetchMock.mockResolvedValue(json(quota, 429));
+      expect(isSpotifyQuotaExceeded()).toBe(false);
+      await expect(api.getPlaybackState()).rejects.toMatchObject({ status: 429 });
+      expect(isSpotifyQuotaExceeded()).toBe(true);
+      expect(getSpotifyRetryDelay()).toBe(0);
+    });
+
+    it('does not flag the quota for an ordinary 429', async () => {
+      fetchMock.mockResolvedValue(json({ error: { status: 429, message: 'Slow down' } }, 429));
+      await expect(api.getPlaybackState()).rejects.toMatchObject({ status: 429 });
+      expect(isSpotifyQuotaExceeded()).toBe(false);
+      expect(getSpotifyRetryDelay()).toBeGreaterThan(0);
     });
 
     it('logs the headers and body of a 429', async () => {

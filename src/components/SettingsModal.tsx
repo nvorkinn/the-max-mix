@@ -4,6 +4,8 @@ import { X, Settings, Music, CheckCircle2, AlertCircle, LogOut, Wifi } from 'luc
 import { signOut, startSignIn } from '../spotify/auth';
 import { errorMessage } from '../utils/errorMessage';
 import { isKiosk, openWifiSettings } from '../utils/kiosk';
+import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
+import { setPollSpotify } from '../spotify/polling';
 import { getRedirectUri, reloadSettings } from '../spotify/settings';
 import { SCREEN_SLEEP_CHOICES } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
@@ -39,6 +41,37 @@ function ScreenSleepRow({
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** Whether the app reads Spotify on a timer to keep up with changes made elsewhere (say, from a phone). */
+function PollingRow() {
+  const { enabled, quotaExceeded } = useSpotifyPolling();
+  let note = 'Off: playback is read when the page opens and after each button press, not every few seconds.';
+  if (quotaExceeded) note = "Stopped: Spotify's quota is used up. Restart the app to read Spotify by itself again.";
+  else if (enabled) {
+    note = 'On: playback and the queue are read every few seconds, so changes from other devices show up.';
+  }
+  return (
+    <div className="modal-card p-3 rounded-2xl border">
+      <div className="text-xs font-bold" id="poll-spotify-label">
+        Poll Spotify for updates
+      </div>
+      <div className="flex gap-1.5 mt-2" role="group" aria-labelledby="poll-spotify-label">
+        {[true, false].map(choice => (
+          <button
+            type="button"
+            key={String(choice)}
+            aria-pressed={enabled === choice}
+            onClick={() => setPollSpotify(choice)}
+            className="modal-option flex-1 min-h-11 rounded-xl border text-xs font-bold"
+          >
+            {choice ? 'On' : 'Off'}
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 text-[10px] text-muted">{note}</p>
     </div>
   );
 }
@@ -179,6 +212,7 @@ function SettingsContent({
         {themeColour !== undefined && onThemeColourChange && (
           <ThemeColourRow colour={themeColour} onChange={onThemeColourChange} />
         )}
+        <PollingRow />
         {isKiosk() && (
           <button
             type="button"

@@ -5,6 +5,7 @@ import { getAccessToken, isSignedIn } from '../spotify/auth';
 import {
   checkSpotifyRetryWindow,
   getSpotifyRetryDelay,
+  isSpotifyQuotaExceeded,
   NETWORK_ERROR_MESSAGE,
   recordSpotifyRetryAfter,
   SpotifyApiError
@@ -14,6 +15,7 @@ import { errorMessage } from '../utils/errorMessage';
 import { loadSpotifySDK } from '../utils/spotifySdk';
 import { widevineProblem } from '../utils/widevine';
 import { debugLog } from '../utils/debugLog';
+import { useSpotifyPolling } from './useSpotifyPolling';
 
 // Spotify's playback state lags a play/pause command by a second or more, so a read right after one still reports the
 // old state. For this long after a command the button keeps the state the command asked for.
@@ -48,7 +50,7 @@ type PlaybackOrNull = PlaybackState | null;
 
 export interface PlaybackProblem {
   message: string;
-  recovery: 'sign-in' | 'choose-speaker' | 'settings' | 'reconnect' | 'refresh' | 'enable-audio' | 'wait';
+  recovery: 'sign-in' | 'choose-speaker' | 'settings' | 'reconnect' | 'refresh' | 'enable-audio' | 'wait' | 'quota';
 }
 
 function apiProblem(error: unknown): PlaybackProblem {
@@ -157,6 +159,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   // True while the SDK reports this player as the active device (it reports null once another device takes over).
   const [sdkActive, setSdkActive] = useState(false);
   const [slowPolling, setSlowPolling] = useState(false);
+  const { enabled: pollEnabled, quotaExceeded } = useSpotifyPolling();
   // True once a different device was picked under Speakers: play/pause then go to that device through the Web API.
   const [remoteSelected, setRemoteSelected] = useState(false);
   // Counts the moments the queue is likely to have changed, so the queue view re-reads it.
@@ -265,7 +268,8 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   // net while this page's SDK player is active and tells us about every change itself.
   const sdkDriven = sdkActive && !remoteSelected;
   useEffect(() => {
-    if (!isAuthenticated) return;
+    // Once Spotify's quota is used up nothing reads it again until the app is restarted.
+    if (!isAuthenticated || quotaExceeded) return;
     let cancelled = false;
     // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
     const isCancelled = () => cancelled;
@@ -287,7 +291,8 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         delay = Math.max(Math.min(60_000, base * 2 ** ++failures), getSpotifyRetryDelay());
       }
       setLoaded(true);
-      if (!isCancelled()) timer = setTimeout(() => void poll(), delay);
+      // With polling turned off in the settings this was the one read; the next comes from a button press or a return to the page.
+      if (pollEnabled && !isCancelled() && !isSpotifyQuotaExceeded()) timer = setTimeout(() => void poll(), delay);
     };
     void poll();
     return () => {
@@ -295,12 +300,21 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       invalidatePlayback();
       clearTimeout(timer);
     };
-  }, [isAuthenticated, sdkDriven, slowPolling, refreshPlayback, invalidatePlayback, reportConnectionError]);
+  }, [
+    isAuthenticated,
+    quotaExceeded,
+    pollEnabled,
+    sdkDriven,
+    slowPolling,
+    refreshPlayback,
+    invalidatePlayback,
+    reportConnectionError
+  ]);
 
   // A background tab's timers are throttled to about one a minute and its connections can drop, so when the page comes
   // back to the front it reads everything again at once instead of waiting for the next (late) timer.
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || quotaExceeded) return;
     const wake = () => {
       if (document.visibilityState === 'hidden') return;
       refreshPlayback().catch(() => {});
@@ -315,7 +329,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       window.removeEventListener('focus', wake);
       window.removeEventListener('online', wake);
     };
-  }, [isAuthenticated, refreshPlayback, bumpQueue]);
+  }, [isAuthenticated, quotaExceeded, refreshPlayback, bumpQueue]);
 
   useEffect(() => {
     if (!isAuthenticated || playbackMode !== 'browser') return;

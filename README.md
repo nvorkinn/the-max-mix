@@ -241,6 +241,12 @@ The moon button beside Settings puts the screen to sleep straight away, even whi
 asks Spotify about playback every 45 seconds instead of every 4 and stops reading the queue, so an idle tablet does not
 use up the account's rate limit.
 
+When Spotify answers a 429 with the reason `QUOTA_EXCEEDED` (the quota, which waiting does not lift), the app stops reading
+Spotify by itself at once and does not start again until it is restarted (a reload, or Restart kiosk): no polling, and no
+read when the page comes back to the front. A banner says so, and the buttons still work. **Poll Spotify for updates** in
+Settings turns the timer off by choice: playback is then read when the page opens, after each button press and when the
+page returns to the front, not every few seconds.
+
 Spotify's browser API does not let the page read `Retry-After`, so after a 429 with no readable wait the app assumes one:
 30 seconds, doubling with every 429 in a row up to 5 minutes. All polling and the controls hold off until it passes
 (the banner says "Waiting for Spotify"), and each assumed wait is written to the debug console.
