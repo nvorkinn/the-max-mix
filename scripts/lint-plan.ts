@@ -29,6 +29,12 @@ const isRunAllFile = paths(
   'scripts/lint-plan.ts'
 );
 
+// The root package.json and lockfile run everything; the Pi's kiosk-audio ones only need the two package checks.
+const isKioskAudioPackageFile = paths(
+  'ansible/roles/kiosk/files/kiosk-audio/package.json',
+  'ansible/roles/kiosk/files/kiosk-audio/package-lock.json'
+);
+
 const CHECKS: Record<string, Matcher[]> = {
   lint: [ext(...CODE), paths(/^tsconfig[^/]*\.json$/)],
   typecheck: [ext(...CODE), paths(/^tsconfig[^/]*\.json$/)],
@@ -42,8 +48,11 @@ const CHECKS: Record<string, Matcher[]> = {
   'lint:md': [ext('md'), paths('.markdownlint.jsonc', '.markdownlint-cli2.jsonc')],
   'lint:css': [paths(/^src\/.*\.css$/, 'stylelint.config.mjs')],
   'lint:unused-css': [paths(/^src\/.*\.(css|tsx?)$/, 'scripts/check-unused-css.ts')],
-  'lint:package-json': [paths('.npmpackagejsonlintrc.json', 'scripts/check-version-ranges.ts')],
-  'lint:lockfiles': [],
+  'lint:package-json': [
+    paths('.npmpackagejsonlintrc.json', 'scripts/check-version-ranges.ts'),
+    isKioskAudioPackageFile
+  ],
+  'lint:lockfiles': [isKioskAudioPackageFile],
   shellcheck: [paths(/^ansible\/roles\/kiosk\/files\/bin\//, /^ansible\/tests\/[^/]+\.sh$/)],
   actionlint: [paths(/^\.github\/workflows\//)],
   editorconfig: [isAnyFile]
