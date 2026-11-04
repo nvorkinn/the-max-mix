@@ -280,6 +280,8 @@ Window {
                     PanelButton {
                         id: showPassword
 
+                        // Tapping Show must not take focus from the text field, or the keyboard closes and the card jumps.
+                        focusPolicy: Qt.NoFocus
                         checkable: true
                         text: checked ? "Hide" : "Show"
                     }
