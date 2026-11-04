@@ -110,7 +110,7 @@ check grep -q '^SystemMaxUse=64M$' /etc/systemd/journald.conf.d/kiosk.conf
 # needs GitHub, which a test must not depend on.)
 # shellcheck disable=SC2329  # Called by check.
 second_run_skips() {
-  grep -A1 "TASK \\[kiosk : $1\\]" /tmp/second-run.log | grep -q '^skipping'
+  grep -A1 "TASK \\[kiosk : $1\\]" /tmp/second-run.log | grep -Eq '^[0-9-]+ [0-9:]+ skipping'
 }
 check test -s /var/lib/the-max-mix/packages.sha1
 check second_run_skips 'Install the packages'

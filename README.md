@@ -216,6 +216,9 @@ v1.12.0`): the Release workflow deploys the web app to Vercel and, once that has
 - **Check the last pull:** `journalctl -u kiosk-pull -n 100`, and `systemctl list-timers 'kiosk-*'` for the next runs.
   Every pull ends with how long it took and a list of the slowest playbook tasks (`ansible/callback_plugins/task_timer.py`),
   which is also what the app's update output shows.
+  Every line of the output starts with the local date and time: the playbook's lines through the `timestamped` output
+  plugin (`ansible/callback_plugins/timestamped.py`, selected by `ansible.cfg` at the repository root, so it applies to
+  `ansible-pull` and to a run by hand from a clone), and `kiosk-pull`'s own lines the same way.
 - **Roll back:** run the Release workflow by hand (Actions > Release > Run workflow) with the earlier tag. It redeploys
   that version of the web app and marks its release as the latest again, and the Pis return to it at their next pull
   (or straight away with **Update now**). Publishing a newer tag later moves everything forward again.
