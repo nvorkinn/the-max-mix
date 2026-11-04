@@ -4,8 +4,8 @@
 #   - turns cloud-init off, so it never applies the setup network again;
 #   - clears what testing left in the kiosk: the Chromium profile (the Spotify login; the downloaded Widevine stays), the
 #     chosen speakers, the logs.
-# At the next start there is no network, so the kiosk shows its Wi-Fi panel. The admin SSH keys and the paired Bluetooth
-# devices stay. Run it over SSH: sudo kiosk-handover [--yes] [--no-poweroff]
+# At the next start there is no network, so the kiosk shows its Wi-Fi panel. The admin SSH keys, the Tailscale login and
+# the paired Bluetooth devices stay. Run it over SSH: sudo kiosk-handover [--yes] [--no-poweroff]
 set -euo pipefail
 
 kiosk_user=kiosk
