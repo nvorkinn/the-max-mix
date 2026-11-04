@@ -87,9 +87,7 @@ export async function fakeSpotify(page: Page) {
     }
   });
   await page.addInitScript(clientId => {
-    /* eslint-disable n/no-unsupported-features/node-builtins -- This init script runs in the browser, not Node. */
     localStorage.setItem('maxmix.playbackMode', 'remote');
     localStorage.setItem('maxmix.auth', JSON.stringify({ clientId, refreshToken: 'not-a-real-refresh-token' }));
-    /* eslint-enable n/no-unsupported-features/node-builtins */
   }, getClientId());
 }

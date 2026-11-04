@@ -171,6 +171,12 @@ export default defineConfig([
     files: ['lint-staged.config.ts'],
     rules: { 'sonarjs/no-nested-template-literals': 'off' }
   },
+  {
+    // The e2e specs hand Playwright init scripts that run in the browser, where localStorage and navigator are not the
+    // experimental Node globals this rule warns about.
+    files: ['e2e/**/*.ts'],
+    rules: { 'n/no-unsupported-features/node-builtins': 'off' }
+  },
 
   // Part 2: the app in src/ (React, browser, Vitest).
   // Type-aware typescript-eslint over the app, using tsconfig.app.json.

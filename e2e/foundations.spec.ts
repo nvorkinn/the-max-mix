@@ -37,34 +37,32 @@ async function expectNoHorizontalOverflow(page: Page) {
   ).toBe(true);
 }
 
-for (const viewport of [{ width: 1024, height: 600 }]) {
-  test(`touch targets and dialogs fit ${viewport.width}x${viewport.height}`, async ({ page }) => {
-    await page.setViewportSize(viewport);
-    await page.goto('/?kiosk=1');
-    await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
-    await expectTouchTargets(page.locator('body'));
-    await expectNoHorizontalOverflow(page);
+test('touch targets and dialogs fit 1024x600', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 600 });
+  await page.goto('/?kiosk=1');
+  await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
+  await expectTouchTargets(page.locator('body'));
+  await expectNoHorizontalOverflow(page);
 
-    const transport = page.getByRole('button', { name: 'Pause', exact: true });
-    await expect(transport).toBeInViewport();
+  const transport = page.getByRole('button', { name: 'Pause', exact: true });
+  await expect(transport).toBeInViewport();
 
-    await page.getByRole('button', { name: 'Open settings' }).click();
-    const settings = page.getByRole('dialog', { name: 'Settings' });
-    await expect(settings).toBeVisible();
-    await expectTouchTargets(settings);
-    await expectNoHorizontalOverflow(page);
-    await page.keyboard.press('Escape');
-    await expect(settings).toBeHidden();
+  await page.getByRole('button', { name: 'Open settings' }).click();
+  const settings = page.getByRole('dialog', { name: 'Settings' });
+  await expect(settings).toBeVisible();
+  await expectTouchTargets(settings);
+  await expectNoHorizontalOverflow(page);
+  await page.keyboard.press('Escape');
+  await expect(settings).toBeHidden();
 
-    await page.getByRole('button', { name: /^Speakers:/ }).click();
-    const speakers = page.getByRole('dialog', { name: 'Speakers' });
-    await expect(speakers.getByRole('button', { name: /Test speaker/ })).toBeVisible();
-    await expectTouchTargets(speakers);
-    await expectNoHorizontalOverflow(page);
-    await speakers.getByRole('button', { name: 'Close speakers' }).click();
-    await expect(speakers).toBeHidden();
-  });
-}
+  await page.getByRole('button', { name: /^Speakers:/ }).click();
+  const speakers = page.getByRole('dialog', { name: 'Speakers' });
+  await expect(speakers.getByRole('button', { name: /Test speaker/ })).toBeVisible();
+  await expectTouchTargets(speakers);
+  await expectNoHorizontalOverflow(page);
+  await speakers.getByRole('button', { name: 'Close speakers' }).click();
+  await expect(speakers).toBeHidden();
+});
 
 test('settings contain keyboard focus, wrap both ways and restore the trigger', async ({ page }) => {
   await page.goto('/');

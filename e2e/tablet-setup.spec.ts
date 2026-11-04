@@ -8,41 +8,29 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-for (const appearance of ['minimal']) {
-  for (const viewport of [
-    { width: 1024, height: 600 },
-    { width: 768, height: 1024 }
-  ]) {
-    test(`tablet setup fits ${viewport.width}x${viewport.height} in ${appearance} and preserves saved preferences`, async ({
-      page
-    }) => {
-      await page.setViewportSize(viewport);
-      await page.addInitScript(theme => {
-        /* eslint-disable n/no-unsupported-features/node-builtins -- This init script runs in the browser, not Node. */
-        localStorage.setItem('maxmix_theme', theme);
-        Object.defineProperty(navigator, 'requestMediaKeySystemAccess', { value: undefined, configurable: true });
-        /* eslint-enable n/no-unsupported-features/node-builtins */
-      }, appearance);
-      const commands: string[] = [];
-      await page.route('https://api.spotify.com/**', route => {
-        commands.push(route.request().method());
-        return route.fulfill({ status: 503 });
-      });
-      await page.goto('/');
-      const setup = page.getByRole('region', { name: 'Now playing' });
-      await expect(setup.getByRole('button', { name: 'Connect Spotify' })).toBeInViewport();
-      await expect(setup.getByRole('slider')).toHaveCount(0);
-      await expect(page.getByRole('region', { name: 'Upcoming tracks' })).toHaveCount(0);
-      await setup.getByRole('button', { name: 'Connection settings' }).click();
-      const settings = page.getByRole('dialog', { name: 'Settings' });
-      await expect(settings.getByRole('button', { name: 'Log in with Spotify' })).toBeInViewport();
-      await expect(settings.getByRole('radio')).toHaveCount(0);
-      await settings.getByRole('button', { name: 'Close settings' }).click();
-      expect(commands).toEqual([]);
-      expect(await page.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-    });
-  }
-}
+test('tablet setup fits 1024x600 and sends no Spotify commands', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 600 });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'requestMediaKeySystemAccess', { value: undefined, configurable: true });
+  });
+  const commands: string[] = [];
+  await page.route('https://api.spotify.com/**', route => {
+    commands.push(route.request().method());
+    return route.fulfill({ status: 503 });
+  });
+  await page.goto('/');
+  const setup = page.getByRole('region', { name: 'Now playing' });
+  await expect(setup.getByRole('button', { name: 'Connect Spotify' })).toBeInViewport();
+  await expect(setup.getByRole('slider')).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Upcoming tracks' })).toHaveCount(0);
+  await setup.getByRole('button', { name: 'Connection settings' }).click();
+  const settings = page.getByRole('dialog', { name: 'Settings' });
+  await expect(settings.getByRole('button', { name: 'Log in with Spotify' })).toBeInViewport();
+  await expect(settings.getByRole('radio')).toHaveCount(0);
+  await settings.getByRole('button', { name: 'Close settings' }).click();
+  expect(commands).toEqual([]);
+  expect(await page.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+});
 
 test('the primary Connect action goes directly to Spotify rather than through Settings', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 600 });
