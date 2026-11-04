@@ -10,7 +10,10 @@ export const THEME_COLOURS = [
   { id: 'navy', label: 'Navy', swatch: '#1f3a5f' },
   { id: 'teal', label: 'Teal', swatch: '#155e63' },
   { id: 'plum', label: 'Plum', swatch: '#5b2a4e' },
-  { id: 'terracotta', label: 'Terracotta', swatch: '#9a3f24' }
+  { id: 'terracotta', label: 'Terracotta', swatch: '#9a3f24' },
+  { id: 'pink', label: 'Pink', swatch: '#c2185b' },
+  { id: 'yellow', label: 'Yellow', swatch: '#e0b020' },
+  { id: 'black', label: 'Black', swatch: '#111' }
 ] as const;
 export type ThemeColour = (typeof THEME_COLOURS)[number]['id'];
 const DEFAULT_THEME_COLOUR: ThemeColour = 'forest';

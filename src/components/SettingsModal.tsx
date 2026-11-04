@@ -53,7 +53,7 @@ function ThemeColourRow({
       <div className="text-xs font-bold" id="theme-colour-label">
         Colour
       </div>
-      <div className="flex gap-3 mt-2" role="group" aria-labelledby="theme-colour-label">
+      <div className="flex flex-wrap gap-3 mt-2" role="group" aria-labelledby="theme-colour-label">
         {THEME_COLOURS.map(choice => (
           <button
             type="button"
