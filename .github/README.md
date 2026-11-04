@@ -11,6 +11,16 @@ auto-merged, so each one waits for a manual review and merge. Fork pull requests
 `tests.yml` runs the tests, the browser tests and the production build on every pull request and push to `main`. It is
 listed in `all-checks.yml`, so Global PR Status waits for it.
 
+On a pull request, its `screenshots` job copies the Playwright report (with a video and a trace of every e2e test) and the
+screenshots that differ from their baselines to the `gh-pages` branch, under `pr-<number>/`, and keeps one comment on
+the PR up to date: baseline, new and difference images for each screen that changed, before and after images for each
+baseline the PR updates, and a link to the report on GitHub Pages. `pr-screenshots-cleanup.yml` removes the PR's folder
+when it closes. Both rebuild `gh-pages` as a single commit, so old reports do not pile up. Fork and Dependabot PRs are
+skipped, because their token cannot write.
+
+- **Repository setting:** Settings > Pages > Build and deployment > Deploy from a branch, `gh-pages`, `/ (root)`, so
+  the report links work. The screenshots in the comment come from the branch directly and work without it.
+
 `lint.yml` (**Lint**) runs on the same triggers: the `npm run` checks (ESLint, TypeScript, Prettier, knip, spelling,
 markdownlint, Stylelint, package.json and lockfile checks), ShellCheck over the kiosk shell scripts,
 editorconfig-checker and actionlint over `.github/workflows/*.yml`. On a pull request its `plan` job runs only the checks

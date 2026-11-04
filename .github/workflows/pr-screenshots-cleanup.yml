@@ -1,0 +1,37 @@
+name: PR screenshots cleanup
+
+# Removes a closed pull request's screenshots and Playwright report from the gh-pages branch, which the screenshots job
+# in tests.yml fills. Like that job, it rebuilds the branch as a single commit.
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      FOLDER: pr-${{ github.event.pull_request.number }}
+    steps:
+      - name: Remove the pull request's folder
+        run: |
+          git init --quiet site && cd site
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git fetch --quiet --depth 1 origin gh-pages || exit 0
+          git checkout --quiet FETCH_HEAD
+          [[ -d $FOLDER ]] || exit 0
+          git checkout --quiet --orphan publish
+          git rm -r --quiet "$FOLDER"
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit --quiet -m "Screenshots and reports of the open pull requests"
+          git push --quiet --force origin publish:gh-pages
