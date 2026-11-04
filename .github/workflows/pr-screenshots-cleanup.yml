@@ -1,13 +1,15 @@
 name: PR screenshots cleanup
 
-# Removes a closed pull request's screenshots and Playwright report from the gh-pages branch, which the screenshots job
-# in tests.yml fills. Like that job, it rebuilds the branch as a single commit.
+# When a pull request closes, removes the screenshots and Playwright reports of every pull request that is no longer
+# open from the gh-pages branch, which the screenshots job in tests.yml fills, so a cleanup that failed is caught up by
+# the next one. Like that job, it rebuilds the branch as a single commit.
 on:
   pull_request:
     types: [closed]
 
 permissions:
   contents: write
+  pull-requests: read
 
 concurrency:
   group: gh-pages
@@ -21,17 +23,25 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
-      FOLDER: pr-${{ github.event.pull_request.number }}
     steps:
-      - name: Remove the pull request's folder
+      - name: Remove the folders of closed pull requests
         run: |
           git init --quiet site && cd site
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
           git fetch --quiet --depth 1 origin gh-pages || exit 0
           git checkout --quiet FETCH_HEAD
-          [[ -d $FOLDER ]] || exit 0
+          open=" $(gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" --jq '.[].number' | tr '\n' ' ') "
+          shopt -s nullglob
+          closed=()
+          for folder in pr-*/; do
+            folder=${folder%/}
+            [[ $open == *" ${folder#pr-} "* ]] || closed+=("$folder")
+          done
+          (( ${#closed[@]} > 0 )) || exit 0
+          echo "Removing ${closed[*]}"
           git checkout --quiet --orphan publish
-          git rm -r --quiet "$FOLDER"
+          rm -rf "${closed[@]}"
+          git add -A
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             commit --quiet -m "Screenshots and reports of the open pull requests"
           git push --quiet --force origin publish:gh-pages
