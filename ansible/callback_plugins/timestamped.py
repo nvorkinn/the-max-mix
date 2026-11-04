@@ -40,10 +40,15 @@ class CallbackModule(DefaultCallback):
         if not getattr(display, "_timestamped", False):
             print_line = display.display
 
-            def stamped(msg, color=None, stderr=False, screen_only=False, log_only=False, newline=True):
+            # display() gains keyword arguments between ansible-core versions (caplevel in 2.19), so only the two that
+            # matter here are looked at (by name or position: msg, color, stderr, screen_only, log_only, newline) and
+            # everything else passes through as it came.
+            def stamped(msg, *args, **kwargs):
+                log_only = kwargs.get("log_only", args[3] if len(args) > 3 else False)
                 # A message only for the log file is left alone: Ansible's log file stamps its own lines.
                 if log_only:
-                    return print_line(msg, color=color, stderr=stderr, screen_only=screen_only, log_only=True, newline=newline)
+                    return print_line(msg, *args, **kwargs)
+                newline = kwargs.get("newline", args[4] if len(args) > 4 else True)
                 text = str(msg)
                 pieces = text.split("\n")
                 now = time.strftime(TIMESTAMP_FORMAT)
@@ -52,9 +57,7 @@ class CallbackModule(DefaultCallback):
                     if piece and (index > 0 or self._at_line_start):
                         pieces[index] = f"{now} {piece}"
                 self._at_line_start = newline or text.endswith("\n")
-                return print_line(
-                    "\n".join(pieces), color=color, stderr=stderr, screen_only=screen_only, log_only=False, newline=newline
-                )
+                return print_line("\n".join(pieces), *args, **kwargs)
 
             display.display = stamped
             display._timestamped = True
