@@ -15,7 +15,7 @@ On a pull request, its `screenshots` job copies the Playwright report (with a vi
 screenshots that differ from their baselines to the `gh-pages` branch, under `pr-<number>/`, and keeps one comment on
 the PR up to date: baseline, new and difference images for each screen that changed, before and after images for each
 baseline the PR updates, and a link to the report on GitHub Pages. `pr-screenshots-cleanup.yml` removes the folders of all closed PRs
-when it closes. Both rebuild `gh-pages` as a single commit, so old reports do not pile up. Fork and Dependabot PRs are
+whenever a PR closes. Both rebuild `gh-pages` as a single commit, so old reports do not pile up. Fork and Dependabot PRs are
 skipped, because their token cannot write.
 
 - **Repository setting:** Settings > Pages > Build and deployment > Deploy from a branch, `gh-pages`, `/ (root)`, so
