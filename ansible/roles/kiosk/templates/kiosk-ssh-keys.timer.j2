@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+# Independent of the updates: a key removed on GitHub stops working within this time even when no release comes out.
+[Unit]
+Description=Fetch the admin user's SSH keys regularly
+
+[Timer]
+OnBootSec={{ kiosk_admin_keys_boot_delay }}
+OnUnitInactiveSec={{ kiosk_admin_keys_interval }}
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

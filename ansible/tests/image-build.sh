@@ -54,7 +54,8 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/wifi-panel \
   /etc/systemd/system/kiosk.service /etc/systemd/system/kiosk-pull.service /etc/systemd/system/kiosk-pull.timer \
   /etc/systemd/system/kiosk-restart.timer /etc/chromium/policies/managed/kiosk.json \
   /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules /etc/polkit-1/rules.d/50-kiosk-power.rules \
-  /usr/local/sbin/kiosk-handover /usr/local/bin/kiosk-display \
+  /usr/local/sbin/kiosk-handover /usr/local/bin/kiosk-display /usr/local/sbin/kiosk-ssh-keys \
+  /etc/systemd/system/kiosk-ssh-keys.service /etc/systemd/system/kiosk-ssh-keys.timer \
   /etc/systemd/system/kiosk-widevine.path \
   /etc/systemd/system/kiosk-widevine.service /etc/NetworkManager/conf.d/20-connectivity.conf \
   /etc/tmpfiles.d/kiosk.conf /usr/share/plymouth/themes/the-max-mix/the-max-mix.plymouth \
@@ -67,7 +68,7 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/wifi-panel \
   check test -e "$file"
 done
 for unit in kiosk.service kiosk-bluetooth-pair.service bluetooth.service avahi-daemon.service kiosk-pull.timer \
-  kiosk-restart.timer ssh.service kiosk-widevine.path; do
+  kiosk-restart.timer kiosk-ssh-keys.timer ssh.service kiosk-widevine.path; do
   check systemctl is-enabled --quiet "$unit"
   # Enabled only: nothing is started with kiosk_enable_only.
   if systemctl is-active --quiet "$unit"; then
@@ -123,10 +124,9 @@ second_run_skips() {
 }
 check test -s /var/lib/the-max-mix/packages.sha1
 # The second run applied everything again and recorded the same ids as the first; the third found nothing to apply: only
-# the SSH keys and kiosk.service were looked at, nothing changed and the slow tasks did not even run.
+# kiosk.service was looked at, nothing changed and the slow tasks did not even run.
 check test -s /var/lib/the-max-mix/applied.sha1
 check cmp /tmp/applied.sha1 /var/lib/the-max-mix/applied.sha1
-check grep -q 'TASK \[kiosk : Refresh the admin user.s SSH keys and kiosk.service\]' /tmp/third-run.log
 check grep -q 'TASK \[kiosk : Install the kiosk service\]' /tmp/third-run.log
 if grep -q 'TASK \[kiosk : Install the packages' /tmp/third-run.log; then
   echo "FAILED: the third run did not skip the slow part" >&2

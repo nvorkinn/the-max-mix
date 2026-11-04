@@ -206,11 +206,11 @@ v1.12.0`): the Release workflow deploys the web app to Vercel and, once that has
   (with up to 10 minutes of random delay), and at once when the kiosk's **Update now** button starts
   `kiosk-pull.service` (through the kiosk-audio service, which also streams the pull's journal to the app). With `kiosk_pull_ref: latest` (the default) it looks up the tag that
   `github.com/nvorkinn/the-max-mix/releases/latest` redirects to (no API call or token) and runs `ansible-pull` at that
-  tag. Every run starts the playbook, which applies its slow part only when `ansible/`, `pi/kiosk-audio` or
+  tag. `--only-if-changed` starts the playbook only when the release has changed since the last run, so a check with
+  nothing new is a single git fetch, and the playbook applies its slow part only when `ansible/`, `pi/kiosk-audio` or
   `pi/wifi-panel` differ from the last complete run (git's tree ids, kept in `/var/lib/the-max-mix/applied.sha1`; most
-  releases only change the web app, which the Pi loads from the internet). Two things run every time regardless: the
-  admin SSH keys are refreshed from GitHub when they are over a day old, and `kiosk.service` is rewritten, because it
-  carries the release the settings show. A deployed Pi therefore gets fixes to the Wi-Fi panel, the session script, the
+  releases only change the web app, which the Pi loads from the internet). `kiosk.service` is rewritten either way,
+  because it carries the release the settings show. A deployed Pi therefore gets fixes to the Wi-Fi panel, the session script, the
   Chromium policy and so on without a reflash. The playbook is idempotent, so repeated runs are safe. To pin one Pi,
   set `kiosk_pull_ref` to a tag (`v1.12.0`), or to a branch to test unreleased work on your own Pi.
 - **A failing pull never affects the kiosk.** Nothing depends on `kiosk-pull.service`; a failure is only in the journal
@@ -257,8 +257,8 @@ Spotify's browser API does not let the page read `Retry-After`, so after a 429 w
 30 seconds, doubling with every 429 in a row up to 5 minutes. All polling and the controls hold off until it passes
 (the banner says "Waiting for Spotify"), and each assumed wait is written to the debug console.
 
-Any change on the device that is not in the role is undone at the next pull (for example, SSH is switched off again when
-`kiosk_ssh_enabled` is false). A CI job runs the playbook in a Debian trixie container and checks that it is idempotent;
+Any change on the device that is not in the role is undone the next time a pull finds changed files (for example, SSH is
+switched off again when `kiosk_ssh_enabled` is false). A CI job runs the playbook in a Debian trixie container and checks that it is idempotent;
 booting the result on a real Pi is not covered.
 
 References: [Raspberry Pi kiosk guide](https://www.raspberrypi.com/tutorials/how-to-use-a-raspberry-pi-in-kiosk-mode/),

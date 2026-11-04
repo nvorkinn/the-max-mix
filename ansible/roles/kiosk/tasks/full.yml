@@ -236,8 +236,15 @@
     group: '{{ kiosk_admin_user }}'
     mode: '0700'
 
-- name: Refresh the admin user's SSH keys
-  ansible.builtin.include_tasks: ssh-keys.yml
+# The keys come from GitHub (kiosk_admin_github_user), fetched by kiosk-ssh-keys now and then by kiosk-ssh-keys.timer, so a
+# key removed there stops working without waiting for a release. Once here, so that the account has its keys at the first
+# boot; without a network this just logs, and the timer tries again.
+- name: Fetch the admin user's SSH keys for the first time
+  ansible.builtin.command:
+    cmd: /usr/local/sbin/kiosk-ssh-keys {{ kiosk_admin_github_user }} {{ kiosk_admin_user }}
+    creates: '/home/{{ kiosk_admin_user }}/.ssh/authorized_keys'
+  failed_when: false
+  when: kiosk_admin_github_user | length > 0
 
 # sshd uses the first value it reads and Debian's sshd_config includes sshd_config.d first, so these settings win.
 - name: Allow SSH for the admin user, by key only
@@ -316,6 +323,7 @@
     - { src: bin/kiosk-display, dest: /usr/local/bin/kiosk-display, mode: '0755' }
     - { src: bin/kiosk-handover, dest: /usr/local/sbin/kiosk-handover, mode: '0755' }
     - { src: bin/kiosk-pull, dest: /usr/local/sbin/kiosk-pull, mode: '0755' }
+    - { src: bin/kiosk-ssh-keys, dest: /usr/local/sbin/kiosk-ssh-keys, mode: '0755' }
   loop_control:
     label: '{{ item.dest }}'
   notify: Ask for a kiosk restart
@@ -554,6 +562,19 @@
     - kiosk-widevine.service
   notify: Reload systemd
 
+- name: Install the SSH key units
+  ansible.builtin.template:
+    src: '{{ item }}.j2'
+    dest: '/etc/systemd/system/{{ item }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - kiosk-ssh-keys.service
+    - kiosk-ssh-keys.timer
+  when: kiosk_admin_github_user | length > 0
+  notify: Reload systemd
+
 # The units must be known to systemd before they are enabled and started.
 - name: Apply the pending changes
   ansible.builtin.meta: flush_handlers
@@ -577,6 +598,13 @@
     name: avahi-daemon.service
     enabled: true
     state: "{{ 'started' if not kiosk_enable_only else omit }}"
+
+- name: Enable the SSH key timer
+  ansible.builtin.systemd_service:
+    name: kiosk-ssh-keys.timer
+    enabled: true
+    state: "{{ 'started' if not kiosk_enable_only else omit }}"
+  when: kiosk_admin_github_user | length > 0
 
 - name: Enable the update timers
   ansible.builtin.systemd_service:

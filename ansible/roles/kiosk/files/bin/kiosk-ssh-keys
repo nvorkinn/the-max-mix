@@ -1,0 +1,32 @@
+#!/bin/bash
+# Usage: kiosk-ssh-keys GITHUB_USER ADMIN_USER
+# Makes ADMIN_USER's authorized_keys the public keys of GITHUB_USER (https://github.com/<name>.keys). Run by
+# kiosk-ssh-keys.timer, so a key added or removed on GitHub reaches the Pi within the timer's interval whether or not any
+# release came out, and by the playbook once when the account has no keys yet. A failed download (no network, GitHub
+# down) leaves the keys that are there: the file is replaced only by a complete answer.
+set -euo pipefail
+
+if (($# != 2)); then
+  echo "usage: $0 GITHUB_USER ADMIN_USER" >&2
+  exit 2
+fi
+github=$1
+admin=$2
+if [[ ! $github =~ ^[A-Za-z0-9-]+$ ]]; then
+  echo "kiosk-ssh-keys: not a GitHub user name: $github" >&2
+  exit 2
+fi
+
+home=$(getent passwd "$admin" | cut -d: -f6)
+if [[ -z $home || ! -d $home/.ssh ]]; then
+  echo "kiosk-ssh-keys: $admin has no ~/.ssh yet; nothing to do" >&2
+  exit 0
+fi
+
+temporary=$(mktemp "$home/.ssh/.authorized_keys.XXXXXX")
+trap 'rm -f "$temporary"' EXIT
+curl --fail --silent --show-error --max-time 10 --retry 2 --output "$temporary" "https://github.com/$github.keys"
+chown "$admin:$admin" "$temporary"
+chmod 0600 "$temporary"
+mv -f "$temporary" "$home/.ssh/authorized_keys"
+echo "kiosk-ssh-keys: $admin now has the $(grep -c . "$home/.ssh/authorized_keys" || true) key(s) of $github"
