@@ -78,23 +78,54 @@ let rateLimitStreak = 0;
 
 const MAX_LOGGED_BODY = 2000;
 
-/** Writes a 429's headers and body to the debug console, to find out what Spotify says about the limit. */
-async function logRateLimit(url: string, response: Response): Promise<void> {
+// Spotify's quota (as opposed to its short rate limit) is not lifted by waiting a while: its 429 says so in the body's
+// "reason". Once it is hit the app stops reading Spotify by itself, until it is restarted.
+let quotaExceeded = false;
+const quotaListeners = new Set<() => void>();
+const QUOTA_EXCEEDED = /"reason"\s*:\s*"QUOTA_EXCEEDED"/;
+
+export const isSpotifyQuotaExceeded = () => quotaExceeded;
+
+export function subscribeSpotifyQuota(listener: () => void): () => void {
+  quotaListeners.add(listener);
+  return () => {
+    quotaListeners.delete(listener);
+  };
+}
+
+function setQuotaExceeded(exceeded: boolean) {
+  if (quotaExceeded === exceeded) return;
+  quotaExceeded = exceeded;
+  if (exceeded) {
+    debugLog('error', 'spotify', 'Quota exceeded (QUOTA_EXCEEDED): no more polling until the app is restarted');
+  }
+  for (const listener of quotaListeners) listener();
+}
+
+/**
+ * Writes a 429's headers and body to the debug console, to find out what Spotify says about the limit. Resolves to
+ * whether the body says the quota is exceeded.
+ */
+async function logRateLimit(url: string, response: Response): Promise<boolean> {
   // Only the headers Spotify's CORS policy exposes to the page are readable here.
   const headers = [...response.headers].map(([name, value]) => `${name}: ${value}`).join('\n') || '(none readable)';
   let body: string;
+  let quota = false;
   try {
     const text = await response.clone().text();
+    quota = QUOTA_EXCEEDED.test(text);
     body = text.slice(0, MAX_LOGGED_BODY);
   } catch {
     body = '(unreadable)';
   }
   debugLog('warn', 'spotify', `429 from ${new URL(url).pathname}\nHeaders:\n${headers}\nBody: ${body || '(empty)'}`);
+  return quota;
 }
 
 /** Forgets the cooldown and the 429 streak; for tests, which share this module's state. */
 export function resetSpotifyRateLimit(): void {
   rateLimitStreak = 0;
+  setQuotaExceeded(false);
   setRetryAt(0);
 }
 
@@ -155,8 +186,10 @@ export async function fetchSpotify(url: string, init: RequestInit): Promise<Resp
   if (webApi && response.ok) rateLimitStreak = 0;
   if (webApi && !response.ok) {
     const retryAt = responseRetryAt(response);
-    if (response.status === 429) await logRateLimit(url, response);
-    if (retryAt === 0 && response.status === 429) assumeRetryWindow(response.status);
+    const quota = response.status === 429 && (await logRateLimit(url, response));
+    if (quota) setQuotaExceeded(true);
+    // A quota does not lift after a wait, so no cooldown is assumed for it.
+    else if (retryAt === 0 && response.status === 429) assumeRetryWindow(response.status);
     if (retryAt > 0) {
       const error = new SpotifyApiError(
         'Spotify asked this app to wait before retrying.',

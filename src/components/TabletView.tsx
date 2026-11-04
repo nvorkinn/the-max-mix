@@ -4,6 +4,7 @@ import { AudioLines, Clock, Moon, Settings } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useKioskUpdate } from '../hooks/useKioskUpdate';
+import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
 import { useScreenSleep } from '../hooks/useScreenSleep';
 import { extractPalette } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
@@ -101,6 +102,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const canPollQueue = isAuthenticated;
   const spotifyRetryAt = useSpotifyCooldown();
   const waitingForSpotify = spotifyRetryAt > 0;
+  const { enabled: pollEnabled, quotaExceeded } = useSpotifyPolling();
 
   const [queue, setQueue] = useState<Track[]>([]);
   const [queueStatus, setQueueStatus] = useState<QueueStatus>(canPollQueue ? 'loading' : 'idle');
@@ -220,7 +222,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   useEffect(() => {
     // The queue is not shown while the screen sleeps; waking it reads the queue again at once.
-    if (!canPollQueue || sleep.asleep) return;
+    if (quotaExceeded || !canPollQueue || sleep.asleep) return;
     let cancelled = false;
     // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
     const isCancelled = () => cancelled;
@@ -250,14 +252,24 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         delay = Math.max(Math.min(60_000, base * 2 ** ++failures), getSpotifyRetryDelay());
       }
       // Nothing playing means nothing moves through the queue; playing again or a new track reads it at once.
-      if (isPlaying && !isCancelled()) timer = setTimeout(() => void poll(), delay);
+      if (isPlaying && pollEnabled && !isCancelled()) timer = setTimeout(() => void poll(), delay);
     };
     void poll();
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [currentTrack?.id, canPollQueue, sleep.asleep, sdkActive, isPlaying, queueVersion, queueRequestVersion]);
+  }, [
+    currentTrack?.id,
+    canPollQueue,
+    sleep.asleep,
+    quotaExceeded,
+    pollEnabled,
+    sdkActive,
+    isPlaying,
+    queueVersion,
+    queueRequestVersion
+  ]);
 
   const artUrl = currentTrack?.album?.images?.[0]?.url;
   useEffect(() => {
@@ -288,7 +300,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   else if (!isAuthenticated) notice = { kind: 'signed-out' };
   else if (restricted) notice = { kind: 'restricted' };
   else if (problem?.recovery === 'sign-in') notice = { kind: 'problem', problem };
-  else if (waitingForSpotify) {
+  else if (quotaExceeded) {
+    notice = { kind: 'problem', problem: { message: 'Spotify quota exceeded.', recovery: 'quota' } };
+  } else if (waitingForSpotify) {
     notice = {
       kind: 'problem',
       problem: { message: playerError || 'Spotify asked this app to wait before retrying.', recovery: 'wait' }
@@ -340,6 +354,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     }[notice.kind];
   } else sessionStatus = `${isPlaying ? 'Playing' : 'Paused'} on ${playbackState?.device?.name || 'Spotify'}`;
   if (notice?.kind === 'problem' && notice.problem.recovery === 'wait') sessionStatus = 'Waiting for Spotify';
+  if (notice?.kind === 'problem' && notice.problem.recovery === 'quota') sessionStatus = 'Spotify quota used up';
   let statusDotClass = '';
   if (notice?.kind === 'problem' && notice.problem.recovery !== 'wait') statusDotClass = 'status-dot-error';
   else if (notice || !isPlaying) statusDotClass = 'status-dot-idle';
