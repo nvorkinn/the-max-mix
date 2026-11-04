@@ -10,7 +10,14 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   forbidOnly: !!process.env['CI'],
-  reporter: process.env['CI'] ? [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]] : 'list',
+  reporter: process.env['CI']
+    ? [
+        ['list'],
+        ['html', { open: 'never', outputFolder: 'playwright-report' }],
+        // Read by the pull request comment (scripts/screenshot-comment.ts) to say which tests are about the change.
+        ['json', { outputFile: 'test-results/results.json' }]
+      ]
+    : 'list',
   outputDir: 'test-results',
   // One baseline per screenshot, not per OS: they are only compared on the CI browser (see visual.spec.ts).
   snapshotPathTemplate: '{testDir}/screenshots/{testFileName}/{arg}{ext}',
