@@ -17,7 +17,7 @@ describe('theme colour setting', () => {
   });
 
   it('ignores a stored value that is not one of the choices', () => {
-    localStorage.setItem('maxmix.themeColour', 'pink');
+    localStorage.setItem('maxmix.themeColour', 'rainbow');
     expect(loadThemeColour()).toBe('forest');
   });
 
