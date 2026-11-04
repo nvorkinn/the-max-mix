@@ -16,7 +16,7 @@ import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
 import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
-import { getThemeColour, setThemeColour } from '../utils/themeColour';
+import { loadThemeColour, saveThemeColour } from '../utils/themeColour';
 import type { ThemeColour } from '../utils/themeColour';
 import type { Track } from '../types';
 import OfflineBanner from './OfflineBanner';
@@ -164,10 +164,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     setScreenSleepMinutes(minutes);
     setScreenSleep(minutes);
   };
-  const [themeColour, setThemeColourState] = useState(getThemeColour);
+  const [themeColour, setThemeColour] = useState(loadThemeColour);
   const changeThemeColour = (colour: ThemeColour) => {
-    setThemeColourState(colour);
     setThemeColour(colour);
+    saveThemeColour(colour);
   };
   const sleep = useScreenSleep({
     enabled: onKiosk,

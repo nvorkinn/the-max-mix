@@ -19,7 +19,7 @@ function isChoice(value: string): value is ThemeColour {
   return THEME_COLOURS.some(colour => colour.id === value);
 }
 
-export function getThemeColour(): ThemeColour {
+export function loadThemeColour(): ThemeColour {
   try {
     const stored = localStorage.getItem(THEME_COLOUR_KEY);
     return stored !== null && isChoice(stored) ? stored : DEFAULT_THEME_COLOUR;
@@ -28,7 +28,7 @@ export function getThemeColour(): ThemeColour {
   }
 }
 
-export function setThemeColour(colour: ThemeColour): void {
+export function saveThemeColour(colour: ThemeColour): void {
   try {
     if (colour === DEFAULT_THEME_COLOUR) localStorage.removeItem(THEME_COLOUR_KEY);
     else localStorage.setItem(THEME_COLOUR_KEY, colour);
