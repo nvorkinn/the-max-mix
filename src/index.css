@@ -121,8 +121,10 @@
   --accent: #111;
   --ink: #111;
 }
+/* Hot pink is light, so the play button gets a dark icon; the title keeps a dark pink ink to stay readable. */
 .tablet-container[data-colour='pink'] {
-  --accent: #c2185b;
+  --accent: #ff69b4;
+  --accent-ink: #3b1a2a;
   --ink: #3b1a2a;
 }
 /* Yellow is a deep mustard so it stays readable on the light page, with a dark icon on the play button. */

@@ -11,7 +11,7 @@ export const THEME_COLOURS = [
   { id: 'teal', label: 'Teal', swatch: '#155e63' },
   { id: 'plum', label: 'Plum', swatch: '#5b2a4e' },
   { id: 'terracotta', label: 'Terracotta', swatch: '#9a3f24' },
-  { id: 'pink', label: 'Pink', swatch: '#c2185b' },
+  { id: 'pink', label: 'Pink', swatch: '#ff69b4' },
   { id: 'yellow', label: 'Yellow', swatch: '#e0b020' },
   { id: 'black', label: 'Black', swatch: '#111' }
 ] as const;
