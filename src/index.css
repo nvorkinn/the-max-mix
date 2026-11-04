@@ -117,6 +117,22 @@
   --accent: #9a3f24;
   --ink: #3a221a;
 }
+.tablet-container[data-colour='black'] {
+  --accent: #111;
+  --ink: #111;
+}
+/* Hot pink is light, so the play button gets a dark icon; the title keeps a dark pink ink to stay readable. */
+.tablet-container[data-colour='pink'] {
+  --accent: #ff69b4;
+  --accent-ink: #3b1a2a;
+  --ink: #3b1a2a;
+}
+/* Yellow is a deep mustard so it stays readable on the light page, with a dark icon on the play button. */
+.tablet-container[data-colour='yellow'] {
+  --accent: #a67c00;
+  --accent-ink: #1f1a05;
+  --ink: #3a3010;
+}
 .tablet-container[data-colour] {
   --accent-soft: color-mix(in srgb, var(--accent) 5%, transparent);
   --focus: var(--accent);
