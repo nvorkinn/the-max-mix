@@ -63,7 +63,7 @@ Wi-Fi panel. `--no-poweroff` starts the kiosk again instead, for trying it out.
    not, it runs `/usr/local/bin/wifi-panel` until it connects. The panel offers Cancel only when a connection already
    works.
 4. `kiosk-pull.timer` runs `ansible-pull` three minutes after boot and then every six hours (or at once from the app's
-   Update now button, which also follows the pull's journal), applying the playbook only when there is a new release. A failed run only logs
+   Update now button, which also follows the pull's journal), applying the playbook only when there is a new release, and its slow part only when the files it installs changed. A failed run only logs
    (`journalctl -u kiosk-pull`). A pull that changed kiosk files makes `kiosk-restart.timer` restart the kiosk at 04:30.
 5. The screen sleeps. The app keeps it on while music plays and for the idle minutes chosen in its settings (5 by
    default), by holding a screen wake lock that Chromium passes to Cage. After that, the app shows a black sleep screen
@@ -90,8 +90,8 @@ The playbook also sets, among other things:
 
 The `admin` account has no password, so the only way in is SSH with a key: `ssh admin@the-max-mix.local`. Its keys are
 the public keys of the GitHub account in `kiosk_admin_github_user` (`https://github.com/nvorkinn.keys`), which a
-pull fetches again when the keys on the Pi are over a day old (`kiosk_admin_keys_max_age_hours`), so add your key on GitHub
-(Settings > SSH and GPG keys) and it reaches the Pi at the first pull after that.
+`kiosk-ssh-keys.timer` fetches again every 6 hours (`kiosk_admin_keys_interval`), whether or not a release came out, so add
+or remove a key on GitHub (Settings > SSH and GPG keys) and it reaches the Pi within that time (`journalctl -u kiosk-ssh-keys`).
 `admin` uses `sudo` without a password. Password and root logins are off (`/etc/ssh/sshd_config.d/10-kiosk.conf`). Set
 `kiosk_ssh_enabled: false` to turn SSH off.
 

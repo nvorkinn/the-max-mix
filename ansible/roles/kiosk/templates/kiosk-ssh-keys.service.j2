@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+# Fetches the admin user's SSH keys from GitHub (kiosk_admin_github_user). A failure only shows up in the journal
+# (journalctl -u kiosk-ssh-keys): the keys that are there stay, and the timer tries again.
+[Unit]
+Description=Fetch the admin user's SSH keys from GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/kiosk-ssh-keys {{ kiosk_admin_github_user }} {{ kiosk_admin_user }}
+TimeoutStartSec=2min

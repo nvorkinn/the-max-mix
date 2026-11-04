@@ -4,7 +4,8 @@
 # reflashing it. A failure only shows up in the journal (journalctl -u kiosk-pull); nothing depends on this unit, so the
 # kiosk keeps running, and the timer tries again later. It never restarts the kiosk: see kiosk-restart.timer.
 # --only-if-changed skips the playbook when the checkout has not moved since the last run, so most runs are only a look at
-# GitHub and a git fetch.
+# GitHub and a git fetch. When it has moved, the playbook applies its slow part only if the files it installs changed
+# (ansible/roles/kiosk/tasks/main.yml).
 [Unit]
 Description=Update THE MAX MIX kiosk with ansible-pull
 After=network-online.target

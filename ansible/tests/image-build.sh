@@ -24,6 +24,8 @@ echo 'kiosk:throwaway' | chpasswd
 
 cp -a /repo /work
 cd /work
+# cp -a keeps the runner's owner, and git refuses to read a repository another user owns (the Pi's checkout is root's own).
+git config --global --add safe.directory /work
 
 # The Raspberry Pi archive's packages are not in Debian, and there is no kernel to build an initramfs for.
 play() {
@@ -33,7 +35,12 @@ play() {
 # A unit an earlier version of the playbook installed: a Pi that has it must lose it.
 echo '[Unit]' > /etc/systemd/system/kiosk-update-now.service
 play /tmp/first-run.log
+# A run that finds nothing changed skips the slow part, so the idempotency check below needs the first run's record of what
+# it applied removed. The third run checks that skip.
+cp /var/lib/the-max-mix/applied.sha1 /tmp/applied.sha1
+rm /var/lib/the-max-mix/applied.sha1
 play /tmp/second-run.log
+play /tmp/third-run.log
 
 fail=0
 check() {
@@ -49,7 +56,8 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/wifi-panel \
   /etc/systemd/system/kiosk.service /etc/systemd/system/kiosk-pull.service /etc/systemd/system/kiosk-pull.timer \
   /etc/systemd/system/kiosk-restart.timer /etc/chromium/policies/managed/kiosk.json \
   /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules /etc/polkit-1/rules.d/50-kiosk-power.rules \
-  /usr/local/sbin/kiosk-handover /usr/local/bin/kiosk-display \
+  /usr/local/sbin/kiosk-handover /usr/local/bin/kiosk-display /usr/local/sbin/kiosk-ssh-keys \
+  /etc/systemd/system/kiosk-ssh-keys.service /etc/systemd/system/kiosk-ssh-keys.timer \
   /etc/systemd/system/kiosk-widevine.path \
   /etc/systemd/system/kiosk-widevine.service /etc/NetworkManager/conf.d/20-connectivity.conf \
   /etc/tmpfiles.d/kiosk.conf /usr/share/plymouth/themes/the-max-mix/the-max-mix.plymouth \
@@ -62,7 +70,7 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/wifi-panel \
   check test -e "$file"
 done
 for unit in kiosk.service kiosk-bluetooth-pair.service bluetooth.service avahi-daemon.service kiosk-pull.timer \
-  kiosk-restart.timer ssh.service kiosk-widevine.path; do
+  kiosk-restart.timer kiosk-ssh-keys.timer ssh.service kiosk-widevine.path; do
   check systemctl is-enabled --quiet "$unit"
   # Enabled only: nothing is started with kiosk_enable_only.
   if systemctl is-active --quiet "$unit"; then
@@ -117,6 +125,16 @@ second_run_skips() {
   grep -A1 "TASK \\[kiosk : $1\\]" /tmp/second-run.log | grep -q '^skipping'
 }
 check test -s /var/lib/the-max-mix/packages.sha1
+# The second run applied everything again and recorded the same ids as the first; the third found nothing to apply: only
+# kiosk.service was looked at, nothing changed and the slow tasks did not even run.
+check test -s /var/lib/the-max-mix/applied.sha1
+check cmp /tmp/applied.sha1 /var/lib/the-max-mix/applied.sha1
+check grep -q 'TASK \[kiosk : Install the kiosk service\]' /tmp/third-run.log
+if grep -q 'TASK \[kiosk : Install the packages' /tmp/third-run.log; then
+  echo "FAILED: the third run did not skip the slow part" >&2
+  fail=1
+fi
+check grep -Eq 'changed=0 ' /tmp/third-run.log
 check second_run_skips 'Install the packages'
 check second_run_skips 'Install Node.js'
 check test -L /usr/share/icons/blank/cursors/not-allowed

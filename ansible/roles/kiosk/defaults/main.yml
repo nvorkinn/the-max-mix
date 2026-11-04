@@ -56,11 +56,16 @@ kiosk_cmdline_params:
 kiosk_ssh_enabled: true
 # The maintenance account. It has no password, so it can only log in over SSH with a key; it uses sudo without one.
 kiosk_admin_user: admin
-# The admin account's SSH keys are this GitHub account's public keys (https://github.com/<name>.keys), fetched again at the
-# first playbook run that finds them older than kiosk_admin_keys_max_age_hours, so a key added or removed on GitHub reaches
-# the Pi within that time after its next pull. Empty for no keys.
+# The admin account's SSH keys are this GitHub account's public keys (https://github.com/<name>.keys). kiosk-ssh-keys.timer
+# fetches them this long after boot and then this long after each fetch finished, whether or not a release came out, so a
+# key added or removed on GitHub reaches the Pi within about the interval. The playbook fetches them once when the account
+# has none. Empty for no keys (and no timer).
 kiosk_admin_github_user: nvorkinn
-kiosk_admin_keys_max_age_hours: 24
+kiosk_admin_keys_boot_delay: 2min
+kiosk_admin_keys_interval: 6h
+# Where the playbook records which version of the files it installs (git's tree ids) it last applied completely; when they
+# are unchanged the slow part is skipped (tasks/main.yml).
+kiosk_applied_stamp: /var/lib/the-max-mix/applied.sha1
 # Where the playbook records which packages (and Node.js) it last installed, so that it skips that slow step when nothing
 # changed.
 kiosk_packages_stamp: /var/lib/the-max-mix/packages.sha1
@@ -165,7 +170,8 @@ kiosk_pull_repo: https://github.com/nvorkinn/the-max-mix.git
 kiosk_pull_ref: latest
 kiosk_pull_dir: /var/lib/the-max-mix/ansible-pull
 # First run this long after boot, then again this long after each run finishes, plus up to the random delay. A run only
-# fetches the ref and applies the playbook when it has moved (ansible-pull --only-if-changed). The app's Update now
+# fetches the ref and applies the playbook when it has moved (ansible-pull --only-if-changed), and the playbook then applies
+# its slow part only when the files it installs have changed (tasks/main.yml). The app's Update now
 # button starts the same pull at once (through the kiosk-audio service), so the timer only catches what nobody asked for.
 kiosk_pull_boot_delay: 3min
 kiosk_pull_interval: 6h

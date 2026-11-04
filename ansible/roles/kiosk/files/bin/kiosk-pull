@@ -3,7 +3,8 @@
 # Applies the kiosk playbook (ansible/local.yml) from REPO_URL with ansible-pull. REF "latest" means the repository's
 # latest GitHub release: the tag github.com/<owner>/<repo>/releases/latest redirects to, so no API call, token or JSON is
 # involved. Any other REF (a tag such as v1.12.0, or a branch for testing) is pulled as it is. Run by kiosk-pull.service
-# (with --only-if-changed) and, on the first boot, by cloud-init's kiosk-first-pull.
+# (with --only-if-changed) and, on the first boot, by cloud-init's kiosk-first-pull. The playbook itself skips what has not
+# changed.
 set -euo pipefail
 
 if (($# < 3)); then
