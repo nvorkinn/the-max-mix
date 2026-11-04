@@ -123,3 +123,13 @@ export async function fakeSpotify(page: Page) {
   }, getClientId());
   return { commands, saved };
 }
+
+/** Counts the app's reads of the playback state (GET /v1/me/player), which is what its polling is. */
+export function countPlaybackReads(page: Page) {
+  let reads = 0;
+  page.on('request', request => {
+    const { pathname } = new URL(request.url());
+    if (pathname === '/v1/me/player' && request.method() === 'GET') reads++;
+  });
+  return () => reads;
+}
