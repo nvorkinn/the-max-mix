@@ -130,6 +130,7 @@ nocolor
 nodesource
 nodistro
 noerrdialogs
+nojekyll
 nologo
 nonexistent
 nonint
