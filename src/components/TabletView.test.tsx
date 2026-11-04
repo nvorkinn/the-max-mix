@@ -255,21 +255,6 @@ describe('TabletView', () => {
     expect((container.firstChild as HTMLElement).style.getPropertyValue('--ambient-primary')).toBe('red');
   });
 
-  it.each([
-    [
-      'loading',
-      { isLoading: true, isReady: false, isAuthenticated: true, playbackState: null },
-      'Connecting to Spotify...'
-    ],
-    ['no device', { isReady: false, playbackState: null }, 'Choose a Spotify speaker'],
-    ['signed out', { isReady: false, isAuthenticated: false, playbackState: null }, 'Spotify not connected']
-  ])('describes the %s session state', async (_, overrides, label) => {
-    setPlayer(overrides);
-    render(<TabletView />);
-    await flush();
-    expect(screen.getAllByRole('status')[0]).toHaveTextContent(label);
-  });
-
   it('prompts to sign in and does not poll the queue when unauthenticated', async () => {
     setPlayer({ isAuthenticated: false, isReady: false, playbackState: null });
     render(<TabletView />);
@@ -303,9 +288,6 @@ describe('TabletView', () => {
     const panel = screen.getByRole('region', { name: 'Now playing' });
     expect(within(panel).getAllByText('--:--')).toHaveLength(2);
     expect(within(panel).queryByText('3:00')).not.toBeInTheDocument();
-    for (const dot of document.querySelectorAll('.session-status .status-dot')) {
-      expect(dot).toHaveClass('status-dot-idle');
-    }
   });
 
   it('offers a speaker chooser without transferring playback when no device is active', async () => {
@@ -335,7 +317,6 @@ describe('TabletView', () => {
     await flush();
     expect(screen.getByRole('alert')).toHaveTextContent('No internet connection');
     expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
-    expect(document.querySelector('.session-status')).toHaveTextContent('Offline');
   });
 
   it.each([

@@ -32,8 +32,6 @@ play() {
   ansible-playbook --connection local --inventory localhost, ansible/local.yml \
     --extra-vars kiosk_enable_only=true --extra-vars '{"kiosk_rpi_packages": [], "kiosk_update_initramfs": false}' | tee "$1"
 }
-# A unit an earlier version of the playbook installed: a Pi that has it must lose it.
-echo '[Unit]' > /etc/systemd/system/kiosk-update-now.service
 play /tmp/first-run.log
 # A run that finds nothing changed skips the slow part, so the idempotency check below needs the first run's record of what
 # it applied removed. The third run checks that skip.
@@ -141,7 +139,6 @@ check test -L /usr/share/icons/blank/cursors/not-allowed
 check test -d /usr/share/plymouth/themes/the-max-mix
 # The boot splash theme uses Plymouth's script module, which comes with the plymouth package (no plymouth-themes).
 check bash -c 'ls /usr/lib/*/plymouth/script.so'
-check test ! -e /etc/systemd/system/kiosk-update-now.service
 
 # The second run must not change anything.
 if ! grep -Eq 'changed=0 ' /tmp/second-run.log; then

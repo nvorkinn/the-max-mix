@@ -22,7 +22,7 @@ test.describe('The app as a whole', { tag: '@app' }, () => {
 
     await page.goto('/');
     await expect(page.getByRole('heading', { name: /THE MAX MIX/ })).toBeVisible();
-    await expect(page.getByRole('status').filter({ hasText: 'Playing on Test speaker' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Speakers: Playing on Test speaker' })).toBeVisible();
     expect(errors).toEqual([]);
   });
 

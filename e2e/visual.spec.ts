@@ -7,6 +7,7 @@ import { fakeSpotify } from './fake-spotify.ts';
 test.skip(!process.env['CI'] && !process.env['E2E_VISUAL'], 'Screenshots are only stable on the CI browser.');
 
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+
 const SHOT = { animations: 'disabled', maxDiffPixelRatio: 0.002 } as const;
 
 async function scrollToBottom(dialog: Locator) {

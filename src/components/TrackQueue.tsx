@@ -116,7 +116,6 @@ export default function TrackQueue({
             const title = track.name || track.title;
             const albumArt = track.album?.images?.[0]?.url || track.albumArt;
             const artist = track.artists ? track.artists.map(a => a.name).join(', ') : track.artist || 'Unknown artist';
-            const seconds = Math.floor((track.duration_ms || 0) / 1000);
 
             return (
               <div key={keys[idx]} role="listitem" className={`queue-track ${idx === 0 ? 'is-next' : ''}`}>
@@ -136,9 +135,6 @@ export default function TrackQueue({
                     </div>
                     <p title={artist}>{artist}</p>
                   </div>
-                  <span className="queue-duration">
-                    {seconds > 0 ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '--:--'}
-                  </span>
                 </button>
               </div>
             );

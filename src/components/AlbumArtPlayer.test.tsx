@@ -264,16 +264,14 @@ describe('TrackQueue', () => {
   ];
   const setupQueue = (props = {}) => render(<TrackQueue queue={tracks} {...props} />);
 
-  it('renders tracks and durations', () => {
+  it('renders tracks', () => {
     setupQueue();
     const items = screen.getAllByRole('listitem');
     expect(items).toHaveLength(3);
     expect(items[0]).toHaveTextContent('One');
-    expect(items[0]).toHaveTextContent('2:05');
     expect(items[0]).toHaveTextContent('NEXT');
     expect(items[1]).toHaveTextContent('Y');
     expect(items[2]).toHaveTextContent('Unknown artist');
-    expect(items[2]).toHaveTextContent('--:--');
   });
 
   it('shows an empty state', () => {

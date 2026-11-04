@@ -172,24 +172,6 @@
 .brand-dot {
   color: var(--accent);
 }
-.session-status {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--muted);
-  font-size: 12px;
-}
-.status-dot {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
-  flex-shrink: 0;
-}
-.status-dot-idle {
-  background: #d1b974;
-}
 .header-actions {
   display: flex;
   align-items: center;
@@ -843,12 +825,6 @@
   font-weight: 650;
   flex-shrink: 0;
 }
-.queue-duration {
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-  margin: 0 5px;
-}
 .queue-empty {
   flex: 1;
   min-height: 130px;
@@ -1078,33 +1054,6 @@ input:disabled {
   opacity: 0.4;
 }
 
-@media (width <= 1050px) {
-  .session-status {
-    display: none;
-  }
-  .queue-duration {
-    display: none;
-  }
-}
-
-/* A narrow window has less room for the seven transport buttons beside the volume, so they close up a little. */
-@media (width <= 900px) {
-  .transport-buttons {
-    gap: 8px;
-  }
-  .transport-skip {
-    width: 48px;
-    height: 48px;
-  }
-  .transport-play {
-    width: 60px;
-    height: 60px;
-  }
-  .listening-room:not(.is-setup) .volume-control {
-    width: 160px;
-  }
-}
-
 @media (height <= 640px) {
   .app-header {
     min-height: 66px;
@@ -1132,9 +1081,6 @@ input:disabled {
 }
 
 /* The technical debug console stays dark regardless of appearance. */
-.status-dot-error {
-  background: #f87171;
-}
 .debug-console {
   --focus: #b9d879;
   height: calc(100dvh - 32px);
