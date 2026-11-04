@@ -42,4 +42,6 @@
     owner: root
     group: root
     mode: '0644'
+  # Bookkeeping, not a change to the Pi: a run that applied nothing new must report changed=0 (the playbook test relies on it).
+  changed_when: false
   when: kiosk_trees_id != '' and kiosk_trees_id != kiosk_trees_applied
