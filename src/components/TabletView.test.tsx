@@ -617,6 +617,63 @@ describe('TabletView', () => {
       expect(player.current.setSlowPolling).toHaveBeenLastCalledWith(false);
     });
 
+    describe('when a newer version is out', () => {
+      const fetchMock = vi.fn();
+      beforeEach(() => {
+        localStorage.setItem('maxmix.piVersion', 'v1.12.0 5a39e9a');
+        fetchMock.mockReset();
+        fetchMock.mockImplementation((url: string) => {
+          const fromGitHub = url.startsWith('https://api.github.com');
+          return Promise.resolve(
+            Response.json(fromGitHub ? { tag_name: 'v1.13.0' } : { state: 'idle', lines: [], total: 0 })
+          );
+        });
+        vi.stubGlobal('fetch', fetchMock);
+      });
+      afterEach(() => vi.unstubAllGlobals());
+
+      it('asks once, and Not now keeps it quiet', async () => {
+        const { unmount } = render(<TabletView />);
+        expect(await screen.findByRole('dialog', { name: 'Update available' })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+        expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
+        unmount();
+        render(<TabletView />);
+        await flush();
+        expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
+      });
+
+      it('Update now asks the kiosk and opens the console in place of the tablet', async () => {
+        render(<TabletView />);
+        await screen.findByRole('dialog', { name: 'Update available' });
+        fireEvent.click(screen.getByRole('button', { name: 'Update now' }));
+        expect(await screen.findByRole('dialog', { name: 'Updating the Pi' })).toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
+        expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/power/update', { method: 'POST' });
+      });
+
+      it('does not ask while the screen sleeps, but does once it wakes', async () => {
+        render(<TabletView />);
+        await screen.findByRole('dialog', { name: 'Update available' });
+        // A dialog would show over the black sleep screen, so the question waits for the screen to wake.
+        fireEvent.click(screen.getByRole('button', { name: 'Put the screen to sleep' }));
+        expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Wake the screen' }));
+        expect(await screen.findByRole('dialog', { name: 'Update available' })).toBeInTheDocument();
+      });
+
+      it('starting the update from Settings closes Settings and opens the console', async () => {
+        render(<TabletView />);
+        await screen.findByRole('dialog', { name: 'Update available' });
+        fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Update now' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Tap again to update' }));
+        expect(await screen.findByRole('dialog', { name: 'Updating the Pi' })).toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { name: 'Settings' })).not.toBeInTheDocument();
+      });
+    });
+
     const openSpeakers = async () => {
       render(<TabletView />);
       await flush();

@@ -3,6 +3,7 @@ import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, 
 import { AudioLines, Clock, Moon, Settings } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
+import { useKioskUpdate } from '../hooks/useKioskUpdate';
 import { useScreenSleep } from '../hooks/useScreenSleep';
 import { extractPalette } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
@@ -26,6 +27,8 @@ import TrackQueue, { type QueueStatus } from './TrackQueue';
 import PlaybackBanner, { type PlaybackNoticeState, type BannerNotice } from './PlaybackNotice';
 import LyricsPanel from './LyricsPanel';
 import SettingsModal from './SettingsModal';
+import UpdateConsole from './UpdateConsole';
+import UpdatePrompt from './UpdatePrompt';
 import SpeakerDrawer from './SpeakerDrawer';
 import DebugConsole from './DebugConsole';
 import SleepScreen from './SleepScreen';
@@ -170,6 +173,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     setThemeColour(colour);
     saveThemeColour(colour);
   };
+  const kioskUpdate = useKioskUpdate(onKiosk);
   const sleep = useScreenSleep({
     enabled: onKiosk,
     keepAwake: isPlaying,
@@ -506,7 +510,19 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         onScreenSleepChange={changeScreenSleep}
         themeColour={themeColour}
         onThemeColourChange={changeThemeColour}
+        kioskUpdate={kioskUpdate}
       />
+
+      {/* A newer version is asked about once, when nothing else is open and the screen is awake. */}
+      {kioskUpdate.prompting &&
+        kioskUpdate.newer &&
+        !sleep.asleep &&
+        !isSettingsOpen &&
+        !isSpeakerModalOpen &&
+        !isDebugOpen && (
+          <UpdatePrompt newer={kioskUpdate.newer} onUpdate={kioskUpdate.start} onLater={kioskUpdate.dismissPrompt} />
+        )}
+      <UpdateConsole update={kioskUpdate} />
 
       {sleep.asleep && <SleepScreen onWake={sleep.wake} />}
     </div>
