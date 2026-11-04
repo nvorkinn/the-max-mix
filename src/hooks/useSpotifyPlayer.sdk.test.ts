@@ -159,6 +159,19 @@ describe('useSpotifyPlayer browser playback', () => {
     expect(result.current.playbackState).toMatchObject({ shuffle_state: false, repeat_state: 'context' });
   });
 
+  it('takes the context, with any name, from the SDK state', async () => {
+    const { result, emit } = await ready();
+    const context = { uri: 'spotify:playlist:p', metadata: { name: 'Road trip' } };
+    emit('player_state_changed', { ...sdkState('t1'), context });
+    expect(result.current.playbackState?.context).toEqual({ uri: 'spotify:playlist:p', name: 'Road trip' });
+    emit('player_state_changed', { ...sdkState('t1'), context: { uri: 'spotify:album:a', metadata: {} } });
+    expect(result.current.playbackState?.context).toEqual({ uri: 'spotify:album:a' });
+    emit('player_state_changed', sdkState('t1'));
+    expect(result.current.playbackState?.context).toEqual({ uri: 'spotify:album:a' });
+    emit('player_state_changed', { ...sdkState('t1'), context: { uri: null, metadata: null } });
+    expect(result.current.playbackState?.context).toBeUndefined();
+  });
+
   it('explains an autoplay failure and clears the message once music plays', async () => {
     const { result, emit } = await ready();
     emit('autoplay_failed');

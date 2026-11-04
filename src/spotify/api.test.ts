@@ -445,4 +445,35 @@ describe('spotify/api', () => {
       expect(error).toBeInstanceOf(Error);
     });
   });
+  describe('getContextName', () => {
+    it('reads a playlist name, asking for the name alone', async () => {
+      fetchMock.mockResolvedValue(json({ name: 'Friday Mix' }));
+      expect(await api.getContextName('spotify:playlist:abc123')).toBe('Friday Mix');
+      expect(callOf(fetchMock).url).toBe('https://api.spotify.com/v1/playlists/abc123?fields=name');
+    });
+
+    it('reads album, artist and show names', async () => {
+      fetchMock.mockImplementation(() => Promise.resolve(json({ name: 'Named' })));
+      expect(await api.getContextName('spotify:album:a1')).toBe('Named');
+      expect(await api.getContextName('spotify:artist:b2')).toBe('Named');
+      expect(await api.getContextName('spotify:show:c3')).toBe('Named');
+      expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+        'https://api.spotify.com/v1/albums/a1',
+        'https://api.spotify.com/v1/artists/b2',
+        'https://api.spotify.com/v1/shows/c3'
+      ]);
+    });
+
+    it('is null for a reply without a name', async () => {
+      fetchMock.mockResolvedValue(json({ name: 3 }));
+      expect(await api.getContextName('spotify:playlist:abc')).toBeNull();
+    });
+
+    it('asks nothing for a URI it cannot name', async () => {
+      for (const uri of ['spotify:user:me:collection', 'spotify:playlist:../me', 'other:album:a', 'spotify:album:a:b']) {
+        expect(await api.getContextName(uri)).toBeNull();
+      }
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
 });

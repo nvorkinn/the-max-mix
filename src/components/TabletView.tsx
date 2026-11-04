@@ -5,6 +5,7 @@ import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useKioskUpdate } from '../hooks/useKioskUpdate';
 import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
+import { usePlayingFrom } from '../hooks/usePlayingFrom';
 import { useScreenSleep } from '../hooks/useScreenSleep';
 import { extractPalette } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
@@ -164,6 +165,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   const isPlaying = Boolean(playbackState?.is_playing);
   const currentTrack = playbackState?.item;
+  const playingFrom = usePlayingFrom(playbackState);
 
   // The kiosk's screen stays on while music plays and sleeps after the chosen idle minutes otherwise.
   const [screenSleepMinutes, setScreenSleepMinutes] = useState(getScreenSleep);
@@ -433,6 +435,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 speakerLabel={speakerLabel}
                 speakersOpen={isSpeakerModalOpen}
                 onOpenSpeakers={() => setIsSpeakerModalOpen(true)}
+                playingFrom={playingFrom}
                 lyricsOpen={showLyrics}
                 onToggleLyrics={() => toggleLyrics(!showLyrics)}
                 lyrics={

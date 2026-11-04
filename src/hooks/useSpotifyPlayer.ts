@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import type { PlaybackState, RepeatMode, SdkPlaybackState, SpotifyPlayer, Track } from '../types';
+import type { PlaybackContext, PlaybackState, RepeatMode, SdkPlaybackState, SpotifyPlayer, Track } from '../types';
 import * as spotify from '../spotify/api';
 import { getAccessToken, isSignedIn } from '../spotify/auth';
 import {
@@ -136,6 +136,27 @@ function withPlaying(state: PlaybackState, playing: boolean): PlaybackState {
     Object.entries(state.actions?.disallows ?? {}).filter(([action]) => action !== 'pausing' && action !== 'resuming')
   );
   return { ...state, is_playing: playing, actions: { ...state.actions, disallows } };
+}
+
+/** The context an SDK state plays from: undefined when it says nothing, null when the track plays on its own. */
+function sdkContext(state: NonNullable<SdkPlaybackState>): PlaybackContext | null | undefined {
+  if (state.context === undefined) return undefined;
+  const uri = state.context?.uri;
+  if (!uri) return null;
+  const metadata = state.context?.metadata;
+  const name = [metadata?.name, metadata?.context_description].find(
+    (value): value is string => typeof value === 'string' && value !== ''
+  );
+  return name ? { uri, name } : { uri };
+}
+
+/** `state` playing from `context` (or from nothing for null); undefined leaves it as it was. */
+function withContext(state: PlaybackState, context: PlaybackContext | null | undefined): PlaybackState {
+  if (context === undefined) return state;
+  const next = { ...state };
+  if (context) next.context = context;
+  else delete next.context;
+  return next;
 }
 
 function nextTracksKey(state: SdkPlaybackState): string {
@@ -347,8 +368,9 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       const track: Track | undefined = state.track_window?.current_track;
       const trackId = track?.id ?? null;
       const repeat = state.repeat_mode === undefined ? undefined : SDK_REPEAT_MODES[state.repeat_mode];
+      const context = sdkContext(state);
       setPlayback(current => ({
-        ...withPlaying(current ?? {}, !state.paused),
+        ...withContext(withPlaying(current ?? {}, !state.paused), context),
         progress_ms: state.position,
         ...(state.duration !== undefined && { duration: state.duration }),
         ...(state.shuffle !== undefined && { shuffle_state: state.shuffle }),

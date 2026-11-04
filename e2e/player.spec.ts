@@ -18,6 +18,7 @@ test.describe('Player', { tag: '@player' }, () => {
     await page.goto('/');
     await expect(nowPlaying(page)).toContainText('One More Time');
     await expect(nowPlaying(page)).toContainText('Daft Punk');
+    await expect(nowPlaying(page)).toContainText('Playing from Friday Mix');
     await expect(upcoming(page)).toContainText('Starboy');
     await expect(upcoming(page)).toContainText('Levitating');
   });

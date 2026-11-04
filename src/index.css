@@ -539,6 +539,14 @@
   margin-top: 5px;
   overflow-wrap: anywhere;
 }
+.track-copy .track-context {
+  font-size: 13px;
+  margin-top: 3px;
+}
+.track-context b {
+  color: var(--ink);
+  font-weight: 650;
+}
 .player-controls {
   margin-top: auto;
   flex-shrink: 0;

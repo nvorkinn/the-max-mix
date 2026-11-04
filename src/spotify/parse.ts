@@ -1,7 +1,7 @@
 // Turns the untrusted JSON that Spotify (and the browser's storage) hands back into the app's types. Each parser keeps
 // the fields it knows when they have the right type and drops the rest, so a malformed reply degrades to missing data
 // instead of reaching the UI as a value of the wrong type.
-import type { PlaybackState, SpotifyDevice, Track } from '../types';
+import type { PlaybackContext, PlaybackState, SpotifyDevice, Track } from '../types';
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -32,7 +32,9 @@ export function parseTrack(value: unknown): Track | undefined {
   const durationMs = finite(value['duration_ms']);
   if (durationMs !== undefined) track.duration_ms = durationMs;
   if (isRecord(value['album'])) {
+    const albumName = text(value['album']['name']);
     track.album = {
+      ...(albumName !== undefined && { name: albumName }),
       images: parseAll(value['album']['images'], image => {
         if (!isRecord(image)) return;
         const url = text(image['url']);
@@ -89,6 +91,17 @@ const DISALLOWS = [
 ] as const;
 const REPEAT_MODES = ['off', 'context', 'track'] as const;
 
+/** The context playback runs through; Spotify sends null when a track plays on its own. */
+export function parseContext(value: unknown): PlaybackContext | undefined {
+  if (!isRecord(value)) return undefined;
+  const uri = text(value['uri']);
+  if (!uri) return undefined;
+  const context: PlaybackContext = { uri };
+  const type = text(value['type']);
+  if (type !== undefined) context.type = type;
+  return context;
+}
+
 export function parsePlaybackState(value: unknown): PlaybackState | null {
   if (!isRecord(value)) return null;
   const state: PlaybackState = {};
@@ -105,6 +118,8 @@ export function parsePlaybackState(value: unknown): PlaybackState | null {
   if (shuffle !== undefined) state.shuffle_state = shuffle;
   const repeat = REPEAT_MODES.find(mode => mode === value['repeat_state']);
   if (repeat) state.repeat_state = repeat;
+  const context = parseContext(value['context']);
+  if (context) state.context = context;
   if (isRecord(value['actions']) && isRecord(value['actions']['disallows'])) {
     const source = value['actions']['disallows'];
     const disallows: NonNullable<NonNullable<PlaybackState['actions']>['disallows']> = {};

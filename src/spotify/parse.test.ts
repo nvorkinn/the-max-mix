@@ -20,7 +20,7 @@ describe('spotify/parse', () => {
         albumArt: 'https://art/a.jpg',
         uri: 'spotify:track:a',
         duration_ms: 1000,
-        album: { images: [{ url: 'https://art/b.jpg' }] },
+        album: { name: 'Record', images: [{ url: 'https://art/b.jpg' }] },
         artists: [{ name: 'Singer' }],
         external_urls: { spotify: 'https://open.spotify.com/track/a' }
       };
@@ -114,6 +114,17 @@ describe('spotify/parse', () => {
         repeat_state: 'track'
       });
       expect(parsePlaybackState({ shuffle_state: 'yes', repeat_state: 'forever' })).toEqual({});
+    });
+
+    it('keeps the context playback runs through, and none for a track on its own', () => {
+      expect(parsePlaybackState({ context: { type: 'playlist', uri: 'spotify:playlist:p', href: 'x' } })).toEqual({
+        context: { type: 'playlist', uri: 'spotify:playlist:p' }
+      });
+      expect(parsePlaybackState({ context: { uri: 'spotify:album:a', type: 4 } })).toEqual({
+        context: { uri: 'spotify:album:a' }
+      });
+      expect(parsePlaybackState({ context: null })).toEqual({});
+      expect(parsePlaybackState({ context: { type: 'album' } })).toEqual({});
     });
 
     it('treats a null item (an ad) and an invalid device as missing', () => {

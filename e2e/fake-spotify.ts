@@ -11,8 +11,8 @@ const track = (id: string, name: string, artist: string, durationMs: number): Tr
 });
 
 /**
- * Signs the page in to a fake Spotify account that answers in memory: one track playing on a Spotify Connect speaker
- * and four queued. Play, pause, seek, next and previous change what it reports, like the real Web API does.
+ * Signs the page in to a fake Spotify account that answers in memory: one track playing from a playlist on a Spotify
+ * Connect speaker and four queued. Play, pause, seek, next and previous change what it reports, like the real Web API does.
  */
 export async function fakeSpotify(page: Page) {
   const playback = {
@@ -26,7 +26,8 @@ export async function fakeSpotify(page: Page) {
       supports_volume: true,
       volume_percent: 80
     },
-    item: track('track-1', 'One More Time', 'Daft Punk', 320_000)
+    item: track('track-1', 'One More Time', 'Daft Punk', 320_000),
+    context: { type: 'playlist', uri: 'spotify:playlist:friday' }
   } satisfies PlaybackState;
   const queue = [
     track('queue-1', 'Starboy', 'The Weeknd, Daft Punk', 230_000),
@@ -51,6 +52,9 @@ export async function fakeSpotify(page: Page) {
       }
       case 'GET /v1/me/player/queue': {
         return route.fulfill({ json: { currently_playing: playback.item, queue } });
+      }
+      case 'GET /v1/playlists/friday': {
+        return route.fulfill({ json: { name: 'Friday Mix' } });
       }
       case 'GET /v1/me/player/devices': {
         return route.fulfill({ json: { devices: [playback.device] } });

@@ -32,6 +32,8 @@ type AlbumArtPlayerProps = Readonly<PlayerControls> & {
   speakersOpen?: boolean;
   /** Makes the indicator a button that opens the speakers drawer. */
   onOpenSpeakers?: () => void;
+  /** The playlist, album or artist the music plays from, shown under the artist. */
+  playingFrom?: string | null | undefined;
 };
 
 /** Past this far into a song, Previous starts the song over instead of going to the one before it. */
@@ -57,7 +59,8 @@ export default function AlbumArtPlayer({
   onOpenSpeakers,
   lyrics,
   lyricsOpen = false,
-  onToggleLyrics
+  onToggleLyrics,
+  playingFrom
 }: AlbumArtPlayerProps) {
   // Local slider value, reset whenever the device reports a different volume (adjusted during render, not in an effect).
   const deviceVolume = playback?.device?.volume_percent ?? 0;
@@ -155,6 +158,11 @@ export default function AlbumArtPlayer({
         >
           <h2 title={title}>{title}</h2>
           {artist && <p title={artist}>{artist}</p>}
+          {hasTrack && playingFrom && (
+            <p className="track-context" title={`Playing from ${playingFrom}`}>
+              Playing from <b>{playingFrom}</b>
+            </p>
+          )}
         </div>
         {onToggleLike && (
           <button

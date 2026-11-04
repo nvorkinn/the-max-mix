@@ -27,6 +27,15 @@ function setup(props: Record<string, unknown> = {}) {
 }
 
 describe('AlbumArtPlayer', () => {
+  it('names what the music plays from, only while a track plays', () => {
+    setup({ playingFrom: 'Road trip' });
+    expect(screen.getByTitle('Playing from Road trip')).toHaveTextContent('Playing from Road trip');
+  });
+
+  it('leaves out the playing-from line without a name or a track', () => {
+    setup({ playingFrom: null });
+    expect(screen.queryByText(/Playing from/)).toBeNull();
+  });
   it('shows track metadata, times and the playing device', () => {
     setup();
     expect(screen.getByText('Kitchen')).toBeInTheDocument();

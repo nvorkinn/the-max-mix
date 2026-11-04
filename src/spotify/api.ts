@@ -159,3 +159,22 @@ export async function setTrackSaved(uri: string, saved: boolean): Promise<{ succ
   requireTrackUri(uri);
   return command(`/me/library?uris=${encodeURIComponent(uri)}`, saved ? 'PUT' : 'DELETE');
 }
+
+// Where the Web API describes each kind of context, by the kind its URI names (spotify:<kind>:<id>).
+const CONTEXT_PATHS: Readonly<Record<string, string>> = {
+  album: 'albums',
+  artist: 'artists',
+  playlist: 'playlists',
+  show: 'shows'
+};
+
+/** The name of the album, artist, playlist or show a context URI points to; null for any other URI. */
+export async function getContextName(uri: string): Promise<string | null> {
+  const [scheme, kind = '', id = '', ...rest] = uri.split(':');
+  const path = CONTEXT_PATHS[kind];
+  if (scheme !== 'spotify' || !path || rest.length > 0 || !/^[A-Za-z0-9]+$/.test(id)) return null;
+  // A playlist reply carries its tracks too; asking for the name alone keeps it small.
+  const reply = await spotifyFetch(`/${path}/${id}${kind === 'playlist' ? '?fields=name' : ''}`);
+  const name = isRecord(reply) ? reply['name'] : undefined;
+  return typeof name === 'string' && name ? name : null;
+}

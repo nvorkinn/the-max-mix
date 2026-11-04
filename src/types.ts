@@ -8,7 +8,7 @@ export interface Track {
   artist?: string;
   albumArt?: string;
   duration_ms?: number;
-  album?: { images?: { url?: string }[] };
+  album?: { name?: string; images?: { url?: string }[] };
   artists?: { name?: string }[];
   uri?: string;
   external_urls?: { spotify?: string };
@@ -26,6 +26,15 @@ export interface SpotifyDevice {
   supports_volume?: boolean;
 }
 
+/** The album, playlist, artist or Liked Songs that playback runs through. */
+export interface PlaybackContext {
+  uri: string;
+  /** Spotify's kind of context: album, playlist, artist, show, or collection (Liked Songs). */
+  type?: string;
+  /** Its name, when Spotify sent one (the SDK may; the Web API never does). */
+  name?: string;
+}
+
 /** Spotify's repeat setting: off, the whole album or playlist, or the one track. */
 export type RepeatMode = 'off' | 'context' | 'track';
 
@@ -40,6 +49,7 @@ export interface PlaybackState {
   duration?: number;
   shuffle_state?: boolean;
   repeat_state?: RepeatMode;
+  context?: PlaybackContext;
   actions?: {
     disallows?: {
       seeking?: boolean;
@@ -64,6 +74,8 @@ export type SdkPlaybackState = {
   shuffle?: boolean;
   /** 0 off, 1 the album or playlist, 2 the track. */
   repeat_mode?: number;
+  /** A null uri means the track plays on its own, not from an album or playlist. */
+  context?: { uri?: string | null; metadata?: { name?: unknown; context_description?: unknown } | null } | null;
   track_window?: { current_track?: Track; next_tracks?: { id?: string | null; uri?: string }[] };
 } | null;
 
