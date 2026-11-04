@@ -691,6 +691,31 @@ describe('TabletView', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
         expect(await screen.findByText(/v1\.14\.0 is out\. Tap Update now/)).toBeInTheDocument();
         expect(fetchMock.mock.calls.length).toBeGreaterThan(asked);
+        // The newer version is asked about at once, over the open Settings.
+        expect(screen.getByRole('dialog', { name: 'Update available' })).toBeInTheDocument();
+        expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
+      });
+
+      it('Update now in the popup over Settings closes Settings and opens the console; Not now leaves Settings open', async () => {
+        render(<TabletView />);
+        await screen.findByRole('dialog', { name: 'Update available' });
+        fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+        fetchMock.mockImplementation(() => Promise.resolve(Response.json({ tag_name: 'v1.14.0' })));
+        fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
+        await screen.findByRole('dialog', { name: 'Update available' });
+        fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+        expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
+        expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
+
+        // The next one (v1.15.0) is accepted: the console replaces Settings.
+        fetchMock.mockImplementation(() => Promise.resolve(Response.json({ tag_name: 'v1.15.0' })));
+        fireEvent.click(screen.getByRole('button', { name: 'Close settings' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
+        const popup = await screen.findByRole('dialog', { name: 'Update available' });
+        // Settings has an Update now of its own: the popup's is the one tapped.
+        fireEvent.click(within(popup).getByRole('button', { name: 'Update now' }));
+        expect(await screen.findByRole('dialog', { name: 'Updating the Pi' })).toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { name: 'Settings' })).not.toBeInTheDocument();
       });
 
       it('starting the update from Settings closes Settings and opens the console', async () => {
