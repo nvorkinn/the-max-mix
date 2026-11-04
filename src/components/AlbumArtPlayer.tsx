@@ -1,5 +1,19 @@
 import { useState } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Speaker, MicVocal, Image } from 'lucide-react';
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  Speaker,
+  ChevronUp,
+  MicVocal,
+  Image,
+  Shuffle,
+  Repeat,
+  Repeat1,
+  Heart
+} from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { PlayerControls } from '../types';
 import { Artwork } from './TrackImages';
@@ -10,7 +24,16 @@ type AlbumArtPlayerProps = Readonly<PlayerControls> & {
   lyrics?: ReactNode;
   lyricsOpen?: boolean;
   onToggleLyrics?: () => void;
+  /** What the device indicator names as playing; defaults to the playing device's name. */
+  speakerLabel?: string | undefined;
+  /** Whether the speakers drawer the indicator opens is open. */
+  speakersOpen?: boolean;
+  /** Makes the indicator a button that opens the speakers drawer. */
+  onOpenSpeakers?: () => void;
 };
+
+/** Past this far into a song, Previous starts the song over instead of going to the one before it. */
+const RESTART_AFTER_MS = 5000;
 
 export default function AlbumArtPlayer({
   playback,
@@ -20,7 +43,14 @@ export default function AlbumArtPlayer({
   onPrevious,
   onSeek,
   onVolumeChange,
+  onToggleShuffle,
+  onCycleRepeat,
+  liked = null,
+  onToggleLike,
   controlsEnabled = false,
+  speakerLabel,
+  speakersOpen = false,
+  onOpenSpeakers,
   lyrics,
   lyricsOpen = false,
   onToggleLyrics
@@ -44,10 +74,31 @@ export default function AlbumArtPlayer({
   const durationMs = hasTrack ? item.duration_ms || playback?.duration || 0 : 0;
   const progressPercent = durationMs > 0 ? Math.min(100, Math.max(0, (progressMs / durationMs) * 100)) : 0;
 
+  // Like most players: well into a song, Previous replays it from the start; near the start it goes back a song.
+  const previous = () => {
+    if (progressMs > RESTART_AFTER_MS && !playback?.actions?.disallows?.seeking) onSeek(0);
+    else onPrevious();
+  };
+
+  const deviceName = speakerLabel ?? playback?.device?.name;
+  const speakerState = deviceName ? `Playing on ${deviceName}` : 'Select a device';
+  const speakerAriaLabel = `Speakers: ${speakerState}`;
+  const deviceText = deviceName ? (
+    <>
+      Playing on <b>{deviceName}</b>
+    </>
+  ) : (
+    <b>Select a device in Speakers</b>
+  );
+
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   };
+  const disallows = playback?.actions?.disallows;
+  const shuffleOn = Boolean(playback?.shuffle_state);
+  const repeatMode = playback?.repeat_state ?? 'off';
+  const repeatLabel = { off: 'Repeat off', context: 'Repeat all', track: 'Repeat one' }[repeatMode];
   const elapsedTime = hasTrack ? formatTime(progressMs) : '--:--';
   const totalTime = durationMs > 0 ? formatTime(durationMs) : '--:--';
 
@@ -97,14 +148,24 @@ export default function AlbumArtPlayer({
           <h2 title={title}>{title}</h2>
           {artist && <p title={artist}>{artist}</p>}
         </div>
-        <div className="track-credit">
-          <Speaker size={14} aria-hidden="true" />
-          <span>{playback?.device?.name || 'Select a device in Speakers'}</span>
-        </div>
+        {onToggleLike && (
+          <button
+            type="button"
+            className={`track-like${liked ? ' is-on' : ''}`}
+            disabled={!controlsEnabled || !hasTrack || liked === null}
+            onClick={onToggleLike}
+            aria-label="Save to Liked Songs"
+            aria-pressed={Boolean(liked)}
+            title={liked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
+          >
+            <Heart size={24} fill={liked ? 'currentColor' : 'none'} />
+          </button>
+        )}
       </div>
 
       <div className="player-controls">
         <div className="seek-control">
+          <span className="track-time">{elapsedTime}</span>
           <input
             type="range"
             disabled={!controlsEnabled || durationMs <= 0 || playback?.actions?.disallows?.seeking}
@@ -117,18 +178,46 @@ export default function AlbumArtPlayer({
             className="range-control seek-range"
             style={{ '--range-progress': `${progressPercent}%` } as CSSProperties}
           />
-          <div className="track-times">
-            <span>{elapsedTime}</span>
-            <span>{totalTime}</span>
-          </div>
+          <span className="track-time">{totalTime}</span>
         </div>
+        {onOpenSpeakers ? (
+          <button
+            type="button"
+            className={`player-device${speakersOpen ? ' is-open' : ''}`}
+            onClick={onOpenSpeakers}
+            aria-haspopup="dialog"
+            aria-expanded={speakersOpen}
+            aria-label={speakerAriaLabel}
+          >
+            <Speaker size={14} aria-hidden="true" />
+            <span>{deviceText}</span>
+            <ChevronUp size={14} className="player-device-chevron" aria-hidden="true" />
+          </button>
+        ) : (
+          <div className="player-device">
+            <Speaker size={14} aria-hidden="true" />
+            <span>{deviceText}</span>
+          </div>
+        )}
         <div className="transport-row">
           <div className="transport-buttons">
+            {onToggleShuffle && (
+              <button
+                type="button"
+                disabled={!controlsEnabled || !hasTrack || disallows?.toggling_shuffle}
+                className={`transport-skip transport-mode${shuffleOn ? ' is-on' : ''}`}
+                onClick={onToggleShuffle}
+                aria-label="Shuffle"
+                aria-pressed={shuffleOn}
+              >
+                <Shuffle size={18} />
+              </button>
+            )}
             <button
               type="button"
               disabled={!controlsEnabled || !hasTrack || playback?.actions?.disallows?.skipping_prev}
               className="transport-skip"
-              onClick={onPrevious}
+              onClick={previous}
               aria-label="Previous track"
             >
               <SkipBack size={20} fill="currentColor" />
@@ -154,6 +243,22 @@ export default function AlbumArtPlayer({
             >
               <SkipForward size={20} fill="currentColor" />
             </button>
+            {onCycleRepeat && (
+              <button
+                type="button"
+                disabled={
+                  !controlsEnabled ||
+                  !hasTrack ||
+                  (disallows?.toggling_repeat_context && disallows.toggling_repeat_track)
+                }
+                className={`transport-skip transport-mode${repeatMode === 'off' ? '' : ' is-on'}`}
+                onClick={onCycleRepeat}
+                aria-label={repeatLabel}
+                title={repeatLabel}
+              >
+                {repeatMode === 'track' ? <Repeat1 size={18} /> : <Repeat size={18} />}
+              </button>
+            )}
           </div>
         </div>
         <label className="volume-control">

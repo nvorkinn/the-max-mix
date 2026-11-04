@@ -17,10 +17,13 @@ import { errorMessage } from '../utils/errorMessage';
  */
 export default function AirPlaySpeakerList({
   isPlayerReady,
+  notReadyMessage = "This tablet's player isn't ready, so speakers can't be added yet.",
   active = true,
   onChange
 }: Readonly<{
   isPlayerReady: boolean;
+  /** Said while speakers cannot be added yet. */
+  notReadyMessage?: string;
   active?: boolean | undefined;
   /** Called with the speakers now chosen, after they were saved and (with a ready player) routed. */
   onChange?: ((speakers: string[]) => unknown) | undefined;
@@ -66,7 +69,7 @@ export default function AirPlaySpeakerList({
     <div className="space-y-2">
       {!isPlayerReady && (
         <p role="status" className="text-xs status-warning">
-          This tablet&apos;s player isn&apos;t ready, so speakers can&apos;t be added yet.
+          {notReadyMessage}
         </p>
       )}
       {error && (

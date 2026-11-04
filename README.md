@@ -9,8 +9,10 @@ phone and desktop layouts are not supported.
 - Display the active Spotify track, progress, device, and upcoming queue.
 - Play, pause, skip, seek, adjust supported device volume, and transfer playback
   using Spotify's real APIs. Device restrictions and API failures are shown.
+  Previous restarts the song when it is more than 5 seconds in, and goes to the
+  song before it only within the first 5 seconds.
 - **Browser mode** registers Chromium as THE MAX MIX, a Spotify Connect player.
-  Select it in Speakers before playing; opening the UI does not steal playback.
+  Select it in the speakers drawer before playing; opening the UI does not steal playback.
 - **Remote mode** controls an existing Spotify Connect device without loading
   the Web Playback SDK or requiring DRM on the Pi.
 
@@ -19,22 +21,42 @@ playback. Browser streaming also requires a working encrypted-media/Widevine
 setup on the exact Pi OS/Chromium image. Validate audio on the device; kiosk mode
 alone does not make DRM available.
 
+### The screen
+
+The player is laid out for the 1024x600 panel. A square artwork sits on the left, as wide as the room is tall minus the
+control bar, so the cover is never stretched into a strip. The song title and artist and the upcoming queue are beside
+it. One bar across the bottom holds the seek bar with the elapsed and total time, the previous, play/pause and next
+buttons, the volume slider, and, at the bottom left, the device that is playing. Tap that to open the speakers drawer
+(see below). The clock is in the top right of the header.
+Playback problems show in a banner at the top, with buttons to fix them.
+
+Tap a song in the queue to play it. Spotify's public API cannot start a queue item directly, so the app skips forward
+past the songs before it, one at a time, which also takes them out of the queue. Removing or reordering queue items is
+not possible with the public API; do that in the Spotify app.
+
+### The speakers drawer
+
+Tapping the device indicator at the bottom left of the control bar opens a drawer above it. It lists the Spotify Connect
+devices, with the one that is playing first and marked Playing, and then (on the kiosk) the AirPlay speakers. Tapping
+outside the drawer, the close button or Escape closes it.
+
 ### How playback is controlled
 
 In browser mode (the default, and the fallback when the browser cannot play) this page is the speaker: it registers a Spotify Connect device called "The Max Mix"
 with the Web Playback SDK and drives it directly. The SDK reports every change as an event, so while this page is the
 player there is no polling: the play/pause button, progress and track follow the events at once. A slow safety-net
 refresh from the Web API catches anything missed. The first Play press makes it the active device (pressing, not
-loading the page, so it never takes over what is playing elsewhere). If you pick another device under Speakers (or
+loading the page, so it never takes over what is playing elsewhere). If you pick another device in the speakers drawer (or
 the browser cannot play audio), the page is that device's remote and polls the Web API until you pick "The Max Mix"
 again. Browsers only start audio after a click, so the very first Play press is also what unlocks sound.
 If Spotify provides a retry deadline, Web API playback, queue and device requests all wait for it. Status reads
 resume after the wait; failed controls are not automatically sent again. Active SDK controls remain independent
 of this Web API cooldown.
 
-On the Pi kiosk, Speakers also switches between two playback modes. **Spotify Connect** is the above: the tablet plays,
+On the Pi kiosk, the speakers drawer also switches between two playback modes. **Spotify Connect** is the above: the tablet plays,
 or Spotify moves playback to a Connect speaker. **AirPlay** keeps playback on the tablet and the Pi sends its sound on
-to the AirPlay speakers you pick (Sonos included), several at once, through PipeWire. The speakers are the audio
+to the AirPlay speakers you pick (Sonos included), several at once, through PipeWire. The AirPlay speakers stay disabled
+until this tablet is the device that is playing, so choose This tablet first. The speakers are the audio
 AirPlay sinks PipeWire made; picking them asks the Pi's local
 [audio service](pi/kiosk-audio/README.md) (127.0.0.1, answering only the app) to route the sound.
 
@@ -50,23 +72,23 @@ upcoming-tracks list, so a guest add can take a moment to show.
 
 ### Lyrics
 
-**Lyrics** in the header swaps the queue for the current song's lyrics (and **Up next** swaps back; the choice is
-remembered). They come from [LRCLIB](https://lrclib.net), a free, open lyrics database that needs no key and allows
-browser requests, so the app needs no backend. Time-synced lyrics follow playback and keep the current line in the
-middle; songs with only plain lyrics show them unsynced. Lookups happen only while the lyrics are shown, once per
-track. Another source can be added as a `LyricsProvider` (`src/lyrics/types.ts`) in the list in `src/lyrics/providers.ts`;
-the sources are asked in order and the first one with lyrics wins.
+Tap the artwork (the microphone button in its corner) to show the current song's lyrics in place of the artwork; tap
+the picture button to bring the artwork back. The choice is remembered. Lyrics come from [LRCLIB](https://lrclib.net),
+a free, open lyrics database that needs no key and allows browser requests, so the app needs no backend. Time-synced
+lyrics follow playback and keep the current line in the middle. Scrolling them pauses that, and they follow the song
+again after 8 seconds of being left alone. Songs with only plain lyrics show them unsynced. Lookups happen only while
+the lyrics are shown, once per track. Another source can be added as a `LyricsProvider` (`src/lyrics/types.ts`) in the
+list in `src/lyrics/providers.ts`; the sources are asked in order and the first one with lyrics wins.
 
 Spotify's own lyrics are not used: they come from an internal endpoint that is not part of the public Web API, needs
 a signed-in web-player cookie (`sp_dc`) and a server to call it, and is against Spotify's terms.
 
 ### Debug console
 
-Hold the clock in the footer for two seconds (or press Ctrl+Shift+D with a keyboard) to open a hidden debug console.
+Hold the clock in the top right for two seconds (or press Ctrl+Shift+D with a keyboard) to open a hidden debug console.
 It shows the app's state (version, connection, sign-in, playback mode, audio route, the browser player's device, the
 active device and whether Widevine works) and a log of recent problems, browser player events and console errors,
-newest first. Playback errors go there instead of a banner over the screen; while one is current the footer status
-turns red and links to it. The log lives in memory, keeps the last 200 entries, and is cleared by a reload.
+newest first. The playback banner's Details button opens it too. The log lives in memory, keeps the last 200 entries, and is cleared by a reload.
 
 ## Hosting and releases
 
@@ -110,7 +132,7 @@ app, kiosk service and Wi-Fi panel tests.
 ### Checks and Git hooks
 
 `npm run check` runs the checks CI's Lint workflow runs, among them ESLint, TypeScript, Prettier (`npm run format`
-fixes), ShellCheck, spelling, markdownlint, yamllint and Stylelint. ShellCheck and editorconfig-checker are system
+fixes), ShellCheck, spelling, markdownlint and Stylelint. ShellCheck and editorconfig-checker are system
 tools, not npm packages: install them with `brew` or `apt`.
 
 `npm install` at the repo root also installs a [Husky](https://typicode.github.io/husky/) pre-commit hook. For staged
@@ -129,7 +151,7 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 3. The client ID is a constant in `src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
    it there.
 4. Choose **Connect Spotify** in the browser that will play (on the kiosk, the Pi's Chromium).
-5. In Speakers, select This tablet, an AirPlay speaker (kiosk only, several at once) or a Spotify Connect device. Press
+5. Tap the device indicator at the bottom left to open the speakers drawer, then select This tablet, an AirPlay speaker (kiosk only, several at once) or a Spotify Connect device. Press
    Play when ready. For a Connect device, first open Spotify on it so it is discoverable.
 
 There is no backend and no client secret. Sign-in uses the Authorization Code flow with PKCE, which Spotify provides
@@ -186,6 +208,8 @@ v1.12.0`): the Release workflow deploys the web app to Vercel and, once that has
   and the next timer run tries again. A pull never restarts the kiosk either: it leaves a marker when kiosk files changed,
   and `kiosk-restart.timer` restarts the kiosk at 04:30 if the marker is there (a reboot also applies the changes).
 - **Check the last pull:** `journalctl -u kiosk-pull -n 100`, and `systemctl list-timers 'kiosk-*'` for the next runs.
+  Every pull ends with how long it took and a list of the slowest playbook tasks (`ansible/callback_plugins/task_timer.py`),
+  which is also what the app's update output shows.
 - **Roll back:** run the Release workflow by hand (Actions > Release > Run workflow) with the earlier tag. It redeploys
   that version of the web app and marks its release as the latest again, and the Pis return to it at their next pull
   (or straight away with **Update now**). Publishing a newer tag later moves everything forward again.

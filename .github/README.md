@@ -5,17 +5,18 @@
 with the other repositories (for example [countdown](https://github.com/nvorkinn/countdown/tree/main/.github/workflows)).
 `create_global_pr_status.yml` opens a **Global PR Status** check on each PR's head commit, Dependabot's included (its
 `permissions: checks: write` raises Dependabot's read-only token), and `all-checks.yml` completes it, and approves the PR,
-once every other workflow and check on that commit has passed. Dependabot pull requests are not auto-approved (see
-`dependabot-auto-merge.yml` below for what that means for merging them). Fork pull requests get no check.
+once every other workflow and check on that commit has passed. Dependabot pull requests are not auto-approved or
+auto-merged, so each one waits for a manual review and merge. Fork pull requests get no check.
 
 `tests.yml` runs the tests, the browser tests and the production build on every pull request and push to `main`. It is
 listed in `all-checks.yml`, so Global PR Status waits for it.
 
 `lint.yml` (**Lint**) runs on the same triggers: the `npm run` checks (ESLint, TypeScript, Prettier, knip, spelling,
-markdownlint, yamllint, Stylelint, package.json and lockfile checks), ShellCheck over the kiosk shell scripts,
-editorconfig-checker, actionlint over `.github/workflows/*.yml`, and `ansible-lint` and `ansible-playbook --syntax-check`
-over the kiosk playbook in `ansible/`. The system tools are pinned and checked against a SHA-256 before running. It is
-listed in `all-checks.yml` too.
+markdownlint, Stylelint, package.json and lockfile checks), ShellCheck over the kiosk shell scripts,
+editorconfig-checker and actionlint over `.github/workflows/*.yml`. On a pull request its `plan` job runs only the checks
+the changed files need (`scripts/lint-plan.ts` maps paths to checks; a change to `package.json`, the lockfile, `.nvmrc`,
+the workflow or the plan runs them all); a push to `main` runs every check. The system tools are pinned and checked
+against a SHA-256 before running. It is listed in `all-checks.yml` too.
 
 `release.yml` runs on a version tag (`v*`) or by hand with an existing tag: it builds the app on the runner with a pinned
 Vercel CLI (`vercel build`), uploads only the built files to Vercel production (`vercel deploy --prebuilt`) and then
@@ -23,16 +24,11 @@ publishes the GitHub release the Pis pull. It is the only way production is depl
 `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` and fails clearly if one is missing. It has read-only
 `contents` access and does not run on pull requests, so it is not in `all-checks.yml`.
 
-`ansible.yml` runs that playbook, only when `ansible/`, `pi/wifi-panel/`, `pi/kiosk-audio/` or the workflow changes, with `kiosk_enable_only=true` (enable services, start nothing) in a Debian trixie container, checks the key files and that
+`ansible.yml` runs `ansible-lint` over `ansible/` and runs that playbook, only when `ansible/`, `pi/wifi-panel/`, `pi/kiosk-audio/` or the workflow changes, with `kiosk_enable_only=true` (enable services, start nothing) in a Debian trixie container, checks the key files and that
 the units are enabled but not started, and runs it again to check that nothing changes (`ansible/tests/image-build.sh`).
 
 `audit.yml` scans the lockfile weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in
 `all-checks.yml`.
-
-`dependabot-auto-merge.yml` turns on auto-merge for Dependabot pull requests whose updates are all patch or minor
-(grouped ones included); majors are left for a manual review. Auto-merge only completes once branch protection is
-satisfied, and Dependabot pull requests are not auto-approved, so if the `main` rule requires an approving review these
-still wait for one manual approval; the workflow does not approve them itself.
 
 `dependabot.yml` opens daily grouped update PRs for the npm project and the GitHub Actions used here.
 

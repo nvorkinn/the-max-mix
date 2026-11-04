@@ -1,5 +1,7 @@
 {
   "default": true,
+  // Turns off the whitespace and list rules that Prettier already enforces.
+  "extends": "markdownlint/style/prettier",
   // Prose is not hard-wrapped (Prettier keeps line breaks as written), so a line length limit only produces noise.
   "MD013": false
 }

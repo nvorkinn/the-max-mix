@@ -69,7 +69,7 @@ for (const appearance of [{ name: 'Paper', surface: 'rgb(250, 250, 246)', ink: '
     await expect(settings.getByRole('button', { name: 'Tap again to restart' })).toHaveClass(/modal-confirm-armed/);
     await page.keyboard.press('Escape');
     await page.reload();
-    await page.getByRole('button', { name: 'Choose speakers' }).click();
+    await page.getByRole('button', { name: /^Speakers:/ }).click();
     const speakers = page.getByRole('dialog', { name: 'Speakers' });
     await expect(speakers).toHaveCSS('background-color', appearance.surface);
     await expect(speakers).toHaveCSS('color', appearance.ink);

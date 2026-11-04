@@ -89,8 +89,9 @@ The playbook also sets, among other things:
 ## Maintenance over SSH
 
 The `admin` account has no password, so the only way in is SSH with a key: `ssh admin@the-max-mix.local`. Its keys are
-the public keys of the GitHub account in `kiosk_admin_github_user` (`https://github.com/nvorkinn.keys`), which every
-pull fetches again, so add your key on GitHub (Settings > SSH and GPG keys) and it reaches the Pi at its next pull.
+the public keys of the GitHub account in `kiosk_admin_github_user` (`https://github.com/nvorkinn.keys`), which a
+pull fetches again when the keys on the Pi are over a day old (`kiosk_admin_keys_max_age_hours`), so add your key on GitHub
+(Settings > SSH and GPG keys) and it reaches the Pi at the first pull after that.
 `admin` uses `sudo` without a password. Password and root logins are off (`/etc/ssh/sshd_config.d/10-kiosk.conf`). Set
 `kiosk_ssh_enabled: false` to turn SSH off.
 
@@ -99,7 +100,9 @@ address) clears it.
 
 ## Troubleshooting
 
-The kiosk logs go to the journal: `journalctl -u kiosk`, `journalctl -u kiosk-pull`, `journalctl -u kiosk-first-pull`.
+The kiosk logs go to the journal: `journalctl -u kiosk`, `journalctl -u kiosk-pull`, `journalctl -u kiosk-first-pull`. The journal is kept
+on disk (up to `kiosk_journal_max_use`, 64 MB), so logs from before a reboot are there too: `journalctl --list-boots`,
+`journalctl -b -1` for the previous boot, and `journalctl -b -1 | grep -i 'stop job'` for what held a shutdown up.
 The `bootfs` partition holds `config.txt` and `cmdline.txt` (remove `quiet splash` and change `console=tty3` back to
 `tty1` to see boot messages).
 

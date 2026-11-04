@@ -184,6 +184,27 @@ describe('useSpotifyPlayer', () => {
     expect(result.current.error).toBeNull();
   });
 
+  it('skips ahead one song at a time and stops at the first skip that fails', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(playing);
+    mocks.api.next.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('No active device'));
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+    let ok;
+    await act(async () => {
+      ok = await result.current.skipAhead(3);
+    });
+    expect(ok).toBe(false);
+    expect(mocks.api.next).toHaveBeenCalledTimes(2);
+
+    mocks.api.next.mockReset();
+    mocks.api.next.mockResolvedValue(undefined);
+    await act(async () => {
+      ok = await result.current.skipAhead(3);
+    });
+    expect(ok).toBe(true);
+    expect(mocks.api.next).toHaveBeenCalledTimes(3);
+  });
+
   it.each([
     [401, 'sign-in'],
     [403, 'settings'],
@@ -293,6 +314,72 @@ describe('useSpotifyPlayer', () => {
     expect(mocks.api.previous).toHaveBeenCalledTimes(1);
     expect(mocks.api.seek).toHaveBeenCalledWith(1235);
     expect(mocks.api.setVolume).toHaveBeenCalledWith(46);
+  });
+
+  it('sends shuffle and the next repeat mode, and leaves the buttons to what Spotify reports', async () => {
+    mocks.api.getPlaybackState.mockReturnValue(new Promise(() => {}));
+    mocks.api.getPlaybackState.mockResolvedValueOnce({
+      device: { id: 'd' },
+      shuffle_state: false,
+      repeat_state: 'track'
+    });
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+
+    await act(async () => {
+      expect(await result.current.toggleShuffle()).toBe(true);
+      expect(await result.current.cycleRepeat()).toBe(true);
+    });
+    expect(mocks.api.setShuffle).toHaveBeenCalledWith(true);
+    expect(mocks.api.setRepeat).toHaveBeenCalledWith('off');
+    expect(result.current.playbackState).toMatchObject({ shuffle_state: false, repeat_state: 'track' });
+  });
+
+  it('reports the error when Spotify refuses a shuffle change', async () => {
+    mocks.api.getPlaybackState.mockReturnValue(new Promise(() => {}));
+    mocks.api.getPlaybackState.mockResolvedValueOnce({ device: { id: 'd' } });
+    mocks.api.setShuffle.mockRejectedValue(new SpotifyApiError('Refused', 403));
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+
+    await act(async () => {
+      expect(await result.current.toggleShuffle()).toBe(false);
+    });
+    expect(result.current.error).toBe('Refused');
+  });
+
+  it('looks up whether the track is liked and saves or removes it', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue({ device: { id: 'd' }, item: { id: 't1', uri: 'spotify:track:t1' } });
+    const { result } = renderHook(() => useSpotifyPlayer());
+    expect(result.current.liked).toBeNull();
+    await waitFor(() => expect(result.current.liked).toBe(false));
+    expect(mocks.api.isTrackSaved).toHaveBeenCalledWith('spotify:track:t1');
+
+    await act(async () => {
+      expect(await result.current.toggleLike()).toBe(true);
+    });
+    expect(mocks.api.setTrackSaved).toHaveBeenCalledWith('spotify:track:t1', true);
+    expect(result.current.liked).toBe(true);
+
+    mocks.api.setTrackSaved.mockRejectedValue(new Error('No library access'));
+    await act(async () => {
+      expect(await result.current.toggleLike()).toBe(false);
+    });
+    expect(result.current.liked).toBe(true);
+    expect(result.current.error).toBe('No library access');
+  });
+
+  it('leaves the heart unknown when the lookup fails or there is no track', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue({ device: { id: 'd' }, item: { id: 't1', uri: 'spotify:track:t1' } });
+    mocks.api.isTrackSaved.mockRejectedValue(new SpotifyApiError('Insufficient scope', 403));
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(mocks.api.isTrackSaved).toHaveBeenCalled());
+    await act(async () => {});
+    expect(result.current.liked).toBeNull();
+    await act(async () => {
+      expect(await result.current.toggleLike()).toBe(false);
+    });
+    expect(mocks.api.setTrackSaved).not.toHaveBeenCalled();
   });
 
   it('transferPlayback rethrows after recording the error', async () => {

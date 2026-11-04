@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, CSSProperties } from 'react';
-import { AudioLines, Clock, Settings, Speaker } from 'lucide-react';
+import { AudioLines, Clock, Settings } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useScreenSleep } from '../hooks/useScreenSleep';
@@ -11,7 +11,7 @@ import { getQueue } from '../spotify/api';
 import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import { getAudioRoute, setAudioRoute } from '../spotify/settings';
 import type { AudioRoute } from '../spotify/settings';
-import { routeAudio, setChosenSpeakers } from '../audio/airplay';
+import { getChosenSpeakers, routeAudio, setChosenSpeakers } from '../audio/airplay';
 import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
 import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
@@ -26,7 +26,7 @@ import TrackQueue, { type QueueStatus } from './TrackQueue';
 import PlaybackBanner, { type PlaybackNoticeState, type BannerNotice } from './PlaybackNotice';
 import LyricsPanel from './LyricsPanel';
 import SettingsModal from './SettingsModal';
-import SpeakerSelectorModal from './SpeakerSelectorModal';
+import SpeakerDrawer from './SpeakerDrawer';
 import DebugConsole from './DebugConsole';
 import SleepScreen from './SleepScreen';
 
@@ -35,7 +35,7 @@ const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', m
 // While this page's player is active the queue is re-read when the SDK says it changed; this is only a safety net.
 const QUEUE_POLL_MS = 10_000;
 const SDK_QUEUE_POLL_MS = 20_000;
-// Holding the footer clock this long opens the debug console; long enough that nobody opens it by accident.
+// Holding the header clock this long opens the debug console; long enough that nobody opens it by accident.
 const DEBUG_HOLD_MS = 2000;
 
 /** Pointer handlers that call `onHold` once the element has been held down for `ms`. */
@@ -82,9 +82,14 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     allowBrowserAudio,
     togglePlay,
     nextTrack,
+    skipAhead,
     previousTrack,
     seek,
     setVolume,
+    toggleShuffle,
+    cycleRepeat,
+    liked,
+    toggleLike,
     transferPlayback
   } = useSpotifyPlayer();
   const error = playerError || signInError;
@@ -97,13 +102,15 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [queueStatus, setQueueStatus] = useState<QueueStatus>(canPollQueue ? 'loading' : 'idle');
   const [queueRequestVersion, setQueueRequestVersion] = useState(0);
   const [isRefreshingPlayback, setIsRefreshingPlayback] = useState(false);
+  // True while a tapped queue song is being skipped to, so a second tap cannot start another jump.
+  const [isJumping, setIsJumping] = useState(false);
   const [currentTime, setCurrentTime] = useState(formatClock);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSpeakerModalOpen, setIsSpeakerModalOpen] = useState(false);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const debugHold = useHold(() => setIsDebugOpen(true), DEBUG_HOLD_MS);
   const [queueError, setQueueError] = useState<string | null>(null);
-  // Lyrics take the queue's place while shown; remembered so the kiosk comes back the way it was left.
+  // Lyrics take the artwork's place while shown; remembered so the kiosk comes back the way it was left.
   const [showLyrics, setShowLyrics] = useState(() => localStorage.getItem('maxmix_lyrics') === 'on');
   // AirPlay needs the Pi's audio service, so it is offered on the kiosk only.
   const [onKiosk] = useState(isKiosk);
@@ -111,24 +118,21 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [storedAudioRoute, setStoredAudioRoute] = useState(getAudioRoute);
   const audioRoute: AudioRoute = canUseAirPlay ? storedAudioRoute : 'spotify-connect';
 
-  // AirPlay plays what this tablet's own player plays, so choosing a speaker moves playback here and the Pi sends it on
-  // to the chosen speakers. Choosing this tablet or a Spotify Connect speaker hands the sound back to the Pi's own
-  // output and forgets the AirPlay speakers. The route changes even if moving playback fails, so the tablet never gets
-  // stuck in AirPlay.
+  // AirPlay plays what this tablet's own player plays, so its speakers can only be picked while this tablet is the one
+  // playing; the Pi then sends the sound on to the chosen speakers. Choosing a Spotify Connect speaker (or this tablet
+  // again) hands the sound back to the Pi's own output and forgets the AirPlay speakers.
   const changeAudioRoute = (route: AudioRoute) => {
     setStoredAudioRoute(route);
     setAudioRoute(route);
   };
 
-  const chooseAirPlaySpeakers = async (speakers: string[]) => {
+  const chooseAirPlaySpeakers = (speakers: string[]) => {
     if (speakers.length === 0) {
       changeAudioRoute('spotify-connect');
       return;
     }
     changeAudioRoute('airplay');
-    if (!browserDeviceId) return;
-    routeAudio(speakers);
-    if (playbackState?.device?.id !== browserDeviceId) await transferPlayback(browserDeviceId);
+    if (browserDeviceId) routeAudio(speakers);
   };
 
   const chooseSpotifyDevice = async (deviceId: string) => {
@@ -235,14 +239,15 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         if (caught instanceof SpotifyApiError) recordSpotifyRetryAfter(caught);
         delay = Math.max(Math.min(60_000, base * 2 ** ++failures), getSpotifyRetryDelay());
       }
-      if (!isCancelled()) timer = setTimeout(() => void poll(), delay);
+      // Nothing playing means nothing moves through the queue; playing again or a new track reads it at once.
+      if (isPlaying && !isCancelled()) timer = setTimeout(() => void poll(), delay);
     };
     void poll();
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [currentTrack?.id, canPollQueue, sdkActive, queueVersion, queueRequestVersion]);
+  }, [currentTrack?.id, canPollQueue, sdkActive, isPlaying, queueVersion, queueRequestVersion]);
 
   const artUrl = currentTrack?.album?.images?.[0]?.url;
   useEffect(() => {
@@ -288,6 +293,30 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   let banner: BannerNotice | null = null;
   if (!needsConnection && notice?.kind === 'problem') banner = notice;
   else if (!needsConnection && notice?.kind === 'restricted') banner = { kind: 'restricted' };
+  const controlsEnabled =
+    isAuthenticated &&
+    !isOffline &&
+    (isReady || Boolean(browserDeviceId)) &&
+    !restricted &&
+    (!waitingForSpotify || sdkActive) &&
+    !isLoading;
+  // What the device indicator in the control bar says is playing.
+  let speakerLabel: string | undefined;
+  if (audioRoute === 'airplay') {
+    const count = getChosenSpeakers().length;
+    speakerLabel = 'AirPlay';
+    if (count === 1) speakerLabel = 'AirPlay, 1 speaker';
+    else if (count > 1) speakerLabel = `AirPlay, ${count} speakers`;
+  } else if (browserDeviceId && playbackState?.device?.id === browserDeviceId) speakerLabel = 'This tablet';
+  /** Plays the queue song at this position by skipping past the ones before it. */
+  const playQueueTrack = async (index: number) => {
+    setIsJumping(true);
+    try {
+      await skipAhead(index + 1);
+    } finally {
+      setIsJumping(false);
+    }
+  };
   let sessionStatus: string;
   if (notice) {
     sessionStatus = {
@@ -304,10 +333,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   let statusDotClass = '';
   if (notice?.kind === 'problem' && notice.problem.recovery !== 'wait') statusDotClass = 'status-dot-error';
   else if (notice || !isPlaying) statusDotClass = 'status-dot-idle';
-
-  let footerStatus = 'Spotify browser player';
-  if (audioRoute === 'airplay') footerStatus = 'AirPlay from this tablet';
-  else if (playbackMode === 'remote') footerStatus = 'Spotify Connect remote';
 
   return (
     <div
@@ -336,16 +361,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           {sessionStatus}
         </div>
         <div className="header-actions">
-          <button
-            type="button"
-            onClick={() => setIsSpeakerModalOpen(true)}
-            className="button button-secondary speaker-button"
-            title={canUseAirPlay ? 'Choose speakers' : 'Choose a Spotify Connect device'}
-            aria-label={canUseAirPlay ? 'Choose speakers' : 'Choose a Spotify Connect device'}
-          >
-            <Speaker size={15} />
-            <span>Speakers</span>
-          </button>
+          <span className="header-clock" {...debugHold}>
+            <Clock size={14} /> {currentTime}
+          </span>
           <button
             type="button"
             onClick={() => setIsSettingsOpen(true)}
@@ -353,7 +371,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             title="Settings"
             aria-label="Open settings"
           >
-            <Settings size={18} />
+            <Settings size={22} />
           </button>
         </div>
       </header>
@@ -372,80 +390,68 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         />
       )}
 
-      <main className={`listening-room${needsConnection ? ' is-setup' : ''}`}>
-        <section className="player-section" aria-label="Now playing">
-          {needsConnection ? (
-            <SpotifySetup
-              offline={isOffline}
-              signInError={signInError || (problem?.recovery === 'sign-in' ? problem.message : null)}
-              onSettings={showSettings}
-              onDetails={() => setIsDebugOpen(true)}
-            />
-          ) : (
-            <AlbumArtPlayer
-              playback={playbackState}
-              isPlaying={isPlaying}
-              onPlayPause={togglePlay}
-              onNext={nextTrack}
-              onPrevious={previousTrack}
-              onSeek={seek}
-              onVolumeChange={(vol: number) => setVolume(vol / 100)}
-              controlsEnabled={
-                isAuthenticated &&
-                !isOffline &&
-                (isReady || Boolean(browserDeviceId)) &&
-                !restricted &&
-                (!waitingForSpotify || sdkActive) &&
-                !isLoading
-              }
-              lyricsOpen={showLyrics}
-              onToggleLyrics={() => toggleLyrics(!showLyrics)}
-              lyrics={
-                <LyricsPanel
-                  track={currentTrack}
-                  progressMs={playbackState?.progress_ms ?? playbackState?.position ?? 0}
-                />
-              }
-            />
-          )}
-        </section>
-
-        {!needsConnection && (
-          <section className="queue-section" aria-label="Upcoming tracks">
-            <TrackQueue
-              queue={queue}
-              error={queueError}
-              status={waitingForSpotify ? 'waiting' : queueStatus}
-              onRetry={() => setQueueRequestVersion(version => version + 1)}
-              onConnect={showSettings}
-              retryAllowed={!waitingForSpotify}
-            />
+      <div className="room-frame">
+        <main className={`listening-room${needsConnection ? ' is-setup' : ''}`}>
+          <section className="player-section" aria-label="Now playing">
+            {needsConnection ? (
+              <SpotifySetup
+                offline={isOffline}
+                signInError={signInError || (problem?.recovery === 'sign-in' ? problem.message : null)}
+                onSettings={showSettings}
+                onDetails={() => setIsDebugOpen(true)}
+              />
+            ) : (
+              <AlbumArtPlayer
+                playback={playbackState}
+                isPlaying={isPlaying}
+                onPlayPause={togglePlay}
+                onNext={nextTrack}
+                onPrevious={previousTrack}
+                onSeek={seek}
+                onVolumeChange={(vol: number) => setVolume(vol / 100)}
+                onToggleShuffle={toggleShuffle}
+                onCycleRepeat={cycleRepeat}
+                liked={liked}
+                onToggleLike={toggleLike}
+                controlsEnabled={controlsEnabled}
+                speakerLabel={speakerLabel}
+                speakersOpen={isSpeakerModalOpen}
+                onOpenSpeakers={() => setIsSpeakerModalOpen(true)}
+                lyricsOpen={showLyrics}
+                onToggleLyrics={() => toggleLyrics(!showLyrics)}
+                lyrics={
+                  <LyricsPanel
+                    track={currentTrack}
+                    progressMs={playbackState?.progress_ms ?? playbackState?.position ?? 0}
+                  />
+                }
+              />
+            )}
           </section>
-        )}
-      </main>
 
-      <footer className="app-footer">
-        {playerError && !isOffline ? (
-          <button type="button" className="footer-problem-button" onClick={() => setIsDebugOpen(true)}>
-            <span className="status-dot status-dot-error" /> {footerStatus} ·{' '}
-            <span className="footer-problem">Problem, see details</span>
-          </button>
-        ) : (
-          <span>
-            <span className={`status-dot ${statusDotClass}`} /> {footerStatus}
-          </span>
-        )}
-        <span className="footer-clock" {...debugHold}>
-          <Clock size={12} /> {currentTime}
-        </span>
-        <span>POWERED BY SPOTIFY</span>
-      </footer>
+          {!needsConnection && (
+            <section className="queue-section" aria-label="Upcoming tracks">
+              <TrackQueue
+                queue={queue}
+                error={queueError}
+                status={waitingForSpotify ? 'waiting' : queueStatus}
+                onRetry={() => setQueueRequestVersion(version => version + 1)}
+                onConnect={showSettings}
+                retryAllowed={!waitingForSpotify}
+                onPlay={playQueueTrack}
+                playDisabled={!controlsEnabled || isJumping}
+              />
+            </section>
+          )}
+        </main>
+      </div>
 
-      <SpeakerSelectorModal
+      <SpeakerDrawer
         isOpen={isSpeakerModalOpen}
         onClose={() => setIsSpeakerModalOpen(false)}
         onSelectSpeaker={chooseSpotifyDevice}
         browserDeviceId={browserDeviceId}
+        activeDeviceId={playbackState?.device?.id ?? null}
         canUseAirPlay={canUseAirPlay}
         audioRoute={audioRoute}
         onAirPlayChange={chooseAirPlaySpeakers}

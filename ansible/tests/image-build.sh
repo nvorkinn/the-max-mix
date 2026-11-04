@@ -103,6 +103,20 @@ check grep -q '^Environment=KIOSK_SCREEN_OFF_AFTER=60$' /etc/systemd/system/kios
 check command -v swayidle wlr-randr
 check grep -q 'en_GB.UTF-8' /etc/default/locale
 check test "$(cat /etc/timezone)" = Europe/London
+check grep -q '^Storage=persistent$' /etc/systemd/journald.conf.d/kiosk.conf
+check grep -q '^SystemMaxUse=64M$' /etc/systemd/journald.conf.d/kiosk.conf
+
+# The slow package step records that it is done, and the second run skips it. (The SSH keys download is not checked: it
+# needs GitHub, which a test must not depend on.)
+# shellcheck disable=SC2329  # Called by check.
+second_run_skips() {
+  grep -A1 "TASK \\[kiosk : $1\\]" /tmp/second-run.log | grep -q '^skipping'
+}
+check test -s /var/lib/the-max-mix/packages.sha1
+check second_run_skips 'Install the packages'
+check second_run_skips 'Install Node.js'
+check test -L /usr/share/icons/blank/cursors/not-allowed
+check test -d /usr/share/plymouth/themes/the-max-mix
 
 # The second run must not change anything.
 if ! grep -Eq 'changed=0 ' /tmp/second-run.log; then

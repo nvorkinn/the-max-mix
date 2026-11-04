@@ -1,4 +1,4 @@
-import { Disc3, ArrowUpRight } from 'lucide-react';
+import { Disc3 } from 'lucide-react';
 import { trackKeys } from '../utils/trackKeys';
 import type { Track } from '../types';
 import { Artwork } from './TrackImages';
@@ -13,6 +13,10 @@ interface TrackQueueProps {
   onRetry?: () => void;
   onConnect?: () => void;
   retryAllowed?: boolean;
+  /** Plays the song at this position in the queue. Without it the rows are not tappable. */
+  onPlay?: (index: number) => unknown;
+  /** True while playing a song is not possible (controls unavailable, or a jump is under way). */
+  playDisabled?: boolean;
 }
 
 export default function TrackQueue({
@@ -21,12 +25,12 @@ export default function TrackQueue({
   status = 'ready',
   onRetry,
   onConnect,
-  retryAllowed = true
+  retryAllowed = true,
+  onPlay,
+  playDisabled = false
 }: Readonly<TrackQueueProps>) {
   const keys = trackKeys(queue);
 
-  const totalMinutes = Math.round(queue.reduce((sum, track) => sum + (track.duration_ms || 0), 0) / 60_000);
-  const showCount = queue.length > 0 || (status === 'ready' && !error);
   let retryLabel = 'Waiting to retry...';
   if (status === 'loading') retryLabel = 'Retrying...';
   else if (retryAllowed) retryLabel = 'Retry queue';
@@ -81,18 +85,9 @@ export default function TrackQueue({
 
   return (
     <div className="queue-panel">
-      <div className="queue-heading">
-        <h2>Up next{showCount && <span className="queue-count">{String(queue.length).padStart(2, '0')}</span>}</h2>
-      </div>
-
       {error && (
         <p role="alert" className="queue-error">
           {error}
-        </p>
-      )}
-      {status === 'loading' && queue.length > 0 && (
-        <p className="queue-status" role="status">
-          Updating queue...
         </p>
       )}
       {status === 'waiting' && queue.length > 0 && (
@@ -113,11 +108,6 @@ export default function TrackQueue({
           {retryLabel}
         </button>
       )}
-      <div className="queue-columns" aria-hidden="true">
-        <span>#</span>
-        <span>TRACK / ARTIST</span>
-        <span>IN SPOTIFY</span>
-      </div>
       {queue.length === 0 ? (
         emptyState()
       ) : (
@@ -130,40 +120,29 @@ export default function TrackQueue({
 
             return (
               <div key={keys[idx]} role="listitem" className={`queue-track ${idx === 0 ? 'is-next' : ''}`}>
-                <span className="queue-play queue-number">{String(idx + 1).padStart(2, '0')}</span>
-                <Artwork className="queue-art" src={albumArt} alt="" />
-                <div className="queue-track-copy">
-                  <div className="queue-title">
-                    <h3 title={title}>{title}</h3>
-                    {idx === 0 && <span className="next-label">NEXT</span>}
-                  </div>
-                  <p title={artist}>{artist}</p>
-                </div>
-                <span className="queue-duration">
-                  {seconds > 0 ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '--:--'}
-                </span>
-                <a
-                  className="queue-link"
-                  href={track.external_urls?.spotify || 'https://open.spotify.com'}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={`Open ${title} in Spotify`}
+                <button
+                  type="button"
+                  className="queue-track-button"
+                  disabled={!onPlay || playDisabled}
+                  onClick={() => void onPlay?.(idx)}
+                  aria-label={`Play ${title} by ${artist}`}
                 >
-                  <ArrowUpRight size={16} />
-                </a>
+                  <span className="queue-play queue-number">{String(idx + 1).padStart(2, '0')}</span>
+                  <Artwork className="queue-art" src={albumArt} alt="" />
+                  <div className="queue-track-copy">
+                    <div className="queue-title">
+                      <h3 title={title}>{title}</h3>
+                      {idx === 0 && <span className="next-label">NEXT</span>}
+                    </div>
+                    <p title={artist}>{artist}</p>
+                  </div>
+                  <span className="queue-duration">
+                    {seconds > 0 ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '--:--'}
+                  </span>
+                </button>
               </div>
             );
           })}
-        </div>
-      )}
-
-      {showCount && (
-        <div className="queue-footer">
-          <span>
-            {queue.length} {queue.length === 1 ? 'track' : 'tracks'}
-            {status !== 'ready' || error ? ' last known' : ''}
-            {totalMinutes > 0 ? ` / ${totalMinutes} min` : ''}
-          </span>
         </div>
       )}
     </div>

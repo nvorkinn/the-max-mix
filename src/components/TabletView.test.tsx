@@ -12,6 +12,7 @@ const player = vi.hoisted(() => {
       Record<
         | 'togglePlay'
         | 'nextTrack'
+        | 'skipAhead'
         | 'previousTrack'
         | 'setVolume'
         | 'seek'
@@ -54,6 +55,7 @@ const track = {
   artists: [{ name: 'Art' }],
   album: { images: [{ url: 'http://art/a.jpg' }] }
 };
+const playing = { is_playing: true, item: track, device: { name: 'Kitchen' } };
 const queued = [{ id: 'q1', name: 'Queued One', artists: [{ name: 'Q' }], duration_ms: 1000 }];
 
 function setPlayer(overrides: Record<string, unknown> = {}) {
@@ -70,6 +72,7 @@ function setPlayer(overrides: Record<string, unknown> = {}) {
     refreshPlayback: vi.fn().mockResolvedValue(undefined),
     togglePlay: vi.fn(),
     nextTrack: vi.fn(),
+    skipAhead: vi.fn().mockResolvedValue(true),
     previousTrack: vi.fn(),
     seek: vi.fn(),
     setVolume: vi.fn(),
@@ -119,6 +122,7 @@ describe('TabletView', () => {
 
   it('shares waiting state across playback and a cached queue, then enables explicit commands after expiry', async () => {
     vi.useFakeTimers();
+    setPlayer({ playbackState: playing });
     api.getQueue.mockResolvedValue({ queue: queued });
     render(<TabletView />);
     await act(async () => {
@@ -177,17 +181,43 @@ describe('TabletView', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 0, 1, 16, 46));
     render(<TabletView />);
-    expect(document.querySelector('.footer-clock')).toHaveTextContent(/^\s*16:46\s*$/);
-    expect(document.querySelector('.footer-clock')).not.toHaveTextContent(/AM|PM/i);
+    expect(document.querySelector('.header-clock')).toHaveTextContent(/^\s*16:46\s*$/);
+    expect(document.querySelector('.header-clock')).not.toHaveTextContent(/AM|PM/i);
   });
 
-  it('shows the connected device and loads the queue', async () => {
+  it('shows the playing device and loads the queue', async () => {
     render(<TabletView />);
     await flush();
     expect(screen.getAllByText('Kitchen').length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Queued One' })).toBeInTheDocument();
     expect(api.getQueue).toHaveBeenCalled();
-    expect(screen.getByText('Spotify Connect remote')).toBeInTheDocument();
+  });
+
+  it('plays a tapped queue song by skipping past the ones before it, once at a time', async () => {
+    let finish = () => {};
+    api.getQueue.mockResolvedValue({
+      queue: [...queued, { id: 'q2', name: 'Queued Two', artists: [{ name: 'Q' }], duration_ms: 1000 }]
+    });
+    setPlayer({
+      skipAhead: vi.fn(
+        () =>
+          new Promise<boolean>(resolve => {
+            finish = () => resolve(true);
+          })
+      )
+    });
+    render(<TabletView />);
+    await flush();
+    const second = screen.getByRole('button', { name: 'Play Queued Two by Q' });
+    fireEvent.click(second);
+    expect(player.current.skipAhead).toHaveBeenCalledExactlyOnceWith(2);
+    // While the jump runs, the rows cannot be tapped again.
+    expect(second).toBeDisabled();
+    act(() => {
+      finish();
+    });
+    await flush();
+    expect(second).toBeEnabled();
   });
 
   it('applies the extracted album palette to the container', async () => {
@@ -231,7 +261,7 @@ describe('TabletView', () => {
     const panel = screen.getByRole('region', { name: 'Now playing' });
     expect(within(panel).getAllByText('--:--')).toHaveLength(2);
     expect(within(panel).queryByText('3:00')).not.toBeInTheDocument();
-    for (const dot of document.querySelectorAll('.session-status .status-dot, .app-footer .status-dot')) {
+    for (const dot of document.querySelectorAll('.session-status .status-dot')) {
       expect(dot).toHaveClass('status-dot-idle');
     }
   });
@@ -241,7 +271,7 @@ describe('TabletView', () => {
     render(<TabletView />);
     await flush();
     expect(screen.getByRole('heading', { name: 'Nothing playing' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Choose a Spotify Connect device' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Speakers:/ }));
     await flush();
     expect(screen.getByRole('dialog', { name: 'Speakers' })).toBeInTheDocument();
     expect(player.current.transferPlayback).not.toHaveBeenCalled();
@@ -311,7 +341,7 @@ describe('TabletView', () => {
     await flush();
     expect(screen.getByRole('alert')).toHaveTextContent('Playback problem');
     expect(screen.getByRole('button', { name: 'Refresh playback' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /problem, see details/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }));
     const panel = screen.getByRole('dialog', { name: 'Debug console' });
     expect(within(panel).getAllByText('Device offline').length).toBeGreaterThan(0);
     fireEvent.click(within(panel).getByRole('button', { name: 'Close debug console' }));
@@ -324,7 +354,7 @@ describe('TabletView', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    const clock = defined(document.querySelector('.footer-clock'));
+    const clock = defined(document.querySelector('.header-clock'));
     fireEvent.pointerDown(clock, { button: 0 });
     act(() => {
       vi.advanceTimersByTime(500);
@@ -380,7 +410,6 @@ describe('TabletView', () => {
     render(<TabletView />);
     expect(screen.getByText('Loading queue...')).toBeInTheDocument();
     expect(screen.queryByText('A little quiet in here.')).not.toBeInTheDocument();
-    expect(screen.queryByText('0 tracks')).not.toBeInTheDocument();
   });
 
   it('retries a failed queue immediately and only shows empty after a successful response', async () => {
@@ -389,16 +418,15 @@ describe('TabletView', () => {
     await flush();
     expect(screen.getByText('Queue unavailable.')).toBeInTheDocument();
     expect(screen.queryByText('A little quiet in here.')).not.toBeInTheDocument();
-    expect(screen.queryByText('0 tracks')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry queue' }));
     await flush();
     expect(api.getQueue).toHaveBeenCalledTimes(2);
     expect(screen.getByText('A little quiet in here.')).toBeInTheDocument();
-    expect(screen.getByText('0 tracks')).toBeInTheDocument();
   });
 
   it('labels cached queue contents when a later refresh fails', async () => {
     vi.useFakeTimers();
+    setPlayer({ playbackState: playing });
     api.getQueue.mockResolvedValueOnce({ queue: queued }).mockRejectedValueOnce(new Error('Queue down'));
     render(<TabletView />);
     await act(async () => {
@@ -409,7 +437,6 @@ describe('TabletView', () => {
     });
     expect(screen.getByRole('heading', { name: 'Queued One' })).toBeInTheDocument();
     expect(screen.getByText('Showing the last known queue.')).toBeInTheDocument();
-    expect(screen.getByText('1 track last known')).toBeInTheDocument();
   });
 
   it('shows a failed sign-in as an alert', async () => {
@@ -424,7 +451,7 @@ describe('TabletView', () => {
 
   it('re-reads the queue when the player says it changed, without polling while the SDK is active', async () => {
     vi.useFakeTimers();
-    setPlayer({ sdkActive: true, queueVersion: 1 });
+    setPlayer({ sdkActive: true, queueVersion: 1, playbackState: playing });
     const { rerender } = render(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
@@ -440,7 +467,7 @@ describe('TabletView', () => {
     });
     expect(api.getQueue).toHaveBeenCalledTimes(2);
 
-    setPlayer({ sdkActive: true, queueVersion: 2 });
+    setPlayer({ sdkActive: true, queueVersion: 2, playbackState: playing });
     rerender(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
@@ -450,6 +477,7 @@ describe('TabletView', () => {
 
   it('polls the queue every 10 seconds when no SDK events arrive', async () => {
     vi.useFakeTimers();
+    setPlayer({ playbackState: playing });
     render(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
@@ -458,6 +486,21 @@ describe('TabletView', () => {
       await vi.advanceTimersByTimeAsync(10_500);
     });
     expect(api.getQueue).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads the queue once while paused and polls again once playback starts', async () => {
+    vi.useFakeTimers();
+    const { rerender } = render(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(api.getQueue).toHaveBeenCalledTimes(1);
+    setPlayer({ playbackState: playing });
+    rerender(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_500);
+    });
+    expect(api.getQueue).toHaveBeenCalledTimes(3);
   });
 
   it('stops polling on unmount', async () => {
@@ -476,7 +519,7 @@ describe('TabletView', () => {
     await flush();
     expect(screen.queryByRole('button', { name: /jam in spotify/i })).not.toBeInTheDocument();
     api.getDevices.mockResolvedValue({ devices: [] });
-    fireEvent.click(screen.getByRole('button', { name: 'Choose a Spotify Connect device' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Speakers:/ }));
     await flush();
     expect(screen.getByRole('dialog', { name: /^speakers$/i })).toBeInTheDocument();
   });
@@ -521,7 +564,7 @@ describe('TabletView', () => {
     api.getQueue.mockResolvedValue({ queue: [] });
     render(<TabletView />);
     await flush();
-    fireEvent.click(screen.getByRole('button', { name: 'Choose a Spotify Connect device' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Speakers:/ }));
     await flush();
     fireEvent.click(screen.getByRole('button', { name: /Soundbar/ }));
     await flush();
@@ -545,35 +588,43 @@ describe('TabletView', () => {
     const openSpeakers = async () => {
       render(<TabletView />);
       await flush();
-      fireEvent.click(screen.getByRole('button', { name: 'Choose speakers' }));
+      fireEvent.click(screen.getByRole('button', { name: /^Speakers:/ }));
       await flush();
     };
 
-    it('choosing an AirPlay speaker moves playback to this tablet, routes it and remembers it', async () => {
-      airplay.getChosenSpeakers.mockReturnValue([]);
-      airplay.listAudioOutputs.mockResolvedValue(['Kitchen']);
-      await openSpeakers();
-      fireEvent.click(screen.getByRole('button', { name: /Kitchen/ }));
-      await flush();
-      expect(airplay.routeAudio).toHaveBeenCalledWith(['Kitchen']);
-      expect(player.current.transferPlayback).toHaveBeenCalledWith('web-1');
-      expect(localStorage.getItem('maxmix.audioRoute')).toBe('airplay');
-      expect(screen.getByText('AirPlay from this tablet')).toBeInTheDocument();
-    });
-
-    it('does not move playback that is already on this tablet', async () => {
+    it('choosing an AirPlay speaker routes the sound and remembers it while this tablet is playing', async () => {
       setPlayer({ playbackMode: 'browser', browserDeviceId: 'web-1', playbackState: { device: { id: 'web-1' } } });
       airplay.getChosenSpeakers.mockReturnValue([]);
       airplay.listAudioOutputs.mockResolvedValue(['Kitchen']);
       await openSpeakers();
       fireEvent.click(screen.getByRole('button', { name: /Kitchen/ }));
       await flush();
+      expect(airplay.routeAudio).toHaveBeenCalledWith(['Kitchen']);
       expect(player.current.transferPlayback).not.toHaveBeenCalled();
+      expect(localStorage.getItem('maxmix.audioRoute')).toBe('airplay');
+    });
+
+    it('keeps the AirPlay speakers disabled until this tablet is the one playing', async () => {
+      airplay.getChosenSpeakers.mockReturnValue([]);
+      airplay.listAudioOutputs.mockResolvedValue(['Kitchen']);
+      await openSpeakers();
+      // Another device (Soundbar) is playing.
+      const kitchen = screen.getByRole('button', { name: /Kitchen/ });
+      expect(kitchen).toBeDisabled();
+      expect(screen.getByText('Choose This tablet above to use AirPlay.')).toBeInTheDocument();
+      fireEvent.click(kitchen);
+      await flush();
+      expect(airplay.routeAudio).not.toHaveBeenCalled();
+      expect(localStorage.getItem('maxmix.audioRoute')).toBeNull();
+      // Playing from this tablet is what unlocks them.
+      fireEvent.click(screen.getByRole('button', { name: /This tablet/ }));
+      await flush();
+      expect(player.current.transferPlayback).toHaveBeenCalledWith('web-1');
     });
 
     it('cannot add an AirPlay speaker without a ready browser player, but can clear a saved one', async () => {
       localStorage.setItem('maxmix.audioRoute', 'airplay');
-      setPlayer({ isReady: false, isAuthenticated: false, browserDeviceId: null, playbackState: null });
+      setPlayer({ isReady: false, browserDeviceId: null, playbackState: null });
       await openSpeakers();
       const kitchen = screen.getByRole('button', { name: /Kitchen/ });
       expect(kitchen).toHaveTextContent('Not on the network');
@@ -609,7 +660,6 @@ describe('TabletView', () => {
       expect(airplay.setChosenSpeakers).toHaveBeenCalledWith([]);
       expect(player.current.transferPlayback).toHaveBeenCalledWith('dev2');
       expect(localStorage.getItem('maxmix.audioRoute')).toBeNull();
-      expect(screen.getByText('Spotify browser player')).toBeInTheDocument();
     });
 
     it('choosing this tablet while on AirPlay goes back to the tablet output', async () => {
@@ -623,12 +673,12 @@ describe('TabletView', () => {
     });
   });
 
-  it('shows the clock in the footer', async () => {
+  it('shows the clock in the header', async () => {
     vi.useFakeTimers({ now: new Date('2026-01-01T09:05:00') });
     render(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(defined(document.querySelector('.footer-clock'))).toHaveTextContent(/9:05|09:05/);
+    expect(defined(document.querySelector('.header-clock'))).toHaveTextContent(/9:05|09:05/);
   });
 });

@@ -44,7 +44,7 @@ for (const { viewport, appearance } of [{ viewport: { width: 1024, height: 600 }
     const initialTop = await list.evaluate(element => element.scrollTop);
     await list.hover();
     await page.mouse.wheel(0, -900);
-    await expect(panel.getByText('Reading lyrics')).toBeVisible();
+    await expect(list).toHaveAttribute('data-following', 'false');
     await expect.poll(() => list.evaluate(element => element.scrollTop)).toBeLessThan(initialTop);
     const readingTop = await list.evaluate(element => element.scrollTop);
     const initialLine = await active.textContent();
@@ -52,24 +52,20 @@ for (const { viewport, appearance } of [{ viewport: { width: 1024, height: 600 }
     await expect(active).not.toHaveText(initialLine ?? '');
     expect(Math.abs((await list.evaluate(element => element.scrollTop)) - readingTop)).toBeLessThan(2);
 
-    const follow = panel.getByRole('button', { name: 'Follow song' });
-    const target = await follow.boundingBox();
-    if (!target) throw new Error('Missing follow control');
-    expect(target.width).toBeGreaterThanOrEqual(44);
-    expect(target.height).toBeGreaterThanOrEqual(44);
+    // Left alone for a few seconds, the lyrics follow the song again.
     expect(await page.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-    await follow.click();
-    await expect(list).toBeFocused();
-    await expect(panel.getByText('Follows the song')).toBeVisible();
+    await page.clock.fastForward(9000);
+    await expect(list).toHaveAttribute('data-following', 'true');
     await expect.poll(centerOffset).toBeLessThan(2);
 
+    await list.focus();
     await page.keyboard.press('Home');
-    await expect(panel.getByText('Reading lyrics')).toBeVisible();
+    await expect(list).toHaveAttribute('data-following', 'false');
     await expect.poll(() => list.evaluate(element => element.scrollTop)).toBe(0);
     await page.clock.fastForward(5000);
     expect(await list.evaluate(element => element.scrollTop)).toBe(0);
     await page.getByRole('button', { name: 'Next track' }).click();
     await expect(list).toHaveAttribute('aria-label', 'Lyrics of Starboy');
-    await expect(panel.getByText('Follows the song')).toBeVisible();
+    await expect(list).toHaveAttribute('data-following', 'true');
   });
 }

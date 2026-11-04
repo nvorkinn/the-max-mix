@@ -142,8 +142,6 @@ for (const theme of ['minimal']) {
     await expect(player.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
     await expect(player.getByRole('slider', { name: 'Playback position' })).toHaveCount(0);
     await expect(page.locator('.session-status .status-dot')).toHaveClass(/status-dot-idle/);
-    await expect(page.locator('.app-footer .status-dot')).toHaveClass(/status-dot-idle/);
-    await expect(page.getByText('0 tracks', { exact: true })).toHaveCount(0);
     await expect(page.getByText('A little quiet in here.')).toHaveCount(0);
     await expectControlsFit(page, player);
     await player.getByRole('button', { name: 'Connection settings' }).click();
@@ -163,8 +161,8 @@ for (const theme of ['minimal']) {
     await expect(player.getByRole('heading', { name: 'Nothing playing' })).toBeVisible();
     await expect(page.getByRole('alert')).toHaveCount(0);
     await expectControlsFit(page, player);
-    await expect(page.getByRole('button', { name: 'Choose a Spotify Connect device' })).toBeInViewport();
-    await page.getByRole('button', { name: 'Choose a Spotify Connect device' }).click();
+    await expect(page.getByRole('button', { name: /^Speakers:/ })).toBeInViewport();
+    await page.getByRole('button', { name: /^Speakers:/ }).click();
     await expect(page.getByRole('dialog', { name: 'Speakers' })).toBeVisible();
     expect(api.commands).toEqual([]);
   });
@@ -204,14 +202,12 @@ for (const theme of ['minimal']) {
     await page.goto('/');
     const queue = page.getByRole('region', { name: 'Upcoming tracks' });
     await expect(queue.getByText('Loading queue...')).toBeVisible();
-    await expect(queue.getByText('0 tracks', { exact: true })).toHaveCount(0);
     resolve(undefined);
     await expect(queue.getByText('Queue unavailable.')).toBeVisible();
     await expect(queue.getByText('A little quiet in here.')).toHaveCount(0);
     api.queueStatus = 200;
     await queue.getByRole('button', { name: 'Retry queue' }).click();
     await expect(queue.getByText('A little quiet in here.')).toBeVisible();
-    await expect(queue.getByText('0 tracks', { exact: true })).toBeVisible();
   });
 
   for (const source of ['skip', 'queue', 'devices']) {
@@ -233,7 +229,7 @@ for (const theme of ['minimal']) {
         await page.clock.runFor(10_000);
       } else {
         api.devicesStatus = 429;
-        await page.getByRole('button', { name: 'Choose a Spotify Connect device' }).click();
+        await page.getByRole('button', { name: /^Speakers:/ }).click();
         const speakers = page.getByRole('dialog', { name: 'Speakers' });
         await expect(speakers.getByRole('button', { name: 'Refresh devices' })).toBeDisabled();
         await speakers.getByRole('button', { name: 'Close speakers' }).click();
@@ -245,7 +241,7 @@ for (const theme of ['minimal']) {
       await expectControlsFit(page, player);
       const requests = api.requests.length;
       const commands = [...api.commands];
-      await page.getByRole('button', { name: 'Choose a Spotify Connect device' }).click();
+      await page.getByRole('button', { name: /^Speakers:/ }).click();
       const speakers = page.getByRole('dialog', { name: 'Speakers' });
       await expect(speakers.getByText('Spotify asked this app to wait before refreshing devices.')).toBeVisible();
       await expect(speakers.getByRole('button', { name: 'Refresh devices' })).toBeDisabled();

@@ -10,26 +10,47 @@ permissions:
   contents: read
 
 jobs:
+  # Picks the checks this change needs from the files it touches (scripts/lint-plan.ts has the list); a push to main
+  # runs them all. The other jobs skip themselves when they are not in the plan.
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      checks: ${{ steps.plan.outputs.checks }}
+      npm: ${{ steps.plan.outputs.npm }}
+    steps:
+      # A pull request checks out its merge commit, whose first parent is the base branch, so two commits are enough.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            checks=$(git diff --name-only HEAD^1 HEAD | node scripts/lint-plan.ts)
+          else
+            checks=$(node scripts/lint-plan.ts --all)
+          fi
+          echo "Checks: $checks"
+          echo "checks=$checks" >> "$GITHUB_OUTPUT"
+          # The npm run checks alone, for the matrix job.
+          echo "npm=$(echo "$checks" | jq -c 'map(select(. != "shellcheck" and . != "actionlint" and . != "editorconfig"))')" >> "$GITHUB_OUTPUT"
+
   checks:
     name: npm run ${{ matrix.check }}
+    needs: plan
+    if: needs.plan.outputs.npm != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        check:
-          [
-            lint,
-            typecheck,
-            format:check,
-            knip,
-            lint:spelling,
-            lint:md,
-            lint:yaml,
-            lint:css,
-            lint:package-json,
-            lint:lockfiles
-          ]
+        check: ${{ fromJSON(needs.plan.outputs.npm) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -42,6 +63,8 @@ jobs:
       - run: npm run ${{ matrix.check }}
 
   shellcheck:
+    needs: plan
+    if: contains(fromJSON(needs.plan.outputs.checks), 'shellcheck')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -59,28 +82,9 @@ jobs:
           tar -xJf "$RUNNER_TEMP/shellcheck.tar.xz" -C "$RUNNER_TEMP/shellcheck" --strip-components=1 "shellcheck-v${VERSION}/shellcheck"
           "$RUNNER_TEMP/shellcheck/shellcheck" ansible/roles/kiosk/files/bin/* ansible/tests/*.sh
 
-  # The Raspberry Pi kiosk playbook. Both tools are pinned and installed into a virtual environment.
-  ansible:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Install ansible-core and ansible-lint
-        run: |
-          python3 -m venv "$RUNNER_TEMP/ansible"
-          "$RUNNER_TEMP/ansible/bin/pip" install --quiet ansible-core==2.21.5 ansible-lint==26.10.1
-      - name: Run ansible-lint
-        run: |
-          export PATH="$RUNNER_TEMP/ansible/bin:$PATH"
-          ansible-lint ansible/
-      - name: Check the playbook syntax
-        run: |
-          export PATH="$RUNNER_TEMP/ansible/bin:$PATH"
-          ansible-playbook --syntax-check -i localhost, ansible/local.yml
-
   actionlint:
+    needs: plan
+    if: contains(fromJSON(needs.plan.outputs.checks), 'actionlint')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -100,6 +104,8 @@ jobs:
           "$RUNNER_TEMP/actionlint/actionlint" -color .github/workflows/*.yml
 
   editorconfig:
+    needs: plan
+    if: contains(fromJSON(needs.plan.outputs.checks), 'editorconfig')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

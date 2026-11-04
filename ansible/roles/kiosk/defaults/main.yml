@@ -55,9 +55,16 @@ kiosk_cmdline_params:
 kiosk_ssh_enabled: true
 # The maintenance account. It has no password, so it can only log in over SSH with a key; it uses sudo without one.
 kiosk_admin_user: admin
-# The admin account's SSH keys are this GitHub account's public keys (https://github.com/<name>.keys), fetched again at
-# every playbook run, so a key added or removed on GitHub reaches the Pi at its next pull. Empty for no keys.
+# The admin account's SSH keys are this GitHub account's public keys (https://github.com/<name>.keys), fetched again at the
+# first playbook run that finds them older than kiosk_admin_keys_max_age_hours, so a key added or removed on GitHub reaches
+# the Pi within that time after its next pull. Empty for no keys.
 kiosk_admin_github_user: nvorkinn
+kiosk_admin_keys_max_age_hours: 24
+# Where the playbook records which packages (and Node.js) it last installed, so that it skips that slow step when nothing
+# changed.
+kiosk_packages_stamp: /var/lib/the-max-mix/packages.sha1
+# The journal is kept on disk (it is in memory by default, so a reboot loses it), up to this much of the SD card.
+kiosk_journal_max_use: 64M
 # Regenerate the initramfs when the Plymouth theme changes. Needs a kernel, so tests in a plain container turn it off.
 kiosk_update_initramfs: true
 

@@ -1,6 +1,6 @@
 // Spotify Web API calls made straight from the browser (Spotify allows CORS for them).
 
-import type { PlaybackState, SpotifyDevice, Track } from '../types';
+import type { PlaybackState, RepeatMode, SpotifyDevice, Track } from '../types';
 import { discardAccessToken, getAccessToken, isSignedIn } from './auth';
 import {
   checkSpotifyRetryWindow,
@@ -129,4 +129,31 @@ export async function seek(positionMs: number): Promise<{ success: true }> {
 export async function setVolume(percent: number): Promise<{ success: true }> {
   requireInteger(percent, 0, 100, 'volume_percent');
   return command(`/me/player/volume?volume_percent=${percent}`, 'PUT');
+}
+
+export async function setShuffle(on: boolean): Promise<{ success: true }> {
+  return command(`/me/player/shuffle?state=${on}`, 'PUT');
+}
+
+export async function setRepeat(mode: RepeatMode): Promise<{ success: true }> {
+  return command(`/me/player/repeat?state=${mode}`, 'PUT');
+}
+
+function requireTrackUri(uri: string) {
+  if (typeof uri !== 'string' || !uri.startsWith('spotify:track:')) {
+    throw new SpotifyApiError('A Spotify track URI is required.', 400);
+  }
+}
+
+/** Whether the track is in the user's Liked Songs. */
+export async function isTrackSaved(uri: string): Promise<boolean> {
+  requireTrackUri(uri);
+  const reply = await spotifyFetch(`/me/library/contains?uris=${encodeURIComponent(uri)}`);
+  return Array.isArray(reply) && reply[0] === true;
+}
+
+/** Adds the track to Liked Songs, or with `saved` false removes it. */
+export async function setTrackSaved(uri: string, saved: boolean): Promise<{ success: true }> {
+  requireTrackUri(uri);
+  return command(`/me/library?uris=${encodeURIComponent(uri)}`, saved ? 'PUT' : 'DELETE');
 }

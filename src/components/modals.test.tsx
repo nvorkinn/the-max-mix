@@ -5,7 +5,7 @@ import userEvent from '../test/user';
 import { partialProps } from '../test/partialProps';
 import { defined } from '../test/defined';
 import SettingsModalFull from './SettingsModal';
-import SpeakerSelectorModalFull from './SpeakerSelectorModal';
+import SpeakerDrawerFull from './SpeakerDrawer';
 
 const api = vi.hoisted(() => ({ getDevices: vi.fn() }));
 const auth = vi.hoisted(() => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
@@ -25,7 +25,7 @@ vi.mock('../audio/airplay', () => ({
 }));
 
 const SettingsModal = partialProps(SettingsModalFull);
-const SpeakerSelectorModal = partialProps(SpeakerSelectorModalFull);
+const SpeakerDrawer = partialProps(SpeakerDrawerFull);
 
 describe('SettingsModal', () => {
   const base = { isOpen: true, onClose: vi.fn(), onReload: vi.fn() };
@@ -170,7 +170,7 @@ describe('SettingsModal', () => {
   });
 });
 
-describe('SpeakerSelectorModal', () => {
+describe('SpeakerDrawer', () => {
   const devices = [
     { id: 'a', name: 'Kitchen', type: 'Speaker', volume_percent: 40, is_active: true },
     { id: 'b', name: 'Locked', is_restricted: true },
@@ -181,17 +181,17 @@ describe('SpeakerSelectorModal', () => {
   });
 
   it('does not fetch while closed', () => {
-    render(<SpeakerSelectorModal isOpen={false} />);
+    render(<SpeakerDrawer isOpen={false} />);
     expect(api.getDevices).not.toHaveBeenCalled();
   });
 
   it('lists devices and disables restricted or id-less ones', async () => {
     api.getDevices.mockResolvedValue({ devices });
-    render(<SpeakerSelectorModal isOpen onClose={() => {}} onSelectSpeaker={vi.fn()} />);
+    render(<SpeakerDrawer isOpen onClose={() => {}} onSelectSpeaker={vi.fn()} />);
     const kitchen = await screen.findByRole('button', { name: /Kitchen/ });
     expect(kitchen).toBeEnabled();
     expect(kitchen).toHaveTextContent('Speaker / 40% volume');
-    expect(kitchen).toHaveTextContent('Active');
+    expect(kitchen).toHaveTextContent('Playing');
     expect(screen.getByRole('button', { name: /Locked/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: /No id/ })).toBeDisabled();
     expect(screen.getByText('Playback control restricted')).toBeInTheDocument();
@@ -201,13 +201,13 @@ describe('SpeakerSelectorModal', () => {
 
   it('shows an empty state when there are no devices', async () => {
     api.getDevices.mockResolvedValue({ devices: [] });
-    render(<SpeakerSelectorModal isOpen />);
+    render(<SpeakerDrawer isOpen />);
     expect(await screen.findByText(/No Spotify speakers found/)).toBeInTheDocument();
   });
 
   it('shows the error and clears devices when loading fails', async () => {
     api.getDevices.mockImplementation(() => Promise.reject(new Error('Spotify down')));
-    render(<SpeakerSelectorModal isOpen />);
+    render(<SpeakerDrawer isOpen />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Spotify down');
     expect(screen.queryByText(/No Spotify speakers found/)).not.toBeInTheDocument();
   });
@@ -215,7 +215,7 @@ describe('SpeakerSelectorModal', () => {
   it('selects a device then refreshes the list', async () => {
     api.getDevices.mockResolvedValue({ devices });
     const onSelectSpeaker = vi.fn().mockResolvedValue(undefined);
-    render(<SpeakerSelectorModal isOpen onSelectSpeaker={onSelectSpeaker} />);
+    render(<SpeakerDrawer isOpen onSelectSpeaker={onSelectSpeaker} />);
     await userEvent.click(await screen.findByRole('button', { name: /Kitchen/ }));
     expect(onSelectSpeaker).toHaveBeenCalledWith('a');
     await waitFor(() => expect(api.getDevices).toHaveBeenCalledTimes(2));
@@ -224,7 +224,7 @@ describe('SpeakerSelectorModal', () => {
   it('disables device refresh and selection during a shared wait without replaying a transfer', async () => {
     api.getDevices.mockResolvedValue({ devices });
     const onSelectSpeaker = vi.fn();
-    render(<SpeakerSelectorModal isOpen onSelectSpeaker={onSelectSpeaker} browserDeviceId="web-1" />);
+    render(<SpeakerDrawer isOpen onSelectSpeaker={onSelectSpeaker} browserDeviceId="web-1" />);
     await screen.findByRole('button', { name: /Kitchen/ });
     vi.useFakeTimers();
     act(() => recordSpotifyRetryAfter(new SpotifyApiError('Queue rate limited', 429, 30)));
@@ -245,7 +245,7 @@ describe('SpeakerSelectorModal', () => {
   it('surfaces a failed selection', async () => {
     api.getDevices.mockResolvedValue({ devices });
     const onSelectSpeaker = vi.fn(() => Promise.reject(new Error('Transfer failed')));
-    render(<SpeakerSelectorModal isOpen onSelectSpeaker={onSelectSpeaker} />);
+    render(<SpeakerDrawer isOpen onSelectSpeaker={onSelectSpeaker} />);
     await userEvent.click(await screen.findByRole('button', { name: /Kitchen/ }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Transfer failed');
   });
@@ -253,7 +253,7 @@ describe('SpeakerSelectorModal', () => {
   it('always offers this tablet, listed once, and marks it active when it is', async () => {
     api.getDevices.mockResolvedValue({ devices: [{ id: 'web-1', name: 'Max Mix', is_active: true }, ...devices] });
     const onSelectSpeaker = vi.fn().mockResolvedValue(undefined);
-    render(<SpeakerSelectorModal isOpen browserDeviceId="web-1" onSelectSpeaker={onSelectSpeaker} />);
+    render(<SpeakerDrawer isOpen browserDeviceId="web-1" onSelectSpeaker={onSelectSpeaker} />);
     const tablet = await screen.findByRole('button', { name: /This tablet/ });
     await screen.findByRole('button', { name: /Kitchen/ });
     expect(tablet).toHaveAttribute('aria-pressed', 'true');
@@ -265,14 +265,14 @@ describe('SpeakerSelectorModal', () => {
   it('offers this tablet when Spotify does not list it yet', async () => {
     api.getDevices.mockResolvedValue({ devices });
     const onSelectSpeaker = vi.fn().mockResolvedValue(undefined);
-    render(<SpeakerSelectorModal isOpen browserDeviceId="web-1" onSelectSpeaker={onSelectSpeaker} />);
+    render(<SpeakerDrawer isOpen browserDeviceId="web-1" onSelectSpeaker={onSelectSpeaker} />);
     await screen.findByRole('button', { name: /Kitchen/ });
     expect(screen.getByRole('button', { name: /This tablet/ })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('has no tablet entry before the tablet player exists', async () => {
     api.getDevices.mockResolvedValue({ devices });
-    render(<SpeakerSelectorModal isOpen />);
+    render(<SpeakerDrawer isOpen />);
     await screen.findByRole('button', { name: /Kitchen/ });
     expect(screen.queryByRole('button', { name: /This tablet/ })).not.toBeInTheDocument();
   });
@@ -280,7 +280,7 @@ describe('SpeakerSelectorModal', () => {
   it('refreshes on demand and closes', async () => {
     api.getDevices.mockResolvedValue({ devices: [] });
     const onClose = vi.fn();
-    render(<SpeakerSelectorModal isOpen onClose={onClose} />);
+    render(<SpeakerDrawer isOpen onClose={onClose} />);
     await screen.findByText(/No Spotify speakers found/);
     await userEvent.click(screen.getByRole('button', { name: 'Refresh devices' }));
     await waitFor(() => expect(api.getDevices).toHaveBeenCalledTimes(2));
@@ -290,7 +290,7 @@ describe('SpeakerSelectorModal', () => {
 
   it('offers no AirPlay section off the kiosk, and no mode switch anywhere', async () => {
     api.getDevices.mockResolvedValue({ devices: [] });
-    render(<SpeakerSelectorModal isOpen />);
+    render(<SpeakerDrawer isOpen />);
     expect(await screen.findByText(/No Spotify speakers found/)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'AirPlay' })).not.toBeInTheDocument();
     expect(screen.queryByRole('group', { name: 'Playback mode' })).not.toBeInTheDocument();
@@ -298,7 +298,7 @@ describe('SpeakerSelectorModal', () => {
 
   it('lists tablet, AirPlay and Spotify Connect speakers together on the kiosk', async () => {
     api.getDevices.mockResolvedValue({ devices });
-    render(<SpeakerSelectorModal isOpen canUseAirPlay browserDeviceId="web-1" onSelectSpeaker={vi.fn()} />);
+    render(<SpeakerDrawer isOpen canUseAirPlay browserDeviceId="web-1" onSelectSpeaker={vi.fn()} />);
     expect(await screen.findByRole('button', { name: /This tablet/ })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'AirPlay' })).toBeInTheDocument();
     expect(await screen.findByText(/Looking for AirPlay speakers/)).toBeInTheDocument();
@@ -309,10 +309,10 @@ describe('SpeakerSelectorModal', () => {
 
   it('does not mark a Connect device or the tablet active while AirPlay is the route', async () => {
     api.getDevices.mockResolvedValue({ devices: [{ id: 'web-1', name: 'Max Mix', is_active: true }, ...devices] });
-    render(<SpeakerSelectorModal isOpen canUseAirPlay audioRoute="airplay" browserDeviceId="web-1" />);
+    render(<SpeakerDrawer isOpen canUseAirPlay audioRoute="airplay" browserDeviceId="web-1" />);
     const kitchen = await screen.findByRole('button', { name: /Kitchen/ });
     expect(kitchen).toHaveAttribute('aria-pressed', 'false');
-    expect(kitchen).not.toHaveTextContent('Active');
+    expect(kitchen).not.toHaveTextContent('Playing');
     expect(screen.getByRole('button', { name: /This tablet/ })).toHaveAttribute('aria-pressed', 'false');
   });
 });

@@ -198,22 +198,13 @@
   padding: 0 15px;
   white-space: nowrap;
 }
-.button-primary {
-  color: var(--accent-ink);
-  background: var(--accent);
-}
-.button-secondary,
-.icon-button {
+.button-secondary {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--ink);
 }
-.button-secondary:hover,
-.icon-button:hover {
+.button-secondary:hover {
   background: var(--surface-raised);
-}
-.button-primary:hover {
-  filter: brightness(1.08);
 }
 .button:active,
 .icon-button:active,
@@ -222,7 +213,17 @@
 }
 .icon-button {
   width: 44px;
+  border: 0;
+  background: transparent;
   color: var(--muted);
+}
+.icon-button:hover {
+  color: var(--ink);
+}
+.room-frame {
+  flex: 1;
+  min-height: 0;
+  container-type: size;
 }
 .listening-room {
   position: relative;
@@ -230,8 +231,7 @@
   width: 100%;
   max-width: 1500px;
   margin: 0 auto;
-  flex: 1;
-  min-height: 0;
+  height: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
   gap: 28px;
@@ -240,6 +240,7 @@
 /* The kiosk's touch screen (?cursor=hidden, see utils/kiosk.ts): no mouse pointer, whatever an element asks for. */
 .hide-cursor,
 .hide-cursor * {
+  /* stylelint-disable-next-line declaration-no-important -- must beat every element's own cursor rule */
   cursor: none !important;
 }
 
@@ -247,6 +248,138 @@
 .queue-section {
   min-width: 0;
   min-height: 0;
+}
+/*
+  Playing layout: a square art column on the left (as wide as the room is tall, minus the control bar), the track
+  details and queue beside it, and one control bar across the bottom. The player section and now-playing wrapper only
+  group markup, so their children join this grid directly. Container query units make the art column exactly as wide as
+  the room is tall, which keeps the artwork square on any kiosk height.
+*/
+.listening-room:not(.is-setup) {
+  --bar-height: 100px;
+  --row-gap: 14px;
+  --room-padding-y: 32px;
+  padding-block: 16px;
+  grid-template:
+    'art details' auto
+    'art queue' minmax(0, 1fr)
+    'bar bar' var(--bar-height) / calc(100cqh - var(--room-padding-y) - var(--bar-height) - var(--row-gap)) minmax(
+      0,
+      1fr
+    );
+  gap: var(--row-gap) 28px;
+}
+.listening-room:not(.is-setup) .player-section,
+.listening-room:not(.is-setup) .now-playing {
+  display: contents;
+}
+.listening-room:not(.is-setup) .album-art {
+  grid-area: art;
+  height: 100%;
+}
+.listening-room:not(.is-setup) .track-details {
+  grid-area: details;
+  padding: 0;
+}
+.listening-room:not(.is-setup) .queue-section {
+  grid-area: queue;
+}
+/* The queue shares the right column with the track details, so its panel is tighter than the full-height one. */
+.listening-room:not(.is-setup) .queue-panel {
+  padding: 12px 18px;
+}
+.listening-room:not(.is-setup) .queue-track {
+  min-height: 52px;
+}
+.listening-room:not(.is-setup) .player-controls {
+  grid-area: bar;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: auto 1fr;
+  align-items: center;
+  column-gap: 16px;
+}
+.listening-room:not(.is-setup) .seek-control {
+  grid-column: 1 / -1;
+}
+.listening-room:not(.is-setup) .player-device {
+  grid-column: 1;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: -10px;
+  padding: 0 12px 0 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.listening-room:not(.is-setup) .player-device span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.player-device b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.player-device.is-open {
+  background: var(--surface);
+  border-color: var(--border);
+}
+.player-device-chevron {
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: transform 160ms;
+}
+.player-device.is-open .player-device-chevron {
+  transform: rotate(180deg);
+}
+/* The speakers drawer: a popover above the device indicator that dims the screen behind it. */
+.speaker-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: rgb(20 24 18 / 22%);
+  cursor: default;
+}
+.speaker-drawer {
+  position: absolute;
+  z-index: 61;
+  left: 30px;
+  bottom: 122px;
+  max-height: calc(100% - 200px);
+  width: min(420px, calc(100% - 60px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 24px 48px -20px rgb(0 0 0 / 45%);
+}
+.speaker-drawer-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.listening-room:not(.is-setup) .transport-row {
+  grid-column: 2;
+  margin: 0;
+}
+.listening-room:not(.is-setup) .volume-control {
+  grid-column: 3;
+  justify-self: end;
+  width: 240px;
+  margin: 0;
 }
 .listening-room.is-setup {
   display: flex;
@@ -289,40 +422,6 @@
 .spotify-setup .button + p {
   margin-top: 6px;
   font-size: 12px;
-}
-.playback-choice {
-  display: flex;
-  align-items: start;
-  gap: 12px;
-  padding: 12px;
-  min-height: 64px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  cursor: pointer;
-}
-.playback-choice input {
-  margin-top: 3px;
-  accent-color: var(--accent);
-}
-.playback-choice:has(input:checked) {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-.playback-choice:has(input:disabled) {
-  cursor: not-allowed;
-}
-.eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 1.8px;
-  font-weight: 650;
-  color: var(--muted);
-}
-.eyebrow svg {
-  color: var(--accent);
 }
 .now-playing {
   height: 100%;
@@ -377,9 +476,6 @@
   padding: 14px 60px 10px 18px;
   background: var(--surface);
 }
-.lyrics-panel .queue-footer {
-  margin-top: 6px;
-}
 .album-cover {
   position: absolute;
   inset: 0;
@@ -403,14 +499,28 @@
   padding: 16px 0 10px;
   min-height: 0;
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
 }
 .track-copy {
+  flex: 1;
   min-width: 0;
   min-height: 32px;
   max-height: 20dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+.track-like {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--muted);
+}
+.track-like.is-on {
+  color: var(--ink);
 }
 .track-copy h2 {
   font-size: clamp(26px, 2.8vw, 36px);
@@ -424,16 +534,6 @@
   font-size: 15px;
   margin-top: 5px;
   overflow-wrap: anywhere;
-}
-.track-credit {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: 10px;
-  color: var(--muted);
-  font-size: 12px;
-  overflow-wrap: anywhere;
-  flex-shrink: 0;
 }
 .player-controls {
   margin-top: auto;
@@ -515,9 +615,17 @@
   width: 100%;
   height: 20px;
 }
-.track-times {
+.seek-control {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.seek-control .seek-range {
+  flex: 1;
+  min-width: 0;
+}
+.track-time {
+  min-width: 3ch;
   font-size: 12px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -570,6 +678,23 @@
 .transport-skip:hover {
   background: var(--surface-raised);
 }
+/* Shuffle and repeat: muted while off, full colour with a dot underneath while on. */
+.transport-mode {
+  position: relative;
+  color: var(--muted);
+}
+.transport-mode.is-on {
+  color: var(--ink);
+}
+.transport-mode.is-on::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentcolor;
+}
 .transport-play {
   width: 50px;
   height: 50px;
@@ -589,43 +714,6 @@
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 22px;
-}
-.queue-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.queue-heading h2 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 28px;
-  font-weight: 650;
-  letter-spacing: -1px;
-  margin-top: 5px;
-  line-height: 1.2;
-}
-.queue-count {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--muted);
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  padding: 4px 7px;
-  border-radius: 7px;
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
-}
-.queue-columns {
-  display: grid;
-  grid-template-columns: 35px 1fr 106px;
-  padding: 0 10px 9px;
-  font-size: 8px;
-  letter-spacing: 1.2px;
-  color: var(--muted);
-  border-bottom: 1px solid var(--border);
 }
 .queue-list {
   flex: 1;
@@ -648,6 +736,16 @@
   transition:
     background 160ms,
     opacity 160ms;
+}
+.queue-track-button {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  color: inherit;
 }
 .queue-track:last-child {
   border-bottom-color: transparent;
@@ -719,18 +817,6 @@
   color: var(--muted);
   margin: 0 5px;
 }
-.queue-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--muted);
-}
 .queue-empty {
   flex: 1;
   min-height: 130px;
@@ -760,30 +846,13 @@
   line-height: 1.7;
   color: var(--muted);
 }
-.app-footer {
-  padding: 0 30px 16px;
+.header-clock {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 15px;
-  font-size: 12px;
+  gap: 6px;
+  margin-right: 8px;
+  font-size: 14px;
   color: var(--muted);
-  z-index: 20;
-}
-.app-footer > span:first-child,
-.footer-problem-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.app-footer > span:last-child {
-  font-size: 8px;
-  letter-spacing: 1.5px;
-}
-.footer-clock {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   font-variant-numeric: tabular-nums;
   /* Held for two seconds to open the debug console, so no long-press menu or zoom may claim it. */
   touch-action: manipulation;
@@ -830,13 +899,9 @@ body:has(.app-dialog[open]) {
   color: var(--accent);
 }
 .modal-card,
-.modal-badge,
 .modal-icon-button {
   background: var(--surface-raised);
   border-color: var(--border);
-}
-.modal-badge {
-  color: var(--muted);
 }
 .modal-option {
   background: var(--surface);
@@ -844,19 +909,12 @@ body:has(.app-dialog[open]) {
   color: var(--ink);
 }
 .modal-option:hover,
-.modal-icon-button:hover,
-.modal-segment:hover {
+.modal-icon-button:hover {
   background: var(--surface-raised);
 }
 .modal-option[aria-pressed='true'] {
   background: var(--accent-soft);
   border-color: var(--accent);
-}
-.modal-divider {
-  border-color: var(--border);
-}
-.modal-segment {
-  color: var(--muted);
 }
 .colour-swatch {
   background: var(--swatch);
@@ -865,10 +923,6 @@ body:has(.app-dialog[open]) {
   box-shadow:
     0 0 0 3px var(--surface),
     0 0 0 5px var(--swatch);
-}
-.modal-segment[aria-pressed='true'] {
-  background: var(--accent);
-  color: var(--accent-ink);
 }
 .status-success {
   color: var(--success);
@@ -981,27 +1035,10 @@ body:has(.app-dialog[open]) {
   opacity: 1;
   font-size: 21px;
 }
-.lyrics-panel .queue-footer a {
-  color: inherit;
-  text-decoration: underline;
-  display: inline-flex;
-  align-items: center;
-  min-width: 44px;
-  min-height: 44px;
-}
 .queue-error {
   color: #fda4af;
   font-size: 13px;
   padding: 8px 0;
-}
-.queue-link {
-  padding: 10px;
-  color: var(--muted);
-  min-width: 44px;
-  min-height: 44px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
 }
 button:disabled,
 input:disabled {
@@ -1015,10 +1052,6 @@ input:disabled {
   }
   .queue-duration {
     display: none;
-  }
-  .queue-heading .eyebrow {
-    font-size: 8px;
-    letter-spacing: 1.2px;
   }
 }
 
@@ -1034,9 +1067,6 @@ input:disabled {
   .queue-panel {
     padding: 18px;
   }
-  .queue-heading h2 {
-    font-size: 25px;
-  }
   .queue-track {
     min-height: 62px;
     padding-top: 5px;
@@ -1049,23 +1079,9 @@ input:disabled {
   .track-copy h2 {
     font-size: 26px;
   }
-  .track-credit {
-    margin-top: 6px;
-  }
-  .app-footer {
-    padding-bottom: 12px;
-  }
 }
 
 /* The technical debug console stays dark regardless of appearance. */
-.footer-problem {
-  color: #fda4af;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.footer-problem-button {
-  min-height: 44px;
-}
 .status-dot-error {
   background: #f87171;
 }
@@ -1172,6 +1188,7 @@ input:disabled {
   color: #fda4af;
 }
 
+/* stylelint-disable declaration-no-important -- reduced motion has to beat every component's own durations */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1182,6 +1199,7 @@ input:disabled {
     scroll-behavior: auto !important;
   }
 }
+/* stylelint-enable declaration-no-important */
 
 /* The kiosk's sleep screen (components/SleepScreen.tsx): black over everything, catching the tap that wakes it. */
 .sleep-screen {

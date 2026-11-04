@@ -40,10 +40,10 @@ test('shows the current track and queue', async ({ page }) => {
 test('pause and play toggle the playback state', async ({ page }) => {
   await page.goto('/');
   await nowPlaying(page).getByRole('button', { name: 'Pause' }).click();
-  await expect(nowPlaying(page).getByRole('button', { name: 'Play' })).toBeVisible();
+  await expect(nowPlaying(page).getByRole('button', { name: 'Play', exact: true })).toBeVisible();
   await expect(nowPlaying(page).getByRole('button', { name: 'Pause' })).toBeHidden();
 
-  await nowPlaying(page).getByRole('button', { name: 'Play' }).click();
+  await nowPlaying(page).getByRole('button', { name: 'Play', exact: true }).click();
   await expect(nowPlaying(page).getByRole('button', { name: 'Pause' })).toBeVisible();
 });
 
@@ -56,6 +56,15 @@ test('next and previous change the current track', async ({ page }) => {
   await nowPlaying(page).getByRole('button', { name: 'Previous track' }).click();
   await expect(nowPlaying(page)).toContainText('One More Time');
   await expect(upcoming(page)).toContainText('Starboy');
+});
+
+test('tapping a queued song plays it and drops the songs before it from the queue', async ({ page }) => {
+  await page.goto('/');
+  await upcoming(page).getByRole('button', { name: 'Play Music Sounds Better with You by Stardust' }).click();
+  await expect(nowPlaying(page)).toContainText('Music Sounds Better with You');
+  await expect(upcoming(page)).not.toContainText('Starboy');
+  await expect(upcoming(page)).not.toContainText('Levitating');
+  await expect(upcoming(page)).toContainText('Midnight City');
 });
 
 test('settings modal opens and closes', async ({ page }) => {
