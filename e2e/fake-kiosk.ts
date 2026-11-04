@@ -23,7 +23,10 @@ export async function fakeKioskAirPlay(
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
     const path = new URL(request.url()).pathname;
     if (path === '/speakers') {
-      return route.fulfill({ headers: CORS, json: { speakers: Object.keys(volumes).toSorted(), volumes } });
+      return route.fulfill({
+        headers: CORS,
+        json: { speakers: Object.keys(volumes).toSorted((a, b) => a.localeCompare(b)), volumes }
+      });
     }
     if (path === '/audio/volume') sent.push(request.postDataJSON() as { speaker: string; volume: number });
     return route.fulfill({ status: 204, headers: CORS });

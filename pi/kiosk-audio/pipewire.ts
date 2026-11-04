@@ -133,7 +133,7 @@ export function volumeOf(info: Json): number | null {
     const channels: unknown = asRecord(entry)['channelVolumes'];
     if (!Array.isArray(channels) || channels.length === 0) continue;
     const values = channels as unknown[];
-    if (!values.every(value => typeof value === 'number' && Number.isFinite(value) && value >= 0)) continue;
+    if (values.some(value => typeof value !== 'number' || !Number.isFinite(value) || value < 0)) continue;
     const mean = (values as number[]).reduce((sum, value) => sum + value, 0) / values.length;
     return Math.min(1, Math.cbrt(mean));
   }

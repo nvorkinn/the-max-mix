@@ -37,7 +37,7 @@ export default function AirPlaySpeakerList({
   const [chosen, setChosen] = useState(getChosenSpeakers);
   const [volumes, setVolumes] = useState<Record<string, number>>({});
   // When each speaker's volume was last set here.
-  const volumeSetAt = useRef(new Map<string, number>());
+  const volumeSetAtRef = useRef(new Map<string, number>());
   const [error, setError] = useState<string | null>(null);
   if (!active && chosen.length > 0) setChosen([]);
 
@@ -47,9 +47,9 @@ export default function AirPlaySpeakerList({
       setOutputs(speakers.names);
       setVolumes(current => {
         const next = { ...speakers.volumes };
-        for (const [name, time] of volumeSetAt.current) {
+        for (const [name, time] of volumeSetAtRef.current) {
           const held = current[name];
-          if (Date.now() - time < HOLD_MS && held !== undefined) next[name] = held;
+          if (held !== undefined && Date.now() - time < HOLD_MS) next[name] = held;
         }
         return next;
       });
@@ -81,7 +81,7 @@ export default function AirPlaySpeakerList({
   };
 
   const changeVolume = (name: string, volume: number) => {
-    volumeSetAt.current.set(name, Date.now());
+    volumeSetAtRef.current.set(name, Date.now());
     setVolumes(current => ({ ...current, [name]: volume }));
     setSpeakerVolume(name, volume);
   };

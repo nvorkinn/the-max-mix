@@ -56,7 +56,7 @@ export async function route(pipewire: AudioGraph, speakers: string[]): Promise<P
 /** The volume request's body, or null unless it names one speaker and a whole percentage. */
 export function validVolume(value: unknown): { speaker: string; volume: number } | null {
   const { speaker, volume } = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>;
-  if (isBadName(speaker) || !Number.isInteger(volume)) return null;
+  if (isBadName(speaker) || !Number.isSafeInteger(volume)) return null;
   const percent = volume as number;
   return percent >= 0 && percent <= 100 ? { speaker: speaker as string, volume: percent } : null;
 }
@@ -67,12 +67,12 @@ export interface VolumeControl {
   setVolume: (node: number, volume: number) => Promise<void>;
 }
 
-/** Sets the volume (0 to 100) of every AirPlay sink with this name. False when there is none on the network. */
-export async function setSpeakerVolume(pipewire: VolumeControl, speaker: string, volume: number): Promise<boolean> {
+/** Sets the volume (0 to 100) of every AirPlay sink with this name. Returns how many it set (none: not on the network). */
+export async function setSpeakerVolume(pipewire: VolumeControl, speaker: string, volume: number): Promise<number> {
   const sinks = airPlaySinks(await pipewire.graph()).filter(node => node.description === speaker);
   for (const sink of sinks) {
     // eslint-disable-next-line no-await-in-loop
     await pipewire.setVolume(sink.id, volume / 100);
   }
-  return sinks.length > 0;
+  return sinks.length;
 }

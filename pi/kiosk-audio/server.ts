@@ -32,8 +32,8 @@ const POST_ACTIONS: Record<string, Action> = {
 export interface Deps {
   graph: () => Promise<Graph>;
   route: (speakers: string[]) => Promise<void>;
-  /** Sets a speaker's volume in percent; false when no speaker has that name. */
-  setVolume: (speaker: string, volume: number) => Promise<boolean>;
+  /** Sets a speaker's volume in percent; returns how many sinks it set (none: no speaker has that name). */
+  setVolume: (speaker: string, volume: number) => Promise<number>;
   perform: (action: Action) => Promise<void>;
 }
 
@@ -78,7 +78,7 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
       response.writeHead(400).end();
       return;
     }
-    if (!(await deps.setVolume(body.speaker, body.volume))) {
+    if ((await deps.setVolume(body.speaker, body.volume)) === 0) {
       response.writeHead(404).end();
       return;
     }

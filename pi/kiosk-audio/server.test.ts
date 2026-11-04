@@ -27,7 +27,7 @@ function fakes(overrides: Partial<Deps> = {}) {
     },
     setVolume: (speaker, volume) => {
       volumes.push([speaker, volume]);
-      return Promise.resolve(speaker !== 'Gone');
+      return Promise.resolve(speaker === 'Gone' ? 0 : 1);
     },
     perform: action => {
       performed.push(action);
@@ -60,7 +60,8 @@ describe('speakerNames', () => {
   });
 
   it('gives the volume of each speaker that reports one, in percent', () => {
-    expect(speakerVolumes(parseDump(dump()))).toEqual({ Kitchen: 40 });
+    const graph = parseDump(dump());
+    expect(speakerVolumes(graph)).toEqual({ Kitchen: 40 });
   });
 });
 

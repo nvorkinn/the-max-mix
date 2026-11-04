@@ -95,9 +95,9 @@ describe('volume', () => {
         return Promise.resolve();
       }
     };
-    await expect(setSpeakerVolume(fake, 'Kitchen', 25)).resolves.toBe(true);
+    await expect(setSpeakerVolume(fake, 'Kitchen', 25)).resolves.toBe(1);
     // The Pi's own output is not an AirPlay speaker, even by name.
-    await expect(setSpeakerVolume(fake, 'Built-in Audio', 25)).resolves.toBe(false);
+    await expect(setSpeakerVolume(fake, 'Built-in Audio', 25)).resolves.toBe(0);
     expect(set).toEqual([[50, 0.25]]);
   });
 });
