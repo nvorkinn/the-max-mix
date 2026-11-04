@@ -100,6 +100,27 @@
   color: var(--ink);
   color-scheme: light;
 }
+/* Colour choices from the settings (src/utils/themeColour.ts); forest is the default above. */
+.tablet-container[data-colour='navy'] {
+  --accent: #1f3a5f;
+  --ink: #1b2433;
+}
+.tablet-container[data-colour='teal'] {
+  --accent: #155e63;
+  --ink: #17302f;
+}
+.tablet-container[data-colour='plum'] {
+  --accent: #5b2a4e;
+  --ink: #2e1f2b;
+}
+.tablet-container[data-colour='terracotta'] {
+  --accent: #9a3f24;
+  --ink: #3a221a;
+}
+.tablet-container[data-colour] {
+  --accent-soft: color-mix(in srgb, var(--accent) 5%, transparent);
+  --focus: var(--accent);
+}
 
 .app-header {
   min-height: 82px;
@@ -894,6 +915,14 @@ body:has(.app-dialog[open]) {
 .modal-option[aria-pressed='true'] {
   background: var(--accent-soft);
   border-color: var(--accent);
+}
+.colour-swatch {
+  background: var(--swatch);
+}
+.colour-swatch[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 3px var(--surface),
+    0 0 0 5px var(--swatch);
 }
 .status-success {
   color: var(--success);

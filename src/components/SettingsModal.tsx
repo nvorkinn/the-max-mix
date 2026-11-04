@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { CSSProperties } from 'react';
 import { X, Settings, Music, CheckCircle2, AlertCircle, LogOut, Wifi } from 'lucide-react';
 import { signOut, startSignIn } from '../spotify/auth';
 import { errorMessage } from '../utils/errorMessage';
@@ -6,6 +7,8 @@ import { isKiosk, openWifiSettings } from '../utils/kiosk';
 import { getRedirectUri, reloadSettings } from '../spotify/settings';
 import { SCREEN_SLEEP_CHOICES } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
+import { THEME_COLOURS } from '../utils/themeColour';
+import type { ThemeColour } from '../utils/themeColour';
 import KioskSystem from './KioskSystem';
 import Modal from './Modal';
 
@@ -39,6 +42,33 @@ function ScreenSleepRow({
   );
 }
 
+/** The colour of the track title, player controls and highlights. */
+function ThemeColourRow({
+  colour,
+  onChange
+}: Readonly<{ colour: ThemeColour; onChange: (colour: ThemeColour) => void }>) {
+  return (
+    <div className="modal-card p-3 rounded-2xl border">
+      <div className="text-xs font-bold" id="theme-colour-label">
+        Colour
+      </div>
+      <div className="flex gap-3 mt-2" role="group" aria-labelledby="theme-colour-label">
+        {THEME_COLOURS.map(choice => (
+          <button
+            type="button"
+            key={choice.id}
+            aria-label={choice.label}
+            aria-pressed={colour === choice.id}
+            onClick={() => onChange(choice.id)}
+            className="colour-swatch w-11 h-11 rounded-full"
+            style={{ '--swatch': choice.swatch } as CSSProperties}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -48,6 +78,8 @@ interface SettingsModalProps {
   /** The kiosk's screen sleep delay, shown on the kiosk only. */
   screenSleep?: ScreenSleepMinutes;
   onScreenSleepChange?: (minutes: ScreenSleepMinutes) => void;
+  themeColour?: ThemeColour;
+  onThemeColourChange?: (colour: ThemeColour) => void;
 }
 
 function SettingsContent({
@@ -56,7 +88,9 @@ function SettingsContent({
   signInError = null,
   onReload = reloadSettings,
   screenSleep,
-  onScreenSleepChange
+  onScreenSleepChange,
+  themeColour,
+  onThemeColourChange
 }: Readonly<SettingsModalProps>) {
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -138,6 +172,9 @@ function SettingsContent({
           </button>
         )}
 
+        {themeColour !== undefined && onThemeColourChange && (
+          <ThemeColourRow colour={themeColour} onChange={onThemeColourChange} />
+        )}
         {isKiosk() && (
           <button
             type="button"

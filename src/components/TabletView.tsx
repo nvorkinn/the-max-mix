@@ -16,6 +16,8 @@ import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
 import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
+import { loadThemeColour, saveThemeColour } from '../utils/themeColour';
+import type { ThemeColour } from '../utils/themeColour';
 import type { Track } from '../types';
 import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
@@ -161,6 +163,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const changeScreenSleep = (minutes: ScreenSleepMinutes) => {
     setScreenSleepMinutes(minutes);
     setScreenSleep(minutes);
+  };
+  const [themeColour, setThemeColour] = useState(loadThemeColour);
+  const changeThemeColour = (colour: ThemeColour) => {
+    setThemeColour(colour);
+    saveThemeColour(colour);
   };
   const sleep = useScreenSleep({
     enabled: onKiosk,
@@ -330,6 +337,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   return (
     <div
       className="tablet-container"
+      data-colour={themeColour}
       style={
         {
           '--ambient-primary': palette.primary,
@@ -479,6 +487,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         signInError={signInError || (playerProblem?.recovery === 'sign-in' ? playerProblem.message : null)}
         screenSleep={screenSleepMinutes}
         onScreenSleepChange={changeScreenSleep}
+        themeColour={themeColour}
+        onThemeColourChange={changeThemeColour}
       />
 
       {sleep.asleep && <SleepScreen onWake={sleep.wake} />}

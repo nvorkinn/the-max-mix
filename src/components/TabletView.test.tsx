@@ -254,6 +254,20 @@ describe('TabletView', () => {
     expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
   });
 
+  it('changes and remembers the colour picked in the settings', async () => {
+    setPlayer({ isAuthenticated: false, isReady: false, playbackState: null });
+    const { container } = render(<TabletView />);
+    await flush();
+    const room = defined(container.querySelector('.tablet-container'));
+    expect(room).toHaveAttribute('data-colour', 'forest');
+    fireEvent.click(screen.getByRole('button', { name: 'Connection settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Navy' }));
+    expect(room).toHaveAttribute('data-colour', 'navy');
+    expect(screen.getByRole('button', { name: 'Navy' })).toHaveAttribute('aria-pressed', 'true');
+    expect(localStorage.getItem('maxmix.themeColour')).toBe('navy');
+    localStorage.removeItem('maxmix.themeColour');
+  });
+
   it('does not show confirmed playback indicators or fabricated times without a track', async () => {
     setPlayer({ playbackState: { device: { name: 'Kitchen' } } });
     render(<TabletView />);
