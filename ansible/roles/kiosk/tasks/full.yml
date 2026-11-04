@@ -489,7 +489,7 @@
     mode: '0644'
   notify: Update the initramfs
 
-# A cursor theme made of one transparent pixel (kiosk-session selects it), for touch screens that also look like a mouse.
+# A cursor theme of one transparent pixel (kiosk.service points Cage at it), for touch screens that look like a mouse.
 - name: Install the blank cursor theme
   ansible.builtin.copy:
     src: icons/{{ item.src }}
@@ -535,17 +535,6 @@
   notify: Reload systemd
 
 # Updates -------------------------------------------------------------------------------------------------------------
-# What an earlier version of the playbook installed and this one no longer does: the playbook never removes a file it
-# stopped installing, so it would stay on every Pi that already had it. kiosk-update-now.service was the app's Update now
-# (the kiosk-audio service starts the pull and the restart itself now).
-- name: Remove units an earlier version installed
-  ansible.builtin.file:
-    path: '/etc/systemd/system/{{ item }}'
-    state: absent
-  loop:
-    - kiosk-update-now.service
-  notify: Reload systemd
-
 - name: Install the update units
   ansible.builtin.template:
     src: '{{ item }}.j2'
