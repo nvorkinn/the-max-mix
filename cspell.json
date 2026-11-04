@@ -9,12 +9,6 @@
   "ignorePaths": [
     ".git",
     "**/package-lock.json",
-    "public/**",
-    "**/node_modules/**",
-    "**/dist/**",
-    "**/coverage/**",
-    "**/playwright-report/**",
-    "**/test-results/**",
     "project-words.txt",
     "LICENSE"
   ]
