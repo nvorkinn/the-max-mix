@@ -37,6 +37,48 @@ describe('useSpotifyPlayer', () => {
     expect(result.current.playbackMode).toBe('remote');
   });
 
+  it('reads playback every 4 s, and only every 45 s while slow polling is on', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    try {
+      mocks.api.getPlaybackState.mockResolvedValue(playing);
+      const { result } = renderHook(() => useSpotifyPlayer());
+      await act(async () => {});
+      const reads = () => mocks.api.getPlaybackState.mock.calls.length;
+      const first = reads();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4000);
+      });
+      expect(reads()).toBe(first + 1);
+
+      // Turning it on reads once at once, then waits.
+      act(() => {
+        result.current.setSlowPolling(true);
+      });
+      await act(async () => {});
+      const slow = reads();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(44_000);
+      });
+      expect(reads()).toBe(slow);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      expect(reads()).toBe(slow + 1);
+
+      act(() => {
+        result.current.setSlowPolling(false);
+      });
+      await act(async () => {});
+      const quick = reads();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4000);
+      });
+      expect(reads()).toBe(quick + 1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('does not fetch playback when signed out', async () => {
     mocks.auth.isSignedIn.mockReturnValue(false);
     const { result } = renderHook(() => useSpotifyPlayer());

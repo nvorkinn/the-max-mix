@@ -17,6 +17,7 @@ const player = vi.hoisted(() => {
         | 'setVolume'
         | 'seek'
         | 'refreshPlayback'
+        | 'setSlowPolling'
         | 'transferPlayback'
         | 'retryPlayback'
         | 'reconnectPlayer'
@@ -70,6 +71,7 @@ function setPlayer(overrides: Record<string, unknown> = {}) {
     error: null,
     problem: typeof overrides['error'] === 'string' ? { message: overrides['error'], recovery: 'refresh' } : null,
     refreshPlayback: vi.fn().mockResolvedValue(undefined),
+    setSlowPolling: vi.fn(),
     togglePlay: vi.fn(),
     nextTrack: vi.fn(),
     skipAhead: vi.fn().mockResolvedValue(true),
@@ -175,6 +177,11 @@ describe('TabletView', () => {
     expect(screen.queryByRole('region', { name: 'Lyrics' })).not.toBeInTheDocument();
     expect(screen.getByAltText('Now Song album artwork')).toBeInTheDocument();
     expect(localStorage.getItem('maxmix_lyrics')).toBe('off');
+  });
+
+  it('has no sleep button off the kiosk', () => {
+    render(<TabletView />);
+    expect(screen.queryByRole('button', { name: 'Put the screen to sleep' })).not.toBeInTheDocument();
   });
 
   it('shows the clock in 24-hour time', () => {
@@ -583,6 +590,17 @@ describe('TabletView', () => {
         browserDeviceId: 'web-1',
         playbackState: { is_playing: true, item: track, device: { id: 'dev1', name: 'Soundbar' } }
       });
+    });
+
+    it('the sleep button sleeps the screen even while music plays, and slows the polling until a tap wakes it', async () => {
+      render(<TabletView />);
+      await flush();
+      fireEvent.click(screen.getByRole('button', { name: 'Put the screen to sleep' }));
+      expect(screen.getByRole('button', { name: 'Wake the screen' })).toBeInTheDocument();
+      expect(player.current.setSlowPolling).toHaveBeenLastCalledWith(true);
+      fireEvent.click(screen.getByRole('button', { name: 'Wake the screen' }));
+      expect(screen.queryByRole('button', { name: 'Wake the screen' })).not.toBeInTheDocument();
+      expect(player.current.setSlowPolling).toHaveBeenLastCalledWith(false);
     });
 
     const openSpeakers = async () => {

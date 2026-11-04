@@ -47,6 +47,17 @@ test('pause and play toggle the playback state', async ({ page }) => {
   await expect(nowPlaying(page).getByRole('button', { name: 'Pause' })).toBeVisible();
 });
 
+test('the 15 second buttons rewind and fast-forward the song', async ({ page }) => {
+  await page.goto('/');
+  const position = nowPlaying(page).getByRole('slider', { name: 'Playback position' });
+  // The fake starts 45 s in and the clock keeps running, so the position is a second or two past the round number.
+  await expect(position).toHaveAttribute('aria-valuetext', /^0:4[5-9] of /);
+  await nowPlaying(page).getByRole('button', { name: 'Forward 15 seconds' }).click();
+  await expect(position).toHaveAttribute('aria-valuetext', /^1:0\d of /);
+  await nowPlaying(page).getByRole('button', { name: 'Back 15 seconds' }).click();
+  await expect(position).toHaveAttribute('aria-valuetext', /^0:4\d of /);
+});
+
 test('next and previous change the current track', async ({ page }) => {
   await page.goto('/');
   await nowPlaying(page).getByRole('button', { name: 'Next track' }).click();

@@ -20,6 +20,9 @@ import { debugLog } from '../utils/debugLog';
 const EXPECTED_PLAYING_MS = 5000;
 // While another device plays there are no SDK events, so the state is read this often.
 const REMOTE_POLL_MS = 4000;
+// While the kiosk's screen sleeps nobody is watching, so the state is read this seldom: a sleeping tablet that kept
+// polling every 4 s used up Spotify's rate limit for everyone else on the account. Music started elsewhere wakes it late.
+const ASLEEP_POLL_MS = 45_000;
 // While this page is the active SDK player the events carry the changes; this is only a safety net.
 const SDK_POLL_MS = 30_000;
 // An SDK command that has not answered by now is given up on, so one lost reply cannot leave the buttons dead.
@@ -103,6 +106,8 @@ export interface UseSpotifyPlayer {
   toggleLike: () => Promise<boolean>;
   transferPlayback: (deviceId: string) => Promise<boolean>;
   refreshPlayback: () => Promise<void>;
+  /** Reads playback seldom (instead of every 4 s) while another device plays and nobody is watching the screen. */
+  setSlowPolling: (slow: boolean) => void;
   retryPlayback: () => Promise<boolean>;
   reconnectPlayer: () => void;
   allowBrowserAudio: () => Promise<boolean>;
@@ -151,6 +156,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   const [connectionVersion, setConnectionVersion] = useState(0);
   // True while the SDK reports this player as the active device (it reports null once another device takes over).
   const [sdkActive, setSdkActive] = useState(false);
+  const [slowPolling, setSlowPolling] = useState(false);
   // True once a different device was picked under Speakers: play/pause then go to that device through the Web API.
   const [remoteSelected, setRemoteSelected] = useState(false);
   // Counts the moments the queue is likely to have changed, so the queue view re-reads it.
@@ -266,7 +272,9 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let failures = 0;
     const poll = async () => {
-      const base = sdkDriven ? SDK_POLL_MS : REMOTE_POLL_MS;
+      let base = REMOTE_POLL_MS;
+      if (sdkDriven) base = SDK_POLL_MS;
+      else if (slowPolling) base = ASLEEP_POLL_MS;
       let delay = base;
       try {
         await refreshPlayback();
@@ -287,7 +295,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       invalidatePlayback();
       clearTimeout(timer);
     };
-  }, [isAuthenticated, sdkDriven, refreshPlayback, invalidatePlayback, reportConnectionError]);
+  }, [isAuthenticated, sdkDriven, slowPolling, refreshPlayback, invalidatePlayback, reportConnectionError]);
 
   // A background tab's timers are throttled to about one a minute and its connections can drop, so when the page comes
   // back to the front it reads everything again at once instead of waiting for the next (late) timer.
@@ -727,6 +735,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     toggleLike,
     transferPlayback,
     refreshPlayback,
+    setSlowPolling,
     retryPlayback,
     allowBrowserAudio,
     reconnectPlayer: () => setConnectionVersion(version => version + 1)

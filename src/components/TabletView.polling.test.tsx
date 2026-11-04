@@ -26,6 +26,7 @@ const player = (overrides?: Record<string, unknown>) => ({
   isReady: false,
   playbackState: null,
   isAuthenticated: false,
+  setSlowPolling: vi.fn(),
   ...overrides
 });
 

@@ -12,7 +12,9 @@ import {
   Shuffle,
   Repeat,
   Repeat1,
-  Heart
+  Heart,
+  RotateCcw,
+  RotateCw
 } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { PlayerControls } from '../types';
@@ -34,6 +36,8 @@ type AlbumArtPlayerProps = Readonly<PlayerControls> & {
 
 /** Past this far into a song, Previous starts the song over instead of going to the one before it. */
 const RESTART_AFTER_MS = 5000;
+/** How far the rewind and fast-forward buttons jump. */
+const JUMP_MS = 15_000;
 
 export default function AlbumArtPlayer({
   playback,
@@ -79,6 +83,10 @@ export default function AlbumArtPlayer({
     if (progressMs > RESTART_AFTER_MS && !playback?.actions?.disallows?.seeking) onSeek(0);
     else onPrevious();
   };
+
+  const canSeek = controlsEnabled && durationMs > 0 && !playback?.actions?.disallows?.seeking;
+  // Past the end clamps to the end, which moves Spotify on to the next song by itself.
+  const jump = (offsetMs: number) => onSeek(Math.min(durationMs, Math.max(0, progressMs + offsetMs)));
 
   const deviceName = speakerLabel ?? playback?.device?.name;
   const speakerState = deviceName ? `Playing on ${deviceName}` : 'Select a device';
@@ -168,7 +176,7 @@ export default function AlbumArtPlayer({
           <span className="track-time">{elapsedTime}</span>
           <input
             type="range"
-            disabled={!controlsEnabled || durationMs <= 0 || playback?.actions?.disallows?.seeking}
+            disabled={!canSeek}
             min="0"
             max={durationMs || 1}
             value={Math.min(progressMs, durationMs)}
@@ -210,9 +218,20 @@ export default function AlbumArtPlayer({
                 aria-label="Shuffle"
                 aria-pressed={shuffleOn}
               >
-                <Shuffle size={18} />
+                <Shuffle size={22} />
               </button>
             )}
+            <button
+              type="button"
+              disabled={!canSeek}
+              className="transport-skip transport-seek"
+              onClick={() => jump(-JUMP_MS)}
+              aria-label="Back 15 seconds"
+              title="Back 15 seconds"
+            >
+              <RotateCcw size={26} aria-hidden="true" />
+              <span aria-hidden="true">15</span>
+            </button>
             <button
               type="button"
               disabled={!controlsEnabled || !hasTrack || playback?.actions?.disallows?.skipping_prev}
@@ -220,7 +239,7 @@ export default function AlbumArtPlayer({
               onClick={previous}
               aria-label="Previous track"
             >
-              <SkipBack size={20} fill="currentColor" />
+              <SkipBack size={24} fill="currentColor" />
             </button>
             <button
               type="button"
@@ -232,7 +251,7 @@ export default function AlbumArtPlayer({
               onClick={onPlayPause}
               aria-label={isPlaying ? 'Pause' : 'Play'}
             >
-              {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
+              {isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" />}
             </button>
             <button
               type="button"
@@ -241,7 +260,18 @@ export default function AlbumArtPlayer({
               onClick={onNext}
               aria-label="Next track"
             >
-              <SkipForward size={20} fill="currentColor" />
+              <SkipForward size={24} fill="currentColor" />
+            </button>
+            <button
+              type="button"
+              disabled={!canSeek}
+              className="transport-skip transport-seek"
+              onClick={() => jump(JUMP_MS)}
+              aria-label="Forward 15 seconds"
+              title="Forward 15 seconds"
+            >
+              <RotateCw size={26} aria-hidden="true" />
+              <span aria-hidden="true">15</span>
             </button>
             {onCycleRepeat && (
               <button
@@ -256,7 +286,7 @@ export default function AlbumArtPlayer({
                 aria-label={repeatLabel}
                 title={repeatLabel}
               >
-                {repeatMode === 'track' ? <Repeat1 size={18} /> : <Repeat size={18} />}
+                {repeatMode === 'track' ? <Repeat1 size={22} /> : <Repeat size={22} />}
               </button>
             )}
           </div>
