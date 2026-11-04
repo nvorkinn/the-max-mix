@@ -623,7 +623,7 @@ describe('TabletView', () => {
         localStorage.setItem('maxmix.piVersion', 'v1.12.0 5a39e9a');
         fetchMock.mockReset();
         fetchMock.mockImplementation((url: string) => {
-          const fromGitHub = url.startsWith('https://api.github.com');
+          const fromGitHub = new URL(url).hostname === 'api.github.com';
           return Promise.resolve(
             Response.json(fromGitHub ? { tag_name: 'v1.13.0' } : { state: 'idle', lines: [], total: 0 })
           );
