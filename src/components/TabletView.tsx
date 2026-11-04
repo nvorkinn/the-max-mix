@@ -18,6 +18,7 @@ import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
 import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
+import { loadShowLyrics, saveShowLyrics } from '../lyrics/setting';
 import { loadThemeColour, saveThemeColour } from '../utils/themeColour';
 import type { ThemeColour } from '../utils/themeColour';
 import type { Track } from '../types';
@@ -117,7 +118,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const debugHold = useHold(() => setIsDebugOpen(true), DEBUG_HOLD_MS);
   const [queueError, setQueueError] = useState<string | null>(null);
   // Lyrics take the artwork's place while shown; remembered so the kiosk comes back the way it was left.
-  const [showLyrics, setShowLyrics] = useState(() => localStorage.getItem('maxmix_lyrics') === 'on');
+  const [showLyrics, setShowLyrics] = useState(loadShowLyrics);
   // AirPlay needs the Pi's audio service, so it is offered on the kiosk only.
   const [onKiosk] = useState(isKiosk);
   const canUseAirPlay = onKiosk;
@@ -152,7 +153,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   const toggleLyrics = (show: boolean) => {
     setShowLyrics(show);
-    localStorage.setItem('maxmix_lyrics', show ? 'on' : 'off');
+    saveShowLyrics(show);
   };
 
   const [palette, setPalette] = useState({
