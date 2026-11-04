@@ -529,7 +529,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       />
 
       {/* A newer version is asked about once, with the screen awake and no speakers or debug dialog open. It also shows over
-          the settings (which check again each time they open), and starting the update from it closes them: the console takes over. */}
+          the settings (which check again each time they open), and starting the update from it closes them: the console takes
+          over. Dialogs stack in the order they were opened (the browser's top layer), and this one can only open after the
+          settings, which the page behind a modal dialog cannot reopen: e2e/update-popup.spec.ts checks it is on top. */}
       {kioskUpdate.prompting && kioskUpdate.newer && !sleep.asleep && !isSpeakerModalOpen && !isDebugOpen && (
         <UpdatePrompt
           newer={kioskUpdate.newer}
