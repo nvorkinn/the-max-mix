@@ -470,7 +470,12 @@ describe('spotify/api', () => {
     });
 
     it('asks nothing for a URI it cannot name', async () => {
-      for (const uri of ['spotify:user:me:collection', 'spotify:playlist:../me', 'other:album:a', 'spotify:album:a:b']) {
+      for (const uri of [
+        'spotify:user:me:collection',
+        'spotify:playlist:../me',
+        'other:album:a',
+        'spotify:album:a:b'
+      ]) {
         expect(await api.getContextName(uri)).toBeNull();
       }
       expect(fetchMock).not.toHaveBeenCalled();
