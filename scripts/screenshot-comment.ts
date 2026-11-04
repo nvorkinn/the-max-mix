@@ -16,7 +16,8 @@ const image = (alt: string, url: string) => `<a href="${url}"><img src="${url}" 
 function mismatches(): string[] {
   const files = readdirSync(env('SHOTS_DIR'), { recursive: true, encoding: 'utf8' });
   const shots = new Map<string, Set<string>>();
-  for (const file of files.toSorted((a, b) => a.localeCompare(b))) {
+  const sorted = files.toSorted((a, b) => a.localeCompare(b));
+  for (const file of sorted) {
     const match = /^(.+)-(expected|actual|diff)\.png$/.exec(file);
     if (!match?.[1] || !match[2]) continue;
     const kinds = shots.get(match[1]) ?? new Set<string>();
@@ -25,8 +26,9 @@ function mismatches(): string[] {
   }
   return [...shots].flatMap(([shot, kinds]) => {
     const cell = (kind: string) => (kinds.has(kind) ? image(kind, `${env('SHOTS_URL')}/${shot}-${kind}.png`) : '');
+    const [test = '', name = ''] = shot.split('/', 2);
     return [
-      `**${shot.split('/').at(-1)}** (${shot.split('/')[0]})`,
+      `**${name}** (${test})`,
       '',
       '| Baseline | This PR | Difference |',
       '|---|---|---|',
@@ -40,7 +42,7 @@ function baselineChanges(): string[] {
   const raw = (sha: string, file: string) => `https://raw.githubusercontent.com/${env('REPO')}/${sha}/${file}`;
   const lines = readFileSync(env('BASELINES_FILE'), 'utf8').split('\n').filter(Boolean);
   return lines.flatMap(line => {
-    const [status = '', file = ''] = line.split(' ');
+    const [status = '', file = ''] = line.split(' ', 2);
     const before = status === 'added' ? 'new' : image('before', raw(env('BASE_SHA'), file));
     const after = status === 'removed' ? 'removed' : image('after', raw(env('HEAD_SHA'), file));
     const name = file.replace('e2e/screenshots/', '');
