@@ -37,6 +37,9 @@ export default function PlaybackBanner({
     title = 'Controls unavailable on this device';
     text = 'Choose another speaker, or use Spotify to control this device.';
     action = { label: 'Choose speaker', run: onChooseSpeaker };
+  } else if (notice.problem.recovery === 'quota') {
+    title = 'Spotify quota used up';
+    text = 'The app has stopped reading Spotify by itself. Controls still work; restart the app to read it again.';
   } else if (notice.problem.recovery === 'wait') {
     title = 'Waiting for Spotify';
     text = 'Spotify asked this app to wait. Playback status will be checked again automatically.';

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
-import { recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { fetchSpotify, recordSpotifyRetryAfter, resetSpotifyRateLimit, SpotifyApiError } from '../spotify/http';
 import userEvent from '../test/user';
 import { partialProps } from '../test/partialProps';
 import { defined } from '../test/defined';
@@ -34,6 +34,27 @@ describe('SettingsModal', () => {
     for (const mock of [...Object.values(auth), ...Object.values(settings), base.onReload]) mock.mockReset();
     settings.getRedirectUri.mockReturnValue('http://127.0.0.1:3000/');
     auth.startSignIn.mockResolvedValue(undefined);
+  });
+
+  it('turns Spotify polling on and off, and says when the quota has stopped it', async () => {
+    render(<SettingsModal {...base} authInfo={{}} />);
+    const group = screen.getByRole('group', { name: 'Poll Spotify for updates' });
+    expect(within(group).getByRole('button', { name: 'On' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(within(group).getByRole('button', { name: 'Off' }));
+    expect(localStorage.getItem('maxmix.pollSpotify')).toBe('off');
+    expect(within(group).getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/Off: playback is read when the page opens/)).toBeInTheDocument();
+    await userEvent.click(within(group).getByRole('button', { name: 'On' }));
+    expect(screen.getByText(/On: playback and the queue are read every few seconds/)).toBeInTheDocument();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(Response.json({ error: { reason: 'QUOTA_EXCEEDED' } }, { status: 429 }))
+    );
+    await act(() => fetchSpotify('https://api.spotify.com/v1/me/player', {}));
+    expect(screen.getByText(/Stopped: Spotify's quota is used up/)).toBeInTheDocument();
+    vi.unstubAllGlobals();
+    resetSpotifyRateLimit();
   });
 
   it('renders nothing when closed', () => {

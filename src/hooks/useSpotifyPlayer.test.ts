@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { resetSpotifyMocks } from '../test/spotifyMocks';
-import { NETWORK_ERROR_MESSAGE, SpotifyApiError } from '../spotify/http';
+import { fetchSpotify, NETWORK_ERROR_MESSAGE, resetSpotifyRateLimit, SpotifyApiError } from '../spotify/http';
+import { setPollSpotify } from '../spotify/polling';
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 
 const mocks = await vi.hoisted(async () => {
@@ -77,6 +78,59 @@ describe('useSpotifyPlayer', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  describe('polling', () => {
+    const reads = () => mocks.api.getPlaybackState.mock.calls.length;
+    const advance = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+      mocks.api.getPlaybackState.mockResolvedValue(playing);
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+      setPollSpotify(true);
+      resetSpotifyRateLimit();
+      vi.unstubAllGlobals();
+    });
+
+    it('stops at once when Spotify says the quota is exceeded, and does not start again', async () => {
+      renderHook(() => useSpotifyPlayer());
+      await advance(0);
+      await advance(4000);
+      const before = reads();
+      expect(before).toBeGreaterThan(1);
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(Response.json({ error: { reason: 'QUOTA_EXCEEDED' } }, { status: 429 }))
+      );
+      await act(() => fetchSpotify('https://api.spotify.com/v1/me/player', {}));
+      const stopped = reads();
+      await advance(10 * 60_000);
+      expect(reads()).toBe(stopped);
+
+      // A return to the page does not read either.
+      act(() => {
+        window.dispatchEvent(new Event('focus'));
+      });
+      await advance(0);
+      expect(reads()).toBe(stopped);
+    });
+
+    it('reads once, not every few seconds, while polling is turned off, and resumes when it is turned on', async () => {
+      setPollSpotify(false);
+      renderHook(() => useSpotifyPlayer());
+      await advance(0);
+      expect(reads()).toBe(1);
+      await advance(60_000);
+      expect(reads()).toBe(1);
+      act(() => setPollSpotify(true));
+      await advance(0);
+      const resumed = reads();
+      await advance(4000);
+      expect(reads()).toBe(resumed + 1);
+    });
   });
 
   it('does not fetch playback when signed out', async () => {
