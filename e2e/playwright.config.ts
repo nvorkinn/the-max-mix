@@ -5,9 +5,10 @@ const port = 3100;
 export default defineConfig({
   testDir: '.',
   testMatch: '*.spec.ts',
-  // Each page fakes its own Spotify, so tests do not share state; a single worker keeps the run simple and quiet.
-  workers: 1,
-  fullyParallel: false,
+  // Each page fakes its own Spotify and the preview server only serves static files, so tests share no state and can
+  // run side by side. The ubuntu-latest runner has 4 CPUs.
+  workers: 4,
+  fullyParallel: true,
   retries: 0,
   forbidOnly: !!process.env['CI'],
   reporter: process.env['CI'] ? [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]] : 'list',
