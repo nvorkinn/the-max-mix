@@ -90,6 +90,12 @@ It shows the app's state (version, connection, sign-in, playback mode, audio rou
 active device and whether Widevine works) and a log of recent problems, browser player events and console errors,
 newest first. The playback banner's Details button opens it too. The log lives in memory, keeps the last 200 entries, and is cleared by a reload.
 
+Two switches at the top of the log (remembered across reloads) log every HTTP call the page makes: **Log every HTTP call
+and response** writes a line for each request and for its response or failure, and **Include headers** adds their headers.
+Credentials are replaced with `[redacted]` (the `Authorization` and cookie headers, and query values such as `code` or
+tokens), and only the response headers the browser lets the page read are shown. Leave them off normally: the polling
+makes a call every few seconds, which fills the 200-entry log quickly.
+
 ## Hosting and releases
 
 THE MAX MIX is plain static files on [Vercel](https://vercel.com). Production deploys happen only from a release:

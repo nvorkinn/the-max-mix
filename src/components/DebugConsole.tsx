@@ -2,6 +2,8 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { X, Bug, RotateCw, Trash2 } from 'lucide-react';
 import { clearDebugLog, getDebugEntries, subscribeDebugLog } from '../utils/debugLog';
 import type { DebugEntry } from '../utils/debugLog';
+import { getHttpLogMode, setHttpLogMode } from '../utils/httpLog';
+import type { HttpLogMode } from '../utils/httpLog';
 import { widevineProblem } from '../utils/widevine';
 import Modal from './Modal';
 
@@ -50,6 +52,36 @@ function useWidevineStatus(): string {
   return status;
 }
 
+/** The two switches for logging every HTTP call, and whether to include the headers. */
+function HttpLogOptions() {
+  const [mode, setMode] = useState<HttpLogMode>(getHttpLogMode);
+  const change = (next: HttpLogMode) => {
+    setMode(next);
+    setHttpLogMode(next);
+  };
+  return (
+    <div className="debug-options">
+      <label>
+        <input
+          type="checkbox"
+          checked={mode !== 'off'}
+          onChange={event => change(event.target.checked ? 'calls' : 'off')}
+        />
+        Log every HTTP call and response
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          checked={mode === 'headers'}
+          disabled={mode === 'off'}
+          onChange={event => change(event.target.checked ? 'headers' : 'calls')}
+        />
+        Include headers
+      </label>
+    </div>
+  );
+}
+
 function DebugConsolePanel({
   onClose,
   status,
@@ -95,6 +127,7 @@ function DebugConsolePanel({
           </div>
         ))}
       </dl>
+      <HttpLogOptions />
       {entries.length === 0 ? (
         <p className="debug-empty">Nothing logged since the page loaded.</p>
       ) : (
