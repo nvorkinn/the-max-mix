@@ -341,23 +341,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       setIsJumping(false);
     }
   };
-  let sessionStatus: string;
-  if (notice) {
-    sessionStatus = {
-      offline: 'Offline',
-      'signed-out': 'Spotify not connected',
-      connecting: 'Connecting to Spotify...',
-      restricted: 'Device controls unavailable',
-      problem: 'Playback problem',
-      'no-device': 'Choose a Spotify speaker',
-      idle: 'No track playing'
-    }[notice.kind];
-  } else sessionStatus = `${isPlaying ? 'Playing' : 'Paused'} on ${playbackState?.device?.name || 'Spotify'}`;
-  if (notice?.kind === 'problem' && notice.problem.recovery === 'wait') sessionStatus = 'Waiting for Spotify';
-  if (notice?.kind === 'problem' && notice.problem.recovery === 'quota') sessionStatus = 'Spotify quota used up';
-  let statusDotClass = '';
-  if (notice?.kind === 'problem' && notice.problem.recovery !== 'wait') statusDotClass = 'status-dot-error';
-  else if (notice || !isPlaying) statusDotClass = 'status-dot-idle';
 
   return (
     <div
@@ -380,10 +363,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               THE MAX MIX<span className="brand-dot">.</span>
             </h1>
           </div>
-        </div>
-        <div className="session-status" role="status">
-          <span className={`status-dot ${statusDotClass}`} />
-          {sessionStatus}
         </div>
         <div className="header-actions">
           <span className="header-clock" {...debugHold}>

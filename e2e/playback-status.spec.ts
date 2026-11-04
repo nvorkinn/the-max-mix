@@ -141,7 +141,6 @@ for (const theme of ['minimal']) {
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     await expect(player.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
     await expect(player.getByRole('slider', { name: 'Playback position' })).toHaveCount(0);
-    await expect(page.locator('.session-status .status-dot')).toHaveClass(/status-dot-idle/);
     await expect(page.getByText('A little quiet in here.')).toHaveCount(0);
     await expectControlsFit(page, player);
     await player.getByRole('button', { name: 'Connection settings' }).click();
@@ -155,7 +154,6 @@ for (const theme of ['minimal']) {
     api.playbackWait = promise;
     await page.goto('/');
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
-    await expect(page.locator('.session-status')).toHaveText('Connecting to Spotify...');
     await expect(player.getByRole('button', { name: 'Play', exact: true })).toBeDisabled();
     resolve(undefined);
     await expect(player.getByRole('heading', { name: 'Nothing playing' })).toBeVisible();
