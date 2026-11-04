@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import { deferred } from '../test/deferred';
 import * as auth from './auth';
 import * as api from './api';
-import { fetchSpotify, getSpotifyRetryAt, parseJson } from './http';
+import { fetchSpotify, getSpotifyRetryAt, getSpotifyRetryDelay, parseJson, resetSpotifyRateLimit } from './http';
 
 vi.mock('./auth', () => ({
   getAccessToken: vi.fn(),
@@ -33,6 +33,7 @@ describe('spotify/api', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    resetSpotifyRateLimit();
   });
 
   describe('live requests', () => {
@@ -299,12 +300,50 @@ describe('spotify/api', () => {
   describe('errors', () => {
     it.each([
       [404, 'No available Spotify device. Open Spotify on a speaker or phone, then select it here.'],
-      [429, 'Spotify rate limit reached. Wait before trying again.'],
       [500, 'Spotify request failed (500).'],
       [503, 'Spotify request failed (503).']
     ])('describes a %i', async (status, message) => {
       fetchMock.mockResolvedValue(json({ error: { message: 'ignored' } }, status));
       await expect(api.getPlaybackState()).rejects.toMatchObject({ status, message, retryAfter: 0 });
+    });
+
+    it('describes a 429 and assumes a wait when Spotify gives none the browser can read', async () => {
+      fetchMock.mockResolvedValue(json({}, 429));
+      await expect(api.getPlaybackState()).rejects.toMatchObject({
+        status: 429,
+        message: 'Spotify rate limit reached. Wait before trying again.',
+        retryAfter: 30
+      });
+      expect(getSpotifyRetryDelay()).toBeGreaterThan(29_000);
+      // The cooldown holds the next request back without sending it.
+      await expect(api.getPlaybackState()).rejects.toMatchObject({ status: 429 });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('doubles the assumed wait for every 429 in a row, up to five minutes, and starts over after a good reply', async () => {
+      vi.useFakeTimers();
+      fetchMock.mockResolvedValue(json({}, 429));
+      const waits: number[] = [];
+      for (let attempt = 0; attempt < 6; attempt++) {
+        // Each attempt must see the cooldown the one before it set, so they run one after the other.
+        // eslint-disable-next-line no-await-in-loop
+        await api.getPlaybackState().catch(() => {});
+        waits.push(getSpotifyRetryDelay() / 1000);
+        vi.advanceTimersByTime(getSpotifyRetryDelay());
+      }
+      expect(waits).toEqual([30, 60, 120, 240, 300, 300]);
+      fetchMock.mockResolvedValueOnce(json({ is_playing: true }));
+      await api.getPlaybackState();
+      fetchMock.mockResolvedValue(json({}, 429));
+      await api.getPlaybackState().catch(() => {});
+      expect(getSpotifyRetryDelay() / 1000).toBe(30);
+    });
+
+    it('counts concurrent 429s from one burst as a single event', async () => {
+      fetchMock.mockResolvedValue(json({}, 429));
+      await Promise.allSettled([api.getPlaybackState(), api.getQueue(), api.getDevices()]);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(getSpotifyRetryDelay() / 1000).toBeLessThanOrEqual(30);
     });
 
     it('reads Retry-After as seconds', async () => {
@@ -319,9 +358,9 @@ describe('spotify/api', () => {
       await expect(api.pause()).rejects.toMatchObject({ retryAfter: 2 });
     });
 
-    it.each(['soon', '-3'])('ignores invalid Retry-After %s', async header => {
+    it.each(['soon', '-3'])('ignores invalid Retry-After %s and assumes a wait instead', async header => {
       fetchMock.mockResolvedValueOnce(json({}, 429, { 'Retry-After': header }));
-      await expect(api.pause()).rejects.toMatchObject({ retryAfter: 0 });
+      await expect(api.pause()).rejects.toMatchObject({ retryAfter: 30 });
     });
 
     it('adds the reason Spotify gives for a 403', async () => {

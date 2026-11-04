@@ -229,6 +229,10 @@ The moon button beside Settings puts the screen to sleep straight away, even whi
 asks Spotify about playback every 45 seconds instead of every 4 and stops reading the queue, so an idle tablet does not
 use up the account's rate limit.
 
+Spotify's browser API does not let the page read `Retry-After`, so after a 429 with no readable wait the app assumes one:
+30 seconds, doubling with every 429 in a row up to 5 minutes. All polling and the controls hold off until it passes
+(the banner says "Waiting for Spotify"), and each assumed wait is written to the debug console.
+
 Any change on the device that is not in the role is undone at the next pull (for example, SSH is switched off again when
 `kiosk_ssh_enabled` is false). A CI job runs the playbook in a Debian trixie container and checks that it is idempotent;
 booting the result on a real Pi is not covered.
