@@ -1,9 +1,9 @@
 # Pull request workflows
 
-`all-checks.yml` and `create_global_pr_status.yml` are thin callers of the reusable workflows in
+`all-checks.yml` and `create-global-pr-status.yml` are thin callers of the reusable workflows in
 [nvorkinn/.github](https://github.com/nvorkinn/.github/tree/main/.github/workflows), pinned to a commit and kept in line
 with the other repositories (for example [countdown](https://github.com/nvorkinn/countdown/tree/main/.github/workflows)).
-`create_global_pr_status.yml` opens a **Global PR Status** check on each PR's head commit, Dependabot's included (its
+`create-global-pr-status.yml` opens a **Global PR Status** check on each PR's head commit, Dependabot's included (its
 `permissions: checks: write` raises Dependabot's read-only token), and `all-checks.yml` completes it, and approves the PR,
 once every other workflow and check on that commit has passed. Dependabot pull requests are not auto-approved or
 auto-merged, so each one waits for a manual review and merge. Fork pull requests get no check.
