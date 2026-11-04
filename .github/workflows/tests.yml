@@ -134,6 +134,8 @@ jobs:
           SHOTS_URL: https://raw.githubusercontent.com/${{ github.repository }}/gh-pages/${{ env.FOLDER }}/shots
           REPORT_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ env.FOLDER }}/report/
           BASELINES_FILE: baselines.txt
+          CHANGED_FILES_FILE: changed-files.txt
+          RESULTS_FILE: results/test-results/results.json
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           E2E_RESULT: ${{ needs.e2e.result }}
@@ -141,6 +143,7 @@ jobs:
         run: |
           gh api --paginate "repos/$REPO/pulls/$PR/files" \
             --jq '.[] | select(.filename | startswith("e2e/screenshots/")) | "\(.status) \(.filename)"' > baselines.txt
+          gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename' > changed-files.txt
           node scripts/screenshot-comment.ts > comment.md
           ids=$(gh api --paginate "repos/$REPO/issues/$PR/comments" --jq \
             '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- playwright-screenshots -->"))) | .id')

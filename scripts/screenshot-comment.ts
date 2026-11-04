@@ -5,8 +5,11 @@
 //   SHOTS_URL        where SHOTS_DIR is served from
 //   REPORT_URL       the Playwright HTML report (with a video of every test) on GitHub Pages
 //   BASELINES_FILE   the PR's changes under e2e/screenshots, one "<status> <path>" per line (GitHub's file statuses)
+//   CHANGED_FILES_FILE   every file the PR changes, one path per line; RESULTS_FILE  Playwright's JSON report (together
+//                    they give the "Tests for this change" section, see e2e-tests-section.ts)
 //   REPO, BASE_SHA, HEAD_SHA, E2E_RESULT, RUN_URL
 import { readdirSync, readFileSync } from 'node:fs';
+import { readTests, testsSection } from './e2e-tests-section.ts';
 
 const MARKER = '<!-- playwright-screenshots -->';
 
@@ -50,6 +53,18 @@ function baselineChanges(): string[] {
   });
 }
 
+function testsForThisChange(): string[] {
+  if (!env('CHANGED_FILES_FILE') || !env('RESULTS_FILE')) return [];
+  try {
+    const report = JSON.parse(readFileSync(env('RESULTS_FILE'), 'utf8')) as Parameters<typeof readTests>[0];
+    const tests = readTests(report);
+    const files = readFileSync(env('CHANGED_FILES_FILE'), 'utf8').split('\n').filter(Boolean);
+    return testsSection({ files, tests, reportUrl: env('REPORT_URL') });
+  } catch {
+    return ['#### Tests for this change', '', 'The test results could not be read; the full report has them.', ''];
+  }
+}
+
 const failed = mismatches();
 const changed = baselineChanges();
 const summary =
@@ -58,9 +73,12 @@ const summary =
     : `The end-to-end tests failed ([run](${env('RUN_URL')})).`;
 const body = [
   MARKER,
-  '### Screenshots',
+  '### Browser tests',
   '',
   `${summary} [Open the full report](${env('REPORT_URL')}) to watch a video and open the trace of every test.`,
+  '',
+  ...testsForThisChange(),
+  '#### Screenshots',
   '',
   ...(failed.length > 0
     ? ["#### Screens that don't match their baseline", '', ...failed]
