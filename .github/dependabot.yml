@@ -17,6 +17,17 @@ updates:
       npm-minor-patch:
         update-types: [minor, patch]
 
+  # ws, the kiosk-audio service's one package on the Pi: installed there from this lockfile by the playbook (npm ci).
+  - package-ecosystem: npm
+    directory: /ansible/roles/kiosk/files/kiosk-audio
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      kiosk-audio-minor-patch:
+        update-types: [minor, patch]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -28,7 +28,6 @@ function fakes(overrides: Partial<Deps> = {}) {
       performed.push(action);
       return Promise.resolve();
     },
-    updateStatus: () => Promise.resolve({ state: 'running', lines: ['TASK [kiosk]'], total: 1 }),
     ...overrides
   };
   return { deps, performed, routed };
@@ -71,22 +70,14 @@ describe('GET /speakers', () => {
   });
 });
 
-describe('GET /update/status', () => {
-  it('tells the app how the update is going', async () => {
-    const base = await start(fakes().deps);
-    const response = await fetch(`${base}/update/status`);
-    await expect(response.json()).resolves.toEqual({ state: 'running', lines: ['TASK [kiosk]'], total: 1 });
-  });
-});
-
 describe('POST', () => {
   it('runs the named kiosk action', async () => {
     const { deps, performed } = fakes();
     const base = await start(deps);
-    const paths = ['/power/update', '/power/restart', '/power/reboot', '/display/wake', '/wifi'];
+    const paths = ['/power/restart', '/power/reboot', '/display/wake', '/wifi'];
     const statuses = await Promise.all(paths.map(async path => (await post(base, path)).status));
-    expect(statuses).toEqual([204, 204, 204, 204, 204]);
-    expect(new Set(performed)).toEqual(new Set(['update', 'restart', 'reboot', 'wake', 'wifi']));
+    expect(statuses).toEqual([204, 204, 204, 204]);
+    expect(new Set(performed)).toEqual(new Set(['restart', 'reboot', 'wake', 'wifi']));
   });
 
   it('routes the sound to the speakers in the body, or to none', async () => {
@@ -117,6 +108,8 @@ describe('POST', () => {
     const perform = vi.fn().mockRejectedValue(new Error('polkit said no'));
     const base = await start(fakes({ perform }).deps);
     expect((await post(base, '/power/halt')).status).toBe(404);
+    // The update is a WebSocket now: a plain POST to its path starts nothing.
+    expect((await post(base, '/power/update')).status).toBe(404);
     expect((await post(base, '/power/reboot')).status).toBe(503);
   });
 });

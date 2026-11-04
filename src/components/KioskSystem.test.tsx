@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { FakeWebSocket, latestFakeSocket, resetFakeSockets } from '../test/fakeWebSocket';
 import userEvent from '../test/user';
 import { useKioskUpdate } from '../hooks/useKioskUpdate';
 import KioskSystem from './KioskSystem';
@@ -23,13 +24,10 @@ const kiosk = vi.hoisted(() => ({
   isRelease: (ref: string) => /^v\d/.test(ref),
   restartKiosk: vi.fn(),
   rebootPi: vi.fn(),
-  updateKiosk: vi.fn(),
   getDismissedUpdate: vi.fn(() => null),
   setDismissedUpdate: vi.fn()
 }));
 vi.mock('../utils/kiosk', () => kiosk);
-const service = vi.hoisted(() => ({ getUpdateStatus: vi.fn() }));
-vi.mock('../utils/kioskService', () => service);
 const debug = vi.hoisted(() => ({ debugLog: vi.fn() }));
 vi.mock('../utils/debugLog', () => debug);
 
@@ -38,8 +36,12 @@ const running = '5a39e9a';
 describe('KioskSystem', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetFakeSockets();
+    vi.stubGlobal('WebSocket', FakeWebSocket);
     kiosk.piVersion.mockReturnValue({ ref: 'v1.12.0', commit: running });
   });
+
+  afterEach(() => vi.unstubAllGlobals());
 
   it('shows the running release and that it is the latest', async () => {
     kiosk.latestRelease.mockResolvedValue('v1.12.0');
@@ -90,9 +92,9 @@ describe('KioskSystem', () => {
     kiosk.latestRelease.mockResolvedValue(null);
     render(<Harness />);
     await userEvent.click(screen.getByRole('button', { name: 'Update now' }));
-    expect(kiosk.updateKiosk).not.toHaveBeenCalled();
+    expect(() => latestFakeSocket()).toThrow('No WebSocket was opened');
     await userEvent.click(screen.getByRole('button', { name: 'Tap again to update' }));
-    expect(kiosk.updateKiosk).toHaveBeenCalledTimes(1);
+    expect(latestFakeSocket().url).toBe('ws://127.0.0.1:7341/power/update');
     expect(screen.getByText('Updating… this can take a few minutes.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Updating…' })).toBeDisabled();
     expect(screen.getByLabelText('Update output')).toHaveTextContent('Starting the update…');
@@ -108,25 +110,19 @@ describe('KioskSystem', () => {
       render(<Harness />);
       await userEvent.click(screen.getByRole('button', { name: 'Update now' }));
       await userEvent.click(screen.getByRole('button', { name: 'Tap again to update' }));
+      act(() => latestFakeSocket().open());
     };
-    const poll = () => act(() => vi.advanceTimersByTimeAsync(1500));
+    const receive = (frame: unknown) => act(() => latestFakeSocket().receive(frame));
 
-    beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
-    afterEach(() => vi.useRealTimers());
-
-    it('shows the output as it arrives, writes each line once to the debug console and ends when done', async () => {
-      service.getUpdateStatus
-        .mockResolvedValueOnce({ state: 'idle', lines: ['old'], total: 1 })
-        .mockResolvedValueOnce({ state: 'running', lines: ['The latest release is v1.14.0'], total: 1 })
-        .mockResolvedValueOnce({ state: 'running', lines: ['The latest release is v1.14.0', 'TASK [kiosk]'], total: 2 })
-        .mockResolvedValue({ state: 'done', lines: ['The latest release is v1.14.0', 'TASK [kiosk]'], total: 2 });
+    it('shows the lines as they arrive, writes each once to the debug console and ends when done', async () => {
       await tap();
-      await poll();
-      await poll();
+      receive({ type: 'status', state: 'pulling' });
+      receive({ type: 'log', line: '2026-11-04T20:00:00+0000 kiosk-pull[1]: The latest release is v1.14.0' });
       expect(screen.getByLabelText('Update output')).toHaveTextContent('The latest release is v1.14.0');
-      await poll();
-      expect(screen.getByLabelText('Update output')).toHaveTextContent('The latest release is v1.14.0 TASK [kiosk]');
-      await poll();
+      receive({ type: 'log', line: '2026-11-04T20:00:09+0000 kiosk-pull[1]: TASK [kiosk]' });
+      expect(screen.getByLabelText('Update output')).toHaveTextContent('v1.14.0 2026-11-04T20:00:09');
+      receive({ type: 'status', state: 'done', message: 'Nothing needed a restart.' });
+      act(() => latestFakeSocket().end());
       // The settings section and the console both say it.
       expect(screen.getAllByText('Update finished. Nothing needed a restart.')).toHaveLength(2);
       // The console stays up with its output after the update ends, until it is closed; Update is usable again.
@@ -135,46 +131,36 @@ describe('KioskSystem', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Close update console' }));
       expect(screen.queryByLabelText('Update output')).not.toBeInTheDocument();
       expect(debug.debugLog.mock.calls.map(call => String(call.at(2)))).toEqual([
-        'The latest release is v1.14.0',
-        'TASK [kiosk]'
+        '2026-11-04T20:00:00+0000 kiosk-pull[1]: The latest release is v1.14.0',
+        '2026-11-04T20:00:09+0000 kiosk-pull[1]: TASK [kiosk]'
       ]);
-      const calls = service.getUpdateStatus.mock.calls.length;
-      await poll();
-      expect(service.getUpdateStatus).toHaveBeenCalledTimes(calls);
     });
 
     it('says when it failed', async () => {
-      service.getUpdateStatus.mockResolvedValue({
-        state: 'failed',
-        lines: ['fatal: could not resolve host'],
-        total: 1
-      });
       await tap();
-      await poll();
+      receive({ type: 'log', line: 'fatal: could not resolve host' });
+      receive({ type: 'status', state: 'failed', message: 'The pull ended with status 2.' });
+      act(() => latestFakeSocket().end());
       // The settings section and the console both say it.
-      expect(screen.getAllByText('The update failed. fatal: could not resolve host')).toHaveLength(2);
+      expect(screen.getAllByText('The update failed. The pull ended with status 2.')).toHaveLength(2);
       expect(screen.getByLabelText('Update output')).toHaveTextContent('fatal: could not resolve host');
     });
 
-    it('says the kiosk is restarting when the service stops answering after it ran', async () => {
-      service.getUpdateStatus
-        .mockResolvedValueOnce({ state: 'running', lines: ['TASK [kiosk]'], total: 1 })
-        .mockResolvedValue(null);
+    it('says the kiosk is restarting when the connection ends in the restart', async () => {
       await tap();
-      await poll();
-      await poll();
-      // The settings section and the console both say it.
+      receive({ type: 'status', state: 'restarting' });
+      act(() => latestFakeSocket().end());
+      // The settings section and the console both say it; there is no way back while it restarts.
       expect(screen.getAllByText('Restarting the kiosk…')).toHaveLength(2);
+      expect(screen.queryByRole('button', { name: 'Close update console' })).not.toBeInTheDocument();
     });
 
     it('says so when the service never answers', async () => {
-      service.getUpdateStatus.mockResolvedValue(null);
-      await tap();
-      await poll();
-      await poll();
-      await poll();
-      await poll();
-      await poll();
+      kiosk.latestRelease.mockResolvedValue(null);
+      render(<Harness />);
+      await userEvent.click(screen.getByRole('button', { name: 'Update now' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Tap again to update' }));
+      act(() => latestFakeSocket().end());
       // The settings section and the console both say it.
       expect(screen.getAllByText('The kiosk service is not answering.')).toHaveLength(2);
     });

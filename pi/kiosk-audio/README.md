@@ -6,7 +6,8 @@ app on `127.0.0.1:7341`. It does two jobs:
 - **AirPlay.** It lists the AirPlay speakers PipeWire found, and sends the kiosk browser's sound to the ones picked in the
   app (Sonos and other AirPlay 2 speakers that also accept RAOP). It is what the app's **AirPlay** mode under Speakers
   drives.
-- **The kiosk buttons.** Update now, Restart kiosk, Reboot Pi, the Wi-Fi panel and waking the screen.
+- **The kiosk buttons.** Update now (which streams the update's journal to the app), Restart kiosk, Reboot Pi, the Wi-Fi
+  panel and waking the screen.
 
 ## The two playback modes
 
@@ -36,32 +37,55 @@ The service does not report the chosen speakers, so the app remembers them itsel
 
 ## The requests
 
-| Request                                                 | What it does                                                                                                                                   |
-| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /speakers`                                         | `{"speakers": [...]}`, the AirPlay sinks, sorted                                                                                               |
-| `GET /update/status`                                    | `{"state", "lines", "total"}`: how Update now is going, from the unit and `/run/kiosk/update.log` (the pull's output, written by `kiosk-pull`) |
-| `POST /audio/route`                                     | Routes the sound to the speakers in the JSON body                                                                                              |
-| `POST /power/update`, `/power/restart`, `/power/reboot` | Pulls the playbook now; restarts the kiosk; reboots                                                                                            |
-| `POST /display/wake`                                    | Turns the screen on (`kiosk-display on`)                                                                                                       |
-| `POST /wifi`                                            | Shows the Wi-Fi panel (flag file, then stops Chromium)                                                                                         |
+| Request                                | What it does                                           |
+| -------------------------------------- | ------------------------------------------------------ |
+| `GET /speakers`                        | `{"speakers": [...]}`, the AirPlay sinks, sorted       |
+| `POST /audio/route`                    | Routes the sound to the speakers in the JSON body      |
+| `WS /power/update`                     | Connecting starts the update and streams it (below)    |
+| `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                            |
+| `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)               |
+| `POST /wifi`                           | Shows the Wi-Fi panel (flag file, then stops Chromium) |
 
-| File             | What it is                                                              |
-| ---------------- | ----------------------------------------------------------------------- |
-| `kiosk-audio.ts` | The program: `watch`, the background unit that also starts the service. |
-| `server.ts`      | The HTTP service: the requests above, and the origin checks.            |
-| `actions.ts`     | The fixed commands behind the power, screen and Wi-Fi requests.         |
-| `speakers.ts`    | Checking speaker lists, the saved choice, and routing to it.            |
-| `pipewire.ts`    | `pw-dump` parsing, the link plan, and running `pw-link`.                |
+| File               | What it is                                                              |
+| ------------------ | ----------------------------------------------------------------------- |
+| `kiosk-audio.ts`   | The program: `watch`, the background unit that also starts the service. |
+| `server.ts`        | The HTTP service: the requests above, and the origin checks.            |
+| `update-socket.ts` | The WebSocket at `/power/update`: origin check, one update at a time.   |
+| `update.ts`        | The update: follows the journal, runs the pull and the restart.         |
+| `actions.ts`       | The fixed commands behind the power, screen and Wi-Fi requests.         |
+| `speakers.ts`      | Checking speaker lists, the saved choice, and routing to it.            |
+| `pipewire.ts`      | `pw-dump` parsing, the link plan, and running `pw-link`.                |
 
-It is TypeScript with Node's standard library only (no npm packages on the Pi): Node runs the `.ts` files directly, so
-Ansible copies them as they are and nothing is built. That needs Node 22.18 or later, so the role installs Node
+It is TypeScript that Node runs directly, so Ansible copies the `.ts` files as they are and nothing is built. Its one npm
+package is `ws` (the WebSocket server): the playbook installs it on the Pi with `npm ci` from
+`ansible/roles/kiosk/files/kiosk-audio/package-lock.json` (so only the reviewed version; Dependabot watches that lockfile). That needs Node 22.18 or later, so the role installs Node
 `kiosk_nodejs_major` (24, as in `.nvmrc`) from NodeSource's archive, since Debian trixie has Node 20. Its signing key is
 pinned by checksum and unattended upgrades cover it.
+
+## The update stream
+
+`WS /power/update` is a WebSocket on the same port. Connecting to it starts an update, and the service sends JSON text
+frames: `{"type":"log","line":"…"}` for each line of the journal (`journalctl --output short-iso`, so each carries its
+timestamp), `{"type":"error","line":"…"}` for journalctl's own complaints, and `{"type":"status","state":…}` with state
+`pulling`, `restarting`, `done` or `failed` (and a `message`). It then closes the connection.
+
+1. It starts `journalctl --unit kiosk-pull.service --follow` (from the second before, so nothing is missed), then
+   `systemctl start kiosk-pull.service`, which returns when the pull is done, and stops the journalctl.
+2. If the pull left the restart marker (`/run/kiosk/restart-needed`), the same for `kiosk-restart.service`. That restarts
+   the browser the app runs in, so the connection most likely ends there; that is expected.
+3. Every journalctl is stopped when its step ends, when the app goes away, after 35 minutes, and when the service stops
+   (a failed pull stops everything). If the app goes away during the pull, the pull goes on by itself and the kiosk
+   restarts at the usual quiet time. Only one update runs at a time.
+
+It needs the `kiosk` user to read the journal (the `systemd-journal` group, `kiosk_groups`) and to start those two units
+(`50-kiosk-power.rules`). The group applies when the user's session next starts, so the first update after a deploy may
+show journalctl's "no permission" instead of the lines; the pull and restart still run.
 
 ## Security
 
 - It listens on 127.0.0.1 only (the unit has `IPAddressDeny=any` and allows localhost). It answers the app's origin alone
-  (CORS), and refuses every POST whose `Origin` header is not the app's, so no other web page can trigger an action.
+  (CORS), and refuses every POST and every WebSocket whose `Origin` header is not the app's (a browser does not apply CORS
+  to a WebSocket), so no other web page can trigger an action.
 - A request names a fixed action; it never carries a command. Routing accepts at most 16 speaker names of up to 256
   characters and can only link the browser's stream to existing sinks. Everything runs by absolute path with an argument
   list, no shell. polkit (`50-kiosk-power.rules`) limits what the `kiosk` user may do with systemd and power.

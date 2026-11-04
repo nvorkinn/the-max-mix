@@ -1,23 +1,25 @@
 // The kiosk's local service for the app, on 127.0.0.1 only:
 //   GET  /speakers          {"speakers": ["Kitchen", …]}   the AirPlay sinks PipeWire made, by the names routing uses
-//   GET  /update/status     {"state", "lines", "total"}    how the update the app asked for is going
 //   POST /audio/route       {"speakers": [...]}            route the sound to those speakers (none: the Pi's own output)
-//   POST /power/update      pull the playbook now          POST /power/restart   restart the kiosk
-//   POST /power/reboot      reboot the Pi                  POST /display/wake    turn the screen back on
-//   POST /wifi              show the Wi-Fi panel
-// Only the app's origin is answered (CORS, and every POST is refused without its Origin header, so no other web page
-// can trigger one). A request carries no command, only the name of one of the fixed actions in actions.ts.
+//   POST /power/restart     restart the kiosk              POST /power/reboot    reboot the Pi
+//   POST /display/wake      turn the screen back on        POST /wifi            show the Wi-Fi panel
+//   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
+//                           (update-socket.ts)
+// Only the app's origin is answered (CORS, and every POST and WebSocket is refused without its Origin header, so no other
+// web page can trigger one). A request carries no command, only the name of one of the fixed actions in actions.ts.
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
-import { perform, updateStatus } from './actions.ts';
-import type { Action, UpdateStatus } from './actions.ts';
+import { perform } from './actions.ts';
+import type { Action } from './actions.ts';
 import type { Graph } from './pipewire.ts';
 import { validSpeakers } from './speakers.ts';
+import { attachUpdateSocket } from './update-socket.ts';
+import type { Update } from './update-socket.ts';
+import { runUpdate } from './update.ts';
 
 const SPEAKERS_PORT = 7341;
 const MAX_BODY = 4096;
 const POST_ACTIONS: Record<string, Action> = {
-  '/power/update': 'update',
   '/power/restart': 'restart',
   '/power/reboot': 'reboot',
   '/display/wake': 'wake',
@@ -29,7 +31,6 @@ export interface Deps {
   graph: () => Promise<Graph>;
   route: (speakers: string[]) => Promise<void>;
   perform: (action: Action) => Promise<void>;
-  updateStatus: () => Promise<UpdateStatus>;
 }
 
 /** The AirPlay (RAOP) sinks' names, sorted, once each. */
@@ -85,8 +86,6 @@ export function handleRequest(origin: string, deps: Deps) {
       } else if (request.method === 'GET' && request.url === '/speakers') {
         const speakers = speakerNames(await deps.graph());
         response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ speakers }));
-      } else if (request.method === 'GET' && request.url === '/update/status') {
-        response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(await deps.updateStatus()));
       } else if (request.method === 'POST') {
         if (request.headers.origin === origin) await post(request, response, deps);
         else response.writeHead(403).end();
@@ -99,7 +98,9 @@ export function handleRequest(origin: string, deps: Deps) {
   };
 }
 
-export function serveSpeakers(origin: string, deps: Pick<Deps, 'graph' | 'route'>): Server {
-  const handler = handleRequest(origin, { ...deps, perform, updateStatus: () => updateStatus() });
-  return createServer((request, response) => void handler(request, response)).listen(SPEAKERS_PORT, '127.0.0.1');
+export function serveSpeakers(origin: string, deps: Pick<Deps, 'graph' | 'route'>, update: Update = runUpdate): Server {
+  const handler = handleRequest(origin, { ...deps, perform });
+  const server = createServer((request, response) => void handler(request, response));
+  attachUpdateSocket(server, origin, update);
+  return server.listen(SPEAKERS_PORT, '127.0.0.1');
 }

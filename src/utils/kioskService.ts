@@ -1,6 +1,6 @@
 // The kiosk's local service (pi/kiosk-audio/server.ts), which only answers the Pi's own browser, on its own address.
 // The app uses it for what a page cannot do itself: listing the AirPlay speakers, routing the sound, showing the Wi-Fi
-// panel, turning the screen on, and updating, restarting and rebooting the Pi.
+// panel, turning the screen on, restarting and rebooting the Pi, and updating it (which it streams back).
 export const KIOSK_SERVICE = 'http://127.0.0.1:7341';
 
 /**
@@ -19,19 +19,63 @@ export function kioskPost(path: string, body?: unknown): void {
     .catch((error: unknown) => console.warn(`The kiosk did not answer ${path}`, error));
 }
 
-/** How the update the person asked for is going (GET /update/status): see pi/kiosk-audio/actions.ts. */
-export interface UpdateStatus {
-  state: 'idle' | 'running' | 'done' | 'failed';
-  lines: string[];
-  total: number;
-}
+/** What the kiosk sends while it updates (pi/kiosk-audio/update.ts): the journal's lines, and the steps it is at. */
+export type UpdateEvent =
+  | { type: 'log' | 'error'; line: string }
+  | { type: 'status'; state: 'pulling' | 'restarting' | 'done' | 'failed'; message?: string };
 
-/** The update's status, or null when the service does not answer (it ends with the kiosk when an update restarts it). */
-export async function getUpdateStatus(): Promise<UpdateStatus | null> {
+const STATES = new Set(['pulling', 'restarting', 'done', 'failed']);
+
+/** A frame from the kiosk as an event, or null for anything that is not one. */
+export function parseUpdateEvent(data: unknown): UpdateEvent | null {
+  if (typeof data !== 'string') return null;
+  let value: unknown;
   try {
-    const response = await fetch(`${KIOSK_SERVICE}/update/status`, { cache: 'no-store' });
-    return response.ok ? ((await response.json()) as UpdateStatus) : null;
+    value = JSON.parse(data);
   } catch {
     return null;
   }
+  if (typeof value !== 'object' || value === null) return null;
+  const record = value as Record<string, unknown>;
+  if ((record['type'] === 'log' || record['type'] === 'error') && typeof record['line'] === 'string') {
+    return { type: record['type'], line: record['line'] };
+  }
+  const state = record['state'];
+  if (typeof state === 'string' && STATES.has(state) && record['type'] === 'status') {
+    const message = record['message'];
+    return {
+      type: 'status',
+      state: state as 'pulling' | 'restarting' | 'done' | 'failed',
+      ...(typeof message === 'string' && { message })
+    };
+  }
+  return null;
+}
+
+/**
+ * Starts the update (a WebSocket to /power/update: connecting is what starts it) and reports what the kiosk sends.
+ * `onClose` follows every end of the connection, including the one a restart of the kiosk causes. Returns the function
+ * that stops listening and closes the connection.
+ */
+export function openUpdateStream(handlers: {
+  onOpen: () => void;
+  onEvent: (event: UpdateEvent) => void;
+  onClose: () => void;
+}): () => void {
+  const socket = new WebSocket(`${KIOSK_SERVICE.replace(/^http/, 'ws')}/power/update`);
+  let isListening = true;
+  socket.addEventListener('open', () => {
+    if (isListening) handlers.onOpen();
+  });
+  socket.addEventListener('message', message => {
+    const event = parseUpdateEvent(message.data);
+    if (isListening && event) handlers.onEvent(event);
+  });
+  socket.addEventListener('close', () => {
+    if (isListening) handlers.onClose();
+  });
+  return () => {
+    isListening = false;
+    socket.close();
+  };
 }

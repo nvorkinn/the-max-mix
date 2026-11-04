@@ -1,12 +1,13 @@
 // The kiosk's audio routing and local service (see README.md), run as the kiosk user next to its PipeWire:
 //   node kiosk-audio.ts watch   the background unit. It answers the app on 127.0.0.1 (server.ts: the speaker list, routing,
-//                               and the kiosk buttons), and every few seconds routes any stream Chromium opened again and
+//                               the kiosk buttons, and the update stream), and every few seconds routes any stream Chromium opened again and
 //                               any chosen speaker that came back.
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { PipeWire } from './pipewire.ts';
 import { serveSpeakers } from './server.ts';
 import { loadSpeakers, route, saveSpeakers } from './speakers.ts';
+import { stopFollowers } from './update.ts';
 
 const WATCH_MS = 2000;
 const stateHome = process.env['XDG_STATE_HOME'] || path.join(homedir(), '.local', 'state');
@@ -24,6 +25,9 @@ async function watchOnce(): Promise<void> {
 }
 
 if (process.argv[2] === 'watch') {
+  // An update follows the journal with journalctl processes: none may outlive this service.
+  process.on('exit', stopFollowers);
+  for (const signal of ['SIGTERM', 'SIGINT'] as const) process.on(signal, () => process.exit(0));
   setInterval(() => void watchOnce(), WATCH_MS);
   serveSpeakers(process.env['KIOSK_APP_ORIGIN'] ?? '', {
     graph: () => pipewire.graph(),

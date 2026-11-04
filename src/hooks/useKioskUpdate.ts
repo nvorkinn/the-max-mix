@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { debugLog } from '../utils/debugLog';
 import {
   getDismissedUpdate,
@@ -6,15 +6,15 @@ import {
   latestCommit,
   latestRelease,
   piVersion,
-  setDismissedUpdate,
-  updateKiosk
+  setDismissedUpdate
 } from '../utils/kiosk';
 import type { PiVersion } from '../utils/kiosk';
-import { getUpdateStatus } from '../utils/kioskService';
+import { openUpdateStream } from '../utils/kioskService';
 
-const POLL_MS = 1500;
 /** Give up following an update after this long; a pull of a big release can take minutes. */
 const GIVE_UP_MS = 20 * 60 * 1000;
+/** The console keeps the newest lines only. */
+const MAX_LINES = 500;
 
 /** The newest release tag on GitHub for a Pi on a release, otherwise the newest commit of the ref it is pinned to. */
 type LatestVersion = { state: 'checking' } | { state: 'unknown' } | { state: 'known'; value: string };
@@ -31,7 +31,7 @@ export interface KioskUpdate {
   isUpdating: boolean;
   /** What the update says it is doing, from the kiosk service; null until it has said anything. */
   progress: string | null;
-  /** The last lines the update has printed, shown as they arrive. */
+  /** The newest lines of the update's output (the journal of the pull and the restart), shown as they arrive. */
   output: string[];
   /** The full-screen console that follows an update: open from the moment one starts until it is closed. */
   consoleOpen: boolean;
@@ -56,48 +56,26 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
   const [latest, setLatest] = useState<LatestVersion>({ state: version ? 'checking' : 'unknown' });
   const [dismissed, setDismissed] = useState(getDismissedUpdate);
 
-  // While an update runs, follow it: show its latest line, and write every line to the debug console.
+  // The connection that carries the update: opening it starts the update, and the kiosk sends the journal lines as they
+  // are written. Closed when the page lets go of it, so no update outlives the hook's listening.
+  const streamRef = useRef<(() => void) | null>(null);
+  useEffect(
+    () => () => {
+      streamRef.current?.();
+    },
+    []
+  );
+
+  // Gives up waiting for an update that never ends.
   useEffect(() => {
     if (!isUpdating) return;
-    const started = Date.now();
-    let logged = 0;
-    let hasSeenRunning = false;
-    let misses = 0;
-    const timer = setInterval(() => {
-      void getUpdateStatus().then(status => {
-        if (!status) {
-          misses += 1;
-          // The service ends with the kiosk: after it was seen running, no answer means the kiosk is restarting.
-          if (hasSeenRunning) setProgress('Restarting the kiosk…');
-          else if (misses >= 5) setProgress('The kiosk service is not answering.');
-          return;
-        }
-        misses = 0;
-        // Nothing has started yet (any log is from an earlier pull), or the log began again.
-        if (status.state === 'idle') return;
-        if (status.total < logged) logged = 0;
-        const count = Math.min(status.total - logged, status.lines.length);
-        const fresh = count > 0 ? status.lines.slice(-count) : [];
-        for (const line of fresh) debugLog('info', 'update', line);
-        logged = status.total;
-        const last = status.lines.at(-1);
-        setOutput(status.lines);
-        if (status.state === 'running') {
-          hasSeenRunning = true;
-        } else if (status.state === 'done') {
-          setProgress('Update finished. Nothing needed a restart.');
-          setIsUpdating(false);
-        } else {
-          setProgress(`The update failed. ${last ?? ''}`.trim());
-          setIsUpdating(false);
-        }
-      });
-      if (Date.now() - started > GIVE_UP_MS) {
-        setProgress('Stopped waiting for the update. It may still be running.');
-        setIsUpdating(false);
-      }
-    }, POLL_MS);
-    return () => clearInterval(timer);
+    const timer = setTimeout(() => {
+      streamRef.current?.();
+      streamRef.current = null;
+      setProgress('Stopped waiting for the update. It may still be running.');
+      setIsUpdating(false);
+    }, GIVE_UP_MS);
+    return () => clearTimeout(timer);
   }, [isUpdating]);
 
   useEffect(() => {
@@ -120,11 +98,57 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
   }
 
   const start = useCallback(() => {
+    streamRef.current?.();
     setProgress(null);
     setOutput([]);
     setIsUpdating(true);
     setConsoleOpen(true);
-    updateKiosk();
+    let isOpen = false;
+    let isEnded = false;
+    let isRestarting = false;
+    streamRef.current = openUpdateStream({
+      onOpen: () => {
+        isOpen = true;
+      },
+      onEvent: event => {
+        if (event.type === 'status') {
+          switch (event.state) {
+            case 'restarting': {
+              isRestarting = true;
+              setProgress('Restarting the kiosk…');
+              break;
+            }
+            case 'done': {
+              isEnded = true;
+              setProgress(event.message ? `Update finished. ${event.message}` : 'Update finished.');
+              setIsUpdating(false);
+              break;
+            }
+            case 'failed': {
+              isEnded = true;
+              setProgress(`The update failed. ${event.message ?? ''}`.trim());
+              setIsUpdating(false);
+              break;
+            }
+            default:
+          }
+          return;
+        }
+        debugLog(event.type === 'error' ? 'error' : 'info', 'update', event.line);
+        setOutput(lines => [...lines, event.line].slice(-MAX_LINES));
+      },
+      onClose: () => {
+        streamRef.current = null;
+        if (isEnded) return;
+        // The restart ends the browser the page runs in, and with it this connection: the page is about to go.
+        if (isRestarting) {
+          setProgress('Restarting the kiosk…');
+          return;
+        }
+        setProgress(isOpen ? 'Lost the connection to the kiosk.' : 'The kiosk service is not answering.');
+        setIsUpdating(false);
+      }
+    });
   }, []);
 
   const newerId = latest.state === 'known' ? latest.value : null;

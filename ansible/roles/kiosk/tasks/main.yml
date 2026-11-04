@@ -382,7 +382,43 @@
     - pipewire.ts
     - server.ts
     - speakers.ts
+    - update.ts
+    - update-socket.ts
   notify: Ask for a kiosk restart
+
+# ws, the one npm package, for the update stream (the WebSocket). Installed from the lockfile, so it is the version that
+# was reviewed; --ignore-scripts because nothing it needs has to build. Only when the lockfile is not the one installed.
+- name: Install the audio routing's package list
+  ansible.builtin.copy:
+    src: kiosk-audio/{{ item }}
+    dest: '{{ kiosk_audio_dir }}/{{ item }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - package.json
+    - package-lock.json
+  notify: Ask for a kiosk restart
+
+- name: Install the audio routing's npm packages
+  when: >-
+    (lookup('ansible.builtin.file', 'kiosk-audio/package-lock.json') | hash('sha1'))
+    != (lookup('ansible.builtin.file', kiosk_audio_deps_stamp, errors='ignore') | default('', true) | string | trim)
+  block:
+    - name: Run npm ci
+      ansible.builtin.command:
+        cmd: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+        chdir: '{{ kiosk_audio_dir }}'
+      changed_when: true
+      notify: Ask for a kiosk restart
+
+    - name: Record which lockfile was installed
+      ansible.builtin.copy:
+        content: "{{ lookup('ansible.builtin.file', 'kiosk-audio/package-lock.json') | hash('sha1') }}"
+        dest: '{{ kiosk_audio_deps_stamp }}'
+        owner: root
+        group: root
+        mode: '0644'
 
 - name: Install the AirPlay settings and the audio routing unit
   ansible.builtin.template:
@@ -445,7 +481,7 @@
     group: root
     mode: '0644'
 
-# The Update now, Restart kiosk and Reboot Pi buttons in the app's settings (requests to the kiosk-audio service).
+# The Update now (a WebSocket), Restart kiosk and Reboot Pi buttons in the app's settings (requests to the kiosk-audio service).
 - name: Allow the kiosk user to update and restart the kiosk and reboot the Pi
   ansible.builtin.template:
     src: 50-kiosk-power.rules.j2
@@ -543,7 +579,6 @@
     - kiosk-pull.timer
     - kiosk-restart.service
     - kiosk-restart.timer
-    - kiosk-update-now.service
     - kiosk-widevine.path
     - kiosk-widevine.service
   notify: Reload systemd

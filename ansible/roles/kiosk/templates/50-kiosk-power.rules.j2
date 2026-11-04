@@ -1,6 +1,6 @@
 // {{ ansible_managed }}
-// The kiosk user may update the kiosk now, restart it and reboot the Pi (the kiosk-audio service), and nothing else to do with
-// power or units.
+// The kiosk user may run the update now (the pull, then the restart it asks for), restart the kiosk and reboot the Pi (the
+// kiosk-audio service), and nothing else to do with power or units.
 polkit.addRule(function (action, subject) {
   if (subject.user !== '{{ kiosk_user }}') {
     return polkit.Result.NOT_HANDLED;
@@ -14,7 +14,7 @@ polkit.addRule(function (action, subject) {
   }
   if (
     action.id === 'org.freedesktop.systemd1.manage-units' &&
-    action.lookup('unit') === 'kiosk-update-now.service' &&
+    (action.lookup('unit') === 'kiosk-pull.service' || action.lookup('unit') === 'kiosk-restart.service') &&
     action.lookup('verb') === 'start'
   ) {
     return polkit.Result.YES;

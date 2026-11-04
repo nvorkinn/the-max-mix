@@ -3,6 +3,7 @@ import type { Mock } from 'vitest';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { installCanvasStub } from '../test/canvas';
 import { defined } from '../test/defined';
+import { FakeWebSocket, latestFakeSocket, resetFakeSockets } from '../test/fakeWebSocket';
 import { fetchSpotify, recordSpotifyRetryAfter, resetSpotifyRateLimit, SpotifyApiError } from '../spotify/http';
 import TabletView from './TabletView';
 
@@ -642,13 +643,10 @@ describe('TabletView', () => {
       beforeEach(() => {
         localStorage.setItem('maxmix.piVersion', 'v1.12.0 5a39e9a');
         fetchMock.mockReset();
-        fetchMock.mockImplementation((url: string) => {
-          const fromGitHub = new URL(url).hostname === 'api.github.com';
-          return Promise.resolve(
-            Response.json(fromGitHub ? { tag_name: 'v1.13.0' } : { state: 'idle', lines: [], total: 0 })
-          );
-        });
+        fetchMock.mockImplementation(() => Promise.resolve(Response.json({ tag_name: 'v1.13.0' })));
         vi.stubGlobal('fetch', fetchMock);
+        resetFakeSockets();
+        vi.stubGlobal('WebSocket', FakeWebSocket);
       });
       afterEach(() => vi.unstubAllGlobals());
 
@@ -663,13 +661,15 @@ describe('TabletView', () => {
         expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
       });
 
-      it('Update now asks the kiosk and opens the console in place of the tablet', async () => {
+      it('Update now opens the update stream and the console in place of the tablet', async () => {
         render(<TabletView />);
         await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(screen.getByRole('button', { name: 'Update now' }));
         expect(await screen.findByRole('dialog', { name: 'Updating the Pi' })).toBeInTheDocument();
         expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
-        expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/power/update', { method: 'POST' });
+        expect(latestFakeSocket().url).toBe('ws://127.0.0.1:7341/power/update');
+        act(() => latestFakeSocket().receive({ type: 'log', line: '2026-11-04T20:00:00+0000 kiosk-pull[1]: hello' }));
+        expect(screen.getByLabelText('Update output')).toHaveTextContent('kiosk-pull[1]: hello');
       });
 
       it('does not ask while the screen sleeps, but does once it wakes', async () => {

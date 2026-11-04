@@ -63,7 +63,7 @@ Wi-Fi panel. `--no-poweroff` starts the kiosk again instead, for trying it out.
    not, it runs `/usr/local/bin/wifi-panel` until it connects. The panel offers Cancel only when a connection already
    works.
 4. `kiosk-pull.timer` runs `ansible-pull` three minutes after boot and then every six hours (or at once from the app's
-   Update now button), applying the playbook only when there is a new release. A failed run only logs
+   Update now button, which also follows the pull's journal), applying the playbook only when there is a new release. A failed run only logs
    (`journalctl -u kiosk-pull`). A pull that changed kiosk files makes `kiosk-restart.timer` restart the kiosk at 04:30.
 5. The screen sleeps. The app keeps it on while music plays and for the idle minutes chosen in its settings (5 by
    default), by holding a screen wake lock that Chromium passes to Cage. After that, the app shows a black sleep screen

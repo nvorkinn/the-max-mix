@@ -1,0 +1,14 @@
+{
+  "name": "the-max-mix-kiosk-audio",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The kiosk's local service on the Pi (npm ci --omit=dev installs ws next to the .ts files)",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "ws": "8.22.1"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}
