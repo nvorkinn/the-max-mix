@@ -74,7 +74,9 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false) {
     phone: {
       start: () => {
         phoneStarts.push('start');
-        return isPhoneFailing ? Promise.reject(new Error('no bluetooth')) : Promise.resolve();
+        return isPhoneFailing
+          ? Promise.reject(new Error('no bluetooth', { cause: new Error('Failed to register advertisement') }))
+          : Promise.resolve();
       }
     },
     bluetooth: {
@@ -333,13 +335,17 @@ describe('Wi-Fi setup from a phone', () => {
     await expect(started.json()).resolves.toEqual({ ok: true });
     expect(phoneStarts).toEqual(['start']);
 
-    vi.spyOn(console, 'warn').mockReturnValue();
+    const warn = vi.spyOn(console, 'warn').mockReturnValue();
     const broken = await start(fakes({}, true).deps);
     const refused = await post(broken, '/wifi/phone', { origin: LOCAL_ORIGIN });
     expect(refused.status).toBe(503);
     await expect(refused.json()).resolves.toEqual({
       error: 'Bluetooth is not available, so the phone cannot be used.'
     });
+    // The journal gets the reason, not only what failed.
+    expect(warn).toHaveBeenCalledWith(
+      'wifi: phone setup did not start: no bluetooth: Failed to register advertisement'
+    );
   });
 });
 

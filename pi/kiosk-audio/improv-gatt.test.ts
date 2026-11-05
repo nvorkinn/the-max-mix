@@ -3,7 +3,7 @@ import { createBroker, createClient, defineInterface } from 'dbus-native';
 import type { DBusBroker, MessageBus } from 'dbus-native';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { wifiPacket } from './fixtures.ts';
-import { advertise } from './improv-gatt.ts';
+import { advertise, SERVICE_DATA_UUID } from './improv-gatt.ts';
 import { CHARACTERISTICS, ErrorCode, ImprovSession, SERVICE_UUID, State } from './improv.ts';
 
 const APP = '/org/themaxmix/improv';
@@ -147,8 +147,11 @@ describe('kiosk-audio/improv-gatt', () => {
     const advert = await remote(bluez, owner, '/org/themaxmix/improv_adv', 'org.bluez.LEAdvertisement1');
     const properties = await advert.$props.$all();
     expect(properties).toMatchObject({ Type: 'peripheral', LocalName: 'THE MAX MIX', ServiceUUIDs: [SERVICE_UUID] });
-    const data = (properties['ServiceData'] as Record<string, Buffer>)[SERVICE_UUID];
+    const data = (properties['ServiceData'] as Record<string, Buffer>)[SERVICE_DATA_UUID];
     expect([...(data ?? [])]).toEqual([State.authorized, 0, 0, 0, 0, 0]);
+    // It has to fit in the 31 bytes of an advertisement: flags (3), the service UUID (2 + 16) and the service data (2 + 2 + 6).
+    expect(3 + (2 + 16) + (2 + 2 + (data?.length ?? 0))).toBeLessThanOrEqual(31);
+    expect(SERVICE_DATA_UUID).toMatch(/^0000[\da-f]{4}-0000-1000-8000-00805f9b34fb$/);
     await advertising.stop();
   });
 
