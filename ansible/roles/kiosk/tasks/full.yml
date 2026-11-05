@@ -206,6 +206,33 @@
     - 20auto-upgrades
     - 52kiosk-unattended-upgrades
 
+# The setup hotspot (pi/kiosk-audio/hotspot.ts): NetworkManager's own DHCP and DNS for it answer every name with the kiosk,
+# and the service may serve its page on port 80.
+- name: Create the directory for the hotspot's DNS settings
+  ansible.builtin.file:
+    path: /etc/NetworkManager/dnsmasq-shared.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Make the setup hotspot's DNS answer with the kiosk
+  ansible.builtin.copy:
+    src: 50-kiosk-captive.conf
+    dest: /etc/NetworkManager/dnsmasq-shared.d/50-kiosk-captive.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Let the kiosk service serve the hotspot's page on port 80
+  ansible.builtin.copy:
+    src: 50-kiosk-unprivileged-ports.conf
+    dest: /etc/sysctl.d/50-kiosk-unprivileged-ports.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Apply sysctl settings
+
 - name: Make NetworkManager's connectivity check reach the internet
   ansible.builtin.copy:
     src: 20-connectivity.conf
@@ -420,6 +447,8 @@
   loop:
     - actions.ts
     - bluetooth.ts
+    - hotspot-portal.ts
+    - hotspot.ts
     - improv-gatt.ts
     - improv.ts
     - kiosk-audio.ts
@@ -428,6 +457,7 @@
     - nmcli.ts
     - phone-setup.ts
     - pipewire.ts
+    - qr.ts
     - server.ts
     - speakers.ts
     - update.ts

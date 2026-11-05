@@ -33,6 +33,9 @@ export interface Page {
   cancel: HTMLButtonElement;
   phone: HTMLButtonElement;
   phoneHelp: HTMLElement;
+  hotspot: HTMLButtonElement;
+  hotspotView: HTMLElement;
+  hotspotStatus: HTMLElement;
   busy: HTMLElement;
 }
 
@@ -59,6 +62,9 @@ export function findPage(doc: Document): Page {
     cancel: element(doc, 'cancel') as HTMLButtonElement,
     phone: element(doc, 'phone') as HTMLButtonElement,
     phoneHelp: element(doc, 'phone-help'),
+    hotspot: element(doc, 'hotspot') as HTMLButtonElement,
+    hotspotView: element(doc, 'hotspot-view'),
+    hotspotStatus: element(doc, 'hotspot-status'),
     busy: element(doc, 'busy')
   };
 }
@@ -71,6 +77,37 @@ const post = (path: string, body?: unknown): Promise<Response> =>
   });
 
 const HEARTBEAT_MS = 20_000;
+const HOTSPOT_POLL_MS = 2000;
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** What POST /wifi/hotspot answers: how to join the setup hotspot, and where its page is. */
+interface HotspotInfo {
+  ssid: string;
+  password: string;
+  url: string;
+  wifiQr: string[];
+  urlQr: string[];
+}
+
+/** Draws a QR code, given as rows of `0` and `1`, as an SVG that scales to its box (with the quiet zone a scanner needs). */
+export function drawQr(doc: Document, container: HTMLElement, rows: readonly string[]): void {
+  const margin = 4;
+  const size = rows.length + margin * 2;
+  const svg = doc.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+  svg.setAttribute('shape-rendering', 'crispEdges');
+  const path = doc.createElementNS(SVG_NS, 'path');
+  const runs: string[] = [];
+  for (const [y, row] of rows.entries()) {
+    for (const run of row.matchAll(/1+/g)) {
+      runs.push(`M${run.index + margin} ${y + margin}h${run[0].length}v1h-${run[0].length}z`);
+    }
+  }
+  path.setAttribute('d', runs.join(''));
+  path.setAttribute('fill', '#000');
+  svg.append(path);
+  container.replaceChildren(svg);
+}
 
 /** The page is finished (joined, or Cancel): the service closes it. */
 async function close(): Promise<void> {
@@ -82,6 +119,12 @@ export function startPage(doc: Document, canCancel: boolean): { refresh: () => P
   const page = findPage(doc);
   let join: Join | undefined;
   let isBusy = false;
+  let hotspotTimer: ReturnType<typeof setInterval> | undefined;
+
+  const stopHotspotPolling = (): void => {
+    clearInterval(hotspotTimer);
+    hotspotTimer = undefined;
+  };
 
   const showError = (message: string): void => {
     page.error.textContent = message;
@@ -99,6 +142,8 @@ export function startPage(doc: Document, canCancel: boolean): { refresh: () => P
     join = undefined;
     page.listView.insertBefore(page.error, page.status);
     page.joinView.hidden = true;
+    page.hotspotView.hidden = true;
+    stopHotspotPolling();
     page.listView.hidden = false;
     showError('');
   };
@@ -214,6 +259,70 @@ export function startPage(doc: Document, canCancel: boolean): { refresh: () => P
     page.phone.disabled = false;
   };
 
+  // Wi-Fi from any phone, with no app: the service makes a hotspot, and the phone joins it with the first QR code and gets
+  // a page for the Wi-Fi's name and password from the second. The service closes this page when the phone has joined one.
+  const followHotspot = async (): Promise<void> => {
+    try {
+      const response = await fetch('/wifi/hotspot');
+      const status = (await response.json()) as { state: string; error?: string };
+      switch (status.state) {
+        case 'joining': {
+          page.hotspotStatus.textContent = 'The phone chose a network. The kiosk is joining it…';
+          break;
+        }
+        case 'failed': {
+          stopHotspotPolling();
+          page.hotspotStatus.textContent = status.error ?? 'Could not join that network.';
+          break;
+        }
+        case 'idle': {
+          stopHotspotPolling();
+          showList();
+          showError('The hotspot ended. Tap Hotspot to start it again.');
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+    } catch {
+      // The service may be busy with the network change; the next check asks again.
+    }
+  };
+
+  const showHotspot = (info: HotspotInfo): void => {
+    drawQr(doc, element(doc, 'qr-wifi'), info.wifiQr);
+    drawQr(doc, element(doc, 'qr-url'), info.urlQr);
+    element(doc, 'hotspot-name').textContent = info.ssid;
+    element(doc, 'hotspot-password').textContent = info.password;
+    element(doc, 'hotspot-url').textContent = info.url;
+    page.hotspotStatus.textContent = 'Waiting for your phone…';
+    page.listView.hidden = true;
+    page.hotspotView.hidden = false;
+    stopHotspotPolling();
+    hotspotTimer = setInterval(() => void followHotspot(), HOTSPOT_POLL_MS);
+  };
+
+  const startHotspot = async (): Promise<void> => {
+    page.hotspot.disabled = true;
+    showError('');
+    try {
+      const response = await post('/wifi/hotspot');
+      const body = (await response.json()) as HotspotInfo & { error?: string };
+      if (response.ok) showHotspot(body);
+      else showError(body.error ?? 'Could not start the hotspot.');
+    } catch {
+      showError('Could not reach the kiosk service.');
+    }
+    page.hotspot.disabled = false;
+  };
+
+  page.hotspot.addEventListener('click', () => void startHotspot());
+  element(doc, 'hotspot-back').addEventListener('click', () => {
+    void post('/wifi/hotspot/stop').finally(() => {
+      showList();
+    });
+  });
   page.phone.addEventListener('click', () => void startPhone());
   page.refresh.addEventListener('click', () => void refresh());
   element(doc, 'other').addEventListener('click', () => {

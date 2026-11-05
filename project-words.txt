@@ -21,6 +21,7 @@ chvt
 CIDATA
 cmdline
 color
+connecttest
 cretpass
 dataclass
 dbus
@@ -29,6 +30,7 @@ devicechange
 dialog
 dialogs
 disallocate
+dnsmasq
 elif
 endfor
 equalto
@@ -46,6 +48,7 @@ getent
 getty
 groupadd
 ieee
+ifname
 imager
 improv
 infobars
@@ -121,6 +124,7 @@ publickey
 pwauth
 pycache
 qml
+qrcode
 qtcore
 qtgui
 qtqml

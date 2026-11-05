@@ -10,6 +10,8 @@
 //   POST /wifi/connect      {"ssid", "password", "hidden", "security"}   join a network: {"ok": true} or {"ok": false, "error"}
 //   POST /wifi/phone        start Wi-Fi setup from a phone over Bluetooth for a few minutes (phone-setup.ts): {"ok": true}
 //                           or 503 {"error"}. The page that shows the button is the only thing that can ask.
+//   POST /wifi/hotspot      start a setup hotspot for a phone (hotspot.ts): {"ssid", "password", "url", "wifiQr", "urlQr"}
+//                           or 503 {"error"}   POST /wifi/hotspot/stop  end it   GET /wifi/hotspot  {"state", "error"?}
 //   POST /wifi/done         the setup page is finished (joined, or Cancel): close it
 //   GET  /wifi-setup        the Wi-Fi setup page and its scripts (wifi-setup.ts)
 //   GET  /lyrics?title=&artist=&duration=   {"source", "lrc"}: synced lyrics from NetEase, QQ Music or KuGou (lyrics.ts),
@@ -30,6 +32,9 @@ import { perform } from './actions.ts';
 import type { Action } from './actions.ts';
 import { Bluetooth, BluetoothError, parseAddress } from './bluetooth.ts';
 import type { BluetoothDevice, ConnectResult as BluetoothConnectResult } from './bluetooth.ts';
+import { isLoopback, listenForHotspot } from './hotspot-portal.ts';
+import { Hotspot, HotspotError } from './hotspot.ts';
+import type { HotspotInfo, HotspotStatus } from './hotspot.ts';
 import type { LyricsQuery } from './lyrics-sources.ts';
 import { cached, findLyrics, parseLyricsQuery } from './lyrics.ts';
 import type { LyricsHit } from './lyrics.ts';
@@ -75,6 +80,13 @@ export interface Deps {
   lyrics: (query: LyricsQuery) => Promise<LyricsHit | null>;
   bluetooth: BluetoothControl;
   phone: { start: () => Promise<void> };
+  hotspot: {
+    start: () => Promise<HotspotInfo>;
+    stop: () => Promise<void>;
+    status: () => HotspotStatus;
+    /** Answers a request that came in over the hotspot. */
+    handlePortal: (request: IncomingMessage, response: ServerResponse) => Promise<void>;
+  };
 }
 
 /** BlueZ, for the Bluetooth speakers (bluetooth.ts). */
@@ -328,6 +340,21 @@ async function postWifi(request: IncomingMessage, response: ServerResponse, deps
     }
     return;
   }
+  if (request.url === '/wifi/hotspot') {
+    try {
+      sendJson(response, 200, await deps.hotspot.start());
+    } catch (error) {
+      console.warn(`wifi: hotspot did not start: ${describeError(error)}`);
+      const message = error instanceof HotspotError ? error.message : 'The hotspot could not be started.';
+      sendJson(response, 503, { error: message });
+    }
+    return;
+  }
+  if (request.url === '/wifi/hotspot/stop') {
+    await deps.hotspot.stop();
+    response.writeHead(204).end();
+    return;
+  }
   if (request.url === '/wifi/done') {
     response.writeHead(204).end();
     wifi.done();
@@ -339,15 +366,28 @@ async function postWifi(request: IncomingMessage, response: ServerResponse, deps
 }
 
 async function get(url: string, response: ServerResponse, deps: Deps): Promise<void> {
-  if (url === '/speakers') {
-    const graph = await deps.graph();
-    sendJson(response, 200, { speakers: speakerNames(graph), volumes: speakerVolumes(graph) });
-  } else if (url === '/wifi/networks') {
-    await listNetworks(response, deps.wifi);
-  } else {
-    const asset = await deps.asset(url);
-    if (asset) response.writeHead(200, { 'Content-Type': asset.type }).end(asset.body);
-    else response.writeHead(404).end();
+  switch (url) {
+    case '/speakers': {
+      const graph = await deps.graph();
+      sendJson(response, 200, { speakers: speakerNames(graph), volumes: speakerVolumes(graph) });
+
+      break;
+    }
+    case '/wifi/networks': {
+      await listNetworks(response, deps.wifi);
+
+      break;
+    }
+    case '/wifi/hotspot': {
+      sendJson(response, 200, deps.hotspot.status());
+
+      break;
+    }
+    default: {
+      const asset = await deps.asset(url);
+      if (asset) response.writeHead(200, { 'Content-Type': asset.type }).end(asset.body);
+      else response.writeHead(404).end();
+    }
   }
 }
 
@@ -371,6 +411,12 @@ async function handleGet(
 
 export function handleRequest(origin: string, deps: Deps) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    // A request that did not come in on this machine's own address came over the setup hotspot, whose password anyone
+    // nearby may be given: it gets the setup page and nothing of the kiosk's own requests, whatever its Origin says.
+    if (!isLoopback(request.socket.localAddress)) {
+      await deps.hotspot.handlePortal(request, response);
+      return;
+    }
     response.setHeader('Access-Control-Allow-Origin', origin);
     response.setHeader('Access-Control-Allow-Methods', 'GET, POST');
     response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -384,7 +430,9 @@ export function handleRequest(origin: string, deps: Deps) {
         await handleGet(request, response, origin, deps);
       } else if (
         request.method === 'POST' &&
-        ['/wifi/connect', '/wifi/done', '/wifi/phone'].includes(request.url ?? '')
+        ['/wifi/connect', '/wifi/done', '/wifi/phone', '/wifi/hotspot', '/wifi/hotspot/stop'].includes(
+          request.url ?? ''
+        )
       ) {
         await postWifi(request, response, deps);
       } else if (request.method === 'POST') {
@@ -434,6 +482,14 @@ export function serveSpeakers(
     lyrics: cached(query => findLyrics(query)),
     bluetooth: new Bluetooth(),
     phone: new PhoneSetup({
+      connect: request => deps.wifi.connect(request),
+      done: () => {
+        deps.wifi.done();
+      }
+    }),
+    hotspot: new Hotspot({
+      listen: host => listenForHotspot(server, host),
+      scan: () => deps.wifi.scan(),
       connect: request => deps.wifi.connect(request),
       done: () => {
         deps.wifi.done();

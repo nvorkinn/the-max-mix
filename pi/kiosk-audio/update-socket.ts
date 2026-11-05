@@ -4,6 +4,7 @@
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocketServer } from 'ws';
+import { isLoopback } from './hotspot-portal.ts';
 import type { Send } from './update.ts';
 
 const UPDATE_PATH = '/power/update';
@@ -23,7 +24,10 @@ export function attachUpdateSocket(server: Server, origin: string, update: Updat
   const sockets = new WebSocketServer({ noServer: true, maxPayload: 1024 });
   let isRunning = false;
   server.on('upgrade', (request: IncomingMessage, socket: Duplex, head: Buffer) => {
-    if (request.url !== UPDATE_PATH) {
+    if (!isLoopback(request.socket.localAddress)) {
+      // Not from this machine: the hotspot's phones get the setup page and nothing else (hotspot-portal.ts).
+      refuse(socket, 403);
+    } else if (request.url !== UPDATE_PATH) {
       refuse(socket, 404);
     } else if (request.headers.origin === origin) {
       sockets.handleUpgrade(request, socket, head, connection => {
