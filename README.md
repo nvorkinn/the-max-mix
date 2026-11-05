@@ -141,7 +141,7 @@ Register `http://127.0.0.1:5173/` as a redirect URI in the Spotify dashboard to 
 To try the production build (the same files the Pi serves), run
 `npm run build && npm start` and open
 **<http://127.0.0.1:4173/>** (`vite preview`). Register that address too if you want to sign in there. `npm test` runs the
-app, kiosk service and Wi-Fi panel tests.
+app, kiosk service and sign-in keyboard tests.
 
 ### Checks and Git hooks
 
@@ -220,9 +220,9 @@ v1.12.0`): the Release workflow deploys the web app to Vercel and, once that has
   `github.com/nvorkinn/the-max-mix/releases/latest` redirects to (no API call or token) and runs `ansible-pull` at that
   tag. `--only-if-changed` starts the playbook only when the release has changed since the last run, so a check with
   nothing new is a single git fetch, and the playbook applies its slow part only when `ansible/`, `pi/kiosk-audio` or
-  `pi/wifi-panel` differ from the last complete run (git's tree ids, kept in `/var/lib/the-max-mix/applied.sha1`; most
+  `pi/kiosk-keyboard` differ from the last complete run (git's tree ids, kept in `/var/lib/the-max-mix/applied.sha1`; most
   releases only change the web app, which the Pi loads from the internet). `kiosk.service` is rewritten either way,
-  because it carries the release the settings show. A deployed Pi therefore gets fixes to the Wi-Fi panel, the session script, the
+  because it carries the release the settings show. A deployed Pi therefore gets fixes to the Wi-Fi setup page, the session script, the
   Chromium policy and so on without a reflash. The playbook is idempotent, so repeated runs are safe. To pin one Pi,
   set `kiosk_pull_ref` to a tag (`v1.12.0`), or to a branch to test unreleased work on your own Pi.
 - **A failing pull never affects the kiosk.** Nothing depends on `kiosk-pull.service`; a failure is only in the journal

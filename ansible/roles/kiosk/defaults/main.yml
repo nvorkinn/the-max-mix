@@ -139,10 +139,6 @@ kiosk_packages:
   # Security updates
   - unattended-upgrades
 
-# The Wi-Fi panel's source and its package list (one package per line, # comments allowed) live in the pulled repository.
-kiosk_panel_src: '{{ playbook_dir }}/../pi/wifi-panel'
-kiosk_panel_dir: /opt/the-max-mix/wifi-panel
-
 # The on-screen keyboard for Spotify's sign-in pages (pi/kiosk-keyboard): a Chromium extension in TypeScript. Its
 # sources go to src/, and its build script (Node's own type stripper) writes the extension that kiosk-session loads
 # into extension/.

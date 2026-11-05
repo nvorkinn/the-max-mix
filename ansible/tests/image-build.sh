@@ -48,9 +48,8 @@ check() {
   fi
 }
 
-for file in /usr/local/bin/kiosk-session /usr/local/bin/wifi-panel \
+for file in /usr/local/bin/kiosk-session \
   /usr/local/bin/kiosk-bluetooth-pair /etc/the-max-mix/bluetooth-devices /etc/systemd/system/kiosk-bluetooth-pair.service \
-  /opt/the-max-mix/wifi-panel/wifi_panel.py /opt/the-max-mix/wifi-panel/qml/Main.qml \
   /etc/systemd/system/kiosk.service /etc/systemd/system/kiosk-pull.service /etc/systemd/system/kiosk-pull.timer \
   /etc/systemd/system/kiosk-restart.timer /etc/chromium/policies/managed/kiosk.json \
   /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules /etc/polkit-1/rules.d/50-kiosk-power.rules \

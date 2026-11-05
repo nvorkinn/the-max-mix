@@ -72,7 +72,7 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 The Wi-Fi requests are for the Wi-Fi setup page (`wifi-page.ts`, served by `wifi-setup.ts`), which kiosk-session shows
 in Chromium when the Pi is offline or the app's Wi-Fi button was tapped. That page has to work offline, so this service serves it, and the Wi-Fi POSTs answer
 only that page's own origin (`http://127.0.0.1:7341`), not the app's. Node strips the page script's types when it is
-first asked for, and the page uses the sign-in keyboard (`pi/kiosk-keyboard`) for the password. They port `pi/wifi-panel/nmcli.py`: the password reaches nmcli on stdin,
+first asked for, and the page uses the sign-in keyboard (`pi/kiosk-keyboard`) for the password. They use nmcli (`nmcli.ts`): the password reaches nmcli on stdin,
 never in argv or the journal, and a failed attempt deletes the profile it made and brings back the Wi-Fi that was on.
 
 | File               | What it is                                                              |

@@ -34,7 +34,7 @@ publishes the GitHub release the Pis pull. It is the only way production is depl
 `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` and fails clearly if one is missing. It has read-only
 `contents` access and does not run on pull requests, so it is not in `all-checks.yml`.
 
-`ansible.yml` runs `ansible-lint` over `ansible/` and runs that playbook, only when `ansible/`, `pi/wifi-panel/`, `pi/kiosk-audio/` or the workflow changes, with `kiosk_enable_only=true` (enable services, start nothing) in a Debian trixie container, checks the key files and that
+`ansible.yml` runs `ansible-lint` over `ansible/` and runs that playbook, only when `ansible/`, `pi/kiosk-audio/`, `pi/kiosk-keyboard/` or the workflow changes, with `kiosk_enable_only=true` (enable services, start nothing) in a Debian trixie container, checks the key files and that
 the units are enabled but not started, and runs it again to check that nothing changes (`ansible/tests/image-build.sh`).
 
 `audit.yml` scans the lockfile weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in
