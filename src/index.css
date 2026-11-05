@@ -121,7 +121,7 @@
   --accent: #111;
   --ink: #111;
 }
-/* Hot pink is light, so the play button gets a dark icon; the title keeps a dark pink ink to stay readable. */
+/* Hot pink is light, so the play button gets a dark icon; text keeps a dark pink ink to stay readable. */
 .tablet-container[data-colour='pink'] {
   --accent: #ff69b4;
   --accent-ink: #3b1a2a;
@@ -168,6 +168,7 @@
   font-weight: 850;
   letter-spacing: -1px;
   line-height: 1.1;
+  color: var(--accent);
 }
 .brand-dot {
   color: var(--accent);
