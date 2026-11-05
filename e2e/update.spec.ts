@@ -93,6 +93,7 @@ test.describe('Software update', { tag: '@update' }, () => {
       send(ws, { type: 'status', state: 'pulling' });
       send(ws, logLine('The latest release is v1.13.0'));
       send(ws, logLine('TASK [kiosk : Install the kiosk programs]'));
+      send(ws, logLine('Ansible progress: 3/84'));
       void finish.promise.then(() => {
         send(ws, { type: 'status', state: 'done', message: 'Nothing needed a restart.' });
         void ws.close({ code: 1000 });
@@ -107,6 +108,9 @@ test.describe('Software update', { tag: '@update' }, () => {
     await expect(output).toContainText('The latest release is v1.13.0');
     await expect(output).toContainText('TASK [kiosk : Install the kiosk programs]');
     await expect(updating.getByRole('status')).toContainText('Updating…');
+    // The playbook's progress lines move the bar and stay out of the output.
+    await expect(updating.getByRole('progressbar', { name: 'Task 3 of 84' })).toHaveAttribute('value', '3');
+    await expect(output).not.toContainText('Ansible progress');
     // The console covers the screen, and there is nothing to go back to while the update runs.
     await expect(updating).toBeInViewport({ ratio: 1 });
     await expect(updating.getByRole('button', { name: 'Close update console' })).toHaveCount(0);

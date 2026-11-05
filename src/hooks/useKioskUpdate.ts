@@ -15,6 +15,14 @@ import { openUpdateStream } from '../utils/kioskService';
 const GIVE_UP_MS = 20 * 60 * 1000;
 /** The console keeps the newest lines only. */
 const MAX_LINES = 500;
+/** Printed by the playbook's callback plugin (ansible/callback_plugins/task_timer.py) as each task starts. */
+const TASK_PROGRESS = /Ansible progress: (\d+)\/(\d+)\s*$/;
+
+/** How many of the playbook's tasks have started so far, out of how many it knows about. */
+export interface TaskProgress {
+  done: number;
+  total: number;
+}
 
 /** The newest release tag on GitHub for a Pi on a release, otherwise the newest commit of the ref it is pinned to. */
 type LatestVersion = { state: 'checking' } | { state: 'unknown' } | { state: 'known'; value: string };
@@ -31,6 +39,8 @@ export interface KioskUpdate {
   isUpdating: boolean;
   /** What the update says it is doing, from the kiosk service; null until it has said anything. */
   progress: string | null;
+  /** How far the playbook has got, for the progress bar; null until it has said. */
+  tasks: TaskProgress | null;
   /** The newest lines of the update's output (the journal of the pull and the restart), shown as they arrive. */
   output: string[];
   /** The full-screen console that follows an update: open from the moment one starts until it is closed. */
@@ -54,6 +64,7 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
   const [isUpdating, setIsUpdating] = useState(false);
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<TaskProgress | null>(null);
   const [output, setOutput] = useState<string[]>([]);
   const [latest, setLatest] = useState<LatestVersion>({ state: version ? 'checking' : 'unknown' });
   const [dismissed, setDismissed] = useState(getDismissedUpdate);
@@ -110,6 +121,7 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
   const start = useCallback(() => {
     streamRef.current?.();
     setProgress(null);
+    setTasks(null);
     setOutput([]);
     setIsUpdating(true);
     setConsoleOpen(true);
@@ -144,6 +156,12 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
           }
           return;
         }
+        const counted = event.type === 'log' ? TASK_PROGRESS.exec(event.line) : null;
+        if (counted) {
+          // Drives the bar only: a line for every task would bury the output.
+          setTasks({ done: Number(counted[1]), total: Number(counted[2]) });
+          return;
+        }
         debugLog(event.type === 'error' ? 'error' : 'info', 'update', event.line);
         setOutput(lines => [...lines, event.line].slice(-MAX_LINES));
       },
@@ -176,6 +194,7 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
     newer,
     isUpdating,
     progress,
+    tasks,
     output,
     consoleOpen,
     prompting: newer !== null && newerId !== dismissed && !consoleOpen,
