@@ -782,31 +782,11 @@
   height: 1px;
   background: var(--border);
 }
-.queue-track:last-child::after,
-.queue-track.is-next::after {
+.queue-track:last-child::after {
   display: none;
 }
 .queue-track:hover {
   background: var(--accent-soft);
-}
-.queue-track.is-next::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 14px;
-  bottom: 14px;
-  width: 3px;
-  border-radius: 3px;
-  background: var(--accent);
-}
-.queue-track.is-next .queue-art {
-  width: 52px;
-  height: 52px;
-  border-radius: 9px;
-}
-.queue-track.is-next .queue-title h3 {
-  font-size: 17px;
-  font-weight: 750;
 }
 /* Songs further down the queue recede, so the eye lands on what plays next. */
 .queue-track:nth-child(n + 3) .queue-track-button {
