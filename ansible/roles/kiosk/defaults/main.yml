@@ -62,6 +62,12 @@ kiosk_admin_user: admin
 kiosk_admin_github_user: nvorkinn
 kiosk_admin_keys_boot_delay: 2min
 kiosk_admin_keys_interval: 6h
+# Tailscale, so the admin account can SSH in from anywhere once the Pi lives on someone else's network. The playbook only
+# installs it; join your tailnet once by hand with `sudo tailscale up` (pi/cloud-init/README.md). Turning this off later
+# leaves Tailscale installed: run `sudo tailscale logout` and `sudo apt purge tailscale` on the Pi. The archive key
+# (https://pkgs.tailscale.com/stable/debian/trixie.noarmor.gpg) is pinned by its checksum.
+kiosk_tailscale_enabled: true
+kiosk_tailscale_key_sha256: 3e03dacf222698c60b8e2f990b809ca1b3e104de127767864284e6c228f1fb39
 # Where the playbook records which version of the files it installs (git's tree ids) it last applied completely; when they
 # are unchanged the slow part is skipped (tasks/main.yml).
 kiosk_applied_stamp: /var/lib/the-max-mix/applied.sha1

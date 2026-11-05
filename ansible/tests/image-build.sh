@@ -68,7 +68,7 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/wifi-panel \
   check test -e "$file"
 done
 for unit in kiosk.service kiosk-bluetooth-pair.service bluetooth.service avahi-daemon.service kiosk-pull.timer \
-  kiosk-restart.timer kiosk-ssh-keys.timer ssh.service kiosk-widevine.path; do
+  kiosk-restart.timer kiosk-ssh-keys.timer ssh.service tailscaled.service kiosk-widevine.path; do
   check systemctl is-enabled --quiet "$unit"
   # Enabled only: nothing is started with kiosk_enable_only.
   if systemctl is-active --quiet "$unit"; then
