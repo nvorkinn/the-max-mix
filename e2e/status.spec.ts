@@ -308,7 +308,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       // Nothing asks again, however long the tablet runs, even once Spotify would answer.
       refusal = null;
       const stopped = reads();
-      await advance(page, 120_000);
+      await advance(page, 120_000, 5000);
       expect(reads()).toBe(stopped);
       await expect(banner).toContainText('Spotify quota used up');
 
@@ -330,7 +330,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
 
       // Nothing is asked while it waits (Spotify's wait is not readable by the browser, so a short one is assumed).
       const waiting = reads();
-      await advance(page, 20_000);
+      await advance(page, 20_000, 5000);
       expect(reads()).toBe(waiting);
 
       refusal = null;

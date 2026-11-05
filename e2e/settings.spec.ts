@@ -75,14 +75,14 @@ test.describe('Settings', { tag: '@settings' }, () => {
       await expect(dialog).toContainText('Off: playback is read when the page opens');
       await advance(page, 1000);
       const stopped = reads();
-      await advance(page, 30_000);
+      await advance(page, 30_000, 5000);
       expect(reads()).toBe(stopped);
 
       // Kept across a reload: the page reads once when it opens, and then not again.
       await page.reload();
       await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
       const reloaded = reads();
-      await advance(page, 30_000);
+      await advance(page, 30_000, 5000);
       expect(reads()).toBe(reloaded);
       const again = await openSettings(page);
       await expect(
