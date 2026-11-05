@@ -1,6 +1,5 @@
 import { expect, test } from '@playwright/test';
-
-const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+import { PIXEL } from './fake-spotify.ts';
 
 test.describe('Setup and signing in', { tag: '@setup' }, () => {
   test.beforeEach(async ({ page }) => {

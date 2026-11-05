@@ -1,13 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { fakeKioskAirPlay } from './fake-kiosk.ts';
-import { fakeSpotify } from './fake-spotify.ts';
+import { fakeSpotify, PIXEL } from './fake-spotify.ts';
 
 // Layout bugs such as an overlapping or gapped sticky modal header are invisible to the DOM assertions elsewhere, so
 // these tests compare screenshots. Baselines are rendered by Chrome on ubuntu-latest, the only place they are
 // reliable, so the tests run in CI or when E2E_VISUAL is set (and the baselines then come from a matching machine).
 test.skip(!process.env['CI'] && !process.env['E2E_VISUAL'], 'Screenshots are only stable on the CI browser.');
-
-const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 
 const SHOT = { animations: 'disabled', maxDiffPixelRatio: 0.002 } as const;
 

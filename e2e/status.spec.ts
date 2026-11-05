@@ -3,9 +3,7 @@ import { getClientId } from '../src/spotify/settings.ts';
 import type { PlaybackState } from '../src/types.ts';
 import { advance } from './clock.ts';
 import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
-import { countPlaybackReads, fakeSpotify } from './fake-spotify.ts';
-
-const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
 
 const playback = {
   is_playing: true,

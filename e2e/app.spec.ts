@@ -1,7 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fakeSpotify } from './fake-spotify.ts';
-
-const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+import { fakeSpotify, PIXEL } from './fake-spotify.ts';
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://images.unsplash.com/**', route =>

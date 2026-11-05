@@ -1,8 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
-import { fakeSpotify } from './fake-spotify.ts';
-
-const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+import { fakeSpotify, PIXEL } from './fake-spotify.ts';
 
 /** The kiosk's audio service: it lists two AirPlay speakers, and every route request it is sent is kept. */
 async function fakeKioskAudio(page: Page) {

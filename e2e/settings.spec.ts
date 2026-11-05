@@ -1,8 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { advance } from './clock.ts';
-import { countPlaybackReads, fakeSpotify } from './fake-spotify.ts';
-
-const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
 
 const openSettings = async (page: Page) => {
   await page.getByRole('button', { name: 'Open settings' }).click();
