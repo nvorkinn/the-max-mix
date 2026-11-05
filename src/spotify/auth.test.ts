@@ -83,6 +83,8 @@ describe('spotify/auth', () => {
         .replaceAll('/', '_')
         .replaceAll('=', '');
       expect(url.searchParams.get('code_challenge')).toBe(expected);
+      // A first sign-in lets Spotify skip its approval page when the person has approved before.
+      expect(url.searchParams.has('show_dialog')).toBe(false);
     });
 
     it('uses a new verifier and state every time', async () => {
@@ -514,6 +516,69 @@ describe('spotify/auth', () => {
       expect(localStorage.getItem('maxmix.auth')).toBeNull();
       expect(auth.isSignedIn()).toBe(false);
       expect(await auth.getAccessToken()).toBeNull();
+    });
+
+    it('also forgets a sign-in that was started and never finished', async () => {
+      const { signOut } = await load();
+      sessionStorage.setItem('maxmix.pkce', JSON.stringify({ state: 's', verifier: 'v' }));
+      signOut();
+      expect(sessionStorage.getItem('maxmix.pkce')).toBeNull();
+    });
+
+    it('makes the next sign-in show Spotify’s approval page again, so nothing signs in silently', async () => {
+      const assign = vi.fn();
+      vi.stubGlobal('location', { origin: 'http://127.0.0.1:3000', search: '', assign });
+      const { signOut, startSignIn } = await load();
+      setClientId('client-1');
+      signOut();
+      await startSignIn();
+      const url = new URL((assign.mock.calls[0] as unknown[])[0] as string);
+      expect(url.searchParams.get('show_dialog')).toBe('true');
+      // And again, until a sign-in has gone through.
+      await startSignIn();
+      expect(new URL((assign.mock.calls[1] as unknown[])[0] as string).searchParams.get('show_dialog')).toBe('true');
+    });
+
+    it('asks for the approval page only until a sign-in goes through', async () => {
+      const { signOut, completeSignIn } = await load();
+      setClientId('client-1');
+      signOut();
+      expect(localStorage.getItem('maxmix.freshSignIn')).toBe('true');
+      sessionStorage.setItem('maxmix.pkce', JSON.stringify({ state: 's1', verifier: 'v' }));
+      visit('/?code=abc&state=s1');
+      fetchMock.mockResolvedValue(json({ access_token: 'a', refresh_token: 'r', expires_in: 3600 }));
+      expect(await completeSignIn()).toEqual({ ok: true });
+      expect(localStorage.getItem('maxmix.freshSignIn')).toBeNull();
+    });
+
+    it('keeps asking after a sign-in that was declined', async () => {
+      const { signOut, completeSignIn } = await load();
+      setClientId('client-1');
+      signOut();
+      sessionStorage.setItem('maxmix.pkce', JSON.stringify({ state: 's1', verifier: 'v' }));
+      visit('/?error=access_denied&state=s1');
+      expect(await completeSignIn()).toMatchObject({ ok: false });
+      expect(localStorage.getItem('maxmix.freshSignIn')).toBe('true');
+    });
+
+    it('still asks when browser storage cannot hold the choice', async () => {
+      const assign = vi.fn();
+      vi.stubGlobal('location', { origin: 'http://127.0.0.1:3000', search: '', assign });
+      const { signOut, startSignIn } = await load();
+      setClientId('client-1');
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('blocked');
+      });
+      vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+        throw new Error('blocked');
+      });
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(key => {
+        if (key === 'maxmix.pkce') return;
+        throw new Error('blocked');
+      });
+      signOut();
+      await startSignIn();
+      expect(new URL((assign.mock.calls[0] as unknown[])[0] as string).searchParams.get('show_dialog')).toBe('true');
     });
   });
 

@@ -10,9 +10,8 @@ const accountOf = (page: Page) => {
   if (!account) throw new Error('This page has no fake Spotify account');
   return account;
 };
-// With another device playing, the shuffle and repeat buttons follow what Spotify reports on the next poll (every 4 s),
-// not the tap itself, so they get longer than the usual 5 s to change.
-const POLL = { timeout: 10_000 };
+// Shuffle and repeat show the tap at once, well before the next poll (every 4 s) could have reported it.
+const AT_ONCE = { timeout: 1500 };
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://images.unsplash.com/**', route =>
@@ -70,10 +69,10 @@ test.describe('Player', { tag: '@player' }, () => {
     const shuffle = nowPlaying(page).getByRole('button', { name: 'Shuffle' });
     await expect(shuffle).toHaveAttribute('aria-pressed', 'false');
     await shuffle.click();
-    await expect(shuffle).toHaveAttribute('aria-pressed', 'true', POLL);
+    await expect(shuffle).toHaveAttribute('aria-pressed', 'true', AT_ONCE);
     expect(accountOf(page).commands).toContain('PUT /v1/me/player/shuffle?state=true');
     await shuffle.click();
-    await expect(shuffle).toHaveAttribute('aria-pressed', 'false', POLL);
+    await expect(shuffle).toHaveAttribute('aria-pressed', 'false', AT_ONCE);
     expect(accountOf(page).commands).toContain('PUT /v1/me/player/shuffle?state=false');
   });
 
@@ -82,11 +81,11 @@ test.describe('Player', { tag: '@player' }, () => {
     const repeat = (name: string) => nowPlaying(page).getByRole('button', { name });
     await expect(repeat('Repeat off')).toBeVisible();
     await repeat('Repeat off').click();
-    await expect(repeat('Repeat all')).toBeVisible(POLL);
+    await expect(repeat('Repeat all')).toBeVisible(AT_ONCE);
     await repeat('Repeat all').click();
-    await expect(repeat('Repeat one')).toBeVisible(POLL);
+    await expect(repeat('Repeat one')).toBeVisible(AT_ONCE);
     await repeat('Repeat one').click();
-    await expect(repeat('Repeat off')).toBeVisible(POLL);
+    await expect(repeat('Repeat off')).toBeVisible(AT_ONCE);
     expect(accountOf(page).commands.filter(command => command.includes('/repeat'))).toEqual([
       'PUT /v1/me/player/repeat?state=context',
       'PUT /v1/me/player/repeat?state=track',

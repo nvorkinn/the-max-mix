@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { deferred } from '../test/deferred';
 import { resetSpotifyMocks } from '../test/spotifyMocks';
 import { fetchSpotify, NETWORK_ERROR_MESSAGE, resetSpotifyRateLimit, SpotifyApiError } from '../spotify/http';
 import { setPollSpotify } from '../spotify/polling';
@@ -412,23 +413,87 @@ describe('useSpotifyPlayer', () => {
     expect(mocks.api.setVolume).toHaveBeenCalledWith(46);
   });
 
-  it('sends shuffle and the next repeat mode, and leaves the buttons to what Spotify reports', async () => {
-    mocks.api.getPlaybackState.mockReturnValue(new Promise(() => {}));
-    mocks.api.getPlaybackState.mockResolvedValueOnce({
-      device: { id: 'd' },
-      shuffle_state: false,
-      repeat_state: 'track'
-    });
-    const { result } = renderHook(() => useSpotifyPlayer());
-    await waitFor(() => expect(result.current.isReady).toBe(true));
+  describe('shuffle and repeat', () => {
+    const before = { device: { id: 'd' }, shuffle_state: false, repeat_state: 'track' };
+    const start = async () => {
+      mocks.api.getPlaybackState.mockReset();
+      mocks.api.getPlaybackState.mockResolvedValue(before);
+      const hook = renderHook(() => useSpotifyPlayer());
+      await waitFor(() => expect(hook.result.current.isReady).toBe(true));
+      return hook;
+    };
 
-    await act(async () => {
-      expect(await result.current.toggleShuffle()).toBe(true);
-      expect(await result.current.cycleRepeat()).toBe(true);
+    it('send the change and show it at once, before Spotify reports it', async () => {
+      const { result } = await start();
+      // Spotify goes on reporting the old settings, as it does for a moment after a change.
+      await act(async () => {
+        expect(await result.current.toggleShuffle()).toBe(true);
+        expect(await result.current.cycleRepeat()).toBe(true);
+      });
+      expect(mocks.api.setShuffle).toHaveBeenCalledWith(true);
+      expect(mocks.api.setRepeat).toHaveBeenCalledWith('off');
+      expect(result.current.playbackState).toMatchObject({ shuffle_state: true, repeat_state: 'off' });
     });
-    expect(mocks.api.setShuffle).toHaveBeenCalledWith(true);
-    expect(mocks.api.setRepeat).toHaveBeenCalledWith('off');
-    expect(result.current.playbackState).toMatchObject({ shuffle_state: false, repeat_state: 'track' });
+
+    it('show the change from the moment of the tap, while the command is still on its way', async () => {
+      const { result } = await start();
+      const sent = deferred<undefined>();
+      mocks.api.setShuffle.mockReturnValue(sent.promise);
+      let tap: Promise<boolean> | undefined;
+      act(() => {
+        tap = result.current.toggleShuffle();
+      });
+      expect(result.current.playbackState?.shuffle_state).toBe(true);
+      sent.resolve(undefined);
+      await act(async () => {
+        await tap;
+      });
+    });
+
+    it('hold the change against a read that predates it, until Spotify agrees', async () => {
+      const { result } = await start();
+      await act(async () => {
+        await result.current.toggleShuffle();
+        await result.current.refreshPlayback();
+      });
+      expect(result.current.playbackState?.shuffle_state).toBe(true);
+
+      // Spotify catches up: the hold ends, and a change made elsewhere afterwards is shown.
+      mocks.api.getPlaybackState.mockResolvedValue({ ...before, shuffle_state: true });
+      await act(async () => result.current.refreshPlayback());
+      expect(result.current.playbackState?.shuffle_state).toBe(true);
+      mocks.api.getPlaybackState.mockResolvedValue({ ...before, shuffle_state: false });
+      await act(async () => result.current.refreshPlayback());
+      expect(result.current.playbackState?.shuffle_state).toBe(false);
+    });
+
+    it('stop holding a change Spotify never reports, after a few seconds', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        const { result } = await start();
+        await act(async () => {
+          await result.current.cycleRepeat();
+        });
+        expect(result.current.playbackState?.repeat_state).toBe('off');
+        vi.setSystemTime(Date.now() + 6000);
+        await act(async () => result.current.refreshPlayback());
+        expect(result.current.playbackState?.repeat_state).toBe('track');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('cycle repeat from what the last tap showed, not from what Spotify last said', async () => {
+      const { result } = await start();
+      await act(async () => {
+        await result.current.cycleRepeat();
+      });
+      await act(async () => {
+        await result.current.cycleRepeat();
+      });
+      expect(mocks.api.setRepeat.mock.calls).toEqual([['off'], ['context']]);
+      expect(result.current.playbackState?.repeat_state).toBe('context');
+    });
   });
 
   it('reports the error when Spotify refuses a shuffle change', async () => {
@@ -442,6 +507,20 @@ describe('useSpotifyPlayer', () => {
       expect(await result.current.toggleShuffle()).toBe(false);
     });
     expect(result.current.error).toBe('Refused');
+  });
+
+  it('puts shuffle and repeat back when Spotify refuses the change', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue({ device: { id: 'd' }, shuffle_state: false, repeat_state: 'track' });
+    mocks.api.setShuffle.mockRejectedValue(new SpotifyApiError('Refused', 403));
+    mocks.api.setRepeat.mockRejectedValue(new SpotifyApiError('Refused', 403));
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+
+    await act(async () => {
+      expect(await result.current.toggleShuffle()).toBe(false);
+      expect(await result.current.cycleRepeat()).toBe(false);
+    });
+    expect(result.current.playbackState).toMatchObject({ shuffle_state: false, repeat_state: 'track' });
   });
 
   it('looks up whether the track is liked and saves or removes it', async () => {
