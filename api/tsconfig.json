@@ -1,0 +1,6 @@
+{
+  "//": "Read by `vercel build` when it compiles the server functions here. The root tsconfig.json is only a solution file with no options, so without this the build cannot find Node's types (`process`). `tsc -b` and ESLint check these files through tsconfig.node.json.",
+  "extends": "../tsconfig.node.json",
+  "include": ["./**/*.ts"],
+  "exclude": ["_tests"]
+}
