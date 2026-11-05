@@ -51,6 +51,13 @@ vi.mock('../utils/colorExtractor', () => palette);
 vi.mock('../lyrics/lrclib', () => lyrics);
 // The kiosk's own lyrics service is not there in a test; without this its request would be a real one.
 vi.mock('../lyrics/kiosk', () => ({ kioskLyrics: () => Promise.resolve(null) }));
+// The kiosk's Bluetooth service is not there in a test.
+vi.mock('../audio/bluetooth', () => ({
+  listBluetoothSpeakers: vi.fn().mockResolvedValue([]),
+  scanBluetoothSpeakers: vi.fn().mockResolvedValue([]),
+  connectBluetoothSpeaker: vi.fn().mockResolvedValue(undefined),
+  forgetBluetoothSpeaker: vi.fn().mockResolvedValue(undefined)
+}));
 vi.mock('../audio/airplay', () => airplay);
 
 const track = {

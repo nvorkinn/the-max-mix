@@ -13,9 +13,15 @@ export interface AudioGraph {
   apply: (plan: Plan) => Promise<boolean>;
 }
 
-/** The AirPlay (RAOP) sinks PipeWire made, one for each speaker it found. */
-export const airPlaySinks = (graph: Graph): Node[] =>
-  graph.nodes.filter(node => node.mediaClass === 'Audio/Sink' && node.name.startsWith('raop_sink.'));
+/**
+ * The sinks PipeWire made for speakers: an AirPlay (RAOP) sink for each speaker it found on the network, and a Bluetooth
+ * sink for each connected Bluetooth speaker.
+ */
+export const speakerSinks = (graph: Graph): Node[] =>
+  graph.nodes.filter(
+    node =>
+      node.mediaClass === 'Audio/Sink' && (node.name.startsWith('raop_sink.') || node.name.startsWith('bluez_output.'))
+  );
 
 const isBadName = (name: unknown) => typeof name !== 'string' || name.length === 0 || name.length > MAX_NAME_LENGTH;
 
@@ -67,9 +73,9 @@ export interface VolumeControl {
   setVolume: (node: number, volume: number) => Promise<void>;
 }
 
-/** Sets the volume (0 to 100) of every AirPlay sink with this name. Returns how many it set (none: not on the network). */
+/** Sets the volume (0 to 100) of every speaker sink with this name. Returns how many it set (none: not on the network). */
 export async function setSpeakerVolume(pipewire: VolumeControl, speaker: string, volume: number): Promise<number> {
-  const sinks = airPlaySinks(await pipewire.graph()).filter(node => node.description === speaker);
+  const sinks = speakerSinks(await pipewire.graph()).filter(node => node.description === speaker);
   for (const sink of sinks) {
     // eslint-disable-next-line no-await-in-loop
     await pipewire.setVolume(sink.id, volume / 100);

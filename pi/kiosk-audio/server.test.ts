@@ -4,6 +4,7 @@ import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Action } from './actions.ts';
+import { BluetoothError } from './bluetooth.ts';
 import { dump } from './fixtures.ts';
 import { ERRORS, ScanError } from './nmcli.ts';
 import type { ConnectRequest } from './nmcli.ts';
@@ -17,7 +18,16 @@ afterEach(() => {
   for (const server of servers.splice(0)) server.close();
 });
 
+const speaker = { address: 'AA:BB:CC:DD:EE:FF', name: 'Kitchen speaker', paired: true, connected: true };
+const addressBody = (address: unknown) => ({ body: { address } });
+const unavailable = () => Promise.reject(new BluetoothError('Bluetooth is not available on this device.'));
+const otherFailure = () => Promise.reject(new Error('dbus: /private/path failed'));
+const busy = () => Promise.reject(new BluetoothError('Bluetooth is busy. Wait a moment and try again.'));
+const odd = () => Promise.reject(new Error('internal detail'));
+
 function fakes(overrides: Partial<Deps> = {}) {
+  const connected: string[] = [];
+  const removed: string[] = [];
   const performed: Action[] = [];
   const routed: string[][] = [];
   const volumes: [string, number][] = [];
@@ -31,9 +41,9 @@ function fakes(overrides: Partial<Deps> = {}) {
       routed.push(speakers);
       return Promise.resolve();
     },
-    setVolume: (speaker, volume) => {
-      volumes.push([speaker, volume]);
-      return Promise.resolve(speaker === 'Gone' ? 0 : 1);
+    setVolume: (name, volume) => {
+      volumes.push([name, volume]);
+      return Promise.resolve(name === 'Gone' ? 0 : 1);
     },
     perform: action => {
       performed.push(action);
@@ -60,9 +70,32 @@ function fakes(overrides: Partial<Deps> = {}) {
       if (query.title === 'Down') return Promise.reject(new Error('unreachable'));
       return Promise.resolve(query.title === 'Known' ? { source: 'NetEase', lrc: '[00:01.00]Placeholder' } : null);
     },
+    bluetooth: {
+      list: () => Promise.resolve([speaker]),
+      scan: () => Promise.resolve([speaker, { ...speaker, address: '11:22:33:44:55:66', paired: false }]),
+      connect: address => {
+        connected.push(address);
+        return Promise.resolve(address === '00:00:00:00:00:01' ? { ok: false, error: 'Nope.' } : { ok: true });
+      },
+      remove: address => {
+        removed.push(address);
+        return Promise.resolve();
+      }
+    },
     ...overrides
   };
-  return { deps, performed, routed, volumes, logged, joined, beats: () => beats, closed: () => closed };
+  return {
+    deps,
+    connected,
+    removed,
+    performed,
+    routed,
+    volumes,
+    logged,
+    joined,
+    beats: () => beats,
+    closed: () => closed
+  };
 }
 
 async function start(deps: Deps): Promise<string> {
@@ -325,5 +358,60 @@ describe('GET /lyrics', () => {
     expect((await ask(base, 'title=Known&artist=Someone', null)).status).toBe(403);
     expect((await ask(base, 'title=Known&artist=Someone', 'https://example.com')).status).toBe(403);
     expect(lyrics).not.toHaveBeenCalled();
+  });
+});
+
+describe('Bluetooth speakers', () => {
+  it('lists what BlueZ knows, and scans, for the app only', async () => {
+    const base = await start(fakes().deps);
+    const listed = await fetch(`${base}/bluetooth/devices`, { headers: { Origin: ORIGIN } });
+    await expect(listed.json()).resolves.toEqual({ devices: [speaker] });
+    expect((await fetch(`${base}/bluetooth/devices`)).status).toBe(403);
+    const scanned = await post(base, '/bluetooth/scan');
+    expect(((await scanned.json()) as { devices: unknown[] }).devices).toHaveLength(2);
+    expect((await post(base, '/bluetooth/scan', { origin: 'https://example.com' })).status).toBe(403);
+  });
+
+  it('says why Bluetooth failed, in words that are safe to show', async () => {
+    const base = await start(
+      fakes({ bluetooth: { ...fakes().deps.bluetooth, list: unavailable, scan: otherFailure } }).deps
+    );
+    const listed = await fetch(`${base}/bluetooth/devices`, { headers: { Origin: ORIGIN } });
+    expect(listed.status).toBe(503);
+    await expect(listed.json()).resolves.toEqual({ error: 'Bluetooth is not available on this device.' });
+    const scanned = await post(base, '/bluetooth/scan');
+    await expect(scanned.json()).resolves.toEqual({ error: 'Bluetooth failed.' });
+  });
+
+  it('connects and forgets a speaker by a checked address', async () => {
+    const { deps, connected, removed } = fakes();
+    const base = await start(deps);
+    const ok = await post(base, '/bluetooth/connect', addressBody('aa:bb:cc:dd:ee:ff'));
+    await expect(ok.json()).resolves.toEqual({ ok: true });
+    const refused = await post(base, '/bluetooth/connect', addressBody('00:00:00:00:00:01'));
+    await expect(refused.json()).resolves.toEqual({ ok: false, error: 'Nope.' });
+    expect(connected).toEqual(['AA:BB:CC:DD:EE:FF', '00:00:00:00:00:01']);
+    expect((await post(base, '/bluetooth/remove', addressBody('AA:BB:CC:DD:EE:FF'))).status).toBe(204);
+    expect(removed).toEqual(['AA:BB:CC:DD:EE:FF']);
+    const refusals = await Promise.all(
+      ['/bluetooth/connect', '/bluetooth/remove'].flatMap(path =>
+        ['not an address; rm -rf /', 7].map(address => post(base, path, addressBody(address)))
+      )
+    );
+    expect(refusals.map(refusal => refusal.status)).toEqual([400, 400, 400, 400]);
+    expect(connected).toHaveLength(2);
+    expect(removed).toHaveLength(1);
+  });
+
+  it('answers a connect that throws with the message, not an error status', async () => {
+    const base = await start(fakes({ bluetooth: { ...fakes().deps.bluetooth, connect: busy } }).deps);
+    const first = await post(base, '/bluetooth/connect', addressBody('AA:BB:CC:DD:EE:FF'));
+    await expect(first.json()).resolves.toEqual({
+      ok: false,
+      error: 'Bluetooth is busy. Wait a moment and try again.'
+    });
+    const other = await start(fakes({ bluetooth: { ...fakes().deps.bluetooth, connect: odd } }).deps);
+    const second = await post(other, '/bluetooth/connect', addressBody('AA:BB:CC:DD:EE:FF'));
+    await expect(second.json()).resolves.toEqual({ ok: false, error: 'Bluetooth failed.' });
   });
 });

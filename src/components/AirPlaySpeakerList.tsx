@@ -103,6 +103,7 @@ export default function AirPlaySpeakerList({
       {outputs && names.length === 0 && (
         <p className="text-xs leading-relaxed text-muted py-4">
           Looking for AirPlay speakers on this network. Sonos speakers show up once AirPlay is on in the Sonos app.
+          Connected Bluetooth speakers are listed here too.
         </p>
       )}
       {names.map(name => {

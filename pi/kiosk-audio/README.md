@@ -65,10 +65,25 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 | `POST /heartbeat`                      | The app is alive (the watchdog, below)                                   |
 | `POST /log`                            | An app error, written to the journal                                     |
 | `GET /lyrics?title=&artist=&duration=` | Synced lyrics as LRC: `{"source", "lrc"}` (404: none; 502: sources down) |
+| `GET /bluetooth/devices`               | `{"devices": [{"address", "name", "paired", "connected"}]}`              |
+| `POST /bluetooth/scan`                 | Looks for speakers for 8 seconds; the same answer                        |
+| `POST /bluetooth/connect`              | Pairs, trusts and connects `{"address"}`                                 |
+| `POST /bluetooth/remove`               | Forgets `{"address"}`                                                    |
 | `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                             |
 | `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)                 |
 | `POST /wifi/done`                      | The setup page is finished: stops the Chromium showing it                |
 | `GET /wifi-setup`                      | The Wi-Fi setup page, and its scripts under `/wifi-setup/`               |
+
+## Bluetooth speakers
+
+`bluetooth.ts` drives BlueZ's `bluetoothctl` (an argument list, never a shell; an address is checked first) to find,
+pair, connect and forget Bluetooth speakers, one job at a time. The `kiosk` user is in the `bluetooth` group, which is
+what BlueZ's D-Bus policy needs. Once a speaker is connected, PipeWire (`libspa-0.2-bluetooth`) makes an output named
+`bluez_output.…` for it, and `speakers.ts` lists it with the AirPlay (`raop_sink.…`) ones, so choosing it, routing the
+sound to it and its volume slider work as they do for AirPlay. Bluetooth plays to one speaker at a time, a little
+behind the screen. A speaker is trusted when it is connected, so it reconnects by itself when it is switched on again.
+The `/bluetooth/*` requests answer the app's origin only. The app's Speakers drawer has the Bluetooth section (Find
+speakers, Pair or Connect, Forget).
 
 `GET /lyrics` answers the app's origin only (each request makes the Pi call out). `lyrics.ts` asks NetEase, QQ Music and
 KuGou in turn (`lyrics-sources.ts`: none has a public API or allows a web page to call it, which is why this service

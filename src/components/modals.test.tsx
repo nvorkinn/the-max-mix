@@ -17,6 +17,13 @@ const settings = vi.hoisted(() => ({
 vi.mock('../spotify/api', () => api);
 vi.mock('../spotify/auth', () => auth);
 vi.mock('../spotify/settings', () => settings);
+// The kiosk's Bluetooth service is not there in a test.
+vi.mock('../audio/bluetooth', () => ({
+  listBluetoothSpeakers: vi.fn().mockResolvedValue([]),
+  scanBluetoothSpeakers: vi.fn().mockResolvedValue([]),
+  connectBluetoothSpeaker: vi.fn().mockResolvedValue(undefined),
+  forgetBluetoothSpeaker: vi.fn().mockResolvedValue(undefined)
+}));
 vi.mock('../audio/airplay', () => ({
   listAudioOutputs: vi.fn().mockResolvedValue({ names: [], volumes: {} }),
   watchAudioOutputs: vi.fn(() => vi.fn()),

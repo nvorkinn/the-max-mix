@@ -60,6 +60,14 @@ until this tablet is the device that is playing, so choose This tablet first. Th
 AirPlay sinks PipeWire made; picking them asks the Pi's local
 [audio service](pi/kiosk-audio/README.md) (127.0.0.1, answering only the app) to route the sound.
 
+### Bluetooth speakers
+
+On the kiosk, the Speakers drawer has a Bluetooth section below AirPlay. Put the speaker in pairing mode and tap **Find
+speakers**, then **Pair** next to it; **Forget** removes it. A connected speaker is listed with the AirPlay speakers
+above, where you pick it and set its volume. Like AirPlay it plays what this tablet plays, so choose This tablet first,
+and it plays to one Bluetooth speaker at a time. It reconnects by itself when it is switched on again. The kiosk
+service does the pairing ([pi/kiosk-audio](pi/kiosk-audio/README.md)).
+
 ### Native Spotify Jam limitations
 
 Start a Jam, invite friends, manage guest permissions, reorder songs, and end the

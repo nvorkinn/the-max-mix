@@ -7,8 +7,9 @@ kiosk_enable_only: false
 # The account Cage and Chromium run as. cloud-init creates it on the first boot (pi/cloud-init/user-data).
 kiosk_user: kiosk
 # The only groups the kiosk user is in (the user has no sudo and no password). systemd-journal lets the kiosk-audio
-# service read the journal of the pull and the restart, which it streams to the app's update console.
-kiosk_groups: [audio, input, netdev, render, systemd-journal, video]
+# service read the journal of the pull and the restart, which it streams to the app's update console. bluetooth lets
+# that service pair and connect Bluetooth speakers (BlueZ's D-Bus policy), and WirePlumber play to them.
+kiosk_groups: [audio, bluetooth, input, netdev, render, systemd-journal, video]
 # The origin of the hosted app and the address the kiosk opens (?kiosk=1 turns on the app's kiosk-only settings, and
 # ?pi_ref=&pi_commit= name the release (or other ref) and commit this playbook ran from, which the app's settings show).
 # Register the redirect URI of this address in the Spotify dashboard.
@@ -126,8 +127,9 @@ kiosk_packages:
   - tzdata
   - network-manager
   - polkitd
-  # Bluetooth, for the keyboard and mouse
+  # Bluetooth, for the keyboard and mouse, and speakers (libspa-0.2-bluetooth is PipeWire's A2DP support)
   - bluez
+  - libspa-0.2-bluetooth
   - rfkill
   - pipewire
   - pipewire-pulse

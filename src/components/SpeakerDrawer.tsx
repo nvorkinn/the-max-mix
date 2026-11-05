@@ -7,6 +7,7 @@ import type { AudioRoute } from '../spotify/settings';
 import { errorMessage } from '../utils/errorMessage';
 import type { SpotifyDevice } from '../types';
 import AirPlaySpeakerList from './AirPlaySpeakerList';
+import BluetoothSpeakers from './BluetoothSpeakers';
 
 function describeDevice(device: SpotifyDevice) {
   if (!device.id) return 'Not available to select from this app';
@@ -235,6 +236,17 @@ export default function SpeakerDrawer({
                 active={isAirPlay}
                 onChange={onAirPlayChange}
               />
+            </section>
+          )}
+          {canUseAirPlay && (
+            <section aria-labelledby="bluetooth-title" className="space-y-2 pt-2">
+              <h3 id="bluetooth-title" className="text-xs font-bold">
+                Bluetooth
+              </h3>
+              <p className="text-[11px] text-muted">
+                One speaker at a time. Once connected, it appears in the list above to select.
+              </p>
+              <BluetoothSpeakers />
             </section>
           )}
         </div>

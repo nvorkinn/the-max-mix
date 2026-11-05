@@ -55,6 +55,7 @@ knip
 kugou
 libinput
 libpipewire
+libspa
 libwidevinecdm
 lineinfile
 linted
