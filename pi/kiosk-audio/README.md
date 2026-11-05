@@ -69,6 +69,7 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 | `POST /bluetooth/scan`                 | Looks for speakers for 8 seconds; the same answer                        |
 | `POST /bluetooth/connect`              | Pairs, trusts and connects `{"address"}`                                 |
 | `POST /bluetooth/remove`               | Forgets `{"address"}`                                                    |
+| `POST /wifi/phone`                     | Starts Wi-Fi setup from a phone over Bluetooth (5 minutes)               |
 | `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                             |
 | `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)                 |
 | `POST /wifi/done`                      | The setup page is finished: stops the Chromium showing it                |
@@ -84,6 +85,22 @@ sound to it and its volume slider work as they do for AirPlay. Bluetooth plays t
 behind the screen. A speaker is trusted when it is connected, so it reconnects by itself when it is switched on again.
 The `/bluetooth/*` requests answer the app's origin only. The app's Speakers drawer has the Bluetooth section (Find
 speakers, Pair or Connect, Forget).
+
+## Wi-Fi from a phone
+
+The Wi-Fi setup page has a **From phone** button, so nobody has to type a long password on the tablet. It sends
+`POST /wifi/phone`, and `phone-setup.ts` makes the kiosk advertise [Improv Wi-Fi](https://www.improv-wifi.com/ble/) over
+Bluetooth LE for 5 minutes (a tap on the button again gives another 5). `improv.ts` is the protocol (packets, checksum,
+and a session that turns the phone's "send Wi-Fi settings" command into the same `Nmcli.connect` the page uses), and
+`improv-gatt.ts` is the Bluetooth side: it exports a GATT service and an advertisement on the system bus with
+`dbus-native` and registers them with BlueZ (`RegisterApplication`, `RegisterAdvertisement`; the first adapter, hci0).
+When the phone has joined a network, the page closes itself 4 seconds later, as it does after a join on the tablet.
+
+The button is the authorization Improv asks for: nothing advertises until someone taps it on the tablet, so a phone
+that is only nearby cannot change the Wi-Fi. The password goes from the phone to the kiosk over an unencrypted
+Bluetooth LE link, as Improv does, so the setup is only open for the minutes after the tap. The phone needs a page that
+speaks Improv over Web Bluetooth, which Chrome on Android has and Safari on an iPhone does not.
+[improv-wifi.com](https://www.improv-wifi.com) is one; it is somebody else's page, which sees the password.
 
 `GET /lyrics` answers the app's origin only (each request makes the Pi call out). `lyrics.ts` asks NetEase, QQ Music and
 KuGou in turn (`lyrics-sources.ts`: none has a public API or allows a web page to call it, which is why this service

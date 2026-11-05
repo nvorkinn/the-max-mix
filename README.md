@@ -60,6 +60,14 @@ until this tablet is the device that is playing, so choose This tablet first. Th
 AirPlay sinks PipeWire made; picking them asks the Pi's local
 [audio service](pi/kiosk-audio/README.md) (127.0.0.1, answering only the app) to route the sound.
 
+### Wi-Fi from a phone
+
+When the Pi has no network, the tablet shows a Wi-Fi setup page. Instead of typing the password there, tap **From phone**,
+then on an Android phone with Chrome open [improv-wifi.com](https://www.improv-wifi.com), tap _Connect device_, choose
+THE MAX MIX and enter the network and its password. The tablet's page closes when the phone has joined. It only works
+for the 5 minutes after the tap, and an iPhone cannot do it (Safari has no Web Bluetooth). How it works is in
+[pi/kiosk-audio](pi/kiosk-audio/README.md).
+
 ### Bluetooth speakers
 
 On the kiosk, the Speakers drawer has a Bluetooth section below AirPlay. Put the speaker in pairing mode and tap **Find

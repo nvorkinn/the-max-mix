@@ -8,6 +8,8 @@
 //   POST /heartbeat         the app (or the Wi-Fi setup page) is alive (watchdog.ts)  POST /log  {"level", "source", "message"}  an app error, to the journal
 //   GET  /wifi/networks     {"networks": [{"ssid", "signal", "bars", "security"}, …]}   or 503 {"error"}: a safe message
 //   POST /wifi/connect      {"ssid", "password", "hidden", "security"}   join a network: {"ok": true} or {"ok": false, "error"}
+//   POST /wifi/phone        start Wi-Fi setup from a phone over Bluetooth for a few minutes (phone-setup.ts): {"ok": true}
+//                           or 503 {"error"}. The page that shows the button is the only thing that can ask.
 //   POST /wifi/done         the setup page is finished (joined, or Cancel): close it
 //   GET  /wifi-setup        the Wi-Fi setup page and its scripts (wifi-setup.ts)
 //   GET  /lyrics?title=&artist=&duration=   {"source", "lrc"}: synced lyrics from NetEase, QQ Music or KuGou (lyrics.ts),
@@ -33,6 +35,7 @@ import { cached, findLyrics, parseLyricsQuery } from './lyrics.ts';
 import type { LyricsHit } from './lyrics.ts';
 import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
+import { PhoneSetup } from './phone-setup.ts';
 import type { Graph } from './pipewire.ts';
 import { speakerSinks, validSpeakers, validVolume } from './speakers.ts';
 import { attachUpdateSocket } from './update-socket.ts';
@@ -71,6 +74,7 @@ export interface Deps {
   /** Synced lyrics for a song, or null; rejects when no source could be reached. */
   lyrics: (query: LyricsQuery) => Promise<LyricsHit | null>;
   bluetooth: BluetoothControl;
+  phone: { start: () => Promise<void> };
 }
 
 /** BlueZ, for the Bluetooth speakers (bluetooth.ts). */
@@ -296,9 +300,20 @@ async function getLyrics(
   }
 }
 
-async function postWifi(request: IncomingMessage, response: ServerResponse, wifi: Wifi): Promise<void> {
+async function postWifi(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
+  const { wifi } = deps;
   if (request.headers.origin !== LOCAL_ORIGIN) {
     response.writeHead(403).end();
+    return;
+  }
+  if (request.url === '/wifi/phone') {
+    try {
+      await deps.phone.start();
+      sendJson(response, 200, { ok: true });
+    } catch (error) {
+      console.warn(`wifi: phone setup did not start: ${String(error)}`);
+      sendJson(response, 503, { error: 'Bluetooth is not available, so the phone cannot be used.' });
+    }
     return;
   }
   if (request.url === '/wifi/done') {
@@ -355,8 +370,11 @@ export function handleRequest(origin: string, deps: Deps) {
         response.writeHead(204).end();
       } else if (request.method === 'GET') {
         await handleGet(request, response, origin, deps);
-      } else if (request.method === 'POST' && (request.url === '/wifi/connect' || request.url === '/wifi/done')) {
-        await postWifi(request, response, deps.wifi);
+      } else if (
+        request.method === 'POST' &&
+        ['/wifi/connect', '/wifi/done', '/wifi/phone'].includes(request.url ?? '')
+      ) {
+        await postWifi(request, response, deps);
       } else if (request.method === 'POST') {
         // The Wi-Fi setup page runs in the kiosk's Chromium too, and sends heartbeats so the watchdog leaves it alone.
         const isHeartbeat = request.url === '/heartbeat' && request.headers.origin === LOCAL_ORIGIN;
@@ -402,7 +420,13 @@ export function serveSpeakers(
     log: journalLog(),
     asset: wifiSetupAsset,
     lyrics: cached(query => findLyrics(query)),
-    bluetooth: new Bluetooth()
+    bluetooth: new Bluetooth(),
+    phone: new PhoneSetup({
+      connect: request => deps.wifi.connect(request),
+      done: () => {
+        deps.wifi.done();
+      }
+    })
   });
   const server = createServer((request, response) => void handler(request, response));
   attachUpdateSocket(server, origin, update);

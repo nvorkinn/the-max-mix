@@ -64,7 +64,9 @@ for file in /usr/local/bin/kiosk-session \
   /opt/the-max-mix/kiosk-audio/wifi-setup.ts /opt/the-max-mix/kiosk-audio/wifi-page.ts \
   /opt/the-max-mix/kiosk-audio/update.ts /opt/the-max-mix/kiosk-audio/update-socket.ts \
   /opt/the-max-mix/kiosk-audio/lyrics.ts /opt/the-max-mix/kiosk-audio/lyrics-sources.ts \
-  /opt/the-max-mix/kiosk-audio/bluetooth.ts \
+  /opt/the-max-mix/kiosk-audio/bluetooth.ts /opt/the-max-mix/kiosk-audio/improv.ts \
+  /opt/the-max-mix/kiosk-audio/improv-gatt.ts /opt/the-max-mix/kiosk-audio/phone-setup.ts \
+  /opt/the-max-mix/kiosk-audio/node_modules/dbus-native/package.json \
   /opt/the-max-mix/kiosk-keyboard/extension/manifest.json /opt/the-max-mix/kiosk-keyboard/extension/loader.js \
   /opt/the-max-mix/kiosk-keyboard/extension/keyboard.js \
   /opt/the-max-mix/kiosk-audio/node_modules/ws/package.json /var/lib/the-max-mix/kiosk-audio-deps.sha1 \
