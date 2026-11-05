@@ -168,7 +168,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   // Spotify's device list can leave out a speaker that plays (Sonos does), so the drawer remembers each one seen playing.
   const playingDevice = playbackState?.device;
-  useEffect(() => rememberSpeaker(playingDevice), [playingDevice]);
+  useEffect(() => {
+    rememberSpeaker(playingDevice);
+    if (playingDevice) debugLog('info', 'playing device', JSON.stringify(playingDevice));
+  }, [playingDevice]);
   const isPlaying = Boolean(playbackState?.is_playing);
   const currentTrack = playbackState?.item;
 

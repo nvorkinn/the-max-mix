@@ -1,5 +1,6 @@
 // Spotify Web API calls made straight from the browser (Spotify allows CORS for them).
 
+import { debugLog } from '../utils/debugLog';
 import type { MusicChoice, PlaybackState, RepeatMode, SpotifyDevice, Track } from '../types';
 import { discardAccessToken, getAccessToken, isSignedIn } from './auth';
 import {
@@ -103,7 +104,10 @@ export async function getQueue(): Promise<{ currently_playing: Track | null; que
 }
 
 export async function getDevices(): Promise<{ devices: SpotifyDevice[] }> {
-  return parseDevices(await spotifyFetch('/me/player/devices'));
+  const reply = await spotifyFetch('/me/player/devices');
+  // Spotify's raw answer, for the debug console: it is how to see which speakers Spotify leaves out (Sonos).
+  debugLog('info', 'spotify devices', JSON.stringify(reply));
+  return parseDevices(reply);
 }
 
 export async function transferPlayback(deviceId: string, startPlaying = false): Promise<{ success: true }> {
