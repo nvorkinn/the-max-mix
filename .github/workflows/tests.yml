@@ -59,7 +59,7 @@ jobs:
       - if: steps.modules.outputs.cache-hit != 'true'
         run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run build
-      # The test videos need Playwright's ffmpeg, a small download; the browser itself is the preinstalled Chrome.
+      # Filming a failed test's second run needs Playwright's ffmpeg, a small download; the browser is the preinstalled Chrome.
       - run: npx playwright install ffmpeg
       - run: npm run test:e2e
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -129,7 +129,9 @@ jobs:
           touch .nojekyll
           cp -r ../results/playwright-report "$FOLDER/report"
           if [[ -d ../results/test-results ]]; then
-            rsync -a --include='*/' --include='*.png' --exclude='*' --prune-empty-dirs ../results/test-results/ "$FOLDER/shots/"
+            # A failed test's second run (its -retry1 folder) repeats the same screenshots, so only the first is shown.
+            rsync -a --exclude='*-retry*/' --include='*/' --include='*.png' --exclude='*' --prune-empty-dirs \
+              ../results/test-results/ "$FOLDER/shots/"
           fi
           git add -A
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \

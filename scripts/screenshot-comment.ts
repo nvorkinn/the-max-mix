@@ -3,7 +3,7 @@
 // gh-pages branch first and passes, in the environment:
 //   SHOTS_DIR        the copied PNGs (Playwright's <test>/<name>-expected|actual|diff.png)
 //   SHOTS_URL        where SHOTS_DIR is served from
-//   REPORT_URL       the Playwright HTML report (with a video of every test) on GitHub Pages
+//   REPORT_URL       the Playwright HTML report (with a trace of every test) on GitHub Pages
 //   BASELINES_FILE   the PR's changes under e2e/screenshots, one "<status> <path>" per line (GitHub's file statuses)
 //   CHANGED_FILES_FILE   every file the PR changes, one path per line; RESULTS_FILE  Playwright's JSON report (together
 //                    they give the "Tests for this change" section, see e2e-tests-section.ts)
@@ -75,7 +75,7 @@ const body = [
   MARKER,
   '### Browser tests',
   '',
-  `${summary} [Open the full report](${env('REPORT_URL')}) to watch a video and open the trace of every test.`,
+  `${summary} [Open the full report](${env('REPORT_URL')}) to open the trace of every test (failed tests are also filmed).`,
   '',
   ...testsForThisChange(),
   '#### Screenshots',
