@@ -19,7 +19,7 @@ const MAX_LINES = 500;
 const TASK_PROGRESS = /Ansible progress: (\d+)\/(\d+)\s*$/;
 
 /** How many of the playbook's tasks have started so far, out of how many it knows about. */
-export interface TaskProgress {
+interface TaskProgress {
   done: number;
   total: number;
 }
