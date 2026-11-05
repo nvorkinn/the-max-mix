@@ -24,6 +24,7 @@ function fakes(overrides: Partial<Deps> = {}) {
   const logged: AppLog[] = [];
   const joined: ConnectRequest[] = [];
   let beats = 0;
+  let closed = 0;
   const deps: Deps = {
     graph: () => Promise.resolve(parseDump(dump())),
     route: speakers => {
@@ -49,11 +50,15 @@ function fakes(overrides: Partial<Deps> = {}) {
       connect: request => {
         joined.push(request);
         return Promise.resolve(request.password === 'right-password' ? { ok: true } : { ok: false, error: 'Nope.' });
+      },
+      done: () => {
+        closed += 1;
       }
     },
+    asset: url => Promise.resolve(url === '/wifi-setup' ? { type: 'text/html', body: '<p>page</p>' } : null),
     ...overrides
   };
-  return { deps, performed, routed, volumes, logged, joined, beats: () => beats };
+  return { deps, performed, routed, volumes, logged, joined, beats: () => beats, closed: () => closed };
 }
 
 async function start(deps: Deps): Promise<string> {
@@ -236,7 +241,7 @@ describe('Wi-Fi', () => {
   });
 
   it('says why a scan failed', async () => {
-    const wifi = { scan: () => Promise.reject(new ScanError(ERRORS.disabled)), connect: vi.fn() };
+    const wifi = { scan: () => Promise.reject(new ScanError(ERRORS.disabled)), connect: vi.fn(), done: vi.fn() };
     const base = await start(fakes({ wifi }).deps);
     const response = await fetch(`${base}/wifi/networks`);
     expect(response.status).toBe(503);
@@ -265,5 +270,25 @@ describe('Wi-Fi', () => {
     expect((await post(base, '/wifi/connect', { origin: 'https://evil.example', body: request })).status).toBe(403);
     expect((await post(base, '/wifi/connect', { origin: LOCAL_ORIGIN, body: { ssid: 'Home' } })).status).toBe(400);
     expect(joined).toEqual([]);
+  });
+});
+
+describe('the Wi-Fi setup page', () => {
+  it('is served with its scripts', async () => {
+    const base = await start(fakes().deps);
+    const page = await fetch(`${base}/wifi-setup`);
+    expect(page.status).toBe(200);
+    expect(page.headers.get('content-type')).toBe('text/html');
+    await expect(page.text()).resolves.toBe('<p>page</p>');
+    expect((await fetch(`${base}/nothing-here`)).status).toBe(404);
+  });
+
+  it('closes when it is done, for its own origin only', async () => {
+    const { deps, closed } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/wifi/done')).status).toBe(403);
+    expect(closed()).toBe(0);
+    expect((await post(base, '/wifi/done', { origin: LOCAL_ORIGIN })).status).toBe(204);
+    expect(closed()).toBe(1);
   });
 });
