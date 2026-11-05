@@ -8,12 +8,14 @@
 //   POST /heartbeat         the app is alive (watchdog.ts)  POST /log  {"level", "source", "message"}  an app error, to the journal
 //   GET  /wifi/networks     {"networks": [{"ssid", "signal", "bars", "security"}, …]}   or 503 {"error"}: a safe message
 //   POST /wifi/connect      {"ssid", "password", "hidden", "security"}   join a network: {"ok": true} or {"ok": false, "error"}
+//   POST /wifi/done         the setup page is finished (joined, or Cancel): close it
+//   GET  /wifi-setup        the Wi-Fi setup page and its scripts (wifi-setup.ts)
 //   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
 //                           (update-socket.ts)
 // Only the app's origin is answered (CORS, and every POST and WebSocket is refused without its Origin header, so no other
 // web page can trigger one). A request carries no command, only the name of one of the fixed actions in actions.ts.
-// The two Wi-Fi requests are for the Wi-Fi setup page this service serves itself (it has to work offline), so they
-// answer its origin (LOCAL_ORIGIN) instead, and the app's origin cannot join a network.
+// The Wi-Fi POSTs are for the Wi-Fi setup page this service serves itself (it has to work offline), so they answer
+// its origin (LOCAL_ORIGIN) instead, and the app's origin cannot join a network.
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { perform } from './actions.ts';
@@ -26,6 +28,8 @@ import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
 import { runUpdate } from './update.ts';
 import { chromiumPid, CHECK_MS, stopChromium, Watchdog } from './watchdog.ts';
+import { wifiSetupAsset } from './wifi-setup.ts';
+import type { Asset } from './wifi-setup.ts';
 
 const SPEAKERS_PORT = 7341;
 /** The origin of the pages this service serves itself (the Wi-Fi setup page). */
@@ -51,12 +55,16 @@ export interface Deps {
   heartbeat: () => void;
   log: (entry: AppLog) => void;
   wifi: Wifi;
+  /** The setup page or one of its scripts for a GET of the URL, or null. */
+  asset: (url: string) => Promise<Asset | null>;
 }
 
 /** NetworkManager, for the Wi-Fi setup page (nmcli.ts). */
 interface Wifi {
   scan: () => Promise<Network[]>;
   connect: (request: ConnectRequest) => Promise<ConnectResult>;
+  /** Closes the setup page (stops the Chromium that shows it); does not wait for that. */
+  done: () => void;
 }
 
 /** An error the app reported, for the journal. */
@@ -194,14 +202,32 @@ async function listNetworks(response: ServerResponse, wifi: Wifi): Promise<void>
   }
 }
 
-async function connectWifi(request: IncomingMessage, response: ServerResponse, wifi: Wifi): Promise<void> {
+async function postWifi(request: IncomingMessage, response: ServerResponse, wifi: Wifi): Promise<void> {
   if (request.headers.origin !== LOCAL_ORIGIN) {
     response.writeHead(403).end();
+    return;
+  }
+  if (request.url === '/wifi/done') {
+    response.writeHead(204).end();
+    wifi.done();
     return;
   }
   const body = parseConnectRequest(JSON.parse(await readBody(request)) as unknown);
   if (body) sendJson(response, 200, await wifi.connect(body));
   else response.writeHead(400).end();
+}
+
+async function get(url: string, response: ServerResponse, deps: Deps): Promise<void> {
+  if (url === '/speakers') {
+    const graph = await deps.graph();
+    sendJson(response, 200, { speakers: speakerNames(graph), volumes: speakerVolumes(graph) });
+  } else if (url === '/wifi/networks') {
+    await listNetworks(response, deps.wifi);
+  } else {
+    const asset = await deps.asset(url);
+    if (asset) response.writeHead(200, { 'Content-Type': asset.type }).end(asset.body);
+    else response.writeHead(404).end();
+  }
 }
 
 export function handleRequest(origin: string, deps: Deps) {
@@ -215,14 +241,10 @@ export function handleRequest(origin: string, deps: Deps) {
     try {
       if (request.method === 'OPTIONS') {
         response.writeHead(204).end();
-      } else if (request.method === 'GET' && request.url === '/speakers') {
-        const graph = await deps.graph();
-        const body = { speakers: speakerNames(graph), volumes: speakerVolumes(graph) };
-        response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(body));
-      } else if (request.method === 'GET' && request.url === '/wifi/networks') {
-        await listNetworks(response, deps.wifi);
-      } else if (request.method === 'POST' && request.url === '/wifi/connect') {
-        await connectWifi(request, response, deps.wifi);
+      } else if (request.method === 'GET') {
+        await get(request.url ?? '', response, deps);
+      } else if (request.method === 'POST' && (request.url === '/wifi/connect' || request.url === '/wifi/done')) {
+        await postWifi(request, response, deps.wifi);
       } else if (request.method === 'POST') {
         if (request.headers.origin === origin) await post(request, response, deps);
         else response.writeHead(403).end();
@@ -259,7 +281,7 @@ export function serveSpeakers(
   const heartbeat = () => {
     watchdog.beat();
   };
-  const handler = handleRequest(origin, { ...deps, perform, heartbeat, log: journalLog() });
+  const handler = handleRequest(origin, { ...deps, perform, heartbeat, log: journalLog(), asset: wifiSetupAsset });
   const server = createServer((request, response) => void handler(request, response));
   attachUpdateSocket(server, origin, update);
   return server.listen(SPEAKERS_PORT, '127.0.0.1');

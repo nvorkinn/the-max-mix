@@ -5,15 +5,32 @@
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { Nmcli } from './nmcli.ts';
+import type { ConnectRequest } from './nmcli.ts';
 import { PipeWire } from './pipewire.ts';
 import { serveSpeakers } from './server.ts';
 import { loadSpeakers, route, saveSpeakers, setSpeakerVolume } from './speakers.ts';
 import { stopFollowers } from './update.ts';
+import { chromiumPid, stopChromium } from './watchdog.ts';
 
 const WATCH_MS = 2000;
 const stateHome = process.env['XDG_STATE_HOME'] || path.join(homedir(), '.local', 'state');
 const stateFile = path.join(stateHome, 'the-max-mix', 'speakers.json');
 const pipewire = new PipeWire();
+
+/** NetworkManager for the Wi-Fi setup page, and closing that page: it shows in a Chromium of its own. */
+function wifi() {
+  const nmcli = new Nmcli();
+  return {
+    scan: () => nmcli.scan(),
+    connect: (request: ConnectRequest) => nmcli.connect(request),
+    done: () => {
+      void (async () => {
+        const pid = await chromiumPid();
+        if (pid !== null) await stopChromium(pid);
+      })();
+    }
+  };
+}
 
 async function watchOnce(): Promise<void> {
   try {
@@ -37,7 +54,7 @@ if (process.argv[2] === 'watch') {
       await route(pipewire, speakers);
     },
     setVolume: (speaker, volume) => setSpeakerVolume(pipewire, speaker, volume),
-    wifi: new Nmcli()
+    wifi: wifi()
   });
 } else {
   console.error('Usage: kiosk-audio.ts watch');

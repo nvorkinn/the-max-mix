@@ -440,6 +440,8 @@
     - update.ts
     - update-socket.ts
     - watchdog.ts
+    - wifi-page.ts
+    - wifi-setup.ts
   notify: Ask for a kiosk restart
 
 # ws, the one npm package, for the update stream (the WebSocket). Installed from the lockfile, so it is the version that
