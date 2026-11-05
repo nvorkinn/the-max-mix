@@ -755,8 +755,7 @@
   align-items: center;
   gap: 10px;
   min-height: 68px;
-  border: 1px solid transparent;
-  border-bottom-color: var(--border);
+  position: relative;
   padding: 8px 8px 8px 12px;
   border-radius: 12px;
   transition:
@@ -773,15 +772,22 @@
   text-align: left;
   color: inherit;
 }
-.queue-track:last-child {
-  border-bottom-color: transparent;
+/* A flat hairline under each row; a bottom border would curve with the row's rounded corners. */
+.queue-track::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 8px;
+  bottom: 0;
+  height: 1px;
+  background: var(--border);
+}
+.queue-track:last-child::after,
+.queue-track.is-next::after {
+  display: none;
 }
 .queue-track:hover {
   background: var(--accent-soft);
-}
-.queue-track.is-next {
-  position: relative;
-  border-bottom-color: transparent;
 }
 .queue-track.is-next::before {
   content: '';
