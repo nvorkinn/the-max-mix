@@ -419,6 +419,7 @@
     mode: '0644'
   loop:
     - actions.ts
+    - bluetooth.ts
     - kiosk-audio.ts
     - lyrics-sources.ts
     - lyrics.ts

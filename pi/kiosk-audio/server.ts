@@ -12,6 +12,10 @@
 //   GET  /wifi-setup        the Wi-Fi setup page and its scripts (wifi-setup.ts)
 //   GET  /lyrics?title=&artist=&duration=   {"source", "lrc"}: synced lyrics from NetEase, QQ Music or KuGou (lyrics.ts),
 //                           the duration in ms is optional; 404: none found, 502: the sources could not be reached
+//   GET  /bluetooth/devices   {"devices": [{"address", "name", "paired", "connected"}, …]}   the Bluetooth speakers BlueZ knows
+//   POST /bluetooth/scan      look for speakers for a few seconds: the same answer      503 {"error"}: a safe message
+//   POST /bluetooth/connect   {"address"}   pair (if needed), trust and connect: {"ok": true} or {"ok": false, "error"}
+//   POST /bluetooth/remove    {"address"}   forget a speaker
 //   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
 //                           (update-socket.ts)
 // Only the app's origin is answered (CORS, and every POST and WebSocket is refused without its Origin header, so no other
@@ -22,13 +26,15 @@ import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { perform } from './actions.ts';
 import type { Action } from './actions.ts';
+import { Bluetooth, BluetoothError, parseAddress } from './bluetooth.ts';
+import type { BluetoothDevice, ConnectResult as BluetoothConnectResult } from './bluetooth.ts';
 import type { LyricsQuery } from './lyrics-sources.ts';
 import { cached, findLyrics, parseLyricsQuery } from './lyrics.ts';
 import type { LyricsHit } from './lyrics.ts';
 import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
 import type { Graph } from './pipewire.ts';
-import { airPlaySinks, validSpeakers, validVolume } from './speakers.ts';
+import { speakerSinks, validSpeakers, validVolume } from './speakers.ts';
 import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
 import { runUpdate } from './update.ts';
@@ -64,6 +70,15 @@ export interface Deps {
   asset: (url: string) => Promise<Asset | null>;
   /** Synced lyrics for a song, or null; rejects when no source could be reached. */
   lyrics: (query: LyricsQuery) => Promise<LyricsHit | null>;
+  bluetooth: BluetoothControl;
+}
+
+/** BlueZ, for the Bluetooth speakers (bluetooth.ts). */
+interface BluetoothControl {
+  list: () => Promise<BluetoothDevice[]>;
+  scan: () => Promise<BluetoothDevice[]>;
+  connect: (address: string) => Promise<BluetoothConnectResult>;
+  remove: (address: string) => Promise<void>;
 }
 
 /** NetworkManager, for the Wi-Fi setup page (nmcli.ts). */
@@ -128,12 +143,12 @@ export function journalLog(
 
 /** The AirPlay (RAOP) sinks' names, sorted, once each. */
 export const speakerNames = (graph: Graph): string[] =>
-  [...new Set(airPlaySinks(graph).map(node => node.description))].toSorted((a, b) => a.localeCompare(b));
+  [...new Set(speakerSinks(graph).map(node => node.description))].toSorted((a, b) => a.localeCompare(b));
 
 /** Each AirPlay speaker's volume in percent, for the ones that report one. */
 export function speakerVolumes(graph: Graph): Record<string, number> {
   const volumes: Record<string, number> = {};
-  for (const node of airPlaySinks(graph)) {
+  for (const node of speakerSinks(graph)) {
     if (node.volume !== null) volumes[node.description] ??= Math.round(node.volume * 100);
   }
   return volumes;
@@ -170,6 +185,49 @@ async function volumeStatus(request: IncomingMessage, deps: Deps): Promise<numbe
   return (await deps.setVolume(body.speaker, body.volume)) === 0 ? 404 : 204;
 }
 
+/** Sends the Bluetooth speakers (or the safe message of why not) as JSON. */
+async function sendDevices(response: ServerResponse, devices: () => Promise<BluetoothDevice[]>): Promise<void> {
+  try {
+    sendJson(response, 200, { devices: await devices() });
+  } catch (error) {
+    sendJson(response, 503, { error: error instanceof BluetoothError ? error.message : 'Bluetooth failed.' });
+  }
+}
+
+async function postBluetooth(
+  url: string,
+  request: IncomingMessage,
+  response: ServerResponse,
+  bluetooth: BluetoothControl
+): Promise<void> {
+  if (url === '/bluetooth/scan') {
+    await sendDevices(response, () => bluetooth.scan());
+    return;
+  }
+  const body = JSON.parse(await readBody(request)) as { address?: unknown } | null;
+  const address = parseAddress(body?.address);
+  if (!address) {
+    response.writeHead(400).end();
+  } else if (url === '/bluetooth/remove') {
+    try {
+      await bluetooth.remove(address);
+    } catch (error) {
+      // The speaker stays in the app's list, which is how a failed forget shows.
+      console.warn(`bluetooth: remove failed: ${String(error)}`);
+    }
+    response.writeHead(204).end();
+  } else {
+    try {
+      sendJson(response, 200, await bluetooth.connect(address));
+    } catch (error) {
+      sendJson(response, 200, {
+        ok: false,
+        error: error instanceof BluetoothError ? error.message : 'Bluetooth failed.'
+      });
+    }
+  }
+}
+
 async function post(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
   const url = request.url ?? '';
   const action = POST_ACTIONS[url];
@@ -187,6 +245,12 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
     case '/audio/volume': {
       status = await volumeStatus(request, deps);
       break;
+    }
+    case '/bluetooth/scan':
+    case '/bluetooth/connect':
+    case '/bluetooth/remove': {
+      await postBluetooth(url, request, response, deps.bluetooth);
+      return;
     }
     default: {
       if (action) await deps.perform(action);
@@ -260,6 +324,24 @@ async function get(url: string, response: ServerResponse, deps: Deps): Promise<v
   }
 }
 
+/** The GETs that answer the app's origin only (they make the Pi call out), and the rest (get). */
+async function handleGet(
+  request: IncomingMessage,
+  response: ServerResponse,
+  origin: string,
+  deps: Deps
+): Promise<void> {
+  const url = request.url ?? '';
+  if (url === '/bluetooth/devices') {
+    if (request.headers.origin === origin) await sendDevices(response, () => deps.bluetooth.list());
+    else response.writeHead(403).end();
+  } else if (url.startsWith('/lyrics?')) {
+    await getLyrics(request, response, origin, deps);
+  } else {
+    await get(url, response, deps);
+  }
+}
+
 export function handleRequest(origin: string, deps: Deps) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     response.setHeader('Access-Control-Allow-Origin', origin);
@@ -271,10 +353,8 @@ export function handleRequest(origin: string, deps: Deps) {
     try {
       if (request.method === 'OPTIONS') {
         response.writeHead(204).end();
-      } else if (request.method === 'GET' && (request.url ?? '').startsWith('/lyrics?')) {
-        await getLyrics(request, response, origin, deps);
       } else if (request.method === 'GET') {
-        await get(request.url ?? '', response, deps);
+        await handleGet(request, response, origin, deps);
       } else if (request.method === 'POST' && (request.url === '/wifi/connect' || request.url === '/wifi/done')) {
         await postWifi(request, response, deps.wifi);
       } else if (request.method === 'POST') {
@@ -321,7 +401,8 @@ export function serveSpeakers(
     heartbeat,
     log: journalLog(),
     asset: wifiSetupAsset,
-    lyrics: cached(query => findLyrics(query))
+    lyrics: cached(query => findLyrics(query)),
+    bluetooth: new Bluetooth()
   });
   const server = createServer((request, response) => void handler(request, response));
   attachUpdateSocket(server, origin, update);
