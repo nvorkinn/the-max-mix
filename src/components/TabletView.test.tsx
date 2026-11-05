@@ -39,7 +39,8 @@ const airplay = vi.hoisted(() => ({
   watchAudioOutputs: vi.fn(),
   routeAudio: vi.fn(),
   getChosenSpeakers: vi.fn(),
-  setChosenSpeakers: vi.fn()
+  setChosenSpeakers: vi.fn(),
+  setSpeakerVolume: vi.fn()
 }));
 const lyrics = vi.hoisted(() => ({ lrclib: vi.fn() }));
 
@@ -598,7 +599,7 @@ describe('TabletView', () => {
     beforeEach(() => {
       localStorage.setItem('maxmix.kiosk', 'true');
       for (const mock of Object.values(airplay)) mock.mockReset();
-      airplay.listAudioOutputs.mockResolvedValue([]);
+      airplay.listAudioOutputs.mockResolvedValue({ names: [], volumes: {} });
       airplay.watchAudioOutputs.mockReturnValue(vi.fn());
       airplay.getChosenSpeakers.mockReturnValue(['Kitchen']);
       setPlayer({
@@ -721,7 +722,7 @@ describe('TabletView', () => {
     it('choosing an AirPlay speaker routes the sound and remembers it while this tablet is playing', async () => {
       setPlayer({ playbackMode: 'browser', browserDeviceId: 'web-1', playbackState: { device: { id: 'web-1' } } });
       airplay.getChosenSpeakers.mockReturnValue([]);
-      airplay.listAudioOutputs.mockResolvedValue(['Kitchen']);
+      airplay.listAudioOutputs.mockResolvedValue({ names: ['Kitchen'], volumes: {} });
       await openSpeakers();
       fireEvent.click(screen.getByRole('button', { name: /Kitchen/ }));
       await flush();
@@ -732,7 +733,7 @@ describe('TabletView', () => {
 
     it('keeps the AirPlay speakers disabled until this tablet is the one playing', async () => {
       airplay.getChosenSpeakers.mockReturnValue([]);
-      airplay.listAudioOutputs.mockResolvedValue(['Kitchen']);
+      airplay.listAudioOutputs.mockResolvedValue({ names: ['Kitchen'], volumes: {} });
       await openSpeakers();
       // Another device (Soundbar) is playing.
       const kitchen = screen.getByRole('button', { name: /Kitchen/ });

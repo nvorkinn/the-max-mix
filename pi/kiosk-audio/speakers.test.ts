@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { dump, silence } from './fixtures.ts';
 import { parseDump } from './pipewire.ts';
 import type { Plan } from './pipewire.ts';
-import { loadSpeakers, route, saveSpeakers, validSpeakers } from './speakers.ts';
+import { loadSpeakers, route, saveSpeakers, setSpeakerVolume, validSpeakers, validVolume } from './speakers.ts';
 import type { AudioGraph } from './speakers.ts';
 
 class FakePipeWire implements AudioGraph {
@@ -69,5 +69,35 @@ describe('route', () => {
     expect(fake.applied).toEqual([plan]);
     await route(fake, []); // Chromium already plays to the default output
     expect(fake.applied).toHaveLength(1);
+  });
+});
+
+describe('volume', () => {
+  it('accepts one speaker name and a whole percentage', () => {
+    expect(validVolume({ speaker: 'Kitchen', volume: 0 })).toEqual({ speaker: 'Kitchen', volume: 0 });
+    expect(validVolume({ speaker: 'Kitchen', volume: 100 })).toEqual({ speaker: 'Kitchen', volume: 100 });
+    for (const bad of [
+      { speaker: 'Kitchen', volume: -1 },
+      { speaker: 'Kitchen', volume: '5' },
+      { speaker: '', volume: 5 },
+      []
+    ]) {
+      expect(validVolume(bad)).toBeNull();
+    }
+  });
+
+  it('sets the AirPlay sink with that name, and says when there is none', async () => {
+    const set: [number, number][] = [];
+    const fake = {
+      graph: () => Promise.resolve(parseDump(dump())),
+      setVolume: (node: number, volume: number) => {
+        set.push([node, volume]);
+        return Promise.resolve();
+      }
+    };
+    await expect(setSpeakerVolume(fake, 'Kitchen', 25)).resolves.toBe(1);
+    // The Pi's own output is not an AirPlay speaker, even by name.
+    await expect(setSpeakerVolume(fake, 'Built-in Audio', 25)).resolves.toBe(0);
+    expect(set).toEqual([[50, 0.25]]);
   });
 });

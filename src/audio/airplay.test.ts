@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getChosenSpeakers, listAudioOutputs, routeAudio, setChosenSpeakers, watchAudioOutputs } from './airplay';
+import {
+  getChosenSpeakers,
+  listAudioOutputs,
+  routeAudio,
+  setChosenSpeakers,
+  setSpeakerVolume,
+  watchAudioOutputs
+} from './airplay';
 
 beforeEach(() => localStorage.clear());
 afterEach(() => {
@@ -14,13 +21,18 @@ describe('listAudioOutputs', () => {
   it('asks the kiosk’s audio service and lists each speaker once, sorted', async () => {
     const fetchMock = answer({ speakers: ['Living Room', 'Kitchen', 'Kitchen', 3] });
     vi.stubGlobal('fetch', fetchMock);
-    await expect(listAudioOutputs()).resolves.toEqual(['Kitchen', 'Living Room']);
+    await expect(listAudioOutputs()).resolves.toEqual({ names: ['Kitchen', 'Living Room'], volumes: {} });
     expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/speakers', { cache: 'no-store' });
   });
 
   it('treats a missing list as none', async () => {
     vi.stubGlobal('fetch', answer({}));
-    await expect(listAudioOutputs()).resolves.toEqual([]);
+    await expect(listAudioOutputs()).resolves.toEqual({ names: [], volumes: {} });
+  });
+
+  it('reads each speaker’s volume, ignoring anything that is not a percentage', async () => {
+    vi.stubGlobal('fetch', answer({ speakers: ['Kitchen'], volumes: { Kitchen: 40.4, Lounge: 'loud', Bar: 120 } }));
+    await expect(listAudioOutputs()).resolves.toEqual({ names: ['Kitchen'], volumes: { Kitchen: 40 } });
   });
 
   it('says so when the service is not there or cannot read PipeWire', async () => {
@@ -70,6 +82,37 @@ describe('routing', () => {
     routeAudio(['Kitchen']);
     await vi.waitFor(() => expect(warn).toHaveBeenCalled());
     warn.mockRestore();
+  });
+});
+
+describe('setSpeakerVolume', () => {
+  it('sends one request per speaker at a time, then the newest value', async () => {
+    let finish: (() => void) | undefined;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise(resolve => {
+          finish = () => resolve({ ok: true });
+        })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    setSpeakerVolume('Kitchen', 10);
+    setSpeakerVolume('Kitchen', 20);
+    setSpeakerVolume('Kitchen', 30);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    finish?.();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    finish?.();
+    await vi.waitFor(() =>
+      expect(fetchMock.mock.calls.map(call => (call as unknown[])[1])).toEqual([
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"speaker":"Kitchen","volume":10}' },
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"speaker":"Kitchen","volume":30}' }
+      ])
+    );
+    // Done: the next change goes out at once.
+    await new Promise(resolve => setTimeout(resolve, 0));
+    setSpeakerVolume('Kitchen', 40);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    finish?.();
   });
 });
 

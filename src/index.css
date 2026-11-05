@@ -369,6 +369,16 @@
   background: var(--surface);
   box-shadow: 0 24px 48px -20px rgb(0 0 0 / 45%);
 }
+.speaker-volume {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  color: var(--muted);
+}
+.speaker-volume svg {
+  flex-shrink: 0;
+}
 .speaker-drawer-body {
   min-height: 0;
   overflow-y: auto;

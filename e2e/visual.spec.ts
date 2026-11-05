@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { fakeKioskAirPlay } from './fake-kiosk.ts';
 import { fakeSpotify } from './fake-spotify.ts';
 
 // Layout bugs such as an overlapping or gapped sticky modal header are invisible to the DOM assertions elsewhere, so
@@ -50,6 +51,23 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
     await expect(dialog.getByRole('button', { name: /Test speaker/ })).toBeVisible();
     // The clock and the seek position change as time passes, so they are masked out of the comparison.
     await expect(page).toHaveScreenshot('speakers-drawer.png', {
+      ...SHOT,
+      mask: [page.locator('.header-clock'), page.getByRole('slider', { name: 'Playback position' })]
+    });
+  });
+
+  test('speakers drawer with AirPlay volumes', { tag: '@speakers' }, async ({ page }) => {
+    await fakeSpotify(page);
+    await fakeKioskAirPlay(page, { Kitchen: 40, Lounge: 70 }, ['Kitchen', 'Lounge']);
+    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.goto('/');
+    await page.getByRole('button', { name: /^Speakers:/ }).click();
+    const dialog = page.getByRole('dialog', { name: 'Speakers' });
+    await expect(dialog.getByRole('slider', { name: 'Lounge volume' })).toBeVisible();
+    await dialog.locator('.speaker-drawer-body').evaluate(element => {
+      element.scrollTo({ top: element.scrollHeight });
+    });
+    await expect(page).toHaveScreenshot('speakers-drawer-airplay.png', {
       ...SHOT,
       mask: [page.locator('.header-clock'), page.getByRole('slider', { name: 'Playback position' })]
     });

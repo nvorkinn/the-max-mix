@@ -1,11 +1,12 @@
 // A pw-dump reply for the tests: the local output (40), two AirPlay speakers (50, 60) and Chromium (70) playing to the
-// local output, with a level meter (90) also listening to Chromium.
+// local output, with a level meter (90) also listening to Chromium. Kitchen's volume is 40% (0.064 = 0.4 cubed); Lounge
+// reports none.
 import { vi } from 'vitest';
 
-const node = (id: number, name: string, mediaClass: string, props: Record<string, unknown> = {}) => ({
+const node = (id: number, name: string, mediaClass: string, props: Record<string, unknown> = {}, params?: unknown) => ({
   id,
   type: 'PipeWire:Interface:Node',
-  info: { props: { 'node.name': name, 'media.class': mediaClass, ...props } }
+  info: { props: { 'node.name': name, 'media.class': mediaClass, ...props }, ...(params !== undefined && { params }) }
 });
 
 const port = (id: number, nodeId: number, direction: string, channel: string, isMonitor = false) => ({
@@ -34,10 +35,13 @@ export function dump(extra: unknown[] = [], links?: unknown[]): string {
     port(41, 40, 'input', 'FL'),
     port(42, 40, 'input', 'FR'),
     port(43, 40, 'output', 'FL', true),
-    node(50, 'raop_sink.Kitchen.local.7000', 'Audio/Sink', {
-      'node.description': 'Kitchen',
-      'raop.hostname': 'Kitchen.local'
-    }),
+    node(
+      50,
+      'raop_sink.Kitchen.local.7000',
+      'Audio/Sink',
+      { 'node.description': 'Kitchen', 'raop.hostname': 'Kitchen.local' },
+      { Props: [{ volume: 1, mute: false, channelVolumes: [0.064, 0.064] }] }
+    ),
     port(51, 50, 'input', 'FL'),
     port(52, 50, 'input', 'FR'),
     node(60, 'raop_sink.Lounge.local.7000', 'Audio/Sink', { 'node.description': 'Lounge' }),
