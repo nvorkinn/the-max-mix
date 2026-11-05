@@ -34,7 +34,12 @@ export const AREAS: Area[] = [
   {
     tag: 'settings',
     title: 'Settings',
-    sources: [/^src\/components\/SettingsModal/, /^src\/components\/KioskSystem/, /^src\/utils\/themeColour/]
+    sources: [
+      /^src\/components\/SettingsModal/,
+      /^src\/components\/KioskSystem/,
+      /^src\/utils\/themeColour/,
+      /^src\/sonos\//
+    ]
   },
   {
     tag: 'speakers',
