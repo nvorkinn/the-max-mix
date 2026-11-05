@@ -13,7 +13,12 @@ interface Call {
   body: unknown;
 }
 
-const state: { calls: Call[]; connectReply: unknown } = { calls: [], connectReply: { ok: true } };
+const state: { calls: Call[]; connectReply: unknown; phoneReply: unknown; phoneStatus: number } = {
+  calls: [],
+  connectReply: { ok: true },
+  phoneReply: { ok: true },
+  phoneStatus: 200
+};
 
 beforeEach(() => {
   // The page's markup without its script, which loads the real modules.
@@ -22,6 +27,8 @@ beforeEach(() => {
   document.body.replaceChildren(...parsed.body.childNodes);
   state.calls = [];
   state.connectReply = { ok: true };
+  state.phoneReply = { ok: true };
+  state.phoneStatus = 200;
   vi.stubGlobal(
     'fetch',
     vi.fn((path: string, init?: RequestInit) => {
@@ -29,6 +36,9 @@ beforeEach(() => {
       state.calls.push({ path, body });
       if (path === '/wifi/networks') return Promise.resolve(Response.json({ networks: NETWORKS }));
       if (path === '/wifi/connect') return Promise.resolve(Response.json(state.connectReply));
+      if (path === '/wifi/phone') {
+        return Promise.resolve(Response.json(state.phoneReply, { status: state.phoneStatus }));
+      }
       return Promise.resolve(new Response(null, { status: 204 }));
     })
   );
@@ -141,6 +151,41 @@ describe('the Wi-Fi setup page', () => {
       expect(posted('/wifi/done')).toHaveLength(1);
     });
     expect(posted('/wifi/connect')).toEqual([]);
+  });
+
+  it('starts Wi-Fi setup from a phone and says how to use it', async () => {
+    await startPage(document, false).refresh();
+    expect(byId('phone-help').hidden).toBe(true);
+    byId('phone').click();
+    await vi.waitFor(() => {
+      expect(byId('phone-help').hidden).toBe(false);
+    });
+    expect(posted('/wifi/phone')).toHaveLength(1);
+    expect(byId('phone-help').textContent).toContain('improv-wifi.com');
+    expect(byId('phone-help').textContent).toContain('THE MAX MIX');
+    expect((byId('phone') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('says why phone setup could not start, and lets it be tried again', async () => {
+    state.phoneStatus = 503;
+    state.phoneReply = { error: 'Bluetooth is not available, so the phone cannot be used.' };
+    await startPage(document, false).refresh();
+    byId('phone').click();
+    await vi.waitFor(() => {
+      expect(byId('error').textContent).toBe('Bluetooth is not available, so the phone cannot be used.');
+    });
+    expect(byId('phone-help').hidden).toBe(true);
+    expect((byId('phone') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('says when the service did not answer phone setup', async () => {
+    await startPage(document, false).refresh();
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')));
+    byId('phone').click();
+    await vi.waitFor(() => {
+      expect(byId('error').textContent).toBe('Could not reach the kiosk service.');
+    });
+    expect((byId('phone') as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('says when the scan failed', async () => {

@@ -49,6 +49,7 @@
     "@vitest/coverage-v8": "^5.0.5",
     "@vitest/eslint-plugin": "^1.6.28",
     "cspell": "10.4.0",
+    "dbus-native": "0.16.3",
     "eslint": "^10.14.0",
     "eslint-import-resolver-node": "^0.4.0",
     "eslint-plugin-import-x": "^4.17.1",

@@ -420,10 +420,13 @@
   loop:
     - actions.ts
     - bluetooth.ts
+    - improv-gatt.ts
+    - improv.ts
     - kiosk-audio.ts
     - lyrics-sources.ts
     - lyrics.ts
     - nmcli.ts
+    - phone-setup.ts
     - pipewire.ts
     - server.ts
     - speakers.ts

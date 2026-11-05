@@ -64,11 +64,13 @@ export const PAGE_HTML = `<!doctype html>
         <header>
           <h1>Choose a Wi-Fi network</h1>
           <button type="button" id="other">Other…</button>
+          <button type="button" id="phone">From phone</button>
           <button type="button" id="refresh">Refresh</button>
           <button type="button" id="cancel" hidden>Cancel</button>
         </header>
         <p id="error" role="alert" hidden></p>
         <p id="status"></p>
+        <p id="phone-help" hidden></p>
         <ul id="networks"></ul>
       </section>
       <section id="join-view" hidden>

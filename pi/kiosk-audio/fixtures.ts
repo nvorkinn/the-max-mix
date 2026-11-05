@@ -70,3 +70,11 @@ export function silence(...methods: ('info' | 'warn' | 'debug')[]): void {
     });
   }
 }
+
+/** The bytes a phone writes to send the kiosk a Wi-Fi network, built from the Improv protocol's description. */
+export function wifiPacket(ssid: string, password: string): Uint8Array {
+  const text = new TextEncoder();
+  const data = [ssid, password].flatMap(part => [text.encode(part).length, ...text.encode(part)]);
+  const body = [1, data.length, ...data];
+  return Uint8Array.from([...body, body.reduce((sum, byte) => (sum + byte) % 256, 0)]);
+}

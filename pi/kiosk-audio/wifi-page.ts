@@ -31,6 +31,8 @@ export interface Page {
   connect: HTMLButtonElement;
   refresh: HTMLButtonElement;
   cancel: HTMLButtonElement;
+  phone: HTMLButtonElement;
+  phoneHelp: HTMLElement;
   busy: HTMLElement;
 }
 
@@ -55,6 +57,8 @@ export function findPage(doc: Document): Page {
     connect: element(doc, 'connect') as HTMLButtonElement,
     refresh: element(doc, 'refresh') as HTMLButtonElement,
     cancel: element(doc, 'cancel') as HTMLButtonElement,
+    phone: element(doc, 'phone') as HTMLButtonElement,
+    phoneHelp: element(doc, 'phone-help'),
     busy: element(doc, 'busy')
   };
 }
@@ -189,6 +193,28 @@ export function startPage(doc: Document, canCancel: boolean): { refresh: () => P
     void connect(ssid, page.password.value, join.isHidden, 'psk');
   };
 
+  // Wi-Fi from a phone: the service advertises Improv Wi-Fi over Bluetooth for a few minutes. When the phone has joined a
+  // network the service closes this page itself, as it does after a join here.
+  const startPhone = async (): Promise<void> => {
+    page.phone.disabled = true;
+    showError('');
+    try {
+      const response = await post('/wifi/phone');
+      if (response.ok) {
+        page.phoneHelp.textContent =
+          'On an Android phone with Chrome, open improv-wifi.com, tap Connect device and choose THE MAX MIX. ' +
+          'Waiting for your phone…';
+        page.phoneHelp.hidden = false;
+        return;
+      }
+      showError(((await response.json()) as { error?: string }).error ?? 'Could not start phone setup.');
+    } catch {
+      showError('Could not reach the kiosk service.');
+    }
+    page.phone.disabled = false;
+  };
+
+  page.phone.addEventListener('click', () => void startPhone());
   page.refresh.addEventListener('click', () => void refresh());
   element(doc, 'other').addEventListener('click', () => {
     openJoin({ ssid: '', isHidden: true });

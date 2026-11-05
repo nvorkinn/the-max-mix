@@ -25,7 +25,8 @@ const otherFailure = () => Promise.reject(new Error('dbus: /private/path failed'
 const busy = () => Promise.reject(new BluetoothError('Bluetooth is busy. Wait a moment and try again.'));
 const odd = () => Promise.reject(new Error('internal detail'));
 
-function fakes(overrides: Partial<Deps> = {}) {
+function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false) {
+  const phoneStarts: string[] = [];
   const connected: string[] = [];
   const removed: string[] = [];
   const performed: Action[] = [];
@@ -70,6 +71,12 @@ function fakes(overrides: Partial<Deps> = {}) {
       if (query.title === 'Down') return Promise.reject(new Error('unreachable'));
       return Promise.resolve(query.title === 'Known' ? { source: 'NetEase', lrc: '[00:01.00]Placeholder' } : null);
     },
+    phone: {
+      start: () => {
+        phoneStarts.push('start');
+        return isPhoneFailing ? Promise.reject(new Error('no bluetooth')) : Promise.resolve();
+      }
+    },
     bluetooth: {
       list: () => Promise.resolve([speaker]),
       scan: () => Promise.resolve([speaker, { ...speaker, address: '11:22:33:44:55:66', paired: false }]),
@@ -86,6 +93,7 @@ function fakes(overrides: Partial<Deps> = {}) {
   };
   return {
     deps,
+    phoneStarts,
     connected,
     removed,
     performed,
@@ -311,6 +319,27 @@ describe('Wi-Fi', () => {
     expect((await post(base, '/wifi/connect', { origin: 'https://evil.example', body: request })).status).toBe(403);
     expect((await post(base, '/wifi/connect', { origin: LOCAL_ORIGIN, body: { ssid: 'Home' } })).status).toBe(400);
     expect(joined).toEqual([]);
+  });
+});
+
+describe('Wi-Fi setup from a phone', () => {
+  it('starts for the setup page only, and says when Bluetooth would not', async () => {
+    const { deps, phoneStarts } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/wifi/phone')).status).toBe(403);
+    expect(phoneStarts).toEqual([]);
+    const started = await post(base, '/wifi/phone', { origin: LOCAL_ORIGIN });
+    expect(started.status).toBe(200);
+    await expect(started.json()).resolves.toEqual({ ok: true });
+    expect(phoneStarts).toEqual(['start']);
+
+    vi.spyOn(console, 'warn').mockReturnValue();
+    const broken = await start(fakes({}, true).deps);
+    const refused = await post(broken, '/wifi/phone', { origin: LOCAL_ORIGIN });
+    expect(refused.status).toBe(503);
+    await expect(refused.json()).resolves.toEqual({
+      error: 'Bluetooth is not available, so the phone cannot be used.'
+    });
   });
 });
 
