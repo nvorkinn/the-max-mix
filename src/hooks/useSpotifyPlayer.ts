@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import type { MusicChoice, PlaybackState, RepeatMode, SdkPlaybackState, SpotifyPlayer, Track } from '../types';
+import type {
+  MusicChoice,
+  PlaybackState,
+  RepeatMode,
+  SdkPlaybackState,
+  SpotifyDevice,
+  SpotifyPlayer,
+  Track
+} from '../types';
 import * as spotify from '../spotify/api';
 import { getAccessToken, isSignedIn } from '../spotify/auth';
 import {
@@ -20,6 +28,11 @@ import { useSpotifyPolling } from './useSpotifyPolling';
 // Spotify's playback state lags a play/pause command by a second or more, so a read right after one still reports the
 // old state. For this long after a command the button keeps the state the command asked for.
 const EXPECTED_PLAYING_MS = 5000;
+// The same for the device: right after playback is started on, or moved to, this page, a read still names the device
+// that played before. For this long the page keeps showing itself as the device (and reads again once to check).
+const EXPECTED_DEVICE_MS = 8000;
+const THIS_DEVICE_NAME = 'The Max Mix';
+const DEVICE_CHECK_MS = 3000;
 // The same for shuffle and repeat: a tap shows its result at once and keeps it this long against reads that predate it.
 const EXPECTED_SETTING_MS = 5000;
 // While another device plays there are no SDK events, so the state is read this often.
@@ -170,6 +183,8 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   const [queueVersion, setQueueVersion] = useState(0);
   const playbackRequestRef = useRef(0);
   const expectedPlayingRef = useRef<{ playing: boolean; until: number } | null>(null);
+  const expectedDeviceRef = useRef<{ device: SpotifyDevice; until: number } | null>(null);
+  const deviceCheckRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const playPauseInFlightRef = useRef(false);
   // The Web Playback SDK player this page runs ("The Max Mix"), once it is connected.
   const playerRef = useRef<SpotifyPlayer | null>(null);
@@ -244,16 +259,30 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     return held.mode;
   }, []);
 
+  // The device a read should show: while playback is settling onto this page, a read that still names the previous
+  // device is shown as this page instead. Spotify agreeing, or the window passing, ends the hold.
+  const heldDevice = useCallback((state: PlaybackOrNull): PlaybackOrNull => {
+    const held = expectedDeviceRef.current;
+    if (!held || !state) return state;
+    if (state.device?.id === held.device.id || Date.now() > held.until) {
+      expectedDeviceRef.current = null;
+      return state;
+    }
+    return { ...state, device: held.device };
+  }, []);
+
   const refreshPlayback = useCallback(async () => {
     const requestId = ++playbackRequestRef.current;
     checkRetryWindow();
     const read = await spotify.getPlaybackState();
     if (requestId !== playbackRequestRef.current) return;
-    const state = read && {
-      ...read,
-      ...(read.shuffle_state !== undefined && { shuffle_state: heldShuffle(read.shuffle_state) }),
-      ...(read.repeat_state !== undefined && { repeat_state: heldRepeat(read.repeat_state) })
-    };
+    const state = heldDevice(
+      read && {
+        ...read,
+        ...(read.shuffle_state !== undefined && { shuffle_state: heldShuffle(read.shuffle_state) }),
+        ...(read.repeat_state !== undefined && { repeat_state: heldRepeat(read.repeat_state) })
+      }
+    );
     setConnectionError(null);
     setActionError(current =>
       current?.message === NETWORK_ERROR_MESSAGE || current?.recovery === 'wait' ? null : current
@@ -268,7 +297,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       }
     }
     setPlayback(state);
-  }, [setPlayback, checkRetryWindow, heldShuffle, heldRepeat]);
+  }, [setPlayback, checkRetryWindow, heldShuffle, heldRepeat, heldDevice]);
 
   const reportConnectionError = useCallback(
     (error: unknown) => {
@@ -299,7 +328,11 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
 
   // Reads playback from Spotify: at once, then every 4 s while another device plays, and only as a slow safety
   // net while this page's SDK player is active and tells us about every change itself.
-  const sdkDriven = sdkActive && !remoteSelected;
+  // Not while Spotify says another device plays (another device took over, or this page's player has not yet): the
+  // events then cannot be trusted to carry the changes, so the state is read every few seconds until it agrees.
+  const readDeviceId = snapshot.state?.device?.id;
+  const sdkDriven =
+    sdkActive && !remoteSelected && (!readDeviceId || !browserDeviceId || readDeviceId === browserDeviceId);
   useEffect(() => {
     // Once Spotify's quota is used up nothing reads it again until the app is restarted.
     if (!isAuthenticated || quotaExceeded) return;
@@ -593,6 +626,26 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     }
   };
 
+  useEffect(() => () => clearTimeout(deviceCheckRef.current), []);
+
+  /**
+   * Playback is being started on, or moved to, this page's player: show it as the device until Spotify says so too
+   * (its state lags by seconds and would name the previous device), and read once more shortly to check.
+   */
+  const holdThisDevice = useCallback(() => {
+    if (!browserDeviceId) return;
+    const device: SpotifyDevice = { id: browserDeviceId, name: THIS_DEVICE_NAME, type: 'Computer', is_active: true };
+    expectedDeviceRef.current = { device, until: Date.now() + EXPECTED_DEVICE_MS };
+    clearTimeout(deviceCheckRef.current);
+    deviceCheckRef.current = setTimeout(() => {
+      refreshPlayback().catch(() => {});
+    }, DEVICE_CHECK_MS);
+  }, [browserDeviceId, refreshPlayback]);
+  const releaseDevice = useCallback(() => {
+    expectedDeviceRef.current = null;
+    clearTimeout(deviceCheckRef.current);
+  }, []);
+
   /** Moves playback to a device through the Web API and brings the state up to date. */
   const transferTo = useCallback(
     async (deviceId: string, play: boolean) => {
@@ -601,12 +654,17 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       const toThisPage = deviceId === browserDeviceId;
       setRemoteSelected(!toThisPage);
       // This page's player is now the active device: later presses use the SDK, not another transfer.
-      if (toThisPage) markSdkActive(true);
+      if (toThisPage) {
+        holdThisDevice();
+        markSdkActive(true);
+      } else {
+        releaseDevice();
+      }
       await refreshPlayback();
       bumpQueue();
       setActionError(null);
     },
-    [browserDeviceId, markSdkActive, refreshPlayback, bumpQueue, checkRetryWindow]
+    [browserDeviceId, markSdkActive, refreshPlayback, bumpQueue, checkRetryWindow, holdThisDevice, releaseDevice]
   );
 
   // Flips the button at once and holds that state against stale reads; a second press while the first command is still
@@ -768,13 +826,19 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     player?.activateElement().catch(() => {});
     const activeId = playbackState?.device?.id ?? null;
     const deviceId = remoteSelected && activeId ? activeId : (browserDeviceId ?? activeId);
+    const toThisPage = Boolean(deviceId) && deviceId === browserDeviceId;
+    // Held before the command: the read that follows it already predates the change.
+    if (toThisPage) holdThisDevice();
+    else releaseDevice();
     const ok = await runCommand(() => spotify.playChoice(choice, deviceId));
     if (ok) {
-      if (deviceId && deviceId === browserDeviceId) {
+      if (toThisPage) {
         setRemoteSelected(false);
         markSdkActive(true);
       }
       bumpQueue();
+    } else {
+      releaseDevice();
     }
     return ok;
   };
