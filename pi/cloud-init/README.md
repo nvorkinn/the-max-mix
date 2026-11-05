@@ -59,9 +59,9 @@ Wi-Fi panel. `--no-poweroff` starts the kiosk again instead, for trying it out.
 2. `kiosk.service` starts [Cage](https://github.com/cage-kiosk/cage), a single-app Wayland compositor, on tty7 as the
    `kiosk` user. Cage runs `/usr/local/bin/kiosk-session` forever.
 3. `kiosk-session` waits up to 30 seconds for NetworkManager to report full connectivity (a check against
-   `network-test.debian.org`, set in `/etc/NetworkManager/conf.d/20-connectivity.conf`). If it does, it runs Chromium; if
-   not, it runs `/usr/local/bin/wifi-panel` until it connects. The panel offers Cancel only when a connection already
-   works.
+   `network-test.debian.org`, set in `/etc/NetworkManager/conf.d/20-connectivity.conf`). If it does, it runs Chromium on the app; if
+   not, it runs Chromium on the Wi-Fi setup page (`http://127.0.0.1:7341/wifi-setup`, served by kiosk-audio) until it
+   connects. The page offers Cancel only when a connection already works.
 4. `kiosk-pull.timer` runs `ansible-pull` three minutes after boot and then every six hours (or at once from the app's
    Update now button, which also follows the pull's journal), applying the playbook only when there is a new release, and its slow part only when the files it installs changed. A failed run only logs
    (`journalctl -u kiosk-pull`). A pull that changed kiosk files makes `kiosk-restart.timer` restart the kiosk at 04:30.

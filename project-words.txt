@@ -111,7 +111,6 @@ PSK
 publickey
 pwauth
 pycache
-pyside
 qml
 qtcore
 qtgui
@@ -151,7 +150,6 @@ ttyvt
 tzdata
 unescaped
 unescapes
-unittest
 unstub
 urlencode
 useradd

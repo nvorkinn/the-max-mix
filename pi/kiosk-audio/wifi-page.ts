@@ -1,4 +1,4 @@
-// The Wi-Fi setup page in the browser (the TypeScript port of pi/wifi-panel/qml). kiosk-audio serves it at
+// The Wi-Fi setup page in the browser. kiosk-audio serves it at
 // http://127.0.0.1:7341/wifi-setup with its types stripped (wifi-setup.ts), because it has to work with no internet. It
 // lists the networks in range, asks for the password on the sign-in keyboard (pi/kiosk-keyboard), and joins through
 // GET /wifi/networks and POST /wifi/connect. On success, or on Cancel, it calls POST /wifi/done, which closes it. Like

@@ -1,6 +1,6 @@
 ---
-# What a pull does. The playbook installs files from four folders of the pulled repository (ansible/, pi/kiosk-audio,
-# pi/kiosk-keyboard and pi/wifi-panel). Most releases change none of them (they change the web app, which the Pi loads
+# What a pull does. The playbook installs files from three folders of the pulled repository (ansible/,
+# pi/kiosk-audio and pi/kiosk-keyboard). Most releases change none of them (they change the web app, which the Pi loads
 # from the internet), and running every task on a Pi takes minutes, so the full set (full.yml) runs only when git's tree
 # ids for those folders are not the ones last applied. kiosk.service runs either way: it carries the release the settings show, which changes with
 # every new commit the pull finds (the playbook only runs then), not only when those folders do.
@@ -16,7 +16,6 @@
       - 'HEAD:ansible'
       - 'HEAD:pi/kiosk-audio'
       - 'HEAD:pi/kiosk-keyboard'
-      - 'HEAD:pi/wifi-panel'
   register: kiosk_trees
   changed_when: false
   failed_when: false

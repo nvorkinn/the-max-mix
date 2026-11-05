@@ -4,12 +4,6 @@
 # enabled when kiosk_enable_only is true; nothing restarts the running kiosk (see handlers).
 
 # Packages ------------------------------------------------------------------------------------------------------------
-- name: Read the Wi-Fi panel's package list
-  ansible.builtin.set_fact:
-    kiosk_panel_packages: >-
-      {{ lookup('ansible.builtin.file', kiosk_panel_src ~ '/packages.txt').splitlines()
-      | map('regex_replace', '\s*#.*$', '') | map('trim') | reject('equalto', '') | list }}
-
 # Installing packages is slow on a Pi even when nothing is missing (apt's cache is loaded from Python), and so are the
 # NodeSource key and archive checks. They are done again only when what they depend on changed: a stamp records the
 # packages, the Node.js version and the NodeSource key as last installed. The stamp is written after a successful install
@@ -18,7 +12,7 @@
 - name: Work out what the package step depends on
   ansible.builtin.set_fact:
     kiosk_all_packages: >-
-      {{ (kiosk_ansible_packages + kiosk_packages + kiosk_rpi_packages + kiosk_panel_packages) | unique }}
+      {{ (kiosk_ansible_packages + kiosk_packages + kiosk_rpi_packages) | unique }}
     kiosk_packages_done: >-
       {{ (lookup('ansible.builtin.file', kiosk_packages_stamp, errors='ignore') | default('', true)) | string | trim }}
 
@@ -336,8 +330,6 @@
       - /etc/systemd/user/default.target.wants
       - /etc/tmpfiles.d
       - /opt/the-max-mix
-      - '{{ kiosk_panel_dir }}'
-      - '{{ kiosk_panel_dir }}/qml'
       - '{{ kiosk_audio_dir }}'
       - '{{ kiosk_keyboard_dir }}'
       - '{{ kiosk_keyboard_dir }}/src'
@@ -369,7 +361,6 @@
     mode: '{{ item.mode }}'
   loop:
     - { src: bin/kiosk-session, dest: /usr/local/bin/kiosk-session, mode: '0755' }
-    - { src: bin/wifi-panel, dest: /usr/local/bin/wifi-panel, mode: '0755' }
     - { src: bin/kiosk-bluetooth-pair, dest: /usr/local/bin/kiosk-bluetooth-pair, mode: '0755' }
     - { src: bin/kiosk-display, dest: /usr/local/bin/kiosk-display, mode: '0755' }
     - { src: bin/kiosk-handover, dest: /usr/local/sbin/kiosk-handover, mode: '0755' }
@@ -379,20 +370,15 @@
     label: '{{ item.dest }}'
   notify: Ask for a kiosk restart
 
-- name: Install the Wi-Fi panel
-  ansible.builtin.copy:
-    src: '{{ kiosk_panel_src }}/{{ item }}'
-    dest: '{{ kiosk_panel_dir }}/{{ item }}'
-    owner: root
-    group: root
-    mode: '0644'
+# The Python Wi-Fi panel was replaced by the Wi-Fi setup page in kiosk-audio. Its Qt packages are left installed (Ansible
+# removes no packages); they can be purged by hand.
+- name: Remove the old Wi-Fi panel
+  ansible.builtin.file:
+    path: '{{ item }}'
+    state: absent
   loop:
-    - wifi_panel.py
-    - nmcli.py
-    - qml/Main.qml
-    - qml/PanelButton.qml
-    - qml/PanelField.qml
-  notify: Ask for a kiosk restart
+    - /usr/local/bin/wifi-panel
+    - /opt/the-max-mix/wifi-panel
 
 # Spotify's sign-in page needs a keyboard, and Cage has no protocol for a system one, so a small Chromium extension draws
 # its own on Spotify's sign-in pages. Chromium cannot load TypeScript, so the build strips the types (Node, no packages)
