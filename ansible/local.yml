@@ -10,5 +10,9 @@
   connection: local
   # Nothing here needs facts, and gathering them is slow and fragile in the playbook test's container.
   gather_facts: false
+  vars:
+    # Each task's module is fed to Python on stdin instead of being written to a temporary folder first, which saves a few
+    # file writes per task on the SD card. Nothing here uses become, so nothing stops pipelining from working.
+    ansible_pipelining: true
   roles:
     - kiosk
