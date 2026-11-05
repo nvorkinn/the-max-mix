@@ -119,6 +119,21 @@ describe('the Wi-Fi setup page', () => {
     expect(byId('join-view').hidden).toBe(true);
   });
 
+  it('keeps focus in the password box when Show is pressed, so the keyboard stays open', async () => {
+    await startPage(document, false).refresh();
+    networkButtons()[0]?.click();
+    const password = field('password');
+    password.focus();
+    for (const type of ['pointerdown', 'mousedown']) {
+      const press = new Event(type, { bubbles: true, cancelable: true });
+      byId('show').dispatchEvent(press);
+      expect(press.defaultPrevented).toBe(true);
+    }
+    byId('show').focus();
+    byId('show').click();
+    expect(document.activeElement).toBe(password);
+  });
+
   it('closes on Cancel', async () => {
     await startPage(document, true).refresh();
     byId('cancel').click();

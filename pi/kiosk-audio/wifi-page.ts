@@ -199,10 +199,18 @@ export function startPage(doc: Document, canCancel: boolean): { refresh: () => P
     event.preventDefault();
     submit();
   });
+  // Pressing the button must not take focus from the password box, as that would close the on-screen keyboard.
+  page.show.addEventListener('pointerdown', event => {
+    event.preventDefault();
+  });
+  page.show.addEventListener('mousedown', event => {
+    event.preventDefault();
+  });
   page.show.addEventListener('click', () => {
     const isHiddenNow = page.password.type === 'password';
     page.password.type = isHiddenNow ? 'text' : 'password';
     page.show.textContent = isHiddenNow ? 'Hide' : 'Show';
+    page.password.focus();
   });
   page.cancel.hidden = !canCancel;
   page.cancel.addEventListener('click', () => void close());
