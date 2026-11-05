@@ -26,7 +26,8 @@ account. The words in bold are what you'll see on the screen.
 
 ## 4. Choose music
 
-- Tap the library button at the top to open **Choose music**: Liked Songs, your playlists, or what you played recently.
+- Tap the library button at the top to open **Choose music**: Liked Songs, your playlists, what you played recently,
+  or **Search** to find any song, album or playlist.
 - Tap a song in the queue on the right to jump to it.
 - Tap the heart to save a song to Liked Songs.
 - Tap the microphone on the cover to show the lyrics, and the picture button to bring the cover back.
