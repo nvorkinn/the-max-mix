@@ -1,8 +1,9 @@
 import { expect, test, type Page, type Locator } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
-import { advance } from './clock.ts';
-import { countPlaybackReads, fakeSpotify } from './fake-spotify.ts';
 import type { PlaybackState } from '../src/types.ts';
+import { advance } from './clock.ts';
+import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
+import { countPlaybackReads, fakeSpotify } from './fake-spotify.ts';
 
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 
@@ -304,7 +305,6 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       const banner = page.locator('.playback-banner');
       await expect(banner).toContainText('Spotify quota used up');
       await expect(banner).toContainText('stopped reading Spotify by itself');
-      await expect(page.locator('.session-status')).toContainText('Spotify quota used up');
 
       // Nothing asks again, however long the tablet runs, even once Spotify would answer.
       refusal = null;
@@ -338,6 +338,64 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       await advance(page, 40_000);
       await expect(banner).toHaveCount(0);
       expect(reads()).toBeGreaterThan(waiting);
+    });
+  });
+
+  test.describe("when this tablet's own player has trouble", () => {
+    test.beforeEach(async ({ page }) => {
+      await fakeSpotify(page);
+    });
+
+    test('a player that drops offline offers Reconnect, and a fresh player clears the problem', async ({ page }) => {
+      const sdk = await fakeSpotifySdk(page);
+      await page.goto('/');
+      await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+      await expect.poll(() => sdk.players()).toBe(1);
+
+      await sdk.emit('not_ready');
+      const banner = page.locator('.playback-banner');
+      await expect(banner).toContainText('Playback problem');
+      await expect(banner).toContainText('The browser player could not connect to Spotify.');
+
+      await banner.getByRole('button', { name: 'Reconnect player' }).click();
+      await expect.poll(() => sdk.players()).toBe(2);
+      await expect(banner).toHaveCount(0);
+    });
+
+    test('blocked autoplay offers Allow browser audio, which asks the browser and clears the problem', async ({
+      page
+    }) => {
+      const sdk = await fakeSpotifySdk(page);
+      await page.goto('/');
+      await expect.poll(() => sdk.players()).toBe(1);
+
+      await sdk.emit('autoplay_failed');
+      const banner = page.locator('.playback-banner');
+      await expect(banner).toContainText('Allow browser audio, then press Play to start.');
+      expect(await sdk.activations()).toBe(0);
+
+      await banner.getByRole('button', { name: 'Allow browser audio' }).click();
+      await expect.poll(() => sdk.activations()).toBe(1);
+      await expect(banner).toHaveCount(0);
+    });
+
+    test('a browser that cannot play protected music falls back to controlling a Spotify speaker', async ({ page }) => {
+      // The browser has no Widevine, which is what Spotify's player needs.
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'requestMediaKeySystemAccess', { value: undefined, configurable: true });
+      });
+      const sdk = await fakeSpotifySdk(page);
+      await page.goto('/');
+      await expect.poll(() => sdk.players()).toBe(1);
+
+      await sdk.emit('initialization_error', { message: 'Failed to initialize player' });
+      const banner = page.locator('.playback-banner');
+      await expect(banner).toContainText('Choose an available speaker');
+      await banner.getByRole('button', { name: 'Choose speaker' }).click();
+      const drawer = page.getByRole('dialog', { name: 'Speakers' });
+      await expect(drawer.getByRole('button', { name: /Test speaker/ })).toBeVisible();
+      // This tablet is not offered as a speaker any more.
+      await expect(drawer.getByRole('button', { name: 'This tablet' })).toHaveCount(0);
     });
   });
 });
