@@ -13,8 +13,15 @@ const SONOS_CALLBACK_PATH = '/sonos/callback';
 
 type SignInResult = { ok: true } | { ok: false; error: string };
 
+// An access token is renewed this long before it expires, so a request never starts with one about to lapse.
+const EXPIRY_MARGIN_MS = 60_000;
+
 let memoryRefreshToken: string | null = null;
 let signInError: string | null = null;
+let cachedAccess: { token: string; expiresAt: number } | null = null;
+let refreshing: Promise<string | null> | null = null;
+// Bumped by signOutSonos so that a refresh already under way cannot bring a forgotten login back.
+let generation = 0;
 
 function readRefreshToken(): string | null {
   let raw: string | null;
@@ -115,6 +122,7 @@ async function finishSignIn(query: URLSearchParams): Promise<SignInResult> {
   if (!code) return { ok: false, error: 'Missing Sonos authorization code.' };
   try {
     writeRefreshToken(await requestRefreshToken(code));
+    cachedAccess = null;
     return { ok: true };
   } catch (cause) {
     return { ok: false, error: cause instanceof Error ? cause.message : 'Sonos sign-in failed.' };
@@ -149,8 +157,61 @@ export function isSonosSignedIn(): boolean {
   return readRefreshToken() !== null;
 }
 
-/** Forgets the Sonos login. */
+/** Asks the server function for a new access token with the stored refresh token. */
+async function refreshAccess(refreshToken: string): Promise<string | null> {
+  const started = generation;
+  const response = await fetch(ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken })
+  });
+  let data: Record<string, unknown> = {};
+  try {
+    data = recordOf(await response.json());
+  } catch {
+    // Not JSON: handled below.
+  }
+  // Signed out (or in again) while the server was answering: that result is stale.
+  if (started !== generation) return null;
+  if (response.status === 401) {
+    // Sonos says the login was revoked: forget it, so Settings offers to sign in again.
+    writeRefreshToken(null);
+    return null;
+  }
+  const { accessToken, refreshToken: newRefreshToken, expiresIn } = data;
+  if (typeof accessToken !== 'string' || typeof expiresIn !== 'number' || !response.ok) {
+    const error = data['error'];
+    throw new Error(typeof error === 'string' ? error : `Sonos could not be reached (${response.status}).`);
+  }
+  // Sonos may rotate the refresh token; keep the new one, else the old one stays valid.
+  if (typeof newRefreshToken === 'string' && newRefreshToken) writeRefreshToken(newRefreshToken);
+  cachedAccess = { token: accessToken, expiresAt: Date.now() + expiresIn * 1000 - EXPIRY_MARGIN_MS };
+  return accessToken;
+}
+
+/**
+ * A valid Sonos access token, refreshed when it is about to expire; concurrent callers share one refresh. Null when
+ * signed out, including when Sonos says the login was revoked. Throws when the refresh fails for another reason.
+ */
+export async function getSonosAccessToken(): Promise<string | null> {
+  const refreshToken = readRefreshToken();
+  if (!refreshToken) return null;
+  if (cachedAccess && Date.now() < cachedAccess.expiresAt) return cachedAccess.token;
+  refreshing ??= refreshAccess(refreshToken).finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
+}
+
+/** Drops the cached access token so the next getSonosAccessToken refreshes (used after Sonos answers 401). */
+export function discardSonosAccessToken(): void {
+  cachedAccess = null;
+}
+
+/** Forgets the Sonos login and the cached access token. */
 export function signOutSonos(): void {
+  generation += 1;
+  cachedAccess = null;
   writeRefreshToken(null);
   try {
     sessionStorage.removeItem(STATE_KEY);

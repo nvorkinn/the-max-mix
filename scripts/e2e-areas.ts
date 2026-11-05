@@ -44,7 +44,12 @@ export const AREAS: Area[] = [
   {
     tag: 'speakers',
     title: 'Speakers',
-    sources: [/^src\/components\/SpeakerDrawer/, /^src\/components\/AirPlaySpeakerList/, /^src\/audio\//]
+    sources: [
+      /^src\/components\/SpeakerDrawer/,
+      /^src\/components\/AirPlaySpeakerList/,
+      /^src\/components\/SonosGroupList/,
+      /^src\/audio\//
+    ]
   },
   {
     tag: 'update',
