@@ -34,9 +34,14 @@ run_wifi_panel() {
   rm -f "$wifi_flag"
 }
 
+# The on-screen keyboard for Spotify's sign-in pages (pi/kiosk-keyboard, built by the Ansible role). Chrome turned
+# --load-extension off by default in 2025; the --disable-features switch turns it back on where a build follows that.
+keyboard_extension=/opt/the-max-mix/kiosk-keyboard/extension
+
 run_chromium() {
   chromium --kiosk --ozone-platform=wayland --noerrdialogs --disable-infobars --no-first-run --password-store=basic \
     --autoplay-policy=no-user-gesture-required --disable-session-crashed-bubble --overscroll-history-navigation=0 \
+    --load-extension="$keyboard_extension" --disable-features=DisableLoadExtensionCommandLineSwitch \
     "$url" &
   echo $! > "$chromium_pid"
   wait $!

@@ -339,6 +339,9 @@
       - '{{ kiosk_panel_dir }}'
       - '{{ kiosk_panel_dir }}/qml'
       - '{{ kiosk_audio_dir }}'
+      - '{{ kiosk_keyboard_dir }}'
+      - '{{ kiosk_keyboard_dir }}/src'
+      - '{{ kiosk_keyboard_dir }}/extension'
       - /usr/share/icons/blank
       - /usr/share/icons/blank/cursors
       - /usr/share/kiosk-cursors
@@ -389,6 +392,33 @@
     - qml/Main.qml
     - qml/PanelButton.qml
     - qml/PanelField.qml
+  notify: Ask for a kiosk restart
+
+# Spotify's sign-in page needs a keyboard, and Cage has no protocol for a system one, so a small Chromium extension draws
+# its own on Spotify's sign-in pages. Chromium cannot load TypeScript, so the build strips the types (Node, no packages)
+# and prints "changed" only when it wrote a file.
+- name: Install the sign-in keyboard's source
+  ansible.builtin.copy:
+    src: '{{ kiosk_keyboard_src }}/{{ item }}'
+    dest: '{{ kiosk_keyboard_dir }}/src/{{ item }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - build.ts
+    - keyboard.ts
+    - loader.ts
+    - manifest.json
+
+- name: Build the sign-in keyboard
+  ansible.builtin.command:
+    argv:
+      - node
+      - '{{ kiosk_keyboard_dir }}/src/build.ts'
+      - '{{ kiosk_keyboard_dir }}/src'
+      - '{{ kiosk_keyboard_dir }}/extension'
+  register: kiosk_keyboard_build
+  changed_when: "'changed' in kiosk_keyboard_build.stdout"
   notify: Ask for a kiosk restart
 
 # AirPlay: PipeWire makes a sink for each speaker Avahi finds; the app asks the kiosk-audio service (127.0.0.1) to route

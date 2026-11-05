@@ -63,6 +63,8 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/wifi-panel \
   /opt/the-max-mix/kiosk-audio/kiosk-audio.ts /opt/the-max-mix/kiosk-audio/speakers.ts \
   /opt/the-max-mix/kiosk-audio/server.ts /opt/the-max-mix/kiosk-audio/actions.ts \
   /opt/the-max-mix/kiosk-audio/update.ts /opt/the-max-mix/kiosk-audio/update-socket.ts \
+  /opt/the-max-mix/kiosk-keyboard/extension/manifest.json /opt/the-max-mix/kiosk-keyboard/extension/loader.js \
+  /opt/the-max-mix/kiosk-keyboard/extension/keyboard.js \
   /opt/the-max-mix/kiosk-audio/node_modules/ws/package.json /var/lib/the-max-mix/kiosk-audio-deps.sha1 \
   /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf /etc/systemd/user/default.target.wants/kiosk-audio.service; do
   check test -e "$file"
