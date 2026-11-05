@@ -96,7 +96,7 @@ export default function AlbumArtPlayer({
       Playing on <b>{deviceName}</b>
     </>
   ) : (
-    <b>Select a device in Speakers</b>
+    <b>Select a device</b>
   );
 
   const formatTime = (ms: number) => {
