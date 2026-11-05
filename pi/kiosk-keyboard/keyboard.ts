@@ -54,10 +54,10 @@ export function isTextField(element: Element | null): element is Field {
   return isText && !field.disabled && !field.readOnly;
 }
 
-export function keyLabel(key: Key, shifted: boolean): string {
+export function keyLabel(key: Key, isShifted: boolean): string {
   switch (key.kind) {
     case 'char': {
-      return shifted ? key.text.toUpperCase() : key.text;
+      return isShifted ? key.text.toUpperCase() : key.text;
     }
     case 'page': {
       return key.label;
@@ -96,9 +96,9 @@ export function insertText(field: Field, text: string): void {
   // eslint-disable-next-line @typescript-eslint/no-deprecated -- see above
   if (field.ownerDocument.execCommand('insertText', false, text)) return;
   const { value } = field;
-  const start = field.selectionStart ?? value.length;
-  const end = field.selectionEnd ?? value.length;
-  setValue(field, value.slice(0, start) + text + value.slice(end), start + text.length);
+  const from = field.selectionStart ?? value.length;
+  const to = field.selectionEnd ?? value.length;
+  setValue(field, value.slice(0, from) + text + value.slice(to), from + text.length);
 }
 
 /** Deletes the selection, or the character before the caret. */
@@ -106,10 +106,10 @@ export function deleteBackward(field: Field): void {
   // eslint-disable-next-line @typescript-eslint/no-deprecated -- as in insertText
   if (field.ownerDocument.execCommand('delete')) return;
   const { value } = field;
-  const end = field.selectionEnd ?? value.length;
-  const start = Math.min(field.selectionStart ?? value.length, end);
-  const from = start === end ? Math.max(0, start - 1) : start;
-  setValue(field, value.slice(0, from) + value.slice(end), from);
+  const to = field.selectionEnd ?? value.length;
+  const selected = Math.min(field.selectionStart ?? value.length, to);
+  const from = selected === to ? Math.max(0, selected - 1) : selected;
+  setValue(field, value.slice(0, from) + value.slice(to), from);
 }
 
 const STYLE = `
@@ -146,7 +146,7 @@ export function start(doc: Document): () => void {
   root.append(style, board);
 
   let page: Page = 'letters';
-  let shifted = false;
+  let isShifted = false;
   let field: Field | undefined;
   let savedPadding: string | undefined;
 
@@ -159,12 +159,15 @@ export function start(doc: Document): () => void {
         button.type = 'button';
         button.tabIndex = -1;
         button.dataset['key'] = `${row}:${column}`;
-        button.textContent = keyLabel(key, shifted && page === 'letters');
+        button.textContent = keyLabel(key, isShifted && page === 'letters');
         if (key.kind === 'space') button.className = 'space';
         else if (key.kind !== 'char') button.className = 'action';
-        if (key.kind === 'shift' && shifted) button.classList.add('on');
-        if (key.kind === 'shift') button.setAttribute('aria-label', 'Shift');
-        if (key.kind === 'backspace') button.setAttribute('aria-label', 'Delete');
+        if (key.kind === 'shift') {
+          button.setAttribute('aria-label', 'Shift');
+          if (isShifted) button.classList.add('on');
+        } else if (key.kind === 'backspace') {
+          button.setAttribute('aria-label', 'Delete');
+        }
         line.append(button);
       }
       return line;
@@ -189,16 +192,16 @@ export function start(doc: Document): () => void {
     host.style.display = 'none';
     doc.body.style.paddingBottom = savedPadding ?? '';
     page = 'letters';
-    shifted = false;
+    isShifted = false;
     render();
   };
 
   const press = (key: Key, target: Field): void => {
     switch (key.kind) {
       case 'char': {
-        insertText(target, shifted && page === 'letters' ? key.text.toUpperCase() : key.text);
-        if (shifted) {
-          shifted = false;
+        insertText(target, isShifted && page === 'letters' ? key.text.toUpperCase() : key.text);
+        if (isShifted) {
+          isShifted = false;
           render();
         }
         break;
@@ -212,13 +215,13 @@ export function start(doc: Document): () => void {
         break;
       }
       case 'shift': {
-        shifted = !shifted;
+        isShifted = !isShifted;
         render();
         break;
       }
       case 'page': {
         page = key.page;
-        shifted = false;
+        isShifted = false;
         render();
         break;
       }
@@ -234,8 +237,8 @@ export function start(doc: Document): () => void {
   const onPointerDown = (event: Event): void => {
     event.preventDefault();
     const button = (event.target as Element | null)?.closest('button');
-    const [row, column] = (button?.dataset['key'] ?? '').split(':').map(Number);
-    const key = LAYOUTS[page][row ?? -1]?.[column ?? -1];
+    const [row = -1, column = -1] = (button?.dataset['key'] ?? '').split(':').map(Number);
+    const key = LAYOUTS[page][row]?.[column];
     if (key && field) press(key, field);
   };
 
@@ -252,13 +255,13 @@ export function start(doc: Document): () => void {
 
   render();
   board.addEventListener('pointerdown', onPointerDown);
-  doc.addEventListener('focusin', onFocusIn, true);
-  doc.addEventListener('focusout', onFocusOut, true);
+  doc.addEventListener('focusin', onFocusIn, { capture: true });
+  doc.addEventListener('focusout', onFocusOut, { capture: true });
   if (isTextField(doc.activeElement)) show(doc.activeElement);
 
   return () => {
-    doc.removeEventListener('focusin', onFocusIn, true);
-    doc.removeEventListener('focusout', onFocusOut, true);
+    doc.removeEventListener('focusin', onFocusIn, { capture: true });
+    doc.removeEventListener('focusout', onFocusOut, { capture: true });
     hide();
     host.remove();
   };
