@@ -1,6 +1,6 @@
 // Spotify Web API calls made straight from the browser (Spotify allows CORS for them).
 
-import type { PlaybackState, RepeatMode, SpotifyDevice, Track } from '../types';
+import type { MusicChoice, PlaybackState, RepeatMode, SpotifyDevice, Track } from '../types';
 import { discardAccessToken, getAccessToken, isSignedIn } from './auth';
 import {
   checkSpotifyRetryWindow,
@@ -12,7 +12,7 @@ import {
   spotifyRetryAfter,
   SpotifyApiError
 } from './http';
-import { isRecord, parseDevices, parsePlaybackState, parseQueue } from './parse';
+import { isRecord, parseDevices, parsePlaybackState, parsePlaylists, parseQueue, parseRecentlyPlayed } from './parse';
 
 export { SpotifyApiError } from './http';
 
@@ -158,4 +158,35 @@ export async function isTrackSaved(uri: string): Promise<boolean> {
 export async function setTrackSaved(uri: string, saved: boolean): Promise<{ success: true }> {
   requireTrackUri(uri);
   return command(`/me/library?uris=${encodeURIComponent(uri)}`, saved ? 'PUT' : 'DELETE');
+}
+
+/** The tracks played most recently, newest first. */
+export async function getRecentlyPlayed(): Promise<MusicChoice[]> {
+  return parseRecentlyPlayed(await spotifyFetch('/me/player/recently-played?limit=30'));
+}
+
+/** The playlists the user made or follows. */
+export async function getPlaylists(): Promise<MusicChoice[]> {
+  return parsePlaylists(await spotifyFetch('/me/playlists?limit=50'));
+}
+
+/** The signed-in user's Liked Songs, as a context that can be played. */
+export async function getLikedSongs(): Promise<MusicChoice> {
+  const me = await spotifyFetch('/me');
+  const id = isRecord(me) ? me['id'] : undefined;
+  if (typeof id !== 'string' || !id) throw new SpotifyApiError('Spotify did not say who is signed in.', 502);
+  return { uri: `spotify:user:${id}:collection`, name: 'Liked Songs' };
+}
+
+/**
+ * Starts `choice` on `deviceId` (or the active device): a playlist or Liked Songs from the top, a track from where it was
+ * played (its album or playlist) so the music carries on after it.
+ */
+export async function playChoice(choice: MusicChoice, deviceId: string | null): Promise<{ success: true }> {
+  let body: unknown = { context_uri: choice.uri };
+  if (choice.uri.startsWith('spotify:track:')) {
+    body = choice.contextUri ? { context_uri: choice.contextUri, offset: { uri: choice.uri } } : { uris: [choice.uri] };
+  }
+  const device = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : '';
+  return command(`/me/player/play${device}`, 'PUT', body);
 }

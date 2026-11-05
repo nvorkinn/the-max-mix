@@ -30,6 +30,17 @@ describe('useSpotifyPlayer', () => {
     expect(result.current.isAuthenticated).toBe(true);
   });
 
+  it('starts a chosen playlist on the device that is playing when this page has no player', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(playing);
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+    const choice = { uri: 'spotify:playlist:p', name: 'Road trip' };
+    await act(async () => {
+      expect(await result.current.playMusic(choice)).toBe(true);
+    });
+    expect(mocks.api.playChoice).toHaveBeenCalledWith(choice, 'd');
+  });
+
   it('reads the configuration from the settings and the stored login', async () => {
     mocks.api.getPlaybackState.mockResolvedValue(playing);
     const { result } = renderHook(() => useSpotifyPlayer());

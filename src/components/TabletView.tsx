@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, CSSProperties } from 'react';
-import { AudioLines, Clock, Moon, Settings } from 'lucide-react';
+import { AudioLines, Clock, Library, Moon, Settings } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useKioskUpdate } from '../hooks/useKioskUpdate';
@@ -32,6 +32,7 @@ import SettingsModal from './SettingsModal';
 import UpdateConsole from './UpdateConsole';
 import UpdatePrompt from './UpdatePrompt';
 import SpeakerDrawer from './SpeakerDrawer';
+import MusicPicker from './MusicPicker';
 import DebugConsole from './DebugConsole';
 import SleepScreen from './SleepScreen';
 
@@ -96,6 +97,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     liked,
     toggleLike,
     transferPlayback,
+    playMusic,
     setSlowPolling
   } = useSpotifyPlayer();
   const error = playerError || signInError;
@@ -114,6 +116,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [currentTime, setCurrentTime] = useState(formatClock);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSpeakerModalOpen, setIsSpeakerModalOpen] = useState(false);
+  const [isMusicOpen, setIsMusicOpen] = useState(false);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const debugHold = useHold(() => setIsDebugOpen(true), DEBUG_HOLD_MS);
   const [queueError, setQueueError] = useState<string | null>(null);
@@ -369,6 +372,17 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           <span className="header-clock" {...debugHold}>
             <Clock size={14} /> {currentTime}
           </span>
+          {!needsConnection && (
+            <button
+              type="button"
+              onClick={() => setIsMusicOpen(true)}
+              className="icon-button"
+              title="Choose music"
+              aria-label="Choose music"
+            >
+              <Library size={28} />
+            </button>
+          )}
           {onKiosk && (
             <button
               type="button"
@@ -473,6 +487,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         onAirPlayChange={chooseAirPlaySpeakers}
       />
 
+      <MusicPicker
+        isOpen={isMusicOpen && !needsConnection}
+        onClose={() => setIsMusicOpen(false)}
+        onPlay={playMusic}
+        disabled={!controlsEnabled}
+      />
+
       <DebugConsole
         isOpen={isDebugOpen}
         onClose={() => setIsDebugOpen(false)}
@@ -512,16 +533,21 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           the settings (which check again each time they open), and starting the update from it closes them: the console takes
           over. Dialogs stack in the order they were opened (the browser's top layer), and this one can only open after the
           settings, which the page behind a modal dialog cannot reopen: e2e/update-popup.spec.ts checks it is on top. */}
-      {kioskUpdate.prompting && kioskUpdate.newer && !sleep.asleep && !isSpeakerModalOpen && !isDebugOpen && (
-        <UpdatePrompt
-          newer={kioskUpdate.newer}
-          onUpdate={() => {
-            kioskUpdate.start();
-            setIsSettingsOpen(false);
-          }}
-          onLater={kioskUpdate.dismissPrompt}
-        />
-      )}
+      {kioskUpdate.prompting &&
+        kioskUpdate.newer &&
+        !sleep.asleep &&
+        !isSpeakerModalOpen &&
+        !isMusicOpen &&
+        !isDebugOpen && (
+          <UpdatePrompt
+            newer={kioskUpdate.newer}
+            onUpdate={() => {
+              kioskUpdate.start();
+              setIsSettingsOpen(false);
+            }}
+            onLater={kioskUpdate.dismissPrompt}
+          />
+        )}
       <UpdateConsole update={kioskUpdate} />
 
       {sleep.asleep && <SleepScreen onWake={sleep.wake} />}

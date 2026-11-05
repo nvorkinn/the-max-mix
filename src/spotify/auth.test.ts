@@ -69,7 +69,7 @@ describe('spotify/auth', () => {
       expect(url.searchParams.get('redirect_uri')).toBe('http://127.0.0.1:3000/');
       expect(url.searchParams.get('code_challenge_method')).toBe('S256');
       expect(url.searchParams.get('scope')).toBe(
-        'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing user-library-read user-library-modify'
+        'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing user-library-read user-library-modify user-read-recently-played playlist-read-private'
       );
       const { state, verifier } = parseJson(sessionStorage.getItem('maxmix.pkce') ?? 'null') as {
         state: string;

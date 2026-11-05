@@ -1,7 +1,7 @@
 // Turns the untrusted JSON that Spotify (and the browser's storage) hands back into the app's types. Each parser keeps
 // the fields it knows when they have the right type and drops the rest, so a malformed reply degrades to missing data
 // instead of reaching the UI as a value of the wrong type.
-import type { PlaybackState, SpotifyDevice, Track } from '../types';
+import type { MusicChoice, PlaybackState, SpotifyDevice, Track } from '../types';
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -127,4 +127,44 @@ export function parseQueue(value: unknown): { currently_playing: Track | null; q
 
 export function parseDevices(value: unknown): { devices: SpotifyDevice[] } {
   return { devices: parseAll(isRecord(value) ? value['devices'] : undefined, parseDevice) };
+}
+
+const firstImage = (value: unknown): string | undefined =>
+  text(recordOf(list(value).find(image => isRecord(image) && text(image['url'])))['url']);
+
+/** The tracks in a recently-played reply, newest first, each once. */
+export function parseRecentlyPlayed(value: unknown): MusicChoice[] {
+  const seen = new Set<string>();
+  return parseAll(recordOf(value)['items'], item => {
+    const entry = recordOf(item);
+    const track = recordOf(entry['track']);
+    const uri = text(track['uri']);
+    const name = text(track['name']);
+    if (!uri || !name || seen.has(uri)) return;
+    seen.add(uri);
+    const choice: MusicChoice = { uri, name };
+    const artists = parseAll(track['artists'], artist => text(recordOf(artist)['name'])).join(', ');
+    if (artists) choice.detail = artists;
+    const image = firstImage(recordOf(track['album'])['images']);
+    if (image) choice.image = image;
+    const contextUri = text(recordOf(entry['context'])['uri']);
+    if (contextUri) choice.contextUri = contextUri;
+    return choice;
+  });
+}
+
+/** The user's playlists, as /me/playlists lists them. */
+export function parsePlaylists(value: unknown): MusicChoice[] {
+  return parseAll(recordOf(value)['items'], item => {
+    const playlist = recordOf(item);
+    const uri = text(playlist['uri']);
+    const name = text(playlist['name']);
+    if (!uri || !name) return;
+    const choice: MusicChoice = { uri, name };
+    const owner = text(recordOf(playlist['owner'])['display_name']);
+    if (owner) choice.detail = `By ${owner}`;
+    const image = firstImage(playlist['images']);
+    if (image) choice.image = image;
+    return choice;
+  });
 }

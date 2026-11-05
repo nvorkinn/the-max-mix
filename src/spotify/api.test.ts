@@ -445,4 +445,45 @@ describe('spotify/api', () => {
       expect(error).toBeInstanceOf(Error);
     });
   });
+  describe('music picker', () => {
+    it('reads recently played tracks and the playlists', async () => {
+      fetchMock.mockResolvedValueOnce(
+        json({ items: [{ track: { uri: 'spotify:track:t', name: 'T' }, context: { uri: 'spotify:album:a' } }] })
+      );
+      expect(await api.getRecentlyPlayed()).toEqual([
+        { uri: 'spotify:track:t', name: 'T', contextUri: 'spotify:album:a' }
+      ]);
+      expect(callOf(fetchMock).url).toBe('https://api.spotify.com/v1/me/player/recently-played?limit=30');
+      fetchMock.mockResolvedValueOnce(json({ items: [{ uri: 'spotify:playlist:p', name: 'P' }] }));
+      expect(await api.getPlaylists()).toEqual([{ uri: 'spotify:playlist:p', name: 'P' }]);
+      expect(callOf(fetchMock, 1).url).toBe('https://api.spotify.com/v1/me/playlists?limit=50');
+    });
+
+    it("names the user's Liked Songs from their id", async () => {
+      fetchMock.mockResolvedValueOnce(json({ id: 'max' }));
+      expect(await api.getLikedSongs()).toEqual({ uri: 'spotify:user:max:collection', name: 'Liked Songs' });
+      expect(callOf(fetchMock).url).toBe('https://api.spotify.com/v1/me');
+      fetchMock.mockResolvedValueOnce(json({}));
+      await expect(api.getLikedSongs()).rejects.toThrow('Spotify did not say who is signed in.');
+    });
+
+    it('plays a context from the top, and a track from where it was played', async () => {
+      fetchMock.mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
+      await api.playChoice({ uri: 'spotify:playlist:p', name: 'P' }, 'web 1');
+      await api.playChoice({ uri: 'spotify:track:t', name: 'T', contextUri: 'spotify:album:a' }, null);
+      await api.playChoice({ uri: 'spotify:track:t', name: 'T' }, 'd');
+      const calls = [0, 1, 2].map(call => callOf(fetchMock, call));
+      expect(calls.map(({ url }) => url)).toEqual([
+        'https://api.spotify.com/v1/me/player/play?device_id=web%201',
+        'https://api.spotify.com/v1/me/player/play',
+        'https://api.spotify.com/v1/me/player/play?device_id=d'
+      ]);
+      expect(calls.map(({ init }) => JSON.parse(init.body as string) as unknown)).toEqual([
+        { context_uri: 'spotify:playlist:p' },
+        { context_uri: 'spotify:album:a', offset: { uri: 'spotify:track:t' } },
+        { uris: ['spotify:track:t'] }
+      ]);
+      expect(calls[0]?.init.method).toBe('PUT');
+    });
+  });
 });

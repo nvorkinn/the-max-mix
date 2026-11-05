@@ -86,6 +86,16 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
     });
   });
 
+  test('music picker', { tag: '@music' }, async ({ page }) => {
+    await fakeSpotify(page);
+    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Choose music' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Choose music' });
+    await expect(dialog.getByRole('button', { name: /Deep Focus/ })).toBeVisible();
+    await expect(dialog).toHaveScreenshot('music-picker.png', SHOT);
+  });
+
   test('signed-out setup screen', { tag: '@setup' }, async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();

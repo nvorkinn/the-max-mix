@@ -11,6 +11,7 @@ browser. Run them with `npm run build && npm run test:e2e`.
 | `app.spec.ts`        | The app as a whole (`@app`): loads without errors, zoom                                                       |
 | `player.spec.ts`     | Player controls (`@player`): play/pause, seek, next/previous, shuffle, repeat, like, volume                   |
 | `queue.spec.ts`      | The queue (`@queue`)                                                                                          |
+| `music.spec.ts`      | Choosing music on the screen: playlists, Liked Songs, recent (`@music`)                                       |
 | `lyrics.spec.ts`     | Lyrics (`@lyrics`)                                                                                            |
 | `speakers.spec.ts`   | Speakers (`@speakers`): the drawer and AirPlay on the kiosk                                                   |
 | `settings.spec.ts`   | Settings (`@settings`): colour, polling, screen sleep, kiosk-only buttons                                     |

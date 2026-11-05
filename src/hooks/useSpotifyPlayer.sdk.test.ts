@@ -447,6 +447,40 @@ describe('useSpotifyPlayer drives its own SDK player', () => {
     expect(player.togglePlay).not.toHaveBeenCalled();
   });
 
+  it('starts a chosen playlist on this page, which then plays through the SDK', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(webState('phone'));
+    const { result, player } = await setup(false);
+    const choice = { uri: 'spotify:playlist:p', name: 'Road trip' };
+    await act(async () => {
+      expect(await result.current.playMusic(choice)).toBe(true);
+    });
+    expect(player.activateElement).toHaveBeenCalled();
+    expect(mocks.api.playChoice).toHaveBeenCalledWith(choice, 'web-1');
+    expect(result.current.sdkActive).toBe(true);
+  });
+
+  it('starts a choice on the speaker picked under Speakers', async () => {
+    const { result } = await setup(true);
+    mocks.api.getPlaybackState.mockResolvedValue(webState('kitchen'));
+    await act(async () => {
+      await result.current.transferPlayback('kitchen');
+    });
+    const choice = { uri: 'spotify:track:t', name: 'Song' };
+    await act(async () => {
+      expect(await result.current.playMusic(choice)).toBe(true);
+    });
+    expect(mocks.api.playChoice).toHaveBeenCalledWith(choice, 'kitchen');
+  });
+
+  it('reports a choice Spotify would not start', async () => {
+    const { result } = await setup(false);
+    mocks.api.playChoice.mockRejectedValue(new SpotifyApiError('Spotify request failed (500).', 500));
+    await act(async () => {
+      expect(await result.current.playMusic({ uri: 'spotify:playlist:p', name: 'P' })).toBe(false);
+    });
+    expect(result.current.error).toBe('Spotify request failed (500).');
+  });
+
   it('Play from a paused, inactive page transfers once, then uses the SDK', async () => {
     mocks.api.getPlaybackState.mockResolvedValue(webState('phone', false));
     const { result, player } = await setup(false);

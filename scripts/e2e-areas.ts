@@ -20,6 +20,11 @@ export const AREAS: Area[] = [
     title: 'Player',
     sources: [/^src\/components\/AlbumArtPlayer/, /^src\/hooks\/useSpotifyPlayer/, /^src\/spotify\/api\.ts$/]
   },
+  {
+    tag: 'music',
+    title: 'Choose music',
+    sources: [/^src\/components\/MusicPicker/]
+  },
   { tag: 'queue', title: 'Queue', sources: [/^src\/components\/TrackQueue/, /^src\/components\/TrackImages/] },
   {
     tag: 'lyrics',
