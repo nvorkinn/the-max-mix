@@ -33,7 +33,7 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     expect(box).toMatchObject({ x: 0, y: 0, width: 1024, height: 600 });
 
     // Music is playing, and still the screen stays asleep.
-    await advance(page, 10_000);
+    await advance(page, 10_000, 5000);
     await expect(wake).toBeVisible();
 
     await wake.click();
@@ -63,7 +63,7 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     // Falling asleep reads once more, then it goes quiet.
     await advance(page, 1000);
     const asleep = reads();
-    await advance(page, 30_000);
+    await advance(page, 30_000, 5000);
     expect(reads()).toBe(asleep);
     await advance(page, 20_000);
     expect(reads() - asleep).toBeGreaterThanOrEqual(1);

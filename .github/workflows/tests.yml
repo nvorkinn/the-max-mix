@@ -40,14 +40,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # The runner's disk is read in lazily, so Chrome's first start takes about ten seconds. Starting it once in the
+      # background lets that happen while the dependencies install, instead of before the first test.
+      - name: Warm up Chrome
+        run: (google-chrome --headless --disable-gpu --dump-dom about:blank > /dev/null 2>&1 &)
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --ignore-scripts
+      # Unpacking node_modules from the cache is quicker than `npm ci` writing its 800 packages one by one.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: modules
+        with:
+          path: node_modules
+          key: e2e-node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json') }}
+      - if: steps.modules.outputs.cache-hit != 'true'
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run build
       # The test videos need Playwright's ffmpeg, a small download; the browser itself is the preinstalled Chrome.
       - run: npx playwright install ffmpeg
