@@ -42,6 +42,8 @@ test.describe('Setup and signing in', { tag: '@setup' }, () => {
     await page.getByRole('button', { name: 'Connect Spotify' }).click();
     await expect(page).toHaveURL(/^https:\/\/accounts\.spotify\.com\/authorize\?/);
     await expect(page.getByRole('heading', { name: 'Test sign-in page' })).toBeVisible();
+    // A first sign-in lets Spotify skip its approval page for someone who approved the app before.
+    expect(new URL(page.url()).searchParams.has('show_dialog')).toBe(false);
   });
 
   test('failed sign-in retains recovery and diagnostics', async ({ page }) => {

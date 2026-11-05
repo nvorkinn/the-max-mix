@@ -20,6 +20,8 @@ import { useSpotifyPolling } from './useSpotifyPolling';
 // Spotify's playback state lags a play/pause command by a second or more, so a read right after one still reports the
 // old state. For this long after a command the button keeps the state the command asked for.
 const EXPECTED_PLAYING_MS = 5000;
+// The same for shuffle and repeat: a tap shows its result at once and keeps it this long against reads that predate it.
+const EXPECTED_SETTING_MS = 5000;
 // While another device plays there are no SDK events, so the state is read this often.
 const REMOTE_POLL_MS = 4000;
 // While the kiosk's screen sleeps nobody is watching, so the state is read this seldom: a sleeping tablet that kept
@@ -218,11 +220,40 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     playbackRequestRef.current++;
   }, []);
 
+  // The shuffle and repeat a tap asked for, held against reads that predate it until Spotify agrees or the hold runs out.
+  const expectedSettingsRef = useRef<{
+    shuffle?: { on: boolean; until: number } | undefined;
+    repeat?: { mode: RepeatMode; until: number } | undefined;
+  }>({});
+  const heldShuffle = useCallback((reported: boolean) => {
+    const held = expectedSettingsRef.current.shuffle;
+    if (!held) return reported;
+    if (reported === held.on || Date.now() > held.until) {
+      expectedSettingsRef.current = { ...expectedSettingsRef.current, shuffle: undefined };
+      return reported;
+    }
+    return held.on;
+  }, []);
+  const heldRepeat = useCallback((reported: RepeatMode) => {
+    const held = expectedSettingsRef.current.repeat;
+    if (!held) return reported;
+    if (reported === held.mode || Date.now() > held.until) {
+      expectedSettingsRef.current = { ...expectedSettingsRef.current, repeat: undefined };
+      return reported;
+    }
+    return held.mode;
+  }, []);
+
   const refreshPlayback = useCallback(async () => {
     const requestId = ++playbackRequestRef.current;
     checkRetryWindow();
-    const state = await spotify.getPlaybackState();
+    const read = await spotify.getPlaybackState();
     if (requestId !== playbackRequestRef.current) return;
+    const state = read && {
+      ...read,
+      ...(read.shuffle_state !== undefined && { shuffle_state: heldShuffle(read.shuffle_state) }),
+      ...(read.repeat_state !== undefined && { repeat_state: heldRepeat(read.repeat_state) })
+    };
     setConnectionError(null);
     setActionError(current =>
       current?.message === NETWORK_ERROR_MESSAGE || current?.recovery === 'wait' ? null : current
@@ -237,7 +268,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       }
     }
     setPlayback(state);
-  }, [setPlayback, checkRetryWindow]);
+  }, [setPlayback, checkRetryWindow, heldShuffle, heldRepeat]);
 
   const reportConnectionError = useCallback(
     (error: unknown) => {
@@ -353,8 +384,8 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         ...withPlaying(current ?? {}, !state.paused),
         progress_ms: state.position,
         ...(state.duration !== undefined && { duration: state.duration }),
-        ...(state.shuffle !== undefined && { shuffle_state: state.shuffle }),
-        ...(repeat && { repeat_state: repeat }),
+        ...(state.shuffle !== undefined && { shuffle_state: heldShuffle(state.shuffle) }),
+        ...(repeat && { repeat_state: heldRepeat(repeat) }),
         // The Web API's track has more detail than the SDK's, so it is only replaced when the track changed.
         ...(track && current?.item?.id !== track.id && { item: track })
       }));
@@ -519,6 +550,8 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     setPlayback,
     markSdkActive,
     bumpQueue,
+    heldShuffle,
+    heldRepeat,
     connectionVersion
   ]);
 
@@ -616,16 +649,45 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     (await runSdkCommand(command)) ?? runCommand(apiCommand);
 
   /**
-   * Sends a shuffle or repeat change. The buttons only follow what Spotify reports (the SDK's state event, or the next
-   * poll while another device plays), so the press itself changes nothing on screen.
+   * Sends a shuffle or repeat change. The button shows the new setting at once and keeps it against reads that predate
+   * the change, until Spotify reports the same (or EXPECTED_SETTING_MS has passed); a change that fails puts it back.
    */
-  const runSetting = async (apiCommand: () => Promise<unknown>) => {
+  const runSetting = async (apiCommand: () => Promise<unknown>, change: { shuffle?: boolean; repeat?: RepeatMode }) => {
+    const before = { shuffle: playbackState?.shuffle_state, repeat: playbackState?.repeat_state };
+    const until = Date.now() + EXPECTED_SETTING_MS;
+    expectedSettingsRef.current = {
+      ...expectedSettingsRef.current,
+      ...(change.shuffle !== undefined && { shuffle: { on: change.shuffle, until } }),
+      ...(change.repeat && { repeat: { mode: change.repeat, until } })
+    };
+    setPlayback(
+      current =>
+        current && {
+          ...current,
+          ...(change.shuffle !== undefined && { shuffle_state: change.shuffle }),
+          ...(change.repeat && { repeat_state: change.repeat })
+        }
+    );
     try {
       checkRetryWindow();
       await apiCommand();
       setActionError(null);
       return true;
     } catch (error) {
+      // Back to what it was, and no longer held.
+      expectedSettingsRef.current = {
+        ...expectedSettingsRef.current,
+        ...(change.shuffle !== undefined && { shuffle: undefined }),
+        ...(change.repeat && { repeat: undefined })
+      };
+      setPlayback(
+        current =>
+          current && {
+            ...current,
+            ...(change.shuffle !== undefined && before.shuffle !== undefined && { shuffle_state: before.shuffle }),
+            ...(change.repeat && before.repeat && { repeat_state: before.repeat })
+          }
+      );
       setActionError(problemForApi(error));
       return false;
     }
@@ -758,11 +820,11 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       ),
     toggleShuffle: () => {
       const on = !playbackState?.shuffle_state;
-      return runSetting(() => spotify.setShuffle(on));
+      return runSetting(() => spotify.setShuffle(on), { shuffle: on });
     },
     cycleRepeat: () => {
       const mode = NEXT_REPEAT[playbackState?.repeat_state ?? 'off'];
-      return runSetting(() => spotify.setRepeat(mode));
+      return runSetting(() => spotify.setRepeat(mode), { repeat: mode });
     },
     liked,
     toggleLike,

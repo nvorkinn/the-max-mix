@@ -250,7 +250,8 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       await expect.poll(() => api.playbackReads).toBeGreaterThan(playbackReads);
       expect(api.commands).toEqual(commands);
       await player.getByRole('button', { name: 'Next track' }).click();
-      expect(api.commands).toEqual([...commands, '/v1/me/player/next']);
+      // The command is on its way when the click returns, not yet received.
+      await expect.poll(() => api.commands).toEqual([...commands, '/v1/me/player/next']);
     });
   }
 

@@ -7,6 +7,9 @@ import { recordOf } from './parse';
 
 const AUTH_KEY = 'maxmix.auth';
 const PKCE_KEY = 'maxmix.pkce';
+// Set by signOut, until the next sign-in goes through: the sign-in then asks Spotify to show its approval page again
+// (show_dialog) instead of letting Spotify's own remembered session sign the same account straight back in.
+const FRESH_SIGN_IN_KEY = 'maxmix.freshSignIn';
 const SCOPES =
   'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing user-library-read user-library-modify user-read-recently-played playlist-read-private';
 // An access token is renewed this long before it expires, so a request never starts with one about to lapse.
@@ -86,6 +89,27 @@ function writeLogin(login: StoredLogin | null): void {
   }
 }
 
+/** Whether the next sign-in must show Spotify's approval page (see FRESH_SIGN_IN_KEY). */
+let memoryFreshSignIn = false;
+
+function setFreshSignIn(fresh: boolean): void {
+  memoryFreshSignIn = fresh;
+  try {
+    if (fresh) localStorage.setItem(FRESH_SIGN_IN_KEY, 'true');
+    else localStorage.removeItem(FRESH_SIGN_IN_KEY);
+  } catch {
+    // Storage is unavailable; the choice then lasts only until the page reloads.
+  }
+}
+
+function isFreshSignIn(): boolean {
+  try {
+    return memoryFreshSignIn || localStorage.getItem(FRESH_SIGN_IN_KEY) === 'true';
+  } catch {
+    return memoryFreshSignIn;
+  }
+}
+
 /** The stored login, unless it belongs to a different client ID than the one in use. */
 function currentLogin(): StoredLogin | null {
   const login = readLogin();
@@ -144,7 +168,9 @@ export async function startSignIn(): Promise<void> {
     state,
     code_challenge_method: 'S256',
     code_challenge: challenge,
-    scope: SCOPES
+    scope: SCOPES,
+    // After a sign-out: show Spotify's page again, so the person approves (or picks another account) and nothing signs in silently.
+    ...(isFreshSignIn() && { show_dialog: 'true' })
   });
   location.assign(`https://accounts.spotify.com/authorize?${parameters}`);
 }
@@ -187,6 +213,7 @@ async function finishSignIn(query: URLSearchParams): Promise<SignInResult> {
     if (!tokens.refreshToken) return failure('Spotify did not provide a refresh token. Sign in again.');
     generation += 1;
     writeLogin({ clientId, refreshToken: tokens.refreshToken });
+    setFreshSignIn(false);
     cachedAccess = {
       token: tokens.accessToken,
       clientId,
@@ -258,9 +285,18 @@ export function discardAccessToken(): void {
   cachedAccess = null;
 }
 
-/** Forgets the stored login. */
+/**
+ * Forgets the stored login and everything cached for it (the access token, and a sign-in that was started and never
+ * finished), and makes the next sign-in show Spotify's approval page again.
+ */
 export function signOut(): void {
   generation += 1;
   cachedAccess = null;
   writeLogin(null);
+  try {
+    sessionStorage.removeItem(PKCE_KEY);
+  } catch {
+    // Storage is unavailable; there is nothing kept in it either.
+  }
+  setFreshSignIn(true);
 }

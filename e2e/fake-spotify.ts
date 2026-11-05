@@ -160,7 +160,10 @@ export async function fakeSpotify(page: Page) {
   });
   await page.addInitScript(clientId => {
     localStorage.setItem('maxmix.playbackMode', 'remote');
+    // Signed in once for each tab, so that a test can sign out (a reload would otherwise sign it straight back in).
+    if (sessionStorage.getItem('fake-spotify-signed-in')) return;
     localStorage.setItem('maxmix.auth', JSON.stringify({ clientId, refreshToken: 'not-a-real-refresh-token' }));
+    sessionStorage.setItem('fake-spotify-signed-in', 'true');
   }, getClientId());
   return { commands, saved };
 }

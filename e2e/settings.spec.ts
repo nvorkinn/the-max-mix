@@ -129,7 +129,9 @@ test.describe('Settings', { tag: '@settings' }, () => {
     }) => {
       const asked: string[] = [];
       await page.route('http://127.0.0.1:7341/**', route => {
-        asked.push(`${route.request().method()} ${new URL(route.request().url()).pathname}`);
+        const { pathname } = new URL(route.request().url());
+        // The app also sends its errors to the kiosk's log (POST /log); they are not what is being asked about here.
+        if (pathname !== '/log') asked.push(`${route.request().method()} ${pathname}`);
         return route.fulfill({ status: 204 });
       });
       await page.goto('/');
@@ -150,6 +152,26 @@ test.describe('Settings', { tag: '@settings' }, () => {
       await dialog.getByRole('button', { name: 'Tap again to reboot' }).click();
       await expect.poll(() => asked).toEqual(['POST /wifi', 'POST /power/restart', 'POST /power/reboot']);
     });
+  });
+
+  test('Sign out forgets the login, and signing in again goes to Spotify to approve once more', async ({ page }) => {
+    await page.route('https://accounts.spotify.com/authorize**', route =>
+      route.fulfill({ contentType: 'text/html', body: '<h1>Test sign-in page</h1>' })
+    );
+    await page.goto('/');
+    const dialog = await openSettings(page);
+    await dialog.getByRole('button', { name: 'Sign out' }).click();
+
+    // The page reloads signed out, with nothing of the login kept.
+    const connect = page.getByRole('button', { name: 'Connect Spotify' });
+    await expect(connect).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('maxmix.auth'))).toBeNull();
+    expect(await page.evaluate(() => sessionStorage.getItem('maxmix.pkce'))).toBeNull();
+
+    // Spotify may remember the person and sign the same account in silently; this makes it show its page instead.
+    await connect.click();
+    await expect(page.getByRole('heading', { name: 'Test sign-in page' })).toBeVisible();
+    expect(new URL(page.url()).searchParams.get('show_dialog')).toBe('true');
   });
 
   test('the kiosk-only settings are not offered away from the kiosk', async ({ page }) => {
