@@ -3,7 +3,7 @@
 // text field has focus. Keys type with the editing command a real key press uses, which fires the same input events,
 // so Spotify's form sees the text. Nothing is stored or sent anywhere.
 
-export type Page = 'letters' | 'symbols' | 'more';
+type Page = 'letters' | 'symbols' | 'more';
 export type Key =
   | { kind: 'char'; text: string }
   | { kind: 'shift' | 'backspace' | 'space' | 'done' }
@@ -19,7 +19,7 @@ const BACKSPACE: Key = { kind: 'backspace' };
 const toPage = (page: Page, label: string): Key => ({ kind: 'page', page, label });
 const bottomRow = (page: Key): Key[] => [page, ...chars('@'), { kind: 'space' }, ...chars('.'), { kind: 'done' }];
 
-export const LAYOUTS: Record<Page, Key[][]> = {
+const LAYOUTS: Record<Page, Key[][]> = {
   letters: [
     chars('q w e r t y u i o p'),
     chars('a s d f g h j k l'),
@@ -77,11 +77,10 @@ export function keyLabel(key: Key, shifted: boolean): string {
   }
 }
 
-// Sets the value through the element's own setter, which is where React notices a change, then tells the page.
+// The fallback for a browser without editing commands (jsdom in the tests; Chromium has them): sets the value and tells
+// the page.
 function setValue(field: Field, value: string, caret: number): void {
-  const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(field) as object, 'value')?.set;
-  if (setter) setter.call(field, value);
-  else field.value = value;
+  field.value = value;
   field.dispatchEvent(new Event('input', { bubbles: true }));
   // Email and number fields have no selection, and throw when one is set.
   try {

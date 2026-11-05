@@ -2,10 +2,33 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { deleteBackward, insertText, isTextField, KEYBOARD_HEIGHT, keyLabel, start } from './keyboard.ts';
 
 // jsdom has no editing commands. Chromium does, and then the fallback that sets the value is not used.
-function mockEditing(result: boolean) {
-  const execCommand = vi.fn(() => result);
-  Object.defineProperty(document, 'execCommand', { value: execCommand, configurable: true, writable: true });
-  return execCommand;
+function mockEditing(isSupported: boolean) {
+  const canRunCommand = vi.fn(() => isSupported);
+  Object.defineProperty(document, 'execCommand', { value: canRunCommand, configurable: true, writable: true });
+  return canRunCommand;
+}
+
+// The keyboard's host is the last element of the page once it has shown.
+function host(): HTMLElement {
+  return document.documentElement.lastElementChild as HTMLElement;
+}
+
+function board(): HTMLElement {
+  const found = host().shadowRoot?.querySelector<HTMLElement>('.board');
+  if (!found) throw new Error('no keyboard');
+  return found;
+}
+
+function isShown(): boolean {
+  return host().style.display !== 'none';
+}
+
+function tap(label: string): void {
+  const key = [...board().querySelectorAll('button')].find(
+    button => button.textContent === label || button.getAttribute('aria-label') === label
+  );
+  if (!key) throw new Error(`no key ${label}`);
+  key.dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
 }
 
 function input(type = 'text'): HTMLInputElement {
@@ -65,10 +88,10 @@ describe('typing', () => {
   });
 
   it('uses the editing command when the browser has it', () => {
-    const execCommand = mockEditing(true);
+    const canRunCommand = mockEditing(true);
     const field = input();
     insertText(field, 'x');
-    expect(execCommand).toHaveBeenCalledWith('insertText', false, 'x');
+    expect(canRunCommand).toHaveBeenCalledWith('insertText', false, 'x');
     expect(field.value).toBe('');
   });
 
@@ -90,19 +113,6 @@ describe('typing', () => {
 describe('start', () => {
   let stop: () => void;
   const scrollIntoView = vi.fn();
-
-  const board = (): HTMLElement => {
-    const host = document.documentElement.lastElementChild as HTMLElement;
-    return host.shadowRoot?.querySelector('.board') as HTMLElement;
-  };
-  const isShown = (): boolean => (document.documentElement.lastElementChild as HTMLElement).style.display !== 'none';
-  const tap = (label: string): void => {
-    const key = [...board().querySelectorAll('button')].find(
-      button => button.textContent === label || button.getAttribute('aria-label') === label
-    );
-    if (!key) throw new Error(`no key ${label}`);
-    key.dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
-  };
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -134,7 +144,7 @@ describe('start', () => {
     const field = input();
     field.focus();
     tap('Shift');
-    tap('h');
+    tap('H');
     tap('i');
     tap('space');
     tap('?123');

@@ -13,7 +13,7 @@ describe('build', () => {
 
   it('writes plain JavaScript and the manifest, and reports a second run as unchanged', async () => {
     destination = await mkdtemp(path.join(tmpdir(), 'kiosk-keyboard-'));
-    expect(await build(import.meta.dirname, destination)).toBe(true);
+    expect(await build(import.meta.dirname, destination)).toEqual(['manifest.json', 'loader.js', 'keyboard.js']);
 
     const keyboard = await readFile(path.join(destination, 'keyboard.js'), 'utf8');
     expect(keyboard).toMatch(/export function start\(doc\s*\)/);
@@ -23,6 +23,6 @@ describe('build', () => {
     const manifest = JSON.parse(await readFile(path.join(destination, 'manifest.json'), 'utf8')) as { name: string };
     expect(manifest.name).toBe('THE MAX MIX sign-in keyboard');
 
-    expect(await build(import.meta.dirname, destination)).toBe(false);
+    expect(await build(import.meta.dirname, destination)).toEqual([]);
   });
 });

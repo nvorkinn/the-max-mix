@@ -3,6 +3,8 @@
 //   node build.ts <source folder> <extension folder>
 // Prints "changed" when it wrote a file, so a run that changes nothing reports nothing (and restarts nothing).
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+// Experimental, but in every Node 24, and nothing else strips types without an npm package.
+// eslint-disable-next-line n/no-unsupported-features/node-builtins -- see above
 import { stripTypeScriptTypes } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,20 +24,20 @@ async function readIfThere(file: string): Promise<string | undefined> {
   }
 }
 
-/** Builds the extension into `destination`. Resolves true when any file was written. */
-export async function build(source: string, destination: string): Promise<boolean> {
+/** Builds the extension into `destination`. Resolves to the files it wrote: none when all were up to date. */
+export async function build(source: string, destination: string): Promise<string[]> {
   await mkdir(destination, { recursive: true });
   const written = await Promise.all(
     Object.entries(FILES).map(async ([from, to]) => {
       const text = await readFile(path.join(source, from), 'utf8');
       const output = from.endsWith('.ts') ? stripTypeScriptTypes(text) : text;
       const target = path.join(destination, to);
-      if ((await readIfThere(target)) === output) return false;
+      if ((await readIfThere(target)) === output) return [];
       await writeFile(target, output);
-      return true;
+      return [to];
     })
   );
-  return written.includes(true);
+  return written.flat();
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -44,5 +46,5 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.error('usage: node build.ts <source folder> <extension folder>');
     process.exit(2);
   }
-  if (await build(source, destination)) console.log('changed');
+  if ((await build(source, destination)).length > 0) console.log('changed');
 }
