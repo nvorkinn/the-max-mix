@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Check, Speaker, Volume2 } from 'lucide-react';
-import { getGroupVolume, listSonosGroups, setGroupVolume, spotifyDeviceFor } from '../sonos/api';
-import type { SonosGroup } from '../sonos/api';
+import { Check, Speaker, Users, Volume2 } from 'lucide-react';
+import { getGroupVolume, listSonos, setGroupRooms, setGroupVolume, spotifyDeviceFor } from '../sonos/api';
+import type { SonosGroup, SonosRoom } from '../sonos/api';
 import type { SpotifyDevice } from '../types';
 import { errorMessage } from '../utils/errorMessage';
 
@@ -10,8 +10,9 @@ import { errorMessage } from '../utils/errorMessage';
 const VOLUME_DELAY_MS = 250;
 
 /**
- * The Sonos groups from the Sonos login. A tap plays there through Spotify Connect, so a group can be picked only while
- * Spotify lists its speaker. Each group has a volume slider that sets the whole group's volume through Sonos.
+ * The Sonos groups from the Sonos login, one card each. A tap plays there through Spotify Connect, so a group can be
+ * picked only while Spotify knows its speaker. Each card holds the group's volume, which can be moved only while the
+ * group plays, and a Rooms button that shows every room as a switch to add it to the group or take it out.
  */
 export default function SonosGroupList({
   devices,
@@ -26,35 +27,43 @@ export default function SonosGroupList({
   onSelect: (deviceId: string) => unknown;
 }>) {
   const [groups, setGroups] = useState<SonosGroup[] | null>(null);
+  const [rooms, setRooms] = useState<SonosRoom[]>([]);
   const [volumes, setVolumes] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // The group whose rooms are shown, and whether a change to them is being sent.
+  const [editing, setEditing] = useState<string | null>(null);
+  const [regrouping, setRegrouping] = useState(false);
   const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const mountedRef = useRef(true);
+  const isMounted = () => mountedRef.current;
+
+  const load = useCallback(async () => {
+    try {
+      const found = await listSonos();
+      if (!mountedRef.current) return;
+      setGroups(found.groups);
+      setRooms(found.rooms);
+      setError(null);
+      const read = await Promise.all(
+        found.groups.map(async group => [group.id, await getGroupVolume(group.id).catch(() => null)] as const)
+      );
+      if (!isMounted()) return;
+      setVolumes(Object.fromEntries(read.filter((entry): entry is [string, number] => entry[1] !== null)));
+    } catch (caught) {
+      if (mountedRef.current) setError(errorMessage(caught));
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const isCancelled = () => cancelled;
-    void (async () => {
-      try {
-        const found = await listSonosGroups();
-        if (isCancelled()) return;
-        setGroups(found);
-        setError(null);
-        const read = await Promise.all(
-          found.map(async group => [group.id, await getGroupVolume(group.id).catch(() => null)] as const)
-        );
-        if (isCancelled()) return;
-        setVolumes(Object.fromEntries(read.filter((entry): entry is [string, number] => entry[1] !== null)));
-      } catch (caught) {
-        if (!isCancelled()) setError(errorMessage(caught));
-      }
-    })();
+    mountedRef.current = true;
+    void load();
     const pending = timersRef.current;
     return () => {
-      cancelled = true;
+      mountedRef.current = false;
       for (const timer of pending.values()) clearTimeout(timer);
     };
-  }, []);
+  }, [load]);
 
   const changeVolume = (group: SonosGroup, volume: number) => {
     setVolumes(current => ({ ...current, [group.id]: volume }));
@@ -65,6 +74,24 @@ export default function SonosGroupList({
         setGroupVolume(group.id, volume).catch((caught: unknown) => setError(errorMessage(caught)));
       }, VOLUME_DELAY_MS)
     );
+  };
+
+  const toggleRoom = async (group: SonosGroup, room: SonosRoom) => {
+    const next = group.playerIds.includes(room.id)
+      ? group.playerIds.filter(id => id !== room.id)
+      : [...group.playerIds, room.id];
+    setRegrouping(true);
+    try {
+      await setGroupRooms(group.id, next);
+      // The group may come back under a new id; keep its rooms open by finding it through its coordinator.
+      const coordinator = group.playerIds[0];
+      await load();
+      setEditing(current => (current === group.id ? `player:${coordinator}` : current));
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setRegrouping(false);
+    }
   };
 
   const select = (group: SonosGroup) => {
@@ -78,6 +105,8 @@ export default function SonosGroupList({
       `Spotify can't see ${group.name} yet. Play to it once from the Spotify app on a phone, then refresh and try again.`
     );
   };
+
+  const isEditing = (group: SonosGroup) => editing === group.id || editing === `player:${group.playerIds[0]}`;
 
   return (
     <div className="space-y-2">
@@ -97,44 +126,82 @@ export default function SonosGroupList({
       {groups?.map(group => {
         const device = spotifyDeviceFor(group, devices);
         const playing = Boolean(device?.id) && device?.id === playingId;
+        const active = playing || group.playing;
         const volume = volumes[group.id];
-        const rooms = group.rooms.length > 1 ? group.rooms.join(', ') : null;
+        const members = group.rooms.length > 1 ? group.rooms.join(', ') : null;
+        const open = isEditing(group);
+        const householdRooms = rooms.filter(room => room.householdId === group.householdId);
         return (
-          <div key={group.id}>
-            <button
-              type="button"
-              aria-pressed={playing}
-              disabled={disabled}
-              onClick={() => select(group)}
-              className="modal-option w-full p-3 flex gap-3 items-center text-left rounded-xl border"
-            >
-              <Speaker size={20} className="shrink-0 text-accent" />
-              <span className="flex-1 min-w-0">
-                <span className="block text-sm truncate">{group.name}</span>
-                <span className="text-[11px] text-muted">
-                  {rooms ?? (device ? 'Ready in Spotify' : 'Not in Spotify yet')}
+          <div key={group.id} className="modal-card rounded-xl border">
+            <div className="flex items-center">
+              <button
+                type="button"
+                aria-pressed={playing}
+                disabled={disabled}
+                onClick={() => select(group)}
+                className="flex-1 min-w-0 p-3 flex gap-3 items-center text-left rounded-xl"
+              >
+                <Speaker size={20} className="shrink-0 text-accent" />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm truncate">{group.name}</span>
+                  <span className="text-[11px] text-muted">
+                    {members ?? (device ? 'Ready in Spotify' : 'Not in Spotify yet')}
+                  </span>
                 </span>
-              </span>
-              {playing && (
-                <span className="text-xs text-accent flex items-center gap-1">
-                  <Check size={14} /> Playing
-                </span>
+                {active && (
+                  <span className="text-xs text-accent flex items-center gap-1">
+                    <Check size={14} /> Playing
+                  </span>
+                )}
+              </button>
+              {householdRooms.length > 1 && (
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  aria-label={`Group rooms with ${group.name}`}
+                  onClick={() => setEditing(open ? null : group.id)}
+                  className="modal-icon-button w-11 h-11 mr-1.5 rounded-full flex items-center justify-center shrink-0"
+                >
+                  <Users size={16} />
+                </button>
               )}
-            </button>
+            </div>
             {volume !== undefined && (
-              <label className="speaker-volume">
+              <label className="speaker-volume pb-3">
                 <Volume2 size={16} aria-hidden="true" />
                 <input
                   type="range"
                   min="0"
                   max="100"
                   value={volume}
+                  disabled={!active}
                   aria-label={`${group.name} volume`}
+                  title={active ? undefined : 'Volume can be changed while this speaker plays'}
                   onChange={event => changeVolume(group, Number(event.target.value))}
                   className="range-control volume-range"
                   style={{ '--range-progress': `${volume}%` } as CSSProperties}
                 />
               </label>
+            )}
+            {open && (
+              <div className="flex flex-wrap gap-1.5 px-3 pb-3" role="group" aria-label={`Rooms in ${group.name}`}>
+                {householdRooms.map(room => {
+                  const leader = room.id === group.playerIds[0];
+                  return (
+                    <button
+                      type="button"
+                      key={room.id}
+                      aria-pressed={group.playerIds.includes(room.id)}
+                      // The room that leads the group stays in it; ungroup the others instead.
+                      disabled={leader || regrouping}
+                      onClick={() => void toggleRoom(group, room)}
+                      className="modal-option min-h-11 px-3 rounded-xl border text-xs font-bold"
+                    >
+                      {room.name}
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
         );

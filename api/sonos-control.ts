@@ -6,12 +6,13 @@
 // GET  /api/sonos-control?path=/households/{id}/groups
 // GET  /api/sonos-control?path=/groups/{id}/groupVolume
 // POST /api/sonos-control?path=/groups/{id}/groupVolume  {"volume": 0-100}
+// POST /api/sonos-control?path=/groups/{id}/groups/setGroupMembers  {"playerIds": [...]}
 
 const CONTROL_URL = 'https://api.ws.sonos.com/control/api/v1';
 // Sonos ids look like Sonos_abc.def or a player id with a colon.
 const GROUP_VOLUME = /^\/groups\/[\w.:-]{1,128}\/groupVolume$/;
 const READABLE = [/^\/households$/, /^\/households\/[\w.:-]{1,128}\/groups$/, GROUP_VOLUME];
-const WRITABLE = [GROUP_VOLUME];
+const WRITABLE = [GROUP_VOLUME, /^\/groups\/[\w.:-]{1,128}\/groups\/setGroupMembers$/];
 const MAX_BODY_LENGTH = 1024;
 
 const errorReply = (status: number, error: string) => Response.json({ error }, { status });
