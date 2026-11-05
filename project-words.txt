@@ -1,5 +1,6 @@
 # Project dictionary for cspell: product names, hardware and OS terms, and artist names.
 # One word per line, case-insensitive. Keep sorted.
+adwaita
 alsa
 aqabaiaaaaaaap
 argv
@@ -166,6 +167,7 @@ wifis
 wireplumber
 wlan
 wlr
+wlroots
 WPA
 WPA2
 WPA3

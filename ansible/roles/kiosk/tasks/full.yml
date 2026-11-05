@@ -295,6 +295,7 @@
       - '{{ kiosk_audio_dir }}'
       - /usr/share/icons/blank
       - /usr/share/icons/blank/cursors
+      - /usr/share/kiosk-cursors
       - /usr/share/plymouth/themes/the-max-mix
       - /var/lib/the-max-mix
   changed_when: false
@@ -361,6 +362,7 @@
     - speakers.ts
     - update.ts
     - update-socket.ts
+    - watchdog.ts
   notify: Ask for a kiosk restart
 
 # ws, the one npm package, for the update stream (the WebSocket). Installed from the lockfile, so it is the version that
@@ -489,7 +491,7 @@
     mode: '0644'
   notify: Update the initramfs
 
-# A cursor theme of one transparent pixel (kiosk.service points Cage at it), for touch screens that look like a mouse.
+# A cursor theme of one transparent pixel (Cage loads it as its default theme, see below), for touch screens that look like a mouse.
 - name: Install the blank cursor theme
   ansible.builtin.copy:
     src: icons/{{ item.src }}
@@ -525,6 +527,16 @@
       - progress
       - not-allowed
   changed_when: false
+
+# Cage ignores XCURSOR_THEME: wlroots always loads the theme called "default", which is Adwaita on Pi OS. kiosk.service
+# puts this folder first in Cage's XCURSOR_PATH, so there "default" is the blank theme. The rest of the system keeps its own.
+- name: Make the blank cursor the kiosk's default theme
+  ansible.builtin.file:
+    src: /usr/share/icons/blank
+    dest: /usr/share/kiosk-cursors/default
+    state: link
+    owner: root
+    group: root
 
 # The kiosk takes the display on tty7 and tty1 shows nothing.
 - name: Mask the login prompt on tty1

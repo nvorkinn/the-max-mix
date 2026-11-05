@@ -41,6 +41,16 @@ app on `127.0.0.1:7341`. It does two jobs:
 
 The service does not report the chosen speakers, so the app remembers them itself (`maxmix.airplaySpeakers` in its storage).
 
+## The watchdog
+
+With `?kiosk=1` the app sends `POST /heartbeat` every 20 seconds while it shows something. When none has come for 3
+minutes (a crashed tab, a hung page, or an app that went blank), the service stops Chromium and kiosk-session starts it
+again, or shows the Wi-Fi panel when there is no connection. It only acts after this service has had a heartbeat, gives
+every new Chromium the full 3 minutes, and leaves the Wi-Fi panel alone; each restart without a heartbeat in between
+doubles the wait (up to an hour), so a page that cannot load is not restarted in a loop. The app also sends its errors
+to `POST /log` (at most 30 lines a minute reach the journal). Both are in the journal:
+`journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service` (as root), lines starting `app` or `No heartbeat`.
+
 ## The requests
 
 | Request                                | What it does                                           |
@@ -52,6 +62,8 @@ The service does not report the chosen speakers, so the app remembers them itsel
 | `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                            |
 | `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)               |
 | `POST /wifi`                           | Shows the Wi-Fi panel (flag file, then stops Chromium) |
+| `POST /heartbeat`                      | The app is alive (the watchdog, below)                 |
+| `POST /log`                            | An app error, written to the journal                   |
 
 | File               | What it is                                                              |
 | ------------------ | ----------------------------------------------------------------------- |
@@ -60,6 +72,7 @@ The service does not report the chosen speakers, so the app remembers them itsel
 | `update-socket.ts` | The WebSocket at `/power/update`: origin check, one update at a time.   |
 | `update.ts`        | The update: follows the journal, runs the pull and the restart.         |
 | `actions.ts`       | The fixed commands behind the power, screen and Wi-Fi requests.         |
+| `watchdog.ts`      | Restarts Chromium when the app's heartbeats stop.                       |
 | `speakers.ts`      | Checking speaker lists, the saved choice, and routing to it.            |
 | `pipewire.ts`      | `pw-dump` parsing, the link plan, `pw-link` and `wpctl set-volume`.     |
 

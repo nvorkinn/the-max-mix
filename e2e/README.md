@@ -12,7 +12,8 @@ browser. Run them with `npm run build && npm run test:e2e`.
 | `player.spec.ts`     | Player controls (`@player`)                                                 |
 | `queue.spec.ts`      | The queue (`@queue`)                                                        |
 | `lyrics.spec.ts`     | Lyrics (`@lyrics`)                                                          |
-| `settings.spec.ts`   | Settings (`@settings`)                                                      |
+| `settings.spec.ts`   | Settings (`@settings`): colour, polling, screen sleep, kiosk-only buttons   |
+| `sleep.spec.ts`      | Screen sleep (`@sleep`): sleep button, idle sleep, polling while asleep     |
 | `dialogs.spec.ts`    | Focus and dismissal of the dialogs: Settings, Speakers, debug (`@dialogs`)  |
 | `update.spec.ts`     | Software update (`@update`): popup, streamed console, restart, failure      |
 | `setup.spec.ts`      | Setup and signing in (`@setup`)                                             |
@@ -22,7 +23,8 @@ browser. Run them with `npm run build && npm run test:e2e`.
 | `visual.spec.ts`     | Screenshots compared with `screenshots/` (`@visual`, CI only)               |
 
 Each file is one `test.describe('<Feature>', { tag: '@feature' }, …)`, so the report reads _Feature › what it checks_,
-and a test can carry further tags (`test('…', { tag: '@queue' }, …)`). `fake-spotify.ts` is the shared fake account.
+and a test can carry further tags (`test('…', { tag: '@queue' }, …)`). `fake-spotify.ts` is the shared fake account (and counts its playback reads); `clock.ts` moves a faked clock for the tests
+that count polling or wait out an idle timer.
 
 ## Finding the tests for a pull request
 
