@@ -6,14 +6,20 @@
 //   POST /power/restart     restart the kiosk              POST /power/reboot    reboot the Pi
 //   POST /display/wake      turn the screen back on        POST /wifi            show the Wi-Fi panel
 //   POST /heartbeat         the app is alive (watchdog.ts)  POST /log  {"level", "source", "message"}  an app error, to the journal
+//   GET  /wifi/networks     {"networks": [{"ssid", "signal", "bars", "security"}, …]}   or 503 {"error"}: a safe message
+//   POST /wifi/connect      {"ssid", "password", "hidden", "security"}   join a network: {"ok": true} or {"ok": false, "error"}
 //   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
 //                           (update-socket.ts)
 // Only the app's origin is answered (CORS, and every POST and WebSocket is refused without its Origin header, so no other
 // web page can trigger one). A request carries no command, only the name of one of the fixed actions in actions.ts.
+// The two Wi-Fi requests are for the Wi-Fi setup page this service serves itself (it has to work offline), so they
+// answer its origin (LOCAL_ORIGIN) instead, and the app's origin cannot join a network.
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { perform } from './actions.ts';
 import type { Action } from './actions.ts';
+import { parseConnectRequest } from './nmcli.ts';
+import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
 import type { Graph } from './pipewire.ts';
 import { airPlaySinks, validSpeakers, validVolume } from './speakers.ts';
 import { attachUpdateSocket } from './update-socket.ts';
@@ -22,6 +28,8 @@ import { runUpdate } from './update.ts';
 import { chromiumPid, CHECK_MS, stopChromium, Watchdog } from './watchdog.ts';
 
 const SPEAKERS_PORT = 7341;
+/** The origin of the pages this service serves itself (the Wi-Fi setup page). */
+export const LOCAL_ORIGIN = `http://127.0.0.1:${SPEAKERS_PORT}`;
 const MAX_BODY = 4096;
 const MAX_MESSAGE = 2000;
 /** At most this many app log lines a minute reach the journal, so a page stuck in an error loop cannot flood it. */
@@ -42,6 +50,13 @@ export interface Deps {
   perform: (action: Action) => Promise<void>;
   heartbeat: () => void;
   log: (entry: AppLog) => void;
+  wifi: Wifi;
+}
+
+/** NetworkManager, for the Wi-Fi setup page (nmcli.ts). */
+interface Wifi {
+  scan: () => Promise<Network[]>;
+  connect: (request: ConnectRequest) => Promise<ConnectResult>;
 }
 
 /** An error the app reported, for the journal. */
@@ -166,6 +181,29 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
   response.writeHead(status).end();
 }
 
+const sendJson = (response: ServerResponse, status: number, body: unknown): void => {
+  response.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(body));
+};
+
+async function listNetworks(response: ServerResponse, wifi: Wifi): Promise<void> {
+  try {
+    sendJson(response, 200, { networks: await wifi.scan() });
+  } catch (error) {
+    // nmcli.ts rejects with a message that is safe to show.
+    sendJson(response, 503, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+async function connectWifi(request: IncomingMessage, response: ServerResponse, wifi: Wifi): Promise<void> {
+  if (request.headers.origin !== LOCAL_ORIGIN) {
+    response.writeHead(403).end();
+    return;
+  }
+  const body = parseConnectRequest(JSON.parse(await readBody(request)) as unknown);
+  if (body) sendJson(response, 200, await wifi.connect(body));
+  else response.writeHead(400).end();
+}
+
 export function handleRequest(origin: string, deps: Deps) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     response.setHeader('Access-Control-Allow-Origin', origin);
@@ -181,6 +219,10 @@ export function handleRequest(origin: string, deps: Deps) {
         const graph = await deps.graph();
         const body = { speakers: speakerNames(graph), volumes: speakerVolumes(graph) };
         response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(body));
+      } else if (request.method === 'GET' && request.url === '/wifi/networks') {
+        await listNetworks(response, deps.wifi);
+      } else if (request.method === 'POST' && request.url === '/wifi/connect') {
+        await connectWifi(request, response, deps.wifi);
       } else if (request.method === 'POST') {
         if (request.headers.origin === origin) await post(request, response, deps);
         else response.writeHead(403).end();
@@ -195,7 +237,7 @@ export function handleRequest(origin: string, deps: Deps) {
 
 export function serveSpeakers(
   origin: string,
-  deps: Pick<Deps, 'graph' | 'route' | 'setVolume'>,
+  deps: Pick<Deps, 'graph' | 'route' | 'setVolume' | 'wifi'>,
   update: Update = runUpdate
 ): Server {
   const watchdog = new Watchdog({

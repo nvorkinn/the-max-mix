@@ -61,7 +61,7 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/wifi-panel \
   /etc/tmpfiles.d/kiosk.conf /usr/share/plymouth/themes/the-max-mix/the-max-mix.plymouth \
   /usr/share/icons/blank/cursors/left_ptr /etc/apt/apt.conf.d/52kiosk-unattended-upgrades \
   /opt/the-max-mix/kiosk-audio/kiosk-audio.ts /opt/the-max-mix/kiosk-audio/speakers.ts \
-  /opt/the-max-mix/kiosk-audio/server.ts /opt/the-max-mix/kiosk-audio/actions.ts \
+  /opt/the-max-mix/kiosk-audio/server.ts /opt/the-max-mix/kiosk-audio/actions.ts /opt/the-max-mix/kiosk-audio/nmcli.ts \
   /opt/the-max-mix/kiosk-audio/update.ts /opt/the-max-mix/kiosk-audio/update-socket.ts \
   /opt/the-max-mix/kiosk-keyboard/extension/manifest.json /opt/the-max-mix/kiosk-keyboard/extension/loader.js \
   /opt/the-max-mix/kiosk-keyboard/extension/keyboard.js \

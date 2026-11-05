@@ -4,6 +4,7 @@
 //                               any chosen speaker that came back.
 import { homedir } from 'node:os';
 import path from 'node:path';
+import { Nmcli } from './nmcli.ts';
 import { PipeWire } from './pipewire.ts';
 import { serveSpeakers } from './server.ts';
 import { loadSpeakers, route, saveSpeakers, setSpeakerVolume } from './speakers.ts';
@@ -35,7 +36,8 @@ if (process.argv[2] === 'watch') {
       await saveSpeakers(stateFile, speakers);
       await route(pipewire, speakers);
     },
-    setVolume: (speaker, volume) => setSpeakerVolume(pipewire, speaker, volume)
+    setVolume: (speaker, volume) => setSpeakerVolume(pipewire, speaker, volume),
+    wifi: new Nmcli()
   });
 } else {
   console.error('Usage: kiosk-audio.ts watch');
