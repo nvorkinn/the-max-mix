@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { X, Bug, RotateCw, Trash2 } from 'lucide-react';
 import { clearDebugLog, getDebugEntries, subscribeDebugLog } from '../utils/debugLog';
 import type { DebugEntry } from '../utils/debugLog';
-import { getHttpLogMode, setHttpLogMode } from '../utils/httpLog';
+import { getHttpLogMode, getMutedHttpGroups, HTTP_GROUPS, setHttpGroupMuted, setHttpLogMode } from '../utils/httpLog';
 import type { HttpLogMode } from '../utils/httpLog';
 import { widevineProblem } from '../utils/widevine';
 import Modal from './Modal';
@@ -52,12 +52,17 @@ function useWidevineStatus(): string {
   return status;
 }
 
-/** The two switches for logging every HTTP call, and whether to include the headers. */
+/** The two switches for logging every HTTP call, whether to include the headers, and which kinds of call to log. */
 function HttpLogOptions() {
   const [mode, setMode] = useState<HttpLogMode>(getHttpLogMode);
+  const [muted, setMuted] = useState(getMutedHttpGroups);
   const change = (next: HttpLogMode) => {
     setMode(next);
     setHttpLogMode(next);
+  };
+  const toggleGroup = (id: string, isLogged: boolean) => {
+    setHttpGroupMuted(id, !isLogged);
+    setMuted(getMutedHttpGroups());
   };
   return (
     <div className="debug-options">
@@ -78,6 +83,23 @@ function HttpLogOptions() {
         />
         Include headers
       </label>
+      {mode !== 'off' && (
+        <details className="debug-http-groups">
+          <summary>
+            Calls to log ({HTTP_GROUPS.length - muted.size} of {HTTP_GROUPS.length})
+          </summary>
+          {HTTP_GROUPS.map(group => (
+            <label key={group.id}>
+              <input
+                type="checkbox"
+                checked={!muted.has(group.id)}
+                onChange={event => toggleGroup(group.id, event.target.checked)}
+              />
+              {group.label}
+            </label>
+          ))}
+        </details>
+      )}
     </div>
   );
 }

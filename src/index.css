@@ -1273,6 +1273,19 @@ input:disabled {
   width: 22px;
   height: 22px;
 }
+.debug-http-groups {
+  flex-basis: 100%;
+}
+.debug-http-groups summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+.debug-http-groups label {
+  display: flex;
+  padding-left: 8px;
+}
 .debug-options label:has(input:disabled) {
   opacity: 0.4;
 }
