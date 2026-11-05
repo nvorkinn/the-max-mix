@@ -48,6 +48,7 @@ export const AREAS: Area[] = [
       /^src\/components\/SpeakerDrawer/,
       /^src\/components\/AirPlaySpeakerList/,
       /^src\/components\/SonosGroupList/,
+      /^src\/spotify\/knownDevices/,
       /^src\/audio\//
     ]
   },
