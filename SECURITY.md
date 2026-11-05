@@ -25,8 +25,9 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
   Spotify account's apps. Access tokens are short-lived and kept in memory only.
 - **Cross-site scripting matters more.** Script running in the page's origin can read `localStorage`. The app renders
   Spotify's text as plain text and ships no user-supplied HTML, but keep the origin dedicated: do not host other apps
-  on the same origin, and keep dependencies up to date. The site sets `X-Content-Type-Options` and
-  `Referrer-Policy` (in `vercel.json`) but no Content-Security-Policy, because the Spotify Web Playback SDK loads from several hosts.
+  on the same origin, and keep dependencies up to date. The site sets `X-Content-Type-Options`,
+  `Referrer-Policy`, anti-framing headers and a Content-Security-Policy (in `vercel.json`). The full policy is
+  report-only for now: violations show in the debug console (source "csp") until it is checked on a Pi and enforced.
 - **The kiosk's playbook.** Ansible is the single source of truth for the device, and a systemd timer on the Pi runs
   `ansible-pull` as root against this repository's latest GitHub release (`kiosk_pull_ref: latest`). Whoever can push a
   `v*` tag, publish a release or mark one as the latest can change what runs on every deployed Pi, so protect the
