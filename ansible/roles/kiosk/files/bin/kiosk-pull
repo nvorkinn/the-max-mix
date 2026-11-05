@@ -28,8 +28,7 @@ if [[ $ref == latest ]]; then
   echo "The latest release is $ref (looked up in $((SECONDS - started))s)"
 fi
 
-# Not exec, so the time is printed afterwards. The playbook's own summary of its slowest tasks comes from
-# ansible/callback_plugins/task_timer.py.
+# Not exec, so the time is printed afterwards.
 status=0
 ansible-pull --url "$repo" --checkout "$ref" --directory "$directory" "$@" --inventory localhost, ansible/local.yml || status=$?
 echo "kiosk-pull finished in $((SECONDS - started))s (exit status $status)"
