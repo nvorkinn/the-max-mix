@@ -53,21 +53,29 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 
 ## The requests
 
-| Request                                | What it does                                                |
-| -------------------------------------- | ----------------------------------------------------------- |
-| `GET /speakers`                        | `{"speakers": [...], "volumes": {"Kitchen": 40}}`           |
-| `POST /audio/route`                    | Routes the sound to the speakers in the JSON body           |
-| `POST /audio/volume`                   | Sets one speaker's volume (404: not on the network)         |
-| `WS /power/update`                     | Connecting starts the update and streams it (below)         |
-| `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                                 |
-| `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)                    |
-| `POST /wifi`                           | Shows the Wi-Fi setup page (flag file, then stops Chromium) |
-| `POST /heartbeat`                      | The app is alive (the watchdog, below)                      |
-| `POST /log`                            | An app error, written to the journal                        |
-| `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                |
-| `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)    |
-| `POST /wifi/done`                      | The setup page is finished: stops the Chromium showing it   |
-| `GET /wifi-setup`                      | The Wi-Fi setup page, and its scripts under `/wifi-setup/`  |
+| Request                                | What it does                                                             |
+| -------------------------------------- | ------------------------------------------------------------------------ |
+| `GET /speakers`                        | `{"speakers": [...], "volumes": {"Kitchen": 40}}`                        |
+| `POST /audio/route`                    | Routes the sound to the speakers in the JSON body                        |
+| `POST /audio/volume`                   | Sets one speaker's volume (404: not on the network)                      |
+| `WS /power/update`                     | Connecting starts the update and streams it (below)                      |
+| `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                                              |
+| `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)                                 |
+| `POST /wifi`                           | Shows the Wi-Fi setup page (flag file, then stops Chromium)              |
+| `POST /heartbeat`                      | The app is alive (the watchdog, below)                                   |
+| `POST /log`                            | An app error, written to the journal                                     |
+| `GET /lyrics?title=&artist=&duration=` | Synced lyrics as LRC: `{"source", "lrc"}` (404: none; 502: sources down) |
+| `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                             |
+| `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)                 |
+| `POST /wifi/done`                      | The setup page is finished: stops the Chromium showing it                |
+| `GET /wifi-setup`                      | The Wi-Fi setup page, and its scripts under `/wifi-setup/`               |
+
+`GET /lyrics` answers the app's origin only (each request makes the Pi call out). `lyrics.ts` asks NetEase, QQ Music and
+KuGou in turn (`lyrics-sources.ts`: none has a public API or allows a web page to call it, which is why this service
+does), keeps only a song whose title, artist and length match, and accepts only text with several timed lines. It
+remembers what it found, and for an hour what it did not. KuGou's search host is called over plain http because its
+https certificate is for another domain. These are unofficial endpoints and can change: a source that breaks is
+skipped, so remove it from `SOURCES` if it keeps failing.
 
 The Wi-Fi requests are for the Wi-Fi setup page (`wifi-page.ts`, served by `wifi-setup.ts`), which kiosk-session shows
 in Chromium when the Pi is offline or the app's Wi-Fi button was tapped. That page has to work offline, so this service serves it, and the Wi-Fi POSTs answer

@@ -56,6 +56,10 @@ function fakes(overrides: Partial<Deps> = {}) {
       }
     },
     asset: url => Promise.resolve(url === '/wifi-setup' ? { type: 'text/html', body: '<p>page</p>' } : null),
+    lyrics: query => {
+      if (query.title === 'Down') return Promise.reject(new Error('unreachable'));
+      return Promise.resolve(query.title === 'Known' ? { source: 'NetEase', lrc: '[00:01.00]Placeholder' } : null);
+    },
     ...overrides
   };
   return { deps, performed, routed, volumes, logged, joined, beats: () => beats, closed: () => closed };
@@ -294,5 +298,32 @@ describe('the Wi-Fi setup page', () => {
     expect(closed()).toBe(0);
     expect((await post(base, '/wifi/done', { origin: LOCAL_ORIGIN })).status).toBe(204);
     expect(closed()).toBe(1);
+  });
+});
+
+const ask = (base: string, query: string, origin: string | null = ORIGIN) =>
+  fetch(`${base}/lyrics?${query}`, origin ? { headers: { Origin: origin } } : {});
+
+describe('GET /lyrics', () => {
+  it('answers with the lyrics and where they came from', async () => {
+    const base = await start(fakes().deps);
+    const response = await ask(base, 'title=Known&artist=Someone&duration=200000');
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ source: 'NetEase', lrc: '[00:01.00]Placeholder' });
+  });
+
+  it('says when there are none, when the sources are down, and when the request is wrong', async () => {
+    const base = await start(fakes().deps);
+    expect((await ask(base, 'title=Unknown&artist=Someone')).status).toBe(404);
+    expect((await ask(base, 'title=Down&artist=Someone')).status).toBe(502);
+    expect((await ask(base, 'title=Known')).status).toBe(400);
+  });
+
+  it('answers the app only', async () => {
+    const lyrics = vi.fn<Deps['lyrics']>();
+    const base = await start(fakes({ lyrics }).deps);
+    expect((await ask(base, 'title=Known&artist=Someone', null)).status).toBe(403);
+    expect((await ask(base, 'title=Known&artist=Someone', 'https://example.com')).status).toBe(403);
+    expect(lyrics).not.toHaveBeenCalled();
   });
 });
