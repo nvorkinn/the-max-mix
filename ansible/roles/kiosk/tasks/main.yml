@@ -1,14 +1,22 @@
 ---
-# What a pull does. The playbook installs files from three folders of the pulled repository (ansible/, pi/kiosk-audio and
-# pi/wifi-panel). Most releases change none of them (they change the web app, which the Pi loads from the internet), and
-# running every task on a Pi takes minutes, so the full set (full.yml) runs only when git's tree ids for those folders are
-# not the ones last applied. kiosk.service runs either way: it carries the release the settings show, which changes with
+# What a pull does. The playbook installs files from four folders of the pulled repository (ansible/, pi/kiosk-audio,
+# pi/kiosk-keyboard and pi/wifi-panel). Most releases change none of them (they change the web app, which the Pi loads
+# from the internet), and running every task on a Pi takes minutes, so the full set (full.yml) runs only when git's tree
+# ids for those folders are not the ones last applied. kiosk.service runs either way: it carries the release the settings show, which changes with
 # every new commit the pull finds (the playbook only runs then), not only when those folders do.
 # Without git, or on a first run (no stamp), everything runs. A hand run follows the same rule; to apply everything
 # anyway, delete kiosk_applied_stamp. The stamp holds the ids of the last run that finished, handlers included.
 - name: Look up the tree ids of what the playbook installs
   ansible.builtin.command:
-    argv: [git, -C, '{{ playbook_dir }}', rev-parse, 'HEAD:ansible', 'HEAD:pi/kiosk-audio', 'HEAD:pi/wifi-panel']
+    argv:
+      - git
+      - -C
+      - '{{ playbook_dir }}'
+      - rev-parse
+      - 'HEAD:ansible'
+      - 'HEAD:pi/kiosk-audio'
+      - 'HEAD:pi/kiosk-keyboard'
+      - 'HEAD:pi/wifi-panel'
   register: kiosk_trees
   changed_when: false
   failed_when: false
