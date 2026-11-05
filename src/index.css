@@ -740,6 +740,12 @@
   The queue is typeset directly on the page: no card, rows separated by hairlines, the next song set larger with an
   accent rule, and the list dissolving into the page at the bottom so it feels like it trails off into the distance.
 */
+.queue-heading {
+  margin: 0 0 2px 12px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--muted);
+}
 .queue-list {
   flex: 1;
   min-height: 0;

@@ -111,35 +111,40 @@ export default function TrackQueue({
       {queue.length === 0 ? (
         emptyState()
       ) : (
-        <div className="queue-list" role="list" aria-label="Track queue">
-          {queue.map((track, idx) => {
-            const title = track.name || track.title;
-            const albumArt = track.album?.images?.[0]?.url || track.albumArt;
-            const artist = track.artists ? track.artists.map(a => a.name).join(', ') : track.artist || 'Unknown artist';
+        <>
+          <p className="queue-heading">Up next:</p>
+          <div className="queue-list" role="list" aria-label="Track queue">
+            {queue.map((track, idx) => {
+              const title = track.name || track.title;
+              const albumArt = track.album?.images?.[0]?.url || track.albumArt;
+              const artist = track.artists
+                ? track.artists.map(a => a.name).join(', ')
+                : track.artist || 'Unknown artist';
 
-            return (
-              <div key={keys[idx]} role="listitem" className={`queue-track ${idx === 0 ? 'is-next' : ''}`}>
-                <button
-                  type="button"
-                  className="queue-track-button"
-                  disabled={!onPlay || playDisabled}
-                  onClick={() => void onPlay?.(idx)}
-                  aria-label={`Play ${title} by ${artist}`}
-                >
-                  <span className="queue-play queue-number">{String(idx + 1).padStart(2, '0')}</span>
-                  <Artwork className="queue-art" src={albumArt} alt="" />
-                  <div className="queue-track-copy">
-                    <div className="queue-title">
-                      <h3 title={title}>{title}</h3>
-                      {idx === 0 && <span className="next-label">NEXT</span>}
+              return (
+                <div key={keys[idx]} role="listitem" className={`queue-track ${idx === 0 ? 'is-next' : ''}`}>
+                  <button
+                    type="button"
+                    className="queue-track-button"
+                    disabled={!onPlay || playDisabled}
+                    onClick={() => void onPlay?.(idx)}
+                    aria-label={`Play ${title} by ${artist}`}
+                  >
+                    <span className="queue-play queue-number">{String(idx + 1).padStart(2, '0')}</span>
+                    <Artwork className="queue-art" src={albumArt} alt="" />
+                    <div className="queue-track-copy">
+                      <div className="queue-title">
+                        <h3 title={title}>{title}</h3>
+                        {idx === 0 && <span className="next-label">NEXT</span>}
+                      </div>
+                      <p title={artist}>{artist}</p>
                     </div>
-                    <p title={artist}>{artist}</p>
-                  </div>
-                </button>
-              </div>
-            );
-          })}
-        </div>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );
