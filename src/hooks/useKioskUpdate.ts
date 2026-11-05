@@ -15,7 +15,7 @@ import { openUpdateStream } from '../utils/kioskService';
 const GIVE_UP_MS = 20 * 60 * 1000;
 /** The console keeps the newest lines only. */
 const MAX_LINES = 500;
-/** Printed by the playbook's callback plugin (ansible/callback_plugins/task_timer.py) as each task starts. */
+/** Printed by the playbook's callback plugin (ansible/callback_plugins/task_progress.py) as each task starts. */
 const TASK_PROGRESS = /Ansible progress: (\d+)\/(\d+)\s*$/;
 
 /** How many of the playbook's tasks have started so far, out of how many it knows about. */
