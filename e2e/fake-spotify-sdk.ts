@@ -7,7 +7,7 @@ interface FakeSdk {
 }
 declare global {
   // A global of the page the tests look into: a `var` is what reaches globalThis.
-  var __fakeSdk: FakeSdk;
+  var __fakeSdk: FakeSdk | undefined;
 }
 
 // The Web Playback SDK script, replaced by a small player that connects, becomes a device and keeps a record of how it was
@@ -66,12 +66,12 @@ export async function fakeSpotifySdk(page: Page) {
     /** Makes the newest fake player emit an SDK event, as Spotify's would. */
     emit: (event: string, payload?: unknown) =>
       page.evaluate(
-        ([name, data]) => globalThis.__fakeSdk.players.at(-1)?.emit(name as string, data),
+        ([name, data]) => globalThis.__fakeSdk?.players.at(-1)?.emit(name as string, data),
         [event, payload]
       ),
-    /** How many players the page has made (a reconnect makes another). */
-    players: () => page.evaluate(() => globalThis.__fakeSdk.players.length),
+    /** How many players the page has made (a reconnect makes another); none until the SDK script has loaded. */
+    players: () => page.evaluate(() => globalThis.__fakeSdk?.players.length ?? 0),
     /** How many times the page asked the browser to allow audio. */
-    activations: () => page.evaluate(() => globalThis.__fakeSdk.activated)
+    activations: () => page.evaluate(() => globalThis.__fakeSdk?.activated ?? 0)
   };
 }
