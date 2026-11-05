@@ -52,6 +52,8 @@ It asks for `yes`, then:
 Your SSH session drops when the Wi-Fi goes; the rest still runs. At its new home the Pi finds no network and shows the
 Wi-Fi panel. `--no-poweroff` starts the kiosk again instead, for trying it out.
 
+Give the new owner the [one-page guide](../../docs/friend-guide.md) (print it, or send the link).
+
 ## How the kiosk runs
 
 1. A black Plymouth splash covers the boot. The Wi-Fi country (GB), locale (`en_GB.UTF-8`) and time zone
