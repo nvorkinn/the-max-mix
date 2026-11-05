@@ -5,8 +5,10 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Action } from './actions.ts';
 import { dump } from './fixtures.ts';
+import { ERRORS, ScanError } from './nmcli.ts';
+import type { ConnectRequest } from './nmcli.ts';
 import { parseDump } from './pipewire.ts';
-import { handleRequest, journalLog, parseAppLog, speakerNames, speakerVolumes } from './server.ts';
+import { handleRequest, journalLog, LOCAL_ORIGIN, parseAppLog, speakerNames, speakerVolumes } from './server.ts';
 import type { AppLog, Deps } from './server.ts';
 
 const ORIGIN = 'https://the-max-mix.vercel.app';
@@ -20,6 +22,7 @@ function fakes(overrides: Partial<Deps> = {}) {
   const routed: string[][] = [];
   const volumes: [string, number][] = [];
   const logged: AppLog[] = [];
+  const joined: ConnectRequest[] = [];
   let beats = 0;
   const deps: Deps = {
     graph: () => Promise.resolve(parseDump(dump())),
@@ -41,9 +44,16 @@ function fakes(overrides: Partial<Deps> = {}) {
     log: entry => {
       logged.push(entry);
     },
+    wifi: {
+      scan: () => Promise.resolve([{ ssid: 'Home', signal: 80, bars: 4, security: 'psk' }]),
+      connect: request => {
+        joined.push(request);
+        return Promise.resolve(request.password === 'right-password' ? { ok: true } : { ok: false, error: 'Nope.' });
+      }
+    },
     ...overrides
   };
-  return { deps, performed, routed, volumes, logged, beats: () => beats };
+  return { deps, performed, routed, volumes, logged, joined, beats: () => beats };
 }
 
 async function start(deps: Deps): Promise<string> {
@@ -212,5 +222,48 @@ describe('the preflight', () => {
     expect(preflight.status).toBe(204);
     expect(preflight.headers.get('access-control-allow-methods')).toContain('POST');
     expect(preflight.headers.get('access-control-allow-private-network')).toBe('true');
+  });
+});
+
+describe('Wi-Fi', () => {
+  it('lists the networks in range', async () => {
+    const base = await start(fakes().deps);
+    const response = await fetch(`${base}/wifi/networks`);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      networks: [{ ssid: 'Home', signal: 80, bars: 4, security: 'psk' }]
+    });
+  });
+
+  it('says why a scan failed', async () => {
+    const wifi = { scan: () => Promise.reject(new ScanError(ERRORS.disabled)), connect: vi.fn() };
+    const base = await start(fakes({ wifi }).deps);
+    const response = await fetch(`${base}/wifi/networks`);
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: ERRORS.disabled });
+  });
+
+  it('joins a network for the setup page, and says when it could not', async () => {
+    const { deps, joined } = fakes();
+    const base = await start(deps);
+    const request = { ssid: 'Home', password: 'right-password', hidden: false, security: 'psk' };
+    const done = await post(base, '/wifi/connect', { origin: LOCAL_ORIGIN, body: request });
+    await expect(done.json()).resolves.toEqual({ ok: true });
+    const failed = await post(base, '/wifi/connect', {
+      origin: LOCAL_ORIGIN,
+      body: { ...request, password: 'wrong-one' }
+    });
+    await expect(failed.json()).resolves.toEqual({ ok: false, error: 'Nope.' });
+    expect(joined.map(entry => entry.password)).toEqual(['right-password', 'wrong-one']);
+  });
+
+  it('refuses the app and other pages, and a bad request', async () => {
+    const { deps, joined } = fakes();
+    const base = await start(deps);
+    const request = { ssid: 'Home', password: 'right-password', hidden: false, security: 'psk' };
+    expect((await post(base, '/wifi/connect', { body: request })).status).toBe(403);
+    expect((await post(base, '/wifi/connect', { origin: 'https://evil.example', body: request })).status).toBe(403);
+    expect((await post(base, '/wifi/connect', { origin: LOCAL_ORIGIN, body: { ssid: 'Home' } })).status).toBe(400);
+    expect(joined).toEqual([]);
   });
 });

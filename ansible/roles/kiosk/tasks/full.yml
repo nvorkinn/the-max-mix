@@ -433,6 +433,7 @@
   loop:
     - actions.ts
     - kiosk-audio.ts
+    - nmcli.ts
     - pipewire.ts
     - server.ts
     - speakers.ts

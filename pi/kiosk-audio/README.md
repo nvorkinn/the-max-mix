@@ -53,17 +53,24 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 
 ## The requests
 
-| Request                                | What it does                                           |
-| -------------------------------------- | ------------------------------------------------------ |
-| `GET /speakers`                        | `{"speakers": [...], "volumes": {"Kitchen": 40}}`      |
-| `POST /audio/route`                    | Routes the sound to the speakers in the JSON body      |
-| `POST /audio/volume`                   | Sets one speaker's volume (404: not on the network)    |
-| `WS /power/update`                     | Connecting starts the update and streams it (below)    |
-| `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                            |
-| `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)               |
-| `POST /wifi`                           | Shows the Wi-Fi panel (flag file, then stops Chromium) |
-| `POST /heartbeat`                      | The app is alive (the watchdog, below)                 |
-| `POST /log`                            | An app error, written to the journal                   |
+| Request                                | What it does                                             |
+| -------------------------------------- | -------------------------------------------------------- |
+| `GET /speakers`                        | `{"speakers": [...], "volumes": {"Kitchen": 40}}`        |
+| `POST /audio/route`                    | Routes the sound to the speakers in the JSON body        |
+| `POST /audio/volume`                   | Sets one speaker's volume (404: not on the network)      |
+| `WS /power/update`                     | Connecting starts the update and streams it (below)      |
+| `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                              |
+| `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)                 |
+| `POST /wifi`                           | Shows the Wi-Fi panel (flag file, then stops Chromium)   |
+| `POST /heartbeat`                      | The app is alive (the watchdog, below)                   |
+| `POST /log`                            | An app error, written to the journal                     |
+| `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first             |
+| `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`) |
+
+The two Wi-Fi requests are for the Wi-Fi setup page that will replace the Python panel in `pi/wifi-panel`. That page
+has to work offline, so this service will serve it, and `POST /wifi/connect` answers only that page's own origin
+(`http://127.0.0.1:7341`), not the app's. They port `pi/wifi-panel/nmcli.py`: the password reaches nmcli on stdin,
+never in argv or the journal, and a failed attempt deletes the profile it made and brings back the Wi-Fi that was on.
 
 | File               | What it is                                                              |
 | ------------------ | ----------------------------------------------------------------------- |
@@ -72,6 +79,7 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 | `update-socket.ts` | The WebSocket at `/power/update`: origin check, one update at a time.   |
 | `update.ts`        | The update: follows the journal, runs the pull and the restart.         |
 | `actions.ts`       | The fixed commands behind the power, screen and Wi-Fi requests.         |
+| `nmcli.ts`         | Wi-Fi through nmcli: scanning, joining, and the messages for errors.    |
 | `watchdog.ts`      | Restarts Chromium when the app's heartbeats stop.                       |
 | `speakers.ts`      | Checking speaker lists, the saved choice, and routing to it.            |
 | `pipewire.ts`      | `pw-dump` parsing, the link plan, `pw-link` and `wpctl set-volume`.     |
