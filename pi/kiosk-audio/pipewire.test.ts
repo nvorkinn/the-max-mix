@@ -11,7 +11,9 @@ import {
   playersOf,
   PW_DUMP,
   PW_LINK,
-  runCommand
+  runCommand,
+  volumeOf,
+  WPCTL
 } from './pipewire.ts';
 import type { Node, Port, Run } from './pipewire.ts';
 
@@ -75,6 +77,19 @@ describe('parseDump', () => {
     };
     const players = playersOf(parseDump(dump([mpv])));
     expect(players.map(node => node.id)).toEqual([70]);
+  });
+});
+
+describe('volumeOf', () => {
+  it('reads the channel volumes on the cubic scale wpctl shows', () => {
+    expect(nodeAt(50).volume).toBeCloseTo(0.4);
+    expect(volumeOf({ params: { Props: [{ volume: 1 }, { channelVolumes: [0.001, 0.015] }] } })).toBeCloseTo(0.2);
+  });
+
+  it('is null when a node has no usable volume', () => {
+    expect(nodeAt(60).volume).toBeNull();
+    expect(volumeOf({ params: { Props: [{ channelVolumes: [] }, { channelVolumes: ['loud'] }] } })).toBeNull();
+    expect(volumeOf({ params: { Props: 'none' } })).toBeNull();
   });
 });
 
@@ -168,6 +183,21 @@ describe('PipeWire', () => {
     const broken = stub({ [PW_LINK]: { code: 1, stderr: 'no such port' } });
     await expect(new PipeWire(broken).apply({ connect: [[71, 51]], disconnect: [80] })).resolves.toBe(false);
     expect(console.warn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('PipeWire.setVolume', () => {
+  it('sets a node’s volume with wpctl, kept between 0 and 1', async () => {
+    const run = stub();
+    const pipewire = new PipeWire(run);
+    await pipewire.setVolume(50, 0.456);
+    await pipewire.setVolume(50, 3);
+    expect(run.mock.calls).toEqual([[[WPCTL, 'set-volume', '50', '0.46']], [[WPCTL, 'set-volume', '50', '1.00']]]);
+  });
+
+  it('turns a failed wpctl into an error', async () => {
+    const pipewire = new PipeWire(stub({ [WPCTL]: { code: 1, stderr: 'Object not found' } }));
+    await expect(pipewire.setVolume(50, 0.5)).rejects.toThrow(/Object not found/);
   });
 });
 

@@ -69,7 +69,8 @@ function describe(value: unknown): string {
 let captured = false;
 
 /**
- * Copies console errors and warnings, uncaught errors and unhandled promise rejections into the log. The console
+ * Copies console errors and warnings, uncaught errors, unhandled promise rejections and Content-Security-Policy
+ * violations into the log. The console
  * itself keeps working as before. Safe to call more than once.
  */
 export function captureBrowserErrors(): void {
@@ -87,5 +88,9 @@ export function captureBrowserErrors(): void {
   });
   window.addEventListener('unhandledrejection', event => {
     debugLog('error', 'promise', describe(event.reason));
+  });
+  // The Content-Security-Policy-Report-Only header in vercel.json reports here, so a host it is missing shows up on the kiosk.
+  document.addEventListener('securitypolicyviolation', event => {
+    debugLog('warn', 'csp', `${event.effectiveDirective} would block ${event.blockedURI || 'inline code'}`);
   });
 }

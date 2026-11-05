@@ -47,7 +47,7 @@ describe('debugLog', () => {
     expect(getDebugEntries()).toEqual([]);
   });
 
-  it('copies console errors, warnings and uncaught errors while the console keeps working', () => {
+  it('copies console errors, warnings, uncaught errors and CSP violations while the console keeps working', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     captureBrowserErrors();
@@ -58,13 +58,19 @@ describe('debugLog', () => {
     const rejection = new Event('unhandledrejection') as Event & { reason?: unknown };
     rejection.reason = 'nope';
     window.dispatchEvent(rejection);
+    const violation = Object.assign(new Event('securitypolicyviolation'), {
+      effectiveDirective: 'connect-src',
+      blockedURI: 'https://example.com/x'
+    });
+    document.dispatchEvent(violation);
     expect(error).toHaveBeenCalledWith('bad', { code: 7 });
     expect(warn).toHaveBeenCalledWith('careful');
     expect(getDebugEntries().map(entry => [entry.level, entry.source, entry.message])).toEqual([
       ['error', 'console', 'bad {"code":7}'],
       ['warn', 'console', 'careful'],
       ['error', 'page', 'Script error.'],
-      ['error', 'promise', 'nope']
+      ['error', 'promise', 'nope'],
+      ['warn', 'csp', 'connect-src would block https://example.com/x']
     ]);
   });
 });

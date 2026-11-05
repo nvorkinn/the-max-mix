@@ -62,6 +62,12 @@ kiosk_admin_user: admin
 kiosk_admin_github_user: nvorkinn
 kiosk_admin_keys_boot_delay: 2min
 kiosk_admin_keys_interval: 6h
+# Tailscale, so the admin account can SSH in from anywhere once the Pi lives on someone else's network. The playbook only
+# installs it; join your tailnet once by hand with `sudo tailscale up` (pi/cloud-init/README.md). Turning this off later
+# leaves Tailscale installed: run `sudo tailscale logout` and `sudo apt purge tailscale` on the Pi. The archive key
+# (https://pkgs.tailscale.com/stable/debian/trixie.noarmor.gpg) is pinned by its checksum.
+kiosk_tailscale_enabled: true
+kiosk_tailscale_key_sha256: 3e03dacf222698c60b8e2f990b809ca1b3e104de127767864284e6c228f1fb39
 # Where the playbook records which version of the files it installs (git's tree ids) it last applied completely; when they
 # are unchanged the slow part is skipped (tasks/main.yml).
 kiosk_applied_stamp: /var/lib/the-max-mix/applied.sha1
@@ -136,6 +142,12 @@ kiosk_packages:
 # The Wi-Fi panel's source and its package list (one package per line, # comments allowed) live in the pulled repository.
 kiosk_panel_src: '{{ playbook_dir }}/../pi/wifi-panel'
 kiosk_panel_dir: /opt/the-max-mix/wifi-panel
+
+# The on-screen keyboard for Spotify's sign-in pages (pi/kiosk-keyboard): a Chromium extension in TypeScript. Its
+# sources go to src/, and its build script (Node's own type stripper) writes the extension that kiosk-session loads
+# into extension/.
+kiosk_keyboard_src: '{{ playbook_dir }}/../pi/kiosk-keyboard'
+kiosk_keyboard_dir: /opt/the-max-mix/kiosk-keyboard
 
 # The kiosk-audio service (pi/kiosk-audio): a user unit that answers the app on 127.0.0.1 (speakers, routing, the update
 # stream, restart, reboot, Wi-Fi panel, screen wake) and keeps the audio links in place. Its one npm package (ws, for the

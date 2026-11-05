@@ -6,25 +6,27 @@ browser. Run them with `npm run build && npm run test:e2e`.
 
 ## One file for each feature
 
-| File                 | Feature (tag)                                                               |
-| -------------------- | --------------------------------------------------------------------------- |
-| `app.spec.ts`        | The app as a whole (`@app`): loads without errors, zoom                     |
-| `player.spec.ts`     | Player controls (`@player`)                                                 |
-| `queue.spec.ts`      | The queue (`@queue`)                                                        |
-| `music.spec.ts`      | Choosing music on the screen: playlists, Liked Songs, recent (`@music`)     |
-| `lyrics.spec.ts`     | Lyrics (`@lyrics`)                                                          |
-| `settings.spec.ts`   | Settings (`@settings`): colour, polling, screen sleep, kiosk-only buttons   |
-| `sleep.spec.ts`      | Screen sleep (`@sleep`): sleep button, idle sleep, polling while asleep     |
-| `dialogs.spec.ts`    | Focus and dismissal of the dialogs: Settings, Speakers, debug (`@dialogs`)  |
-| `update.spec.ts`     | Software update (`@update`): popup, streamed console, restart, failure      |
-| `setup.spec.ts`      | Setup and signing in (`@setup`)                                             |
-| `status.spec.ts`     | Playback status, errors, offline, rate limits (`@status`)                   |
-| `appearance.spec.ts` | Colours and contrast of dialogs (`@appearance`)                             |
-| `layout.spec.ts`     | What fits the 1024x600 screen: touch targets, long names, fonts (`@layout`) |
-| `visual.spec.ts`     | Screenshots compared with `screenshots/` (`@visual`, CI only)               |
+| File                 | Feature (tag)                                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `app.spec.ts`        | The app as a whole (`@app`): loads without errors, zoom                                                       |
+| `player.spec.ts`     | Player controls (`@player`): play/pause, seek, next/previous, shuffle, repeat, like, volume                   |
+| `queue.spec.ts`      | The queue (`@queue`)                                                                                          |
+| `music.spec.ts`      | Choosing music on the screen: playlists, Liked Songs, recent (`@music`)                                       |
+| `lyrics.spec.ts`     | Lyrics (`@lyrics`)                                                                                            |
+| `speakers.spec.ts`   | Speakers (`@speakers`): the drawer and AirPlay on the kiosk                                                   |
+| `settings.spec.ts`   | Settings (`@settings`): colour, polling, screen sleep, kiosk-only buttons                                     |
+| `sleep.spec.ts`      | Screen sleep (`@sleep`): sleep button, idle sleep, polling while asleep                                       |
+| `dialogs.spec.ts`    | Focus and dismissal of the dialogs: Settings, Speakers, debug (`@dialogs`)                                    |
+| `update.spec.ts`     | Software update (`@update`): popup, streamed console, restart, failure                                        |
+| `setup.spec.ts`      | Setup and signing in (`@setup`)                                                                               |
+| `status.spec.ts`     | Playback status (`@status`): errors, offline, rate limits and the quota, trouble with the tablet's own player |
+| `appearance.spec.ts` | Colours and contrast of dialogs (`@appearance`)                                                               |
+| `layout.spec.ts`     | What fits the 1024x600 screen: touch targets, long names, fonts (`@layout`)                                   |
+| `visual.spec.ts`     | Screenshots compared with `screenshots/` (`@visual`, CI only)                                                 |
 
 Each file is one `test.describe('<Feature>', { tag: '@feature' }, …)`, so the report reads _Feature › what it checks_,
-and a test can carry further tags (`test('…', { tag: '@queue' }, …)`). `fake-spotify.ts` is the shared fake account (and counts its playback reads); `clock.ts` moves a faked clock for the tests
+and a test can carry further tags (`test('…', { tag: '@queue' }, …)`). `fake-spotify.ts` is the shared fake account (and counts its playback reads); `fake-spotify-sdk.ts` fakes the Web Playback SDK (this tablet's own player, which tests make drop or block
+autoplay); `clock.ts` moves a faked clock for the tests
 that count polling or wait out an idle timer.
 
 ## Finding the tests for a pull request

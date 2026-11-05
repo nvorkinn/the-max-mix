@@ -47,7 +47,7 @@ It asks for `yes`, then:
 - turns cloud-init off (`/etc/cloud/cloud-init.disabled`), so it never applies the setup network again;
 - clears the kiosk's Chromium profile (your Spotify login; the downloaded Widevine stays), the chosen speakers and the
   logs;
-- powers off. The admin SSH keys and the paired Bluetooth keyboard and mouse stay.
+- powers off. The admin SSH keys, the Tailscale login and the paired Bluetooth keyboard and mouse stay.
 
 Your SSH session drops when the Wi-Fi goes; the rest still runs. At its new home the Pi finds no network and shows the
 Wi-Fi panel. `--no-poweroff` starts the kiosk again instead, for trying it out.
@@ -79,7 +79,8 @@ the panel and starts Chromium again afterwards. Nothing watches the network whil
 The playbook also sets, among other things:
 
 - no password for any account (the `kiosk` user is locked and not in `sudo`);
-- SSH for the `admin` account only, by key only, with `sudo` (see "Maintenance over SSH");
+- SSH for the `admin` account only, by key only, with `sudo`, and Tailscale for SSH from anywhere (see "Maintenance
+  over SSH");
 - `kiosk` manages NetworkManager connections without sudo through `/etc/polkit-1/rules.d/50-kiosk-networkmanager.rules`;
 - PipeWire, `pipewire-pulse` and WirePlumber, and AirPlay speakers through Avahi;
 - `unattended-upgrades` for Debian security updates and the Raspberry Pi archive (Chromium, kernel);
@@ -97,6 +98,22 @@ or remove a key on GitHub (Settings > SSH and GPG keys) and it reaches the Pi wi
 
 After reflashing a Pi, your computer still remembers the old host key: `ssh-keygen -R the-max-mix.local` (or the Pi's
 address) clears it.
+
+### From anywhere, over Tailscale
+
+`the-max-mix.local` only works on the Pi's own network. For SSH once the Pi is at its new home, the playbook installs
+[Tailscale](https://tailscale.com) (`kiosk_tailscale_enabled`). Join it to your tailnet once, at home, before
+`kiosk-handover`:
+
+1. `ssh admin@the-max-mix.local`, then `sudo tailscale up`. It prints a login link; open it on your computer and sign in
+   to your Tailscale account.
+2. In the [Tailscale admin console](https://login.tailscale.com/admin/machines), open the Pi's menu and choose
+   **Disable key expiry**, or it drops off the tailnet after 180 days and needs someone at its home to log it in again.
+3. With Tailscale on your computer too: `ssh admin@the-max-mix` (MagicDNS) or `ssh admin@<the Pi's 100.x address>`.
+
+No auth key goes in the repository or on the card. SSH still goes through `sshd` with your GitHub keys; Tailscale only
+carries it. `kiosk-handover` keeps the login. To take a Pi off your tailnet: `sudo tailscale logout`, or remove it in the
+admin console.
 
 ## Troubleshooting
 

@@ -24,7 +24,8 @@
 
 - name: Install the packages, Node.js and their sources
   when: >-
-    ([kiosk_all_packages, kiosk_nodejs_major, kiosk_nodesource_key_url, kiosk_nodesource_key_sha256] | to_json | hash('sha1'))
+    ([kiosk_all_packages, kiosk_nodejs_major, kiosk_nodesource_key_url, kiosk_nodesource_key_sha256,
+      kiosk_tailscale_enabled, kiosk_tailscale_key_sha256] | to_json | hash('sha1'))
     != kiosk_packages_done
   block:
     - name: Install the packages
@@ -76,6 +77,41 @@
         update_cache: '{{ kiosk_nodesource_key is changed or kiosk_nodesource_list is changed }}'
         lock_timeout: 300
 
+    # Tailscale, for SSH from outside the Pi's home network (kiosk_tailscale_enabled), from Tailscale's archive.
+    - name: Install Tailscale's signing key
+      ansible.builtin.get_url:
+        url: https://pkgs.tailscale.com/stable/debian/trixie.noarmor.gpg
+        dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        checksum: 'sha256:{{ kiosk_tailscale_key_sha256 }}'
+        owner: root
+        group: root
+        mode: '0644'
+      register: kiosk_tailscale_key
+      when: kiosk_tailscale_enabled | bool
+
+    - name: Add Tailscale's archive
+      ansible.builtin.copy:
+        content: |
+          Types: deb
+          URIs: https://pkgs.tailscale.com/stable/debian
+          Suites: trixie
+          Components: main
+          Signed-By: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        dest: /etc/apt/sources.list.d/tailscale.sources
+        owner: root
+        group: root
+        mode: '0644'
+      register: kiosk_tailscale_list
+      when: kiosk_tailscale_enabled | bool
+
+    - name: Install Tailscale
+      ansible.builtin.apt:
+        name: tailscale
+        state: present
+        update_cache: '{{ kiosk_tailscale_key is changed or kiosk_tailscale_list is changed }}'
+        lock_timeout: 300
+      when: kiosk_tailscale_enabled | bool
+
     - name: Create the directory for the package stamp
       ansible.builtin.file:
         path: '{{ kiosk_packages_stamp | dirname }}'
@@ -87,8 +123,8 @@
     - name: Record what was installed
       ansible.builtin.copy:
         content: >-
-          {{ [kiosk_all_packages, kiosk_nodejs_major, kiosk_nodesource_key_url, kiosk_nodesource_key_sha256]
-          | to_json | hash('sha1') }}
+          {{ [kiosk_all_packages, kiosk_nodejs_major, kiosk_nodesource_key_url, kiosk_nodesource_key_sha256,
+          kiosk_tailscale_enabled, kiosk_tailscale_key_sha256] | to_json | hash('sha1') }}
         dest: '{{ kiosk_packages_stamp }}'
         owner: root
         group: root
@@ -271,6 +307,16 @@
       {{ omit if kiosk_enable_only else ('stopped' if not kiosk_ssh_enabled | bool
       else ('restarted' if kiosk_sshd_config is changed else 'started')) }}
 
+# Tailscale: tailscaled runs from boot. It joins the tailnet only after a one-time `sudo tailscale up` by hand (see
+# pi/cloud-init/README.md), so no key is in the repository; the login lives in /var/lib/tailscale and kiosk-handover
+# keeps it. SSH then goes through sshd as above, over the tailnet address.
+- name: Start Tailscale at boot
+  ansible.builtin.systemd_service:
+    name: tailscaled.service
+    enabled: true
+    state: "{{ omit if kiosk_enable_only else 'started' }}"
+  when: kiosk_tailscale_enabled | bool
+
 # The kiosk -----------------------------------------------------------------------------------------------------------
 # One program makes all of them: a module run costs about a second on a Pi, and there are twenty directories.
 # `install -d` creates what is missing and sets the owner and mode of what exists, so it can run every time.
@@ -293,6 +339,9 @@
       - '{{ kiosk_panel_dir }}'
       - '{{ kiosk_panel_dir }}/qml'
       - '{{ kiosk_audio_dir }}'
+      - '{{ kiosk_keyboard_dir }}'
+      - '{{ kiosk_keyboard_dir }}/src'
+      - '{{ kiosk_keyboard_dir }}/extension'
       - /usr/share/icons/blank
       - /usr/share/icons/blank/cursors
       - /usr/share/kiosk-cursors
@@ -345,6 +394,33 @@
     - qml/PanelField.qml
   notify: Ask for a kiosk restart
 
+# Spotify's sign-in page needs a keyboard, and Cage has no protocol for a system one, so a small Chromium extension draws
+# its own on Spotify's sign-in pages. Chromium cannot load TypeScript, so the build strips the types (Node, no packages)
+# and prints "changed" only when it wrote a file.
+- name: Install the sign-in keyboard's source
+  ansible.builtin.copy:
+    src: '{{ kiosk_keyboard_src }}/{{ item }}'
+    dest: '{{ kiosk_keyboard_dir }}/src/{{ item }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - build.ts
+    - keyboard.ts
+    - loader.ts
+    - manifest.json
+
+- name: Build the sign-in keyboard
+  ansible.builtin.command:
+    argv:
+      - node
+      - '{{ kiosk_keyboard_dir }}/src/build.ts'
+      - '{{ kiosk_keyboard_dir }}/src'
+      - '{{ kiosk_keyboard_dir }}/extension'
+  register: kiosk_keyboard_build
+  changed_when: "'changed' in kiosk_keyboard_build.stdout"
+  notify: Ask for a kiosk restart
+
 # AirPlay: PipeWire makes a sink for each speaker Avahi finds; the app asks the kiosk-audio service (127.0.0.1) to route
 # the browser's audio to the chosen ones, and the same user unit keeps it there.
 - name: Install the audio routing
@@ -362,6 +438,7 @@
     - speakers.ts
     - update.ts
     - update-socket.ts
+    - watchdog.ts
   notify: Ask for a kiosk restart
 
 # ws, the one npm package, for the update stream (the WebSocket). Installed from the lockfile, so it is the version that

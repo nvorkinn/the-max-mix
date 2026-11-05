@@ -33,18 +33,37 @@ app on `127.0.0.1:7341`. It does two jobs:
    seconds and routes again when needed, so a stream Chromium opens again, or a speaker that drops off the network and
    comes back, plays in the right place. If none of the chosen speakers is on the network, nothing changes.
 
+4. **Volume.** `GET /speakers` also gives each speaker's volume, and the drawer shows a slider under each chosen
+   speaker. Moving it sends `POST /audio/volume` with `{"speaker": "Kitchen", "volume": 40}` (percent), and the
+   service runs `wpctl set-volume <sink> 0.40`. The AirPlay sink passes the volume on to the speaker itself, so it is the
+   same volume the speaker's own app shows. Both use wpctl's cubic scale (the cube root of PipeWire's channel volumes),
+   like any volume slider.
+
 The service does not report the chosen speakers, so the app remembers them itself (`maxmix.airplaySpeakers` in its storage).
+
+## The watchdog
+
+With `?kiosk=1` the app sends `POST /heartbeat` every 20 seconds while it shows something. When none has come for 3
+minutes (a crashed tab, a hung page, or an app that went blank), the service stops Chromium and kiosk-session starts it
+again, or shows the Wi-Fi panel when there is no connection. It only acts after this service has had a heartbeat, gives
+every new Chromium the full 3 minutes, and leaves the Wi-Fi panel alone; each restart without a heartbeat in between
+doubles the wait (up to an hour), so a page that cannot load is not restarted in a loop. The app also sends its errors
+to `POST /log` (at most 30 lines a minute reach the journal). Both are in the journal:
+`journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service` (as root), lines starting `app` or `No heartbeat`.
 
 ## The requests
 
 | Request                                | What it does                                           |
 | -------------------------------------- | ------------------------------------------------------ |
-| `GET /speakers`                        | `{"speakers": [...]}`, the AirPlay sinks, sorted       |
+| `GET /speakers`                        | `{"speakers": [...], "volumes": {"Kitchen": 40}}`      |
 | `POST /audio/route`                    | Routes the sound to the speakers in the JSON body      |
+| `POST /audio/volume`                   | Sets one speaker's volume (404: not on the network)    |
 | `WS /power/update`                     | Connecting starts the update and streams it (below)    |
 | `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                            |
 | `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)               |
 | `POST /wifi`                           | Shows the Wi-Fi panel (flag file, then stops Chromium) |
+| `POST /heartbeat`                      | The app is alive (the watchdog, below)                 |
+| `POST /log`                            | An app error, written to the journal                   |
 
 | File               | What it is                                                              |
 | ------------------ | ----------------------------------------------------------------------- |
@@ -53,8 +72,9 @@ The service does not report the chosen speakers, so the app remembers them itsel
 | `update-socket.ts` | The WebSocket at `/power/update`: origin check, one update at a time.   |
 | `update.ts`        | The update: follows the journal, runs the pull and the restart.         |
 | `actions.ts`       | The fixed commands behind the power, screen and Wi-Fi requests.         |
+| `watchdog.ts`      | Restarts Chromium when the app's heartbeats stop.                       |
 | `speakers.ts`      | Checking speaker lists, the saved choice, and routing to it.            |
-| `pipewire.ts`      | `pw-dump` parsing, the link plan, and running `pw-link`.                |
+| `pipewire.ts`      | `pw-dump` parsing, the link plan, `pw-link` and `wpctl set-volume`.     |
 
 It is TypeScript that Node runs directly, so Ansible copies the `.ts` files as they are and nothing is built. Its one npm
 package is `ws` (the WebSocket server): the playbook installs it on the Pi with `npm ci` from
@@ -94,7 +114,8 @@ show journalctl's "no permission" instead of the lines; the pull and restart sti
 ## On the device
 
 - `systemctl --user -M kiosk@ status kiosk-audio` and `journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service` (as root).
-- `wpctl status` lists the AirPlay sinks; `pw-link -l` shows where Chromium's stream goes.
+- `wpctl status` lists the AirPlay sinks; `pw-link -l` shows where Chromium's stream goes; `wpctl get-volume <id>`
+  shows a speaker's volume as the app does.
 - `curl -s http://127.0.0.1:7341/speakers` lists what the app sees. A POST needs the app's `Origin`, for example
   `curl -X POST -H 'Origin: https://the-max-mix.vercel.app' http://127.0.0.1:7341/power/restart`.
 

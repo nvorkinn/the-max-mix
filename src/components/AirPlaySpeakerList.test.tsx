@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act, waitFor } from '@testing-library/react';
+import { render, screen, act, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '../test/user';
 import AirPlaySpeakerList from './AirPlaySpeakerList';
 
@@ -8,7 +8,8 @@ const airplay = vi.hoisted(() => ({
   watchAudioOutputs: vi.fn(),
   routeAudio: vi.fn(),
   getChosenSpeakers: vi.fn(),
-  setChosenSpeakers: vi.fn()
+  setChosenSpeakers: vi.fn(),
+  setSpeakerVolume: vi.fn()
 }));
 vi.mock('../audio/airplay', () => airplay);
 
@@ -21,7 +22,7 @@ beforeEach(async () => {
   localStorage.clear();
   saved.setChosenSpeakers(['Kitchen']);
   for (const mock of Object.values(airplay)) mock.mockReset();
-  airplay.listAudioOutputs.mockResolvedValue(['Kitchen', 'Lounge']);
+  airplay.listAudioOutputs.mockResolvedValue({ names: ['Kitchen', 'Lounge'], volumes: {} });
   airplay.getChosenSpeakers.mockImplementation(saved.getChosenSpeakers);
   airplay.setChosenSpeakers.mockImplementation(saved.setChosenSpeakers);
   airplay.watchAudioOutputs.mockImplementation((listener: () => void) => {
@@ -75,7 +76,7 @@ describe('AirPlaySpeakerList', () => {
   });
 
   it('keeps a chosen speaker that left the network, so it can be removed', async () => {
-    airplay.listAudioOutputs.mockResolvedValue(['Lounge']);
+    airplay.listAudioOutputs.mockResolvedValue({ names: ['Lounge'], volumes: {} });
     render(<AirPlaySpeakerList isPlayerReady />);
     const kitchen = await screen.findByRole('button', { name: /Kitchen/ });
     expect(kitchen).toHaveTextContent('Not on the network');
@@ -83,7 +84,7 @@ describe('AirPlaySpeakerList', () => {
   });
 
   it('reads the outputs again when they change', async () => {
-    airplay.listAudioOutputs.mockResolvedValueOnce([]);
+    airplay.listAudioOutputs.mockResolvedValueOnce({ names: [], volumes: {} });
     airplay.getChosenSpeakers.mockReturnValue([]);
     render(<AirPlaySpeakerList isPlayerReady />);
     expect(await screen.findByText(/Looking for AirPlay speakers/)).toBeInTheDocument();
@@ -120,7 +121,7 @@ describe('AirPlaySpeakerList', () => {
     ['absent', ['Lounge']],
     ['available', ['Kitchen', 'Lounge']]
   ])('removes an %s saved speaker while unready and remembers it when reopened without routing', async (_, outputs) => {
-    airplay.listAudioOutputs.mockResolvedValue(outputs);
+    airplay.listAudioOutputs.mockResolvedValue({ names: outputs, volumes: {} });
     const { unmount } = render(<AirPlaySpeakerList isPlayerReady={false} />);
     await screen.findByRole('button', { name: /Lounge/ });
     const kitchen = screen.getByRole('button', { name: /Kitchen/ });
@@ -173,5 +174,29 @@ describe('AirPlaySpeakerList', () => {
     expect(kitchen).toHaveTextContent('Selected');
     expect(kitchen).toHaveTextContent('Checking availability');
     expect(kitchen).not.toHaveTextContent('Not on the network');
+  });
+
+  it('gives each chosen speaker on the network a volume slider that sets its volume', async () => {
+    airplay.listAudioOutputs.mockResolvedValue({ names: ['Kitchen', 'Lounge'], volumes: { Kitchen: 40, Lounge: 70 } });
+    render(<AirPlaySpeakerList isPlayerReady />);
+    const slider = await screen.findByRole('slider', { name: 'Kitchen volume' });
+    expect(slider).toHaveValue('40');
+    expect(screen.queryByRole('slider', { name: 'Lounge volume' })).not.toBeInTheDocument();
+    fireEvent.change(slider, { target: { value: '55' } });
+    expect(airplay.setSpeakerVolume).toHaveBeenCalledExactlyOnceWith('Kitchen', 55);
+    // A list read just after still shows the old volume; the slider keeps the one just set.
+    await act(async () => {
+      onDeviceChange();
+      await Promise.resolve();
+    });
+    expect(slider).toHaveValue('55');
+  });
+
+  it('shows no slider for a speaker that reports no volume or is not on the network', async () => {
+    localStorage.setItem('maxmix.airplaySpeakers', '["Kitchen","Gone"]');
+    airplay.listAudioOutputs.mockResolvedValue({ names: ['Kitchen'], volumes: { Gone: 30 } });
+    render(<AirPlaySpeakerList isPlayerReady />);
+    expect(await screen.findByRole('button', { name: /Gone/ })).toHaveTextContent('Not on the network');
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
   });
 });

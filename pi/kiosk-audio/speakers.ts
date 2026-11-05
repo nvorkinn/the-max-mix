@@ -2,7 +2,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { isEmptyPlan, planRoutes } from './pipewire.ts';
-import type { Graph, Plan } from './pipewire.ts';
+import type { Graph, Node, Plan } from './pipewire.ts';
 
 const MAX_SPEAKERS = 16;
 const MAX_NAME_LENGTH = 256;
@@ -12,6 +12,10 @@ export interface AudioGraph {
   graph: () => Promise<Graph>;
   apply: (plan: Plan) => Promise<boolean>;
 }
+
+/** The AirPlay (RAOP) sinks PipeWire made, one for each speaker it found. */
+export const airPlaySinks = (graph: Graph): Node[] =>
+  graph.nodes.filter(node => node.mediaClass === 'Audio/Sink' && node.name.startsWith('raop_sink.'));
 
 const isBadName = (name: unknown) => typeof name !== 'string' || name.length === 0 || name.length > MAX_NAME_LENGTH;
 
@@ -47,4 +51,28 @@ export async function route(pipewire: AudioGraph, speakers: string[]): Promise<P
     await pipewire.apply(plan);
   }
   return plan;
+}
+
+/** The volume request's body, or null unless it names one speaker and a whole percentage. */
+export function validVolume(value: unknown): { speaker: string; volume: number } | null {
+  const { speaker, volume } = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>;
+  if (isBadName(speaker) || !Number.isSafeInteger(volume)) return null;
+  const percent = volume as number;
+  return percent >= 0 && percent <= 100 ? { speaker: speaker as string, volume: percent } : null;
+}
+
+/** What setting a speaker's volume needs from PipeWire; tests pass a fake. */
+export interface VolumeControl {
+  graph: () => Promise<Graph>;
+  setVolume: (node: number, volume: number) => Promise<void>;
+}
+
+/** Sets the volume (0 to 100) of every AirPlay sink with this name. Returns how many it set (none: not on the network). */
+export async function setSpeakerVolume(pipewire: VolumeControl, speaker: string, volume: number): Promise<number> {
+  const sinks = airPlaySinks(await pipewire.graph()).filter(node => node.description === speaker);
+  for (const sink of sinks) {
+    // eslint-disable-next-line no-await-in-loop
+    await pipewire.setVolume(sink.id, volume / 100);
+  }
+  return sinks.length;
 }

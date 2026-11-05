@@ -63,12 +63,14 @@ for file in /usr/local/bin/kiosk-session /usr/local/bin/wifi-panel \
   /opt/the-max-mix/kiosk-audio/kiosk-audio.ts /opt/the-max-mix/kiosk-audio/speakers.ts \
   /opt/the-max-mix/kiosk-audio/server.ts /opt/the-max-mix/kiosk-audio/actions.ts \
   /opt/the-max-mix/kiosk-audio/update.ts /opt/the-max-mix/kiosk-audio/update-socket.ts \
+  /opt/the-max-mix/kiosk-keyboard/extension/manifest.json /opt/the-max-mix/kiosk-keyboard/extension/loader.js \
+  /opt/the-max-mix/kiosk-keyboard/extension/keyboard.js \
   /opt/the-max-mix/kiosk-audio/node_modules/ws/package.json /var/lib/the-max-mix/kiosk-audio-deps.sha1 \
   /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf /etc/systemd/user/default.target.wants/kiosk-audio.service; do
   check test -e "$file"
 done
 for unit in kiosk.service kiosk-bluetooth-pair.service bluetooth.service avahi-daemon.service kiosk-pull.timer \
-  kiosk-restart.timer kiosk-ssh-keys.timer ssh.service kiosk-widevine.path; do
+  kiosk-restart.timer kiosk-ssh-keys.timer ssh.service tailscaled.service kiosk-widevine.path; do
   check systemctl is-enabled --quiet "$unit"
   # Enabled only: nothing is started with kiosk_enable_only.
   if systemctl is-active --quiet "$unit"; then

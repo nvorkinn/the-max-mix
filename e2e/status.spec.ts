@@ -1,6 +1,9 @@
 import { expect, test, type Page, type Locator } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
 import type { PlaybackState } from '../src/types.ts';
+import { advance } from './clock.ts';
+import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
+import { countPlaybackReads, fakeSpotify } from './fake-spotify.ts';
 
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 
@@ -270,5 +273,129 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     await expect(page.getByRole('alert')).toHaveCount(0);
     expect(api.playbackReads).toBeGreaterThan(reads);
     expect(api.commands).toEqual(['/v1/me/player/next']);
+  });
+
+  test.describe('when Spotify refuses with a 429', () => {
+    // The fake account answers as usual until a test makes Spotify say 429 to the playback read.
+    let refusal: { reason?: string } | null = null;
+
+    test.beforeEach(async ({ page }) => {
+      refusal = null;
+      await fakeSpotify(page);
+      await page.route('https://api.spotify.com/v1/me/player', route =>
+        refusal
+          ? route.fulfill({
+              status: 429,
+              json: { error: { status: 429, message: 'Refused', ...refusal } }
+            })
+          : route.fallback()
+      );
+      // The polling and the cooldown are counted on a clock that only moves when the test moves it.
+      await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
+      await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
+    });
+
+    test('QUOTA_EXCEEDED stops all polling for good and says so, in the banner and in Settings', async ({ page }) => {
+      const reads = countPlaybackReads(page);
+      await page.goto('/');
+      await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+
+      refusal = { reason: 'QUOTA_EXCEEDED' };
+      await advance(page, 6000);
+      const banner = page.locator('.playback-banner');
+      await expect(banner).toContainText('Spotify quota used up');
+      await expect(banner).toContainText('stopped reading Spotify by itself');
+
+      // Nothing asks again, however long the tablet runs, even once Spotify would answer.
+      refusal = null;
+      const stopped = reads();
+      await advance(page, 120_000);
+      expect(reads()).toBe(stopped);
+      await expect(banner).toContainText('Spotify quota used up');
+
+      await page.getByRole('button', { name: 'Open settings' }).click();
+      const settings = page.getByRole('dialog', { name: 'Settings' });
+      await expect(settings).toContainText("Stopped: Spotify's quota is used up");
+    });
+
+    test('an ordinary 429 waits a while, says so, and carries on by itself', async ({ page }) => {
+      const reads = countPlaybackReads(page);
+      await page.goto('/');
+      await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+
+      refusal = {};
+      await advance(page, 6000);
+      const banner = page.locator('.playback-banner');
+      await expect(banner).toContainText('Waiting for Spotify');
+      await expect(banner).not.toContainText('quota');
+
+      // Nothing is asked while it waits (Spotify's wait is not readable by the browser, so a short one is assumed).
+      const waiting = reads();
+      await advance(page, 20_000);
+      expect(reads()).toBe(waiting);
+
+      refusal = null;
+      await advance(page, 40_000);
+      await expect(banner).toHaveCount(0);
+      expect(reads()).toBeGreaterThan(waiting);
+    });
+  });
+
+  test.describe("when this tablet's own player has trouble", () => {
+    test.beforeEach(async ({ page }) => {
+      await fakeSpotify(page);
+    });
+
+    test('a player that drops offline offers Reconnect, and a fresh player clears the problem', async ({ page }) => {
+      const sdk = await fakeSpotifySdk(page);
+      await page.goto('/');
+      await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+      await expect.poll(() => sdk.players()).toBe(1);
+
+      await sdk.emit('not_ready');
+      const banner = page.locator('.playback-banner');
+      await expect(banner).toContainText('Playback problem');
+      await expect(banner).toContainText('The browser player could not connect to Spotify.');
+
+      await banner.getByRole('button', { name: 'Reconnect player' }).click();
+      await expect.poll(() => sdk.players()).toBe(2);
+      await expect(banner).toHaveCount(0);
+    });
+
+    test('blocked autoplay offers Allow browser audio, which asks the browser and clears the problem', async ({
+      page
+    }) => {
+      const sdk = await fakeSpotifySdk(page);
+      await page.goto('/');
+      await expect.poll(() => sdk.players()).toBe(1);
+
+      await sdk.emit('autoplay_failed');
+      const banner = page.locator('.playback-banner');
+      await expect(banner).toContainText('Allow browser audio, then press Play to start.');
+      expect(await sdk.activations()).toBe(0);
+
+      await banner.getByRole('button', { name: 'Allow browser audio' }).click();
+      await expect.poll(() => sdk.activations()).toBe(1);
+      await expect(banner).toHaveCount(0);
+    });
+
+    test('a browser that cannot play protected music falls back to controlling a Spotify speaker', async ({ page }) => {
+      // The browser has no Widevine, which is what Spotify's player needs.
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'requestMediaKeySystemAccess', { value: undefined, configurable: true });
+      });
+      const sdk = await fakeSpotifySdk(page);
+      await page.goto('/');
+      await expect.poll(() => sdk.players()).toBe(1);
+
+      await sdk.emit('initialization_error', { message: 'Failed to initialize player' });
+      const banner = page.locator('.playback-banner');
+      await expect(banner).toContainText('Choose an available speaker');
+      await banner.getByRole('button', { name: 'Choose speaker' }).click();
+      const drawer = page.getByRole('dialog', { name: 'Speakers' });
+      await expect(drawer.getByRole('button', { name: /Test speaker/ })).toBeVisible();
+      // This tablet is not offered as a speaker any more.
+      await expect(drawer.getByRole('button', { name: 'This tablet' })).toHaveCount(0);
+    });
   });
 });
