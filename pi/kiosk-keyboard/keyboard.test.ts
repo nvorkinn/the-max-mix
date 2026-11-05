@@ -132,12 +132,14 @@ describe('start', () => {
     field.focus();
     expect(isShown()).toBe(true);
     expect(document.body.style.paddingBottom).toBe(`${KEYBOARD_HEIGHT}px`);
+    expect(document.documentElement.style.getPropertyValue('--keyboard-height')).toBe(`${KEYBOARD_HEIGHT}px`);
     expect(scrollIntoView).toHaveBeenCalled();
 
     field.blur();
     vi.runAllTimers();
     expect(isShown()).toBe(false);
     expect(document.body.style.paddingBottom).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--keyboard-height')).toBe('');
   });
 
   it('types letters, a capital after Shift, symbols and spaces', () => {
@@ -175,5 +177,16 @@ describe('start', () => {
     tap('Done');
     expect(isShown()).toBe(false);
     expect(document.activeElement).not.toBe(field);
+  });
+
+  it('goes in the element it is given', () => {
+    stop();
+    const mount = document.createElement('div');
+    document.body.append(mount);
+    stop = start(document, mount);
+    const field = input();
+    field.focus();
+    expect(mount.lastElementChild?.shadowRoot?.querySelector('.board')).not.toBeNull();
+    mount.remove();
   });
 });

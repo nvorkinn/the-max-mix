@@ -900,7 +900,9 @@
 .app-dialog {
   margin: auto;
   width: calc(100% - 32px);
-  max-height: calc(100dvh - 32px);
+  /* The kiosk's on-screen keyboard (pi/kiosk-keyboard) sets --keyboard-height while it shows; the dialog sits above it. */
+  bottom: var(--keyboard-height, 0);
+  max-height: calc(100dvh - 32px - var(--keyboard-height, 0px));
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -966,6 +968,19 @@ body:has(.app-dialog[open]) {
   object-fit: cover;
   display: grid;
   place-items: center;
+}
+.music-search {
+  background: var(--surface-raised);
+  border-color: var(--border);
+  color: var(--ink);
+}
+.music-search:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+/* Pinned to the top, so the results stay put under a finger when the keyboard closes and the dialog grows. */
+.app-dialog.music-picker-search {
+  margin-top: 16px;
 }
 .music-choice-liked {
   background: var(--accent-soft);

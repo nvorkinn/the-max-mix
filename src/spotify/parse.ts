@@ -168,3 +168,39 @@ export function parsePlaylists(value: unknown): MusicChoice[] {
     return choice;
   });
 }
+
+/** What a search finds, as /search lists it: the songs, then the albums, then the playlists. */
+export function parseSearch(value: unknown): MusicChoice[] {
+  const result = recordOf(value);
+  const artistsOf = (item: Record<string, unknown>) =>
+    parseAll(item['artists'], artist => text(recordOf(artist)['name'])).join(', ');
+  const songs = parseAll(recordOf(result['tracks'])['items'], item => {
+    const track = recordOf(item);
+    const uri = text(track['uri']);
+    const name = text(track['name']);
+    if (!uri || !name) return;
+    const album = recordOf(track['album']);
+    // The album carries on after the song, as a recently played track carries on from where it was played.
+    const choice: MusicChoice = { uri, name, detail: ['Song', artistsOf(track)].filter(Boolean).join(' · ') };
+    const image = firstImage(album['images']);
+    if (image) choice.image = image;
+    const contextUri = text(album['uri']);
+    if (contextUri) choice.contextUri = contextUri;
+    return choice;
+  });
+  const albums = parseAll(recordOf(result['albums'])['items'], item => {
+    const album = recordOf(item);
+    const uri = text(album['uri']);
+    const name = text(album['name']);
+    if (!uri || !name) return;
+    const choice: MusicChoice = { uri, name, detail: ['Album', artistsOf(album)].filter(Boolean).join(' · ') };
+    const image = firstImage(album['images']);
+    if (image) choice.image = image;
+    return choice;
+  });
+  const playlists = parsePlaylists(result['playlists']).map(playlist => ({
+    ...playlist,
+    detail: ['Playlist', playlist.detail].filter(Boolean).join(' · ')
+  }));
+  return [...songs, ...albums, ...playlists];
+}

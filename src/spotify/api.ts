@@ -12,7 +12,15 @@ import {
   spotifyRetryAfter,
   SpotifyApiError
 } from './http';
-import { isRecord, parseDevices, parsePlaybackState, parsePlaylists, parseQueue, parseRecentlyPlayed } from './parse';
+import {
+  isRecord,
+  parseDevices,
+  parsePlaybackState,
+  parsePlaylists,
+  parseQueue,
+  parseRecentlyPlayed,
+  parseSearch
+} from './parse';
 
 export { SpotifyApiError } from './http';
 
@@ -168,6 +176,12 @@ export async function getRecentlyPlayed(): Promise<MusicChoice[]> {
 /** The playlists the user made or follows. */
 export async function getPlaylists(): Promise<MusicChoice[]> {
   return parsePlaylists(await spotifyFetch('/me/playlists?limit=50'));
+}
+
+/** Songs, albums and playlists on Spotify that match `query`, a few of each. Search needs no extra scope. */
+export async function searchMusic(query: string): Promise<MusicChoice[]> {
+  const params = new URLSearchParams({ q: query, type: 'track,album,playlist', limit: '5' });
+  return parseSearch(await spotifyFetch(`/search?${params.toString()}`));
 }
 
 /** The signed-in user's Liked Songs, as a context that can be played. */

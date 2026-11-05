@@ -16,7 +16,7 @@ describe('build', () => {
     expect(await build(import.meta.dirname, destination)).toEqual(['manifest.json', 'loader.js', 'keyboard.js']);
 
     const keyboard = await readFile(path.join(destination, 'keyboard.js'), 'utf8');
-    expect(keyboard).toMatch(/export function start\(doc\s*\)/);
+    expect(keyboard).toMatch(/export function start\(doc\s*, mount\s*= doc.documentElement\)/);
     expect(keyboard).not.toContain('export type');
     const loader = await readFile(path.join(destination, 'loader.js'), 'utf8');
     expect(loader).not.toContain('declare const');
