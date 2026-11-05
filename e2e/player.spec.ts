@@ -106,7 +106,9 @@ test.describe('Player', { tag: '@player' }, () => {
     await heart.click();
     await expect(heart).toHaveAttribute('aria-pressed', 'true');
     expect(accountOf(page).saved).toEqual(new Set(['spotify:track:track-1']));
-    expect(accountOf(page).commands).toContain('PUT /v1/me/library?uris=spotify%3Atrack%3Atrack-1');
+    expect(accountOf(page).commands).toContain(
+      `PUT /v1/me/library?uris=${encodeURIComponent('spotify:track:track-1')}`
+    );
 
     // Another song is not saved; going back to the first still is.
     await nowPlaying(page).getByRole('button', { name: 'Next track' }).click();
@@ -120,7 +122,9 @@ test.describe('Player', { tag: '@player' }, () => {
     await heart.click();
     await expect(heart).toHaveAttribute('aria-pressed', 'false');
     expect(accountOf(page).saved.size).toBe(0);
-    expect(accountOf(page).commands).toContain('DELETE /v1/me/library?uris=spotify%3Atrack%3Atrack-1');
+    expect(accountOf(page).commands).toContain(
+      `DELETE /v1/me/library?uris=${encodeURIComponent('spotify:track:track-1')}`
+    );
   });
 
   test('the volume slider sets the speaker volume, which is still there after a reload', async ({ page }) => {
