@@ -51,17 +51,27 @@ export interface AppLog {
 export function parseAppLog(value: unknown): AppLog | null {
   if (typeof value !== 'object' || value === null) return null;
   const { level, source, message } = value as Record<string, unknown>;
-  if ((level !== 'error' && level !== 'warn') || typeof message !== 'string') return null;
+  if (typeof message !== 'string' || (level !== 'error' && level !== 'warn')) return null;
   return {
     level,
     source: typeof source === 'string' ? source.replaceAll(/[^\w.-]/g, '').slice(0, 40) : '',
     // One journal line per entry: a stack trace's lines are joined.
-    message: message.slice(0, MAX_MESSAGE).replaceAll(/\s*\n\s*/g, ' | ')
+    message: message
+      .slice(0, MAX_MESSAGE)
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .join(' | ')
   };
 }
 
 /** Writes app log entries to the journal (this service's stderr), at most LOGS_PER_MINUTE a minute. */
-export function journalLog(write: (line: string) => void = line => console.error(line), now = () => Date.now()) {
+export function journalLog(
+  write: (line: string) => void = line => {
+    console.error(line);
+  },
+  now = () => Date.now()
+) {
   let windowStart = 0;
   let written = 0;
   let dropped = 0;
@@ -77,7 +87,8 @@ export function journalLog(write: (line: string) => void = line => console.error
       return;
     }
     written += 1;
-    write(`app ${entry.level}${entry.source ? ` (${entry.source})` : ''}: ${entry.message}`);
+    const from = entry.source ? ` (${entry.source})` : '';
+    write(`app ${entry.level}${from}: ${entry.message}`);
   };
 }
 
@@ -102,31 +113,39 @@ async function readBody(request: IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-async function post(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
-  const action = POST_ACTIONS[request.url ?? ''];
-  if (action) {
-    await deps.perform(action);
-  } else if (request.url === '/heartbeat') {
-    deps.heartbeat();
-  } else if (request.url === '/log') {
-    const entry = parseAppLog(JSON.parse(await readBody(request)));
-    if (!entry) {
-      response.writeHead(400).end();
-      return;
-    }
-    deps.log(entry);
-  } else if (request.url === '/audio/route') {
-    const speakers = validSpeakers((JSON.parse(await readBody(request)) as { speakers?: unknown } | null)?.speakers);
-    if (!speakers) {
-      response.writeHead(400).end();
-      return;
-    }
-    await deps.route(speakers);
-  } else {
-    response.writeHead(404).end();
-    return;
+/** Handles the body of POST /log or /audio/route; false when it is not valid. */
+async function wasAccepted(url: string, request: IncomingMessage, deps: Deps): Promise<boolean> {
+  const body: unknown = JSON.parse(await readBody(request));
+  if (url === '/log') {
+    const entry = parseAppLog(body);
+    if (entry) deps.log(entry);
+    return entry !== null;
   }
-  response.writeHead(204).end();
+  const speakers = validSpeakers((body as { speakers?: unknown } | null)?.speakers);
+  if (speakers) await deps.route(speakers);
+  return speakers !== null;
+}
+
+async function post(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
+  const url = request.url ?? '';
+  const action = POST_ACTIONS[url];
+  let status = 204;
+  switch (url) {
+    case '/heartbeat': {
+      deps.heartbeat();
+      break;
+    }
+    case '/log':
+    case '/audio/route': {
+      if (!(await wasAccepted(url, request, deps))) status = 400;
+      break;
+    }
+    default: {
+      if (action) await deps.perform(action);
+      else status = 404;
+    }
+  }
+  response.writeHead(status).end();
 }
 
 export function handleRequest(origin: string, deps: Deps) {
@@ -160,10 +179,22 @@ export function serveSpeakers(origin: string, deps: Pick<Deps, 'graph' | 'route'
     now: () => Date.now(),
     chromiumPid: () => chromiumPid(),
     stop: pid => stopChromium(pid),
-    log: message => console.warn(message)
+    log: message => {
+      console.warn(message);
+    }
   });
-  setInterval(() => void watchdog.check().catch((error: unknown) => console.warn(String(error))), CHECK_MS);
-  const handler = handleRequest(origin, { ...deps, perform, heartbeat: () => watchdog.beat(), log: journalLog() });
+  const check = async () => {
+    try {
+      await watchdog.check();
+    } catch (error) {
+      console.warn(String(error));
+    }
+  };
+  setInterval(() => void check(), CHECK_MS);
+  const heartbeat = () => {
+    watchdog.beat();
+  };
+  const handler = handleRequest(origin, { ...deps, perform, heartbeat, log: journalLog() });
   const server = createServer((request, response) => void handler(request, response));
   attachUpdateSocket(server, origin, update);
   return server.listen(SPEAKERS_PORT, '127.0.0.1');

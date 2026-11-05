@@ -33,7 +33,9 @@ function fakes(overrides: Partial<Deps> = {}) {
     heartbeat: () => {
       beats += 1;
     },
-    log: entry => logged.push(entry),
+    log: entry => {
+      logged.push(entry);
+    },
     ...overrides
   };
   return { deps, performed, routed, logged, beats: () => beats };
@@ -136,13 +138,12 @@ describe('POST /heartbeat and /log', () => {
 
 describe('parseAppLog', () => {
   it('keeps one line, a short message and a plain source', () => {
-    expect(
-      parseAppLog({ level: 'warn', source: 'a b\n', message: `Error: x\n    at f (app.js:1)\n${'y'.repeat(3000)}` })
-    ).toEqual({
+    const entry = parseAppLog({
       level: 'warn',
-      source: 'ab',
-      message: expect.stringMatching(/^Error: x \| at f \(app\.js:1\) \| y+$/)
+      source: 'a b\n',
+      message: `Error: x\n    at f (app.js:1)\n${'y'.repeat(30)}`
     });
+    expect(entry).toEqual({ level: 'warn', source: 'ab', message: `Error: x | at f (app.js:1) | ${'y'.repeat(30)}` });
     expect(parseAppLog({ level: 'error', message: 'z'.repeat(3000) })?.message).toHaveLength(2000);
     expect(parseAppLog(null)).toBeNull();
     expect(parseAppLog({ level: 'error' })).toBeNull();
@@ -154,7 +155,9 @@ describe('journalLog', () => {
     const lines: string[] = [];
     let now = 0;
     const log = journalLog(
-      line => lines.push(line),
+      line => {
+        lines.push(line);
+      },
       () => now
     );
     for (let i = 0; i < 35; i++) log({ level: 'error', source: 'page', message: `e${i}` });

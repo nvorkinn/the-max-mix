@@ -7,6 +7,7 @@
 // never touched. A restart of the kiosk (an update, the Restart button, 04:30) restarts this service too, which disarms it.
 // Each restart without a heartbeat in between doubles the wait, so a page that cannot load is not restarted in a loop.
 import { readFile } from 'node:fs/promises';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 /** The app sends one every 20 s; hidden pages may be throttled to once a minute, so allow a few to be missed. */
 export const STALE_MS = 3 * 60_000;
@@ -94,11 +95,8 @@ export async function stopChromium(pid: number, waitMs = STOP_WAIT_MS): Promise<
   } catch {
     return;
   }
-  const deadline = Date.now() + waitMs;
-  while (Date.now() < deadline) {
-    await new Promise(resolve => setTimeout(resolve, 250));
-    if (!isAlive(pid)) return;
-  }
+  await sleep(waitMs);
+  if (!isAlive(pid)) return;
   try {
     process.kill(pid, 'SIGKILL');
   } catch {

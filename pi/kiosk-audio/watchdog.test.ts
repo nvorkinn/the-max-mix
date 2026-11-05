@@ -5,8 +5,8 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { chromiumPid, MAX_STALE_MS, STALE_MS, Watchdog } from './watchdog.ts';
 
-function setup(pid: number | null = 100) {
-  const state = { now: 0, pid, stopped: [] as number[], logs: [] as string[] };
+function setup() {
+  const state = { now: 0, pid: 100 as number | null, stopped: [] as number[], logs: [] as string[] };
   const watchdog = new Watchdog({
     now: () => state.now,
     chromiumPid: () => Promise.resolve(state.pid),
@@ -15,7 +15,9 @@ function setup(pid: number | null = 100) {
       state.pid = null;
       return Promise.resolve();
     },
-    log: message => state.logs.push(message)
+    log: message => {
+      state.logs.push(message);
+    }
   });
   return { state, watchdog };
 }
@@ -61,15 +63,20 @@ describe('Watchdog', () => {
     const { state, watchdog } = setup();
     await watchdog.check();
     watchdog.beat();
-    const waits: number[] = [];
-    for (let i = 0; i < 6; i++) {
+    const waits = [STALE_MS, 2 * STALE_MS, 4 * STALE_MS, 8 * STALE_MS, 16 * STALE_MS, MAX_STALE_MS];
+    // Each restart depends on the one before it, so the steps run one after another.
+    for (const [i, wait] of waits.entries()) {
       state.pid = 100 + i;
+      // eslint-disable-next-line no-await-in-loop
       await watchdog.check();
       const start = state.now;
-      while (!(await watchdog.check())) state.now += 1000;
-      waits.push(state.now - start);
+      state.now = start + wait - 1;
+      // eslint-disable-next-line no-await-in-loop
+      expect(await watchdog.check()).toBe(false);
+      state.now = start + wait;
+      // eslint-disable-next-line no-await-in-loop
+      expect(await watchdog.check()).toBe(true);
     }
-    expect(waits).toEqual([STALE_MS, 2 * STALE_MS, 4 * STALE_MS, 8 * STALE_MS, 16 * STALE_MS, MAX_STALE_MS]);
     watchdog.beat();
     expect(watchdog.limit).toBe(STALE_MS);
   });
