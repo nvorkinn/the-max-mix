@@ -43,7 +43,7 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
   also denies every other address). It answers the app's origin alone: CORS names that origin, and every POST and every
   WebSocket without its `Origin` header is refused (browsers do not apply CORS to a WebSocket), so no other web page can
   trigger an action. A request names one of a few fixed actions and carries no command: update (a WebSocket that streams
-  the pull's and the restart's journal), restart or reboot the Pi, turn the screen on, show the Wi-Fi panel, or route the
+  the pull's and the restart's journal), restart or reboot the Pi, turn the screen on, show the Wi-Fi setup page, or route the
   sound to at most 16 speaker names. Routing only links the browser's audio stream to PipeWire sinks with `pw-link`;
   commands run by absolute path with an argument list and no shell. The polkit rule (`50-kiosk-power.rules`) lets the
   `kiosk` user restart `kiosk.service`, start `kiosk-pull.service` and `kiosk-restart.service`, and reboot, and nothing
@@ -53,8 +53,9 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
   that archive is trusted like Debian's and Raspberry Pi's. The service's one npm package, `ws`, is installed with
   `npm ci` from a committed lockfile (`ansible/roles/kiosk/files/kiosk-audio/package-lock.json`, integrity-checked and
   watched by Dependabot) with install scripts off.
-- **The Wi-Fi panel.** A native Qt panel (`pi/wifi-panel/`) runs as the non-root `kiosk` user and joins networks with
-  `nmcli`; a polkit rule (`50-kiosk-networkmanager.rules`, installed by the Ansible role) lets only that user manage
-  NetworkManager connections. The password reaches `nmcli` on stdin, never in argv, and is not logged; every call is an
-  argument list with no shell, and the panel has no network listener. The app asks the local service above to show it.
-  A kiosk has no password for any account, and SSH only by key for `admin`. See [`pi/wifi-panel/README.md`](pi/wifi-panel/README.md).
+- **The Wi-Fi setup page.** The local service above serves it on `127.0.0.1:7341/wifi-setup` and joins networks with
+  `nmcli` as the non-root `kiosk` user; a polkit rule (`50-kiosk-networkmanager.rules`, installed by the Ansible role)
+  lets only that user manage NetworkManager connections. Joining a network (`POST /wifi/connect`) answers only the
+  page's own origin, not the app's or any other web page's. The password reaches `nmcli` on stdin, never in argv, and is
+  not logged; every call is an argument list with no shell. The app asks the local service to show the page. A kiosk
+  has no password for any account, and SSH only by key for `admin`. See [`pi/kiosk-audio/README.md`](pi/kiosk-audio/README.md).

@@ -33,7 +33,7 @@ const execute: Execute = ([file = '', ...args]) =>
     });
   });
 
-/** Shows the Wi-Fi panel: kiosk-session looks for the flag when Chromium stops, so stop Chromium. */
+/** Shows the Wi-Fi setup page: kiosk-session looks for the flag when Chromium stops, so stop Chromium. */
 async function showWifiPanel(flag: string, pidFile: string): Promise<void> {
   await writeFile(flag, '');
   let text = '';

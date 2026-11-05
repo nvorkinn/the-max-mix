@@ -241,7 +241,7 @@ v1.12.0`): the Release workflow deploys the web app to Vercel and, once that has
   `--check --diff` to the playbook run to see what it would change.
 
 The kiosk opens the app with `?kiosk=1` (remembered across the Spotify sign-in redirect; `?kiosk=0` forgets it), which
-adds kiosk-only entries to Settings: **Wi-Fi network** (the Pi's native Wi-Fi panel), the release the Pi runs and whether
+adds kiosk-only entries to Settings: **Wi-Fi network** (the Pi's Wi-Fi setup page), the release the Pi runs and whether
 a newer one is out, **Update now** (which opens the update console), **Restart kiosk**, **Reboot Pi** and **Screen sleep** (how long the screen stays on
 without a touch while nothing plays; it always stays on while music plays). These go through the Pi's
 [local service](pi/kiosk-audio/README.md).

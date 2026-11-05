@@ -1,10 +1,11 @@
 // Restarts Chromium when the app stops answering: a crashed tab, a page that hangs, or an app that went blank. The app
 // (?kiosk=1) sends POST /heartbeat every 20 seconds while it shows something; when none has come for a while, Chromium is
-// stopped and kiosk-session's loop starts it again (or shows the Wi-Fi panel when there is no connection).
+// stopped and kiosk-session's loop starts it again (or shows the Wi-Fi setup page when there is no connection). The setup
+// page sends heartbeats too.
 //
 // It never fights the kiosk's own restarts: it only acts once this service has had a heartbeat (so an app from before the
-// watchdog is left alone), every new Chromium gets the full wait from its start, and the Wi-Fi panel (no Chromium) is
-// never touched. A restart of the kiosk (an update, the Restart button, 04:30) restarts this service too, which disarms it.
+// watchdog is left alone), and every new Chromium gets the full wait from its start. A restart of the kiosk (an update,
+// the Restart button, 04:30) restarts this service too, which disarms it.
 // Each restart without a heartbeat in between doubles the wait, so a page that cannot load is not restarted in a loop.
 import { readFile } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -52,7 +53,7 @@ export class Watchdog {
   async check(): Promise<boolean> {
     const pid = await this.#deps.chromiumPid();
     if (pid !== this.#pid) {
-      // A new Chromium (or none, while the Wi-Fi panel shows): its page gets the whole wait to load.
+      // A new Chromium (or none, between two): its page gets the whole wait to load.
       this.#pid = pid;
       this.#lastBeat = this.#deps.now();
       return false;

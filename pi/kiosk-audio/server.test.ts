@@ -180,6 +180,10 @@ describe('POST /heartbeat and /log', () => {
     expect((await post(base, '/heartbeat')).status).toBe(204);
     expect((await post(base, '/heartbeat', { origin: 'https://evil.example' })).status).toBe(403);
     expect(beats()).toBe(1);
+    // The Wi-Fi setup page sends heartbeats too, but nothing else from its origin reaches the app's requests.
+    expect((await post(base, '/heartbeat', { origin: LOCAL_ORIGIN })).status).toBe(204);
+    expect(beats()).toBe(2);
+    expect((await post(base, '/power/reboot', { origin: LOCAL_ORIGIN })).status).toBe(403);
     const body = { level: 'error', source: 'page', message: 'TypeError: x is undefined' };
     expect((await post(base, '/log', { body })).status).toBe(204);
     expect((await post(base, '/log', { body: { level: 'debug', message: 'x' } })).status).toBe(400);

@@ -4,8 +4,8 @@
 //   POST /audio/route       {"speakers": [...]}            route the sound to those speakers (none: the Pi's own output)
 //   POST /audio/volume      {"speaker": "Kitchen", "volume": 40}   set one speaker's volume (404: not on the network)
 //   POST /power/restart     restart the kiosk              POST /power/reboot    reboot the Pi
-//   POST /display/wake      turn the screen back on        POST /wifi            show the Wi-Fi panel
-//   POST /heartbeat         the app is alive (watchdog.ts)  POST /log  {"level", "source", "message"}  an app error, to the journal
+//   POST /display/wake      turn the screen back on        POST /wifi            show the Wi-Fi setup page
+//   POST /heartbeat         the app (or the Wi-Fi setup page) is alive (watchdog.ts)  POST /log  {"level", "source", "message"}  an app error, to the journal
 //   GET  /wifi/networks     {"networks": [{"ssid", "signal", "bars", "security"}, …]}   or 503 {"error"}: a safe message
 //   POST /wifi/connect      {"ssid", "password", "hidden", "security"}   join a network: {"ok": true} or {"ok": false, "error"}
 //   POST /wifi/done         the setup page is finished (joined, or Cancel): close it
@@ -246,7 +246,9 @@ export function handleRequest(origin: string, deps: Deps) {
       } else if (request.method === 'POST' && (request.url === '/wifi/connect' || request.url === '/wifi/done')) {
         await postWifi(request, response, deps.wifi);
       } else if (request.method === 'POST') {
-        if (request.headers.origin === origin) await post(request, response, deps);
+        // The Wi-Fi setup page runs in the kiosk's Chromium too, and sends heartbeats so the watchdog leaves it alone.
+        const isHeartbeat = request.url === '/heartbeat' && request.headers.origin === LOCAL_ORIGIN;
+        if (isHeartbeat || request.headers.origin === origin) await post(request, response, deps);
         else response.writeHead(403).end();
       } else {
         response.writeHead(404).end();
