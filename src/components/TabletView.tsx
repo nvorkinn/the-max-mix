@@ -10,6 +10,7 @@ import { extractPalette } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
 import { getQueue } from '../spotify/api';
+import { rememberSpeaker } from '../spotify/knownDevices';
 import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import { getAudioRoute, setAudioRoute } from '../spotify/settings';
 import type { AudioRoute } from '../spotify/settings';
@@ -165,6 +166,12 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     dark: 'rgba(10, 12, 18, 0.95)'
   });
 
+  // Spotify's device list can leave out a speaker that plays (Sonos does), so the drawer remembers each one seen playing.
+  const playingDevice = playbackState?.device;
+  useEffect(() => {
+    rememberSpeaker(playingDevice);
+    if (playingDevice) debugLog('info', 'playing device', JSON.stringify(playingDevice));
+  }, [playingDevice]);
   const isPlaying = Boolean(playbackState?.is_playing);
   const currentTrack = playbackState?.item;
 

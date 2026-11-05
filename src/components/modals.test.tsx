@@ -259,6 +259,26 @@ describe('SpeakerDrawer', () => {
     expect(screen.getByText(/only after they have recently played through Spotify/)).toBeInTheDocument();
   });
 
+  it('offers a speaker seen playing that Spotify leaves out of its list, and moves playback to it', async () => {
+    localStorage.setItem(
+      'maxmix.knownSpeakers',
+      JSON.stringify([
+        { id: 'sonos', name: 'Living Room', type: 'Speaker' },
+        { id: 'other-id', name: 'kitchen', type: 'Speaker' }
+      ])
+    );
+    api.getDevices.mockResolvedValue({ devices });
+    const onSelectSpeaker = vi.fn().mockResolvedValue(undefined);
+    render(<SpeakerDrawer isOpen onClose={() => {}} onSelectSpeaker={onSelectSpeaker} />);
+    const living = await screen.findByRole('button', { name: /Living Room/ });
+    expect(living).toHaveTextContent('Speaker / seen playing before');
+    // A remembered speaker Spotify lists under the same name is not shown twice.
+    expect(screen.getAllByRole('button', { name: /Kitchen/i })).toHaveLength(1);
+    await userEvent.click(living);
+    expect(onSelectSpeaker).toHaveBeenCalledWith('sonos');
+    localStorage.clear();
+  });
+
   it('shows an empty state when there are no devices', async () => {
     api.getDevices.mockResolvedValue({ devices: [] });
     render(<SpeakerDrawer isOpen />);

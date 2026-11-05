@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Speaker, Check, RefreshCw } from 'lucide-react';
 import { isSonosSignedIn } from '../sonos/auth';
 import { getDevices } from '../spotify/api';
+import { getKnownSpeakers } from '../spotify/knownDevices';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import type { AudioRoute } from '../spotify/settings';
@@ -11,7 +12,9 @@ import AirPlaySpeakerList from './AirPlaySpeakerList';
 import BluetoothSpeakers from './BluetoothSpeakers';
 import SonosGroupList from './SonosGroupList';
 
-function describeDevice(device: SpotifyDevice) {
+/** `remembered`: Spotify did not list it, but the app has seen it playing. */
+function describeDevice(device: SpotifyDevice, remembered: boolean) {
+  if (remembered) return `${device.type || 'Device'} / seen playing before`;
   if (!device.id) return 'Not available to select from this app';
   if (device.is_restricted) return 'Playback control restricted';
   const volume = device.volume_percent == null ? '' : ` / ${device.volume_percent}% volume`;
@@ -108,7 +111,12 @@ export default function SpeakerDrawer({
     }
   };
 
-  const connectDevices = devices.filter(device => !browserDeviceId || device.id !== browserDeviceId);
+  // Spotify's list leaves out some speakers (Sonos among them), even while they play; the ones seen playing are added.
+  const listed = new Set(devices.flatMap(device => [device.id, device.name.toLowerCase()]));
+  const extra = getKnownSpeakers().filter(device => !listed.has(device.id) && !listed.has(device.name.toLowerCase()));
+  const rememberedIds = new Set(extra.map(device => device.id));
+  const allDevices = [...devices, ...extra];
+  const connectDevices = allDevices.filter(device => !browserDeviceId || device.id !== browserDeviceId);
   const playingId = activeDeviceId ?? devices.find(device => device.is_active)?.id;
   const tabletIsActive = Boolean(browserDeviceId) && !isAirPlay && playingId === browserDeviceId;
   // AirPlay sends this tablet's own sound on, so it needs the tablet to be the one playing (or AirPlay to be on already).
@@ -147,7 +155,7 @@ export default function SpeakerDrawer({
         <Speaker size={20} className="shrink-0 text-accent" />
         <span className="flex-1 min-w-0">
           <span className="block text-sm truncate">{device.name}</span>
-          <span className="text-[11px] text-muted">{describeDevice(device)}</span>
+          <span className="text-[11px] text-muted">{describeDevice(device, rememberedIds.has(device.id))}</span>
         </span>
         {isPlaying(device) && (
           <span className="text-xs text-accent flex items-center gap-1">
@@ -227,7 +235,7 @@ export default function SpeakerDrawer({
               </h3>
               <p className="text-[11px] text-muted">Your Sonos rooms and groups. Plays through Spotify Connect.</p>
               <SonosGroupList
-                devices={devices}
+                devices={allDevices}
                 playingId={isAirPlay ? null : playingId}
                 disabled={selecting || waitingForSpotify}
                 onSelect={selectDevice}
