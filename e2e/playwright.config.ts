@@ -6,8 +6,8 @@ export default defineConfig({
   testDir: '.',
   testMatch: '*.spec.ts',
   // Each page fakes its own Spotify and the preview server only serves static files, so tests share no state and can
-  // run side by side. Two workers, as the filmed and traced CI tests use most of the 4-CPU runner.
-  workers: 2,
+  // run side by side, one worker per CPU of the 4-CPU runner.
+  workers: 4,
   fullyParallel: true,
   // A failing test runs once more, filmed (see `video` below). Passing on that second run still fails the job, so a
   // flaky test is not hidden.
