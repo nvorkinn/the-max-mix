@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 const auth = vi.hoisted(() => ({ getSonosAccessToken: vi.fn(), discardSonosAccessToken: vi.fn() }));
 vi.mock('./auth', () => auth);
 
-const { getGroupVolume, listSonosGroups, setGroupVolume, spotifyDeviceFor } = await import('./api');
+const { getGroupVolume, listSonos, setGroupRooms, setGroupVolume, spotifyDeviceFor } = await import('./api');
+
+const BASE = { householdId: 'h1', playerIds: [], playing: false };
 
 const pathOf = (fetchMock: Mock, call: number) =>
   new URL((fetchMock.mock.calls[call] as [string])[0], 'http://app').searchParams.get('path');
@@ -28,7 +30,13 @@ describe('sonos/api', () => {
       .mockResolvedValueOnce(
         Response.json({
           groups: [
-            { id: 'g1', name: 'Living Room + 1', coordinatorId: 'p2', playerIds: ['p1', 'p2'] },
+            {
+              id: 'g1',
+              name: 'Living Room + 1',
+              coordinatorId: 'p2',
+              playerIds: ['p1', 'p2'],
+              playbackState: 'PLAYBACK_STATE_PLAYING'
+            },
             { id: 'g2', coordinatorId: 'p3', playerIds: ['p3'] },
             { name: 'no id' }
           ],
@@ -40,10 +48,24 @@ describe('sonos/api', () => {
         })
       )
       .mockResolvedValueOnce(Response.json({ groups: 'nonsense' }));
-    expect(await listSonosGroups()).toEqual([
-      { id: 'g2', name: 'Bedroom', rooms: ['Bedroom'] },
-      { id: 'g1', name: 'Living Room + 1', rooms: ['Living Room', 'Kitchen'] }
-    ]);
+    expect(await listSonos()).toEqual({
+      groups: [
+        { id: 'g2', name: 'Bedroom', rooms: ['Bedroom'], householdId: 'h1', playerIds: ['p3'], playing: false },
+        {
+          id: 'g1',
+          name: 'Living Room + 1',
+          rooms: ['Living Room', 'Kitchen'],
+          householdId: 'h1',
+          playerIds: ['p2', 'p1'],
+          playing: true
+        }
+      ],
+      rooms: [
+        { id: 'p3', name: 'Bedroom', householdId: 'h1' },
+        { id: 'p1', name: 'Kitchen', householdId: 'h1' },
+        { id: 'p2', name: 'Living Room', householdId: 'h1' }
+      ]
+    });
     expect([0, 1, 2].map(call => pathOf(fetchMock, call))).toEqual([
       '/households',
       '/households/h1/groups',
@@ -65,7 +87,7 @@ describe('sonos/api', () => {
 
   it('asks to sign in when there is no Sonos login', async () => {
     auth.getSonosAccessToken.mockResolvedValue(null);
-    await expect(listSonosGroups()).rejects.toThrow('Sign in to Sonos in Settings.');
+    await expect(listSonos()).rejects.toThrow('Sign in to Sonos in Settings.');
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -85,14 +107,24 @@ describe('sonos/api', () => {
     expect(init.headers).toEqual({ 'Content-Type': 'application/json', Authorization: 'Bearer token' });
   });
 
+  it('sets the rooms of a group', async () => {
+    fetchMock.mockResolvedValue(Response.json({}));
+    await setGroupRooms('g1', ['p2', 'p1']);
+    expect(pathOf(fetchMock, 0)).toBe('/groups/g1/groups/setGroupMembers');
+    expect((fetchMock.mock.calls[0] as [string, RequestInit])[1]).toMatchObject({
+      method: 'POST',
+      body: '{"playerIds":["p2","p1"]}'
+    });
+  });
+
   it('finds the Spotify device by group name or coordinator room, ignoring case and devices without an id', () => {
-    const group = { id: 'g1', name: 'Living Room + 1', rooms: ['Living Room', 'Kitchen'] };
+    const group = { ...BASE, id: 'g1', name: 'Living Room + 1', rooms: ['Living Room', 'Kitchen'] };
     const devices = [
       { id: null, name: 'Living Room + 1' },
       { id: 'kitchen', name: 'Kitchen' },
       { id: 'living', name: 'living room' }
     ];
     expect(spotifyDeviceFor(group, devices)?.id).toBe('living');
-    expect(spotifyDeviceFor({ id: 'g2', name: 'Bedroom', rooms: [] }, devices)).toBeUndefined();
+    expect(spotifyDeviceFor({ ...BASE, id: 'g2', name: 'Bedroom', rooms: [] }, devices)).toBeUndefined();
   });
 });

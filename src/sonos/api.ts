@@ -14,6 +14,18 @@ export interface SonosGroup {
   name: string;
   /** The rooms in the group, the coordinator (the room that leads it) first. */
   rooms: string[];
+  householdId: string;
+  /** The group's players (one per room), the coordinator first. */
+  playerIds: string[];
+  /** Whether Sonos says the group is playing right now. */
+  playing: boolean;
+}
+
+/** One Sonos room (player) that can join a group. */
+export interface SonosRoom {
+  id: string;
+  name: string;
+  householdId: string;
 }
 
 async function send(path: string, init: RequestInit): Promise<Response> {
@@ -46,34 +58,55 @@ async function sonos(path: string, init: RequestInit = {}): Promise<unknown> {
 const text = (value: unknown): string | undefined => (typeof value === 'string' && value ? value : undefined);
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 
-function parseGroups(value: unknown): SonosGroup[] {
+function parseHousehold(householdId: string, value: unknown): { groups: SonosGroup[]; rooms: SonosRoom[] } {
   const reply = recordOf(value);
-  const playerNames = new Map<string, string>();
-  const players = list(reply['players']);
-  for (const player of players) {
-    const { id, name } = recordOf(player);
-    if (text(id) && text(name)) playerNames.set(id as string, name as string);
-  }
-  return list(reply['groups']).flatMap((entry): SonosGroup[] => {
-    const { id, name, coordinatorId, playerIds } = recordOf(entry);
+  const rooms = list(reply['players']).flatMap((player): SonosRoom[] => {
+    const id = text(recordOf(player)['id']);
+    const name = text(recordOf(player)['name']);
+    return id && name ? [{ id, name, householdId }] : [];
+  });
+  const roomNames = new Map(rooms.map(room => [room.id, room.name]));
+  const groups = list(reply['groups']).flatMap((entry): SonosGroup[] => {
+    const { id, name, coordinatorId, playerIds, playbackState } = recordOf(entry);
     const groupId = text(id);
     if (!groupId) return [];
     const ids = list(playerIds).filter((player): player is string => typeof player === 'string');
     const coordinator = text(coordinatorId);
     const ordered = coordinator ? [coordinator, ...ids.filter(player => player !== coordinator)] : ids;
-    const rooms = ordered.map(player => playerNames.get(player)).filter(room => room !== undefined);
-    const groupName = text(name) ?? rooms[0];
-    return groupName ? [{ id: groupId, name: groupName, rooms }] : [];
+    const groupRooms = ordered.map(player => roomNames.get(player)).filter(room => room !== undefined);
+    const groupName = text(name) ?? groupRooms[0];
+    if (!groupName) return [];
+    const playing = playbackState === 'PLAYBACK_STATE_PLAYING';
+    return [{ id: groupId, name: groupName, rooms: groupRooms, householdId, playerIds: ordered, playing }];
   });
+  return { groups, rooms };
 }
 
-/** Every Sonos group in every household the login can reach, sorted by name. */
-export async function listSonosGroups(): Promise<SonosGroup[]> {
+const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
+
+/** Every Sonos group and room in every household the login can reach, each sorted by name. */
+export async function listSonos(): Promise<{ groups: SonosGroup[]; rooms: SonosRoom[] }> {
   const households = list(recordOf(await sonos('/households'))['households'])
     .map(household => text(recordOf(household)['id']))
     .filter(id => id !== undefined);
-  const groups = await Promise.all(households.map(async id => parseGroups(await sonos(`/households/${id}/groups`))));
-  return groups.flat().toSorted((a, b) => a.name.localeCompare(b.name));
+  const replies = await Promise.all(
+    households.map(async id => parseHousehold(id, await sonos(`/households/${id}/groups`)))
+  );
+  return {
+    groups: replies.flatMap(reply => reply.groups).toSorted(byName),
+    rooms: replies.flatMap(reply => reply.rooms).toSorted(byName)
+  };
+}
+
+/**
+ * Makes the group play on exactly these rooms: rooms not listed leave it (and play on their own), rooms from other
+ * groups join it. The group's id can change, so read the groups again afterwards.
+ */
+export async function setGroupRooms(groupId: string, playerIds: readonly string[]): Promise<void> {
+  await sonos(`/groups/${groupId}/groups/setGroupMembers`, {
+    method: 'POST',
+    body: JSON.stringify({ playerIds })
+  });
 }
 
 /** The group's volume, 0 to 100; null when Sonos does not say (or the volume is fixed). */
