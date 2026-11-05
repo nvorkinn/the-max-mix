@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { fakeSpotify } from './fake-spotify.ts';
+import { countPlaybackReads, fakeSpotify } from './fake-spotify.ts';
 
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 
@@ -33,10 +33,16 @@ test.describe('Player', { tag: '@player' }, () => {
   });
 
   test('Pause and Play toggle playback', async ({ page }) => {
+    const reads = countPlaybackReads(page);
     await page.goto('/');
     await nowPlaying(page).getByRole('button', { name: 'Pause' }).click();
+    // The button flips to Play at once, but the app ignores a second press while the first command is still on its way
+    // (Spotify refuses the same command twice), so Play is tapped once the pause has gone through and been read back.
     await expect(nowPlaying(page).getByRole('button', { name: 'Play', exact: true })).toBeVisible();
     await expect(nowPlaying(page).getByRole('button', { name: 'Pause' })).toBeHidden();
+    await expect.poll(() => accountOf(page).commands).toContain('PUT /v1/me/player/pause');
+    const sent = reads();
+    await expect.poll(reads).toBeGreaterThan(sent);
 
     await nowPlaying(page).getByRole('button', { name: 'Play', exact: true }).click();
     await expect(nowPlaying(page).getByRole('button', { name: 'Pause' })).toBeVisible();
