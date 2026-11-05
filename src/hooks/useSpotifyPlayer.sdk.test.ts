@@ -459,6 +459,90 @@ describe('useSpotifyPlayer drives its own SDK player', () => {
     expect(result.current.sdkActive).toBe(true);
   });
 
+  describe('the device while playback settles onto this page', () => {
+    const choice = { uri: 'spotify:playlist:p', name: 'Road trip' };
+    const reads = () => mocks.api.getPlaybackState.mock.calls.length;
+    const advance = (ms: number) =>
+      act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+
+    it('shows this page as the device although Spotify still names the previous one', async () => {
+      mocks.api.getPlaybackState.mockResolvedValue(webState('phone'));
+      const { result } = await setup(false);
+      await act(async () => {
+        await result.current.playMusic(choice);
+      });
+      expect(result.current.playbackState?.device).toMatchObject({ id: 'web-1', name: 'The Max Mix' });
+      expect(result.current.sdkActive).toBe(true);
+    });
+
+    it('goes back to what Spotify says once it agrees, or says another device after all', async () => {
+      mocks.api.getPlaybackState.mockResolvedValue(webState('phone'));
+      const { result } = await setup(false);
+      await act(async () => {
+        await result.current.playMusic(choice);
+      });
+      mocks.api.getPlaybackState.mockResolvedValue(webState('web-1'));
+      await act(async () => {
+        await result.current.refreshPlayback();
+      });
+      expect(result.current.playbackState?.device).toMatchObject({ id: 'web-1', name: 'Somewhere' });
+      // The hold ended with that agreement: a later read naming another device is believed.
+      mocks.api.getPlaybackState.mockResolvedValue(webState('phone'));
+      await act(async () => {
+        await result.current.refreshPlayback();
+      });
+      expect(result.current.playbackState?.device?.id).toBe('phone');
+    });
+
+    it('does not hold the device for a choice Spotify refused, or one started elsewhere', async () => {
+      mocks.api.getPlaybackState.mockResolvedValue(webState('phone'));
+      const { result } = await setup(false);
+      mocks.api.playChoice.mockRejectedValueOnce(new SpotifyApiError('Spotify request failed (500).', 500));
+      await act(async () => {
+        expect(await result.current.playMusic(choice)).toBe(false);
+      });
+      expect(result.current.playbackState?.device?.id).toBe('phone');
+    });
+
+    it('reads again after a moment to check, and polls often when Spotify keeps naming another device', async () => {
+      mocks.api.getPlaybackState.mockResolvedValue(webState('phone'));
+      const { result } = await setup(false);
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+      await act(async () => {
+        await result.current.playMusic(choice);
+      });
+      expect(result.current.sdkActive).toBe(true);
+      const afterPlay = reads();
+      await advance(3000);
+      expect(reads()).toBe(afterPlay + 1);
+
+      // The hold runs out at 8 s; the next (slow) read then names the phone, and the page reads every 4 s again.
+      await advance(27_000);
+      expect(result.current.playbackState?.device?.id).toBe('phone');
+      expect(result.current.sdkActive).toBe(false);
+      const slow = reads();
+      await advance(4000);
+      expect(reads()).toBe(slow + 1);
+    });
+
+    it('polls often again when another device takes over from this page', async () => {
+      mocks.api.getPlaybackState.mockResolvedValue(webState('web-1'));
+      const { result } = await setup(true);
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+      await act(async () => {
+        await result.current.refreshPlayback();
+      });
+      expect(result.current.sdkActive).toBe(true);
+      mocks.api.getPlaybackState.mockResolvedValue(webState('phone'));
+      await act(async () => {
+        await result.current.refreshPlayback();
+      });
+      expect(result.current.sdkActive).toBe(false);
+    });
+  });
+
   it('starts a choice on the speaker picked under Speakers', async () => {
     const { result } = await setup(true);
     mocks.api.getPlaybackState.mockResolvedValue(webState('kitchen'));

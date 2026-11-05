@@ -49,6 +49,8 @@ vi.mock('../spotify/api', () => api);
 vi.mock('../spotify/auth', () => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
 vi.mock('../utils/colorExtractor', () => palette);
 vi.mock('../lyrics/lrclib', () => lyrics);
+// The kiosk's own lyrics service is not there in a test; without this its request would be a real one.
+vi.mock('../lyrics/kiosk', () => ({ kioskLyrics: () => Promise.resolve(null) }));
 vi.mock('../audio/airplay', () => airplay);
 
 const track = {
