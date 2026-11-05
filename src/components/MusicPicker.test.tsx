@@ -4,7 +4,12 @@ import userEvent from '../test/user';
 import { SpotifyApiError } from '../spotify/http';
 import MusicPicker from './MusicPicker';
 
-const api = vi.hoisted(() => ({ getRecentlyPlayed: vi.fn(), getPlaylists: vi.fn(), getLikedSongs: vi.fn() }));
+const api = vi.hoisted(() => ({
+  getRecentlyPlayed: vi.fn(),
+  getPlaylists: vi.fn(),
+  getLikedSongs: vi.fn(),
+  searchMusic: vi.fn()
+}));
 vi.mock('../spotify/api', () => api);
 
 const liked = { uri: 'spotify:user:me:collection', name: 'Liked Songs' };
@@ -23,6 +28,7 @@ beforeEach(() => {
   api.getLikedSongs.mockResolvedValue(liked);
   api.getPlaylists.mockResolvedValue([playlist]);
   api.getRecentlyPlayed.mockResolvedValue([recent]);
+  api.searchMusic.mockResolvedValue([recent]);
 });
 
 describe('MusicPicker', () => {
@@ -54,6 +60,30 @@ describe('MusicPicker', () => {
     expect(api.getPlaylists).toHaveBeenCalledOnce();
     await userEvent.click(within(list).getByRole('button', { name: /Starboy/ }));
     expect(onPlay).toHaveBeenCalledWith(recent);
+  });
+
+  it('searches once typing pauses, and plays what was found', async () => {
+    const { onPlay } = open();
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+    const field = screen.getByRole('searchbox', { name: 'Search Spotify' });
+    expect(field).toHaveFocus();
+    expect(screen.getByText('Type to search Spotify.')).toBeInTheDocument();
+    await userEvent.type(field, 'starboy');
+    const list = await screen.findByRole('list', { name: 'Search results' });
+    expect(api.searchMusic).toHaveBeenCalledExactlyOnceWith('starboy');
+    await userEvent.click(within(list).getByRole('button', { name: /Starboy/ }));
+    expect(onPlay).toHaveBeenCalledWith(recent);
+  });
+
+  it('says when a search finds nothing, and searches again after a failure', async () => {
+    api.searchMusic.mockRejectedValueOnce(new SpotifyApiError('Spotify is down.', 503));
+    open();
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search Spotify' }), 'x');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Spotify is down.');
+    api.searchMusic.mockResolvedValueOnce([]);
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText('Nothing found.')).toBeInTheDocument();
   });
 
   it('closes after a choice that failed too, so the player says why', async () => {

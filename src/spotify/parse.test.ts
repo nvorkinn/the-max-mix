@@ -6,6 +6,7 @@ import {
   parsePlaylists,
   parseQueue,
   parseRecentlyPlayed,
+  parseSearch,
   parseTrack,
   recordOf
 } from './parse';
@@ -127,6 +128,41 @@ describe('spotify/parse', () => {
 
     it('treats a null item (an ad) and an invalid device as missing', () => {
       expect(parsePlaybackState({ is_playing: false, item: null, device: { id: 1 } })).toEqual({ is_playing: false });
+    });
+  });
+
+  describe('parseSearch', () => {
+    it('lists the songs with their album to carry on from, then the albums, then the playlists', () => {
+      expect(
+        parseSearch({
+          tracks: {
+            items: [
+              {
+                uri: 'spotify:track:t',
+                name: 'Song',
+                artists: [{ name: 'A' }],
+                album: { uri: 'spotify:album:a', images: [{ url: 'https://art/a.jpg' }] }
+              },
+              { uri: 'spotify:track:u', name: 'Bare' },
+              { name: 'No uri' }
+            ]
+          },
+          albums: { items: [{ uri: 'spotify:album:b', name: 'Record', artists: [{ name: 'B' }], images: [] }, {}] },
+          playlists: { items: [null, { uri: 'spotify:playlist:p', name: 'Mix', owner: { display_name: 'Max' } }] }
+        })
+      ).toEqual([
+        {
+          uri: 'spotify:track:t',
+          name: 'Song',
+          detail: 'Song · A',
+          image: 'https://art/a.jpg',
+          contextUri: 'spotify:album:a'
+        },
+        { uri: 'spotify:track:u', name: 'Bare', detail: 'Song' },
+        { uri: 'spotify:album:b', name: 'Record', detail: 'Album · B' },
+        { uri: 'spotify:playlist:p', name: 'Mix', detail: 'Playlist · By Max' }
+      ]);
+      expect(parseSearch(null)).toEqual([]);
     });
   });
 

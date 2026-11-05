@@ -82,6 +82,20 @@ export async function fakeSpotify(page: Page) {
       case 'GET /v1/me/playlists': {
         return route.fulfill({ json: { items: playlists } });
       }
+      case 'GET /v1/search': {
+        // Finds the queued songs and the playlists whose names hold the words searched for; each song is on one album.
+        const wanted = (url.searchParams.get('q') ?? '').toLowerCase();
+        const songs = queue.filter(({ name = '' }) => name.toLowerCase().includes(wanted));
+        return route.fulfill({
+          json: {
+            tracks: {
+              items: songs.map(song => ({ ...song, album: { ...song.album, uri: `spotify:album:${song.id}` } }))
+            },
+            albums: { items: [] },
+            playlists: { items: [null, ...playlists.filter(({ name }) => name.toLowerCase().includes(wanted))] }
+          }
+        });
+      }
       case 'GET /v1/me/player/recently-played': {
         return route.fulfill({ json: { items: recentlyPlayed } });
       }

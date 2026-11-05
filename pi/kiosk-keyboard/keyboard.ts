@@ -132,8 +132,11 @@ const STYLE = `
   .on:active { background: #1ed760; }
 `;
 
-/** Shows the keyboard whenever a text field of `doc` has focus. Returns a function that removes it again. */
-export function start(doc: Document): () => void {
+/**
+ * Shows the keyboard whenever a text field of `doc` has focus. Returns a function that removes it again. The keyboard
+ * goes in `mount`: the app puts it inside its open dialog, as a modal dialog makes the rest of the page untouchable.
+ */
+export function start(doc: Document, mount: Element = doc.documentElement): () => void {
   const host = doc.createElement('div');
   host.style.display = 'none';
   const root = host.attachShadow({ mode: 'open' });
@@ -177,9 +180,11 @@ export function start(doc: Document): () => void {
 
   const show = (target: Field): void => {
     field = target;
-    if (!host.isConnected) doc.documentElement.append(host);
+    if (!host.isConnected) mount.append(host);
     if (host.style.display === 'none') {
       host.style.display = '';
+      // The app's dialogs read this to make room for the keyboard; a padded body does not move a dialog.
+      doc.documentElement.style.setProperty('--keyboard-height', `${KEYBOARD_HEIGHT}px`);
       savedPadding = doc.body.style.paddingBottom;
       doc.body.style.paddingBottom = `${KEYBOARD_HEIGHT}px`;
     }
@@ -190,6 +195,7 @@ export function start(doc: Document): () => void {
     field = undefined;
     if (host.style.display === 'none') return;
     host.style.display = 'none';
+    doc.documentElement.style.removeProperty('--keyboard-height');
     doc.body.style.paddingBottom = savedPadding ?? '';
     page = 'letters';
     isShifted = false;

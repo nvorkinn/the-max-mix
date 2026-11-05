@@ -21,6 +21,12 @@ none of the Wayland protocols an on-screen keyboard needs. So the extension draw
 - It has no permissions, stores nothing and sends nothing. It runs in the extension's isolated world, inside a shadow
   root, so the page's styles do not reach it.
 
+## In the app
+
+The app's music picker (Choose music, Search tab) bundles `keyboard.ts` itself on the kiosk and starts it inside its
+dialog, since a modal dialog makes the rest of the page untouchable. While the keyboard shows it sets
+`--keyboard-height` on the page, and the app's dialogs move up above it. The extension is not involved there.
+
 ## Files
 
 | File            | Role                                                                                              |
