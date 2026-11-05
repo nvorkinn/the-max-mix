@@ -287,9 +287,9 @@
 .listening-room:not(.is-setup) .queue-section {
   grid-area: queue;
 }
-/* The queue shares the right column with the track details, so its panel is tighter than the full-height one. */
+/* The queue shares the right column with the track details and sits straight on the page, with no card around it. */
 .listening-room:not(.is-setup) .queue-panel {
-  padding: 12px 18px;
+  padding: 0;
 }
 .listening-room:not(.is-setup) .queue-track {
   min-height: 52px;
@@ -734,11 +734,12 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 22px;
+  padding: 8px 0 0;
 }
+/*
+  The queue is typeset directly on the page: no card, rows separated by hairlines, the next song set larger with an
+  accent rule, and the list dissolving into the page at the bottom so it feels like it trails off into the distance.
+*/
 .queue-list {
   flex: 1;
   min-height: 0;
@@ -746,7 +747,8 @@
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
   overscroll-behavior: contain;
-  padding: 5px 0;
+  padding: 4px 0 44px;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent);
 }
 .queue-track {
   display: flex;
@@ -755,8 +757,8 @@
   min-height: 68px;
   border: 1px solid transparent;
   border-bottom-color: var(--border);
-  padding: 8px 5px;
-  border-radius: 8px;
+  padding: 8px 8px 8px 12px;
+  border-radius: 12px;
   transition:
     background 160ms,
     opacity 160ms;
@@ -775,11 +777,37 @@
   border-bottom-color: transparent;
 }
 .queue-track:hover {
-  background: var(--surface-raised);
+  background: var(--accent-soft);
 }
 .queue-track.is-next {
-  background: var(--accent-soft);
-  border-color: var(--border);
+  position: relative;
+  border-bottom-color: transparent;
+}
+.queue-track.is-next::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+.queue-track.is-next .queue-art {
+  width: 52px;
+  height: 52px;
+  border-radius: 9px;
+}
+.queue-track.is-next .queue-title h3 {
+  font-size: 17px;
+  font-weight: 750;
+}
+/* Songs further down the queue recede, so the eye lands on what plays next. */
+.queue-track:nth-child(n + 3) .queue-track-button {
+  opacity: 0.82;
+}
+.queue-track:nth-child(n + 5) .queue-track-button {
+  opacity: 0.66;
 }
 .queue-play {
   position: relative;
@@ -1085,9 +1113,6 @@ input:disabled {
     padding-top: 18px;
     padding-bottom: 14px;
     gap: 24px;
-  }
-  .queue-panel {
-    padding: 18px;
   }
   .queue-track {
     min-height: 62px;
