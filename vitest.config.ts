@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}', 'pi/**/*.test.ts', 'scripts/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}', 'pi/**/*.test.ts', 'scripts/**/*.test.ts', 'api/**/*.test.ts'],
     restoreMocks: true,
     coverage: {
       provider: 'v8',

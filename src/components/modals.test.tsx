@@ -189,6 +189,22 @@ describe('SettingsModal', () => {
     expect(base.onReload).toHaveBeenCalled();
   });
 
+  it('starts the Sonos sign-in, and signs out of Sonos', async () => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { assign });
+    const { unmount } = render(<SettingsModal {...base} authInfo={{}} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in to Sonos' }));
+    expect(assign).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/sonos\?state=/));
+    unmount();
+    vi.unstubAllGlobals();
+
+    localStorage.setItem('maxmix.sonosAuth', JSON.stringify({ refreshToken: 'refresh' }));
+    render(<SettingsModal {...base} authInfo={{}} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out of Sonos' }));
+    expect(localStorage.getItem('maxmix.sonosAuth')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Sign in to Sonos' })).toBeInTheDocument();
+  });
+
   it('offers no sign out while signed out', () => {
     render(<SettingsModal {...base} authInfo={{}} />);
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
