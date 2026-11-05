@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { clearDebugLog, debugLog } from '../utils/debugLog';
+import { HTTP_GROUPS } from '../utils/httpLog';
 import DebugConsole from './DebugConsole';
 
 vi.mock('../utils/widevine', () => ({ widevineProblem: vi.fn(() => Promise.resolve('Widevine is not available')) }));
@@ -44,6 +45,41 @@ describe('DebugConsole', () => {
     expect(localStorage.getItem('maxmix.httpLog')).toBe('calls');
     fireEvent.click(calls);
     expect(localStorage.getItem('maxmix.httpLog')).toBeNull();
+  });
+
+  it('lists the kinds of call while logging is on, and mutes the ones that are unticked', async () => {
+    localStorage.removeItem('maxmix.httpLog');
+    localStorage.removeItem('maxmix.httpLogMuted');
+    render(<DebugConsole isOpen onClose={vi.fn()} status={[]} />);
+    await screen.findByText('Widevine is not available');
+    expect(screen.queryByText(/Calls to log/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Log every HTTP call and response' }));
+    const total = HTTP_GROUPS.length;
+    const summary = screen.getByText(`Calls to log (${total} of ${total})`);
+    const playback = screen.getByRole('checkbox', { name: /Spotify playback state/ });
+    expect(playback).toBeChecked();
+
+    fireEvent.click(playback);
+    expect(playback).not.toBeChecked();
+    expect(localStorage.getItem('maxmix.httpLogMuted')).toBe('["spotify-playback"]');
+    expect(summary).toHaveTextContent(`Calls to log (${total - 1} of ${total})`);
+    fireEvent.click(screen.getByRole('checkbox', { name: /Kiosk heartbeat/ }));
+    expect(localStorage.getItem('maxmix.httpLogMuted')).toBe('["spotify-playback","kiosk-heartbeat"]');
+
+    fireEvent.click(playback);
+    expect(playback).toBeChecked();
+    expect(localStorage.getItem('maxmix.httpLogMuted')).toBe('["kiosk-heartbeat"]');
+  });
+
+  it('remembers the muted kinds when the console is opened again', async () => {
+    localStorage.setItem('maxmix.httpLog', 'calls');
+    localStorage.setItem('maxmix.httpLogMuted', '["lyrics"]');
+    render(<DebugConsole isOpen onClose={vi.fn()} status={[]} />);
+    await screen.findByText('Widevine is not available');
+    expect(screen.getByRole('checkbox', { name: /Lyrics/ })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Everything else/ })).toBeChecked();
+    localStorage.clear();
   });
 
   it('clears the log, reloads and closes', async () => {

@@ -121,7 +121,9 @@ Two switches at the top of the log (remembered across reloads) log every HTTP ca
 and response** writes a line for each request and for its response or failure, and **Include headers** adds their headers.
 Credentials are replaced with `[redacted]` (the `Authorization` and cookie headers, and query values such as `code` or
 tokens), and only the response headers the browser lets the page read are shown. Leave them off normally: the polling
-makes a call every few seconds, which fills the 200-entry log quickly.
+makes a call every few seconds, which fills the 200-entry log quickly. While logging is on, **Calls to log** lists the
+kinds of call (the Spotify playback poll, the queue, Spotify commands and sign-in, the kiosk's speaker list and
+heartbeat, lyrics, other kiosk calls, everything else); untick a kind to mute it. The choice is remembered across reloads.
 
 ## Hosting and releases
 
