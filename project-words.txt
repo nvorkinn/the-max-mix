@@ -104,6 +104,7 @@ pairable
 partuuid
 pavucontrol
 pipefail
+pipelining
 pipewire
 pkce
 pkgs
