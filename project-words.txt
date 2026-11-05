@@ -3,6 +3,7 @@
 adwaita
 alsa
 aqabaiaaaaaaap
+argjson
 argv
 autoclean
 autoplay
@@ -28,6 +29,7 @@ devicechange
 dialog
 dialogs
 disallocate
+elif
 endfor
 equalto
 esac
