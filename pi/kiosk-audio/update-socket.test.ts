@@ -2,7 +2,7 @@
 import { createServer } from 'node:http';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
 import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
@@ -110,5 +110,27 @@ describe('the update WebSocket', () => {
     const url = await start(() => Promise.reject(new Error('journal exploded')));
     const { messages } = await listen(`${url}/power/update`);
     expect(messages).toEqual([{ type: 'status', state: 'failed', message: 'Error: journal exploded' }]);
+  });
+
+  it('refuses a connection that did not come in on this machine’s own address, whatever its Origin says', () => {
+    const update = vi.fn<Update>();
+    const server = createServer();
+    attachUpdateSocket(server, ORIGIN, update);
+    const written: string[] = [];
+    const socket = {
+      write: (text: string) => {
+        written.push(text);
+      },
+      destroy: vi.fn()
+    };
+    const request = {
+      url: '/power/update',
+      headers: { origin: ORIGIN }, // eslint-disable-next-line sonarjs/no-hardcoded-ip -- the hotspot's address
+      socket: { localAddress: '10.42.0.1' }
+    };
+    server.emit('upgrade', request, socket, Buffer.alloc(0));
+    expect(written[0]).toContain('403 Forbidden');
+    expect(socket.destroy).toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 });

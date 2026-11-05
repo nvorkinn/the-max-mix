@@ -5,7 +5,8 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Action } from './actions.ts';
 import { BluetoothError } from './bluetooth.ts';
-import { dump } from './fixtures.ts';
+import { dump, exchange } from './fixtures.ts';
+import { HotspotError } from './hotspot.ts';
 import { ERRORS, ScanError } from './nmcli.ts';
 import type { ConnectRequest } from './nmcli.ts';
 import { parseDump } from './pipewire.ts';
@@ -19,13 +20,22 @@ afterEach(() => {
 });
 
 const speaker = { address: 'AA:BB:CC:DD:EE:FF', name: 'Kitchen speaker', paired: true, connected: true };
+const HOTSPOT_INFO = {
+  ssid: 'THE MAX MIX setup',
+  password: 'ABCD2345EF',
+  // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the setup page is plain http on the hotspot, by design
+  url: 'http://10.42.0.1/',
+  wifiQr: ['101'],
+  urlQr: ['010']
+};
 const addressBody = (address: unknown) => ({ body: { address } });
 const unavailable = () => Promise.reject(new BluetoothError('Bluetooth is not available on this device.'));
 const otherFailure = () => Promise.reject(new Error('dbus: /private/path failed'));
 const busy = () => Promise.reject(new BluetoothError('Bluetooth is busy. Wait a moment and try again.'));
 const odd = () => Promise.reject(new Error('internal detail'));
 
-function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false) {
+function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotError?: Error) {
+  const hotspotCalls: string[] = [];
   const phoneStarts: string[] = [];
   const connected: string[] = [];
   const removed: string[] = [];
@@ -71,6 +81,22 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false) {
       if (query.title === 'Down') return Promise.reject(new Error('unreachable'));
       return Promise.resolve(query.title === 'Known' ? { source: 'NetEase', lrc: '[00:01.00]Placeholder' } : null);
     },
+    hotspot: {
+      start: () => {
+        hotspotCalls.push('start');
+        return hotspotError ? Promise.reject(hotspotError) : Promise.resolve(HOTSPOT_INFO);
+      },
+      stop: () => {
+        hotspotCalls.push('stop');
+        return Promise.resolve();
+      },
+      status: () => ({ state: 'running' }),
+      handlePortal: (_request, response) => {
+        hotspotCalls.push('portal');
+        response.writeHead(200).end('portal page');
+        return Promise.resolve();
+      }
+    },
     phone: {
       start: () => {
         phoneStarts.push('start');
@@ -95,6 +121,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false) {
   };
   return {
     deps,
+    hotspotCalls,
     phoneStarts,
     connected,
     removed,
@@ -346,6 +373,69 @@ describe('Wi-Fi setup from a phone', () => {
     expect(warn).toHaveBeenCalledWith(
       'wifi: phone setup did not start: no bluetooth: Failed to register advertisement'
     );
+  });
+});
+
+describe('the setup hotspot', () => {
+  it('starts for the setup page only, and says why it could not start', async () => {
+    const { deps, hotspotCalls } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/wifi/hotspot')).status).toBe(403);
+    expect(hotspotCalls).toEqual([]);
+    const started = await post(base, '/wifi/hotspot', { origin: LOCAL_ORIGIN });
+    expect(started.status).toBe(200);
+    await expect(started.json()).resolves.toEqual(HOTSPOT_INFO);
+
+    vi.spyOn(console, 'warn').mockReturnValue();
+    const failing = await start(
+      fakes({}, false, new HotspotError('There is no Wi-Fi adapter to make a hotspot with.')).deps
+    );
+    const refused = await post(failing, '/wifi/hotspot', { origin: LOCAL_ORIGIN });
+    expect(refused.status).toBe(503);
+    await expect(refused.json()).resolves.toEqual({ error: 'There is no Wi-Fi adapter to make a hotspot with.' });
+    const other = await start(fakes({}, false, new Error('internal detail')).deps);
+    await expect((await post(other, '/wifi/hotspot', { origin: LOCAL_ORIGIN })).json()).resolves.toEqual({
+      error: 'The hotspot could not be started.'
+    });
+  });
+
+  it('stops for the setup page only, and reports where it is', async () => {
+    const { deps, hotspotCalls } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/wifi/hotspot/stop')).status).toBe(403);
+    expect((await post(base, '/wifi/hotspot/stop', { origin: LOCAL_ORIGIN })).status).toBe(204);
+    expect(hotspotCalls).toEqual(['stop']);
+    await expect((await fetch(`${base}/wifi/hotspot`)).json()).resolves.toEqual({ state: 'running' });
+  });
+
+  it('gives a request that came over the hotspot the setup page and nothing of the kiosk’s own', async () => {
+    const { deps, hotspotCalls, performed, beats } = fakes();
+    const handle = handleRequest(ORIGIN, deps);
+    for (const [method, url] of [
+      ['POST', '/heartbeat'],
+      ['POST', '/power/reboot'],
+      ['POST', '/power/restart'],
+      ['POST', '/wifi/connect'],
+      ['GET', '/speakers']
+    ] as const) {
+      // Whatever Origin it claims: a client on the hotspot can send any.
+
+      const { request, response, sent } = exchange(method, url, { origin: ORIGIN, body: {} });
+      // eslint-disable-next-line no-await-in-loop
+      await handle(request, response);
+      expect(sent.body).toBe('portal page');
+    }
+    expect(hotspotCalls).toEqual(['portal', 'portal', 'portal', 'portal', 'portal']);
+    expect(performed).toEqual([]);
+    expect(beats()).toBe(0);
+  });
+
+  it('still serves the kiosk’s own requests from this machine', async () => {
+    const { deps, beats, hotspotCalls } = fakes();
+    const { request, response } = exchange('POST', '/heartbeat', { origin: ORIGIN, localAddress: '127.0.0.1' });
+    await handleRequest(ORIGIN, deps)(request, response);
+    expect(beats()).toBe(1);
+    expect(hotspotCalls).toEqual([]);
   });
 });
 

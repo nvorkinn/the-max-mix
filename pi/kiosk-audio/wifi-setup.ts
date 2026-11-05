@@ -54,6 +54,12 @@ export const PAGE_HTML = `<!doctype html>
       input { flex: 1; font: inherit; color: var(--text); background: var(--bg); border: 2px solid var(--off);
         border-radius: 10px; padding: 10px 14px; min-width: 0; }
       input:focus { outline: none; border-color: var(--accent); }
+      .steps { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; min-height: 0; }
+      .steps figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 0; }
+      .qr { flex: 1; min-height: 0; aspect-ratio: 1; }
+      .qr svg { height: 100%; width: 100%; background: #fff; border-radius: 8px; }
+      figcaption { font-size: 18px; text-align: center; color: var(--muted); }
+      figcaption b { color: var(--text); font-weight: 600; word-break: break-all; }
       #busy { position: fixed; inset: 0; display: grid; place-items: center; background: rgb(16 18 16 / 94%);
         font-size: 28px; }
     </style>
@@ -65,6 +71,7 @@ export const PAGE_HTML = `<!doctype html>
           <h1>Choose a Wi-Fi network</h1>
           <button type="button" id="other">Other…</button>
           <button type="button" id="phone">From phone</button>
+          <button type="button" id="hotspot">Hotspot</button>
           <button type="button" id="refresh">Refresh</button>
           <button type="button" id="cancel" hidden>Cancel</button>
         </header>
@@ -72,6 +79,23 @@ export const PAGE_HTML = `<!doctype html>
         <p id="status"></p>
         <p id="phone-help" hidden></p>
         <ul id="networks"></ul>
+      </section>
+      <section id="hotspot-view" hidden>
+        <header>
+          <button type="button" id="hotspot-back">Back</button>
+          <h1>Set up from any phone</h1>
+        </header>
+        <div class="steps">
+          <figure>
+            <div class="qr" id="qr-wifi" role="img" aria-label="QR code that joins the hotspot"></div>
+            <figcaption>1. Scan to join <b id="hotspot-name"></b><br />Password: <b id="hotspot-password"></b></figcaption>
+          </figure>
+          <figure>
+            <div class="qr" id="qr-url" role="img" aria-label="QR code that opens the setup page"></div>
+            <figcaption>2. If the page does not open by itself, scan to open <b id="hotspot-url"></b></figcaption>
+          </figure>
+        </div>
+        <p id="hotspot-status"></p>
       </section>
       <section id="join-view" hidden>
         <header>

@@ -70,6 +70,9 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 | `POST /bluetooth/connect`              | Pairs, trusts and connects `{"address"}`                                 |
 | `POST /bluetooth/remove`               | Forgets `{"address"}`                                                    |
 | `POST /wifi/phone`                     | Starts Wi-Fi setup from a phone over Bluetooth (5 minutes)               |
+| `POST /wifi/hotspot`                   | Starts the setup hotspot: name, password, address, QR codes              |
+| `POST /wifi/hotspot/stop`              | Ends it and puts the earlier network back                                |
+| `GET /wifi/hotspot`                    | `{"state": "running" \| "joining" \| "failed" \| "idle"}`                |
 | `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                             |
 | `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)                 |
 | `POST /wifi/done`                      | The setup page is finished: stops the Chromium showing it                |
@@ -86,7 +89,29 @@ behind the screen. A speaker is trusted when it is connected, so it reconnects b
 The `/bluetooth/*` requests answer the app's origin only. The app's Speakers drawer has the Bluetooth section (Find
 speakers, Pair or Connect, Forget).
 
-## Wi-Fi from a phone
+## Wi-Fi from any phone (the hotspot)
+
+The Wi-Fi setup page's **Hotspot** button works with any phone, with no app (the Bluetooth route below needs Chrome on
+Android). `hotspot.ts` scans the networks in range, then asks NetworkManager for a hotspot (`nmcli device wifi hotspot`:
+the name `THE MAX MIX setup`, a random 10-character password, 2.4 GHz). NetworkManager runs the DHCP and DNS for it
+(`dnsmasq-base`), and `50-kiosk-captive.conf` makes that DNS answer every name with the kiosk's address, so the phone's
+check for internet ends at the kiosk and its _sign in to Wi-Fi_ screen opens the setup page by itself. The tablet shows
+two QR codes (`qr.ts`, made on the Pi with `qrcode-generator`, loaded only when needed): one the phone's camera joins the
+hotspot with, and one that opens the page, for a phone that does not open it by itself. The page (`hotspot-portal.ts`)
+lists the networks scanned before the hotspot took the radio and asks for the password on the phone's own keyboard.
+
+It is the service's own HTTP server that answers the phone: while the hotspot is up it also accepts connections on the
+hotspot's address, on port 80 (`50-kiosk-unprivileged-ports.conf` lets the service use it; without that, port 8080, and
+only the second QR code reaches it). Whatever arrives that way, and not on `127.0.0.1`, is given to the setup page's
+handler and to nothing else, whatever its `Origin` says, and the update WebSocket refuses it too, so nobody on the
+hotspot can reboot the kiosk or start an update.
+
+The Pi has one Wi-Fi radio, so the hotspot replaces the network it was on. When the phone has chosen a network, the
+kiosk answers it, leaves the hotspot, and joins; the tablet's page closes when that works. When it fails, the tablet says
+why and the earlier network comes back, and the hotspot can be started again. The hotspot also ends by itself after 10
+minutes. The hotspot's own password is shown on the tablet, and is only a barrier for those who can see the screen.
+
+## Wi-Fi from a phone over Bluetooth
 
 The Wi-Fi setup page has a **From phone** button, so nobody has to type a long password on the tablet. It sends
 `POST /wifi/phone`, and `phone-setup.ts` makes the kiosk advertise [Improv Wi-Fi](https://www.improv-wifi.com/ble/) over

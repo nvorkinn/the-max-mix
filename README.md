@@ -60,7 +60,16 @@ until this tablet is the device that is playing, so choose This tablet first. Th
 AirPlay sinks PipeWire made; picking them asks the Pi's local
 [audio service](pi/kiosk-audio/README.md) (127.0.0.1, answering only the app) to route the sound.
 
-### Wi-Fi from a phone
+### Wi-Fi from any phone (hotspot)
+
+The Wi-Fi setup page also has a **Hotspot** button that works with any phone, an iPhone too, and needs no app. The tablet
+starts a temporary Wi-Fi network and shows two QR codes. Scan the first with the phone's camera to join it; the phone then
+opens a page by itself (or scan the second code) where you choose your Wi-Fi and type its password on the phone. The
+kiosk joins it, and the tablet's page closes. The hotspot replaces the kiosk's current Wi-Fi while it is up, ends by
+itself after 10 minutes, and shows its own random password under the first code. How it works is in
+[pi/kiosk-audio](pi/kiosk-audio/README.md).
+
+### Wi-Fi from an Android phone (Bluetooth)
 
 When the Pi has no network, the tablet shows a Wi-Fi setup page. Instead of typing the password there, tap **From phone**,
 then on an Android phone with Chrome open [improv-wifi.com](https://www.improv-wifi.com), tap _Connect device_, choose

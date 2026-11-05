@@ -1,6 +1,8 @@
 // A pw-dump reply for the tests: the local output (40), two AirPlay speakers (50, 60) and Chromium (70) playing to the
 // local output, with a level meter (90) also listening to Chromium. Kitchen's volume is 40% (0.064 = 0.4 cubed); Lounge
 // reports none.
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import { Readable } from 'node:stream';
 import { vi } from 'vitest';
 
 const node = (id: number, name: string, mediaClass: string, props: Record<string, unknown> = {}, params?: unknown) => ({
@@ -77,4 +79,37 @@ export function wifiPacket(ssid: string, password: string): Uint8Array {
   const data = [ssid, password].flatMap(part => [text.encode(part).length, ...text.encode(part)]);
   const body = [1, data.length, ...data];
   return Uint8Array.from([...body, body.reduce((sum, byte) => (sum + byte) % 256, 0)]);
+}
+
+// eslint-disable-next-line sonarjs/no-hardcoded-ip -- the hotspot's own address: a request over the hotspot, unless a test says otherwise
+const HOTSPOT_SIDE = '10.42.0.1';
+
+/** A request and a response for a handler under test, without a socket: `localAddress` is where the request came in. */
+export function exchange(
+  method: string,
+  url: string,
+  options: { body?: unknown; localAddress?: string; origin?: string } = {}
+) {
+  const sentBody = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
+  const body = options.body === undefined ? [] : [Buffer.from(sentBody)];
+  const request = Object.assign(Readable.from(body), {
+    method,
+    url,
+    headers: options.origin ? { origin: options.origin } : {},
+    socket: { localAddress: options.localAddress ?? HOTSPOT_SIDE }
+  }) as unknown as IncomingMessage;
+  const sent: { status?: number; headers?: Record<string, string>; body?: string } = {};
+  const response = {
+    setHeader: vi.fn(),
+    writeHead(status: number, headers?: Record<string, string>) {
+      sent.status = status;
+      if (headers) sent.headers = headers;
+      return response;
+    },
+    end(text = '') {
+      sent.body = text;
+      return response;
+    }
+  };
+  return { request, response: response as unknown as ServerResponse, sent };
 }

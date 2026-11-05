@@ -126,6 +126,8 @@ kiosk_packages:
   - locales
   - tzdata
   - network-manager
+  # The DHCP and DNS NetworkManager runs for the setup hotspot (pi/kiosk-audio/hotspot.ts)
+  - dnsmasq-base
   - polkitd
   # Bluetooth, for the keyboard and mouse, and speakers (libspa-0.2-bluetooth is PipeWire's A2DP support)
   - bluez

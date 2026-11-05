@@ -67,6 +67,9 @@ for file in /usr/local/bin/kiosk-session \
   /opt/the-max-mix/kiosk-audio/bluetooth.ts /opt/the-max-mix/kiosk-audio/improv.ts \
   /opt/the-max-mix/kiosk-audio/improv-gatt.ts /opt/the-max-mix/kiosk-audio/phone-setup.ts \
   /opt/the-max-mix/kiosk-audio/node_modules/dbus-native/package.json \
+  /opt/the-max-mix/kiosk-audio/hotspot.ts /opt/the-max-mix/kiosk-audio/hotspot-portal.ts /opt/the-max-mix/kiosk-audio/qr.ts \
+  /opt/the-max-mix/kiosk-audio/node_modules/qrcode-generator/package.json \
+  /etc/NetworkManager/dnsmasq-shared.d/50-kiosk-captive.conf /etc/sysctl.d/50-kiosk-unprivileged-ports.conf \
   /opt/the-max-mix/kiosk-keyboard/extension/manifest.json /opt/the-max-mix/kiosk-keyboard/extension/loader.js \
   /opt/the-max-mix/kiosk-keyboard/extension/keyboard.js \
   /opt/the-max-mix/kiosk-audio/node_modules/ws/package.json /var/lib/the-max-mix/kiosk-audio-deps.sha1 \
