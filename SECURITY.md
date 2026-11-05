@@ -30,7 +30,8 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
 - **The kiosk's playbook.** Ansible is the single source of truth for the device, and a systemd timer on the Pi runs
   `ansible-pull` as root against this repository's latest GitHub release (`kiosk_pull_ref: latest`). Whoever can push a
   `v*` tag, publish a release or mark one as the latest can change what runs on every deployed Pi, so protect the
-  repository and its tag rules, and only tag commits on `main`. The `kiosk` user has no password, no
+  repository and its tag rules. The Release workflow refuses a tag that is not on `main` or whose `main` CI has not
+  passed. The `kiosk` user has no password, no
   `sudo` and no SSH; Chromium keeps its sandbox enabled. The `admin` account has no password either: SSH lets it in
   by key only (the keys of the GitHub account in `kiosk_admin_github_user`, fetched at every pull), and it has `sudo`.
   Whoever can add a key to that GitHub account can log in to the Pi.
