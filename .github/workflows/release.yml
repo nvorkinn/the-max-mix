@@ -31,7 +31,8 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The CI wait in the first steps (up to 30 minutes) comes on top of the build and deploy.
+    timeout-minutes: 45
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
       VERCEL_CLI: vercel@64.4.0
@@ -52,8 +53,12 @@ jobs:
             fi
           done
       # The Pis run whatever the latest release holds as root (see SECURITY.md), so only release a commit that is on main
-      # and whose main CI passed. A rerun by hand (a rollback) skips the CI part: that tag passed it when it was released,
-      # and its runs may have expired since.
+      # and whose main CI passed. A tag is usually pushed right after the merge (the dashboard's Release button does), while
+      # main's CI is still running, so this waits for it instead of failing: it fails at once when a run failed or when
+      # Tests, Lint or CodeQL has no run on the commit (a push starts them all together, so one that is missing is not
+      # coming), and when the runs have not finished after 30 minutes. Other workflows (Ansible runs only when its paths
+      # change) count only when they ran. A rerun by hand (a rollback) skips the CI part: that tag passed it when it was
+      # released, and its runs may have expired since.
       - name: Check the tag is on main and its CI passed
         env:
           GH_TOKEN: ${{ github.token }}
@@ -66,13 +71,33 @@ jobs:
             exit 1
           fi
           [[ $GITHUB_EVENT_NAME == workflow_dispatch ]] && exit 0
-          runs=$(gh api "repos/$GH_REPO/actions/runs?head_sha=$sha&event=push&branch=main" \
-            --jq '.workflow_runs[] | "\(.name): \(.status) \(.conclusion)"')
-          if [[ -z $runs ]] || grep -qvE ': completed (success|skipped)$' <<< "$runs"; then
-            echo "::error::Main CI has not passed on $TAG ($sha). Tag the merge commit main ran CI on, after it is green."
-            echo "${runs:-No CI runs found for this commit.}"
-            exit 1
-          fi
+          required='[".github/workflows/tests.yml", ".github/workflows/lint.yml", ".github/workflows/codeql.yml"]'
+          deadline=$((SECONDS + 1800))
+          while true; do
+            # The newest run of each workflow on the commit, as "<state> <path>: <result> <url>".
+            runs=$(gh api --paginate "repos/$GH_REPO/actions/runs?head_sha=$sha&event=push&branch=main&per_page=100" |
+              jq -s -r --argjson required "$required" '
+                [.[].workflow_runs[]] | group_by(.path) | map(max_by(.id)) as $latest
+                | (($required - ($latest | map(.path)))[] | "missing \(.): no run on this commit"),
+                  ($latest[] | (if .status != "completed" then "running"
+                                elif (.conclusion | IN("success", "skipped")) then "passed"
+                                else "failed" end) + " \(.path): \(.status) \(.conclusion // "") \(.html_url)")')
+            if grep -qE '^(missing|failed) ' <<< "$runs"; then
+              echo "::error::Main CI has not passed on $TAG ($sha). Tag the merge commit main ran CI on, after it is green."
+              echo "$runs"
+              exit 1
+            fi
+            grep -q '^running ' <<< "$runs" || break
+            if (( SECONDS >= deadline )); then
+              echo "::error::Main CI on $TAG ($sha) did not finish within 30 minutes."
+              echo "$runs"
+              exit 1
+            fi
+            echo "Waiting for main CI on $sha:"
+            grep '^running ' <<< "$runs" | sed 's/^/  /'
+            sleep 20
+          done
+          echo "Main CI passed on $sha."
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/tags/${{ env.TAG }}
