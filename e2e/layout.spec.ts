@@ -1,8 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
-import { fakeSpotify } from './fake-spotify.ts';
+import { fakeSpotify, PIXEL } from './fake-spotify.ts';
 
-const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 const LONG_TITLE = `${'An extended placeholder title with extra recording details '.repeat(8)}${'Unbroken'.repeat(24)}`;
 const LONG_ARTIST = 'A placeholder artist with a second guest artist '.repeat(4);
 

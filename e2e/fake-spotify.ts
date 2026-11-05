@@ -2,6 +2,9 @@ import type { Page } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
 import type { PlaybackState, SpotifyDevice, Track } from '../src/types.ts';
 
+/** An opaque black 1x1 GIF that stands in for every album cover and playlist image in the tests. */
+export const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAAAAACwAAAAAAQABAAACAkQBADs=', 'base64');
+
 const track = (id: string, name: string, artist: string, durationMs: number): Track => ({
   id,
   uri: `spotify:track:${id}`,

@@ -1,7 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { countPlaybackReads, fakeSpotify } from './fake-spotify.ts';
-
-const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
 
 // What the fake Spotify account was sent and has saved, for the page of the test that is running.
 const accounts = new WeakMap<Page, Awaited<ReturnType<typeof fakeSpotify>>>();

@@ -1,8 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { advance } from './clock.ts';
-import { countPlaybackReads, fakeSpotify } from './fake-spotify.ts';
-
-const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
 
 test.describe('Screen sleep', { tag: '@sleep' }, () => {
   test.beforeEach(async ({ page }) => {

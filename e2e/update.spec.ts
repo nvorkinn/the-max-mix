@@ -1,7 +1,6 @@
 import { expect, test, type Page, type WebSocketRoute } from '@playwright/test';
-import { fakeSpotify } from './fake-spotify.ts';
+import { fakeSpotify, PIXEL } from './fake-spotify.ts';
 
-const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 const UPDATE_SOCKET = 'ws://127.0.0.1:7341/power/update';
 
 /** What the kiosk service sends while it updates (pi/kiosk-audio/update.ts). */
