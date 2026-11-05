@@ -169,6 +169,10 @@ The refresh token is kept in the browser's `localStorage`, and the page calls th
 trade-offs:
 
 - Clearing the site data signs you out; sign in again.
+- **Sign out** in Settings drops the stored login, the cached access token and any sign-in left half done. Spotify itself
+  may still remember the person in the browser, so the next sign-in asks Spotify to show its approval page again
+  (`show_dialog=true`, until a sign-in goes through) rather than letting it sign the same account straight back in; the
+  app cannot sign the person out of Spotify's own website.
 - There is one login per browser profile.
 - Anyone with access to the kiosk's browser profile has the Spotify login. See [SECURITY.md](SECURITY.md).
 
