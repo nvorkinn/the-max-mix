@@ -11,7 +11,7 @@ const noop = () => {};
  * once the update has finished, failed or been given up on.
  */
 export default function UpdateConsole({ update }: Readonly<{ update: KioskUpdate }>) {
-  const { consoleOpen, isUpdating, progress, output, closeConsole } = update;
+  const { consoleOpen, isUpdating, progress, tasks, output, closeConsole } = update;
   const outputRef = useRef<HTMLPreElement>(null);
 
   // Keep the newest output in view.
@@ -49,6 +49,14 @@ export default function UpdateConsole({ update }: Readonly<{ update: KioskUpdate
         {isUpdating && <LoaderCircle size={22} className="animate-spin" aria-hidden="true" />}
         {progress ?? 'Updating… this can take a few minutes.'}
       </p>
+      {isUpdating && tasks && (
+        <progress
+          className="update-console-progress"
+          max={tasks.total}
+          value={tasks.done}
+          aria-label={`Task ${tasks.done} of ${tasks.total}`}
+        />
+      )}
       <pre ref={outputRef} aria-label="Update output" className="update-console-output">
         {output.length > 0 ? output.join('\n') : 'Starting the update…'}
       </pre>
