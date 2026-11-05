@@ -90,6 +90,70 @@ describe('sonos/auth', () => {
     expect(isSonosSignedIn()).toBe(false);
   });
 
+  describe('getSonosAccessToken', () => {
+    const signedIn = () => localStorage.setItem('maxmix.sonosAuth', JSON.stringify({ refreshToken: 'refresh' }));
+
+    it('is null while signed out', async () => {
+      const { getSonosAccessToken } = await load();
+      expect(await getSonosAccessToken()).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('refreshes once for concurrent callers, keeps a rotated refresh token and caches the access token', async () => {
+      signedIn();
+      fetchMock.mockResolvedValue(Response.json({ accessToken: 'access', refreshToken: 'rotated', expiresIn: 3600 }));
+      const { getSonosAccessToken } = await load();
+      expect(await Promise.all([getSonosAccessToken(), getSonosAccessToken()])).toEqual(['access', 'access']);
+      expect(await getSonosAccessToken()).toBe('access');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect((fetchMock.mock.calls[0] as [string, RequestInit])[1].body).toBe(
+        JSON.stringify({ refreshToken: 'refresh' })
+      );
+      expect(localStorage.getItem('maxmix.sonosAuth')).toBe(JSON.stringify({ refreshToken: 'rotated' }));
+    });
+
+    it('refreshes again after the token is discarded', async () => {
+      signedIn();
+      fetchMock.mockImplementation(() => Promise.resolve(Response.json({ accessToken: 'access', expiresIn: 3600 })));
+      const { discardSonosAccessToken, getSonosAccessToken } = await load();
+      await getSonosAccessToken();
+      discardSonosAccessToken();
+      await getSonosAccessToken();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(localStorage.getItem('maxmix.sonosAuth')).toBe(JSON.stringify({ refreshToken: 'refresh' }));
+    });
+
+    it('forgets a revoked login', async () => {
+      signedIn();
+      fetchMock.mockResolvedValue(Response.json({ error: 'invalid_grant' }, { status: 401 }));
+      const { getSonosAccessToken, isSonosSignedIn } = await load();
+      expect(await getSonosAccessToken()).toBeNull();
+      expect(isSonosSignedIn()).toBe(false);
+    });
+
+    it('throws when the refresh fails for another reason, keeping the login', async () => {
+      signedIn();
+      fetchMock.mockResolvedValueOnce(Response.json({ error: 'Sonos could not be reached.' }, { status: 502 }));
+      fetchMock.mockResolvedValueOnce(new Response('down', { status: 500 }));
+      const { getSonosAccessToken, isSonosSignedIn } = await load();
+      await expect(getSonosAccessToken()).rejects.toThrow('Sonos could not be reached.');
+      await expect(getSonosAccessToken()).rejects.toThrow('Sonos could not be reached (500).');
+      expect(isSonosSignedIn()).toBe(true);
+    });
+
+    it('drops a refresh that finishes after signing out', async () => {
+      signedIn();
+      let answer: (reply: Response) => void = () => {};
+      fetchMock.mockReturnValue(new Promise<Response>(resolve => (answer = resolve)));
+      const { getSonosAccessToken, isSonosSignedIn, signOutSonos } = await load();
+      const pending = getSonosAccessToken();
+      signOutSonos();
+      answer(Response.json({ accessToken: 'access', refreshToken: 'rotated', expiresIn: 3600 }));
+      expect(await pending).toBeNull();
+      expect(isSonosSignedIn()).toBe(false);
+    });
+  });
+
   it('signs out', async () => {
     localStorage.setItem('maxmix.sonosAuth', JSON.stringify({ refreshToken: 'refresh' }));
     const { isSonosSignedIn, signOutSonos } = await load();

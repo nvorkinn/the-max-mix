@@ -218,6 +218,12 @@ secret; the browser keeps the refresh token in `localStorage` like the Spotify o
 3. In the Vercel project's environment variables (Production), set `SONOS_CLIENT_ID` to the key and
    `SONOS_CLIENT_SECRET` to the secret. They are never in the repository.
 
+Once signed in, the Speakers drawer lists the Sonos rooms and groups. A tap plays there through Spotify Connect (the
+Sonos API cannot start Spotify music itself), so it works for a group whose speaker Spotify already lists; the app
+matches it by the group's or the leading room's name. Each group has a volume slider that sets the whole group's volume
+through Sonos. The Sonos calls go through a second function, `api/sonos-control.ts`, which relays only those few paths
+with the browser's own access token.
+
 ## Raspberry Pi kiosk
 
 The kiosk is a Raspberry Pi 4 or 5 with the Waveshare 7-inch 1024x600 touch screen, running the deployed app in Chromium

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Speaker, Check, RefreshCw } from 'lucide-react';
+import { isSonosSignedIn } from '../sonos/auth';
 import { getDevices } from '../spotify/api';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
@@ -8,6 +9,7 @@ import { errorMessage } from '../utils/errorMessage';
 import type { SpotifyDevice } from '../types';
 import AirPlaySpeakerList from './AirPlaySpeakerList';
 import BluetoothSpeakers from './BluetoothSpeakers';
+import SonosGroupList from './SonosGroupList';
 
 function describeDevice(device: SpotifyDevice) {
   if (!device.id) return 'Not available to select from this app';
@@ -18,7 +20,7 @@ function describeDevice(device: SpotifyDevice) {
 
 /**
  * The speakers drawer: opens above the device indicator in the control bar. It lists the Spotify Connect devices (the
- * one that is playing first) and, on the kiosk, the AirPlay speakers. AirPlay plays what this tablet plays, so its
+ * one that is playing first), the Sonos groups when signed in to Sonos, and, on the kiosk, the AirPlay speakers. AirPlay plays what this tablet plays, so its
  * speakers can only be picked while this tablet is the one playing.
  */
 export default function SpeakerDrawer({
@@ -218,6 +220,20 @@ export default function SpeakerDrawer({
               </p>
             )}
           </section>
+          {isSonosSignedIn() && (
+            <section aria-labelledby="sonos-title" className="space-y-2 pt-2">
+              <h3 id="sonos-title" className="text-xs font-bold">
+                Sonos
+              </h3>
+              <p className="text-[11px] text-muted">Your Sonos rooms and groups. Plays through Spotify Connect.</p>
+              <SonosGroupList
+                devices={devices}
+                playingId={isAirPlay ? null : playingId}
+                disabled={selecting || waitingForSpotify}
+                onSelect={selectDevice}
+              />
+            </section>
+          )}
           {canUseAirPlay && (
             <section aria-labelledby="airplay-title" className="space-y-2 pt-2">
               <h3 id="airplay-title" className="text-xs font-bold">
