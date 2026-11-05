@@ -205,6 +205,19 @@ Spotify does not accept `localhost` redirect URIs. HTTP is allowed only with a
 literal loopback address such as `127.0.0.1`; other redirect addresses require HTTPS. Sign in from the same address you
 registered: an address that is not registered cannot sign in.
 
+## Sonos configuration
+
+Sonos sign-in (Settings, **Sign in to Sonos**) lets the app reach the Sonos speakers in the house through the
+[Sonos Control API](https://docs.sonos.com/docs/control). Unlike Spotify, Sonos has no PKCE: every token request needs
+the app's client secret. So the token requests go through one small Vercel function, `api/sonos.ts`, which holds the
+secret; the browser keeps the refresh token in `localStorage` like the Spotify one.
+
+1. Create an integration in the [Sonos developer portal](https://developer.sonos.com/) and add a key.
+2. Register the redirect URI `https://the-max-mix.vercel.app/sonos/callback`. Sonos accepts only HTTPS addresses, so
+   Sonos sign-in works on the deployed site only, not in local development.
+3. In the Vercel project's environment variables (Production), set `SONOS_CLIENT_ID` to the key and
+   `SONOS_CLIENT_SECRET` to the secret. They are never in the repository.
+
 ## Raspberry Pi kiosk
 
 The kiosk is a Raspberry Pi 4 or 5 with the Waveshare 7-inch 1024x600 touch screen, running the deployed app in Chromium
