@@ -67,7 +67,8 @@ const DUPLICATE_RULES_OFF = {
 };
 /** @type {import('eslint').Linter.RulesRecord} */
 const IMPORT_RULES = {
-  'import-x/no-cycle': 'error',
+  // Packages can't import our files back, so following them only costs time (it was a third of ESLint's run).
+  'import-x/no-cycle': ['error', { ignoreExternal: true }],
   'import-x/no-duplicates': 'error',
   'import-x/no-self-import': 'error',
   'import-x/no-useless-path-segments': 'error',
