@@ -120,9 +120,10 @@ check grep -q '^SystemMaxUse=64M$' /etc/systemd/journald.conf.d/kiosk.conf
 
 # The slow package step records that it is done, and the second run skips it. (The SSH keys download is not checked: it
 # needs GitHub, which a test must not depend on.)
+# The progress lines the callback plugin prints after each task's header are left out.
 # shellcheck disable=SC2329  # Called by check.
 second_run_skips() {
-  grep -A1 "TASK \\[kiosk : $1\\]" /tmp/second-run.log | grep -q '^skipping'
+  grep -v '^Ansible progress: ' /tmp/second-run.log | grep -A1 "TASK \\[kiosk : $1\\]" | grep -q '^skipping'
 }
 check test -s /var/lib/the-max-mix/packages.sha1
 # The second run applied everything again and recorded the same ids as the first; the third found nothing to apply: only
