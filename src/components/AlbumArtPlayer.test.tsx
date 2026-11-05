@@ -41,7 +41,7 @@ describe('AlbumArtPlayer', () => {
   it('renders placeholders when nothing is playing', () => {
     setup({ playback: null, isPlaying: false });
     expect(screen.getByRole('heading', { name: 'Nothing playing' })).toBeInTheDocument();
-    expect(screen.getByText('Select a device in Speakers')).toBeInTheDocument();
+    expect(screen.getByText('Select a device')).toBeInTheDocument();
     expect(
       screen.queryByText(/now playing|no track playing|ready when you are|choose your next/i)
     ).not.toBeInTheDocument();
