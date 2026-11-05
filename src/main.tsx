@@ -6,6 +6,7 @@ import { captureBrowserErrors } from './utils/debugLog';
 import { installHttpLog } from './utils/httpLog';
 import { errorMessage } from './utils/errorMessage';
 import { isKiosk, piVersion } from './utils/kiosk';
+import { startKioskWatch } from './utils/kioskWatch';
 import './index.css';
 
 // Copies console errors and uncaught errors into the hidden debug console from the start.
@@ -14,7 +15,11 @@ installHttpLog();
 
 // Remembers ?kiosk=1 and the Pi version before anything can navigate away (the sign-in redirect returns without the query).
 piVersion();
-if (isKiosk()) document.documentElement.classList.add('hide-cursor');
+if (isKiosk()) {
+  document.documentElement.classList.add('hide-cursor');
+  // The Pi restarts Chromium when these heartbeats stop, and keeps the app's errors in its journal.
+  startKioskWatch();
+}
 
 // Finishes a sign-in first (Spotify sends the browser back with ?code=), so the app starts with the auth state final.
 const signedIn = completeSignIn().catch((error: unknown) => ({

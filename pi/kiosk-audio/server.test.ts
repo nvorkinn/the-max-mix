@@ -6,8 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Action } from './actions.ts';
 import { dump } from './fixtures.ts';
 import { parseDump } from './pipewire.ts';
-import { handleRequest, speakerNames } from './server.ts';
-import type { Deps } from './server.ts';
+import { handleRequest, journalLog, parseAppLog, speakerNames } from './server.ts';
+import type { AppLog, Deps } from './server.ts';
 
 const ORIGIN = 'https://the-max-mix.vercel.app';
 const servers: Server[] = [];
@@ -18,6 +18,8 @@ afterEach(() => {
 function fakes(overrides: Partial<Deps> = {}) {
   const performed: Action[] = [];
   const routed: string[][] = [];
+  const logged: AppLog[] = [];
+  let beats = 0;
   const deps: Deps = {
     graph: () => Promise.resolve(parseDump(dump())),
     route: speakers => {
@@ -28,9 +30,15 @@ function fakes(overrides: Partial<Deps> = {}) {
       performed.push(action);
       return Promise.resolve();
     },
+    heartbeat: () => {
+      beats += 1;
+    },
+    log: entry => {
+      logged.push(entry);
+    },
     ...overrides
   };
-  return { deps, performed, routed };
+  return { deps, performed, routed, logged, beats: () => beats };
 }
 
 async function start(deps: Deps): Promise<string> {
@@ -111,6 +119,53 @@ describe('POST', () => {
     // The update is a WebSocket now: a plain POST to its path starts nothing.
     expect((await post(base, '/power/update')).status).toBe(404);
     expect((await post(base, '/power/reboot')).status).toBe(503);
+  });
+});
+
+describe('POST /heartbeat and /log', () => {
+  it('passes heartbeats and app errors on, from the app only', async () => {
+    const { deps, logged, beats } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/heartbeat')).status).toBe(204);
+    expect((await post(base, '/heartbeat', { origin: 'https://evil.example' })).status).toBe(403);
+    expect(beats()).toBe(1);
+    const body = { level: 'error', source: 'page', message: 'TypeError: x is undefined' };
+    expect((await post(base, '/log', { body })).status).toBe(204);
+    expect((await post(base, '/log', { body: { level: 'debug', message: 'x' } })).status).toBe(400);
+    expect(logged).toEqual([body]);
+  });
+});
+
+describe('parseAppLog', () => {
+  it('keeps one line, a short message and a plain source', () => {
+    const entry = parseAppLog({
+      level: 'warn',
+      source: 'a b\n',
+      message: `Error: x\n    at f (app.js:1)\n${'y'.repeat(30)}`
+    });
+    expect(entry).toEqual({ level: 'warn', source: 'ab', message: `Error: x | at f (app.js:1) | ${'y'.repeat(30)}` });
+    expect(parseAppLog({ level: 'error', message: 'z'.repeat(3000) })?.message).toHaveLength(2000);
+    expect(parseAppLog(null)).toBeNull();
+    expect(parseAppLog({ level: 'error' })).toBeNull();
+  });
+});
+
+describe('journalLog', () => {
+  it('writes at most 30 lines a minute, then says how many it dropped', () => {
+    const lines: string[] = [];
+    let now = 0;
+    const log = journalLog(
+      line => {
+        lines.push(line);
+      },
+      () => now
+    );
+    for (let i = 0; i < 35; i++) log({ level: 'error', source: 'page', message: `e${i}` });
+    expect(lines).toHaveLength(30);
+    expect(lines[0]).toBe('app error (page): e0');
+    now = 60_000;
+    log({ level: 'warn', source: '', message: 'later' });
+    expect(lines.slice(30)).toEqual(['app: 5 more log lines were dropped', 'app warn: later']);
   });
 });
 
