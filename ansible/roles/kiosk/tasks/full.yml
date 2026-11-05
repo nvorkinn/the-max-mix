@@ -420,6 +420,8 @@
   loop:
     - actions.ts
     - kiosk-audio.ts
+    - lyrics-sources.ts
+    - lyrics.ts
     - nmcli.ts
     - pipewire.ts
     - server.ts
