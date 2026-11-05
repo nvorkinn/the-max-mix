@@ -4,6 +4,7 @@ adwaita
 alsa
 aqabaiaaaaaaap
 argv
+autoclean
 autoplay
 avahi
 avenir
