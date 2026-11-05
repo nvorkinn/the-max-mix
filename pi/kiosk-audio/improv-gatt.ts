@@ -2,7 +2,9 @@
 // phone find it. Both are D-Bus objects this process exports on the system bus; BlueZ is told about them with
 // RegisterApplication and RegisterAdvertisement, and then calls ReadValue and WriteValue on them. The kiosk user is in
 // the bluetooth group, which is what BlueZ's D-Bus policy needs. The first Bluetooth adapter is used (hci0).
-import { defineInterface, systemBus, Variant } from 'dbus-native';
+// dbus-native is loaded only when the phone setup starts, so a Pi where it is missing or broken loses this button and
+// nothing else (the service imports this file at start-up).
+import type * as DBus from 'dbus-native';
 import type { InterfaceDefinition, MessageBus } from 'dbus-native';
 import { CAPABILITIES, CHARACTERISTICS, SERVICE_UUID } from './improv.ts';
 import type { ImprovSession } from './improv.ts';
@@ -60,11 +62,12 @@ async function ignoreFailure(work: PromiseLike<unknown>): Promise<void> {
 const nothing = (): null => null;
 
 function characteristic(
+  dbus: typeof DBus,
   uuid: string,
   flags: string[],
   methods: NonNullable<InterfaceDefinition['methods']>
-): ReturnType<typeof defineInterface> {
-  return defineInterface({
+): ReturnType<typeof DBus.defineInterface> {
+  return dbus.defineInterface({
     name: CHARACTERISTIC,
     properties: {
       UUID: { type: 's', access: 'read', value: uuid },
@@ -79,10 +82,12 @@ function characteristic(
  * Advertises the Improv service and serves it from `session`, which is notified of what the phone writes. Rejects with an
  * Error when BlueZ does not take it (no Bluetooth, or no permission). `bus` is the system bus; the tests pass another.
  */
-export async function advertise(session: ImprovSession, bus: MessageBus = systemBus()): Promise<Advertising> {
+export async function advertise(session: ImprovSession, given?: MessageBus): Promise<Advertising> {
+  const dbus = await import('dbus-native');
+  const bus = given ?? dbus.systemBus();
   await untilConnected(bus);
   const removers: (() => Promise<void>)[] = [];
-  const exportObject = async (path: string, definition: ReturnType<typeof defineInterface>): Promise<void> => {
+  const exportObject = async (path: string, definition: ReturnType<typeof DBus.defineInterface>): Promise<void> => {
     const registration = await bus.export(path, definition);
     removers.push(() => registration.remove());
   };
@@ -115,7 +120,7 @@ export async function advertise(session: ImprovSession, bus: MessageBus = system
 
   const exportAll = async (): Promise<void> => {
     bus.exportObjectManager(APP);
-    const service = defineInterface({
+    const service = dbus.defineInterface({
       name: 'org.bluez.GattService1',
       properties: {
         UUID: { type: 's', access: 'read', value: SERVICE_UUID },
@@ -129,7 +134,7 @@ export async function advertise(session: ImprovSession, bus: MessageBus = system
       };
       // BlueZ reads the objects in order, so they are made in order.
       // eslint-disable-next-line no-await-in-loop
-      await exportObject(path, characteristic(uuid, notifies ? ['read', 'notify'] : ['read'], methods));
+      await exportObject(path, characteristic(dbus, uuid, notifies ? ['read', 'notify'] : ['read'], methods));
     }
     const writeValue = {
       in: { value: 'ay', options: 'a{sv}' },
@@ -139,11 +144,11 @@ export async function advertise(session: ImprovSession, bus: MessageBus = system
     };
     await exportObject(
       `${SERVICE}/char2`,
-      characteristic(CHARACTERISTICS.command, ['write'], { WriteValue: writeValue })
+      characteristic(dbus, CHARACTERISTICS.command, ['write'], { WriteValue: writeValue })
     );
     // The state and capabilities the protocol puts in the advertisement, then four reserved bytes.
-    const serviceData = new Variant('ay', Buffer.from([session.state, CAPABILITIES, 0, 0, 0, 0]));
-    const advertisement = defineInterface({
+    const serviceData = new dbus.Variant('ay', Buffer.from([session.state, CAPABILITIES, 0, 0, 0, 0]));
+    const advertisement = dbus.defineInterface({
       name: 'org.bluez.LEAdvertisement1',
       properties: {
         Type: { type: 's', access: 'read', value: 'peripheral' },
@@ -173,7 +178,7 @@ export async function advertise(session: ImprovSession, bus: MessageBus = system
     for (const { path, read, notifies } of readables) {
       const value = read();
       if (!notifies || value.length === 0) continue;
-      const changed = { Value: new Variant('ay', Buffer.from(value)) };
+      const changed = { Value: new dbus.Variant('ay', Buffer.from(value)) };
       bus.sendSignal(path, 'org.freedesktop.DBus.Properties', 'PropertiesChanged', 'sa{sv}as', [
         CHARACTERISTIC,
         changed,
