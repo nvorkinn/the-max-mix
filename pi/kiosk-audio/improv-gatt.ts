@@ -15,6 +15,11 @@ const SERVICE = `${APP}/service0`;
 const ADVERTISEMENT = '/org/themaxmix/improv_adv';
 const ADAPTER = '/org/bluez/hci0';
 const LOCAL_NAME = 'THE MAX MIX';
+// The protocol's service data goes under the 16-bit UUID 0x4677, not the 128-bit one of the service. A Bluetooth LE
+// advertisement is 31 bytes: flags (3), the 128-bit service UUID (18) and this data (2 + 2 + 6) fill it exactly, and
+// under the 128-bit UUID the data alone would be 24 bytes, which BlueZ refuses with "Failed to register advertisement".
+// BlueZ puts the local name in the scan response, so it does not count against the 31 bytes.
+export const SERVICE_DATA_UUID = '00004677-0000-1000-8000-00805f9b34fb';
 const CONNECT_WAIT_MS = 5000;
 const GATT_MANAGER = 'org.bluez.GattManager1';
 const ADVERTISING_MANAGER = 'org.bluez.LEAdvertisingManager1';
@@ -154,7 +159,7 @@ export async function advertise(session: ImprovSession, given?: MessageBus): Pro
         Type: { type: 's', access: 'read', value: 'peripheral' },
         ServiceUUIDs: { type: 'as', access: 'read', value: [SERVICE_UUID] },
         LocalName: { type: 's', access: 'read', value: LOCAL_NAME },
-        ServiceData: { type: 'a{sv}', access: 'read', value: { [SERVICE_UUID]: serviceData } }
+        ServiceData: { type: 'a{sv}', access: 'read', value: { [SERVICE_DATA_UUID]: serviceData } }
       },
       methods: { Release: nothing }
     });

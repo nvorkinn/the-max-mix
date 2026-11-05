@@ -300,6 +300,18 @@ async function getLyrics(
   }
 }
 
+/** An error with the messages of its causes after it, so the journal says why and not only what failed. */
+function describeError(error: unknown): string {
+  const messages: string[] = [];
+  let current = error;
+  while (current instanceof Error && messages.length < 5) {
+    messages.push(current.message);
+    current = current.cause;
+  }
+  if (typeof current === 'string') messages.push(current);
+  return messages.join(': ');
+}
+
 async function postWifi(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
   const { wifi } = deps;
   if (request.headers.origin !== LOCAL_ORIGIN) {
@@ -311,7 +323,7 @@ async function postWifi(request: IncomingMessage, response: ServerResponse, deps
       await deps.phone.start();
       sendJson(response, 200, { ok: true });
     } catch (error) {
-      console.warn(`wifi: phone setup did not start: ${String(error)}`);
+      console.warn(`wifi: phone setup did not start: ${describeError(error)}`);
       sendJson(response, 503, { error: 'Bluetooth is not available, so the phone cannot be used.' });
     }
     return;
