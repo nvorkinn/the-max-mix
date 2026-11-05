@@ -10,6 +10,8 @@
 //   POST /wifi/connect      {"ssid", "password", "hidden", "security"}   join a network: {"ok": true} or {"ok": false, "error"}
 //   POST /wifi/done         the setup page is finished (joined, or Cancel): close it
 //   GET  /wifi-setup        the Wi-Fi setup page and its scripts (wifi-setup.ts)
+//   GET  /lyrics?title=&artist=&duration=   {"source", "lrc"}: synced lyrics from NetEase, QQ Music or KuGou (lyrics.ts),
+//                           the duration in ms is optional; 404: none found, 502: the sources could not be reached
 //   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
 //                           (update-socket.ts)
 // Only the app's origin is answered (CORS, and every POST and WebSocket is refused without its Origin header, so no other
@@ -20,6 +22,9 @@ import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { perform } from './actions.ts';
 import type { Action } from './actions.ts';
+import type { LyricsQuery } from './lyrics-sources.ts';
+import { cached, findLyrics, parseLyricsQuery } from './lyrics.ts';
+import type { LyricsHit } from './lyrics.ts';
 import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
 import type { Graph } from './pipewire.ts';
@@ -57,6 +62,8 @@ export interface Deps {
   wifi: Wifi;
   /** The setup page or one of its scripts for a GET of the URL, or null. */
   asset: (url: string) => Promise<Asset | null>;
+  /** Synced lyrics for a song, or null; rejects when no source could be reached. */
+  lyrics: (query: LyricsQuery) => Promise<LyricsHit | null>;
 }
 
 /** NetworkManager, for the Wi-Fi setup page (nmcli.ts). */
@@ -202,6 +209,29 @@ async function listNetworks(response: ServerResponse, wifi: Wifi): Promise<void>
   }
 }
 
+/** GET /lyrics: the app's origin only, since each request makes the Pi call out to the lyrics sources. */
+async function getLyrics(
+  request: IncomingMessage,
+  response: ServerResponse,
+  origin: string,
+  deps: Deps
+): Promise<void> {
+  const query = parseLyricsQuery(new URL(request.url ?? '', LOCAL_ORIGIN).searchParams);
+  if (request.headers.origin !== origin) {
+    response.writeHead(403).end();
+  } else if (query) {
+    try {
+      const hit = await deps.lyrics(query);
+      if (hit) sendJson(response, 200, hit);
+      else response.writeHead(404).end();
+    } catch {
+      response.writeHead(502).end();
+    }
+  } else {
+    response.writeHead(400).end();
+  }
+}
+
 async function postWifi(request: IncomingMessage, response: ServerResponse, wifi: Wifi): Promise<void> {
   if (request.headers.origin !== LOCAL_ORIGIN) {
     response.writeHead(403).end();
@@ -241,6 +271,8 @@ export function handleRequest(origin: string, deps: Deps) {
     try {
       if (request.method === 'OPTIONS') {
         response.writeHead(204).end();
+      } else if (request.method === 'GET' && (request.url ?? '').startsWith('/lyrics?')) {
+        await getLyrics(request, response, origin, deps);
       } else if (request.method === 'GET') {
         await get(request.url ?? '', response, deps);
       } else if (request.method === 'POST' && (request.url === '/wifi/connect' || request.url === '/wifi/done')) {
@@ -283,7 +315,14 @@ export function serveSpeakers(
   const heartbeat = () => {
     watchdog.beat();
   };
-  const handler = handleRequest(origin, { ...deps, perform, heartbeat, log: journalLog(), asset: wifiSetupAsset });
+  const handler = handleRequest(origin, {
+    ...deps,
+    perform,
+    heartbeat,
+    log: journalLog(),
+    asset: wifiSetupAsset,
+    lyrics: cached(query => findLyrics(query))
+  });
   const server = createServer((request, response) => void handler(request, response));
   attachUpdateSocket(server, origin, update);
   return server.listen(SPEAKERS_PORT, '127.0.0.1');

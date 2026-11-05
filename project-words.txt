@@ -52,6 +52,7 @@ journalctl
 katex
 kbd
 knip
+kugou
 libinput
 libpipewire
 libwidevinecdm
@@ -72,10 +73,12 @@ mktemp
 nbbbb
 ncccc
 netdev
+netease
 netplan
 networkmanager
 nmcli
 noarmor
+nobase
 nocolor
 nodesource
 nodistro
@@ -133,6 +136,9 @@ rootwait
 runcmd
 shellcheck
 shopt
+singername
+songmid
+songname
 sonos
 splitlines
 SSID

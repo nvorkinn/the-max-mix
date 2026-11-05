@@ -82,11 +82,14 @@ Settings.
 
 Tap the artwork (the microphone button in its corner) to show the current song's lyrics in place of the artwork; tap
 the picture button to bring the artwork back. The choice is remembered. Lyrics come from [LRCLIB](https://lrclib.net),
-a free, open lyrics database that needs no key and allows browser requests, so the app needs no backend. Time-synced
-lyrics follow playback and keep the current line in the middle. Scrolling them pauses that, and they follow the song
-again after 8 seconds of being left alone. Songs with only plain lyrics show them unsynced. Lookups happen only while
-the lyrics are shown, once per track. Another source can be added as a `LyricsProvider` (`src/lyrics/types.ts`) in the
-list in `src/lyrics/providers.ts`; the sources are asked in order and the first one with lyrics wins.
+a free, open lyrics database that needs no key and allows browser requests. When LRCLIB has no synced lyrics for a
+song, the kiosk service (`GET /lyrics`, see [pi/kiosk-audio](pi/kiosk-audio/README.md)) looks for them at NetEase
+Cloud Music, QQ Music and KuGou, which do not allow requests from a web page; off the kiosk that step is skipped.
+Time-synced lyrics follow playback and keep the current line in the middle. Scrolling them pauses that, and they follow
+the song again after 8 seconds of being left alone. Songs with only plain lyrics show them unsynced. Lookups happen only
+while the lyrics are shown, once per track. Another source can be added as a `LyricsProvider`
+(`src/lyrics/types.ts`) in the list in `src/lyrics/providers.ts`; the sources are asked in order and the first one with
+synced lyrics wins, with plain lyrics as the fallback.
 
 Spotify's own lyrics are not used: they come from an internal endpoint that is not part of the public Web API, needs
 a signed-in web-player cookie (`sp_dc`) and a server to call it, and is against Spotify's terms.
