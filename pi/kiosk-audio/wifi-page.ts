@@ -1,7 +1,8 @@
 // The Wi-Fi setup page in the browser (the TypeScript port of pi/wifi-panel/qml). kiosk-audio serves it at
 // http://127.0.0.1:7341/wifi-setup with its types stripped (wifi-setup.ts), because it has to work with no internet. It
 // lists the networks in range, asks for the password on the sign-in keyboard (pi/kiosk-keyboard), and joins through
-// GET /wifi/networks and POST /wifi/connect. On success, or on Cancel, it calls POST /wifi/done, which closes it.
+// GET /wifi/networks and POST /wifi/connect. On success, or on Cancel, it calls POST /wifi/done, which closes it. Like
+// the app, it sends POST /heartbeat every 20 seconds, so the watchdog only restarts it when it hangs.
 // ?can-cancel=1 shows Cancel (only when there is a connection to go back to).
 
 interface Network {
@@ -64,6 +65,8 @@ const post = (path: string, body?: unknown): Promise<Response> =>
     headers: { 'Content-Type': 'application/json' },
     ...(body !== undefined && { body: JSON.stringify(body) })
   });
+
+const HEARTBEAT_MS = 20_000;
 
 /** The page is finished (joined, or Cancel): the service closes it. */
 async function close(): Promise<void> {
@@ -215,6 +218,8 @@ export async function main(): Promise<void> {
   const keyboardUrl = '/wifi-setup/keyboard.js';
   const keyboard = (await import(keyboardUrl)) as typeof import('../kiosk-keyboard/keyboard.ts');
   keyboard.start(document);
+  void post('/heartbeat');
+  setInterval(() => void post('/heartbeat'), HEARTBEAT_MS);
   const canCancel = new URLSearchParams(location.search).get('can-cancel') === '1';
   await startPage(document, canCancel).refresh();
 }

@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-# The one program Cage runs. Loops forever, running one app at a time: the Wi-Fi panel when asked for (or when there is no
-# working connection), otherwise Chromium.
+# The one program Cage runs. Loops forever, running one page at a time in Chromium: the Wi-Fi setup page when asked for
+# (or when there is no working connection), otherwise the app.
 set -u
 
 # The address comes from kiosk.service (kiosk_url in the Ansible role).
 url=${KIOSK_URL:?KIOSK_URL is not set}
 wifi_flag=/run/kiosk/show-wifi
 chromium_pid=/run/kiosk/chromium.pid
-
-export QT_QPA_PLATFORM=wayland
-export QT_IM_MODULE=qtvirtualkeyboard
+# The Wi-Fi setup page, which the kiosk-audio service serves (pi/kiosk-audio/wifi-setup.ts), so it works offline.
+wifi_page=http://127.0.0.1:7341/wifi-setup
 
 # NetworkManager's connectivity check (conf.d/20-connectivity.conf) makes "full" mean the internet is reachable.
 online() {
@@ -26,31 +25,47 @@ wait_online() {
   return 1
 }
 
-run_wifi_panel() {
-  local args=()
-  # Cancel only makes sense when there is a connection to go back to.
-  online && args+=(--can-cancel)
-  /usr/local/bin/wifi-panel "${args[@]}"
-  rm -f "$wifi_flag"
-}
-
 # The on-screen keyboard for Spotify's sign-in pages (pi/kiosk-keyboard, built by the Ansible role). Chrome turned
 # --load-extension off by default in 2025; the --disable-features switch turns it back on where a build follows that.
 keyboard_extension=/opt/the-max-mix/kiosk-keyboard/extension
 
+# Shows a page until Chromium exits. The kiosk-audio service stops Chromium through the pid file: for the Wi-Fi button,
+# when the setup page is done, or (its watchdog) when the page stops sending heartbeats.
 run_chromium() {
   chromium --kiosk --ozone-platform=wayland --noerrdialogs --disable-infobars --no-first-run --password-store=basic \
     --autoplay-policy=no-user-gesture-required --disable-session-crashed-bubble --overscroll-history-navigation=0 \
     --load-extension="$keyboard_extension" --disable-features=DisableLoadExtensionCommandLineSwitch \
-    "$url" &
+    "$1" &
   echo $! > "$chromium_pid"
   wait $!
   rm -f "$chromium_pid"
 }
 
+# The setup page needs the kiosk-audio service, which starts with the kiosk user's session and may not be up yet.
+wait_wifi_page() {
+  local i
+  for ((i = 0; i < 30; i++)); do
+    curl -fsS -o /dev/null "$wifi_page" 2> /dev/null && return 0
+    sleep 1
+  done
+  return 1
+}
+
+run_wifi_page() {
+  local page=$wifi_page
+  # Cancel only makes sense when there is a connection to go back to.
+  online && page+='?can-cancel=1'
+  if wait_wifi_page; then
+    run_chromium "$page"
+  else
+    echo "kiosk-session: the Wi-Fi setup page is not answering" >&2
+  fi
+  rm -f "$wifi_flag"
+}
+
 # Screen sleep: once nothing holds the screen awake (the app's wake lock reaches Cage as an idle inhibitor) and nobody
-# has touched it for this long, turn the output off; the next touch turns it on. The Wi-Fi panel holds nothing, so it
-# goes dark after the same time. swayidle ends with Cage.
+# has touched it for this long, turn the output off; the next touch turns it on. The Wi-Fi setup page holds nothing, so
+# it goes dark after the same time. swayidle ends with Cage.
 screen_off_after=${KIOSK_SCREEN_OFF_AFTER:-0}
 if [[ $screen_off_after =~ ^[1-9][0-9]*$ ]] && command -v swayidle > /dev/null; then
   swayidle timeout "$screen_off_after" '/usr/local/bin/kiosk-display off' resume '/usr/local/bin/kiosk-display on' &
@@ -62,9 +77,9 @@ trap 'kill $(jobs -p) 2> /dev/null; exit 0' TERM
 
 while true; do
   if [[ -e $wifi_flag ]] || ! wait_online; then
-    run_wifi_panel
+    run_wifi_page
   else
-    run_chromium
+    run_chromium "$url"
   fi
   # Never spin if an app fails to start.
   sleep 1

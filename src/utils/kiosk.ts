@@ -6,7 +6,7 @@ import { kioskPost } from './kioskService';
 
 const KIOSK_KEY = 'maxmix.kiosk';
 
-/** Asks the kiosk to show its native Wi-Fi panel. */
+/** Asks the kiosk to show its Wi-Fi setup page. */
 export function openWifiSettings(): void {
   kioskPost('/wifi');
 }
