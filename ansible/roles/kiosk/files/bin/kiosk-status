@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# Prints the kiosk's state in one go, for a look over SSH or Tailscale: the installed version, the last update and the
+# next one, whether the services run, how often the watchdog restarted Chromium, and the app's recent errors.
+# Only reads; changes nothing. Usage: sudo kiosk-status [DAYS]   (how far back to look in the journal, default 7)
+set -uo pipefail
+
+days=${1:-7}
+if [[ ! $days =~ ^[0-9]+$ ]]; then
+  echo "Usage: sudo kiosk-status [DAYS]" >&2
+  exit 2
+fi
+if ((EUID != 0)); then
+  echo "kiosk-status: run it with sudo (the journal and the kiosk user's service need it)." >&2
+  exit 1
+fi
+
+checkout=/var/lib/the-max-mix/ansible-pull
+since="$days days ago"
+heading() { printf '\n== %s ==\n' "$1"; }
+# The kiosk user's services (kiosk-audio) log under this match, not under -u.
+audio_journal() { journalctl --quiet --no-pager --output=short-iso _SYSTEMD_USER_UNIT=kiosk-audio.service "$@"; }
+
+heading Version
+if [[ -d $checkout/.git ]]; then
+  tag=$(git -C "$checkout" tag --points-at HEAD --list 'v*' --sort=-version:refname 2> /dev/null | head -n 1)
+  commit=$(git -C "$checkout" log -1 --format='%h, %cs' 2> /dev/null)
+  echo "Installed:  ${tag:-no release tag} ($commit)"
+else
+  echo "Installed:  unknown (no checkout at $checkout yet)"
+fi
+if [[ -e /run/kiosk/restart-needed ]]; then
+  echo "Restart:    pending; the screen shows the new version after the next kiosk restart"
+fi
+echo "Up since:   $(uptime --since) ($(uptime --pretty))"
+
+heading 'Last update (kiosk-pull)'
+systemctl show kiosk-pull.service --property=ActiveState,Result,ExecMainStatus,ExecMainExitTimestamp |
+  sed -e 's/^ActiveState=/State:      /' -e 's/^Result=/Result:     /' -e 's/^ExecMainStatus=/Exit code:  /' \
+    -e 's/^ExecMainExitTimestamp=/Ended:      /'
+echo "Next check: $(systemctl show kiosk-pull.timer --property=NextElapseUSecRealtime --value)"
+journalctl --quiet --no-pager --output=cat -u kiosk-pull.service --since "$since" \
+  --grep '^(The latest release is|kiosk-pull finished|fatal:|ERROR)' | tail -n 4
+
+heading Services
+for unit in kiosk kiosk-pull.timer kiosk-restart.timer tailscaled; do
+  printf '%-22s %s\n' "$unit" "$(systemctl is-active "$unit" 2> /dev/null)"
+done
+printf '%-22s %s\n' kiosk-audio "$(systemctl --user --machine=kiosk@ is-active kiosk-audio 2> /dev/null)"
+
+heading "Chromium restarts by the watchdog (last $days days)"
+restarts=$(audio_journal --since "$since" --grep 'No heartbeat from the app')
+if [[ -n $restarts ]]; then
+  echo "$(wc -l <<< "$restarts") restart(s), the latest:"
+  tail -n 5 <<< "$restarts"
+else
+  echo "None"
+fi
+
+heading "Recent app errors and warnings (last $days days)"
+errors=$(audio_journal --since "$since" --grep '^app (error|warn)')
+if [[ -n $errors ]]; then
+  echo "$(wc -l <<< "$errors") line(s), the latest:"
+  tail -n 10 <<< "$errors"
+else
+  echo "None"
+fi
+
+heading "Kiosk warnings (last $days days)"
+journalctl --quiet --no-pager --output=short-iso -u kiosk -u kiosk-pull -u kiosk-widevine --since "$since" \
+  --priority warning | tail -n 10 | grep . || echo None
+echo
+echo "More: journalctl -u kiosk -u kiosk-pull, and journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service"

@@ -117,6 +117,9 @@ admin console.
 
 ## Troubleshooting
 
+`sudo kiosk-status` sums it up in one go: the installed version, the last update and the next check, which services run,
+Chromium restarts by the watchdog and the app's errors from the last 7 days (`sudo kiosk-status 30` looks further back).
+
 The kiosk logs go to the journal: `journalctl -u kiosk`, `journalctl -u kiosk-pull`, `journalctl -u kiosk-first-pull`. The journal is kept
 on disk (up to `kiosk_journal_max_use`, 64 MB), so logs from before a reboot are there too: `journalctl --list-boots`,
 `journalctl -b -1` for the previous boot, and `journalctl -b -1 | grep -i 'stop job'` for what held a shutdown up.

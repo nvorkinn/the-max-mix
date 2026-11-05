@@ -365,6 +365,7 @@
     - { src: bin/kiosk-display, dest: /usr/local/bin/kiosk-display, mode: '0755' }
     - { src: bin/kiosk-handover, dest: /usr/local/sbin/kiosk-handover, mode: '0755' }
     - { src: bin/kiosk-pull, dest: /usr/local/sbin/kiosk-pull, mode: '0755' }
+    - { src: bin/kiosk-status, dest: /usr/local/sbin/kiosk-status, mode: '0755' }
     - { src: bin/kiosk-ssh-keys, dest: /usr/local/sbin/kiosk-ssh-keys, mode: '0755' }
   loop_control:
     label: '{{ item.dest }}'
