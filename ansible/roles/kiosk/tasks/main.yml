@@ -31,12 +31,12 @@
 
 - name: Apply everything
   ansible.builtin.include_tasks: full.yml
-  when: kiosk_trees_id == '' or kiosk_trees_id != kiosk_trees_applied
+  when: kiosk_trees_id | length == 0 or kiosk_trees_id != kiosk_trees_applied
 
 # full.yml has already done this when it ran.
 - name: Install the kiosk service
   ansible.builtin.include_tasks: kiosk-service.yml
-  when: kiosk_trees_id != '' and kiosk_trees_id == kiosk_trees_applied
+  when: kiosk_trees_id | length > 0 and kiosk_trees_id == kiosk_trees_applied
 
 # The stamp is written only when everything, handlers included, went through, so a failed run tries again.
 - name: Run the pending handlers
@@ -51,4 +51,4 @@
     mode: '0644'
   # Bookkeeping, not a change to the Pi: a run that applied nothing new must report changed=0 (the playbook test relies on it).
   changed_when: false
-  when: kiosk_trees_id != '' and kiosk_trees_id != kiosk_trees_applied
+  when: kiosk_trees_id | length > 0 and kiosk_trees_id != kiosk_trees_applied

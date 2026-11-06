@@ -123,6 +123,7 @@ PSK
 publickey
 pwauth
 pycache
+pyproject
 qml
 qrcode
 qtcore

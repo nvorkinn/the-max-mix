@@ -1,0 +1,19 @@
+# As strict as ansible-lint gets: the production profile, every opt-in rule that fits, no warn-only or skipped rules,
+# and yamllint's rules enforced as errors. .yamllint.yml has the YAML rules.
+profile: production
+enable_list:
+  - args
+  - empty-string-compare
+  - galaxy-version-incorrect
+  - no-log-password
+  - no-same-owner
+  - name[prefix]
+  - yaml
+strict: true
+warn_list: []
+skip_list: []
+offline: true
+exclude_paths:
+  - .venv/
+  - node_modules/
+  - '**/node_modules/'

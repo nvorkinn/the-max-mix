@@ -1,0 +1,12 @@
+[project]
+name = "the-max-mix-ansible"
+version = "0.0.0"
+requires-python = ">=3.13"
+# Not pinned: uv.lock records the exact versions and Dependabot keeps them current.
+dependencies = [
+    "ansible-core",
+    "ansible-lint",
+]
+
+[tool.uv]
+package = false

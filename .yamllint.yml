@@ -1,0 +1,19 @@
+extends: default
+
+rules:
+  document-start: disable
+  # No maximum line length, as in .editorconfig: Prettier (printWidth 120) cannot wrap comments or strings.
+  line-length: disable
+  truthy:
+    allowed-values: ['true', 'false']
+    check-keys: false
+  # Prettier writes { a: b } with spaces inside the braces.
+  braces:
+    max-spaces-inside: 1
+  # ansible-lint requires comments to sit one space from the content and comments-indentation to be off.
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: false
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
