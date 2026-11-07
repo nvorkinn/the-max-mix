@@ -6,10 +6,10 @@ const here = new URL('.', import.meta.url);
 const playbook = readFileSync(new URL('../../ansible/roles/kiosk/tasks/full.yml', here), 'utf8');
 const alphabetical = (a: string, b: string) => a.localeCompare(b);
 
-/** The files the "Install the audio routing" task copies to the Pi: the list under its `loop:`. */
+/** The files the "full | Install the audio routing" task copies to the Pi: the list under its `loop:`. */
 function installed(): string[] {
   const lines = playbook.split('\n');
-  const start = lines.indexOf('- name: Install the audio routing');
+  const start = lines.indexOf('- name: full | Install the audio routing');
   const loop = lines.indexOf('  loop:', start);
   const files: string[] = [];
   const rest = lines.slice(loop + 1);
