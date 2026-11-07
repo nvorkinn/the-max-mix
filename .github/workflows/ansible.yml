@@ -10,6 +10,8 @@ on:
       - 'ansible/**'
       - 'pi/kiosk-audio/**'
       - 'pi/kiosk-keyboard/**'
+      - '.ansible-lint'
+      - '.yamllint.yml'
       - '.github/workflows/ansible.yml'
   push:
     branches: [main]
@@ -17,6 +19,8 @@ on:
       - 'ansible/**'
       - 'pi/kiosk-audio/**'
       - 'pi/kiosk-keyboard/**'
+      - '.ansible-lint'
+      - '.yamllint.yml'
       - '.github/workflows/ansible.yml'
 
 permissions:
@@ -34,7 +38,8 @@ jobs:
           persist-credentials: false
       - run: docker run --rm --volume "$PWD:/repo:ro" debian:trixie bash /repo/ansible/tests/image-build.sh
 
-  # ansible-lint also checks the playbook's syntax. Both tools are pinned and installed into a virtual environment.
+  # ansible-lint also checks the playbook's syntax. It and ansible-core are locked in ansible/uv.lock (unpinned in
+  # ansible/pyproject.toml); Dependabot keeps the lock current.
   ansible-lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -42,11 +47,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Install ansible-core and ansible-lint
-        run: |
-          python3 -m venv "$RUNNER_TEMP/ansible"
-          "$RUNNER_TEMP/ansible/bin/pip" install --quiet ansible-core==2.21.5 ansible-lint==26.10.1
-      - name: Run ansible-lint
-        run: |
-          export PATH="$RUNNER_TEMP/ansible/bin:$PATH"
-          ansible-lint ansible/
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: ansible/uv.lock
+      - run: uv sync --locked --project ansible
+      - run: uv run --project ansible ansible-lint ansible/

@@ -31,6 +31,18 @@ updates:
       kiosk-audio-minor-patch:
         update-types: [minor, patch]
 
+  # ansible-core and ansible-lint, which CI uses to lint the playbook. Unpinned in ansible/pyproject.toml, so the lockfile
+  # is the only record of their versions.
+  - package-ecosystem: uv
+    directory: /ansible
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      ansible-minor-patch:
+        update-types: [minor, patch]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

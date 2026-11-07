@@ -130,15 +130,15 @@ check grep -q '^SystemMaxUse=64M$' /etc/systemd/journald.conf.d/kiosk.conf
 # The progress lines the callback plugin prints after each task's header are left out.
 # shellcheck disable=SC2329  # Called by check.
 second_run_skips() {
-  grep -v '^Ansible progress: ' /tmp/second-run.log | grep -A1 "TASK \\[kiosk : $1\\]" | grep -q '^skipping'
+  grep -v '^Ansible progress: ' /tmp/second-run.log | grep -A1 "TASK \\[kiosk : full | $1\\]" | grep -q '^skipping'
 }
 check test -s /var/lib/the-max-mix/packages.sha1
 # The second run applied everything again and recorded the same ids as the first; the third found nothing to apply: only
 # kiosk.service was looked at, nothing changed and the slow tasks did not even run.
 check test -s /var/lib/the-max-mix/applied.sha1
 check cmp /tmp/applied.sha1 /var/lib/the-max-mix/applied.sha1
-check grep -q 'TASK \[kiosk : Install the kiosk service\]' /tmp/third-run.log
-if grep -q 'TASK \[kiosk : Install the packages' /tmp/third-run.log; then
+check grep -q 'TASK \[kiosk : kiosk-service | Install the kiosk service\]' /tmp/third-run.log
+if grep -q 'TASK \[kiosk : full | Install the packages' /tmp/third-run.log; then
   echo "FAILED: the third run did not skip the slow part" >&2
   fail=1
 fi
