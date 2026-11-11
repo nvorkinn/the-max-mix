@@ -930,7 +930,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-right: 8px;
+  /* Sits at the far right of the header, after the buttons. */
+  margin-left: 8px;
   font-size: 14px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
