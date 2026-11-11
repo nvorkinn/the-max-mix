@@ -818,7 +818,7 @@ describe('TabletView', () => {
       // Another device (Soundbar) is playing.
       const kitchen = screen.getByRole('button', { name: /Kitchen/ });
       expect(kitchen).toBeDisabled();
-      expect(screen.getByText('Choose This tablet above to use AirPlay.')).toBeInTheDocument();
+      expect(screen.getByText('Choose This tablet under Spotify Connect to use AirPlay.')).toBeInTheDocument();
       fireEvent.click(kitchen);
       await flush();
       expect(airplay.routeAudio).not.toHaveBeenCalled();

@@ -97,7 +97,7 @@ export default function AirPlaySpeakerList({
   // Chosen speakers that are not on the network right now stay listed, so they can be removed.
   const names = [...new Set([...(outputs ?? []), ...chosen])];
   return (
-    <div className="grid grid-cols-2 gap-2 items-start">
+    <div className="grid gap-2">
       {!isPlayerReady && (
         <p role="status" className="col-span-full text-xs status-warning">
           {notReadyMessage}

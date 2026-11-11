@@ -54,7 +54,7 @@ export default function BluetoothSpeakers() {
     });
 
   return (
-    <div className="grid grid-cols-2 gap-2 items-start">
+    <div className="grid gap-2">
       {error && (
         <p role="alert" className="col-span-full text-xs status-danger">
           {error}

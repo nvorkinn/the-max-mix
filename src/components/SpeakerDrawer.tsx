@@ -232,57 +232,59 @@ export default function SpeakerDrawer({
               Spotify asked this app to wait before refreshing devices.
             </p>
           )}
-          <section aria-labelledby="connect-title" className="space-y-2">
-            <h3 id="connect-title" className="text-xs font-bold">
-              Spotify Connect
-            </h3>
-            <div className="grid grid-cols-2 gap-2 items-start">
-              {rows}
-              {onPlayOnSonos && (
-                <SonosKioskList disabled={selecting} onPlayOnSonos={onPlayOnSonos} onRooms={setSonosRooms} />
+          <div className={canUseAirPlay ? 'grid grid-cols-2 gap-4 items-start' : undefined}>
+            <section aria-labelledby="connect-title" className="space-y-2">
+              <h3 id="connect-title" className="text-xs font-bold">
+                Spotify Connect
+              </h3>
+              <div className="grid gap-2">
+                {rows}
+                {onPlayOnSonos && (
+                  <SonosKioskList disabled={selecting} onPlayOnSonos={onPlayOnSonos} onRooms={setSonosRooms} />
+                )}
+              </div>
+              {!loading && !error && connectDevices.length === 0 && !hasSonos && (
+                <p className="text-xs leading-relaxed text-muted py-2">
+                  No Spotify speakers found. Open Spotify on a phone, computer, or Connect speaker, then refresh.
+                </p>
               )}
-            </div>
-            {!loading && !error && connectDevices.length === 0 && !hasSonos && (
-              <p className="text-xs leading-relaxed text-muted py-2">
-                No Spotify speakers found. Open Spotify on a phone, computer, or Connect speaker, then refresh.
-              </p>
-            )}
-            {!loading && !error && !hasSonos && (
-              <p className="text-[11px] leading-relaxed text-muted">
-                Sonos and other Connect speakers show up here only after they have recently played through Spotify. Play
-                to one from the Spotify app on your phone, then refresh.
-              </p>
-            )}
-          </section>
-          {canUseAirPlay && (
-            <section aria-labelledby="airplay-title" className="space-y-2 pt-2">
-              <h3 id="airplay-title" className="text-xs font-bold">
-                AirPlay
-              </h3>
-              <AirPlaySpeakerList
-                isPlayerReady={airPlayAvailable}
-                notReadyMessage={
-                  browserDeviceId
-                    ? 'Choose This tablet above to use AirPlay.'
-                    : "This tablet's player isn't ready, so speakers can't be added yet."
-                }
-                active={isAirPlay}
-                showVolumes={showVolumes}
-                onChange={onAirPlayChange}
-              />
+              {!loading && !error && !hasSonos && (
+                <p className="text-[11px] leading-relaxed text-muted">
+                  Sonos and other Connect speakers show up here only after they have recently played through Spotify.
+                  Play to one from the Spotify app on your phone, then refresh.
+                </p>
+              )}
             </section>
-          )}
-          {canUseAirPlay && (
-            <section aria-labelledby="bluetooth-title" className="space-y-2 pt-2">
-              <h3 id="bluetooth-title" className="text-xs font-bold">
-                Bluetooth
-              </h3>
-              <p className="text-[11px] text-muted">
-                One speaker at a time. Once connected, it appears in the list above to select.
-              </p>
-              <BluetoothSpeakers />
-            </section>
-          )}
+            {canUseAirPlay && (
+              <div className="space-y-2">
+                <section aria-labelledby="airplay-title" className="space-y-2">
+                  <h3 id="airplay-title" className="text-xs font-bold">
+                    AirPlay
+                  </h3>
+                  <AirPlaySpeakerList
+                    isPlayerReady={airPlayAvailable}
+                    notReadyMessage={
+                      browserDeviceId
+                        ? 'Choose This tablet under Spotify Connect to use AirPlay.'
+                        : "This tablet's player isn't ready, so speakers can't be added yet."
+                    }
+                    active={isAirPlay}
+                    showVolumes={showVolumes}
+                    onChange={onAirPlayChange}
+                  />
+                </section>
+                <section aria-labelledby="bluetooth-title" className="space-y-2 pt-2">
+                  <h3 id="bluetooth-title" className="text-xs font-bold">
+                    Bluetooth
+                  </h3>
+                  <p className="text-[11px] text-muted">
+                    One speaker at a time. Once connected, it appears in the list above to select.
+                  </p>
+                  <BluetoothSpeakers />
+                </section>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>
