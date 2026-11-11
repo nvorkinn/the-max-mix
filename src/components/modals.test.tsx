@@ -240,7 +240,7 @@ describe('SpeakerDrawer', () => {
     expect(screen.getByRole('button', { name: /No id/ })).toBeDisabled();
     expect(screen.getByText('Playback control restricted')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /No id/ })).toHaveTextContent('Not available to select');
-    expect(screen.getByText(/only after they have recently played through Spotify/)).toBeInTheDocument();
+    expect(screen.queryByText(/recently played through Spotify/)).not.toBeInTheDocument();
   });
 
   it('offers a speaker seen playing that Spotify leaves out of its list, and moves playback to it', async () => {
@@ -356,24 +356,46 @@ describe('SpeakerDrawer', () => {
     api.getDevices.mockResolvedValue({ devices: [] });
     render(<SpeakerDrawer isOpen />);
     expect(await screen.findByText(/No Spotify speakers found/)).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'AirPlay' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'AirPlay' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Kind of speaker' })).not.toBeInTheDocument();
     expect(screen.queryByRole('group', { name: 'Playback mode' })).not.toBeInTheDocument();
   });
 
-  it('lists tablet, AirPlay and Spotify Connect speakers together on the kiosk', async () => {
+  it('opens on the Spotify Connect tab on the kiosk, with AirPlay and Bluetooth shut until this tablet plays', async () => {
     api.getDevices.mockResolvedValue({ devices });
     render(<SpeakerDrawer isOpen canUseAirPlay browserDeviceId="web-1" onSelectSpeaker={vi.fn()} />);
     expect(await screen.findByRole('button', { name: /This tablet/ })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'AirPlay' })).toBeInTheDocument();
-    expect(await screen.findByText(/Looking for AirPlay speakers/)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Spotify Connect' })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /Kitchen/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Spotify Connect' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'AirPlay' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Bluetooth' })).toBeDisabled();
+    expect(screen.getByText('Choose This tablet to use AirPlay or Bluetooth.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: "Show each speaker's volume" })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh devices' })).toBeInTheDocument();
+  });
+
+  it('switches to the AirPlay and Bluetooth tabs while this tablet plays', async () => {
+    api.getDevices.mockResolvedValue({ devices });
+    render(
+      <SpeakerDrawer isOpen canUseAirPlay browserDeviceId="web-1" activeDeviceId="web-1" onSelectSpeaker={vi.fn()} />
+    );
+    await screen.findByRole('button', { name: /Kitchen/ });
+    await userEvent.click(screen.getByRole('button', { name: 'AirPlay' }));
+    expect(screen.getByRole('button', { name: 'AirPlay' })).toHaveAttribute('aria-pressed', 'true');
+    expect(await screen.findByText(/Looking for AirPlay speakers/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /This tablet/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: "Show each speaker's volume" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Bluetooth' }));
+    expect(await screen.findByText(/One speaker at a time/)).toBeInTheDocument();
+    expect(screen.queryByText(/Looking for AirPlay speakers/)).not.toBeInTheDocument();
   });
 
   it('does not mark a Connect device or the tablet active while AirPlay is the route', async () => {
     api.getDevices.mockResolvedValue({ devices: [{ id: 'web-1', name: 'Max Mix', is_active: true }, ...devices] });
     render(<SpeakerDrawer isOpen canUseAirPlay audioRoute="airplay" browserDeviceId="web-1" />);
+    // AirPlay is where the sound goes, so the drawer opens on its tab.
+    expect(screen.getByRole('button', { name: 'AirPlay' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(screen.getByRole('button', { name: 'Spotify Connect' }));
     const kitchen = await screen.findByRole('button', { name: /Kitchen/ });
     expect(kitchen).toHaveAttribute('aria-pressed', 'false');
     expect(kitchen).not.toHaveTextContent('Playing');
