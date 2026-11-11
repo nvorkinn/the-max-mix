@@ -37,7 +37,8 @@ not possible with the public API; do that in the Spotify app.
 ### The speakers drawer
 
 Tapping the device indicator at the bottom left of the control bar opens a drawer above it. It lists the Spotify Connect
-devices, with the one that is playing first and marked Playing, and then (on the kiosk) the AirPlay speakers. Tapping
+devices, with the one that is playing first and marked Playing. On the kiosk they fill the left column, with the Sonos
+rooms, and the AirPlay and Bluetooth speakers fill the right. Tapping
 outside the drawer, the close button or Escape closes it.
 
 ### How playback is controlled
