@@ -31,6 +31,7 @@ dialog
 dialogs
 disallocate
 dnsmasq
+dpkg
 elif
 endfor
 equalto
@@ -80,6 +81,7 @@ nbbbb
 ncccc
 netdev
 netease
+netlink
 netplan
 networkmanager
 nmcli
@@ -150,7 +152,9 @@ singername
 songmid
 songname
 sonos
+sonoscli
 splitlines
+ssdp
 SSID
 SSIDs
 starboy

@@ -459,6 +459,7 @@
     - pipewire.ts
     - qr.ts
     - server.ts
+    - sonos.ts
     - speakers.ts
     - update.ts
     - update-socket.ts
@@ -500,6 +501,57 @@
         owner: root
         group: root
         mode: '0644'
+
+# sonoscli (https://sonoscli.sh), which the kiosk-audio service runs to play a Spotify song on a Sonos speaker
+# (pi/kiosk-audio/sonos.ts). Its release archive for this Pi's architecture, checked against kiosk_sonoscli_sha256,
+# unpacked into a folder per version; /usr/local/bin/sonos points at the one in use.
+- name: full | Look up the Pi's architecture for sonoscli
+  ansible.builtin.command:
+    argv: [dpkg, --print-architecture]
+  register: kiosk_dpkg_arch
+  changed_when: false
+
+- name: full | Install sonoscli
+  vars:
+    kiosk_sonoscli_arch: '{{ kiosk_dpkg_arch.stdout | trim }}'
+    kiosk_sonoscli_archive: 'sonoscli_{{ kiosk_sonoscli_version }}_linux_{{ kiosk_sonoscli_arch }}.tar.gz'
+    kiosk_sonoscli_release: 'https://github.com/steipete/sonoscli/releases/download/v{{ kiosk_sonoscli_version }}'
+    kiosk_sonoscli_home: '/opt/sonoscli/{{ kiosk_sonoscli_version }}'
+  block:
+    - name: full | Create the sonoscli folder
+      ansible.builtin.file:
+        path: '{{ kiosk_sonoscli_home }}'
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: full | Download sonoscli
+      ansible.builtin.get_url:
+        url: '{{ kiosk_sonoscli_release }}/{{ kiosk_sonoscli_archive }}'
+        dest: '{{ kiosk_sonoscli_home }}/{{ kiosk_sonoscli_archive }}'
+        checksum: 'sha256:{{ kiosk_sonoscli_sha256[kiosk_sonoscli_arch] }}'
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: full | Unpack sonoscli
+      ansible.builtin.unarchive:
+        src: '{{ kiosk_sonoscli_home }}/{{ kiosk_sonoscli_archive }}'
+        dest: '{{ kiosk_sonoscli_home }}'
+        remote_src: true
+        # The archive holds the program as ./sonos.
+        include: [./sonos]
+        creates: '{{ kiosk_sonoscli_home }}/sonos'
+        owner: root
+        group: root
+
+    - name: full | Put sonoscli on the path
+      ansible.builtin.file:
+        src: '{{ kiosk_sonoscli_home }}/sonos'
+        dest: /usr/local/bin/sonos
+        state: link
+        force: true
 
 - name: full | Install the AirPlay settings and the audio routing unit
   ansible.builtin.template:
