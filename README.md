@@ -229,8 +229,8 @@ registered: an address that is not registered cannot sign in.
 
 On the kiosk, the Speakers drawer lists the Sonos rooms on the home network under Spotify Connect, found by the Pi
 (`pi/kiosk-audio/sonos.ts`) with the [sonos-ts](https://sonos-ts.svrooij.io) library. Spotify will not move its playback
-to a Sonos, so tapping a room has the Pi start the song on screen there, through the Spotify account linked in the Sonos
-app. While that group plays, tapping another room adds it to the group; tapping a room in the group again takes it out,
+to a Sonos, so tapping a room has the Pi start the song on screen there, from the point it had reached and with Spotify's
+queue after it, through the Spotify account linked in the Sonos app. While that group plays, tapping another room adds it to the group; tapping a room in the group again takes it out,
 and taking out the last one pauses it. The change shows at once, and the drawer reads the rooms again until Sonos shows
 it too. From then on the tablet shows the group's song, progress and artwork and sends its controls (play, pause, skip,
 seek, volume, and music picked in Choose music) to the group through the Pi (`src/hooks/useSonosPlayer.ts`), until

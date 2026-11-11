@@ -2,9 +2,11 @@
 # One word per line, case-insensitive. Keep sorted.
 adwaita
 alsa
+apos
 aqabaiaaaaaaap
 argjson
 argv
+atrack
 autoclean
 autoplay
 avahi
@@ -29,6 +31,7 @@ dejavu
 devicechange
 dialog
 dialogs
+DIDL
 disallocate
 dnsmasq
 dpkg
@@ -134,6 +137,7 @@ qtgui
 qtqml
 qtquick
 qtvirtualkeyboard
+quot
 randr
 raop
 readables

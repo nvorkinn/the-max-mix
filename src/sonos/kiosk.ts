@@ -160,9 +160,27 @@ export async function getSonosArt(room: string): Promise<Blob | null> {
   }
 }
 
-/** Plays the Spotify item (a spotify: URI) on the Sonos room; rejects with a message to show when it could not. */
-export function playOnSonosRoom(room: string, uri: string): Promise<void> {
-  return post('/sonos/play', { room, uri }, 'This song can’t be played on Sonos.');
+/** At most this many songs are sent to queue after the one played (the Pi takes 50). */
+const MAX_NEXT = 50;
+const SPOTIFY_TRACK_URI = /^spotify:track:[0-9A-Za-z]{22}$/;
+
+/**
+ * Plays the Spotify item (a spotify: URI) on the Sonos room, with the songs in `next` queued after it (only Spotify
+ * songs are kept, at most 50), from `positionMs` into it; rejects with a message to show when it could not.
+ */
+export function playOnSonosRoom(
+  room: string,
+  uri: string,
+  { next = [], positionMs = 0 }: { next?: readonly string[]; positionMs?: number } = {}
+): Promise<void> {
+  const songs = next.filter(song => SPOTIFY_TRACK_URI.test(song)).slice(0, MAX_NEXT);
+  const body = {
+    room,
+    uri,
+    ...(songs.length > 0 && { next: songs }),
+    ...(positionMs > 0 && { positionMs: Math.round(positionMs) })
+  };
+  return post('/sonos/play', body, 'This song can’t be played on Sonos.');
 }
 
 /** Plays, pauses, skips or (to positionMs) seeks on the room's group. */

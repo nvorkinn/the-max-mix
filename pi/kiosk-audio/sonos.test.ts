@@ -30,7 +30,13 @@ describe('parsing Sonos requests', () => {
     expect(parseSonosRequest('play', { room: 'Kitchen', uri: URI })).toEqual({
       kind: 'play',
       room: 'Kitchen',
-      uri: URI
+      uri: URI,
+      next: [],
+      positionMs: 0
+    });
+    expect(parseSonosRequest('play', { room: 'Kitchen', uri: URI, next: [URI], positionMs: 61_000.4 })).toMatchObject({
+      next: [URI],
+      positionMs: 61_000
     });
     expect(parseSonosRequest('control', { room: 'Kitchen', action: 'seek', positionMs: 1500.4 })).toEqual({
       kind: 'control',
@@ -51,6 +57,9 @@ describe('parsing Sonos requests', () => {
       ['play', { room: '--ip=10.0.0.1', uri: URI }],
       ['play', { room: 'Kitchen', uri: 'https://open.spotify.com/track/1234567890123456789012' }],
       ['play', { room: 'Kitchen', uri: 'spotify:artist:1234567890123456789012' }],
+      ['play', { room: 'Kitchen', uri: URI, next: ['spotify:album:1234567890123456789012'] }],
+      ['play', { room: 'Kitchen', uri: URI, next: Array.from({ length: 51 }, () => URI) }],
+      ['play', { room: 'Kitchen', uri: URI, positionMs: -5 }],
       ['control', { room: 'Kitchen', action: 'stop' }],
       ['control', { room: 'Kitchen', action: 'seek', positionMs: -1 }],
       ['volume', { room: 'Kitchen', volume: 101 }],
@@ -66,11 +75,11 @@ describe('parsing Sonos requests', () => {
 describe('runSonosRequest', () => {
   it('sends each request to its call', async () => {
     const fake = operations();
-    await runSonosRequest({ kind: 'play', room: 'Kitchen', uri: URI }, fake);
+    await runSonosRequest({ kind: 'play', room: 'Kitchen', uri: URI, next: [URI], positionMs: 9 }, fake);
     await runSonosRequest({ kind: 'control', room: 'Kitchen', action: 'seek', positionMs: 5 }, fake);
     await runSonosRequest({ kind: 'volume', room: 'Kitchen', volume: 30 }, fake);
     await runSonosRequest({ kind: 'join', room: 'Kitchen', to: 'Lounge' }, fake);
-    expect(fake.play).toHaveBeenCalledWith('Kitchen', URI);
+    expect(fake.play).toHaveBeenCalledWith('Kitchen', URI, [URI], 9);
     expect(fake.control).toHaveBeenCalledWith('Kitchen', 'seek', 5);
     expect(fake.volume).toHaveBeenCalledWith('Kitchen', 30);
     expect(fake.joinGroup).toHaveBeenCalledWith('Kitchen', 'Lounge');

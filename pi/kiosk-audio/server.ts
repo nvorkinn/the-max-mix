@@ -9,7 +9,8 @@
 //   GET  /sonos/now?room=   {"playing", "positionMs", "track": {"name", "artist", "album", "durationMs", "uri", "art"} or
 //                           null, "volume", "canSeek"}: what the room's group plays
 //   GET  /sonos/art?room=   the current song's artwork from the room's group (the speaker serves it over plain HTTP), or 404
-//   POST /sonos/play        {"room", "uri": "spotify:track:…"}   play it on the room's group
+//   POST /sonos/play        {"room", "uri": "spotify:track:…", "next"?: ["spotify:track:…", …], "positionMs"?}   play it
+//                           on the room's group, the songs in `next` (at most 50) queued after it, from positionMs into it
 //   POST /sonos/control     {"room", "action": "play" | "pause" | "next" | "previous" | "seek", "positionMs"?}
 //   POST /sonos/volume      {"room", "volume": 0-100}   the room's whole group
 //   POST /sonos/join        {"room", "to"}   add the room to the group `to` is in      POST /sonos/leave  {"room"}

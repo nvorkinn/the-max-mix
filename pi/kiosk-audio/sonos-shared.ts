@@ -45,8 +45,11 @@ export interface SonosArt {
 /** What the Pi can do with the household's speakers. Rooms are named as the Sonos app names them. */
 export interface SonosOperations {
   groups: () => Promise<SonosGroup[]>;
-  /** Plays a Spotify item on the room's group, from the room's Sonos queue. */
-  play: (room: string, uri: string) => Promise<void>;
+  /**
+   * Plays a Spotify item on the room's group, from the room's Sonos queue, with the songs in `next` queued after it,
+   * from `positionMs` into it.
+   */
+  play: (room: string, uri: string, next: readonly string[], positionMs: number) => Promise<void>;
   now: (room: string) => Promise<SonosNowPlaying>;
   /** Plays, pauses, skips or (to positionMs) seeks on the room's group. */
   control: (room: string, action: SonosAction, positionMs: number) => Promise<void>;
