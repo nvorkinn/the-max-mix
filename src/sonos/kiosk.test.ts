@@ -7,13 +7,10 @@ import {
   getSonosNow,
   joinSonosGroup,
   leaveSonosGroup,
-  setSonosVolume,
-  getSonosEngine,
   playOnSonosRoom,
   setKioskSonosLeader,
-  setSonosEngine,
-  subscribeKioskSonosLeader,
-  testOnSonosRoom
+  setSonosVolume,
+  subscribeKioskSonosLeader
 } from './kiosk';
 
 const URI = 'spotify:track:1234567890123456789012';
@@ -29,30 +26,7 @@ describe('playOnSonosRoom', () => {
     await playOnSonosRoom('Kitchen', URI);
     expect(fetchMock).toHaveBeenCalledWith(
       'http://127.0.0.1:7341/sonos/play',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ room: 'Kitchen', uri: URI, engine: 'cli' }) })
-    );
-  });
-
-  it('remembers which way to play, and sends it', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
-    vi.stubGlobal('fetch', fetchMock);
-    setSonosEngine('library');
-    expect(getSonosEngine()).toBe('library');
-    await playOnSonosRoom('Kitchen', URI);
-    expect(fetchMock).toHaveBeenLastCalledWith(
-      'http://127.0.0.1:7341/sonos/play',
-      expect.objectContaining({ body: JSON.stringify({ room: 'Kitchen', uri: URI, engine: 'library' }) })
-    );
-    setSonosEngine('cli');
-  });
-
-  it('runs a test call', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
-    vi.stubGlobal('fetch', fetchMock);
-    await testOnSonosRoom('Kitchen', 'library-queue');
-    expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:7341/sonos/test',
-      expect.objectContaining({ body: JSON.stringify({ room: 'Kitchen', test: 'library-queue' }) })
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ room: 'Kitchen', uri: URI }) })
     );
   });
 
@@ -117,7 +91,7 @@ describe('reading the Sonos through the Pi', () => {
       groups: [{ id: 'g1', rooms: [{ id: 'p1', name: 'Kitchen' }] }],
       ms: 1234
     });
-    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/sonos/groups?engine=cli', expect.anything());
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/sonos/groups', expect.anything());
   });
 
   it('reads no groups from an odd answer', async () => {
@@ -143,10 +117,7 @@ describe('reading the Sonos through the Pi', () => {
       volume: 30,
       canSeek: true
     });
-    expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:7341/sonos/now?room=Kitchen&engine=cli',
-      expect.anything()
-    );
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/sonos/now?room=Kitchen', expect.anything());
   });
 
   it('reads a stopped group with nothing loaded', async () => {
@@ -184,16 +155,16 @@ describe('controlling the Sonos through the Pi', () => {
     const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
     vi.stubGlobal('fetch', fetchMock);
     await controlSonos('Kitchen', 'next');
-    expect(body(fetchMock)).toEqual({ room: 'Kitchen', action: 'next', engine: 'cli' });
+    expect(body(fetchMock)).toEqual({ room: 'Kitchen', action: 'next' });
     await controlSonos('Kitchen', 'seek', 1234.6);
-    expect(body(fetchMock)).toEqual({ room: 'Kitchen', action: 'seek', positionMs: 1235, engine: 'cli' });
+    expect(body(fetchMock)).toEqual({ room: 'Kitchen', action: 'seek', positionMs: 1235 });
     await setSonosVolume('Kitchen', 140);
-    expect(body(fetchMock)).toEqual({ room: 'Kitchen', volume: 100, engine: 'cli' });
+    expect(body(fetchMock)).toEqual({ room: 'Kitchen', volume: 100 });
     await setSonosVolume('Kitchen', -3);
-    expect(body(fetchMock)).toEqual({ room: 'Kitchen', volume: 0, engine: 'cli' });
+    expect(body(fetchMock)).toEqual({ room: 'Kitchen', volume: 0 });
     await joinSonosGroup('Lounge', 'Kitchen');
     expect(fetchMock).toHaveBeenLastCalledWith('http://127.0.0.1:7341/sonos/join', expect.anything());
-    expect(body(fetchMock)).toEqual({ room: 'Lounge', to: 'Kitchen', engine: 'cli' });
+    expect(body(fetchMock)).toEqual({ room: 'Lounge', to: 'Kitchen' });
     await leaveSonosGroup('Lounge');
     expect(fetchMock).toHaveBeenLastCalledWith('http://127.0.0.1:7341/sonos/leave', expect.anything());
   });

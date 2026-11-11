@@ -128,10 +128,8 @@ test.describe('Settings', { tag: '@settings' }, () => {
       const asked: string[] = [];
       await page.route('http://127.0.0.1:7341/**', route => {
         const { pathname } = new URL(route.request().url());
-        // The app also sends its errors to the kiosk's log (POST /log), and Settings reads the Sonos rooms (GET
-        // /sonos/groups); neither is what is being asked about here.
-        const isOther = pathname === '/log' || pathname.startsWith('/sonos/');
-        if (!isOther) asked.push(`${route.request().method()} ${pathname}`);
+        // The app also sends its errors to the kiosk's log (POST /log); they are not what is being asked about here.
+        if (pathname !== '/log') asked.push(`${route.request().method()} ${pathname}`);
         return route.fulfill({ status: 204 });
       });
       await page.goto('/');

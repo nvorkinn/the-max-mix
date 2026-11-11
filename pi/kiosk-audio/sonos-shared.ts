@@ -1,10 +1,7 @@
-// What the two ways of talking to Sonos (sonos-cli.ts and sonos-library.ts) share: the shapes the app gets, the calls each
-// way answers, and the error whose message is safe to show.
+// The shapes the app gets from Sonos, the calls sonos-library.ts answers (tests pass fakes), the error whose message is safe
+// to show, and helpers for Sonos's own formats.
 
-/** sonoscli, or the @svrooij/sonos library; picked in the app's settings. */
-export type SonosEngine = 'cli' | 'library';
-
-/** A Sonos room: its player id (RINCON_…) and its name. Requests name rooms by name, as sonoscli does. */
+/** A Sonos room: its player id (RINCON_…) and its name. Requests name rooms by name, as the Sonos app shows them. */
 interface SonosRoom {
   id: string;
   name: string;
@@ -17,7 +14,7 @@ export interface SonosGroup {
 }
 
 /** What a Sonos group plays, as GET /sonos/now answers. */
-export interface SonosNowPlaying {
+interface SonosNowPlaying {
   /** Playing, or about to (TRANSITIONING); false when paused or stopped. */
   playing: boolean;
   positionMs: number;
@@ -33,7 +30,7 @@ export interface SonosNowPlaying {
   } | null;
   /** The group's volume, 0 to 100; null when the speaker did not say. */
   volume: number | null;
-  /** Whether this way can move to a point in the song (sonoscli cannot). */
+  /** Whether the app may move the group to a point in the song. */
   canSeek: boolean;
 }
 
@@ -45,7 +42,7 @@ export interface SonosArt {
   body: Buffer;
 }
 
-/** What each way can do with the household's speakers. Rooms are named as the Sonos app names them. */
+/** What the Pi can do with the household's speakers. Rooms are named as the Sonos app names them. */
 export interface SonosOperations {
   groups: () => Promise<SonosGroup[]>;
   /** Plays a Spotify item on the room's group, from the room's Sonos queue. */
@@ -63,7 +60,7 @@ export interface SonosOperations {
   art: (room: string) => Promise<SonosArt | null>;
 }
 
-/** Why a Sonos call failed, as one short line the app can show (e.g. sonoscli's "speaker name not found"). */
+/** Why a Sonos call failed, as one short line the app can show (e.g. "Sonos: no room called Attic on this network."). */
 export class SonosError extends Error {}
 
 // Sonos names a Spotify song in its own way: "spotify:track:<id>", or that URI URL-encoded after "x-sonos-spotify:".

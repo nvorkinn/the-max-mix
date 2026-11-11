@@ -54,9 +54,9 @@ export default function BluetoothSpeakers() {
     });
 
   return (
-    <div className="space-y-2">
+    <div className="grid gap-2">
       {error && (
-        <p role="alert" className="text-xs status-danger">
+        <p role="alert" className="col-span-full text-xs status-danger">
           {error}
         </p>
       )}
@@ -64,18 +64,18 @@ export default function BluetoothSpeakers() {
         type="button"
         onClick={() => void run('scan', () => scanBluetoothSpeakers())}
         disabled={busy !== null}
-        className="button-secondary w-full p-3 rounded-xl flex gap-2 items-center justify-center text-sm"
+        className="col-span-full button-secondary w-full p-2.5 rounded-xl flex gap-2 items-center justify-center text-sm"
       >
         <Search size={16} aria-hidden="true" />
         {busy === 'scan' ? 'Looking for speakers…' : 'Find speakers'}
       </button>
       {speakers?.length === 0 && busy === null && (
-        <p className="text-xs leading-relaxed text-muted">
+        <p className="col-span-full text-xs leading-relaxed text-muted">
           No Bluetooth speakers yet. Put the speaker in pairing mode, then tap Find speakers.
         </p>
       )}
       {speakers?.map(speaker => (
-        <div key={speaker.address} className="modal-option w-full p-3 flex gap-3 items-center rounded-xl border">
+        <div key={speaker.address} className="modal-option w-full px-3 py-2 flex gap-3 items-center rounded-xl border">
           <Bluetooth size={20} className="shrink-0 text-accent" aria-hidden="true" />
           <span className="flex-1 min-w-0">
             <span className="block text-sm truncate">{speaker.name}</span>

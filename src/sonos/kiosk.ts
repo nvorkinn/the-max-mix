@@ -1,37 +1,15 @@
 // The kiosk's Sonos speakers, through the Pi's local service (pi/kiosk-audio/sonos.ts), which talks to them on the home
 // network. Spotify will not move its playback to a Sonos from this app (the Web API hides Sonos as a restricted device),
 // so the Pi starts the song on the speaker itself: it goes into the room's Sonos queue and plays through the Spotify
-// account linked in the Sonos app. The Pi does that, and everything else here, with sonoscli or with the sonos-ts
-// library; Settings picks which while both are being tried, and offers two calls that only resume what the speaker
-// has, to see what they do. Rooms are named as the Sonos app names them.
+// account linked in the Sonos app. The Pi does that, and everything else here, with the sonos-ts library. Rooms are named
+// as the Sonos app names them.
 import { errorMessage } from '../utils/errorMessage';
 import { KIOSK_SERVICE } from '../utils/kioskService';
 
-// sonoscli looks for the speakers for up to 15 s and the service gives it 25 s.
+// Finding the speakers on the home network can take the Pi a few seconds; a call may then wait on a slow speaker.
 const TIMEOUT_MS = 30_000;
-const ENGINE_KEY = 'maxmix.sonosEngine';
 
-/** The way the Pi talks to Sonos: sonoscli, or the sonos-ts library. */
-export type SonosEngine = 'cli' | 'library';
-/** The resume calls to try: `sonos play`, or sonos-ts's SwitchToQueue() then Play(). */
-export type SonosTest = 'cli-play' | 'library-queue';
 export type SonosAction = 'play' | 'pause' | 'next' | 'previous' | 'seek';
-
-export function getSonosEngine(): SonosEngine {
-  try {
-    return localStorage.getItem(ENGINE_KEY) === 'library' ? 'library' : 'cli';
-  } catch {
-    return 'cli';
-  }
-}
-
-export function setSonosEngine(engine: SonosEngine): void {
-  try {
-    localStorage.setItem(ENGINE_KEY, engine);
-  } catch {
-    // Storage is unavailable; sonoscli stays the way.
-  }
-}
 
 // The room leading the Sonos group the kiosk last started a song on, by name, for this page's life. While it is set the
 // drawer marks that group's rooms (SonosKioskList) and the tablet shows and controls the group (useSonosPlayer).
@@ -73,12 +51,12 @@ async function post(path: string, body: Record<string, unknown>, refused = 'Sono
   const init = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...body, engine: getSonosEngine() })
+    body: JSON.stringify(body)
   };
   await ask(path, init, refused);
 }
 
-const query = (values: Record<string, string>) => new URLSearchParams({ ...values, engine: getSonosEngine() });
+const query = (values: Record<string, string>) => new URLSearchParams(values);
 
 /** A Sonos room as the Pi finds it: its player id and its name. */
 export interface PiSonosRoom {
@@ -106,7 +84,7 @@ export interface PiSonosNow {
     art: boolean;
   } | null;
   volume: number | null;
-  /** Whether the way picked can move to a point in the song (sonoscli cannot). */
+  /** Whether the group can be moved to a point in the song. */
   canSeek: boolean;
 }
 
@@ -157,11 +135,11 @@ function parseNow(value: unknown): PiSonosNow {
 }
 
 /**
- * The Sonos groups on the home network, found by the Pi the chosen way (sonoscli or sonos-ts), and how long the Pi took
+ * The Sonos groups on the home network, found by the Pi, and how long the Pi took
  * to find them; rejects with a message to show when it could not.
  */
 export async function findSonosOnPi(): Promise<{ groups: PiSonosGroup[]; ms: number }> {
-  const response = await ask(`/sonos/groups?${query({})}`, {}, 'Sonos speakers not found.');
+  const response = await ask('/sonos/groups', {}, 'Sonos speakers not found.');
   const reply: unknown = await response.json();
   return { groups: parseGroups(reply), ms: count(record(reply)['ms']) ?? 0 };
 }
@@ -206,14 +184,4 @@ export function joinSonosGroup(room: string, to: string): Promise<void> {
 /** Takes the room out of its group; when it led the group, Sonos hands it to another room, which keeps playing. */
 export function leaveSonosGroup(room: string): Promise<void> {
   return post('/sonos/leave', { room });
-}
-
-/** Runs one of the resume calls on the Sonos room; rejects with a message to show when it failed. */
-export async function testOnSonosRoom(room: string, test: SonosTest): Promise<void> {
-  // The test names its own way, whatever Settings picks.
-  await ask(
-    '/sonos/test',
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room, test }) },
-    'Sonos can’t do that.'
-  );
 }

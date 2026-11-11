@@ -71,7 +71,7 @@ vi.mock('@svrooij/sonos', () => {
   return { SonosDevice, SonosDeviceDiscovery };
 });
 
-const { forgetSpeaker, library, resumeQueue } = await import('./sonos-library.ts');
+const { forgetSpeaker, library } = await import('./sonos-library.ts');
 
 const URI = 'spotify:track:1234567890123456789012';
 
@@ -97,11 +97,6 @@ describe('sonos-library', () => {
       'kitchen.lan seek 7',
       'kitchen.lan play'
     ]);
-  });
-
-  it('switches the group to its queue and plays, for the test button', async () => {
-    await resumeQueue('Kitchen');
-    expect(fake.calls).toEqual(['kitchen.lan queue', 'kitchen.lan play']);
   });
 
   it('lists the groups with their visible rooms, the leading room first, searching the network once', async () => {
@@ -170,6 +165,6 @@ describe('sonos-library', () => {
   });
 
   it('says when no room has that name', async () => {
-    await expect(resumeQueue('Attic')).rejects.toThrow('no room called Attic');
+    await expect(library.play('Attic', URI)).rejects.toThrow('no room called Attic');
   });
 });

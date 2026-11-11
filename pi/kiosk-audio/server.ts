@@ -3,8 +3,7 @@
 //                           plus {"volumes": {"Kitchen": 40, …}}, each speaker's volume in percent
 //   POST /audio/route       {"speakers": [...]}            route the sound to those speakers (none: the Pi's own output)
 //   POST /audio/volume      {"speaker": "Kitchen", "volume": 40}   set one speaker's volume (404: not on the network)
-//   Sonos (sonos.ts), each with "engine": "cli" | "library" (in the body, or ?engine= on a GET), and rooms by name; a
-//   failure answers 502 {"error"}: why, safe to show. The app's origin only, since each makes the Pi talk to the speakers.
+//   Sonos (sonos.ts), with rooms by name; a failure answers 502 {"error"}: why, safe to show. The app's origin only, since each makes the Pi talk to the speakers.
 //   GET  /sonos/groups      {"groups": [{"id", "rooms": [{"id", "name"}, …]}, …], "ms"}: the groups on the home network,
 //                           the leading room first, and how long finding them took
 //   GET  /sonos/now?room=   {"playing", "positionMs", "track": {"name", "artist", "album", "durationMs", "uri", "art"} or
@@ -14,7 +13,6 @@
 //   POST /sonos/control     {"room", "action": "play" | "pause" | "next" | "previous" | "seek", "positionMs"?}
 //   POST /sonos/volume      {"room", "volume": 0-100}   the room's whole group
 //   POST /sonos/join        {"room", "to"}   add the room to the group `to` is in      POST /sonos/leave  {"room"}
-//   POST /sonos/test        {"room", "test": "cli-play" | "library-queue"}   a resume call to try out
 //   GET  /wifi/networks     {"networks": [{"ssid", "signal", "bars", "security"}, …]}   or 503 {"error"}: a safe message
 //   POST /wifi/connect      {"ssid", "password", "hidden", "security"}   join a network: {"ok": true} or {"ok": false, "error"}
 //   POST /wifi/phone        start Wi-Fi setup from a phone over Bluetooth for a few minutes (phone-setup.ts): {"ok": true}
@@ -51,17 +49,8 @@ import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
 import { PhoneSetup } from './phone-setup.ts';
 import type { Graph } from './pipewire.ts';
-import {
-  parseEngine,
-  parseRoom,
-  parseSonosRequest,
-  parseSonosTest,
-  runSonosRequest,
-  SonosError,
-  sonosWay,
-  testOnSonos
-} from './sonos.ts';
-import type { SonosEngine, SonosOperations, SonosRequest, SonosTest } from './sonos.ts';
+import { parseRoom, parseSonosRequest, runSonosRequest, sonos, SonosError } from './sonos.ts';
+import type { SonosOperations, SonosRequest } from './sonos.ts';
 import { speakerSinks, validSpeakers, validVolume } from './speakers.ts';
 import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
@@ -93,10 +82,8 @@ export interface Deps {
   perform: (action: Action) => Promise<void>;
   /** Carries out a POST /sonos/… request; rejects with a SonosError when it could not. */
   sonos: (request: SonosRequest) => Promise<void>;
-  /** Runs one of the resume calls being tried out on a Sonos room; rejects with a SonosError when it failed. */
-  sonosTest: (room: string, test: SonosTest) => Promise<void>;
-  /** The chosen way's calls, for the GETs; each rejects with a SonosError. */
-  sonosWay: (engine: SonosEngine) => SonosOperations;
+  /** The Sonos calls, for the GETs; each rejects with a SonosError. */
+  sonosCalls: SonosOperations;
   /** Milliseconds, to time how long finding the Sonos groups takes. */
   now?: () => number;
   heartbeat: () => void;
@@ -234,36 +221,32 @@ function sendSonosError(response: ServerResponse, error: unknown): void {
   sendJson(response, 502, { error: error instanceof SonosError ? error.message : 'Sonos did not do that.' });
 }
 
-/** POST /sonos/<kind>: carries out the request (or runs the test call) on the room, or says why not. */
+/** POST /sonos/<kind>: carries out the request on the room, or says why not. */
 async function postSonos(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
   const value = JSON.parse(await readBody(request)) as unknown;
-  const kind = (request.url ?? '').slice('/sonos/'.length);
-  const sonos = kind === 'test' ? null : parseSonosRequest(kind, value);
-  const test = kind === 'test' ? parseSonosTest(value) : null;
-  if (!sonos && !test) {
+  const sonosRequest = parseSonosRequest((request.url ?? '').slice('/sonos/'.length), value);
+  if (!sonosRequest) {
     response.writeHead(400).end();
     return;
   }
   try {
-    if (sonos) await deps.sonos(sonos);
-    else if (test) await deps.sonosTest(test.room, test.test);
+    await deps.sonos(sonosRequest);
     response.writeHead(204).end();
   } catch (error) {
     sendSonosError(response, error);
   }
 }
 
-/** GET /sonos/groups, /sonos/now and /sonos/art, the chosen way. */
+/** GET /sonos/groups, /sonos/now and /sonos/art. */
 async function getSonos(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
   const url = new URL(request.url ?? '', LOCAL_ORIGIN);
-  const engine = parseEngine(url.searchParams.get('engine'));
   const room = parseRoom(url.searchParams.get('room'));
   const isGroups = url.pathname === '/sonos/groups';
-  if (!engine || (!isGroups && !room)) {
+  if (!isGroups && !room) {
     response.writeHead(400).end();
     return;
   }
-  const way = deps.sonosWay(engine);
+  const way = deps.sonosCalls;
   const now = deps.now ?? (() => performance.now());
   try {
     if (isGroups) {
@@ -347,8 +330,7 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
     case '/sonos/control':
     case '/sonos/volume':
     case '/sonos/join':
-    case '/sonos/leave':
-    case '/sonos/test': {
+    case '/sonos/leave': {
       await postSonos(request, response, deps);
       return;
     }
@@ -571,8 +553,7 @@ export function serveSpeakers(
     ...deps,
     perform,
     sonos: request => runSonosRequest(request),
-    sonosTest: (room, test) => testOnSonos(room, test),
-    sonosWay: engine => sonosWay(engine),
+    sonosCalls: sonos,
     heartbeat,
     log: journalLog(),
     asset: wifiSetupAsset,

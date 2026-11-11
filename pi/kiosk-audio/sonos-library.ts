@@ -1,5 +1,4 @@
-// Sonos through the @svrooij/sonos library (https://sonos-ts.svrooij.io), one of the two ways sonos.ts talks to the
-// speakers. It finds a speaker on the home network (SSDP) once, then asks that speaker for the household's groups each
+// Sonos through the @svrooij/sonos library (https://sonos-ts.svrooij.io), the way sonos.ts talks to the speakers. It finds a speaker on the home network (SSDP) once, then asks that speaker for the household's groups each
 // time, searching again only when it stops answering. Commands go to the coordinator of the group a room is in. No event
 // subscriptions: those would open a listening port on the Pi.
 import { SonosDevice, SonosDeviceDiscovery } from '@svrooij/sonos';
@@ -62,7 +61,7 @@ async function coordinatorFor(room: string): Promise<SonosDevice> {
 }
 
 /**
- * Plays a Spotify item the way sonoscli's `open` does: adds it to the group's Sonos queue, makes the queue what the group
+ * Plays a Spotify item: adds it to the group's Sonos queue, makes the queue what the group
  * plays, goes to the first added track and plays.
  */
 async function play(room: string, uri: string): Promise<void> {
@@ -70,13 +69,6 @@ async function play(room: string, uri: string): Promise<void> {
   const added = await device.AddUriToQueue(uri, 0, false);
   await device.SwitchToQueue();
   await device.SeekTrack(added.FirstTrackNumberEnqueued);
-  await device.Play();
-}
-
-/** SwitchToQueue() then Play(): makes the group's own Sonos queue its source and plays whatever is in it. */
-export async function resumeQueue(room: string): Promise<void> {
-  const device = await coordinatorFor(room);
-  await device.SwitchToQueue();
   await device.Play();
 }
 
