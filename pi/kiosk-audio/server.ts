@@ -3,8 +3,9 @@
 //                           plus {"volumes": {"Kitchen": 40, …}}, each speaker's volume in percent
 //   POST /audio/route       {"speakers": [...]}            route the sound to those speakers (none: the Pi's own output)
 //   POST /audio/volume      {"speaker": "Kitchen", "volume": 40}   set one speaker's volume (404: not on the network)
-//   POST /sonos/play        {"room": "Kitchen", "uri": "spotify:track:…"}   play it on that Sonos room with sonoscli (sonos.ts):
-//                           204, 400, or 502 {"error"}: why not, safe to show
+//   POST /sonos/play        {"room": "Kitchen", "uri": "spotify:track:…", "engine": "cli" | "library"}   play it on that
+//                           Sonos room with sonoscli or the sonos-ts library (sonos.ts): 204, 400, or 502 {"error"}: why not
+//   POST /sonos/test        {"room": "Kitchen", "test": "cli-play" | "library-queue"}   a resume call to try out (sonos.ts)
 //   POST /power/restart     restart the kiosk              POST /power/reboot    reboot the Pi
 //   POST /display/wake      turn the screen back on        POST /wifi            show the Wi-Fi setup page
 //   POST /heartbeat         the app (or the Wi-Fi setup page) is alive (watchdog.ts)  POST /log  {"level", "source", "message"}  an app error, to the journal
@@ -44,8 +45,8 @@ import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
 import { PhoneSetup } from './phone-setup.ts';
 import type { Graph } from './pipewire.ts';
-import { parseSonosPlay, playOnSonos, SonosError } from './sonos.ts';
-import type { SonosPlay } from './sonos.ts';
+import { parseSonosPlay, parseSonosTest, playOnSonos, SonosError, testOnSonos } from './sonos.ts';
+import type { SonosPlay, SonosTest } from './sonos.ts';
 import { speakerSinks, validSpeakers, validVolume } from './speakers.ts';
 import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
@@ -77,6 +78,8 @@ export interface Deps {
   perform: (action: Action) => Promise<void>;
   /** Plays a Spotify item on a Sonos room; rejects with a SonosError when it could not. */
   sonos: (request: SonosPlay) => Promise<void>;
+  /** Runs one of the resume calls being tried out on a Sonos room; rejects with a SonosError when it failed. */
+  sonosTest: (room: string, test: SonosTest) => Promise<void>;
   heartbeat: () => void;
   log: (entry: AppLog) => void;
   wifi: Wifi;
@@ -207,15 +210,18 @@ async function volumeStatus(request: IncomingMessage, deps: Deps): Promise<numbe
   return (await deps.setVolume(body.speaker, body.volume)) === 0 ? 404 : 204;
 }
 
-/** POST /sonos/play: plays the song on the room, or says why not. */
+/** POST /sonos/play and /sonos/test: plays the song (or runs the test call) on the room, or says why not. */
 async function postSonos(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
-  const body = parseSonosPlay(JSON.parse(await readBody(request)) as unknown);
-  if (!body) {
+  const value = JSON.parse(await readBody(request)) as unknown;
+  const play = request.url === '/sonos/play' ? parseSonosPlay(value) : null;
+  const test = request.url === '/sonos/test' ? parseSonosTest(value) : null;
+  if (!play && !test) {
     response.writeHead(400).end();
     return;
   }
   try {
-    await deps.sonos(body);
+    if (play) await deps.sonos(play);
+    else if (test) await deps.sonosTest(test.room, test.test);
     response.writeHead(204).end();
   } catch (error) {
     sendJson(response, 502, { error: error instanceof SonosError ? error.message : 'Sonos did not start playing.' });
@@ -283,7 +289,8 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
       status = await volumeStatus(request, deps);
       break;
     }
-    case '/sonos/play': {
+    case '/sonos/play':
+    case '/sonos/test': {
       await postSonos(request, response, deps);
       return;
     }
@@ -502,6 +509,7 @@ export function serveSpeakers(
     ...deps,
     perform,
     sonos: request => playOnSonos(request),
+    sonosTest: (room, test) => testOnSonos(room, test),
     heartbeat,
     log: journalLog(),
     asset: wifiSetupAsset,

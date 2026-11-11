@@ -45,6 +45,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
   const routed: string[][] = [];
   const volumes: [string, number][] = [];
   const played: SonosPlay[] = [];
+  const tested: [string, string][] = [];
   const logged: AppLog[] = [];
   const joined: ConnectRequest[] = [];
   let beats = 0;
@@ -69,6 +70,10 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
         return Promise.reject(new SonosError('Sonos: speaker name not found in topology: Attic'));
       }
       return request.room === 'Broken' ? Promise.reject(new Error('internal detail')) : Promise.resolve();
+    },
+    sonosTest: (room, test) => {
+      tested.push([room, test]);
+      return Promise.resolve();
     },
     heartbeat: () => {
       beats += 1;
@@ -139,6 +144,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
     routed,
     volumes,
     played,
+    tested,
     logged,
     joined,
     beats: () => beats,
@@ -251,6 +257,22 @@ describe('POST', () => {
     const broken = await post(base, '/sonos/play', { body: { room: 'Broken', uri } });
     await expect(broken.json()).resolves.toEqual({ error: 'Sonos did not start playing.' });
     expect(played.map(request => request.room)).toEqual(['Kitchen', 'Attic', 'Broken']);
+    expect(played[0]?.engine).toBe('cli');
+  });
+
+  it('plays through the library when asked, and runs the resume test calls', async () => {
+    const { deps, played, tested } = fakes();
+    const base = await start(deps);
+    const uri = 'spotify:track:1234567890123456789012';
+    expect((await post(base, '/sonos/play', { body: { room: 'Kitchen', uri, engine: 'library' } })).status).toBe(204);
+    expect(played[0]?.engine).toBe('library');
+    expect((await post(base, '/sonos/test', { body: { room: 'Kitchen', test: 'library-queue' } })).status).toBe(204);
+    expect((await post(base, '/sonos/test', { body: { room: 'Kitchen', test: 'cli-play' } })).status).toBe(204);
+    expect((await post(base, '/sonos/test', { body: { room: 'Kitchen', test: 'rm -rf' } })).status).toBe(400);
+    expect(tested).toEqual([
+      ['Kitchen', 'library-queue'],
+      ['Kitchen', 'cli-play']
+    ]);
   });
 
   it('refuses a bad Sonos request, and one from another web page', async () => {

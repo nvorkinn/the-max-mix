@@ -30,6 +30,7 @@
     "check": "npm run lint && npm run typecheck && npm run format:check && npm run lint:shell && npm run knip && npm run lint:spelling && npm run lint:editorconfig && npm run lint:md && npm run lint:css && npm run lint:unused-css && npm run lint:package-json && npm run lint:lockfiles"
   },
   "dependencies": {
+    "@svrooij/sonos": "2.7.0",
     "lucide-react": "^1.70.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

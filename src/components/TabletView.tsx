@@ -99,6 +99,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     liked,
     toggleLike,
     transferPlayback,
+    handOff,
     playMusic,
     setSlowPolling
   } = useSpotifyPlayer();
@@ -157,13 +158,14 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   };
 
   // Spotify will not move its playback to a Sonos, so on the kiosk the Pi starts the song on the speaker itself
-  // (sonoscli). Sonos then plays it from its own queue: this tablet's Spotify is paused so the music moves rather than
-  // playing in two places, and the screen keeps showing Spotify's (paused) song.
+  // (sonoscli). The tablet is paused first, while it is still the player (afterwards Spotify has moved on and a pause
+  // fails); then the page follows playback through the Web API, as after picking a Connect speaker.
   const playOnSonos = async (room: string) => {
     const uri = playbackState?.item?.uri;
     if (!uri) throw new Error('Play a song first, then pick the Sonos speaker.');
-    await playOnSonosRoom(room, uri);
     if (playbackState.is_playing && !(await togglePlay())) debugLog('warn', 'sonos', 'Spotify did not pause');
+    await playOnSonosRoom(room, uri);
+    await handOff();
   };
 
   const toggleLyrics = (show: boolean) => {

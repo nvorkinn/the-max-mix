@@ -122,6 +122,8 @@ export interface UseSpotifyPlayer {
   liked: boolean | null;
   toggleLike: () => Promise<boolean>;
   transferPlayback: (deviceId: string) => Promise<boolean>;
+  /** Playback was moved off this page outside Spotify Connect (a Sonos started the song itself): follow it remotely. */
+  handOff: () => Promise<void>;
   /** Starts a playlist, Liked Songs or a track: on the device that is playing, otherwise on this page's player. */
   playMusic: (choice: MusicChoice) => Promise<boolean>;
   refreshPlayback: () => Promise<void>;
@@ -794,6 +796,23 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     }
   };
 
+  // The account now plays somewhere this page did not send it through Spotify (a Sonos playing the song itself). This
+  // page stops treating its own player as the active one and follows playback through the Web API, as after moving to
+  // a Connect speaker, so the tablet going quiet is not reported as a problem.
+  const handOff = async () => {
+    setRemoteSelected(true);
+    markSdkActive(false);
+    releaseDevice();
+    expectedPlayingRef.current = null;
+    setActionError(null);
+    try {
+      await refreshPlayback();
+    } catch {
+      // The regular reads pick it up.
+    }
+    bumpQueue();
+  };
+
   const allowBrowserAudio = async () => {
     const player = playerRef.current;
     if (!player) {
@@ -893,6 +912,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     liked,
     toggleLike,
     transferPlayback,
+    handOff,
     playMusic,
     refreshPlayback,
     setSlowPolling,

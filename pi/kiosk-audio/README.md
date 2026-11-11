@@ -28,7 +28,10 @@ tapping a Sonos room in the app's Speakers drawer sends `POST /sonos/play` with 
 
 sonoscli finds the room on the home network (SSDP, then a scan of the subnet), adds the song to that room's Sonos queue
 and plays it on the group the room leads, through the Spotify account linked in the Sonos app; no Spotify credentials
-are needed on the Pi. A failure answers 502 with sonoscli's reason, which the app shows. To try it by hand on the Pi:
+are needed on the Pi. A failure answers 502 with sonoscli's reason, which the app shows. Settings on the kiosk can switch to the [sonos-ts library](https://sonos-ts.svrooij.io)
+(`sonos-library.ts`, `"engine": "library"`), which queues and plays the song the same way from this process. Settings
+also has two buttons for `POST /sonos/test`, which only resume what the speaker has: `sonos play --name <room>`, and
+sonos-ts's `SwitchToQueue()` then `Play()`. To try it by hand on the Pi:
 `sudo -u kiosk sonos discover` and `sudo -u kiosk sonos open --name Kitchen spotify:track:…`.
 
 ## How it works

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '../test/user';
+import { setKioskSonosLeader } from '../sonos/kiosk';
 import SonosGroupList from './SonosGroupList';
 
 const api = vi.hoisted(() => ({
@@ -38,6 +39,7 @@ describe('SonosGroupList', () => {
     api.getGroupVolume.mockReset().mockResolvedValue(30);
     api.setGroupVolume.mockReset().mockResolvedValue(undefined);
     api.setGroupRooms.mockReset().mockResolvedValue(undefined);
+    setKioskSonosLeader(null);
   });
 
   afterEach(() => {
@@ -66,22 +68,47 @@ describe('SonosGroupList', () => {
       .fn()
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new Error('Sonos: speaker name not found in topology: Living Room'));
-    render(<SonosGroupList devices={[]} disabled={false} onSelect={onSelect} onPlayOnSonos={onPlayOnSonos} />);
+    const onRooms = vi.fn();
+    render(
+      <SonosGroupList
+        devices={[]}
+        disabled={false}
+        onSelect={onSelect}
+        onPlayOnSonos={onPlayOnSonos}
+        onRooms={onRooms}
+      />
+    );
     const kitchen = await screen.findByRole('button', { name: /^Kitchen/ });
+    // The drawer leaves out Connect devices with these names: they are the same speakers.
+    expect(onRooms).toHaveBeenCalledWith(expect.arrayContaining(['Kitchen', 'Bedroom', 'Living Room + 1']));
     expect(kitchen).toHaveTextContent('Sonos');
     expect(kitchen).not.toHaveTextContent('Not in Spotify yet');
 
     await userEvent.click(kitchen);
-    expect(onPlayOnSonos).toHaveBeenCalledWith('Kitchen');
+    await waitFor(() => expect(onPlayOnSonos).toHaveBeenCalledWith('Kitchen'));
     // The groups are read again (to show it playing), and the cards wait until the song has started.
     const livingRoom = screen.getByRole('button', { name: /^Living Room \+ 1/ });
     await waitFor(() => expect(livingRoom).toBeEnabled());
-    expect(api.listSonos).toHaveBeenCalledTimes(2);
+    expect(api.listSonos).toHaveBeenCalledTimes(3);
 
     await userEvent.click(livingRoom);
-    expect(onPlayOnSonos).toHaveBeenLastCalledWith('Living Room');
+    await waitFor(() => expect(onPlayOnSonos).toHaveBeenLastCalledWith('Living Room'));
     expect(await screen.findByRole('alert')).toHaveTextContent('speaker name not found in topology: Living Room');
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('on the kiosk, adds a tapped room to the Sonos group already playing the song, instead of starting it again', async () => {
+    const onPlayOnSonos = vi.fn().mockResolvedValue(undefined);
+    render(<SonosGroupList devices={[]} disabled={false} onSelect={vi.fn()} onPlayOnSonos={onPlayOnSonos} />);
+    // The kiosk started the song on Living Room + 1 (led by p2), which is playing.
+    await userEvent.click(await screen.findByRole('button', { name: /^Living Room \+ 1/ }));
+    await waitFor(() => expect(onPlayOnSonos).toHaveBeenCalledWith('Living Room'));
+    const kitchen = screen.getByRole('button', { name: /^Kitchen/ });
+    await waitFor(() => expect(kitchen).toBeEnabled());
+
+    await userEvent.click(kitchen);
+    await waitFor(() => expect(api.setGroupRooms).toHaveBeenCalledWith('g2', ['p2', 'p3', 'p1']));
+    expect(onPlayOnSonos).toHaveBeenCalledTimes(1);
   });
 
   it('lets the volume move only while the group plays, and sends it once the slider rests', async () => {

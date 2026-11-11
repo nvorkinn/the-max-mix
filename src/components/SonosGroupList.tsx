@@ -4,6 +4,7 @@ import { Check, Speaker, Users, Volume2 } from 'lucide-react';
 import { getGroupVolume, listSonos, setGroupRooms, setGroupVolume, spotifyDeviceFor } from '../sonos/api';
 import type { SonosGroup, SonosRoom } from '../sonos/api';
 import type { SpotifyDevice } from '../types';
+import { getKioskSonosLeader, setKioskSonosLeader } from '../sonos/kiosk';
 import { errorMessage } from '../utils/errorMessage';
 
 /** How long to wait after the last slider move before sending the volume, so a drag sends a few requests, not dozens. */
@@ -26,7 +27,8 @@ export default function SonosGroupList({
   playingId,
   disabled,
   onSelect,
-  onPlayOnSonos
+  onPlayOnSonos,
+  onRooms
 }: Readonly<{
   /** Spotify's Connect devices, read by the drawer. */
   devices: readonly SpotifyDevice[];
@@ -35,6 +37,8 @@ export default function SonosGroupList({
   onSelect: (deviceId: string) => unknown;
   /** The kiosk: plays the song on screen on this Sonos room (sonoscli on the Pi); rejects with a message to show. */
   onPlayOnSonos?: ((room: string) => Promise<void>) | undefined;
+  /** The names of the rooms (and groups) listed, so the drawer can leave out Connect devices that are the same speaker. */
+  onRooms?: ((names: readonly string[]) => void) | undefined;
 }>) {
   const [groups, setGroups] = useState<SonosGroup[] | null>(null);
   const [rooms, setRooms] = useState<SonosRoom[]>([]);
@@ -49,6 +53,10 @@ export default function SonosGroupList({
   const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const mountedRef = useRef(true);
   const isMounted = () => mountedRef.current;
+  const onRoomsRef = useRef(onRooms);
+  useEffect(() => {
+    onRoomsRef.current = onRooms;
+  });
 
   const load = useCallback(async () => {
     try {
@@ -56,6 +64,7 @@ export default function SonosGroupList({
       if (!mountedRef.current) return;
       setGroups(found.groups);
       setRooms(found.rooms);
+      onRoomsRef.current?.([...found.rooms, ...found.groups].map(entry => entry.name));
       setError(null);
       const read = await Promise.all(
         found.groups.map(async group => [group.id, await getGroupVolume(group.id).catch(() => null)] as const)
@@ -111,12 +120,27 @@ export default function SonosGroupList({
     setError(null);
     setStarting(group.id);
     try {
-      await play(group.rooms[0] ?? group.name);
+      await startOrJoin(group, play);
       await load();
     } catch (caught) {
       if (isMounted()) setError(errorMessage(caught));
     } finally {
       if (isMounted()) setStarting(null);
+    }
+  };
+
+  // While a Sonos group plays what the kiosk sent it, tapping another room adds that room to the group, so the song
+  // carries on there too instead of starting again from the top. Otherwise the song starts on the tapped group, which
+  // the kiosk then remembers. A tap on a room already in the playing group changes nothing.
+  const startOrJoin = async (group: SonosGroup, play: (room: string) => Promise<void>) => {
+    const leader = getKioskSonosLeader();
+    const { groups: current } = await listSonos();
+    const playing = leader ? current.find(entry => entry.playing && entry.playerIds.includes(leader)) : undefined;
+    if (!playing) {
+      await play(group.rooms[0] ?? group.name);
+      setKioskSonosLeader(group.playerIds[0] ?? null);
+    } else if (group.playerIds.every(id => !playing.playerIds.includes(id))) {
+      await setGroupRooms(playing.id, [...playing.playerIds, ...group.playerIds]);
     }
   };
 

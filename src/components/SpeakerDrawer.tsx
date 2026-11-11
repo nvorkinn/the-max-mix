@@ -56,6 +56,8 @@ export default function SpeakerDrawer({
   const [loading, setLoading] = useState(false);
   const [selecting, setSelecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The Sonos rooms listed below the Connect devices; a Connect device of the same name is that speaker, shown once.
+  const [sonosRooms, setSonosRooms] = useState<readonly string[]>([]);
   const retryAt = useSpotifyCooldown();
   const waitingForSpotify = retryAt > 0;
   const reportError = useCallback((caught: unknown) => {
@@ -119,7 +121,11 @@ export default function SpeakerDrawer({
   const extra = getKnownSpeakers().filter(device => !listed.has(device.id) && !listed.has(device.name.toLowerCase()));
   const rememberedIds = new Set(extra.map(device => device.id));
   const allDevices = [...devices, ...extra];
-  const connectDevices = allDevices.filter(device => !browserDeviceId || device.id !== browserDeviceId);
+  const sonosSignedIn = isSonosSignedIn();
+  const sonosNames = new Set(sonosSignedIn ? sonosRooms.map(name => name.toLowerCase()) : []);
+  const connectDevices = allDevices.filter(
+    device => (!browserDeviceId || device.id !== browserDeviceId) && !sonosNames.has(device.name.toLowerCase())
+  );
   const playingId = activeDeviceId ?? devices.find(device => device.is_active)?.id;
   const tabletIsActive = Boolean(browserDeviceId) && !isAirPlay && playingId === browserDeviceId;
   // AirPlay sends this tablet's own sound on, so it needs the tablet to be the one playing (or AirPlay to be on already).
@@ -215,41 +221,34 @@ export default function SpeakerDrawer({
           )}
           <section aria-labelledby="connect-title" className="space-y-2">
             <h3 id="connect-title" className="text-xs font-bold">
-              Spotify Connect
+              {sonosSignedIn ? 'Spotify Connect and Sonos' : 'Spotify Connect'}
             </h3>
-            <p className="text-[11px] text-muted">Plays on one speaker, even when this tablet is off.</p>
+            <p className="text-[11px] text-muted">
+              Plays on one speaker at a time, even when this tablet is off. The music moves there.
+            </p>
             {rows}
-            {!loading && !error && connectDevices.length === 0 && (
-              <p className="text-xs leading-relaxed text-muted py-2">
-                No Spotify speakers found. Open Spotify on a phone, computer, or Connect speaker, then refresh.
-              </p>
-            )}
-            {!loading && !error && (
-              <p className="text-[11px] leading-relaxed text-muted">
-                Sonos and other Connect speakers show up here only after they have recently played through Spotify. Play
-                to one from the Spotify app on your phone, then refresh.
-              </p>
-            )}
-          </section>
-          {isSonosSignedIn() && (
-            <section aria-labelledby="sonos-title" className="space-y-2 pt-2">
-              <h3 id="sonos-title" className="text-xs font-bold">
-                Sonos
-              </h3>
-              <p className="text-[11px] text-muted">
-                {onPlayOnSonos
-                  ? 'Your Sonos rooms and groups. Tap one to play this song there.'
-                  : 'Your Sonos rooms and groups. Plays through Spotify Connect.'}
-              </p>
+            {sonosSignedIn && (
               <SonosGroupList
                 devices={allDevices}
                 playingId={isAirPlay ? null : playingId}
                 disabled={selecting || waitingForSpotify}
                 onSelect={selectDevice}
                 onPlayOnSonos={onPlayOnSonos}
+                onRooms={setSonosRooms}
               />
-            </section>
-          )}
+            )}
+            {!loading && !error && connectDevices.length === 0 && !sonosSignedIn && (
+              <p className="text-xs leading-relaxed text-muted py-2">
+                No Spotify speakers found. Open Spotify on a phone, computer, or Connect speaker, then refresh.
+              </p>
+            )}
+            {!loading && !error && !sonosSignedIn && (
+              <p className="text-[11px] leading-relaxed text-muted">
+                Sonos and other Connect speakers show up here only after they have recently played through Spotify. Play
+                to one from the Spotify app on your phone, then refresh.
+              </p>
+            )}
+          </section>
           {canUseAirPlay && (
             <section aria-labelledby="airplay-title" className="space-y-2 pt-2">
               <h3 id="airplay-title" className="text-xs font-bold">

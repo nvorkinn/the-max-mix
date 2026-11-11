@@ -142,6 +142,7 @@ regdom
 remi
 rescan
 rfkill
+rincon
 rootfs
 rootfstype
 rootwait
@@ -160,6 +161,7 @@ SSIDs
 starboy
 startswith
 stdin
+svrooij
 swayidle
 tailnet
 tailscale

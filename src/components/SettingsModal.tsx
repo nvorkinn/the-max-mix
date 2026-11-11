@@ -13,6 +13,7 @@ import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import { THEME_COLOURS } from '../utils/themeColour';
 import type { ThemeColour } from '../utils/themeColour';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
+import SonosKioskRow from './SonosKioskRow';
 import KioskSystem from './KioskSystem';
 import Modal from './Modal';
 
@@ -268,6 +269,7 @@ function SettingsContent({
         )}
         <PollingRow />
         <SonosRow />
+        {isKiosk() && isSonosSignedIn() && <SonosKioskRow />}
         {isKiosk() && (
           <button
             type="button"
