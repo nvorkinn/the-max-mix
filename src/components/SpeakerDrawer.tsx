@@ -293,7 +293,6 @@ export default function SpeakerDrawer({
             <section aria-label="AirPlay">
               <AirPlaySpeakerList
                 isPlayerReady={airPlayAvailable}
-                notReadyMessage="This tablet's player isn't ready, so speakers can't be added yet."
                 active={isAirPlay}
                 showVolumes={showVolumes}
                 onChange={onAirPlayChange}

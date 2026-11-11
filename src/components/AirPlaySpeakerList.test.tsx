@@ -111,7 +111,7 @@ describe('AirPlaySpeakerList', () => {
     expect(lounge).toBeDisabled();
     await userEvent.click(lounge);
     expect(airplay.setChosenSpeakers).not.toHaveBeenCalled();
-    expect(screen.getByRole('status')).toHaveTextContent(/player isn.t ready/);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Kitchen/ })).toHaveTextContent('Selected');
     expect(screen.queryByText('Playing here')).not.toBeInTheDocument();
     expect(airplay.routeAudio).not.toHaveBeenCalled();

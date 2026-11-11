@@ -24,14 +24,11 @@ const HOLD_MS = 5000;
  */
 export default function AirPlaySpeakerList({
   isPlayerReady,
-  notReadyMessage = "This tablet's player isn't ready, so speakers can't be added yet.",
   active = true,
   showVolumes = false,
   onChange
 }: Readonly<{
   isPlayerReady: boolean;
-  /** Said while speakers cannot be added yet. */
-  notReadyMessage?: string;
   active?: boolean | undefined;
   /** Whether each chosen speaker's own volume slider is shown (hidden by default, so nobody turns one up by mistake). */
   showVolumes?: boolean | undefined;
@@ -98,11 +95,6 @@ export default function AirPlaySpeakerList({
   const names = [...new Set([...(outputs ?? []), ...chosen])];
   return (
     <div className="grid gap-2">
-      {!isPlayerReady && (
-        <p role="status" className="col-span-full text-xs status-warning">
-          {notReadyMessage}
-        </p>
-      )}
       {error && (
         <p role="alert" className="col-span-full text-xs status-danger">
           {error}
