@@ -111,8 +111,19 @@ describe('SonosGroupList', () => {
     expect(onPlayOnSonos).toHaveBeenCalledTimes(1);
   });
 
+  it('on the kiosk, turns a loud group down before the song starts there, and hides the volume sliders', async () => {
+    api.getGroupVolume.mockResolvedValue(80);
+    const onPlayOnSonos = vi.fn().mockResolvedValue(undefined);
+    render(<SonosGroupList devices={[]} disabled={false} onSelect={vi.fn()} onPlayOnSonos={onPlayOnSonos} />);
+    await userEvent.click(await screen.findByRole('button', { name: /^Kitchen/ }));
+    await waitFor(() => expect(onPlayOnSonos).toHaveBeenCalledWith('Kitchen'));
+    expect(api.setGroupVolume).toHaveBeenCalledExactlyOnceWith('g1', 25);
+    expect(api.setGroupVolume.mock.invocationCallOrder[0]).toBeLessThan(onPlayOnSonos.mock.invocationCallOrder[0] ?? 0);
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+  });
+
   it('lets the volume move only while the group plays, and sends it once the slider rests', async () => {
-    render(<SonosGroupList devices={DEVICES} disabled={false} onSelect={vi.fn()} />);
+    render(<SonosGroupList devices={DEVICES} disabled={false} onSelect={vi.fn()} showVolumes />);
     expect(await screen.findByRole('slider', { name: 'Kitchen volume' })).toBeDisabled();
     const slider = screen.getByRole('slider', { name: 'Living Room + 1 volume' });
     expect(slider).toBeEnabled();

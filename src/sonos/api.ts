@@ -120,6 +120,85 @@ export async function setGroupVolume(groupId: string, volume: number): Promise<v
   await sonos(`/groups/${groupId}/groupVolume`, { method: 'POST', body: JSON.stringify({ volume: clamped }) });
 }
 
+/** A song as Sonos describes it. */
+export interface SonosTrack {
+  name: string;
+  artist?: string;
+  album?: string;
+  imageUrl?: string;
+  durationMs?: number;
+  /** The Spotify URI, when the song comes from Spotify. */
+  uri?: string;
+}
+
+/** What a group plays: the song, the next one, where in the song it is, and which controls Sonos allows. */
+export interface SonosPlayback {
+  /** Playing, or about to (buffering); false when paused or stopped. */
+  playing: boolean;
+  positionMs: number;
+  track: SonosTrack | null;
+  next: SonosTrack | null;
+  canSkip: boolean;
+  canSkipBack: boolean;
+  canSeek: boolean;
+}
+
+export type SonosCommand = 'play' | 'pause' | 'skipToNextTrack' | 'skipToPreviousTrack';
+
+const number = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
+// Sonos names a Spotify song in its own way: "spotify:track:<id>", or that URI URL-encoded after "x-sonos-spotify:".
+const SPOTIFY_TRACK = /spotify(?::|%3[aA])track(?::|%3[aA])([0-9A-Za-z]{22})/;
+
+function parseTrack(item: unknown): SonosTrack | null {
+  const track = recordOf(recordOf(item)['track']);
+  const name = text(track['name']);
+  if (!name) return null;
+  const id = SPOTIFY_TRACK.exec(text(recordOf(track['id'])['objectId']) ?? '')?.[1];
+  const parsed: SonosTrack = { name };
+  const artist = text(recordOf(track['artist'])['name']);
+  const album = text(recordOf(track['album'])['name']);
+  const imageUrl = text(track['imageUrl']);
+  const durationMs = number(track['durationMillis']);
+  if (artist) parsed.artist = artist;
+  if (album) parsed.album = album;
+  if (imageUrl?.startsWith('https://')) parsed.imageUrl = imageUrl;
+  if (durationMs) parsed.durationMs = durationMs;
+  if (id) parsed.uri = `spotify:track:${id}`;
+  return parsed;
+}
+
+/** What the group plays right now (two calls: its playback state and its song). */
+export async function getGroupPlayback(groupId: string): Promise<SonosPlayback> {
+  const [status, metadata] = await Promise.all([
+    sonos(`/groups/${groupId}/playback`),
+    sonos(`/groups/${groupId}/playbackMetadata`)
+  ]);
+  const { playbackState, positionMillis, availablePlaybackActions } = recordOf(status);
+  const actions = recordOf(availablePlaybackActions);
+  const { currentItem, nextItem } = recordOf(metadata);
+  return {
+    playing: playbackState === 'PLAYBACK_STATE_PLAYING' || playbackState === 'PLAYBACK_STATE_BUFFERING',
+    positionMs: number(positionMillis) ?? 0,
+    track: parseTrack(currentItem),
+    next: parseTrack(nextItem),
+    canSkip: actions['canSkip'] !== false,
+    canSkipBack: actions['canSkipBack'] !== false,
+    canSeek: actions['canSeek'] !== false
+  };
+}
+
+/** Plays, pauses or skips on the group. */
+export async function sendGroupCommand(groupId: string, command: SonosCommand): Promise<void> {
+  await sonos(`/groups/${groupId}/playback/${command}`, { method: 'POST', body: '{}' });
+}
+
+/** Moves the group to this point in the song. */
+export async function seekGroup(groupId: string, positionMs: number): Promise<void> {
+  const positionMillis = Math.max(0, Math.round(positionMs));
+  await sonos(`/groups/${groupId}/playback/seek`, { method: 'POST', body: JSON.stringify({ positionMillis }) });
+}
+
 /**
  * The Spotify Connect device that plays to this group. Spotify names a Sonos device after its room, and a grouped
  * Sonos shows up under the group's name or the coordinator's room.

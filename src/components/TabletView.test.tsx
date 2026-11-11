@@ -43,6 +43,10 @@ const airplay = vi.hoisted(() => ({
   setSpeakerVolume: vi.fn()
 }));
 const lyrics = vi.hoisted(() => ({ lrclib: vi.fn() }));
+const sonos = vi.hoisted(() => {
+  const current: Record<string, unknown> = {};
+  return { current };
+});
 
 vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => player.current }));
 vi.mock('../spotify/api', () => api);
@@ -59,6 +63,7 @@ vi.mock('../audio/bluetooth', () => ({
   forgetBluetoothSpeaker: vi.fn().mockResolvedValue(undefined)
 }));
 vi.mock('../audio/airplay', () => airplay);
+vi.mock('../hooks/useSonosPlayer', () => ({ useSonosPlayer: () => sonos.current }));
 
 const track = {
   id: 'tr1',
@@ -69,6 +74,26 @@ const track = {
 };
 const playing = { is_playing: true, item: track, device: { name: 'Kitchen' } };
 const queued = [{ id: 'q1', name: 'Queued One', artists: [{ name: 'Q' }], duration_ms: 1000 }];
+
+function setSonos(overrides: Record<string, unknown> = {}) {
+  sonos.current = {
+    active: false,
+    name: null,
+    playback: null,
+    next: [],
+    error: null,
+    togglePlay: vi.fn().mockResolvedValue(true),
+    nextTrack: vi.fn().mockResolvedValue(true),
+    previousTrack: vi.fn().mockResolvedValue(true),
+    seek: vi.fn().mockResolvedValue(true),
+    setVolume: vi.fn(),
+    play: vi.fn().mockResolvedValue(true),
+    refresh: vi.fn(),
+    leave: vi.fn().mockResolvedValue(undefined),
+    setSlowPolling: vi.fn(),
+    ...overrides
+  };
+}
 
 function setPlayer(overrides: Record<string, unknown> = {}) {
   player.current = {
@@ -110,6 +135,7 @@ beforeEach(() => {
   lyrics.lrclib.mockReset();
   lyrics.lrclib.mockResolvedValue({ kind: 'plain', lines: ['Placeholder lyric'], source: 'LRCLIB' });
   setPlayer();
+  setSonos();
 });
 afterEach(() => vi.useRealTimers());
 
@@ -584,6 +610,51 @@ describe('TabletView', () => {
     expect(player.current.previousTrack).toHaveBeenCalled();
     expect(player.current.setVolume).toHaveBeenCalledWith(0.5);
     expect(player.current.seek).toHaveBeenCalledWith(400);
+  });
+
+  it('shows and controls the Sonos the kiosk plays on, instead of Spotify', async () => {
+    setPlayer({ playbackState: null, problem: { message: 'No active device', recovery: 'choose-speaker' } });
+    setSonos({
+      active: true,
+      name: 'Kitchen + 1',
+      playback: {
+        is_playing: true,
+        progress_ms: 100,
+        item: { ...track, name: 'Sonos Song' },
+        device: { id: 'sonos:p1', name: 'Kitchen + 1', volume_percent: 30, supports_volume: true }
+      },
+      next: [{ name: 'After That', artists: [], album: { images: [] } }]
+    });
+    render(<TabletView />);
+    await flush();
+    expect(screen.getAllByText('Sonos Song').length).toBeGreaterThan(0);
+    expect(screen.getByText('After That')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Speakers:.*Kitchen \+ 1/ })).toBeInTheDocument();
+    // Spotify having no player is not this screen's problem while the Sonos plays.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(api.getQueue).not.toHaveBeenCalled();
+    expect(player.current.setSlowPolling).toHaveBeenLastCalledWith(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next track' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Previous track' }));
+    fireEvent.change(screen.getByRole('slider', { name: 'Volume' }), { target: { value: '50' } });
+    fireEvent.change(screen.getByRole('slider', { name: 'Playback position' }), { target: { value: '400' } });
+    expect(sonos.current['togglePlay']).toHaveBeenCalled();
+    expect(sonos.current['nextTrack']).toHaveBeenCalled();
+    expect(sonos.current['previousTrack']).toHaveBeenCalled();
+    expect(sonos.current['setVolume']).toHaveBeenCalledWith(50);
+    expect(sonos.current['seek']).toHaveBeenCalledWith(400);
+    expect(player.current.togglePlay).not.toHaveBeenCalled();
+  });
+
+  it('says when the Sonos cannot be read, and reads it again on Refresh', async () => {
+    setSonos({ active: true, name: 'Kitchen', error: 'Sonos did not answer (500).' });
+    render(<TabletView />);
+    await flush();
+    expect(screen.getByRole('alert')).toHaveTextContent('Playback problem');
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh playback' }));
+    expect(sonos.current['refresh']).toHaveBeenCalled();
+    expect(player.current.retryPlayback).not.toHaveBeenCalled();
   });
 
   it('disables transport when the device is restricted', async () => {

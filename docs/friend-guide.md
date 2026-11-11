@@ -21,7 +21,8 @@ account. The words in bold are what you'll see on the screen.
 
 - Tap the speaker name at the bottom left to open the speakers list.
 - **This tablet** plays through the screen. Choose it first if you want AirPlay speakers such as Sonos, then tap one or
-  more of them so they show **Selected**. Each one gets its own volume slider.
+  more of them so they show **Selected**. A speaker that was loud starts at a low volume; use the main volume slider.
+  Each speaker's own volume slider shows only after you tap the sliders button at the top of the list.
 - Spotify Connect speakers are listed too. Open Spotify on them once so they show up.
 
 ## 4. Choose music

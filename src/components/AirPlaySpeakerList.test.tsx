@@ -178,7 +178,7 @@ describe('AirPlaySpeakerList', () => {
 
   it('gives each chosen speaker on the network a volume slider that sets its volume', async () => {
     airplay.listAudioOutputs.mockResolvedValue({ names: ['Kitchen', 'Lounge'], volumes: { Kitchen: 40, Lounge: 70 } });
-    render(<AirPlaySpeakerList isPlayerReady />);
+    render(<AirPlaySpeakerList isPlayerReady showVolumes />);
     const slider = await screen.findByRole('slider', { name: 'Kitchen volume' });
     expect(slider).toHaveValue('40');
     expect(screen.queryByRole('slider', { name: 'Lounge volume' })).not.toBeInTheDocument();
@@ -190,6 +190,15 @@ describe('AirPlaySpeakerList', () => {
       await Promise.resolve();
     });
     expect(slider).toHaveValue('55');
+  });
+
+  it('hides the volume sliders unless asked, and turns a loud speaker down before adding it', async () => {
+    airplay.listAudioOutputs.mockResolvedValue({ names: ['Kitchen', 'Lounge'], volumes: { Kitchen: 40, Lounge: 70 } });
+    render(<AirPlaySpeakerList isPlayerReady />);
+    await userEvent.click(await screen.findByRole('button', { name: /Lounge/ }));
+    expect(airplay.setSpeakerVolume).toHaveBeenCalledExactlyOnceWith('Lounge', 25);
+    expect(airplay.routeAudio).toHaveBeenCalledWith(['Kitchen', 'Lounge']);
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
   });
 
   it('shows no slider for a speaker that reports no volume or is not on the network', async () => {

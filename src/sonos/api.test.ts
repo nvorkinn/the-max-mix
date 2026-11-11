@@ -3,7 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 const auth = vi.hoisted(() => ({ getSonosAccessToken: vi.fn(), discardSonosAccessToken: vi.fn() }));
 vi.mock('./auth', () => auth);
 
-const { getGroupVolume, listSonos, setGroupRooms, setGroupVolume, spotifyDeviceFor } = await import('./api');
+const {
+  getGroupPlayback,
+  getGroupVolume,
+  listSonos,
+  seekGroup,
+  sendGroupCommand,
+  setGroupRooms,
+  setGroupVolume,
+  spotifyDeviceFor
+} = await import('./api');
 
 const BASE = { householdId: 'h1', playerIds: [], playing: false };
 
@@ -115,6 +124,68 @@ describe('sonos/api', () => {
       method: 'POST',
       body: '{"playerIds":["p2","p1"]}'
     });
+  });
+
+  it('reads what a group plays: state, position, the song and the next one, and the controls it allows', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        Response.json({
+          playbackState: 'PLAYBACK_STATE_BUFFERING',
+          positionMillis: 61_000,
+          availablePlaybackActions: { canSkip: true, canSkipBack: false }
+        })
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          currentItem: {
+            track: {
+              name: 'Song',
+              artist: { name: 'Band' },
+              album: { name: 'Record' },
+              imageUrl: 'https://i.scdn.co/image/abc',
+              durationMillis: 200_000,
+              id: { objectId: ['x-sonos-spotify:spotify', 'track', '1234567890123456789012?sid=9'].join('%3A') }
+            }
+          },
+          nextItem: { track: { name: 'Next', imageUrl: 'http://192.0.2.1/art' } }
+        })
+      );
+    expect(await getGroupPlayback('g1')).toEqual({
+      playing: true,
+      positionMs: 61_000,
+      track: {
+        name: 'Song',
+        artist: 'Band',
+        album: 'Record',
+        imageUrl: 'https://i.scdn.co/image/abc',
+        durationMs: 200_000,
+        uri: 'spotify:track:1234567890123456789012'
+      },
+      next: { name: 'Next' },
+      canSkip: true,
+      canSkipBack: false,
+      canSeek: true
+    });
+    expect([pathOf(fetchMock, 0), pathOf(fetchMock, 1)]).toEqual([
+      '/groups/g1/playback',
+      '/groups/g1/playbackMetadata'
+    ]);
+  });
+
+  it('reads a paused group with nothing on it', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ playbackState: 'PLAYBACK_STATE_PAUSED' }));
+    fetchMock.mockResolvedValueOnce(Response.json({ currentItem: { track: {} } }));
+    expect(await getGroupPlayback('g1')).toMatchObject({ playing: false, positionMs: 0, track: null, next: null });
+  });
+
+  it('sends playback commands and seeks', async () => {
+    fetchMock.mockResolvedValue(Response.json({}));
+    await sendGroupCommand('g1', 'skipToNextTrack');
+    await seekGroup('g1', -5);
+    expect(pathOf(fetchMock, 0)).toBe('/groups/g1/playback/skipToNextTrack');
+    expect((fetchMock.mock.calls[0] as [string, RequestInit])[1]).toMatchObject({ method: 'POST', body: '{}' });
+    expect(pathOf(fetchMock, 1)).toBe('/groups/g1/playback/seek');
+    expect((fetchMock.mock.calls[1] as [string, RequestInit])[1]).toMatchObject({ body: '{"positionMillis":0}' });
   });
 
   it('finds the Spotify device by group name or coordinator room, ignoring case and devices without an id', () => {

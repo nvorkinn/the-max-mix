@@ -35,7 +35,12 @@ describe('api/sonos-control', () => {
     expect(new Headers(init.headers).get('authorization')).toBe('Bearer token');
   });
 
-  it.each(['/households/Sonos_h.1/groups', `/groups/${GROUP}/groupVolume`])('relays GET %s', async path => {
+  it.each([
+    '/households/Sonos_h.1/groups',
+    `/groups/${GROUP}/groupVolume`,
+    `/groups/${GROUP}/playback`,
+    `/groups/${GROUP}/playbackMetadata`
+  ])('relays GET %s', async path => {
     expect((await GET(request(path))).status).toBe(200);
   });
 
@@ -83,8 +88,16 @@ describe('api/sonos-control', () => {
     );
   });
 
+  it.each(['play', 'pause', 'skipToNextTrack', 'skipToPreviousTrack', 'seek'])(
+    'relays the playback command %s',
+    async command => {
+      expect((await write(`/groups/${GROUP}/playback/${command}`, '{}')).status).toBe(200);
+    }
+  );
+
   it('refuses writes to other paths and oversized bodies', async () => {
     expect((await write('/households', '{}')).status).toBe(400);
+    expect((await write(`/groups/${GROUP}/playback/loadLineIn`, '{}')).status).toBe(400);
     expect((await write(`/groups/${GROUP}/groupVolume`, 'x'.repeat(2000))).status).toBe(413);
     expect(fetchMock).not.toHaveBeenCalled();
   });

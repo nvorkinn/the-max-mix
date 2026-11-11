@@ -5,6 +5,7 @@ import { getGroupVolume, listSonos, setGroupRooms, setGroupVolume, spotifyDevice
 import type { SonosGroup, SonosRoom } from '../sonos/api';
 import type { SpotifyDevice } from '../types';
 import { getKioskSonosLeader, setKioskSonosLeader } from '../sonos/kiosk';
+import { SAFE_START_VOLUME } from '../audio/safeVolume';
 import { errorMessage } from '../utils/errorMessage';
 
 /** How long to wait after the last slider move before sending the volume, so a drag sends a few requests, not dozens. */
@@ -19,8 +20,9 @@ function note(throughKiosk: boolean, device: SpotifyDevice | undefined): string 
 /**
  * The Sonos groups from the Sonos login, one card each. On the kiosk a tap plays the song on screen there through the
  * Pi (onPlayOnSonos, with the room that leads the group); elsewhere it plays there through Spotify Connect, so a group
- * can be picked only while Spotify knows its speaker. Each card holds the group's volume, which can be moved only while the
- * group plays, and a Rooms button that shows every room as a switch to add it to the group or take it out.
+ * can be picked only while Spotify knows its speaker. A group louder than SAFE_START_VOLUME is turned down to it before the
+ * song starts there. With `showVolumes` each card holds the group's volume, which can be moved only while the group
+ * plays (hidden by default, so nobody turns a speaker up by mistake). Each card has a Rooms button that shows every room as a switch to add it to the group or take it out.
  */
 export default function SonosGroupList({
   devices,
@@ -28,7 +30,8 @@ export default function SonosGroupList({
   disabled,
   onSelect,
   onPlayOnSonos,
-  onRooms
+  onRooms,
+  showVolumes = false
 }: Readonly<{
   /** Spotify's Connect devices, read by the drawer. */
   devices: readonly SpotifyDevice[];
@@ -39,6 +42,8 @@ export default function SonosGroupList({
   onPlayOnSonos?: ((room: string) => Promise<void>) | undefined;
   /** The names of the rooms (and groups) listed, so the drawer can leave out Connect devices that are the same speaker. */
   onRooms?: ((names: readonly string[]) => void) | undefined;
+  /** Whether each card shows its group's volume slider. */
+  showVolumes?: boolean | undefined;
 }>) {
   const [groups, setGroups] = useState<SonosGroup[] | null>(null);
   const [rooms, setRooms] = useState<SonosRoom[]>([]);
@@ -137,11 +142,19 @@ export default function SonosGroupList({
     const { groups: current } = await listSonos();
     const playing = leader ? current.find(entry => entry.playing && entry.playerIds.includes(leader)) : undefined;
     if (!playing) {
+      await turnDown(group);
       await play(group.rooms[0] ?? group.name);
       setKioskSonosLeader(group.playerIds[0] ?? null);
     } else if (group.playerIds.every(id => !playing.playerIds.includes(id))) {
+      await turnDown(group);
       await setGroupRooms(playing.id, [...playing.playerIds, ...group.playerIds]);
     }
+  };
+
+  /** Turns the group down to SAFE_START_VOLUME when it is louder, before music starts on it. */
+  const turnDown = async (group: SonosGroup) => {
+    const volume = await getGroupVolume(group.id).catch(() => null);
+    if (volume !== null && volume > SAFE_START_VOLUME) await setGroupVolume(group.id, SAFE_START_VOLUME);
   };
 
   const select = (group: SonosGroup) => {
@@ -220,7 +233,7 @@ export default function SonosGroupList({
                 </button>
               )}
             </div>
-            {volume !== undefined && (
+            {showVolumes && volume !== undefined && (
               <label className="speaker-volume pb-3">
                 <Volume2 size={16} aria-hidden="true" />
                 <input
