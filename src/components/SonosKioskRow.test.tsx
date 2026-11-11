@@ -3,19 +3,22 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '../test/user';
 import SonosKioskRow from './SonosKioskRow';
 
-const api = vi.hoisted(() => ({ listSonos: vi.fn() }));
-vi.mock('../sonos/api', () => api);
-const kiosk = vi.hoisted(() => ({ getSonosEngine: vi.fn(), setSonosEngine: vi.fn(), testOnSonosRoom: vi.fn() }));
+const kiosk = vi.hoisted(() => ({
+  findSonosOnPi: vi.fn(),
+  getSonosEngine: vi.fn(),
+  setSonosEngine: vi.fn(),
+  testOnSonosRoom: vi.fn()
+}));
 vi.mock('../sonos/kiosk', () => kiosk);
 
-const ROOMS = [
-  { id: 'p1', name: 'Kitchen', householdId: 'h' },
-  { id: 'p2', name: 'Lounge', householdId: 'h' }
+const GROUPS = [
+  { id: 'g1', rooms: [{ id: 'p2', name: 'Lounge' }] },
+  { id: 'g2', rooms: [{ id: 'p1', name: 'Kitchen' }] }
 ];
 
 describe('SonosKioskRow', () => {
   beforeEach(() => {
-    api.listSonos.mockReset().mockResolvedValue({ groups: [], rooms: ROOMS });
+    kiosk.findSonosOnPi.mockReset().mockResolvedValue({ groups: GROUPS, ms: 900 });
     kiosk.getSonosEngine.mockReset().mockReturnValue('cli');
     kiosk.setSonosEngine.mockReset();
     kiosk.testOnSonosRoom.mockReset().mockResolvedValue(undefined);
@@ -40,5 +43,11 @@ describe('SonosKioskRow', () => {
     await userEvent.click(screen.getByRole('button', { name: 'sonos play' }));
     expect(kiosk.testOnSonosRoom).toHaveBeenLastCalledWith('Lounge', 'cli-play');
     expect(await screen.findByRole('alert')).toHaveTextContent('sonos play on Lounge: Sonos: speaker name not found');
+  });
+
+  it('says when the Pi cannot find the rooms', async () => {
+    kiosk.findSonosOnPi.mockRejectedValueOnce(new Error('Sonos: no speakers found'));
+    render(<SonosKioskRow />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Sonos: no speakers found');
   });
 });

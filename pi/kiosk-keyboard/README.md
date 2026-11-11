@@ -11,8 +11,8 @@ none of the Wayland protocols an on-screen keyboard needs. So the extension draw
 
 ## What it does
 
-- It runs only on `https://accounts.spotify.com/*`, `https://challenge.spotify.com/*` and Sonos's sign-in pages
-  (`https://*.sonos.com/*`) (the manifest's `matches`).
+- It runs only on `https://accounts.spotify.com/*`, `https://challenge.spotify.com/*` (the manifest's
+  `matches`).
   "Continue with Google", Apple or Facebook leave those hosts, so those pages get no keyboard.
 - When a text field gets focus, the keyboard appears at the bottom of the screen (262 pixels high), the page gets the
   same room at the bottom, and the field scrolls into view. It hides when no field has focus, or on **Done**.

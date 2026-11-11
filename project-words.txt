@@ -1,5 +1,5 @@
-# One word per line, case-insensitive. Keep sorted.
 # Project dictionary for cspell: product names, hardware and OS terms, and artist names.
+# One word per line, case-insensitive. Keep sorted.
 adwaita
 alsa
 aqabaiaaaaaaap

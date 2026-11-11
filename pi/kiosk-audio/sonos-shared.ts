@@ -5,7 +5,7 @@
 export type SonosEngine = 'cli' | 'library';
 
 /** A Sonos room: its player id (RINCON_…) and its name. Requests name rooms by name, as sonoscli does. */
-export interface SonosRoom {
+interface SonosRoom {
   id: string;
   name: string;
 }

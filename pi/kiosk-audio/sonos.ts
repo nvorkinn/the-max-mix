@@ -15,7 +15,7 @@ import { SonosError } from './sonos-shared.ts';
 import type { SonosAction, SonosEngine, SonosOperations } from './sonos-shared.ts';
 
 export { SonosError } from './sonos-shared.ts';
-export type { SonosAction, SonosEngine, SonosGroup, SonosNowPlaying, SonosOperations } from './sonos-shared.ts';
+export type { SonosEngine, SonosOperations } from './sonos-shared.ts';
 
 const MAX_NAME_LENGTH = 64;
 const MAX_MESSAGE = 200;

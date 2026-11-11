@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listSonos } from '../sonos/api';
-import { getSonosEngine, setSonosEngine, testOnSonosRoom } from '../sonos/kiosk';
+import { findSonosOnPi, getSonosEngine, setSonosEngine, testOnSonosRoom } from '../sonos/kiosk';
 import type { SonosEngine, SonosTest } from '../sonos/kiosk';
 import { debugLog } from '../utils/debugLog';
 import { errorMessage } from '../utils/errorMessage';
@@ -15,7 +14,7 @@ const TESTS: { id: SonosTest; label: string }[] = [
 ];
 
 /**
- * On the kiosk, signed in to Sonos: which way the Pi plays a song on a Sonos (sonoscli or the sonos-ts library), and two
+ * On the kiosk: which way the Pi talks to Sonos a song on a Sonos (sonoscli or the sonos-ts library), and two
  * calls to try on a room that only resume what the speaker has, without naming a song: sonos-ts's SwitchToQueue() then
  * Play(), and `sonos play`. What each did is written here and to the debug console.
  */
@@ -28,10 +27,12 @@ export default function SonosKioskRow() {
 
   useEffect(() => {
     let live = true;
-    listSonos()
+    findSonosOnPi()
       .then(found => {
         if (!live) return;
-        const names = found.rooms.map(entry => entry.name);
+        const names = found.groups
+          .flatMap(group => group.rooms.map(entry => entry.name))
+          .toSorted((a, b) => a.localeCompare(b));
         setRooms(names);
         setRoom(current => current ?? names[0] ?? null);
       })
@@ -69,7 +70,7 @@ export default function SonosKioskRow() {
   return (
     <div className="modal-card p-3 rounded-2xl border">
       <div className="text-xs font-bold" id="sonos-engine-label">
-        Play to Sonos with
+        Talk to Sonos with
       </div>
       <div className="flex gap-1.5 mt-2" role="group" aria-labelledby="sonos-engine-label">
         {ENGINES.map(choice => (

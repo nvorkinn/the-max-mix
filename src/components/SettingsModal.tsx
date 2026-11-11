@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { X, Settings, Music, CheckCircle2, AlertCircle, LogOut, Speaker, Wifi } from 'lucide-react';
+import { X, Settings, Music, CheckCircle2, AlertCircle, LogOut, Wifi } from 'lucide-react';
 import { signOut, startSignIn } from '../spotify/auth';
-import { getSonosSignInError, isSonosSignedIn, signOutSonos, startSonosSignIn } from '../sonos/auth';
 import { errorMessage } from '../utils/errorMessage';
 import { isKiosk, openWifiSettings } from '../utils/kiosk';
 import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
@@ -101,53 +100,6 @@ function ThemeColourRow({
           />
         ))}
       </div>
-    </div>
-  );
-}
-
-/** The Sonos login, which lets the kiosk find the Sonos speakers in the house. */
-function SonosRow() {
-  const [signedIn, setSignedIn] = useState(isSonosSignedIn);
-  const [error, setError] = useState(getSonosSignInError);
-  return (
-    <div className="modal-card p-3 rounded-2xl border">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span className="text-xs font-bold">Sonos</span>
-        {signedIn ? (
-          <span className="modal-status status-success flex items-center text-xs font-bold gap-1 px-2 py-0.5 rounded-full border">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Signed in
-          </span>
-        ) : (
-          <span className="modal-status status-warning flex items-center text-xs font-bold gap-1 px-2 py-0.5 rounded-full border">
-            <AlertCircle className="w-3.5 h-3.5" /> Not signed in
-          </span>
-        )}
-      </div>
-      {error && (
-        <p role="alert" className="mt-2 text-xs status-danger">
-          {error}
-        </p>
-      )}
-      <button
-        type="button"
-        onClick={() => {
-          if (signedIn) {
-            signOutSonos();
-            setSignedIn(false);
-            return;
-          }
-          setError(null);
-          try {
-            startSonosSignIn();
-          } catch (caught) {
-            setError(errorMessage(caught));
-          }
-        }}
-        className="button button-secondary w-full mt-2 flex items-center justify-center gap-2"
-      >
-        {signedIn ? <LogOut className="w-4 h-4" /> : <Speaker className="w-4 h-4" />}
-        {signedIn ? 'Sign out of Sonos' : 'Sign in to Sonos'}
-      </button>
     </div>
   );
 }
@@ -268,8 +220,7 @@ function SettingsContent({
           <ThemeColourRow colour={themeColour} onChange={onThemeColourChange} />
         )}
         <PollingRow />
-        <SonosRow />
-        {isKiosk() && isSonosSignedIn() && <SonosKioskRow />}
+        {isKiosk() && <SonosKioskRow />}
         {isKiosk() && (
           <button
             type="button"
