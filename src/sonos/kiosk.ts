@@ -185,3 +185,60 @@ export function joinSonosGroup(room: string, to: string): Promise<void> {
 export function leaveSonosGroup(room: string): Promise<void> {
   return post('/sonos/leave', { room });
 }
+
+/** What changed on the speakers: the rooms' grouping, or what a group plays (song, play or pause, volume). */
+export type SonosChange = 'groups' | 'now';
+
+interface SonosWatcher {
+  onChange: (change: SonosChange) => void;
+  /** Whether the Pi is sending changes now; while not, the caller keeps reading on its own. */
+  onLive?: ((live: boolean) => void) | undefined;
+}
+
+// One stream from the Pi (GET /sonos/events) for the whole page, open while anything watches.
+const watchers = new Set<SonosWatcher>();
+let stream: EventSource | null = null;
+let isLive = false;
+
+function setLive(live: boolean): void {
+  if (live === isLive) return;
+  isLive = live;
+  for (const watcher of watchers) watcher.onLive?.(live);
+}
+
+function openStream(): EventSource {
+  const source = new EventSource(`${KIOSK_SERVICE}/sonos/events`);
+  source.addEventListener('open', () => setLive(true));
+  // The browser tries again by itself after a dropped stream; a Pi without the stream (404) ends it for good.
+  source.addEventListener('error', () => setLive(false));
+  source.addEventListener('message', (event: MessageEvent<string>) => {
+    let kind: unknown;
+    try {
+      kind = record(JSON.parse(event.data))['kind'];
+    } catch {
+      return;
+    }
+    if (kind !== 'groups' && kind !== 'now') return;
+    for (const watcher of watchers) watcher.onChange(kind);
+  });
+  return source;
+}
+
+/**
+ * Calls `onChange` each time the Pi says the speakers changed, and `onLive` when that stream starts or stops; returns how
+ * to stop watching. The Pi only says what kind of thing changed: read it with findSonosOnPi or getSonosNow.
+ */
+export function watchSonosOnPi(onChange: (change: SonosChange) => void, onLive?: (live: boolean) => void): () => void {
+  const watcher: SonosWatcher = { onChange, onLive };
+  watchers.add(watcher);
+  // Without EventSource (tests, very old browsers) the callers simply keep reading on their own.
+  if (typeof EventSource !== 'undefined') stream ??= openStream();
+  if (isLive) onLive?.(true);
+  return () => {
+    watchers.delete(watcher);
+    if (!stream || watchers.size > 0) return;
+    stream.close();
+    stream = null;
+    isLive = false;
+  };
+}

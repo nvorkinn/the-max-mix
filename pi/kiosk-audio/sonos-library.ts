@@ -1,7 +1,9 @@
-// Sonos through the @svrooij/sonos library (https://sonos-ts.svrooij.io), the way sonos.ts talks to the speakers. It finds a speaker on the home network (SSDP) once, then asks that speaker for the household's groups each
-// time, searching again only when it stops answering. Commands go to the coordinator of the group a room is in. No event
-// subscriptions: those would open a listening port on the Pi.
-import { SonosDevice, SonosDeviceDiscovery } from '@svrooij/sonos';
+// Sonos through the @svrooij/sonos library (https://sonos-ts.svrooij.io), the way sonos.ts talks to the speakers. It
+// finds a speaker on the home network (SSDP) once, then asks that speaker for the household's groups each time, searching
+// again only when it stops answering. Commands go to the coordinator of the group a room is in. The speakers' events
+// (sonos-events.ts) come in through the library's own listener, on SONOS_LISTENER_PORT.
+import { ServiceEvents, SonosDevice, SonosDeviceDiscovery } from '@svrooij/sonos';
+import type { SonosEventSource, SonosService, SonosSpeaker } from './sonos-events.ts';
 import { fetchArt, formatTime, parseTime, spotifyTrackUri } from './sonos-shared.ts';
 import type { SonosGroup, SonosOperations } from './sonos-shared.ts';
 
@@ -42,7 +44,7 @@ const roomsOf = (group: ZoneGroup): SonosGroup => ({
     .map(member => ({ id: member.uuid, name: member.name }))
 });
 
-const deviceOf = ({ host, port, uuid, name }: ZoneMember) => new SonosDevice(host, port, uuid, name);
+const deviceOf = ({ host, port, uuid, name }: SonosSpeaker) => new SonosDevice(host, port, uuid, name);
 
 /** The group a room is in (by its name, ignoring case), and the room itself. */
 async function groupOf(room: string): Promise<{ group: ZoneGroup; member: ZoneMember }> {
@@ -157,5 +159,52 @@ export const library: SonosOperations = {
     const position = await deviceOf(coordinator).AVTransportService.GetPositionInfo();
     const url = typeof position.TrackMetaData === 'object' ? position.TrackMetaData.AlbumArtUri : undefined;
     return url ? fetchArt(url, `http://${coordinator.host}:${coordinator.port}`) : null;
+  }
+};
+
+/** The speakers followed for events, kept so each event subscription stays with the device that holds it. */
+const followed = new Map<string, SonosDevice>();
+
+function serviceOf(device: SonosDevice, service: SonosService) {
+  switch (service) {
+    case 'topology': {
+      return device.ZoneGroupTopologyService;
+    }
+    case 'transport': {
+      return device.AVTransportService;
+    }
+    default: {
+      return device.GroupRenderingControlService;
+    }
+  }
+}
+
+/** The speakers' events through the library: it subscribes on the first listener and ends that with the last. */
+export const libraryEvents: SonosEventSource = {
+  coordinators: async () =>
+    (await zoneGroups()).map(({ coordinator: { uuid, name, host, port } }): SonosSpeaker => ({
+      uuid,
+      name,
+      host,
+      port
+    })),
+  listen: (speaker, service, onEvent) => {
+    const device = followed.get(speaker.uuid) ?? deviceOf(speaker);
+    followed.set(speaker.uuid, device);
+    const events = serviceOf(device, service).Events;
+    const handler = () => {
+      onEvent();
+    };
+    const onError = (error: unknown) => {
+      console.warn(
+        `sonos: ${service} events from ${speaker.name} failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    };
+    events.on(ServiceEvents.SubscriptionError, onError);
+    events.on(ServiceEvents.ServiceEvent, handler);
+    return () => {
+      events.off(ServiceEvents.ServiceEvent, handler);
+      events.off(ServiceEvents.SubscriptionError, onError);
+    };
   }
 };

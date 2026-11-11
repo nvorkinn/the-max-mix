@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PiSonosNow } from '../sonos/kiosk';
+import { deferred } from '../test/deferred';
 
 const pi = vi.hoisted(() => ({
   findSonosOnPi: vi.fn(),
@@ -8,7 +9,13 @@ const pi = vi.hoisted(() => ({
   getSonosArt: vi.fn(),
   controlSonos: vi.fn(),
   setSonosVolume: vi.fn(),
-  playOnSonosRoom: vi.fn()
+  playOnSonosRoom: vi.fn(),
+  watchSonosOnPi: vi.fn()
+}));
+/** What the hook gave watchSonosOnPi: how to tell it the speakers changed, and that the Pi's stream is live. */
+const watching = vi.hoisted(() => ({
+  change: vi.fn<(change: 'groups' | 'now') => void>(),
+  live: vi.fn<(live: boolean) => void>()
 }));
 vi.mock('../sonos/kiosk', async original => ({
   ...(await original<typeof import('../sonos/kiosk')>()),
@@ -47,6 +54,13 @@ describe('useSonosPlayer', () => {
     pi.controlSonos.mockReset().mockResolvedValue(undefined);
     pi.setSonosVolume.mockReset().mockResolvedValue(undefined);
     pi.playOnSonosRoom.mockReset().mockResolvedValue(undefined);
+    pi.watchSonosOnPi
+      .mockReset()
+      .mockImplementation((onChange: typeof watching.change, onLive: typeof watching.live) => {
+        watching.change = onChange;
+        watching.live = onLive;
+        return vi.fn();
+      });
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:art'), revokeObjectURL: vi.fn() }));
   });
 
@@ -226,5 +240,39 @@ describe('useSonosPlayer', () => {
     expect(pi.getSonosNow).toHaveBeenCalledTimes(reads);
     await act(() => vi.advanceTimersByTimeAsync(25_000));
     expect(pi.getSonosNow.mock.calls.length).toBeGreaterThan(reads);
+  });
+
+  it('reads the group as soon as the Pi says the speakers changed, and only rarely otherwise', async () => {
+    await follow();
+    vi.useFakeTimers();
+    act(() => watching.live(true));
+    // The next regular read, after which the group is read only as a fallback.
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    const reads = pi.getSonosNow.mock.calls.length;
+    const regroups = pi.findSonosOnPi.mock.calls.length;
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    expect(pi.getSonosNow).toHaveBeenCalledTimes(reads);
+    act(() => watching.change('now'));
+    await act(() => vi.advanceTimersByTimeAsync(200));
+    expect(pi.getSonosNow).toHaveBeenCalledTimes(reads + 1);
+    expect(pi.findSonosOnPi).toHaveBeenCalledTimes(regroups);
+    act(() => watching.change('groups'));
+    await act(() => vi.advanceTimersByTimeAsync(200));
+    expect(pi.findSonosOnPi).toHaveBeenCalledTimes(regroups + 1);
+  });
+
+  it('reads again when the speakers change during a read', async () => {
+    await follow();
+    vi.useFakeTimers();
+    const { promise, resolve: answer } = deferred<PiSonosNow>();
+    pi.getSonosNow.mockReturnValueOnce(promise);
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    const reads = pi.getSonosNow.mock.calls.length;
+    act(() => watching.change('now'));
+    await act(async () => {
+      answer(NOW);
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    expect(pi.getSonosNow).toHaveBeenCalledTimes(reads + 1);
   });
 });

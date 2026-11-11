@@ -35,6 +35,13 @@ The app reaches everything else about Sonos here too:
 - `GET /sonos/art?room=`: the song's artwork, fetched from the speaker's own address only.
 - `POST /sonos/control` (`play`, `pause`, `next`, `previous`, `seek` with `positionMs`), `POST /sonos/volume` (the whole
   group, 0 to 100), `POST /sonos/join` (`room` joins the group `to` is in) and `POST /sonos/leave`.
+- `GET /sonos/events`: server-sent events while the app listens (`sonos-events.ts`). `{"kind": "groups"}` when rooms join
+  or leave a group, `{"kind": "now"}` when what a group plays or its volume changes; the app then reads what changed
+  with the GETs above. For this the Pi subscribes to the speakers' own events (UPnP): the household's grouping on one
+  speaker, and play state and volume on each group's leading speaker, following new leaders as the grouping changes. The
+  speakers send those events to a listener the sonos-ts library opens on the Pi's home network address, on
+  `SONOS_LISTENER_PORT` (6329, `kiosk_sonos_events_port` in Ansible). The subscriptions end when the last app goes away.
+  The app keeps a slow read (once a minute) as a fallback, and reads as before when the stream is not there.
 
 ## How it works
 
@@ -200,7 +207,9 @@ show journalctl's "no permission" instead of the lines; the pull and restart sti
 
 ## Security
 
-- It listens on 127.0.0.1 only (`server.ts` binds there). It answers the app's origin alone
+- It listens on 127.0.0.1 only (`server.ts` binds there), apart from the Sonos events port (6329) that the sonos-ts
+  library opens on the home network once the app follows the speakers. That port takes events only for the
+  subscriptions the Pi holds (anything else gets 412), and otherwise answers just the library's `/status` and `/health`. It answers the app's origin alone
   (CORS), and refuses every POST and every WebSocket whose `Origin` header is not the app's (a browser does not apply CORS
   to a WebSocket), so no other web page can trigger an action.
 - A request names a fixed action; it never carries a command. Routing accepts at most 16 speaker names of up to 256

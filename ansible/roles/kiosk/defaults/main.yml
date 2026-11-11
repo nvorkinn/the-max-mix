@@ -155,6 +155,8 @@ kiosk_keyboard_dir: /opt/the-max-mix/kiosk-keyboard
 # lockfile was installed.
 kiosk_audio_src: '{{ playbook_dir }}/../pi/kiosk-audio'
 kiosk_audio_dir: /opt/the-max-mix/kiosk-audio
+# The LAN port the Sonos speakers send their events to while the app follows them (pi/kiosk-audio/sonos-events.ts).
+kiosk_sonos_events_port: 6329
 kiosk_audio_deps_stamp: /var/lib/the-max-mix/kiosk-audio-deps.sha1
 # PipeWire's AirPlay buffer. Shorter means play, pause and skip are heard sooner on the speakers; too short and a busy
 # Wi-Fi network makes them drop out.

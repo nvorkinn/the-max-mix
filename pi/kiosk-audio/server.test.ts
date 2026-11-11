@@ -12,6 +12,7 @@ import type { ConnectRequest } from './nmcli.ts';
 import { parseDump } from './pipewire.ts';
 import { handleRequest, journalLog, LOCAL_ORIGIN, parseAppLog, speakerNames, speakerVolumes } from './server.ts';
 import type { AppLog, Deps } from './server.ts';
+import type { SonosChange } from './sonos-events.ts';
 import { SonosError } from './sonos.ts';
 import type { SonosOperations, SonosRequest } from './sonos.ts';
 
@@ -47,6 +48,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
   const played: SonosRequest[] = [];
   const logged: AppLog[] = [];
   const joined: ConnectRequest[] = [];
+  const listeners = new Set<(change: SonosChange) => void>();
   let beats = 0;
   let closed = 0;
   let clock = 0;
@@ -72,6 +74,12 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
       return request.room === 'Broken' ? Promise.reject(new Error('internal detail')) : Promise.resolve();
     },
     sonosCalls: sonosFake(true),
+    sonosEvents: {
+      add: client => {
+        listeners.add(client);
+        return () => listeners.delete(client);
+      }
+    },
     now: () => (clock += 1500),
     heartbeat: () => {
       beats += 1;
@@ -144,6 +152,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
     played,
     logged,
     joined,
+    listeners,
     beats: () => beats,
     closed: () => closed
   };
@@ -307,6 +316,30 @@ describe('POST', () => {
       ms: 1500
     });
     expect((await get('https://evil.example')).status).toBe(403);
+  });
+
+  it('streams Sonos changes to the app while it listens, and to the app only', async () => {
+    const { deps, listeners } = fakes();
+    const base = await start(deps);
+    expect((await fetch(`${base}/sonos/events`, { headers: { Origin: 'https://evil.example' } })).status).toBe(403);
+    expect(listeners.size).toBe(0);
+    const controller = new AbortController();
+    const stream = await fetch(`${base}/sonos/events`, { headers: { Origin: ORIGIN }, signal: controller.signal });
+    expect(stream.headers.get('content-type')).toBe('text/event-stream');
+    expect(listeners.size).toBe(1);
+    for (const listener of listeners) listener('groups');
+    const reader = (stream.body as ReadableStream<Uint8Array>).getReader();
+    const decoder = new TextDecoder();
+    const readEvent = async (text = ''): Promise<string> => {
+      if (text.includes('data:')) return text;
+      const { value } = await reader.read();
+      return readEvent(text + decoder.decode(value, { stream: true }));
+    };
+    expect(await readEvent()).toContain('data: {"kind":"groups"}\n\n');
+    controller.abort();
+    await vi.waitFor(() => {
+      expect(listeners.size).toBe(0);
+    });
   });
 
   it('says what a room plays, and gives its artwork', async () => {
