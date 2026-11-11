@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, CSSProperties } from 'react';
 import { AudioLines, Clock, Library, Moon, Settings } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
+import { useSonosPlayer } from '../hooks/useSonosPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useKioskUpdate } from '../hooks/useKioskUpdate';
 import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
@@ -23,7 +24,7 @@ import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import { loadShowLyrics, saveShowLyrics } from '../lyrics/setting';
 import { loadThemeColour, saveThemeColour } from '../utils/themeColour';
 import type { ThemeColour } from '../utils/themeColour';
-import type { Track } from '../types';
+import type { MusicChoice, Track } from '../types';
 import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
 import SpotifySetup from './SpotifySetup';
@@ -100,12 +101,17 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     toggleLike,
     transferPlayback,
     handOff,
-    playMusic,
+    playMusic: playMusicOnSpotify,
     setSlowPolling
   } = useSpotifyPlayer();
+  const sonos = useSonosPlayer();
+  const followingSonos = sonos.active;
+  // What the tablet shows: the Sonos group the kiosk plays on, or else Spotify's playback.
+  const shownPlayback = followingSonos ? sonos.playback : playbackState;
   const error = playerError || signInError;
   const isOffline = useIsOffline(playerError);
-  const canPollQueue = isAuthenticated;
+  // While a Sonos plays, Spotify's queue is not what plays next; the Sonos says its next song itself.
+  const canPollQueue = isAuthenticated && !followingSonos;
   const spotifyRetryAt = useSpotifyCooldown();
   const waitingForSpotify = spotifyRetryAt > 0;
   const { enabled: pollEnabled, quotaExceeded } = useSpotifyPolling();
@@ -149,6 +155,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   };
 
   const chooseSpotifyDevice = async (deviceId: string) => {
+    // Leaving a Sonos pauses it, so the music does not go on there as well.
+    if (sonos.active) await sonos.leave();
     if (audioRoute === 'airplay') {
       changeAudioRoute('spotify-connect');
       setChosenSpeakers([]);
@@ -159,14 +167,23 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   // Spotify will not move its playback to a Sonos, so on the kiosk the Pi starts the song on the speaker itself
   // (sonoscli). The tablet is paused first, while it is still the player (afterwards Spotify has moved on and a pause
-  // fails); then the page follows playback through the Web API, as after picking a Connect speaker.
+  // fails), and its player lets go. From then on the tablet shows and controls the Sonos group (useSonosPlayer), which
+  // SonosGroupList marks as the kiosk's. Picking another Sonos while following one plays the Sonos's song there.
   const playOnSonos = async (room: string) => {
-    const uri = playbackState?.item?.uri;
+    const shown = sonos.active ? sonos.playback : playbackState;
+    const uri = shown?.item?.uri;
     if (!uri) throw new Error('Play a song first, then pick the Sonos speaker.');
-    if (playbackState.is_playing && !(await togglePlay())) debugLog('warn', 'sonos', 'Spotify did not pause');
+    if (sonos.active) {
+      await playOnSonosRoom(room, uri);
+      return;
+    }
+    if (playbackState?.is_playing && !(await togglePlay())) debugLog('warn', 'sonos', 'Spotify did not pause');
     await playOnSonosRoom(room, uri);
     await handOff();
   };
+
+  // Music picked while a Sonos plays goes to the Sonos (a song, album or playlist; Liked Songs cannot).
+  const playMusic = (choice: MusicChoice) => (sonos.active ? sonos.play(choice.uri) : playMusicOnSpotify(choice));
 
   const toggleLyrics = (show: boolean) => {
     setShowLyrics(show);
@@ -185,8 +202,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     rememberSpeaker(playingDevice);
     if (playingDevice) debugLog('info', 'playing device', JSON.stringify(playingDevice));
   }, [playingDevice]);
-  const isPlaying = Boolean(playbackState?.is_playing);
-  const currentTrack = playbackState?.item;
+  const isPlaying = Boolean(shownPlayback?.is_playing);
+  const currentTrack = shownPlayback?.item;
 
   // The kiosk's screen stays on while music plays and sleeps after the chosen idle minutes otherwise.
   const [screenSleepMinutes, setScreenSleepMinutes] = useState(getScreenSleep);
@@ -206,15 +223,19 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     idleMs: screenSleepMinutes === 0 ? null : screenSleepMinutes * 60_000
   });
   // A sleeping screen has no one watching it, so Spotify is asked about it less often (see ASLEEP_POLL_MS).
+  // While a Sonos plays, Spotify is only watched in case it starts playing somewhere else, so it is asked less often too.
+  const setSonosSlowPolling = sonos.setSlowPolling;
   useEffect(() => {
-    setSlowPolling(sleep.asleep);
-  }, [sleep.asleep, setSlowPolling]);
+    setSlowPolling(sleep.asleep || followingSonos);
+    setSonosSlowPolling(sleep.asleep);
+  }, [sleep.asleep, followingSonos, setSlowPolling, setSonosSlowPolling]);
   const screenStatus = `${sleep.asleep ? 'Asleep' : 'Awake'}, wake lock ${sleep.wakeLock}`;
 
   // Problems go to the debug console.
   useLogChanges(playerError, 'player');
   useLogChanges(signInError, 'sign-in');
   useLogChanges(queueError, 'queue');
+  useLogChanges(sonos.error, 'sonos');
 
   // Ctrl+Shift+D opens the debug console too, for a browser with a keyboard.
   useEffect(() => {
@@ -322,7 +343,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   if (isOffline) notice = { kind: 'offline' };
   else if (signInError && problem) notice = { kind: 'problem', problem };
   else if (!isAuthenticated) notice = { kind: 'signed-out' };
-  else if (restricted) notice = { kind: 'restricted' };
+  else if (followingSonos && problem?.recovery !== 'sign-in') {
+    // Spotify has let go of the music, so its own problems (no player, a restricted device) are not this screen's.
+    if (sonos.error) notice = { kind: 'problem', problem: { message: sonos.error, recovery: 'refresh' } };
+  } else if (restricted) notice = { kind: 'restricted' };
   else if (problem?.recovery === 'sign-in') notice = { kind: 'problem', problem };
   else if (quotaExceeded) {
     notice = { kind: 'problem', problem: { message: 'Spotify quota exceeded.', recovery: 'quota' } };
@@ -341,26 +365,33 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   let banner: BannerNotice | null = null;
   if (!needsConnection && notice?.kind === 'problem') banner = notice;
   else if (!needsConnection && notice?.kind === 'restricted') banner = { kind: 'restricted' };
-  const controlsEnabled =
+  const spotifyControlsEnabled =
     isAuthenticated &&
     !isOffline &&
     (isReady || Boolean(browserDeviceId)) &&
     !restricted &&
     (!waitingForSpotify || sdkActive) &&
     !isLoading;
+  const controlsEnabled = followingSonos
+    ? isAuthenticated && !isOffline && Boolean(sonos.playback)
+    : spotifyControlsEnabled;
   // What the device indicator in the control bar says is playing.
   let speakerLabel: string | undefined;
-  if (audioRoute === 'airplay') {
+  if (followingSonos) speakerLabel = sonos.name ?? 'Sonos';
+  else if (audioRoute === 'airplay') {
     const count = getChosenSpeakers().length;
     speakerLabel = 'AirPlay';
     if (count === 1) speakerLabel = 'AirPlay, 1 speaker';
     else if (count > 1) speakerLabel = `AirPlay, ${count} speakers`;
   } else if (browserDeviceId && playbackState?.device?.id === browserDeviceId) speakerLabel = 'This tablet';
+  let shownQueueStatus: QueueStatus = waitingForSpotify ? 'waiting' : queueStatus;
+  if (followingSonos) shownQueueStatus = 'ready';
   /** Plays the queue song at this position by skipping past the ones before it. */
   const playQueueTrack = async (index: number) => {
     setIsJumping(true);
     try {
-      await skipAhead(index + 1);
+      // A Sonos only says its next song, so that is the one there is to skip to.
+      await (followingSonos ? sonos.nextTrack() : skipAhead(index + 1));
     } finally {
       setIsJumping(false);
     }
@@ -433,7 +464,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           busy={isRefreshingPlayback}
           onSettings={showSettings}
           onChooseSpeaker={chooseSpeaker}
-          onRefresh={() => void recoverPlayback(retryPlayback)}
+          onRefresh={followingSonos ? sonos.refresh : () => void recoverPlayback(retryPlayback)}
           onReconnect={reconnectPlayer}
           onAllowAudio={() => void recoverPlayback(allowBrowserAudio)}
           onDetails={() => setIsDebugOpen(true)}
@@ -452,16 +483,17 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               />
             ) : (
               <AlbumArtPlayer
-                playback={playbackState}
+                playback={shownPlayback}
                 isPlaying={isPlaying}
-                onPlayPause={togglePlay}
-                onNext={nextTrack}
-                onPrevious={previousTrack}
-                onSeek={seek}
-                onVolumeChange={(vol: number) => setVolume(vol / 100)}
+                onPlayPause={followingSonos ? sonos.togglePlay : togglePlay}
+                onNext={followingSonos ? sonos.nextTrack : nextTrack}
+                onPrevious={followingSonos ? sonos.previousTrack : previousTrack}
+                onSeek={followingSonos ? sonos.seek : seek}
+                onVolumeChange={(vol: number) => (followingSonos ? sonos.setVolume(vol) : setVolume(vol / 100))}
                 onToggleShuffle={toggleShuffle}
                 onCycleRepeat={cycleRepeat}
-                liked={liked}
+                // Liked Songs follows Spotify's song; on a Sonos the heart rests.
+                liked={followingSonos ? null : liked}
                 onToggleLike={toggleLike}
                 controlsEnabled={controlsEnabled}
                 speakerLabel={speakerLabel}
@@ -472,7 +504,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 lyrics={
                   <LyricsPanel
                     track={currentTrack}
-                    progressMs={playbackState?.progress_ms ?? playbackState?.position ?? 0}
+                    progressMs={shownPlayback?.progress_ms ?? shownPlayback?.position ?? 0}
                   />
                 }
               />
@@ -482,9 +514,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           {!needsConnection && (
             <section className="queue-section" aria-label="Upcoming tracks">
               <TrackQueue
-                queue={queue}
-                error={queueError}
-                status={waitingForSpotify ? 'waiting' : queueStatus}
+                queue={followingSonos ? sonos.next : queue}
+                error={followingSonos ? null : queueError}
+                status={shownQueueStatus}
                 onRetry={() => setQueueRequestVersion(version => version + 1)}
                 onConnect={showSettings}
                 retryAllowed={!waitingForSpotify}
@@ -501,7 +533,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         onClose={() => setIsSpeakerModalOpen(false)}
         onSelectSpeaker={chooseSpotifyDevice}
         browserDeviceId={browserDeviceId}
-        activeDeviceId={playbackState?.device?.id ?? null}
+        activeDeviceId={shownPlayback?.device?.id ?? null}
         canUseAirPlay={canUseAirPlay}
         audioRoute={audioRoute}
         onAirPlayChange={chooseAirPlaySpeakers}
@@ -527,6 +559,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           ['Browser player', browserDeviceId ? `Ready (${browserDeviceId})` : 'Not connected'],
           ['SDK driving', sdkActive ? 'Yes' : 'No'],
           ['Active device', playbackState?.device?.name ?? 'None'],
+          ['Sonos', followingSonos ? `Following ${sonos.name ?? 'a group'}` : 'Not following'],
           [
             'Now playing',
             currentTrack ? (currentTrack.name ?? currentTrack.title ?? currentTrack.id ?? '?') : 'Nothing'

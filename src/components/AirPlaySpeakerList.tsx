@@ -9,6 +9,7 @@ import {
   setSpeakerVolume,
   watchAudioOutputs
 } from '../audio/airplay';
+import { SAFE_START_VOLUME } from '../audio/safeVolume';
 import { errorMessage } from '../utils/errorMessage';
 
 /** How long a volume set here wins over the Pi's answer, so a list read during the drag does not move the slider back. */
@@ -18,18 +19,22 @@ const HOLD_MS = 5000;
  * The audio outputs Chromium sees (the Pi makes one for each AirPlay speaker it finds). Each tap adds or removes one,
  * requesting a route to the chosen speakers only when the player is ready. Saved choices can be removed before then.
  * Chromium cannot confirm playback on that route. While `active` is false (another speaker is playing) nothing counts as
- * chosen, and the next tap starts a new selection. Each chosen speaker on the network has its own volume slider.
+ * chosen, and the next tap starts a new selection. A speaker added while louder than SAFE_START_VOLUME is turned down to
+ * it. Each chosen speaker on the network has its own volume slider, shown only with `showVolumes`.
  */
 export default function AirPlaySpeakerList({
   isPlayerReady,
   notReadyMessage = "This tablet's player isn't ready, so speakers can't be added yet.",
   active = true,
+  showVolumes = false,
   onChange
 }: Readonly<{
   isPlayerReady: boolean;
   /** Said while speakers cannot be added yet. */
   notReadyMessage?: string;
   active?: boolean | undefined;
+  /** Whether each chosen speaker's own volume slider is shown (hidden by default, so nobody turns one up by mistake). */
+  showVolumes?: boolean | undefined;
   /** Called with the speakers now chosen, after they were saved and (with a ready player) routed. */
   onChange?: ((speakers: string[]) => unknown) | undefined;
 }>) {
@@ -64,10 +69,19 @@ export default function AirPlaySpeakerList({
     return watchAudioOutputs(() => void refresh());
   }, [refresh]);
 
+  const changeVolume = (name: string, volume: number) => {
+    volumeSetAtRef.current.set(name, Date.now());
+    setVolumes(current => ({ ...current, [name]: volume }));
+    setSpeakerVolume(name, volume);
+  };
+
   const toggle = (name: string) => {
     const isChosen = chosen.includes(name);
     if (!isPlayerReady && !isChosen) return;
     const next = isChosen ? chosen.filter(other => other !== name) : [...chosen, name];
+    // Turned down before the music reaches it.
+    const volume = volumes[name];
+    if (!isChosen && volume !== undefined && volume > SAFE_START_VOLUME) changeVolume(name, SAFE_START_VOLUME);
     setChosen(next);
     setChosenSpeakers(next);
     if (isPlayerReady) routeAudio(next);
@@ -78,12 +92,6 @@ export default function AirPlaySpeakerList({
         setError(errorMessage(caught));
       }
     })();
-  };
-
-  const changeVolume = (name: string, volume: number) => {
-    volumeSetAtRef.current.set(name, Date.now());
-    setVolumes(current => ({ ...current, [name]: volume }));
-    setSpeakerVolume(name, volume);
   };
 
   // Chosen speakers that are not on the network right now stay listed, so they can be removed.
@@ -111,7 +119,7 @@ export default function AirPlaySpeakerList({
         let availability = 'Checking availability';
         if (error) availability = 'Availability unknown';
         else if (outputs) availability = outputs.includes(name) ? 'Available on this network' : 'Not on the network';
-        const volume = isChosen && outputs?.includes(name) ? volumes[name] : undefined;
+        const volume = showVolumes && isChosen && outputs?.includes(name) ? volumes[name] : undefined;
         return (
           <div key={name}>
             <button

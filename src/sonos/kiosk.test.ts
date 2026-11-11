@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getSonosEngine, playOnSonosRoom, setSonosEngine, testOnSonosRoom } from './kiosk';
+import {
+  getKioskSonosLeader,
+  getSonosEngine,
+  playOnSonosRoom,
+  setKioskSonosLeader,
+  setSonosEngine,
+  subscribeKioskSonosLeader,
+  testOnSonosRoom
+} from './kiosk';
 
 const URI = 'spotify:track:1234567890123456789012';
 
@@ -57,5 +65,20 @@ describe('playOnSonosRoom', () => {
   it('says when the kiosk does not answer', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
     await expect(playOnSonosRoom('Kitchen', URI)).rejects.toThrow('did not answer: Failed to fetch');
+  });
+});
+
+describe("the kiosk's Sonos leader", () => {
+  it('tells listeners when it changes, once per change, until they stop listening', () => {
+    const listener = vi.fn();
+    const stop = subscribeKioskSonosLeader(listener);
+    setKioskSonosLeader('p1');
+    setKioskSonosLeader('p1');
+    expect(getKioskSonosLeader()).toBe('p1');
+    expect(listener).toHaveBeenCalledTimes(1);
+    stop();
+    setKioskSonosLeader(null);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(getKioskSonosLeader()).toBeNull();
   });
 });

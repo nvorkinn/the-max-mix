@@ -61,6 +61,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
     await page.goto('/');
     await page.getByRole('button', { name: /^Speakers:/ }).click();
     const dialog = page.getByRole('dialog', { name: 'Speakers' });
+    await dialog.getByRole('button', { name: "Show each speaker's volume" }).click();
     await expect(dialog.getByRole('slider', { name: 'Lounge volume' })).toBeVisible();
     await dialog.locator('.speaker-drawer-body').evaluate(element => {
       element.scrollTo({ top: element.scrollHeight });

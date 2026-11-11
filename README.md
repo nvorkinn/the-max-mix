@@ -239,8 +239,13 @@ secret; the browser keeps the refresh token in `localStorage` like the Spotify o
 
 Once signed in, the Speakers drawer lists the Sonos rooms and groups. A tap plays there through Spotify Connect (the
 Sonos API cannot start Spotify music itself), so it works for a group whose speaker Spotify already lists; the app
-matches it by the group's or the leading room's name. Each group's card has a volume slider that sets the whole group's
-volume through Sonos, and can be moved only while the group plays. The card's rooms button shows every room as a switch:
+matches it by the group's or the leading room's name. On the kiosk the Pi starts the song on the Sonos itself
+(`pi/kiosk-audio/sonos.ts`), and from then on the tablet shows that group's song, progress and next song and sends its
+controls (play, pause, skip, seek, volume, and music picked in Choose music) to the group through the Sonos Control API
+(`src/hooks/useSonosPlayer.ts`), until another speaker is picked, which pauses the Sonos. A speaker is turned down to 25%
+before music starts on it, if it was louder. Each group's card has a volume slider that sets the whole group's volume
+through Sonos, and can be moved only while the group plays; like the AirPlay speakers' sliders it is hidden until the
+sliders button at the top of the drawer is pressed. The card's rooms button shows every room as a switch:
 turn one on to add it to the group (it leaves its old group) or off to let it play on its own; the room that leads the
 group stays in it. The Sonos calls go through a second function, `api/sonos-control.ts`, which relays only those few paths
 with the browser's own access token.

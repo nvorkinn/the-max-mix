@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Speaker, Check, RefreshCw } from 'lucide-react';
+import { X, Speaker, Check, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { isSonosSignedIn } from '../sonos/auth';
 import { getDevices } from '../spotify/api';
 import { getKnownSpeakers } from '../spotify/knownDevices';
@@ -57,6 +57,8 @@ export default function SpeakerDrawer({
   const [selecting, setSelecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The Sonos rooms listed below the Connect devices; a Connect device of the same name is that speaker, shown once.
+  // Each speaker's own volume is hidden until asked for: the main volume slider is the one to use.
+  const [showVolumes, setShowVolumes] = useState(false);
   const [sonosRooms, setSonosRooms] = useState<readonly string[]>([]);
   const retryAt = useSpotifyCooldown();
   const waitingForSpotify = retryAt > 0;
@@ -190,6 +192,16 @@ export default function SpeakerDrawer({
           <div className="flex gap-2">
             <button
               type="button"
+              onClick={() => setShowVolumes(shown => !shown)}
+              aria-pressed={showVolumes}
+              aria-label="Show each speaker's volume"
+              title="Each speaker's volume"
+              className="modal-icon-button w-11 h-11 rounded-full flex items-center justify-center"
+            >
+              <SlidersHorizontal size={16} />
+            </button>
+            <button
+              type="button"
               onClick={() => void fetchDevices()}
               disabled={loading || selecting || waitingForSpotify}
               aria-label="Refresh devices"
@@ -235,6 +247,7 @@ export default function SpeakerDrawer({
                 onSelect={selectDevice}
                 onPlayOnSonos={onPlayOnSonos}
                 onRooms={setSonosRooms}
+                showVolumes={showVolumes}
               />
             )}
             {!loading && !error && connectDevices.length === 0 && !sonosSignedIn && (
@@ -265,6 +278,7 @@ export default function SpeakerDrawer({
                     : "This tablet's player isn't ready, so speakers can't be added yet."
                 }
                 active={isAirPlay}
+                showVolumes={showVolumes}
                 onChange={onAirPlayChange}
               />
             </section>

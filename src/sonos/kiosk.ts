@@ -32,13 +32,25 @@ export function setSonosEngine(engine: SonosEngine): void {
 }
 
 // The room (player id) leading the Sonos group the kiosk last started a song on, for this page's life: tapping another
-// room while that group plays adds the room to it (SonosGroupList).
+// room while that group plays adds the room to it (SonosGroupList), and while it is set the tablet shows and controls
+// that group's playback (useSonosPlayer).
 let kioskLeader: string | null = null;
+const leaderListeners = new Set<() => void>();
 
 export const getKioskSonosLeader = (): string | null => kioskLeader;
 
 export function setKioskSonosLeader(playerId: string | null): void {
+  if (playerId === kioskLeader) return;
   kioskLeader = playerId;
+  for (const listener of leaderListeners) listener();
+}
+
+/** Calls `listener` each time the leading room changes; returns how to stop. */
+export function subscribeKioskSonosLeader(listener: () => void): () => void {
+  leaderListeners.add(listener);
+  return () => {
+    leaderListeners.delete(listener);
+  };
 }
 
 async function post(path: string, body: unknown): Promise<void> {
