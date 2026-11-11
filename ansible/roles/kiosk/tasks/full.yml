@@ -398,16 +398,6 @@
     label: '{{ item.dest }}'
   notify: Ask for a kiosk restart
 
-# The Python Wi-Fi panel was replaced by the Wi-Fi setup page in kiosk-audio. Its Qt packages are left installed (Ansible
-# removes no packages); they can be purged by hand.
-- name: full | Remove the old Wi-Fi panel
-  ansible.builtin.file:
-    path: '{{ item }}'
-    state: absent
-  loop:
-    - /usr/local/bin/wifi-panel
-    - /opt/the-max-mix/wifi-panel
-
 # Spotify's sign-in page needs a keyboard, and Cage has no protocol for a system one, so a small Chromium extension draws
 # its own on Spotify's sign-in pages. Chromium cannot load TypeScript, so the build strips the types (Node, no packages)
 # and prints "changed" only when it wrote a file.
@@ -504,16 +494,6 @@
         owner: root
         group: root
         mode: '0644'
-
-# sonoscli was the other way kiosk-audio talked to Sonos; the service uses the sonos-ts library only now.
-- name: full | Remove sonoscli
-  ansible.builtin.file:
-    path: '{{ item }}'
-    state: absent
-  loop:
-    - /usr/local/bin/sonos
-    - /opt/sonoscli
-    - '{{ kiosk_audio_dir }}/sonos-cli.ts'
 
 - name: full | Install the AirPlay settings and the audio routing unit
   ansible.builtin.template:
