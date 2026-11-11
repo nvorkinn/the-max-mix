@@ -4,7 +4,7 @@
 // song to that room's Sonos queue and plays it, through the Spotify account already linked in the Sonos app.
 import { execFile } from 'node:child_process';
 
-export const SONOS_CLI = '/usr/local/bin/sonos';
+const SONOS_CLI = '/usr/local/bin/sonos';
 /** How long sonoscli may look for the speakers and talk to them; the process gets a little more. */
 const CLI_TIMEOUT = '15s';
 const PROCESS_TIMEOUT_MS = 25_000;
@@ -20,8 +20,7 @@ export interface SonosPlay {
 /** A Spotify id is 22 base-62 characters; sonoscli plays tracks, albums, playlists, shows and episodes. */
 const SPOTIFY_URI = /^spotify:(track|album|playlist|show|episode):[0-9A-Za-z]{22}$/;
 // A room name as the Sonos app shows it: printable, on one line, and not something sonoscli could read as a flag.
-// eslint-disable-next-line no-control-regex -- control characters are exactly what is refused
-const BAD_NAME = /[\u0000-\u001F\u007F]/;
+const BAD_NAME = /\p{Cc}/u;
 
 /** The body of POST /sonos/play, or null when it is not one. */
 export function parseSonosPlay(value: unknown): SonosPlay | null {
@@ -60,6 +59,8 @@ const runCli: RunCli = ([file = '', ...args]) =>
   new Promise(resolve => {
     // sonoscli keeps its settings and a cache of speaker names under the kiosk user's home.
     const env = { PATH: '/usr/local/bin:/usr/bin:/bin', HOME: process.env['HOME'] ?? '' };
+    // The caller passes SONOS_CLI, an absolute path; PATH is only passed on.
+    // eslint-disable-next-line sonarjs/no-os-command-from-path
     execFile(file, args, { env, timeout: PROCESS_TIMEOUT_MS }, (error, _stdout, stderr) => {
       if (!error) resolve({ code: 0, stderr });
       else if (error.code === 'ENOENT') resolve({ code: 127, stderr: 'sonoscli is not installed on this Pi yet.' });
@@ -71,8 +72,7 @@ const runCli: RunCli = ([file = '', ...args]) =>
 /** Plays the item on the room; rejects with a SonosError (a message safe to show) when sonoscli fails. */
 export async function playOnSonos(request: SonosPlay, run: RunCli = runCli): Promise<void> {
   const { code, stderr } = await run(sonosCommand(request));
-  if (code !== 0) {
-    console.warn(`sonos: open on ${JSON.stringify(request.room)} failed (${code}): ${stderr.trim()}`);
-    throw new SonosError(failureMessage(stderr));
-  }
+  if (code === 0) return;
+  console.warn(`sonos: open on ${JSON.stringify(request.room)} failed (${code}): ${stderr.trim()}`);
+  throw new SonosError(failureMessage(stderr));
 }

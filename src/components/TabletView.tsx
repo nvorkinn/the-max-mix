@@ -163,7 +163,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     const uri = playbackState?.item?.uri;
     if (!uri) throw new Error('Play a song first, then pick the Sonos speaker.');
     await playOnSonosRoom(room, uri);
-    if (playbackState?.is_playing && !(await togglePlay())) debugLog('warn', 'sonos', 'Spotify did not pause');
+    if (playbackState.is_playing && !(await togglePlay())) debugLog('warn', 'sonos', 'Spotify did not pause');
   };
 
   const toggleLyrics = (show: boolean) => {

@@ -2,7 +2,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { failureMessage, parseSonosPlay, playOnSonos, SonosError, sonosCommand } from './sonos.ts';
 
-const URI = 'spotify:track:6NmXV4o6bmp704aPGyTVVG';
+const URI = 'spotify:track:1234567890123456789012';
+const notFound = () => Promise.resolve({ code: 1, stderr: 'Error: speaker name not found in topology: Attic\n' });
 
 describe('parseSonosPlay', () => {
   it('takes a room name and a Spotify URI', () => {
@@ -19,8 +20,8 @@ describe('parseSonosPlay', () => {
       { room: 'x'.repeat(65), uri: URI },
       { room: 'Kitchen\n--debug', uri: URI },
       { room: '--ip=10.0.0.1', uri: URI },
-      { room: 'Kitchen', uri: 'https://open.spotify.com/track/6NmXV4o6bmp704aPGyTVVG' },
-      { room: 'Kitchen', uri: 'spotify:artist:6NmXV4o6bmp704aPGyTVVG' },
+      { room: 'Kitchen', uri: 'https://open.spotify.com/track/1234567890123456789012' },
+      { room: 'Kitchen', uri: 'spotify:artist:1234567890123456789012' },
       { room: 'Kitchen', uri: `${URI} --debug` }
     ]) {
       expect(parseSonosPlay(body)).toBeNull();
@@ -48,10 +49,9 @@ describe('playOnSonos', () => {
     expect(run).toHaveBeenCalledWith(sonosCommand({ room: 'Kitchen', uri: URI }));
   });
 
-  it('rejects with sonoscli’s reason', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const run = () => Promise.resolve({ code: 1, stderr: 'Error: speaker name not found in topology: Attic\n' });
-    const failure = playOnSonos({ room: 'Attic', uri: URI }, run);
+  it('rejects with the CLI’s reason', async () => {
+    vi.spyOn(console, 'warn').mockReturnValue();
+    const failure = playOnSonos({ room: 'Attic', uri: URI }, notFound);
     await expect(failure).rejects.toBeInstanceOf(SonosError);
     await expect(failure).rejects.toThrow('Sonos: speaker name not found in topology: Attic');
   });

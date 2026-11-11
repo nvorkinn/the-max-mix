@@ -24,7 +24,7 @@ tapping a Sonos room in the app's Speakers drawer sends `POST /sonos/play` with 
 "spotify:track:…"}` (the song on screen). The service runs [sonoscli](https://sonoscli.sh/spotify-and-smapi.html)
 (`sonos.ts`), which the playbook installs as `/usr/local/bin/sonos` (`kiosk_sonoscli_version`):
 
-    sonos open --name=Kitchen --timeout=15s -- spotify:track:6NmXV4o6bmp704aPGyTVVG
+    sonos open --name=Kitchen --timeout=15s -- spotify:track:<id>
 
 sonoscli finds the room on the home network (SSDP, then a scan of the subnet), adds the song to that room's Sonos queue
 and plays it on the group the room leads, through the Spotify account linked in the Sonos app; no Spotify credentials

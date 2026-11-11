@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { playOnSonosRoom } from './kiosk';
 
-const URI = 'spotify:track:6NmXV4o6bmp704aPGyTVVG';
+const URI = 'spotify:track:1234567890123456789012';
 
 describe('playOnSonosRoom', () => {
   afterEach(() => {

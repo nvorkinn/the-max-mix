@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '../test/user';
 import SonosGroupList from './SonosGroupList';
 
@@ -73,9 +73,12 @@ describe('SonosGroupList', () => {
 
     await userEvent.click(kitchen);
     expect(onPlayOnSonos).toHaveBeenCalledWith('Kitchen');
+    // The groups are read again (to show it playing), and the cards wait until the song has started.
+    const livingRoom = screen.getByRole('button', { name: /^Living Room \+ 1/ });
+    await waitFor(() => expect(livingRoom).toBeEnabled());
     expect(api.listSonos).toHaveBeenCalledTimes(2);
 
-    await userEvent.click(screen.getByRole('button', { name: /^Living Room \+ 1/ }));
+    await userEvent.click(livingRoom);
     expect(onPlayOnSonos).toHaveBeenLastCalledWith('Living Room');
     expect(await screen.findByRole('alert')).toHaveTextContent('speaker name not found in topology: Living Room');
     expect(onSelect).not.toHaveBeenCalled();
