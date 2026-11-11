@@ -11,6 +11,9 @@ const fake = vi.hoisted(() => {
     down: new Set<string>(),
     meta,
     state: 'PLAYING',
+    // The songs added with AddMultipleURIsToQueue, as sent.
+    batches: [] as { uris: string; metadata: string }[],
+    isQueueFailing: false,
     // The event listeners on each speaker's services, by "host service event".
     listeners: new Map<string, Set<() => void>>()
   };
@@ -52,6 +55,20 @@ vi.mock('@svrooij/sonos', () => {
           Promise.resolve({ TrackMetaData: fake.meta, TrackURI: '', TrackDuration: '0:03:20', RelTime: '0:00:42' }),
         SetAVTransportURI: (input: { CurrentURI: string }) => isCalled(`${this.host} join ${input.CurrentURI}`),
         BecomeCoordinatorOfStandaloneGroup: () => isCalled(`${this.host} leave`),
+        AddMultipleURIsToQueue: (input: {
+          NumberOfURIs: number;
+          EnqueuedURIs: string;
+          EnqueuedURIsMetaData: string;
+          DesiredFirstTrackNumberEnqueued: number;
+        }) => {
+          if (fake.isQueueFailing) return Promise.reject(new Error('queue full'));
+          fake.calls.push(`${this.host} add ${input.NumberOfURIs} songs at ${input.DesiredFirstTrackNumberEnqueued}`);
+          fake.batches.push({ uris: input.EnqueuedURIs, metadata: input.EnqueuedURIsMetaData });
+          return Promise.resolve({
+            FirstTrackNumberEnqueued: input.DesiredFirstTrackNumberEnqueued,
+            NumTracksAdded: input.NumberOfURIs
+          });
+        },
         Events: events(`${this.host} transport`)
       };
     }
@@ -87,6 +104,13 @@ vi.mock('@svrooij/sonos', () => {
   return {
     SonosDevice,
     SonosDeviceDiscovery,
+    MetaDataHelper: {
+      GuessMetaDataAndTrackUri: (uri: string) => ({
+        trackUri: `x-sonos-spotify:${uri}?sid=9&flags=8224&sn=7`,
+        metadata: { Title: '' }
+      }),
+      TrackToMetaData: () => '<DIDL></DIDL>'
+    },
     ServiceEvents: { ServiceEvent: 'serviceEvent', SubscriptionError: 'subscriptionError' }
   };
 });
@@ -98,6 +122,8 @@ const URI = 'spotify:track:1234567890123456789012';
 describe('sonos-library', () => {
   beforeEach(() => {
     fake.calls.length = 0;
+    fake.batches.length = 0;
+    fake.isQueueFailing = false;
     fake.searches = 0;
     fake.down.clear();
     fake.meta = { Title: 'Song', Artist: 'Band', TrackUri: `x-sonos-spotify:${URI}`, AlbumArtUri: '/getaa?s=1' };
@@ -110,13 +136,42 @@ describe('sonos-library', () => {
   });
 
   it('queues the song on the coordinator of the room’s group, switches to the queue and plays from it', async () => {
-    await library.play('lounge', URI);
+    await library.play('lounge', URI, [], 0);
     expect(fake.calls).toEqual([
       `kitchen.lan add ${URI}`,
       'kitchen.lan queue',
       'kitchen.lan seek 7',
       'kitchen.lan play'
     ]);
+  });
+
+  it('queues the songs that come next after it, 16 at a time, and starts the song where the tablet was', async () => {
+    const next = Array.from({ length: 20 }, (_, index) => `spotify:track:${String(index).padStart(22, '0')}`);
+    await library.play('Kitchen', URI, next, 65_000);
+    expect(fake.calls).toEqual([
+      `kitchen.lan add ${URI}`,
+      'kitchen.lan add 16 songs at 8',
+      'kitchen.lan add 4 songs at 24',
+      'kitchen.lan queue',
+      'kitchen.lan seek 7',
+      'kitchen.lan seek 0:01:05',
+      'kitchen.lan play'
+    ]);
+    const [first] = fake.batches;
+    // Each song as Sonos names it, encoded for the request, separated by spaces.
+    expect(first?.uris.split(' ', 1)[0]).toBe(
+      'x-sonos-spotify:spotify%3atrack%3a0000000000000000000000?sid=9&amp;flags=8224&amp;sn=7'
+    );
+    expect(first?.metadata.split(' ')).toHaveLength(16);
+    expect(first?.metadata).toContain('&lt;DIDL&gt;');
+  });
+
+  it('still plays the song when the songs after it cannot be queued', async () => {
+    fake.isQueueFailing = true;
+    vi.spyOn(console, 'warn').mockReturnValue();
+    await library.play('Kitchen', URI, ['spotify:track:0000000000000000000000'], 0);
+    expect(fake.calls.at(-1)).toBe('kitchen.lan play');
+    expect(console.warn).toHaveBeenCalledWith('sonos: queueing the next songs failed: queue full');
   });
 
   it('lists the groups with their visible rooms, the leading room first, searching the network once', async () => {
@@ -185,7 +240,7 @@ describe('sonos-library', () => {
   });
 
   it('says when no room has that name', async () => {
-    await expect(library.play('Attic', URI)).rejects.toThrow('no room called Attic');
+    await expect(library.play('Attic', URI, [], 0)).rejects.toThrow('no room called Attic');
   });
 
   it('names the speakers that lead the groups, and hands on their events until told to stop', async () => {

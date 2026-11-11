@@ -166,19 +166,26 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   };
 
   // Spotify will not move its playback to a Sonos, so on the kiosk the Pi starts the song on the speaker itself
-  // (sonos-ts). The tablet is paused first, while it is still the player (afterwards Spotify has moved on and a pause
-  // fails), and its player lets go. From then on the tablet shows and controls the Sonos group (useSonosPlayer), which
-  // SonosKioskList marks as the kiosk's. Picking another Sonos while following one plays the Sonos's song there.
+  // (sonos-ts), with Spotify's queue after it and from where the song was. The tablet is paused first, while it is still
+  // the player (afterwards Spotify has moved on and a pause fails), and its player lets go. From then on the tablet shows
+  // and controls the Sonos group (useSonosPlayer), which SonosKioskList marks as the kiosk's. Picking another Sonos while
+  // following one plays the Sonos's song there, from the same point.
   const playOnSonos = async (room: string) => {
     const shown = sonos.active ? sonos.playback : playbackState;
     const uri = shown?.item?.uri;
     if (!uri) throw new Error('Play a song first, then pick the Sonos speaker.');
+    const positionMs = shown.progress_ms ?? 0;
     if (sonos.active) {
-      await playOnSonosRoom(room, uri);
+      await playOnSonosRoom(room, uri, { positionMs });
       return;
     }
+    // The queue as Spotify has it now; the one on screen may be a few seconds old, or not read at all.
+    const upcoming = await getQueue()
+      .then(reply => reply.queue)
+      .catch(() => queue);
     if (playbackState?.is_playing && !(await togglePlay())) debugLog('warn', 'sonos', 'Spotify did not pause');
-    await playOnSonosRoom(room, uri);
+    const next = upcoming.map(track => track.uri).filter((song): song is string => Boolean(song));
+    await playOnSonosRoom(room, uri, { next, positionMs });
     await handOff();
   };
 

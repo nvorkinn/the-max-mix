@@ -2,7 +2,7 @@
 // finds a speaker on the home network (SSDP) once, then asks that speaker for the household's groups each time, searching
 // again only when it stops answering. Commands go to the coordinator of the group a room is in. The speakers' events
 // (sonos-events.ts) come in through the library's own listener, on SONOS_LISTENER_PORT.
-import { ServiceEvents, SonosDevice, SonosDeviceDiscovery } from '@svrooij/sonos';
+import { MetaDataHelper, ServiceEvents, SonosDevice, SonosDeviceDiscovery } from '@svrooij/sonos';
 import type { SonosEventSource, SonosService, SonosSpeaker } from './sonos-events.ts';
 import { fetchArt, formatTime, parseTime, spotifyTrackUri } from './sonos-shared.ts';
 import type { SonosGroup, SonosOperations } from './sonos-shared.ts';
@@ -62,15 +62,63 @@ async function coordinatorFor(room: string): Promise<SonosDevice> {
   return deviceOf((await groupOf(room)).group.coordinator);
 }
 
+/** Sonos takes at most this many songs in one AddMultipleURIsToQueue. */
+const URIS_PER_CALL = 16;
+
+const XML_ENTITIES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' };
+const encodeXml = (text: string) => text.replaceAll(/[&<>"']/g, character => XML_ENTITIES[character] ?? character);
+
 /**
- * Plays a Spotify item: adds it to the group's Sonos queue, makes the queue what the group
- * plays, goes to the first added track and plays.
+ * Sonos's own URI for a Spotify song and its metadata, each encoded for the request: AddMultipleURIsToQueue takes them as
+ * plain text, which the library does not encode (it does for AddUriToQueue). The URI is encoded the way the library
+ * encodes a single one.
  */
-async function play(room: string, uri: string): Promise<void> {
+function sonosSong(uri: string): { uri: string; metadata: string } {
+  const guessed = MetaDataHelper.GuessMetaDataAndTrackUri(uri);
+  const metadata =
+    typeof guessed.metadata === 'string' ? guessed.metadata : MetaDataHelper.TrackToMetaData(guessed.metadata);
+  const scheme = guessed.trackUri.indexOf(':') + 1;
+  return {
+    uri: guessed.trackUri.slice(0, scheme) + encodeXml(guessed.trackUri.slice(scheme)).replaceAll(':', '%3a'),
+    metadata: encodeXml(metadata)
+  };
+}
+
+/** Queues the songs after Sonos's queue position `from`, in order, a batch at a time. */
+async function queueAfter(device: SonosDevice, from: number, uris: readonly string[]): Promise<void> {
+  const batch = uris.slice(0, URIS_PER_CALL);
+  if (batch.length === 0) return;
+  const songs = batch.map(uri => sonosSong(uri));
+  const added = await device.AVTransportService.AddMultipleURIsToQueue({
+    InstanceID: 0,
+    UpdateID: 0,
+    NumberOfURIs: songs.length,
+    EnqueuedURIs: songs.map(song => song.uri).join(' '),
+    EnqueuedURIsMetaData: songs.map(song => song.metadata).join(' '),
+    ContainerURI: '',
+    ContainerMetaData: '',
+    DesiredFirstTrackNumberEnqueued: from,
+    EnqueueAsNext: false
+  });
+  await queueAfter(device, added.FirstTrackNumberEnqueued + added.NumTracksAdded, uris.slice(URIS_PER_CALL));
+}
+
+/**
+ * Plays a Spotify item: adds it to the group's Sonos queue with the songs that come next on Spotify after it, makes the
+ * queue what the group plays, goes to the added song and the point in it the tablet was at, and plays.
+ */
+async function play(room: string, uri: string, next: readonly string[], positionMs: number): Promise<void> {
   const device = await coordinatorFor(room);
   const added = await device.AddUriToQueue(uri, 0, false);
+  try {
+    await queueAfter(device, added.FirstTrackNumberEnqueued + added.NumTracksAdded, next);
+  } catch (error) {
+    // The song itself is queued: play it even when the songs after it could not be.
+    console.warn(`sonos: queueing the next songs failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
   await device.SwitchToQueue();
   await device.SeekTrack(added.FirstTrackNumberEnqueued);
+  if (positionMs > 0) await device.SeekPosition(formatTime(positionMs));
   await device.Play();
 }
 

@@ -32,6 +32,20 @@ describe('playOnSonosRoom', () => {
     );
   });
 
+  it('sends the Spotify songs to queue after it, at most 50, and where to start the song', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const next = ['spotify:episode:1234567890123456789012', ...Array.from({ length: 60 }, () => URI)];
+    await playOnSonosRoom('Kitchen', URI, { next, positionMs: 61_000.4 });
+    const { body } = (fetchMock.mock.calls[0] as [string, { body: string }])[1];
+    expect(JSON.parse(body)).toEqual({
+      room: 'Kitchen',
+      uri: URI,
+      next: Array.from({ length: 50 }, () => URI),
+      positionMs: 61_000
+    });
+  });
+
   it('passes on the kiosk’s reason', async () => {
     const body = JSON.stringify({ error: 'Sonos: speaker name not found in topology: Attic' });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 502 })));

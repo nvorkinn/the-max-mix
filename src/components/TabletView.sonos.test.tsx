@@ -23,7 +23,9 @@ const state = vi.hoisted(() => {
   return { player, sonos };
 });
 const playOnSonosRoom = vi.hoisted(() => vi.fn());
-vi.mock('../spotify/api', () => ({ getQueue: vi.fn().mockResolvedValue({ queue: [] }) }));
+const NEXT = 'spotify:track:0123456789abcdefABCDEF';
+const getQueue = vi.hoisted(() => vi.fn());
+vi.mock('../spotify/api', () => ({ getQueue }));
 vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => state.player }));
 vi.mock('../hooks/useSonosPlayer', () => ({ useSonosPlayer: () => state.sonos }));
 vi.mock('../sonos/kiosk', () => ({ playOnSonosRoom }));
@@ -53,7 +55,7 @@ function setUp(following: boolean, spotify: Record<string, unknown> = {}) {
   state.player = {
     isReady: true,
     isAuthenticated: true,
-    playbackState: { is_playing: true, item: SONG },
+    playbackState: { is_playing: true, item: SONG, progress_ms: 61_000 },
     setSlowPolling: vi.fn(),
     togglePlay: vi.fn().mockResolvedValue(true),
     handOff: vi.fn().mockResolvedValue(undefined),
@@ -64,7 +66,9 @@ function setUp(following: boolean, spotify: Record<string, unknown> = {}) {
   state.sonos = {
     active: following,
     name: following ? 'Kitchen' : null,
-    playback: following ? { is_playing: true, item: { ...SONG, uri: 'spotify:track:abcdefghijklmnopqrstuv' } } : null,
+    playback: following
+      ? { is_playing: true, item: { ...SONG, uri: 'spotify:track:abcdefghijklmnopqrstuv' }, progress_ms: 5000 }
+      : null,
     next: [],
     error: null,
     play: vi.fn().mockResolvedValue(true),
@@ -77,20 +81,30 @@ function setUp(following: boolean, spotify: Record<string, unknown> = {}) {
 describe('TabletView with Sonos', () => {
   beforeEach(() => {
     playOnSonosRoom.mockReset().mockResolvedValue(undefined);
+    getQueue.mockReset().mockResolvedValue({ queue: [{ uri: NEXT, name: 'Next' }, { name: 'No URI' }] });
   });
 
-  it('pauses the tablet, starts its song on the Sonos, then lets Spotify go', async () => {
+  it('pauses the tablet, starts its song on the Sonos where it was, with Spotify’s queue, then lets Spotify go', async () => {
     setUp(false);
     await act(() => defined(props.drawer.onPlayOnSonos)('Kitchen'));
     expect(state.player['togglePlay']).toHaveBeenCalled();
-    expect(playOnSonosRoom).toHaveBeenCalledWith('Kitchen', URI);
+    expect(playOnSonosRoom).toHaveBeenCalledWith('Kitchen', URI, { next: [NEXT], positionMs: 61_000 });
     expect(state.player['handOff']).toHaveBeenCalled();
+  });
+
+  it('still starts the song on the Sonos when Spotify’s queue cannot be read', async () => {
+    getQueue.mockRejectedValue(new Error('Rate limited'));
+    setUp(false);
+    await act(() => defined(props.drawer.onPlayOnSonos)('Kitchen'));
+    expect(playOnSonosRoom).toHaveBeenCalledWith('Kitchen', URI, { next: [], positionMs: 61_000 });
   });
 
   it('starts the song it shows on another Sonos while following one', async () => {
     setUp(true);
     await act(() => defined(props.drawer.onPlayOnSonos)('Bedroom'));
-    expect(playOnSonosRoom).toHaveBeenCalledWith('Bedroom', 'spotify:track:abcdefghijklmnopqrstuv');
+    expect(playOnSonosRoom).toHaveBeenCalledWith('Bedroom', 'spotify:track:abcdefghijklmnopqrstuv', {
+      positionMs: 5000
+    });
     expect(state.player['togglePlay']).not.toHaveBeenCalled();
     expect(state.player['handOff']).not.toHaveBeenCalled();
   });

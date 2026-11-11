@@ -27,9 +27,35 @@ export function parseRoom(room: unknown): string | null {
   return isBad ? null : name;
 }
 
+/** At most this many songs are queued after the one played. */
+const MAX_NEXT = 50;
+const SPOTIFY_TRACK_URI = /^spotify:track:[0-9A-Za-z]{22}$/;
+
+/** The songs to queue after the one played (Spotify track URIs), none when absent, or null when not a list of them. */
+function parseNext(value: unknown): string[] | null {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > MAX_NEXT) return null;
+  return value.every((entry): entry is string => typeof entry === 'string' && SPOTIFY_TRACK_URI.test(entry))
+    ? value
+    : null;
+}
+
+/** A position in a song, in ms, rounded; null when it is not one. */
+const parsePosition = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
+
+/** The body of POST /sonos/play, or null when it is not one. */
+function parsePlay(room: string, body: Record<string, unknown>): SonosRequest | null {
+  const { uri, positionMs = 0 } = body;
+  const next = parseNext(body['next']);
+  const position = parsePosition(positionMs);
+  const isPlayable = next && position !== null && typeof uri === 'string' && SPOTIFY_URI.test(uri);
+  return isPlayable ? { kind: 'play', room, uri, next, positionMs: position } : null;
+}
+
 /** One Sonos request from the app: which room, and what to do there. */
 export type SonosRequest =
-  | { kind: 'play'; room: string; uri: string }
+  | { kind: 'play'; room: string; uri: string; next: string[]; positionMs: number }
   | { kind: 'control'; room: string; action: SonosAction; positionMs: number }
   | { kind: 'volume'; room: string; volume: number }
   | { kind: 'join'; room: string; to: string }
@@ -41,10 +67,10 @@ export function parseSonosRequest(kind: string, value: unknown): SonosRequest | 
   const body = value as Record<string, unknown>;
   const room = parseRoom(body['room']);
   if (!room) return null;
-  const { uri, action, positionMs = 0, volume } = body;
+  const { action, positionMs = 0, volume } = body;
   switch (kind) {
     case 'play': {
-      return typeof uri === 'string' && SPOTIFY_URI.test(uri) ? { kind, room, uri } : null;
+      return parsePlay(room, body);
     }
     case 'control': {
       const isAction = ACTIONS.has(action);
@@ -110,7 +136,7 @@ export const sonos: SonosOperations = guarded(library);
 export async function runSonosRequest(request: SonosRequest, way: SonosOperations = sonos): Promise<void> {
   switch (request.kind) {
     case 'play': {
-      await way.play(request.room, request.uri);
+      await way.play(request.room, request.uri, request.next, request.positionMs);
       break;
     }
     case 'control': {
