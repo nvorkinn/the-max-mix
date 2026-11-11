@@ -66,7 +66,8 @@ test.describe('Speakers', { tag: '@speakers' }, () => {
       await airPlayTab.click();
       const kitchen = drawer.getByRole('button', { name: /Kitchen/ });
       const lounge = drawer.getByRole('button', { name: /Lounge/ });
-      await expect(kitchen).toContainText('Available on this network');
+      // Once the Pi has listed it, a speaker that is there shows only its name.
+      await expect(kitchen).toHaveText(/^\s*Kitchen\s*$/);
 
       await kitchen.click();
       await expect(kitchen).toHaveAttribute('aria-pressed', 'true');

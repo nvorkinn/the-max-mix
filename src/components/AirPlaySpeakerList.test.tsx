@@ -37,7 +37,7 @@ describe('AirPlaySpeakerList', () => {
     expect(await screen.findByRole('button', { name: /Lounge/ })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: /Kitchen/ })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: /Kitchen/ })).toHaveTextContent('Selected');
-    expect(screen.getByRole('button', { name: /Kitchen/ })).toHaveTextContent('Available on this network');
+    expect(screen.getByRole('button', { name: /Kitchen/ })).toHaveTextContent(/^Kitchen\s*Selected$/);
     expect(screen.queryByText('Playing here')).not.toBeInTheDocument();
   });
 
@@ -127,7 +127,7 @@ describe('AirPlaySpeakerList', () => {
     const kitchen = screen.getByRole('button', { name: /Kitchen/ });
     expect(kitchen).toBeEnabled();
     expect(kitchen).toHaveTextContent('Selected');
-    expect(kitchen).toHaveTextContent(outputs.includes('Kitchen') ? 'Available on this network' : 'Not on the network');
+    expect(kitchen).toHaveTextContent(outputs.includes('Kitchen') ? /^Kitchen\s*Selected$/ : 'Not on the network');
     await userEvent.click(kitchen);
     expect(airplay.setChosenSpeakers).toHaveBeenCalledExactlyOnceWith([]);
     expect(localStorage.getItem('maxmix.airplaySpeakers')).toBe('[]');
