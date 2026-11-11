@@ -10,7 +10,9 @@ const fake = vi.hoisted(() => {
     // Hosts that do not answer, to make the library search the network again.
     down: new Set<string>(),
     meta,
-    state: 'PLAYING'
+    state: 'PLAYING',
+    // The event listeners on each speaker's services, by "host service event".
+    listeners: new Map<string, Set<() => void>>()
   };
 });
 vi.mock('@svrooij/sonos', () => {
@@ -22,6 +24,15 @@ vi.mock('@svrooij/sonos', () => {
     fake.calls.push(call);
     return Promise.resolve(true);
   };
+  const events = (where: string) => ({
+    on: (name: string, listener: () => void) => {
+      const key = `${where} ${name}`;
+      fake.listeners.set(key, (fake.listeners.get(key) ?? new Set()).add(listener));
+    },
+    off: (name: string, listener: () => void) => {
+      fake.listeners.get(`${where} ${name}`)?.delete(listener);
+    }
+  });
   class SonosDevice {
     readonly host: string;
     SwitchToQueue = () => isCalled(`${this.host} queue`);
@@ -40,15 +51,20 @@ vi.mock('@svrooij/sonos', () => {
         GetPositionInfo: () =>
           Promise.resolve({ TrackMetaData: fake.meta, TrackURI: '', TrackDuration: '0:03:20', RelTime: '0:00:42' }),
         SetAVTransportURI: (input: { CurrentURI: string }) => isCalled(`${this.host} join ${input.CurrentURI}`),
-        BecomeCoordinatorOfStandaloneGroup: () => isCalled(`${this.host} leave`)
+        BecomeCoordinatorOfStandaloneGroup: () => isCalled(`${this.host} leave`),
+        Events: events(`${this.host} transport`)
       };
     }
     get GroupRenderingControlService() {
       return {
         GetGroupVolume: () =>
           this.host === 'bedroom.lan' ? Promise.reject(new Error('no')) : Promise.resolve({ CurrentVolume: 22 }),
-        SetGroupVolume: (input: { DesiredVolume: number }) => isCalled(`${this.host} volume ${input.DesiredVolume}`)
+        SetGroupVolume: (input: { DesiredVolume: number }) => isCalled(`${this.host} volume ${input.DesiredVolume}`),
+        Events: events(`${this.host} volume`)
       };
+    }
+    get ZoneGroupTopologyService() {
+      return { Events: events(`${this.host} topology`) };
     }
     GetZoneGroupState() {
       if (fake.down.has(this.host)) return Promise.reject(new Error('timeout'));
@@ -68,10 +84,14 @@ vi.mock('@svrooij/sonos', () => {
       return Promise.resolve({ host: fake.searches > 1 ? 'bedroom.lan' : 'lounge.lan', port: 1400 });
     }
   }
-  return { SonosDevice, SonosDeviceDiscovery };
+  return {
+    SonosDevice,
+    SonosDeviceDiscovery,
+    ServiceEvents: { ServiceEvent: 'serviceEvent', SubscriptionError: 'subscriptionError' }
+  };
 });
 
-const { forgetSpeaker, library } = await import('./sonos-library.ts');
+const { forgetSpeaker, library, libraryEvents } = await import('./sonos-library.ts');
 
 const URI = 'spotify:track:1234567890123456789012';
 
@@ -166,5 +186,29 @@ describe('sonos-library', () => {
 
   it('says when no room has that name', async () => {
     await expect(library.play('Attic', URI)).rejects.toThrow('no room called Attic');
+  });
+
+  it('names the speakers that lead the groups, and hands on their events until told to stop', async () => {
+    const leaders = await libraryEvents.coordinators();
+    expect(leaders.map(leader => leader.name)).toEqual(['Kitchen', 'Bedroom']);
+    const [kitchen] = leaders;
+    if (!kitchen) throw new Error('no Kitchen');
+    const onEvent = vi.fn();
+    const stop = libraryEvents.listen(kitchen, 'transport', onEvent);
+    const fire = (key: string) => {
+      const listeners = fake.listeners.get(key) ?? new Set();
+      for (const listener of listeners) listener();
+    };
+    const listeners = fake.listeners.get('kitchen.lan transport serviceEvent');
+    fire('kitchen.lan transport serviceEvent');
+    expect(onEvent).toHaveBeenCalledOnce();
+    vi.spyOn(console, 'warn').mockReturnValue();
+    fire('kitchen.lan transport subscriptionError');
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('transport events from Kitchen failed'));
+    stop();
+    expect(listeners?.size).toBe(0);
+    libraryEvents.listen(kitchen, 'topology', onEvent)();
+    libraryEvents.listen(kitchen, 'volume', onEvent)();
+    expect(fake.listeners.get('kitchen.lan volume serviceEvent')?.size).toBe(0);
   });
 });

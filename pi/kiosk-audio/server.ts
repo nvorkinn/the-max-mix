@@ -13,6 +13,8 @@
 //   POST /sonos/control     {"room", "action": "play" | "pause" | "next" | "previous" | "seek", "positionMs"?}
 //   POST /sonos/volume      {"room", "volume": 0-100}   the room's whole group
 //   POST /sonos/join        {"room", "to"}   add the room to the group `to` is in      POST /sonos/leave  {"room"}
+//   GET  /sonos/events      server-sent events while the app listens: data {"kind": "groups"} when rooms join or leave,
+//                           {"kind": "now"} when what a group plays (or its volume) changes (sonos-events.ts)
 //   GET  /wifi/networks     {"networks": [{"ssid", "signal", "bars", "security"}, …]}   or 503 {"error"}: a safe message
 //   POST /wifi/connect      {"ssid", "password", "hidden", "security"}   join a network: {"ok": true} or {"ok": false, "error"}
 //   POST /wifi/phone        start Wi-Fi setup from a phone over Bluetooth for a few minutes (phone-setup.ts): {"ok": true}
@@ -49,6 +51,9 @@ import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
 import { PhoneSetup } from './phone-setup.ts';
 import type { Graph } from './pipewire.ts';
+import { SonosEventHub } from './sonos-events.ts';
+import type { SonosChange } from './sonos-events.ts';
+import { libraryEvents } from './sonos-library.ts';
 import { parseRoom, parseSonosRequest, runSonosRequest, sonos, SonosError } from './sonos.ts';
 import type { SonosOperations, SonosRequest } from './sonos.ts';
 import { speakerSinks, validSpeakers, validVolume } from './speakers.ts';
@@ -84,6 +89,8 @@ export interface Deps {
   sonos: (request: SonosRequest) => Promise<void>;
   /** The Sonos calls, for the GETs; each rejects with a SonosError. */
   sonosCalls: SonosOperations;
+  /** The speakers' live changes, for GET /sonos/events. */
+  sonosEvents: { add: (client: (change: SonosChange) => void) => () => void };
   /** Milliseconds, to time how long finding the Sonos groups takes. */
   now?: () => number;
   heartbeat: () => void;
@@ -235,6 +242,25 @@ async function postSonos(request: IncomingMessage, response: ServerResponse, dep
   } catch (error) {
     sendSonosError(response, error);
   }
+}
+
+/** A comment line this often keeps the event stream from looking idle. */
+const KEEP_ALIVE_MS = 25_000;
+
+/** GET /sonos/events: sends each Sonos change as a server-sent event until the app goes away. */
+function streamSonosEvents(request: IncomingMessage, response: ServerResponse, deps: Deps): void {
+  response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+  response.write(': listening\n\n');
+  const stop = deps.sonosEvents.add(change => {
+    response.write(`data: ${JSON.stringify({ kind: change })}\n\n`);
+  });
+  const keepAlive = setInterval(() => {
+    response.write(': still here\n\n');
+  }, KEEP_ALIVE_MS);
+  request.on('close', () => {
+    clearInterval(keepAlive);
+    stop();
+  });
 }
 
 /** GET /sonos/groups, /sonos/now and /sonos/art. */
@@ -476,6 +502,10 @@ async function handleGet(
     else response.writeHead(403).end();
   } else if (url.startsWith('/lyrics?')) {
     await getLyrics(request, response, origin, deps);
+  } else if (url === '/sonos/events') {
+    // Following the speakers opens a listening port on the home network, so only the app may ask.
+    if (request.headers.origin === origin) streamSonosEvents(request, response, deps);
+    else response.writeHead(403).end();
   } else if (/^\/sonos\/(groups|now|art)(\?|$)/.test(url)) {
     // Each makes the Pi talk to the speakers on the home network, so only the app may ask.
     if (request.headers.origin === origin) await getSonos(request, response, deps);
@@ -554,6 +584,7 @@ export function serveSpeakers(
     perform,
     sonos: request => runSonosRequest(request),
     sonosCalls: sonos,
+    sonosEvents: new SonosEventHub(libraryEvents),
     heartbeat,
     log: journalLog(),
     asset: wifiSetupAsset,

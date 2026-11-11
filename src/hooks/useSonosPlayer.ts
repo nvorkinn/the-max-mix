@@ -1,7 +1,8 @@
 // While a Sonos group plays what the kiosk sent it, the tablet shows that group's playback and its controls act on the
 // group. Spotify does not report a Sonos playing from its own queue, so this asks the Pi (src/sonos/kiosk.ts), which
 // asks the speakers on the home network: the song, where in it the group is, its volume and its artwork. The group is
-// followed by the room that leads it (getKioskSonosLeader), as rooms join and leave it.
+// followed by the room that leads it (getKioskSonosLeader), as rooms join and leave it. The Pi says when the speakers
+// change (watchSonosOnPi), so the group is read then; while it does, the regular reads are only a slow fallback.
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   controlSonos,
@@ -12,7 +13,8 @@ import {
   playOnSonosRoom,
   setKioskSonosLeader,
   setSonosVolume,
-  subscribeKioskSonosLeader
+  subscribeKioskSonosLeader,
+  watchSonosOnPi
 } from '../sonos/kiosk';
 import type { PiSonosNow, SonosAction } from '../sonos/kiosk';
 import type { PlaybackState, Track } from '../types';
@@ -23,6 +25,10 @@ import { errorMessage } from '../utils/errorMessage';
 const PLAYING_POLL_MS = 5000;
 /** How often while it is paused, or the screen sleeps. */
 const IDLE_POLL_MS = 30_000;
+/** How often while the Pi says when the speakers change: only to catch a change it missed. */
+const LIVE_POLL_MS = 60_000;
+/** A read this long after the Pi says the speakers changed, so a burst of changes is read once. */
+const AFTER_CHANGE_MS = 150;
 /** The group's rooms are read again every this many reads, to follow rooms joining or leaving. */
 const REGROUP_EVERY = 6;
 /** A read this long after a control, so the screen follows what the speaker did. */
@@ -145,7 +151,18 @@ export function useSonosPlayer(): SonosPlayer {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let reads = 0;
     let failures = 0;
+    let isReading = false;
+    // A change the Pi reported while a read was under way: read again once it ends.
+    let isStale = false;
+    const changedMeanwhile = () => isStale;
+    let isLive = false;
+    const schedule = (delay: number) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => void read(), delay);
+    };
     const read = async () => {
+      isReading = true;
+      isStale = false;
       let delay = slowPolling ? IDLE_POLL_MS : PLAYING_POLL_MS;
       try {
         if (reads % REGROUP_EVERY === 0) {
@@ -169,6 +186,7 @@ export function useSonosPlayer(): SonosPlayer {
         reads++;
         failures = 0;
         if (!status.playing) delay = IDLE_POLL_MS;
+        if (isLive) delay = LIVE_POLL_MS;
       } catch (caught) {
         if (isCancelled()) return;
         reads = 0;
@@ -176,13 +194,27 @@ export function useSonosPlayer(): SonosPlayer {
         debugLog('warn', 'sonos', `Reading the Sonos failed: ${errorMessage(caught)}`);
         if (failures >= FAILURES_TO_SHOW) setError(errorMessage(caught));
         delay = Math.min(IDLE_POLL_MS, PLAYING_POLL_MS * failures);
+      } finally {
+        isReading = false;
       }
-      timer = setTimeout(() => void read(), delay);
+      schedule(changedMeanwhile() ? AFTER_CHANGE_MS : delay);
     };
+    const stopWatching = watchSonosOnPi(
+      change => {
+        // Rooms joined or left: read the group's rooms again too.
+        if (change === 'groups') reads = 0;
+        if (isReading) isStale = true;
+        else schedule(AFTER_CHANGE_MS);
+      },
+      live => {
+        isLive = live;
+      }
+    );
     void read();
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      stopWatching();
     };
   }, [leader, slowPolling, readVersion]);
 

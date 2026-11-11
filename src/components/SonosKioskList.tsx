@@ -10,7 +10,8 @@ import {
   leaveSonosGroup,
   setKioskSonosLeader,
   setSonosVolume,
-  subscribeKioskSonosLeader
+  subscribeKioskSonosLeader,
+  watchSonosOnPi
 } from '../sonos/kiosk';
 import type { PiSonosGroup, PiSonosRoom } from '../sonos/kiosk';
 import { SAFE_START_VOLUME } from '../audio/safeVolume';
@@ -62,7 +63,7 @@ function settle(
  * on screen there (onPlayOnSonos, through the Pi) or, while the kiosk's group plays, adds the room to that group so the
  * song carries on there too. Tapping a selected room takes it out of the group; the last one is paused instead, and the
  * tablet follows Spotify again. Sonos takes a moment to show a room joining or leaving, so the change shows at once and
- * the list is read again until Sonos agrees.
+ * the list is read again until Sonos agrees. It is also read again whenever the Pi says the rooms' grouping changed.
  */
 export default function SonosKioskList({
   disabled,
@@ -133,8 +134,13 @@ export default function SonosKioskList({
   useEffect(() => {
     mountedRef.current = true;
     void load();
+    // Rooms joined or left, here or in the Sonos app: the Pi says so, and the list is read again.
+    const stopWatching = watchSonosOnPi(change => {
+      if (change === 'groups') void load();
+    });
     return () => {
       mountedRef.current = false;
+      stopWatching();
     };
   }, [load]);
 

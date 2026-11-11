@@ -234,7 +234,9 @@ app. While that group plays, tapping another room adds it to the group; tapping 
 and taking out the last one pauses it. The change shows at once, and the drawer reads the rooms again until Sonos shows
 it too. From then on the tablet shows the group's song, progress and artwork and sends its controls (play, pause, skip,
 seek, volume, and music picked in Choose music) to the group through the Pi (`src/hooks/useSonosPlayer.ts`), until
-another speaker is picked, which pauses the Sonos. A room is turned down to 25% before music starts on it, if it was
+another speaker is picked, which pauses the Sonos. The Pi follows the speakers' own events (on port 6329 on the home
+network), so a song change, pause, volume change or regrouping, from the kiosk or the Sonos app, shows on the tablet
+straight away. A room is turned down to 25% before music starts on it, if it was
 louder. There is no Sonos sign-in: everything stays on the home network, so Sonos is listed on the kiosk only.
 
 ## Raspberry Pi kiosk

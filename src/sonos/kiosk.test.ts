@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { FakeEventSource, latestFakeEventSource, resetFakeEventSources } from '../test/fakeEventSource';
 import {
   controlSonos,
   findSonosOnPi,
@@ -10,7 +11,8 @@ import {
   playOnSonosRoom,
   setKioskSonosLeader,
   setSonosVolume,
-  subscribeKioskSonosLeader
+  subscribeKioskSonosLeader,
+  watchSonosOnPi
 } from './kiosk';
 
 const URI = 'spotify:track:1234567890123456789012';
@@ -172,5 +174,48 @@ describe('controlling the Sonos through the Pi', () => {
   it('says when Sonos cannot do it', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 400 })));
     await expect(controlSonos('Kitchen', 'play')).rejects.toThrow('Sonos can’t do that.');
+  });
+});
+
+describe('watchSonosOnPi', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    resetFakeEventSources();
+  });
+
+  it('shares one stream from the Pi while anything watches, and passes on what changed', () => {
+    vi.stubGlobal('EventSource', FakeEventSource);
+    const first = vi.fn();
+    const live = vi.fn();
+    const stopFirst = watchSonosOnPi(first, live);
+    const second = vi.fn();
+    const stopSecond = watchSonosOnPi(second);
+    const stream = latestFakeEventSource();
+    expect(stream.url).toBe('http://127.0.0.1:7341/sonos/events');
+    stream.open();
+    expect(live).toHaveBeenCalledWith(true);
+    stream.receive({ kind: 'groups' });
+    stream.receive({ kind: 'now' });
+    stream.receive({ kind: 'other' });
+    stream.receive('not json');
+    expect(first.mock.calls).toEqual([['groups'], ['now']]);
+    expect(second.mock.calls).toEqual([['groups'], ['now']]);
+    stream.fail();
+    expect(live).toHaveBeenLastCalledWith(false);
+    stopFirst();
+    expect(stream.isClosed).toBe(false);
+    stopSecond();
+    expect(stream.isClosed).toBe(true);
+  });
+
+  it('tells a late watcher the stream is already live', () => {
+    vi.stubGlobal('EventSource', FakeEventSource);
+    const stop = watchSonosOnPi(vi.fn());
+    latestFakeEventSource().open();
+    const live = vi.fn();
+    const stopToo = watchSonosOnPi(vi.fn(), live);
+    expect(live).toHaveBeenCalledWith(true);
+    stop();
+    stopToo();
   });
 });

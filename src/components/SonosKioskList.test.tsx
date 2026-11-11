@@ -9,8 +9,11 @@ const pi = vi.hoisted(() => ({
   setSonosVolume: vi.fn(),
   joinSonosGroup: vi.fn(),
   leaveSonosGroup: vi.fn(),
-  controlSonos: vi.fn()
+  controlSonos: vi.fn(),
+  watchSonosOnPi: vi.fn()
 }));
+/** How to tell the list what the Pi says changed. */
+const watching = vi.hoisted(() => ({ change: vi.fn<(change: 'groups' | 'now') => void>() }));
 vi.mock('../sonos/kiosk', async original => ({
   ...(await original<typeof import('../sonos/kiosk')>()),
   ...pi
@@ -52,6 +55,10 @@ describe('SonosKioskList', () => {
     pi.joinSonosGroup.mockReset().mockResolvedValue(undefined);
     pi.leaveSonosGroup.mockReset().mockResolvedValue(undefined);
     pi.controlSonos.mockReset().mockResolvedValue(undefined);
+    pi.watchSonosOnPi.mockReset().mockImplementation((onChange: typeof watching.change) => {
+      watching.change = onChange;
+      return vi.fn();
+    });
     onPlayOnSonos.mockReset().mockResolvedValue(undefined);
     onRooms.mockReset();
   });
@@ -190,5 +197,15 @@ describe('SonosKioskList', () => {
     await show();
     expect(room('Kitchen')).toHaveTextContent('Grouped with Lounge');
     expect(room('Attic')).toHaveTextContent('Sonos');
+  });
+
+  it('reads the rooms again when the Pi says their grouping changed', async () => {
+    await show();
+    expect(room('Kitchen')).toHaveTextContent('Sonos');
+    pi.findSonosOnPi.mockResolvedValue({ groups: TOGETHER, ms: 900 });
+    act(() => watching.change('now'));
+    expect(pi.findSonosOnPi).toHaveBeenCalledTimes(1);
+    act(() => watching.change('groups'));
+    await waitFor(() => expect(room('Kitchen')).toHaveTextContent('Grouped with Lounge'));
   });
 });

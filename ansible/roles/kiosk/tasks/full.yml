@@ -459,6 +459,7 @@
     - pipewire.ts
     - qr.ts
     - server.ts
+    - sonos-events.ts
     - sonos-library.ts
     - sonos-shared.ts
     - sonos.ts
