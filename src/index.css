@@ -817,8 +817,10 @@
 .is-next .queue-number {
   color: var(--accent);
 }
-/* The handle a song is dragged by, where the queue can be reordered (a Sonos's). It takes the touch, so dragging it does
-   not scroll the list. */
+/*
+  The handle a song is dragged by, where the queue can be reordered (a Sonos's). It takes the touch, so dragging it does
+  not scroll the list.
+*/
 .queue-move {
   width: 44px;
   min-height: 44px;
