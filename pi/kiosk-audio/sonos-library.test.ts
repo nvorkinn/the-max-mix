@@ -52,7 +52,14 @@ vi.mock('@svrooij/sonos', () => {
       return {
         GetTransportInfo: () => Promise.resolve({ CurrentTransportState: fake.state }),
         GetPositionInfo: () =>
-          Promise.resolve({ TrackMetaData: fake.meta, TrackURI: '', TrackDuration: '0:03:20', RelTime: '0:00:42' }),
+          Promise.resolve({
+            Track: 31,
+            TrackMetaData: fake.meta,
+            TrackURI: '',
+            TrackDuration: '0:03:20',
+            RelTime: '0:00:42'
+          }),
+        RemoveAllTracksFromQueue: () => isCalled(`${this.host} clear`),
         SetAVTransportURI: (input: { CurrentURI: string }) => isCalled(`${this.host} join ${input.CurrentURI}`),
         BecomeCoordinatorOfStandaloneGroup: () => isCalled(`${this.host} leave`),
         AddMultipleURIsToQueue: (input: {
@@ -78,6 +85,22 @@ vi.mock('@svrooij/sonos', () => {
           this.host === 'bedroom.lan' ? Promise.reject(new Error('no')) : Promise.resolve({ CurrentVolume: 22 }),
         SetGroupVolume: (input: { DesiredVolume: number }) => isCalled(`${this.host} volume ${input.DesiredVolume}`),
         Events: events(`${this.host} volume`)
+      };
+    }
+    get ContentDirectoryService() {
+      return {
+        BrowseParsed: (input: { ObjectID: string; StartingIndex: number; RequestedCount: number }) => {
+          fake.calls.push(
+            `${this.host} browse ${input.ObjectID} from ${input.StartingIndex} for ${input.RequestedCount}`
+          );
+          return Promise.resolve({
+            Result: [
+              { TrackUri: 'x-sonos-spotify:spotify%3atrack%3a0000000000000000000001?sid=9' },
+              { TrackUri: 'x-rincon-mp3radio://radio.example/stream' },
+              { TrackUri: 'x-sonos-spotify:spotify%3atrack%3a0000000000000000000002?sid=9' }
+            ]
+          });
+        }
       };
     }
     get ZoneGroupTopologyService() {
@@ -138,6 +161,7 @@ describe('sonos-library', () => {
   it('queues the song on the coordinator of the room’s group, switches to the queue and plays from it', async () => {
     await library.play('lounge', URI, [], 0);
     expect(fake.calls).toEqual([
+      'kitchen.lan clear',
       `kitchen.lan add ${URI}`,
       'kitchen.lan queue',
       'kitchen.lan seek 7',
@@ -149,6 +173,7 @@ describe('sonos-library', () => {
     const next = Array.from({ length: 20 }, (_, index) => `spotify:track:${String(index).padStart(22, '0')}`);
     await library.play('Kitchen', URI, next, 65_000);
     expect(fake.calls).toEqual([
+      'kitchen.lan clear',
       `kitchen.lan add ${URI}`,
       'kitchen.lan add 16 songs at 8',
       'kitchen.lan add 4 songs at 24',
@@ -172,6 +197,14 @@ describe('sonos-library', () => {
     await library.play('Kitchen', URI, ['spotify:track:0000000000000000000000'], 0);
     expect(fake.calls.at(-1)).toBe('kitchen.lan play');
     expect(console.warn).toHaveBeenCalledWith('sonos: queueing the next songs failed: queue full');
+  });
+
+  it('reads the Spotify songs queued after the one the group plays', async () => {
+    await expect(library.upNext('Lounge', 50)).resolves.toEqual([
+      'spotify:track:0000000000000000000001',
+      'spotify:track:0000000000000000000002'
+    ]);
+    expect(fake.calls).toEqual(['kitchen.lan browse Q:0 from 31 for 50']);
   });
 
   it('lists the groups with their visible rooms, the leading room first, searching the network once', async () => {

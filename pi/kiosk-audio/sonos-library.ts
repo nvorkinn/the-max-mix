@@ -104,11 +104,13 @@ async function queueAfter(device: SonosDevice, from: number, uris: readonly stri
 }
 
 /**
- * Plays a Spotify item: adds it to the group's Sonos queue with the songs that come next on Spotify after it, makes the
- * queue what the group plays, goes to the added song and the point in it the tablet was at, and plays.
+ * Plays a Spotify item: replaces the group's Sonos queue with it and the songs that come next on Spotify after it, makes
+ * the queue what the group plays, goes to the added song and the point in it the tablet was at, and plays. The queue is
+ * emptied first, as Spotify's own "play" does, so the Sonos queue is the tablet's and not the songs played before.
  */
 async function play(room: string, uri: string, next: readonly string[], positionMs: number): Promise<void> {
   const device = await coordinatorFor(room);
+  await device.AVTransportService.RemoveAllTracksFromQueue({ InstanceID: 0 });
   const added = await device.AddUriToQueue(uri, 0, false);
   try {
     await queueAfter(device, added.FirstTrackNumberEnqueued + added.NumTracksAdded, next);
@@ -122,6 +124,22 @@ async function play(room: string, uri: string, next: readonly string[], position
   await device.Play();
 }
 
+/** The Spotify songs in the group's queue after the one it plays (Sonos counts the tracks from 1, the queue from 0). */
+async function upNext(room: string, limit: number): Promise<string[]> {
+  const device = await coordinatorFor(room);
+  const position = await device.AVTransportService.GetPositionInfo();
+  const queue = await device.ContentDirectoryService.BrowseParsed({
+    ObjectID: 'Q:0',
+    BrowseFlag: 'BrowseDirectChildren',
+    Filter: '*',
+    StartingIndex: position.Track,
+    RequestedCount: limit,
+    SortCriteria: ''
+  });
+  const tracks = Array.isArray(queue.Result) ? queue.Result : [];
+  return tracks.flatMap(track => spotifyTrackUri(track.TrackUri) ?? []);
+}
+
 async function readVolume(device: SonosDevice): Promise<number | null> {
   try {
     return (await device.GroupRenderingControlService.GetGroupVolume({ InstanceID: 0 })).CurrentVolume;
@@ -133,6 +151,7 @@ async function readVolume(device: SonosDevice): Promise<number | null> {
 export const library: SonosOperations = {
   groups: async () => (await zoneGroups()).map(group => roomsOf(group)),
   play,
+  upNext,
   now: async room => {
     const device = await coordinatorFor(room);
     const [transport, position, volume] = await Promise.all([

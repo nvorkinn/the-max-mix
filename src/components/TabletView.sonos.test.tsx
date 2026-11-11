@@ -28,7 +28,7 @@ const getQueue = vi.hoisted(() => vi.fn());
 vi.mock('../spotify/api', () => ({ getQueue }));
 vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => state.player }));
 vi.mock('../hooks/useSonosPlayer', () => ({ useSonosPlayer: () => state.sonos }));
-vi.mock('../sonos/kiosk', () => ({ playOnSonosRoom }));
+vi.mock('../sonos/kiosk', () => ({ playOnSonosRoom, getKioskSonosLeader: () => 'Kitchen' }));
 vi.mock('../utils/kiosk', () => ({ isKiosk: () => true }));
 vi.mock('../hooks/useKioskUpdate', () => ({ useKioskUpdate: () => ({ prompting: false }) }));
 vi.mock('../utils/colorExtractor', () => ({ extractPalette: vi.fn().mockResolvedValue({}) }));
@@ -99,11 +99,12 @@ describe('TabletView with Sonos', () => {
     expect(playOnSonosRoom).toHaveBeenCalledWith('Kitchen', URI, { next: [], positionMs: 61_000 });
   });
 
-  it('starts the song it shows on another Sonos while following one', async () => {
+  it('starts the song it shows on another Sonos while following one, with that group’s queue', async () => {
     setUp(true);
     await act(() => defined(props.drawer.onPlayOnSonos)('Bedroom'));
     expect(playOnSonosRoom).toHaveBeenCalledWith('Bedroom', 'spotify:track:abcdefghijklmnopqrstuv', {
-      positionMs: 5000
+      positionMs: 5000,
+      queueFrom: 'Kitchen'
     });
     expect(state.player['togglePlay']).not.toHaveBeenCalled();
     expect(state.player['handOff']).not.toHaveBeenCalled();

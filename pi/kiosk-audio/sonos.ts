@@ -49,13 +49,16 @@ function parsePlay(room: string, body: Record<string, unknown>): SonosRequest | 
   const { uri, positionMs = 0 } = body;
   const next = parseNext(body['next']);
   const position = parsePosition(positionMs);
-  const isPlayable = next && position !== null && typeof uri === 'string' && SPOTIFY_URI.test(uri);
-  return isPlayable ? { kind: 'play', room, uri, next, positionMs: position } : null;
+  // Moving from one Sonos group to another, the songs after it come from that group's queue.
+  const queueFrom = body['queueFrom'] === undefined ? undefined : parseRoom(body['queueFrom']);
+  const isPlayable =
+    next && position !== null && queueFrom !== null && typeof uri === 'string' && SPOTIFY_URI.test(uri);
+  return isPlayable ? { kind: 'play', room, uri, next, positionMs: position, ...(queueFrom && { queueFrom }) } : null;
 }
 
 /** One Sonos request from the app: which room, and what to do there. */
 export type SonosRequest =
-  | { kind: 'play'; room: string; uri: string; next: string[]; positionMs: number }
+  | { kind: 'play'; room: string; uri: string; next: string[]; positionMs: number; queueFrom?: string }
   | { kind: 'control'; room: string; action: SonosAction; positionMs: number }
   | { kind: 'volume'; room: string; volume: number }
   | { kind: 'join'; room: string; to: string }
@@ -121,6 +124,7 @@ export function guarded(operations: SonosOperations): SonosOperations {
     groups: wrap(operations.groups),
     play: wrap(operations.play),
     now: wrap(operations.now),
+    upNext: wrap(operations.upNext),
     control: wrap(operations.control),
     volume: wrap(operations.volume),
     joinGroup: wrap(operations.joinGroup),
@@ -136,7 +140,8 @@ export const sonos: SonosOperations = guarded(library);
 export async function runSonosRequest(request: SonosRequest, way: SonosOperations = sonos): Promise<void> {
   switch (request.kind) {
     case 'play': {
-      await way.play(request.room, request.uri, request.next, request.positionMs);
+      const next = request.queueFrom ? await way.upNext(request.queueFrom, MAX_NEXT) : request.next;
+      await way.play(request.room, request.uri, next, request.positionMs);
       break;
     }
     case 'control': {

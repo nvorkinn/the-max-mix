@@ -11,7 +11,7 @@ import { extractPalette } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
 import { getQueue } from '../spotify/api';
-import { playOnSonosRoom } from '../sonos/kiosk';
+import { getKioskSonosLeader, playOnSonosRoom } from '../sonos/kiosk';
 import { rememberSpeaker } from '../spotify/knownDevices';
 import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import { getAudioRoute, setAudioRoute } from '../spotify/settings';
@@ -176,7 +176,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     if (!uri) throw new Error('Play a song first, then pick the Sonos speaker.');
     const positionMs = shown.progress_ms ?? 0;
     if (sonos.active) {
-      await playOnSonosRoom(room, uri, { positionMs });
+      // The Pi carries over the queue of the Sonos group the music moves from.
+      await playOnSonosRoom(room, uri, { positionMs, queueFrom: getKioskSonosLeader() });
       return;
     }
     // The queue as Spotify has it now; the one on screen may be a few seconds old, or not read at all.

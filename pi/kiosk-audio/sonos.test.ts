@@ -9,6 +9,7 @@ function operations(): SonosOperations {
   return {
     groups: vi.fn(() => Promise.resolve([])),
     play: vi.fn(() => Promise.resolve()),
+    upNext: vi.fn(() => Promise.resolve(['spotify:track:0000000000000000000009'])),
     now: vi.fn(() => Promise.reject(new Error('no room called Attic on this network.'))),
     control: vi.fn(() => Promise.resolve()),
     volume: vi.fn(() => Promise.resolve()),
@@ -38,6 +39,9 @@ describe('parsing Sonos requests', () => {
       next: [URI],
       positionMs: 61_000
     });
+    expect(parseSonosRequest('play', { room: 'Arc Ultra', uri: URI, queueFrom: 'Kitchen' })).toMatchObject({
+      queueFrom: 'Kitchen'
+    });
     expect(parseSonosRequest('control', { room: 'Kitchen', action: 'seek', positionMs: 1500.4 })).toEqual({
       kind: 'control',
       room: 'Kitchen',
@@ -60,6 +64,7 @@ describe('parsing Sonos requests', () => {
       ['play', { room: 'Kitchen', uri: URI, next: ['spotify:album:1234567890123456789012'] }],
       ['play', { room: 'Kitchen', uri: URI, next: Array.from({ length: 51 }, () => URI) }],
       ['play', { room: 'Kitchen', uri: URI, positionMs: -5 }],
+      ['play', { room: 'Kitchen', uri: URI, queueFrom: '--ip=10.0.0.1' }],
       ['control', { room: 'Kitchen', action: 'stop' }],
       ['control', { room: 'Kitchen', action: 'seek', positionMs: -1 }],
       ['volume', { room: 'Kitchen', volume: 101 }],
@@ -83,6 +88,16 @@ describe('runSonosRequest', () => {
     expect(fake.control).toHaveBeenCalledWith('Kitchen', 'seek', 5);
     expect(fake.volume).toHaveBeenCalledWith('Kitchen', 30);
     expect(fake.joinGroup).toHaveBeenCalledWith('Kitchen', 'Lounge');
+  });
+
+  it('carries the queue of the group the music moves from', async () => {
+    const fake = operations();
+    await runSonosRequest(
+      { kind: 'play', room: 'Arc Ultra', uri: URI, next: [], positionMs: 9, queueFrom: 'Kitchen' },
+      fake
+    );
+    expect(fake.upNext).toHaveBeenCalledWith('Kitchen', 50);
+    expect(fake.play).toHaveBeenCalledWith('Arc Ultra', URI, ['spotify:track:0000000000000000000009'], 9);
   });
 
   it('rejects with a reason safe to show', async () => {

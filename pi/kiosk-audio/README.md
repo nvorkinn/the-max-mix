@@ -23,7 +23,7 @@ Spotify will not move its playback to a Sonos speaker from this app (its Web API
 tapping a Sonos room in the app's Speakers drawer sends `POST /sonos/play` with `{"room": "Kitchen", "uri":
 "spotify:track:…", "next": ["spotify:track:…", …], "positionMs": 61000}` (the song on screen, Spotify's queue and how far into the song it was). The service talks to the speakers with the
 [sonos-ts library](https://sonos-ts.svrooij.io) (`sonos-library.ts`): it finds a speaker on the home network (SSDP),
-adds the song to the room's group's Sonos queue (`AddUriToQueue`), with the songs in `next` (Spotify's queue, at most 50) after it (`AddMultipleURIsToQueue`, 16 at a time), goes to it, seeks to `positionMs` and plays it, through the Spotify account linked in the Sonos app; no
+empties the room's group's Sonos queue (`RemoveAllTracksFromQueue`), adds the song to it (`AddUriToQueue`), with the songs in `next` (Spotify's queue, at most 50; or, with `"queueFrom": "Kitchen"` when the music moves from one Sonos to another, the songs that group still has to play) after it (`AddMultipleURIsToQueue`, 16 at a time), goes to it, seeks to `positionMs` and plays it, through the Spotify account linked in the Sonos app; no
 Spotify credentials are needed on the Pi. A failure answers 502 with the reason, which the app shows.
 
 The app reaches everything else about Sonos here too:
