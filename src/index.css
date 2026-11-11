@@ -71,6 +71,21 @@
   }
 }
 
+/*
+  Two colours read from the album art (utils/colorExtractor.ts, set inline by TabletView). Registering them as colours
+  lets the tint cross-fade when the song changes, and their transparent default means no art gives no tint.
+*/
+@property --art-tint-top {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --art-tint-bottom {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+
 .tablet-container {
   --accent: #293a27;
   --accent-ink: #fff;
@@ -99,6 +114,9 @@
   background: var(--page);
   color: var(--ink);
   color-scheme: light;
+  transition:
+    --art-tint-top 1.5s ease,
+    --art-tint-bottom 1.5s ease;
 }
 /* Colour choices from the settings (src/utils/themeColour.ts); forest is the default above. */
 .tablet-container[data-colour='navy'] {
@@ -272,6 +290,21 @@
       1fr
     );
   gap: var(--row-gap) 28px;
+  /*
+    A very faint wash of the album art's colours behind the right-hand column (the queue), fading out before it reaches
+    the artwork. It sits on the room itself, so it stays put whatever that column shows.
+  */
+  background:
+    radial-gradient(
+      ellipse 55% 65% at 80% 22%,
+      color-mix(in srgb, var(--art-tint-top) 12%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 55% 60% at 78% 82%,
+      color-mix(in srgb, var(--art-tint-bottom) 10%, transparent),
+      transparent 70%
+    );
 }
 .listening-room:not(.is-setup) .player-section,
 .listening-room:not(.is-setup) .now-playing {
