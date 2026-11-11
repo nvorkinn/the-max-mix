@@ -3,8 +3,6 @@
 adwaita
 alsa
 apos
-aqabaiaaaaaaap
-argjson
 argv
 atrack
 autoclean
@@ -25,7 +23,6 @@ cmdline
 color
 connecttest
 cretpass
-dataclass
 dbus
 dejavu
 devicechange
@@ -34,15 +31,12 @@ dialogs
 DIDL
 disallocate
 dnsmasq
-dpkg
 elif
 endfor
-equalto
 esac
 EUID
 extrabold
 firstrun
-flickable
 fsck
 fulfill
 gatt
@@ -101,7 +95,6 @@ nonexistent
 nonint
 noninteractive
 NOPASSWD
-noqa
 nosniff
 noto
 nullglob
@@ -130,13 +123,7 @@ publickey
 pwauth
 pycache
 pyproject
-qml
 qrcode
-qtcore
-qtgui
-qtqml
-qtquick
-qtvirtualkeyboard
 quot
 randr
 raop
@@ -158,8 +145,6 @@ singername
 songmid
 songname
 sonos
-sonoscli
-splitlines
 ssdp
 SSID
 SSIDs
@@ -179,8 +164,6 @@ ttyv
 ttyvt
 tzdata
 unescaped
-unescapes
-unjoin
 unstub
 urlencode
 useradd
@@ -191,7 +174,6 @@ valuetext
 vars
 venv
 vercel
-virtualkeyboard
 VITE
 waveshare
 wayland
