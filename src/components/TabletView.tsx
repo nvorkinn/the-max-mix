@@ -10,6 +10,7 @@ import { extractPalette } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
 import { getQueue } from '../spotify/api';
+import { playOnSonosRoom } from '../sonos/kiosk';
 import { rememberSpeaker } from '../spotify/knownDevices';
 import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import { getAudioRoute, setAudioRoute } from '../spotify/settings';
@@ -153,6 +154,16 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       routeAudio([]);
     }
     await transferPlayback(deviceId);
+  };
+
+  // Spotify will not move its playback to a Sonos, so on the kiosk the Pi starts the song on the speaker itself
+  // (sonoscli). Sonos then plays it from its own queue: this tablet's Spotify is paused so the music moves rather than
+  // playing in two places, and the screen keeps showing Spotify's (paused) song.
+  const playOnSonos = async (room: string) => {
+    const uri = playbackState?.item?.uri;
+    if (!uri) throw new Error('Play a song first, then pick the Sonos speaker.');
+    await playOnSonosRoom(room, uri);
+    if (playbackState?.is_playing && !(await togglePlay())) debugLog('warn', 'sonos', 'Spotify did not pause');
   };
 
   const toggleLyrics = (show: boolean) => {
@@ -492,6 +503,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         canUseAirPlay={canUseAirPlay}
         audioRoute={audioRoute}
         onAirPlayChange={chooseAirPlaySpeakers}
+        onPlayOnSonos={onKiosk ? playOnSonos : undefined}
       />
 
       <MusicPicker

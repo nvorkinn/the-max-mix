@@ -9,22 +9,32 @@ import { errorMessage } from '../utils/errorMessage';
 /** How long to wait after the last slider move before sending the volume, so a drag sends a few requests, not dozens. */
 const VOLUME_DELAY_MS = 250;
 
+/** What a one-room card says under its name: on the kiosk the Pi plays to it; elsewhere whether Spotify can. */
+function note(throughKiosk: boolean, device: SpotifyDevice | undefined): string {
+  if (throughKiosk) return 'Sonos';
+  return device ? 'Ready in Spotify' : 'Not in Spotify yet';
+}
+
 /**
- * The Sonos groups from the Sonos login, one card each. A tap plays there through Spotify Connect, so a group can be
- * picked only while Spotify knows its speaker. Each card holds the group's volume, which can be moved only while the
+ * The Sonos groups from the Sonos login, one card each. On the kiosk a tap plays the song on screen there through the
+ * Pi (onPlayOnSonos, with the room that leads the group); elsewhere it plays there through Spotify Connect, so a group
+ * can be picked only while Spotify knows its speaker. Each card holds the group's volume, which can be moved only while the
  * group plays, and a Rooms button that shows every room as a switch to add it to the group or take it out.
  */
 export default function SonosGroupList({
   devices,
   playingId,
   disabled,
-  onSelect
+  onSelect,
+  onPlayOnSonos
 }: Readonly<{
   /** Spotify's Connect devices, read by the drawer. */
   devices: readonly SpotifyDevice[];
   playingId?: string | null | undefined;
   disabled: boolean;
   onSelect: (deviceId: string) => unknown;
+  /** The kiosk: plays the song on screen on this Sonos room (sonoscli on the Pi); rejects with a message to show. */
+  onPlayOnSonos?: ((room: string) => Promise<void>) | undefined;
 }>) {
   const [groups, setGroups] = useState<SonosGroup[] | null>(null);
   const [rooms, setRooms] = useState<SonosRoom[]>([]);
@@ -34,6 +44,8 @@ export default function SonosGroupList({
   // The group whose rooms are shown, and whether a change to them is being sent.
   const [editing, setEditing] = useState<string | null>(null);
   const [regrouping, setRegrouping] = useState(false);
+  // The group the kiosk is starting the song on (sonoscli can take several seconds to find the speaker).
+  const [starting, setStarting] = useState<string | null>(null);
   const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const mountedRef = useRef(true);
   const isMounted = () => mountedRef.current;
@@ -94,7 +106,25 @@ export default function SonosGroupList({
     }
   };
 
+  const playOnSonos = async (group: SonosGroup, play: (room: string) => Promise<void>) => {
+    setNotice(null);
+    setError(null);
+    setStarting(group.id);
+    try {
+      await play(group.rooms[0] ?? group.name);
+      await load();
+    } catch (caught) {
+      if (isMounted()) setError(errorMessage(caught));
+    } finally {
+      if (isMounted()) setStarting(null);
+    }
+  };
+
   const select = (group: SonosGroup) => {
+    if (onPlayOnSonos) {
+      void playOnSonos(group, onPlayOnSonos);
+      return;
+    }
     const device = spotifyDeviceFor(group, devices);
     if (device?.id) {
       setNotice(null);
@@ -125,7 +155,7 @@ export default function SonosGroupList({
       )}
       {groups?.map(group => {
         const device = spotifyDeviceFor(group, devices);
-        const playing = Boolean(device?.id) && device?.id === playingId;
+        const playing = onPlayOnSonos ? group.playing : Boolean(device?.id) && device?.id === playingId;
         const active = playing || group.playing;
         const volume = volumes[group.id];
         const members = group.rooms.length > 1 ? group.rooms.join(', ') : null;
@@ -137,7 +167,7 @@ export default function SonosGroupList({
               <button
                 type="button"
                 aria-pressed={playing}
-                disabled={disabled}
+                disabled={disabled || starting !== null}
                 onClick={() => select(group)}
                 className="flex-1 min-w-0 p-3 flex gap-3 items-center text-left rounded-xl"
               >
@@ -145,7 +175,7 @@ export default function SonosGroupList({
                 <span className="flex-1 min-w-0">
                   <span className="block text-sm truncate">{group.name}</span>
                   <span className="text-[11px] text-muted">
-                    {members ?? (device ? 'Ready in Spotify' : 'Not in Spotify yet')}
+                    {starting === group.id ? 'Starting the song…' : (members ?? note(Boolean(onPlayOnSonos), device))}
                   </span>
                 </span>
                 {active && (

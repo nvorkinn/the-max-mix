@@ -17,6 +17,20 @@ app on `127.0.0.1:7341`. It does two jobs:
 - **AirPlay**: playback stays on the tablet's own player, and the Pi links Chromium's PipeWire stream to every speaker
   picked in the app, all at once, and off the Pi's own output. Speakers can be added and removed while the music plays.
 
+## Sonos
+
+Spotify will not move its playback to a Sonos speaker from this app (its Web API hides Sonos as a restricted device), so
+tapping a Sonos room in the app's Speakers drawer sends `POST /sonos/play` with `{"room": "Kitchen", "uri":
+"spotify:track:…"}` (the song on screen). The service runs [sonoscli](https://sonoscli.sh/spotify-and-smapi.html)
+(`sonos.ts`), which the playbook installs as `/usr/local/bin/sonos` (`kiosk_sonoscli_version`):
+
+    sonos open --name=Kitchen --timeout=15s -- spotify:track:6NmXV4o6bmp704aPGyTVVG
+
+sonoscli finds the room on the home network (SSDP, then a scan of the subnet), adds the song to that room's Sonos queue
+and plays it on the group the room leads, through the Spotify account linked in the Sonos app; no Spotify credentials
+are needed on the Pi. A failure answers 502 with sonoscli's reason, which the app shows. To try it by hand on the Pi:
+`sudo -u kiosk sonos discover` and `sudo -u kiosk sonos open --name Kitchen spotify:track:…`.
+
 ## How it works
 
 1. **Discovery.** `libpipewire-module-raop-discover` (enabled by `/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf`)
@@ -181,12 +195,13 @@ show journalctl's "no permission" instead of the lines; the pull and restart sti
 
 ## Security
 
-- It listens on 127.0.0.1 only (the unit has `IPAddressDeny=any` and allows localhost). It answers the app's origin alone
+- It listens on 127.0.0.1 only (`server.ts` binds there). It answers the app's origin alone
   (CORS), and refuses every POST and every WebSocket whose `Origin` header is not the app's (a browser does not apply CORS
   to a WebSocket), so no other web page can trigger an action.
 - A request names a fixed action; it never carries a command. Routing accepts at most 16 speaker names of up to 256
   characters and can only link the browser's stream to existing sinks. Everything runs by absolute path with an argument
-  list, no shell. polkit (`50-kiosk-power.rules`) limits what the `kiosk` user may do with systemd and power.
+  list, no shell. `POST /sonos/play` takes a room name (one line, at most 64 characters, not starting with `-`) and a
+  `spotify:<kind>:<22-character id>` URI, and passes them to `sonos` as `--name=<room>` and after `--`. polkit (`50-kiosk-power.rules`) limits what the `kiosk` user may do with systemd and power.
 - Everything runs as the `kiosk` user, next to that user's PipeWire.
 
 ## On the device

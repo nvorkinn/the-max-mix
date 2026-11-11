@@ -14,10 +14,10 @@ Restart=always
 RestartSec=2
 NoNewPrivileges=yes
 LockPersonality=yes
-# PipeWire's socket, and the speaker list on 127.0.0.1 only.
-RestrictAddressFamilies=AF_UNIX AF_INET
-IPAddressDeny=any
-IPAddressAllow=localhost
+# PipeWire's socket, the app's requests on 127.0.0.1 (server.ts listens there only), and sonoscli (sonos.ts), which finds
+# the Sonos speakers on the home network and talks to them, and reads the network interfaces over netlink. So there is no
+# IP address allow list: the speakers are wherever the home network puts them.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_NETLINK
 
 [Install]
 WantedBy=default.target

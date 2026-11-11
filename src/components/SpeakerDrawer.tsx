@@ -34,7 +34,8 @@ export default function SpeakerDrawer({
   activeDeviceId,
   canUseAirPlay = false,
   audioRoute = 'spotify-connect',
-  onAirPlayChange
+  onAirPlayChange,
+  onPlayOnSonos
 }: Readonly<{
   isOpen: boolean;
   onClose: () => void;
@@ -48,6 +49,8 @@ export default function SpeakerDrawer({
   audioRoute?: AudioRoute;
   /** The AirPlay speakers now chosen; none means AirPlay is off. */
   onAirPlayChange?: (speakers: string[]) => unknown;
+  /** The kiosk: plays the song on screen on a Sonos room through the Pi (sonoscli), instead of Spotify Connect. */
+  onPlayOnSonos?: ((room: string) => Promise<void>) | undefined;
 }>) {
   const [devices, setDevices] = useState<SpotifyDevice[]>([]);
   const [loading, setLoading] = useState(false);
@@ -233,12 +236,17 @@ export default function SpeakerDrawer({
               <h3 id="sonos-title" className="text-xs font-bold">
                 Sonos
               </h3>
-              <p className="text-[11px] text-muted">Your Sonos rooms and groups. Plays through Spotify Connect.</p>
+              <p className="text-[11px] text-muted">
+                {onPlayOnSonos
+                  ? 'Your Sonos rooms and groups. Tap one to play this song there.'
+                  : 'Your Sonos rooms and groups. Plays through Spotify Connect.'}
+              </p>
               <SonosGroupList
                 devices={allDevices}
                 playingId={isAirPlay ? null : playingId}
                 disabled={selecting || waitingForSpotify}
                 onSelect={selectDevice}
+                onPlayOnSonos={onPlayOnSonos}
               />
             </section>
           )}

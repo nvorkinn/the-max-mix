@@ -10,6 +10,8 @@ import { HotspotError } from './hotspot.ts';
 import { ERRORS, ScanError } from './nmcli.ts';
 import type { ConnectRequest } from './nmcli.ts';
 import { parseDump } from './pipewire.ts';
+import { SonosError } from './sonos.ts';
+import type { SonosPlay } from './sonos.ts';
 import { handleRequest, journalLog, LOCAL_ORIGIN, parseAppLog, speakerNames, speakerVolumes } from './server.ts';
 import type { AppLog, Deps } from './server.ts';
 
@@ -42,6 +44,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
   const performed: Action[] = [];
   const routed: string[][] = [];
   const volumes: [string, number][] = [];
+  const played: SonosPlay[] = [];
   const logged: AppLog[] = [];
   const joined: ConnectRequest[] = [];
   let beats = 0;
@@ -59,6 +62,11 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
     perform: action => {
       performed.push(action);
       return Promise.resolve();
+    },
+    sonos: request => {
+      played.push(request);
+      if (request.room === 'Attic') return Promise.reject(new SonosError('Sonos: speaker name not found in topology: Attic'));
+      return request.room === 'Broken' ? Promise.reject(new Error('internal detail')) : Promise.resolve();
     },
     heartbeat: () => {
       beats += 1;
@@ -128,6 +136,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
     performed,
     routed,
     volumes,
+    played,
     logged,
     joined,
     beats: () => beats,
@@ -227,6 +236,33 @@ describe('POST', () => {
       expect((await post(base, '/audio/volume', { body })).status).toBe(400);
     }
     expect(volumes).toEqual([]);
+  });
+
+  it('plays a Spotify song on a Sonos room, and says why when it could not', async () => {
+    const { deps, played } = fakes();
+    const base = await start(deps);
+    const uri = 'spotify:track:6NmXV4o6bmp704aPGyTVVG';
+    expect((await post(base, '/sonos/play', { body: { room: 'Kitchen', uri } })).status).toBe(204);
+    const missing = await post(base, '/sonos/play', { body: { room: 'Attic', uri } });
+    expect(missing.status).toBe(502);
+    await expect(missing.json()).resolves.toEqual({ error: 'Sonos: speaker name not found in topology: Attic' });
+    const broken = await post(base, '/sonos/play', { body: { room: 'Broken', uri } });
+    await expect(broken.json()).resolves.toEqual({ error: 'Sonos did not start playing.' });
+    expect(played.map(request => request.room)).toEqual(['Kitchen', 'Attic', 'Broken']);
+  });
+
+  it('refuses a bad Sonos request, and one from another web page', async () => {
+    const { deps, played } = fakes();
+    const base = await start(deps);
+    const uri = 'spotify:track:6NmXV4o6bmp704aPGyTVVG';
+    expect((await post(base, '/sonos/play', { body: { room: 'Kitchen', uri: 'https://evil.example' } })).status).toBe(
+      400
+    );
+    expect((await post(base, '/sonos/play', { body: { room: '--ip=10.0.0.1', uri } })).status).toBe(400);
+    expect((await post(base, '/sonos/play', { origin: 'https://evil.example', body: { room: 'Kitchen', uri } })).status).toBe(
+      403
+    );
+    expect(played).toEqual([]);
   });
 
   it('does nothing for another web page', async () => {

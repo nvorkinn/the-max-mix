@@ -3,6 +3,8 @@
 //                           plus {"volumes": {"Kitchen": 40, …}}, each speaker's volume in percent
 //   POST /audio/route       {"speakers": [...]}            route the sound to those speakers (none: the Pi's own output)
 //   POST /audio/volume      {"speaker": "Kitchen", "volume": 40}   set one speaker's volume (404: not on the network)
+//   POST /sonos/play        {"room": "Kitchen", "uri": "spotify:track:…"}   play it on that Sonos room with sonoscli (sonos.ts):
+//                           204, 400, or 502 {"error"}: why not, safe to show
 //   POST /power/restart     restart the kiosk              POST /power/reboot    reboot the Pi
 //   POST /display/wake      turn the screen back on        POST /wifi            show the Wi-Fi setup page
 //   POST /heartbeat         the app (or the Wi-Fi setup page) is alive (watchdog.ts)  POST /log  {"level", "source", "message"}  an app error, to the journal
@@ -42,6 +44,8 @@ import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
 import { PhoneSetup } from './phone-setup.ts';
 import type { Graph } from './pipewire.ts';
+import { parseSonosPlay, playOnSonos, SonosError } from './sonos.ts';
+import type { SonosPlay } from './sonos.ts';
 import { speakerSinks, validSpeakers, validVolume } from './speakers.ts';
 import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
@@ -71,6 +75,8 @@ export interface Deps {
   /** Sets a speaker's volume in percent; returns how many sinks it set (none: no speaker has that name). */
   setVolume: (speaker: string, volume: number) => Promise<number>;
   perform: (action: Action) => Promise<void>;
+  /** Plays a Spotify item on a Sonos room; rejects with a SonosError when it could not. */
+  sonos: (request: SonosPlay) => Promise<void>;
   heartbeat: () => void;
   log: (entry: AppLog) => void;
   wifi: Wifi;
@@ -201,6 +207,21 @@ async function volumeStatus(request: IncomingMessage, deps: Deps): Promise<numbe
   return (await deps.setVolume(body.speaker, body.volume)) === 0 ? 404 : 204;
 }
 
+/** POST /sonos/play: plays the song on the room, or says why not. */
+async function postSonos(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
+  const body = parseSonosPlay(JSON.parse(await readBody(request)) as unknown);
+  if (!body) {
+    response.writeHead(400).end();
+    return;
+  }
+  try {
+    await deps.sonos(body);
+    response.writeHead(204).end();
+  } catch (error) {
+    sendJson(response, 502, { error: error instanceof SonosError ? error.message : 'Sonos did not start playing.' });
+  }
+}
+
 /** Sends the Bluetooth speakers (or the safe message of why not) as JSON. */
 async function sendDevices(response: ServerResponse, devices: () => Promise<BluetoothDevice[]>): Promise<void> {
   try {
@@ -261,6 +282,10 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
     case '/audio/volume': {
       status = await volumeStatus(request, deps);
       break;
+    }
+    case '/sonos/play': {
+      await postSonos(request, response, deps);
+      return;
     }
     case '/bluetooth/scan':
     case '/bluetooth/connect':
@@ -476,6 +501,7 @@ export function serveSpeakers(
   const handler = handleRequest(origin, {
     ...deps,
     perform,
+    sonos: request => playOnSonos(request),
     heartbeat,
     log: journalLog(),
     asset: wifiSetupAsset,

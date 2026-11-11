@@ -156,6 +156,8 @@ kiosk_keyboard_dir: /opt/the-max-mix/kiosk-keyboard
 kiosk_audio_src: '{{ playbook_dir }}/../pi/kiosk-audio'
 kiosk_audio_dir: /opt/the-max-mix/kiosk-audio
 kiosk_audio_deps_stamp: /var/lib/the-max-mix/kiosk-audio-deps.sha1
+# The sonoscli release the kiosk-audio service plays to Sonos speakers with (https://github.com/steipete/sonoscli/releases).
+kiosk_sonoscli_version: 0.3.5
 # PipeWire's AirPlay buffer. Shorter means play, pause and skip are heard sooner on the speakers; too short and a busy
 # Wi-Fi network makes them drop out.
 kiosk_raop_latency_ms: 500

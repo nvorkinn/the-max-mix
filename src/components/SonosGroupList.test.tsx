@@ -60,6 +60,27 @@ describe('SonosGroupList', () => {
     expect(screen.getByRole('status')).toHaveTextContent("Spotify can't see Living Room + 1 yet.");
   });
 
+  it('on the kiosk, plays the song on the room that leads the group, and shows why when it could not', async () => {
+    const onSelect = vi.fn();
+    const onPlayOnSonos = vi
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('Sonos: speaker name not found in topology: Living Room'));
+    render(<SonosGroupList devices={[]} disabled={false} onSelect={onSelect} onPlayOnSonos={onPlayOnSonos} />);
+    const kitchen = await screen.findByRole('button', { name: /^Kitchen/ });
+    expect(kitchen).toHaveTextContent('Sonos');
+    expect(kitchen).not.toHaveTextContent('Not in Spotify yet');
+
+    await userEvent.click(kitchen);
+    expect(onPlayOnSonos).toHaveBeenCalledWith('Kitchen');
+    expect(api.listSonos).toHaveBeenCalledTimes(2);
+
+    await userEvent.click(screen.getByRole('button', { name: /^Living Room \+ 1/ }));
+    expect(onPlayOnSonos).toHaveBeenLastCalledWith('Living Room');
+    expect(await screen.findByRole('alert')).toHaveTextContent('speaker name not found in topology: Living Room');
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   it('lets the volume move only while the group plays, and sends it once the slider rests', async () => {
     render(<SonosGroupList devices={DEVICES} disabled={false} onSelect={vi.fn()} />);
     expect(await screen.findByRole('slider', { name: 'Kitchen volume' })).toBeDisabled();
