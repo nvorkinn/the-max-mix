@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, CSSProperties } from 'react';
-import { AudioLines, Clock, Library, Moon, Settings } from 'lucide-react';
+import { AudioLines, Clock, Search, Settings } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { useSonosPlayer } from '../hooks/useSonosPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
@@ -38,6 +38,7 @@ import SpeakerDrawer from './SpeakerDrawer';
 import MusicPicker from './MusicPicker';
 import DebugConsole from './DebugConsole';
 import SleepScreen from './SleepScreen';
+import SleepIcon from './SleepIcon';
 
 const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
@@ -427,9 +428,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           </div>
         </div>
         <div className="header-actions">
-          <span className="header-clock" {...debugHold}>
-            <Clock size={14} /> {currentTime}
-          </span>
           {!needsConnection && (
             <button
               type="button"
@@ -438,7 +436,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               title="Choose music"
               aria-label="Choose music"
             >
-              <Library size={28} />
+              <Search size={28} />
             </button>
           )}
           {onKiosk && (
@@ -449,7 +447,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               title="Sleep"
               aria-label="Put the screen to sleep"
             >
-              <Moon size={28} />
+              <SleepIcon size={28} />
             </button>
           )}
           <button
@@ -461,6 +459,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           >
             <Settings size={28} />
           </button>
+          <span className="header-clock" {...debugHold}>
+            <Clock size={14} /> {currentTime}
+          </span>
         </div>
       </header>
 
