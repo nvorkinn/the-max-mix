@@ -226,16 +226,15 @@ registered: an address that is not registered cannot sign in.
 
 ## Sonos
 
-On the kiosk, the Speakers drawer lists the Sonos rooms on the home network, found by the Pi (`pi/kiosk-audio/sonos.ts`)
-with [sonoscli](https://sonoscli.sh) or the [sonos-ts](https://sonos-ts.svrooij.io) library, whichever Settings picks
-(**Talk to Sonos with**), and says how long finding them took. Spotify will not move its playback to a Sonos, so tapping
-a room has the Pi start the song on screen there, through the Spotify account linked in the Sonos app. While that group
-plays, tapping another room adds it to the group; tapping a room in the group again takes it out, and taking out the last
-one pauses it. From then on the tablet shows the group's song, progress and artwork and sends its controls (play, pause,
-skip, volume, and music picked in Choose music) to the group through the Pi (`src/hooks/useSonosPlayer.ts`), until
-another speaker is picked, which pauses the Sonos. sonoscli cannot seek, so the progress bar moves only with sonos-ts. A
-room is turned down to 25% before music starts on it, if it was louder. There is no Sonos sign-in: everything stays on
-the home network, so Sonos is listed on the kiosk only.
+On the kiosk, the Speakers drawer lists the Sonos rooms on the home network under Spotify Connect, found by the Pi
+(`pi/kiosk-audio/sonos.ts`) with the [sonos-ts](https://sonos-ts.svrooij.io) library. Spotify will not move its playback
+to a Sonos, so tapping a room has the Pi start the song on screen there, through the Spotify account linked in the Sonos
+app. While that group plays, tapping another room adds it to the group; tapping a room in the group again takes it out,
+and taking out the last one pauses it. The change shows at once, and the drawer reads the rooms again until Sonos shows
+it too. From then on the tablet shows the group's song, progress and artwork and sends its controls (play, pause, skip,
+seek, volume, and music picked in Choose music) to the group through the Pi (`src/hooks/useSonosPlayer.ts`), until
+another speaker is picked, which pauses the Sonos. A room is turned down to 25% before music starts on it, if it was
+louder. There is no Sonos sign-in: everything stays on the home network, so Sonos is listed on the kiosk only.
 
 ## Raspberry Pi kiosk
 

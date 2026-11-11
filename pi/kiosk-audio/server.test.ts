@@ -45,7 +45,6 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
   const routed: string[][] = [];
   const volumes: [string, number][] = [];
   const played: SonosRequest[] = [];
-  const tested: [string, string][] = [];
   const logged: AppLog[] = [];
   const joined: ConnectRequest[] = [];
   let beats = 0;
@@ -72,11 +71,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
       }
       return request.room === 'Broken' ? Promise.reject(new Error('internal detail')) : Promise.resolve();
     },
-    sonosTest: (room, test) => {
-      tested.push([room, test]);
-      return Promise.resolve();
-    },
-    sonosWay: engine => sonosFake(engine),
+    sonosCalls: sonosFake(true),
     now: () => (clock += 1500),
     heartbeat: () => {
       beats += 1;
@@ -147,7 +142,6 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
     routed,
     volumes,
     played,
-    tested,
     logged,
     joined,
     beats: () => beats,
@@ -165,12 +159,12 @@ async function start(deps: Deps): Promise<string> {
 
 const NOW = { playing: true, positionMs: 1000, track: null, volume: 20, canSeek: true };
 
-/** A fake way to Sonos: sonoscli finds Kitchen; the library finds nothing. */
+/** A fake Sonos: Kitchen when the speakers answer, else no answer at all. */
 const fail = () => Promise.reject(new SonosError('Sonos: no speakers answered.'));
 const resolved = () => Promise.resolve();
 
-function sonosFake(engine: string): SonosOperations {
-  if (engine === 'library') {
+function sonosFake(isAnswering: boolean): SonosOperations {
+  if (!isAnswering) {
     return {
       groups: fail,
       play: resolved,
@@ -291,40 +285,28 @@ describe('POST', () => {
     const broken = await post(base, '/sonos/play', { body: { room: 'Broken', uri } });
     await expect(broken.json()).resolves.toEqual({ error: 'Sonos did not do that.' });
     expect(played.map(request => request.room)).toEqual(['Kitchen', 'Attic', 'Broken']);
-    expect(played[0]?.engine).toBe('cli');
   });
 
-  it('plays through the library when asked, and runs the resume test calls', async () => {
-    const { deps, played, tested } = fakes();
-    const base = await start(deps);
-    const uri = 'spotify:track:1234567890123456789012';
-    expect((await post(base, '/sonos/play', { body: { room: 'Kitchen', uri, engine: 'library' } })).status).toBe(204);
-    expect(played[0]?.engine).toBe('library');
-    expect((await post(base, '/sonos/test', { body: { room: 'Kitchen', test: 'library-queue' } })).status).toBe(204);
-    expect((await post(base, '/sonos/test', { body: { room: 'Kitchen', test: 'cli-play' } })).status).toBe(204);
-    expect((await post(base, '/sonos/test', { body: { room: 'Kitchen', test: 'rm -rf' } })).status).toBe(400);
-    expect(tested).toEqual([
-      ['Kitchen', 'library-queue'],
-      ['Kitchen', 'cli-play']
-    ]);
+  it('says when the speakers do not answer, and refuses the old test calls', async () => {
+    const { deps } = fakes();
+    const base = await start({ ...deps, sonosCalls: sonosFake(false) });
+    const failed = await fetch(`${base}/sonos/groups`, { headers: { Origin: ORIGIN } });
+    expect(failed.status).toBe(502);
+    await expect(failed.json()).resolves.toEqual({ error: 'Sonos: no speakers answered.' });
+    expect((await fetch(`${base}/sonos/now?room=Kitchen`, { headers: { Origin: ORIGIN } })).status).toBe(502);
+    expect((await post(base, '/sonos/test', { body: { room: 'Kitchen', test: 'library-queue' } })).status).toBe(404);
   });
 
-  it('lists the Sonos groups the chosen way, with how long it took, for the app only', async () => {
+  it('lists the Sonos groups, with how long it took, for the app only', async () => {
     const base = await start(fakes().deps);
-    const get = (query: string, origin = ORIGIN) =>
-      fetch(`${base}/sonos/groups${query}`, { headers: { Origin: origin } });
-    const found = await get('?engine=cli');
+    const get = (origin = ORIGIN) => fetch(`${base}/sonos/groups`, { headers: { Origin: origin } });
+    const found = await get();
     expect(found.status).toBe(200);
     await expect(found.json()).resolves.toEqual({
       groups: [{ id: 'RINCON_K:1', rooms: [{ id: 'RINCON_K', name: 'Kitchen' }] }],
       ms: 1500
     });
-    expect((await get('')).status).toBe(200);
-    const failed = await get('?engine=library');
-    expect(failed.status).toBe(502);
-    await expect(failed.json()).resolves.toEqual({ error: 'Sonos: no speakers answered.' });
-    expect((await get('?engine=shell')).status).toBe(400);
-    expect((await get('?engine=cli', 'https://evil.example')).status).toBe(403);
+    expect((await get('https://evil.example')).status).toBe(403);
   });
 
   it('says what a room plays, and gives its artwork', async () => {
@@ -332,7 +314,6 @@ describe('POST', () => {
     const get = (path: string) => fetch(`${base}${path}`, { headers: { Origin: ORIGIN } });
     const now = await get('/sonos/now?room=Kitchen');
     await expect(now.json()).resolves.toEqual(NOW);
-    expect((await get('/sonos/now?room=Kitchen&engine=library')).status).toBe(502);
     expect((await get('/sonos/now')).status).toBe(400);
     const art = await get('/sonos/art?room=Kitchen');
     expect(art.headers.get('content-type')).toBe('image/jpeg');
@@ -346,9 +327,7 @@ describe('POST', () => {
     expect(
       (await post(base, '/sonos/control', { body: { room: 'Kitchen', action: 'seek', positionMs: 5 } })).status
     ).toBe(204);
-    expect(
-      (await post(base, '/sonos/volume', { body: { room: 'Kitchen', volume: 30, engine: 'library' } })).status
-    ).toBe(204);
+    expect((await post(base, '/sonos/volume', { body: { room: 'Kitchen', volume: 30 } })).status).toBe(204);
     expect((await post(base, '/sonos/join', { body: { room: 'Kitchen', to: 'Lounge' } })).status).toBe(204);
     expect((await post(base, '/sonos/leave', { body: { room: 'Kitchen' } })).status).toBe(204);
     expect((await post(base, '/sonos/volume', { body: { room: 'Kitchen', volume: 101 } })).status).toBe(400);

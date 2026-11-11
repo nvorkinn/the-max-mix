@@ -97,19 +97,19 @@ export default function AirPlaySpeakerList({
   // Chosen speakers that are not on the network right now stay listed, so they can be removed.
   const names = [...new Set([...(outputs ?? []), ...chosen])];
   return (
-    <div className="space-y-2">
+    <div className="grid grid-cols-2 gap-2 items-start">
       {!isPlayerReady && (
-        <p role="status" className="text-xs status-warning">
+        <p role="status" className="col-span-full text-xs status-warning">
           {notReadyMessage}
         </p>
       )}
       {error && (
-        <p role="alert" className="text-xs status-danger">
+        <p role="alert" className="col-span-full text-xs status-danger">
           {error}
         </p>
       )}
       {outputs && names.length === 0 && (
-        <p className="text-xs leading-relaxed text-muted py-4">
+        <p className="col-span-full text-xs leading-relaxed text-muted py-4">
           Looking for AirPlay speakers on this network. Sonos speakers show up once AirPlay is on in the Sonos app.
           Connected Bluetooth speakers are listed here too.
         </p>
@@ -127,7 +127,7 @@ export default function AirPlaySpeakerList({
               aria-pressed={isChosen}
               disabled={!isPlayerReady && !isChosen}
               onClick={() => toggle(name)}
-              className="modal-option w-full p-3 flex gap-3 items-center text-left rounded-xl border"
+              className="modal-option w-full px-3 py-2 flex gap-3 items-center text-left rounded-xl border"
             >
               <Speaker size={20} className="shrink-0 text-accent" />
               <span className="flex-1 min-w-0">

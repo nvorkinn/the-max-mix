@@ -140,7 +140,7 @@ export default function SpeakerDrawer({
       disabled={selecting || waitingForSpotify}
       aria-pressed={tabletIsActive}
       onClick={() => void selectDevice(browserDeviceId)}
-      className="modal-option w-full p-3 flex gap-3 items-center text-left rounded-xl border"
+      className="modal-option w-full px-3 py-2 flex gap-3 items-center text-left rounded-xl border"
     >
       <Speaker size={20} className="shrink-0 text-accent" />
       <span className="flex-1 min-w-0 text-sm truncate">This tablet</span>
@@ -160,7 +160,7 @@ export default function SpeakerDrawer({
         disabled={!device.id || device.is_restricted || selecting || waitingForSpotify}
         aria-pressed={isPlaying(device)}
         onClick={() => device.id && void selectDevice(device.id)}
-        className="modal-option w-full p-3 flex gap-3 items-center text-left rounded-xl border"
+        className="modal-option w-full px-3 py-2 flex gap-3 items-center text-left rounded-xl border"
       >
         <Speaker size={20} className="shrink-0 text-accent" />
         <span className="flex-1 min-w-0">
@@ -236,11 +236,13 @@ export default function SpeakerDrawer({
             <h3 id="connect-title" className="text-xs font-bold">
               Spotify Connect
             </h3>
-            <p className="text-[11px] text-muted">
-              Plays on one speaker at a time, even when this tablet is off. The music moves there.
-            </p>
-            {rows}
-            {!loading && !error && connectDevices.length === 0 && (
+            <div className="grid grid-cols-2 gap-2 items-start">
+              {rows}
+              {onPlayOnSonos && (
+                <SonosKioskList disabled={selecting} onPlayOnSonos={onPlayOnSonos} onRooms={setSonosRooms} />
+              )}
+            </div>
+            {!loading && !error && connectDevices.length === 0 && !hasSonos && (
               <p className="text-xs leading-relaxed text-muted py-2">
                 No Spotify speakers found. Open Spotify on a phone, computer, or Connect speaker, then refresh.
               </p>
@@ -252,25 +254,11 @@ export default function SpeakerDrawer({
               </p>
             )}
           </section>
-          {onPlayOnSonos && (
-            <section aria-labelledby="sonos-title" className="space-y-2 pt-2">
-              <h3 id="sonos-title" className="text-xs font-bold">
-                Sonos
-              </h3>
-              <p className="text-[11px] text-muted">
-                Tap rooms to add them to the group; tap one again to take it out.
-              </p>
-              <SonosKioskList disabled={selecting} onPlayOnSonos={onPlayOnSonos} onRooms={setSonosRooms} />
-            </section>
-          )}
           {canUseAirPlay && (
             <section aria-labelledby="airplay-title" className="space-y-2 pt-2">
               <h3 id="airplay-title" className="text-xs font-bold">
                 AirPlay
               </h3>
-              <p className="text-[11px] text-muted">
-                Pick several. Plays from this tablet, a little behind the screen.
-              </p>
               <AirPlaySpeakerList
                 isPlayerReady={airPlayAvailable}
                 notReadyMessage={

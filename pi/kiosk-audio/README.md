@@ -21,26 +21,17 @@ app on `127.0.0.1:7341`. It does two jobs:
 
 Spotify will not move its playback to a Sonos speaker from this app (its Web API hides Sonos as a restricted device), so
 tapping a Sonos room in the app's Speakers drawer sends `POST /sonos/play` with `{"room": "Kitchen", "uri":
-"spotify:track:…"}` (the song on screen). The service runs [sonoscli](https://sonoscli.sh/spotify-and-smapi.html)
-(`sonos.ts`), which the playbook installs as `/usr/local/bin/sonos` (`kiosk_sonoscli_version`):
+"spotify:track:…"}` (the song on screen). The service talks to the speakers with the
+[sonos-ts library](https://sonos-ts.svrooij.io) (`sonos-library.ts`): it finds a speaker on the home network (SSDP),
+adds the song to the room's group's Sonos queue and plays it, through the Spotify account linked in the Sonos app; no
+Spotify credentials are needed on the Pi. A failure answers 502 with the reason, which the app shows.
 
-    sonos open --name=Kitchen --timeout=15s -- spotify:track:<id>
-
-sonoscli finds the room on the home network (SSDP, then a scan of the subnet), adds the song to that room's Sonos queue
-and plays it on the group the room leads, through the Spotify account linked in the Sonos app; no Spotify credentials
-are needed on the Pi. A failure answers 502 with sonoscli's reason, which the app shows. Settings on the kiosk can switch to the [sonos-ts library](https://sonos-ts.svrooij.io)
-(`sonos-library.ts`, `"engine": "library"`), which queues and plays the song the same way from this process. Settings
-also has two buttons for `POST /sonos/test`, which only resume what the speaker has: `sonos play --name <room>`, and
-sonos-ts's `SwitchToQueue()` then `Play()`. To try it by hand on the Pi:
-`sudo -u kiosk sonos discover` and `sudo -u kiosk sonos open --name Kitchen spotify:track:…`.
-
-The app reaches everything else about Sonos here too, the same two ways (`sonos-cli.ts` and `sonos-library.ts`, picked by
-`engine`, as a query parameter on the GETs):
+The app reaches everything else about Sonos here too:
 
 - `GET /sonos/groups`: the household's groups and their rooms, the leading room first, and how long finding them took
   (`ms`).
-- `GET /sonos/now?room=`: what the room's group plays (song, position, whether it plays), its volume, and whether that
-  way can seek (sonoscli cannot).
+- `GET /sonos/now?room=`: what the room's group plays (song, position, whether it plays), its volume, and whether it
+  can seek.
 - `GET /sonos/art?room=`: the song's artwork, fetched from the speaker's own address only.
 - `POST /sonos/control` (`play`, `pause`, `next`, `previous`, `seek` with `positionMs`), `POST /sonos/volume` (the whole
   group, 0 to 100), `POST /sonos/join` (`room` joins the group `to` is in) and `POST /sonos/leave`.
@@ -215,7 +206,7 @@ show journalctl's "no permission" instead of the lines; the pull and restart sti
 - A request names a fixed action; it never carries a command. Routing accepts at most 16 speaker names of up to 256
   characters and can only link the browser's stream to existing sinks. Everything runs by absolute path with an argument
   list, no shell. `POST /sonos/play` takes a room name (one line, at most 64 characters, not starting with `-`) and a
-  `spotify:<kind>:<22-character id>` URI, and passes them to `sonos` as `--name=<room>` and after `--`. polkit (`50-kiosk-power.rules`) limits what the `kiosk` user may do with systemd and power.
+  `spotify:<kind>:<22-character id>` URI, and hands them to the sonos-ts library, which runs no program. polkit (`50-kiosk-power.rules`) limits what the `kiosk` user may do with systemd and power.
 - Everything runs as the `kiosk` user, next to that user's PipeWire.
 
 ## On the device

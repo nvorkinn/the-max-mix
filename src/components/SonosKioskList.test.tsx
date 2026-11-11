@@ -9,8 +9,7 @@ const pi = vi.hoisted(() => ({
   setSonosVolume: vi.fn(),
   joinSonosGroup: vi.fn(),
   leaveSonosGroup: vi.fn(),
-  controlSonos: vi.fn(),
-  getSonosEngine: vi.fn()
+  controlSonos: vi.fn()
 }));
 vi.mock('../sonos/kiosk', async original => ({
   ...(await original<typeof import('../sonos/kiosk')>()),
@@ -53,13 +52,13 @@ describe('SonosKioskList', () => {
     pi.joinSonosGroup.mockReset().mockResolvedValue(undefined);
     pi.leaveSonosGroup.mockReset().mockResolvedValue(undefined);
     pi.controlSonos.mockReset().mockResolvedValue(undefined);
-    pi.getSonosEngine.mockReset().mockReturnValue('cli');
     onPlayOnSonos.mockReset().mockResolvedValue(undefined);
     onRooms.mockReset();
   });
 
   afterEach(() => {
     act(() => setKioskSonosLeader(null));
+    vi.useRealTimers();
   });
 
   const show = async () => {
@@ -67,17 +66,15 @@ describe('SonosKioskList', () => {
     await screen.findByRole('button', { name: /^Kitchen/ });
   };
 
-  it('lists the rooms the Pi finds, in order, and how long finding them took', async () => {
-    pi.getSonosEngine.mockReturnValue('library');
+  it('lists the rooms the Pi finds, in order', async () => {
     render(<SonosKioskList disabled={false} onPlayOnSonos={onPlayOnSonos} onRooms={onRooms} />);
-    expect(screen.getByText('Looking for Sonos speakers with sonos-ts…')).toBeInTheDocument();
+    expect(screen.getByText('Looking for Sonos speakers…')).toBeInTheDocument();
     await screen.findByRole('button', { name: /^Kitchen/ });
     expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual([
       expect.stringMatching(/^Attic/),
       expect.stringMatching(/^Kitchen/),
       expect.stringMatching(/^Lounge/)
     ]);
-    expect(screen.getByText(/^Found 3 Sonos rooms with sonos-ts in 1\.5 s \(/)).toBeInTheDocument();
     expect(onRooms).toHaveBeenCalledWith(['Kitchen', 'Lounge', 'Attic']);
   });
 
@@ -85,7 +82,6 @@ describe('SonosKioskList', () => {
     pi.findSonosOnPi.mockResolvedValueOnce({ groups: [], ms: 100 });
     const { unmount } = render(<SonosKioskList disabled={false} onPlayOnSonos={onPlayOnSonos} />);
     expect(await screen.findByText('No Sonos speakers found on this network.')).toBeInTheDocument();
-    expect(screen.getByText(/^Found 0 Sonos rooms with sonoscli/)).toBeInTheDocument();
     unmount();
     pi.findSonosOnPi.mockRejectedValueOnce(new Error('Sonos: no speakers found'));
     render(<SonosKioskList disabled={false} onPlayOnSonos={onPlayOnSonos} />);
@@ -103,18 +99,40 @@ describe('SonosKioskList', () => {
     expect(room('Kitchen')).toHaveTextContent('Selected');
   });
 
-  it('adds a room to the group while it plays, and marks the whole group', async () => {
+  it('adds a room to the group while it plays, marking it at once, before Sonos shows it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     act(() => setKioskSonosLeader('Kitchen'));
     pi.getSonosNow.mockResolvedValue(now(true));
     await show();
-    pi.findSonosOnPi.mockResolvedValue({ groups: TOGETHER, ms: 900 });
     await userEvent.click(room('Lounge'));
     await waitFor(() => expect(pi.joinSonosGroup).toHaveBeenCalledWith('Lounge', 'Kitchen'));
     expect(pi.setSonosVolume).not.toHaveBeenCalled();
     expect(onPlayOnSonos).not.toHaveBeenCalled();
+    // Sonos still lists Lounge on its own, yet the kiosk added it.
     await waitFor(() => expect(room('Lounge')).toHaveAttribute('aria-pressed', 'true'));
     expect(room('Kitchen')).toHaveAttribute('aria-pressed', 'true');
     expect(room('Attic')).toHaveAttribute('aria-pressed', 'false');
+    const reads = pi.findSonosOnPi.mock.calls.length;
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(pi.findSonosOnPi.mock.calls).toHaveLength(reads + 1);
+    expect(room('Lounge')).toHaveAttribute('aria-pressed', 'true');
+    // Sonos shows the group; the list stops reading.
+    pi.findSonosOnPi.mockResolvedValue({ groups: TOGETHER, ms: 900 });
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    expect(pi.findSonosOnPi.mock.calls).toHaveLength(reads + 2);
+    expect(room('Lounge')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('trusts Sonos once it has been read a few times without showing the room joined', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    act(() => setKioskSonosLeader('Kitchen'));
+    pi.getSonosNow.mockResolvedValue(now(true));
+    await show();
+    await userEvent.click(room('Lounge'));
+    await waitFor(() => expect(room('Lounge')).toHaveAttribute('aria-pressed', 'true'));
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    expect(room('Lounge')).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('starts the song afresh on a room while the kiosk’s group is paused', async () => {
@@ -132,8 +150,11 @@ describe('SonosKioskList', () => {
     await show();
     expect(room('Lounge')).toHaveTextContent('Tap to take it out');
     await userEvent.click(room('Kitchen'));
-    expect(pi.leaveSonosGroup).toHaveBeenCalledWith('Kitchen');
+    await waitFor(() => expect(pi.leaveSonosGroup).toHaveBeenCalledWith('Kitchen'));
     expect(getKioskSonosLeader()).toBe('Lounge');
+    // Sonos still shows Kitchen in the group, but it is marked as taken out.
+    await waitFor(() => expect(room('Kitchen')).toHaveAttribute('aria-pressed', 'false'));
+    expect(room('Lounge')).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('takes out a room the kiosk does not lead, keeping the lead', async () => {

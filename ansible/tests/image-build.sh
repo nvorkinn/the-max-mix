@@ -53,7 +53,7 @@ for file in /usr/local/bin/kiosk-session \
   /etc/systemd/system/kiosk.service /etc/systemd/system/kiosk-pull.service /etc/systemd/system/kiosk-pull.timer \
   /etc/systemd/system/kiosk-restart.timer /etc/chromium/policies/managed/kiosk.json \
   /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules /etc/polkit-1/rules.d/50-kiosk-power.rules \
-  /usr/local/sbin/kiosk-handover /usr/local/sbin/kiosk-status /usr/local/bin/sonos /usr/local/bin/kiosk-display /usr/local/sbin/kiosk-ssh-keys \
+  /usr/local/sbin/kiosk-handover /usr/local/sbin/kiosk-status /usr/local/bin/kiosk-display /usr/local/sbin/kiosk-ssh-keys \
   /etc/systemd/system/kiosk-ssh-keys.service /etc/systemd/system/kiosk-ssh-keys.timer \
   /etc/systemd/system/kiosk-widevine.path \
   /etc/systemd/system/kiosk-widevine.service /etc/NetworkManager/conf.d/20-connectivity.conf \

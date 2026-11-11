@@ -36,7 +36,6 @@ export const AREAS: Area[] = [
     title: 'Settings',
     sources: [
       /^src\/components\/SettingsModal/,
-      /^src\/components\/SonosKioskRow/,
       /^src\/components\/KioskSystem/,
       /^src\/utils\/themeColour/,
       /^src\/sonos\//
