@@ -71,6 +71,21 @@
   }
 }
 
+/*
+  Two colours read from the album art (utils/colorExtractor.ts, set inline by TabletView). Registering them as colours
+  lets the tint cross-fade when the song changes, and their transparent default means no art gives no tint.
+*/
+@property --art-tint-top {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --art-tint-bottom {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+
 .tablet-container {
   --accent: #293a27;
   --accent-ink: #fff;
@@ -99,6 +114,9 @@
   background: var(--page);
   color: var(--ink);
   color-scheme: light;
+  transition:
+    --art-tint-top 1.5s ease,
+    --art-tint-bottom 1.5s ease;
 }
 /* Colour choices from the settings (src/utils/themeColour.ts); forest is the default above. */
 .tablet-container[data-colour='navy'] {
@@ -263,6 +281,8 @@
   --bar-height: 112px;
   --row-gap: 14px;
   --room-padding-y: 32px;
+  /* Where the artwork's right edge falls: the room's 30px side padding plus the square art column. */
+  --art-edge: calc(30px + 100cqh - var(--room-padding-y) - var(--bar-height) - var(--row-gap));
   padding-block: 16px;
   grid-template:
     'art details' auto
@@ -272,6 +292,22 @@
       1fr
     );
   gap: var(--row-gap) 28px;
+  /*
+    The album art's colours bleed faintly out of the artwork's right edge across the right-hand column (the queue): its
+    top colour from the top of the cover, its bottom colour from the bottom, strongest at the cover and gone before the
+    screen's edge. It sits on the room itself, so it stays put whatever that column shows.
+  */
+  background:
+    radial-gradient(
+      ellipse 45% 55% at var(--art-edge) 25%,
+      color-mix(in srgb, var(--art-tint-top) 20%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 45% 55% at var(--art-edge) 75%,
+      color-mix(in srgb, var(--art-tint-bottom) 20%, transparent),
+      transparent
+    );
 }
 .listening-room:not(.is-setup) .player-section,
 .listening-room:not(.is-setup) .now-playing {

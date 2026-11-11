@@ -33,7 +33,7 @@ const api = vi.hoisted(() => ({
   getQueue: vi.fn(),
   getDevices: vi.fn()
 }));
-const palette = vi.hoisted(() => ({ extractPalette: vi.fn() }));
+const palette = vi.hoisted(() => ({ extractArtColours: vi.fn() }));
 const airplay = vi.hoisted(() => ({
   listAudioOutputs: vi.fn(),
   watchAudioOutputs: vi.fn(),
@@ -130,8 +130,8 @@ beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
   api.getQueue.mockResolvedValue({ queue: queued });
   api.getDevices.mockResolvedValue({ devices: [{ id: 'dev1', name: 'Soundbar' }] });
-  palette.extractPalette.mockReset();
-  palette.extractPalette.mockResolvedValue({ primary: 'red', secondary: 'blue', dark: 'black' });
+  palette.extractArtColours.mockReset();
+  palette.extractArtColours.mockResolvedValue({ top: 'red', bottom: 'blue' });
   lyrics.lrclib.mockReset();
   lyrics.lrclib.mockResolvedValue({ kind: 'plain', lines: ['Placeholder lyric'], source: 'LRCLIB' });
   setPlayer();
@@ -284,11 +284,20 @@ describe('TabletView', () => {
     expect(second).toBeEnabled();
   });
 
-  it('applies the extracted album palette to the container', async () => {
+  it('tints the page with colours from the album art', async () => {
     const { container } = render(<TabletView />);
     await flush();
-    expect(palette.extractPalette).toHaveBeenCalledWith('http://art/a.jpg');
-    expect((container.firstChild as HTMLElement).style.getPropertyValue('--ambient-primary')).toBe('red');
+    expect(palette.extractArtColours).toHaveBeenCalledWith('http://art/a.jpg');
+    const style = (container.firstChild as HTMLElement).style;
+    expect(style.getPropertyValue('--art-tint-top')).toBe('red');
+    expect(style.getPropertyValue('--art-tint-bottom')).toBe('blue');
+  });
+
+  it('leaves the page plain when the art has no usable colours', async () => {
+    palette.extractArtColours.mockResolvedValue(null);
+    const { container } = render(<TabletView />);
+    await flush();
+    expect((container.firstChild as HTMLElement).style.getPropertyValue('--art-tint-top')).toBe('');
   });
 
   it('prompts to sign in and does not poll the queue when unauthenticated', async () => {

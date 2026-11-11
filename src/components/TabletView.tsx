@@ -7,7 +7,7 @@ import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useKioskUpdate } from '../hooks/useKioskUpdate';
 import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
 import { useScreenSleep } from '../hooks/useScreenSleep';
-import { extractPalette } from '../utils/colorExtractor';
+import { extractArtColours, type ArtColours } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
 import { getQueue } from '../spotify/api';
@@ -199,11 +199,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     saveShowLyrics(show);
   };
 
-  const [palette, setPalette] = useState({
-    primary: 'rgba(29, 185, 84, 0.45)',
-    secondary: 'rgba(6, 182, 212, 0.35)',
-    dark: 'rgba(10, 12, 18, 0.95)'
-  });
+  // Colours read from the album art tint the page faintly behind the queue; none means no tint.
+  const [artColours, setArtColours] = useState<ArtColours | null>(null);
 
   // Spotify's device list can leave out a speaker that plays (Sonos does), so the drawer remembers each one seen playing.
   const playingDevice = playbackState?.device;
@@ -327,11 +324,14 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   const artUrl = currentTrack?.album?.images?.[0]?.url;
   useEffect(() => {
-    if (artUrl) {
-      void extractPalette(artUrl).then(colors => {
-        setPalette(colors);
-      });
-    }
+    let current = true;
+    void extractArtColours(artUrl).then(colours => {
+      // A slow read for the previous song must not replace the colours of the one now playing.
+      if (current) setArtColours(colours);
+    });
+    return () => {
+      current = false;
+    };
   }, [artUrl]);
 
   const showSettings = () => setIsSettingsOpen(true);
@@ -410,10 +410,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       className="tablet-container"
       data-colour={themeColour}
       style={
-        {
-          '--ambient-primary': palette.primary,
-          '--ambient-secondary': palette.secondary
-        } as CSSProperties
+        artColours
+          ? ({ '--art-tint-top': artColours.top, '--art-tint-bottom': artColours.bottom } as CSSProperties)
+          : undefined
       }
     >
       <header className="app-header">

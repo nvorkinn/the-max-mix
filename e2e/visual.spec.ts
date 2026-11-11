@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { fakeKioskAirPlay } from './fake-kiosk.ts';
-import { fakeSpotify, PIXEL } from './fake-spotify.ts';
+import { COLOURED_ART, fakeSpotify, PIXEL } from './fake-spotify.ts';
 
 // Layout bugs such as an overlapping or gapped sticky modal header are invisible to the DOM assertions elsewhere, so
 // these tests compare screenshots. Baselines are rendered by Chrome on ubuntu-latest, the only place they are
@@ -74,6 +74,15 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
 
   test('player screen', { tag: '@player' }, async ({ page }) => {
     await fakeSpotify(page);
+    // A coloured cover the page may read (Spotify's image CDN sends this header too), so the faint tint shows.
+    await page.route('https://images.unsplash.com/**', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'image/png',
+        headers: { 'access-control-allow-origin': '*' },
+        body: COLOURED_ART
+      })
+    );
     await page.setViewportSize({ width: 1024, height: 600 });
     await page.goto('/');
     await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();

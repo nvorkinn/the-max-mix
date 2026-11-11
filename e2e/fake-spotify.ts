@@ -5,6 +5,12 @@ import type { PlaybackState, SpotifyDevice, Track } from '../src/types.ts';
 /** An opaque black 1x1 GIF that stands in for every album cover and playlist image in the tests. */
 export const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAAAAACwAAAAAAQABAAACAkQBADs=', 'base64');
 
+/** A 2x2 PNG cover, orange on top and blue below, for tests that look at the tint read from the album art. */
+export const COLOURED_ART = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAE0lEQVR4nGN4lmcDRAwaUSeACAAp+AW1zIuPjwAAAABJRU5ErkJggg==',
+  'base64'
+);
+
 const track = (id: string, name: string, artist: string, durationMs: number): Track => ({
   id,
   uri: `spotify:track:${id}`,
