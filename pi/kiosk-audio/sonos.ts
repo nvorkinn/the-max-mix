@@ -141,6 +141,9 @@ export async function runSonosRequest(request: SonosRequest, way: SonosOperation
   switch (request.kind) {
     case 'play': {
       const next = request.queueFrom ? await way.upNext(request.queueFrom, MAX_NEXT) : request.next;
+      // So the log says what each room was given to play, and whether a queue came with it.
+      const from = request.queueFrom ? `from ${request.queueFrom}'s queue` : 'from the tablet';
+      console.info(`sonos: playing ${request.uri} on ${request.room}, ${next.length} songs after it ${from}`);
       await way.play(request.room, request.uri, next, request.positionMs);
       break;
     }

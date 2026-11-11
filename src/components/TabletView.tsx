@@ -398,8 +398,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const playQueueTrack = async (index: number) => {
     setIsJumping(true);
     try {
-      // A Sonos only says its next song, so that is the one there is to skip to.
-      await (followingSonos ? sonos.nextTrack() : skipAhead(index + 1));
+      await (followingSonos ? sonos.skipAhead(index + 1) : skipAhead(index + 1));
     } finally {
       setIsJumping(false);
     }

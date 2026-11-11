@@ -42,6 +42,7 @@ const NOW: PiSonosNow = {
   playing: true,
   positionMs: 30_000,
   track: { name: 'Song', artist: 'Band', durationMs: 200_000, uri: URI, art: true },
+  next: [{ name: 'Next', artist: 'Band', uri: 'spotify:track:abcdefghijklmnopqrstuv' }, { name: 'Radio' }],
   volume: 40,
   canSeek: false
 };
@@ -103,6 +104,16 @@ describe('useSonosPlayer', () => {
     expect(result.current.playback?.progress_ms).toBeGreaterThanOrEqual(30_000);
     expect(pi.getSonosNow).toHaveBeenCalledWith('Kitchen');
     expect(pi.getSonosArt).toHaveBeenCalledWith('Kitchen');
+    // What the group's Sonos queue plays next.
+    expect(result.current.next).toEqual([
+      {
+        id: 'abcdefghijklmnopqrstuv',
+        uri: 'spotify:track:abcdefghijklmnopqrstuv',
+        name: 'Next',
+        artists: [{ name: 'Band' }]
+      },
+      { name: 'Radio', artists: [] }
+    ]);
   });
 
   it('shows a song with no details, and no volume, as the Sonos says', async () => {
@@ -110,6 +121,7 @@ describe('useSonosPlayer', () => {
       playing: false,
       positionMs: 0,
       track: { name: 'Radio', art: false },
+      next: [],
       volume: null,
       canSeek: true
     });
@@ -137,6 +149,12 @@ describe('useSonosPlayer', () => {
     expect(pi.controlSonos).toHaveBeenLastCalledWith('Kitchen', 'previous', undefined);
     await act(() => result.current.seek(90_000));
     expect(pi.controlSonos).toHaveBeenLastCalledWith('Kitchen', 'seek', 90_000);
+    pi.controlSonos.mockClear();
+    await act(() => result.current.skipAhead(2));
+    expect(pi.controlSonos.mock.calls).toEqual([
+      ['Kitchen', 'next'],
+      ['Kitchen', 'next']
+    ]);
   });
 
   it('says when a control fails', async () => {

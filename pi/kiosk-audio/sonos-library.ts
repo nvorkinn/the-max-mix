@@ -4,8 +4,8 @@
 // (sonos-events.ts) come in through the library's own listener, on SONOS_LISTENER_PORT.
 import { MetaDataHelper, ServiceEvents, SonosDevice, SonosDeviceDiscovery } from '@svrooij/sonos';
 import type { SonosEventSource, SonosService, SonosSpeaker } from './sonos-events.ts';
-import { fetchArt, formatTime, parseTime, spotifyTrackUri } from './sonos-shared.ts';
-import type { SonosGroup, SonosOperations } from './sonos-shared.ts';
+import { fetchArt, formatTime, NOW_NEXT, parseTime, spotifyTrackUri } from './sonos-shared.ts';
+import type { SonosGroup, SonosOperations, SonosQueuedSong } from './sonos-shared.ts';
 
 const DISCOVERY_SECONDS = 5;
 
@@ -124,20 +124,42 @@ async function play(room: string, uri: string, next: readonly string[], position
   await device.Play();
 }
 
-/** The Spotify songs in the group's queue after the one it plays (Sonos counts the tracks from 1, the queue from 0). */
-async function upNext(room: string, limit: number): Promise<string[]> {
-  const device = await coordinatorFor(room);
-  const position = await device.AVTransportService.GetPositionInfo();
+/** The songs in the group's queue after track `track` (Sonos counts the tracks from 1, the queue from 0). */
+async function queuedAfter(device: SonosDevice, track: number, limit: number) {
   const queue = await device.ContentDirectoryService.BrowseParsed({
     ObjectID: 'Q:0',
     BrowseFlag: 'BrowseDirectChildren',
     Filter: '*',
-    StartingIndex: position.Track,
+    StartingIndex: track,
     RequestedCount: limit,
     SortCriteria: ''
   });
-  const tracks = Array.isArray(queue.Result) ? queue.Result : [];
-  return tracks.flatMap(track => spotifyTrackUri(track.TrackUri) ?? []);
+  return Array.isArray(queue.Result) ? queue.Result : [];
+}
+
+/** The Spotify songs in the group's queue after the one it plays. */
+async function upNext(room: string, limit: number): Promise<string[]> {
+  const device = await coordinatorFor(room);
+  const position = await device.AVTransportService.GetPositionInfo();
+  const songs = await queuedAfter(device, position.Track, limit);
+  return songs.flatMap(song => spotifyTrackUri(song.TrackUri) ?? []);
+}
+
+/** The songs the group plays next: its queue after the current song, when the queue is what it plays. */
+async function playsNext(device: SonosDevice, track: number): Promise<SonosQueuedSong[]> {
+  try {
+    const media = await device.AVTransportService.GetMediaInfo();
+    if (!media.CurrentURI.startsWith('x-rincon-queue:')) return [];
+    const songs = await queuedAfter(device, track, NOW_NEXT);
+    return songs
+      .filter((song): song is typeof song & { Title: string } => Boolean(song.Title))
+      .map(song => {
+        const uri = spotifyTrackUri(song.TrackUri);
+        return { name: song.Title, ...(song.Artist && { artist: song.Artist }), ...(uri && { uri }) };
+      });
+  } catch {
+    return [];
+  }
 }
 
 async function readVolume(device: SonosDevice): Promise<number | null> {
@@ -159,6 +181,7 @@ export const library: SonosOperations = {
       device.AVTransportService.GetPositionInfo(),
       readVolume(device)
     ]);
+    const next = await playsNext(device, position.Track);
     const meta = typeof position.TrackMetaData === 'object' ? position.TrackMetaData : null;
     const durationMs = parseTime(position.TrackDuration);
     const uri = spotifyTrackUri(meta?.TrackUri, position.TrackURI);
@@ -175,6 +198,7 @@ export const library: SonosOperations = {
             art: Boolean(meta.AlbumArtUri)
           }
         : null,
+      next,
       volume,
       canSeek: true
     };

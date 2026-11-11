@@ -3,7 +3,7 @@
 // asks the speakers on the home network: the song, where in it the group is, its volume and its artwork. The group is
 // followed by the room that leads it (getKioskSonosLeader), as rooms join and leave it. The Pi says when the speakers
 // change (watchSonosOnPi), so the group is read then; while it does, the regular reads are only a slow fallback.
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   controlSonos,
   findSonosOnPi,
@@ -44,12 +44,14 @@ export interface SonosPlayer {
   name: string | null;
   /** The group's playback in the shape the player shows; null until read. */
   playback: PlaybackState | null;
-  /** The song Sonos plays next, when it says (it does not yet). */
+  /** The songs the group plays next, from its Sonos queue. */
   next: Track[];
   error: string | null;
   togglePlay: () => Promise<boolean>;
   nextTrack: () => Promise<boolean>;
   previousTrack: () => Promise<boolean>;
+  /** Skips this many songs ahead, to a song in `next`. */
+  skipAhead: (steps: number) => Promise<boolean>;
   seek: (positionMs: number) => Promise<boolean>;
   /** 0 to 100. */
   setVolume: (volume: number) => void;
@@ -115,6 +117,14 @@ function toPlaybackState(
     }
   };
 }
+
+/** The songs queued next, as the queue list shows tracks. */
+const toTracks = (songs: PiSonosNow['next']): Track[] =>
+  songs.map(song => ({
+    ...(song.uri && { id: song.uri.slice('spotify:track:'.length), uri: song.uri }),
+    name: song.name,
+    artists: song.artist ? [{ name: song.artist }] : []
+  }));
 
 /** "Kitchen", or "Kitchen + 1" for a group of two, the way the Sonos app names a group. */
 const groupName = (rooms: readonly string[]) => (rooms.length > 1 ? `${rooms[0]} + ${rooms.length - 1}` : rooms[0]);
@@ -220,6 +230,8 @@ export function useSonosPlayer(): SonosPlayer {
 
   // The song's artwork, read again when the song changes.
   const track = reading?.now.track;
+  const queued = reading?.now.next;
+  const next = useMemo(() => (leader && queued ? toTracks(queued) : NO_TRACKS), [leader, queued]);
   const artKey = leader && track?.art ? `${leader}\n${track.uri ?? track.name}` : null;
   useEffect(() => {
     if (!artKey || !leader) return;
@@ -278,6 +290,18 @@ export function useSonosPlayer(): SonosPlayer {
     return control(wasPlaying ? 'pause' : 'play');
   }, [control, reading]);
 
+  const skipAhead = useCallback(
+    (steps: number) =>
+      run(async room => {
+        for (let step = 0; step < steps; step++) {
+          // Each skip must land before the next, so the loop waits on every one.
+          // eslint-disable-next-line no-await-in-loop
+          await controlSonos(room, 'next');
+        }
+      }),
+    [run]
+  );
+
   const seek = useCallback(
     (positionMs: number) => {
       setReading(current => current && { now: { ...current.now, positionMs }, at: Date.now() });
@@ -309,11 +333,12 @@ export function useSonosPlayer(): SonosPlayer {
     active: leader !== null,
     name,
     playback: leader && reading ? toPlaybackState(leader, name ?? leader, reading, art, volume, now) : null,
-    next: NO_TRACKS,
+    next,
     error,
     togglePlay,
     nextTrack: useCallback(() => control('next'), [control]),
     previousTrack: useCallback(() => control('previous'), [control]),
+    skipAhead,
     seek,
     setVolume: changeVolume,
     play: useCallback((uri: string) => run(room => playOnSonosRoom(room, uri)), [run]),

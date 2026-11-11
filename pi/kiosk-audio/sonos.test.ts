@@ -80,6 +80,7 @@ describe('parsing Sonos requests', () => {
 describe('runSonosRequest', () => {
   it('sends each request to its call', async () => {
     const fake = operations();
+    vi.spyOn(console, 'info').mockReturnValue();
     await runSonosRequest({ kind: 'play', room: 'Kitchen', uri: URI, next: [URI], positionMs: 9 }, fake);
     await runSonosRequest({ kind: 'control', room: 'Kitchen', action: 'seek', positionMs: 5 }, fake);
     await runSonosRequest({ kind: 'volume', room: 'Kitchen', volume: 30 }, fake);
@@ -92,12 +93,16 @@ describe('runSonosRequest', () => {
 
   it('carries the queue of the group the music moves from', async () => {
     const fake = operations();
+    vi.spyOn(console, 'info').mockReturnValue();
     await runSonosRequest(
       { kind: 'play', room: 'Arc Ultra', uri: URI, next: [], positionMs: 9, queueFrom: 'Kitchen' },
       fake
     );
     expect(fake.upNext).toHaveBeenCalledWith('Kitchen', 50);
     expect(fake.play).toHaveBeenCalledWith('Arc Ultra', URI, ['spotify:track:0000000000000000000009'], 9);
+    expect(console.info).toHaveBeenCalledWith(
+      `sonos: playing ${URI} on Arc Ultra, 1 songs after it from Kitchen's queue`
+    );
   });
 
   it('rejects with a reason safe to show', async () => {

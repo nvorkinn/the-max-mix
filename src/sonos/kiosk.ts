@@ -83,6 +83,8 @@ export interface PiSonosNow {
     /** Whether the Pi has a picture for it (getSonosArt). */
     art: boolean;
   } | null;
+  /** The songs queued after it (none when the group plays something other than its queue). */
+  next: { name: string; artist?: string; uri?: string }[];
   volume: number | null;
   /** Whether the group can be moved to a point in the song. */
   canSeek: boolean;
@@ -108,6 +110,16 @@ function parseGroups(value: unknown): PiSonosGroup[] {
   });
 }
 
+/** A song queued on a Sonos; undefined without a name. */
+function parseSong(value: unknown): PiSonosNow['next'][number] | undefined {
+  const song = record(value);
+  const name = text(song['name']);
+  if (!name) return undefined;
+  const artist = text(song['artist']);
+  const uri = text(song['uri']);
+  return { name, ...(artist && { artist }), ...(uri && { uri }) };
+}
+
 function parseNow(value: unknown): PiSonosNow {
   const reply = record(value);
   const track = record(reply['track']);
@@ -129,6 +141,9 @@ function parseNow(value: unknown): PiSonosNow {
           art: track['art'] === true
         }
       : null,
+    next: (Array.isArray(reply['next']) ? reply['next'] : [])
+      .map(entry => parseSong(entry))
+      .filter(song => song !== undefined),
     volume: count(reply['volume']) ?? null,
     canSeek: reply['canSeek'] === true
   };

@@ -121,6 +121,7 @@ describe('reading the Sonos through the Pi', () => {
         playing: true,
         positionMs: 5000,
         track: { name: 'Song', artist: 'Band', album: 'LP', durationMs: 200_000, uri: URI, art: true },
+        next: [{ name: 'Next', artist: 'Band', uri: URI }, { name: 'Radio' }, { artist: 'no name' }, 'junk'],
         volume: 30,
         canSeek: true
       })
@@ -130,6 +131,7 @@ describe('reading the Sonos through the Pi', () => {
       playing: true,
       positionMs: 5000,
       track: { name: 'Song', artist: 'Band', album: 'LP', durationMs: 200_000, uri: URI, art: true },
+      next: [{ name: 'Next', artist: 'Band', uri: URI }, { name: 'Radio' }],
       volume: 30,
       canSeek: true
     });
@@ -142,6 +144,7 @@ describe('reading the Sonos through the Pi', () => {
       playing: false,
       positionMs: 0,
       track: null,
+      next: [],
       volume: null,
       canSeek: false
     });

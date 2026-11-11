@@ -166,7 +166,7 @@ async function start(deps: Deps): Promise<string> {
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 }
 
-const NOW = { playing: true, positionMs: 1000, track: null, volume: 20, canSeek: true };
+const NOW = { playing: true, positionMs: 1000, track: null, next: [], volume: 20, canSeek: true };
 
 /** A fake Sonos: Kitchen when the speakers answer, else no answer at all. */
 const fail = () => Promise.reject(new SonosError('Sonos: no speakers answered.'));

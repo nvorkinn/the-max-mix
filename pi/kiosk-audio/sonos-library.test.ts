@@ -11,6 +11,8 @@ const fake = vi.hoisted(() => {
     down: new Set<string>(),
     meta,
     state: 'PLAYING',
+    // What the group plays: its queue, or (another URI) e.g. a radio station.
+    media: 'x-rincon-queue:RINCON_K#0',
     // The songs added with AddMultipleURIsToQueue, as sent.
     batches: [] as { uris: string; metadata: string }[],
     isQueueFailing: false,
@@ -51,6 +53,7 @@ vi.mock('@svrooij/sonos', () => {
     get AVTransportService() {
       return {
         GetTransportInfo: () => Promise.resolve({ CurrentTransportState: fake.state }),
+        GetMediaInfo: () => Promise.resolve({ CurrentURI: fake.media }),
         GetPositionInfo: () =>
           Promise.resolve({
             Track: 31,
@@ -95,9 +98,14 @@ vi.mock('@svrooij/sonos', () => {
           );
           return Promise.resolve({
             Result: [
-              { TrackUri: 'x-sonos-spotify:spotify%3atrack%3a0000000000000000000001?sid=9' },
-              { TrackUri: 'x-rincon-mp3radio://radio.example/stream' },
-              { TrackUri: 'x-sonos-spotify:spotify%3atrack%3a0000000000000000000002?sid=9' }
+              {
+                Title: 'One',
+                Artist: 'Band',
+                TrackUri: 'x-sonos-spotify:spotify%3atrack%3a0000000000000000000001?sid=9'
+              },
+              { Title: 'Radio', TrackUri: 'x-rincon-mp3radio://radio.example/stream' },
+              { Title: 'Two', TrackUri: 'x-sonos-spotify:spotify%3atrack%3a0000000000000000000002?sid=9' },
+              { TrackUri: 'x-sonos-spotify:spotify%3atrack%3a0000000000000000000003?sid=9' }
             ]
           });
         }
@@ -151,6 +159,7 @@ describe('sonos-library', () => {
     fake.down.clear();
     fake.meta = { Title: 'Song', Artist: 'Band', TrackUri: `x-sonos-spotify:${URI}`, AlbumArtUri: '/getaa?s=1' };
     fake.state = 'PLAYING';
+    fake.media = 'x-rincon-queue:RINCON_K#0';
     forgetSpeaker();
   });
 
@@ -202,7 +211,8 @@ describe('sonos-library', () => {
   it('reads the Spotify songs queued after the one the group plays', async () => {
     await expect(library.upNext('Lounge', 50)).resolves.toEqual([
       'spotify:track:0000000000000000000001',
-      'spotify:track:0000000000000000000002'
+      'spotify:track:0000000000000000000002',
+      'spotify:track:0000000000000000000003'
     ]);
     expect(fake.calls).toEqual(['kitchen.lan browse Q:0 from 31 for 50']);
   });
@@ -231,12 +241,25 @@ describe('sonos-library', () => {
       playing: true,
       positionMs: 42_000,
       track: { name: 'Song', artist: 'Band', durationMs: 200_000, uri: URI, art: true },
+      // The queue after the current song (track 31), which is what the group plays.
+      next: [
+        { name: 'One', artist: 'Band', uri: 'spotify:track:0000000000000000000001' },
+        { name: 'Radio' },
+        { name: 'Two', uri: 'spotify:track:0000000000000000000002' }
+      ],
       volume: 22,
       canSeek: true
     });
+    expect(fake.calls).toContain('kitchen.lan browse Q:0 from 31 for 20');
     fake.meta = '';
     fake.state = 'PAUSED_PLAYBACK';
-    await expect(library.now('Bedroom')).resolves.toMatchObject({ playing: false, track: null, volume: null });
+    fake.media = 'x-rincon-mp3radio://radio.example/stream';
+    await expect(library.now('Bedroom')).resolves.toMatchObject({
+      playing: false,
+      track: null,
+      next: [],
+      volume: null
+    });
   });
 
   it('plays, pauses, skips, seeks and sets the volume on the group’s coordinator', async () => {
