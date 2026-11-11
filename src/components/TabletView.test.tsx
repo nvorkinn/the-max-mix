@@ -804,6 +804,8 @@ describe('TabletView', () => {
       airplay.getChosenSpeakers.mockReturnValue([]);
       airplay.listAudioOutputs.mockResolvedValue({ names: ['Kitchen'], volumes: {} });
       await openSpeakers();
+      fireEvent.click(screen.getByRole('button', { name: 'AirPlay' }));
+      await flush();
       fireEvent.click(screen.getByRole('button', { name: /Kitchen/ }));
       await flush();
       expect(airplay.routeAudio).toHaveBeenCalledWith(['Kitchen']);
@@ -811,16 +813,18 @@ describe('TabletView', () => {
       expect(localStorage.getItem('maxmix.audioRoute')).toBe('airplay');
     });
 
-    it('keeps the AirPlay speakers disabled until this tablet is the one playing', async () => {
+    it('keeps the AirPlay tab shut until this tablet is the one playing', async () => {
       airplay.getChosenSpeakers.mockReturnValue([]);
       airplay.listAudioOutputs.mockResolvedValue({ names: ['Kitchen'], volumes: {} });
       await openSpeakers();
       // Another device (Soundbar) is playing.
-      const kitchen = screen.getByRole('button', { name: /Kitchen/ });
-      expect(kitchen).toBeDisabled();
-      expect(screen.getByText('Choose This tablet under Spotify Connect to use AirPlay.')).toBeInTheDocument();
-      fireEvent.click(kitchen);
+      const airPlayTab = screen.getByRole('button', { name: 'AirPlay' });
+      expect(airPlayTab).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Bluetooth' })).toBeDisabled();
+      expect(screen.getByText('Choose This tablet to use AirPlay or Bluetooth.')).toBeInTheDocument();
+      fireEvent.click(airPlayTab);
       await flush();
+      expect(screen.queryByRole('button', { name: /Kitchen/ })).not.toBeInTheDocument();
       expect(airplay.routeAudio).not.toHaveBeenCalled();
       expect(localStorage.getItem('maxmix.audioRoute')).toBeNull();
       // Playing from this tablet is what unlocks them.
@@ -861,6 +865,8 @@ describe('TabletView', () => {
       localStorage.setItem('maxmix.audioRoute', 'airplay');
       api.getDevices.mockResolvedValue({ devices: [{ id: 'dev2', name: 'Soundbar' }] });
       await openSpeakers();
+      fireEvent.click(screen.getByRole('button', { name: 'Spotify Connect' }));
+      await flush();
       fireEvent.click(screen.getByRole('button', { name: /Soundbar/ }));
       await flush();
       expect(airplay.routeAudio).toHaveBeenCalledWith([]);
@@ -872,6 +878,8 @@ describe('TabletView', () => {
     it('choosing this tablet while on AirPlay goes back to the tablet output', async () => {
       localStorage.setItem('maxmix.audioRoute', 'airplay');
       await openSpeakers();
+      fireEvent.click(screen.getByRole('button', { name: 'Spotify Connect' }));
+      await flush();
       fireEvent.click(screen.getByRole('button', { name: /This tablet/ }));
       await flush();
       expect(airplay.routeAudio).toHaveBeenCalledWith([]);

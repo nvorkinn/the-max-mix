@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Speaker, Check, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { X, Speaker, Check, RefreshCw, SlidersHorizontal, Airplay, Bluetooth } from 'lucide-react';
 import { getDevices } from '../spotify/api';
 import { getKnownSpeakers } from '../spotify/knownDevices';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
@@ -20,10 +20,19 @@ function describeDevice(device: SpotifyDevice, remembered: boolean) {
   return `${device.type || 'Device'}${volume}`;
 }
 
+type SpeakerTab = 'connect' | 'airplay' | 'bluetooth';
+
+const TABS = [
+  { id: 'connect', label: 'Spotify Connect', Icon: Speaker },
+  { id: 'airplay', label: 'AirPlay', Icon: Airplay },
+  { id: 'bluetooth', label: 'Bluetooth', Icon: Bluetooth }
+] as const;
+
 /**
  * The speakers drawer: opens above the device indicator in the control bar. It lists the Spotify Connect devices (the
- * one that is playing first) and, on the kiosk, the Sonos rooms the Pi finds and the AirPlay speakers. AirPlay plays what
- * this tablet plays, so its speakers can only be picked while this tablet is the one playing.
+ * one that is playing first) and, on the kiosk, the Sonos rooms the Pi finds. On the kiosk three icon tabs switch
+ * between Spotify Connect, AirPlay and Bluetooth. AirPlay and Bluetooth play what this tablet plays, so their tabs only
+ * open while this tablet is the one playing (or AirPlay is already on).
  */
 export default function SpeakerDrawer({
   isOpen,
@@ -59,6 +68,13 @@ export default function SpeakerDrawer({
   // Each speaker's own volume is hidden until asked for: the main volume slider is the one to use.
   const [showVolumes, setShowVolumes] = useState(false);
   const [sonosRooms, setSonosRooms] = useState<readonly string[]>([]);
+  // The tab picked since the drawer opened; none means the one that fits where the sound goes now.
+  const [pickedTab, setPickedTab] = useState<SpeakerTab | null>(null);
+  const [wasOpen, setWasOpen] = useState(isOpen);
+  if (wasOpen !== isOpen) {
+    setWasOpen(isOpen);
+    setPickedTab(null);
+  }
   const retryAt = useSpotifyCooldown();
   const waitingForSpotify = retryAt > 0;
   const reportError = useCallback((caught: unknown) => {
@@ -131,6 +147,10 @@ export default function SpeakerDrawer({
   const tabletIsActive = Boolean(browserDeviceId) && !isAirPlay && playingId === browserDeviceId;
   // AirPlay sends this tablet's own sound on, so it needs the tablet to be the one playing (or AirPlay to be on already).
   const airPlayAvailable = Boolean(browserDeviceId) && (tabletIsActive || isAirPlay);
+  // A saved AirPlay route keeps its tab open even without a player, so its speakers can still be cleared.
+  const otherTabsEnabled = airPlayAvailable || isAirPlay;
+  let tab: SpeakerTab = pickedTab ?? (isAirPlay ? 'airplay' : 'connect');
+  if (!canUseAirPlay || !otherTabsEnabled) tab = 'connect';
   // The device that is playing is listed first.
   const isPlaying = (device: SpotifyDevice) => !isAirPlay && Boolean(device.id) && device.id === playingId;
   const tabletRow = browserDeviceId && (
@@ -189,7 +209,7 @@ export default function SpeakerDrawer({
             Speakers
           </h2>
           <div className="flex gap-2">
-            {canUseAirPlay && (
+            {tab === 'airplay' && (
               <button
                 type="button"
                 onClick={() => setShowVolumes(shown => !shown)}
@@ -221,6 +241,24 @@ export default function SpeakerDrawer({
             </button>
           </div>
         </div>
+        {canUseAirPlay && (
+          <div className="flex gap-1.5" role="group" aria-label="Kind of speaker">
+            {TABS.map(({ id, label, Icon }) => (
+              <button
+                type="button"
+                key={id}
+                aria-label={label}
+                title={label}
+                aria-pressed={tab === id}
+                disabled={id !== 'connect' && !otherTabsEnabled}
+                onClick={() => setPickedTab(id)}
+                className="modal-option flex-1 min-h-11 rounded-xl border flex items-center justify-center"
+              >
+                <Icon size={20} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        )}
         <div className="speaker-drawer-body space-y-2">
           {error && (
             <p role="alert" className="text-xs status-danger">
@@ -232,17 +270,19 @@ export default function SpeakerDrawer({
               Spotify asked this app to wait before refreshing devices.
             </p>
           )}
-          <div className={canUseAirPlay ? 'grid grid-cols-2 gap-4 items-start' : undefined}>
-            <section aria-labelledby="connect-title" className="space-y-2">
-              <h3 id="connect-title" className="text-xs font-bold">
-                Spotify Connect
-              </h3>
-              <div className="grid gap-2">
-                {rows}
-                {onPlayOnSonos && (
-                  <SonosKioskList disabled={selecting} onPlayOnSonos={onPlayOnSonos} onRooms={setSonosRooms} />
-                )}
-              </div>
+          {tab === 'connect' && (
+            <section aria-label="Spotify Connect" className="grid gap-2">
+              {rows}
+              {onPlayOnSonos && (
+                <SonosKioskList disabled={selecting} onPlayOnSonos={onPlayOnSonos} onRooms={setSonosRooms} />
+              )}
+              {canUseAirPlay && !otherTabsEnabled && (
+                <p className="text-[11px] leading-relaxed text-muted">
+                  {browserDeviceId
+                    ? 'Choose This tablet to use AirPlay or Bluetooth.'
+                    : "This tablet's player isn't ready, so AirPlay and Bluetooth can't be used yet."}
+                </p>
+              )}
               {!loading && !error && connectDevices.length === 0 && !hasSonos && (
                 <p className="text-xs leading-relaxed text-muted py-2">
                   No Spotify speakers found. Open Spotify on a phone, computer, or Connect speaker, then refresh.
@@ -255,36 +295,26 @@ export default function SpeakerDrawer({
                 </p>
               )}
             </section>
-            {canUseAirPlay && (
-              <div className="space-y-2">
-                <section aria-labelledby="airplay-title" className="space-y-2">
-                  <h3 id="airplay-title" className="text-xs font-bold">
-                    AirPlay
-                  </h3>
-                  <AirPlaySpeakerList
-                    isPlayerReady={airPlayAvailable}
-                    notReadyMessage={
-                      browserDeviceId
-                        ? 'Choose This tablet under Spotify Connect to use AirPlay.'
-                        : "This tablet's player isn't ready, so speakers can't be added yet."
-                    }
-                    active={isAirPlay}
-                    showVolumes={showVolumes}
-                    onChange={onAirPlayChange}
-                  />
-                </section>
-                <section aria-labelledby="bluetooth-title" className="space-y-2 pt-2">
-                  <h3 id="bluetooth-title" className="text-xs font-bold">
-                    Bluetooth
-                  </h3>
-                  <p className="text-[11px] text-muted">
-                    One speaker at a time. Once connected, it appears in the list above to select.
-                  </p>
-                  <BluetoothSpeakers />
-                </section>
-              </div>
-            )}
-          </div>
+          )}
+          {tab === 'airplay' && (
+            <section aria-label="AirPlay">
+              <AirPlaySpeakerList
+                isPlayerReady={airPlayAvailable}
+                notReadyMessage="This tablet's player isn't ready, so speakers can't be added yet."
+                active={isAirPlay}
+                showVolumes={showVolumes}
+                onChange={onAirPlayChange}
+              />
+            </section>
+          )}
+          {tab === 'bluetooth' && (
+            <section aria-label="Bluetooth" className="space-y-2">
+              <p className="text-[11px] text-muted">
+                One speaker at a time. Once connected, it appears on the AirPlay tab to select.
+              </p>
+              <BluetoothSpeakers />
+            </section>
+          )}
         </div>
       </div>
     </>

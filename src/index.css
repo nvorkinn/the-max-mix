@@ -360,11 +360,11 @@
   left: 30px;
   bottom: 122px;
   max-height: calc(100% - 200px);
-  width: min(840px, calc(100% - 60px));
+  width: min(420px, calc(100% - 60px));
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px 12px;
+  gap: 12px;
+  padding: 14px 16px 16px;
   border: 1px solid var(--border);
   border-radius: 20px;
   background: var(--surface);

@@ -37,7 +37,7 @@ test.describe('Speakers', { tag: '@speakers' }, () => {
     const drawer = page.getByRole('dialog', { name: 'Speakers' });
     await expect(drawer.getByRole('button', { name: /Test speaker/ })).toHaveAttribute('aria-pressed', 'true');
     // Away from the kiosk there is no AirPlay.
-    await expect(drawer.getByRole('heading', { name: 'AirPlay' })).toHaveCount(0);
+    await expect(drawer.getByRole('button', { name: 'AirPlay' })).toHaveCount(0);
   });
 
   test.describe('on the kiosk, with this tablet as a player', () => {
@@ -53,14 +53,17 @@ test.describe('Speakers', { tag: '@speakers' }, () => {
       await page.getByRole('button', { name: /^Speakers:/ }).click();
       const drawer = page.getByRole('dialog', { name: 'Speakers' });
 
-      // Another speaker plays, so AirPlay has nothing to send on yet.
+      // Another speaker plays, so AirPlay and Bluetooth have nothing to send on yet.
+      const airPlayTab = drawer.getByRole('button', { name: 'AirPlay' });
       await expect(drawer.getByRole('button', { name: 'This tablet' })).toBeVisible();
-      await expect(drawer).toContainText('Choose This tablet under Spotify Connect to use AirPlay.');
-      await expect(drawer.getByRole('button', { name: /Kitchen/ })).toBeDisabled();
+      await expect(drawer).toContainText('Choose This tablet to use AirPlay or Bluetooth.');
+      await expect(airPlayTab).toBeDisabled();
+      await expect(drawer.getByRole('button', { name: 'Bluetooth' })).toBeDisabled();
 
       await drawer.getByRole('button', { name: 'This tablet' }).click();
       await expect(drawer.getByRole('button', { name: 'This tablet' })).toHaveAttribute('aria-pressed', 'true');
-      await expect(drawer).not.toContainText('Choose This tablet under Spotify Connect');
+      await expect(drawer).not.toContainText('Choose This tablet to use');
+      await airPlayTab.click();
       const kitchen = drawer.getByRole('button', { name: /Kitchen/ });
       const lounge = drawer.getByRole('button', { name: /Lounge/ });
       await expect(kitchen).toContainText('Available on this network');
@@ -77,9 +80,11 @@ test.describe('Speakers', { tag: '@speakers' }, () => {
       await expect(page.getByRole('button', { name: /^Speakers: Playing on AirPlay, 1 speaker/ })).toBeVisible();
 
       // Picking a Spotify speaker hands the sound back to the Pi's own output.
+      await drawer.getByRole('button', { name: 'Spotify Connect' }).click();
       await drawer.getByRole('button', { name: /Test speaker/ }).click();
-      await expect(lounge).toHaveAttribute('aria-pressed', 'false');
-      expect(routes.at(-1)).toEqual([]);
+      await expect(drawer.getByRole('button', { name: /Test speaker/ })).toHaveAttribute('aria-pressed', 'true');
+      await expect.poll(() => routes.at(-1)).toEqual([]);
+      await expect(airPlayTab).toBeDisabled();
     });
   });
 });
