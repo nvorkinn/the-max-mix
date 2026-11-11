@@ -109,11 +109,6 @@ export async function setGroupRooms(groupId: string, playerIds: readonly string[
   });
 }
 
-/** Pauses what the group plays. */
-export async function pauseGroup(groupId: string): Promise<void> {
-  await sonos(`/groups/${groupId}/playback/pause`, { method: 'POST', body: '{}' });
-}
-
 /** The group's volume, 0 to 100; null when Sonos does not say (or the volume is fixed). */
 export async function getGroupVolume(groupId: string): Promise<number | null> {
   const { volume, fixed } = recordOf(await sonos(`/groups/${groupId}/groupVolume`));

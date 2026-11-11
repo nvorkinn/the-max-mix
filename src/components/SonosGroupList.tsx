@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Check, Speaker, Users, Volume2 } from 'lucide-react';
-import { getGroupVolume, listSonos, pauseGroup, setGroupRooms, setGroupVolume, spotifyDeviceFor } from '../sonos/api';
+import { getGroupVolume, listSonos, setGroupRooms, setGroupVolume, spotifyDeviceFor } from '../sonos/api';
 import type { SonosGroup, SonosRoom } from '../sonos/api';
 import type { SpotifyDevice } from '../types';
-import { debugLog } from '../utils/debugLog';
+import { getKioskSonosLeader, setKioskSonosLeader } from '../sonos/kiosk';
 import { errorMessage } from '../utils/errorMessage';
 
 /** How long to wait after the last slider move before sending the volume, so a drag sends a few requests, not dozens. */
@@ -120,8 +120,7 @@ export default function SonosGroupList({
     setError(null);
     setStarting(group.id);
     try {
-      await pauseOtherGroups(group);
-      await play(group.rooms[0] ?? group.name);
+      await startOrJoin(group, play);
       await load();
     } catch (caught) {
       if (isMounted()) setError(errorMessage(caught));
@@ -130,20 +129,19 @@ export default function SonosGroupList({
     }
   };
 
-  // The song plays on one Sonos group at a time: a group that is playing is paused before another one starts, so
-  // tapping a second speaker moves the music instead of starting it again in two places. To play in several rooms,
-  // group them first (the Rooms button).
-  const pauseOtherGroups = async (group: SonosGroup) => {
+  // While a Sonos group plays what the kiosk sent it, tapping another room adds that room to the group, so the song
+  // carries on there too instead of starting again from the top. Otherwise the song starts on the tapped group, which
+  // the kiosk then remembers. A tap on a room already in the playing group changes nothing.
+  const startOrJoin = async (group: SonosGroup, play: (room: string) => Promise<void>) => {
+    const leader = getKioskSonosLeader();
     const { groups: current } = await listSonos();
-    const leader = group.playerIds[0];
-    const others = current.filter(other => other.playing && other.playerIds[0] !== leader);
-    await Promise.all(
-      others.map(other =>
-        pauseGroup(other.id).catch((caught: unknown) => {
-          debugLog('warn', 'sonos', `Could not pause ${other.name}: ${errorMessage(caught)}`);
-        })
-      )
-    );
+    const playing = leader ? current.find(entry => entry.playing && entry.playerIds.includes(leader)) : undefined;
+    if (!playing) {
+      await play(group.rooms[0] ?? group.name);
+      setKioskSonosLeader(group.playerIds[0] ?? null);
+    } else if (group.playerIds.every(id => !playing.playerIds.includes(id))) {
+      await setGroupRooms(playing.id, [...playing.playerIds, ...group.playerIds]);
+    }
   };
 
   const select = (group: SonosGroup) => {

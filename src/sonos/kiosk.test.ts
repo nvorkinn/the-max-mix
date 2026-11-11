@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { playOnSonosRoom } from './kiosk';
+import { getSonosEngine, playOnSonosRoom, setSonosEngine, testOnSonosRoom } from './kiosk';
 
 const URI = 'spotify:track:1234567890123456789012';
 
@@ -14,7 +14,30 @@ describe('playOnSonosRoom', () => {
     await playOnSonosRoom('Kitchen', URI);
     expect(fetchMock).toHaveBeenCalledWith(
       'http://127.0.0.1:7341/sonos/play',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ room: 'Kitchen', uri: URI }) })
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ room: 'Kitchen', uri: URI, engine: 'cli' }) })
+    );
+  });
+
+  it('remembers which way to play, and sends it', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+    setSonosEngine('library');
+    expect(getSonosEngine()).toBe('library');
+    await playOnSonosRoom('Kitchen', URI);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      'http://127.0.0.1:7341/sonos/play',
+      expect.objectContaining({ body: JSON.stringify({ room: 'Kitchen', uri: URI, engine: 'library' }) })
+    );
+    setSonosEngine('cli');
+  });
+
+  it('runs a test call', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await testOnSonosRoom('Kitchen', 'library-queue');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:7341/sonos/test',
+      expect.objectContaining({ body: JSON.stringify({ room: 'Kitchen', test: 'library-queue' }) })
     );
   });
 
