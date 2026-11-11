@@ -568,6 +568,33 @@ describe('useSpotifyPlayer', () => {
     expect(mocks.api.setTrackSaved).not.toHaveBeenCalled();
   });
 
+  it('hands off to playback started elsewhere (a Sonos): clears an error and reads playback again', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(playing);
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+    mocks.api.pause.mockRejectedValueOnce(new SpotifyApiError('No active device', 404));
+    await act(async () => {
+      await result.current.togglePlay();
+    });
+    expect(result.current.problem?.recovery).toBe('choose-speaker');
+    const reads = mocks.api.getPlaybackState.mock.calls.length;
+    await act(async () => {
+      await result.current.handOff();
+    });
+    expect(result.current.problem).toBeNull();
+    expect(mocks.api.getPlaybackState.mock.calls.length).toBeGreaterThan(reads);
+  });
+
+  it('hands off even when reading playback fails', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(playing);
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+    mocks.api.getPlaybackState.mockRejectedValueOnce(new Error('offline'));
+    await act(async () => {
+      await expect(result.current.handOff()).resolves.toBeUndefined();
+    });
+  });
+
   it('transferPlayback rethrows after recording the error', async () => {
     mocks.api.getPlaybackState.mockResolvedValue({ device: { id: 'd' } });
     mocks.api.transferPlayback.mockRejectedValue(new Error('Transfer failed'));
