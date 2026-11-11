@@ -7,7 +7,8 @@
 //   GET  /sonos/groups      {"groups": [{"id", "rooms": [{"id", "name"}, …]}, …], "ms"}: the groups on the home network,
 //                           the leading room first, and how long finding them took
 //   GET  /sonos/now?room=   {"playing", "positionMs", "track": {"name", "artist", "album", "durationMs", "uri", "art"} or
-//                           null, "volume", "canSeek"}: what the room's group plays
+//                           null, "next": [{"name", "artist", "uri"}, …] (at most 20 songs queued after it), "volume",
+//                           "canSeek"}: what the room's group plays
 //   GET  /sonos/art?room=   the current song's artwork from the room's group (the speaker serves it over plain HTTP), or 404
 //   POST /sonos/play        {"room", "uri": "spotify:track:…", "next"?: ["spotify:track:…", …], "positionMs"?}   play it
 //                           on the room's group, the songs in `next` (at most 50) queued after it, from positionMs into it;

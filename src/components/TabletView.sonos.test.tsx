@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, render } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { defined } from '../test/defined';
 import type { MusicChoice } from '../types';
 import TabletView from './TabletView';
@@ -69,8 +69,14 @@ function setUp(following: boolean, spotify: Record<string, unknown> = {}) {
     playback: following
       ? { is_playing: true, item: { ...SONG, uri: 'spotify:track:abcdefghijklmnopqrstuv' }, progress_ms: 5000 }
       : null,
-    next: [],
+    next: following
+      ? [
+          { name: 'First', artists: [{ name: 'Band' }] },
+          { name: 'Second', artists: [{ name: 'Band' }] }
+        ]
+      : [],
     error: null,
+    skipAhead: vi.fn().mockResolvedValue(true),
     play: vi.fn().mockResolvedValue(true),
     leave: vi.fn().mockResolvedValue(undefined),
     setSlowPolling: vi.fn()
@@ -108,6 +114,14 @@ describe('TabletView with Sonos', () => {
     });
     expect(state.player['togglePlay']).not.toHaveBeenCalled();
     expect(state.player['handOff']).not.toHaveBeenCalled();
+  });
+
+  it('shows what the Sonos queue plays next, and skips to a song in it', () => {
+    setUp(true);
+    act(() => {
+      screen.getByRole('button', { name: 'Play Second by Band' }).click();
+    });
+    expect(state.sonos['skipAhead']).toHaveBeenCalledWith(2);
   });
 
   it('asks for a song first when nothing plays', async () => {

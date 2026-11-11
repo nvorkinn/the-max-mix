@@ -13,6 +13,17 @@ export interface SonosGroup {
   rooms: SonosRoom[];
 }
 
+/** A song in a group's Sonos queue. */
+export interface SonosQueuedSong {
+  name: string;
+  artist?: string;
+  /** The Spotify URI, when the song comes from Spotify. */
+  uri?: string;
+}
+
+/** At most this many of the songs queued next are said with what a group plays. */
+export const NOW_NEXT = 20;
+
 /** What a Sonos group plays, as GET /sonos/now answers. */
 interface SonosNowPlaying {
   /** Playing, or about to (TRANSITIONING); false when paused or stopped. */
@@ -28,6 +39,8 @@ interface SonosNowPlaying {
     /** Whether GET /sonos/art has a picture for it. */
     art: boolean;
   } | null;
+  /** The songs queued after it, at most NOW_NEXT; none when the group plays something other than its queue. */
+  next: SonosQueuedSong[];
   /** The group's volume, 0 to 100; null when the speaker did not say. */
   volume: number | null;
   /** Whether the app may move the group to a point in the song. */

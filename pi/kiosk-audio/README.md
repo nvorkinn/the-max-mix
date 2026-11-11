@@ -30,7 +30,7 @@ The app reaches everything else about Sonos here too:
 
 - `GET /sonos/groups`: the household's groups and their rooms, the leading room first, and how long finding them took
   (`ms`).
-- `GET /sonos/now?room=`: what the room's group plays (song, position, whether it plays), its volume, and whether it
+- `GET /sonos/now?room=`: what the room's group plays (song, position, whether it plays, and the next 20 songs in its Sonos queue, which the app shows as up next), its volume, and whether it
   can seek.
 - `GET /sonos/art?room=`: the song's artwork, fetched from the speaker's own address only.
 - `POST /sonos/control` (`play`, `pause`, `next`, `previous`, `seek` with `positionMs`), `POST /sonos/volume` (the whole
