@@ -281,6 +281,8 @@
   --bar-height: 112px;
   --row-gap: 14px;
   --room-padding-y: 32px;
+  /* Where the artwork's right edge falls: the room's 30px side padding plus the square art column. */
+  --art-edge: calc(30px + 100cqh - var(--room-padding-y) - var(--bar-height) - var(--row-gap));
   padding-block: 16px;
   grid-template:
     'art details' auto
@@ -291,19 +293,20 @@
     );
   gap: var(--row-gap) 28px;
   /*
-    A very faint wash of the album art's colours behind the right-hand column (the queue), fading out before it reaches
-    the artwork. It sits on the room itself, so it stays put whatever that column shows.
+    The album art's colours bleed faintly out of the artwork's right edge across the right-hand column (the queue): its
+    top colour from the top of the cover, its bottom colour from the bottom, strongest at the cover and gone before the
+    screen's edge. It sits on the room itself, so it stays put whatever that column shows.
   */
   background:
     radial-gradient(
-      ellipse 55% 65% at 80% 22%,
-      color-mix(in srgb, var(--art-tint-top) 12%, transparent),
-      transparent 70%
+      ellipse 45% 55% at var(--art-edge) 25%,
+      color-mix(in srgb, var(--art-tint-top) 20%, transparent),
+      transparent
     ),
     radial-gradient(
-      ellipse 55% 60% at 78% 82%,
-      color-mix(in srgb, var(--art-tint-bottom) 10%, transparent),
-      transparent 70%
+      ellipse 45% 55% at var(--art-edge) 75%,
+      color-mix(in srgb, var(--art-tint-bottom) 20%, transparent),
+      transparent
     );
 }
 .listening-room:not(.is-setup) .player-section,
