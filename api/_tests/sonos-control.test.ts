@@ -83,6 +83,13 @@ describe('api/sonos-control', () => {
     );
   });
 
+  it('relays a pause', async () => {
+    expect((await write(`/groups/${GROUP}/playback/pause`, '{}')).status).toBe(200);
+    expect((fetchMock.mock.calls[0] as [string])[0]).toBe(
+      `https://api.ws.sonos.com/control/api/v1/groups/${GROUP}/playback/pause`
+    );
+  });
+
   it('refuses writes to other paths and oversized bodies', async () => {
     expect((await write('/households', '{}')).status).toBe(400);
     expect((await write(`/groups/${GROUP}/groupVolume`, 'x'.repeat(2000))).status).toBe(413);

@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 const auth = vi.hoisted(() => ({ getSonosAccessToken: vi.fn(), discardSonosAccessToken: vi.fn() }));
 vi.mock('./auth', () => auth);
 
-const { getGroupVolume, listSonos, setGroupRooms, setGroupVolume, spotifyDeviceFor } = await import('./api');
+const { getGroupVolume, listSonos, pauseGroup, setGroupRooms, setGroupVolume, spotifyDeviceFor } =
+  await import('./api');
 
 const BASE = { householdId: 'h1', playerIds: [], playing: false };
 
@@ -115,6 +116,13 @@ describe('sonos/api', () => {
       method: 'POST',
       body: '{"playerIds":["p2","p1"]}'
     });
+  });
+
+  it('pauses a group', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+    await pauseGroup('g1');
+    expect(pathOf(fetchMock, 0)).toBe('/groups/g1/playback/pause');
+    expect((fetchMock.mock.calls[0] as [string, RequestInit])[1]).toMatchObject({ method: 'POST' });
   });
 
   it('finds the Spotify device by group name or coordinator room, ignoring case and devices without an id', () => {
