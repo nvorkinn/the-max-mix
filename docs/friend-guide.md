@@ -27,7 +27,7 @@ account. The words in bold are what you'll see on the screen.
 
 ## 4. Choose music
 
-- Tap the library button at the top to open **Choose music**: Liked Songs, your playlists, what you played recently,
+- Tap the magnifying glass at the top to open **Choose music**: Liked Songs, your playlists, what you played recently,
   or **Search** to find any song, album or playlist.
 - Tap a song in the queue on the right to jump to it.
 - Tap the heart to save a song to Liked Songs.
@@ -43,7 +43,7 @@ and the songs appear in the queue after a moment.
 - Settings, **Colour**: eight colours for the screen.
 - Settings, **Screen sleep**: the screen goes dark after 5 minutes without music. Choose 2, 5, 15 or 30 min, or
   **Never**.
-- The moon button at the top puts it to sleep straight away. Touch the screen to wake it.
+- The "zzz" button at the top puts it to sleep straight away. Touch the screen to wake it.
 - New Wi-Fi? Settings, **Wi-Fi network**.
 
 ## If something's wrong
