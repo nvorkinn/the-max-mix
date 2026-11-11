@@ -10,7 +10,7 @@ const state = vi.hoisted(() => {
 const api = vi.hoisted(() => ({ getQueue: vi.fn() }));
 vi.mock('../spotify/api', () => api);
 vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => state.player }));
-vi.mock('../utils/colorExtractor', () => ({ extractPalette: vi.fn() }));
+vi.mock('../utils/colorExtractor', () => ({ extractArtColours: vi.fn().mockResolvedValue(null) }));
 vi.mock('./AlbumArtPlayer', () => ({ default: () => null }));
 vi.mock('./SettingsModal', () => ({ default: () => null }));
 vi.mock('./SpeakerSelectorModal', () => ({ default: () => null }));
