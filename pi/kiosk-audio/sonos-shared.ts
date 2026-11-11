@@ -74,6 +74,11 @@ export interface SonosOperations {
   joinGroup: (room: string, to: string) => Promise<void>;
   /** Takes the room out of its group; when it led the group, Sonos hands it to another room, which keeps playing. */
   leaveGroup: (room: string) => Promise<void>;
+  /**
+   * Moves a song queued next on the room's group from place `from` to place `to` (counted from 0, as `next` in
+   * GET /sonos/now lists them). `name` is the song's name, so a queue that changed meanwhile is not reordered wrongly.
+   */
+  move: (room: string, from: number, to: number, name: string) => Promise<void>;
   /** The current song's artwork from the room's group, or null. */
   art: (room: string) => Promise<SonosArt | null>;
 }

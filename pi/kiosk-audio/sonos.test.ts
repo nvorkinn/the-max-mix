@@ -15,6 +15,7 @@ function operations(): SonosOperations {
     volume: vi.fn(() => Promise.resolve()),
     joinGroup: vi.fn(() => Promise.resolve()),
     leaveGroup: vi.fn(() => Promise.reject(new SonosError('Sonos: speaker name not found in topology: Attic'))),
+    move: vi.fn(() => Promise.resolve()),
     art: vi.fn(() => Promise.resolve(null))
   };
 }
@@ -52,6 +53,13 @@ describe('parsing Sonos requests', () => {
     expect(parseSonosRequest('volume', { room: 'Kitchen', volume: 30 })).toMatchObject({ volume: 30 });
     expect(parseSonosRequest('join', { room: 'Kitchen', to: 'Lounge' })).toMatchObject({ to: 'Lounge' });
     expect(parseSonosRequest('leave', { room: 'Kitchen' })).toEqual({ kind: 'leave', room: 'Kitchen' });
+    expect(parseSonosRequest('move', { room: 'Kitchen', from: 4, to: 0, name: 'Song' })).toEqual({
+      kind: 'move',
+      room: 'Kitchen',
+      from: 4,
+      to: 0,
+      name: 'Song'
+    });
   });
 
   it('refuses anything else', () => {
@@ -70,6 +78,12 @@ describe('parsing Sonos requests', () => {
       ['volume', { room: 'Kitchen', volume: 101 }],
       ['volume', { room: 'Kitchen', volume: 5.5 }],
       ['join', { room: 'Kitchen', to: '-x' }],
+      ['move', { room: 'Kitchen', from: 2, to: 2, name: 'Song' }],
+      ['move', { room: 'Kitchen', from: -1, to: 2, name: 'Song' }],
+      ['move', { room: 'Kitchen', from: 1.5, to: 2, name: 'Song' }],
+      ['move', { room: 'Kitchen', from: 1, to: 20, name: 'Song' }],
+      ['move', { room: 'Kitchen', from: 1, to: 2 }],
+      ['move', { room: 'Kitchen', from: 1, to: 2, name: '' }],
       ['other', { room: 'Kitchen' }]
     ] as const) {
       expect(parseSonosRequest(kind, body)).toBeNull();
@@ -85,10 +99,12 @@ describe('runSonosRequest', () => {
     await runSonosRequest({ kind: 'control', room: 'Kitchen', action: 'seek', positionMs: 5 }, fake);
     await runSonosRequest({ kind: 'volume', room: 'Kitchen', volume: 30 }, fake);
     await runSonosRequest({ kind: 'join', room: 'Kitchen', to: 'Lounge' }, fake);
+    await runSonosRequest({ kind: 'move', room: 'Kitchen', from: 4, to: 0, name: 'Song' }, fake);
     expect(fake.play).toHaveBeenCalledWith('Kitchen', URI, [URI], 9);
     expect(fake.control).toHaveBeenCalledWith('Kitchen', 'seek', 5);
     expect(fake.volume).toHaveBeenCalledWith('Kitchen', 30);
     expect(fake.joinGroup).toHaveBeenCalledWith('Kitchen', 'Lounge');
+    expect(fake.move).toHaveBeenCalledWith('Kitchen', 4, 0, 'Song');
   });
 
   it('carries the queue of the group the music moves from', async () => {

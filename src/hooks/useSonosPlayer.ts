@@ -10,6 +10,7 @@ import {
   getKioskSonosLeader,
   getSonosArt,
   getSonosNow,
+  moveSonosSong,
   playOnSonosRoom,
   setKioskSonosLeader,
   setSonosVolume,
@@ -52,6 +53,8 @@ export interface SonosPlayer {
   previousTrack: () => Promise<boolean>;
   /** Skips this many songs ahead, to a song in `next`. */
   skipAhead: (steps: number) => Promise<boolean>;
+  /** Moves the song at place `from` in `next` to place `to`, in the group's Sonos queue. */
+  moveSong: (from: number, to: number) => Promise<boolean>;
   seek: (positionMs: number) => Promise<boolean>;
   /** 0 to 100. */
   setVolume: (volume: number) => void;
@@ -302,6 +305,22 @@ export function useSonosPlayer(): SonosPlayer {
     [run]
   );
 
+  const moveSong = useCallback(
+    (from: number, to: number) => {
+      const song = reading?.now.next[from];
+      if (!song || from === to) return Promise.resolve(false);
+      // Show the new order at once; the next read corrects it if the speaker did otherwise.
+      setReading(current => {
+        if (!current) return current;
+        const songs = [...current.now.next];
+        songs.splice(to, 0, ...songs.splice(from, 1));
+        return { ...current, now: { ...current.now, next: songs } };
+      });
+      return run(room => moveSonosSong(room, from, to, song.name));
+    },
+    [reading, run]
+  );
+
   const seek = useCallback(
     (positionMs: number) => {
       setReading(current => current && { now: { ...current.now, positionMs }, at: Date.now() });
@@ -339,6 +358,7 @@ export function useSonosPlayer(): SonosPlayer {
     nextTrack: useCallback(() => control('next'), [control]),
     previousTrack: useCallback(() => control('previous'), [control]),
     skipAhead,
+    moveSong,
     seek,
     setVolume: changeVolume,
     play: useCallback((uri: string) => run(room => playOnSonosRoom(room, uri)), [run]),

@@ -8,6 +8,7 @@ import {
   getSonosNow,
   joinSonosGroup,
   leaveSonosGroup,
+  moveSonosSong,
   playOnSonosRoom,
   setKioskSonosLeader,
   setSonosVolume,
@@ -186,6 +187,9 @@ describe('controlling the Sonos through the Pi', () => {
     expect(body(fetchMock)).toEqual({ room: 'Lounge', to: 'Kitchen' });
     await leaveSonosGroup('Lounge');
     expect(fetchMock).toHaveBeenLastCalledWith('http://127.0.0.1:7341/sonos/leave', expect.anything());
+    await moveSonosSong('Kitchen', 3, 0, 'Song');
+    expect(fetchMock).toHaveBeenLastCalledWith('http://127.0.0.1:7341/sonos/move', expect.anything());
+    expect(body(fetchMock)).toEqual({ room: 'Kitchen', from: 3, to: 0, name: 'Song' });
   });
 
   it('says when Sonos cannot do it', async () => {

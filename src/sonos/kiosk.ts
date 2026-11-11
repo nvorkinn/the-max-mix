@@ -225,6 +225,14 @@ export function leaveSonosGroup(room: string): Promise<void> {
   return post('/sonos/leave', { room });
 }
 
+/**
+ * Moves a song queued next on the room's group from place `from` to place `to` (counted from 0, as PiSonosNow's `next`
+ * lists them). `name` is the song's name, so the Pi refuses when the queue moved on meanwhile.
+ */
+export function moveSonosSong(room: string, from: number, to: number, name: string): Promise<void> {
+  return post('/sonos/move', { room, from, to, name }, 'Sonos can’t move that song.');
+}
+
 /** What changed on the speakers: the rooms' grouping, or what a group plays (song, play or pause, volume). */
 export type SonosChange = 'groups' | 'now';
 

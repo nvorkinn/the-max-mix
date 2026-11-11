@@ -25,7 +25,11 @@ export const AREAS: Area[] = [
     title: 'Choose music',
     sources: [/^src\/components\/MusicPicker/]
   },
-  { tag: 'queue', title: 'Queue', sources: [/^src\/components\/TrackQueue/, /^src\/components\/TrackImages/] },
+  {
+    tag: 'queue',
+    title: 'Queue',
+    sources: [/^src\/components\/TrackQueue/, /^src\/hooks\/useDragToReorder/, /^src\/components\/TrackImages/]
+  },
   {
     tag: 'lyrics',
     title: 'Lyrics',

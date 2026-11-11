@@ -35,6 +35,9 @@ The app reaches everything else about Sonos here too:
 - `GET /sonos/art?room=`: the song's artwork, fetched from the speaker's own address only.
 - `POST /sonos/control` (`play`, `pause`, `next`, `previous`, `seek` with `positionMs`), `POST /sonos/volume` (the whole
   group, 0 to 100), `POST /sonos/join` (`room` joins the group `to` is in) and `POST /sonos/leave`.
+- `POST /sonos/move` (`room`, `from`, `to`, `name`): moves a song in the group's Sonos queue (`ReorderTracksInQueue`),
+  from place `from` to place `to` among the songs `GET /sonos/now` lists as next (counted from 0). The song at `from`
+  must still be called `name`, so a queue that moved on meanwhile is not reordered wrongly.
 - `GET /sonos/events`: server-sent events while the app listens (`sonos-events.ts`). `{"kind": "groups"}` when rooms join
   or leave a group, `{"kind": "now"}` when what a group plays or its volume changes; the app then reads what changed
   with the GETs above. For this the Pi subscribes to the speakers' own events (UPnP): the household's grouping on one

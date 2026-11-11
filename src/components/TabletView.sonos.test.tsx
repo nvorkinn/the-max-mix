@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { defined } from '../test/defined';
 import type { MusicChoice } from '../types';
 import TabletView from './TabletView';
@@ -77,6 +77,7 @@ function setUp(following: boolean, spotify: Record<string, unknown> = {}) {
       : [],
     error: null,
     skipAhead: vi.fn().mockResolvedValue(true),
+    moveSong: vi.fn().mockResolvedValue(true),
     play: vi.fn().mockResolvedValue(true),
     leave: vi.fn().mockResolvedValue(undefined),
     setSlowPolling: vi.fn()
@@ -122,6 +123,18 @@ describe('TabletView with Sonos', () => {
       screen.getByRole('button', { name: 'Play Second by Band' }).click();
     });
     expect(state.sonos['skipAhead']).toHaveBeenCalledWith(2);
+  });
+
+  it('lets the Sonos queue be reordered', () => {
+    setUp(true);
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Move Second' }), { key: 'ArrowUp' });
+    expect(state.sonos['moveSong']).toHaveBeenCalledWith(1, 0);
+  });
+
+  it('does not let Spotify’s queue be reordered', async () => {
+    setUp(false);
+    expect(await screen.findByRole('button', { name: 'Play No URI by Unknown artist' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Move / })).not.toBeInTheDocument();
   });
 
   it('asks for a song first when nothing plays', async () => {

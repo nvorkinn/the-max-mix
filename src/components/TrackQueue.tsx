@@ -1,4 +1,6 @@
-import { Disc3 } from 'lucide-react';
+import { useRef } from 'react';
+import { Disc3, GripVertical } from 'lucide-react';
+import { useDragToReorder } from '../hooks/useDragToReorder';
 import { trackKeys } from '../utils/trackKeys';
 import type { Track } from '../types';
 import { Artwork } from './TrackImages';
@@ -17,6 +19,11 @@ interface TrackQueueProps {
   onPlay?: (index: number) => unknown;
   /** True while playing a song is not possible (controls unavailable, or a jump is under way). */
   playDisabled?: boolean;
+  /**
+   * Moves the song at place `from` to place `to`. With it each row gets a handle to drag it by (only where the queue can
+   * be reordered: a Sonos's can, Spotify's cannot); while playDisabled the handles are off too.
+   */
+  onMove?: ((from: number, to: number) => unknown) | undefined;
 }
 
 export default function TrackQueue({
@@ -27,9 +34,13 @@ export default function TrackQueue({
   onConnect,
   retryAllowed = true,
   onPlay,
-  playDisabled = false
+  playDisabled = false,
+  onMove
 }: Readonly<TrackQueueProps>) {
   const keys = trackKeys(queue);
+  const listRef = useRef<HTMLDivElement>(null);
+  const canMove = Boolean(onMove) && !playDisabled && queue.length > 1;
+  const reorder = useDragToReorder(listRef, queue.length, canMove ? onMove : undefined);
 
   let retryLabel = 'Waiting to retry...';
   if (status === 'loading') retryLabel = 'Retrying...';
@@ -113,7 +124,12 @@ export default function TrackQueue({
       ) : (
         <>
           <p className="queue-heading">Up next:</p>
-          <div className="queue-list" role="list" aria-label="Track queue">
+          <div
+            ref={listRef}
+            className={`queue-list ${reorder.dragging ? 'is-reordering' : ''}`}
+            role="list"
+            aria-label="Track queue"
+          >
             {queue.map((track, idx) => {
               const title = track.name || track.title;
               const albumArt = track.album?.images?.[0]?.url || track.albumArt;
@@ -121,8 +137,14 @@ export default function TrackQueue({
                 ? track.artists.map(a => a.name).join(', ')
                 : track.artist || 'Unknown artist';
 
+              const { style, isDragged } = reorder.rowStyle(idx);
               return (
-                <div key={keys[idx]} role="listitem" className={`queue-track ${idx === 0 ? 'is-next' : ''}`}>
+                <div
+                  key={keys[idx]}
+                  role="listitem"
+                  className={`queue-track ${idx === 0 ? 'is-next' : ''} ${isDragged ? 'is-dragged' : ''}`}
+                  style={style}
+                >
                   <button
                     type="button"
                     className="queue-track-button"
@@ -140,6 +162,18 @@ export default function TrackQueue({
                       <p title={artist}>{artist}</p>
                     </div>
                   </button>
+                  {onMove && (
+                    <button
+                      type="button"
+                      className="queue-move"
+                      disabled={!canMove}
+                      aria-label={`Move ${title}`}
+                      aria-keyshortcuts="ArrowUp ArrowDown"
+                      {...reorder.handleProps(idx)}
+                    >
+                      <GripVertical size={20} />
+                    </button>
+                  )}
                 </div>
               );
             })}

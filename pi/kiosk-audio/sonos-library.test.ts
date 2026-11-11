@@ -65,6 +65,10 @@ vi.mock('@svrooij/sonos', () => {
         RemoveAllTracksFromQueue: () => isCalled(`${this.host} clear`),
         SetAVTransportURI: (input: { CurrentURI: string }) => isCalled(`${this.host} join ${input.CurrentURI}`),
         BecomeCoordinatorOfStandaloneGroup: () => isCalled(`${this.host} leave`),
+        ReorderTracksInQueue: (input: { StartingIndex: number; NumberOfTracks: number; InsertBefore: number }) =>
+          isCalled(
+            `${this.host} move ${input.NumberOfTracks} from ${input.StartingIndex} before ${input.InsertBefore}`
+          ),
         AddMultipleURIsToQueue: (input: {
           NumberOfURIs: number;
           EnqueuedURIs: string;
@@ -284,6 +288,19 @@ describe('sonos-library', () => {
     await library.leaveGroup('Lounge');
     await library.leaveGroup('Bedroom');
     expect(fake.calls).toEqual(['bedroom.lan join x-rincon:RINCON_K', 'lounge.lan leave']);
+  });
+
+  it('moves a song queued next, if it is still the one the app saw there', async () => {
+    // The current song is track 31, so the first song after it ("One", place 0) is track 32.
+    await library.move('Lounge', 0, 2, 'One');
+    await library.move('Lounge', 2, 0, 'One');
+    expect(fake.calls).toEqual([
+      'kitchen.lan browse Q:0 from 31 for 1',
+      'kitchen.lan move 1 from 32 before 35',
+      'kitchen.lan browse Q:0 from 33 for 1',
+      'kitchen.lan move 1 from 34 before 32'
+    ]);
+    await expect(library.move('Lounge', 0, 1, 'Other')).rejects.toThrow('the queue changed meanwhile');
   });
 
   it('fetches the artwork from the coordinator', async () => {

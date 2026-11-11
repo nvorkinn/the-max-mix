@@ -4,7 +4,7 @@
 // The requests (server.ts) name rooms as the Sonos app does; this checks them and turns any failure into a SonosError
 // whose message is safe to show.
 import { library } from './sonos-library.ts';
-import { SonosError } from './sonos-shared.ts';
+import { NOW_NEXT, SonosError } from './sonos-shared.ts';
 import type { SonosAction, SonosOperations } from './sonos-shared.ts';
 
 export { SonosError } from './sonos-shared.ts';
@@ -12,6 +12,7 @@ export type { SonosOperations } from './sonos-shared.ts';
 
 const MAX_NAME_LENGTH = 64;
 const MAX_MESSAGE = 200;
+const MAX_SONG_NAME = 500;
 
 /** A Spotify id is 22 base-62 characters; Sonos plays tracks, albums, playlists, shows and episodes. */
 const SPOTIFY_URI = /^spotify:(track|album|playlist|show|episode):[0-9A-Za-z]{22}$/;
@@ -44,6 +45,19 @@ function parseNext(value: unknown): string[] | null {
 const parsePosition = (value: unknown): number | null =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
 
+/** A place among the songs queued next (GET /sonos/now lists at most NOW_NEXT of them), or null when it is not one. */
+const parsePlace = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value < NOW_NEXT ? value : null;
+
+/** The body of POST /sonos/move, or null when it is not one. */
+function parseMove(room: string, body: Record<string, unknown>): SonosRequest | null {
+  const from = parsePlace(body['from']);
+  const to = parsePlace(body['to']);
+  const { name } = body;
+  const isName = typeof name === 'string' && name.length > 0 && name.length <= MAX_SONG_NAME;
+  return from !== null && to !== null && from !== to && isName ? { kind: 'move', room, from, to, name } : null;
+}
+
 /** The body of POST /sonos/play, or null when it is not one. */
 function parsePlay(room: string, body: Record<string, unknown>): SonosRequest | null {
   const { uri, positionMs = 0 } = body;
@@ -62,7 +76,8 @@ export type SonosRequest =
   | { kind: 'control'; room: string; action: SonosAction; positionMs: number }
   | { kind: 'volume'; room: string; volume: number }
   | { kind: 'join'; room: string; to: string }
-  | { kind: 'leave'; room: string };
+  | { kind: 'leave'; room: string }
+  | { kind: 'move'; room: string; from: number; to: number; name: string };
 
 /** The body of POST /sonos/<kind>, or null when it is not one. */
 export function parseSonosRequest(kind: string, value: unknown): SonosRequest | null {
@@ -92,6 +107,9 @@ export function parseSonosRequest(kind: string, value: unknown): SonosRequest | 
     }
     case 'leave': {
       return { kind, room };
+    }
+    case 'move': {
+      return parseMove(room, body);
     }
     default: {
       return null;
@@ -129,6 +147,7 @@ export function guarded(operations: SonosOperations): SonosOperations {
     volume: wrap(operations.volume),
     joinGroup: wrap(operations.joinGroup),
     leaveGroup: wrap(operations.leaveGroup),
+    move: wrap(operations.move),
     art: wrap(operations.art)
   };
 }
@@ -157,6 +176,10 @@ export async function runSonosRequest(request: SonosRequest, way: SonosOperation
     }
     case 'join': {
       await way.joinGroup(request.room, request.to);
+      break;
+    }
+    case 'move': {
+      await way.move(request.room, request.from, request.to, request.name);
       break;
     }
     default: {
