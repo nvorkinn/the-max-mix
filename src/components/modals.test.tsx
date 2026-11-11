@@ -240,7 +240,7 @@ describe('SpeakerDrawer', () => {
     expect(screen.getByRole('button', { name: /No id/ })).toBeDisabled();
     expect(screen.getByText('Playback control restricted')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /No id/ })).toHaveTextContent('Not available to select');
-    expect(screen.getByText(/only after they have recently played through Spotify/)).toBeInTheDocument();
+    expect(screen.queryByText(/recently played through Spotify/)).not.toBeInTheDocument();
   });
 
   it('offers a speaker seen playing that Spotify leaves out of its list, and moves playback to it', async () => {

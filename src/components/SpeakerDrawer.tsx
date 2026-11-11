@@ -287,12 +287,6 @@ export default function SpeakerDrawer({
                   No Spotify speakers found. Open Spotify on a phone, computer, or Connect speaker, then refresh.
                 </p>
               )}
-              {!loading && !error && !hasSonos && (
-                <p className="text-[11px] leading-relaxed text-muted">
-                  Sonos and other Connect speakers show up here only after they have recently played through Spotify.
-                  Play to one from the Spotify app on your phone, then refresh.
-                </p>
-              )}
             </section>
           )}
           {tab === 'airplay' && (
