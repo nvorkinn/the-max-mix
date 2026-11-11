@@ -8,6 +8,7 @@ const pi = vi.hoisted(() => ({
   getSonosNow: vi.fn(),
   getSonosArt: vi.fn(),
   controlSonos: vi.fn(),
+  moveSonosSong: vi.fn(),
   setSonosVolume: vi.fn(),
   playOnSonosRoom: vi.fn(),
   watchSonosOnPi: vi.fn()
@@ -53,6 +54,7 @@ describe('useSonosPlayer', () => {
     pi.getSonosNow.mockReset().mockResolvedValue(NOW);
     pi.getSonosArt.mockReset().mockResolvedValue(new Blob(['png'], { type: 'image/png' }));
     pi.controlSonos.mockReset().mockResolvedValue(undefined);
+    pi.moveSonosSong.mockReset().mockResolvedValue(undefined);
     pi.setSonosVolume.mockReset().mockResolvedValue(undefined);
     pi.playOnSonosRoom.mockReset().mockResolvedValue(undefined);
     pi.watchSonosOnPi
@@ -155,6 +157,20 @@ describe('useSonosPlayer', () => {
       ['Kitchen', 'next'],
       ['Kitchen', 'next']
     ]);
+  });
+
+  it('moves a queued song on the Sonos, showing the new order at once', async () => {
+    const { result } = await follow();
+    await act(() => result.current.moveSong(1, 0));
+    expect(pi.moveSonosSong).toHaveBeenCalledWith('Kitchen', 1, 0, 'Radio');
+    expect(result.current.next.map(track => track.name)).toEqual(['Radio', 'Next']);
+    // A place with no song moves nothing.
+    let isDone = true;
+    await act(async () => {
+      isDone = await result.current.moveSong(5, 0);
+    });
+    expect(isDone).toBe(false);
+    expect(pi.moveSonosSong).toHaveBeenCalledTimes(1);
   });
 
   it('says when a control fails', async () => {

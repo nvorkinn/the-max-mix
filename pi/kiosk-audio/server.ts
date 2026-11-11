@@ -16,6 +16,8 @@
 //   POST /sonos/control     {"room", "action": "play" | "pause" | "next" | "previous" | "seek", "positionMs"?}
 //   POST /sonos/volume      {"room", "volume": 0-100}   the room's whole group
 //   POST /sonos/join        {"room", "to"}   add the room to the group `to` is in      POST /sonos/leave  {"room"}
+//   POST /sonos/move        {"room", "from", "to", "name"}   move the song at place `from` in "next" (from 0) to place
+//                           `to` in the group's Sonos queue, if it is still the song called `name`
 //   GET  /sonos/events      server-sent events while the app listens: data {"kind": "groups"} when rooms join or leave,
 //                           {"kind": "now"} when what a group plays (or its volume) changes (sonos-events.ts)
 //   GET  /wifi/networks     {"networks": [{"ssid", "signal", "bars", "security"}, …]}   or 503 {"error"}: a safe message
@@ -359,7 +361,8 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
     case '/sonos/control':
     case '/sonos/volume':
     case '/sonos/join':
-    case '/sonos/leave': {
+    case '/sonos/leave':
+    case '/sonos/move': {
       await postSonos(request, response, deps);
       return;
     }

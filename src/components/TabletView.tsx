@@ -529,6 +529,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 retryAllowed={!waitingForSpotify}
                 onPlay={playQueueTrack}
                 playDisabled={!controlsEnabled || isJumping}
+                // Only a Sonos's queue can be reordered; Spotify's Web API has no way to move a queued song.
+                onMove={followingSonos ? sonos.moveSong : undefined}
               />
             </section>
           )}

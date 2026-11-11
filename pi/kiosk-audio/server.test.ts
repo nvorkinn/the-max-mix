@@ -183,6 +183,7 @@ function sonosFake(isAnswering: boolean): SonosOperations {
       volume: resolved,
       joinGroup: resolved,
       leaveGroup: resolved,
+      move: resolved,
       art: fail
     };
   }
@@ -195,6 +196,7 @@ function sonosFake(isAnswering: boolean): SonosOperations {
     volume: resolved,
     joinGroup: resolved,
     leaveGroup: resolved,
+    move: resolved,
     art: room => Promise.resolve(room === 'Kitchen' ? { type: 'image/jpeg', body: Buffer.from('jpeg') } : null)
   };
 }
@@ -365,8 +367,11 @@ describe('POST', () => {
     expect((await post(base, '/sonos/volume', { body: { room: 'Kitchen', volume: 30 } })).status).toBe(204);
     expect((await post(base, '/sonos/join', { body: { room: 'Kitchen', to: 'Lounge' } })).status).toBe(204);
     expect((await post(base, '/sonos/leave', { body: { room: 'Kitchen' } })).status).toBe(204);
+    expect((await post(base, '/sonos/move', { body: { room: 'Kitchen', from: 3, to: 0, name: 'Song' } })).status).toBe(
+      204
+    );
     expect((await post(base, '/sonos/volume', { body: { room: 'Kitchen', volume: 101 } })).status).toBe(400);
-    expect(played.map(request => request.kind)).toEqual(['control', 'volume', 'join', 'leave']);
+    expect(played.map(request => request.kind)).toEqual(['control', 'volume', 'join', 'leave', 'move']);
   });
 
   it('refuses a bad Sonos request, and one from another web page', async () => {

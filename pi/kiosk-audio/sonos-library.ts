@@ -4,7 +4,7 @@
 // (sonos-events.ts) come in through the library's own listener, on SONOS_LISTENER_PORT.
 import { MetaDataHelper, ServiceEvents, SonosDevice, SonosDeviceDiscovery } from '@svrooij/sonos';
 import type { SonosEventSource, SonosService, SonosSpeaker } from './sonos-events.ts';
-import { fetchArt, formatTime, NOW_NEXT, parseTime, spotifyTrackUri } from './sonos-shared.ts';
+import { fetchArt, formatTime, NOW_NEXT, parseTime, SonosError, spotifyTrackUri } from './sonos-shared.ts';
 import type { SonosGroup, SonosOperations, SonosQueuedSong } from './sonos-shared.ts';
 
 const DISCOVERY_SECONDS = 5;
@@ -162,6 +162,27 @@ async function playsNext(device: SonosDevice, track: number): Promise<SonosQueue
   }
 }
 
+/**
+ * Moves the song at place `from` among those queued after the current one to place `to`, if it is still the song called
+ * `name` (the queue may have moved on since the app read it). Sonos numbers the queue's songs from 1 and puts the moved
+ * song before the one numbered InsertBefore, counted before the move.
+ */
+async function move(room: string, from: number, to: number, name: string): Promise<void> {
+  const device = await coordinatorFor(room);
+  const { Track: current } = await device.AVTransportService.GetPositionInfo();
+  const [song] = await queuedAfter(device, current + from, 1);
+  if (song?.Title !== name) throw new SonosError('Sonos: the queue changed meanwhile. Try again.');
+  const track = current + 1 + from;
+  const target = current + 1 + to;
+  await device.AVTransportService.ReorderTracksInQueue({
+    InstanceID: 0,
+    StartingIndex: track,
+    NumberOfTracks: 1,
+    InsertBefore: to > from ? target + 1 : target,
+    UpdateID: 0
+  });
+}
+
 async function readVolume(device: SonosDevice): Promise<number | null> {
   try {
     return (await device.GroupRenderingControlService.GetGroupVolume({ InstanceID: 0 })).CurrentVolume;
@@ -245,6 +266,7 @@ export const library: SonosOperations = {
     if (group.members.every(entry => entry.uuid === member.uuid)) return;
     await deviceOf(member).AVTransportService.BecomeCoordinatorOfStandaloneGroup({ InstanceID: 0 });
   },
+  move,
   art: async room => {
     const { coordinator } = (await groupOf(room)).group;
     const position = await deviceOf(coordinator).AVTransportService.GetPositionInfo();

@@ -817,6 +817,30 @@
 .is-next .queue-number {
   color: var(--accent);
 }
+/* The handle a song is dragged by, where the queue can be reordered (a Sonos's). It takes the touch, so dragging it does
+   not scroll the list. */
+.queue-move {
+  width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--muted);
+  border-radius: 8px;
+  touch-action: none;
+  cursor: grab;
+}
+/* While a song is dragged the songs it passes slide out of its way; the dragged one follows the finger, lifted. */
+.queue-list.is-reordering .queue-track {
+  transition: transform 160ms ease;
+}
+.queue-list.is-reordering .queue-track.is-dragged {
+  z-index: 1;
+  transition: none;
+  background: var(--surface-raised);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 18%);
+  cursor: grabbing;
+}
 .queue-art {
   width: 42px;
   height: 42px;
