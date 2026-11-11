@@ -4,6 +4,7 @@ import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { installCanvasStub } from '../test/canvas';
 import { defined } from '../test/defined';
 import { FakeWebSocket, latestFakeSocket, resetFakeSockets } from '../test/fakeWebSocket';
+import { clearLyricsCache } from '../hooks/useLyrics';
 import { fetchSpotify, recordSpotifyRetryAfter, resetSpotifyRateLimit, SpotifyApiError } from '../spotify/http';
 import TabletView from './TabletView';
 
@@ -133,6 +134,8 @@ beforeEach(() => {
   palette.extractPalette.mockReset();
   palette.extractPalette.mockResolvedValue({ primary: 'red', secondary: 'blue', dark: 'black' });
   lyrics.lrclib.mockReset();
+  // Tests whose queue fails show the lyrics and would otherwise leave this song's lyrics cached for the ones after.
+  clearLyricsCache();
   lyrics.lrclib.mockResolvedValue({ kind: 'plain', lines: ['Placeholder lyric'], source: 'LRCLIB' });
   setPlayer();
   setSonos();
@@ -195,31 +198,39 @@ describe('TabletView', () => {
     expect(player.current.nextTrack).toHaveBeenCalledOnce();
   });
 
-  it('swaps the artwork for the lyrics in place and remembers the choice', async () => {
-    const { unmount } = render(<TabletView />);
+  it('shows the queue beside the artwork while songs are queued, and fades to the lyrics on the switch', async () => {
+    render(<TabletView />);
     await flush();
+    const panels = document.querySelector('.side-panel');
+    expect(panels).toHaveAttribute('data-showing', 'queue');
+    expect(screen.getByRole('button', { name: 'Queue' })).toHaveAttribute('aria-pressed', 'true');
+    // A hidden lyrics panel looks nothing up.
     expect(lyrics.lrclib).not.toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: 'Lyrics' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Upcoming tracks' })).not.toHaveAttribute('inert');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show lyrics' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lyrics' }));
     await flush();
-    expect(screen.getByRole('region', { name: 'Upcoming tracks' })).toBeInTheDocument();
-    expect(screen.queryByAltText('Now Song album artwork')).not.toBeInTheDocument();
+    expect(panels).toHaveAttribute('data-showing', 'lyrics');
+    // The queue behind the fade cannot be tapped.
+    expect(screen.getByRole('region', { name: 'Upcoming tracks' })).toHaveAttribute('inert');
     expect(screen.getByRole('region', { name: 'Lyrics' })).toHaveTextContent('Placeholder lyric');
+    expect(screen.getByAltText('Now Song album artwork')).toBeInTheDocument();
     expect(lyrics.lrclib).toHaveBeenCalledWith(
       { title: 'Now Song', artist: 'Art', durationMs: 1000 },
       expect.any(AbortSignal)
     );
-    expect(localStorage.getItem('maxmix_lyrics')).toBe('on');
 
-    unmount();
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }));
+    expect(panels).toHaveAttribute('data-showing', 'queue');
+  });
+
+  it('shows the lyrics when nothing is queued', async () => {
+    api.getQueue.mockResolvedValue({ queue: [] });
     render(<TabletView />);
     await flush();
-    expect(screen.getByRole('region', { name: 'Lyrics' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Show artwork' }));
-    expect(screen.queryByRole('region', { name: 'Lyrics' })).not.toBeInTheDocument();
-    expect(screen.getByAltText('Now Song album artwork')).toBeInTheDocument();
-    expect(localStorage.getItem('maxmix_lyrics')).toBe('off');
+    expect(document.querySelector('.side-panel')).toHaveAttribute('data-showing', 'lyrics');
+    expect(screen.getByRole('button', { name: 'Lyrics' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('region', { name: 'Lyrics' })).toHaveTextContent('Placeholder lyric');
   });
 
   it('says so, and stops reading the queue, when Spotify says the quota is used up', async () => {

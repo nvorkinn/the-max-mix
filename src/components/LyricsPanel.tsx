@@ -8,6 +8,8 @@ import type { Track } from '../types';
 interface LyricsPanelProps {
   track?: Track | undefined;
   progressMs: number;
+  /** False while the panel is out of sight, so a hidden panel looks nothing up. */
+  shown?: boolean;
   provider?: LyricsProvider;
 }
 
@@ -36,8 +38,8 @@ function EmptyState({ title, text }: Readonly<{ title: string; text: string }>) 
   );
 }
 
-function LyricsPanelContent({ track, progressMs, provider }: Readonly<LyricsPanelProps>) {
-  const { status, lyrics, error, retry } = useLyrics(track, true, provider);
+function LyricsPanelContent({ track, progressMs, shown = true, provider }: Readonly<LyricsPanelProps>) {
+  const { status, lyrics, error, retry } = useLyrics(track, shown, provider);
   const listRef = useRef<HTMLOListElement | null>(null);
   const [isFollowing, setIsFollowing] = useState(true);
   const active = lyrics?.kind === 'synced' ? activeLineIndex(lyrics.lines, progressMs) : -1;

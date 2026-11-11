@@ -53,21 +53,24 @@ describe('AlbumArtPlayer', () => {
     );
   });
 
-  it('toggles lyrics from the artwork', () => {
-    const onToggleLyrics = vi.fn();
-    const { rerender } = render(
-      <AlbumArtPlayer playback={playback} isPlaying onToggleLyrics={onToggleLyrics} lyrics={<p>Words</p>} />
-    );
-    expect(screen.queryByText('Words')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Show lyrics' }));
-    expect(onToggleLyrics).toHaveBeenCalledOnce();
-    rerender(
-      <AlbumArtPlayer playback={playback} isPlaying lyricsOpen onToggleLyrics={onToggleLyrics} lyrics={<p>Words</p>} />
-    );
-    expect(screen.getByText('Words')).toBeInTheDocument();
-    expect(screen.queryByAltText('Song album artwork')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Show artwork' }));
-    expect(onToggleLyrics).toHaveBeenCalledTimes(2);
+  it('switches the side panel between the queue and the lyrics', () => {
+    const onShowLyrics = vi.fn();
+    const { rerender } = render(<AlbumArtPlayer playback={playback} isPlaying onShowLyrics={onShowLyrics} />);
+    expect(screen.getByRole('button', { name: 'Queue' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Lyrics' })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Lyrics' }));
+    expect(onShowLyrics).toHaveBeenLastCalledWith(true);
+    rerender(<AlbumArtPlayer playback={playback} isPlaying lyricsShown onShowLyrics={onShowLyrics} />);
+    expect(screen.getByRole('button', { name: 'Lyrics' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }));
+    expect(onShowLyrics).toHaveBeenLastCalledWith(false);
+    // The artwork stays put either way.
+    expect(screen.getByAltText('Song album artwork')).toBeInTheDocument();
+  });
+
+  it('leaves the switch out without a handler', () => {
+    render(<AlbumArtPlayer playback={playback} isPlaying />);
+    expect(screen.queryByRole('group', { name: 'Beside the artwork' })).not.toBeInTheDocument();
   });
 
   it('wires transport buttons and toggles the play label', () => {

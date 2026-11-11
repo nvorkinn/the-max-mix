@@ -74,10 +74,12 @@ export function useLyrics(
     setAttempt(count => count + 1);
   };
 
-  if (!enabled || !key) return { status: 'idle', lyrics: null, error: null, retry };
+  if (!key) return { status: 'idle', lyrics: null, error: null, retry };
   // Undefined until the source has answered for this track; null when it has no lyrics for it.
   const lyrics = found?.key === key ? found.lyrics : cache.get(key);
+  // Lyrics already found stay shown while disabled, so a panel fading out does not change under the fade.
   if (lyrics !== undefined) return { status: lyrics ? 'ready' : 'missing', lyrics, error: null, retry };
+  if (!enabled) return { status: 'idle', lyrics: null, error: null, retry };
   return failure?.key === key
     ? { status: 'error', lyrics: null, error: failure.message, retry }
     : { status: 'loading', lyrics: null, error: null, retry };

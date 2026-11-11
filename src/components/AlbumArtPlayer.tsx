@@ -7,8 +7,8 @@ import {
   Volume2,
   Speaker,
   ChevronUp,
+  ListMusic,
   MicVocal,
-  Image,
   Shuffle,
   Repeat,
   Repeat1,
@@ -16,16 +16,16 @@ import {
   RotateCcw,
   RotateCw
 } from 'lucide-react';
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties } from 'react';
 import type { PlayerControls } from '../types';
 import { Artwork } from './TrackImages';
 
 type AlbumArtPlayerProps = Readonly<PlayerControls> & {
   controlsEnabled?: boolean;
-  /** Synced lyrics shown in place of the artwork while `lyricsOpen`. */
-  lyrics?: ReactNode;
-  lyricsOpen?: boolean;
-  onToggleLyrics?: () => void;
+  /** Whether the panel beside the artwork shows the lyrics rather than the queue. */
+  lyricsShown?: boolean;
+  /** Makes the queue/lyrics switch beside the track title; `show` is true for the lyrics. */
+  onShowLyrics?: (show: boolean) => void;
   /** What the device indicator names as playing; defaults to the playing device's name. */
   speakerLabel?: string | undefined;
   /** Whether the speakers drawer the indicator opens is open. */
@@ -55,9 +55,8 @@ export default function AlbumArtPlayer({
   speakerLabel,
   speakersOpen = false,
   onOpenSpeakers,
-  lyrics,
-  lyricsOpen = false,
-  onToggleLyrics
+  lyricsShown = false,
+  onShowLyrics
 }: AlbumArtPlayerProps) {
   // Local slider value, reset whenever the device reports a different volume (adjusted during render, not in an effect).
   const deviceVolume = playback?.device?.volume_percent ?? 0;
@@ -113,36 +112,7 @@ export default function AlbumArtPlayer({
   return (
     <div className="now-playing">
       <div className="album-art">
-        {lyricsOpen && onToggleLyrics ? (
-          <>
-            {lyrics}
-            <button
-              type="button"
-              className="art-corner-button"
-              onClick={onToggleLyrics}
-              aria-label="Show artwork"
-              title="Show artwork"
-            >
-              <Image size={18} />
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            className="art-toggle"
-            onClick={onToggleLyrics}
-            disabled={!onToggleLyrics}
-            aria-label="Show lyrics"
-            title="Show lyrics"
-          >
-            <Artwork src={albumArt} alt={`${title} album artwork`} className="album-cover" />
-            {onToggleLyrics && (
-              <span className="art-corner-button" aria-hidden="true">
-                <MicVocal size={18} />
-              </span>
-            )}
-          </button>
-        )}
+        <Artwork src={albumArt} alt={`${title} album artwork`} className="album-cover" />
       </div>
 
       <div className="track-details">
@@ -168,6 +138,30 @@ export default function AlbumArtPlayer({
           >
             <Heart size={24} fill={liked ? 'currentColor' : 'none'} />
           </button>
+        )}
+        {onShowLyrics && (
+          <div className="panel-switch" role="group" aria-label="Beside the artwork">
+            <button
+              type="button"
+              className={lyricsShown ? '' : 'is-on'}
+              onClick={() => onShowLyrics(false)}
+              aria-label="Queue"
+              aria-pressed={!lyricsShown}
+              title="Up next"
+            >
+              <ListMusic size={18} />
+            </button>
+            <button
+              type="button"
+              className={lyricsShown ? 'is-on' : ''}
+              onClick={() => onShowLyrics(true)}
+              aria-label="Lyrics"
+              aria-pressed={lyricsShown}
+              title="Lyrics"
+            >
+              <MicVocal size={18} />
+            </button>
+          </div>
         )}
       </div>
 

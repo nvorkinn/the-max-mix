@@ -285,7 +285,7 @@
   grid-area: details;
   padding: 0;
 }
-.listening-room:not(.is-setup) .queue-section {
+.listening-room:not(.is-setup) .side-panel {
   grid-area: queue;
 }
 /* The queue shares the right column with the track details and sits straight on the page, with no card around it. */
@@ -456,40 +456,55 @@
   box-shadow: 0 18px 36px -26px #000;
   text-align: left;
 }
-.art-toggle {
-  position: absolute;
-  inset: 0;
-  width: 100%;
+/*
+  The queue and the lyrics share the right column, stacked in one grid cell, and cross-fade as the switch beside the
+  track title flips between them. Visibility follows the fade so the hidden one cannot be scrolled or tapped.
+*/
+.side-panel {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+}
+.side-panel-view {
+  grid-area: 1 / 1;
+  min-height: 0;
+  transition:
+    opacity 280ms ease,
+    visibility 280ms;
+}
+.side-panel[data-showing='queue'] > .side-panel-view:last-child,
+.side-panel[data-showing='lyrics'] > .side-panel-view:first-child {
+  opacity: 0;
+  visibility: hidden;
+}
+.lyrics-panel {
   height: 100%;
-  display: block;
-  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
-.art-toggle:disabled {
-  opacity: 1;
-  cursor: default;
+/* The small queue/lyrics switch at the end of the track title's row. */
+.panel-switch {
+  flex-shrink: 0;
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
 }
-.art-corner-button {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 2;
+.panel-switch button {
   width: 44px;
   height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  color: var(--ink);
-  background: color-mix(in srgb, var(--surface) 80%, transparent);
-  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  transition:
+    background 200ms,
+    color 200ms;
 }
-.lyrics-panel {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  padding: 14px 60px 10px 18px;
-  background: var(--surface);
+.panel-switch button.is-on {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--ink);
 }
 .album-cover {
   position: absolute;
@@ -1098,7 +1113,6 @@ body:has(.app-dialog[open]) {
   overscroll-behavior: contain;
   scroll-behavior: smooth;
   mask-image: linear-gradient(transparent, #000 10%, #000 85%, transparent);
-  margin-top: 14px;
   padding: 8px 4px 40%;
   list-style: none;
 }
