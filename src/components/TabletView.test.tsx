@@ -224,6 +224,14 @@ describe('TabletView', () => {
     expect(panels).toHaveAttribute('data-showing', 'queue');
   });
 
+  it('keeps the queue, with its retry, in view when the queue could not be read', async () => {
+    api.getQueue.mockRejectedValue(new Error('Queue down'));
+    render(<TabletView />);
+    await flush();
+    expect(document.querySelector('.side-panel')).toHaveAttribute('data-showing', 'queue');
+    expect(screen.getByRole('button', { name: 'Retry queue' })).toBeInTheDocument();
+  });
+
   it('shows the lyrics when nothing is queued', async () => {
     api.getQueue.mockResolvedValue({ queue: [] });
     render(<TabletView />);

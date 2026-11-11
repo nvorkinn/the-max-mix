@@ -128,9 +128,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const debugHold = useHold(() => setIsDebugOpen(true), DEBUG_HOLD_MS);
   const [queueError, setQueueError] = useState<string | null>(null);
-  // The panel beside the artwork shows the queue while songs are queued and the lyrics otherwise. A tap on the switch
-  // overrides that until the queue fills up or runs dry, when the panel goes back to what suits it.
-  const [lyricsChoice, setLyricsChoice] = useState<{ show: boolean; queued: boolean | null } | null>(null);
+  // The panel beside the artwork shows the queue while songs are queued and the lyrics when it is empty. A tap on the
+  // switch overrides that until the queue fills up or runs dry, when the panel goes back to what suits it.
+  const [lyricsChoice, setLyricsChoice] = useState<{ show: boolean; queueEmpty: boolean | null } | null>(null);
   // AirPlay needs the Pi's audio service, so it is offered on the kiosk only.
   const [onKiosk] = useState(isKiosk);
   const canUseAirPlay = onKiosk;
@@ -390,14 +390,18 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   let shownQueueStatus: QueueStatus = waitingForSpotify ? 'waiting' : queueStatus;
   if (followingSonos) shownQueueStatus = 'ready';
   const shownQueue = followingSonos ? sonos.next : queue;
-  const queued = shownQueue.length > 0;
-  // Null until the queue is known: while it is first read it is empty only for now, so the lyrics do not flash up.
-  const [panelQueued, setPanelQueued] = useState<boolean | null>(null);
-  if (panelQueued !== queued && (queued || shownQueueStatus !== 'loading')) {
-    setPanelQueued(queued);
+  const shownQueueError = followingSonos ? null : queueError;
+  // The lyrics come forward only once the queue is known to be empty: a queue that failed or is waiting for Spotify keeps
+  // the queue in view, with its retry. Each poll reads as loading for a moment, so the panel only changes between polls.
+  const queueSettled = shownQueueStatus !== 'loading' || shownQueue.length > 0;
+  const queueEmpty = shownQueue.length === 0 && shownQueueStatus === 'ready' && !shownQueueError;
+  // Null until the queue is first known, so the lyrics do not flash up while it is read.
+  const [preferLyrics, setPreferLyrics] = useState<boolean | null>(null);
+  if (queueSettled && preferLyrics !== queueEmpty) {
+    setPreferLyrics(queueEmpty);
     setLyricsChoice(null);
   }
-  const lyricsShown = lyricsChoice?.queued === panelQueued ? lyricsChoice.show : panelQueued === false;
+  const lyricsShown = lyricsChoice?.queueEmpty === preferLyrics ? lyricsChoice.show : preferLyrics === true;
   /** Plays the queue song at this position by skipping past the ones before it. */
   const playQueueTrack = async (index: number) => {
     setIsJumping(true);
@@ -511,7 +515,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 speakersOpen={isSpeakerModalOpen}
                 onOpenSpeakers={() => setIsSpeakerModalOpen(true)}
                 lyricsShown={lyricsShown}
-                onShowLyrics={show => setLyricsChoice({ show, queued: panelQueued })}
+                onShowLyrics={show => setLyricsChoice({ show, queueEmpty: preferLyrics })}
               />
             )}
           </section>
@@ -522,7 +526,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               <section className="queue-section side-panel-view" aria-label="Upcoming tracks" inert={lyricsShown}>
                 <TrackQueue
                   queue={shownQueue}
-                  error={followingSonos ? null : queueError}
+                  error={shownQueueError}
                   status={shownQueueStatus}
                   onRetry={() => setQueueRequestVersion(version => version + 1)}
                   onConnect={showSettings}
