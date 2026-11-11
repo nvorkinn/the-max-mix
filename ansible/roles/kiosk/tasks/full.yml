@@ -503,7 +503,7 @@
         mode: '0644'
 
 # sonoscli (https://sonoscli.sh), which the kiosk-audio service runs to play a Spotify song on a Sonos speaker
-# (pi/kiosk-audio/sonos.ts). Its release archive for this Pi's architecture, checked against the release's checksums.txt,
+# (pi/kiosk-audio/sonos.ts). Its release archive for this Pi's architecture, checked against kiosk_sonoscli_sha256,
 # unpacked into a folder per version; /usr/local/bin/sonos points at the one in use.
 - name: full | Look up the Pi's architecture for sonoscli
   ansible.builtin.command:
@@ -513,7 +513,8 @@
 
 - name: full | Install sonoscli
   vars:
-    kiosk_sonoscli_archive: 'sonoscli_{{ kiosk_sonoscli_version }}_linux_{{ kiosk_dpkg_arch.stdout | trim }}.tar.gz'
+    kiosk_sonoscli_arch: '{{ kiosk_dpkg_arch.stdout | trim }}'
+    kiosk_sonoscli_archive: 'sonoscli_{{ kiosk_sonoscli_version }}_linux_{{ kiosk_sonoscli_arch }}.tar.gz'
     kiosk_sonoscli_release: 'https://github.com/steipete/sonoscli/releases/download/v{{ kiosk_sonoscli_version }}'
     kiosk_sonoscli_home: '/opt/sonoscli/{{ kiosk_sonoscli_version }}'
   block:
@@ -529,7 +530,7 @@
       ansible.builtin.get_url:
         url: '{{ kiosk_sonoscli_release }}/{{ kiosk_sonoscli_archive }}'
         dest: '{{ kiosk_sonoscli_home }}/{{ kiosk_sonoscli_archive }}'
-        checksum: 'sha256:{{ kiosk_sonoscli_release }}/checksums.txt'
+        checksum: 'sha256:{{ kiosk_sonoscli_sha256[kiosk_sonoscli_arch] }}'
         owner: root
         group: root
         mode: '0644'
