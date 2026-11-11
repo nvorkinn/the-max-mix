@@ -540,7 +540,8 @@
         src: '{{ kiosk_sonoscli_home }}/{{ kiosk_sonoscli_archive }}'
         dest: '{{ kiosk_sonoscli_home }}'
         remote_src: true
-        include: [sonos]
+        # The archive holds the program as ./sonos.
+        include: [./sonos]
         creates: '{{ kiosk_sonoscli_home }}/sonos'
         owner: root
         group: root
