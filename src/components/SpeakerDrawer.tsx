@@ -20,8 +20,6 @@ function describeDevice(device: SpotifyDevice, remembered: boolean) {
   return `${device.type || 'Device'}${volume}`;
 }
 
-type SpeakerTab = 'connect' | 'airplay' | 'bluetooth';
-
 const TABS = [
   { id: 'connect', label: 'Spotify Connect', Icon: Speaker },
   { id: 'airplay', label: 'AirPlay', Icon: Airplay },
@@ -68,6 +66,7 @@ export default function SpeakerDrawer({
   // Each speaker's own volume is hidden until asked for: the main volume slider is the one to use.
   const [showVolumes, setShowVolumes] = useState(false);
   const [sonosRooms, setSonosRooms] = useState<readonly string[]>([]);
+  type SpeakerTab = (typeof TABS)[number]['id'];
   // The tab picked since the drawer opened; none means the one that fits where the sound goes now.
   const [pickedTab, setPickedTab] = useState<SpeakerTab | null>(null);
   const [wasOpen, setWasOpen] = useState(isOpen);
