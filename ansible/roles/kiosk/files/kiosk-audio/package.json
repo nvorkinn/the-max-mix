@@ -9,7 +9,7 @@
     "@svrooij/sonos": "2.7.0",
     "dbus-native": "0.16.3",
     "qrcode-generator": "2.0.4",
-    "ws": "8.22.1"
+    "ws": "8.22.2"
   },
   "engines": {
     "node": ">=24"
