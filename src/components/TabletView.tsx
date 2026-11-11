@@ -21,7 +21,6 @@ import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
 import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
-import { loadShowLyrics, saveShowLyrics } from '../lyrics/setting';
 import { loadThemeColour, saveThemeColour } from '../utils/themeColour';
 import type { ThemeColour } from '../utils/themeColour';
 import type { MusicChoice, Track } from '../types';
@@ -130,8 +129,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const debugHold = useHold(() => setIsDebugOpen(true), DEBUG_HOLD_MS);
   const [queueError, setQueueError] = useState<string | null>(null);
-  // Lyrics take the artwork's place while shown; remembered so the kiosk comes back the way it was left.
-  const [showLyrics, setShowLyrics] = useState(loadShowLyrics);
+  // The panel beside the artwork shows the queue while songs are queued and the lyrics when it is empty. A tap on the
+  // switch overrides that until the queue fills up or runs dry, when the panel goes back to what suits it.
+  const [lyricsChoice, setLyricsChoice] = useState<{ show: boolean; queueEmpty: boolean | null } | null>(null);
   // AirPlay needs the Pi's audio service, so it is offered on the kiosk only.
   const [onKiosk] = useState(isKiosk);
   const canUseAirPlay = onKiosk;
@@ -193,11 +193,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   // Music picked while a Sonos plays goes to the Sonos (a song, album or playlist; Liked Songs cannot).
   const playMusic = (choice: MusicChoice) => (sonos.active ? sonos.play(choice.uri) : playMusicOnSpotify(choice));
-
-  const toggleLyrics = (show: boolean) => {
-    setShowLyrics(show);
-    saveShowLyrics(show);
-  };
 
   // Colours read from the album art tint the page faintly behind the queue; none means no tint.
   const [artColours, setArtColours] = useState<ArtColours | null>(null);
@@ -395,6 +390,19 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   } else if (browserDeviceId && playbackState?.device?.id === browserDeviceId) speakerLabel = 'This tablet';
   let shownQueueStatus: QueueStatus = waitingForSpotify ? 'waiting' : queueStatus;
   if (followingSonos) shownQueueStatus = 'ready';
+  const shownQueue = followingSonos ? sonos.next : queue;
+  const shownQueueError = followingSonos ? null : queueError;
+  // The lyrics come forward only once the queue is known to be empty: a queue that failed or is waiting for Spotify keeps
+  // the queue in view, with its retry. Each poll reads as loading for a moment, so the panel only changes between polls.
+  const queueSettled = shownQueueStatus !== 'loading' || shownQueue.length > 0;
+  const queueEmpty = shownQueue.length === 0 && shownQueueStatus === 'ready' && !shownQueueError;
+  // Null until the queue is first known, so the lyrics do not flash up while it is read.
+  const [preferLyrics, setPreferLyrics] = useState<boolean | null>(null);
+  if (queueSettled && preferLyrics !== queueEmpty) {
+    setPreferLyrics(queueEmpty);
+    setLyricsChoice(null);
+  }
+  const lyricsShown = lyricsChoice?.queueEmpty === preferLyrics ? lyricsChoice.show : preferLyrics === true;
   /** Plays the queue song at this position by skipping past the ones before it. */
   const playQueueTrack = async (index: number) => {
     setIsJumping(true);
@@ -506,33 +514,37 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 speakerLabel={speakerLabel}
                 speakersOpen={isSpeakerModalOpen}
                 onOpenSpeakers={() => setIsSpeakerModalOpen(true)}
-                lyricsOpen={showLyrics}
-                onToggleLyrics={() => toggleLyrics(!showLyrics)}
-                lyrics={
-                  <LyricsPanel
-                    track={currentTrack}
-                    progressMs={shownPlayback?.progress_ms ?? shownPlayback?.position ?? 0}
-                  />
-                }
+                lyricsShown={lyricsShown}
+                onShowLyrics={show => setLyricsChoice({ show, queueEmpty: preferLyrics })}
               />
             )}
           </section>
 
           {!needsConnection && (
-            <section className="queue-section" aria-label="Upcoming tracks">
-              <TrackQueue
-                queue={followingSonos ? sonos.next : queue}
-                error={followingSonos ? null : queueError}
-                status={shownQueueStatus}
-                onRetry={() => setQueueRequestVersion(version => version + 1)}
-                onConnect={showSettings}
-                retryAllowed={!waitingForSpotify}
-                onPlay={playQueueTrack}
-                playDisabled={!controlsEnabled || isJumping}
-                // Only a Sonos's queue can be reordered; Spotify's Web API has no way to move a queued song.
-                onMove={followingSonos ? sonos.moveSong : undefined}
-              />
-            </section>
+            <div className="side-panel" data-showing={lyricsShown ? 'lyrics' : 'queue'}>
+              {/* Both stay put and cross-fade; the hidden one is inert, so neither a tap nor a screen reader reaches it. */}
+              <section className="queue-section side-panel-view" aria-label="Upcoming tracks" inert={lyricsShown}>
+                <TrackQueue
+                  queue={shownQueue}
+                  error={shownQueueError}
+                  status={shownQueueStatus}
+                  onRetry={() => setQueueRequestVersion(version => version + 1)}
+                  onConnect={showSettings}
+                  retryAllowed={!waitingForSpotify}
+                  onPlay={playQueueTrack}
+                  playDisabled={!controlsEnabled || isJumping}
+                  // Only a Sonos's queue can be reordered; Spotify's Web API has no way to move a queued song.
+                  onMove={followingSonos ? sonos.moveSong : undefined}
+                />
+              </section>
+              <div className="side-panel-view" inert={!lyricsShown}>
+                <LyricsPanel
+                  track={currentTrack}
+                  shown={lyricsShown}
+                  progressMs={shownPlayback?.progress_ms ?? shownPlayback?.position ?? 0}
+                />
+              </div>
+            </div>
           )}
         </main>
       </div>

@@ -78,7 +78,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
       );
       await fakeSpotify(page);
       await page.goto('/');
-      const art = page.getByRole('button', { name: 'Show lyrics' });
+      const art = page.locator('.album-art');
       await expect(art).toBeVisible();
       const box = await art.boundingBox();
       expect(box).not.toBeNull();

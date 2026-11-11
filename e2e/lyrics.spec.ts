@@ -18,11 +18,11 @@ test.describe('Lyrics', { tag: '@lyrics' }, () => {
     await page.route('https://lrclib.net/api/**', route =>
       route.fulfill({ json: { instrumental: false, syncedLyrics } })
     );
-    await page.addInitScript(() => {
-      localStorage.setItem('maxmix_lyrics', 'on');
-    });
     await fakeSpotify(page);
     await page.goto('/');
+    // Songs are queued, so the queue shows first; the switch beside the title fades to the lyrics.
+    await expect(page.getByRole('region', { name: 'Upcoming tracks' })).toBeVisible();
+    await page.getByRole('button', { name: 'Lyrics', exact: true }).click();
     const panel = page.getByRole('region', { name: 'Lyrics', exact: true });
     const list = panel.getByRole('list');
     const active = list.locator('[aria-current="true"]');
