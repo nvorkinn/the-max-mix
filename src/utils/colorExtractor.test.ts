@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { extractPalette } from './colorExtractor';
+import { extractArtColours } from './colorExtractor';
 
-const FALLBACK = {
-  primary: 'rgba(29, 185, 84, 0.4)',
-  secondary: 'rgba(125, 42, 232, 0.3)',
-  dark: 'rgba(15, 17, 26, 0.95)'
-};
+/** A 10x10 RGBA image: the top five rows one colour, the bottom five another. */
+function halves(top: number[], bottom: number[]): number[] {
+  return Array.from({ length: 100 }, (_, pixel) => [...(pixel < 50 ? top : bottom), 255]).flat();
+}
 
 let imageBehavior: 'load' | 'error' = 'load';
 
@@ -33,45 +32,48 @@ function stubCanvas(pixels: number[], { throws = false }: { throws?: boolean } =
   return ctx;
 }
 
-describe('extractPalette', () => {
+describe('extractArtColours', () => {
   beforeEach(() => {
     imageBehavior = 'load';
     vi.stubGlobal('Image', FakeImage);
   });
 
-  it('returns the fallback without an image url', async () => {
-    expect(await extractPalette()).toEqual(FALLBACK);
-    expect(await extractPalette('')).toEqual(FALLBACK);
+  it('returns null without an image url', async () => {
+    expect(await extractArtColours()).toBeNull();
+    expect(await extractArtColours('')).toBeNull();
   });
 
-  it('returns the fallback when the image fails to load', async () => {
+  it('returns null when the image fails to load', async () => {
     imageBehavior = 'error';
-    expect(await extractPalette('http://x/img.jpg')).toEqual(FALLBACK);
+    expect(await extractArtColours('http://x/img.jpg')).toBeNull();
   });
 
-  it('returns the fallback when canvas reading throws', async () => {
+  it('returns null when canvas reading throws', async () => {
     stubCanvas([], { throws: true });
-    expect(await extractPalette('http://x/img.jpg')).toEqual(FALLBACK);
+    expect(await extractArtColours('http://x/img.jpg')).toBeNull();
   });
 
-  it('returns the fallback when every pixel is too dark or too bright', async () => {
-    stubCanvas([0, 0, 0, 255, 255, 255, 255, 255]);
-    expect(await extractPalette('http://x/img.jpg')).toEqual(FALLBACK);
+  it('returns null when every pixel is too dark or too bright', async () => {
+    stubCanvas(halves([0, 0, 0], [255, 255, 255]));
+    expect(await extractArtColours('http://x/img.jpg')).toBeNull();
   });
 
-  it('averages vibrant pixels and ignores extremes', async () => {
-    // One black, one white (ignored), two mid tones averaged to (100, 50, 150).
-    stubCanvas([0, 0, 0, 255, 255, 255, 255, 255, 80, 40, 140, 255, 120, 60, 160, 255]);
-    const palette = await extractPalette('http://x/img.jpg');
-    expect(palette.primary).toBe('rgba(100, 50, 150, 0.55)');
-    // secondary: (b*1.2, r*0.7, g*1.3) = (180, 70, 65)
-    expect(palette.secondary).toBe('rgba(180, 70, 65, 0.45)');
-    expect(palette.dark).toBe('rgba(15, 7, 22, 0.95)');
+  it('averages the top and bottom halves separately', async () => {
+    stubCanvas(halves([200, 40, 60], [30, 90, 160]));
+    expect(await extractArtColours('http://x/img.jpg')).toEqual({ top: 'rgb(200 40 60)', bottom: 'rgb(30 90 160)' });
   });
 
-  it('clamps the secondary channels to 255', async () => {
-    stubCanvas([100, 200, 220, 255]);
-    const palette = await extractPalette('http://x/img.jpg');
-    expect(palette.secondary).toBe('rgba(255, 70, 255, 0.45)');
+  it('ignores near-black and near-white pixels in the average', async () => {
+    const pixels = halves([80, 40, 140], [80, 40, 140]);
+    pixels.splice(0, 8, 0, 0, 0, 255, 120, 60, 160, 255);
+    stubCanvas(pixels);
+    const colours = await extractArtColours('http://x/img.jpg');
+    // 48 pixels of (80, 40, 140) and one of (120, 60, 160), the black one skipped.
+    expect(colours?.top).toBe('rgb(81 40 140)');
+  });
+
+  it('uses the whole cover colour for a half that is only black or white', async () => {
+    stubCanvas(halves([0, 0, 0], [30, 90, 160]));
+    expect(await extractArtColours('http://x/img.jpg')).toEqual({ top: 'rgb(30 90 160)', bottom: 'rgb(30 90 160)' });
   });
 });

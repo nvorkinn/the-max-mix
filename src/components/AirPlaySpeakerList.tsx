@@ -116,9 +116,10 @@ export default function AirPlaySpeakerList({
       )}
       {names.map(name => {
         const isChosen = chosen.includes(name);
+        // A speaker that is there says nothing more; only a missing or unknown one gets a line under its name.
         let availability = 'Checking availability';
         if (error) availability = 'Availability unknown';
-        else if (outputs) availability = outputs.includes(name) ? 'Available on this network' : 'Not on the network';
+        else if (outputs) availability = outputs.includes(name) ? '' : 'Not on the network';
         const volume = showVolumes && isChosen && outputs?.includes(name) ? volumes[name] : undefined;
         return (
           <div key={name}>
@@ -132,7 +133,7 @@ export default function AirPlaySpeakerList({
               <Speaker size={20} className="shrink-0 text-accent" />
               <span className="flex-1 min-w-0">
                 <span className="block text-sm truncate">{name}</span>
-                <span className="text-[11px] text-muted">{availability}</span>
+                {availability && <span className="text-[11px] text-muted">{availability}</span>}
               </span>
               {isChosen && (
                 <span className="text-xs text-accent flex items-center gap-1">

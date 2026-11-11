@@ -17,7 +17,7 @@ function statusOf(speaker: BluetoothSpeaker): string {
 const actionOf = (speaker: BluetoothSpeaker): string => (speaker.paired ? 'Connect' : 'Pair');
 
 /**
- * Pairs Bluetooth speakers through the Pi's audio service. A connected speaker shows up in the AirPlay list above like
+ * Pairs Bluetooth speakers through the Pi's audio service. A connected speaker shows up on the AirPlay tab like
  * any other speaker, where it is chosen and its volume is set; this section only finds, connects and forgets them.
  */
 export default function BluetoothSpeakers() {

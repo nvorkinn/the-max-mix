@@ -1,22 +1,42 @@
-interface Palette {
-  primary: string;
-  secondary: string;
-  dark: string;
+/** Two colours taken from the album art: the average of the top half and of the bottom half. */
+export interface ArtColours {
+  top: string;
+  bottom: string;
 }
 
-/** Extracts ambient colors from album art image using an offscreen canvas */
-export async function extractPalette(imageUrl?: string | null): Promise<Palette> {
-  const fallback: Palette = {
-    primary: 'rgba(29, 185, 84, 0.4)', // Spotify green
-    secondary: 'rgba(125, 42, 232, 0.3)',
-    dark: 'rgba(15, 17, 26, 0.95)'
-  };
+const SIZE = 10;
 
-  if (!imageUrl) return fallback;
+/** Averages the pixels in rows [fromRow, toRow) that are neither near-black nor near-white. */
+function averageRows(data: Uint8ClampedArray, fromRow: number, toRow: number): string | null {
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let count = 0;
+  for (let i = fromRow * SIZE * 4; i < Math.min(data.length, toRow * SIZE * 4); i += 4) {
+    const red = data[i] ?? 0;
+    const green = data[i + 1] ?? 0;
+    const blue = data[i + 2] ?? 0;
+    const brightness = (red + green + blue) / 3;
+    if (brightness > 30 && brightness < 230) {
+      r += red;
+      g += green;
+      b += blue;
+      count++;
+    }
+  }
+  return count === 0 ? null : `rgb(${Math.round(r / count)} ${Math.round(g / count)} ${Math.round(b / count)})`;
+}
 
-  return new Promise<Palette>(resolve => {
+/**
+ * Reads two colours from the album art through a tiny offscreen canvas. Returns null when there is no art, it fails to
+ * load or can't be read (no CORS header), or it is all black and white, so the page then shows no tint at all.
+ */
+export async function extractArtColours(imageUrl?: string | null): Promise<ArtColours | null> {
+  if (!imageUrl) return null;
+
+  return new Promise<ArtColours | null>(resolve => {
     const img = new Image();
-    img.crossOrigin = 'Anonymous';
+    img.crossOrigin = 'anonymous';
     img.src = imageUrl;
 
     img.onload = () => {
@@ -24,56 +44,28 @@ export async function extractPalette(imageUrl?: string | null): Promise<Palette>
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         if (!ctx) throw new Error('No 2d canvas context');
-        canvas.width = 10;
-        canvas.height = 10;
-        ctx.drawImage(img, 0, 0, 10, 10);
+        canvas.width = SIZE;
+        canvas.height = SIZE;
+        ctx.drawImage(img, 0, 0, SIZE, SIZE);
+        const data = ctx.getImageData(0, 0, SIZE, SIZE).data;
 
-        const imageData = ctx.getImageData(0, 0, 10, 10).data;
-        let r = 0,
-          g = 0,
-          b = 0,
-          count = 0;
-
-        for (let i = 0; i < imageData.length; i += 4) {
-          // Ignore ultra-dark or ultra-white pixels to find vibrant tones
-          const red = imageData[i] ?? 0;
-          const green = imageData[i + 1] ?? 0;
-          const blue = imageData[i + 2] ?? 0;
-          const brightness = (red + green + blue) / 3;
-
-          if (brightness > 30 && brightness < 230) {
-            r += red;
-            g += green;
-            b += blue;
-            count++;
-          }
-        }
-
-        if (count === 0) {
-          resolve(fallback);
+        const whole = averageRows(data, 0, SIZE);
+        if (!whole) {
+          resolve(null);
           return;
         }
-
-        r = Math.floor(r / count);
-        g = Math.floor(g / count);
-        b = Math.floor(b / count);
-
-        const sR = Math.min(255, Math.floor(b * 1.2));
-        const sG = Math.floor(r * 0.7);
-        const sB = Math.min(255, Math.floor(g * 1.3));
-
+        // A half with only black or white falls back to the whole cover's colour.
         resolve({
-          primary: `rgba(${r}, ${g}, ${b}, 0.55)`,
-          secondary: `rgba(${sR}, ${sG}, ${sB}, 0.45)`,
-          dark: `rgba(${Math.floor(r * 0.15)}, ${Math.floor(g * 0.15)}, ${Math.floor(b * 0.15)}, 0.95)`
+          top: averageRows(data, 0, SIZE / 2) ?? whole,
+          bottom: averageRows(data, SIZE / 2, SIZE) ?? whole
         });
       } catch {
-        resolve(fallback);
+        resolve(null);
       }
     };
 
     img.onerror = () => {
-      resolve(fallback);
+      resolve(null);
     };
   });
 }

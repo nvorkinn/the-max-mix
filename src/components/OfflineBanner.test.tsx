@@ -8,7 +8,7 @@ import TabletView from './TabletView';
 const state = vi.hoisted((): { player: Record<string, unknown> } => ({ player: {} }));
 vi.mock('../spotify/api', () => ({ getQueue: vi.fn() }));
 vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => state.player }));
-vi.mock('../utils/colorExtractor', () => ({ extractPalette: vi.fn() }));
+vi.mock('../utils/colorExtractor', () => ({ extractArtColours: vi.fn().mockResolvedValue(null) }));
 vi.mock('./AlbumArtPlayer', () => ({ default: () => null }));
 vi.mock('./SettingsModal', () => ({ default: () => null }));
 vi.mock('./SpeakerSelectorModal', () => ({ default: () => null }));

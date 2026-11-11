@@ -34,7 +34,7 @@ const api = vi.hoisted(() => ({
   getQueue: vi.fn(),
   getDevices: vi.fn()
 }));
-const palette = vi.hoisted(() => ({ extractPalette: vi.fn() }));
+const palette = vi.hoisted(() => ({ extractArtColours: vi.fn() }));
 const airplay = vi.hoisted(() => ({
   listAudioOutputs: vi.fn(),
   watchAudioOutputs: vi.fn(),
@@ -131,8 +131,8 @@ beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
   api.getQueue.mockResolvedValue({ queue: queued });
   api.getDevices.mockResolvedValue({ devices: [{ id: 'dev1', name: 'Soundbar' }] });
-  palette.extractPalette.mockReset();
-  palette.extractPalette.mockResolvedValue({ primary: 'red', secondary: 'blue', dark: 'black' });
+  palette.extractArtColours.mockReset();
+  palette.extractArtColours.mockResolvedValue({ top: 'red', bottom: 'blue' });
   lyrics.lrclib.mockReset();
   // Tests whose queue fails show the lyrics and would otherwise leave this song's lyrics cached for the ones after.
   clearLyricsCache();
@@ -303,11 +303,20 @@ describe('TabletView', () => {
     expect(second).toBeEnabled();
   });
 
-  it('applies the extracted album palette to the container', async () => {
+  it('tints the page with colours from the album art', async () => {
     const { container } = render(<TabletView />);
     await flush();
-    expect(palette.extractPalette).toHaveBeenCalledWith('http://art/a.jpg');
-    expect((container.firstChild as HTMLElement).style.getPropertyValue('--ambient-primary')).toBe('red');
+    expect(palette.extractArtColours).toHaveBeenCalledWith('http://art/a.jpg');
+    const style = (container.firstChild as HTMLElement).style;
+    expect(style.getPropertyValue('--art-tint-top')).toBe('red');
+    expect(style.getPropertyValue('--art-tint-bottom')).toBe('blue');
+  });
+
+  it('leaves the page plain when the art has no usable colours', async () => {
+    palette.extractArtColours.mockResolvedValue(null);
+    const { container } = render(<TabletView />);
+    await flush();
+    expect((container.firstChild as HTMLElement).style.getPropertyValue('--art-tint-top')).toBe('');
   });
 
   it('prompts to sign in and does not poll the queue when unauthenticated', async () => {
@@ -823,6 +832,8 @@ describe('TabletView', () => {
       airplay.getChosenSpeakers.mockReturnValue([]);
       airplay.listAudioOutputs.mockResolvedValue({ names: ['Kitchen'], volumes: {} });
       await openSpeakers();
+      fireEvent.click(screen.getByRole('button', { name: 'AirPlay' }));
+      await flush();
       fireEvent.click(screen.getByRole('button', { name: /Kitchen/ }));
       await flush();
       expect(airplay.routeAudio).toHaveBeenCalledWith(['Kitchen']);
@@ -830,16 +841,18 @@ describe('TabletView', () => {
       expect(localStorage.getItem('maxmix.audioRoute')).toBe('airplay');
     });
 
-    it('keeps the AirPlay speakers disabled until this tablet is the one playing', async () => {
+    it('keeps the AirPlay tab shut until this tablet is the one playing', async () => {
       airplay.getChosenSpeakers.mockReturnValue([]);
       airplay.listAudioOutputs.mockResolvedValue({ names: ['Kitchen'], volumes: {} });
       await openSpeakers();
       // Another device (Soundbar) is playing.
-      const kitchen = screen.getByRole('button', { name: /Kitchen/ });
-      expect(kitchen).toBeDisabled();
-      expect(screen.getByText('Choose This tablet under Spotify Connect to use AirPlay.')).toBeInTheDocument();
-      fireEvent.click(kitchen);
+      const airPlayTab = screen.getByRole('button', { name: 'AirPlay' });
+      expect(airPlayTab).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Bluetooth' })).toBeDisabled();
+      expect(screen.getByText('Choose This tablet to use AirPlay or Bluetooth.')).toBeInTheDocument();
+      fireEvent.click(airPlayTab);
       await flush();
+      expect(screen.queryByRole('button', { name: /Kitchen/ })).not.toBeInTheDocument();
       expect(airplay.routeAudio).not.toHaveBeenCalled();
       expect(localStorage.getItem('maxmix.audioRoute')).toBeNull();
       // Playing from this tablet is what unlocks them.
@@ -880,6 +893,8 @@ describe('TabletView', () => {
       localStorage.setItem('maxmix.audioRoute', 'airplay');
       api.getDevices.mockResolvedValue({ devices: [{ id: 'dev2', name: 'Soundbar' }] });
       await openSpeakers();
+      fireEvent.click(screen.getByRole('button', { name: 'Spotify Connect' }));
+      await flush();
       fireEvent.click(screen.getByRole('button', { name: /Soundbar/ }));
       await flush();
       expect(airplay.routeAudio).toHaveBeenCalledWith([]);
@@ -891,6 +906,8 @@ describe('TabletView', () => {
     it('choosing this tablet while on AirPlay goes back to the tablet output', async () => {
       localStorage.setItem('maxmix.audioRoute', 'airplay');
       await openSpeakers();
+      fireEvent.click(screen.getByRole('button', { name: 'Spotify Connect' }));
+      await flush();
       fireEvent.click(screen.getByRole('button', { name: /This tablet/ }));
       await flush();
       expect(airplay.routeAudio).toHaveBeenCalledWith([]);
