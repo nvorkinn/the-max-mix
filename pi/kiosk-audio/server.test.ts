@@ -177,6 +177,7 @@ function sonosFake(isAnswering: boolean): SonosOperations {
     return {
       groups: fail,
       play: resolved,
+      upNext: fail,
       now: fail,
       control: resolved,
       volume: resolved,
@@ -188,6 +189,7 @@ function sonosFake(isAnswering: boolean): SonosOperations {
   return {
     groups: () => Promise.resolve([{ id: 'RINCON_K:1', rooms: [{ id: 'RINCON_K', name: 'Kitchen' }] }]),
     play: resolved,
+    upNext: () => Promise.resolve([]),
     now: () => Promise.resolve(NOW),
     control: resolved,
     volume: resolved,

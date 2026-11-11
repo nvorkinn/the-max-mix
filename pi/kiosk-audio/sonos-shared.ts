@@ -46,11 +46,13 @@ export interface SonosArt {
 export interface SonosOperations {
   groups: () => Promise<SonosGroup[]>;
   /**
-   * Plays a Spotify item on the room's group, from the room's Sonos queue, with the songs in `next` queued after it,
-   * from `positionMs` into it.
+   * Plays a Spotify item on the room's group: its Sonos queue becomes the item and then the songs in `next`, and it
+   * plays from `positionMs` into the item.
    */
   play: (room: string, uri: string, next: readonly string[], positionMs: number) => Promise<void>;
   now: (room: string) => Promise<SonosNowPlaying>;
+  /** The Spotify songs in the room's group's Sonos queue after the one it plays, at most `limit`. */
+  upNext: (room: string, limit: number) => Promise<string[]>;
   /** Plays, pauses, skips or (to positionMs) seeks on the room's group. */
   control: (room: string, action: SonosAction, positionMs: number) => Promise<void>;
   /** Sets the volume of the room's whole group, 0 to 100. */

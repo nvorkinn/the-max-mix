@@ -166,19 +166,25 @@ const SPOTIFY_TRACK_URI = /^spotify:track:[0-9A-Za-z]{22}$/;
 
 /**
  * Plays the Spotify item (a spotify: URI) on the Sonos room, with the songs in `next` queued after it (only Spotify
- * songs are kept, at most 50), from `positionMs` into it; rejects with a message to show when it could not.
+ * songs are kept, at most 50), from `positionMs` into it; rejects with a message to show when it could not. With
+ * `queueFrom`, a Sonos room, the songs queued after the one that room's group plays are queued instead.
  */
 export function playOnSonosRoom(
   room: string,
   uri: string,
-  { next = [], positionMs = 0 }: { next?: readonly string[]; positionMs?: number } = {}
+  {
+    next = [],
+    positionMs = 0,
+    queueFrom
+  }: { next?: readonly string[]; positionMs?: number; queueFrom?: string | null } = {}
 ): Promise<void> {
   const songs = next.filter(song => SPOTIFY_TRACK_URI.test(song)).slice(0, MAX_NEXT);
   const body = {
     room,
     uri,
     ...(songs.length > 0 && { next: songs }),
-    ...(positionMs > 0 && { positionMs: Math.round(positionMs) })
+    ...(positionMs > 0 && { positionMs: Math.round(positionMs) }),
+    ...(queueFrom && { queueFrom })
   };
   return post('/sonos/play', body, 'This song can’t be played on Sonos.');
 }
