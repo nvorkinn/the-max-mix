@@ -1,11 +1,20 @@
 // While a Sonos group plays what the kiosk sent it, the tablet shows that group's playback and its controls act on the
-// group. Spotify does not report a Sonos playing from its own queue, so this reads the group through the Sonos Control
-// API (the app's relay): its song, the next one, where in the song it is and its volume. The group is found by the room
-// that leads it (getKioskSonosLeader), because a group's id changes when rooms join or leave it.
+// group. Spotify does not report a Sonos playing from its own queue, so this asks the Pi (src/sonos/kiosk.ts), which
+// asks the speakers on the home network: the song, where in it the group is, its volume and its artwork. The group is
+// followed by the room that leads it (getKioskSonosLeader), as rooms join and leave it.
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { getGroupPlayback, getGroupVolume, listSonos, seekGroup, sendGroupCommand, setGroupVolume } from '../sonos/api';
-import type { SonosCommand, SonosGroup, SonosPlayback, SonosTrack } from '../sonos/api';
-import { getKioskSonosLeader, playOnSonosRoom, setKioskSonosLeader, subscribeKioskSonosLeader } from '../sonos/kiosk';
+import {
+  controlSonos,
+  findSonosOnPi,
+  getKioskSonosLeader,
+  getSonosArt,
+  getSonosNow,
+  playOnSonosRoom,
+  setKioskSonosLeader,
+  setSonosVolume,
+  subscribeKioskSonosLeader
+} from '../sonos/kiosk';
+import type { PiSonosNow, SonosAction } from '../sonos/kiosk';
 import type { PlaybackState, Track } from '../types';
 import { debugLog } from '../utils/debugLog';
 import { errorMessage } from '../utils/errorMessage';
@@ -14,7 +23,7 @@ import { errorMessage } from '../utils/errorMessage';
 const PLAYING_POLL_MS = 5000;
 /** How often while it is paused, or the screen sleeps. */
 const IDLE_POLL_MS = 30_000;
-/** The group's name and rooms are read again every this many reads, to follow rooms joining or leaving. */
+/** The group's rooms are read again every this many reads, to follow rooms joining or leaving. */
 const REGROUP_EVERY = 6;
 /** A read this long after a control, so the screen follows what the speaker did. */
 const AFTER_CONTROL_MS = 800;
@@ -25,11 +34,11 @@ const VOLUME_DELAY_MS = 250;
 export interface SonosPlayer {
   /** Whether the tablet follows a Sonos group (the kiosk started a song on it). */
   active: boolean;
-  /** The group's name, once read. */
+  /** The group's name, e.g. "Kitchen + 1", once read. */
   name: string | null;
   /** The group's playback in the shape the player shows; null until read. */
   playback: PlaybackState | null;
-  /** The song Sonos plays next, when it says. */
+  /** The song Sonos plays next, when it says (it does not yet). */
   next: Track[];
   error: string | null;
   togglePlay: () => Promise<boolean>;
@@ -38,7 +47,7 @@ export interface SonosPlayer {
   seek: (positionMs: number) => Promise<boolean>;
   /** 0 to 100. */
   setVolume: (volume: number) => void;
-  /** Plays a Spotify item on the group's leading room, through the Pi. */
+  /** Plays a Spotify item on the group, through the Pi. */
   play: (uri: string) => Promise<boolean>;
   /** Reads the group again now. */
   refresh: () => void;
@@ -49,43 +58,50 @@ export interface SonosPlayer {
 }
 
 interface Reading {
-  playback: SonosPlayback;
+  now: PiSonosNow;
   /** When it was read (Date.now()), to move the position on between reads. */
   at: number;
 }
 
-const toTrack = (track: SonosTrack): Track => ({
-  ...(track.uri && { id: track.uri.slice('spotify:track:'.length), uri: track.uri }),
-  name: track.name,
-  artists: track.artist ? [{ name: track.artist }] : [],
-  album: { images: track.imageUrl ? [{ url: track.imageUrl }] : [] },
-  ...(track.durationMs && { duration_ms: track.durationMs })
-});
+const NO_TRACKS: Track[] = [];
 
-function toPlaybackState(group: SonosGroup, reading: Reading, volume: number | null, now: number): PlaybackState {
-  const { playback } = reading;
-  const duration = playback.track?.durationMs;
-  const moved = playback.playing ? Math.max(0, now - reading.at) : 0;
-  const progress = playback.positionMs + moved;
+function toPlaybackState(
+  room: string,
+  name: string,
+  reading: Reading,
+  art: string | null,
+  volume: number | null,
+  now: number
+): PlaybackState {
+  const { now: status } = reading;
+  const track = status.track;
+  const duration = track?.durationMs;
+  const progress = status.positionMs + (status.playing ? Math.max(0, now - reading.at) : 0);
   return {
-    is_playing: playback.playing,
+    is_playing: status.playing,
     progress_ms: duration ? Math.min(duration, progress) : progress,
     device: {
-      id: `sonos:${group.playerIds[0] ?? group.id}`,
-      name: group.name,
+      id: `sonos:${room}`,
+      name,
       type: 'Speaker',
       is_active: true,
       volume_percent: volume,
       supports_volume: volume !== null
     },
-    ...(playback.track && { item: toTrack(playback.track) }),
+    ...(track && {
+      item: {
+        ...(track.uri && { id: track.uri.slice('spotify:track:'.length), uri: track.uri }),
+        name: track.name,
+        artists: track.artist ? [{ name: track.artist }] : [],
+        album: { images: art ? [{ url: art }] : [] },
+        ...(duration && { duration_ms: duration })
+      }
+    }),
     shuffle_state: false,
     repeat_state: 'off',
     actions: {
       disallows: {
-        seeking: !playback.canSeek,
-        skipping_next: !playback.canSkip,
-        skipping_prev: !playback.canSkipBack,
+        seeking: !status.canSeek,
         toggling_shuffle: true,
         toggling_repeat_context: true,
         toggling_repeat_track: true
@@ -94,35 +110,33 @@ function toPlaybackState(group: SonosGroup, reading: Reading, volume: number | n
   };
 }
 
-/** The Sonos group whose rooms include the leading room, or undefined when it is gone. */
-async function findGroup(leader: string): Promise<SonosGroup | undefined> {
-  const { groups } = await listSonos();
-  return groups.find(group => group.playerIds.includes(leader));
-}
+/** "Kitchen", or "Kitchen + 1" for a group of two, the way the Sonos app names a group. */
+const groupName = (rooms: readonly string[]) => (rooms.length > 1 ? `${rooms[0]} + ${rooms.length - 1}` : rooms[0]);
 
 export function useSonosPlayer(): SonosPlayer {
   const [slowPolling, setSlowPolling] = useState(false);
   const leader = useSyncExternalStore(subscribeKioskSonosLeader, getKioskSonosLeader);
-  const [group, setGroup] = useState<SonosGroup | null>(null);
+  const [name, setName] = useState<string | null>(null);
   const [reading, setReading] = useState<Reading | null>(null);
   const [volume, setVolume] = useState<number | null>(null);
+  // The artwork read for a song (by artKey), as an object URL.
+  const [artwork, setArtwork] = useState<{ key: string; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(0);
   const [readVersion, setReadVersion] = useState(0);
-  const groupRef = useRef<SonosGroup | null>(null);
   const volumeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // A new leading room (or none) starts afresh.
   const [followed, setFollowed] = useState(leader);
   if (followed !== leader) {
     setFollowed(leader);
-    setGroup(null);
+    setName(null);
     setReading(null);
     setVolume(null);
     setError(null);
   }
 
-  const playing = Boolean(reading?.playback.playing);
+  const playing = Boolean(reading?.now.playing);
   useEffect(() => {
     if (!leader) return;
     let cancelled = false;
@@ -131,44 +145,35 @@ export function useSonosPlayer(): SonosPlayer {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let reads = 0;
     let failures = 0;
-    groupRef.current = null;
     const read = async () => {
       let delay = slowPolling ? IDLE_POLL_MS : PLAYING_POLL_MS;
       try {
-        let current = groupRef.current;
-        if (!current || reads % REGROUP_EVERY === 0) {
-          const found = await findGroup(leader);
+        if (reads % REGROUP_EVERY === 0) {
+          const { groups } = await findSonosOnPi();
           if (isCancelled()) return;
-          if (!found) {
-            debugLog('info', 'sonos', 'The Sonos room the kiosk played on is gone; following Spotify again.');
+          const rooms = groups.find(group => group.rooms.some(room => room.name === leader))?.rooms;
+          if (!rooms) {
+            debugLog('info', 'sonos', `${leader} is not on the network any more; following Spotify again.`);
             setKioskSonosLeader(null);
             return;
           }
-          if (found.id !== current?.id) {
-            const level = await getGroupVolume(found.id).catch(() => null);
-            if (isCancelled()) return;
-            setVolume(level);
-          }
-          current = found;
-          groupRef.current = found;
-          setGroup(found);
+          setName(groupName(rooms.map(room => room.name)) ?? leader);
         }
-        const playback = await getGroupPlayback(current.id);
+        const status = await getSonosNow(leader);
         if (isCancelled()) return;
         const at = Date.now();
-        setReading({ playback, at });
+        setReading({ now: status, at });
+        setVolume(status.volume);
         setNow(at);
         setError(null);
         reads++;
         failures = 0;
-        if (!playback.playing) delay = IDLE_POLL_MS;
+        if (!status.playing) delay = IDLE_POLL_MS;
       } catch (caught) {
         if (isCancelled()) return;
-        // The group may have changed its id (rooms joined or left): find it again on the next read.
-        groupRef.current = null;
         reads = 0;
         failures++;
-        debugLog('warn', 'sonos', `Reading the Sonos group failed: ${errorMessage(caught)}`);
+        debugLog('warn', 'sonos', `Reading the Sonos failed: ${errorMessage(caught)}`);
         if (failures >= FAILURES_TO_SHOW) setError(errorMessage(caught));
         delay = Math.min(IDLE_POLL_MS, PLAYING_POLL_MS * failures);
       }
@@ -181,6 +186,25 @@ export function useSonosPlayer(): SonosPlayer {
     };
   }, [leader, slowPolling, readVersion]);
 
+  // The song's artwork, read again when the song changes.
+  const track = reading?.now.track;
+  const artKey = leader && track?.art ? `${leader}\n${track.uri ?? track.name}` : null;
+  useEffect(() => {
+    if (!artKey || !leader) return;
+    let live = true;
+    let url: string | null = null;
+    void getSonosArt(leader).then(blob => {
+      if (!live || !blob) return;
+      url = URL.createObjectURL(blob);
+      setArtwork({ key: artKey, url });
+    });
+    return () => {
+      live = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [artKey, leader]);
+  const art = artKey && artwork?.key === artKey ? artwork.url : null;
+
   // The position moves on each second between reads while the group plays.
   useEffect(() => {
     if (!playing || slowPolling) return;
@@ -192,13 +216,12 @@ export function useSonosPlayer(): SonosPlayer {
 
   const refresh = useCallback(() => setReadVersion(version => version + 1), []);
 
-  /** Runs a control on the group; reads it again shortly after. False (and the reason shown) when it failed. */
-  const control = useCallback(
-    async (run: (groupId: string) => Promise<void>): Promise<boolean> => {
-      const current = groupRef.current;
-      if (!current) return false;
+  /** Runs a call on the group; reads it again shortly after. False (and the reason shown) when it failed. */
+  const run = useCallback(
+    async (call: (room: string) => Promise<void>): Promise<boolean> => {
+      if (!leader) return false;
       try {
-        await run(current.id);
+        await call(leader);
         setError(null);
         return true;
       } catch (caught) {
@@ -208,73 +231,60 @@ export function useSonosPlayer(): SonosPlayer {
         setTimeout(refresh, AFTER_CONTROL_MS);
       }
     },
-    [refresh]
+    [leader, refresh]
   );
 
-  const command = useCallback((name: SonosCommand) => control(groupId => sendGroupCommand(groupId, name)), [control]);
+  const control = useCallback(
+    (action: SonosAction, positionMs?: number) => run(room => controlSonos(room, action, positionMs)),
+    [run]
+  );
 
   const togglePlay = useCallback(async () => {
-    const wasPlaying = Boolean(reading?.playback.playing);
+    const wasPlaying = Boolean(reading?.now.playing);
     // Show the change at once; the next read corrects it if the speaker did otherwise.
-    setReading(current => current && { playback: { ...current.playback, playing: !wasPlaying }, at: Date.now() });
-    return command(wasPlaying ? 'pause' : 'play');
-  }, [command, reading]);
+    setReading(current => current && { now: { ...current.now, playing: !wasPlaying }, at: Date.now() });
+    return control(wasPlaying ? 'pause' : 'play');
+  }, [control, reading]);
 
   const seek = useCallback(
     (positionMs: number) => {
-      setReading(current => current && { playback: { ...current.playback, positionMs }, at: Date.now() });
-      return control(groupId => seekGroup(groupId, positionMs));
+      setReading(current => current && { now: { ...current.now, positionMs }, at: Date.now() });
+      return control('seek', positionMs);
     },
     [control]
   );
 
-  const changeVolume = useCallback((level: number) => {
-    setVolume(level);
-    clearTimeout(volumeTimerRef.current);
-    volumeTimerRef.current = setTimeout(() => {
-      const current = groupRef.current;
-      if (current) setGroupVolume(current.id, level).catch((caught: unknown) => setError(errorMessage(caught)));
-    }, VOLUME_DELAY_MS);
-  }, []);
-
-  const play = useCallback(
-    async (uri: string) => {
-      const room = groupRef.current?.rooms[0];
-      if (!room) return false;
-      try {
-        await playOnSonosRoom(room, uri);
-        setError(null);
-        refresh();
-        return true;
-      } catch (caught) {
-        setError(errorMessage(caught));
-        return false;
-      }
+  const changeVolume = useCallback(
+    (level: number) => {
+      setVolume(level);
+      clearTimeout(volumeTimerRef.current);
+      volumeTimerRef.current = setTimeout(() => {
+        if (leader) setSonosVolume(leader, level).catch((caught: unknown) => setError(errorMessage(caught)));
+      }, VOLUME_DELAY_MS);
     },
-    [refresh]
+    [leader]
   );
 
   const leave = useCallback(async () => {
-    const current = groupRef.current;
     setKioskSonosLeader(null);
-    if (!current) return;
-    await sendGroupCommand(current.id, 'pause').catch((caught: unknown) =>
+    if (!leader) return;
+    await controlSonos(leader, 'pause').catch((caught: unknown) =>
       debugLog('warn', 'sonos', `Pausing the Sonos failed: ${errorMessage(caught)}`)
     );
-  }, []);
+  }, [leader]);
 
   return {
     active: leader !== null,
-    name: group?.name ?? null,
-    playback: group && reading ? toPlaybackState(group, reading, volume, now) : null,
-    next: reading?.playback.next ? [toTrack(reading.playback.next)] : [],
+    name,
+    playback: leader && reading ? toPlaybackState(leader, name ?? leader, reading, art, volume, now) : null,
+    next: NO_TRACKS,
     error,
     togglePlay,
-    nextTrack: useCallback(() => command('skipToNextTrack'), [command]),
-    previousTrack: useCallback(() => command('skipToPreviousTrack'), [command]),
+    nextTrack: useCallback(() => control('next'), [control]),
+    previousTrack: useCallback(() => control('previous'), [control]),
     seek,
     setVolume: changeVolume,
-    play,
+    play: useCallback((uri: string) => run(room => playOnSonosRoom(room, uri)), [run]),
     refresh,
     leave,
     setSlowPolling

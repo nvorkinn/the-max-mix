@@ -224,31 +224,18 @@ Spotify does not accept `localhost` redirect URIs. HTTP is allowed only with a
 literal loopback address such as `127.0.0.1`; other redirect addresses require HTTPS. Sign in from the same address you
 registered: an address that is not registered cannot sign in.
 
-## Sonos configuration
+## Sonos
 
-Sonos sign-in (Settings, **Sign in to Sonos**) lets the app reach the Sonos speakers in the house through the
-[Sonos Control API](https://docs.sonos.com/docs/control). Unlike Spotify, Sonos has no PKCE: every token request needs
-the app's client secret. So the token requests go through one small Vercel function, `api/sonos.ts`, which holds the
-secret; the browser keeps the refresh token in `localStorage` like the Spotify one.
-
-1. Create an integration in the [Sonos developer portal](https://developer.sonos.com/) and add a key.
-2. Register the redirect URI `https://the-max-mix.vercel.app/sonos/callback`. Sonos accepts only HTTPS addresses, so
-   Sonos sign-in works on the deployed site only, not in local development.
-3. In the Vercel project's environment variables (Production), set `SONOS_CLIENT_ID` to the key and
-   `SONOS_CLIENT_SECRET` to the secret. They are never in the repository.
-
-Once signed in, the Speakers drawer lists the Sonos rooms and groups. A tap plays there through Spotify Connect (the
-Sonos API cannot start Spotify music itself), so it works for a group whose speaker Spotify already lists; the app
-matches it by the group's or the leading room's name. On the kiosk the Pi starts the song on the Sonos itself
-(`pi/kiosk-audio/sonos.ts`), and from then on the tablet shows that group's song, progress and next song and sends its
-controls (play, pause, skip, seek, volume, and music picked in Choose music) to the group through the Sonos Control API
-(`src/hooks/useSonosPlayer.ts`), until another speaker is picked, which pauses the Sonos. A speaker is turned down to 25%
-before music starts on it, if it was louder. Each group's card has a volume slider that sets the whole group's volume
-through Sonos, and can be moved only while the group plays; like the AirPlay speakers' sliders it is hidden until the
-sliders button at the top of the drawer is pressed. The card's rooms button shows every room as a switch:
-turn one on to add it to the group (it leaves its old group) or off to let it play on its own; the room that leads the
-group stays in it. The Sonos calls go through a second function, `api/sonos-control.ts`, which relays only those few paths
-with the browser's own access token.
+On the kiosk, the Speakers drawer lists the Sonos rooms on the home network, found by the Pi (`pi/kiosk-audio/sonos.ts`)
+with [sonoscli](https://sonoscli.sh) or the [sonos-ts](https://sonos-ts.svrooij.io) library, whichever Settings picks
+(**Talk to Sonos with**), and says how long finding them took. Spotify will not move its playback to a Sonos, so tapping
+a room has the Pi start the song on screen there, through the Spotify account linked in the Sonos app. While that group
+plays, tapping another room adds it to the group; tapping a room in the group again takes it out, and taking out the last
+one pauses it. From then on the tablet shows the group's song, progress and artwork and sends its controls (play, pause,
+skip, volume, and music picked in Choose music) to the group through the Pi (`src/hooks/useSonosPlayer.ts`), until
+another speaker is picked, which pauses the Sonos. sonoscli cannot seek, so the progress bar moves only with sonos-ts. A
+room is turned down to 25% before music starts on it, if it was louder. There is no Sonos sign-in: everything stays on
+the home network, so Sonos is listed on the kiosk only.
 
 ## Raspberry Pi kiosk
 

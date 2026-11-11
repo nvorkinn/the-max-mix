@@ -1,63 +1,64 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SonosGroup, SonosPlayback } from '../sonos/api';
+import type { PiSonosNow } from '../sonos/kiosk';
 
-const api = vi.hoisted(() => ({
-  listSonos: vi.fn(),
-  getGroupPlayback: vi.fn(),
-  getGroupVolume: vi.fn(),
-  setGroupVolume: vi.fn(),
-  sendGroupCommand: vi.fn(),
-  seekGroup: vi.fn()
+const pi = vi.hoisted(() => ({
+  findSonosOnPi: vi.fn(),
+  getSonosNow: vi.fn(),
+  getSonosArt: vi.fn(),
+  controlSonos: vi.fn(),
+  setSonosVolume: vi.fn(),
+  playOnSonosRoom: vi.fn()
 }));
-const playOnSonosRoom = vi.hoisted(() => vi.fn());
-vi.mock('../sonos/api', () => api);
 vi.mock('../sonos/kiosk', async original => ({
   ...(await original<typeof import('../sonos/kiosk')>()),
-  playOnSonosRoom
+  ...pi
 }));
 
 const { setKioskSonosLeader, getKioskSonosLeader } = await import('../sonos/kiosk');
 const { useSonosPlayer } = await import('./useSonosPlayer');
 
-const KITCHEN: SonosGroup = {
-  id: 'g1',
-  name: 'Kitchen',
-  rooms: ['Kitchen'],
-  householdId: 'h1',
-  playerIds: ['p1'],
-  playing: true
+const GROUPS = {
+  groups: [
+    {
+      id: 'g1',
+      rooms: [
+        { id: 'p1', name: 'Kitchen' },
+        { id: 'p2', name: 'Lounge' }
+      ]
+    }
+  ],
+  ms: 800
 };
 const URI = 'spotify:track:1234567890123456789012';
-const PLAYBACK: SonosPlayback = {
+const NOW: PiSonosNow = {
   playing: true,
   positionMs: 30_000,
-  track: { name: 'Song', artist: 'Band', imageUrl: 'https://i.scdn.co/image/a', durationMs: 200_000, uri: URI },
-  next: { name: 'Next' },
-  canSkip: true,
-  canSkipBack: true,
+  track: { name: 'Song', artist: 'Band', durationMs: 200_000, uri: URI, art: true },
+  volume: 40,
   canSeek: false
 };
 
 describe('useSonosPlayer', () => {
   beforeEach(() => {
-    api.listSonos.mockReset().mockResolvedValue({ groups: [KITCHEN], rooms: [] });
-    api.getGroupPlayback.mockReset().mockResolvedValue(PLAYBACK);
-    api.getGroupVolume.mockReset().mockResolvedValue(40);
-    api.setGroupVolume.mockReset().mockResolvedValue(undefined);
-    api.sendGroupCommand.mockReset().mockResolvedValue(undefined);
-    api.seekGroup.mockReset().mockResolvedValue(undefined);
-    playOnSonosRoom.mockReset().mockResolvedValue(undefined);
+    pi.findSonosOnPi.mockReset().mockResolvedValue(GROUPS);
+    pi.getSonosNow.mockReset().mockResolvedValue(NOW);
+    pi.getSonosArt.mockReset().mockResolvedValue(new Blob(['png'], { type: 'image/png' }));
+    pi.controlSonos.mockReset().mockResolvedValue(undefined);
+    pi.setSonosVolume.mockReset().mockResolvedValue(undefined);
+    pi.playOnSonosRoom.mockReset().mockResolvedValue(undefined);
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:art'), revokeObjectURL: vi.fn() }));
   });
 
   afterEach(() => {
     act(() => setKioskSonosLeader(null));
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   const follow = async () => {
     const hook = renderHook(() => useSonosPlayer());
-    act(() => setKioskSonosLeader('p1'));
+    act(() => setKioskSonosLeader('Kitchen'));
     await waitFor(() => expect(hook.result.current.playback).not.toBeNull());
     return hook;
   };
@@ -65,55 +66,74 @@ describe('useSonosPlayer', () => {
   it('follows nothing until the kiosk plays on a Sonos', () => {
     const { result } = renderHook(() => useSonosPlayer());
     expect(result.current).toMatchObject({ active: false, playback: null, name: null, next: [] });
-    expect(api.listSonos).not.toHaveBeenCalled();
+    expect(pi.findSonosOnPi).not.toHaveBeenCalled();
   });
 
-  it('shows the group the kiosk plays on as the player: its song, the next one, its volume and controls', async () => {
+  it('shows the group the kiosk plays on as the player: its song, artwork, volume and controls', async () => {
     const { result } = await follow();
+    await waitFor(() => expect(result.current.playback?.item?.album?.images).toEqual([{ url: 'blob:art' }]));
     expect(result.current.active).toBe(true);
-    expect(result.current.name).toBe('Kitchen');
+    expect(result.current.name).toBe('Kitchen + 1');
     expect(result.current.playback).toMatchObject({
       is_playing: true,
-      device: { id: 'sonos:p1', name: 'Kitchen', volume_percent: 40, supports_volume: true },
+      device: { id: 'sonos:Kitchen', name: 'Kitchen + 1', volume_percent: 40, supports_volume: true },
       item: {
         id: '1234567890123456789012',
         uri: URI,
         name: 'Song',
         artists: [{ name: 'Band' }],
-        album: { images: [{ url: 'https://i.scdn.co/image/a' }] },
         duration_ms: 200_000
       },
-      actions: { disallows: { seeking: true, skipping_next: false, toggling_shuffle: true } }
+      actions: { disallows: { seeking: true, toggling_shuffle: true } }
     });
     expect(result.current.playback?.progress_ms).toBeGreaterThanOrEqual(30_000);
-    expect(result.current.next).toEqual([{ name: 'Next', artists: [], album: { images: [] } }]);
-    expect(api.getGroupPlayback).toHaveBeenCalledWith('g1');
+    expect(pi.getSonosNow).toHaveBeenCalledWith('Kitchen');
+    expect(pi.getSonosArt).toHaveBeenCalledWith('Kitchen');
+  });
+
+  it('shows a song with no details, and no volume, as the Sonos says', async () => {
+    pi.getSonosNow.mockResolvedValue({
+      playing: false,
+      positionMs: 0,
+      track: { name: 'Radio', art: false },
+      volume: null,
+      canSeek: true
+    });
+    const { result } = await follow();
+    expect(result.current.playback).toMatchObject({
+      is_playing: false,
+      progress_ms: 0,
+      device: { volume_percent: null, supports_volume: false },
+      item: { name: 'Radio', artists: [], album: { images: [] } },
+      actions: { disallows: { seeking: false } }
+    });
+    expect(pi.getSonosArt).not.toHaveBeenCalled();
   });
 
   it('pauses, plays, skips and seeks on the group', async () => {
     const { result } = await follow();
     await act(() => result.current.togglePlay());
-    expect(api.sendGroupCommand).toHaveBeenLastCalledWith('g1', 'pause');
+    expect(pi.controlSonos).toHaveBeenLastCalledWith('Kitchen', 'pause', undefined);
     expect(result.current.playback?.is_playing).toBe(false);
     await act(() => result.current.togglePlay());
-    expect(api.sendGroupCommand).toHaveBeenLastCalledWith('g1', 'play');
+    expect(pi.controlSonos).toHaveBeenLastCalledWith('Kitchen', 'play', undefined);
     await act(() => result.current.nextTrack());
-    expect(api.sendGroupCommand).toHaveBeenLastCalledWith('g1', 'skipToNextTrack');
+    expect(pi.controlSonos).toHaveBeenLastCalledWith('Kitchen', 'next', undefined);
     await act(() => result.current.previousTrack());
-    expect(api.sendGroupCommand).toHaveBeenLastCalledWith('g1', 'skipToPreviousTrack');
+    expect(pi.controlSonos).toHaveBeenLastCalledWith('Kitchen', 'previous', undefined);
     await act(() => result.current.seek(90_000));
-    expect(api.seekGroup).toHaveBeenCalledWith('g1', 90_000);
+    expect(pi.controlSonos).toHaveBeenLastCalledWith('Kitchen', 'seek', 90_000);
   });
 
   it('says when a control fails', async () => {
     const { result } = await follow();
-    api.sendGroupCommand.mockRejectedValueOnce(new Error('Sonos did not answer (500).'));
-    let done = true;
+    pi.controlSonos.mockRejectedValueOnce(new Error('Sonos: the speaker did not answer in time.'));
+    let isDone = true;
     await act(async () => {
-      done = await result.current.nextTrack();
+      isDone = await result.current.nextTrack();
     });
-    expect(done).toBe(false);
-    expect(result.current.error).toBe('Sonos did not answer (500).');
+    expect(isDone).toBe(false);
+    expect(result.current.error).toBe('Sonos: the speaker did not answer in time.');
   });
 
   it('sends the volume once the slider rests', async () => {
@@ -127,51 +147,71 @@ describe('useSonosPlayer', () => {
     act(() => {
       vi.advanceTimersByTime(300);
     });
-    expect(api.setGroupVolume).toHaveBeenCalledTimes(1);
-    expect(api.setGroupVolume).toHaveBeenCalledWith('g1', 25);
+    expect(pi.setSonosVolume).toHaveBeenCalledTimes(1);
+    expect(pi.setSonosVolume).toHaveBeenCalledWith('Kitchen', 25);
+  });
+
+  it('says when the volume could not be set', async () => {
+    const { result } = await follow();
+    pi.setSonosVolume.mockRejectedValueOnce(new Error('Sonos did not do that.'));
+    vi.useFakeTimers();
+    act(() => result.current.setVolume(20));
+    await act(() => vi.advanceTimersByTimeAsync(300));
+    expect(result.current.error).toBe('Sonos did not do that.');
   });
 
   it('plays picked music on the group’s leading room', async () => {
     const { result } = await follow();
     await act(() => result.current.play(URI));
-    expect(playOnSonosRoom).toHaveBeenCalledWith('Kitchen', URI);
-    playOnSonosRoom.mockRejectedValueOnce(new Error('This song can’t be played on Sonos.'));
-    let done = true;
+    expect(pi.playOnSonosRoom).toHaveBeenCalledWith('Kitchen', URI);
+    pi.playOnSonosRoom.mockRejectedValueOnce(new Error('This song can’t be played on Sonos.'));
+    let isDone = true;
     await act(async () => {
-      done = await result.current.play('spotify:collection');
+      isDone = await result.current.play('spotify:collection');
     });
-    expect(done).toBe(false);
+    expect(isDone).toBe(false);
     expect(result.current.error).toBe('This song can’t be played on Sonos.');
   });
 
   it('pauses the group and stops following it when leaving', async () => {
     const { result } = await follow();
+    pi.controlSonos.mockRejectedValueOnce(new Error('gone'));
     await act(() => result.current.leave());
-    expect(api.sendGroupCommand).toHaveBeenCalledWith('g1', 'pause');
+    expect(pi.controlSonos).toHaveBeenCalledWith('Kitchen', 'pause');
     expect(getKioskSonosLeader()).toBeNull();
     expect(result.current).toMatchObject({ active: false, playback: null });
+    await act(() => result.current.leave());
+    expect(pi.controlSonos).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing to a group it does not follow', async () => {
+    const { result } = renderHook(() => useSonosPlayer());
+    await act(async () => {
+      expect(await result.current.nextTrack()).toBe(false);
+    });
+    expect(pi.controlSonos).not.toHaveBeenCalled();
   });
 
   it('stops following when the room is gone', async () => {
-    api.listSonos.mockResolvedValue({ groups: [], rooms: [] });
+    pi.findSonosOnPi.mockResolvedValue({ groups: [], ms: 0 });
     const { result } = renderHook(() => useSonosPlayer());
-    act(() => setKioskSonosLeader('p1'));
+    act(() => setKioskSonosLeader('Kitchen'));
     await waitFor(() => expect(result.current.active).toBe(false));
-    expect(api.getGroupPlayback).not.toHaveBeenCalled();
+    expect(pi.getSonosNow).not.toHaveBeenCalled();
   });
 
   it('finds the group again after a failed read, and says so after several', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    api.getGroupPlayback.mockRejectedValue(new Error('Sonos did not answer (410).'));
+    pi.getSonosNow.mockRejectedValue(new Error('The kiosk’s audio service did not answer.'));
     const { result } = renderHook(() => useSonosPlayer());
-    act(() => setKioskSonosLeader('p1'));
-    await waitFor(() => expect(api.getGroupPlayback).toHaveBeenCalledTimes(1));
+    act(() => setKioskSonosLeader('Kitchen'));
+    await waitFor(() => expect(pi.getSonosNow).toHaveBeenCalledTimes(1));
     expect(result.current.error).toBeNull();
     await act(() => vi.advanceTimersByTimeAsync(5000));
     await act(() => vi.advanceTimersByTimeAsync(10_000));
-    await waitFor(() => expect(result.current.error).toBe('Sonos did not answer (410).'));
-    expect(api.listSonos).toHaveBeenCalledTimes(3);
-    api.getGroupPlayback.mockResolvedValue(PLAYBACK);
+    await waitFor(() => expect(result.current.error).toBe('The kiosk’s audio service did not answer.'));
+    expect(pi.findSonosOnPi).toHaveBeenCalledTimes(3);
+    pi.getSonosNow.mockResolvedValue(NOW);
     act(() => result.current.refresh());
     await waitFor(() => expect(result.current.error).toBeNull());
   });
@@ -181,10 +221,10 @@ describe('useSonosPlayer', () => {
     vi.useFakeTimers();
     act(() => result.current.setSlowPolling(true));
     await act(() => vi.advanceTimersByTimeAsync(0));
-    const reads = api.getGroupPlayback.mock.calls.length;
+    const reads = pi.getSonosNow.mock.calls.length;
     await act(() => vi.advanceTimersByTimeAsync(10_000));
-    expect(api.getGroupPlayback).toHaveBeenCalledTimes(reads);
+    expect(pi.getSonosNow).toHaveBeenCalledTimes(reads);
     await act(() => vi.advanceTimersByTimeAsync(25_000));
-    expect(api.getGroupPlayback.mock.calls.length).toBeGreaterThan(reads);
+    expect(pi.getSonosNow.mock.calls.length).toBeGreaterThan(reads);
   });
 });

@@ -2,7 +2,6 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { completeSignIn } from './spotify/auth';
-import { completeSonosSignIn, isSonosCallback } from './sonos/auth';
 import { captureBrowserErrors } from './utils/debugLog';
 import { installHttpLog } from './utils/httpLog';
 import { errorMessage } from './utils/errorMessage';
@@ -22,14 +21,9 @@ if (isKiosk()) {
   startKioskWatch();
 }
 
-// Finishes a sign-in first (Spotify sends the browser back to / with ?code=, Sonos to /sonos/callback), so the app starts
-// with the auth state final. A Sonos sign-in keeps its own error, which Settings shows next to the Sonos login.
-async function finishSignIn() {
-  if (!isSonosCallback()) return completeSignIn();
-  await completeSonosSignIn();
-  return null;
-}
-const signedIn = finishSignIn().catch((error: unknown) => ({
+// Finishes a Spotify sign-in first (Spotify sends the browser back to / with ?code=), so the app starts with the auth
+// state final.
+const signedIn = completeSignIn().catch((error: unknown) => ({
   ok: false as const,
   error: errorMessage(error)
 }));

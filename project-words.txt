@@ -44,6 +44,7 @@ fsck
 fulfill
 gatt
 gecos
+getaa
 getconf
 getent
 getty
@@ -175,6 +176,7 @@ ttyvt
 tzdata
 unescaped
 unescapes
+unjoin
 unstub
 urlencode
 useradd

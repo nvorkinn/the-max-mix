@@ -34,6 +34,17 @@ also has two buttons for `POST /sonos/test`, which only resume what the speaker 
 sonos-ts's `SwitchToQueue()` then `Play()`. To try it by hand on the Pi:
 `sudo -u kiosk sonos discover` and `sudo -u kiosk sonos open --name Kitchen spotify:track:…`.
 
+The app reaches everything else about Sonos here too, the same two ways (`sonos-cli.ts` and `sonos-library.ts`, picked by
+`engine`, as a query parameter on the GETs):
+
+- `GET /sonos/groups`: the household's groups and their rooms, the leading room first, and how long finding them took
+  (`ms`).
+- `GET /sonos/now?room=`: what the room's group plays (song, position, whether it plays), its volume, and whether that
+  way can seek (sonoscli cannot).
+- `GET /sonos/art?room=`: the song's artwork, fetched from the speaker's own address only.
+- `POST /sonos/control` (`play`, `pause`, `next`, `previous`, `seek` with `positionMs`), `POST /sonos/volume` (the whole
+  group, 0 to 100), `POST /sonos/join` (`room` joins the group `to` is in) and `POST /sonos/leave`.
+
 ## How it works
 
 1. **Discovery.** `libpipewire-module-raop-discover` (enabled by `/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf`)

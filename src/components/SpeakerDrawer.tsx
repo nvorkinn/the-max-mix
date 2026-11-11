@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Speaker, Check, RefreshCw, SlidersHorizontal } from 'lucide-react';
-import { isSonosSignedIn } from '../sonos/auth';
 import { getDevices } from '../spotify/api';
 import { getKnownSpeakers } from '../spotify/knownDevices';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
@@ -10,7 +9,7 @@ import { errorMessage } from '../utils/errorMessage';
 import type { SpotifyDevice } from '../types';
 import AirPlaySpeakerList from './AirPlaySpeakerList';
 import BluetoothSpeakers from './BluetoothSpeakers';
-import SonosGroupList from './SonosGroupList';
+import SonosKioskList from './SonosKioskList';
 
 /** `remembered`: Spotify did not list it, but the app has seen it playing. */
 function describeDevice(device: SpotifyDevice, remembered: boolean) {
@@ -23,8 +22,8 @@ function describeDevice(device: SpotifyDevice, remembered: boolean) {
 
 /**
  * The speakers drawer: opens above the device indicator in the control bar. It lists the Spotify Connect devices (the
- * one that is playing first), the Sonos groups when signed in to Sonos, and, on the kiosk, the AirPlay speakers. AirPlay plays what this tablet plays, so its
- * speakers can only be picked while this tablet is the one playing.
+ * one that is playing first) and, on the kiosk, the Sonos rooms the Pi finds and the AirPlay speakers. AirPlay plays what
+ * this tablet plays, so its speakers can only be picked while this tablet is the one playing.
  */
 export default function SpeakerDrawer({
   isOpen,
@@ -49,7 +48,7 @@ export default function SpeakerDrawer({
   audioRoute?: AudioRoute;
   /** The AirPlay speakers now chosen; none means AirPlay is off. */
   onAirPlayChange?: (speakers: string[]) => unknown;
-  /** The kiosk: plays the song on screen on a Sonos room through the Pi (sonoscli), instead of Spotify Connect. */
+  /** The kiosk: plays the song on screen on a Sonos room through the Pi, instead of Spotify Connect. */
   onPlayOnSonos?: ((room: string) => Promise<void>) | undefined;
 }>) {
   const [devices, setDevices] = useState<SpotifyDevice[]>([]);
@@ -123,8 +122,8 @@ export default function SpeakerDrawer({
   const extra = getKnownSpeakers().filter(device => !listed.has(device.id) && !listed.has(device.name.toLowerCase()));
   const rememberedIds = new Set(extra.map(device => device.id));
   const allDevices = [...devices, ...extra];
-  const sonosSignedIn = isSonosSignedIn();
-  const sonosNames = new Set(sonosSignedIn ? sonosRooms.map(name => name.toLowerCase()) : []);
+  const hasSonos = Boolean(onPlayOnSonos);
+  const sonosNames = new Set(hasSonos ? sonosRooms.map(name => name.toLowerCase()) : []);
   const connectDevices = allDevices.filter(
     device => (!browserDeviceId || device.id !== browserDeviceId) && !sonosNames.has(device.name.toLowerCase())
   );
@@ -190,16 +189,18 @@ export default function SpeakerDrawer({
             Speakers
           </h2>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setShowVolumes(shown => !shown)}
-              aria-pressed={showVolumes}
-              aria-label="Show each speaker's volume"
-              title="Each speaker's volume"
-              className="modal-icon-button w-11 h-11 rounded-full flex items-center justify-center"
-            >
-              <SlidersHorizontal size={16} />
-            </button>
+            {canUseAirPlay && (
+              <button
+                type="button"
+                onClick={() => setShowVolumes(shown => !shown)}
+                aria-pressed={showVolumes}
+                aria-label="Show each speaker's volume"
+                title="Each speaker's volume"
+                className="modal-icon-button w-11 h-11 rounded-full flex items-center justify-center"
+              >
+                <SlidersHorizontal size={16} />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => void fetchDevices()}
@@ -233,35 +234,35 @@ export default function SpeakerDrawer({
           )}
           <section aria-labelledby="connect-title" className="space-y-2">
             <h3 id="connect-title" className="text-xs font-bold">
-              {sonosSignedIn ? 'Spotify Connect and Sonos' : 'Spotify Connect'}
+              Spotify Connect
             </h3>
             <p className="text-[11px] text-muted">
               Plays on one speaker at a time, even when this tablet is off. The music moves there.
             </p>
             {rows}
-            {sonosSignedIn && (
-              <SonosGroupList
-                devices={allDevices}
-                playingId={isAirPlay ? null : playingId}
-                disabled={selecting || waitingForSpotify}
-                onSelect={selectDevice}
-                onPlayOnSonos={onPlayOnSonos}
-                onRooms={setSonosRooms}
-                showVolumes={showVolumes}
-              />
-            )}
-            {!loading && !error && connectDevices.length === 0 && !sonosSignedIn && (
+            {!loading && !error && connectDevices.length === 0 && (
               <p className="text-xs leading-relaxed text-muted py-2">
                 No Spotify speakers found. Open Spotify on a phone, computer, or Connect speaker, then refresh.
               </p>
             )}
-            {!loading && !error && !sonosSignedIn && (
+            {!loading && !error && !hasSonos && (
               <p className="text-[11px] leading-relaxed text-muted">
                 Sonos and other Connect speakers show up here only after they have recently played through Spotify. Play
                 to one from the Spotify app on your phone, then refresh.
               </p>
             )}
           </section>
+          {onPlayOnSonos && (
+            <section aria-labelledby="sonos-title" className="space-y-2 pt-2">
+              <h3 id="sonos-title" className="text-xs font-bold">
+                Sonos
+              </h3>
+              <p className="text-[11px] text-muted">
+                Tap rooms to add them to the group; tap one again to take it out.
+              </p>
+              <SonosKioskList disabled={selecting} onPlayOnSonos={onPlayOnSonos} onRooms={setSonosRooms} />
+            </section>
+          )}
           {canUseAirPlay && (
             <section aria-labelledby="airplay-title" className="space-y-2 pt-2">
               <h3 id="airplay-title" className="text-xs font-bold">
