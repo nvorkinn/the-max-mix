@@ -13,7 +13,7 @@ import { parseDump } from './pipewire.ts';
 import { handleRequest, journalLog, LOCAL_ORIGIN, parseAppLog, speakerNames, speakerVolumes } from './server.ts';
 import type { AppLog, Deps } from './server.ts';
 import { SonosError } from './sonos.ts';
-import type { SonosPlay } from './sonos.ts';
+import type { SonosOperations, SonosRequest } from './sonos.ts';
 
 const ORIGIN = 'https://the-max-mix.vercel.app';
 const servers: Server[] = [];
@@ -44,12 +44,13 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
   const performed: Action[] = [];
   const routed: string[][] = [];
   const volumes: [string, number][] = [];
-  const played: SonosPlay[] = [];
+  const played: SonosRequest[] = [];
   const tested: [string, string][] = [];
   const logged: AppLog[] = [];
   const joined: ConnectRequest[] = [];
   let beats = 0;
   let closed = 0;
+  let clock = 0;
   const deps: Deps = {
     graph: () => Promise.resolve(parseDump(dump())),
     route: speakers => {
@@ -75,6 +76,8 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
       tested.push([room, test]);
       return Promise.resolve();
     },
+    sonosWay: engine => sonosFake(engine),
+    now: () => (clock += 1500),
     heartbeat: () => {
       beats += 1;
     },
@@ -158,6 +161,37 @@ async function start(deps: Deps): Promise<string> {
   servers.push(server);
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+}
+
+const NOW = { playing: true, positionMs: 1000, track: null, volume: 20, canSeek: true };
+
+/** A fake way to Sonos: sonoscli finds Kitchen; the library finds nothing. */
+const fail = () => Promise.reject(new SonosError('Sonos: no speakers answered.'));
+const resolved = () => Promise.resolve();
+
+function sonosFake(engine: string): SonosOperations {
+  if (engine === 'library') {
+    return {
+      groups: fail,
+      play: resolved,
+      now: fail,
+      control: resolved,
+      volume: resolved,
+      joinGroup: resolved,
+      leaveGroup: resolved,
+      art: fail
+    };
+  }
+  return {
+    groups: () => Promise.resolve([{ id: 'RINCON_K:1', rooms: [{ id: 'RINCON_K', name: 'Kitchen' }] }]),
+    play: resolved,
+    now: () => Promise.resolve(NOW),
+    control: resolved,
+    volume: resolved,
+    joinGroup: resolved,
+    leaveGroup: resolved,
+    art: room => Promise.resolve(room === 'Kitchen' ? { type: 'image/jpeg', body: Buffer.from('jpeg') } : null)
+  };
 }
 
 const post = (base: string, path: string, init: { origin?: string; body?: unknown } = {}) =>
@@ -255,7 +289,7 @@ describe('POST', () => {
     expect(missing.status).toBe(502);
     await expect(missing.json()).resolves.toEqual({ error: 'Sonos: speaker name not found in topology: Attic' });
     const broken = await post(base, '/sonos/play', { body: { room: 'Broken', uri } });
-    await expect(broken.json()).resolves.toEqual({ error: 'Sonos did not start playing.' });
+    await expect(broken.json()).resolves.toEqual({ error: 'Sonos did not do that.' });
     expect(played.map(request => request.room)).toEqual(['Kitchen', 'Attic', 'Broken']);
     expect(played[0]?.engine).toBe('cli');
   });
@@ -273,6 +307,52 @@ describe('POST', () => {
       ['Kitchen', 'library-queue'],
       ['Kitchen', 'cli-play']
     ]);
+  });
+
+  it('lists the Sonos groups the chosen way, with how long it took, for the app only', async () => {
+    const base = await start(fakes().deps);
+    const get = (query: string, origin = ORIGIN) =>
+      fetch(`${base}/sonos/groups${query}`, { headers: { Origin: origin } });
+    const found = await get('?engine=cli');
+    expect(found.status).toBe(200);
+    await expect(found.json()).resolves.toEqual({
+      groups: [{ id: 'RINCON_K:1', rooms: [{ id: 'RINCON_K', name: 'Kitchen' }] }],
+      ms: 1500
+    });
+    expect((await get('')).status).toBe(200);
+    const failed = await get('?engine=library');
+    expect(failed.status).toBe(502);
+    await expect(failed.json()).resolves.toEqual({ error: 'Sonos: no speakers answered.' });
+    expect((await get('?engine=shell')).status).toBe(400);
+    expect((await get('?engine=cli', 'https://evil.example')).status).toBe(403);
+  });
+
+  it('says what a room plays, and gives its artwork', async () => {
+    const base = await start(fakes().deps);
+    const get = (path: string) => fetch(`${base}${path}`, { headers: { Origin: ORIGIN } });
+    const now = await get('/sonos/now?room=Kitchen');
+    await expect(now.json()).resolves.toEqual(NOW);
+    expect((await get('/sonos/now?room=Kitchen&engine=library')).status).toBe(502);
+    expect((await get('/sonos/now')).status).toBe(400);
+    const art = await get('/sonos/art?room=Kitchen');
+    expect(art.headers.get('content-type')).toBe('image/jpeg');
+    expect(await art.text()).toBe('jpeg');
+    expect((await get('/sonos/art?room=Attic')).status).toBe(404);
+  });
+
+  it('controls a room, its volume and its group', async () => {
+    const { deps, played } = fakes();
+    const base = await start(deps);
+    expect(
+      (await post(base, '/sonos/control', { body: { room: 'Kitchen', action: 'seek', positionMs: 5 } })).status
+    ).toBe(204);
+    expect(
+      (await post(base, '/sonos/volume', { body: { room: 'Kitchen', volume: 30, engine: 'library' } })).status
+    ).toBe(204);
+    expect((await post(base, '/sonos/join', { body: { room: 'Kitchen', to: 'Lounge' } })).status).toBe(204);
+    expect((await post(base, '/sonos/leave', { body: { room: 'Kitchen' } })).status).toBe(204);
+    expect((await post(base, '/sonos/volume', { body: { room: 'Kitchen', volume: 101 } })).status).toBe(400);
+    expect(played.map(request => request.kind)).toEqual(['control', 'volume', 'join', 'leave']);
   });
 
   it('refuses a bad Sonos request, and one from another web page', async () => {

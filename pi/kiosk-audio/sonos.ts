@@ -1,51 +1,89 @@
-// Plays a Spotify song on a Sonos speaker. Spotify will not hand its playback to a Sonos from this app (the Web API hides
-// Sonos as a restricted device), so the kiosk asks the speaker itself, through the Spotify account already linked in the
-// Sonos app. Two ways to do that, picked in the app's settings while both are being tried:
-//   cli      sonoscli (https://sonoscli.sh, installed by the playbook as SONOS_CLI): `sonos open --name <room> <uri>`
-//            finds the room on the home network, adds the song to that room's Sonos queue and plays it.
-//   library  the @svrooij/sonos library (sonos-library.ts), which does the same from this process.
-// POST /sonos/test runs one of two calls that only resume what the speaker has, without naming a song, to see what they do:
+// The kiosk's Sonos speakers, through the Pi. Spotify will not hand its playback to a Sonos from this app (the Web API
+// hides Sonos as a restricted device), so the kiosk asks the speakers themselves on the home network, and the song plays
+// through the Spotify account linked in the Sonos app. Two ways to talk to them, picked in the app's settings while
+// both are being tried; each request names its way:
+//   cli      sonoscli (sonos-cli.ts): runs `sonos …` once per call.
+//   library  the @svrooij/sonos library (sonos-library.ts), from this process.
+// The requests (server.ts) name rooms as the Sonos app does; this checks them and turns any failure into a SonosError
+// whose message is safe to show. POST /sonos/test runs one of two calls that only resume what the speaker has, without
+// naming a song, to see what they do:
 //   cli-play         `sonos play --name <room>`       library-queue    SwitchToQueue() then Play() on the room's group
-import { execFile } from 'node:child_process';
-import { playWithLibrary, resumeQueue } from './sonos-library.ts';
+import { cliOperations, resumeCommand, runCli, runOrFail } from './sonos-cli.ts';
+import type { RunCli } from './sonos-cli.ts';
+import { library, resumeQueue } from './sonos-library.ts';
+import { SonosError } from './sonos-shared.ts';
+import type { SonosAction, SonosEngine, SonosOperations } from './sonos-shared.ts';
 
-const SONOS_CLI = '/usr/local/bin/sonos';
-/** How long sonoscli may look for the speakers and talk to them; the process gets a little more. */
-const CLI_TIMEOUT = '15s';
-const PROCESS_TIMEOUT_MS = 25_000;
+export { SonosError } from './sonos-shared.ts';
+export type { SonosAction, SonosEngine, SonosGroup, SonosNowPlaying, SonosOperations } from './sonos-shared.ts';
+
 const MAX_NAME_LENGTH = 64;
 const MAX_MESSAGE = 200;
 
-type SonosEngine = 'cli' | 'library';
 export type SonosTest = 'cli-play' | 'library-queue';
-
-/** What the app asks for: the Sonos room to play on, the Spotify item to play there, and which way to ask. */
-export interface SonosPlay {
-  room: string;
-  uri: string;
-  engine: SonosEngine;
-}
 
 /** A Spotify id is 22 base-62 characters; both ways play tracks, albums, playlists, shows and episodes. */
 const SPOTIFY_URI = /^spotify:(track|album|playlist|show|episode):[0-9A-Za-z]{22}$/;
 // A room name as the Sonos app shows it: printable, on one line, and not something sonoscli could read as a flag.
 const BAD_NAME = /\p{Cc}/u;
+const ACTIONS: ReadonlySet<unknown> = new Set<SonosAction>(['play', 'pause', 'next', 'previous', 'seek']);
 
 /** The room name from a request, or null when it is not one. */
-function parseRoom(room: unknown): string | null {
+export function parseRoom(room: unknown): string | null {
   if (typeof room !== 'string') return null;
   const name = room.trim();
   const isBad = name.length === 0 || name.length > MAX_NAME_LENGTH || BAD_NAME.test(name) || name.startsWith('-');
   return isBad ? null : name;
 }
 
-/** The body of POST /sonos/play, or null when it is not one. sonoscli is the default way. */
-export function parseSonosPlay(value: unknown): SonosPlay | null {
+/** The way a request names, sonoscli when none; null when it names neither. */
+export function parseEngine(value: unknown): SonosEngine | null {
+  if ([undefined, null, 'cli'].includes(value as string | null | undefined)) return 'cli';
+  return value === 'library' ? 'library' : null;
+}
+
+/** One Sonos request from the app: which way, which room, and what to do there. */
+export type SonosRequest =
+  | { kind: 'play'; engine: SonosEngine; room: string; uri: string }
+  | { kind: 'control'; engine: SonosEngine; room: string; action: SonosAction; positionMs: number }
+  | { kind: 'volume'; engine: SonosEngine; room: string; volume: number }
+  | { kind: 'join'; engine: SonosEngine; room: string; to: string }
+  | { kind: 'leave'; engine: SonosEngine; room: string };
+
+/** The body of POST /sonos/<kind>, or null when it is not one. */
+export function parseSonosRequest(kind: string, value: unknown): SonosRequest | null {
   if (typeof value !== 'object' || value === null) return null;
-  const { room, uri, engine = 'cli' } = value as Record<string, unknown>;
-  const name = parseRoom(room);
-  if (!name || typeof uri !== 'string' || !SPOTIFY_URI.test(uri)) return null;
-  return engine === 'cli' || engine === 'library' ? { room: name, uri, engine } : null;
+  const body = value as Record<string, unknown>;
+  const engine = parseEngine(body['engine']);
+  const room = parseRoom(body['room']);
+  if (!engine || !room) return null;
+  const { uri, action, positionMs = 0, volume } = body;
+  switch (kind) {
+    case 'play': {
+      return typeof uri === 'string' && SPOTIFY_URI.test(uri) ? { kind, engine, room, uri } : null;
+    }
+    case 'control': {
+      const isAction = ACTIONS.has(action);
+      const isPosition = typeof positionMs === 'number' && Number.isFinite(positionMs) && positionMs >= 0;
+      return isAction && isPosition
+        ? { kind, engine, room, action: action as SonosAction, positionMs: Math.round(positionMs) }
+        : null;
+    }
+    case 'volume': {
+      const isVolume = typeof volume === 'number' && Number.isSafeInteger(volume) && volume >= 0 && volume <= 100;
+      return isVolume ? { kind, engine, room, volume } : null;
+    }
+    case 'join': {
+      const to = parseRoom(body['to']);
+      return to ? { kind, engine, room, to } : null;
+    }
+    case 'leave': {
+      return { kind, engine, room };
+    }
+    default: {
+      return null;
+    }
+  }
 }
 
 /** The body of POST /sonos/test, or null when it is not one. */
@@ -56,86 +94,86 @@ export function parseSonosTest(value: unknown): { room: string; test: SonosTest 
   return name && (test === 'cli-play' || test === 'library-queue') ? { room: name, test } : null;
 }
 
-/** The program and arguments that play it: no shell, the room as one --name=… argument and the URI after `--`. */
-export const sonosCommand = ({ room, uri }: Pick<SonosPlay, 'room' | 'uri'>): string[] => [
-  SONOS_CLI,
-  'open',
-  `--name=${room}`,
-  `--timeout=${CLI_TIMEOUT}`,
-  '--',
-  uri
-];
-
-/** `sonos play`: resume whatever the room's group has loaded. */
-export const resumeCommand = (room: string): string[] => [
-  SONOS_CLI,
-  'play',
-  `--name=${room}`,
-  `--timeout=${CLI_TIMEOUT}`
-];
-
-/** Why it failed, as one short line the app can show (e.g. sonoscli's "speaker name not found"). */
-export class SonosError extends Error {}
-
-export function failureMessage(stderr: string): string {
-  const line = stderr
-    .split('\n')
-    .map(text => text.replace(/^(Error|error):\s*/, '').trim())
-    .find(Boolean);
-  return line ? `Sonos: ${line.slice(0, MAX_MESSAGE)}` : 'Sonos did not start playing.';
+/** A failure as a SonosError: its own message when it is one, else "Sonos: " and the library's reason. */
+function asSonosError(error: unknown): SonosError {
+  if (error instanceof SonosError) return error;
+  const message = error instanceof Error ? error.message : String(error);
+  console.warn(`sonos: library call failed: ${message}`);
+  return new SonosError(`Sonos: ${message.slice(0, MAX_MESSAGE)}`, { cause: error });
 }
 
-type RunCli = (argv: string[]) => Promise<{ code: number; stderr: string }>;
+/** The call, rejecting only with a SonosError. */
+const wrap =
+  <A extends unknown[], R>(call: (...args: A) => Promise<R>) =>
+  async (...args: A): Promise<R> => {
+    try {
+      return await call(...args);
+    } catch (error) {
+      throw asSonosError(error);
+    }
+  };
 
-const runCli: RunCli = ([file = '', ...args]) =>
-  new Promise(resolve => {
-    // sonoscli keeps its settings and a cache of speaker names under the kiosk user's home.
-    const env = { PATH: '/usr/local/bin:/usr/bin:/bin', HOME: process.env['HOME'] ?? '' };
-    // The caller passes SONOS_CLI, an absolute path; PATH is only passed on.
-    // eslint-disable-next-line sonarjs/no-os-command-from-path
-    execFile(file, args, { env, timeout: PROCESS_TIMEOUT_MS }, (error, _stdout, stderr) => {
-      if (!error) resolve({ code: 0, stderr });
-      else if (error.code === 'ENOENT') resolve({ code: 127, stderr: 'sonoscli is not installed on this Pi yet.' });
-      else if (error.killed) resolve({ code: 124, stderr: 'the speaker did not answer in time.' });
-      else resolve({ code: typeof error.code === 'number' ? error.code : 1, stderr });
-    });
-  });
+/** Every call of `operations`, rejecting only with a SonosError. */
+function guarded(operations: SonosOperations): SonosOperations {
+  return {
+    groups: wrap(operations.groups),
+    play: wrap(operations.play),
+    now: wrap(operations.now),
+    control: wrap(operations.control),
+    volume: wrap(operations.volume),
+    joinGroup: wrap(operations.joinGroup),
+    leaveGroup: wrap(operations.leaveGroup),
+    art: wrap(operations.art)
+  };
+}
 
-/** What playing needs: sonoscli, and the library's two calls. Tests pass fakes. */
+/** The two ways, and the library's resume call for the test buttons. Tests pass fakes. */
 export interface SonosWays {
+  cli: SonosOperations;
+  library: SonosOperations;
   run: RunCli;
-  play: (room: string, uri: string) => Promise<void>;
   resume: (room: string) => Promise<void>;
 }
 
-const WAYS: SonosWays = { run: runCli, play: playWithLibrary, resume: resumeQueue };
+const WAYS: SonosWays = { cli: cliOperations(runCli), library, run: runCli, resume: resumeQueue };
 
-async function runOrFail(argv: string[], room: string, ways: SonosWays): Promise<void> {
-  const { code, stderr } = await ways.run(argv);
-  if (code === 0) return;
-  console.warn(`sonos: ${argv[1] ?? ''} on ${JSON.stringify(room)} failed (${code}): ${stderr.trim()}`);
-  throw new SonosError(failureMessage(stderr));
+/** The calls of the chosen way, each rejecting only with a SonosError. */
+export function sonosWay(engine: SonosEngine, ways: SonosWays = WAYS): SonosOperations {
+  return guarded(ways[engine]);
 }
 
-/** Runs one of the library's calls; a failure becomes a SonosError with its message. */
-async function libraryOrFail(call: () => Promise<void>, room: string): Promise<void> {
-  try {
-    await call();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.warn(`sonos: library call on ${JSON.stringify(room)} failed: ${message}`);
-    throw new SonosError(`Sonos: ${message.slice(0, MAX_MESSAGE)}`, { cause: error });
+/** Carries out a POST /sonos/… request; rejects with a SonosError (a message safe to show) when that fails. */
+export async function runSonosRequest(request: SonosRequest, ways: SonosWays = WAYS): Promise<void> {
+  const way = sonosWay(request.engine, ways);
+  switch (request.kind) {
+    case 'play': {
+      await way.play(request.room, request.uri);
+      break;
+    }
+    case 'control': {
+      await way.control(request.room, request.action, request.positionMs);
+      break;
+    }
+    case 'volume': {
+      await way.volume(request.room, request.volume);
+      break;
+    }
+    case 'join': {
+      await way.joinGroup(request.room, request.to);
+      break;
+    }
+    default: {
+      await way.leaveGroup(request.room);
+    }
   }
-}
-
-/** Plays the item on the room; rejects with a SonosError (a message safe to show) when that fails. */
-export async function playOnSonos(request: SonosPlay, ways: SonosWays = WAYS): Promise<void> {
-  if (request.engine === 'library') await libraryOrFail(() => ways.play(request.room, request.uri), request.room);
-  else await runOrFail(sonosCommand(request), request.room, ways);
 }
 
 /** Runs one of the test calls on the room; rejects with a SonosError when it fails. */
 export async function testOnSonos(room: string, test: SonosTest, ways: SonosWays = WAYS): Promise<void> {
-  if (test === 'library-queue') await libraryOrFail(() => ways.resume(room), room);
-  else await runOrFail(resumeCommand(room), room, ways);
+  try {
+    if (test === 'library-queue') await ways.resume(room);
+    else await runOrFail(ways.run, resumeCommand(room));
+  } catch (error) {
+    throw asSonosError(error);
+  }
 }

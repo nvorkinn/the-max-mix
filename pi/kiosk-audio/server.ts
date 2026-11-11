@@ -3,12 +3,18 @@
 //                           plus {"volumes": {"Kitchen": 40, …}}, each speaker's volume in percent
 //   POST /audio/route       {"speakers": [...]}            route the sound to those speakers (none: the Pi's own output)
 //   POST /audio/volume      {"speaker": "Kitchen", "volume": 40}   set one speaker's volume (404: not on the network)
-//   POST /sonos/play        {"room": "Kitchen", "uri": "spotify:track:…", "engine": "cli" | "library"}   play it on that
-//                           Sonos room with sonoscli or the sonos-ts library (sonos.ts): 204, 400, or 502 {"error"}: why not
-//   POST /sonos/test        {"room": "Kitchen", "test": "cli-play" | "library-queue"}   a resume call to try out (sonos.ts)
-//   POST /power/restart     restart the kiosk              POST /power/reboot    reboot the Pi
-//   POST /display/wake      turn the screen back on        POST /wifi            show the Wi-Fi setup page
-//   POST /heartbeat         the app (or the Wi-Fi setup page) is alive (watchdog.ts)  POST /log  {"level", "source", "message"}  an app error, to the journal
+//   Sonos (sonos.ts), each with "engine": "cli" | "library" (in the body, or ?engine= on a GET), and rooms by name; a
+//   failure answers 502 {"error"}: why, safe to show. The app's origin only, since each makes the Pi talk to the speakers.
+//   GET  /sonos/groups      {"groups": [{"id", "rooms": [{"id", "name"}, …]}, …], "ms"}: the groups on the home network,
+//                           the leading room first, and how long finding them took
+//   GET  /sonos/now?room=   {"playing", "positionMs", "track": {"name", "artist", "album", "durationMs", "uri", "art"} or
+//                           null, "volume", "canSeek"}: what the room's group plays
+//   GET  /sonos/art?room=   the current song's artwork from the room's group (the speaker serves it over plain HTTP), or 404
+//   POST /sonos/play        {"room", "uri": "spotify:track:…"}   play it on the room's group
+//   POST /sonos/control     {"room", "action": "play" | "pause" | "next" | "previous" | "seek", "positionMs"?}
+//   POST /sonos/volume      {"room", "volume": 0-100}   the room's whole group
+//   POST /sonos/join        {"room", "to"}   add the room to the group `to` is in      POST /sonos/leave  {"room"}
+//   POST /sonos/test        {"room", "test": "cli-play" | "library-queue"}   a resume call to try out
 //   GET  /wifi/networks     {"networks": [{"ssid", "signal", "bars", "security"}, …]}   or 503 {"error"}: a safe message
 //   POST /wifi/connect      {"ssid", "password", "hidden", "security"}   join a network: {"ok": true} or {"ok": false, "error"}
 //   POST /wifi/phone        start Wi-Fi setup from a phone over Bluetooth for a few minutes (phone-setup.ts): {"ok": true}
@@ -45,8 +51,17 @@ import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
 import { PhoneSetup } from './phone-setup.ts';
 import type { Graph } from './pipewire.ts';
-import { parseSonosPlay, parseSonosTest, playOnSonos, SonosError, testOnSonos } from './sonos.ts';
-import type { SonosPlay, SonosTest } from './sonos.ts';
+import {
+  parseEngine,
+  parseRoom,
+  parseSonosRequest,
+  parseSonosTest,
+  runSonosRequest,
+  SonosError,
+  sonosWay,
+  testOnSonos
+} from './sonos.ts';
+import type { SonosEngine, SonosOperations, SonosRequest, SonosTest } from './sonos.ts';
 import { speakerSinks, validSpeakers, validVolume } from './speakers.ts';
 import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
@@ -76,10 +91,14 @@ export interface Deps {
   /** Sets a speaker's volume in percent; returns how many sinks it set (none: no speaker has that name). */
   setVolume: (speaker: string, volume: number) => Promise<number>;
   perform: (action: Action) => Promise<void>;
-  /** Plays a Spotify item on a Sonos room; rejects with a SonosError when it could not. */
-  sonos: (request: SonosPlay) => Promise<void>;
+  /** Carries out a POST /sonos/… request; rejects with a SonosError when it could not. */
+  sonos: (request: SonosRequest) => Promise<void>;
   /** Runs one of the resume calls being tried out on a Sonos room; rejects with a SonosError when it failed. */
   sonosTest: (room: string, test: SonosTest) => Promise<void>;
+  /** The chosen way's calls, for the GETs; each rejects with a SonosError. */
+  sonosWay: (engine: SonosEngine) => SonosOperations;
+  /** Milliseconds, to time how long finding the Sonos groups takes. */
+  now?: () => number;
   heartbeat: () => void;
   log: (entry: AppLog) => void;
   wifi: Wifi;
@@ -210,21 +229,56 @@ async function volumeStatus(request: IncomingMessage, deps: Deps): Promise<numbe
   return (await deps.setVolume(body.speaker, body.volume)) === 0 ? 404 : 204;
 }
 
-/** POST /sonos/play and /sonos/test: plays the song (or runs the test call) on the room, or says why not. */
+/** A Sonos failure as 502 {"error"}: its safe message, or a plain one. */
+function sendSonosError(response: ServerResponse, error: unknown): void {
+  sendJson(response, 502, { error: error instanceof SonosError ? error.message : 'Sonos did not do that.' });
+}
+
+/** POST /sonos/<kind>: carries out the request (or runs the test call) on the room, or says why not. */
 async function postSonos(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
   const value = JSON.parse(await readBody(request)) as unknown;
-  const play = request.url === '/sonos/play' ? parseSonosPlay(value) : null;
-  const test = request.url === '/sonos/test' ? parseSonosTest(value) : null;
-  if (!play && !test) {
+  const kind = (request.url ?? '').slice('/sonos/'.length);
+  const sonos = kind === 'test' ? null : parseSonosRequest(kind, value);
+  const test = kind === 'test' ? parseSonosTest(value) : null;
+  if (!sonos && !test) {
     response.writeHead(400).end();
     return;
   }
   try {
-    if (play) await deps.sonos(play);
+    if (sonos) await deps.sonos(sonos);
     else if (test) await deps.sonosTest(test.room, test.test);
     response.writeHead(204).end();
   } catch (error) {
-    sendJson(response, 502, { error: error instanceof SonosError ? error.message : 'Sonos did not start playing.' });
+    sendSonosError(response, error);
+  }
+}
+
+/** GET /sonos/groups, /sonos/now and /sonos/art, the chosen way. */
+async function getSonos(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
+  const url = new URL(request.url ?? '', LOCAL_ORIGIN);
+  const engine = parseEngine(url.searchParams.get('engine'));
+  const room = parseRoom(url.searchParams.get('room'));
+  const isGroups = url.pathname === '/sonos/groups';
+  if (!engine || (!isGroups && !room)) {
+    response.writeHead(400).end();
+    return;
+  }
+  const way = deps.sonosWay(engine);
+  const now = deps.now ?? (() => performance.now());
+  try {
+    if (isGroups) {
+      const started = now();
+      const groups = await way.groups();
+      sendJson(response, 200, { groups, ms: Math.round(now() - started) });
+    } else if (url.pathname === '/sonos/now') {
+      sendJson(response, 200, await way.now(room ?? ''));
+    } else {
+      const art = await way.art(room ?? '');
+      if (art) response.writeHead(200, { 'Content-Type': art.type }).end(art.body);
+      else response.writeHead(404).end();
+    }
+  } catch (error) {
+    sendSonosError(response, error);
   }
 }
 
@@ -290,6 +344,10 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
       break;
     }
     case '/sonos/play':
+    case '/sonos/control':
+    case '/sonos/volume':
+    case '/sonos/join':
+    case '/sonos/leave':
     case '/sonos/test': {
       await postSonos(request, response, deps);
       return;
@@ -436,6 +494,10 @@ async function handleGet(
     else response.writeHead(403).end();
   } else if (url.startsWith('/lyrics?')) {
     await getLyrics(request, response, origin, deps);
+  } else if (/^\/sonos\/(groups|now|art)(\?|$)/.test(url)) {
+    // Each makes the Pi talk to the speakers on the home network, so only the app may ask.
+    if (request.headers.origin === origin) await getSonos(request, response, deps);
+    else response.writeHead(403).end();
   } else {
     await get(url, response, deps);
   }
@@ -508,8 +570,9 @@ export function serveSpeakers(
   const handler = handleRequest(origin, {
     ...deps,
     perform,
-    sonos: request => playOnSonos(request),
+    sonos: request => runSonosRequest(request),
     sonosTest: (room, test) => testOnSonos(room, test),
+    sonosWay: engine => sonosWay(engine),
     heartbeat,
     log: journalLog(),
     asset: wifiSetupAsset,
