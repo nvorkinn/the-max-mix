@@ -259,7 +259,15 @@ export function useSonosPlayer(): SonosPlayer {
     return () => clearInterval(tick);
   }, [playing, slowPolling]);
 
-  useEffect(() => () => clearTimeout(volumeTimerRef.current), []);
+  // The read again after a control, which must not land once the player is gone.
+  const rereadTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(
+    () => () => {
+      clearTimeout(volumeTimerRef.current);
+      clearTimeout(rereadTimerRef.current);
+    },
+    []
+  );
 
   const refresh = useCallback(() => setReadVersion(version => version + 1), []);
 
@@ -275,7 +283,8 @@ export function useSonosPlayer(): SonosPlayer {
         setError(errorMessage(caught));
         return false;
       } finally {
-        setTimeout(refresh, AFTER_CONTROL_MS);
+        clearTimeout(rereadTimerRef.current);
+        rereadTimerRef.current = setTimeout(refresh, AFTER_CONTROL_MS);
       }
     },
     [leader, refresh]

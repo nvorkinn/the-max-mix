@@ -18,21 +18,37 @@ const answer = (body: unknown, status = 200) =>
   vi.fn().mockResolvedValue({ ok: status === 200, status, json: () => Promise.resolve(body) });
 
 describe('listAudioOutputs', () => {
-  it('asks the kiosk’s audio service and lists each speaker once, sorted', async () => {
-    const fetchMock = answer({ speakers: ['Living Room', 'Kitchen', 'Kitchen', 3] });
+  const kitchen = { id: 'raop_sink.Kitchen.local.7000', name: 'Kitchen', kind: 'airplay', volume: 40, linked: true };
+  const boom = {
+    id: 'bluez_output.00_11_22_AA_BB_CC.1',
+    name: 'Boom',
+    kind: 'bluetooth',
+    address: '00:11:22:AA:BB:CC',
+    volume: null,
+    linked: false
+  };
+
+  it('asks the kiosk’s audio service for its outputs, sorted by name, leaving out anything malformed', async () => {
+    const fetchMock = answer({ speakers: [], outputs: [kitchen, boom, { id: 'x', name: 'Bad', kind: 'cable' }, 3] });
     vi.stubGlobal('fetch', fetchMock);
-    await expect(listAudioOutputs()).resolves.toEqual({ names: ['Kitchen', 'Living Room'], volumes: {} });
+    await expect(listAudioOutputs()).resolves.toEqual({ outputs: [boom, kitchen], legacy: false });
     expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/speakers', { cache: 'no-store' });
   });
 
-  it('treats a missing list as none', async () => {
+  it('makes do with names and volumes from a Pi still on an older service', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answer({ speakers: ['Lounge', 'Kitchen', 'Kitchen', 3], volumes: { Kitchen: 40.4, Bar: 120 } })
+    );
+    await expect(listAudioOutputs()).resolves.toEqual({
+      outputs: [
+        { id: 'Kitchen', name: 'Kitchen', kind: null, volume: 40, linked: null },
+        { id: 'Lounge', name: 'Lounge', kind: null, volume: null, linked: null }
+      ],
+      legacy: true
+    });
     vi.stubGlobal('fetch', answer({}));
-    await expect(listAudioOutputs()).resolves.toEqual({ names: [], volumes: {} });
-  });
-
-  it('reads each speaker’s volume, ignoring anything that is not a percentage', async () => {
-    vi.stubGlobal('fetch', answer({ speakers: ['Kitchen'], volumes: { Kitchen: 40.4, Lounge: 'loud', Bar: 120 } }));
-    await expect(listAudioOutputs()).resolves.toEqual({ names: ['Kitchen'], volumes: { Kitchen: 40 } });
+    await expect(listAudioOutputs()).resolves.toEqual({ outputs: [], legacy: true });
   });
 
   it('says so when the service is not there or cannot read PipeWire', async () => {
@@ -55,25 +71,22 @@ describe('listAudioOutputs', () => {
 });
 
 describe('routing', () => {
-  it('sends the speakers to the kiosk service, none for the Pi’s own output', () => {
+  it('sends the output ids to the kiosk service (names to an older Pi), none for the Pi’s own output', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-    routeAudio(['Kitchen', 'Living Room & Bar']);
+    routeAudio(['raop_sink.Kitchen.local.7000']);
+    routeAudio(['Kitchen', 'Living Room & Bar'], true);
     routeAudio([]);
-    expect(fetchMock.mock.calls).toEqual([
-      [
-        'http://127.0.0.1:7341/audio/route',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: '{"speakers":["Kitchen","Living Room & Bar"]}'
-        }
-      ],
-      [
-        'http://127.0.0.1:7341/audio/route',
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"speakers":[]}' }
-      ]
+    expect(fetchMock.mock.calls.map(call => (call as [string, { body: string }])[1].body)).toEqual([
+      '{"outputs":["raop_sink.Kitchen.local.7000"]}',
+      '{"speakers":["Kitchen","Living Room & Bar"]}',
+      '{"outputs":[]}'
     ]);
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/audio/route', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"outputs":[]}'
+    });
   });
 
   it('only warns when the service cannot be reached', async () => {
@@ -86,7 +99,7 @@ describe('routing', () => {
 });
 
 describe('setSpeakerVolume', () => {
-  it('sends one request per speaker at a time, then the newest value', async () => {
+  it('sends one request per output at a time, then the newest value', async () => {
     let finish: (() => void) | undefined;
     const fetchMock = vi.fn(
       () =>
@@ -95,24 +108,42 @@ describe('setSpeakerVolume', () => {
         })
     );
     vi.stubGlobal('fetch', fetchMock);
-    setSpeakerVolume('Kitchen', 10);
-    setSpeakerVolume('Kitchen', 20);
-    setSpeakerVolume('Kitchen', 30);
+    const kitchen = { id: 'raop_sink.Kitchen.local.7000', kind: 'airplay' } as const;
+    setSpeakerVolume(kitchen, 10);
+    setSpeakerVolume(kitchen, 20);
+    setSpeakerVolume(kitchen, 30);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     finish?.();
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     finish?.();
     await vi.waitFor(() =>
       expect(fetchMock.mock.calls.map(call => (call as unknown[])[1])).toEqual([
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"speaker":"Kitchen","volume":10}' },
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"speaker":"Kitchen","volume":30}' }
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{"output":"raop_sink.Kitchen.local.7000","volume":10}'
+        },
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{"output":"raop_sink.Kitchen.local.7000","volume":30}'
+        }
       ])
     );
     // Done: the next change goes out at once.
     await new Promise(resolve => setTimeout(resolve, 0));
-    setSpeakerVolume('Kitchen', 40);
+    setSpeakerVolume(kitchen, 40);
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     finish?.();
+  });
+
+  it('names the speaker to an older Pi', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    setSpeakerVolume({ id: 'Lounge', kind: null }, 20);
+    await vi.waitFor(() =>
+      expect((fetchMock.mock.calls[0] as [string, { body: string }])[1].body).toBe('{"speaker":"Lounge","volume":20}')
+    );
   });
 });
 

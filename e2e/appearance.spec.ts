@@ -70,11 +70,9 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await page.keyboard.press('Escape');
     await page.reload();
     await page.getByRole('button', { name: /^Speakers:/ }).click();
-    const speakers = page.getByRole('dialog', { name: 'Speakers' });
-    await expect(speakers).toHaveCSS('background-color', PAPER.surface);
+    const speakers = page.getByRole('region', { name: 'Speakers' });
     await expect(speakers).toHaveCSS('color', PAPER.ink);
-    await expect(speakers.getByRole('button', { name: /Test speaker/ })).toHaveAttribute('aria-pressed', 'true');
-    await page.keyboard.press('Escape');
+    await expect(speakers.getByRole('checkbox', { name: 'Test speaker' })).toBeChecked();
 
     await page.keyboard.press('Control+Shift+D');
     const debug = page.getByRole('dialog', { name: 'Debug console' });

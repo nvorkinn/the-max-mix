@@ -419,54 +419,177 @@
 .player-device.is-open .player-device-chevron {
   transform: rotate(180deg);
 }
-/* The speakers drawer: a popover above the device indicator that dims the screen behind it. */
-.speaker-scrim {
-  position: absolute;
-  inset: 0;
-  z-index: 60;
-  background: var(--scrim);
-  cursor: default;
-}
-/* Two classes so this padding beats .app-modal-panel, which drops the top padding for panels with a sticky header. */
-.speaker-drawer.app-modal-panel {
-  position: absolute;
-  z-index: 61;
-  left: 30px;
-  bottom: 122px;
-  max-height: calc(100% - 200px);
-  width: min(420px, calc(100% - 60px));
+/*
+  The Speakers view, in the panel beside the artwork: joined tabs (straight inner joins, rounded outer corners), then
+  speakers two to a row under hairlines, as the queue's rows are. Four rows fit; more scroll inside the grid. Only the
+  large selector on the left of each speaker does anything.
+*/
+.speakers-view {
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px 16px 16px;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  background: var(--surface);
-  box-shadow: 0 24px 48px -20px color-mix(in srgb, var(--shadow) 45%, transparent);
+  gap: 8px;
 }
-.speaker-volume {
+.speaker-tabs-row {
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+}
+.speaker-tabs {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.speaker-tab {
+  min-width: 0;
+  height: 48px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 12px;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 6px;
+  border-radius: 0;
   color: var(--muted);
+  font-size: 14px;
+  font-weight: 650;
+  white-space: nowrap;
 }
-.speaker-volume svg {
+.speaker-tab + .speaker-tab {
+  border-left: 1px solid var(--border);
+}
+.speaker-tab svg {
   flex-shrink: 0;
 }
-.speaker-tab-panels {
+.speaker-tab[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--ink);
+}
+.speaker-tab[aria-disabled='true'] {
+  opacity: 0.45;
+}
+.speaker-volumes-button {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
   display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--muted);
 }
-/* All the drawer's tab panels share one cell, so it is as tall as the tallest and does not resize on a tab change. */
-.speaker-tab-panels > * {
-  grid-area: 1 / 1;
-  min-width: 0;
+.speaker-volumes-button[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--ink);
 }
-.speaker-drawer-body {
+.speaker-error {
+  flex-shrink: 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+.speaker-find {
+  flex-shrink: 0;
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+.speaker-grid {
+  flex: 1;
   min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 61px;
+  align-content: start;
+  column-gap: 16px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  touch-action: pan-y;
   scrollbar-width: thin;
+}
+.speaker-grid.is-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+.speaker-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.speaker-select {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+}
+.speaker-select-box {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--muted);
+  border-radius: 8px;
+  color: var(--accent-ink);
+}
+.speaker-select[aria-checked='true'] .speaker-select-box {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.speaker-select:disabled .speaker-select-box {
+  opacity: 0.35;
+}
+/* AirPlay or Bluetooth tapped before this tablet plays: the tab and This tablet glow amber twice, with no words. */
+.speaker-tab.is-flashing,
+.speaker-select.is-flashing {
+  animation: speaker-amber 400ms ease-in-out 2;
+}
+@keyframes speaker-amber {
+  50% {
+    box-shadow: inset 0 0 0 3px var(--amber);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .speaker-tab.is-flashing,
+  .speaker-select.is-flashing {
+    animation: none;
+    box-shadow: inset 0 0 0 3px var(--amber);
+  }
+}
+.speaker-row-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.speaker-row-name {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.speaker-row-status {
+  color: var(--muted);
+  font-size: 12px;
+}
+.speaker-row-volume {
+  width: 100%;
+}
+.speaker-row-actions {
+  display: flex;
+  gap: 8px;
+}
+.speaker-row-action {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 13px;
 }
 .listening-room:not(.is-setup) .transport-row {
   grid-column: 2;
@@ -555,8 +678,9 @@
     opacity 280ms ease,
     visibility 280ms;
 }
-.side-panel[data-showing='queue'] > .side-panel-view:last-child,
-.side-panel[data-showing='lyrics'] > .side-panel-view:first-child {
+.side-panel[data-showing='queue'] > .side-panel-view:not([data-view='queue']),
+.side-panel[data-showing='lyrics'] > .side-panel-view:not([data-view='lyrics']),
+.side-panel[data-showing='speakers'] > .side-panel-view:not([data-view='speakers']) {
   opacity: 0;
   visibility: hidden;
 }

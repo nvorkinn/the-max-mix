@@ -4,18 +4,17 @@ import { defined } from '../test/defined';
 import type { MusicChoice } from '../types';
 import TabletView from './TabletView';
 
-// The speakers drawer and the music picker are stand-ins that hand their callbacks to the test.
-interface DrawerProps {
-  onSelectSpeaker?: (id: string) => Promise<void>;
-  onPlayOnSonos?: ((room: string) => Promise<void>) | undefined;
+// The speaker selection and the music picker are stand-ins that hand their callbacks to the test.
+interface SelectionOptions {
+  playOnSonos?: (room: string) => Promise<void>;
 }
 interface PickerProps {
   onPlay?: (choice: MusicChoice) => Promise<boolean>;
 }
 const props = vi.hoisted(() => {
-  const drawer: DrawerProps = {};
+  const selection: SelectionOptions = {};
   const picker: PickerProps = {};
-  return { drawer, picker };
+  return { selection, picker };
 });
 const state = vi.hoisted(() => {
   const player: Record<string, unknown> = {};
@@ -36,12 +35,13 @@ vi.mock('./AlbumArtPlayer', () => ({ default: () => null }));
 vi.mock('./LyricsPanel', () => ({ default: () => null }));
 vi.mock('./SettingsModal', () => ({ default: () => null }));
 vi.mock('./UpdateConsole', () => ({ default: () => null }));
-vi.mock('./SpeakerDrawer', () => ({
-  default: (drawer: DrawerProps) => {
-    props.drawer = drawer;
-    return null;
+vi.mock('../speakers/useSpeakerSelection', () => ({
+  useSpeakerSelection: (options: SelectionOptions) => {
+    props.selection = options;
+    return { playingLabel: undefined, saving: false, dirty: false, save: vi.fn() };
   }
 }));
+vi.mock('./SpeakersView', () => ({ default: () => null }));
 vi.mock('./MusicPicker', () => ({
   default: (picker: PickerProps) => {
     props.picker = picker;
@@ -94,7 +94,7 @@ describe('TabletView with Sonos', () => {
 
   it('pauses the tablet, starts its song on the Sonos where it was, with Spotify’s queue, then lets Spotify go', async () => {
     setUp(false);
-    await act(() => defined(props.drawer.onPlayOnSonos)('Kitchen'));
+    await act(() => defined(props.selection.playOnSonos)('Kitchen'));
     expect(state.player['togglePlay']).toHaveBeenCalled();
     expect(playOnSonosRoom).toHaveBeenCalledWith('Kitchen', URI, { next: [NEXT], positionMs: 61_000 });
     expect(state.player['handOff']).toHaveBeenCalled();
@@ -103,13 +103,13 @@ describe('TabletView with Sonos', () => {
   it('still starts the song on the Sonos when Spotify’s queue cannot be read', async () => {
     getQueue.mockRejectedValue(new Error('Rate limited'));
     setUp(false);
-    await act(() => defined(props.drawer.onPlayOnSonos)('Kitchen'));
+    await act(() => defined(props.selection.playOnSonos)('Kitchen'));
     expect(playOnSonosRoom).toHaveBeenCalledWith('Kitchen', URI, { next: [], positionMs: 61_000 });
   });
 
   it('starts the song it shows on another Sonos while following one, with that group’s queue', async () => {
     setUp(true);
-    await act(() => defined(props.drawer.onPlayOnSonos)('Bedroom'));
+    await act(() => defined(props.selection.playOnSonos)('Bedroom'));
     expect(playOnSonosRoom).toHaveBeenCalledWith('Bedroom', 'spotify:track:abcdefghijklmnopqrstuv', {
       positionMs: 5000,
       queueFrom: 'Kitchen'
@@ -140,15 +140,8 @@ describe('TabletView with Sonos', () => {
 
   it('asks for a song first when nothing plays', async () => {
     setUp(false, { playbackState: null });
-    await expect(defined(props.drawer.onPlayOnSonos)('Kitchen')).rejects.toThrow('Play a song first');
+    await expect(defined(props.selection.playOnSonos)('Kitchen')).rejects.toThrow('Play a song first');
     expect(playOnSonosRoom).not.toHaveBeenCalled();
-  });
-
-  it('leaves the Sonos (pausing it) when another speaker is picked', async () => {
-    setUp(true);
-    await act(() => defined(props.drawer.onSelectSpeaker)('tablet'));
-    expect(state.sonos['leave']).toHaveBeenCalled();
-    expect(state.player['transferPlayback']).toHaveBeenCalledWith('tablet');
   });
 
   it('plays picked music on the Sonos while following one, else through Spotify', async () => {

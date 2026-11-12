@@ -61,11 +61,11 @@ test.describe('Layout', { tag: '@layout' }, () => {
       await expect(settings).toBeHidden();
 
       await page.getByRole('button', { name: /^Speakers:/ }).click();
-      const speakers = page.getByRole('dialog', { name: 'Speakers' });
-      await expect(speakers.getByRole('button', { name: /Test speaker/ })).toBeVisible();
+      const speakers = page.getByRole('region', { name: 'Speakers' });
+      await expect(speakers.getByRole('checkbox', { name: 'Test speaker' })).toBeVisible();
       await expectTouchTargets(speakers);
       await expectNoHorizontalOverflow(page);
-      await speakers.getByRole('button', { name: 'Close speakers' }).click();
+      await page.getByRole('navigation', { name: 'Beside the artwork' }).getByRole('button', { name: 'Queue' }).click();
       await expect(speakers).toBeHidden();
     });
   });
