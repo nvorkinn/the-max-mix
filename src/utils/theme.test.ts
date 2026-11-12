@@ -16,6 +16,11 @@ describe('theme setting', () => {
     expect(localStorage.getItem('maxmix.theme')).toBeNull();
   });
 
+  it('remembers Auto', () => {
+    saveTheme('auto');
+    expect(loadTheme()).toBe('auto');
+  });
+
   it('ignores a stored value that is not one of the choices', () => {
     localStorage.setItem('maxmix.theme', 'dusk');
     expect(loadTheme()).toBe('day');

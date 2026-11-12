@@ -91,6 +91,7 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await page.getByRole('button', { name: 'Open settings' }).click();
     await settings.getByRole('button', { name: 'Navy' }).click();
     const theme = settings.getByRole('group', { name: 'Theme' });
+    await expect(theme.getByRole('button', { name: 'Auto' })).toHaveCount(0);
     await theme.getByRole('button', { name: 'Night' }).click();
 
     await expect(room).toHaveAttribute('data-theme', 'night');
@@ -110,5 +111,21 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await expect(room).toHaveAttribute('data-colour', 'navy');
     await expect(settings).toHaveCSS('background-color', PAPER.surface);
     await expect(settings.getByRole('button', { name: 'Navy' })).toBeEnabled();
+  });
+
+  test('Auto, offered when the kiosk knows where it is, follows the sun', async ({ page }) => {
+    // An hour after sunset in London on midsummer's day.
+    await page.clock.setFixedTime(new Date('2026-06-21T21:20:00Z'));
+    await page.goto('/?kiosk=1&lat=51.51&lon=-0.13');
+    const room = page.locator('.tablet-container');
+    await page.getByRole('button', { name: 'Open settings' }).click();
+    const theme = page.getByRole('dialog', { name: 'Settings' }).getByRole('group', { name: 'Theme' });
+    await theme.getByRole('button', { name: 'Auto' }).click();
+    await expect(theme.getByRole('button', { name: 'Auto' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(room).toHaveAttribute('data-theme', 'night');
+
+    await page.clock.setFixedTime(new Date('2026-06-22T12:00:00Z'));
+    await page.reload();
+    await expect(room).toHaveAttribute('data-theme', 'day');
   });
 });

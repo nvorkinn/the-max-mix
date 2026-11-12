@@ -91,6 +91,41 @@ export function piVersion(): PiVersion | null {
   }
 }
 
+const LOCATION_KEY = 'maxmix.location';
+
+function parseLocation(lat: string | null, lon: string | null): { lat: number; lon: number } | null {
+  if (lat === null || lon === null || lat.trim() === '' || lon.trim() === '') return null;
+  const latitude = Number(lat);
+  const longitude = Number(lon);
+  const valid = Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
+  return valid ? { lat: latitude, lon: longitude } : null;
+}
+
+/**
+ * The Pi's location from ?lat= and ?lon=, which the kiosk adds to its address when Ansible has kiosk_latitude and
+ * kiosk_longitude, for the Auto theme. Remembered like the Pi's version: an address with ?kiosk=1 replaces it (or forgets
+ * it), any other keeps it.
+ */
+export function getKioskLocation(): { lat: number; lon: number } | null {
+  const params = new URLSearchParams(location.search);
+  if (params.get('kiosk') === '1') {
+    const found = parseLocation(params.get('lat'), params.get('lon'));
+    try {
+      if (found) localStorage.setItem(LOCATION_KEY, `${found.lat} ${found.lon}`);
+      else localStorage.removeItem(LOCATION_KEY);
+    } catch {
+      // Storage is unavailable; the location then lasts only until the page reloads.
+    }
+    return found;
+  }
+  try {
+    const [lat = null, lon = null] = localStorage.getItem(LOCATION_KEY)?.split(' ') ?? [];
+    return parseLocation(lat, lon);
+  } catch {
+    return null;
+  }
+}
+
 const DISMISSED_UPDATE_KEY = 'maxmix.updateDismissed';
 
 /** The newer version (release tag or commit) the person last said "Not now" to, or null. */
