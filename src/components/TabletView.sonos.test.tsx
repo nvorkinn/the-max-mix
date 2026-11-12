@@ -29,7 +29,7 @@ vi.mock('../spotify/api', () => ({ getQueue }));
 vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => state.player }));
 vi.mock('../hooks/useSonosPlayer', () => ({ useSonosPlayer: () => state.sonos }));
 vi.mock('../sonos/kiosk', () => ({ playOnSonosRoom, getKioskSonosLeader: () => 'Kitchen' }));
-vi.mock('../utils/kiosk', () => ({ isKiosk: () => true }));
+vi.mock('../utils/kiosk', () => ({ isKiosk: () => true, getKioskLocation: () => null }));
 vi.mock('../hooks/useKioskUpdate', () => ({ useKioskUpdate: () => ({ prompting: false }) }));
 vi.mock('../utils/colorExtractor', () => ({ extractArtColours: vi.fn().mockResolvedValue(null) }));
 vi.mock('./AlbumArtPlayer', () => ({ default: () => null }));
