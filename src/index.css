@@ -47,13 +47,40 @@
   }
 }
 
+/*
+  Colour tokens. Every colour in the app comes from these, so a skin only redefines them; components never pick a
+  colour of their own. These are the Day (paper) values; the colour choice below changes --accent and --ink.
+*/
+:root {
+  --page: #f1f1e9;
+  --surface: #fafaf6;
+  --surface-raised: #eeeee7;
+  --ink: #23291f;
+  --muted: #656b5e;
+  --border: rgb(35 41 31 / 13%);
+  --accent: #293a27;
+  --accent-ink: #fff;
+  --accent-soft: rgb(41 58 39 / 5%);
+  --focus: #293a27;
+  --track: var(--border);
+  --success: #166534;
+  --warning: #854d0e;
+  --amber: #d18a17;
+  --danger: #9f1239;
+  --shadow: #000;
+  --scrim: rgb(20 24 18 / 22%);
+  --backdrop: rgb(0 0 0 / 85%);
+  --spotify-brand: #1db954;
+  --spotify-brand-ink: #000;
+}
+
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;
   }
   body {
     margin: 0;
-    background: #f1f1e9;
+    background: var(--page);
     font-family: 'Plus Jakarta Sans', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
   }
   button,
@@ -66,7 +93,7 @@
     font: inherit;
   }
   :focus-visible {
-    outline: 2px solid var(--focus, #b9d879);
+    outline: 2px solid var(--focus);
     outline-offset: 4px;
   }
 }
@@ -87,21 +114,6 @@
 }
 
 .tablet-container {
-  --accent: #293a27;
-  --accent-ink: #fff;
-  --accent-soft: rgb(41 58 39 / 5%);
-  --surface: #fafaf6;
-  --surface-raised: #eeeee7;
-  --page: #f1f1e9;
-  --ink: #23291f;
-  --muted: #656b5e;
-  --border: rgb(35 41 31 / 13%);
-  --focus: #293a27;
-  --success: #166534;
-  --warning: #854d0e;
-  --danger: #9f1239;
-  --spotify-brand: #1db954;
-  --spotify-brand-ink: #000;
   width: 100%;
   min-height: 100svh;
   height: 100dvh;
@@ -118,7 +130,7 @@
     --art-tint-top 1.5s ease,
     --art-tint-bottom 1.5s ease;
 }
-/* Colour choices from the settings (src/utils/themeColour.ts); forest is the default above. */
+/* Colour choices from the settings (src/utils/themeColour.ts); forest is the default in :root. */
 .tablet-container[data-colour='navy'] {
   --accent: #1f3a5f;
   --ink: #1b2433;
@@ -386,7 +398,7 @@
   position: absolute;
   inset: 0;
   z-index: 60;
-  background: rgb(20 24 18 / 22%);
+  background: var(--scrim);
   cursor: default;
 }
 /* Two classes so this padding beats .app-modal-panel, which drops the top padding for panels with a sticky header. */
@@ -404,7 +416,7 @@
   border: 1px solid var(--border);
   border-radius: 20px;
   background: var(--surface);
-  box-shadow: 0 24px 48px -20px rgb(0 0 0 / 45%);
+  box-shadow: 0 24px 48px -20px color-mix(in srgb, var(--shadow) 45%, transparent);
 }
 .speaker-volume {
   display: flex;
@@ -497,7 +509,7 @@
   border-radius: 16px;
   background: var(--surface);
   border: 1px solid var(--border);
-  box-shadow: 0 18px 36px -26px #000;
+  box-shadow: 0 18px 36px -26px var(--shadow);
   text-align: left;
 }
 /*
@@ -628,7 +640,7 @@
   border: 1px solid var(--warning);
   border-radius: 12px;
   background: var(--surface-raised);
-  box-shadow: 0 12px 28px -12px #000;
+  box-shadow: 0 12px 28px -12px var(--shadow);
   font-size: 13px;
 }
 .playback-banner > svg {
@@ -663,12 +675,12 @@
 .range-control::-webkit-slider-runnable-track {
   height: 3px;
   border-radius: 3px;
-  background: linear-gradient(to right, var(--accent) var(--range-progress), var(--border) var(--range-progress));
+  background: linear-gradient(to right, var(--accent) var(--range-progress), var(--track) var(--range-progress));
 }
 .range-control::-moz-range-track {
   height: 3px;
   border-radius: 3px;
-  background: linear-gradient(to right, var(--accent) var(--range-progress), var(--border) var(--range-progress));
+  background: linear-gradient(to right, var(--accent) var(--range-progress), var(--track) var(--range-progress));
 }
 .range-control::-webkit-slider-thumb {
   appearance: none;
@@ -899,7 +911,7 @@
   z-index: 1;
   transition: none;
   background: var(--surface-raised);
-  box-shadow: 0 6px 18px rgb(0 0 0 / 18%);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--shadow) 18%, transparent);
   cursor: grabbing;
 }
 .queue-art {
@@ -996,7 +1008,7 @@
   display: none;
 }
 .app-dialog::backdrop {
-  background: rgb(0 0 0 / 85%);
+  background: var(--backdrop);
   backdrop-filter: blur(12px);
 }
 body:has(.app-dialog[open]) {
@@ -1188,7 +1200,7 @@ body:has(.app-dialog[open]) {
   font-size: 21px;
 }
 .queue-error {
-  color: #fda4af;
+  color: var(--danger);
   font-size: 13px;
   padding: 8px 0;
 }
