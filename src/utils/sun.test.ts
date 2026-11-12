@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sunTimes } from './sun';
 
 const LONDON = { lat: 51.5074, lon: -0.1278 };
-const TROMSO = { lat: 69.65, lon: 18.96 };
+// Northern Norway, well inside the Arctic Circle.
+const ARCTIC = { lat: 69.65, lon: 18.96 };
 const TWO_MINUTES = 2 * 60_000;
 
 /** Within two minutes of the published time, given as an ISO time with its offset. */
@@ -46,8 +47,8 @@ describe('sunTimes', () => {
   });
 
   it('is null under the midnight sun and in the polar night', () => {
-    expect(sunTimes(new Date('2026-06-21T12:00:00Z'), TROMSO.lat, TROMSO.lon)).toBeNull();
-    expect(sunTimes(new Date('2026-12-21T12:00:00Z'), TROMSO.lat, TROMSO.lon)).toBeNull();
+    expect(sunTimes(new Date('2026-06-21T12:00:00Z'), ARCTIC.lat, ARCTIC.lon)).toBeNull();
+    expect(sunTimes(new Date('2026-12-21T12:00:00Z'), ARCTIC.lat, ARCTIC.lon)).toBeNull();
   });
 
   it('works far from Greenwich and south of the equator', () => {
