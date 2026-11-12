@@ -95,7 +95,9 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
   });
 
   test('player screen at night', { tag: ['@player', '@appearance'] }, async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('maxmix.theme', 'night'));
+    await page.addInitScript(() => {
+      localStorage.setItem('maxmix.theme', 'night');
+    });
     await fakeSpotify(page);
     await page.route('https://images.unsplash.com/**', route =>
       route.fulfill({
@@ -116,7 +118,9 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
   });
 
   test('settings modal at night', { tag: ['@settings', '@appearance'] }, async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('maxmix.theme', 'night'));
+    await page.addInitScript(() => {
+      localStorage.setItem('maxmix.theme', 'night');
+    });
     const dialog = await openSettings(page);
     await expect(dialog).toHaveScreenshot('settings-night.png', SHOT);
   });
