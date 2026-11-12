@@ -94,6 +94,37 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
     });
   });
 
+  test('player screen at night', { tag: ['@player', '@appearance'] }, async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('maxmix.theme', 'night');
+    });
+    await fakeSpotify(page);
+    await page.route('https://images.unsplash.com/**', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'image/png',
+        headers: { 'access-control-allow-origin': '*' },
+        body: COLOURED_ART
+      })
+    );
+    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.goto('/');
+    await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
+    await expect(page).toHaveScreenshot('player-night.png', {
+      ...SHOT,
+      mask: [page.locator('.header-clock'), page.locator('.seek-control')]
+    });
+  });
+
+  test('settings modal at night', { tag: ['@settings', '@appearance'] }, async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('maxmix.theme', 'night');
+    });
+    const dialog = await openSettings(page);
+    await expect(dialog).toHaveScreenshot('settings-night.png', SHOT);
+  });
+
   test('music picker', { tag: '@music' }, async ({ page }) => {
     await fakeSpotify(page);
     await page.setViewportSize({ width: 1024, height: 600 });

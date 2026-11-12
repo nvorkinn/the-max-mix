@@ -11,6 +11,8 @@ import { SCREEN_SLEEP_CHOICES } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import { THEME_COLOURS } from '../utils/themeColour';
 import type { ThemeColour } from '../utils/themeColour';
+import { THEMES } from '../utils/theme';
+import type { Theme } from '../utils/theme';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import KioskSystem from './KioskSystem';
 import Modal from './Modal';
@@ -76,11 +78,37 @@ function PollingRow() {
   );
 }
 
-/** The colour of the track title, player controls and highlights. */
+/** Day (paper, with the colour choice below) or Night (dark navy with fixed colours). */
+function ThemeRow({ theme, onChange }: Readonly<{ theme: Theme; onChange: (theme: Theme) => void }>) {
+  return (
+    <div className="modal-card p-3 rounded-2xl border">
+      <div className="text-xs font-bold" id="theme-label">
+        Theme
+      </div>
+      <div className="flex gap-1.5 mt-2" role="group" aria-labelledby="theme-label">
+        {THEMES.map(choice => (
+          <button
+            type="button"
+            key={choice.id}
+            aria-pressed={theme === choice.id}
+            onClick={() => onChange(choice.id)}
+            className="modal-option flex-1 min-h-11 rounded-xl border text-xs font-bold"
+          >
+            {choice.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The colour of the track title, player controls and highlights. Night has its own fixed colours, so it is greyed out
+    there; the Day choice is kept for when Day comes back. */
 function ThemeColourRow({
   colour,
-  onChange
-}: Readonly<{ colour: ThemeColour; onChange: (colour: ThemeColour) => void }>) {
+  onChange,
+  disabled
+}: Readonly<{ colour: ThemeColour; onChange: (colour: ThemeColour) => void; disabled: boolean }>) {
   return (
     <div className="modal-card p-3 rounded-2xl border">
       <div className="text-xs font-bold" id="theme-colour-label">
@@ -94,6 +122,7 @@ function ThemeColourRow({
             aria-label={choice.label}
             aria-pressed={colour === choice.id}
             onClick={() => onChange(choice.id)}
+            disabled={disabled}
             className="colour-swatch w-11 h-11 rounded-full"
             style={{ '--swatch': choice.swatch } as CSSProperties}
           />
@@ -114,6 +143,8 @@ interface SettingsModalProps {
   onScreenSleepChange?: (minutes: ScreenSleepMinutes) => void;
   themeColour?: ThemeColour;
   onThemeColourChange?: (colour: ThemeColour) => void;
+  theme?: Theme;
+  onThemeChange?: (theme: Theme) => void;
   /** The kiosk's software update, shown on the kiosk only. */
   kioskUpdate?: KioskUpdate;
 }
@@ -127,6 +158,8 @@ function SettingsContent({
   onScreenSleepChange,
   themeColour,
   onThemeColourChange,
+  theme,
+  onThemeChange,
   kioskUpdate
 }: Readonly<SettingsModalProps>) {
   const [actionError, setActionError] = useState<string | null>(null);
@@ -215,8 +248,9 @@ function SettingsContent({
           </button>
         )}
 
+        {theme !== undefined && onThemeChange && <ThemeRow theme={theme} onChange={onThemeChange} />}
         {themeColour !== undefined && onThemeColourChange && (
-          <ThemeColourRow colour={themeColour} onChange={onThemeColourChange} />
+          <ThemeColourRow colour={themeColour} onChange={onThemeColourChange} disabled={theme === 'night'} />
         )}
         <PollingRow />
         {isKiosk() && (

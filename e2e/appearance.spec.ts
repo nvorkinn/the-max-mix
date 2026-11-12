@@ -82,4 +82,33 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await expect(debug).toHaveCSS('color-scheme', 'dark');
     await page.keyboard.press('Escape');
   });
+
+  test('Night recolours the app, greys out the Day colour, and Day brings that colour back', async ({ page }) => {
+    await page.goto('/?kiosk=1');
+    const room = page.locator('.tablet-container');
+    await expect(room).toHaveAttribute('data-theme', 'day');
+    let settings = page.getByRole('dialog', { name: 'Settings' });
+    await page.getByRole('button', { name: 'Open settings' }).click();
+    await settings.getByRole('button', { name: 'Navy' }).click();
+    const theme = settings.getByRole('group', { name: 'Theme' });
+    await theme.getByRole('button', { name: 'Night' }).click();
+
+    await expect(room).toHaveAttribute('data-theme', 'night');
+    await expect(room).toHaveCSS('background-color', 'rgb(9, 14, 31)');
+    await expect(settings).toHaveCSS('background-color', 'rgb(16, 26, 51)');
+    await expect(settings).toHaveCSS('color', 'rgb(245, 246, 255)');
+    await expect(settings).toHaveCSS('color-scheme', 'dark');
+    await expect(settings.getByRole('button', { name: 'Navy' })).toBeDisabled();
+    await expect(settings.getByRole('button', { name: 'Navy' })).toHaveAttribute('aria-pressed', 'true');
+
+    await page.reload();
+    await expect(room).toHaveAttribute('data-theme', 'night');
+    await page.getByRole('button', { name: 'Open settings' }).click();
+    settings = page.getByRole('dialog', { name: 'Settings' });
+    await settings.getByRole('group', { name: 'Theme' }).getByRole('button', { name: 'Day' }).click();
+    await expect(room).toHaveAttribute('data-theme', 'day');
+    await expect(room).toHaveAttribute('data-colour', 'navy');
+    await expect(settings).toHaveCSS('background-color', PAPER.surface);
+    await expect(settings.getByRole('button', { name: 'Navy' })).toBeEnabled();
+  });
 });
