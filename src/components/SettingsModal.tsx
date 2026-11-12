@@ -78,15 +78,19 @@ function PollingRow() {
   );
 }
 
-/** Day (paper, with the colour choice below) or Night (dark navy with fixed colours). */
-function ThemeRow({ theme, onChange }: Readonly<{ theme: Theme; onChange: (theme: Theme) => void }>) {
+/** Day (paper, with the colour choice below), Night (dark navy), or Auto when the kiosk knows where it is. */
+function ThemeRow({
+  theme,
+  auto,
+  onChange
+}: Readonly<{ theme: Theme; auto: boolean; onChange: (theme: Theme) => void }>) {
   return (
     <div className="modal-card p-3 rounded-2xl border">
       <div className="text-xs font-bold" id="theme-label">
         Theme
       </div>
       <div className="flex gap-1.5 mt-2" role="group" aria-labelledby="theme-label">
-        {THEMES.map(choice => (
+        {THEMES.filter(choice => auto || choice.id !== 'auto').map(choice => (
           <button
             type="button"
             key={choice.id}
@@ -144,6 +148,8 @@ interface SettingsModalProps {
   themeColour?: ThemeColour;
   onThemeColourChange?: (colour: ThemeColour) => void;
   theme?: Theme;
+  /** Whether Auto (sunrise to sunset) is offered: only when the kiosk knows its location. */
+  autoTheme?: boolean;
   onThemeChange?: (theme: Theme) => void;
   /** The kiosk's software update, shown on the kiosk only. */
   kioskUpdate?: KioskUpdate;
@@ -159,6 +165,7 @@ function SettingsContent({
   themeColour,
   onThemeColourChange,
   theme,
+  autoTheme = false,
   onThemeChange,
   kioskUpdate
 }: Readonly<SettingsModalProps>) {
@@ -248,7 +255,7 @@ function SettingsContent({
           </button>
         )}
 
-        {theme !== undefined && onThemeChange && <ThemeRow theme={theme} onChange={onThemeChange} />}
+        {theme !== undefined && onThemeChange && <ThemeRow theme={theme} auto={autoTheme} onChange={onThemeChange} />}
         {themeColour !== undefined && onThemeColourChange && (
           <ThemeColourRow colour={themeColour} onChange={onThemeColourChange} disabled={theme === 'night'} />
         )}

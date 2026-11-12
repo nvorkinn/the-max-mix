@@ -3,7 +3,9 @@
 # Applies the kiosk playbook (ansible/local.yml) from REPO_URL with ansible-pull. REF "latest" means the repository's
 # latest GitHub release: the tag github.com/<owner>/<repo>/releases/latest redirects to, so no API call, token or JSON is
 # involved. Any other REF (a tag such as v1.12.0, or a branch for testing) is pulled as it is. Run by kiosk-pull.service
-# (with --only-if-changed). The playbook itself skips what has not changed.
+# (with --only-if-changed). The playbook itself skips what has not changed. Settings for this Pi only, such as its
+# location (kiosk_latitude, kiosk_longitude), go in /etc/the-max-mix/kiosk-vars.yml, which is passed to the playbook when
+# it exists.
 set -euo pipefail
 
 if (($# < 3)); then
@@ -28,9 +30,16 @@ if [[ $ref == latest ]]; then
   echo "The latest release is $ref (looked up in $((SECONDS - started))s)"
 fi
 
+local_vars=/etc/the-max-mix/kiosk-vars.yml
+extra=()
+if [[ -f $local_vars ]]; then
+  extra=(--extra-vars "@$local_vars")
+fi
+
 # Not exec, so the time is printed afterwards.
 status=0
-ansible-pull --url "$repo" --checkout "$ref" --directory "$directory" "$@" --inventory localhost, ansible/local.yml || status=$?
+ansible-pull --url "$repo" --checkout "$ref" --directory "$directory" "${extra[@]}" "$@" \
+  --inventory localhost, ansible/local.yml || status=$?
 echo "kiosk-pull finished in $((SECONDS - started))s (exit status $status)"
 exit "$status"
 

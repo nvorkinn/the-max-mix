@@ -5,6 +5,7 @@ import {
   isRelease,
   latestCommit,
   latestRelease,
+  getKioskLocation,
   openWifiSettings,
   piVersion,
   rebootPi,
@@ -191,5 +192,28 @@ describe('latestCommit', () => {
     await expect(latestCommit('stable')).resolves.toBeNull();
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
     await expect(latestCommit('stable')).resolves.toBeNull();
+  });
+});
+
+describe('getKioskLocation', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    visit('');
+  });
+
+  it('reads ?lat= and ?lon= from the kiosk address without storing them', () => {
+    visit('?kiosk=1&lat=51.51&lon=-0.13');
+    expect(getKioskLocation()).toEqual({ lat: 51.51, lon: -0.13 });
+    expect(localStorage).toHaveLength(0);
+    visit('');
+    expect(getKioskLocation()).toBeNull();
+  });
+
+  it('ignores a missing half, values off the globe, and addresses that are not the kiosk', () => {
+    const broken = ['?kiosk=1&lat=51.51', '?kiosk=1&lat=91&lon=0', '?kiosk=1&lat=10&lon=181', '?kiosk=1&lat=x&lon=1'];
+    for (const search of [...broken, '?lat=51.51&lon=-0.13']) {
+      visit(search);
+      expect(getKioskLocation()).toBeNull();
+    }
   });
 });

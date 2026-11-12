@@ -10,13 +10,24 @@ kiosk_user: kiosk
 # service read the journal of the pull and the restart, which it streams to the app's update console. bluetooth lets
 # that service pair and connect Bluetooth speakers (BlueZ's D-Bus policy), and WirePlumber play to them.
 kiosk_groups: [audio, bluetooth, input, netdev, render, systemd-journal, video]
-# The origin of the hosted app and the address the kiosk opens (?kiosk=1 turns on the app's kiosk-only settings, and
-# ?pi_ref=&pi_commit= name the release (or other ref) and commit this playbook ran from, which the app's settings show).
+# The origin of the hosted app and the address the kiosk opens (?kiosk=1 turns on the app's kiosk-only settings,
+# ?pi_ref=&pi_commit= name the release (or other ref) and commit this playbook ran from, which the app's settings show,
+# and ?lat=&lon= are kiosk_latitude and kiosk_longitude when both are set).
 # Register the redirect URI of this address in the Spotify dashboard.
 kiosk_app_origin: https://the-max-mix.vercel.app
 kiosk_url: >-
   {{ kiosk_app_origin }}/?kiosk=1
   {{- ('&pi_ref=' ~ (kiosk_version | urlencode) ~ '&pi_commit=' ~ kiosk_commit) if kiosk_commit and kiosk_version else '' }}
+  {{- ('&lat=' ~ (kiosk_latitude | float | round(2)) ~ '&lon=' ~ (kiosk_longitude | float | round(2)))
+    if (kiosk_latitude | string | length) and (kiosk_longitude | string | length) else '' }}
+# Where the Pi is, in degrees (north and east positive), for the app's Auto theme: Day from sunrise to sunset, worked out
+# in the browser with no network. Empty offers only Day and Night. The address rounds them to about a kilometre. This
+# repository is public, so set them on the Pi rather than here, in /etc/the-max-mix/kiosk-vars.yml (kiosk-pull passes
+# that file to the playbook), for example:
+#   kiosk_latitude: 51.51
+#   kiosk_longitude: -0.13
+kiosk_latitude: ''
+kiosk_longitude: ''
 # The commit this playbook runs from: ansible-pull runs it from a Git checkout. Empty without one. Because the
 # commit is in kiosk_url, every new release (or commit on a pinned branch) changes kiosk.service and so restarts the
 # kiosk at kiosk_restart_time, after which the settings show the new version.
