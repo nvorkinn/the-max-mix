@@ -49,7 +49,7 @@ export function useTheme(): {
     saveTheme(next);
   };
   let skin: Skin = 'day';
-  if (auto && place) skin = skinAt(new Date(now), place);
+  if (theme === 'auto' && place) skin = skinAt(new Date(now), place);
   else if (theme !== 'auto') skin = theme;
   return { theme: theme === 'auto' && !place ? 'day' : theme, skin, autoOffered: place !== null, change };
 }

@@ -201,25 +201,17 @@ describe('getKioskLocation', () => {
     visit('');
   });
 
-  it('reads ?lat= and ?lon= from the kiosk address and remembers them without the query', () => {
+  it('reads ?lat= and ?lon= from the kiosk address without storing them', () => {
     visit('?kiosk=1&lat=51.51&lon=-0.13');
     expect(getKioskLocation()).toEqual({ lat: 51.51, lon: -0.13 });
-    visit('');
-    expect(getKioskLocation()).toEqual({ lat: 51.51, lon: -0.13 });
-  });
-
-  it('forgets the location when the kiosk address no longer has one', () => {
-    visit('?kiosk=1&lat=51.51&lon=-0.13');
-    getKioskLocation();
-    visit('?kiosk=1');
-    expect(getKioskLocation()).toBeNull();
+    expect(localStorage.length).toBe(0);
     visit('');
     expect(getKioskLocation()).toBeNull();
   });
 
-  it('ignores a missing half and values off the globe', () => {
+  it('ignores a missing half, values off the globe, and addresses that are not the kiosk', () => {
     const broken = ['?kiosk=1&lat=51.51', '?kiosk=1&lat=91&lon=0', '?kiosk=1&lat=10&lon=181', '?kiosk=1&lat=x&lon=1'];
-    for (const search of broken) {
+    for (const search of [...broken, '?lat=51.51&lon=-0.13']) {
       visit(search);
       expect(getKioskLocation()).toBeNull();
     }

@@ -2,8 +2,8 @@
 // Wikipedia's "Sunrise equation", good to a minute or two away from the poles). The day is the local calendar day of
 // the given date in the browser's time zone, which on the kiosk is the Pi's own (Ansible's kiosk_timezone).
 
-const J2000 = 2451545;
-const UNIX_EPOCH_JULIAN = 2440587.5;
+const J2000 = 2_451_545;
+const UNIX_EPOCH_JULIAN = 2_440_587.5;
 const DAY_MS = 86_400_000;
 const rad = Math.PI / 180;
 
@@ -28,7 +28,8 @@ export function sunTimes(day: Date, lat: number, lon: number): { sunrise: Date; 
   const cosHourAngle =
     (Math.sin(-0.833 * rad) - Math.sin(lat * rad) * Math.sin(declination)) /
     (Math.cos(lat * rad) * Math.cos(declination));
-  if (!(Math.abs(cosHourAngle) <= 1)) return null;
+  // Beyond ±1 (or NaN at a pole) the sun stays up or down all day.
+  if (Number.isNaN(cosHourAngle) || Math.abs(cosHourAngle) > 1) return null;
   const hourAngle = Math.acos(cosHourAngle) / rad;
   return { sunrise: fromJulian(transit - hourAngle / 360), sunset: fromJulian(transit + hourAngle / 360) };
 }
