@@ -3,12 +3,6 @@ name: Release
 # Shown on the GitHub dashboard among the running releases.
 # dashboard: release
 
-# Releases happen here and only here (vercel.json turns off Vercel's own deploy of main). Push a version tag from main
-# (git tag v1.2.3 && git push origin v1.2.3) to build the app, deploy it to Vercel production and then publish the GitHub
-# release for the tag, with notes generated from the merged pull requests. The Raspberry Pi kiosks follow the latest
-# GitHub release (kiosk_pull_ref: latest), so the release is published only once the deploy has worked, and the Pis and
-# the web app move together.
-#
 # Run it by hand with an existing tag to redeploy that release and mark it as the latest one again, which also rolls the
 # Pis back (or forward) to it at their next update. Needs the repository secrets VERCEL_TOKEN, VERCEL_ORG_ID and
 # VERCEL_PROJECT_ID.
@@ -23,6 +17,7 @@ on:
         type: string
 
 permissions:
+  id-token: write
   contents: read
 
 # Never run two production deploys at once, and never cancel one that is under way.
@@ -77,16 +72,22 @@ jobs:
       # not a valid semantic version.
       - name: Set the version from the tag
         run: npm version "${TAG#v}" --no-git-tag-version --allow-same-version
-      # Build on this runner and upload only the finished files (--prebuilt). Without it Vercel downloads the source and
-      # runs npm ci and the build again on its own machine.
-      # `vercel build` runs the install and build commands from vercel.json here (npm ci uses the npm cache from
-      # setup-node), so a release that does not build still fails before anything is deployed.
-      - name: Get the Vercel production settings
-        run: npx --yes "$VERCEL_CLI" pull --yes --environment=production --token="$VERCEL_TOKEN"
-      - name: Build
-        run: npx --yes "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
-      - name: Deploy to Vercel production
-        run: npx --yes "$VERCEL_CLI" deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN"
+      - name: Tailscale
+        uses: tailscale/tailscale-action@v4
+        with:
+          oauth-client-id: TBqTMhW4Q811CNTRL-k6UF5xqLhW11CNTRL
+          audience: api.tailscale.com/TBqTMhW4Q811CNTRL-k6UF5xqLhW11CNTRL
+          tags: tag:ci
+      - name: Deploy
+        env:
+          APP: the-max-mix
+          HOST: deploy@nikolai-server
+          SSH_OPTS: -o StrictHostKeyChecking=accept-new
+        run: |
+          REL=/srv/releases/$APP/${{ github.sha }}
+          ssh $SSH_OPTS $HOST "mkdir -p $REL"
+          rsync -az --delete -e "ssh $SSH_OPTS" dist/ $HOST:$REL/
+          ssh $SSH_OPTS $HOST "ln -sfn $REL /srv/sites/$APP.tmp && mv -T /srv/sites/$APP.tmp /srv/sites/$APP"
 
   # A separate job, so that only this step, which runs no code from the repository, can write to it.
   publish:
