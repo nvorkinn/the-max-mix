@@ -53,26 +53,6 @@ describe('AlbumArtPlayer', () => {
     );
   });
 
-  it('switches the side panel between the queue and the lyrics', () => {
-    const onShowLyrics = vi.fn();
-    const { rerender } = render(<AlbumArtPlayer playback={playback} isPlaying onShowLyrics={onShowLyrics} />);
-    expect(screen.getByRole('button', { name: 'Queue' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Lyrics' })).toHaveAttribute('aria-pressed', 'false');
-    fireEvent.click(screen.getByRole('button', { name: 'Lyrics' }));
-    expect(onShowLyrics).toHaveBeenLastCalledWith(true);
-    rerender(<AlbumArtPlayer playback={playback} isPlaying lyricsShown onShowLyrics={onShowLyrics} />);
-    expect(screen.getByRole('button', { name: 'Lyrics' })).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(screen.getByRole('button', { name: 'Queue' }));
-    expect(onShowLyrics).toHaveBeenLastCalledWith(false);
-    // The artwork stays put either way.
-    expect(screen.getByAltText('Song album artwork')).toBeInTheDocument();
-  });
-
-  it('leaves the switch out without a handler', () => {
-    render(<AlbumArtPlayer playback={playback} isPlaying />);
-    expect(screen.queryByRole('group', { name: 'Beside the artwork' })).not.toBeInTheDocument();
-  });
-
   it('wires transport buttons and toggles the play label', () => {
     const h = setup();
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));

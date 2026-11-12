@@ -285,7 +285,8 @@
 }
 /*
   Playing layout: a square art column on the left (as wide as the room is tall, minus the control bar), the track
-  details and queue beside it, and one control bar across the bottom. The player section and now-playing wrapper only
+  details and the panel (queue, lyrics) beside it, the panel's buttons down the right-hand edge, and one control bar
+  across the bottom. The two narrow columns are the gaps: 28px after the artwork, 16px before the buttons. The player section and now-playing wrapper only
   group markup, so their children join this grid directly. Container query units make the art column exactly as wide as
   the room is tall, which keeps the artwork square on any kiosk height.
 */
@@ -297,13 +298,11 @@
   --art-edge: calc(30px + 100cqh - var(--room-padding-y) - var(--bar-height) - var(--row-gap));
   padding-block: 16px;
   grid-template:
-    'art details' auto
-    'art queue' minmax(0, 1fr)
-    'bar bar' var(--bar-height) / calc(100cqh - var(--room-padding-y) - var(--bar-height) - var(--row-gap)) minmax(
-      0,
-      1fr
-    );
-  gap: var(--row-gap) 28px;
+    'art . details . nav' auto
+    'art . queue . nav' minmax(0, 1fr)
+    'bar bar bar bar bar' var(--bar-height) / calc(100cqh - var(--room-padding-y) - var(--bar-height) - var(--row-gap))
+    28px minmax(0, 1fr) 16px 96px;
+  gap: var(--row-gap) 0;
   /*
     The album art's colours bleed faintly out of the artwork's right edge across the right-hand column (the queue): its
     top colour from the top of the cover, its bottom colour from the bottom, strongest at the cover and gone before the
@@ -513,8 +512,8 @@
   text-align: left;
 }
 /*
-  The queue and the lyrics share the right column, stacked in one grid cell, and cross-fade as the switch beside the
-  track title flips between them. Visibility follows the fade so the hidden one cannot be scrolled or tapped.
+  The queue and the lyrics share the panel beside the artwork, stacked in one grid cell, and cross-fade as the buttons
+  beside the panel flip between them. Visibility follows the fade so the hidden one cannot be scrolled or tapped.
 */
 .side-panel {
   min-width: 0;
@@ -540,27 +539,41 @@
   flex-direction: column;
   min-height: 0;
 }
-/* The small queue/lyrics switch at the end of the track title's row. */
-.panel-switch {
-  flex-shrink: 0;
-  display: flex;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-}
-.panel-switch button {
-  width: 44px;
-  height: 44px;
+/* Queue, Lyrics and Speakers: three large buttons down the right-hand edge, as tall together as the artwork. */
+.panel-nav {
+  grid-area: nav;
+  min-height: 0;
   display: grid;
-  place-items: center;
-  border-radius: 999px;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.panel-nav-button {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
   color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
   transition:
     background 200ms,
+    border-color 200ms,
     color 200ms;
 }
-.panel-switch button.is-on {
+.panel-nav-button[aria-pressed='true'] {
+  border-color: transparent;
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   color: var(--ink);
+}
+.panel-nav-button.is-save {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 .album-cover {
   position: absolute;
