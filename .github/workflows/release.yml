@@ -77,16 +77,17 @@ jobs:
           oauth-client-id: TBqTMhW4Q811CNTRL-k6UF5xqLhW11CNTRL
           audience: api.tailscale.com/TBqTMhW4Q811CNTRL-k6UF5xqLhW11CNTRL
           tags: tag:ci
+      # The release directory is named after the tag's commit (the checkout), which on a run by hand is not github.sha.
       - name: Deploy
         env:
           APP: the-max-mix
           HOST: deploy@nikolai-server
-          SSH_OPTS: -o StrictHostKeyChecking=accept-new
         run: |
-          REL=/srv/releases/$APP/${{ github.sha }}
-          ssh $SSH_OPTS $HOST "mkdir -p $REL"
-          rsync -az --delete -e "ssh $SSH_OPTS" dist/ $HOST:$REL/
-          ssh $SSH_OPTS $HOST "ln -sfn $REL /srv/sites/$APP.tmp && mv -T /srv/sites/$APP.tmp /srv/sites/$APP"
+          ssh_opts=(-o StrictHostKeyChecking=accept-new)
+          rel="/srv/releases/$APP/$(git rev-parse HEAD)"
+          ssh "${ssh_opts[@]}" "$HOST" "mkdir -p $rel"
+          rsync -az --delete -e "ssh ${ssh_opts[*]}" dist/ "$HOST:$rel/"
+          ssh "${ssh_opts[@]}" "$HOST" "ln -sfn $rel /srv/sites/$APP.tmp && mv -T /srv/sites/$APP.tmp /srv/sites/$APP"
 
   # A separate job, so that only this step, which runs no code from the repository, can write to it.
   publish:
