@@ -91,6 +91,20 @@ export function piVersion(): PiVersion | null {
   }
 }
 
+/**
+ * The Pi's location from ?lat= and ?lon=, which the kiosk adds to its address when Ansible has kiosk_latitude and
+ * kiosk_longitude, for the Auto theme. It is deliberately not stored: a location is personal, and the kiosk opens its
+ * address again at every start, so only the rare page reached through the Spotify sign-in redirect goes without it.
+ */
+export function getKioskLocation(): { lat: number; lon: number } | null {
+  const params = new URLSearchParams(location.search);
+  const lat = params.get('lat');
+  const lon = params.get('lon');
+  if (params.get('kiosk') !== '1' || !lat?.trim() || !lon?.trim()) return null;
+  const found = { lat: Number(lat), lon: Number(lon) };
+  return Math.abs(found.lat) <= 90 && Math.abs(found.lon) <= 180 ? found : null;
+}
+
 const DISMISSED_UPDATE_KEY = 'maxmix.updateDismissed';
 
 /** The newer version (release tag or commit) the person last said "Not now" to, or null. */

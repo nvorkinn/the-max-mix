@@ -418,7 +418,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     <div
       className="tablet-container"
       data-colour={themeColour}
-      data-theme={theme.theme}
+      data-theme={theme.skin}
       style={
         artColours
           ? ({ '--art-tint-top': artColours.top, '--art-tint-bottom': artColours.bottom } as CSSProperties)
@@ -603,6 +603,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         themeColour={themeColour}
         onThemeColourChange={changeThemeColour}
         theme={theme.theme}
+        autoTheme={theme.autoOffered}
         onThemeChange={theme.change}
         kioskUpdate={kioskUpdate}
       />
