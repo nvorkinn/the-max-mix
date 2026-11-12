@@ -198,7 +198,7 @@ describe('TabletView', () => {
     expect(player.current.nextTrack).toHaveBeenCalledOnce();
   });
 
-  it('shows the queue beside the artwork while songs are queued, and fades to the lyrics on the switch', async () => {
+  it('shows the queue beside the artwork while songs are queued, and fades to the lyrics on the Lyrics button', async () => {
     render(<TabletView />);
     await flush();
     const panels = document.querySelector('.side-panel');
@@ -222,6 +222,17 @@ describe('TabletView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }));
     expect(panels).toHaveAttribute('data-showing', 'queue');
+  });
+
+  it('opens the speakers from the Speakers button beside the panel, leaving the panel as it was', async () => {
+    render(<TabletView />);
+    await flush();
+    const nav = screen.getByRole('navigation', { name: 'Beside the artwork' });
+    fireEvent.click(within(nav).getByRole('button', { name: 'Speakers' }));
+    await flush();
+    expect(screen.getByRole('dialog', { name: 'Speakers' })).toBeInTheDocument();
+    expect(document.querySelector('.side-panel')).toHaveAttribute('data-showing', 'queue');
+    expect(player.current.transferPlayback).not.toHaveBeenCalled();
   });
 
   it('keeps the queue, with its retry, in view when the queue could not be read', async () => {

@@ -20,7 +20,7 @@ test.describe('Lyrics', { tag: '@lyrics' }, () => {
     );
     await fakeSpotify(page);
     await page.goto('/');
-    // Songs are queued, so the queue shows first; the switch beside the title fades to the lyrics.
+    // Songs are queued, so the queue shows first; the Lyrics button beside the panel fades to the lyrics.
     await expect(page.getByRole('region', { name: 'Upcoming tracks' })).toBeVisible();
     await page.getByRole('button', { name: 'Lyrics', exact: true }).click();
     const panel = page.getByRole('region', { name: 'Lyrics', exact: true });

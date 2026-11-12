@@ -7,8 +7,6 @@ import {
   Volume2,
   Speaker,
   ChevronUp,
-  ListMusic,
-  MicVocal,
   Shuffle,
   Repeat,
   Repeat1,
@@ -22,10 +20,6 @@ import { Artwork } from './TrackImages';
 
 type AlbumArtPlayerProps = Readonly<PlayerControls> & {
   controlsEnabled?: boolean;
-  /** Whether the panel beside the artwork shows the lyrics rather than the queue. */
-  lyricsShown?: boolean;
-  /** Makes the queue/lyrics switch beside the track title; `show` is true for the lyrics. */
-  onShowLyrics?: (show: boolean) => void;
   /** What the device indicator names as playing; defaults to the playing device's name. */
   speakerLabel?: string | undefined;
   /** Whether the speakers drawer the indicator opens is open. */
@@ -54,9 +48,7 @@ export default function AlbumArtPlayer({
   controlsEnabled = false,
   speakerLabel,
   speakersOpen = false,
-  onOpenSpeakers,
-  lyricsShown = false,
-  onShowLyrics
+  onOpenSpeakers
 }: AlbumArtPlayerProps) {
   // Local slider value, reset whenever the device reports a different volume (adjusted during render, not in an effect).
   const deviceVolume = playback?.device?.volume_percent ?? 0;
@@ -138,30 +130,6 @@ export default function AlbumArtPlayer({
           >
             <Heart size={24} fill={liked ? 'currentColor' : 'none'} />
           </button>
-        )}
-        {onShowLyrics && (
-          <div className="panel-switch" role="group" aria-label="Beside the artwork">
-            <button
-              type="button"
-              className={lyricsShown ? '' : 'is-on'}
-              onClick={() => onShowLyrics(false)}
-              aria-label="Queue"
-              aria-pressed={!lyricsShown}
-              title="Up next"
-            >
-              <ListMusic size={18} />
-            </button>
-            <button
-              type="button"
-              className={lyricsShown ? 'is-on' : ''}
-              onClick={() => onShowLyrics(true)}
-              aria-label="Lyrics"
-              aria-pressed={lyricsShown}
-              title="Lyrics"
-            >
-              <MicVocal size={18} />
-            </button>
-          </div>
         )}
       </div>
 

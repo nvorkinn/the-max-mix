@@ -7,6 +7,7 @@ import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useKioskUpdate } from '../hooks/useKioskUpdate';
 import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
 import { useScreenSleep } from '../hooks/useScreenSleep';
+import { usePanelView, type PanelView } from '../hooks/usePanelView';
 import { extractArtColours, type ArtColours } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
@@ -30,6 +31,7 @@ import SpotifySetup from './SpotifySetup';
 import TrackQueue, { type QueueStatus } from './TrackQueue';
 import PlaybackBanner, { type PlaybackNoticeState, type BannerNotice } from './PlaybackNotice';
 import LyricsPanel from './LyricsPanel';
+import PanelNav from './PanelNav';
 import SettingsModal from './SettingsModal';
 import UpdateConsole from './UpdateConsole';
 import UpdatePrompt from './UpdatePrompt';
@@ -129,9 +131,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const debugHold = useHold(() => setIsDebugOpen(true), DEBUG_HOLD_MS);
   const [queueError, setQueueError] = useState<string | null>(null);
-  // The panel beside the artwork shows the queue while songs are queued and the lyrics when it is empty. A tap on the
-  // switch overrides that until the queue fills up or runs dry, when the panel goes back to what suits it.
-  const [lyricsChoice, setLyricsChoice] = useState<{ show: boolean; queueEmpty: boolean | null } | null>(null);
   // AirPlay needs the Pi's audio service, so it is offered on the kiosk only.
   const [onKiosk] = useState(isKiosk);
   const canUseAirPlay = onKiosk;
@@ -396,13 +395,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // the queue in view, with its retry. Each poll reads as loading for a moment, so the panel only changes between polls.
   const queueSettled = shownQueueStatus !== 'loading' || shownQueue.length > 0;
   const queueEmpty = shownQueue.length === 0 && shownQueueStatus === 'ready' && !shownQueueError;
-  // Null until the queue is first known, so the lyrics do not flash up while it is read.
-  const [preferLyrics, setPreferLyrics] = useState<boolean | null>(null);
-  if (queueSettled && preferLyrics !== queueEmpty) {
-    setPreferLyrics(queueEmpty);
-    setLyricsChoice(null);
-  }
-  const lyricsShown = lyricsChoice?.queueEmpty === preferLyrics ? lyricsChoice.show : preferLyrics === true;
+  const panel = usePanelView(queueEmpty, queueSettled);
+  // Until the in-place speakers view arrives, the Speakers button opens the speakers drawer and the panel stays as it is.
+  const lyricsShown = panel.view === 'lyrics';
+  const showPanel = (view: PanelView) => {
+    if (view === 'speakers') setIsSpeakerModalOpen(true);
+    else panel.show(view);
+  };
   /** Plays the queue song at this position by skipping past the ones before it. */
   const playQueueTrack = async (index: number) => {
     setIsJumping(true);
@@ -514,8 +513,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 speakerLabel={speakerLabel}
                 speakersOpen={isSpeakerModalOpen}
                 onOpenSpeakers={() => setIsSpeakerModalOpen(true)}
-                lyricsShown={lyricsShown}
-                onShowLyrics={show => setLyricsChoice({ show, queueEmpty: preferLyrics })}
               />
             )}
           </section>
@@ -546,6 +543,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               </div>
             </div>
           )}
+          {!needsConnection && <PanelNav view={isSpeakerModalOpen ? 'speakers' : panel.view} onShow={showPanel} />}
         </main>
       </div>
 
