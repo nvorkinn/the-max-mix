@@ -232,8 +232,7 @@ export interface Choice {
 function sinksFor(graph: Graph, choice: Choice): Node[] {
   const sinks = graph.nodes.filter(node => isSink(node));
   const byId = choice.id === undefined ? [] : sinks.filter(node => node.name === choice.id);
-  if (byId.length > 0 || choice.name === undefined) return byId;
-  return sinks.filter(node => node.description === choice.name);
+  return byId.length > 0 || choice.name === undefined ? byId : sinks.filter(node => node.description === choice.name);
 }
 
 /**
@@ -250,10 +249,11 @@ function targetsOf(graph: Graph, choices: readonly Choice[]): Node[] {
 export function linkedSinks(graph: Graph): Set<number> {
   const outputs = new Set(playersOf(graph).flatMap(player => portsOf(graph, player.id, 'out').map(port => port.id)));
   const portNode = new Map(graph.ports.map(port => [port.id, port.node]));
+  const sinks = new Set(graph.nodes.filter(node => isSink(node)).map(node => node.id));
   const linked = new Set<number>();
   for (const link of graph.links) {
     const node = outputs.has(link.outputPort) ? portNode.get(link.inputPort) : undefined;
-    if (node !== undefined) linked.add(node);
+    if (node !== undefined && sinks.has(node)) linked.add(node);
   }
   return linked;
 }

@@ -130,7 +130,8 @@ describe('planRoutes', () => {
   });
 
   it('leaves the music alone when no chosen speaker is on the network', () => {
-    expect(isEmptyPlan(planRoutes(GRAPH, byName(['Gone'])))).toBe(true);
+    const plan = planRoutes(GRAPH, byName(['Gone']));
+    expect(isEmptyPlan(plan)).toBe(true);
   });
 
   it('routes by id, so a second speaker with the same name is left out', () => {
@@ -165,9 +166,9 @@ describe('planRoutes', () => {
 describe('linkedSinks', () => {
   it('lists the sinks the browser plays to, not other listeners', () => {
     expect(linkedSinks(GRAPH)).toEqual(new Set([40]));
-    expect(linkedSinks(parseDump(dump([], [link(83, 71, 51), link(84, 72, 61), link(82, 71, 91)])))).toEqual(
-      new Set([50, 60])
-    );
+    const links = [link(83, 71, 51), link(84, 72, 61), link(82, 71, 91)];
+    const graph = parseDump(dump([], links));
+    expect(linkedSinks(graph)).toEqual(new Set([50, 60]));
   });
 });
 

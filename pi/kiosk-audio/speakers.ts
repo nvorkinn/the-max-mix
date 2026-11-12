@@ -76,8 +76,9 @@ function validNames(value: unknown): string[] | null {
  */
 export function validChoices(body: unknown): Choice[] | null {
   const { outputs, speakers } = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>;
-  if (outputs !== undefined) return validNames(outputs)?.map(id => ({ id })) ?? null;
-  return validNames(speakers)?.map(name => ({ name })) ?? null;
+  return outputs === undefined
+    ? (validNames(speakers)?.map(name => ({ name })) ?? null)
+    : (validNames(outputs)?.map(id => ({ id })) ?? null);
 }
 
 /** Adds each output's name, so a speaker can still be found by name once its id has changed. */

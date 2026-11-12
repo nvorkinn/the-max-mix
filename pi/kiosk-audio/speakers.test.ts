@@ -32,7 +32,8 @@ class FakePipeWire implements AudioGraph {
 }
 
 /** A connected Bluetooth speaker's sink, as PipeWire's Bluetooth plugin makes it. */
-const bluetoothSink = (props: Record<string, unknown> = { 'api.bluez5.address': '00:11:22:aa:bb:cc' }) => ({
+const WITH_ADDRESS = { 'api.bluez5.address': '00:11:22:aa:bb:cc' };
+const bluetoothSink = (props: Record<string, unknown> = WITH_ADDRESS) => ({
   id: 100,
   type: 'PipeWire:Interface:Node',
   info: {
@@ -81,7 +82,8 @@ describe('speakerOutputs', () => {
   });
 
   it('leaves the address out when PipeWire gives none', () => {
-    const [output] = speakerOutputs(parseDump(dump([bluetoothSink({})])));
+    const graph = parseDump(dump([bluetoothSink({})]));
+    const [output] = speakerOutputs(graph);
     expect(output).toEqual({
       id: 'bluez_output.00_11_22_AA_BB_CC.1',
       name: 'Boom',
