@@ -10,6 +10,7 @@ import { HotspotError } from './hotspot.ts';
 import { ERRORS, ScanError } from './nmcli.ts';
 import type { ConnectRequest } from './nmcli.ts';
 import { parseDump } from './pipewire.ts';
+import type { Choice } from './pipewire.ts';
 import { handleRequest, journalLog, LOCAL_ORIGIN, parseAppLog, speakerNames, speakerVolumes } from './server.ts';
 import type { AppLog, Deps } from './server.ts';
 import type { SonosChange } from './sonos-events.ts';
@@ -43,8 +44,8 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
   const connected: string[] = [];
   const removed: string[] = [];
   const performed: Action[] = [];
-  const routed: string[][] = [];
-  const volumes: [string, number][] = [];
+  const routed: Choice[][] = [];
+  const volumes: [Choice, number][] = [];
   const played: SonosRequest[] = [];
   const logged: AppLog[] = [];
   const joined: ConnectRequest[] = [];
@@ -54,13 +55,13 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
   let clock = 0;
   const deps: Deps = {
     graph: () => Promise.resolve(parseDump(dump())),
-    route: speakers => {
-      routed.push(speakers);
+    route: choices => {
+      routed.push(choices);
       return Promise.resolve();
     },
-    setVolume: (name, volume) => {
-      volumes.push([name, volume]);
-      return Promise.resolve(name === 'Gone' ? 0 : 1);
+    setVolume: (target, volume) => {
+      volumes.push([target, volume]);
+      return Promise.resolve(target.name === 'Gone' || target.id === 'raop_sink.Gone' ? 0 : 1);
     },
     perform: action => {
       performed.push(action);
@@ -226,7 +227,14 @@ describe('GET /speakers', () => {
     const response = await fetch(`${base}/speakers`);
     expect(response.status).toBe(200);
     expect(response.headers.get('access-control-allow-origin')).toBe(ORIGIN);
-    await expect(response.json()).resolves.toEqual({ speakers: ['Kitchen', 'Lounge'], volumes: { Kitchen: 40 } });
+    await expect(response.json()).resolves.toEqual({
+      speakers: ['Kitchen', 'Lounge'],
+      volumes: { Kitchen: 40 },
+      outputs: [
+        { id: 'raop_sink.Kitchen.local.7000', name: 'Kitchen', kind: 'airplay', volume: 40, linked: false },
+        { id: 'raop_sink.Lounge.local.7000', name: 'Lounge', kind: 'airplay', volume: null, linked: false }
+      ]
+    });
   });
 
   it('says when PipeWire cannot be read', async () => {
@@ -245,12 +253,14 @@ describe('POST', () => {
     expect(new Set(performed)).toEqual(new Set(['restart', 'reboot', 'wake', 'wifi']));
   });
 
-  it('routes the sound to the speakers in the body, or to none', async () => {
+  it('routes the sound to the outputs or speakers in the body, or to none', async () => {
     const { deps, routed } = fakes();
     const base = await start(deps);
+    const id = 'raop_sink.Kitchen.local.7000';
+    expect((await post(base, '/audio/route', { body: { outputs: [id] } })).status).toBe(204);
     expect((await post(base, '/audio/route', { body: { speakers: ['Kitchen', 'Kitchen'] } })).status).toBe(204);
     expect((await post(base, '/audio/route', { body: { speakers: [] } })).status).toBe(204);
-    expect(routed).toEqual([['Kitchen'], []]);
+    expect(routed).toEqual([[{ id }], [{ name: 'Kitchen' }], []]);
   });
 
   it('refuses a bad speaker list', async () => {
@@ -261,14 +271,19 @@ describe('POST', () => {
     expect(routed).toEqual([]);
   });
 
-  it('sets one speaker’s volume, and says when it is not on the network', async () => {
+  it('sets one output’s volume, and says when it is not on the network', async () => {
     const { deps, volumes } = fakes();
     const base = await start(deps);
+    const id = 'raop_sink.Kitchen.local.7000';
+    expect((await post(base, '/audio/volume', { body: { output: id, volume: 50 } })).status).toBe(204);
+    expect((await post(base, '/audio/volume', { body: { output: 'raop_sink.Gone', volume: 5 } })).status).toBe(404);
     expect((await post(base, '/audio/volume', { body: { speaker: 'Kitchen', volume: 55 } })).status).toBe(204);
     expect((await post(base, '/audio/volume', { body: { speaker: 'Gone', volume: 10 } })).status).toBe(404);
     expect(volumes).toEqual([
-      ['Kitchen', 55],
-      ['Gone', 10]
+      [{ id }, 50],
+      [{ id: 'raop_sink.Gone' }, 5],
+      [{ name: 'Kitchen' }, 55],
+      [{ name: 'Gone' }, 10]
     ]);
   });
 

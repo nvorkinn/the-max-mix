@@ -52,10 +52,17 @@ The app reaches everything else about Sonos here too:
    finds RAOP speakers through Avahi and makes a PipeWire sink for each, with `raop.latency.ms = 500`
    (`kiosk_raop_latency_ms`) so play, pause and skip reach the speakers quickly. The audio service
    also answers `GET http://127.0.0.1:7341/speakers` (`server.ts`, localhost only, readable by the app's origin alone) with
-   the names of those sinks, and the app lists them every 5 seconds. Chromium's own device list is not used: it hides
+   the names of those sinks and of connected Bluetooth speakers' sinks, and the app lists them every 5 seconds. Its
+   `outputs` list gives each sink by PipeWire's node name (its `id`), its `kind` (`airplay` for `raop_sink.*`,
+   `bluetooth` for `bluez_output.*`, the names PipeWire's own modules give them), a Bluetooth speaker's `address` (from
+   the sink's `api.bluez5.address`, as in `GET /bluetooth/devices`), its volume, and `linked`: whether one of
+   Chromium's streams is linked to it in PipeWire right now, which is where the sound really goes. Chromium's own device list is not used: it hides
    the names until a microphone is open, and the Pi has none.
-2. **Routing.** Picking speakers sends `POST /audio/route` with `{"speakers": ["Kitchen", "Lounge"]}` (the sinks'
-   descriptions). The service saves the choice in `~/.local/state/the-max-mix/speakers.json` and links each of Chromium's
+2. **Routing.** Picking speakers sends `POST /audio/route` with `{"outputs": ["raop_sink.Kitchen.local.7000", …]}` (ids
+   from `outputs`), or `{"speakers": ["Kitchen", "Lounge"]}` (the sinks' descriptions) from older apps. An id keeps two
+   speakers with the same name apart; but an AirPlay sink's node name holds the speaker's address and port, so the
+   service saves each id with its name, and routes by the name only while no sink has the id. The service saves the
+   choice in `~/.local/state/the-max-mix/speakers.json` and links each of Chromium's
    channels to the same channel of every chosen sink with `pw-link`, before removing its links to other sinks, so the
    music does not drop out. Links to anything that is not a sink (a level meter) are left alone.
 3. **Keeping it there.** The `kiosk-audio` user unit (`node kiosk-audio.ts watch`) reads the saved choice every 2
@@ -63,12 +70,14 @@ The app reaches everything else about Sonos here too:
    comes back, plays in the right place. If none of the chosen speakers is on the network, nothing changes.
 
 4. **Volume.** `GET /speakers` also gives each speaker's volume, and the drawer shows a slider under each chosen
-   speaker. Moving it sends `POST /audio/volume` with `{"speaker": "Kitchen", "volume": 40}` (percent), and the
+   speaker. Moving it sends `POST /audio/volume` with `{"output": "raop_sink.Kitchen.local.7000", "volume": 40}`
+   (percent; `{"speaker": "Kitchen", …}` from older apps), and the
    service runs `wpctl set-volume <sink> 0.40`. The AirPlay sink passes the volume on to the speaker itself, so it is the
    same volume the speaker's own app shows. Both use wpctl's cubic scale (the cube root of PipeWire's channel volumes),
    like any volume slider.
 
-The service does not report the chosen speakers, so the app remembers them itself (`maxmix.airplaySpeakers` in its storage).
+The app still remembers its own choice (`maxmix.airplaySpeakers` in its storage); `linked` in `GET /speakers` is what
+the Pi confirms.
 
 ## The watchdog
 

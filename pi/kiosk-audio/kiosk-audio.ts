@@ -8,7 +8,7 @@ import { Nmcli } from './nmcli.ts';
 import type { ConnectRequest } from './nmcli.ts';
 import { PipeWire } from './pipewire.ts';
 import { serveSpeakers } from './server.ts';
-import { loadSpeakers, route, saveSpeakers, setSpeakerVolume } from './speakers.ts';
+import { loadSpeakers, route, saveSpeakers, setSpeakerVolume, withNames } from './speakers.ts';
 import { stopFollowers } from './update.ts';
 import { chromiumPid, stopChromium } from './watchdog.ts';
 
@@ -34,9 +34,9 @@ function wifi() {
 
 async function watchOnce(): Promise<void> {
   try {
-    const speakers = await loadSpeakers(stateFile);
+    const choices = await loadSpeakers(stateFile);
     // With no speakers chosen, PipeWire's own policy decides; the route request already handed the sound back.
-    if (speakers.length > 0) await route(pipewire, speakers);
+    if (choices.length > 0) await route(pipewire, choices);
   } catch (error) {
     console.debug(String(error));
   }
@@ -49,11 +49,11 @@ if (process.argv[2] === 'watch') {
   setInterval(() => void watchOnce(), WATCH_MS);
   serveSpeakers(process.env['KIOSK_APP_ORIGIN'] ?? '', {
     graph: () => pipewire.graph(),
-    route: async speakers => {
-      await saveSpeakers(stateFile, speakers);
-      await route(pipewire, speakers);
+    route: async choices => {
+      await saveSpeakers(stateFile, withNames(await pipewire.graph(), choices));
+      await route(pipewire, choices);
     },
-    setVolume: (speaker, volume) => setSpeakerVolume(pipewire, speaker, volume),
+    setVolume: (target, volume) => setSpeakerVolume(pipewire, target, volume),
     wifi: wifi()
   });
 } else {
