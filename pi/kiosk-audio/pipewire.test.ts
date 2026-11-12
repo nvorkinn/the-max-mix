@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { dump, link, silence } from './fixtures.ts';
 import {
   isEmptyPlan,
+  linkedSinks,
   pairPorts,
   parseDump,
   PipeWire,
@@ -40,7 +41,8 @@ const stub = (replies: Record<string, { code: number; stderr?: string; stdout?: 
     return Promise.resolve({ code: reply.code, stdout: reply.stdout ?? '', stderr: reply.stderr ?? '' });
   });
 
-const planWith = (links: unknown[], speakers: string[]) => planRoutes(parseDump(dump([], links)), speakers);
+const byName = (names: string[]) => names.map(name => ({ name }));
+const planWith = (links: unknown[], speakers: string[]) => planRoutes(parseDump(dump([], links)), byName(speakers));
 
 describe('parseDump', () => {
   it('reads the players and the default sink', () => {
@@ -95,7 +97,7 @@ describe('volumeOf', () => {
 
 describe('planRoutes', () => {
   it('routes to every chosen speaker, by description, and off the local output', () => {
-    const plan = planRoutes(GRAPH, ['Kitchen', 'Lounge']);
+    const plan = planRoutes(GRAPH, byName(['Kitchen', 'Lounge']));
     expect(plan.connect).toEqual([
       [71, 51],
       [71, 61],
@@ -128,7 +130,45 @@ describe('planRoutes', () => {
   });
 
   it('leaves the music alone when no chosen speaker is on the network', () => {
-    expect(isEmptyPlan(planRoutes(GRAPH, ['Gone']))).toBe(true);
+    const plan = planRoutes(GRAPH, byName(['Gone']));
+    expect(isEmptyPlan(plan)).toBe(true);
+  });
+
+  it('routes by id, so a second speaker with the same name is left out', () => {
+    const twin = {
+      id: 150,
+      type: 'PipeWire:Interface:Node',
+      info: {
+        props: {
+          'node.name': 'raop_sink.Kitchen-2.local.7000',
+          'media.class': 'Audio/Sink',
+          'node.description': 'Kitchen'
+        }
+      }
+    };
+    const graph = parseDump(dump([twin]));
+    expect(planRoutes(graph, [{ id: 'raop_sink.Kitchen.local.7000', name: 'Kitchen' }]).connect).toEqual([
+      [71, 51],
+      [72, 52]
+    ]);
+  });
+
+  it('falls back to the name when no sink has the id (the speaker has a new address)', () => {
+    const plan = planRoutes(GRAPH, [{ id: 'raop_sink.Kitchen.10.0.0.9.7000', name: 'Kitchen' }]);
+    expect(plan.connect).toEqual([
+      [71, 51],
+      [72, 52]
+    ]);
+    expect(isEmptyPlan(planRoutes(GRAPH, [{ id: 'raop_sink.Kitchen.10.0.0.9.7000' }]))).toBe(true);
+  });
+});
+
+describe('linkedSinks', () => {
+  it('lists the sinks the browser plays to, not other listeners', () => {
+    expect(linkedSinks(GRAPH)).toEqual(new Set([40]));
+    const links = [link(83, 71, 51), link(84, 72, 61), link(82, 71, 91)];
+    const graph = parseDump(dump([], links));
+    expect(linkedSinks(graph)).toEqual(new Set([50, 60]));
   });
 });
 

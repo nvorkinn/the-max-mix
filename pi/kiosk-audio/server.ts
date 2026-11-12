@@ -1,8 +1,13 @@
 // The kiosk's local service for the app, on 127.0.0.1 only:
-//   GET  /speakers          {"speakers": ["Kitchen", …]}   the AirPlay sinks PipeWire made, by the names routing uses
-//                           plus {"volumes": {"Kitchen": 40, …}}, each speaker's volume in percent
-//   POST /audio/route       {"speakers": [...]}            route the sound to those speakers (none: the Pi's own output)
-//   POST /audio/volume      {"speaker": "Kitchen", "volume": 40}   set one speaker's volume (404: not on the network)
+//   GET  /speakers          {"speakers": ["Kitchen", …]}   the AirPlay and Bluetooth sinks PipeWire made, by name,
+//                           plus {"volumes": {"Kitchen": 40, …}}, each speaker's volume in percent, and
+//                           {"outputs": [{"id", "name", "kind", "address"?, "volume", "linked"}, …]}: each sink by its
+//                           PipeWire node name, "airplay" or "bluetooth", a Bluetooth speaker's address, its volume in
+//                           percent or null, and whether the browser's sound goes to it now (speakers.ts)
+//   POST /audio/route       {"outputs": [id, …]}           route the sound to those outputs (none: the Pi's own output);
+//                           {"speakers": [name, …]} still works
+//   POST /audio/volume      {"output": id, "volume": 40}   set one output's volume (404: not on the network);
+//                           {"speaker": name, …} still works
 //   Sonos (sonos.ts), with rooms by name; a failure answers 502 {"error"}: why, safe to show. The app's origin only, since each makes the Pi talk to the speakers.
 //   GET  /sonos/groups      {"groups": [{"id", "rooms": [{"id", "name"}, …]}, …], "ms"}: the groups on the home network,
 //                           the leading room first, and how long finding them took
@@ -55,13 +60,13 @@ import type { LyricsHit } from './lyrics.ts';
 import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
 import { PhoneSetup } from './phone-setup.ts';
-import type { Graph } from './pipewire.ts';
+import type { Choice, Graph } from './pipewire.ts';
 import { SonosEventHub } from './sonos-events.ts';
 import type { SonosChange } from './sonos-events.ts';
 import { libraryEvents } from './sonos-library.ts';
 import { parseRoom, parseSonosRequest, runSonosRequest, sonos, SonosError } from './sonos.ts';
 import type { SonosOperations, SonosRequest } from './sonos.ts';
-import { speakerSinks, validSpeakers, validVolume } from './speakers.ts';
+import { speakerOutputs, speakerSinks, validChoices, validVolume } from './speakers.ts';
 import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
 import { runUpdate } from './update.ts';
@@ -86,9 +91,9 @@ const POST_ACTIONS: Record<string, Action> = {
 /** What the service needs: PipeWire's graph, routing, and a way to run an action; tests pass fakes. */
 export interface Deps {
   graph: () => Promise<Graph>;
-  route: (speakers: string[]) => Promise<void>;
-  /** Sets a speaker's volume in percent; returns how many sinks it set (none: no speaker has that name). */
-  setVolume: (speaker: string, volume: number) => Promise<number>;
+  route: (choices: Choice[]) => Promise<void>;
+  /** Sets an output's volume in percent; returns how many sinks it set (none: no such output). */
+  setVolume: (target: Choice, volume: number) => Promise<number>;
   perform: (action: Action) => Promise<void>;
   /** Carries out a POST /sonos/… request; rejects with a SonosError when it could not. */
   sonos: (request: SonosRequest) => Promise<void>;
@@ -184,7 +189,7 @@ export function journalLog(
   };
 }
 
-/** The AirPlay (RAOP) sinks' names, sorted, once each. */
+/** The speaker sinks' names, sorted, once each. */
 export const speakerNames = (graph: Graph): string[] =>
   [...new Set(speakerSinks(graph).map(node => node.description))].toSorted((a, b) => a.localeCompare(b));
 
@@ -216,16 +221,16 @@ async function wasAccepted(url: string, request: IncomingMessage, deps: Deps): P
     if (entry) deps.log(entry);
     return entry !== null;
   }
-  const speakers = validSpeakers((body as { speakers?: unknown } | null)?.speakers);
-  if (speakers) await deps.route(speakers);
-  return speakers !== null;
+  const choices = validChoices(body);
+  if (choices) await deps.route(choices);
+  return choices !== null;
 }
 
-/** Sets one speaker's volume from the body of POST /audio/volume; the status to answer with. */
+/** Sets one output's volume from the body of POST /audio/volume; the status to answer with. */
 async function volumeStatus(request: IncomingMessage, deps: Deps): Promise<number> {
   const body = validVolume(JSON.parse(await readBody(request)) as unknown);
   if (!body) return 400;
-  return (await deps.setVolume(body.speaker, body.volume)) === 0 ? 404 : 204;
+  return (await deps.setVolume(body.target, body.volume)) === 0 ? 404 : 204;
 }
 
 /** A Sonos failure as 502 {"error"}: its safe message, or a plain one. */
@@ -473,7 +478,11 @@ async function get(url: string, response: ServerResponse, deps: Deps): Promise<v
   switch (url) {
     case '/speakers': {
       const graph = await deps.graph();
-      sendJson(response, 200, { speakers: speakerNames(graph), volumes: speakerVolumes(graph) });
+      sendJson(response, 200, {
+        speakers: speakerNames(graph),
+        volumes: speakerVolumes(graph),
+        outputs: speakerOutputs(graph)
+      });
 
       break;
     }

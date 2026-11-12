@@ -220,13 +220,42 @@ export interface Plan {
 export const isEmptyPlan = (plan: Plan): boolean => plan.connect.length === 0 && plan.disconnect.length === 0;
 
 /**
- * The sinks the browser should play to: the chosen speakers that are on the network, or else the default output.
- * Speakers are named by their description, which is the label Chromium gives the same output (through pipewire-pulse).
+ * One chosen output: PipeWire's node name (`id`), the speaker's name (`name`, the sink's description), or both. A node
+ * name is exact, so two speakers with the same name stay apart; but an AirPlay sink's node name holds the speaker's IP
+ * address and port, so it changes when the speaker gets a new address. The name is used only when no sink has the id.
  */
-function targetsOf(graph: Graph, speakers: readonly string[]): Node[] {
-  if (speakers.length > 0) return graph.nodes.filter(node => isSink(node) && speakers.includes(node.description));
+export interface Choice {
+  id?: string;
+  name?: string;
+}
+
+function sinksFor(graph: Graph, choice: Choice): Node[] {
+  const sinks = graph.nodes.filter(node => isSink(node));
+  const byId = choice.id === undefined ? [] : sinks.filter(node => node.name === choice.id);
+  return byId.length > 0 || choice.name === undefined ? byId : sinks.filter(node => node.description === choice.name);
+}
+
+/**
+ * The sinks the browser should play to: the chosen outputs that are there, or else the default output. The name is the
+ * label Chromium gives the same output (through pipewire-pulse).
+ */
+function targetsOf(graph: Graph, choices: readonly Choice[]): Node[] {
+  if (choices.length > 0) return [...new Set(choices.flatMap(choice => sinksFor(graph, choice)))];
   const fallback = graph.nodes.find(node => node.name === graph.defaultSink);
   return fallback && isSink(fallback) ? [fallback] : [];
+}
+
+/** The ids of the sinks one of the browser's streams is linked to now: where its sound really goes. */
+export function linkedSinks(graph: Graph): Set<number> {
+  const outputs = new Set(playersOf(graph).flatMap(player => portsOf(graph, player.id, 'out').map(port => port.id)));
+  const portNode = new Map(graph.ports.map(port => [port.id, port.node]));
+  const sinks = new Set(graph.nodes.filter(node => isSink(node)).map(node => node.id));
+  const linked = new Set<number>();
+  for (const link of graph.links) {
+    const node = outputs.has(link.outputPort) ? portNode.get(link.inputPort) : undefined;
+    if (node !== undefined && sinks.has(node)) linked.add(node);
+  }
+  return linked;
 }
 
 const pairKey = ([output, input]: Pair) => `${output}:${input}`;
@@ -255,13 +284,13 @@ function planPlayer(graph: Graph, player: Node, targets: Node[], plan: Plan): vo
 }
 
 /**
- * The changes that send every browser stream to exactly these sinks (by description), or, with no speakers, back
- * to the default sink only. Links to anything other than a sink (a level meter, a recorder) are left alone. When none of
+ * The changes that send every browser stream to exactly these sinks, or, with no choices, back to the default sink
+ * only. Links to anything other than a sink (a level meter, a recorder) are left alone. When none of
  * the chosen speakers is on the network, nothing changes, so the music is never cut off by a speaker that went away.
  */
-export function planRoutes(graph: Graph, speakers: readonly string[]): Plan {
+export function planRoutes(graph: Graph, choices: readonly Choice[]): Plan {
   const plan: Plan = { connect: [], disconnect: [] };
-  const targets = targetsOf(graph, speakers);
+  const targets = targetsOf(graph, choices);
   if (targets.length === 0) return plan;
   for (const player of playersOf(graph)) planPlayer(graph, player, targets, plan);
   return {
