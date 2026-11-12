@@ -283,13 +283,6 @@ export default function SpeakerDrawer({
               {onPlayOnSonos && (
                 <SonosKioskList disabled={selecting} onPlayOnSonos={onPlayOnSonos} onRooms={setSonosRooms} />
               )}
-              {canUseAirPlay && !otherTabsEnabled && (
-                <p className="text-[11px] leading-relaxed text-muted">
-                  {browserDeviceId
-                    ? 'Choose This tablet to use AirPlay or Bluetooth.'
-                    : "This tablet's player isn't ready, so AirPlay and Bluetooth can't be used yet."}
-                </p>
-              )}
               {!loading && !error && connectDevices.length === 0 && !hasSonos && (
                 <p className="text-xs leading-relaxed text-muted py-2">
                   No Spotify speakers found. Open Spotify on a phone, computer, or Connect speaker, then refresh.

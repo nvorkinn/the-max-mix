@@ -56,13 +56,12 @@ test.describe('Speakers', { tag: '@speakers' }, () => {
       // Another speaker plays, so AirPlay and Bluetooth have nothing to send on yet.
       const airPlayTab = drawer.getByRole('button', { name: 'AirPlay' });
       await expect(drawer.getByRole('button', { name: 'This tablet' })).toBeVisible();
-      await expect(drawer).toContainText('Choose This tablet to use AirPlay or Bluetooth.');
       await expect(airPlayTab).toBeDisabled();
       await expect(drawer.getByRole('button', { name: 'Bluetooth' })).toBeDisabled();
 
       await drawer.getByRole('button', { name: 'This tablet' }).click();
       await expect(drawer.getByRole('button', { name: 'This tablet' })).toHaveAttribute('aria-pressed', 'true');
-      await expect(drawer).not.toContainText('Choose This tablet to use');
+      await expect(airPlayTab).toBeEnabled();
       await airPlayTab.click();
       const kitchen = drawer.getByRole('button', { name: /Kitchen/ });
       const lounge = drawer.getByRole('button', { name: /Lounge/ });

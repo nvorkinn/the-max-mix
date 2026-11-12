@@ -369,7 +369,7 @@ describe('SpeakerDrawer', () => {
     expect(screen.getByRole('button', { name: 'Spotify Connect' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'AirPlay' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Bluetooth' })).toBeDisabled();
-    expect(screen.getByText('Choose This tablet to use AirPlay or Bluetooth.')).toBeInTheDocument();
+    expect(screen.queryByText(/Choose This tablet/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: "Show each speaker's volume" })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh devices' })).toBeInTheDocument();
   });
