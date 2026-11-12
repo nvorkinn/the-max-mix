@@ -204,7 +204,7 @@ describe('getKioskLocation', () => {
   it('reads ?lat= and ?lon= from the kiosk address without storing them', () => {
     visit('?kiosk=1&lat=51.51&lon=-0.13');
     expect(getKioskLocation()).toEqual({ lat: 51.51, lon: -0.13 });
-    expect(localStorage.length).toBe(0);
+    expect(localStorage).toHaveLength(0);
     visit('');
     expect(getKioskLocation()).toBeNull();
   });
