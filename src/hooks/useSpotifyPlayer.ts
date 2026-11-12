@@ -475,7 +475,8 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
                 }
               });
           },
-          volume: 0.8
+          // Every kiosk start begins quiet; the volume slider takes it from there.
+          volume: 0.2
         });
         // The SDK reports every change at once, which the Web API's state endpoint only does a second or so later.
         player.addListener('player_state_changed', applySdkState);
