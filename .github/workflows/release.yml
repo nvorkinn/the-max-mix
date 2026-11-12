@@ -3,9 +3,14 @@ name: Release
 # Shown on the GitHub dashboard among the running releases.
 # dashboard: release
 
+# Releases happen here and only here. Push a version tag from main (git tag v1.2.3 && git push origin v1.2.3) to build
+# the app, copy it to the server over Tailscale and then publish the GitHub release for the tag, with notes generated
+# from the merged pull requests. The Raspberry Pi kiosks follow the latest GitHub release (kiosk_pull_ref: latest), so
+# the release is published only once the deploy has worked, and the Pis and the web app move together.
+#
 # Run it by hand with an existing tag to redeploy that release and mark it as the latest one again, which also rolls the
-# Pis back (or forward) to it at their next update. Needs the repository secrets VERCEL_TOKEN, VERCEL_ORG_ID and
-# VERCEL_PROJECT_ID.
+# Pis back (or forward) to it at their next update. The runner joins the tailnet with its GitHub identity (id-token), so
+# it needs no repository secrets.
 on:
   push:
     tags: ['v*']
@@ -31,23 +36,13 @@ jobs:
     timeout-minutes: 20
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
-      VERCEL_CLI: vercel@64.4.0
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
-      - name: Check the tag and the secrets
+      - name: Check the tag
         run: |
           if [[ ! $TAG =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
             echo "::error::The tag must look like v1.2.3, got: $TAG"
             exit 1
           fi
-          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
-            if [[ -z ${!name} ]]; then
-              echo "::error::The repository secret $name is not set (Settings > Secrets and variables > Actions)."
-              exit 1
-            fi
-          done
       # The Pis run whatever the latest release holds as root (see SECURITY.md), so only release a commit that is on main.
       - name: Check the tag is on main
         env:
@@ -72,8 +67,12 @@ jobs:
       # not a valid semantic version.
       - name: Set the version from the tag
         run: npm version "${TAG#v}" --no-git-tag-version --allow-same-version
+      # Build before joining the tailnet, so a release that does not build fails before anything is deployed.
+      - run: npm ci
+      - name: Build
+        run: npm run build
       - name: Tailscale
-        uses: tailscale/tailscale-action@v4
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
         with:
           oauth-client-id: TBqTMhW4Q811CNTRL-k6UF5xqLhW11CNTRL
           audience: api.tailscale.com/TBqTMhW4Q811CNTRL-k6UF5xqLhW11CNTRL

@@ -4,14 +4,11 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 /**
- * The version shown in the settings: the release's version (release.yml sets it from the tag; 0.0.0 means no release)
- * and the short commit from Vercel's git integration (preview deploys). Either part can be missing.
+ * The version shown in the settings: the release's version (release.yml sets it from the tag; 0.0.0 means no release).
  */
 function appVersion(): string {
   const { version } = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string };
-  const release = version === '0.0.0' ? '' : `v${version}`;
-  const commit = process.env['VERCEL_GIT_COMMIT_SHA']?.slice(0, 7) ?? '';
-  return release && commit ? `${release} (${commit})` : release || commit || 'dev';
+  return version === '0.0.0' ? 'dev' : `v${version}`;
 }
 
 export default defineConfig({

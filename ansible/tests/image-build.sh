@@ -116,7 +116,7 @@ check node -e "await import('/opt/the-max-mix/kiosk-audio/speakers.ts')"
 check grep -q 'raop.latency.ms = 500' /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf
 check grep -q 'kiosk-audio.ts watch$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'try-restart kiosk-audio.service' /etc/systemd/system/kiosk.service
-check grep -q 'KIOSK_APP_ORIGIN=https://the-max-mix.vercel.app' /etc/systemd/user/kiosk-audio.service
+check grep -q 'KIOSK_APP_ORIGIN=https://the-max-mix.vorkinn.org' /etc/systemd/user/kiosk-audio.service
 check grep -q '"LocalNetworkAccessAllowedForUrls"' /etc/chromium/policies/managed/kiosk.json
 check grep -q '^Environment=KIOSK_SCREEN_OFF_AFTER=60$' /etc/systemd/system/kiosk.service
 check command -v swayidle wlr-randr

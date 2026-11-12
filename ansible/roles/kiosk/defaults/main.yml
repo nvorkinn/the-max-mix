@@ -14,7 +14,7 @@ kiosk_groups: [audio, bluetooth, input, netdev, render, systemd-journal, video]
 # ?pi_ref=&pi_commit= name the release (or other ref) and commit this playbook ran from, which the app's settings show,
 # and ?lat=&lon= are kiosk_latitude and kiosk_longitude when both are set).
 # Register the redirect URI of this address in the Spotify dashboard.
-kiosk_app_origin: https://the-max-mix.vercel.app
+kiosk_app_origin: https://the-max-mix.vorkinn.org
 kiosk_url: >-
   {{ kiosk_app_origin }}/?kiosk=1
   {{- ('&pi_ref=' ~ (kiosk_version | urlencode) ~ '&pi_commit=' ~ kiosk_commit) if kiosk_commit and kiosk_version else '' }}

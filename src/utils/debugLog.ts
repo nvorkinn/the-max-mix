@@ -89,7 +89,7 @@ export function captureBrowserErrors(): void {
   window.addEventListener('unhandledrejection', event => {
     debugLog('error', 'promise', describe(event.reason));
   });
-  // The Content-Security-Policy-Report-Only header in vercel.json reports here, so a host it is missing shows up on the kiosk.
+  // The Content-Security-Policy-Report-Only header the web server sends reports here, so a host it is missing shows up on the kiosk.
   document.addEventListener('securitypolicyviolation', event => {
     debugLog('warn', 'csp', `${event.effectiveDirective} would block ${event.blockedURI || 'inline code'}`);
   });

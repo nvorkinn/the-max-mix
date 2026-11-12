@@ -28,11 +28,11 @@ the changed files need (`scripts/lint-plan.ts` maps paths to checks; a change to
 the workflow or the plan runs them all); a push to `main` runs every check. The system tools are pinned and checked
 against a SHA-256 before running. It is listed in `all-checks.yml` too.
 
-`release.yml` runs on a version tag (`v*`) or by hand with an existing tag: it builds the app on the runner with a pinned
-Vercel CLI (`vercel build`), uploads only the built files to Vercel production (`vercel deploy --prebuilt`) and then
-publishes the GitHub release the Pis pull. It is the only way production is deployed (`vercel.json` turns off Vercel's deploy of `main`). It needs the repository secrets
-`VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` and fails clearly if one is missing. It has read-only
-`contents` access and does not run on pull requests, so it is not in `all-checks.yml`.
+`release.yml` runs on a version tag (`v*`) or by hand with an existing tag: it builds the app on the runner, joins the
+tailnet, copies `dist/` to the server with `rsync` and then publishes the GitHub release the Pis pull. It is the only way
+production is deployed. It needs no repository secrets: the runner joins the tailnet with its GitHub identity
+(`id-token: write`). It has read-only `contents` access and does not run on pull requests, so it is not in
+`all-checks.yml`.
 
 `ansible.yml` runs `ansible-lint` over `ansible/` and runs that playbook, only when `ansible/`, `pi/kiosk-audio/`, `pi/kiosk-keyboard/` or the workflow changes, with `kiosk_enable_only=true` (enable services, start nothing) in a Debian trixie container, checks the key files and that
 the units are enabled but not started, and runs it again to check that nothing changes (`ansible/tests/image-build.sh`).

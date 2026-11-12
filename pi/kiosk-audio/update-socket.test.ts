@@ -8,7 +8,7 @@ import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
 import type { Send } from './update.ts';
 
-const ORIGIN = 'https://the-max-mix.vercel.app';
+const ORIGIN = 'https://the-max-mix.vorkinn.org';
 const servers: Server[] = [];
 afterEach(() => {
   for (const server of servers.splice(0)) {
