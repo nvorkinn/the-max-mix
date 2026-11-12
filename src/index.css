@@ -710,9 +710,14 @@
   border-radius: 50%;
   background: var(--accent);
 }
+/* The seek and volume sliders keep their slim look, but take touches from the empty space around them: padding grows the
+   area that answers a tap, and an equal negative margin keeps the layout where it was. The seek bar reaches up to the
+   artwork; the volume slider fills the height of the transport row. Neither reaches over another control. */
 .seek-range {
   width: 100%;
-  height: 20px;
+  height: 58px;
+  padding-top: 14px;
+  margin-top: -14px;
 }
 .seek-control {
   display: flex;
@@ -749,7 +754,9 @@
 .volume-range {
   flex: 1;
   min-width: 0;
-  height: 44px;
+  height: 68px;
+  padding-block: 12px;
+  margin-block: -12px;
 }
 .volume-range::-webkit-slider-thumb {
   width: 26px;
