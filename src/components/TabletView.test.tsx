@@ -849,7 +849,7 @@ describe('TabletView', () => {
       const airPlayTab = screen.getByRole('button', { name: 'AirPlay' });
       expect(airPlayTab).toBeDisabled();
       expect(screen.getByRole('button', { name: 'Bluetooth' })).toBeDisabled();
-      expect(screen.getByText('Choose This tablet to use AirPlay or Bluetooth.')).toBeInTheDocument();
+      expect(screen.queryByText(/Choose This tablet/)).not.toBeInTheDocument();
       fireEvent.click(airPlayTab);
       await flush();
       expect(screen.queryByRole('button', { name: /Kitchen/ })).not.toBeInTheDocument();

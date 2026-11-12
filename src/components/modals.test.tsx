@@ -369,7 +369,7 @@ describe('SpeakerDrawer', () => {
     expect(screen.getByRole('button', { name: 'Spotify Connect' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'AirPlay' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Bluetooth' })).toBeDisabled();
-    expect(screen.getByText('Choose This tablet to use AirPlay or Bluetooth.')).toBeInTheDocument();
+    expect(screen.queryByText(/Choose This tablet/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: "Show each speaker's volume" })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh devices' })).toBeInTheDocument();
   });
@@ -387,7 +387,9 @@ describe('SpeakerDrawer', () => {
     expect(screen.getByRole('button', { name: "Show each speaker's volume" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Bluetooth' }));
     expect(await screen.findByText(/One speaker at a time/)).toBeInTheDocument();
-    expect(screen.queryByText(/Looking for AirPlay speakers/)).not.toBeInTheDocument();
+    // The other tabs stay mounted underneath, hidden, so the drawer does not resize on a tab change.
+    expect(screen.getByText(/Looking for AirPlay speakers/).closest('section')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText(/One speaker at a time/).closest('section')).not.toHaveAttribute('aria-hidden');
   });
 
   it('does not mark a Connect device or the tablet active while AirPlay is the route', async () => {

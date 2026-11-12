@@ -416,6 +416,14 @@
 .speaker-volume svg {
   flex-shrink: 0;
 }
+.speaker-tab-panels {
+  display: grid;
+}
+/* All the drawer's tab panels share one cell, so it is as tall as the tallest and does not resize on a tab change. */
+.speaker-tab-panels > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
 .speaker-drawer-body {
   min-height: 0;
   overflow-y: auto;

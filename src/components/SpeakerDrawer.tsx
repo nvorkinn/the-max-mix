@@ -150,6 +150,10 @@ export default function SpeakerDrawer({
   const otherTabsEnabled = airPlayAvailable || isAirPlay;
   let tab: SpeakerTab = pickedTab ?? (isAirPlay ? 'airplay' : 'connect');
   if (!canUseAirPlay || !otherTabsEnabled) tab = 'connect';
+  // Every tab's panel stays mounted, stacked in one grid cell, so the drawer keeps the height of the tallest one and
+  // nothing reloads (and resizes the drawer) on a tab change. The hidden ones are invisible and out of reach.
+  const panelProps = (id: SpeakerTab) => (tab === id ? {} : { 'aria-hidden': true, inert: true });
+  const panelClass = (id: SpeakerTab, layout = '') => [layout, tab === id ? '' : 'invisible'].filter(Boolean).join(' ');
   // The device that is playing is listed first.
   const isPlaying = (device: SpotifyDevice) => !isAirPlay && Boolean(device.id) && device.id === playingId;
   const tabletRow = browserDeviceId && (
@@ -269,18 +273,15 @@ export default function SpeakerDrawer({
               Spotify asked this app to wait before refreshing devices.
             </p>
           )}
-          {tab === 'connect' && (
-            <section aria-label="Spotify Connect" className="grid gap-2">
+          <div className="speaker-tab-panels">
+            <section
+              aria-label="Spotify Connect"
+              {...panelProps('connect')}
+              className={panelClass('connect', 'grid gap-2')}
+            >
               {rows}
               {onPlayOnSonos && (
                 <SonosKioskList disabled={selecting} onPlayOnSonos={onPlayOnSonos} onRooms={setSonosRooms} />
-              )}
-              {canUseAirPlay && !otherTabsEnabled && (
-                <p className="text-[11px] leading-relaxed text-muted">
-                  {browserDeviceId
-                    ? 'Choose This tablet to use AirPlay or Bluetooth.'
-                    : "This tablet's player isn't ready, so AirPlay and Bluetooth can't be used yet."}
-                </p>
               )}
               {!loading && !error && connectDevices.length === 0 && !hasSonos && (
                 <p className="text-xs leading-relaxed text-muted py-2">
@@ -288,25 +289,29 @@ export default function SpeakerDrawer({
                 </p>
               )}
             </section>
-          )}
-          {tab === 'airplay' && (
-            <section aria-label="AirPlay">
-              <AirPlaySpeakerList
-                isPlayerReady={airPlayAvailable}
-                active={isAirPlay}
-                showVolumes={showVolumes}
-                onChange={onAirPlayChange}
-              />
-            </section>
-          )}
-          {tab === 'bluetooth' && (
-            <section aria-label="Bluetooth" className="space-y-2">
-              <p className="text-[11px] text-muted">
-                One speaker at a time. Once connected, it appears on the AirPlay tab to select.
-              </p>
-              <BluetoothSpeakers />
-            </section>
-          )}
+            {canUseAirPlay && (
+              <>
+                <section aria-label="AirPlay" {...panelProps('airplay')} className={panelClass('airplay')}>
+                  <AirPlaySpeakerList
+                    isPlayerReady={airPlayAvailable}
+                    active={isAirPlay}
+                    showVolumes={showVolumes}
+                    onChange={onAirPlayChange}
+                  />
+                </section>
+                <section
+                  aria-label="Bluetooth"
+                  {...panelProps('bluetooth')}
+                  className={panelClass('bluetooth', 'space-y-2')}
+                >
+                  <p className="text-[11px] text-muted">
+                    One speaker at a time. Once connected, it appears on the AirPlay tab to select.
+                  </p>
+                  <BluetoothSpeakers />
+                </section>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </>
