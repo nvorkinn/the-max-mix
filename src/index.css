@@ -710,9 +710,13 @@
   border-radius: 50%;
   background: var(--accent);
 }
+/* Slim sliders, larger touch areas: padding grows what answers a tap, an equal negative margin keeps the layout. */
+/* The seek bar stops just short of the artwork and the volume slider fills the transport row, clear of other controls. */
 .seek-range {
   width: 100%;
-  height: 20px;
+  height: 56px;
+  padding-top: 12px;
+  margin-top: -12px;
 }
 .seek-control {
   display: flex;
@@ -749,7 +753,9 @@
 .volume-range {
   flex: 1;
   min-width: 0;
-  height: 44px;
+  height: 68px;
+  padding-block: 12px;
+  margin-block: -12px;
 }
 .volume-range::-webkit-slider-thumb {
   width: 26px;
