@@ -42,6 +42,9 @@ function LyricsPanelContent({ track, progressMs, shown = true, provider }: Reado
   const { status, lyrics, error, retry } = useLyrics(track, shown, provider);
   const listRef = useRef<HTMLOListElement | null>(null);
   const [isFollowing, setIsFollowing] = useState(true);
+  // The same as isFollowing, but set the moment the reader touches the list. A line change rendered just before the touch
+  // runs its scroll effect just after it, with the old isFollowing; this stops that scroll from undoing the reader's.
+  const followingRef = useRef(true);
   const active = lyrics?.kind === 'synced' ? activeLineIndex(lyrics.lines, progressMs) : -1;
 
   useEffect(() => {
@@ -50,9 +53,13 @@ function LyricsPanelContent({ track, progressMs, shown = true, provider }: Reado
     let resumeTimer: ReturnType<typeof setTimeout> | undefined;
     // Reading pauses the following; leaving the lyrics alone for a while picks it up again.
     const pauseFollow = () => {
+      followingRef.current = false;
       setIsFollowing(false);
       clearTimeout(resumeTimer);
-      resumeTimer = setTimeout(() => setIsFollowing(true), FOLLOW_RESUME_MS);
+      resumeTimer = setTimeout(() => {
+        followingRef.current = true;
+        setIsFollowing(true);
+      }, FOLLOW_RESUME_MS);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) pauseFollow();
@@ -72,7 +79,9 @@ function LyricsPanelContent({ track, progressMs, shown = true, provider }: Reado
   useEffect(() => {
     const list = listRef.current;
     const line = list?.children[Math.max(0, active)];
-    if (!isFollowing || !list || lyrics?.kind !== 'synced' || !(line instanceof HTMLElement)) return;
+    if (!isFollowing || !list || !followingRef.current || lyrics?.kind !== 'synced' || !(line instanceof HTMLElement)) {
+      return;
+    }
     list.scrollTop = line.offsetTop - list.clientHeight / 2 + line.clientHeight / 2;
   }, [active, lyrics, isFollowing]);
 
