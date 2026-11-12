@@ -620,11 +620,17 @@ describe('TabletView', () => {
     expect(api.getQueue).toHaveBeenCalledTimes(1);
   });
 
-  it('always uses the Paper appearance', async () => {
+  it('uses Day unless Night was chosen, ignoring the old maxmix_theme setting', async () => {
     localStorage.setItem('maxmix_theme', 'neon');
-    const { container } = render(<TabletView />);
+    const { container, unmount } = render(<TabletView />);
     await flush();
-    expect(container.firstChild).not.toHaveAttribute('data-theme');
+    expect(container.firstChild).toHaveAttribute('data-theme', 'day');
+    unmount();
+
+    localStorage.setItem('maxmix.theme', 'night');
+    const night = render(<TabletView />);
+    await flush();
+    expect(night.container.firstChild).toHaveAttribute('data-theme', 'night');
   });
 
   it('routes player controls to the hook, converting volume to 0..1', async () => {

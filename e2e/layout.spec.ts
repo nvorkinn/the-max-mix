@@ -114,6 +114,46 @@ test.describe('Layout', { tag: '@layout' }, () => {
     });
   });
 
+  test.describe('Seek and volume touch areas', () => {
+    test('the slim sliders take taps from the space around them, short of the other controls', async ({ page }) => {
+      await page.setViewportSize({ width: 1024, height: 600 });
+      await page.route('https://images.unsplash.com/**', route =>
+        route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
+      );
+      await fakeSpotify(page);
+      await page.goto('/?kiosk=1');
+      const seek = page.getByRole('slider', { name: 'Playback position' });
+      const volume = page.getByRole('slider', { name: 'Volume' });
+      await expect(volume).toHaveValue('80');
+      const [art, seekBox, volumeBox, play] = await Promise.all([
+        page.locator('.album-art').boundingBox(),
+        seek.boundingBox(),
+        volume.boundingBox(),
+        page.getByRole('button', { name: 'Pause' }).boundingBox()
+      ]);
+      if (!art || !seekBox || !volumeBox || !play) throw new Error('player controls are not laid out');
+      // About 9 mm on the kiosk's 7-inch screen, where a CSS pixel is about 0.15 mm.
+      expect(seekBox.height).toBeGreaterThanOrEqual(56);
+      expect(volumeBox.height).toBeGreaterThanOrEqual(64);
+      // The seek bar reaches up to the artwork and stops above the transport row.
+      expect(seekBox.y).toBeGreaterThan(art.y + art.height);
+      expect(seekBox.y + seekBox.height).toBeLessThanOrEqual(play.y + 0.5);
+      expect(volumeBox.x).toBeGreaterThan(play.x + play.width);
+
+      // A tap near the top or bottom edge of the touch area, well away from the thin track, still moves the slider.
+      await page.mouse.click(volumeBox.x + 4, volumeBox.y + 2);
+      await expect(volume).toHaveValue(/^\d$/);
+      await page.mouse.click(volumeBox.x + volumeBox.width - 4, volumeBox.y + volumeBox.height - 2);
+      await expect(volume).toHaveValue(/^(9\d|100)$/);
+      // Just under the artwork, the seek bar is what takes the tap.
+      const doesSeekTakeTopEdge = await seek.evaluate(element => {
+        const box = element.getBoundingClientRect();
+        return document.elementFromPoint(box.left + box.width / 2, box.top + 2) === element;
+      });
+      expect(doesSeekTakeTopEdge).toBe(true);
+    });
+  });
+
   test.describe('Long track names', () => {
     test.beforeEach(async ({ page }) => {
       await page.route('https://images.unsplash.com/**', route =>

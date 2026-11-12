@@ -70,6 +70,7 @@
   --shadow: #000;
   --scrim: rgb(20 24 18 / 22%);
   --backdrop: rgb(0 0 0 / 85%);
+  --glow: none;
   --spotify-brand: #1db954;
   --spotify-brand-ink: #000;
 }
@@ -166,6 +167,32 @@
 .tablet-container[data-colour] {
   --accent-soft: color-mix(in srgb, var(--accent) 5%, transparent);
   --focus: var(--accent);
+  --play-fill: var(--accent);
+}
+/*
+  Night (src/utils/theme.ts): dark navy with fixed violet and pink accents. It comes after the colour choices so it
+  overrides the chosen Day colour without clearing it, and choosing Day again brings that colour back.
+*/
+.tablet-container[data-theme='night'] {
+  --page: #090e1f;
+  --surface: #101a33;
+  --surface-raised: #202b49;
+  --ink: #f5f6ff;
+  --muted: #aab5d0;
+  --border: #33405f;
+  --accent: #a95be8;
+  --accent-ink: #fff;
+  --accent-soft: color-mix(in srgb, #a95be8 14%, transparent);
+  --focus: #de9eff;
+  --track: #354260;
+  --success: #57d3b4;
+  --warning: #f0b64c;
+  --amber: #f0b64c;
+  --danger: #ff7b8a;
+  --scrim: rgb(0 0 0 / 40%);
+  --play-fill: linear-gradient(135deg, #e94dae, #913fcb);
+  --glow: 0 0 14px rgb(193 77 225 / 30%);
+  color-scheme: dark;
 }
 
 .app-header {
@@ -693,6 +720,7 @@
   border-color: transparent;
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   color: var(--ink);
+  box-shadow: var(--glow);
 }
 .panel-nav-button.is-save {
   border-color: transparent;
@@ -834,9 +862,13 @@
   border-radius: 50%;
   background: var(--accent);
 }
+/* Slim sliders, larger touch areas: padding grows what answers a tap, an equal negative margin keeps the layout. */
+/* The seek bar stops just short of the artwork and the volume slider fills the transport row, clear of other controls. */
 .seek-range {
   width: 100%;
-  height: 20px;
+  height: 56px;
+  padding-top: 12px;
+  margin-top: -12px;
 }
 .seek-control {
   display: flex;
@@ -873,7 +905,9 @@
 .volume-range {
   flex: 1;
   min-width: 0;
-  height: 44px;
+  height: 68px;
+  padding-block: 12px;
+  margin-block: -12px;
 }
 .volume-range::-webkit-slider-thumb {
   width: 26px;
@@ -934,7 +968,7 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--play-fill);
   color: var(--accent-ink);
   transition: transform 160ms;
 }

@@ -48,10 +48,10 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
     await page.getByRole('button', { name: /^Speakers:/ }).click();
     const view = page.getByRole('region', { name: 'Speakers' });
     await expect(view.getByRole('checkbox', { name: 'Test speaker' })).toBeChecked();
-    // The clock and the seek position change as time passes, so they are masked out of the comparison.
+    // The clock and the seek bar with its times change as the song plays, so they are masked out of the comparison.
     await expect(page).toHaveScreenshot('speakers-view.png', {
       ...SHOT,
-      mask: [page.locator('.header-clock'), page.getByRole('slider', { name: 'Playback position' })]
+      mask: [page.locator('.header-clock'), page.locator('.seek-control')]
     });
   });
 
@@ -80,7 +80,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
     await expect(view.getByRole('slider', { name: 'Lounge volume' })).toBeVisible();
     await expect(page).toHaveScreenshot('speakers-view-airplay.png', {
       ...SHOT,
-      mask: [page.locator('.header-clock'), page.getByRole('slider', { name: 'Playback position' })]
+      mask: [page.locator('.header-clock'), page.locator('.seek-control')]
     });
   });
 
@@ -104,6 +104,37 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       ...SHOT,
       mask: [page.locator('.header-clock'), page.locator('.seek-control')]
     });
+  });
+
+  test('player screen at night', { tag: ['@player', '@appearance'] }, async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('maxmix.theme', 'night');
+    });
+    await fakeSpotify(page);
+    await page.route('https://images.unsplash.com/**', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'image/png',
+        headers: { 'access-control-allow-origin': '*' },
+        body: COLOURED_ART
+      })
+    );
+    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.goto('/');
+    await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
+    await expect(page).toHaveScreenshot('player-night.png', {
+      ...SHOT,
+      mask: [page.locator('.header-clock'), page.locator('.seek-control')]
+    });
+  });
+
+  test('settings modal at night', { tag: ['@settings', '@appearance'] }, async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('maxmix.theme', 'night');
+    });
+    const dialog = await openSettings(page);
+    await expect(dialog).toHaveScreenshot('settings-night.png', SHOT);
   });
 
   test('music picker', { tag: '@music' }, async ({ page }) => {
