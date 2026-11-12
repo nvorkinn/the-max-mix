@@ -136,7 +136,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
       expect(seekBox.height).toBeGreaterThanOrEqual(56);
       expect(volumeBox.height).toBeGreaterThanOrEqual(64);
       // The seek bar reaches up to the artwork and stops above the transport row.
-      expect(seekBox.y).toBeGreaterThanOrEqual(art.y + art.height);
+      expect(seekBox.y).toBeGreaterThan(art.y + art.height);
       expect(seekBox.y + seekBox.height).toBeLessThanOrEqual(play.y + 0.5);
       expect(volumeBox.x).toBeGreaterThan(play.x + play.width);
 
