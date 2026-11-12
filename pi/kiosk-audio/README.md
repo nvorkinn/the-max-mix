@@ -236,7 +236,7 @@ show journalctl's "no permission" instead of the lines; the pull and restart sti
 - `wpctl status` lists the AirPlay sinks; `pw-link -l` shows where Chromium's stream goes; `wpctl get-volume <id>`
   shows a speaker's volume as the app does.
 - `curl -s http://127.0.0.1:7341/speakers` lists what the app sees. A POST needs the app's `Origin`, for example
-  `curl -X POST -H 'Origin: https://the-max-mix.vercel.app' http://127.0.0.1:7341/power/restart`.
+  `curl -X POST -H 'Origin: https://the-max-mix.vorkinn.org' http://127.0.0.1:7341/power/restart`.
 
 ## Tests
 

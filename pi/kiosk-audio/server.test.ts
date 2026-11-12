@@ -17,7 +17,7 @@ import type { SonosChange } from './sonos-events.ts';
 import { SonosError } from './sonos.ts';
 import type { SonosOperations, SonosRequest } from './sonos.ts';
 
-const ORIGIN = 'https://the-max-mix.vercel.app';
+const ORIGIN = 'https://the-max-mix.vorkinn.org';
 const servers: Server[] = [];
 afterEach(() => {
   for (const server of servers.splice(0)) server.close();

@@ -137,19 +137,19 @@ heartbeat, lyrics, other kiosk calls, everything else); untick a kind to mute it
 
 ## Hosting and releases
 
-THE MAX MIX is plain static files on [Vercel](https://vercel.com). Production deploys happen only from a release:
+THE MAX MIX is plain static files on a self-hosted server. Production deploys happen only from a release:
 [`release.yml`](.github/workflows/release.yml) runs when a version tag is pushed (or by hand for an existing tag), builds
-the app on the GitHub runner and uploads the built files to Vercel production. `vercel.json` turns off Vercel's own
-deploy of `main` (`git.deploymentEnabled`), so a merge to `main` does not change production; pull requests still get
-preview deployments. The build settings, the single-page rewrite and the response headers are in
-[`vercel.json`](vercel.json).
+the app on the GitHub runner, joins the tailnet and copies `dist/` to the server with `rsync`, into
+`/srv/releases/the-max-mix/<commit>`, and then points `/srv/sites/the-max-mix` at it. A merge to `main` does not change
+production.
 
 Set it up once:
 
-1. In the GitHub repository add the secrets `VERCEL_TOKEN` (a Vercel access token), `VERCEL_ORG_ID` and
-   `VERCEL_PROJECT_ID` (both in the project's `.vercel/project.json` after `vercel link`, or in the Vercel dashboard).
-   The workflow fails with a clear message if one is missing.
-2. In the Vercel dashboard (**Settings > Git**) check that pushes to `main` do not deploy production.
+1. In Tailscale, let the workflow join the tailnet with its GitHub identity (the OAuth client and audience in
+   `release.yml`, tagged `tag:ci`) and let `tag:ci` reach the server over SSH as `deploy`.
+2. On the server, serve `/srv/sites/the-max-mix` with every unknown path answered by `/index.html`, a long-lived
+   `Cache-Control` for `/assets/` and the response headers listed in [SECURITY.md](SECURITY.md). None of this is in
+   the repository.
 3. Push a tag to release: `git tag v1.2.3 && git push origin v1.2.3`.
 4. Register the redirect URI of any address you sign in from in the Spotify dashboard (see
    [Spotify configuration](#spotify-configuration)).
@@ -190,7 +190,7 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 
 1. Create an app in the [Spotify developer dashboard](https://developer.spotify.com/dashboard).
 2. Register the redirect URI **exactly**, including the trailing slash:
-   - `https://the-max-mix.vercel.app/` (the deployed app, which is also the kiosk's `kiosk_url`) for the Raspberry Pi
+   - `https://the-max-mix.vorkinn.org/` (the deployed app, which is also the kiosk's `kiosk_url`) for the Raspberry Pi
      kiosk and for signing in on the deployed site;
    - `http://127.0.0.1:5173/` for local development, and `http://127.0.0.1:4173/` for `npm start`.
 3. The client ID is a constant in `src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
@@ -254,7 +254,7 @@ variables and defaults are in [`defaults/main.yml`](ansible/roles/kiosk/defaults
 device, so change the role, not the device.
 
 - **Releases** are what deployed devices follow. Push a version tag from `main` (`git tag v1.12.0 && git push origin
-v1.12.0`): the Release workflow deploys the web app to Vercel and, once that has worked, publishes the GitHub release
+v1.12.0`): the Release workflow deploys the web app to the server and, once that has worked, publishes the GitHub release
   for the tag with notes generated from the merged pull requests. That one tag ships both the web app and the Pi, and
   the version in the kiosk's Settings is the release's name.
 - **First boot:** cloud-init's `user-data` installs Ansible and runs `ansible-pull` from the latest release, then

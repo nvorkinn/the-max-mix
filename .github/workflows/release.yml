@@ -3,15 +3,14 @@ name: Release
 # Shown on the GitHub dashboard among the running releases.
 # dashboard: release
 
-# Releases happen here and only here (vercel.json turns off Vercel's own deploy of main). Push a version tag from main
-# (git tag v1.2.3 && git push origin v1.2.3) to build the app, deploy it to Vercel production and then publish the GitHub
-# release for the tag, with notes generated from the merged pull requests. The Raspberry Pi kiosks follow the latest
-# GitHub release (kiosk_pull_ref: latest), so the release is published only once the deploy has worked, and the Pis and
-# the web app move together.
+# Releases happen here and only here. Push a version tag from main (git tag v1.2.3 && git push origin v1.2.3) to build
+# the app, copy it to the server over Tailscale and then publish the GitHub release for the tag, with notes generated
+# from the merged pull requests. The Raspberry Pi kiosks follow the latest GitHub release (kiosk_pull_ref: latest), so
+# the release is published only once the deploy has worked, and the Pis and the web app move together.
 #
 # Run it by hand with an existing tag to redeploy that release and mark it as the latest one again, which also rolls the
-# Pis back (or forward) to it at their next update. Needs the repository secrets VERCEL_TOKEN, VERCEL_ORG_ID and
-# VERCEL_PROJECT_ID.
+# Pis back (or forward) to it at their next update. The runner joins the tailnet with its GitHub identity (id-token), so
+# it needs no repository secrets.
 on:
   push:
     tags: ['v*']
@@ -23,6 +22,7 @@ on:
         type: string
 
 permissions:
+  id-token: write
   contents: read
 
 # Never run two production deploys at once, and never cancel one that is under way.
@@ -36,23 +36,13 @@ jobs:
     timeout-minutes: 20
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
-      VERCEL_CLI: vercel@64.4.0
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
-      - name: Check the tag and the secrets
+      - name: Check the tag
         run: |
           if [[ ! $TAG =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
             echo "::error::The tag must look like v1.2.3, got: $TAG"
             exit 1
           fi
-          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
-            if [[ -z ${!name} ]]; then
-              echo "::error::The repository secret $name is not set (Settings > Secrets and variables > Actions)."
-              exit 1
-            fi
-          done
       # The Pis run whatever the latest release holds as root (see SECURITY.md), so only release a commit that is on main.
       - name: Check the tag is on main
         env:
@@ -77,16 +67,29 @@ jobs:
       # not a valid semantic version.
       - name: Set the version from the tag
         run: npm version "${TAG#v}" --no-git-tag-version --allow-same-version
-      # Build on this runner and upload only the finished files (--prebuilt). Without it Vercel downloads the source and
-      # runs npm ci and the build again on its own machine.
-      # `vercel build` runs the install and build commands from vercel.json here (npm ci uses the npm cache from
-      # setup-node), so a release that does not build still fails before anything is deployed.
-      - name: Get the Vercel production settings
-        run: npx --yes "$VERCEL_CLI" pull --yes --environment=production --token="$VERCEL_TOKEN"
+      # Build before joining the tailnet, so a release that does not build fails before anything is deployed.
+      - run: npm ci
       - name: Build
-        run: npx --yes "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
-      - name: Deploy to Vercel production
-        run: npx --yes "$VERCEL_CLI" deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN"
+        run: npm run build
+      - name: Tailscale
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: TBqTMhW4Q811CNTRL-k6UF5xqLhW11CNTRL
+          audience: api.tailscale.com/TBqTMhW4Q811CNTRL-k6UF5xqLhW11CNTRL
+          tags: tag:ci
+      # The release directory is named after the tag's commit (the checkout), which on a run by hand is not github.sha.
+      - name: Deploy
+        env:
+          APP: the-max-mix
+          HOST: deploy@nikolai-server
+        run: |
+          ssh_opts=(-o StrictHostKeyChecking=accept-new)
+          rel="/srv/releases/$APP/$(git rev-parse HEAD)"
+          # shellcheck disable=SC2029 # the paths are meant to be filled in here, on the runner
+          ssh "${ssh_opts[@]}" "$HOST" "mkdir -p $rel"
+          rsync -az --delete -e "ssh ${ssh_opts[*]}" dist/ "$HOST:$rel/"
+          # shellcheck disable=SC2029 # the paths are meant to be filled in here, on the runner
+          ssh "${ssh_opts[@]}" "$HOST" "ln -sfn $rel /srv/sites/$APP.tmp && mv -T /srv/sites/$APP.tmp /srv/sites/$APP"
 
   # A separate job, so that only this step, which runs no code from the repository, can write to it.
   publish:
