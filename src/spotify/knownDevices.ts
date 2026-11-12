@@ -1,6 +1,6 @@
 // Spotify speakers the app has seen playing. Spotify's device list (GET /me/player/devices) leaves some speakers out,
 // Sonos among them, even while they play; the playback state still names them, with an id that playback can be moved to.
-// So each speaker seen playing is remembered here, and the Speakers drawer offers it even when Spotify does not list it.
+// So each speaker seen playing is remembered here, and the Speakers view offers it even when Spotify does not list it.
 // Storage can be unavailable: every access tolerates that.
 
 import type { SpotifyDevice } from '../types';

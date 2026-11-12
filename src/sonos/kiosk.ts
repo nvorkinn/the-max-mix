@@ -59,7 +59,7 @@ async function post(path: string, body: Record<string, unknown>, refused = 'Sono
 const query = (values: Record<string, string>) => new URLSearchParams(values);
 
 /** A Sonos room as the Pi finds it: its player id and its name. */
-export interface PiSonosRoom {
+interface PiSonosRoom {
   id: string;
   name: string;
 }

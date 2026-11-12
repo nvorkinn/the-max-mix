@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { fakeKioskAirPlay } from './fake-kiosk.ts';
+import { airPlayOutput, fakeKioskOutputs } from './fake-kiosk.ts';
+import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
 import { COLOURED_ART, fakeSpotify, PIXEL } from './fake-spotify.ts';
 
 // Layout bugs such as an overlapping or gapped sticky modal header are invisible to the DOM assertions elsewhere, so
@@ -39,34 +40,45 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
     await expect(dialog).toHaveScreenshot('settings-scrolled.png', SHOT);
   });
 
-  test('speakers drawer', { tag: '@speakers' }, async ({ page }) => {
+  test('speakers view', { tag: '@speakers' }, async ({ page }) => {
     await fakeSpotify(page);
-    // The drawer needs the height of a real screen, unlike the modals above, which are checked on a short one.
+    // The view needs the height of a real screen, unlike the modals above, which are checked on a short one.
     await page.setViewportSize({ width: 1024, height: 600 });
     await page.goto('/');
     await page.getByRole('button', { name: /^Speakers:/ }).click();
-    const dialog = page.getByRole('dialog', { name: 'Speakers' });
-    await expect(dialog.getByRole('button', { name: /Test speaker/ })).toBeVisible();
+    const view = page.getByRole('region', { name: 'Speakers' });
+    await expect(view.getByRole('checkbox', { name: 'Test speaker' })).toBeChecked();
     // The clock and the seek position change as time passes, so they are masked out of the comparison.
-    await expect(page).toHaveScreenshot('speakers-drawer.png', {
+    await expect(page).toHaveScreenshot('speakers-view.png', {
       ...SHOT,
       mask: [page.locator('.header-clock'), page.getByRole('slider', { name: 'Playback position' })]
     });
   });
 
-  test('speakers drawer with AirPlay volumes', { tag: '@speakers' }, async ({ page }) => {
+  test('speakers view with AirPlay volumes', { tag: '@speakers' }, async ({ page }) => {
     await fakeSpotify(page);
-    await fakeKioskAirPlay(page, { Kitchen: 40, Lounge: 70 }, ['Kitchen', 'Lounge']);
+    await fakeKioskOutputs(page, [
+      airPlayOutput('Kitchen', 40),
+      airPlayOutput('Lounge', 20),
+      airPlayOutput('Study', 30)
+    ]);
+    await fakeSpotifySdk(page);
     await page.setViewportSize({ width: 1024, height: 600 });
     await page.goto('/');
     await page.getByRole('button', { name: /^Speakers:/ }).click();
-    const dialog = page.getByRole('dialog', { name: 'Speakers' });
-    await dialog.getByRole('button', { name: "Show each speaker's volume" }).click();
-    await expect(dialog.getByRole('slider', { name: 'Lounge volume' })).toBeVisible();
-    await dialog.locator('.speaker-drawer-body').evaluate(element => {
-      element.scrollTo({ top: element.scrollHeight });
-    });
-    await expect(page).toHaveScreenshot('speakers-drawer-airplay.png', {
+    const view = page.getByRole('region', { name: 'Speakers' });
+    const nav = page.getByRole('navigation', { name: 'Beside the artwork' });
+    await view.getByRole('checkbox', { name: 'This tablet' }).click();
+    await nav.getByRole('button', { name: 'Save' }).click();
+    await expect(nav.getByRole('button', { name: 'Speakers' })).toBeVisible();
+    await view.getByRole('button', { name: 'AirPlay' }).click();
+    await view.getByRole('checkbox', { name: 'Kitchen' }).click();
+    await view.getByRole('checkbox', { name: 'Lounge' }).click();
+    await nav.getByRole('button', { name: 'Save' }).click();
+    await expect(nav.getByRole('button', { name: 'Speakers' })).toBeVisible();
+    await view.getByRole('button', { name: 'Volumes' }).click();
+    await expect(view.getByRole('slider', { name: 'Lounge volume' })).toBeVisible();
+    await expect(page).toHaveScreenshot('speakers-view-airplay.png', {
       ...SHOT,
       mask: [page.locator('.header-clock'), page.getByRole('slider', { name: 'Playback position' })]
     });

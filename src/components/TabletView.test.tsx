@@ -65,6 +65,12 @@ vi.mock('../audio/bluetooth', () => ({
 }));
 vi.mock('../audio/airplay', () => airplay);
 vi.mock('../hooks/useSonosPlayer', () => ({ useSonosPlayer: () => sonos.current }));
+// The Pi's Sonos service is not there in a test.
+vi.mock('../sonos/kiosk', async importOriginal => ({
+  ...(await importOriginal<typeof import('../sonos/kiosk')>()),
+  findSonosOnPi: vi.fn().mockResolvedValue({ groups: [], ms: 0 }),
+  watchSonosOnPi: vi.fn(() => vi.fn())
+}));
 
 const track = {
   id: 'tr1',
@@ -224,15 +230,17 @@ describe('TabletView', () => {
     expect(panels).toHaveAttribute('data-showing', 'queue');
   });
 
-  it('opens the speakers from the Speakers button beside the panel, leaving the panel as it was', async () => {
+  it('shows the speakers in the panel from the Speakers button beside it, and the queue again from Queue', async () => {
     render(<TabletView />);
     await flush();
     const nav = screen.getByRole('navigation', { name: 'Beside the artwork' });
     fireEvent.click(within(nav).getByRole('button', { name: 'Speakers' }));
     await flush();
-    expect(screen.getByRole('dialog', { name: 'Speakers' })).toBeInTheDocument();
-    expect(document.querySelector('.side-panel')).toHaveAttribute('data-showing', 'queue');
+    expect(document.querySelector('.side-panel')).toHaveAttribute('data-showing', 'speakers');
+    expect(screen.getByRole('checkbox', { name: 'Soundbar' })).toBeInTheDocument();
     expect(player.current.transferPlayback).not.toHaveBeenCalled();
+    fireEvent.click(within(nav).getByRole('button', { name: 'Queue' }));
+    expect(document.querySelector('.side-panel')).toHaveAttribute('data-showing', 'queue');
   });
 
   it('keeps the queue, with its retry, in view when the queue could not be read', async () => {
@@ -372,7 +380,7 @@ describe('TabletView', () => {
     expect(screen.getByRole('heading', { name: 'Nothing playing' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Speakers:/ }));
     await flush();
-    expect(screen.getByRole('dialog', { name: 'Speakers' })).toBeInTheDocument();
+    expect(document.querySelector('.side-panel')).toHaveAttribute('data-showing', 'speakers');
     expect(player.current.transferPlayback).not.toHaveBeenCalled();
     expect(player.current.togglePlay).not.toHaveBeenCalled();
   });
@@ -612,16 +620,6 @@ describe('TabletView', () => {
     expect(api.getQueue).toHaveBeenCalledTimes(1);
   });
 
-  it('opens the modals from the header', async () => {
-    render(<TabletView />);
-    await flush();
-    expect(screen.queryByRole('button', { name: /jam in spotify/i })).not.toBeInTheDocument();
-    api.getDevices.mockResolvedValue({ devices: [] });
-    fireEvent.click(screen.getByRole('button', { name: /^Speakers:/ }));
-    await flush();
-    expect(screen.getByRole('dialog', { name: /^speakers$/i })).toBeInTheDocument();
-  });
-
   it('always uses the Paper appearance', async () => {
     localStorage.setItem('maxmix_theme', 'neon');
     const { container } = render(<TabletView />);
@@ -703,22 +701,51 @@ describe('TabletView', () => {
     expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
   });
 
-  it('selects a speaker through transferPlayback', async () => {
-    api.getQueue.mockResolvedValue({ queue: [] });
-    render(<TabletView />);
-    await flush();
+  it('moves playback to a ticked speaker only on Save, then goes straight back to Speakers', async () => {
+    vi.useFakeTimers();
+    const { rerender } = render(<TabletView />);
+    await act(() => vi.advanceTimersByTimeAsync(0));
     fireEvent.click(screen.getByRole('button', { name: /^Speakers:/ }));
-    await flush();
-    fireEvent.click(screen.getByRole('button', { name: /Soundbar/ }));
-    await flush();
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    const nav = screen.getByRole('navigation', { name: 'Beside the artwork' });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Soundbar' }));
+    expect(screen.getByRole('checkbox', { name: 'Soundbar' })).toBeChecked();
+    expect(player.current.transferPlayback).not.toHaveBeenCalled();
+    // Away from the Speakers view the button opens it again; the draft waits there.
+    fireEvent.click(within(nav).getByRole('button', { name: 'Lyrics' }));
+    expect(within(nav).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    fireEvent.click(within(nav).getByRole('button', { name: 'Speakers' }));
+    fireEvent.click(within(nav).getByRole('button', { name: 'Save' }));
+    await act(() => vi.advanceTimersByTimeAsync(0));
     expect(player.current.transferPlayback).toHaveBeenCalledWith('dev1');
+    expect(within(nav).getByRole('button', { name: 'Saving…' })).toBeDisabled();
+    // Spotify says it plays there now.
+    setPlayer({ playbackState: { is_playing: true, item: track, device: { id: 'dev1', name: 'Soundbar' } } });
+    rerender(<TabletView />);
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(within(nav).getByRole('button', { name: 'Speakers' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('keeps the draft and says so when the speaker never starts playing', async () => {
+    vi.useFakeTimers();
+    render(<TabletView />);
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    fireEvent.click(screen.getByRole('button', { name: /^Speakers:/ }));
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Soundbar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
+    expect(screen.getByRole('alert')).toHaveTextContent('The speakers did not take the change.');
+    expect(screen.getByRole('checkbox', { name: 'Soundbar' })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   });
 
   describe('on the kiosk', () => {
     beforeEach(() => {
       localStorage.setItem('maxmix.kiosk', 'true');
       for (const mock of Object.values(airplay)) mock.mockReset();
-      airplay.listAudioOutputs.mockResolvedValue({ names: [], volumes: {} });
+      airplay.listAudioOutputs.mockResolvedValue({ outputs: [], legacy: false });
       airplay.watchAudioOutputs.mockReturnValue(vi.fn());
       airplay.getChosenSpeakers.mockReturnValue(['Kitchen']);
       setPlayer({
@@ -831,99 +858,96 @@ describe('TabletView', () => {
       });
     });
 
+    const kitchen = {
+      id: 'raop_sink.Kitchen.local.7000',
+      name: 'Kitchen',
+      kind: 'airplay',
+      volume: 60,
+      linked: false
+    };
+    const outputs = (linked: boolean) => ({ outputs: [{ ...kitchen, linked }], legacy: false });
     const openSpeakers = async () => {
-      render(<TabletView />);
-      await flush();
+      const view = render(<TabletView />);
+      await act(() => vi.advanceTimersByTimeAsync(0));
       fireEvent.click(screen.getByRole('button', { name: /^Speakers:/ }));
-      await flush();
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      return view;
     };
 
-    it('choosing an AirPlay speaker routes the sound and remembers it while this tablet is playing', async () => {
-      setPlayer({ playbackMode: 'browser', browserDeviceId: 'web-1', playbackState: { device: { id: 'web-1' } } });
-      airplay.getChosenSpeakers.mockReturnValue([]);
-      airplay.listAudioOutputs.mockResolvedValue({ names: ['Kitchen'], volumes: {} });
+    it('points at This tablet in amber when AirPlay is tapped before this tablet plays, and changes nothing', async () => {
+      vi.useFakeTimers();
+      const scrollIntoView = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoView;
+      airplay.listAudioOutputs.mockResolvedValue(outputs(false));
       await openSpeakers();
-      fireEvent.click(screen.getByRole('button', { name: 'AirPlay' }));
-      await flush();
-      fireEvent.click(screen.getByRole('button', { name: /Kitchen/ }));
-      await flush();
-      expect(airplay.routeAudio).toHaveBeenCalledWith(['Kitchen']);
-      expect(player.current.transferPlayback).not.toHaveBeenCalled();
-      expect(localStorage.getItem('maxmix.audioRoute')).toBe('airplay');
-    });
-
-    it('keeps the AirPlay tab shut until this tablet is the one playing', async () => {
-      airplay.getChosenSpeakers.mockReturnValue([]);
-      airplay.listAudioOutputs.mockResolvedValue({ names: ['Kitchen'], volumes: {} });
-      await openSpeakers();
-      // Another device (Soundbar) is playing.
       const airPlayTab = screen.getByRole('button', { name: 'AirPlay' });
-      expect(airPlayTab).toBeDisabled();
-      expect(screen.getByRole('button', { name: 'Bluetooth' })).toBeDisabled();
-      expect(screen.queryByText(/Choose This tablet/)).not.toBeInTheDocument();
+      expect(airPlayTab).toHaveAttribute('aria-disabled', 'true');
       fireEvent.click(airPlayTab);
-      await flush();
-      expect(screen.queryByRole('button', { name: /Kitchen/ })).not.toBeInTheDocument();
-      expect(airplay.routeAudio).not.toHaveBeenCalled();
-      expect(localStorage.getItem('maxmix.audioRoute')).toBeNull();
-      // Playing from this tablet is what unlocks them.
-      fireEvent.click(screen.getByRole('button', { name: /This tablet/ }));
-      await flush();
-      expect(player.current.transferPlayback).toHaveBeenCalledWith('web-1');
-    });
-
-    it('cannot add an AirPlay speaker without a ready browser player, but can clear a saved one', async () => {
-      localStorage.setItem('maxmix.audioRoute', 'airplay');
-      setPlayer({ isReady: false, browserDeviceId: null, playbackState: null });
-      await openSpeakers();
-      const kitchen = screen.getByRole('button', { name: /Kitchen/ });
-      expect(kitchen).toHaveTextContent('Not on the network');
-      fireEvent.click(kitchen);
-      await flush();
-      expect(airplay.setChosenSpeakers).toHaveBeenCalledExactlyOnceWith([]);
+      expect(airPlayTab).toHaveClass('is-flashing');
+      expect(screen.getByRole('checkbox', { name: 'This tablet' })).toHaveClass('is-flashing');
+      expect(screen.getByRole('button', { name: 'Spotify Connect' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.queryByRole('checkbox', { name: 'Kitchen' })).not.toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: 'This tablet' })).not.toBeChecked();
+      await act(() => vi.advanceTimersByTimeAsync(2000));
+      expect(scrollIntoView).toHaveBeenCalled();
+      expect(airPlayTab).not.toHaveClass('is-flashing');
       expect(airplay.routeAudio).not.toHaveBeenCalled();
       expect(player.current.transferPlayback).not.toHaveBeenCalled();
-      expect(player.current.togglePlay).not.toHaveBeenCalled();
-      expect(localStorage.getItem('maxmix.audioRoute')).toBeNull();
     });
 
-    it.each(['web-1', null])(
-      'opening the picker on a saved AirPlay route with browser device %s does not route or play',
-      async browserDeviceId => {
-        localStorage.setItem('maxmix.audioRoute', 'airplay');
-        setPlayer({ browserDeviceId, isReady: Boolean(browserDeviceId) });
-        await openSpeakers();
-        expect(screen.getByRole('button', { name: /Kitchen/ })).toHaveTextContent('Selected');
-        expect(airplay.routeAudio).not.toHaveBeenCalled();
-        expect(player.current.transferPlayback).not.toHaveBeenCalled();
-        expect(player.current.togglePlay).not.toHaveBeenCalled();
-      }
-    );
+    it('routes ticked outputs by id on Save while this tablet plays, turning a loud one down first', async () => {
+      vi.useFakeTimers();
+      setPlayer({ playbackMode: 'browser', browserDeviceId: 'web-1', playbackState: { device: { id: 'web-1' } } });
+      airplay.listAudioOutputs.mockResolvedValue(outputs(false));
+      await openSpeakers();
+      expect(screen.getByRole('button', { name: /^Speakers: Playing on This tablet/ })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'AirPlay' }));
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Kitchen' }));
+      expect(airplay.routeAudio).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      expect(airplay.setSpeakerVolume).toHaveBeenCalledWith(expect.objectContaining({ id: kitchen.id }), 25);
+      expect(airplay.routeAudio).toHaveBeenCalledWith([kitchen.id], false);
+      expect(player.current.transferPlayback).not.toHaveBeenCalled();
+      // The Pi says the sound goes there now.
+      airplay.listAudioOutputs.mockResolvedValue(outputs(true));
+      // One read at a time, so each answer renders before the next look.
+      await act(() => vi.advanceTimersByTimeAsync(1000));
+      await act(() => vi.advanceTimersByTimeAsync(1000));
+      await act(() => vi.advanceTimersByTimeAsync(1000));
+      expect(screen.getByRole('button', { name: 'Speakers' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Speakers: Playing on Kitchen/ })).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: 'Kitchen' })).toBeChecked();
+    });
 
-    it('choosing a Spotify Connect speaker hands the sound back to the Pi and forgets the AirPlay speakers', async () => {
-      localStorage.setItem('maxmix.audioRoute', 'airplay');
+    it('hands the sound back to the Pi before moving to a Spotify Connect speaker', async () => {
+      vi.useFakeTimers();
+      setPlayer({ playbackMode: 'browser', browserDeviceId: 'web-1', playbackState: { device: { id: 'web-1' } } });
+      airplay.listAudioOutputs.mockResolvedValue(outputs(true));
       api.getDevices.mockResolvedValue({ devices: [{ id: 'dev2', name: 'Soundbar' }] });
       await openSpeakers();
-      fireEvent.click(screen.getByRole('button', { name: 'Spotify Connect' }));
-      await flush();
-      fireEvent.click(screen.getByRole('button', { name: /Soundbar/ }));
-      await flush();
-      expect(airplay.routeAudio).toHaveBeenCalledWith([]);
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Soundbar' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      expect(airplay.routeAudio).toHaveBeenCalledWith([], false);
       expect(airplay.setChosenSpeakers).toHaveBeenCalledWith([]);
       expect(player.current.transferPlayback).toHaveBeenCalledWith('dev2');
-      expect(localStorage.getItem('maxmix.audioRoute')).toBeNull();
     });
 
-    it('choosing this tablet while on AirPlay goes back to the tablet output', async () => {
-      localStorage.setItem('maxmix.audioRoute', 'airplay');
+    it('trusts its own last choice on a Pi still on an older service', async () => {
+      vi.useFakeTimers();
+      setPlayer({ playbackMode: 'browser', browserDeviceId: 'web-1', playbackState: { device: { id: 'web-1' } } });
+      airplay.listAudioOutputs.mockResolvedValue({
+        outputs: [{ id: 'Kitchen', name: 'Kitchen', kind: null, volume: null, linked: null }],
+        legacy: true
+      });
       await openSpeakers();
-      fireEvent.click(screen.getByRole('button', { name: 'Spotify Connect' }));
-      await flush();
-      fireEvent.click(screen.getByRole('button', { name: /This tablet/ }));
-      await flush();
-      expect(airplay.routeAudio).toHaveBeenCalledWith([]);
-      expect(player.current.transferPlayback).toHaveBeenCalledWith('web-1');
-      expect(localStorage.getItem('maxmix.audioRoute')).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'AirPlay' }));
+      expect(screen.getByRole('checkbox', { name: 'Kitchen' })).toBeChecked();
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Kitchen' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      expect(airplay.routeAudio).toHaveBeenCalledWith([], true);
     });
   });
 

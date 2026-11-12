@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
   await fakeSpotify(page);
 });
 
-// Keyboard focus and dismissal of the dialogs (settings, speakers drawer, debug console), each tagged with what it opens.
+// Keyboard focus and dismissal of the dialogs (settings, debug console), each tagged with what it opens.
 test.describe('Dialogs: focus and dismissal', { tag: '@dialogs' }, () => {
   test(
     'Settings keep keyboard focus inside, wrapping both ways, and give it back to the button',
@@ -33,33 +33,6 @@ test.describe('Dialogs: focus and dismissal', { tag: '@dialogs' }, () => {
       await expect(trigger).toBeFocused();
     }
   );
-
-  test(
-    'the Speakers drawer takes focus when opened and gives it back on Escape',
-    { tag: '@speakers' },
-    async ({ page }) => {
-      await page.goto('/');
-      const trigger = page.getByRole('button', { name: /^Speakers:/ });
-      await expect(trigger).toHaveAttribute('aria-expanded', 'false');
-      await trigger.click();
-      await expect(trigger).toHaveAttribute('aria-expanded', 'true');
-      const speakers = page.getByRole('dialog', { name: 'Speakers' });
-      await expect(speakers.getByRole('button', { name: /Test speaker/ })).toBeVisible();
-      await expect(speakers.getByRole('button', { name: 'Close speakers' })).toBeFocused();
-      await page.keyboard.press('Escape');
-      await expect(speakers).toBeHidden();
-      await expect(trigger).toBeFocused();
-    }
-  );
-
-  test('tapping outside the Speakers drawer closes it', { tag: '@speakers' }, async ({ page }) => {
-    await page.goto('/');
-    await page.getByRole('button', { name: /^Speakers:/ }).click();
-    const speakers = page.getByRole('dialog', { name: 'Speakers' });
-    await expect(speakers).toBeVisible();
-    await page.mouse.click(900, 300);
-    await expect(speakers).toBeHidden();
-  });
 
   test(
     'Escape closes only the topmost dialog (Debug console over Settings) and restores focus',

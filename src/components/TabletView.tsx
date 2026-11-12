@@ -7,7 +7,7 @@ import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useKioskUpdate } from '../hooks/useKioskUpdate';
 import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
 import { useScreenSleep } from '../hooks/useScreenSleep';
-import { usePanelView, type PanelView } from '../hooks/usePanelView';
+import { usePanelView } from '../hooks/usePanelView';
 import { extractArtColours, type ArtColours } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
@@ -15,9 +15,7 @@ import { getQueue } from '../spotify/api';
 import { getKioskSonosLeader, playOnSonosRoom } from '../sonos/kiosk';
 import { rememberSpeaker } from '../spotify/knownDevices';
 import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
-import { getAudioRoute, setAudioRoute } from '../spotify/settings';
-import type { AudioRoute } from '../spotify/settings';
-import { getChosenSpeakers, routeAudio, setChosenSpeakers } from '../audio/airplay';
+import { useSpeakerSelection } from '../speakers/useSpeakerSelection';
 import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
 import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
@@ -35,7 +33,7 @@ import PanelNav from './PanelNav';
 import SettingsModal from './SettingsModal';
 import UpdateConsole from './UpdateConsole';
 import UpdatePrompt from './UpdatePrompt';
-import SpeakerDrawer from './SpeakerDrawer';
+import SpeakersView from './SpeakersView';
 import MusicPicker from './MusicPicker';
 import DebugConsole from './DebugConsole';
 import SleepScreen from './SleepScreen';
@@ -126,50 +124,18 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [isJumping, setIsJumping] = useState(false);
   const [currentTime, setCurrentTime] = useState(formatClock);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isSpeakerModalOpen, setIsSpeakerModalOpen] = useState(false);
   const [isMusicOpen, setIsMusicOpen] = useState(false);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const debugHold = useHold(() => setIsDebugOpen(true), DEBUG_HOLD_MS);
   const [queueError, setQueueError] = useState<string | null>(null);
-  // AirPlay needs the Pi's audio service, so it is offered on the kiosk only.
+  // AirPlay, Bluetooth and Sonos need the Pi's audio service, so they are offered on the kiosk only.
   const [onKiosk] = useState(isKiosk);
-  const canUseAirPlay = onKiosk;
-  const [storedAudioRoute, setStoredAudioRoute] = useState(getAudioRoute);
-  const audioRoute: AudioRoute = canUseAirPlay ? storedAudioRoute : 'spotify-connect';
-
-  // AirPlay plays what this tablet's own player plays, so its speakers can only be picked while this tablet is the one
-  // playing; the Pi then sends the sound on to the chosen speakers. Choosing a Spotify Connect speaker (or this tablet
-  // again) hands the sound back to the Pi's own output and forgets the AirPlay speakers.
-  const changeAudioRoute = (route: AudioRoute) => {
-    setStoredAudioRoute(route);
-    setAudioRoute(route);
-  };
-
-  const chooseAirPlaySpeakers = (speakers: string[]) => {
-    if (speakers.length === 0) {
-      changeAudioRoute('spotify-connect');
-      return;
-    }
-    changeAudioRoute('airplay');
-    if (browserDeviceId) routeAudio(speakers);
-  };
-
-  const chooseSpotifyDevice = async (deviceId: string) => {
-    // Leaving a Sonos pauses it, so the music does not go on there as well.
-    if (sonos.active) await sonos.leave();
-    if (audioRoute === 'airplay') {
-      changeAudioRoute('spotify-connect');
-      setChosenSpeakers([]);
-      routeAudio([]);
-    }
-    await transferPlayback(deviceId);
-  };
 
   // Spotify will not move its playback to a Sonos, so on the kiosk the Pi starts the song on the speaker itself
   // (sonos-ts), with Spotify's queue after it and from where the song was. The tablet is paused first, while it is still
   // the player (afterwards Spotify has moved on and a pause fails), and its player lets go. From then on the tablet shows
   // and controls the Sonos group (useSonosPlayer), which SonosKioskList marks as the kiosk's. Picking another Sonos while
-  // following one plays the Sonos's song there, from the same point.
+  // following one plays the Sonos's song there, from the same point. The Speakers view's Save calls it (useSpeakerSelection).
   const playOnSonos = async (room: string) => {
     const shown = sonos.active ? sonos.playback : playbackState;
     const uri = shown?.item?.uri;
@@ -329,7 +295,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   }, [artUrl]);
 
   const showSettings = () => setIsSettingsOpen(true);
-  const chooseSpeaker = () => setIsSpeakerModalOpen(true);
   const recoverPlayback = async (action: () => Promise<boolean>) => {
     if (isRefreshingPlayback) return;
     setIsRefreshingPlayback(true);
@@ -378,15 +343,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const controlsEnabled = followingSonos
     ? isAuthenticated && !isOffline && Boolean(sonos.playback)
     : spotifyControlsEnabled;
-  // What the device indicator in the control bar says is playing.
-  let speakerLabel: string | undefined;
-  if (followingSonos) speakerLabel = sonos.name ?? 'Sonos';
-  else if (audioRoute === 'airplay') {
-    const count = getChosenSpeakers().length;
-    speakerLabel = 'AirPlay';
-    if (count === 1) speakerLabel = 'AirPlay, 1 speaker';
-    else if (count > 1) speakerLabel = `AirPlay, ${count} speakers`;
-  } else if (browserDeviceId && playbackState?.device?.id === browserDeviceId) speakerLabel = 'This tablet';
   let shownQueueStatus: QueueStatus = waitingForSpotify ? 'waiting' : queueStatus;
   if (followingSonos) shownQueueStatus = 'ready';
   const shownQueue = followingSonos ? sonos.next : queue;
@@ -396,12 +352,23 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const queueSettled = shownQueueStatus !== 'loading' || shownQueue.length > 0;
   const queueEmpty = shownQueue.length === 0 && shownQueueStatus === 'ready' && !shownQueueError;
   const panel = usePanelView(queueEmpty, queueSettled);
-  // Until the in-place speakers view arrives, the Speakers button opens the speakers drawer and the panel stays as it is.
   const lyricsShown = panel.view === 'lyrics';
-  const showPanel = (view: PanelView) => {
-    if (view === 'speakers') setIsSpeakerModalOpen(true);
-    else panel.show(view);
-  };
+  const speakersShown = panel.view === 'speakers';
+  const chooseSpeaker = () => panel.show('speakers');
+  const speakers = useSpeakerSelection({
+    onKiosk,
+    open: speakersShown && !needsConnection,
+    browserDeviceId: browserDeviceId ?? null,
+    playingDeviceId: playbackState?.device?.id ?? null,
+    sonosName: sonos.name ?? null,
+    transfer: transferPlayback,
+    playOnSonos,
+    leaveSonos: sonos.leave
+  });
+  // The third button saves a changed speaker choice while the Speakers view shows it; elsewhere it opens the view.
+  let speakersButton: 'speakers' | 'save' | 'saving' = 'speakers';
+  if (speakersShown && speakers.saving) speakersButton = 'saving';
+  else if (speakersShown && speakers.dirty) speakersButton = 'save';
   /** Plays the queue song at this position by skipping past the ones before it. */
   const playQueueTrack = async (index: number) => {
     setIsJumping(true);
@@ -510,17 +477,22 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 liked={followingSonos ? null : liked}
                 onToggleLike={toggleLike}
                 controlsEnabled={controlsEnabled}
-                speakerLabel={speakerLabel}
-                speakersOpen={isSpeakerModalOpen}
-                onOpenSpeakers={() => setIsSpeakerModalOpen(true)}
+                speakerLabel={speakers.playingLabel}
+                speakersOpen={speakersShown}
+                onOpenSpeakers={chooseSpeaker}
               />
             )}
           </section>
 
           {!needsConnection && (
-            <div className="side-panel" data-showing={lyricsShown ? 'lyrics' : 'queue'}>
-              {/* Both stay put and cross-fade; the hidden one is inert, so neither a tap nor a screen reader reaches it. */}
-              <section className="queue-section side-panel-view" aria-label="Upcoming tracks" inert={lyricsShown}>
+            <div className="side-panel" data-showing={panel.view}>
+              {/* All three stay put and cross-fade; the hidden ones are inert, so neither a tap nor a screen reader reaches them. */}
+              <section
+                className="queue-section side-panel-view"
+                aria-label="Upcoming tracks"
+                inert={panel.view !== 'queue'}
+                data-view="queue"
+              >
                 <TrackQueue
                   queue={shownQueue}
                   error={shownQueueError}
@@ -534,30 +506,28 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                   onMove={followingSonos ? sonos.moveSong : undefined}
                 />
               </section>
-              <div className="side-panel-view" inert={!lyricsShown}>
+              <div className="side-panel-view" inert={!lyricsShown} data-view="lyrics">
                 <LyricsPanel
                   track={currentTrack}
                   shown={lyricsShown}
                   progressMs={shownPlayback?.progress_ms ?? shownPlayback?.position ?? 0}
                 />
               </div>
+              <section className="side-panel-view" aria-label="Speakers" inert={!speakersShown} data-view="speakers">
+                <SpeakersView selection={speakers} onKiosk={onKiosk} browserDeviceId={browserDeviceId ?? null} />
+              </section>
             </div>
           )}
-          {!needsConnection && <PanelNav view={isSpeakerModalOpen ? 'speakers' : panel.view} onShow={showPanel} />}
+          {!needsConnection && (
+            <PanelNav
+              view={panel.view}
+              onShow={panel.show}
+              speakersButton={speakersButton}
+              onSave={() => void speakers.save()}
+            />
+          )}
         </main>
       </div>
-
-      <SpeakerDrawer
-        isOpen={isSpeakerModalOpen}
-        onClose={() => setIsSpeakerModalOpen(false)}
-        onSelectSpeaker={chooseSpotifyDevice}
-        browserDeviceId={browserDeviceId}
-        activeDeviceId={shownPlayback?.device?.id ?? null}
-        canUseAirPlay={canUseAirPlay}
-        audioRoute={audioRoute}
-        onAirPlayChange={chooseAirPlaySpeakers}
-        onPlayOnSonos={onKiosk ? playOnSonos : undefined}
-      />
 
       <MusicPicker
         isOpen={isMusicOpen && !needsConnection}
@@ -574,7 +544,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           ['Kiosk', onKiosk ? 'Yes' : 'No'],
           ['Signed in', isAuthenticated ? 'Yes' : 'No'],
           ['Playback mode', playbackMode],
-          ['Audio route', audioRoute],
+          ['Playing on', speakers.playingLabel ?? playbackState?.device?.name ?? 'Nothing'],
           ['Browser player', browserDeviceId ? `Ready (${browserDeviceId})` : 'Not connected'],
           ['SDK driving', sdkActive ? 'Yes' : 'No'],
           ['Active device', playbackState?.device?.name ?? 'None'],
@@ -602,25 +572,20 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         kioskUpdate={kioskUpdate}
       />
 
-      {/* A newer version is asked about once, with the screen awake and no speakers or debug dialog open. It also shows over
+      {/* A newer version is asked about once, with the screen awake and no music picker or debug dialog open. It also shows over
           the settings (which check again each time they open), and starting the update from it closes them: the console takes
           over. Dialogs stack in the order they were opened (the browser's top layer), and this one can only open after the
           settings, which the page behind a modal dialog cannot reopen: e2e/update-popup.spec.ts checks it is on top. */}
-      {kioskUpdate.prompting &&
-        kioskUpdate.newer &&
-        !sleep.asleep &&
-        !isSpeakerModalOpen &&
-        !isMusicOpen &&
-        !isDebugOpen && (
-          <UpdatePrompt
-            newer={kioskUpdate.newer}
-            onUpdate={() => {
-              kioskUpdate.start();
-              setIsSettingsOpen(false);
-            }}
-            onLater={kioskUpdate.dismissPrompt}
-          />
-        )}
+      {kioskUpdate.prompting && kioskUpdate.newer && !sleep.asleep && !isMusicOpen && !isDebugOpen && (
+        <UpdatePrompt
+          newer={kioskUpdate.newer}
+          onUpdate={() => {
+            kioskUpdate.start();
+            setIsSettingsOpen(false);
+          }}
+          onLater={kioskUpdate.dismissPrompt}
+        />
+      )}
       <UpdateConsole update={kioskUpdate} />
 
       {sleep.asleep && <SleepScreen onWake={sleep.wake} />}

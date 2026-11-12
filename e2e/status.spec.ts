@@ -153,7 +153,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     await expectControlsFit(page, player);
     await expect(page.getByRole('button', { name: /^Speakers:/ })).toBeInViewport();
     await page.getByRole('button', { name: /^Speakers:/ }).click();
-    await expect(page.getByRole('dialog', { name: 'Speakers' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Speakers' })).toBeVisible();
     expect(api.commands).toEqual([]);
   });
 
@@ -219,9 +219,11 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       } else {
         api.devicesStatus = 429;
         await page.getByRole('button', { name: /^Speakers:/ }).click();
-        const speakers = page.getByRole('dialog', { name: 'Speakers' });
-        await expect(speakers.getByRole('button', { name: 'Refresh devices' })).toBeDisabled();
-        await speakers.getByRole('button', { name: 'Close speakers' }).click();
+        await expect(page.getByRole('region', { name: 'Speakers' })).toBeVisible();
+        await page
+          .getByRole('navigation', { name: 'Beside the artwork' })
+          .getByRole('button', { name: 'Queue' })
+          .click();
       }
       await expect(page.locator('.playback-banner').getByText('Waiting for Spotify', { exact: true })).toBeVisible();
       await expect(queue.getByText('Waiting for Spotify...')).toBeVisible();
@@ -231,10 +233,10 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       const requests = api.requests.length;
       const commands = [...api.commands];
       await page.getByRole('button', { name: /^Speakers:/ }).click();
-      const speakers = page.getByRole('dialog', { name: 'Speakers' });
-      await expect(speakers.getByText('Spotify asked this app to wait before refreshing devices.')).toBeVisible();
-      await expect(speakers.getByRole('button', { name: 'Refresh devices' })).toBeDisabled();
-      await speakers.getByRole('button', { name: 'Close speakers' }).click();
+      const speakers = page.getByRole('region', { name: 'Speakers' });
+      await expect(speakers).toBeVisible();
+      await page.getByRole('navigation', { name: 'Beside the artwork' }).getByRole('button', { name: 'Queue' }).click();
+      await expect(speakers).toBeHidden();
       await page.clock.runFor(29_999);
       expect(api.requests).toHaveLength(requests);
       expect(api.commands).toEqual(commands);
@@ -391,10 +393,10 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       const banner = page.locator('.playback-banner');
       await expect(banner).toContainText('Choose an available speaker');
       await banner.getByRole('button', { name: 'Choose speaker' }).click();
-      const drawer = page.getByRole('dialog', { name: 'Speakers' });
-      await expect(drawer.getByRole('button', { name: /Test speaker/ })).toBeVisible();
+      const view = page.getByRole('region', { name: 'Speakers' });
+      await expect(view.getByRole('checkbox', { name: 'Test speaker' })).toBeVisible();
       // This tablet is not offered as a speaker any more.
-      await expect(drawer.getByRole('button', { name: 'This tablet' })).toHaveCount(0);
+      await expect(view.getByRole('checkbox', { name: 'This tablet' })).toHaveCount(0);
     });
   });
 });
