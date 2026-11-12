@@ -23,6 +23,7 @@ import { debugLog } from '../utils/debugLog';
 import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import { loadThemeColour, saveThemeColour } from '../utils/themeColour';
+import { useTheme } from '../hooks/useTheme';
 import type { ThemeColour } from '../utils/themeColour';
 import type { MusicChoice, Track } from '../types';
 import OfflineBanner from './OfflineBanner';
@@ -216,6 +217,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     setThemeColour(colour);
     saveThemeColour(colour);
   };
+  const theme = useTheme();
   const kioskUpdate = useKioskUpdate(onKiosk);
   const sleep = useScreenSleep({
     enabled: onKiosk,
@@ -416,6 +418,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     <div
       className="tablet-container"
       data-colour={themeColour}
+      data-theme={theme.theme}
       style={
         artColours
           ? ({ '--art-tint-top': artColours.top, '--art-tint-bottom': artColours.bottom } as CSSProperties)
@@ -599,6 +602,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         onScreenSleepChange={changeScreenSleep}
         themeColour={themeColour}
         onThemeColourChange={changeThemeColour}
+        theme={theme.theme}
+        onThemeChange={theme.change}
         kioskUpdate={kioskUpdate}
       />
 
