@@ -196,6 +196,14 @@ function currentLogin(): (StoredLogin & { spotifyId: string }) | null {
 }
 
 /**
+ * The Spotify ID of the person whose music the kiosk plays now. Null when nobody is signed in, or when the active person
+ * moved in from the old single login and Spotify has not yet said who they are (that happens on the first token refresh).
+ */
+export function getActivePersonId(): string | null {
+  return currentLogin()?.spotifyId || null;
+}
+
+/**
  * Who the account behind `accessToken` is, from GET /me; blank when Spotify does not say. Null when Spotify refuses the
  * account (403): in development mode it answers only accounts listed under the app's users in the developer dashboard.
  */

@@ -54,6 +54,7 @@ vi.mock('../spotify/api', () => api);
 vi.mock('../spotify/auth', () => ({
   startSignIn: vi.fn(),
   signOut: vi.fn(),
+  getActivePersonId: () => 'me',
   peopleOnKiosk: () => [],
   isPersonRefused: () => false,
   PEOPLE_LIMIT: 5
