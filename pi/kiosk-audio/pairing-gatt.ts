@@ -1,5 +1,5 @@
 // The Bluetooth side of "Pair my phone" (phone-pairing.ts): for a couple of minutes the kiosk shows up on a phone as a
-// keyboard called THE MAX MIX. An iPhone only offers to pair, in Settings > Bluetooth, with a few kinds of device, and a
+// keyboard called THE MAX MIX (the advert's name, and the adapter's Alias, which is what an iPhone lists). An iPhone only offers to pair, in Settings > Bluetooth, with a few kinds of device, and a
 // keyboard is one it does not need an app for. Its service's values can only be read over an encrypted link, so reading
 // them makes the phone pair, and pairing gives the Pi the phone's identity key: from then on BlueZ knows the phone's
 // changing addresses as that one device. No key presses are ever sent. An agent says yes to the pairing while this runs
@@ -143,6 +143,16 @@ export async function advertiseForPairing(given?: MessageBus): Promise<PairingAd
   };
 
   const exportAll = async (): Promise<void> => {
+    // A phone lists the kiosk by the adapter's own name, which BlueZ otherwise takes from the hostname (the-max-mix-2),
+    // not by the advert's LocalName. BlueZ keeps the Alias, so this names the kiosk for good.
+    try {
+      await call(bus, ADAPTER, 'org.freedesktop.DBus.Properties', 'Set', {
+        signature: 'ssv',
+        body: ['org.bluez.Adapter1', 'Alias', new dbus.Variant('s', LOCAL_NAME)]
+      });
+    } catch (error) {
+      console.warn(`bluetooth: could not name the kiosk ${LOCAL_NAME}: ${String(error)}`);
+    }
     await exportObject(AGENT, agent(dbus));
     await call(bus, '/org/bluez', 'org.bluez.AgentManager1', 'RegisterAgent', {
       signature: 'os',

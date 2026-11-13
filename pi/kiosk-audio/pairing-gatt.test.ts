@@ -86,6 +86,21 @@ async function fakeBluez(): Promise<MessageBus> {
     }
   });
   await bluez.export('/org/bluez', agents);
+  await bluez.export(
+    '/org/bluez/hci0',
+    defineInterface({
+      name: 'org.bluez.Adapter1',
+      properties: {
+        Alias: {
+          type: 's',
+          get: () => 'the-max-mix-2',
+          set: value => {
+            bus.registered.push(`alias ${String(value)}`);
+          }
+        }
+      }
+    })
+  );
   return bluez;
 }
 
@@ -116,15 +131,16 @@ describe('kiosk-audio/pairing-gatt', () => {
     await fakeBluez();
     const advertising = await advertiseForPairing(await client());
     expect(bus.registered).toEqual([
+      'alias THE MAX MIX',
       `+${AGENT} NoInputNoOutput`,
       `default ${AGENT}`,
       `+${APP}`,
       '+/org/themaxmix/pairing_adv'
     ]);
     await advertising.stop();
-    expect(bus.registered.slice(4)).toEqual(['-/org/themaxmix/pairing_adv', `-${APP}`, `-${AGENT}`]);
+    expect(bus.registered.slice(5)).toEqual(['-/org/themaxmix/pairing_adv', `-${APP}`, `-${AGENT}`]);
     await advertising.stop();
-    expect(bus.registered).toHaveLength(7);
+    expect(bus.registered).toHaveLength(8);
   });
 
   it('serves a keyboard whose values need an encrypted link, and advertises it as THE MAX MIX', async () => {
