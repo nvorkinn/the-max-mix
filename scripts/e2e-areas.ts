@@ -86,7 +86,7 @@ export const AREAS: Area[] = [
   {
     tag: 'debug',
     title: 'Debug console',
-    sources: [/^src\/components\/DebugConsole/, /^src\/utils\/(debugLog|httpLog)/]
+    sources: [/^src\/components\/(DebugConsole|BluetoothDebug)/, /^src\/utils\/(debugLog|httpLog|bluetoothMonitor)/]
   },
   // No source file is only about these: the tests are found through the files they change, or through the areas above.
   { tag: 'appearance', title: 'Appearance of dialogs', sources: [] },

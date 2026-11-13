@@ -46,6 +46,15 @@ The app reaches everything else about Sonos here too:
   `SONOS_LISTENER_PORT` (6329, `kiosk_sonos_events_port` in Ansible). The subscriptions end when the last app goes away.
   The app keeps a slow read (once a minute) as a fallback, and reads as before when the stream is not there.
 
+## Bluetooth monitor
+
+`GET /bluetooth/monitor` feeds the Bluetooth section of the app's debug console (hold the clock 2 s): the Pi's adapter,
+the devices paired with it, when each was last heard and its signal strength, how many unpaired devices were heard in the
+last minute, and a log of what BlueZ reported (`bluetooth-monitor.ts`). It watches BlueZ's objects on the system bus with
+dbus-native, from the first time the app asks, and only listens: it never scans, pairs or advertises by itself (the
+section's Scan button uses `POST /bluetooth/scan`). Unpaired devices are logged only after `POST /bluetooth/monitor`
+with `{"verbose": true}`. It is the first step towards recognising people's phones; the log stays in memory.
+
 ## How it works
 
 1. **Discovery.** `libpipewire-module-raop-discover` (enabled by `/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf`)

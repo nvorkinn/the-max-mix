@@ -40,6 +40,10 @@
 //   POST /bluetooth/scan      look for speakers for a few seconds: the same answer      503 {"error"}: a safe message
 //   POST /bluetooth/connect   {"address"}   pair (if needed), trust and connect: {"ok": true} or {"ok": false, "error"}
 //   POST /bluetooth/remove    {"address"}   forget a speaker
+//   GET  /bluetooth/monitor   for the debug console (bluetooth-monitor.ts): {"adapter", "devices": the paired ones,
+//                             "nearby": unpaired devices heard in the last minute, "verbose",
+//                             "log": [{"id", "time", "message"}]}, or 503 {"error"}
+//   POST /bluetooth/monitor   {"verbose": true}: log unpaired devices too
 //   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
 //                           (update-socket.ts)
 // Only the app's origin is answered (CORS, and every POST and WebSocket is refused without its Origin header, so no other
@@ -50,6 +54,8 @@ import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { perform } from './actions.ts';
 import type { Action } from './actions.ts';
+import { BluetoothMonitor, UNAVAILABLE as BLUETOOTH_UNAVAILABLE } from './bluetooth-monitor.ts';
+import type { MonitorSnapshot } from './bluetooth-monitor.ts';
 import { Bluetooth, BluetoothError, parseAddress } from './bluetooth.ts';
 import type { BluetoothDevice, ConnectResult as BluetoothConnectResult } from './bluetooth.ts';
 import { isLoopback, listenForHotspot } from './hotspot-portal.ts';
@@ -112,6 +118,8 @@ export interface Deps {
   /** Synced lyrics for a song, or null; rejects when no source could be reached. */
   lyrics: (query: LyricsQuery) => Promise<LyricsHit | null>;
   bluetooth: BluetoothControl;
+  /** What BlueZ reports, for the debug console. */
+  bluetoothMonitor: { snapshot: () => Promise<MonitorSnapshot>; setVerbose: (isVerbose: boolean) => void };
   phone: { start: () => Promise<void> };
   hotspot: {
     start: () => Promise<HotspotInfo>;
@@ -313,6 +321,15 @@ async function sendDevices(response: ServerResponse, devices: () => Promise<Blue
   }
 }
 
+/** GET /bluetooth/monitor: what BlueZ reports, or 503 when it is not there. */
+async function sendMonitor(response: ServerResponse, deps: Deps): Promise<void> {
+  try {
+    sendJson(response, 200, await deps.bluetoothMonitor.snapshot());
+  } catch {
+    sendJson(response, 503, { error: BLUETOOTH_UNAVAILABLE });
+  }
+}
+
 async function postBluetooth(
   url: string,
   request: IncomingMessage,
@@ -373,6 +390,12 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
     case '/sonos/move': {
       await postSonos(request, response, deps);
       return;
+    }
+    case '/bluetooth/monitor': {
+      const body = JSON.parse(await readBody(request)) as { verbose?: unknown } | null;
+      if (typeof body?.verbose === 'boolean') deps.bluetoothMonitor.setVerbose(body.verbose);
+      else status = 400;
+      break;
     }
     case '/bluetooth/scan':
     case '/bluetooth/connect':
@@ -522,22 +545,35 @@ async function handleGet(
   deps: Deps
 ): Promise<void> {
   const url = request.url ?? '';
-  if (url === '/bluetooth/devices') {
-    if (request.headers.origin === origin) await sendDevices(response, () => deps.bluetooth.list());
-    else response.writeHead(403).end();
-  } else if (url.startsWith('/lyrics?')) {
+  if (url.startsWith('/lyrics?')) {
     await getLyrics(request, response, origin, deps);
-  } else if (url === '/sonos/events') {
-    // Following the speakers opens a listening port on the home network, so only the app may ask.
-    if (request.headers.origin === origin) streamSonosEvents(request, response, deps);
-    else response.writeHead(403).end();
-  } else if (/^\/sonos\/(groups|now|art)(\?|$)/.test(url)) {
-    // Each makes the Pi talk to the speakers on the home network, so only the app may ask.
-    if (request.headers.origin === origin) await getSonos(request, response, deps);
-    else response.writeHead(403).end();
-  } else {
-    await get(url, response, deps, request.headers.origin === origin);
+    return;
   }
+  const appOnly = appOnlyGet(url, request, response, deps);
+  if (!appOnly) await get(url, response, deps, request.headers.origin === origin);
+  else if (request.headers.origin === origin) await appOnly();
+  else response.writeHead(403).end();
+}
+
+/** The GETs only the app's origin may make, as the work that answers one; null for any other URL. */
+function appOnlyGet(
+  url: string,
+  request: IncomingMessage,
+  response: ServerResponse,
+  deps: Deps
+): (() => Promise<void>) | null {
+  if (url === '/bluetooth/devices') return () => sendDevices(response, () => deps.bluetooth.list());
+  if (url === '/bluetooth/monitor') return () => sendMonitor(response, deps);
+  // Following the speakers opens a listening port on the home network, so only the app may ask.
+  if (url === '/sonos/events') {
+    return () => {
+      streamSonosEvents(request, response, deps);
+      return Promise.resolve();
+    };
+  }
+  // Each makes the Pi talk to the speakers on the home network, so only the app may ask.
+  if (/^\/sonos\/(groups|now|art)(\?|$)/.test(url)) return () => getSonos(request, response, deps);
+  return null;
 }
 
 export function handleRequest(origin: string, deps: Deps) {
@@ -615,6 +651,7 @@ export function serveSpeakers(
     asset: wifiSetupAsset,
     lyrics: cached(query => findLyrics(query)),
     bluetooth: new Bluetooth(),
+    bluetoothMonitor: new BluetoothMonitor(),
     phone: new PhoneSetup({
       connect: request => deps.wifi.connect(request),
       done: () => {

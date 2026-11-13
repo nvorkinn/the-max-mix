@@ -6,7 +6,9 @@ import { getHttpLogMode, getMutedHttpGroups, HTTP_GROUPS, setHttpGroupMuted, set
 import type { HttpLogMode } from '../utils/httpLog';
 import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
 import { setPollSpotify } from '../spotify/polling';
+import { isKiosk } from '../utils/kiosk';
 import { widevineProblem } from '../utils/widevine';
+import BluetoothDebug from './BluetoothDebug';
 import Modal from './Modal';
 
 /** Set by vite.config.ts at build time; tests and other tooling run without it. */
@@ -171,6 +173,7 @@ function DebugConsolePanel({
       </dl>
       <PollingOption />
       <HttpLogOptions />
+      {isKiosk() && <BluetoothDebug />}
       {entries.length === 0 ? (
         <p className="debug-empty">Nothing logged since the page loaded.</p>
       ) : (

@@ -32,6 +32,13 @@ const HOTSPOT_INFO = {
   wifiQr: ['101'],
   urlQr: ['010']
 };
+const MONITOR = {
+  adapter: null,
+  devices: [],
+  nearby: 3,
+  verbose: false,
+  log: [{ id: 1, time: 1, message: 'Scanning on' }]
+};
 const addressBody = (address: unknown) => ({ body: { address } });
 const unavailable = () => Promise.reject(new BluetoothError('Bluetooth is not available on this device.'));
 const otherFailure = () => Promise.reject(new Error('dbus: /private/path failed'));
@@ -39,6 +46,7 @@ const busy = () => Promise.reject(new BluetoothError('Bluetooth is busy. Wait a 
 const odd = () => Promise.reject(new Error('internal detail'));
 
 function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotError?: Error) {
+  const verboseCalls: boolean[] = [];
   const hotspotCalls: string[] = [];
   const phoneStarts: string[] = [];
   const connected: string[] = [];
@@ -140,10 +148,17 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
         return Promise.resolve();
       }
     },
+    bluetoothMonitor: {
+      snapshot: () => Promise.resolve(MONITOR),
+      setVerbose: on => {
+        verboseCalls.push(on);
+      }
+    },
     ...overrides
   };
   return {
     deps,
+    verboseCalls,
     hotspotCalls,
     phoneStarts,
     connected,
@@ -727,5 +742,32 @@ describe('Bluetooth speakers', () => {
     const other = await start(fakes({ bluetooth: { ...fakes().deps.bluetooth, connect: odd } }).deps);
     const second = await post(other, '/bluetooth/connect', addressBody('AA:BB:CC:DD:EE:FF'));
     await expect(second.json()).resolves.toEqual({ ok: false, error: 'Bluetooth failed.' });
+  });
+});
+
+describe('Bluetooth monitor', () => {
+  it('reports what BlueZ says, for the app only', async () => {
+    const base = await start(fakes().deps);
+    const answer = await fetch(`${base}/bluetooth/monitor`, { headers: { Origin: ORIGIN } });
+    await expect(answer.json()).resolves.toEqual(MONITOR);
+    expect((await fetch(`${base}/bluetooth/monitor`)).status).toBe(403);
+  });
+
+  it('says Bluetooth is not available when BlueZ is not there', async () => {
+    const base = await start(fakes({ bluetoothMonitor: { snapshot: otherFailure, setVerbose: vi.fn() } }).deps);
+    const answer = await fetch(`${base}/bluetooth/monitor`, { headers: { Origin: ORIGIN } });
+    expect(answer.status).toBe(503);
+    await expect(answer.json()).resolves.toEqual({ error: 'Bluetooth is not available on this device.' });
+  });
+
+  it('logs unpaired devices too when the app asks', async () => {
+    const { deps, verboseCalls } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/bluetooth/monitor', { body: { verbose: true } })).status).toBe(204);
+    expect((await post(base, '/bluetooth/monitor', { body: { verbose: 'yes' } })).status).toBe(400);
+    expect(
+      (await post(base, '/bluetooth/monitor', { body: { verbose: false }, origin: 'https://example.com' })).status
+    ).toBe(403);
+    expect(verboseCalls).toEqual([true]);
   });
 });
