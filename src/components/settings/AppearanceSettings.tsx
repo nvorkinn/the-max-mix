@@ -3,7 +3,7 @@ import { Check, Moon, Sun, SunMoon } from 'lucide-react';
 import { THEME_COLOURS } from '../../utils/themeColour';
 import type { ThemeColour } from '../../utils/themeColour';
 import { THEMES } from '../../utils/theme';
-import type { Theme } from '../../utils/theme';
+import type { Skin, Theme } from '../../utils/theme';
 
 const THEME_ICONS = { day: Sun, night: Moon, auto: SunMoon } as const;
 
@@ -40,7 +40,7 @@ function ThemeChoice({
 }
 
 /** The colour of the track title, player controls and highlights. Night has its own fixed colours, so it is greyed out
-    there; the Day choice is kept for when Day comes back. */
+    while Night shows (picked, or Auto after sunset); the Day choice is kept for when Day comes back. */
 function ColourChoice({
   colour,
   onChange,
@@ -75,12 +75,15 @@ export default function AppearanceSettings({
   theme,
   autoTheme,
   onThemeChange,
+  skin,
   themeColour,
   onThemeColourChange
 }: Readonly<{
   theme: Theme | undefined;
   autoTheme: boolean;
   onThemeChange: ((theme: Theme) => void) | undefined;
+  /** The skin on screen; without it, the picked theme stands in (Auto then counts as Day). */
+  skin?: Skin | undefined;
   themeColour: ThemeColour | undefined;
   onThemeColourChange: ((colour: ThemeColour) => void) | undefined;
 }>) {
@@ -88,7 +91,7 @@ export default function AppearanceSettings({
     <div className="settings-stack">
       {theme !== undefined && onThemeChange && <ThemeChoice theme={theme} auto={autoTheme} onChange={onThemeChange} />}
       {themeColour !== undefined && onThemeColourChange && (
-        <ColourChoice colour={themeColour} onChange={onThemeColourChange} disabled={theme === 'night'} />
+        <ColourChoice colour={themeColour} onChange={onThemeColourChange} disabled={(skin ?? theme) === 'night'} />
       )}
     </div>
   );
