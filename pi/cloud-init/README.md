@@ -43,10 +43,10 @@ Settings for one Pi only, such as its location, go in `/etc/the-max-mix/kiosk-va
 them from the first boot, add the file to `write_files` in the card's `user-data`:
 
 ```yaml
-  - path: /etc/the-max-mix/kiosk-vars.yml
-    content: |
-      kiosk_latitude: 51.51
-      kiosk_longitude: -0.13
+- path: /etc/the-max-mix/kiosk-vars.yml
+  content: |
+    kiosk_latitude: 51.51
+    kiosk_longitude: -0.13
 ```
 
 Later edits apply at the next release. To apply them now (the update timer skips a release it already ran):
