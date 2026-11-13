@@ -1,7 +1,8 @@
 # THE MAX MIX sign-in keyboard
 
 A small Chromium extension that shows an on-screen keyboard on Spotify's sign-in pages, so the kiosk can sign in to
-Spotify with the touch screen alone, without a Bluetooth keyboard.
+Spotify with the touch screen alone, without a Bluetooth keyboard. It also clears Spotify's own sign-in when the app
+signs out (see [Sign-out](#sign-out)).
 
 ## Why an extension
 
@@ -19,8 +20,18 @@ none of the Wayland protocols an on-screen keyboard needs. So the extension draw
 - Three layouts: letters (with a one-shot Shift, `@` and `.`), digits and symbols, and more symbols.
 - Keys type with the browser's own editing command (`insertText`), which fires the same trusted input events as a key
   press, so Spotify's form sees the text. Each key acts on touch and keeps the focus in the field.
-- It has no permissions, stores nothing and sends nothing. It runs in the extension's isolated world, inside a shadow
-  root, so the page's styles do not reach it.
+- The keyboard stores nothing and sends nothing. It runs in the extension's isolated world, inside a shadow root, so
+  the page's styles do not reach it.
+
+## Sign-out
+
+The app's Sign out forgets the app's own Spotify tokens, but Chromium still holds Spotify's sign-in cookies, so the next
+"Log in with Spotify" would skip the password and go straight to the approval page as the same person. So on the kiosk
+the app posts `{ type: 'maxmix:forget-sign-ins' }` to its window before it reloads. `sign-out.ts`, a content script on
+the app's pages only, passes that to `background.ts`, which clears the cookies and storage of every site except the app
+(`browsingData`, the extension's one permission): Spotify, and Google, Apple or Facebook when one of them was used to
+sign in. It then answers `{ type: 'maxmix:sign-ins-forgotten' }`. The app reloads after the answer, or after 3 seconds
+without one. `sudo kiosk-handover` removes the whole Chromium profile, so it needs none of this.
 
 ## In the app
 
@@ -30,17 +41,19 @@ dialog, since a modal dialog makes the rest of the page untouchable. While the k
 
 ## Files
 
-| File            | Role                                                                                              |
-| --------------- | ------------------------------------------------------------------------------------------------- |
-| `manifest.json` | Manifest V3: the content script and the pages it runs on.                                         |
-| `loader.ts`     | The content script. Content scripts cannot be modules, so it imports `keyboard.js` by its URL.    |
-| `keyboard.ts`   | The keyboard: layouts, typing, showing and hiding.                                                |
-| `build.ts`      | Strips the types with Node's own `stripTypeScriptTypes` and copies the manifest. No npm packages. |
+| File            | Role                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------ |
+| `manifest.json` | Manifest V3: the content script and the pages it runs on.                                        |
+| `loader.ts`     | The content script. Content scripts cannot be modules, so it imports `keyboard.js` by its URL.   |
+| `keyboard.ts`   | The keyboard: layouts, typing, showing and hiding.                                               |
+| `sign-out.ts`   | Content script on the app's pages: passes the app's sign-out to `background.ts`.                 |
+| `background.ts` | Service worker: clears every other site's cookies and storage on that request.                   |
+| `build.ts`      | Strips the types (Node's `stripTypeScriptTypes`), copies the manifest and adds the app's origin. |
 
 ## Install
 
 The Ansible role in [`ansible/roles/kiosk`](../../ansible/roles/kiosk) copies these files to
-`/opt/the-max-mix/kiosk-keyboard/src` and runs `node build.ts`, which writes the extension to
+`/opt/the-max-mix/kiosk-keyboard/src` and runs `node build.ts` with the app's origin, which writes the extension to
 `/opt/the-max-mix/kiosk-keyboard/extension`. `kiosk-session` starts Chromium with `--load-extension` pointing there.
 Chrome turned that switch off by default in 2025, so `kiosk-session` also passes
 `--disable-features=DisableLoadExtensionCommandLineSwitch`.
