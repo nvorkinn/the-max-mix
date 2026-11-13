@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { defined } from '../test/defined';
 import userEvent from '../test/user';
 import PersonSwitcher from './PersonSwitcher';
 
@@ -52,6 +53,22 @@ describe('PersonSwitcher', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Nikolai' }));
     expect(onSwitch).not.toHaveBeenCalled();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows the person’s picture, and their initial once it fails to load', () => {
+    auth.peopleOnKiosk.mockReturnValue([{ ...person('nikolai', '', true), imageUrl: 'https://i.scdn.co/image/n' }]);
+    const { container } = render(<PersonSwitcher onSwitch={vi.fn()} />);
+    const picture = defined(container.querySelector('img'));
+    expect(picture).toHaveAttribute('src', 'https://i.scdn.co/image/n');
+    fireEvent.error(picture);
+    expect(container.querySelector('img')).toBeNull();
+    expect(screen.getByText('N')).toBeInTheDocument();
+  });
+
+  it('shows a question mark for someone Spotify has not named yet', () => {
+    auth.peopleOnKiosk.mockReturnValue([{ ...person('', '', true), name: ' ' }]);
+    render(<PersonSwitcher onSwitch={vi.fn()} />);
+    expect(screen.getByText('?')).toBeInTheDocument();
   });
 
   it('shows nothing when nobody is active', () => {

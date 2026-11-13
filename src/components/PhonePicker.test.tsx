@@ -31,6 +31,23 @@ describe('PhonePicker', () => {
     expect(onChange).toHaveBeenCalled();
   });
 
+  it('names a phone the Pi no longer lists by its address, and one without a name by its address', async () => {
+    monitor.readBluetoothReport.mockResolvedValue({ phones: [{ address: 'AA:03', name: '', isHere: false }] });
+    const { rerender } = render(<PhonePicker spotifyId="anna" name="Anna" phoneAddress="AA:09" onChange={vi.fn()} />);
+    expect(await screen.findByText('AA:09')).toBeInTheDocument();
+    rerender(<PhonePicker spotifyId="anna" name="Anna" phoneAddress="AA:03" onChange={vi.fn()} />);
+    expect(screen.getByText('AA:03')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Anna’s phone' }));
+    expect(screen.getByRole('button', { name: 'AA:03' })).toBeInTheDocument();
+  });
+
+  it('says No phone when none is linked, and lists nothing when the Pi cannot say', async () => {
+    monitor.readBluetoothReport.mockRejectedValue(new Error('no Pi'));
+    render(<PhonePicker spotifyId="anna" name="Anna" phoneAddress="" onChange={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Anna’s phone' }));
+    expect(screen.getAllByRole('button', { name: 'No phone' })).toHaveLength(1);
+  });
+
   it('unlinks with No phone', async () => {
     render(<PhonePicker spotifyId="anna" name="Anna" phoneAddress="AA:01" onChange={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: 'Anna’s phone' }));

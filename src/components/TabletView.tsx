@@ -14,6 +14,7 @@ import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
 import { getQueue } from '../spotify/api';
 import { switchPerson } from '../spotify/auth';
+import { reloadSettings } from '../spotify/settings';
 import { getKioskSonosLeader, playOnSonosRoom } from '../sonos/kiosk';
 import { rememberSpeaker } from '../spotify/knownDevices';
 import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
@@ -319,7 +320,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       await Promise.race([pause.catch(() => false), new Promise(resolve => setTimeout(resolve, 3000))]);
     }
     switchPerson(spotifyId);
-    location.reload();
+    reloadSettings();
   };
   const recoverPlayback = async (action: () => Promise<boolean>) => {
     if (isRefreshingPlayback) return;
