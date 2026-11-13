@@ -69,6 +69,16 @@ test.describe('Lyrics', { tag: '@lyrics' }, () => {
     await expect.poll(() => list.evaluate(element => element.scrollTop)).toBe(0);
     await page.clock.fastForward(5000);
     expect(await list.evaluate(element => element.scrollTop)).toBe(0);
+    // Lyrics tapped again starts sync mode: the tapped line becomes the one being sung, and the mode ends by itself.
+    const lyricsButton = page.getByRole('button', { name: 'Lyrics', exact: true });
+    await lyricsButton.click();
+    await expect(lyricsButton).toHaveClass(/is-syncing/);
+    const later = Number((await active.textContent())?.replace('Placeholder line ', '')) + 3;
+    await list.getByRole('button', { name: `Placeholder line ${later}`, exact: true }).click();
+    await expect(active).toHaveText(`Placeholder line ${later}`);
+    await expect(lyricsButton).not.toHaveClass(/is-syncing/);
+    await expect(list.getByRole('button')).toHaveCount(0);
+
     await page.getByRole('button', { name: 'Next track' }).click();
     await expect(list).toHaveAttribute('aria-label', 'Lyrics of Starboy');
     await expect(list).toHaveAttribute('data-following', 'true');

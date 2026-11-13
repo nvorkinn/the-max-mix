@@ -15,6 +15,13 @@ describe('PanelNav', () => {
     expect(onShow).toHaveBeenLastCalledWith('speakers');
   });
 
+  it('fills the Lyrics button in while the lyrics are in sync mode', () => {
+    const { rerender } = render(<PanelNav view="lyrics" onShow={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Lyrics' })).not.toHaveClass('is-syncing');
+    rerender(<PanelNav view="lyrics" onShow={vi.fn()} lyricsSyncing />);
+    expect(screen.getByRole('button', { name: 'Lyrics' })).toHaveClass('is-syncing');
+  });
+
   it('turns the buttons into a blank, Cancel and Save, then Saving…, for a changed speaker choice', () => {
     const onShow = vi.fn();
     const onSave = vi.fn();

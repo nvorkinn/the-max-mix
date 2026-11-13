@@ -7,14 +7,16 @@ type SpeakersButton = 'speakers' | 'save' | 'saving';
 /**
  * The three large buttons down the right-hand edge that pick what the middle panel shows. While a changed speaker
  * choice waits to be saved, the Speakers button becomes Save, then Saving… until the speakers confirm it, Lyrics
- * becomes Cancel, and Queue goes blank, so the view can only be left by saving or cancelling.
+ * becomes Cancel, and Queue goes blank, so the view can only be left by saving or cancelling. Tapping Lyrics while the
+ * lyrics show turns their sync mode on or off; the button fills in while it is on.
  */
 export default function PanelNav({
   view,
   onShow,
   speakersButton = 'speakers',
   onSave,
-  onCancel
+  onCancel,
+  lyricsSyncing = false
 }: Readonly<{
   view: PanelView;
   onShow: (view: PanelView) => void;
@@ -23,6 +25,8 @@ export default function PanelNav({
   onSave?: () => void;
   /** Drops the changed speaker choice. */
   onCancel?: () => void;
+  /** Whether the lyrics are in sync mode, waiting for a tap on the line being sung. */
+  lyricsSyncing?: boolean;
 }>) {
   const saveShown = speakersButton !== 'speakers' && onSave !== undefined && onCancel !== undefined;
   if (saveShown) {
@@ -58,7 +62,7 @@ export default function PanelNav({
       </button>
       <button
         type="button"
-        className="panel-nav-button"
+        className={`panel-nav-button ${lyricsSyncing ? 'is-syncing' : ''}`}
         aria-pressed={view === 'lyrics'}
         onClick={() => onShow('lyrics')}
       >
