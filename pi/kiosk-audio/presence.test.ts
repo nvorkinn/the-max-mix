@@ -2,26 +2,31 @@
 import { createBroker, createClient, defineInterface } from 'dbus-native';
 import type { DBusBroker, MessageBus } from 'dbus-native';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Presence, scanLe } from './presence.ts';
+import { Presence, scanLe, setAlias } from './presence.ts';
 
-const PHONE = { address: '4F:00:00:00:00:03', name: 'iPhone', pairedAt: 1 };
+const PHONE = { address: '4F:00:00:00:00:03', name: 'Nikolai’s iPhone', pairedAt: 1 };
 
 function setUp(options: { phones?: (typeof PHONE)[]; isScanFailing?: boolean } = {}) {
-  const heard = { lastSeen: null as number | null, connected: false };
+  const heard = { lastSeen: null as number | null, connected: false, name: 'Nikolai’s iPhone' };
   const scan = vi.fn(() => (options.isScanFailing ? Promise.reject(new Error('No adapter')) : Promise.resolve()));
   const log = vi.fn();
-  const devices = vi.fn(() => Promise.resolve([{ address: PHONE.address, name: 'Nikolai’s iPhone', ...heard }]));
+  const devices = vi.fn(() => Promise.resolve([{ address: PHONE.address, ...heard }]));
+  const rename = vi.fn((_address: string, name: string) => {
+    heard.name = name;
+    return Promise.resolve();
+  });
   const presence = new Presence({
     phones: () => Promise.resolve(options.phones ?? [PHONE]),
     devices,
     scan,
+    rename,
     log,
     now: () => Date.now(),
     everyMs: 30_000,
     burstMs: 8000,
     awayAfterMs: 120_000
   });
-  return { presence, heard, scan, log, devices };
+  return { presence, heard, scan, rename, log, devices };
 }
 
 describe('Presence', () => {
@@ -77,6 +82,36 @@ describe('Presence', () => {
       'Presence: scan failed: Error: No adapter',
       'Presence: Nikolai’s iPhone is away'
     ]);
+  });
+
+  it('names a phone BlueZ renamed from an advert back to the name it paired with', async () => {
+    const { presence, heard, rename, log } = setUp();
+    heard.name = '4';
+    await presence.check();
+    expect(rename).toHaveBeenCalledWith(PHONE.address, 'Nikolai’s iPhone');
+    expect(presence.status()[0]?.name).toBe('Nikolai’s iPhone');
+    await presence.check();
+    expect(rename).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith('Presence: 4 named Nikolai’s iPhone again');
+  });
+
+  it('logs a failing rename once and does not try again', async () => {
+    const { presence, heard, rename, log } = setUp();
+    heard.name = '4';
+    rename.mockImplementation(() => Promise.reject(new Error('No such device')));
+    await presence.check();
+    await presence.check();
+    expect(rename).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith('Presence: could not name 4 Nikolai’s iPhone: Error: No such device');
+    expect(presence.status()[0]?.name).toBe('Nikolai’s iPhone');
+  });
+
+  it('leaves a phone BlueZ does not know, or one saved with no name, alone', async () => {
+    const { presence, rename, devices } = setUp({ phones: [{ ...PHONE, name: '' }] });
+    await presence.check();
+    devices.mockImplementation(() => Promise.resolve([]));
+    await presence.check();
+    expect(rename).not.toHaveBeenCalled();
   });
 
   it('logs when BlueZ cannot say', async () => {
@@ -149,6 +184,29 @@ describe('scanLe', () => {
     );
     await scanLe(20, await client());
     expect(calls).toEqual([{ Transport: 'le', DuplicateData: true }, 'start', 'stop']);
+  });
+
+  it('sets the Alias of the device at an address', async () => {
+    const aliases: unknown[] = [];
+    const bluez = await client();
+    await bluez.ownName('org.bluez');
+    await bluez.export(
+      '/org/bluez/hci0/dev_4F_00_00_00_00_03',
+      defineInterface({
+        name: 'org.bluez.Device1',
+        properties: {
+          Alias: {
+            type: 's',
+            get: () => aliases.at(-1) ?? '4',
+            set: value => {
+              aliases.push(value);
+            }
+          }
+        }
+      })
+    );
+    await setAlias(PHONE.address, 'Nikolai’s iPhone', await client());
+    expect(aliases).toEqual(['Nikolai’s iPhone']);
   });
 
   it('rejects when there is no adapter', async () => {

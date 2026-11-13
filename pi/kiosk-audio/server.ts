@@ -76,7 +76,7 @@ import { forgetPhone, PhonePairing, readPhones, savePhone } from './phone-pairin
 import type { PairingStatus } from './phone-pairing.ts';
 import { PhoneSetup } from './phone-setup.ts';
 import type { Choice, Graph } from './pipewire.ts';
-import { Presence, scanLe } from './presence.ts';
+import { Presence, scanLe, setAlias } from './presence.ts';
 import type { PhonePresence } from './presence.ts';
 import { SonosEventHub } from './sonos-events.ts';
 import type { SonosChange } from './sonos-events.ts';
@@ -686,6 +686,7 @@ export function serveSpeakers(
     phones: () => readPhones(deps.phonesFile),
     devices: async () => (await bluetoothMonitor.snapshot()).devices,
     scan: ms => scanLe(ms),
+    rename: (address, name) => setAlias(address, name),
     log: message => {
       bluetoothMonitor.note(message);
     }
