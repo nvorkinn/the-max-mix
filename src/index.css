@@ -202,8 +202,8 @@
 }
 
 .app-header {
-  /* Everything in the header fills most of its height, so it reads from across the room; the short screen's
-     header is smaller and so are these (see the height media query below). */
+  /* Everything in the header fills most of its height, so it reads from across the room. */
+  /* The short screen's header is smaller, and so are these (see the height media query below). */
   --header-mark: 64px;
   --header-mark-icon: 38px;
   --header-title: 42px;
