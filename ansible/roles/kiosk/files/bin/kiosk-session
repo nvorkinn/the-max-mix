@@ -30,13 +30,32 @@ wait_online() {
 # --load-extension off by default in 2025; the --disable-features switch turns it back on where a build follows that.
 keyboard_extension=/opt/the-max-mix/kiosk-keyboard/extension
 
+# The app is laid out for a 1024x600 screen. On a bigger one, such as a 10.1 inch 1280x800, Chromium lays every page out
+# that much bigger (1.25 there, as for a 1024x640 screen) and draws it at the screen's own resolution, so text and icons
+# stay sharp and touches land where they look. Taken from the mode Cage runs the screen at, or its preferred one while the
+# screen sleeps (kiosk-display turns the output off); 1 when there is neither.
+design_width=1024
+design_height=600
+screen_scale() {
+  wlr-randr 2> /dev/null | awk -v dw="$design_width" -v dh="$design_height" '
+    function fit(line, size, scale) {
+      match(line, /[0-9]+x[0-9]+ px/)
+      split(substr(line, RSTART, RLENGTH - 3), size, "x")
+      scale = size[1] / dw
+      return size[2] / dh < scale ? size[2] / dh : scale
+    }
+    /[0-9]+x[0-9]+ px.*current/ { current = fit($0) }
+    /[0-9]+x[0-9]+ px.*preferred/ { preferred = fit($0) }
+    END { printf "%.2f\n", (current ? current : preferred ? preferred : 1) }'
+}
+
 # Shows a page until Chromium exits. The kiosk-audio service stops Chromium through the pid file: for the Wi-Fi button,
 # when the setup page is done, or (its watchdog) when the page stops sending heartbeats.
 run_chromium() {
   chromium --kiosk --ozone-platform=wayland --noerrdialogs --disable-infobars --no-first-run --password-store=basic \
     --autoplay-policy=no-user-gesture-required --disable-session-crashed-bubble --overscroll-history-navigation=0 \
     --load-extension="$keyboard_extension" --disable-features=DisableLoadExtensionCommandLineSwitch \
-    "$1" &
+    --force-device-scale-factor="$(screen_scale)" "$1" &
   echo $! > "$chromium_pid"
   wait $!
   rm -f "$chromium_pid"

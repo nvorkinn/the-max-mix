@@ -52,10 +52,15 @@ kiosk_hostname: the-max-mix
 kiosk_locale: en_GB.UTF-8
 kiosk_timezone: Europe/London
 kiosk_wifi_country: GB
-# The 1024x600 HDMI screen (Waveshare 7 inch). Forced on both HDMI ports because the firmware sets no mode.
-kiosk_video_mode: 1024x600@60
+# The screen mode, forced on both HDMI ports (video= on the kernel command line) because the firmware sets none. Empty
+# reads the screen's own mode from its EDID (pi/kiosk-audio/screen-mode.ts), such as 1280x800@60 for a 10.1 inch
+# screen; when no screen sends one, the mode already set stays, or kiosk_video_mode_fallback on a first run. Set it
+# (for example 1280x800@60 in /etc/the-max-mix/kiosk-vars.yml) only for a screen whose EDID is missing or wrong.
+kiosk_video_mode: ''
+# The 1024x600 HDMI screen (Waveshare 7 inch).
+kiosk_video_mode_fallback: 1024x600@60
 # Added to the kernel command line (/boot/firmware/cmdline.txt) if missing; console=tty1 becomes tty3. Quiet boot with
-# the Plymouth splash, no logo or cursor, the screen mode, and the Wi-Fi regulatory domain.
+# the Plymouth splash, no logo or cursor, and the Wi-Fi regulatory domain. The screen mode is added separately.
 kiosk_cmdline_params:
   - quiet
   - splash
@@ -63,8 +68,6 @@ kiosk_cmdline_params:
   - logo.nologo
   - vt.global_cursor_default=0
   - loglevel=3
-  - 'video=HDMI-A-1:{{ kiosk_video_mode }}'
-  - 'video=HDMI-A-2:{{ kiosk_video_mode }}'
   - 'cfg80211.ieee80211_regdom={{ kiosk_wifi_country }}'
 # SSH for maintenance, by key only and only for the admin account below. Set to false to turn SSH off.
 kiosk_ssh_enabled: true

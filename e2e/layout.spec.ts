@@ -71,49 +71,52 @@ test.describe('Layout', { tag: '@layout' }, () => {
     });
   });
 
-  test.describe('Player layout', () => {
-    test('artwork is square and the control bar stays on screen at 1024x600', async ({ page }) => {
-      await page.setViewportSize({ width: 1024, height: 600 });
-      await page.route('https://images.unsplash.com/**', route =>
-        route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
-      );
-      await fakeSpotify(page);
-      await page.goto('/');
-      const art = page.locator('.album-art');
-      await expect(art).toBeVisible();
-      const box = await art.boundingBox();
-      expect(box).not.toBeNull();
-      expect(Math.abs((box?.width ?? 0) - (box?.height ?? 1))).toBeLessThanOrEqual(2);
-      // The seek and volume sliders and the transport buttons all sit inside the viewport, under the artwork.
-      const controls = [
-        page.getByRole('slider', { name: 'Playback position' }),
-        page.getByRole('slider', { name: 'Volume' }),
-        page.getByRole('button', { name: 'Pause' })
-      ];
-      await Promise.all(controls.map(control => expect(control).toBeInViewport({ ratio: 1 })));
-      const controlBoxes = await Promise.all(controls.map(control => control.boundingBox()));
-      for (const controlBox of controlBoxes) {
-        expect(controlBox?.y ?? 0).toBeGreaterThan((box?.y ?? 0) + (box?.height ?? 0));
-      }
-      // Queue, Lyrics and Speakers stand down the right-hand edge beside the panel, as tall together as the artwork.
-      const nav = page.getByRole('navigation', { name: 'Beside the artwork' });
-      const navButtons = await Promise.all(
-        ['Queue', 'Lyrics', 'Speakers'].map(name => nav.getByRole('button', { name, exact: true }).boundingBox())
-      );
-      const panel = await page.locator('.side-panel').boundingBox();
-      for (const navButton of navButtons) {
-        expect(navButton?.width ?? 0).toBeGreaterThanOrEqual(88);
-        expect(navButton?.height ?? 0).toBeGreaterThanOrEqual(100);
-        expect(navButton?.x ?? 0).toBeGreaterThan((panel?.x ?? 0) + (panel?.width ?? 0));
-        expect((navButton?.x ?? 0) + (navButton?.width ?? 0)).toBeLessThanOrEqual(1024);
-      }
-      expect(Math.abs((navButtons[0]?.y ?? 0) - (box?.y ?? 1))).toBeLessThanOrEqual(1);
-      expect(
-        Math.abs((navButtons[2]?.y ?? 0) + (navButtons[2]?.height ?? 0) - (box?.y ?? 0) - (box?.height ?? 1))
-      ).toBeLessThanOrEqual(1);
-      expect(await page.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  // The 10.1 inch 1280x800 kiosk scales pages by 1.25 (kiosk-session), which gives the app 1024x640.
+  for (const height of [600, 640]) {
+    test.describe(`Player layout at 1024x${height}`, () => {
+      test(`artwork is square and the control bar stays on screen at 1024x${height}`, async ({ page }) => {
+        await page.setViewportSize({ width: 1024, height });
+        await page.route('https://images.unsplash.com/**', route =>
+          route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
+        );
+        await fakeSpotify(page);
+        await page.goto('/');
+        const art = page.locator('.album-art');
+        await expect(art).toBeVisible();
+        const box = await art.boundingBox();
+        expect(box).not.toBeNull();
+        expect(Math.abs((box?.width ?? 0) - (box?.height ?? 1))).toBeLessThanOrEqual(2);
+        // The seek and volume sliders and the transport buttons all sit inside the viewport, under the artwork.
+        const controls = [
+          page.getByRole('slider', { name: 'Playback position' }),
+          page.getByRole('slider', { name: 'Volume' }),
+          page.getByRole('button', { name: 'Pause' })
+        ];
+        await Promise.all(controls.map(control => expect(control).toBeInViewport({ ratio: 1 })));
+        const controlBoxes = await Promise.all(controls.map(control => control.boundingBox()));
+        for (const controlBox of controlBoxes) {
+          expect(controlBox?.y ?? 0).toBeGreaterThan((box?.y ?? 0) + (box?.height ?? 0));
+        }
+        // Queue, Lyrics and Speakers stand down the right-hand edge beside the panel, as tall together as the artwork.
+        const nav = page.getByRole('navigation', { name: 'Beside the artwork' });
+        const navButtons = await Promise.all(
+          ['Queue', 'Lyrics', 'Speakers'].map(name => nav.getByRole('button', { name, exact: true }).boundingBox())
+        );
+        const panel = await page.locator('.side-panel').boundingBox();
+        for (const navButton of navButtons) {
+          expect(navButton?.width ?? 0).toBeGreaterThanOrEqual(88);
+          expect(navButton?.height ?? 0).toBeGreaterThanOrEqual(100);
+          expect(navButton?.x ?? 0).toBeGreaterThan((panel?.x ?? 0) + (panel?.width ?? 0));
+          expect((navButton?.x ?? 0) + (navButton?.width ?? 0)).toBeLessThanOrEqual(1024);
+        }
+        expect(Math.abs((navButtons[0]?.y ?? 0) - (box?.y ?? 1))).toBeLessThanOrEqual(1);
+        expect(
+          Math.abs((navButtons[2]?.y ?? 0) + (navButtons[2]?.height ?? 0) - (box?.y ?? 0) - (box?.height ?? 1))
+        ).toBeLessThanOrEqual(1);
+        expect(await page.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+      });
     });
-  });
+  }
 
   test.describe('Seek and volume touch areas', () => {
     test('the slim sliders take taps from the space around them, short of the other controls', async ({ page }) => {

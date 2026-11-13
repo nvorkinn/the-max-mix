@@ -6,8 +6,10 @@
   // ShellCheck and editorconfig-checker are system binaries installed separately (apt/brew/CI download), not npm dependencies.
   // The Pi's audio service is started by its systemd unit (ansible/roles/kiosk/templates/kiosk-audio.service.j2); the
   // sign-in keyboard is built and loaded by the Ansible role and Chromium (back.ts too), and loader.ts imports keyboard.ts by URL.
+  // The role also runs screen-mode.ts from the checkout.
   "entry": [
     "pi/kiosk-audio/kiosk-audio.ts",
+    "pi/kiosk-audio/screen-mode.ts",
     "pi/kiosk-audio/wifi-page.ts",
     "pi/kiosk-keyboard/back.ts",
     "pi/kiosk-keyboard/build.ts",

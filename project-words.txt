@@ -32,6 +32,7 @@ dialogs
 DIDL
 disallocate
 dnsmasq
+edid
 elif
 endfor
 esac
