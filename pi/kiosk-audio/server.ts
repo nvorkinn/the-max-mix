@@ -71,7 +71,7 @@ import { cached, findLyrics, parseLyricsQuery } from './lyrics.ts';
 import type { LyricsHit } from './lyrics.ts';
 import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
-import { advertiseForPairing } from './pairing-gatt.ts';
+import { advertiseForPairing, nameKiosk } from './pairing-gatt.ts';
 import { forgetPhone, PhonePairing, readPhones, renamePhone, savePhone } from './phone-pairing.ts';
 import type { PairingStatus } from './phone-pairing.ts';
 import { PhoneSetup } from './phone-setup.ts';
@@ -653,6 +653,20 @@ export function handleRequest(origin: string, deps: Deps) {
   };
 }
 
+/** Names the kiosk THE MAX MIX in Bluetooth, trying again once 30 s later in case BlueZ was still starting. */
+function nameKioskOnStart(monitor: { note: (message: string) => void }, retryMs = 30_000): void {
+  const attempt = async (isLast: boolean) => {
+    try {
+      await nameKiosk();
+      monitor.note('Bluetooth name: THE MAX MIX');
+    } catch (error) {
+      if (isLast) monitor.note(`Could not set the Bluetooth name: ${String(error)}`);
+      else setTimeout(() => void attempt(true), retryMs);
+    }
+  };
+  void attempt(false);
+}
+
 export function serveSpeakers(
   origin: string,
   deps: Pick<Deps, 'graph' | 'route' | 'setVolume' | 'wifi'> & {
@@ -682,6 +696,7 @@ export function serveSpeakers(
   };
   const bluetooth = new Bluetooth();
   const bluetoothMonitor = new BluetoothMonitor();
+  nameKioskOnStart(bluetoothMonitor);
   const presence = new Presence({
     phones: () => readPhones(deps.phonesFile),
     devices: async () => (await bluetoothMonitor.snapshot()).devices,
