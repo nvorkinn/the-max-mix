@@ -1,6 +1,6 @@
 // The "Tests for this change" part of the pull request comment: which browser tests are about the files the PR changes,
 // with a link to each in the Playwright report, and what they did. See e2e-areas.ts for how files map to tests.
-import { areasFor, unmappedSources } from './e2e-areas.ts';
+import { areasFor, changedSpecs, unmappedSources } from './e2e-areas.ts';
 import type { Area } from './e2e-areas.ts';
 
 /** One test as Playwright's JSON reporter writes it, flattened. */
@@ -70,10 +70,8 @@ export function testsSection({ files, tests, reportUrl }: SectionInput): string[
   const link = (test: TestResult) =>
     `[${[...test.path, test.title].join(' › ')}](${reportUrl}#?testId=${encodeURIComponent(test.id)})`;
   const areas = areasFor(files);
-  const changedSpecs = new Set(files.filter(file => /^e2e\/[^/]+\.spec\.ts$/.test(file)).map(file => file.slice(4)));
-  const selected = tests.filter(
-    test => changedSpecs.has(test.file) || areas.some(area => test.tags.includes(area.tag))
-  );
+  const specs = new Set(changedSpecs(files));
+  const selected = tests.filter(test => specs.has(test.file) || areas.some(area => test.tags.includes(area.tag)));
   const lines: string[] = ['#### Tests for this change', ''];
 
   if (areas.length === 0 && selected.length === 0) {

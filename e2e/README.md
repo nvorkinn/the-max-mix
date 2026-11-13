@@ -36,6 +36,10 @@ files the PR changes to features with `scripts/e2e-areas.ts`, and lists those fe
 link to each in the Playwright report. In the report itself, type a tag such as `@update` in the search box to see one
 feature's tests.
 
+CI records a trace only of those tests (the report shows them under the project _traced_), because tracing every test
+took about a fifth of the run. Any other test is traced, and filmed, on its second run if its first fails. Every test
+is traced when the change cannot be placed: an app file no area owns, or a helper or configuration all the tests share.
+
 When you add a feature:
 
 1. Add an area for it to `scripts/e2e-areas.ts` (its source files and a tag), so changes to it find its tests.

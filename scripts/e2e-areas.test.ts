@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { AREAS, areasFor, unmappedSources } from './e2e-areas.ts';
+import { AREAS, areasFor, tracedFor, unmappedSources } from './e2e-areas.ts';
 
 const tagsOf = (files: string[]) => areasFor(files).map(area => area.tag);
 
@@ -35,6 +35,30 @@ describe('unmappedSources', () => {
         'README.md'
       ])
     ).toEqual(['src/components/Brand.tsx']);
+  });
+});
+
+describe('tracedFor', () => {
+  it('traces the tests of the areas a change touches, and the test files it changes', () => {
+    expect(tracedFor(['src/components/LyricsPanel.tsx', 'e2e/update.spec.ts', 'README.md'])).toEqual({
+      all: false,
+      tags: ['lyrics'],
+      specs: ['update.spec.ts']
+    });
+  });
+
+  it('traces nothing for a change the browser tests are not about', () => {
+    expect(tracedFor(['README.md', 'pi/kiosk-audio/nmcli.ts', 'e2e/screenshots/visual.spec.ts/queue.png'])).toEqual({
+      all: false,
+      tags: [],
+      specs: []
+    });
+  });
+
+  it('traces every test when the change cannot be placed', () => {
+    expect(tracedFor(['src/components/Brand.tsx']).all).toBe(true);
+    expect(tracedFor(['e2e/fake-spotify.ts']).all).toBe(true);
+    expect(tracedFor(['e2e/playwright.config.ts', 'src/components/LyricsPanel.tsx']).all).toBe(true);
   });
 });
 
