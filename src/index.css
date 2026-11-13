@@ -609,14 +609,14 @@
 }
 .listening-room.is-setup .player-section {
   width: 100%;
-  max-width: 520px;
+  max-width: 640px;
   margin-block: auto;
 }
 .spotify-setup {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 24px;
+  padding: 32px;
   border: 1px solid var(--border);
   border-radius: 20px;
   background: var(--surface);
@@ -628,7 +628,7 @@
 }
 .spotify-setup p {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -637,11 +637,12 @@
 }
 .spotify-setup .button {
   width: 100%;
-  min-height: 48px;
+  min-height: 60px;
+  font-size: 18px;
 }
 .spotify-setup .button + p {
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 15px;
 }
 .now-playing {
   height: 100%;
@@ -1189,12 +1190,21 @@ body:has(.app-dialog[open]) {
   position: sticky;
   top: 0;
   z-index: 1;
-  margin: 0 -24px 12px;
-  padding: 24px 24px 12px;
+  margin: 0 calc(var(--spacing) * -6) 12px;
+  padding: calc(var(--spacing) * 6) calc(var(--spacing) * 6) 12px;
   border-radius: 23px 23px 0 0;
   background: var(--surface);
 }
 .app-modal-panel {
+  /*
+    Sized for fingers on the 7-inch kiosk, where 60 px is about 9 mm. Every modal builds on Tailwind's spacing and type
+    steps, so scaling those here enlarges padding, gaps, icons, row heights and text in all of them together.
+  */
+  --spacing: 5px;
+  --text-xs: 16px;
+  --text-sm: 18px;
+  --text-lg: 24px;
+  max-width: 680px;
   /* The sticky header carries the top padding, so scrolled content never shows in a gap above it. */
   padding-top: 0;
   background: var(--surface);
@@ -1283,15 +1293,15 @@ body:has(.app-dialog[open]) {
   filter: brightness(0.95);
 }
 .app-modal-panel button {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 60px;
+  min-height: 60px;
 }
 .app-modal-panel p {
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.5;
 }
-.app-modal-panel .text-xs {
-  font-size: 14px;
+.app-modal-panel .button {
+  font-size: var(--text-sm);
 }
 .connection-banner {
   position: relative;
@@ -1442,8 +1452,8 @@ input:disabled {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
-  min-width: 44px;
+  min-height: 60px;
+  min-width: 60px;
   padding: 0 14px;
   border-radius: 10px;
   background: rgb(255 255 255 / 8%);

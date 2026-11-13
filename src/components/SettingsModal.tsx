@@ -73,7 +73,7 @@ function PollingRow() {
           </button>
         ))}
       </div>
-      <p className="mt-2 text-[10px] text-muted">{note}</p>
+      <p className="mt-2 text-muted">{note}</p>
     </div>
   );
 }
@@ -223,7 +223,7 @@ function SettingsContent({
         )}
 
         {signInError && (
-          <p className="text-[11px] text-muted">
+          <p className="text-xs text-muted">
             Register this exact redirect address in your Spotify app settings:{' '}
             <code className="text-accent break-all">{getRedirectUri()}</code>
           </p>
@@ -285,7 +285,7 @@ function SettingsContent({
         )}
       </div>
 
-      <p className="mt-5 text-center text-[10px] text-muted">
+      <p className="mt-5 text-center text-xs text-muted">
         Version <span className="font-mono">{APP_VERSION}</span>
       </p>
     </Modal>

@@ -87,7 +87,7 @@ export default function KioskSystem({ update, onUpdate }: Readonly<{ update: Kio
         </div>
         <p
           role="status"
-          className={`${isUpdating ? 'text-xs font-semibold' : 'text-[10px]'} mt-0.5 ${updateWaiting ? 'status-warning' : 'text-muted'}`}
+          className={`mt-0.5 ${isUpdating ? 'font-semibold ' : ''}${updateWaiting ? 'status-warning' : 'text-muted'}`}
         >
           {status}
         </p>
