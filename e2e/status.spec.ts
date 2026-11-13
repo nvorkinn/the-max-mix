@@ -176,7 +176,8 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
     await page.context().setOffline(true);
-    await expect(page.getByRole('alert')).toContainText('No internet connection');
+    // Offline, the lyrics lookup can fail too and raise its own alert, so look for the offline one by its text.
+    await expect(page.getByRole('alert').filter({ hasText: 'No internet connection' })).toBeVisible();
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeDisabled();
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeInViewport();
     await expectControlsFit(page, player);
