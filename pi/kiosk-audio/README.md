@@ -60,7 +60,12 @@ phones as a keyboard called THE MAX MIX for two minutes (`pairing-gatt.ts`): an 
 Bluetooth, and its values can only be read over an encrypted link, so tapping it makes the phone pair. An agent says yes
 to that pairing (Just Works) while the window is open. The first device that pairs is taken as the phone: the kiosk stops
 advertising, disconnects it, and notes it in `~/.local/state/the-max-mix/phones.json`. BlueZ keeps the phone's identity
-key, which lets it recognise the phone's changing addresses later. No key presses are ever sent.
+key, which lets it recognise the phone's changing addresses later. No key presses are ever sent. **Forget** on a device
+row (`POST /bluetooth/remove`) unpairs it and drops it from `phones.json`, so a phone can pair again.
+
+Once a phone is saved, `presence.ts` scans Bluetooth LE for 8 s every 30 s (an LE-only discovery filter on hci0) and
+counts a saved phone as here while it is connected or was heard in the last two minutes; the debug section shows Here or
+Away for each, and the log notes each change. With no phone saved it never scans.
 
 ## How it works
 

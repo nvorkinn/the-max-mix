@@ -39,10 +39,11 @@
 //   GET  /bluetooth/devices   {"devices": [{"address", "name", "paired", "connected"}, …]}   the Bluetooth speakers BlueZ knows
 //   POST /bluetooth/scan      look for speakers for a few seconds: the same answer      503 {"error"}: a safe message
 //   POST /bluetooth/connect   {"address"}   pair (if needed), trust and connect: {"ok": true} or {"ok": false, "error"}
-//   POST /bluetooth/remove    {"address"}   forget a speaker
+//   POST /bluetooth/remove    {"address"}   forget a speaker, or a phone "Pair my phone" paired
 //   GET  /bluetooth/monitor   for the debug console (bluetooth-monitor.ts): {"adapter", "devices": the paired ones,
 //                             "nearby": unpaired devices heard in the last minute, "verbose",
-//                             "log": [{"id", "time", "message"}]}, or 503 {"error"}
+//                             "log": [{"id", "time", "message"}], "pairing", "phones": [{"address", "name",
+//                             "isHere", "lastSeen"}] (presence.ts)}, or 503 {"error"}
 //   POST /bluetooth/monitor   {"verbose": true}: log unpaired devices too
 //   POST /bluetooth/pair-phone   show up as a keyboard for two minutes so a phone can pair (phone-pairing.ts): 204, or
 //                                503 {"error"}; its progress is "pairing" in GET /bluetooth/monitor: {"state": "idle" |
@@ -71,10 +72,12 @@ import type { LyricsHit } from './lyrics.ts';
 import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
 import { advertiseForPairing } from './pairing-gatt.ts';
-import { PhonePairing, savePhone } from './phone-pairing.ts';
+import { forgetPhone, PhonePairing, readPhones, savePhone } from './phone-pairing.ts';
 import type { PairingStatus } from './phone-pairing.ts';
 import { PhoneSetup } from './phone-setup.ts';
 import type { Choice, Graph } from './pipewire.ts';
+import { Presence, scanLe } from './presence.ts';
+import type { PhonePresence } from './presence.ts';
 import { SonosEventHub } from './sonos-events.ts';
 import type { SonosChange } from './sonos-events.ts';
 import { libraryEvents } from './sonos-library.ts';
@@ -128,7 +131,14 @@ export interface Deps {
   /** What BlueZ reports, for the debug console. */
   bluetoothMonitor: { snapshot: () => Promise<MonitorSnapshot>; setVerbose: (isVerbose: boolean) => void };
   /** "Pair my phone", for the debug console. */
-  phonePairing: { start: () => Promise<void>; stop: () => Promise<void>; status: () => PairingStatus };
+  phonePairing: {
+    start: () => Promise<void>;
+    stop: () => Promise<void>;
+    status: () => PairingStatus;
+    forget: (address: string) => Promise<void>;
+  };
+  /** Whether each saved phone is nearby, for the debug console. */
+  presence: { status: () => PhonePresence[] };
   phone: { start: () => Promise<void> };
   hotspot: {
     start: () => Promise<HotspotInfo>;
@@ -333,7 +343,11 @@ async function sendDevices(response: ServerResponse, devices: () => Promise<Blue
 /** GET /bluetooth/monitor: what BlueZ reports, or 503 when it is not there. */
 async function sendMonitor(response: ServerResponse, deps: Deps): Promise<void> {
   try {
-    sendJson(response, 200, { ...(await deps.bluetoothMonitor.snapshot()), pairing: deps.phonePairing.status() });
+    sendJson(response, 200, {
+      ...(await deps.bluetoothMonitor.snapshot()),
+      pairing: deps.phonePairing.status(),
+      phones: deps.presence.status()
+    });
   } catch {
     sendJson(response, 503, { error: BLUETOOTH_UNAVAILABLE });
   }
@@ -343,7 +357,7 @@ async function postBluetooth(
   url: string,
   request: IncomingMessage,
   response: ServerResponse,
-  bluetooth: BluetoothControl
+  { bluetooth, phonePairing }: Pick<Deps, 'bluetooth' | 'phonePairing'>
 ): Promise<void> {
   if (url === '/bluetooth/scan') {
     await sendDevices(response, () => bluetooth.scan());
@@ -356,6 +370,7 @@ async function postBluetooth(
   } else if (url === '/bluetooth/remove') {
     try {
       await bluetooth.remove(address);
+      await phonePairing.forget(address);
     } catch (error) {
       // The speaker stays in the app's list, which is how a failed forget shows.
       console.warn(`bluetooth: remove failed: ${String(error)}`);
@@ -422,7 +437,7 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
     case '/bluetooth/scan':
     case '/bluetooth/connect':
     case '/bluetooth/remove': {
-      await postBluetooth(url, request, response, deps.bluetooth);
+      await postBluetooth(url, request, response, deps);
       return;
     }
     default: {
@@ -667,6 +682,15 @@ export function serveSpeakers(
   };
   const bluetooth = new Bluetooth();
   const bluetoothMonitor = new BluetoothMonitor();
+  const presence = new Presence({
+    phones: () => readPhones(deps.phonesFile),
+    devices: async () => (await bluetoothMonitor.snapshot()).devices,
+    scan: ms => scanLe(ms),
+    log: message => {
+      bluetoothMonitor.note(message);
+    }
+  });
+  presence.start();
   const handler = handleRequest(origin, {
     ...deps,
     perform,
@@ -679,11 +703,13 @@ export function serveSpeakers(
     lyrics: cached(query => findLyrics(query)),
     bluetooth,
     bluetoothMonitor,
+    presence,
     phonePairing: new PhonePairing({
       advertise: () => advertiseForPairing(),
       devices: async () => (await bluetoothMonitor.snapshot()).devices,
       disconnect: address => bluetooth.disconnect(address),
       save: phone => savePhone(deps.phonesFile, phone),
+      forget: address => forgetPhone(deps.phonesFile, address),
       log: message => {
         bluetoothMonitor.note(message);
       }

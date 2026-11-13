@@ -3,7 +3,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { pairPhone, parseBluetoothReport, readBluetoothReport } from '../utils/bluetoothMonitor';
 import BluetoothDebug from './BluetoothDebug';
 
-const audio = vi.hoisted(() => ({ scanBluetoothSpeakers: vi.fn(() => Promise.resolve([])) }));
+const audio = vi.hoisted(() => ({
+  scanBluetoothSpeakers: vi.fn(() => Promise.resolve([])),
+  forgetBluetoothSpeaker: vi.fn(() => Promise.resolve())
+}));
 vi.mock('../audio/bluetooth', () => audio);
 
 const NOW = Date.now();
@@ -32,6 +35,7 @@ const REPORT = {
   ],
   nearby: 4,
   pairing: { state: 'waiting', secondsLeft: 95 },
+  phones: [{ address: 'AA:BB:CC:DD:EE:01', name: 'Nikolai’s iPhone', isHere: true, lastSeen: NOW - 12_000 }],
   verbose: false,
   log: [
     { id: 1, time: NOW - 20_000, message: 'Watching B8:27:EB:00:00:00: powered on, 1 paired' },
@@ -62,11 +66,12 @@ describe('BluetoothDebug', () => {
     render(<BluetoothDebug />);
     expect(fetchMock).not.toHaveBeenCalled();
     open();
-    expect(await screen.findByText('Nikolai’s iPhone')).toBeInTheDocument();
+    expect(await screen.findAllByText('Nikolai’s iPhone')).toHaveLength(2);
     expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/bluetooth/monitor', expect.anything());
     expect(screen.getByText('Unpaired nearby').nextSibling).toHaveTextContent('4');
     expect(screen.getByText('Scanning').nextSibling).toHaveTextContent('Yes');
     expect(screen.getByText('Pairing').nextSibling).toHaveTextContent('Waiting for a phone, 95 s left');
+    expect(screen.getAllByText('Nikolai’s iPhone')[0]?.nextSibling).toHaveTextContent('Here');
     expect(screen.getByText('-61 dBm')).toBeInTheDocument();
     expect(screen.getByText('Paired, bonded')).toBeInTheDocument();
     expect(screen.getByText(/^1[12] s ago$/)).toBeInTheDocument();
@@ -81,7 +86,7 @@ describe('BluetoothDebug', () => {
     expect(await screen.findByText('Bluetooth is not available on this device.')).toBeInTheDocument();
   });
 
-  it('switches logging of unpaired devices, and scans', async () => {
+  it('switches logging of unpaired devices, scans, forgets a device and pairs', async () => {
     fetchMock.mockImplementation((_url, init) =>
       init?.method === 'POST' ? Promise.resolve(new Response(null, { status: 204 })) : json(REPORT)
     );
@@ -97,6 +102,8 @@ describe('BluetoothDebug', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Scan for 8 s' }));
     expect(audio.scanBluetoothSpeakers).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Forget Nikolai’s iPhone' }));
+    expect(audio.forgetBluetoothSpeaker).toHaveBeenCalledWith('AA:BB:CC:DD:EE:01');
     fireEvent.click(screen.getByRole('button', { name: 'Pair my phone' }));
     fireEvent.click(screen.getByRole('button', { name: 'Stop pairing' }));
     await waitFor(() =>
@@ -146,9 +153,12 @@ describe('BluetoothDebug', () => {
   });
 
   it('reads an answer with missing or odd fields as empty', () => {
-    expect(parseBluetoothReport({ devices: [{}], log: [{ id: 1, time: 'x', message: 'y' }], nearby: 'many' })).toEqual({
+    expect(
+      parseBluetoothReport({ devices: [{}], phones: [7], log: [{ id: 1, time: 'x', message: 'y' }], nearby: 'many' })
+    ).toEqual({
       adapter: null,
       pairing: { state: 'idle' },
+      phones: [{ address: '', name: '', isHere: false }],
       devices: [
         {
           address: '',

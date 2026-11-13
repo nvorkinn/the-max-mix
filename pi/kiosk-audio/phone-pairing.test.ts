@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PAIRING_ERRORS, PhonePairing, savePhone } from './phone-pairing.ts';
+import { forgetPhone, PAIRING_ERRORS, PhonePairing, savePhone } from './phone-pairing.ts';
 
 const SPEAKER = { address: 'AA:BB:CC:DD:EE:02', name: 'Kitchen speaker', paired: true, bonded: true };
 const PHONE = { address: '4F:00:00:00:00:03', name: 'Nikolai’s iPhone', paired: true, bonded: true };
@@ -16,12 +16,14 @@ function setUp(options: { failing?: boolean } = {}) {
   );
   const disconnect = vi.fn(() => Promise.resolve());
   const save = vi.fn(() => Promise.resolve());
+  const forget = vi.fn(() => Promise.resolve());
   const log = vi.fn();
   const pairing = new PhonePairing({
     advertise,
     devices: () => Promise.resolve(devices),
     disconnect,
     save,
+    forget,
     log,
     now: () => Date.now(),
     windowMs: 10_000,
@@ -33,6 +35,7 @@ function setUp(options: { failing?: boolean } = {}) {
     stop,
     disconnect,
     save,
+    forget,
     log,
     pairPhone: () => {
       devices = [SPEAKER, PHONE];
@@ -72,6 +75,18 @@ describe('PhonePairing', () => {
     ]);
   });
 
+  it('forgets a phone, and is idle again when it was the one just paired', async () => {
+    const { pairing, forget, pairPhone } = setUp();
+    await pairing.start();
+    pairPhone();
+    await vi.advanceTimersByTimeAsync(1000);
+    await pairing.forget('11:22:33:44:55:66');
+    expect(pairing.status()).toMatchObject({ state: 'paired' });
+    await pairing.forget(PHONE.address);
+    expect(forget).toHaveBeenLastCalledWith(PHONE.address);
+    expect(pairing.status()).toEqual({ state: 'idle' });
+  });
+
   it('gives up when nothing pairs in time', async () => {
     const { pairing, stop, save } = setUp();
     await pairing.start();
@@ -105,8 +120,8 @@ describe('PhonePairing', () => {
   });
 });
 
-describe('savePhone', () => {
-  it('keeps one entry per phone in a JSON list, starting the file when there is none', async () => {
+describe('savePhone and forgetPhone', () => {
+  it('keeps one entry per phone in a JSON list, starting the file when there is none, and drops one', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'phones-'));
     const file = path.join(directory, 'state', 'phones.json');
     await savePhone(file, { address: 'A', name: 'One', pairedAt: 1 });
@@ -116,6 +131,9 @@ describe('savePhone', () => {
       { address: 'B', name: 'Two', pairedAt: 2 },
       { address: 'A', name: 'One again', pairedAt: 3 }
     ]);
+    await forgetPhone(file, 'B');
+    await forgetPhone(file, 'Z');
+    expect(JSON.parse(await readFile(file, 'utf8'))).toEqual([{ address: 'A', name: 'One again', pairedAt: 3 }]);
     await writeFile(file, 'not json');
     await savePhone(file, { address: 'C', name: 'Three', pairedAt: 4 });
     expect(JSON.parse(await readFile(file, 'utf8'))).toEqual([{ address: 'C', name: 'Three', pairedAt: 4 }]);

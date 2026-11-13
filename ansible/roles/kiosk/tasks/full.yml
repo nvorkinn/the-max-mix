@@ -489,6 +489,7 @@
     - phone-pairing.ts
     - phone-setup.ts
     - pipewire.ts
+    - presence.ts
     - qr.ts
     - server.ts
     - sonos-events.ts
