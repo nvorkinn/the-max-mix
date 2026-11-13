@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '../test/user';
 import PersonSwitcher from './PersonSwitcher';
 
-const auth = vi.hoisted(() => ({ peopleOnKiosk: vi.fn() }));
+const auth = vi.hoisted(() => ({ peopleOnKiosk: vi.fn(), PEOPLE_LIMIT: 5 }));
 const monitor = vi.hoisted(() => ({ readBluetoothReport: vi.fn() }));
 vi.mock('../spotify/auth', () => auth);
 vi.mock('../utils/bluetoothMonitor', () => monitor);
