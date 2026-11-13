@@ -534,40 +534,6 @@ describe('useSpotifyPlayer', () => {
     expect(result.current.playbackState).toMatchObject({ shuffle_state: false, repeat_state: 'track' });
   });
 
-  it('looks up whether the track is liked and saves or removes it', async () => {
-    mocks.api.getPlaybackState.mockResolvedValue({ device: { id: 'd' }, item: { id: 't1', uri: 'spotify:track:t1' } });
-    const { result } = renderHook(() => useSpotifyPlayer());
-    expect(result.current.liked).toBeNull();
-    await waitFor(() => expect(result.current.liked).toBe(false));
-    expect(mocks.api.isTrackSaved).toHaveBeenCalledWith('spotify:track:t1');
-
-    await act(async () => {
-      expect(await result.current.toggleLike()).toBe(true);
-    });
-    expect(mocks.api.setTrackSaved).toHaveBeenCalledWith('spotify:track:t1', true);
-    expect(result.current.liked).toBe(true);
-
-    mocks.api.setTrackSaved.mockRejectedValue(new Error('No library access'));
-    await act(async () => {
-      expect(await result.current.toggleLike()).toBe(false);
-    });
-    expect(result.current.liked).toBe(true);
-    expect(result.current.error).toBe('No library access');
-  });
-
-  it('leaves the heart unknown when the lookup fails or there is no track', async () => {
-    mocks.api.getPlaybackState.mockResolvedValue({ device: { id: 'd' }, item: { id: 't1', uri: 'spotify:track:t1' } });
-    mocks.api.isTrackSaved.mockRejectedValue(new SpotifyApiError('Insufficient scope', 403));
-    const { result } = renderHook(() => useSpotifyPlayer());
-    await waitFor(() => expect(mocks.api.isTrackSaved).toHaveBeenCalled());
-    await act(async () => {});
-    expect(result.current.liked).toBeNull();
-    await act(async () => {
-      expect(await result.current.toggleLike()).toBe(false);
-    });
-    expect(mocks.api.setTrackSaved).not.toHaveBeenCalled();
-  });
-
   it('hands off to playback started elsewhere (a Sonos): clears an error and reads playback again', async () => {
     mocks.api.getPlaybackState.mockResolvedValue(playing);
     const { result } = renderHook(() => useSpotifyPlayer());

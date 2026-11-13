@@ -118,9 +118,6 @@ export interface UseSpotifyPlayer {
   setVolume: (volume: number) => Promise<boolean>;
   toggleShuffle: () => Promise<boolean>;
   cycleRepeat: () => Promise<boolean>;
-  /** Whether the current track is in Liked Songs; null while unknown. */
-  liked: boolean | null;
-  toggleLike: () => Promise<boolean>;
   transferPlayback: (deviceId: string) => Promise<boolean>;
   /** Playback was moved off this page outside Spotify Connect (a Sonos started the song itself): follow it remotely. */
   handOff: () => Promise<void>;
@@ -754,39 +751,6 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     }
   };
 
-  // Liked Songs is looked up once per track.
-  const trackUri = playbackState?.item?.uri ?? null;
-  const [saved, setSaved] = useState<{ uri: string; liked: boolean } | null>(null);
-  useEffect(() => {
-    if (!isAuthenticated || !trackUri?.startsWith('spotify:track:')) return;
-    let cancelled = false;
-    spotify
-      .isTrackSaved(trackUri)
-      .then(liked => {
-        if (!cancelled) setSaved({ uri: trackUri, liked });
-      })
-      .catch((error: unknown) => debugLog('warn', 'api', `Liked Songs check failed: ${errorMessage(error)}`));
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, trackUri]);
-  const liked = trackUri !== null && saved?.uri === trackUri ? saved.liked : null;
-
-  const toggleLike = async () => {
-    if (!trackUri || liked === null) return false;
-    setSaved({ uri: trackUri, liked: !liked });
-    try {
-      checkRetryWindow();
-      await spotify.setTrackSaved(trackUri, !liked);
-      setActionError(null);
-      return true;
-    } catch (error) {
-      setSaved(current => (current?.uri === trackUri ? { uri: trackUri, liked } : current));
-      setActionError(problemForApi(error));
-      return false;
-    }
-  };
-
   const transferPlayback = async (deviceId: string) => {
     try {
       await transferTo(deviceId, false);
@@ -910,8 +874,6 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       const mode = NEXT_REPEAT[playbackState?.repeat_state ?? 'off'];
       return runSetting(() => spotify.setRepeat(mode), { repeat: mode });
     },
-    liked,
-    toggleLike,
     transferPlayback,
     handOff,
     playMusic,

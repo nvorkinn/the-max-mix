@@ -99,8 +99,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     setVolume,
     toggleShuffle,
     cycleRepeat,
-    liked,
-    toggleLike,
     transferPlayback,
     handOff,
     playMusic: playMusicOnSpotify,
@@ -492,9 +490,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 onVolumeChange={(vol: number) => (followingSonos ? sonos.setVolume(vol) : setVolume(vol / 100))}
                 onToggleShuffle={toggleShuffle}
                 onCycleRepeat={cycleRepeat}
-                // Liked Songs follows Spotify's song; on a Sonos the heart rests.
-                liked={followingSonos ? null : liked}
-                onToggleLike={toggleLike}
                 controlsEnabled={controlsEnabled}
                 speakerLabel={speakers.playingLabel}
                 speakersOpen={speakersShown}

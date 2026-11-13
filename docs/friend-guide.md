@@ -30,7 +30,6 @@ account. The words in bold are what you'll see on the screen.
 - Tap the magnifying glass at the top to open **Choose music**: Liked Songs, your playlists, what you played recently,
   or **Search** to find any song, album or playlist.
 - Tap a song in the queue on the right to jump to it.
-- Tap the heart to save a song to Liked Songs.
 - Tap the microphone on the cover to show the lyrics, and the picture button to bring the cover back.
 
 ## 5. Party with friends

@@ -153,25 +153,6 @@ export async function setRepeat(mode: RepeatMode): Promise<{ success: true }> {
   return command(`/me/player/repeat?state=${mode}`, 'PUT');
 }
 
-function requireTrackUri(uri: string) {
-  if (typeof uri !== 'string' || !uri.startsWith('spotify:track:')) {
-    throw new SpotifyApiError('A Spotify track URI is required.', 400);
-  }
-}
-
-/** Whether the track is in the user's Liked Songs. */
-export async function isTrackSaved(uri: string): Promise<boolean> {
-  requireTrackUri(uri);
-  const reply = await spotifyFetch(`/me/library/contains?uris=${encodeURIComponent(uri)}`);
-  return Array.isArray(reply) && reply[0] === true;
-}
-
-/** Adds the track to Liked Songs, or with `saved` false removes it. */
-export async function setTrackSaved(uri: string, saved: boolean): Promise<{ success: true }> {
-  requireTrackUri(uri);
-  return command(`/me/library?uris=${encodeURIComponent(uri)}`, saved ? 'PUT' : 'DELETE');
-}
-
 /** The tracks played most recently, newest first. */
 export async function getRecentlyPlayed(): Promise<MusicChoice[]> {
   return parseRecentlyPlayed(await spotifyFetch('/me/player/recently-played?limit=30'));
