@@ -4,10 +4,10 @@
 
 # The location for the app's Auto theme, when the Pi has none set (defaults/main.yml): the IP lookup happens here, at
 # each pull, so the app itself never asks the network where it is. A failed lookup only leaves Auto out until the next.
-# curl rather than the uri module: ipinfo.io answers the uri module with 406 Not Acceptable (whatever its headers),
+# curl rather than the uri module: the lookup service answers the uri module with 406 Not Acceptable (whatever its headers),
 # while curl, which kiosk-pull already uses, gets the location.
 - name: kiosk-service | Look up the Pi's rough location from its IP address
-  ansible.builtin.command:  # noqa: command-instead-of-module
+  ansible.builtin.command: # noqa: command-instead-of-module
     argv: [curl, --fail, --silent, --show-error, --max-time, '10', '{{ kiosk_location_lookup_url }}']
   register: kiosk_ip_location
   changed_when: false
