@@ -2008,13 +2008,13 @@ input:disabled {
 .debug-bluetooth-error {
   color: #fda4af;
 }
-.debug-bluetooth-scan {
+.debug-bluetooth-button {
   min-height: 44px;
   padding: 0 16px;
   border: 1px solid rgb(255 255 255 / 20%);
   border-radius: 8px;
 }
-.debug-bluetooth-scan:disabled {
+.debug-bluetooth-button:disabled {
   opacity: 0.4;
 }
 .debug-bluetooth-devices {

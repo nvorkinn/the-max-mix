@@ -485,6 +485,8 @@
     - lyrics-sources.ts
     - lyrics.ts
     - nmcli.ts
+    - pairing-gatt.ts
+    - phone-pairing.ts
     - phone-setup.ts
     - pipewire.ts
     - qr.ts

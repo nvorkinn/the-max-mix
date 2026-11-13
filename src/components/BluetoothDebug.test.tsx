@@ -31,6 +31,7 @@ const REPORT = {
     }
   ],
   nearby: 4,
+  pairing: { state: 'waiting', secondsLeft: 95 },
   verbose: false,
   log: [
     { id: 1, time: NOW - 20_000, message: 'Watching B8:27:EB:00:00:00: powered on, 1 paired' },
@@ -65,6 +66,7 @@ describe('BluetoothDebug', () => {
     expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/bluetooth/monitor', expect.anything());
     expect(screen.getByText('Unpaired nearby').nextSibling).toHaveTextContent('4');
     expect(screen.getByText('Scanning').nextSibling).toHaveTextContent('Yes');
+    expect(screen.getByText('Pairing').nextSibling).toHaveTextContent('Waiting for a phone, 95 s left');
     expect(screen.getByText('-61 dBm')).toBeInTheDocument();
     expect(screen.getByText('Paired, bonded')).toBeInTheDocument();
     expect(screen.getByText(/^1[12] s ago$/)).toBeInTheDocument();
@@ -95,11 +97,22 @@ describe('BluetoothDebug', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Scan for 8 s' }));
     expect(audio.scanBluetoothSpeakers).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Pair my phone' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop pairing' }));
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.map(([url]) => (typeof url === 'string' ? url : ''))).toEqual(
+        expect.arrayContaining([
+          'http://127.0.0.1:7341/bluetooth/pair-phone',
+          'http://127.0.0.1:7341/bluetooth/pair-phone/stop'
+        ])
+      )
+    );
   });
 
   it('reads an answer with missing or odd fields as empty', () => {
     expect(parseBluetoothReport({ devices: [{}], log: [{ id: 1, time: 'x', message: 'y' }], nearby: 'many' })).toEqual({
       adapter: null,
+      pairing: { state: 'idle' },
       devices: [
         {
           address: '',
@@ -118,5 +131,21 @@ describe('BluetoothDebug', () => {
       verbose: false,
       log: []
     });
+  });
+});
+
+describe('parseBluetoothReport pairing', () => {
+  it('reads each pairing state', () => {
+    const pairing = (value: unknown) => parseBluetoothReport({ pairing: value }).pairing;
+    expect(pairing({ state: 'paired', phone: { name: 'iPhone', address: 'A', pairedAt: 1 } })).toEqual({
+      state: 'paired',
+      name: 'iPhone',
+      address: 'A'
+    });
+    expect(pairing({ state: 'failed', error: 'No phone paired within 2 minutes.' })).toEqual({
+      state: 'failed',
+      error: 'No phone paired within 2 minutes.'
+    });
+    expect(pairing({ state: 'odd' })).toEqual({ state: 'idle' });
   });
 });

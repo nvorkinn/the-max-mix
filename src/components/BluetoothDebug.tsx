@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { scanBluetoothSpeakers } from '../audio/bluetooth';
-import { readBluetoothReport, setBluetoothVerbose } from '../utils/bluetoothMonitor';
-import type { BluetoothReport, PairedDevice } from '../utils/bluetoothMonitor';
+import { pairPhone, readBluetoothReport, setBluetoothVerbose } from '../utils/bluetoothMonitor';
+import type { BluetoothReport, PairedDevice, PairingStatus } from '../utils/bluetoothMonitor';
 import { errorMessage } from '../utils/errorMessage';
 
 const POLL_MS = 2000;
@@ -22,6 +22,23 @@ function state(device: PairedDevice): string {
   if (device.bonded) parts.push('bonded');
   if (device.trusted) parts.push('trusted');
   return parts.join(', ');
+}
+
+function pairingText(pairing: PairingStatus): string {
+  switch (pairing.state) {
+    case 'waiting': {
+      return `Waiting for a phone, ${pairing.secondsLeft} s left`;
+    }
+    case 'paired': {
+      return `Paired ${pairing.name} (${pairing.address})`;
+    }
+    case 'failed': {
+      return pairing.error;
+    }
+    default: {
+      return 'Not pairing';
+    }
+  }
 }
 
 /** Reads the Pi's Bluetooth report every POLL_MS while `isOpen`. */
@@ -72,6 +89,10 @@ export default function BluetoothDebug() {
       .catch((caught: unknown) => setActionError(errorMessage(caught)))
       .finally(() => setIsScanning(false));
   };
+  const pair = (isStarting: boolean) => {
+    setActionError(null);
+    pairPhone(isStarting).catch((caught: unknown) => setActionError(errorMessage(caught)));
+  };
   const toggleVerbose = (verbose: boolean) => {
     if (report) setReport({ ...report, verbose });
     setBluetoothVerbose(verbose).catch((caught: unknown) => setActionError(errorMessage(caught)));
@@ -91,7 +112,8 @@ export default function BluetoothDebug() {
                 ['Scanning', adapter ? yesNo(adapter.discovering) : '–'],
                 ['Discoverable', adapter ? yesNo(adapter.discoverable) : '–'],
                 ['Pairable', adapter ? yesNo(adapter.pairable) : '–'],
-                ['Unpaired nearby', String(report.nearby)]
+                ['Unpaired nearby', String(report.nearby)],
+                ['Pairing', pairingText(report.pairing)]
               ] as const
             ).map(([name, value]) => (
               <div key={name}>
@@ -105,9 +127,17 @@ export default function BluetoothDebug() {
               <input type="checkbox" checked={report.verbose} onChange={event => toggleVerbose(event.target.checked)} />
               Log unpaired devices
             </label>
-            <button type="button" className="debug-bluetooth-scan" onClick={scan} disabled={isScanning}>
+            <button type="button" className="debug-bluetooth-button" onClick={scan} disabled={isScanning}>
               {isScanning ? 'Scanning…' : 'Scan for 8 s'}
             </button>
+            <button type="button" className="debug-bluetooth-button" onClick={() => pair(true)}>
+              Pair my phone
+            </button>
+            {report.pairing.state === 'waiting' && (
+              <button type="button" className="debug-bluetooth-button" onClick={() => pair(false)}>
+                Stop pairing
+              </button>
+            )}
           </div>
           {report.devices.length === 0 ? (
             <p className="debug-empty">No paired devices.</p>

@@ -55,6 +55,13 @@ dbus-native, from the first time the app asks, and only listens: it never scans,
 section's Scan button uses `POST /bluetooth/scan`). Unpaired devices are logged only after `POST /bluetooth/monitor`
 with `{"verbose": true}`. It is the first step towards recognising people's phones; the log stays in memory.
 
+**Pair my phone** in the same section (`POST /bluetooth/pair-phone`, `phone-pairing.ts`) makes the kiosk show up on
+phones as a keyboard called THE MAX MIX for two minutes (`pairing-gatt.ts`): an iPhone lists it under Settings >
+Bluetooth, and its values can only be read over an encrypted link, so tapping it makes the phone pair. An agent says yes
+to that pairing (Just Works) while the window is open. The first device that pairs is taken as the phone: the kiosk stops
+advertising, disconnects it, and notes it in `~/.local/state/the-max-mix/phones.json`. BlueZ keeps the phone's identity
+key, which lets it recognise the phone's changing addresses later. No key presses are ever sent.
+
 ## How it works
 
 1. **Discovery.** `libpipewire-module-raop-discover` (enabled by `/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf`)
