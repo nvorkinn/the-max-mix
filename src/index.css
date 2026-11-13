@@ -204,13 +204,13 @@
 .app-header {
   /* Everything in the header fills most of its height, so it reads from across the room. */
   /* The short screen's header is smaller, and so are these (see the height media query below). */
-  --header-mark: 64px;
-  --header-mark-icon: 38px;
-  --header-title: 42px;
-  --header-button: 74px;
-  --header-icon: 46px;
-  --header-clock: 30px;
-  --header-clock-icon: 24px;
+  --header-mark: 52px;
+  --header-mark-icon: 30px;
+  --header-title: 34px;
+  --header-button: 65px;
+  --header-icon: 37px;
+  --header-clock: 22px;
+  --header-clock-icon: 19px;
   min-height: 82px;
   padding: 0 30px;
   display: flex;
@@ -1770,13 +1770,13 @@ input:disabled {
 
 @media (height <= 640px) {
   .app-header {
-    --header-mark: 52px;
-    --header-mark-icon: 32px;
-    --header-title: 36px;
-    --header-button: 62px;
-    --header-icon: 38px;
-    --header-clock: 24px;
-    --header-clock-icon: 20px;
+    --header-mark: 46px;
+    --header-mark-icon: 27px;
+    --header-title: 31px;
+    --header-button: 59px;
+    --header-icon: 33px;
+    --header-clock: 19px;
+    --header-clock-icon: 17px;
     min-height: 66px;
   }
   .listening-room {
