@@ -61,7 +61,8 @@ export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }
   if (version && latest.state === 'known') {
     status = newer
       ? `${newer}. Tap the button to install it now, or the Pi picks it up within 6 hours and applies it at 04:30.`
-      : `Up to date${checkedAt === null ? '' : ` as of ${formatTime(checkedAt)}`}.`;
+      : 'Up to date.';
+    if (!newer && checkedAt !== null) status = `Up to date as of ${formatTime(checkedAt)}.`;
   }
   if (progress) status = progress;
 

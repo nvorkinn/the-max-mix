@@ -110,11 +110,12 @@ describe('KioskSystem', () => {
     it('says when GitHub last answered, and keeps that time when a check cannot reach it', async () => {
       kiosk.latestRelease.mockResolvedValue('v1.12.0');
       render(<Harness />);
-      const first = (await screen.findByText(UP_TO_DATE)).textContent;
+      const shown = await screen.findByText(UP_TO_DATE);
+      const first = shown.textContent;
       kiosk.latestRelease.mockResolvedValue(null);
       await userEvent.click(check());
       await waitFor(() => expect(check()).toBeEnabled());
-      expect(screen.getByText(UP_TO_DATE)).toHaveTextContent(first ?? '');
+      expect(screen.getByText(UP_TO_DATE)).toHaveTextContent(first);
     });
 
     it('spins while it checks, even when GitHub answers at once', async () => {
