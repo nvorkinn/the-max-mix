@@ -1345,6 +1345,43 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.app-dialog.pair-phone-sheet {
+  width: fit-content;
+  min-width: min(460px, calc(100% - 32px));
+  padding: 28px;
+  border-radius: 28px;
+}
+.pair-phone-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 26px;
+  font-weight: 750;
+}
+.pair-phone-steps {
+  display: grid;
+  gap: 12px;
+  margin: 22px 0 24px;
+  padding-left: 1.6em;
+  list-style: decimal;
+  font-size: 22px;
+  font-weight: 650;
+}
+.pair-phone-actions {
+  display: flex;
+  gap: 12px;
+}
+.pair-phone-button {
+  flex: 1;
+  min-height: 60px;
+  font-size: 18px;
+}
+.phone-picker-pair {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--accent);
+}
 .phone-picker-button {
   flex-shrink: 0;
   min-height: 60px;

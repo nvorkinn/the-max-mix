@@ -10,6 +10,8 @@ const PEOPLE_KEY = 'maxmix.people';
 // The single login kept before there were people; moved into the people list the first time it is read.
 const LEGACY_AUTH_KEY = 'maxmix.auth';
 const PKCE_KEY = 'maxmix.pkce';
+// Who just signed in without a phone linked, until the app has offered to pair one (takePhoneToPair).
+const PAIR_PHONE_KEY = 'maxmix.pairPhoneFor';
 // Each person's remembered speakers (knownDevices.ts), dropped with the person.
 const KNOWN_SPEAKERS_KEY = 'maxmix.knownSpeakers';
 // Set by signOut, until the next sign-in goes through: the sign-in then asks Spotify to show its approval page again
@@ -368,6 +370,13 @@ async function finishSignIn(query: URLSearchParams): Promise<SignInResult> {
     generation += 1;
     const known = readPeople()?.people.find(person => profile.spotifyId && person.spotifyId === profile.spotifyId);
     addPerson(clientId, { ...profile, refreshToken: tokens.refreshToken, phoneAddress: known?.phoneAddress ?? '' });
+    if (!known?.phoneAddress && profile.spotifyId) {
+      try {
+        sessionStorage.setItem(PAIR_PHONE_KEY, profile.spotifyId);
+      } catch {
+        // Storage is unavailable; they can still pair from Settings.
+      }
+    }
     setFreshSignIn(false);
     cachedAccess = {
       token: tokens.accessToken,
@@ -398,6 +407,20 @@ export function completeSignIn(): Promise<SignInResult | null> {
   });
   completing = attempt;
   return attempt;
+}
+
+/**
+ * The Spotify ID of someone who has just signed in (or been added) with no phone linked, once: the app then offers to
+ * pair their phone. Null when there is nobody to offer it to.
+ */
+export function takePhoneToPair(): string | null {
+  try {
+    const spotifyId = sessionStorage.getItem(PAIR_PHONE_KEY);
+    sessionStorage.removeItem(PAIR_PHONE_KEY);
+    return spotifyId || null;
+  } catch {
+    return null;
+  }
 }
 
 /** True when a refresh token is stored (the login may still turn out to have been revoked). */

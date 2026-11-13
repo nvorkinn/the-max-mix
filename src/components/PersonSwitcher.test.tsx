@@ -104,12 +104,25 @@ describe('PersonSwitcher', () => {
     });
   });
 
-  it('closes without switching when the active person is tapped', async () => {
+  it('puts the active person through the same check, so it can be tried with one account', async () => {
+    const onSwitch = vi.fn();
+    proof.findRandomTrack.mockResolvedValue({ id: 'song-1', name: 'Random Song' });
+    render(<PersonSwitcher onSwitch={onSwitch} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Nikolai: switch person' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Nikolai' })).toHaveAttribute('data-away', 'true'));
+    await userEvent.click(screen.getByRole('button', { name: 'Nikolai' }));
+    expect(await screen.findByText('Random Song')).toBeInTheDocument();
+    expect(onSwitch).not.toHaveBeenCalled();
+  });
+
+  it('switches to the active person again at once when the Pi hears their phone', async () => {
+    monitor.readBluetoothReport.mockResolvedValue({ phones: [{ address: 'AA:01', name: 'N', isHere: true }] });
     const onSwitch = vi.fn();
     render(<PersonSwitcher onSwitch={onSwitch} />);
     await userEvent.click(screen.getByRole('button', { name: 'Nikolai: switch person' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Nikolai' })).not.toHaveAttribute('data-away'));
     await userEvent.click(screen.getByRole('button', { name: 'Nikolai' }));
-    expect(onSwitch).not.toHaveBeenCalled();
+    expect(onSwitch).toHaveBeenCalledWith('nikolai');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 

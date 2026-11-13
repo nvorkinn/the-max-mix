@@ -55,13 +55,17 @@ const people = vi.hoisted(() => ({
   peopleOnKiosk: vi.fn((): unknown[] => []),
   switchPerson: vi.fn(),
   reloadSettings: vi.fn(),
-  readBluetoothReport: vi.fn()
+  readBluetoothReport: vi.fn(),
+  takePhoneToPair: vi.fn((): string | null => null)
 }));
 vi.mock('../spotify/settings', async importOriginal => ({
   ...(await importOriginal<typeof import('../spotify/settings')>()),
   reloadSettings: people.reloadSettings
 }));
-vi.mock('../utils/bluetoothMonitor', () => ({ readBluetoothReport: people.readBluetoothReport }));
+vi.mock('../utils/bluetoothMonitor', () => ({
+  readBluetoothReport: people.readBluetoothReport,
+  pairPhone: () => Promise.resolve()
+}));
 vi.mock('../spotify/auth', () => ({
   startSignIn: vi.fn(),
   signOut: vi.fn(),
@@ -69,6 +73,7 @@ vi.mock('../spotify/auth', () => ({
   isPersonRefused: () => false,
   PEOPLE_LIMIT: 5,
   switchPerson: people.switchPerson,
+  takePhoneToPair: people.takePhoneToPair,
   getActivePersonId: () => 'me'
 }));
 vi.mock('../utils/colorExtractor', () => palette);
@@ -347,6 +352,21 @@ describe('TabletView', () => {
       await switchToAnna();
       expect(sonos.current['togglePlay']).toHaveBeenCalledTimes(1);
       expect(people.switchPerson).toHaveBeenCalledWith('anna');
+    });
+
+    it('offers to pair the phone of someone who has just signed in, on the kiosk only', async () => {
+      people.takePhoneToPair.mockReturnValueOnce('anna');
+      localStorage.setItem('maxmix.kiosk', 'true');
+      const { unmount } = render(<TabletView />);
+      await flush();
+      expect(screen.getByRole('heading', { name: 'Pair anna’s iPhone' })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+      expect(screen.queryByRole('heading', { name: 'Pair anna’s iPhone' })).not.toBeInTheDocument();
+      unmount();
+      localStorage.removeItem('maxmix.kiosk');
+      people.takePhoneToPair.mockClear();
+      render(<TabletView />);
+      expect(people.takePhoneToPair).not.toHaveBeenCalled();
     });
 
     it('leaves music playing elsewhere alone', async () => {

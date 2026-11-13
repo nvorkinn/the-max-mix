@@ -11,10 +11,11 @@ export interface SavedPhone {
 }
 
 /**
- * The phones the Pi saved with "Pair my phone", and whether it hears each one, re-read every 30 s while `enabled`.
+ * The phones the Pi saved with "Pair my phone", and whether it hears each one, re-read every 30 s while `enabled`
+ * (and at once when `rereadKey` changes, as after a phone has paired).
  * Empty when the Pi cannot say (as off the kiosk, where there is no Pi).
  */
-export function useSavedPhones(enabled: boolean): SavedPhone[] {
+export function useSavedPhones(enabled: boolean, rereadKey = 0): SavedPhone[] {
   const [phones, setPhones] = useState<SavedPhone[]>([]);
   useEffect(() => {
     if (!enabled) return;
@@ -34,7 +35,7 @@ export function useSavedPhones(enabled: boolean): SavedPhone[] {
       isCurrent = false;
       clearInterval(timer);
     };
-  }, [enabled]);
+  }, [enabled, rereadKey]);
   return phones;
 }
 

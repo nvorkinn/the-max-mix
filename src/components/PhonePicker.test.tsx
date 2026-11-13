@@ -4,7 +4,7 @@ import userEvent from '../test/user';
 import PhonePicker from './PhonePicker';
 
 const auth = vi.hoisted(() => ({ linkPhone: vi.fn() }));
-const monitor = vi.hoisted(() => ({ readBluetoothReport: vi.fn() }));
+const monitor = vi.hoisted(() => ({ readBluetoothReport: vi.fn(), pairPhone: vi.fn() }));
 vi.mock('../spotify/auth', () => auth);
 vi.mock('../utils/bluetoothMonitor', () => monitor);
 
@@ -46,6 +46,20 @@ describe('PhonePicker', () => {
     render(<PhonePicker spotifyId="anna" name="Anna" phoneAddress="" onChange={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: 'Anna’s phone' }));
     expect(screen.getAllByRole('button', { name: 'No phone' })).toHaveLength(1);
+  });
+
+  it('pairs a new phone for the person, and reads the saved phones again afterwards', async () => {
+    monitor.pairPhone.mockResolvedValue(undefined);
+    const onChange = vi.fn();
+    render(<PhonePicker spotifyId="anna" name="Anna" phoneAddress="" onChange={onChange} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Anna’s phone' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Pair new phone' }));
+    expect(screen.getByRole('heading', { name: 'Pair Anna’s iPhone' })).toBeInTheDocument();
+    expect(monitor.pairPhone).toHaveBeenCalledWith(true);
+    const reads = monitor.readBluetoothReport.mock.calls.length;
+    await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    expect(onChange).toHaveBeenCalled();
+    expect(monitor.readBluetoothReport.mock.calls.length).toBeGreaterThan(reads);
   });
 
   it('unlinks with No phone', async () => {
