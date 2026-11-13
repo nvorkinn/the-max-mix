@@ -70,11 +70,14 @@ test.describe('Layout', { tag: '@layout' }, () => {
     });
   });
 
-  // The 10.1 inch 1280x800 kiosk scales pages by 1.25 (kiosk-session), which gives the app 1024x640.
-  for (const height of [600, 640]) {
-    test.describe(`Player layout at 1024x${height}`, () => {
-      test(`artwork is square and the control bar stays on screen at 1024x${height}`, async ({ page }) => {
-        await page.setViewportSize({ width: 1024, height });
+  // The 7 inch and the 10.1 inch kiosk screens.
+  for (const [width, height] of [
+    [1024, 600],
+    [1280, 800]
+  ] as const) {
+    test.describe(`Player layout at ${width}x${height}`, () => {
+      test(`artwork is square and the control bar stays on screen at ${width}x${height}`, async ({ page }) => {
+        await page.setViewportSize({ width, height });
         await page.route('https://images.unsplash.com/**', route =>
           route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
         );
@@ -106,7 +109,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
           expect(navButton?.width ?? 0).toBeGreaterThanOrEqual(88);
           expect(navButton?.height ?? 0).toBeGreaterThanOrEqual(100);
           expect(navButton?.x ?? 0).toBeGreaterThan((panel?.x ?? 0) + (panel?.width ?? 0));
-          expect((navButton?.x ?? 0) + (navButton?.width ?? 0)).toBeLessThanOrEqual(1024);
+          expect((navButton?.x ?? 0) + (navButton?.width ?? 0)).toBeLessThanOrEqual(width);
         }
         expect(Math.abs((navButtons[0]?.y ?? 0) - (box?.y ?? 1))).toBeLessThanOrEqual(1);
         expect(
