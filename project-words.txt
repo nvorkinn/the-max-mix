@@ -142,6 +142,7 @@ rlength
 rootfs
 rootfstype
 rootwait
+rssi
 rstart
 runcmd
 shellcheck

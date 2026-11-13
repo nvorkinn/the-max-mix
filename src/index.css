@@ -1922,6 +1922,44 @@ input:disabled {
 .debug-options label:has(input:disabled) {
   opacity: 0.4;
 }
+.debug-bluetooth {
+  max-height: 45%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
+.debug-bluetooth summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+.debug-bluetooth-error {
+  color: #fda4af;
+}
+.debug-bluetooth-scan {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 8px;
+}
+.debug-bluetooth-scan:disabled {
+  opacity: 0.4;
+}
+.debug-bluetooth-devices {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.debug-bluetooth-devices th {
+  color: #9aa194;
+  font-weight: normal;
+}
+.debug-bluetooth-devices th,
+.debug-bluetooth-devices td {
+  padding: 3px 12px 3px 0;
+  overflow-wrap: anywhere;
+}
 .debug-log {
   flex: 1;
   min-height: 0;

@@ -475,6 +475,7 @@
     mode: '0644'
   loop:
     - actions.ts
+    - bluetooth-monitor.ts
     - bluetooth.ts
     - hotspot-portal.ts
     - hotspot.ts
