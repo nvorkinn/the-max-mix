@@ -160,7 +160,6 @@ describe('spotify/api', () => {
       expect(callOf(fetchMock, 1).url).toBe('https://api.spotify.com/v1/me/player/repeat?state=track');
       expect(callOf(fetchMock, 1).init.method).toBe('PUT');
     });
-
   });
 
   describe('signed out', () => {
