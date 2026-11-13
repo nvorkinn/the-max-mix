@@ -113,7 +113,4 @@ export interface PlayerControls {
   onVolumeChange?: (volumePercent: number) => unknown;
   onToggleShuffle?: () => unknown;
   onCycleRepeat?: () => unknown;
-  /** Whether the current track is in Liked Songs; null while unknown (then the heart is disabled). */
-  liked?: boolean | null;
-  onToggleLike?: () => unknown;
 }

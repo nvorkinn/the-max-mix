@@ -160,23 +160,6 @@ describe('spotify/api', () => {
       expect(callOf(fetchMock, 1).url).toBe('https://api.spotify.com/v1/me/player/repeat?state=track');
       expect(callOf(fetchMock, 1).init.method).toBe('PUT');
     });
-
-    it('checks, saves and removes a track in Liked Songs by URI', async () => {
-      fetchMock.mockResolvedValueOnce(json([true])).mockResolvedValue(new Response(null, { status: 200 }));
-      expect(await api.isTrackSaved('spotify:track:t1')).toBe(true);
-      await api.setTrackSaved('spotify:track:t1', true);
-      await api.setTrackSaved('spotify:track:t1', false);
-      const uris = `uris=${encodeURIComponent('spotify:track:t1')}`;
-      expect(callOf(fetchMock, 0).url).toBe(`https://api.spotify.com/v1/me/library/contains?${uris}`);
-      expect(callOf(fetchMock, 1)).toMatchObject({ url: `https://api.spotify.com/v1/me/library?${uris}` });
-      expect(callOf(fetchMock, 1).init.method).toBe('PUT');
-      expect(callOf(fetchMock, 2).init.method).toBe('DELETE');
-    });
-
-    it('refuses a Liked Songs call without a track URI', async () => {
-      await expect(api.isTrackSaved('spotify:episode:e1')).rejects.toMatchObject({ status: 400 });
-      expect(fetchMock).not.toHaveBeenCalled();
-    });
   });
 
   describe('signed out', () => {

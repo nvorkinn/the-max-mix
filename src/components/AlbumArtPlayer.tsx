@@ -10,7 +10,6 @@ import {
   Shuffle,
   Repeat,
   Repeat1,
-  Heart,
   RotateCcw,
   RotateCw
 } from 'lucide-react';
@@ -43,8 +42,6 @@ export default function AlbumArtPlayer({
   onVolumeChange,
   onToggleShuffle,
   onCycleRepeat,
-  liked = null,
-  onToggleLike,
   controlsEnabled = false,
   speakerLabel,
   speakersOpen = false,
@@ -118,19 +115,6 @@ export default function AlbumArtPlayer({
           <h2 title={title}>{title}</h2>
           {artist && <p title={artist}>{artist}</p>}
         </div>
-        {onToggleLike && (
-          <button
-            type="button"
-            className={`track-like${liked ? ' is-on' : ''}`}
-            disabled={!controlsEnabled || !hasTrack || liked === null}
-            onClick={onToggleLike}
-            aria-label="Save to Liked Songs"
-            aria-pressed={Boolean(liked)}
-            title={liked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
-          >
-            <Heart size={24} fill={liked ? 'currentColor' : 'none'} />
-          </button>
-        )}
       </div>
 
       <div className="player-controls">

@@ -24,12 +24,11 @@ const art = (id: string) => [{ url: `https://images.unsplash.com/${id}` }];
 
 /**
  * Signs the page in to a fake Spotify account that answers in memory: one track playing on a Spotify Connect speaker
- * and four queued. Play, pause, seek, next, previous, shuffle, repeat, volume and saving a song change what it reports, like
- * the real Web API does. Returns what a test may want to look at: every command it was sent, and the saved songs.
+ * and four queued. Play, pause, seek, next, previous, shuffle, repeat, and volume change what it reports, like
+ * the real Web API does. Returns what a test may want to look at: every command it was sent.
  */
 export async function fakeSpotify(page: Page) {
   const commands: string[] = [];
-  const saved = new Set<string>();
   const playback = {
     is_playing: true as boolean,
     shuffle_state: false as boolean,
@@ -147,17 +146,6 @@ export async function fakeSpotify(page: Page) {
         playback.device.volume_percent = Number(url.searchParams.get('volume_percent'));
         return route.fulfill({ status: 204 });
       }
-      case 'GET /v1/me/library/contains': {
-        return route.fulfill({ json: [saved.has(url.searchParams.get('uris') ?? '')] });
-      }
-      case 'PUT /v1/me/library': {
-        saved.add(url.searchParams.get('uris') ?? '');
-        return route.fulfill({ status: 204 });
-      }
-      case 'DELETE /v1/me/library': {
-        saved.delete(url.searchParams.get('uris') ?? '');
-        return route.fulfill({ status: 204 });
-      }
       case 'PUT /v1/me/player/seek': {
         playback.progress_ms = Number(new URL(route.request().url()).searchParams.get('position_ms'));
         return route.fulfill({ status: 204 });
@@ -188,7 +176,7 @@ export async function fakeSpotify(page: Page) {
     localStorage.setItem('maxmix.auth', JSON.stringify({ clientId, refreshToken: 'not-a-real-refresh-token' }));
     sessionStorage.setItem('fake-spotify-signed-in', 'true');
   }, getClientId());
-  return { commands, saved };
+  return { commands };
 }
 
 /** Counts the app's reads of the playback state (GET /v1/me/player), which is what its polling is. */

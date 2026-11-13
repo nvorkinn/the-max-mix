@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
 
-// What the fake Spotify account was sent and has saved, for the page of the test that is running.
+// What the fake Spotify account was sent, for the page of the test that is running.
 const accounts = new WeakMap<Page, Awaited<ReturnType<typeof fakeSpotify>>>();
 const accountOf = (page: Page) => {
   const account = accounts.get(page);
@@ -95,39 +95,6 @@ test.describe('Player', { tag: '@player' }, () => {
       'PUT /v1/me/player/repeat?state=track',
       'PUT /v1/me/player/repeat?state=off'
     ]);
-  });
-
-  test('the heart saves the playing song to Liked Songs, takes it back, and is remembered for each song', async ({
-    page
-  }) => {
-    await page.goto('/');
-    const heart = page.getByRole('button', { name: 'Save to Liked Songs' });
-    // The heart is for the song that plays, so it waits until Spotify has said whether it is saved.
-    await expect(heart).toBeEnabled();
-    await expect(heart).toHaveAttribute('aria-pressed', 'false');
-
-    await heart.click();
-    await expect(heart).toHaveAttribute('aria-pressed', 'true');
-    expect(accountOf(page).saved).toEqual(new Set(['spotify:track:track-1']));
-    expect(accountOf(page).commands).toContain(
-      `PUT /v1/me/library?uris=${encodeURIComponent('spotify:track:track-1')}`
-    );
-
-    // Another song is not saved; going back to the first still is.
-    await nowPlaying(page).getByRole('button', { name: 'Next track' }).click();
-    await expect(nowPlaying(page)).toContainText('Starboy');
-    await expect(heart).toBeEnabled();
-    await expect(heart).toHaveAttribute('aria-pressed', 'false');
-    await nowPlaying(page).getByRole('button', { name: 'Previous track' }).click();
-    await expect(nowPlaying(page)).toContainText('One More Time');
-    await expect(heart).toHaveAttribute('aria-pressed', 'true');
-
-    await heart.click();
-    await expect(heart).toHaveAttribute('aria-pressed', 'false');
-    expect(accountOf(page).saved.size).toBe(0);
-    expect(accountOf(page).commands).toContain(
-      `DELETE /v1/me/library?uris=${encodeURIComponent('spotify:track:track-1')}`
-    );
   });
 
   test('the volume slider sets the speaker volume, which is still there after a reload', async ({ page }) => {

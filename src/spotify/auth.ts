@@ -11,7 +11,7 @@ const PKCE_KEY = 'maxmix.pkce';
 // (show_dialog) instead of letting Spotify's own remembered session sign the same account straight back in.
 const FRESH_SIGN_IN_KEY = 'maxmix.freshSignIn';
 const SCOPES =
-  'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing user-library-read user-library-modify user-read-recently-played playlist-read-private';
+  'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing user-library-read user-read-recently-played playlist-read-private';
 // An access token is renewed this long before it expires, so a request never starts with one about to lapse.
 const EXPIRY_MARGIN_MS = 60_000;
 const REPLY_PARAMETERS = ['code', 'state', 'error', 'error_description'];
