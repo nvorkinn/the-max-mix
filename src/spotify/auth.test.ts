@@ -637,7 +637,15 @@ describe('spotify/auth', () => {
       expect(people()).toEqual({
         clientId: 'client-1',
         activeId: 'nikolai',
-        people: [{ spotifyId: 'nikolai', name: 'Nikolai', imageUrl: 'https://i.scdn.co/image/n', refreshToken: 'r1' }]
+        people: [
+          {
+            spotifyId: 'nikolai',
+            name: 'Nikolai',
+            imageUrl: 'https://i.scdn.co/image/n',
+            refreshToken: 'r1',
+            phoneAddress: ''
+          }
+        ]
       });
     });
 
@@ -707,7 +715,7 @@ describe('spotify/auth', () => {
       expect(people()).toEqual({
         clientId: 'client-1',
         activeId: '',
-        people: [{ spotifyId: '', name: '', imageUrl: '', refreshToken: 'r1' }]
+        people: [{ spotifyId: '', name: '', imageUrl: '', refreshToken: 'r1', phoneAddress: '' }]
       });
       fetchMock.mockResolvedValueOnce(json({ access_token: 'a1', refresh_token: 'r2', expires_in: 3600 }));
       expect(await auth.getAccessToken()).toBe('a1');
@@ -715,7 +723,15 @@ describe('spotify/auth', () => {
       expect(people()).toEqual({
         clientId: 'client-1',
         activeId: 'nikolai',
-        people: [{ spotifyId: 'nikolai', name: 'Nikolai', imageUrl: 'https://i.scdn.co/image/n', refreshToken: 'r2' }]
+        people: [
+          {
+            spotifyId: 'nikolai',
+            name: 'Nikolai',
+            imageUrl: 'https://i.scdn.co/image/n',
+            refreshToken: 'r2',
+            phoneAddress: ''
+          }
+        ]
       });
       expect(auth.isSignedIn()).toBe(true);
     });
@@ -803,8 +819,8 @@ describe('spotify/auth', () => {
       store('b', ['a', 'b']);
       const auth = await load();
       expect(auth.peopleOnKiosk()).toEqual([
-        { spotifyId: 'a', name: 'a', imageUrl: '', active: false },
-        { spotifyId: 'b', name: 'b', imageUrl: '', active: true }
+        { spotifyId: 'a', name: 'a', imageUrl: '', phoneAddress: '', active: false },
+        { spotifyId: 'b', name: 'b', imageUrl: '', phoneAddress: '', active: true }
       ]);
       setClientId('client-2');
       expect(auth.peopleOnKiosk()).toEqual([]);
@@ -880,6 +896,48 @@ describe('spotify/auth', () => {
       expect(auth.removePerson('a')).toBe('signed-out');
       expect(people()).toBeNull();
       expect(auth.isSignedIn()).toBe(false);
+    });
+  });
+
+  describe('switching person', () => {
+    const twoPeople = {
+      clientId: 'client-1',
+      activeId: 'nikolai',
+      people: [
+        { spotifyId: 'nikolai', name: 'Nikolai', imageUrl: 'n.jpg', refreshToken: 'rn', phoneAddress: 'AA:BB' },
+        { spotifyId: 'friend', name: 'Friend', imageUrl: '', refreshToken: 'rf' }
+      ]
+    };
+
+    it('lists each person’s linked phone, reading a missing one as none', async () => {
+      setClientId('client-1');
+      localStorage.setItem('maxmix.people', JSON.stringify(twoPeople));
+      const { peopleOnKiosk } = await load();
+      expect(peopleOnKiosk().map(person => person.phoneAddress)).toEqual(['AA:BB', '']);
+    });
+
+    it('makes another person active, and refreshes with their token next', async () => {
+      setClientId('client-1');
+      localStorage.setItem('maxmix.people', JSON.stringify(twoPeople));
+      const { switchPerson, getAccessToken } = await load();
+      fetchMock.mockResolvedValueOnce(json({ access_token: 'an', expires_in: 3600 }));
+      await expect(getAccessToken()).resolves.toBe('an');
+      switchPerson('friend');
+      expect(storedLogin()).toEqual({ clientId: 'client-1', refreshToken: 'rf' });
+      fetchMock.mockResolvedValueOnce(json({ access_token: 'af', expires_in: 3600 }));
+      await expect(getAccessToken()).resolves.toBe('af');
+      expect(formOf(fetchMock, 1).get('refresh_token')).toBe('rf');
+      switchPerson('nobody');
+      expect(storedLogin()).toEqual({ clientId: 'client-1', refreshToken: 'rf' });
+    });
+
+    it('links and unlinks a phone', async () => {
+      setClientId('client-1');
+      localStorage.setItem('maxmix.people', JSON.stringify(twoPeople));
+      const { linkPhone, peopleOnKiosk } = await load();
+      linkPhone('friend', 'CC:DD');
+      linkPhone('nikolai', '');
+      expect(peopleOnKiosk().map(person => person.phoneAddress)).toEqual(['', 'CC:DD']);
     });
   });
 });

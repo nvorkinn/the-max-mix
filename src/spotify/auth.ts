@@ -25,12 +25,16 @@ interface StoredLogin {
   clientId: string;
   refreshToken: string;
 }
-/** Someone signed in on this kiosk. The Spotify ID, name and picture are blank until GET /me has named the account. */
+/**
+ * Someone signed in on this kiosk. The Spotify ID, name and picture are blank until GET /me has named the account. The
+ * phone address is the Bluetooth address of their paired phone (the Pi's saved phones), blank until one is linked.
+ */
 interface Person {
   spotifyId: string;
   name: string;
   imageUrl: string;
   refreshToken: string;
+  phoneAddress: string;
 }
 /** Everyone signed in with one client ID, and the active person's Spotify ID (null for nobody). */
 interface People {
@@ -80,9 +84,15 @@ async function challengeFor(verifier: string): Promise<string> {
 const textOf = (value: unknown): string => (typeof value === 'string' ? value : '');
 
 function parsePerson(value: unknown): Person | null {
-  const { spotifyId, name, imageUrl, refreshToken } = recordOf(value);
+  const { spotifyId, name, imageUrl, refreshToken, phoneAddress } = recordOf(value);
   return typeof refreshToken === 'string' && refreshToken
-    ? { spotifyId: textOf(spotifyId), name: textOf(name), imageUrl: textOf(imageUrl), refreshToken }
+    ? {
+        spotifyId: textOf(spotifyId),
+        name: textOf(name),
+        imageUrl: textOf(imageUrl),
+        refreshToken,
+        phoneAddress: textOf(phoneAddress)
+      }
     : null;
 }
 
@@ -100,7 +110,7 @@ function parsePeople(raw: string): People | null {
 function parseLegacyLogin(raw: string): People | null {
   const { clientId, refreshToken } = recordOf(parseJson(raw));
   return typeof clientId === 'string' && typeof refreshToken === 'string' && refreshToken
-    ? { clientId, activeId: '', people: [{ spotifyId: '', name: '', imageUrl: '', refreshToken }] }
+    ? { clientId, activeId: '', people: [{ spotifyId: '', name: '', imageUrl: '', refreshToken, phoneAddress: '' }] }
     : null;
 }
 
@@ -346,7 +356,8 @@ async function finishSignIn(query: URLSearchParams): Promise<SignInResult> {
     if (!profile) return failure(NOT_LISTED);
     if (isFull(clientId, profile.spotifyId)) return failure(FULL);
     generation += 1;
-    addPerson(clientId, { ...profile, refreshToken: tokens.refreshToken });
+    const known = readPeople()?.people.find(person => profile.spotifyId && person.spotifyId === profile.spotifyId);
+    addPerson(clientId, { ...profile, refreshToken: tokens.refreshToken, phoneAddress: known?.phoneAddress ?? '' });
     setFreshSignIn(false);
     cachedAccess = {
       token: tokens.accessToken,
@@ -416,6 +427,20 @@ export async function getAccessToken(): Promise<string | null> {
   return refreshing;
 }
 
+/** Makes the person with `spotifyId` active; the page then reloads so everything starts again as them. */
+export function switchPerson(spotifyId: string): void {
+  const people = readPeople();
+  if (!people?.people.some(person => person.spotifyId === spotifyId)) return;
+  generation += 1;
+  cachedAccess = null;
+  writePeople({ ...people, activeId: spotifyId });
+}
+
+/** Links the person with `spotifyId` to the paired phone at `address` ('' unlinks), so the switcher offers them only when the Pi hears it. */
+export function linkPhone(spotifyId: string, address: string): void {
+  updatePerson(spotifyId, person => ({ ...person, phoneAddress: address }));
+}
+
 /** Drops the cached access token so the next getAccessToken refreshes (used after Spotify answers 401). */
 export function discardAccessToken(): void {
   cachedAccess = null;
@@ -442,6 +467,8 @@ export interface PersonOnKiosk {
   spotifyId: string;
   name: string;
   imageUrl: string;
+  /** Their paired phone's Bluetooth address, or '' when none is linked. */
+  phoneAddress: string;
   active: boolean;
 }
 
@@ -449,10 +476,11 @@ export interface PersonOnKiosk {
 export function peopleOnKiosk(): PersonOnKiosk[] {
   const people = readPeople();
   if (people?.clientId !== getClientId()) return [];
-  return people.people.map(({ spotifyId, name, imageUrl }) => ({
+  return people.people.map(({ spotifyId, name, imageUrl, phoneAddress }) => ({
     spotifyId,
     name,
     imageUrl,
+    phoneAddress,
     active: spotifyId === people.activeId
   }));
 }

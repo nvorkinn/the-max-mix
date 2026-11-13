@@ -56,7 +56,8 @@ vi.mock('../spotify/auth', () => ({
   signOut: vi.fn(),
   peopleOnKiosk: () => [],
   isPersonRefused: () => false,
-  PEOPLE_LIMIT: 5
+  PEOPLE_LIMIT: 5,
+  switchPerson: vi.fn()
 }));
 vi.mock('../utils/colorExtractor', () => palette);
 vi.mock('../lyrics/lrclib', () => lyrics);

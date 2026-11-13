@@ -11,8 +11,9 @@ import {
 } from '../../spotify/auth';
 import { getRedirectUri } from '../../spotify/settings';
 import { errorMessage } from '../../utils/errorMessage';
-import { forgetSignIns } from '../../utils/kiosk';
+import { forgetSignIns, isKiosk } from '../../utils/kiosk';
 import ConfirmButton from '../ConfirmButton';
+import PhonePicker from '../PhonePicker';
 
 /**
  * Spotify's sign-in: whether this app is connected, everyone signed in on this kiosk (each removable), and the buttons
@@ -79,6 +80,14 @@ export default function SpotifySettings({
               )}
               <span className="settings-box-title min-w-0 flex-1 truncate">{person.name || 'Spotify account'}</span>
               {person.active && <CheckCircle2 className="settings-person-active w-6 h-6" aria-label="Active" />}
+              {isKiosk() && (
+                <PhonePicker
+                  spotifyId={person.spotifyId}
+                  name={person.name || 'Spotify account'}
+                  phoneAddress={person.phoneAddress}
+                  onChange={() => setPeople(peopleOnKiosk())}
+                />
+              )}
               <ConfirmButton
                 label="Remove"
                 confirmLabel="Tap again to remove"
