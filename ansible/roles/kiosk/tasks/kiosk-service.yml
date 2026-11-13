@@ -4,11 +4,11 @@
 
 # The location for the app's Auto theme, when the Pi has none set (defaults/main.yml): the IP lookup happens here, at
 # each pull, so the app itself never asks the network where it is. A failed lookup only leaves Auto out until the next.
+# curl rather than the uri module: ipinfo.io answers the uri module with 406 Not Acceptable (whatever its headers),
+# while curl, which kiosk-pull already uses, gets the location.
 - name: kiosk-service | Look up the Pi's rough location from its IP address
-  ansible.builtin.uri:
-    url: '{{ kiosk_location_lookup_url }}'
-    return_content: true
-    timeout: 10
+  ansible.builtin.command:  # noqa: command-instead-of-module
+    argv: [curl, --fail, --silent, --show-error, --max-time, '10', '{{ kiosk_location_lookup_url }}']
   register: kiosk_ip_location
   changed_when: false
   failed_when: false
@@ -20,13 +20,13 @@
 - name: kiosk-service | Use the looked-up location
   vars:
     kiosk_ip_coordinates: >-
-      {{ (kiosk_ip_location.content | default('') | trim) is match('^-?[0-9]+([.][0-9]+)?,-?[0-9]+([.][0-9]+)?$') }}
+      {{ (kiosk_ip_location.stdout | default('') | trim) is match('^-?[0-9]+([.][0-9]+)?,-?[0-9]+([.][0-9]+)?$') }}
   ansible.builtin.set_fact:
-    kiosk_latitude: "{{ (kiosk_ip_location.content | trim).split(',')[0] }}"
-    kiosk_longitude: "{{ (kiosk_ip_location.content | trim).split(',')[1] }}"
+    kiosk_latitude: "{{ (kiosk_ip_location.stdout | trim).split(',')[0] }}"
+    kiosk_longitude: "{{ (kiosk_ip_location.stdout | trim).split(',')[1] }}"
   when:
     - kiosk_ip_location is not skipped
-    - kiosk_ip_location.status | default(0) == 200
+    - kiosk_ip_location.rc | default(1) == 0
     - kiosk_ip_coordinates | bool
 
 - name: kiosk-service | Install the kiosk service
