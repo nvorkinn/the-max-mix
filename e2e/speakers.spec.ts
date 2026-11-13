@@ -47,6 +47,13 @@ test.describe('Speakers', { tag: '@speakers' }, () => {
       await expect(view.getByRole('checkbox', { name: 'This tablet' })).toHaveClass(/is-flashing/);
       await expect(view.getByRole('checkbox', { name: 'This tablet' })).not.toBeChecked();
 
+      // Cancel drops a draft and brings the usual buttons back.
+      await view.getByRole('checkbox', { name: 'This tablet' }).click();
+      await expect(nav(page).getByRole('button', { name: 'Queue' })).toBeHidden();
+      await nav(page).getByRole('button', { name: 'Cancel' }).click();
+      await expect(view.getByRole('checkbox', { name: 'This tablet' })).not.toBeChecked();
+      await expect(nav(page).getByRole('button', { name: 'Lyrics' })).toBeVisible();
+
       // Ticking This tablet is only a draft until Save.
       await view.getByRole('checkbox', { name: 'This tablet' }).click();
       await expect(view.getByRole('checkbox', { name: 'This tablet' })).toBeChecked();

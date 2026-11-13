@@ -380,7 +380,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     playOnSonos,
     leaveSonos: sonos.leave
   });
-  // The third button saves a changed speaker choice while the Speakers view shows it; elsewhere it opens the view.
+  // While the Speakers view shows a changed choice, the buttons save or cancel it; elsewhere they switch the view.
   let speakersButton: 'speakers' | 'save' | 'saving' = 'speakers';
   if (speakersShown && speakers.saving) speakersButton = 'saving';
   else if (speakersShown && speakers.dirty) speakersButton = 'save';
@@ -543,6 +543,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               onShow={panel.show}
               speakersButton={speakersButton}
               onSave={() => void speakers.save()}
+              onCancel={speakers.cancel}
             />
           )}
         </main>

@@ -48,6 +48,7 @@ function selection(overrides: Partial<SpeakerSelection> = {}): SpeakerSelection 
     error: null,
     toggle: vi.fn(),
     save: vi.fn(),
+    cancel: vi.fn(),
     refresh: vi.fn(),
     tabletPlaying: true,
     playingLabel: 'Kitchen',
