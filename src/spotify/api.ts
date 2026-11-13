@@ -20,7 +20,8 @@ import {
   parsePlaylists,
   parseQueue,
   parseRecentlyPlayed,
-  parseSearch
+  parseSearch,
+  parseTrack
 } from './parse';
 
 export { SpotifyApiError } from './http';
@@ -167,6 +168,31 @@ export async function getPlaylists(): Promise<MusicChoice[]> {
 export async function searchMusic(query: string): Promise<MusicChoice[]> {
   const params = new URLSearchParams({ q: query, type: 'track,album,playlist', limit: '5' });
   return parseSearch(await spotifyFetch(`/search?${params.toString()}`));
+}
+
+const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
+/** A uniform random whole number from 0 to `limit` - 1 (rejection sampling, so no value is likelier than another). */
+function randomBelow(limit: number): number {
+  const ceiling = Math.floor(0x1_00_00_00_00 / limit) * limit;
+  for (;;) {
+    const value = crypto.getRandomValues(new Uint32Array(1))[0] ?? 0;
+    if (value < ceiling) return value % limit;
+  }
+}
+
+/**
+ * A song nobody could guess: a random one from a search for two random letters, at a random place in the results.
+ * The switcher asks someone to play it on their phone to show the account is theirs. Null when the search found none.
+ */
+export async function findRandomTrack(): Promise<Track | null> {
+  const query = `${LETTERS.charAt(randomBelow(26))}${LETTERS.charAt(randomBelow(26))}`;
+  const params = new URLSearchParams({ q: query, type: 'track', limit: '20', offset: String(randomBelow(200)) });
+  const reply = await spotifyFetch(`/search?${params.toString()}`);
+  const items = isRecord(reply) && isRecord(reply['tracks']) ? reply['tracks']['items'] : null;
+  const tracks = (Array.isArray(items) ? items : [])
+    .map(item => parseTrack(item))
+    .filter((track): track is Track => Boolean(track?.id && track.name));
+  return tracks.length > 0 ? (tracks[randomBelow(tracks.length)] ?? null) : null;
 }
 
 /** The signed-in user's Liked Songs, as a context that can be played. */

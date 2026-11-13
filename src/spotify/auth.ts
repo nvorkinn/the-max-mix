@@ -247,7 +247,9 @@ async function nameActivePerson(accessToken: string): Promise<void> {
 
 /** Asks Spotify's token endpoint for tokens (no client secret with PKCE). */
 async function requestTokens(
-  parameters: Record<string, string>
+  parameters: Record<string, string>,
+  // The active person's refresh is what a revoked login signs out; someone else's (getAccessTokenFor) just fails.
+  isActivePerson = true
 ): Promise<{ accessToken: string; refreshToken: string | undefined; expiresInMs: number }> {
   const response = await fetchSpotify('https://accounts.spotify.com/api/token', {
     method: 'POST',
@@ -257,7 +259,7 @@ async function requestTokens(
   if (!response.ok) {
     if (response.status === 400 && parameters['grant_type'] === 'refresh_token') {
       const data = parseTokenResponse(await readJson(response));
-      if (data.error === 'invalid_grant') {
+      if (isActivePerson && data.error === 'invalid_grant') {
         const people = readPeople();
         if (people) forgetActivePerson(people);
         cachedAccess = null;
@@ -435,6 +437,31 @@ export async function getAccessToken(): Promise<string | null> {
   return refreshing;
 }
 
+/** Access tokens for people other than the active one, by Spotify ID (see getAccessTokenFor). */
+const otherAccess = new Map<string, { token: string; expiresAt: number }>();
+
+/**
+ * A valid access token for the person with `spotifyId`, who need not be the active one: the switcher uses it to see
+ * what plays on their account. Null when no such person is signed in here. Throws a SpotifyApiError when Spotify
+ * refuses (their login is then left as it is: only the active person's revoked login signs out).
+ */
+export async function getAccessTokenFor(spotifyId: string): Promise<string | null> {
+  const people = readPeople();
+  if (people?.clientId !== getClientId()) return null;
+  if (spotifyId === people.activeId) return getAccessToken();
+  const person = people.people.find(known => known.spotifyId === spotifyId);
+  if (!person?.spotifyId) return null;
+  const cached = otherAccess.get(spotifyId);
+  if (cached && Date.now() < cached.expiresAt) return cached.token;
+  const tokens = await requestTokens({ grant_type: 'refresh_token', refresh_token: person.refreshToken }, false);
+  updatePerson(spotifyId, known => ({ ...known, refreshToken: tokens.refreshToken ?? known.refreshToken }));
+  otherAccess.set(spotifyId, {
+    token: tokens.accessToken,
+    expiresAt: Date.now() + tokens.expiresInMs - EXPIRY_MARGIN_MS
+  });
+  return tokens.accessToken;
+}
+
 /** Makes the person with `spotifyId` active; the page then reloads so everything starts again as them. */
 export function switchPerson(spotifyId: string): void {
   const people = readPeople();
@@ -461,6 +488,7 @@ export function discardAccessToken(): void {
 export function signOut(): void {
   generation += 1;
   cachedAccess = null;
+  otherAccess.clear();
   writePeople(null);
   try {
     sessionStorage.removeItem(PKCE_KEY);

@@ -1255,7 +1255,7 @@
   box-shadow: 0 0 0 2px var(--accent);
 }
 .app-dialog.person-sheet {
-  width: auto;
+  width: fit-content;
   max-width: calc(100% - 32px);
   padding: 28px;
   border-radius: 28px;
@@ -1278,10 +1278,57 @@
   font-size: 17px;
   font-weight: 650;
 }
-.person-choice:disabled {
+.person-choice[data-away] .person-face-choice,
+.person-choice[data-away] .person-choice-name {
   opacity: 0.35;
 }
-.person-choice:not(:disabled):active {
+.song-proof {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+.song-proof-loading {
+  width: 560px;
+  max-width: 100%;
+  height: 220px;
+}
+.song-proof-art {
+  width: 220px;
+  height: 220px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  object-fit: cover;
+}
+.song-proof-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 220px;
+  min-width: 0;
+}
+.song-proof-title {
+  font-size: 24px;
+  font-weight: 750;
+  color: var(--ink);
+}
+.song-proof-artist {
+  font-size: 18px;
+  color: var(--muted);
+}
+.song-proof-qr {
+  width: 220px;
+  height: 220px;
+  flex-shrink: 0;
+  border-radius: 12px;
+}
+@media (width >= 1200px) and (height >= 760px) {
+  .song-proof-art,
+  .song-proof-qr {
+    width: 280px;
+    height: 280px;
+  }
+}
+.person-choice:active {
   transform: scale(0.96);
 }
 .person-face-choice {
