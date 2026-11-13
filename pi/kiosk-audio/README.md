@@ -56,8 +56,8 @@ section's Scan button uses `POST /bluetooth/scan`). Unpaired devices are logged 
 with `{"verbose": true}`. It is the first step towards recognising people's phones; the log stays in memory.
 
 **Pair my phone** in the same section (`POST /bluetooth/pair-phone`, `phone-pairing.ts`) makes the kiosk show up on
-phones as a keyboard called THE MAX MIX for two minutes (`pairing-gatt.ts`): an iPhone lists it under Settings >
-Bluetooth, and its values can only be read over an encrypted link, so tapping it makes the phone pair. An agent says yes
+phones as a keyboard called THE MAX MIX for two minutes (`pairing-gatt.ts`): it sets the adapter's Alias to that name,
+since an iPhone lists it under Settings > Bluetooth by the adapter's name (otherwise the hostname), and its values can only be read over an encrypted link, so tapping it makes the phone pair. An agent says yes
 to that pairing (Just Works) while the window is open. The first device that pairs is taken as the phone: the kiosk stops
 advertising, disconnects it, and notes it in `~/.local/state/the-max-mix/phones.json`. BlueZ keeps the phone's identity
 key, which lets it recognise the phone's changing addresses later. No key presses are ever sent. **Forget** on a device
