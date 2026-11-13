@@ -1791,8 +1791,13 @@ body:has(.app-dialog[open]) {
 .lyrics-list[data-following='false'] {
   scroll-behavior: auto;
 }
-.lyrics-list.is-synced .lyrics-line.is-reached {
+.lyrics-list.is-synced .lyrics-line.is-reached,
+.lyrics-list.is-synced .lyrics-word.is-reached {
   color: var(--ink);
+}
+/* Where the source times each word, the line being sung lights up word by word. */
+.lyrics-word {
+  transition: color 150ms;
 }
 .queue-error {
   color: var(--danger);

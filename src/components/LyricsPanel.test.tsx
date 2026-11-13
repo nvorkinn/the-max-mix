@@ -54,6 +54,49 @@ describe('LyricsPanel', () => {
     expect(provider).toHaveBeenCalledTimes(1);
   });
 
+  it('lights up the line being sung word by word when its source times each word', async () => {
+    const worded: Lyrics = {
+      kind: 'synced',
+      lines: [
+        { timeMs: 1000, text: 'Earlier line' },
+        {
+          timeMs: 3000,
+          text: 'Placeholder words here',
+          words: [
+            { timeMs: 3000, text: 'Placeholder ' },
+            { timeMs: 3500, text: 'words ' },
+            { timeMs: 4000, text: 'here' }
+          ]
+        },
+        { timeMs: 6000, text: 'Later line' }
+      ],
+      source: 'Test'
+    };
+    // Half a second early: at 3.1s the second word (3.5s) is lit, the third (4s) is not.
+    renderPanel({ provider: providerOf(worded), progressMs: 3100 });
+    await flush();
+    const [earlier, current, later] = screen.getAllByRole('listitem');
+    expect(current).toHaveTextContent('Placeholder words here');
+    expect(current).toHaveAttribute('aria-current', 'true');
+    expect(current).not.toHaveClass('is-reached');
+    expect(earlier).toHaveClass('is-reached');
+    expect(later).not.toHaveClass('is-reached');
+    const words = current?.querySelectorAll('.lyrics-word') ?? [];
+    expect([...words].map(word => word.classList.contains('is-reached'))).toEqual([true, true, false]);
+  });
+
+  it('moves on between position updates while the song plays', async () => {
+    vi.useFakeTimers();
+    renderPanel({ provider: providerOf(synced), progressMs: 2600, playing: true });
+    await flush();
+    expect(screen.getAllByRole('listitem')[2]).toHaveAttribute('aria-current', 'true');
+    // No new position arrives, but a second later the next line (4s) is lit, half a second early.
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.getAllByRole('listitem')[3]).toHaveAttribute('aria-current', 'true');
+  });
+
   it('remembers lyrics, so reopening the panel makes no new request', async () => {
     const provider = providerOf(synced);
     const { unmount } = renderPanel({ provider });

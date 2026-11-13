@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getJson, kugou, netease, qqMusic } from './lyrics-sources.ts';
+import { getJson, kugou, netease, qqMusic, yrcToLrc } from './lyrics-sources.ts';
 import type { GetJson } from './lyrics-sources.ts';
 
 const query = { title: 'Placeholder Song', artist: 'Placeholder Artist' };
@@ -23,7 +23,7 @@ describe('kiosk-audio/lyrics-sources', () => {
           songs: [{ id: 7, name: 'Placeholder Song', duration: 200_000, artists: [{ name: 'A' }, { name: 'B' }] }]
         }
       },
-      'https://music.163.com/api/song/lyric?id=7': { lrc: { lyric: '[00:01.00]Words' } }
+      'https://music.163.com/api/song/lyric/v1?id=7&lv=1&yv=1': { lrc: { lyric: '[00:01.00]Words' } }
     });
     const found = await netease.search(query, get);
     expect(found).toEqual([{ id: '7', title: 'Placeholder Song', artist: 'A B', durationMs: 200_000 }]);
@@ -34,6 +34,25 @@ describe('kiosk-audio/lyrics-sources', () => {
     await expect(netease.search(query, answering({ 'https://music.163.com/api/search/get?': {} }))).resolves.toEqual(
       []
     );
+  });
+
+  it('NetEase: prefers the word-timed lyrics, as LRC with a time before each word', async () => {
+    const yrc = [
+      '{"t":0,"c":[{"tx":"Placeholder credits"}]}',
+      '[61000,2500](61000,500,0)Placeholder (61500,700,0)words (62200,1300,0)here',
+      '[65000,1000](65000,1000,0)Again'
+    ].join('\n');
+    const get = answering({
+      'https://music.163.com/api/song/lyric': {
+        lrc: { lyric: '[01:01.00]Placeholder words here' },
+        yrc: { lyric: yrc }
+      }
+    });
+    const lrc =
+      '[01:01.000]<01:01.000>Placeholder <01:01.500>words <01:02.200>here<01:03.500>\n[01:05.000]<01:05.000>Again<01:06.000>';
+    await expect(netease.lyrics({ id: '7', title: 'Placeholder Song', artist: 'A' }, get)).resolves.toBe(lrc);
+    expect(yrcToLrc('')).toBe('');
+    expect(yrcToLrc('[1000,500]no words')).toBe('');
   });
 
   it('QQ Music: searches, then reads the lyrics of a song', async () => {

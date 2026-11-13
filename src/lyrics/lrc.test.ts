@@ -21,6 +21,39 @@ describe('lyrics/lrc', () => {
     ]);
   });
 
+  it('reads the word times of enhanced LRC, keeping the plain text of the line', () => {
+    expect(parseLrc('[00:01.00]<00:01.00>Placeholder <00:01.50>words <00:02.25>here<00:03.00>')).toEqual([
+      {
+        timeMs: 1000,
+        text: 'Placeholder words here',
+        words: [
+          { timeMs: 1000, text: 'Placeholder ' },
+          { timeMs: 1500, text: 'words ' },
+          { timeMs: 2250, text: 'here' }
+        ]
+      }
+    ]);
+    // Text before the first word tag is sung with the line; a repeated line's word times follow its own timestamp.
+    expect(parseLrc('[00:01.00][00:11.00]Lead <00:01.50>word')).toEqual([
+      {
+        timeMs: 1000,
+        text: 'Lead word',
+        words: [
+          { timeMs: 1000, text: 'Lead ' },
+          { timeMs: 1500, text: 'word' }
+        ]
+      },
+      {
+        timeMs: 11_000,
+        text: 'Lead word',
+        words: [
+          { timeMs: 11_000, text: 'Lead ' },
+          { timeMs: 11_500, text: 'word' }
+        ]
+      }
+    ]);
+  });
+
   it('keeps empty timed lines as breaks and drops metadata and untimed lines', () => {
     expect(parseLrc('[ar:Someone]\n[length:03:00]\nno time\n\n[00:01.00]\n[00:02.00]Line')).toEqual([
       { timeMs: 1000, text: '' },

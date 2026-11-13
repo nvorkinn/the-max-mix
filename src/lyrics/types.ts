@@ -1,9 +1,19 @@
 // The shapes every lyrics source hands back, so the panel does not care which source found the words.
 
-/** A line of time-synced lyrics; `timeMs` is when it starts. An empty `text` is an instrumental gap. */
+/** One word (with the space after it) of a line whose source times every word; `timeMs` is when it is sung. */
+export interface SyncedWord {
+  timeMs: number;
+  text: string;
+}
+
+/**
+ * A line of time-synced lyrics; `timeMs` is when it starts. An empty `text` is an instrumental gap. `words` is there
+ * only when the source times each word; joined, they make `text`.
+ */
 export interface SyncedLine {
   timeMs: number;
   text: string;
+  words?: SyncedWord[];
 }
 
 export type Lyrics =
