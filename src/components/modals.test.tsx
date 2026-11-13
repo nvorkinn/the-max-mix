@@ -197,7 +197,7 @@ describe('SettingsModal', () => {
     });
 
     it('asks the kiosk service to show the Wi-Fi panel', async () => {
-      vi.stubGlobal('location', { origin: 'http://x', search: '?kiosk=1' });
+      history.replaceState(null, '', '/?kiosk=1');
       const fetchMock = vi.fn().mockResolvedValue({ ok: true });
       vi.stubGlobal('fetch', fetchMock);
       render(<SettingsModal {...base} authInfo={{}} initialSection="wifi" />);

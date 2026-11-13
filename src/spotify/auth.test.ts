@@ -3,12 +3,14 @@ import { parseJson } from './http';
 
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 
-const app = vi.hoisted(() => ({ clientId: '' }));
+const app = vi.hoisted(() => ({ clientId: '', leaveFor: vi.fn<(address: string) => void>() }));
 
-// The real client ID is a constant; tests switch it to check that a login belongs to one client ID.
+// The real client ID is a constant; tests switch it to check that a login belongs to one client ID. Leaving for
+// Spotify's sign-in page is recorded instead of done: the test page cannot navigate.
 vi.mock('./settings', async importOriginal => ({
   ...(await importOriginal<typeof import('./settings')>()),
-  getClientId: () => app.clientId
+  getClientId: () => app.clientId,
+  leaveFor: app.leaveFor
 }));
 
 const setClientId = (clientId: string) => {
@@ -46,6 +48,7 @@ describe('spotify/auth', () => {
     visit('/');
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
+    app.leaveFor.mockReset();
   });
 
   afterEach(() => {
@@ -55,18 +58,16 @@ describe('spotify/auth', () => {
 
   describe('startSignIn', () => {
     it('stores a verifier and state, then goes to Spotify with an S256 challenge', async () => {
-      const assign = vi.fn();
-      vi.stubGlobal('location', { origin: 'http://127.0.0.1:3000', search: '', assign });
       const { startSignIn } = await load();
       setClientId('client-1');
 
       await startSignIn();
 
-      const url = new URL((assign.mock.calls[0] as unknown[])[0] as string);
+      const url = new URL(String(app.leaveFor.mock.calls[0]?.[0]));
       expect(`${url.origin}${url.pathname}`).toBe('https://accounts.spotify.com/authorize');
       expect(url.searchParams.get('client_id')).toBe('client-1');
       expect(url.searchParams.get('response_type')).toBe('code');
-      expect(url.searchParams.get('redirect_uri')).toBe('http://127.0.0.1:3000/');
+      expect(url.searchParams.get('redirect_uri')).toBe(`${location.origin}/`);
       expect(url.searchParams.get('code_challenge_method')).toBe('S256');
       expect(url.searchParams.get('scope')).toBe(
         'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing user-library-read user-library-modify user-read-recently-played playlist-read-private'
@@ -88,7 +89,6 @@ describe('spotify/auth', () => {
     });
 
     it('uses a new verifier and state every time', async () => {
-      vi.stubGlobal('location', { origin: 'http://127.0.0.1:3000', search: '', assign: vi.fn() });
       const { startSignIn } = await load();
       setClientId('client-1');
       await startSignIn();
@@ -98,15 +98,13 @@ describe('spotify/auth', () => {
     });
 
     it('refuses when session storage is blocked, since the reply could never be checked', async () => {
-      const assign = vi.fn();
-      vi.stubGlobal('location', { origin: 'http://127.0.0.1:3000', search: '', assign });
       const { startSignIn } = await load();
       setClientId('client-1');
       vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
         throw new Error('blocked');
       });
       await expect(startSignIn()).rejects.toThrow('Browser storage is blocked');
-      expect(assign).not.toHaveBeenCalled();
+      expect(app.leaveFor).not.toHaveBeenCalled();
     });
   });
 
@@ -526,17 +524,15 @@ describe('spotify/auth', () => {
     });
 
     it('makes the next sign-in show Spotify’s approval page again, so nothing signs in silently', async () => {
-      const assign = vi.fn();
-      vi.stubGlobal('location', { origin: 'http://127.0.0.1:3000', search: '', assign });
       const { signOut, startSignIn } = await load();
       setClientId('client-1');
       signOut();
       await startSignIn();
-      const url = new URL((assign.mock.calls[0] as unknown[])[0] as string);
+      const url = new URL(String(app.leaveFor.mock.calls[0]?.[0]));
       expect(url.searchParams.get('show_dialog')).toBe('true');
       // And again, until a sign-in has gone through.
       await startSignIn();
-      expect(new URL((assign.mock.calls[1] as unknown[])[0] as string).searchParams.get('show_dialog')).toBe('true');
+      expect(new URL(String(app.leaveFor.mock.calls[1]?.[0])).searchParams.get('show_dialog')).toBe('true');
     });
 
     it('asks for the approval page only until a sign-in goes through', async () => {
@@ -562,8 +558,6 @@ describe('spotify/auth', () => {
     });
 
     it('still asks when browser storage cannot hold the choice', async () => {
-      const assign = vi.fn();
-      vi.stubGlobal('location', { origin: 'http://127.0.0.1:3000', search: '', assign });
       const { signOut, startSignIn } = await load();
       setClientId('client-1');
       vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
@@ -578,7 +572,7 @@ describe('spotify/auth', () => {
       });
       signOut();
       await startSignIn();
-      expect(new URL((assign.mock.calls[0] as unknown[])[0] as string).searchParams.get('show_dialog')).toBe('true');
+      expect(new URL(String(app.leaveFor.mock.calls[0]?.[0])).searchParams.get('show_dialog')).toBe('true');
     });
   });
 

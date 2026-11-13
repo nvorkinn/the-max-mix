@@ -32,6 +32,11 @@ export function reloadSettings(): void {
   location.reload();
 }
 
+/** Leaves the app for another page (Spotify's sign-in). A function of its own so tests can see where it would go. */
+export function leaveFor(address: string): void {
+  location.assign(address);
+}
+
 /** The address Spotify sends the browser back to after sign-in. Register exactly this in the Spotify dashboard. */
 export function getRedirectUri(): string {
   return `${location.origin}/`;
