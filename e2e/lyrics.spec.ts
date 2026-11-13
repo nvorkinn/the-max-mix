@@ -41,7 +41,17 @@ test.describe('Lyrics', { tag: '@lyrics' }, () => {
     await page.mouse.wheel(0, -900);
     await expect(list).toHaveAttribute('data-following', 'false');
     await expect.poll(() => list.evaluate(element => element.scrollTop)).toBeLessThan(initialTop);
-    const readingTop = await list.evaluate(element => element.scrollTop);
+    // The wheel scrolls smoothly, so the list is still moving when it first goes up: wait for it to come to rest.
+    let lastTop = NaN;
+    await expect
+      .poll(async () => {
+        const top = await list.evaluate(element => element.scrollTop);
+        const isResting = top === lastTop;
+        lastTop = top;
+        return isResting;
+      })
+      .toBe(true);
+    const readingTop = lastTop;
     const initialLine = await active.textContent();
     await page.clock.fastForward(5000);
     await expect(active).not.toHaveText(initialLine ?? '');

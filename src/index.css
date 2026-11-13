@@ -447,7 +447,7 @@
   flex: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: auto 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
@@ -464,7 +464,9 @@
   color: var(--muted);
   font-size: 14px;
   font-weight: 650;
-  white-space: nowrap;
+  line-height: 1.1;
+  /* Three equal tabs: a label too long for its third (Spotify Connect) takes two lines. */
+  text-align: center;
 }
 .speaker-tab + .speaker-tab {
   border-left: 1px solid var(--border);

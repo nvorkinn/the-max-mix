@@ -152,4 +152,25 @@ describe('SpeakersView', () => {
     );
     expect(screen.getByRole('alert')).toHaveTextContent('The speakers did not take the change.');
   });
+
+  it('opens Bluetooth for pairing before this tablet plays, with its speakers greyed out, and keeps AirPlay locked', async () => {
+    render(
+      <SpeakersView
+        selection={selection({ confirmed: null, shown: null, tabletPlaying: false })}
+        onKiosk
+        browserDeviceId="web-1"
+      />
+    );
+    expect(screen.getByRole('button', { name: 'AirPlay' })).toHaveAttribute('aria-disabled', 'true');
+    const bluetoothTab = screen.getByRole('button', { name: 'Bluetooth' });
+    expect(bluetoothTab).toHaveAttribute('aria-disabled', 'false');
+    fireEvent.click(bluetoothTab);
+    await flush();
+    expect(bluetoothTab).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('checkbox', { name: 'Boom' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Volumes' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Pair New' }));
+    await flush();
+    expect(bluetooth.connectBluetoothSpeaker).toHaveBeenCalledWith('22:33:44:55:66:77');
+  });
 });

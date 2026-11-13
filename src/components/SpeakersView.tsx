@@ -18,7 +18,7 @@ import { errorMessage } from '../utils/errorMessage';
 
 /** How long a volume set here wins over the Pi's answer, so a list read during the drag does not move the slider back. */
 const HOLD_MS = 5000;
-/** How long the amber emphasis lasts when AirPlay or Bluetooth is tapped before this tablet plays. */
+/** How long the amber emphasis lasts when AirPlay is tapped before this tablet plays. */
 const FLASH_MS = 1200;
 
 /** The joined tabs' ids. */
@@ -96,8 +96,9 @@ function useBluetooth(enabled: boolean, onChange: () => void) {
  * The Speakers view, in the panel beside the artwork. On the kiosk, joined tabs pick Spotify Connect (this tablet, Spotify
  * Connect devices and the Sonos rooms), AirPlay (every speaker output, Bluetooth ones included) or Bluetooth (pairing,
  * and ticking a connected speaker). Each speaker is a large selector and its name, two to a row; only the selector
- * changes anything, and only the draft: the Save button beside the panel carries it out. AirPlay and Bluetooth play
- * what this tablet plays, so tapping either before this tablet plays only points, in amber, at This tablet.
+ * changes anything, and only the draft: the Save button beside the panel carries it out. AirPlay plays what this tablet
+ * plays, so tapping it before this tablet plays only points, in amber, at This tablet. Bluetooth still opens then, for
+ * pairing, connecting and forgetting; only ticking a speaker there waits for this tablet.
  */
 export default function SpeakersView({
   selection,
@@ -116,18 +117,20 @@ export default function SpeakersView({
   const tabletRef = useRef<HTMLButtonElement>(null);
   const waitingForSpotify = useSpotifyCooldown() > 0;
   const { shown, confirmed, saving, tabletPlaying } = selection;
-  const tab: SpeakerTab = tabletPlaying ? pickedTab : 'connect';
+  // AirPlay needs this tablet to play; Bluetooth opens anyway, for pairing, with its speakers' selectors greyed out.
+  const tabLocked = (id: SpeakerTab) => id === 'airplay' && !tabletPlaying;
+  const tab: SpeakerTab = tabLocked(pickedTab) ? 'connect' : pickedTab;
   const volumes = useHeldVolumes();
   const { readOutputs } = selection;
   const onBluetoothChange = useCallback(() => void readOutputs(), [readOutputs]);
   const bluetooth = useBluetooth(onKiosk && tab === 'bluetooth', onBluetoothChange);
 
   const pickTab = (id: SpeakerTab) => {
-    if (id === 'connect' || tabletPlaying) {
+    if (!tabLocked(id)) {
       setPickedTab(id);
       return;
     }
-    // AirPlay and Bluetooth need this tablet to play first: point at it, without choosing it.
+    // AirPlay needs this tablet to play first: point at it, without choosing it.
     setPickedTab('connect');
     setFlash(id);
     clearTimeout(flashTimerRef.current);
@@ -257,7 +260,7 @@ export default function SpeakersView({
                 type="button"
                 key={id}
                 aria-pressed={tab === id}
-                aria-disabled={id !== 'connect' && !tabletPlaying}
+                aria-disabled={tabLocked(id)}
                 onClick={() => pickTab(id)}
                 className={`speaker-tab${flash === id ? ' is-flashing' : ''}`}
               >
@@ -266,7 +269,7 @@ export default function SpeakersView({
               </button>
             ))}
           </div>
-          {tab !== 'connect' && (
+          {tab !== 'connect' && tabletPlaying && (
             <button
               type="button"
               onClick={() => setShowVolumes(shownNow => !shownNow)}
