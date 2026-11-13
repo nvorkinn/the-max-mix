@@ -57,6 +57,10 @@
   --surface-raised: #eeeee7;
   --ink: #23291f;
   --muted: #656b5e;
+  /* Quiet labels (times, queue numbers, the clock): the muted ink in Day, a fainter one at Night. */
+  --faint: var(--muted);
+  /* The header's own surface: none in Day, where it sits on the paper. */
+  --toolbar: transparent;
   --border: rgb(35 41 31 / 13%);
   --accent: #293a27;
   --accent-ink: #fff;
@@ -66,7 +70,7 @@
   --success: #166534;
   --warning: #854d0e;
   --amber: #d18a17;
-  --danger: #9f1239;
+  --danger: #bb374c;
   --shadow: #000;
   --scrim: rgb(20 24 18 / 22%);
   --backdrop: rgb(0 0 0 / 85%);
@@ -179,6 +183,8 @@
   --surface-raised: #202b49;
   --ink: #f5f6ff;
   --muted: #aab5d0;
+  --faint: #7785a8;
+  --toolbar: #151f3c;
   --border: #33405f;
   --accent: #a95be8;
   --accent-ink: #fff;
@@ -203,6 +209,7 @@
   justify-content: space-between;
   gap: 20px;
   border-bottom: 1px solid var(--border);
+  background: var(--toolbar);
   z-index: 30;
 }
 .brand {
@@ -883,7 +890,7 @@
 .track-time {
   min-width: 3ch;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
 .transport-row {
@@ -1053,7 +1060,7 @@
   place-items: center;
   flex-shrink: 0;
   font-size: 10px;
-  color: var(--muted);
+  color: var(--faint);
   font-variant-numeric: tabular-nums;
   border-radius: 5px;
 }
@@ -1161,7 +1168,7 @@
   /* Sits at the far right of the header, after the buttons. */
   margin-left: 8px;
   font-size: 14px;
-  color: var(--muted);
+  color: var(--faint);
   font-variant-numeric: tabular-nums;
   /* Held for two seconds to open the debug console, so no long-press menu or zoom may claim it. */
   touch-action: manipulation;

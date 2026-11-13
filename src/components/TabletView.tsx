@@ -593,6 +593,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         theme={theme.theme}
         autoTheme={theme.autoOffered}
         onThemeChange={theme.change}
+        skin={theme.skin}
         kioskUpdate={kioskUpdate}
       />
 

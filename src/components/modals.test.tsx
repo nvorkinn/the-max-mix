@@ -256,6 +256,40 @@ describe('SettingsModal', () => {
       expect(onThemeChange).toHaveBeenCalledWith('day');
     });
 
+    it('greys out the colours while Auto shows Night', () => {
+      render(
+        <SettingsModal
+          {...base}
+          authInfo={{}}
+          initialSection="appearance"
+          theme="auto"
+          autoTheme
+          skin="night"
+          onThemeChange={vi.fn()}
+          themeColour="navy"
+          onThemeColourChange={vi.fn()}
+        />
+      );
+      expect(screen.getByRole('button', { name: 'Navy' })).toBeDisabled();
+    });
+
+    it('keeps the colours while Auto shows Day', () => {
+      render(
+        <SettingsModal
+          {...base}
+          authInfo={{}}
+          initialSection="appearance"
+          theme="auto"
+          autoTheme
+          skin="day"
+          onThemeChange={vi.fn()}
+          themeColour="navy"
+          onThemeColourChange={vi.fn()}
+        />
+      );
+      expect(screen.getByRole('button', { name: 'Navy' })).toBeEnabled();
+    });
+
     it.each([
       [{ version: null, latest: { state: 'unknown' } }, 'Version unknown'],
       [

@@ -5,7 +5,7 @@ import { isKiosk } from '../utils/kiosk';
 import { reloadSettings } from '../spotify/settings';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import type { ThemeColour } from '../utils/themeColour';
-import type { Theme } from '../utils/theme';
+import type { Skin, Theme } from '../utils/theme';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import Modal from './Modal';
 import SleepIcon from './SleepIcon';
@@ -47,6 +47,8 @@ interface SettingsModalProps {
   /** Whether Auto (sunrise to sunset) is offered: only when the kiosk knows its location. */
   autoTheme?: boolean;
   onThemeChange?: (theme: Theme) => void;
+  /** The skin on screen now (Auto resolves to Day or Night); the colour choice only applies to Day. */
+  skin?: Skin;
   /** The kiosk's software update, shown on the kiosk only. */
   kioskUpdate?: KioskUpdate;
 }
@@ -64,6 +66,7 @@ function SettingsContent({
   theme,
   autoTheme = false,
   onThemeChange,
+  skin,
   kioskUpdate
 }: Readonly<SettingsModalProps>) {
   const [kiosk] = useState(isKiosk);
@@ -91,6 +94,7 @@ function SettingsContent({
           theme={theme}
           autoTheme={autoTheme}
           onThemeChange={onThemeChange}
+          skin={skin}
           themeColour={themeColour}
           onThemeColourChange={onThemeColourChange}
         />
