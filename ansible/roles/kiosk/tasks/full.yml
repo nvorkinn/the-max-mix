@@ -166,7 +166,7 @@
     state: link
     force: true
 
-# Boot: console on tty3 and a quiet splash, the screen mode, the Wi-Fi country. cmdline.txt is a single line. The params
+# Boot: console on tty3 and a quiet splash, the Wi-Fi country, the screen mode. cmdline.txt is a single line. The params
 # are appended only if missing; [ \t]*$ (not \s*$) keeps the final newline.
 - name: full | Move the console to tty3
   ansible.builtin.replace:
@@ -180,6 +180,39 @@
     regexp: '^(?!.*(?:^|\s){{ item | regex_escape }}(?:\s|$))(.*?)[ \t]*$'
     replace: '\1 {{ item }}'
   loop: '{{ kiosk_cmdline_params }}'
+
+# The screen mode (kiosk_video_mode in defaults/main.yml). Not read in a container, which has no screen of the Pi's.
+- name: full | Read the screen's own mode
+  ansible.builtin.command:
+    argv:
+      - node
+      - '{{ kiosk_audio_src }}/screen-mode.ts'
+  register: kiosk_screen_mode_read
+  changed_when: false
+  failed_when: false
+  when: not kiosk_video_mode and not kiosk_enable_only
+
+- name: full | Work out the screen mode
+  ansible.builtin.set_fact:
+    kiosk_screen_mode: >-
+      {{ kiosk_video_mode or (kiosk_screen_mode_read.stdout | default('') | trim
+        | regex_search('^[0-9]+x[0-9]+@[0-9]+$') | default('', true)) }}
+
+# Only once the mode is known: without a screen to read it from, the mode already set stays.
+- name: full | Remove another screen mode from the kernel command line
+  ansible.builtin.replace:
+    path: /boot/firmware/cmdline.txt
+    regexp: '[ \t]+video=HDMI-A-{{ item }}:(?!{{ kiosk_screen_mode | regex_escape }}(?:\s|$))\S*'
+    replace: ''
+  loop: [1, 2]
+  when: kiosk_screen_mode | length > 0
+
+- name: full | Add the screen mode to the kernel command line
+  ansible.builtin.replace:
+    path: /boot/firmware/cmdline.txt
+    regexp: '^(?!.*(?:^|\s)video=HDMI-A-{{ item }}:)(.*?)[ \t]*$'
+    replace: '\1 video=HDMI-A-{{ item }}:{{ kiosk_screen_mode or kiosk_video_mode_fallback }}'
+  loop: [1, 2]
 
 # disable_splash hides the firmware's rainbow screen. The Pi 5 would boot a kernel with 16 KB memory pages; kernel8.img
 # is the 4 KB-page kernel the Pi 4 already uses, which Widevine's module is built for.

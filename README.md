@@ -23,7 +23,8 @@ alone does not make DRM available.
 
 ### The screen
 
-The player is laid out for the 1024x600 panel. A square artwork sits on the left, as wide as the room is tall minus the
+The player is laid out for the 1024x600 panel. On a bigger screen the kiosk scales the whole page up to fit, drawn at
+the screen's own resolution, so a 10.1-inch 1280x800 screen shows the same layout 1.25 times as big. A square artwork sits on the left, as wide as the room is tall minus the
 control bar, so the cover is never stretched into a strip. The song title and artist and the upcoming queue are beside
 it. One bar across the bottom holds the seek bar with the elapsed and total time, the previous, play/pause and next
 buttons, the volume slider, and, at the bottom left, the device that is playing. Tap that to open the speakers drawer

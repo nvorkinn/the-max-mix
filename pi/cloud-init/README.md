@@ -86,8 +86,10 @@ The playbook also sets, among other things:
 - `kiosk` manages NetworkManager connections without sudo through `/etc/polkit-1/rules.d/50-kiosk-networkmanager.rules`;
 - PipeWire, `pipewire-pulse` and WirePlumber, and AirPlay speakers through Avahi;
 - `unattended-upgrades` for Debian security updates and the Raspberry Pi archive (Chromium, kernel);
-- `config.txt` and the kernel command line for the 1024x600 screen, a quiet boot and no cursor. The mode is forced to
-  1024x600 on both HDMI ports; change `video=` in `cmdline.txt` for another screen. The screen is not rotated.
+- `config.txt` and the kernel command line for the screen, a quiet boot and no cursor. The mode is forced on both HDMI
+  ports: the screen's own mode from its EDID (1280x800 on a 10.1-inch screen), or 1024x600 for a screen that sends
+  none. Set `kiosk_video_mode` in `/etc/the-max-mix/kiosk-vars.yml` for a screen whose EDID is wrong; a new mode needs a
+  reboot. Chromium scales the app to fit a screen bigger than 1024x600. The screen is not rotated.
 
 ## Maintenance over SSH
 

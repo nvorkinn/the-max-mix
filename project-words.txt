@@ -32,6 +32,7 @@ dialogs
 DIDL
 disallocate
 dnsmasq
+edid
 elif
 endfor
 esac
@@ -136,9 +137,11 @@ remi
 rescan
 rfkill
 rincon
+rlength
 rootfs
 rootfstype
 rootwait
+rstart
 runcmd
 shellcheck
 shopt
