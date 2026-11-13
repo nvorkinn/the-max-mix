@@ -149,6 +149,7 @@ singername
 songmid
 songname
 sonos
+sprintf
 ssdp
 SSID
 SSIDs
