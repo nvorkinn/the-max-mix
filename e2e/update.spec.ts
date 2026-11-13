@@ -16,7 +16,11 @@ const logLine = (line: string) => ({ type: 'log', line: `2026-11-04T20:00:00+000
  */
 async function openKiosk(page: Page, newest: string) {
   const github = { newest };
-  await page.route('https://api.github.com/**', route => route.fulfill({ json: { tag_name: github.newest } }));
+  await page.route('https://api.github.com/**', route =>
+    route.fulfill({
+      json: { tag_name: github.newest, assets: [{ name: 'the-max-mix-pi.tar.gz', state: 'uploaded' }] }
+    })
+  );
   await page.addInitScript(() => {
     localStorage.setItem('maxmix.kiosk', 'true');
     localStorage.setItem('maxmix.piVersion', 'v1.12.0 5a39e9a');

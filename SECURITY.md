@@ -30,8 +30,8 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
   `Referrer-Policy`, anti-framing headers and a Content-Security-Policy (in the web server's configuration, not in this repository). The full policy is
   report-only for now: violations show in the debug console (source "csp") until it is checked on a Pi and enforced.
 - **The kiosk's playbook.** Ansible is the single source of truth for the device, and a systemd timer on the Pi runs
-  `ansible-pull` as root against this repository's latest GitHub release (`kiosk_pull_ref: latest`). Whoever can push a
-  `v*` tag, publish a release or mark one as the latest can change what runs on every deployed Pi, so protect the
+  as root the Pi bundle attached to this repository's latest GitHub release (`kiosk_pull_ref: latest`). Whoever can push a
+  `v*` tag, publish a release, upload a release asset or mark a release as the latest can change what runs on every deployed Pi, so protect the
   repository and its tag rules. The Release workflow refuses a tag that is not on `main` or whose `main` CI has not
   passed. The `kiosk` user has no password, no
   `sudo` and no SSH; Chromium keeps its sandbox enabled. The `admin` account has no password either: SSH lets it in

@@ -107,8 +107,10 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
   useEffect(() => {
     if (!version) return;
     const controller = new AbortController();
+    // A release that is not ready yet (its Release workflow is still running) is not offered: the Pi would not install
+    // it. Until then the one the Pi runs counts as the newest.
     const latestValue = isRelease(version.ref)
-      ? latestRelease(controller.signal)
+      ? latestRelease(controller.signal).then(found => (found && !found.ready ? version.ref : (found?.tag ?? null)))
       : latestCommit(version.ref, controller.signal);
     void latestValue.then(value => {
       if (controller.signal.aborted) return;

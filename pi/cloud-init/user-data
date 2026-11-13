@@ -2,7 +2,7 @@
 # THE MAX MIX on stock Raspberry Pi OS Lite (64-bit, trixie). Copy this file over the
 # user-data on the SD card's boot partition (see README.md). cloud-init only does offline work here: it names the Pi,
 # creates the locked kiosk user and installs kiosk-first-pull.service. That unit waits for the network, runs this
-# repository's playbook from its latest GitHub release with ansible-pull (the same run kiosk-pull.timer repeats later),
+# repository's playbook from its latest GitHub release's Pi bundle (the same run kiosk-pull.timer repeats later),
 # and reboots once it has worked. Until then it tries again every minute.
 hostname: the-max-mix
 create_hostname_file: true
@@ -21,27 +21,36 @@ write_files:
     permissions: '0755'
     content: |
       #!/bin/bash
-      # Installs Ansible and applies the kiosk playbook from the latest GitHub release (the tag that releases/latest
-      # redirects to; the playbook's own kiosk-pull does the same later), then reboots for the boot settings it changed.
+      # Installs Ansible and applies the kiosk playbook from the latest GitHub release's Pi bundle, as the playbook's own
+      # kiosk-pull does later (ansible/roles/kiosk/files/bin/kiosk-pull), then reboots for the boot settings it changed.
+      # A release whose Release workflow has not uploaded the bundle yet is not ready: this fails and tries again.
       set -euo pipefail
       export DEBIAN_FRONTEND=noninteractive
-      repo=https://github.com/nvorkinn/the-max-mix
+      releases=https://github.com/nvorkinn/the-max-mix/releases
+      bundle=the-max-mix-pi.tar.gz
+      directory=/var/lib/the-max-mix/ansible-pull
       apt-get update
       apt-get install --yes --no-install-recommends ansible-core ca-certificates curl git python3-apt
       location=$(curl --fail --silent --show-error --max-time 60 --head --output /dev/null \
-        --write-out '%{redirect_url}' "$repo/releases/latest")
-      tag=${location##*/releases/tag/}
-      if [[ $location != */releases/tag/* || ! $tag =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+        --write-out '%{redirect_url}' "$releases/latest/download/$bundle")
+      tag=${location##*/releases/download/}
+      tag=${tag%%/*}
+      if [[ $location != */releases/download/* || ! $tag =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
         echo "Could not find the latest release (got: ${location:-no redirect})" >&2
         exit 1
       fi
+      rm -rf "$directory"
+      mkdir -p "$directory"
+      curl --fail --silent --show-error --max-time 300 --location "$releases/download/$tag/$bundle" \
+        | tar --extract --gzip --directory "$directory" --no-same-owner
       # Settings for this Pi only, as kiosk-pull passes them later (see README.md, "A second kiosk").
       extra=()
       if [[ -f /etc/the-max-mix/kiosk-vars.yml ]]; then
         extra=(--extra-vars @/etc/the-max-mix/kiosk-vars.yml)
       fi
-      ansible-pull --url "$repo.git" --checkout "$tag" "${extra[@]}" \
-        --directory /var/lib/the-max-mix/ansible-pull --inventory localhost, ansible/local.yml
+      cd "$directory"
+      ansible-playbook "${extra[@]}" --inventory localhost, ansible/local.yml
+      echo "$tag" > /var/lib/the-max-mix/installed-release
       mkdir -p /var/lib/the-max-mix
       touch /var/lib/the-max-mix/first-pull-done
       systemctl --no-block reboot

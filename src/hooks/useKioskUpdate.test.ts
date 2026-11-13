@@ -24,7 +24,7 @@ describe('useKioskUpdate', () => {
     vi.stubGlobal('WebSocket', FakeWebSocket);
     kiosk.piVersion.mockReturnValue({ ref: 'v1.12.0', commit: '5a39e9a' });
     kiosk.getDismissedUpdate.mockReturnValue(null);
-    kiosk.latestRelease.mockResolvedValue('v1.13.0');
+    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -40,7 +40,7 @@ describe('useKioskUpdate', () => {
   });
 
   it('does not ask when up to date, when GitHub cannot be asked, or off the kiosk', async () => {
-    kiosk.latestRelease.mockResolvedValue('v1.12.0');
+    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.12.0', ready: true });
     const upToDate = renderHook(() => useKioskUpdate(true));
     await flush();
     expect(upToDate.result.current).toMatchObject({ newer: null, prompting: false });
@@ -50,10 +50,21 @@ describe('useKioskUpdate', () => {
     await flush();
     expect(unknown.result.current).toMatchObject({ newer: null, prompting: false });
 
-    kiosk.latestRelease.mockResolvedValue('v1.13.0');
+    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
     const off = renderHook(() => useKioskUpdate(false));
     await flush();
     expect(off.result.current).toMatchObject({ version: null, newer: null, prompting: false });
+  });
+
+  it('does not offer a release whose Pi bundle is not uploaded yet', async () => {
+    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: false });
+    const { result } = renderHook(() => useKioskUpdate(true));
+    await flush();
+    expect(result.current).toMatchObject({
+      latest: { state: 'known', value: 'v1.12.0' },
+      newer: null,
+      prompting: false
+    });
   });
 
   it('remembers "Not now" for that version only', async () => {
@@ -71,20 +82,20 @@ describe('useKioskUpdate', () => {
     const again = renderHook(() => useKioskUpdate(true));
     await flush();
     expect(again.result.current.prompting).toBe(false);
-    kiosk.latestRelease.mockResolvedValue('v1.14.0');
+    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.14.0', ready: true });
     const newest = renderHook(() => useKioskUpdate(true));
     await flush();
     expect(newest.result.current.prompting).toBe(true);
   });
 
   it('asks GitHub again on checkNow, and keeps the last answer when it cannot be had', async () => {
-    kiosk.latestRelease.mockResolvedValue('v1.12.0');
+    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.12.0', ready: true });
     const { result } = renderHook(() => useKioskUpdate(true));
     await flush();
     expect(result.current.newer).toBeNull();
     expect(kiosk.latestRelease).toHaveBeenCalledTimes(1);
 
-    kiosk.latestRelease.mockResolvedValue('v1.13.0');
+    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
     act(() => result.current.checkNow());
     await flush();
     expect(kiosk.latestRelease).toHaveBeenCalledTimes(2);

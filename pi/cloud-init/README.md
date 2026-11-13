@@ -87,8 +87,8 @@ Give the new owner the [one-page guide](../../docs/friend-guide.md) (print it, o
    `network-test.debian.org`, set in `/etc/NetworkManager/conf.d/20-connectivity.conf`). If it does, it runs Chromium on the app; if
    not, it runs Chromium on the Wi-Fi setup page (`http://127.0.0.1:7341/wifi-setup`, served by kiosk-audio) until it
    connects. The page offers Cancel only when a connection already works.
-4. `kiosk-pull.timer` runs `ansible-pull` three minutes after boot and then every six hours (or at once from the app's
-   Update now button, which also follows the pull's journal), applying the playbook only when there is a new release, and its slow part only when the files it installs changed. A failed run only logs
+4. `kiosk-pull.timer` runs `kiosk-pull` three minutes after boot and then every six hours (or at once from the app's
+   Update now button, which also follows the pull's journal), applying the playbook only when there is a new release whose Release workflow has uploaded its Pi bundle, and its slow part only when the files it installs changed. A failed run only logs
    (`journalctl -u kiosk-pull`). A pull that changed kiosk files makes `kiosk-restart.timer` restart the kiosk at 04:30.
 5. The screen sleeps. The app keeps it on while music plays and for the idle minutes chosen in its settings (5 by
    default), by holding a screen wake lock that Chromium passes to Cage. After that, the app shows a black sleep screen

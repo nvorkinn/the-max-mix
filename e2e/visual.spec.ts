@@ -30,7 +30,11 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
           : { status: 204 }
       )
     );
-    await page.route('https://api.github.com/**', route => route.fulfill({ json: { tag_name: 'v1.12.0' } }));
+    await page.route('https://api.github.com/**', route =>
+      route.fulfill({
+        json: { tag_name: 'v1.12.0', assets: [{ name: 'the-max-mix-pi.tar.gz', state: 'uploaded' }] }
+      })
+    );
     // The Software page says when GitHub last answered.
     await page.clock.setFixedTime(new Date('2026-11-13T08:43:00'));
     await page.goto('/?kiosk=1&pi_ref=v1.12.0&pi_commit=5a39e9a');

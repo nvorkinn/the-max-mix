@@ -3,10 +3,13 @@ name: Release
 # Shown on the GitHub dashboard among the running releases.
 # dashboard: release
 
-# Releases happen here and only here. Push a version tag from main (git tag v1.2.3 && git push origin v1.2.3) to build
-# the app, copy it to the server over Tailscale and then publish the GitHub release for the tag, with notes generated
-# from the merged pull requests. The Raspberry Pi kiosks follow the latest GitHub release (kiosk_pull_ref: latest), so
-# the release is published only once the deploy has worked, and the Pis and the web app move together.
+# Releases happen here and only here. Create a release for a new v* tag on main (GitHub's New release form, which also
+# writes the notes) or push a version tag from main (git tag v1.2.3 && git push origin v1.2.3) to build the app, copy it
+# to the server over Tailscale and then publish the GitHub release for the tag (notes generated from the merged pull
+# requests when it has none yet). The very last step uploads the Pi bundle (the-max-mix-pi.tar.gz) to the release. The
+# Raspberry Pi kiosks follow the latest GitHub release (kiosk_pull_ref: latest) but install only a release with its
+# bundle (ansible/roles/kiosk/files/bin/kiosk-pull), so a release made with the form, which is the latest from the
+# start, reaches them only once the deploy has worked, and the Pis and the web app move together.
 #
 # Run it by hand with an existing tag to redeploy that release and mark it as the latest one again, which also rolls the
 # Pis back (or forward) to it at their next update. The runner joins the tailnet with its GitHub identity (id-token), so
@@ -71,6 +74,22 @@ jobs:
       - run: npm ci
       - name: Build
         run: npm run build
+      # What the Pis install (see kiosk-pull): the three folders the playbook installs from, at the tag, and release.json
+      # with what the playbook would otherwise ask git (roles/kiosk/defaults/main.yml, kiosk_release_info).
+      - name: Pack the Pi bundle
+        run: |
+          jq --null-input --arg tag "$TAG" --arg commit "$(git rev-parse HEAD)" \
+            --args '{tag: $tag, commit: $commit, trees: $ARGS.positional}' \
+            "$(git rev-parse HEAD:ansible)" "$(git rev-parse HEAD:pi/kiosk-audio)" "$(git rev-parse HEAD:pi/kiosk-keyboard)" \
+            > "$RUNNER_TEMP/release.json"
+          git archive --format=tar.gz --output="$RUNNER_TEMP/the-max-mix-pi.tar.gz" \
+            --add-file="$RUNNER_TEMP/release.json" HEAD ansible pi/kiosk-audio pi/kiosk-keyboard
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pi-bundle
+          path: ${{ runner.temp }}/the-max-mix-pi.tar.gz
+          if-no-files-found: error
+          retention-days: 1
       - name: Tailscale
         uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
         with:
@@ -103,7 +122,12 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
-      # A new tag gets a new release; a tag that already has one (a redeploy or rollback) only becomes the latest again.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: pi-bundle
+      # A new tag gets a new release; a tag that already has one (made with the New release form, a redeploy or a
+      # rollback) only becomes the latest again. The Pi bundle goes up last: the Pis install a release only once it is
+      # there. On a redeploy it replaces the bundle already there, which leaves the Pis where they are for a moment.
       - name: Publish the GitHub release
         run: |
           if gh release view "$TAG" > /dev/null 2>&1; then
@@ -111,3 +135,4 @@ jobs:
           else
             gh release create "$TAG" --verify-tag --generate-notes --latest --title "$TAG"
           fi
+          gh release upload "$TAG" the-max-mix-pi.tar.gz --clobber

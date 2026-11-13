@@ -49,7 +49,7 @@ describe('KioskSystem', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('shows the running release and that it is the latest', async () => {
-    kiosk.latestRelease.mockResolvedValue('v1.12.0');
+    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.12.0', ready: true });
     render(<Harness />);
     expect(screen.getByText('v1.12.0')).toBeInTheDocument();
     expect(await screen.findByText(UP_TO_DATE)).toBeInTheDocument();
@@ -58,7 +58,7 @@ describe('KioskSystem', () => {
   });
 
   it('says when a newer release is out', async () => {
-    kiosk.latestRelease.mockResolvedValue('v1.13.0');
+    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
     render(<Harness />);
     expect(await screen.findByText(/v1\.13\.0 is out\. Tap the button to install it now/)).toBeInTheDocument();
   });
@@ -98,7 +98,7 @@ describe('KioskSystem', () => {
     const popup = () => screen.queryByRole('dialog', { name: 'Update available', hidden: true });
 
     it('asks GitHub again, and shows what it finds without a popup when nothing is newer', async () => {
-      kiosk.latestRelease.mockResolvedValue('v1.12.0');
+      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.12.0', ready: true });
       render(<Harness />);
       expect(await screen.findByText(UP_TO_DATE)).toBeInTheDocument();
       await userEvent.click(check());
@@ -108,7 +108,7 @@ describe('KioskSystem', () => {
     });
 
     it('says when GitHub last answered, and keeps that time when a check cannot reach it', async () => {
-      kiosk.latestRelease.mockResolvedValue('v1.12.0');
+      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.12.0', ready: true });
       render(<Harness />);
       const shown = await screen.findByText(UP_TO_DATE);
       const first = shown.textContent;
@@ -119,7 +119,7 @@ describe('KioskSystem', () => {
     });
 
     it('spins while it checks, even when GitHub answers at once', async () => {
-      kiosk.latestRelease.mockResolvedValue('v1.12.0');
+      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.12.0', ready: true });
       render(<Harness />);
       await screen.findByText(UP_TO_DATE);
       await userEvent.click(check());
@@ -136,10 +136,10 @@ describe('KioskSystem', () => {
     });
 
     it('opens the popup for a newer version it finds, where the update starts', async () => {
-      kiosk.latestRelease.mockResolvedValue('v1.12.0');
+      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.12.0', ready: true });
       render(<Harness />);
       await screen.findByText(UP_TO_DATE);
-      kiosk.latestRelease.mockResolvedValue('v1.13.0');
+      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
       await userEvent.click(check());
       expect(await screen.findByRole('dialog', { name: 'Update available', hidden: true })).toBeInTheDocument();
       await userEvent.click(screen.getByRole('button', { name: 'Update now', hidden: true }));
@@ -147,7 +147,7 @@ describe('KioskSystem', () => {
     });
 
     it('after Not now, says what is newer and asks again when pressed', async () => {
-      kiosk.latestRelease.mockResolvedValue('v1.13.0');
+      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
       render(<Harness />);
       await userEvent.click(await screen.findByRole('button', { name: 'Not now', hidden: true }));
       expect(popup()).not.toBeInTheDocument();
@@ -166,7 +166,7 @@ describe('KioskSystem', () => {
   });
 
   it('says it is updating once the popup starts the update', async () => {
-    kiosk.latestRelease.mockResolvedValue('v1.13.0');
+    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
     render(<Harness />);
     expect(() => latestFakeSocket()).toThrow('No WebSocket was opened');
     await userEvent.click(await screen.findByRole('button', { name: 'Update now', hidden: true }));
@@ -182,7 +182,7 @@ describe('KioskSystem', () => {
 
   describe('while an update runs', () => {
     const tap = async () => {
-      kiosk.latestRelease.mockResolvedValue('v1.13.0');
+      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
       render(<Harness />);
       await userEvent.click(await screen.findByRole('button', { name: 'Update now', hidden: true }));
       act(() => latestFakeSocket().open());
@@ -231,7 +231,7 @@ describe('KioskSystem', () => {
     });
 
     it('says so when the service never answers', async () => {
-      kiosk.latestRelease.mockResolvedValue('v1.13.0');
+      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
       render(<Harness />);
       await userEvent.click(await screen.findByRole('button', { name: 'Update now', hidden: true }));
       act(() => latestFakeSocket().end());

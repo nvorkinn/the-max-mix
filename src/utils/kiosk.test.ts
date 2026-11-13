@@ -227,14 +227,26 @@ describe('currentWifi', () => {
 describe('latestRelease', () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  const bundle = { name: 'the-max-mix-pi.tar.gz', state: 'uploaded' };
+
   it("asks GitHub for the latest release's tag", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(Response.json({ tag_name: 'v1.12.0', name: 'v1.12.0' }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(Response.json({ tag_name: 'v1.12.0', name: 'v1.12.0', assets: [bundle] }));
     vi.stubGlobal('fetch', fetchMock);
-    await expect(latestRelease()).resolves.toBe('v1.12.0');
+    await expect(latestRelease()).resolves.toEqual({ tag: 'v1.12.0', ready: true });
     expect(fetchMock).toHaveBeenCalledWith(
       'https://api.github.com/repos/nvorkinn/the-max-mix/releases/latest',
       expect.objectContaining({ headers: { Accept: 'application/vnd.github+json' } })
     );
+  });
+
+  it('is not ready until the Release workflow has uploaded the Pi bundle', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ tag_name: 'v1.12.0', assets: [] })));
+    await expect(latestRelease()).resolves.toEqual({ tag: 'v1.12.0', ready: false });
+    const uploading = { ...bundle, state: 'starter' };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ tag_name: 'v1.12.0', assets: [uploading] })));
+    await expect(latestRelease()).resolves.toEqual({ tag: 'v1.12.0', ready: false });
   });
 
   it('is null when GitHub fails or answers something else', async () => {
