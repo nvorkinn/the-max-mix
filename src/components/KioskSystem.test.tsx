@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { FakeWebSocket, latestFakeSocket, resetFakeSockets } from '../test/fakeWebSocket';
 import userEvent from '../test/user';
 import { useKioskUpdate } from '../hooks/useKioskUpdate';
@@ -36,6 +36,7 @@ const debug = vi.hoisted(() => ({ debugLog: vi.fn() }));
 vi.mock('../utils/debugLog', () => debug);
 
 const running = '5a39e9a';
+const UP_TO_DATE = /^Up to date as of \d\d:\d\d:\d\d\.$/;
 
 describe('KioskSystem', () => {
   beforeEach(() => {
@@ -51,7 +52,7 @@ describe('KioskSystem', () => {
     kiosk.latestRelease.mockResolvedValue('v1.12.0');
     render(<Harness />);
     expect(screen.getByText('v1.12.0')).toBeInTheDocument();
-    expect(await screen.findByText('Up to date.')).toBeInTheDocument();
+    expect(await screen.findByText(UP_TO_DATE)).toBeInTheDocument();
     expect(kiosk.latestRelease).toHaveBeenCalledWith(expect.any(AbortSignal));
     expect(kiosk.latestCommit).not.toHaveBeenCalled();
   });
@@ -73,7 +74,7 @@ describe('KioskSystem', () => {
     kiosk.latestCommit.mockResolvedValue(`${running}0123456789abcdef0123456789abcdef0`);
     render(<Harness />);
     expect(screen.getByText(`main ${running}`)).toBeInTheDocument();
-    expect(await screen.findByText('Up to date.')).toBeInTheDocument();
+    expect(await screen.findByText(UP_TO_DATE)).toBeInTheDocument();
     expect(kiosk.latestCommit).toHaveBeenCalledWith('main', expect.any(AbortSignal));
   });
 
@@ -99,11 +100,32 @@ describe('KioskSystem', () => {
     it('asks GitHub again, and shows what it finds without a popup when nothing is newer', async () => {
       kiosk.latestRelease.mockResolvedValue('v1.12.0');
       render(<Harness />);
-      expect(await screen.findByText('Up to date.')).toBeInTheDocument();
+      expect(await screen.findByText(UP_TO_DATE)).toBeInTheDocument();
       await userEvent.click(check());
       expect(kiosk.latestRelease).toHaveBeenCalledTimes(2);
-      expect(await screen.findByText('Up to date.')).toBeInTheDocument();
+      expect(await screen.findByText(UP_TO_DATE)).toBeInTheDocument();
       expect(popup()).not.toBeInTheDocument();
+    });
+
+    it('says when GitHub last answered, and keeps that time when a check cannot reach it', async () => {
+      kiosk.latestRelease.mockResolvedValue('v1.12.0');
+      render(<Harness />);
+      const first = (await screen.findByText(UP_TO_DATE)).textContent;
+      kiosk.latestRelease.mockResolvedValue(null);
+      await userEvent.click(check());
+      await waitFor(() => expect(check()).toBeEnabled());
+      expect(screen.getByText(UP_TO_DATE)).toHaveTextContent(first ?? '');
+    });
+
+    it('spins while it checks, even when GitHub answers at once', async () => {
+      kiosk.latestRelease.mockResolvedValue('v1.12.0');
+      render(<Harness />);
+      await screen.findByText(UP_TO_DATE);
+      await userEvent.click(check());
+      expect(check()).toBeDisabled();
+      expect(check().querySelector('svg')).toHaveClass('animate-spin');
+      await waitFor(() => expect(check()).toBeEnabled());
+      expect(check().querySelector('svg')).not.toHaveClass('animate-spin');
     });
 
     it('is busy while GitHub is asked', () => {
@@ -115,7 +137,7 @@ describe('KioskSystem', () => {
     it('opens the popup for a newer version it finds, where the update starts', async () => {
       kiosk.latestRelease.mockResolvedValue('v1.12.0');
       render(<Harness />);
-      await screen.findByText('Up to date.');
+      await screen.findByText(UP_TO_DATE);
       kiosk.latestRelease.mockResolvedValue('v1.13.0');
       await userEvent.click(check());
       expect(await screen.findByRole('dialog', { name: 'Update available', hidden: true })).toBeInTheDocument();
