@@ -1,15 +1,12 @@
 import { useState } from 'react';
-import { peopleOnKiosk } from '../spotify/auth';
+import { PEOPLE_LIMIT, peopleOnKiosk } from '../spotify/auth';
 import { samePhone, useSavedPhones } from '../hooks/useSavedPhones';
 import Modal from './Modal';
 import PersonFace from './PersonFace';
 
-/** The most people a kiosk keeps (Spotify's development mode allows five users per app). */
-const MOST_FACES = 5;
-
 /**
- * The active person's picture in the banner. Tapping it shows the faces of everyone whose phone the Pi hears, and
- * tapping another face switches to them (`onSwitch`).
+ * The active person's picture in the banner. Tapping it shows everyone's face; only those whose linked phone the Pi
+ * hears can be picked (the others are greyed out), and tapping one switches to them (`onSwitch`).
  */
 export default function PersonSwitcher({ onSwitch }: Readonly<{ onSwitch: (spotifyId: string) => void }>) {
   const [isOpen, setIsOpen] = useState(false);
@@ -18,11 +15,7 @@ export default function PersonSwitcher({ onSwitch }: Readonly<{ onSwitch: (spoti
   const active = people.find(person => person.active);
   if (!active) return null;
 
-  const present = people
-    .filter(
-      person => person.active || phones.some(phone => phone.isHere && samePhone(person.phoneAddress, phone.address))
-    )
-    .slice(0, MOST_FACES);
+  const isHere = (phoneAddress: string) => phones.some(phone => phone.isHere && samePhone(phoneAddress, phone.address));
 
   return (
     <>
@@ -45,7 +38,7 @@ export default function PersonSwitcher({ onSwitch }: Readonly<{ onSwitch: (spoti
             Switch person
           </h3>
           <ul className="person-sheet-faces">
-            {present.map(person => {
+            {people.slice(0, PEOPLE_LIMIT).map(person => {
               const isActive = person.active;
               return (
                 <li key={person.spotifyId}>
@@ -53,6 +46,7 @@ export default function PersonSwitcher({ onSwitch }: Readonly<{ onSwitch: (spoti
                     type="button"
                     className="person-choice"
                     aria-pressed={isActive}
+                    disabled={!isActive && !isHere(person.phoneAddress)}
                     {...(isActive && { 'data-modal-autofocus': true })}
                     onClick={() => {
                       setIsOpen(false);

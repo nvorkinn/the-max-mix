@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '../test/user';
 import PersonSwitcher from './PersonSwitcher';
 
@@ -33,14 +33,14 @@ describe('PersonSwitcher', () => {
     });
   });
 
-  it('offers the active person and those whose phone the Pi hears, and switches to the one tapped', async () => {
+  it('greys out everyone whose phone the Pi does not hear, and switches to the one tapped', async () => {
     const onSwitch = vi.fn();
     render(<PersonSwitcher onSwitch={onSwitch} />);
     await userEvent.click(screen.getByRole('button', { name: 'Nikolai: switch person' }));
-    expect(await screen.findByRole('button', { name: 'Anna' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Anna' })).toBeEnabled());
     expect(screen.getByRole('button', { name: 'Nikolai' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.queryByRole('button', { name: 'Olav' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Kari' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Olav' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Kari' })).toBeDisabled();
     await userEvent.click(screen.getByRole('button', { name: 'Anna' }));
     expect(onSwitch).toHaveBeenCalledWith('anna');
   });
