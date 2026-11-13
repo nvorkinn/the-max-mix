@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getRedirectUri } from '../spotify/settings';
 import {
+  forgetSignIns,
   isKiosk,
   isRelease,
   latestCommit,
@@ -134,6 +135,49 @@ describe('restart and reboot', () => {
       ['http://127.0.0.1:7341/power/restart', { method: 'POST' }],
       ['http://127.0.0.1:7341/power/reboot', { method: 'POST' }]
     ]);
+  });
+});
+
+describe('forgetSignIns', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    visit('');
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('asks nothing outside the kiosk', async () => {
+    const posted = vi.spyOn(window, 'postMessage');
+    await forgetSignIns();
+    expect(posted).not.toHaveBeenCalled();
+  });
+
+  it('asks the kiosk extension and waits for its answer', async () => {
+    visit('?kiosk=1');
+    const asked: unknown[] = [];
+    const extension = (event: MessageEvent) => {
+      asked.push(event.data);
+      window.dispatchEvent(new MessageEvent('message', { data: { type: 'other' }, source: window }));
+      window.dispatchEvent(new MessageEvent('message', { data: { type: 'maxmix:sign-ins-forgotten' } }));
+      window.dispatchEvent(new MessageEvent('message', { data: { type: 'maxmix:sign-ins-forgotten' }, source: window }));
+    };
+    window.addEventListener('message', extension, { once: true });
+    await forgetSignIns();
+    expect(asked).toEqual([{ type: 'maxmix:forget-sign-ins' }]);
+  });
+
+  it('gives up when no extension answers', async () => {
+    vi.useFakeTimers();
+    visit('?kiosk=1');
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+    let done = false;
+    const forgetting = forgetSignIns().then(() => {
+      done = true;
+    });
+    await vi.advanceTimersByTimeAsync(2999);
+    expect(done).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await forgetting;
+    expect(done).toBe(true);
   });
 });
 

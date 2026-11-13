@@ -36,6 +36,34 @@ export function isKiosk(): boolean {
   return flag === '1' || (flag !== '0' && read(KIOSK_KEY));
 }
 
+// How long a sign-out waits for the kiosk's browser extension (pi/kiosk-keyboard/sign-out.ts) to clear the other sites.
+const FORGET_TIMEOUT_MS = 3000;
+
+/**
+ * On the kiosk, asks its browser extension to clear what every other site keeps, Spotify's own sign-in among them, so
+ * the next "Log in with Spotify" asks for a password again. Resolves when that is done, or after a few seconds when the
+ * extension does not answer; at once anywhere else, where the browser and its sign-ins belong to the person using it.
+ */
+export function forgetSignIns(): Promise<void> {
+  if (!isKiosk()) return Promise.resolve();
+  return new Promise(resolve => {
+    const done = () => {
+      window.removeEventListener('message', onMessage);
+      clearTimeout(timer);
+      resolve();
+    };
+    const onMessage = (event: MessageEvent) => {
+      const data: unknown = event.data;
+      const forgotten =
+        typeof data === 'object' && data !== null && 'type' in data && data.type === 'maxmix:sign-ins-forgotten';
+      if (event.source === window && forgotten) done();
+    };
+    const timer = setTimeout(done, FORGET_TIMEOUT_MS);
+    window.addEventListener('message', onMessage);
+    window.postMessage({ type: 'maxmix:forget-sign-ins' }, location.origin);
+  });
+}
+
 /** Asks the kiosk to restart the kiosk (Cage and Chromium), which applies an update that waits for a restart. */
 export function restartKiosk(): void {
   kioskPost('/power/restart');

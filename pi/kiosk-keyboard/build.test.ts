@@ -13,7 +13,13 @@ describe('build', () => {
 
   it('writes plain JavaScript and the manifest, and reports a second run as unchanged', async () => {
     destination = await mkdtemp(path.join(tmpdir(), 'kiosk-keyboard-'));
-    expect(await build(import.meta.dirname, destination)).toEqual(['manifest.json', 'loader.js', 'keyboard.js']);
+    expect(await build(import.meta.dirname, destination)).toEqual([
+      'manifest.json',
+      'loader.js',
+      'keyboard.js',
+      'background.js',
+      'sign-out.js'
+    ]);
 
     const keyboard = await readFile(path.join(destination, 'keyboard.js'), 'utf8');
     expect(keyboard).toMatch(/export function start\(doc\s*, mount\s*= doc.documentElement\)/);
@@ -24,5 +30,17 @@ describe('build', () => {
     expect(manifest.name).toBe('THE MAX MIX sign-in keyboard');
 
     expect(await build(import.meta.dirname, destination)).toEqual([]);
+  });
+
+  it('runs the sign-out relay on the app’s pages when given the app’s origin', async () => {
+    destination = await mkdtemp(path.join(tmpdir(), 'kiosk-keyboard-'));
+    await build(import.meta.dirname, destination, 'https://app.example');
+    const manifest = JSON.parse(await readFile(path.join(destination, 'manifest.json'), 'utf8')) as {
+      content_scripts: { matches: string[]; js: string[] }[];
+    };
+    expect(manifest.content_scripts).toContainEqual(
+      expect.objectContaining({ matches: ['https://app.example/*'], js: ['sign-out.js'] })
+    );
+    await expect(build(import.meta.dirname, destination, 'https://app.example/path')).rejects.toThrow('Not an origin');
   });
 });
