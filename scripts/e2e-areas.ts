@@ -21,6 +21,7 @@ export const AREAS: Area[] = [
     title: 'Player',
     sources: [
       /^src\/components\/AlbumArtPlayer/,
+      /^src\/components\/Person(Face|Switcher)/,
       /^src\/hooks\/use(Spotify|Sonos)Player/,
       /^src\/spotify\/api\.ts$/,
       /^src\/utils\/colorExtractor\.ts$/
@@ -47,7 +48,8 @@ export const AREAS: Area[] = [
     sources: [
       /^src\/components\/SettingsModal/,
       /^src\/components\/settings\//,
-      /^src\/components\/(KioskSystem|ConfirmButton)/,
+      /^src\/components\/(KioskSystem|ConfirmButton|PhonePicker)/,
+      /^src\/hooks\/useSavedPhones/,
       /^src\/utils\/(theme|sun)/,
       /^src\/hooks\/useTheme/,
       /^src\/sonos\//
