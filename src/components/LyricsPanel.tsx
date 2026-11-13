@@ -27,7 +27,7 @@ function lineKeys(lines: readonly string[]): string[] {
 const FOLLOW_RESUME_MS = 8000;
 
 /** The speakers play a little behind the reported position, so each line lights up this much ahead of its timestamp. */
-const LYRICS_LEAD_MS = 1000;
+const LYRICS_LEAD_MS = 500;
 
 function EmptyState({ title, text }: Readonly<{ title: string; text: string }>) {
   return (

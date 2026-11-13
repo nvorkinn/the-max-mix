@@ -27,9 +27,9 @@ beforeEach(() => clearLyricsCache());
 afterEach(() => vi.useRealTimers());
 
 describe('LyricsPanel', () => {
-  it('asks the provider for the current track and lights up each line a second early', async () => {
+  it('asks the provider for the current track and lights up each line half a second early', async () => {
     const provider = providerOf(synced);
-    const { rerender } = renderPanel({ provider, progressMs: 2000 });
+    const { rerender } = renderPanel({ provider, progressMs: 2500 });
     expect(screen.getByRole('status')).toHaveTextContent('Looking for the lyrics');
     await flush();
     expect(provider).toHaveBeenCalledWith(
@@ -45,11 +45,11 @@ describe('LyricsPanel', () => {
       'Second placeholder',
       'Second placeholder'
     ]);
-    // The third line starts at 3s, so it is current from 2s; the lines before it stay lit, the ones after it do not.
+    // The third line starts at 3s, so it is current from 2.5s; the lines before it stay lit, the ones after it do not.
     expect(lines[2]).toHaveAttribute('aria-current', 'true');
     expect(lines.map(line => line.classList.contains('is-reached'))).toEqual([true, true, true, false]);
 
-    rerender(<LyricsPanel track={track} progressMs={3200} provider={provider} />);
+    rerender(<LyricsPanel track={track} progressMs={3500} provider={provider} />);
     expect(screen.getAllByRole('listitem')[3]).toHaveAttribute('aria-current', 'true');
     expect(provider).toHaveBeenCalledTimes(1);
   });
@@ -84,7 +84,7 @@ describe('LyricsPanel', () => {
         fireEvent.pointerDown(list, { pointerType: input === 'touch' ? 'touch' : 'mouse' });
       } else fireEvent.keyDown(list, { key: input });
       list.scrollTop = 17;
-      rerender(<LyricsPanel track={track} progressMs={3200} provider={provider} />);
+      rerender(<LyricsPanel track={track} progressMs={3500} provider={provider} />);
       expect(list.scrollTop).toBe(17);
       expect(screen.getAllByRole('listitem')[3]).toHaveAttribute('aria-current', 'true');
       expect(list).toHaveAttribute('data-following', 'false');
