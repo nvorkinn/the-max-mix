@@ -402,7 +402,8 @@ export async function getAccessToken(): Promise<string | null> {
     if (started !== generation) return null;
     // Spotify may rotate the refresh token; keep the new one, else the old one stays valid.
     updatePerson(login.spotifyId, person => ({ ...person, refreshToken: tokens.refreshToken ?? login.refreshToken }));
-    if (login.spotifyId === '') await nameActivePerson(tokens.accessToken);
+    // Naming waits for nothing: a slow GET /me must not hold up the token.
+    if (login.spotifyId === '') void nameActivePerson(tokens.accessToken);
     cachedAccess = {
       token: tokens.accessToken,
       clientId: login.clientId,

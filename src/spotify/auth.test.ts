@@ -711,6 +711,7 @@ describe('spotify/auth', () => {
       });
       fetchMock.mockResolvedValueOnce(json({ access_token: 'a1', refresh_token: 'r2', expires_in: 3600 }));
       expect(await auth.getAccessToken()).toBe('a1');
+      await vi.waitFor(() => expect(people()).toMatchObject({ activeId: 'nikolai' }));
       expect(people()).toEqual({
         clientId: 'client-1',
         activeId: 'nikolai',
@@ -735,6 +736,7 @@ describe('spotify/auth', () => {
       const auth = await load();
       fetchMock.mockResolvedValueOnce(json({ access_token: 'a1', refresh_token: 'r2', expires_in: 3600 }));
       await auth.getAccessToken();
+      await vi.waitFor(() => expect(people()).toMatchObject({ activeId: 'nikolai' }));
       expect(people()).toMatchObject({
         activeId: 'nikolai',
         people: [
