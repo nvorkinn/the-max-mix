@@ -43,6 +43,10 @@ async function mockSpotify(page: Page) {
     const path = new URL(route.request().url()).pathname;
     api.requests.push(`${route.request().method()} ${path}`);
     switch (`${route.request().method()} ${path}`) {
+      case 'GET /v1/me': {
+        await route.fulfill({ json: { id: 'tester', display_name: 'Tester', images: [] } });
+        break;
+      }
       case 'GET /v1/me/player': {
         api.playbackReads++;
         await api.playbackWait;
