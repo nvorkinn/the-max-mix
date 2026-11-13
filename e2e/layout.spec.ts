@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
+import { openSettings, showSection } from './settings.ts';
 
 const LONG_TITLE = `${'An extended placeholder title with extra recording details '.repeat(8)}${'Unbroken'.repeat(24)}`;
 const LONG_ARTIST = 'A placeholder artist with a second guest artist '.repeat(4);
@@ -53,9 +54,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
       const transport = page.getByRole('button', { name: 'Pause', exact: true });
       await expect(transport).toBeInViewport();
 
-      await page.getByRole('button', { name: 'Open settings' }).click();
-      const settings = page.getByRole('dialog', { name: 'Settings' });
-      await expect(settings).toBeVisible();
+      const settings = await openSettings(page);
       await expectTouchTargets(settings, 60);
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press('Escape');
@@ -115,6 +114,60 @@ test.describe('Layout', { tag: '@layout' }, () => {
         ).toBeLessThanOrEqual(1);
         expect(await page.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
       });
+    });
+  }
+
+  // The 7 inch kiosk is 1024x600; the 10.1 inch one scales its 1280x800 by 1.25 to 1024x640; a browser window can be
+  // a real 1280x800, which gets the roomier settings.
+  for (const [width, height] of [
+    [1024, 600],
+    [1024, 640],
+    [1280, 800]
+  ] as const) {
+    test(`Settings fit ${width}x${height}: navigation without scrolling, every page within the dialog`, async ({
+      page
+    }) => {
+      await page.setViewportSize({ width, height });
+      await page.route('https://images.unsplash.com/**', route =>
+        route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
+      );
+      await page.route('http://127.0.0.1:7341/**', route =>
+        route.fulfill(
+          new URL(route.request().url()).pathname === '/wifi/status'
+            ? { headers: { 'Access-Control-Allow-Origin': '*' }, json: { ssid: LONG_ARTIST } }
+            : { status: 204 }
+        )
+      );
+      await fakeSpotify(page);
+      await page.goto('/?kiosk=1');
+      const settings = await openSettings(page);
+      const nav = settings.getByRole('navigation', { name: 'Settings' });
+      expect(await nav.evaluate(element => element.scrollHeight <= element.clientHeight)).toBe(true);
+      const sections = await nav.getByRole('button').allTextContents();
+      expect(sections).toHaveLength(6);
+      for (const section of sections) {
+        // eslint-disable-next-line no-await-in-loop -- one page after another
+        await showSection(settings, section);
+        // eslint-disable-next-line no-await-in-loop -- the same
+        await expect(nav.getByRole('button').last()).toBeInViewport({ ratio: 1 });
+        // eslint-disable-next-line no-await-in-loop -- the same
+        await expectTouchTargets(settings, 60);
+        // eslint-disable-next-line no-await-in-loop -- the same
+        await expectNoHorizontalOverflow(page);
+        // eslint-disable-next-line no-await-in-loop -- the same
+        const doesBodyFit = await settings
+          .locator('.settings-content-body')
+          .evaluate(element => element.scrollWidth <= element.clientWidth);
+        expect(doesBodyFit, section).toBe(true);
+      }
+
+      // A page taller than the dialog scrolls on its own, and the navigation stays put beside it.
+      await settings.locator('.settings-content-body').evaluate(element => {
+        element.style.setProperty('padding-bottom', '2000px');
+        element.scrollTo({ top: 1000 });
+      });
+      await expect(nav.getByRole('button', { name: 'Overview' })).toBeInViewport({ ratio: 1 });
+      await expect(settings.getByRole('button', { name: 'Close settings' })).toBeInViewport({ ratio: 1 });
     });
   }
 

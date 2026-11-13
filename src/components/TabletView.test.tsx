@@ -148,6 +148,13 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
+/** Opens the Software page of the open Settings. */
+function openSoftware() {
+  fireEvent.click(
+    within(screen.getByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Software' })
+  );
+}
+
 describe('TabletView', () => {
   afterEach(() => {
     // A test that hit Spotify's quota must not stop the polling in the tests after it.
@@ -357,6 +364,11 @@ describe('TabletView', () => {
     const room = defined(container.querySelector('.tablet-container'));
     expect(room).toHaveAttribute('data-colour', 'forest');
     fireEvent.click(screen.getByRole('button', { name: 'Connection settings' }));
+    // The sign-in prompt opens the Spotify page.
+    expect(screen.getByRole('heading', { name: 'Spotify' })).toBeInTheDocument();
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Appearance' })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Navy' }));
     expect(room).toHaveAttribute('data-colour', 'navy');
     expect(screen.getByRole('button', { name: 'Navy' })).toHaveAttribute('aria-pressed', 'true');
@@ -823,6 +835,7 @@ describe('TabletView', () => {
         const asked = fetchMock.mock.calls.length;
         fetchMock.mockImplementation(() => Promise.resolve(Response.json({ tag_name: 'v1.14.0' })));
         fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
+        openSoftware();
         expect(await screen.findByText(/v1\.14\.0 is out\. Tap the button to install it now/)).toBeInTheDocument();
         expect(fetchMock.mock.calls.length).toBeGreaterThan(asked);
         // The newer version is asked about at once, over the open Settings.
@@ -856,6 +869,7 @@ describe('TabletView', () => {
         await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
         fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
+        openSoftware();
         // The same version was declined, so opening Settings only says it is out.
         expect(await screen.findByText(/v1\.13\.0 is out\. Tap the button to install it now/)).toBeInTheDocument();
         await flush();

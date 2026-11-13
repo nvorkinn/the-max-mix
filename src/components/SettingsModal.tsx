@@ -1,145 +1,40 @@
 import { useEffect, useState } from 'react';
-import type { CSSProperties } from 'react';
-import { X, Settings, Music, CheckCircle2, AlertCircle, LogOut, Wifi } from 'lucide-react';
-import { signOut, startSignIn } from '../spotify/auth';
-import { errorMessage } from '../utils/errorMessage';
-import { currentWifi, forgetSignIns, isKiosk, openWifiSettings } from '../utils/kiosk';
-import { getRedirectUri, reloadSettings } from '../spotify/settings';
-import { SCREEN_SLEEP_CHOICES } from '../utils/screenSleep';
+import type { ReactNode } from 'react';
+import { Cpu, LayoutGrid, Music, Palette, Settings, Wifi, X } from 'lucide-react';
+import { isKiosk } from '../utils/kiosk';
+import { reloadSettings } from '../spotify/settings';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
-import { THEME_COLOURS } from '../utils/themeColour';
 import type { ThemeColour } from '../utils/themeColour';
-import { THEMES } from '../utils/theme';
 import type { Theme } from '../utils/theme';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
-import KioskSystem from './KioskSystem';
 import Modal from './Modal';
+import SleepIcon from './SleepIcon';
+import AppearanceSettings from './settings/AppearanceSettings';
+import ScreenSleepSettings from './settings/ScreenSleepSettings';
+import SettingsOverview from './settings/SettingsOverview';
+import SoftwareSettings from './settings/SoftwareSettings';
+import SpotifySettings from './settings/SpotifySettings';
+import WifiSettings from './settings/WifiSettings';
+import { SETTINGS_SECTIONS } from './settings/sections';
+import type { SettingsSection } from './settings/sections';
+import { useWifi } from './settings/wifi';
 
-/** Set by vite.config.ts at build time; tests and other tooling run without it. */
-const APP_VERSION: string = import.meta.env.VITE_APP_VERSION ?? 'dev';
+export type { SettingsSection } from './settings/sections';
 
-/** The kiosk's screen sleep delay: off, or minutes without a touch while nothing plays. */
-function ScreenSleepRow({
-  minutes,
-  onChange
-}: Readonly<{ minutes: ScreenSleepMinutes; onChange: (minutes: ScreenSleepMinutes) => void }>) {
-  return (
-    <div className="modal-card p-3 rounded-2xl border">
-      <div className="text-xs font-bold" id="screen-sleep-label">
-        Screen sleep
-      </div>
-      <div className="flex gap-1.5 mt-2" role="group" aria-labelledby="screen-sleep-label">
-        {SCREEN_SLEEP_CHOICES.map(choice => (
-          <button
-            type="button"
-            key={choice}
-            aria-pressed={minutes === choice}
-            onClick={() => onChange(choice)}
-            className="modal-option flex-1 min-h-11 rounded-xl border text-xs font-bold"
-          >
-            {choice === 0 ? 'Never' : `${choice} min`}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/**
- * The kiosk's Wi-Fi: the network it is on, and the button that opens the kiosk's Wi-Fi setup page. That page replaces
- * the app while it is up and the app starts again after it, so the name is read once, when the settings open.
- */
-function WifiRow() {
-  const [ssid, setSsid] = useState<string | null>();
-  useEffect(() => {
-    const controller = new AbortController();
-    void currentWifi(controller.signal).then(found => {
-      if (!controller.signal.aborted) setSsid(found);
-    });
-    return () => controller.abort();
-  }, []);
-  // Nothing is said when the kiosk could not tell: "Not connected" would be a guess.
-  const network = ssid === null ? 'Not connected' : ssid;
-
-  return (
-    <div className="modal-card p-3 rounded-2xl border flex items-center gap-3">
-      <Wifi className="w-5 h-5 shrink-0 text-accent" aria-hidden="true" />
-      <div className="min-w-0 flex-1">
-        <div className="text-xs font-bold">Wi-Fi</div>
-        {network !== undefined && (
-          <p data-testid="wifi-network" className="mt-0.5 text-muted truncate">
-            {network}
-          </p>
-        )}
-      </div>
-      <button type="button" onClick={openWifiSettings} className="button button-secondary text-xs font-bold shrink-0">
-        {ssid ? 'Change network' : 'Choose network'}
-      </button>
-    </div>
-  );
-}
-
-/** Day (paper, with the colour choice below), Night (dark navy), or Auto when the kiosk knows where it is. */
-function ThemeRow({
-  theme,
-  auto,
-  onChange
-}: Readonly<{ theme: Theme; auto: boolean; onChange: (theme: Theme) => void }>) {
-  return (
-    <div className="modal-card p-3 rounded-2xl border">
-      <div className="text-xs font-bold" id="theme-label">
-        Theme
-      </div>
-      <div className="flex gap-1.5 mt-2" role="group" aria-labelledby="theme-label">
-        {THEMES.filter(choice => auto || choice.id !== 'auto').map(choice => (
-          <button
-            type="button"
-            key={choice.id}
-            aria-pressed={theme === choice.id}
-            onClick={() => onChange(choice.id)}
-            className="modal-option flex-1 min-h-11 rounded-xl border text-xs font-bold"
-          >
-            {choice.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/** The colour of the track title, player controls and highlights. Night has its own fixed colours, so it is greyed out
-    there; the Day choice is kept for when Day comes back. */
-function ThemeColourRow({
-  colour,
-  onChange,
-  disabled
-}: Readonly<{ colour: ThemeColour; onChange: (colour: ThemeColour) => void; disabled: boolean }>) {
-  return (
-    <div className="modal-card p-3 rounded-2xl border">
-      <div className="text-xs font-bold" id="theme-colour-label">
-        Colour
-      </div>
-      <div className="flex flex-wrap gap-3 mt-2" role="group" aria-labelledby="theme-colour-label">
-        {THEME_COLOURS.map(choice => (
-          <button
-            type="button"
-            key={choice.id}
-            aria-label={choice.label}
-            aria-pressed={colour === choice.id}
-            onClick={() => onChange(choice.id)}
-            disabled={disabled}
-            className="colour-swatch w-11 h-11 rounded-full"
-            style={{ '--swatch': choice.swatch } as CSSProperties}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
+const SECTION_ICONS: Record<SettingsSection, ReactNode> = {
+  overview: <LayoutGrid className="w-6 h-6 shrink-0" aria-hidden="true" />,
+  appearance: <Palette className="w-6 h-6 shrink-0" aria-hidden="true" />,
+  sleep: <SleepIcon className="w-6 h-6 shrink-0" />,
+  wifi: <Wifi className="w-6 h-6 shrink-0" aria-hidden="true" />,
+  spotify: <Music className="w-6 h-6 shrink-0" aria-hidden="true" />,
+  software: <Cpu className="w-6 h-6 shrink-0" aria-hidden="true" />
+};
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** The page the settings open on: Overview, unless they were opened to fix the Spotify sign-in. */
+  initialSection?: SettingsSection;
   authInfo?: { authenticated?: boolean };
   signInError?: string | null;
   onReload?: () => void;
@@ -158,6 +53,7 @@ interface SettingsModalProps {
 
 function SettingsContent({
   onClose,
+  initialSection = 'overview',
   authInfo,
   signInError = null,
   onReload = reloadSettings,
@@ -170,7 +66,16 @@ function SettingsContent({
   onThemeChange,
   kioskUpdate
 }: Readonly<SettingsModalProps>) {
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [kiosk] = useState(isKiosk);
+  const [section, setSection] = useState<SettingsSection>(initialSection);
+  const wifi = useWifi(kiosk);
+  const update = kiosk ? kioskUpdate : undefined;
+  const authenticated = authInfo?.authenticated ?? false;
+  const hasSleep = screenSleep !== undefined && onScreenSleepChange !== undefined;
+  const sections = SETTINGS_SECTIONS.filter(
+    choice => (kiosk || !choice.kioskOnly) && (choice.id !== 'sleep' || hasSleep)
+  );
+  const shown = sections.find(choice => choice.id === section) ?? SETTINGS_SECTIONS[0];
 
   // Opening the settings asks GitHub again whether a newer version is out, so the answer is never the one from hours ago.
   const checkForUpdate = kioskUpdate?.checkNow;
@@ -178,102 +83,101 @@ function SettingsContent({
     checkForUpdate?.();
   }, [checkForUpdate]);
 
-  const error = actionError || signInError;
+  let page: ReactNode;
+  switch (shown.id) {
+    case 'appearance': {
+      page = (
+        <AppearanceSettings
+          theme={theme}
+          autoTheme={autoTheme}
+          onThemeChange={onThemeChange}
+          themeColour={themeColour}
+          onThemeColourChange={onThemeColourChange}
+        />
+      );
+      break;
+    }
+    case 'sleep': {
+      page = screenSleep !== undefined && onScreenSleepChange && (
+        <ScreenSleepSettings minutes={screenSleep} onChange={onScreenSleepChange} labelledBy="settings-section-title" />
+      );
+      break;
+    }
+    case 'wifi': {
+      page = <WifiSettings wifi={wifi} />;
+      break;
+    }
+    case 'spotify': {
+      page = <SpotifySettings authenticated={authenticated} signInError={signInError} onReload={onReload} />;
+      break;
+    }
+    case 'software': {
+      page = <SoftwareSettings kioskUpdate={update} />;
+      break;
+    }
+    default: {
+      page = (
+        <SettingsOverview
+          onOpen={setSection}
+          kiosk={kiosk}
+          theme={theme}
+          themeColour={themeColour}
+          screenSleep={screenSleep}
+          wifi={wifi}
+          authenticated={authenticated}
+          kioskUpdate={update}
+        />
+      );
+    }
+  }
 
   return (
     <Modal
       labelledBy="settings-title"
       onClose={onClose}
-      className="app-modal-panel border rounded-3xl p-6 max-w-md relative shadow-2xl text-left select-none"
+      className="app-modal-panel settings-panel border rounded-3xl shadow-2xl text-left select-none"
     >
-      <div className="modal-header mb-4 flex items-center justify-between gap-2">
-        <h3 id="settings-title" className="text-lg font-semibold flex items-center gap-2">
-          <Settings className="w-5 h-5 text-accent" />
+      <nav className="settings-nav" aria-labelledby="settings-title">
+        <h3 id="settings-title" className="settings-title">
+          <Settings className="w-6 h-6 text-accent" aria-hidden="true" />
           Settings
         </h3>
-        <button
-          type="button"
-          data-modal-autofocus
-          onClick={onClose}
-          aria-label="Close settings"
-          className="modal-icon-button w-11 h-11 rounded-full active:scale-90 flex items-center justify-center transition-all"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-      {isKiosk() && (
-        <div className="mb-3">
-          <WifiRow />
-        </div>
-      )}
-      <div className="modal-card p-3.5 rounded-2xl border mb-4">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <span className="text-xs font-semibold text-muted">Spotify connection:</span>
-          {authInfo?.authenticated ? (
-            <span className="modal-status status-success flex items-center text-xs font-bold gap-1 px-2 py-0.5 rounded-full border">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Connected
-            </span>
-          ) : (
-            <span className="modal-status status-warning flex items-center text-xs font-bold gap-1 px-2 py-0.5 rounded-full border">
-              <AlertCircle className="w-3.5 h-3.5" /> Not connected
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        {error && (
-          <p role="alert" className="text-xs status-danger">
-            {error}
-          </p>
-        )}
-
-        {signInError && (
-          <p className="text-xs text-muted">
-            Register this exact redirect address in your Spotify app settings:{' '}
-            <code className="text-accent break-all">{getRedirectUri()}</code>
-          </p>
-        )}
-
-        <button
-          type="button"
-          onClick={() => {
-            setActionError(null);
-            startSignIn().catch((caught: unknown) => setActionError(errorMessage(caught)));
-          }}
-          className="spotify-sign-in w-full py-3 px-4 font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
-        >
-          <Music className="w-4 h-4 fill-current" />
-          {authInfo?.authenticated ? 'Re-authenticate with Spotify' : 'Log in with Spotify'}
-        </button>
-
-        {authInfo?.authenticated && (
+        <ul className="settings-nav-list">
+          {sections.map(choice => (
+            <li key={choice.id}>
+              <button
+                type="button"
+                onClick={() => setSection(choice.id)}
+                aria-current={choice.id === shown.id ? 'page' : undefined}
+                className="settings-nav-item"
+              >
+                {SECTION_ICONS[choice.id]}
+                <span className="truncate">{choice.label}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <section className="settings-content" aria-labelledby="settings-section-title">
+        <header className="settings-content-header">
+          <h4 id="settings-section-title" className="settings-section-title">
+            {shown.label}
+          </h4>
           <button
             type="button"
-            onClick={() => {
-              signOut();
-              void forgetSignIns().then(() => onReload());
-            }}
-            className="button button-secondary w-full flex items-center justify-center gap-2"
+            data-modal-autofocus
+            onClick={onClose}
+            aria-label="Close settings"
+            className="modal-icon-button rounded-full active:scale-90 flex items-center justify-center transition-all"
           >
-            <LogOut className="w-4 h-4" />
-            Sign out
+            <X className="w-6 h-6" aria-hidden="true" />
           </button>
-        )}
-
-        {theme !== undefined && onThemeChange && <ThemeRow theme={theme} auto={autoTheme} onChange={onThemeChange} />}
-        {themeColour !== undefined && onThemeColourChange && (
-          <ThemeColourRow colour={themeColour} onChange={onThemeColourChange} disabled={theme === 'night'} />
-        )}
-        {isKiosk() && screenSleep !== undefined && onScreenSleepChange && (
-          <ScreenSleepRow minutes={screenSleep} onChange={onScreenSleepChange} />
-        )}
-        {isKiosk() && kioskUpdate && <KioskSystem update={kioskUpdate} />}
-      </div>
-
-      <p className="mt-5 text-center text-xs text-muted">
-        Version <span className="font-mono">{APP_VERSION}</span>
-      </p>
+        </header>
+        {/* Keyed by the page, so each one starts scrolled to the top. */}
+        <div className="settings-content-body" key={shown.id}>
+          {page}
+        </div>
+      </section>
     </Modal>
   );
 }

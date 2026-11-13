@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '../test/user';
 import { partialProps } from '../test/partialProps';
 import { defined } from '../test/defined';
@@ -43,14 +43,39 @@ describe('SettingsModal', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('shows the app version', () => {
+  it('opens on the overview, and the navigation opens each page', async () => {
+    history.replaceState(null, '', '/?kiosk=0');
     render(<SettingsModal {...base} authInfo={{}} />);
+    const nav = screen.getByRole('navigation', { name: 'Settings' });
+    const sections = within(nav).getAllByRole('button');
+    expect(sections.map(button => button.textContent)).toEqual(['Overview', 'Appearance', 'Spotify', 'Software']);
+    expect(within(nav).getByRole('button', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('heading', { name: 'Overview' })).toBeInTheDocument();
+
+    await userEvent.click(within(nav).getByRole('button', { name: 'Spotify' }));
+    expect(screen.getByRole('heading', { name: 'Spotify' })).toBeInTheDocument();
+    expect(within(nav).getByRole('button', { name: 'Spotify' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Log in with Spotify' })).toBeInTheDocument();
+  });
+
+  it('opens a page from its overview card', async () => {
+    history.replaceState(null, '', '/?kiosk=0');
+    render(<SettingsModal {...base} authInfo={{}} />);
+    await userEvent.click(
+      within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Software/ })
+    );
+    expect(screen.getByRole('heading', { name: 'Software' })).toBeInTheDocument();
     expect(screen.getByText(/^Version/)).toBeInTheDocument();
   });
 
-  it('offers no appearance choice', () => {
-    render(<SettingsModal {...base} authInfo={{}} />);
-    expect(screen.queryByText(/appearance/i)).not.toBeInTheDocument();
+  it('shows the app version', () => {
+    history.replaceState(null, '', '/?kiosk=0');
+    render(<SettingsModal {...base} authInfo={{}} initialSection="software" />);
+    expect(screen.getByText(/^Version/)).toBeInTheDocument();
+  });
+
+  it('offers no old appearance choice', () => {
+    render(<SettingsModal {...base} authInfo={{}} initialSection="appearance" />);
     expect(screen.queryByRole('button', { name: /studio|paper/i })).not.toBeInTheDocument();
   });
 
@@ -65,7 +90,7 @@ describe('SettingsModal', () => {
     ['signed out', {}, 'Not connected', 'Log in with Spotify'],
     ['signed in', { authenticated: true }, 'Connected', 'Re-authenticate with Spotify']
   ])('shows the %s state', (_, authInfo, status, loginLabel) => {
-    render(<SettingsModal {...base} authInfo={authInfo} />);
+    render(<SettingsModal {...base} authInfo={authInfo} initialSection="spotify" />);
     expect(screen.getByText(status)).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /log in with|re-authenticate/i })).toHaveLength(1);
     expect(screen.getByRole('button', { name: loginLabel })).toBeInTheDocument();
@@ -81,29 +106,29 @@ describe('SettingsModal', () => {
   });
 
   it('starts the Spotify sign-in from the login button', async () => {
-    render(<SettingsModal {...base} authInfo={{}} />);
+    render(<SettingsModal {...base} authInfo={{}} initialSection="spotify" />);
     await userEvent.click(screen.getByRole('button', { name: 'Log in with Spotify' }));
     expect(auth.startSignIn).toHaveBeenCalledTimes(1);
   });
 
   it('shows why the sign-in could not start', async () => {
     auth.startSignIn.mockRejectedValue(new Error('Add a Spotify client ID first.'));
-    render(<SettingsModal {...base} authInfo={{}} />);
+    render(<SettingsModal {...base} authInfo={{}} initialSection="spotify" />);
     await userEvent.click(screen.getByRole('button', { name: 'Log in with Spotify' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Add a Spotify client ID first.');
   });
 
   it('shows a sign-in failure and the redirect address to register', () => {
-    render(<SettingsModal {...base} authInfo={{}} signInError="Invalid redirect URI" />);
+    render(<SettingsModal {...base} authInfo={{}} signInError="Invalid redirect URI" initialSection="spotify" />);
     expect(screen.getByRole('alert')).toHaveTextContent('Invalid redirect URI');
     expect(screen.getByText('http://127.0.0.1:3000/')).toBeInTheDocument();
   });
 
   it('has no client ID field, and shows the redirect address only after a sign-in error', () => {
-    const { rerender } = render(<SettingsModal {...base} authInfo={{}} />);
+    const { rerender } = render(<SettingsModal {...base} authInfo={{}} initialSection="spotify" />);
     expect(screen.queryByLabelText('Spotify client ID')).not.toBeInTheDocument();
     expect(screen.queryByText('http://127.0.0.1:3000/')).not.toBeInTheDocument();
-    rerender(<SettingsModal {...base} authInfo={{}} signInError="Invalid redirect URI" />);
+    rerender(<SettingsModal {...base} authInfo={{}} signInError="Invalid redirect URI" initialSection="spotify" />);
     expect(screen.getByText('http://127.0.0.1:3000/')).toBeInTheDocument();
   });
 
@@ -124,49 +149,50 @@ describe('SettingsModal', () => {
     afterEach(() => vi.unstubAllGlobals());
 
     it('is hidden by default and shown after ?kiosk=1, which is remembered on reload', () => {
-      const { unmount } = render(<SettingsModal {...base} authInfo={{}} />);
+      const { unmount } = render(<SettingsModal {...base} authInfo={{}} initialSection="wifi" />);
       expect(wifi()).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Wi-Fi/ })).not.toBeInTheDocument();
       unmount();
       history.replaceState(null, '', '/?kiosk=1');
-      const kiosk = render(<SettingsModal {...base} authInfo={{}} />);
+      const kiosk = render(<SettingsModal {...base} authInfo={{}} initialSection="wifi" />);
       expect(wifi()).toBeInTheDocument();
       kiosk.unmount();
       history.replaceState(null, '', '/');
-      render(<SettingsModal {...base} authInfo={{}} />);
+      render(<SettingsModal {...base} authInfo={{}} initialSection="wifi" />);
       expect(wifi()).toBeInTheDocument();
     });
 
-    it('comes first, names the network the kiosk is on and offers to change it', async () => {
+    it('names the network on the overview and its page, and offers to change it', async () => {
       history.replaceState(null, '', '/?kiosk=1');
       const fetchMock = kioskSays(Response.json({ ssid: 'Home' }));
       render(<SettingsModal {...base} authInfo={{}} />);
-      expect(await screen.findByText('Home')).toBeInTheDocument();
+      const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Wi-Fi/ });
+      await waitFor(() => expect(card).toHaveTextContent('Home'));
       expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/status', expect.anything());
-      const change = screen.getByRole('button', { name: 'Change network' });
-      const spotify = screen.getByText('Spotify connection:');
-      expect(change.compareDocumentPosition(spotify) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      await userEvent.click(card);
+      expect(screen.getByTestId('wifi-network')).toHaveTextContent('Home');
+      expect(screen.getByRole('button', { name: 'Change network' })).toBeInTheDocument();
     });
 
-    it('says when the kiosk is on no network, and nothing when it cannot tell', async () => {
+    it('says when the kiosk is on no network, and when it cannot tell', async () => {
       history.replaceState(null, '', '/?kiosk=1');
       kioskSays(Response.json({ ssid: null }));
-      const { unmount } = render(<SettingsModal {...base} authInfo={{}} />);
+      const { unmount } = render(<SettingsModal {...base} authInfo={{}} initialSection="wifi" />);
       expect(await screen.findByText('Not connected')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Choose network' })).toBeInTheDocument();
       unmount();
 
       kioskSays(new Response(null, { status: 404 }));
-      render(<SettingsModal {...base} authInfo={{}} />);
-      await act(() => Promise.resolve());
-      expect(screen.queryByTestId('wifi-network')).not.toBeInTheDocument();
+      render(<SettingsModal {...base} authInfo={{}} initialSection="wifi" />);
+      expect(await screen.findByTestId('wifi-network')).toHaveTextContent('Status unknown');
       expect(screen.getByRole('button', { name: 'Choose network' })).toBeInTheDocument();
     });
 
     it('is forgotten with ?kiosk=0', () => {
       history.replaceState(null, '', '/?kiosk=1');
-      render(<SettingsModal {...base} authInfo={{}} />).unmount();
+      render(<SettingsModal {...base} authInfo={{}} initialSection="wifi" />).unmount();
       history.replaceState(null, '', '/?kiosk=0');
-      render(<SettingsModal {...base} authInfo={{}} />);
+      render(<SettingsModal {...base} authInfo={{}} initialSection="wifi" />);
       expect(wifi()).not.toBeInTheDocument();
     });
 
@@ -174,7 +200,7 @@ describe('SettingsModal', () => {
       vi.stubGlobal('location', { origin: 'http://x', search: '?kiosk=1' });
       const fetchMock = vi.fn().mockResolvedValue({ ok: true });
       vi.stubGlobal('fetch', fetchMock);
-      render(<SettingsModal {...base} authInfo={{}} />);
+      render(<SettingsModal {...base} authInfo={{}} initialSection="wifi" />);
       await userEvent.click(defined(wifi()));
       expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi', { method: 'POST' });
     });
@@ -183,7 +209,7 @@ describe('SettingsModal', () => {
   it('signs out and reloads', async () => {
     // Off the kiosk: there is no browser extension to wait for.
     history.replaceState(null, '', '/?kiosk=0');
-    render(<SettingsModal {...base} authInfo={{ authenticated: true }} />);
+    render(<SettingsModal {...base} authInfo={{ authenticated: true }} initialSection="spotify" />);
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(auth.signOut).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(base.onReload).toHaveBeenCalled());

@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { advance } from './clock.ts';
 import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
+import { showSection } from './settings.ts';
 
 test.describe('Screen sleep', { tag: '@sleep' }, () => {
   test.beforeEach(async ({ page }) => {
@@ -78,6 +79,7 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     await page.goto('/');
     await page.getByRole('button', { name: 'Open settings' }).click();
     const settings = page.getByRole('dialog', { name: 'Settings' });
+    await showSection(settings, 'Screen sleep');
     const choices = settings.getByRole('group', { name: 'Screen sleep' });
     await choices.getByRole('button', { name: '2 min', exact: true }).click();
     await expect(choices.getByRole('button', { name: '2 min', exact: true })).toHaveAttribute('aria-pressed', 'true');

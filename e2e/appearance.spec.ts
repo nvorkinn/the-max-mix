@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
+import { showSection } from './settings.ts';
 
 test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, () => {
   test.beforeEach(async ({ page }) => {
@@ -18,7 +19,9 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await expect(settings).toHaveCSS('background-color', PAPER.surface);
     await expect(settings).toHaveCSS('color', PAPER.ink);
     await expect(settings).toHaveCSS('color-scheme', PAPER.scheme);
+    await showSection(settings, 'Wi-Fi');
     await expect(settings.getByRole('button', { name: 'Choose network' })).toHaveCSS('color', PAPER.ink);
+    await showSection(settings, 'Software');
     await expect(settings.getByRole('button', { name: 'Restart kiosk' })).toHaveCSS('color', PAPER.ink);
 
     const contrast = await settings.evaluate(panel => {
@@ -87,6 +90,7 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await expect(room).toHaveAttribute('data-theme', 'day');
     let settings = page.getByRole('dialog', { name: 'Settings' });
     await page.getByRole('button', { name: 'Open settings' }).click();
+    await showSection(settings, 'Appearance');
     await settings.getByRole('button', { name: 'Navy' }).click();
     const theme = settings.getByRole('group', { name: 'Theme' });
     await expect(theme.getByRole('button', { name: 'Auto' })).toHaveCount(0);
@@ -104,6 +108,7 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await expect(room).toHaveAttribute('data-theme', 'night');
     await page.getByRole('button', { name: 'Open settings' }).click();
     settings = page.getByRole('dialog', { name: 'Settings' });
+    await showSection(settings, 'Appearance');
     await settings.getByRole('group', { name: 'Theme' }).getByRole('button', { name: 'Day' }).click();
     await expect(room).toHaveAttribute('data-theme', 'day');
     await expect(room).toHaveAttribute('data-colour', 'navy');
@@ -117,6 +122,7 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await page.goto('/?kiosk=1&lat=51.51&lon=-0.13');
     const room = page.locator('.tablet-container');
     await page.getByRole('button', { name: 'Open settings' }).click();
+    await showSection(page.getByRole('dialog', { name: 'Settings' }), 'Appearance');
     const theme = page.getByRole('dialog', { name: 'Settings' }).getByRole('group', { name: 'Theme' });
     await theme.getByRole('button', { name: 'Auto' }).click();
     await expect(theme.getByRole('button', { name: 'Auto' })).toHaveAttribute('aria-pressed', 'true');

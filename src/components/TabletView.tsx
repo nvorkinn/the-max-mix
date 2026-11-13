@@ -32,6 +32,7 @@ import PlaybackBanner, { type PlaybackNoticeState, type BannerNotice } from './P
 import LyricsPanel from './LyricsPanel';
 import PanelNav from './PanelNav';
 import SettingsModal from './SettingsModal';
+import type { SettingsSection } from './SettingsModal';
 import UpdateConsole from './UpdateConsole';
 import UpdatePrompt from './UpdatePrompt';
 import SpeakersView from './SpeakersView';
@@ -125,6 +126,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [isJumping, setIsJumping] = useState(false);
   const [currentTime, setCurrentTime] = useState(formatClock);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // The header's button opens the overview; the sign-in prompts open the Spotify page.
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>('overview');
   const [isMusicOpen, setIsMusicOpen] = useState(false);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const debugHold = useHold(() => setIsDebugOpen(true), DEBUG_HOLD_MS);
@@ -303,7 +306,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     };
   }, [artUrl]);
 
-  const showSettings = () => setIsSettingsOpen(true);
+  const showSettings = () => {
+    setSettingsSection('spotify');
+    setIsSettingsOpen(true);
+  };
   const recoverPlayback = async (action: () => Promise<boolean>) => {
     if (isRefreshingPlayback) return;
     setIsRefreshingPlayback(true);
@@ -435,7 +441,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           )}
           <button
             type="button"
-            onClick={() => setIsSettingsOpen(true)}
+            onClick={() => {
+              setSettingsSection('overview');
+              setIsSettingsOpen(true);
+            }}
             className="icon-button"
             title="Settings"
             aria-label="Open settings"
@@ -571,6 +580,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+        initialSection={settingsSection}
         authInfo={{
           authenticated: isAuthenticated && problem?.recovery !== 'sign-in'
         }}
