@@ -137,9 +137,11 @@ remi
 rescan
 rfkill
 rincon
+rlength
 rootfs
 rootfstype
 rootwait
+rstart
 runcmd
 shellcheck
 shopt
