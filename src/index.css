@@ -133,7 +133,11 @@
   color-scheme: light;
   transition:
     --art-tint-top 1.5s ease,
-    --art-tint-bottom 1.5s ease;
+    --art-tint-bottom 1.5s ease,
+    --dynamic-accent 1.5s ease,
+    --dynamic-ink 1.5s ease,
+    --dynamic-from 1.5s ease,
+    --dynamic-to 1.5s ease;
 }
 /* Colour choices from the settings (src/utils/themeColour.ts); forest is the default in :root. */
 .tablet-container[data-colour='navy'] {
@@ -168,10 +172,47 @@
   --accent-ink: #1f1a05;
   --ink: #3a3010;
 }
+/*
+  Dynamic follows the album art: TabletView sets these colours from the cover's two dominant colours
+  (dynamicPalette in src/utils/themeColour.ts). Registered as colours so they cross-fade with the song, and their
+  initial values are Forest's, which shows while there is no art.
+*/
+@property --dynamic-accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #293a27;
+}
+@property --dynamic-ink {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #23291f;
+}
+@property --dynamic-from {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #293a27;
+}
+@property --dynamic-to {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #293a27;
+}
+@property --dynamic-accent-ink {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #fff;
+}
 .tablet-container[data-colour] {
   --accent-soft: color-mix(in srgb, var(--accent) 5%, transparent);
   --focus: var(--accent);
   --play-fill: var(--accent);
+}
+/* After the rule above: the play button runs a gradient between the cover's two colours, as Night's runs pink to violet. */
+.tablet-container[data-colour='dynamic'] {
+  --accent: var(--dynamic-accent);
+  --accent-ink: var(--dynamic-accent-ink);
+  --ink: var(--dynamic-ink);
+  --play-fill: linear-gradient(135deg, var(--dynamic-from), var(--dynamic-to));
 }
 /*
   Night (src/utils/theme.ts): dark navy with fixed violet and pink accents. It comes after the colour choices so it
@@ -1276,7 +1317,7 @@ body:has(.app-dialog[open]) {
 .colour-swatch[aria-pressed='true'] {
   box-shadow:
     0 0 0 3px var(--surface),
-    0 0 0 5px var(--swatch);
+    0 0 0 5px var(--swatch-ring);
 }
 .status-success {
   color: var(--success);
@@ -1541,10 +1582,11 @@ body:has(.app-dialog[open]) {
   color: var(--accent-ink);
   font-weight: 750;
 }
+/* Nine 60px swatches fit one row on the 7" screen with this gap. */
 .settings-swatches {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 10px;
   padding: 4px;
 }
 .settings-swatches .colour-swatch {
@@ -1652,6 +1694,9 @@ body:has(.app-dialog[open]) {
   .settings-panel .settings-choice {
     min-height: 72px;
     font-size: 20px;
+  }
+  .settings-swatches {
+    gap: 14px;
   }
   .settings-swatches .colour-swatch {
     width: 68px;

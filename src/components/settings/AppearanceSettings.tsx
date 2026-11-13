@@ -61,7 +61,12 @@ function ColourChoice({
             onClick={() => onChange(choice.id)}
             disabled={disabled}
             className="colour-swatch rounded-full"
-            style={{ '--swatch': choice.swatch } as CSSProperties}
+            style={
+              {
+                '--swatch': choice.swatch,
+                '--swatch-ring': 'ring' in choice ? choice.ring : choice.swatch
+              } as CSSProperties
+            }
           >
             {colour === choice.id && <Check className="colour-swatch-tick" aria-hidden="true" />}
           </button>
