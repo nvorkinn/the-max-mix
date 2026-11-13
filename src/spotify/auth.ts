@@ -1,7 +1,7 @@
 // Spotify sign-in with PKCE, entirely in the browser (RFC 7636): a random code verifier stays in sessionStorage while
 // Spotify's page is open, and only its SHA-256 hash is sent. The long-lived refresh token is kept in localStorage.
 
-import { getClientId, getRedirectUri } from './settings';
+import { getClientId, getRedirectUri, leaveFor } from './settings';
 import { fetchSpotify, parseJson, readJson, SpotifyApiError } from './http';
 import { recordOf } from './parse';
 
@@ -172,7 +172,7 @@ export async function startSignIn(): Promise<void> {
     // After a sign-out: show Spotify's page again, so the person approves (or picks another account) and nothing signs in silently.
     ...(isFreshSignIn() && { show_dialog: 'true' })
   });
-  location.assign(`https://accounts.spotify.com/authorize?${parameters}`);
+  leaveFor(`https://accounts.spotify.com/authorize?${parameters}`);
 }
 
 function takePkce(): { state: string; verifier: string } | null {

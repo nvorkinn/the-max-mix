@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getRedirectUri } from '../spotify/settings';
+import { getRedirectUri, leaveFor } from '../spotify/settings';
 import {
   currentWifi,
   forgetSignIns,
@@ -56,6 +56,12 @@ describe('isKiosk', () => {
     isKiosk();
     expect(getRedirectUri()).toBe(`${location.origin}/`);
     expect(getRedirectUri()).not.toContain('kiosk');
+  });
+
+  it('leaves for another address through the browser', () => {
+    // The test page cannot load another page, so this goes to a place on the same one.
+    leaveFor('#elsewhere');
+    expect(location.hash).toBe('#elsewhere');
   });
 
   it('copes with unavailable storage', () => {
