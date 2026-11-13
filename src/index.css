@@ -204,6 +204,15 @@
 }
 
 .app-header {
+  /* Everything in the header fills most of its height, so it reads from across the room. */
+  /* The short screen's header is smaller, and so are these (see the height media query below). */
+  --header-mark: 52px;
+  --header-mark-icon: 30px;
+  --header-title: 34px;
+  --header-button: 65px;
+  --header-icon: 37px;
+  --header-clock: 22px;
+  --header-clock-icon: 19px;
   min-height: 82px;
   padding: 0 30px;
   display: flex;
@@ -221,19 +230,23 @@
   flex-shrink: 0;
 }
 .brand-mark {
-  width: 40px;
-  height: 40px;
+  width: var(--header-mark);
+  height: var(--header-mark);
   display: grid;
   place-items: center;
-  border-radius: 13px;
+  border-radius: calc(var(--header-mark) / 3);
   background: var(--accent);
   color: var(--accent-ink);
 }
+.brand-mark svg {
+  width: var(--header-mark-icon);
+  height: var(--header-mark-icon);
+}
 .brand-copy h1 {
-  font-size: 26px;
+  font-size: var(--header-title);
   font-weight: 850;
-  letter-spacing: -1px;
-  line-height: 1.1;
+  letter-spacing: -0.04em;
+  line-height: 1;
   color: var(--accent);
 }
 .brand-dot {
@@ -246,8 +259,12 @@
 }
 /* Sleep and settings are tapped from across the room, so they are bigger than the other icon buttons. */
 .header-actions .icon-button {
-  min-height: 56px;
-  min-width: 56px;
+  min-height: var(--header-button);
+  min-width: var(--header-button);
+}
+.header-actions .icon-button svg {
+  width: var(--header-icon);
+  height: var(--header-icon);
 }
 .button,
 .icon-button {
@@ -1160,12 +1177,17 @@
   gap: 6px;
   /* Sits at the far right of the header, after the buttons. */
   margin-left: 8px;
-  font-size: 14px;
+  font-size: var(--header-clock);
+  font-weight: 650;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
   /* Held for two seconds to open the debug console, so no long-press menu or zoom may claim it. */
   touch-action: manipulation;
   -webkit-touch-callout: none;
+}
+.header-clock svg {
+  width: var(--header-clock-icon);
+  height: var(--header-clock-icon);
 }
 .app-dialog {
   margin: auto;
@@ -1740,6 +1762,13 @@ input:disabled {
 
 @media (height <= 640px) {
   .app-header {
+    --header-mark: 46px;
+    --header-mark-icon: 27px;
+    --header-title: 31px;
+    --header-button: 59px;
+    --header-icon: 33px;
+    --header-clock: 19px;
+    --header-clock-icon: 17px;
     min-height: 66px;
   }
   .listening-room {

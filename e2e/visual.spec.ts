@@ -104,27 +104,32 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
     });
   });
 
-  test('player screen', { tag: '@player' }, async ({ page }) => {
-    await fakeSpotify(page);
-    // A coloured cover the page may read (Spotify's image CDN sends this header too), so the faint tint shows.
-    await page.route('https://images.unsplash.com/**', route =>
-      route.fulfill({
-        status: 200,
-        contentType: 'image/png',
-        headers: { 'access-control-allow-origin': '*' },
-        body: COLOURED_ART
-      })
-    );
-    await page.setViewportSize({ width: 1024, height: 600 });
-    await page.goto('/');
-    await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
-    // The clock and the seek bar with its times change as the song plays, so they are masked out of the comparison.
-    await expect(page).toHaveScreenshot('player.png', {
-      ...SHOT,
-      mask: [page.locator('.header-clock'), page.locator('.seek-control')]
+  for (const { width, height, shot } of [
+    { width: 1024, height: 600, shot: 'player.png' },
+    { width: 1280, height: 800, shot: 'player-1280x800.png' }
+  ]) {
+    test(`player screen at ${width}x${height}`, { tag: '@player' }, async ({ page }) => {
+      await fakeSpotify(page);
+      // A coloured cover the page may read (Spotify's image CDN sends this header too), so the faint tint shows.
+      await page.route('https://images.unsplash.com/**', route =>
+        route.fulfill({
+          status: 200,
+          contentType: 'image/png',
+          headers: { 'access-control-allow-origin': '*' },
+          body: COLOURED_ART
+        })
+      );
+      await page.setViewportSize({ width, height });
+      await page.goto('/');
+      await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
+      // The clock and the seek bar with its times change as the song plays, so they are masked out of the comparison.
+      await expect(page).toHaveScreenshot(shot, {
+        ...SHOT,
+        mask: [page.locator('.header-clock'), page.locator('.seek-control')]
+      });
     });
-  });
+  }
 
   test('player screen at night', { tag: ['@player', '@appearance'] }, async ({ page }) => {
     await page.addInitScript(() => {
