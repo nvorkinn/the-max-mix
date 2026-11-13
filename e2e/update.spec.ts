@@ -1,5 +1,6 @@
 import { expect, test, type Page, type WebSocketRoute } from '@playwright/test';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
+import { showSection } from './settings.ts';
 
 const UPDATE_SOCKET = 'ws://127.0.0.1:7341/power/update';
 
@@ -53,6 +54,7 @@ test.describe('Software update', { tag: '@update' }, () => {
     // Settings still say it, and the check button beside it asks again.
     await page.getByRole('button', { name: 'Open settings' }).click();
     const settings = page.getByRole('dialog', { name: 'Settings' });
+    await showSection(settings, 'Software');
     await expect(settings.getByRole('status')).toContainText('v1.13.0 is out. Tap the button to install it now');
     await expect(popup(page)).toBeHidden();
     await settings.getByRole('button', { name: 'Check for updates' }).click();
@@ -66,7 +68,7 @@ test.describe('Software update', { tag: '@update' }, () => {
     const github = await openKiosk(page, 'v1.12.0');
     await page.getByRole('button', { name: 'Open settings' }).click();
     const settings = page.getByRole('dialog', { name: 'Settings' });
-    await expect(settings).toBeVisible();
+    await showSection(settings, 'Software');
     await expect(settings.getByRole('status')).toContainText('Up to date.');
 
     // A newer release comes out while the tablet runs; opening Settings again asks GitHub and finds it, with Settings open.
@@ -75,6 +77,9 @@ test.describe('Software update', { tag: '@update' }, () => {
     await page.getByRole('button', { name: 'Open settings' }).click();
     await expect(popup(page)).toBeVisible();
     await expect(settings).toBeVisible();
+    await expect(
+      settings.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^Software/ })
+    ).toContainText('v1.13.0 is out');
 
     // Whatever is at the popup's middle must be the popup (or part of it), not Settings behind it.
     const isOnTop = await popup(page).evaluate(element => {
@@ -187,6 +192,7 @@ test.describe('Software update', { tag: '@update' }, () => {
     const github = await openKiosk(page, 'v1.12.0');
     await page.getByRole('button', { name: 'Open settings' }).click();
     const settings = page.getByRole('dialog', { name: 'Settings' });
+    await showSection(settings, 'Software');
     await expect(settings.getByRole('status')).toContainText('Up to date.');
     await expect(settings.getByRole('button', { name: 'Update now' })).toHaveCount(0);
 

@@ -1,13 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { advance } from './clock.ts';
 import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
-
-const openSettings = async (page: Page) => {
-  await page.getByRole('button', { name: 'Open settings' }).click();
-  const settings = page.getByRole('dialog', { name: 'Settings' });
-  await expect(settings).toBeVisible();
-  return settings;
-};
+import { openSettings, showSection } from './settings.ts';
 
 const openDebug = async (page: Page) => {
   await page.keyboard.press('Control+Shift+D');
@@ -25,17 +19,45 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await fakeSpotify(page);
   });
 
-  test('opens and closes', async ({ page }) => {
+  test('opens on the overview and closes', async ({ page }) => {
     await page.goto('/');
     const dialog = await openSettings(page);
+    const nav = dialog.getByRole('navigation', { name: 'Settings' });
+    await expect(nav.getByRole('button', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
+    await expect(dialog.getByRole('heading', { name: 'Overview' })).toBeVisible();
     await dialog.getByRole('button', { name: 'Close settings' }).click();
     await expect(dialog).toBeHidden();
+  });
+
+  test('every section opens from the navigation and from its overview card', async ({ page }) => {
+    await page.goto('/?kiosk=1');
+    const dialog = await openSettings(page);
+    const nav = dialog.getByRole('navigation', { name: 'Settings' });
+    const sections = ['Overview', 'Appearance', 'Screen sleep', 'Wi-Fi', 'Spotify', 'Software'];
+    await expect(nav.getByRole('button')).toHaveText(sections);
+    for (const section of sections) {
+      // eslint-disable-next-line no-await-in-loop -- one section after another
+      await showSection(dialog, section);
+      // eslint-disable-next-line no-await-in-loop -- the same
+      await expect(nav.getByRole('button', { name: section, exact: true })).toHaveAttribute('aria-current', 'page');
+    }
+    for (const section of sections.slice(1)) {
+      // eslint-disable-next-line no-await-in-loop -- one card after another
+      await showSection(dialog, 'Overview');
+      // eslint-disable-next-line no-await-in-loop -- the same
+      await dialog.getByRole('group', { name: 'Overview' }).getByRole('button', { name: section }).click();
+      // eslint-disable-next-line no-await-in-loop -- the same
+      await expect(dialog.getByRole('heading', { name: section, exact: true })).toBeVisible();
+    }
   });
 
   test('shows that Spotify is connected', async ({ page }) => {
     await page.goto('/');
     const dialog = await openSettings(page);
-    await expect(dialog).toContainText('Spotify connection:');
+    await expect(
+      dialog.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^Spotify/ })
+    ).toContainText('Connected');
+    await showSection(dialog, 'Spotify');
     await expect(dialog).toContainText('Connected');
     await expect(dialog.getByRole('button', { name: 'Sign out' })).toBeVisible();
   });
@@ -47,7 +69,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     const accent = () => room.evaluate(element => getComputedStyle(element).getPropertyValue('--accent').trim());
     const before = await accent();
 
-    const dialog = await openSettings(page);
+    const dialog = await openSettings(page, 'Appearance');
     await dialog.getByRole('button', { name: 'Navy' }).click();
     await expect(dialog.getByRole('button', { name: 'Navy' })).toHaveAttribute('aria-pressed', 'true');
     await expect(room).toHaveAttribute('data-colour', 'navy');
@@ -112,7 +134,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
 
     test('Screen sleep keeps the choice across a reload', async ({ page }) => {
       await page.goto('/');
-      const dialog = await openSettings(page);
+      const dialog = await openSettings(page, 'Screen sleep');
       const choices = dialog.getByRole('group', { name: 'Screen sleep' });
       // Five minutes is the default.
       await expect(choices.getByRole('button', { name: '5 min', exact: true })).toHaveAttribute('aria-pressed', 'true');
@@ -123,7 +145,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
       );
 
       await page.reload();
-      const again = await openSettings(page);
+      const again = await openSettings(page, 'Screen sleep');
       await expect(
         again.getByRole('group', { name: 'Screen sleep' }).getByRole('button', { name: '15 min', exact: true })
       ).toHaveAttribute('aria-pressed', 'true');
@@ -148,10 +170,16 @@ test.describe('Settings', { tag: '@settings' }, () => {
       });
       await page.goto('/');
       const dialog = await openSettings(page);
+      await expect(
+        dialog.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^Wi-Fi/ })
+      ).toContainText('Home network');
 
+      await showSection(dialog, 'Wi-Fi');
       await expect(dialog).toContainText('Home network');
       await dialog.getByRole('button', { name: 'Change network' }).click();
       await expect.poll(() => asked).toEqual(['POST /wifi']);
+
+      await showSection(dialog, 'Software');
 
       await dialog.getByRole('button', { name: 'Restart kiosk' }).click();
       await expect(dialog.getByRole('button', { name: 'Tap again to restart' })).toBeVisible();
@@ -172,7 +200,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
       route.fulfill({ contentType: 'text/html', body: '<h1>Test sign-in page</h1>' })
     );
     await page.goto('/');
-    const dialog = await openSettings(page);
+    const dialog = await openSettings(page, 'Spotify');
     await dialog.getByRole('button', { name: 'Sign out' }).click();
 
     // The page reloads signed out, with nothing of the login kept.
@@ -190,9 +218,18 @@ test.describe('Settings', { tag: '@settings' }, () => {
   test('the kiosk-only settings are not offered away from the kiosk', async ({ page }) => {
     await page.goto('/?kiosk=0');
     const dialog = await openSettings(page);
+    await expect(dialog.getByRole('navigation', { name: 'Settings' }).getByRole('button')).toHaveText([
+      'Overview',
+      'Appearance',
+      'Spotify',
+      'Software'
+    ]);
+    await expect(dialog.getByRole('button', { name: /^(Wi-Fi|Screen sleep)/ })).toHaveCount(0);
+    await showSection(dialog, 'Software');
+    await expect(dialog).toContainText('Version');
+    await showSection(dialog, 'Spotify');
     await expect(dialog.getByRole('button', { name: 'Sign out' })).toBeVisible();
     const kioskOnly = ['Change network', 'Choose network', 'Restart kiosk', 'Reboot Pi', 'Check for updates'];
     await Promise.all(kioskOnly.map(name => expect(dialog.getByRole('button', { name })).toHaveCount(0)));
-    await expect(dialog.getByRole('group', { name: 'Screen sleep' })).toHaveCount(0);
   });
 });

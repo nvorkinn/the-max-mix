@@ -19,12 +19,16 @@ test.describe('Dialogs: focus and dismissal', { tag: '@dialogs' }, () => {
       await trigger.click();
       const settings = page.getByRole('dialog', { name: 'Settings' });
       const close = settings.getByRole('button', { name: 'Close settings' });
+      const first = settings.getByRole('button').first();
       const last = settings.getByRole('button').last();
       await expect(close).toBeFocused();
+      // The navigation comes first, then the page's header with the close button, then the page.
+      await first.focus();
       await page.keyboard.press('Shift+Tab');
       await expect(last).toBeFocused();
       await page.keyboard.press('Tab');
-      await expect(close).toBeFocused();
+      await expect(first).toBeFocused();
+      await close.focus();
 
       await trigger.focus();
       await expect(close).toBeFocused();

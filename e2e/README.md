@@ -26,7 +26,7 @@ browser. Run them with `npm run build && npm run test:e2e`.
 
 Each file is one `test.describe('<Feature>', { tag: '@feature' }, …)`, so the report reads _Feature › what it checks_,
 and a test can carry further tags (`test('…', { tag: '@queue' }, …)`). `fake-spotify.ts` is the shared fake account (and counts its playback reads); `fake-spotify-sdk.ts` fakes the Web Playback SDK (this tablet's own player, which tests make drop or block
-autoplay); `clock.ts` moves a faked clock for the tests
+autoplay); `settings.ts` opens Settings on a section; `clock.ts` moves a faked clock for the tests
 that count polling or wait out an idle timer.
 
 ## Finding the tests for a pull request
