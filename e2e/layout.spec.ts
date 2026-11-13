@@ -5,7 +5,8 @@ import { fakeSpotify, PIXEL } from './fake-spotify.ts';
 const LONG_TITLE = `${'An extended placeholder title with extra recording details '.repeat(8)}${'Unbroken'.repeat(24)}`;
 const LONG_ARTIST = 'A placeholder artist with a second guest artist '.repeat(4);
 
-async function expectTouchTargets(scope: Locator) {
+/** Every button, slider and link in scope is at least `min` px each way; dialogs take 60 px, about 9 mm on the kiosk. */
+async function expectTouchTargets(scope: Locator, min = 44) {
   const targets = await scope.locator('button:visible, input[type="range"]:visible, a:visible').evaluateAll(elements =>
     elements.map(element => {
       const rect = element.getBoundingClientRect();
@@ -18,8 +19,8 @@ async function expectTouchTargets(scope: Locator) {
   );
   expect(targets.length).toBeGreaterThan(0);
   for (const target of targets) {
-    expect(target.width, `${target.label}: width`).toBeGreaterThanOrEqual(44);
-    expect(target.height, `${target.label}: height`).toBeGreaterThanOrEqual(44);
+    expect(target.width, `${target.label}: width`).toBeGreaterThanOrEqual(min);
+    expect(target.height, `${target.label}: height`).toBeGreaterThanOrEqual(min);
   }
 }
 
@@ -55,7 +56,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
       await page.getByRole('button', { name: 'Open settings' }).click();
       const settings = page.getByRole('dialog', { name: 'Settings' });
       await expect(settings).toBeVisible();
-      await expectTouchTargets(settings);
+      await expectTouchTargets(settings, 60);
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press('Escape');
       await expect(settings).toBeHidden();

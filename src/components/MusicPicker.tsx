@@ -47,7 +47,7 @@ function ChoiceRow({
       )}
       <span className="flex-1 min-w-0">
         <span className="block text-sm font-semibold truncate">{choice.name}</span>
-        {choice.detail && <span className="block text-[11px] text-muted truncate">{choice.detail}</span>}
+        {choice.detail && <span className="block text-xs text-muted truncate">{choice.detail}</span>}
       </span>
     </button>
   );
