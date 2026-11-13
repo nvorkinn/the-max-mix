@@ -35,7 +35,12 @@ write_files:
         echo "Could not find the latest release (got: ${location:-no redirect})" >&2
         exit 1
       fi
-      ansible-pull --url "$repo.git" --checkout "$tag" \
+      # Settings for this Pi only, as kiosk-pull passes them later (see README.md, "A second kiosk").
+      extra=()
+      if [[ -f /etc/the-max-mix/kiosk-vars.yml ]]; then
+        extra=(--extra-vars @/etc/the-max-mix/kiosk-vars.yml)
+      fi
+      ansible-pull --url "$repo.git" --checkout "$tag" "${extra[@]}" \
         --directory /var/lib/the-max-mix/ansible-pull --inventory localhost, ansible/local.yml
       mkdir -p /var/lib/the-max-mix
       touch /var/lib/the-max-mix/first-pull-done

@@ -24,13 +24,36 @@ same; the playbook boots it with the 4 KB-page kernel (`kernel=kernel8.img`) for
    - or, to keep your Wi-Fi off the card, put `network-config` on a USB stick formatted as FAT with the label `CIDATA`,
      next to a copy of `user-data` and a `meta-data` file holding one line, `instance-id: the-max-mix-1`. cloud-init's
      NoCloud source reads a drive with that label at boot. Unplug it after the first boot.
-3. Put the card in the Pi, connect the screen and power it on. cloud-init names the Pi `the-max-mix`, creates the
+3. Put the card in the Pi, connect the screen and power it on. cloud-init names the Pi (`hostname:` in `user-data`,
+   `the-max-mix`), creates the
    locked `kiosk` user and starts `kiosk-first-pull.service`. That installs Ansible and runs the playbook from the latest
    GitHub release, the same run the Pi's update timer repeats later, then reboots. Expect 15 to 30 minutes. It tries again every minute
    until it has worked (`journalctl -u kiosk-first-pull`).
 4. After the reboot the kiosk starts. On its first run Chromium downloads Widevine, the module Spotify needs, and the
    kiosk restarts by itself once that is done (`kiosk-widevine.path`), a minute or two later. Test it: sign in to
    Spotify, play something, try the speakers.
+
+## A second kiosk
+
+Two Pis on one network can't both be `the-max-mix.local`. Before step 3, change `hostname:` in the card's `user-data`
+(for example to `the-max-mix-2`) and use `ssh admin@the-max-mix-2.local`. With a `CIDATA` stick, give `meta-data` its own
+`instance-id` too.
+
+Settings for one Pi only, such as its location, go in `/etc/the-max-mix/kiosk-vars.yml`, which every pull reads. To have
+them from the first boot, add the file to `write_files` in the card's `user-data`:
+
+```yaml
+- path: /etc/the-max-mix/kiosk-vars.yml
+  content: |
+    kiosk_latitude: 51.51
+    kiosk_longitude: -0.13
+```
+
+Later edits apply at the next release. To apply them now (the update timer skips a release it already ran):
+
+```sh
+sudo kiosk-pull https://github.com/nvorkinn/the-max-mix.git latest /var/lib/the-max-mix/ansible-pull && sudo reboot
+```
 
 ## Hand it over
 

@@ -120,6 +120,7 @@ pointerdown
 polkit
 polkitd
 poweroff
+proc
 PSK
 publickey
 pwauth
