@@ -21,13 +21,16 @@ kiosk_url: >-
   {{- ('&lat=' ~ (kiosk_latitude | float | round(2)) ~ '&lon=' ~ (kiosk_longitude | float | round(2)))
     if (kiosk_latitude | string | length) and (kiosk_longitude | string | length) else '' }}
 # Where the Pi is, in degrees (north and east positive), for the app's Auto theme: Day from sunrise to sunset, worked out
-# in the browser with no network. Empty offers only Day and Night. The address rounds them to about a kilometre. This
-# repository is public, so set them on the Pi rather than here, in /etc/the-max-mix/kiosk-vars.yml (kiosk-pull passes
-# that file to the playbook), for example:
+# in the browser with no network. The address rounds them to about a kilometre. Left empty, each pull looks up the Pi's
+# rough location from its public IP address at kiosk_location_lookup_url (tasks/kiosk-service.yml); when that fails too,
+# the app offers only Day and Night. To give the exact place instead, set both on the Pi rather than here (this
+# repository is public), in /etc/the-max-mix/kiosk-vars.yml, which kiosk-pull passes to the playbook, for example:
 #   kiosk_latitude: 51.51
 #   kiosk_longitude: -0.13
 kiosk_latitude: ''
 kiosk_longitude: ''
+# Answers "<latitude>,<longitude>" for the address asking, with no account or key. Empty turns the lookup off.
+kiosk_location_lookup_url: https://ipinfo.io/loc
 # The commit this playbook runs from: ansible-pull runs it from a Git checkout. Empty without one. Because the
 # commit is in kiosk_url, every new release (or commit on a pinned branch) changes kiosk.service and so restarts the
 # kiosk at kiosk_restart_time, after which the settings show the new version.

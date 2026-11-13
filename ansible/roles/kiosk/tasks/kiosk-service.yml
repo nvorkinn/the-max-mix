@@ -1,6 +1,34 @@
 ---
 # kiosk.service carries the version the settings show (kiosk_url), so it is written at every pull: a release that changed
 # nothing else still restarts the kiosk at kiosk_restart_time and the app then shows the new version. See main.yml.
+
+# The location for the app's Auto theme, when the Pi has none set (defaults/main.yml): the IP lookup happens here, at
+# each pull, so the app itself never asks the network where it is. A failed lookup only leaves Auto out until the next.
+- name: kiosk-service | Look up the Pi's rough location from its IP address
+  ansible.builtin.uri:
+    url: '{{ kiosk_location_lookup_url }}'
+    return_content: true
+    timeout: 10
+  register: kiosk_ip_location
+  changed_when: false
+  failed_when: false
+  when:
+    - not kiosk_enable_only
+    - kiosk_location_lookup_url | length > 0
+    - not ((kiosk_latitude | string | length > 0) and (kiosk_longitude | string | length > 0))
+
+- name: kiosk-service | Use the looked-up location
+  vars:
+    kiosk_ip_coordinates: >-
+      {{ (kiosk_ip_location.content | default('') | trim) is match('^-?[0-9]+([.][0-9]+)?,-?[0-9]+([.][0-9]+)?$') }}
+  ansible.builtin.set_fact:
+    kiosk_latitude: "{{ (kiosk_ip_location.content | trim).split(',')[0] }}"
+    kiosk_longitude: "{{ (kiosk_ip_location.content | trim).split(',')[1] }}"
+  when:
+    - kiosk_ip_location is not skipped
+    - kiosk_ip_location.status | default(0) == 200
+    - kiosk_ip_coordinates | bool
+
 - name: kiosk-service | Install the kiosk service
   ansible.builtin.template:
     src: kiosk.service.j2
