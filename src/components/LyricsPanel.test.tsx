@@ -97,6 +97,43 @@ describe('LyricsPanel', () => {
     expect(screen.getAllByRole('listitem')[3]).toHaveAttribute('aria-current', 'true');
   });
 
+  it('in sync mode, takes the tapped line as the one being sung now and leaves the mode', async () => {
+    renderPanel({ provider: providerOf(synced), progressMs: 0 });
+    await flush();
+    const sync = screen.getByRole('button', { name: /Sync lyrics/ });
+    expect(screen.queryByRole('button', { name: 'Second placeholder' })).not.toBeInTheDocument();
+    fireEvent.click(sync);
+    expect(sync).toHaveAttribute('aria-pressed', 'true');
+    const [line] = screen.getAllByRole('button', { name: 'Second placeholder' });
+    if (!line) throw new Error('Expected the line to be a button');
+    fireEvent.click(line);
+    expect(screen.getAllByRole('listitem')[2]).toHaveAttribute('aria-current', 'true');
+    expect(sync).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByRole('button', { name: 'Second placeholder' })).not.toBeInTheDocument();
+  });
+
+  it('caps how far one tap moves the timing', async () => {
+    const long: Lyrics = {
+      kind: 'synced',
+      lines: [
+        { timeMs: 1000, text: 'Opening placeholder' },
+        { timeMs: 30_000, text: 'Much later placeholder' }
+      ],
+      source: 'Test'
+    };
+    renderPanel({ provider: providerOf(long), progressMs: 2000 });
+    await flush();
+    fireEvent.click(screen.getByRole('button', { name: /Sync lyrics/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Much later placeholder' }));
+    expect(screen.getAllByRole('listitem')[0]).toHaveAttribute('aria-current', 'true');
+  });
+
+  it('offers no sync for plain lyrics', async () => {
+    renderPanel({ provider: providerOf({ kind: 'plain', lines: ['Plain placeholder'], source: 'Test' }) });
+    await flush();
+    expect(screen.queryByRole('button', { name: /Sync lyrics/ })).not.toBeInTheDocument();
+  });
+
   it('remembers lyrics, so reopening the panel makes no new request', async () => {
     const provider = providerOf(synced);
     const { unmount } = renderPanel({ provider });

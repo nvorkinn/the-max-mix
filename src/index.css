@@ -755,6 +755,7 @@
   visibility: hidden;
 }
 .lyrics-panel {
+  position: relative;
   height: 100%;
   container-type: size;
   display: flex;
@@ -1794,6 +1795,50 @@ body:has(.app-dialog[open]) {
 .lyrics-list.is-synced .lyrics-line.is-reached,
 .lyrics-list.is-synced .lyrics-word.is-reached {
   color: var(--ink);
+}
+/*
+  Sync: the button in the panel's corner turns on sync mode, in which every line is a button; tapping the line being
+  sung moves this song's timing to match and turns the mode off again.
+*/
+.lyrics-sync-button {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  transition:
+    background 160ms,
+    color 160ms,
+    transform 160ms;
+}
+.lyrics-sync-button:active {
+  transform: scale(0.94);
+}
+.lyrics-sync-button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.lyrics-sync-line {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+}
+.lyrics-sync-line:active {
+  color: var(--accent);
 }
 /* Where the source times each word, the line being sung lights up word by word. */
 .lyrics-word {
