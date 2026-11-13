@@ -8,6 +8,7 @@ import { useKioskUpdate } from '../hooks/useKioskUpdate';
 import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
 import { useScreenSleep } from '../hooks/useScreenSleep';
 import { usePanelView } from '../hooks/usePanelView';
+import type { PanelView } from '../hooks/usePanelView';
 import { extractArtColours, type ArtColours } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
@@ -366,8 +367,21 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const queueEmpty = shownQueue.length === 0 && shownQueueStatus === 'ready' && !shownQueueError;
   const panel = usePanelView(queueEmpty, queueSettled);
   const lyricsShown = panel.view === 'lyrics';
+  // Tapping Lyrics while the lyrics show starts sync mode for the song playing; it ends with a tap on a line, another tap
+  // on Lyrics, another view or another song.
+  const trackKey = currentTrack?.id ?? currentTrack?.uri ?? null;
+  const [syncingTrack, setSyncingTrack] = useState<string | null>(null);
+  const lyricsSyncing = lyricsShown && trackKey !== null && syncingTrack === trackKey;
+  const showPanel = (next: PanelView) => {
+    if (next === 'lyrics' && lyricsShown) {
+      setSyncingTrack(lyricsSyncing ? null : trackKey);
+      return;
+    }
+    setSyncingTrack(null);
+    panel.show(next);
+  };
   const speakersShown = panel.view === 'speakers';
-  const chooseSpeaker = () => panel.show('speakers');
+  const chooseSpeaker = () => showPanel('speakers');
   const speakers = useSpeakerSelection({
     onKiosk,
     open: speakersShown && !needsConnection,
@@ -530,6 +544,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                   shown={lyricsShown}
                   progressMs={shownPlayback?.progress_ms ?? shownPlayback?.position ?? 0}
                   playing={shownPlayback?.is_playing === true}
+                  syncing={lyricsSyncing}
+                  onSynced={() => setSyncingTrack(null)}
                 />
               </div>
               <section className="side-panel-view" aria-label="Speakers" inert={!speakersShown} data-view="speakers">
@@ -540,7 +556,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           {!needsConnection && (
             <PanelNav
               view={panel.view}
-              onShow={panel.show}
+              onShow={showPanel}
+              lyricsSyncing={lyricsSyncing}
               speakersButton={speakersButton}
               onSave={() => void speakers.save()}
               onCancel={speakers.cancel}
