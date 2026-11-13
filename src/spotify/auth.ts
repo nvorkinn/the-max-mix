@@ -1,11 +1,14 @@
 // Spotify sign-in with PKCE, entirely in the browser (RFC 7636): a random code verifier stays in sessionStorage while
-// Spotify's page is open, and only its SHA-256 hash is sent. The long-lived refresh token is kept in localStorage.
+// Spotify's page is open, and only its SHA-256 hash is sent. The long-lived refresh tokens are kept in localStorage: one
+// per person who signed in on this kiosk, with their Spotify ID, name and picture, and which of them is active.
 
 import { getClientId, getRedirectUri, leaveFor } from './settings';
 import { fetchSpotify, parseJson, readJson, SpotifyApiError } from './http';
 import { recordOf } from './parse';
 
-const AUTH_KEY = 'maxmix.auth';
+const PEOPLE_KEY = 'maxmix.people';
+// The single login kept before there were people; moved into the people list the first time it is read.
+const LEGACY_AUTH_KEY = 'maxmix.auth';
 const PKCE_KEY = 'maxmix.pkce';
 // Set by signOut, until the next sign-in goes through: the sign-in then asks Spotify to show its approval page again
 // (show_dialog) instead of letting Spotify's own remembered session sign the same account straight back in.
@@ -19,6 +22,19 @@ const REPLY_PARAMETERS = ['code', 'state', 'error', 'error_description'];
 interface StoredLogin {
   clientId: string;
   refreshToken: string;
+}
+/** Someone signed in on this kiosk. The Spotify ID, name and picture are blank until GET /me has named the account. */
+interface Person {
+  spotifyId: string;
+  name: string;
+  imageUrl: string;
+  refreshToken: string;
+}
+/** Everyone signed in with one client ID, and the active person's Spotify ID (null for nobody). */
+interface People {
+  clientId: string;
+  activeId: string | null;
+  people: Person[];
 }
 interface TokenResponse {
   access_token?: string;
@@ -38,8 +54,8 @@ function parseTokenResponse(value: unknown): TokenResponse {
 }
 type SignInResult = { ok: true } | { ok: false; error: string };
 
-/** The login as far as this page knows it; the only copy when storage is unavailable. */
-let memoryLogin: StoredLogin | null = null;
+/** The people as far as this page knows them; the only copy when storage is unavailable. */
+let memoryPeople: People | null = null;
 let cachedAccess: { token: string; clientId: string; expiresAt: number } | null = null;
 let refreshing: Promise<string | null> | null = null;
 let completing: Promise<SignInResult | null> | null = null;
@@ -59,34 +75,93 @@ async function challengeFor(verifier: string): Promise<string> {
   return base64Url(new Uint8Array(digest));
 }
 
-function readLogin(): StoredLogin | null {
-  let raw: string | null;
-  try {
-    raw = localStorage.getItem(AUTH_KEY);
-  } catch {
-    return memoryLogin;
-  }
-  if (raw === null) return null;
-  try {
-    const { clientId, refreshToken } = recordOf(parseJson(raw));
-    if (typeof clientId === 'string' && typeof refreshToken === 'string' && refreshToken) {
-      return { clientId, refreshToken };
-    }
-  } catch {
-    // Unreadable: treated as signed out.
-  }
-  return null;
+const textOf = (value: unknown): string => (typeof value === 'string' ? value : '');
+
+function parsePerson(value: unknown): Person | null {
+  const { spotifyId, name, imageUrl, refreshToken } = recordOf(value);
+  return typeof refreshToken === 'string' && refreshToken
+    ? { spotifyId: textOf(spotifyId), name: textOf(name), imageUrl: textOf(imageUrl), refreshToken }
+    : null;
 }
 
-/** A null login forgets the login. */
-function writeLogin(login: StoredLogin | null): void {
-  memoryLogin = login;
+function parsePeople(raw: string): People | null {
+  const { clientId, activeId, people } = recordOf(parseJson(raw));
+  if (typeof clientId !== 'string' || !Array.isArray(people)) return null;
+  return {
+    clientId,
+    activeId: typeof activeId === 'string' ? activeId : null,
+    people: (people as unknown[]).map(person => parsePerson(person)).filter(person => person !== null)
+  };
+}
+
+/** Today's people from the login kept before there were people: one person, not yet named, who is active. */
+function parseLegacyLogin(raw: string): People | null {
+  const { clientId, refreshToken } = recordOf(parseJson(raw));
+  return typeof clientId === 'string' && typeof refreshToken === 'string' && refreshToken
+    ? { clientId, activeId: '', people: [{ spotifyId: '', name: '', imageUrl: '', refreshToken }] }
+    : null;
+}
+
+/** A null list forgets everyone. */
+function writePeople(people: People | null): void {
+  memoryPeople = people;
   try {
-    if (login) localStorage.setItem(AUTH_KEY, JSON.stringify(login));
-    else localStorage.removeItem(AUTH_KEY);
+    if (people) localStorage.setItem(PEOPLE_KEY, JSON.stringify(people));
+    else localStorage.removeItem(PEOPLE_KEY);
+    localStorage.removeItem(LEGACY_AUTH_KEY);
   } catch {
-    // Storage is unavailable; the login then lasts only until the page reloads.
+    // Storage is unavailable; the people then last only until the page reloads.
   }
+}
+
+function readPeople(): People | null {
+  let raw: string | null;
+  let legacy: string | null = null;
+  try {
+    raw = localStorage.getItem(PEOPLE_KEY);
+    if (raw === null) legacy = localStorage.getItem(LEGACY_AUTH_KEY);
+  } catch {
+    return memoryPeople;
+  }
+  try {
+    if (raw !== null) return parsePeople(raw);
+    const moved = legacy === null ? null : parseLegacyLogin(legacy);
+    if (moved) writePeople(moved);
+    return moved;
+  } catch {
+    // Unreadable: treated as signed out.
+    return null;
+  }
+}
+
+/** Changes the person with `spotifyId`. */
+function updatePerson(spotifyId: string, change: (person: Person) => Person): void {
+  const people = readPeople();
+  if (!people) return;
+  writePeople({
+    ...people,
+    people: people.people.map(person => (person.spotifyId === spotifyId ? change(person) : person))
+  });
+}
+
+/** Adds a person (or replaces the one with the same Spotify ID) and makes them active. */
+function addPerson(clientId: string, person: Person): void {
+  const people = readPeople();
+  const others = people?.clientId === clientId ? people.people : [];
+  writePeople({
+    clientId,
+    activeId: person.spotifyId,
+    people: [...others.filter(other => other.spotifyId !== person.spotifyId), person]
+  });
+}
+
+/** Forgets the active person; nobody is active afterwards. */
+function forgetActivePerson(people: People): void {
+  writePeople({
+    ...people,
+    activeId: null,
+    people: people.people.filter(person => person.spotifyId !== people.activeId)
+  });
 }
 
 /** Whether the next sign-in must show Spotify's approval page (see FRESH_SIGN_IN_KEY). */
@@ -110,10 +185,40 @@ function isFreshSignIn(): boolean {
   }
 }
 
-/** The stored login, unless it belongs to a different client ID than the one in use. */
-function currentLogin(): StoredLogin | null {
-  const login = readLogin();
-  return login?.clientId === getClientId() ? login : null;
+/** The active person's login, unless the people belong to a different client ID than the one in use. */
+function currentLogin(): (StoredLogin & { spotifyId: string }) | null {
+  const people = readPeople();
+  if (people?.clientId !== getClientId()) return null;
+  const person = people.people.find(known => known.spotifyId === people.activeId);
+  return person ? { clientId: people.clientId, refreshToken: person.refreshToken, spotifyId: person.spotifyId } : null;
+}
+
+/** Who the account behind `accessToken` is, from GET /me; blank when Spotify does not say. */
+async function readProfile(accessToken: string): Promise<Pick<Person, 'spotifyId' | 'name' | 'imageUrl'>> {
+  try {
+    const response = await fetchSpotify('https://api.spotify.com/v1/me', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const { id, display_name: displayName, images } = recordOf(response.ok ? await readJson(response) : null);
+    const image = Array.isArray(images) ? recordOf(images[0]) : {};
+    return { spotifyId: textOf(id), name: textOf(displayName) || textOf(id), imageUrl: textOf(image['url']) };
+  } catch {
+    return { spotifyId: '', name: '', imageUrl: '' };
+  }
+}
+
+/** Names the active person when they moved in from the old single login (no Spotify ID yet), once a token works. */
+async function nameActivePerson(accessToken: string): Promise<void> {
+  const profile = await readProfile(accessToken);
+  const people = readPeople();
+  if (!people || !profile.spotifyId) return;
+  writePeople({
+    ...people,
+    activeId: profile.spotifyId,
+    people: people.people
+      .filter(person => person.spotifyId !== profile.spotifyId)
+      .map(person => (person.spotifyId === '' ? { ...person, ...profile } : person))
+  });
 }
 
 /** Asks Spotify's token endpoint for tokens (no client secret with PKCE). */
@@ -129,7 +234,8 @@ async function requestTokens(
     if (response.status === 400 && parameters['grant_type'] === 'refresh_token') {
       const data = parseTokenResponse(await readJson(response));
       if (data.error === 'invalid_grant') {
-        writeLogin(null);
+        const people = readPeople();
+        if (people) forgetActivePerson(people);
         cachedAccess = null;
         throw new SpotifyApiError('Spotify login expired or was revoked. Sign in again in Settings.', 401);
       }
@@ -211,8 +317,9 @@ async function finishSignIn(query: URLSearchParams): Promise<SignInResult> {
       code_verifier: pkce.verifier
     });
     if (!tokens.refreshToken) return failure('Spotify did not provide a refresh token. Sign in again.');
+    const profile = await readProfile(tokens.accessToken);
     generation += 1;
-    writeLogin({ clientId, refreshToken: tokens.refreshToken });
+    addPerson(clientId, { ...profile, refreshToken: tokens.refreshToken });
     setFreshSignIn(false);
     cachedAccess = {
       token: tokens.accessToken,
@@ -267,7 +374,9 @@ export async function getAccessToken(): Promise<string | null> {
     // Signed out (or in again) while Spotify was answering: that result is stale.
     if (started !== generation) return null;
     // Spotify may rotate the refresh token; keep the new one, else the old one stays valid.
-    writeLogin({ clientId: login.clientId, refreshToken: tokens.refreshToken ?? login.refreshToken });
+    updatePerson(login.spotifyId, person => ({ ...person, refreshToken: tokens.refreshToken ?? login.refreshToken }));
+    // Naming waits for nothing: a slow GET /me must not hold up the token.
+    if (login.spotifyId === '') void nameActivePerson(tokens.accessToken);
     cachedAccess = {
       token: tokens.accessToken,
       clientId: login.clientId,
@@ -286,13 +395,13 @@ export function discardAccessToken(): void {
 }
 
 /**
- * Forgets the stored login and everything cached for it (the access token, and a sign-in that was started and never
+ * Forgets everyone signed in on this kiosk and everything cached for them (the access token, and a sign-in that was started and never
  * finished), and makes the next sign-in show Spotify's approval page again.
  */
 export function signOut(): void {
   generation += 1;
   cachedAccess = null;
-  writeLogin(null);
+  writePeople(null);
   try {
     sessionStorage.removeItem(PKCE_KEY);
   } catch {

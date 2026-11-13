@@ -206,7 +206,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     // The page reloads signed out, with nothing of the login kept.
     const connect = page.getByRole('button', { name: 'Connect Spotify' });
     await expect(connect).toBeVisible();
-    expect(await page.evaluate(() => localStorage.getItem('maxmix.auth'))).toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem('maxmix.people'))).toBeNull();
     expect(await page.evaluate(() => sessionStorage.getItem('maxmix.pkce'))).toBeNull();
 
     // Spotify may remember the person and sign the same account in silently; this makes it show its page instead.

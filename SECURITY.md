@@ -18,10 +18,11 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
 
 - **No client secret.** Sign-in uses the Authorization Code flow with PKCE, which Spotify provides for apps that cannot
   keep a secret. The Spotify client ID is public by design and is a constant in the code (`src/spotify/settings.ts`).
-- **The refresh token lives in the browser.** It is stored in the browser's `localStorage` (key `maxmix.auth`) and the
-  page calls the Spotify Web API directly. Anyone who can use the kiosk's browser profile, or read its files, has the
+- **The refresh tokens live in the browser.** One per person who signed in on the kiosk is stored in the browser's
+  `localStorage` (key `maxmix.people`, with their Spotify ID, name and picture) and the page calls the Spotify Web API
+  directly. Anyone who can use the kiosk's browser profile, or read its files, has the
   Spotify login. Treat the device and its profile like the account: restrict physical access, keep SSH key-protected and
-  keep the OS and browser updated. Signing out in Settings removes the token, and you can revoke the app under your
+  keep the OS and browser updated. Signing out in Settings removes every token, and you can revoke the app under your
   Spotify account's apps. Access tokens are short-lived and kept in memory only.
 - **Cross-site scripting matters more.** Script running in the page's origin can read `localStorage`. The app renders
   Spotify's text as plain text and ships no user-supplied HTML, but keep the origin dedicated: do not host other apps
