@@ -3,7 +3,7 @@ import { lrclib } from './lrclib';
 import type { Lyrics, LyricsProvider } from './types';
 
 /** How long the later sources get to send word-timed lyrics once an earlier one has found line-timed ones. */
-export const WORD_TIMING_WAIT_MS = 4000;
+const WORD_TIMING_WAIT_MS = 4000;
 
 const hasWordTiming = (lyrics: Lyrics): boolean =>
   lyrics.kind === 'synced' && lyrics.lines.some(line => line.words && line.words.length > 0);
