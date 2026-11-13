@@ -779,7 +779,7 @@
   border: 1px solid var(--border);
   border-radius: 16px;
   background: var(--surface);
-  color: var(--muted);
+  color: var(--accent);
   font-size: 13px;
   font-weight: 650;
   transition:
@@ -790,7 +790,6 @@
 .panel-nav-button[aria-pressed='true'] {
   border-color: transparent;
   background: color-mix(in srgb, var(--accent) 16%, transparent);
-  color: var(--ink);
   box-shadow: var(--glow);
 }
 .panel-nav-button.is-save,
@@ -956,11 +955,15 @@
   gap: 12px;
   width: 100%;
   margin-top: 4px;
-  color: var(--muted);
+  color: var(--accent);
   min-width: 0;
 }
 .volume-control svg {
   flex-shrink: 0;
+}
+/* The speaker icon fades with the slider when the device has no volume to set. */
+.volume-control:has(:disabled) svg {
+  opacity: 0.4;
 }
 .volume-range {
   flex: 1;
