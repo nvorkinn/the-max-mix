@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { forgetPhone, PAIRING_ERRORS, PhonePairing, savePhone } from './phone-pairing.ts';
+import { forgetPhone, PAIRING_ERRORS, PhonePairing, renamePhone, savePhone } from './phone-pairing.ts';
 
 const SPEAKER = { address: 'AA:BB:CC:DD:EE:02', name: 'Kitchen speaker', paired: true, bonded: true };
 const PHONE = { address: '4F:00:00:00:00:03', name: 'Nikolai’s iPhone', paired: true, bonded: true };
@@ -120,7 +120,7 @@ describe('PhonePairing', () => {
   });
 });
 
-describe('savePhone and forgetPhone', () => {
+describe('savePhone, renamePhone and forgetPhone', () => {
   it('keeps one entry per phone in a JSON list, starting the file when there is none, and drops one', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'phones-'));
     const file = path.join(directory, 'state', 'phones.json');
@@ -134,6 +134,9 @@ describe('savePhone and forgetPhone', () => {
     await forgetPhone(file, 'B');
     await forgetPhone(file, 'Z');
     expect(JSON.parse(await readFile(file, 'utf8'))).toEqual([{ address: 'A', name: 'One again', pairedAt: 3 }]);
+    await renamePhone(file, 'A', 'Renamed');
+    await renamePhone(file, 'Z', 'Nobody');
+    expect(JSON.parse(await readFile(file, 'utf8'))).toEqual([{ address: 'A', name: 'Renamed', pairedAt: 3 }]);
     await writeFile(file, 'not json');
     await savePhone(file, { address: 'C', name: 'Three', pairedAt: 4 });
     expect(JSON.parse(await readFile(file, 'utf8'))).toEqual([{ address: 'C', name: 'Three', pairedAt: 4 }]);

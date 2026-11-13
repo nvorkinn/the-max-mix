@@ -5,8 +5,11 @@
 // no phone saved it never scans. A phone is "here" when it is connected or was heard in the last two minutes.
 //
 // BlueZ renames a device to whatever name its latest advert or scan response carries, and an iPhone's can be anything an
-// app on it advertises (one showed up as "4"). So a phone keeps the name it paired with: when BlueZ's differs, the
-// device's Alias, which BlueZ keeps and shows in place of the name, is set back to it.
+// app on it advertises (one showed up as "4"). So a phone keeps its saved name: when BlueZ's differs, the device's Alias,
+// which BlueZ keeps and shows in place of the name, is set back to it. The saved name only changes to one the phone gives
+// while it is connected, which is its own device name. That matters because an iPhone only says "iPhone" before it is
+// paired, and gives its full name ("Nikolai's iPhone") over a paired connection, which comes later: pairing hangs up at
+// once. A phone saved under its address takes the first name BlueZ hears.
 import type { MessageBus } from 'dbus-native';
 import { ignoreFailure, untilConnected } from './improv-gatt.ts';
 import type { PairedPhone } from './phone-pairing.ts';
@@ -27,7 +30,10 @@ export interface PhonePresence {
 /** A paired device as bluetooth-monitor.ts reports it. */
 interface HeardDevice {
   address: string;
+  /** What BlueZ shows (its Alias). */
   name: string;
+  /** The name the device last gave BlueZ, or "". */
+  bluezName: string;
   connected: boolean;
   lastSeen: number | null;
 }
@@ -39,6 +45,8 @@ export interface PresenceOptions {
   scan: (ms: number) => Promise<void>;
   /** Sets the name BlueZ shows for a device. */
   rename: (address: string, name: string) => Promise<void>;
+  /** Saves a phone's new name (phones.json). */
+  saveName: (address: string, name: string) => Promise<void>;
   /** A line for the Bluetooth log in the debug console. */
   log: (message: string) => void;
   now?: () => number;
@@ -46,6 +54,12 @@ export interface PresenceOptions {
   burstMs?: number;
   awayAfterMs?: number;
 }
+
+/** Whether `name` is only an address, which BlueZ shows until it hears a name. */
+const isAddress = (name: string): boolean => {
+  const parts = name.split(/[:-]/);
+  return parts.length === 6 && parts.every(part => /^[\dA-F]{2}$/i.test(part));
+};
 
 export class Presence {
   private readonly options: PresenceOptions;
@@ -89,7 +103,35 @@ export class Presence {
     }
   }
 
-  /** Sets BlueZ's name for each saved phone back to the one it paired with, where it has changed. */
+  /**
+   * Saves the name a phone gave over a connection (its own), or the first name heard for a phone saved under its address.
+   * Returns the phones with their names as saved now.
+   */
+  private async learnNames(phones: PairedPhone[], devices: HeardDevice[]): Promise<PairedPhone[]> {
+    const learned: PairedPhone[] = [];
+    for (const phone of phones) {
+      const device = devices.find(known => known.address === phone.address);
+      const name = device?.bluezName ?? '';
+      const isOwnName = Boolean(device?.connected) || isAddress(phone.name);
+      if (!name || !isOwnName || name === phone.name || isAddress(name)) {
+        learned.push(phone);
+        continue;
+      }
+      try {
+        // One at a time: there is rarely more than one, and the file is small.
+        // eslint-disable-next-line no-await-in-loop
+        await this.options.saveName(phone.address, name);
+        this.options.log(`Presence: ${phone.name} is called ${name}`);
+        learned.push({ ...phone, name });
+      } catch (error) {
+        this.options.log(`Presence: could not save ${name}: ${String(error)}`);
+        learned.push(phone);
+      }
+    }
+    return learned;
+  }
+
+  /** Sets BlueZ's name for each saved phone back to the saved one, where it has changed. */
   private async keepNames(phones: PairedPhone[], devices: HeardDevice[]): Promise<void> {
     for (const phone of phones) {
       const device = devices.find(known => known.address === phone.address);
@@ -111,13 +153,14 @@ export class Presence {
     if (this.isChecking) return;
     this.isChecking = true;
     try {
-      const phones = await this.options.phones();
-      if (phones.length > 0) {
+      const saved = await this.options.phones();
+      if (saved.length > 0) {
         // Asking first starts the monitor watching, so it hears what the scan finds.
         await this.options.devices();
         await this.scan();
       }
-      const devices = phones.length > 0 ? await this.options.devices() : [];
+      const devices = saved.length > 0 ? await this.options.devices() : [];
+      const phones = await this.learnNames(saved, devices);
       this.update(phones, devices);
       await this.keepNames(phones, devices);
     } catch (error) {

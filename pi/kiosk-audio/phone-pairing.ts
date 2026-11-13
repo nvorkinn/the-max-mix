@@ -197,3 +197,14 @@ export async function forgetPhone(file: string, address: string): Promise<void> 
   const next = phones.filter(known => known.address !== address);
   if (next.length !== phones.length) await writePhones(file, next);
 }
+
+/** Renames a saved phone in `file`, if it is there. */
+export async function renamePhone(file: string, address: string, name: string): Promise<void> {
+  const phones = await readPhones(file);
+  if (phones.some(known => known.address === address)) {
+    await writePhones(
+      file,
+      phones.map(known => (known.address === address ? { ...known, name } : known))
+    );
+  }
+}

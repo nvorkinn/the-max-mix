@@ -7,7 +7,12 @@ import { Presence, scanLe, setAlias } from './presence.ts';
 const PHONE = { address: '4F:00:00:00:00:03', name: 'Nikolai’s iPhone', pairedAt: 1 };
 
 function setUp(options: { phones?: (typeof PHONE)[]; isScanFailing?: boolean } = {}) {
-  const heard = { lastSeen: null as number | null, connected: false, name: 'Nikolai’s iPhone' };
+  const heard = {
+    lastSeen: null as number | null,
+    connected: false,
+    name: 'Nikolai’s iPhone',
+    bluezName: 'Nikolai’s iPhone'
+  };
   const scan = vi.fn(() => (options.isScanFailing ? Promise.reject(new Error('No adapter')) : Promise.resolve()));
   const log = vi.fn();
   const devices = vi.fn(() => Promise.resolve([{ address: PHONE.address, ...heard }]));
@@ -15,8 +20,10 @@ function setUp(options: { phones?: (typeof PHONE)[]; isScanFailing?: boolean } =
     heard.name = name;
     return Promise.resolve();
   });
+  const saveName = vi.fn(() => Promise.resolve());
   const presence = new Presence({
     phones: () => Promise.resolve(options.phones ?? [PHONE]),
+    saveName,
     devices,
     scan,
     rename,
@@ -26,7 +33,7 @@ function setUp(options: { phones?: (typeof PHONE)[]; isScanFailing?: boolean } =
     burstMs: 8000,
     awayAfterMs: 120_000
   });
-  return { presence, heard, scan, rename, log, devices };
+  return { presence, heard, scan, rename, saveName, log, devices };
 }
 
 describe('Presence', () => {
@@ -93,6 +100,44 @@ describe('Presence', () => {
     await presence.check();
     expect(rename).toHaveBeenCalledTimes(1);
     expect(log).toHaveBeenCalledWith('Presence: 4 named Nikolai’s iPhone again');
+  });
+
+  it('saves the full name a paired phone gives once it is connected, and shows it', async () => {
+    const { presence, heard, rename, saveName, log } = setUp({ phones: [{ ...PHONE, name: 'iPhone' }] });
+    heard.name = 'iPhone';
+    heard.connected = true;
+    await presence.check();
+    expect(saveName).toHaveBeenCalledWith(PHONE.address, 'Nikolai’s iPhone');
+    expect(presence.status()[0]?.name).toBe('Nikolai’s iPhone');
+    expect(rename).toHaveBeenCalledWith(PHONE.address, 'Nikolai’s iPhone');
+    expect(log).toHaveBeenCalledWith('Presence: iPhone is called Nikolai’s iPhone');
+  });
+
+  it('does not save a name heard in an advert while the phone is not connected', async () => {
+    const { presence, heard, saveName } = setUp();
+    heard.bluezName = '4';
+    await presence.check();
+    expect(saveName).not.toHaveBeenCalled();
+    expect(presence.status()[0]?.name).toBe('Nikolai’s iPhone');
+  });
+
+  it('gives a phone saved under its address the first name heard, but never an address', async () => {
+    const { presence, heard, saveName } = setUp({ phones: [{ ...PHONE, name: PHONE.address }] });
+    heard.bluezName = 'A1-B2-C3-D4-E5-F6';
+    await presence.check();
+    expect(saveName).not.toHaveBeenCalled();
+    heard.bluezName = 'iPhone';
+    await presence.check();
+    expect(saveName).toHaveBeenCalledWith(PHONE.address, 'iPhone');
+  });
+
+  it('keeps the saved name when the new one cannot be saved', async () => {
+    const { presence, heard, saveName, log } = setUp({ phones: [{ ...PHONE, name: 'iPhone' }] });
+    heard.connected = true;
+    saveName.mockImplementation(() => Promise.reject(new Error('Read-only')));
+    await presence.check();
+    expect(log).toHaveBeenCalledWith('Presence: could not save Nikolai’s iPhone: Error: Read-only');
+    expect(presence.status()[0]?.name).toBe('iPhone');
   });
 
   it('logs a failing rename once and does not try again', async () => {

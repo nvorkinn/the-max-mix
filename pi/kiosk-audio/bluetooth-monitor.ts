@@ -57,7 +57,10 @@ interface AdapterState {
 
 interface KnownDevice {
   address: string;
+  /** The Alias BlueZ shows, which is its own name for the device unless one was set. */
   name: string;
+  /** The name the device last gave BlueZ, from an advert or, over a connection, its own device name; "" when none. */
+  bluezName: string;
   /** "public" or "random": a phone's own address is random, and changes unless it is paired. */
   addressType: string;
   /** BlueZ's guess of what it is: "phone", "audio-headphones", "computer"… or "". */
@@ -119,6 +122,7 @@ function knownDevice(properties: Properties, lastSeen: number | null): KnownDevi
   return {
     address: text(properties['Address']),
     name: deviceName(properties),
+    bluezName: text(properties['Name']),
     addressType: text(properties['AddressType']) || 'public',
     icon: text(properties['Icon']),
     paired: isOn(properties['Paired']),
