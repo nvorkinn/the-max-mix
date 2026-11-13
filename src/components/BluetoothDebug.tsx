@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { scanBluetoothSpeakers } from '../audio/bluetooth';
+import { forgetBluetoothSpeaker, scanBluetoothSpeakers } from '../audio/bluetooth';
 import { pairPhone, readBluetoothReport, setBluetoothVerbose } from '../utils/bluetoothMonitor';
 import type { BluetoothReport, PairedDevice, PairingStatus } from '../utils/bluetoothMonitor';
 import { errorMessage } from '../utils/errorMessage';
@@ -113,7 +113,8 @@ export default function BluetoothDebug() {
                 ['Discoverable', adapter ? yesNo(adapter.discoverable) : '–'],
                 ['Pairable', adapter ? yesNo(adapter.pairable) : '–'],
                 ['Unpaired nearby', String(report.nearby)],
-                ['Pairing', pairingText(report.pairing)]
+                ['Pairing', pairingText(report.pairing)],
+                ...report.phones.map(phone => [phone.name || phone.address, phone.isHere ? 'Here' : 'Away'] as const)
               ] as const
             ).map(([name, value]) => (
               <div key={name}>
@@ -151,6 +152,7 @@ export default function BluetoothDebug() {
                   <th scope="col">State</th>
                   <th scope="col">Signal</th>
                   <th scope="col">Heard</th>
+                  <th scope="col" aria-label="Forget" />
                 </tr>
               </thead>
               <tbody>
@@ -164,6 +166,16 @@ export default function BluetoothDebug() {
                     <td>{state(device)}</td>
                     <td>{device.rssi === null ? '–' : `${device.rssi} dBm`}</td>
                     <td>{heardAgo(device.lastSeen, now)}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="debug-bluetooth-button"
+                        aria-label={`Forget ${device.name || device.address}`}
+                        onClick={() => void forgetBluetoothSpeaker(device.address)}
+                      >
+                        Forget
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

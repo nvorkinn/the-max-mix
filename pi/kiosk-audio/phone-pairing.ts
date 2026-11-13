@@ -42,6 +42,8 @@ export interface PhonePairingOptions {
   devices: () => Promise<Device[]>;
   disconnect: (address: string) => Promise<void>;
   save: (phone: PairedPhone) => Promise<void>;
+  /** Drops a phone from the saved list. */
+  forget: (address: string) => Promise<void>;
   /** A line for the Bluetooth log in the debug console. */
   log: (message: string) => void;
   now?: () => number;
@@ -154,23 +156,44 @@ export class PhonePairing {
     this.options.log('Pairing stopped');
   }
 
+  /** Drops a forgotten phone from the saved list, and from the status if it was the one just paired. */
+  async forget(address: string): Promise<void> {
+    await this.options.forget(address);
+    if (this.current.state === 'paired' && this.current.phone.address === address) this.current = { state: 'idle' };
+  }
+
   status(): PairingStatus {
     return this.current;
   }
 }
 
-/** Notes a paired phone in `file` (a JSON list), replacing an earlier entry for the same address. */
-export async function savePhone(file: string, phone: PairedPhone): Promise<void> {
-  let phones: PairedPhone[] = [];
+/** The phones in `file`; none when there is no file or it cannot be read. */
+export async function readPhones(file: string): Promise<PairedPhone[]> {
   try {
     const parsed: unknown = JSON.parse(await readFile(file, 'utf8'));
-    if (Array.isArray(parsed)) phones = parsed as PairedPhone[];
+    if (Array.isArray(parsed)) return parsed as PairedPhone[];
   } catch {
     // No file yet, or an unreadable one: start a new list.
   }
-  const next = [...phones.filter(known => known.address !== phone.address), phone];
+  return [];
+}
+
+async function writePhones(file: string, phones: PairedPhone[]): Promise<void> {
   await mkdir(path.dirname(file), { recursive: true });
   const temporary = `${file}.tmp`;
-  await writeFile(temporary, `${JSON.stringify(next, null, 2)}\n`);
+  await writeFile(temporary, `${JSON.stringify(phones, null, 2)}\n`);
   await rename(temporary, file);
+}
+
+/** Notes a paired phone in `file` (a JSON list), replacing an earlier entry for the same address. */
+export async function savePhone(file: string, phone: PairedPhone): Promise<void> {
+  const phones = await readPhones(file);
+  await writePhones(file, [...phones.filter(known => known.address !== phone.address), phone]);
+}
+
+/** Drops a phone from `file`, if it is there. */
+export async function forgetPhone(file: string, address: string): Promise<void> {
+  const phones = await readPhones(file);
+  const next = phones.filter(known => known.address !== address);
+  if (next.length !== phones.length) await writePhones(file, next);
 }

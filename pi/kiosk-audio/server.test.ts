@@ -159,7 +159,14 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
         pairingCalls.push('stop');
         return Promise.resolve();
       },
-      status: () => ({ state: 'waiting', secondsLeft: 90 })
+      status: () => ({ state: 'waiting', secondsLeft: 90 }),
+      forget: address => {
+        pairingCalls.push(`forget ${address}`);
+        return Promise.resolve();
+      }
+    },
+    presence: {
+      status: () => [{ address: '4F:00:00:00:00:03', name: 'Nikolai’s iPhone', isHere: true, lastSeen: 5 }]
     },
     bluetoothMonitor: {
       snapshot: () => Promise.resolve(MONITOR),
@@ -726,8 +733,8 @@ describe('Bluetooth speakers', () => {
     await expect(scanned.json()).resolves.toEqual({ error: 'Bluetooth failed.' });
   });
 
-  it('connects and forgets a speaker by a checked address', async () => {
-    const { deps, connected, removed } = fakes();
+  it('connects and forgets a speaker or phone by a checked address', async () => {
+    const { deps, connected, removed, pairingCalls } = fakes();
     const base = await start(deps);
     const ok = await post(base, '/bluetooth/connect', addressBody('aa:bb:cc:dd:ee:ff'));
     await expect(ok.json()).resolves.toEqual({ ok: true });
@@ -736,6 +743,7 @@ describe('Bluetooth speakers', () => {
     expect(connected).toEqual(['AA:BB:CC:DD:EE:FF', '00:00:00:00:00:01']);
     expect((await post(base, '/bluetooth/remove', addressBody('AA:BB:CC:DD:EE:FF'))).status).toBe(204);
     expect(removed).toEqual(['AA:BB:CC:DD:EE:FF']);
+    expect(pairingCalls).toEqual(['forget AA:BB:CC:DD:EE:FF']);
     const refusals = await Promise.all(
       ['/bluetooth/connect', '/bluetooth/remove'].flatMap(path =>
         ['not an address; rm -rf /', 7].map(address => post(base, path, addressBody(address)))
@@ -763,7 +771,11 @@ describe('Bluetooth monitor', () => {
   it('reports what BlueZ says, for the app only', async () => {
     const base = await start(fakes().deps);
     const answer = await fetch(`${base}/bluetooth/monitor`, { headers: { Origin: ORIGIN } });
-    await expect(answer.json()).resolves.toEqual({ ...MONITOR, pairing: { state: 'waiting', secondsLeft: 90 } });
+    await expect(answer.json()).resolves.toEqual({
+      ...MONITOR,
+      pairing: { state: 'waiting', secondsLeft: 90 },
+      phones: [{ address: '4F:00:00:00:00:03', name: 'Nikolai’s iPhone', isHere: true, lastSeen: 5 }]
+    });
     expect((await fetch(`${base}/bluetooth/monitor`)).status).toBe(403);
   });
 

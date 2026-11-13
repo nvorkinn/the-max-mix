@@ -33,9 +33,17 @@ export type PairingStatus =
   | { state: 'paired'; name: string; address: string }
   | { state: 'failed'; error: string };
 
+/** A phone "Pair my phone" saved, and whether the Pi heard it lately (pi/kiosk-audio/presence.ts). */
+interface PhonePresence {
+  address: string;
+  name: string;
+  isHere: boolean;
+}
+
 export interface BluetoothReport {
   adapter: BluetoothAdapter | null;
   pairing: PairingStatus;
+  phones: PhonePresence[];
   devices: PairedDevice[];
   nearby: number;
   verbose: boolean;
@@ -105,6 +113,9 @@ export function parseBluetoothReport(value: unknown): BluetoothReport {
   return {
     adapter: parseAdapter(fields['adapter']),
     pairing: parsePairing(fields['pairing']),
+    phones: listOf(fields['phones'])
+      .map(phone => fieldsOf(phone))
+      .map(phone => ({ address: text(phone['address']), name: text(phone['name']), isHere: phone['isHere'] === true })),
     devices: listOf(fields['devices']).map(device => parseDevice(device)),
     nearby: typeof fields['nearby'] === 'number' ? fields['nearby'] : 0,
     verbose: fields['verbose'] === true,
