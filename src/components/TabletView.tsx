@@ -20,7 +20,7 @@ import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
 import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
-import { loadThemeColour, saveThemeColour } from '../utils/themeColour';
+import { dynamicPalette, loadThemeColour, saveThemeColour } from '../utils/themeColour';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemeColour } from '../utils/themeColour';
 import type { MusicChoice, Track } from '../types';
@@ -399,7 +399,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       data-theme={theme.skin}
       style={
         artColours
-          ? ({ '--art-tint-top': artColours.top, '--art-tint-bottom': artColours.bottom } as CSSProperties)
+          ? ({
+              '--art-tint-top': artColours.top,
+              '--art-tint-bottom': artColours.bottom,
+              ...(themeColour === 'dynamic' && dynamicPalette(artColours.dominant))
+            } as CSSProperties)
           : undefined
       }
     >

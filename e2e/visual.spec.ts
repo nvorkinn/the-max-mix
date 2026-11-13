@@ -154,6 +154,29 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
     });
   });
 
+  test('player screen in the Dynamic colour', { tag: ['@player', '@appearance'] }, async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('maxmix.themeColour', 'dynamic');
+    });
+    await fakeSpotify(page);
+    await page.route('https://images.unsplash.com/**', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'image/png',
+        headers: { 'access-control-allow-origin': '*' },
+        body: COLOURED_ART
+      })
+    );
+    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.goto('/');
+    await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
+    await expect(page).toHaveScreenshot('player-dynamic.png', {
+      ...SHOT,
+      mask: [page.locator('.header-clock'), page.locator('.seek-control')]
+    });
+  });
+
   test('settings modal at night', { tag: ['@settings', '@appearance'] }, async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('maxmix.theme', 'night');
