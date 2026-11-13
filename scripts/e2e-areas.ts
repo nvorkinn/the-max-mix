@@ -1,6 +1,7 @@
 // Which part of the app a source file belongs to, and so which browser tests (e2e/*.spec.ts, tagged with the same
 // `@name`) are about a change to it. The pull request comment (screenshot-comment.ts) uses this to list "Tests for this
-// change"; add an area here when the app gets a feature, and tag its tests with the same tag.
+// change", and CI traces those tests only (e2e-traced.ts); add an area here when the app gets a feature, and tag its
+// tests with the same tag.
 //
 // An area with no tests is deliberate: it is how the comment says "nothing in a browser covers this yet".
 
@@ -123,4 +124,31 @@ const isMapped = (file: string) => AREAS.some(area => area.sources.some(source =
 /** Changed files under src/ that belong to no area, so no browser test is known to be about them. */
 export function unmappedSources(files: readonly string[]): string[] {
   return files.filter(file => file.startsWith('src/') && !isTestFile(file) && !isMapped(file));
+}
+
+const SPEC = /^e2e\/([^/]+\.spec\.ts)$/;
+
+/** The test files (names inside e2e/) among `files`. */
+export function changedSpecs(files: readonly string[]): string[] {
+  return files.flatMap(file => SPEC.exec(file)?.[1] ?? []);
+}
+
+/** Which browser tests CI records a trace of: every one, or those with one of the tags or in one of the test files. */
+export interface Traced {
+  all: boolean;
+  tags: string[];
+  specs: string[];
+}
+
+// What every test runs through: the fakes and helpers beside the tests, and the Playwright configuration.
+const isSharedByAllTests = (file: string) => /^e2e\/[^/]+\.ts$/.test(file) && !SPEC.test(file);
+
+/**
+ * The tests to trace for a change to `files`: the ones the pull request comment lists as being about it. Tracing costs
+ * about a fifth of the run, and a trace of a passing test that the change does not touch is rarely opened. Every test
+ * is traced when the change cannot be placed: an app file no area owns, or something all the tests share.
+ */
+export function tracedFor(files: readonly string[]): Traced {
+  const isUnplaced = unmappedSources(files).length > 0 || files.some(file => isSharedByAllTests(file));
+  return { all: isUnplaced, tags: areasFor(files).map(area => area.tag), specs: changedSpecs(files) };
 }
