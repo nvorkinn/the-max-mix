@@ -3,6 +3,7 @@
 #   kiosk-display off                  from swayidle (kiosk-session), once the app let the screen sleep and nobody touched it
 #   kiosk-display on                   from swayidle at the first touch after that, and from the kiosk-audio service when the
 #                                      app wakes the screen for music that starts while it sleeps
+#   kiosk-display fit                  from kiosk-session before Chromium starts: scales each output to fit the app
 # Cage has no output power protocol, so the HDMI output is disabled and enabled again through wlr-randr. Without a signal
 # the Waveshare screen should turn its backlight off; the app's black sleep screen covers it if it does not.
 set -u
@@ -10,6 +11,42 @@ set -u
 # The outputs Cage has: wlr-randr starts each one's block with its name at the start of a line.
 outputs() {
   wlr-randr | awk '/^[^ \t]/ { print $1 }'
+}
+
+# The app is laid out for a 1024x600 screen. A bigger one, such as a 10.1 inch 1280x800, gets an output scale that makes
+# it that size or a little taller (1.25 there, so 1024x640), so the app fills it and touches land where they look.
+# Chromium's own --force-device-scale-factor drew only part of the page under Cage. Cage has no fractional scaling for
+# its clients, so Chromium draws at twice the size and Cage shrinks that to the screen, which keeps text sharp.
+# Each output's scale comes from its current mode, or its preferred one while it is off; 1 when there is neither. Only
+# outputs whose scale changes are set, so the 7 inch screen is left alone.
+design_width=1024
+design_height=600
+scales() {
+  wlr-randr | awk -v dw="$design_width" -v dh="$design_height" '
+    function fit(line, size, scale) {
+      match(line, /[0-9]+x[0-9]+ px/)
+      split(substr(line, RSTART, RLENGTH - 3), size, "x")
+      scale = size[1] / dw
+      return size[2] / dh < scale ? size[2] / dh : scale
+    }
+    function done(scale) {
+      scale = sprintf("%.2f", current ? current : preferred ? preferred : 1)
+      if (name != "" && scale != sprintf("%.2f", now)) print name, scale
+    }
+    /^[^ \t]/ { done(); name = $1; current = 0; preferred = 0; now = 1 }
+    /^[ \t]+Scale:/ { now = $2 }
+    /[0-9]+x[0-9]+ px.*current/ { current = fit($0) }
+    /[0-9]+x[0-9]+ px.*preferred/ { preferred = fit($0) }
+    END { done() }'
+}
+
+fit() {
+  local output scale status=0
+  while read -r output scale; do
+    [[ -n $output ]] || continue
+    wlr-randr --output "$output" --scale "$scale" || status=1
+  done < <(scales)
+  return "$status"
 }
 
 turn() {
@@ -27,7 +64,9 @@ turn() {
 }
 
 case ${1:-} in
-  on) turn on ;;
+  # Turning an output on again can forget its scale.
+  on) turn on && fit ;;
+  fit) fit ;;
   off) turn off ;;
   *)
     echo "kiosk-display: unknown command: ${1:-}" >&2
