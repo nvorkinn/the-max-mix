@@ -13,6 +13,8 @@ import { extractArtColours, type ArtColours } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
 import { getQueue } from '../spotify/api';
+import { switchPerson } from '../spotify/auth';
+import { reloadSettings } from '../spotify/settings';
 import { getKioskSonosLeader, playOnSonosRoom } from '../sonos/kiosk';
 import { rememberSpeaker } from '../spotify/knownDevices';
 import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
@@ -41,6 +43,7 @@ import MusicPicker from './MusicPicker';
 import DebugConsole from './DebugConsole';
 import SleepScreen from './SleepScreen';
 import SleepIcon from './SleepIcon';
+import PersonSwitcher from './PersonSwitcher';
 
 const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
@@ -309,6 +312,16 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     setSettingsSection('spotify');
     setIsSettingsOpen(true);
   };
+  // Switching person: the music this tablet plays (itself, or its Sonos) belongs to the person leaving, so it pauses;
+  // then the page starts again as the new person. A pause that fails or hangs does not hold the switch up.
+  const switchTo = async (spotifyId: string) => {
+    if (isPlaying && (followingSonos || sdkActive)) {
+      const pause = followingSonos ? sonos.togglePlay() : togglePlay();
+      await Promise.race([pause.catch(() => false), new Promise(resolve => setTimeout(resolve, 3000))]);
+    }
+    switchPerson(spotifyId);
+    reloadSettings();
+  };
   const recoverPlayback = async (action: () => Promise<boolean>) => {
     if (isRefreshingPlayback) return;
     setIsRefreshingPlayback(true);
@@ -467,6 +480,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           >
             <Settings size={28} />
           </button>
+          {isAuthenticated && <PersonSwitcher onSwitch={spotifyId => void switchTo(spotifyId)} />}
           <span className="header-clock" {...debugHold}>
             <Clock size={14} /> {currentTime}
           </span>

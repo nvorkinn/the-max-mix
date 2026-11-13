@@ -51,13 +51,25 @@ const sonos = vi.hoisted(() => {
 
 vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => player.current }));
 vi.mock('../spotify/api', () => api);
+const people = vi.hoisted(() => ({
+  peopleOnKiosk: vi.fn((): unknown[] => []),
+  switchPerson: vi.fn(),
+  reloadSettings: vi.fn(),
+  readBluetoothReport: vi.fn()
+}));
+vi.mock('../spotify/settings', async importOriginal => ({
+  ...(await importOriginal<typeof import('../spotify/settings')>()),
+  reloadSettings: people.reloadSettings
+}));
+vi.mock('../utils/bluetoothMonitor', () => ({ readBluetoothReport: people.readBluetoothReport }));
 vi.mock('../spotify/auth', () => ({
   startSignIn: vi.fn(),
   signOut: vi.fn(),
-  getActivePersonId: () => 'me',
-  peopleOnKiosk: () => [],
+  peopleOnKiosk: people.peopleOnKiosk,
   isPersonRefused: () => false,
-  PEOPLE_LIMIT: 5
+  PEOPLE_LIMIT: 5,
+  switchPerson: people.switchPerson,
+  getActivePersonId: () => 'me'
 }));
 vi.mock('../utils/colorExtractor', () => palette);
 vi.mock('../lyrics/lrclib', () => lyrics);
@@ -286,6 +298,63 @@ describe('TabletView', () => {
     // The banner and the status line next to the logo both say it.
     expect(screen.getByRole('alert')).toHaveTextContent('Spotify quota used up');
     expect(api.getQueue.mock.calls).toHaveLength(reads);
+  });
+
+  describe('switching person from the banner', () => {
+    const face = (spotifyId: string, active: boolean) => ({
+      spotifyId,
+      name: spotifyId,
+      imageUrl: '',
+      phoneAddress: `phone-${spotifyId}`,
+      active
+    });
+    beforeEach(() => {
+      people.peopleOnKiosk.mockReturnValue([face('max', true), face('anna', false)]);
+      people.readBluetoothReport.mockResolvedValue({ phones: [{ address: 'phone-anna', name: '', isHere: true }] });
+    });
+    afterEach(() => {
+      people.peopleOnKiosk.mockReturnValue([]);
+      vi.clearAllMocks();
+    });
+
+    const switchToAnna = async () => {
+      render(<TabletView />);
+      await flush();
+      fireEvent.click(screen.getByRole('button', { name: 'max: switch person' }));
+      await flush();
+      fireEvent.click(screen.getByRole('button', { name: 'anna' }));
+      await flush();
+    };
+
+    it('pauses this tablet’s own music first, then switches and reloads', async () => {
+      setPlayer({
+        sdkActive: true,
+        playbackState: { is_playing: true, item: track, device: { name: 'Kitchen' } },
+        togglePlay: vi.fn().mockResolvedValue(true)
+      });
+      await switchToAnna();
+      expect(player.current.togglePlay).toHaveBeenCalledTimes(1);
+      expect(people.switchPerson).toHaveBeenCalledWith('anna');
+      expect(people.reloadSettings).toHaveBeenCalled();
+    });
+
+    it('pauses the kiosk’s Sonos when that is what plays', async () => {
+      setSonos({
+        active: true,
+        name: 'Kitchen',
+        playback: { is_playing: true, progress_ms: 0, item: track, device: { id: 'sonos:p1', name: 'Kitchen' } }
+      });
+      await switchToAnna();
+      expect(sonos.current['togglePlay']).toHaveBeenCalledTimes(1);
+      expect(people.switchPerson).toHaveBeenCalledWith('anna');
+    });
+
+    it('leaves music playing elsewhere alone', async () => {
+      setPlayer({ sdkActive: false, playbackState: { is_playing: true, item: track, device: { name: 'Kitchen' } } });
+      await switchToAnna();
+      expect(player.current.togglePlay).not.toHaveBeenCalled();
+      expect(people.switchPerson).toHaveBeenCalledWith('anna');
+    });
   });
 
   it('has no sleep button off the kiosk', () => {
