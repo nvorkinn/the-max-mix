@@ -171,7 +171,14 @@ export async function searchMusic(query: string): Promise<MusicChoice[]> {
 }
 
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
-const randomBelow = (limit: number) => (crypto.getRandomValues(new Uint32Array(1))[0] ?? 0) % limit;
+/** A uniform random whole number from 0 to `limit` - 1 (rejection sampling, so no value is likelier than another). */
+function randomBelow(limit: number): number {
+  const ceiling = Math.floor(0x1_00_00_00_00 / limit) * limit;
+  for (;;) {
+    const value = crypto.getRandomValues(new Uint32Array(1))[0] ?? 0;
+    if (value < ceiling) return value % limit;
+  }
+}
 
 /**
  * A song nobody could guess: a random one from a search for two random letters, at a random place in the results.

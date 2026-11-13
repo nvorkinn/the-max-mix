@@ -55,6 +55,20 @@ describe('spotify/api', () => {
       expect(Number(url.searchParams.get('offset'))).toBeLessThan(200);
     });
 
+    it('draws again rather than let some letters come up more often', async () => {
+      const draws = [0xff_ff_ff_ff, 0, 1, 7, 0];
+      vi.spyOn(crypto, 'getRandomValues').mockImplementation(array => {
+        (array as Uint32Array)[0] = draws.shift() ?? 0;
+        return array;
+      });
+      fetchMock.mockResolvedValue(json({ tracks: { items: [{ id: 't1', name: 'One' }] } }));
+      await api.findRandomTrack();
+      const url = new URL(callOf(fetchMock).url);
+      expect(url.searchParams.get('q')).toBe('ab');
+      expect(url.searchParams.get('offset')).toBe('7');
+      vi.restoreAllMocks();
+    });
+
     it('is null when the search finds nothing', async () => {
       fetchMock.mockResolvedValue(json({}));
       await expect(api.findRandomTrack()).resolves.toBeNull();
