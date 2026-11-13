@@ -96,4 +96,25 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     await advance(page, 30_000, 5000);
     await expect(wake).toBeVisible();
   });
+
+  test('a screen that falls asleep while Settings is open goes black over it, and a tap wakes it to Settings', async ({
+    page
+  }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Pause', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Open settings' }).click();
+    const settings = page.getByRole('dialog', { name: 'Settings' });
+    await expect(settings).toBeVisible();
+
+    // Nobody touches the screen for the default five minutes, with nothing playing.
+    await advance(page, 5 * 60_000 + 5000, 5000);
+    const wake = page.getByRole('button', { name: 'Wake the screen' });
+    await expect(wake).toBeVisible();
+    // The sleep screen is on top of the open dialog, so a tap in the middle of the screen lands on it and wakes it.
+    await page.mouse.click(512, 300);
+    await expect(wake).toHaveCount(0);
+    // Waking shows Settings again, as it was left; it is not closed into a sleeping screen.
+    await expect(settings).toBeVisible();
+  });
 });

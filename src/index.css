@@ -2308,7 +2308,23 @@ input:disabled {
 .sleep-screen {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  background: #000;
+  touch-action: none;
+}
+.sleep-screen::backdrop {
+  background: #000;
+}
+.sleep-screen-button {
+  display: block;
+  width: 100%;
+  height: 100%;
   border: 0;
   padding: 0;
   background: #000;
