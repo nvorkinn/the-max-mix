@@ -1,48 +1,15 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Power, RefreshCw, RotateCw } from 'lucide-react';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import { rebootPi, restartKiosk } from '../utils/kiosk';
+import ConfirmButton from './ConfirmButton';
 import { SOFTWARE_LOOK, softwareState } from './settings/softwareStatus';
 
-/** How long a first tap waits for the confirming second tap. */
-const CONFIRM_MS = 4000;
 /** The refresh button spins at least this long, so a check GitHub answers at once still shows it ran. */
 const MIN_SPIN_MS = 800;
 
 const formatTime = (ms: number) =>
   new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
-
-/** A button that acts only on a second tap within a few seconds, so a stray touch never restarts anything. */
-function ConfirmButton({
-  label,
-  confirmLabel,
-  icon,
-  onConfirm
-}: Readonly<{ label: string; confirmLabel: string; icon: ReactNode; onConfirm: () => void }>) {
-  const [armed, setArmed] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => () => clearTimeout(timerRef.current), []);
-
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        clearTimeout(timerRef.current);
-        if (armed) {
-          setArmed(false);
-          onConfirm();
-          return;
-        }
-        setArmed(true);
-        timerRef.current = setTimeout(() => setArmed(false), CONFIRM_MS);
-      }}
-      className={`modal-option settings-action flex-1 flex items-center justify-center gap-2 rounded-2xl border font-bold active:scale-98 transition-all ${armed ? 'modal-confirm-armed' : ''}`}
-    >
-      {icon}
-      {armed ? confirmLabel : label}
-    </button>
-  );
-}
 
 /**
  * The kiosk's own section of the settings: which release (or pinned ref and commit) the Pi runs, whether a newer one is

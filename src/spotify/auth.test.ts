@@ -776,4 +776,110 @@ describe('spotify/auth', () => {
       expect(second.isSignedIn()).toBe(false);
     });
   });
+
+  describe('adding and removing people', () => {
+    const person = (spotifyId: string) => ({
+      spotifyId,
+      name: spotifyId,
+      imageUrl: '',
+      refreshToken: `r-${spotifyId}`
+    });
+    const store = (activeId: string | null, ids: string[]) =>
+      localStorage.setItem(
+        'maxmix.people',
+        JSON.stringify({ clientId: 'client-1', activeId, people: ids.map(id => person(id)) })
+      );
+    const signIn = async (state: string) => {
+      const auth = await load();
+      sessionStorage.setItem('maxmix.pkce', JSON.stringify({ state, verifier: 'v' }));
+      visit(`/?code=c&state=${state}`);
+      fetchMock.mockResolvedValueOnce(json({ access_token: 'a', refresh_token: 'r-new', expires_in: 3600 }));
+      return { auth, result: await auth.completeSignIn() };
+    };
+    const people = () => storedJson('maxmix.people');
+
+    it('lists the people under the client ID in use, without their tokens', async () => {
+      setClientId('client-1');
+      store('b', ['a', 'b']);
+      const auth = await load();
+      expect(auth.peopleOnKiosk()).toEqual([
+        { spotifyId: 'a', name: 'a', imageUrl: '', active: false },
+        { spotifyId: 'b', name: 'b', imageUrl: '', active: true }
+      ]);
+      setClientId('client-2');
+      expect(auth.peopleOnKiosk()).toEqual([]);
+    });
+
+    it('adds a person through Spotify’s approval page', async () => {
+      setClientId('client-1');
+      store('a', ['a']);
+      const auth = await load();
+      await auth.startAddPerson();
+      const address = new URL(app.leaveFor.mock.calls[0]?.[0] ?? '');
+      expect(address.searchParams.get('show_dialog')).toBe('true');
+    });
+
+    it('refuses a sixth person before and after Spotify', async () => {
+      setClientId('client-1');
+      store('a', ['a', 'b', 'c', 'd', 'e']);
+      const auth = await load();
+      await expect(auth.startAddPerson()).rejects.toThrow('Spotify allows five people on this kiosk.');
+      expect(app.leaveFor).not.toHaveBeenCalled();
+
+      const { result } = await signIn('s1');
+      expect(result).toMatchObject({ ok: false });
+      expect(people()).toMatchObject({ activeId: 'a' });
+      expect(people()?.['people']).toHaveLength(5);
+    });
+
+    it('lets someone already listed sign in again when there are five', async () => {
+      setClientId('client-1');
+      store('a', ['a', 'b', 'c', 'd', 'nikolai']);
+      const { result } = await signIn('s1');
+      expect(result).toEqual({ ok: true });
+      expect(people()).toMatchObject({ activeId: 'nikolai' });
+    });
+
+    it('refuses an account Spotify answers with 403 and keeps the active person', async () => {
+      setClientId('client-1');
+      store('a', ['a']);
+      vi.stubGlobal('fetch', (url: string, init: RequestInit) =>
+        url === 'https://api.spotify.com/v1/me'
+          ? Promise.resolve(new Response('User not registered in the Developer Dashboard', { status: 403 }))
+          : (fetchMock(url, init) as Promise<Response>)
+      );
+      const { auth, result } = await signIn('s1');
+      expect(result).toMatchObject({ ok: false, error: expect.stringContaining('User Management') as unknown });
+      expect(auth.isPersonRefused((result as { error: string }).error)).toBe(true);
+      expect(people()).toMatchObject({ activeId: 'a', people: [{ spotifyId: 'a' }] });
+    });
+
+    it('removes someone who is not active and keeps playing as the active person', async () => {
+      setClientId('client-1');
+      store('a', ['a', 'b']);
+      localStorage.setItem('maxmix.knownSpeakers', JSON.stringify({ a: [{ id: 'x' }], b: [{ id: 'y' }] }));
+      const auth = await load();
+      expect(auth.removePerson('b')).toBe('kept');
+      expect(people()).toMatchObject({ activeId: 'a', people: [{ spotifyId: 'a' }] });
+      expect(storedJson('maxmix.knownSpeakers')).toEqual({ a: [{ id: 'x' }] });
+    });
+
+    it('makes the next person active when the active person is removed', async () => {
+      setClientId('client-1');
+      store('a', ['a', 'b']);
+      const auth = await load();
+      expect(auth.removePerson('a')).toBe('switched');
+      expect(people()).toMatchObject({ activeId: 'b', people: [{ spotifyId: 'b' }] });
+      expect(auth.isSignedIn()).toBe(true);
+    });
+
+    it('signs out when the last person is removed', async () => {
+      setClientId('client-1');
+      store('a', ['a']);
+      const auth = await load();
+      expect(auth.removePerson('a')).toBe('signed-out');
+      expect(people()).toBeNull();
+      expect(auth.isSignedIn()).toBe(false);
+    });
+  });
 });

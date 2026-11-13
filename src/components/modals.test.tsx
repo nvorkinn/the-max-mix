@@ -6,12 +6,19 @@ import { defined } from '../test/defined';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import SettingsModalFull from './SettingsModal';
 
-const auth = vi.hoisted(() => ({ startSignIn: vi.fn(), signOut: vi.fn() }));
+const auth = vi.hoisted(() => ({
+  startSignIn: vi.fn(),
+  signOut: vi.fn(),
+  startAddPerson: vi.fn(),
+  removePerson: vi.fn(),
+  peopleOnKiosk: vi.fn(),
+  isPersonRefused: vi.fn()
+}));
 const settings = vi.hoisted(() => ({
   reloadSettings: vi.fn(),
   getRedirectUri: vi.fn()
 }));
-vi.mock('../spotify/auth', () => auth);
+vi.mock('../spotify/auth', () => ({ ...auth, PEOPLE_LIMIT: 5 }));
 vi.mock('../spotify/settings', () => settings);
 const SettingsModal = partialProps(SettingsModalFull);
 
@@ -22,6 +29,8 @@ describe('SettingsModal', () => {
     for (const mock of [...Object.values(auth), ...Object.values(settings), base.onReload]) mock.mockReset();
     settings.getRedirectUri.mockReturnValue('http://127.0.0.1:3000/');
     auth.startSignIn.mockResolvedValue(undefined);
+    auth.startAddPerson.mockResolvedValue(undefined);
+    auth.peopleOnKiosk.mockReturnValue([]);
   });
 
   it('asks for a fresh update check each time it opens, and not while closed', () => {
@@ -332,6 +341,68 @@ describe('SettingsModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(auth.signOut).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(base.onReload).toHaveBeenCalled());
+  });
+
+  describe('people', () => {
+    const person = (spotifyId: string, active = false) => ({ spotifyId, name: spotifyId, imageUrl: '', active });
+
+    beforeEach(() => history.replaceState(null, '', '/?kiosk=0'));
+
+    it('lists everyone signed in, with the active person marked', () => {
+      auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true), person('Friend')]);
+      render(<SettingsModal {...base} authInfo={{ authenticated: true }} initialSection="spotify" />);
+      const rows = within(screen.getByRole('list', { name: 'People' })).getAllByRole('listitem');
+      expect(rows.map(row => row.textContent)).toEqual(['NikolaiRemove', 'FriendRemove']);
+      expect(rows[0]).toHaveAttribute('aria-current', 'true');
+      expect(within(defined(rows[0])).getByLabelText('Active')).toBeInTheDocument();
+    });
+
+    it('removes a person on the second tap, and reloads only when the active person changes', async () => {
+      auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true), person('Friend')]);
+      auth.removePerson.mockReturnValue('kept');
+      render(<SettingsModal {...base} authInfo={{ authenticated: true }} initialSection="spotify" />);
+      const friend = defined(within(screen.getByRole('list', { name: 'People' })).getAllByRole('listitem')[1]);
+      await userEvent.click(within(friend).getByRole('button', { name: 'Remove' }));
+      expect(auth.removePerson).not.toHaveBeenCalled();
+      auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true)]);
+      await userEvent.click(within(friend).getByRole('button', { name: 'Tap again to remove' }));
+      expect(auth.removePerson).toHaveBeenCalledWith('Friend');
+      expect(within(screen.getByRole('list', { name: 'People' })).getAllByRole('listitem')).toHaveLength(1);
+      expect(base.onReload).not.toHaveBeenCalled();
+    });
+
+    it('reloads after removing the active person', async () => {
+      auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true), person('Friend')]);
+      auth.removePerson.mockReturnValue('switched');
+      render(<SettingsModal {...base} authInfo={{ authenticated: true }} initialSection="spotify" />);
+      const rows = within(screen.getByRole('list', { name: 'People' })).getAllByRole('listitem');
+      const button = within(defined(rows[0])).getByRole('button');
+      await userEvent.click(button);
+      await userEvent.click(button);
+      expect(base.onReload).toHaveBeenCalled();
+    });
+
+    it('adds a person, and offers no more than five', async () => {
+      auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true)]);
+      const { unmount } = render(
+        <SettingsModal {...base} authInfo={{ authenticated: true }} initialSection="spotify" />
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Add person' }));
+      await waitFor(() => expect(auth.startAddPerson).toHaveBeenCalledTimes(1));
+      unmount();
+      auth.peopleOnKiosk.mockReturnValue(['a', 'b', 'c', 'd', 'e'].map(id => person(id, id === 'a')));
+      render(<SettingsModal {...base} authInfo={{ authenticated: true }} initialSection="spotify" />);
+      expect(screen.getByRole('button', { name: 'Add person' })).toBeDisabled();
+    });
+
+    it('shows why a person was refused without the redirect address', () => {
+      auth.isPersonRefused.mockReturnValue(true);
+      render(
+        <SettingsModal {...base} authInfo={{}} signInError="Spotify refused this account." initialSection="spotify" />
+      );
+      expect(screen.getByRole('alert')).toHaveTextContent('Spotify refused this account.');
+      expect(screen.queryByText(/redirect address/)).not.toBeInTheDocument();
+    });
   });
 
   it('offers no sign out while signed out', () => {

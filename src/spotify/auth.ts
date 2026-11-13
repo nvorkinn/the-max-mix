@@ -10,6 +10,8 @@ const PEOPLE_KEY = 'maxmix.people';
 // The single login kept before there were people; moved into the people list the first time it is read.
 const LEGACY_AUTH_KEY = 'maxmix.auth';
 const PKCE_KEY = 'maxmix.pkce';
+// Each person's remembered speakers (knownDevices.ts), dropped with the person.
+const KNOWN_SPEAKERS_KEY = 'maxmix.knownSpeakers';
 // Set by signOut, until the next sign-in goes through: the sign-in then asks Spotify to show its approval page again
 // (show_dialog) instead of letting Spotify's own remembered session sign the same account straight back in.
 const FRESH_SIGN_IN_KEY = 'maxmix.freshSignIn';
@@ -201,12 +203,16 @@ export function getActivePersonId(): string | null {
   return currentLogin()?.spotifyId || null;
 }
 
-/** Who the account behind `accessToken` is, from GET /me; blank when Spotify does not say. */
-async function readProfile(accessToken: string): Promise<Pick<Person, 'spotifyId' | 'name' | 'imageUrl'>> {
+/**
+ * Who the account behind `accessToken` is, from GET /me; blank when Spotify does not say. Null when Spotify refuses the
+ * account (403): in development mode it answers only accounts listed under the app's users in the developer dashboard.
+ */
+async function readProfile(accessToken: string): Promise<Pick<Person, 'spotifyId' | 'name' | 'imageUrl'> | null> {
   try {
     const response = await fetchSpotify('https://api.spotify.com/v1/me', {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
+    if (response.status === 403) return null;
     const { id, display_name: displayName, images } = recordOf(response.ok ? await readJson(response) : null);
     const image = Array.isArray(images) ? recordOf(images[0]) : {};
     return { spotifyId: textOf(id), name: textOf(displayName) || textOf(id), imageUrl: textOf(image['url']) };
@@ -219,7 +225,7 @@ async function readProfile(accessToken: string): Promise<Pick<Person, 'spotifyId
 async function nameActivePerson(accessToken: string): Promise<void> {
   const profile = await readProfile(accessToken);
   const people = readPeople();
-  if (!people || !profile.spotifyId) return;
+  if (!people || !profile?.spotifyId) return;
   writePeople({
     ...people,
     activeId: profile.spotifyId,
@@ -305,6 +311,25 @@ function takePkce(): { state: string; verifier: string } | null {
 
 const failure = (error: string) => ({ ok: false as const, error });
 
+/** Spotify lets an app in development mode sign in this many accounts at most. */
+export const PEOPLE_LIMIT = 5;
+const FULL = 'Spotify allows five people on this kiosk. Remove someone first.';
+const NOT_LISTED =
+  "Spotify refused this account. Add it under User Management in the Spotify app's dashboard, then sign in again.";
+
+/** Whether a sign-in failed over who signed in (not over the app's setup, such as its redirect address). */
+export const isPersonRefused = (error: string): boolean => error === FULL || error === NOT_LISTED;
+
+/** Whether adding `spotifyId` with `clientId` would go past PEOPLE_LIMIT (someone already listed can always sign in again). */
+function isFull(clientId: string, spotifyId: string): boolean {
+  const people = readPeople();
+  return (
+    people?.clientId === clientId &&
+    people.people.length >= PEOPLE_LIMIT &&
+    people.people.every(person => person.spotifyId !== spotifyId)
+  );
+}
+
 async function finishSignIn(query: URLSearchParams): Promise<SignInResult> {
   const pkce = takePkce();
   const error = query.get('error');
@@ -326,6 +351,8 @@ async function finishSignIn(query: URLSearchParams): Promise<SignInResult> {
     });
     if (!tokens.refreshToken) return failure('Spotify did not provide a refresh token. Sign in again.');
     const profile = await readProfile(tokens.accessToken);
+    if (!profile) return failure(NOT_LISTED);
+    if (isFull(clientId, profile.spotifyId)) return failure(FULL);
     generation += 1;
     addPerson(clientId, { ...profile, refreshToken: tokens.refreshToken });
     setFreshSignIn(false);
@@ -416,4 +443,73 @@ export function signOut(): void {
     // Storage is unavailable; there is nothing kept in it either.
   }
   setFreshSignIn(true);
+}
+
+/** Someone signed in on this kiosk, as Settings shows them; the refresh token stays in here. */
+export interface PersonOnKiosk {
+  spotifyId: string;
+  name: string;
+  imageUrl: string;
+  active: boolean;
+}
+
+/** Everyone signed in with the client ID in use, in the order they were added. */
+export function peopleOnKiosk(): PersonOnKiosk[] {
+  const people = readPeople();
+  if (people?.clientId !== getClientId()) return [];
+  return people.people.map(({ spotifyId, name, imageUrl }) => ({
+    spotifyId,
+    name,
+    imageUrl,
+    active: spotifyId === people.activeId
+  }));
+}
+
+/**
+ * Starts signing in one more person: always with Spotify's approval page, so they can pick their own account. Throws
+ * when the kiosk already has PEOPLE_LIMIT people. Clear the other sites' sign-ins first (forgetSignIns), so the
+ * previous person's Spotify session does not carry over.
+ */
+export async function startAddPerson(): Promise<void> {
+  if (peopleOnKiosk().length >= PEOPLE_LIMIT) throw new Error(FULL);
+  setFreshSignIn(true);
+  await startSignIn();
+}
+
+/** Drops the person's own list in maxmix.knownSpeakers (an object keyed by Spotify ID; see knownDevices.ts). */
+function forgetSpeakersOf(spotifyId: string): void {
+  if (!spotifyId) return;
+  try {
+    const stored: unknown = parseJson(localStorage.getItem(KNOWN_SPEAKERS_KEY) ?? 'null');
+    if (!stored || typeof stored !== 'object' || Array.isArray(stored) || !Object.hasOwn(stored, spotifyId)) return;
+    const others = Object.fromEntries(Object.entries(stored).filter(([id]) => id !== spotifyId));
+    localStorage.setItem(KNOWN_SPEAKERS_KEY, JSON.stringify(others));
+  } catch {
+    // Unavailable or unreadable: nothing of theirs can be dropped.
+  }
+}
+
+/**
+ * Forgets one person. Says what follows: 'kept' when someone else was active, 'switched' when they were the active
+ * person and the next person on the list is now active (reload to play as them), 'signed-out' when they were the last
+ * (as signOut, so clear the other sites' sign-ins and reload).
+ */
+export function removePerson(spotifyId: string): 'kept' | 'switched' | 'signed-out' {
+  const people = readPeople();
+  if (!people) return 'kept';
+  forgetSpeakersOf(spotifyId);
+  const remaining = people.people.filter(person => person.spotifyId !== spotifyId);
+  const [next] = remaining;
+  if (!next) {
+    signOut();
+    return 'signed-out';
+  }
+  if (people.activeId !== spotifyId) {
+    writePeople({ ...people, people: remaining });
+    return 'kept';
+  }
+  generation += 1;
+  cachedAccess = null;
+  writePeople({ ...people, activeId: next.spotifyId, people: remaining });
+  return 'switched';
 }
