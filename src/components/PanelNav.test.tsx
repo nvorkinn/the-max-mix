@@ -15,20 +15,34 @@ describe('PanelNav', () => {
     expect(onShow).toHaveBeenLastCalledWith('speakers');
   });
 
-  it('turns the Speakers button into Save, then Saving…, for a changed speaker choice', () => {
+  it('turns the buttons into a blank, Cancel and Save, then Saving…, for a changed speaker choice', () => {
     const onShow = vi.fn();
     const onSave = vi.fn();
-    const { rerender } = render(<PanelNav view="speakers" onShow={onShow} speakersButton="save" onSave={onSave} />);
-    expect(screen.queryByRole('button', { name: 'Speakers' })).not.toBeInTheDocument();
+    const onCancel = vi.fn();
+    const { container, rerender } = render(
+      <PanelNav view="speakers" onShow={onShow} speakersButton="save" onSave={onSave} onCancel={onCancel} />
+    );
+    // Queue and Lyrics are gone, so the view is left only by saving or cancelling.
+    for (const name of ['Speakers', 'Queue', 'Lyrics']) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
+    const [blank] = container.querySelectorAll('button');
+    expect(blank).toBeDisabled();
+    expect(blank).toBeEmptyDOMElement();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onCancel).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledOnce();
     expect(onShow).not.toHaveBeenCalled();
 
-    rerender(<PanelNav view="speakers" onShow={onShow} speakersButton="saving" onSave={onSave} />);
+    rerender(<PanelNav view="speakers" onShow={onShow} speakersButton="saving" onSave={onSave} onCancel={onCancel} />);
     expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
 
     // Confirmed: straight back to Speakers, with nothing saying "Saved".
-    rerender(<PanelNav view="speakers" onShow={onShow} speakersButton="speakers" onSave={onSave} />);
+    rerender(
+      <PanelNav view="speakers" onShow={onShow} speakersButton="speakers" onSave={onSave} onCancel={onCancel} />
+    );
     expect(screen.getByRole('button', { name: 'Speakers' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByText(/saved/i)).not.toBeInTheDocument();
   });

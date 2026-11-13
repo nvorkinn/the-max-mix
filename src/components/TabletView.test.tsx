@@ -729,10 +729,13 @@ describe('TabletView', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Soundbar' }));
     expect(screen.getByRole('checkbox', { name: 'Soundbar' })).toBeChecked();
     expect(player.current.transferPlayback).not.toHaveBeenCalled();
-    // Away from the Speakers view the button opens it again; the draft waits there.
-    fireEvent.click(within(nav).getByRole('button', { name: 'Lyrics' }));
-    expect(within(nav).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
-    fireEvent.click(within(nav).getByRole('button', { name: 'Speakers' }));
+    // While the draft waits, Queue and Lyrics give way to a blank and Cancel, which drops it.
+    expect(within(nav).queryByRole('button', { name: 'Queue' })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole('button', { name: 'Lyrics' })).not.toBeInTheDocument();
+    fireEvent.click(within(nav).getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByRole('checkbox', { name: 'Soundbar' })).not.toBeChecked();
+    expect(within(nav).getByRole('button', { name: 'Lyrics' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Soundbar' }));
     fireEvent.click(within(nav).getByRole('button', { name: 'Save' }));
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(player.current.transferPlayback).toHaveBeenCalledWith('dev1');

@@ -107,7 +107,7 @@ export interface SpeakerSelectionOptions {
 
 /**
  * The Speakers view's state: the speakers to list, where the music plays now (`confirmed`, from Spotify and the Pi only),
- * the draft the selectors change, and Save, which carries the draft out and waits until Spotify or the Pi shows it.
+ * the draft the selectors change, Cancel, which drops it, and Save, which carries the draft out and waits until Spotify or the Pi shows it.
  */
 export function useSpeakerSelection({
   onKiosk,
@@ -202,6 +202,13 @@ export function useSpeakerSelection({
     setError(null);
     const next = toggleChoice(shown, key);
     setDraft(sameChoice(next, confirmed) ? null : next);
+  };
+
+  /** Drops the draft, back to where the music plays now. */
+  const cancel = () => {
+    if (saving) return;
+    setDraft(null);
+    setError(null);
   };
 
   /** Does what moving from `from` to `to` takes, without waiting for it to show. */
@@ -306,6 +313,7 @@ export function useSpeakerSelection({
     error,
     toggle,
     save,
+    cancel,
     refresh,
     /** This tablet plays, so its outputs (AirPlay, Bluetooth) can be chosen. */
     tabletPlaying: confirmed?.family === 'tablet',

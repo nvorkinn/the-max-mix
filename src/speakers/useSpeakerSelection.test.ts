@@ -79,6 +79,19 @@ afterEach(() => {
 });
 
 describe('useSpeakerSelection with Sonos', () => {
+  it('drops a draft on Cancel, changing nothing', async () => {
+    const given = options();
+    const { result } = renderHook(() => useSpeakerSelection(given));
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    const before = result.current.shown;
+    act(() => result.current.toggle('sonos:Kitchen'));
+    expect(result.current.dirty).toBe(true);
+    act(() => result.current.cancel());
+    expect(result.current.dirty).toBe(false);
+    expect(result.current.shown).toEqual(before);
+    expect(given.playOnSonos).not.toHaveBeenCalled();
+  });
+
   it('starts the first room ticked, turned down, and adds the others to it', async () => {
     const given = options();
     const { result } = renderHook(() => useSpeakerSelection(given));
