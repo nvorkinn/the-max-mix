@@ -120,8 +120,8 @@ pointerdown
 polkit
 polkitd
 poweroff
-PSK
 proc
+PSK
 publickey
 pwauth
 pycache
