@@ -7,7 +7,7 @@ import type { Skin, Theme } from '../../utils/theme';
 
 const THEME_ICONS = { day: Sun, night: Moon, auto: SunMoon } as const;
 
-/** Day (paper, with the colour choice below), Night (dark navy), or Auto when the kiosk knows where it is. */
+/** Day (paper, with the colour choice below), Auto when the kiosk knows where it is, or Night (dark navy). */
 function ThemeChoice({
   theme,
   auto,
