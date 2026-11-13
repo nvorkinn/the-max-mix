@@ -72,7 +72,7 @@ import type { LyricsHit } from './lyrics.ts';
 import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
 import { advertiseForPairing } from './pairing-gatt.ts';
-import { forgetPhone, PhonePairing, readPhones, savePhone } from './phone-pairing.ts';
+import { forgetPhone, PhonePairing, readPhones, renamePhone, savePhone } from './phone-pairing.ts';
 import type { PairingStatus } from './phone-pairing.ts';
 import { PhoneSetup } from './phone-setup.ts';
 import type { Choice, Graph } from './pipewire.ts';
@@ -687,6 +687,7 @@ export function serveSpeakers(
     devices: async () => (await bluetoothMonitor.snapshot()).devices,
     scan: ms => scanLe(ms),
     rename: (address, name) => setAlias(address, name),
+    saveName: (address, name) => renamePhone(deps.phonesFile, address, name),
     log: message => {
       bluetoothMonitor.note(message);
     }
