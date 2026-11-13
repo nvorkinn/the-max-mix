@@ -8,8 +8,8 @@ const THEME_KEY = 'maxmix.theme';
 /** The choices the settings offer. The first is the default. */
 export const THEMES = [
   { id: 'day', label: 'Day' },
-  { id: 'night', label: 'Night' },
-  { id: 'auto', label: 'Auto' }
+  { id: 'auto', label: 'Auto' },
+  { id: 'night', label: 'Night' }
 ] as const;
 export type Theme = (typeof THEMES)[number]['id'];
 /** The skin on screen: Auto resolves to one of these. */
