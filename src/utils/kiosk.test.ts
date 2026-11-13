@@ -158,7 +158,9 @@ describe('forgetSignIns', () => {
       asked.push(event.data);
       window.dispatchEvent(new MessageEvent('message', { data: { type: 'other' }, source: window }));
       window.dispatchEvent(new MessageEvent('message', { data: { type: 'maxmix:sign-ins-forgotten' } }));
-      window.dispatchEvent(new MessageEvent('message', { data: { type: 'maxmix:sign-ins-forgotten' }, source: window }));
+      window.dispatchEvent(
+        new MessageEvent('message', { data: { type: 'maxmix:sign-ins-forgotten' }, source: window })
+      );
     };
     window.addEventListener('message', extension, { once: true });
     await forgetSignIns();

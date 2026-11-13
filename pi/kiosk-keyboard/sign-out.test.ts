@@ -25,7 +25,9 @@ describe('sign-out relay', () => {
     window.dispatchEvent(new MessageEvent('message', { data: 'maxmix:forget-sign-ins', origin, source: window }));
     expect(sendMessage).not.toHaveBeenCalled();
 
-    window.dispatchEvent(new MessageEvent('message', { data: { type: 'maxmix:forget-sign-ins' }, origin, source: window }));
+    window.dispatchEvent(
+      new MessageEvent('message', { data: { type: 'maxmix:forget-sign-ins' }, origin, source: window })
+    );
     await answered;
     expect(sendMessage).toHaveBeenCalledExactlyOnceWith({ type: 'maxmix:forget-sign-ins' });
   });

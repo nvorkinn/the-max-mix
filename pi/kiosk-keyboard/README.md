@@ -41,14 +41,14 @@ dialog, since a modal dialog makes the rest of the page untouchable. While the k
 
 ## Files
 
-| File            | Role                                                                                              |
-| --------------- | ------------------------------------------------------------------------------------------------- |
-| `manifest.json` | Manifest V3: the content script and the pages it runs on.                                         |
-| `loader.ts`     | The content script. Content scripts cannot be modules, so it imports `keyboard.js` by its URL.    |
-| `keyboard.ts`   | The keyboard: layouts, typing, showing and hiding.                                                |
-| `sign-out.ts`   | Content script on the app's pages: passes the app's sign-out to `background.ts`.                  |
-| `background.ts` | Service worker: clears every other site's cookies and storage on that request.                    |
-| `build.ts`      | Strips the types (Node's `stripTypeScriptTypes`), copies the manifest and adds the app's origin.  |
+| File            | Role                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------ |
+| `manifest.json` | Manifest V3: the content script and the pages it runs on.                                        |
+| `loader.ts`     | The content script. Content scripts cannot be modules, so it imports `keyboard.js` by its URL.   |
+| `keyboard.ts`   | The keyboard: layouts, typing, showing and hiding.                                               |
+| `sign-out.ts`   | Content script on the app's pages: passes the app's sign-out to `background.ts`.                 |
+| `background.ts` | Service worker: clears every other site's cookies and storage on that request.                   |
+| `build.ts`      | Strips the types (Node's `stripTypeScriptTypes`), copies the manifest and adds the app's origin. |
 
 ## Install
 
