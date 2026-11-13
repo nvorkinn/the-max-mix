@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MicVocal, RotateCcw } from 'lucide-react';
+import { MicVocal, RotateCcw, Timer } from 'lucide-react';
 import { useLyrics } from '../hooks/useLyrics';
 import { activeLineIndex } from '../lyrics/lrc';
 import type { LyricsProvider } from '../lyrics/types';
@@ -30,6 +30,9 @@ const FOLLOW_RESUME_MS = 8000;
 
 /** The speakers play a little behind the reported position, so each line lights up this much ahead of its timestamp. */
 const LYRICS_LEAD_MS = 500;
+
+/** The furthest a tap in sync mode moves the lyrics' timing, so a slip of the finger cannot throw them far off. */
+const MAX_SYNC_SHIFT_MS = 10_000;
 
 /** How often the lyrics work out the position between the player's own updates, which come about once a second. */
 const SMOOTH_STEP_MS = 100;
@@ -71,7 +74,11 @@ function LyricsPanelContent({
   provider
 }: Readonly<LyricsPanelProps>) {
   const { status, lyrics, error, retry } = useLyrics(track, shown, provider);
-  const position = useSmoothProgress(progressMs, playing && shown && lyrics?.kind === 'synced') + LYRICS_LEAD_MS;
+  // A tap in sync mode moves this song's lyrics earlier or later; the panel is remade for every song, so it starts at 0.
+  const [shiftMs, setShiftMs] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const smooth = useSmoothProgress(progressMs, playing && shown && lyrics?.kind === 'synced');
+  const position = smooth + LYRICS_LEAD_MS + shiftMs;
   const listRef = useRef<HTMLOListElement | null>(null);
   const [isFollowing, setIsFollowing] = useState(true);
   // The same as isFollowing, but set the moment the reader touches the list. A line change rendered just before the touch
@@ -117,6 +124,15 @@ function LyricsPanelContent({
     list.scrollTop = line.offsetTop - list.clientHeight / 2 + line.clientHeight / 2;
   }, [active, lyrics, isFollowing]);
 
+  /** Sync mode: the tapped line is the one being sung now, so the timing moves to match, and the mode ends. */
+  const syncTo = (lineMs: number) => {
+    const shift = lineMs - (smooth + LYRICS_LEAD_MS);
+    setShiftMs(Math.max(-MAX_SYNC_SHIFT_MS, Math.min(MAX_SYNC_SHIFT_MS, shift)));
+    setIsSyncing(false);
+    followingRef.current = true;
+    setIsFollowing(true);
+  };
+
   const body = () => {
     switch (status) {
       case 'idle': {
@@ -155,6 +171,7 @@ function LyricsPanelContent({
         ref={listRef}
         className={`lyrics-list ${lyrics.kind === 'synced' ? 'is-synced' : ''}`}
         data-following={isFollowing}
+        data-syncing={isSyncing}
         // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- Keyboard users need focus for native list scrolling.
         tabIndex={0}
         aria-label={`Lyrics of ${track?.name || track?.title || 'this song'}`}
@@ -162,22 +179,30 @@ function LyricsPanelContent({
         {lines.map((line, idx) => {
           // The line being sung lights up word by word when its source times each word, otherwise all at once.
           const words = idx === active && lyrics.kind === 'synced' ? lyrics.lines[idx]?.words : undefined;
+          const lineMs = lyrics.kind === 'synced' ? lyrics.lines[idx]?.timeMs : undefined;
+          const content = words
+            ? words.map(word => (
+                <span
+                  key={`${word.timeMs}:${word.text}`}
+                  className={`lyrics-word ${word.timeMs <= position ? 'is-reached' : ''}`}
+                >
+                  {word.text}
+                </span>
+              ))
+            : line || '\u{A0}';
           return (
             <li
               key={keys[idx]}
               className={`lyrics-line ${idx < active || (idx === active && !words) ? 'is-reached' : ''}`}
               aria-current={idx === active ? 'true' : undefined}
             >
-              {words
-                ? words.map(word => (
-                    <span
-                      key={`${word.timeMs}:${word.text}`}
-                      className={`lyrics-word ${word.timeMs <= position ? 'is-reached' : ''}`}
-                    >
-                      {word.text}
-                    </span>
-                  ))
-                : line || '\u{A0}'}
+              {isSyncing && lineMs !== undefined ? (
+                <button type="button" className="lyrics-sync-line" onClick={() => syncTo(lineMs)}>
+                  {content}
+                </button>
+              ) : (
+                content
+              )}
             </li>
           );
         })}
@@ -188,6 +213,17 @@ function LyricsPanelContent({
   return (
     <div className="lyrics-panel" role="region" aria-label="Lyrics">
       {body()}
+      {status === 'ready' && lyrics?.kind === 'synced' && (
+        <button
+          type="button"
+          className="lyrics-sync-button"
+          aria-label="Sync lyrics: tap the line being sung"
+          aria-pressed={isSyncing}
+          onClick={() => setIsSyncing(syncing => !syncing)}
+        >
+          <Timer size={24} strokeWidth={1.75} />
+        </button>
+      )}
     </div>
   );
 }
