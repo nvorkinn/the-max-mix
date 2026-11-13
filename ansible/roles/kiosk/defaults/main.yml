@@ -47,8 +47,9 @@ kiosk_version: >-
     if kiosk_pull_ref == 'latest' else kiosk_pull_ref }}
 
 # System settings.
-# The host name cloud-init (pi/cloud-init/user-data) gives the Pi; the playbook only adds it to /etc/hosts.
-kiosk_hostname: the-max-mix
+# The name /etc/hosts gives 127.0.1.1: the Pi's own host name, which cloud-init set from pi/cloud-init/user-data, so a
+# second kiosk renamed there (the-max-mix-2) resolves its own name. The playbook never changes the host name itself.
+kiosk_hostname: "{{ lookup('ansible.builtin.file', '/proc/sys/kernel/hostname') | trim }}"
 kiosk_locale: en_GB.UTF-8
 kiosk_timezone: Europe/London
 kiosk_wifi_country: GB

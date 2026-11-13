@@ -107,7 +107,8 @@ check grep -q '^AllowUsers admin$' /etc/ssh/sshd_config.d/10-kiosk.conf
 mkdir -p /run/sshd
 check /usr/sbin/sshd -t
 check test "$(stat -c %a /home/admin/.ssh)" = 700
-check grep -q '^127.0.1.1 the-max-mix$' /etc/hosts
+# /etc/hosts names the machine's own host name (the container's here, the-max-mix-2 on a renamed Pi).
+check grep -qx "127.0.1.1 $(cat /proc/sys/kernel/hostname)" /etc/hosts
 check grep -q '^ExecStart=/usr/local/sbin/kiosk-pull https://github.com/nvorkinn/the-max-mix.git latest ' /etc/systemd/system/kiosk-pull.service
 check test -x /usr/local/sbin/kiosk-pull
 # Node runs the audio routing's TypeScript directly.
