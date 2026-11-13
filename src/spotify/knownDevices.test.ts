@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getKnownSpeakers, rememberSpeaker } from './knownDevices';
 
-const auth = vi.hoisted(() => ({ activeId: 'nikolai' as string | null }));
+const auth = vi.hoisted((): { activeId: string | null } => ({ activeId: 'nikolai' }));
 vi.mock('./auth', () => ({ getActivePersonId: () => auth.activeId }));
 
 const stored = (): unknown => JSON.parse(localStorage.getItem('maxmix.knownSpeakers') ?? 'null');
