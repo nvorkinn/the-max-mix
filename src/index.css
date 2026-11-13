@@ -131,6 +131,8 @@
   background: var(--page);
   color: var(--ink);
   color-scheme: light;
+  /* Synced lyrics still to come; set here so it follows the theme's own muted and page colours. */
+  --lyric-ahead: color-mix(in srgb, var(--muted) 55%, var(--page));
   transition:
     --art-tint-top 1.5s ease,
     --art-tint-bottom 1.5s ease;
@@ -696,6 +698,7 @@
 }
 .lyrics-panel {
   height: 100%;
+  container-type: size;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -1716,24 +1719,25 @@ body:has(.app-dialog[open]) {
   letter-spacing: -0.3px;
   padding: 5px 0;
   overflow-wrap: anywhere;
-  transition:
-    color 300ms,
-    opacity 300ms;
+  transition: color 300ms;
 }
+/*
+  Synced lyrics fill the panel with about three lines either side of the current one, so the type is sized from the
+  panel's height, and from its width so that a wide panel does not wrap every line. Every line keeps that size; a line lights up when it is reached and stays lit, so the next line is
+  always where the eye left it.
+*/
 .lyrics-list.is-synced .lyrics-line {
-  color: var(--muted);
-  opacity: 0.75;
+  font-size: clamp(20px, min(8.4cqh, 6.4cqw), 40px);
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+  padding: 0.2em 0;
+  color: var(--lyric-ahead);
 }
 .lyrics-list[data-following='false'] {
   scroll-behavior: auto;
 }
-.lyrics-list.is-synced .lyrics-line.is-past {
-  opacity: 0.45;
-}
-.lyrics-list.is-synced .lyrics-line.is-active {
+.lyrics-list.is-synced .lyrics-line.is-reached {
   color: var(--ink);
-  opacity: 1;
-  font-size: 21px;
 }
 .queue-error {
   color: var(--danger);

@@ -26,6 +26,9 @@ function lineKeys(lines: readonly string[]): string[] {
 /** After this long without touching the lyrics, they follow the song again. */
 const FOLLOW_RESUME_MS = 8000;
 
+/** The speakers play a little behind the reported position, so each line lights up this much ahead of its timestamp. */
+const LYRICS_LEAD_MS = 1000;
+
 function EmptyState({ title, text }: Readonly<{ title: string; text: string }>) {
   return (
     <div className="queue-empty">
@@ -45,7 +48,7 @@ function LyricsPanelContent({ track, progressMs, shown = true, provider }: Reado
   // The same as isFollowing, but set the moment the reader touches the list. A line change rendered just before the touch
   // runs its scroll effect just after it, with the old isFollowing; this stops that scroll from undoing the reader's.
   const followingRef = useRef(true);
-  const active = lyrics?.kind === 'synced' ? activeLineIndex(lyrics.lines, progressMs) : -1;
+  const active = lyrics?.kind === 'synced' ? activeLineIndex(lyrics.lines, progressMs + LYRICS_LEAD_MS) : -1;
 
   useEffect(() => {
     const list = listRef.current;
@@ -130,7 +133,7 @@ function LyricsPanelContent({ track, progressMs, shown = true, provider }: Reado
         {lines.map((line, idx) => (
           <li
             key={keys[idx]}
-            className={`lyrics-line ${idx === active ? 'is-active' : ''} ${idx < active ? 'is-past' : ''}`}
+            className={`lyrics-line ${idx <= active ? 'is-reached' : ''}`}
             aria-current={idx === active ? 'true' : undefined}
           >
             {line || '\u{A0}'}

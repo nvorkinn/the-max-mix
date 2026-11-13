@@ -27,9 +27,9 @@ beforeEach(() => clearLyricsCache());
 afterEach(() => vi.useRealTimers());
 
 describe('LyricsPanel', () => {
-  it('asks the provider for the current track and highlights the line being sung', async () => {
+  it('asks the provider for the current track and lights up each line a second early', async () => {
     const provider = providerOf(synced);
-    const { rerender } = renderPanel({ provider, progressMs: 3500 });
+    const { rerender } = renderPanel({ provider, progressMs: 2000 });
     expect(screen.getByRole('status')).toHaveTextContent('Looking for the lyrics');
     await flush();
     expect(provider).toHaveBeenCalledWith(
@@ -45,10 +45,11 @@ describe('LyricsPanel', () => {
       'Second placeholder',
       'Second placeholder'
     ]);
+    // The third line starts at 3s, so it is current from 2s; the lines before it stay lit, the ones after it do not.
     expect(lines[2]).toHaveAttribute('aria-current', 'true');
-    expect(lines[0]).toHaveClass('is-past');
+    expect(lines.map(line => line.classList.contains('is-reached'))).toEqual([true, true, true, false]);
 
-    rerender(<LyricsPanel track={track} progressMs={4200} provider={provider} />);
+    rerender(<LyricsPanel track={track} progressMs={3200} provider={provider} />);
     expect(screen.getAllByRole('listitem')[3]).toHaveAttribute('aria-current', 'true');
     expect(provider).toHaveBeenCalledTimes(1);
   });
@@ -68,14 +69,14 @@ describe('LyricsPanel', () => {
     async input => {
       vi.useFakeTimers();
       const provider = providerOf(synced);
-      const { rerender } = renderPanel({ provider, progressMs: 1500 });
+      const { rerender } = renderPanel({ provider, progressMs: 500 });
       await flush();
       const list = screen.getByRole('list');
       Object.defineProperty(list, 'clientHeight', { value: 100 });
       for (const [index, line] of screen.getAllByRole('listitem').entries()) {
         Object.defineProperties(line, { offsetTop: { value: index * 100 }, clientHeight: { value: 20 } });
       }
-      rerender(<LyricsPanel track={track} progressMs={3500} provider={provider} />);
+      rerender(<LyricsPanel track={track} progressMs={2500} provider={provider} />);
       expect(list.scrollTop).toBe(160);
       expect(list).toHaveAttribute('tabindex', '0');
       if (input === 'wheel') fireEvent.wheel(list, { deltaY: -100 });
@@ -83,7 +84,7 @@ describe('LyricsPanel', () => {
         fireEvent.pointerDown(list, { pointerType: input === 'touch' ? 'touch' : 'mouse' });
       } else fireEvent.keyDown(list, { key: input });
       list.scrollTop = 17;
-      rerender(<LyricsPanel track={track} progressMs={4200} provider={provider} />);
+      rerender(<LyricsPanel track={track} progressMs={3200} provider={provider} />);
       expect(list.scrollTop).toBe(17);
       expect(screen.getAllByRole('listitem')[3]).toHaveAttribute('aria-current', 'true');
       expect(list).toHaveAttribute('data-following', 'false');
