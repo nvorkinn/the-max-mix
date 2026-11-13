@@ -360,7 +360,8 @@ export async function main(): Promise<void> {
   // A URL on this service (wifi-setup.ts serves the sign-in keyboard's built file there), not a path TypeScript knows.
   const keyboardUrl = '/wifi-setup/keyboard.js';
   const keyboard = (await import(keyboardUrl)) as typeof import('../kiosk-keyboard/keyboard.ts');
-  keyboard.start(document);
+  // Wi-Fi passwords are full of digits, so the keyboard keeps a row of them at the top.
+  keyboard.start(document, document.documentElement, { hasNumberRow: true });
   void post('/heartbeat');
   setInterval(() => void post('/heartbeat'), HEARTBEAT_MS);
   const canCancel = new URLSearchParams(location.search).get('can-cancel') === '1';

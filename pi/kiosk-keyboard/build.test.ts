@@ -13,16 +13,28 @@ describe('build', () => {
 
   it('writes plain JavaScript and the manifest, and reports a second run as unchanged', async () => {
     destination = await mkdtemp(path.join(tmpdir(), 'kiosk-keyboard-'));
-    expect(await build(import.meta.dirname, destination)).toEqual(['manifest.json', 'loader.js', 'keyboard.js']);
+    const app = 'https://app.example';
+    expect(await build(import.meta.dirname, destination, app)).toEqual([
+      'manifest.json',
+      'loader.js',
+      'keyboard.js',
+      'back.js'
+    ]);
 
     const keyboard = await readFile(path.join(destination, 'keyboard.js'), 'utf8');
-    expect(keyboard).toMatch(/export function start\(doc\s*, mount\s*= doc.documentElement\)/);
+    expect(keyboard).toContain('export function start(');
     expect(keyboard).not.toContain('export type');
     const loader = await readFile(path.join(destination, 'loader.js'), 'utf8');
     expect(loader).not.toContain('declare const');
-    const manifest = JSON.parse(await readFile(path.join(destination, 'manifest.json'), 'utf8')) as { name: string };
-    expect(manifest.name).toBe('THE MAX MIX sign-in keyboard');
+    const manifest = JSON.parse(await readFile(path.join(destination, 'manifest.json'), 'utf8')) as {
+      content_scripts: { js: string[]; exclude_matches?: string[] }[];
+    };
+    // The back button stays off the app itself and off the kiosk's own pages (the Wi-Fi setup).
+    const back = manifest.content_scripts.find(script => script.js.includes('back.js'));
+    expect(back?.exclude_matches).toEqual(['http://127.0.0.1/*', 'https://app.example/*']);
+    const keys = manifest.content_scripts.find(script => script.js.includes('loader.js'));
+    expect(keys?.exclude_matches).toBeUndefined();
 
-    expect(await build(import.meta.dirname, destination)).toEqual([]);
+    expect(await build(import.meta.dirname, destination, app)).toEqual([]);
   });
 });

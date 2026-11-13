@@ -71,7 +71,7 @@ for file in /usr/local/bin/kiosk-session \
   /opt/the-max-mix/kiosk-audio/node_modules/qrcode-generator/package.json \
   /etc/NetworkManager/dnsmasq-shared.d/50-kiosk-captive.conf /etc/sysctl.d/50-kiosk-unprivileged-ports.conf \
   /opt/the-max-mix/kiosk-keyboard/extension/manifest.json /opt/the-max-mix/kiosk-keyboard/extension/loader.js \
-  /opt/the-max-mix/kiosk-keyboard/extension/keyboard.js \
+  /opt/the-max-mix/kiosk-keyboard/extension/keyboard.js /opt/the-max-mix/kiosk-keyboard/extension/back.js \
   /opt/the-max-mix/kiosk-audio/node_modules/ws/package.json /var/lib/the-max-mix/kiosk-audio-deps.sha1 \
   /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf /etc/systemd/user/default.target.wants/kiosk-audio.service; do
   check test -e "$file"
@@ -118,6 +118,8 @@ check grep -q 'kiosk-audio.ts watch$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'try-restart kiosk-audio.service' /etc/systemd/system/kiosk.service
 check grep -q 'KIOSK_APP_ORIGIN=https://the-max-mix.vorkinn.org' /etc/systemd/user/kiosk-audio.service
 check grep -q '"LocalNetworkAccessAllowedForUrls"' /etc/chromium/policies/managed/kiosk.json
+# The back button is left off the app's own pages.
+check grep -q '"https://the-max-mix.vorkinn.org/\*"' /opt/the-max-mix/kiosk-keyboard/extension/manifest.json
 check grep -q '^Environment=KIOSK_SCREEN_OFF_AFTER=60$' /etc/systemd/system/kiosk.service
 check command -v swayidle wlr-randr
 check grep -q 'en_GB.UTF-8' /etc/default/locale

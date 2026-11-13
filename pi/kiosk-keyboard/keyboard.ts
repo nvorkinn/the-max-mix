@@ -9,8 +9,17 @@ export type Key =
   | { kind: 'shift' | 'backspace' | 'space' | 'done' }
   | { kind: 'page'; page: Page; label: string };
 
-/** Height of the keyboard in CSS pixels; the page gets this much room at the bottom while it shows. */
+/** Height of the four-row keyboard in CSS pixels; the page gets this much room at the bottom while it shows. */
 export const KEYBOARD_HEIGHT = 262;
+
+/**
+ * Height of a keyboard with this many rows. The fifth row (the number row) makes each row a little lower, so the
+ * keyboard does not take much more of a small screen.
+ */
+export function keyboardHeight(rows: number): number {
+  const rowHeight = rows > 4 ? 48 : 55;
+  return rows * rowHeight + (rows - 1) * 8 + 18;
+}
 
 // Each row is written with spaces between the keys.
 const chars = (row: string): Key[] => row.split(' ').map(text => ({ kind: 'char', text }));
@@ -19,7 +28,11 @@ const BACKSPACE: Key = { kind: 'backspace' };
 const toPage = (page: Page, label: string): Key => ({ kind: 'page', page, label });
 const bottomRow = (page: Key): Key[] => [page, ...chars('@'), { kind: 'space' }, ...chars('.'), { kind: 'done' }];
 
-const LAYOUTS: Record<Page, Key[][]> = {
+type Layouts = Partial<Record<Page, Key[][]>> & { letters: Key[][] };
+
+const DIGITS = chars('1 2 3 4 5 6 7 8 9 0');
+
+const LAYOUTS: Layouts = {
   letters: [
     chars('q w e r t y u i o p'),
     chars('a s d f g h j k l'),
@@ -27,7 +40,7 @@ const LAYOUTS: Record<Page, Key[][]> = {
     bottomRow(toPage('symbols', '?123'))
   ],
   symbols: [
-    chars('1 2 3 4 5 6 7 8 9 0'),
+    DIGITS,
     chars('- / : ; ( ) $ & " +'),
     [toPage('more', '#+='), ...chars(", ? ! ' _ ="), BACKSPACE],
     bottomRow(toPage('letters', 'ABC'))
@@ -39,6 +52,29 @@ const LAYOUTS: Record<Page, Key[][]> = {
     bottomRow(toPage('letters', 'ABC'))
   ]
 };
+
+// With the digits always in the top row (for passwords): the letters, and one page with every other ASCII symbol.
+const NUMBER_ROW_LAYOUTS: Layouts = {
+  letters: [
+    DIGITS,
+    chars('q w e r t y u i o p'),
+    chars('a s d f g h j k l'),
+    [SHIFT, ...chars('z x c v b n m'), BACKSPACE],
+    bottomRow(toPage('symbols', '#+='))
+  ],
+  symbols: [
+    DIGITS,
+    chars('- / : ; ( ) $ & " +'),
+    chars('[ ] { } # % ^ * < >'),
+    [...chars("\\ | ~ ` ? ! ' _ = ,"), BACKSPACE],
+    bottomRow(toPage('letters', 'ABC'))
+  ]
+};
+
+export interface KeyboardOptions {
+  /** Keep a row of digits above the letters and the symbols. */
+  hasNumberRow?: boolean;
+}
 
 const TEXT_TYPES = new Set(['text', 'email', 'password', 'search', 'tel', 'url', 'number']);
 
@@ -112,11 +148,11 @@ export function deleteBackward(field: Field): void {
   setValue(field, value.slice(0, from) + value.slice(to), from);
 }
 
-const STYLE = `
+const style = (rows: number): string => `
   :host { all: initial; }
   .board {
-    position: fixed; inset: auto 0 0; z-index: 2147483647; box-sizing: border-box; height: ${KEYBOARD_HEIGHT}px;
-    display: grid; grid-template-rows: repeat(4, 1fr); gap: 8px; padding: 8px 6px 10px;
+    position: fixed; inset: auto 0 0; z-index: 2147483647; box-sizing: border-box; height: ${keyboardHeight(rows)}px;
+    display: grid; grid-template-rows: repeat(${rows}, 1fr); gap: 8px; padding: 8px 6px 10px;
     background: #121212; border-top: 1px solid #333; font: 500 24px/1 system-ui, sans-serif;
     touch-action: manipulation; user-select: none; -webkit-user-select: none;
   }
@@ -136,17 +172,23 @@ const STYLE = `
  * Shows the keyboard whenever a text field of `doc` has focus. Returns a function that removes it again. The keyboard
  * goes in `mount`: the app puts it inside its open dialog, as a modal dialog makes the rest of the page untouchable.
  */
-export function start(doc: Document, mount: Element = doc.documentElement): () => void {
+export function start(
+  doc: Document,
+  mount: Element = doc.documentElement,
+  { hasNumberRow = false }: KeyboardOptions = {}
+): () => void {
+  const layouts = hasNumberRow ? NUMBER_ROW_LAYOUTS : LAYOUTS;
+  const height = keyboardHeight(layouts.letters.length);
   const host = doc.createElement('div');
   host.style.display = 'none';
   const root = host.attachShadow({ mode: 'open' });
-  const style = doc.createElement('style');
-  style.textContent = STYLE;
+  const sheet = doc.createElement('style');
+  sheet.textContent = style(layouts.letters.length);
   const board = doc.createElement('div');
   board.className = 'board';
   board.setAttribute('role', 'group');
   board.setAttribute('aria-label', 'On-screen keyboard');
-  root.append(style, board);
+  root.append(sheet, board);
 
   let page: Page = 'letters';
   let isShifted = false;
@@ -154,7 +196,7 @@ export function start(doc: Document, mount: Element = doc.documentElement): () =
   let savedPadding: string | undefined;
 
   const render = (): void => {
-    const rows = LAYOUTS[page].map((keys, row) => {
+    const rows = (layouts[page] ?? []).map((keys, row) => {
       const line = doc.createElement('div');
       line.className = 'row';
       for (const [column, key] of keys.entries()) {
@@ -184,9 +226,9 @@ export function start(doc: Document, mount: Element = doc.documentElement): () =
     if (host.style.display === 'none') {
       host.style.display = '';
       // The app's dialogs read this to make room for the keyboard; a padded body does not move a dialog.
-      doc.documentElement.style.setProperty('--keyboard-height', `${KEYBOARD_HEIGHT}px`);
+      doc.documentElement.style.setProperty('--keyboard-height', `${height}px`);
       savedPadding = doc.body.style.paddingBottom;
-      doc.body.style.paddingBottom = `${KEYBOARD_HEIGHT}px`;
+      doc.body.style.paddingBottom = `${height}px`;
     }
     target.scrollIntoView({ block: 'center' });
   };
@@ -244,7 +286,7 @@ export function start(doc: Document, mount: Element = doc.documentElement): () =
     event.preventDefault();
     const button = (event.target as Element | null)?.closest('button');
     const [row = -1, column = -1] = (button?.dataset['key'] ?? '').split(':').map(Number);
-    const key = LAYOUTS[page][row]?.[column];
+    const key = layouts[page]?.[row]?.[column];
     if (key && field) press(key, field);
   };
 

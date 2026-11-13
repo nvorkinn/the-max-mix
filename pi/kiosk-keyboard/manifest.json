@@ -1,13 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "THE MAX MIX sign-in keyboard",
+  "name": "THE MAX MIX kiosk pages",
   "version": "1.0.0",
-  "description": "An on-screen keyboard for the Spotify sign-in pages on the kiosk's touch screen.",
+  "description": "On the kiosk's touch screen: an on-screen keyboard for the Spotify sign-in pages, and a button back to the app on every page outside it.",
   "content_scripts": [
     {
       "matches": ["https://accounts.spotify.com/*", "https://challenge.spotify.com/*"],
       "js": ["loader.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "exclude_matches": ["http://127.0.0.1/*"],
+      "js": ["back.js"],
+      "run_at": "document_end"
     }
   ],
   "web_accessible_resources": [
