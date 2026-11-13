@@ -80,6 +80,8 @@ jobs:
           set -o pipefail
           if [[ $EVENT == pull_request ]]; then
             git diff --name-only HEAD^1 HEAD | node scripts/e2e-traced.ts | tee -a "$GITHUB_ENV"
+            # TEMPORARY, for one measurement: trace nothing.
+            echo 'E2E_TRACE_TAGS=' >> "$GITHUB_ENV"
           else
             echo 'E2E_TRACE_TAGS=' >> "$GITHUB_ENV"
           fi
