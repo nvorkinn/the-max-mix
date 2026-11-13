@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Smartphone } from 'lucide-react';
+import { Bluetooth, Smartphone } from 'lucide-react';
 import { linkPhone } from '../spotify/auth';
 import { samePhone, useSavedPhones } from '../hooks/useSavedPhones';
 import Modal from './Modal';
+import PairPhoneSheet from './PairPhoneSheet';
 
 /**
  * Which of the Pi's saved phones belongs to a person, so the banner's switcher offers them only while the Pi hears it.
- * Shows the linked phone's name; tapping it lists the saved phones, and None.
+ * Shows the linked phone's name; tapping it offers to pair a new phone (which is then linked) or lists the saved phones,
+ * and None.
  */
 export default function PhonePicker({
   spotifyId,
@@ -15,8 +17,10 @@ export default function PhonePicker({
   onChange
 }: Readonly<{ spotifyId: string; name: string; phoneAddress: string; onChange: () => void }>) {
   const [isOpen, setIsOpen] = useState(false);
-  // Read always, not just while open, so the button can name the linked phone.
-  const phones = useSavedPhones(true);
+  const [isPairing, setIsPairing] = useState(false);
+  const [pairings, setPairings] = useState(0);
+  // Read always, not just while open, so the button can name the linked phone; again once a new one has paired.
+  const phones = useSavedPhones(true, pairings);
   const linked = phones.find(phone => samePhone(phoneAddress, phone.address));
   const choose = (address: string) => {
     setIsOpen(false);
@@ -43,6 +47,19 @@ export default function PhonePicker({
             {name}’s phone
           </h3>
           <ul className="phone-picker-options">
+            <li>
+              <button
+                type="button"
+                className="modal-option phone-picker-option phone-picker-pair"
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsPairing(true);
+                }}
+              >
+                <Bluetooth className="w-5 h-5" aria-hidden="true" />
+                Pair new phone
+              </button>
+            </li>
             {phones.map(phone => (
               <li key={phone.address}>
                 <button
@@ -67,6 +84,17 @@ export default function PhonePicker({
             </li>
           </ul>
         </Modal>
+      )}
+      {isPairing && (
+        <PairPhoneSheet
+          spotifyId={spotifyId}
+          name={name}
+          onDone={() => {
+            setIsPairing(false);
+            setPairings(count => count + 1);
+            onChange();
+          }}
+        />
       )}
     </>
   );

@@ -13,7 +13,7 @@ import { extractArtColours, type ArtColours } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
 import { getQueue } from '../spotify/api';
-import { switchPerson } from '../spotify/auth';
+import { peopleOnKiosk, switchPerson, takePhoneToPair } from '../spotify/auth';
 import { reloadSettings } from '../spotify/settings';
 import { getKioskSonosLeader, playOnSonosRoom } from '../sonos/kiosk';
 import { rememberSpeaker } from '../spotify/knownDevices';
@@ -44,6 +44,7 @@ import DebugConsole from './DebugConsole';
 import SleepScreen from './SleepScreen';
 import SleepIcon from './SleepIcon';
 import PersonSwitcher from './PersonSwitcher';
+import PairPhoneSheet from './PairPhoneSheet';
 
 const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
@@ -136,6 +137,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [queueError, setQueueError] = useState<string | null>(null);
   // AirPlay, Bluetooth and Sonos need the Pi's audio service, so they are offered on the kiosk only.
   const [onKiosk] = useState(isKiosk);
+  // Someone who has just signed in with no phone linked: the kiosk offers to pair theirs straight away.
+  const [pairingFor] = useState(() => (onKiosk ? takePhoneToPair() : null));
+  const [isPairingOpen, setIsPairingOpen] = useState(pairingFor !== null);
 
   // Spotify will not move its playback to a Sonos, so on the kiosk the Pi starts the song on the speaker itself
   // (sonos-ts), with Spotify's queue after it and from where the song was. The tablet is paused first, while it is still
@@ -586,6 +590,14 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         onPlay={playMusic}
         disabled={!controlsEnabled}
       />
+
+      {pairingFor && isPairingOpen && (
+        <PairPhoneSheet
+          spotifyId={pairingFor}
+          name={peopleOnKiosk().find(person => person.spotifyId === pairingFor)?.name ?? ''}
+          onDone={() => setIsPairingOpen(false)}
+        />
+      )}
 
       <DebugConsole
         isOpen={isDebugOpen}

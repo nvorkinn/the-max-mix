@@ -631,6 +631,18 @@ describe('spotify/auth', () => {
     };
     const people = () => storedJson('maxmix.people');
 
+    it('offers to pair a phone once after someone signs in without one', async () => {
+      setClientId('client-1');
+      await expect(signIn('s1', 'r1')).resolves.toEqual({ ok: true });
+      const { takePhoneToPair, linkPhone } = await import('./auth');
+      expect(takePhoneToPair()).toBe('nikolai');
+      expect(takePhoneToPair()).toBeNull();
+      linkPhone('nikolai', 'AA:01');
+      await expect(signIn('s2', 'r2')).resolves.toEqual({ ok: true });
+      const again = await import('./auth');
+      expect(again.takePhoneToPair()).toBeNull();
+    });
+
     it('names a new sign-in from GET /me and makes it the active person', async () => {
       setClientId('client-1');
       await expect(signIn('s1', 'r1')).resolves.toEqual({ ok: true });

@@ -7,7 +7,7 @@ import SongProof from './SongProof';
 
 /**
  * The active person's picture in the banner. Tapping it shows everyone's face, and tapping one switches to them
- * (`onSwitch`). Someone whose linked phone the Pi does not hear is greyed out: tapping them shows a random song to play
+ * (`onSwitch`; the active person too, which starts their session again, so the check can be tried with one account). Someone whose linked phone the Pi does not hear is greyed out: tapping them shows a random song to play
  * on their phone instead (SongProof), and the switch follows once it plays on their account.
  */
 export default function PersonSwitcher({ onSwitch }: Readonly<{ onSwitch: (spotifyId: string) => void }>) {
@@ -58,7 +58,8 @@ export default function PersonSwitcher({ onSwitch }: Readonly<{ onSwitch: (spoti
             <ul className="person-sheet-faces">
               {people.slice(0, PEOPLE_LIMIT).map(person => {
                 const isActive = person.active;
-                const isAway = !isActive && !isHere(person.phoneAddress);
+                // The active person goes through the same check, so the switch can be tried with only one account.
+                const isAway = !isHere(person.phoneAddress);
                 return (
                   <li key={person.spotifyId}>
                     <button
@@ -73,7 +74,7 @@ export default function PersonSwitcher({ onSwitch }: Readonly<{ onSwitch: (spoti
                           return;
                         }
                         setIsOpen(false);
-                        if (!isActive) onSwitch(person.spotifyId);
+                        onSwitch(person.spotifyId);
                       }}
                     >
                       <PersonFace name={person.name} imageUrl={person.imageUrl} className="person-face-choice" />
