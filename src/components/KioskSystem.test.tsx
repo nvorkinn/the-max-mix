@@ -5,13 +5,17 @@ import userEvent from '../test/user';
 import { useKioskUpdate } from '../hooks/useKioskUpdate';
 import KioskSystem from './KioskSystem';
 import UpdateConsole from './UpdateConsole';
+import UpdatePrompt from './UpdatePrompt';
 
-/** The settings section and the update console it opens, wired to one update the way TabletView wires them. */
+/** The settings section, the update popup and the update console, wired to one update the way TabletView wires them. */
 function Harness() {
   const update = useKioskUpdate(true);
   return (
     <>
-      <KioskSystem update={update} onUpdate={update.start} />
+      <KioskSystem update={update} />
+      {update.prompting && update.newer && (
+        <UpdatePrompt newer={update.newer} onUpdate={update.start} onLater={update.dismissPrompt} />
+      )}
       <UpdateConsole update={update} />
     </>
   );
@@ -24,7 +28,7 @@ const kiosk = vi.hoisted(() => ({
   isRelease: (ref: string) => /^v\d/.test(ref),
   restartKiosk: vi.fn(),
   rebootPi: vi.fn(),
-  getDismissedUpdate: vi.fn(() => null),
+  getDismissedUpdate: vi.fn<() => string | null>(() => null),
   setDismissedUpdate: vi.fn()
 }));
 vi.mock('../utils/kiosk', () => kiosk);
@@ -55,7 +59,7 @@ describe('KioskSystem', () => {
   it('says when a newer release is out', async () => {
     kiosk.latestRelease.mockResolvedValue('v1.13.0');
     render(<Harness />);
-    expect(await screen.findByText(/v1\.13\.0 is out\. Tap Update now/)).toBeInTheDocument();
+    expect(await screen.findByText(/v1\.13\.0 is out\. Tap the button to install it now/)).toBeInTheDocument();
   });
 
   it('says when GitHub cannot be asked for the latest release', async () => {
@@ -77,7 +81,7 @@ describe('KioskSystem', () => {
     kiosk.piVersion.mockReturnValue({ ref: 'main', commit: running });
     kiosk.latestCommit.mockResolvedValue('abcdef0123456789abcdef0123456789abcdef01');
     render(<Harness />);
-    expect(await screen.findByText(/main is now abcdef0\. Tap Update now/)).toBeInTheDocument();
+    expect(await screen.findByText(/main is now abcdef0\. Tap the button to install it now/)).toBeInTheDocument();
   });
 
   it('copes with a Pi that does not say its version', () => {
@@ -88,15 +92,64 @@ describe('KioskSystem', () => {
     expect(kiosk.latestRelease).not.toHaveBeenCalled();
   });
 
-  it('updates only on a second tap and says it is updating', async () => {
-    kiosk.latestRelease.mockResolvedValue(null);
+  describe('the check button', () => {
+    const check = () => screen.getByRole('button', { name: 'Check for updates' });
+    const popup = () => screen.queryByRole('dialog', { name: 'Update available', hidden: true });
+
+    it('asks GitHub again, and shows what it finds without a popup when nothing is newer', async () => {
+      kiosk.latestRelease.mockResolvedValue('v1.12.0');
+      render(<Harness />);
+      expect(await screen.findByText('Up to date.')).toBeInTheDocument();
+      await userEvent.click(check());
+      expect(kiosk.latestRelease).toHaveBeenCalledTimes(2);
+      expect(await screen.findByText('Up to date.')).toBeInTheDocument();
+      expect(popup()).not.toBeInTheDocument();
+    });
+
+    it('is busy while GitHub is asked', () => {
+      kiosk.latestRelease.mockReturnValue(new Promise(() => {}));
+      render(<Harness />);
+      expect(check()).toBeDisabled();
+    });
+
+    it('opens the popup for a newer version it finds, where the update starts', async () => {
+      kiosk.latestRelease.mockResolvedValue('v1.12.0');
+      render(<Harness />);
+      await screen.findByText('Up to date.');
+      kiosk.latestRelease.mockResolvedValue('v1.13.0');
+      await userEvent.click(check());
+      expect(await screen.findByRole('dialog', { name: 'Update available', hidden: true })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Update now', hidden: true }));
+      expect(latestFakeSocket().url).toBe('ws://127.0.0.1:7341/power/update');
+    });
+
+    it('after Not now, says what is newer and asks again when pressed', async () => {
+      kiosk.latestRelease.mockResolvedValue('v1.13.0');
+      render(<Harness />);
+      await userEvent.click(await screen.findByRole('button', { name: 'Not now', hidden: true }));
+      expect(popup()).not.toBeInTheDocument();
+      expect(kiosk.setDismissedUpdate).toHaveBeenCalledWith('v1.13.0');
+      expect(screen.getByText(/v1\.13\.0 is out\. Tap the button to install it now/)).toBeInTheDocument();
+
+      await userEvent.click(check());
+      expect(await screen.findByRole('dialog', { name: 'Update available', hidden: true })).toBeInTheDocument();
+    });
+
+    it('cannot be pressed when the Pi did not say its version', () => {
+      kiosk.piVersion.mockReturnValue(null);
+      render(<Harness />);
+      expect(check()).toBeDisabled();
+    });
+  });
+
+  it('says it is updating once the popup starts the update', async () => {
+    kiosk.latestRelease.mockResolvedValue('v1.13.0');
     render(<Harness />);
-    await userEvent.click(screen.getByRole('button', { name: 'Update now' }));
     expect(() => latestFakeSocket()).toThrow('No WebSocket was opened');
-    await userEvent.click(screen.getByRole('button', { name: 'Tap again to update' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Update now', hidden: true }));
     expect(latestFakeSocket().url).toBe('ws://127.0.0.1:7341/power/update');
     expect(screen.getByText('Updating… this can take a few minutes.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Updating…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Check for updates', hidden: true })).toBeDisabled();
     expect(screen.getByLabelText('Update output')).toHaveTextContent('Starting the update…');
     // While it runs there is nothing to go back to: no close button, and Escape does nothing.
     expect(screen.queryByRole('button', { name: 'Close update console' })).not.toBeInTheDocument();
@@ -106,10 +159,9 @@ describe('KioskSystem', () => {
 
   describe('while an update runs', () => {
     const tap = async () => {
-      kiosk.latestRelease.mockResolvedValue(null);
+      kiosk.latestRelease.mockResolvedValue('v1.13.0');
       render(<Harness />);
-      await userEvent.click(screen.getByRole('button', { name: 'Update now' }));
-      await userEvent.click(screen.getByRole('button', { name: 'Tap again to update' }));
+      await userEvent.click(await screen.findByRole('button', { name: 'Update now', hidden: true }));
       act(() => latestFakeSocket().open());
     };
     const receive = (frame: unknown) => act(() => latestFakeSocket().receive(frame));
@@ -125,9 +177,9 @@ describe('KioskSystem', () => {
       act(() => latestFakeSocket().end());
       // The settings section and the console both say it.
       expect(screen.getAllByText('Update finished. Nothing needed a restart.')).toHaveLength(2);
-      // The console stays up with its output after the update ends, until it is closed; Update is usable again.
+      // The console stays up with its output after the update ends, until it is closed; checking is usable again.
       expect(screen.getByLabelText('Update output')).toHaveTextContent('TASK [kiosk]');
-      expect(screen.getByRole('button', { name: 'Update now' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Check for updates', hidden: true })).toBeEnabled();
       await userEvent.click(screen.getByRole('button', { name: 'Close update console' }));
       expect(screen.queryByLabelText('Update output')).not.toBeInTheDocument();
       expect(debug.debugLog.mock.calls.map(call => String(call.at(2)))).toEqual([
@@ -156,10 +208,9 @@ describe('KioskSystem', () => {
     });
 
     it('says so when the service never answers', async () => {
-      kiosk.latestRelease.mockResolvedValue(null);
+      kiosk.latestRelease.mockResolvedValue('v1.13.0');
       render(<Harness />);
-      await userEvent.click(screen.getByRole('button', { name: 'Update now' }));
-      await userEvent.click(screen.getByRole('button', { name: 'Tap again to update' }));
+      await userEvent.click(await screen.findByRole('button', { name: 'Update now', hidden: true }));
       act(() => latestFakeSocket().end());
       // The settings section and the console both say it.
       expect(screen.getAllByText('The kiosk service is not answering.')).toHaveLength(2);

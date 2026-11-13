@@ -50,10 +50,15 @@ test.describe('Software update', { tag: '@update' }, () => {
     await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
     await expect(popup(page)).toBeHidden();
 
-    // Settings still say it, and offer the update.
+    // Settings still say it, and the check button beside it asks again.
     await page.getByRole('button', { name: 'Open settings' }).click();
     const settings = page.getByRole('dialog', { name: 'Settings' });
-    await expect(settings.getByRole('status')).toContainText('v1.13.0 is out. Tap Update now');
+    await expect(settings.getByRole('status')).toContainText('v1.13.0 is out. Tap the button to install it now');
+    await expect(popup(page)).toBeHidden();
+    await settings.getByRole('button', { name: 'Check for updates' }).click();
+    await expect(popup(page)).toBeVisible();
+    await popup(page).getByRole('button', { name: 'Not now' }).click();
+    await expect(settings.getByRole('status')).toContainText('v1.13.0 is out.');
   });
 
   test('the update popup appears over Settings, where it can be read and tapped', async ({ page }) => {
@@ -170,21 +175,26 @@ test.describe('Software update', { tag: '@update' }, () => {
     await expect(updating).toBeHidden();
   });
 
-  test('Update now in Settings asks twice, then closes Settings for the console', async ({ page }) => {
+  test('Check for updates in Settings finds a newer release, and the popup closes Settings for the console', async ({
+    page
+  }) => {
     const connected = Promise.withResolvers<undefined>();
     await page.routeWebSocket(UPDATE_SOCKET, ws => {
       send(ws, { type: 'status', state: 'pulling' });
       connected.resolve(undefined);
     });
-    // Up to date, so there is no popup: the update is started from Settings.
-    await openKiosk(page, 'v1.12.0');
+    // Up to date when Settings open, so there is no popup.
+    const github = await openKiosk(page, 'v1.12.0');
     await page.getByRole('button', { name: 'Open settings' }).click();
     const settings = page.getByRole('dialog', { name: 'Settings' });
     await expect(settings.getByRole('status')).toContainText('Up to date.');
+    await expect(settings.getByRole('button', { name: 'Update now' })).toHaveCount(0);
 
-    await settings.getByRole('button', { name: 'Update now' }).click();
-    await expect(console_(page)).toBeHidden();
-    await settings.getByRole('button', { name: 'Tap again to update' }).click();
+    // A newer release comes out with Settings open: the check button finds it.
+    github.newest = 'v1.13.0';
+    await settings.getByRole('button', { name: 'Check for updates' }).click();
+    await expect(popup(page)).toContainText('v1.13.0 is out.');
+    await popup(page).getByRole('button', { name: 'Update now' }).click();
     await connected.promise;
     await expect(console_(page)).toBeVisible();
     await expect(settings).toBeHidden();

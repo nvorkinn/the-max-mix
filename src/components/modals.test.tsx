@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
-import { fetchSpotify, resetSpotifyRateLimit } from '../spotify/http';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '../test/user';
 import { partialProps } from '../test/partialProps';
 import { defined } from '../test/defined';
@@ -23,27 +22,6 @@ describe('SettingsModal', () => {
     for (const mock of [...Object.values(auth), ...Object.values(settings), base.onReload]) mock.mockReset();
     settings.getRedirectUri.mockReturnValue('http://127.0.0.1:3000/');
     auth.startSignIn.mockResolvedValue(undefined);
-  });
-
-  it('turns Spotify polling on and off, and says when the quota has stopped it', async () => {
-    render(<SettingsModal {...base} authInfo={{}} />);
-    const group = screen.getByRole('group', { name: 'Poll Spotify for updates' });
-    expect(within(group).getByRole('button', { name: 'On' })).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.click(within(group).getByRole('button', { name: 'Off' }));
-    expect(localStorage.getItem('maxmix.pollSpotify')).toBe('off');
-    expect(within(group).getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText(/Off: playback is read when the page opens/)).toBeInTheDocument();
-    await userEvent.click(within(group).getByRole('button', { name: 'On' }));
-    expect(screen.getByText(/On: playback and the queue are read every few seconds/)).toBeInTheDocument();
-
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(Response.json({ error: { reason: 'QUOTA_EXCEEDED' } }, { status: 429 }))
-    );
-    await act(() => fetchSpotify('https://api.spotify.com/v1/me/player', {}));
-    expect(screen.getByText(/Stopped: Spotify's quota is used up/)).toBeInTheDocument();
-    vi.unstubAllGlobals();
-    resetSpotifyRateLimit();
   });
 
   it('asks for a fresh update check each time it opens, and not while closed', () => {
@@ -129,12 +107,19 @@ describe('SettingsModal', () => {
     expect(screen.getByText('http://127.0.0.1:3000/')).toBeInTheDocument();
   });
 
-  describe('Wi-Fi network setting', () => {
-    const wifi = () => screen.queryByRole('button', { name: /wi-fi network/i });
+  describe('Wi-Fi setting', () => {
+    const wifi = () => screen.queryByRole('button', { name: /(change|choose) network/i });
+    /** The kiosk service, answering GET /wifi/status with this. */
+    const kioskSays = (answer: Response | Error) => {
+      const fetchMock = vi.fn(() => (answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer)));
+      vi.stubGlobal('fetch', fetchMock);
+      return fetchMock;
+    };
 
     beforeEach(() => {
       localStorage.clear();
       history.replaceState(null, '', '/');
+      kioskSays(new Error('no kiosk'));
     });
     afterEach(() => vi.unstubAllGlobals());
 
@@ -144,11 +129,37 @@ describe('SettingsModal', () => {
       unmount();
       history.replaceState(null, '', '/?kiosk=1');
       const kiosk = render(<SettingsModal {...base} authInfo={{}} />);
-      expect(wifi()).toHaveTextContent('Wi-Fi network');
+      expect(wifi()).toBeInTheDocument();
       kiosk.unmount();
       history.replaceState(null, '', '/');
       render(<SettingsModal {...base} authInfo={{}} />);
       expect(wifi()).toBeInTheDocument();
+    });
+
+    it('comes first, names the network the kiosk is on and offers to change it', async () => {
+      history.replaceState(null, '', '/?kiosk=1');
+      const fetchMock = kioskSays(Response.json({ ssid: 'Home' }));
+      render(<SettingsModal {...base} authInfo={{}} />);
+      expect(await screen.findByText('Home')).toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/status', expect.anything());
+      const change = screen.getByRole('button', { name: 'Change network' });
+      const spotify = screen.getByText('Spotify connection:');
+      expect(change.compareDocumentPosition(spotify) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('says when the kiosk is on no network, and nothing when it cannot tell', async () => {
+      history.replaceState(null, '', '/?kiosk=1');
+      kioskSays(Response.json({ ssid: null }));
+      const { unmount } = render(<SettingsModal {...base} authInfo={{}} />);
+      expect(await screen.findByText('Not connected')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Choose network' })).toBeInTheDocument();
+      unmount();
+
+      kioskSays(new Response(null, { status: 404 }));
+      render(<SettingsModal {...base} authInfo={{}} />);
+      await act(() => Promise.resolve());
+      expect(screen.queryByTestId('wifi-network')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Choose network' })).toBeInTheDocument();
     });
 
     it('is forgotten with ?kiosk=0', () => {

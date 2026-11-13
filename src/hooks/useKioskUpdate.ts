@@ -47,8 +47,13 @@ export interface KioskUpdate {
   consoleOpen: boolean;
   /** Whether to ask the person about the newer version: once for each version, not while one is under way. */
   prompting: boolean;
-  /** Asks GitHub again what is newest (the settings do it every time they open). The last answer stays until the new one comes. */
-  checkNow: () => void;
+  /** True while GitHub is being asked what is newest. */
+  isChecking: boolean;
+  /**
+   * Asks GitHub again what is newest (the settings do it every time they open). The last answer stays until the new one
+   * comes. With `ask`, a newer version is asked about again even after "Not now": the person asked for it themselves.
+   */
+  checkNow: (ask?: boolean) => void;
   start: () => void;
   closeConsole: () => void;
   /** "Not now": the prompt stays away until a still newer version comes out. */
@@ -93,8 +98,9 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
 
   // Asked once at the start and again whenever checkNow is called. A newer check replaces one still under way, and an
   // answer that could not be had (offline, rate limited) does not throw away an earlier one that could.
-  const [checks, setChecks] = useState(0);
-  const checkNow = useCallback(() => setChecks(count => count + 1), []);
+  const [check, setCheck] = useState({ id: 0, ask: false });
+  const [answered, setAnswered] = useState(-1);
+  const checkNow = useCallback((ask = false) => setCheck(({ id }) => ({ id: id + 1, ask })), []);
   useEffect(() => {
     if (!version) return;
     const controller = new AbortController();
@@ -107,9 +113,12 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
         if (value) return { state: 'known', value };
         return previous.state === 'known' ? previous : { state: 'unknown' };
       });
+      // Forgotten for this page only: "Not now" writes it down again.
+      if (check.ask) setDismissed(null);
+      setAnswered(check.id);
     });
     return () => controller.abort();
-  }, [version, checks]);
+  }, [version, check]);
 
   const release = Boolean(version && isRelease(version.ref));
   let newer: string | null = null;
@@ -198,6 +207,7 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
     output,
     consoleOpen,
     prompting: newer !== null && newerId !== dismissed && !consoleOpen,
+    isChecking: version !== null && answered !== check.id,
     checkNow,
     start,
     closeConsole: () => setConsoleOpen(false),

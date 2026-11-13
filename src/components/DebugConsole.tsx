@@ -4,6 +4,8 @@ import { clearDebugLog, getDebugEntries, subscribeDebugLog } from '../utils/debu
 import type { DebugEntry } from '../utils/debugLog';
 import { getHttpLogMode, getMutedHttpGroups, HTTP_GROUPS, setHttpGroupMuted, setHttpLogMode } from '../utils/httpLog';
 import type { HttpLogMode } from '../utils/httpLog';
+import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
+import { setPollSpotify } from '../spotify/polling';
 import { widevineProblem } from '../utils/widevine';
 import Modal from './Modal';
 
@@ -104,6 +106,24 @@ function HttpLogOptions() {
   );
 }
 
+/**
+ * Whether the app reads Spotify on a timer to keep up with changes made elsewhere (say, from a phone). Unticked,
+ * playback is read when the page opens and after each button press only: the way to stop the calls when something
+ * makes too many of them.
+ */
+function PollingOption() {
+  const { enabled, quotaExceeded } = useSpotifyPolling();
+  return (
+    <div className="debug-options">
+      <label>
+        <input type="checkbox" checked={enabled} onChange={event => setPollSpotify(event.target.checked)} />
+        Poll Spotify for updates
+      </label>
+      {quotaExceeded && <p>Stopped: Spotify’s quota is used up. Restart the app to poll again.</p>}
+    </div>
+  );
+}
+
 function DebugConsolePanel({
   onClose,
   status,
@@ -149,6 +169,7 @@ function DebugConsolePanel({
           </div>
         ))}
       </dl>
+      <PollingOption />
       <HttpLogOptions />
       {entries.length === 0 ? (
         <p className="debug-empty">Nothing logged since the page loaded.</p>

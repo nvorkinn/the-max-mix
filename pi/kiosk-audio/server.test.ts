@@ -90,6 +90,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
     },
     wifi: {
       scan: () => Promise.resolve([{ ssid: 'Home', signal: 80, bars: 4, security: 'psk' }]),
+      current: () => Promise.resolve('Home'),
       connect: request => {
         joined.push(request);
         return Promise.resolve(request.password === 'right-password' ? { ok: true } : { ok: false, error: 'Nope.' });
@@ -492,8 +493,22 @@ describe('Wi-Fi', () => {
     });
   });
 
+  it('tells the app, and only the app, which network the Wi-Fi is on', async () => {
+    const base = await start(fakes().deps);
+    const response = await fetch(`${base}/wifi/status`, { headers: { Origin: ORIGIN } });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ssid: 'Home' });
+    expect((await fetch(`${base}/wifi/status`)).status).toBe(403);
+    expect((await fetch(`${base}/wifi/status`, { headers: { Origin: LOCAL_ORIGIN } })).status).toBe(403);
+  });
+
   it('says why a scan failed', async () => {
-    const wifi = { scan: () => Promise.reject(new ScanError(ERRORS.disabled)), connect: vi.fn(), done: vi.fn() };
+    const wifi = {
+      scan: () => Promise.reject(new ScanError(ERRORS.disabled)),
+      current: vi.fn(),
+      connect: vi.fn(),
+      done: vi.fn()
+    };
     const base = await start(fakes({ wifi }).deps);
     const response = await fetch(`${base}/wifi/networks`);
     expect(response.status).toBe(503);

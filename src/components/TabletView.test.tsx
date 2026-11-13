@@ -823,7 +823,7 @@ describe('TabletView', () => {
         const asked = fetchMock.mock.calls.length;
         fetchMock.mockImplementation(() => Promise.resolve(Response.json({ tag_name: 'v1.14.0' })));
         fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
-        expect(await screen.findByText(/v1\.14\.0 is out\. Tap Update now/)).toBeInTheDocument();
+        expect(await screen.findByText(/v1\.14\.0 is out\. Tap the button to install it now/)).toBeInTheDocument();
         expect(fetchMock.mock.calls.length).toBeGreaterThan(asked);
         // The newer version is asked about at once, over the open Settings.
         expect(screen.getByRole('dialog', { name: 'Update available' })).toBeInTheDocument();
@@ -846,21 +846,40 @@ describe('TabletView', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Close settings' }));
         fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
         const popup = await screen.findByRole('dialog', { name: 'Update available' });
-        // Settings has an Update now of its own: the popup's is the one tapped.
         fireEvent.click(within(popup).getByRole('button', { name: 'Update now' }));
         expect(await screen.findByRole('dialog', { name: 'Updating the Pi' })).toBeInTheDocument();
         expect(screen.queryByRole('dialog', { name: 'Settings' })).not.toBeInTheDocument();
       });
 
-      it('starting the update from Settings closes Settings and opens the console', async () => {
+      it('Check for updates in Settings asks again after Not now, and the update starts from the popup', async () => {
         render(<TabletView />);
         await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
         fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
-        fireEvent.click(await screen.findByRole('button', { name: 'Update now' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Tap again to update' }));
+        // The same version was declined, so opening Settings only says it is out.
+        expect(await screen.findByText(/v1\.13\.0 is out\. Tap the button to install it now/)).toBeInTheDocument();
+        await flush();
+        expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }));
+        const popup = await screen.findByRole('dialog', { name: 'Update available' });
+        fireEvent.click(within(popup).getByRole('button', { name: 'Update now' }));
         expect(await screen.findByRole('dialog', { name: 'Updating the Pi' })).toBeInTheDocument();
         expect(screen.queryByRole('dialog', { name: 'Settings' })).not.toBeInTheDocument();
+      });
+
+      it('asks GitHub again when the screen wakes', async () => {
+        fetchMock.mockImplementation(() => Promise.resolve(Response.json({ tag_name: 'v1.12.0' })));
+        render(<TabletView />);
+        await flush();
+        expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Put the screen to sleep' }));
+        // A newer release comes out while the screen is off.
+        fetchMock.mockImplementation(() => Promise.resolve(Response.json({ tag_name: 'v1.13.0' })));
+        const asked = fetchMock.mock.calls.length;
+        fireEvent.click(screen.getByRole('button', { name: 'Wake the screen' }));
+        expect(await screen.findByRole('dialog', { name: 'Update available' })).toBeInTheDocument();
+        expect(fetchMock.mock.calls.length).toBeGreaterThan(asked);
       });
     });
 

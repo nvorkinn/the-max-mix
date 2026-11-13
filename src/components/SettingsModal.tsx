@@ -3,9 +3,7 @@ import type { CSSProperties } from 'react';
 import { X, Settings, Music, CheckCircle2, AlertCircle, LogOut, Wifi } from 'lucide-react';
 import { signOut, startSignIn } from '../spotify/auth';
 import { errorMessage } from '../utils/errorMessage';
-import { forgetSignIns, isKiosk, openWifiSettings } from '../utils/kiosk';
-import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
-import { setPollSpotify } from '../spotify/polling';
+import { currentWifi, forgetSignIns, isKiosk, openWifiSettings } from '../utils/kiosk';
 import { getRedirectUri, reloadSettings } from '../spotify/settings';
 import { SCREEN_SLEEP_CHOICES } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
@@ -47,33 +45,36 @@ function ScreenSleepRow({
   );
 }
 
-/** Whether the app reads Spotify on a timer to keep up with changes made elsewhere (say, from a phone). */
-function PollingRow() {
-  const { enabled, quotaExceeded } = useSpotifyPolling();
-  let note = 'Off: playback is read when the page opens and after each button press, not every few seconds.';
-  if (quotaExceeded) note = "Stopped: Spotify's quota is used up. Restart the app to read Spotify by itself again.";
-  else if (enabled) {
-    note = 'On: playback and the queue are read every few seconds, so changes from other devices show up.';
-  }
+/**
+ * The kiosk's Wi-Fi: the network it is on, and the button that opens the kiosk's Wi-Fi setup page. That page replaces
+ * the app while it is up and the app starts again after it, so the name is read once, when the settings open.
+ */
+function WifiRow() {
+  const [ssid, setSsid] = useState<string | null>();
+  useEffect(() => {
+    const controller = new AbortController();
+    void currentWifi(controller.signal).then(found => {
+      if (!controller.signal.aborted) setSsid(found);
+    });
+    return () => controller.abort();
+  }, []);
+  // Nothing is said when the kiosk could not tell: "Not connected" would be a guess.
+  const network = ssid === null ? 'Not connected' : ssid;
+
   return (
-    <div className="modal-card p-3 rounded-2xl border">
-      <div className="text-xs font-bold" id="poll-spotify-label">
-        Poll Spotify for updates
+    <div className="modal-card p-3 rounded-2xl border flex items-center gap-3">
+      <Wifi className="w-5 h-5 shrink-0 text-accent" aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-bold">Wi-Fi</div>
+        {network !== undefined && (
+          <p data-testid="wifi-network" className="mt-0.5 text-muted truncate">
+            {network}
+          </p>
+        )}
       </div>
-      <div className="flex gap-1.5 mt-2" role="group" aria-labelledby="poll-spotify-label">
-        {[true, false].map(choice => (
-          <button
-            type="button"
-            key={String(choice)}
-            aria-pressed={enabled === choice}
-            onClick={() => setPollSpotify(choice)}
-            className="modal-option flex-1 min-h-11 rounded-xl border text-xs font-bold"
-          >
-            {choice ? 'On' : 'Off'}
-          </button>
-        ))}
-      </div>
-      <p className="mt-2 text-muted">{note}</p>
+      <button type="button" onClick={openWifiSettings} className="button button-secondary text-xs font-bold shrink-0">
+        {ssid ? 'Change network' : 'Choose network'}
+      </button>
     </div>
   );
 }
@@ -200,6 +201,11 @@ function SettingsContent({
           <X className="w-5 h-5" />
         </button>
       </div>
+      {isKiosk() && (
+        <div className="mb-3">
+          <WifiRow />
+        </div>
+      )}
       <div className="modal-card p-3.5 rounded-2xl border mb-4">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <span className="text-xs font-semibold text-muted">Spotify connection:</span>
@@ -259,30 +265,10 @@ function SettingsContent({
         {themeColour !== undefined && onThemeColourChange && (
           <ThemeColourRow colour={themeColour} onChange={onThemeColourChange} disabled={theme === 'night'} />
         )}
-        <PollingRow />
-        {isKiosk() && (
-          <button
-            type="button"
-            onClick={openWifiSettings}
-            className="modal-option w-full flex items-center justify-between gap-3 p-3 min-h-14 rounded-2xl border active:scale-98 text-left transition-all"
-          >
-            <span className="text-xs font-bold">Wi-Fi network</span>
-            <Wifi className="w-5 h-5 shrink-0 text-accent" aria-hidden="true" />
-          </button>
-        )}
         {isKiosk() && screenSleep !== undefined && onScreenSleepChange && (
           <ScreenSleepRow minutes={screenSleep} onChange={onScreenSleepChange} />
         )}
-        {isKiosk() && kioskUpdate && (
-          <KioskSystem
-            update={kioskUpdate}
-            onUpdate={() => {
-              // The update console takes over the screen, so the settings behind it are closed.
-              kioskUpdate.start();
-              onClose();
-            }}
-          />
-        )}
+        {isKiosk() && kioskUpdate && <KioskSystem update={kioskUpdate} />}
       </div>
 
       <p className="mt-5 text-center text-xs text-muted">

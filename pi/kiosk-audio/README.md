@@ -111,6 +111,7 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 | `POST /wifi/hotspot`                   | Starts the setup hotspot: name, password, address, QR codes              |
 | `POST /wifi/hotspot/stop`              | Ends it and puts the earlier network back                                |
 | `GET /wifi/hotspot`                    | `{"state": "running" \| "joining" \| "failed" \| "idle"}`                |
+| `GET /wifi/status`                     | `{"ssid"}`: the network the Wi-Fi is on, or null (the app only)          |
 | `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                             |
 | `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)                 |
 | `POST /wifi/done`                      | The setup page is finished: stops the Chromium showing it                |

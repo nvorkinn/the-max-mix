@@ -9,6 +9,13 @@ const openSettings = async (page: Page) => {
   return settings;
 };
 
+const openDebug = async (page: Page) => {
+  await page.keyboard.press('Control+Shift+D');
+  const debug = page.getByRole('dialog', { name: 'Debug console' });
+  await expect(debug).toBeVisible();
+  return debug;
+};
+
 test.describe('Settings', { tag: '@settings' }, () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 600 });
@@ -51,28 +58,30 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
   });
 
-  test.describe('Poll Spotify for updates', () => {
+  test.describe('Poll Spotify for updates, in the debug console', () => {
     test.beforeEach(async ({ page }) => {
       await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
       await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
     });
 
-    test('Off stops the timer reads, is kept across a reload, and On starts them again', async ({ page }) => {
+    test('unticked stops the timer reads, is kept across a reload, and ticked starts them again', async ({ page }) => {
       const reads = countPlaybackReads(page);
       await page.goto('/');
       await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-      const dialog = await openSettings(page);
-      const choice = dialog.getByRole('group', { name: 'Poll Spotify for updates' });
-      await expect(choice.getByRole('button', { name: 'On' })).toHaveAttribute('aria-pressed', 'true');
-      await expect(dialog).toContainText('On: playback and the queue are read every few seconds');
+      // It is not a setting people are offered.
+      const settings = await openSettings(page);
+      await expect(settings).not.toContainText('Poll Spotify');
+      await settings.getByRole('button', { name: 'Close settings' }).click();
+
+      const debug = await openDebug(page);
+      const poll = debug.getByRole('checkbox', { name: 'Poll Spotify for updates' });
+      await expect(poll).toBeChecked();
 
       const awake = reads();
       await advance(page, 12_000);
       expect(reads() - awake).toBeGreaterThanOrEqual(2);
 
-      await choice.getByRole('button', { name: 'Off' }).click();
-      await expect(choice.getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true');
-      await expect(dialog).toContainText('Off: playback is read when the page opens');
+      await poll.uncheck();
       await advance(page, 1000);
       const stopped = reads();
       await advance(page, 30_000, 5000);
@@ -84,12 +93,10 @@ test.describe('Settings', { tag: '@settings' }, () => {
       const reloaded = reads();
       await advance(page, 30_000, 5000);
       expect(reads()).toBe(reloaded);
-      const again = await openSettings(page);
-      await expect(
-        again.getByRole('group', { name: 'Poll Spotify for updates' }).getByRole('button', { name: 'Off' })
-      ).toHaveAttribute('aria-pressed', 'true');
+      const again = (await openDebug(page)).getByRole('checkbox', { name: 'Poll Spotify for updates' });
+      await expect(again).not.toBeChecked();
 
-      await again.getByRole('group', { name: 'Poll Spotify for updates' }).getByRole('button', { name: 'On' }).click();
+      await again.check();
       const resumed = reads();
       await advance(page, 12_000);
       expect(reads() - resumed).toBeGreaterThanOrEqual(2);
@@ -122,7 +129,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
       ).toHaveAttribute('aria-pressed', 'true');
     });
 
-    test('Wi-Fi, Restart kiosk and Reboot Pi ask the kiosk service, the last two only on a second tap', async ({
+    test('Wi-Fi names the network; it, Restart kiosk and Reboot Pi ask the kiosk service, the last two only on a second tap', async ({
       page
     }) => {
       const asked: string[] = [];
@@ -132,12 +139,18 @@ test.describe('Settings', { tag: '@settings' }, () => {
         // what is being asked about here.
         const method = route.request().method();
         if (method === 'POST' && pathname !== '/log') asked.push(`${method} ${pathname}`);
-        return route.fulfill({ status: 204 });
+        const isStatus = method === 'GET' && pathname === '/wifi/status';
+        return route.fulfill(
+          isStatus
+            ? { headers: { 'Access-Control-Allow-Origin': '*' }, json: { ssid: 'Home network' } }
+            : { status: 204 }
+        );
       });
       await page.goto('/');
       const dialog = await openSettings(page);
 
-      await dialog.getByRole('button', { name: 'Wi-Fi network' }).click();
+      await expect(dialog).toContainText('Home network');
+      await dialog.getByRole('button', { name: 'Change network' }).click();
       await expect.poll(() => asked).toEqual(['POST /wifi']);
 
       await dialog.getByRole('button', { name: 'Restart kiosk' }).click();
@@ -178,8 +191,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await page.goto('/?kiosk=0');
     const dialog = await openSettings(page);
     await expect(dialog.getByRole('button', { name: 'Sign out' })).toBeVisible();
-    await expect(dialog.getByRole('group', { name: 'Poll Spotify for updates' })).toBeVisible();
-    const kioskOnly = ['Wi-Fi network', 'Restart kiosk', 'Reboot Pi', 'Update now'];
+    const kioskOnly = ['Change network', 'Choose network', 'Restart kiosk', 'Reboot Pi', 'Check for updates'];
     await Promise.all(kioskOnly.map(name => expect(dialog.getByRole('button', { name })).toHaveCount(0)));
     await expect(dialog.getByRole('group', { name: 'Screen sleep' })).toHaveCount(0);
   });

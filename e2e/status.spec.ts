@@ -296,7 +296,9 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
     });
 
-    test('QUOTA_EXCEEDED stops all polling for good and says so, in the banner and in Settings', async ({ page }) => {
+    test('QUOTA_EXCEEDED stops all polling for good and says so, in the banner and in the debug console', async ({
+      page
+    }) => {
       const reads = countPlaybackReads(page);
       await page.goto('/');
       await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
@@ -314,9 +316,9 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       expect(reads()).toBe(stopped);
       await expect(banner).toContainText('Spotify quota used up');
 
-      await page.getByRole('button', { name: 'Open settings' }).click();
-      const settings = page.getByRole('dialog', { name: 'Settings' });
-      await expect(settings).toContainText("Stopped: Spotify's quota is used up");
+      await page.keyboard.press('Control+Shift+D');
+      const debug = page.getByRole('dialog', { name: 'Debug console' });
+      await expect(debug).toContainText('Stopped: Spotify’s quota is used up');
     });
 
     test('an ordinary 429 waits a while, says so, and carries on by itself', async ({ page }) => {
