@@ -97,6 +97,7 @@ nonexistent
 nonint
 noninteractive
 NOPASSWD
+noqa
 nosniff
 noto
 nullglob

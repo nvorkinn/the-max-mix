@@ -192,6 +192,10 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     await page.goto('/');
     const queue = page.getByRole('region', { name: 'Upcoming tracks' });
     await expect(queue.getByText('Loading queue...')).toBeVisible();
+    // The playing song arriving reads the queue again; let it land while the queue still fails, so that a read after
+    // the switch to 200 below can only come from the Retry button.
+    const player = page.getByRole('region', { name: 'Now playing', exact: true });
+    await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
     resolve(undefined);
     await expect(queue.getByText('Queue unavailable.')).toBeVisible();
     await expect(queue.getByText('A little quiet in here.')).toHaveCount(0);
