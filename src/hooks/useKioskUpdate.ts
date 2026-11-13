@@ -49,6 +49,8 @@ export interface KioskUpdate {
   prompting: boolean;
   /** True while GitHub is being asked what is newest. */
   isChecking: boolean;
+  /** When GitHub last told what is newest (ms since the epoch), or null until it has. */
+  checkedAt: number | null;
   /**
    * Asks GitHub again what is newest (the settings do it every time they open). The last answer stays until the new one
    * comes. With `ask`, a newer version is asked about again even after "Not now": the person asked for it themselves.
@@ -100,6 +102,7 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
   // answer that could not be had (offline, rate limited) does not throw away an earlier one that could.
   const [check, setCheck] = useState({ id: 0, ask: false });
   const [answered, setAnswered] = useState(-1);
+  const [checkedAt, setCheckedAt] = useState<number | null>(null);
   const checkNow = useCallback((ask = false) => setCheck(({ id }) => ({ id: id + 1, ask })), []);
   useEffect(() => {
     if (!version) return;
@@ -115,6 +118,7 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
       });
       // Forgotten for this page only: "Not now" writes it down again.
       if (check.ask) setDismissed(null);
+      if (value) setCheckedAt(Date.now());
       setAnswered(check.id);
     });
     return () => controller.abort();
@@ -208,6 +212,7 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
     consoleOpen,
     prompting: newer !== null && newerId !== dismissed && !consoleOpen,
     isChecking: version !== null && answered !== check.id,
+    checkedAt,
     checkNow,
     start,
     closeConsole: () => setConsoleOpen(false),

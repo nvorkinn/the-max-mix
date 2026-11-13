@@ -69,7 +69,7 @@ test.describe('Software update', { tag: '@update' }, () => {
     await page.getByRole('button', { name: 'Open settings' }).click();
     const settings = page.getByRole('dialog', { name: 'Settings' });
     await showSection(settings, 'Software');
-    await expect(settings.getByRole('status')).toContainText('Up to date.');
+    await expect(settings.getByRole('status')).toContainText('Up to date as of');
 
     // A newer release comes out while the tablet runs; opening Settings again asks GitHub and finds it, with Settings open.
     github.newest = 'v1.13.0';
@@ -193,7 +193,7 @@ test.describe('Software update', { tag: '@update' }, () => {
     await page.getByRole('button', { name: 'Open settings' }).click();
     const settings = page.getByRole('dialog', { name: 'Settings' });
     await showSection(settings, 'Software');
-    await expect(settings.getByRole('status')).toContainText('Up to date.');
+    await expect(settings.getByRole('status')).toContainText('Up to date as of');
     await expect(settings.getByRole('button', { name: 'Update now' })).toHaveCount(0);
 
     // A newer release comes out with Settings open: the check button finds it.

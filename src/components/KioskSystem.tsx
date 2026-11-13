@@ -6,6 +6,11 @@ import { SOFTWARE_LOOK, softwareState } from './settings/softwareStatus';
 
 /** How long a first tap waits for the confirming second tap. */
 const CONFIRM_MS = 4000;
+/** The refresh button spins at least this long, so a check GitHub answers at once still shows it ran. */
+const MIN_SPIN_MS = 800;
+
+const formatTime = (ms: number) =>
+  new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
 
 /** A button that acts only on a second tap within a few seconds, so a stray touch never restarts anything. */
 function ConfirmButton({
@@ -45,7 +50,11 @@ function ConfirmButton({
  * the update popup (UpdatePrompt), which is where an update starts, so after "Not now" the same button offers it again.
  */
 export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }>) {
-  const { version, release, what, latest, newer, isChecking, isUpdating, progress, checkNow } = update;
+  const { version, release, what, latest, newer, isChecking, checkedAt, isUpdating, progress, checkNow } = update;
+  const [pressed, setPressed] = useState(false);
+  const spinTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(spinTimerRef.current), []);
+  const spinning = isChecking || pressed;
   let status = 'The Pi did not say which version it runs.';
   if (version && latest.state === 'checking') status = `Checking GitHub for a newer ${what}…`;
   if (version && latest.state === 'unknown') status = `Could not check GitHub for a newer ${what}.`;
@@ -53,6 +62,7 @@ export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }
     status = newer
       ? `${newer}. Tap the button to install it now, or the Pi picks it up within 6 hours and applies it at 04:30.`
       : 'Up to date.';
+    if (!newer && checkedAt !== null) status = `Up to date as of ${formatTime(checkedAt)}.`;
   }
   if (progress) status = progress;
 
@@ -76,12 +86,17 @@ export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }
         </div>
         <button
           type="button"
-          onClick={() => checkNow(true)}
-          disabled={!version || isChecking || isUpdating}
+          onClick={() => {
+            checkNow(true);
+            setPressed(true);
+            clearTimeout(spinTimerRef.current);
+            spinTimerRef.current = setTimeout(() => setPressed(false), MIN_SPIN_MS);
+          }}
+          disabled={!version || spinning || isUpdating}
           aria-label="Check for updates"
           className="modal-icon-button shrink-0 rounded-full border active:scale-90 flex items-center justify-center transition-all"
         >
-          <RefreshCw className={`w-6 h-6 ${isChecking ? 'animate-spin' : ''}`} aria-hidden="true" />
+          <RefreshCw className={`w-6 h-6 ${spinning ? 'animate-spin' : ''}`} aria-hidden="true" />
         </button>
       </div>
       <div className="flex gap-3">
