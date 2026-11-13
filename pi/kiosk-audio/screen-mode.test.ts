@@ -39,10 +39,10 @@ describe('kiosk-audio/screen-mode', () => {
   it('ignores an EDID that is short, has no header or a bad checksum', () => {
     expect(preferredMode(new Uint8Array(0))).toBeUndefined();
     expect(preferredMode(TEN_INCH.subarray(0, 127))).toBeUndefined();
-    const noHeader = TEN_INCH.slice();
+    const noHeader = new Uint8Array(TEN_INCH);
     noHeader[1] = 0;
     expect(preferredMode(noHeader)).toBeUndefined();
-    const badSum = TEN_INCH.slice();
+    const badSum = new Uint8Array(TEN_INCH);
     badSum[127] = (badSum[127] ?? 0) ^ 1;
     expect(preferredMode(badSum)).toBeUndefined();
   });

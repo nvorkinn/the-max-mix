@@ -14,8 +14,13 @@ const TIMING = 54;
 
 /** The preferred mode of an EDID as `<width>x<height>@<refresh>`, or undefined when the EDID is not valid or has none. */
 export function preferredMode(edid: Uint8Array): string | undefined {
-  if (edid.length < 128 || HEADER.some((byte, index) => edid[index] !== byte)) return undefined;
-  if (edid.subarray(0, 128).reduce((sum, byte) => sum + byte, 0) % 256 !== 0) return undefined;
+  if (
+    edid.length < 128 ||
+    HEADER.some((byte, index) => edid[index] !== byte) ||
+    edid.subarray(0, 128).reduce((sum, byte) => sum + byte, 0) % 256 !== 0
+  ) {
+    return undefined;
+  }
   const at = (offset: number): number => edid[TIMING + offset] ?? 0;
   // In 10 kHz steps; 0 means the block is a text descriptor, not a timing.
   const clock = at(0) | (at(1) << 8);
@@ -24,22 +29,31 @@ export function preferredMode(edid: Uint8Array): string | undefined {
   const widthBlank = at(3) | ((at(4) & 0x0f) << 8);
   const height = at(5) | ((at(7) >> 4) << 8);
   const heightBlank = at(6) | ((at(7) & 0x0f) << 8);
-  const interlaced = (at(17) & 0x80) !== 0;
-  if (width === 0 || height === 0 || interlaced) return undefined;
+  const isInterlaced = (at(17) & 0x80) !== 0;
+  if (width === 0 || height === 0 || isInterlaced) return undefined;
   const refresh = Math.round((clock * 10_000) / ((width + widthBlank) * (height + heightBlank)));
   return `${width}x${height}@${refresh}`;
 }
 
 /** The mode of the first HDMI screen in `drm` (HDMI-A-1 before HDMI-A-2) with a valid EDID. */
 export async function screenMode(drm: string): Promise<string | undefined> {
-  const names = await readdir(drm).catch(() => []);
-  const ports = names.filter(name => /^card\d+-HDMI-A-\d+$/.test(name)).sort((a, b) => portOf(a) - portOf(b));
-  for (const port of ports) {
-    const edid = await readFile(path.join(drm, port, 'edid')).catch(() => undefined);
-    const mode = edid && preferredMode(edid);
-    if (mode) return mode;
+  let names: string[];
+  try {
+    names = await readdir(drm);
+  } catch {
+    return undefined;
   }
-  return undefined;
+  const ports = names.filter(name => /^card\d+-HDMI-A-\d+$/.test(name)).toSorted((a, b) => portOf(a) - portOf(b));
+  const modes = await Promise.all(ports.map(port => modeOf(path.join(drm, port, 'edid'))));
+  return modes.find(mode => mode !== undefined);
+}
+
+async function modeOf(file: string): Promise<string | undefined> {
+  try {
+    return preferredMode(await readFile(file));
+  } catch {
+    return undefined;
+  }
 }
 
 function portOf(name: string): number {
