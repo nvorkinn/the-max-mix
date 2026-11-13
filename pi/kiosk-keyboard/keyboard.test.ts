@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { deleteBackward, insertText, isTextField, KEYBOARD_HEIGHT, keyLabel, start } from './keyboard.ts';
+import {
+  deleteBackward,
+  insertText,
+  isTextField,
+  KEYBOARD_HEIGHT,
+  keyboardHeight,
+  keyLabel,
+  start
+} from './keyboard.ts';
 
 // jsdom has no editing commands. Chromium does, and then the fallback that sets the value is not used.
 function mockEditing(isSupported: boolean) {
@@ -177,6 +185,25 @@ describe('start', () => {
     tap('Done');
     expect(isShown()).toBe(false);
     expect(document.activeElement).not.toBe(field);
+  });
+
+  it('keeps a row of digits above the letters and the symbols when asked to', () => {
+    stop();
+    stop = start(document, document.documentElement, { hasNumberRow: true });
+    const field = input('password');
+    field.focus();
+    expect(board().querySelectorAll('.row')).toHaveLength(5);
+    expect(keyboardHeight(4)).toBe(KEYBOARD_HEIGHT);
+    expect(document.body.style.paddingBottom).toBe(`${keyboardHeight(5)}px`);
+    tap('7');
+    tap('a');
+    tap('#+=');
+    tap('3');
+    tap('~');
+    tap('\\');
+    tap('ABC');
+    tap('0');
+    expect(field.value).toBe('7a3~\\0');
   });
 
   it('goes in the element it is given', () => {

@@ -25,7 +25,8 @@ wait_online() {
   return 1
 }
 
-# The on-screen keyboard for Spotify's sign-in pages (pi/kiosk-keyboard, built by the Ansible role). Chrome turned
+# The on-screen keyboard for Spotify's sign-in pages and the button back to the app on every page outside it
+# (pi/kiosk-keyboard, built by the Ansible role). Chrome turned
 # --load-extension off by default in 2025; the --disable-features switch turns it back on where a build follows that.
 keyboard_extension=/opt/the-max-mix/kiosk-keyboard/extension
 

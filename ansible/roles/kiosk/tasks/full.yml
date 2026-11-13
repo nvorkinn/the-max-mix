@@ -399,9 +399,10 @@
   notify: Ask for a kiosk restart
 
 # Spotify's sign-in page needs a keyboard, and Cage has no protocol for a system one, so a small Chromium extension draws
-# its own on Spotify's sign-in pages. The same extension clears Spotify's own sign-in when the app signs out, so it gets
-# the app's origin. Chromium cannot load TypeScript, so the build strips the types (Node, no packages)
-# and prints "changed" only when it wrote a file.
+# its own on Spotify's sign-in pages. The same extension draws a button back to the app on every page outside the app, as
+# the kiosk has no back button, and clears Spotify's own sign-in when the app signs out, so it gets the app's origin.
+# Chromium cannot load TypeScript, so the build strips the types (Node, no packages) and prints "changed" only when it
+# wrote a file.
 - name: full | Install the sign-in keyboard's source
   ansible.builtin.copy:
     src: '{{ kiosk_keyboard_src }}/{{ item }}'
@@ -410,6 +411,7 @@
     group: root
     mode: '0644'
   loop:
+    - back.ts
     - background.ts
     - build.ts
     - keyboard.ts

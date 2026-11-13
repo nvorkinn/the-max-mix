@@ -154,7 +154,8 @@ kiosk_packages:
   # Security updates
   - unattended-upgrades
 
-# The on-screen keyboard for Spotify's sign-in pages (pi/kiosk-keyboard): a Chromium extension in TypeScript. Its
+# The on-screen keyboard for Spotify's sign-in pages and the button back to the app on every page outside it
+# (pi/kiosk-keyboard): a Chromium extension in TypeScript. Its
 # sources go to src/, and its build script (Node's own type stripper) writes the extension that kiosk-session loads
 # into extension/.
 kiosk_keyboard_src: '{{ playbook_dir }}/../pi/kiosk-keyboard'

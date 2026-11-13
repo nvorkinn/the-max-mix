@@ -1,8 +1,9 @@
-// Builds the sign-in keyboard extension on the Pi (the Ansible role runs it): strips the TypeScript types from the
-// scripts with Node's own stripper, so Chromium can load them, and copies the manifest. No npm package is needed.
+// Builds the kiosk's extension on the Pi (the Ansible role runs it): strips the TypeScript types from the scripts with
+// Node's own stripper, so Chromium can load them, and copies the manifest. No npm package is needed.
 //   node build.ts <source folder> <extension folder> [app origin]
 // With the app's origin (kiosk_app_origin), the manifest also runs sign-out.js on the app's pages, so that signing out
-// of the app can clear Spotify's own sign-in (background.js).
+// of the app can clear Spotify's own sign-in (background.js), and keeps the back button (back.js) off those pages.
+// Without it there is no telling the app from other pages, so the manifest has no back button.
 // Prints "changed" when it wrote a file, so a run that changes nothing reports nothing (and restarts nothing).
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 // Experimental, but in every Node 24, and nothing else strips types without an npm package.
@@ -17,15 +18,33 @@ const FILES: Record<string, string> = {
   'loader.ts': 'loader.js',
   'keyboard.ts': 'keyboard.js',
   'background.ts': 'background.js',
-  'sign-out.ts': 'sign-out.js'
+  'sign-out.ts': 'sign-out.js',
+  'back.ts': 'back.js'
 };
 
-/** The manifest with a content script for the app's pages at `appOrigin` added, when there is one. */
+interface ContentScript {
+  matches: string[];
+  js: string[];
+  exclude_matches?: string[];
+  run_at?: string;
+}
+
+/**
+ * The manifest for an app at `appOrigin`: a content script for the app's pages added (sign-out.js), and the app left out
+ * of the pages that get the back button (back.js). Without an origin, the manifest without the back button.
+ */
 function manifestFor(text: string, appOrigin: string | undefined): string {
-  if (appOrigin === undefined) return text;
-  if (new URL(appOrigin).origin !== appOrigin) throw new Error(`Not an origin: ${appOrigin}`);
-  const manifest = JSON.parse(text) as { content_scripts: unknown[] };
-  manifest.content_scripts.push({ matches: [`${appOrigin}/*`], js: ['sign-out.js'], run_at: 'document_start' });
+  const manifest = JSON.parse(text) as { content_scripts: ContentScript[] };
+  const isBack = (script: ContentScript): boolean => script.js.includes('back.js');
+  if (appOrigin === undefined) {
+    manifest.content_scripts = manifest.content_scripts.filter(script => !isBack(script));
+  } else {
+    if (new URL(appOrigin).origin !== appOrigin) throw new Error(`Not an origin: ${appOrigin}`);
+    for (const script of manifest.content_scripts) {
+      if (isBack(script)) script.exclude_matches = [...(script.exclude_matches ?? []), `${appOrigin}/*`];
+    }
+    manifest.content_scripts.push({ matches: [`${appOrigin}/*`], js: ['sign-out.js'], run_at: 'document_start' });
+  }
   return `${JSON.stringify(manifest, null, 2)}\n`;
 }
 
@@ -43,10 +62,10 @@ export async function build(source: string, destination: string, appOrigin?: str
   const written = await Promise.all(
     Object.entries(FILES).map(async ([from, to]) => {
       const text = await readFile(path.join(source, from), 'utf8');
-      const output = from.endsWith('.ts') ? stripTypeScriptTypes(text) : manifestFor(text, appOrigin);
+      const built = from.endsWith('.ts') ? stripTypeScriptTypes(text) : manifestFor(text, appOrigin);
       const target = path.join(destination, to);
-      if ((await readIfThere(target)) === output) return [];
-      await writeFile(target, output);
+      if ((await readIfThere(target)) === built) return [];
+      await writeFile(target, built);
       return [to];
     })
   );
