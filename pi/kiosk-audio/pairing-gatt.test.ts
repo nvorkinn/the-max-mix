@@ -2,7 +2,7 @@
 import { createBroker, createClient, defineInterface } from 'dbus-native';
 import type { DBusBroker, MessageBus } from 'dbus-native';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { advertiseForPairing, CHARACTERISTICS, HID_SERVICE } from './pairing-gatt.ts';
+import { advertiseForPairing, CHARACTERISTICS, HID_SERVICE, nameKiosk } from './pairing-gatt.ts';
 
 const APP = '/org/themaxmix/pairing';
 const AGENT = '/org/themaxmix/pairing_agent';
@@ -180,6 +180,17 @@ describe('kiosk-audio/pairing-gatt', () => {
       dbusName: 'org.bluez.Error.Rejected'
     });
     await advertising.stop();
+  });
+
+  it('names the kiosk THE MAX MIX on its own', async () => {
+    await fakeBluez();
+    await nameKiosk(await client());
+    expect(bus.registered).toEqual(['alias THE MAX MIX']);
+  });
+
+  it('rejects naming the kiosk when there is no adapter', async () => {
+    await (await client()).ownName('org.bluez');
+    await expect(nameKiosk(await client())).rejects.toThrow();
   });
 
   it('takes everything down again when BlueZ refuses', async () => {
