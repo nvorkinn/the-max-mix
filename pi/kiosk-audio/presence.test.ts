@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Presence, scanLe, setAlias } from './presence.ts';
 
 const PHONE = { address: '4F:00:00:00:00:03', name: 'Nikolai’s iPhone', pairedAt: 1 };
+/** Named after the passing address BlueZ first heard, not the phone's own. */
+const PATH = '/org/bluez/hci0/dev_6A_11_22_33_44_55';
 
 function setUp(options: { phones?: (typeof PHONE)[]; isScanFailing?: boolean } = {}) {
   const heard = {
@@ -15,7 +17,7 @@ function setUp(options: { phones?: (typeof PHONE)[]; isScanFailing?: boolean } =
   };
   const scan = vi.fn(() => (options.isScanFailing ? Promise.reject(new Error('No adapter')) : Promise.resolve()));
   const log = vi.fn();
-  const devices = vi.fn(() => Promise.resolve([{ address: PHONE.address, ...heard }]));
+  const devices = vi.fn(() => Promise.resolve([{ address: PHONE.address, path: PATH, ...heard }]));
   const rename = vi.fn((_address: string, name: string) => {
     heard.name = name;
     return Promise.resolve();
@@ -95,7 +97,7 @@ describe('Presence', () => {
     const { presence, heard, rename, log } = setUp();
     heard.name = '4';
     await presence.check();
-    expect(rename).toHaveBeenCalledWith(PHONE.address, 'Nikolai’s iPhone');
+    expect(rename).toHaveBeenCalledWith(PATH, 'Nikolai’s iPhone');
     expect(presence.status()[0]?.name).toBe('Nikolai’s iPhone');
     await presence.check();
     expect(rename).toHaveBeenCalledTimes(1);
@@ -109,7 +111,7 @@ describe('Presence', () => {
     await presence.check();
     expect(saveName).toHaveBeenCalledWith(PHONE.address, 'Nikolai’s iPhone');
     expect(presence.status()[0]?.name).toBe('Nikolai’s iPhone');
-    expect(rename).toHaveBeenCalledWith(PHONE.address, 'Nikolai’s iPhone');
+    expect(rename).toHaveBeenCalledWith(PATH, 'Nikolai’s iPhone');
     expect(log).toHaveBeenCalledWith('Presence: iPhone is called Nikolai’s iPhone');
   });
 
@@ -118,6 +120,17 @@ describe('Presence', () => {
     heard.bluezName = '4';
     await presence.check();
     expect(saveName).not.toHaveBeenCalled();
+    expect(presence.status()[0]?.name).toBe('Nikolai’s iPhone');
+  });
+
+  it('saves a name that adds to the saved one, even from an advert, but not an unrelated one', async () => {
+    const { presence, heard, saveName } = setUp({ phones: [{ ...PHONE, name: 'iPhone' }] });
+    heard.bluezName = '4';
+    await presence.check();
+    expect(saveName).not.toHaveBeenCalled();
+    heard.bluezName = 'Nikolai’s iPhone';
+    await presence.check();
+    expect(saveName).toHaveBeenCalledWith(PHONE.address, 'Nikolai’s iPhone');
     expect(presence.status()[0]?.name).toBe('Nikolai’s iPhone');
   });
 
@@ -231,12 +244,12 @@ describe('scanLe', () => {
     expect(calls).toEqual([{ Transport: 'le', DuplicateData: true }, 'start', 'stop']);
   });
 
-  it('sets the Alias of the device at an address', async () => {
+  it('sets the Alias of the device at a D-Bus path', async () => {
     const aliases: unknown[] = [];
     const bluez = await client();
     await bluez.ownName('org.bluez');
     await bluez.export(
-      '/org/bluez/hci0/dev_4F_00_00_00_00_03',
+      PATH,
       defineInterface({
         name: 'org.bluez.Device1',
         properties: {
@@ -250,7 +263,7 @@ describe('scanLe', () => {
         }
       })
     );
-    await setAlias(PHONE.address, 'Nikolai’s iPhone', await client());
+    await setAlias(PATH, 'Nikolai’s iPhone', await client());
     expect(aliases).toEqual(['Nikolai’s iPhone']);
   });
 

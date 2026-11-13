@@ -6,10 +6,12 @@
 //
 // BlueZ renames a device to whatever name its latest advert or scan response carries, and an iPhone's can be anything an
 // app on it advertises (one showed up as "4"). So a phone keeps its saved name: when BlueZ's differs, the device's Alias,
-// which BlueZ keeps and shows in place of the name, is set back to it. The saved name only changes to one the phone gives
-// while it is connected, which is its own device name. That matters because an iPhone only says "iPhone" before it is
-// paired, and gives its full name ("Nikolai's iPhone") over a paired connection, which comes later: pairing hangs up at
-// once. A phone saved under its address takes the first name BlueZ hears.
+// which BlueZ keeps and shows in place of the name, is set back to it. An iPhone only says "iPhone" before it is paired,
+// so the saved name may be that, and its full name ("Nikolai's iPhone") turns up later. The saved name changes to a new
+// one the phone gives while it is connected (its own device name), to one that adds to the saved name ("iPhone" to
+// "Nikolai's iPhone"), and, for a phone saved under its address, to the first name heard; never to an unrelated advert's.
+// BlueZ names a device's D-Bus object after the address it first heard, which for a phone is a passing random one, so
+// the object is looked up (bluetooth-monitor.ts reports it) rather than worked out from the address.
 import type { MessageBus } from 'dbus-native';
 import { ignoreFailure, untilConnected } from './improv-gatt.ts';
 import type { PairedPhone } from './phone-pairing.ts';
@@ -34,6 +36,8 @@ interface HeardDevice {
   name: string;
   /** The name the device last gave BlueZ, or "". */
   bluezName: string;
+  /** BlueZ's D-Bus object for it. */
+  path: string;
   connected: boolean;
   lastSeen: number | null;
 }
@@ -43,8 +47,8 @@ export interface PresenceOptions {
   devices: () => Promise<HeardDevice[]>;
   /** Scans for `ms`, then stops. */
   scan: (ms: number) => Promise<void>;
-  /** Sets the name BlueZ shows for a device. */
-  rename: (address: string, name: string) => Promise<void>;
+  /** Sets the name BlueZ shows for the device at a D-Bus object path. */
+  rename: (path: string, name: string) => Promise<void>;
   /** Saves a phone's new name (phones.json). */
   saveName: (address: string, name: string) => Promise<void>;
   /** A line for the Bluetooth log in the debug console. */
@@ -104,15 +108,18 @@ export class Presence {
   }
 
   /**
-   * Saves the name a phone gave over a connection (its own), or the first name heard for a phone saved under its address.
-   * Returns the phones with their names as saved now.
+   * Saves the name a phone gave over a connection (its own), one that adds to the saved name, or the first name heard
+   * for a phone saved under its address. Returns the phones with their names as saved now.
    */
   private async learnNames(phones: PairedPhone[], devices: HeardDevice[]): Promise<PairedPhone[]> {
     const learned: PairedPhone[] = [];
     for (const phone of phones) {
       const device = devices.find(known => known.address === phone.address);
       const name = device?.bluezName ?? '';
-      const isOwnName = Boolean(device?.connected) || isAddress(phone.name);
+      const isOwnName =
+        Boolean(device?.connected) ||
+        isAddress(phone.name) ||
+        (name.length > phone.name.length && name.toLowerCase().includes(phone.name.toLowerCase()));
       if (!name || !isOwnName || name === phone.name || isAddress(name)) {
         learned.push(phone);
         continue;
@@ -139,7 +146,7 @@ export class Presence {
       try {
         // One at a time: there is rarely more than one, and BlueZ answers quickly.
         // eslint-disable-next-line no-await-in-loop
-        await this.options.rename(phone.address, phone.name);
+        await this.options.rename(device.path, phone.name);
         this.options.log(`Presence: ${device.name} named ${phone.name} again`);
       } catch (error) {
         this.renameFailed.add(phone.address);
@@ -208,15 +215,15 @@ export async function scanLe(ms: number, given?: MessageBus): Promise<void> {
   }
 }
 
-/** Sets the Alias BlueZ keeps and shows for the device at `address`, on the system bus (`given` in the tests). */
-export async function setAlias(address: string, name: string, given?: MessageBus): Promise<void> {
+/** Sets the Alias BlueZ keeps and shows for the device at D-Bus `path`, on the system bus (`given` in the tests). */
+export async function setAlias(path: string, name: string, given?: MessageBus): Promise<void> {
   const dbus = await import('dbus-native');
   const bus = given ?? dbus.systemBus();
   try {
     await untilConnected(bus);
     await bus.invoke({
       destination: 'org.bluez',
-      path: `${ADAPTER}/dev_${address.replaceAll(':', '_')}`,
+      path,
       interface: 'org.freedesktop.DBus.Properties',
       member: 'Set',
       signature: 'ssv',

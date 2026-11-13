@@ -701,7 +701,7 @@ export function serveSpeakers(
     phones: () => readPhones(deps.phonesFile),
     devices: async () => (await bluetoothMonitor.snapshot()).devices,
     scan: ms => scanLe(ms),
-    rename: (address, name) => setAlias(address, name),
+    rename: (path, name) => setAlias(path, name),
     saveName: (address, name) => renamePhone(deps.phonesFile, address, name),
     log: message => {
       bluetoothMonitor.note(message);

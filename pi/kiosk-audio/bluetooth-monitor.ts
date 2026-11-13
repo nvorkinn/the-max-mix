@@ -61,6 +61,8 @@ interface KnownDevice {
   name: string;
   /** The name the device last gave BlueZ, from an advert or, over a connection, its own device name; "" when none. */
   bluezName: string;
+  /** BlueZ's D-Bus object for it, named after the address first heard, which may not be `address`. */
+  path: string;
   /** "public" or "random": a phone's own address is random, and changes unless it is paired. */
   addressType: string;
   /** BlueZ's guess of what it is: "phone", "audio-headphones", "computer"… or "". */
@@ -118,8 +120,9 @@ const deviceName = (properties: Properties): string =>
   text(properties['Alias']) || text(properties['Name']) || text(properties['Address']);
 const label = (properties: Properties): string => `${deviceName(properties)} (${text(properties['Address'])})`;
 
-function knownDevice(properties: Properties, lastSeen: number | null): KnownDevice {
+function knownDevice(path: string, properties: Properties, lastSeen: number | null): KnownDevice {
   return {
+    path,
     address: text(properties['Address']),
     name: deviceName(properties),
     bluezName: text(properties['Name']),
@@ -322,7 +325,7 @@ export class BluetoothMonitor {
     const known = Object.entries(view.filter(DEVICE));
     for (const [path, properties] of known) {
       const seen = this.lastSeen.get(path) ?? null;
-      if (isPaired(properties)) devices.push(knownDevice(properties, seen));
+      if (isPaired(properties)) devices.push(knownDevice(path, properties, seen));
       else if (seen !== null && this.now() - seen < NEARBY_MS) nearby += 1;
     }
     const adapter = Object.values(view.filter(ADAPTER))[0];
