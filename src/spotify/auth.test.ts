@@ -776,7 +776,12 @@ describe('spotify/auth', () => {
   });
 
   describe('adding and removing people', () => {
-    const person = (spotifyId: string) => ({ spotifyId, name: spotifyId, imageUrl: '', refreshToken: `r-${spotifyId}` });
+    const person = (spotifyId: string) => ({
+      spotifyId,
+      name: spotifyId,
+      imageUrl: '',
+      refreshToken: `r-${spotifyId}`
+    });
     const store = (activeId: string | null, ids: string[]) =>
       localStorage.setItem(
         'maxmix.people',
@@ -822,7 +827,7 @@ describe('spotify/auth', () => {
       const { result } = await signIn('s1');
       expect(result).toMatchObject({ ok: false });
       expect(people()).toMatchObject({ activeId: 'a' });
-      expect((people()?.['people'] as unknown[]).length).toBe(5);
+      expect(people()?.['people']).toHaveLength(5);
     });
 
     it('lets someone already listed sign in again when there are five', async () => {

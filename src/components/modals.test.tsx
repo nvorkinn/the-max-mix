@@ -367,7 +367,7 @@ describe('SettingsModal', () => {
       auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true)]);
       await userEvent.click(within(friend).getByRole('button', { name: 'Tap again to remove' }));
       expect(auth.removePerson).toHaveBeenCalledWith('Friend');
-      expect(screen.getAllByRole('listitem')).toHaveLength(1);
+      expect(within(screen.getByRole('list', { name: 'People' })).getAllByRole('listitem')).toHaveLength(1);
       expect(base.onReload).not.toHaveBeenCalled();
     });
 
@@ -375,7 +375,8 @@ describe('SettingsModal', () => {
       auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true), person('Friend')]);
       auth.removePerson.mockReturnValue('switched');
       render(<SettingsModal {...base} authInfo={{ authenticated: true }} initialSection="spotify" />);
-      const button = within(defined(screen.getAllByRole('listitem')[0])).getByRole('button');
+      const rows = within(screen.getByRole('list', { name: 'People' })).getAllByRole('listitem');
+      const button = within(defined(rows[0])).getByRole('button');
       await userEvent.click(button);
       await userEvent.click(button);
       expect(base.onReload).toHaveBeenCalled();

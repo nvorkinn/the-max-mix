@@ -315,8 +315,11 @@ export const isPersonRefused = (error: string): boolean => error === FULL || err
 /** Whether adding `spotifyId` with `clientId` would go past PEOPLE_LIMIT (someone already listed can always sign in again). */
 function isFull(clientId: string, spotifyId: string): boolean {
   const people = readPeople();
-  if (people?.clientId !== clientId) return false;
-  return people.people.length >= PEOPLE_LIMIT && !people.people.some(person => person.spotifyId === spotifyId);
+  return (
+    people?.clientId === clientId &&
+    people.people.length >= PEOPLE_LIMIT &&
+    people.people.every(person => person.spotifyId !== spotifyId)
+  );
 }
 
 async function finishSignIn(query: URLSearchParams): Promise<SignInResult> {
@@ -469,7 +472,7 @@ function forgetSpeakersOf(spotifyId: string): void {
   if (!spotifyId) return;
   try {
     const stored: unknown = parseJson(localStorage.getItem(KNOWN_SPEAKERS_KEY) ?? 'null');
-    if (!stored || typeof stored !== 'object' || Array.isArray(stored) || !(spotifyId in stored)) return;
+    if (!stored || typeof stored !== 'object' || Array.isArray(stored) || !Object.hasOwn(stored, spotifyId)) return;
     const others = Object.fromEntries(Object.entries(stored).filter(([id]) => id !== spotifyId));
     localStorage.setItem(KNOWN_SPEAKERS_KEY, JSON.stringify(others));
   } catch {
