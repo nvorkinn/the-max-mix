@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import { X, Settings, Music, CheckCircle2, AlertCircle, LogOut, Wifi } from 'lucide-react';
 import { signOut, startSignIn } from '../spotify/auth';
 import { errorMessage } from '../utils/errorMessage';
-import { isKiosk, openWifiSettings } from '../utils/kiosk';
+import { forgetSignIns, isKiosk, openWifiSettings } from '../utils/kiosk';
 import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
 import { setPollSpotify } from '../spotify/polling';
 import { getRedirectUri, reloadSettings } from '../spotify/settings';
@@ -246,7 +246,7 @@ function SettingsContent({
             type="button"
             onClick={() => {
               signOut();
-              onReload();
+              void forgetSignIns().then(() => onReload());
             }}
             className="button button-secondary w-full flex items-center justify-center gap-2"
           >

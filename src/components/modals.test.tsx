@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { fetchSpotify, resetSpotifyRateLimit } from '../spotify/http';
 import userEvent from '../test/user';
 import { partialProps } from '../test/partialProps';
@@ -170,10 +170,12 @@ describe('SettingsModal', () => {
   });
 
   it('signs out and reloads', async () => {
+    // Off the kiosk: there is no browser extension to wait for.
+    history.replaceState(null, '', '/?kiosk=0');
     render(<SettingsModal {...base} authInfo={{ authenticated: true }} />);
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(auth.signOut).toHaveBeenCalledTimes(1);
-    expect(base.onReload).toHaveBeenCalled();
+    await waitFor(() => expect(base.onReload).toHaveBeenCalled());
   });
 
   it('offers no sign out while signed out', () => {
