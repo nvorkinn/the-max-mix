@@ -21,7 +21,8 @@ export const AREAS: Area[] = [
     title: 'Player',
     sources: [
       /^src\/components\/AlbumArtPlayer/,
-      /^src\/components\/Person(Face|Switcher)/,
+      /^src\/components\/(Person(Face|Switcher)|SongProof|QrCode)/,
+      /^src\/spotify\/songProof/,
       /^src\/hooks\/use(Spotify|Sonos)Player/,
       /^src\/spotify\/api\.ts$/,
       /^src\/utils\/colorExtractor\.ts$/

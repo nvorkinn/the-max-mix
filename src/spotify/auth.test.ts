@@ -931,6 +931,34 @@ describe('spotify/auth', () => {
       expect(storedLogin()).toEqual({ clientId: 'client-1', refreshToken: 'rf' });
     });
 
+    it('gives a token for someone who is not active without changing who is', async () => {
+      setClientId('client-1');
+      localStorage.setItem('maxmix.people', JSON.stringify(twoPeople));
+      const { getAccessTokenFor } = await load();
+      fetchMock.mockResolvedValueOnce(json({ access_token: 'af', refresh_token: 'rf2', expires_in: 3600 }));
+      await expect(getAccessTokenFor('friend')).resolves.toBe('af');
+      expect(formOf(fetchMock).get('refresh_token')).toBe('rf');
+      await expect(getAccessTokenFor('friend')).resolves.toBe('af');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(storedLogin()).toEqual({ clientId: 'client-1', refreshToken: 'rn' });
+      expect(JSON.stringify(storedJson('maxmix.people'))).toContain('rf2');
+      fetchMock.mockResolvedValueOnce(json({ access_token: 'an', expires_in: 3600 }));
+      await expect(getAccessTokenFor('nikolai')).resolves.toBe('an');
+      await expect(getAccessTokenFor('nobody')).resolves.toBeNull();
+      setClientId('client-2');
+      await expect(getAccessTokenFor('friend')).resolves.toBeNull();
+    });
+
+    it('keeps someone else’s login when Spotify refuses their token', async () => {
+      setClientId('client-1');
+      localStorage.setItem('maxmix.people', JSON.stringify(twoPeople));
+      const { getAccessTokenFor, isSignedIn } = await load();
+      fetchMock.mockResolvedValueOnce(json({ error: 'invalid_grant' }, 400));
+      await expect(getAccessTokenFor('friend')).rejects.toThrow('Spotify authentication failed (400)');
+      expect(isSignedIn()).toBe(true);
+      expect(JSON.stringify(storedJson('maxmix.people'))).toContain('"friend"');
+    });
+
     it('links and unlinks a phone', async () => {
       setClientId('client-1');
       localStorage.setItem('maxmix.people', JSON.stringify(twoPeople));

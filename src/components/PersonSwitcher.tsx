@@ -3,13 +3,17 @@ import { PEOPLE_LIMIT, peopleOnKiosk } from '../spotify/auth';
 import { samePhone, useSavedPhones } from '../hooks/useSavedPhones';
 import Modal from './Modal';
 import PersonFace from './PersonFace';
+import SongProof from './SongProof';
 
 /**
- * The active person's picture in the banner. Tapping it shows everyone's face; only those whose linked phone the Pi
- * hears can be picked (the others are greyed out), and tapping one switches to them (`onSwitch`).
+ * The active person's picture in the banner. Tapping it shows everyone's face, and tapping one switches to them
+ * (`onSwitch`). Someone whose linked phone the Pi does not hear is greyed out: tapping them shows a random song to play
+ * on their phone instead (SongProof), and the switch follows once it plays on their account.
  */
 export default function PersonSwitcher({ onSwitch }: Readonly<{ onSwitch: (spotifyId: string) => void }>) {
   const [isOpen, setIsOpen] = useState(false);
+  // Whose song is showing, or null for the faces.
+  const [proving, setProving] = useState<string | null>(null);
   const phones = useSavedPhones(isOpen);
   const people = peopleOnKiosk();
   const active = people.find(person => person.active);
@@ -31,35 +35,55 @@ export default function PersonSwitcher({ onSwitch }: Readonly<{ onSwitch: (spoti
       {isOpen && (
         <Modal
           labelledBy="person-switcher-title"
-          onClose={() => setIsOpen(false)}
+          onClose={() => {
+            setIsOpen(false);
+            setProving(null);
+          }}
           className="app-modal-panel person-sheet"
         >
           <h3 id="person-switcher-title" className="sr-only">
             Switch person
           </h3>
-          <ul className="person-sheet-faces">
-            {people.slice(0, PEOPLE_LIMIT).map(person => {
-              const isActive = person.active;
-              return (
-                <li key={person.spotifyId}>
-                  <button
-                    type="button"
-                    className="person-choice"
-                    aria-pressed={isActive}
-                    disabled={!isActive && !isHere(person.phoneAddress)}
-                    {...(isActive && { 'data-modal-autofocus': true })}
-                    onClick={() => {
-                      setIsOpen(false);
-                      if (!isActive) onSwitch(person.spotifyId);
-                    }}
-                  >
-                    <PersonFace name={person.name} imageUrl={person.imageUrl} className="person-face-choice" />
-                    <span className="person-choice-name">{person.name}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          {proving ? (
+            <SongProof
+              spotifyId={proving}
+              onProven={() => {
+                setIsOpen(false);
+                setProving(null);
+                onSwitch(proving);
+              }}
+              onGiveUp={() => setProving(null)}
+            />
+          ) : (
+            <ul className="person-sheet-faces">
+              {people.slice(0, PEOPLE_LIMIT).map(person => {
+                const isActive = person.active;
+                const isAway = !isActive && !isHere(person.phoneAddress);
+                return (
+                  <li key={person.spotifyId}>
+                    <button
+                      type="button"
+                      className="person-choice"
+                      aria-pressed={isActive}
+                      data-away={isAway || undefined}
+                      {...(isActive && { 'data-modal-autofocus': true })}
+                      onClick={() => {
+                        if (isAway) {
+                          setProving(person.spotifyId);
+                          return;
+                        }
+                        setIsOpen(false);
+                        if (!isActive) onSwitch(person.spotifyId);
+                      }}
+                    >
+                      <PersonFace name={person.name} imageUrl={person.imageUrl} className="person-face-choice" />
+                      <span className="person-choice-name">{person.name}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </Modal>
       )}
     </>

@@ -44,6 +44,23 @@ describe('spotify/api', () => {
     resetSpotifyRateLimit();
   });
 
+  describe('a random song', () => {
+    it('picks a track from a search for two letters at a random offset', async () => {
+      fetchMock.mockResolvedValue(json({ tracks: { items: [{ id: 't1', name: 'One' }, { name: 'No id' }, null] } }));
+      await expect(api.findRandomTrack()).resolves.toMatchObject({ id: 't1', name: 'One' });
+      const url = new URL(callOf(fetchMock).url);
+      expect(url.pathname).toBe('/v1/search');
+      expect(url.searchParams.get('q')).toMatch(/^[a-z]{2}$/);
+      expect(url.searchParams.get('type')).toBe('track');
+      expect(Number(url.searchParams.get('offset'))).toBeLessThan(200);
+    });
+
+    it('is null when the search finds nothing', async () => {
+      fetchMock.mockResolvedValue(json({}));
+      await expect(api.findRandomTrack()).resolves.toBeNull();
+    });
+  });
+
   describe('live requests', () => {
     it('reads the playback state with the bearer token', async () => {
       const state = { is_playing: true, item: { id: 't1' } };
