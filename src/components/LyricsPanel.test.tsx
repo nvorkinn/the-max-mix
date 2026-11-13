@@ -27,9 +27,9 @@ beforeEach(() => clearLyricsCache());
 afterEach(() => vi.useRealTimers());
 
 describe('LyricsPanel', () => {
-  it('asks the provider for the current track and lights up each line a second early', async () => {
+  it('asks the provider for the current track and lights up each line half a second early', async () => {
     const provider = providerOf(synced);
-    const { rerender } = renderPanel({ provider, progressMs: 2000 });
+    const { rerender } = renderPanel({ provider, progressMs: 2500 });
     expect(screen.getByRole('status')).toHaveTextContent('Looking for the lyrics');
     await flush();
     expect(provider).toHaveBeenCalledWith(
@@ -45,13 +45,56 @@ describe('LyricsPanel', () => {
       'Second placeholder',
       'Second placeholder'
     ]);
-    // The third line starts at 3s, so it is current from 2s; the lines before it stay lit, the ones after it do not.
+    // The third line starts at 3s, so it is current from 2.5s; the lines before it stay lit, the ones after it do not.
     expect(lines[2]).toHaveAttribute('aria-current', 'true');
     expect(lines.map(line => line.classList.contains('is-reached'))).toEqual([true, true, true, false]);
 
-    rerender(<LyricsPanel track={track} progressMs={3200} provider={provider} />);
+    rerender(<LyricsPanel track={track} progressMs={3500} provider={provider} />);
     expect(screen.getAllByRole('listitem')[3]).toHaveAttribute('aria-current', 'true');
     expect(provider).toHaveBeenCalledTimes(1);
+  });
+
+  it('lights up the line being sung word by word when its source times each word', async () => {
+    const worded: Lyrics = {
+      kind: 'synced',
+      lines: [
+        { timeMs: 1000, text: 'Earlier line' },
+        {
+          timeMs: 3000,
+          text: 'Placeholder words here',
+          words: [
+            { timeMs: 3000, text: 'Placeholder ' },
+            { timeMs: 3500, text: 'words ' },
+            { timeMs: 4000, text: 'here' }
+          ]
+        },
+        { timeMs: 6000, text: 'Later line' }
+      ],
+      source: 'Test'
+    };
+    // Half a second early: at 3.1s the second word (3.5s) is lit, the third (4s) is not.
+    renderPanel({ provider: providerOf(worded), progressMs: 3100 });
+    await flush();
+    const [earlier, current, later] = screen.getAllByRole('listitem');
+    expect(current).toHaveTextContent('Placeholder words here');
+    expect(current).toHaveAttribute('aria-current', 'true');
+    expect(current).not.toHaveClass('is-reached');
+    expect(earlier).toHaveClass('is-reached');
+    expect(later).not.toHaveClass('is-reached');
+    const words = current?.querySelectorAll('.lyrics-word') ?? [];
+    expect([...words].map(word => word.classList.contains('is-reached'))).toEqual([true, true, false]);
+  });
+
+  it('moves on between position updates while the song plays', async () => {
+    vi.useFakeTimers();
+    renderPanel({ provider: providerOf(synced), progressMs: 2600, playing: true });
+    await flush();
+    expect(screen.getAllByRole('listitem')[2]).toHaveAttribute('aria-current', 'true');
+    // No new position arrives, but a second later the next line (4s) is lit, half a second early.
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.getAllByRole('listitem')[3]).toHaveAttribute('aria-current', 'true');
   });
 
   it('remembers lyrics, so reopening the panel makes no new request', async () => {
@@ -84,7 +127,7 @@ describe('LyricsPanel', () => {
         fireEvent.pointerDown(list, { pointerType: input === 'touch' ? 'touch' : 'mouse' });
       } else fireEvent.keyDown(list, { key: input });
       list.scrollTop = 17;
-      rerender(<LyricsPanel track={track} progressMs={3200} provider={provider} />);
+      rerender(<LyricsPanel track={track} progressMs={3500} provider={provider} />);
       expect(list.scrollTop).toBe(17);
       expect(screen.getAllByRole('listitem')[3]).toHaveAttribute('aria-current', 'true');
       expect(list).toHaveAttribute('data-following', 'false');

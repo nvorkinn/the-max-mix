@@ -1,6 +1,7 @@
 // The synced-lyrics sources the kiosk service asks for the app (lyrics.ts): NetEase Cloud Music, KuGou and QQ Music.
 // None of them has a public API or allows requests from a web page, which is why the Pi's Node service asks them, not
 // the app. Each is searched by title and artist, and gives back LRC text (time-stamped lines) for the song it found.
+// Where a source also times each word (NetEase), the LRC carries those times as `<mm:ss.xxx>` tags inside the line.
 
 /** Gets a URL and parses the JSON answer; rejects on a failed request. */
 export type GetJson = (url: string, headers?: Record<string, string>) => Promise<unknown>;
@@ -47,6 +48,39 @@ const withDuration = (candidate: Omit<Candidate, 'durationMs'>, durationMs: numb
 
 const NETEASE_HEADERS = { Referer: 'https://music.163.com' };
 
+/** A time in milliseconds as LRC writes it, `mm:ss.xxx`. */
+function lrcTime(ms: number): string {
+  const minutes = Math.floor(ms / 60_000);
+  const seconds = (ms % 60_000) / 1000;
+  return `${String(minutes).padStart(2, '0')}:${seconds.toFixed(3).padStart(6, '0')}`;
+}
+
+const YRC_LINE = /^\[(\d+),(\d+)\](.*)$/;
+const YRC_WORD = /\((\d+),(\d+),\d+\)([^(]*)/g;
+
+/**
+ * NetEase's word-timed lyrics ("yrc": `[lineStart,lineLength](wordStart,wordLength,0)word…`, in milliseconds) as LRC
+ * with a `<mm:ss.xxx>` tag before each word and one where the last word ends. Lines without words (the JSON credit
+ * lines NetEase puts first) are left out.
+ */
+export function yrcToLrc(yrc: string): string {
+  const lines: string[] = [];
+  for (const raw of yrc.split(/\r?\n/)) {
+    const line = YRC_LINE.exec(raw.trim());
+    if (!line) continue;
+    let timed = '';
+    let end = 0;
+    const words = (line[3] ?? '').matchAll(YRC_WORD);
+    for (const word of words) {
+      const start = Number(word[1]);
+      timed += `<${lrcTime(start)}>${word[3] ?? ''}`;
+      end = start + Number(word[2]);
+    }
+    if (timed) lines.push(`[${lrcTime(Number(line[1]))}]${timed}<${lrcTime(end)}>`);
+  }
+  return lines.join('\n');
+}
+
 export const netease: LyricsSource = {
   name: 'NetEase',
   async search(query, get) {
@@ -67,8 +101,11 @@ export const netease: LyricsSource = {
     });
   },
   async lyrics(candidate, get) {
-    const body = record(await get(`https://music.163.com/api/song/lyric?id=${candidate.id}&lv=1`, NETEASE_HEADERS));
-    return text(record(body['lrc'])['lyric']) || null;
+    // yv=1 asks for the word-timed lyrics too; most songs only have the line-timed ones.
+    const body = record(
+      await get(`https://music.163.com/api/song/lyric/v1?id=${candidate.id}&lv=1&yv=1`, NETEASE_HEADERS)
+    );
+    return yrcToLrc(text(record(body['yrc'])['lyric'])) || text(record(body['lrc'])['lyric']) || null;
   }
 };
 

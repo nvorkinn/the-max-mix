@@ -529,6 +529,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                   track={currentTrack}
                   shown={lyricsShown}
                   progressMs={shownPlayback?.progress_ms ?? shownPlayback?.position ?? 0}
+                  playing={shownPlayback?.is_playing === true}
                 />
               </div>
               <section className="side-panel-view" aria-label="Speakers" inert={!speakersShown} data-view="speakers">
