@@ -136,18 +136,54 @@ export function piVersion(): PiVersion | null {
   }
 }
 
-/**
- * The Pi's location from ?lat= and ?lon=, which the kiosk adds to its address when Ansible has kiosk_latitude and
- * kiosk_longitude, for the Auto theme. It is deliberately not stored: a location is personal, and the kiosk opens its
- * address again at every start, so only the rare page reached through the Spotify sign-in redirect goes without it.
- */
-export function getKioskLocation(): { lat: number; lon: number } | null {
-  const params = new URLSearchParams(location.search);
-  const lat = params.get('lat');
-  const lon = params.get('lon');
-  if (params.get('kiosk') !== '1' || !lat?.trim() || !lon?.trim()) return null;
+// The kiosk's location for this browser session only (sessionStorage), so it lasts through the Spotify sign-in redirect
+// but is gone when the kiosk's browser restarts.
+const LOCATION_KEY = 'maxmix.kioskLocation';
+
+interface Place {
+  lat: number;
+  lon: number;
+}
+
+function parsePlace(lat: string | null, lon: string | null): Place | null {
+  if (!lat?.trim() || !lon?.trim()) return null;
   const found = { lat: Number(lat), lon: Number(lon) };
   return Math.abs(found.lat) <= 90 && Math.abs(found.lon) <= 180 ? found : null;
+}
+
+function rememberPlace(place: Place | null): void {
+  try {
+    if (place) sessionStorage.setItem(LOCATION_KEY, `${place.lat},${place.lon}`);
+    else sessionStorage.removeItem(LOCATION_KEY);
+  } catch {
+    // Storage is unavailable; the location then lasts only until the page leaves for the Spotify sign-in.
+  }
+}
+
+function recallPlace(): Place | null {
+  try {
+    const [lat = null, lon = null] = sessionStorage.getItem(LOCATION_KEY)?.split(',') ?? [];
+    return parsePlace(lat, lon);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The Pi's location from ?lat= and ?lon=, which the kiosk adds to its address when Ansible has kiosk_latitude and
+ * kiosk_longitude, for the Auto theme. The Spotify sign-in redirect returns without the query, so the kiosk's address
+ * keeps it for the rest of the browser session (never in localStorage: a location is personal, and the kiosk opens its
+ * address again at every start).
+ */
+export function getKioskLocation(): Place | null {
+  if (!isKiosk()) return null;
+  const params = new URLSearchParams(location.search);
+  if (params.get('kiosk') === '1') {
+    const place = parsePlace(params.get('lat'), params.get('lon'));
+    rememberPlace(place);
+    return place;
+  }
+  return recallPlace();
 }
 
 const DISMISSED_UPDATE_KEY = 'maxmix.updateDismissed';
