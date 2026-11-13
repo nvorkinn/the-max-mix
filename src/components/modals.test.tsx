@@ -206,6 +206,91 @@ describe('SettingsModal', () => {
     });
   });
 
+  describe('pages on the kiosk', () => {
+    beforeEach(() => {
+      history.replaceState(null, '', '/?kiosk=1');
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.reject(new Error('no kiosk')))
+      );
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      history.replaceState(null, '', '/?kiosk=0');
+    });
+
+    it('sums up screen sleep and opens its choices, which change it', async () => {
+      const onScreenSleepChange = vi.fn();
+      const { rerender } = render(
+        <SettingsModal {...base} authInfo={{}} screenSleep={0} onScreenSleepChange={onScreenSleepChange} />
+      );
+      const overview = within(screen.getByRole('group', { name: 'Overview' }));
+      expect(overview.getByRole('button', { name: /^Screen sleep/ })).toHaveTextContent('Never');
+      rerender(<SettingsModal {...base} authInfo={{}} screenSleep={5} onScreenSleepChange={onScreenSleepChange} />);
+      expect(overview.getByRole('button', { name: /^Screen sleep/ })).toHaveTextContent('After 5 minutes');
+      await userEvent.click(overview.getByRole('button', { name: /^Screen sleep/ }));
+      const choices = screen.getByRole('group', { name: 'Screen sleep' });
+      expect(within(choices).getByRole('button', { name: '5 min' })).toHaveAttribute('aria-pressed', 'true');
+      await userEvent.click(within(choices).getByRole('button', { name: 'Never' }));
+      expect(onScreenSleepChange).toHaveBeenCalledWith(0);
+    });
+
+    it('sums up the theme and colour, and the theme choice changes it', async () => {
+      const onThemeChange = vi.fn();
+      render(
+        <SettingsModal
+          {...base}
+          authInfo={{}}
+          theme="night"
+          onThemeChange={onThemeChange}
+          themeColour="navy"
+          onThemeColourChange={vi.fn()}
+        />
+      );
+      const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Appearance/ });
+      expect(card).toHaveTextContent('Night');
+      expect(card).toHaveTextContent('Navy');
+      await userEvent.click(card);
+      expect(screen.getByRole('button', { name: 'Navy' })).toBeDisabled();
+      await userEvent.click(within(screen.getByRole('group', { name: 'Theme' })).getByRole('button', { name: 'Day' }));
+      expect(onThemeChange).toHaveBeenCalledWith('day');
+    });
+
+    it.each([
+      [{ version: null, latest: { state: 'unknown' } }, 'Version unknown'],
+      [
+        { version: { ref: 'v1.2.0', commit: 'abcdef1' }, release: true, latest: { state: 'checking' } },
+        'Checking for updates'
+      ],
+      [
+        { version: { ref: 'v1.2.0', commit: 'abcdef1' }, release: true, latest: { state: 'unknown' } },
+        'Could not check'
+      ],
+      [
+        {
+          version: { ref: 'v1.2.0', commit: 'abcdef1' },
+          release: true,
+          latest: { state: 'known' },
+          newer: 'v1.3.0 is out'
+        },
+        'v1.3.0 is out'
+      ],
+      [
+        { version: { ref: 'main', commit: 'abcdef1' }, release: false, latest: { state: 'known' }, newer: null },
+        'Up to date'
+      ],
+      [
+        { version: { ref: 'main', commit: 'abcdef1' }, release: false, latest: { state: 'known' }, isUpdating: true },
+        'Updating'
+      ]
+    ])('sums up the Pi software (%o)', (state, words) => {
+      const update = { newer: null, isUpdating: false, checkNow: vi.fn(), ...state } as unknown as KioskUpdate;
+      render(<SettingsModal {...base} authInfo={{}} kioskUpdate={update} />);
+      const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Software/ });
+      expect(card).toHaveTextContent(words);
+    });
+  });
+
   it('signs out and reloads', async () => {
     // Off the kiosk: there is no browser extension to wait for.
     history.replaceState(null, '', '/?kiosk=0');
