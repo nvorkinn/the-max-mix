@@ -40,11 +40,16 @@ if (typeof chrome !== 'undefined') {
   chrome.runtime.onMessage.addListener((message, sender, respond) => {
     const isForget = typeof message === 'object' && message !== null && 'type' in message && message.type === FORGET;
     // Only sign-out.ts sends this, and it runs on the app's pages alone, so the sender is the app.
-    if (!isForget || !sender.origin) return undefined;
-    forgetSignIns(chrome.browsingData, sender.origin).then(
-      () => respond({ ok: true }),
-      () => respond({ ok: false })
-    );
+    if (!isForget || !sender.origin) return;
+    const origin = sender.origin;
+    void (async () => {
+      try {
+        await forgetSignIns(chrome.browsingData, origin);
+        respond({ ok: true });
+      } catch {
+        respond({ ok: false });
+      }
+    })();
     return true;
   });
 }

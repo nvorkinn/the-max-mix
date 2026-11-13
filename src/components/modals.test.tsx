@@ -170,6 +170,8 @@ describe('SettingsModal', () => {
   });
 
   it('signs out and reloads', async () => {
+    // Off the kiosk: there is no browser extension to wait for.
+    history.replaceState(null, '', '/?kiosk=0');
     render(<SettingsModal {...base} authInfo={{ authenticated: true }} />);
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(auth.signOut).toHaveBeenCalledTimes(1);

@@ -9,26 +9,24 @@ describe('sign-out relay', () => {
     vi.resetModules();
     await import('./sign-out.ts');
     const answered = new Promise<unknown>(resolve => {
-      window.addEventListener('message', event => {
-        const data: unknown = event.data;
-        if (typeof data === 'object' && data !== null && 'type' in data && data.type === 'maxmix:sign-ins-forgotten') {
-          resolve(data);
-        }
+      vi.spyOn(globalThis, 'postMessage').mockImplementation((message: unknown) => {
+        resolve(message);
       });
     });
     const origin = location.origin;
+    const page = globalThis as unknown as Window;
     // Ignored: another window, another origin, another message.
-    window.dispatchEvent(new MessageEvent('message', { data: { type: 'maxmix:forget-sign-ins' }, origin }));
-    window.dispatchEvent(
-      new MessageEvent('message', { data: { type: 'maxmix:forget-sign-ins' }, origin: 'https://x', source: window })
+    globalThis.dispatchEvent(new MessageEvent('message', { data: { type: 'maxmix:forget-sign-ins' }, origin }));
+    globalThis.dispatchEvent(
+      new MessageEvent('message', { data: { type: 'maxmix:forget-sign-ins' }, origin: 'https://x', source: page })
     );
-    window.dispatchEvent(new MessageEvent('message', { data: 'maxmix:forget-sign-ins', origin, source: window }));
+    globalThis.dispatchEvent(new MessageEvent('message', { data: 'maxmix:forget-sign-ins', origin, source: page }));
     expect(sendMessage).not.toHaveBeenCalled();
 
-    window.dispatchEvent(
-      new MessageEvent('message', { data: { type: 'maxmix:forget-sign-ins' }, origin, source: window })
+    globalThis.dispatchEvent(
+      new MessageEvent('message', { data: { type: 'maxmix:forget-sign-ins' }, origin, source: page })
     );
-    await answered;
+    expect(await answered).toEqual({ type: 'maxmix:sign-ins-forgotten' });
     expect(sendMessage).toHaveBeenCalledExactlyOnceWith({ type: 'maxmix:forget-sign-ins' });
   });
 });

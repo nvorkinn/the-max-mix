@@ -4,12 +4,19 @@
 // A content script cannot be a module, so this file exports nothing.
 declare const chrome: { runtime: { sendMessage: (message: unknown) => Promise<unknown> } };
 
-window.addEventListener('message', (event: MessageEvent) => {
+async function forget(): Promise<void> {
+  try {
+    await chrome.runtime.sendMessage({ type: 'maxmix:forget-sign-ins' });
+  } catch {
+    // The extension could not clear them; the app is told it is done all the same, so it does not wait.
+  }
+  globalThis.postMessage({ type: 'maxmix:sign-ins-forgotten' }, location.origin);
+}
+
+globalThis.addEventListener('message', (event: MessageEvent) => {
+  if (event.origin !== location.origin || (event.source as unknown) !== globalThis) return;
   const data: unknown = event.data;
-  if (event.source !== window || event.origin !== location.origin) return;
-  if (typeof data !== 'object' || data === null || !('type' in data) || data.type !== 'maxmix:forget-sign-ins') return;
-  void chrome.runtime
-    .sendMessage({ type: 'maxmix:forget-sign-ins' })
-    .catch(() => undefined)
-    .then(() => window.postMessage({ type: 'maxmix:sign-ins-forgotten' }, location.origin));
+  if (typeof data === 'object' && data !== null && 'type' in data && data.type === 'maxmix:forget-sign-ins') {
+    void forget();
+  }
 });

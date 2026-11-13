@@ -154,15 +154,16 @@ describe('forgetSignIns', () => {
   it('asks the kiosk extension and waits for its answer', async () => {
     visit('?kiosk=1');
     const asked: unknown[] = [];
-    const extension = (event: MessageEvent) => {
-      asked.push(event.data);
-      window.dispatchEvent(new MessageEvent('message', { data: { type: 'other' }, source: window }));
-      window.dispatchEvent(new MessageEvent('message', { data: { type: 'maxmix:sign-ins-forgotten' } }));
-      window.dispatchEvent(
-        new MessageEvent('message', { data: { type: 'maxmix:sign-ins-forgotten' }, source: window })
-      );
-    };
-    window.addEventListener('message', extension, { once: true });
+    // Stands in for the extension: answers the request at once.
+    vi.spyOn(window, 'postMessage').mockImplementation((message: unknown) => {
+      asked.push(message);
+      const { origin } = location;
+      const answer = { type: 'maxmix:sign-ins-forgotten' };
+      window.dispatchEvent(new MessageEvent('message', { data: { type: 'other' }, origin, source: window }));
+      window.dispatchEvent(new MessageEvent('message', { data: answer, origin }));
+      window.dispatchEvent(new MessageEvent('message', { data: answer, origin: 'https://x', source: window }));
+      window.dispatchEvent(new MessageEvent('message', { data: answer, origin, source: window }));
+    });
     await forgetSignIns();
     expect(asked).toEqual([{ type: 'maxmix:forget-sign-ins' }]);
   });
@@ -170,7 +171,7 @@ describe('forgetSignIns', () => {
   it('gives up when no extension answers', async () => {
     vi.useFakeTimers();
     visit('?kiosk=1');
-    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+    vi.spyOn(window, 'postMessage').mockImplementation(() => {});
     let done = false;
     const forgetting = forgetSignIns().then(() => {
       done = true;

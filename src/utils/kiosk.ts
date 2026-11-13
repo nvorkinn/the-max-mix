@@ -53,10 +53,11 @@ export function forgetSignIns(): Promise<void> {
       resolve();
     };
     const onMessage = (event: MessageEvent) => {
+      if (event.origin !== location.origin || event.source !== window) return;
       const data: unknown = event.data;
-      const forgotten =
-        typeof data === 'object' && data !== null && 'type' in data && data.type === 'maxmix:sign-ins-forgotten';
-      if (event.source === window && forgotten) done();
+      if (typeof data === 'object' && data !== null && 'type' in data && data.type === 'maxmix:sign-ins-forgotten') {
+        done();
+      }
     };
     const timer = setTimeout(done, FORGET_TIMEOUT_MS);
     window.addEventListener('message', onMessage);
