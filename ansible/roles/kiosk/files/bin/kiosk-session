@@ -72,9 +72,6 @@ if [[ $screen_off_after =~ ^[1-9][0-9]*$ ]] && command -v swayidle > /dev/null; 
   swayidle timeout "$screen_off_after" '/usr/local/bin/kiosk-display off' resume '/usr/local/bin/kiosk-display on' &
 fi
 
-# Scale the screen so the app, laid out for 1024x600, fills a bigger one (kiosk-display fit), before Chromium opens.
-/usr/local/bin/kiosk-display fit
-
 # Cage does not signal this script when it stops, and it waits for us to exit (kiosk.service sends the signal from ExecStop).
 # Stop the app with us so nothing is left running without a compositor.
 trap 'kill $(jobs -p) 2> /dev/null; exit 0' TERM
