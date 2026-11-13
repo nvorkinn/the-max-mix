@@ -26,8 +26,16 @@ export interface PairedDevice {
   lastSeen: number | null;
 }
 
+/** Where "Pair my phone" is (pi/kiosk-audio/phone-pairing.ts). */
+export type PairingStatus =
+  | { state: 'idle' }
+  | { state: 'waiting'; secondsLeft: number }
+  | { state: 'paired'; name: string; address: string }
+  | { state: 'failed'; error: string };
+
 export interface BluetoothReport {
   adapter: BluetoothAdapter | null;
+  pairing: PairingStatus;
   devices: PairedDevice[];
   nearby: number;
   verbose: boolean;
@@ -72,11 +80,31 @@ function parseDevice(value: unknown): PairedDevice {
   };
 }
 
+function parsePairing(value: unknown): PairingStatus {
+  const fields = fieldsOf(value);
+  const phone = fieldsOf(fields['phone']);
+  switch (fields['state']) {
+    case 'waiting': {
+      return { state: 'waiting', secondsLeft: typeof fields['secondsLeft'] === 'number' ? fields['secondsLeft'] : 0 };
+    }
+    case 'paired': {
+      return { state: 'paired', name: text(phone['name']), address: text(phone['address']) };
+    }
+    case 'failed': {
+      return { state: 'failed', error: text(fields['error']) };
+    }
+    default: {
+      return { state: 'idle' };
+    }
+  }
+}
+
 /** The Pi's answer as a report; anything missing or of the wrong type reads as empty. */
 export function parseBluetoothReport(value: unknown): BluetoothReport {
   const fields = fieldsOf(value);
   return {
     adapter: parseAdapter(fields['adapter']),
+    pairing: parsePairing(fields['pairing']),
     devices: listOf(fields['devices']).map(device => parseDevice(device)),
     nearby: typeof fields['nearby'] === 'number' ? fields['nearby'] : 0,
     verbose: fields['verbose'] === true,
@@ -115,4 +143,15 @@ export async function setBluetoothVerbose(verbose: boolean): Promise<void> {
     signal: AbortSignal.timeout(TIMEOUT_MS)
   });
   if (!response.ok) throw new Error(`The kiosk refused that (${response.status}).`);
+}
+
+/** Starts "Pair my phone" (or gives it two more minutes), or stops it; rejects with a message to show. */
+export async function pairPhone(isStarting: boolean): Promise<void> {
+  const response = await fetch(`${KIOSK_SERVICE}/bluetooth/pair-phone${isStarting ? '' : '/stop'}`, {
+    method: 'POST',
+    signal: AbortSignal.timeout(TIMEOUT_MS)
+  });
+  if (response.ok) return;
+  const message = fieldsOf(await response.json().catch(() => null))['error'];
+  throw new Error(typeof message === 'string' ? message : `The kiosk refused that (${response.status}).`);
 }

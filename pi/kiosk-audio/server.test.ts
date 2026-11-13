@@ -9,6 +9,7 @@ import { dump, exchange } from './fixtures.ts';
 import { HotspotError } from './hotspot.ts';
 import { ERRORS, ScanError } from './nmcli.ts';
 import type { ConnectRequest } from './nmcli.ts';
+import { PAIRING_ERRORS } from './phone-pairing.ts';
 import { parseDump } from './pipewire.ts';
 import type { Choice } from './pipewire.ts';
 import { handleRequest, journalLog, LOCAL_ORIGIN, parseAppLog, speakerNames, speakerVolumes } from './server.ts';
@@ -45,8 +46,9 @@ const otherFailure = () => Promise.reject(new Error('dbus: /private/path failed'
 const busy = () => Promise.reject(new BluetoothError('Bluetooth is busy. Wait a moment and try again.'));
 const odd = () => Promise.reject(new Error('internal detail'));
 
-function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotError?: Error) {
+function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotError?: Error, isPairingFailing = false) {
   const verboseCalls: boolean[] = [];
+  const pairingCalls: string[] = [];
   const hotspotCalls: string[] = [];
   const phoneStarts: string[] = [];
   const connected: string[] = [];
@@ -148,6 +150,17 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
         return Promise.resolve();
       }
     },
+    phonePairing: {
+      start: () => {
+        pairingCalls.push('start');
+        return isPairingFailing ? Promise.reject(new Error(PAIRING_ERRORS.unavailable)) : Promise.resolve();
+      },
+      stop: () => {
+        pairingCalls.push('stop');
+        return Promise.resolve();
+      },
+      status: () => ({ state: 'waiting', secondsLeft: 90 })
+    },
     bluetoothMonitor: {
       snapshot: () => Promise.resolve(MONITOR),
       setVerbose: on => {
@@ -159,6 +172,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
   return {
     deps,
     verboseCalls,
+    pairingCalls,
     hotspotCalls,
     phoneStarts,
     connected,
@@ -749,7 +763,7 @@ describe('Bluetooth monitor', () => {
   it('reports what BlueZ says, for the app only', async () => {
     const base = await start(fakes().deps);
     const answer = await fetch(`${base}/bluetooth/monitor`, { headers: { Origin: ORIGIN } });
-    await expect(answer.json()).resolves.toEqual(MONITOR);
+    await expect(answer.json()).resolves.toEqual({ ...MONITOR, pairing: { state: 'waiting', secondsLeft: 90 } });
     expect((await fetch(`${base}/bluetooth/monitor`)).status).toBe(403);
   });
 
@@ -769,5 +783,23 @@ describe('Bluetooth monitor', () => {
       (await post(base, '/bluetooth/monitor', { body: { verbose: false }, origin: 'https://example.com' })).status
     ).toBe(403);
     expect(verboseCalls).toEqual([true]);
+  });
+});
+
+describe('Pair my phone', () => {
+  it('starts and stops a pairing window for the app only', async () => {
+    const { deps, pairingCalls } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/bluetooth/pair-phone')).status).toBe(204);
+    expect((await post(base, '/bluetooth/pair-phone/stop')).status).toBe(204);
+    expect((await post(base, '/bluetooth/pair-phone', { origin: 'https://example.com' })).status).toBe(403);
+    expect(pairingCalls).toEqual(['start', 'stop']);
+  });
+
+  it('says why when Bluetooth would not start pairing', async () => {
+    const base = await start(fakes({}, false, undefined, true).deps);
+    const answer = await post(base, '/bluetooth/pair-phone');
+    expect(answer.status).toBe(503);
+    await expect(answer.json()).resolves.toEqual({ error: PAIRING_ERRORS.unavailable });
   });
 });

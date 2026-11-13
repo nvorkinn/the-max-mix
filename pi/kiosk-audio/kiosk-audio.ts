@@ -15,6 +15,7 @@ import { chromiumPid, stopChromium } from './watchdog.ts';
 const WATCH_MS = 2000;
 const stateHome = process.env['XDG_STATE_HOME'] || path.join(homedir(), '.local', 'state');
 const stateFile = path.join(stateHome, 'the-max-mix', 'speakers.json');
+const phonesFile = path.join(stateHome, 'the-max-mix', 'phones.json');
 const pipewire = new PipeWire();
 
 /** NetworkManager for the Wi-Fi setup page, and closing that page: it shows in a Chromium of its own. */
@@ -55,7 +56,8 @@ if (process.argv[2] === 'watch') {
       await route(pipewire, choices);
     },
     setVolume: (target, volume) => setSpeakerVolume(pipewire, target, volume),
-    wifi: wifi()
+    wifi: wifi(),
+    phonesFile
   });
 } else {
   console.error('Usage: kiosk-audio.ts watch');

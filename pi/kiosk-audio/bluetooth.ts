@@ -142,6 +142,11 @@ export class Bluetooth {
     });
   }
 
+  /** Drops the connection to a device, keeping the pairing. */
+  async disconnect(address: string): Promise<void> {
+    await this.ctl(['disconnect', address]);
+  }
+
   /** Forgets a device: disconnects, unpairs and removes it. */
   async remove(address: string): Promise<void> {
     await this.exclusive(async () => {

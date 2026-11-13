@@ -40,7 +40,7 @@ interface Readable {
 }
 
 /** Waits until the bus has said hello (it has a unique name), which BlueZ needs to call back. */
-async function untilConnected(bus: MessageBus): Promise<void> {
+export async function untilConnected(bus: MessageBus): Promise<void> {
   const deadline = Date.now() + CONNECT_WAIT_MS;
   while (!bus.name) {
     if (Date.now() > deadline) throw new Error('The system bus did not answer.');
@@ -56,7 +56,7 @@ function callAdapter(bus: MessageBus, iface: string, member: string, args: { sig
 }
 
 /** Waits for `work` and ignores how it ended: used to take things down, which may already be gone. */
-async function ignoreFailure(work: PromiseLike<unknown>): Promise<void> {
+export async function ignoreFailure(work: PromiseLike<unknown>): Promise<void> {
   try {
     await work;
   } catch {

@@ -44,6 +44,10 @@
 //                             "nearby": unpaired devices heard in the last minute, "verbose",
 //                             "log": [{"id", "time", "message"}]}, or 503 {"error"}
 //   POST /bluetooth/monitor   {"verbose": true}: log unpaired devices too
+//   POST /bluetooth/pair-phone   show up as a keyboard for two minutes so a phone can pair (phone-pairing.ts): 204, or
+//                                503 {"error"}; its progress is "pairing" in GET /bluetooth/monitor: {"state": "idle" |
+//                                "waiting" | "paired" | "failed", "secondsLeft"?, "phone"?: {"address", "name"}, "error"?}
+//   POST /bluetooth/pair-phone/stop   stop showing up
 //   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
 //                           (update-socket.ts)
 // Only the app's origin is answered (CORS, and every POST and WebSocket is refused without its Origin header, so no other
@@ -66,6 +70,9 @@ import { cached, findLyrics, parseLyricsQuery } from './lyrics.ts';
 import type { LyricsHit } from './lyrics.ts';
 import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
+import { advertiseForPairing } from './pairing-gatt.ts';
+import { PhonePairing, savePhone } from './phone-pairing.ts';
+import type { PairingStatus } from './phone-pairing.ts';
 import { PhoneSetup } from './phone-setup.ts';
 import type { Choice, Graph } from './pipewire.ts';
 import { SonosEventHub } from './sonos-events.ts';
@@ -120,6 +127,8 @@ export interface Deps {
   bluetooth: BluetoothControl;
   /** What BlueZ reports, for the debug console. */
   bluetoothMonitor: { snapshot: () => Promise<MonitorSnapshot>; setVerbose: (isVerbose: boolean) => void };
+  /** "Pair my phone", for the debug console. */
+  phonePairing: { start: () => Promise<void>; stop: () => Promise<void>; status: () => PairingStatus };
   phone: { start: () => Promise<void> };
   hotspot: {
     start: () => Promise<HotspotInfo>;
@@ -324,7 +333,7 @@ async function sendDevices(response: ServerResponse, devices: () => Promise<Blue
 /** GET /bluetooth/monitor: what BlueZ reports, or 503 when it is not there. */
 async function sendMonitor(response: ServerResponse, deps: Deps): Promise<void> {
   try {
-    sendJson(response, 200, await deps.bluetoothMonitor.snapshot());
+    sendJson(response, 200, { ...(await deps.bluetoothMonitor.snapshot()), pairing: deps.phonePairing.status() });
   } catch {
     sendJson(response, 503, { error: BLUETOOTH_UNAVAILABLE });
   }
@@ -395,6 +404,19 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
       const body = JSON.parse(await readBody(request)) as { verbose?: unknown } | null;
       if (typeof body?.verbose === 'boolean') deps.bluetoothMonitor.setVerbose(body.verbose);
       else status = 400;
+      break;
+    }
+    case '/bluetooth/pair-phone': {
+      try {
+        await deps.phonePairing.start();
+      } catch (error) {
+        sendJson(response, 503, { error: error instanceof Error ? error.message : 'Bluetooth failed.' });
+        return;
+      }
+      break;
+    }
+    case '/bluetooth/pair-phone/stop': {
+      await deps.phonePairing.stop();
       break;
     }
     case '/bluetooth/scan':
@@ -618,7 +640,10 @@ export function handleRequest(origin: string, deps: Deps) {
 
 export function serveSpeakers(
   origin: string,
-  deps: Pick<Deps, 'graph' | 'route' | 'setVolume' | 'wifi'>,
+  deps: Pick<Deps, 'graph' | 'route' | 'setVolume' | 'wifi'> & {
+    /** Where "Pair my phone" notes the phones it paired. */
+    phonesFile: string;
+  },
   update: Update = runUpdate
 ): Server {
   const watchdog = new Watchdog({
@@ -640,6 +665,8 @@ export function serveSpeakers(
   const heartbeat = () => {
     watchdog.beat();
   };
+  const bluetooth = new Bluetooth();
+  const bluetoothMonitor = new BluetoothMonitor();
   const handler = handleRequest(origin, {
     ...deps,
     perform,
@@ -650,8 +677,17 @@ export function serveSpeakers(
     log: journalLog(),
     asset: wifiSetupAsset,
     lyrics: cached(query => findLyrics(query)),
-    bluetooth: new Bluetooth(),
-    bluetoothMonitor: new BluetoothMonitor(),
+    bluetooth,
+    bluetoothMonitor,
+    phonePairing: new PhonePairing({
+      advertise: () => advertiseForPairing(),
+      devices: async () => (await bluetoothMonitor.snapshot()).devices,
+      disconnect: address => bluetooth.disconnect(address),
+      save: phone => savePhone(deps.phonesFile, phone),
+      log: message => {
+        bluetoothMonitor.note(message);
+      }
+    }),
     phone: new PhoneSetup({
       connect: request => deps.wifi.connect(request),
       done: () => {

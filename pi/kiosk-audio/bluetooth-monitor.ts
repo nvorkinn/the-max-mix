@@ -294,6 +294,11 @@ export class BluetoothMonitor {
     this.log(`Heard ${label(device)}${rssi}`);
   }
 
+  /** Adds a line of the kiosk's own to the log (pairing a phone, phone-pairing.ts). */
+  note(message: string): void {
+    this.log(message);
+  }
+
   setVerbose(isVerbose: boolean): void {
     if (isVerbose === this.isVerbose) return;
     this.isVerbose = isVerbose;
