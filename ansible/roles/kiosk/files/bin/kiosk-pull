@@ -1,15 +1,31 @@
 #!/bin/bash
-# Usage: kiosk-pull REPO_URL REF DIRECTORY [ansible-pull options...]
-# Applies the kiosk playbook (ansible/local.yml) from REPO_URL with ansible-pull. REF "latest" means the repository's
-# latest GitHub release: the tag github.com/<owner>/<repo>/releases/latest redirects to, so no API call, token or JSON is
-# involved. Any other REF (a tag such as v1.12.0, or a branch for testing) is pulled as it is. Run by kiosk-pull.service
-# (with --only-if-changed). The playbook itself skips what has not changed. Settings for this Pi only, such as an exact
-# location instead of the one its IP address gives (kiosk_latitude, kiosk_longitude), go in
-# /etc/the-max-mix/kiosk-vars.yml, which is passed to the playbook when it exists.
+# Usage: kiosk-pull REPO_URL REF DIRECTORY [--only-if-changed] [ansible options...]
+# Applies the kiosk playbook (ansible/local.yml) from REPO_URL. Run by kiosk-pull.service (with --only-if-changed).
+#
+# REF "latest" means the repository's latest GitHub release, and a tag such as v1.12.0 that release. A release is
+# installed from its Pi bundle (PI_BUNDLE), which the Release workflow uploads as its very last step, once the web app is
+# deployed: until the bundle is there the release is not ready, and the Pi stays on what it runs. GitHub creates the tag
+# and the release at once, so neither says on its own that the workflow has finished. The bundle holds ansible/,
+# pi/kiosk-audio and pi/kiosk-keyboard at the tag, and release.json with the tag, its commit and the tree ids the
+# playbook would otherwise ask git for. It is unpacked into DIRECTORY and the playbook runs from there. No API call, token
+# or JSON parsing is involved: github.com/<owner>/<repo>/releases/latest/download/<file> redirects to the latest
+# release's tag.
+# With --only-if-changed a release that was already installed completely (INSTALLED) is not downloaded again.
+#
+# Any other REF (a branch, for testing on your own Pi) is pulled with ansible-pull, where --only-if-changed means the
+# branch has not moved.
+#
+# The playbook itself skips what has not changed. Settings for this Pi only, such as an exact location instead of the one
+# its IP address gives (kiosk_latitude, kiosk_longitude), go in /etc/the-max-mix/kiosk-vars.yml, which is passed to the
+# playbook when it exists.
 set -euo pipefail
 
+PI_BUNDLE=the-max-mix-pi.tar.gz
+INSTALLED=/var/lib/the-max-mix/installed-release
+RELEASE_PATTERN='^v[0-9A-Za-z][0-9A-Za-z._-]*$'
+
 if (($# < 3)); then
-  echo "usage: $0 REPO_URL REF DIRECTORY [ansible-pull options...]" >&2
+  echo "usage: $0 REPO_URL REF DIRECTORY [--only-if-changed] [ansible options...]" >&2
   exit 2
 fi
 repo=$1
@@ -18,28 +34,84 @@ directory=$3
 shift 3
 
 started=$SECONDS
-if [[ $ref == latest ]]; then
-  releases=${repo%.git}/releases/latest
-  location=$(curl --fail --silent --show-error --max-time 60 --retry 3 --head --output /dev/null \
-    --write-out '%{redirect_url}' "$releases")
-  ref=${location##*/releases/tag/}
-  if [[ $location != */releases/tag/* || ! $ref =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
-    echo "Could not find the latest release at $releases (got: ${location:-no redirect})" >&2
-    exit 1
-  fi
-  echo "The latest release is $ref (looked up in $((SECONDS - started))s)"
-fi
-
 local_vars=/etc/the-max-mix/kiosk-vars.yml
 extra=()
 if [[ -f $local_vars ]]; then
   extra=(--extra-vars "@$local_vars")
 fi
 
-# Not exec, so the time is printed afterwards.
-status=0
-ansible-pull --url "$repo" --checkout "$ref" --directory "$directory" "${extra[@]}" "$@" \
-  --inventory localhost, ansible/local.yml || status=$?
-echo "kiosk-pull finished in $((SECONDS - started))s (exit status $status)"
-exit "$status"
+finish() {
+  echo "kiosk-pull finished in $((SECONDS - started))s (exit status $1)"
+  exit "$1"
+}
 
+# A branch: ansible-pull, as before releases came as bundles. It cannot clone over an unpacked bundle.
+if [[ $ref != latest && ! $ref =~ $RELEASE_PATTERN ]]; then
+  if [[ -d $directory && ! -d $directory/.git ]]; then
+    rm -rf "$directory"
+  fi
+  rm -f "$INSTALLED"
+  status=0
+  ansible-pull --url "$repo" --checkout "$ref" --directory "$directory" "${extra[@]}" "$@" \
+    --inventory localhost, ansible/local.yml || status=$?
+  finish "$status"
+fi
+
+only_if_changed=false
+if [[ ${1-} == --only-if-changed ]]; then
+  only_if_changed=true
+  shift
+fi
+
+releases=${repo%.git}/releases
+if [[ $ref == latest ]]; then
+  location=$(curl --fail --silent --show-error --max-time 60 --retry 3 --head --output /dev/null \
+    --write-out '%{redirect_url}' "$releases/latest/download/$PI_BUNDLE")
+  ref=${location##*/releases/download/}
+  ref=${ref%%/*}
+  if [[ $location != */releases/download/* || ! $ref =~ $RELEASE_PATTERN ]]; then
+    echo "Could not find the latest release at $releases/latest (got: ${location:-no redirect})" >&2
+    finish 1
+  fi
+  echo "The latest release is $ref (looked up in $((SECONDS - started))s)"
+fi
+
+if $only_if_changed && [[ -f $INSTALLED && $(< "$INSTALLED") == "$ref" ]]; then
+  echo "$ref is already installed; nothing to do"
+  finish 0
+fi
+
+mkdir -p "$(dirname "$directory")"
+download=$(mktemp -d "$directory.XXXXXX")
+trap 'rm -rf "$download"' EXIT
+code=$(curl --silent --show-error --max-time 300 --retry 3 --location --output "$download/$PI_BUNDLE" \
+  --write-out '%{http_code}' "$releases/download/$ref/$PI_BUNDLE") || true
+case $code in
+  200) ;;
+  404)
+    # Not a failure: the Release workflow is still running (or failed, and then the release is never installed).
+    echo "$ref is not ready yet: its Release workflow has not uploaded $PI_BUNDLE. Staying on the current version."
+    finish 0
+    ;;
+  *)
+    echo "Could not download $PI_BUNDLE for $ref (HTTP status ${code:-none})" >&2
+    finish 1
+    ;;
+esac
+mkdir "$download/tree"
+tar --extract --gzip --file "$download/$PI_BUNDLE" --directory "$download/tree" --no-same-owner
+if [[ ! -f $download/tree/ansible/local.yml || ! -f $download/tree/release.json ]]; then
+  echo "$PI_BUNDLE for $ref holds no playbook" >&2
+  finish 1
+fi
+rm -rf "$directory"
+mv "$download/tree" "$directory"
+echo "Downloaded $ref in $((SECONDS - started))s"
+
+rm -f "$INSTALLED"
+status=0
+(cd "$directory" && ansible-playbook "${extra[@]}" "$@" --inventory localhost, ansible/local.yml) || status=$?
+if ((status == 0)); then
+  echo "$ref" > "$INSTALLED"
+fi
+finish "$status"

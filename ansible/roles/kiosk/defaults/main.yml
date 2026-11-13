@@ -31,21 +31,30 @@ kiosk_latitude: ''
 kiosk_longitude: ''
 # Answers "<latitude>,<longitude>" for the address asking, with no account or key. Empty turns the lookup off.
 kiosk_location_lookup_url: https://ipinfo.io/loc
-# The commit this playbook runs from: ansible-pull runs it from a Git checkout. Empty without one. Because the
+# What a release's Pi bundle says about itself (release.json next to ansible/, written by the Release workflow): its tag,
+# commit and the tree ids tasks/main.yml compares. Empty in a Git checkout (a branch pulled with ansible-pull, or a hand
+# run), where git answers the same questions instead.
+kiosk_release_info: >-
+  {{ lookup('ansible.builtin.file', playbook_dir ~ '/../release.json', errors='ignore') | default('{}', true) | from_json }}
+# The commit this playbook runs from: the bundle's, or the Git checkout's. Empty without either. Because the
 # commit is in kiosk_url, every new release (or commit on a pinned branch) changes kiosk.service and so restarts the
 # kiosk at kiosk_restart_time, after which the settings show the new version.
 kiosk_commit: >-
-  {{ lookup('ansible.builtin.pipe',
+  {{ (kiosk_release_info.commit | default('') | string)[:7]
+    if kiosk_release_info.commit is defined else
+    (lookup('ansible.builtin.pipe',
     'git -C ' ~ (playbook_dir | quote) ~ ' rev-parse --short=7 HEAD 2> /dev/null || true')
-    | regex_search('^[0-9a-f]{7,40}$') | default('', true) }}
-# What the settings call the running version: the newest release tag at the checkout when following releases (kiosk_pull_ref
-# latest; two tags can sit on one commit), otherwise kiosk_pull_ref itself. Empty when the checkout is not at a tag.
+    | regex_search('^[0-9a-f]{7,40}$') | default('', true)) }}
+# What the settings call the running version: the bundle's release tag; in a Git checkout following releases
+# (kiosk_pull_ref latest), the newest release tag at the checkout (two tags can sit on one commit), otherwise
+# kiosk_pull_ref itself. Empty when the checkout is not at a tag.
 kiosk_version: >-
-  {{ (lookup('ansible.builtin.pipe',
+  {{ kiosk_release_info.tag
+    if kiosk_release_info.tag is defined else
+    (lookup('ansible.builtin.pipe',
     'git -C ' ~ (playbook_dir | quote) ~ ' tag --points-at HEAD --list "v*" --sort=-version:refname 2> /dev/null | head -n 1 || true')
     | regex_search('^v[0-9A-Za-z][0-9A-Za-z._-]*$') | default('', true))
     if kiosk_pull_ref == 'latest' else kiosk_pull_ref }}
-
 # System settings.
 # The name /etc/hosts gives 127.0.1.1: the Pi's own host name, which cloud-init set from pi/cloud-init/user-data, so a
 # second kiosk renamed there (the-max-mix-2) resolves its own name. The playbook never changes the host name itself.
@@ -186,16 +195,17 @@ kiosk_nodejs_major: 24
 kiosk_nodesource_key_url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
 kiosk_nodesource_key_sha256: b42e0321dabdc24e892115da705cf061167eac12a317f23d329862d0aa0a271d
 
-# On-device updates: kiosk-pull.timer runs ansible-pull (through /usr/local/sbin/kiosk-pull) against this repository and
-# ref. "latest" follows the repository's latest GitHub release, which the Release workflow publishes for each v* tag;
-# pi/cloud-init/user-data pulls the same on the first boot. To roll every device back, mark an older release as Latest
-# (run the Release workflow with its tag). A tag such as v1.12.0 pins a device to that release, and a branch is only for
-# testing on your own Pi. The repository is public, so no credentials are needed.
+# On-device updates: kiosk-pull.timer runs /usr/local/sbin/kiosk-pull against this repository and ref. "latest" follows
+# the repository's latest GitHub release, installed from the Pi bundle the Release workflow uploads to it once the web
+# app is deployed (a release without one is not ready yet); pi/cloud-init/user-data installs the same on the first boot.
+# To roll every device back, mark an older release as Latest (run the Release workflow with its tag). A tag such as
+# v1.12.0 pins a device to that release, and a branch (pulled with ansible-pull) is only for testing on your own Pi. The
+# repository is public, so no credentials are needed.
 kiosk_pull_repo: https://github.com/nvorkinn/the-max-mix.git
 kiosk_pull_ref: latest
 kiosk_pull_dir: /var/lib/the-max-mix/ansible-pull
 # First run this long after boot, then again this long after each run finishes, plus up to the random delay. A run only
-# fetches the ref and applies the playbook when it has moved (ansible-pull --only-if-changed), and the playbook then applies
+# downloads the release and applies the playbook when it is not the one already installed (--only-if-changed), and the playbook then applies
 # its slow part only when the files it installs have changed (tasks/main.yml). The app's Update now
 # button starts the same pull at once (through the kiosk-audio service), so the timer only catches what nobody asked for.
 kiosk_pull_boot_delay: 3min

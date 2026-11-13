@@ -885,10 +885,13 @@ describe('TabletView', () => {
 
     describe('when a newer version is out', () => {
       const fetchMock = vi.fn();
+      /** GitHub's answer for a release whose Release workflow has uploaded the Pi bundle. */
+      const release = (tag: string) =>
+        Response.json({ tag_name: tag, assets: [{ name: 'the-max-mix-pi.tar.gz', state: 'uploaded' }] });
       beforeEach(() => {
         localStorage.setItem('maxmix.piVersion', 'v1.12.0 5a39e9a');
         fetchMock.mockReset();
-        fetchMock.mockImplementation(() => Promise.resolve(Response.json({ tag_name: 'v1.13.0' })));
+        fetchMock.mockImplementation(() => Promise.resolve(release('v1.13.0')));
         vi.stubGlobal('fetch', fetchMock);
         resetFakeSockets();
         vi.stubGlobal('WebSocket', FakeWebSocket);
@@ -932,7 +935,7 @@ describe('TabletView', () => {
         await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
         const asked = fetchMock.mock.calls.length;
-        fetchMock.mockImplementation(() => Promise.resolve(Response.json({ tag_name: 'v1.14.0' })));
+        fetchMock.mockImplementation(() => Promise.resolve(release('v1.14.0')));
         fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
         openSoftware();
         expect(await screen.findByText(/v1\.14\.0 is out\. Tap the button to install it now/)).toBeInTheDocument();
@@ -946,7 +949,7 @@ describe('TabletView', () => {
         render(<TabletView />);
         await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
-        fetchMock.mockImplementation(() => Promise.resolve(Response.json({ tag_name: 'v1.14.0' })));
+        fetchMock.mockImplementation(() => Promise.resolve(release('v1.14.0')));
         fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
         await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
@@ -954,7 +957,7 @@ describe('TabletView', () => {
         expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
 
         // The next one (v1.15.0) is accepted: the console replaces Settings.
-        fetchMock.mockImplementation(() => Promise.resolve(Response.json({ tag_name: 'v1.15.0' })));
+        fetchMock.mockImplementation(() => Promise.resolve(release('v1.15.0')));
         fireEvent.click(screen.getByRole('button', { name: 'Close settings' }));
         fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
         const popup = await screen.findByRole('dialog', { name: 'Update available' });
@@ -982,13 +985,13 @@ describe('TabletView', () => {
       });
 
       it('asks GitHub again when the screen wakes', async () => {
-        fetchMock.mockImplementation(() => Promise.resolve(Response.json({ tag_name: 'v1.12.0' })));
+        fetchMock.mockImplementation(() => Promise.resolve(release('v1.12.0')));
         render(<TabletView />);
         await flush();
         expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Put the screen to sleep' }));
         // A newer release comes out while the screen is off.
-        fetchMock.mockImplementation(() => Promise.resolve(Response.json({ tag_name: 'v1.13.0' })));
+        fetchMock.mockImplementation(() => Promise.resolve(release('v1.13.0')));
         const asked = fetchMock.mock.calls.length;
         fireEvent.click(screen.getByRole('button', { name: 'Wake the screen' }));
         expect(await screen.findByRole('dialog', { name: 'Update available' })).toBeInTheDocument();

@@ -254,23 +254,30 @@ It is one role, [`ansible/roles/kiosk`](ansible/roles/kiosk), run by [`ansible/l
 variables and defaults are in [`defaults/main.yml`](ansible/roles/kiosk/defaults/main.yml). Nothing else configures the
 device, so change the role, not the device.
 
-- **Releases** are what deployed devices follow. Push a version tag from `main` (`git tag v1.12.0 && git push origin
-v1.12.0`): the Release workflow deploys the web app to the server and, once that has worked, publishes the GitHub release
-  for the tag with notes generated from the merged pull requests. That one tag ships both the web app and the Pi, and
-  the version in the kiosk's Settings is the release's name.
-- **First boot:** cloud-init's `user-data` installs Ansible and runs `ansible-pull` from the latest release, then
-  reboots. Reflash only for a fresh device.
+- **Releases** are what deployed devices follow. Create a release for a new tag on `main` with GitHub's **New release**
+  form, or push a version tag from `main` (`git tag v1.12.0 && git push origin v1.12.0`): the Release workflow deploys
+  the web app to the server and, once that has worked, publishes the GitHub release (with notes generated from the
+  merged pull requests when it has none) and, as its very last step, uploads the Pi bundle `the-max-mix-pi.tar.gz` to
+  it: `ansible/`, `pi/kiosk-audio` and `pi/kiosk-keyboard` at the tag, plus `release.json` (tag, commit, tree ids). A
+  Pi installs a release only once its bundle is there, so it can never run ahead of the workflow, and a release whose
+  workflow failed is never installed. That one tag ships both the web app and the Pi, and the version in the kiosk's
+  Settings is the release's name.
+- **First boot:** cloud-init's `user-data` installs Ansible and applies the latest release's Pi bundle (trying again
+  every minute until it is there), then reboots. Reflash only for a fresh device.
 - **On-device updates:** `kiosk-pull.timer` runs `/usr/local/sbin/kiosk-pull` 3 minutes after boot and then every 6 hours
   (with up to 10 minutes of random delay), and at once when the kiosk's **Update now** button starts
   `kiosk-pull.service` (through the kiosk-audio service, which also streams the pull's journal to the app). With `kiosk_pull_ref: latest` (the default) it looks up the tag that
-  `github.com/nvorkinn/the-max-mix/releases/latest` redirects to (no API call or token) and runs `ansible-pull` at that
-  tag. `--only-if-changed` starts the playbook only when the release has changed since the last run, so a check with
-  nothing new is a single git fetch, and the playbook applies its slow part only when `ansible/`, `pi/kiosk-audio` or
+  `github.com/nvorkinn/the-max-mix/releases/latest/download/the-max-mix-pi.tar.gz` redirects to (no API call or token),
+  downloads that release's bundle into `/var/lib/the-max-mix/ansible-pull` and runs the playbook from it; a release
+  without its bundle yet is "not ready" and the Pi stays where it is. `--only-if-changed` skips a release already
+  installed completely (`/var/lib/the-max-mix/installed-release`), so a check with nothing new is a single request,
+  and the playbook applies its slow part only when `ansible/`, `pi/kiosk-audio` or
   `pi/kiosk-keyboard` differ from the last complete run (git's tree ids, kept in `/var/lib/the-max-mix/applied.sha1`; most
   releases only change the web app, which the Pi loads from the internet). `kiosk.service` is rewritten either way,
   because it carries the release the settings show. A deployed Pi therefore gets fixes to the Wi-Fi setup page, the session script, the
   Chromium policy and so on without a reflash. The playbook is idempotent, so repeated runs are safe. To pin one Pi,
-  set `kiosk_pull_ref` to a tag (`v1.12.0`), or to a branch to test unreleased work on your own Pi.
+  set `kiosk_pull_ref` to a tag (`v1.12.0`), or to a branch to test unreleased work on your own Pi (a branch is pulled
+  with `ansible-pull`, as it has no bundle).
 - **A failing pull never affects the kiosk.** Nothing depends on `kiosk-pull.service`; a failure is only in the journal
   and the next timer run tries again. A pull never restarts the kiosk either: it leaves a marker when kiosk files changed,
   and `kiosk-restart.timer` restarts the kiosk at 04:30 if the marker is there (a reboot also applies the changes).
@@ -278,7 +285,8 @@ v1.12.0`): the Release workflow deploys the web app to the server and, once that
   Every pull ends with how long it took. As each playbook task starts, `ansible/callback_plugins/task_progress.py` prints
   how many have run out of the total, which drives the bar on the app's update screen.
 - **Roll back:** run the Release workflow by hand (Actions > Release > Run workflow) with the earlier tag. It redeploys
-  that version of the web app and marks its release as the latest again, and the Pis return to it at their next pull
+  that version of the web app, marks its release as the latest again and uploads its Pi bundle again (so a release from
+  before bundles existed gets one), and the Pis return to it at their next pull
   (or straight away with **Update now**). Publishing a newer tag later moves everything forward again.
 - **Run it by hand** on a Pi you can log in to, as root, from a clone of the repository:
   `sudo ansible-playbook -c local -i localhost, ansible/local.yml` (which, like a pull, applies only what changed since the

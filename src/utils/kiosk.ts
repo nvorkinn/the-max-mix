@@ -215,8 +215,20 @@ export function isRelease(ref: string): boolean {
   return RELEASE_PATTERN.test(ref);
 }
 
-/** The tag of the repository's latest GitHub release, or null when GitHub cannot be asked (offline, rate limited). */
-export async function latestRelease(signal: AbortSignal | null = null): Promise<string | null> {
+/**
+ * The Pi bundle the Release workflow uploads to a release as its last step (ansible/roles/kiosk/files/bin/kiosk-pull). A
+ * Pi installs a release only once it is there, so a release without it is not ready yet.
+ */
+const PI_BUNDLE = 'the-max-mix-pi.tar.gz';
+
+/** The repository's latest GitHub release, and whether a Pi can install it yet (its Pi bundle is there). */
+export interface LatestRelease {
+  tag: string;
+  ready: boolean;
+}
+
+/** The repository's latest GitHub release, or null when GitHub cannot be asked (offline, rate limited). */
+export async function latestRelease(signal: AbortSignal | null = null): Promise<LatestRelease | null> {
   try {
     const response = await fetch(`https://api.github.com/repos/${PI_REPO}/releases/latest`, {
       headers: { Accept: 'application/vnd.github+json' },
@@ -224,8 +236,20 @@ export async function latestRelease(signal: AbortSignal | null = null): Promise<
     });
     if (!response.ok) return null;
     const body: unknown = await response.json();
-    const tag = typeof body === 'object' && body !== null && 'tag_name' in body ? body.tag_name : null;
-    return typeof tag === 'string' && isRelease(tag) ? tag : null;
+    if (typeof body !== 'object' || body === null) return null;
+    const tag = 'tag_name' in body ? body.tag_name : null;
+    if (typeof tag !== 'string' || !isRelease(tag)) return null;
+    const assets = 'assets' in body && Array.isArray(body.assets) ? (body.assets as unknown[]) : [];
+    const ready = assets.some(
+      asset =>
+        typeof asset === 'object' &&
+        asset !== null &&
+        'name' in asset &&
+        asset.name === PI_BUNDLE &&
+        'state' in asset &&
+        asset.state === 'uploaded'
+    );
+    return { tag, ready };
   } catch {
     return null;
   }

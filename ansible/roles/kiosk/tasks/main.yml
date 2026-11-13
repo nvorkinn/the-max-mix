@@ -2,8 +2,10 @@
 # What a pull does. The playbook installs files from three folders of the pulled repository (ansible/,
 # pi/kiosk-audio and pi/kiosk-keyboard). Most releases change none of them (they change the web app, which the Pi loads
 # from the internet), and running every task on a Pi takes minutes, so the full set (full.yml) runs only when git's tree
-# ids for those folders are not the ones last applied. kiosk.service runs either way: it carries the release the settings show, which changes with
-# every new commit the pull finds (the playbook only runs then), not only when those folders do.
+# ids for those folders are not the ones last applied. A release's Pi bundle has no .git, so there the ids come from the
+# release.json the Release workflow wrote into it: the same ids, so both ways of pulling compare the same thing.
+# kiosk.service runs either way: it carries the release the settings show, which changes with every new commit the pull
+# finds (the playbook only runs then), not only when those folders do.
 # Without git, or on a first run (no stamp), everything runs. A hand run follows the same rule; to apply everything
 # anyway, delete kiosk_applied_stamp. The stamp holds the ids of the last run that finished, handlers included.
 - name: Look up the tree ids of what the playbook installs
@@ -19,12 +21,15 @@
   register: kiosk_trees
   changed_when: false
   failed_when: false
+  when: kiosk_release_info.trees is not defined
 
 - name: Work out whether any of it changed since the last run
   ansible.builtin.set_fact:
     # kiosk_enable_only is in it because a run that only enables services has not applied what a normal run does.
     kiosk_trees_id: >-
-      {{ ((kiosk_trees.stdout_lines + [kiosk_enable_only | string]) | join(' ') | hash('sha1'))
+      {{ ((kiosk_release_info.trees + [kiosk_enable_only | string]) | join(' ') | hash('sha1'))
+      if kiosk_release_info.trees is defined else
+      ((kiosk_trees.stdout_lines + [kiosk_enable_only | string]) | join(' ') | hash('sha1'))
       if kiosk_trees.rc == 0 else '' }}
     kiosk_trees_applied: >-
       {{ lookup('ansible.builtin.file', kiosk_applied_stamp, errors='ignore') | default('', true) | string | trim }}
