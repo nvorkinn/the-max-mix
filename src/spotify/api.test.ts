@@ -53,6 +53,8 @@ describe('spotify/api', () => {
       expect(url.searchParams.get('q')).toMatch(/^[a-z]{2}$/);
       expect(url.searchParams.get('type')).toBe('track');
       expect(Number(url.searchParams.get('offset'))).toBeLessThan(200);
+      // Spotify refuses a search for more than ten since February 2026.
+      expect(url.searchParams.get('limit')).toBe('10');
     });
 
     it('draws again rather than let some letters come up more often', async () => {

@@ -186,7 +186,8 @@ function randomBelow(limit: number): number {
  */
 export async function findRandomTrack(): Promise<Track | null> {
   const query = `${LETTERS.charAt(randomBelow(26))}${LETTERS.charAt(randomBelow(26))}`;
-  const params = new URLSearchParams({ q: query, type: 'track', limit: '20', offset: String(randomBelow(200)) });
+  // Ten is the most a search may ask for since Spotify's February 2026 changes; more is refused with 400.
+  const params = new URLSearchParams({ q: query, type: 'track', limit: '10', offset: String(randomBelow(200)) });
   const reply = await spotifyFetch(`/search?${params.toString()}`);
   const items = isRecord(reply) && isRecord(reply['tracks']) ? reply['tracks']['items'] : null;
   const tracks = (Array.isArray(items) ? items : [])

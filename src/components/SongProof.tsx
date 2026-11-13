@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { findRandomTrack } from '../spotify/api';
+import { debugLog } from '../utils/debugLog';
+import { errorMessage } from '../utils/errorMessage';
 import { pauseFor, playingTrackIdOf } from '../spotify/songProof';
 import type { Track } from '../types';
 import { Artwork } from './TrackImages';
@@ -32,10 +34,15 @@ export default function SongProof({
       .then(found => {
         if (!isCurrent) return;
         if (found) setTrack(found);
-        else handlersRef.current.onGiveUp();
+        else {
+          debugLog('warn', 'switcher', 'The random-song search found no song.');
+          handlersRef.current.onGiveUp();
+        }
       })
-      .catch(() => {
-        if (isCurrent) handlersRef.current.onGiveUp();
+      .catch((error: unknown) => {
+        if (!isCurrent) return;
+        debugLog('error', 'switcher', `Could not pick a random song: ${errorMessage(error)}`);
+        handlersRef.current.onGiveUp();
       });
     return () => {
       isCurrent = false;
