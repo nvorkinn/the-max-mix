@@ -136,6 +136,18 @@ export function parseScan(output: string): Network[] {
 export const isValidPsk = (password: string): boolean =>
   password.length === 64 ? /^[\da-f]{64}$/i.test(password) : password.length >= 8 && password.length <= 63;
 
+/**
+ * The name of the network the Wi-Fi is on, from `nmcli -t -f ACTIVE,SSID device wifi list` output, or null when it is
+ * on none.
+ */
+export function parseActiveSsid(output: string): string | null {
+  for (const line of output.split('\n')) {
+    const [active, ssid = ''] = splitTerse(line);
+    if (active === 'yes' && ssid !== '') return ssid;
+  }
+  return null;
+}
+
 /** A short message for the user from a failed nmcli call. Never echoes nmcli's text, which may name the network. */
 export function friendlyError(code: number, stderr: string): string {
   const text = stderr.toLowerCase();
@@ -234,6 +246,23 @@ export class Nmcli {
       await this.call(['nmcli', 'connection', 'up', 'uuid', previous], undefined, CONNECT_WAIT_SECONDS * 1000);
     }
     return { ok: false, error: friendlyError(code, stderr) };
+  }
+
+  /** The name of the network the Wi-Fi is on now, or null when it is on none or NetworkManager cannot say. */
+  async current(): Promise<string | null> {
+    // What NetworkManager already knows: a scan would take seconds, and this is asked each time the settings open.
+    const { code, stdout } = await this.call([
+      'nmcli',
+      '-t',
+      '-f',
+      'ACTIVE,SSID',
+      'device',
+      'wifi',
+      'list',
+      '--rescan',
+      'no'
+    ]);
+    return code === 0 ? parseActiveSsid(stdout) : null;
   }
 
   /** Turns the radio on, then lists the networks in range. Rejects with a ScanError whose message is safe to show. */

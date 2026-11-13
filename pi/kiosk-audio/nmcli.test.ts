@@ -6,6 +6,7 @@ import {
   friendlyError,
   isValidPsk,
   Nmcli,
+  parseActiveSsid,
   parseConnectRequest,
   parseScan,
   runCommand,
@@ -149,6 +150,21 @@ function client(connectReply: Result, savedAfter = WIFI_ROWS, activeAfter = 'ccc
   ]);
   return { nmcli: new Nmcli(fake.run), ...fake };
 }
+
+describe('current', () => {
+  it('names the network the Wi-Fi is on, without scanning', async () => {
+    const { run, calls } = stub([[['nmcli', '-t', '-f', 'ACTIVE,SSID'], ok('no:Cafe\nyes:Home\\:Net\nno:Office\n')]]);
+    await expect(new Nmcli(run).current()).resolves.toBe('Home:Net');
+    expect(calls[0]?.argv.slice(-2)).toEqual(['--rescan', 'no']);
+  });
+
+  it('is null when the Wi-Fi is on no network, or NetworkManager cannot say', async () => {
+    expect(parseActiveSsid('no:Cafe\nyes:\n')).toBeNull();
+    expect(parseActiveSsid('')).toBeNull();
+    const { run } = stub([[['nmcli'], { code: 127, stdout: '', stderr: 'not found' }]]);
+    await expect(new Nmcli(run).current()).resolves.toBeNull();
+  });
+});
 
 describe('connect', () => {
   it('passes the password on stdin, never in argv', async () => {

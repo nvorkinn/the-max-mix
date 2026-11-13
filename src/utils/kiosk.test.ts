@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getRedirectUri } from '../spotify/settings';
 import {
+  currentWifi,
   forgetSignIns,
   isKiosk,
   isRelease,
@@ -190,6 +191,30 @@ describe('isRelease', () => {
     expect(isRelease('stable')).toBe(false);
     expect(isRelease('main')).toBe(false);
     expect(isRelease('v')).toBe(false);
+  });
+});
+
+describe('currentWifi', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('asks the kiosk which network it is on', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ ssid: 'Home' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(currentWifi()).resolves.toBe('Home');
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/status', { signal: null });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ ssid: null })));
+    await expect(currentWifi()).resolves.toBeNull();
+  });
+
+  it('is undefined when the kiosk does not say', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
+    await expect(currentWifi()).resolves.toBeUndefined();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+    await expect(currentWifi()).resolves.toBeUndefined();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ ssid: 7 })));
+    await expect(currentWifi()).resolves.toBeUndefined();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('no kiosk')));
+    await expect(currentWifi()).resolves.toBeUndefined();
   });
 });
 

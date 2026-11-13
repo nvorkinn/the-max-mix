@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Download, LoaderCircle, Power, RotateCw } from 'lucide-react';
+import { Power, RefreshCw, RotateCw } from 'lucide-react';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import { rebootPi, restartKiosk } from '../utils/kiosk';
 
@@ -11,32 +11,11 @@ function ConfirmButton({
   label,
   confirmLabel,
   icon,
-  busyLabel,
   onConfirm
-}: Readonly<{
-  label: string;
-  confirmLabel: string;
-  icon: ReactNode;
-  /** While set, the button is disabled and shows this with a spinner: the action it starts is still running. */
-  busyLabel?: string | undefined;
-  onConfirm: () => void;
-}>) {
+}: Readonly<{ label: string; confirmLabel: string; icon: ReactNode; onConfirm: () => void }>) {
   const [armed, setArmed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timerRef.current), []);
-
-  if (busyLabel) {
-    return (
-      <button
-        type="button"
-        disabled
-        className="modal-option flex-1 flex items-center justify-center gap-2 p-3 min-h-12 rounded-2xl border text-xs font-bold"
-      >
-        <LoaderCircle className="w-4 h-4 shrink-0 animate-spin" aria-hidden="true" />
-        {busyLabel}
-      </button>
-    );
-  }
 
   return (
     <button
@@ -61,45 +40,50 @@ function ConfirmButton({
 
 /**
  * The kiosk's own section of the settings: which release (or pinned ref and commit) the Pi runs, whether a newer one is
- * out, update, restart and reboot. An update opens the full-screen update console (UpdateConsole).
+ * out, restart and reboot. The button beside the version asks GitHub again; a newer version it finds is asked about in
+ * the update popup (UpdatePrompt), which is where an update starts, so after "Not now" the same button offers it again.
  */
-export default function KioskSystem({ update, onUpdate }: Readonly<{ update: KioskUpdate; onUpdate: () => void }>) {
-  const { version, release, what, latest, newer, isUpdating, progress } = update;
+export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }>) {
+  const { version, release, what, latest, newer, isChecking, isUpdating, progress, checkNow } = update;
   const updateWaiting = newer !== null;
   let status = 'The Pi did not say which version it runs.';
   if (version && latest.state === 'checking') status = `Checking GitHub for a newer ${what}…`;
   if (version && latest.state === 'unknown') status = `Could not check GitHub for a newer ${what}.`;
   if (version && latest.state === 'known') {
     status = newer
-      ? `${newer}. Tap Update now, or the Pi picks it up within 6 hours and applies it at 04:30.`
+      ? `${newer}. Tap the button to install it now, or the Pi picks it up within 6 hours and applies it at 04:30.`
       : 'Up to date.';
   }
   if (progress) status = progress;
 
   return (
     <div className="space-y-2">
-      <div className="modal-card p-3 rounded-2xl border">
-        <div className="text-xs font-bold">
-          Pi software{' '}
-          {version && (
-            <span className="font-mono text-muted">{release ? version.ref : `${version.ref} ${version.commit}`}</span>
-          )}
-        </div>
-        <p
-          role="status"
-          className={`mt-0.5 ${isUpdating ? 'font-semibold ' : ''}${updateWaiting ? 'status-warning' : 'text-muted'}`}
+      <div className="modal-card p-3 rounded-2xl border flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => checkNow(true)}
+          disabled={!version || isChecking || isUpdating}
+          aria-label="Check for updates"
+          className="modal-icon-button w-11 h-11 shrink-0 rounded-full border active:scale-90 flex items-center justify-center transition-all"
         >
-          {status}
-        </p>
+          <RefreshCw className={`w-5 h-5 ${isChecking ? 'animate-spin' : ''}`} aria-hidden="true" />
+        </button>
+        <div className="min-w-0">
+          <div className="text-xs font-bold">
+            Pi software{' '}
+            {version && (
+              <span className="font-mono text-muted">{release ? version.ref : `${version.ref} ${version.commit}`}</span>
+            )}
+          </div>
+          <p
+            role="status"
+            className={`mt-0.5 ${isUpdating ? 'font-semibold ' : ''}${updateWaiting ? 'status-warning' : 'text-muted'}`}
+          >
+            {status}
+          </p>
+        </div>
       </div>
       <div className="flex gap-2">
-        <ConfirmButton
-          label="Update now"
-          confirmLabel="Tap again to update"
-          busyLabel={isUpdating ? 'Updating…' : undefined}
-          icon={<Download className="w-4 h-4 shrink-0" aria-hidden="true" />}
-          onConfirm={onUpdate}
-        />
         <ConfirmButton
           label="Restart kiosk"
           confirmLabel="Tap again to restart"

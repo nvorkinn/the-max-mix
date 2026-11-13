@@ -22,6 +22,7 @@ function wifi() {
   const nmcli = new Nmcli();
   return {
     scan: () => nmcli.scan(),
+    current: () => nmcli.current(),
     connect: (request: ConnectRequest) => nmcli.connect(request),
     done: () => {
       void (async () => {

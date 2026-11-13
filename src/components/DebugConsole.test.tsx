@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { fetchSpotify, resetSpotifyRateLimit } from '../spotify/http';
 import { clearDebugLog, debugLog } from '../utils/debugLog';
 import { HTTP_GROUPS } from '../utils/httpLog';
 import DebugConsole from './DebugConsole';
@@ -45,6 +46,29 @@ describe('DebugConsole', () => {
     expect(localStorage.getItem('maxmix.httpLog')).toBe('calls');
     fireEvent.click(calls);
     expect(localStorage.getItem('maxmix.httpLog')).toBeNull();
+  });
+
+  it('turns Spotify polling on and off, and says when the quota has stopped it', async () => {
+    localStorage.removeItem('maxmix.pollSpotify');
+    render(<DebugConsole isOpen onClose={vi.fn()} status={[]} />);
+    await screen.findByText('Widevine is not available');
+    const poll = screen.getByRole('checkbox', { name: 'Poll Spotify for updates' });
+    expect(poll).toBeChecked();
+    fireEvent.click(poll);
+    expect(localStorage.getItem('maxmix.pollSpotify')).toBe('off');
+    expect(poll).not.toBeChecked();
+    fireEvent.click(poll);
+    expect(localStorage.getItem('maxmix.pollSpotify')).toBeNull();
+    expect(poll).toBeChecked();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(Response.json({ error: { reason: 'QUOTA_EXCEEDED' } }, { status: 429 }))
+    );
+    await act(() => fetchSpotify('https://api.spotify.com/v1/me/player', {}));
+    expect(screen.getByText(/Stopped: Spotify’s quota is used up/)).toBeInTheDocument();
+    vi.unstubAllGlobals();
+    resetSpotifyRateLimit();
   });
 
   it('lists the kinds of call while logging is on, and mutes the ones that are unticked', async () => {

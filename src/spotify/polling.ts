@@ -1,5 +1,5 @@
-// Whether the app reads Spotify by itself, on a timer. On by default; the settings can turn it off, for example to save
-// the account's quota. Turned off, playback is read once when the page opens and after each button press instead of
+// Whether the app reads Spotify by itself, on a timer. On by default; the debug console can turn it off, for example to
+// save the account's quota. Turned off, playback is read once when the page opens and after each button press instead of
 // every few seconds. Storage can be unavailable: every access tolerates that.
 
 const POLL_KEY = 'maxmix.pollSpotify';

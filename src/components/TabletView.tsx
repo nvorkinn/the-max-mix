@@ -190,6 +190,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     keepAwake: isPlaying,
     idleMs: screenSleepMinutes === 0 ? null : screenSleepMinutes * 60_000
   });
+  // Waking the screen asks GitHub again whether a newer version is out: someone is back, and hours may have passed.
+  const checkForUpdate = kioskUpdate.checkNow;
+  const wasAsleepRef = useRef(false);
+  useEffect(() => {
+    if (wasAsleepRef.current && !sleep.asleep) checkForUpdate();
+    wasAsleepRef.current = sleep.asleep;
+  }, [sleep.asleep, checkForUpdate]);
   // A sleeping screen has no one watching it, so Spotify is asked about it less often (see ASLEEP_POLL_MS).
   // While a Sonos plays, Spotify is only watched in case it starts playing somewhere else, so it is asked less often too.
   const setSonosSlowPolling = sonos.setSlowPolling;

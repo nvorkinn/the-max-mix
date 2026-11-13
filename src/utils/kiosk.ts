@@ -2,13 +2,29 @@
 // Spotify sign-in redirect, which returns to the plain redirect address without the query. Storage can be unavailable
 // (private windows, blocked site data): every access tolerates that.
 
-import { kioskPost } from './kioskService';
+import { KIOSK_SERVICE, kioskPost } from './kioskService';
 
 const KIOSK_KEY = 'maxmix.kiosk';
 
 /** Asks the kiosk to show its Wi-Fi setup page. */
 export function openWifiSettings(): void {
   kioskPost('/wifi');
+}
+
+/**
+ * The name of the Wi-Fi network the kiosk is on, null when it is on none, or undefined when the kiosk could not say
+ * (its service did not answer, or is older than this question).
+ */
+export async function currentWifi(signal: AbortSignal | null = null): Promise<string | null | undefined> {
+  try {
+    const response = await fetch(`${KIOSK_SERVICE}/wifi/status`, { signal });
+    if (!response.ok) return undefined;
+    const body: unknown = await response.json();
+    const ssid = typeof body === 'object' && body !== null && 'ssid' in body ? body.ssid : undefined;
+    return typeof ssid === 'string' || ssid === null ? ssid : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function read(key: string): boolean {
