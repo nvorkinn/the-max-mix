@@ -121,6 +121,7 @@ polkit
 polkitd
 poweroff
 PSK
+proc
 publickey
 pwauth
 pycache
