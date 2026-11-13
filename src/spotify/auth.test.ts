@@ -29,6 +29,19 @@ async function load() {
 
 const storedJson = (key: string) => parseJson(localStorage.getItem(key) ?? 'null') as Record<string, unknown> | null;
 
+/** The active person's login as stored, or null. */
+function storedLogin() {
+  const stored = storedJson('maxmix.people') as {
+    clientId: string;
+    activeId: string | null;
+    people: { spotifyId: string; refreshToken: string }[];
+  } | null;
+  const person = stored?.people.find(known => known.spotifyId === stored.activeId);
+  return stored && person ? { clientId: stored.clientId, refreshToken: person.refreshToken } : null;
+}
+
+const ME = { id: 'nikolai', display_name: 'Nikolai', images: [{ url: 'https://i.scdn.co/image/n' }] };
+
 const requestOf = (fetchMock: Mock, call = 0) => fetchMock.mock.calls[call] as [string, RequestInit];
 
 const visit = (address: string) => history.replaceState(null, '', address);
@@ -47,7 +60,10 @@ describe('spotify/auth', () => {
     setClientId('');
     visit('/');
     fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
+    // GET /me names the account; fetchMock sees the token endpoint only.
+    vi.stubGlobal('fetch', (url: string, init: RequestInit) =>
+      url === 'https://api.spotify.com/v1/me' ? Promise.resolve(json(ME)) : (fetchMock(url, init) as Promise<Response>)
+    );
     app.leaveFor.mockReset();
   });
 
@@ -140,7 +156,7 @@ describe('spotify/auth', () => {
         redirect_uri: `${location.origin}/`,
         code_verifier: 'the-verifier'
       });
-      expect(storedJson('maxmix.auth')).toEqual({
+      expect(storedLogin()).toEqual({
         clientId: 'client-1',
         refreshToken: 'refresh-1'
       });
@@ -381,7 +397,7 @@ describe('spotify/auth', () => {
       signedIn();
       fetchMock.mockResolvedValue(json({ access_token: 'a', expires_in: 3600 }));
       await auth.getAccessToken();
-      expect(storedJson('maxmix.auth')).toMatchObject({ refreshToken: 'refresh-1' });
+      expect(storedLogin()).toMatchObject({ refreshToken: 'refresh-1' });
     });
 
     it('stores a rotated refresh token and uses it next time', async () => {
@@ -392,7 +408,7 @@ describe('spotify/auth', () => {
         .mockResolvedValueOnce(json({ access_token: 'a1', refresh_token: 'refresh-2', expires_in: 3600 }))
         .mockResolvedValueOnce(json({ access_token: 'a2', refresh_token: 'refresh-3', expires_in: 3600 }));
       await auth.getAccessToken();
-      expect(storedJson('maxmix.auth')).toEqual({
+      expect(storedLogin()).toEqual({
         clientId: 'client-1',
         refreshToken: 'refresh-2'
       });
@@ -445,7 +461,7 @@ describe('spotify/auth', () => {
         status: 401,
         message: 'Spotify login expired or was revoked. Sign in again in Settings.'
       });
-      expect(localStorage.getItem('maxmix.auth')).toBeNull();
+      expect(storedLogin()).toBeNull();
       expect(auth.isSignedIn()).toBe(false);
       expect(await auth.getAccessToken()).toBeNull();
       expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -478,7 +494,7 @@ describe('spotify/auth', () => {
       }) as typeof fetch;
       vi.stubGlobal('fetch', slowFetch);
       expect(await auth.getAccessToken()).toBeNull();
-      expect(localStorage.getItem('maxmix.auth')).toBeNull();
+      expect(storedLogin()).toBeNull();
       expect(await auth.getAccessToken()).toBeNull();
     });
 
@@ -511,7 +527,7 @@ describe('spotify/auth', () => {
       fetchMock.mockResolvedValue(json({ access_token: 'a1', expires_in: 3600 }));
       await auth.getAccessToken();
       auth.signOut();
-      expect(localStorage.getItem('maxmix.auth')).toBeNull();
+      expect(storedLogin()).toBeNull();
       expect(auth.isSignedIn()).toBe(false);
       expect(await auth.getAccessToken()).toBeNull();
     });
@@ -589,7 +605,7 @@ describe('spotify/auth', () => {
         throw new Error('blocked');
       });
       getItem.mockImplementation(key => {
-        if (key === 'maxmix.auth') throw new Error('blocked');
+        if (key === 'maxmix.people') throw new Error('blocked');
         return key === 'maxmix.pkce' ? JSON.stringify({ state: 's1', verifier: 'v' }) : null;
       });
 
@@ -602,6 +618,160 @@ describe('spotify/auth', () => {
       });
       signOut();
       expect(isSignedIn()).toBe(false);
+    });
+  });
+
+  describe('people', () => {
+    const signIn = async (state: string, refreshToken: string) => {
+      const { completeSignIn } = await load();
+      sessionStorage.setItem('maxmix.pkce', JSON.stringify({ state, verifier: 'v' }));
+      visit(`/?code=c&state=${state}`);
+      fetchMock.mockResolvedValueOnce(json({ access_token: 'a', refresh_token: refreshToken, expires_in: 3600 }));
+      return completeSignIn();
+    };
+    const people = () => storedJson('maxmix.people');
+
+    it('names a new sign-in from GET /me and makes it the active person', async () => {
+      setClientId('client-1');
+      await expect(signIn('s1', 'r1')).resolves.toEqual({ ok: true });
+      expect(people()).toEqual({
+        clientId: 'client-1',
+        activeId: 'nikolai',
+        people: [{ spotifyId: 'nikolai', name: 'Nikolai', imageUrl: 'https://i.scdn.co/image/n', refreshToken: 'r1' }]
+      });
+    });
+
+    it('keeps everyone else when someone signs in, and replaces the token of someone signing in again', async () => {
+      setClientId('client-1');
+      localStorage.setItem(
+        'maxmix.people',
+        JSON.stringify({
+          clientId: 'client-1',
+          activeId: 'friend',
+          people: [
+            { spotifyId: 'friend', name: 'Friend', imageUrl: '', refreshToken: 'rf' },
+            { spotifyId: 'nikolai', name: 'Nikolai', imageUrl: '', refreshToken: 'old' },
+            { spotifyId: 'broken' }
+          ]
+        })
+      );
+      await signIn('s1', 'new');
+      expect(people()).toMatchObject({
+        activeId: 'nikolai',
+        people: [
+          { spotifyId: 'friend', refreshToken: 'rf' },
+          { spotifyId: 'nikolai', refreshToken: 'new' }
+        ]
+      });
+    });
+
+    it('names someone with no display name or picture by their Spotify ID', async () => {
+      setClientId('client-1');
+      vi.stubGlobal('fetch', (url: string, init: RequestInit) =>
+        url === 'https://api.spotify.com/v1/me'
+          ? Promise.resolve(json({ id: 'quiet' }))
+          : (fetchMock(url, init) as Promise<Response>)
+      );
+      await signIn('s1', 'r1');
+      expect(people()).toMatchObject({ people: [{ spotifyId: 'quiet', name: 'quiet', imageUrl: '' }] });
+    });
+
+    it('signs in unnamed when GET /me cannot be reached', async () => {
+      setClientId('client-1');
+      vi.stubGlobal('fetch', (url: string, init: RequestInit) =>
+        url === 'https://api.spotify.com/v1/me'
+          ? Promise.reject(new TypeError('Failed to fetch'))
+          : (fetchMock(url, init) as Promise<Response>)
+      );
+      await signIn('s1', 'r1');
+      expect(people()).toMatchObject({ activeId: '', people: [{ spotifyId: '', refreshToken: 'r1' }] });
+    });
+
+    it('signs in unnamed when GET /me fails', async () => {
+      setClientId('client-1');
+      vi.stubGlobal('fetch', (url: string, init: RequestInit) =>
+        url === 'https://api.spotify.com/v1/me'
+          ? Promise.resolve(new Response('busy', { status: 503 }))
+          : (fetchMock(url, init) as Promise<Response>)
+      );
+      await signIn('s1', 'r1');
+      expect(people()).toMatchObject({ activeId: '', people: [{ spotifyId: '', name: '', refreshToken: 'r1' }] });
+    });
+
+    it('moves the login kept before there were people into the list, and names it once a token works', async () => {
+      setClientId('client-1');
+      localStorage.setItem('maxmix.auth', JSON.stringify({ clientId: 'client-1', refreshToken: 'r1' }));
+      const auth = await load();
+      expect(auth.isSignedIn()).toBe(true);
+      expect(localStorage.getItem('maxmix.auth')).toBeNull();
+      expect(people()).toEqual({
+        clientId: 'client-1',
+        activeId: '',
+        people: [{ spotifyId: '', name: '', imageUrl: '', refreshToken: 'r1' }]
+      });
+      fetchMock.mockResolvedValueOnce(json({ access_token: 'a1', refresh_token: 'r2', expires_in: 3600 }));
+      expect(await auth.getAccessToken()).toBe('a1');
+      expect(people()).toEqual({
+        clientId: 'client-1',
+        activeId: 'nikolai',
+        people: [{ spotifyId: 'nikolai', name: 'Nikolai', imageUrl: 'https://i.scdn.co/image/n', refreshToken: 'r2' }]
+      });
+      expect(auth.isSignedIn()).toBe(true);
+    });
+
+    it('keeps a rotated token for the active person only', async () => {
+      setClientId('client-1');
+      localStorage.setItem(
+        'maxmix.people',
+        JSON.stringify({
+          clientId: 'client-1',
+          activeId: '',
+          people: [
+            { spotifyId: 'friend', name: 'Friend', imageUrl: '', refreshToken: 'rf' },
+            { spotifyId: '', name: '', imageUrl: '', refreshToken: 'r1' }
+          ]
+        })
+      );
+      const auth = await load();
+      fetchMock.mockResolvedValueOnce(json({ access_token: 'a1', refresh_token: 'r2', expires_in: 3600 }));
+      await auth.getAccessToken();
+      expect(people()).toMatchObject({
+        activeId: 'nikolai',
+        people: [
+          { spotifyId: 'friend', refreshToken: 'rf' },
+          { spotifyId: 'nikolai', refreshToken: 'r2' }
+        ]
+      });
+    });
+
+    it('forgets only the active person when Spotify says their login was revoked', async () => {
+      setClientId('client-1');
+      localStorage.setItem(
+        'maxmix.people',
+        JSON.stringify({
+          clientId: 'client-1',
+          activeId: 'nikolai',
+          people: [
+            { spotifyId: 'friend', name: 'Friend', imageUrl: '', refreshToken: 'rf' },
+            { spotifyId: 'nikolai', name: 'Nikolai', imageUrl: '', refreshToken: 'rn' }
+          ]
+        })
+      );
+      const auth = await load();
+      fetchMock.mockResolvedValueOnce(json({ error: 'invalid_grant' }, 400));
+      await expect(auth.getAccessToken()).rejects.toMatchObject({ status: 401 });
+      expect(people()).toMatchObject({ activeId: null, people: [{ spotifyId: 'friend' }] });
+      expect(auth.isSignedIn()).toBe(false);
+    });
+
+    it('reads a list it cannot make sense of as nobody', async () => {
+      setClientId('client-1');
+      localStorage.setItem('maxmix.people', JSON.stringify({ clientId: 'client-1', people: 'x' }));
+      const first = await load();
+      expect(first.isSignedIn()).toBe(false);
+      localStorage.setItem('maxmix.people', '{');
+      const second = await load();
+      expect(second.isSignedIn()).toBe(false);
     });
   });
 });
