@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { parseBluetoothReport } from '../utils/bluetoothMonitor';
+import { pairPhone, parseBluetoothReport, readBluetoothReport } from '../utils/bluetoothMonitor';
 import BluetoothDebug from './BluetoothDebug';
 
 const audio = vi.hoisted(() => ({ scanBluetoothSpeakers: vi.fn(() => Promise.resolve([])) }));
@@ -107,6 +107,42 @@ describe('BluetoothDebug', () => {
         ])
       )
     );
+  });
+
+  it('shows a paired phone, a scan failure and a refused pairing', async () => {
+    fetchMock.mockImplementation((_url, init) =>
+      init?.method === 'POST'
+        ? json({ error: 'Bluetooth is not available, so no phone can pair.' }, 503)
+        : json({ ...REPORT, pairing: { state: 'paired', phone: { name: 'iPhone', address: '4F:00', pairedAt: 1 } } })
+    );
+    audio.scanBluetoothSpeakers.mockImplementationOnce(() => Promise.reject(new Error('Scan failed.')));
+    render(<BluetoothDebug />);
+    open();
+    expect(await screen.findByText('Paired iPhone (4F:00)')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Scan for 8 s' }));
+    expect(await screen.findByText('Scan failed.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Pair my phone' }));
+    expect(await screen.findByText('Bluetooth is not available, so no phone can pair.')).toBeInTheDocument();
+  });
+
+  it.each([
+    [{ state: 'failed', error: 'No phone paired within 2 minutes.' }, 'No phone paired within 2 minutes.'],
+    [{ state: 'idle' }, 'Not pairing']
+  ])('shows pairing %o as %s', async (pairing, shown) => {
+    fetchMock.mockImplementation(() => json({ ...REPORT, pairing }));
+    render(<BluetoothDebug />);
+    open();
+    expect(await screen.findByText(shown)).toBeInTheDocument();
+  });
+
+  it('says when the kiosk does not answer', async () => {
+    fetchMock.mockImplementation(() => Promise.reject(new TypeError('Failed to fetch')));
+    await expect(readBluetoothReport()).rejects.toThrow('The kiosk’s audio service did not answer: Failed to fetch');
+  });
+
+  it('says the kiosk refused pairing when it gives no reason', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(new Response('nope', { status: 500 })));
+    await expect(pairPhone(false)).rejects.toThrow('The kiosk refused that (500).');
   });
 
   it('reads an answer with missing or odd fields as empty', () => {
