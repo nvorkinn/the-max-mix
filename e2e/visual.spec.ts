@@ -83,7 +83,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
           await expect(settings.frameLocator('iframe').getByText('Device settings')).toBeVisible();
         }
         // eslint-disable-next-line no-await-in-loop -- the same
-        await expect.soft(settings).toHaveScreenshot(shotName(name, screen), SHOT);
+        await expect(settings).toHaveScreenshot(shotName(name, screen), SHOT);
       }
     });
 
