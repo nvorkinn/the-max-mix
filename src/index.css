@@ -293,6 +293,40 @@
 .brand-dot {
   color: var(--accent);
 }
+.app-tabs {
+  display: flex;
+  gap: 8px;
+  margin-right: auto;
+}
+.app-tab {
+  min-height: var(--header-button);
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 14px;
+  font-size: var(--header-clock);
+  font-weight: 700;
+  color: var(--muted);
+}
+.app-tab svg {
+  width: calc(var(--header-icon) * 0.8);
+  height: calc(var(--header-icon) * 0.8);
+}
+.app-tab[aria-selected='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+/* What a tab shows fills the screen under the header; the hidden ones keep their state but take no room. */
+.app-tab-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.app-tab-panel[hidden] {
+  display: none;
+}
 .header-actions {
   display: flex;
   align-items: center;
