@@ -38,7 +38,7 @@ export default function SearchDialog<R extends SearchResult>({
   // Nothing is searched for until the text is changed, so the place chosen now doesn't bring up suggestions.
   const [edited, setEdited] = useState(false);
   const wanted = edited ? query.trim() : '';
-  useOnScreenKeyboard(fieldRef, { focus: initialQuery === '', hasNumberRow: true, isUppercase: true });
+  useOnScreenKeyboard(fieldRef, { focus: initialQuery === '', hasNumberRow: true });
 
   useEffect(() => {
     if (!wanted) return;
