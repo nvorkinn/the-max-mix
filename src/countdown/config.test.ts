@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import { cachedDeviceConfig, loadDeviceConfig } from './config';
+import * as registration from './registration';
 
 const SECRET = fixture.registration.secret;
 
 function register() {
-  localStorage.setItem('maxmix.deviceSecret', SECRET);
-  localStorage.setItem('maxmix.deviceId', fixture.device_id);
+  vi.spyOn(registration, 'deviceCredentials').mockReturnValue({ deviceId: fixture.device_id, secret: SECRET });
 }
 
 function answer(status: number, body?: unknown) {
@@ -30,6 +30,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('loadDeviceConfig', () => {
