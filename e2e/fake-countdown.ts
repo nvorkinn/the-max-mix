@@ -6,7 +6,7 @@ const fixture = JSON.parse(
 ) as { config: object };
 
 // The countdown-server the build names (.env.production).
-const CONFIG = 'https://app.countdown.build/api/devices/config';
+export const CONFIG = 'https://app.countdown.build/api/devices/config';
 
 /**
  * countdown-api's example config, once someone owns the kiosk. Before that there's none: a touchscreen registers through
