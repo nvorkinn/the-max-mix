@@ -16,7 +16,7 @@ export default function GeneralSettings({
         <h5 className="settings-group-title" id="clock-format-label">
           Time format
         </h5>
-        <div className="settings-segmented dashboard-segmented" role="group" aria-labelledby="clock-format-label">
+        <div className="settings-segmented" role="group" aria-labelledby="clock-format-label">
           {CLOCK_FORMATS.map(choice => (
             <button
               type="button"

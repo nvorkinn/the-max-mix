@@ -1634,8 +1634,7 @@ body:has(.app-dialog[open]) {
   flex-direction: column;
   gap: 12px;
   min-height: 0;
-  /* Eight pages fit the 7" screen's 534px under the header: 60px rows, 4px apart, 12px above and below. */
-  padding: 12px 16px;
+  padding: 20px 16px;
   overflow-y: auto;
   border-right: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface-raised) 50%, var(--surface));
@@ -1643,10 +1642,20 @@ body:has(.app-dialog[open]) {
 .settings-nav-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+/* With General and Dashboard (an owned kiosk), eight pages fit the 7" screen's 534px under the header: 60px rows, 4px
+   apart, 12px above and below. */
+@media (width < 1200px), (height < 760px) {
+  .settings-nav:has(li:nth-child(7)) {
+    padding-block: 12px;
+  }
+  .settings-nav-list:has(> li:nth-child(7)) {
+    gap: 4px;
+  }
 }
 .settings-nav-item {
   display: flex;
@@ -1929,9 +1938,6 @@ body:has(.app-dialog[open]) {
   align-items: center;
   gap: 14px;
   padding: 10px 10px 10px 14px;
-}
-.dashboard-segmented .settings-segment {
-  min-height: 56px;
 }
 /* The Dashboard page's small dialogs (a stop, a place, the notice board's postcode), kept above the on-screen keyboard. */
 .app-dialog.search-dialog {

@@ -60,7 +60,7 @@ function NoticeBoardDialog({
           Notice board
         </h3>
       </div>
-      <div className="settings-segmented dashboard-segmented" role="group" aria-label="Country">
+      <div className="settings-segmented" role="group" aria-label="Country">
         {COUNTRIES.map(choice => (
           <button
             type="button"
