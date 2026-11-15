@@ -8,7 +8,7 @@ afterEach(() => {
 describe('configSiteUrl', () => {
   it("is the device's page on the server, in its embedded mode", () => {
     vi.stubEnv('VITE_COUNTDOWN_SERVER', 'https://app.countdown.build/');
-    expect(configSiteUrl('d 1')).toBe('https://app.countdown.build/devices/d%201?embed=1');
+    expect(configSiteUrl('d 1')).toBe('https://app.countdown.build/device/d%201?embed=1');
   });
 
   it("is the server's home page until the kiosk is registered", () => {

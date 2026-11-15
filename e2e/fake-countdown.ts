@@ -8,7 +8,7 @@ const fixture = JSON.parse(
 // The countdown-server the build names (.env.production).
 const CONFIG = 'https://app.countdown.build/api/devices/config';
 // The config site's page for a device, which the Settings tab's Device page shows in a frame.
-const DEVICE_PAGE = 'https://app.countdown.build/devices/**';
+const DEVICE_PAGE = 'https://app.countdown.build/device/**';
 
 /** countdown-api's example configs: `pairing` before anyone owns the kiosk (it changes nothing), `config` after. */
 export const DEVICE_CONFIGS = { pairing: fixture.pairing, owned: fixture.config };

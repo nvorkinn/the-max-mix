@@ -14,9 +14,9 @@ export function countdownServer(): string | null {
   }
 }
 
-// ASSUMPTION: the config site's page for one device. The site has no published route for it yet; this is the one place
-// to change when it does.
-const DEVICE_PAGE = '/devices/';
+// The config site's page for one device: GET /device/{device_id} in countdown-api (vendor/countdown-api/store.yaml),
+// whose embed=1 drops the site around it.
+const DEVICE_PAGE = '/device/';
 
 /**
  * The config site's page for this device (its home page until the kiosk is registered) in the site's embedded mode, with
