@@ -6,7 +6,6 @@ import * as config from '../countdown/config';
 import { SAVE_DEBOUNCE_MS, useDeviceConfig } from './useDeviceConfig';
 
 const OWNED = fixture.config as TouchscreenConfig;
-const PAIRING = fixture.pairing as TouchscreenConfig;
 const NIGHT = { ...OWNED.style, skin: 'night' } as const;
 
 afterEach(() => {
@@ -25,12 +24,13 @@ async function owned() {
 }
 
 describe('useDeviceConfig', () => {
-  it("loads the config once, and again when asked; an unowned kiosk's is not its owner's", async () => {
-    const load = vi.spyOn(config, 'loadDeviceConfig').mockResolvedValue(PAIRING);
+  it('loads the config once, and again when asked; a kiosk without one is not owned', async () => {
+    const load = vi.spyOn(config, 'loadDeviceConfig').mockResolvedValue(null);
     const { result, rerender } = renderHook(() => useDeviceConfig());
     await waitFor(() => {
-      expect(result.current.config).toEqual(PAIRING);
+      expect(load).toHaveBeenCalledTimes(1);
     });
+    expect(result.current.config).toBeNull();
     expect(result.current.owned).toBe(false);
     rerender();
     expect(load).toHaveBeenCalledTimes(1);
@@ -96,15 +96,15 @@ describe('useDeviceConfig', () => {
 
   it('changes nothing before someone owns the kiosk', async () => {
     const save = vi.spyOn(config, 'saveConfigSection');
-    vi.spyOn(config, 'loadDeviceConfig').mockResolvedValue(PAIRING);
+    const load = vi.spyOn(config, 'loadDeviceConfig').mockResolvedValue(null);
     const { result } = renderHook(() => useDeviceConfig());
     await waitFor(() => {
-      expect(result.current.config).toEqual(PAIRING);
+      expect(load).toHaveBeenCalledTimes(1);
     });
     act(() => {
       result.current.save('style', NIGHT);
     });
-    expect(result.current.config).toEqual(PAIRING);
+    expect(result.current.config).toBeNull();
     expect(save).not.toHaveBeenCalled();
   });
 });

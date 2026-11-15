@@ -29,7 +29,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     await page.addInitScript(() => {
       localStorage.setItem('maxmix.theme', 'night');
     });
-    const server = await fakeCountdownServer(page, DEVICE_CONFIGS.pairing);
+    const server = await fakeCountdownServer(page);
     await page.goto('/?kiosk=1');
 
     await expect.poll(() => server.authorizations.length).toBe(1);
