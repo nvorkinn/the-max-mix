@@ -36,12 +36,16 @@ files the PR changes to features with `scripts/e2e-areas.ts`, and lists those fe
 link to each in the Playwright report. In the report itself, type a tag such as `@update` in the search box to see one
 feature's tests.
 
-CI records a trace only of those tests (the report shows them under the project _traced_), because tracing every test
-took about a fifth of the run. Any other test is traced, and filmed, on its second run if its first fails. Every test
-is traced when the change cannot be placed: an app file no area owns, or a helper or configuration all the tests share.
-
 When you add a feature:
 
 1. Add an area for it to `scripts/e2e-areas.ts` (its source files and a tag), so changes to it find its tests.
 2. Tag its tests with the same tag. A feature with an area but no tests shows up in the comment as _no browser test
    covers it yet_: that is on purpose, and the unit tests in `scripts/e2e-areas.test.ts` keep the tags and areas in step.
+
+## Traces and shards
+
+CI splits the tests over two machines (`.github/workflows/e2e.yml`, with `--shard`) and merges their reports into one.
+Each test runs once, with no retries, so a flaky test fails the run. CI records no traces, because tracing every test
+took a third or more of the run. For a report with a trace of every test, dispatch the workflow on a branch:
+`gh workflow run e2e.yml --ref <branch>` (or **Run workflow** on the E2E workflow's page), then download the run's
+`playwright-report` artifact and open it with `npx playwright show-report`. Locally, a failed test keeps its trace.
