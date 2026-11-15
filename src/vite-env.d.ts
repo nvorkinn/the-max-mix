@@ -3,6 +3,6 @@ interface ImportMetaEnv {
   readonly VITE_APP_VERSION?: string;
   /** countdown-server's origin, such as https://countdown.build. */
   readonly VITE_COUNTDOWN_SERVER?: string;
-  /** `on` shows the server's config site inside the Settings tab, once the site's embedded mode is live. */
-  readonly VITE_COUNTDOWN_EMBED?: string;
+  /** `mock` gives the kiosk countdown-api's example config in place of the server's (src/countdown/config.ts). */
+  readonly VITE_COUNTDOWN_CONFIG?: string;
 }

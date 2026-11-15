@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
 import type { PlaybackState, SpotifyDevice, Track } from '../src/types.ts';
+import { fakeCountdownServer } from './fake-countdown.ts';
 
 /** An opaque black 1x1 GIF that stands in for every album cover and playlist image in the tests. */
 export const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAAAAACwAAAAAAQABAAACAkQBADs=', 'base64');
@@ -28,6 +29,8 @@ const art = (id: string) => [{ url: `https://images.unsplash.com/${id}` }];
  * the real Web API does. Returns what a test may want to look at: every command it was sent.
  */
 export async function fakeSpotify(page: Page) {
+  // The app also asks countdown-server for its config at start; unowned, the answer changes nothing.
+  await fakeCountdownServer(page);
   const commands: string[] = [];
   const playback = {
     is_playing: true as boolean,

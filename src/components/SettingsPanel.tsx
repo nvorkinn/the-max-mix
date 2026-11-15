@@ -97,7 +97,7 @@ export default function SettingsPanel({
   let page: ReactNode;
   switch (current.id) {
     case 'device': {
-      page = <DeviceSettings deviceId={deviceId} kiosk={kiosk} />;
+      page = <DeviceSettings deviceId={deviceId} />;
       break;
     }
     case 'appearance': {
