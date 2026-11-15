@@ -78,4 +78,11 @@ describe('loadDeviceConfig', () => {
     await expect(loadDeviceConfig()).resolves.toEqual(fixture.config);
     expect(fetch).not.toHaveBeenCalled();
   });
+
+  it('ignores a kept config it cannot read', async () => {
+    localStorage.setItem('maxmix.deviceConfig', '{');
+    await expect(loadDeviceConfig()).resolves.toBeNull();
+    localStorage.setItem('maxmix.deviceConfig', JSON.stringify({ type: 'epaper' }));
+    expect(cachedDeviceConfig()).toBeNull();
+  });
 });
