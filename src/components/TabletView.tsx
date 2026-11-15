@@ -47,6 +47,7 @@ import SleepIcon from './SleepIcon';
 import PersonSwitcher from './PersonSwitcher';
 import PairPhoneSheet from './PairPhoneSheet';
 import AppTabs, { tabPanelId } from './AppTabs';
+import Dashboard from './Dashboard';
 import type { AppTab } from './AppTabs';
 
 type Screen = 'spotify' | 'dashboard';
@@ -613,7 +614,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         id={tabPanelId('dashboard')}
         aria-label="Dashboard"
         hidden={screen !== 'dashboard'}
-      />
+      >
+        <Dashboard shown={screen === 'dashboard' && !sleep.asleep} />
+      </section>
 
       <MusicPicker
         isOpen={isMusicOpen && !needsConnection}
