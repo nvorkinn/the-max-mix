@@ -317,13 +317,24 @@
   background: var(--accent);
   color: var(--accent-ink);
 }
-/* On the 7 inch screen the tabs drop their icons, so the header's buttons and clock still fit beside them. */
+/* Where there is room the tabs show an icon and a word; on the 7 inch screen only the icon, the word kept for screen readers. */
 @media (width <= 1100px) {
   .app-tab {
+    justify-content: center;
+    min-width: var(--header-button);
     padding: 0 14px;
   }
   .app-tab svg {
-    display: none;
+    width: var(--header-icon);
+    height: var(--header-icon);
+  }
+  .app-tab span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 /* What a tab shows fills the screen under the header; the hidden ones keep their state but take no room. */
