@@ -2364,3 +2364,139 @@ input:disabled {
   background: #000;
   touch-action: none;
 }
+
+/* The Dashboard tab: the next buses beside the weather, read from across the room. */
+.dashboard {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 24px;
+  padding: 24px 30px;
+}
+.dashboard-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px 24px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.dashboard-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent);
+}
+.dashboard-title svg {
+  width: 28px;
+  height: 28px;
+}
+.dashboard-unavailable {
+  margin: auto 0;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 650;
+  color: var(--muted);
+}
+.dashboard-stop-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.dashboard-arrival {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 46px;
+  border-bottom: 1px solid var(--border);
+}
+.dashboard-arrival:last-child {
+  border-bottom: 0;
+}
+.dashboard-route {
+  justify-self: start;
+  padding: 2px 10px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 20px;
+  font-weight: 800;
+}
+.dashboard-destination {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 20px;
+  font-weight: 650;
+}
+.dashboard-due {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.dashboard-now {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.dashboard-temperature {
+  font-size: 84px;
+  font-weight: 850;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+.dashboard-now-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 22px;
+  font-weight: 700;
+}
+.dashboard-range {
+  color: var(--muted);
+}
+.dashboard-hours {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 8px;
+}
+.dashboard-hour {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+}
+.dashboard-hour-time {
+  font-size: 15px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.dashboard-hour-temperature {
+  font-size: 20px;
+}
+
+@media (height <= 640px) {
+  .dashboard {
+    gap: 18px;
+    padding: 18px 30px;
+  }
+  .dashboard-panel {
+    gap: 10px;
+    padding: 16px 20px;
+  }
+  .dashboard-arrival {
+    min-height: 40px;
+  }
+  .dashboard-temperature {
+    font-size: 68px;
+  }
+}
