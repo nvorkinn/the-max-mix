@@ -433,7 +433,7 @@ describe('SettingsPanel', () => {
       );
       expect(screen.getByTitle('Device settings')).toHaveAttribute(
         'src',
-        'https://app.countdown.build/devices/d1?embed=1'
+        'https://app.countdown.build/device/d1?embed=1'
       );
     });
   });
