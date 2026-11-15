@@ -4,3 +4,5 @@ coverage
 package-lock.json
 playwright-report
 test-results
+# The countdown-api submodule: its own formatting (Biome), checked in its own repository.
+vendor

@@ -83,7 +83,14 @@ const IMPORT_ORDER = {
 
 export default defineConfig([
   {
-    ignores: ['node_modules/**', 'dist/**', 'coverage/**', 'e2e/playwright-report/**', 'e2e/test-results/**']
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      'vendor/**',
+      'coverage/**',
+      'e2e/playwright-report/**',
+      'e2e/test-results/**'
+    ]
   },
   js.configs.recommended,
 
