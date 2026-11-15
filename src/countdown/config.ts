@@ -7,7 +7,7 @@ import type { ConfigResponse, TouchscreenConfig } from 'countdown-api';
 import { getConfig, putConfig } from '../../vendor/countdown-api/src/countdown_api/client';
 import type { Client } from '../../vendor/countdown-api/src/countdown_api/client';
 import { deviceCredentials } from './registration';
-import { countdownServer } from './server';
+import { countdownApi } from './server';
 
 const CONFIG_KEY = 'maxmix.deviceConfig';
 
@@ -44,9 +44,9 @@ function cache(config: TouchscreenConfig): void {
   }
 }
 
-/** countdown-server with the device secret, or null when the kiosk isn't registered with one. */
+/** countdown-server's screens' API with the device secret, or null when the kiosk isn't registered with one. */
 function serverClient(): Client | null {
-  const server = countdownServer();
+  const server = countdownApi();
   const credentials = deviceCredentials();
   return server && credentials ? { baseUrl: server, secret: credentials.secret } : null;
 }

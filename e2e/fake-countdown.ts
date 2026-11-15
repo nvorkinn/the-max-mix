@@ -5,8 +5,8 @@ const fixture = JSON.parse(
   readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json', import.meta.url), 'utf8')
 ) as { config: object };
 
-// The countdown-server the build names (.env.production).
-export const CONFIG = 'https://app.countdown.build/api/devices/config';
+// countdown-server's screens' API, as the build names it (.env.production).
+export const CONFIG = 'https://api.countdown.build/api/devices/config';
 
 /**
  * countdown-api's example config, once someone owns the kiosk. Before that there's none: a touchscreen registers through

@@ -25,7 +25,7 @@ function answer(status: number, body?: unknown) {
 
 beforeEach(() => {
   localStorage.clear();
-  vi.stubEnv('VITE_COUNTDOWN_SERVER', 'https://countdown.build');
+  vi.stubEnv('VITE_COUNTDOWN_API', 'https://countdown.build');
 });
 
 afterEach(() => {
