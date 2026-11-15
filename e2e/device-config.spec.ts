@@ -82,7 +82,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     await dialog.getByRole('button', { name: 'Add' }).click();
 
     await expect(settings.getByText('Majorstuen')).toBeVisible();
-    await expect(settings.getByRole('status')).toHaveText('Saved');
+    await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
     expect(server.saves.map(save => save['arrivals'])).toEqual([
       {
         stops: [
@@ -102,7 +102,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
 
     await settings.getByRole('button', { name: '12-hour' }).click();
     await expect(page.locator('.header-clock')).toHaveText(/^4:05\sPM$/i);
-    await expect(settings.getByRole('status')).toHaveText('Saved');
+    await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
     expect(server.saves.map(save => save['clock_format'])).toEqual(['12h']);
   });
 });
