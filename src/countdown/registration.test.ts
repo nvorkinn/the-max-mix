@@ -8,7 +8,7 @@ import {
   secretHash,
   startRegistration
 } from './registration';
-import { countdownServer, registrationEnabled } from './server';
+import { countdownServer } from './server';
 
 vi.mock('../spotify/settings', () => ({ leaveFor: vi.fn() }));
 
@@ -24,7 +24,6 @@ beforeEach(() => {
   localStorage.clear();
   visit('');
   vi.stubEnv('VITE_COUNTDOWN_SERVER', 'https://countdown.build');
-  vi.stubEnv('VITE_COUNTDOWN_REGISTRATION', 'on');
 });
 
 afterEach(() => {
@@ -45,12 +44,6 @@ describe('the server setting', () => {
       expect(countdownServer()).toBeNull();
     }
   });
-
-  it('keeps registration off unless the build turns it on', () => {
-    expect(registrationEnabled()).toBe(true);
-    vi.stubEnv('VITE_COUNTDOWN_REGISTRATION', 'off');
-    expect(registrationEnabled()).toBe(false);
-  });
 });
 
 describe('needsRegistration', () => {
@@ -59,12 +52,12 @@ describe('needsRegistration', () => {
     expect(needsRegistration()).toBe(true);
   });
 
-  it('is false away from the kiosk, with registration off, or once registered', () => {
+  it('is false away from the kiosk, without a server, or once registered', () => {
     expect(needsRegistration()).toBe(false);
     visit('?kiosk=1');
-    vi.stubEnv('VITE_COUNTDOWN_REGISTRATION', 'off');
+    vi.stubEnv('VITE_COUNTDOWN_SERVER', '');
     expect(needsRegistration()).toBe(false);
-    vi.stubEnv('VITE_COUNTDOWN_REGISTRATION', 'on');
+    vi.stubEnv('VITE_COUNTDOWN_SERVER', 'https://countdown.build');
     localStorage.setItem('maxmix.deviceSecret', EXAMPLE_SECRET);
     localStorage.setItem('maxmix.deviceId', '0a1b2c3d4e5f');
     expect(needsRegistration()).toBe(false);

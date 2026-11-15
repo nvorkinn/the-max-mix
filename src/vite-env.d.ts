@@ -3,6 +3,4 @@ interface ImportMetaEnv {
   readonly VITE_APP_VERSION?: string;
   /** countdown-server's origin, such as https://countdown.build. */
   readonly VITE_COUNTDOWN_SERVER?: string;
-  /** `on` sends a kiosk with no device ID to the server's /register page at start. */
-  readonly VITE_COUNTDOWN_REGISTRATION?: string;
 }
