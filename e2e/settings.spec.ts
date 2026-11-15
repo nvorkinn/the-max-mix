@@ -220,7 +220,6 @@ test.describe('Settings', { tag: '@settings' }, () => {
     const dialog = await openSettings(page);
     await expect(dialog.getByRole('navigation', { name: 'Settings' }).getByRole('button')).toHaveText([
       'Overview',
-      'Device',
       'Appearance',
       'Spotify',
       'Software'

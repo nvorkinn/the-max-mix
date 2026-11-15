@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useEffectEvent, useRef } from 'react';
+import type { TouchscreenDisplay, TouchscreenStyle } from 'countdown-api';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, CSSProperties } from 'react';
 import { AudioLines, Clock, LayoutDashboard, Music, Search, Settings } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
@@ -27,6 +28,7 @@ import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import { dynamicPalette, loadThemeColour, saveThemeColour } from '../utils/themeColour';
 import { useTheme } from '../hooks/useTheme';
+import type { Theme } from '../utils/theme';
 import type { ThemeColour } from '../utils/themeColour';
 import type { MusicChoice, Track } from '../types';
 import OfflineBanner from './OfflineBanner';
@@ -200,22 +202,48 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // is showing, and sleeps the chosen minutes after the Dashboard comes up.
   useIdle({ enabled: onKiosk, busy: isPlaying, idleMs: IDLE_DASHBOARD_MS, onIdle: () => setScreen('dashboard') });
   const [screenSleepMinutes, setScreenSleepMinutes] = useState(getScreenSleep);
-  const changeScreenSleep = (minutes: ScreenSleepMinutes) => {
+  const applyScreenSleep = (minutes: ScreenSleepMinutes) => {
     setScreenSleepMinutes(minutes);
     setScreenSleep(minutes);
   };
   const [themeColour, setThemeColour] = useState(loadThemeColour);
-  const changeThemeColour = (colour: ThemeColour) => {
+  const applyThemeColour = (colour: ThemeColour) => {
     setThemeColour(colour);
     saveThemeColour(colour);
   };
   const theme = useTheme();
-  // countdown-server's config sets the skin, colour and screen sleep, as the settings would.
-  useDeviceConfig(({ style, display }) => {
-    theme.change(style.skin);
-    changeThemeColour(style.colour);
-    changeScreenSleep(display.sleep_minutes);
+  // Once someone owns the kiosk, countdown-server's config is its skin, colour and screen sleep: the settings save there,
+  // and whatever the config says (a change here, one undone, or the server's latest) is applied and kept locally for
+  // starts without the server. Before that the kiosk keeps its own.
+  const deviceConfig = useDeviceConfig();
+  const ownedConfig = deviceConfig.owned ? deviceConfig.config : null;
+  const style = ownedConfig?.style;
+  const display = ownedConfig?.display;
+  const applyStyle = useEffectEvent((next: TouchscreenStyle) => {
+    theme.change(next.skin);
+    applyThemeColour(next.colour);
   });
+  useEffect(() => {
+    if (style) applyStyle(style);
+  }, [style]);
+  const applyDisplay = useEffectEvent((next: TouchscreenDisplay) => {
+    applyScreenSleep(next.sleep_minutes);
+  });
+  useEffect(() => {
+    if (display) applyDisplay(display);
+  }, [display]);
+  const changeTheme = (skin: Theme) => {
+    if (style) deviceConfig.save('style', { ...style, skin });
+    else theme.change(skin);
+  };
+  const changeThemeColour = (colour: ThemeColour) => {
+    if (style) deviceConfig.save('style', { ...style, colour });
+    else applyThemeColour(colour);
+  };
+  const changeScreenSleep = (minutes: ScreenSleepMinutes) => {
+    if (display) deviceConfig.save('display', { ...display, sleep_minutes: minutes });
+    else applyScreenSleep(minutes);
+  };
   const kioskUpdate = useKioskUpdate(onKiosk);
   const sleep = useScreenSleep({
     enabled: onKiosk,
@@ -636,9 +664,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             onThemeColourChange={changeThemeColour}
             theme={theme.theme}
             autoTheme={theme.autoOffered}
-            onThemeChange={theme.change}
+            onThemeChange={changeTheme}
             skin={theme.skin}
             kioskUpdate={kioskUpdate}
+            saveStatus={deviceConfig.status}
+            onShow={deviceConfig.reload}
           />
         )}
       </section>

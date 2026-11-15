@@ -1,17 +1,15 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Cpu, LayoutGrid, MonitorCog, Music, Palette, Wifi } from 'lucide-react';
-import { deviceCredentials } from '../countdown/registration';
-import { countdownServer } from '../countdown/server';
+import { Check, Cpu, LayoutGrid, Music, Palette, Wifi } from 'lucide-react';
 import { isKiosk } from '../utils/kiosk';
 import { reloadSettings } from '../spotify/settings';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import type { ThemeColour } from '../utils/themeColour';
 import type { Skin, Theme } from '../utils/theme';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
+import type { SaveStatus } from '../hooks/useDeviceConfig';
 import SleepIcon from './SleepIcon';
 import AppearanceSettings from './settings/AppearanceSettings';
-import DeviceSettings from './settings/DeviceSettings';
 import ScreenSleepSettings from './settings/ScreenSleepSettings';
 import SettingsOverview from './settings/SettingsOverview';
 import SoftwareSettings from './settings/SoftwareSettings';
@@ -25,7 +23,6 @@ export type { SettingsSection } from './settings/sections';
 
 const SECTION_ICONS: Record<SettingsSection, ReactNode> = {
   overview: <LayoutGrid className="w-6 h-6 shrink-0" aria-hidden="true" />,
-  device: <MonitorCog className="w-6 h-6 shrink-0" aria-hidden="true" />,
   appearance: <Palette className="w-6 h-6 shrink-0" aria-hidden="true" />,
   sleep: <SleepIcon className="w-6 h-6 shrink-0" />,
   wifi: <Wifi className="w-6 h-6 shrink-0" aria-hidden="true" />,
@@ -52,12 +49,28 @@ interface SettingsPanelProps {
   skin?: Skin;
   /** The kiosk's software update, shown on the kiosk only. */
   kioskUpdate?: KioskUpdate;
+  /** Where the last save of countdown-server's config stands: a Saved tick, or a message when it didn't save. */
+  saveStatus?: SaveStatus;
+  /** Called each time the settings come up, to get countdown-server's config again. */
+  onShow?: () => void;
 }
 
-/**
- * The Settings tab: the sections on the left and the chosen one's page on the right. Device is countdown-server's config
- * site for this kiosk (see settings/sections.ts).
- */
+/** A small Saved tick once a change has saved, or a short message when one didn't (and was undone). */
+function SaveNote({ status }: Readonly<{ status: SaveStatus }>) {
+  return (
+    <p className="settings-save-note" role="status">
+      {status === 'saved' && (
+        <span className="settings-status status-success">
+          <Check className="settings-status-icon" aria-hidden="true" />
+          Saved
+        </span>
+      )}
+      {status === 'failed' && <span className="settings-status status-warning">Not saved</span>}
+    </p>
+  );
+}
+
+/** The Settings tab: the sections on the left and the chosen one's page on the right. */
 export default function SettingsPanel({
   initialSection = 'overview',
   authInfo,
@@ -71,19 +84,19 @@ export default function SettingsPanel({
   autoTheme = false,
   onThemeChange,
   skin,
-  kioskUpdate
+  kioskUpdate,
+  saveStatus = 'idle',
+  onShow
 }: Readonly<SettingsPanelProps>) {
   const [kiosk] = useState(isKiosk);
   const [section, setSection] = useState<SettingsSection>(initialSection);
   const wifi = useWifi(kiosk);
-  const [server] = useState(countdownServer);
-  const [deviceId] = useState(() => deviceCredentials()?.deviceId ?? null);
   const update = kiosk ? kioskUpdate : undefined;
   const authenticated = authInfo?.authenticated ?? false;
   const hasSleep = screenSleep !== undefined && onScreenSleepChange !== undefined;
   const sections = SETTINGS_SECTIONS.filter(
     choice =>
-      (kiosk || !choice.kioskOnly) && (choice.id !== 'sleep' || hasSleep) && (choice.id !== 'device' || server !== null)
+      (kiosk || !choice.kioskOnly) && (choice.id !== 'sleep' || hasSleep)
   );
   const current = sections.find(choice => choice.id === section) ?? SETTINGS_SECTIONS[0];
 
@@ -93,13 +106,13 @@ export default function SettingsPanel({
   useEffect(() => {
     checkForUpdate?.();
   }, [checkForUpdate]);
+  // The same for countdown-server's config, which the website may have changed meanwhile.
+  useEffect(() => {
+    onShow?.();
+  }, [onShow]);
 
   let page: ReactNode;
   switch (current.id) {
-    case 'device': {
-      page = <DeviceSettings deviceId={deviceId} />;
-      break;
-    }
     case 'appearance': {
       page = (
         <AppearanceSettings
@@ -136,7 +149,6 @@ export default function SettingsPanel({
         <SettingsOverview
           onOpen={setSection}
           kiosk={kiosk}
-          device={server === null ? undefined : { registered: deviceId !== null }}
           theme={theme}
           themeColour={themeColour}
           screenSleep={screenSleep}
@@ -172,6 +184,7 @@ export default function SettingsPanel({
           <h4 id="settings-section-title" className="settings-section-title">
             {current.label}
           </h4>
+          <SaveNote status={saveStatus} />
         </header>
         {/* Keyed by the page, so each one starts scrolled to the top. */}
         <div className="settings-content-body" key={current.id}>

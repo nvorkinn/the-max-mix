@@ -1694,6 +1694,9 @@ body:has(.app-dialog[open]) {
   font-size: 22px;
   font-weight: 750;
 }
+.settings-save-note {
+  font-size: 16px;
+}
 .settings-content-body {
   flex: 1;
   min-height: 0;
@@ -1918,18 +1921,6 @@ body:has(.app-dialog[open]) {
   border-radius: 14px;
   background: color-mix(in srgb, currentcolor 8%, var(--surface));
   overflow-wrap: anywhere;
-}
-/* The server's config site fills the page, edge to edge, and scrolls inside its own frame. */
-.settings-content-body:has(> .settings-embed) {
-  display: flex;
-  padding: 0;
-  overflow: hidden;
-}
-.settings-embed {
-  flex: 1;
-  width: 100%;
-  border: 0;
-  background: var(--surface);
 }
 .settings-panel .settings-action {
   min-height: 64px;
