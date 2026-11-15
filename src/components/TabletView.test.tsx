@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Mock } from 'vitest';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
+import type { TouchscreenConfig } from 'countdown-api';
 import { installCanvasStub } from '../test/canvas';
 import { defined } from '../test/defined';
 import { FakeWebSocket, latestFakeSocket, resetFakeSockets } from '../test/fakeWebSocket';
 import { clearLyricsCache } from '../hooks/useLyrics';
 import { fetchSpotify, recordSpotifyRetryAfter, resetSpotifyRateLimit, SpotifyApiError } from '../spotify/http';
+import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
+import * as deviceConfig from '../countdown/config';
 import TabletView from './TabletView';
 
 const player = vi.hoisted(() => {
@@ -470,6 +473,56 @@ describe('TabletView', () => {
     expect(screen.getByRole('button', { name: 'Navy' })).toHaveAttribute('aria-pressed', 'true');
     expect(localStorage.getItem('maxmix.themeColour')).toBe('navy');
     localStorage.removeItem('maxmix.themeColour');
+  });
+
+  describe("once someone owns the kiosk, countdown-server's config", () => {
+    const OWNED = { ...fixture.config, style: { skin: 'day', colour: 'teal' } } as TouchscreenConfig;
+
+    function openAppearance() {
+      fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
+      fireEvent.click(
+        within(screen.getByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Appearance' })
+      );
+    }
+
+    it('sets the skin and colour, and a change saves there and says so', async () => {
+      vi.spyOn(deviceConfig, 'loadDeviceConfig').mockResolvedValue(OWNED);
+      const save = vi
+        .spyOn(deviceConfig, 'saveConfigSection')
+        .mockImplementation((base, section, value) => Promise.resolve({ saved: { ...base, [section]: value } }));
+      const { container } = render(<TabletView />);
+      await flush();
+      const room = defined(container.querySelector('.tablet-container'));
+      expect(room).toHaveAttribute('data-colour', 'teal');
+      expect(localStorage.getItem('maxmix.themeColour')).toBe('teal');
+
+      vi.useFakeTimers();
+      openAppearance();
+      // Night greys out the colours, so the colour goes first.
+      fireEvent.click(screen.getByRole('button', { name: 'Navy' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Night' }));
+      expect(room).toHaveAttribute('data-theme', 'night');
+      await act(() => vi.advanceTimersByTimeAsync(500));
+      expect(save).toHaveBeenCalledTimes(1);
+      expect(save.mock.calls[0]?.slice(1)).toEqual(['style', { skin: 'night', colour: 'navy' }]);
+      expect(screen.getByText('Saved')).toBeInTheDocument();
+      expect(localStorage.getItem('maxmix.theme')).toBe('night');
+      vi.restoreAllMocks();
+    });
+
+    it('puts a change back when it does not save', async () => {
+      vi.spyOn(deviceConfig, 'loadDeviceConfig').mockResolvedValue(OWNED);
+      vi.spyOn(deviceConfig, 'saveConfigSection').mockResolvedValue({ error: 'failed' });
+      const { container } = render(<TabletView />);
+      await flush();
+      vi.useFakeTimers();
+      openAppearance();
+      fireEvent.click(screen.getByRole('button', { name: 'Navy' }));
+      await act(() => vi.advanceTimersByTimeAsync(500));
+      expect(screen.getByText('Not saved')).toBeInTheDocument();
+      expect(defined(container.querySelector('.tablet-container'))).toHaveAttribute('data-colour', 'teal');
+      vi.restoreAllMocks();
+    });
   });
 
   it('does not show confirmed playback indicators or fabricated times without a track', async () => {

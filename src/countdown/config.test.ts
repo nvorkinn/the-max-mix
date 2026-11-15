@@ -1,6 +1,7 @@
+import type { TouchscreenConfig } from 'countdown-api';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
-import { cachedDeviceConfig, forgetDeviceConfig, loadDeviceConfig } from './config';
+import { cachedDeviceConfig, forgetDeviceConfig, loadDeviceConfig, saveConfigSection } from './config';
 import * as registration from './registration';
 
 const SECRET = fixture.registration.secret;
@@ -95,5 +96,51 @@ describe('loadDeviceConfig', () => {
       throw new Error('blocked');
     });
     expect(() => forgetDeviceConfig()).not.toThrow();
+  });
+});
+
+describe('saveConfigSection', () => {
+  const OWNED = fixture.config as TouchscreenConfig;
+
+  it('puts the whole config with the section changed, with the device secret, and keeps the answer', async () => {
+    register();
+    const fetch = answer(200, fixture.save);
+    const result = await saveConfigSection(OWNED, 'display', { sleep_minutes: 30 });
+    expect(result).toEqual({ saved: fixture.save });
+    const [input, init] = fetch.mock.calls[0] ?? [''];
+    const request = new Request(input, init);
+    expect(request.method).toBe('PUT');
+    expect(request.url).toBe('https://countdown.build/api/devices/config');
+    expect(request.headers.get('Authorization')).toBe(`Bearer ${SECRET}`);
+    await expect(request.json()).resolves.toEqual({ ...OWNED, display: { sleep_minutes: 30 } });
+    expect(cachedDeviceConfig()).toEqual(fixture.save);
+  });
+
+  it('calls a 409 a conflict, and anything else that goes wrong a failure', async () => {
+    register();
+    answer(409);
+    await expect(saveConfigSection(OWNED, 'clock_format', '12h')).resolves.toEqual({ error: 'conflict' });
+    answer(400);
+    await expect(saveConfigSection(OWNED, 'clock_format', '12h')).resolves.toEqual({ error: 'failed' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('Failed to fetch')))
+    );
+    await expect(saveConfigSection(OWNED, 'clock_format', '12h')).resolves.toEqual({ error: 'failed' });
+  });
+
+  it('saves nothing before the kiosk is registered', async () => {
+    const fetch = answer(200, fixture.save);
+    await expect(saveConfigSection(OWNED, 'clock_format', '12h')).resolves.toEqual({ error: 'failed' });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('answers as the server would in a build that mocks it', async () => {
+    vi.stubEnv('VITE_COUNTDOWN_CONFIG', 'mock');
+    const fetch = answer(500);
+    await expect(saveConfigSection(OWNED, 'clock_format', '12h')).resolves.toEqual({
+      saved: { ...OWNED, clock_format: '12h' }
+    });
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
