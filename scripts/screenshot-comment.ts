@@ -29,7 +29,10 @@ function mismatches(): string[] {
   }
   return [...shots].flatMap(([shot, kinds]) => {
     const cell = (kind: string) => (kinds.has(kind) ? image(kind, `${env('SHOTS_URL')}/${shot}-${kind}.png`) : '');
-    const [test = '', name = ''] = shot.split('/', 2);
+    // <test>/<name>, where the name may have folders of its own (visual.spec.ts keeps each screen size in one).
+    const slash = shot.indexOf('/');
+    const test = shot.slice(0, slash);
+    const name = shot.slice(slash + 1);
     return [
       `**${name}** (${test})`,
       '',

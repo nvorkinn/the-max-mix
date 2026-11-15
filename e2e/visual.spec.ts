@@ -11,14 +11,14 @@ test.skip(!process.env['CI'] && !process.env['E2E_VISUAL'], 'Screenshots are onl
 
 const SHOT = { animations: 'disabled', maxDiffPixelRatio: 0.002 } as const;
 
-// Both kiosk screens: the 7 inch (1024x600) and the 10.1 inch (1280x800). The 7 inch's baselines keep their plain names.
+// Both kiosk screens: the 7 inch (1024x600) and the 10.1 inch (1280x800). Each screen's baselines have their own folder.
 const SCREENS = [
-  { width: 1024, height: 600, suffix: '' },
-  { width: 1280, height: 800, suffix: '-1280x800' }
+  { width: 1024, height: 600 },
+  { width: 1280, height: 800 }
 ] as const;
 type Screen = (typeof SCREENS)[number];
-const shotName = (name: string, screen: Screen) => `${name}${screen.suffix}.png`;
 const size = (screen: Screen) => `${screen.width}x${screen.height}`;
+const shotName = (name: string, screen: Screen) => [size(screen), `${name}.png`];
 
 /** A coloured cover the page may read (Spotify's image CDN sends this header too), so the faint tint shows. */
 async function colouredArt(page: Page) {
@@ -189,19 +189,22 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await expect(dialog.getByRole('button', { name: /Deep Focus/ })).toBeVisible();
       await expect(dialog).toHaveScreenshot(shotName('music-picker', screen), SHOT);
     });
+
+    test(`signed-out setup screen at ${size(screen)}`, { tag: '@setup' }, async ({ page }) => {
+      await page.setViewportSize(screen);
+      await page.goto('/');
+      await expect(page.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
+      await expect(page).toHaveScreenshot(shotName('setup', screen), {
+        ...SHOT,
+        mask: [page.locator('.header-clock')]
+      });
+    });
   }
 
-  test('signed-out setup screen', { tag: '@setup' }, async ({ page }) => {
+  test('signed-out setup screen in a short window', { tag: '@setup' }, async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
     // The header clock changes every minute, so it is masked out of the comparison.
-    await expect(page).toHaveScreenshot('setup.png', { ...SHOT, mask: [page.locator('.header-clock')] });
-  });
-
-  test('signed-out setup screen at 1280x800', { tag: '@setup' }, async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto('/');
-    await expect(page.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
-    await expect(page).toHaveScreenshot('setup-1280x800.png', { ...SHOT, mask: [page.locator('.header-clock')] });
+    await expect(page).toHaveScreenshot('setup-short-window.png', { ...SHOT, mask: [page.locator('.header-clock')] });
   });
 });
