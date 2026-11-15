@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Check, Cpu, LayoutGrid, Music, Palette, Wifi } from 'lucide-react';
+import { Check, Cpu, LayoutDashboard, LayoutGrid, Music, Palette, SlidersHorizontal, Wifi } from 'lucide-react';
+import type { TouchscreenConfig } from 'countdown-api';
 import { isKiosk } from '../utils/kiosk';
 import { reloadSettings } from '../spotify/settings';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import type { ThemeColour } from '../utils/themeColour';
 import type { Skin, Theme } from '../utils/theme';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
-import type { SaveStatus } from '../hooks/useDeviceConfig';
+import type { DeviceConfig, SaveStatus } from '../hooks/useDeviceConfig';
 import SleepIcon from './SleepIcon';
 import AppearanceSettings from './settings/AppearanceSettings';
+import DashboardSettings from './settings/DashboardSettings';
+import GeneralSettings from './settings/GeneralSettings';
 import ScreenSleepSettings from './settings/ScreenSleepSettings';
 import SettingsOverview from './settings/SettingsOverview';
 import SoftwareSettings from './settings/SoftwareSettings';
@@ -23,6 +26,8 @@ export type { SettingsSection } from './settings/sections';
 
 const SECTION_ICONS: Record<SettingsSection, ReactNode> = {
   overview: <LayoutGrid className="w-6 h-6 shrink-0" aria-hidden="true" />,
+  general: <SlidersHorizontal className="w-6 h-6 shrink-0" aria-hidden="true" />,
+  dashboard: <LayoutDashboard className="w-6 h-6 shrink-0" aria-hidden="true" />,
   appearance: <Palette className="w-6 h-6 shrink-0" aria-hidden="true" />,
   sleep: <SleepIcon className="w-6 h-6 shrink-0" />,
   wifi: <Wifi className="w-6 h-6 shrink-0" aria-hidden="true" />,
@@ -53,6 +58,9 @@ interface SettingsPanelProps {
   saveStatus?: SaveStatus;
   /** Called each time the settings come up, to get countdown-server's config again. */
   onShow?: () => void;
+  /** countdown-server's config once someone owns the kiosk, which the General and Dashboard pages show and change. */
+  deviceConfig?: TouchscreenConfig | undefined;
+  onDeviceConfigSave?: DeviceConfig['save'] | undefined;
 }
 
 /** A small Saved tick once a change has saved, or a short message when one didn't (and was undone). */
@@ -86,7 +94,9 @@ export default function SettingsPanel({
   skin,
   kioskUpdate,
   saveStatus = 'idle',
-  onShow
+  onShow,
+  deviceConfig,
+  onDeviceConfigSave
 }: Readonly<SettingsPanelProps>) {
   const [kiosk] = useState(isKiosk);
   const [section, setSection] = useState<SettingsSection>(initialSection);
@@ -94,8 +104,12 @@ export default function SettingsPanel({
   const update = kiosk ? kioskUpdate : undefined;
   const authenticated = authInfo?.authenticated ?? false;
   const hasSleep = screenSleep !== undefined && onScreenSleepChange !== undefined;
+  const hasDashboard = deviceConfig !== undefined && onDeviceConfigSave !== undefined;
   const sections = SETTINGS_SECTIONS.filter(
-    choice => (kiosk || !choice.kioskOnly) && (choice.id !== 'sleep' || hasSleep)
+    choice =>
+      (kiosk || !choice.kioskOnly) &&
+      (choice.id !== 'sleep' || hasSleep) &&
+      ((choice.id !== 'dashboard' && choice.id !== 'general') || hasDashboard)
   );
   const current = sections.find(choice => choice.id === section) ?? SETTINGS_SECTIONS[0];
 
@@ -112,6 +126,21 @@ export default function SettingsPanel({
 
   let page: ReactNode;
   switch (current.id) {
+    case 'general': {
+      page = deviceConfig && onDeviceConfigSave && (
+        <GeneralSettings
+          clockFormat={deviceConfig.clock_format}
+          onClockFormatChange={format => onDeviceConfigSave('clock_format', format)}
+        />
+      );
+      break;
+    }
+    case 'dashboard': {
+      page = deviceConfig && onDeviceConfigSave && (
+        <DashboardSettings config={deviceConfig} onSave={onDeviceConfigSave} />
+      );
+      break;
+    }
     case 'appearance': {
       page = (
         <AppearanceSettings
@@ -148,6 +177,7 @@ export default function SettingsPanel({
         <SettingsOverview
           onOpen={setSection}
           kiosk={kiosk}
+          deviceConfig={hasDashboard ? deviceConfig : undefined}
           theme={theme}
           themeColour={themeColour}
           screenSleep={screenSleep}

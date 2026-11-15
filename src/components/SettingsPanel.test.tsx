@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
+import type { TouchscreenConfig } from 'countdown-api';
 import userEvent from '../test/user';
 import { partialProps } from '../test/partialProps';
 import { defined } from '../test/defined';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
+import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import SettingsPanelFull from './SettingsPanel';
 
 const auth = vi.hoisted(() => ({
@@ -406,5 +408,60 @@ describe('SettingsPanel', () => {
   it('keeps developer-facing wording out of the screen', () => {
     render(<SettingsPanel {...base} authInfo={{ authenticated: true }} />);
     expect(document.body).not.toHaveTextContent(/HTTPS|encrypted media|Premium/i);
+  });
+
+  it("offers the Dashboard page and its card only with an owned kiosk's config", async () => {
+    history.replaceState(null, '', '/?kiosk=0');
+    const { rerender } = render(<SettingsPanel {...base} authInfo={{}} />);
+    const nav = screen.getByRole('navigation', { name: 'Settings' });
+    expect(within(nav).queryByRole('button', { name: 'Dashboard' })).not.toBeInTheDocument();
+
+    rerender(
+      <SettingsPanel
+        {...base}
+        authInfo={{}}
+        deviceConfig={fixture.config as TouchscreenConfig}
+        onDeviceConfigSave={vi.fn()}
+      />
+    );
+    const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Dashboard/ });
+    expect(card).toHaveTextContent('1 stopOslo0150, Norway');
+    await userEvent.click(card);
+    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add stop' })).toBeInTheDocument();
+  });
+
+  it('saves the time format from the General page, which shows with an owned kiosk only', async () => {
+    history.replaceState(null, '', '/?kiosk=0');
+    const onDeviceConfigSave = vi.fn();
+    const { rerender } = render(<SettingsPanel {...base} authInfo={{}} />);
+    const nav = screen.getByRole('navigation', { name: 'Settings' });
+    expect(within(nav).queryByRole('button', { name: 'General' })).not.toBeInTheDocument();
+
+    rerender(
+      <SettingsPanel
+        {...base}
+        authInfo={{}}
+        deviceConfig={fixture.config as TouchscreenConfig}
+        onDeviceConfigSave={onDeviceConfigSave}
+      />
+    );
+    await userEvent.click(within(nav).getByRole('button', { name: 'General' }));
+    expect(screen.getByRole('button', { name: '24-hour' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(screen.getByRole('button', { name: '12-hour' }));
+    expect(onDeviceConfigSave).toHaveBeenCalledExactlyOnceWith('clock_format', '12h');
+  });
+
+  it('sums up a Dashboard with one stop and nothing else set', () => {
+    history.replaceState(null, '', '/?kiosk=0');
+    const config = {
+      ...(fixture.config as TouchscreenConfig),
+      clock_format: '12h',
+      weather: { location: '', key: null },
+      notice_board: { postcode: null, country: null }
+    } as const;
+    render(<SettingsPanel {...base} authInfo={{}} deviceConfig={config} onDeviceConfigSave={vi.fn()} />);
+    const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Dashboard/ });
+    expect(card).toHaveTextContent(/^Dashboard1 stop$/);
   });
 });

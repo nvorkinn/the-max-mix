@@ -3,7 +3,7 @@ import { Heart, Library, X } from 'lucide-react';
 import { getLikedSongs, getPlaylists, getRecentlyPlayed, searchMusic } from '../spotify/api';
 import { recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import { errorMessage } from '../utils/errorMessage';
-import { isKiosk } from '../utils/kiosk';
+import { useOnScreenKeyboard } from '../hooks/useOnScreenKeyboard';
 import type { MusicChoice } from '../types';
 import { Artwork } from './TrackImages';
 import Modal from './Modal';
@@ -91,23 +91,7 @@ function SearchPanel({ disabled, onPick }: Readonly<{ disabled: boolean; onPick:
   const [searchVersion, setSearchVersion] = useState(0);
   const wanted = query.trim();
 
-  useEffect(() => {
-    const field = fieldRef.current;
-    field?.focus();
-    // The touch screen has no keyboard of its own, and a modal dialog makes the rest of the page untouchable, so the
-    // keyboard goes inside the dialog. Loaded only on the kiosk.
-    const dialog = field?.closest('dialog');
-    if (!dialog || !isKiosk()) return;
-    let stop: (() => void) | undefined;
-    let cancelled = false;
-    void import('../../pi/kiosk-keyboard/keyboard').then(keyboard => {
-      if (!cancelled) stop = keyboard.start(document, dialog);
-    });
-    return () => {
-      cancelled = true;
-      stop?.();
-    };
-  }, []);
+  useOnScreenKeyboard(fieldRef);
 
   useEffect(() => {
     if (!wanted) return;

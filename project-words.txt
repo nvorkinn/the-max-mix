@@ -35,6 +35,7 @@ dnsmasq
 edid
 elif
 endfor
+entur
 epaper
 esac
 EUID
@@ -50,12 +51,15 @@ getent
 getty
 gitsubmodule
 groupadd
+gzzluksx
+gzzluovl
 ieee
 ifname
 imager
 improv
 infobars
 initramfs
+jernbanetorget
 journalctl
 katex
 kbd
@@ -75,10 +79,13 @@ loglevel
 longenough
 lrclib
 magicdns
+majorstuen
 mapfile
 math
 maxmix
+meteo
 mktemp
+nationaltheatret
 nbbbb
 ncccc
 netdev
@@ -162,6 +169,7 @@ SSID
 SSIDs
 starboy
 startswith
+stasjon
 stdin
 svrooij
 swayidle
@@ -172,6 +180,7 @@ themaxmix
 timezone
 tmpfiles
 trixie
+trøndelag
 ttyv
 ttyvt
 tzdata
@@ -185,6 +194,7 @@ uuids
 valuetext
 vars
 venv
+vestland
 VITE
 waveshare
 wayland

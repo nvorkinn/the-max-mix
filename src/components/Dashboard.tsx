@@ -5,6 +5,8 @@ import { ARRIVALS_MAX_AGE_MS, getDashboardData, isFresh, WEATHER_MAX_AGE_MS } fr
 import type { Arrival, Arrivals, Conditions, DashboardData, Weather } from '../dashboard/data';
 import { debugLog } from '../utils/debugLog';
 import { errorMessage } from '../utils/errorMessage';
+import { DEFAULT_CLOCK_FORMAT, formatClockTime } from '../utils/clockFormat';
+import type { ClockFormat } from '../utils/clockFormat';
 
 /** How often the Dashboard asks for its data again while it is showing. */
 const REFRESH_MS = 30_000;
@@ -18,9 +20,6 @@ const CONDITIONS: Record<Conditions, { label: string; icon: (size: number) => Re
   rain: { label: 'Rain', icon: size => <CloudRain size={size} aria-hidden="true" /> },
   snow: { label: 'Snow', icon: size => <CloudSnow size={size} aria-hidden="true" /> }
 };
-
-const formatHour = (time: string) =>
-  new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
 function minutesUntil(arrival: Arrival, now: Date): string {
   const minutes = Math.floor((Date.parse(arrival.due) - now.getTime()) / 60_000);
@@ -67,7 +66,11 @@ function ArrivalsPanel({ arrivals, now }: Readonly<{ arrivals: Arrivals | null; 
   );
 }
 
-function WeatherPanel({ weather, now }: Readonly<{ weather: Weather | null; now: Date }>) {
+function WeatherPanel({
+  weather,
+  now,
+  clockFormat
+}: Readonly<{ weather: Weather | null; now: Date; clockFormat: ClockFormat }>) {
   const fresh = weather && isFresh(weather.updatedAt, WEATHER_MAX_AGE_MS, now) ? weather : null;
   return (
     <section className="dashboard-panel dashboard-weather" aria-labelledby="dashboard-weather-title">
@@ -88,7 +91,7 @@ function WeatherPanel({ weather, now }: Readonly<{ weather: Weather | null; now:
           <ol className="dashboard-hours">
             {fresh.hours.map(hour => (
               <li key={hour.time} className="dashboard-hour">
-                <span className="dashboard-hour-time">{formatHour(hour.time)}</span>
+                <span className="dashboard-hour-time">{formatClockTime(new Date(hour.time), clockFormat)}</span>
                 {CONDITIONS[hour.conditions].icon(30)}
                 <span className="sr-only">{CONDITIONS[hour.conditions].label}</span>
                 <span className="dashboard-hour-temperature">{hour.temperature}°</span>
@@ -104,7 +107,10 @@ function WeatherPanel({ weather, now }: Readonly<{ weather: Weather | null; now:
 }
 
 /** The Dashboard tab: the next buses and the weather. Reads its data only while `shown`. */
-export default function Dashboard({ shown }: Readonly<{ shown: boolean }>) {
+export default function Dashboard({
+  shown,
+  clockFormat = DEFAULT_CLOCK_FORMAT
+}: Readonly<{ shown: boolean; clockFormat?: ClockFormat }>) {
   const [data, setData] = useState<DashboardData>({ arrivals: null, weather: null });
   const [now, setNow] = useState(() => new Date());
 
@@ -134,7 +140,7 @@ export default function Dashboard({ shown }: Readonly<{ shown: boolean }>) {
   return (
     <div className="dashboard">
       <ArrivalsPanel arrivals={data.arrivals} now={now} />
-      <WeatherPanel weather={data.weather} now={now} />
+      <WeatherPanel weather={data.weather} now={now} clockFormat={clockFormat} />
     </div>
   );
 }

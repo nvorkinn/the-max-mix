@@ -40,7 +40,7 @@ export const AREAS: Area[] = [
   {
     tag: 'music',
     title: 'Choose music',
-    sources: [/^src\/components\/MusicPicker/]
+    sources: [/^src\/components\/MusicPicker/, /^src\/hooks\/useOnScreenKeyboard/]
   },
   {
     tag: 'queue',
@@ -60,7 +60,7 @@ export const AREAS: Area[] = [
       /^src\/components\/settings\//,
       /^src\/components\/(KioskSystem|ConfirmButton|PhonePicker|PairPhoneSheet)/,
       /^src\/hooks\/useSavedPhones/,
-      /^src\/utils\/(theme|sun)/,
+      /^src\/utils\/(theme|sun|clockFormat)/,
       /^src\/hooks\/useTheme/,
       /^src\/sonos\//
     ]
