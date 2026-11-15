@@ -6,6 +6,7 @@ import { useSonosPlayer } from '../hooks/useSonosPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useKioskUpdate } from '../hooks/useKioskUpdate';
 import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
+import { useDeviceConfig } from '../hooks/useDeviceConfig';
 import { useScreenSleep } from '../hooks/useScreenSleep';
 import { IDLE_DASHBOARD_MS, useIdle } from '../hooks/useIdle';
 import { usePanelView } from '../hooks/usePanelView';
@@ -209,6 +210,12 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     saveThemeColour(colour);
   };
   const theme = useTheme();
+  // countdown-server's config sets the skin, colour and screen sleep, as the settings would.
+  useDeviceConfig(({ style, display }) => {
+    theme.change(style.skin);
+    changeThemeColour(style.colour);
+    changeScreenSleep(display.sleep_minutes);
+  });
   const kioskUpdate = useKioskUpdate(onKiosk);
   const sleep = useScreenSleep({
     enabled: onKiosk,

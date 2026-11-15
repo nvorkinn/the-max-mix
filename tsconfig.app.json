@@ -1,5 +1,5 @@
 {
-  "//": "The app (src/) and the Vite and Vitest configs that build and test it. Everything in `src/` is TypeScript. `countdown-api` is the store contract's types, from the vendor/countdown-api submodule (type imports only: nothing of it reaches the bundle).",
+  "//": "The app (src/) and the Vite and Vitest configs that build and test it. Everything in `src/` is TypeScript. `countdown-api` is the store contract's types, from the vendor/countdown-api submodule (type imports, and its example touchscreen config for a build that mocks the server's).",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "ES2022",
@@ -26,6 +26,7 @@
     "allowUnusedLabels": false,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
+    "resolveJsonModule": true,
     "types": ["vite/client", "node"],
     "paths": { "countdown-api": ["./vendor/countdown-api/src/countdown_api/store.d.ts"] }
   },

@@ -31,7 +31,12 @@ export const AREAS: Area[] = [
   {
     tag: 'registration',
     title: 'Registering with countdown-server',
-    sources: [/^src\/countdown\//, /^src\/components\/RegistrationProblem/, /^\.env\.(production|development)$/]
+    sources: [
+      /^src\/countdown\//,
+      /^src\/hooks\/useDeviceConfig/,
+      /^src\/components\/RegistrationProblem/,
+      /^\.env\.(production|development)$/
+    ]
   },
   {
     tag: 'music',
