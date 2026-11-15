@@ -1,5 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { X, Bug, RotateCw, Trash2 } from 'lucide-react';
+import { X, Bug, RotateCw, Trash2, KeyRound } from 'lucide-react';
+import { forgetDeviceConfig } from '../countdown/config';
+import { deviceCredentials, forgetRegistration, startRegistration } from '../countdown/registration';
 import { clearDebugLog, getDebugEntries, subscribeDebugLog } from '../utils/debugLog';
 import type { DebugEntry } from '../utils/debugLog';
 import { getHttpLogMode, getMutedHttpGroups, HTTP_GROUPS, setHttpGroupMuted, setHttpLogMode } from '../utils/httpLog';
@@ -129,14 +131,16 @@ function PollingOption() {
 function DebugConsolePanel({
   onClose,
   status,
-  onReload
-}: Readonly<{ onClose: () => void; status: DebugStatus; onReload: () => void }>) {
+  onReload,
+  onRegisterAgain
+}: Readonly<{ onClose: () => void; status: DebugStatus; onReload: () => void; onRegisterAgain: () => void }>) {
   const entries = useSyncExternalStore(subscribeDebugLog, getDebugEntries);
   const widevine = useWidevineStatus();
   const rows: DebugStatus = [
     ['Version', APP_VERSION],
     ...status,
     ['Widevine', widevine],
+    ['Device ID', deviceCredentials()?.deviceId ?? 'Not registered'],
     ['Browser', navigator.userAgent]
   ];
 
@@ -152,6 +156,11 @@ function DebugConsolePanel({
           <button type="button" onClick={onReload}>
             <RotateCw size={14} aria-hidden="true" /> Reload page
           </button>
+          {isKiosk() && (
+            <button type="button" onClick={onRegisterAgain}>
+              <KeyRound size={14} aria-hidden="true" /> Register again
+            </button>
+          )}
           <button
             type="button"
             data-modal-autofocus
@@ -189,12 +198,28 @@ function DebugConsolePanel({
 
 const reloadPage = () => location.reload();
 
+/** Forgets the kiosk's device ID, secret and config, and goes to countdown-server's /register page as a new screen. */
+function registerAgain(): void {
+  forgetRegistration();
+  forgetDeviceConfig();
+  void startRegistration();
+}
+
 /** A full-screen view of the app's state and recent log, opened by a hidden gesture on the kiosk. */
 export default function DebugConsole({
   isOpen,
   onClose,
   status,
-  onReload = reloadPage
-}: Readonly<{ isOpen: boolean; onClose: () => void; status: DebugStatus; onReload?: () => void }>) {
-  return isOpen ? <DebugConsolePanel onClose={onClose} status={status} onReload={onReload} /> : null;
+  onReload = reloadPage,
+  onRegisterAgain = registerAgain
+}: Readonly<{
+  isOpen: boolean;
+  onClose: () => void;
+  status: DebugStatus;
+  onReload?: () => void;
+  onRegisterAgain?: () => void;
+}>) {
+  return isOpen ? (
+    <DebugConsolePanel onClose={onClose} status={status} onReload={onReload} onRegisterAgain={onRegisterAgain} />
+  ) : null;
 }

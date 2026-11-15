@@ -25,6 +25,15 @@ export function cachedDeviceConfig(): TouchscreenConfig | null {
   }
 }
 
+/** Forgets the last config, which belongs to the device ID being forgotten (the debug console's Register again). */
+export function forgetDeviceConfig(): void {
+  try {
+    localStorage.removeItem(CONFIG_KEY);
+  } catch {
+    // Storage is unavailable, so there was no config kept.
+  }
+}
+
 function cache(config: TouchscreenConfig): void {
   try {
     localStorage.setItem(CONFIG_KEY, JSON.stringify(config));

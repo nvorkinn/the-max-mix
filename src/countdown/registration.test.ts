@@ -3,6 +3,7 @@ import { leaveFor } from '../spotify/settings';
 import {
   completeRegistration,
   deviceCredentials,
+  forgetRegistration,
   needsRegistration,
   registrationAddress,
   secretHash,
@@ -158,5 +159,22 @@ describe('without storage', () => {
   it('ignores a server that is not a URL', () => {
     vi.stubEnv('VITE_COUNTDOWN_SERVER', 'https://');
     expect(countdownServer()).toBeNull();
+  });
+
+  it('forgets nothing when storage is unavailable', () => {
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(() => forgetRegistration()).not.toThrow();
+  });
+});
+
+describe('forgetRegistration', () => {
+  it('forgets the device ID and the secret', () => {
+    localStorage.setItem('maxmix.deviceSecret', EXAMPLE_SECRET);
+    localStorage.setItem('maxmix.deviceId', '0a1b2c3d4e5f');
+    forgetRegistration();
+    expect(deviceCredentials()).toBeNull();
+    expect(localStorage.getItem('maxmix.deviceSecret')).toBeNull();
   });
 });

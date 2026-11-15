@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
-import { cachedDeviceConfig, loadDeviceConfig } from './config';
+import { cachedDeviceConfig, forgetDeviceConfig, loadDeviceConfig } from './config';
 import * as registration from './registration';
 
 const SECRET = fixture.registration.secret;
@@ -84,5 +84,15 @@ describe('loadDeviceConfig', () => {
     await expect(loadDeviceConfig()).resolves.toBeNull();
     localStorage.setItem('maxmix.deviceConfig', JSON.stringify({ type: 'epaper' }));
     expect(cachedDeviceConfig()).toBeNull();
+  });
+
+  it('forgets the kept config, and copes without storage', () => {
+    localStorage.setItem('maxmix.deviceConfig', JSON.stringify(fixture.config));
+    forgetDeviceConfig();
+    expect(cachedDeviceConfig()).toBeNull();
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(() => forgetDeviceConfig()).not.toThrow();
   });
 });
