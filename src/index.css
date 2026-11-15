@@ -1648,7 +1648,7 @@ body:has(.app-dialog[open]) {
   list-style: none;
 }
 /* With General and Dashboard (an owned kiosk), eight pages fit the 7" screen's 534px under the header: 60px rows, 4px
-   apart, 12px above and below. */
+  apart, 12px above and below. */
 @media (width < 1200px), (height < 760px) {
   .settings-nav:has(li:nth-child(7)) {
     padding-block: 12px;
