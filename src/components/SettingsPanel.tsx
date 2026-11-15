@@ -64,7 +64,7 @@ interface SettingsPanelProps {
 /** A small Saved tick once a change has saved, or a short message when one didn't (and was undone). */
 function SaveNote({ status }: Readonly<{ status: SaveStatus }>) {
   return (
-    <p className="settings-save-note" role="status">
+    <p className="settings-save-note" aria-live="polite">
       {status === 'saved' && (
         <span className="settings-status status-success">
           <Check className="settings-status-icon" aria-hidden="true" />

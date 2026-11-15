@@ -36,8 +36,11 @@ export async function fakeCountdownServer(
     if (request.method() === 'PUT') {
       const body = request.postDataJSON() as Record<string, unknown>;
       saves.push(body);
-      if (saveStatus !== undefined) return route.fulfill({ status: saveStatus, headers: cors });
-      return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify(body) });
+      return route.fulfill(
+        saveStatus === undefined
+          ? { status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify(body) }
+          : { status: saveStatus, headers: cors }
+      );
     }
     return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify(config) });
   });

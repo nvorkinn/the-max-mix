@@ -79,7 +79,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
         // eslint-disable-next-line no-await-in-loop -- one page after another
         await showSection(settings, section);
         // eslint-disable-next-line no-await-in-loop -- the same
-        await expect(settings).toHaveScreenshot(shotName(name, screen), SHOT);
+        await expect.soft(settings).toHaveScreenshot(shotName(name, screen), SHOT);
       }
     });
 

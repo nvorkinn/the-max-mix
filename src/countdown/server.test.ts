@@ -11,10 +11,10 @@ describe('countdownServer', () => {
     expect(countdownServer()).toBe('https://app.countdown.build');
   });
 
-  it('is null when the build names no server, or one that is not https', () => {
+  it('is null when the build names no server, or one that is not an origin', () => {
     vi.stubEnv('VITE_COUNTDOWN_SERVER', '');
     expect(countdownServer()).toBeNull();
-    vi.stubEnv('VITE_COUNTDOWN_SERVER', 'https://countdown.build');
+    vi.stubEnv('VITE_COUNTDOWN_SERVER', 'countdown.build');
     expect(countdownServer()).toBeNull();
   });
 });

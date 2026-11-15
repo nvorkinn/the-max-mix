@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TouchscreenConfig } from 'countdown-api';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import { cachedDeviceConfig, forgetDeviceConfig, loadDeviceConfig, saveConfigSection } from './config';
 import * as registration from './registration';

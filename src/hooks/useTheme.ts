@@ -17,14 +17,16 @@ export function skinAt(now: Date, place: { lat: number; lon: number }): Skin {
 /**
  * The skin the settings picked, kept across reloads, and the one on screen (`skin`, which goes on .tablet-container as
  * `data-theme`). Auto is offered only when the kiosk knows where it is; a stored Auto without a location shows Day.
+ * `chosen`, when given, is the pick instead (countdown-server's, once someone owns the kiosk).
  */
-export function useTheme(): {
+export function useTheme(chosen?: Theme): {
   theme: Theme;
   skin: Skin;
   autoOffered: boolean;
   change: (theme: Theme) => void;
 } {
-  const [theme, setTheme] = useState(loadTheme);
+  const [storedTheme, setStoredTheme] = useState(loadTheme);
+  const theme = chosen ?? storedTheme;
   const [place] = useState(getKioskLocation);
   const auto = theme === 'auto' && place !== null;
   // The time Auto last looked at, moved on every minute and when the screen comes back, so a skin change re-renders.
@@ -45,7 +47,7 @@ export function useTheme(): {
 
   const change = (next: Theme) => {
     setNow(Date.now());
-    setTheme(next);
+    setStoredTheme(next);
     saveTheme(next);
   };
   let skin: Skin = 'day';

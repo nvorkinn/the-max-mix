@@ -44,7 +44,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
 
     await settings.getByRole('button', { name: 'Night' }).click();
     await expect(page.locator('.tablet-container')).toHaveAttribute('data-theme', 'night');
-    await expect(settings.getByRole('status')).toHaveText('Saved');
+    await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
     expect(server.saves).toHaveLength(1);
     expect(server.saves[0]).toMatchObject({ device_id: '0a1b2c3d4e5f', style: { skin: 'night', colour: 'dynamic' } });
   });
@@ -56,7 +56,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
 
     await settings.getByRole('button', { name: '2 min' }).click();
     await settings.getByRole('button', { name: '30 min' }).click();
-    await expect(settings.getByRole('status')).toHaveText('Saved');
+    await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
     expect(server.saves.map(save => save['display'])).toEqual([{ sleep_minutes: 30 }]);
   });
 
@@ -66,7 +66,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     const settings = await openSettings(page, 'Appearance');
 
     await settings.getByRole('button', { name: 'Night' }).click();
-    await expect(settings.getByRole('status')).toHaveText('Not saved');
+    await expect(settings.getByText('Not saved', { exact: true })).toBeVisible();
     await expect(page.locator('.tablet-container')).toHaveAttribute('data-theme', 'day');
   });
 
