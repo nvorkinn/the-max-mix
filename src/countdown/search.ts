@@ -8,6 +8,7 @@ import {
   searchPlaces as searchPlacesRoute,
   searchStops as searchStopsRoute
 } from '../../vendor/countdown-api/src/countdown_api/client';
+import type { Client, Result } from '../../vendor/countdown-api/src/countdown_api/client';
 import { serverClient } from './config';
 
 const STOP_NAMES_KEY = 'maxmix.stopNames';
@@ -53,35 +54,38 @@ function fromPlace(result: PlaceSearchResult): PlaceResult {
   return { key: result.id, name: result.name, detail: result.subtitle, indent: result.indent, value: result.value };
 }
 
-async function mockAnswers(): Promise<{ stops: StopSearchResult[]; places: PlaceSearchResult[] }> {
+interface MockAnswers {
+  stops: StopSearchResult[];
+  places: PlaceSearchResult[];
+}
+
+/** countdown-api's example answer to one of the searches, for a build that mocks the server. */
+async function mockAnswer<K extends keyof MockAnswers>(search: K): Promise<MockAnswers[K]> {
   const fixture = await import('../../vendor/countdown-api/src/countdown_api/fixtures/search.json');
-  return fixture.default as unknown as { stops: StopSearchResult[]; places: PlaceSearchResult[] };
+  return (fixture.default as unknown as MockAnswers)[search];
+}
+
+/** Asks one of the search routes with the device secret. Rejects with SearchFailed when it can't search. */
+async function ask<T>(route: (client: Client, query: { q: string }) => Promise<Result<T[]>>, query: string) {
+  const client = serverClient();
+  if (!client) throw new SearchFailed();
+  const answer = await route(client, { q: query }).catch(() => null);
+  if (!answer?.data) throw new SearchFailed();
+  return answer.data;
 }
 
 /** Stations and stops whose name has the words typed, best first. Rejects with SearchFailed when it can't search. */
 export async function searchStops(query: string): Promise<StopResult[]> {
-  if (import.meta.env.VITE_COUNTDOWN_CONFIG === 'mock') {
-    const { stops } = await mockAnswers();
-    return stops.map(result => fromStop(result));
-  }
-  const client = serverClient();
-  if (!client) throw new SearchFailed();
-  const answer = await searchStopsRoute(client, { q: query }).catch(() => null);
-  if (!answer?.data) throw new SearchFailed();
-  return answer.data.map(result => fromStop(result));
+  const mock = import.meta.env.VITE_COUNTDOWN_CONFIG === 'mock';
+  const found = mock ? await mockAnswer('stops') : await ask(searchStopsRoute, query);
+  return found.map(result => fromStop(result));
 }
 
 /** Towns and cities for the weather whose name has the words typed. Rejects with SearchFailed when it can't search. */
 export async function searchPlaces(query: string): Promise<PlaceResult[]> {
-  if (import.meta.env.VITE_COUNTDOWN_CONFIG === 'mock') {
-    const { places } = await mockAnswers();
-    return places.map(result => fromPlace(result));
-  }
-  const client = serverClient();
-  if (!client) throw new SearchFailed();
-  const answer = await searchPlacesRoute(client, { q: query }).catch(() => null);
-  if (!answer?.data) throw new SearchFailed();
-  return answer.data.map(result => fromPlace(result));
+  const mock = import.meta.env.VITE_COUNTDOWN_CONFIG === 'mock';
+  const found = mock ? await mockAnswer('places') : await ask(searchPlacesRoute, query);
+  return found.map(result => fromPlace(result));
 }
 
 type StopNames = Record<string, { name: string; detail: string }>;

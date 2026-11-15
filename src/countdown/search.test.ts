@@ -82,6 +82,18 @@ describe('searchPlaces', () => {
   });
 });
 
+describe('a build that mocks the server', () => {
+  it("searches countdown-api's example answers, asking nothing of the server", async () => {
+    vi.stubEnv('VITE_COUNTDOWN_CONFIG', 'mock');
+    const fetch = answer(500);
+    const stops = await searchStops('anything');
+    const places = await searchPlaces('anything');
+    expect(stops.map(result => result.name)).toEqual(['Oslo S', 'Oslo S', 'Oval Station']);
+    expect(places.map(result => result.value)).toEqual([{ location: 'Oslo', key: 'oslo-no-3143244' }]);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
 describe('describeStop', () => {
   it("names a stop this kiosk added, and otherwise shows the stop's id", async () => {
     register();
@@ -96,5 +108,21 @@ describe('describeStop', () => {
       name: 'Oslo S',
       detail: 'Train & Metro • All platforms • L1, R10, 1, 2 (+12 more) · Entur'
     });
+  });
+
+  it('shows the id when the names kept are unreadable, or storage is unavailable', () => {
+    localStorage.setItem('maxmix.stopNames', '{');
+    expect(describeStop({ source: 'tfl', id: '490000077E' })).toEqual({ name: '490000077E', detail: 'TfL' });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Quota exceeded');
+    });
+    rememberStop({
+      key: 'tfl:490000077E',
+      name: 'Oval Station',
+      detail: '',
+      indent: false,
+      value: { source: 'tfl', id: '490000077E' }
+    });
+    expect(describeStop({ source: 'tfl', id: '490000077E' }).name).toBe('490000077E');
   });
 });
