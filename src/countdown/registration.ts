@@ -50,6 +50,19 @@ export function deviceCredentials(): DeviceCredentials | null {
   return deviceId && secret ? { deviceId, secret } : null;
 }
 
+/**
+ * Forgets the device ID and the secret, so the next registration is a new screen to the server (the debug console's
+ * Register again).
+ */
+export function forgetRegistration(): void {
+  try {
+    localStorage.removeItem(DEVICE_ID_KEY);
+    localStorage.removeItem(SECRET_KEY);
+  } catch {
+    // Storage is unavailable, so there was nothing kept to forget.
+  }
+}
+
 /** The kiosk's secret, made up (32 random bytes, as hex) the first time. */
 function deviceSecret(): string {
   const kept = read(SECRET_KEY);
