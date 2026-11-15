@@ -1,16 +1,5 @@
 # Project dictionary for cspell: product names, hardware and OS terms, and artist names.
 # One word per line, case-insensitive. Keep sorted.
-CIDATA
-DIDL
-EUID
-NOPASSWD
-PSK
-SSID
-SSIDs
-VITE
-WPA
-WPA2
-WPA3
 adwaita
 alsa
 apos
@@ -29,6 +18,7 @@ cenc
 chdir
 chpasswd
 chvt
+CIDATA
 cmdline
 cntrl
 color
@@ -39,6 +29,7 @@ dejavu
 devicechange
 dialog
 dialogs
+DIDL
 disallocate
 dnsmasq
 edid
@@ -47,6 +38,7 @@ endfor
 entur
 epaper
 esac
+EUID
 extrabold
 firstrun
 fsck
@@ -113,6 +105,7 @@ nologo
 nonexistent
 nonint
 noninteractive
+NOPASSWD
 noqa
 nosniff
 noto
@@ -140,6 +133,7 @@ polkitd
 popups
 poweroff
 proc
+PSK
 publickey
 pwauth
 pycache
@@ -171,6 +165,8 @@ songname
 sonos
 sprintf
 ssdp
+SSID
+SSIDs
 starboy
 startswith
 stasjon
@@ -199,6 +195,7 @@ valuetext
 vars
 venv
 vestland
+VITE
 waveshare
 wayland
 weeknd
@@ -211,6 +208,9 @@ wireplumber
 wlan
 wlr
 wlroots
+WPA
+WPA2
+WPA3
 wpctl
 wrongpass
 xcb
