@@ -17,7 +17,7 @@ function isChoice(value: number): value is ScreenSleepMinutes {
   return (SCREEN_SLEEP_CHOICES as readonly number[]).includes(value);
 }
 
-/** Minutes without a touch, with nothing playing, before the kiosk's screen sleeps; 0 for never. */
+/** Minutes the kiosk shows its Dashboard, untouched with nothing playing, before the screen sleeps; 0 for never. */
 export function getScreenSleep(): ScreenSleepMinutes {
   try {
     const stored = localStorage.getItem(SCREEN_SLEEP_KEY);

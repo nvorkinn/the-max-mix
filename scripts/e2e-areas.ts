@@ -97,7 +97,12 @@ export const AREAS: Area[] = [
   {
     tag: 'sleep',
     title: 'Screen sleep',
-    sources: [/^src\/components\/Sleep(Screen|Icon)/, /^src\/hooks\/useScreenSleep/, /^src\/utils\/screenSleep/]
+    sources: [
+      /^src\/components\/Sleep(Screen|Icon)/,
+      /^src\/hooks\/useScreenSleep/,
+      /^src\/hooks\/useIdle/,
+      /^src\/utils\/screenSleep/
+    ]
   },
   {
     tag: 'layout',
