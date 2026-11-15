@@ -47,7 +47,7 @@ export const AREAS: Area[] = [
     tag: 'settings',
     title: 'Settings',
     sources: [
-      /^src\/components\/SettingsModal/,
+      /^src\/components\/SettingsPanel/,
       /^src\/components\/settings\//,
       /^src\/components\/(KioskSystem|ConfirmButton|PhonePicker|PairPhoneSheet)/,
       /^src\/hooks\/useSavedPhones/,

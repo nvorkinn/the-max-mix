@@ -317,6 +317,26 @@
   background: var(--accent);
   color: var(--accent-ink);
 }
+/* Where there is room the tabs show an icon and a word; on the 7 inch screen only the icon, the word kept for screen readers. */
+@media (width <= 1100px) {
+  .app-tab {
+    justify-content: center;
+    min-width: var(--header-button);
+    padding: 0 14px;
+  }
+  .app-tab svg {
+    width: var(--header-icon);
+    height: var(--header-icon);
+  }
+  .app-tab span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
 /* What a tab shows fills the screen under the header; the hidden ones keep their state but take no room. */
 .app-tab-panel {
   flex: 1;
@@ -1599,6 +1619,16 @@ body:has(.app-dialog[open]) {
   padding: 0;
   overflow: hidden;
 }
+/* In the Settings tab the same two columns fill the screen under the header, with no dialog frame around them. */
+.settings-panel.settings-tab {
+  flex: 1;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+}
 .settings-nav {
   display: flex;
   flex-direction: column;
@@ -1608,15 +1638,6 @@ body:has(.app-dialog[open]) {
   overflow-y: auto;
   border-right: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface-raised) 50%, var(--surface));
-}
-.settings-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 0 8px;
-  font-size: 22px;
-  font-weight: 750;
 }
 .settings-nav-list {
   display: flex;
@@ -1920,7 +1941,6 @@ body:has(.app-dialog[open]) {
     min-height: 68px;
     font-size: 19px;
   }
-  .settings-title,
   .settings-section-title {
     font-size: 26px;
   }

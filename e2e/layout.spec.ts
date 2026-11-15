@@ -48,6 +48,8 @@ test.describe('Layout', { tag: '@layout' }, () => {
       await page.setViewportSize({ width: 1024, height: 600 });
       await page.goto('/?kiosk=1');
       await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
+      // The header's tabs, buttons and clock all fit across the screen.
+      await expect(page.locator('.header-clock')).toBeInViewport({ ratio: 1 });
       await expectTouchTargets(page.locator('body'));
       await expectNoHorizontalOverflow(page);
 
@@ -57,7 +59,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
       const settings = await openSettings(page);
       await expectTouchTargets(settings, 60);
       await expectNoHorizontalOverflow(page);
-      await page.keyboard.press('Escape');
+      await page.getByRole('tab', { name: 'Spotify' }).click();
       await expect(settings).toBeHidden();
 
       await page.getByRole('button', { name: /^Speakers:/ }).click();
@@ -127,7 +129,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
     [1024, 640],
     [1280, 800]
   ] as const) {
-    test(`Settings fit ${width}x${height}: navigation without scrolling, every page within the dialog`, async ({
+    test(`Settings fit ${width}x${height}: navigation without scrolling, every page within the screen`, async ({
       page
     }) => {
       await page.setViewportSize({ width, height });
@@ -164,13 +166,13 @@ test.describe('Layout', { tag: '@layout' }, () => {
         expect(doesBodyFit, section).toBe(true);
       }
 
-      // A page taller than the dialog scrolls on its own, and the navigation stays put beside it.
+      // A page taller than the screen scrolls on its own, and the navigation stays put beside it.
       await settings.locator('.settings-content-body').evaluate(element => {
         element.style.setProperty('padding-bottom', '2000px');
         element.scrollTo({ top: 1000 });
       });
       await expect(nav.getByRole('button', { name: 'Overview' })).toBeInViewport({ ratio: 1 });
-      await expect(settings.getByRole('button', { name: 'Close settings' })).toBeInViewport({ ratio: 1 });
+      await expect(page.getByRole('tab', { name: 'Settings' })).toBeInViewport({ ratio: 1 });
     });
   }
 

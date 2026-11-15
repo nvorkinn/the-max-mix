@@ -56,8 +56,8 @@ test.describe('Software update', { tag: '@update' }, () => {
     await expect(popup(page)).toBeHidden();
 
     // Settings still say it, and the check button beside it asks again.
-    await page.getByRole('button', { name: 'Open settings' }).click();
-    const settings = page.getByRole('dialog', { name: 'Settings' });
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    const settings = page.getByRole('tabpanel', { name: 'Settings' });
     await showSection(settings, 'Software');
     await expect(settings.getByRole('status')).toContainText('v1.13.0 is out. Tap the button to install it now');
     await expect(popup(page)).toBeHidden();
@@ -70,15 +70,15 @@ test.describe('Software update', { tag: '@update' }, () => {
   test('the update popup appears over Settings, where it can be read and tapped', async ({ page }) => {
     // The Pi runs v1.12.0 and GitHub first says that is the newest, so nothing is asked when the page starts.
     const github = await openKiosk(page, 'v1.12.0');
-    await page.getByRole('button', { name: 'Open settings' }).click();
-    const settings = page.getByRole('dialog', { name: 'Settings' });
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    const settings = page.getByRole('tabpanel', { name: 'Settings' });
     await showSection(settings, 'Software');
     await expect(settings.getByRole('status')).toContainText('Up to date as of');
 
     // A newer release comes out while the tablet runs; opening Settings again asks GitHub and finds it, with Settings open.
     github.newest = 'v1.13.0';
-    await settings.getByRole('button', { name: 'Close settings' }).click();
-    await page.getByRole('button', { name: 'Open settings' }).click();
+    await page.getByRole('tab', { name: 'Spotify' }).click();
+    await page.getByRole('tab', { name: 'Settings' }).click();
     await expect(popup(page)).toBeVisible();
     await expect(settings).toBeVisible();
     await expect(
@@ -184,7 +184,7 @@ test.describe('Software update', { tag: '@update' }, () => {
     await expect(updating).toBeHidden();
   });
 
-  test('Check for updates in Settings finds a newer release, and the popup closes Settings for the console', async ({
+  test('Check for updates in Settings finds a newer release, and the popup opens the console over Settings', async ({
     page
   }) => {
     const connected = Promise.withResolvers<undefined>();
@@ -194,8 +194,8 @@ test.describe('Software update', { tag: '@update' }, () => {
     });
     // Up to date when Settings open, so there is no popup.
     const github = await openKiosk(page, 'v1.12.0');
-    await page.getByRole('button', { name: 'Open settings' }).click();
-    const settings = page.getByRole('dialog', { name: 'Settings' });
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    const settings = page.getByRole('tabpanel', { name: 'Settings' });
     await showSection(settings, 'Software');
     await expect(settings.getByRole('status')).toContainText('Up to date as of');
     await expect(settings.getByRole('button', { name: 'Update now' })).toHaveCount(0);
@@ -207,6 +207,5 @@ test.describe('Software update', { tag: '@update' }, () => {
     await popup(page).getByRole('button', { name: 'Update now' }).click();
     await connected.promise;
     await expect(console_(page)).toBeVisible();
-    await expect(settings).toBeHidden();
   });
 });

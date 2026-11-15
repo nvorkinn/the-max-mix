@@ -14,7 +14,7 @@ account. The words in bold are what you'll see on the screen.
 1. Tap **Connect Spotify**.
 2. Sign in on Spotify's page with your email and password and agree. A keyboard appears when you tap a box; **Done**
    hides it. The Google, Apple and Facebook buttons don't get a keyboard, so use your email instead.
-3. You only do this once. To switch account, open Settings (the gear, top right), tap **Sign out**, then **Log in with
+3. You only do this once. To switch account, open the **Settings** tab at the top, tap **Sign out**, then **Log in with
    Spotify**.
 
 ## 3. Pick where it plays

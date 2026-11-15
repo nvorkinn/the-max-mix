@@ -33,7 +33,7 @@ vi.mock('../hooks/useKioskUpdate', () => ({ useKioskUpdate: () => ({ prompting: 
 vi.mock('../utils/colorExtractor', () => ({ extractArtColours: vi.fn().mockResolvedValue(null) }));
 vi.mock('./AlbumArtPlayer', () => ({ default: () => null }));
 vi.mock('./LyricsPanel', () => ({ default: () => null }));
-vi.mock('./SettingsModal', () => ({ default: () => null }));
+vi.mock('./SettingsPanel', () => ({ default: () => null }));
 vi.mock('./UpdateConsole', () => ({ default: () => null }));
 vi.mock('../speakers/useSpeakerSelection', () => ({
   useSpeakerSelection: (options: SelectionOptions) => {
