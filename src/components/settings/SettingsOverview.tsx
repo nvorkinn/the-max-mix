@@ -70,13 +70,12 @@ function PiSoftware({ update }: Readonly<{ update: KioskUpdate }>) {
   );
 }
 
-/** The Dashboard's settings in brief: the time format, how many stops, the weather's place and the notice board's postcode. */
+/** The Dashboard's settings in brief: how many stops, the weather's place and the notice board's postcode. */
 function DashboardSummary({ config }: Readonly<{ config: TouchscreenConfig }>) {
   const stops = config.arrivals.stops.length;
   const notices = noticeBoardLabel(config.notice_board);
   return (
     <>
-      <span>{config.clock_format === '12h' ? '12-hour' : '24-hour'}</span>
       <span>{stops === 1 ? '1 stop' : `${stops} stops`}</span>
       {config.weather.key && <span className="truncate">{config.weather.location}</span>}
       {notices && <span className="truncate">{notices}</span>}

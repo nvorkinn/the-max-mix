@@ -29,6 +29,7 @@ import { dynamicPalette, loadThemeColour, saveThemeColour } from '../utils/theme
 import { useTheme } from '../hooks/useTheme';
 import { saveTheme } from '../utils/theme';
 import type { Theme } from '../utils/theme';
+import { DEFAULT_CLOCK_FORMAT, formatClockTime } from '../utils/clockFormat';
 import type { ThemeColour } from '../utils/themeColour';
 import type { MusicChoice, Track } from '../types';
 import OfflineBanner from './OfflineBanner';
@@ -60,7 +61,8 @@ const SCREENS: readonly AppTab<Screen>[] = [
   { id: 'settings', label: 'Settings', icon: <Settings aria-hidden="true" /> }
 ];
 
-const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+/** The minute it is now; the header clock changes only when this does. */
+const currentMinute = () => Math.floor(Date.now() / 60_000);
 
 // While this page's player is active the queue is re-read when the SDK says it changed; this is only a safety net.
 const QUEUE_POLL_MS = 10_000;
@@ -141,7 +143,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [isRefreshingPlayback, setIsRefreshingPlayback] = useState(false);
   // True while a tapped queue song is being skipped to, so a second tap cannot start another jump.
   const [isJumping, setIsJumping] = useState(false);
-  const [currentTime, setCurrentTime] = useState(formatClock);
+  const [minute, setMinute] = useState(currentMinute);
   // The Settings tab starts on the overview; the sign-in prompts bring it up on the Spotify page.
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('overview');
   const [isMusicOpen, setIsMusicOpen] = useState(false);
@@ -208,6 +210,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const ownedConfig = deviceConfig.owned ? deviceConfig.config : null;
   const style = ownedConfig?.style;
   const display = ownedConfig?.display;
+  // The time format applies across the tablet: the header clock and the Dashboard's times.
+  const clockFormat = ownedConfig?.clock_format ?? DEFAULT_CLOCK_FORMAT;
   const [localScreenSleep, setLocalScreenSleep] = useState(getScreenSleep);
   const [localThemeColour, setLocalThemeColour] = useState(loadThemeColour);
   const screenSleepMinutes = display?.sleep_minutes ?? localScreenSleep;
@@ -282,7 +286,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => setCurrentTime(formatClock()), 1000);
+    const interval = setInterval(() => setMinute(currentMinute()), 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -527,7 +531,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           )}
           {isAuthenticated && <PersonSwitcher onSwitch={spotifyId => void switchTo(spotifyId)} />}
           <span className="header-clock" {...debugHold}>
-            <Clock size={14} /> {currentTime}
+            <Clock size={14} /> {formatClockTime(new Date(minute * 60_000), clockFormat)}
           </span>
         </div>
       </header>
@@ -639,7 +643,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         aria-label="Dashboard"
         hidden={screen !== 'dashboard'}
       >
-        <Dashboard shown={screen === 'dashboard' && !sleep.asleep} />
+        <Dashboard shown={screen === 'dashboard' && !sleep.asleep} clockFormat={clockFormat} />
       </section>
       <section
         className="app-tab-panel"

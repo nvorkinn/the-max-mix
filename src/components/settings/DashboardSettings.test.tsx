@@ -14,13 +14,6 @@ function setup(config: TouchscreenConfig = OWNED) {
 }
 
 describe('DashboardSettings', () => {
-  it('saves the time format as soon as it is tapped', async () => {
-    const onSave = setup();
-    expect(screen.getByRole('button', { name: '24-hour' })).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.click(screen.getByRole('button', { name: '12-hour' }));
-    expect(onSave).toHaveBeenCalledWith('clock_format', '12h');
-  });
-
   it('adds a stop found by search once Add is tapped, and not on Cancel', async () => {
     const onSave = setup();
     await userEvent.click(screen.getByRole('button', { name: 'Add stop' }));

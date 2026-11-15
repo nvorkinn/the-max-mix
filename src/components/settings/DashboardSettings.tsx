@@ -9,11 +9,6 @@ import ConfirmButton from '../ConfirmButton';
 import Modal from '../Modal';
 import SearchDialog from './SearchDialog';
 
-const CLOCK_FORMATS = [
-  { id: '24h', label: '24-hour' },
-  { id: '12h', label: '12-hour' }
-] as const;
-
 const COUNTRY_NAMES: Record<NonNullable<NoticeBoard['country']>, string> = { GB: 'United Kingdom', NO: 'Norway' };
 const COUNTRIES = ['GB', 'NO'] as const;
 
@@ -105,8 +100,8 @@ function NoticeBoardDialog({
 }
 
 /**
- * What the Dashboard shows: the clock's format, the stops whose departures it lists, the place for the weather and the
- * postcode for the notice board. Each part saves to countdown-server on its own as soon as it changes.
+ * What the Dashboard shows: the stops whose departures it lists, the place for the weather and the postcode for the
+ * notice board. Each part saves to countdown-server on its own as soon as it changes.
  */
 export default function DashboardSettings({
   config,
@@ -118,25 +113,6 @@ export default function DashboardSettings({
 
   return (
     <div className="settings-stack">
-      <section className="settings-group">
-        <h5 className="settings-group-title" id="clock-format-label">
-          Time format
-        </h5>
-        <div className="settings-segmented dashboard-segmented" role="group" aria-labelledby="clock-format-label">
-          {CLOCK_FORMATS.map(choice => (
-            <button
-              type="button"
-              key={choice.id}
-              aria-pressed={config.clock_format === choice.id}
-              onClick={() => onSave('clock_format', choice.id)}
-              className="settings-segment"
-            >
-              {choice.label}
-            </button>
-          ))}
-        </div>
-      </section>
-
       <section className="settings-group">
         <h5 className="settings-group-title" id="departures-label">
           Departures

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Check, Cpu, LayoutDashboard, LayoutGrid, Music, Palette, Wifi } from 'lucide-react';
+import { Check, Cpu, LayoutDashboard, LayoutGrid, Music, Palette, SlidersHorizontal, Wifi } from 'lucide-react';
 import type { TouchscreenConfig } from 'countdown-api';
 import { isKiosk } from '../utils/kiosk';
 import { reloadSettings } from '../spotify/settings';
@@ -12,6 +12,7 @@ import type { DeviceConfig, SaveStatus } from '../hooks/useDeviceConfig';
 import SleepIcon from './SleepIcon';
 import AppearanceSettings from './settings/AppearanceSettings';
 import DashboardSettings from './settings/DashboardSettings';
+import GeneralSettings from './settings/GeneralSettings';
 import ScreenSleepSettings from './settings/ScreenSleepSettings';
 import SettingsOverview from './settings/SettingsOverview';
 import SoftwareSettings from './settings/SoftwareSettings';
@@ -25,6 +26,7 @@ export type { SettingsSection } from './settings/sections';
 
 const SECTION_ICONS: Record<SettingsSection, ReactNode> = {
   overview: <LayoutGrid className="w-6 h-6 shrink-0" aria-hidden="true" />,
+  general: <SlidersHorizontal className="w-6 h-6 shrink-0" aria-hidden="true" />,
   dashboard: <LayoutDashboard className="w-6 h-6 shrink-0" aria-hidden="true" />,
   appearance: <Palette className="w-6 h-6 shrink-0" aria-hidden="true" />,
   sleep: <SleepIcon className="w-6 h-6 shrink-0" />,
@@ -56,7 +58,7 @@ interface SettingsPanelProps {
   saveStatus?: SaveStatus;
   /** Called each time the settings come up, to get countdown-server's config again. */
   onShow?: () => void;
-  /** countdown-server's config once someone owns the kiosk, which the Dashboard page shows and changes. */
+  /** countdown-server's config once someone owns the kiosk, which the General and Dashboard pages show and change. */
   deviceConfig?: TouchscreenConfig | undefined;
   onDeviceConfigSave?: DeviceConfig['save'] | undefined;
 }
@@ -105,7 +107,9 @@ export default function SettingsPanel({
   const hasDashboard = deviceConfig !== undefined && onDeviceConfigSave !== undefined;
   const sections = SETTINGS_SECTIONS.filter(
     choice =>
-      (kiosk || !choice.kioskOnly) && (choice.id !== 'sleep' || hasSleep) && (choice.id !== 'dashboard' || hasDashboard)
+      (kiosk || !choice.kioskOnly) &&
+      (choice.id !== 'sleep' || hasSleep) &&
+      ((choice.id !== 'dashboard' && choice.id !== 'general') || hasDashboard)
   );
   const current = sections.find(choice => choice.id === section) ?? SETTINGS_SECTIONS[0];
 
@@ -122,6 +126,15 @@ export default function SettingsPanel({
 
   let page: ReactNode;
   switch (current.id) {
+    case 'general': {
+      page = deviceConfig && onDeviceConfigSave && (
+        <GeneralSettings
+          clockFormat={deviceConfig.clock_format}
+          onClockFormatChange={format => onDeviceConfigSave('clock_format', format)}
+        />
+      );
+      break;
+    }
     case 'dashboard': {
       page = deviceConfig && onDeviceConfigSave && (
         <DashboardSettings config={deviceConfig} onSave={onDeviceConfigSave} />

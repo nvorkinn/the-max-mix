@@ -92,4 +92,17 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
       }
     ]);
   });
+
+  test('the time format on the General page changes the header clock and saves', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-11-15T16:05:00'));
+    const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
+    await page.goto('/?kiosk=1');
+    await expect(page.locator('.header-clock')).toHaveText('16:05');
+    const settings = await openSettings(page, 'General');
+
+    await settings.getByRole('button', { name: '12-hour' }).click();
+    await expect(page.locator('.header-clock')).toHaveText(/^4:05\sPM$/i);
+    await expect(settings.getByRole('status')).toHaveText('Saved');
+    expect(server.saves.map(save => save['clock_format'])).toEqual(['12h']);
+  });
 });

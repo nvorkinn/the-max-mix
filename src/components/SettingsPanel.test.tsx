@@ -425,10 +425,31 @@ describe('SettingsPanel', () => {
       />
     );
     const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Dashboard/ });
-    expect(card).toHaveTextContent('24-hour1 stopOslo0150, Norway');
+    expect(card).toHaveTextContent('1 stopOslo0150, Norway');
     await userEvent.click(card);
     expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Time format' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add stop' })).toBeInTheDocument();
+  });
+
+  it('saves the time format from the General page, which shows with an owned kiosk only', async () => {
+    history.replaceState(null, '', '/?kiosk=0');
+    const onDeviceConfigSave = vi.fn();
+    const { rerender } = render(<SettingsPanel {...base} authInfo={{}} />);
+    const nav = screen.getByRole('navigation', { name: 'Settings' });
+    expect(within(nav).queryByRole('button', { name: 'General' })).not.toBeInTheDocument();
+
+    rerender(
+      <SettingsPanel
+        {...base}
+        authInfo={{}}
+        deviceConfig={fixture.config as TouchscreenConfig}
+        onDeviceConfigSave={onDeviceConfigSave}
+      />
+    );
+    await userEvent.click(within(nav).getByRole('button', { name: 'General' }));
+    expect(screen.getByRole('button', { name: '24-hour' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(screen.getByRole('button', { name: '12-hour' }));
+    expect(onDeviceConfigSave).toHaveBeenCalledExactlyOnceWith('clock_format', '12h');
   });
 
   it('sums up a Dashboard with one stop and nothing else set', () => {
@@ -441,6 +462,6 @@ describe('SettingsPanel', () => {
     } as const;
     render(<SettingsPanel {...base} authInfo={{}} deviceConfig={config} onDeviceConfigSave={vi.fn()} />);
     const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Dashboard/ });
-    expect(card).toHaveTextContent(/^Dashboard12-hour1 stop$/);
+    expect(card).toHaveTextContent(/^Dashboard1 stop$/);
   });
 });
