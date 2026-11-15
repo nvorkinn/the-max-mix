@@ -4,6 +4,7 @@
 // the server sends the browser back to `return_to` with `device_id`, or `error=taken` when someone else owns it.
 
 import type { TouchscreenRegistration } from 'countdown-api';
+import { registerTouchscreenUrl } from '../../vendor/countdown-api/src/countdown_api/client';
 import { leaveFor } from '../spotify/settings';
 import { isKiosk } from '../utils/kiosk';
 import { countdownServer } from './server';
@@ -100,9 +101,7 @@ export async function registrationAddress(server: string, secret: string): Promi
     height: screen.height,
     return_to: back.href
   };
-  const address = new URL('/register', server);
-  for (const [name, value] of Object.entries(fields)) address.searchParams.set(name, String(value));
-  return address.href;
+  return registerTouchscreenUrl(server, fields).href;
 }
 
 /** Sends the whole page to the server's /register page. Keeps the secret it had, so a retry registers the same screen. */

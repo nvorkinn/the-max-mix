@@ -1,9 +1,9 @@
 // The kiosk's config from countdown-server: GET /api/devices/config, with the raw device secret as a bearer token. The
 // server is the one source of truth for it; the kiosk keeps a copy of the last one it got in localStorage, for starts
-// while the server can't be reached. The types are countdown-api's, generated from its contract.
+// while the server can't be reached. The call and its types are countdown-api's, generated from its contract.
 
-import createClient from 'openapi-fetch';
-import type { ConfigResponse, TouchscreenConfig, paths } from 'countdown-api';
+import type { ConfigResponse, TouchscreenConfig } from 'countdown-api';
+import { getConfig } from '../../vendor/countdown-api/src/countdown_api/client';
 import { deviceCredentials } from './registration';
 import { countdownServer } from './server';
 
@@ -48,10 +48,7 @@ async function fetchDeviceConfig(): Promise<TouchscreenConfig | null> {
   const credentials = deviceCredentials();
   if (!server || !credentials) return null;
   try {
-    const client = createClient<paths>({ baseUrl: server });
-    const { data } = await client.GET('/api/devices/config', {
-      headers: { Authorization: `Bearer ${credentials.secret}` }
-    });
+    const { data } = await getConfig({ baseUrl: server, secret: credentials.secret });
     return isTouchscreen(data) ? data : null;
   } catch {
     return null;

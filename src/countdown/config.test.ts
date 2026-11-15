@@ -10,7 +10,7 @@ function register() {
 }
 
 function answer(status: number, body?: unknown) {
-  const fetch = vi.fn<(request: Request) => Promise<Response>>(() =>
+  const fetch = vi.fn<(input: string | URL | Request, init?: RequestInit) => Promise<Response>>(() =>
     Promise.resolve(
       new Response(body === undefined ? null : JSON.stringify(body), {
         status,
@@ -44,10 +44,11 @@ describe('loadDeviceConfig', () => {
     register();
     const fetch = answer(200, fixture.config);
     await expect(loadDeviceConfig()).resolves.toEqual(fixture.config);
-    const request = fetch.mock.calls[0]?.[0];
-    expect(request?.url).toBe('https://countdown.build/api/devices/config');
-    expect(request?.method).toBe('GET');
-    expect(request?.headers.get('Authorization')).toBe(`Bearer ${SECRET}`);
+    const [input, init] = fetch.mock.calls[0] ?? [''];
+    const request = new Request(input, init);
+    expect(request.url).toBe('https://countdown.build/api/devices/config');
+    expect(request.method).toBe('GET');
+    expect(request.headers.get('Authorization')).toBe(`Bearer ${SECRET}`);
     expect(cachedDeviceConfig()).toEqual(fixture.config);
   });
 
