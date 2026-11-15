@@ -74,6 +74,15 @@ const NUMBER_ROW_LAYOUTS: Layouts = {
 export interface KeyboardOptions {
   /** Keep a row of digits above the letters and the symbols. */
   hasNumberRow?: boolean;
+  /** Show and type capital letters only, with no Shift key (for postcodes and place names). */
+  isUppercase?: boolean;
+}
+
+/** The layouts without their Shift keys, for a keyboard that only types capitals. */
+function withoutShift(layouts: Layouts): Layouts {
+  return Object.fromEntries(
+    Object.entries(layouts).map(([page, rows]) => [page, rows.map(keys => keys.filter(key => key.kind !== 'shift'))])
+  ) as Layouts;
 }
 
 const TEXT_TYPES = new Set(['text', 'email', 'password', 'search', 'tel', 'url', 'number']);
@@ -175,9 +184,12 @@ const style = (rows: number): string => `
 export function start(
   doc: Document,
   mount: Element = doc.documentElement,
-  { hasNumberRow = false }: KeyboardOptions = {}
+  { hasNumberRow = false, isUppercase = false }: KeyboardOptions = {}
 ): () => void {
-  const layouts = hasNumberRow ? NUMBER_ROW_LAYOUTS : LAYOUTS;
+  const chosen = hasNumberRow ? NUMBER_ROW_LAYOUTS : LAYOUTS;
+  const layouts = isUppercase ? withoutShift(chosen) : chosen;
+  // Capitals for good with isUppercase, or for one letter after Shift.
+  const isCapital = (): boolean => (isUppercase || isShifted) && page === 'letters';
   const height = keyboardHeight(layouts.letters.length);
   const host = doc.createElement('div');
   host.style.display = 'none';
@@ -204,7 +216,7 @@ export function start(
         button.type = 'button';
         button.tabIndex = -1;
         button.dataset['key'] = `${row}:${column}`;
-        button.textContent = keyLabel(key, isShifted && page === 'letters');
+        button.textContent = keyLabel(key, isCapital());
         if (key.kind === 'space') button.className = 'space';
         else if (key.kind !== 'char') button.className = 'action';
         if (key.kind === 'shift') {
@@ -247,7 +259,7 @@ export function start(
   const press = (key: Key, target: Field): void => {
     switch (key.kind) {
       case 'char': {
-        insertText(target, isShifted && page === 'letters' ? key.text.toUpperCase() : key.text);
+        insertText(target, isCapital() ? key.text.toUpperCase() : key.text);
         if (isShifted) {
           isShifted = false;
           render();

@@ -1,5 +1,4 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Check } from 'lucide-react';
 import type { SearchResult } from '../../countdown/search';
 import { useOnScreenKeyboard } from '../../hooks/useOnScreenKeyboard';
 import Modal from '../Modal';
@@ -10,26 +9,25 @@ const SEARCH_DELAY_MS = 300;
 const NONE: readonly string[] = [];
 
 /**
- * A small dialog to find one stop or place: a search box the on-screen keyboard types in, what the search finds, and
- * Cancel and the confirming button, which acts once a result is picked.
+ * A small dialog to find one stop or place: a search box the on-screen keyboard types in, and what the search finds,
+ * one tap on which picks it and closes the dialog. A box that starts with text (the place chosen now) waits for a tap
+ * and a change before it searches.
  */
 export default function SearchDialog<R extends SearchResult>({
   title,
-  confirmLabel,
   search,
   initialQuery = '',
   exclude = NONE,
-  onConfirm,
+  onPick,
   onClose
 }: Readonly<{
   title: string;
-  confirmLabel: string;
   search: (query: string) => Promise<R[]>;
-  /** What the box starts with, such as the place chosen now, searched for straight away. */
+  /** What the box starts with, such as the place chosen now; it isn't searched for until it is changed. */
   initialQuery?: string;
   /** The keys of results already chosen, left out of the list. */
   exclude?: readonly string[];
-  onConfirm: (result: R) => void;
+  onPick: (result: R) => void;
   onClose: () => void;
 }>) {
   const titleId = useId();
@@ -37,9 +35,10 @@ export default function SearchDialog<R extends SearchResult>({
   const [query, setQuery] = useState(initialQuery);
   // What the last search came to: its results, or null when it couldn't be made.
   const [found, setFound] = useState<{ query: string; results: R[] | null }>();
-  const [picked, setPicked] = useState<R | null>(null);
-  const wanted = query.trim();
-  useOnScreenKeyboard(fieldRef);
+  // Nothing is searched for until the text is changed, so the place chosen now doesn't bring up suggestions.
+  const [edited, setEdited] = useState(false);
+  const wanted = edited ? query.trim() : '';
+  useOnScreenKeyboard(fieldRef, { focus: initialQuery === '', hasNumberRow: true, isUppercase: true });
 
   useEffect(() => {
     if (!wanted) return;
@@ -73,7 +72,7 @@ export default function SearchDialog<R extends SearchResult>({
         value={query}
         onChange={event => {
           setQuery(event.target.value);
-          setPicked(null);
+          setEdited(true);
         }}
         aria-label={title}
         autoComplete="off"
@@ -98,15 +97,13 @@ export default function SearchDialog<R extends SearchResult>({
               <li key={result.key} className={result.indent ? 'search-result-indent' : undefined}>
                 <button
                   type="button"
-                  aria-pressed={picked?.key === result.key}
-                  onClick={() => setPicked(result)}
+                  onClick={() => onPick(result)}
                   className="modal-option w-full px-4 py-2 flex gap-3 items-center text-left rounded-xl border"
                 >
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm font-semibold truncate">{result.name}</span>
                     <span className="block text-xs text-muted truncate">{result.detail}</span>
                   </span>
-                  {picked?.key === result.key && <Check className="w-6 h-6 shrink-0 text-accent" aria-hidden="true" />}
                 </button>
               </li>
             ))}
@@ -116,16 +113,6 @@ export default function SearchDialog<R extends SearchResult>({
       <div className="search-dialog-actions">
         <button type="button" onClick={onClose} className="button button-secondary">
           Cancel
-        </button>
-        <button
-          type="button"
-          disabled={!picked}
-          onClick={() => {
-            if (picked) onConfirm(picked);
-          }}
-          className="button search-dialog-confirm"
-        >
-          {confirmLabel}
         </button>
       </div>
     </Modal>

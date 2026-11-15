@@ -79,7 +79,6 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     const dialog = page.getByRole('dialog', { name: 'Add stop' });
     await dialog.getByRole('searchbox', { name: 'Add stop' }).fill('oslo s');
     await dialog.getByRole('button', { name: /Platform 4/ }).click();
-    await dialog.getByRole('button', { name: 'Add' }).click();
 
     await expect(settings.getByText('Oslo S')).toBeVisible();
     await expect(settings.getByText('Saved', { exact: true })).toBeVisible();

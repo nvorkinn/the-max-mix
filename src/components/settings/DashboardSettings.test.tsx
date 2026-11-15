@@ -53,15 +53,14 @@ function setup(config: TouchscreenConfig = OWNED) {
 }
 
 describe('DashboardSettings', () => {
-  it('adds a stop found by search once Add is tapped, and not on Cancel', async () => {
+  it('adds a stop as soon as a search result is tapped, and nothing on Cancel', async () => {
     const onSave = setup();
     await userEvent.click(screen.getByRole('button', { name: 'Add stop' }));
     const dialog = screen.getByRole('dialog', { name: 'Add stop' });
-    expect(within(dialog).getByRole('button', { name: 'Add' })).toBeDisabled();
-    await userEvent.type(within(dialog).getByRole('searchbox', { name: 'Add stop' }), 'oslo s');
-    const result = await within(dialog).findByRole('button', { name: /Platform 4/ });
-    await userEvent.click(result);
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Add' }));
+    const box = within(dialog).getByRole('searchbox', { name: 'Add stop' });
+    expect(box).toHaveFocus();
+    await userEvent.type(box, 'oslo s');
+    await userEvent.click(await within(dialog).findByRole('button', { name: /Platform 4/ }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     await userEvent.click(screen.getByRole('button', { name: 'Add stop' }));
@@ -81,17 +80,21 @@ describe('DashboardSettings', () => {
     expect(onSave).toHaveBeenCalledWith('arrivals', { stops: [] });
   });
 
-  it("starts the weather's search at the place chosen now, and saves the one picked", async () => {
+  it("shows the weather's place chosen now without searching for it, and saves the one tapped", async () => {
+    vi.mocked(searches.searchPlaces).mockClear();
     const onSave = setup({ ...OWNED, weather: { location: 'London', key: 'london' } });
     const weather = screen.getByText('London').closest('.dashboard-row');
     await userEvent.click(within(weather as HTMLElement).getByRole('button', { name: 'Change' }));
     const dialog = screen.getByRole('dialog', { name: 'Weather place' });
     const box = within(dialog).getByRole('searchbox');
     expect(box).toHaveValue('London');
+    expect(box).not.toHaveFocus();
+    expect(within(dialog).queryByRole('status')).not.toBeInTheDocument();
+    expect(searches.searchPlaces).not.toHaveBeenCalled();
     await userEvent.type(box, 'oslo');
     await userEvent.click(await within(dialog).findByRole('button', { name: /Oslo/ }));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledWith('weather', { location: 'Oslo', key: 'oslo-no-3143244' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it("says so when a search can't be made", async () => {

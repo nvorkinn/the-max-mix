@@ -62,7 +62,7 @@ function NoticeBoardDialog({
   const hintId = useId();
   const fieldRef = useRef<HTMLInputElement>(null);
   const [postcode, setPostcode] = useState(board.postcode ?? '');
-  useOnScreenKeyboard(fieldRef);
+  useOnScreenKeyboard(fieldRef, { hasNumberRow: true, isUppercase: true });
   const off = postcode.trim() === '';
   const wanted = off ? null : noticeBoardFor(postcode);
 
@@ -194,11 +194,10 @@ export default function DashboardSettings({
       {dialog === 'stop' && (
         <SearchDialog
           title="Add stop"
-          confirmLabel="Add"
           search={searchStops}
           exclude={stops.map(stop => `${stop.source}:${stop.id}`)}
           onClose={() => setDialog(null)}
-          onConfirm={result => {
+          onPick={result => {
             rememberStop(result);
             onSave('arrivals', { ...config.arrivals, stops: [...stops, result.value] });
             setDialog(null);
@@ -208,11 +207,10 @@ export default function DashboardSettings({
       {dialog === 'place' && (
         <SearchDialog
           title="Weather place"
-          confirmLabel="Save"
           search={searchPlaces}
           initialQuery={config.weather.key ? config.weather.location : ''}
           onClose={() => setDialog(null)}
-          onConfirm={result => {
+          onPick={result => {
             onSave('weather', result.value);
             setDialog(null);
           }}
