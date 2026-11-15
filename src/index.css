@@ -1950,6 +1950,10 @@ body:has(.app-dialog[open]) {
 .search-dialog-results {
   margin-top: 12px;
 }
+/* A platform of the station listed before it. */
+.search-result-indent {
+  margin-left: 24px;
+}
 .search-dialog-actions {
   display: flex;
   gap: 12px;

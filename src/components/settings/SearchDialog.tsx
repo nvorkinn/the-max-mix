@@ -17,6 +17,7 @@ export default function SearchDialog<R extends SearchResult>({
   title,
   confirmLabel,
   search,
+  initialQuery = '',
   exclude = NONE,
   onConfirm,
   onClose
@@ -24,15 +25,18 @@ export default function SearchDialog<R extends SearchResult>({
   title: string;
   confirmLabel: string;
   search: (query: string) => Promise<R[]>;
-  /** Results already chosen, left out of the list. */
-  exclude?: readonly SearchResult['id'][];
+  /** What the box starts with, such as the place chosen now, searched for straight away. */
+  initialQuery?: string;
+  /** The keys of results already chosen, left out of the list. */
+  exclude?: readonly string[];
   onConfirm: (result: R) => void;
   onClose: () => void;
 }>) {
   const titleId = useId();
   const fieldRef = useRef<HTMLInputElement>(null);
-  const [query, setQuery] = useState('');
-  const [found, setFound] = useState<{ query: string; results: R[] }>();
+  const [query, setQuery] = useState(initialQuery);
+  // What the last search came to: its results, or null when it couldn't be made.
+  const [found, setFound] = useState<{ query: string; results: R[] | null }>();
   const [picked, setPicked] = useState<R | null>(null);
   const wanted = query.trim();
   useOnScreenKeyboard(fieldRef);
@@ -41,14 +45,17 @@ export default function SearchDialog<R extends SearchResult>({
     if (!wanted) return;
     // A late answer for an older query is never shown: only the one for what the box says now is.
     const timer = setTimeout(() => {
-      void search(wanted).then(results => setFound({ query: wanted, results }));
+      search(wanted)
+        .then(results => setFound({ query: wanted, results }))
+        .catch(() => setFound({ query: wanted, results: null }));
     }, SEARCH_DELAY_MS);
     return () => {
       clearTimeout(timer);
     };
   }, [wanted, search]);
 
-  const shown = found?.query === wanted ? found.results.filter(result => !exclude.includes(result.id)) : undefined;
+  const answered = found?.query === wanted ? found : undefined;
+  const shown = answered?.results?.filter(result => !exclude.includes(result.key));
   return (
     <Modal
       labelledBy={titleId}
@@ -74,19 +81,24 @@ export default function SearchDialog<R extends SearchResult>({
         className="music-search w-full min-h-12 px-4 rounded-xl border text-sm"
       />
       <div className="search-dialog-results">
-        {wanted && !shown && (
+        {wanted && !answered && (
           <p role="status" className="text-muted py-2">
             Searching...
+          </p>
+        )}
+        {answered?.results === null && (
+          <p role="alert" className="text-muted py-2">
+            Couldn't search. Try again in a moment.
           </p>
         )}
         {shown?.length === 0 && <p className="text-muted py-2">Nothing found.</p>}
         {shown && shown.length > 0 && (
           <ul className="space-y-2" aria-label="Results">
             {shown.map(result => (
-              <li key={`${result.source}:${result.id}`}>
+              <li key={result.key} className={result.indent ? 'search-result-indent' : undefined}>
                 <button
                   type="button"
-                  aria-pressed={picked?.id === result.id}
+                  aria-pressed={picked?.key === result.key}
                   onClick={() => setPicked(result)}
                   className="modal-option w-full px-4 py-2 flex gap-3 items-center text-left rounded-xl border"
                 >
@@ -94,7 +106,7 @@ export default function SearchDialog<R extends SearchResult>({
                     <span className="block text-sm font-semibold truncate">{result.name}</span>
                     <span className="block text-xs text-muted truncate">{result.detail}</span>
                   </span>
-                  {picked?.id === result.id && <Check className="w-6 h-6 shrink-0 text-accent" aria-hidden="true" />}
+                  {picked?.key === result.key && <Check className="w-6 h-6 shrink-0 text-accent" aria-hidden="true" />}
                 </button>
               </li>
             ))}

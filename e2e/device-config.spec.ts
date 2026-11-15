@@ -77,17 +77,17 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
 
     await settings.getByRole('button', { name: 'Add stop' }).click();
     const dialog = page.getByRole('dialog', { name: 'Add stop' });
-    await dialog.getByRole('searchbox', { name: 'Add stop' }).fill('majorstuen');
-    await dialog.getByRole('button', { name: /Majorstuen/ }).click();
+    await dialog.getByRole('searchbox', { name: 'Add stop' }).fill('oslo s');
+    await dialog.getByRole('button', { name: /Platform 4/ }).click();
     await dialog.getByRole('button', { name: 'Add' }).click();
 
-    await expect(settings.getByText('Majorstuen')).toBeVisible();
+    await expect(settings.getByText('Oslo S')).toBeVisible();
     await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
     expect(server.saves.map(save => save['arrivals'])).toEqual([
       {
         stops: [
           { source: 'entur', id: 'NSR:StopPlace:58381' },
-          { source: 'entur', id: 'NSR:StopPlace:59872' }
+          { source: 'entur', id: 'NSR:Quay:7333' }
         ]
       }
     ]);
