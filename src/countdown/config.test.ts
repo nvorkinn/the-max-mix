@@ -24,6 +24,7 @@ function answer(status: number, body?: unknown) {
 }
 
 beforeEach(() => {
+  forgetDeviceConfig();
   localStorage.clear();
   vi.stubEnv('VITE_COUNTDOWN_API', 'https://countdown.build');
 });
@@ -101,45 +102,104 @@ describe('loadDeviceConfig', () => {
 
 describe('saveConfigSection', () => {
   const OWNED = fixture.config as TouchscreenConfig;
+  const SECTION = fixture.section_save;
 
-  it('puts the whole config with the section changed, with the device secret, and keeps the answer', async () => {
+  /** Answers the config with `etag` as its version, then loads it, as the kiosk does at start. */
+  async function loaded(etag: string) {
     register();
-    const fetch = answer(200, fixture.save);
-    const result = await saveConfigSection(OWNED, 'display', { sleep_minutes: 30 });
-    expect(result).toEqual({ saved: fixture.save });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json(fixture.config, {
+            status: 200,
+            headers: { 'Content-Type': 'application/json', ETag: etag }
+          })
+        )
+      )
+    );
+    await loadDeviceConfig();
+  }
+
+  function saved(status = 200) {
+    return vi.fn<(input: string | URL | Request, init?: RequestInit) => Promise<Response>>(() =>
+      Promise.resolve(
+        status === 200
+          ? Response.json(SECTION.config, {
+              status,
+              headers: { 'Content-Type': 'application/json', ETag: SECTION.etag }
+            })
+          : new Response(null, { status })
+      )
+    );
+  }
+
+  it('puts the section whole with the version it was changed from, and keeps the answer and its version', async () => {
+    await loaded(SECTION.if_match);
+    const fetch = saved();
+    vi.stubGlobal('fetch', fetch);
+    const result = await saveConfigSection('style', SECTION.body as TouchscreenConfig['style']);
+    expect(result).toEqual({ saved: SECTION.config });
     const [input, init] = fetch.mock.calls[0] ?? [''];
     const request = new Request(input, init);
     expect(request.method).toBe('PUT');
-    expect(request.url).toBe('https://countdown.build/api/devices/config');
+    expect(request.url).toBe(`https://countdown.build/api/devices/config/${SECTION.section}`);
     expect(request.headers.get('Authorization')).toBe(`Bearer ${SECRET}`);
-    await expect(request.json()).resolves.toEqual({ ...OWNED, display: { sleep_minutes: 30 } });
-    expect(cachedDeviceConfig()).toEqual(fixture.save);
+    expect(request.headers.get('If-Match')).toBe(SECTION.if_match);
+    await expect(request.json()).resolves.toEqual(SECTION.body);
+    expect(cachedDeviceConfig()).toEqual(SECTION.config);
+
+    // The next save goes from the version this one answered.
+    await saveConfigSection('clock_format', '12h');
+    const [nextInput, nextInit] = fetch.mock.calls[1] ?? [''];
+    expect(new Request(nextInput, nextInit).headers.get('If-Match')).toBe(SECTION.etag);
   });
 
-  it('calls a 409 a conflict, and anything else that goes wrong a failure', async () => {
+  it('sends saves one at a time, each from the version the one before answered', async () => {
+    await loaded(SECTION.if_match);
+    const fetch = saved();
+    vi.stubGlobal('fetch', fetch);
+    await Promise.all([saveConfigSection('clock_format', '12h'), saveConfigSection('display', { sleep_minutes: 30 })]);
+    const versions = fetch.mock.calls.map(([input, init]) => new Request(input, init).headers.get('If-Match'));
+    expect(versions).toEqual([SECTION.if_match, SECTION.etag]);
+  });
+
+  it('calls a stale or missing version a conflict, and anything else that goes wrong a failure', async () => {
     register();
-    answer(409);
-    await expect(saveConfigSection(OWNED, 'clock_format', '12h')).resolves.toEqual({ error: 'conflict' });
-    answer(400);
-    await expect(saveConfigSection(OWNED, 'clock_format', '12h')).resolves.toEqual({ error: 'failed' });
+    const fetch = saved();
+    vi.stubGlobal('fetch', fetch);
+    await expect(saveConfigSection('clock_format', '12h')).resolves.toEqual({ error: 'conflict' });
+    expect(fetch).not.toHaveBeenCalled();
+
+    await loaded(SECTION.if_match);
+    vi.stubGlobal('fetch', saved(409));
+    await expect(saveConfigSection('clock_format', '12h')).resolves.toEqual({ error: 'conflict' });
+    vi.stubGlobal('fetch', saved(428));
+    await expect(saveConfigSection('clock_format', '12h')).resolves.toEqual({ error: 'conflict' });
+    vi.stubGlobal('fetch', saved(400));
+    await expect(saveConfigSection('clock_format', '12h')).resolves.toEqual({ error: 'failed' });
     vi.stubGlobal(
       'fetch',
       vi.fn(() => Promise.reject(new TypeError('Failed to fetch')))
     );
-    await expect(saveConfigSection(OWNED, 'clock_format', '12h')).resolves.toEqual({ error: 'failed' });
+    await expect(saveConfigSection('clock_format', '12h')).resolves.toEqual({ error: 'failed' });
   });
 
   it('saves nothing before the kiosk is registered', async () => {
-    const fetch = answer(200, fixture.save);
-    await expect(saveConfigSection(OWNED, 'clock_format', '12h')).resolves.toEqual({ error: 'failed' });
+    const fetch = saved();
+    vi.stubGlobal('fetch', fetch);
+    await expect(saveConfigSection('clock_format', '12h')).resolves.toEqual({ error: 'failed' });
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it('answers as the server would in a build that mocks it', async () => {
     vi.stubEnv('VITE_COUNTDOWN_CONFIG', 'mock');
     const fetch = answer(500);
-    await expect(saveConfigSection(OWNED, 'clock_format', '12h')).resolves.toEqual({
+    await expect(saveConfigSection('clock_format', '12h')).resolves.toEqual({
       saved: { ...OWNED, clock_format: '12h' }
+    });
+    await expect(saveConfigSection('display', { sleep_minutes: 30 })).resolves.toEqual({
+      saved: { ...OWNED, clock_format: '12h', display: { sleep_minutes: 30 } }
     });
     expect(fetch).not.toHaveBeenCalled();
   });

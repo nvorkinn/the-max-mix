@@ -489,7 +489,7 @@ describe('TabletView', () => {
       vi.spyOn(deviceConfig, 'loadDeviceConfig').mockResolvedValue(OWNED);
       const save = vi
         .spyOn(deviceConfig, 'saveConfigSection')
-        .mockImplementation((base, section, value) => Promise.resolve({ saved: { ...base, [section]: value } }));
+        .mockImplementation((section, value) => Promise.resolve({ saved: { ...OWNED, [section]: value } }));
       const { container } = render(<TabletView />);
       await flush();
       const room = defined(container.querySelector('.tablet-container'));
@@ -504,7 +504,7 @@ describe('TabletView', () => {
       expect(room).toHaveAttribute('data-theme', 'night');
       await act(() => vi.advanceTimersByTimeAsync(500));
       expect(save).toHaveBeenCalledTimes(1);
-      expect(save.mock.calls[0]?.slice(1)).toEqual(['style', { skin: 'night', colour: 'navy' }]);
+      expect(save.mock.calls[0]).toEqual(['style', { skin: 'night', colour: 'navy' }]);
       expect(screen.getByText('Saved')).toBeInTheDocument();
       expect(localStorage.getItem('maxmix.theme')).toBe('night');
       vi.restoreAllMocks();
