@@ -10,7 +10,7 @@ export interface Arrival {
   due: string;
 }
 
-export interface ArrivalStop {
+interface ArrivalStop {
   name: string;
   /** Soonest first. */
   arrivals: Arrival[];
@@ -24,7 +24,7 @@ export interface Arrivals {
 
 export type Conditions = 'clear' | 'partly-cloudy' | 'cloudy' | 'rain' | 'snow';
 
-export interface HourForecast {
+interface HourForecast {
   /** The start of the hour, as an ISO time. */
   time: string;
   temperature: number;
