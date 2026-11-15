@@ -42,61 +42,10 @@ jobs:
           path: coverage
           if-no-files-found: ignore
 
-  # Browser tests of the built app with Spotify faked, served by `vite preview`. Runs in parallel with `tests` and uses the Google Chrome that
-  # ships on ubuntu-latest, so no browser download is needed.
+  # Browser tests of the built app, split over two machines and run in parallel with `tests` (see e2e.yml, which can
+  # also be dispatched on its own for a report with a trace of every test).
   e2e:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      # The runner's disk is read in lazily, so Chrome's first start takes about ten seconds. Starting it once in the
-      # background lets that happen while the dependencies install, instead of before the first test.
-      - name: Warm up Chrome
-        run: (google-chrome --headless --disable-gpu --dump-dom about:blank > /dev/null 2>&1 &)
-      # Two commits: a pull request is checked out as its merge into main, whose first parent is main, so the difference
-      # between the two is what the pull request changes (see "Choose the tests to trace").
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          # The countdown-api submodule: the browser tests answer the config route with its example configs.
-          submodules: true
-          fetch-depth: 2
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .nvmrc
-      # Unpacking node_modules from the cache is quicker than `npm ci` writing its 800 packages one by one.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: modules
-        with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json') }}
-      - if: steps.modules.outputs.cache-hit != 'true'
-        run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: npm run build
-      # Filming a failed test's second run needs Playwright's ffmpeg, a small download; the browser is the preinstalled Chrome.
-      - run: npx playwright install ffmpeg
-      # Recording a trace of every test takes about a fifth of the run, so only the tests a pull request is about are
-      # traced (scripts/e2e-areas.ts); any other test is traced on its second run, if its first fails. A push to main
-      # has no report to read, so nothing is traced there until it fails.
-      - name: Choose the tests to trace
-        env:
-          EVENT: ${{ github.event_name }}
-        run: |
-          set -o pipefail
-          if [[ $EVENT == pull_request ]]; then
-            git diff --name-only HEAD^1 HEAD | node scripts/e2e-traced.ts | tee -a "$GITHUB_ENV"
-          else
-            echo 'E2E_TRACE_TAGS=' >> "$GITHUB_ENV"
-          fi
-      - run: npm run test:e2e
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ !cancelled() }}
-        with:
-          name: playwright-report
-          path: |
-            e2e/playwright-report
-            e2e/test-results
-            e2e/screenshots
-          if-no-files-found: ignore
+    uses: ./.github/workflows/e2e.yml
 
   # Puts the e2e screenshots and the Playwright report on the gh-pages branch (served by GitHub Pages) and keeps one
   # comment on the pull request up to date with the screens that changed, so a UI change can be judged from the PR
