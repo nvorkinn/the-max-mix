@@ -1,15 +1,22 @@
 // The kiosk's config from countdown-server: GET /api/devices/config, with the raw device secret as a bearer token, and
-// saves of one section of it from the Settings tab. The server is the one source of truth for it; the kiosk keeps a copy
+// saves of one section of it from the Settings tab (PUT /api/devices/config/{section}, with the config's version as
+// If-Match). The server is the one source of truth for it; the kiosk keeps a copy
 // of the last one it got in localStorage, for starts while the server can't be reached. The calls and their types are
 // countdown-api's, generated from its contract.
 
 import type { ConfigResponse, TouchscreenConfig } from 'countdown-api';
-import { getConfig, putConfig } from '../../vendor/countdown-api/src/countdown_api/client';
+import { getConfig, putConfigSection } from '../../vendor/countdown-api/src/countdown_api/client';
 import type { Client } from '../../vendor/countdown-api/src/countdown_api/client';
 import { deviceCredentials } from './registration';
 import { countdownApi } from './server';
 
 const CONFIG_KEY = 'maxmix.deviceConfig';
+
+// The version (ETag) of the config the server last gave, which a save sends back as If-Match; null until the server has
+// given one (a config kept from before is no use: a save needs the version it was changed from).
+let version: string | null = null;
+// Each save waits for the one before it, so it sends the version that one answered.
+let saving: Promise<unknown> = Promise.resolve();
 
 function isTouchscreen(config: ConfigResponse | null | undefined): config is TouchscreenConfig {
   return config?.type === 'touchscreen';
@@ -27,8 +34,12 @@ export function cachedDeviceConfig(): TouchscreenConfig | null {
   }
 }
 
-/** Forgets the last config, which belongs to the device ID being forgotten (the debug console's Register again). */
+/**
+ * Forgets the last config and its version, which belong to the device ID being forgotten (the debug console's Register
+ * again).
+ */
 export function forgetDeviceConfig(): void {
+  version = null;
   try {
     localStorage.removeItem(CONFIG_KEY);
   } catch {
@@ -56,8 +67,10 @@ async function fetchDeviceConfig(): Promise<TouchscreenConfig | null> {
   const server = serverClient();
   if (!server) return null;
   try {
-    const { data } = await getConfig(server);
-    return isTouchscreen(data) ? data : null;
+    const { data, response } = await getConfig(server);
+    if (!isTouchscreen(data)) return null;
+    version = response.headers.get('ETag');
+    return data;
   } catch {
     return null;
   }
@@ -86,37 +99,47 @@ export async function loadDeviceConfig(): Promise<TouchscreenConfig | null> {
 export type ConfigSection = 'clock_format' | 'style' | 'display' | 'arrivals' | 'weather' | 'notice_board';
 
 /**
- * What a save comes to: the config as the server saved it; `conflict` when the server says the copy the change was made
- * to is out of date (or, until per-section saves land, that no one owns the kiosk yet), so the config is to be loaded
- * again; `failed` when the server refused the change or couldn't be reached, so it is to be undone.
+ * What a save comes to: the config as the server saved it; `conflict` when the server says the config changed since
+ * the kiosk got it, or the kiosk has no version of it to send, so the config is to be loaded again; `failed` when the
+ * server refused the change or couldn't be reached, so it is to be undone.
  */
 export type SaveResult = { saved: TouchscreenConfig } | { error: 'conflict' | 'failed' };
 
-/**
- * Saves one section of the config: `base` (the config as the kiosk last got it) with `section` replaced. The contract
- * has only the whole-config PUT /api/devices/config so far, so the section goes in the whole config; the rework plan's
- * per-section PUT /api/devices/config/{section} with If-Match takes its place here once countdown-api has it, and nothing
- * else changes. A mock build saves nothing and answers as the server would.
- */
-export async function saveConfigSection<K extends ConfigSection>(
-  base: TouchscreenConfig,
-  section: K,
-  value: TouchscreenConfig[K]
-): Promise<SaveResult> {
-  const changed: TouchscreenConfig = { ...base, [section]: value };
+async function putSection<K extends ConfigSection>(section: K, value: TouchscreenConfig[K]): Promise<SaveResult> {
   if (import.meta.env.VITE_COUNTDOWN_CONFIG === 'mock') {
+    const kept = cachedDeviceConfig() ?? (await mockDeviceConfig());
+    if (!kept) return { error: 'failed' };
+    const changed: TouchscreenConfig = { ...kept, [section]: value };
     cache(changed);
     return { saved: changed };
   }
   const server = serverClient();
   if (!server) return { error: 'failed' };
+  if (version === null) return { error: 'conflict' };
   try {
-    const { data, response } = await putConfig(server, changed);
-    if (response.status === 409) return { error: 'conflict' };
+    const { data, response } = await putConfigSection(server, { section }, {}, value, {
+      headers: { 'If-Match': version }
+    });
+    if (response.status === 409 || response.status === 428) return { error: 'conflict' };
     if (!isTouchscreen(data)) return { error: 'failed' };
+    version = response.headers.get('ETag');
     cache(data);
     return { saved: data };
   } catch {
     return { error: 'failed' };
   }
+}
+
+/**
+ * Saves one section of the config whole, as changed from the version the kiosk last got, and answers the config as
+ * saved. Saves go one at a time, each from the version the one before answered. A mock build saves nothing and answers
+ * as the server would.
+ */
+export function saveConfigSection<K extends ConfigSection>(
+  section: K,
+  value: TouchscreenConfig[K]
+): Promise<SaveResult> {
+  const result = saving.then(() => putSection(section, value));
+  saving = result;
+  return result;
 }

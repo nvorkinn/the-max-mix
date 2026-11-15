@@ -92,9 +92,8 @@ export function useDeviceConfig(): DeviceConfig {
         section,
         setTimeout(() => {
           timers.delete(section);
-          const base = savedRef.current ?? shown;
           setStatus('saving');
-          void saveConfigSection(base, section, value).then(result => {
+          void saveConfigSection(section, value).then(result => {
             if (!mountedRef.current) return;
             if ('saved' in result) {
               savedRef.current = result.saved;

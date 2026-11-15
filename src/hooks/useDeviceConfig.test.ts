@@ -47,7 +47,7 @@ describe('useDeviceConfig', () => {
   it('shows a change at once and saves only the last of a quick run', async () => {
     const save = vi
       .spyOn(config, 'saveConfigSection')
-      .mockImplementation((base, section, value) => Promise.resolve({ saved: { ...base, [section]: value } }));
+      .mockImplementation((section, value) => Promise.resolve({ saved: { ...OWNED, [section]: value } }));
     const { result } = await owned();
 
     act(() => {
@@ -61,7 +61,7 @@ describe('useDeviceConfig', () => {
       await vi.advanceTimersByTimeAsync(SAVE_DEBOUNCE_MS);
     });
     expect(save).toHaveBeenCalledTimes(1);
-    expect(save).toHaveBeenCalledWith(OWNED, 'style', NIGHT);
+    expect(save).toHaveBeenCalledWith('style', NIGHT);
     expect(result.current.status).toBe('saved');
   });
 
