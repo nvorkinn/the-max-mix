@@ -1634,7 +1634,7 @@ body:has(.app-dialog[open]) {
   flex-direction: column;
   gap: 12px;
   min-height: 0;
-  /* Eight pages fit the 7" screen's 534px under the header: 56px rows, 6px apart, 12px above and below. */
+  /* Eight pages fit the 7" screen's 534px under the header: 60px rows, 4px apart, 12px above and below. */
   padding: 12px 16px;
   overflow-y: auto;
   border-right: 1px solid var(--border);
@@ -1643,7 +1643,7 @@ body:has(.app-dialog[open]) {
 .settings-nav-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1664,9 +1664,6 @@ body:has(.app-dialog[open]) {
   transition:
     background 160ms,
     border-color 160ms;
-}
-.settings-panel .settings-nav-item {
-  min-height: 56px;
 }
 .settings-nav-item svg {
   color: var(--muted);
