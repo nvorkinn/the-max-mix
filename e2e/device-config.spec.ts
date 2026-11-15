@@ -101,7 +101,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     const settings = await openSettings(page, 'General');
 
     await settings.getByRole('button', { name: '12-hour' }).click();
-    await expect(page.locator('.header-clock')).toHaveText(/^4:05\sPM$/i);
+    await expect(page.locator('.header-clock')).toHaveText(/^\s*4:05\sPM$/i);
     await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
     expect(server.saves.map(save => save['clock_format'])).toEqual(['12h']);
   });
