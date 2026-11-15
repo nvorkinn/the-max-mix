@@ -141,8 +141,9 @@ heartbeat, lyrics, other kiosk calls, everything else); untick a kind to mute it
 THE MAX MIX is plain static files on a self-hosted server. Production deploys happen only from a release:
 [`release.yml`](.github/workflows/release.yml) runs when a version tag is pushed (or by hand for an existing tag), builds
 the app on the GitHub runner, joins the tailnet and copies `dist/` to the server with `rsync`, into
-`/srv/releases/the-max-mix/<commit>`, and then points `/srv/sites/the-max-mix` at it. A merge to `main` does not change
-production.
+`/srv/releases/the-max-mix/<commit>`, and then points `/srv/sites/the-max-mix` at it, which
+[home-stack](https://github.com/nvorkinn/home-stack)'s Caddy serves as `https://the-max-mix.countdown.build` (its DNS
+record is in countdown-server's `infra/cloudflare`). A merge to `main` does not change production.
 
 Set it up once:
 
@@ -191,7 +192,7 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 
 1. Create an app in the [Spotify developer dashboard](https://developer.spotify.com/dashboard).
 2. Register the redirect URI **exactly**, including the trailing slash:
-   - `https://the-max-mix.vorkinn.org/` (the deployed app, which is also the kiosk's `kiosk_url`) for the Raspberry Pi
+   - `https://the-max-mix.countdown.build/` (the deployed app, which is also the kiosk's `kiosk_url`) for the Raspberry Pi
      kiosk and for signing in on the deployed site;
    - `http://127.0.0.1:5173/` for local development, and `http://127.0.0.1:4173/` for `npm start`.
 3. The client ID is a constant in `src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
