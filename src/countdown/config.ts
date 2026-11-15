@@ -1,10 +1,11 @@
 // The kiosk's config from countdown-server: GET /api/devices/config, with the raw device secret as a bearer token, and
 // saves of one section of it from the Settings tab. The server is the one source of truth for it; the kiosk keeps a copy
-// of the last one it got in localStorage, for starts while the server can't be reached. The types are countdown-api's,
-// generated from its contract.
+// of the last one it got in localStorage, for starts while the server can't be reached. The calls and their types are
+// countdown-api's, generated from its contract.
 
-import createClient from 'openapi-fetch';
-import type { ConfigResponse, TouchscreenConfig, paths } from 'countdown-api';
+import type { ConfigResponse, TouchscreenConfig } from 'countdown-api';
+import { getConfig, putConfig } from '../../vendor/countdown-api/src/countdown_api/client';
+import type { Client } from '../../vendor/countdown-api/src/countdown_api/client';
 import { deviceCredentials } from './registration';
 import { countdownServer } from './server';
 
@@ -43,15 +44,11 @@ function cache(config: TouchscreenConfig): void {
   }
 }
 
-/** A client for countdown-server with the device secret, or null when the kiosk isn't registered with one. */
-function serverClient() {
+/** countdown-server with the device secret, or null when the kiosk isn't registered with one. */
+function serverClient(): Client | null {
   const server = countdownServer();
   const credentials = deviceCredentials();
-  if (!server || !credentials) return null;
-  return {
-    client: createClient<paths>({ baseUrl: server }),
-    headers: { Authorization: `Bearer ${credentials.secret}` }
-  };
+  return server && credentials ? { baseUrl: server, secret: credentials.secret } : null;
 }
 
 /** The server's answer, or null when the kiosk isn't registered, the server can't be reached or refuses it. */
@@ -59,7 +56,7 @@ async function fetchDeviceConfig(): Promise<TouchscreenConfig | null> {
   const server = serverClient();
   if (!server) return null;
   try {
-    const { data } = await server.client.GET('/api/devices/config', { headers: server.headers });
+    const { data } = await getConfig(server);
     return isTouchscreen(data) ? data : null;
   } catch {
     return null;
@@ -114,10 +111,7 @@ export async function saveConfigSection<K extends ConfigSection>(
   const server = serverClient();
   if (!server) return { error: 'failed' };
   try {
-    const { data, response } = await server.client.PUT('/api/devices/config', {
-      headers: server.headers,
-      body: changed
-    });
+    const { data, response } = await putConfig(server, changed);
     if (response.status === 409) return { error: 'conflict' };
     if (!isTouchscreen(data)) return { error: 'failed' };
     cache(data);
