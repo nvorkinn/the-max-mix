@@ -102,7 +102,13 @@ export const AREAS: Area[] = [
   {
     tag: 'layout',
     title: 'Layout',
-    sources: [/^src\/.*\.css$/, /^index\.html$/, /^src\/components\/PanelNav/, /^src\/hooks\/usePanelView/],
+    sources: [
+      /^src\/.*\.css$/,
+      /^index\.html$/,
+      /^src\/components\/PanelNav/,
+      /^src\/components\/AppTabs/,
+      /^src\/hooks\/usePanelView/
+    ],
     alsoAffects: ['visual', 'appearance']
   },
   // The page that holds everything above: a change to it can change any of them.
