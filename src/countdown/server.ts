@@ -13,8 +13,3 @@ export function countdownServer(): string | null {
     return null;
   }
 }
-
-/** Whether a kiosk with no device ID registers at start: only once the server's /register page is live. */
-export function registrationEnabled(): boolean {
-  return import.meta.env.VITE_COUNTDOWN_REGISTRATION === 'on' && countdownServer() !== null;
-}
