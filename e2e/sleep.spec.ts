@@ -73,7 +73,7 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     await expect.poll(reads).toBeGreaterThan(quiet);
   });
 
-  test('with nothing playing the screen sleeps after the chosen idle time, and never while music plays', async ({
+  test('with nothing playing the Dashboard comes up after two minutes and the screen sleeps the chosen time later, never while music plays', async ({
     page
   }) => {
     await page.goto('/');
@@ -86,11 +86,18 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     await settings.getByRole('button', { name: 'Close settings' }).click();
 
     const wake = page.getByRole('button', { name: 'Wake the screen' });
+    const dashboard = page.getByRole('tab', { name: 'Dashboard' });
     await advance(page, 4 * 60_000, 5000);
     await expect(wake).toHaveCount(0);
+    await expect(dashboard).toHaveAttribute('aria-selected', 'false');
 
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+    await advance(page, 100_000, 5000);
+    await expect(dashboard).toHaveAttribute('aria-selected', 'false');
+    await advance(page, 30_000, 5000);
+    await expect(dashboard).toHaveAttribute('aria-selected', 'true');
+    await expect(wake).toHaveCount(0);
     await advance(page, 100_000, 5000);
     await expect(wake).toHaveCount(0);
     await advance(page, 30_000, 5000);
@@ -107,8 +114,8 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     const settings = page.getByRole('dialog', { name: 'Settings' });
     await expect(settings).toBeVisible();
 
-    // Nobody touches the screen for the default five minutes, with nothing playing.
-    await advance(page, 5 * 60_000 + 5000, 5000);
+    // Nobody touches the screen, with nothing playing: two minutes to the Dashboard, then the default five to sleep.
+    await advance(page, 7 * 60_000 + 5000, 5000);
     const wake = page.getByRole('button', { name: 'Wake the screen' });
     await expect(wake).toBeVisible();
     // The sleep screen is on top of the open dialog, so a tap in the middle of the screen lands on it and wakes it.

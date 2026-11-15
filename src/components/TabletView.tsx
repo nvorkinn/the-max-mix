@@ -7,6 +7,7 @@ import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useKioskUpdate } from '../hooks/useKioskUpdate';
 import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
 import { useScreenSleep } from '../hooks/useScreenSleep';
+import { IDLE_DASHBOARD_MS, useIdle } from '../hooks/useIdle';
 import { usePanelView } from '../hooks/usePanelView';
 import type { PanelView } from '../hooks/usePanelView';
 import { extractArtColours, type ArtColours } from '../utils/colorExtractor';
@@ -193,7 +194,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const isPlaying = Boolean(shownPlayback?.is_playing);
   const currentTrack = shownPlayback?.item;
 
-  // The kiosk's screen stays on while music plays and sleeps after the chosen idle minutes otherwise.
+  // Left alone with nothing playing, the kiosk shows the Dashboard. The screen stays on while music plays or another tab
+  // is showing, and sleeps the chosen minutes after the Dashboard comes up.
+  useIdle({ enabled: onKiosk, busy: isPlaying, idleMs: IDLE_DASHBOARD_MS, onIdle: () => setScreen('dashboard') });
   const [screenSleepMinutes, setScreenSleepMinutes] = useState(getScreenSleep);
   const changeScreenSleep = (minutes: ScreenSleepMinutes) => {
     setScreenSleepMinutes(minutes);
@@ -208,7 +211,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const kioskUpdate = useKioskUpdate(onKiosk);
   const sleep = useScreenSleep({
     enabled: onKiosk,
-    keepAwake: isPlaying,
+    keepAwake: isPlaying || screen !== 'dashboard',
     idleMs: screenSleepMinutes === 0 ? null : screenSleepMinutes * 60_000
   });
   // Waking the screen asks GitHub again whether a newer version is out: someone is back, and hours may have passed.
