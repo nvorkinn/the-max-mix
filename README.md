@@ -191,7 +191,7 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 
 1. Create an app in the [Spotify developer dashboard](https://developer.spotify.com/dashboard).
 2. Register the redirect URI **exactly**, including the trailing slash:
-   - `https://the-max-mix.vorkinn.org/` (the deployed app, which is also the kiosk's `kiosk_url`) for the Raspberry Pi
+   - `https://the-max-mix.countdown.build/` (the deployed app, which is also the kiosk's `kiosk_url`) for the Raspberry Pi
      kiosk and for signing in on the deployed site;
    - `http://127.0.0.1:5173/` for local development, and `http://127.0.0.1:4173/` for `npm start`.
 3. The client ID is a constant in `src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
