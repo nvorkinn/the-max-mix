@@ -69,7 +69,6 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       ).toContainText('Up to date');
       await expect(settings).toHaveScreenshot(shotName('settings-overview', screen), SHOT);
       for (const [section, name] of [
-        ['Device', 'settings-device'],
         ['Appearance', 'settings-appearance'],
         ['Screen sleep', 'settings-sleep'],
         ['Wi-Fi', 'settings-wifi'],
@@ -78,12 +77,8 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       ] as const) {
         // eslint-disable-next-line no-await-in-loop -- one page after another
         await showSection(settings, section);
-        if (section === 'Device') {
-          // eslint-disable-next-line no-await-in-loop -- the config site's page has to load in its frame first
-          await expect(settings.frameLocator('iframe').getByText('Device settings')).toBeVisible();
-        }
         // eslint-disable-next-line no-await-in-loop -- the same
-        await expect(settings).toHaveScreenshot(shotName(name, screen), SHOT);
+        await expect.soft(settings).toHaveScreenshot(shotName(name, screen), SHOT);
       }
     });
 

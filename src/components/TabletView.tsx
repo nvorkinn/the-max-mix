@@ -27,6 +27,8 @@ import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import { dynamicPalette, loadThemeColour, saveThemeColour } from '../utils/themeColour';
 import { useTheme } from '../hooks/useTheme';
+import { saveTheme } from '../utils/theme';
+import type { Theme } from '../utils/theme';
 import type { ThemeColour } from '../utils/themeColour';
 import type { MusicChoice, Track } from '../types';
 import OfflineBanner from './OfflineBanner';
@@ -199,23 +201,46 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // Left alone with nothing playing, the kiosk shows the Dashboard. The screen stays on while music plays or another tab
   // is showing, and sleeps the chosen minutes after the Dashboard comes up.
   useIdle({ enabled: onKiosk, busy: isPlaying, idleMs: IDLE_DASHBOARD_MS, onIdle: () => setScreen('dashboard') });
-  const [screenSleepMinutes, setScreenSleepMinutes] = useState(getScreenSleep);
-  const changeScreenSleep = (minutes: ScreenSleepMinutes) => {
-    setScreenSleepMinutes(minutes);
-    setScreenSleep(minutes);
+  // Once someone owns the kiosk, countdown-server's config is its skin, colour and screen sleep: the settings save there,
+  // and whatever the config says (a change here, one undone, or the server's latest) shows, and is kept locally for
+  // starts without the server. Before that the kiosk keeps its own.
+  const deviceConfig = useDeviceConfig();
+  const ownedConfig = deviceConfig.owned ? deviceConfig.config : null;
+  const style = ownedConfig?.style;
+  const display = ownedConfig?.display;
+  const [localScreenSleep, setLocalScreenSleep] = useState(getScreenSleep);
+  const [localThemeColour, setLocalThemeColour] = useState(loadThemeColour);
+  const screenSleepMinutes = display?.sleep_minutes ?? localScreenSleep;
+  const themeColour = style?.colour ?? localThemeColour;
+  const theme = useTheme(style?.skin);
+  useEffect(() => {
+    if (!style) return;
+    saveTheme(style.skin);
+    saveThemeColour(style.colour);
+  }, [style]);
+  useEffect(() => {
+    if (display) setScreenSleep(display.sleep_minutes);
+  }, [display]);
+  const changeTheme = (skin: Theme) => {
+    if (style) deviceConfig.save('style', { ...style, skin });
+    else theme.change(skin);
   };
-  const [themeColour, setThemeColour] = useState(loadThemeColour);
   const changeThemeColour = (colour: ThemeColour) => {
-    setThemeColour(colour);
+    if (style) {
+      deviceConfig.save('style', { ...style, colour });
+      return;
+    }
+    setLocalThemeColour(colour);
     saveThemeColour(colour);
   };
-  const theme = useTheme();
-  // countdown-server's config sets the skin, colour and screen sleep, as the settings would.
-  useDeviceConfig(({ style, display }) => {
-    theme.change(style.skin);
-    changeThemeColour(style.colour);
-    changeScreenSleep(display.sleep_minutes);
-  });
+  const changeScreenSleep = (minutes: ScreenSleepMinutes) => {
+    if (display) {
+      deviceConfig.save('display', { ...display, sleep_minutes: minutes });
+      return;
+    }
+    setLocalScreenSleep(minutes);
+    setScreenSleep(minutes);
+  };
   const kioskUpdate = useKioskUpdate(onKiosk);
   const sleep = useScreenSleep({
     enabled: onKiosk,
@@ -636,9 +661,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             onThemeColourChange={changeThemeColour}
             theme={theme.theme}
             autoTheme={theme.autoOffered}
-            onThemeChange={theme.change}
+            onThemeChange={changeTheme}
             skin={theme.skin}
             kioskUpdate={kioskUpdate}
+            saveStatus={deviceConfig.status}
+            onShow={deviceConfig.reload}
           />
         )}
       </section>

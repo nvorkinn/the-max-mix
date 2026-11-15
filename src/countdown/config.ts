@@ -1,6 +1,7 @@
-// The kiosk's config from countdown-server: GET /api/devices/config, with the raw device secret as a bearer token. The
-// server is the one source of truth for it; the kiosk keeps a copy of the last one it got in localStorage, for starts
-// while the server can't be reached. The types are countdown-api's, generated from its contract.
+// The kiosk's config from countdown-server: GET /api/devices/config, with the raw device secret as a bearer token, and
+// saves of one section of it from the Settings tab. The server is the one source of truth for it; the kiosk keeps a copy
+// of the last one it got in localStorage, for starts while the server can't be reached. The types are countdown-api's,
+// generated from its contract.
 
 import createClient from 'openapi-fetch';
 import type { ConfigResponse, TouchscreenConfig, paths } from 'countdown-api';
@@ -42,16 +43,23 @@ function cache(config: TouchscreenConfig): void {
   }
 }
 
-/** The server's answer, or null when the kiosk isn't registered, the server can't be reached or refuses it. */
-async function fetchDeviceConfig(): Promise<TouchscreenConfig | null> {
+/** A client for countdown-server with the device secret, or null when the kiosk isn't registered with one. */
+function serverClient() {
   const server = countdownServer();
   const credentials = deviceCredentials();
   if (!server || !credentials) return null;
+  return {
+    client: createClient<paths>({ baseUrl: server }),
+    headers: { Authorization: `Bearer ${credentials.secret}` }
+  };
+}
+
+/** The server's answer, or null when the kiosk isn't registered, the server can't be reached or refuses it. */
+async function fetchDeviceConfig(): Promise<TouchscreenConfig | null> {
+  const server = serverClient();
+  if (!server) return null;
   try {
-    const client = createClient<paths>({ baseUrl: server });
-    const { data } = await client.GET('/api/devices/config', {
-      headers: { Authorization: `Bearer ${credentials.secret}` }
-    });
+    const { data } = await server.client.GET('/api/devices/config', { headers: server.headers });
     return isTouchscreen(data) ? data : null;
   } catch {
     return null;
@@ -75,4 +83,46 @@ export async function loadDeviceConfig(): Promise<TouchscreenConfig | null> {
   if (!config) return cachedDeviceConfig();
   cache(config);
   return config;
+}
+
+/** The parts of the config the Settings tab changes, each saved whole: the time format and the owner's sections. */
+export type ConfigSection = 'clock_format' | 'style' | 'display' | 'arrivals' | 'weather' | 'notice_board';
+
+/**
+ * What a save comes to: the config as the server saved it; `conflict` when the server says the copy the change was made
+ * to is out of date (or, until per-section saves land, that no one owns the kiosk yet), so the config is to be loaded
+ * again; `failed` when the server refused the change or couldn't be reached, so it is to be undone.
+ */
+export type SaveResult = { saved: TouchscreenConfig } | { error: 'conflict' | 'failed' };
+
+/**
+ * Saves one section of the config: `base` (the config as the kiosk last got it) with `section` replaced. The contract
+ * has only the whole-config PUT /api/devices/config so far, so the section goes in the whole config; the rework plan's
+ * per-section PUT /api/devices/config/{section} with If-Match takes its place here once countdown-api has it, and nothing
+ * else changes. A mock build saves nothing and answers as the server would.
+ */
+export async function saveConfigSection<K extends ConfigSection>(
+  base: TouchscreenConfig,
+  section: K,
+  value: TouchscreenConfig[K]
+): Promise<SaveResult> {
+  const changed: TouchscreenConfig = { ...base, [section]: value };
+  if (import.meta.env.VITE_COUNTDOWN_CONFIG === 'mock') {
+    cache(changed);
+    return { saved: changed };
+  }
+  const server = serverClient();
+  if (!server) return { error: 'failed' };
+  try {
+    const { data, response } = await server.client.PUT('/api/devices/config', {
+      headers: server.headers,
+      body: changed
+    });
+    if (response.status === 409) return { error: 'conflict' };
+    if (!isTouchscreen(data)) return { error: 'failed' };
+    cache(data);
+    return { saved: data };
+  } catch {
+    return { error: 'failed' };
+  }
 }
