@@ -41,9 +41,7 @@ const PLACES: readonly SearchResult[] = [
 
 function find(list: readonly SearchResult[], query: string): SearchResult[] {
   const wanted = query.trim().toLocaleLowerCase();
-  return wanted
-    ? list.filter(result => `${result.name} ${result.detail}`.toLocaleLowerCase().includes(wanted))
-    : [];
+  return wanted ? list.filter(result => `${result.name} ${result.detail}`.toLocaleLowerCase().includes(wanted)) : [];
 }
 
 /** Stops whose name or area has the words typed. */
