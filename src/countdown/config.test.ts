@@ -11,7 +11,7 @@ function register() {
 }
 
 function answer(status: number, body?: unknown) {
-  const fetch = vi.fn<(request: Request) => Promise<Response>>(() =>
+  const fetch = vi.fn<(input: string | URL | Request, init?: RequestInit) => Promise<Response>>(() =>
     Promise.resolve(
       new Response(body === undefined ? null : JSON.stringify(body), {
         status,
@@ -45,10 +45,11 @@ describe('loadDeviceConfig', () => {
     register();
     const fetch = answer(200, fixture.config);
     await expect(loadDeviceConfig()).resolves.toEqual(fixture.config);
-    const request = fetch.mock.calls[0]?.[0];
-    expect(request?.url).toBe('https://countdown.build/api/devices/config');
-    expect(request?.method).toBe('GET');
-    expect(request?.headers.get('Authorization')).toBe(`Bearer ${SECRET}`);
+    const [input, init] = fetch.mock.calls[0] ?? [''];
+    const request = new Request(input, init);
+    expect(request.url).toBe('https://countdown.build/api/devices/config');
+    expect(request.method).toBe('GET');
+    expect(request.headers.get('Authorization')).toBe(`Bearer ${SECRET}`);
     expect(cachedDeviceConfig()).toEqual(fixture.config);
   });
 
@@ -106,11 +107,12 @@ describe('saveConfigSection', () => {
     const fetch = answer(200, fixture.save);
     const result = await saveConfigSection(OWNED, 'display', { sleep_minutes: 30 });
     expect(result).toEqual({ saved: fixture.save });
-    const request = fetch.mock.calls[0]?.[0];
-    expect(request?.method).toBe('PUT');
-    expect(request?.url).toBe('https://countdown.build/api/devices/config');
-    expect(request?.headers.get('Authorization')).toBe(`Bearer ${SECRET}`);
-    await expect(request?.json()).resolves.toEqual({ ...OWNED, display: { sleep_minutes: 30 } });
+    const [input, init] = fetch.mock.calls[0] ?? [''];
+    const request = new Request(input, init);
+    expect(request.method).toBe('PUT');
+    expect(request.url).toBe('https://countdown.build/api/devices/config');
+    expect(request.headers.get('Authorization')).toBe(`Bearer ${SECRET}`);
+    await expect(request.json()).resolves.toEqual({ ...OWNED, display: { sleep_minutes: 30 } });
     expect(cachedDeviceConfig()).toEqual(fixture.save);
   });
 
