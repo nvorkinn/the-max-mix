@@ -171,7 +171,7 @@ describe('without storage', () => {
 
 describe('forgetRegistration', () => {
   it('forgets the device ID and the secret', () => {
-    localStorage.setItem('maxmix.deviceSecret', EXAMPLE_SECRET);
+    localStorage.setItem('maxmix.deviceSecret', '0123abcd');
     localStorage.setItem('maxmix.deviceId', '0a1b2c3d4e5f');
     forgetRegistration();
     expect(deviceCredentials()).toBeNull();
