@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Mock } from 'vitest';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
+import type { TouchscreenConfig } from 'countdown-api';
 import { installCanvasStub } from '../test/canvas';
 import { defined } from '../test/defined';
 import { FakeWebSocket, latestFakeSocket, resetFakeSockets } from '../test/fakeWebSocket';
 import { clearLyricsCache } from '../hooks/useLyrics';
 import { fetchSpotify, recordSpotifyRetryAfter, resetSpotifyRateLimit, SpotifyApiError } from '../spotify/http';
-import type { TouchscreenConfig } from 'countdown-api';
 import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import * as deviceConfig from '../countdown/config';
 import TabletView from './TabletView';
