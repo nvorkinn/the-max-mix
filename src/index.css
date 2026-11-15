@@ -1628,15 +1628,6 @@ body:has(.app-dialog[open]) {
   border-right: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface-raised) 50%, var(--surface));
 }
-.settings-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 0 8px;
-  font-size: 22px;
-  font-weight: 750;
-}
 .settings-nav-list {
   display: flex;
   flex-direction: column;
@@ -1939,7 +1930,6 @@ body:has(.app-dialog[open]) {
     min-height: 68px;
     font-size: 19px;
   }
-  .settings-title,
   .settings-section-title {
     font-size: 26px;
   }
