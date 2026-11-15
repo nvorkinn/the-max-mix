@@ -5,6 +5,11 @@ vi.mock('./App', () => ({
   default: ({ signInError }: { signInError: string | null }) => <p>{signInError ?? 'no sign-in error'}</p>
 }));
 vi.mock('./spotify/auth', () => ({ completeSignIn: vi.fn() }));
+vi.mock('./countdown/registration', () => ({
+  completeRegistration: vi.fn(() => null),
+  needsRegistration: vi.fn(() => false),
+  startRegistration: vi.fn(() => Promise.resolve())
+}));
 
 describe('main', () => {
   beforeEach(() => {
@@ -37,5 +42,13 @@ describe('main', () => {
     await waitFor(() => {
       expect(screen.getByText('network down')).toBeInTheDocument();
     });
+  });
+
+  it('goes to register instead of starting when the kiosk has no device ID', async () => {
+    const registration = await import('./countdown/registration');
+    vi.mocked(registration.needsRegistration).mockReturnValueOnce(true);
+    await start(() => Promise.resolve(null));
+    expect(registration.startRegistration).toHaveBeenCalled();
+    expect(document.querySelector('#root')).toBeEmptyDOMElement();
   });
 });
