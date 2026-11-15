@@ -95,8 +95,7 @@ export default function SettingsPanel({
   const authenticated = authInfo?.authenticated ?? false;
   const hasSleep = screenSleep !== undefined && onScreenSleepChange !== undefined;
   const sections = SETTINGS_SECTIONS.filter(
-    choice =>
-      (kiosk || !choice.kioskOnly) && (choice.id !== 'sleep' || hasSleep)
+    choice => (kiosk || !choice.kioskOnly) && (choice.id !== 'sleep' || hasSleep)
   );
   const current = sections.find(choice => choice.id === section) ?? SETTINGS_SECTIONS[0];
 

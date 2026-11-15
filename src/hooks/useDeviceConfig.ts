@@ -7,7 +7,7 @@ import type { ConfigSection } from '../countdown/config';
 export const SAVE_DEBOUNCE_MS = 500;
 
 /** How long the Saved tick, or the message for a change that didn't save, stays up. */
-export const SAVE_NOTE_MS = 2500;
+const SAVE_NOTE_MS = 2500;
 
 /** Where the last save stands, for the Settings tab's Saved tick and its message when a change didn't save. */
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
@@ -49,14 +49,13 @@ export function useDeviceConfig(): DeviceConfig {
 
   const reload = useCallback(() => {
     void loadDeviceConfig().then(loaded => {
-      if (!mountedRef.current || !loaded) return;
+      if (!loaded || !mountedRef.current) return;
       // A section still waiting to save keeps its change.
-      const waiting = [...timersRef.current.keys()];
       savedRef.current = loaded;
       const shown = shownRef.current;
-      show(
-        shown ? waiting.reduce<TouchscreenConfig>((next, key) => ({ ...next, [key]: shown[key] }), loaded) : loaded
-      );
+      let next = loaded;
+      if (shown) for (const key of timersRef.current.keys()) next = { ...next, [key]: shown[key] };
+      show(next);
     });
   }, [show]);
 
@@ -84,7 +83,7 @@ export function useDeviceConfig(): DeviceConfig {
   const save = useCallback(
     <K extends ConfigSection>(section: K, value: TouchscreenConfig[K]) => {
       const shown = shownRef.current;
-      if (!shown || shown.pairing_code !== null) return;
+      if (shown?.pairing_code !== null) return;
       show({ ...shown, [section]: value });
       const timers = timersRef.current;
       clearTimeout(timers.get(section));
