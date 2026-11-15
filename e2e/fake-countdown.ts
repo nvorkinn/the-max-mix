@@ -7,6 +7,8 @@ const fixture = JSON.parse(
 
 // The countdown-server the build names (.env.production).
 const CONFIG = 'https://app.countdown.build/api/devices/config';
+// The config site's page for a device, which the Settings tab's Device page shows in a frame.
+const DEVICE_PAGE = 'https://app.countdown.build/devices/**';
 
 /** countdown-api's example configs: `pairing` before anyone owns the kiosk (it changes nothing), `config` after. */
 export const DEVICE_CONFIGS = { pairing: fixture.pairing, owned: fixture.config };
@@ -29,5 +31,11 @@ export async function fakeCountdownServer(page: Page, config: object = DEVICE_CO
     authorizations.push(request.headers()['authorization'] ?? '');
     return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify(config) });
   });
+  await page.route(DEVICE_PAGE, route =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: '<!doctype html><body style="margin:24px;font:20px sans-serif">Device settings</body>'
+    })
+  );
   return { authorizations };
 }

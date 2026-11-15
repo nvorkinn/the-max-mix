@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { AlertCircle, CheckCircle2, ChevronRight, Cpu, Music, Palette, Wifi, WifiOff } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronRight, Cpu, MonitorCog, Music, Palette, Wifi, WifiOff } from 'lucide-react';
 import type { KioskUpdate } from '../../hooks/useKioskUpdate';
 import type { ScreenSleepMinutes } from '../../utils/screenSleep';
 import { THEMES } from '../../utils/theme';
@@ -61,6 +61,7 @@ function PiSoftware({ update }: Readonly<{ update: KioskUpdate }>) {
 export default function SettingsOverview({
   onOpen,
   kiosk,
+  device,
   theme,
   themeColour,
   screenSleep,
@@ -70,6 +71,8 @@ export default function SettingsOverview({
 }: Readonly<{
   onOpen: (section: SettingsSection) => void;
   kiosk: boolean;
+  /** Whether the kiosk is registered with countdown-server; absent when the build names no server. */
+  device?: { registered: boolean } | undefined;
   theme: Theme | undefined;
   themeColour: ThemeColour | undefined;
   screenSleep: ScreenSleepMinutes | undefined;
@@ -83,6 +86,26 @@ export default function SettingsOverview({
 
   return (
     <div className="settings-overview" role="group" aria-labelledby="settings-section-title">
+      {device && (
+        <Card
+          icon={<MonitorCog className="w-6 h-6" aria-hidden="true" />}
+          title="Device"
+          wide
+          onOpen={() => onOpen('device')}
+        >
+          {device.registered ? (
+            <span className="settings-status status-success">
+              <CheckCircle2 className="settings-status-icon" aria-hidden="true" />
+              Registered
+            </span>
+          ) : (
+            <span className="settings-status status-warning">
+              <AlertCircle className="settings-status-icon" aria-hidden="true" />
+              Not registered
+            </span>
+          )}
+        </Card>
+      )}
       <Card
         icon={<Palette className="w-6 h-6" aria-hidden="true" />}
         title="Appearance"
