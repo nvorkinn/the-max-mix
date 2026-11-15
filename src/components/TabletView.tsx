@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, CSSProperties } from 'react';
-import { AudioLines, Clock, Search, Settings } from 'lucide-react';
+import { AudioLines, Clock, LayoutDashboard, Music, Search, Settings } from 'lucide-react';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { useSonosPlayer } from '../hooks/useSonosPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
@@ -45,6 +45,14 @@ import SleepScreen from './SleepScreen';
 import SleepIcon from './SleepIcon';
 import PersonSwitcher from './PersonSwitcher';
 import PairPhoneSheet from './PairPhoneSheet';
+import AppTabs, { tabPanelId } from './AppTabs';
+import type { AppTab } from './AppTabs';
+
+type Screen = 'spotify' | 'dashboard';
+const SCREENS: readonly AppTab<Screen>[] = [
+  { id: 'spotify', label: 'Spotify', icon: <Music aria-hidden="true" /> },
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard aria-hidden="true" /> }
+];
 
 const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
@@ -132,6 +140,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // The header's button opens the overview; the sign-in prompts open the Spotify page.
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('overview');
   const [isMusicOpen, setIsMusicOpen] = useState(false);
+  const [screen, setScreen] = useState<Screen>('spotify');
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const debugHold = useHold(() => setIsDebugOpen(true), DEBUG_HOLD_MS);
   const [queueError, setQueueError] = useState<string | null>(null);
@@ -167,7 +176,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   };
 
   // Music picked while a Sonos plays goes to the Sonos (a song, album or playlist; Liked Songs cannot).
-  const playMusic = (choice: MusicChoice) => (sonos.active ? sonos.play(choice.uri) : playMusicOnSpotify(choice));
+  const playMusic = (choice: MusicChoice) => {
+    setScreen('spotify');
+    return sonos.active ? sonos.play(choice.uri) : playMusicOnSpotify(choice);
+  };
 
   // Colours read from the album art tint the page faintly behind the queue; none means no tint.
   const [artColours, setArtColours] = useState<ArtColours | null>(null);
@@ -449,6 +461,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             </h1>
           </div>
         </div>
+        <AppTabs tabs={SCREENS} current={screen} onSelect={setScreen} />
         <div className="header-actions">
           {!needsConnection && (
             <button
@@ -492,97 +505,112 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       </header>
 
       {isOffline && <OfflineBanner />}
-      {banner && (
-        <PlaybackBanner
-          notice={banner}
-          busy={isRefreshingPlayback}
-          onSettings={showSettings}
-          onChooseSpeaker={chooseSpeaker}
-          onRefresh={followingSonos ? sonos.refresh : () => void recoverPlayback(retryPlayback)}
-          onReconnect={reconnectPlayer}
-          onAllowAudio={() => void recoverPlayback(allowBrowserAudio)}
-          onDetails={() => setIsDebugOpen(true)}
-        />
-      )}
+      <div
+        className="app-tab-panel"
+        role="tabpanel"
+        id={tabPanelId('spotify')}
+        aria-label="Spotify"
+        hidden={screen !== 'spotify'}
+      >
+        {banner && (
+          <PlaybackBanner
+            notice={banner}
+            busy={isRefreshingPlayback}
+            onSettings={showSettings}
+            onChooseSpeaker={chooseSpeaker}
+            onRefresh={followingSonos ? sonos.refresh : () => void recoverPlayback(retryPlayback)}
+            onReconnect={reconnectPlayer}
+            onAllowAudio={() => void recoverPlayback(allowBrowserAudio)}
+            onDetails={() => setIsDebugOpen(true)}
+          />
+        )}
 
-      <div className="room-frame">
-        <main className={`listening-room${needsConnection ? ' is-setup' : ''}`}>
-          <section className="player-section" aria-label="Now playing">
-            {needsConnection ? (
-              <SpotifySetup
-                offline={isOffline}
-                signInError={signInError || (problem?.recovery === 'sign-in' ? problem.message : null)}
-                onSettings={showSettings}
-                onDetails={() => setIsDebugOpen(true)}
-              />
-            ) : (
-              <AlbumArtPlayer
-                playback={shownPlayback}
-                isPlaying={isPlaying}
-                onPlayPause={followingSonos ? sonos.togglePlay : togglePlay}
-                onNext={followingSonos ? sonos.nextTrack : nextTrack}
-                onPrevious={followingSonos ? sonos.previousTrack : previousTrack}
-                onSeek={followingSonos ? sonos.seek : seek}
-                onVolumeChange={(vol: number) => (followingSonos ? sonos.setVolume(vol) : setVolume(vol / 100))}
-                onToggleShuffle={toggleShuffle}
-                onCycleRepeat={cycleRepeat}
-                controlsEnabled={controlsEnabled}
-                speakerLabel={speakers.playingLabel}
-                speakersOpen={speakersShown}
-                onOpenSpeakers={chooseSpeaker}
+        <div className="room-frame">
+          <main className={`listening-room${needsConnection ? ' is-setup' : ''}`}>
+            <section className="player-section" aria-label="Now playing">
+              {needsConnection ? (
+                <SpotifySetup
+                  offline={isOffline}
+                  signInError={signInError || (problem?.recovery === 'sign-in' ? problem.message : null)}
+                  onSettings={showSettings}
+                  onDetails={() => setIsDebugOpen(true)}
+                />
+              ) : (
+                <AlbumArtPlayer
+                  playback={shownPlayback}
+                  isPlaying={isPlaying}
+                  onPlayPause={followingSonos ? sonos.togglePlay : togglePlay}
+                  onNext={followingSonos ? sonos.nextTrack : nextTrack}
+                  onPrevious={followingSonos ? sonos.previousTrack : previousTrack}
+                  onSeek={followingSonos ? sonos.seek : seek}
+                  onVolumeChange={(vol: number) => (followingSonos ? sonos.setVolume(vol) : setVolume(vol / 100))}
+                  onToggleShuffle={toggleShuffle}
+                  onCycleRepeat={cycleRepeat}
+                  controlsEnabled={controlsEnabled}
+                  speakerLabel={speakers.playingLabel}
+                  speakersOpen={speakersShown}
+                  onOpenSpeakers={chooseSpeaker}
+                />
+              )}
+            </section>
+
+            {!needsConnection && (
+              <div className="side-panel" data-showing={panel.view}>
+                {/* All three stay put and cross-fade; the hidden ones are inert, so neither a tap nor a screen reader reaches them. */}
+                <section
+                  className="queue-section side-panel-view"
+                  aria-label="Upcoming tracks"
+                  inert={panel.view !== 'queue'}
+                  data-view="queue"
+                >
+                  <TrackQueue
+                    queue={shownQueue}
+                    error={shownQueueError}
+                    status={shownQueueStatus}
+                    onRetry={() => setQueueRequestVersion(version => version + 1)}
+                    onConnect={showSettings}
+                    retryAllowed={!waitingForSpotify}
+                    onPlay={playQueueTrack}
+                    playDisabled={!controlsEnabled || isJumping}
+                    // Only a Sonos's queue can be reordered; Spotify's Web API has no way to move a queued song.
+                    onMove={followingSonos ? sonos.moveSong : undefined}
+                  />
+                </section>
+                <div className="side-panel-view" inert={!lyricsShown} data-view="lyrics">
+                  <LyricsPanel
+                    track={currentTrack}
+                    shown={lyricsShown}
+                    progressMs={shownPlayback?.progress_ms ?? shownPlayback?.position ?? 0}
+                    playing={shownPlayback?.is_playing === true}
+                    syncing={lyricsSyncing}
+                    onSynced={() => setSyncingTrack(null)}
+                  />
+                </div>
+                <section className="side-panel-view" aria-label="Speakers" inert={!speakersShown} data-view="speakers">
+                  <SpeakersView selection={speakers} onKiosk={onKiosk} browserDeviceId={browserDeviceId ?? null} />
+                </section>
+              </div>
+            )}
+            {!needsConnection && (
+              <PanelNav
+                view={panel.view}
+                onShow={showPanel}
+                lyricsSyncing={lyricsSyncing}
+                speakersButton={speakersButton}
+                onSave={() => void speakers.save()}
+                onCancel={speakers.cancel}
               />
             )}
-          </section>
-
-          {!needsConnection && (
-            <div className="side-panel" data-showing={panel.view}>
-              {/* All three stay put and cross-fade; the hidden ones are inert, so neither a tap nor a screen reader reaches them. */}
-              <section
-                className="queue-section side-panel-view"
-                aria-label="Upcoming tracks"
-                inert={panel.view !== 'queue'}
-                data-view="queue"
-              >
-                <TrackQueue
-                  queue={shownQueue}
-                  error={shownQueueError}
-                  status={shownQueueStatus}
-                  onRetry={() => setQueueRequestVersion(version => version + 1)}
-                  onConnect={showSettings}
-                  retryAllowed={!waitingForSpotify}
-                  onPlay={playQueueTrack}
-                  playDisabled={!controlsEnabled || isJumping}
-                  // Only a Sonos's queue can be reordered; Spotify's Web API has no way to move a queued song.
-                  onMove={followingSonos ? sonos.moveSong : undefined}
-                />
-              </section>
-              <div className="side-panel-view" inert={!lyricsShown} data-view="lyrics">
-                <LyricsPanel
-                  track={currentTrack}
-                  shown={lyricsShown}
-                  progressMs={shownPlayback?.progress_ms ?? shownPlayback?.position ?? 0}
-                  playing={shownPlayback?.is_playing === true}
-                  syncing={lyricsSyncing}
-                  onSynced={() => setSyncingTrack(null)}
-                />
-              </div>
-              <section className="side-panel-view" aria-label="Speakers" inert={!speakersShown} data-view="speakers">
-                <SpeakersView selection={speakers} onKiosk={onKiosk} browserDeviceId={browserDeviceId ?? null} />
-              </section>
-            </div>
-          )}
-          {!needsConnection && (
-            <PanelNav
-              view={panel.view}
-              onShow={showPanel}
-              lyricsSyncing={lyricsSyncing}
-              speakersButton={speakersButton}
-              onSave={() => void speakers.save()}
-              onCancel={speakers.cancel}
-            />
-          )}
-        </main>
+          </main>
+        </div>
       </div>
+      <section
+        className="app-tab-panel"
+        role="tabpanel"
+        id={tabPanelId('dashboard')}
+        aria-label="Dashboard"
+        hidden={screen !== 'dashboard'}
+      />
 
       <MusicPicker
         isOpen={isMusicOpen && !needsConnection}
