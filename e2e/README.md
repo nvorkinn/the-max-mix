@@ -45,7 +45,7 @@ When you add a feature:
 ## Traces and shards
 
 CI splits the tests over two machines (`.github/workflows/e2e.yml`, with `--shard`) and merges their reports into one.
-It traces, and films, a test only on its second run after its first fails, because tracing every test took a third or
-more of the run. For a report with a trace of every test, dispatch the workflow on a branch:
+Each test runs once, with no retries, so a flaky test fails the run. CI records no traces, because tracing every test
+took a third or more of the run. For a report with a trace of every test, dispatch the workflow on a branch:
 `gh workflow run e2e.yml --ref <branch>` (or **Run workflow** on the E2E workflow's page), then download the run's
 `playwright-report` artifact and open it with `npx playwright show-report`. Locally, a failed test keeps its trace.

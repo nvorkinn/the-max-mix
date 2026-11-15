@@ -2,9 +2,9 @@ import { defineConfig } from '@playwright/test';
 
 const port = 3100;
 
-// Recording a trace of every test took a third or more of the run, so CI traces, and films, only the second run of a
-// failed test. E2E_TRACE=on traces every test: dispatch the E2E workflow (.github/workflows/e2e.yml) for such a report.
-const ciTrace = process.env['E2E_TRACE'] === 'on' ? 'on' : 'on-first-retry';
+// Recording a trace of every test took a third or more of the run, so CI records none. E2E_TRACE=on traces every test:
+// dispatch the E2E workflow (.github/workflows/e2e.yml) for such a report.
+const ciTrace = process.env['E2E_TRACE'] === 'on' ? 'on' : 'off';
 
 export default defineConfig({
   testDir: '.',
@@ -13,10 +13,7 @@ export default defineConfig({
   // run side by side, one worker per CPU of the 4-CPU runner.
   workers: 4,
   fullyParallel: true,
-  // A failing test runs once more, filmed (see `video` below). Passing on that second run still fails the job, so a
-  // flaky test is not hidden.
-  retries: process.env['CI'] ? 1 : 0,
-  failOnFlakyTests: !!process.env['CI'],
+  // Each test runs once: no retries, so a flaky test fails the job rather than passing on a second try.
   forbidOnly: !!process.env['CI'],
   // CI runs the tests in shards on separate machines (.github/workflows/e2e.yml), each writing a blob report; the job
   // that merges them makes the HTML report and the JSON one the pull request comment (scripts/screenshot-comment.ts) reads.
@@ -43,8 +40,8 @@ export default defineConfig({
     // CI uses the Chrome preinstalled on ubuntu-latest; locally Playwright's own Chromium is used, or the binary in E2E_BROWSER_PATH.
     ...(process.env['CI'] && { channel: 'chrome' }),
     launchOptions: { ...(process.env['E2E_BROWSER_PATH'] && { executablePath: process.env['E2E_BROWSER_PATH'] }) },
-    trace: process.env['CI'] ? ciTrace : 'retain-on-failure',
-    video: process.env['CI'] ? 'on-first-retry' : 'off'
+    // Locally a failed test keeps its trace.
+    trace: process.env['CI'] ? ciTrace : 'retain-on-failure'
   },
   webServer: {
     // Serves the built app (run `npm run build` first) the way a static host does, from the repository root.

@@ -2,20 +2,20 @@ name: E2E
 
 # Browser tests of the built app with Spotify faked, served by `vite preview`, using the Google Chrome that ships on
 # ubuntu-latest, so no browser download is needed. tests.yml calls this on every pull request and push to main; it runs
-# as part of that run, so all-checks.yml waits for it through Tests. Passing tests are not traced, because tracing every
-# test took a third or more of the run; dispatch this workflow on a branch (`gh workflow run e2e.yml --ref <branch>`)
+# as part of that run, so all-checks.yml waits for it through Tests. Each test runs once and no test is traced, because
+# tracing every test took a third or more of the run; dispatch this workflow on a branch (`gh workflow run e2e.yml --ref <branch>`)
 # for a report with a trace of every test, in the run's playwright-report artifact.
 on:
   workflow_call:
     inputs:
       trace:
-        description: Record a trace of every test, not only of a failed test's second run
+        description: Record a trace of every test
         type: boolean
         default: false
   workflow_dispatch:
     inputs:
       trace:
-        description: Record a trace of every test, not only of a failed test's second run
+        description: Record a trace of every test
         type: boolean
         default: true
 
@@ -55,10 +55,8 @@ jobs:
       - if: steps.modules.outputs.cache-hit != 'true'
         run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run build
-      # Filming a failed test's second run needs Playwright's ffmpeg, a small download; the browser is the preinstalled Chrome.
-      - run: npx playwright install ffmpeg
       - run: npm run test:e2e -- --shard=${{ matrix.shard }}/2
-      # The blob report carries the results, traces and videos; the PNGs are the screenshots that differ from their
+      # The blob report carries the results (and the traces, when asked for); the PNGs are the screenshots that differ from their
       # baselines, which the pull request comment shows. Playwright always writes .last-run.json, which keeps e2e/ the
       # artifact's root (the folder its files share) when there are no PNGs, so the report job finds blob-report/.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

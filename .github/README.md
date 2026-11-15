@@ -13,7 +13,7 @@ listed in `all-checks.yml`, so Global PR Status waits for it. The browser tests 
 calls: they run on two machines, and their reports are merged into one. Dispatch `e2e.yml` on its own for a report with
 a trace of every test.
 
-On a pull request, its `screenshots` job copies the Playwright report (with a trace and a video of any e2e test that failed) and the
+On a pull request, its `screenshots` job copies the Playwright report (without traces; see `e2e.yml`) and the
 screenshots that differ from their baselines to the `gh-pages` branch, under `pr-<number>/`, and keeps one comment on
 the PR up to date: baseline, new and difference images for each screen that changed, before and after images for each
 baseline the PR updates, and a link to the report on GitHub Pages. `pr-screenshots-cleanup.yml` removes the folders of all closed PRs

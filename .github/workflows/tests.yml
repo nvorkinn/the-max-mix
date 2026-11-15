@@ -104,8 +104,7 @@ jobs:
           touch .nojekyll
           cp -r ../results/playwright-report "$FOLDER/report"
           if [[ -d ../results/test-results ]]; then
-            # A failed test's second run (its -retry1 folder) repeats the same screenshots, so only the first is shown.
-            rsync -a --exclude='*-retry*/' --include='*/' --include='*.png' --exclude='*' --prune-empty-dirs \
+            rsync -a --include='*/' --include='*.png' --exclude='*' --prune-empty-dirs \
               ../results/test-results/ "$FOLDER/shots/"
           fi
           git add -A
