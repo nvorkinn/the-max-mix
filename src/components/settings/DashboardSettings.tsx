@@ -14,16 +14,12 @@ const CLOCK_FORMATS = [
   { id: '12h', label: '12-hour' }
 ] as const;
 
-const COUNTRIES = [
-  { id: 'GB', label: 'United Kingdom' },
-  { id: 'NO', label: 'Norway' }
-] as const;
+const COUNTRY_NAMES: Record<NonNullable<NoticeBoard['country']>, string> = { GB: 'United Kingdom', NO: 'Norway' };
+const COUNTRIES = ['GB', 'NO'] as const;
 
 /** The postcode and its country, as the notice board's row shows them. */
 export function noticeBoardLabel(board: NoticeBoard): string | null {
-  if (!board.postcode || !board.country) return null;
-  const country = COUNTRIES.find(choice => choice.id === board.country)?.label;
-  return country ? `${board.postcode}, ${country}` : board.postcode;
+  return board.postcode && board.country ? `${board.postcode}, ${COUNTRY_NAMES[board.country]}` : null;
 }
 
 /** A setting's row: its icon, what it is set to, and the button that changes it. */
@@ -53,7 +49,7 @@ function NoticeBoardDialog({
 }: Readonly<{ board: NoticeBoard; onSave: (board: NoticeBoard) => void; onClose: () => void }>) {
   const titleId = useId();
   const fieldRef = useRef<HTMLInputElement>(null);
-  const [country, setCountry] = useState<(typeof COUNTRIES)[number]['id']>(board.country ?? 'GB');
+  const [country, setCountry] = useState<(typeof COUNTRIES)[number]>(board.country ?? 'GB');
   const [postcode, setPostcode] = useState(board.postcode ?? '');
   useOnScreenKeyboard(fieldRef);
   const wanted = postcode.trim().toUpperCase();
@@ -73,12 +69,12 @@ function NoticeBoardDialog({
         {COUNTRIES.map(choice => (
           <button
             type="button"
-            key={choice.id}
-            aria-pressed={country === choice.id}
-            onClick={() => setCountry(choice.id)}
+            key={choice}
+            aria-pressed={country === choice}
+            onClick={() => setCountry(choice)}
             className="settings-segment"
           >
-            {choice.label}
+            {COUNTRY_NAMES[choice]}
           </button>
         ))}
       </div>
@@ -217,9 +213,7 @@ export default function DashboardSettings({
           exclude={stops.map(stop => stop.id)}
           onClose={() => setDialog(null)}
           onConfirm={result => {
-            if (result.source !== 'open-meteo') {
-              onSave('arrivals', { ...config.arrivals, stops: [...stops, { source: result.source, id: result.id }] });
-            }
+            onSave('arrivals', { ...config.arrivals, stops: [...stops, { source: result.source, id: result.id }] });
             setDialog(null);
           }}
         />

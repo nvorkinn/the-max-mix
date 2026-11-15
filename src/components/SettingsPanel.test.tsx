@@ -430,4 +430,17 @@ describe('SettingsPanel', () => {
     expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Time format' })).toBeInTheDocument();
   });
+
+  it('sums up a Dashboard with one stop and nothing else set', () => {
+    history.replaceState(null, '', '/?kiosk=0');
+    const config = {
+      ...(fixture.config as TouchscreenConfig),
+      clock_format: '12h',
+      weather: { location: '', key: null },
+      notice_board: { postcode: null, country: null }
+    } as const;
+    render(<SettingsPanel {...base} authInfo={{}} deviceConfig={config} onDeviceConfigSave={vi.fn()} />);
+    const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Dashboard/ });
+    expect(card).toHaveTextContent(/^Dashboard12-hour1 stop$/);
+  });
 });

@@ -13,7 +13,7 @@ const NONE: readonly string[] = [];
  * A small dialog to find one stop or place: a search box the on-screen keyboard types in, what the search finds, and
  * Cancel and the confirming button, which acts once a result is picked.
  */
-export default function SearchDialog({
+export default function SearchDialog<R extends SearchResult>({
   title,
   confirmLabel,
   search,
@@ -23,30 +23,27 @@ export default function SearchDialog({
 }: Readonly<{
   title: string;
   confirmLabel: string;
-  search: (query: string) => Promise<SearchResult[]>;
+  search: (query: string) => Promise<R[]>;
   /** Results already chosen, left out of the list. */
   exclude?: readonly SearchResult['id'][];
-  onConfirm: (result: SearchResult) => void;
+  onConfirm: (result: R) => void;
   onClose: () => void;
 }>) {
   const titleId = useId();
   const fieldRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
-  const [found, setFound] = useState<{ query: string; results: SearchResult[] }>();
-  const [picked, setPicked] = useState<SearchResult | null>(null);
+  const [found, setFound] = useState<{ query: string; results: R[] }>();
+  const [picked, setPicked] = useState<R | null>(null);
   const wanted = query.trim();
   useOnScreenKeyboard(fieldRef);
 
   useEffect(() => {
     if (!wanted) return;
-    let cancelled = false;
+    // A late answer for an older query is never shown: only the one for what the box says now is.
     const timer = setTimeout(() => {
-      void search(wanted).then(results => {
-        if (!cancelled) setFound({ query: wanted, results });
-      });
+      void search(wanted).then(results => setFound({ query: wanted, results }));
     }, SEARCH_DELAY_MS);
     return () => {
-      cancelled = true;
       clearTimeout(timer);
     };
   }, [wanted, search]);

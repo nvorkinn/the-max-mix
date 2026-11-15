@@ -17,7 +17,10 @@ export interface SearchResult {
   detail: string;
 }
 
-const STOPS: readonly SearchResult[] = [
+/** A stop a search found, ready to go in the departures. */
+export type StopResult = SearchResult & { source: DepartureStop['source'] };
+
+const STOPS: readonly StopResult[] = [
   { source: 'tfl', id: '490000077E', name: 'Euston Station', detail: 'Stop E, towards Oxford Circus' },
   { source: 'tfl', id: '490000077F', name: 'Euston Station', detail: 'Stop F, towards Camden Town' },
   { source: 'tfl', id: '940GZZLUOVL', name: 'Oval Underground Station', detail: 'Northern line' },
@@ -39,13 +42,13 @@ const PLACES: readonly SearchResult[] = [
   { source: 'open-meteo', id: 'trondheim-no-3133880', name: 'Trondheim', detail: 'Trøndelag, Norway' }
 ];
 
-function find(list: readonly SearchResult[], query: string): SearchResult[] {
+function find<R extends SearchResult>(list: readonly R[], query: string): R[] {
   const wanted = query.trim().toLocaleLowerCase();
   return wanted ? list.filter(result => `${result.name} ${result.detail}`.toLocaleLowerCase().includes(wanted)) : [];
 }
 
 /** Stops whose name or area has the words typed. */
-export function searchStops(query: string): Promise<SearchResult[]> {
+export function searchStops(query: string): Promise<StopResult[]> {
   return Promise.resolve(find(STOPS, query));
 }
 

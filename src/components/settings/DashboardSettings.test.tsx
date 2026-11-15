@@ -76,4 +76,33 @@ describe('DashboardSettings', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenLastCalledWith('notice_board', { postcode: null, country: null });
   });
+
+  it('shows a kiosk with nothing set up yet, and a search that finds nothing', async () => {
+    const onSave = setup({
+      ...OWNED,
+      arrivals: { stops: [] },
+      weather: { location: '', key: null },
+      notice_board: { postcode: null, country: null }
+    });
+    expect(screen.queryByRole('list', { name: 'Departures' })).not.toBeInTheDocument();
+    expect(screen.getByText('No place')).toBeInTheDocument();
+    expect(screen.getByText('Off')).toBeInTheDocument();
+
+    const notices = screen.getByText('Off').closest('.dashboard-row');
+    await userEvent.click(within(notices as HTMLElement).getByRole('button', { name: 'Change' }));
+    let dialog = screen.getByRole('dialog', { name: 'Notice board' });
+    expect(within(dialog).getByRole('button', { name: 'United Kingdom' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(dialog).getByRole('textbox', { name: 'Postcode' })).toHaveValue('');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    const weather = screen.getByText('No place').closest('.dashboard-row');
+    await userEvent.click(within(weather as HTMLElement).getByRole('button', { name: 'Change' }));
+    dialog = screen.getByRole('dialog', { name: 'Weather place' });
+    await userEvent.type(within(dialog).getByRole('searchbox'), 'atlantis');
+    expect(within(dialog).getByRole('status')).toHaveTextContent('Searching...');
+    expect(await within(dialog).findByText('Nothing found.')).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(onSave).not.toHaveBeenCalled();
+  });
 });
