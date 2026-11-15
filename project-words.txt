@@ -47,6 +47,7 @@ getaa
 getconf
 getent
 getty
+gitsubmodule
 groupadd
 ieee
 ifname

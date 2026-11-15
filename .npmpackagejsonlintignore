@@ -1,0 +1,2 @@
+# The countdown-api submodule: its own package, checked in its own repository.
+vendor/

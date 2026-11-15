@@ -1,5 +1,12 @@
 {
   "globs": ["**/*.md"],
-  "ignores": ["**/node_modules/**", "**/.venv/**", "**/coverage/**", "**/dist/**", "e2e/playwright-report/**"],
+  "ignores": [
+    "**/node_modules/**",
+    "vendor/**",
+    "**/.venv/**",
+    "**/coverage/**",
+    "**/dist/**",
+    "e2e/playwright-report/**"
+  ],
   "config": { "extends": "./.markdownlint.jsonc" }
 }

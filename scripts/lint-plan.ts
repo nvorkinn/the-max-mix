@@ -35,9 +35,12 @@ const isKioskAudioPackageFile = paths(
   'ansible/roles/kiosk/files/kiosk-audio/package-lock.json'
 );
 
+// A bump of the countdown-api submodule (its commit, listed as the folder) can change the types the app imports.
+const isCountdownApi = paths('vendor/countdown-api', '.gitmodules');
+
 const CHECKS: Record<string, Matcher[]> = {
-  lint: [ext(...CODE), paths(/^tsconfig[^/]*\.json$/)],
-  typecheck: [ext(...CODE), paths(/^tsconfig[^/]*\.json$/)],
+  lint: [ext(...CODE), paths(/^tsconfig[^/]*\.json$/), isCountdownApi],
+  typecheck: [ext(...CODE), paths(/^tsconfig[^/]*\.json$/), isCountdownApi],
   'format:check': [
     ext(...CODE, 'json', 'jsonc', 'md', 'yml', 'yaml', 'css', 'html'),
     paths('.prettierrc.json', '.prettierignore', '.editorconfig')

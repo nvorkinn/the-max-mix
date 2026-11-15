@@ -15,5 +15,7 @@
     "pi/kiosk-keyboard/build.ts",
     "pi/kiosk-keyboard/loader.ts"
   ],
+  // The countdown-api submodule is its own project; the app only imports its types.
+  "ignore": ["vendor/**"],
   "ignoreBinaries": ["shellcheck", "editorconfig-checker"]
 }
