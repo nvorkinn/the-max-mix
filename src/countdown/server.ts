@@ -14,11 +14,6 @@ export function countdownServer(): string | null {
   }
 }
 
-/** Whether a kiosk with no device ID registers at start: only once the server's /register page is live. */
-export function registrationEnabled(): boolean {
-  return import.meta.env.VITE_COUNTDOWN_REGISTRATION === 'on' && countdownServer() !== null;
-}
-
 /** Whether the server's config site can be shown inside the Settings tab: only once its embedded mode is live. */
 export function configEmbedEnabled(): boolean {
   return import.meta.env.VITE_COUNTDOWN_EMBED === 'on' && countdownServer() !== null;

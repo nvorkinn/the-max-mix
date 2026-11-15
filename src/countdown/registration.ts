@@ -6,7 +6,7 @@
 import type { TouchscreenRegistration } from 'countdown-api';
 import { leaveFor } from '../spotify/settings';
 import { isKiosk } from '../utils/kiosk';
-import { countdownServer, registrationEnabled } from './server';
+import { countdownServer } from './server';
 
 const SECRET_KEY = 'maxmix.deviceSecret';
 const DEVICE_ID_KEY = 'maxmix.deviceId';
@@ -70,11 +70,11 @@ export async function secretHash(secret: string): Promise<string> {
 }
 
 /**
- * Whether the app should go to /register now rather than start: on the kiosk, with registration switched on for this
- * build, nothing registered yet, and storage that can keep the secret (without it, every start would register anew).
+ * Whether the app should go to /register now rather than start: on the kiosk, with a server named in this build,
+ * nothing registered yet, and storage that can keep the secret (without it, every start would register anew).
  */
 export function needsRegistration(): boolean {
-  return isKiosk() && registrationEnabled() && deviceCredentials() === null && canStore();
+  return isKiosk() && countdownServer() !== null && deviceCredentials() === null && canStore();
 }
 
 /** The /register address for this kiosk's secret and screen. */

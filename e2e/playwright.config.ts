@@ -52,6 +52,20 @@ export default defineConfig({
   snapshotPathTemplate: '{testDir}/screenshots/{testFileName}/{arg}{ext}',
   use: {
     baseURL: `http://127.0.0.1:${port}`,
+    // Every page starts as a kiosk already registered with countdown-server, so ?kiosk=1 opens the app rather than the
+    // server's /register page; registration.spec.ts starts without it.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: `http://127.0.0.1:${port}`,
+          localStorage: [
+            { name: 'maxmix.deviceSecret', value: 'e2e-not-a-real-secret' },
+            { name: 'maxmix.deviceId', value: 'e2e-device' }
+          ]
+        }
+      ]
+    },
     // CI uses the Chrome preinstalled on ubuntu-latest; locally Playwright's own Chromium is used, or the binary in E2E_BROWSER_PATH.
     ...(process.env['CI'] && { channel: 'chrome' }),
     launchOptions: { ...(process.env['E2E_BROWSER_PATH'] && { executablePath: process.env['E2E_BROWSER_PATH'] }) },
