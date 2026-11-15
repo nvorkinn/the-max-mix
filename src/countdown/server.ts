@@ -1,14 +1,28 @@
-// Where countdown-server is: its origin comes from the build's environment (.env.development, .env.production), so a
-// build for countdown.run needs no code change. The registration page and the config route hang off it.
+// Where countdown-server is. It answers on two names, and the build's environment (.env.development, .env.production)
+// names both, so a build for countdown.run needs no code change:
+// - the settings site (VITE_COUNTDOWN_SERVER), all behind the owner's sign-in: the kiosk sends the whole page to its
+//   /register page;
+// - the screens' API (VITE_COUNTDOWN_API), with no sign-in but the device secret: the kiosk's config and its saves.
+//   The settings site's sign-in stands in front of anything else there, so the API's calls never reach it.
 
-/** countdown-server's origin, or null when the build names none (or names something that is not an https origin). */
-export function countdownServer(): string | null {
-  const configured = import.meta.env.VITE_COUNTDOWN_SERVER?.trim();
-  if (!configured) return null;
+/** The value as an https origin, or null when it is missing or not one. */
+function httpsOrigin(configured: string | undefined): string | null {
+  const value = configured?.trim();
+  if (!value) return null;
   try {
-    const url = new URL(configured);
+    const url = new URL(value);
     return url.protocol === 'https:' ? url.origin : null;
   } catch {
     return null;
   }
+}
+
+/** The settings site's origin, or null when the build names none (or names something that is not an https origin). */
+export function countdownServer(): string | null {
+  return httpsOrigin(import.meta.env.VITE_COUNTDOWN_SERVER);
+}
+
+/** The screens' API's origin, or null when the build names none (or names something that is not an https origin). */
+export function countdownApi(): string | null {
+  return httpsOrigin(import.meta.env.VITE_COUNTDOWN_API);
 }
