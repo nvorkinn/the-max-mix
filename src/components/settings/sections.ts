@@ -7,5 +7,7 @@ export const SETTINGS_SECTIONS = [
   { id: 'wifi', label: 'Wi-Fi', kioskOnly: true },
   { id: 'spotify', label: 'Spotify', kioskOnly: false },
   { id: 'software', label: 'Software', kioskOnly: false }
+  // PLACEHOLDER: the device settings that countdown-server will send go here, as sections of their own, once the app
+  // reads its config from the server. The old Spotify settings are not to be extended meanwhile: the server's replace them.
 ] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number]['id'];

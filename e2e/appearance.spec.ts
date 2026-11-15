@@ -14,11 +14,11 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
 
   test('Paper appearance applies to dialogs, status and kiosk controls', async ({ page }) => {
     await page.goto('/?kiosk=1');
-    await page.getByRole('button', { name: 'Open settings' }).click();
-    const settings = page.getByRole('dialog', { name: 'Settings' });
-    await expect(settings).toHaveCSS('background-color', PAPER.surface);
-    await expect(settings).toHaveCSS('color', PAPER.ink);
-    await expect(settings).toHaveCSS('color-scheme', PAPER.scheme);
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    const settings = page.getByRole('tabpanel', { name: 'Settings' });
+    await expect(settings.locator('.settings-panel')).toHaveCSS('background-color', PAPER.surface);
+    await expect(settings.locator('.settings-panel')).toHaveCSS('color', PAPER.ink);
+    await expect(settings.locator('.settings-panel')).toHaveCSS('color-scheme', PAPER.scheme);
     await showSection(settings, 'Wi-Fi');
     await expect(settings.getByRole('button', { name: 'Choose network' })).toHaveCSS('color', PAPER.ink);
     await showSection(settings, 'Software');
@@ -88,8 +88,8 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await page.goto('/?kiosk=1');
     const room = page.locator('.tablet-container');
     await expect(room).toHaveAttribute('data-theme', 'day');
-    let settings = page.getByRole('dialog', { name: 'Settings' });
-    await page.getByRole('button', { name: 'Open settings' }).click();
+    let settings = page.getByRole('tabpanel', { name: 'Settings' });
+    await page.getByRole('tab', { name: 'Settings' }).click();
     await showSection(settings, 'Appearance');
     await settings.getByRole('button', { name: 'Navy' }).click();
     const theme = settings.getByRole('group', { name: 'Theme' });
@@ -98,21 +98,21 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
 
     await expect(room).toHaveAttribute('data-theme', 'night');
     await expect(room).toHaveCSS('background-color', 'rgb(9, 14, 31)');
-    await expect(settings).toHaveCSS('background-color', 'rgb(16, 26, 51)');
-    await expect(settings).toHaveCSS('color', 'rgb(245, 246, 255)');
-    await expect(settings).toHaveCSS('color-scheme', 'dark');
+    await expect(settings.locator('.settings-panel')).toHaveCSS('background-color', 'rgb(16, 26, 51)');
+    await expect(settings.locator('.settings-panel')).toHaveCSS('color', 'rgb(245, 246, 255)');
+    await expect(settings.locator('.settings-panel')).toHaveCSS('color-scheme', 'dark');
     await expect(settings.getByRole('button', { name: 'Navy' })).toBeDisabled();
     await expect(settings.getByRole('button', { name: 'Navy' })).toHaveAttribute('aria-pressed', 'true');
 
     await page.reload();
     await expect(room).toHaveAttribute('data-theme', 'night');
-    await page.getByRole('button', { name: 'Open settings' }).click();
-    settings = page.getByRole('dialog', { name: 'Settings' });
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    settings = page.getByRole('tabpanel', { name: 'Settings' });
     await showSection(settings, 'Appearance');
     await settings.getByRole('group', { name: 'Theme' }).getByRole('button', { name: 'Day' }).click();
     await expect(room).toHaveAttribute('data-theme', 'day');
     await expect(room).toHaveAttribute('data-colour', 'navy');
-    await expect(settings).toHaveCSS('background-color', PAPER.surface);
+    await expect(settings.locator('.settings-panel')).toHaveCSS('background-color', PAPER.surface);
     await expect(settings.getByRole('button', { name: 'Navy' })).toBeEnabled();
   });
 
@@ -121,9 +121,9 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await page.clock.setFixedTime(new Date('2026-06-21T21:20:00Z'));
     await page.goto('/?kiosk=1&lat=51.51&lon=-0.13');
     const room = page.locator('.tablet-container');
-    await page.getByRole('button', { name: 'Open settings' }).click();
-    await showSection(page.getByRole('dialog', { name: 'Settings' }), 'Appearance');
-    const theme = page.getByRole('dialog', { name: 'Settings' }).getByRole('group', { name: 'Theme' });
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    await showSection(page.getByRole('tabpanel', { name: 'Settings' }), 'Appearance');
+    const theme = page.getByRole('tabpanel', { name: 'Settings' }).getByRole('group', { name: 'Theme' });
     await theme.getByRole('button', { name: 'Auto' }).click();
     await expect(theme.getByRole('button', { name: 'Auto' })).toHaveAttribute('aria-pressed', 'true');
     await expect(room).toHaveAttribute('data-theme', 'night');

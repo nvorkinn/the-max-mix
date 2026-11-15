@@ -8,43 +8,15 @@ test.beforeEach(async ({ page }) => {
   await fakeSpotify(page);
 });
 
-// Keyboard focus and dismissal of the dialogs (settings, debug console), each tagged with what it opens.
+// Keyboard focus and dismissal of the dialogs (debug console), each tagged with what it opens.
 test.describe('Dialogs: focus and dismissal', { tag: '@dialogs' }, () => {
   test(
-    'Settings keep keyboard focus inside, wrapping both ways, and give it back to the button',
-    { tag: '@settings' },
-    async ({ page }) => {
-      await page.goto('/');
-      const trigger = page.getByRole('button', { name: 'Open settings' });
-      await trigger.click();
-      const settings = page.getByRole('dialog', { name: 'Settings' });
-      const close = settings.getByRole('button', { name: 'Close settings' });
-      const first = settings.getByRole('button').first();
-      const last = settings.getByRole('button').last();
-      await expect(close).toBeFocused();
-      // The navigation comes first, then the page's header with the close button, then the page.
-      await first.focus();
-      await page.keyboard.press('Shift+Tab');
-      await expect(last).toBeFocused();
-      await page.keyboard.press('Tab');
-      await expect(first).toBeFocused();
-      await close.focus();
-
-      await trigger.focus();
-      await expect(close).toBeFocused();
-      await page.keyboard.press('Escape');
-      await expect(settings).toBeHidden();
-      await expect(trigger).toBeFocused();
-    }
-  );
-
-  test(
-    'Escape closes only the topmost dialog (Debug console over Settings) and restores focus',
+    'Escape closes the Debug console over Settings and gives focus back',
     { tag: ['@settings', '@debug'] },
     async ({ page }) => {
       await page.goto('/');
-      await page.getByRole('button', { name: 'Open settings' }).click();
-      const wifi = page.getByRole('dialog', { name: 'Settings' }).getByRole('button').last();
+      await page.getByRole('tab', { name: 'Settings' }).click();
+      const wifi = page.getByRole('tabpanel', { name: 'Settings' }).getByRole('button').last();
       await wifi.focus();
       await page.keyboard.press('Control+Shift+D');
       const debug = page.getByRole('dialog', { name: 'Debug console' });
@@ -52,7 +24,7 @@ test.describe('Dialogs: focus and dismissal', { tag: '@dialogs' }, () => {
       await expect(debug.getByRole('button', { name: 'Close debug console' })).toBeFocused();
       await page.keyboard.press('Escape');
       await expect(debug).toBeHidden();
-      await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+      await expect(page.getByRole('tabpanel', { name: 'Settings' })).toBeVisible();
       await expect(wifi).toBeFocused();
     }
   );

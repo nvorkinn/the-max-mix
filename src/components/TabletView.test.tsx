@@ -450,7 +450,7 @@ describe('TabletView', () => {
     expect(api.getQueue).not.toHaveBeenCalled();
     expect(screen.queryByRole('slider', { name: 'Playback position' })).not.toBeInTheDocument();
     fireEvent.click(within(panel).getByRole('button', { name: 'Connection settings' }));
-    expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
+    expect(screen.getByRole('tabpanel', { name: 'Settings' })).toBeInTheDocument();
   });
 
   it('changes and remembers the colour picked in the settings', async () => {
@@ -936,41 +936,40 @@ describe('TabletView', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
         const asked = fetchMock.mock.calls.length;
         fetchMock.mockImplementation(() => Promise.resolve(release('v1.14.0')));
-        fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
+        fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
         openSoftware();
         expect(await screen.findByText(/v1\.14\.0 is out\. Tap the button to install it now/)).toBeInTheDocument();
         expect(fetchMock.mock.calls.length).toBeGreaterThan(asked);
         // The newer version is asked about at once, over the open Settings.
         expect(screen.getByRole('dialog', { name: 'Update available' })).toBeInTheDocument();
-        expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
+        expect(screen.getByRole('tabpanel', { name: 'Settings' })).toBeInTheDocument();
       });
 
-      it('Update now in the popup over Settings closes Settings and opens the console; Not now leaves Settings open', async () => {
+      it('Update now in the popup over Settings opens the console; Not now leaves Settings showing', async () => {
         render(<TabletView />);
         await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
         fetchMock.mockImplementation(() => Promise.resolve(release('v1.14.0')));
-        fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
+        fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
         await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
         expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
-        expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
+        expect(screen.getByRole('tabpanel', { name: 'Settings' })).toBeInTheDocument();
 
-        // The next one (v1.15.0) is accepted: the console replaces Settings.
+        // The next one (v1.15.0) is accepted: the console opens over Settings.
         fetchMock.mockImplementation(() => Promise.resolve(release('v1.15.0')));
-        fireEvent.click(screen.getByRole('button', { name: 'Close settings' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
+        fireEvent.click(screen.getByRole('tab', { name: 'Spotify' }));
+        fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
         const popup = await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(within(popup).getByRole('button', { name: 'Update now' }));
         expect(await screen.findByRole('dialog', { name: 'Updating the Pi' })).toBeInTheDocument();
-        expect(screen.queryByRole('dialog', { name: 'Settings' })).not.toBeInTheDocument();
       });
 
       it('Check for updates in Settings asks again after Not now, and the update starts from the popup', async () => {
         render(<TabletView />);
         await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
+        fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
         openSoftware();
         // The same version was declined, so opening Settings only says it is out.
         expect(await screen.findByText(/v1\.13\.0 is out\. Tap the button to install it now/)).toBeInTheDocument();
@@ -981,7 +980,6 @@ describe('TabletView', () => {
         const popup = await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(within(popup).getByRole('button', { name: 'Update now' }));
         expect(await screen.findByRole('dialog', { name: 'Updating the Pi' })).toBeInTheDocument();
-        expect(screen.queryByRole('dialog', { name: 'Settings' })).not.toBeInTheDocument();
       });
 
       it('asks GitHub again when the screen wakes', async () => {

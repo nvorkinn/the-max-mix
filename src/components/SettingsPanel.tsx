@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Cpu, LayoutGrid, Music, Palette, Settings, Wifi, X } from 'lucide-react';
+import { Cpu, LayoutGrid, Music, Palette, Wifi } from 'lucide-react';
 import { isKiosk } from '../utils/kiosk';
 import { reloadSettings } from '../spotify/settings';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import type { ThemeColour } from '../utils/themeColour';
 import type { Skin, Theme } from '../utils/theme';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
-import Modal from './Modal';
 import SleepIcon from './SleepIcon';
 import AppearanceSettings from './settings/AppearanceSettings';
 import ScreenSleepSettings from './settings/ScreenSleepSettings';
@@ -30,10 +29,8 @@ const SECTION_ICONS: Record<SettingsSection, ReactNode> = {
   software: <Cpu className="w-6 h-6 shrink-0" aria-hidden="true" />
 };
 
-interface SettingsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  /** The page the settings open on: Overview, unless they were opened to fix the Spotify sign-in. */
+interface SettingsPanelProps {
+  /** The page the settings start on: Overview, unless they were brought up to fix the Spotify sign-in. */
   initialSection?: SettingsSection;
   authInfo?: { authenticated?: boolean };
   signInError?: string | null;
@@ -53,8 +50,11 @@ interface SettingsModalProps {
   kioskUpdate?: KioskUpdate;
 }
 
-function SettingsContent({
-  onClose,
+/**
+ * The Settings tab: the sections on the left and the chosen one's page on the right. The device settings that
+ * countdown-server will send become sections of their own (see settings/sections.ts).
+ */
+export default function SettingsPanel({
   initialSection = 'overview',
   authInfo,
   signInError = null,
@@ -68,7 +68,7 @@ function SettingsContent({
   onThemeChange,
   skin,
   kioskUpdate
-}: Readonly<SettingsModalProps>) {
+}: Readonly<SettingsPanelProps>) {
   const [kiosk] = useState(isKiosk);
   const [section, setSection] = useState<SettingsSection>(initialSection);
   const wifi = useWifi(kiosk);
@@ -78,16 +78,17 @@ function SettingsContent({
   const sections = SETTINGS_SECTIONS.filter(
     choice => (kiosk || !choice.kioskOnly) && (choice.id !== 'sleep' || hasSleep)
   );
-  const shown = sections.find(choice => choice.id === section) ?? SETTINGS_SECTIONS[0];
+  const current = sections.find(choice => choice.id === section) ?? SETTINGS_SECTIONS[0];
 
-  // Opening the settings asks GitHub again whether a newer version is out, so the answer is never the one from hours ago.
+  // Showing the settings (they mount each time the tab comes up) asks GitHub again whether a newer version is out, so the
+  // answer is never the one from hours ago.
   const checkForUpdate = kioskUpdate?.checkNow;
   useEffect(() => {
     checkForUpdate?.();
   }, [checkForUpdate]);
 
   let page: ReactNode;
-  switch (shown.id) {
+  switch (current.id) {
     case 'appearance': {
       page = (
         <AppearanceSettings
@@ -136,23 +137,15 @@ function SettingsContent({
   }
 
   return (
-    <Modal
-      labelledBy="settings-title"
-      onClose={onClose}
-      className="app-modal-panel settings-panel border rounded-3xl shadow-2xl text-left select-none"
-    >
-      <nav className="settings-nav" aria-labelledby="settings-title">
-        <h3 id="settings-title" className="settings-title">
-          <Settings className="w-6 h-6 text-accent" aria-hidden="true" />
-          Settings
-        </h3>
+    <div className="app-modal-panel settings-panel settings-tab text-left select-none">
+      <nav className="settings-nav" aria-label="Settings">
         <ul className="settings-nav-list">
           {sections.map(choice => (
             <li key={choice.id}>
               <button
                 type="button"
                 onClick={() => setSection(choice.id)}
-                aria-current={choice.id === shown.id ? 'page' : undefined}
+                aria-current={choice.id === current.id ? 'page' : undefined}
                 className="settings-nav-item"
               >
                 {SECTION_ICONS[choice.id]}
@@ -165,27 +158,14 @@ function SettingsContent({
       <section className="settings-content" aria-labelledby="settings-section-title">
         <header className="settings-content-header">
           <h4 id="settings-section-title" className="settings-section-title">
-            {shown.label}
+            {current.label}
           </h4>
-          <button
-            type="button"
-            data-modal-autofocus
-            onClick={onClose}
-            aria-label="Close settings"
-            className="modal-icon-button rounded-full active:scale-90 flex items-center justify-center transition-all"
-          >
-            <X className="w-6 h-6" aria-hidden="true" />
-          </button>
         </header>
         {/* Keyed by the page, so each one starts scrolled to the top. */}
-        <div className="settings-content-body" key={shown.id}>
+        <div className="settings-content-body" key={current.id}>
           {page}
         </div>
       </section>
-    </Modal>
+    </div>
   );
-}
-
-export default function SettingsModal(props: Readonly<SettingsModalProps>) {
-  return props.isOpen ? <SettingsContent {...props} /> : null;
 }

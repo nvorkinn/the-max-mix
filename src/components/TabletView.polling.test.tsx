@@ -13,7 +13,7 @@ vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => state.play
 vi.mock('../utils/colorExtractor', () => ({ extractArtColours: vi.fn().mockResolvedValue(null) }));
 vi.mock('./AlbumArtPlayer', () => ({ default: () => null }));
 vi.mock('./LyricsPanel', () => ({ default: () => null }));
-vi.mock('./SettingsModal', () => ({ default: () => null }));
+vi.mock('./SettingsPanel', () => ({ default: () => null }));
 vi.mock('./SpeakerSelectorModal', () => ({ default: () => null }));
 vi.mock('./TrackQueue', () => ({
   default: ({ queue, error }: { queue: { name: string }[]; error?: string | null }) => (

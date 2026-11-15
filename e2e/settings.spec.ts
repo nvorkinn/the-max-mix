@@ -25,7 +25,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     const nav = dialog.getByRole('navigation', { name: 'Settings' });
     await expect(nav.getByRole('button', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
     await expect(dialog.getByRole('heading', { name: 'Overview' })).toBeVisible();
-    await dialog.getByRole('button', { name: 'Close settings' }).click();
+    await page.getByRole('tab', { name: 'Spotify' }).click();
     await expect(dialog).toBeHidden();
   });
 
@@ -93,7 +93,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
       // It is not a setting people are offered.
       const settings = await openSettings(page);
       await expect(settings).not.toContainText('Poll Spotify');
-      await settings.getByRole('button', { name: 'Close settings' }).click();
+      await page.getByRole('tab', { name: 'Spotify' }).click();
 
       const debug = await openDebug(page);
       const poll = debug.getByRole('checkbox', { name: 'Poll Spotify for updates' });

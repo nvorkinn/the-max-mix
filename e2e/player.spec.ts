@@ -115,8 +115,8 @@ test.describe('Player', { tag: '@player' }, () => {
     await expect(page.locator('.album-cover.image-placeholder')).toBeVisible();
     await expect(page.locator('.queue-art.image-placeholder')).toHaveCount(4);
 
-    await page.getByRole('button', { name: 'Open settings' }).click();
-    await page.keyboard.press('Escape');
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    await page.getByRole('tab', { name: 'Spotify' }).click();
     await expect(page.locator('.album-cover.image-placeholder')).toBeVisible();
 
     await page.unroute('https://images.unsplash.com/**');

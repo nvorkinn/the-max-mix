@@ -35,8 +35,8 @@ import TrackQueue, { type QueueStatus } from './TrackQueue';
 import PlaybackBanner, { type PlaybackNoticeState, type BannerNotice } from './PlaybackNotice';
 import LyricsPanel from './LyricsPanel';
 import PanelNav from './PanelNav';
-import SettingsModal from './SettingsModal';
-import type { SettingsSection } from './SettingsModal';
+import SettingsPanel from './SettingsPanel';
+import type { SettingsSection } from './SettingsPanel';
 import UpdateConsole from './UpdateConsole';
 import UpdatePrompt from './UpdatePrompt';
 import SpeakersView from './SpeakersView';
@@ -50,10 +50,11 @@ import AppTabs, { tabPanelId } from './AppTabs';
 import Dashboard from './Dashboard';
 import type { AppTab } from './AppTabs';
 
-type Screen = 'spotify' | 'dashboard';
+type Screen = 'spotify' | 'dashboard' | 'settings';
 const SCREENS: readonly AppTab<Screen>[] = [
   { id: 'spotify', label: 'Spotify', icon: <Music aria-hidden="true" /> },
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard aria-hidden="true" /> }
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard aria-hidden="true" /> },
+  { id: 'settings', label: 'Settings', icon: <Settings aria-hidden="true" /> }
 ];
 
 const formatClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
@@ -138,8 +139,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // True while a tapped queue song is being skipped to, so a second tap cannot start another jump.
   const [isJumping, setIsJumping] = useState(false);
   const [currentTime, setCurrentTime] = useState(formatClock);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  // The header's button opens the overview; the sign-in prompts open the Spotify page.
+  // The Settings tab starts on the overview; the sign-in prompts bring it up on the Spotify page.
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('overview');
   const [isMusicOpen, setIsMusicOpen] = useState(false);
   const [screen, setScreen] = useState<Screen>('spotify');
@@ -328,9 +328,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     };
   }, [artUrl]);
 
+  const showScreen = (next: Screen) => {
+    if (next === 'settings' && screen !== 'settings') setSettingsSection('overview');
+    setScreen(next);
+  };
   const showSettings = () => {
     setSettingsSection('spotify');
-    setIsSettingsOpen(true);
+    setScreen('settings');
   };
   // Switching person: the music this tablet plays (itself, or its Sonos) belongs to the person leaving, so it pauses;
   // then the page starts again as the new person. A pause that fails or hangs does not hold the switch up.
@@ -465,7 +469,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             </h1>
           </div>
         </div>
-        <AppTabs tabs={SCREENS} current={screen} onSelect={setScreen} />
+        <AppTabs tabs={SCREENS} current={screen} onSelect={showScreen} />
         <div className="header-actions">
           {!needsConnection && (
             <button
@@ -489,18 +493,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               <SleepIcon size={28} />
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              setSettingsSection('overview');
-              setIsSettingsOpen(true);
-            }}
-            className="icon-button"
-            title="Settings"
-            aria-label="Open settings"
-          >
-            <Settings size={28} />
-          </button>
           {isAuthenticated && <PersonSwitcher onSwitch={spotifyId => void switchTo(spotifyId)} />}
           <span className="header-clock" {...debugHold}>
             <Clock size={14} /> {currentTime}
@@ -617,6 +609,32 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       >
         <Dashboard shown={screen === 'dashboard' && !sleep.asleep} />
       </section>
+      <section
+        className="app-tab-panel"
+        role="tabpanel"
+        id={tabPanelId('settings')}
+        aria-label="Settings"
+        hidden={screen !== 'settings'}
+      >
+        {screen === 'settings' && (
+          <SettingsPanel
+            initialSection={settingsSection}
+            authInfo={{
+              authenticated: isAuthenticated && problem?.recovery !== 'sign-in'
+            }}
+            signInError={signInError || (playerProblem?.recovery === 'sign-in' ? playerProblem.message : null)}
+            screenSleep={screenSleepMinutes}
+            onScreenSleepChange={changeScreenSleep}
+            themeColour={themeColour}
+            onThemeColourChange={changeThemeColour}
+            theme={theme.theme}
+            autoTheme={theme.autoOffered}
+            onThemeChange={theme.change}
+            skin={theme.skin}
+            kioskUpdate={kioskUpdate}
+          />
+        )}
+      </section>
 
       <MusicPicker
         isOpen={isMusicOpen && !needsConnection}
@@ -655,38 +673,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         ]}
       />
 
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        initialSection={settingsSection}
-        authInfo={{
-          authenticated: isAuthenticated && problem?.recovery !== 'sign-in'
-        }}
-        signInError={signInError || (playerProblem?.recovery === 'sign-in' ? playerProblem.message : null)}
-        screenSleep={screenSleepMinutes}
-        onScreenSleepChange={changeScreenSleep}
-        themeColour={themeColour}
-        onThemeColourChange={changeThemeColour}
-        theme={theme.theme}
-        autoTheme={theme.autoOffered}
-        onThemeChange={theme.change}
-        skin={theme.skin}
-        kioskUpdate={kioskUpdate}
-      />
-
-      {/* A newer version is asked about once, with the screen awake and no music picker or debug dialog open. It also shows over
-          the settings (which check again each time they open), and starting the update from it closes them: the console takes
-          over. Dialogs stack in the order they were opened (the browser's top layer), and this one can only open after the
-          settings, which the page behind a modal dialog cannot reopen: e2e/update-popup.spec.ts checks it is on top. */}
+      {/* A newer version is asked about once, with the screen awake and no music picker or debug dialog open. The Settings
+          tab checks again each time it comes up, so the question can show over it; starting the update hands over to the
+          console. */}
       {kioskUpdate.prompting && kioskUpdate.newer && !sleep.asleep && !isMusicOpen && !isDebugOpen && (
-        <UpdatePrompt
-          newer={kioskUpdate.newer}
-          onUpdate={() => {
-            kioskUpdate.start();
-            setIsSettingsOpen(false);
-          }}
-          onLater={kioskUpdate.dismissPrompt}
-        />
+        <UpdatePrompt newer={kioskUpdate.newer} onUpdate={kioskUpdate.start} onLater={kioskUpdate.dismissPrompt} />
       )}
       <UpdateConsole update={kioskUpdate} />
 

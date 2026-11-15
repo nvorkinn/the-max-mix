@@ -77,13 +77,13 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     page
   }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: 'Open settings' }).click();
-    const settings = page.getByRole('dialog', { name: 'Settings' });
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    const settings = page.getByRole('tabpanel', { name: 'Settings' });
     await showSection(settings, 'Screen sleep');
     const choices = settings.getByRole('group', { name: 'Screen sleep' });
     await choices.getByRole('button', { name: '2 min', exact: true }).click();
     await expect(choices.getByRole('button', { name: '2 min', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await settings.getByRole('button', { name: 'Close settings' }).click();
+    await page.getByRole('tab', { name: 'Spotify' }).click();
 
     const wake = page.getByRole('button', { name: 'Wake the screen' });
     const dashboard = page.getByRole('tab', { name: 'Dashboard' });
@@ -104,24 +104,25 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     await expect(wake).toBeVisible();
   });
 
-  test('a screen that falls asleep while Settings is open goes black over it, and a tap wakes it to Settings', async ({
+  test('Settings left alone give way to the Dashboard, which sleeps, and a tap wakes it to the Dashboard', async ({
     page
   }) => {
     await page.goto('/');
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Open settings' }).click();
-    const settings = page.getByRole('dialog', { name: 'Settings' });
-    await expect(settings).toBeVisible();
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    await expect(page.getByRole('tabpanel', { name: 'Settings' })).toBeVisible();
 
     // Nobody touches the screen, with nothing playing: two minutes to the Dashboard, then the default five to sleep.
-    await advance(page, 7 * 60_000 + 5000, 5000);
+    await advance(page, 2 * 60_000 + 5000, 5000);
+    await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
+    await expect(page.getByRole('tabpanel', { name: 'Settings' })).toBeHidden();
+    await advance(page, 5 * 60_000, 5000);
     const wake = page.getByRole('button', { name: 'Wake the screen' });
     await expect(wake).toBeVisible();
-    // The sleep screen is on top of the open dialog, so a tap in the middle of the screen lands on it and wakes it.
+    // The sleep screen covers everything, so the tap that wakes it reaches nothing behind it.
     await page.mouse.click(512, 300);
     await expect(wake).toHaveCount(0);
-    // Waking shows Settings again, as it was left; it is not closed into a sleeping screen.
-    await expect(settings).toBeVisible();
+    await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
   });
 });
