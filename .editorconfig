@@ -22,3 +22,7 @@ indent_size = unset
 charset = unset
 end_of_line = unset
 insert_final_newline = unset
+
+# git writes .gitmodules itself, indented with tabs.
+[.gitmodules]
+indent_style = tab
