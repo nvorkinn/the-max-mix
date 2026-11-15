@@ -206,6 +206,25 @@ describe('start', () => {
     expect(field.value).toBe('7a3~\\0');
   });
 
+  it('shows and types capitals only, with no Shift key, when asked to', () => {
+    stop();
+    stop = start(document, document.documentElement, { hasNumberRow: true, isUppercase: true });
+    const field = input();
+    field.focus();
+    const labels = [...board().querySelectorAll('button')].map(button => button.textContent);
+    expect(labels).toContain('Q');
+    expect(labels).not.toContain('q');
+    expect(board().querySelector('[aria-label="Shift"]')).toBeNull();
+    tap('S');
+    tap('W');
+    tap('1');
+    tap('#+=');
+    tap('-');
+    tap('ABC');
+    tap('A');
+    expect(field.value).toBe('SW1-A');
+  });
+
   it('goes in the element it is given', () => {
     stop();
     const mount = document.createElement('div');

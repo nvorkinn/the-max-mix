@@ -32,6 +32,8 @@ kiosk-audio watchdog brings the app back, after 3 minutes without a heartbeat.
 - Three layouts: letters (with a one-shot Shift, `@` and `.`), digits and symbols, and more symbols.
 - The Wi-Fi setup page asks for a row of digits that stays at the top (`hasNumberRow`), for passwords: five rows, 290
   pixels high, with the letters and one page holding every other ASCII symbol.
+- The app's Dashboard dialogs (stop and place search, the notice board's postcode) ask for the number row too, and for
+  capitals only (`isUppercase`): the letters show and type as capitals, with no Shift key.
 - Keys type with the browser's own editing command (`insertText`), which fires the same trusted input events as a key
   press, so Spotify's form sees the text. Each key acts on touch and keeps the focus in the field.
 - The keyboard stores nothing and sends nothing. It runs in the extension's isolated world, inside a shadow root, so
