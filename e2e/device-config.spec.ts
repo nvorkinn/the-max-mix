@@ -69,4 +69,27 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     await expect(settings.getByRole('status')).toHaveText('Not saved');
     await expect(page.locator('.tablet-container')).toHaveAttribute('data-theme', 'day');
   });
+
+  test('the Dashboard page adds a stop found by search and saves the departures', async ({ page }) => {
+    const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
+    await page.goto('/?kiosk=1');
+    const settings = await openSettings(page, 'Dashboard');
+
+    await settings.getByRole('button', { name: 'Add stop' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Add stop' });
+    await dialog.getByRole('searchbox', { name: 'Add stop' }).fill('majorstuen');
+    await dialog.getByRole('button', { name: /Majorstuen/ }).click();
+    await dialog.getByRole('button', { name: 'Add' }).click();
+
+    await expect(settings.getByText('Majorstuen')).toBeVisible();
+    await expect(settings.getByRole('status')).toHaveText('Saved');
+    expect(server.saves.map(save => save['arrivals'])).toEqual([
+      {
+        stops: [
+          { source: 'entur', id: 'NSR:StopPlace:58381' },
+          { source: 'entur', id: 'NSR:StopPlace:59872' }
+        ]
+      }
+    ]);
+  });
 });

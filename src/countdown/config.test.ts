@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { TouchscreenConfig } from 'countdown-api';
 import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import { cachedDeviceConfig, forgetDeviceConfig, loadDeviceConfig, saveConfigSection } from './config';
-import type { TouchscreenConfig } from 'countdown-api';
 import * as registration from './registration';
 
 const SECRET = fixture.registration.secret;

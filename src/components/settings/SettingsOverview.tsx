@@ -1,5 +1,16 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { AlertCircle, CheckCircle2, ChevronRight, Cpu, Music, Palette, Wifi, WifiOff } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronRight,
+  Cpu,
+  LayoutDashboard,
+  Music,
+  Palette,
+  Wifi,
+  WifiOff
+} from 'lucide-react';
+import type { TouchscreenConfig } from 'countdown-api';
 import type { KioskUpdate } from '../../hooks/useKioskUpdate';
 import type { ScreenSleepMinutes } from '../../utils/screenSleep';
 import { THEMES } from '../../utils/theme';
@@ -8,6 +19,7 @@ import { THEME_COLOURS } from '../../utils/themeColour';
 import type { ThemeColour } from '../../utils/themeColour';
 import SleepIcon from '../SleepIcon';
 import { APP_VERSION } from './appVersion';
+import { noticeBoardLabel } from './DashboardSettings';
 import type { SettingsSection } from './sections';
 import { SOFTWARE_LOOK, softwareState } from './softwareStatus';
 import { wifiLabel } from './wifi';
@@ -58,9 +70,24 @@ function PiSoftware({ update }: Readonly<{ update: KioskUpdate }>) {
   );
 }
 
+/** The Dashboard's settings in brief: the time format, how many stops, the weather's place and the notice board's postcode. */
+function DashboardSummary({ config }: Readonly<{ config: TouchscreenConfig }>) {
+  const stops = config.arrivals.stops.length;
+  const notices = noticeBoardLabel(config.notice_board);
+  return (
+    <>
+      <span>{config.clock_format === '12h' ? '12-hour' : '24-hour'}</span>
+      <span>{stops === 1 ? '1 stop' : `${stops} stops`}</span>
+      {config.weather.key && <span className="truncate">{config.weather.location}</span>}
+      {notices && <span className="truncate">{notices}</span>}
+    </>
+  );
+}
+
 export default function SettingsOverview({
   onOpen,
   kiosk,
+  deviceConfig,
   theme,
   themeColour,
   screenSleep,
@@ -70,6 +97,8 @@ export default function SettingsOverview({
 }: Readonly<{
   onOpen: (section: SettingsSection) => void;
   kiosk: boolean;
+  /** countdown-server's config, once someone owns the kiosk: the Dashboard card shows only then. */
+  deviceConfig?: TouchscreenConfig | undefined;
   theme: Theme | undefined;
   themeColour: ThemeColour | undefined;
   screenSleep: ScreenSleepMinutes | undefined;
@@ -83,6 +112,16 @@ export default function SettingsOverview({
 
   return (
     <div className="settings-overview" role="group" aria-labelledby="settings-section-title">
+      {deviceConfig && (
+        <Card
+          icon={<LayoutDashboard className="w-6 h-6" aria-hidden="true" />}
+          title="Dashboard"
+          wide
+          onOpen={() => onOpen('dashboard')}
+        >
+          <DashboardSummary config={deviceConfig} />
+        </Card>
+      )}
       <Card
         icon={<Palette className="w-6 h-6" aria-hidden="true" />}
         title="Appearance"

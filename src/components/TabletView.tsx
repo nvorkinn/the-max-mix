@@ -669,6 +669,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             kioskUpdate={kioskUpdate}
             saveStatus={deviceConfig.status}
             onShow={deviceConfig.reload}
+            deviceConfig={ownedConfig ?? undefined}
+            onDeviceConfigSave={deviceConfig.save}
           />
         )}
       </section>

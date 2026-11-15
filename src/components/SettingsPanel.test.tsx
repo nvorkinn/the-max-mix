@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
+import type { TouchscreenConfig } from 'countdown-api';
 import userEvent from '../test/user';
 import { partialProps } from '../test/partialProps';
 import { defined } from '../test/defined';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
+import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import SettingsPanelFull from './SettingsPanel';
 
 const auth = vi.hoisted(() => ({
@@ -406,5 +408,26 @@ describe('SettingsPanel', () => {
   it('keeps developer-facing wording out of the screen', () => {
     render(<SettingsPanel {...base} authInfo={{ authenticated: true }} />);
     expect(document.body).not.toHaveTextContent(/HTTPS|encrypted media|Premium/i);
+  });
+
+  it("offers the Dashboard page and its card only with an owned kiosk's config", async () => {
+    history.replaceState(null, '', '/?kiosk=0');
+    const { rerender } = render(<SettingsPanel {...base} authInfo={{}} />);
+    const nav = screen.getByRole('navigation', { name: 'Settings' });
+    expect(within(nav).queryByRole('button', { name: 'Dashboard' })).not.toBeInTheDocument();
+
+    rerender(
+      <SettingsPanel
+        {...base}
+        authInfo={{}}
+        deviceConfig={fixture.config as TouchscreenConfig}
+        onDeviceConfigSave={vi.fn()}
+      />
+    );
+    const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Dashboard/ });
+    expect(card).toHaveTextContent('24-hour1 stopOslo0150, Norway');
+    await userEvent.click(card);
+    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Time format' })).toBeInTheDocument();
   });
 });

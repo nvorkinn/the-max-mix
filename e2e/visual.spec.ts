@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { DEVICE_CONFIGS, fakeCountdownServer } from './fake-countdown.ts';
 import { airPlayOutput, fakeKioskOutputs } from './fake-kiosk.ts';
 import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
 import { COLOURED_ART, fakeSpotify, PIXEL } from './fake-spotify.ts';
@@ -80,6 +81,23 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
         // eslint-disable-next-line no-await-in-loop -- the same
         await expect(settings).toHaveScreenshot(shotName(name, screen), SHOT);
       }
+    });
+
+    test(`settings Dashboard page at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
+      await page.setViewportSize(screen);
+      await fakeCountdownServer(page, {
+        ...DEVICE_CONFIGS.owned,
+        arrivals: {
+          stops: [
+            { source: 'entur', id: 'NSR:StopPlace:58366' },
+            { source: 'tfl', id: '490000077E' }
+          ]
+        }
+      });
+      await page.goto('/?kiosk=1');
+      const settings = await openSettings(page, 'Dashboard');
+      await expect(settings.getByText('Jernbanetorget')).toBeVisible();
+      await expect(settings).toHaveScreenshot(shotName('settings-dashboard', screen), SHOT);
     });
 
     test(`settings at night at ${size(screen)}`, { tag: ['@settings', '@appearance'] }, async ({ page }) => {
