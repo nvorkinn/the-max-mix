@@ -15,7 +15,8 @@ export type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
 export interface DeviceConfig {
   /**
    * The config as the kiosk shows it: the server's, with any change not yet saved already in it. Null until the kiosk
-   * has one; the pairing value (pairing_code set) while no one owns the kiosk.
+   * has one, which is once someone owns it: a touchscreen registers through its owner's sign-in, so it has no pairing
+   * code.
    */
   config: TouchscreenConfig | null;
   /** Whether changes go to the server: once someone owns the kiosk. Before that the kiosk's settings are its own. */
@@ -83,7 +84,7 @@ export function useDeviceConfig(): DeviceConfig {
   const save = useCallback(
     <K extends ConfigSection>(section: K, value: TouchscreenConfig[K]) => {
       const shown = shownRef.current;
-      if (shown?.pairing_code !== null) return;
+      if (!shown) return;
       show({ ...shown, [section]: value });
       const timers = timersRef.current;
       clearTimeout(timers.get(section));
@@ -118,5 +119,5 @@ export function useDeviceConfig(): DeviceConfig {
     [reload, show]
   );
 
-  return { config, owned: config?.pairing_code === null, save, status, reload };
+  return { config, owned: config !== null, save, status, reload };
 }

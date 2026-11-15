@@ -3,23 +3,26 @@ import type { Page } from '@playwright/test';
 
 const fixture = JSON.parse(
   readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json', import.meta.url), 'utf8')
-) as { pairing: object; config: object };
+) as { config: object };
 
 // The countdown-server the build names (.env.production).
-const CONFIG = 'https://app.countdown.build/api/devices/config';
+export const CONFIG = 'https://app.countdown.build/api/devices/config';
 
-/** countdown-api's example configs: `pairing` before anyone owns the kiosk (it changes nothing), `config` after. */
-export const DEVICE_CONFIGS = { pairing: fixture.pairing, owned: fixture.config };
+/**
+ * countdown-api's example config, once someone owns the kiosk. Before that there's none: a touchscreen registers through
+ * its owner's sign-in, so the server doesn't know an unowned kiosk's secret.
+ */
+export const DEVICE_CONFIGS = { owned: fixture.config };
 
 /**
  * Stands in for countdown-server's config route, which the app asks at start and each time the Settings tab opens (the
- * tests start registered: see playwright.config.ts). Answers the pairing value unless a test gives a config, and the CORS
- * headers the real server sends the app's origin. A save (PUT) is answered with what was sent, or `saveStatus` with no
- * body when a test gives one. Returns the Authorization header of each request and the body of each save.
+ * tests start registered: see playwright.config.ts). Answers 401, as for a secret it doesn't know, unless a test gives a
+ * config, and the CORS headers the real server sends the app's origin. A save (PUT) is answered with what was sent, or
+ * `saveStatus` with no body when a test gives one. Returns the Authorization header of each request and the body of each save.
  */
 export async function fakeCountdownServer(
   page: Page,
-  config: object = DEVICE_CONFIGS.pairing,
+  config: object | null = null,
   { saveStatus }: { saveStatus?: number } = {}
 ) {
   const authorizations: string[] = [];
@@ -42,7 +45,11 @@ export async function fakeCountdownServer(
           : { status: saveStatus, headers: cors }
       );
     }
-    return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify(config) });
+    return route.fulfill(
+      config === null
+        ? { status: 401, headers: cors }
+        : { status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify(config) }
+    );
   });
   return { authorizations, saves };
 }

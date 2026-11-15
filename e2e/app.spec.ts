@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { CONFIG } from './fake-countdown.ts';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
 
 test.beforeEach(async ({ page }) => {
@@ -12,7 +13,8 @@ test.describe('The app as a whole', { tag: '@app' }, () => {
   test('loads when signed in, with no console errors', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', message => {
-      if (message.type() === 'error') errors.push(message.text());
+      // The browser logs the fake countdown-server's 401 for an unowned kiosk, which the app takes in its stride.
+      if (message.type() === 'error' && message.location().url !== CONFIG) errors.push(message.text());
     });
     page.on('pageerror', error => {
       errors.push(error.message);
