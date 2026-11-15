@@ -121,6 +121,7 @@ plymouthd
 pointerdown
 polkit
 polkitd
+popups
 poweroff
 proc
 PSK

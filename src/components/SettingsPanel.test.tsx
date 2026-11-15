@@ -407,4 +407,56 @@ describe('SettingsPanel', () => {
     render(<SettingsPanel {...base} authInfo={{ authenticated: true }} />);
     expect(document.body).not.toHaveTextContent(/HTTPS|encrypted media|Premium/i);
   });
+
+  describe('Device', () => {
+    beforeEach(() => {
+      vi.stubEnv('VITE_COUNTDOWN_SERVER', 'https://app.countdown.build');
+      localStorage.removeItem('maxmix.deviceId');
+      localStorage.removeItem('maxmix.deviceSecret');
+    });
+    afterEach(() => vi.unstubAllEnvs());
+
+    it('is left out when the build names no server', () => {
+      vi.stubEnv('VITE_COUNTDOWN_SERVER', '');
+      render(<SettingsPanel {...base} authInfo={{}} />);
+      const nav = screen.getByRole('navigation', { name: 'Settings' });
+      expect(within(nav).queryByRole('button', { name: 'Device' })).not.toBeInTheDocument();
+    });
+
+    it("links to the config site's page for this device until the site can be embedded", async () => {
+      history.replaceState(null, '', '/?kiosk=0');
+      localStorage.setItem('maxmix.deviceId', 'd1');
+      localStorage.setItem('maxmix.deviceSecret', 's');
+      render(<SettingsPanel {...base} authInfo={{}} />);
+      expect(screen.getByRole('button', { name: /^Device.*Registered/ })).toBeInTheDocument();
+      await userEvent.click(
+        within(screen.getByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Device' })
+      );
+      expect(screen.getByRole('link', { name: 'https://app.countdown.build/devices/d1' })).toHaveAttribute(
+        'href',
+        'https://app.countdown.build/devices/d1'
+      );
+      expect(screen.getByRole('img', { name: 'https://app.countdown.build/devices/d1' })).toBeInTheDocument();
+      expect(document.querySelector('iframe')).toBeNull();
+    });
+
+    it('shows the address, not a link, on the kiosk', () => {
+      history.replaceState(null, '', '/?kiosk=1');
+      render(<SettingsPanel {...base} authInfo={{}} initialSection="device" />);
+      expect(screen.getByText('https://app.countdown.build/')).toBeInTheDocument();
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+      history.replaceState(null, '', '/?kiosk=0');
+    });
+
+    it('embeds the config site once its embedded mode is live', () => {
+      vi.stubEnv('VITE_COUNTDOWN_EMBED', 'on');
+      localStorage.setItem('maxmix.deviceId', 'd1');
+      localStorage.setItem('maxmix.deviceSecret', 's');
+      render(<SettingsPanel {...base} authInfo={{}} initialSection="device" />);
+      expect(screen.getByTitle('Device settings')).toHaveAttribute(
+        'src',
+        'https://app.countdown.build/devices/d1?embed=1'
+      );
+    });
+  });
 });

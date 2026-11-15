@@ -69,6 +69,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       ).toContainText('Up to date');
       await expect(settings).toHaveScreenshot(shotName('settings-overview', screen), SHOT);
       for (const [section, name] of [
+        ['Device', 'settings-device'],
         ['Appearance', 'settings-appearance'],
         ['Screen sleep', 'settings-sleep'],
         ['Wi-Fi', 'settings-wifi'],

@@ -1919,6 +1919,34 @@ body:has(.app-dialog[open]) {
   background: color-mix(in srgb, currentcolor 8%, var(--surface));
   overflow-wrap: anywhere;
 }
+/* The server's config site fills the page, edge to edge, and scrolls inside its own frame. */
+.settings-content-body:has(> .settings-embed) {
+  display: flex;
+  padding: 0;
+  overflow: hidden;
+}
+.settings-embed {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: var(--surface);
+}
+.settings-site {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.settings-site-qr {
+  width: 240px;
+  height: 240px;
+  border-radius: 12px;
+}
+.settings-site-address {
+  font-size: 18px;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
 .settings-panel .settings-action {
   min-height: 64px;
   padding: 0 16px;

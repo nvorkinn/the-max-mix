@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Cpu, LayoutGrid, Music, Palette, Wifi } from 'lucide-react';
+import { Cpu, LayoutGrid, MonitorCog, Music, Palette, Wifi } from 'lucide-react';
+import { deviceCredentials } from '../countdown/registration';
+import { countdownServer } from '../countdown/server';
 import { isKiosk } from '../utils/kiosk';
 import { reloadSettings } from '../spotify/settings';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
@@ -9,6 +11,7 @@ import type { Skin, Theme } from '../utils/theme';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import SleepIcon from './SleepIcon';
 import AppearanceSettings from './settings/AppearanceSettings';
+import DeviceSettings from './settings/DeviceSettings';
 import ScreenSleepSettings from './settings/ScreenSleepSettings';
 import SettingsOverview from './settings/SettingsOverview';
 import SoftwareSettings from './settings/SoftwareSettings';
@@ -22,6 +25,7 @@ export type { SettingsSection } from './settings/sections';
 
 const SECTION_ICONS: Record<SettingsSection, ReactNode> = {
   overview: <LayoutGrid className="w-6 h-6 shrink-0" aria-hidden="true" />,
+  device: <MonitorCog className="w-6 h-6 shrink-0" aria-hidden="true" />,
   appearance: <Palette className="w-6 h-6 shrink-0" aria-hidden="true" />,
   sleep: <SleepIcon className="w-6 h-6 shrink-0" />,
   wifi: <Wifi className="w-6 h-6 shrink-0" aria-hidden="true" />,
@@ -51,8 +55,8 @@ interface SettingsPanelProps {
 }
 
 /**
- * The Settings tab: the sections on the left and the chosen one's page on the right. The device settings that
- * countdown-server will send become sections of their own (see settings/sections.ts).
+ * The Settings tab: the sections on the left and the chosen one's page on the right. Device is countdown-server's config
+ * site for this kiosk (see settings/sections.ts).
  */
 export default function SettingsPanel({
   initialSection = 'overview',
@@ -72,11 +76,14 @@ export default function SettingsPanel({
   const [kiosk] = useState(isKiosk);
   const [section, setSection] = useState<SettingsSection>(initialSection);
   const wifi = useWifi(kiosk);
+  const [server] = useState(countdownServer);
+  const [deviceId] = useState(() => deviceCredentials()?.deviceId ?? null);
   const update = kiosk ? kioskUpdate : undefined;
   const authenticated = authInfo?.authenticated ?? false;
   const hasSleep = screenSleep !== undefined && onScreenSleepChange !== undefined;
   const sections = SETTINGS_SECTIONS.filter(
-    choice => (kiosk || !choice.kioskOnly) && (choice.id !== 'sleep' || hasSleep)
+    choice =>
+      (kiosk || !choice.kioskOnly) && (choice.id !== 'sleep' || hasSleep) && (choice.id !== 'device' || server !== null)
   );
   const current = sections.find(choice => choice.id === section) ?? SETTINGS_SECTIONS[0];
 
@@ -89,6 +96,10 @@ export default function SettingsPanel({
 
   let page: ReactNode;
   switch (current.id) {
+    case 'device': {
+      page = <DeviceSettings deviceId={deviceId} kiosk={kiosk} />;
+      break;
+    }
     case 'appearance': {
       page = (
         <AppearanceSettings
@@ -125,6 +136,7 @@ export default function SettingsPanel({
         <SettingsOverview
           onOpen={setSection}
           kiosk={kiosk}
+          device={server === null ? undefined : { registered: deviceId !== null }}
           theme={theme}
           themeColour={themeColour}
           screenSleep={screenSleep}
