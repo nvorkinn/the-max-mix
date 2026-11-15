@@ -10,7 +10,7 @@ function register() {
 }
 
 function answer(status: number, body?: unknown) {
-  const fetch = vi.fn((_request: Request) =>
+  const fetch = vi.fn<(request: Request) => Promise<Response>>(() =>
     Promise.resolve(
       new Response(body === undefined ? null : JSON.stringify(body), {
         status,
