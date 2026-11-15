@@ -89,14 +89,27 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
         ...DEVICE_CONFIGS.owned,
         arrivals: {
           stops: [
-            { source: 'entur', id: 'NSR:StopPlace:58366' },
+            { source: 'entur', id: 'NSR:StopPlace:337' },
             { source: 'tfl', id: '490000077E' }
           ]
         }
       });
+      // The names the kiosk kept when it added the stops (the config has only their ids).
+      await page.addInitScript(() => {
+        localStorage.setItem(
+          'maxmix.stopNames',
+          JSON.stringify({
+            'entur:NSR:StopPlace:337': {
+              name: 'Oslo S',
+              detail: 'Train & Metro • All platforms • L1, R10, 1, 2 (+12 more)'
+            },
+            'tfl:490000077E': { name: 'Oval Station', detail: 'Stop E • 36, 185, 436' }
+          })
+        );
+      });
       await page.goto('/?kiosk=1');
       const settings = await openSettings(page, 'Dashboard');
-      await expect(settings.getByText('Jernbanetorget')).toBeVisible();
+      await expect(settings.getByText('Oslo S')).toBeVisible();
       await expect(settings).toHaveScreenshot(shotName('settings-dashboard', screen), SHOT);
     });
 

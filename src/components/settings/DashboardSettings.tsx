@@ -2,7 +2,7 @@ import { useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { CloudSun, Megaphone, Plus, TramFront, Trash2 } from 'lucide-react';
 import type { NoticeBoard, TouchscreenConfig } from 'countdown-api';
-import { describeStop, searchPlaces, searchStops } from '../../countdown/search';
+import { describeStop, rememberStop, searchPlaces, searchStops } from '../../countdown/search';
 import type { DeviceConfig } from '../../hooks/useDeviceConfig';
 import { useOnScreenKeyboard } from '../../hooks/useOnScreenKeyboard';
 import ConfirmButton from '../ConfirmButton';
@@ -10,7 +10,20 @@ import Modal from '../Modal';
 import SearchDialog from './SearchDialog';
 
 const COUNTRY_NAMES: Record<NonNullable<NoticeBoard['country']>, string> = { GB: 'United Kingdom', NO: 'Norway' };
-const COUNTRIES = ['GB', 'NO'] as const;
+// Norway's postcodes are four digits; the UK's are an outward code of letters and digits, then a digit and two letters.
+const NO_POSTCODE = /^\d{4}$/;
+const GB_POSTCODE = /^([A-Z]{1,2}\d[A-Z\d]?) ?(\d[A-Z]{2})$/;
+
+/**
+ * The notice board for a postcode as typed: its country told by its form, and a UK one spaced as usual. Null when it is
+ * neither a UK nor a Norwegian postcode.
+ */
+export function noticeBoardFor(typed: string): NoticeBoard | null {
+  const postcode = typed.trim().toUpperCase().replaceAll(/\s+/g, ' ');
+  if (NO_POSTCODE.test(postcode)) return { postcode, country: 'NO' };
+  const uk = GB_POSTCODE.exec(postcode);
+  return uk ? { postcode: `${uk[1]} ${uk[2]}`, country: 'GB' } : null;
+}
 
 /** The postcode and its country, as the notice board's row shows them. */
 export function noticeBoardLabel(board: NoticeBoard): string | null {
@@ -36,18 +49,22 @@ function Row({
   );
 }
 
-/** Asks for the notice board's country and postcode; an empty postcode turns the local notices off. */
+/**
+ * Asks for the notice board's postcode, a UK or a Norwegian one, which tells its country; an empty postcode turns the
+ * local notices off.
+ */
 function NoticeBoardDialog({
   board,
   onSave,
   onClose
 }: Readonly<{ board: NoticeBoard; onSave: (board: NoticeBoard) => void; onClose: () => void }>) {
   const titleId = useId();
+  const hintId = useId();
   const fieldRef = useRef<HTMLInputElement>(null);
-  const [country, setCountry] = useState<(typeof COUNTRIES)[number]>(board.country ?? 'GB');
   const [postcode, setPostcode] = useState(board.postcode ?? '');
   useOnScreenKeyboard(fieldRef);
-  const wanted = postcode.trim().toUpperCase();
+  const off = postcode.trim() === '';
+  const wanted = off ? null : noticeBoardFor(postcode);
 
   return (
     <Modal
@@ -60,19 +77,6 @@ function NoticeBoardDialog({
           Notice board
         </h3>
       </div>
-      <div className="settings-segmented" role="group" aria-label="Country">
-        {COUNTRIES.map(choice => (
-          <button
-            type="button"
-            key={choice}
-            aria-pressed={country === choice}
-            onClick={() => setCountry(choice)}
-            className="settings-segment"
-          >
-            {COUNTRY_NAMES[choice]}
-          </button>
-        ))}
-      </div>
       <input
         ref={fieldRef}
         type="text"
@@ -81,15 +85,21 @@ function NoticeBoardDialog({
         aria-label="Postcode"
         autoComplete="off"
         spellCheck={false}
-        className="music-search w-full min-h-12 mt-4 px-4 rounded-xl border text-sm"
+        aria-invalid={!off && wanted === null}
+        aria-describedby={hintId}
+        className="music-search w-full min-h-12 px-4 rounded-xl border text-sm"
       />
+      <p id={hintId} className="text-muted py-2">
+        {off || wanted ? 'A UK or Norwegian postcode. Leave it empty for none.' : 'Enter a UK or Norwegian postcode.'}
+      </p>
       <div className="search-dialog-actions">
         <button type="button" onClick={onClose} className="button button-secondary">
           Cancel
         </button>
         <button
           type="button"
-          onClick={() => onSave(wanted ? { postcode: wanted, country } : { postcode: null, country: null })}
+          disabled={!off && wanted === null}
+          onClick={() => onSave(wanted ?? { postcode: null, country: null })}
           className="button search-dialog-confirm"
         >
           Save
@@ -186,10 +196,11 @@ export default function DashboardSettings({
           title="Add stop"
           confirmLabel="Add"
           search={searchStops}
-          exclude={stops.map(stop => stop.id)}
+          exclude={stops.map(stop => `${stop.source}:${stop.id}`)}
           onClose={() => setDialog(null)}
           onConfirm={result => {
-            onSave('arrivals', { ...config.arrivals, stops: [...stops, { source: result.source, id: result.id }] });
+            rememberStop(result);
+            onSave('arrivals', { ...config.arrivals, stops: [...stops, result.value] });
             setDialog(null);
           }}
         />
@@ -199,9 +210,10 @@ export default function DashboardSettings({
           title="Weather place"
           confirmLabel="Save"
           search={searchPlaces}
+          initialQuery={config.weather.key ? config.weather.location : ''}
           onClose={() => setDialog(null)}
           onConfirm={result => {
-            onSave('weather', { location: result.name, key: result.id });
+            onSave('weather', result.value);
             setDialog(null);
           }}
         />

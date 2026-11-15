@@ -5,8 +5,13 @@ const fixture = JSON.parse(
   readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json', import.meta.url), 'utf8')
 ) as { config: object };
 
+const search = JSON.parse(
+  readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/search.json', import.meta.url), 'utf8')
+) as { stops_query: string; stops: object[]; places_query: string; places: object[] };
+
 // countdown-server's screens' API, as the build names it (.env.production).
-export const CONFIG = 'https://api.countdown.build/api/devices/config';
+const API = 'https://api.countdown.build';
+export const CONFIG = `${API}/api/devices/config`;
 
 /**
  * countdown-api's example config, once someone owns the kiosk. Before that there's none: a touchscreen registers through
@@ -51,5 +56,29 @@ export async function fakeCountdownServer(
         : { status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify(config) }
     );
   });
+  // The searches answer countdown-api's example: its stops for "oslo s", its places for "oslo", and nothing else.
+  const searches = [
+    ['/api/stops/search', search.stops_query, search.stops],
+    ['/api/places/search', search.places_query, search.places]
+  ] as const;
+  await Promise.all(
+    searches.map(([path, query, results]) =>
+      page.route(`${API}${path}?*`, route => {
+        const request = route.request();
+        const cors = {
+          'Access-Control-Allow-Origin': request.headers()['origin'] ?? '*',
+          'Access-Control-Allow-Headers': 'Authorization'
+        };
+        if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+        const asked = new URL(request.url()).searchParams.get('q');
+        return route.fulfill({
+          status: 200,
+          headers: cors,
+          contentType: 'application/json',
+          body: JSON.stringify(asked === query ? results : [])
+        });
+      })
+    )
+  );
   return { authorizations, saves };
 }

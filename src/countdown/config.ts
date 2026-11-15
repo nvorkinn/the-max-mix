@@ -45,7 +45,7 @@ function cache(config: TouchscreenConfig): void {
 }
 
 /** countdown-server's screens' API with the device secret, or null when the kiosk isn't registered with one. */
-function serverClient(): Client | null {
+export function serverClient(): Client | null {
   const server = countdownApi();
   const credentials = deviceCredentials();
   return server && credentials ? { baseUrl: server, secret: credentials.secret } : null;
