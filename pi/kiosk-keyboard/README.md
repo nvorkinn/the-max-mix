@@ -75,7 +75,7 @@ Chrome turned that switch off by default in 2025, so `kiosk-session` also passes
 `--disable-features=DisableLoadExtensionCommandLineSwitch`.
 
 To try it on a computer:
-`node pi/kiosk-keyboard/build.ts pi/kiosk-keyboard /tmp/kiosk-keyboard https://the-max-mix.vorkinn.org`, then load
+`node pi/kiosk-keyboard/build.ts pi/kiosk-keyboard /tmp/kiosk-keyboard https://the-max-mix.countdown.build`, then load
 `/tmp/kiosk-keyboard` as an unpacked extension in Chromium and open the Spotify sign-in page.
 
 ## Tests
