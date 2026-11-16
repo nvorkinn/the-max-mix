@@ -3725,6 +3725,18 @@ input:disabled {
 .dashboard[data-layout='modular'] .dashboard-modular-weather-hero .dashboard-conditions {
   font-size: calc(24 * var(--u));
 }
+/* The bottom cards are lists, not vertically distributed tiles. */
+.dashboard[data-layout='modular'] .dashboard-arrival-list {
+  flex: 0 0 auto;
+  justify-content: flex-start;
+}
+.dashboard[data-layout='modular'] .dashboard-arrival {
+  min-height: calc(74 * var(--u));
+}
+.dashboard[data-layout='modular'] .dashboard-later .dashboard-hours {
+  flex: 0 0 auto;
+  margin-top: calc(21 * var(--u));
+}
 .dashboard[data-layout='modular'] .dashboard-notice-list {
   flex: 1;
   flex-direction: row;
