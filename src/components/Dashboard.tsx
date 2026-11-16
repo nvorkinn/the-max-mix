@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { TouchscreenConfig } from 'countdown-api';
 import { BusFront, CalendarDays, ChevronRight, CloudRain, MapPin, Megaphone, Umbrella, X } from 'lucide-react';
@@ -11,6 +11,11 @@ import type { ClockFormat } from '../utils/clockFormat';
 import { DEFAULT_DASHBOARD_LAYOUT } from '../utils/dashboardLayout';
 import type { DashboardLayout } from '../utils/dashboardLayout';
 import londonPhoto from '../assets/dashboard/london.jpg';
+import clearWeather from '../assets/dashboard/weather/clear.webp';
+import partlyCloudyWeather from '../assets/dashboard/weather/partly-cloudy.webp';
+import cloudyWeather from '../assets/dashboard/weather/cloudy.webp';
+import rainWeather from '../assets/dashboard/weather/rain.webp';
+import snowWeather from '../assets/dashboard/weather/snow.webp';
 import Modal from './Modal';
 
 /** How often the Dashboard asks for its data again while it is showing. */
@@ -52,111 +57,24 @@ const LINE_COLOURS: Record<string, readonly [string, string]> = {
   'Waterloo & City': ['#95cdba', '#000']
 };
 
-/** A dimensional illustration rather than the old outline-only symbol. Forecast icons and the hero share this artwork. */
+/** Transparent atmospheric weather artwork. The same condition uses coordinated art at both sizes. */
+const WEATHER_IMAGES: Record<Conditions, string> = {
+  clear: clearWeather,
+  'partly-cloudy': partlyCloudyWeather,
+  cloudy: cloudyWeather,
+  rain: rainWeather,
+  snow: snowWeather
+};
+
 function WeatherIcon({ conditions, hero = false }: Readonly<{ conditions: Conditions; hero?: boolean }>) {
-  const id = useId().replaceAll(':', '');
-  const hasSun = conditions === 'clear' || conditions === 'partly-cloudy';
-  const hasCloud = conditions !== 'clear';
   return (
-    <svg viewBox="0 0 150 135" className={`weather-icon${hero ? ' weather-icon-hero' : ''}`} aria-hidden="true">
-      <defs>
-        <radialGradient id={`${id}-sun`} cx="43%" cy="35%" r="69%">
-          <stop offset="0%" stopColor="#fffbe9" />
-          <stop offset="36%" stopColor="#ffe3a2" />
-          <stop offset="76%" stopColor="#ffc154" />
-          <stop offset="100%" stopColor="#e98f37" />
-        </radialGradient>
-        <radialGradient id={`${id}-sun-halo`}>
-          <stop offset="0%" stopColor="#ffe49d" stopOpacity=".73" />
-          <stop offset="100%" stopColor="#ffca5d" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id={`${id}-cloud`} x1="20%" y1="0%" x2="66%" y2="100%">
-          <stop offset="0%" stopColor="#fffdfa" />
-          <stop offset="36%" stopColor="#fbfaf9" />
-          <stop offset="68%" stopColor="#d9e1eb" />
-          <stop offset="100%" stopColor="#929fb3" />
-        </linearGradient>
-        <linearGradient id={`${id}-cloud-bottom`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#f9f9f7" />
-          <stop offset="100%" stopColor="#a4b0c2" />
-        </linearGradient>
-        <linearGradient id={`${id}-rain`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#abdffa" />
-          <stop offset="100%" stopColor="#2a8fc7" />
-        </linearGradient>
-        <filter id={`${id}-shadow`} x="-45%" y="-55%" width="190%" height="210%">
-          <feDropShadow dx="0" dy="7" stdDeviation="6" floodColor="#16243b" floodOpacity=".22" />
-        </filter>
-        <filter id={`${id}-cloud-edge`} x="-25%" y="-30%" width="155%" height="165%">
-          <feTurbulence type="fractalNoise" baseFrequency=".025 .037" numOctaves="3" seed="7" result="texture" />
-          <feDisplacementMap in="SourceGraphic" in2="texture" scale="10" xChannelSelector="R" yChannelSelector="G" />
-        </filter>
-        <radialGradient id={`${id}-cloud-flare`} cx="58%" cy="18%" r="78%">
-          <stop offset="0%" stopColor="#fff9de" stopOpacity=".94" />
-          <stop offset="27%" stopColor="#ffdbac" stopOpacity=".75" />
-          <stop offset="68%" stopColor="#e1c6d1" stopOpacity=".35" />
-          <stop offset="100%" stopColor="#77849f" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id={`${id}-atmosphere`} x1="24%" y1="5%" x2="67%" y2="100%">
-          <stop offset="0%" stopColor="#fff9ea" />
-          <stop offset="39%" stopColor="#f8e6d5" />
-          <stop offset="71%" stopColor="#c6b9c6" />
-          <stop offset="100%" stopColor="#6a7995" />
-        </linearGradient>
-      </defs>
-      {hasSun && (
-        <g>
-          <circle cx="98" cy="38" r="46" fill={`url(#${id}-sun-halo)`} />
-          {Array.from({ length: 10 }, (_, ray) => {
-            const angle = (ray * Math.PI) / 5;
-            return (
-              <line
-                key={ray}
-                x1={98 + Math.cos(angle) * 28}
-                y1={38 + Math.sin(angle) * 28}
-                x2={98 + Math.cos(angle) * 35}
-                y2={38 + Math.sin(angle) * 35}
-                stroke="#ffda7e"
-                strokeWidth="4.5"
-                strokeLinecap="round"
-                opacity=".95"
-              />
-            );
-          })}
-          <circle cx="98" cy="38" r="24" fill={`url(#${id}-sun)`} />
-          <circle cx="91" cy="31" r="9" fill="#fff8df" opacity=".5" />
-        </g>
-      )}
-      {hasCloud && (
-        <g filter={`url(#${id}-shadow)`}>
-          <g filter={`url(#${id}-cloud-edge)`}>
-            <ellipse cx="73" cy="85" rx="58" ry="24" fill={`url(#${id}-cloud-bottom)`} />
-            <circle cx="40" cy="70" r="22" fill={`url(#${id}-atmosphere)`} />
-            <circle cx="65" cy="56" r="31" fill={`url(#${id}-atmosphere)`} />
-            <circle cx="95" cy="70" r="24" fill={`url(#${id}-atmosphere)`} />
-            <ellipse cx="73" cy="83" rx="58" ry="24" fill={`url(#${id}-atmosphere)`} />
-          </g>
-          <ellipse cx="81" cy="57" rx="47" ry="33" fill={`url(#${id}-cloud-flare)`} opacity=".48" />
-          <ellipse cx="66" cy="47" rx="18" ry="8" fill="#fff8e9" opacity=".45" transform="rotate(-22 66 47)" />
-          <ellipse cx="45" cy="63" rx="12" ry="5" fill="#fff" opacity=".28" transform="rotate(-37 45 63)" />
-          <ellipse cx="85" cy="96" rx="47" ry="6" fill="#606e8a" opacity=".14" />
-        </g>
-      )}
-      {conditions === 'rain' && (
-        <g stroke={`url(#${id}-rain)`} strokeWidth="6" strokeLinecap="round">
-          <path d="M46 112l-5 13M77 112l-5 13M108 112l-5 13" />
-        </g>
-      )}
-      {conditions === 'snow' && (
-        <g fill="#f7fdff" stroke="#8fc8e8" strokeWidth="2.3" strokeLinecap="round">
-          {[47, 75, 103].map(x => (
-            <g key={x}>
-              <path d={`M${x} 113v15M${x - 6} 120h12M${x - 4} 116l8 8M${x + 4} 116l-8 8`} />
-            </g>
-          ))}
-        </g>
-      )}
-    </svg>
+    <img
+      src={WEATHER_IMAGES[conditions]}
+      className={`weather-icon${hero ? ' weather-icon-hero' : ''}`}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+    />
   );
 }
 
