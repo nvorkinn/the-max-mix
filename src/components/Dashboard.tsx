@@ -10,7 +10,7 @@ import { DEFAULT_CLOCK_FORMAT, formatClockTime } from '../utils/clockFormat';
 import type { ClockFormat } from '../utils/clockFormat';
 import { DEFAULT_DASHBOARD_LAYOUT } from '../utils/dashboardLayout';
 import type { DashboardLayout } from '../utils/dashboardLayout';
-import londonPhoto from '../assets/dashboard/london.jpg';
+import londonPhoto from '../assets/dashboard/london-sunset-fallback.jpg';
 import clearWeather from '../assets/dashboard/weather/clear.webp';
 import partlyCloudyWeather from '../assets/dashboard/weather/partly-cloudy.webp';
 import cloudyWeather from '../assets/dashboard/weather/cloudy.webp';
@@ -569,7 +569,7 @@ export default function Dashboard({
       className="dashboard"
       data-layout={layout}
       data-notices={hasNotices ? 'some' : 'none'}
-      data-weather-artwork={backgroundIncludesWeatherArtwork ? 'integrated' : 'separate'}
+      data-weather-artwork={backgroundIncludesWeatherArtwork || !backgroundImageUrl ? 'integrated' : 'separate'}
       style={{ '--weather-photo': scene } as CSSProperties}
     >
       {hasNotices && <NoticeBoard notices={data.notices} layout={layout} />}
