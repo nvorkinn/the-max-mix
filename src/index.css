@@ -1399,11 +1399,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A fixed size, so the sheet stays put while phones come and go; the list scrolls inside it. */
 .app-dialog.pair-phone-sheet {
-  width: fit-content;
-  min-width: min(460px, calc(100% - 32px));
+  width: min(680px, calc(100% - 32px));
+  height: min(520px, calc(100dvh - 32px - var(--keyboard-height, 0px)));
   padding: 28px;
   border-radius: 28px;
+  overflow: hidden;
+}
+.app-dialog.pair-phone-sheet[open] {
+  display: flex;
+  flex-direction: column;
 }
 .pair-phone-title {
   display: flex;
@@ -1412,14 +1418,34 @@
   font-size: 26px;
   font-weight: 750;
 }
+.pair-phone-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pair-phone-spinner {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.pair-phone-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
 .pair-phone-step {
   margin: 22px 0 16px;
   font-size: 22px;
   font-weight: 650;
 }
 .pair-phone-nearby {
-  min-height: 60px;
+  flex: 1;
+  align-content: start;
+  min-height: 0;
   margin-bottom: 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .pair-phone-device {
   display: flex;
