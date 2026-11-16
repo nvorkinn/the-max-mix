@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/search.json';
 import touchscreen from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
+import panels from '../../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json';
 import * as registration from './registration';
-import { SearchFailed, describeStop, rememberStop, searchPlaces, searchStops } from './search';
+import { SearchFailed, describeStop, learnStopNames, rememberStop, searchPlaces, searchStops } from './search';
 
 const SECRET = touchscreen.registration.secret;
 
@@ -124,5 +125,36 @@ describe('describeStop', () => {
       value: { source: 'tfl', id: '490000077E' }
     });
     expect(describeStop({ source: 'tfl', id: '490000077E' }).name).toBe('490000077E');
+  });
+});
+
+describe('learnStopNames', () => {
+  it("keeps the names of stops it doesn't know from their departures, and leaves the ones it knows", async () => {
+    register();
+    rememberStop({
+      key: 'tfl:490000123W',
+      name: 'Elephant & Castle',
+      detail: 'Stop W • 12, 35',
+      indent: false,
+      value: { source: 'tfl', id: '490000123W' }
+    });
+    const fetch = answer(200, panels.arrivals);
+    await expect(learnStopNames()).resolves.toBe(true);
+    const [input, init] = fetch.mock.calls[0] ?? [''];
+    expect(new Request(input, init).url).toBe('https://api.countdown.build/api/devices/arrivals');
+    expect(describeStop({ source: 'tfl', id: '940GZZLUKNG' })).toEqual({
+      name: 'Kennington Underground Station',
+      detail: 'TfL'
+    });
+    expect(describeStop({ source: 'tfl', id: '490000123W' }).detail).toBe('Stop W • 12, 35 · TfL');
+    await expect(learnStopNames()).resolves.toBe(false);
+  });
+
+  it('learns nothing when the kiosk is not registered or the server refuses', async () => {
+    const fetch = answer(500);
+    await expect(learnStopNames()).resolves.toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+    register();
+    await expect(learnStopNames()).resolves.toBe(false);
   });
 });

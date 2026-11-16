@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { GripVertical, Search, X } from 'lucide-react';
 import type { TouchscreenConfig } from 'countdown-api';
-import { describeStop, rememberStop } from '../../countdown/search';
+import { describeStop, learnStopNames, rememberStop } from '../../countdown/search';
 import type { DeviceConfig } from '../../hooks/useDeviceConfig';
 import { useDragToReorder } from '../../hooks/useDragToReorder';
 import StopSearch from './StopSearch';
@@ -18,6 +18,20 @@ export default function CountdownSettings({
   const listRef = useRef<HTMLUListElement>(null);
   const [isSearching, setIsSearching] = useState(false);
   const stops = config.arrivals.stops;
+  // A stop added on the settings site shows its id until its name comes from its departures on the server.
+  const stopKeys = stops.map(stop => `${stop.source}:${stop.id}`).join(' ');
+  const [namesLearnt, setNamesLearnt] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    void learnStopNames().then(learnt => {
+      if (learnt && !cancelled) setNamesLearnt(count => count + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [stopKeys]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- namesLearnt: the names kept changed.
+  const described = useMemo(() => stops.map(stop => describeStop(stop)), [stops, namesLearnt]);
   const saveStops = (next: typeof stops) => onSave('arrivals', { ...config.arrivals, stops: next });
   const reorder = useDragToReorder(listRef, stops.length, (from, to) => {
     const next = [...stops];
@@ -47,7 +61,7 @@ export default function CountdownSettings({
               aria-labelledby="saved-stops-label"
             >
               {stops.map((stop, index) => {
-                const { name, detail } = describeStop(stop);
+                const { name, detail } = described[index] ?? describeStop(stop);
                 const { style, isDragged } = reorder.rowStyle(index);
                 return (
                   <li

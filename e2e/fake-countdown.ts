@@ -9,6 +9,13 @@ const search = JSON.parse(
   readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/search.json', import.meta.url), 'utf8')
 ) as { stops_query: string; stops: object[]; places_query: string; places: object[] };
 
+const panels = JSON.parse(
+  readFileSync(
+    new URL('../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json', import.meta.url),
+    'utf8'
+  )
+) as { arrivals: object };
+
 // countdown-server's screens' API, as the build names it (.env.production).
 const API = 'https://api.countdown.build';
 export const CONFIG = `${API}/api/devices/config`;
@@ -106,5 +113,21 @@ export async function fakeCountdownServer(
       })
     )
   );
+  // The device's arrivals: countdown-api's example, once someone owns the kiosk.
+  await page.route(`${API}/api/devices/arrivals`, route => {
+    const request = route.request();
+    const cors = {
+      'Access-Control-Allow-Origin': request.headers()['origin'] ?? '*',
+      'Access-Control-Allow-Headers': 'Authorization'
+    };
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    if (current === null) return route.fulfill({ status: 401, headers: cors });
+    return route.fulfill({
+      status: 200,
+      headers: cors,
+      contentType: 'application/json',
+      body: JSON.stringify(panels.arrivals)
+    });
+  });
   return { authorizations, saves };
 }
