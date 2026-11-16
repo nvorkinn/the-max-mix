@@ -12,16 +12,22 @@ export function openWifiSettings(): void {
 }
 
 /**
- * The name of the Wi-Fi network the kiosk is on, null when it is on none, or undefined when the kiosk could not say
- * (its service did not answer, or is older than this question).
+ * The name of the Wi-Fi network the kiosk is on (null when it is on none) and the Pi's IPv4 address on its network (null
+ * when it has none, or its service is too old to say), or undefined when the kiosk could not say at all (its service
+ * did not answer, or is older than this question).
  */
-export async function currentWifi(signal: AbortSignal | null = null): Promise<string | null | undefined> {
+export async function currentWifi(
+  signal: AbortSignal | null = null
+): Promise<{ ssid: string | null; address: string | null } | undefined> {
   try {
     const response = await fetch(`${KIOSK_SERVICE}/wifi/status`, { signal });
     if (!response.ok) return undefined;
     const body: unknown = await response.json();
-    const ssid = typeof body === 'object' && body !== null && 'ssid' in body ? body.ssid : undefined;
-    return typeof ssid === 'string' || ssid === null ? ssid : undefined;
+    if (typeof body !== 'object' || body === null) return undefined;
+    const ssid = 'ssid' in body ? body.ssid : undefined;
+    // An older kiosk service doesn't say its address.
+    const address = 'address' in body && typeof body.address === 'string' ? body.address : null;
+    return typeof ssid === 'string' || ssid === null ? { ssid, address } : undefined;
   } catch {
     return undefined;
   }

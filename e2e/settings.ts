@@ -15,5 +15,5 @@ export async function showSection(dialog: Locator, section: string): Promise<voi
     .getByRole('navigation', { name: 'Settings' })
     .getByRole('button', { name: section, exact: true })
     .click();
-  await expect(dialog.getByRole('heading', { name: section, exact: true })).toBeVisible();
+  await expect(dialog.getByRole('region', { name: section, exact: true })).toBeVisible();
 }

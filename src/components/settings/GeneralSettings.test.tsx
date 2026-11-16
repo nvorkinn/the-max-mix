@@ -3,10 +3,10 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import type { TouchscreenConfig } from 'countdown-api';
 import fixture from '../../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import search from '../../../vendor/countdown-api/src/countdown_api/fixtures/search.json';
-import { SearchFailed } from '../../countdown/search';
 import * as searches from '../../countdown/search';
 import userEvent from '../../test/user';
-import DashboardSettings, { noticeBoardFor } from './DashboardSettings';
+import GeneralSettings from './GeneralSettings';
+import { noticeBoardFor } from './NoticeBoardDialog';
 
 const OWNED = fixture.config as TouchscreenConfig;
 
@@ -48,42 +48,22 @@ vi.mock('../../countdown/search', async original => {
 
 function setup(config: TouchscreenConfig = OWNED) {
   const onSave = vi.fn();
-  render(<DashboardSettings config={config} onSave={onSave} />);
+  render(<GeneralSettings config={config} onSave={onSave} />);
   return onSave;
 }
 
-describe('DashboardSettings', () => {
-  it('adds a stop as soon as a search result is tapped, and nothing on Cancel', async () => {
-    const onSave = setup();
-    await userEvent.click(screen.getByRole('button', { name: 'Add stop' }));
-    const dialog = screen.getByRole('dialog', { name: 'Add stop' });
-    const box = within(dialog).getByRole('searchbox', { name: 'Add stop' });
-    expect(box).toHaveFocus();
-    await userEvent.type(box, 'oslo s');
-    await userEvent.click(await within(dialog).findByRole('button', { name: /Platform 4/ }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-
-    await userEvent.click(screen.getByRole('button', { name: 'Add stop' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(onSave).toHaveBeenCalledExactlyOnceWith('arrivals', {
-      stops: [...OWNED.arrivals.stops, { source: 'entur', id: 'NSR:Quay:7333' }]
-    });
-    expect(searches.describeStop({ source: 'entur', id: 'NSR:Quay:7333' }).name).toBe('Oslo S');
-  });
-
-  it('removes a stop on a second tap', async () => {
-    const onSave = setup();
-    const remove = screen.getByRole('button', { name: 'Remove' });
-    await userEvent.click(remove);
-    expect(onSave).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('button', { name: 'Tap again to remove' }));
-    expect(onSave).toHaveBeenCalledWith('arrivals', { stops: [] });
+describe('GeneralSettings', () => {
+  it('saves the time format tapped', async () => {
+    const onSave = setup({ ...OWNED, clock_format: '24h' });
+    expect(screen.getByRole('button', { name: '24-hour' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(screen.getByRole('button', { name: '12-hour' }));
+    expect(onSave).toHaveBeenCalledExactlyOnceWith('clock_format', '12h');
   });
 
   it("shows the weather's place chosen now without searching for it, and saves the one tapped", async () => {
     vi.mocked(searches.searchPlaces).mockClear();
     const onSave = setup({ ...OWNED, weather: { location: 'London', key: 'london' } });
-    const weather = screen.getByText('London').closest('.dashboard-row');
+    const weather = screen.getByText('London').closest('.settings-row');
     await userEvent.click(within(weather as HTMLElement).getByRole('button', { name: 'Change' }));
     const dialog = screen.getByRole('dialog', { name: 'Weather place' });
     const box = within(dialog).getByRole('searchbox');
@@ -97,18 +77,10 @@ describe('DashboardSettings', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
-  it("says so when a search can't be made", async () => {
-    vi.mocked(searches.searchStops).mockRejectedValueOnce(new SearchFailed());
-    setup();
-    await userEvent.click(screen.getByRole('button', { name: 'Add stop' }));
-    await userEvent.type(screen.getByRole('searchbox', { name: 'Add stop' }), 'oslo s');
-    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't search");
-  });
-
   it("saves the notice board's postcode with the country its form tells, and an empty postcode turns it off", async () => {
     const onSave = setup();
     expect(screen.getByText('0150, Norway')).toBeInTheDocument();
-    const notices = screen.getByText('0150, Norway').closest('.dashboard-row');
+    const notices = screen.getByText('0150, Norway').closest('.settings-row');
     await userEvent.click(within(notices as HTMLElement).getByRole('button', { name: 'Change' }));
     let dialog = screen.getByRole('dialog', { name: 'Notice board' });
     const field = within(dialog).getByRole('textbox', { name: 'Postcode' });
@@ -127,24 +99,22 @@ describe('DashboardSettings', () => {
     expect(onSave).toHaveBeenLastCalledWith('notice_board', { postcode: null, country: null });
   });
 
-  it('shows a kiosk with nothing set up yet, and a search that finds nothing', async () => {
+  it('shows no place and no notice board when none is set, and a search that finds nothing', async () => {
     const onSave = setup({
       ...OWNED,
-      arrivals: { stops: [] },
       weather: { location: '', key: null },
       notice_board: { postcode: null, country: null }
     });
-    expect(screen.queryByRole('list', { name: 'Departures' })).not.toBeInTheDocument();
     expect(screen.getByText('No place')).toBeInTheDocument();
     expect(screen.getByText('Off')).toBeInTheDocument();
 
-    const notices = screen.getByText('Off').closest('.dashboard-row');
+    const notices = screen.getByText('Off').closest('.settings-row');
     await userEvent.click(within(notices as HTMLElement).getByRole('button', { name: 'Change' }));
     let dialog = screen.getByRole('dialog', { name: 'Notice board' });
     expect(within(dialog).getByRole('textbox', { name: 'Postcode' })).toHaveValue('');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
 
-    const weather = screen.getByText('No place').closest('.dashboard-row');
+    const weather = screen.getByText('No place').closest('.settings-row');
     await userEvent.click(within(weather as HTMLElement).getByRole('button', { name: 'Change' }));
     dialog = screen.getByRole('dialog', { name: 'Weather place' });
     expect(within(dialog).getByRole('searchbox')).toHaveValue('');
@@ -154,6 +124,17 @@ describe('DashboardSettings', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('shows only screen sleep on a kiosk no one owns yet', async () => {
+    const onScreenSleepChange = vi.fn();
+    render(<GeneralSettings screenSleep={5} onScreenSleepChange={onScreenSleepChange} />);
+    expect(screen.queryByText('Time format')).not.toBeInTheDocument();
+    expect(screen.queryByText('Weather')).not.toBeInTheDocument();
+    const sleep = screen.getByRole('group', { name: 'Screen sleep' });
+    expect(within(sleep).getByRole('button', { name: '5 min' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(within(sleep).getByRole('button', { name: 'Never' }));
+    expect(onScreenSleepChange).toHaveBeenCalledExactlyOnceWith(0);
   });
 });
 

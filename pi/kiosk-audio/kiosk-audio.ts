@@ -2,8 +2,9 @@
 //   node kiosk-audio.ts watch   the background unit. It answers the app on 127.0.0.1 (server.ts: the speaker list, routing,
 //                               the kiosk buttons, and the update stream), and every few seconds routes any stream Chromium opened again and
 //                               any chosen speaker that came back.
-import { homedir } from 'node:os';
+import { homedir, networkInterfaces } from 'node:os';
 import path from 'node:path';
+import { lanAddress } from './address.ts';
 import { Nmcli } from './nmcli.ts';
 import type { ConnectRequest } from './nmcli.ts';
 import { PipeWire } from './pipewire.ts';
@@ -24,6 +25,7 @@ function wifi() {
   return {
     scan: () => nmcli.scan(),
     current: () => nmcli.current(),
+    address: () => lanAddress(networkInterfaces()),
     connect: (request: ConnectRequest) => nmcli.connect(request),
     done: () => {
       void (async () => {

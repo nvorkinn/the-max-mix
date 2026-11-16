@@ -3,10 +3,10 @@ import {
   AlertCircle,
   CheckCircle2,
   ChevronRight,
-  Cpu,
-  LayoutDashboard,
-  Music,
+  Info,
   Palette,
+  SlidersHorizontal,
+  TrainFront,
   Wifi,
   WifiOff
 } from 'lucide-react';
@@ -17,9 +17,9 @@ import { THEMES } from '../../utils/theme';
 import type { Theme } from '../../utils/theme';
 import { THEME_COLOURS } from '../../utils/themeColour';
 import type { ThemeColour } from '../../utils/themeColour';
-import SleepIcon from '../SleepIcon';
+import SpotifyIcon from '../SpotifyIcon';
 import { APP_VERSION } from './appVersion';
-import { noticeBoardLabel } from './DashboardSettings';
+import { noticeBoardLabel } from './NoticeBoardDialog';
 import type { SettingsSection } from './sections';
 import { SOFTWARE_LOOK, softwareState } from './softwareStatus';
 import { wifiLabel } from './wifi';
@@ -70,15 +70,20 @@ function PiSoftware({ update }: Readonly<{ update: KioskUpdate }>) {
   );
 }
 
-/** The Dashboard's settings in brief: how many stops, the weather's place and the notice board's postcode. */
-function DashboardSummary({ config }: Readonly<{ config: TouchscreenConfig }>) {
-  const stops = config.arrivals.stops.length;
-  const notices = noticeBoardLabel(config.notice_board);
+/** The General page in brief: the time format, the weather's place, the notice board's postcode and screen sleep. */
+function GeneralSummary({
+  config,
+  screenSleep
+}: Readonly<{ config: TouchscreenConfig | undefined; screenSleep: ScreenSleepMinutes | undefined }>) {
+  const notices = config && noticeBoardLabel(config.notice_board);
   return (
     <>
-      <span>{stops === 1 ? '1 stop' : `${stops} stops`}</span>
-      {config.weather.key && <span className="truncate">{config.weather.location}</span>}
+      {config && <span>{config.clock_format === '12h' ? '12-hour' : '24-hour'}</span>}
+      {config?.weather.key && <span className="truncate">{config.weather.location}</span>}
       {notices && <span className="truncate">{notices}</span>}
+      {screenSleep !== undefined && (
+        <span>{screenSleep === 0 ? 'Never sleeps' : `Sleeps after ${screenSleep} min`}</span>
+      )}
     </>
   );
 }
@@ -96,7 +101,7 @@ export default function SettingsOverview({
 }: Readonly<{
   onOpen: (section: SettingsSection) => void;
   kiosk: boolean;
-  /** countdown-server's config, once someone owns the kiosk: the Dashboard card shows only then. */
+  /** countdown-server's config, once someone owns the kiosk: the Countdown card shows only then. */
   deviceConfig?: TouchscreenConfig | undefined;
   theme: Theme | undefined;
   themeColour: ThemeColour | undefined;
@@ -108,17 +113,27 @@ export default function SettingsOverview({
   const colour = THEME_COLOURS.find(choice => choice.id === themeColour);
   const themeName = THEMES.find(choice => choice.id === theme)?.label;
   const network = wifiLabel(wifi);
+  const stops = deviceConfig?.arrivals.stops.length ?? 0;
 
   return (
-    <div className="settings-overview" role="group" aria-labelledby="settings-section-title">
+    <div className="settings-overview" role="group" aria-label="Overview">
       {deviceConfig && (
         <Card
-          icon={<LayoutDashboard className="w-6 h-6" aria-hidden="true" />}
-          title="Dashboard"
+          icon={<TrainFront className="w-6 h-6" aria-hidden="true" />}
+          title="Countdown"
           wide
-          onOpen={() => onOpen('dashboard')}
+          onOpen={() => onOpen('countdown')}
         >
-          <DashboardSummary config={deviceConfig} />
+          <span>{stops === 1 ? '1 stop' : `${stops} stops`}</span>
+        </Card>
+      )}
+      {(deviceConfig !== undefined || screenSleep !== undefined) && (
+        <Card
+          icon={<SlidersHorizontal className="w-6 h-6" aria-hidden="true" />}
+          title="General"
+          onOpen={() => onOpen('general')}
+        >
+          <GeneralSummary config={deviceConfig} screenSleep={screenSleep} />
         </Card>
       )}
       <Card
@@ -134,11 +149,6 @@ export default function SettingsOverview({
           </span>
         )}
       </Card>
-      {kiosk && screenSleep !== undefined && (
-        <Card icon={<SleepIcon className="w-6 h-6" />} title="Screen sleep" onOpen={() => onOpen('sleep')}>
-          {screenSleep === 0 ? 'Never' : `After ${screenSleep} minutes`}
-        </Card>
-      )}
       {kiosk && (
         <Card
           icon={
@@ -154,7 +164,7 @@ export default function SettingsOverview({
           <span className={`truncate ${wifi.state === 'connected' ? '' : 'text-muted'}`}>{network ?? '\u{A0}'}</span>
         </Card>
       )}
-      <Card icon={<Music className="w-6 h-6" aria-hidden="true" />} title="Spotify" onOpen={() => onOpen('spotify')}>
+      <Card icon={<SpotifyIcon className="w-6 h-6" />} title="Spotify" onOpen={() => onOpen('spotify')}>
         {authenticated ? (
           <span className="settings-status status-success">
             <CheckCircle2 className="settings-status-icon" aria-hidden="true" />
@@ -167,12 +177,7 @@ export default function SettingsOverview({
           </span>
         )}
       </Card>
-      <Card
-        icon={<Cpu className="w-6 h-6" aria-hidden="true" />}
-        title="Software"
-        wide
-        onOpen={() => onOpen('software')}
-      >
+      <Card icon={<Info className="w-6 h-6" aria-hidden="true" />} title="About" wide onOpen={() => onOpen('about')}>
         {kioskUpdate ? (
           <PiSoftware update={kioskUpdate} />
         ) : (

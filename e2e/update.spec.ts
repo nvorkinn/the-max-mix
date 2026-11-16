@@ -58,7 +58,7 @@ test.describe('Software update', { tag: '@update' }, () => {
     // Settings still say it, and the check button beside it asks again.
     await page.getByRole('tab', { name: 'Settings' }).click();
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
-    await showSection(settings, 'Software');
+    await showSection(settings, 'About');
     await expect(settings.getByRole('status')).toContainText('v1.13.0 is out. Tap the button to install it now');
     await expect(popup(page)).toBeHidden();
     await settings.getByRole('button', { name: 'Check for updates' }).click();
@@ -72,7 +72,7 @@ test.describe('Software update', { tag: '@update' }, () => {
     const github = await openKiosk(page, 'v1.12.0');
     await page.getByRole('tab', { name: 'Settings' }).click();
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
-    await showSection(settings, 'Software');
+    await showSection(settings, 'About');
     await expect(settings.getByRole('status')).toContainText('Up to date as of');
 
     // A newer release comes out while the tablet runs; opening Settings again asks GitHub and finds it, with Settings open.
@@ -82,7 +82,7 @@ test.describe('Software update', { tag: '@update' }, () => {
     await expect(popup(page)).toBeVisible();
     await expect(settings).toBeVisible();
     await expect(
-      settings.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^Software/ })
+      settings.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^About/ })
     ).toContainText('v1.13.0 is out');
 
     // Whatever is at the popup's middle must be the popup (or part of it), not Settings behind it.
@@ -196,7 +196,7 @@ test.describe('Software update', { tag: '@update' }, () => {
     const github = await openKiosk(page, 'v1.12.0');
     await page.getByRole('tab', { name: 'Settings' }).click();
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
-    await showSection(settings, 'Software');
+    await showSection(settings, 'About');
     await expect(settings.getByRole('status')).toContainText('Up to date as of');
     await expect(settings.getByRole('button', { name: 'Update now' })).toHaveCount(0);
 

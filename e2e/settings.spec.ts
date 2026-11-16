@@ -24,7 +24,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     const dialog = await openSettings(page);
     const nav = dialog.getByRole('navigation', { name: 'Settings' });
     await expect(nav.getByRole('button', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
-    await expect(dialog.getByRole('heading', { name: 'Overview' })).toBeVisible();
+    await expect(dialog.getByRole('region', { name: 'Overview' })).toBeVisible();
     await page.getByRole('tab', { name: 'Spotify' }).click();
     await expect(dialog).toBeHidden();
   });
@@ -33,7 +33,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await page.goto('/?kiosk=1');
     const dialog = await openSettings(page);
     const nav = dialog.getByRole('navigation', { name: 'Settings' });
-    const sections = ['Overview', 'Appearance', 'Screen sleep', 'Wi-Fi', 'Spotify', 'Software'];
+    const sections = ['Overview', 'General', 'Appearance', 'Wi-Fi', 'Spotify', 'About'];
     await expect(nav.getByRole('button')).toHaveText(sections);
     for (const section of sections) {
       // eslint-disable-next-line no-await-in-loop -- one section after another
@@ -47,7 +47,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
       // eslint-disable-next-line no-await-in-loop -- the same
       await dialog.getByRole('group', { name: 'Overview' }).getByRole('button', { name: section }).click();
       // eslint-disable-next-line no-await-in-loop -- the same
-      await expect(dialog.getByRole('heading', { name: section, exact: true })).toBeVisible();
+      await expect(dialog.getByRole('region', { name: section, exact: true })).toBeVisible();
     }
   });
 
@@ -134,7 +134,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
 
     test('Screen sleep keeps the choice across a reload', async ({ page }) => {
       await page.goto('/');
-      const dialog = await openSettings(page, 'Screen sleep');
+      const dialog = await openSettings(page, 'General');
       const choices = dialog.getByRole('group', { name: 'Screen sleep' });
       // Five minutes is the default.
       await expect(choices.getByRole('button', { name: '5 min', exact: true })).toHaveAttribute('aria-pressed', 'true');
@@ -145,7 +145,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
       );
 
       await page.reload();
-      const again = await openSettings(page, 'Screen sleep');
+      const again = await openSettings(page, 'General');
       await expect(
         again.getByRole('group', { name: 'Screen sleep' }).getByRole('button', { name: '15 min', exact: true })
       ).toHaveAttribute('aria-pressed', 'true');
@@ -179,7 +179,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
       await dialog.getByRole('button', { name: 'Change network' }).click();
       await expect.poll(() => asked).toEqual(['POST /wifi']);
 
-      await showSection(dialog, 'Software');
+      await showSection(dialog, 'About');
 
       await dialog.getByRole('button', { name: 'Restart kiosk' }).click();
       await expect(dialog.getByRole('button', { name: 'Tap again to restart' })).toBeVisible();
@@ -222,11 +222,11 @@ test.describe('Settings', { tag: '@settings' }, () => {
       'Overview',
       'Appearance',
       'Spotify',
-      'Software'
+      'About'
     ]);
-    await expect(dialog.getByRole('button', { name: /^(Wi-Fi|Screen sleep)/ })).toHaveCount(0);
-    await showSection(dialog, 'Software');
-    await expect(dialog).toContainText('Version');
+    await expect(dialog.getByRole('button', { name: /^(Wi-Fi|General)/ })).toHaveCount(0);
+    await showSection(dialog, 'About');
+    await expect(dialog).toContainText('App version');
     await showSection(dialog, 'Spotify');
     await expect(dialog.getByRole('button', { name: 'Sign out' })).toBeVisible();
     const kioskOnly = ['Change network', 'Choose network', 'Restart kiosk', 'Reboot Pi', 'Check for updates'];

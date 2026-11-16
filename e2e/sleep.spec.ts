@@ -79,7 +79,7 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     await page.goto('/');
     await page.getByRole('tab', { name: 'Settings' }).click();
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
-    await showSection(settings, 'Screen sleep');
+    await showSection(settings, 'General');
     const choices = settings.getByRole('group', { name: 'Screen sleep' });
     await choices.getByRole('button', { name: '2 min', exact: true }).click();
     await expect(choices.getByRole('button', { name: '2 min', exact: true })).toHaveAttribute('aria-pressed', 'true');

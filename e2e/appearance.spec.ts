@@ -21,7 +21,7 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await expect(settings.locator('.settings-panel')).toHaveCSS('color-scheme', PAPER.scheme);
     await showSection(settings, 'Wi-Fi');
     await expect(settings.getByRole('button', { name: 'Choose network' })).toHaveCSS('color', PAPER.ink);
-    await showSection(settings, 'Software');
+    await showSection(settings, 'About');
     await expect(settings.getByRole('button', { name: 'Restart kiosk' })).toHaveCSS('color', PAPER.ink);
 
     const contrast = await settings.evaluate(panel => {

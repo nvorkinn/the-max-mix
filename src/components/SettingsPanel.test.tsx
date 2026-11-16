@@ -8,6 +8,9 @@ import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import SettingsPanelFull from './SettingsPanel';
 
+// eslint-disable-next-line sonarjs/no-hardcoded-ip -- a made-up address of the Pi on a home network
+const PI_ADDRESS = '192.168.1.42';
+
 const auth = vi.hoisted(() => ({
   startSignIn: vi.fn(),
   signOut: vi.fn(),
@@ -52,12 +55,13 @@ describe('SettingsPanel', () => {
     render(<SettingsPanel {...base} authInfo={{}} />);
     const nav = screen.getByRole('navigation', { name: 'Settings' });
     const sections = within(nav).getAllByRole('button');
-    expect(sections.map(button => button.textContent)).toEqual(['Overview', 'Appearance', 'Spotify', 'Software']);
+    expect(sections.map(button => button.textContent)).toEqual(['Overview', 'Appearance', 'Spotify', 'About']);
     expect(within(nav).getByRole('button', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('heading', { name: 'Overview' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Overview' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Overview' })).not.toBeInTheDocument();
 
     await userEvent.click(within(nav).getByRole('button', { name: 'Spotify' }));
-    expect(screen.getByRole('heading', { name: 'Spotify' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Spotify' })).toBeInTheDocument();
     expect(within(nav).getByRole('button', { name: 'Spotify' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('button', { name: 'Log in with Spotify' })).toBeInTheDocument();
   });
@@ -66,16 +70,43 @@ describe('SettingsPanel', () => {
     history.replaceState(null, '', '/?kiosk=0');
     render(<SettingsPanel {...base} authInfo={{}} />);
     await userEvent.click(
-      within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Software/ })
+      within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^About/ })
     );
-    expect(screen.getByRole('heading', { name: 'Software' })).toBeInTheDocument();
-    expect(screen.getByText(/^Version/)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'About' })).toBeInTheDocument();
+    expect(screen.getByText('App version')).toBeInTheDocument();
   });
 
-  it('shows the app version', () => {
+  it('says what the screen is on the About page, with no IP address or Pi software off the kiosk', () => {
     history.replaceState(null, '', '/?kiosk=0');
-    render(<SettingsPanel {...base} authInfo={{}} initialSection="software" />);
-    expect(screen.getByText(/^Version/)).toBeInTheDocument();
+    const config = fixture.config as TouchscreenConfig;
+    render(
+      <SettingsPanel
+        {...base}
+        authInfo={{}}
+        initialSection="about"
+        deviceConfig={config}
+        onDeviceConfigSave={vi.fn()}
+      />
+    );
+    const facts = screen.getByRole('region', { name: 'About' });
+    expect(within(facts).getByText('Device ID').nextSibling).toHaveTextContent(config.device_id);
+    expect(within(facts).getByText('Size').nextSibling).toHaveTextContent(`${config.width} × ${config.height}`);
+    expect(within(facts).getByText('App version')).toBeInTheDocument();
+    expect(within(facts).queryByText('IP address')).not.toBeInTheDocument();
+    expect(within(facts).queryByText('Software')).not.toBeInTheDocument();
+  });
+
+  it("shows the Pi's IP address on the kiosk's About page", async () => {
+    history.replaceState(null, '', '/?kiosk=1');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(Response.json({ ssid: 'Home', address: PI_ADDRESS })))
+    );
+    render(<SettingsPanel {...base} authInfo={{}} initialSection="about" />);
+    expect(screen.getByText('Device ID').nextSibling).toHaveTextContent('Not registered');
+    await waitFor(() => expect(screen.getByText('IP address').nextSibling).toHaveTextContent(PI_ADDRESS));
+    vi.unstubAllGlobals();
+    history.replaceState(null, '', '/?kiosk=0');
   });
 
   it('offers no old appearance choice', () => {
@@ -216,16 +247,20 @@ describe('SettingsPanel', () => {
       history.replaceState(null, '', '/?kiosk=0');
     });
 
-    it('sums up screen sleep and opens its choices, which change it', async () => {
+    it('sums up screen sleep on the General card and opens its choices there, which change it', async () => {
       const onScreenSleepChange = vi.fn();
       const { rerender } = render(
         <SettingsPanel {...base} authInfo={{}} screenSleep={0} onScreenSleepChange={onScreenSleepChange} />
       );
+      const nav = screen.getByRole('navigation', { name: 'Settings' });
+      expect(within(nav).queryByRole('button', { name: 'Screen sleep' })).not.toBeInTheDocument();
+      expect(within(nav).queryByRole('button', { name: 'Countdown' })).not.toBeInTheDocument();
       const overview = within(screen.getByRole('group', { name: 'Overview' }));
-      expect(overview.getByRole('button', { name: /^Screen sleep/ })).toHaveTextContent('Never');
+      expect(overview.getByRole('button', { name: /^General/ })).toHaveTextContent('Never sleeps');
       rerender(<SettingsPanel {...base} authInfo={{}} screenSleep={5} onScreenSleepChange={onScreenSleepChange} />);
-      expect(overview.getByRole('button', { name: /^Screen sleep/ })).toHaveTextContent('After 5 minutes');
-      await userEvent.click(overview.getByRole('button', { name: /^Screen sleep/ }));
+      expect(overview.getByRole('button', { name: /^General/ })).toHaveTextContent('Sleeps after 5 min');
+      await userEvent.click(overview.getByRole('button', { name: /^General/ }));
+      expect(screen.queryByText('Time format')).not.toBeInTheDocument();
       const choices = screen.getByRole('group', { name: 'Screen sleep' });
       expect(within(choices).getByRole('button', { name: '5 min' })).toHaveAttribute('aria-pressed', 'true');
       await userEvent.click(within(choices).getByRole('button', { name: 'Never' }));
@@ -317,7 +352,7 @@ describe('SettingsPanel', () => {
     ])('sums up the Pi software (%o)', (state, words) => {
       const update = { newer: null, isUpdating: false, checkNow: vi.fn(), ...state } as unknown as KioskUpdate;
       render(<SettingsPanel {...base} authInfo={{}} kioskUpdate={update} />);
-      const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Software/ });
+      const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^About/ });
       expect(card).toHaveTextContent(words);
     });
   });
@@ -410,11 +445,11 @@ describe('SettingsPanel', () => {
     expect(document.body).not.toHaveTextContent(/HTTPS|encrypted media|Premium/i);
   });
 
-  it("offers the Dashboard page and its card only with an owned kiosk's config", async () => {
+  it("offers the Countdown page and its card only with an owned kiosk's config", async () => {
     history.replaceState(null, '', '/?kiosk=0');
     const { rerender } = render(<SettingsPanel {...base} authInfo={{}} />);
     const nav = screen.getByRole('navigation', { name: 'Settings' });
-    expect(within(nav).queryByRole('button', { name: 'Dashboard' })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole('button', { name: 'Countdown' })).not.toBeInTheDocument();
 
     rerender(
       <SettingsPanel
@@ -424,14 +459,21 @@ describe('SettingsPanel', () => {
         onDeviceConfigSave={vi.fn()}
       />
     );
-    const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Dashboard/ });
-    expect(card).toHaveTextContent('1 stopOslo0150, Norway');
+    expect(
+      within(nav)
+        .getAllByRole('button')
+        .map(button => button.textContent)
+    ).toEqual(['Overview', 'General', 'Countdown', 'Appearance', 'Spotify', 'About']);
+    const overview = within(screen.getByRole('group', { name: 'Overview' }));
+    expect(overview.getByRole('button', { name: /^General/ })).toHaveTextContent('General24-hourOslo0150, Norway');
+    const card = overview.getByRole('button', { name: /^Countdown/ });
+    expect(card).toHaveTextContent(/^Countdown1 stop$/);
     await userEvent.click(card);
-    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add stop' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Countdown' })).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Search for a stop' })).toBeInTheDocument();
   });
 
-  it('saves the time format from the General page, which shows with an owned kiosk only', async () => {
+  it('saves the time format from the General page, which shows with an owned kiosk only off the kiosk', async () => {
     history.replaceState(null, '', '/?kiosk=0');
     const onDeviceConfigSave = vi.fn();
     const { rerender } = render(<SettingsPanel {...base} authInfo={{}} />);
@@ -447,21 +489,20 @@ describe('SettingsPanel', () => {
       />
     );
     await userEvent.click(within(nav).getByRole('button', { name: 'General' }));
+    expect(screen.getByText('Weather')).toBeInTheDocument();
+    expect(screen.getByText('Notice board')).toBeInTheDocument();
+    expect(screen.queryByText('Screen sleep')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '24-hour' })).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(screen.getByRole('button', { name: '12-hour' }));
     expect(onDeviceConfigSave).toHaveBeenCalledExactlyOnceWith('clock_format', '12h');
   });
 
-  it('sums up a Dashboard with one stop and nothing else set', () => {
+  it('shows the save status over the page, which has no heading of its own', () => {
     history.replaceState(null, '', '/?kiosk=0');
-    const config = {
-      ...(fixture.config as TouchscreenConfig),
-      clock_format: '12h',
-      weather: { location: '', key: null },
-      notice_board: { postcode: null, country: null }
-    } as const;
-    render(<SettingsPanel {...base} authInfo={{}} deviceConfig={config} onDeviceConfigSave={vi.fn()} />);
-    const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Dashboard/ });
-    expect(card).toHaveTextContent(/^Dashboard1 stop$/);
+    const { rerender } = render(<SettingsPanel {...base} authInfo={{}} initialSection="appearance" />);
+    expect(screen.queryByRole('heading', { name: 'Appearance' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+    rerender(<SettingsPanel {...base} authInfo={{}} initialSection="appearance" saveStatus="saved" />);
+    expect(screen.getByText('Saved')).toBeInTheDocument();
   });
 });

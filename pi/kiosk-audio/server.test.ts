@@ -18,6 +18,9 @@ import type { SonosChange } from './sonos-events.ts';
 import { SonosError } from './sonos.ts';
 import type { SonosOperations, SonosRequest } from './sonos.ts';
 
+// eslint-disable-next-line sonarjs/no-hardcoded-ip -- a made-up address of the Pi on a home network
+const PI_ADDRESS = '192.168.1.42';
+
 const ORIGIN = 'https://the-max-mix.countdown.build';
 const servers: Server[] = [];
 afterEach(() => {
@@ -101,6 +104,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
     wifi: {
       scan: () => Promise.resolve([{ ssid: 'Home', signal: 80, bars: 4, security: 'psk' }]),
       current: () => Promise.resolve('Home'),
+      address: () => PI_ADDRESS,
       connect: request => {
         joined.push(request);
         return Promise.resolve(request.password === 'right-password' ? { ok: true } : { ok: false, error: 'Nope.' });
@@ -537,7 +541,7 @@ describe('Wi-Fi', () => {
     const base = await start(fakes().deps);
     const response = await fetch(`${base}/wifi/status`, { headers: { Origin: ORIGIN } });
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ ssid: 'Home' });
+    await expect(response.json()).resolves.toEqual({ ssid: 'Home', address: PI_ADDRESS });
     expect((await fetch(`${base}/wifi/status`)).status).toBe(403);
     expect((await fetch(`${base}/wifi/status`, { headers: { Origin: LOCAL_ORIGIN } })).status).toBe(403);
   });
@@ -546,6 +550,7 @@ describe('Wi-Fi', () => {
     const wifi = {
       scan: () => Promise.reject(new ScanError(ERRORS.disabled)),
       current: vi.fn(),
+      address: vi.fn(),
       connect: vi.fn(),
       done: vi.fn()
     };

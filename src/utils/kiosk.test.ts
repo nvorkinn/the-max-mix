@@ -14,6 +14,9 @@ import {
   restartKiosk
 } from './kiosk';
 
+// eslint-disable-next-line sonarjs/no-hardcoded-ip -- a made-up address of the Pi on a home network
+const PI_ADDRESS = '192.168.1.42';
+
 function visit(search: string) {
   history.replaceState(null, '', `/${search}`);
 }
@@ -203,13 +206,18 @@ describe('isRelease', () => {
 describe('currentWifi', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('asks the kiosk which network it is on', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(Response.json({ ssid: 'Home' }));
+  it('asks the kiosk which network it is on, and its address there', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ ssid: 'Home', address: PI_ADDRESS }));
     vi.stubGlobal('fetch', fetchMock);
-    await expect(currentWifi()).resolves.toBe('Home');
+    await expect(currentWifi()).resolves.toEqual({ ssid: 'Home', address: PI_ADDRESS });
     expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/status', { signal: null });
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ ssid: null })));
-    await expect(currentWifi()).resolves.toBeNull();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ ssid: null, address: null })));
+    await expect(currentWifi()).resolves.toEqual({ ssid: null, address: null });
+  });
+
+  it('has no address from an older kiosk service, which says only the network', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ ssid: 'Home' })));
+    await expect(currentWifi()).resolves.toEqual({ ssid: 'Home', address: null });
   });
 
   it('is undefined when the kiosk does not say', async () => {

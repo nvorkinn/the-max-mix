@@ -25,7 +25,8 @@
 //                           `to` in the group's Sonos queue, if it is still the song called `name`
 //   GET  /sonos/events      server-sent events while the app listens: data {"kind": "groups"} when rooms join or leave,
 //                           {"kind": "now"} when what a group plays (or its volume) changes (sonos-events.ts)
-//   GET  /wifi/status       {"ssid": "Home"}: the network the Wi-Fi is on, or null (the app's origin only)
+//   GET  /wifi/status       {"ssid": "Home", "address": "192.168.1.42"}: the network the Wi-Fi is on and the Pi's IPv4
+//                           address on it, each or null (the app's origin only)
 //   GET  /wifi/networks     {"networks": [{"ssid", "signal", "bars", "security"}, …]}   or 503 {"error"}: a safe message
 //   POST /wifi/connect      {"ssid", "password", "hidden", "security"}   join a network: {"ok": true} or {"ok": false, "error"}
 //   POST /wifi/phone        start Wi-Fi setup from a phone over Bluetooth for a few minutes (phone-setup.ts): {"ok": true}
@@ -167,6 +168,8 @@ interface Wifi {
   scan: () => Promise<Network[]>;
   /** The name of the network the Wi-Fi is on, or null. */
   current: () => Promise<string | null>;
+  /** The Pi's IPv4 address on its network, or null. */
+  address: () => string | null;
   connect: (request: ConnectRequest) => Promise<ConnectResult>;
   /** Closes the setup page (stops the Chromium that shows it); does not wait for that. */
   done: () => void;
@@ -586,7 +589,7 @@ async function get(url: string, response: ServerResponse, deps: Deps, isApp: boo
   switch (url) {
     case '/wifi/status': {
       // The name of the home network is for the app's settings, not for any page that asks.
-      if (isApp) sendJson(response, 200, { ssid: await deps.wifi.current() });
+      if (isApp) sendJson(response, 200, { ssid: await deps.wifi.current(), address: deps.wifi.address() });
       else response.writeHead(403).end();
 
       break;
