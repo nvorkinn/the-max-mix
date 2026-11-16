@@ -1,0 +1,627 @@
+/*
+  The Dashboard tab: the daily photo full screen with the tab bar, weather, notices and departures laid straight on it.
+  It is laid out at 1280×800 and scaled to fit the screen by whichever of width or height is tighter, so every size
+  below is in that panel's pixels. It follows public/dashboard-mockup/index.html, which stays as the reference.
+  Geist (SIL OFL 1.1, assets/fonts/geist/OFL.txt) is bundled so nothing loads from a CDN.
+*/
+@font-face {
+  font-family: Geist;
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('../../assets/fonts/geist/geist-latin-ext-wght-normal.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: Geist;
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('../../assets/fonts/geist/geist-latin-wght-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* What fills the screen: black bars show where the scaled panel doesn't reach. */
+.dashboard {
+  --text: #f7f4ec;
+  --muted: rgb(247 244 236 / 70%);
+  --faint: rgb(247 244 236 / 14%);
+  --forest: #2f5a3c;
+  --soon: #8fe39a;
+  --red: #d6362b;
+  --tube-blue: #1c3f94;
+  --scrim: 9 12 16;
+  /* Notice icons by severity: severe red, disruption amber, planned and info blue, everyday white. */
+  --severe: #ff7b6e;
+  --disruption: #f4c04a;
+  --planned: #7cc0f5;
+  --info: #7cc0f5;
+  --everyday: var(--text);
+
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #000;
+  font-family: Geist, system-ui, sans-serif;
+  line-height: normal;
+  -webkit-font-smoothing: antialiased;
+}
+.dashboard-scaler {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1280px;
+  height: 800px;
+  transform-origin: 0 0;
+}
+.dashboard svg.lucide {
+  /* Inline, as in the static page: a lone icon in a row then sits on the text's baseline like it does there. */
+  display: inline;
+  vertical-align: baseline;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.dashboard-panel {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  width: 1280px;
+  height: 800px;
+  overflow: hidden;
+  color: var(--text);
+  background: #1c2230 var(--backdrop) center 30% / cover no-repeat;
+}
+.dashboard-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgb(var(--scrim) / 55%) 0, rgb(var(--scrim) / 0%) 120px),
+    linear-gradient(90deg, rgb(var(--scrim) / 82%) 0, rgb(var(--scrim) / 66%) 300px, rgb(var(--scrim) / 0%) 520px);
+}
+.dashboard .shadowed {
+  text-shadow: 0 1px 14px rgb(0 0 0 / 45%);
+}
+
+/* The tab bar, floating on the photo */
+.dashboard-bar {
+  height: 64px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 16px;
+}
+.dashboard-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dashboard-brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--forest);
+  display: grid;
+  place-items: center;
+}
+.dashboard-brand-name {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+}
+.dashboard-tabs {
+  display: flex;
+  gap: 4px;
+}
+.dashboard-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 19px;
+  font-weight: 500;
+  color: var(--text);
+}
+.dashboard-tab[aria-selected='true'] {
+  background: rgb(255 255 255 / 16%);
+  backdrop-filter: blur(12px);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%);
+}
+.dashboard-bar-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.dashboard-icon-button {
+  color: var(--text);
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.dashboard-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgb(255 255 255 / 70%);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-size: 19px;
+  font-weight: 600;
+}
+.dashboard-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dashboard-clock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 24px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* Left rail: weather and notices, sitting directly on the photo */
+.dashboard-rail {
+  width: 344px;
+  flex-shrink: 0;
+  padding: 4px 16px 16px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-weather {
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+.dashboard-weather:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+.dashboard-wx-period {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.dashboard-wx-temp {
+  font-size: 132px;
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.07em;
+  margin: 4px 0 4px -6px;
+}
+.dashboard-wx-condition {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.dashboard-wx-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  color: var(--muted);
+  margin-top: 4px;
+  min-height: 24px;
+}
+
+.dashboard-notices {
+  margin-top: 24px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--faint);
+}
+.dashboard-eyebrow-count {
+  margin-left: auto;
+  letter-spacing: 0.04em;
+}
+.dashboard-pages {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 2px 0 8px;
+  cursor: pointer;
+}
+.dashboard-pages i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+.dashboard-pages i.on {
+  background: var(--text);
+}
+/* Rows have a fixed height; the notices that don't fit page through. */
+.dashboard-notice-list {
+  list-style: none;
+  padding: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  transition: opacity 300ms ease;
+}
+.dashboard-notice-list.fading {
+  opacity: 0;
+}
+.dashboard-notice-list li {
+  height: 68px;
+  border-bottom: 1px solid var(--faint);
+  display: flex;
+}
+.dashboard-notice-list li:last-child {
+  border-bottom: 0;
+}
+.dashboard-notice {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 2px;
+  text-align: left;
+}
+button.dashboard-notice {
+  cursor: pointer;
+}
+.dashboard-notice:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.dashboard-notice-icon {
+  color: var(--icon, var(--text));
+}
+.dashboard-notice-body {
+  flex: 1;
+  min-width: 0;
+}
+.dashboard-notice-title,
+.dashboard-notice-summary {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dashboard-notice-title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+.dashboard-notice-summary {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.3;
+  margin-top: 2px;
+}
+.dashboard svg.dashboard-notice-chevron {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+/* A notice's full text, over the whole panel; a tap anywhere closes it. */
+.dashboard-sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  background: rgb(var(--scrim) / 55%);
+  backdrop-filter: blur(10px);
+}
+.dashboard-sheet-card {
+  position: relative;
+  width: 640px;
+  padding: 32px 36px 36px;
+  border-radius: 20px;
+  background: rgb(var(--scrim) / 82%);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 14%),
+    0 24px 70px rgb(0 0 0 / 45%);
+}
+.dashboard-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 52px;
+}
+.dashboard .dashboard-sheet-head svg.lucide {
+  width: 30px;
+  height: 30px;
+  color: var(--icon, var(--text));
+}
+.dashboard-sheet-head h2 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.dashboard-sheet-card p {
+  margin-top: 18px;
+  font-size: 21px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.dashboard-sheet-card .dashboard-icon-button {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+}
+
+/* Right: open sky, then the departure board fading up from the bottom */
+.dashboard-stage {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-sky {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  padding: 4px 24px 0;
+}
+.dashboard-hours {
+  display: flex;
+  gap: 26px;
+  text-align: center;
+}
+.dashboard-hour {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.dashboard-hour time {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.dashboard .dashboard-hour svg.lucide {
+  width: 30px;
+  height: 30px;
+}
+.dashboard-hour strong {
+  font-size: 24px;
+  font-weight: 700;
+}
+.dashboard-updated {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 10px;
+  justify-content: flex-end;
+}
+.dashboard .dashboard-updated svg.lucide {
+  width: 13px;
+  height: 13px;
+}
+
+/* Four rows per board. */
+.dashboard-departures {
+  position: relative;
+  height: 360px;
+  flex-shrink: 0;
+  display: flex;
+  gap: 28px;
+  padding: 48px 24px 12px 8px;
+}
+.dashboard-departures::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 0 -344px;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgb(var(--scrim) / 0%) 0,
+    rgb(var(--scrim) / 62%) 70px,
+    rgb(var(--scrim) / 80%) 100%
+  );
+  backdrop-filter: blur(18px) saturate(1.2);
+  mask-image: linear-gradient(180deg, transparent 0, #000 80px);
+}
+.dashboard-board {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-board-head {
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgb(255 255 255 / 28%);
+  padding-bottom: 8px;
+}
+.dashboard-board-head h2 {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.dashboard-board-stop {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 15px;
+  color: var(--muted);
+  padding: 4px 0;
+}
+.dashboard .dashboard-board-stop svg.lucide {
+  width: 16px;
+  height: 16px;
+}
+.dashboard-roundel {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 5px solid #dc241f;
+  background: transparent;
+  position: relative;
+  flex-shrink: 0;
+  margin: 0 8px 0 9px;
+}
+.dashboard-roundel::after {
+  content: '';
+  position: absolute;
+  left: -10px;
+  right: -10px;
+  top: 50%;
+  height: 7px;
+  transform: translateY(-50%);
+  background: var(--tube-blue);
+}
+.dashboard-bus-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--red);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.dashboard .dashboard-bus-mark svg.lucide {
+  width: 20px;
+  height: 20px;
+}
+
+.dashboard-rows {
+  list-style: none;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-rows[data-stale='true'] {
+  opacity: 0.55;
+}
+.dashboard-rows li {
+  /* The rows share the board, a quarter at most each (the borders take a quarter pixel more), so a short board leaves a gap instead of stretching. */
+  flex: 1;
+  max-height: calc(25% + 0.25px);
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid var(--faint);
+}
+.dashboard-rows li:last-child {
+  border-bottom: 0;
+}
+.dashboard-line-pill {
+  width: 90px;
+  height: 32px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.dashboard-route {
+  min-width: 62px;
+  height: 38px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: var(--red);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 700;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.dashboard-dest {
+  flex: 1;
+  min-width: 0;
+}
+.dashboard-dest strong {
+  display: block;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dashboard-dest span {
+  display: block;
+  font-size: 14px;
+  color: var(--muted);
+}
+.dashboard-mins {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 72px;
+  justify-content: flex-end;
+}
+.dashboard-mins small {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+.dashboard-mins.soon {
+  color: var(--soon);
+}
+.dashboard-mins.soon small {
+  color: var(--soon);
+  opacity: 0.8;
+}

@@ -41,6 +41,8 @@ export interface WeatherView {
    * decides; the component never makes one up.
    */
   summary: string | null;
+  /** The icon beside `summary`: an umbrella (the default) for rain, a sun for fine weather. */
+  summaryIcon?: 'umbrella' | 'sun';
 }
 
 /** @public */

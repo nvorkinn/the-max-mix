@@ -1,191 +1,97 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import type { TouchscreenConfig } from 'countdown-api';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DashboardData } from '../dashboard/data';
-import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
+import { SAMPLE, SAMPLE_NOW, sampleDashboard } from '../dashboard/sample';
 import Dashboard from './Dashboard';
 
-const data = vi.hoisted(() => ({ getDashboardData: vi.fn<(...args: unknown[]) => Promise<DashboardData>>() }));
-vi.mock('../dashboard/data', async importOriginal => ({
-  ...(await importOriginal<typeof import('../dashboard/data')>()),
-  getDashboardData: data.getDashboardData
-}));
-
-const NOW = new Date('2026-11-15T09:00:00Z');
-const minutesFromNow = (minutes: number) => new Date(NOW.getTime() + minutes * 60_000).toISOString();
-
-function dashboard(updatedAt = NOW.toISOString()): DashboardData {
-  return {
-    arrivals: {
-      updatedAt,
-      stops: [
-        {
-          name: 'Walworth Road',
-          mode: 'bus',
-          arrivals: [
-            { route: '171', destination: 'Holborn', due: minutesFromNow(0.5) },
-            { route: '176', destination: 'Tottenham Court Road', due: minutesFromNow(7) }
-          ]
-        }
-      ]
-    },
-    weather: {
-      updatedAt,
-      location: 'London',
-      temperature: 9,
-      conditions: 'rain',
-      high: 12,
-      low: 6,
-      hours: [{ time: minutesFromNow(60), temperature: 10, conditions: 'cloudy' }]
-    },
-    notices: [
-      {
-        id: 'northern',
-        kind: 'delays',
-        severity: 'minor',
-        title: 'Northern line: Delays',
-        summary: 'Minor delays due to a signal fault',
-        detail: 'NORTHERN LINE: Minor delays between Morden and Kennington while we fix a signal failure.'
-      }
-    ]
-  };
-}
+const tabBar = { ...SAMPLE.tabBar, onSelect: vi.fn(), onSearch: vi.fn() };
+const show = (now = SAMPLE_NOW, noticeCount = 6) =>
+  render(<Dashboard tabBar={tabBar} {...sampleDashboard(now, '24h', noticeCount)} />);
 
 describe('Dashboard', () => {
   beforeEach(() => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    vi.setSystemTime(NOW);
+    vi.useFakeTimers();
   });
   afterEach(() => {
     vi.useRealTimers();
-    data.getDashboardData.mockReset();
   });
 
-  it('shows the next buses and the weather', async () => {
-    data.getDashboardData.mockResolvedValue(dashboard());
-    render(<Dashboard shown />);
-    expect(await screen.findByText('Holborn')).toBeInTheDocument();
-    expect(screen.getByText('Due')).toBeInTheDocument();
-    expect(screen.getByText('7 min')).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Weather in London' })).toBeInTheDocument();
-    expect(screen.getByText('9°')).toBeInTheDocument();
-    expect(screen.getByText('Rain')).toBeInTheDocument();
+  it('counts each departure down from now and shows Due at zero', () => {
+    show(new Date(SAMPLE_NOW.getTime() + 2 * 60_000));
+    const bus = within(screen.getByRole('region', { name: 'Buses' }));
+    expect(bus.getByText('Oxford Circus').closest('li')).toHaveTextContent('Due');
+    expect(bus.getByText('New Cross').closest('li')).toHaveTextContent('4min');
   });
 
-  it('shows each notice as a headline and a short line, and its full text when tapped', async () => {
-    data.getDashboardData.mockResolvedValue(dashboard());
-    render(<Dashboard shown />);
-    const notice = await screen.findByRole('button', { name: /Northern line: Delays/ });
-    expect(notice).toHaveTextContent('Minor delays due to a signal fault');
-    expect(screen.queryByText(/signal failure/)).not.toBeInTheDocument();
-    fireEvent.click(notice);
-    const full = screen.getByRole('dialog', { name: 'Northern line: Delays' });
-    expect(full).toHaveTextContent('signal failure');
-    fireEvent.click(within(full).getByRole('button', { name: 'Close' }));
+  it('drops a departure a minute after it was due and brings the next one up', () => {
+    show(new Date(SAMPLE_NOW.getTime() + 4.5 * 60_000));
+    const tube = within(screen.getByRole('region', { name: 'Tube' }));
+    expect(tube.queryByText('High Barnet')).not.toBeInTheDocument();
+    expect(tube.getAllByRole('listitem')).toHaveLength(4);
+    expect(tube.getByText("Queen's Park")).toBeInTheDocument();
+  });
+
+  it('shows four rows on each board', () => {
+    show();
+    expect(within(screen.getByRole('region', { name: 'Tube' })).getAllByRole('listitem')).toHaveLength(4);
+    expect(within(screen.getByRole('region', { name: 'Buses' })).getAllByRole('listitem')).toHaveLength(4);
+  });
+
+  it('goes round Now, Tonight, Tomorrow and Weekend when the weather is tapped', () => {
+    show();
+    const weather = screen.getByRole('button', { name: /Now/ });
+    expect(weather).toHaveTextContent('9°');
+    fireEvent.click(weather);
+    expect(weather).toHaveTextContent('Tonight');
+    expect(weather).toHaveTextContent('6°');
+    fireEvent.click(weather);
+    fireEvent.click(weather);
+    expect(weather).toHaveTextContent('Weekend');
+    fireEvent.click(weather);
+    expect(weather).toHaveTextContent('Now');
+  });
+
+  it('opens a notice that has more to say, and has no way in on one that has not', () => {
+    show();
+    expect(screen.queryByRole('button', { name: /Upcoming bank holiday/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Weather warning/ }));
+    const sheet = screen.getByRole('dialog', { name: 'Weather warning' });
+    expect(sheet).toHaveTextContent('Lambeth, Southwark');
+    fireEvent.click(sheet);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('draws every kind of notice and weather, and says when rain is coming', async () => {
-    const all = dashboard();
-    if (all.weather) {
-      all.weather.conditions = 'cloudy';
-      all.weather.hours = (['clear', 'snow', 'rain'] as const).map((conditions, index) => ({
-        time: minutesFromNow(60 + index * 60),
-        temperature: 8,
-        conditions
-      }));
-    }
-    all.notices.push(
-      { id: 'rain', kind: 'weather', severity: 'severe', title: 'Weather warning', summary: 'Heavy rain', detail: '.' },
-      { id: 'xmas', kind: 'holiday', severity: 'info', title: 'Bank holiday', summary: 'Thu 25 Dec', detail: '.' },
-      { id: 'works', kind: 'closure', severity: 'planned', title: 'Planned work', summary: 'This weekend', detail: '.' }
+  it('pages through notices that do not fit, with the count and the dots shown', () => {
+    show(SAMPLE_NOW, 8);
+    // Without a layout (jsdom) one notice fits a page.
+    expect(screen.getByText('Weather warning')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Notice board/ })).toHaveTextContent('8');
+    act(() => {
+      vi.advanceTimersByTime(8000 + 300);
+    });
+    expect(screen.queryByText('Weather warning')).not.toBeInTheDocument();
+    expect(screen.getByText('Northern line: Delays')).toBeInTheDocument();
+  });
+
+  it('names its tabs for the tab bar and switches when one is picked', () => {
+    show();
+    expect(screen.getByRole('tab', { name: 'Dashboard' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
+    expect(tabBar.onSelect).toHaveBeenCalledWith('settings');
+  });
+
+  it('keeps its layout, with nothing in them, while the forecast and the boards have no data', () => {
+    render(
+      <Dashboard
+        tabBar={tabBar}
+        weather={{ views: [] }}
+        hourly={null}
+        notices={{ notices: [] }}
+        tube={null}
+        bus={null}
+      />
     );
-    data.getDashboardData.mockResolvedValue(all);
-    render(<Dashboard shown />);
-    expect(await screen.findByText('Rain later today')).toBeInTheDocument();
-    for (const title of ['Weather warning', 'Bank holiday', 'Planned work']) {
-      expect(screen.getByRole('button', { name: new RegExp(title) })).toBeInTheDocument();
-    }
-    expect(screen.getByText('Snow')).toBeInTheDocument();
-  });
-
-  it('says the data is not available when it is missing or too old', async () => {
-    data.getDashboardData.mockResolvedValue(dashboard(minutesFromNow(-4 * 60)));
-    render(<Dashboard shown />);
-    expect(await screen.findByText("Bus times aren't available")).toBeInTheDocument();
-    expect(screen.getByText("Tube times aren't available")).toBeInTheDocument();
-    expect(screen.getByText("The weather isn't available")).toBeInTheDocument();
-    expect(screen.queryByText('Holborn')).not.toBeInTheDocument();
-  });
-
-  it('leaves the notice board out when there are no notices', async () => {
-    data.getDashboardData.mockResolvedValue({ ...dashboard(), notices: [] });
-    const { container } = render(<Dashboard shown />);
-    expect(await screen.findByText('Holborn')).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: /Notice board/ })).not.toBeInTheDocument();
-    expect(container.querySelector('.dashboard')).toHaveAttribute('data-notices', 'none');
-  });
-
-  it('shows a big clock in the Banner layout', async () => {
-    data.getDashboardData.mockResolvedValue(dashboard());
-    render(<Dashboard shown layout="banner" />);
-    expect(await screen.findByText('Next Buses')).toBeInTheDocument();
-    const weather = screen.getByRole('region', { name: 'Weather in London' });
-    expect(within(weather).getByText('09:00')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Northern line: Delays/ })).toBeInTheDocument();
-  });
-
-  it('puts the next departures together in the Timeline layout', async () => {
-    data.getDashboardData.mockResolvedValue(dashboard());
-    render(<Dashboard shown layout="timeline" />);
-    const next = await screen.findByRole('region', { name: 'Next departures from Walworth Road' });
-    expect(within(next).getByText(/Holborn/)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Notices' })).toBeInTheDocument();
-  });
-
-  it('says the departures are not available in the Timeline layout when there are none', async () => {
-    data.getDashboardData.mockResolvedValue(dashboard(minutesFromNow(-4 * 60)));
-    render(<Dashboard shown layout="timeline" />);
-    expect(await screen.findByText("Departure times aren't available")).toBeInTheDocument();
-    expect(screen.getByText("The weather isn't available")).toBeInTheDocument();
-  });
-
-  it('shows later today on its own tile in the Modular layout', async () => {
-    data.getDashboardData.mockResolvedValue(dashboard());
-    render(<Dashboard shown layout="modular" />);
-    const later = await screen.findByRole('region', { name: 'Later today' });
-    expect(within(later).getByText('10°')).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Weather in London' })).toHaveTextContent('9°');
-  });
-
-  it('says the weather is not available in each layout when it is too old', async () => {
-    data.getDashboardData.mockResolvedValue(dashboard(minutesFromNow(-4 * 60)));
-    const { rerender } = render(<Dashboard shown layout="banner" />);
-    expect(await screen.findByText("The weather isn't available")).toBeInTheDocument();
-    rerender(<Dashboard shown layout="modular" />);
-    expect(screen.getAllByText("The weather isn't available")).toHaveLength(2);
-  });
-
-  it('does not read its data while hidden', () => {
-    data.getDashboardData.mockResolvedValue(dashboard());
-    render(<Dashboard shown={false} />);
-    expect(data.getDashboardData).not.toHaveBeenCalled();
-  });
-
-  it("reads its data for the owner's settings, again when they change but not when the skin does", async () => {
-    data.getDashboardData.mockResolvedValue(dashboard());
-    const owned = fixture.config as TouchscreenConfig;
-    const sections = { arrivals: owned.arrivals, weather: owned.weather, notice_board: owned.notice_board };
-    const { rerender } = render(<Dashboard shown config={owned} />);
-    await waitFor(() => {
-      expect(data.getDashboardData).toHaveBeenCalledWith(sections, expect.any(Date), '24h');
-    });
-    rerender(<Dashboard shown config={{ ...owned, style: { ...owned.style, skin: 'night' } }} />);
-    expect(data.getDashboardData).toHaveBeenCalledTimes(1);
-    const moved = { location: 'Bergen', key: 'bergen-no-3161732' };
-    rerender(<Dashboard shown config={{ ...owned, weather: moved }} />);
-    await waitFor(() => {
-      expect(data.getDashboardData).toHaveBeenLastCalledWith({ ...sections, weather: moved }, expect.any(Date), '24h');
-    });
+    expect(screen.getByRole('heading', { name: /Notice board/ })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Tube' })).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.dashboard-board')).toHaveLength(2);
   });
 });

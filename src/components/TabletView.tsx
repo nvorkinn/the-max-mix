@@ -31,8 +31,6 @@ import { saveTheme } from '../utils/theme';
 import type { Theme } from '../utils/theme';
 import { DEFAULT_CLOCK_FORMAT, formatClockTime } from '../utils/clockFormat';
 import type { ThemeColour } from '../utils/themeColour';
-import { loadDashboardLayout, saveDashboardLayout } from '../utils/dashboardLayout';
-import type { DashboardLayout } from '../utils/dashboardLayout';
 import type { MusicChoice, Track } from '../types';
 import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
@@ -53,7 +51,7 @@ import SleepIcon from './SleepIcon';
 import PersonSwitcher from './PersonSwitcher';
 import PairPhoneSheet from './PairPhoneSheet';
 import AppTabs, { tabPanelId } from './AppTabs';
-import Dashboard from './Dashboard';
+import DashboardScreen from './DashboardScreen';
 import type { AppTab } from './AppTabs';
 
 type Screen = 'spotify' | 'dashboard' | 'settings';
@@ -216,11 +214,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const clockFormat = ownedConfig?.clock_format ?? DEFAULT_CLOCK_FORMAT;
   const [localScreenSleep, setLocalScreenSleep] = useState(getScreenSleep);
   const [localThemeColour, setLocalThemeColour] = useState(loadThemeColour);
-  const [dashboardLayout, setDashboardLayout] = useState(loadDashboardLayout);
-  const changeDashboardLayout = (layout: DashboardLayout) => {
-    setDashboardLayout(layout);
-    saveDashboardLayout(layout);
-  };
   const screenSleepMinutes = display?.sleep_minutes ?? localScreenSleep;
   const themeColour = style?.colour ?? localThemeColour;
   const theme = useTheme(style?.skin);
@@ -375,6 +368,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     if (next === 'settings' && screen !== 'settings') setSettingsSection('overview');
     setScreen(next);
   };
+  const activePerson = peopleOnKiosk().find(person => person.active);
   const showSettings = () => {
     setSettingsSection('spotify');
     setScreen('settings');
@@ -501,47 +495,49 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           : undefined
       }
     >
-      <header className="app-header">
-        <div className="brand">
-          <div className="brand-mark">
-            <AudioLines size={22} strokeWidth={2.5} />
+      {screen !== 'dashboard' && (
+        <header className="app-header">
+          <div className="brand">
+            <div className="brand-mark">
+              <AudioLines size={22} strokeWidth={2.5} />
+            </div>
+            <div className="brand-copy">
+              <h1>
+                THE MAX MIX<span className="brand-dot">.</span>
+              </h1>
+            </div>
           </div>
-          <div className="brand-copy">
-            <h1>
-              THE MAX MIX<span className="brand-dot">.</span>
-            </h1>
+          <AppTabs tabs={SCREENS} current={screen} onSelect={showScreen} />
+          <div className="header-actions">
+            {!needsConnection && (
+              <button
+                type="button"
+                onClick={() => setIsMusicOpen(true)}
+                className="icon-button"
+                title="Choose music"
+                aria-label="Choose music"
+              >
+                <Search size={28} />
+              </button>
+            )}
+            {onKiosk && (
+              <button
+                type="button"
+                onClick={sleep.sleepNow}
+                className="icon-button"
+                title="Sleep"
+                aria-label="Put the screen to sleep"
+              >
+                <SleepIcon size={28} />
+              </button>
+            )}
+            {isAuthenticated && <PersonSwitcher onSwitch={spotifyId => void switchTo(spotifyId)} />}
+            <span className="header-clock" {...debugHold}>
+              <Clock size={14} /> {formatClockTime(new Date(minute * 60_000), clockFormat)}
+            </span>
           </div>
-        </div>
-        <AppTabs tabs={SCREENS} current={screen} onSelect={showScreen} />
-        <div className="header-actions">
-          {!needsConnection && (
-            <button
-              type="button"
-              onClick={() => setIsMusicOpen(true)}
-              className="icon-button"
-              title="Choose music"
-              aria-label="Choose music"
-            >
-              <Search size={28} />
-            </button>
-          )}
-          {onKiosk && (
-            <button
-              type="button"
-              onClick={sleep.sleepNow}
-              className="icon-button"
-              title="Sleep"
-              aria-label="Put the screen to sleep"
-            >
-              <SleepIcon size={28} />
-            </button>
-          )}
-          {isAuthenticated && <PersonSwitcher onSwitch={spotifyId => void switchTo(spotifyId)} />}
-          <span className="header-clock" {...debugHold}>
-            <Clock size={14} /> {formatClockTime(new Date(minute * 60_000), clockFormat)}
-          </span>
-        </div>
-      </header>
+        </header>
+      )}
 
       {isOffline && <OfflineBanner />}
       <div
@@ -650,12 +646,18 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         aria-label="Dashboard"
         hidden={screen !== 'dashboard'}
       >
-        <Dashboard
-          shown={screen === 'dashboard' && !sleep.asleep}
-          clockFormat={clockFormat}
-          config={ownedConfig}
-          layout={dashboardLayout}
-        />
+        {screen === 'dashboard' && (
+          <DashboardScreen
+            tabBar={{
+              active: screen,
+              onSelect: showScreen,
+              person: activePerson ? { name: activePerson.name, pictureUrl: activePerson.imageUrl || null } : null,
+              onSearch: needsConnection ? null : () => setIsMusicOpen(true),
+              now: new Date(minute * 60_000),
+              clockFormat
+            }}
+          />
+        )}
       </section>
       <section
         className="app-tab-panel"
@@ -675,8 +677,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             onScreenSleepChange={changeScreenSleep}
             themeColour={themeColour}
             onThemeColourChange={changeThemeColour}
-            dashboardLayout={dashboardLayout}
-            onDashboardLayoutChange={changeDashboardLayout}
             theme={theme.theme}
             autoTheme={theme.autoOffered}
             onThemeChange={changeTheme}

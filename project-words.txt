@@ -82,6 +82,7 @@ logind
 loglevel
 longenough
 lrclib
+lucide
 magicdns
 majorstuen
 mapfile

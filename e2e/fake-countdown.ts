@@ -201,6 +201,8 @@ export async function fakeCountdownServer(
 }
 
 /**
+ * @public Not used while the Dashboard shows its sample data; the live data (countdown-server's feed) will use it.
+ *
  * An owned kiosk's config with the stops fakeArrivals answers for and the London postcode fakeNotices answers for, in the
  * app's default look (or night's), so the Dashboard asks for its departures and notices and looks as it does unowned.
  */
@@ -219,6 +221,8 @@ export function dashboardConfig(skin: 'day' | 'night' = 'day') {
 }
 
 /**
+ * @public Not used while the Dashboard shows its sample data; the live data (countdown-server's feed) will use it.
+ *
  * Stands in for countdown-server's GET /api/devices/arrivals (countdown-api's getArrivals): a Tube station's trains and a
  * bus stop's buses, read at `now` (the page's fixed clock) and timed from it.
  */
@@ -268,6 +272,8 @@ function tubeLine(id: string, status: string, reason: string, validityPeriods: o
 }
 
 /**
+ * @public Not used while the Dashboard shows its sample data; the live data (countdown-server's feed) will use it.
+ *
  * Stands in for countdown-server's GET /api/devices/notices (countdown-api's getNotices): the providers' answers for a
  * London postcode, read at `now`: a Tube line with delays, one with a planned closure in three days and a weather warning.
  */

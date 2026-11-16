@@ -2,6 +2,7 @@
 // components' props (props.ts). The page shows the first six notices unless asked for more (?notices=8). Times are
 // relative to `SAMPLE_NOW`, so a ticking clock moved on from it counts the departures down.
 
+import { useEffect, useState } from 'react';
 import type {
   BusBoardProps,
   HourlyStripProps,
@@ -36,7 +37,14 @@ export const SAMPLE = {
         summary: 'Heavy rain from 14:00'
       },
       { period: 'tonight', temperature: 6, sky: 'rain', condition: 'Showers', summary: null },
-      { period: 'tomorrow', temperature: 12, sky: 'cloudy', condition: 'Cloudy', summary: 'Dry all day' },
+      {
+        period: 'tomorrow',
+        temperature: 12,
+        sky: 'cloudy',
+        condition: 'Cloudy',
+        summary: 'Dry all day',
+        summaryIcon: 'sun'
+      },
       { period: 'weekend', temperature: 14, sky: 'clear', condition: 'Sunny spells', summary: null }
     ]
   } satisfies WeatherBlockProps,
@@ -216,3 +224,37 @@ export const SAMPLE = {
     stale: false
   } satisfies BusBoardProps
 };
+
+/** How long the simulated clock runs before it starts again, so the sample boards never run out of departures. */
+const LOOP_MINUTES = 12;
+
+/**
+ * A clock that starts at `SAMPLE_NOW` and runs on in real time (`speed` times as fast), going back to the start after
+ * twelve simulated minutes. The departures count down against it, reach "Due" and leave, which is what the animations
+ * need to be seen without waiting for live data. It ticks once a second, and `speed` can be raised to see a minute pass
+ * sooner.
+ */
+export function useSimulatedNow(speed = 1): Date {
+  const [started] = useState(Date.now);
+  const [now, setNow] = useState(SAMPLE_NOW);
+  useEffect(() => {
+    const move = () => {
+      const elapsed = ((Date.now() - started) * speed) % (LOOP_MINUTES * 60_000);
+      setNow(new Date(SAMPLE_NOW.getTime() + elapsed));
+    };
+    const timer = window.setInterval(move, 1000);
+    return () => window.clearInterval(timer);
+  }, [started, speed]);
+  return now;
+}
+
+/** The sample data as the Dashboard's props at `now`: the first `noticeCount` notices, as the static page shows. */
+export function sampleDashboard(now: Date, clockFormat: '12h' | '24h', noticeCount = 6) {
+  return {
+    weather: SAMPLE.weather,
+    hourly: { ...SAMPLE.hourly, updatedAt: now.toISOString(), now, clockFormat },
+    notices: { notices: SAMPLE.notices.notices.slice(0, noticeCount) },
+    tube: { ...SAMPLE.tube, now },
+    bus: { ...SAMPLE.bus, now }
+  };
+}
