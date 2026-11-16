@@ -2839,31 +2839,6 @@ input:disabled {
   opacity: 0.96;
   filter: drop-shadow(0 5px 16px rgb(0 0 0 / 20%));
 }
-.weather-icon-cloud {
-  fill: rgb(245 249 255 / 14%);
-  stroke: #fff;
-  stroke-width: 2.8;
-  stroke-linejoin: round;
-}
-.weather-icon-sun circle {
-  fill: rgb(255 211 127 / 28%);
-  stroke: #ffe0a0;
-  stroke-width: 2;
-}
-.weather-icon-sun line {
-  stroke: #ffe0a0;
-  stroke-width: 2.6;
-  stroke-linecap: round;
-}
-.weather-icon-rain {
-  stroke: #9ddaff;
-  stroke-width: 2.6;
-  stroke-linecap: round;
-}
-.weather-icon-snow {
-  fill: #fff;
-}
-
 /* Quiet paper-toned departure boards are easier to read than more dark glass. */
 .dashboard-departures {
   display: flex;
@@ -2897,7 +2872,7 @@ input:disabled {
 }
 .dashboard[data-layout='list'] .dashboard-weather-hero .weather-icon-hero {
   position: absolute;
-  z-index: -1;
+  z-index: 0;
   top: calc(58 * var(--u));
   left: 34%;
   width: calc(220 * var(--u));
@@ -3320,29 +3295,6 @@ input:disabled {
 .dashboard[data-layout='timeline'] .weather-icon {
   filter: none;
 }
-.dashboard-later .weather-icon-cloud,
-.dashboard[data-layout='timeline'] .weather-icon-cloud {
-  fill: none;
-  stroke: var(--muted);
-}
-.dashboard-later .weather-icon-sun circle,
-.dashboard[data-layout='timeline'] .weather-icon-sun circle {
-  fill: #ffd27a;
-  stroke: #f0a92b;
-}
-.dashboard-later .weather-icon-sun line,
-.dashboard[data-layout='timeline'] .weather-icon-sun line {
-  stroke: #f0a92b;
-}
-.dashboard-later .weather-icon-rain,
-.dashboard[data-layout='timeline'] .weather-icon-rain {
-  stroke: #3d8fc4;
-}
-.dashboard-later .weather-icon-snow,
-.dashboard[data-layout='timeline'] .weather-icon-snow {
-  fill: #8fb8d6;
-}
-
 /* Timeline notices are paper cards with colour-coded markers. */
 .dashboard[data-layout='timeline'] .dashboard-notices {
   border-color: var(--dashboard-line);
@@ -3667,20 +3619,6 @@ input:disabled {
   width: calc(86 * var(--u));
   height: calc(86 * var(--u));
   margin: 0;
-}
-.dashboard[data-layout='timeline'] .dashboard-weather .weather-icon-cloud {
-  fill: rgb(245 249 255 / 14%);
-  stroke: #fff;
-}
-.dashboard[data-layout='timeline'] .dashboard-weather .weather-icon-sun circle {
-  fill: rgb(255 218 140 / 35%);
-  stroke: #ffe2a3;
-}
-.dashboard[data-layout='timeline'] .dashboard-weather .weather-icon-sun line {
-  stroke: #ffe2a3;
-}
-.dashboard[data-layout='timeline'] .dashboard-weather .weather-icon-rain {
-  stroke: #a2ddff;
 }
 .dashboard[data-layout='timeline'] .dashboard-temperature {
   margin-left: 0;
