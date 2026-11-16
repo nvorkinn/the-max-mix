@@ -143,7 +143,12 @@ async function readWeather(section: { location: string; key: string }, now: Date
 }
 
 // The last reading, and when the kiosk last tried: one place at a time, the kiosk's own.
-let last: { key: string; weather: Weather | null; triedAt: number; pending?: Promise<Weather | null> } | null = null;
+let last: {
+  key: string;
+  weather: Weather | null;
+  triedAt: number;
+  pending?: Promise<Weather | null> | undefined;
+} | null = null;
 
 /**
  * The weather for the config's place, or null with no place set or none read yet. A reading is used for ten minutes;
