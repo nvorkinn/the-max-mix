@@ -85,8 +85,24 @@ function WeatherIcon({ conditions, hero = false }: Readonly<{ conditions: Condit
           <stop offset="100%" stopColor="#2a8fc7" />
         </linearGradient>
         <filter id={`${id}-shadow`} x="-45%" y="-55%" width="190%" height="210%">
-          <feDropShadow dx="0" dy="5" stdDeviation="5" floodColor="#122638" floodOpacity=".24" />
+          <feDropShadow dx="0" dy="7" stdDeviation="6" floodColor="#16243b" floodOpacity=".22" />
         </filter>
+        <filter id={`${id}-cloud-edge`} x="-25%" y="-30%" width="155%" height="165%">
+          <feTurbulence type="fractalNoise" baseFrequency=".025 .037" numOctaves="3" seed="7" result="texture" />
+          <feDisplacementMap in="SourceGraphic" in2="texture" scale="10" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+        <radialGradient id={`${id}-cloud-flare`} cx="58%" cy="18%" r="78%">
+          <stop offset="0%" stopColor="#fff9de" stopOpacity=".94" />
+          <stop offset="27%" stopColor="#ffdbac" stopOpacity=".75" />
+          <stop offset="68%" stopColor="#e1c6d1" stopOpacity=".35" />
+          <stop offset="100%" stopColor="#77849f" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id={`${id}-atmosphere`} x1="24%" y1="5%" x2="67%" y2="100%">
+          <stop offset="0%" stopColor="#fff9ea" />
+          <stop offset="39%" stopColor="#f8e6d5" />
+          <stop offset="71%" stopColor="#c6b9c6" />
+          <stop offset="100%" stopColor="#6a7995" />
+        </linearGradient>
       </defs>
       {hasSun && (
         <g>
@@ -113,13 +129,17 @@ function WeatherIcon({ conditions, hero = false }: Readonly<{ conditions: Condit
       )}
       {hasCloud && (
         <g filter={`url(#${id}-shadow)`}>
-          <ellipse cx="73" cy="89" rx="57" ry="23" fill={`url(#${id}-cloud-bottom)`} />
-          <circle cx="43" cy="78" r="27" fill={`url(#${id}-cloud)`} />
-          <circle cx="73" cy="61" r="35" fill={`url(#${id}-cloud)`} />
-          <circle cx="106" cy="78" r="24" fill={`url(#${id}-cloud)`} />
-          <ellipse cx="68" cy="83" rx="54" ry="22" fill={`url(#${id}-cloud)`} />
-          <ellipse cx="57" cy="48" rx="15" ry="8" fill="#fff" opacity=".4" transform="rotate(-25 57 48)" />
-          <ellipse cx="40" cy="68" rx="10" ry="5" fill="#fff" opacity=".3" transform="rotate(-33 40 68)" />
+          <g filter={`url(#${id}-cloud-edge)`}>
+            <ellipse cx="73" cy="85" rx="58" ry="24" fill={`url(#${id}-cloud-bottom)`} />
+            <circle cx="40" cy="70" r="22" fill={`url(#${id}-atmosphere)`} />
+            <circle cx="65" cy="56" r="31" fill={`url(#${id}-atmosphere)`} />
+            <circle cx="95" cy="70" r="24" fill={`url(#${id}-atmosphere)`} />
+            <ellipse cx="73" cy="83" rx="58" ry="24" fill={`url(#${id}-atmosphere)`} />
+          </g>
+          <ellipse cx="81" cy="57" rx="47" ry="33" fill={`url(#${id}-cloud-flare)`} opacity=".48" />
+          <ellipse cx="66" cy="47" rx="18" ry="8" fill="#fff8e9" opacity=".45" transform="rotate(-22 66 47)" />
+          <ellipse cx="45" cy="63" rx="12" ry="5" fill="#fff" opacity=".28" transform="rotate(-37 45 63)" />
+          <ellipse cx="85" cy="96" rx="47" ry="6" fill="#606e8a" opacity=".14" />
         </g>
       )}
       {conditions === 'rain' && (
