@@ -144,8 +144,8 @@ async function registerAgent(): Promise<void> {
       Release: nothing,
       RequestConfirmation: {
         in: { device: 'o', passkey: 'u' },
-        handler: (device: string, passkey: number) => {
-          say(`Agent: confirming code ${String(passkey).padStart(6, '0')} for ${device} (check it matches the phone)`);
+        handler: (...args: unknown[]) => {
+          say(`Agent: confirming code for ${JSON.stringify(args)} (check it matches the phone)`);
           return null;
         }
       },
