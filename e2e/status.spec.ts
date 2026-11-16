@@ -224,7 +224,13 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
         await player.getByRole('button', { name: 'Next track' }).click();
       } else if (source === 'queue') {
         api.queueStatus = 429;
-        await page.clock.runFor(10_000);
+        // The next read is timed from when the last one answered (and is further off once the SDK plays here), which
+        // on a busy machine can come after the clock has moved on: move it a second at a time until the read comes.
+        const banner = page.locator('.playback-banner').getByText('Waiting for Spotify', { exact: true });
+        await expect(async () => {
+          await page.clock.runFor(1000);
+          await expect(banner).toBeVisible({ timeout: 100 });
+        }).toPass({ timeout: 15_000 });
       } else {
         api.devicesStatus = 429;
         await page.getByRole('button', { name: /^Speakers:/ }).click();

@@ -7,7 +7,10 @@
 // stops' departures are held from before (their provider is down) or were read longer ago than DEPARTURES_STALE_MS, and
 // the hourly strip while the forecast is held or older than WEATHER_STALE_MS.
 
+import type { DeviceWeather } from 'countdown-api';
+import { getBackgroundImageUrl } from '../../vendor/countdown-api/src/countdown_api/client';
 import type { DashboardProps } from '../components/Dashboard';
+import { countdownApi } from '../countdown/server';
 import type { ClockFormat } from '../utils/clockFormat';
 import { toBoards } from './boards';
 import type { Notice } from './data';
@@ -70,6 +73,16 @@ function toNoticeItems(snapshot: LiveSnapshot, now: Date, clockFormat: ClockForm
     : [];
 }
 
+/**
+ * The day's photo at `now` (countdown-server's GET /api/backgrounds/{digest}, which needs no secret): the last of the
+ * place's backgrounds whose time has come, or null when none has yet (or the server has none).
+ */
+export function backdropOf(weather: DeviceWeather | null, now: Date, api = countdownApi()): string | null {
+  if (!api) return null;
+  const shown = (weather?.background?.images ?? []).findLast(image => Date.parse(image.starts_at) <= now.getTime());
+  return shown ? getBackgroundImageUrl(api, { digest: shown.digest }).href : null;
+}
+
 /** Whether the feed has been down long enough to say so. */
 function feedStale(snapshot: LiveSnapshot, now: Date): boolean {
   return snapshot.downSince !== null && now.getTime() - snapshot.downSince >= STALE_AFTER_MS;
@@ -95,6 +108,7 @@ export function dashboardProps(snapshot: LiveSnapshot, now: Date, clockFormat: C
   const updatedAt = reads.toSorted((a, b) => Date.parse(b) - Date.parse(a))[0];
 
   return {
+    backdrop: backdropOf(snapshot.weather, now),
     weather: { views: weather?.views ?? [] },
     hourly:
       weather && updatedAt

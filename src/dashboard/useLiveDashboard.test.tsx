@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { DeviceArrivals } from 'countdown-api';
+import type { DeviceArrivals, DeviceWeather } from 'countdown-api';
 import panels from '../../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json';
 import type { Client } from '../../vendor/countdown-api/src/countdown_api/client';
 import type { FeedHandlers } from './feed';
@@ -36,5 +36,43 @@ describe('useLiveDashboard', () => {
 
     unmount();
     expect(close).toHaveBeenCalled();
+  });
+
+  it("keeps yesterday's last photo until the new day's first is due", () => {
+    vi.stubEnv('VITE_COUNTDOWN_API', 'https://api.countdown.build');
+    let feed: FeedHandlers | undefined;
+    const source = new LiveDashboard(
+      () => ({ baseUrl: 'https://api.countdown.build', secret: 'device-secret' }) satisfies Client,
+      (_client, handlers) => {
+        feed = handlers;
+        return () => {};
+      }
+    );
+    const weather = panels.weather as unknown as DeviceWeather;
+    const evening = new Date('2026-01-15T23:00:00Z');
+    const { result, rerender } = renderHook(({ now }) => useLiveDashboard(now, '24h', source), {
+      initialProps: { now: evening }
+    });
+    act(() => {
+      feed?.onEvent({ event: 'weather', data: weather });
+    });
+    const night = result.current.backdrop;
+    expect(night).toMatch(/\/api\/backgrounds\//);
+
+    // After midnight the server has the new day's photos, none due yet.
+    const tomorrow = {
+      ...weather,
+      background: weather.background && {
+        ...weather.background,
+        local_date: '2026-01-16',
+        images: weather.background.images.map(image => ({ ...image, starts_at: '2026-01-16T07:31:00+00:00' }))
+      }
+    };
+    act(() => {
+      feed?.onEvent({ event: 'weather', data: tomorrow });
+    });
+    rerender({ now: new Date('2026-01-16T01:00:00Z') });
+    expect(result.current.backdrop).toBe(night);
+    vi.unstubAllEnvs();
   });
 });

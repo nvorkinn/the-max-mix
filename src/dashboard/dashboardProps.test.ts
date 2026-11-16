@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { DeviceArrivals, DeviceNotices, DeviceWeather } from 'countdown-api';
 import panels from '../../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json';
 import type { Notice } from './data';
-import { dashboardProps, DEPARTURES_STALE_MS, STALE_AFTER_MS, toNoticeItem, WEATHER_STALE_MS } from './dashboardProps';
+import {
+  backdropOf,
+  dashboardProps,
+  DEPARTURES_STALE_MS,
+  STALE_AFTER_MS,
+  toNoticeItem,
+  WEATHER_STALE_MS
+} from './dashboardProps';
 import { EMPTY_SNAPSHOT, withEvent } from './live';
 import type { LiveSnapshot } from './live';
 
@@ -71,7 +78,14 @@ describe('dashboardProps', () => {
   it('gives empty props, not missing ones, before anything is heard and with zero notices', () => {
     const props = dashboardProps(EMPTY_SNAPSHOT, NOW, '24h');
 
-    expect(props).toEqual({ weather: { views: [] }, hourly: null, notices: { notices: [] }, tube: null, bus: null });
+    expect(props).toEqual({
+      backdrop: null,
+      weather: { views: [] },
+      hourly: null,
+      notices: { notices: [] },
+      tube: null,
+      bus: null
+    });
     const noBoard = snapshot({ notices: { ...NOTICES, postcode: null } });
     expect(dashboardProps(noBoard, NOW, '24h').notices).toEqual({ notices: [] });
   });
@@ -107,5 +121,24 @@ describe('toNoticeItem', () => {
     expect(toNoticeItem(notice({})).detail).toBe('Minor delays between Kennington and Morden.');
     expect(toNoticeItem(notice({ detail: 'Minor delays' })).detail).toBeNull();
     expect(toNoticeItem(notice({ detail: '  ' })).detail).toBeNull();
+  });
+});
+
+describe('backdropOf', () => {
+  const API = 'https://api.countdown.build';
+  const at = (time: string) => backdropOf(WEATHER, new Date(time), API);
+  const images = WEATHER.background?.images ?? [];
+
+  it("shows the last of the day's photos whose time has come", () => {
+    expect(at('2026-01-15T10:00:00Z')).toBe(`${API}/api/backgrounds/${images[1]?.digest ?? ''}`);
+    expect(at('2026-01-15T09:31:00Z')).toBe(`${API}/api/backgrounds/${images[1]?.digest ?? ''}`);
+    expect(at('2026-01-15T09:30:59Z')).toBe(`${API}/api/backgrounds/${images[0]?.digest ?? ''}`);
+  });
+
+  it("is null before the first photo's time, without photos, or without the server's address", () => {
+    expect(at('2026-01-15T05:00:00Z')).toBeNull();
+    expect(backdropOf({ ...WEATHER, background: null }, new Date('2026-01-15T10:00:00Z'), API)).toBeNull();
+    expect(backdropOf(null, NOW, API)).toBeNull();
+    expect(backdropOf(WEATHER, new Date('2026-01-15T10:00:00Z'), null)).toBeNull();
   });
 });
