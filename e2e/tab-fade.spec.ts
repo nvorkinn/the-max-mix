@@ -1,17 +1,6 @@
 import { expect, test } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import { runningFades } from './crossfade.ts';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
-
-/** The durations of the view-transition fades the browser is running right now. */
-const runningFades = (page: Page) =>
-  page.evaluate(() =>
-    globalThis.document
-      .getAnimations()
-      .filter(animation =>
-        String((animation.effect as KeyframeEffect | null)?.pseudoElement).startsWith('::view-transition')
-      )
-      .map(animation => Number(animation.effect?.getTiming().duration))
-  );
 
 test.describe('Tab crossfade', { tag: '@layout' }, () => {
   test.beforeEach(async ({ page }) => {
@@ -26,9 +15,9 @@ test.describe('Tab crossfade', { tag: '@layout' }, () => {
 
   test('changing tab fades the whole screen over 300 ms', async ({ page }) => {
     await page.getByRole('tab', { name: 'Dashboard' }).click();
-    const fades = await runningFades(page);
-    expect(fades.length).toBeGreaterThan(0);
-    expect(fades.filter(duration => duration !== 300)).toEqual([]);
+    // The fade starts a frame after the tap, so wait for it to show up.
+    await expect.poll(async () => (await runningFades(page)).length > 0).toBe(true);
+    expect((await runningFades(page)).filter(duration => duration !== 300)).toEqual([]);
     await expect(page.getByRole('heading', { name: 'Tube' })).toBeVisible();
   });
 
