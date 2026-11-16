@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import type { TouchscreenConfig } from 'countdown-api';
 import { Bus, Cloud, CloudRain, CloudSnow, CloudSun, Sun } from 'lucide-react';
 import { ARRIVALS_MAX_AGE_MS, getDashboardData, isFresh, WEATHER_MAX_AGE_MS } from '../dashboard/data';
 import type { Arrival, Arrivals, Conditions, DashboardData, Weather } from '../dashboard/data';
@@ -106,11 +107,22 @@ function WeatherPanel({
   );
 }
 
-/** The Dashboard tab: the next buses and the weather. Reads its data only while `shown`. */
+/**
+ * The Dashboard tab: the next buses and the weather. Reads its data only while `shown`, for the stops and place in the
+ * owner's `config` (null before anyone owns the kiosk).
+ */
 export default function Dashboard({
   shown,
-  clockFormat = DEFAULT_CLOCK_FORMAT
-}: Readonly<{ shown: boolean; clockFormat?: ClockFormat }>) {
+  clockFormat = DEFAULT_CLOCK_FORMAT,
+  config = null
+}: Readonly<{ shown: boolean; clockFormat?: ClockFormat; config?: TouchscreenConfig | null }>) {
+  // Read again when the owner's stops or place change (in Settings here or on the settings site), not the skin.
+  const arrivalsSettings = config?.arrivals;
+  const weatherSettings = config?.weather;
+  const settings = useMemo(
+    () => (arrivalsSettings && weatherSettings ? { arrivals: arrivalsSettings, weather: weatherSettings } : null),
+    [arrivalsSettings, weatherSettings]
+  );
   const [data, setData] = useState<DashboardData>({ arrivals: null, weather: null });
   const [now, setNow] = useState(() => new Date());
 
@@ -119,7 +131,7 @@ export default function Dashboard({
     let cancelled = false;
     const load = async () => {
       try {
-        const loaded = await getDashboardData();
+        const loaded = await getDashboardData(settings);
         if (cancelled) return;
         setNow(new Date());
         setData(loaded);
@@ -135,7 +147,7 @@ export default function Dashboard({
       clearInterval(refresh);
       clearInterval(tick);
     };
-  }, [shown]);
+  }, [shown, settings]);
 
   return (
     <div className="dashboard">
