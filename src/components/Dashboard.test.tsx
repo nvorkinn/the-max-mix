@@ -40,13 +40,20 @@ describe('Dashboard', () => {
     show();
     const weather = screen.getByRole('button', { name: /Now/ });
     expect(weather).toHaveTextContent('9°');
-    fireEvent.click(weather);
+    // Each tap fades the period out before the next one shows.
+    const tap = () => {
+      fireEvent.click(weather);
+      act(() => {
+        vi.advanceTimersByTime(350);
+      });
+    };
+    tap();
     expect(weather).toHaveTextContent('Tonight');
     expect(weather).toHaveTextContent('6°');
-    fireEvent.click(weather);
-    fireEvent.click(weather);
+    tap();
+    tap();
     expect(weather).toHaveTextContent('Weekend');
-    fireEvent.click(weather);
+    tap();
     expect(weather).toHaveTextContent('Now');
   });
 

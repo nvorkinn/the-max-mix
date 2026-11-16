@@ -1,6 +1,7 @@
 import { ChevronRight } from 'lucide-react';
 import type { TubeBoardProps } from '../../dashboard/props';
-import { Destination, Minutes, visibleDepartures } from './DepartureRows';
+import AnimatedRows from './AnimatedRows';
+import { byVehicle, Destination, Minutes, visibleDepartures } from './DepartureRows';
 import { FALLBACK_LINE_COLOURS, LINE_COLOURS } from './icons';
 
 /** Trains due at a Tube station: four rows, keyed by the train so a row follows its train. */
@@ -15,18 +16,22 @@ export default function TubeBoard({ stopName, departures, now, stale }: Readonly
         </span>
       </div>
       <ol className="dashboard-rows" data-stale={stale}>
-        {visibleDepartures(departures, now).map(departure => {
-          const [background, text] = LINE_COLOURS[departure.lineId] ?? FALLBACK_LINE_COLOURS;
-          return (
-            <li key={departure.vehicleId}>
-              <span className="dashboard-line-pill" style={{ background, color: text }}>
-                {departure.lineName}
-              </span>
-              <Destination name={departure.destination} detail={departure.platform} />
-              <Minutes expectedAt={departure.expectedAt} now={now} />
-            </li>
-          );
-        })}
+        <AnimatedRows
+          items={visibleDepartures(departures, now)}
+          keyOf={byVehicle}
+          render={departure => {
+            const [background, text] = LINE_COLOURS[departure.lineId] ?? FALLBACK_LINE_COLOURS;
+            return (
+              <>
+                <span className="dashboard-line-pill" style={{ background, color: text }}>
+                  {departure.lineName}
+                </span>
+                <Destination name={departure.destination} detail={departure.platform} />
+                <Minutes expectedAt={departure.expectedAt} now={now} />
+              </>
+            );
+          }}
+        />
       </ol>
     </section>
   );
