@@ -207,8 +207,34 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await page.goto('/');
       await page.getByRole('tab', { name: 'Dashboard' }).click();
       const dashboard = page.getByRole('tabpanel', { name: 'Dashboard' });
-      await expect(dashboard.getByText('Tottenham Court Road')).toBeVisible();
+      await expect(dashboard.getByText('Morden')).toBeVisible();
       await expect(page).toHaveScreenshot(shotName('dashboard', screen), SHOT);
+    });
+
+    test(`dashboard at night at ${size(screen)}`, { tag: ['@layout', '@appearance'] }, async ({ page }) => {
+      await fakeSpotify(page);
+      await page.clock.setFixedTime(new Date('2026-11-15T09:20:00'));
+      await page.addInitScript(() => {
+        localStorage.setItem('maxmix.theme', 'night');
+      });
+      await page.setViewportSize(screen);
+      await page.goto('/');
+      await page.getByRole('tab', { name: 'Dashboard' }).click();
+      const dashboard = page.getByRole('tabpanel', { name: 'Dashboard' });
+      await expect(dashboard.getByText('Morden')).toBeVisible();
+      await expect(page).toHaveScreenshot(shotName('dashboard-night', screen), SHOT);
+    });
+
+    test(`dashboard notice at ${size(screen)}`, { tag: '@layout' }, async ({ page }) => {
+      await fakeSpotify(page);
+      await page.clock.setFixedTime(new Date('2026-11-15T09:20:00'));
+      await page.setViewportSize(screen);
+      await page.goto('/');
+      await page.getByRole('tab', { name: 'Dashboard' }).click();
+      await page.getByRole('button', { name: /Northern line: Delays/ }).click();
+      const notice = page.getByRole('dialog', { name: 'Northern line: Delays' });
+      await expect(notice).toBeVisible();
+      await expect(notice).toHaveScreenshot(shotName('dashboard-notice', screen), SHOT);
     });
 
     test(`music picker at ${size(screen)}`, { tag: '@music' }, async ({ page }) => {
