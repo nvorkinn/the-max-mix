@@ -30,12 +30,17 @@ wait_online() {
 # --load-extension off by default in 2025; the --disable-features switch turns it back on where a build follows that.
 keyboard_extension=/opt/the-max-mix/kiosk-keyboard/extension
 
+# DevTools for remote screenshots and inspecting the page (scripts/kiosk-screenshot.ts, through an SSH tunnel). Chromium
+# listens on 127.0.0.1 only, so nothing on the network reaches it.
+devtools_port=9222
+
 # Shows a page until Chromium exits. The kiosk-audio service stops Chromium through the pid file: for the Wi-Fi button,
 # when the setup page is done, or (its watchdog) when the page stops sending heartbeats.
 run_chromium() {
   chromium --kiosk --ozone-platform=wayland --noerrdialogs --disable-infobars --no-first-run --password-store=basic \
     --autoplay-policy=no-user-gesture-required --disable-session-crashed-bubble --overscroll-history-navigation=0 \
     --load-extension="$keyboard_extension" --disable-features=DisableLoadExtensionCommandLineSwitch \
+    --remote-debugging-port="$devtools_port" \
     "$1" &
   echo $! > "$chromium_pid"
   wait $!
