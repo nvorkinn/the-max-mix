@@ -2763,7 +2763,7 @@ input:disabled {
   overflow: visible;
   filter: drop-shadow(0 2px 4px rgb(0 0 0 / 22%));
 }
-.weather-icon--hero {
+.weather-icon-hero {
   width: clamp(90px, calc(156 * var(--u)), 156px);
   height: clamp(90px, calc(156 * var(--u)), 156px);
   margin-right: calc(34 * var(--u));
@@ -3117,7 +3117,7 @@ input:disabled {
     --u: 0.84px;
 
     grid-template-rows: minmax(0, 1fr) calc(167 * var(--u));
-    padding: calc(13 * var(--u)) calc(17 * var(--u)) calc(13 * var(--u));
+    padding: calc(13 * var(--u)) calc(17 * var(--u));
   }
   .dashboard-temperature {
     font-size: calc(111 * var(--u));
@@ -3126,7 +3126,7 @@ input:disabled {
     gap: calc(4 * var(--u));
     padding: calc(14 * var(--u)) calc(19 * var(--u));
   }
-  .dashboard-weather-hero .weather-icon--hero {
+  .dashboard-weather-hero .weather-icon-hero {
     width: calc(118 * var(--u));
     height: calc(118 * var(--u));
     margin-right: calc(10 * var(--u));

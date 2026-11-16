@@ -74,7 +74,7 @@ function WeatherIcon({ conditions, hero = false }: Readonly<{ conditions: Condit
     <path className="weather-icon-cloud" d="M15 44h30a10 10 0 0 0 1-20 14 14 0 0 0-27-4 11 11 0 0 0-4 24z" />
   );
   return (
-    <svg viewBox="0 0 60 60" className={`weather-icon${hero ? " weather-icon--hero" : ""}`} aria-hidden="true">
+    <svg viewBox="0 0 60 60" className={`weather-icon${hero ? ' weather-icon-hero' : ''}`} aria-hidden="true">
       {conditions === 'clear' && sunAt(30, 30, 12)}
       {conditions === 'partly-cloudy' && sunAt(38, 20, 9)}
       {conditions !== 'clear' && cloud}
