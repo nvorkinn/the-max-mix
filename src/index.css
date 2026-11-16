@@ -2867,6 +2867,29 @@ input:disabled {
 .dashboard[data-layout='list'] .dashboard-weather {
   isolation: isolate;
 }
+/* The mockup uses one clear weather headline, not a stack of metrics. */
+.dashboard[data-layout='list'] .dashboard-high-low,
+.dashboard[data-layout='list'] .dashboard-notice-count {
+  display: none;
+}
+.dashboard[data-layout='list'] .dashboard-weather-label {
+  font-size: calc(14 * var(--u));
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.dashboard[data-layout='list'] .dashboard-now {
+  gap: calc(3 * var(--u));
+}
+.dashboard[data-layout='list'] .dashboard-conditions {
+  margin-top: calc(1 * var(--u));
+  font-size: calc(30 * var(--u));
+  line-height: 1.12;
+}
+.dashboard[data-layout='list'] .dashboard-outlook {
+  margin-top: calc(11 * var(--u));
+  font-size: calc(17 * var(--u));
+}
 .dashboard[data-layout='list'] .dashboard-weather-hero {
   align-items: flex-start;
   justify-content: flex-start;
