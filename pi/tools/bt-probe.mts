@@ -6,7 +6,8 @@
 //        then reports what BlueZ ends up with: the address after pairing, and which keys the bond holds.
 // watch: scans LE for 8 s every 30 s, like presence.ts, and prints when each paired device was last heard.
 //
-// Every BlueZ change goes to ~/bt-probe-<time>.jsonl. dbus-native comes from the installed kiosk-audio
+// Every BlueZ change goes to ~/bt-probe-<time>.jsonl, and every name a device takes to ~/bt-probe-<time>-names.tsv
+// (appended, never rewritten: time, seconds since first heard, address, Classic or LE, old and new name). dbus-native comes from the installed kiosk-audio
 // (KIOSK_AUDIO_DIR, default /opt/the-max-mix/kiosk-audio). Stop kiosk-audio pairing first; presence can keep running.
 import { appendFileSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -23,9 +24,36 @@ const AGENT = '/org/themaxmix/probe_agent';
 const DEVICE = 'org.bluez.Device1';
 const mode = process.argv[2] ?? 'pick';
 const started = new Date().toISOString().replaceAll(/[:.]/g, '-');
-const logFile = path.join(process.env['SUDO_USER'] ? `/home/${process.env['SUDO_USER']}` : homedir(), `bt-probe-${started}.jsonl`);
+const home = process.env['SUDO_USER'] ? `/home/${process.env['SUDO_USER']}` : homedir();
+const logFile = path.join(home, `bt-probe-${started}.jsonl`);
+/** One line per name a device takes, appended and never rewritten: when, how long after first heard, which device. */
+const namesFile = path.join(home, `bt-probe-${started}-names.tsv`);
 
 type Properties = Record<string, unknown>;
+
+appendFileSync(namesFile, 'time\tseconds_since_first_heard\taddress\taddress_type\tbearer\tfield\told\tnew\tpath\n');
+const firstHeard = new Map<string, number>();
+const names = new Map<string, { Name: string; Alias: string }>();
+/** Notes each change of a device's Name or Alias in the names file. */
+function noteNames(objectPath: string, changed: Properties): void {
+  const now = Date.now();
+  if (!firstHeard.has(objectPath)) firstHeard.set(objectPath, now);
+  const known = names.get(objectPath) ?? { Name: '', Alias: '' };
+  const props = view.get(objectPath)?.[DEVICE] ?? changed;
+  for (const field of ['Name', 'Alias'] as const) {
+    if (!(field in changed)) continue;
+    const value = typeof changed[field] === 'string' ? (changed[field] as string) : '';
+    if (value === known[field]) continue;
+    const seconds = ((now - (firstHeard.get(objectPath) ?? now)) / 1000).toFixed(1);
+    const bearer = 'Class' in props ? 'classic' : 'le';
+    appendFileSync(
+      namesFile,
+      `${new Date(now).toISOString()}\t${seconds}\t${String(props['Address'] ?? '')}\t${String(props['AddressType'] ?? 'public')}\t${bearer}\t${field}\t${known[field]}\t${value}\t${objectPath}\n`
+    );
+    known[field] = value;
+  }
+  names.set(objectPath, known);
+}
 
 const record = (event: string, data: Record<string, unknown>): void => {
   appendFileSync(logFile, `${JSON.stringify({ time: new Date().toISOString(), event, ...data })}\n`);
@@ -60,12 +88,14 @@ view.on('added', (objectPath: string, interfaces: Record<string, Properties>) =>
   if (interfaces[DEVICE]) {
     lastHeard.set(objectPath, Date.now());
     record('added', { path: objectPath, properties: interfaces[DEVICE] });
+    noteNames(objectPath, interfaces[DEVICE]);
   }
 });
 view.on('removed', (objectPath: string, names: string[]) => record('removed', { path: objectPath, interfaces: names }));
 view.on('changed', (objectPath: string, iface: string, changed: Properties, invalidated: string[]) => {
   if (iface !== DEVICE && iface !== 'org.bluez.Adapter1') return;
   if ('RSSI' in changed || 'ManufacturerData' in changed) lastHeard.set(objectPath, Date.now());
+  if (iface === DEVICE) noteNames(objectPath, changed);
   // Signal strength alone is noisy: keep it out of the log unless something else changed too.
   const keys = Object.keys(changed).filter(key => key !== 'RSSI');
   if (keys.length > 0 || mode === 'watch') record('changed', { path: objectPath, iface, changed, invalidated });
@@ -135,6 +165,7 @@ const finish = async (code = 0): Promise<never> => {
   await stopScan();
   await quietly(call('/org/bluez', 'org.bluez.AgentManager1', 'UnregisterAgent', { signature: 'o', body: [AGENT] }));
   say(`Log: ${logFile}`);
+  say(`Names: ${namesFile}`);
   await quietly(view.close());
   await quietly(bus.close());
   process.exit(code);
@@ -220,7 +251,8 @@ async function watch(): Promise<void> {
   }
 }
 
-say(`bt-probe ${mode}, adapter ${adapterAddress}, logging to ${logFile}`);
+for (const [objectPath, props] of Object.entries(devices())) noteNames(objectPath, props);
+say(`bt-probe ${mode}, adapter ${adapterAddress}, logging to ${logFile}, names to ${namesFile}`);
 if (mode === 'watch') await watch();
 else if (mode === 'pick') await pick();
 else {
