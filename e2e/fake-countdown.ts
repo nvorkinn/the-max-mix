@@ -1,3 +1,4 @@
+// cspell:ignore GZZLUEAC
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 
@@ -9,9 +10,17 @@ const search = JSON.parse(
   readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/search.json', import.meta.url), 'utf8')
 ) as { stops_query: string; stops: object[]; places_query: string; places: object[] };
 
+const panels = JSON.parse(
+  readFileSync(
+    new URL('../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json', import.meta.url),
+    'utf8'
+  )
+) as { arrivals: object };
+
 // countdown-server's screens' API, as the build names it (.env.production).
 const API = 'https://api.countdown.build';
 export const CONFIG = `${API}/api/devices/config`;
+const ARRIVALS = `${API}/api/devices/arrivals`;
 
 /**
  * countdown-api's example config, once someone owns the kiosk. Before that there's none: a touchscreen registers through
@@ -19,7 +28,7 @@ export const CONFIG = `${API}/api/devices/config`;
  */
 export const DEVICE_CONFIGS = { owned: fixture.config };
 
-const at = (hour: number) => `2026-11-15T${String(hour).padStart(2, '0')}:00`;
+const onTheHour = (hour: number) => `2026-11-15T${String(hour).padStart(2, '0')}:00`;
 // What each hour of 15 November brings: [temperature, WMO code]; cloudy at 8° but for the morning the screenshots show.
 const HOURS = new Map([
   [10, [9, 2]],
@@ -46,7 +55,7 @@ const WEATHER = {
       current: { time: '2026-11-15T09:15', temperature: 9.2, weather_code: 2, is_day: true },
       current_units: { temperature: '°C' },
       hourly: {
-        time: Array.from({ length: 24 }, (_, hour) => at(hour)),
+        time: Array.from({ length: 24 }, (_, hour) => onTheHour(hour)),
         temperature: Array.from({ length: 24 }, (_, hour) => HOURS.get(hour)?.[0] ?? 8),
         weather_code: Array.from({ length: 24 }, (_, hour) => HOURS.get(hour)?.[1] ?? 3)
       },
@@ -136,6 +145,13 @@ export async function fakeCountdownServer(
       body: JSON.stringify(WEATHER)
     });
   });
+  // The departures (GET /api/devices/arrivals): refused, as for a secret the server doesn't know, unless a test calls
+  // fakeArrivals.
+  await page.route(ARRIVALS, route => {
+    const cors = corsFor(route.request().headers()['origin']);
+    const isPreflight = route.request().method() === 'OPTIONS';
+    return route.fulfill({ status: isPreflight ? 204 : 401, headers: cors });
+  });
   // The searches answer countdown-api's example: its stops for "oslo s", its places for "oslo", and nothing else.
   const searches = [
     ['/api/stops/search', search.stops_query, search.stops],
@@ -160,5 +176,77 @@ export async function fakeCountdownServer(
       })
     )
   );
+  // The device's arrivals: countdown-api's example, once someone owns the kiosk.
+  await page.route(`${API}/api/devices/arrivals`, route => {
+    const request = route.request();
+    const cors = {
+      'Access-Control-Allow-Origin': request.headers()['origin'] ?? '*',
+      'Access-Control-Allow-Headers': 'Authorization'
+    };
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    if (current === null) return route.fulfill({ status: 401, headers: cors });
+    return route.fulfill({
+      status: 200,
+      headers: cors,
+      contentType: 'application/json',
+      body: JSON.stringify(panels.arrivals)
+    });
+  });
   return { authorizations, saves };
+}
+
+/**
+ * An owned kiosk's config with the stops fakeArrivals answers for, in the app's default look (or night's), so the
+ * Dashboard asks for its departures and looks as it does unowned.
+ */
+export function dashboardConfig(skin: 'day' | 'night' = 'day') {
+  return {
+    ...fixture.config,
+    style: { skin, colour: 'forest' },
+    arrivals: {
+      stops: [
+        { source: 'tfl', id: '940GZZLUEAC' },
+        { source: 'tfl', id: '490000077E' }
+      ]
+    }
+  };
+}
+
+/**
+ * Stands in for countdown-server's GET /api/devices/arrivals (countdown-api's getArrivals): a Tube station's trains and a
+ * bus stop's buses, read at `now` (the page's fixed clock) and timed from it.
+ */
+export async function fakeArrivals(page: Page, now: Date) {
+  const at = (minutes: number) => new Date(now.getTime() + minutes * 60_000).toISOString();
+  const departure = (line: string, destination: string, minutes: number) => ({
+    line,
+    destination,
+    expected_at: at(minutes),
+    platform: null,
+    mode: null
+  });
+  const stop = (id: string, name: string, mode: string, letter: string | null, departures: object[]) => ({
+    source: 'tfl',
+    id,
+    departures: { fetched_at: now.toISOString(), stop_id: id, name, mode, stop_letter: letter, modes: [], departures }
+  });
+  const answer = {
+    stops: [
+      stop('940GZZLUEAC', 'Elephant & Castle Underground Station', 'tube', null, [
+        departure('Northern', 'High Barnet', 3),
+        departure('Northern', 'Morden', 7),
+        departure('Bakerloo', 'Harrow & Wealdstone', 9)
+      ]),
+      stop('490000077E', 'Elephant & Castle', 'bus', 'E', [
+        departure('12', 'Oxford Circus', 2),
+        departure('343', 'New Cross', 6),
+        departure('12', 'Oxford Circus', 11)
+      ])
+    ]
+  };
+  await page.route(ARRIVALS, route => {
+    const cors = corsFor(route.request().headers()['origin']);
+    const isPreflight = route.request().method() === 'OPTIONS';
+    return route.fulfill(isPreflight ? { status: 204, headers: cors } : { status: 200, headers: cors, json: answer });
+  });
 }

@@ -74,6 +74,8 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
     await page.goto('/?kiosk=1');
     const settings = await openSettings(page, 'Countdown');
+    // The config's stop, added elsewhere, takes its name from its departures on the server.
+    await expect(settings.getByRole('list', { name: 'Saved stops' }).getByText('Majorstuen')).toBeVisible();
 
     await settings.getByRole('button', { name: 'Add a station or stop' }).click();
     const search = page.getByRole('dialog', { name: 'Add stops' });

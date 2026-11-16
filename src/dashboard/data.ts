@@ -1,8 +1,10 @@
-// What the Dashboard shows: Tube and bus departures, the weather and the notice board. The weather is countdown-server's
-// (weather.ts); the departures and notices are still the made-up data below, shaped roughly like countdown-server's
-// JSON. getDashboardData is the only way in, so the real fetches can replace them without touching the components.
+// What the Dashboard shows: Tube and bus departures, the weather and the notice board. The departures and the weather
+// come from countdown-server (arrivals.ts, weather.ts); the notices from the made-up data below, shaped roughly like
+// countdown-server's JSON. getDashboardData is the only way in, so the real fetches and countdown-api's generated types
+// can replace it without touching the components.
 
 import type { TouchscreenConfig } from 'countdown-api';
+import { readArrivals } from './arrivals';
 import { getWeather } from './weather';
 import type { Weather } from './weather';
 
@@ -72,41 +74,6 @@ export function isFresh(updatedAt: string, maxAgeMs: number, now: Date): boolean
   return Number.isFinite(age) && age <= maxAgeMs;
 }
 
-const MINUTE = 60_000;
-const at = (now: Date, minutes: number) => new Date(now.getTime() + minutes * MINUTE).toISOString();
-
-function mockArrivals(now: Date): Arrivals {
-  const departure = (route: string, destination: string, minutes: number, stop?: string) => ({
-    route,
-    destination,
-    due: at(now, minutes),
-    ...(stop && { stop })
-  });
-  return {
-    updatedAt: now.toISOString(),
-    stops: [
-      {
-        name: 'Elephant & Castle',
-        mode: 'tube',
-        arrivals: [
-          departure('Northern', 'High Barnet', 3),
-          departure('Northern', 'Morden', 7),
-          departure('Bakerloo', 'Harrow & Wealdstone', 9)
-        ]
-      },
-      {
-        name: 'Elephant & Castle',
-        mode: 'bus',
-        arrivals: [
-          departure('12', 'Oxford Circus', 2, 'Stop E'),
-          departure('343', 'New Cross', 6, 'Stop F'),
-          departure('12', 'Oxford Circus', 11, 'Stop E')
-        ]
-      }
-    ]
-  };
-}
-
 // The provider's full texts are real-world length, in the style TfL and the Met Office publish them.
 const MOCK_NOTICES: Notice[] = [
   {
@@ -163,9 +130,10 @@ const MOCK_NOTICES: Notice[] = [
 export type DashboardSettings = Pick<TouchscreenConfig, 'arrivals' | 'weather' | 'notice_board'> | null;
 
 /**
- * The Dashboard's data for the owner's settings: the server's weather, and made-up departures and notices for now (the
- * same whatever the settings); see the top of this file.
+ * The Dashboard's data for the owner's settings: the departures from countdown-server (none asked for without an owner
+ * or stops) and its weather; the notices made up for now, the same whatever the settings.
  */
-export async function getDashboardData(_settings: DashboardSettings, now = new Date()): Promise<DashboardData> {
-  return { arrivals: mockArrivals(now), weather: await getWeather(now), notices: MOCK_NOTICES };
+export async function getDashboardData(settings: DashboardSettings, now = new Date()): Promise<DashboardData> {
+  const arrivals = settings && settings.arrivals.stops.length > 0 ? await readArrivals(now) : null;
+  return { arrivals, weather: await getWeather(now), notices: MOCK_NOTICES };
 }

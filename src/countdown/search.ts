@@ -1,10 +1,12 @@
 // Stop and place search for the Dashboard settings: countdown-server's GET /api/stops/search (TfL and Entur) and
 // GET /api/places/search (Open-Meteo), with the device secret. A build that sets VITE_COUNTDOWN_CONFIG=mock searches
 // countdown-api's example answers instead. The config keeps only a stop's source and id, so the kiosk keeps the name
-// and line under it of each stop it adds, to show in the list.
+// and line under it of each stop it adds, to show in the list, and learns the names of stops added elsewhere (the
+// settings site) from the stops' departures.
 
 import type { DepartureStop, PlaceSearchResult, StopSearchResult, Weather } from 'countdown-api';
 import {
+  getArrivals,
   searchPlaces as searchPlacesRoute,
   searchStops as searchStopsRoute
 } from '../../vendor/countdown-api/src/countdown_api/client';
@@ -117,4 +119,33 @@ export function describeStop(stop: DepartureStop): { name: string; detail: strin
   return known
     ? { name: known.name, detail: known.detail ? `${known.detail} · ${source}` : source }
     : { name: stop.id, detail: source };
+}
+
+/**
+ * Keeps the names of the device's stops that this kiosk has no name for (ones added on the settings site), as their
+ * departures on countdown-server name them. Answers whether it learnt any. Nothing is asked in a mock build, or when the
+ * kiosk isn't registered; a failed ask learns nothing.
+ */
+export async function learnStopNames(): Promise<boolean> {
+  if (import.meta.env.VITE_COUNTDOWN_CONFIG === 'mock') return false;
+  const client = serverClient();
+  if (!client) return false;
+  const answer = await getArrivals(client).catch(() => null);
+  if (!answer?.data) return false;
+  const known = storedStopNames();
+  let learnt = false;
+  for (const stop of answer.data.stops) {
+    const key = stopKey(stop);
+    if (!stop.departures || Object.hasOwn(known, key)) continue;
+    const letter = stop.departures.stop_letter;
+    rememberStop({
+      key,
+      name: stop.departures.name,
+      detail: letter ? `Stop ${letter}` : '',
+      indent: false,
+      value: stop
+    });
+    learnt = true;
+  }
+  return learnt;
 }
