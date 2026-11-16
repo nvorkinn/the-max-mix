@@ -32,8 +32,20 @@ export interface DeviceWeather {
   current: DeviceWeatherReading;
   /** The coming hours, soonest first, each from the start of its hour (ISO time); at least the next six. */
   hours: (DeviceWeatherReading & { time: string })[];
-  /** The day's background picture for the place (https, landscape, no text), or null while there is none. */
-  background_url: string | null;
+  /**
+   * The day's background picture for the place (landscape, no text, a calm top-left), or null while there is none. Its
+   * URL is public and content-hashed: an <img> or CSS background can't send the device secret.
+   */
+  background: {
+    /** The place's local day it is for, as YYYY-MM-DD. */
+    date: string;
+    url: string;
+    generated_at: string;
+    /** Whether it is a curated stand-in because the day's picture couldn't be made. */
+    fallback: boolean;
+    width: number;
+    height: number;
+  } | null;
 }
 
 export type Conditions = 'clear' | 'partly-cloudy' | 'cloudy' | 'fog' | 'drizzle' | 'rain' | 'snow' | 'thunder';
@@ -93,7 +105,7 @@ function toWeather(answer: DeviceWeather, now: Date): Weather {
         conditions: conditionsFor(hour.weather_code),
         daylight: hour.is_day
       })),
-    background: answer.background_url
+    background: answer.background?.url ?? null
   };
 }
 

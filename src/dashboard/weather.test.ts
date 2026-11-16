@@ -24,7 +24,14 @@ const ANSWER: DeviceWeather = {
     { time: hour(4), temperature: 9.6, weather_code: 45, is_day: true },
     { time: hour(5), temperature: 8.1, weather_code: 0, is_day: false }
   ],
-  background_url: 'https://app.countdown.build/backgrounds/oslo-no-3143244/2026-11-16.jpg'
+  background: {
+    date: '2026-11-16',
+    url: 'https://app.countdown.build/backgrounds/4f1c2a.jpg',
+    generated_at: '2026-11-16T04:00:00Z',
+    fallback: false,
+    width: 1536,
+    height: 1024
+  }
 };
 
 const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>();
@@ -77,7 +84,7 @@ describe('weather', () => {
         { time: hour(4), temperature: 10, conditions: 'fog', daylight: true },
         { time: hour(5), temperature: 8, conditions: 'clear', daylight: false }
       ],
-      background: ANSWER.background_url
+      background: 'https://app.countdown.build/backgrounds/4f1c2a.jpg'
     });
   });
 
