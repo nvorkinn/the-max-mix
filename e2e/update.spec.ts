@@ -86,12 +86,16 @@ test.describe('Software update', { tag: '@update' }, () => {
     ).toContainText('v1.13.0 is out');
 
     // Whatever is at the popup's middle must be the popup (or part of it), not Settings behind it.
-    const isOnTop = await popup(page).evaluate(element => {
-      const box = element.getBoundingClientRect();
-      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
-      return element.contains(hit);
-    });
-    expect(isOnTop).toBe(true);
+    // (While the tab fades the browser answers with the page itself, so this waits for the fade to end.)
+    await expect
+      .poll(() =>
+        popup(page).evaluate(element => {
+          const box = element.getBoundingClientRect();
+          const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+          return element.contains(hit);
+        })
+      )
+      .toBe(true);
     await expect(popup(page).getByRole('button', { name: 'Not now' })).toBeInViewport({ ratio: 1 });
 
     // Playwright only clicks what receives the click, so this fails if Settings were over the popup.
