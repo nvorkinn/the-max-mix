@@ -525,7 +525,11 @@ function NoticeIcon({ notice }: Readonly<{ notice: Notice }>) {
 function NoticeBoard({ notices, layout }: Readonly<{ notices: Notice[]; layout: DashboardLayout }>) {
   const [open, setOpen] = useState<Notice | null>(null);
   const priority: Record<Notice['severity'], number> = { severe: 0, minor: 1, planned: 2, info: 3 };
-  const orderedNotices = notices.toSorted((a, b) => priority[a.severity] - priority[b.severity]);
+  // Weather warnings lead other notices of the same severity; urgent events always outrank minor ones.
+  const kindPriority: Record<Notice['kind'], number> = { weather: 0, delays: 1, closure: 2, holiday: 3 };
+  const orderedNotices = notices.toSorted(
+    (a, b) => priority[a.severity] - priority[b.severity] || kindPriority[a.kind] - kindPriority[b.kind]
+  );
   return (
     <section className="dashboard-card dashboard-notices" aria-labelledby="dashboard-notices-title">
       <h2 id="dashboard-notices-title" className="dashboard-notices-title">
