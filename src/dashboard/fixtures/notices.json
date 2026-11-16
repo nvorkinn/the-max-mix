@@ -1,0 +1,145 @@
+{
+  "tfl_lines": [
+    {
+      "id": "northern",
+      "name": "Northern",
+      "modeName": "tube",
+      "lineStatuses": [
+        {
+          "statusSeverityDescription": "Severe Delays",
+          "reason": "Northern Line: Severe delays between Kennington and Morden due to an earlier signal failure at Clapham Common. GOOD SERVICE on the rest of the line.",
+          "validityPeriods": [
+            {
+              "fromDate": "2026-09-25T09:00:00Z",
+              "toDate": "2026-09-25T21:00:00Z"
+            }
+          ]
+        },
+        {
+          "statusSeverityDescription": "Part Closure",
+          "reason": "NORTHERN LINE: Until Sunday 4 October, no service between Kennington and Battersea Power Station. Replacement buses operate.",
+          "validityPeriods": [
+            {
+              "fromDate": "2026-09-20T12:00:00Z",
+              "toDate": "2026-10-04T12:00:00Z"
+            }
+          ]
+        },
+        {
+          "statusSeverityDescription": "Part Suspended",
+          "reason": "Northern line: Saturday 3 October, no service between Camden Town and Edgware.",
+          "validityPeriods": [
+            {
+              "fromDate": "2026-10-03T12:00:00Z",
+              "toDate": "2026-10-04T12:00:00Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "133",
+      "name": "133",
+      "modeName": "bus",
+      "lineStatuses": [
+        {
+          "statusSeverityDescription": "Good Service",
+          "validityPeriods": []
+        }
+      ]
+    },
+    {
+      "id": "155",
+      "name": "155",
+      "modeName": "bus",
+      "lineStatuses": [
+        {
+          "statusSeverityDescription": "Special Service",
+          "reason": "Route 155 is diverted.",
+          "validityPeriods": []
+        },
+        {
+          "statusSeverityDescription": "Issues Reported",
+          "validityPeriods": []
+        }
+      ]
+    },
+    {
+      "id": "333",
+      "name": "333",
+      "modeName": "bus",
+      "lineStatuses": [
+        {
+          "statusSeverityDescription": "Part Suspended",
+          "reason": "KENNINGTON PARK ROAD, Kennington: Routes 333 and 415   are diverted away from Kennington Park Road due to emergency gas works. Use stops on Kennington Road.",
+          "validityPeriods": [
+            {
+              "fromDate": "2026-09-25T11:00:00Z",
+              "toDate": "2026-09-25T14:00:00Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "415",
+      "name": "415",
+      "modeName": "bus",
+      "lineStatuses": [
+        {
+          "statusSeverityDescription": "Suspended",
+          "reason": "KENNINGTON PARK ROAD, Kennington: Routes 333 and 415   are diverted away from Kennington Park Road due to emergency gas works. Use stops on Kennington Road.",
+          "validityPeriods": [
+            {
+              "fromDate": "2026-09-25T11:00:00Z",
+              "toDate": "2026-09-25T18:00:00Z"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "met_office": [
+    {
+      "title": "Amber warning of wind affecting London & South East England",
+      "description": "Amber warning of wind affecting London & South East England: Lambeth, Southwark, Wandsworth valid from 0600 Fri 25 Sep to 2100 Fri 25 Sep"
+    },
+    {
+      "title": "Yellow warning of rain affecting London & South East England",
+      "description": "Yellow warning of rain affecting London & South East England: Bromley, Croydon, Lambeth, Southwark valid from 1800 Fri 25 Sep to 0900 Sat 26 Sep"
+    },
+    {
+      "title": "Yellow warning of thunderstorm affecting London & South East England",
+      "description": "Yellow warning of thunderstorm affecting London & South East England: Southwark valid from 0000 Fri 25 Sep to 0900 Fri 25 Sep"
+    },
+    {
+      "title": "Yellow warning of fog affecting London & South East England",
+      "description": ""
+    },
+    {
+      "title": "Warnings for London & South East England are being reviewed",
+      "description": "Please check back later for the latest warnings"
+    },
+    {
+      "title": " ",
+      "description": "An item with nothing to show"
+    }
+  ],
+  "bank_holidays": [
+    {
+      "title": "Christmas Day",
+      "date": "2026-12-25",
+      "notes": ""
+    },
+    {
+      "title": "Boxing Day",
+      "date": "2026-12-28",
+      "notes": "Substitute day"
+    },
+    {
+      "title": "New Year’s Day",
+      "date": "2027-01-01",
+      "notes": ""
+    }
+  ]
+}
