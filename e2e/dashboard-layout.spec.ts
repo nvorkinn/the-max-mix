@@ -23,15 +23,19 @@ async function layout(page: Page): Promise<(string | number)[][]> {
 }
 
 for (const screen of SCREENS) {
-  test(`long names and no notices keep the Dashboard's layout at ${screen.width}x${screen.height}`, async ({
-    page
-  }) => {
-    await showDashboard(page, screen);
-    const usual = await layout(page);
+  test(
+    `long names and no notices keep the Dashboard's layout at ${screen.width}x${screen.height}`,
+    {
+      tag: '@layout'
+    },
+    async ({ page }) => {
+      await showDashboard(page, screen);
+      const usual = await layout(page);
 
-    await showDashboard(page, screen, { long: true, none: true });
-    await expect(page.getByText(/Harrow & Wealdstone via/)).toBeVisible();
+      await showDashboard(page, screen, { long: true, none: true });
+      await expect(page.getByText(/Harrow & Wealdstone via/)).toBeVisible();
 
-    expect(await layout(page)).toEqual(usual);
-  });
+      expect(await layout(page)).toEqual(usual);
+    }
+  );
 }
