@@ -8,6 +8,8 @@ import { debugLog } from '../utils/debugLog';
 import { errorMessage } from '../utils/errorMessage';
 import { DEFAULT_CLOCK_FORMAT, formatClockTime } from '../utils/clockFormat';
 import type { ClockFormat } from '../utils/clockFormat';
+import { DEFAULT_DASHBOARD_LAYOUT } from '../utils/dashboardLayout';
+import type { DashboardLayout } from '../utils/dashboardLayout';
 import londonPhoto from '../assets/dashboard/london.jpg';
 import Modal from './Modal';
 
@@ -19,6 +21,8 @@ const TICK_MS = 15_000;
 const DEPARTURES_SHOWN = 2;
 /** Hours of forecast beside the temperature. */
 const HOURS_SHOWN = 3;
+/** Hours of forecast in the Timeline layout's weather strip. */
+const TIMELINE_HOURS_SHOWN = 4;
 /** A departure this many minutes away or fewer gets the green chip: time to go. */
 const SOON_MINUTES = 5;
 
@@ -119,11 +123,13 @@ function LineBadge({ mode, line }: Readonly<{ mode: 'tube' | 'bus'; line: string
 const DEPARTURE_CARDS = {
   tube: {
     title: 'Tube',
+    next: 'Next Tube',
     icon: <Roundel className="dashboard-card-mark" />,
     missing: "Tube times aren't available"
   },
   bus: {
     title: 'Buses',
+    next: 'Next Buses',
     icon: (
       <span className="dashboard-card-mark dashboard-bus-mark">
         <BusFront aria-hidden="true" />
@@ -133,31 +139,50 @@ const DEPARTURE_CARDS = {
   }
 } as const;
 
-/** The next departures of one kind, from the first stop that has any. */
-function DeparturesCard({
-  mode,
-  arrivals,
-  now
-}: Readonly<{ mode: 'tube' | 'bus'; arrivals: Arrivals | null; now: Date }>) {
+/** The first stop of one kind that has departures still to come, or none while the departures are missing or old. */
+function nextStop(mode: 'tube' | 'bus', arrivals: Arrivals | null, now: Date) {
   const fresh = arrivals && isFresh(arrivals.updatedAt, ARRIVALS_MAX_AGE_MS, now) ? arrivals : null;
   // A departure that has already gone is dropped at once, without waiting for the next read.
-  const stop = fresh?.stops
+  return fresh?.stops
     .filter(candidate => candidate.mode === mode)
     .map(candidate => ({
       ...candidate,
-      arrivals: candidate.arrivals.filter(arrival => Date.parse(arrival.due) > now.getTime() - 60_000)
+      arrivals: candidate.arrivals
+        .filter(arrival => Date.parse(arrival.due) > now.getTime() - 60_000)
+        .slice(0, DEPARTURES_SHOWN)
     }))
     .find(candidate => candidate.arrivals.length > 0);
+}
+
+/** How long until a departure, on its chip: green when it is time to go. */
+function Due({ arrival, now }: Readonly<{ arrival: Arrival; now: Date }>) {
+  const minutes = minutesUntil(arrival, now);
+  return (
+    <span className="dashboard-due" data-soon={minutes <= SOON_MINUTES}>
+      {minutes < 1 ? 'Due' : `${minutes} min`}
+    </span>
+  );
+}
+
+/** The next departures of one kind, from the first stop that has any. The Banner layout leaves the stop's name out. */
+function DeparturesCard({
+  mode,
+  arrivals,
+  now,
+  layout
+}: Readonly<{ mode: 'tube' | 'bus'; arrivals: Arrivals | null; now: Date; layout: DashboardLayout }>) {
+  const stop = nextStop(mode, arrivals, now);
   const card = DEPARTURE_CARDS[mode];
   const titleId = `dashboard-${mode}-title`;
+  const banner = layout === 'banner';
   return (
     <section className="dashboard-card dashboard-departures" data-mode={mode} aria-labelledby={titleId}>
       <header className="dashboard-departures-header">
         {card.icon}
         <h2 id={titleId} className="dashboard-departures-title">
-          {card.title}
+          {banner ? card.next : card.title}
         </h2>
-        {stop && (
+        {stop && !banner && (
           <span className="dashboard-stop-name">
             {stop.name}
             <ChevronRight aria-hidden="true" />
@@ -166,21 +191,16 @@ function DeparturesCard({
       </header>
       {stop ? (
         <ul className="dashboard-arrival-list">
-          {stop.arrivals.slice(0, DEPARTURES_SHOWN).map(arrival => {
-            const minutes = minutesUntil(arrival, now);
-            return (
-              <li key={`${arrival.route}-${arrival.due}`} className="dashboard-arrival">
-                <LineBadge mode={mode} line={arrival.route} />
-                <span className="dashboard-destination">
-                  <span className="dashboard-destination-name">{arrival.destination}</span>
-                  {arrival.stop && <span className="dashboard-destination-stop">{arrival.stop}</span>}
-                </span>
-                <span className="dashboard-due" data-soon={minutes <= SOON_MINUTES}>
-                  {minutes < 1 ? 'Due' : `${minutes} min`}
-                </span>
-              </li>
-            );
-          })}
+          {stop.arrivals.map(arrival => (
+            <li key={`${arrival.route}-${arrival.due}`} className="dashboard-arrival">
+              <LineBadge mode={mode} line={arrival.route} />
+              <span className="dashboard-destination">
+                <span className="dashboard-destination-name">{arrival.destination}</span>
+                {arrival.stop && !banner && <span className="dashboard-destination-stop">{arrival.stop}</span>}
+              </span>
+              <Due arrival={arrival} now={now} />
+            </li>
+          ))}
         </ul>
       ) : (
         <Unavailable>{card.missing}</Unavailable>
@@ -189,19 +209,160 @@ function DeparturesCard({
   );
 }
 
-/** The weather over a photo of the place: now, the next three hours, and whether rain comes later. */
+/** The Timeline layout's one card of next departures: the Tube's and then the buses', under the stop's name. */
+function NextDepartures({ arrivals, now }: Readonly<{ arrivals: Arrivals | null; now: Date }>) {
+  const groups = (['tube', 'bus'] as const)
+    .map(mode => ({ mode, stop: nextStop(mode, arrivals, now) }))
+    .filter(
+      (group): group is { mode: 'tube' | 'bus'; stop: NonNullable<typeof group.stop> } => group.stop !== undefined
+    );
+  const place = groups[0]?.stop.name;
+  return (
+    <section
+      className="dashboard-card dashboard-next"
+      aria-label={place ? `Next departures from ${place}` : 'Next departures'}
+    >
+      {place ? (
+        <>
+          <h2 className="dashboard-next-title">
+            <MapPin aria-hidden="true" /> {place}
+          </h2>
+          {groups.map(({ mode, stop }) => (
+            <div key={mode} className="dashboard-next-group" data-mode={mode}>
+              {DEPARTURE_CARDS[mode].icon}
+              <ul className="dashboard-next-list" aria-label={DEPARTURE_CARDS[mode].title}>
+                {stop.arrivals.map(arrival => (
+                  <li key={`${arrival.route}-${arrival.due}`} className="dashboard-next-arrival">
+                    <span className="dashboard-next-route">
+                      {arrival.route}
+                      <span aria-hidden="true"> → </span>
+                      <span className="sr-only"> to </span>
+                      {arrival.destination}
+                    </span>
+                    <Due arrival={arrival} now={now} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </>
+      ) : (
+        <Unavailable>Departure times aren't available</Unavailable>
+      )}
+    </section>
+  );
+}
+
+/** The next few hours of the forecast: the time, the weather drawn and the temperature. */
+function Hours({
+  weather,
+  count,
+  clockFormat
+}: Readonly<{ weather: Weather; count: number; clockFormat: ClockFormat }>) {
+  return (
+    <ol className="dashboard-hours">
+      {weather.hours.slice(0, count).map(hour => (
+        <li key={hour.time} className="dashboard-hour">
+          <span className="dashboard-hour-time">{formatClockTime(new Date(hour.time), clockFormat)}</span>
+          <WeatherIcon conditions={hour.conditions} />
+          <span className="sr-only">{CONDITION_LABELS[hour.conditions]}</span>
+          <span className="dashboard-hour-temperature">{hour.temperature}°</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function freshWeather(weather: Weather | null, now: Date): Weather | null {
+  return weather && isFresh(weather.updatedAt, WEATHER_MAX_AGE_MS, now) ? weather : null;
+}
+
+/**
+ * The weather, laid out for each layout: List's over a photo with the next three hours; Banner's big clock beside it;
+ * Timeline's strip of the next hours; Modular's tile with only now.
+ */
 function WeatherCard({
   weather,
   now,
-  clockFormat
-}: Readonly<{ weather: Weather | null; now: Date; clockFormat: ClockFormat }>) {
-  const fresh = weather && isFresh(weather.updatedAt, WEATHER_MAX_AGE_MS, now) ? weather : null;
+  clockFormat,
+  layout
+}: Readonly<{ weather: Weather | null; now: Date; clockFormat: ClockFormat; layout: DashboardLayout }>) {
+  const fresh = freshWeather(weather, now);
   const rainLater = fresh?.hours.some(hour => hour.conditions === 'rain') && fresh.conditions !== 'rain';
+  const label = fresh ? `Weather in ${fresh.location}` : 'Weather';
+  if (layout === 'banner') {
+    const date = now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    return (
+      <section className="dashboard-card dashboard-weather" aria-label={label}>
+        <div className="dashboard-clock">
+          <span className="dashboard-clock-time">{formatClockTime(now, clockFormat)}</span>
+          <span className="dashboard-clock-date">
+            {date}
+            {fresh && (
+              <>
+                {' '}
+                <span aria-hidden="true">·</span> {fresh.location}
+              </>
+            )}
+          </span>
+        </div>
+        {fresh ? (
+          <div className="dashboard-banner-now">
+            <WeatherIcon conditions={fresh.conditions} hero />
+            <span className="dashboard-now">
+              <span className="dashboard-temperature">{fresh.temperature}°</span>
+              <span className="dashboard-conditions">{CONDITION_LABELS[fresh.conditions]}</span>
+            </span>
+            <span className="dashboard-high-low">
+              <span>H: {fresh.high}°</span>
+              <span>L: {fresh.low}°</span>
+            </span>
+          </div>
+        ) : (
+          <Unavailable>The weather isn't available</Unavailable>
+        )}
+      </section>
+    );
+  }
+  if (layout === 'timeline') {
+    return (
+      <section className="dashboard-card dashboard-weather" aria-label={label}>
+        {fresh ? (
+          <>
+            <WeatherIcon conditions={fresh.conditions} hero />
+            <span className="dashboard-now">
+              <span className="dashboard-temperature">{fresh.temperature}°</span>
+              <span className="dashboard-conditions">{CONDITION_LABELS[fresh.conditions]}</span>
+            </span>
+            <Hours weather={fresh} count={TIMELINE_HOURS_SHOWN} clockFormat={clockFormat} />
+          </>
+        ) : (
+          <Unavailable>The weather isn't available</Unavailable>
+        )}
+      </section>
+    );
+  }
+  if (layout === 'modular') {
+    return (
+      <section className="dashboard-card dashboard-weather" aria-label={label}>
+        {fresh ? (
+          <>
+            <span className="dashboard-place">
+              <MapPin aria-hidden="true" /> {fresh.location}
+            </span>
+            <span className="dashboard-now">
+              <span className="dashboard-temperature">{fresh.temperature}°</span>
+              <span className="dashboard-conditions">{CONDITION_LABELS[fresh.conditions]}</span>
+            </span>
+          </>
+        ) : (
+          <Unavailable>The weather isn't available</Unavailable>
+        )}
+      </section>
+    );
+  }
   return (
-    <section
-      className="dashboard-card dashboard-weather"
-      aria-label={fresh ? `Weather in ${fresh.location}` : 'Weather'}
-    >
+    <section className="dashboard-card dashboard-weather" aria-label={label}>
       {fresh ? (
         <>
           <div className="dashboard-weather-topline">
@@ -227,18 +388,30 @@ function WeatherCard({
           </div>
           <div className="dashboard-hours-wrap">
             <span className="dashboard-hours-label">Next hours</span>
-            <ol className="dashboard-hours">
-              {fresh.hours.slice(0, HOURS_SHOWN).map(hour => (
-                <li key={hour.time} className="dashboard-hour">
-                  <span className="dashboard-hour-time">{formatClockTime(new Date(hour.time), clockFormat)}</span>
-                  <WeatherIcon conditions={hour.conditions} />
-                  <span className="sr-only">{CONDITION_LABELS[hour.conditions]}</span>
-                  <span className="dashboard-hour-temperature">{hour.temperature}°</span>
-                </li>
-              ))}
-            </ol>
+            <Hours weather={fresh} count={HOURS_SHOWN} clockFormat={clockFormat} />
           </div>
         </>
+      ) : (
+        <Unavailable>The weather isn't available</Unavailable>
+      )}
+    </section>
+  );
+}
+
+/** The Modular layout's tile of the next hours' weather. */
+function LaterToday({
+  weather,
+  now,
+  clockFormat
+}: Readonly<{ weather: Weather | null; now: Date; clockFormat: ClockFormat }>) {
+  const fresh = freshWeather(weather, now);
+  return (
+    <section className="dashboard-card dashboard-later" aria-labelledby="dashboard-later-title">
+      <h2 id="dashboard-later-title" className="dashboard-later-title">
+        Later today
+      </h2>
+      {fresh ? (
+        <Hours weather={fresh} count={HOURS_SHOWN} clockFormat={clockFormat} />
       ) : (
         <Unavailable>The weather isn't available</Unavailable>
       )}
@@ -268,17 +441,19 @@ function NoticeIcon({ notice }: Readonly<{ notice: Notice }>) {
   );
 }
 
-/** The notices, each as a headline and one short line; tapping one shows the provider's full text. */
-function NoticeBoard({ notices }: Readonly<{ notices: Notice[] }>) {
+/**
+ * The notices, each as a headline and one short line; tapping one shows the provider's full text. A list down the
+ * side, a strip (Banner), a timeline or a row of tiles (Modular), by the layout. Only shown when there are notices.
+ */
+function NoticeBoard({ notices, layout }: Readonly<{ notices: Notice[]; layout: DashboardLayout }>) {
   const [open, setOpen] = useState<Notice | null>(null);
   return (
     <section className="dashboard-card dashboard-notices" aria-labelledby="dashboard-notices-title">
       <h2 id="dashboard-notices-title" className="dashboard-notices-title">
-        <Megaphone aria-hidden="true" /> Notice board
-        <span className="dashboard-notice-count">{notices.length} updates</span>
+        <Megaphone aria-hidden="true" /> {layout === 'timeline' ? 'Notices' : 'Notice board'}
+        {layout === 'list' && <span className="dashboard-notice-count">{notices.length} updates</span>}
       </h2>
       <ul className="dashboard-notice-list">
-        {notices.length === 0 && <li className="dashboard-notice-empty">Nothing requiring your attention</li>}
         {notices.map(notice => (
           <li key={notice.id}>
             <button
@@ -325,15 +500,22 @@ function NoticeBoard({ notices }: Readonly<{ notices: Notice[] }>) {
 }
 
 /**
- * The Dashboard tab: the notice board down the left, the weather over a photo, and the next Tube and buses under it.
- * Reads its data only while `shown`, for the stops, place and notice board in the owner's `config` (null before anyone
- * owns the kiosk), and again whenever those change.
+ * The Dashboard tab, in one of the four layouts picked in Settings > Appearance (List by default): the notice board,
+ * the weather over a photo, and the next Tube and buses. With no notices the notice board is left out and the rest
+ * takes its room. Reads its data only while `shown`, for the stops, place and notice board in the owner's `config`
+ * (null before anyone owns the kiosk), and again whenever those change.
  */
 export default function Dashboard({
   shown,
   clockFormat = DEFAULT_CLOCK_FORMAT,
-  config = null
-}: Readonly<{ shown: boolean; clockFormat?: ClockFormat; config?: TouchscreenConfig | null }>) {
+  config = null,
+  layout = DEFAULT_DASHBOARD_LAYOUT
+}: Readonly<{
+  shown: boolean;
+  clockFormat?: ClockFormat;
+  config?: TouchscreenConfig | null;
+  layout?: DashboardLayout;
+}>) {
   // Only the Dashboard's own sections: a change of skin or screen sleep doesn't read the data again.
   const arrivalsSettings = config?.arrivals;
   const weatherSettings = config?.weather;
@@ -371,13 +553,26 @@ export default function Dashboard({
     };
   }, [shown, settings, clockFormat]);
 
+  const hasNotices = data.notices.length > 0;
   return (
     // Visual placeholder only. The background-image provider is being implemented separately.
-    <div className="dashboard" style={{ '--weather-photo': `url(${londonPhoto})` } as CSSProperties}>
-      <NoticeBoard notices={data.notices} />
-      <WeatherCard weather={data.weather} now={now} clockFormat={clockFormat} />
-      <DeparturesCard mode="tube" arrivals={data.arrivals} now={now} />
-      <DeparturesCard mode="bus" arrivals={data.arrivals} now={now} />
+    <div
+      className="dashboard"
+      data-layout={layout}
+      data-notices={hasNotices ? 'some' : 'none'}
+      style={{ '--weather-photo': `url(${londonPhoto})` } as CSSProperties}
+    >
+      {hasNotices && <NoticeBoard notices={data.notices} layout={layout} />}
+      <WeatherCard weather={data.weather} now={now} clockFormat={clockFormat} layout={layout} />
+      {layout === 'timeline' ? (
+        <NextDepartures arrivals={data.arrivals} now={now} />
+      ) : (
+        <>
+          <DeparturesCard mode="tube" arrivals={data.arrivals} now={now} layout={layout} />
+          <DeparturesCard mode="bus" arrivals={data.arrivals} now={now} layout={layout} />
+        </>
+      )}
+      {layout === 'modular' && <LaterToday weather={data.weather} now={now} clockFormat={clockFormat} />}
     </div>
   );
 }

@@ -3141,12 +3141,6 @@ input:disabled {
   flex-shrink: 0;
   opacity: 0.7;
 }
-.dashboard-notice-empty {
-  padding: calc(24 * var(--u)) calc(8 * var(--u));
-  font-size: calc(16 * var(--u));
-  opacity: 0.8;
-}
-
 /* Tapping a notice reveals the complete provider text. */
 .app-dialog.notice-sheet {
   width: min(640px, calc(100% - 48px));
@@ -3208,6 +3202,497 @@ input:disabled {
   }
   .dashboard-notice {
     min-height: calc(82 * var(--u));
+  }
+}
+
+/*
+  The other layouts of the London Dashboard mockup sheet, picked in Settings > Appearance, built from the same cards.
+  With no notices the notice board is left out and the other cards take its room, in every layout.
+*/
+.dashboard[data-notices='none'] {
+  grid-template-areas:
+    'weather weather'
+    'tube bus';
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+/* Paper cards draw the weather in ink rather than white. */
+.dashboard-later .weather-icon,
+.dashboard[data-layout='timeline'] .weather-icon {
+  filter: none;
+}
+.dashboard-later .weather-icon-cloud,
+.dashboard[data-layout='timeline'] .weather-icon-cloud {
+  fill: none;
+  stroke: var(--muted);
+}
+.dashboard-later .weather-icon-sun circle,
+.dashboard[data-layout='timeline'] .weather-icon-sun circle {
+  fill: #ffd27a;
+  stroke: #f0a92b;
+}
+.dashboard-later .weather-icon-sun line,
+.dashboard[data-layout='timeline'] .weather-icon-sun line {
+  stroke: #f0a92b;
+}
+.dashboard-later .weather-icon-rain,
+.dashboard[data-layout='timeline'] .weather-icon-rain {
+  stroke: #3d8fc4;
+}
+.dashboard-later .weather-icon-snow,
+.dashboard[data-layout='timeline'] .weather-icon-snow {
+  fill: #8fb8d6;
+}
+
+/* Notices on a paper card (Timeline and Modular): coloured icons without a tile. */
+.dashboard[data-layout='timeline'] .dashboard-notices,
+.dashboard[data-layout='modular'] .dashboard-notices {
+  border-color: var(--dashboard-line);
+  background: var(--dashboard-card);
+  color: var(--ink);
+}
+.dashboard[data-layout='timeline'] .dashboard-notices-title,
+.dashboard[data-layout='modular'] .dashboard-notices-title {
+  border-bottom-color: var(--dashboard-line);
+}
+.dashboard[data-layout='timeline'] .dashboard-notice-icon,
+.dashboard[data-layout='modular'] .dashboard-notice-icon {
+  background: none;
+  color: var(--ink);
+}
+.dashboard[data-layout='timeline'] .dashboard-notice-icon[data-kind='weather'],
+.dashboard[data-layout='modular'] .dashboard-notice-icon[data-kind='weather'] {
+  color: #3d8fc4;
+}
+.dashboard[data-layout='timeline'] .dashboard-notice-icon[data-kind='delays'],
+.dashboard[data-layout='modular'] .dashboard-notice-icon[data-kind='delays'] {
+  color: #e9a23b;
+}
+.dashboard[data-layout='timeline'] .dashboard-notice-icon[data-kind='holiday'],
+.dashboard[data-layout='modular'] .dashboard-notice-icon[data-kind='holiday'] {
+  color: #8a5cc2;
+}
+.dashboard[data-layout='timeline'] .dashboard-notice-warning rect,
+.dashboard[data-layout='timeline'] .dashboard-notice-warning circle,
+.dashboard[data-layout='modular'] .dashboard-notice-warning rect,
+.dashboard[data-layout='modular'] .dashboard-notice-warning circle {
+  fill: #fff;
+}
+
+/* B, Banner: a big clock and the weather over the photo, the notices in a strip across it, glass departure boards. */
+.dashboard[data-layout='banner'] {
+  grid-template:
+    'weather weather' minmax(0, 1fr)
+    'notices notices' auto
+    'tube bus' calc(170 * var(--u))
+    / minmax(0, 1fr) minmax(0, 1fr);
+  margin: calc(14 * var(--u)) calc(20 * var(--u)) calc(18 * var(--u));
+  padding: calc(22 * var(--u)) calc(28 * var(--u)) calc(24 * var(--u));
+  border-radius: calc(22 * var(--u));
+  background:
+    linear-gradient(180deg, rgb(8 20 31 / 42%), rgb(8 20 31 / 18%) 45%, rgb(8 20 31 / 58%)),
+    var(--weather-photo) center 55% / cover,
+    #27435a;
+  color: #fff;
+}
+.dashboard[data-layout='banner'][data-notices='none'] {
+  grid-template-areas:
+    'weather weather'
+    'tube bus';
+  grid-template-rows: minmax(0, 1fr) calc(170 * var(--u));
+}
+.dashboard[data-layout='banner'] .dashboard-weather {
+  grid-template: auto / minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 0 calc(8 * var(--u));
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+.dashboard-clock {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.dashboard-clock-time {
+  font-size: calc(112 * var(--u));
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.dashboard-clock-date {
+  margin-top: calc(6 * var(--u));
+  font-size: calc(22 * var(--u));
+  font-weight: 550;
+  opacity: 0.92;
+}
+.dashboard-banner-now {
+  display: flex;
+  align-items: center;
+  gap: calc(16 * var(--u));
+}
+.dashboard[data-layout='banner'] .weather-icon-hero {
+  width: calc(104 * var(--u));
+  height: calc(104 * var(--u));
+  margin: 0;
+}
+.dashboard[data-layout='banner'] .dashboard-temperature {
+  font-size: calc(76 * var(--u));
+}
+.dashboard[data-layout='banner'] .dashboard-conditions {
+  margin-top: 0;
+  font-size: calc(24 * var(--u));
+  font-weight: 550;
+}
+.dashboard[data-layout='banner'] .dashboard-high-low {
+  flex-direction: column;
+  align-self: stretch;
+  justify-content: center;
+  margin: 0 0 0 calc(10 * var(--u));
+  padding-left: calc(22 * var(--u));
+  border-left: 1px solid rgb(255 255 255 / 35%);
+  font-size: calc(22 * var(--u));
+}
+.dashboard[data-layout='banner'] .dashboard-card:not(.dashboard-weather) {
+  border-color: rgb(255 255 255 / 30%);
+  background: rgb(14 22 26 / 52%);
+  color: #fff;
+  backdrop-filter: blur(6px);
+}
+.dashboard[data-layout='banner'] .dashboard-notices {
+  flex-direction: row;
+  align-items: stretch;
+  padding: calc(8 * var(--u)) calc(16 * var(--u));
+}
+.dashboard[data-layout='banner'] .dashboard-notices-title {
+  flex-shrink: 0;
+  min-height: 0;
+  padding-right: calc(18 * var(--u));
+  border-right: 1px solid rgb(255 255 255 / 30%);
+  border-bottom: 0;
+  font-size: calc(21 * var(--u));
+}
+.dashboard[data-layout='banner'] .dashboard-notice-list {
+  flex: 1;
+  flex-direction: row;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+}
+.dashboard[data-layout='banner'] .dashboard-notice-list > li {
+  flex: 1;
+  min-width: 0;
+  border-left: 1px solid rgb(255 255 255 / 30%);
+}
+.dashboard[data-layout='banner'] .dashboard-notice-list > li:first-child {
+  border-left: 0;
+}
+.dashboard[data-layout='banner'] .dashboard-notice {
+  min-height: calc(64 * var(--u));
+  padding: calc(6 * var(--u)) calc(14 * var(--u));
+  border: 0;
+  background: none;
+}
+.dashboard[data-layout='banner'] .dashboard-notice-icon {
+  background: none;
+}
+.dashboard[data-layout='banner'] .dashboard-notice-title {
+  font-size: calc(15 * var(--u));
+}
+.dashboard[data-layout='banner'] .dashboard-notice-summary {
+  -webkit-line-clamp: 1;
+}
+.dashboard[data-layout='banner'] .dashboard-notice-chevron,
+.dashboard[data-layout='modular'] .dashboard-notice-chevron {
+  display: none;
+}
+.dashboard[data-layout='banner'] .dashboard-departures-header {
+  border-bottom-color: rgb(255 255 255 / 25%);
+}
+.dashboard[data-layout='banner'] .dashboard-arrival {
+  border-bottom-color: rgb(255 255 255 / 18%);
+}
+.dashboard[data-layout='banner'] .dashboard-due:not([data-soon='true']) {
+  background: rgb(255 255 255 / 16%);
+}
+
+/* C, Timeline: the notices down a timeline, the next departures together on the theme colour, a weather strip. */
+.dashboard[data-layout='timeline'] {
+  grid-template:
+    'notices departures' minmax(0, 1fr)
+    'notices weather' calc(118 * var(--u))
+    / 31% minmax(0, 1fr);
+}
+.dashboard[data-layout='timeline'][data-notices='none'] {
+  grid-template-areas:
+    'departures departures'
+    'weather weather';
+}
+.dashboard[data-layout='timeline'] .dashboard-notice-list {
+  position: relative;
+  gap: calc(12 * var(--u));
+  padding-left: calc(26 * var(--u));
+}
+.dashboard[data-layout='timeline'] .dashboard-notice-list::before {
+  position: absolute;
+  top: calc(24 * var(--u));
+  bottom: calc(24 * var(--u));
+  left: calc(8 * var(--u));
+  width: 2px;
+  background: var(--dashboard-line);
+  content: '';
+}
+.dashboard[data-layout='timeline'] .dashboard-notice-list > li {
+  position: relative;
+}
+.dashboard[data-layout='timeline'] .dashboard-notice-list > li::before {
+  position: absolute;
+  top: 50%;
+  left: calc(-25 * var(--u));
+  width: calc(14 * var(--u));
+  height: calc(14 * var(--u));
+  border: calc(3 * var(--u)) solid var(--severity, var(--muted));
+  border-radius: 50%;
+  background: var(--dashboard-card);
+  content: '';
+  transform: translateY(-50%);
+}
+.dashboard[data-layout='timeline'] .dashboard-notice-list > li:has([data-severity='severe']) {
+  --severity: #d94a43;
+}
+.dashboard[data-layout='timeline'] .dashboard-notice-list > li:has([data-severity='minor']) {
+  --severity: #e09a2b;
+}
+.dashboard[data-layout='timeline'] .dashboard-notice-list > li:has([data-severity='planned']) {
+  --severity: #4d86c6;
+}
+.dashboard[data-layout='timeline'] .dashboard-notice {
+  border: 0;
+  background: var(--dashboard-later);
+}
+.dashboard[data-layout='timeline'] .dashboard-notice-list > li:first-child .dashboard-notice {
+  background: color-mix(in srgb, var(--severity) 20%, var(--dashboard-card));
+}
+.dashboard[data-layout='timeline'] .dashboard-notice-list > li:first-child .dashboard-notice-title {
+  color: color-mix(in srgb, var(--severity) 70%, var(--ink));
+}
+.dashboard-next {
+  grid-area: departures;
+  display: flex;
+  flex-direction: column;
+  padding: calc(8 * var(--u)) calc(20 * var(--u)) calc(12 * var(--u));
+  border-color: rgb(255 255 255 / 10%);
+  background: linear-gradient(145deg, var(--dashboard-board), color-mix(in srgb, var(--dashboard-board) 82%, #10191b));
+  color: #f9fbf7;
+}
+.dashboard-next-title {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--u));
+  min-height: calc(50 * var(--u));
+  margin: 0;
+  font-size: calc(22 * var(--u));
+  font-weight: 700;
+}
+.dashboard-next-title svg {
+  width: calc(22 * var(--u));
+  height: calc(22 * var(--u));
+}
+.dashboard-next-group {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: calc(20 * var(--u));
+  min-height: 0;
+  padding: calc(12 * var(--u)) 0;
+  border-top: 1px solid rgb(255 255 255 / 18%);
+}
+.dashboard-next-group .dashboard-card-mark {
+  width: calc(64 * var(--u));
+  height: calc(52 * var(--u));
+}
+.dashboard-next-group .dashboard-bus-mark {
+  width: calc(58 * var(--u));
+  height: calc(58 * var(--u));
+  margin: 0 calc(3 * var(--u));
+  border-radius: calc(12 * var(--u));
+}
+.dashboard-next-group .dashboard-bus-mark svg {
+  width: calc(36 * var(--u));
+  height: calc(36 * var(--u));
+}
+.dashboard-next-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-self: stretch;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dashboard-next-arrival {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(12 * var(--u));
+  padding: calc(5 * var(--u)) 0;
+}
+.dashboard-next-arrival + .dashboard-next-arrival {
+  border-top: 1px solid rgb(255 255 255 / 12%);
+}
+.dashboard-next-route {
+  overflow: hidden;
+  font-size: calc(24 * var(--u));
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard-next .dashboard-due {
+  min-width: calc(110 * var(--u));
+  font-size: calc(32 * var(--u));
+  background: rgb(255 255 255 / 14%);
+}
+.dashboard-next .dashboard-due[data-soon='true'] {
+  background: #4f8a3c;
+  color: #fff;
+}
+.dashboard[data-layout='timeline'] .dashboard-weather {
+  grid-template: auto / auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: calc(14 * var(--u));
+  padding: calc(8 * var(--u)) calc(24 * var(--u));
+  border-color: var(--dashboard-line);
+  background: var(--dashboard-card);
+  color: var(--ink);
+  text-shadow: none;
+}
+.dashboard[data-layout='timeline'] .weather-icon-hero {
+  width: calc(64 * var(--u));
+  height: calc(64 * var(--u));
+  margin: 0;
+}
+.dashboard[data-layout='timeline'] .dashboard-temperature,
+.dashboard[data-layout='modular'] .dashboard-temperature {
+  margin-left: 0;
+  font-size: calc(52 * var(--u));
+}
+.dashboard[data-layout='timeline'] .dashboard-conditions {
+  margin-top: 0;
+  font-size: calc(16 * var(--u));
+  font-weight: 550;
+  letter-spacing: normal;
+}
+.dashboard[data-layout='timeline'] .dashboard-hours {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.dashboard[data-layout='timeline'] .dashboard-hour .weather-icon {
+  width: calc(36 * var(--u));
+  height: calc(36 * var(--u));
+}
+.dashboard[data-layout='timeline'] .dashboard-hour-time {
+  font-size: calc(16 * var(--u));
+}
+.dashboard[data-layout='timeline'] .dashboard-hour-temperature {
+  font-size: calc(24 * var(--u));
+}
+.dashboard[data-layout='timeline'] .dashboard-hour,
+.dashboard-later .dashboard-hour {
+  border-left: 0;
+}
+
+/* D, Modular: the weather and the notices as tiles across the top, the Tube, the buses and later today under them. */
+.dashboard[data-layout='modular'] {
+  grid-template:
+    'weather weather notices notices' minmax(0, 0.8fr)
+    'tube bus bus later' minmax(0, 1fr)
+    / 36fr 2fr 34fr 28fr;
+}
+.dashboard[data-layout='modular'][data-notices='none'] {
+  grid-template-areas:
+    'weather weather weather weather'
+    'tube bus bus later';
+}
+.dashboard[data-layout='modular'] .dashboard-weather {
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
+}
+.dashboard[data-layout='modular'] .dashboard-temperature {
+  font-size: calc(96 * var(--u));
+}
+.dashboard[data-layout='modular'] .dashboard-notice-list {
+  flex: 1;
+  flex-direction: row;
+  overflow: auto hidden;
+  padding: calc(12 * var(--u)) 0;
+}
+.dashboard[data-layout='modular'] .dashboard-notice-list > li {
+  flex: 1 0 calc(150 * var(--u));
+  min-width: 0;
+}
+.dashboard[data-layout='modular'] .dashboard-notice {
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  border: 1px solid var(--dashboard-line);
+  background: none;
+  text-align: center;
+}
+.dashboard[data-layout='modular'] .dashboard-notice-icon {
+  width: calc(46 * var(--u));
+  height: calc(46 * var(--u));
+}
+.dashboard[data-layout='modular'] .dashboard-notice-icon svg {
+  width: calc(36 * var(--u));
+  height: calc(36 * var(--u));
+}
+.dashboard[data-layout='modular'] .dashboard-notice-text {
+  flex: 0 1 auto;
+  width: 100%;
+}
+.dashboard[data-layout='modular'] .dashboard-notice-title {
+  font-size: calc(15 * var(--u));
+}
+.dashboard[data-layout='modular'] .dashboard-notice-summary {
+  -webkit-line-clamp: 1;
+}
+.dashboard-later {
+  grid-area: later;
+  display: flex;
+  flex-direction: column;
+  padding: 0 calc(16 * var(--u)) calc(10 * var(--u));
+  background: var(--dashboard-card);
+}
+.dashboard-later-title {
+  display: flex;
+  align-items: center;
+  min-height: calc(62 * var(--u));
+  margin: 0;
+  font-size: calc(22 * var(--u));
+  font-weight: 750;
+  letter-spacing: -0.04em;
+}
+.dashboard-later .dashboard-hours {
+  flex: 1;
+  align-items: center;
+}
+
+@media (height <= 640px) {
+  .dashboard[data-layout='banner'] {
+    grid-template-rows: minmax(0, 1fr) auto calc(150 * var(--u));
+    margin: calc(10 * var(--u)) calc(14 * var(--u)) calc(12 * var(--u));
+    padding: calc(14 * var(--u)) calc(18 * var(--u)) calc(16 * var(--u));
+  }
+  .dashboard[data-layout='banner'][data-notices='none'] {
+    grid-template-rows: minmax(0, 1fr) calc(150 * var(--u));
+  }
+  .dashboard[data-layout='banner'] .dashboard-clock-time {
+    font-size: calc(92 * var(--u));
+  }
+  .dashboard[data-layout='modular'] {
+    grid-template-rows: minmax(0, 0.8fr) minmax(0, 1fr);
   }
 }
 
