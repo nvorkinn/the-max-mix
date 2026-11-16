@@ -33,22 +33,24 @@ type Properties = Record<string, unknown>;
 
 appendFileSync(namesFile, 'time\tseconds_since_first_heard\taddress\taddress_type\tbearer\tfield\told\tnew\tpath\n');
 const firstHeard = new Map<string, number>();
-const names = new Map<string, { Name: string; Alias: string }>();
-/** Notes each change of a device's Name or Alias in the names file. */
+const names = new Map<string, Record<string, string>>();
+/** Logged beside the names, so the file shows when the full name arrives relative to pairing. */
+const FIELDS = ['Name', 'Alias', 'Paired', 'Bonded', 'Connected', 'ServicesResolved', 'Address'] as const;
+/** Notes each change of a device's name, address or pairing state in the names file. */
 function noteNames(objectPath: string, changed: Properties): void {
   const now = Date.now();
   if (!firstHeard.has(objectPath)) firstHeard.set(objectPath, now);
-  const known = names.get(objectPath) ?? { Name: '', Alias: '' };
+  const known = names.get(objectPath) ?? {};
   const props = view.get(objectPath)?.[DEVICE] ?? changed;
-  for (const field of ['Name', 'Alias'] as const) {
+  for (const field of FIELDS) {
     if (!(field in changed)) continue;
-    const value = typeof changed[field] === 'string' ? (changed[field] as string) : '';
-    if (value === known[field]) continue;
+    const value = changed[field] === undefined ? '' : String(changed[field]);
+    if (value === (known[field] ?? '')) continue;
     const seconds = ((now - (firstHeard.get(objectPath) ?? now)) / 1000).toFixed(1);
     const bearer = 'Class' in props ? 'classic' : 'le';
     appendFileSync(
       namesFile,
-      `${new Date(now).toISOString()}\t${seconds}\t${String(props['Address'] ?? '')}\t${String(props['AddressType'] ?? 'public')}\t${bearer}\t${field}\t${known[field]}\t${value}\t${objectPath}\n`
+      `${new Date(now).toISOString()}\t${seconds}\t${String(props['Address'] ?? '')}\t${String(props['AddressType'] ?? 'public')}\t${bearer}\t${field}\t${known[field] ?? ''}\t${value}\t${objectPath}\n`
     );
     known[field] = value;
   }
