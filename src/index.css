@@ -3608,8 +3608,8 @@ input:disabled {
   grid-template-areas:
     'weather weather weather weather weather weather weather notices notices notices notices notices'
     'tube tube tube tube bus bus bus bus later later later later';
-  grid-template-rows: minmax(0, 1.03fr) minmax(0, 0.97fr);
   grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
 }
 .dashboard[data-layout='modular'][data-notices='none'] {
   grid-template-areas:
