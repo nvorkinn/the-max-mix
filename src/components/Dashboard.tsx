@@ -69,12 +69,12 @@ function sunAt(cx: number, cy: number, r: number) {
 }
 
 /** The weather drawn in colour: a white cloud, a yellow sun, blue rain and snow. */
-function WeatherIcon({ conditions }: Readonly<{ conditions: Conditions }>) {
+function WeatherIcon({ conditions, hero = false }: Readonly<{ conditions: Conditions; hero?: boolean }>) {
   const cloud = (
     <path className="weather-icon-cloud" d="M15 44h30a10 10 0 0 0 1-20 14 14 0 0 0-27-4 11 11 0 0 0-4 24z" />
   );
   return (
-    <svg viewBox="0 0 60 60" className="weather-icon" aria-hidden="true">
+    <svg viewBox="0 0 60 60" className={`weather-icon${hero ? " weather-icon--hero" : ""}`} aria-hidden="true">
       {conditions === 'clear' && sunAt(30, 30, 12)}
       {conditions === 'partly-cloudy' && sunAt(38, 20, 9)}
       {conditions !== 'clear' && cloud}
@@ -203,28 +203,40 @@ function WeatherCard({
     >
       {fresh ? (
         <>
-          <div className="dashboard-now">
+          <div className="dashboard-weather-topline">
             <span className="dashboard-place">
               <MapPin aria-hidden="true" /> {fresh.location}
             </span>
-            <span className="dashboard-temperature">{fresh.temperature}°</span>
-            <span className="dashboard-conditions">{CONDITION_LABELS[fresh.conditions]}</span>
-            {rainLater && (
-              <span className="dashboard-outlook">
-                <Umbrella aria-hidden="true" /> Rain later today
-              </span>
-            )}
+            <span className="dashboard-weather-label">Local weather</span>
           </div>
-          <ol className="dashboard-hours">
-            {fresh.hours.slice(0, HOURS_SHOWN).map(hour => (
-              <li key={hour.time} className="dashboard-hour">
-                <span className="dashboard-hour-time">{formatClockTime(new Date(hour.time), clockFormat)}</span>
-                <WeatherIcon conditions={hour.conditions} />
-                <span className="sr-only">{CONDITION_LABELS[hour.conditions]}</span>
-                <span className="dashboard-hour-temperature">{hour.temperature}°</span>
-              </li>
-            ))}
-          </ol>
+          <div className="dashboard-weather-hero">
+            <div className="dashboard-now">
+              <span className="dashboard-temperature">{fresh.temperature}°</span>
+              <span className="dashboard-conditions">{CONDITION_LABELS[fresh.conditions]}</span>
+              <span className="dashboard-high-low">
+                High {fresh.high}° <span aria-hidden="true">·</span> Low {fresh.low}°
+              </span>
+              {rainLater && (
+                <span className="dashboard-outlook">
+                  <Umbrella aria-hidden="true" /> Rain later today
+                </span>
+              )}
+            </div>
+            <WeatherIcon conditions={fresh.conditions} hero />
+          </div>
+          <div className="dashboard-hours-wrap">
+            <span className="dashboard-hours-label">Next hours</span>
+            <ol className="dashboard-hours">
+              {fresh.hours.slice(0, HOURS_SHOWN).map(hour => (
+                <li key={hour.time} className="dashboard-hour">
+                  <span className="dashboard-hour-time">{formatClockTime(new Date(hour.time), clockFormat)}</span>
+                  <WeatherIcon conditions={hour.conditions} />
+                  <span className="sr-only">{CONDITION_LABELS[hour.conditions]}</span>
+                  <span className="dashboard-hour-temperature">{hour.temperature}°</span>
+                </li>
+              ))}
+            </ol>
+          </div>
         </>
       ) : (
         <Unavailable>The weather isn't available</Unavailable>
@@ -262,8 +274,10 @@ function NoticeBoard({ notices }: Readonly<{ notices: Notice[] }>) {
     <section className="dashboard-card dashboard-notices" aria-labelledby="dashboard-notices-title">
       <h2 id="dashboard-notices-title" className="dashboard-notices-title">
         <Megaphone aria-hidden="true" /> Notice board
+        <span className="dashboard-notice-count">{notices.length} updates</span>
       </h2>
       <ul className="dashboard-notice-list">
+        {notices.length === 0 && <li className="dashboard-notice-empty">Nothing requiring your attention</li>}
         {notices.map(notice => (
           <li key={notice.id}>
             <button
@@ -344,8 +358,7 @@ export default function Dashboard({
   }, [shown]);
 
   return (
-    // The photo behind the weather, which the notice board's glow reuses. A stand-in until there is one per place and
-    // weather.
+    // Visual placeholder only. The background-image provider is being implemented separately.
     <div className="dashboard" style={{ '--weather-photo': `url(${londonPhoto})` } as CSSProperties}>
       <NoticeBoard notices={data.notices} />
       <WeatherCard weather={data.weather} now={now} clockFormat={clockFormat} />
