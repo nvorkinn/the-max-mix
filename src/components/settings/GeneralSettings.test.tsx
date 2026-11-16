@@ -82,7 +82,7 @@ describe('GeneralSettings', () => {
     expect(screen.getByText('0150, Norway')).toBeInTheDocument();
     const notices = screen.getByText('0150, Norway').closest('.settings-row');
     await userEvent.click(within(notices as HTMLElement).getByRole('button', { name: 'Change' }));
-    let dialog = screen.getByRole('dialog', { name: 'Notice board' });
+    let dialog = screen.getByRole('dialog', { name: 'Postcode' });
     const field = within(dialog).getByRole('textbox', { name: 'Postcode' });
     expect(field).toHaveValue('0150');
     await userEvent.type(field, 'nowhere');
@@ -93,7 +93,7 @@ describe('GeneralSettings', () => {
     expect(onSave).toHaveBeenLastCalledWith('notice_board', { postcode: 'SW1A 1AA', country: 'GB' });
 
     await userEvent.click(within(notices as HTMLElement).getByRole('button', { name: 'Change' }));
-    dialog = screen.getByRole('dialog', { name: 'Notice board' });
+    dialog = screen.getByRole('dialog', { name: 'Postcode' });
     await userEvent.type(within(dialog).getByRole('textbox', { name: 'Postcode' }), ' ');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenLastCalledWith('notice_board', { postcode: null, country: null });
@@ -110,7 +110,7 @@ describe('GeneralSettings', () => {
 
     const notices = screen.getByText('Off').closest('.settings-row');
     await userEvent.click(within(notices as HTMLElement).getByRole('button', { name: 'Change' }));
-    let dialog = screen.getByRole('dialog', { name: 'Notice board' });
+    let dialog = screen.getByRole('dialog', { name: 'Postcode' });
     expect(within(dialog).getByRole('textbox', { name: 'Postcode' })).toHaveValue('');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
 
