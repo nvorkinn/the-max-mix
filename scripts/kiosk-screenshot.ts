@@ -11,7 +11,7 @@ import { createServer } from 'node:net';
 const KIOSK_PORT = 9222;
 const host = process.argv[2] ?? 'the-max-mix.local';
 const file =
-  process.argv[3] ?? `kiosk-${host.split('.')[0] ?? host}-${new Date().toISOString().replaceAll(/[:.]/g, '-')}.png`;
+  process.argv[3] ?? `kiosk-${host.split('.', 1)[0] ?? host}-${new Date().toISOString().replaceAll(/[:.]/g, '-')}.png`;
 
 /** A free port on this computer for the tunnel's near end. */
 async function freePort(): Promise<number> {
@@ -35,22 +35,23 @@ interface Target {
 }
 
 /** The page on screen: Chromium's page targets, leaving out the keyboard extension's and DevTools' own. */
-async function screenTarget(base: string): Promise<Target> {
-  let lastError: unknown;
-  // The tunnel takes a moment to come up after ssh starts.
-  for (let i = 0; i < 30; i++) {
-    try {
-      const response = await fetch(`${base}/json/list`);
-      const targets = (await response.json()) as Target[];
-      const page = targets.find(t => t.type === 'page' && t.webSocketDebuggerUrl && /^https?:/.test(t.url));
-      if (page) return page;
-      lastError = new Error(`No page target: ${JSON.stringify(targets.map(t => [t.type, t.url]))}`);
-    } catch (error) {
-      lastError = error;
-    }
+async function findScreenTarget(base: string): Promise<Target> {
+  const response = await fetch(`${base}/json/list`);
+  const targets = (await response.json()) as Target[];
+  const page = targets.find(t => t.type === 'page' && t.webSocketDebuggerUrl && /^https?:/.test(t.url));
+  if (!page) throw new Error(`No page target: ${JSON.stringify(targets.map(t => [t.type, t.url]))}`);
+  return page;
+}
+
+/** findScreenTarget, tried for up to 15 s: the tunnel takes a moment to come up after ssh starts. */
+async function screenTarget(base: string, triesLeft = 30): Promise<Target> {
+  try {
+    return await findScreenTarget(base);
+  } catch (error) {
+    if (triesLeft <= 1) throw error;
     await new Promise(resolve => setTimeout(resolve, 500));
+    return screenTarget(base, triesLeft - 1);
   }
-  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 async function captureScreenshot(webSocketUrl: string): Promise<Buffer> {
@@ -79,20 +80,24 @@ async function captureScreenshot(webSocketUrl: string): Promise<Buffer> {
 }
 
 const localPort = await freePort();
+// The ssh on your PATH, with your own SSH config and keys.
 const tunnel = spawn(
+  // eslint-disable-next-line sonarjs/no-os-command-from-path
   'ssh',
   ['-N', '-o', 'ExitOnForwardFailure=yes', '-L', `${localPort}:127.0.0.1:${KIOSK_PORT}`, `admin@${host}`],
   { stdio: ['ignore', 'inherit', 'inherit'] }
 );
 const tunnelClosed = new Promise<never>((_, reject) =>
-  tunnel.once('exit', code => reject(new Error(`ssh to admin@${host} ended (exit ${code})`)))
+  tunnel.once('exit', code => {
+    reject(new Error(`ssh to admin@${host} ended (exit ${code})`));
+  })
 );
 
 try {
   const base = `http://127.0.0.1:${localPort}`;
   const target = await Promise.race([screenTarget(base), tunnelClosed]);
   // DevTools names the socket by the address it was asked on; the tunnel's end is the one this computer can reach.
-  const webSocketUrl = (target.webSocketDebuggerUrl ?? '').replace(/^ws:\/\/[^/]+/, `ws://127.0.0.1:${localPort}`);
+  const webSocketUrl = `ws://127.0.0.1:${localPort}${new URL(target.webSocketDebuggerUrl ?? '').pathname}`;
   const png = await Promise.race([captureScreenshot(webSocketUrl), tunnelClosed]);
   writeFileSync(file, png);
   console.log(`Saved ${file} (${target.url})`);
