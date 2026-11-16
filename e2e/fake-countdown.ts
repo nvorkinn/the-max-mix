@@ -22,6 +22,7 @@ const API = 'https://api.countdown.build';
 export const CONFIG = `${API}/api/devices/config`;
 const ARRIVALS = `${API}/api/devices/arrivals`;
 const NOTICES = `${API}/api/devices/notices`;
+export const FEED = `${API}/api/devices/feed`;
 
 /**
  * countdown-api's example config, once someone owns the kiosk. Before that there's none: a touchscreen registers through
@@ -146,10 +147,10 @@ export async function fakeCountdownServer(
       body: JSON.stringify(WEATHER)
     });
   });
-  // The departures and the notices (GET /api/devices/arrivals and /notices): refused, as for a secret the server doesn't
-  // know, unless a test calls fakeArrivals or fakeNotices.
+  // The notices (GET /api/devices/notices) and the live feed: refused, as for a secret the server doesn't know, unless a
+  // test calls fakeFeed.
   await Promise.all(
-    [ARRIVALS, NOTICES].map(url =>
+    [NOTICES, FEED].map(url =>
       page.route(url, route => {
         const cors = corsFor(route.request().headers()['origin']);
         const isPreflight = route.request().method() === 'OPTIONS';
@@ -182,7 +183,7 @@ export async function fakeCountdownServer(
     )
   );
   // The device's arrivals: countdown-api's example, once someone owns the kiosk.
-  await page.route(`${API}/api/devices/arrivals`, route => {
+  await page.route(ARRIVALS, route => {
     const request = route.request();
     const cors = {
       'Access-Control-Allow-Origin': request.headers()['origin'] ?? '*',
@@ -201,10 +202,8 @@ export async function fakeCountdownServer(
 }
 
 /**
- * @public Not used while the Dashboard shows its sample data; the live data (countdown-server's feed) will use it.
- *
- * An owned kiosk's config with the stops fakeArrivals answers for and the London postcode fakeNotices answers for, in the
- * app's default look (or night's), so the Dashboard asks for its departures and notices and looks as it does unowned.
+ * An owned kiosk's config with the stops fakeFeed answers for and the London postcode its notices are for, in the
+ * app's default look (or night's).
  */
 export function dashboardConfig(skin: 'day' | 'night' = 'day') {
   return {
@@ -220,19 +219,72 @@ export function dashboardConfig(skin: 'day' | 'night' = 'day') {
   };
 }
 
+const hoursFrom = (now: Date, hours: number) => new Date(now.getTime() + hours * 3_600_000);
+const localHour = (time: Date) => time.toISOString().slice(0, 13);
+
 /**
- * @public Not used while the Dashboard shows its sample data; the live data (countdown-server's feed) will use it.
- *
- * Stands in for countdown-server's GET /api/devices/arrivals (countdown-api's getArrivals): a Tube station's trains and a
- * bus stop's buses, read at `now` (the page's fixed clock) and timed from it.
+ * London's weather as countdown-server keeps it (Open-Meteo's answer, in London's local time, which is UTC in November),
+ * read five minutes before `now`: partly cloudy and 9° now, rain from two hours on for two hours, then cloud, a week of
+ * days with a wet Sunday.
  */
-export async function fakeArrivals(page: Page, now: Date) {
+function weatherAt(now: Date) {
+  const midnight = new Date(`${now.toISOString().slice(0, 10)}T00:00:00Z`);
+  const days = Array.from({ length: 7 }, (_, day) =>
+    hoursFrom(midnight, day * 24)
+      .toISOString()
+      .slice(0, 10)
+  );
+  const hours = Array.from({ length: 7 * 24 }, (_, hour) => hoursFrom(midnight, hour));
+  const rain = new Set([2, 3].map(hour => localHour(hoursFrom(now, hour))));
+  const read = new Date(now.getTime() - 5 * 60_000);
+  return {
+    location: 'London',
+    key: 'london-gb-2643743',
+    background: null,
+    forecast: {
+      fetched_at: read.toISOString(),
+      location: 'london-gb-2643743',
+      forecast: {
+        utc_offset_seconds: 0,
+        current: { time: read.toISOString().slice(0, 16), temperature: 9.2, weather_code: 2, is_day: true },
+        current_units: { temperature: '°C' },
+        hourly: {
+          time: hours.map(hour => `${localHour(hour)}:00`),
+          temperature: hours.map(hour => (hour.getUTCHours() >= 8 && hour.getUTCHours() < 17 ? 11 : 7)),
+          weather_code: hours.map(hour => (rain.has(localHour(hour)) ? 61 : 3))
+        },
+        daily: {
+          time: days,
+          temperature_max: days.map((_, index) => 11 + (index % 3)),
+          temperature_min: days.map(() => 5),
+          weather_code: days.map(day => (new Date(`${day}T12:00:00Z`).getUTCDay() === 0 ? 63 : 3)),
+          sunrise: days.map(day => `${day}T07:12`),
+          sunset: days.map(day => `${day}T16:08`)
+        }
+      }
+    }
+  };
+}
+
+/** Names longer than the boards have room for, to show they never push the layout about. */
+const LONG = {
+  station: 'Elephant & Castle Underground Station (Northern and Bakerloo lines, Elephant & Castle Shopping Centre)',
+  tube: "Harrow & Wealdstone via Queen's Park, Willesden Junction and Stonebridge Park",
+  bus: 'Oxford Circus, Regent Street, John Lewis and the West End via Trafalgar Square'
+};
+
+/**
+ * The kiosk's departures (countdown-api's DeviceArrivals) read at `now` and timed from it: a Tube station's trains on
+ * their platforms and a bus stop's buses, each with its vehicle, or with names far too long for the boards.
+ */
+function arrivalsAt(now: Date, hasLongNames: boolean) {
   const at = (minutes: number) => new Date(now.getTime() + minutes * 60_000).toISOString();
-  const departure = (line: string, destination: string, minutes: number) => ({
+  const departure = (vehicle: string, line: string, destination: string, minutes: number, platform: string | null) => ({
+    vehicle_id: vehicle,
     line,
     destination,
     expected_at: at(minutes),
-    platform: null,
+    platform,
     mode: null
   });
   const stop = (id: string, name: string, mode: string, letter: string | null, departures: object[]) => ({
@@ -240,25 +292,20 @@ export async function fakeArrivals(page: Page, now: Date) {
     id,
     departures: { fetched_at: now.toISOString(), stop_id: id, name, mode, stop_letter: letter, modes: [], departures }
   });
-  const answer = {
+  return {
     stops: [
-      stop('940GZZLUEAC', 'Elephant & Castle Underground Station', 'tube', null, [
-        departure('Northern', 'High Barnet', 3),
-        departure('Northern', 'Morden', 7),
-        departure('Bakerloo', 'Harrow & Wealdstone', 9)
+      stop('940GZZLUEAC', hasLongNames ? LONG.station : 'Elephant & Castle Underground Station', 'tube', null, [
+        departure('031', 'Northern', 'High Barnet', 3, 'Northbound - Platform 1'),
+        departure('057', 'Northern', 'Morden', 7, 'Southbound - Platform 2'),
+        departure('212', 'Bakerloo', hasLongNames ? LONG.tube : 'Harrow & Wealdstone', 9, 'Northbound - Platform 3')
       ]),
       stop('490000077E', 'Elephant & Castle', 'bus', 'E', [
-        departure('12', 'Oxford Circus', 2),
-        departure('343', 'New Cross', 6),
-        departure('12', 'Oxford Circus', 11)
+        departure('LX11AVC', '12', hasLongNames ? LONG.bus : 'Oxford Circus', 2, null),
+        departure('LTZ1234', '343', 'New Cross', 6, null),
+        departure('LX11AVD', '12', 'Oxford Circus', 11, null)
       ])
     ]
   };
-  await page.route(ARRIVALS, route => {
-    const cors = corsFor(route.request().headers()['origin']);
-    const isPreflight = route.request().method() === 'OPTIONS';
-    return route.fulfill(isPreflight ? { status: 204, headers: cors } : { status: 200, headers: cors, json: answer });
-  });
 }
 
 /** A Tube line as TfL's line status answers it. */
@@ -272,63 +319,96 @@ function tubeLine(id: string, status: string, reason: string, validityPeriods: o
 }
 
 /**
- * @public Not used while the Dashboard shows its sample data; the live data (countdown-server's feed) will use it.
- *
- * Stands in for countdown-server's GET /api/devices/notices (countdown-api's getNotices): the providers' answers for a
- * London postcode, read at `now`: a Tube line with delays, one with a planned closure in three days and a weather warning.
+ * The kiosk's notices (countdown-api's DeviceNotices) for a London postcode, read at `now`: a Tube line with delays, one
+ * with a planned closure in three days and a weather warning; with `isQuiet`, nothing to report.
  */
-export async function fakeNotices(page: Page, now: Date, { none = false }: { none?: boolean } = {}) {
+function noticesAt(now: Date, isQuiet: boolean) {
   const fetchedAt = now.toISOString();
-  const at = (hours: number) => new Date(now.getTime() + hours * 3_600_000).toISOString();
-  const answer = {
+  const at = (hours: number) => hoursFrom(now, hours).toISOString();
+  return {
     postcode: 'SE17 3LL',
     country: 'GB',
-    tfl_stops: [
-      {
-        stop_id: '940GZZLUEAC',
-        lines: {
+    tfl_stops: isQuiet
+      ? []
+      : [
+          {
+            stop_id: '940GZZLUEAC',
+            lines: {
+              fetched_at: fetchedAt,
+              stop_id: '940GZZLUEAC',
+              lines: [
+                tubeLine(
+                  'northern',
+                  'Minor Delays',
+                  'NORTHERN LINE: Minor delays between Morden and Kennington while we fix a signal failure at ' +
+                    'Clapham Common. GOOD SERVICE on the rest of the line.'
+                ),
+                tubeLine(
+                  'victoria',
+                  'Planned Closure',
+                  'VICTORIA LINE: No service between Euston and Walthamstow Central while we carry out track ' +
+                    'renewal works. Replacement buses operate.',
+                  [{ fromDate: at(72), toDate: at(120) }]
+                )
+              ]
+            },
+            stations: null
+          }
+        ],
+    tfl_roads: null,
+    met_office: isQuiet
+      ? null
+      : {
           fetched_at: fetchedAt,
-          stop_id: '940GZZLUEAC',
-          lines: [
-            tubeLine(
-              'northern',
-              'Minor Delays',
-              'NORTHERN LINE: Minor delays between Morden and Kennington while we fix a signal failure at Clapham ' +
-                'Common. GOOD SERVICE on the rest of the line.'
-            ),
-            tubeLine(
-              'victoria',
-              'Planned Closure',
-              'VICTORIA LINE: No service between Euston and Walthamstow Central while we carry out track renewal ' +
-                'works. Replacement buses operate.',
-              [{ fromDate: at(72), toDate: at(120) }]
-            )
+          postcode: 'SE17 3LL',
+          region: 'se',
+          items: [
+            {
+              title: 'Yellow warning of rain affecting London & South East England',
+              description: 'Heavy and persistent rain may lead to some flooding and travel disruption.',
+              link: '',
+              pub_date: ''
+            }
           ]
         },
-        stations: null
-      }
-    ],
-    tfl_roads: null,
-    met_office: {
-      fetched_at: fetchedAt,
-      postcode: 'SE17 3LL',
-      region: 'se',
-      items: [
-        {
-          title: 'Yellow warning of rain affecting London & South East England',
-          description: 'Heavy and persistent rain may lead to some flooding and travel disruption.',
-          link: '',
-          pub_date: ''
-        }
-      ]
-    },
     bank_holidays: null
   };
-  // With `none`, the server has nothing to report: no line or weather trouble and no bank holiday.
-  if (none) Object.assign(answer, { tfl_stops: [], met_office: null });
-  await page.route(NOTICES, route => {
+}
+
+/** One server-sent event. */
+const message = (event: string, data: object) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+
+interface FeedOptions {
+  /** Names too long for the boards. */
+  long?: boolean;
+  /** Nothing on the notice board. */
+  none?: boolean;
+  /** The departures each stream sends instead (countdown-api's DeviceArrivals), asked as each opens. */
+  arrivals?: () => object;
+  /** The wait before the next stream that each stream asks for. */
+  retryMs?: number;
+}
+
+/**
+ * Stands in for countdown-server's live feed (GET /api/devices/feed, countdown-api's getFeed) for an owned kiosk: each
+ * stream sends the weather, departures and notices as read at `now` (the page's fixed clock) and then ends, as the
+ * server's do; its `retry` keeps the next one a minute off unless `retryMs` says otherwise.
+ */
+export async function fakeFeed(page: Page, now: Date, options: FeedOptions = {}) {
+  const { long = false, none = false, arrivals = () => arrivalsAt(now, long), retryMs = 60_000 } = options;
+  await page.route(FEED, route => {
     const cors = corsFor(route.request().headers()['origin']);
-    const isPreflight = route.request().method() === 'OPTIONS';
-    return route.fulfill(isPreflight ? { status: 204, headers: cors } : { status: 200, headers: cors, json: answer });
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    const events = [
+      message('weather', weatherAt(now)),
+      message('arrivals', arrivals()),
+      message('notices', noticesAt(now, none))
+    ];
+    return route.fulfill({
+      status: 200,
+      headers: { ...cors, 'Cache-Control': 'no-store' },
+      contentType: 'text/event-stream',
+      body: `retry: ${String(retryMs)}\n\n${events.join('')}`
+    });
   });
 }

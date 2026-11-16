@@ -15,14 +15,15 @@ import type { Arrival, Arrivals } from './data';
 const STATION_KINDS = [' Underground Station', ' DLR Station', ' Rail Station', ' Overground Station', ' Tram Stop'];
 
 /** The source's name without the kind of station it is: "Kennington Underground Station" is "Kennington". */
-function placeName(name: string): string {
+export function placeName(name: string): string {
   const kind = STATION_KINDS.find(suffix => name.endsWith(suffix));
   return kind ? name.slice(0, -kind.length) : name;
 }
 
 /** Where at the stop a departure leaves from: a London bus stop's letter, or the platform the source gives. */
 function stopOf(stop: StopDepartures, departure: StopDepartures['departures'][number]): string | null {
-  if (departure.platform) return `Platform ${departure.platform}`;
+  // TfL's Tube platforms ("Northbound - Platform 1") are for the redesigned boards (boards.ts); this card never had them.
+  if (departure.platform && stop.mode !== 'tube') return `Platform ${departure.platform}`;
   return stop.stop_letter ? `Stop ${stop.stop_letter}` : null;
 }
 
@@ -68,6 +69,7 @@ export function mockAnswer(now: Date): DeviceArrivals {
     destination,
     expected_at: at(minutes),
     platform: null,
+    vehicle_id: `${line}-${destination}`,
     mode: null
   });
   const stop = (id: string, mode: string, departures: StopDepartures['departures'], letter: string | null = null) => ({

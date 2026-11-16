@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { runningFades } from './crossfade.ts';
+import { dashboardConfig, fakeCountdownServer, fakeFeed } from './fake-countdown.ts';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
 
 test.describe('Tab crossfade', { tag: '@layout' }, () => {
@@ -9,6 +10,9 @@ test.describe('Tab crossfade', { tag: '@layout' }, () => {
       route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
     );
     await fakeSpotify(page);
+    // An owned kiosk's live feed, so the Dashboard has its boards.
+    await fakeCountdownServer(page, dashboardConfig());
+    await fakeFeed(page, new Date());
     await page.goto('/');
     await expect(page.getByRole('tab', { name: 'Spotify' })).toHaveAttribute('aria-selected', 'true');
   });
