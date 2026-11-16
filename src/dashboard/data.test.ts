@@ -1,5 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 import { getDashboardData, isFresh } from './data';
+import type { Weather } from './weather';
+
+const WEATHER: Weather = {
+  updatedAt: '2026-11-15T08:45:00Z',
+  location: 'London',
+  temperature: 9,
+  conditions: 'partly-cloudy',
+  high: 12,
+  low: 6,
+  hours: [{ time: '2026-11-15T10:00:00Z', temperature: 10, conditions: 'cloudy' }]
+};
+vi.mock('./weather', () => ({ getWeather: () => Promise.resolve(WEATHER) }));
 
 const arrivals = vi.hoisted(() => ({ readArrivals: vi.fn(() => Promise.resolve(null)) }));
 vi.mock('./arrivals', () => arrivals);
@@ -41,9 +53,8 @@ describe('dashboard data', () => {
     expect(notices.readNotices).toHaveBeenCalledWith(now, '12h');
   });
 
-  it('gives fresh weather', async () => {
+  it("gives the server's weather", async () => {
     const data = await getDashboardData(null, now);
-    expect(data.weather?.hours.length).toBeGreaterThan(0);
-    expect(isFresh(data.weather?.updatedAt ?? '', 60_000, now)).toBe(true);
+    expect(data.weather).toEqual(WEATHER);
   });
 });

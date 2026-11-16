@@ -29,6 +29,48 @@ const NOTICES = `${API}/api/devices/notices`;
  */
 export const DEVICE_CONFIGS = { owned: fixture.config };
 
+const onTheHour = (hour: number) => `2026-11-15T${String(hour).padStart(2, '0')}:00`;
+// What each hour of 15 November brings: [temperature, WMO code]; cloudy at 8° but for the morning the screenshots show.
+const HOURS = new Map([
+  [10, [9, 2]],
+  [11, [10, 3]],
+  [12, [11, 3]],
+  [13, [11, 61]],
+  [14, [10, 61]],
+  [15, [9, 3]]
+]);
+
+/**
+ * The weather the fake server keeps for London on 15 November: partly cloudy and 9° at 09:15, then cloud and rain, as
+ * Open-Meteo answers it (times in London's local time, which is UTC in November). Fresh for the screenshots, which fix
+ * the time at 09:20; days old for every other test.
+ */
+const WEATHER = {
+  location: 'London',
+  key: 'london-gb-2643743',
+  forecast: {
+    fetched_at: '2026-11-15T09:15:00Z',
+    location: 'london-gb-2643743',
+    forecast: {
+      utc_offset_seconds: 0,
+      current: { time: '2026-11-15T09:15', temperature: 9.2, weather_code: 2, is_day: true },
+      current_units: { temperature: '°C' },
+      hourly: {
+        time: Array.from({ length: 24 }, (_, hour) => onTheHour(hour)),
+        temperature: Array.from({ length: 24 }, (_, hour) => HOURS.get(hour)?.[0] ?? 8),
+        weather_code: Array.from({ length: 24 }, (_, hour) => HOURS.get(hour)?.[1] ?? 3)
+      },
+      daily: {
+        time: ['2026-11-15'],
+        temperature_max: [12.4],
+        temperature_min: [5.8],
+        sunrise: ['2026-11-15T07:12'],
+        sunset: ['2026-11-15T16:08']
+      }
+    }
+  }
+};
+
 /** The CORS headers the real server sends the app's origin on its screens' API. */
 function corsFor(origin = '*') {
   return {
@@ -90,6 +132,18 @@ export async function fakeCountdownServer(
       headers: { ...cors, ETag: etag() },
       contentType: 'application/json',
       body: JSON.stringify(current)
+    });
+  });
+  // The weather is the same whether or not someone owns the kiosk, as the Dashboard's made-up weather was.
+  await page.route(`${API}/api/devices/weather`, route => {
+    const request = route.request();
+    const cors = corsFor(request.headers()['origin']);
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    return route.fulfill({
+      status: 200,
+      headers: cors,
+      contentType: 'application/json',
+      body: JSON.stringify(WEATHER)
     });
   });
   // The departures and the notices (GET /api/devices/arrivals and /notices): refused, as for a secret the server doesn't

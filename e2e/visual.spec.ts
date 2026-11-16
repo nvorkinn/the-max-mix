@@ -201,8 +201,8 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
 
     test(`dashboard at ${size(screen)}`, { tag: '@layout' }, async ({ page }) => {
       await fakeSpotify(page);
-      // An owner's Tube station, bus stop and postcode. Their departures and notices (countdown-server's, faked) and the
-      // made-up forecast are timed from now, so now is fixed.
+      // An owner's Tube station, bus stop and postcode. Their departures, notices and forecast (countdown-server's,
+      // faked) are timed from now, so now is fixed.
       await fakeCountdownServer(page, dashboardConfig());
       const now = new Date('2026-11-15T09:20:00');
       await fakeArrivals(page, now);
