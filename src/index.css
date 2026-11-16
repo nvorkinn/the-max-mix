@@ -3696,11 +3696,10 @@ input:disabled {
 
 /* D, Modular: the weather and the notices as tiles across the top, the Tube, the buses and later today under them. */
 .dashboard[data-layout='modular'] {
-  grid-template-areas:
-    'weather weather weather weather weather weather weather notices notices notices notices notices'
-    'tube tube tube tube bus bus bus bus later later later later';
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-template-rows: minmax(0, 0.78fr) minmax(0, 1.22fr);
+  grid-template:
+    'weather weather weather weather weather weather weather notices notices notices notices notices' minmax(0, 0.78fr)
+    'tube tube tube tube bus bus bus bus later later later later' minmax(0, 1.22fr)
+    / repeat(12, minmax(0, 1fr));
 }
 .dashboard[data-layout='modular'][data-notices='none'] {
   grid-template-areas:
