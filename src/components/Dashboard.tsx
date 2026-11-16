@@ -588,12 +588,18 @@ export default function Dashboard({
   shown,
   clockFormat = DEFAULT_CLOCK_FORMAT,
   config = null,
-  layout = DEFAULT_DASHBOARD_LAYOUT
+  layout = DEFAULT_DASHBOARD_LAYOUT,
+  backgroundImageUrl,
+  backgroundIncludesWeatherArtwork = false
 }: Readonly<{
   shown: boolean;
   clockFormat?: ClockFormat;
   config?: TouchscreenConfig | null;
   layout?: DashboardLayout;
+  /** URL of an externally supplied daily scene. Omit to use the bundled fallback. */
+  backgroundImageUrl?: string;
+  /** Set true if the daily scene already depicts the current condition (e.g. sun and clouds). */
+  backgroundIncludesWeatherArtwork?: boolean;
 }>) {
   // Only the Dashboard's own sections: a change of skin or screen sleep doesn't read the data again.
   const arrivalsSettings = config?.arrivals;
@@ -633,13 +639,16 @@ export default function Dashboard({
   }, [shown, settings, clockFormat]);
 
   const hasNotices = data.notices.length > 0;
+  // This is a presentation contract only: the daily-image generator and caching live elsewhere.
+  const sceneUrl = backgroundImageUrl || londonPhoto;
+  const scene = `url(${JSON.stringify(sceneUrl)})`;
   return (
-    // Visual placeholder only. The background-image provider is being implemented separately.
     <div
       className="dashboard"
       data-layout={layout}
       data-notices={hasNotices ? 'some' : 'none'}
-      style={{ '--weather-photo': `url(${londonPhoto})` } as CSSProperties}
+      data-weather-artwork={backgroundIncludesWeatherArtwork ? 'integrated' : 'separate'}
+      style={{ '--weather-photo': scene } as CSSProperties}
     >
       {hasNotices && <NoticeBoard notices={data.notices} layout={layout} />}
       <WeatherCard weather={data.weather} now={now} clockFormat={clockFormat} layout={layout} />
