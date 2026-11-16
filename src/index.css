@@ -2880,7 +2880,17 @@ input:disabled {
   width: calc(220 * var(--u));
   height: calc(220 * var(--u));
   margin: 0;
+  opacity: 0.8;
+  mix-blend-mode: screen;
   filter: drop-shadow(0 0 calc(22 * var(--u)) rgb(255 201 109 / 28%));
+}
+/*
+ * A generated scene may already contain the atmospheric sun/cloud artwork.
+ * Never superimpose a second weather sticker over that image; the hourly
+ * forecast retains its own condition icons.
+ */
+.dashboard[data-weather-artwork='integrated'] .weather-icon-hero {
+  display: none;
 }
 .dashboard[data-layout='list'] .dashboard-hours-wrap {
   position: absolute;
