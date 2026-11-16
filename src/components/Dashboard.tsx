@@ -339,6 +339,8 @@ function WeatherCard({
   const fresh = freshWeather(weather, now);
   const rainLater = fresh?.hours.some(hour => hour.conditions === 'rain') && fresh.conditions !== 'rain';
   const label = fresh ? `Weather in ${fresh.location}` : 'Weather';
+  const updatedMinutes = fresh ? Math.max(0, Math.floor((now.getTime() - Date.parse(fresh.updatedAt)) / 60_000)) : 0;
+  const updatedLabel = updatedMinutes < 2 ? 'Updated just now' : `Updated ${updatedMinutes} min ago`;
   if (layout === 'banner') {
     const date = now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
     return (
@@ -424,7 +426,7 @@ function WeatherCard({
             <span className="dashboard-place">
               <MapPin aria-hidden="true" /> {fresh.location}
             </span>
-            <span className="dashboard-weather-label">Local weather</span>
+            <span className="dashboard-weather-label">{updatedLabel}</span>
           </div>
           <div className="dashboard-weather-hero">
             <div className="dashboard-now">
@@ -502,6 +504,8 @@ function NoticeIcon({ notice }: Readonly<{ notice: Notice }>) {
  */
 function NoticeBoard({ notices, layout }: Readonly<{ notices: Notice[]; layout: DashboardLayout }>) {
   const [open, setOpen] = useState<Notice | null>(null);
+  const priority: Record<Notice['severity'], number> = { severe: 0, minor: 1, planned: 2, info: 3 };
+  const orderedNotices = [...notices].sort((a, b) => priority[a.severity] - priority[b.severity]);
   return (
     <section className="dashboard-card dashboard-notices" aria-labelledby="dashboard-notices-title">
       <h2 id="dashboard-notices-title" className="dashboard-notices-title">
@@ -509,7 +513,7 @@ function NoticeBoard({ notices, layout }: Readonly<{ notices: Notice[]; layout: 
         {layout === 'list' && <span className="dashboard-notice-count">{notices.length} updates</span>}
       </h2>
       <ul className="dashboard-notice-list">
-        {notices.map(notice => (
+        {orderedNotices.map(notice => (
           <li key={notice.id}>
             <button
               type="button"
