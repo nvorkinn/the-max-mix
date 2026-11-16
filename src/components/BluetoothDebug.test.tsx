@@ -34,7 +34,7 @@ const REPORT = {
     }
   ],
   nearby: 4,
-  pairing: { state: 'waiting', secondsLeft: 95 },
+  pairing: { state: 'scanning', secondsLeft: 95, nearby: [{ address: '1C:3C:78:F2:61:1D', name: 'Anna’s iPhone' }] },
   phones: [{ address: 'AA:BB:CC:DD:EE:01', name: 'Nikolai’s iPhone', isHere: true, lastSeen: NOW - 12_000 }],
   verbose: false,
   log: [
@@ -70,7 +70,7 @@ describe('BluetoothDebug', () => {
     expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/bluetooth/monitor', expect.anything());
     expect(screen.getByText('Unpaired nearby').nextSibling).toHaveTextContent('4');
     expect(screen.getByText('Scanning').nextSibling).toHaveTextContent('Yes');
-    expect(screen.getByText('Pairing').nextSibling).toHaveTextContent('Waiting for a phone, 95 s left');
+    expect(screen.getByText('Pairing').nextSibling).toHaveTextContent('Looking for phones, 95 s left');
     expect(screen.getAllByText('Nikolai’s iPhone')[0]?.nextSibling).toHaveTextContent('Here');
     expect(screen.getByText('-61 dBm')).toBeInTheDocument();
     expect(screen.getByText('Paired, bonded')).toBeInTheDocument();
@@ -105,11 +105,13 @@ describe('BluetoothDebug', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Forget Nikolai’s iPhone' }));
     expect(audio.forgetBluetoothSpeaker).toHaveBeenCalledWith('AA:BB:CC:DD:EE:01');
     fireEvent.click(screen.getByRole('button', { name: 'Pair my phone' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pair Anna’s iPhone' }));
     fireEvent.click(screen.getByRole('button', { name: 'Stop pairing' }));
     await waitFor(() =>
       expect(fetchMock.mock.calls.map(([url]) => (typeof url === 'string' ? url : ''))).toEqual(
         expect.arrayContaining([
           'http://127.0.0.1:7341/bluetooth/pair-phone',
+          'http://127.0.0.1:7341/bluetooth/pair-phone/pick',
           'http://127.0.0.1:7341/bluetooth/pair-phone/stop'
         ])
       )
@@ -134,6 +136,7 @@ describe('BluetoothDebug', () => {
 
   it.each([
     [{ state: 'failed', error: 'No phone paired within 2 minutes.' }, 'No phone paired within 2 minutes.'],
+    [{ state: 'pairing', name: 'Anna’s iPhone', code: 287_389 }, 'Pairing Anna’s iPhone, code 287389'],
     [{ state: 'idle' }, 'Not pairing']
   ])('shows pairing %o as %s', async (pairing, shown) => {
     fetchMock.mockImplementation(() => json({ ...REPORT, pairing }));

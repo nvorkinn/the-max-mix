@@ -163,6 +163,42 @@ describe('BluetoothMonitor', () => {
     ]);
   });
 
+  it('lists unpaired devices heard over Classic with a name to pick a phone from, phones first', async () => {
+    const { view, monitor, tick } = setUp();
+    await monitor.nearbyNamed();
+    const iphone = `${ADAPTER_PATH}/dev_1C_3C_78_F2_61_1D`;
+    const tv = `${ADAPTER_PATH}/dev_AA_BB_CC_DD_EE_05`;
+    const nameless = `${ADAPTER_PATH}/dev_AA_BB_CC_DD_EE_06`;
+    // An iPhone with Settings > Bluetooth open: Classic (it has a Class), its own name, its fixed address.
+    view.add(
+      iphone,
+      device('1C:3C:78:F2:61:1D', 'Nikolai’s Test', {
+        Name: 'Nikolai’s Test',
+        Class: 0x7a_02_0c,
+        Icon: 'phone',
+        RSSI: -60
+      })
+    );
+    view.add(
+      tv,
+      device('AA:BB:CC:DD:EE:05', 'Living room TV', { Name: 'Living room TV', Class: 0x24_04_14, RSSI: -40 })
+    );
+    view.add(
+      nameless,
+      device('AA:BB:CC:DD:EE:06', 'AA-BB-CC-DD-EE-06', { Name: 'AA-BB-CC-DD-EE-06', Class: 1, RSSI: -30 })
+    );
+    // An LE advert with a name (an app on a phone) and a paired phone are never offered.
+    view.add(STRANGER, device('4F:00:00:00:00:03', '4', { Name: '4', AddressType: 'random', RSSI: -50 }));
+    view.change(PHONE, 'org.bluez.Device1', { RSSI: -45, Class: 1, Name: 'Nikolai’s iPhone' });
+    expect(await monitor.nearbyNamed()).toEqual([
+      { address: '1C:3C:78:F2:61:1D', name: 'Nikolai’s Test', path: iphone },
+      { address: 'AA:BB:CC:DD:EE:05', name: 'Living room TV', path: tv }
+    ]);
+    tick(NEARBY_MS);
+    view.change(tv, 'org.bluez.Device1', { RSSI: -41 });
+    expect((await monitor.nearbyNamed()).map(nearby => nearby.name)).toEqual(['Living room TV']);
+  });
+
   it('logs a device that becomes paired, and a paired one that is removed', async () => {
     const { view, monitor, messages } = setUp();
     await monitor.snapshot();

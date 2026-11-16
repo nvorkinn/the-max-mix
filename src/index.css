@@ -1412,14 +1412,36 @@
   font-size: 26px;
   font-weight: 750;
 }
-.pair-phone-steps {
-  display: grid;
-  gap: 12px;
-  margin: 22px 0 24px;
-  padding-left: 1.6em;
-  list-style: decimal;
+.pair-phone-step {
+  margin: 22px 0 16px;
   font-size: 22px;
   font-weight: 650;
+}
+.pair-phone-nearby {
+  min-height: 60px;
+  margin-bottom: 24px;
+}
+.pair-phone-device {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pair-phone-pairing {
+  display: grid;
+  gap: 8px;
+  margin: 22px 0 24px;
+  text-align: center;
+}
+.pair-phone-pairing-name {
+  font-size: 22px;
+  font-weight: 650;
+}
+.pair-phone-code {
+  color: var(--accent);
+  font-size: 44px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
 }
 .pair-phone-actions {
   display: flex;

@@ -155,11 +155,15 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
         pairingCalls.push('start');
         return isPairingFailing ? Promise.reject(new Error(PAIRING_ERRORS.unavailable)) : Promise.resolve();
       },
+      pick: address => {
+        pairingCalls.push(`pick ${address}`);
+        return address === '1C:3C:78:F2:61:1D' ? Promise.resolve() : Promise.reject(new Error(PAIRING_ERRORS.gone));
+      },
       stop: () => {
         pairingCalls.push('stop');
         return Promise.resolve();
       },
-      status: () => ({ state: 'waiting', secondsLeft: 90 }),
+      status: () => ({ state: 'scanning', secondsLeft: 90, nearby: [] }),
       forget: address => {
         pairingCalls.push(`forget ${address}`);
         return Promise.resolve();
@@ -773,7 +777,7 @@ describe('Bluetooth monitor', () => {
     const answer = await fetch(`${base}/bluetooth/monitor`, { headers: { Origin: ORIGIN } });
     await expect(answer.json()).resolves.toEqual({
       ...MONITOR,
-      pairing: { state: 'waiting', secondsLeft: 90 },
+      pairing: { state: 'scanning', secondsLeft: 90, nearby: [] },
       phones: [{ address: '4F:00:00:00:00:03', name: 'Nikolai’s iPhone', isHere: true, lastSeen: 5 }]
     });
     expect((await fetch(`${base}/bluetooth/monitor`)).status).toBe(403);
@@ -799,13 +803,22 @@ describe('Bluetooth monitor', () => {
 });
 
 describe('Pair my phone', () => {
-  it('starts and stops a pairing window for the app only', async () => {
+  it('starts looking for phones, pairs with the one picked and stops, for the app only', async () => {
     const { deps, pairingCalls } = fakes();
     const base = await start(deps);
     expect((await post(base, '/bluetooth/pair-phone')).status).toBe(204);
+    expect((await post(base, '/bluetooth/pair-phone/pick', addressBody('1C:3C:78:F2:61:1D'))).status).toBe(204);
     expect((await post(base, '/bluetooth/pair-phone/stop')).status).toBe(204);
     expect((await post(base, '/bluetooth/pair-phone', { origin: 'https://example.com' })).status).toBe(403);
-    expect(pairingCalls).toEqual(['start', 'stop']);
+    expect(pairingCalls).toEqual(['start', 'pick 1C:3C:78:F2:61:1D', 'stop']);
+  });
+
+  it('says why a pick is refused, and turns down one that is not an address', async () => {
+    const base = await start(fakes().deps);
+    const gone = await post(base, '/bluetooth/pair-phone/pick', addressBody('AA:BB:CC:DD:EE:FF'));
+    expect(gone.status).toBe(409);
+    await expect(gone.json()).resolves.toEqual({ error: PAIRING_ERRORS.gone });
+    expect((await post(base, '/bluetooth/pair-phone/pick', { body: { address: 'nope' } })).status).toBe(400);
   });
 
   it('says why when Bluetooth would not start pairing', async () => {

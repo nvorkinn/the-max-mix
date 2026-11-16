@@ -1,23 +1,29 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Bluetooth } from 'lucide-react';
+import { Bluetooth, Smartphone } from 'lucide-react';
 import { linkPhone } from '../spotify/auth';
-import { pairPhone, readBluetoothReport } from '../utils/bluetoothMonitor';
+import { pairPhone, pickPhone, readBluetoothReport } from '../utils/bluetoothMonitor';
+import type { PairingStatus } from '../utils/bluetoothMonitor';
 import { errorMessage } from '../utils/errorMessage';
 import Modal from './Modal';
 
-/** How often the sheet asks the Pi whether a phone has paired. */
+/** How often the sheet asks the Pi what it hears and how pairing is going. */
 const POLL_MS = 1500;
 
+/** A pairing code as the iPhone shows it: six digits. */
+const formatCode = (code: number) => String(code).padStart(6, '0');
+
 /**
- * Pairs a person's iPhone with the kiosk: the Pi advertises as THE MAX MIX ("Pair my phone", pi/kiosk-audio/phone-pairing.ts)
- * while the sheet is open, and the phone that pairs is linked to that person (linkPhone), so the switcher knows when
- * they are here. Skip (or closing the sheet) stops the Pi advertising.
+ * Pairs a person's iPhone with the kiosk (pi/kiosk-audio/phone-pairing.ts). While the sheet is open the Pi looks for
+ * phones; with Settings › Bluetooth open, the iPhone shows up in the list under its own name. Tapping it pairs: the phone
+ * asks to confirm the code shown here too, and the phone is linked to that person (linkPhone), so the switcher knows
+ * when they are here. Skip (or closing the sheet) stops the Pi looking.
  */
 export default function PairPhoneSheet({
   spotifyId,
   name,
   onDone
 }: Readonly<{ spotifyId: string; name: string; onDone: () => void }>) {
+  const [pairing, setPairing] = useState<PairingStatus>({ state: 'idle' });
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const onDoneRef = useRef(onDone);
@@ -40,15 +46,16 @@ export default function PairPhoneSheet({
     const timer = setInterval(() => {
       if (!hasStarted) return;
       readBluetoothReport()
-        .then(({ pairing }) => {
+        .then(report => {
           if (!isCurrent) return;
-          if (pairing.state === 'paired') {
+          setPairing(report.pairing);
+          if (report.pairing.state === 'paired') {
             isWaiting = false;
-            linkPhone(spotifyId, pairing.address);
+            linkPhone(spotifyId, report.pairing.address);
             onDoneRef.current();
-          } else if (pairing.state === 'failed') {
+          } else if (report.pairing.state === 'failed') {
             isWaiting = false;
-            setError(pairing.error);
+            setError(report.pairing.error);
           }
         })
         .catch(() => null);
@@ -60,17 +67,48 @@ export default function PairPhoneSheet({
     };
   }, [spotifyId, attempt]);
 
+  const pick = (address: string, phoneName: string) => {
+    setPairing({ state: 'pairing', name: phoneName, code: null });
+    pickPhone(address).catch((caught: unknown) => setError(errorMessage(caught)));
+  };
+
   return (
     <Modal labelledBy="pair-phone-title" onClose={onDone} className="app-modal-panel pair-phone-sheet">
       <h3 id="pair-phone-title" className="pair-phone-title">
         <Bluetooth className="w-7 h-7 text-accent" aria-hidden="true" />
         Pair {name ? `${name}’s` : 'your'} iPhone
       </h3>
-      <ol className="pair-phone-steps">
-        <li>Settings › Bluetooth</li>
-        <li>THE MAX MIX</li>
-        <li>Pair</li>
-      </ol>
+      {!error && pairing.state === 'pairing' ? (
+        <div className="pair-phone-pairing" aria-live="polite">
+          <p className="pair-phone-pairing-name">{pairing.name}</p>
+          {pairing.code !== null && <p className="pair-phone-code">{formatCode(pairing.code)}</p>}
+        </div>
+      ) : (
+        !error && (
+          <>
+            <p className="pair-phone-step">Settings › Bluetooth</p>
+            <ul
+              className="phone-picker-options pair-phone-nearby"
+              aria-label="Nearby"
+              aria-busy={pairing.state !== 'scanning'}
+            >
+              {pairing.state === 'scanning' &&
+                pairing.nearby.map(device => (
+                  <li key={device.address}>
+                    <button
+                      type="button"
+                      className="modal-option phone-picker-option pair-phone-device"
+                      onClick={() => pick(device.address, device.name)}
+                    >
+                      <Smartphone className="w-5 h-5" aria-hidden="true" />
+                      {device.name}
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          </>
+        )
+      )}
       {error && (
         <p role="alert" className="settings-error status-danger">
           {error}
@@ -83,6 +121,7 @@ export default function PairPhoneSheet({
             className="spotify-sign-in pair-phone-button font-extrabold rounded-xl"
             onClick={() => {
               setError(null);
+              setPairing({ state: 'idle' });
               setAttempt(value => value + 1);
             }}
           >
