@@ -3385,15 +3385,13 @@ input:disabled {
   font-size: calc(22 * var(--u));
 }
 .dashboard[data-layout='banner'] .dashboard-notices {
+  flex-direction: row;
+  align-items: stretch;
+  padding: calc(8 * var(--u)) calc(16 * var(--u));
   border-color: rgb(255 255 255 / 30%);
   background: rgb(14 22 26 / 52%);
   color: #fff;
   backdrop-filter: blur(6px);
-}
-.dashboard[data-layout='banner'] .dashboard-notices {
-  flex-direction: row;
-  align-items: stretch;
-  padding: calc(8 * var(--u)) calc(16 * var(--u));
 }
 .dashboard[data-layout='banner'] .dashboard-notices-title {
   flex-shrink: 0;
@@ -3407,8 +3405,7 @@ input:disabled {
   flex: 1;
   flex-direction: row;
   gap: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: auto hidden;
   padding: 0;
 }
 .dashboard[data-layout='banner'] .dashboard-notice-list > li {
