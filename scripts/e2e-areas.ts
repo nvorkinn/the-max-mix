@@ -122,6 +122,7 @@ export const AREAS: Area[] = [
       /^src\/components\/PanelNav/,
       /^src\/components\/AppTabs/,
       /^src\/components\/Dashboard/,
+      /^src\/components\/dashboard\//,
       /^src\/dashboard\//,
       /^src\/assets\/dashboard\//,
       /^src\/hooks\/usePanelView/
