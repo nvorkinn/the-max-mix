@@ -348,7 +348,7 @@
   display: none;
 }
 /* Changing tab fades the whole screen (see utils/crossfade.ts). The overlay lets taps through, so a quick second tap
-   starts the next fade at once instead of being swallowed by the first. */
+  starts the next fade at once instead of being swallowed by the first. */
 ::view-transition {
   pointer-events: none;
 }
