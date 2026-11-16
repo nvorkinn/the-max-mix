@@ -44,13 +44,12 @@ function pairingText(pairing: PairingStatus): string {
   }
 }
 
-/** Reads the Pi's Bluetooth report every POLL_MS while `isOpen`. */
-function useBluetoothReport(isOpen: boolean) {
+/** Reads the Pi's Bluetooth report every POLL_MS while mounted. */
+function useBluetoothReport() {
   const [report, setReport] = useState<BluetoothReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (!isOpen) return;
     let cancelled = false;
     const read = () => {
       readBluetoothReport()
@@ -70,19 +69,18 @@ function useBluetoothReport(isOpen: boolean) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [isOpen]);
+  }, []);
   return { report, error, now, setReport };
 }
 
 /**
- * The debug console's Bluetooth section on the kiosk: the Pi's adapter, the devices paired with it and when each was
- * last heard, how many unpaired devices are nearby, and the Pi's Bluetooth log. Read only while the section is open.
+ * The debug console's Bluetooth tab on the kiosk: the Pi's adapter, the devices paired with it and when each was last
+ * heard, how many unpaired devices are nearby, and the Pi's Bluetooth log. Read only while the tab is shown.
  */
 export default function BluetoothDebug() {
-  const [isOpen, setIsOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const { report, error, now, setReport } = useBluetoothReport(isOpen);
+  const { report, error, now, setReport } = useBluetoothReport();
   const adapter = report?.adapter ?? null;
 
   const scan = () => {
@@ -106,8 +104,7 @@ export default function BluetoothDebug() {
   };
 
   return (
-    <details className="debug-bluetooth" onToggle={event => setIsOpen(event.currentTarget.open)}>
-      <summary>Bluetooth</summary>
+    <div className="debug-bluetooth">
       {(error ?? actionError) && <p className="debug-bluetooth-error">{error ?? actionError}</p>}
       {report && (
         <>
@@ -200,7 +197,7 @@ export default function BluetoothDebug() {
               </tbody>
             </table>
           )}
-          <ol className="debug-bluetooth-log" aria-label="Bluetooth log, newest first">
+          <ol className="debug-log" aria-label="Bluetooth log, newest first">
             {report.log.toReversed().map(line => (
               <li key={line.id} className="debug-entry">
                 <span className="debug-entry-time">{formatTime(line.time)}</span>
@@ -211,6 +208,6 @@ export default function BluetoothDebug() {
           </ol>
         </>
       )}
-    </details>
+    </div>
   );
 }

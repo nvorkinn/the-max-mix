@@ -10,7 +10,12 @@ vi.mock('../countdown/registration', async importOriginal => ({
   ...(await importOriginal<typeof import('../countdown/registration')>()),
   startRegistration: vi.fn(() => Promise.resolve())
 }));
+vi.mock('./BluetoothDebug', () => ({ default: () => <p>The Pi’s Bluetooth</p> }));
 vi.mock('../utils/widevine', () => ({ widevineProblem: vi.fn(() => Promise.resolve('Widevine is not available')) }));
+
+/** Lets the Widevine check answer. */
+const settle = () => act(() => Promise.resolve());
+const showStatus = () => fireEvent.click(screen.getByRole('button', { name: 'Status' }));
 
 describe('DebugConsole', () => {
   afterEach(() => clearDebugLog());
@@ -23,6 +28,8 @@ describe('DebugConsole', () => {
   it('shows the status, the Widevine check and the log newest first, live', async () => {
     debugLog('info', 'sdk', 'first');
     render(<DebugConsole isOpen onClose={vi.fn()} status={[['Signed in', 'Yes']]} />);
+    expect(screen.queryByText('Signed in')).not.toBeInTheDocument();
+    showStatus();
     expect(screen.getByText('Signed in').nextSibling).toHaveTextContent('Yes');
     expect(await screen.findByText('Widevine is not available')).toBeInTheDocument();
     act(() => {
@@ -37,7 +44,7 @@ describe('DebugConsole', () => {
   it('switches HTTP call logging and its headers on and off, and remembers them', async () => {
     localStorage.removeItem('maxmix.httpLog');
     render(<DebugConsole isOpen onClose={vi.fn()} status={[]} />);
-    await screen.findByText('Widevine is not available');
+    await settle();
     const calls = screen.getByRole('checkbox', { name: 'Log every HTTP call and response' });
     const headers = screen.getByRole('checkbox', { name: 'Include headers' });
     expect(calls).not.toBeChecked();
@@ -56,7 +63,7 @@ describe('DebugConsole', () => {
   it('turns Spotify polling on and off, and says when the quota has stopped it', async () => {
     localStorage.removeItem('maxmix.pollSpotify');
     render(<DebugConsole isOpen onClose={vi.fn()} status={[]} />);
-    await screen.findByText('Widevine is not available');
+    await settle();
     const poll = screen.getByRole('checkbox', { name: 'Poll Spotify for updates' });
     expect(poll).toBeChecked();
     fireEvent.click(poll);
@@ -80,12 +87,14 @@ describe('DebugConsole', () => {
     localStorage.removeItem('maxmix.httpLog');
     localStorage.removeItem('maxmix.httpLogMuted');
     render(<DebugConsole isOpen onClose={vi.fn()} status={[]} />);
-    await screen.findByText('Widevine is not available');
+    await settle();
     expect(screen.queryByText(/Calls to log/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Log every HTTP call and response' }));
     const total = HTTP_GROUPS.length;
-    const summary = screen.getByText(`Calls to log (${total} of ${total})`);
+    const summary = screen.getByRole('button', { name: `Calls to log (${total} of ${total})` });
+    expect(screen.queryByRole('checkbox', { name: /Spotify playback state/ })).not.toBeInTheDocument();
+    fireEvent.click(summary);
     const playback = screen.getByRole('checkbox', { name: /Spotify playback state/ });
     expect(playback).toBeChecked();
 
@@ -105,7 +114,8 @@ describe('DebugConsole', () => {
     localStorage.setItem('maxmix.httpLog', 'calls');
     localStorage.setItem('maxmix.httpLogMuted', '["lyrics"]');
     render(<DebugConsole isOpen onClose={vi.fn()} status={[]} />);
-    await screen.findByText('Widevine is not available');
+    fireEvent.click(screen.getByRole('button', { name: /Calls to log/ }));
+    await settle();
     expect(screen.getByRole('checkbox', { name: /Lyrics/ })).not.toBeChecked();
     expect(screen.getByRole('checkbox', { name: /Everything else/ })).toBeChecked();
     localStorage.clear();
@@ -116,7 +126,7 @@ describe('DebugConsole', () => {
     const onClose = vi.fn();
     const onReload = vi.fn();
     render(<DebugConsole isOpen onClose={onClose} status={[]} onReload={onReload} />);
-    await screen.findByText('Widevine is not available');
+    await settle();
     fireEvent.click(screen.getByRole('button', { name: /clear log/i }));
     expect(screen.getByText('Nothing logged since the page loaded.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /clear log/i })).toBeDisabled();
@@ -132,6 +142,7 @@ describe('DebugConsole', () => {
     localStorage.setItem('maxmix.deviceId', '0a1b2c3d4e5f');
     localStorage.setItem('maxmix.deviceConfig', '{}');
     render(<DebugConsole isOpen onClose={vi.fn()} status={[]} />);
+    showStatus();
     await screen.findByText('Widevine is not available');
     expect(screen.getByText('Device ID').nextSibling).toHaveTextContent('0a1b2c3d4e5f');
     fireEvent.click(screen.getByRole('button', { name: /register again/i }));
@@ -145,8 +156,43 @@ describe('DebugConsole', () => {
 
   it('offers Register again only on the kiosk', async () => {
     render(<DebugConsole isOpen onClose={vi.fn()} status={[]} />);
+    showStatus();
     await screen.findByText('Widevine is not available');
     expect(screen.getByText('Device ID').nextSibling).toHaveTextContent('Not registered');
     expect(screen.queryByRole('button', { name: /register again/i })).not.toBeInTheDocument();
+  });
+
+  it('remembers whether the status was left open', () => {
+    localStorage.removeItem('maxmix.debugStatusOpen');
+    const { unmount } = render(<DebugConsole isOpen onClose={vi.fn()} status={[['Signed in', 'Yes']]} />);
+    expect(screen.getByRole('button', { name: 'Status' })).toHaveAttribute('aria-expanded', 'false');
+    showStatus();
+    expect(screen.getByRole('button', { name: 'Status' })).toHaveAttribute('aria-expanded', 'true');
+    unmount();
+    render(<DebugConsole isOpen onClose={vi.fn()} status={[['Signed in', 'Yes']]} />);
+    expect(screen.getByText('Signed in')).toBeInTheDocument();
+    showStatus();
+    expect(localStorage.getItem('maxmix.debugStatusOpen')).toBeNull();
+  });
+
+  it('on the kiosk, shows Bluetooth on a tab of its own in place of the log', () => {
+    history.replaceState(null, '', '/?kiosk=1');
+    debugLog('info', 'sdk', 'something');
+    render(<DebugConsole isOpen onClose={vi.fn()} status={[]} />);
+    expect(screen.getByRole('tab', { name: 'Log' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByText('The Pi’s Bluetooth')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Bluetooth' }));
+    expect(screen.getByRole('tabpanel', { name: 'Bluetooth' })).toHaveTextContent('The Pi’s Bluetooth');
+    expect(screen.queryByText('something')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /clear log/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Log' }));
+    expect(screen.getByText('something')).toBeInTheDocument();
+    localStorage.clear();
+    history.replaceState(null, '', '/');
+  });
+
+  it('has no tabs off the kiosk', () => {
+    render(<DebugConsole isOpen onClose={vi.fn()} status={[]} />);
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
 });

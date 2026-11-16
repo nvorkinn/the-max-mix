@@ -46,13 +46,6 @@ const REPORT = {
 const json = (body: unknown, status = 200) =>
   Promise.resolve(Response.json(body, { status, headers: { 'Content-Type': 'application/json' } }));
 
-function open() {
-  const details = screen.getByText('Bluetooth').closest('details');
-  if (!details) throw new Error('no section');
-  details.open = true;
-  fireEvent(details, new Event('toggle'));
-}
-
 describe('BluetoothDebug', () => {
   const fetchMock = vi.fn<typeof fetch>();
   beforeEach(() => {
@@ -61,11 +54,9 @@ describe('BluetoothDebug', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('asks the Pi nothing until the section is opened, then shows its adapter, devices and log', async () => {
+  it('shows the Pi’s adapter, devices and log', async () => {
     fetchMock.mockImplementation(() => json(REPORT));
     render(<BluetoothDebug />);
-    expect(fetchMock).not.toHaveBeenCalled();
-    open();
     expect(await screen.findAllByText('Nikolai’s iPhone')).toHaveLength(2);
     expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/bluetooth/monitor', expect.anything());
     expect(screen.getByText('Unpaired nearby').nextSibling).toHaveTextContent('4');
@@ -82,7 +73,6 @@ describe('BluetoothDebug', () => {
   it('says why when the Pi has no Bluetooth', async () => {
     fetchMock.mockImplementation(() => json({ error: 'Bluetooth is not available on this device.' }, 503));
     render(<BluetoothDebug />);
-    open();
     expect(await screen.findByText('Bluetooth is not available on this device.')).toBeInTheDocument();
   });
 
@@ -91,7 +81,6 @@ describe('BluetoothDebug', () => {
       init?.method === 'POST' ? Promise.resolve(new Response(null, { status: 204 })) : json(REPORT)
     );
     render(<BluetoothDebug />);
-    open();
     const verbose = await screen.findByRole('checkbox', { name: 'Log unpaired devices' });
     fireEvent.click(verbose);
     await waitFor(() =>
@@ -126,7 +115,6 @@ describe('BluetoothDebug', () => {
     );
     audio.scanBluetoothSpeakers.mockImplementationOnce(() => Promise.reject(new Error('Scan failed.')));
     render(<BluetoothDebug />);
-    open();
     expect(await screen.findByText('Paired iPhone (4F:00)')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Scan for 8 s' }));
     expect(await screen.findByText('Scan failed.')).toBeInTheDocument();
@@ -141,7 +129,6 @@ describe('BluetoothDebug', () => {
   ])('shows pairing %o as %s', async (pairing, shown) => {
     fetchMock.mockImplementation(() => json({ ...REPORT, pairing }));
     render(<BluetoothDebug />);
-    open();
     expect(await screen.findByText(shown)).toBeInTheDocument();
   });
 
