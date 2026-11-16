@@ -81,6 +81,56 @@ describe('Dashboard', () => {
     expect(screen.getByRole('dialog', { name: 'Northern line: Minor delays' })).toHaveTextContent('signal failure');
   });
 
+  it('draws weather and holiday notices as icons, and closes the full text', async () => {
+    const withNotices = dashboard();
+    if (withNotices.weather) {
+      withNotices.weather.hours = (['clear', 'snow', 'rain'] as const).map((conditions, index) => ({
+        time: minutesFromNow(60 + index * 60),
+        temperature: 8,
+        conditions
+      }));
+    }
+    withNotices.notices.push(
+      {
+        id: 'rain',
+        kind: 'weather',
+        severity: 'severe',
+        status: 'Heavy rain',
+        when: '14:00–18:00',
+        title: 'Rain warning',
+        detail: 'Heavy rain.'
+      },
+      {
+        id: 'xmas',
+        kind: 'holiday',
+        severity: 'info',
+        status: 'Christmas Day',
+        when: 'Thu 25 Dec',
+        title: 'Christmas Day',
+        detail: 'No buses.'
+      },
+      {
+        id: 'mystery',
+        kind: 'tube',
+        line: 'Mystery',
+        severity: 'good',
+        status: 'Good service',
+        title: 'Mystery line',
+        detail: 'Fine.'
+      }
+    );
+    data.getDashboardData.mockResolvedValue(withNotices);
+    render(<Dashboard shown />);
+    expect(await screen.findByText('Heavy rain')).toBeInTheDocument();
+    expect(screen.getByText('Thu 25 Dec')).toBeInTheDocument();
+    expect(screen.getByText('Mystery')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Rain warning' }));
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: 'Rain warning' })).getByRole('button', { name: 'Close' })
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('lays itself out as picked', async () => {
     data.getDashboardData.mockResolvedValue(dashboard());
     const { container } = render(<Dashboard shown layout="clock" />);
