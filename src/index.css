@@ -2868,13 +2868,15 @@ input:disabled {
   isolation: isolate;
 }
 .dashboard[data-layout='list'] .dashboard-weather-hero {
+  align-items: flex-start;
   justify-content: flex-start;
+  padding-top: calc(13 * var(--u));
 }
 .dashboard[data-layout='list'] .dashboard-weather-hero .weather-icon-hero {
   position: absolute;
   z-index: 0;
   top: calc(58 * var(--u));
-  left: 34%;
+  left: 29%;
   width: calc(220 * var(--u));
   height: calc(220 * var(--u));
   margin: 0;
@@ -2951,7 +2953,7 @@ input:disabled {
 }
 .dashboard-departures-title {
   margin: 0;
-  font-size: calc(24 * var(--u));
+  font-size: calc(28 * var(--u));
   font-weight: 750;
   letter-spacing: -0.055em;
 }
@@ -3026,7 +3028,7 @@ input:disabled {
   white-space: nowrap;
 }
 .dashboard-destination-name {
-  font-size: calc(16 * var(--u));
+  font-size: calc(17 * var(--u));
   font-weight: 700;
 }
 .dashboard-destination-stop {
@@ -3039,7 +3041,7 @@ input:disabled {
   padding: calc(5 * var(--u)) calc(7 * var(--u));
   border-radius: calc(9 * var(--u));
   background: var(--dashboard-later);
-  font-size: calc(20 * var(--u));
+  font-size: calc(22 * var(--u));
   font-weight: 750;
   font-variant-numeric: tabular-nums;
   text-align: center;
@@ -3070,7 +3072,7 @@ input:disabled {
   min-height: calc(61 * var(--u));
   margin: 0;
   border-bottom: 1px solid rgb(255 255 255 / 21%);
-  font-size: calc(24 * var(--u));
+  font-size: calc(28 * var(--u));
   font-weight: 750;
   letter-spacing: -0.055em;
 }
@@ -3158,8 +3160,8 @@ input:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(43 * var(--u));
-  height: calc(43 * var(--u));
+  width: calc(50 * var(--u));
+  height: calc(50 * var(--u));
   flex-shrink: 0;
   border-radius: calc(10 * var(--u));
   background: rgb(255 255 255 / 13%);
@@ -3194,7 +3196,7 @@ input:disabled {
 }
 .dashboard-notice-title {
   overflow: hidden;
-  font-size: calc(17 * var(--u));
+  font-size: calc(19 * var(--u));
   font-weight: 750;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3204,7 +3206,7 @@ input:disabled {
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-size: calc(13 * var(--u));
+  font-size: calc(14 * var(--u));
   font-weight: 500;
   line-height: 1.4;
   opacity: 0.82;
