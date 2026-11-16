@@ -1,8 +1,12 @@
-// What the Dashboard shows: Tube and bus departures, the weather and the notice board. For now it comes from the made-up data below, shaped
-// roughly like countdown-server's JSON (an `arrivals` section and a `weather` section). getDashboardData is the only
-// way in, so the real fetch and countdown-api's generated types can replace it without touching the components.
+// What the Dashboard shows: Tube and bus departures, the weather and the notice board. The weather is countdown-server's
+// (weather.ts); the departures and notices are still the made-up data below, shaped roughly like countdown-server's
+// JSON. getDashboardData is the only way in, so the real fetches can replace them without touching the components.
 
 import type { TouchscreenConfig } from 'countdown-api';
+import { getWeather } from './weather';
+import type { Weather } from './weather';
+
+export type { Conditions, Weather } from './weather';
 
 /** One train or bus due at a stop. */
 export interface Arrival {
@@ -27,28 +31,6 @@ export interface Arrivals {
   /** When the server last read the departures, as an ISO time. */
   updatedAt: string;
   stops: ArrivalStop[];
-}
-
-export type Conditions = 'clear' | 'partly-cloudy' | 'cloudy' | 'rain' | 'snow';
-
-interface HourForecast {
-  /** The start of the hour, as an ISO time. */
-  time: string;
-  temperature: number;
-  conditions: Conditions;
-}
-
-export interface Weather {
-  /** When the server last read the weather, as an ISO time. */
-  updatedAt: string;
-  location: string;
-  /** Degrees Celsius. */
-  temperature: number;
-  conditions: Conditions;
-  high: number;
-  low: number;
-  /** The coming hours, soonest first. */
-  hours: HourForecast[];
 }
 
 /** What a notice is about, which picks its icon. */
@@ -125,32 +107,6 @@ function mockArrivals(now: Date): Arrivals {
   };
 }
 
-function mockWeather(now: Date): Weather {
-  const hour = new Date(now);
-  hour.setMinutes(0, 0, 0);
-  const forecast: [number, Conditions][] = [
-    [9, 'partly-cloudy'],
-    [10, 'cloudy'],
-    [11, 'cloudy'],
-    [11, 'rain'],
-    [10, 'rain'],
-    [9, 'cloudy']
-  ];
-  return {
-    updatedAt: now.toISOString(),
-    location: 'London',
-    temperature: 9,
-    conditions: 'partly-cloudy',
-    high: 12,
-    low: 6,
-    hours: forecast.map(([temperature, conditions], index) => ({
-      time: at(hour, (index + 1) * 60),
-      temperature,
-      conditions
-    }))
-  };
-}
-
 // The provider's full texts are real-world length, in the style TfL and the Met Office publish them.
 const MOCK_NOTICES: Notice[] = [
   {
@@ -207,9 +163,9 @@ const MOCK_NOTICES: Notice[] = [
 export type DashboardSettings = Pick<TouchscreenConfig, 'arrivals' | 'weather' | 'notice_board'> | null;
 
 /**
- * The Dashboard's data for the owner's settings. Made up for now, the same whatever the settings; see the top of this
- * file.
+ * The Dashboard's data for the owner's settings: the server's weather, and made-up departures and notices for now (the
+ * same whatever the settings); see the top of this file.
  */
-export function getDashboardData(_settings: DashboardSettings, now = new Date()): Promise<DashboardData> {
-  return Promise.resolve({ arrivals: mockArrivals(now), weather: mockWeather(now), notices: MOCK_NOTICES });
+export async function getDashboardData(_settings: DashboardSettings, now = new Date()): Promise<DashboardData> {
+  return { arrivals: mockArrivals(now), weather: await getWeather(now), notices: MOCK_NOTICES };
 }

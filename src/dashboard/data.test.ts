@@ -1,5 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { getDashboardData, isFresh } from './data';
+import type { Weather } from './weather';
+
+const WEATHER: Weather = {
+  updatedAt: '2026-11-15T08:45:00Z',
+  location: 'London',
+  temperature: 9,
+  conditions: 'partly-cloudy',
+  high: 12,
+  low: 6,
+  hours: [{ time: '2026-11-15T10:00:00Z', temperature: 10, conditions: 'cloudy' }]
+};
+vi.mock('./weather', () => ({ getWeather: () => Promise.resolve(WEATHER) }));
 
 describe('dashboard data', () => {
   const now = new Date('2026-11-15T09:00:00Z');
@@ -10,10 +22,10 @@ describe('dashboard data', () => {
     expect(isFresh('not a time', 5 * 60_000, now)).toBe(false);
   });
 
-  it('gives fresh departures and weather', async () => {
+  it("gives fresh departures, and the server's weather", async () => {
     const data = await getDashboardData(null, now);
     expect(data.arrivals?.stops.length).toBeGreaterThan(0);
-    expect(data.weather?.hours.length).toBeGreaterThan(0);
+    expect(data.weather).toEqual(WEATHER);
     expect(data.notices.length).toBeGreaterThan(0);
     expect(isFresh(data.arrivals?.updatedAt ?? '', 60_000, now)).toBe(true);
   });

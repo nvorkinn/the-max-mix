@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DeviceWeather } from 'countdown-api';
 import panels from '../../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json';
-import { conditionsFor, getWeather, toWeather } from './weather';
+import { conditionsFor, forgetWeather, getWeather, toWeather } from './weather';
 
 const server = vi.hoisted(() => ({
   serverClient: vi.fn<() => { baseUrl: string; secret: string } | null>()
@@ -18,6 +18,7 @@ const fetchMock = vi.fn<(request: Request) => Promise<Response>>();
 
 describe('weather', () => {
   beforeEach(() => {
+    forgetWeather();
     server.serverClient.mockReturnValue({ baseUrl: 'https://api.countdown.build', secret: 'device-secret' });
     fetchMock.mockImplementation(() => Promise.resolve(Response.json(ANSWER)));
     vi.stubGlobal('fetch', fetchMock);
@@ -35,18 +36,18 @@ describe('weather', () => {
       'clear',
       'partly-cloudy',
       'cloudy',
-      'fog',
-      'drizzle',
+      'cloudy',
       'rain',
       'rain',
-      'snow',
       'rain',
       'snow',
-      'thunder'
+      'rain',
+      'snow',
+      'rain'
     ]);
   });
 
-  it("reads countdown-server's weather with the device secret: now, and the hours to come by day and night", async () => {
+  it("reads countdown-server's weather with the device secret: now, today's high and low, and the next six hours", async () => {
     const weather = await getWeather(NOW);
     const request = fetchMock.mock.calls[0]?.[0];
     expect(String(request instanceof Request ? request.url : request)).toBe(
@@ -57,16 +58,16 @@ describe('weather', () => {
       location: 'London',
       temperature: 14,
       conditions: 'partly-cloudy',
-      daylight: true,
-      background: null
+      high: 18,
+      low: 9
     });
-    expect(weather?.hours.slice(0, 6)).toEqual([
-      { time: '2026-01-15T13:00:00.000Z', temperature: 14, conditions: 'clear', daylight: true },
-      { time: '2026-01-15T14:00:00.000Z', temperature: 14, conditions: 'clear', daylight: true },
-      { time: '2026-01-15T15:00:00.000Z', temperature: 14, conditions: 'cloudy', daylight: true },
-      { time: '2026-01-15T16:00:00.000Z', temperature: 14, conditions: 'clear', daylight: true },
-      { time: '2026-01-15T17:00:00.000Z', temperature: 14, conditions: 'clear', daylight: false },
-      { time: '2026-01-15T18:00:00.000Z', temperature: 9, conditions: 'clear', daylight: false }
+    expect(weather?.hours).toEqual([
+      { time: '2026-01-15T13:00:00.000Z', temperature: 14, conditions: 'clear' },
+      { time: '2026-01-15T14:00:00.000Z', temperature: 14, conditions: 'clear' },
+      { time: '2026-01-15T15:00:00.000Z', temperature: 14, conditions: 'cloudy' },
+      { time: '2026-01-15T16:00:00.000Z', temperature: 14, conditions: 'clear' },
+      { time: '2026-01-15T17:00:00.000Z', temperature: 14, conditions: 'clear' },
+      { time: '2026-01-15T18:00:00.000Z', temperature: 9, conditions: 'clear' }
     ]);
   });
 
@@ -82,16 +83,23 @@ describe('weather', () => {
     expect(toWeather(oslo, new Date('2026-01-15T11:30:00Z'))?.hours[0]?.time).toBe('2026-01-15T12:00:00.000Z');
   });
 
-  it('has none for a kiosk that is not registered, with no place or forecast, or when the server fails', async () => {
+  it('has none for a kiosk that is not registered or owned, or with no place or forecast', async () => {
     server.serverClient.mockReturnValueOnce(null);
     expect(await getWeather(NOW)).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
     fetchMock.mockResolvedValueOnce(Response.json({ location: '', key: null, forecast: null }));
     expect(await getWeather(NOW)).toBeNull();
+    await getWeather(NOW);
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 409 }));
+    expect(await getWeather(NOW)).toBeNull();
+  });
+
+  it('keeps the last weather when the server fails or cannot be reached', async () => {
+    const read = await getWeather(NOW);
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 503 }));
-    expect(await getWeather(NOW)).toBeNull();
+    expect(await getWeather(NOW)).toEqual(read);
     fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
-    expect(await getWeather(NOW)).toBeNull();
+    expect(await getWeather(NOW)).toEqual(read);
   });
 
   it('has none for a forecast without the fields it reads', async () => {
@@ -99,6 +107,17 @@ describe('weather', () => {
     if (!stored) throw new Error('the example has a forecast');
     const broken = { ...ANSWER, forecast: { ...stored, forecast: { ...stored.forecast, hourly: {} } } };
     fetchMock.mockResolvedValueOnce(Response.json(broken));
+    expect(await getWeather(NOW)).toBeNull();
+    // Nor one without today in it.
+    fetchMock.mockResolvedValueOnce(
+      Response.json({
+        ...ANSWER,
+        forecast: {
+          ...stored,
+          forecast: { ...stored.forecast, current: { ...stored.forecast.current, time: '2027-01-01T00:00' } }
+        }
+      })
+    );
     expect(await getWeather(NOW)).toBeNull();
   });
 });
