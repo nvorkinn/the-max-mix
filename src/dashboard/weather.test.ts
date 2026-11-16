@@ -26,11 +26,14 @@ const ANSWER: DeviceWeather = {
   ],
   background: {
     date: '2026-11-16',
-    url: 'https://app.countdown.build/backgrounds/4f1c2a.jpg',
     generated_at: '2026-11-16T04:00:00Z',
     fallback: false,
-    width: 1536,
-    height: 1024
+    images: [
+      { phase: 'dawn', from: '2026-11-16T07:00:00Z', url: 'https://app.countdown.build/backgrounds/dawn.jpg' },
+      { phase: 'day', from: '2026-11-16T08:30:00Z', url: 'https://app.countdown.build/backgrounds/day.jpg' },
+      { phase: 'dusk', from: '2026-11-16T14:30:00Z', url: 'https://app.countdown.build/backgrounds/dusk.jpg' },
+      { phase: 'night', from: '2026-11-16T16:00:00Z', url: 'https://app.countdown.build/backgrounds/night.jpg' }
+    ]
   }
 };
 
@@ -84,8 +87,21 @@ describe('weather', () => {
         { time: hour(4), temperature: 10, conditions: 'fog', daylight: true },
         { time: hour(5), temperature: 8, conditions: 'clear', daylight: false }
       ],
-      background: 'https://app.countdown.build/backgrounds/4f1c2a.jpg'
+      background: 'https://app.countdown.build/backgrounds/day.jpg'
     });
+  });
+
+  it("shows the picture for the part of the day it is, and none before the day's first", async () => {
+    const at = async (time: string) => {
+      const weather = await getWeather(new Date(time));
+      return weather?.background;
+    };
+    expect(await at('2026-11-16T06:59:00Z')).toBeNull();
+    expect(await at('2026-11-16T07:00:00Z')).toBe('https://app.countdown.build/backgrounds/dawn.jpg');
+    expect(await at('2026-11-16T15:00:00Z')).toBe('https://app.countdown.build/backgrounds/dusk.jpg');
+    expect(await at('2026-11-16T23:00:00Z')).toBe('https://app.countdown.build/backgrounds/night.jpg');
+    fetchMock.mockImplementationOnce(() => Promise.resolve(Response.json({ ...ANSWER, background: null })));
+    expect(await at('2026-11-16T09:20:00Z')).toBeNull();
   });
 
   it('has none for a kiosk that is not registered', async () => {

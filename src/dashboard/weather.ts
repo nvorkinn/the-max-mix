@@ -33,18 +33,18 @@ export interface DeviceWeather {
   /** The coming hours, soonest first, each from the start of its hour (ISO time); at least the next six. */
   hours: (DeviceWeatherReading & { time: string })[];
   /**
-   * The day's background picture for the place (landscape, no text, a calm top-left), or null while there is none. Its
-   * URL is public and content-hashed: an <img> or CSS background can't send the device secret.
+   * The day's background pictures for the place (landscape, no text, a calm top-left), one for each part of the day,
+   * or null while there are none. Their URLs are public and content-hashed: an <img> or CSS background can't send the
+   * device secret.
    */
   background: {
-    /** The place's local day it is for, as YYYY-MM-DD. */
+    /** The place's local day they are for, as YYYY-MM-DD. */
     date: string;
-    url: string;
     generated_at: string;
-    /** Whether it is a curated stand-in because the day's picture couldn't be made. */
+    /** Whether they are curated stand-ins because the day's pictures couldn't be made. */
     fallback: boolean;
-    width: number;
-    height: number;
+    /** Each part of the day's picture, from when it applies (ISO time), in time order. */
+    images: { phase: 'dawn' | 'day' | 'dusk' | 'night'; from: string; url: string }[];
   } | null;
 }
 
@@ -89,7 +89,22 @@ export function conditionsFor(code: number): Conditions {
   return 'rain';
 }
 
-/** The server's answer as the Dashboard draws it, with only the hours still to come at `now`. */
+/** The picture for `now`: the one whose `from` is the latest not in the future, or null before the first. */
+function pictureAt(background: DeviceWeather['background'], now: Date): string | null {
+  let picked: string | null = null;
+  let pickedFrom = -Infinity;
+  const images = background?.images ?? [];
+  for (const image of images) {
+    const from = Date.parse(image.from);
+    if (from <= now.getTime() && from >= pickedFrom) {
+      picked = image.url;
+      pickedFrom = from;
+    }
+  }
+  return picked;
+}
+
+/** The server's answer as the Dashboard draws it at `now`: the hours still to come, and that part of the day's picture. */
 function toWeather(answer: DeviceWeather, now: Date): Weather {
   return {
     updatedAt: answer.updated_at,
@@ -105,7 +120,7 @@ function toWeather(answer: DeviceWeather, now: Date): Weather {
         conditions: conditionsFor(hour.weather_code),
         daylight: hour.is_day
       })),
-    background: answer.background?.url ?? null
+    background: pictureAt(answer.background, now)
   };
 }
 
