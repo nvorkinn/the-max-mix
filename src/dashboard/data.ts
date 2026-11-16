@@ -47,7 +47,7 @@ export interface Weather {
 }
 
 /** How bad a notice is: picks its colour. */
-export type NoticeSeverity = 'good' | 'minor' | 'severe' | 'closed' | 'info';
+type NoticeSeverity = 'good' | 'minor' | 'severe' | 'closed' | 'info';
 
 /**
  * One notice-board item. The board draws it from the structured fields alone (what it is about, how bad, a two or
