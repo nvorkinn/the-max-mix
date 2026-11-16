@@ -24,8 +24,12 @@ const REFRESH_MS = 30_000;
 const TICK_MS = 15_000;
 /** Departures each card shows. */
 const DEPARTURES_SHOWN = 2;
-/** Hours of forecast beside the temperature. */
+/** Departures each board shows in the List layout, where the boards stand tall over the backdrop. */
+const LIST_DEPARTURES_SHOWN = 6;
+/** Hours of forecast on the Modular layout's Later today tile. */
 const HOURS_SHOWN = 3;
+/** Hours of forecast across the top right of the List layout. */
+const LIST_HOURS_SHOWN = 5;
 /** Hours of forecast in the Timeline layout's weather strip. */
 const TIMELINE_HOURS_SHOWN = 4;
 /** A departure this many minutes away or fewer gets the green chip: time to go. */
@@ -127,16 +131,14 @@ const DEPARTURE_CARDS = {
 } as const;
 
 /** The first stop of one kind that has departures still to come, or none while the departures are missing or old. */
-function nextStop(mode: 'tube' | 'bus', arrivals: Arrivals | null, now: Date) {
+function nextStop(mode: 'tube' | 'bus', arrivals: Arrivals | null, now: Date, count = DEPARTURES_SHOWN) {
   const fresh = arrivals && isFresh(arrivals.updatedAt, ARRIVALS_MAX_AGE_MS, now) ? arrivals : null;
   // A departure that has already gone is dropped at once, without waiting for the next read.
   return fresh?.stops
     .filter(candidate => candidate.mode === mode)
     .map(candidate => ({
       ...candidate,
-      arrivals: candidate.arrivals
-        .filter(arrival => Date.parse(arrival.due) > now.getTime() - 60_000)
-        .slice(0, DEPARTURES_SHOWN)
+      arrivals: candidate.arrivals.filter(arrival => Date.parse(arrival.due) > now.getTime() - 60_000).slice(0, count)
     }))
     .find(candidate => candidate.arrivals.length > 0);
 }
@@ -158,7 +160,7 @@ function DeparturesCard({
   now,
   layout
 }: Readonly<{ mode: 'tube' | 'bus'; arrivals: Arrivals | null; now: Date; layout: DashboardLayout }>) {
-  const stop = nextStop(mode, arrivals, now);
+  const stop = nextStop(mode, arrivals, now, layout === 'list' ? LIST_DEPARTURES_SHOWN : DEPARTURES_SHOWN);
   const card = DEPARTURE_CARDS[mode];
   const titleId = `dashboard-${mode}-title`;
   const banner = layout === 'banner';
@@ -265,7 +267,8 @@ function freshWeather(weather: Weather | null, now: Date): Weather | null {
 }
 
 /**
- * The weather, laid out for each layout: List's over a photo with the next three hours; Banner's big clock beside it;
+ * The weather, laid out for each layout: List's straight on the backdrop with the next five hours apart from it, top
+ * right; Banner's big clock beside it;
  * Timeline's strip of the next hours; Modular's tile with only now.
  */
 function WeatherCard({
@@ -357,39 +360,35 @@ function WeatherCard({
   const updatedMinutes = fresh ? Math.max(0, Math.floor((now.getTime() - Date.parse(fresh.updatedAt)) / 60_000)) : 0;
   const updatedLabel = updatedMinutes < 2 ? 'Updated just now' : `Updated ${updatedMinutes} min ago`;
   return (
-    <section className="dashboard-card dashboard-weather" aria-label={label}>
-      {fresh ? (
-        <>
-          <div className="dashboard-weather-topline">
+    <>
+      <section className="dashboard-card dashboard-weather" aria-label={label}>
+        {fresh ? (
+          <div className="dashboard-now">
             <span className="dashboard-place">
               <MapPin aria-hidden="true" /> {fresh.location}
             </span>
             <span className="dashboard-weather-label">{updatedLabel}</span>
-          </div>
-          <div className="dashboard-weather-hero">
-            <div className="dashboard-now">
-              <span className="dashboard-temperature">{fresh.temperature}°</span>
-              <span className="dashboard-conditions">{CONDITION_LABELS[fresh.conditions]}</span>
-              <span className="dashboard-high-low">
-                High {fresh.high}° <span aria-hidden="true">·</span> Low {fresh.low}°
+            <span className="dashboard-temperature">{fresh.temperature}°</span>
+            <span className="dashboard-conditions">{CONDITION_LABELS[fresh.conditions]}</span>
+            <span className="dashboard-high-low">
+              High {fresh.high}° <span aria-hidden="true">·</span> Low {fresh.low}°
+            </span>
+            {rainLater && (
+              <span className="dashboard-outlook">
+                <Umbrella aria-hidden="true" /> Rain later today
               </span>
-              {rainLater && (
-                <span className="dashboard-outlook">
-                  <Umbrella aria-hidden="true" /> Rain later today
-                </span>
-              )}
-            </div>
-            <WeatherIcon conditions={fresh.conditions} hero />
+            )}
           </div>
-          <div className="dashboard-hours-wrap">
-            <span className="dashboard-hours-label">Next hours</span>
-            <Hours weather={fresh} count={HOURS_SHOWN} clockFormat={clockFormat} />
-          </div>
-        </>
-      ) : (
-        <Unavailable>The weather isn't available</Unavailable>
+        ) : (
+          <Unavailable>The weather isn't available</Unavailable>
+        )}
+      </section>
+      {fresh && (
+        <section className="dashboard-forecast" aria-label="Next hours">
+          <Hours weather={fresh} count={LIST_HOURS_SHOWN} clockFormat={clockFormat} />
+        </section>
       )}
-    </section>
+    </>
   );
 }
 
