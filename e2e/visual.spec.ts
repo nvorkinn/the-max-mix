@@ -199,26 +199,17 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await expect(page).toHaveScreenshot(shotName('speakers-view-airplay', screen), moving(page));
     });
 
-    for (const [layout, name] of [
-      ['column', 'dashboard'],
-      ['strip', 'dashboard-strip'],
-      ['clock', 'dashboard-clock']
-    ] as const) {
-      test(`${name} at ${size(screen)}`, { tag: '@layout' }, async ({ page }) => {
-        await fakeSpotify(page);
-        // The made-up departures and forecast are timed from now, so now is fixed.
-        await page.clock.setFixedTime(new Date('2026-11-15T09:20:00'));
-        await page.addInitScript(picked => {
-          localStorage.setItem('maxmix.dashboardLayout', picked);
-        }, layout);
-        await page.setViewportSize(screen);
-        await page.goto('/');
-        await page.getByRole('tab', { name: 'Dashboard' }).click();
-        const dashboard = page.getByRole('tabpanel', { name: 'Dashboard' });
-        await expect(dashboard.getByText('Morden')).toBeVisible();
-        await expect(page).toHaveScreenshot(shotName(name, screen), SHOT);
-      });
-    }
+    test(`dashboard at ${size(screen)}`, { tag: '@layout' }, async ({ page }) => {
+      await fakeSpotify(page);
+      // The made-up departures and forecast are timed from now, so now is fixed.
+      await page.clock.setFixedTime(new Date('2026-11-15T09:20:00'));
+      await page.setViewportSize(screen);
+      await page.goto('/');
+      await page.getByRole('tab', { name: 'Dashboard' }).click();
+      const dashboard = page.getByRole('tabpanel', { name: 'Dashboard' });
+      await expect(dashboard.getByText('Morden')).toBeVisible();
+      await expect(page).toHaveScreenshot(shotName('dashboard', screen), SHOT);
+    });
 
     test(`dashboard at night at ${size(screen)}`, { tag: ['@layout', '@appearance'] }, async ({ page }) => {
       await fakeSpotify(page);
@@ -240,8 +231,8 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await page.setViewportSize(screen);
       await page.goto('/');
       await page.getByRole('tab', { name: 'Dashboard' }).click();
-      await page.getByRole('button', { name: 'Northern line: Minor delays' }).click();
-      const notice = page.getByRole('dialog', { name: 'Northern line: Minor delays' });
+      await page.getByRole('button', { name: /Northern line: Delays/ }).click();
+      const notice = page.getByRole('dialog', { name: 'Northern line: Delays' });
       await expect(notice).toBeVisible();
       await expect(notice).toHaveScreenshot(shotName('dashboard-notice', screen), SHOT);
     });

@@ -1,11 +1,14 @@
-// What the Dashboard shows: bus departures and the weather. For now it comes from the made-up data below, shaped
+// What the Dashboard shows: Tube and bus departures, the weather and the notice board. For now it comes from the made-up data below, shaped
 // roughly like countdown-server's JSON (an `arrivals` section and a `weather` section). getDashboardData is the only
 // way in, so the real fetch and countdown-api's generated types can replace it without touching the components.
 
-/** One bus due at a stop. */
+/** One train or bus due at a stop. */
 export interface Arrival {
+  /** The Tube line or the bus route. */
   route: string;
   destination: string;
+  /** The stop's letter or platform, when the stop has several. */
+  stop?: string;
   /** When it is due, as an ISO time. */
   due: string;
 }
@@ -46,25 +49,23 @@ export interface Weather {
   hours: HourForecast[];
 }
 
-/** How bad a notice is: picks its colour. */
-type NoticeSeverity = 'good' | 'minor' | 'severe' | 'closed' | 'info';
+/** What a notice is about, which picks its icon. */
+type NoticeKind = 'weather' | 'delays' | 'holiday' | 'closure';
+/** How much it matters, which picks the colour down its edge: red, amber, none or blue. */
+type NoticeSeverity = 'severe' | 'minor' | 'info' | 'planned';
 
 /**
- * One notice-board item. The board draws it from the structured fields alone (what it is about, how bad, a two or
- * three word status and when); `title` and `detail` are the provider's own words, shown only when it is tapped.
+ * One notice-board item: a headline and one short line, which is all the board shows; `detail` is the provider's whole
+ * text, shown when the notice is tapped.
  */
 export interface Notice {
   id: string;
-  kind: 'tube' | 'bus' | 'weather' | 'holiday';
-  /** The tube line or bus route the notice is about. */
-  line?: string;
+  kind: NoticeKind;
   severity: NoticeSeverity;
-  /** Two or three words: "Delays", "Closed", "Heavy rain". */
-  status: string;
-  /** When it applies, as short as possible: "14:00–18:00", "Sat–Sun", "Thu 25 Dec". */
-  when?: string;
-  /** The provider's headline. */
+  /** A few words: "Northern line: Delays". */
   title: string;
+  /** One short line: "Minor delays due to a signal fault". */
+  summary: string;
   /** The provider's full text. */
   detail: string;
 }
@@ -91,10 +92,11 @@ const MINUTE = 60_000;
 const at = (now: Date, minutes: number) => new Date(now.getTime() + minutes * MINUTE).toISOString();
 
 function mockArrivals(now: Date): Arrivals {
-  const departure = (route: string, destination: string, minutes: number) => ({
+  const departure = (route: string, destination: string, minutes: number, stop?: string) => ({
     route,
     destination,
-    due: at(now, minutes)
+    due: at(now, minutes),
+    ...(stop && { stop })
   });
   return {
     updatedAt: now.toISOString(),
@@ -112,9 +114,9 @@ function mockArrivals(now: Date): Arrivals {
         name: 'Elephant & Castle',
         mode: 'bus',
         arrivals: [
-          departure('12', 'Oxford Circus', 1),
-          departure('35', 'Shoreditch', 4),
-          departure('12', 'Oxford Circus', 9)
+          departure('12', 'Oxford Circus', 2, 'Stop E'),
+          departure('343', 'New Cross', 6, 'Stop F'),
+          departure('12', 'Oxford Circus', 11, 'Stop E')
         ]
       }
     ]
@@ -126,7 +128,7 @@ function mockWeather(now: Date): Weather {
   hour.setMinutes(0, 0, 0);
   const forecast: [number, Conditions][] = [
     [9, 'partly-cloudy'],
-    [10, 'partly-cloudy'],
+    [10, 'cloudy'],
     [11, 'cloudy'],
     [11, 'rain'],
     [10, 'rain'],
@@ -147,69 +149,52 @@ function mockWeather(now: Date): Weather {
   };
 }
 
-// Real-world-length texts, in the style TfL and the Met Office publish them.
+// The provider's full texts are real-world length, in the style TfL and the Met Office publish them.
 const MOCK_NOTICES: Notice[] = [
   {
+    id: 'rain',
+    kind: 'weather',
+    severity: 'severe',
+    title: 'Weather warning',
+    summary: 'Heavy rain expected 14:00–18:00',
+    detail:
+      'Yellow warning of rain for London & South East England. Heavy and persistent rain may lead to some flooding ' +
+      'and travel disruption from 14:00 until 18:00 today. Spray and flooding on roads will probably make journey ' +
+      'times longer, and bus and train services will probably be affected. 15 to 25 mm of rain is likely quite ' +
+      'widely, with 30 to 40 mm possible in a few places.'
+  },
+  {
     id: 'northern',
-    kind: 'tube',
-    line: 'Northern',
+    kind: 'delays',
     severity: 'minor',
-    status: 'Delays',
-    title: 'Northern line: Minor delays',
+    title: 'Northern line: Delays',
+    summary: 'Minor delays due to a signal fault',
     detail:
       'NORTHERN LINE: Minor delays between Morden and Kennington while we fix a signal failure at Clapham Common. ' +
       'GOOD SERVICE on the rest of the line. Tickets will be accepted on London Buses, Southern and Thameslink ' +
       'between Morden and London Bridge. The Charing Cross branch is not affected.'
   },
   {
-    id: 'rain',
-    kind: 'weather',
-    severity: 'severe',
-    status: 'Heavy rain',
-    when: '14:00–18:00',
-    title: 'Yellow warning of rain for London & South East England',
-    detail:
-      'Heavy and persistent rain may lead to some flooding and travel disruption from 14:00 until 18:00 today. ' +
-      'Spray and flooding on roads will probably make journey times longer, and bus and train services will ' +
-      'probably be affected, with journey times taking longer. 15 to 25 mm of rain is likely quite widely, with ' +
-      '30 to 40 mm possible in a few places.'
-  },
-  {
-    id: 'jubilee',
-    kind: 'tube',
-    line: 'Jubilee',
-    severity: 'closed',
-    status: 'Closed',
-    when: 'Sat–Sun',
-    title: 'Jubilee line: Planned closure',
-    detail:
-      'JUBILEE LINE: Saturday 22 and Sunday 23 November, no service between Stratford and Waterloo while we carry ' +
-      'out track renewal works. Replacement buses operate between Stratford, Canning Town, North Greenwich and ' +
-      'Canary Wharf. Use the DLR, Elizabeth line or Southeastern services. Allow extra time for your journey.'
-  },
-  {
-    id: 'bus-12',
-    kind: 'bus',
-    line: '12',
-    severity: 'minor',
-    status: 'Diverted',
-    title: 'Route 12: Diverted',
-    detail:
-      'Route 12 is diverted away from Walworth Road between Elephant & Castle and Camberwell Green in both ' +
-      'directions due to Thames Water emergency works. Buses will not serve stops from Walworth Road / East ' +
-      'Street to Camberwell Road / Albany Road. Use route 35, 40, 45, 68, 171, 176 or P5 as alternatives.'
-  },
-  {
     id: 'christmas',
     kind: 'holiday',
     severity: 'info',
-    status: 'Christmas Day',
-    when: 'Thu 25 Dec',
-    title: 'Christmas Day: no public transport',
+    title: 'Upcoming bank holiday',
+    summary: 'Thu 25 Dec – Christmas Day',
     detail:
       'There will be no Tube, DLR, London Overground, Elizabeth line, tram or bus services on Christmas Day, ' +
-      'except for a small number of local bus routes. Santander Cycles will be available. Services on Boxing Day ' +
-      'will start later than usual.'
+      'except for a small number of local bus routes. Services on Boxing Day will start later than usual.'
+  },
+  {
+    id: 'victoria',
+    kind: 'closure',
+    severity: 'planned',
+    title: 'Victoria line: Planned work',
+    summary: 'No service between Euston and Walthamstow this weekend',
+    detail:
+      'VICTORIA LINE: Saturday 22 and Sunday 23 November, no service between Euston and Walthamstow Central while ' +
+      'we carry out track renewal works. Replacement buses operate between Euston, Highbury & Islington, Finsbury ' +
+      'Park, Seven Sisters and Walthamstow Central. Use London Overground or the Piccadilly line where you can. ' +
+      'Allow extra time for your journey.'
   }
 ];
 

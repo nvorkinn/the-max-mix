@@ -1,40 +1,32 @@
 import { useEffect, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import {
-  Bus,
-  CalendarDays,
-  Cloud,
-  CloudRain,
-  CloudSnow,
-  CloudSun,
-  MapPin,
-  Megaphone,
-  Sun,
-  TrainFront,
-  X
-} from 'lucide-react';
+import { BusFront, CalendarDays, ChevronRight, CloudRain, MapPin, Megaphone, Umbrella, X } from 'lucide-react';
 import { ARRIVALS_MAX_AGE_MS, getDashboardData, isFresh, WEATHER_MAX_AGE_MS } from '../dashboard/data';
 import type { Arrival, Arrivals, Conditions, DashboardData, Notice, Weather } from '../dashboard/data';
 import { debugLog } from '../utils/debugLog';
 import { errorMessage } from '../utils/errorMessage';
 import { DEFAULT_CLOCK_FORMAT, formatClockTime } from '../utils/clockFormat';
 import type { ClockFormat } from '../utils/clockFormat';
-import type { DashboardLayout } from '../utils/dashboardLayout';
+import londonPhoto from '../assets/dashboard/london.jpg';
 import Modal from './Modal';
 
 /** How often the Dashboard asks for its data again while it is showing. */
 const REFRESH_MS = 30_000;
 /** How often the minutes to each departure are worked out again. */
 const TICK_MS = 15_000;
-/** Departures each card shows; the CSS drops the last on a short screen. */
-const DEPARTURES_SHOWN = 3;
+/** Departures each card shows. */
+const DEPARTURES_SHOWN = 2;
+/** Hours of forecast beside the temperature. */
+const HOURS_SHOWN = 3;
+/** A departure this many minutes away or fewer gets the green chip: time to go. */
+const SOON_MINUTES = 5;
 
-const CONDITIONS: Record<Conditions, { label: string; icon: (size: number) => ReactNode }> = {
-  clear: { label: 'Clear', icon: size => <Sun size={size} aria-hidden="true" /> },
-  'partly-cloudy': { label: 'Partly cloudy', icon: size => <CloudSun size={size} aria-hidden="true" /> },
-  cloudy: { label: 'Cloudy', icon: size => <Cloud size={size} aria-hidden="true" /> },
-  rain: { label: 'Rain', icon: size => <CloudRain size={size} aria-hidden="true" /> },
-  snow: { label: 'Snow', icon: size => <CloudSnow size={size} aria-hidden="true" /> }
+const CONDITION_LABELS: Record<Conditions, string> = {
+  clear: 'Clear',
+  'partly-cloudy': 'Partly cloudy',
+  cloudy: 'Cloudy',
+  rain: 'Rain',
+  snow: 'Snow'
 };
 
 /** TfL's line colours, and the text that reads on each. */
@@ -55,29 +47,89 @@ const LINE_COLOURS: Record<string, readonly [string, string]> = {
   'Waterloo & City': ['#95cdba', '#000']
 };
 
-function minutesUntil(arrival: Arrival, now: Date): string {
-  const minutes = Math.floor((Date.parse(arrival.due) - now.getTime()) / 60_000);
-  return minutes < 1 ? 'Due' : `${minutes} min`;
+/** A yellow sun with its rays, at (cx, cy). */
+function sunAt(cx: number, cy: number, r: number) {
+  return (
+    <g className="weather-icon-sun">
+      {Array.from({ length: 8 }, (_, ray) => {
+        const angle = (ray * Math.PI) / 4;
+        return (
+          <line
+            key={ray}
+            x1={cx + Math.cos(angle) * (r + 3)}
+            y1={cy + Math.sin(angle) * (r + 3)}
+            x2={cx + Math.cos(angle) * (r + 7)}
+            y2={cy + Math.sin(angle) * (r + 7)}
+          />
+        );
+      })}
+      <circle cx={cx} cy={cy} r={r} />
+    </g>
+  );
+}
+
+/** The weather drawn in colour: a white cloud, a yellow sun, blue rain and snow. */
+function WeatherIcon({ conditions }: Readonly<{ conditions: Conditions }>) {
+  const cloud = (
+    <path className="weather-icon-cloud" d="M15 44h30a10 10 0 0 0 1-20 14 14 0 0 0-27-4 11 11 0 0 0-4 24z" />
+  );
+  return (
+    <svg viewBox="0 0 60 60" className="weather-icon" aria-hidden="true">
+      {conditions === 'clear' && sunAt(30, 30, 12)}
+      {conditions === 'partly-cloudy' && sunAt(38, 20, 9)}
+      {conditions !== 'clear' && cloud}
+      {conditions === 'rain' &&
+        [20, 30, 40].map(x => <line key={x} className="weather-icon-rain" x1={x} y1={49} x2={x - 3} y2={56} />)}
+      {conditions === 'snow' &&
+        [20, 30, 40].map(x => <circle key={x} className="weather-icon-snow" cx={x} cy={52} r={2.4} />)}
+    </svg>
+  );
+}
+
+/** TfL's roundel. */
+function Roundel({ className = '' }: Readonly<{ className?: string }>) {
+  return (
+    <svg viewBox="0 0 64 40" className={`tfl-roundel ${className}`} aria-hidden="true">
+      <circle cx="32" cy="20" r="15" fill="none" stroke="#dc241f" strokeWidth="7" />
+      <rect x="4" y="16" width="56" height="8" fill="#0019a8" />
+    </svg>
+  );
+}
+
+function minutesUntil(arrival: Arrival, now: Date): number {
+  return Math.floor((Date.parse(arrival.due) - now.getTime()) / 60_000);
 }
 
 function Unavailable({ children }: Readonly<{ children: string }>) {
   return <p className="dashboard-unavailable">{children}</p>;
 }
 
-/** A tube line's name on its own colour, or a bus route's number on red. */
+/** A Tube line's name on its colour, or a bus route's number on red. */
 function LineBadge({ mode, line }: Readonly<{ mode: 'tube' | 'bus'; line: string }>) {
-  if (mode === 'bus') return <span className="dashboard-line dashboard-line-bus">{line}</span>;
-  const [background, ink] = LINE_COLOURS[line] ?? ['var(--accent)', 'var(--accent-ink)'];
+  if (mode === 'bus') return <span className="dashboard-route dashboard-route-bus">{line}</span>;
+  const [background, ink] = LINE_COLOURS[line] ?? ['#000', '#fff'];
   return (
-    <span className="dashboard-line" style={{ '--line': background, '--line-ink': ink } as CSSProperties}>
+    <span className="dashboard-route" style={{ '--line': background, '--line-ink': ink } as CSSProperties}>
       {line}
     </span>
   );
 }
 
 const DEPARTURE_CARDS = {
-  tube: { title: 'Tube', icon: <TrainFront aria-hidden="true" />, missing: "Tube times aren't available" },
-  bus: { title: 'Buses', icon: <Bus aria-hidden="true" />, missing: "Bus times aren't available" }
+  tube: {
+    title: 'Tube',
+    icon: <Roundel className="dashboard-card-mark" />,
+    missing: "Tube times aren't available"
+  },
+  bus: {
+    title: 'Buses',
+    icon: (
+      <span className="dashboard-card-mark dashboard-bus-mark">
+        <BusFront aria-hidden="true" />
+      </span>
+    ),
+    missing: "Bus times aren't available"
+  }
 } as const;
 
 /** The next departures of one kind, from the first stop that has any. */
@@ -98,20 +150,36 @@ function DeparturesCard({
   const card = DEPARTURE_CARDS[mode];
   const titleId = `dashboard-${mode}-title`;
   return (
-    <section className="dashboard-departures" aria-labelledby={titleId}>
-      <h2 id={titleId} className="dashboard-card-title">
-        {card.icon} {card.title}
-        {stop && <span className="dashboard-stop-name">{stop.name}</span>}
-      </h2>
+    <section className="dashboard-card dashboard-departures" data-mode={mode} aria-labelledby={titleId}>
+      <header className="dashboard-departures-header">
+        {card.icon}
+        <h2 id={titleId} className="dashboard-departures-title">
+          {card.title}
+        </h2>
+        {stop && (
+          <span className="dashboard-stop-name">
+            {stop.name}
+            <ChevronRight aria-hidden="true" />
+          </span>
+        )}
+      </header>
       {stop ? (
         <ul className="dashboard-arrival-list">
-          {stop.arrivals.slice(0, DEPARTURES_SHOWN).map(arrival => (
-            <li key={`${arrival.route}-${arrival.due}`} className="dashboard-arrival">
-              <LineBadge mode={mode} line={arrival.route} />
-              <span className="dashboard-destination">{arrival.destination}</span>
-              <span className="dashboard-due">{minutesUntil(arrival, now)}</span>
-            </li>
-          ))}
+          {stop.arrivals.slice(0, DEPARTURES_SHOWN).map(arrival => {
+            const minutes = minutesUntil(arrival, now);
+            return (
+              <li key={`${arrival.route}-${arrival.due}`} className="dashboard-arrival">
+                <LineBadge mode={mode} line={arrival.route} />
+                <span className="dashboard-destination">
+                  <span className="dashboard-destination-name">{arrival.destination}</span>
+                  {arrival.stop && <span className="dashboard-destination-stop">{arrival.stop}</span>}
+                </span>
+                <span className="dashboard-due" data-soon={minutes <= SOON_MINUTES}>
+                  {minutes < 1 ? 'Due' : `${minutes} min`}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <Unavailable>{card.missing}</Unavailable>
@@ -120,24 +188,19 @@ function DeparturesCard({
   );
 }
 
-/** The current weather over a picture of the sky, with the next three hours. */
-function WeatherHero({
+/** The weather over a photo of the place: now, the next three hours, and whether rain comes later. */
+function WeatherCard({
   weather,
   now,
-  clockFormat,
-  clock = false
-}: Readonly<{ weather: Weather | null; now: Date; clockFormat: ClockFormat; clock?: boolean }>) {
+  clockFormat
+}: Readonly<{ weather: Weather | null; now: Date; clockFormat: ClockFormat }>) {
   const fresh = weather && isFresh(weather.updatedAt, WEATHER_MAX_AGE_MS, now) ? weather : null;
+  const rainLater = fresh?.hours.some(hour => hour.conditions === 'rain') && fresh.conditions !== 'rain';
   return (
-    <section className="dashboard-weather" aria-label={fresh ? `Weather in ${fresh.location}` : 'Weather'}>
-      {clock && (
-        <div className="dashboard-clock">
-          <span className="dashboard-clock-time">{formatClockTime(now, clockFormat)}</span>
-          <span className="dashboard-clock-date">
-            {now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-          </span>
-        </div>
-      )}
+    <section
+      className="dashboard-card dashboard-weather"
+      aria-label={fresh ? `Weather in ${fresh.location}` : 'Weather'}
+    >
       {fresh ? (
         <>
           <div className="dashboard-now">
@@ -145,14 +208,19 @@ function WeatherHero({
               <MapPin aria-hidden="true" /> {fresh.location}
             </span>
             <span className="dashboard-temperature">{fresh.temperature}°</span>
-            <span className="dashboard-conditions">{CONDITIONS[fresh.conditions].label}</span>
+            <span className="dashboard-conditions">{CONDITION_LABELS[fresh.conditions]}</span>
+            {rainLater && (
+              <span className="dashboard-outlook">
+                <Umbrella aria-hidden="true" /> Rain later today
+              </span>
+            )}
           </div>
           <ol className="dashboard-hours">
-            {fresh.hours.slice(0, 3).map(hour => (
+            {fresh.hours.slice(0, HOURS_SHOWN).map(hour => (
               <li key={hour.time} className="dashboard-hour">
                 <span className="dashboard-hour-time">{formatClockTime(new Date(hour.time), clockFormat)}</span>
-                {CONDITIONS[hour.conditions].icon(34)}
-                <span className="sr-only">{CONDITIONS[hour.conditions].label}</span>
+                <WeatherIcon conditions={hour.conditions} />
+                <span className="sr-only">{CONDITION_LABELS[hour.conditions]}</span>
                 <span className="dashboard-hour-temperature">{hour.temperature}°</span>
               </li>
             ))}
@@ -165,23 +233,35 @@ function WeatherHero({
   );
 }
 
-/** What a notice is about, drawn rather than written: the line or route badge, or an icon. */
-function NoticeMark({ notice }: Readonly<{ notice: Notice }>) {
-  if ((notice.kind === 'tube' || notice.kind === 'bus') && notice.line) {
-    return <LineBadge mode={notice.kind} line={notice.line} />;
-  }
-  const icon = notice.kind === 'weather' ? <CloudRain aria-hidden="true" /> : <CalendarDays aria-hidden="true" />;
-  return <span className="dashboard-notice-icon">{icon}</span>;
+const NOTICE_ICONS: Record<Notice['kind'], () => ReactNode> = {
+  weather: () => <CloudRain aria-hidden="true" />,
+  delays: () => (
+    <svg viewBox="0 0 24 24" className="dashboard-notice-warning" aria-hidden="true">
+      <path d="M12 2.5 23 21.5H1z" />
+      <rect x="10.8" y="9" width="2.4" height="6.5" rx="1" />
+      <circle cx="12" cy="18.2" r="1.4" />
+    </svg>
+  ),
+  holiday: () => <CalendarDays aria-hidden="true" />,
+  closure: () => <Roundel />
+};
+
+/** A notice's icon on its tinted tile. */
+function NoticeIcon({ notice }: Readonly<{ notice: Notice }>) {
+  return (
+    <span className="dashboard-notice-icon" data-kind={notice.kind}>
+      {NOTICE_ICONS[notice.kind]()}
+    </span>
+  );
 }
 
-/** The notices, each as its badge, a two or three word status and when; tapping one shows the provider's full text. */
+/** The notices, each as a headline and one short line; tapping one shows the provider's full text. */
 function NoticeBoard({ notices }: Readonly<{ notices: Notice[] }>) {
   const [open, setOpen] = useState<Notice | null>(null);
-  if (notices.length === 0) return null;
   return (
-    <section className="dashboard-notices" aria-label="Notice board">
-      <h2 className="dashboard-card-title dashboard-notices-title">
-        <Megaphone aria-hidden="true" /> Notices
+    <section className="dashboard-card dashboard-notices" aria-labelledby="dashboard-notices-title">
+      <h2 id="dashboard-notices-title" className="dashboard-notices-title">
+        <Megaphone aria-hidden="true" /> Notice board
       </h2>
       <ul className="dashboard-notice-list">
         {notices.map(notice => (
@@ -190,14 +270,14 @@ function NoticeBoard({ notices }: Readonly<{ notices: Notice[] }>) {
               type="button"
               className="dashboard-notice"
               data-severity={notice.severity}
-              aria-label={notice.title}
               onClick={() => setOpen(notice)}
             >
-              <NoticeMark notice={notice} />
+              <NoticeIcon notice={notice} />
               <span className="dashboard-notice-text">
-                <span className="dashboard-notice-status">{notice.status}</span>
-                {notice.when && <span className="dashboard-notice-when">{notice.when}</span>}
+                <span className="dashboard-notice-title">{notice.title}</span>
+                <span className="dashboard-notice-summary">{notice.summary}</span>
               </span>
+              <ChevronRight className="dashboard-notice-chevron" aria-hidden="true" />
             </button>
           </li>
         ))}
@@ -209,7 +289,7 @@ function NoticeBoard({ notices }: Readonly<{ notices: Notice[] }>) {
           className="app-modal-panel notice-sheet"
         >
           <div className="notice-sheet-header">
-            <NoticeMark notice={open} />
+            <NoticeIcon notice={open} />
             <h3 id="dashboard-notice-title" className="notice-sheet-title">
               {open.title}
             </h3>
@@ -230,14 +310,13 @@ function NoticeBoard({ notices }: Readonly<{ notices: Notice[] }>) {
 }
 
 /**
- * The Dashboard tab: the weather, the next Tube and buses, and the notice board, in the layout picked in Settings >
- * Appearance. Reads its data only while `shown`.
+ * The Dashboard tab: the notice board down the left, the weather over a photo, and the next Tube and buses under it.
+ * Reads its data only while `shown`.
  */
 export default function Dashboard({
   shown,
-  clockFormat = DEFAULT_CLOCK_FORMAT,
-  layout = 'column'
-}: Readonly<{ shown: boolean; clockFormat?: ClockFormat; layout?: DashboardLayout }>) {
+  clockFormat = DEFAULT_CLOCK_FORMAT
+}: Readonly<{ shown: boolean; clockFormat?: ClockFormat }>) {
   const [data, setData] = useState<DashboardData>({ arrivals: null, weather: null, notices: [] });
   const [now, setNow] = useState(() => new Date());
 
@@ -265,11 +344,13 @@ export default function Dashboard({
   }, [shown]);
 
   return (
-    <div className="dashboard" data-layout={layout}>
-      <WeatherHero weather={data.weather} now={now} clockFormat={clockFormat} clock={layout === 'clock'} />
+    // The photo behind the weather, which the notice board's glow reuses. A stand-in until there is one per place and
+    // weather.
+    <div className="dashboard" style={{ '--weather-photo': `url(${londonPhoto})` } as CSSProperties}>
+      <NoticeBoard notices={data.notices} />
+      <WeatherCard weather={data.weather} now={now} clockFormat={clockFormat} />
       <DeparturesCard mode="tube" arrivals={data.arrivals} now={now} />
       <DeparturesCard mode="bus" arrivals={data.arrivals} now={now} />
-      <NoticeBoard notices={data.notices} />
     </div>
   );
 }
