@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { getDashboardData, isFresh } from './data';
+
+vi.mock('./arrivals', () => ({ readArrivals: () => Promise.resolve(null) }));
 
 describe('dashboard data', () => {
   const now = new Date('2026-11-15T09:00:00Z');
@@ -10,11 +12,11 @@ describe('dashboard data', () => {
     expect(isFresh('not a time', 5 * 60_000, now)).toBe(false);
   });
 
-  it('gives fresh departures and weather', async () => {
+  it('gives the departures from countdown-server, and fresh weather and notices', async () => {
     const data = await getDashboardData(now);
-    expect(data.arrivals?.stops.length).toBeGreaterThan(0);
+    expect(data.arrivals).toBeNull();
     expect(data.weather?.hours.length).toBeGreaterThan(0);
     expect(data.notices.length).toBeGreaterThan(0);
-    expect(isFresh(data.arrivals?.updatedAt ?? '', 60_000, now)).toBe(true);
+    expect(isFresh(data.weather?.updatedAt ?? '', 60_000, now)).toBe(true);
   });
 });

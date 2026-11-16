@@ -1,3 +1,4 @@
+// cspell:ignore GZZLUEAC HUBZEC
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 
@@ -12,6 +13,7 @@ const search = JSON.parse(
 // countdown-server's screens' API, as the build names it (.env.production).
 const API = 'https://api.countdown.build';
 export const CONFIG = `${API}/api/devices/config`;
+const ARRIVALS = `${API}/api/devices/arrivals`;
 
 /**
  * countdown-api's example config, once someone owns the kiosk. Before that there's none: a touchscreen registers through
@@ -82,6 +84,13 @@ export async function fakeCountdownServer(
       body: JSON.stringify(current)
     });
   });
+  // The departures (GET /api/devices/arrivals): refused, as for a secret the server doesn't know, unless a test calls
+  // fakeArrivals.
+  await page.route(ARRIVALS, route => {
+    const cors = corsFor(route.request().headers()['origin']);
+    const isPreflight = route.request().method() === 'OPTIONS';
+    return route.fulfill({ status: isPreflight ? 204 : 401, headers: cors });
+  });
   // The searches answer countdown-api's example: its stops for "oslo s", its places for "oslo", and nothing else.
   const searches = [
     ['/api/stops/search', search.stops_query, search.stops],
@@ -107,4 +116,56 @@ export async function fakeCountdownServer(
     )
   );
   return { authorizations, saves };
+}
+
+/**
+ * Stands in for countdown-server's GET /api/devices/arrivals (proposed; not in countdown-api's contract yet): a Tube
+ * station's trains and a bus hub's buses, read at `now` (the page's fixed clock) and timed from it.
+ */
+export async function fakeArrivals(page: Page, now: Date) {
+  const at = (minutes: number) => new Date(now.getTime() + minutes * 60_000).toISOString();
+  const departure = (
+    mode: string,
+    line: string,
+    destination: string,
+    minutes: number,
+    letter: string | null = null
+  ) => ({
+    mode,
+    line,
+    destination,
+    stop_letter: letter,
+    expected: at(minutes)
+  });
+  const answer = {
+    stops: [
+      {
+        source: 'tfl',
+        id: '940GZZLUEAC',
+        name: 'Elephant & Castle',
+        fetched_at: now.toISOString(),
+        departures: [
+          departure('tube', 'Northern', 'High Barnet', 3),
+          departure('tube', 'Northern', 'Morden', 7),
+          departure('tube', 'Bakerloo', 'Harrow & Wealdstone', 9)
+        ]
+      },
+      {
+        source: 'tfl',
+        id: 'HUBZEC',
+        name: 'Elephant & Castle',
+        fetched_at: now.toISOString(),
+        departures: [
+          departure('bus', '12', 'Oxford Circus', 2, 'E'),
+          departure('bus', '343', 'New Cross', 6, 'F'),
+          departure('bus', '12', 'Oxford Circus', 11, 'E')
+        ]
+      }
+    ]
+  };
+  await page.route(ARRIVALS, route => {
+    const cors = corsFor(route.request().headers()['origin']);
+    const isPreflight = route.request().method() === 'OPTIONS';
+    return route.fulfill(isPreflight ? { status: 204, headers: cors } : { status: 200, headers: cors, json: answer });
+  });
 }
