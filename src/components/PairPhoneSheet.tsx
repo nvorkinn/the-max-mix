@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Bluetooth, Smartphone } from 'lucide-react';
-import { linkPhone } from '../spotify/auth';
 import { pairPhone, pickPhone, readBluetoothReport } from '../utils/bluetoothMonitor';
 import type { PairingStatus } from '../utils/bluetoothMonitor';
 import { errorMessage } from '../utils/errorMessage';
+import { setPersonPhone } from '../utils/phoneLinks';
 import Modal from './Modal';
 
 /** How often the sheet asks the Pi what it hears and how pairing is going. */
@@ -51,7 +51,7 @@ export default function PairPhoneSheet({
           setPairing(report.pairing);
           if (report.pairing.state === 'paired') {
             isWaiting = false;
-            linkPhone(spotifyId, report.pairing.address);
+            setPersonPhone(spotifyId, report.pairing.address);
             onDoneRef.current();
           } else if (report.pairing.state === 'failed') {
             isWaiting = false;

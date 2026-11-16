@@ -14,6 +14,7 @@ import { errorMessage } from '../../utils/errorMessage';
 import { forgetSignIns, isKiosk } from '../../utils/kiosk';
 import ConfirmButton from '../ConfirmButton';
 import PhonePicker from '../PhonePicker';
+import { forgetUnlinkedPhone } from '../../utils/phoneLinks';
 import SpotifyIcon from '../SpotifyIcon';
 
 /**
@@ -96,6 +97,7 @@ export default function SpotifySettings({
                 icon={<Trash2 className="w-5 h-5 shrink-0" aria-hidden="true" />}
                 onConfirm={() => {
                   const outcome = removePerson(person.spotifyId);
+                  forgetUnlinkedPhone(person.phoneAddress);
                   if (outcome === 'kept') setPeople(peopleOnKiosk());
                   else if (outcome === 'switched') onReload();
                   else void forgetSignIns().then(() => onReload());

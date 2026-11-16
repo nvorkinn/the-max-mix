@@ -3,14 +3,14 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '../test/user';
 import PhonePicker from './PhonePicker';
 
-const auth = vi.hoisted(() => ({ linkPhone: vi.fn() }));
+const links = vi.hoisted(() => ({ setPersonPhone: vi.fn() }));
 const monitor = vi.hoisted(() => ({ readBluetoothReport: vi.fn(), pairPhone: vi.fn() }));
-vi.mock('../spotify/auth', () => auth);
+vi.mock('../utils/phoneLinks', () => links);
 vi.mock('../utils/bluetoothMonitor', () => monitor);
 
 describe('PhonePicker', () => {
   beforeEach(() => {
-    auth.linkPhone.mockReset();
+    links.setPersonPhone.mockReset();
     monitor.readBluetoothReport.mockResolvedValue({
       phones: [
         { address: 'AA:01', name: 'Anna’s iPhone', isHere: false },
@@ -27,7 +27,7 @@ describe('PhonePicker', () => {
     await userEvent.click(button);
     expect(screen.getByRole('button', { name: 'Anna’s iPhone' })).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(screen.getByRole('button', { name: 'Olav’s iPhone' }));
-    expect(auth.linkPhone).toHaveBeenCalledWith('anna', 'AA:02');
+    expect(links.setPersonPhone).toHaveBeenCalledWith('anna', 'AA:02');
     expect(onChange).toHaveBeenCalled();
   });
 
@@ -66,6 +66,6 @@ describe('PhonePicker', () => {
     render(<PhonePicker spotifyId="anna" name="Anna" phoneAddress="AA:01" onChange={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: 'Anna’s phone' }));
     await userEvent.click(screen.getByRole('button', { name: 'No phone' }));
-    expect(auth.linkPhone).toHaveBeenCalledWith('anna', '');
+    expect(links.setPersonPhone).toHaveBeenCalledWith('anna', '');
   });
 });

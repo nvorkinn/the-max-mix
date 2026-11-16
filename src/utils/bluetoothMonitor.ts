@@ -189,6 +189,17 @@ export async function pickPhone(address: string): Promise<void> {
   if (!response.ok) throw await refusal(response);
 }
 
+/** Unpairs a phone and drops it from the Pi's saved phones. */
+export async function forgetPhone(address: string): Promise<void> {
+  const response = await fetch(`${KIOSK_SERVICE}/bluetooth/remove`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address }),
+    signal: AbortSignal.timeout(TIMEOUT_MS)
+  });
+  if (!response.ok) throw await refusal(response);
+}
+
 /** Starts looking for phones to pair (or gives it two more minutes), or stops; rejects with a message to show. */
 export async function pairPhone(isStarting: boolean): Promise<void> {
   const response = await fetch(`${KIOSK_SERVICE}/bluetooth/pair-phone${isStarting ? '' : '/stop'}`, {
