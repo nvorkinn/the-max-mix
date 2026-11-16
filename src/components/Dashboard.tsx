@@ -10,7 +10,12 @@ import { DEFAULT_CLOCK_FORMAT, formatClockTime } from '../utils/clockFormat';
 import type { ClockFormat } from '../utils/clockFormat';
 import { DEFAULT_DASHBOARD_LAYOUT } from '../utils/dashboardLayout';
 import type { DashboardLayout } from '../utils/dashboardLayout';
-import londonPhoto from '../assets/dashboard/london.jpg';
+import londonPhoto from '../assets/dashboard/london-sunset-fallback.jpg';
+import clearWeather from '../assets/dashboard/weather/clear.webp';
+import partlyCloudyWeather from '../assets/dashboard/weather/partly-cloudy.webp';
+import cloudyWeather from '../assets/dashboard/weather/cloudy.webp';
+import rainWeather from '../assets/dashboard/weather/rain.webp';
+import snowWeather from '../assets/dashboard/weather/snow.webp';
 import Modal from './Modal';
 
 /** How often the Dashboard asks for its data again while it is showing. */
@@ -52,42 +57,24 @@ const LINE_COLOURS: Record<string, readonly [string, string]> = {
   'Waterloo & City': ['#95cdba', '#000']
 };
 
-/** A yellow sun with its rays, at (cx, cy). */
-function sunAt(cx: number, cy: number, r: number) {
-  return (
-    <g className="weather-icon-sun">
-      {Array.from({ length: 8 }, (_, ray) => {
-        const angle = (ray * Math.PI) / 4;
-        return (
-          <line
-            key={ray}
-            x1={cx + Math.cos(angle) * (r + 3)}
-            y1={cy + Math.sin(angle) * (r + 3)}
-            x2={cx + Math.cos(angle) * (r + 7)}
-            y2={cy + Math.sin(angle) * (r + 7)}
-          />
-        );
-      })}
-      <circle cx={cx} cy={cy} r={r} />
-    </g>
-  );
-}
+/** Transparent atmospheric weather artwork. The same condition uses coordinated art at both sizes. */
+const WEATHER_IMAGES: Record<Conditions, string> = {
+  clear: clearWeather,
+  'partly-cloudy': partlyCloudyWeather,
+  cloudy: cloudyWeather,
+  rain: rainWeather,
+  snow: snowWeather
+};
 
-/** The weather drawn in colour: a white cloud, a yellow sun, blue rain and snow. */
 function WeatherIcon({ conditions, hero = false }: Readonly<{ conditions: Conditions; hero?: boolean }>) {
-  const cloud = (
-    <path className="weather-icon-cloud" d="M15 44h30a10 10 0 0 0 1-20 14 14 0 0 0-27-4 11 11 0 0 0-4 24z" />
-  );
   return (
-    <svg viewBox="0 0 60 60" className={`weather-icon${hero ? ' weather-icon-hero' : ''}`} aria-hidden="true">
-      {conditions === 'clear' && sunAt(30, 30, 12)}
-      {conditions === 'partly-cloudy' && sunAt(38, 20, 9)}
-      {conditions !== 'clear' && cloud}
-      {conditions === 'rain' &&
-        [20, 30, 40].map(x => <line key={x} className="weather-icon-rain" x1={x} y1={49} x2={x - 3} y2={56} />)}
-      {conditions === 'snow' &&
-        [20, 30, 40].map(x => <circle key={x} className="weather-icon-snow" cx={x} cy={52} r={2.4} />)}
-    </svg>
+    <img
+      src={WEATHER_IMAGES[conditions]}
+      className={`weather-icon${hero ? ' weather-icon-hero' : ''}`}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+    />
   );
 }
 
@@ -350,9 +337,15 @@ function WeatherCard({
             <span className="dashboard-place">
               <MapPin aria-hidden="true" /> {fresh.location}
             </span>
-            <span className="dashboard-now">
-              <span className="dashboard-temperature">{fresh.temperature}°</span>
-              <span className="dashboard-conditions">{CONDITION_LABELS[fresh.conditions]}</span>
+            <span className="dashboard-modular-weather-hero">
+              <span className="dashboard-now">
+                <span className="dashboard-temperature">{fresh.temperature}°</span>
+                <span className="dashboard-conditions">{CONDITION_LABELS[fresh.conditions]}</span>
+                <span className="dashboard-high-low">
+                  High {fresh.high}° <span aria-hidden="true">·</span> Low {fresh.low}°
+                </span>
+              </span>
+              <WeatherIcon conditions={fresh.conditions} hero />
             </span>
           </>
         ) : (
@@ -361,6 +354,8 @@ function WeatherCard({
       </section>
     );
   }
+  const updatedMinutes = fresh ? Math.max(0, Math.floor((now.getTime() - Date.parse(fresh.updatedAt)) / 60_000)) : 0;
+  const updatedLabel = updatedMinutes < 2 ? 'Updated just now' : `Updated ${updatedMinutes} min ago`;
   return (
     <section className="dashboard-card dashboard-weather" aria-label={label}>
       {fresh ? (
@@ -369,7 +364,7 @@ function WeatherCard({
             <span className="dashboard-place">
               <MapPin aria-hidden="true" /> {fresh.location}
             </span>
-            <span className="dashboard-weather-label">Local weather</span>
+            <span className="dashboard-weather-label">{updatedLabel}</span>
           </div>
           <div className="dashboard-weather-hero">
             <div className="dashboard-now">
@@ -447,6 +442,12 @@ function NoticeIcon({ notice }: Readonly<{ notice: Notice }>) {
  */
 function NoticeBoard({ notices, layout }: Readonly<{ notices: Notice[]; layout: DashboardLayout }>) {
   const [open, setOpen] = useState<Notice | null>(null);
+  const priority: Record<Notice['severity'], number> = { severe: 0, minor: 1, planned: 2, info: 3 };
+  // Weather warnings lead other notices of the same severity; urgent events always outrank minor ones.
+  const kindPriority: Record<Notice['kind'], number> = { weather: 0, delays: 1, closure: 2, holiday: 3 };
+  const orderedNotices = notices.toSorted(
+    (a, b) => priority[a.severity] - priority[b.severity] || kindPriority[a.kind] - kindPriority[b.kind]
+  );
   return (
     <section className="dashboard-card dashboard-notices" aria-labelledby="dashboard-notices-title">
       <h2 id="dashboard-notices-title" className="dashboard-notices-title">
@@ -454,7 +455,7 @@ function NoticeBoard({ notices, layout }: Readonly<{ notices: Notice[]; layout: 
         {layout === 'list' && <span className="dashboard-notice-count">{notices.length} updates</span>}
       </h2>
       <ul className="dashboard-notice-list">
-        {notices.map(notice => (
+        {orderedNotices.map(notice => (
           <li key={notice.id}>
             <button
               type="button"
@@ -509,12 +510,18 @@ export default function Dashboard({
   shown,
   clockFormat = DEFAULT_CLOCK_FORMAT,
   config = null,
-  layout = DEFAULT_DASHBOARD_LAYOUT
+  layout = DEFAULT_DASHBOARD_LAYOUT,
+  backgroundImageUrl,
+  backgroundIncludesWeatherArtwork = false
 }: Readonly<{
   shown: boolean;
   clockFormat?: ClockFormat;
   config?: TouchscreenConfig | null;
   layout?: DashboardLayout;
+  /** URL of an externally supplied daily scene. Omit to use the bundled fallback. */
+  backgroundImageUrl?: string;
+  /** Set true if the daily scene already depicts the current condition (e.g. sun and clouds). */
+  backgroundIncludesWeatherArtwork?: boolean;
 }>) {
   // Only the Dashboard's own sections: a change of skin or screen sleep doesn't read the data again.
   const arrivalsSettings = config?.arrivals;
@@ -554,13 +561,16 @@ export default function Dashboard({
   }, [shown, settings, clockFormat]);
 
   const hasNotices = data.notices.length > 0;
+  // This is a presentation contract only: the daily-image generator and caching live elsewhere.
+  const sceneUrl = backgroundImageUrl || londonPhoto;
+  const scene = `url(${JSON.stringify(sceneUrl)})`;
   return (
-    // Visual placeholder only. The background-image provider is being implemented separately.
     <div
       className="dashboard"
       data-layout={layout}
       data-notices={hasNotices ? 'some' : 'none'}
-      style={{ '--weather-photo': `url(${londonPhoto})` } as CSSProperties}
+      data-weather-artwork={backgroundIncludesWeatherArtwork || !backgroundImageUrl ? 'integrated' : 'separate'}
+      style={{ '--weather-photo': scene } as CSSProperties}
     >
       {hasNotices && <NoticeBoard notices={data.notices} layout={layout} />}
       <WeatherCard weather={data.weather} now={now} clockFormat={clockFormat} layout={layout} />
