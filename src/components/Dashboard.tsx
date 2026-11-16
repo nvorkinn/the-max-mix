@@ -350,9 +350,15 @@ function WeatherCard({
             <span className="dashboard-place">
               <MapPin aria-hidden="true" /> {fresh.location}
             </span>
-            <span className="dashboard-now">
-              <span className="dashboard-temperature">{fresh.temperature}°</span>
-              <span className="dashboard-conditions">{CONDITION_LABELS[fresh.conditions]}</span>
+            <span className="dashboard-modular-weather-hero">
+              <span className="dashboard-now">
+                <span className="dashboard-temperature">{fresh.temperature}°</span>
+                <span className="dashboard-conditions">{CONDITION_LABELS[fresh.conditions]}</span>
+                <span className="dashboard-high-low">
+                  High {fresh.high}° <span aria-hidden="true">·</span> Low {fresh.low}°
+                </span>
+              </span>
+              <WeatherIcon conditions={fresh.conditions} hero />
             </span>
           </>
         ) : (
