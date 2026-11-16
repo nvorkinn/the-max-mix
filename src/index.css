@@ -347,6 +347,16 @@
 .app-tab-panel[hidden] {
   display: none;
 }
+/* Changing tab fades the whole screen (see utils/crossfade.ts). The overlay lets taps through, so a quick second tap
+   starts the next fade at once instead of being swallowed by the first. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 300ms;
+}
 .header-actions {
   display: flex;
   align-items: center;
