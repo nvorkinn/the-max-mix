@@ -60,7 +60,7 @@ export const AREAS: Area[] = [
       /^src\/components\/settings\//,
       /^src\/components\/(KioskSystem|ConfirmButton|PhonePicker|PairPhoneSheet)/,
       /^src\/hooks\/useSavedPhones/,
-      /^src\/utils\/(theme|sun|clockFormat)/,
+      /^src\/utils\/(theme|sun|clockFormat|phoneLinks)/,
       /^src\/hooks\/useTheme/,
       /^src\/sonos\//
     ]
