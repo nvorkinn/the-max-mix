@@ -6,6 +6,28 @@ import type { ConfigSection } from '../countdown/config';
 /** How long a section waits after a change before it saves, so a run of quick taps sends only the last one. */
 export const SAVE_DEBOUNCE_MS = 500;
 
+/**
+ * How often the kiosk asks the server for its config again while it runs, so a change made on the settings site reaches
+ * the screen.
+ */
+export const CONFIG_REFRESH_MS = 5 * 60_000;
+
+/**
+ * `next`, with each section that hasn't changed since `before` kept as the same object, and `before` itself when
+ * nothing has: what reads a section (the Dashboard's stops, place and postcode) then only acts on a real change.
+ */
+function keepUnchanged(before: TouchscreenConfig | null, next: TouchscreenConfig): TouchscreenConfig {
+  if (!before) return next;
+  let changed = false;
+  const kept: Record<string, unknown> = { ...next };
+  for (const [key, value] of Object.entries(next)) {
+    const old = (before as unknown as Record<string, unknown>)[key];
+    if (JSON.stringify(old) === JSON.stringify(value)) kept[key] = old;
+    else changed = true;
+  }
+  return changed ? (kept as unknown as TouchscreenConfig) : before;
+}
+
 /** How long the Saved tick, or the message for a change that didn't save, stays up. */
 const SAVE_NOTE_MS = 2500;
 
@@ -29,8 +51,8 @@ export interface DeviceConfig {
 }
 
 /**
- * The kiosk's config from countdown-server: loaded at start and whenever asked, and saved a section at a time from the
- * Settings tab. Each change shows at once and saves in the background; a failed save undoes it, and a save the server
+ * The kiosk's config from countdown-server: loaded at start, every few minutes after and whenever asked, and saved a
+ * section at a time from the Settings tab. Each change shows at once and saves in the background; a failed save undoes it, and a save the server
  * calls out of date loads the latest config instead.
  */
 export function useDeviceConfig(): DeviceConfig {
@@ -56,7 +78,8 @@ export function useDeviceConfig(): DeviceConfig {
       const shown = shownRef.current;
       let next = loaded;
       if (shown) for (const key of timersRef.current.keys()) next = { ...next, [key]: shown[key] };
-      show(next);
+      next = keepUnchanged(shown, next);
+      if (next !== shown) show(next);
     });
   }, [show]);
 
@@ -64,8 +87,10 @@ export function useDeviceConfig(): DeviceConfig {
     mountedRef.current = true;
     const timers = timersRef.current;
     reload();
+    const refresh = setInterval(reload, CONFIG_REFRESH_MS);
     return () => {
       mountedRef.current = false;
+      clearInterval(refresh);
       for (const timer of timers.values()) clearTimeout(timer);
       timers.clear();
     };

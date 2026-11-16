@@ -11,7 +11,7 @@ describe('dashboard data', () => {
   });
 
   it('gives fresh departures and weather', async () => {
-    const data = await getDashboardData(now);
+    const data = await getDashboardData(null, now);
     expect(data.arrivals?.stops.length).toBeGreaterThan(0);
     expect(data.weather?.hours.length).toBeGreaterThan(0);
     expect(data.notices.length).toBeGreaterThan(0);

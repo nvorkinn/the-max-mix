@@ -1,9 +1,11 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import type { TouchscreenConfig } from 'countdown-api';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DashboardData } from '../dashboard/data';
+import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import Dashboard from './Dashboard';
 
-const data = vi.hoisted(() => ({ getDashboardData: vi.fn<() => Promise<DashboardData>>() }));
+const data = vi.hoisted(() => ({ getDashboardData: vi.fn<(settings?: unknown) => Promise<DashboardData>>() }));
 vi.mock('../dashboard/data', async importOriginal => ({
   ...(await importOriginal<typeof import('../dashboard/data')>()),
   getDashboardData: data.getDashboardData
@@ -120,5 +122,22 @@ describe('Dashboard', () => {
     data.getDashboardData.mockResolvedValue(dashboard());
     render(<Dashboard shown={false} />);
     expect(data.getDashboardData).not.toHaveBeenCalled();
+  });
+
+  it("reads its data for the owner's settings, again when they change but not when the skin does", async () => {
+    data.getDashboardData.mockResolvedValue(dashboard());
+    const owned = fixture.config as TouchscreenConfig;
+    const sections = { arrivals: owned.arrivals, weather: owned.weather, notice_board: owned.notice_board };
+    const { rerender } = render(<Dashboard shown config={owned} />);
+    await waitFor(() => {
+      expect(data.getDashboardData).toHaveBeenCalledWith(sections);
+    });
+    rerender(<Dashboard shown config={{ ...owned, style: { ...owned.style, skin: 'night' } }} />);
+    expect(data.getDashboardData).toHaveBeenCalledTimes(1);
+    const moved = { location: 'Bergen', key: 'bergen-no-3161732' };
+    rerender(<Dashboard shown config={{ ...owned, weather: moved }} />);
+    await waitFor(() => {
+      expect(data.getDashboardData).toHaveBeenLastCalledWith({ ...sections, weather: moved });
+    });
   });
 });
