@@ -212,7 +212,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await page.goto('/');
       await page.getByRole('tab', { name: 'Dashboard' }).click();
       const dashboard = page.getByRole('tabpanel', { name: 'Dashboard' });
-      await expect(dashboard.getByText('Morden')).toBeVisible();
+      await expect(dashboard.getByText('Morden', { exact: true })).toBeVisible();
       await expect(page).toHaveScreenshot(shotName('dashboard', screen), SHOT);
     });
 
@@ -227,7 +227,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await page.goto('/');
       await page.getByRole('tab', { name: 'Dashboard' }).click();
       const dashboard = page.getByRole('tabpanel', { name: 'Dashboard' });
-      await expect(dashboard.getByText('Morden')).toBeVisible();
+      await expect(dashboard.getByText('Morden', { exact: true })).toBeVisible();
       await expect(page).toHaveScreenshot(shotName('dashboard-night', screen), SHOT);
     });
 
