@@ -6,6 +6,7 @@ import { isKiosk } from '../utils/kiosk';
 import { reloadSettings } from '../spotify/settings';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import type { ThemeColour } from '../utils/themeColour';
+import type { DashboardLayout } from '../utils/dashboardLayout';
 import type { Skin, Theme } from '../utils/theme';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import type { DeviceConfig, SaveStatus } from '../hooks/useDeviceConfig';
@@ -44,6 +45,8 @@ interface SettingsPanelProps {
   onScreenSleepChange?: (minutes: ScreenSleepMinutes) => void;
   themeColour?: ThemeColour;
   onThemeColourChange?: (colour: ThemeColour) => void;
+  dashboardLayout?: DashboardLayout;
+  onDashboardLayoutChange?: (layout: DashboardLayout) => void;
   theme?: Theme;
   /** Whether Auto (sunrise to sunset) is offered: only when the kiosk knows its location. */
   autoTheme?: boolean;
@@ -89,6 +92,8 @@ export default function SettingsPanel({
   onScreenSleepChange,
   themeColour,
   onThemeColourChange,
+  dashboardLayout,
+  onDashboardLayoutChange,
   theme,
   autoTheme = false,
   onThemeChange,
@@ -154,6 +159,8 @@ export default function SettingsPanel({
           skin={skin}
           themeColour={themeColour}
           onThemeColourChange={onThemeColourChange}
+          dashboardLayout={dashboardLayout}
+          onDashboardLayoutChange={onDashboardLayoutChange}
         />
       );
       break;

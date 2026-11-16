@@ -14,6 +14,7 @@ describe('dashboard data', () => {
     const data = await getDashboardData(now);
     expect(data.arrivals?.stops.length).toBeGreaterThan(0);
     expect(data.weather?.hours.length).toBeGreaterThan(0);
+    expect(data.notices.length).toBeGreaterThan(0);
     expect(isFresh(data.arrivals?.updatedAt ?? '', 60_000, now)).toBe(true);
   });
 });

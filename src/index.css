@@ -2564,138 +2564,407 @@ input:disabled {
   touch-action: none;
 }
 
-/* The Dashboard tab: the next buses beside the weather, read from across the room. */
+/*
+  The Dashboard tab: the weather over a picture of the sky, the next Tube and buses on dark cards, and the notice board,
+  placed by the layout picked in Settings > Appearance (data-layout). The dark cards and the sky keep light text in both
+  skins; the notices' severity colours are picked to read on them.
+*/
 .dashboard {
+  --dashboard-card: color-mix(in srgb, var(--accent) 40%, #121614);
+  --dashboard-card-row: rgb(255 255 255 / 8%);
+  --dashboard-card-ink: #fff;
+  --dashboard-card-muted: rgb(255 255 255 / 68%);
+  /* Stand-ins until the weather pictures arrive. */
+  --dashboard-sky: linear-gradient(165deg, #2f5d8f 0%, #6f9cc9 55%, #e7a76c 100%);
+  --dashboard-minor: #f0b64c;
+  --dashboard-severe: #ff7b8a;
+  --dashboard-good: #57d3b4;
+  --dashboard-info: #8fb3ff;
+
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  gap: 24px;
-  padding: 24px 30px;
+  gap: 16px;
+  padding: 18px 24px 22px;
 }
-.dashboard-panel {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 22px 24px;
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  background: var(--surface);
-  overflow: hidden;
+.tablet-container[data-theme='night'] .dashboard {
+  --dashboard-card: var(--surface);
+  --dashboard-sky: linear-gradient(165deg, #070d24 0%, #1b2752 55%, #4a2f6e 100%);
 }
-.dashboard-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--accent);
+.dashboard[data-layout='column'] {
+  grid-template:
+    'notices weather weather' minmax(0, 1fr) 'notices tube bus' auto / clamp(270px, 27vw, 340px) minmax(0, 1fr)
+    minmax(0, 1fr);
 }
-.dashboard-title svg {
-  width: 28px;
-  height: 28px;
+.dashboard[data-layout='strip'] {
+  grid-template: 'weather weather' minmax(0, 1fr) 'tube bus' auto 'notices notices' auto / minmax(0, 1fr) minmax(0, 1fr);
+}
+.dashboard[data-layout='clock'] {
+  grid-template: 'weather weather' minmax(0, 1fr) 'notices notices' auto 'tube bus' auto / minmax(0, 1fr) minmax(0, 1fr);
+}
+.dashboard-departures:nth-of-type(2) {
+  grid-area: tube;
+}
+.dashboard-departures:nth-of-type(3) {
+  grid-area: bus;
+}
+.dashboard-notices {
+  grid-area: notices;
 }
 .dashboard-unavailable {
   margin: auto 0;
   text-align: center;
   font-size: 20px;
   font-weight: 650;
-  color: var(--muted);
+  color: var(--dashboard-card-muted);
 }
-.dashboard-stop-name {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--muted);
-}
-.dashboard-arrival {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-  min-height: 46px;
-  border-bottom: 1px solid var(--border);
-}
-.dashboard-arrival:last-child {
-  border-bottom: 0;
-}
-.dashboard-route {
-  justify-self: start;
-  padding: 2px 10px;
-  border-radius: 8px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-size: 20px;
-  font-weight: 800;
-}
-.dashboard-destination {
+
+/* The weather. */
+.dashboard-weather {
+  grid-area: weather;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 26px;
+  border-radius: 24px;
+  background: var(--dashboard-sky) center / cover;
+  color: #fff;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 35%);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 20px;
-  font-weight: 650;
-}
-.dashboard-due {
-  font-size: 22px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
 }
 .dashboard-now {
   display: flex;
+  flex-direction: column;
+}
+.dashboard-place {
+  display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 6px;
+  font-size: 20px;
+  font-weight: 700;
+}
+.dashboard-place svg {
+  width: 20px;
+  height: 20px;
 }
 .dashboard-temperature {
-  font-size: 84px;
+  font-size: 96px;
   font-weight: 850;
   line-height: 1;
   letter-spacing: -0.04em;
 }
-.dashboard-now-details {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 22px;
+.dashboard-conditions {
+  font-size: 26px;
   font-weight: 700;
 }
-.dashboard-range {
-  color: var(--muted);
-}
 .dashboard-hours {
-  margin-top: auto;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px 8px;
+  display: flex;
+  gap: 22px;
 }
 .dashboard-hour {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  font-weight: 700;
+  gap: 6px;
+  font-weight: 750;
 }
 .dashboard-hour-time {
-  font-size: 15px;
-  color: var(--muted);
+  font-size: 16px;
   font-variant-numeric: tabular-nums;
 }
 .dashboard-hour-temperature {
+  font-size: 22px;
+}
+.dashboard-clock {
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-clock-time {
+  font-size: 104px;
+  font-weight: 850;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.dashboard-clock-date {
+  font-size: 24px;
+  font-weight: 700;
+}
+/* With the clock the weather sits beside it, smaller, and the hours go under the time. */
+.dashboard[data-layout='clock'] .dashboard-weather {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-content: space-between;
+}
+.dashboard[data-layout='clock'] .dashboard-now {
+  align-items: flex-end;
+  text-align: right;
+}
+.dashboard[data-layout='clock'] .dashboard-temperature {
+  font-size: 64px;
+}
+.dashboard[data-layout='clock'] .dashboard-conditions {
   font-size: 20px;
 }
+.dashboard[data-layout='clock'] .dashboard-hours {
+  grid-column: 1 / -1;
+  justify-self: end;
+}
 
+/* The departures. */
+.dashboard-departures,
+.dashboard-notices {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 18px;
+  border-radius: 24px;
+  background: var(--dashboard-card);
+  color: var(--dashboard-card-ink);
+  overflow: hidden;
+}
+.dashboard-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 800;
+}
+.dashboard-card-title svg {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+.dashboard-stop-name {
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--dashboard-card-muted);
+}
+.dashboard-arrival-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dashboard-arrival {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 6px 0 0;
+}
+.dashboard-line {
+  justify-self: start;
+  min-width: 44px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: var(--line);
+  color: var(--line-ink);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 22%);
+  text-align: center;
+  font-size: 17px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.dashboard-line-bus {
+  --line: #d7261e;
+  --line-ink: #fff;
+  font-size: 19px;
+}
+.dashboard-destination {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 19px;
+  font-weight: 650;
+}
+.dashboard-due {
+  padding: 2px 10px;
+  border-radius: 8px;
+  background: var(--dashboard-card-row);
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The notice board: a badge, a two or three word status and when; the full text opens on a tap. */
+.dashboard-notice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dashboard-notice {
+  width: 100%;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-left: 6px solid var(--severity);
+  border-radius: 14px;
+  background: var(--dashboard-card-row);
+  color: inherit;
+  text-align: left;
+}
+.dashboard-notice[data-severity='minor'] {
+  --severity: var(--dashboard-minor);
+}
+.dashboard-notice[data-severity='severe'],
+.dashboard-notice[data-severity='closed'] {
+  --severity: var(--dashboard-severe);
+}
+.dashboard-notice[data-severity='good'] {
+  --severity: var(--dashboard-good);
+}
+.dashboard-notice[data-severity='info'] {
+  --severity: var(--dashboard-info);
+}
+.dashboard-notice-icon {
+  width: 44px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--severity) 22%, transparent);
+  color: var(--severity);
+}
+.dashboard-notice-icon svg {
+  width: 24px;
+  height: 24px;
+}
+.dashboard-notice-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-notice-status,
+.dashboard-notice-when {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard-notice-status {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--severity);
+}
+.dashboard-notice-when {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--dashboard-card-muted);
+}
+/* In a row across the screen the notices share it; those that don't fit wrap out of sight. */
+.dashboard:not([data-layout='column']) .dashboard-notices {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+}
+.dashboard:not([data-layout='column']) .dashboard-notices-title {
+  font-size: 0;
+}
+.dashboard:not([data-layout='column']) .dashboard-notice-list {
+  flex: 1;
+  min-width: 0;
+  flex-flow: row wrap;
+  height: 60px;
+  overflow: hidden;
+}
+.dashboard:not([data-layout='column']) .dashboard-notice-list > li {
+  flex: 1 1 210px;
+  min-width: 0;
+}
+.dashboard[data-layout='clock'] .dashboard-notices {
+  background: transparent;
+  padding: 0;
+}
+.dashboard[data-layout='clock'] .dashboard-notices-title {
+  display: none;
+}
+.dashboard[data-layout='clock'] .dashboard-notice {
+  background: var(--dashboard-card);
+  color: var(--dashboard-card-ink);
+}
+
+/* A notice's full text. */
+.app-dialog.notice-sheet {
+  width: min(640px, calc(100% - 48px));
+  padding: 26px 28px 30px;
+  border-radius: 28px;
+}
+.notice-sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.notice-sheet-header .dashboard-notice-icon {
+  --severity: var(--accent);
+}
+.notice-sheet-title {
+  flex: 1;
+  font-size: 24px;
+  font-weight: 800;
+}
+.notice-sheet-close {
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+}
+.notice-sheet-detail {
+  font-size: 20px;
+  line-height: 1.45;
+}
+
+/* The 7" screen: everything a little tighter, and two departures a card. */
 @media (height <= 640px) {
   .dashboard {
-    gap: 18px;
-    padding: 18px 30px;
+    gap: 12px;
+    padding: 12px 18px 16px;
   }
-  .dashboard-panel {
-    gap: 10px;
-    padding: 16px 20px;
+  .dashboard[data-layout='column'] {
+    grid-template-columns: 270px minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .dashboard-weather {
+    padding: 14px 20px;
+  }
+  .dashboard-temperature {
+    font-size: 76px;
+  }
+  .dashboard-conditions {
+    font-size: 22px;
+  }
+  .dashboard-clock-time {
+    font-size: 84px;
+  }
+  .dashboard-departures,
+  .dashboard-notices {
+    padding: 10px 14px;
+    gap: 6px;
+  }
+  .dashboard-card-title {
+    font-size: 20px;
   }
   .dashboard-arrival {
     min-height: 40px;
   }
-  .dashboard-temperature {
-    font-size: 68px;
+  .dashboard-arrival:nth-child(3) {
+    display: none;
+  }
+  .dashboard-notice {
+    min-height: 56px;
+  }
+  .dashboard:not([data-layout='column']) .dashboard-notice-list {
+    height: 56px;
   }
 }

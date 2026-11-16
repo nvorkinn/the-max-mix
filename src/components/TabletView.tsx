@@ -31,6 +31,8 @@ import { saveTheme } from '../utils/theme';
 import type { Theme } from '../utils/theme';
 import { DEFAULT_CLOCK_FORMAT, formatClockTime } from '../utils/clockFormat';
 import type { ThemeColour } from '../utils/themeColour';
+import { loadDashboardLayout, saveDashboardLayout } from '../utils/dashboardLayout';
+import type { DashboardLayout } from '../utils/dashboardLayout';
 import type { MusicChoice, Track } from '../types';
 import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
@@ -214,6 +216,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const clockFormat = ownedConfig?.clock_format ?? DEFAULT_CLOCK_FORMAT;
   const [localScreenSleep, setLocalScreenSleep] = useState(getScreenSleep);
   const [localThemeColour, setLocalThemeColour] = useState(loadThemeColour);
+  const [dashboardLayout, setDashboardLayout] = useState(loadDashboardLayout);
+  const changeDashboardLayout = (layout: DashboardLayout) => {
+    setDashboardLayout(layout);
+    saveDashboardLayout(layout);
+  };
   const screenSleepMinutes = display?.sleep_minutes ?? localScreenSleep;
   const themeColour = style?.colour ?? localThemeColour;
   const theme = useTheme(style?.skin);
@@ -643,7 +650,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         aria-label="Dashboard"
         hidden={screen !== 'dashboard'}
       >
-        <Dashboard shown={screen === 'dashboard' && !sleep.asleep} clockFormat={clockFormat} />
+        <Dashboard shown={screen === 'dashboard' && !sleep.asleep} clockFormat={clockFormat} layout={dashboardLayout} />
       </section>
       <section
         className="app-tab-panel"
@@ -663,6 +670,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             onScreenSleepChange={changeScreenSleep}
             themeColour={themeColour}
             onThemeColourChange={changeThemeColour}
+            dashboardLayout={dashboardLayout}
+            onDashboardLayoutChange={changeDashboardLayout}
             theme={theme.theme}
             autoTheme={theme.autoOffered}
             onThemeChange={changeTheme}
