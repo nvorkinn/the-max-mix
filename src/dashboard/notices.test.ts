@@ -188,3 +188,92 @@ describe('saying when', () => {
     expect(when([26, 4, 30], [28, 4, 30])).toBe('Sat–Sun');
   });
 });
+
+describe('the odd cases', () => {
+  const at = (hours: number) => new Date(NOW.getTime() + hours * 60 * 60_000).toISOString();
+
+  it('says the time of a status TfL gives no reason for, and keeps a sentence going past "St."', () => {
+    const notices = lineNotices(
+      [
+        {
+          id: 'dlr',
+          name: 'DLR',
+          modeName: 'dlr',
+          lineStatuses: [
+            {
+              statusSeverityDescription: 'Planned Closure',
+              validityPeriods: [{ fromDate: at(30), toDate: at(60) }]
+            },
+            { statusSeverityDescription: 'Part Closure', validityPeriods: [{ fromDate: at(-30), toDate: at(30) }] },
+            { statusSeverityDescription: 'Minor Delays', validityPeriods: [{ fromDate: at(-1), toDate: at(1) }] },
+            { statusSeverityDescription: 'Reduced Service', reason: 'Fewer trains via St. Paul. Allow extra time.' }
+          ]
+        },
+        { id: 'tram', name: 'Tram' }
+      ],
+      NOW,
+      '24h'
+    );
+    expect(notices.map(n => [n.title, n.severity, n.summary])).toEqual([
+      ['DLR: Closed', 'planned', expect.stringMatching(/^Closed \w{3}( \d\d:\d\d)?–/)],
+      ['DLR: Part closed', 'severe', expect.stringMatching(/^Part closed until /)],
+      ['DLR: Delays', 'minor', 'Delays'],
+      ['DLR: Reduced service', 'minor', 'Fewer trains via St. Paul.']
+    ]);
+  });
+
+  it('makes the worse of two routes with the same reason count, and a route twice once', () => {
+    const reason = 'Routes 1 and 2 are diverted.';
+    const notices = lineNotices(
+      [
+        { id: '1', name: '1', modeName: 'bus', lineStatuses: [{ statusSeverityDescription: 'Minor Delays', reason }] },
+        { id: '2', name: '2', modeName: 'bus', lineStatuses: [{ statusSeverityDescription: 'Suspended', reason }] },
+        { id: '1b', name: '1', modeName: 'bus', lineStatuses: [{ statusSeverityDescription: 'Suspended', reason }] }
+      ],
+      NOW,
+      '24h'
+    );
+    expect(notices).toMatchObject([{ title: 'Buses 1, 2: Diverted', severity: 'severe' }]);
+  });
+
+  it('counts a line two stops share once, and does without the sources it has nothing from', () => {
+    const [first] = device.tfl_stops;
+    const shared = { ...device, tfl_stops: [first, first].filter(stop => stop !== undefined) };
+    expect(boardNotices(shared, NOW, '24h')).toHaveLength(5);
+    const bare = { ...device, met_office: null, bank_holidays: null, tfl_stops: [] };
+    expect(boardNotices(bare, NOW, '24h')).toEqual([]);
+    expect(
+      boardNotices({ ...device, country: 'NO', postcode: '0150' }, new Date(2026, 11, 20), '24h')
+    ).not.toContainEqual(expect.objectContaining({ kind: 'holiday' }));
+  });
+
+  it('reads a warning into January in December as next year, and says holidays today and tomorrow', () => {
+    const items = [
+      {
+        title: 'Yellow warning of snow affecting Scotland',
+        description: 'valid from 1800 Thu 31 Dec to 1200 Fri 01 Jan',
+        link: '',
+        pub_date: ''
+      }
+    ];
+    const [snow] = boardNotices(
+      {
+        ...device,
+        tfl_stops: [],
+        bank_holidays: null,
+        met_office: { fetched_at: '2026-12-31T10:00:00Z', postcode: 'EH1 1AA', region: 'dg', items }
+      },
+      new Date('2026-12-31T10:00:00Z'),
+      '24h'
+    );
+    expect(snow?.summary).toMatch(/^Yellow warning: snow /);
+    expect(holidayNotices(events, new Date(2026, 11, 25))[0]?.summary).toBe('Today – Christmas Day');
+    expect(holidayNotices(events, new Date(2026, 11, 24))[0]?.summary).toBe('Tomorrow – Christmas Day');
+    expect(divisionOf('0150')).toBe('england-and-wales');
+  });
+
+  it('says one day for a closure that runs into the small hours of the next', () => {
+    const now = new Date(2026, 8, 25, 12, 0);
+    expect(sayWhen(new Date(2026, 8, 26, 0, 30), new Date(2026, 8, 27, 4, 0), now, '24h')).toBe('Sat');
+  });
+});
