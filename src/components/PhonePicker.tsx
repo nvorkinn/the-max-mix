@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Bluetooth, Smartphone } from 'lucide-react';
-import { linkPhone } from '../spotify/auth';
 import { samePhone, useSavedPhones } from '../hooks/useSavedPhones';
+import { setPersonPhone } from '../utils/phoneLinks';
 import Modal from './Modal';
 import PairPhoneSheet from './PairPhoneSheet';
 
@@ -24,7 +24,7 @@ export default function PhonePicker({
   const linked = phones.find(phone => samePhone(phoneAddress, phone.address));
   const choose = (address: string) => {
     setIsOpen(false);
-    linkPhone(spotifyId, address);
+    setPersonPhone(spotifyId, address);
     onChange();
   };
   const label = linked ? linked.name || linked.address : phoneAddress || 'No phone';

@@ -3,9 +3,9 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '../test/user';
 import PairPhoneSheet from './PairPhoneSheet';
 
-const auth = vi.hoisted(() => ({ linkPhone: vi.fn() }));
+const links = vi.hoisted(() => ({ setPersonPhone: vi.fn() }));
 const monitor = vi.hoisted(() => ({ readBluetoothReport: vi.fn(), pairPhone: vi.fn(), pickPhone: vi.fn() }));
-vi.mock('../spotify/auth', () => auth);
+vi.mock('../utils/phoneLinks', () => links);
 vi.mock('../utils/bluetoothMonitor', () => monitor);
 
 const flush = () => act(() => vi.advanceTimersByTimeAsync(1500));
@@ -31,7 +31,11 @@ describe('PairPhoneSheet', () => {
     const onDone = vi.fn();
     render(<PairPhoneSheet spotifyId="anna" name="Anna" onDone={onDone} />);
     expect(screen.getByRole('heading', { name: 'Pair Anna’s iPhone' })).toBeInTheDocument();
-    expect(screen.getByText('Settings › Bluetooth')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Open Settings › Bluetooth on your iPhone and stay on that screen. Then tap your iPhone in the list below.'
+      )
+    ).toBeInTheDocument();
     expect(monitor.pairPhone).toHaveBeenCalledWith(true);
     await flush();
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
@@ -50,7 +54,7 @@ describe('PairPhoneSheet', () => {
 
     monitor.readBluetoothReport.mockResolvedValue({ pairing: { state: 'paired', ...PHONE } });
     await flush();
-    expect(auth.linkPhone).toHaveBeenCalledWith('anna', PHONE.address);
+    expect(links.setPersonPhone).toHaveBeenCalledWith('anna', PHONE.address);
     expect(onDone).toHaveBeenCalled();
   });
 
@@ -63,7 +67,7 @@ describe('PairPhoneSheet', () => {
     expect(onDone).toHaveBeenCalled();
     unmount();
     expect(monitor.pairPhone).toHaveBeenLastCalledWith(false);
-    expect(auth.linkPhone).not.toHaveBeenCalled();
+    expect(links.setPersonPhone).not.toHaveBeenCalled();
   });
 
   it('says why pairing failed, and tries again', async () => {
