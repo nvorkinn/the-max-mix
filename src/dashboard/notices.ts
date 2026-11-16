@@ -1,13 +1,17 @@
+// cspell:ignore GZZLUEAC
 // The Dashboard's notice board, from countdown-server: GET /api/devices/notices (countdown-api's getNotices), with the
 // device secret. The server hands over what its providers stored for the device (TfL's line statuses at its stops,
 // the Met Office's warnings for its postcode, GOV.UK's bank holidays) as the providers had it, and the kiosk makes the
 // notices from it here, as the e-paper renderer does when it draws: a headline and one short line each, with the
-// provider's own text kept for a tap, so the times are said as of now and in the kiosk's clock format.
+// provider's own text kept for a tap, so the times are said as of now and in the kiosk's clock format. A build that sets
+// VITE_COUNTDOWN_CONFIG=mock gets made-up notices instead.
 
 import type { BankHoliday, DeviceNotices, MetOfficeFeedItem } from 'countdown-api';
 import { getNotices as getNoticesRoute } from '../../vendor/countdown-api/src/countdown_api/client';
 import type { Client } from '../../vendor/countdown-api/src/countdown_api/client';
 import { serverClient } from '../countdown/config';
+import { debugLog } from '../utils/debugLog';
+import { errorMessage } from '../utils/errorMessage';
 import type { ClockFormat } from '../utils/clockFormat';
 import { formatClockTime } from '../utils/clockFormat';
 import type { Notice } from './data';
@@ -25,9 +29,11 @@ const HOLIDAY_AHEAD_DAYS = 31;
 export async function getDeviceNotices(client: Client | null = serverClient()): Promise<DeviceNotices | null> {
   if (!client) return null;
   try {
-    const { data } = await getNoticesRoute(client);
+    const { data, response } = await getNoticesRoute(client);
+    if (!data) debugLog('warn', 'dashboard', `Could not read the notices: ${response.status}`);
     return data ?? null;
-  } catch {
+  } catch (caught) {
+    debugLog('warn', 'dashboard', `Could not read the notices: ${errorMessage(caught)}`);
     return null;
   }
 }
@@ -357,4 +363,89 @@ export function boardNotices(device: DeviceNotices, now: Date, clockFormat: Cloc
         SEVERITY_ORDER.indexOf(a.notice.severity) - SEVERITY_ORDER.indexOf(b.notice.severity) || a.index - b.index
     )
     .map(({ notice }) => notice);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Reading them.
+
+/** Made-up notice sources for a build that mocks countdown-server, timed from now. */
+export function mockDeviceNotices(now: Date): DeviceNotices {
+  const at = (hours: number) => new Date(now.getTime() + hours * HOUR).toISOString();
+  const lines = [
+    {
+      id: 'northern',
+      name: 'Northern',
+      modeName: 'tube',
+      lineStatuses: [
+        {
+          statusSeverityDescription: 'Minor Delays',
+          reason:
+            'NORTHERN LINE: Minor delays between Morden and Kennington while we fix a signal failure at Clapham ' +
+            'Common. GOOD SERVICE on the rest of the line.'
+        }
+      ]
+    },
+    {
+      id: 'victoria',
+      name: 'Victoria',
+      modeName: 'tube',
+      lineStatuses: [
+        {
+          statusSeverityDescription: 'Planned Closure',
+          reason:
+            'VICTORIA LINE: No service between Euston and Walthamstow Central while we carry out track renewal ' +
+            'works. Replacement buses operate.',
+          validityPeriods: [{ fromDate: at(72), toDate: at(120) }]
+        }
+      ]
+    }
+  ];
+  return {
+    postcode: 'SE17 3LL',
+    country: 'GB',
+    tfl_stops: [
+      {
+        stop_id: '940GZZLUEAC',
+        lines: { fetched_at: now.toISOString(), stop_id: '940GZZLUEAC', lines: lines as never[] },
+        stations: null
+      }
+    ],
+    tfl_roads: null,
+    met_office: {
+      fetched_at: now.toISOString(),
+      postcode: 'SE17 3LL',
+      region: 'se',
+      items: [
+        {
+          title: 'Yellow warning of rain affecting London & South East England',
+          description: 'Heavy and persistent rain may lead to some flooding and travel disruption.',
+          link: '',
+          pub_date: ''
+        }
+      ]
+    },
+    bank_holidays: null
+  };
+}
+
+let lastAnswer: DeviceNotices | null = null;
+
+/**
+ * The notice board's notices as of `now`, from countdown-server's latest answer (the one before it while the server
+ * can't be reached), or none before it has given one.
+ */
+export async function readNotices(
+  now: Date,
+  clockFormat: ClockFormat,
+  client: Client | null = serverClient()
+): Promise<Notice[]> {
+  if (import.meta.env.VITE_COUNTDOWN_CONFIG === 'mock') return boardNotices(mockDeviceNotices(now), now, clockFormat);
+  const answer = await getDeviceNotices(client);
+  if (answer) lastAnswer = answer;
+  return lastAnswer ? boardNotices(lastAnswer, now, clockFormat) : [];
+}
+
+/** Forgets the last answer (for tests). */
+export function forgetNotices(): void {
+  lastAnswer = null;
 }

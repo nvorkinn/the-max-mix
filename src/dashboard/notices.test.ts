@@ -1,7 +1,17 @@
 import type { DeviceNotices } from 'countdown-api';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import panels from '../../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json';
-import { boardNotices, divisionOf, getDeviceNotices, holidayNotices, lineNotices, sayWhen } from './notices';
+import {
+  boardNotices,
+  divisionOf,
+  forgetNotices,
+  getDeviceNotices,
+  holidayNotices,
+  lineNotices,
+  mockDeviceNotices,
+  readNotices,
+  sayWhen
+} from './notices';
 
 // countdown-api's example answer to getNotices: a Tube station and a bus stop in Kennington (SE17), as stored at
 // 2026-09-25 12:00 UTC.
@@ -275,5 +285,38 @@ describe('the odd cases', () => {
   it('says one day for a closure that runs into the small hours of the next', () => {
     const now = new Date(2026, 8, 25, 12, 0);
     expect(sayWhen(new Date(2026, 8, 26, 0, 30), new Date(2026, 8, 27, 4, 0), now, '24h')).toBe('Sat');
+  });
+});
+
+describe('readNotices', () => {
+  const client = (fetch: typeof globalThis.fetch) => ({ baseUrl: 'https://api.countdown.test', secret: 's', fetch });
+
+  afterEach(() => {
+    forgetNotices();
+    vi.unstubAllEnvs();
+  });
+
+  it("makes the board's notices from the server's answer, and keeps the last one while the server can't be reached", async () => {
+    const answers = vi.fn<typeof globalThis.fetch>(() => Promise.resolve(Response.json(device)));
+    expect(await readNotices(NOW, '24h', client(answers))).toHaveLength(5);
+    const offline = vi.fn<typeof globalThis.fetch>(() => Promise.reject(new Error('offline')));
+    expect(await readNotices(NOW, '24h', client(offline))).toHaveLength(5);
+  });
+
+  it('gives none before the server has answered', async () => {
+    const refused = vi.fn<typeof globalThis.fetch>(() => Promise.resolve(new Response('', { status: 401 })));
+    expect(await readNotices(NOW, '24h', client(refused))).toEqual([]);
+    expect(await readNotices(NOW, '24h', null)).toEqual([]);
+  });
+
+  it('makes notices up for a build that mocks countdown-server', async () => {
+    vi.stubEnv('VITE_COUNTDOWN_CONFIG', 'mock');
+    const notices = await readNotices(NOW, '24h', null);
+    expect(notices.map(notice => notice.title)).toEqual([
+      'Northern line: Delays',
+      'Weather warning',
+      'Victoria line: Closed'
+    ]);
+    expect(boardNotices(mockDeviceNotices(NOW), NOW, '24h')).toEqual(notices);
   });
 });
