@@ -1,8 +1,10 @@
-// What the Dashboard shows: Tube and bus departures, the weather and the notice board. For now it comes from the made-up data below, shaped
-// roughly like countdown-server's JSON (an `arrivals` section and a `weather` section). getDashboardData is the only
-// way in, so the real fetch and countdown-api's generated types can replace it without touching the components.
+// What the Dashboard shows: Tube and bus departures, the weather and the notice board. The departures come from
+// countdown-server (arrivals.ts); the rest from the made-up data below, shaped roughly like countdown-server's JSON.
+// getDashboardData is the only way in, so the real fetches and countdown-api's generated types can replace it without
+// touching the components.
 
 import type { TouchscreenConfig } from 'countdown-api';
+import { readArrivals } from './arrivals';
 
 /** One train or bus due at a stop. */
 export interface Arrival {
@@ -93,38 +95,6 @@ export function isFresh(updatedAt: string, maxAgeMs: number, now: Date): boolean
 const MINUTE = 60_000;
 const at = (now: Date, minutes: number) => new Date(now.getTime() + minutes * MINUTE).toISOString();
 
-function mockArrivals(now: Date): Arrivals {
-  const departure = (route: string, destination: string, minutes: number, stop?: string) => ({
-    route,
-    destination,
-    due: at(now, minutes),
-    ...(stop && { stop })
-  });
-  return {
-    updatedAt: now.toISOString(),
-    stops: [
-      {
-        name: 'Elephant & Castle',
-        mode: 'tube',
-        arrivals: [
-          departure('Northern', 'High Barnet', 3),
-          departure('Northern', 'Morden', 7),
-          departure('Bakerloo', 'Harrow & Wealdstone', 9)
-        ]
-      },
-      {
-        name: 'Elephant & Castle',
-        mode: 'bus',
-        arrivals: [
-          departure('12', 'Oxford Circus', 2, 'Stop E'),
-          departure('343', 'New Cross', 6, 'Stop F'),
-          departure('12', 'Oxford Circus', 11, 'Stop E')
-        ]
-      }
-    ]
-  };
-}
-
 function mockWeather(now: Date): Weather {
   const hour = new Date(now);
   hour.setMinutes(0, 0, 0);
@@ -207,9 +177,10 @@ const MOCK_NOTICES: Notice[] = [
 export type DashboardSettings = Pick<TouchscreenConfig, 'arrivals' | 'weather' | 'notice_board'> | null;
 
 /**
- * The Dashboard's data for the owner's settings. Made up for now, the same whatever the settings; see the top of this
- * file.
+ * The Dashboard's data for the owner's settings: the departures from countdown-server (none asked for without an owner
+ * or stops); the rest made up for now, the same whatever the settings.
  */
-export function getDashboardData(_settings: DashboardSettings, now = new Date()): Promise<DashboardData> {
-  return Promise.resolve({ arrivals: mockArrivals(now), weather: mockWeather(now), notices: MOCK_NOTICES });
+export async function getDashboardData(settings: DashboardSettings, now = new Date()): Promise<DashboardData> {
+  const arrivals = settings && settings.arrivals.stops.length > 0 ? await readArrivals(now) : null;
+  return { arrivals, weather: mockWeather(now), notices: MOCK_NOTICES };
 }
