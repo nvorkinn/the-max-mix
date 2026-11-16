@@ -31,7 +31,11 @@ describe('PairPhoneSheet', () => {
     const onDone = vi.fn();
     render(<PairPhoneSheet spotifyId="anna" name="Anna" onDone={onDone} />);
     expect(screen.getByRole('heading', { name: 'Pair Anna’s iPhone' })).toBeInTheDocument();
-    expect(screen.getByText('Settings › Bluetooth')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Open Settings › Bluetooth on your iPhone and stay on that screen. Then tap your iPhone in the list below.'
+      )
+    ).toBeInTheDocument();
     expect(monitor.pairPhone).toHaveBeenCalledWith(true);
     await flush();
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);

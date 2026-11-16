@@ -86,7 +86,9 @@ export default function PairPhoneSheet({
       ) : (
         !error && (
           <>
-            <p className="pair-phone-step">Settings › Bluetooth</p>
+            <p className="pair-phone-step">
+              Open Settings › Bluetooth on your iPhone and stay on that screen. Then tap your iPhone in the list below.
+            </p>
             <ul
               className="phone-picker-options pair-phone-nearby"
               aria-label="Nearby"
