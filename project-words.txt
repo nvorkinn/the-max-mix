@@ -177,6 +177,7 @@ tailnet
 tailscale
 tailscaled
 themaxmix
+timeformat
 timezone
 tmpfiles
 trixie
@@ -185,6 +186,7 @@ ttyv
 ttyvt
 tzdata
 unescaped
+unixtime
 unstub
 urlencode
 useradd
