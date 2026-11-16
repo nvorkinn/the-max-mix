@@ -1,5 +1,5 @@
 import { Sun, Umbrella } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { WeatherBlockProps, WeatherPeriod } from '../../dashboard/props';
 
 const PERIOD_LABELS: Record<WeatherPeriod, string> = {
@@ -9,10 +9,38 @@ const PERIOD_LABELS: Record<WeatherPeriod, string> = {
   weekend: 'Weekend'
 };
 
-/** The temperature, what it's like and one line more. A tap moves to the next period; the periods wrap round. */
+/** How long each period shows before the next. */
+export const WEATHER_VIEW_MS = 10_000;
+/** How long the old period takes to fade out, and then the new one to fade in. */
+export const WEATHER_FADE_MS = 350;
+
+/**
+ * The temperature, what it's like and one line more. It starts on Now and moves to the next period every ten seconds,
+ * or at once on a tap; the periods wrap round. The old period fades right out before the new one fades in, so two
+ * temperatures never show on top of each other.
+ */
 export default function WeatherBlock({ views }: Readonly<WeatherBlockProps>) {
   const [index, setIndex] = useState(0);
-  const view = views[index % Math.max(1, views.length)];
+  const [fading, setFading] = useState(false);
+  const count = views.length;
+  const view = views[index % Math.max(1, count)];
+
+  // Each new period gets its full ten seconds, however it came (the timer or a tap).
+  useEffect(() => {
+    if (fading || count < 2) return;
+    const timer = window.setTimeout(() => setFading(true), WEATHER_VIEW_MS);
+    return () => window.clearTimeout(timer);
+  }, [count, fading, index]);
+
+  useEffect(() => {
+    if (!fading) return;
+    const timer = window.setTimeout(() => {
+      setIndex(current => (current + 1) % Math.max(1, count));
+      setFading(false);
+    }, WEATHER_FADE_MS);
+    return () => window.clearTimeout(timer);
+  }, [count, fading]);
+
   // With no forecast the block keeps its space, so the notices under it stay where they are.
   if (!view) {
     return (
@@ -28,8 +56,10 @@ export default function WeatherBlock({ views }: Readonly<WeatherBlockProps>) {
   return (
     <button
       type="button"
-      className="dashboard-weather shadowed"
-      onClick={() => setIndex(current => (current + 1) % views.length)}
+      className={`dashboard-weather shadowed${fading ? ' fading' : ''}`}
+      onClick={() => {
+        if (count > 1) setFading(true);
+      }}
     >
       <p className="dashboard-wx-period">{PERIOD_LABELS[view.period]}</p>
       <p className="dashboard-wx-temp">{view.temperature}°</p>

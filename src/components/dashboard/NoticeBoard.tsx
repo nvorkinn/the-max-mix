@@ -10,6 +10,8 @@ const NOTICE_ROW_HEIGHT = 68;
 const NOTICE_PAGE_MS = 8000;
 /** The fade between pages. */
 const FADE_MS = 300;
+/** How long a notice new to the board takes to fade in. */
+export const ARRIVE_MS = 600;
 
 const severityStyle = (notice: NoticeItem) => ({ '--icon': `var(--${notice.severity})` }) as CSSProperties;
 
@@ -58,6 +60,7 @@ export default function NoticeBoard({ notices }: Readonly<NoticeBoardProps>) {
     };
   }, [pageCount, open, next, turn]);
 
+  const arriving = useArrivals(notices);
   const rows = notices.slice(shownPage * perPage, (shownPage + 1) * perPage);
   return (
     <section className="dashboard-notices" aria-labelledby="dashboard-notice-title">
@@ -97,7 +100,7 @@ export default function NoticeBoard({ notices }: Readonly<NoticeBoardProps>) {
             </>
           );
           return (
-            <li key={notice.id}>
+            <li key={notice.id} data-arriving={arriving.has(notice.id) || undefined}>
               {notice.detail ? (
                 <button
                   type="button"
@@ -119,6 +122,30 @@ export default function NoticeBoard({ notices }: Readonly<NoticeBoardProps>) {
       {open && <NoticeSheet notice={open} onClose={() => setOpen(null)} />}
     </section>
   );
+}
+
+/**
+ * The ids of the notices that weren't on the board the last time it drew, for as long as they take to fade in. Those it
+ * starts with are not new: they show at once.
+ */
+function useArrivals(notices: readonly NoticeItem[]): ReadonlySet<string> {
+  const signature = notices.map(notice => notice.id).join('\n');
+  const [known, setKnown] = useState<string | null>(null);
+  const [arriving, setArriving] = useState<ReadonlySet<string>>(() => new Set());
+  if (signature !== known) {
+    if (known !== null) {
+      const before = new Set(known.split('\n'));
+      const added = notices.map(notice => notice.id).filter(id => !before.has(id));
+      if (added.length > 0) setArriving(current => new Set([...current, ...added]));
+    }
+    setKnown(signature);
+  }
+  useEffect(() => {
+    if (arriving.size === 0) return;
+    const timer = window.setTimeout(() => setArriving(new Set()), ARRIVE_MS);
+    return () => window.clearTimeout(timer);
+  }, [arriving]);
+  return arriving;
 }
 
 /** A notice's full text over the whole panel; a tap anywhere closes it. */

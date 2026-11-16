@@ -1,6 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
-import backdrop from '../assets/dashboard/backdrop.jpg';
+import fallbackBackdrop from '../assets/dashboard/backdrop.jpg';
 import type {
   BusBoardProps,
   HourlyStripProps,
@@ -9,6 +8,7 @@ import type {
   TubeBoardProps,
   WeatherBlockProps
 } from '../dashboard/props';
+import Backdrop from './dashboard/Backdrop';
 import BusBoard from './dashboard/BusBoard';
 import HourlyStrip from './dashboard/HourlyStrip';
 import NoticeBoard from './dashboard/NoticeBoard';
@@ -31,6 +31,8 @@ export interface DashboardProps {
   tube: TubeBoardProps | null;
   /** As `tube`, for the bus stop. */
   bus: BusBoardProps | null;
+  /** The day's photo; a new one fades in slowly over the old. Left out (or null) for the photo bundled with the app. */
+  backdrop?: string | null;
 }
 
 /**
@@ -38,7 +40,7 @@ export interface DashboardProps {
  * top right and the Tube and bus boards along the bottom. It is laid out at 1280×800 and scaled to fit whichever of the
  * space's width or height is tighter, centred, so a smaller panel shows the same layout.
  */
-export default function Dashboard({ tabBar, weather, hourly, notices, tube, bus }: Readonly<DashboardProps>) {
+export default function Dashboard({ tabBar, weather, hourly, notices, tube, bus, backdrop }: Readonly<DashboardProps>) {
   const fitRef = useRef<HTMLDivElement>(null);
   const [placement, setPlacement] = useState({ scale: 1, left: 0, top: 0 });
 
@@ -68,7 +70,8 @@ export default function Dashboard({ tabBar, weather, hourly, notices, tube, bus 
         className="dashboard-scaler"
         style={{ transform: `translate(${placement.left}px, ${placement.top}px) scale(${placement.scale})` }}
       >
-        <div className="dashboard-panel" style={{ '--backdrop': `url(${backdrop})` } as CSSProperties}>
+        <div className="dashboard-panel">
+          <Backdrop url={backdrop ?? fallbackBackdrop} />
           <TabBar {...tabBar} />
           <main className="dashboard-main">
             <div className="dashboard-rail">

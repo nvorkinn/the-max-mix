@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, CSSProperties } from 'react';
 import { AudioLines, Clock, LayoutDashboard, Music, Search, Settings } from 'lucide-react';
+import { crossfade } from '../utils/crossfade';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { useSonosPlayer } from '../hooks/useSonosPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
@@ -148,6 +149,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('overview');
   const [isMusicOpen, setIsMusicOpen] = useState(false);
   const [screen, setScreen] = useState<Screen>('spotify');
+  // Every change of tab fades across the whole screen, whether tapped, idle or from a prompt.
+  const goToScreen = (next: Screen) => crossfade(() => setScreen(next));
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const debugHold = useHold(() => setIsDebugOpen(true), DEBUG_HOLD_MS);
   const [queueError, setQueueError] = useState<string | null>(null);
@@ -184,7 +187,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   // Music picked while a Sonos plays goes to the Sonos (a song, album or playlist; Liked Songs cannot).
   const playMusic = (choice: MusicChoice) => {
-    setScreen('spotify');
+    goToScreen('spotify');
     return sonos.active ? sonos.play(choice.uri) : playMusicOnSpotify(choice);
   };
 
@@ -202,7 +205,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   // Left alone with nothing playing, the kiosk shows the Dashboard. The screen stays on while music plays or another tab
   // is showing, and sleeps the chosen minutes after the Dashboard comes up.
-  useIdle({ enabled: onKiosk, busy: isPlaying, idleMs: IDLE_DASHBOARD_MS, onIdle: () => setScreen('dashboard') });
+  useIdle({ enabled: onKiosk, busy: isPlaying, idleMs: IDLE_DASHBOARD_MS, onIdle: () => goToScreen('dashboard') });
   // Once someone owns the kiosk, countdown-server's config is its skin, colour and screen sleep: the settings save there,
   // and whatever the config says (a change here, one undone, or the server's latest) shows, and is kept locally for
   // starts without the server. Before that the kiosk keeps its own.
@@ -365,13 +368,17 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   }, [artUrl]);
 
   const showScreen = (next: Screen) => {
-    if (next === 'settings' && screen !== 'settings') setSettingsSection('overview');
-    setScreen(next);
+    crossfade(() => {
+      if (next === 'settings' && screen !== 'settings') setSettingsSection('overview');
+      setScreen(next);
+    });
   };
   const activePerson = peopleOnKiosk().find(person => person.active);
   const showSettings = () => {
-    setSettingsSection('spotify');
-    setScreen('settings');
+    crossfade(() => {
+      setSettingsSection('spotify');
+      setScreen('settings');
+    });
   };
   // Switching person: the music this tablet plays (itself, or its Sonos) belongs to the person leaving, so it pauses;
   // then the page starts again as the new person. A pause that fails or hangs does not hold the switch up.
@@ -646,18 +653,17 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         aria-label="Dashboard"
         hidden={screen !== 'dashboard'}
       >
-        {screen === 'dashboard' && (
-          <DashboardScreen
-            tabBar={{
-              active: screen,
-              onSelect: showScreen,
-              person: activePerson ? { name: activePerson.name, pictureUrl: activePerson.imageUrl || null } : null,
-              onSearch: needsConnection ? null : () => setIsMusicOpen(true),
-              now: new Date(minute * 60_000),
-              clockFormat
-            }}
-          />
-        )}
+        {/* Mounted while hidden, so its data keeps updating and it is current when the tab comes back. */}
+        <DashboardScreen
+          tabBar={{
+            active: screen,
+            onSelect: showScreen,
+            person: activePerson ? { name: activePerson.name, pictureUrl: activePerson.imageUrl || null } : null,
+            onSearch: needsConnection ? null : () => setIsMusicOpen(true),
+            now: new Date(minute * 60_000),
+            clockFormat
+          }}
+        />
       </section>
       <section
         className="app-tab-panel"
