@@ -353,7 +353,7 @@ export default function Dashboard({
     let cancelled = false;
     const load = async () => {
       try {
-        const loaded = await getDashboardData(settings);
+        const loaded = await getDashboardData(settings, new Date(), clockFormat);
         if (cancelled) return;
         setNow(new Date());
         setData(loaded);
@@ -369,7 +369,7 @@ export default function Dashboard({
       clearInterval(refresh);
       clearInterval(tick);
     };
-  }, [shown, settings]);
+  }, [shown, settings, clockFormat]);
 
   return (
     // Visual placeholder only. The background-image provider is being implemented separately.

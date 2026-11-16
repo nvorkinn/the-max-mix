@@ -15,6 +15,8 @@ vi.mock('./weather', () => ({ getWeather: () => Promise.resolve(WEATHER) }));
 
 const arrivals = vi.hoisted(() => ({ readArrivals: vi.fn(() => Promise.resolve(null)) }));
 vi.mock('./arrivals', () => arrivals);
+const notices = vi.hoisted(() => ({ readNotices: vi.fn(() => Promise.resolve([])) }));
+vi.mock('./notices', () => notices);
 
 describe('dashboard data', () => {
   const now = new Date('2026-11-15T09:00:00Z');
@@ -38,9 +40,21 @@ describe('dashboard data', () => {
     expect(arrivals.readArrivals).toHaveBeenCalledOnce();
   });
 
-  it("gives the server's weather, and notices", async () => {
+  it("asks countdown-server for notices only for an owner with a notice board, in the owner's clock format", async () => {
+    const settings = {
+      arrivals: { stops: [] },
+      weather: { location: 'London', key: 'london-gb-2643743' },
+      notice_board: { postcode: null, country: null }
+    };
+    await getDashboardData(null, now);
+    await getDashboardData(settings, now);
+    expect(notices.readNotices).not.toHaveBeenCalled();
+    await getDashboardData({ ...settings, notice_board: { postcode: 'SE17 3LL', country: 'GB' } }, now, '12h');
+    expect(notices.readNotices).toHaveBeenCalledWith(now, '12h');
+  });
+
+  it("gives the server's weather", async () => {
     const data = await getDashboardData(null, now);
     expect(data.weather).toEqual(WEATHER);
-    expect(data.notices.length).toBeGreaterThan(0);
   });
 });
