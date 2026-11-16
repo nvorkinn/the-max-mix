@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import answer from './fixtures/notices.json';
-import type { Notice } from './notices';
-import { getNotices, noticeWhen } from './notices';
+import type { ServerNotice } from './notices';
+import { getNotices, noticeWhen, toBoardNotice } from './notices';
 
 // fixtures/notices.json is what countdown-server should answer for countdown's own example TfL, Met Office and GOV.UK
 // answers (a Tube station and a bus stop in Kennington, SE17), as of 2026-09-25 12:00 UTC.
@@ -56,13 +56,14 @@ describe('when a notice applies', () => {
   type At = [day: number, hour: number, minute?: number];
   const iso = ([day, hour, minute = 0]: At) => new Date(2026, 8, day, hour, minute).toISOString();
   const when = (starts: At | null, ends: At | null, format: '24h' | '12h' = '24h') => {
-    const notice: Notice = {
+    const notice: ServerNotice = {
       id: 'w',
       kind: 'weather',
       hazard: 'rain',
       level: 'yellow',
       severity: 'minor',
       status: 'Rain',
+      summary: null,
       starts: starts && iso(starts),
       ends: ends && iso(ends),
       title: '',
@@ -94,12 +95,13 @@ describe('when a notice applies', () => {
   });
 
   it('says a holiday as today, tomorrow or its date', () => {
-    const holiday = (day: string): Notice => ({
+    const holiday = (day: string): ServerNotice => ({
       id: 'h',
       kind: 'holiday',
       day,
       severity: 'info',
       status: '',
+      summary: null,
       starts: null,
       ends: null,
       title: '',
@@ -108,5 +110,64 @@ describe('when a notice applies', () => {
     expect(noticeWhen(holiday('2026-09-25'), now, '24h')).toBe('Today');
     expect(noticeWhen(holiday('2026-09-26'), now, '24h')).toBe('Tomorrow');
     expect(noticeWhen(holiday('2026-12-25'), now, '24h')).toBe('Fri 25 Dec');
+  });
+});
+
+describe('the board', () => {
+  const now = new Date('2026-09-25T12:00:00Z');
+  const notices = (answer.notices as ServerNotice[]).map(notice => toBoardNotice(notice, now, '24h'));
+
+  it('gives each notice a headline and one short line, worst in red', () => {
+    expect(notices.slice(0, 3)).toMatchObject([
+      {
+        kind: 'delays',
+        severity: 'severe',
+        title: 'Buses 333, 415: Diverted',
+        summary: 'Routes 333 and 415 are diverted away from Kennington Park Road due to emergency gas works.'
+      },
+      { kind: 'delays', severity: 'severe', title: 'Northern line: Severe delays' },
+      { kind: 'closure', title: 'Northern line: Part closed' }
+    ]);
+    expect(notices[5]).toMatchObject({
+      kind: 'delays',
+      severity: 'minor',
+      title: 'Bus 155: Issues',
+      summary: 'Issues'
+    });
+  });
+
+  it('says a weather warning by its colour, and keeps the provider text for a tap', () => {
+    const wind = notices[3];
+    expect(wind).toMatchObject({ kind: 'weather', severity: 'severe', title: 'Weather warning' });
+    expect(wind?.summary).toMatch(/^Amber warning: wind until /);
+    expect(wind?.detail).toMatch(/^Amber warning of wind affecting London/);
+  });
+
+  it('shows a closure that has not started as planned, and a bank holiday by its day', () => {
+    const closure: ServerNotice = {
+      id: 'victoria:planned-closure',
+      kind: 'line',
+      mode: 'tube',
+      lines: ['Victoria'],
+      severity: 'severe',
+      status: 'Closed',
+      summary: 'No service between Euston and Walthamstow Central.',
+      starts: '2026-09-26T04:30:00Z',
+      ends: '2026-09-28T04:30:00Z',
+      title: '',
+      detail: ''
+    };
+    expect(toBoardNotice(closure, now, '24h')).toMatchObject({
+      kind: 'closure',
+      severity: 'planned',
+      title: 'Victoria line: Closed'
+    });
+    const christmas = toBoardNotice(answer.notices[8] as ServerNotice, new Date(2026, 11, 20), '24h');
+    expect(christmas).toMatchObject({
+      kind: 'holiday',
+      severity: 'info',
+      title: 'Upcoming bank holiday',
+      summary: 'Fri 25 Dec – Christmas Day'
+    });
   });
 });

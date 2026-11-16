@@ -7,6 +7,7 @@ import { serverClient } from '../countdown/config';
 import type { Client } from '../../vendor/countdown-api/src/countdown_api/client';
 import type { ClockFormat } from '../utils/clockFormat';
 import { formatClockTime } from '../utils/clockFormat';
+import type { Notice as BoardNotice } from './data';
 
 interface NoticeBase {
   /** Stays the same while the notice does, so the board can keep track of one (say, the one open). */
@@ -15,6 +16,8 @@ interface NoticeBase {
   severity: 'severe' | 'warning' | 'minor' | 'info';
   /** Two or three words: "Severe delays", "Diverted", "Wind", "Christmas Day". */
   status: string;
+  /** What or where, in one short line: "Severe delays between Kennington and Morden due to a signal failure." */
+  summary: string | null;
   /** When it starts, as an ISO time; null when it has started or that isn't worth saying. */
   starts: string | null;
   /** When it ends, as an ISO time; null when that isn't known or worth saying. */
@@ -49,12 +52,12 @@ interface HolidayNotice extends NoticeBase {
   day: string;
 }
 
-export type Notice = LineNotice | WeatherNotice | HolidayNotice;
+export type ServerNotice = LineNotice | WeatherNotice | HolidayNotice;
 
 /** countdown-server's answer: the board's notices, worst first, and when it last heard from its providers. */
 interface NoticesResponse {
   updated_at: string;
-  notices: Notice[];
+  notices: ServerNotice[];
 }
 
 const KINDS = new Set<string>(['line', 'weather', 'holiday']);
@@ -64,7 +67,7 @@ const KINDS = new Set<string>(['line', 'weather', 'holiday']);
  * the kiosk isn't registered or the server can't be reached or refuses it. A kind of notice this build doesn't know
  * is left out.
  */
-export async function getNotices(client: Client | null = serverClient()): Promise<Notice[] | null> {
+export async function getNotices(client: Client | null = serverClient()): Promise<ServerNotice[] | null> {
   if (!client) return null;
   try {
     const response = await (client.fetch ?? fetch)(new URL('/api/devices/notices', client.baseUrl), {
@@ -101,7 +104,7 @@ function shortDay(day: Date, now: Date): string {
 const lastDay = (end: Date) => (end.getHours() < 5 ? new Date(end.getTime() - 5 * HOUR) : end);
 
 /** When a notice applies, as short as it can be said: "Today", "Thu 25 Dec", "18:00–21:00", "until 21:00", "Sat–Sun". */
-export function noticeWhen(notice: Notice, now: Date, clockFormat: ClockFormat): string | null {
+export function noticeWhen(notice: ServerNotice, now: Date, clockFormat: ClockFormat): string | null {
   if (notice.kind === 'holiday') {
     const [year = 0, month = 1, day = 1] = notice.day.split('-').map(Number);
     return dayName(new Date(year, month - 1, day), now);
@@ -121,4 +124,48 @@ export function noticeWhen(notice: Notice, now: Date, clockFormat: ClockFormat):
   const first = shortDay(starts, now);
   const last = shortDay(lastDay(ends), now);
   return first === last ? first : `${first}–${last}`;
+}
+
+const CLOSURES = new Set(['Closed', 'Part closed', 'Not running']);
+const capitalised = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/** A line's name as the board writes it: "Northern line", "Bus 333", "Buses 333, 415". */
+function lineLabel(notice: LineNotice): string {
+  if (notice.mode === 'bus') return `${notice.lines.length > 1 ? 'Buses' : 'Bus'} ${notice.lines.join(', ')}`;
+  const names = notice.lines.join(', ');
+  return notice.mode === 'tube' || notice.mode === 'elizabeth-line' ? `${names} line` : names;
+}
+
+/**
+ * A notice from countdown-server as the notice board shows it: a headline and one short line, with the provider's
+ * text for a tap. Something that hasn't started yet is shown as planned.
+ */
+export function toBoardNotice(notice: ServerNotice, now: Date, clockFormat: ClockFormat): BoardNotice {
+  const when = noticeWhen(notice, now, clockFormat);
+  const planned = notice.starts !== null && Date.parse(notice.starts) > now.getTime();
+  const severity = notice.severity === 'warning' ? 'severe' : notice.severity;
+  const base = { id: notice.id, severity: planned ? 'planned' : severity, detail: notice.detail } as const;
+  switch (notice.kind) {
+    case 'line': {
+      return {
+        ...base,
+        kind: CLOSURES.has(notice.status) ? 'closure' : 'delays',
+        title: `${lineLabel(notice)}: ${notice.status}`,
+        summary: [notice.summary, when].filter(Boolean).join(' ') || notice.status
+      };
+    }
+    case 'weather': {
+      return {
+        ...base,
+        kind: 'weather',
+        title: 'Weather warning',
+        summary: [`${capitalised(notice.level)} warning: ${notice.status.toLowerCase()}`, when]
+          .filter(Boolean)
+          .join(' ')
+      };
+    }
+    case 'holiday': {
+      return { ...base, kind: 'holiday', title: 'Upcoming bank holiday', summary: `${when ?? ''} – ${notice.status}` };
+    }
+  }
 }
