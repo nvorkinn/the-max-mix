@@ -3764,7 +3764,6 @@ input:disabled {
   }
 }
 
-
 /* A browser preview narrower than either kiosk still remains navigable. */
 @media (width <= 850px) {
   .dashboard {
