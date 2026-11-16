@@ -14,6 +14,7 @@ const search = JSON.parse(
 const API = 'https://api.countdown.build';
 export const CONFIG = `${API}/api/devices/config`;
 const ARRIVALS = `${API}/api/devices/arrivals`;
+const NOTICES = `${API}/api/devices/notices`;
 
 /**
  * countdown-api's example config, once someone owns the kiosk. Before that there's none: a touchscreen registers through
@@ -84,13 +85,17 @@ export async function fakeCountdownServer(
       body: JSON.stringify(current)
     });
   });
-  // The departures (GET /api/devices/arrivals): refused, as for a secret the server doesn't know, unless a test calls
-  // fakeArrivals.
-  await page.route(ARRIVALS, route => {
-    const cors = corsFor(route.request().headers()['origin']);
-    const isPreflight = route.request().method() === 'OPTIONS';
-    return route.fulfill({ status: isPreflight ? 204 : 401, headers: cors });
-  });
+  // The departures and the notices (GET /api/devices/arrivals and /notices): refused, as for a secret the server doesn't
+  // know, unless a test calls fakeArrivals or fakeNotices.
+  await Promise.all(
+    [ARRIVALS, NOTICES].map(url =>
+      page.route(url, route => {
+        const cors = corsFor(route.request().headers()['origin']);
+        const isPreflight = route.request().method() === 'OPTIONS';
+        return route.fulfill({ status: isPreflight ? 204 : 401, headers: cors });
+      })
+    )
+  );
   // The searches answer countdown-api's example: its stops for "oslo s", its places for "oslo", and nothing else.
   const searches = [
     ['/api/stops/search', search.stops_query, search.stops],
@@ -119,13 +124,14 @@ export async function fakeCountdownServer(
 }
 
 /**
- * An owned kiosk's config with the stops fakeArrivals answers for, in the app's default look (or night's), so the
- * Dashboard asks for its departures and looks as it does unowned.
+ * An owned kiosk's config with the stops fakeArrivals answers for and the London postcode fakeNotices answers for, in the
+ * app's default look (or night's), so the Dashboard asks for its departures and notices and looks as it does unowned.
  */
 export function dashboardConfig(skin: 'day' | 'night' = 'day') {
   return {
     ...fixture.config,
     style: { skin, colour: 'forest' },
+    notice_board: { postcode: 'SE17 3LL', country: 'GB' },
     arrivals: {
       stops: [
         { source: 'tfl', id: '940GZZLUEAC' },
@@ -168,6 +174,74 @@ export async function fakeArrivals(page: Page, now: Date) {
     ]
   };
   await page.route(ARRIVALS, route => {
+    const cors = corsFor(route.request().headers()['origin']);
+    const isPreflight = route.request().method() === 'OPTIONS';
+    return route.fulfill(isPreflight ? { status: 204, headers: cors } : { status: 200, headers: cors, json: answer });
+  });
+}
+
+/** A Tube line as TfL's line status answers it. */
+function tubeLine(id: string, status: string, reason: string, validityPeriods: object[] = []) {
+  return {
+    id,
+    name: id.charAt(0).toUpperCase() + id.slice(1),
+    modeName: 'tube',
+    lineStatuses: [{ statusSeverityDescription: status, reason, validityPeriods }]
+  };
+}
+
+/**
+ * Stands in for countdown-server's GET /api/devices/notices (countdown-api's getNotices): the providers' answers for a
+ * London postcode, read at `now`: a Tube line with delays, one with a planned closure in three days and a weather warning.
+ */
+export async function fakeNotices(page: Page, now: Date) {
+  const fetchedAt = now.toISOString();
+  const at = (hours: number) => new Date(now.getTime() + hours * 3_600_000).toISOString();
+  const answer = {
+    postcode: 'SE17 3LL',
+    country: 'GB',
+    tfl_stops: [
+      {
+        stop_id: '940GZZLUEAC',
+        lines: {
+          fetched_at: fetchedAt,
+          stop_id: '940GZZLUEAC',
+          lines: [
+            tubeLine(
+              'northern',
+              'Minor Delays',
+              'NORTHERN LINE: Minor delays between Morden and Kennington while we fix a signal failure at Clapham ' +
+                'Common. GOOD SERVICE on the rest of the line.'
+            ),
+            tubeLine(
+              'victoria',
+              'Planned Closure',
+              'VICTORIA LINE: No service between Euston and Walthamstow Central while we carry out track renewal ' +
+                'works. Replacement buses operate.',
+              [{ fromDate: at(72), toDate: at(120) }]
+            )
+          ]
+        },
+        stations: null
+      }
+    ],
+    tfl_roads: null,
+    met_office: {
+      fetched_at: fetchedAt,
+      postcode: 'SE17 3LL',
+      region: 'se',
+      items: [
+        {
+          title: 'Yellow warning of rain affecting London & South East England',
+          description: 'Heavy and persistent rain may lead to some flooding and travel disruption.',
+          link: '',
+          pub_date: ''
+        }
+      ]
+    },
+    bank_holidays: null
+  };
+  await page.route(NOTICES, route => {
     const cors = corsFor(route.request().headers()['origin']);
     const isPreflight = route.request().method() === 'OPTIONS';
     return route.fulfill(isPreflight ? { status: 204, headers: cors } : { status: 200, headers: cors, json: answer });
