@@ -5,16 +5,15 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import type { ClockFormat } from '../utils/clockFormat';
 import { dashboardProps } from './dashboardProps';
-import type { DashboardProps } from './dashboardProps';
+import type { LiveProps } from './dashboardProps';
 import { liveDashboard } from './live';
 import type { LiveDashboard } from './live';
 
-/** @public Used by the redesigned Dashboard's components once they replace the current ones (step 2). */
 export function useLiveDashboard(
   now: Date,
   clockFormat: ClockFormat,
   source: LiveDashboard = liveDashboard()
-): DashboardProps {
+): LiveProps {
   useEffect(() => {
     source.start();
     return () => source.stop();

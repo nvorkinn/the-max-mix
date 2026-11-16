@@ -7,21 +7,13 @@
 // stops' departures are held from before (their provider is down) or were read longer ago than DEPARTURES_STALE_MS, and
 // the hourly strip while the forecast is held or older than WEATHER_STALE_MS.
 
+import type { DashboardProps } from '../components/Dashboard';
 import type { ClockFormat } from '../utils/clockFormat';
 import { toBoards } from './boards';
 import type { Notice } from './data';
 import type { LiveSnapshot } from './live';
 import { boardNotices } from './notices';
-import type {
-  BusBoardProps,
-  HourlyStripProps,
-  NoticeBoardProps,
-  NoticeItem,
-  NoticeKind,
-  NoticeSeverity,
-  TubeBoardProps,
-  WeatherBlockProps
-} from './props';
+import type { NoticeItem, NoticeKind, NoticeSeverity } from './props';
 import { toWeather } from './weatherViews';
 
 /** The feed can drop for a moment (a server restart); only this long without it shows as stale. */
@@ -31,13 +23,8 @@ export const DEPARTURES_STALE_MS = 2 * 60_000;
 /** The weather provider reads a forecast at least every 15 minutes. */
 export const WEATHER_STALE_MS = 45 * 60_000;
 
-export interface DashboardProps {
-  weather: WeatherBlockProps;
-  hourly: HourlyStripProps | null;
-  notices: NoticeBoardProps;
-  tube: TubeBoardProps | null;
-  bus: BusBoardProps | null;
-}
+/** Everything the Dashboard draws but the tab bar, which the app's shell gives it. */
+export type LiveProps = Omit<DashboardProps, 'tabBar'>;
 
 /** A notice-board notice (notices.ts) as a row of the board. */
 export function toNoticeItem(notice: Notice): NoticeItem {
@@ -92,7 +79,7 @@ const olderThan = (time: string | undefined, ms: number, now: Date) =>
   time !== undefined && now.getTime() - Date.parse(time) > ms;
 
 /** The Dashboard's props from `snapshot`, as of `now`. */
-export function dashboardProps(snapshot: LiveSnapshot, now: Date, clockFormat: ClockFormat): DashboardProps {
+export function dashboardProps(snapshot: LiveSnapshot, now: Date, clockFormat: ClockFormat): LiveProps {
   const down = feedStale(snapshot, now);
   const boards = toBoards(snapshot.arrivals, now);
   const fetchedAt = new Map(

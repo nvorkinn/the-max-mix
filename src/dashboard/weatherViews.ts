@@ -167,6 +167,11 @@ function turnOf(hours: readonly Hour[], wetNow: boolean, clockFormat: ClockForma
   return `${wetNow ? 'Dry' : 'Rain'} from ${hourWords(localHour(turn), clockFormat)}`;
 }
 
+/** A summary with its icon: a sun for one that says it stays or turns dry, else the umbrella. */
+function withIcon(summary: string | null): Pick<WeatherView, 'summary' | 'summaryIcon'> {
+  return summary?.startsWith('Dry') ? { summary, summaryIcon: 'sun' } : { summary };
+}
+
 export interface WeatherProps {
   views: WeatherView[];
   hours: HourForecast[];
@@ -211,12 +216,13 @@ export function toWeather(answer: DeviceWeather | null, now: Date, clockFormat: 
   const laterToday = ahead.slice(STRIP_HOURS).filter(hour => localDate(hour) === today);
   const strip = ahead.slice(0, STRIP_HOURS);
   const wetBy = (from: readonly Hour[]) => WET.has(from.at(-1)?.sky ?? nowSky);
+  const nowSummary = turnOf(laterToday, wetBy(strip), clockFormat);
   views.push({
     period: 'now',
     temperature: Math.round(fields.current.temperature),
     sky: nowSky,
     condition: conditionFor(fields.current.weather_code),
-    summary: turnOf(laterToday, wetBy(strip), clockFormat)
+    ...withIcon(nowSummary)
   });
 
   // Tonight: from EVENING (or now) to MORNING tomorrow.
@@ -255,7 +261,7 @@ export function toWeather(answer: DeviceWeather | null, now: Date, clockFormat: 
       temperature: Math.round(tomorrowHigh),
       sky: skyFor(tomorrowCode),
       condition: conditionFor(tomorrowCode),
-      summary: tomorrowSummary
+      ...withIcon(tomorrowSummary)
     });
   }
 

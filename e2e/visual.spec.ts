@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { showDashboard } from './dashboard.ts';
 import { DEVICE_CONFIGS, fakeCountdownServer } from './fake-countdown.ts';
 import { airPlayOutput, fakeKioskOutputs } from './fake-kiosk.ts';
 import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
@@ -199,26 +200,17 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await expect(page).toHaveScreenshot(shotName('speakers-view-airplay', screen), moving(page));
     });
 
-    // The Dashboard shows its sample data, the clock fixed so the departures read the same every run.
+    // The Dashboard shows countdown-server's live feed for an owned kiosk, the clock fixed so the departures read the
+    // same every run.
     test(`dashboard at ${size(screen)}`, { tag: '@layout' }, async ({ page }) => {
-      await fakeSpotify(page);
-      await page.clock.setFixedTime(new Date('2026-11-17T09:20:00Z'));
-      await page.setViewportSize(screen);
-      await page.goto('/');
-      await page.getByRole('tab', { name: 'Dashboard' }).click();
-      await expect(page.getByRole('heading', { name: 'Tube' })).toBeVisible();
+      await showDashboard(page, screen);
       await expect(page).toHaveScreenshot(shotName('dashboard', screen), SHOT);
     });
 
     test(`dashboard notice at ${size(screen)}`, { tag: '@layout' }, async ({ page }) => {
-      await fakeSpotify(page);
-      await page.clock.setFixedTime(new Date('2026-11-17T09:20:00Z'));
-      await page.setViewportSize(screen);
-      await page.goto('/');
-      await page.getByRole('tab', { name: 'Dashboard' }).click();
-      await page.getByRole('button', { name: /Northern line: Delays/ }).click();
-      const notice = page.getByRole('dialog', { name: 'Northern line: Delays' });
-      await expect(notice).toBeVisible();
+      await showDashboard(page, screen);
+      await page.getByRole('button', { name: /Northern line/ }).click();
+      await expect(page.getByRole('dialog', { name: /Northern line/ })).toBeVisible();
       await expect(page).toHaveScreenshot(shotName('dashboard-notice', screen), SHOT);
     });
 
