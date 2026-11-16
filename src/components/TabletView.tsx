@@ -643,7 +643,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         aria-label="Dashboard"
         hidden={screen !== 'dashboard'}
       >
-        <Dashboard shown={screen === 'dashboard' && !sleep.asleep} clockFormat={clockFormat} config={ownedConfig} />
+        <Dashboard shown={screen === 'dashboard' && !sleep.asleep} clockFormat={clockFormat} />
       </section>
       <section
         className="app-tab-panel"

@@ -11,23 +11,10 @@ describe('dashboard data', () => {
   });
 
   it('gives fresh departures and weather', async () => {
-    const data = await getDashboardData(null, now);
+    const data = await getDashboardData(now);
     expect(data.arrivals?.stops.length).toBeGreaterThan(0);
     expect(data.weather?.hours.length).toBeGreaterThan(0);
+    expect(data.notices.length).toBeGreaterThan(0);
     expect(isFresh(data.arrivals?.updatedAt ?? '', 60_000, now)).toBe(true);
-  });
-
-  it("shows nothing for a panel the owner hasn't set, and the owner's place", async () => {
-    const unset = await getDashboardData({ arrivals: { stops: [] }, weather: { location: '', key: null } }, now);
-    expect(unset).toEqual({ arrivals: null, weather: null });
-    const set = await getDashboardData(
-      {
-        arrivals: { stops: [{ source: 'tfl', id: '490000077E' }] },
-        weather: { location: 'Oslo', key: 'oslo-no-3143244' }
-      },
-      now
-    );
-    expect(set.arrivals).not.toBeNull();
-    expect(set.weather?.location).toBe('Oslo');
   });
 });

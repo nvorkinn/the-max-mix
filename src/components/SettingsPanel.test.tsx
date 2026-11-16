@@ -470,7 +470,7 @@ describe('SettingsPanel', () => {
     expect(card).toHaveTextContent(/^Countdown1 stop$/);
     await userEvent.click(card);
     expect(screen.getByRole('region', { name: 'Countdown' })).toBeInTheDocument();
-    expect(screen.getByRole('searchbox', { name: 'Search for a stop' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add a station or stop' })).toBeInTheDocument();
   });
 
   it('saves the time format from the General page, which shows with an owned kiosk only off the kiosk', async () => {
