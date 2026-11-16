@@ -75,11 +75,15 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     await page.goto('/?kiosk=1');
     const settings = await openSettings(page, 'Countdown');
 
-    await settings.getByRole('searchbox', { name: 'Search for a stop' }).fill('oslo s');
-    await settings
+    await settings.getByRole('button', { name: 'Add a station or stop' }).click();
+    const search = page.getByRole('dialog', { name: 'Add stops' });
+    await search.getByRole('searchbox', { name: 'Search for a stop' }).fill('oslo s');
+    await search
       .getByRole('list', { name: 'Results' })
       .getByRole('button', { name: /Platform 4/ })
       .click();
+    await expect(search.getByRole('button', { name: /Platform 4.*Added/ })).toBeDisabled();
+    await search.getByRole('button', { name: 'Close' }).click();
 
     await expect(settings.getByRole('list', { name: 'Saved stops' }).getByText('Oslo S')).toBeVisible();
     await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
