@@ -17,6 +17,9 @@ export function visibleDepartures<D extends { expectedAt: string }>(departures: 
     .slice(0, ROWS_PER_BOARD);
 }
 
+/** A departure row's key: its vehicle, so the row follows the vehicle when predictions reorder. */
+export const byVehicle = (departure: { vehicleId: string }): string => departure.vehicleId;
+
 /** The minutes to a departure, or "Due". */
 export function Minutes({ expectedAt, now }: Readonly<{ expectedAt: string; now: Date }>) {
   const minutes = minutesUntil(expectedAt, now);

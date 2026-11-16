@@ -76,7 +76,23 @@
   height: 800px;
   overflow: hidden;
   color: var(--text);
-  background: #1c2230 var(--backdrop) center 30% / cover no-repeat;
+  background: #1c2230;
+}
+/* The photo, under the fades. A new day's photo fades in over the old one (Backdrop). */
+.dashboard-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+}
+.dashboard-backdrop-photo {
+  position: absolute;
+  inset: 0;
+  background: var(--photo) center 30% / cover no-repeat;
+}
+.dashboard-backdrop-photo[data-arriving] {
+  animation: dashboard-fade-in 4000ms ease-in-out both;
+  will-change: opacity;
 }
 .dashboard-panel::before {
   content: '';
@@ -200,6 +216,12 @@
   text-align: left;
   cursor: pointer;
 }
+.dashboard-weather > * {
+  transition: opacity 350ms ease;
+}
+.dashboard-weather.fading > * {
+  opacity: 0;
+}
 .dashboard-weather:focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 4px;
@@ -293,6 +315,10 @@
 }
 .dashboard-notice-list li:last-child {
   border-bottom: 0;
+}
+/* A notice new to the board fades in. */
+.dashboard-notice-list li[data-arriving] .dashboard-notice {
+  animation: dashboard-fade-in 600ms ease both;
 }
 .dashboard-notice {
   flex: 1;
@@ -536,6 +562,7 @@ button.dashboard-notice {
 }
 
 .dashboard-rows {
+  position: relative;
   list-style: none;
   padding: 0;
   flex: 1;
@@ -557,6 +584,20 @@ button.dashboard-notice {
 }
 .dashboard-rows li:last-child {
   border-bottom: 0;
+}
+/* Animations change only opacity and transforms, which the Pi's GPU composites without laying the page out again.
+   A departing row fades where it is, then the rows below slide up (AnimatedRows sets their transforms); a new one fades in. */
+.dashboard-rows li[data-row='leaving'] {
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+.dashboard-rows li[data-row='entering'] {
+  animation: dashboard-fade-in 400ms ease both;
+}
+@keyframes dashboard-fade-in {
+  from {
+    opacity: 0;
+  }
 }
 .dashboard-line-pill {
   width: 90px;

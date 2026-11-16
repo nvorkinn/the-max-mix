@@ -248,13 +248,36 @@ export function useSimulatedNow(speed = 1): Date {
   return now;
 }
 
-/** The sample data as the Dashboard's props at `now`: the first `noticeCount` notices, as the static page shows. */
+/** The bus that catches up: the 35, ten minutes away at the start, gains on the 148 and overtakes it. */
+const CATCHING_UP = 'LF19FWM';
+
+/**
+ * The 35's time at `now`: it starts 10 minutes after the sample time, gains 48 seconds a minute and settles 7 minutes
+ * after it, so it passes the 148 (8 minutes) two and a half minutes in, which the board shows as the 35's row sliding
+ * up past the 148's.
+ */
+function catchingUpAt(now: Date): string {
+  const elapsed = Math.max(0, (now.getTime() - SAMPLE_NOW.getTime()) / 60_000);
+  return minutesOn(Math.max(7, 10 - 0.8 * elapsed));
+}
+
+/** The sample buses at `now`, soonest first as the server sends them. */
+function busesAt(now: Date): BusBoardProps['departures'] {
+  return SAMPLE.bus.departures
+    .map(bus => (bus.vehicleId === CATCHING_UP ? { ...bus, expectedAt: catchingUpAt(now) } : bus))
+    .toSorted((a, b) => a.expectedAt.localeCompare(b.expectedAt));
+}
+
+/**
+ * The sample data as the Dashboard's props at `now`: the first `noticeCount` notices, as the static page shows. As the
+ * clock runs, the departures count down and leave, and the 35 bus overtakes the 148.
+ */
 export function sampleDashboard(now: Date, clockFormat: '12h' | '24h', noticeCount = 6) {
   return {
     weather: SAMPLE.weather,
     hourly: { ...SAMPLE.hourly, updatedAt: now.toISOString(), now, clockFormat },
     notices: { notices: SAMPLE.notices.notices.slice(0, noticeCount) },
     tube: { ...SAMPLE.tube, now },
-    bus: { ...SAMPLE.bus, now }
+    bus: { ...SAMPLE.bus, departures: busesAt(now), now }
   };
 }
