@@ -1,7 +1,5 @@
 import type { CSSProperties } from 'react';
 import { Check, Moon, Sun, SunMoon } from 'lucide-react';
-import { DASHBOARD_LAYOUTS } from '../../utils/dashboardLayout';
-import type { DashboardLayout } from '../../utils/dashboardLayout';
 import { THEME_COLOURS } from '../../utils/themeColour';
 import type { ThemeColour } from '../../utils/themeColour';
 import { THEMES } from '../../utils/theme';
@@ -78,42 +76,13 @@ function ColourChoice({
   );
 }
 
-/** Which of the four Dashboard layouts the Dashboard tab shows. */
-function DashboardLayoutChoice({
-  layout,
-  onChange
-}: Readonly<{ layout: DashboardLayout; onChange: (layout: DashboardLayout) => void }>) {
-  return (
-    <section className="settings-group">
-      <h5 className="settings-group-title" id="dashboard-layout-label">
-        Dashboard
-      </h5>
-      <div className="settings-segmented" role="group" aria-labelledby="dashboard-layout-label">
-        {DASHBOARD_LAYOUTS.map(choice => (
-          <button
-            type="button"
-            key={choice.id}
-            aria-pressed={layout === choice.id}
-            onClick={() => onChange(choice.id)}
-            className="settings-segment"
-          >
-            {choice.label}
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 export default function AppearanceSettings({
   theme,
   autoTheme,
   onThemeChange,
   skin,
   themeColour,
-  onThemeColourChange,
-  dashboardLayout,
-  onDashboardLayoutChange
+  onThemeColourChange
 }: Readonly<{
   theme: Theme | undefined;
   autoTheme: boolean;
@@ -122,17 +91,12 @@ export default function AppearanceSettings({
   skin?: Skin | undefined;
   themeColour: ThemeColour | undefined;
   onThemeColourChange: ((colour: ThemeColour) => void) | undefined;
-  dashboardLayout?: DashboardLayout | undefined;
-  onDashboardLayoutChange?: ((layout: DashboardLayout) => void) | undefined;
 }>) {
   return (
     <div className="settings-stack">
       {theme !== undefined && onThemeChange && <ThemeChoice theme={theme} auto={autoTheme} onChange={onThemeChange} />}
       {themeColour !== undefined && onThemeColourChange && (
         <ColourChoice colour={themeColour} onChange={onThemeColourChange} disabled={(skin ?? theme) === 'night'} />
-      )}
-      {dashboardLayout !== undefined && onDashboardLayoutChange && (
-        <DashboardLayoutChoice layout={dashboardLayout} onChange={onDashboardLayoutChange} />
       )}
     </div>
   );

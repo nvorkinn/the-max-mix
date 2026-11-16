@@ -1,7 +1,8 @@
 // The redesigned Dashboard's sample data, the same as the static page's (public/dashboard-mockup/index.html), in the
-// components' props (props.ts). Times are relative to `SAMPLE_NOW`, so a ticking clock moved on from it counts the
-// departures down.
+// components' props (props.ts). The page shows the first six notices unless asked for more (?notices=8). Times are
+// relative to `SAMPLE_NOW`, so a ticking clock moved on from it counts the departures down.
 
+import { useEffect, useState } from 'react';
 import type {
   BusBoardProps,
   HourlyStripProps,
@@ -28,9 +29,22 @@ export const SAMPLE = {
 
   weather: {
     views: [
-      { period: 'now', temperature: 9, sky: 'partly-cloudy', condition: 'Partly cloudy', summary: 'Rain after 1pm' },
+      {
+        period: 'now',
+        temperature: 9,
+        sky: 'partly-cloudy',
+        condition: 'Partly cloudy',
+        summary: 'Heavy rain from 14:00'
+      },
       { period: 'tonight', temperature: 6, sky: 'rain', condition: 'Showers', summary: null },
-      { period: 'tomorrow', temperature: 12, sky: 'cloudy', condition: 'Cloudy', summary: 'Dry all day' },
+      {
+        period: 'tomorrow',
+        temperature: 12,
+        sky: 'cloudy',
+        condition: 'Cloudy',
+        summary: 'Dry all day',
+        summaryIcon: 'sun'
+      },
       { period: 'weekend', temperature: 14, sky: 'clear', condition: 'Sunny spells', summary: null }
     ]
   } satisfies WeatherBlockProps,
@@ -84,7 +98,7 @@ export const SAMPLE = {
         kind: 'planned-works',
         severity: 'planned',
         title: 'Victoria line: Planned work',
-        summary: 'Sat 21 – Sun 22 Nov, no service Euston – Walthamstow',
+        summary: 'No service this weekend',
         detail:
           'Victoria line: Saturday 21 and Sunday 22 November, no service between Euston and Walthamstow Central. ' +
           'Use the Northern line, London Overground or replacement buses.'
@@ -104,6 +118,26 @@ export const SAMPLE = {
         title: 'Parcel arriving',
         summary: 'Expected today, 16:00–18:00',
         detail: null
+      },
+      {
+        id: 'tfl-borough',
+        kind: 'closure',
+        severity: 'severe',
+        title: 'Borough station closed',
+        summary: 'Until 12:00 because of a fire alert',
+        detail:
+          'Borough station is closed until about 12:00 while the London Fire Brigade checks a fire alert. ' +
+          'Use Elephant & Castle or London Bridge.'
+      },
+      {
+        id: 'tfl-walworth-road',
+        kind: 'road-works',
+        severity: 'disruption',
+        title: 'Walworth Road works',
+        summary: 'Lane closed northbound until Friday',
+        detail:
+          'Walworth Road (A215) northbound: one lane closed at Larcom Street for gas main works until Friday 20 ' +
+          'November. Buses 12, 35, 40, 148 and 343 may be delayed.'
       }
     ]
   } satisfies NoticeBoardProps,
@@ -190,3 +224,37 @@ export const SAMPLE = {
     stale: false
   } satisfies BusBoardProps
 };
+
+/** How long the simulated clock runs before it starts again, so the sample boards never run out of departures. */
+const LOOP_MINUTES = 12;
+
+/**
+ * A clock that starts at `SAMPLE_NOW` and runs on in real time (`speed` times as fast), going back to the start after
+ * twelve simulated minutes. The departures count down against it, reach "Due" and leave, which is what the animations
+ * need to be seen without waiting for live data. It ticks once a second, and `speed` can be raised to see a minute pass
+ * sooner.
+ */
+export function useSimulatedNow(speed = 1): Date {
+  const [started] = useState(Date.now);
+  const [now, setNow] = useState(SAMPLE_NOW);
+  useEffect(() => {
+    const move = () => {
+      const elapsed = ((Date.now() - started) * speed) % (LOOP_MINUTES * 60_000);
+      setNow(new Date(SAMPLE_NOW.getTime() + elapsed));
+    };
+    const timer = window.setInterval(move, 1000);
+    return () => window.clearInterval(timer);
+  }, [started, speed]);
+  return now;
+}
+
+/** The sample data as the Dashboard's props at `now`: the first `noticeCount` notices, as the static page shows. */
+export function sampleDashboard(now: Date, clockFormat: '12h' | '24h', noticeCount = 6) {
+  return {
+    weather: SAMPLE.weather,
+    hourly: { ...SAMPLE.hourly, updatedAt: now.toISOString(), now, clockFormat },
+    notices: { notices: SAMPLE.notices.notices.slice(0, noticeCount) },
+    tube: { ...SAMPLE.tube, now },
+    bus: { ...SAMPLE.bus, now }
+  };
+}
