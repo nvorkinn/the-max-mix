@@ -1650,8 +1650,6 @@ body:has(.app-dialog[open]) {
   min-height: 0;
   border: 0;
   border-radius: 0;
-  /* The on-screen keyboard (for the Countdown page's stop search) covers the bottom of the screen; the pages end above it. */
-  padding-bottom: var(--keyboard-height, 0);
 }
 .settings-nav {
   display: flex;
@@ -1991,18 +1989,30 @@ body:has(.app-dialog[open]) {
   gap: 14px;
   padding: 10px 10px 10px 14px;
 }
-/*
-  The Countdown page: the stop search on the left and the saved stops on the right, side by side, each scrolling on its
-  own under its title so the search box stays in view.
-*/
+/* The Countdown page: a box that opens the stop search, then the saved stops, which scroll on their own under it. */
 .countdown-settings {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   height: 100%;
   min-height: 0;
 }
+.countdown-search-button {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 0 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: 18px;
+  text-align: left;
+}
 .countdown-column {
+  flex: 1;
   min-height: 0;
 }
 .countdown-column-body {
@@ -2013,21 +2023,80 @@ body:has(.app-dialog[open]) {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-.countdown-search {
-  position: relative;
+/*
+  The stop search fills the screen above the on-screen keyboard, so nothing it shows is hidden behind it: the search
+  box and Done along the top, and the results scrolling under them.
+*/
+.app-dialog.stop-search {
+  inset: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: none;
+  height: calc(100dvh - var(--keyboard-height, 0px));
+  max-height: none;
+  margin: 0;
+  padding: 12px 16px 0;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
 }
-.countdown-search-icon {
+.app-dialog.stop-search:not([open]) {
+  display: none;
+}
+.stop-search-bar {
+  display: flex;
+  flex-shrink: 0;
+  gap: 12px;
+}
+.stop-search-field {
+  position: relative;
+  flex: 1;
+}
+.stop-search-icon {
   position: absolute;
   top: 50%;
-  left: 14px;
-  width: 20px;
-  height: 20px;
+  left: 16px;
+  width: 22px;
+  height: 22px;
   color: var(--muted);
   transform: translateY(-50%);
   pointer-events: none;
 }
-.countdown-search .music-search {
+.stop-search-field .music-search {
+  height: 56px;
+  padding: 0 16px 0 50px;
+  font-size: 20px;
+}
+.stop-search .stop-search-done {
+  flex-shrink: 0;
+  min-width: 120px;
+  min-height: 56px;
+  border-radius: 14px;
   font-size: 18px;
+}
+.stop-search-results {
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.stop-search-results .search-dialog-results {
+  margin-top: 0;
+}
+.search-result:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.search-result-added {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-weight: 700;
 }
 .countdown-saved {
   display: flex;

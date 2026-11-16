@@ -56,22 +56,27 @@ function setup(config: TouchscreenConfig = OWNED) {
 const saved = () => screen.getByRole('list', { name: 'Saved stops' });
 
 describe('CountdownSettings', () => {
-  it('adds a stop as soon as a search result is tapped, and leaves the saved ones out of the results', async () => {
-    const onSave = setup();
-    const box = screen.getByRole('searchbox', { name: 'Search for a stop' });
-    expect(box).not.toHaveFocus();
+  it('adds stops from the full-screen search, which stays open, ticks the saved ones and closes on Close', async () => {
+    const station = { source: 'entur', id: 'NSR:StopPlace:337' } as const;
+    const onSave = setup({ ...OWNED, arrivals: { stops: [station] } });
+    await userEvent.click(screen.getByRole('button', { name: 'Add a station or stop' }));
+    const dialog = screen.getByRole('dialog', { name: 'Add stops' });
+    const box = within(dialog).getByRole('searchbox', { name: 'Search for a stop' });
+    expect(box).toHaveFocus();
     await userEvent.type(box, 'oslo s');
-    const results = await screen.findByRole('list', { name: 'Results' });
-    for (const stop of OWNED.arrivals.stops) {
-      const { name } = searches.describeStop(stop);
-      expect(within(results).queryByRole('button', { name: new RegExp(`^${name}`) })).not.toBeInTheDocument();
-    }
-    await userEvent.click(within(results).getByRole('button', { name: /Platform 4/ }));
+    const results = await within(dialog).findByRole('list', { name: 'Results' });
+    const added = within(results).getByRole('button', { name: /^Oslo S.*All platforms.*Added$/ });
+    expect(added).toBeDisabled();
+    const platform = within(results).getByRole('button', { name: /Platform 4/ });
+    expect(fireEvent.pointerDown(platform)).toBe(false);
+    await userEvent.click(platform);
     expect(onSave).toHaveBeenCalledExactlyOnceWith('arrivals', {
-      stops: [...OWNED.arrivals.stops, { source: 'entur', id: 'NSR:Quay:7333' }]
+      stops: [station, { source: 'entur', id: 'NSR:Quay:7333' }]
     });
     expect(searches.describeStop({ source: 'entur', id: 'NSR:Quay:7333' }).name).toBe('Oslo S');
-    expect(box).toHaveValue('oslo s');
+    expect(screen.getByRole('dialog', { name: 'Add stops' })).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('removes a stop with its X', async () => {
@@ -96,6 +101,7 @@ describe('CountdownSettings', () => {
   it("says so when a search can't be made", async () => {
     vi.mocked(searches.searchStops).mockRejectedValueOnce(new SearchFailed());
     setup();
+    await userEvent.click(screen.getByRole('button', { name: 'Add a station or stop' }));
     await userEvent.type(screen.getByRole('searchbox', { name: 'Search for a stop' }), 'oslo s');
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't search");
   });
@@ -104,6 +110,7 @@ describe('CountdownSettings', () => {
     const onSave = setup({ ...OWNED, arrivals: { stops: [] } });
     expect(screen.queryByRole('list', { name: 'Saved stops' })).not.toBeInTheDocument();
     expect(screen.getByText('No stops yet.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Add a station or stop' }));
     await userEvent.type(screen.getByRole('searchbox', { name: 'Search for a stop' }), 'atlantis');
     expect(screen.getByRole('status')).toHaveTextContent('Searching...');
     expect(await screen.findByText('Nothing found.')).toBeInTheDocument();

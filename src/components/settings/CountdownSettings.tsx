@@ -1,24 +1,22 @@
 import { useRef, useState } from 'react';
-import { GripVertical, Plus, Search, X } from 'lucide-react';
+import { GripVertical, Search, X } from 'lucide-react';
 import type { TouchscreenConfig } from 'countdown-api';
-import { describeStop, rememberStop, searchStops } from '../../countdown/search';
+import { describeStop, rememberStop } from '../../countdown/search';
 import type { DeviceConfig } from '../../hooks/useDeviceConfig';
 import { useDragToReorder } from '../../hooks/useDragToReorder';
-import { useOnScreenKeyboard } from '../../hooks/useOnScreenKeyboard';
-import SearchResults from './SearchResults';
+import StopSearch from './StopSearch';
 
 /**
- * The stops whose departures the Countdown lists, as two lists side by side: on the left a search for stops, where a tap
- * on one adds it; on the right the saved stops, in the Countdown's order, each with a handle to drag it to another place
- * and an X that removes it. Every change saves to countdown-server on its own as soon as it is made.
+ * The stops whose departures the Countdown lists: a search box that opens the stop search over the whole screen
+ * (StopSearch), then the saved stops in the Countdown's order, each with a handle to drag it to another place and an X
+ * that removes it. Every change saves to countdown-server on its own as soon as it is made.
  */
 export default function CountdownSettings({
   config,
   onSave
 }: Readonly<{ config: TouchscreenConfig; onSave: DeviceConfig['save'] }>) {
-  const fieldRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  const [query, setQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const stops = config.arrivals.stops;
   const saveStops = (next: typeof stops) => onSave('arrivals', { ...config.arrivals, stops: next });
   const reorder = useDragToReorder(listRef, stops.length, (from, to) => {
@@ -27,46 +25,13 @@ export default function CountdownSettings({
     if (moved) next.splice(to, 0, moved);
     saveStops(next);
   });
-  // Not focused at once: the keyboard would cover the saved stops before anyone asked to search.
-  useOnScreenKeyboard(fieldRef, { focus: false, hasNumberRow: true });
 
   return (
     <div className="countdown-settings">
-      <section className="settings-group countdown-column" aria-labelledby="stop-search-label">
-        <h5 className="settings-group-title" id="stop-search-label">
-          Find stops
-        </h5>
-        <div className="countdown-search">
-          <Search className="countdown-search-icon" aria-hidden="true" />
-          <input
-            ref={fieldRef}
-            type="search"
-            value={query}
-            onChange={event => setQuery(event.target.value)}
-            aria-label="Search for a stop"
-            placeholder="Station or stop"
-            autoComplete="off"
-            spellCheck={false}
-            className="music-search w-full min-h-12 pl-11 pr-4 rounded-xl border text-sm"
-          />
-        </div>
-        <div className="countdown-column-body">
-          {query.trim() === '' ? (
-            <p className="text-muted py-2">Type a station or stop, then tap it to add it to the saved stops.</p>
-          ) : (
-            <SearchResults
-              query={query.trim()}
-              search={searchStops}
-              exclude={stops.map(stop => `${stop.source}:${stop.id}`)}
-              icon={<Plus className="w-5 h-5 shrink-0 text-accent" aria-hidden="true" />}
-              onPick={result => {
-                rememberStop(result);
-                saveStops([...stops, result.value]);
-              }}
-            />
-          )}
-        </div>
-      </section>
+      <button type="button" onClick={() => setIsSearching(true)} className="countdown-search-button">
+        <Search className="w-6 h-6 shrink-0" aria-hidden="true" />
+        Add a station or stop
+      </button>
 
       <section className="settings-group countdown-column" aria-labelledby="saved-stops-label">
         <h5 className="settings-group-title" id="saved-stops-label">
@@ -121,6 +86,17 @@ export default function CountdownSettings({
           )}
         </div>
       </section>
+
+      {isSearching && (
+        <StopSearch
+          stops={stops}
+          onClose={() => setIsSearching(false)}
+          onAdd={result => {
+            rememberStop(result);
+            saveStops([...stops, result.value]);
+          }}
+        />
+      )}
     </div>
   );
 }

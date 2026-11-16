@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Check } from 'lucide-react';
 import type { SearchResult } from '../../countdown/search';
 
 /** How long typing must pause before the search runs, so each key press does not send one. */
@@ -14,17 +15,23 @@ const NONE: readonly string[] = [];
 export default function SearchResults<R extends SearchResult>({
   query,
   search,
-  exclude = NONE,
+  chosen = NONE,
   icon,
+  keepFocus = false,
   onPick
 }: Readonly<{
   /** What to search for, already trimmed; empty searches for nothing. */
   query: string;
   search: (query: string) => Promise<R[]>;
-  /** The keys of results already chosen, left out of the list. */
-  exclude?: readonly string[];
-  /** Shown at the end of each result, such as a plus for one that is added. */
+  /** The keys of results already chosen: shown with a tick and Added, and not picked again. */
+  chosen?: readonly string[];
+  /** Shown at the end of each result not yet chosen, such as a plus for one that is added. */
   icon?: ReactNode;
+  /**
+   * Leaves the focus in the search box when a result is tapped, so the on-screen keyboard stays up (and nothing moves
+   * under the finger) while more are picked.
+   */
+  keepFocus?: boolean;
   onPick: (result: R) => void;
 }>) {
   // What the last search came to: its results, or null when it couldn't be made.
@@ -43,7 +50,7 @@ export default function SearchResults<R extends SearchResult>({
   }, [query, search]);
 
   const answered = found?.query === query ? found : undefined;
-  const shown = answered?.results?.filter(result => !exclude.includes(result.key));
+  const shown = answered?.results;
   return (
     <div className="search-dialog-results">
       {query && !answered && (
@@ -59,21 +66,33 @@ export default function SearchResults<R extends SearchResult>({
       {shown?.length === 0 && <p className="text-muted py-2">Nothing found.</p>}
       {shown && shown.length > 0 && (
         <ul className="space-y-2" aria-label="Results">
-          {shown.map(result => (
-            <li key={result.key} className={result.indent ? 'search-result-indent' : undefined}>
-              <button
-                type="button"
-                onClick={() => onPick(result)}
-                className="modal-option w-full px-4 py-2 flex gap-3 items-center text-left rounded-xl border"
-              >
-                <span className="flex-1 min-w-0">
-                  <span className="block text-sm font-semibold truncate">{result.name}</span>
-                  <span className="block text-xs text-muted truncate">{result.detail}</span>
-                </span>
-                {icon}
-              </button>
-            </li>
-          ))}
+          {shown.map(result => {
+            const isChosen = chosen.includes(result.key);
+            return (
+              <li key={result.key} className={result.indent ? 'search-result-indent' : undefined}>
+                <button
+                  type="button"
+                  disabled={isChosen}
+                  onPointerDown={keepFocus ? event => event.preventDefault() : undefined}
+                  onClick={() => onPick(result)}
+                  className="modal-option search-result w-full px-4 py-2 flex gap-3 items-center text-left rounded-xl border"
+                >
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold truncate">{result.name}</span>
+                    <span className="block text-xs text-muted truncate">{result.detail}</span>
+                  </span>
+                  {isChosen ? (
+                    <span className="search-result-added">
+                      <Check className="w-5 h-5 shrink-0" aria-hidden="true" />
+                      Added
+                    </span>
+                  ) : (
+                    icon
+                  )}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
