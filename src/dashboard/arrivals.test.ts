@@ -1,56 +1,54 @@
-// cspell:ignore HUBZEC
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { DeviceArrivals } from 'countdown-api';
+import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json';
 import { forgetArrivals, fromServer, mockAnswer, readArrivals } from './arrivals';
-import type { ArrivalsResponse } from './arrivals';
 
 const config = vi.hoisted(() => ({
   serverClient: vi.fn<() => { baseUrl: string; secret: string } | null>()
 }));
 vi.mock('../countdown/config', () => ({ serverClient: config.serverClient }));
 
-const NOW = new Date('2026-11-15T09:00:00Z');
-const at = (minutes: number) => new Date(NOW.getTime() + minutes * 60_000).toISOString();
-
-const HUB: ArrivalsResponse['stops'][number] = {
-  source: 'tfl',
-  id: 'HUBZEC',
-  name: 'Elephant & Castle',
-  fetched_at: at(-1),
-  departures: [
-    { mode: 'bus', line: '35', destination: 'Shoreditch', stop_letter: 'F', expected: at(4) },
-    { mode: 'tube', line: 'Northern', destination: 'Morden', stop_letter: null, expected: at(3) },
-    { mode: 'bus', line: '12', destination: 'Oxford Circus', stop_letter: 'E', expected: at(1) }
-  ]
-};
+// countdown-api's example answer, read a minute after the server fetched it.
+const ANSWER = (fixture as unknown as { arrivals: DeviceArrivals }).arrivals;
+const NOW = new Date('2026-10-17T12:01:00Z');
 
 describe("countdown-server's departures as the Dashboard's", () => {
-  it("splits a stop into its trains and its buses, soonest first, each bus with its stop's letter", () => {
-    expect(fromServer({ stops: [HUB] }, NOW)).toEqual({
-      updatedAt: at(-1),
-      stops: [
-        {
-          name: 'Elephant & Castle',
-          mode: 'tube',
-          arrivals: [{ route: 'Northern', destination: 'Morden', due: at(3) }]
-        },
-        {
-          name: 'Elephant & Castle',
-          mode: 'bus',
-          arrivals: [
-            { route: '12', destination: 'Oxford Circus', due: at(1), stop: 'Stop E' },
-            { route: '35', destination: 'Shoreditch', due: at(4), stop: 'Stop F' }
-          ]
-        }
-      ]
-    });
+  it('gives each stop its trains or buses, soonest first, named without "Underground Station"', () => {
+    const arrivals = fromServer(ANSWER, NOW);
+    expect(arrivals?.updatedAt).toBe('2026-10-17T12:00:00Z');
+    expect(arrivals?.stops.slice(0, 2)).toEqual([
+      {
+        name: 'Kennington',
+        mode: 'tube',
+        arrivals: [
+          { route: 'Northern', destination: 'Morden', due: '2026-10-17T12:02:00Z' },
+          { route: 'Northern', destination: 'Edgware via Bank', due: '2026-10-17T12:04:00Z' }
+        ]
+      },
+      {
+        name: 'Elephant & Castle',
+        mode: 'bus',
+        arrivals: [
+          { route: '171', destination: 'Elephant & Castle', due: '2026-10-17T12:01:00Z', stop: 'Stop W' },
+          { route: '12', destination: 'Oxford Circus', due: '2026-10-17T12:05:00Z', stop: 'Stop W' }
+        ]
+      }
+    ]);
   });
 
-  it('leaves out stops never read or read too long ago, and gives the oldest read of the rest', () => {
-    const never = { ...HUB, id: 'never', fetched_at: null };
-    const stale = { ...HUB, id: 'stale', fetched_at: at(-6) };
-    const older = { ...HUB, id: 'older', fetched_at: at(-3) };
-    expect(fromServer({ stops: [never, stale, HUB, older] }, NOW)?.updatedAt).toBe(at(-3));
-    expect(fromServer({ stops: [never, stale] }, NOW)).toBeNull();
+  it("gives a stop's platforms, and puts its trams and metro on the Tube card", () => {
+    const majorstuen = fromServer(ANSWER, NOW)?.stops.find(stop => stop.name === 'Majorstuen');
+    expect(majorstuen?.mode).toBe('tube');
+    expect(majorstuen?.arrivals.map(arrival => arrival.stop)).toEqual(['Platform A', 'Platform 2']);
+  });
+
+  it('leaves out stops with nothing stored or read too long ago', () => {
+    const [first, ...rest] = ANSWER.stops;
+    const answer = {
+      stops: [{ ...first, departures: null }, ...rest]
+    } as DeviceArrivals;
+    expect(fromServer(answer, NOW)?.stops.map(stop => stop.name)).not.toContain('Kennington');
+    expect(fromServer(ANSWER, new Date('2026-10-17T12:06:00Z'))).toBeNull();
   });
 
   it('gives the mock answer the shape the Dashboard shows', () => {
@@ -67,13 +65,15 @@ describe('reading the departures from countdown-server', () => {
 
   it('asks GET /api/devices/arrivals with the device secret', async () => {
     config.serverClient.mockReturnValue({ baseUrl: 'https://api.countdown.build', secret: 'device-secret' });
-    const fetch = vi.fn<typeof globalThis.fetch>(() => Promise.resolve(Response.json({ stops: [HUB] })));
+    const fetch = vi.fn<typeof globalThis.fetch>(() => Promise.resolve(Response.json(ANSWER)));
     vi.stubGlobal('fetch', fetch);
     const arrivals = await readArrivals(NOW);
-    expect(arrivals?.stops).toHaveLength(2);
+    expect(arrivals?.stops.length).toBeGreaterThan(0);
     const [url, init] = fetch.mock.calls[0] ?? [];
-    expect(url).toEqual(new URL('https://api.countdown.build/api/devices/arrivals'));
-    expect(init?.headers).toEqual({ Authorization: 'Bearer device-secret' });
+    expect(String(url instanceof Request ? url.url : url)).toBe('https://api.countdown.build/api/devices/arrivals');
+    expect(new Headers(url instanceof Request ? url.headers : init?.headers).get('Authorization')).toBe(
+      'Bearer device-secret'
+    );
   });
 
   it('gives the last answer again when a read fails, and nothing before the first', async () => {
@@ -85,7 +85,7 @@ describe('reading the departures from countdown-server', () => {
     expect(await readArrivals(NOW)).toBeNull();
     vi.stubGlobal(
       'fetch',
-      vi.fn(() => Promise.resolve(Response.json({ stops: [HUB] })))
+      vi.fn(() => Promise.resolve(Response.json(ANSWER)))
     );
     await readArrivals(NOW);
     vi.stubGlobal(
@@ -93,7 +93,7 @@ describe('reading the departures from countdown-server', () => {
       vi.fn(() => Promise.reject(new TypeError('Failed to fetch')))
     );
     const kept = await readArrivals(NOW);
-    expect(kept?.updatedAt).toBe(at(-1));
+    expect(kept?.updatedAt).toBe('2026-10-17T12:00:00Z');
   });
 
   it('reads nothing when the kiosk is not registered', async () => {

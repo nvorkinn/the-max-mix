@@ -1,4 +1,4 @@
-// cspell:ignore GZZLUEAC HUBZEC
+// cspell:ignore GZZLUEAC
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 
@@ -119,48 +119,35 @@ export async function fakeCountdownServer(
 }
 
 /**
- * Stands in for countdown-server's GET /api/devices/arrivals (proposed; not in countdown-api's contract yet): a Tube
- * station's trains and a bus hub's buses, read at `now` (the page's fixed clock) and timed from it.
+ * Stands in for countdown-server's GET /api/devices/arrivals (countdown-api's getArrivals): a Tube station's trains and a
+ * bus stop's buses, read at `now` (the page's fixed clock) and timed from it.
  */
 export async function fakeArrivals(page: Page, now: Date) {
   const at = (minutes: number) => new Date(now.getTime() + minutes * 60_000).toISOString();
-  const departure = (
-    mode: string,
-    line: string,
-    destination: string,
-    minutes: number,
-    letter: string | null = null
-  ) => ({
-    mode,
+  const departure = (line: string, destination: string, minutes: number) => ({
     line,
     destination,
-    stop_letter: letter,
-    expected: at(minutes)
+    expected_at: at(minutes),
+    platform: null,
+    mode: null
+  });
+  const stop = (id: string, name: string, mode: string, letter: string | null, departures: object[]) => ({
+    source: 'tfl',
+    id,
+    departures: { fetched_at: now.toISOString(), stop_id: id, name, mode, stop_letter: letter, modes: [], departures }
   });
   const answer = {
     stops: [
-      {
-        source: 'tfl',
-        id: '940GZZLUEAC',
-        name: 'Elephant & Castle',
-        fetched_at: now.toISOString(),
-        departures: [
-          departure('tube', 'Northern', 'High Barnet', 3),
-          departure('tube', 'Northern', 'Morden', 7),
-          departure('tube', 'Bakerloo', 'Harrow & Wealdstone', 9)
-        ]
-      },
-      {
-        source: 'tfl',
-        id: 'HUBZEC',
-        name: 'Elephant & Castle',
-        fetched_at: now.toISOString(),
-        departures: [
-          departure('bus', '12', 'Oxford Circus', 2, 'E'),
-          departure('bus', '343', 'New Cross', 6, 'F'),
-          departure('bus', '12', 'Oxford Circus', 11, 'E')
-        ]
-      }
+      stop('940GZZLUEAC', 'Elephant & Castle Underground Station', 'tube', null, [
+        departure('Northern', 'High Barnet', 3),
+        departure('Northern', 'Morden', 7),
+        departure('Bakerloo', 'Harrow & Wealdstone', 9)
+      ]),
+      stop('490000077E', 'Elephant & Castle', 'bus', 'E', [
+        departure('12', 'Oxford Circus', 2),
+        departure('343', 'New Cross', 6),
+        departure('12', 'Oxford Circus', 11)
+      ])
     ]
   };
   await page.route(ARRIVALS, route => {

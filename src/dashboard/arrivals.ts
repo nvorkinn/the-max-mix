@@ -1,63 +1,56 @@
-// The Dashboard's departures, from countdown-server's screens' API: GET /api/devices/arrivals with the device secret.
-// countdown-server reads TfL and Entur for the stops in the kiosk's config; the kiosk asks nobody else. The route isn't
-// in countdown-api's contract yet, so its answer is typed here as proposed (ArrivalsResponse) and the call is made by
-// hand; once the contract has it, its generated function and types replace both. A build that sets
-// VITE_COUNTDOWN_CONFIG=mock gets made-up departures instead.
+// The Dashboard's departures, from countdown-server's screens' API: getArrivals (GET /api/devices/arrivals) with the
+// device secret. countdown-server reads TfL and Entur for the stops in the kiosk's config; the kiosk asks nobody else.
+// A build that sets VITE_COUNTDOWN_CONFIG=mock gets made-up departures instead.
 
+import type { DeviceArrivals, StopDepartures } from 'countdown-api';
+import { getArrivals } from '../../vendor/countdown-api/src/countdown_api/client';
 import { serverClient } from '../countdown/config';
 import { debugLog } from '../utils/debugLog';
 import { errorMessage } from '../utils/errorMessage';
 import { ARRIVALS_MAX_AGE_MS, isFresh } from './data';
 import type { Arrival, Arrivals } from './data';
 
-// cspell:ignore GZZLUEAC HUBZEC
+// cspell:ignore GZZLUEAC
 
-/** GET /api/devices/arrivals's answer, as proposed to countdown-api: every stop in the config, in the owner's order. */
-export interface ArrivalsResponse {
-  stops: {
-    source: 'tfl' | 'entur';
-    id: string;
-    name: string;
-    /** When the server last read the stop; null when it never has. */
-    fetched_at: string | null;
-    /** Soonest first. */
-    departures: {
-      /** TfL's mode (tube, bus, dlr, overground, elizabeth-line, tram, ...) or Entur's. */
-      mode: string;
-      /** The line's name or the route's number. */
-      line: string;
-      destination: string;
-      /** The stop's letter or platform the departure leaves from, when the stop has several ("E"); else null. */
-      stop_letter: string | null;
-      /** When it is due, as an ISO time. */
-      expected: string;
-    }[];
-  }[];
+const STATION_KINDS = [' Underground Station', ' DLR Station', ' Rail Station', ' Overground Station', ' Tram Stop'];
+
+/** The source's name without the kind of station it is: "Kennington Underground Station" is "Kennington". */
+function placeName(name: string): string {
+  const kind = STATION_KINDS.find(suffix => name.endsWith(suffix));
+  return kind ? name.slice(0, -kind.length) : name;
+}
+
+/** Where at the stop a departure leaves from: a London bus stop's letter, or the platform the source gives. */
+function stopOf(stop: StopDepartures, departure: StopDepartures['departures'][number]): string | null {
+  if (departure.platform) return `Platform ${departure.platform}`;
+  return stop.stop_letter ? `Stop ${stop.stop_letter}` : null;
 }
 
 /**
- * The answer as the Dashboard's Arrivals: each stop split into its buses and its trains, stops the server hasn't read
- * for a while left out. Null when no stop is left.
+ * The answer as the Dashboard's Arrivals: each stop split into its buses and everything else (the Tube card), soonest
+ * first; stops with nothing stored, or read too long ago, left out. Null when no stop is left.
  */
-export function fromServer(answer: ArrivalsResponse, now: Date): Arrivals | null {
-  const read = answer.stops.filter(
-    (stop): stop is typeof stop & { fetched_at: string } =>
-      stop.fetched_at !== null && isFresh(stop.fetched_at, ARRIVALS_MAX_AGE_MS, now)
+export function fromServer(answer: DeviceArrivals, now: Date): Arrivals | null {
+  const read = answer.stops.flatMap(stop =>
+    stop.departures && isFresh(stop.departures.fetched_at, ARRIVALS_MAX_AGE_MS, now) ? [stop.departures] : []
   );
   if (read.length === 0) return null;
   const stops = read
     .flatMap(stop =>
       (['tube', 'bus'] as const).map(mode => {
         const arrivals: Arrival[] = stop.departures
-          .filter(departure => (departure.mode === 'bus') === (mode === 'bus'))
-          .map(departure => ({
-            route: departure.line,
-            destination: departure.destination,
-            due: departure.expected,
-            ...(departure.stop_letter && { stop: `Stop ${departure.stop_letter}` })
-          }))
+          .filter(departure => ((departure.mode ?? stop.mode) === 'bus') === (mode === 'bus'))
+          .map(departure => {
+            const where = stopOf(stop, departure);
+            return {
+              route: departure.line,
+              destination: departure.destination,
+              due: departure.expected_at,
+              ...(where && { stop: where })
+            };
+          })
           .toSorted((first, second) => Date.parse(first.due) - Date.parse(second.due));
-        return { name: stop.name, mode, arrivals };
+        return { name: placeName(stop.name), mode, arrivals };
       })
     )
     .filter(stop => stop.arrivals.length > 0);
@@ -68,62 +61,50 @@ export function fromServer(answer: ArrivalsResponse, now: Date): Arrivals | null
 }
 
 /** Made-up departures for a build that mocks countdown-server, timed from now. */
-export function mockAnswer(now: Date): ArrivalsResponse {
+export function mockAnswer(now: Date): DeviceArrivals {
   const at = (minutes: number) => new Date(now.getTime() + minutes * 60_000).toISOString();
-  const departure = (
-    mode: string,
-    line: string,
-    destination: string,
-    minutes: number,
-    letter: string | null = null
-  ) => ({
-    mode,
+  const departure = (line: string, destination: string, minutes: number) => ({
     line,
     destination,
-    stop_letter: letter,
-    expected: at(minutes)
+    expected_at: at(minutes),
+    platform: null,
+    mode: null
+  });
+  const stop = (id: string, mode: string, departures: StopDepartures['departures'], letter: string | null = null) => ({
+    source: 'tfl' as const,
+    id,
+    departures: {
+      fetched_at: now.toISOString(),
+      stop_id: id,
+      name: 'Elephant & Castle',
+      mode,
+      stop_letter: letter,
+      modes: [],
+      departures
+    }
   });
   return {
     stops: [
-      {
-        source: 'tfl',
-        id: '940GZZLUEAC',
-        name: 'Elephant & Castle',
-        fetched_at: now.toISOString(),
-        departures: [
-          departure('tube', 'Northern', 'High Barnet', 3),
-          departure('tube', 'Northern', 'Morden', 7),
-          departure('tube', 'Bakerloo', 'Harrow & Wealdstone', 9)
-        ]
-      },
-      {
-        source: 'tfl',
-        id: 'HUBZEC',
-        name: 'Elephant & Castle',
-        fetched_at: now.toISOString(),
-        departures: [
-          departure('bus', '12', 'Oxford Circus', 2, 'E'),
-          departure('bus', '343', 'New Cross', 6, 'F'),
-          departure('bus', '12', 'Oxford Circus', 11, 'E')
-        ]
-      }
+      stop('940GZZLUEAC', 'tube', [
+        departure('Northern', 'High Barnet', 3),
+        departure('Northern', 'Morden', 7),
+        departure('Bakerloo', 'Harrow & Wealdstone', 9)
+      ]),
+      stop('490000077E', 'bus', [departure('12', 'Oxford Circus', 2), departure('343', 'New Cross', 6)], 'E')
     ]
   };
 }
 
-async function fetchAnswer(signal?: AbortSignal): Promise<ArrivalsResponse> {
+async function fetchAnswer(signal?: AbortSignal): Promise<DeviceArrivals> {
   const server = serverClient();
-  if (!server?.secret) throw new Error('the kiosk is not registered with countdown-server');
-  const response = await fetch(new URL('/api/devices/arrivals', server.baseUrl), {
-    headers: { Authorization: `Bearer ${server.secret}` },
-    signal: signal ?? null
-  });
-  if (!response.ok) throw new Error(`countdown-server answered ${response.status}`);
-  return (await response.json()) as ArrivalsResponse;
+  if (!server) throw new Error('the kiosk is not registered with countdown-server');
+  const { data, response } = await getArrivals(server, signal ? { signal } : {});
+  if (!data) throw new Error(`countdown-server answered ${response.status}`);
+  return data;
 }
 
 // The last answer the server gave, so one failed read doesn't blank the departures; they go once it is too old.
-let lastAnswer: ArrivalsResponse | null = null;
+let lastAnswer: DeviceArrivals | null = null;
 
 /**
  * The departures at the kiosk's stops (those in its config on countdown-server). A failed read gives the last answer
