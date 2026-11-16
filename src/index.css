@@ -2939,6 +2939,13 @@ input:disabled {
 .dashboard[data-layout='list'] .dashboard-hour-temperature {
   font-size: calc(31 * var(--u));
 }
+.dashboard[data-layout='list'] .dashboard-hour .weather-icon {
+  width: calc(79 * var(--u));
+  height: calc(79 * var(--u));
+  margin: calc(-10 * var(--u)) 0 calc(-14 * var(--u));
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 calc(4 * var(--u)) rgb(255 255 255 / 9%));
+}
 .dashboard[data-layout='list'] .dashboard-notices {
   background:
     radial-gradient(ellipse at 35% 105%, rgb(151 93 74 / 30%), transparent 56%),
@@ -3693,7 +3700,7 @@ input:disabled {
     'weather weather weather weather weather weather weather notices notices notices notices notices'
     'tube tube tube tube bus bus bus bus later later later later';
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-auto-rows: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 0.78fr) minmax(0, 1.22fr);
 }
 .dashboard[data-layout='modular'][data-notices='none'] {
   grid-template-areas:
@@ -3722,6 +3729,7 @@ input:disabled {
 .dashboard[data-layout='modular'] .dashboard-notice-list {
   flex: 1;
   flex-direction: row;
+  align-items: flex-start;
   overflow: auto hidden;
   padding: calc(12 * var(--u)) 0;
 }
@@ -3731,15 +3739,36 @@ input:disabled {
 }
 .dashboard[data-layout='modular'] .dashboard-notice {
   flex-direction: column;
-  justify-content: center;
-  height: 100%;
-  border: 1px solid rgb(255 255 255 / 15%);
-  background: rgb(255 255 255 / 9%);
+  justify-content: flex-start;
+  min-height: calc(130 * var(--u));
+  border: 1px solid var(--dashboard-line);
+  background: var(--surface-raised);
+  color: var(--ink);
   text-align: center;
+}
+/* Unlike A, layout D uses light, compact notice tiles. */
+.dashboard[data-layout='modular'] .dashboard-notices {
+  border-color: var(--dashboard-line);
+  background: var(--dashboard-card);
+  color: var(--ink);
+}
+.dashboard[data-layout='modular'] .dashboard-notices-title {
+  border-bottom-color: var(--dashboard-line);
 }
 .dashboard[data-layout='modular'] .dashboard-notice-icon {
   width: calc(46 * var(--u));
   height: calc(46 * var(--u));
+  background: var(--surface);
+  color: var(--ink);
+}
+.dashboard[data-layout='modular'] .dashboard-notice-icon[data-kind='weather'] {
+  color: #2882af;
+}
+.dashboard[data-layout='modular'] .dashboard-notice-icon[data-kind='delays'] {
+  color: #bf880d;
+}
+.dashboard[data-layout='modular'] .dashboard-notice-icon[data-kind='holiday'] {
+  color: #8050af;
 }
 .dashboard[data-layout='modular'] .dashboard-notice-icon svg {
   width: calc(36 * var(--u));
@@ -3794,7 +3823,7 @@ input:disabled {
     font-size: calc(92 * var(--u));
   }
   .dashboard[data-layout='modular'] {
-    grid-auto-rows: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 0.78fr) minmax(0, 1.22fr);
   }
   .dashboard[data-layout='modular'] .dashboard-modular-weather-hero .weather-icon-hero {
     width: calc(104 * var(--u));
