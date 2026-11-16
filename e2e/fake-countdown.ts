@@ -119,6 +119,23 @@ export async function fakeCountdownServer(
 }
 
 /**
+ * An owned kiosk's config with the stops fakeArrivals answers for, in the app's default look (or night's), so the
+ * Dashboard asks for its departures and looks as it does unowned.
+ */
+export function dashboardConfig(skin: 'day' | 'night' = 'day') {
+  return {
+    ...fixture.config,
+    style: { skin, colour: 'forest' },
+    arrivals: {
+      stops: [
+        { source: 'tfl', id: '940GZZLUEAC' },
+        { source: 'tfl', id: '490000077E' }
+      ]
+    }
+  };
+}
+
+/**
  * Stands in for countdown-server's GET /api/devices/arrivals (countdown-api's getArrivals): a Tube station's trains and a
  * bus stop's buses, read at `now` (the page's fixed clock) and timed from it.
  */

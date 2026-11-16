@@ -3,7 +3,7 @@ import type { TouchscreenConfig } from 'countdown-api';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import * as config from '../countdown/config';
-import { SAVE_DEBOUNCE_MS, useDeviceConfig } from './useDeviceConfig';
+import { CONFIG_REFRESH_MS, SAVE_DEBOUNCE_MS, useDeviceConfig } from './useDeviceConfig';
 
 const OWNED = fixture.config as TouchscreenConfig;
 const NIGHT = { ...OWNED.style, skin: 'night' } as const;
@@ -42,6 +42,30 @@ describe('useDeviceConfig', () => {
     await waitFor(() => {
       expect(result.current.owned).toBe(true);
     });
+  });
+
+  it('asks the server again every few minutes, and keeps each section that has not changed as it was', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const load = vi.spyOn(config, 'loadDeviceConfig').mockResolvedValue(OWNED);
+    const { result } = renderHook(() => useDeviceConfig());
+    await waitFor(() => {
+      expect(result.current.config).toEqual(OWNED);
+    });
+    const before = result.current.config;
+    load.mockResolvedValue(structuredClone(OWNED));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(CONFIG_REFRESH_MS);
+    });
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(result.current.config).toBe(before);
+
+    const moved = { ...structuredClone(OWNED), weather: { location: 'Bergen', key: 'bergen-no-3161732' } };
+    load.mockResolvedValue(moved);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(CONFIG_REFRESH_MS);
+    });
+    expect(result.current.config?.weather).toEqual(moved.weather);
+    expect(result.current.config?.arrivals).toBe(before?.arrivals);
   });
 
   it('shows a change at once and saves only the last of a quick run', async () => {

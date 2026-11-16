@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
+import type { TouchscreenConfig } from 'countdown-api';
 import { BusFront, CalendarDays, ChevronRight, CloudRain, MapPin, Megaphone, Umbrella, X } from 'lucide-react';
 import { ARRIVALS_MAX_AGE_MS, getDashboardData, isFresh, WEATHER_MAX_AGE_MS } from '../dashboard/data';
 import type { Arrival, Arrivals, Conditions, DashboardData, Notice, Weather } from '../dashboard/data';
@@ -325,12 +326,25 @@ function NoticeBoard({ notices }: Readonly<{ notices: Notice[] }>) {
 
 /**
  * The Dashboard tab: the notice board down the left, the weather over a photo, and the next Tube and buses under it.
- * Reads its data only while `shown`.
+ * Reads its data only while `shown`, for the stops, place and notice board in the owner's `config` (null before anyone
+ * owns the kiosk), and again whenever those change.
  */
 export default function Dashboard({
   shown,
-  clockFormat = DEFAULT_CLOCK_FORMAT
-}: Readonly<{ shown: boolean; clockFormat?: ClockFormat }>) {
+  clockFormat = DEFAULT_CLOCK_FORMAT,
+  config = null
+}: Readonly<{ shown: boolean; clockFormat?: ClockFormat; config?: TouchscreenConfig | null }>) {
+  // Only the Dashboard's own sections: a change of skin or screen sleep doesn't read the data again.
+  const arrivalsSettings = config?.arrivals;
+  const weatherSettings = config?.weather;
+  const noticeBoardSettings = config?.notice_board;
+  const settings = useMemo(
+    () =>
+      arrivalsSettings && weatherSettings && noticeBoardSettings
+        ? { arrivals: arrivalsSettings, weather: weatherSettings, notice_board: noticeBoardSettings }
+        : null,
+    [arrivalsSettings, weatherSettings, noticeBoardSettings]
+  );
   const [data, setData] = useState<DashboardData>({ arrivals: null, weather: null, notices: [] });
   const [now, setNow] = useState(() => new Date());
 
@@ -339,7 +353,7 @@ export default function Dashboard({
     let cancelled = false;
     const load = async () => {
       try {
-        const loaded = await getDashboardData();
+        const loaded = await getDashboardData(settings);
         if (cancelled) return;
         setNow(new Date());
         setData(loaded);
@@ -355,7 +369,7 @@ export default function Dashboard({
       clearInterval(refresh);
       clearInterval(tick);
     };
-  }, [shown]);
+  }, [shown, settings]);
 
   return (
     // Visual placeholder only. The background-image provider is being implemented separately.

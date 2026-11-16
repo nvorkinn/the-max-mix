@@ -3,6 +3,7 @@
 // getDashboardData is the only way in, so the real fetches and countdown-api's generated types can replace it without
 // touching the components.
 
+import type { TouchscreenConfig } from 'countdown-api';
 import { readArrivals } from './arrivals';
 
 /** One train or bus due at a stop. */
@@ -169,7 +170,17 @@ const MOCK_NOTICES: Notice[] = [
   }
 ];
 
-/** The Dashboard's data: the departures from countdown-server (arrivals.ts); the rest made up for now. */
-export async function getDashboardData(now = new Date()): Promise<DashboardData> {
-  return { arrivals: await readArrivals(now), weather: mockWeather(now), notices: MOCK_NOTICES };
+/**
+ * The owner's Dashboard settings from the kiosk's config on countdown-server (its stops, weather place and notice
+ * board), or null before anyone owns the kiosk. The data is for these.
+ */
+export type DashboardSettings = Pick<TouchscreenConfig, 'arrivals' | 'weather' | 'notice_board'> | null;
+
+/**
+ * The Dashboard's data for the owner's settings: the departures from countdown-server (none asked for without an owner
+ * or stops); the rest made up for now, the same whatever the settings.
+ */
+export async function getDashboardData(settings: DashboardSettings, now = new Date()): Promise<DashboardData> {
+  const arrivals = settings && settings.arrivals.stops.length > 0 ? await readArrivals(now) : null;
+  return { arrivals, weather: mockWeather(now), notices: MOCK_NOTICES };
 }
