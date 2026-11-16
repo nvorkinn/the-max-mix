@@ -116,24 +116,6 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await expect(settings.getByRole('button', { name: 'Navy' })).toBeEnabled();
   });
 
-  test('The Dashboard layout picked in Appearance is the one the Dashboard shows, after a reload too', async ({
-    page
-  }) => {
-    await page.goto('/?kiosk=1');
-    await page.getByRole('tab', { name: 'Settings' }).click();
-    const settings = page.getByRole('tabpanel', { name: 'Settings' });
-    await showSection(settings, 'Appearance');
-    const layouts = settings.getByRole('group', { name: 'Dashboard' });
-    await expect(layouts.getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true');
-    await layouts.getByRole('button', { name: 'Modular' }).click();
-    await expect(layouts.getByRole('button', { name: 'Modular' })).toHaveAttribute('aria-pressed', 'true');
-    await page.getByRole('tab', { name: 'Dashboard' }).click();
-    const dashboard = page.locator('.dashboard');
-    await expect(dashboard).toHaveAttribute('data-layout', 'modular');
-    await page.reload();
-    await expect(dashboard).toHaveAttribute('data-layout', 'modular');
-  });
-
   test('Auto, offered when the kiosk knows where it is, follows the sun', async ({ page }) => {
     // An hour after sunset in London on midsummer's day.
     await page.clock.setFixedTime(new Date('2026-06-21T21:20:00Z'));

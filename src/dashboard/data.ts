@@ -10,8 +10,6 @@ import { readNotices } from './notices';
 import { getWeather } from './weather';
 import type { Weather } from './weather';
 
-export type { Conditions, Weather } from './weather';
-
 /** One train or bus due at a stop. */
 export interface Arrival {
   /** The Tube line or the bus route. */
@@ -67,8 +65,6 @@ export interface DashboardData {
 
 /** Departures older than this are not shown: the buses on them have come and gone. */
 export const ARRIVALS_MAX_AGE_MS = 5 * 60_000;
-/** A forecast older than this is not shown. */
-export const WEATHER_MAX_AGE_MS = 3 * 60 * 60_000;
 
 /** Whether a section read at `updatedAt` is still worth showing at `now`. */
 export function isFresh(updatedAt: string, maxAgeMs: number, now: Date): boolean {
