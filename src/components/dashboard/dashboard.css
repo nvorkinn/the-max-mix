@@ -585,8 +585,8 @@ button.dashboard-notice {
 .dashboard-rows li:last-child {
   border-bottom: 0;
 }
-/* Animations change only opacity and transforms, which the Pi's GPU composites without laying the page out again.
-   A departing row fades where it is, then the rows below slide up (AnimatedRows sets their transforms); a new one fades in. */
+/* Animations change only opacity and transforms, which the Pi's GPU composites without laying the page out again. */
+/* A departing row fades where it is, then the rows below slide up (AnimatedRows sets their transforms); a new one fades in. */
 .dashboard-rows li[data-row='leaving'] {
   opacity: 0;
   transition: opacity 400ms ease;
