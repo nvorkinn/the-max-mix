@@ -9,9 +9,9 @@ export interface OnScreenKeyboardOptions extends KeyboardOptions {
 }
 
 /**
- * Focuses a text field in a dialog (unless asked not to) and, on the kiosk, shows the on-screen keyboard while it has
- * focus. The touch screen has no keyboard of its own, and a modal dialog makes the rest of the page untouchable, so the
- * keyboard goes inside the dialog. Loaded only on the kiosk.
+ * Focuses a text field (unless asked not to) and, on the kiosk, shows the on-screen keyboard while it has focus. The
+ * touch screen has no keyboard of its own. A modal dialog makes the rest of the page untouchable, so for a field in one
+ * the keyboard goes inside the dialog; for a field on the page itself, at the end of the page. Loaded only on the kiosk.
  */
 export function useOnScreenKeyboard(
   fieldRef: RefObject<HTMLInputElement | null>,
@@ -20,12 +20,12 @@ export function useOnScreenKeyboard(
   useEffect(() => {
     const field = fieldRef.current;
     if (focus) field?.focus();
-    const dialog = field?.closest('dialog');
-    if (!dialog || !isKiosk()) return;
+    if (!field || !isKiosk()) return;
+    const mount = field.closest('dialog') ?? document.body;
     let stop: (() => void) | undefined;
     let cancelled = false;
     void import('../../pi/kiosk-keyboard/keyboard').then(keyboard => {
-      if (!cancelled) stop = keyboard.start(document, dialog, { hasNumberRow, isUppercase });
+      if (!cancelled) stop = keyboard.start(document, mount, { hasNumberRow, isUppercase });
     });
     return () => {
       cancelled = true;

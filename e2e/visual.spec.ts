@@ -61,20 +61,20 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
           json: { tag_name: 'v1.12.0', assets: [{ name: 'the-max-mix-pi.tar.gz', state: 'uploaded' }] }
         })
       );
-      // The Software page says when GitHub last answered.
+      // The About page says when GitHub last answered.
       await page.clock.setFixedTime(new Date('2026-11-13T08:43:00'));
       await page.goto('/?kiosk=1&pi_ref=v1.12.0&pi_commit=5a39e9a');
       const settings = await openSettings(page);
       await expect(
-        settings.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^Software/ })
+        settings.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^About/ })
       ).toContainText('Up to date');
       await expect(settings).toHaveScreenshot(shotName('settings-overview', screen), SHOT);
       for (const [section, name] of [
+        ['General', 'settings-general'],
         ['Appearance', 'settings-appearance'],
-        ['Screen sleep', 'settings-sleep'],
         ['Wi-Fi', 'settings-wifi'],
         ['Spotify', 'settings-spotify'],
-        ['Software', 'settings-software']
+        ['About', 'settings-about']
       ] as const) {
         // eslint-disable-next-line no-await-in-loop -- one page after another
         await showSection(settings, section);
@@ -83,7 +83,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       }
     });
 
-    test(`settings Dashboard page at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
+    test(`settings Countdown page at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
       await page.setViewportSize(screen);
       await fakeCountdownServer(page, {
         ...DEVICE_CONFIGS.owned,
@@ -108,9 +108,9 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
         );
       });
       await page.goto('/?kiosk=1');
-      const settings = await openSettings(page, 'Dashboard');
+      const settings = await openSettings(page, 'Countdown');
       await expect(settings.getByText('Oslo S')).toBeVisible();
-      await expect(settings).toHaveScreenshot(shotName('settings-dashboard', screen), SHOT);
+      await expect(settings).toHaveScreenshot(shotName('settings-countdown', screen), SHOT);
     });
 
     test(`settings at night at ${size(screen)}`, { tag: ['@settings', '@appearance'] }, async ({ page }) => {

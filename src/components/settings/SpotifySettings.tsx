@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertCircle, CheckCircle2, LogOut, Music, Trash2, UserPlus, UserRound } from 'lucide-react';
+import { AlertCircle, CheckCircle2, LogOut, Trash2, UserPlus, UserRound } from 'lucide-react';
 import {
   isPersonRefused,
   PEOPLE_LIMIT,
@@ -14,6 +14,7 @@ import { errorMessage } from '../../utils/errorMessage';
 import { forgetSignIns, isKiosk } from '../../utils/kiosk';
 import ConfirmButton from '../ConfirmButton';
 import PhonePicker from '../PhonePicker';
+import SpotifyIcon from '../SpotifyIcon';
 
 /**
  * Spotify's sign-in: whether this app is connected, everyone signed in on this kiosk (each removable), and the buttons
@@ -36,7 +37,7 @@ export default function SpotifySettings({
     <div className="settings-stack">
       <div className="settings-box flex items-center gap-4">
         <span className="settings-box-icon">
-          <Music className="w-6 h-6" aria-hidden="true" />
+          <SpotifyIcon className="w-6 h-6" />
         </span>
         <div className="settings-box-title min-w-0 flex-1">Spotify account</div>
         {authenticated ? (
@@ -122,7 +123,7 @@ export default function SpotifySettings({
         onClick={() => leave(startSignIn)}
         className="spotify-sign-in settings-wide-button font-extrabold rounded-xl flex items-center justify-center gap-2 active:scale-98 transition-all"
       >
-        <Music className="w-5 h-5 fill-current" aria-hidden="true" />
+        <SpotifyIcon className="w-5 h-5" />
         {authenticated ? 'Re-authenticate with Spotify' : 'Log in with Spotify'}
       </button>
 

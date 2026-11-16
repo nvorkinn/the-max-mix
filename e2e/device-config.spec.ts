@@ -52,7 +52,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
   test('a quick run of changes saves only the last one', async ({ page }) => {
     const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
     await page.goto('/?kiosk=1');
-    const settings = await openSettings(page, 'Screen sleep');
+    const settings = await openSettings(page, 'General');
 
     await settings.getByRole('button', { name: '2 min' }).click();
     await settings.getByRole('button', { name: '30 min' }).click();
@@ -70,17 +70,18 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     await expect(page.locator('.tablet-container')).toHaveAttribute('data-theme', 'day');
   });
 
-  test('the Dashboard page adds a stop found by search and saves the departures', async ({ page }) => {
+  test('the Countdown page adds a stop found by search and saves the departures', async ({ page }) => {
     const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
     await page.goto('/?kiosk=1');
-    const settings = await openSettings(page, 'Dashboard');
+    const settings = await openSettings(page, 'Countdown');
 
-    await settings.getByRole('button', { name: 'Add stop' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Add stop' });
-    await dialog.getByRole('searchbox', { name: 'Add stop' }).fill('oslo s');
-    await dialog.getByRole('button', { name: /Platform 4/ }).click();
+    await settings.getByRole('searchbox', { name: 'Search for a stop' }).fill('oslo s');
+    await settings
+      .getByRole('list', { name: 'Results' })
+      .getByRole('button', { name: /Platform 4/ })
+      .click();
 
-    await expect(settings.getByText('Oslo S')).toBeVisible();
+    await expect(settings.getByRole('list', { name: 'Saved stops' }).getByText('Oslo S')).toBeVisible();
     await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
     expect(server.saves.map(save => save['arrivals'])).toEqual([
       {

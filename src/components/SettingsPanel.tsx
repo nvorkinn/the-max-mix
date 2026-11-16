@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Check, Cpu, LayoutDashboard, LayoutGrid, Music, Palette, SlidersHorizontal, Wifi } from 'lucide-react';
+import { Check, Info, LayoutGrid, Palette, SlidersHorizontal, TrainFront, Wifi } from 'lucide-react';
 import type { TouchscreenConfig } from 'countdown-api';
 import { isKiosk } from '../utils/kiosk';
 import { reloadSettings } from '../spotify/settings';
@@ -9,13 +9,12 @@ import type { ThemeColour } from '../utils/themeColour';
 import type { Skin, Theme } from '../utils/theme';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import type { DeviceConfig, SaveStatus } from '../hooks/useDeviceConfig';
-import SleepIcon from './SleepIcon';
+import SpotifyIcon from './SpotifyIcon';
+import AboutSettings from './settings/AboutSettings';
 import AppearanceSettings from './settings/AppearanceSettings';
-import DashboardSettings from './settings/DashboardSettings';
+import CountdownSettings from './settings/CountdownSettings';
 import GeneralSettings from './settings/GeneralSettings';
-import ScreenSleepSettings from './settings/ScreenSleepSettings';
 import SettingsOverview from './settings/SettingsOverview';
-import SoftwareSettings from './settings/SoftwareSettings';
 import SpotifySettings from './settings/SpotifySettings';
 import WifiSettings from './settings/WifiSettings';
 import { SETTINGS_SECTIONS } from './settings/sections';
@@ -27,12 +26,11 @@ export type { SettingsSection } from './settings/sections';
 const SECTION_ICONS: Record<SettingsSection, ReactNode> = {
   overview: <LayoutGrid className="w-6 h-6 shrink-0" aria-hidden="true" />,
   general: <SlidersHorizontal className="w-6 h-6 shrink-0" aria-hidden="true" />,
-  dashboard: <LayoutDashboard className="w-6 h-6 shrink-0" aria-hidden="true" />,
+  countdown: <TrainFront className="w-6 h-6 shrink-0" aria-hidden="true" />,
   appearance: <Palette className="w-6 h-6 shrink-0" aria-hidden="true" />,
-  sleep: <SleepIcon className="w-6 h-6 shrink-0" />,
   wifi: <Wifi className="w-6 h-6 shrink-0" aria-hidden="true" />,
-  spotify: <Music className="w-6 h-6 shrink-0" aria-hidden="true" />,
-  software: <Cpu className="w-6 h-6 shrink-0" aria-hidden="true" />
+  spotify: <SpotifyIcon className="w-6 h-6 shrink-0" />,
+  about: <Info className="w-6 h-6 shrink-0" aria-hidden="true" />
 };
 
 interface SettingsPanelProps {
@@ -58,12 +56,15 @@ interface SettingsPanelProps {
   saveStatus?: SaveStatus;
   /** Called each time the settings come up, to get countdown-server's config again. */
   onShow?: () => void;
-  /** countdown-server's config once someone owns the kiosk, which the General and Dashboard pages show and change. */
+  /** countdown-server's config once someone owns the kiosk, which the General and Countdown pages show and change. */
   deviceConfig?: TouchscreenConfig | undefined;
   onDeviceConfigSave?: DeviceConfig['save'] | undefined;
 }
 
-/** A small Saved tick once a change has saved, or a short message when one didn't (and was undone). */
+/**
+ * A small Saved tick once a change has saved, or a short message when one didn't (and was undone), floating in the
+ * page's corner: the page has no header of its own, as the navigation already says which one it is.
+ */
 function SaveNote({ status }: Readonly<{ status: SaveStatus }>) {
   return (
     <p className="settings-save-note" aria-live="polite">
@@ -103,13 +104,14 @@ export default function SettingsPanel({
   const wifi = useWifi(kiosk);
   const update = kiosk ? kioskUpdate : undefined;
   const authenticated = authInfo?.authenticated ?? false;
-  const hasSleep = screenSleep !== undefined && onScreenSleepChange !== undefined;
-  const hasDashboard = deviceConfig !== undefined && onDeviceConfigSave !== undefined;
+  // Screen sleep is the kiosk's only: a browser has no screen of its own to put to sleep.
+  const hasSleep = kiosk && screenSleep !== undefined && onScreenSleepChange !== undefined;
+  const owned = deviceConfig !== undefined && onDeviceConfigSave !== undefined;
   const sections = SETTINGS_SECTIONS.filter(
     choice =>
       (kiosk || !choice.kioskOnly) &&
-      (choice.id !== 'sleep' || hasSleep) &&
-      ((choice.id !== 'dashboard' && choice.id !== 'general') || hasDashboard)
+      (choice.id !== 'general' || owned || hasSleep) &&
+      (choice.id !== 'countdown' || owned)
   );
   const current = sections.find(choice => choice.id === section) ?? SETTINGS_SECTIONS[0];
 
@@ -127,17 +129,19 @@ export default function SettingsPanel({
   let page: ReactNode;
   switch (current.id) {
     case 'general': {
-      page = deviceConfig && onDeviceConfigSave && (
+      page = (
         <GeneralSettings
-          clockFormat={deviceConfig.clock_format}
-          onClockFormatChange={format => onDeviceConfigSave('clock_format', format)}
+          config={owned ? deviceConfig : undefined}
+          onSave={owned ? onDeviceConfigSave : undefined}
+          screenSleep={hasSleep ? screenSleep : undefined}
+          onScreenSleepChange={hasSleep ? onScreenSleepChange : undefined}
         />
       );
       break;
     }
-    case 'dashboard': {
+    case 'countdown': {
       page = deviceConfig && onDeviceConfigSave && (
-        <DashboardSettings config={deviceConfig} onSave={onDeviceConfigSave} />
+        <CountdownSettings config={deviceConfig} onSave={onDeviceConfigSave} />
       );
       break;
     }
@@ -154,12 +158,6 @@ export default function SettingsPanel({
       );
       break;
     }
-    case 'sleep': {
-      page = screenSleep !== undefined && onScreenSleepChange && (
-        <ScreenSleepSettings minutes={screenSleep} onChange={onScreenSleepChange} labelledBy="settings-section-title" />
-      );
-      break;
-    }
     case 'wifi': {
       page = <WifiSettings wifi={wifi} />;
       break;
@@ -168,8 +166,10 @@ export default function SettingsPanel({
       page = <SpotifySettings authenticated={authenticated} signInError={signInError} onReload={onReload} />;
       break;
     }
-    case 'software': {
-      page = <SoftwareSettings kioskUpdate={update} />;
+    case 'about': {
+      page = (
+        <AboutSettings kioskUpdate={update} deviceConfig={owned ? deviceConfig : undefined} wifi={wifi} kiosk={kiosk} />
+      );
       break;
     }
     default: {
@@ -177,10 +177,10 @@ export default function SettingsPanel({
         <SettingsOverview
           onOpen={setSection}
           kiosk={kiosk}
-          deviceConfig={hasDashboard ? deviceConfig : undefined}
+          deviceConfig={owned ? deviceConfig : undefined}
           theme={theme}
           themeColour={themeColour}
-          screenSleep={screenSleep}
+          screenSleep={hasSleep ? screenSleep : undefined}
           wifi={wifi}
           authenticated={authenticated}
           kioskUpdate={update}
@@ -208,13 +208,8 @@ export default function SettingsPanel({
           ))}
         </ul>
       </nav>
-      <section className="settings-content" aria-labelledby="settings-section-title">
-        <header className="settings-content-header">
-          <h4 id="settings-section-title" className="settings-section-title">
-            {current.label}
-          </h4>
-          <SaveNote status={saveStatus} />
-        </header>
+      <section className="settings-content" aria-label={current.label}>
+        <SaveNote status={saveStatus} />
         {/* Keyed by the page, so each one starts scrolled to the top. */}
         <div className="settings-content-body" key={current.id}>
           {page}

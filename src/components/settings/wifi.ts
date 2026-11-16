@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
 import { currentWifi } from '../../utils/kiosk';
 
-/** The kiosk's Wi-Fi as far as its service says: still asking, on a network, on none, or it could not tell. */
+/**
+ * The kiosk's Wi-Fi as far as its service says: still asking, on a network, on none, or it could not tell. With an
+ * answer comes the Pi's IPv4 address on its network, for the About page (null when it has none or didn't say).
+ */
 export type WifiState =
-  { state: 'loading' } | { state: 'connected'; ssid: string } | { state: 'disconnected' } | { state: 'unknown' };
+  | { state: 'loading' }
+  | { state: 'connected'; ssid: string; address: string | null }
+  | { state: 'disconnected'; address: string | null }
+  | { state: 'unknown' };
 
 /**
  * Asks the kiosk once, when the settings open, which network it is on. The Wi-Fi setup page replaces the app while it
@@ -15,11 +21,11 @@ export function useWifi(enabled: boolean): WifiState {
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
-    void currentWifi(controller.signal).then(ssid => {
+    void currentWifi(controller.signal).then(answer => {
       if (controller.signal.aborted) return;
-      if (ssid === undefined) setWifi({ state: 'unknown' });
-      else if (ssid === null) setWifi({ state: 'disconnected' });
-      else setWifi({ state: 'connected', ssid });
+      if (answer === undefined) setWifi({ state: 'unknown' });
+      else if (answer.ssid === null) setWifi({ state: 'disconnected', address: answer.address });
+      else setWifi({ state: 'connected', ssid: answer.ssid, address: answer.address });
     });
     return () => controller.abort();
   }, [enabled]);
