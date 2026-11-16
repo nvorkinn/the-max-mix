@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { TouchscreenConfig } from 'countdown-api';
 import { BusFront, CalendarDays, ChevronRight, CloudRain, MapPin, Megaphone, Umbrella, X } from 'lucide-react';
@@ -52,41 +52,90 @@ const LINE_COLOURS: Record<string, readonly [string, string]> = {
   'Waterloo & City': ['#95cdba', '#000']
 };
 
-/** A yellow sun with its rays, at (cx, cy). */
-function sunAt(cx: number, cy: number, r: number) {
-  return (
-    <g className="weather-icon-sun">
-      {Array.from({ length: 8 }, (_, ray) => {
-        const angle = (ray * Math.PI) / 4;
-        return (
-          <line
-            key={ray}
-            x1={cx + Math.cos(angle) * (r + 3)}
-            y1={cy + Math.sin(angle) * (r + 3)}
-            x2={cx + Math.cos(angle) * (r + 7)}
-            y2={cy + Math.sin(angle) * (r + 7)}
-          />
-        );
-      })}
-      <circle cx={cx} cy={cy} r={r} />
-    </g>
-  );
-}
-
-/** The weather drawn in colour: a white cloud, a yellow sun, blue rain and snow. */
+/** A dimensional illustration rather than the old outline-only symbol. Forecast icons and the hero share this artwork. */
 function WeatherIcon({ conditions, hero = false }: Readonly<{ conditions: Conditions; hero?: boolean }>) {
-  const cloud = (
-    <path className="weather-icon-cloud" d="M15 44h30a10 10 0 0 0 1-20 14 14 0 0 0-27-4 11 11 0 0 0-4 24z" />
-  );
+  const id = useId().replaceAll(':', '');
+  const hasSun = conditions === 'clear' || conditions === 'partly-cloudy';
+  const hasCloud = conditions !== 'clear';
   return (
-    <svg viewBox="0 0 60 60" className={`weather-icon${hero ? ' weather-icon-hero' : ''}`} aria-hidden="true">
-      {conditions === 'clear' && sunAt(30, 30, 12)}
-      {conditions === 'partly-cloudy' && sunAt(38, 20, 9)}
-      {conditions !== 'clear' && cloud}
-      {conditions === 'rain' &&
-        [20, 30, 40].map(x => <line key={x} className="weather-icon-rain" x1={x} y1={49} x2={x - 3} y2={56} />)}
-      {conditions === 'snow' &&
-        [20, 30, 40].map(x => <circle key={x} className="weather-icon-snow" cx={x} cy={52} r={2.4} />)}
+    <svg viewBox="0 0 150 135" className={`weather-icon${hero ? ' weather-icon-hero' : ''}`} aria-hidden="true">
+      <defs>
+        <radialGradient id={`${id}-sun`} cx="43%" cy="35%" r="69%">
+          <stop offset="0%" stopColor="#fffbe9" />
+          <stop offset="36%" stopColor="#ffe3a2" />
+          <stop offset="76%" stopColor="#ffc154" />
+          <stop offset="100%" stopColor="#e98f37" />
+        </radialGradient>
+        <radialGradient id={`${id}-sun-halo`}>
+          <stop offset="0%" stopColor="#ffe49d" stopOpacity=".73" />
+          <stop offset="100%" stopColor="#ffca5d" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id={`${id}-cloud`} x1="20%" y1="0%" x2="66%" y2="100%">
+          <stop offset="0%" stopColor="#fffdfa" />
+          <stop offset="36%" stopColor="#fbfaf9" />
+          <stop offset="68%" stopColor="#d9e1eb" />
+          <stop offset="100%" stopColor="#929fb3" />
+        </linearGradient>
+        <linearGradient id={`${id}-cloud-bottom`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#f9f9f7" />
+          <stop offset="100%" stopColor="#a4b0c2" />
+        </linearGradient>
+        <linearGradient id={`${id}-rain`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#abdffa" />
+          <stop offset="100%" stopColor="#2a8fc7" />
+        </linearGradient>
+        <filter id={`${id}-shadow`} x="-45%" y="-55%" width="190%" height="210%">
+          <feDropShadow dx="0" dy="5" stdDeviation="5" floodColor="#122638" floodOpacity=".24" />
+        </filter>
+      </defs>
+      {hasSun && (
+        <g>
+          <circle cx="98" cy="38" r="46" fill={`url(#${id}-sun-halo)`} />
+          {Array.from({ length: 10 }, (_, ray) => {
+            const angle = (ray * Math.PI) / 5;
+            return (
+              <line
+                key={ray}
+                x1={98 + Math.cos(angle) * 28}
+                y1={38 + Math.sin(angle) * 28}
+                x2={98 + Math.cos(angle) * 35}
+                y2={38 + Math.sin(angle) * 35}
+                stroke="#ffda7e"
+                strokeWidth="4.5"
+                strokeLinecap="round"
+                opacity=".95"
+              />
+            );
+          })}
+          <circle cx="98" cy="38" r="24" fill={`url(#${id}-sun)`} />
+          <circle cx="91" cy="31" r="9" fill="#fff8df" opacity=".5" />
+        </g>
+      )}
+      {hasCloud && (
+        <g filter={`url(#${id}-shadow)`}>
+          <ellipse cx="73" cy="89" rx="57" ry="23" fill={`url(#${id}-cloud-bottom)`} />
+          <circle cx="43" cy="78" r="27" fill={`url(#${id}-cloud)`} />
+          <circle cx="73" cy="61" r="35" fill={`url(#${id}-cloud)`} />
+          <circle cx="106" cy="78" r="24" fill={`url(#${id}-cloud)`} />
+          <ellipse cx="68" cy="83" rx="54" ry="22" fill={`url(#${id}-cloud)`} />
+          <ellipse cx="57" cy="48" rx="15" ry="8" fill="#fff" opacity=".4" transform="rotate(-25 57 48)" />
+          <ellipse cx="40" cy="68" rx="10" ry="5" fill="#fff" opacity=".3" transform="rotate(-33 40 68)" />
+        </g>
+      )}
+      {conditions === 'rain' && (
+        <g stroke={`url(#${id}-rain)`} strokeWidth="6" strokeLinecap="round">
+          <path d="M46 112l-5 13M77 112l-5 13M108 112l-5 13" />
+        </g>
+      )}
+      {conditions === 'snow' && (
+        <g fill="#f7fdff" stroke="#8fc8e8" strokeWidth="2.3" strokeLinecap="round">
+          {[47, 75, 103].map(x => (
+            <g key={x}>
+              <path d={`M${x} 113v15M${x - 6} 120h12M${x - 4} 116l8 8M${x + 4} 116l-8 8`} />
+            </g>
+          ))}
+        </g>
+      )}
     </svg>
   );
 }
