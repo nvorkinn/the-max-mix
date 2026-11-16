@@ -22,7 +22,7 @@ const API = 'https://api.countdown.build';
 export const CONFIG = `${API}/api/devices/config`;
 const ARRIVALS = `${API}/api/devices/arrivals`;
 const NOTICES = `${API}/api/devices/notices`;
-const FEED = `${API}/api/devices/feed`;
+export const FEED = `${API}/api/devices/feed`;
 
 /**
  * countdown-api's example config, once someone owns the kiosk. Before that there's none: a touchscreen registers through
@@ -378,27 +378,37 @@ function noticesAt(now: Date, isQuiet: boolean) {
 /** One server-sent event. */
 const message = (event: string, data: object) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 
+interface FeedOptions {
+  /** Names too long for the boards. */
+  long?: boolean;
+  /** Nothing on the notice board. */
+  none?: boolean;
+  /** The departures each stream sends instead (countdown-api's DeviceArrivals), asked as each opens. */
+  arrivals?: () => object;
+  /** The wait before the next stream that each stream asks for. */
+  retryMs?: number;
+}
+
 /**
- * Stands in for countdown-server's live feed (GET /api/devices/feed, countdown-api's getFeed) for an owned kiosk: one
- * stream with the weather, departures and notices as read at `now` (the page's fixed clock), which then ends, as the
- * server's do; its `retry` keeps the next one a minute off. `long` gives the boards names too long for them, `none`
- * leaves the notice board empty.
+ * Stands in for countdown-server's live feed (GET /api/devices/feed, countdown-api's getFeed) for an owned kiosk: each
+ * stream sends the weather, departures and notices as read at `now` (the page's fixed clock) and then ends, as the
+ * server's do; its `retry` keeps the next one a minute off unless `retryMs` says otherwise.
  */
-export async function fakeFeed(page: Page, now: Date, { long = false, none = false } = {}) {
-  const events = [
-    message('weather', weatherAt(now)),
-    message('arrivals', arrivalsAt(now, long)),
-    message('notices', noticesAt(now, none))
-  ];
-  const body = `retry: 60000\n\n${events.join('')}`;
+export async function fakeFeed(page: Page, now: Date, options: FeedOptions = {}) {
+  const { long = false, none = false, arrivals = () => arrivalsAt(now, long), retryMs = 60_000 } = options;
   await page.route(FEED, route => {
     const cors = corsFor(route.request().headers()['origin']);
     if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    const events = [
+      message('weather', weatherAt(now)),
+      message('arrivals', arrivals()),
+      message('notices', noticesAt(now, none))
+    ];
     return route.fulfill({
       status: 200,
       headers: { ...cors, 'Cache-Control': 'no-store' },
       contentType: 'text/event-stream',
-      body
+      body: `retry: ${String(retryMs)}\n\n${events.join('')}`
     });
   });
 }
