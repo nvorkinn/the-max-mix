@@ -46,6 +46,7 @@ fsck
 fulfill
 gatt
 gecos
+geist
 getaa
 getconf
 getent
@@ -67,6 +68,7 @@ katex
 kbd
 knip
 kugou
+larcom
 libinput
 libpipewire
 libspa
