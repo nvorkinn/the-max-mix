@@ -27,7 +27,7 @@ export interface PairedDevice {
 }
 
 /** A named device the Pi hears nearby, which may be the phone to pick. */
-export interface NearbyDevice {
+interface NearbyDevice {
   address: string;
   name: string;
 }

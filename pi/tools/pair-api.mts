@@ -40,7 +40,8 @@ for (;;) {
   if (pairing['state'] === 'scanning') {
     nearby = (pairing['nearby'] as { address: string; name: string }[] | undefined) ?? [];
     const shown = nearby.map((device, index) => `${index + 1}. ${device.name} (${device.address})`).join('\n');
-    if (shown !== last) console.log(`\n--- ${String(pairing['secondsLeft'])} s left ---\n${shown || '(nothing named yet)'}`);
+    if (shown !== last)
+      console.log(`\n--- ${String(pairing['secondsLeft'])} s left ---\n${shown || '(nothing named yet)'}`);
     last = shown;
   } else {
     const line = JSON.stringify(pairing);

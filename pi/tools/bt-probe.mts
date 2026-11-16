@@ -70,8 +70,17 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const bus = dbus.systemBus();
 while (!bus.name) await sleep(10);
 
-const call = (objectPath: string, iface: string, member: string, args: { signature?: string; body?: unknown[] } = {}, timeout?: number) =>
-  bus.invoke({ destination: 'org.bluez', path: objectPath, interface: iface, member, ...args }, timeout ? { timeout } : undefined);
+const call = (
+  objectPath: string,
+  iface: string,
+  member: string,
+  args: { signature?: string; body?: unknown[] } = {},
+  timeout?: number
+) =>
+  bus.invoke(
+    { destination: 'org.bluez', path: objectPath, interface: iface, member, ...args },
+    timeout ? { timeout } : undefined
+  );
 const quietly = async (work: PromiseLike<unknown>) => {
   try {
     await work;
@@ -149,17 +158,40 @@ async function registerAgent(): Promise<void> {
           return null;
         }
       },
-      RequestAuthorization: { in: { device: 'o' }, handler: (device: string) => (say(`Agent: authorising ${device}`), null) },
-      AuthorizeService: { in: { device: 'o', uuid: 's' }, handler: (device: string, uuid: string) => (say(`Agent: service ${uuid} for ${device}`), null) },
-      RequestPinCode: { in: { device: 'o' }, out: { pinCode: 's' }, handler: () => (say('Agent: PIN asked, answering 0000'), '0000') },
-      RequestPasskey: { in: { device: 'o' }, out: { passkey: 'u' }, handler: () => (say('Agent: passkey asked, answering 0'), 0) },
-      DisplayPinCode: { in: { device: 'o', pinCode: 's' }, handler: (_device: string, pin: string) => (say(`Agent: PIN ${pin}`), null) },
-      DisplayPasskey: { in: { device: 'o', passkey: 'u', entered: 'q' }, handler: (_device: string, passkey: number) => (say(`Agent: passkey ${passkey}`), null) },
+      RequestAuthorization: {
+        in: { device: 'o' },
+        handler: (device: string) => (say(`Agent: authorising ${device}`), null)
+      },
+      AuthorizeService: {
+        in: { device: 'o', uuid: 's' },
+        handler: (device: string, uuid: string) => (say(`Agent: service ${uuid} for ${device}`), null)
+      },
+      RequestPinCode: {
+        in: { device: 'o' },
+        out: { pinCode: 's' },
+        handler: () => (say('Agent: PIN asked, answering 0000'), '0000')
+      },
+      RequestPasskey: {
+        in: { device: 'o' },
+        out: { passkey: 'u' },
+        handler: () => (say('Agent: passkey asked, answering 0'), 0)
+      },
+      DisplayPinCode: {
+        in: { device: 'o', pinCode: 's' },
+        handler: (_device: string, pin: string) => (say(`Agent: PIN ${pin}`), null)
+      },
+      DisplayPasskey: {
+        in: { device: 'o', passkey: 'u', entered: 'q' },
+        handler: (_device: string, passkey: number) => (say(`Agent: passkey ${passkey}`), null)
+      },
       Cancel: () => (say('Agent: cancelled'), null)
     }
   });
   await bus.export(AGENT, agent);
-  await call('/org/bluez', 'org.bluez.AgentManager1', 'RegisterAgent', { signature: 'os', body: [AGENT, 'KeyboardDisplay'] });
+  await call('/org/bluez', 'org.bluez.AgentManager1', 'RegisterAgent', {
+    signature: 'os',
+    body: [AGENT, 'KeyboardDisplay']
+  });
   await call('/org/bluez', 'org.bluez.AgentManager1', 'RequestDefaultAgent', { signature: 'o', body: [AGENT] });
 }
 
@@ -181,7 +213,9 @@ const row = (props: Properties) =>
 async function pick(): Promise<void> {
   await registerAgent();
   await scan('auto');
-  say('Scanning Classic and LE. Open Settings > Bluetooth on the phone. Type a number and Enter to pair; Ctrl+C quits.');
+  say(
+    'Scanning Classic and LE. Open Settings > Bluetooth on the phone. Type a number and Enter to pair; Ctrl+C quits.'
+  );
   let shown: [string, Properties][] = [];
   const draw = () => {
     const now = Date.now();
@@ -200,7 +234,13 @@ async function pick(): Promise<void> {
     clearInterval(timer);
     lines.close();
     const [objectPath, props] = choice;
-    const frozen = { path: objectPath, name: text(props['Name']), alias: text(props['Alias']), address: text(props['Address']), addressType: text(props['AddressType']) };
+    const frozen = {
+      path: objectPath,
+      name: text(props['Name']),
+      alias: text(props['Alias']),
+      address: text(props['Address']),
+      addressType: text(props['AddressType'])
+    };
     record('picked', frozen);
     say(`Picked and froze: ${row(props)}`);
     const before = bonds();
@@ -228,7 +268,9 @@ async function pick(): Promise<void> {
     };
     record('result', result);
     console.log(JSON.stringify(result, null, 2));
-    say('An [IdentityResolvingKey] in bondsAfter means presence can recognise this phone later. Next: `sudo node bt-probe.mts watch`.');
+    say(
+      'An [IdentityResolvingKey] in bondsAfter means presence can recognise this phone later. Next: `sudo node bt-probe.mts watch`.'
+    );
     await quietly(call(objectPath, DEVICE, 'Disconnect'));
     await finish();
   }
@@ -247,7 +289,12 @@ async function watch(): Promise<void> {
       const heard = lastHeard.get(objectPath);
       const line = `${row(props)} | ${props['Connected'] ? 'connected | ' : ''}${heard ? `heard ${Math.round((now - heard) / 1000)} s ago` : 'not heard'}`;
       console.log(line);
-      record('presence', { path: objectPath, address: props['Address'], name: props['Name'], heardAgoMs: heard ? now - heard : null });
+      record('presence', {
+        path: objectPath,
+        address: props['Address'],
+        name: props['Name'],
+        heardAgoMs: heard ? now - heard : null
+      });
     }
     await sleep(22_000);
   }
