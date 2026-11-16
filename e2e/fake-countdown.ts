@@ -1,3 +1,4 @@
+// cspell:ignore GZZLUEAC
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 
@@ -12,6 +13,7 @@ const search = JSON.parse(
 // countdown-server's screens' API, as the build names it (.env.production).
 const API = 'https://api.countdown.build';
 export const CONFIG = `${API}/api/devices/config`;
+const ARRIVALS = `${API}/api/devices/arrivals`;
 
 /**
  * countdown-api's example config, once someone owns the kiosk. Before that there's none: a touchscreen registers through
@@ -82,6 +84,13 @@ export async function fakeCountdownServer(
       body: JSON.stringify(current)
     });
   });
+  // The departures (GET /api/devices/arrivals): refused, as for a secret the server doesn't know, unless a test calls
+  // fakeArrivals.
+  await page.route(ARRIVALS, route => {
+    const cors = corsFor(route.request().headers()['origin']);
+    const isPreflight = route.request().method() === 'OPTIONS';
+    return route.fulfill({ status: isPreflight ? 204 : 401, headers: cors });
+  });
   // The searches answer countdown-api's example: its stops for "oslo s", its places for "oslo", and nothing else.
   const searches = [
     ['/api/stops/search', search.stops_query, search.stops],
@@ -107,4 +116,60 @@ export async function fakeCountdownServer(
     )
   );
   return { authorizations, saves };
+}
+
+/**
+ * An owned kiosk's config with the stops fakeArrivals answers for, in the app's default look (or night's), so the
+ * Dashboard asks for its departures and looks as it does unowned.
+ */
+export function dashboardConfig(skin: 'day' | 'night' = 'day') {
+  return {
+    ...fixture.config,
+    style: { skin, colour: 'forest' },
+    arrivals: {
+      stops: [
+        { source: 'tfl', id: '940GZZLUEAC' },
+        { source: 'tfl', id: '490000077E' }
+      ]
+    }
+  };
+}
+
+/**
+ * Stands in for countdown-server's GET /api/devices/arrivals (countdown-api's getArrivals): a Tube station's trains and a
+ * bus stop's buses, read at `now` (the page's fixed clock) and timed from it.
+ */
+export async function fakeArrivals(page: Page, now: Date) {
+  const at = (minutes: number) => new Date(now.getTime() + minutes * 60_000).toISOString();
+  const departure = (line: string, destination: string, minutes: number) => ({
+    line,
+    destination,
+    expected_at: at(minutes),
+    platform: null,
+    mode: null
+  });
+  const stop = (id: string, name: string, mode: string, letter: string | null, departures: object[]) => ({
+    source: 'tfl',
+    id,
+    departures: { fetched_at: now.toISOString(), stop_id: id, name, mode, stop_letter: letter, modes: [], departures }
+  });
+  const answer = {
+    stops: [
+      stop('940GZZLUEAC', 'Elephant & Castle Underground Station', 'tube', null, [
+        departure('Northern', 'High Barnet', 3),
+        departure('Northern', 'Morden', 7),
+        departure('Bakerloo', 'Harrow & Wealdstone', 9)
+      ]),
+      stop('490000077E', 'Elephant & Castle', 'bus', 'E', [
+        departure('12', 'Oxford Circus', 2),
+        departure('343', 'New Cross', 6),
+        departure('12', 'Oxford Circus', 11)
+      ])
+    ]
+  };
+  await page.route(ARRIVALS, route => {
+    const cors = corsFor(route.request().headers()['origin']);
+    const isPreflight = route.request().method() === 'OPTIONS';
+    return route.fulfill(isPreflight ? { status: 204, headers: cors } : { status: 200, headers: cors, json: answer });
+  });
 }

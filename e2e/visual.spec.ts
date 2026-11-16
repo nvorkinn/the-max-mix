@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { DEVICE_CONFIGS, fakeCountdownServer } from './fake-countdown.ts';
+import { dashboardConfig, DEVICE_CONFIGS, fakeArrivals, fakeCountdownServer } from './fake-countdown.ts';
 import { airPlayOutput, fakeKioskOutputs } from './fake-kiosk.ts';
 import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
 import { COLOURED_ART, fakeSpotify, PIXEL } from './fake-spotify.ts';
@@ -201,8 +201,12 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
 
     test(`dashboard at ${size(screen)}`, { tag: '@layout' }, async ({ page }) => {
       await fakeSpotify(page);
-      // The made-up departures and forecast are timed from now, so now is fixed.
-      await page.clock.setFixedTime(new Date('2026-11-15T09:20:00'));
+      // An owner's Tube station and bus stop. Their departures (countdown-server's, faked) and the made-up forecast are
+      // timed from now, so now is fixed.
+      await fakeCountdownServer(page, dashboardConfig());
+      const now = new Date('2026-11-15T09:20:00');
+      await fakeArrivals(page, now);
+      await page.clock.setFixedTime(now);
       await page.setViewportSize(screen);
       await page.goto('/');
       await page.getByRole('tab', { name: 'Dashboard' }).click();
@@ -213,10 +217,10 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
 
     test(`dashboard at night at ${size(screen)}`, { tag: ['@layout', '@appearance'] }, async ({ page }) => {
       await fakeSpotify(page);
-      await page.clock.setFixedTime(new Date('2026-11-15T09:20:00'));
-      await page.addInitScript(() => {
-        localStorage.setItem('maxmix.theme', 'night');
-      });
+      await fakeCountdownServer(page, dashboardConfig('night'));
+      const now = new Date('2026-11-15T09:20:00');
+      await fakeArrivals(page, now);
+      await page.clock.setFixedTime(now);
       await page.setViewportSize(screen);
       await page.goto('/');
       await page.getByRole('tab', { name: 'Dashboard' }).click();
@@ -227,7 +231,10 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
 
     test(`dashboard notice at ${size(screen)}`, { tag: '@layout' }, async ({ page }) => {
       await fakeSpotify(page);
-      await page.clock.setFixedTime(new Date('2026-11-15T09:20:00'));
+      await fakeCountdownServer(page, dashboardConfig());
+      const now = new Date('2026-11-15T09:20:00');
+      await fakeArrivals(page, now);
+      await page.clock.setFixedTime(now);
       await page.setViewportSize(screen);
       await page.goto('/');
       await page.getByRole('tab', { name: 'Dashboard' }).click();
