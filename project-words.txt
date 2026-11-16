@@ -51,7 +51,6 @@ getent
 getty
 gitsubmodule
 groupadd
-gzzlukng
 gzzluksx
 gzzluovl
 ieee
