@@ -3696,6 +3696,224 @@ input:disabled {
   }
 }
 
+
+/*
+  Dashboard mockup fidelity. These are intentionally layout-scoped: the
+  dashboard is an information surface, not another music player, and every
+  variant keeps the app's existing navigation intact.
+*/
+
+/* A — rich photographic weather, an editorial notice board, glass departures. */
+.dashboard[data-layout='list'] > .dashboard-notices {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--accent) 86%, #102a25), #182e29 80%),
+    var(--dashboard-board);
+}
+.dashboard[data-layout='list'] .dashboard-notice-list .dashboard-notice {
+  border: 1px solid rgb(22 40 34 / 12%);
+  border-left: calc(4 * var(--u)) solid var(--severity, #a7b7aa);
+  background: rgb(250 250 246 / 96%);
+  color: #25352c;
+  box-shadow: 0 calc(3 * var(--u)) calc(12 * var(--u)) rgb(0 0 0 / 9%);
+}
+.dashboard[data-layout='list'] .dashboard-notice-list .dashboard-notice:active {
+  background: #fff;
+}
+.dashboard[data-layout='list'] .dashboard-notice-icon {
+  background: #e5ece6;
+  color: #2f5b43;
+}
+.dashboard[data-layout='list'] .dashboard-notice-icon[data-kind='weather'] {
+  background: #e0edf4;
+  color: #276f92;
+}
+.dashboard[data-layout='list'] .dashboard-notice-icon[data-kind='delays'] {
+  background: #fff0c9;
+  color: #a66c00;
+}
+.dashboard[data-layout='list'] .dashboard-notice-icon[data-kind='closure'] {
+  background: #f3e1df;
+  color: #a73730;
+}
+.dashboard[data-layout='list'] .dashboard-notice-warning rect,
+.dashboard[data-layout='list'] .dashboard-notice-warning circle {
+  fill: #fff0c9;
+}
+.dashboard[data-layout='list'] .dashboard-notice-summary {
+  opacity: 0.78;
+}
+.dashboard[data-layout='list'] > .dashboard-departures {
+  --dashboard-line: rgb(255 255 255 / 18%);
+  --dashboard-muted: rgb(255 255 255 / 70%);
+  --dashboard-later: rgb(255 255 255 / 15%);
+
+  border-color: rgb(255 255 255 / 16%);
+  background: linear-gradient(150deg, rgb(54 57 57 / 96%), rgb(33 43 47 / 98%));
+  color: #fff;
+}
+.dashboard[data-layout='list'] .dashboard-departures .dashboard-due[data-soon='true'] {
+  background: #d4e7c2;
+  color: #163b23;
+}
+
+/* B — the image is the canvas; a compact glass ticker and quiet departure cards. */
+.dashboard[data-layout='banner'] > .dashboard-notices {
+  border-color: rgb(255 255 255 / 22%);
+  background: rgb(16 28 32 / 70%);
+  backdrop-filter: blur(12px);
+}
+.dashboard[data-layout='banner'] .dashboard-notices .dashboard-notice-list {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.dashboard[data-layout='banner'] .dashboard-notice-list > li {
+  flex: 0 0 max(230px, 31%);
+}
+.dashboard[data-layout='banner'] .dashboard-notice-list .dashboard-notice {
+  border-left: calc(3 * var(--u)) solid var(--severity, transparent);
+}
+.dashboard[data-layout='banner'] > .dashboard-card.dashboard-departures {
+  --dashboard-line: rgb(24 38 34 / 12%);
+  --dashboard-muted: #66716a;
+  --dashboard-later: #e8eae5;
+
+  border-color: rgb(255 255 255 / 65%);
+  background: rgb(250 250 247 / 94%);
+  color: #24352c;
+  backdrop-filter: blur(12px);
+}
+.dashboard[data-layout='banner'] > .dashboard-departures .dashboard-departures-header,
+.dashboard[data-layout='banner'] > .dashboard-departures .dashboard-arrival {
+  border-bottom-color: rgb(25 40 35 / 13%);
+}
+.dashboard[data-layout='banner'] .dashboard-departures .dashboard-due:not([data-soon='true']) {
+  background: #e7e9e5;
+  color: #273a30;
+}
+.dashboard[data-layout='banner'] .dashboard-departures .dashboard-due[data-soon='true'] {
+  background: #d9eac7;
+  color: #244b2e;
+}
+
+/* C — retain the notice timeline, but make the weather strip atmospheric. */
+.dashboard[data-layout='timeline'] {
+  grid-template-rows: minmax(0, 1fr) calc(166 * var(--u));
+}
+.dashboard[data-layout='timeline'] > .dashboard-card.dashboard-weather {
+  border-color: rgb(255 255 255 / 25%);
+  background:
+    linear-gradient(95deg, rgb(18 39 41 / 83%), rgb(28 53 63 / 62%)),
+    var(--weather-photo) center 42% / cover,
+    #264856;
+  color: #fff;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 32%);
+}
+.dashboard[data-layout='timeline'] > .dashboard-weather .weather-icon-cloud {
+  fill: rgb(245 249 255 / 12%);
+  stroke: #fff;
+}
+.dashboard[data-layout='timeline'] > .dashboard-weather .weather-icon-sun circle {
+  fill: rgb(255 218 140 / 35%);
+  stroke: #ffe2a3;
+}
+.dashboard[data-layout='timeline'] > .dashboard-weather .weather-icon-sun line {
+  stroke: #ffe2a3;
+}
+.dashboard[data-layout='timeline'] > .dashboard-weather .weather-icon-rain {
+  stroke: #a2ddff;
+}
+.dashboard[data-layout='timeline'] > .dashboard-weather .weather-icon-snow {
+  fill: #fff;
+}
+.dashboard[data-layout='timeline'] > .dashboard-weather .weather-icon-hero {
+  width: calc(86 * var(--u));
+  height: calc(86 * var(--u));
+}
+.dashboard[data-layout='timeline'] > .dashboard-weather .dashboard-temperature {
+  font-size: calc(66 * var(--u));
+}
+.dashboard[data-layout='timeline'] > .dashboard-weather .dashboard-conditions {
+  font-size: calc(19 * var(--u));
+}
+
+/* D — weather is the hero, notices are compact dark tiles. */
+.dashboard[data-layout='modular'] {
+  grid-template:
+    'weather weather weather weather weather weather weather notices notices notices notices notices' minmax(0, 1.03fr)
+    'tube tube tube tube bus bus bus bus later later later later' minmax(0, 0.97fr)
+    / repeat(12, minmax(0, 1fr));
+}
+.dashboard[data-layout='modular'][data-notices='none'] {
+  grid-template-areas:
+    'weather weather weather weather weather weather weather weather weather weather weather weather'
+    'tube tube tube tube bus bus bus bus later later later later';
+}
+.dashboard[data-layout='modular'] > .dashboard-notices {
+  border-color: rgb(255 255 255 / 12%);
+  background: linear-gradient(155deg, var(--dashboard-board), #18322c);
+  color: #fff;
+}
+.dashboard[data-layout='modular'] > .dashboard-notices .dashboard-notices-title {
+  border-bottom-color: rgb(255 255 255 / 18%);
+}
+.dashboard[data-layout='modular'] .dashboard-notice-list .dashboard-notice {
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(255 255 255 / 9%);
+  color: #fff;
+}
+.dashboard[data-layout='modular'] > .dashboard-notices .dashboard-notice-icon {
+  color: #fff;
+}
+.dashboard[data-layout='modular'] > .dashboard-notices .dashboard-notice-icon[data-kind='weather'] {
+  color: #a8d9ef;
+}
+.dashboard[data-layout='modular'] > .dashboard-notices .dashboard-notice-icon[data-kind='delays'] {
+  color: #ffd472;
+}
+.dashboard[data-layout='modular'] > .dashboard-notices .dashboard-notice-icon[data-kind='holiday'] {
+  color: #d8c0ff;
+}
+.dashboard[data-layout='modular'] .dashboard-notice-list .dashboard-notice-summary {
+  opacity: 0.8;
+}
+.dashboard-modular-weather-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(16 * var(--u));
+  min-height: 0;
+}
+.dashboard[data-layout='modular'] .dashboard-modular-weather-hero .weather-icon-hero {
+  width: calc(136 * var(--u));
+  height: calc(136 * var(--u));
+  margin-right: calc(14 * var(--u));
+}
+.dashboard[data-layout='modular'] .dashboard-modular-weather-hero .dashboard-temperature {
+  font-size: calc(100 * var(--u));
+}
+.dashboard[data-layout='modular'] .dashboard-modular-weather-hero .dashboard-conditions {
+  font-size: calc(24 * var(--u));
+}
+.dashboard[data-layout='modular'] .dashboard-modular-weather-hero .dashboard-high-low {
+  font-size: calc(16 * var(--u));
+}
+.dashboard[data-layout='modular'] .dashboard-later .dashboard-hours {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (height <= 640px) {
+  .dashboard[data-layout='timeline'] {
+    grid-template-rows: minmax(0, 1fr) calc(135 * var(--u));
+  }
+  .dashboard[data-layout='modular'] .dashboard-modular-weather-hero .weather-icon-hero {
+    width: calc(105 * var(--u));
+    height: calc(105 * var(--u));
+    margin-right: 0;
+  }
+  .dashboard[data-layout='modular'] .dashboard-modular-weather-hero .dashboard-temperature {
+    font-size: calc(76 * var(--u));
+  }
+}
+
 /* A browser preview narrower than either kiosk still remains navigable. */
 @media (width <= 850px) {
   .dashboard {
