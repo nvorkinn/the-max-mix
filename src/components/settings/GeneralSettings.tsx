@@ -80,7 +80,7 @@ export default function GeneralSettings({
           </section>
 
           <section className="settings-group">
-            <h5 className="settings-group-title">Notice board</h5>
+            <h5 className="settings-group-title">Postcode</h5>
             <SettingsRow icon={<Megaphone className="w-6 h-6" aria-hidden="true" />} name={notices ?? 'Off'}>
               <ChangeButton onClick={() => setDialog('notices')} />
             </SettingsRow>

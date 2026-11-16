@@ -49,7 +49,7 @@ export default function NoticeBoardDialog({
     >
       <div className="modal-header">
         <h3 id={titleId} className="text-lg font-semibold">
-          Notice board
+          Postcode
         </h3>
       </div>
       <input
