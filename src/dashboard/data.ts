@@ -2,6 +2,8 @@
 // roughly like countdown-server's JSON (an `arrivals` section and a `weather` section). getDashboardData is the only
 // way in, so the real fetch and countdown-api's generated types can replace it without touching the components.
 
+import type { TouchscreenConfig } from 'countdown-api';
+
 /** One train or bus due at a stop. */
 export interface Arrival {
   /** The Tube line or the bus route. */
@@ -198,7 +200,16 @@ const MOCK_NOTICES: Notice[] = [
   }
 ];
 
-/** The Dashboard's data. Made up for now; see the top of this file. */
-export function getDashboardData(now = new Date()): Promise<DashboardData> {
+/**
+ * The owner's Dashboard settings from the kiosk's config on countdown-server (its stops, weather place and notice
+ * board), or null before anyone owns the kiosk. The data is for these.
+ */
+export type DashboardSettings = Pick<TouchscreenConfig, 'arrivals' | 'weather' | 'notice_board'> | null;
+
+/**
+ * The Dashboard's data for the owner's settings. Made up for now, the same whatever the settings; see the top of this
+ * file.
+ */
+export function getDashboardData(_settings: DashboardSettings, now = new Date()): Promise<DashboardData> {
   return Promise.resolve({ arrivals: mockArrivals(now), weather: mockWeather(now), notices: MOCK_NOTICES });
 }
