@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { forgetBluetoothSpeaker, scanBluetoothSpeakers } from '../audio/bluetooth';
-import { pairPhone, readBluetoothReport, setBluetoothVerbose } from '../utils/bluetoothMonitor';
+import { pairPhone, pickPhone, readBluetoothReport, setBluetoothVerbose } from '../utils/bluetoothMonitor';
 import type { BluetoothReport, PairedDevice, PairingStatus } from '../utils/bluetoothMonitor';
 import { errorMessage } from '../utils/errorMessage';
 
@@ -26,8 +26,11 @@ function state(device: PairedDevice): string {
 
 function pairingText(pairing: PairingStatus): string {
   switch (pairing.state) {
-    case 'waiting': {
-      return `Waiting for a phone, ${pairing.secondsLeft} s left`;
+    case 'scanning': {
+      return `Looking for phones, ${pairing.secondsLeft} s left`;
+    }
+    case 'pairing': {
+      return pairing.code === null ? `Pairing ${pairing.name}` : `Pairing ${pairing.name}, code ${pairing.code}`;
     }
     case 'paired': {
       return `Paired ${pairing.name} (${pairing.address})`;
@@ -93,6 +96,10 @@ export default function BluetoothDebug() {
     setActionError(null);
     pairPhone(isStarting).catch((caught: unknown) => setActionError(errorMessage(caught)));
   };
+  const pick = (address: string) => {
+    setActionError(null);
+    pickPhone(address).catch((caught: unknown) => setActionError(errorMessage(caught)));
+  };
   const toggleVerbose = (verbose: boolean) => {
     if (report) setReport({ ...report, verbose });
     setBluetoothVerbose(verbose).catch((caught: unknown) => setActionError(errorMessage(caught)));
@@ -134,10 +141,22 @@ export default function BluetoothDebug() {
             <button type="button" className="debug-bluetooth-button" onClick={() => pair(true)}>
               Pair my phone
             </button>
-            {report.pairing.state === 'waiting' && (
-              <button type="button" className="debug-bluetooth-button" onClick={() => pair(false)}>
-                Stop pairing
-              </button>
+            {report.pairing.state === 'scanning' && (
+              <>
+                {report.pairing.nearby.map(device => (
+                  <button
+                    key={device.address}
+                    type="button"
+                    className="debug-bluetooth-button"
+                    onClick={() => pick(device.address)}
+                  >
+                    Pair {device.name}
+                  </button>
+                ))}
+                <button type="button" className="debug-bluetooth-button" onClick={() => pair(false)}>
+                  Stop pairing
+                </button>
+              </>
             )}
           </div>
           {report.devices.length === 0 ? (

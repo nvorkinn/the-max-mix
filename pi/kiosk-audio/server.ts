@@ -45,10 +45,12 @@
 //                             "log": [{"id", "time", "message"}], "pairing", "phones": [{"address", "name",
 //                             "isHere", "lastSeen"}] (presence.ts)}, or 503 {"error"}
 //   POST /bluetooth/monitor   {"verbose": true}: log unpaired devices too
-//   POST /bluetooth/pair-phone   show up as a keyboard for two minutes so a phone can pair (phone-pairing.ts): 204, or
-//                                503 {"error"}; its progress is "pairing" in GET /bluetooth/monitor: {"state": "idle" |
-//                                "waiting" | "paired" | "failed", "secondsLeft"?, "phone"?: {"address", "name"}, "error"?}
-//   POST /bluetooth/pair-phone/stop   stop showing up
+//   POST /bluetooth/pair-phone   look for phones for two minutes so one can be picked and paired (phone-pairing.ts): 204,
+//                                or 503 {"error"}; its progress is "pairing" in GET /bluetooth/monitor: {"state": "idle" |
+//                                "scanning" | "pairing" | "paired" | "failed", "secondsLeft"?, "nearby"?: [{"address",
+//                                "name"}], "name"?, "code"?, "phone"?: {"address", "name"}, "error"?}
+//   POST /bluetooth/pair-phone/pick   {"address"} of a phone in "nearby": pair with it: 204, or 409 {"error"}
+//   POST /bluetooth/pair-phone/stop   stop looking
 //   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
 //                           (update-socket.ts)
 // Only the app's origin is answered (CORS, and every POST and WebSocket is refused without its Origin header, so no other
@@ -71,12 +73,12 @@ import { cached, findLyrics, parseLyricsQuery } from './lyrics.ts';
 import type { LyricsHit } from './lyrics.ts';
 import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
-import { advertiseForPairing, nameKiosk } from './pairing-gatt.ts';
-import { forgetPhone, PhonePairing, readPhones, renamePhone, savePhone } from './phone-pairing.ts';
+import { discoverPhones, nameKiosk } from './phone-discovery.ts';
+import { forgetPhone, PhonePairing, readPhones, savePhone } from './phone-pairing.ts';
 import type { PairingStatus } from './phone-pairing.ts';
 import { PhoneSetup } from './phone-setup.ts';
 import type { Choice, Graph } from './pipewire.ts';
-import { Presence, scanLe, setAlias } from './presence.ts';
+import { Presence, scanLe } from './presence.ts';
 import type { PhonePresence } from './presence.ts';
 import { SonosEventHub } from './sonos-events.ts';
 import type { SonosChange } from './sonos-events.ts';
@@ -95,6 +97,8 @@ const SPEAKERS_PORT = 7341;
 /** The origin of the pages this service serves itself (the Wi-Fi setup page). */
 export const LOCAL_ORIGIN = `http://127.0.0.1:${SPEAKERS_PORT}`;
 const MAX_BODY = 4096;
+/** How long POST /bluetooth/pair-phone/pick waits to hear that a pick was refused before answering 204. */
+const PICK_ANSWER_MS = 500;
 const MAX_MESSAGE = 2000;
 /** At most this many app log lines a minute reach the journal, so a page stuck in an error loop cannot flood it. */
 const LOGS_PER_MINUTE = 30;
@@ -130,9 +134,10 @@ export interface Deps {
   bluetooth: BluetoothControl;
   /** What BlueZ reports, for the debug console. */
   bluetoothMonitor: { snapshot: () => Promise<MonitorSnapshot>; setVerbose: (isVerbose: boolean) => void };
-  /** "Pair my phone", for the debug console. */
+  /** Pairing a person's phone, for the pairing sheet and the debug console. */
   phonePairing: {
     start: () => Promise<void>;
+    pick: (address: string) => Promise<void>;
     stop: () => Promise<void>;
     status: () => PairingStatus;
     forget: (address: string) => Promise<void>;
@@ -388,6 +393,42 @@ async function postBluetooth(
   }
 }
 
+/** What went wrong with `work`, or null when it went fine. */
+async function refusalOf(work: Promise<void>): Promise<string | null> {
+  try {
+    await work;
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : 'Bluetooth failed.';
+  }
+}
+
+/**
+ * POST /bluetooth/pair-phone/pick: answered once the pick is taken (or refused). The pairing itself waits for the phone
+ * and shows in the status.
+ */
+async function postPick(
+  request: IncomingMessage,
+  response: ServerResponse,
+  phonePairing: Deps['phonePairing']
+): Promise<void> {
+  const address = parseAddress((JSON.parse(await readBody(request)) as { address?: unknown } | null)?.address);
+  if (!address) {
+    response.writeHead(400).end();
+    return;
+  }
+  const refused = await Promise.race([
+    refusalOf(phonePairing.pick(address)),
+    new Promise<null>(resolve => {
+      setTimeout(() => {
+        resolve(null);
+      }, PICK_ANSWER_MS);
+    })
+  ]);
+  if (refused) sendJson(response, 409, { error: refused });
+  else response.writeHead(204).end();
+}
+
 async function post(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
   const url = request.url ?? '';
   const action = POST_ACTIONS[url];
@@ -429,6 +470,10 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
         return;
       }
       break;
+    }
+    case '/bluetooth/pair-phone/pick': {
+      await postPick(request, response, deps.phonePairing);
+      return;
     }
     case '/bluetooth/pair-phone/stop': {
       await deps.phonePairing.stop();
@@ -701,8 +746,6 @@ export function serveSpeakers(
     phones: () => readPhones(deps.phonesFile),
     devices: async () => (await bluetoothMonitor.snapshot()).devices,
     scan: ms => scanLe(ms),
-    rename: (path, name) => setAlias(path, name),
-    saveName: (address, name) => renamePhone(deps.phonesFile, address, name),
     log: message => {
       bluetoothMonitor.note(message);
     }
@@ -722,8 +765,8 @@ export function serveSpeakers(
     bluetoothMonitor,
     presence,
     phonePairing: new PhonePairing({
-      advertise: () => advertiseForPairing(),
-      devices: async () => (await bluetoothMonitor.snapshot()).devices,
+      discover: onCode => discoverPhones(onCode),
+      nearby: () => bluetoothMonitor.nearbyNamed(),
       disconnect: address => bluetooth.disconnect(address),
       save: phone => savePhone(deps.phonesFile, phone),
       forget: address => forgetPhone(deps.phonesFile, address),

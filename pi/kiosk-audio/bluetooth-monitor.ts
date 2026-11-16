@@ -115,6 +115,11 @@ function adapterState(properties: Properties): AdapterState {
   };
 }
 
+/** Whether `name` is only an address, which some devices give before they give a name. */
+const isAddressLike = (name: string): boolean => {
+  const parts = name.split(/[:-]/);
+  return parts.length === 6 && parts.every(part => /^[\dA-F]{2}$/i.test(part));
+};
 const isPaired = (properties: Properties): boolean => isOn(properties['Paired']) || isOn(properties['Bonded']);
 const deviceName = (properties: Properties): string =>
   text(properties['Alias']) || text(properties['Name']) || text(properties['Address']);
@@ -310,6 +315,41 @@ export class BluetoothMonitor {
     if (isVerbose === this.isVerbose) return;
     this.isVerbose = isVerbose;
     this.log(isVerbose ? 'Logging unpaired devices too' : 'Logging paired devices only');
+  }
+
+  /**
+   * The unpaired devices heard over Classic Bluetooth in the last NEARBY_MS that gave a name, phones first and then the
+   * strongest: what the kiosk lists to pair a phone (phone-pairing.ts). An iPhone shows up here, under its own name and
+   * fixed address, while its Settings > Bluetooth is open. Rejects when BlueZ is not there.
+   */
+  async nearbyNamed(): Promise<{ address: string; name: string; path: string }[]> {
+    let view: BluezView;
+    try {
+      view = await this.watch();
+    } catch {
+      throw new Error(UNAVAILABLE);
+    }
+    const named = [];
+    const devices = Object.entries(view.filter(DEVICE));
+    for (const [path, properties] of devices) {
+      const seen = this.lastSeen.get(path);
+      const name = text(properties['Name']);
+      const isRecent = seen !== undefined && this.now() - seen < NEARBY_MS;
+      // Classic devices have a Class; an LE advert's name may be anything an app on a phone chose.
+      if (!name || !isRecent || isAddressLike(name) || !hasProperty(properties, 'Class') || isPaired(properties)) {
+        continue;
+      }
+      named.push({
+        address: text(properties['Address']),
+        name,
+        path,
+        isPhone: text(properties['Icon']) === 'phone',
+        rssi: typeof properties['RSSI'] === 'number' ? properties['RSSI'] : -999
+      });
+    }
+    return named
+      .toSorted((a, b) => Number(b.isPhone) - Number(a.isPhone) || b.rssi - a.rssi || a.name.localeCompare(b.name))
+      .map(({ address, name, path }) => ({ address, name, path }));
   }
 
   /** The adapter, the paired devices, the count of unpaired ones nearby and the log. Rejects when BlueZ is not there. */

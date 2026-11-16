@@ -1,18 +1,22 @@
-// "Pair my phone", started from the debug console's Bluetooth section: for two minutes the kiosk shows up on phones as a
-// keyboard called THE MAX MIX (pairing-gatt.ts). The first device that pairs with BlueZ meanwhile is the phone: the kiosk
-// stops advertising, drops the connection (so the phone does not use it as a keyboard) and notes the phone in
-// phones.json next to speakers.json. BlueZ keeps the phone's identity key, which is what later lets the kiosk tell that
-// phone is nearby even as its address changes.
+// Pairing a person's phone with the kiosk. While the pairing sheet (or the debug console's "Pair my phone") is open, the
+// kiosk looks for phones for up to two minutes (phone-discovery.ts) and lists the ones it hears with a name. The person
+// opens Settings > Bluetooth on their iPhone, which makes it show up under its own name, and taps it on the kiosk. The
+// kiosk then pairs with it (the phone asks to confirm a code, shown on the kiosk too), notes it in phones.json next to
+// speakers.json under its fixed address and the name it was picked by, and hangs up. That name is kept as it was picked:
+// later adverts (an app on the phone can advertise as anything, "4" once) never change it. BlueZ keeps the phone's
+// identity key, which is what lets presence.ts tell the phone is nearby even as its LE address changes.
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { PairingAdvertising } from './pairing-gatt.ts';
+import type { PhoneDiscovery } from './phone-discovery.ts';
 
 const WINDOW_MS = 2 * 60 * 1000;
 const CHECK_MS = 1000;
 
 export const PAIRING_ERRORS = {
   unavailable: 'Bluetooth is not available, so no phone can pair.',
-  timedOut: 'No phone paired within 2 minutes.'
+  timedOut: 'No phone was picked within 2 minutes.',
+  gone: 'That phone is no longer nearby. Keep Settings › Bluetooth open on it.',
+  refused: 'The phone did not pair. Try again, and tap Pair on the phone.'
 } as const;
 
 export interface PairedPhone {
@@ -22,24 +26,26 @@ export interface PairedPhone {
   pairedAt: number;
 }
 
+/** A device heard nearby with a name, which may be a phone to pick. */
+export interface NearbyDevice {
+  address: string;
+  name: string;
+  /** BlueZ's D-Bus object for it, for pairing. */
+  path: string;
+}
+
 export type PairingStatus =
   | { state: 'idle' }
-  | { state: 'waiting'; secondsLeft: number }
+  | { state: 'scanning'; secondsLeft: number; nearby: { address: string; name: string }[] }
+  | { state: 'pairing'; name: string; code: number | null }
   | { state: 'paired'; phone: PairedPhone }
   | { state: 'failed'; error: string };
 
-/** A device BlueZ knows, as bluetooth-monitor.ts reports it. */
-interface Device {
-  address: string;
-  name: string;
-  paired: boolean;
-  bonded: boolean;
-}
-
 export interface PhonePairingOptions {
-  advertise: () => Promise<PairingAdvertising>;
-  /** The devices BlueZ has paired. */
-  devices: () => Promise<Device[]>;
+  /** Starts looking for phones; `onCode` gets the code the phone shows while pairing. */
+  discover: (onCode: (code: number) => void) => Promise<PhoneDiscovery>;
+  /** The unpaired devices heard lately with a name, phones first. */
+  nearby: () => Promise<NearbyDevice[]>;
   disconnect: (address: string) => Promise<void>;
   save: (phone: PairedPhone) => Promise<void>;
   /** Drops a phone from the saved list. */
@@ -51,14 +57,17 @@ export interface PhonePairingOptions {
   checkMs?: number;
 }
 
-const isBonded = (device: Device) => device.paired || device.bonded;
-
 export class PhonePairing {
   private readonly options: PhonePairingOptions;
   private readonly now: () => number;
   private current: PairingStatus = { state: 'idle' };
   private running:
-    | { advertising: PairingAdvertising; known: Set<string>; deadline: number; timer: ReturnType<typeof setInterval> }
+    | {
+        discovery: PhoneDiscovery;
+        deadline: number;
+        timer: ReturnType<typeof setInterval> | undefined;
+        nearby: NearbyDevice[];
+      }
     | undefined;
   private starting: Promise<void> | undefined;
 
@@ -67,19 +76,34 @@ export class PhonePairing {
     this.now = options.now ?? (() => Date.now());
   }
 
+  private isScanning(): boolean {
+    return this.current.state === 'scanning';
+  }
+
+  private scanning(nearby: NearbyDevice[]): PairingStatus {
+    const deadline = this.running?.deadline ?? this.now();
+    return {
+      state: 'scanning',
+      secondsLeft: Math.max(0, Math.ceil((deadline - this.now()) / 1000)),
+      nearby: nearby.map(({ address, name }) => ({ address, name }))
+    };
+  }
+
   private async begin(): Promise<void> {
     const windowMs = this.options.windowMs ?? WINDOW_MS;
     if (this.running) {
-      this.running.deadline = this.now() + windowMs;
-      this.options.log('Pairing: two more minutes');
+      // Already looking: two more minutes. Already pairing: let it finish.
+      if (this.current.state === 'scanning') {
+        this.running.deadline = this.now() + windowMs;
+        this.options.log('Pairing: two more minutes');
+      }
       return;
     }
-    const known = new Set(
-      (await this.options.devices()).filter(device => isBonded(device)).map(device => device.address)
-    );
-    let advertising: PairingAdvertising;
+    let discovery: PhoneDiscovery;
     try {
-      advertising = await this.options.advertise();
+      discovery = await this.options.discover(code => {
+        if (this.current.state === 'pairing') this.current = { ...this.current, code };
+      });
     } catch (error) {
       console.warn(`bluetooth: pairing did not start: ${String(error)}`);
       this.current = { state: 'failed', error: PAIRING_ERRORS.unavailable };
@@ -87,59 +111,39 @@ export class PhonePairing {
       throw new Error(PAIRING_ERRORS.unavailable, { cause: error });
     }
     const timer = setInterval(() => void this.check(), this.options.checkMs ?? CHECK_MS);
-    this.running = { advertising, known, deadline: this.now() + windowMs, timer };
-    this.current = { state: 'waiting', secondsLeft: Math.round(windowMs / 1000) };
-    this.options.log('Pairing: showing up as a keyboard called THE MAX MIX');
+    this.running = { discovery, deadline: this.now() + windowMs, timer, nearby: [] };
+    this.current = this.scanning([]);
+    this.options.log('Pairing: looking for phones');
   }
 
-  /** Looks for a newly paired device, or gives up at the deadline. */
+  /** Lists what is nearby, or gives up at the deadline. */
   private async check(): Promise<void> {
     const running = this.running;
-    if (!running) return;
-    let devices: Device[] = [];
+    if (!running || !this.isScanning()) return;
+    if (this.now() >= running.deadline) {
+      await this.end({ state: 'failed', error: PAIRING_ERRORS.timedOut });
+      this.options.log('Pairing: no phone picked in time');
+      return;
+    }
     try {
-      devices = await this.options.devices();
+      running.nearby = await this.options.nearby();
     } catch (error) {
       console.warn(`bluetooth: pairing check failed: ${String(error)}`);
     }
-    if (this.running !== running) return;
-    const phone = devices.find(device => isBonded(device) && !running.known.has(device.address));
-    if (phone) {
-      await this.finish({ address: phone.address, name: phone.name, pairedAt: this.now() });
-    } else if (this.now() >= running.deadline) {
-      await this.end({ state: 'failed', error: PAIRING_ERRORS.timedOut });
-      this.options.log('Pairing: no phone paired in time');
-    } else {
-      this.current = { state: 'waiting', secondsLeft: Math.ceil((running.deadline - this.now()) / 1000) };
-    }
+    if (this.running === running && this.isScanning()) this.current = this.scanning(running.nearby);
   }
 
-  private async finish(phone: PairedPhone): Promise<void> {
-    await this.end({ state: 'paired', phone });
-    this.options.log(`Pairing: paired ${phone.name} (${phone.address})`);
-    try {
-      await this.options.disconnect(phone.address);
-    } catch (error) {
-      console.warn(`bluetooth: could not disconnect the phone: ${String(error)}`);
-    }
-    try {
-      await this.options.save(phone);
-    } catch (error) {
-      console.warn(`bluetooth: could not note the phone: ${String(error)}`);
-    }
-  }
-
-  /** Stops advertising and settles on `status`. */
+  /** Stops looking and settles on `status`. */
   private async end(status: PairingStatus): Promise<void> {
     const running = this.running;
     this.running = undefined;
     this.current = status;
     if (!running) return;
     clearInterval(running.timer);
-    await running.advertising.stop();
+    await running.discovery.stop();
   }
 
-  /** Starts a pairing window, or gives the current one two more minutes. Rejects when Bluetooth would not. */
+  /** Starts looking for phones, or gives the current look two more minutes. Rejects when Bluetooth would not. */
   async start(): Promise<void> {
     const pending = (this.starting ??= this.begin());
     try {
@@ -149,7 +153,43 @@ export class PhonePairing {
     }
   }
 
-  /** Stops a pairing window. */
+  /**
+   * Pairs with the device at `address` from the list, keeping the name it was listed under, then hangs up. Rejects when
+   * nothing is being looked for or it is not in the list; how the pairing went is in the status.
+   */
+  async pick(address: string): Promise<void> {
+    const running = this.running;
+    const device = running?.nearby.find(known => known.address === address);
+    if (!device || !running || !this.isScanning()) throw new Error(PAIRING_ERRORS.gone);
+    clearInterval(running.timer);
+    running.timer = undefined;
+    this.current = { state: 'pairing', name: device.name, code: null };
+    this.options.log(`Pairing: ${device.name} (${device.address})`);
+    try {
+      await running.discovery.pair(device.path);
+    } catch (error) {
+      console.warn(`bluetooth: pairing failed: ${String(error)}`);
+      if (this.running === running) await this.end({ state: 'failed', error: PAIRING_ERRORS.refused });
+      this.options.log(`Pairing: ${device.name} did not pair`);
+      return;
+    }
+    const phone = { address: device.address, name: device.name, pairedAt: this.now() };
+    try {
+      await this.options.save(phone);
+    } catch (error) {
+      console.warn(`bluetooth: could not note the phone: ${String(error)}`);
+    }
+    try {
+      // So the phone does not stay connected (it has nothing to use the kiosk for).
+      await this.options.disconnect(phone.address);
+    } catch (error) {
+      console.warn(`bluetooth: could not disconnect the phone: ${String(error)}`);
+    }
+    if (this.running === running) await this.end({ state: 'paired', phone });
+    this.options.log(`Pairing: paired ${phone.name} (${phone.address})`);
+  }
+
+  /** Stops looking for phones. */
   async stop(): Promise<void> {
     if (!this.running) return;
     await this.end({ state: 'idle' });
@@ -196,15 +236,4 @@ export async function forgetPhone(file: string, address: string): Promise<void> 
   const phones = await readPhones(file);
   const next = phones.filter(known => known.address !== address);
   if (next.length !== phones.length) await writePhones(file, next);
-}
-
-/** Renames a saved phone in `file`, if it is there. */
-export async function renamePhone(file: string, address: string, name: string): Promise<void> {
-  const phones = await readPhones(file);
-  if (phones.some(known => known.address === address)) {
-    await writePhones(
-      file,
-      phones.map(known => (known.address === address ? { ...known, name } : known))
-    );
-  }
 }

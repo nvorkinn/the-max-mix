@@ -55,13 +55,18 @@ dbus-native, from the first time the app asks, and only listens: it never scans,
 section's Scan button uses `POST /bluetooth/scan`). Unpaired devices are logged only after `POST /bluetooth/monitor`
 with `{"verbose": true}`. It is the first step towards recognising people's phones; the log stays in memory.
 
-**Pair my phone** in the same section (`POST /bluetooth/pair-phone`, `phone-pairing.ts`) makes the kiosk show up on
-phones as a keyboard called THE MAX MIX for two minutes (`pairing-gatt.ts`): it sets the adapter's Alias to that name,
-since an iPhone lists it under Settings > Bluetooth by the adapter's name (otherwise the hostname), and its values can only be read over an encrypted link, so tapping it makes the phone pair. An agent says yes
-to that pairing (Just Works) while the window is open. The first device that pairs is taken as the phone: the kiosk stops
-advertising, disconnects it, and notes it in `~/.local/state/the-max-mix/phones.json`. BlueZ keeps the phone's identity
-key, which lets it recognise the phone's changing addresses later. No key presses are ever sent. **Forget** on a device
-row (`POST /bluetooth/remove`) unpairs it and drops it from `phones.json`, so a phone can pair again.
+**Pairing a phone** (the app's pairing sheet, or **Pair my phone** in the same section; `POST /bluetooth/pair-phone`,
+`phone-pairing.ts`) makes the kiosk look for phones for two minutes, over Classic Bluetooth and LE together
+(`phone-discovery.ts`). With Settings > Bluetooth open, an iPhone is discoverable over Classic under its fixed public
+address and its own name, so the kiosk lists the named devices it hears (`bluetooth-monitor.ts`, phones first). Tapping
+one (`POST /bluetooth/pair-phone/pick`) stops the scan and asks BlueZ to pair; the phone shows a code to confirm, the
+kiosk shows the same code, and an agent says yes on the kiosk's side. The kiosk then notes the phone in
+`~/.local/state/the-max-mix/phones.json` under that address and the name it was picked by, and disconnects it. The name
+is never updated from BlueZ afterwards: BlueZ renames a device from any advert carrying a name, and an app on a phone can
+advertise as anything. The Classic pairing also gives BlueZ the phone's LE identity key, which lets it recognise the
+phone's changing LE addresses later. **Forget** on a device row (`POST /bluetooth/remove`) unpairs it and drops it from
+`phones.json`, so a phone can pair again. The adapter's Alias is THE MAX MIX (set at start-up), which is what the phone's
+pairing prompt shows. This was checked on the-max-mix-2 with `pi/tools/bt-probe.mts` before it was built.
 
 Once a phone is saved, `presence.ts` scans Bluetooth LE for 8 s every 30 s (an LE-only discovery filter on hci0) and
 counts a saved phone as here while it is connected or was heard in the last two minutes; the debug section shows Here or

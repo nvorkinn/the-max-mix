@@ -26,10 +26,17 @@ export interface PairedDevice {
   lastSeen: number | null;
 }
 
-/** Where "Pair my phone" is (pi/kiosk-audio/phone-pairing.ts). */
+/** A named device the Pi hears nearby, which may be the phone to pick. */
+interface NearbyDevice {
+  address: string;
+  name: string;
+}
+
+/** Where pairing a phone is (pi/kiosk-audio/phone-pairing.ts). */
 export type PairingStatus =
   | { state: 'idle' }
-  | { state: 'waiting'; secondsLeft: number }
+  | { state: 'scanning'; secondsLeft: number; nearby: NearbyDevice[] }
+  | { state: 'pairing'; name: string; code: number | null }
   | { state: 'paired'; name: string; address: string }
   | { state: 'failed'; error: string };
 
@@ -92,8 +99,18 @@ function parsePairing(value: unknown): PairingStatus {
   const fields = fieldsOf(value);
   const phone = fieldsOf(fields['phone']);
   switch (fields['state']) {
-    case 'waiting': {
-      return { state: 'waiting', secondsLeft: typeof fields['secondsLeft'] === 'number' ? fields['secondsLeft'] : 0 };
+    case 'scanning': {
+      return {
+        state: 'scanning',
+        secondsLeft: typeof fields['secondsLeft'] === 'number' ? fields['secondsLeft'] : 0,
+        nearby: listOf(fields['nearby'])
+          .map(device => fieldsOf(device))
+          .map(device => ({ address: text(device['address']), name: text(device['name']) }))
+          .filter(device => device.address && device.name)
+      };
+    }
+    case 'pairing': {
+      return { state: 'pairing', name: text(fields['name']), code: numberOrNull(fields['code']) };
     }
     case 'paired': {
       return { state: 'paired', name: text(phone['name']), address: text(phone['address']) };
@@ -156,13 +173,27 @@ export async function setBluetoothVerbose(verbose: boolean): Promise<void> {
   if (!response.ok) throw new Error(`The kiosk refused that (${response.status}).`);
 }
 
-/** Starts "Pair my phone" (or gives it two more minutes), or stops it; rejects with a message to show. */
+async function refusal(response: Response): Promise<Error> {
+  const message = fieldsOf(await response.json().catch(() => null))['error'];
+  return new Error(typeof message === 'string' ? message : `The kiosk refused that (${response.status}).`);
+}
+
+/** Pairs with a phone the Pi listed as nearby; how it goes shows in the report. Rejects with a message to show. */
+export async function pickPhone(address: string): Promise<void> {
+  const response = await fetch(`${KIOSK_SERVICE}/bluetooth/pair-phone/pick`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address }),
+    signal: AbortSignal.timeout(TIMEOUT_MS)
+  });
+  if (!response.ok) throw await refusal(response);
+}
+
+/** Starts looking for phones to pair (or gives it two more minutes), or stops; rejects with a message to show. */
 export async function pairPhone(isStarting: boolean): Promise<void> {
   const response = await fetch(`${KIOSK_SERVICE}/bluetooth/pair-phone${isStarting ? '' : '/stop'}`, {
     method: 'POST',
     signal: AbortSignal.timeout(TIMEOUT_MS)
   });
-  if (response.ok) return;
-  const message = fieldsOf(await response.json().catch(() => null))['error'];
-  throw new Error(typeof message === 'string' ? message : `The kiosk refused that (${response.status}).`);
+  if (!response.ok) throw await refusal(response);
 }
