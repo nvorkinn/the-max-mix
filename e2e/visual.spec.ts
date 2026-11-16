@@ -216,6 +216,32 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await expect(page).toHaveScreenshot(shotName('dashboard', screen), SHOT);
     });
 
+    // The other three layouts of the mockup sheet, picked in Settings > Appearance, and the List layout without notices.
+    for (const [layout, name, none] of [
+      ['banner', 'dashboard-banner', false],
+      ['timeline', 'dashboard-timeline', false],
+      ['modular', 'dashboard-modular', false],
+      ['list', 'dashboard-no-notices', true]
+    ] as const) {
+      test(`${name} at ${size(screen)}`, { tag: '@layout' }, async ({ page }) => {
+        await fakeSpotify(page);
+        await fakeCountdownServer(page, dashboardConfig());
+        const now = new Date('2026-11-15T09:20:00');
+        await fakeArrivals(page, now);
+        await fakeNotices(page, now, { none });
+        await page.clock.setFixedTime(now);
+        await page.addInitScript(picked => {
+          localStorage.setItem('maxmix.dashboardLayout', picked);
+        }, layout);
+        await page.setViewportSize(screen);
+        await page.goto('/');
+        await page.getByRole('tab', { name: 'Dashboard' }).click();
+        const dashboard = page.getByRole('tabpanel', { name: 'Dashboard' });
+        await expect(dashboard.getByText(/Morden$/)).toBeVisible();
+        await expect(page).toHaveScreenshot(shotName(name, screen), SHOT);
+      });
+    }
+
     test(`dashboard at night at ${size(screen)}`, { tag: ['@layout', '@appearance'] }, async ({ page }) => {
       await fakeSpotify(page);
       await fakeCountdownServer(page, dashboardConfig('night'));

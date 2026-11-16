@@ -118,6 +118,54 @@ describe('Dashboard', () => {
     expect(screen.queryByText('Holborn')).not.toBeInTheDocument();
   });
 
+  it('leaves the notice board out when there are no notices', async () => {
+    data.getDashboardData.mockResolvedValue({ ...dashboard(), notices: [] });
+    const { container } = render(<Dashboard shown />);
+    expect(await screen.findByText('Holborn')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /Notice board/ })).not.toBeInTheDocument();
+    expect(container.querySelector('.dashboard')).toHaveAttribute('data-notices', 'none');
+  });
+
+  it('shows a big clock in the Banner layout', async () => {
+    data.getDashboardData.mockResolvedValue(dashboard());
+    render(<Dashboard shown layout="banner" />);
+    expect(await screen.findByText('Next Buses')).toBeInTheDocument();
+    const weather = screen.getByRole('region', { name: 'Weather in London' });
+    expect(within(weather).getByText('09:00')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Northern line: Delays/ })).toBeInTheDocument();
+  });
+
+  it('puts the next departures together in the Timeline layout', async () => {
+    data.getDashboardData.mockResolvedValue(dashboard());
+    render(<Dashboard shown layout="timeline" />);
+    const next = await screen.findByRole('region', { name: 'Next departures from Walworth Road' });
+    expect(within(next).getByText(/Holborn/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Notices' })).toBeInTheDocument();
+  });
+
+  it('says the departures are not available in the Timeline layout when there are none', async () => {
+    data.getDashboardData.mockResolvedValue(dashboard(minutesFromNow(-4 * 60)));
+    render(<Dashboard shown layout="timeline" />);
+    expect(await screen.findByText("Departure times aren't available")).toBeInTheDocument();
+    expect(screen.getByText("The weather isn't available")).toBeInTheDocument();
+  });
+
+  it('shows later today on its own tile in the Modular layout', async () => {
+    data.getDashboardData.mockResolvedValue(dashboard());
+    render(<Dashboard shown layout="modular" />);
+    const later = await screen.findByRole('region', { name: 'Later today' });
+    expect(within(later).getByText('10°')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Weather in London' })).toHaveTextContent('9°');
+  });
+
+  it('says the weather is not available in each layout when it is too old', async () => {
+    data.getDashboardData.mockResolvedValue(dashboard(minutesFromNow(-4 * 60)));
+    const { rerender } = render(<Dashboard shown layout="banner" />);
+    expect(await screen.findByText("The weather isn't available")).toBeInTheDocument();
+    rerender(<Dashboard shown layout="modular" />);
+    expect(screen.getAllByText("The weather isn't available")).toHaveLength(2);
+  });
+
   it('does not read its data while hidden', () => {
     data.getDashboardData.mockResolvedValue(dashboard());
     render(<Dashboard shown={false} />);

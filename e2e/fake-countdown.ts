@@ -271,7 +271,7 @@ function tubeLine(id: string, status: string, reason: string, validityPeriods: o
  * Stands in for countdown-server's GET /api/devices/notices (countdown-api's getNotices): the providers' answers for a
  * London postcode, read at `now`: a Tube line with delays, one with a planned closure in three days and a weather warning.
  */
-export async function fakeNotices(page: Page, now: Date) {
+export async function fakeNotices(page: Page, now: Date, { none = false }: { none?: boolean } = {}) {
   const fetchedAt = now.toISOString();
   const at = (hours: number) => new Date(now.getTime() + hours * 3_600_000).toISOString();
   const answer = {
@@ -318,6 +318,8 @@ export async function fakeNotices(page: Page, now: Date) {
     },
     bank_holidays: null
   };
+  // With `none`, the server has nothing to report: no line or weather trouble and no bank holiday.
+  if (none) Object.assign(answer, { tfl_stops: [], met_office: null });
   await page.route(NOTICES, route => {
     const cors = corsFor(route.request().headers()['origin']);
     const isPreflight = route.request().method() === 'OPTIONS';
