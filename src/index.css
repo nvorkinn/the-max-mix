@@ -3421,7 +3421,7 @@ input:disabled {
 .dashboard[data-layout='timeline'] {
   grid-template:
     'notices departures' minmax(0, 1fr)
-    'notices weather' calc(118 * var(--u))
+    'notices weather' calc(166 * var(--u))
     / 31% minmax(0, 1fr);
 }
 .dashboard[data-layout='timeline'][data-notices='none'] {
@@ -3605,15 +3605,16 @@ input:disabled {
 
 /* D, Modular: the weather and the notices as tiles across the top, the Tube, the buses and later today under them. */
 .dashboard[data-layout='modular'] {
-  grid-template:
-    'weather weather notices notices' minmax(0, 0.8fr)
-    'tube bus bus later' minmax(0, 1fr)
-    / 36fr 2fr 34fr 28fr;
+  grid-template-areas:
+    'weather weather weather weather weather weather weather notices notices notices notices notices'
+    'tube tube tube tube bus bus bus bus later later later later';
+  grid-template-rows: minmax(0, 1.03fr) minmax(0, 0.97fr);
+  grid-template-columns: repeat(12, minmax(0, 1fr));
 }
 .dashboard[data-layout='modular'][data-notices='none'] {
   grid-template-areas:
-    'weather weather weather weather'
-    'tube bus bus later';
+    'weather weather weather weather weather weather weather weather weather weather weather weather'
+    'tube tube tube tube bus bus bus bus later later later later';
 }
 .dashboard[data-layout='modular'] .dashboard-weather {
   grid-template-rows: auto minmax(0, 1fr);
@@ -3766,7 +3767,7 @@ input:disabled {
   overflow-x: auto;
   scrollbar-width: thin;
 }
-.dashboard[data-layout='banner'] .dashboard-notice-list > li {
+.dashboard[data-layout='banner'] .dashboard-notices .dashboard-notice-list > li {
   flex: 0 0 max(230px, 31%);
 }
 .dashboard[data-layout='banner'] .dashboard-notice-list .dashboard-notice {
@@ -3796,9 +3797,6 @@ input:disabled {
 }
 
 /* C — retain the notice timeline, but make the weather strip atmospheric. */
-.dashboard[data-layout='timeline'] {
-  grid-template-rows: minmax(0, 1fr) calc(166 * var(--u));
-}
 .dashboard[data-layout='timeline'] > .dashboard-card.dashboard-weather {
   border-color: rgb(255 255 255 / 25%);
   background:
@@ -3837,17 +3835,6 @@ input:disabled {
 }
 
 /* D — weather is the hero, notices are compact dark tiles. */
-.dashboard[data-layout='modular'] {
-  grid-template:
-    'weather weather weather weather weather weather weather notices notices notices notices notices' minmax(0, 1.03fr)
-    'tube tube tube tube bus bus bus bus later later later later' minmax(0, 0.97fr)
-    / repeat(12, minmax(0, 1fr));
-}
-.dashboard[data-layout='modular'][data-notices='none'] {
-  grid-template-areas:
-    'weather weather weather weather weather weather weather weather weather weather weather weather'
-    'tube tube tube tube bus bus bus bus later later later later';
-}
 .dashboard[data-layout='modular'] > .dashboard-notices {
   border-color: rgb(255 255 255 / 12%);
   background: linear-gradient(155deg, var(--dashboard-board), #18322c);
