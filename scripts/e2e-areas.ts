@@ -123,6 +123,7 @@ export const AREAS: Area[] = [
       /^src\/components\/AppTabs/,
       /^src\/components\/Dashboard/,
       /^src\/dashboard\//,
+      /^src\/utils\/dashboardLayout/,
       /^src\/hooks\/usePanelView/
     ],
     alsoAffects: ['visual', 'appearance']
