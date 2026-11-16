@@ -39,6 +39,7 @@ describe('PairPhoneSheet', () => {
     expect(monitor.pairPhone).toHaveBeenCalledWith(true);
     await flush();
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+    expect(screen.getByRole('status', { name: 'Searching' })).toBeInTheDocument();
 
     monitor.readBluetoothReport.mockResolvedValue(scanning([PHONE, TV]));
     await flush();
@@ -50,6 +51,7 @@ describe('PairPhoneSheet', () => {
     expect(screen.getByText(PHONE.name)).toBeInTheDocument();
     await flush();
     expect(screen.getByText('287389')).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Searching' })).not.toBeInTheDocument();
     expect(onDone).not.toHaveBeenCalled();
 
     monitor.readBluetoothReport.mockResolvedValue({ pairing: { state: 'paired', ...PHONE } });
@@ -75,6 +77,7 @@ describe('PairPhoneSheet', () => {
     render(<PairPhoneSheet spotifyId="anna" name="Anna" onDone={vi.fn()} />);
     await flush();
     expect(screen.getByRole('alert')).toHaveTextContent('The phone did not pair.');
+    expect(screen.queryByRole('status', { name: 'Searching' })).not.toBeInTheDocument();
     monitor.readBluetoothReport.mockResolvedValue(scanning([]));
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Bluetooth, Smartphone } from 'lucide-react';
+import { Bluetooth, LoaderCircle, Smartphone } from 'lucide-react';
 import { pairPhone, pickPhone, readBluetoothReport } from '../utils/bluetoothMonitor';
 import type { PairingStatus } from '../utils/bluetoothMonitor';
 import { errorMessage } from '../utils/errorMessage';
@@ -72,50 +72,65 @@ export default function PairPhoneSheet({
     pickPhone(address).catch((caught: unknown) => setError(errorMessage(caught)));
   };
 
+  // The Pi is busy from the moment the sheet opens until the phone shows its code: starting, looking, then pairing.
+  const isBusy =
+    !error &&
+    (pairing.state === 'idle' ||
+      pairing.state === 'scanning' ||
+      (pairing.state === 'pairing' && pairing.code === null));
+
   return (
     <Modal labelledBy="pair-phone-title" onClose={onDone} className="app-modal-panel pair-phone-sheet">
-      <h3 id="pair-phone-title" className="pair-phone-title">
-        <Bluetooth className="w-7 h-7 text-accent" aria-hidden="true" />
-        Pair {name ? `${name}’s` : 'your'} iPhone
-      </h3>
-      {!error && pairing.state === 'pairing' ? (
-        <div className="pair-phone-pairing" aria-live="polite">
-          <p className="pair-phone-pairing-name">{pairing.name}</p>
-          {pairing.code !== null && <p className="pair-phone-code">{formatCode(pairing.code)}</p>}
-        </div>
-      ) : (
-        !error && (
-          <>
-            <p className="pair-phone-step">
-              Open Settings › Bluetooth on your iPhone and stay on that screen. Then tap your iPhone in the list below.
-            </p>
-            <ul
-              className="phone-picker-options pair-phone-nearby"
-              aria-label="Nearby"
-              aria-busy={pairing.state !== 'scanning'}
-            >
-              {pairing.state === 'scanning' &&
-                pairing.nearby.map(device => (
-                  <li key={device.address}>
-                    <button
-                      type="button"
-                      className="modal-option phone-picker-option pair-phone-device"
-                      onClick={() => pick(device.address, device.name)}
-                    >
-                      <Smartphone className="w-5 h-5" aria-hidden="true" />
-                      {device.name}
-                    </button>
-                  </li>
-                ))}
-            </ul>
-          </>
-        )
-      )}
-      {error && (
-        <p role="alert" className="settings-error status-danger">
-          {error}
-        </p>
-      )}
+      <div className="pair-phone-header">
+        <h3 id="pair-phone-title" className="pair-phone-title">
+          <Bluetooth className="w-7 h-7 text-accent" aria-hidden="true" />
+          Pair {name ? `${name}’s` : 'your'} iPhone
+        </h3>
+        {isBusy && (
+          <LoaderCircle className="pair-phone-spinner w-8 h-8 animate-spin" role="status" aria-label="Searching" />
+        )}
+      </div>
+      <div className="pair-phone-body">
+        {!error && pairing.state === 'pairing' ? (
+          <div className="pair-phone-pairing" aria-live="polite">
+            <p className="pair-phone-pairing-name">{pairing.name}</p>
+            {pairing.code !== null && <p className="pair-phone-code">{formatCode(pairing.code)}</p>}
+          </div>
+        ) : (
+          !error && (
+            <>
+              <p className="pair-phone-step">
+                Open Settings › Bluetooth on your iPhone and stay on that screen. Then tap your iPhone in the list
+                below.
+              </p>
+              <ul
+                className="phone-picker-options pair-phone-nearby"
+                aria-label="Nearby"
+                aria-busy={pairing.state !== 'scanning'}
+              >
+                {pairing.state === 'scanning' &&
+                  pairing.nearby.map(device => (
+                    <li key={device.address}>
+                      <button
+                        type="button"
+                        className="modal-option phone-picker-option pair-phone-device"
+                        onClick={() => pick(device.address, device.name)}
+                      >
+                        <Smartphone className="w-5 h-5" aria-hidden="true" />
+                        {device.name}
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            </>
+          )
+        )}
+        {error && (
+          <p role="alert" className="settings-error status-danger">
+            {error}
+          </p>
+        )}
+      </div>
       <div className="pair-phone-actions">
         {error && (
           <button
