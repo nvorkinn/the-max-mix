@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SAMPLE, SAMPLE_NOW, sampleDashboard } from '../dashboard/sample';
+import type { DepartureBoardProps } from '../dashboard/props';
 import Dashboard from './Dashboard';
 
 const tabBar = { ...SAMPLE.tabBar, onSelect: vi.fn(), onSearch: vi.fn() };
@@ -107,18 +108,35 @@ describe('Dashboard', () => {
   });
 
   it('keeps its layout, with nothing in them, while the forecast and the boards have no data', () => {
+    render(<Dashboard tabBar={tabBar} weather={{ views: [] }} hourly={null} notices={{ notices: [] }} boards={[]} />);
+    expect(screen.getByRole('heading', { name: /Notice board/ })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Tube' })).not.toBeInTheDocument();
+    expect(document.querySelector('.dashboard-departures')).toBeInTheDocument();
+  });
+
+  it('gives each station its own board, side by side, and two deep with fewer rows when there are more', () => {
+    const [tube, bus] = sampleDashboard(SAMPLE_NOW, '24h').boards as [DepartureBoardProps, DepartureBoardProps];
+    const station = (id: string, stopName: string): DepartureBoardProps => ({ ...tube, id, stopName });
+    const { unmount } = render(
+      <Dashboard
+        tabBar={tabBar}
+        {...sampleDashboard(SAMPLE_NOW, '24h')}
+        boards={[tube, station('tube:b', 'Kennington'), bus]}
+      />
+    );
+    const boards = () => screen.getAllByRole('region', { name: /^(Tube|Buses)$/ });
+    expect(boards()).toHaveLength(3);
+    expect(boards().map(board => within(board).getAllByRole('listitem').length)).toEqual([4, 4, 4]);
+    expect(boards()[1]).toHaveTextContent(/Kennington/);
+
+    unmount();
     render(
       <Dashboard
         tabBar={tabBar}
-        weather={{ views: [] }}
-        hourly={null}
-        notices={{ notices: [] }}
-        tube={null}
-        bus={null}
+        {...sampleDashboard(SAMPLE_NOW, '24h')}
+        boards={[tube, station('tube:b', 'Kennington'), station('tube:c', 'Oval'), bus]}
       />
     );
-    expect(screen.getByRole('heading', { name: /Notice board/ })).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Tube' })).not.toBeInTheDocument();
-    expect(document.querySelectorAll('.dashboard-board')).toHaveLength(2);
+    expect(boards().map(board => within(board).getAllByRole('listitem').length)).toEqual([2, 2, 2, 2]);
   });
 });

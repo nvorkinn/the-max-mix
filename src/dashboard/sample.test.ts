@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SAMPLE, SAMPLE_NOW, sampleDashboard } from './sample';
+import { busesAt, SAMPLE, SAMPLE_NOW } from './sample';
 
 describe('the Dashboard sample data', () => {
   it.each([
@@ -29,7 +29,7 @@ describe('the Dashboard sample data', () => {
 
   it('has the 35 bus overtake the 148 as the clock runs, the order staying soonest first', () => {
     const routesAt = (minutes: number) =>
-      sampleDashboard(new Date(SAMPLE_NOW.getTime() + minutes * 60_000), '24h').bus.departures.map(bus => bus.route);
+      busesAt(new Date(SAMPLE_NOW.getTime() + minutes * 60_000)).map(bus => bus.route);
     expect(routesAt(0)).toEqual(['12', '343', '148', '35', '40', '363']);
     expect(routesAt(3)).toEqual(['12', '343', '35', '148', '40', '363']);
   });

@@ -48,8 +48,8 @@ test.describe('Layout', { tag: '@layout' }, () => {
       await page.setViewportSize({ width: 1024, height: 600 });
       await page.goto('/?kiosk=1');
       await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
-      // The header's tabs, buttons and clock all fit across the screen.
-      await expect(page.locator('.header-clock')).toBeInViewport({ ratio: 1 });
+      // The bar's tabs, buttons and clock all fit across the screen.
+      await expect(page.locator('.spotify-bar .dashboard-clock')).toBeInViewport({ ratio: 1 });
       await expectTouchTargets(page.locator('body'));
       await expectNoHorizontalOverflow(page);
 
@@ -101,22 +101,31 @@ test.describe('Layout', { tag: '@layout' }, () => {
         for (const controlBox of controlBoxes) {
           expect(controlBox?.y ?? 0).toBeGreaterThan((box?.y ?? 0) + (box?.height ?? 0));
         }
-        // Queue, Lyrics and Speakers stand down the right-hand edge beside the panel, as tall together as the artwork.
+        // Queue, Lyrics and Speakers are one pill under the panel, centred in its column, its bottom level with the art's.
         const nav = page.getByRole('navigation', { name: 'Beside the artwork' });
+        const pill = await nav.boundingBox();
         const navButtons = await Promise.all(
           ['Queue', 'Lyrics', 'Speakers'].map(name => nav.getByRole('button', { name, exact: true }).boundingBox())
         );
         const panel = await page.locator('.side-panel').boundingBox();
-        for (const navButton of navButtons) {
-          expect(navButton?.width ?? 0).toBeGreaterThanOrEqual(88);
-          expect(navButton?.height ?? 0).toBeGreaterThanOrEqual(100);
-          expect(navButton?.x ?? 0).toBeGreaterThan((panel?.x ?? 0) + (panel?.width ?? 0));
-          expect((navButton?.x ?? 0) + (navButton?.width ?? 0)).toBeLessThanOrEqual(width);
-        }
-        expect(Math.abs((navButtons[0]?.y ?? 0) - (box?.y ?? 1))).toBeLessThanOrEqual(1);
+        for (const navButton of navButtons) expect(navButton?.height ?? 0).toBeGreaterThanOrEqual(44);
+        expect(pill?.y ?? 0).toBeGreaterThanOrEqual((panel?.y ?? 0) + (panel?.height ?? 0));
         expect(
-          Math.abs((navButtons[2]?.y ?? 0) + (navButtons[2]?.height ?? 0) - (box?.y ?? 0) - (box?.height ?? 1))
+          Math.abs((pill?.x ?? 0) + (pill?.width ?? 0) / 2 - (panel?.x ?? 0) - (panel?.width ?? 0) / 2)
         ).toBeLessThanOrEqual(1);
+        expect(Math.abs((pill?.y ?? 0) + (pill?.height ?? 0) - (box?.y ?? 0) - (box?.height ?? 1))).toBeLessThanOrEqual(
+          1
+        );
+        // The queue shows whole rows only: each row is either all inside the list or all below it.
+        const list = page.getByRole('list', { name: 'Track queue' });
+        const isCut = await list.evaluate(element => {
+          const { bottom } = element.getBoundingClientRect();
+          return [...element.children].some(row => {
+            const rect = row.getBoundingClientRect();
+            return rect.top < bottom && rect.bottom > bottom + 0.5;
+          });
+        });
+        expect(isCut).toBe(false);
         expect(await page.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
       });
     });

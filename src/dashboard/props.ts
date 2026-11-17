@@ -173,3 +173,8 @@ export interface TubeStatusProps {
   /** Every Tube line and the Elizabeth line, in TfL's order. */
   lines: LineStatusItem[];
 }
+
+/** @public One stop's board along the bottom: a Tube station's trains or a bus stop's buses. */
+export type DepartureBoardProps = { id: string } & (
+  ({ kind: 'tube' } & TubeBoardProps) | ({ kind: 'bus' } & BusBoardProps)
+);

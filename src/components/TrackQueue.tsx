@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { Disc3, GripVertical } from 'lucide-react';
 import { useDragToReorder } from '../hooks/useDragToReorder';
+import { useWholeRows } from '../hooks/useWholeRows';
 import { trackKeys } from '../utils/trackKeys';
 import type { Track } from '../types';
 import { Artwork } from './TrackImages';
@@ -41,6 +42,8 @@ export default function TrackQueue({
   const listRef = useRef<HTMLDivElement>(null);
   const canMove = Boolean(onMove) && !playDisabled && queue.length > 1;
   const reorder = useDragToReorder(listRef, queue.length, canMove ? onMove : undefined);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useWholeRows(panelRef, listRef, queue);
 
   let retryLabel = 'Waiting to retry...';
   if (status === 'loading') retryLabel = 'Retrying...';
@@ -95,7 +98,7 @@ export default function TrackQueue({
   };
 
   return (
-    <div className="queue-panel">
+    <div className="queue-panel" ref={panelRef}>
       {error && (
         <p role="alert" className="queue-error">
           {error}

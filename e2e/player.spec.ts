@@ -116,6 +116,8 @@ test.describe('Player', { tag: '@player' }, () => {
     await expect(page.locator('.queue-art.image-placeholder')).toHaveCount(4);
 
     await page.getByRole('tab', { name: 'Settings' }).click();
+    // Each tab has its own bar, so the Spotify tab to tap back is the Settings tab's, once that shows.
+    await expect(page.getByRole('tabpanel', { name: 'Settings' })).toBeVisible();
     await page.getByRole('tab', { name: 'Spotify' }).click();
     await expect(page.locator('.album-cover.image-placeholder')).toBeVisible();
 

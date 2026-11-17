@@ -35,7 +35,10 @@ async function colouredArt(page: Page) {
 }
 
 // The clock and the seek bar with its times change as the song plays, so they are masked out of the comparison.
-const moving = (page: Page) => ({ ...SHOT, mask: [page.locator('.header-clock'), page.locator('.seek-control')] });
+const moving = (page: Page) => ({
+  ...SHOT,
+  mask: [page.locator('.header-clock'), page.locator('.dashboard-clock'), page.locator('.seek-control')]
+});
 
 test.describe('Screenshots compared with their baselines', { tag: '@visual' }, () => {
   test.beforeEach(async ({ page }) => {
@@ -230,7 +233,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await expect(page.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
       await expect(page).toHaveScreenshot(shotName('setup', screen), {
         ...SHOT,
-        mask: [page.locator('.header-clock')]
+        mask: [page.locator('.dashboard-clock')]
       });
     });
   }
@@ -238,7 +241,10 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
   test('signed-out setup screen in a short window', { tag: '@setup' }, async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
-    // The header clock changes every minute, so it is masked out of the comparison.
-    await expect(page).toHaveScreenshot('setup-short-window.png', { ...SHOT, mask: [page.locator('.header-clock')] });
+    // The clock changes every minute, so it is masked out of the comparison.
+    await expect(page).toHaveScreenshot('setup-short-window.png', {
+      ...SHOT,
+      mask: [page.locator('.dashboard-clock')]
+    });
   });
 });
