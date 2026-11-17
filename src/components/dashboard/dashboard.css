@@ -201,7 +201,7 @@
   At night it looks as it does on the Dashboard; by day the page is light, so its words take the page's ink. On the
   7 inch screen it is drawn at 0.75, the size the Dashboard's scaling gives it there.
 */
-.spotify-bar {
+.floating-bar {
   --text: #f7f4ec;
   --forest: #2f5a3c;
 
@@ -213,54 +213,54 @@
   line-height: normal;
   -webkit-font-smoothing: antialiased;
 }
-.spotify-bar svg.lucide {
+.floating-bar svg.lucide {
   display: inline;
   vertical-align: baseline;
   width: 24px;
   height: 24px;
   flex-shrink: 0;
 }
-.spotify-bar .dashboard-brand-mark {
+.floating-bar .dashboard-brand-mark {
   color: #f7f4ec;
 }
-.tablet-container[data-theme='night'] .spotify-bar .shadowed {
+.tablet-container[data-theme='night'] .floating-bar .shadowed {
   text-shadow: 0 1px 14px rgb(0 0 0 / 45%);
 }
-.tablet-container[data-theme='day'] .spotify-bar {
+.tablet-container[data-theme='day'] .floating-bar {
   --text: var(--ink);
 }
-.tablet-container[data-theme='day'] .spotify-bar .dashboard-tab[aria-selected='true'] {
+.tablet-container[data-theme='day'] .floating-bar .dashboard-tab[aria-selected='true'] {
   background: color-mix(in srgb, var(--ink) 8%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 14%, transparent);
 }
-.tablet-container[data-theme='day'] .spotify-bar .dashboard-avatar {
+.tablet-container[data-theme='day'] .floating-bar .dashboard-avatar {
   border-color: color-mix(in srgb, var(--ink) 70%, transparent);
 }
 @media (height <= 640px) {
-  .spotify-bar {
+  .floating-bar {
     zoom: 0.75;
   }
   /*
     Drawn at 0.75 the tabs and search would be 33px tall, under the 44px a finger needs. Their buttons grow to 59px
     (44 on screen) without moving anything, and the selected tab's pill is drawn behind at the Dashboard's size.
   */
-  .spotify-bar .dashboard-tab,
-  .spotify-bar .dashboard-icon-button {
+  .floating-bar .dashboard-tab,
+  .floating-bar .dashboard-icon-button {
     position: relative;
     isolation: isolate;
     height: 59px;
   }
-  .spotify-bar .dashboard-icon-button {
+  .floating-bar .dashboard-icon-button {
     width: 59px;
     margin: 0 -7.5px;
   }
-  .spotify-bar .dashboard-tab[aria-selected='true'],
-  .tablet-container[data-theme='day'] .spotify-bar .dashboard-tab[aria-selected='true'] {
+  .floating-bar .dashboard-tab[aria-selected='true'],
+  .tablet-container[data-theme='day'] .floating-bar .dashboard-tab[aria-selected='true'] {
     background: none;
     box-shadow: none;
     backdrop-filter: none;
   }
-  .spotify-bar .dashboard-tab[aria-selected='true']::before {
+  .floating-bar .dashboard-tab[aria-selected='true']::before {
     content: '';
     position: absolute;
     inset: 7.5px 0;
@@ -269,7 +269,7 @@
     background: rgb(255 255 255 / 16%);
     box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%);
   }
-  .tablet-container[data-theme='day'] .spotify-bar .dashboard-tab[aria-selected='true']::before {
+  .tablet-container[data-theme='day'] .floating-bar .dashboard-tab[aria-selected='true']::before {
     background: color-mix(in srgb, var(--ink) 8%, transparent);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 14%, transparent);
   }

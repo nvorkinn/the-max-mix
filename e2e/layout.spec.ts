@@ -49,7 +49,9 @@ test.describe('Layout', { tag: '@layout' }, () => {
       await page.goto('/?kiosk=1');
       await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
       // The bar's tabs, buttons and clock all fit across the screen.
-      await expect(page.locator('.spotify-bar .dashboard-clock')).toBeInViewport({ ratio: 1 });
+      await expect(page.getByRole('tabpanel', { name: 'Spotify' }).locator('.dashboard-clock')).toBeInViewport({
+        ratio: 1
+      });
       await expectTouchTargets(page.locator('body'));
       await expectNoHorizontalOverflow(page);
 
@@ -57,7 +59,9 @@ test.describe('Layout', { tag: '@layout' }, () => {
       await expect(transport).toBeInViewport();
 
       const settings = await openSettings(page);
-      await expectTouchTargets(settings, 60);
+      // The tab bar's own buttons are checked with the Spotify tab's above; Settings' pages want bigger ones.
+      await expectTouchTargets(page.locator('body'));
+      await expectTouchTargets(settings.locator('.settings-panel'), 60);
       await expectNoHorizontalOverflow(page);
       await page.getByRole('tab', { name: 'Spotify' }).click();
       await expect(settings).toBeHidden();
@@ -165,7 +169,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
         // eslint-disable-next-line no-await-in-loop -- the same
         await expect(nav.getByRole('button').last()).toBeInViewport({ ratio: 1 });
         // eslint-disable-next-line no-await-in-loop -- the same
-        await expectTouchTargets(settings, 60);
+        await expectTouchTargets(settings.locator('.settings-panel'), 60);
         // eslint-disable-next-line no-await-in-loop -- the same
         await expectNoHorizontalOverflow(page);
         // eslint-disable-next-line no-await-in-loop -- the same
