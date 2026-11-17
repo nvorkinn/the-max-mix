@@ -59,8 +59,6 @@
   --muted: #656b5e;
   /* Quiet labels (times, queue numbers, the clock): the muted ink in Day, a fainter one at Night. */
   --faint: var(--muted);
-  /* The header's own surface: none in Day, where it sits on the paper. */
-  --toolbar: transparent;
   --border: rgb(35 41 31 / 13%);
   --accent: #293a27;
   --accent-ink: #fff;
@@ -119,7 +117,7 @@
 }
 
 .tablet-container {
-  /* The height of the tab bar floating on the Spotify tab (.spotify-tab below). */
+  /* The height of the tab bar floating on the Spotify and Settings tabs (.app-tab-panel below). */
   --float-bar: 64px;
 
   width: 100%;
@@ -230,7 +228,6 @@
   --ink: #f5f6ff;
   --muted: #aab5d0;
   --faint: #7785a8;
-  --toolbar: #151f3c;
   --border: #33405f;
   --accent: #a95be8;
   --accent-ink: #fff;
@@ -247,101 +244,13 @@
   color-scheme: dark;
 }
 
-.app-header {
-  /* Everything in the header fills most of its height, so it reads from across the room. */
-  /* The short screen's header is smaller, and so are these (see the height media query below). */
-  --header-mark: 52px;
-  --header-mark-icon: 30px;
-  --header-title: 34px;
-  --header-button: 65px;
-  --header-icon: 37px;
-  --header-clock: 22px;
-  --header-clock-icon: 19px;
-  min-height: 82px;
-  padding: 0 30px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--toolbar);
-  z-index: 30;
-}
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-.brand-mark {
-  width: var(--header-mark);
-  height: var(--header-mark);
-  display: grid;
-  place-items: center;
-  border-radius: calc(var(--header-mark) / 3);
-  background: var(--accent);
-  color: var(--accent-ink);
-}
-.brand-mark svg {
-  width: var(--header-mark-icon);
-  height: var(--header-mark-icon);
-}
-.brand-copy h1 {
-  font-size: var(--header-title);
-  font-weight: 850;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  color: var(--accent);
-}
-.brand-dot {
-  color: var(--accent);
-}
-.app-tabs {
-  display: flex;
-  gap: 8px;
-  margin-right: auto;
-}
-.app-tab {
-  min-height: var(--header-button);
-  padding: 0 18px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  border-radius: 14px;
-  font-size: var(--header-clock);
-  font-weight: 700;
-  color: var(--muted);
-}
-.app-tab svg {
-  width: calc(var(--header-icon) * 0.8);
-  height: calc(var(--header-icon) * 0.8);
-}
-.app-tab[aria-selected='true'] {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
-/* Where there is room the tabs show an icon and a word; on the 7 inch screen only the icon, the word kept for screen readers. */
-@media (width <= 1100px) {
-  .app-tab {
-    justify-content: center;
-    min-width: var(--header-button);
-    padding: 0 14px;
-  }
-  .app-tab svg {
-    width: var(--header-icon);
-    height: var(--header-icon);
-  }
-  .app-tab span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-}
-/* What a tab shows fills the screen under the header; the hidden ones keep their state but take no room. */
+/*
+  What a tab shows fills the screen; the hidden ones keep their state but take no room. No tab has a header band: the
+  tab bar floats over each (.floating-bar), and what the tab shows is pushed down by --float-bar, so its background runs
+  up behind the bar.
+*/
 .app-tab-panel {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -349,13 +258,6 @@
 }
 .app-tab-panel[hidden] {
   display: none;
-}
-/*
-  The Spotify tab has no header band: the Dashboard's tab bar floats over it (.spotify-bar), and the room is pushed
-  down by the bar's height, so its background and the album art's tint run up behind the bar.
-*/
-.spotify-tab {
-  position: relative;
 }
 @media (height <= 640px) {
   .tablet-container {
@@ -368,7 +270,7 @@
   they read on any photo. Where controls lie over the photo it is blurred and darkened, as under the Dashboard's
   boards: behind the column beside the artwork, behind the control bar, and a fade behind the tab bar.
 */
-.spotify-tab.on-photo {
+.app-tab-panel.on-photo {
   --glass: 9 12 16;
   --page: rgb(var(--glass));
   --surface: rgb(255 255 255 / 8%);
@@ -391,7 +293,7 @@
   color: var(--ink);
   color-scheme: dark;
 }
-.spotify-tab.on-photo::before {
+.app-tab-panel.on-photo::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -401,16 +303,16 @@
     linear-gradient(180deg, rgb(var(--glass) / 55%) 0, rgb(var(--glass) / 0%) 120px),
     linear-gradient(0deg, rgb(var(--glass) / 45%) 0, rgb(var(--glass) / 0%) 260px);
 }
-.spotify-tab.on-photo .spotify-bar .shadowed {
+.app-tab-panel.on-photo .floating-bar .shadowed {
   text-shadow: 0 1px 14px rgb(0 0 0 / 45%);
 }
 /* The album art's tint is the plain page's; here the photo is the background. */
-.spotify-tab.on-photo .listening-room:not(.is-setup) {
+.app-tab-panel.on-photo .listening-room:not(.is-setup) {
   background: none;
 }
 /* The two panes of blurred, darkened photo: one behind the title, panel and its pills, one behind the control bar. */
-.spotify-tab.on-photo .listening-room:not(.is-setup)::before,
-.spotify-tab.on-photo .listening-room:not(.is-setup)::after {
+.app-tab-panel.on-photo .listening-room:not(.is-setup)::before,
+.app-tab-panel.on-photo .listening-room:not(.is-setup)::after {
   content: '';
   z-index: -1;
   pointer-events: none;
@@ -419,20 +321,20 @@
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
   backdrop-filter: blur(18px) saturate(1.2);
 }
-.spotify-tab.on-photo .listening-room:not(.is-setup)::before {
+.app-tab-panel.on-photo .listening-room:not(.is-setup)::before {
   grid-area: details-start / details-start / nav-end / details-end;
   margin: -12px -16px -12px -14px;
 }
-.spotify-tab.on-photo .listening-room:not(.is-setup)::after {
+.app-tab-panel.on-photo .listening-room:not(.is-setup)::after {
   grid-area: bar;
   margin: -6px -16px -8px;
 }
-.spotify-tab.on-photo .album-art {
+.app-tab-panel.on-photo .album-art {
   box-shadow: 0 24px 60px -20px rgb(0 0 0 / 70%);
 }
 /* The setup card and a playback problem are words on the photo too, so they get the darker glass. */
-.spotify-tab.on-photo .spotify-setup,
-.spotify-tab.on-photo .playback-banner {
+.app-tab-panel.on-photo .spotify-setup,
+.app-tab-panel.on-photo .playback-banner {
   background: rgb(var(--glass) / 72%);
   backdrop-filter: blur(18px) saturate(1.2);
 }
@@ -445,20 +347,6 @@
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: 300ms;
-}
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-/* Sleep and settings are tapped from across the room, so they are bigger than the other icon buttons. */
-.header-actions .icon-button {
-  min-height: var(--header-button);
-  min-width: var(--header-button);
-}
-.header-actions .icon-button svg {
-  width: var(--header-icon);
-  height: var(--header-icon);
 }
 .button,
 .icon-button {
@@ -1406,44 +1294,6 @@
   line-height: 1.7;
   color: var(--muted);
 }
-.header-clock {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  /* Sits at the far right of the header, after the buttons. */
-  margin-left: 8px;
-  font-size: var(--header-clock);
-  font-weight: 650;
-  color: var(--faint);
-  font-variant-numeric: tabular-nums;
-  /* Held for two seconds to open the debug console, so no long-press menu or zoom may claim it. */
-  touch-action: manipulation;
-  -webkit-touch-callout: none;
-}
-.header-clock svg {
-  width: var(--header-clock-icon);
-  height: var(--header-clock-icon);
-}
-/* The active person's picture, left of the clock, the size of the header's other buttons. */
-.header-actions .person-button {
-  border-radius: 999px;
-}
-.person-face {
-  display: inline-grid;
-  place-items: center;
-  flex-shrink: 0;
-  border-radius: 999px;
-  object-fit: cover;
-  background: var(--surface-raised);
-  color: var(--accent);
-  font-weight: 800;
-}
-.person-face-banner {
-  width: calc(var(--header-icon) + 10px);
-  height: calc(var(--header-icon) + 10px);
-  font-size: calc(var(--header-icon) * 0.6);
-  box-shadow: 0 0 0 2px var(--accent);
-}
 .app-dialog.person-sheet {
   width: fit-content;
   max-width: calc(100% - 32px);
@@ -1810,8 +1660,15 @@ body:has(.app-dialog[open]) {
   max-width: none;
   height: auto;
   min-height: 0;
+  padding-top: var(--float-bar);
   border: 0;
   border-radius: 0;
+  background: transparent;
+}
+/* One plain page under the floating tab bar: the navigation has no column of its own. */
+.settings-tab .settings-nav {
+  border-right: 0;
+  background: none;
 }
 .settings-nav {
   display: flex;
@@ -2546,16 +2403,6 @@ input:disabled {
     width: 80px;
     height: 80px;
     font-size: 36px;
-  }
-  .app-header {
-    --header-mark: 46px;
-    --header-mark-icon: 27px;
-    --header-title: 31px;
-    --header-button: 59px;
-    --header-icon: 33px;
-    --header-clock: 19px;
-    --header-clock-icon: 17px;
-    min-height: 66px;
   }
   .listening-room {
     padding-top: calc(18px + var(--float-bar));

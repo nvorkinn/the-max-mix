@@ -99,15 +99,15 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     ]);
   });
 
-  test('the time format on the General page changes the header clock and saves', async ({ page }) => {
+  test('the time format on the General page changes the tab bar clock and saves', async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-11-15T16:05:00'));
     const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
     await page.goto('/?kiosk=1');
-    await expect(page.locator('.spotify-bar .dashboard-clock')).toHaveText('16:05');
+    await expect(page.getByRole('tabpanel', { name: 'Spotify' }).locator('.dashboard-clock')).toHaveText('16:05');
     const settings = await openSettings(page, 'General');
 
     await settings.getByRole('button', { name: '12-hour' }).click();
-    await expect(page.locator('.header-clock')).toHaveText(/^\s*4:05\sPM$/i);
+    await expect(settings.locator('.dashboard-clock')).toHaveText(/^\s*4:05\sPM$/i);
     await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
     expect(server.saves.map(save => save['clock_format'])).toEqual(['12h']);
   });

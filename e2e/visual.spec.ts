@@ -37,7 +37,7 @@ async function colouredArt(page: Page) {
 // The clock and the seek bar with its times change as the song plays, so they are masked out of the comparison.
 const moving = (page: Page) => ({
   ...SHOT,
-  mask: [page.locator('.header-clock'), page.locator('.dashboard-clock'), page.locator('.seek-control')]
+  mask: [page.locator('.dashboard-clock'), page.locator('.seek-control')]
 });
 
 test.describe('Screenshots compared with their baselines', { tag: '@visual' }, () => {

@@ -16,7 +16,10 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await page.goto('/?kiosk=1');
     await page.getByRole('tab', { name: 'Settings' }).click();
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
-    await expect(settings.locator('.settings-panel')).toHaveCSS('background-color', PAPER.surface);
+    await expect(settings.locator('.settings-nav-item:not([aria-current])').first()).toHaveCSS(
+      'background-color',
+      PAPER.surface
+    );
     await expect(settings.locator('.settings-panel')).toHaveCSS('color', PAPER.ink);
     await expect(settings.locator('.settings-panel')).toHaveCSS('color-scheme', PAPER.scheme);
     await showSection(settings, 'Wi-Fi');
@@ -98,7 +101,10 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
 
     await expect(room).toHaveAttribute('data-theme', 'night');
     await expect(room).toHaveCSS('background-color', 'rgb(9, 14, 31)');
-    await expect(settings.locator('.settings-panel')).toHaveCSS('background-color', 'rgb(16, 26, 51)');
+    await expect(settings.locator('.settings-nav-item:not([aria-current])').first()).toHaveCSS(
+      'background-color',
+      'rgb(16, 26, 51)'
+    );
     await expect(settings.locator('.settings-panel')).toHaveCSS('color', 'rgb(245, 246, 255)');
     await expect(settings.locator('.settings-panel')).toHaveCSS('color-scheme', 'dark');
     await expect(settings.getByRole('button', { name: 'Navy' })).toBeDisabled();
@@ -112,7 +118,10 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await settings.getByRole('group', { name: 'Theme' }).getByRole('button', { name: 'Day' }).click();
     await expect(room).toHaveAttribute('data-theme', 'day');
     await expect(room).toHaveAttribute('data-colour', 'navy');
-    await expect(settings.locator('.settings-panel')).toHaveCSS('background-color', PAPER.surface);
+    await expect(settings.locator('.settings-nav-item:not([aria-current])').first()).toHaveCSS(
+      'background-color',
+      PAPER.surface
+    );
     await expect(settings.getByRole('button', { name: 'Navy' })).toBeEnabled();
   });
 
