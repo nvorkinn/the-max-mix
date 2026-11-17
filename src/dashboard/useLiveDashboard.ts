@@ -2,12 +2,13 @@
 // components' props as of `now` (dashboardProps.ts). The caller owns the clock, so the boards count down on the same
 // tick as the tab bar's clock, and a test or the fixture's simulated clock can drive it.
 
-import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import type { ClockFormat } from '../utils/clockFormat';
 import { dashboardProps } from './dashboardProps';
 import type { LiveProps } from './dashboardProps';
 import { liveDashboard } from './live';
 import type { LiveDashboard } from './live';
+import { useLastKnown } from './useDayPhoto';
 
 export function useLiveDashboard(
   now: Date,
@@ -22,7 +23,6 @@ export function useLiveDashboard(
   const time = now.getTime();
   const props = useMemo(() => dashboardProps(snapshot, new Date(time), clockFormat), [snapshot, time, clockFormat]);
   // Before the new day's first photo is due, yesterday's last one stays rather than the app's own.
-  const lastBackdropRef = useRef<string | null>(null);
-  if (props.backdrop) lastBackdropRef.current = props.backdrop;
-  return props.backdrop || !lastBackdropRef.current ? props : { ...props, backdrop: lastBackdropRef.current };
+  const backdrop = useLastKnown(props.backdrop);
+  return backdrop === (props.backdrop ?? null) ? props : { ...props, backdrop };
 }

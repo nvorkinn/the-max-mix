@@ -53,6 +53,7 @@ import SleepScreen from './SleepScreen';
 import PairPhoneSheet from './PairPhoneSheet';
 import { tabPanelId } from './AppTabs';
 import DashboardScreen from './DashboardScreen';
+import PlayerBackdrop from './PlayerBackdrop';
 import TabBar from './dashboard/TabBar';
 
 /** The minute it is now; the tab bar's clock changes only when this does. */
@@ -161,7 +162,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   // Music picked while a Sonos plays goes to the Sonos (a song, album or playlist; Liked Songs cannot).
   const playMusic = (choice: MusicChoice) => {
-    goToScreen('spotify');
+    if (screen !== 'player') goToScreen('spotify');
     return sonos.active ? sonos.play(choice.uri) : playMusicOnSpotify(choice);
   };
 
@@ -472,6 +473,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     }
   };
 
+  // The Player tab is the Spotify tab's panel with the Dashboard's photo behind it.
+  const onPhoto = screen === 'player';
   // The Dashboard's tab bar, which floats on the Spotify and Settings tabs too.
   const tabBar: TabBarProps = {
     active: screen,
@@ -499,12 +502,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     >
       {isOffline && <OfflineBanner />}
       <div
-        className="app-tab-panel"
+        className={`app-tab-panel${onPhoto ? ' on-photo' : ''}`}
         role="tabpanel"
         id={tabPanelId('spotify')}
-        aria-label="Spotify"
-        hidden={screen !== 'spotify'}
+        aria-label={onPhoto ? 'Player' : 'Spotify'}
+        hidden={screen !== 'spotify' && !onPhoto}
       >
+        {onPhoto && <PlayerBackdrop now={tabBar.now} />}
         <div className="floating-bar">
           <TabBar {...tabBar} />
         </div>

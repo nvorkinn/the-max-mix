@@ -5,6 +5,7 @@ import panels from '../../vendor/countdown-api/src/countdown_api/fixtures/device
 import type { Client } from '../../vendor/countdown-api/src/countdown_api/client';
 import type { FeedHandlers } from './feed';
 import { LiveDashboard } from './live';
+import { useDayPhoto } from './useDayPhoto';
 import { useLiveDashboard } from './useLiveDashboard';
 
 const NOW = new Date('2026-10-17T12:00:30Z');
@@ -74,6 +75,35 @@ describe('useLiveDashboard', () => {
     });
     rerender({ now: new Date('2026-01-16T01:00:00Z') });
     expect(result.current.backdrop).toBe(night);
+    vi.unstubAllEnvs();
+  });
+});
+
+describe('useDayPhoto', () => {
+  it('gives the photo the Dashboard shows, from the same feed, and none before the feed has one', () => {
+    vi.stubEnv('VITE_COUNTDOWN_API', 'https://api.countdown.build');
+    let feed: FeedHandlers | undefined;
+    const close = vi.fn();
+    const source = new LiveDashboard(
+      () => ({ baseUrl: 'https://api.countdown.build', secret: 'device-secret' }) satisfies Client,
+      (_client, handlers) => {
+        feed = handlers;
+        return close;
+      }
+    );
+    const evening = new Date('2026-01-15T23:00:00Z');
+    const dashboard = renderHook(() => useLiveDashboard(evening, '24h', source));
+    const { result, unmount } = renderHook(() => useDayPhoto(evening, source));
+    expect(result.current).toBeNull();
+    act(() => {
+      feed?.onEvent({ event: 'weather', data: panels.weather as unknown as DeviceWeather });
+    });
+    expect(result.current).toMatch(/\/api\/backgrounds\//);
+    expect(result.current).toBe(dashboard.result.current.backdrop);
+
+    // The feed stays open for the Dashboard when this stops using it.
+    unmount();
+    expect(close).not.toHaveBeenCalled();
     vi.unstubAllEnvs();
   });
 });

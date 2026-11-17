@@ -168,6 +168,19 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       }
     );
 
+    // The Player tab: the same player on the Dashboard's photo (the one bundled with the app, with no feed to give the
+    // day's), the photo blurred and darkened under the controls.
+    test(`player on the photo at ${size(screen)}`, { tag: '@player' }, async ({ page }) => {
+      await fakeSpotify(page);
+      await colouredArt(page);
+      await page.setViewportSize(screen);
+      await page.goto('/');
+      await page.getByRole('tab', { name: 'Player' }).click();
+      await expect(page.getByRole('tabpanel', { name: 'Player' })).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
+      await expect(page).toHaveScreenshot(shotName('player-photo', screen), moving(page));
+    });
+
     test(`speakers view at ${size(screen)}`, { tag: '@speakers' }, async ({ page }) => {
       await fakeSpotify(page);
       await page.setViewportSize(screen);
