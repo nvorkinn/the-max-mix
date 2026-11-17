@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { advance } from './clock.ts';
 import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { showSection } from './settings.ts';
+import { openSpotifyTab } from './spotify-tab.ts';
 
 test.describe('Screen sleep', { tag: '@sleep' }, () => {
   // Midnight on the page's clock, which the quiet hours read in local time.
@@ -22,7 +23,7 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
   });
 
   test('the sleep button blacks out the screen, even while music plays, until it is tapped', async ({ page }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
     // The sleep button is in the Settings tab's header; the bar on the Spotify tab has none.
     await page.getByRole('tab', { name: 'Settings' }).click();
@@ -48,14 +49,14 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
   });
 
   test('away from the kiosk there is no sleep button', async ({ page }) => {
-    await page.goto('/?kiosk=0');
+    await openSpotifyTab(page, '/?kiosk=0');
     await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Put the screen to sleep' })).toHaveCount(0);
   });
 
   test('a sleeping screen reads Spotify seldom, and reads again at once when it wakes', async ({ page }) => {
     const reads = countPlaybackReads(page);
-    await page.goto('/');
+    await openSpotifyTab(page);
     await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 
     // Awake and watching another device, it asks every few seconds.
@@ -87,7 +88,7 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
   test('with nothing playing the Dashboard comes up after a minute, dims five minutes later and sleeps the chosen time after that, never while music plays', async ({
     page
   }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     await page.getByRole('tab', { name: 'Settings' }).click();
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
     await showSection(settings, 'General');
@@ -123,7 +124,7 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
   test('Settings left alone give way to the Dashboard, which dims, and a tap brightens it without pressing what is behind', async ({
     page
   }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
     await page.getByRole('tab', { name: 'Settings' }).click();
@@ -156,7 +157,7 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
   });
 
   test('in quiet hours the screen sleeps a minute after the last touch', async ({ page }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
     await page.getByRole('tab', { name: 'Settings' }).click();

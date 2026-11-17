@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { defined } from '../test/defined';
+import { renderOnSpotifyTab } from '../test/onSpotifyTab';
 import TabletView from './TabletView';
 
 const state = vi.hoisted(() => {
@@ -44,7 +45,7 @@ describe('TabletView', () => {
 
   it('does not poll the queue while signed out', () => {
     state.player = player();
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     expect(api.getQueue).not.toHaveBeenCalled();
     expect(screen.queryByTestId('queue')).not.toBeInTheDocument();
   });
@@ -52,7 +53,7 @@ describe('TabletView', () => {
   it('clears the queue and error when polling stops', async () => {
     api.getQueue.mockResolvedValue({ queue: [{ id: '1', name: 'Song' }] });
     state.player = player({ isAuthenticated: true });
-    const { rerender } = render(<TabletView />);
+    const { rerender } = renderOnSpotifyTab(<TabletView />);
     await waitFor(() => expect(screen.getByTestId('queue')).toHaveTextContent('Song|no-error'));
     state.player = player({ isAuthenticated: false });
     rerender(<TabletView />);

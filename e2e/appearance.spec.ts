@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { showSection } from './settings.ts';
+import { openSpotifyTab, showSpotifyTab } from './spotify-tab.ts';
 
 test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, () => {
   test.beforeEach(async ({ page }) => {
@@ -13,7 +14,7 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
   const PAPER = { surface: 'rgb(250, 250, 246)', ink: 'rgb(35, 41, 31)', scheme: 'light' };
 
   test('Paper appearance applies to dialogs, status and kiosk controls', async ({ page }) => {
-    await page.goto('/?kiosk=1');
+    await openSpotifyTab(page, '/?kiosk=1');
     await page.getByRole('tab', { name: 'Settings' }).click();
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
     await expect(settings.locator('.settings-nav-item:not([aria-current])').first()).toHaveCSS(
@@ -75,6 +76,7 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await expect(settings.getByRole('button', { name: 'Tap again to restart' })).toHaveClass(/modal-confirm-armed/);
     await page.keyboard.press('Escape');
     await page.reload();
+    await showSpotifyTab(page);
     await page.getByRole('button', { name: /^Speakers:/ }).click();
     const speakers = page.getByRole('region', { name: 'Speakers' });
     await expect(speakers).toHaveCSS('color', PAPER.ink);
@@ -88,7 +90,7 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
   });
 
   test('Night recolours the app, greys out the Day colour, and Day brings that colour back', async ({ page }) => {
-    await page.goto('/?kiosk=1');
+    await openSpotifyTab(page, '/?kiosk=1');
     const room = page.locator('.tablet-container');
     await expect(room).toHaveAttribute('data-theme', 'day');
     let settings = page.getByRole('tabpanel', { name: 'Settings' });
@@ -128,7 +130,7 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
   test('Auto, offered when the kiosk knows where it is, follows the sun', async ({ page }) => {
     // An hour after sunset in London on midsummer's day.
     await page.clock.setFixedTime(new Date('2026-06-21T21:20:00Z'));
-    await page.goto('/?kiosk=1&lat=51.51&lon=-0.13');
+    await openSpotifyTab(page, '/?kiosk=1&lat=51.51&lon=-0.13');
     const room = page.locator('.tablet-container');
     await page.getByRole('tab', { name: 'Settings' }).click();
     await showSection(page.getByRole('tabpanel', { name: 'Settings' }), 'Appearance');

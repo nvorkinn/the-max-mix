@@ -22,7 +22,10 @@ test.describe('The app as a whole', { tag: '@app' }, () => {
     });
 
     await page.goto('/');
-    await expect(page.getByRole('tab', { name: 'Spotify' })).toHaveAttribute('aria-selected', 'true');
+    // Every start opens on the Dashboard, its tabs in the order Dashboard, Spotify, Settings.
+    await expect(page.getByRole('tab', { name: 'Dashboard' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tab')).toHaveText(['Dashboard', 'Spotify', 'Settings']);
+    await page.getByRole('tab', { name: 'Spotify' }).click();
     await expect(page.getByRole('button', { name: 'Speakers: Playing on Test speaker' })).toBeVisible();
     expect(errors).toEqual([]);
   });

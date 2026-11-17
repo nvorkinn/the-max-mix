@@ -5,6 +5,7 @@ import { airPlayOutput, fakeKioskOutputs } from './fake-kiosk.ts';
 import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
 import { COLOURED_ART, fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSettings, showSection } from './settings.ts';
+import { openSpotifyTab } from './spotify-tab.ts';
 
 // Layout bugs such as an overlapping or gapped sticky modal header are invisible to the DOM assertions elsewhere, so
 // these tests compare screenshots. Baselines are rendered by Chrome on ubuntu-latest, the only place they are
@@ -122,7 +123,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
         localStorage.setItem('maxmix.theme', 'night');
       });
       await page.setViewportSize(screen);
-      await page.goto('/');
+      await openSpotifyTab(page);
       const settings = await openSettings(page, 'Appearance');
       await expect(settings).toHaveScreenshot(shotName('settings-night', screen), SHOT);
     });
@@ -131,7 +132,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await fakeSpotify(page);
       await colouredArt(page);
       await page.setViewportSize(screen);
-      await page.goto('/');
+      await openSpotifyTab(page);
       await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
       await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
       await expect(page).toHaveScreenshot(shotName('player', screen), moving(page));
@@ -144,7 +145,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await fakeSpotify(page);
       await colouredArt(page);
       await page.setViewportSize(screen);
-      await page.goto('/');
+      await openSpotifyTab(page);
       await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
       await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
       await expect(page).toHaveScreenshot(shotName('player-night', screen), moving(page));
@@ -160,7 +161,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
         await fakeSpotify(page);
         await colouredArt(page);
         await page.setViewportSize(screen);
-        await page.goto('/');
+        await openSpotifyTab(page);
         await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
         await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
         await expect(page).toHaveScreenshot(shotName('player-dynamic', screen), moving(page));
@@ -170,7 +171,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
     test(`speakers view at ${size(screen)}`, { tag: '@speakers' }, async ({ page }) => {
       await fakeSpotify(page);
       await page.setViewportSize(screen);
-      await page.goto('/');
+      await openSpotifyTab(page);
       await page.getByRole('button', { name: /^Speakers:/ }).click();
       const view = page.getByRole('region', { name: 'Speakers' });
       await expect(view.getByRole('checkbox', { name: 'Test speaker' })).toBeChecked();
@@ -186,7 +187,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       ]);
       await fakeSpotifySdk(page);
       await page.setViewportSize(screen);
-      await page.goto('/');
+      await openSpotifyTab(page);
       await page.getByRole('button', { name: /^Speakers:/ }).click();
       const view = page.getByRole('region', { name: 'Speakers' });
       const nav = page.getByRole('navigation', { name: 'Beside the artwork' });
@@ -220,7 +221,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
     test(`music picker at ${size(screen)}`, { tag: '@music' }, async ({ page }) => {
       await fakeSpotify(page);
       await page.setViewportSize(screen);
-      await page.goto('/');
+      await openSpotifyTab(page);
       await page.getByRole('button', { name: 'Choose music' }).click();
       const dialog = page.getByRole('dialog', { name: 'Choose music' });
       await expect(dialog.getByRole('button', { name: /Deep Focus/ })).toBeVisible();
@@ -229,7 +230,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
 
     test(`signed-out setup screen at ${size(screen)}`, { tag: '@setup' }, async ({ page }) => {
       await page.setViewportSize(screen);
-      await page.goto('/');
+      await openSpotifyTab(page);
       await expect(page.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
       await expect(page).toHaveScreenshot(shotName('setup', screen), {
         ...SHOT,
@@ -239,7 +240,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
   }
 
   test('signed-out setup screen in a short window', { tag: '@setup' }, async ({ page }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     await expect(page.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
     // The clock changes every minute, so it is masked out of the comparison.
     await expect(page).toHaveScreenshot('setup-short-window.png', {

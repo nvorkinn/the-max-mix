@@ -36,7 +36,7 @@ test.describe('Registering with countdown-server', { tag: '@registration' }, () 
     const visits = await fakeRegisterPage(page, { device_id: '0a1b2c3d4e5f' });
     await page.goto('/?kiosk=1');
 
-    await expect(page.getByRole('region', { name: 'Now playing' })).toBeVisible();
+    await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
     expect(new URL(page.url()).search).toBe('');
     const stored = await page.evaluate(() => ({
       secret: localStorage.getItem('maxmix.deviceSecret'),
@@ -56,7 +56,7 @@ test.describe('Registering with countdown-server', { tag: '@registration' }, () 
 
     // Registered: the next start opens the app without going back to the server.
     await page.goto('/?kiosk=1');
-    await expect(page.getByRole('region', { name: 'Now playing' })).toBeVisible();
+    await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
     expect(visits).toHaveLength(1);
   });
 
@@ -81,6 +81,6 @@ test.describe('Registering with countdown-server', { tag: '@registration' }, () 
 
     await problem.getByRole('button', { name: 'Close' }).click();
     await expect(problem).toBeHidden();
-    await expect(page.getByRole('region', { name: 'Now playing' })).toBeVisible();
+    await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
   });
 });

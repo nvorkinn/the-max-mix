@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { defined } from '../test/defined';
 import type { MusicChoice } from '../types';
+import { renderOnSpotifyTab } from '../test/onSpotifyTab';
 import TabletView from './TabletView';
 
 // The speaker selection and the music picker are stand-ins that hand their callbacks to the test.
@@ -83,7 +84,7 @@ function setUp(following: boolean, spotify: Record<string, unknown> = {}) {
     leave: vi.fn().mockResolvedValue(undefined),
     setSlowPolling: vi.fn()
   };
-  render(<TabletView />);
+  return renderOnSpotifyTab(<TabletView />);
 }
 
 describe('TabletView with Sonos', () => {
@@ -146,10 +147,11 @@ describe('TabletView with Sonos', () => {
 
   it('plays picked music on the Sonos while following one, else through Spotify', async () => {
     const choice = { uri: 'spotify:album:1234567890123456789012', name: 'Album' };
-    setUp(true);
+    const following = setUp(true);
     await act(() => defined(props.picker.onPlay)(choice));
     expect(state.sonos['play']).toHaveBeenCalledWith(choice.uri);
     expect(state.player['playMusic']).not.toHaveBeenCalled();
+    following.unmount();
     setUp(false);
     await act(() => defined(props.picker.onPlay)(choice));
     expect(state.player['playMusic']).toHaveBeenCalledWith(choice);

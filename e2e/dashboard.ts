@@ -21,7 +21,6 @@ export async function showDashboard(
   await page.clock.setFixedTime(DASHBOARD_NOW);
   await page.setViewportSize(screen);
   await page.goto('/');
-  await page.getByRole('tab', { name: 'Dashboard' }).click();
   await expect(page.getByRole('region', { name: /^Tube / }).first()).toBeVisible();
   await expect(page.locator('.dashboard-rows li')).toHaveCount(rows);
 }

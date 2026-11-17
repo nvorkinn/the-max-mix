@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { airPlayOutput, fakeKioskOutputs } from './fake-kiosk.ts';
 import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
+import { openSpotifyTab } from './spotify-tab.ts';
 
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Beside the artwork' });
 
@@ -17,7 +18,7 @@ test.describe('Speakers', { tag: '@speakers' }, () => {
     page
   }) => {
     await fakeSpotify(page);
-    await page.goto('/');
+    await openSpotifyTab(page);
     await page.getByRole('button', { name: /^Speakers: Playing on Test speaker/ }).click();
     const view = page.getByRole('region', { name: 'Speakers' });
     await expect(view.getByRole('checkbox', { name: 'Test speaker' })).toBeChecked();
@@ -35,7 +36,7 @@ test.describe('Speakers', { tag: '@speakers' }, () => {
       const api = await fakeSpotify(page);
       const pi = await fakeKioskOutputs(page, [airPlayOutput('Kitchen', 60), airPlayOutput('Lounge', 20)]);
       await fakeSpotifySdk(page);
-      await page.goto('/');
+      await openSpotifyTab(page);
       await nav(page).getByRole('button', { name: 'Speakers' }).click();
       const view = page.getByRole('region', { name: 'Speakers' });
       const airPlayTab = view.getByRole('button', { name: 'AirPlay' });
