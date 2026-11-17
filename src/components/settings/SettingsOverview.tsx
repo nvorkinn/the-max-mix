@@ -94,6 +94,7 @@ export default function SettingsOverview({
   deviceConfig,
   theme,
   themeColour,
+  dynamicColour,
   screenSleep,
   wifi,
   authenticated,
@@ -105,6 +106,7 @@ export default function SettingsOverview({
   deviceConfig?: TouchscreenConfig | undefined;
   theme: Theme | undefined;
   themeColour: ThemeColour | undefined;
+  dynamicColour?: boolean | undefined;
   screenSleep: ScreenSleepMinutes | undefined;
   wifi: WifiState;
   authenticated: boolean;
@@ -148,6 +150,7 @@ export default function SettingsOverview({
             {colour.label}
           </span>
         )}
+        {dynamicColour && <span>Dynamic</span>}
       </Card>
       {kiosk && (
         <Card

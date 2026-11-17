@@ -5,36 +5,55 @@
 import type { Rgb } from './colorExtractor';
 
 const THEME_COLOUR_KEY = 'maxmix.themeColour';
+/** Dynamic, on or off: the colours follow the album art while music plays. Off by default. */
+const DYNAMIC_COLOUR_KEY = 'maxmix.dynamicColour';
 
-/** The choices the settings offer, with the swatch each one shows. The first is the default. */
+/**
+ * The choices the settings offer, with the swatch each one shows and the colours its `data-colour` rule in src/index.css
+ * sets (Dynamic fades back to them when the music stops, see basePalette). The first is the default.
+ */
 export const THEME_COLOURS = [
-  { id: 'forest', label: 'Forest', swatch: '#293a27' },
-  { id: 'navy', label: 'Navy', swatch: '#1f3a5f' },
-  { id: 'teal', label: 'Teal', swatch: '#155e63' },
-  { id: 'plum', label: 'Plum', swatch: '#5b2a4e' },
-  { id: 'terracotta', label: 'Terracotta', swatch: '#9a3f24' },
-  { id: 'pink', label: 'Pink', swatch: '#ff69b4' },
-  { id: 'yellow', label: 'Yellow', swatch: '#e0b020' },
-  { id: 'black', label: 'Black', swatch: '#111' },
-  // Follows the album art of the song playing (dynamicPalette below); without art it looks like Forest.
+  { id: 'forest', label: 'Forest', swatch: '#293a27', accent: '#293a27', ink: '#23291f', accentInk: '#fff' },
+  { id: 'navy', label: 'Navy', swatch: '#1f3a5f', accent: '#1f3a5f', ink: '#1b2433', accentInk: '#fff' },
+  { id: 'teal', label: 'Teal', swatch: '#155e63', accent: '#155e63', ink: '#17302f', accentInk: '#fff' },
+  { id: 'plum', label: 'Plum', swatch: '#5b2a4e', accent: '#5b2a4e', ink: '#2e1f2b', accentInk: '#fff' },
   {
-    id: 'dynamic',
-    label: 'Dynamic',
-    swatch: 'conic-gradient(#e94dae, #f0b64c, #57d3b4, #3b82c4, #913fcb, #e94dae)',
-    ring: '#913fcb'
-  }
+    id: 'terracotta',
+    label: 'Terracotta',
+    swatch: '#9a3f24',
+    accent: '#9a3f24',
+    ink: '#3a221a',
+    accentInk: '#fff'
+  },
+  { id: 'pink', label: 'Pink', swatch: '#ff69b4', accent: '#ff69b4', ink: '#3b1a2a', accentInk: '#3b1a2a' },
+  { id: 'yellow', label: 'Yellow', swatch: '#e0b020', accent: '#a67c00', ink: '#3a3010', accentInk: '#1f1a05' },
+  { id: 'black', label: 'Black', swatch: '#111', accent: '#111', ink: '#111', accentInk: '#fff' }
 ] as const;
 export type ThemeColour = (typeof THEME_COLOURS)[number]['id'];
 const DEFAULT_THEME_COLOUR: ThemeColour = 'forest';
+/**
+ * Dynamic used to be one of the colours, and countdown-server's config can still say it. It now means Dynamic on over
+ * the default colour.
+ */
+const OLD_DYNAMIC = 'dynamic';
 
 function isChoice(value: string): value is ThemeColour {
   return THEME_COLOURS.some(colour => colour.id === value);
 }
 
+/** A colour from storage or countdown-server's config, as one of the choices: old Dynamic, or anything else unknown, is the default. */
+export function toThemeColour(value: string | null | undefined): ThemeColour {
+  return value != null && isChoice(value) ? value : DEFAULT_THEME_COLOUR;
+}
+
+/** Whether a colour from countdown-server's config is the old Dynamic choice, which turns Dynamic on. */
+export function isOldDynamic(value: string | null | undefined): boolean {
+  return value === OLD_DYNAMIC;
+}
+
 export function loadThemeColour(): ThemeColour {
   try {
-    const stored = localStorage.getItem(THEME_COLOUR_KEY);
-    return stored !== null && isChoice(stored) ? stored : DEFAULT_THEME_COLOUR;
+    return toThemeColour(localStorage.getItem(THEME_COLOUR_KEY));
   } catch {
     return DEFAULT_THEME_COLOUR;
   }
@@ -44,6 +63,29 @@ export function saveThemeColour(colour: ThemeColour): void {
   try {
     if (colour === DEFAULT_THEME_COLOUR) localStorage.removeItem(THEME_COLOUR_KEY);
     else localStorage.setItem(THEME_COLOUR_KEY, colour);
+  } catch {
+    // Storage is unavailable; the setting then lasts only until the page reloads.
+  }
+}
+
+/** Whether Dynamic is on: stored as its own setting, or the old Dynamic colour choice, which this moves over. */
+export function loadDynamicColour(): boolean {
+  try {
+    if (isOldDynamic(localStorage.getItem(THEME_COLOUR_KEY))) {
+      localStorage.removeItem(THEME_COLOUR_KEY);
+      localStorage.setItem(DYNAMIC_COLOUR_KEY, 'on');
+      return true;
+    }
+    return localStorage.getItem(DYNAMIC_COLOUR_KEY) === 'on';
+  } catch {
+    return false;
+  }
+}
+
+export function saveDynamicColour(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(DYNAMIC_COLOUR_KEY, 'on');
+    else localStorage.removeItem(DYNAMIC_COLOUR_KEY);
   } catch {
     // Storage is unavailable; the setting then lasts only until the page reloads.
   }
@@ -73,7 +115,7 @@ function hsl(hue: number, saturation: number, lightness: number): string {
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-/** The colours Dynamic gives the page, as the CSS variables src/index.css reads under data-colour='dynamic'. */
+/** The colours Dynamic gives the page, as the CSS variables src/index.css reads under data-dynamic. */
 export interface DynamicPalette {
   '--dynamic-accent': string;
   '--dynamic-ink': string;
@@ -106,5 +148,20 @@ export function dynamicPalette([first, second]: readonly [Rgb, Rgb]): DynamicPal
     '--dynamic-from': hsl(from.h, from.s, from.l),
     '--dynamic-to': hsl(to.h, to.s, to.l),
     '--dynamic-accent-ink': light ? hsl(hue, Math.min(saturation, 0.3), 0.12) : '#fff'
+  };
+}
+
+/**
+ * Dynamic's colours when nothing has played for a while: the chosen colour's own, so the page fades back to it, and the
+ * play button's gradient runs from that colour to itself.
+ */
+export function basePalette(colour: ThemeColour): DynamicPalette {
+  const choice = THEME_COLOURS.find(entry => entry.id === colour) ?? THEME_COLOURS[0];
+  return {
+    '--dynamic-accent': choice.accent,
+    '--dynamic-ink': choice.ink,
+    '--dynamic-from': choice.accent,
+    '--dynamic-to': choice.accent,
+    '--dynamic-accent-ink': choice.accentInk
   };
 }

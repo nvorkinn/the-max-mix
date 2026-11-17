@@ -27,7 +27,17 @@ import { loadQuietHours, isQuietTime, saveQuietHours } from '../utils/quietHours
 import type { QuietHours } from '../utils/quietHours';
 import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
-import { dynamicPalette, loadThemeColour, saveThemeColour } from '../utils/themeColour';
+import {
+  basePalette,
+  dynamicPalette,
+  isOldDynamic,
+  loadDynamicColour,
+  loadThemeColour,
+  saveDynamicColour,
+  saveThemeColour,
+  toThemeColour
+} from '../utils/themeColour';
+import { DYNAMIC_LINGER_MS, useLingers } from '../hooks/useLingers';
 import { useTheme } from '../hooks/useTheme';
 import { saveTheme } from '../utils/theme';
 import type { Theme } from '../utils/theme';
@@ -71,6 +81,11 @@ function useLogChanges(message: string | null | undefined, source: string) {
 }
 
 // signInError: why finishing the Spotify sign-in failed
+/** Dynamic's colours: the cover's while it plays, else the chosen colour's. */
+function coverOrChosenPalette(art: ArtColours | null, colour: ThemeColour) {
+  return art ? dynamicPalette(art.dominant) : basePalette(colour);
+}
+
 export default function TabletView({ signInError = null }: Readonly<{ signInError?: string | null | undefined }>) {
   const {
     isReady,
@@ -194,12 +209,21 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [localScreenSleep, setLocalScreenSleep] = useState(getScreenSleep);
   const [localThemeColour, setLocalThemeColour] = useState(loadThemeColour);
   const screenSleepMinutes = display?.sleep_minutes ?? localScreenSleep;
-  const themeColour = style?.colour ?? localThemeColour;
+  const themeColour = style ? toThemeColour(style.colour) : localThemeColour;
+  // Dynamic is the kiosk's own setting, on or off. The server's config can still say the old Dynamic colour, which
+  // turns it on over the default colour.
+  const [localDynamic, setLocalDynamic] = useState(loadDynamicColour);
+  const dynamicColour = localDynamic || isOldDynamic(style?.colour);
   const theme = useTheme(style?.skin);
+  // With Dynamic on, the colours follow the album art while music plays, and fade back to the chosen colour once it
+  // has stopped for a while. Night keeps its own colours.
+  const liveArt = useLingers(isPlaying, DYNAMIC_LINGER_MS) ? artColours : null;
+  const dynamicVars = dynamicColour && theme.skin !== 'night' ? coverOrChosenPalette(liveArt, themeColour) : undefined;
   useEffect(() => {
     if (!style) return;
     saveTheme(style.skin);
-    saveThemeColour(style.colour);
+    saveThemeColour(toThemeColour(style.colour));
+    if (isOldDynamic(style.colour)) saveDynamicColour(true);
   }, [style]);
   useEffect(() => {
     if (display) setScreenSleep(display.sleep_minutes);
@@ -209,12 +233,20 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     else theme.change(skin);
   };
   const changeThemeColour = (colour: ThemeColour) => {
+    // Picking a colour over the server's old Dynamic colour keeps Dynamic on.
+    if (dynamicColour && !localDynamic) setLocalDynamic(true);
     if (style) {
       deviceConfig.save('style', { ...style, colour });
       return;
     }
     setLocalThemeColour(colour);
     saveThemeColour(colour);
+  };
+  const changeDynamicColour = (on: boolean) => {
+    setLocalDynamic(on);
+    saveDynamicColour(on);
+    // Turned off, the server's old Dynamic colour would turn it straight back on, so that becomes the default colour.
+    if (!on && style && isOldDynamic(style.colour)) deviceConfig.save('style', { ...style, colour: themeColour });
   };
   const changeScreenSleep = (minutes: ScreenSleepMinutes) => {
     if (display) {
@@ -490,12 +522,12 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       className="tablet-container"
       data-colour={themeColour}
       data-theme={theme.skin}
+      data-dynamic={dynamicVars ? '' : undefined}
       style={
-        artColours
+        artColours || dynamicVars
           ? ({
-              '--art-tint-top': artColours.top,
-              '--art-tint-bottom': artColours.bottom,
-              ...(themeColour === 'dynamic' && dynamicPalette(artColours.dominant))
+              ...(artColours && { '--art-tint-top': artColours.top, '--art-tint-bottom': artColours.bottom }),
+              ...dynamicVars
             } as CSSProperties)
           : undefined
       }
@@ -643,6 +675,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             onQuietHoursChange={changeQuietHours}
             themeColour={themeColour}
             onThemeColourChange={changeThemeColour}
+            dynamicColour={dynamicColour}
+            onDynamicColourChange={changeDynamicColour}
             theme={theme.theme}
             autoTheme={theme.autoOffered}
             onThemeChange={changeTheme}

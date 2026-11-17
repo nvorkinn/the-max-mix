@@ -127,6 +127,31 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await expect(settings.getByRole('button', { name: 'Navy' })).toBeEnabled();
   });
 
+  test('Dynamic turns on over the chosen colour, and Night greys it out', async ({ page }) => {
+    await openSpotifyTab(page, '/?kiosk=1');
+    const room = page.locator('.tablet-container');
+    const settings = page.getByRole('tabpanel', { name: 'Settings' });
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    await showSection(settings, 'Appearance');
+    await settings.getByRole('button', { name: 'Teal' }).click();
+    const dynamic = settings.getByRole('group', { name: 'Dynamic' });
+    await expect(dynamic.getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(room).not.toHaveAttribute('data-dynamic');
+
+    await dynamic.getByRole('button', { name: 'On' }).click();
+    await expect(room).toHaveAttribute('data-dynamic', '');
+    await expect(room).toHaveAttribute('data-colour', 'teal');
+    await expect(settings.getByRole('button', { name: 'Teal' })).toHaveAttribute('aria-pressed', 'true');
+
+    await page.reload();
+    await expect(room).toHaveAttribute('data-dynamic', '');
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    await showSection(settings, 'Appearance');
+    await settings.getByRole('group', { name: 'Theme' }).getByRole('button', { name: 'Night' }).click();
+    await expect(room).not.toHaveAttribute('data-dynamic');
+    await expect(settings.getByRole('group', { name: 'Dynamic' }).getByRole('button', { name: 'On' })).toBeDisabled();
+  });
+
   test('Auto, offered when the kiosk knows where it is, follows the sun', async ({ page }) => {
     // An hour after sunset in London on midsummer's day.
     await page.clock.setFixedTime(new Date('2026-06-21T21:20:00Z'));

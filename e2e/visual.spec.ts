@@ -151,22 +151,18 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await expect(page).toHaveScreenshot(shotName('player-night', screen), moving(page));
     });
 
-    test(
-      `player screen in the Dynamic colour at ${size(screen)}`,
-      { tag: ['@player', '@appearance'] },
-      async ({ page }) => {
-        await page.addInitScript(() => {
-          localStorage.setItem('maxmix.themeColour', 'dynamic');
-        });
-        await fakeSpotify(page);
-        await colouredArt(page);
-        await page.setViewportSize(screen);
-        await openSpotifyTab(page);
-        await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
-        await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
-        await expect(page).toHaveScreenshot(shotName('player-dynamic', screen), moving(page));
-      }
-    );
+    test(`player screen with Dynamic on at ${size(screen)}`, { tag: ['@player', '@appearance'] }, async ({ page }) => {
+      await page.addInitScript(() => {
+        localStorage.setItem('maxmix.dynamicColour', 'on');
+      });
+      await fakeSpotify(page);
+      await colouredArt(page);
+      await page.setViewportSize(screen);
+      await openSpotifyTab(page);
+      await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
+      await expect(page).toHaveScreenshot(shotName('player-dynamic', screen), moving(page));
+    });
 
     // The Player tab: the same player on the Dashboard's photo (the one bundled with the app, with no feed to give the
     // day's), the photo blurred and darkened under the controls.
