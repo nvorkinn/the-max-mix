@@ -387,6 +387,24 @@ describe('TabletView', () => {
     expect(screen.queryByRole('button', { name: 'Put the screen to sleep' })).not.toBeInTheDocument();
   });
 
+  it('shows the same player on the Dashboard’s photo in the Player tab', async () => {
+    render(<TabletView />);
+    await flush();
+    // The hidden Dashboard has the photo too, so only the Spotify tab's panel is looked at.
+    const photoIn = (name: string) => screen.getByRole('tabpanel', { name }).querySelector('.dashboard-backdrop');
+    expect(photoIn('Spotify')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Player' }));
+    const panel = screen.getByRole('tabpanel', { name: 'Player' });
+    expect(panel).toHaveClass('on-photo');
+    expect(photoIn('Player')).not.toBeNull();
+    expect(within(panel).getByRole('slider', { name: 'Playback position' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Player' })).toHaveAttribute('aria-controls', panel.id);
+    // Back on the Spotify tab the photo is gone.
+    fireEvent.click(screen.getByRole('tab', { name: 'Spotify' }));
+    expect(photoIn('Spotify')).toBeNull();
+    expect(screen.getByRole('tabpanel', { name: 'Spotify' })).not.toHaveClass('on-photo');
+  });
+
   it('shows the clock in 24-hour time', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 0, 1, 16, 46));

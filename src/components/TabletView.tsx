@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, CSSProperties } from 'react';
-import { AudioLines, Clock, LayoutDashboard, Music, Search, Settings } from 'lucide-react';
+import { AudioLines, Clock, Disc3, LayoutDashboard, Music, Search, Settings } from 'lucide-react';
 import { crossfade } from '../utils/crossfade';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { useSonosPlayer } from '../hooks/useSonosPlayer';
@@ -56,12 +56,15 @@ import PersonSwitcher from './PersonSwitcher';
 import PairPhoneSheet from './PairPhoneSheet';
 import AppTabs, { tabPanelId } from './AppTabs';
 import DashboardScreen from './DashboardScreen';
+import PlayerBackdrop from './PlayerBackdrop';
 import TabBar from './dashboard/TabBar';
 import type { AppTab } from './AppTabs';
 
-type Screen = 'spotify' | 'dashboard' | 'settings';
+// 'player' is the Spotify tab again, laid on the Dashboard's photo: the same panel, drawn another way.
+type Screen = 'spotify' | 'player' | 'dashboard' | 'settings';
 const SCREENS: readonly AppTab<Screen>[] = [
   { id: 'spotify', label: 'Spotify', icon: <Music aria-hidden="true" /> },
+  { id: 'player', label: 'Player', icon: <Disc3 aria-hidden="true" />, panel: 'spotify' },
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard aria-hidden="true" /> },
   { id: 'settings', label: 'Settings', icon: <Settings aria-hidden="true" /> }
 ];
@@ -191,7 +194,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   // Music picked while a Sonos plays goes to the Sonos (a song, album or playlist; Liked Songs cannot).
   const playMusic = (choice: MusicChoice) => {
-    goToScreen('spotify');
+    if (screen !== 'player') goToScreen('spotify');
     return sonos.active ? sonos.play(choice.uri) : playMusicOnSpotify(choice);
   };
 
@@ -502,6 +505,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     }
   };
 
+  // The Player tab is the Spotify tab's panel with the Dashboard's photo behind it.
+  const onPhoto = screen === 'player';
   // The Dashboard's tab bar, which floats on the Spotify tab too.
   const tabBar: TabBarProps = {
     active: screen,
@@ -573,12 +578,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
       {isOffline && <OfflineBanner />}
       <div
-        className="app-tab-panel spotify-tab"
+        className={`app-tab-panel spotify-tab${onPhoto ? ' on-photo' : ''}`}
         role="tabpanel"
         id={tabPanelId('spotify')}
-        aria-label="Spotify"
-        hidden={screen !== 'spotify'}
+        aria-label={onPhoto ? 'Player' : 'Spotify'}
+        hidden={screen !== 'spotify' && !onPhoto}
       >
+        {onPhoto && <PlayerBackdrop now={tabBar.now} />}
         <div className="spotify-bar">
           <TabBar {...tabBar} />
         </div>

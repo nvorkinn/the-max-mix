@@ -362,6 +362,80 @@
     --float-bar: 48px;
   }
 }
+/*
+  The Player tab: the Spotify tab again with the Dashboard's photo behind it (PlayerBackdrop) and the controls laid
+  straight on the photo. Whatever the skin and colour, the words and controls here are the Dashboard's warm white, so
+  they read on any photo. Where controls lie over the photo it is blurred and darkened, as under the Dashboard's
+  boards: behind the column beside the artwork, behind the control bar, and a fade behind the tab bar.
+*/
+.spotify-tab.on-photo {
+  --glass: 9 12 16;
+  --page: rgb(var(--glass));
+  --surface: rgb(255 255 255 / 8%);
+  --surface-raised: rgb(255 255 255 / 14%);
+  --ink: #f7f4ec;
+  --muted: rgb(247 244 236 / 72%);
+  --faint: rgb(247 244 236 / 55%);
+  --border: rgb(255 255 255 / 16%);
+  --track: rgb(255 255 255 / 24%);
+  --accent: #f7f4ec;
+  --accent-ink: #10141a;
+  --accent-soft: rgb(255 255 255 / 8%);
+  --focus: #f7f4ec;
+  --play-fill: #f7f4ec;
+  --glow: none;
+  --lyric-ahead: rgb(247 244 236 / 45%);
+
+  isolation: isolate;
+  background: #1c2230;
+  color: var(--ink);
+  color-scheme: dark;
+}
+.spotify-tab.on-photo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgb(var(--glass) / 55%) 0, rgb(var(--glass) / 0%) 120px),
+    linear-gradient(0deg, rgb(var(--glass) / 45%) 0, rgb(var(--glass) / 0%) 260px);
+}
+.spotify-tab.on-photo .spotify-bar .shadowed {
+  text-shadow: 0 1px 14px rgb(0 0 0 / 45%);
+}
+/* The album art's tint is the plain page's; here the photo is the background. */
+.spotify-tab.on-photo .listening-room:not(.is-setup) {
+  background: none;
+}
+/* The two panes of blurred, darkened photo: one behind the title, panel and its pills, one behind the control bar. */
+.spotify-tab.on-photo .listening-room:not(.is-setup)::before,
+.spotify-tab.on-photo .listening-room:not(.is-setup)::after {
+  content: '';
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 20px;
+  background: rgb(var(--glass) / 58%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+.spotify-tab.on-photo .listening-room:not(.is-setup)::before {
+  grid-area: details-start / details-start / nav-end / details-end;
+  margin: -12px -16px -12px -14px;
+}
+.spotify-tab.on-photo .listening-room:not(.is-setup)::after {
+  grid-area: bar;
+  margin: -6px -16px -8px;
+}
+.spotify-tab.on-photo .album-art {
+  box-shadow: 0 24px 60px -20px rgb(0 0 0 / 70%);
+}
+/* The setup card and a playback problem are words on the photo too, so they get the darker glass. */
+.spotify-tab.on-photo .spotify-setup,
+.spotify-tab.on-photo .playback-banner {
+  background: rgb(var(--glass) / 72%);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
 /* Changing tab fades the whole screen (see utils/crossfade.ts). The overlay lets taps through, so a quick second tap
   starts the next fade at once instead of being swallowed by the first. */
 ::view-transition {

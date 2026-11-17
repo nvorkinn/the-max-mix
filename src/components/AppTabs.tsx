@@ -4,6 +4,8 @@ export interface AppTab<Id extends string> {
   id: Id;
   label: string;
   icon: ReactNode;
+  /** The tab whose panel this one shows, when it has none of its own. */
+  panel?: Id;
 }
 
 /** The id of the panel a tab shows, for its aria-controls and the panel's own id. */
@@ -27,7 +29,7 @@ export default function AppTabs<Id extends string>({
           role="tab"
           className="app-tab"
           aria-selected={tab.id === current}
-          aria-controls={tabPanelId(tab.id)}
+          aria-controls={tabPanelId(tab.panel ?? tab.id)}
           onClick={() => onSelect(tab.id)}
         >
           {tab.icon}

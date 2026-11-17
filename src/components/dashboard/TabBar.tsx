@@ -1,11 +1,13 @@
-import { AudioLines, Clock3, LayoutGrid, Music2, Search, Settings } from 'lucide-react';
+import { AudioLines, Clock3, Disc3, LayoutGrid, Music2, Search, Settings } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { formatClockTime } from '../../utils/clockFormat';
 import type { TabBarProps, TabId } from '../../dashboard/props';
 import { tabPanelId } from '../AppTabs';
 
-const TABS: readonly { id: TabId; label: string; icon: ReactNode }[] = [
+const TABS: readonly { id: TabId; label: string; icon: ReactNode; panel?: TabId }[] = [
   { id: 'spotify', label: 'Spotify', icon: <Music2 aria-hidden="true" className="lucide" /> },
+  // The Spotify tab's player again, on the Dashboard's photo: it shows in the Spotify tab's panel.
+  { id: 'player', label: 'Player', icon: <Disc3 aria-hidden="true" className="lucide" />, panel: 'spotify' },
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutGrid aria-hidden="true" className="lucide" /> },
   { id: 'settings', label: 'Settings', icon: <Settings aria-hidden="true" className="lucide" /> }
 ];
@@ -28,7 +30,7 @@ export default function TabBar({ active, onSelect, person, onSearch, now, clockF
             role="tab"
             className="dashboard-tab"
             aria-selected={tab.id === active}
-            aria-controls={tabPanelId(tab.id)}
+            aria-controls={tabPanelId(tab.panel ?? tab.id)}
             onClick={() => onSelect(tab.id)}
           >
             {tab.icon}
