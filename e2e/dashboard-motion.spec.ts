@@ -104,7 +104,6 @@ test.describe('Dashboard motion', { tag: '@layout' }, () => {
     await page.clock.install({ time: NOW });
     await page.clock.pauseAt(new Date(NOW.getTime() + 1000));
     await page.goto('/');
-    await page.getByRole('tab', { name: 'Dashboard' }).click();
     const buses = page.getByRole('region', { name: /^Buses / });
     await expect(buses.getByText('Oxford Circus')).toBeVisible();
     const destinations = () => buses.locator('li strong').allTextContents();

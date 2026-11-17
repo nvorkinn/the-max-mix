@@ -8,10 +8,10 @@ import PersonSwitcher from '../PersonSwitcher';
 import SleepIcon from '../SleepIcon';
 
 const TABS: readonly { id: TabId; label: string; icon: ReactNode; panel?: TabId }[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutGrid aria-hidden="true" className="lucide" /> },
   { id: 'spotify', label: 'Spotify', icon: <Music2 aria-hidden="true" className="lucide" /> },
   // The Spotify tab's player again, on the Dashboard's photo: it shows in the Spotify tab's panel.
   { id: 'player', label: 'Player', icon: <Disc3 aria-hidden="true" className="lucide" />, panel: 'spotify' },
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutGrid aria-hidden="true" className="lucide" /> },
   { id: 'settings', label: 'Settings', icon: <Settings aria-hidden="true" className="lucide" /> }
 ];
 

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
+import { openSpotifyTab } from './spotify-tab.ts';
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://images.unsplash.com/**', route =>
@@ -14,7 +15,7 @@ test.describe('Dialogs: focus and dismissal', { tag: '@dialogs' }, () => {
     'Escape closes the Debug console over Settings and gives focus back',
     { tag: ['@settings', '@debug'] },
     async ({ page }) => {
-      await page.goto('/');
+      await openSpotifyTab(page);
       await page.getByRole('tab', { name: 'Settings' }).click();
       const wifi = page.getByRole('tabpanel', { name: 'Settings' }).getByRole('button').last();
       await wifi.focus();

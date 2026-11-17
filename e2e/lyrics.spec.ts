@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
+import { openSpotifyTab } from './spotify-tab.ts';
 
 const syncedLyrics = Array.from({ length: 120 }, (_, index) => {
   const seconds = index * 2;
@@ -19,7 +20,7 @@ test.describe('Lyrics', { tag: '@lyrics' }, () => {
       route.fulfill({ json: { instrumental: false, syncedLyrics } })
     );
     await fakeSpotify(page);
-    await page.goto('/');
+    await openSpotifyTab(page);
     // Songs are queued, so the queue shows first; the Lyrics button beside the panel fades to the lyrics.
     await expect(page.getByRole('region', { name: 'Upcoming tracks' })).toBeVisible();
     await page.getByRole('button', { name: 'Lyrics', exact: true }).click();
@@ -83,7 +84,7 @@ test.describe('Lyrics', { tag: '@lyrics' }, () => {
       route.fulfill({ json: { instrumental: false, syncedLyrics } })
     );
     await fakeSpotify(page);
-    await page.goto('/');
+    await openSpotifyTab(page);
     // No clock tricks here: the position the page projects and the one the fake Spotify reports must agree.
     await expect(page.getByRole('region', { name: 'Upcoming tracks' })).toBeVisible();
     const lyricsButton = page.getByRole('button', { name: 'Lyrics', exact: true });

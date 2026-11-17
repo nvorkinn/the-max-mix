@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
+import { openSpotifyTab } from './spotify-tab.ts';
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://images.unsplash.com/**', route =>
@@ -11,7 +12,7 @@ test.beforeEach(async ({ page }) => {
 const nowPlaying = (page: Page) => page.getByRole('region', { name: 'Now playing' });
 
 async function openPicker(page: Page) {
-  await page.goto('/');
+  await openSpotifyTab(page);
   await expect(nowPlaying(page)).toContainText('One More Time');
   await page.getByRole('button', { name: 'Choose music' }).click();
   const dialog = page.getByRole('dialog', { name: 'Choose music' });

@@ -52,7 +52,7 @@ test.describe('Software update', { tag: '@update' }, () => {
     const checked = page.waitForResponse('https://api.github.com/**');
     await page.reload();
     await checked;
-    await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
+    await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
     await expect(popup(page)).toBeHidden();
 
     // Settings still say it, and the check button beside it asks again.
@@ -140,7 +140,7 @@ test.describe('Software update', { tag: '@update' }, () => {
     await expect(updating.getByRole('status')).toContainText('Update finished. Nothing needed a restart.');
     await updating.getByRole('button', { name: 'Close update console' }).click();
     await expect(updating).toBeHidden();
-    await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
+    await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
   });
 
   test('an update that restarts the kiosk leaves the console up, with no way back', async ({ page }) => {

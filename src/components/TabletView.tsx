@@ -122,7 +122,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // The Settings tab starts on the overview; the sign-in prompts bring it up on the Spotify page.
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('overview');
   const [isMusicOpen, setIsMusicOpen] = useState(false);
-  const [screen, setScreen] = useState<TabId>('spotify');
+  // Every start (kiosk start, reload, coming back from a sign-in) opens on the Dashboard, except after a failed sign-in,
+  // whose message the Spotify tab shows.
+  const [screen, setScreen] = useState<TabId>(signInError ? 'spotify' : 'dashboard');
   // Every change of tab fades across the whole screen, whether tapped, idle or from a prompt.
   const goToScreen = (next: TabId) => crossfade(() => setScreen(next));
   const [isDebugOpen, setIsDebugOpen] = useState(false);
