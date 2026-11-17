@@ -386,13 +386,17 @@ function tflNetworkAt(now: Date) {
 }
 
 /**
- * The kiosk's notices (countdown-api's DeviceNotices) for a London postcode, read at `now`: a Tube line with delays, one
- * with a planned closure in three days and a weather warning; with `isQuiet`, nothing to report. Either way, the
+ * The kiosk's notices (countdown-api's DeviceNotices) for a London postcode, read at `now`: a Tube line with severe
+ * delays (and a model's short form of TfL's reason), one part closed and a weather warning; with `isQuiet`, nothing to
+ * report. Either way, the
  * Tube's status, which the Dashboard shows when there are no notices.
  */
 function noticesAt(now: Date, isQuiet: boolean) {
   const fetchedAt = now.toISOString();
   const at = (hours: number) => hoursFrom(now, hours).toISOString();
+  const delays =
+    'NORTHERN LINE: Severe delays between Morden and Kennington while we fix a signal failure at Clapham Common. ' +
+    'GOOD SERVICE on the rest of the line.';
   return {
     postcode: 'SE17 3LL',
     country: 'GB',
@@ -405,19 +409,21 @@ function noticesAt(now: Date, isQuiet: boolean) {
               fetched_at: fetchedAt,
               stop_id: '940GZZLUEAC',
               lines: [
-                tubeLine(
-                  'northern',
-                  'Minor Delays',
-                  'NORTHERN LINE: Minor delays between Morden and Kennington while we fix a signal failure at ' +
-                    'Clapham Common. GOOD SERVICE on the rest of the line.'
-                ),
+                tubeLine('northern', 'Severe Delays', delays),
                 tubeLine(
                   'victoria',
-                  'Planned Closure',
+                  'Part Closure',
                   'VICTORIA LINE: No service between Euston and Walthamstow Central while we carry out track ' +
                     'renewal works. Replacement buses operate.',
-                  [{ fromDate: at(72), toDate: at(120) }]
+                  [{ fromDate: at(-24), toDate: at(48) }]
                 )
+              ],
+              shorts: [
+                {
+                  text: delays,
+                  title: 'Delays, Morden to Kennington',
+                  summary: 'Morden to Kennington, signal failure at Clapham Common'
+                }
               ]
             },
             stations: null

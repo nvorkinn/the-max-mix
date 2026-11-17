@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DeviceNotices } from 'countdown-api';
 import network from '../../vendor/countdown-api/src/countdown_api/fixtures/tfl_network.json';
 import panels from '../../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json';
-import { toLineStatus } from './lineStatus';
+import { groupLines, toLineStatus } from './lineStatus';
 
 const NOTICES = panels.notices as unknown as DeviceNotices;
 // Within the example's statuses' periods.
@@ -51,5 +51,29 @@ describe('toLineStatus', () => {
     expect(toLineStatus({ ...NOTICES, tfl_network: null }, NOW)).toBeNull();
     expect(toLineStatus({ ...NOTICES, tfl_network: undefined } as unknown as DeviceNotices, NOW)).toBeNull();
     expect(toLineStatus(withLines([]), NOW)).toBeNull();
+  });
+});
+
+describe('groupLines', () => {
+  it('collapses lines sharing a status, worst first, a lone line before a shared status as bad', () => {
+    const lines = toLineStatus(NOTICES, NOW)?.lines ?? [];
+    const delayed = { id: 'jubilee', name: 'Jubilee', status: 'Minor delays', health: 'disruption' as const };
+    const severe = { id: 'victoria', name: 'Victoria', status: 'Severe delays', health: 'severe' as const };
+
+    const rows = (items: typeof lines) =>
+      groupLines(items).map(group => [group.status, group.lines.map(item => item.id).join(',')]);
+
+    expect(rows(lines)).toEqual([
+      ['Part closure', 'district'],
+      ['Minor delays', 'central'],
+      ['Service closed', 'waterloo-city'],
+      ['Good service', 'bakerloo,circle,elizabeth,hammersmith-city,jubilee,metropolitan,northern,piccadilly,victoria']
+    ]);
+    const others = lines.filter(item => !['jubilee', 'victoria'].includes(item.id));
+    expect(rows([...others, delayed, severe]).slice(0, 3)).toEqual([
+      ['Part closure', 'district'],
+      ['Severe delays', 'victoria'],
+      ['Minor delays', 'central,jubilee']
+    ]);
   });
 });

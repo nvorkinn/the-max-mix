@@ -89,6 +89,7 @@ majorstuen
 mapfile
 math
 maxmix
+messageformat
 meteo
 mktemp
 mockup

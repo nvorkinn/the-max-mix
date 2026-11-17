@@ -284,7 +284,7 @@
 .dashboard-rail {
   width: 344px;
   flex-shrink: 0;
-  padding: 4px 16px 16px 24px;
+  padding: 12px 16px 16px 24px;
   display: flex;
   flex-direction: column;
 }
@@ -317,6 +317,14 @@
   line-height: 0.9;
   letter-spacing: -0.07em;
   margin: 4px 0 4px -6px;
+}
+/*
+  The tight tracking is for the digits. Letter spacing goes after every character, the last digit too, so it would pull
+  the degree sign 0.07em into the digit before it (the top of a 7 ran into it). The sign gets that space back and a
+  little more.
+*/
+.dashboard-wx-degree {
+  margin-left: 0.09em;
 }
 .dashboard-wx-condition {
   font-size: 30px;
@@ -448,14 +456,19 @@ button.dashboard-notice {
   opacity: 0.6;
 }
 
-/* The Tube status panel, in the notice board's place while it is empty: every line a row, sharing the board's space. */
+/*
+  The Tube status panel, in the notice board's place while it is empty: a row per line with a status of its own, and
+  one per status lines share, its lines' colours side by side. Rows are as tall as twelve lines' would be.
+*/
 .dashboard-line-list {
   list-style: none;
   padding: 0;
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-auto-rows: minmax(0, 1fr);
+  grid-auto-rows: 34px;
+  align-content: start;
+  overflow: hidden;
 }
 .dashboard-line {
   display: flex;
@@ -473,6 +486,16 @@ button.dashboard-notice {
   flex-shrink: 0;
   border-radius: 3px;
   box-shadow: 0 0 0 1px rgb(247 244 236 / 30%);
+}
+.dashboard-line-swatches {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+}
+.dashboard-line-swatches .dashboard-line-swatch {
+  width: 10px;
+  height: 22px;
 }
 .dashboard-line-name {
   flex: 1;

@@ -91,18 +91,52 @@ describe('the notice board', () => {
 
   it("makes a headline and one short line from each source's own words, worst first", () => {
     expect(notices.map(n => [n.kind, n.severity, n.title])).toEqual([
-      ['delays', 'severe', 'Northern line: Severe delays'],
-      ['closure', 'severe', 'Northern line: Part closed'],
       ['weather', 'severe', 'Weather warning'],
+      ['delays', 'minor', 'Northern line: Severe delays'],
       ['weather', 'minor', 'Weather warning'],
-      ['weather', 'minor', 'Weather warning']
+      ['weather', 'minor', 'Weather warning'],
+      ['closure', 'planned', 'Northern line: Part closed']
     ]);
-    expect(notices[0]?.summary).toBe(
-      'Severe delays between Kennington and Morden due to an earlier signal failure at Clapham Common.'
-    );
-    expect(notices[0]?.detail).toMatch(/^Northern Line: Severe delays .* GOOD SERVICE on the rest of the line\.$/);
-    expect(notices[1]?.summary).toBe(
+    expect(notices[1]?.detail).toMatch(/^Northern Line: Severe delays .* GOOD SERVICE on the rest of the line\.$/);
+  });
+
+  it("walks countdown-api's example: the statuses in force, each said in the short form a model made of it", () => {
+    // The Part Suspended is for Saturday 3 October, so it isn't a notice yet.
+    expect(notices.filter(n => n.id.startsWith('tfl:')).map(n => [n.title, n.summary])).toEqual([
+      ['Northern line: Severe delays', 'Kennington to Morden, signal failure at Clapham Common'],
+      ['Northern line: Part closed', 'No service Kennington to Battersea until Sun 4 Oct']
+    ]);
+    expect(notices.map(n => n.title)).toEqual([
+      'Weather warning',
+      'Northern line: Severe delays',
+      'Weather warning',
+      'Weather warning',
+      'Northern line: Part closed'
+    ]);
+    expect(notices[0]?.summary).toMatch(/^Amber warning: wind until \d\d:00$/);
+    expect(notices[2]?.summary).toMatch(/^Yellow warning: rain .*\d\d:00–\d\d:00$/);
+    expect(notices[3]?.summary).toBe('Yellow warning: fog');
+  });
+
+  it("says a reason's first sentence where no model has shortened it", () => {
+    const [stop] = device.tfl_stops;
+    const lines = stop?.lines;
+    if (!stop || !lines) throw new Error('The example has no line statuses');
+    const [delays] = lines.shorts;
+    const some = { ...device, tfl_stops: [{ ...stop, lines: { ...lines, shorts: delays ? [delays] : [] } }] };
+    expect(
+      boardNotices(some, NOW, '24h')
+        .filter(n => n.id.startsWith('tfl:'))
+        .map(n => n.summary)
+    ).toEqual([
+      'Kennington to Morden, signal failure at Clapham Common',
       'Until Sunday 4 October, no service between Kennington and Battersea Power Station.'
+    ]);
+    // An older countdown-server leaves the short forms out.
+    const older = { ...lines, shorts: undefined } as unknown as typeof lines;
+    const none = boardNotices({ ...device, tfl_stops: [{ ...stop, lines: older }] }, NOW, '24h');
+    expect(none.find(n => n.id.startsWith('tfl:'))?.summary).toBe(
+      'Severe delays between Kennington and Morden due to an earlier signal failure at Clapham Common.'
     );
   });
 
@@ -126,11 +160,14 @@ describe('the notice board', () => {
     expect(holidayNotices(events, new Date(2026, 10, 16))).toEqual([]);
   });
 
-  it('shows a closure that starts within the week as planned', () => {
-    const later = boardNotices(device, new Date('2026-09-30T12:00:00Z'), '24h');
-    expect(later.at(-1)).toMatchObject({
+  it('shows a status only while it is in force, not days ahead', () => {
+    const titles = (now: string) => boardNotices(device, new Date(now), '24h').map(n => n.title);
+    // The fog warning has no end, so it is still there.
+    expect(titles('2026-09-30T12:00:00Z')).toEqual(['Weather warning', 'Northern line: Part closed']);
+    const during = boardNotices(device, new Date('2026-10-03T18:00:00Z'), '24h');
+    expect(during[0]).toMatchObject({
       kind: 'delays',
-      severity: 'planned',
+      severity: 'minor',
       title: 'Northern line: Part suspended',
       summary: 'Saturday 3 October, no service between Camden Town and Edgware.'
     });
@@ -144,16 +181,77 @@ describe('the notice board', () => {
 describe('bus notices', () => {
   const notices = lineNotices(BUSES, NOW, '24h');
 
-  it('makes one notice of a reason TfL repeats on several routes, says diversions, and skips the rest', () => {
+  it('makes one notice of a reason TfL repeats on several routes, named by the worse status, and skips diversions', () => {
     expect(notices.map(n => [n.title, n.severity])).toEqual([
-      ['Bus 155: Diverted', 'minor'],
-      ['Bus 155: Issues', 'minor'],
-      ['Buses 333, 415: Diverted', 'severe']
+      ['Bus 155: Issues', 'info'],
+      ['Buses 333, 415: Suspended', 'severe']
     ]);
-    expect(notices[1]?.summary).toBe('Issues');
-    expect(notices[2]?.summary).toBe(
+    expect(notices[0]?.summary).toBe('Issues');
+    expect(notices[1]?.summary).toBe(
       'Routes 333 and 415 are diverted away from Kennington Park Road due to emergency gas works.'
     );
+    expect(notices[1]?.detail).toBe(DIVERSION.replaceAll(/\s+/g, ' '));
+  });
+
+  it("says a reason in the short form a model made of it, matched with the reason's whitespace squashed", () => {
+    const short = {
+      text: DIVERSION.replaceAll(/\s+/g, ' '),
+      title: 'Diversion',
+      summary: 'Diverted off Kennington Park Rd'
+    };
+    const other = { text: 'Some other reason.', title: 'Other', summary: 'Not this one' };
+    expect(lineNotices(BUSES, NOW, '24h', [other, short])[1]?.summary).toBe('Diverted off Kennington Park Rd');
+    expect(lineNotices(BUSES, NOW, '24h', [other])[1]?.summary).toBe(
+      'Routes 333 and 415 are diverted away from Kennington Park Road due to emergency gas works.'
+    );
+  });
+});
+
+describe('the statuses worth a notice', () => {
+  const at = (hours: number) => new Date(NOW.getTime() + hours * 60 * 60_000).toISOString();
+  const tube = (status: string, validityPeriods?: { fromDate: string; toDate: string }[]) => [
+    {
+      id: 'central',
+      name: 'Central',
+      modeName: 'tube',
+      lineStatuses: [
+        {
+          statusSeverityDescription: status,
+          reason: `CENTRAL LINE: ${status}.`,
+          ...(validityPeriods && { validityPeriods })
+        }
+      ]
+    }
+  ];
+  const said = (status: string, validityPeriods?: { fromDate: string; toDate: string }[]) =>
+    lineNotices(tube(status, validityPeriods), NOW, '24h').map(n => [n.title, n.kind, n.severity]);
+
+  it("are the e-paper screens': a suspension, severe delays, issues and closures", () => {
+    expect(said('Suspended')).toEqual([['Central line: Suspended', 'delays', 'severe']]);
+    expect(said('Part Suspended')).toEqual([['Central line: Part suspended', 'delays', 'minor']]);
+    expect(said('Severe Delays')).toEqual([['Central line: Severe delays', 'delays', 'minor']]);
+    expect(said('Issues Reported')).toEqual([['Central line: Issues', 'delays', 'info']]);
+    expect(said('Part Closure')).toEqual([['Central line: Part closed', 'closure', 'planned']]);
+    expect(said('Planned Closure')).toEqual([['Central line: Closed', 'closure', 'planned']]);
+    expect(said('Closed')).toEqual([['Central line: Closed', 'closure', 'planned']]);
+    expect(said('Not Running')).toEqual([['Central line: Not running', 'closure', 'planned']]);
+  });
+
+  it('are not minor delays, a reduced or special service, or a line closed for the night', () => {
+    for (const status of ['Minor Delays', 'Reduced Service', 'Special Service', 'Service Closed', 'Good Service']) {
+      expect(said(status)).toEqual([]);
+    }
+    expect(said('Minor Delays', [{ fromDate: at(-1), toDate: at(1) }])).toEqual([]);
+  });
+
+  it('shows a planned closure once it is in force, not the day before, nor after', () => {
+    expect(said('Planned Closure', [{ fromDate: at(24), toDate: at(72) }])).toEqual([]);
+    expect(said('Planned Closure', [{ fromDate: at(-72), toDate: at(-24) }])).toEqual([]);
+    const periods = [
+      { fromDate: at(-72), toDate: at(-48) },
+      { fromDate: at(-1), toDate: at(48) }
+    ];
+    expect(said('Planned Closure', periods)).toEqual([['Central line: Closed', 'closure', 'planned']]);
   });
 });
 
@@ -210,13 +308,9 @@ describe('the odd cases', () => {
           name: 'DLR',
           modeName: 'dlr',
           lineStatuses: [
-            {
-              statusSeverityDescription: 'Planned Closure',
-              validityPeriods: [{ fromDate: at(30), toDate: at(60) }]
-            },
+            { statusSeverityDescription: 'Planned Closure', validityPeriods: [{ fromDate: at(-1), toDate: at(2) }] },
             { statusSeverityDescription: 'Part Closure', validityPeriods: [{ fromDate: at(-30), toDate: at(30) }] },
-            { statusSeverityDescription: 'Minor Delays', validityPeriods: [{ fromDate: at(-1), toDate: at(1) }] },
-            { statusSeverityDescription: 'Reduced Service', reason: 'Fewer trains via St. Paul. Allow extra time.' }
+            { statusSeverityDescription: 'Severe Delays', reason: 'Fewer trains via St. Paul. Allow extra time.' }
           ]
         },
         { id: 'tram', name: 'Tram' }
@@ -225,10 +319,9 @@ describe('the odd cases', () => {
       '24h'
     );
     expect(notices.map(n => [n.title, n.severity, n.summary])).toEqual([
-      ['DLR: Closed', 'planned', expect.stringMatching(/^Closed \w{3}( \d\d:\d\d)?–/)],
-      ['DLR: Part closed', 'severe', expect.stringMatching(/^Part closed until /)],
-      ['DLR: Delays', 'minor', 'Delays'],
-      ['DLR: Reduced service', 'minor', 'Fewer trains via St. Paul.']
+      ['DLR: Closed', 'planned', 'Closed'],
+      ['DLR: Part closed', 'planned', expect.stringMatching(/^Part closed until /)],
+      ['DLR: Severe delays', 'minor', 'Fewer trains via St. Paul.']
     ]);
   });
 
@@ -236,14 +329,19 @@ describe('the odd cases', () => {
     const reason = 'Routes 1 and 2 are diverted.';
     const notices = lineNotices(
       [
-        { id: '1', name: '1', modeName: 'bus', lineStatuses: [{ statusSeverityDescription: 'Minor Delays', reason }] },
+        {
+          id: '1',
+          name: '1',
+          modeName: 'bus',
+          lineStatuses: [{ statusSeverityDescription: 'Issues Reported', reason }]
+        },
         { id: '2', name: '2', modeName: 'bus', lineStatuses: [{ statusSeverityDescription: 'Suspended', reason }] },
         { id: '1b', name: '1', modeName: 'bus', lineStatuses: [{ statusSeverityDescription: 'Suspended', reason }] }
       ],
       NOW,
       '24h'
     );
-    expect(notices).toMatchObject([{ title: 'Buses 1, 2: Diverted', severity: 'severe' }]);
+    expect(notices).toMatchObject([{ title: 'Buses 1, 2: Suspended', severity: 'severe' }]);
   });
 
   it('counts a line two stops share once, and does without the sources it has nothing from', () => {
@@ -312,10 +410,13 @@ describe('readNotices', () => {
   it('makes notices up for a build that mocks countdown-server', async () => {
     vi.stubEnv('VITE_COUNTDOWN_CONFIG', 'mock');
     const notices = await readNotices(NOW, '24h', null);
-    expect(notices.map(notice => notice.title)).toEqual([
-      'Northern line: Delays',
-      'Weather warning',
-      'Victoria line: Closed'
+    expect(notices.map(notice => [notice.title, notice.summary])).toEqual([
+      ['Northern line: Severe delays', 'Morden to Kennington, signal failure at Clapham Common'],
+      ['Weather warning', 'Yellow warning: rain'],
+      [
+        'Victoria line: Part closed',
+        'No service between Euston and Walthamstow Central while we carry out track renewal works.'
+      ]
     ]);
     expect(boardNotices(mockDeviceNotices(NOW), NOW, '24h')).toEqual(notices);
   });
