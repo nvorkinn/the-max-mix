@@ -480,13 +480,12 @@ button.dashboard-notice {
   font-size: 16px;
   line-height: 1.2;
 }
-/* The line's colour; the ring keeps the Northern line's black seen on a dark photo. */
+/* The line's colour. */
 .dashboard-line-swatch {
   width: 6px;
   height: 18px;
   flex-shrink: 0;
   border-radius: 3px;
-  box-shadow: 0 0 0 1px rgb(247 244 236 / 30%);
 }
 .dashboard-line-swatches {
   flex: 1;
