@@ -356,9 +356,39 @@ function tubeLine(id: string, status: string, reason: string, validityPeriods: o
   };
 }
 
+/** A line of the network as TfL's line status answers it. */
+const line = (id: string, name: string, status = 'Good Service', reason?: string) => ({
+  id,
+  name,
+  modeName: id === 'elizabeth' ? 'elizabeth-line' : 'tube',
+  lineStatuses: [{ statusSeverityDescription: status, ...(reason && { reason }), validityPeriods: [] }]
+});
+
+/** Every Tube line and the Elizabeth line as TfL's /Line/Mode/tube,elizabeth-line/Status answers them at `now`. */
+function tflNetworkAt(now: Date) {
+  return {
+    fetched_at: now.toISOString(),
+    lines: [
+      line('bakerloo', 'Bakerloo'),
+      line('central', 'Central', 'Minor Delays', 'Central Line: Minor delays due to an earlier signal failure.'),
+      line('circle', 'Circle'),
+      line('district', 'District', 'Part Closure', "DISTRICT LINE: No service between Earl's Court and Wimbledon."),
+      line('elizabeth', 'Elizabeth line'),
+      line('hammersmith-city', 'Hammersmith & City'),
+      line('jubilee', 'Jubilee'),
+      line('metropolitan', 'Metropolitan'),
+      line('northern', 'Northern'),
+      line('piccadilly', 'Piccadilly'),
+      line('victoria', 'Victoria'),
+      line('waterloo-city', 'Waterloo & City', 'Service Closed')
+    ]
+  };
+}
+
 /**
  * The kiosk's notices (countdown-api's DeviceNotices) for a London postcode, read at `now`: a Tube line with delays, one
- * with a planned closure in three days and a weather warning; with `isQuiet`, nothing to report.
+ * with a planned closure in three days and a weather warning; with `isQuiet`, nothing to report. Either way, the
+ * Tube's status, which the Dashboard shows when there are no notices.
  */
 function noticesAt(now: Date, isQuiet: boolean) {
   const fetchedAt = now.toISOString();
@@ -409,7 +439,8 @@ function noticesAt(now: Date, isQuiet: boolean) {
             }
           ]
         },
-    bank_holidays: null
+    bank_holidays: null,
+    tfl_network: tflNetworkAt(now)
   };
 }
 

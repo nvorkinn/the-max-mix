@@ -151,6 +151,29 @@ export type TubeBoardProps = BoardProps<TubeDeparture>;
 /** @public */
 export type BusBoardProps = BoardProps<BusDeparture>;
 
+/**
+ * @public How a line is running, which picks its status's colour: severe red (closures, suspensions, severe delays),
+ * disruption amber (delays, a reduced service), quiet for good service and for a line closed for the night.
+ */
+export type LineHealth = 'good' | 'closed' | 'disruption' | 'severe';
+
+/** @public One line of the Tube status panel. */
+export interface LineStatusItem {
+  /** TfL's line id ("northern"), which picks the line's colour. */
+  id: string;
+  /** "Northern", "Elizabeth line". */
+  name: string;
+  /** "Good service", "Minor delays": the worst of the line's statuses in force now. */
+  status: string;
+  health: LineHealth;
+}
+
+/** @public The Tube status panel, shown in the notice board's place when it has nothing to say. */
+export interface TubeStatusProps {
+  /** Every Tube line and the Elizabeth line, in TfL's order. */
+  lines: LineStatusItem[];
+}
+
 /** @public One stop's board along the bottom: a Tube station's trains or a bus stop's buses. */
 export type DepartureBoardProps = { id: string } & (
   ({ kind: 'tube' } & TubeBoardProps) | ({ kind: 'bus' } & BusBoardProps)

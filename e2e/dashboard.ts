@@ -22,6 +22,6 @@ export async function showDashboard(
   await page.setViewportSize(screen);
   await page.goto('/');
   await page.getByRole('tab', { name: 'Dashboard' }).click();
-  await expect(page.getByRole('heading', { name: 'Tube' }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tube', exact: true }).first()).toBeVisible();
   await expect(page.locator('.dashboard-rows li')).toHaveCount(rows);
 }

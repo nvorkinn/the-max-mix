@@ -45,12 +45,22 @@ describe('merging an answer into the last', () => {
     const lapsed: DeviceNotices = {
       ...NOTICES,
       met_office: null,
+      tfl_network: null,
       tfl_stops: NOTICES.tfl_stops.map(stop => ({ ...stop, lines: null }))
     };
 
     expect(mergeNotices(NOTICES, lapsed)).toEqual({ notices: NOTICES, held: true });
     expect(mergeNotices(NOTICES, NOTICES).held).toBe(false);
     expect(mergeNotices(NOTICES, { ...lapsed, postcode: 'N1 9GU' }).held).toBe(false);
+  });
+
+  it("reads an older server's answer, without the Tube's status, as having none", () => {
+    const older = { ...NOTICES, tfl_network: undefined } as unknown as DeviceNotices;
+
+    expect(mergeNotices({ ...NOTICES, tfl_network: null }, older)).toEqual({
+      notices: { ...NOTICES, tfl_network: null },
+      held: false
+    });
   });
 
   it('merges each event into its own part of the snapshot', () => {

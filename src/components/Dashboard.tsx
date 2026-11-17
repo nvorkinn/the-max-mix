@@ -5,6 +5,7 @@ import type {
   HourlyStripProps,
   NoticeBoardProps,
   TabBarProps,
+  TubeStatusProps,
   WeatherBlockProps
 } from '../dashboard/props';
 import Backdrop from './dashboard/Backdrop';
@@ -13,6 +14,7 @@ import HourlyStrip from './dashboard/HourlyStrip';
 import NoticeBoard from './dashboard/NoticeBoard';
 import TabBar from './dashboard/TabBar';
 import TubeBoard from './dashboard/TubeBoard';
+import TubeStatus from './dashboard/TubeStatus';
 import WeatherBlock from './dashboard/WeatherBlock';
 import './dashboard/dashboard.css';
 
@@ -37,6 +39,8 @@ export interface DashboardProps {
   /** Null while there is no forecast to read; the strip's space stays empty. */
   hourly: HourlyStripProps | null;
   notices: NoticeBoardProps;
+  /** Every Tube line's status, shown in the notice board's place while it has no notices; null (or left out) without. */
+  lineStatus?: TubeStatusProps | null;
   /** A board per stop, in the owner's order: each Tube station and each bus stop has its own. */
   boards: DepartureBoardProps[];
   /** The day's photo; a new one fades in slowly over the old. Left out (or null) for the photo bundled with the app. */
@@ -44,11 +48,20 @@ export interface DashboardProps {
 }
 
 /**
- * The Dashboard: the photo full screen, the tab bar floating on it, weather and notices on the left, the hourly forecast
+ * The Dashboard: the photo full screen, the tab bar floating on it, weather and notices on the left (the Tube's status while there
+ * are no notices), the hourly forecast
  * top right and a board per Tube station and bus stop along the bottom. It is laid out at 1280×800 and scaled to fit whichever of the
  * space's width or height is tighter, centred, so a smaller panel shows the same layout.
  */
-export default function Dashboard({ tabBar, weather, hourly, notices, boards, backdrop }: Readonly<DashboardProps>) {
+export default function Dashboard({
+  tabBar,
+  weather,
+  hourly,
+  notices,
+  lineStatus,
+  boards,
+  backdrop
+}: Readonly<DashboardProps>) {
   const fitRef = useRef<HTMLDivElement>(null);
   const [placement, setPlacement] = useState({ scale: 1, left: 0, top: 0 });
   const shown = boards.slice(0, MAX_BOARDS);
@@ -86,7 +99,11 @@ export default function Dashboard({ tabBar, weather, hourly, notices, boards, ba
           <main className="dashboard-main">
             <div className="dashboard-rail">
               <WeatherBlock {...weather} />
-              <NoticeBoard {...notices} />
+              {lineStatus && notices.notices.length === 0 ? (
+                <TubeStatus {...lineStatus} />
+              ) : (
+                <NoticeBoard {...notices} />
+              )}
             </div>
             <div className="dashboard-stage">
               <div className="dashboard-sky shadowed">{hourly && <HourlyStrip {...hourly} />}</div>

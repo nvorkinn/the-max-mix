@@ -87,6 +87,26 @@ describe('Dashboard', () => {
     expect(tabBar.onSelect).toHaveBeenCalledWith('settings');
   });
 
+  it("shows the Tube's status in the notice board's place only while there are no notices", () => {
+    const lineStatus = {
+      lines: [
+        { id: 'central', name: 'Central', status: 'Minor delays', health: 'disruption' as const },
+        { id: 'victoria', name: 'Victoria', status: 'Good service', health: 'good' as const }
+      ]
+    };
+    const props = sampleDashboard(SAMPLE_NOW, '24h', 0);
+    const { rerender } = render(<Dashboard tabBar={tabBar} {...props} lineStatus={lineStatus} />);
+
+    const lines = within(screen.getByRole('region', { name: 'Tube status' }));
+    expect(lines.getByText('Central').closest('li')).toHaveTextContent('Minor delays');
+    expect(lines.getByText('Central').closest('li')).toHaveAttribute('data-health', 'disruption');
+    expect(screen.queryByRole('heading', { name: /Notice board/ })).not.toBeInTheDocument();
+
+    rerender(<Dashboard tabBar={tabBar} {...sampleDashboard(SAMPLE_NOW, '24h', 1)} lineStatus={lineStatus} />);
+    expect(screen.getByRole('heading', { name: /Notice board/ })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Tube status' })).not.toBeInTheDocument();
+  });
+
   it('keeps its layout, with nothing in them, while the forecast and the boards have no data', () => {
     render(<Dashboard tabBar={tabBar} weather={{ views: [] }} hourly={null} notices={{ notices: [] }} boards={[]} />);
     expect(screen.getByRole('heading', { name: /Notice board/ })).toBeInTheDocument();

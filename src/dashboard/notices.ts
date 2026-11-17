@@ -424,7 +424,9 @@ export function mockDeviceNotices(now: Date): DeviceNotices {
         }
       ]
     },
-    bank_holidays: null
+    bank_holidays: null,
+    // The notice board has notices, so the Tube status panel doesn't show.
+    tfl_network: null
   };
 }
 

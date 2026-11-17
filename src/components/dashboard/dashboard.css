@@ -449,6 +449,54 @@ button.dashboard-notice {
   opacity: 0.6;
 }
 
+/* The Tube status panel, in the notice board's place while it is empty: every line a row, sharing the board's space. */
+.dashboard-line-list {
+  list-style: none;
+  padding: 0;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-auto-rows: minmax(0, 1fr);
+}
+.dashboard-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 2px;
+  font-size: 16px;
+  line-height: 1.2;
+}
+/* The line's colour; the ring keeps the Northern line's black seen on a dark photo. */
+.dashboard-line-swatch {
+  width: 6px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgb(247 244 236 / 30%);
+}
+.dashboard-line-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dashboard-line-status {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.dashboard-line[data-health='disruption'] .dashboard-line-status {
+  color: var(--disruption);
+  font-weight: 600;
+}
+.dashboard-line[data-health='severe'] .dashboard-line-status {
+  color: var(--severe);
+  font-weight: 600;
+}
+
 /* A notice's full text, over the whole panel; a tap anywhere closes it. */
 .dashboard-sheet {
   position: absolute;
