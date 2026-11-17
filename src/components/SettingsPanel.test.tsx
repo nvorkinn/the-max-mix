@@ -286,13 +286,13 @@ describe('SettingsPanel', () => {
       expect(card).toHaveTextContent('Navy');
       expect(card).toHaveTextContent('Dynamic');
       await userEvent.click(card);
-      expect(screen.getByRole('button', { name: 'Navy' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Navy' })).toBeEnabled();
       expect(within(screen.getByRole('group', { name: 'Dynamic' })).getByRole('button', { name: 'On' })).toBeDisabled();
       await userEvent.click(within(screen.getByRole('group', { name: 'Theme' })).getByRole('button', { name: 'Day' }));
       expect(onThemeChange).toHaveBeenCalledWith('day');
     });
 
-    it('greys out the colours while Auto shows Night', () => {
+    it('keeps the colours while Auto shows Night', () => {
       render(
         <SettingsPanel
           {...base}
@@ -306,7 +306,7 @@ describe('SettingsPanel', () => {
           onThemeColourChange={vi.fn()}
         />
       );
-      expect(screen.getByRole('button', { name: 'Navy' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Navy' })).toBeEnabled();
     });
 
     it('keeps the colours while Auto shows Day', () => {

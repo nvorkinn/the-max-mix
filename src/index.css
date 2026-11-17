@@ -205,10 +205,16 @@
   inherits: true;
   initial-value: #fff;
 }
+/* Violet: the title and highlights in violet, and the play button runs pink to violet (--colour-fill), in Day and Night. */
+.tablet-container[data-colour='violet'] {
+  --accent: #913fcb;
+  --ink: #2a1838;
+  --colour-fill: linear-gradient(135deg, #e94dae, #913fcb);
+}
 .tablet-container[data-colour] {
   --accent-soft: color-mix(in srgb, var(--accent) 5%, transparent);
   --focus: var(--accent);
-  --play-fill: var(--accent);
+  --play-fill: var(--colour-fill, var(--accent));
 }
 /* After the rule above: the play button runs a gradient between the cover's two colours, as Night's runs pink to violet. */
 .tablet-container[data-dynamic] {
@@ -218,8 +224,8 @@
   --play-fill: linear-gradient(135deg, var(--dynamic-from), var(--dynamic-to));
 }
 /*
-  Night (src/utils/theme.ts): dark navy with fixed violet and pink accents. It comes after the colour choices so it
-  overrides the chosen Day colour without clearing it, and choosing Day again brings that colour back.
+  Night (src/utils/theme.ts): dark navy. It comes after the colour choices so it overrides their page and ink; the chosen
+  colour still shows, as the lighter shade of it below that reads on the dark.
 */
 .tablet-container[data-theme='night'] {
   --page: #090e1f;
@@ -242,6 +248,47 @@
   --play-fill: linear-gradient(135deg, #e94dae, #913fcb);
   --glow: 0 0 14px rgb(193 77 225 / 30%);
   color-scheme: dark;
+}
+/* Each colour at night: bright enough to read on the navy, with a white icon on the play button unless it is light. */
+.tablet-container[data-theme='night'][data-colour='forest'] {
+  --accent: #4a9d5e;
+}
+.tablet-container[data-theme='night'][data-colour='navy'] {
+  --accent: #5b8def;
+}
+.tablet-container[data-theme='night'][data-colour='teal'] {
+  --accent: #2a9d9d;
+}
+.tablet-container[data-theme='night'][data-colour='plum'] {
+  --accent: #c25ea8;
+}
+.tablet-container[data-theme='night'][data-colour='terracotta'] {
+  --accent: #dd6b3d;
+}
+.tablet-container[data-theme='night'][data-colour='pink'] {
+  --accent: #ff69b4;
+  --accent-ink: #3b1a2a;
+}
+.tablet-container[data-theme='night'][data-colour='yellow'] {
+  --accent: #e0b020;
+  --accent-ink: #1f1a05;
+}
+/* Black would vanish on the navy, so at night it is a silver. */
+.tablet-container[data-theme='night'][data-colour='black'] {
+  --accent: #dfe3ee;
+  --accent-ink: #111;
+}
+.tablet-container[data-theme='night'][data-colour] {
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --focus: color-mix(in srgb, var(--accent) 60%, #fff);
+  --play-fill: var(--colour-fill, var(--accent));
+  --glow: 0 0 14px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+/* Violet keeps Night's own look: its violet and focus, and the glow it always had. */
+.tablet-container[data-theme='night'][data-colour='violet'] {
+  --accent: #a95be8;
+  --focus: #de9eff;
+  --glow: 0 0 14px rgb(193 77 225 / 30%);
 }
 
 /*
@@ -1604,7 +1651,7 @@ body:has(.app-dialog[open]) {
 .colour-swatch[aria-pressed='true'] {
   box-shadow:
     0 0 0 3px var(--surface),
-    0 0 0 5px var(--swatch);
+    0 0 0 5px var(--swatch-ring, var(--swatch));
 }
 .status-success {
   color: var(--success);

@@ -89,7 +89,7 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await page.keyboard.press('Escape');
   });
 
-  test('Night recolours the app, greys out the Day colour, and Day brings that colour back', async ({ page }) => {
+  test('Night recolours the app in a night shade of the colour, and Day brings the colour back', async ({ page }) => {
     await openSpotifyTab(page, '/?kiosk=1');
     const room = page.locator('.tablet-container');
     await expect(room).toHaveAttribute('data-theme', 'day');
@@ -109,7 +109,9 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     );
     await expect(settings.locator('.settings-panel')).toHaveCSS('color', 'rgb(245, 246, 255)');
     await expect(settings.locator('.settings-panel')).toHaveCSS('color-scheme', 'dark');
-    await expect(settings.getByRole('button', { name: 'Navy' })).toBeDisabled();
+    await expect(settings.getByRole('button', { name: 'Navy' })).toBeEnabled();
+    // Navy's night shade, bright enough on the dark.
+    await expect(room).toHaveCSS('--accent', '#5b8def');
     await expect(settings.getByRole('button', { name: 'Navy' })).toHaveAttribute('aria-pressed', 'true');
 
     await page.reload();

@@ -93,6 +93,10 @@ describe('Dynamic setting', () => {
 });
 
 describe('basePalette', () => {
+  it("runs Violet's play button pink to violet", () => {
+    expect(basePalette('violet')).toMatchObject({ '--dynamic-from': '#e94dae', '--dynamic-to': '#913fcb' });
+  });
+
   it("is the chosen colour's own, with a flat play button", () => {
     expect(basePalette('yellow')).toEqual({
       '--dynamic-accent': '#a67c00',

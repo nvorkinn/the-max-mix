@@ -47,7 +47,10 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     await expect(page.locator('.tablet-container')).toHaveAttribute('data-theme', 'night');
     await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
     expect(server.saves).toHaveLength(1);
-    expect(server.saves[0]).toMatchObject({ device_id: '0a1b2c3d4e5f', style: { skin: 'night', colour: 'dynamic' } });
+    expect(server.saves[0]).toMatchObject({
+      device_id: '0a1b2c3d4e5f',
+      style: { skin: 'night', colour: 'violet', dynamic: true }
+    });
   });
 
   test('a quick run of changes saves only the last one', async ({ page }) => {

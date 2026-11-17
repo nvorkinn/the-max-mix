@@ -210,10 +210,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [localThemeColour, setLocalThemeColour] = useState(loadThemeColour);
   const screenSleepMinutes = display?.sleep_minutes ?? localScreenSleep;
   const themeColour = style ? toThemeColour(style.colour) : localThemeColour;
-  // Dynamic is the kiosk's own setting, on or off. The server's config can still say the old Dynamic colour, which
-  // turns it on over the default colour.
+  // Dynamic, on or off, beside the colour. The server's config can still say the old Dynamic colour, which turns it on
+  // over the default colour.
   const [localDynamic, setLocalDynamic] = useState(loadDynamicColour);
-  const dynamicColour = localDynamic || isOldDynamic(style?.colour);
+  const dynamicColour = style ? style.dynamic || isOldDynamic(style.colour) : localDynamic;
   const theme = useTheme(style?.skin);
   // With Dynamic on, the colours follow the album art while music plays, and fade back to the chosen colour once it
   // has stopped for a while. Night keeps its own colours.
@@ -223,7 +223,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     if (!style) return;
     saveTheme(style.skin);
     saveThemeColour(toThemeColour(style.colour));
-    if (isOldDynamic(style.colour)) saveDynamicColour(true);
+    saveDynamicColour(style.dynamic || isOldDynamic(style.colour));
   }, [style]);
   useEffect(() => {
     if (display) setScreenSleep(display.sleep_minutes);
@@ -233,20 +233,21 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     else theme.change(skin);
   };
   const changeThemeColour = (colour: ThemeColour) => {
-    // Picking a colour over the server's old Dynamic colour keeps Dynamic on.
-    if (dynamicColour && !localDynamic) setLocalDynamic(true);
     if (style) {
-      deviceConfig.save('style', { ...style, colour });
+      // Over the old Dynamic colour, Dynamic stays on.
+      deviceConfig.save('style', { ...style, colour, dynamic: dynamicColour });
       return;
     }
     setLocalThemeColour(colour);
     saveThemeColour(colour);
   };
   const changeDynamicColour = (on: boolean) => {
+    if (style) {
+      deviceConfig.save('style', { ...style, colour: themeColour, dynamic: on });
+      return;
+    }
     setLocalDynamic(on);
     saveDynamicColour(on);
-    // Turned off, the server's old Dynamic colour would turn it straight back on, so that becomes the default colour.
-    if (!on && style && isOldDynamic(style.colour)) deviceConfig.save('style', { ...style, colour: themeColour });
   };
   const changeScreenSleep = (minutes: ScreenSleepMinutes) => {
     if (display) {
