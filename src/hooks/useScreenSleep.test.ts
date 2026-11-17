@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useScreenSleep } from './useScreenSleep';
+import { DIM_AFTER_MS, QUIET_SLEEP_MS, useScreenSleep } from './useScreenSleep';
 
 const screenSleep = vi.hoisted(() => ({ wakeDisplay: vi.fn() }));
 vi.mock('../utils/screenSleep', () => screenSleep);
 
-const IDLE_MS = 5 * 60_000;
+// The sleep delay chosen in Settings, counted from the moment the Dashboard dims.
+const SLEEP_MS = 5 * 60_000;
+// Untouched on the Dashboard, from the last touch to sleep.
+const IDLE_MS = DIM_AFTER_MS + SLEEP_MS;
 
 /** A fake navigator.wakeLock that records the locks it hands out. */
 function fakeWakeLock() {
@@ -38,16 +41,25 @@ function advance(ms: number) {
   });
 }
 
+/** Untouched on the Dashboard from awake: it dims, and then sleeps. */
+function advanceToSleep() {
+  advance(DIM_AFTER_MS);
+  advance(SLEEP_MS);
+}
+
 interface Props {
   enabled: boolean;
   keepAwake: boolean;
-  idleMs: number | null;
+  onDashboard: boolean;
+  sleepMs: number | null;
+  quiet: boolean;
 }
 
+const DEFAULTS: Props = { enabled: true, keepAwake: false, onDashboard: true, sleepMs: SLEEP_MS, quiet: false };
+
 function renderSleep(props: Partial<Props> = {}) {
-  return renderHook((p: Props) => useScreenSleep(p), {
-    initialProps: { enabled: true, keepAwake: false, idleMs: IDLE_MS, ...props }
-  });
+  const hook = renderHook((p: Props) => useScreenSleep(p), { initialProps: { ...DEFAULTS, ...props } });
+  return { ...hook, rerender: (next: Partial<Props>) => hook.rerender({ ...DEFAULTS, ...next }) };
 }
 
 describe('useScreenSleep', () => {
@@ -60,51 +72,120 @@ describe('useScreenSleep', () => {
     Reflect.deleteProperty(navigator, 'wakeLock');
   });
 
-  it('sleeps after the idle time with nothing playing', () => {
+  it('dims the Dashboard after five untouched minutes, then sleeps the chosen delay later', () => {
     const { result } = renderSleep();
-    advance(IDLE_MS - 1);
+    advance(DIM_AFTER_MS - 1);
+    expect(result.current.dimmed).toBe(false);
+    advance(1);
+    expect(result.current.dimmed).toBe(true);
+    expect(result.current.asleep).toBe(false);
+    advance(SLEEP_MS - 1);
+    expect(result.current.asleep).toBe(false);
+    advance(1);
+    expect(result.current.asleep).toBe(true);
+    expect(result.current.dimmed).toBe(false);
+  });
+
+  it('a touch while dimmed does not brighten it by itself, so the overlay catches the tap; wake starts over', () => {
+    const { result } = renderSleep();
+    advance(DIM_AFTER_MS);
+    touch();
+    expect(result.current.dimmed).toBe(true);
+    act(() => {
+      result.current.wake();
+    });
+    expect(result.current.dimmed).toBe(false);
+    advance(DIM_AFTER_MS - 1);
+    expect(result.current.dimmed).toBe(false);
+    advance(1);
+    expect(result.current.dimmed).toBe(true);
+  });
+
+  it('music that starts while dimmed brightens the screen without asking the Pi', () => {
+    const { result, rerender } = renderSleep();
+    advance(DIM_AFTER_MS);
+    rerender({ keepAwake: true });
+    expect(result.current.dimmed).toBe(false);
+    advance(IDLE_MS * 3);
+    expect(result.current.dimmed).toBe(false);
+    expect(screenSleep.wakeDisplay).not.toHaveBeenCalled();
+  });
+
+  it('neither dims nor sleeps on another tab', () => {
+    const { result, rerender } = renderSleep({ onDashboard: false });
+    advance(IDLE_MS * 3);
+    expect(result.current.dimmed).toBe(false);
+    expect(result.current.asleep).toBe(false);
+    rerender({ onDashboard: true });
+    advance(DIM_AFTER_MS);
+    expect(result.current.dimmed).toBe(true);
+  });
+
+  it('in quiet hours sleeps a minute after the last touch, on any tab', () => {
+    const { result } = renderSleep({ onDashboard: false, quiet: true });
+    advance(QUIET_SLEEP_MS - 1000);
+    touch();
+    advance(QUIET_SLEEP_MS - 1);
     expect(result.current.asleep).toBe(false);
     advance(1);
     expect(result.current.asleep).toBe(true);
   });
 
+  it('quiet hours beginning while dimmed send the screen to sleep a minute later, delay or not', () => {
+    const { result, rerender } = renderSleep({ sleepMs: null });
+    advance(DIM_AFTER_MS);
+    expect(result.current.dimmed).toBe(true);
+    rerender({ sleepMs: null, quiet: true });
+    advance(QUIET_SLEEP_MS);
+    expect(result.current.asleep).toBe(true);
+  });
+
+  it('music keeps the screen on in quiet hours too', () => {
+    const { result } = renderSleep({ keepAwake: true, quiet: true });
+    advance(QUIET_SLEEP_MS * 30);
+    expect(result.current.asleep).toBe(false);
+  });
+
   it('starts the countdown again at every touch', () => {
     const { result } = renderSleep();
-    advance(IDLE_MS - 1000);
+    advance(DIM_AFTER_MS - 1000);
     touch();
-    advance(IDLE_MS - 1000);
-    expect(result.current.asleep).toBe(false);
+    advance(DIM_AFTER_MS - 1000);
+    expect(result.current.dimmed).toBe(false);
     advance(1000);
-    expect(result.current.asleep).toBe(true);
+    expect(result.current.dimmed).toBe(true);
   });
 
   it('stays awake while music plays and counts down from when it stops', () => {
     const { result, rerender } = renderSleep({ keepAwake: true });
     advance(IDLE_MS * 3);
+    expect(result.current.dimmed).toBe(false);
     expect(result.current.asleep).toBe(false);
-    rerender({ enabled: true, keepAwake: false, idleMs: IDLE_MS });
-    advance(IDLE_MS - 1);
-    expect(result.current.asleep).toBe(false);
+    rerender({ keepAwake: false });
+    advance(DIM_AFTER_MS - 1);
+    expect(result.current.dimmed).toBe(false);
     advance(1);
+    expect(result.current.dimmed).toBe(true);
+    advance(SLEEP_MS);
     expect(result.current.asleep).toBe(true);
   });
 
   it('a touch while asleep does not wake it by itself, so the sleep screen catches the tap', () => {
     const { result } = renderSleep();
-    advance(IDLE_MS);
+    advanceToSleep();
     touch();
     expect(result.current.asleep).toBe(true);
     act(() => {
       result.current.wake();
     });
     expect(result.current.asleep).toBe(false);
-    advance(IDLE_MS);
+    advanceToSleep();
     expect(result.current.asleep).toBe(true);
   });
 
   it('a key press wakes it', () => {
     const { result } = renderSleep();
-    advance(IDLE_MS);
+    advanceToSleep();
     act(() => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
     });
@@ -113,9 +194,9 @@ describe('useScreenSleep', () => {
 
   it('music that starts while asleep wakes it and turns the Pi screen on', () => {
     const { result, rerender } = renderSleep();
-    advance(IDLE_MS);
+    advanceToSleep();
     expect(result.current.asleep).toBe(true);
-    rerender({ enabled: true, keepAwake: true, idleMs: IDLE_MS });
+    rerender({ keepAwake: true });
     expect(result.current.asleep).toBe(false);
     expect(screenSleep.wakeDisplay).toHaveBeenCalledTimes(1);
   });
@@ -126,8 +207,8 @@ describe('useScreenSleep', () => {
       result.current.sleepNow();
     });
     expect(result.current.asleep).toBe(true);
-    rerender({ enabled: true, keepAwake: false, idleMs: IDLE_MS });
-    rerender({ enabled: true, keepAwake: true, idleMs: IDLE_MS });
+    rerender({ keepAwake: false });
+    rerender({ keepAwake: true });
     expect(result.current.asleep).toBe(true);
     expect(screenSleep.wakeDisplay).not.toHaveBeenCalled();
     act(() => {
@@ -144,15 +225,16 @@ describe('useScreenSleep', () => {
     act(() => {
       result.current.wake();
     });
-    advance(IDLE_MS);
+    advanceToSleep();
     expect(result.current.asleep).toBe(true);
-    rerender({ enabled: true, keepAwake: true, idleMs: IDLE_MS });
+    rerender({ keepAwake: true });
     expect(result.current.asleep).toBe(false);
   });
 
-  it('never sleeps when the delay is off', () => {
-    const { result } = renderSleep({ idleMs: null });
+  it('dims when the delay is off, and never sleeps', () => {
+    const { result } = renderSleep({ sleepMs: null });
     advance(IDLE_MS * 100);
+    expect(result.current.dimmed).toBe(true);
     expect(result.current.asleep).toBe(false);
   });
 
@@ -175,7 +257,10 @@ describe('useScreenSleep', () => {
     expect(request).toHaveBeenCalledWith('screen');
     expect(result.current.wakeLock).toBe('held');
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(IDLE_MS);
+      await vi.advanceTimersByTimeAsync(DIM_AFTER_MS);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SLEEP_MS);
     });
     expect(result.current.asleep).toBe(true);
     expect(locks[0]?.released).toBe(true);

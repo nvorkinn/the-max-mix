@@ -24,6 +24,8 @@ import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '
 import { useSpeakerSelection } from '../speakers/useSpeakerSelection';
 import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
+import { loadQuietHours, isQuietTime, saveQuietHours } from '../utils/quietHours';
+import type { QuietHours } from '../utils/quietHours';
 import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import { dynamicPalette, loadThemeColour, saveThemeColour } from '../utils/themeColour';
@@ -205,8 +207,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const isPlaying = Boolean(shownPlayback?.is_playing);
   const currentTrack = shownPlayback?.item;
 
-  // Left alone with nothing playing, the kiosk shows the Dashboard. The screen stays on while music plays or another tab
-  // is showing, and sleeps the chosen minutes after the Dashboard comes up.
+  // Left alone with nothing playing, the kiosk shows the Dashboard, which dims after a while and then sleeps the chosen
+  // minutes later (see useScreenSleep). The screen stays on and bright while music plays. In quiet hours it sleeps a
+  // minute after the last touch, on any tab.
   useIdle({ enabled: onKiosk, busy: isPlaying, idleMs: IDLE_DASHBOARD_MS, onIdle: () => goToScreen('dashboard') });
   // Once someone owns the kiosk, countdown-server's config is its skin, colour and screen sleep: the settings save there,
   // and whatever the config says (a change here, one undone, or the server's latest) shows, and is kept locally for
@@ -250,11 +253,18 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     setLocalScreenSleep(minutes);
     setScreenSleep(minutes);
   };
+  const [quietHours, setQuietHours] = useState(loadQuietHours);
+  const changeQuietHours = (hours: QuietHours) => {
+    setQuietHours(hours);
+    saveQuietHours(hours);
+  };
   const kioskUpdate = useKioskUpdate(onKiosk);
   const sleep = useScreenSleep({
     enabled: onKiosk,
-    keepAwake: isPlaying || screen !== 'dashboard',
-    idleMs: screenSleepMinutes === 0 ? null : screenSleepMinutes * 60_000
+    keepAwake: isPlaying,
+    onDashboard: screen === 'dashboard',
+    sleepMs: screenSleepMinutes === 0 ? null : screenSleepMinutes * 60_000,
+    quiet: isQuietTime(quietHours, new Date(minute * 60_000))
   });
   // Waking the screen asks GitHub again whether a newer version is out: someone is back, and hours may have passed.
   const checkForUpdate = kioskUpdate.checkNow;
@@ -270,7 +280,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     setSlowPolling(sleep.asleep || followingSonos);
     setSonosSlowPolling(sleep.asleep);
   }, [sleep.asleep, followingSonos, setSlowPolling, setSonosSlowPolling]);
-  const screenStatus = `${sleep.asleep ? 'Asleep' : 'Awake'}, wake lock ${sleep.wakeLock}`;
+  let screenState = 'Awake';
+  if (sleep.asleep) screenState = 'Asleep';
+  else if (sleep.dimmed) screenState = 'Dimmed';
+  const screenStatus = `${screenState}, wake lock ${sleep.wakeLock}`;
 
   // Problems go to the debug console.
   useLogChanges(playerError, 'player');
@@ -687,6 +700,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             signInError={signInError || (playerProblem?.recovery === 'sign-in' ? playerProblem.message : null)}
             screenSleep={screenSleepMinutes}
             onScreenSleepChange={changeScreenSleep}
+            quietHours={quietHours}
+            onQuietHoursChange={changeQuietHours}
             themeColour={themeColour}
             onThemeColourChange={changeThemeColour}
             theme={theme.theme}
@@ -742,12 +757,12 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       {/* A newer version is asked about once, with the screen awake and no music picker or debug dialog open. The Settings
           tab checks again each time it comes up, so the question can show over it; starting the update hands over to the
           console. */}
-      {kioskUpdate.prompting && kioskUpdate.newer && !sleep.asleep && !isMusicOpen && !isDebugOpen && (
+      {kioskUpdate.prompting && kioskUpdate.newer && !sleep.asleep && !sleep.dimmed && !isMusicOpen && !isDebugOpen && (
         <UpdatePrompt newer={kioskUpdate.newer} onUpdate={kioskUpdate.start} onLater={kioskUpdate.dismissPrompt} />
       )}
       <UpdateConsole update={kioskUpdate} />
 
-      {sleep.asleep && <SleepScreen onWake={sleep.wake} />}
+      {(sleep.asleep || sleep.dimmed) && <SleepScreen dimmed={sleep.dimmed} onWake={sleep.wake} />}
     </div>
   );
 }

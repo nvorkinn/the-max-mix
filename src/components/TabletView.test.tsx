@@ -942,6 +942,60 @@ describe('TabletView', () => {
       expect(player.current.setSlowPolling).toHaveBeenLastCalledWith(false);
     });
 
+    describe('left alone with nothing playing', () => {
+      const minutes = (count: number) => act(() => vi.advanceTimersByTimeAsync(count * 60_000));
+      const tab = (name: string) => screen.getByRole('tab', { name });
+      beforeEach(() => {
+        setPlayer({ playbackMode: 'browser', browserDeviceId: 'web-1', playbackState: null });
+      });
+
+      it('shows the Dashboard after a minute, dims it five minutes later and sleeps after the chosen delay', async () => {
+        vi.useFakeTimers({ now: new Date('2026-01-01T12:00:00') });
+        localStorage.setItem('maxmix.screenSleep', '15');
+        render(<TabletView />);
+        await minutes(1);
+        expect(tab('Dashboard')).toHaveAttribute('aria-selected', 'true');
+        expect(screen.queryByRole('dialog', { name: 'Dimmed screen' })).not.toBeInTheDocument();
+        await minutes(5);
+        expect(screen.getByRole('dialog', { name: 'Dimmed screen' })).toBeInTheDocument();
+        // The tap that brightens the screen lands on the overlay, not on the page behind it.
+        fireEvent.pointerDown(screen.getByRole('button', { name: 'Wake the screen' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Wake the screen' }));
+        expect(screen.queryByRole('dialog', { name: 'Dimmed screen' })).not.toBeInTheDocument();
+        expect(tab('Dashboard')).toHaveAttribute('aria-selected', 'true');
+        await minutes(5);
+        expect(screen.getByRole('dialog', { name: 'Dimmed screen' })).toBeInTheDocument();
+        await minutes(14);
+        expect(screen.queryByRole('dialog', { name: 'Sleep screen' })).not.toBeInTheDocument();
+        await minutes(1);
+        expect(screen.getByRole('dialog', { name: 'Sleep screen' })).toBeInTheDocument();
+      });
+
+      it('in quiet hours sleeps a minute after the last touch, even on another tab', async () => {
+        vi.useFakeTimers({ now: new Date('2026-01-01T23:00:00') });
+        localStorage.setItem('maxmix.quietHours', JSON.stringify({ on: true, start: 22 * 60, end: 7 * 60 }));
+        render(<TabletView />);
+        showSettingsTab();
+        await minutes(1);
+        expect(screen.getByRole('dialog', { name: 'Sleep screen' })).toBeInTheDocument();
+      });
+
+      it('keeps the screen on and bright while music plays', async () => {
+        vi.useFakeTimers({ now: new Date('2026-01-01T23:00:00') });
+        localStorage.setItem('maxmix.quietHours', JSON.stringify({ on: true, start: 22 * 60, end: 7 * 60 }));
+        setPlayer({
+          playbackMode: 'browser',
+          browserDeviceId: 'web-1',
+          playbackState: { is_playing: true, item: track, device: { id: 'dev1', name: 'Soundbar' } }
+        });
+        render(<TabletView />);
+        fireEvent.click(tab('Dashboard'));
+        await minutes(30);
+        expect(screen.queryByRole('dialog', { name: 'Dimmed screen' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { name: 'Sleep screen' })).not.toBeInTheDocument();
+      });
+    });
+
     describe('when a newer version is out', () => {
       const fetchMock = vi.fn();
       /** GitHub's answer for a release whose Release workflow has uploaded the Pi bundle. */

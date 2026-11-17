@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel'] as const;
 
 /** How long the kiosk waits, untouched with nothing playing, before it switches to the Dashboard. */
-export const IDLE_DASHBOARD_MS = 2 * 60_000;
+export const IDLE_DASHBOARD_MS = 60_000;
 
 /**
  * Calls `onIdle` once nobody has touched the screen for `idleMs` while `busy` (music playing) is false. A touch, or
