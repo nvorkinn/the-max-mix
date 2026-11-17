@@ -3,10 +3,11 @@
 // device secret. The server hands over what its providers stored for the device (TfL's line statuses at its stops,
 // the Met Office's warnings for its postcode, GOV.UK's bank holidays) as the providers had it, and the kiosk makes the
 // notices from it here, as the e-paper renderer does when it draws: a headline and one short line each, with the
-// provider's own text kept for a tap, so the times are said as of now and in the kiosk's clock format. A build that sets
+// provider's own text kept for a tap, so the times are said as of now and in the kiosk's clock format. Which line
+// statuses are worth a notice, and the words (messages.ts), are the e-paper screens' too. A build that sets
 // VITE_COUNTDOWN_CONFIG=mock gets made-up notices instead.
 
-import type { BankHoliday, DeviceNotices, MetOfficeFeedItem } from 'countdown-api';
+import type { BankHoliday, DeviceNotices, MetOfficeFeedItem, NoticeShort } from 'countdown-api';
 import { getNotices as getNoticesRoute } from '../../vendor/countdown-api/src/countdown_api/client';
 import type { Client } from '../../vendor/countdown-api/src/countdown_api/client';
 import { serverClient } from '../countdown/config';
@@ -15,15 +16,16 @@ import { errorMessage } from '../utils/errorMessage';
 import type { ClockFormat } from '../utils/clockFormat';
 import { formatClockTime } from '../utils/clockFormat';
 import type { Notice } from './data';
+import { say } from './messages';
 
 type Severity = Notice['severity'];
 
 const HOUR = 60 * 60_000;
 const DAY = 24 * HOUR;
-/** A planned closure is mentioned this far ahead. */
-const PLANNED_AHEAD_MS = 7 * DAY;
 /** A bank holiday is mentioned this far ahead, as on the e-paper screens. */
 const HOLIDAY_AHEAD_DAYS = 31;
+/** Worst first. */
+const SEVERITY_ORDER: readonly Severity[] = ['severe', 'minor', 'info', 'planned'];
 
 /** The device's notice sources, as countdown-server gives them; null when it isn't registered or can't be asked. */
 export async function getDeviceNotices(client: Client | null = serverClient()): Promise<DeviceNotices | null> {
@@ -46,8 +48,8 @@ const localDay = (time: Date) => `${time.getFullYear()}-${pad(time.getMonth() + 
 const sameDay = (a: Date, b: Date) => localDay(a) === localDay(b);
 
 function dayName(day: Date, now: Date): string {
-  if (sameDay(day, now)) return 'Today';
-  if (sameDay(day, new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1))) return 'Tomorrow';
+  if (sameDay(day, now)) return say('notice.day.today');
+  if (sameDay(day, new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1))) return say('notice.day.tomorrow');
   return day.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
 }
 
@@ -69,7 +71,8 @@ export function sayWhen(starts: Date | null, ends: Date | null, now: Date, clock
     return sameDay(t, now) ? clock : `${shortDay(t, now)} ${clock}`;
   };
   if (!starts || starts <= now) {
-    return ends.getTime() - now.getTime() < DAY ? `until ${time(ends)}` : `until ${shortDay(lastDay(ends), now)}`;
+    const when = ends.getTime() - now.getTime() < DAY ? time(ends) : shortDay(lastDay(ends), now);
+    return say('notice.until', { when });
   }
   if (ends.getTime() - starts.getTime() < DAY) return `${time(starts)}–${formatClockTime(ends, clockFormat)}`;
   const first = shortDay(starts, now);
@@ -111,42 +114,39 @@ interface TflLine {
   lineStatuses?: { statusSeverityDescription: string; reason?: string | null; validityPeriods?: TflValidityPeriod[] }[];
 }
 
-// TfL's statuses worth a notice (/Line/Meta/Severity lists them all, the same for every mode): how bad each is, what
-// the board says, and whether it's a closure. Good Service, Service Closed (after the last train) and the like aren't.
-const LINE_STATUSES = new Map<string, readonly [Severity, string, boolean]>([
-  ['Suspended', ['severe', 'Suspended', false]],
-  ['Closed', ['severe', 'Closed', true]],
-  ['Planned Closure', ['severe', 'Closed', true]],
-  ['Not Running', ['severe', 'Not running', true]],
-  ['Part Suspended', ['severe', 'Part suspended', false]],
-  ['Part Closure', ['severe', 'Part closed', true]],
-  ['Severe Delays', ['severe', 'Severe delays', false]],
-  ['Minor Delays', ['minor', 'Delays', false]],
-  ['Reduced Service', ['minor', 'Reduced service', false]],
-  ['Issues Reported', ['minor', 'Issues', false]],
-  // A bus diversion, when the reason says so (below); otherwise nothing worth a notice.
-  ['Special Service', ['minor', 'Diverted', false]]
+// TfL's statuses worth a notice (/Line/Meta/Severity lists them all, the same for every mode), as on the e-paper
+// screens (countdown's renderer, notices/tfl.py): how bad each is, and its key in the catalog's notice.line.status.
+// Suspended is the worst (red); a part suspension and severe delays are a disruption (amber); issues are only said.
+// Closures are planned works whenever they are in force.
+const LINE_STATUSES = new Map<string, readonly [Severity, string]>([
+  ['Suspended', ['severe', 'suspended']],
+  ['Part Suspended', ['minor', 'part_suspended']],
+  ['Severe Delays', ['minor', 'severe_delays']],
+  ['Issues Reported', ['info', 'issues']],
+  ['Part Closure', ['planned', 'part_closed']],
+  ['Planned Closure', ['planned', 'closed']],
+  ['Closed', ['planned', 'closed']],
+  ['Not Running', ['planned', 'not_running']]
 ]);
+// Everything else isn't: minor delays, a reduced service, bus diversions ("Special Service"), Service Closed (after the
+// last train), Good Service.
 
-/** The period a status applies in that is worth showing at `now`: the current one, or a planned one soon. */
-function periodToShow(periods: TflValidityPeriod[], now: Date): TflValidityPeriod | null | undefined {
+/**
+ * The period a status applies in at `now`: undefined for a status with no periods, which applies; null for one whose
+ * periods are all over or still to come (a closure later this week), which doesn't.
+ */
+function periodInForce(periods: TflValidityPeriod[], now: Date): TflValidityPeriod | null | undefined {
   if (periods.length === 0) return undefined;
   const time = now.getTime();
-  const current = periods.find(p => Date.parse(p.fromDate) <= time && time <= Date.parse(p.toDate));
-  if (current) return current;
-  const soon = periods
-    .filter(p => Date.parse(p.fromDate) > time && Date.parse(p.fromDate) - time <= PLANNED_AHEAD_MS)
-    .toSorted((a, b) => Date.parse(a.fromDate) - Date.parse(b.fromDate));
-  return soon[0] ?? null;
+  return periods.find(p => Date.parse(p.fromDate) <= time && time <= Date.parse(p.toDate)) ?? null;
 }
 
-// When a disruption is happening now, TfL's period is usually just "today", which says nothing: its time is said only
-// for one that hasn't started, or that runs for days.
+// TfL's period for a disruption is usually just "today", which says nothing: its end is said only for one that runs
+// for days.
 function periodWhen(period: TflValidityPeriod | undefined, now: Date, clockFormat: ClockFormat): string | null {
   if (!period) return null;
   const from = new Date(period.fromDate);
   const to = new Date(period.toDate);
-  if (from > now) return sayWhen(from, to, now, clockFormat);
   return to.getTime() - from.getTime() >= DAY ? sayWhen(null, to, now, clockFormat) : null;
 }
 
@@ -154,17 +154,29 @@ interface LineEntry {
   notice: Notice;
   mode: string;
   lines: string[];
+  /** The status's key in notice.line.status. */
   status: string;
 }
 
-/** A line's name as the board writes it: "Northern line", "Bus 333", "Buses 333, 415". */
-function lineLabel({ mode, lines }: LineEntry): string {
-  if (mode === 'bus') return `${lines.length > 1 ? 'Buses' : 'Bus'} ${lines.join(', ')}`;
-  return mode === 'tube' ? `${lines.join(', ')} line` : lines.join(', ');
+/** A line's notice's title: "Northern line: Severe delays", "Bus 333: Suspended", "Buses 333, 415: Part suspended". */
+function lineTitle({ mode, lines, status }: LineEntry): string {
+  return say('notice.line.title', {
+    label: say('notice.line.label', { mode, count: lines.length, lines: lines.join(', ') }),
+    status: say('notice.line.status', { status })
+  });
 }
 
-/** The notices for the statuses of `lines` that matter at `now`. */
-export function lineNotices(lines: readonly TflLine[], now: Date, clockFormat: ClockFormat): Notice[] {
+/**
+ * The notices for the statuses of `lines` that are worth one and apply at `now`. A reason a model has shortened
+ * (`shorts`, stored beside the statuses) is said in its short form; any other by its first sentence.
+ */
+export function lineNotices(
+  lines: readonly TflLine[],
+  now: Date,
+  clockFormat: ClockFormat,
+  shorts: readonly NoticeShort[] = []
+): Notice[] {
+  const shortOf = new Map(shorts.map(short => [short.text, short.summary]));
   const entries: LineEntry[] = [];
   // TfL repeats a bus closure word for word on every route it affects, which is one notice.
   const byReason = new Map<string, LineEntry>();
@@ -173,40 +185,43 @@ export function lineNotices(lines: readonly TflLine[], now: Date, clockFormat: C
     const name = mode === 'bus' ? line.name : line.name.replace(/ line$/i, '');
     const statuses = line.lineStatuses ?? [];
     for (const status of statuses) {
-      const known = LINE_STATUSES.get(status.statusSeverityDescription);
+      const description = status.statusSeverityDescription;
+      const known = LINE_STATUSES.get(description);
       if (!known) continue;
-      const reason = squash(status.reason);
-      const diverted = mode === 'bus' && /\bdivert/i.test(reason);
-      if (!diverted && status.statusSeverityDescription === 'Special Service') continue;
-      const period = periodToShow(status.validityPeriods ?? [], now);
+      const period = periodInForce(status.validityPeriods ?? [], now);
       if (period === null) continue;
-      const [severity, label, closure] = known;
-      const shown = diverted ? 'Diverted' : label;
+      const [severity, key] = known;
+      const reason = squash(status.reason);
       const seen = reason ? byReason.get(`${mode}:${reason}`) : undefined;
       if (seen) {
         if (!seen.lines.includes(name)) seen.lines.push(name);
-        if (severity === 'severe' && seen.notice.severity === 'minor') seen.notice.severity = 'severe';
+        // The worse of the two counts, and names the notice.
+        if (SEVERITY_ORDER.indexOf(severity) < SEVERITY_ORDER.indexOf(seen.notice.severity)) {
+          seen.notice.severity = severity;
+          seen.status = key;
+        }
         continue;
       }
-      const planned = period !== undefined && Date.parse(period.fromDate) > now.getTime();
       const entry: LineEntry = {
         mode,
         lines: [name],
-        status: shown,
+        status: key,
         notice: {
-          id: `tfl:${line.id}:${status.statusSeverityDescription}`,
-          kind: closure ? 'closure' : 'delays',
-          severity: planned ? 'planned' : severity,
+          id: `tfl:${line.id}:${description}`,
+          kind: severity === 'planned' ? 'closure' : 'delays',
+          severity,
           title: '',
-          summary: reason ? headline(reason) : joined(shown, periodWhen(period, now, clockFormat)),
-          detail: reason || status.statusSeverityDescription
+          summary: reason
+            ? (shortOf.get(reason) ?? headline(reason))
+            : joined(say('notice.line.status', { status: key }), periodWhen(period, now, clockFormat)),
+          detail: reason || description
         }
       };
       if (reason) byReason.set(`${mode}:${reason}`, entry);
       entries.push(entry);
     }
   }
-  return entries.map(entry => ({ ...entry.notice, title: `${lineLabel(entry)}: ${entry.status}` }));
+  return entries.map(entry => ({ ...entry.notice, title: lineTitle(entry) }));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -275,15 +290,13 @@ function weatherNotices(items: readonly MetOfficeFeedItem[], now: Date, clockFor
     const ends = ukTime(toHour, toMinute, toDay, toMonth, now);
     if (ends && ends < now) continue;
     const level = colour.toLowerCase();
+    const warning = say('notice.weather.warning', { colour: level, hazard: hazard.toLowerCase() });
     notices.push({
       id: `met-office:${index}:${level}:${hazard.toLowerCase()}`,
       kind: 'weather',
       severity: level === 'yellow' ? 'minor' : 'severe',
-      title: 'Weather warning',
-      summary: joined(
-        `${colour.charAt(0).toUpperCase()}${level.slice(1)} warning: ${hazard.toLowerCase()}`,
-        sayWhen(starts, ends, now, clockFormat)
-      ),
+      title: say('notice.weather.title'),
+      summary: joined(warning, sayWhen(starts, ends, now, clockFormat)),
       detail: description || title
     });
   }
@@ -315,14 +328,15 @@ export function holidayNotices(events: readonly BankHoliday[], now: Date): Notic
     .toSorted((a, b) => a.date.localeCompare(b.date))[0];
   if (!next) return [];
   const [year = 0, month = 1, day = 1] = next.date.split('-').map(Number);
+  const holiday = new Date(year, month - 1, day);
   const notes = squash(next.notes);
   return [
     {
       id: `holiday:${next.date}`,
       kind: 'holiday',
       severity: 'info',
-      title: 'Upcoming bank holiday',
-      summary: `${dayName(new Date(year, month - 1, day), now)} – ${next.title}`,
+      title: say('notice.holiday.title'),
+      summary: say('notice.holiday.summary', { when: dayName(holiday, now), name: next.title }),
       detail: notes ? `${next.title} (${notes.toLowerCase()})` : next.title
     }
   ];
@@ -331,8 +345,6 @@ export function holidayNotices(events: readonly BankHoliday[], now: Date): Notic
 // ---------------------------------------------------------------------------------------------------------------------
 // The board.
 
-const SEVERITY_ORDER: readonly Severity[] = ['severe', 'minor', 'info', 'planned'];
-
 /**
  * The notice board's notices from what countdown-server gave, as of `now`: worst first, then the lines before the
  * weather before the holidays. None while the board is off (no postcode).
@@ -340,10 +352,13 @@ const SEVERITY_ORDER: readonly Severity[] = ['severe', 'minor', 'info', 'planned
 export function boardNotices(device: DeviceNotices, now: Date, clockFormat: ClockFormat): Notice[] {
   if (!device.postcode) return [];
   const lines: TflLine[] = [];
+  const shorts: NoticeShort[] = [];
   const seen = new Set<string>();
   for (const stop of device.tfl_stops) {
     // TfL's own answer, which the contract leaves open.
     const stopLines = (stop.lines?.lines ?? []) as unknown as TflLine[];
+    // An older countdown-server, or a provider with no model, leaves the short forms out.
+    shorts.push(...((stop.lines as { shorts?: NoticeShort[] } | null | undefined)?.shorts ?? []));
     for (const line of stopLines) {
       if (seen.has(line.id)) continue;
       seen.add(line.id);
@@ -352,7 +367,7 @@ export function boardNotices(device: DeviceNotices, now: Date, clockFormat: Cloc
   }
   const events = device.bank_holidays?.divisions[divisionOf(device.postcode)]?.events ?? [];
   const notices = [
-    ...lineNotices(lines, now, clockFormat),
+    ...lineNotices(lines, now, clockFormat, shorts),
     ...weatherNotices(device.met_office?.items ?? [], now, clockFormat),
     ...(device.country === 'GB' ? holidayNotices(events, now) : [])
   ];
@@ -371,19 +386,15 @@ export function boardNotices(device: DeviceNotices, now: Date, clockFormat: Cloc
 /** Made-up notice sources for a build that mocks countdown-server, timed from now. */
 export function mockDeviceNotices(now: Date): DeviceNotices {
   const at = (hours: number) => new Date(now.getTime() + hours * HOUR).toISOString();
+  const delays =
+    'NORTHERN LINE: Severe delays between Morden and Kennington while we fix a signal failure at Clapham Common. ' +
+    'GOOD SERVICE on the rest of the line.';
   const lines = [
     {
       id: 'northern',
       name: 'Northern',
       modeName: 'tube',
-      lineStatuses: [
-        {
-          statusSeverityDescription: 'Minor Delays',
-          reason:
-            'NORTHERN LINE: Minor delays between Morden and Kennington while we fix a signal failure at Clapham ' +
-            'Common. GOOD SERVICE on the rest of the line.'
-        }
-      ]
+      lineStatuses: [{ statusSeverityDescription: 'Severe Delays', reason: delays }]
     },
     {
       id: 'victoria',
@@ -391,13 +402,21 @@ export function mockDeviceNotices(now: Date): DeviceNotices {
       modeName: 'tube',
       lineStatuses: [
         {
-          statusSeverityDescription: 'Planned Closure',
+          statusSeverityDescription: 'Part Closure',
           reason:
             'VICTORIA LINE: No service between Euston and Walthamstow Central while we carry out track renewal ' +
             'works. Replacement buses operate.',
-          validityPeriods: [{ fromDate: at(72), toDate: at(120) }]
+          validityPeriods: [{ fromDate: at(-24), toDate: at(48) }]
         }
       ]
+    }
+  ];
+  // The Northern line's reason as a model shortened it; the Victoria line's hasn't been, so its first sentence is said.
+  const shorts = [
+    {
+      text: delays,
+      title: 'Delays, Morden to Kennington',
+      summary: 'Morden to Kennington, signal failure at Clapham Common'
     }
   ];
   return {
@@ -406,7 +425,7 @@ export function mockDeviceNotices(now: Date): DeviceNotices {
     tfl_stops: [
       {
         stop_id: '940GZZLUEAC',
-        lines: { fetched_at: now.toISOString(), stop_id: '940GZZLUEAC', lines: lines as never[] },
+        lines: { fetched_at: now.toISOString(), stop_id: '940GZZLUEAC', lines: lines as never[], shorts },
         stations: null
       }
     ],
