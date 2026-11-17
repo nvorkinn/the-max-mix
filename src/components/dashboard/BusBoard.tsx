@@ -4,14 +4,8 @@ import type { BusBoardProps } from '../../dashboard/props';
 import AnimatedRows from './AnimatedRows';
 import { byVehicle, Destination, Minutes, visibleDepartures } from './DepartureRows';
 
-/** Buses due at a stop: `rows` rows (four, or two when the boards are two deep), keyed by the bus so a row follows its bus. */
-export default function BusBoard({
-  stopName,
-  departures,
-  now,
-  stale,
-  rows = 4
-}: Readonly<BusBoardProps & { rows?: number }>) {
+/** Buses due at a stop: four rows, keyed by the bus so a row follows its bus. */
+export default function BusBoard({ stopName, departures, now, stale }: Readonly<BusBoardProps>) {
   const titleId = useId();
   return (
     <section className="dashboard-board" aria-labelledby={titleId}>
@@ -24,9 +18,9 @@ export default function BusBoard({
           {stopName} <ChevronRight className="lucide" aria-hidden="true" />
         </span>
       </div>
-      <ol className="dashboard-rows" data-stale={stale} data-rows={rows}>
+      <ol className="dashboard-rows" data-stale={stale}>
         <AnimatedRows
-          items={visibleDepartures(departures, now, rows)}
+          items={visibleDepartures(departures, now)}
           keyOf={byVehicle}
           render={departure => (
             <>

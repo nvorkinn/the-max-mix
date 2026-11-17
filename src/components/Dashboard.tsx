@@ -21,15 +21,12 @@ import './dashboard/dashboard.css';
 const PANEL_WIDTH = 1280;
 const PANEL_HEIGHT = 800;
 
-/** The most boards the bottom has room for: three across, two deep. Any more (the owner's last stops) aren't shown. */
-const MAX_BOARDS = 6;
+/** How long a pair of boards shows before the next pair, when the kiosk has more than two stops. */
+export const BOARD_PAGE_MS = 15_000;
 
-/**
- * How the boards share the bottom: up to three side by side with four rows each (one or two take half each, as two
- * always have), and four to six in two lines of two or three, with two rows each.
- */
-function boardsLayout(count: number): { columns: 2 | 3; rows: 2 | 4 } {
-  return { columns: count === 4 || count <= 2 ? 2 : 3, rows: count > 3 ? 2 : 4 };
+/** The boards in pairs, side by side: a page each. */
+function pairs<T>(items: readonly T[]): T[][] {
+  return Array.from({ length: Math.ceil(items.length / 2) }, (_, index) => items.slice(index * 2, index * 2 + 2));
 }
 
 /** What the Dashboard draws; each part has its own props (src/dashboard/props.ts). */
@@ -50,7 +47,7 @@ export interface DashboardProps {
 /**
  * The Dashboard: the photo full screen, the tab bar floating on it, weather and notices on the left (the Tube's status while there
  * are no notices), the hourly forecast
- * top right and a board per Tube station and bus stop along the bottom. It is laid out at 1280×800 and scaled to fit whichever of the
+ * top right and a board per Tube station and bus stop along the bottom, two at a time. It is laid out at 1280×800 and scaled to fit whichever of the
  * space's width or height is tighter, centred, so a smaller panel shows the same layout.
  */
 export default function Dashboard({
@@ -64,8 +61,11 @@ export default function Dashboard({
 }: Readonly<DashboardProps>) {
   const fitRef = useRef<HTMLDivElement>(null);
   const [placement, setPlacement] = useState({ scale: 1, left: 0, top: 0 });
-  const shown = boards.slice(0, MAX_BOARDS);
-  const { columns, rows } = boardsLayout(shown.length);
+  // Two boards at a time; with more, the pairs take turns, moving on with the boards' clock so a hidden Dashboard,
+  // whose clock stops, doesn't turn. Every board stays mounted, so its rows keep following their vehicles.
+  const pages = pairs(boards);
+  const time = boards[0]?.now.getTime() ?? 0;
+  const shownPage = pages.length > 1 ? Math.floor(time / BOARD_PAGE_MS) % pages.length : 0;
 
   useLayoutEffect(() => {
     const element = fitRef.current;
@@ -107,14 +107,24 @@ export default function Dashboard({
             </div>
             <div className="dashboard-stage">
               <div className="dashboard-sky shadowed">{hourly && <HourlyStrip {...hourly} />}</div>
-              <div className="dashboard-departures" data-columns={columns} data-rows={rows}>
-                {shown.map(board =>
-                  board.kind === 'tube' ? (
-                    <TubeBoard key={board.id} {...board} rows={rows} />
-                  ) : (
-                    <BusBoard key={board.id} {...board} rows={rows} />
-                  )
-                )}
+              <div className="dashboard-departures">
+                {pages.map((page, index) => (
+                  <div
+                    // A page is its first board's: the pair keeps its fade when another stop is added or removed.
+                    key={page[0]?.id}
+                    className="dashboard-departures-page"
+                    data-shown={index === shownPage}
+                    inert={index !== shownPage}
+                  >
+                    {page.map(board =>
+                      board.kind === 'tube' ? (
+                        <TubeBoard key={board.id} {...board} />
+                      ) : (
+                        <BusBoard key={board.id} {...board} />
+                      )
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           </main>
