@@ -58,24 +58,30 @@ export function toLineStatus(notices: DeviceNotices | null, now: Date): TubeStat
   return lines.length > 0 ? { lines: lines.map(line => toItem(line, now)) } : null;
 }
 
-/** A row of the Tube status panel: one line, or every line sharing a status. */
+/** A row of the Tube status panel: one line, or every quiet line sharing a status. */
 export interface LineGroup {
+  /** The status for a collapsed row, else the line's id. */
+  key: string;
   status: string;
   health: LineHealth;
   /** In TfL's order. */
   lines: LineStatusItem[];
 }
 
+// Statuses with nothing wrong (Good service, Service closed) collapse into one row each; any other keeps a row per line.
+const QUIET: ReadonlySet<LineHealth> = new Set(['good', 'closed']);
+
 /**
- * The panel's rows: lines that share a status collapse into one row, worst first; among rows as bad as each other, a
- * line on its own comes before a shared status, so the collapsed rows (Good service the last of all) sit at the bottom.
+ * The panel's rows, worst first: a line with something wrong has its own row, and quiet lines sharing a status collapse
+ * into one row, so the collapsed rows (Good service the last of all) sit at the bottom.
  */
 export function groupLines(lines: readonly LineStatusItem[]): LineGroup[] {
   const groups: LineGroup[] = [];
   for (const line of lines) {
-    const group = groups.find(each => each.status === line.status);
+    const key = QUIET.has(line.health) ? line.status : line.id;
+    const group = groups.find(each => each.key === key);
     if (group) group.lines.push(line);
-    else groups.push({ status: line.status, health: line.health, lines: [line] });
+    else groups.push({ key, status: line.status, health: line.health, lines: [line] });
   }
   const shared = (group: LineGroup) => Number(group.lines.length > 1);
   return groups.toSorted(
