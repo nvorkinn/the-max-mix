@@ -2,7 +2,7 @@ import { Check } from 'lucide-react';
 import { SCREEN_SLEEP_CHOICES } from '../../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../../utils/screenSleep';
 
-/** The kiosk's screen sleep delay: off, or minutes from the idle switch to the Dashboard to the screen going dark. */
+/** The kiosk's screen sleep delay: off, or minutes from the Dashboard dimming to the screen going dark. */
 export default function ScreenSleepSettings({
   minutes,
   onChange
@@ -12,7 +12,6 @@ export default function ScreenSleepSettings({
       <h5 className="settings-group-title" id="screen-sleep-label">
         Screen sleep
       </h5>
-      <p className="text-muted">The screen sleeps after this long without a touch, while no music is playing.</p>
       <div className="settings-choices" role="group" aria-labelledby="screen-sleep-label">
         {SCREEN_SLEEP_CHOICES.map(choice => (
           <button

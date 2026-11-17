@@ -4,6 +4,7 @@ import { Check, Info, LayoutGrid, Palette, SlidersHorizontal, TrainFront, Wifi }
 import type { TouchscreenConfig } from 'countdown-api';
 import { isKiosk } from '../utils/kiosk';
 import { reloadSettings } from '../spotify/settings';
+import type { QuietHours } from '../utils/quietHours';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import type { ThemeColour } from '../utils/themeColour';
 import type { Skin, Theme } from '../utils/theme';
@@ -42,6 +43,9 @@ interface SettingsPanelProps {
   /** The kiosk's screen sleep delay, shown on the kiosk only. */
   screenSleep?: ScreenSleepMinutes;
   onScreenSleepChange?: (minutes: ScreenSleepMinutes) => void;
+  /** The kiosk's quiet hours, shown with screen sleep. */
+  quietHours?: QuietHours;
+  onQuietHoursChange?: (hours: QuietHours) => void;
   themeColour?: ThemeColour;
   onThemeColourChange?: (colour: ThemeColour) => void;
   theme?: Theme;
@@ -87,6 +91,8 @@ export default function SettingsPanel({
   onReload = reloadSettings,
   screenSleep,
   onScreenSleepChange,
+  quietHours,
+  onQuietHoursChange,
   themeColour,
   onThemeColourChange,
   theme,
@@ -135,6 +141,8 @@ export default function SettingsPanel({
           onSave={owned ? onDeviceConfigSave : undefined}
           screenSleep={hasSleep ? screenSleep : undefined}
           onScreenSleepChange={hasSleep ? onScreenSleepChange : undefined}
+          quietHours={hasSleep ? quietHours : undefined}
+          onQuietHoursChange={hasSleep ? onQuietHoursChange : undefined}
         />
       );
       break;

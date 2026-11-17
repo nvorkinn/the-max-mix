@@ -297,9 +297,15 @@ device, so change the role, not the device.
 
 The kiosk opens the app with `?kiosk=1` (remembered across the Spotify sign-in redirect; `?kiosk=0` forgets it), which
 adds kiosk-only entries to Settings: **Wi-Fi network** (the Pi's Wi-Fi setup page), the release the Pi runs and whether
-a newer one is out, **Update now** (which opens the update console), **Restart kiosk**, **Reboot Pi** and **Screen sleep** (how long the screen stays on
-without a touch while nothing plays; it always stays on while music plays). These go through the Pi's
+a newer one is out, **Update now** (which opens the update console), **Restart kiosk**, **Reboot Pi**, **Screen sleep** and **Quiet hours**. These go through the Pi's
 [local service](pi/kiosk-audio/README.md).
+
+Left alone with nothing playing, the kiosk switches to the Dashboard after a minute. Five minutes later it dims the
+Dashboard with a half-black layer (the panel has no brightness control), and after the **Screen sleep** time on top of
+that it goes to sleep (**Never** leaves it dimmed). During **Quiet hours** (a start and end time, which may run past
+midnight) the screen sleeps a minute after the last touch, on any tab. Music playing keeps the screen on and bright, in
+quiet hours too, and music starting brings it back. The tap that brightens or wakes the screen presses nothing
+behind it.
 
 When the kiosk finds that a newer release is out (or, for a Pi pinned to a branch, a newer commit), a popup asks whether to
 **Update now** or **Not now**; it asks once for each new version, and not while the screen sleeps or the speakers or debug dialog is open (it does show over Settings). The kiosk asks GitHub when it starts and again every time Settings opens, so

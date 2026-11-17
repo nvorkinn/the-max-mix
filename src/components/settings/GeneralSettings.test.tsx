@@ -5,6 +5,8 @@ import fixture from '../../../vendor/countdown-api/src/countdown_api/fixtures/to
 import search from '../../../vendor/countdown-api/src/countdown_api/fixtures/search.json';
 import * as searches from '../../countdown/search';
 import userEvent from '../../test/user';
+import { DEFAULT_QUIET_HOURS } from '../../utils/quietHours';
+import type { QuietHours } from '../../utils/quietHours';
 import GeneralSettings from './GeneralSettings';
 import { noticeBoardFor } from './NoticeBoardDialog';
 
@@ -145,5 +147,38 @@ describe('noticeBoardFor', () => {
     expect(noticeBoardFor('m1  1ae')).toEqual({ postcode: 'M1 1AE', country: 'GB' });
     expect(noticeBoardFor('015')).toBeNull();
     expect(noticeBoardFor('London')).toBeNull();
+  });
+
+  describe('quiet hours', () => {
+    function setupQuiet(hours: QuietHours = DEFAULT_QUIET_HOURS, config?: TouchscreenConfig) {
+      const onQuietHoursChange = vi.fn();
+      render(<GeneralSettings config={config} quietHours={hours} onQuietHoursChange={onQuietHoursChange} />);
+      return onQuietHoursChange;
+    }
+
+    it('turn on with the times they had', async () => {
+      const onChange = setupQuiet();
+      const group = screen.getByRole('group', { name: 'Quiet hours' });
+      expect(within(group).getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.queryByRole('group', { name: 'From' })).not.toBeInTheDocument();
+      await userEvent.click(within(group).getByRole('button', { name: 'On' }));
+      expect(onChange).toHaveBeenCalledExactlyOnceWith({ on: true, start: 22 * 60, end: 7 * 60 });
+    });
+
+    it('move each end by half an hour, in the tablet time format', async () => {
+      const onChange = setupQuiet({ on: true, start: 22 * 60, end: 7 * 60 }, { ...OWNED, clock_format: '12h' });
+      expect(within(screen.getByRole('group', { name: 'From' })).getByText(/10:00\sPM/)).toBeInTheDocument();
+      expect(within(screen.getByRole('group', { name: 'To' })).getByText(/7:00\sAM/)).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'From later' }));
+      expect(onChange).toHaveBeenLastCalledWith({ on: true, start: 22 * 60 + 30, end: 7 * 60 });
+      await userEvent.click(screen.getByRole('button', { name: 'To earlier' }));
+      expect(onChange).toHaveBeenLastCalledWith({ on: true, start: 22 * 60, end: 6 * 60 + 30 });
+    });
+
+    it('never lets both ends meet', async () => {
+      const onChange = setupQuiet({ on: true, start: 6 * 60 + 30, end: 7 * 60 });
+      await userEvent.click(screen.getByRole('button', { name: 'From later' }));
+      expect(onChange).toHaveBeenLastCalledWith({ on: true, start: 7 * 60 + 30, end: 7 * 60 });
+    });
   });
 });

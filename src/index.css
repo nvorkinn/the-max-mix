@@ -2010,6 +2010,47 @@ body:has(.app-dialog[open]) {
 .settings-choice svg {
   color: var(--accent);
 }
+.quiet-hours {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.quiet-hours-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface-raised);
+}
+.quiet-hours-label {
+  min-width: 2.5em;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 650;
+}
+.quiet-hours-value {
+  flex: 1;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.settings-panel .quiet-hours-step {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.quiet-hours-step:active {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+}
 .settings-wide-button {
   width: 100%;
   padding: 0 20px;
@@ -2741,5 +2782,22 @@ input:disabled {
   height: 100%;
   border: 0;
   padding: 0;
-  background: #000;
+  background: transparent;
+}
+/* Dimmed: half black over the page, faded in; going on to sleep turns it fully black. */
+.sleep-screen,
+.sleep-screen::backdrop {
+  transition: background 600ms;
+}
+.sleep-screen-dimmed {
+  background: rgb(0 0 0 / 50%);
+  animation: sleep-screen-dim 1s ease-out;
+}
+.sleep-screen-dimmed::backdrop {
+  background: transparent;
+}
+@keyframes sleep-screen-dim {
+  from {
+    background: transparent;
+  }
 }
