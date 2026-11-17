@@ -24,5 +24,5 @@ export function useLiveDashboard(
   const props = useMemo(() => dashboardProps(snapshot, new Date(time), clockFormat), [snapshot, time, clockFormat]);
   // Before the new day's first photo is due, yesterday's last one stays rather than the app's own.
   const backdrop = useLastKnown(props.backdrop);
-  return backdrop === props.backdrop ? props : { ...props, backdrop };
+  return backdrop === (props.backdrop ?? null) ? props : { ...props, backdrop };
 }

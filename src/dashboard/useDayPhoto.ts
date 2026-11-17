@@ -7,7 +7,7 @@ import { liveDashboard } from './live';
 import type { LiveDashboard } from './live';
 
 /** The latest of `value` that wasn't null: before the new day's first photo is due, yesterday's last one stays. */
-export function useLastKnown(value: string | null): string | null {
+export function useLastKnown(value: string | null | undefined): string | null {
   const lastRef = useRef<string | null>(null);
   if (value) lastRef.current = value;
   return value ?? lastRef.current;
