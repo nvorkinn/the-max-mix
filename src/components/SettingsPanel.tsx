@@ -48,6 +48,9 @@ interface SettingsPanelProps {
   onQuietHoursChange?: (hours: QuietHours) => void;
   themeColour?: ThemeColour;
   onThemeColourChange?: (colour: ThemeColour) => void;
+  /** Whether the colours follow the album art while music plays. */
+  dynamicColour?: boolean;
+  onDynamicColourChange?: (on: boolean) => void;
   theme?: Theme;
   /** Whether Auto (sunrise to sunset) is offered: only when the kiosk knows its location. */
   autoTheme?: boolean;
@@ -95,6 +98,8 @@ export default function SettingsPanel({
   onQuietHoursChange,
   themeColour,
   onThemeColourChange,
+  dynamicColour,
+  onDynamicColourChange,
   theme,
   autoTheme = false,
   onThemeChange,
@@ -162,6 +167,8 @@ export default function SettingsPanel({
           skin={skin}
           themeColour={themeColour}
           onThemeColourChange={onThemeColourChange}
+          dynamicColour={dynamicColour}
+          onDynamicColourChange={onDynamicColourChange}
         />
       );
       break;
@@ -188,6 +195,7 @@ export default function SettingsPanel({
           deviceConfig={owned ? deviceConfig : undefined}
           theme={theme}
           themeColour={themeColour}
+          dynamicColour={dynamicColour}
           screenSleep={hasSleep ? screenSleep : undefined}
           wifi={wifi}
           authenticated={authenticated}

@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { dynamicPalette, loadThemeColour, saveThemeColour } from './themeColour';
+import {
+  basePalette,
+  dynamicPalette,
+  isOldDynamic,
+  loadDynamicColour,
+  loadThemeColour,
+  saveDynamicColour,
+  saveThemeColour,
+  toThemeColour
+} from './themeColour';
 
 describe('theme colour setting', () => {
   beforeEach(() => localStorage.clear());
@@ -32,9 +41,66 @@ describe('theme colour setting', () => {
     expect(() => saveThemeColour('navy')).not.toThrow();
   });
 
-  it('remembers Dynamic', () => {
-    saveThemeColour('dynamic');
-    expect(loadThemeColour()).toBe('dynamic');
+  it('reads the old Dynamic colour from the server as the default colour', () => {
+    expect(toThemeColour('dynamic')).toBe('forest');
+    expect(isOldDynamic('dynamic')).toBe(true);
+    expect(toThemeColour('teal')).toBe('teal');
+    expect(isOldDynamic('teal')).toBe(false);
+  });
+});
+
+describe('Dynamic setting', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => vi.restoreAllMocks());
+
+  it('is off by default', () => {
+    expect(loadDynamicColour()).toBe(false);
+  });
+
+  it('remembers on and off', () => {
+    saveDynamicColour(true);
+    expect(loadDynamicColour()).toBe(true);
+    saveDynamicColour(false);
+    expect(loadDynamicColour()).toBe(false);
+    expect(localStorage.getItem('maxmix.dynamicColour')).toBeNull();
+  });
+
+  it('turns on for someone who had picked the old Dynamic colour, over the default colour', () => {
+    localStorage.setItem('maxmix.themeColour', 'dynamic');
+    expect(loadDynamicColour()).toBe(true);
+    expect(loadThemeColour()).toBe('forest');
+    expect(localStorage.getItem('maxmix.themeColour')).toBeNull();
+    expect(localStorage.getItem('maxmix.dynamicColour')).toBe('on');
+  });
+
+  it('tolerates unavailable storage', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(loadDynamicColour()).toBe(false);
+    expect(() => saveDynamicColour(true)).not.toThrow();
+  });
+
+  it('keeps a colour picked alongside it', () => {
+    saveThemeColour('navy');
+    saveDynamicColour(true);
+    expect(loadDynamicColour()).toBe(true);
+    expect(loadThemeColour()).toBe('navy');
+  });
+});
+
+describe('basePalette', () => {
+  it("is the chosen colour's own, with a flat play button", () => {
+    expect(basePalette('yellow')).toEqual({
+      '--dynamic-accent': '#a67c00',
+      '--dynamic-ink': '#3a3010',
+      '--dynamic-from': '#a67c00',
+      '--dynamic-to': '#a67c00',
+      '--dynamic-accent-ink': '#1f1a05'
+    });
   });
 });
 

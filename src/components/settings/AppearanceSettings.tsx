@@ -61,14 +61,42 @@ function ColourChoice({
             onClick={() => onChange(choice.id)}
             disabled={disabled}
             className="colour-swatch rounded-full"
-            style={
-              {
-                '--swatch': choice.swatch,
-                '--swatch-ring': 'ring' in choice ? choice.ring : choice.swatch
-              } as CSSProperties
-            }
+            style={{ '--swatch': choice.swatch } as CSSProperties}
           >
             {colour === choice.id && <Check className="colour-swatch-tick" aria-hidden="true" />}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Dynamic: while music plays, the colours follow the album art, and fade back to the colour above once it stops. Night
+    has its own fixed colours, so it is greyed out there too. */
+function DynamicChoice({
+  on,
+  onChange,
+  disabled
+}: Readonly<{ on: boolean; onChange: (on: boolean) => void; disabled: boolean }>) {
+  return (
+    <section className="settings-group">
+      <h5 className="settings-group-title" id="dynamic-colour-label">
+        Dynamic
+      </h5>
+      <div className="settings-segmented" role="group" aria-labelledby="dynamic-colour-label">
+        {[
+          { value: false, label: 'Off' },
+          { value: true, label: 'On' }
+        ].map(choice => (
+          <button
+            type="button"
+            key={choice.label}
+            aria-pressed={on === choice.value}
+            onClick={() => onChange(choice.value)}
+            disabled={disabled}
+            className="settings-segment"
+          >
+            {choice.label}
           </button>
         ))}
       </div>
@@ -82,7 +110,9 @@ export default function AppearanceSettings({
   onThemeChange,
   skin,
   themeColour,
-  onThemeColourChange
+  onThemeColourChange,
+  dynamicColour,
+  onDynamicColourChange
 }: Readonly<{
   theme: Theme | undefined;
   autoTheme: boolean;
@@ -91,12 +121,18 @@ export default function AppearanceSettings({
   skin?: Skin | undefined;
   themeColour: ThemeColour | undefined;
   onThemeColourChange: ((colour: ThemeColour) => void) | undefined;
+  dynamicColour?: boolean | undefined;
+  onDynamicColourChange?: ((on: boolean) => void) | undefined;
 }>) {
+  const night = (skin ?? theme) === 'night';
   return (
     <div className="settings-stack">
       {theme !== undefined && onThemeChange && <ThemeChoice theme={theme} auto={autoTheme} onChange={onThemeChange} />}
       {themeColour !== undefined && onThemeColourChange && (
-        <ColourChoice colour={themeColour} onChange={onThemeColourChange} disabled={(skin ?? theme) === 'night'} />
+        <ColourChoice colour={themeColour} onChange={onThemeColourChange} disabled={night} />
+      )}
+      {dynamicColour !== undefined && onDynamicColourChange && (
+        <DynamicChoice on={dynamicColour} onChange={onDynamicColourChange} disabled={night} />
       )}
     </div>
   );

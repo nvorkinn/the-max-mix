@@ -176,9 +176,9 @@
   --ink: #3a3010;
 }
 /*
-  Dynamic follows the album art: TabletView sets these colours from the cover's two dominant colours
-  (dynamicPalette in src/utils/themeColour.ts). Registered as colours so they cross-fade with the song, and their
-  initial values are Forest's, which shows while there is no art.
+  Dynamic, when it is on, follows the album art: TabletView sets these colours from the cover's two dominant colours
+  while music plays (dynamicPalette in src/utils/themeColour.ts), and from the chosen colour once the music has stopped
+  for a while (basePalette). Registered as colours so they cross-fade, with Forest's as their initial values.
 */
 @property --dynamic-accent {
   syntax: '<color>';
@@ -211,7 +211,7 @@
   --play-fill: var(--accent);
 }
 /* After the rule above: the play button runs a gradient between the cover's two colours, as Night's runs pink to violet. */
-.tablet-container[data-colour='dynamic'] {
+.tablet-container[data-dynamic] {
   --accent: var(--dynamic-accent);
   --accent-ink: var(--dynamic-accent-ink);
   --ink: var(--dynamic-ink);
@@ -1604,7 +1604,7 @@ body:has(.app-dialog[open]) {
 .colour-swatch[aria-pressed='true'] {
   box-shadow:
     0 0 0 3px var(--surface),
-    0 0 0 5px var(--swatch-ring);
+    0 0 0 5px var(--swatch);
 }
 .status-success {
   color: var(--success);
@@ -1895,7 +1895,7 @@ body:has(.app-dialog[open]) {
   color: var(--accent-ink);
   font-weight: 750;
 }
-/* Nine 60px swatches fit one row on the 7" screen with this gap. */
+/* Eight 60px swatches fit one row on the 7" screen with this gap. */
 .settings-swatches {
   display: flex;
   flex-wrap: wrap;

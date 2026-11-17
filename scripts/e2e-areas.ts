@@ -24,7 +24,8 @@ export const AREAS: Area[] = [
       /^src\/spotify\/songProof/,
       /^src\/hooks\/use(Spotify|Sonos)Player/,
       /^src\/spotify\/api\.ts$/,
-      /^src\/utils\/colorExtractor\.ts$/
+      /^src\/utils\/colorExtractor\.ts$/,
+      /^src\/hooks\/useLingers/
     ]
   },
   {

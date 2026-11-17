@@ -497,6 +497,30 @@ describe('TabletView', () => {
     localStorage.removeItem('maxmix.themeColour');
   });
 
+  it('turns Dynamic on over the picked colour, and off again', async () => {
+    setPlayer({ isAuthenticated: false, isReady: false, playbackState: null });
+    const { container } = renderOnSpotifyTab(<TabletView />);
+    await flush();
+    const room = defined(container.querySelector('.tablet-container'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Appearance' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Navy' }));
+    const dynamic = within(screen.getByRole('group', { name: 'Dynamic' }));
+    fireEvent.click(dynamic.getByRole('button', { name: 'On' }));
+    expect(room).toHaveAttribute('data-dynamic');
+    expect(room).toHaveAttribute('data-colour', 'navy');
+    // Nothing plays, so Dynamic shows the picked colour.
+    expect(room).toHaveStyle({ '--dynamic-accent': '#1f3a5f' });
+    expect(localStorage.getItem('maxmix.dynamicColour')).toBe('on');
+
+    fireEvent.click(dynamic.getByRole('button', { name: 'Off' }));
+    expect(room).not.toHaveAttribute('data-dynamic');
+    expect(localStorage.getItem('maxmix.dynamicColour')).toBeNull();
+    localStorage.removeItem('maxmix.themeColour');
+  });
+
   describe("once someone owns the kiosk, countdown-server's config", () => {
     const OWNED = { ...fixture.config, style: { skin: 'day', colour: 'teal' } } as TouchscreenConfig;
 
@@ -530,6 +554,49 @@ describe('TabletView', () => {
       expect(screen.getByText('Saved')).toBeInTheDocument();
       expect(localStorage.getItem('maxmix.theme')).toBe('night');
       vi.restoreAllMocks();
+    });
+
+    describe('saying the old Dynamic colour', () => {
+      const OLD_DYNAMIC = { ...OWNED, style: { skin: 'day', colour: 'dynamic' } } as TouchscreenConfig;
+
+      async function renderOwned() {
+        vi.spyOn(deviceConfig, 'loadDeviceConfig').mockResolvedValue(OLD_DYNAMIC);
+        const save = vi
+          .spyOn(deviceConfig, 'saveConfigSection')
+          .mockImplementation((section, value) => Promise.resolve({ saved: { ...OLD_DYNAMIC, [section]: value } }));
+        const { container } = renderOnSpotifyTab(<TabletView />);
+        await flush();
+        return { room: defined(container.querySelector('.tablet-container')), save };
+      }
+
+      it('shows Forest with Dynamic on, and a colour picked keeps Dynamic on', async () => {
+        const { room, save } = await renderOwned();
+        expect(room).toHaveAttribute('data-colour', 'forest');
+        expect(room).toHaveAttribute('data-dynamic');
+        expect(localStorage.getItem('maxmix.dynamicColour')).toBe('on');
+
+        vi.useFakeTimers();
+        openAppearance();
+        fireEvent.click(screen.getByRole('button', { name: 'Navy' }));
+        await act(() => vi.advanceTimersByTimeAsync(500));
+        expect(save.mock.calls[0]).toEqual(['style', { skin: 'day', colour: 'navy' }]);
+        expect(room).toHaveAttribute('data-colour', 'navy');
+        expect(room).toHaveAttribute('data-dynamic');
+        vi.restoreAllMocks();
+        localStorage.clear();
+      });
+
+      it('turned off, saves the default colour there', async () => {
+        const { room, save } = await renderOwned();
+        vi.useFakeTimers();
+        openAppearance();
+        fireEvent.click(within(screen.getByRole('group', { name: 'Dynamic' })).getByRole('button', { name: 'Off' }));
+        await act(() => vi.advanceTimersByTimeAsync(500));
+        expect(save.mock.calls[0]).toEqual(['style', { skin: 'day', colour: 'forest' }]);
+        expect(room).not.toHaveAttribute('data-dynamic');
+        vi.restoreAllMocks();
+        localStorage.clear();
+      });
     });
 
     it('puts a change back when it does not save', async () => {
