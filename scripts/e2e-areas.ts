@@ -115,7 +115,8 @@ export const AREAS: Area[] = [
       /^src\/components\/Sleep(Screen|Icon)/,
       /^src\/hooks\/useScreenSleep/,
       /^src\/hooks\/useIdle/,
-      /^src\/utils\/screenSleep/
+      /^src\/utils\/screenSleep/,
+      /^src\/utils\/quietHours/
     ]
   },
   {
