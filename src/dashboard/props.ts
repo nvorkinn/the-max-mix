@@ -20,6 +20,12 @@ export interface TabBarProps {
   /** For the clock, which the bar formats in `clockFormat`. */
   now: Date;
   clockFormat: '12h' | '24h';
+  /** The Settings tab's extras. Puts the screen to sleep; null or absent hides the button. */
+  onSleep?: (() => void) | null;
+  /** Makes the person's picture open the person switcher, which calls this with whoever is picked. */
+  onSwitchPerson?: ((spotifyId: string) => void) | null;
+  /** Called once the clock has been held for two seconds (the debug console). */
+  onClockHold?: (() => void) | null;
 }
 
 /** @public The kinds of weather drawn, each with its own icon (by day and by night where they differ). */
@@ -136,7 +142,7 @@ export interface BusDeparture extends DepartureBase {
 
 /** What both boards take. */
 interface BoardProps<D> {
-  /** The stop as the board heads it ("Elephant & Castle"). */
+  /** The stop, which heads the board ("Elephant & Castle"). */
   stopName: string;
   /** Soonest first. The board shows the first four; the rest are waiting to move up. */
   departures: D[];
@@ -149,7 +155,10 @@ interface BoardProps<D> {
 export type TubeBoardProps = BoardProps<TubeDeparture>;
 
 /** @public */
-export type BusBoardProps = BoardProps<BusDeparture>;
+export interface BusBoardProps extends BoardProps<BusDeparture> {
+  /** The letter on the stop's flag ("E"), shown by its name; null for a stop without one, or a hub of several stops. */
+  stopLetter: string | null;
+}
 
 /**
  * @public How a line is running, which picks its status's colour: severe red (closures, suspensions, severe delays),

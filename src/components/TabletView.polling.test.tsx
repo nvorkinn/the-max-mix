@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { defined } from '../test/defined';
 import { renderOnSpotifyTab } from '../test/onSpotifyTab';
 import TabletView from './TabletView';
@@ -39,8 +39,8 @@ describe('TabletView', () => {
 
   it('shows the clock on the first render', () => {
     state.player = player();
-    const { container } = renderOnSpotifyTab(<TabletView />);
-    expect(defined(container.querySelector(':scope .spotify-bar .dashboard-clock')).textContent.trim()).toMatch(/\d/);
+    const { container } = render(<TabletView />);
+    expect(defined(container.querySelector(':scope .floating-bar .dashboard-clock')).textContent.trim()).toMatch(/\d/);
   });
 
   it('does not poll the queue while signed out', () => {

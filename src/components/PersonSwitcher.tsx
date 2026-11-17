@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { PEOPLE_LIMIT, peopleOnKiosk } from '../spotify/auth';
 import { samePhone, useSavedPhones } from '../hooks/useSavedPhones';
 import Modal from './Modal';
@@ -6,11 +7,15 @@ import PersonFace from './PersonFace';
 import SongProof from './SongProof';
 
 /**
- * The active person's picture in the banner. Tapping it shows everyone's face, and tapping one switches to them
+ * The active person's picture (`children`) in the tab bar, as a button styled by `className`. Tapping it shows everyone's face, and tapping one switches to them
  * (`onSwitch`; the active person too, which starts their session again, so the check can be tried with one account). Someone whose linked phone the Pi does not hear is greyed out: tapping them shows a random song to play
  * on their phone instead (SongProof), and the switch follows once it plays on their account.
  */
-export default function PersonSwitcher({ onSwitch }: Readonly<{ onSwitch: (spotifyId: string) => void }>) {
+export default function PersonSwitcher({
+  onSwitch,
+  className,
+  children
+}: Readonly<{ onSwitch: (spotifyId: string) => void; className: string; children: ReactNode }>) {
   const [isOpen, setIsOpen] = useState(false);
   // Whose song is showing, or null for the faces.
   const [proving, setProving] = useState<string | null>(null);
@@ -25,12 +30,12 @@ export default function PersonSwitcher({ onSwitch }: Readonly<{ onSwitch: (spoti
     <>
       <button
         type="button"
-        className="icon-button person-button"
+        className={className}
         onClick={() => setIsOpen(true)}
         title={active.name}
         aria-label={`${active.name}: switch person`}
       >
-        <PersonFace name={active.name} imageUrl={active.imageUrl} className="person-face-banner" />
+        {children}
       </button>
       {isOpen && (
         <Modal

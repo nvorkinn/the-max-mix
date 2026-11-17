@@ -201,6 +201,8 @@ export const SAMPLE = {
 
   bus: {
     stopName: 'Elephant & Castle',
+    // A hub of several stops, each departure with its own stop's letter.
+    stopLetter: null,
     departures: [
       { vehicleId: 'LJ17WRK', route: '12', destination: 'Oxford Circus', stopLetter: 'E', expectedAt: minutesOn(2) },
       { vehicleId: 'LX58CWK', route: '343', destination: 'New Cross', stopLetter: 'F', expectedAt: minutesOn(6) },

@@ -391,9 +391,9 @@ describe('TabletView', () => {
   it('shows the clock in 24-hour time', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 0, 1, 16, 46));
-    renderOnSpotifyTab(<TabletView />);
-    expect(document.querySelector('.spotify-bar .dashboard-clock')).toHaveTextContent(/^\s*16:46\s*$/);
-    expect(document.querySelector('.spotify-bar .dashboard-clock')).not.toHaveTextContent(/AM|PM/i);
+    render(<TabletView />);
+    expect(document.querySelector('.floating-bar .dashboard-clock')).toHaveTextContent(/^\s*16:46\s*$/);
+    expect(document.querySelector('.floating-bar .dashboard-clock')).not.toHaveTextContent(/AM|PM/i);
   });
 
   it('shows the playing device and loads the queue', async () => {
@@ -624,9 +624,9 @@ describe('TabletView', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    // The Settings tab's header clock; the bar floating on the Spotify tab has no hold.
+    // The clock in the Settings tab's bar; the bars on the Spotify and Dashboard tabs have no hold.
     showSettingsTab();
-    const clock = defined(document.querySelector('.header-clock'));
+    const clock = defined(document.querySelector('#app-tab-settings .dashboard-clock'));
     fireEvent.pointerDown(clock, { button: 0 });
     act(() => {
       vi.advanceTimersByTime(500);
@@ -1221,6 +1221,6 @@ describe('TabletView', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(defined(document.querySelector('.spotify-bar .dashboard-clock'))).toHaveTextContent(/9:05|09:05/);
+    expect(defined(document.querySelector('.floating-bar .dashboard-clock'))).toHaveTextContent(/9:05|09:05/);
   });
 });
