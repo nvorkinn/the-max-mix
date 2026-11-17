@@ -11,7 +11,7 @@ export default function BusBoard({ stopName, stopLetter, departures, now, stale 
   return (
     <section className="dashboard-board" aria-labelledby={labelledBy}>
       <div className="dashboard-board-head">
-        <span id={`${id}-mode`} className="dashboard-bus-mark" role="img" aria-label="Buses">
+        <span id={`${id}-mode`} className="dashboard-mode-mark" role="img" aria-label="Buses">
           <Bus className="lucide" aria-hidden="true" />
         </span>
         <h2 id={`${id}-stop`}>{stopName}</h2>

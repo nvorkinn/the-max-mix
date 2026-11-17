@@ -46,6 +46,8 @@ describe('toBoards', () => {
       ['bus', 'bus:490000123W', 'Elephant & Castle'],
       ['tube', 'tube:NSR:StopPlace:58381', 'Majorstuen']
     ]);
+    // Only TfL's station gets the roundel.
+    expect(boards.map(board => (board.kind === 'tube' ? board.tfl : null))).toEqual([true, null, false]);
     expect(boards[1]).toEqual({
       kind: 'bus',
       id: 'bus:490000123W',

@@ -145,6 +145,7 @@ export const SAMPLE = {
 
   tube: {
     stopName: 'Elephant & Castle',
+    tfl: true,
     departures: [
       {
         vehicleId: '012',

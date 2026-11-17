@@ -70,6 +70,15 @@ describe('TubeBoard', () => {
     render(<TubeBoard {...SAMPLE.tube} departures={[{ ...first, lineId: 'tram', lineName: 'Tram' }]} stale />);
     expect(screen.getByText('Tram')).toBeInTheDocument();
   });
+
+  it('carries the TfL roundel only for a TfL station, and a plain train elsewhere', () => {
+    const { unmount } = render(<TubeBoard {...SAMPLE.tube} />);
+    expect(screen.getByRole('region', { name: 'Tube Elephant & Castle' })).toBeInTheDocument();
+    unmount();
+    render(<TubeBoard {...SAMPLE.tube} stopName="Majorstuen" tfl={false} />);
+    expect(screen.getByRole('region', { name: 'Trains Majorstuen' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Tube' })).not.toBeInTheDocument();
+  });
 });
 
 describe('NoticeBoard', () => {

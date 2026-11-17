@@ -152,7 +152,10 @@ interface BoardProps<D> {
 }
 
 /** @public */
-export type TubeBoardProps = BoardProps<TubeDeparture>;
+export interface TubeBoardProps extends BoardProps<TubeDeparture> {
+  /** A TfL station, headed by the roundel; another network's (Entur's) is headed by a plain train. */
+  tfl: boolean;
+}
 
 /** @public */
 export interface BusBoardProps extends BoardProps<BusDeparture> {
