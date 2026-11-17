@@ -16,12 +16,25 @@ import {
   Recycle,
   Sun,
   TrainFront,
-  TriangleAlert
+  TriangleAlert,
+  createLucideIcon
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { NoticeKind, Sky } from '../../dashboard/props';
 
 /** The icon for each kind of weather, by day and by night. */
+/**
+ * A train side-on on its rail, drawn like lucide's side-on Bus (lucide's own Train is front-on): heads a station that
+ * isn't TfL's, where the roundel would be wrong.
+ */
+export const SideTrain = createLucideIcon('side-train', [
+  ['path', { d: 'M3 17h16.5a2 2 0 0 0 1.9-2.6l-1.2-3.8A6.5 6.5 0 0 0 14 6H5a2 2 0 0 0-2 2z', key: 'body' }],
+  ['path', { d: 'M3 11h17.4', key: 'windows' }],
+  ['path', { d: 'M8 6v5', key: 'pillar-1' }],
+  ['path', { d: 'M13 6v5', key: 'pillar-2' }],
+  ['path', { d: 'M2 21h20', key: 'rail' }]
+]);
+
 export const SKY_ICONS: Record<Sky, { day: LucideIcon; night: LucideIcon }> = {
   clear: { day: Sun, night: Moon },
   'partly-cloudy': { day: CloudSun, night: CloudMoon },

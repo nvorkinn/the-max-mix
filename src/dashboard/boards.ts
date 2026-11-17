@@ -1,9 +1,10 @@
 // The departure boards' props (props.ts) from countdown-server's arrivals (countdown-api's DeviceArrivals): one board
 // per stop, in the owner's order. A stop's buses go on a Bus board and its other departures (Tube, and Entur's metro,
-// tram and rail) on a Tube board, so a stop serving both (Entur's) has one of each. Each board is soonest first, each
-// row keyed by its vehicle so it follows its bus or train when predictions reorder.
+// tram and rail) on a Tube board, so a stop serving both (Entur's) has one of each; only a TfL station's Tube board
+// carries the roundel. Each board is soonest first, each row keyed by its vehicle so it follows its bus or train when
+// predictions reorder.
 
-import type { DeviceArrivals, StopDepartures } from 'countdown-api';
+import type { DeviceArrivals, StopArrivals, StopDepartures } from 'countdown-api';
 import { placeName } from './arrivals';
 import type { BusDeparture, TubeDeparture } from './props';
 
@@ -21,7 +22,7 @@ interface BoardBase {
 }
 
 export type Board =
-  | (BoardBase & { kind: 'tube'; departures: TubeDeparture[] })
+  | (BoardBase & { kind: 'tube'; tfl: boolean; departures: TubeDeparture[] })
   | (BoardBase & { kind: 'bus'; stopLetter: string | null; departures: BusDeparture[] });
 
 /** TfL's line id for a line's name, which picks its colour: "Hammersmith & City" is hammersmith-city. */
@@ -80,7 +81,7 @@ function busBoard(stop: StopDepartures, departures: readonly Departure[]): Board
   };
 }
 
-function tubeBoard(stop: StopDepartures, departures: readonly Departure[]): Board {
+function tubeBoard(source: StopArrivals['source'], stop: StopDepartures, departures: readonly Departure[]): Board {
   const sorted = departures.filter(departure => !isBus(stop, departure)).toSorted(soonestFirst);
   const ids = vehicleIds(stop, sorted);
   return {
@@ -88,6 +89,7 @@ function tubeBoard(stop: StopDepartures, departures: readonly Departure[]): Boar
     id: `tube:${stop.stop_id}`,
     stopId: stop.stop_id,
     stopName: placeName(stop.name),
+    tfl: source === 'tfl',
     departures: sorted.map((departure, index) => ({
       vehicleId: ids[index] ?? '',
       lineId: lineIdOf(departure.line),
@@ -102,14 +104,14 @@ function tubeBoard(stop: StopDepartures, departures: readonly Departure[]): Boar
 /** The boards for `answer` at `now`, in the owner's order: none for a stop the server has no departures for yet. */
 export function toBoards(answer: DeviceArrivals | null, now: Date): Board[] {
   const gone = now.getTime() - GONE_AFTER_MS;
-  return (answer?.stops ?? []).flatMap(({ departures: stop }) => {
+  return (answer?.stops ?? []).flatMap(({ source, departures: stop }) => {
     if (!stop) return [];
     const departures = stop.departures.filter(departure => Date.parse(departure.expected_at) >= gone);
     const servesBus = stop.mode === 'bus' || stop.modes.includes('bus');
     const servesOther = stop.mode !== 'bus' || stop.modes.some(mode => mode !== 'bus');
     const boards = [
       ...(servesBus ? [busBoard(stop, departures)] : []),
-      ...(servesOther ? [tubeBoard(stop, departures)] : [])
+      ...(servesOther ? [tubeBoard(source, stop, departures)] : [])
     ];
     // The stop's main mode first.
     return stop.mode === 'bus' ? boards : boards.toReversed();

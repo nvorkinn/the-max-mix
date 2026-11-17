@@ -55,3 +55,34 @@ for (const screen of SCREENS) {
     );
   }
 }
+
+/** A Tube station and an Entur station (Oslo's metro), read at NOW. */
+function londonAndOslo() {
+  const answer = stationsAt(NOW, 2);
+  const [first, second] = answer.stops;
+  if (!first || !second) throw new Error('too few stops');
+  return {
+    stops: [
+      first,
+      {
+        ...second,
+        source: 'entur',
+        departures: { ...second.departures, name: 'Majorstuen', mode: 'metro', modes: ['metro'] }
+      }
+    ]
+  };
+}
+
+for (const screen of SCREENS) {
+  test(
+    `only a TfL station carries the roundel at ${screen.width}x${screen.height}`,
+    { tag: '@layout' },
+    async ({ page }) => {
+      await showDashboard(page, screen, { arrivals: londonAndOslo }, 8);
+      await expect(page.getByRole('region', { name: 'Tube Elephant & Castle' })).toBeVisible();
+      const oslo = page.getByRole('region', { name: 'Trains Majorstuen' });
+      await expect(oslo).toBeVisible();
+      await expect(oslo.getByRole('img', { name: 'Tube' })).toHaveCount(0);
+    }
+  );
+}

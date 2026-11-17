@@ -713,13 +713,13 @@ button.dashboard-notice {
   height: auto;
   flex-shrink: 0;
 }
-.dashboard-bus-mark {
+.dashboard-mode-mark {
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
 /* A bus side on, drawn straight on the photo like the words. */
-.dashboard .dashboard-bus-mark svg.lucide {
+.dashboard .dashboard-mode-mark svg.lucide {
   width: 36px;
   height: 36px;
 }
