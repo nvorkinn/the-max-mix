@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SAMPLE, SAMPLE_NOW, sampleDashboard } from '../dashboard/sample';
 import type { DepartureBoardProps } from '../dashboard/props';
-import Dashboard, { BOARD_PAGE_MS } from './Dashboard';
+import Dashboard, { BOARD_TURN_MS, boardSlot } from './Dashboard';
 
 const tabBar = { ...SAMPLE.tabBar, onSelect: vi.fn(), onSearch: vi.fn() };
 const show = (now = SAMPLE_NOW, noticeCount = 6) =>
@@ -114,45 +114,53 @@ describe('Dashboard', () => {
     expect(document.querySelector('.dashboard-departures')).toBeInTheDocument();
   });
 
-  it('shows the boards two at a time, the next pair every 15 seconds, the hidden ones still mounted', () => {
+  it('shows the boards two at a time, moving along by one every 15 seconds, the hidden ones still mounted', () => {
     const [tube, bus] = sampleDashboard(SAMPLE_NOW, '24h').boards as [DepartureBoardProps, DepartureBoardProps];
     const station = (id: string, stopName: string): DepartureBoardProps => ({ ...tube, id, stopName });
-    const at = (now: Date) => (
-      <Dashboard
-        tabBar={tabBar}
-        {...sampleDashboard(now, '24h')}
-        boards={[tube, station('tube:b', 'Kennington'), bus].map(board => ({ ...board, now }))}
-      />
-    );
-    const shown = () =>
-      [...document.querySelectorAll('.dashboard-departures-page[data-shown="true"] .dashboard-board-stop')].map(stop =>
-        stop.textContent.trim()
+    const start = Math.ceil(SAMPLE_NOW.getTime() / (3 * BOARD_TURN_MS)) * 3 * BOARD_TURN_MS;
+    const at = (ms: number) => {
+      const now = new Date(start + ms);
+      return (
+        <Dashboard
+          tabBar={tabBar}
+          {...sampleDashboard(now, '24h')}
+          boards={[tube, station('tube:b', 'Kennington'), bus].map(board => ({ ...board, now }))}
+        />
       );
-    const later = (ms: number) => new Date(SAMPLE_NOW.getTime() + ms);
+    };
+    const shown = () =>
+      ['[data-slot="0"]', '[data-slot="1"]'].map(slot =>
+        document.querySelector(`${slot} .dashboard-board-stop`)?.textContent.trim()
+      );
 
-    const { rerender } = render(at(SAMPLE_NOW));
-    expect(document.querySelectorAll('.dashboard-departures-page')).toHaveLength(2);
+    const { rerender } = render(at(0));
     expect(document.querySelectorAll('.dashboard-board')).toHaveLength(3);
-    const first = shown();
-    expect(first.length).toBeGreaterThan(0);
+    expect(shown()).toEqual(['Elephant & Castle', 'Kennington']);
 
-    rerender(at(later(BOARD_PAGE_MS)));
-    const second = shown();
-    expect(second).not.toEqual(first);
-    expect([...first, ...second].toSorted((a, b) => a.localeCompare(b))).toEqual([
-      'Elephant & Castle',
-      'Elephant & Castle',
-      'Kennington'
-    ]);
-    // The hidden pair can't be tapped or read out.
-    expect(document.querySelector('.dashboard-departures-page[data-shown="false"]')).toHaveAttribute('inert');
+    // The left one leaves, the right one moves over and the bus stop comes in.
+    rerender(at(BOARD_TURN_MS));
+    expect(shown()).toEqual(['Kennington', 'Elephant & Castle']);
+    expect(document.querySelector('[data-slot="-1"]')).toHaveTextContent(/Tube/);
+    expect(document.querySelector('[data-slot="-1"]')).toHaveAttribute('inert');
 
-    rerender(at(later(2 * BOARD_PAGE_MS)));
-    expect(shown()).toEqual(first);
+    rerender(at(2 * BOARD_TURN_MS));
+    expect(shown()).toEqual(['Elephant & Castle', 'Elephant & Castle']);
+    rerender(at(3 * BOARD_TURN_MS));
+    expect(shown()).toEqual(['Elephant & Castle', 'Kennington']);
+  });
+
+  it('slides one board out and one in a turn, the one that left waiting off to the right until its turn', () => {
+    // Four boards: the turn takes board 0 out to the left and brings board 2 in.
+    expect([0, 1, 2, 3].map(index => boardSlot(index, 4, 5000))).toEqual([0, 1, 2, 2]);
+    expect([0, 1, 2, 3].map(index => boardSlot(index, 4, BOARD_TURN_MS))).toEqual([-1, 0, 1, 2]);
+    expect([0, 1, 2, 3].map(index => boardSlot(index, 4, BOARD_TURN_MS + 5000))).toEqual([2, 0, 1, 2]);
+    expect([0, 1, 2, 3].map(index => boardSlot(index, 4, 4 * BOARD_TURN_MS + 5000))).toEqual([0, 1, 2, 2]);
+    // Two or fewer stay put.
+    expect([0, 1].map(index => boardSlot(index, 2, BOARD_TURN_MS))).toEqual([0, 1]);
   });
 
   it("doesn't turn with two boards or fewer", () => {
     render(<Dashboard tabBar={tabBar} {...sampleDashboard(SAMPLE_NOW, '24h')} />);
-    expect(document.querySelectorAll('.dashboard-departures-page[data-shown="true"] .dashboard-board')).toHaveLength(2);
+    expect(document.querySelectorAll('.dashboard-departures-slot:not([inert]) .dashboard-board')).toHaveLength(2);
   });
 });

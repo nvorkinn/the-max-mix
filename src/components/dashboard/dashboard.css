@@ -602,22 +602,36 @@ button.dashboard-notice {
   position: relative;
   height: 360px;
   flex-shrink: 0;
-  display: grid;
-  /* The pages of boards stack in one cell; the one showing fades in over the last. */
-  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   padding: 48px 24px 12px 8px;
 }
-.dashboard-departures-page {
-  grid-area: 1 / 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 28px;
-  opacity: 0;
-  transition: opacity 600ms ease;
+/*
+  Each board in its place along the bottom (--slot 0 or 1), just off to the left once it has left (-1) or waiting off to
+  the right (2). A turn slides them along by one: the left one out, the right one over, the next one in.
+*/
+.dashboard-departures-track {
+  position: absolute;
+  inset: 48px 24px 12px 8px;
+  /* A board sliding out or in is cut off at the edges of the departures, not drawn over the notices. */
+  overflow: hidden;
 }
-.dashboard-departures-page[data-shown='true'] {
+.dashboard-departures-slot {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc((100% - 28px) / 2);
+  display: flex;
+  transform: translateX(calc(var(--slot) * (100% + 28px)));
+  opacity: 0;
+  transition:
+    transform 700ms ease-in-out,
+    opacity 700ms ease-in-out;
+}
+.dashboard-departures-slot[data-slot='0'],
+.dashboard-departures-slot[data-slot='1'] {
   opacity: 1;
+}
+/* Out of sight, a board that has left moves round to wait on the right at once. */
+.dashboard-departures-slot[data-slot='2'] {
+  transition: none;
 }
 .dashboard-departures::before {
   content: '';

@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import fallbackBackdrop from '../assets/dashboard/backdrop.jpg';
 import type {
   DepartureBoardProps,
@@ -21,12 +22,23 @@ import './dashboard/dashboard.css';
 const PANEL_WIDTH = 1280;
 const PANEL_HEIGHT = 800;
 
-/** How long a pair of boards shows before the next pair, when the kiosk has more than two stops. */
-export const BOARD_PAGE_MS = 15_000;
+/** With more than two stops, how often the boards move along by one. */
+export const BOARD_TURN_MS = 15_000;
+/** How long after a turn the board that left stays where it went, before it waits off to the right for its next turn. */
+const LEFT_FOR_MS = 1000;
 
-/** The boards in pairs, side by side: a page each. */
-function pairs<T>(items: readonly T[]): T[][] {
-  return Array.from({ length: Math.ceil(items.length / 2) }, (_, index) => items.slice(index * 2, index * 2 + 2));
+/**
+ * Where board `index` of `count` is at `time`, by the boards' clock: 0 and 1 are the two places along the bottom; -1
+ * is just off to the left, where the board that has just left slid; 2 is off to the right, where the rest wait to
+ * slide in. With more than two boards, every BOARD_TURN_MS the left one leaves, the right one moves over and the next
+ * one comes in on the right.
+ */
+export function boardSlot(index: number, count: number, time: number): number {
+  if (count <= 2) return index;
+  const turn = Math.floor(time / BOARD_TURN_MS);
+  const position = (((index - turn) % count) + count) % count;
+  if (position < 2) return position;
+  return position === count - 1 && time % BOARD_TURN_MS < LEFT_FOR_MS ? -1 : 2;
 }
 
 /** What the Dashboard draws; each part has its own props (src/dashboard/props.ts). */
@@ -61,11 +73,9 @@ export default function Dashboard({
 }: Readonly<DashboardProps>) {
   const fitRef = useRef<HTMLDivElement>(null);
   const [placement, setPlacement] = useState({ scale: 1, left: 0, top: 0 });
-  // Two boards at a time; with more, the pairs take turns, moving on with the boards' clock so a hidden Dashboard,
-  // whose clock stops, doesn't turn. Every board stays mounted, so its rows keep following their vehicles.
-  const pages = pairs(boards);
+  // Two boards at a time; with more, they move along one at a time, with the boards' clock so a hidden Dashboard,
+  // whose clock stops, doesn't move. Every board stays mounted, so its rows keep following their vehicles.
   const time = boards[0]?.now.getTime() ?? 0;
-  const shownPage = pages.length > 1 ? Math.floor(time / BOARD_PAGE_MS) % pages.length : 0;
 
   useLayoutEffect(() => {
     const element = fitRef.current;
@@ -108,23 +118,24 @@ export default function Dashboard({
             <div className="dashboard-stage">
               <div className="dashboard-sky shadowed">{hourly && <HourlyStrip {...hourly} />}</div>
               <div className="dashboard-departures">
-                {pages.map((page, index) => (
-                  <div
-                    // A page is its first board's: the pair keeps its fade when another stop is added or removed.
-                    key={page[0]?.id}
-                    className="dashboard-departures-page"
-                    data-shown={index === shownPage}
-                    inert={index !== shownPage}
-                  >
-                    {page.map(board =>
-                      board.kind === 'tube' ? (
-                        <TubeBoard key={board.id} {...board} />
-                      ) : (
-                        <BusBoard key={board.id} {...board} />
-                      )
-                    )}
-                  </div>
-                ))}
+                <div className="dashboard-departures-track">
+                  {boards.map((board, index) => {
+                    const slot = boardSlot(index, boards.length, time);
+                    const isShown = slot === 0 || slot === 1;
+                    return (
+                      <div
+                        key={board.id}
+                        className="dashboard-departures-slot"
+                        data-slot={slot}
+                        data-board={board.id}
+                        inert={!isShown}
+                        style={{ '--slot': slot } as CSSProperties}
+                      >
+                        {board.kind === 'tube' ? <TubeBoard {...board} /> : <BusBoard {...board} />}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </main>

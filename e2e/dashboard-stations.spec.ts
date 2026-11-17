@@ -3,7 +3,7 @@ import { showDashboard } from './dashboard.ts';
 import { stationsAt } from './fake-countdown.ts';
 
 // A kiosk with several stops gives each Tube station and bus stop its own board, two at a time in the usual two
-// places, the next pair every 15 seconds.
+// places. Every 15 seconds they move along by one: the left one leaves, the right one moves over, the next comes in.
 
 const SCREENS = [
   { width: 1024, height: 600 },
@@ -11,42 +11,46 @@ const SCREENS = [
 ] as const;
 
 const NOW = new Date('2026-11-17T09:20:00Z');
-const PAGE_MS = 15_000;
+const TURN_MS = 15_000;
 
-/** The stops on the boards showing, and where those boards are. */
+/** The two boards showing, left then right: which board each is, and where it is. */
 async function showing(page: Page) {
-  return page.locator('.dashboard-departures-page[data-shown="true"] .dashboard-board').evaluateAll(elements =>
-    elements.map(element => {
+  const board = (slot: number) =>
+    page.locator(`.dashboard-departures-slot[data-slot="${slot}"]`).evaluate(element => {
       const { x, y, width, height } = element.getBoundingClientRect();
-      const stop = element.querySelector('.dashboard-board-stop')?.textContent.trim() ?? '';
-      return { stop, box: [x, y, width, height].map(value => Math.round(value)) };
-    })
-  );
+      return { stop: element.dataset['board'] ?? '', box: [x, y, width, height].map(value => Math.round(value)) };
+    });
+  return Promise.all([board(0), board(1)]);
 }
 
 for (const screen of SCREENS) {
   for (const count of [3, 6]) {
     test(
-      `${count} stops take turns two at a time at ${screen.width}x${screen.height}`,
+      `${count} stops move along one at a time at ${screen.width}x${screen.height}`,
       { tag: '@layout' },
       async ({ page }) => {
         await showDashboard(page, screen);
         const places = (await showing(page)).map(board => board.box);
-        expect(places).toHaveLength(2);
 
         await showDashboard(page, screen, { arrivals: () => stationsAt(NOW, count) }, count * 4);
-        const seen: string[] = [];
-        /* eslint-disable no-await-in-loop -- each pair shows in turn */
-        for (let turn = 0; turn < Math.ceil(count / 2); turn++) {
-          await page.clock.setFixedTime(new Date(NOW.getTime() + turn * PAGE_MS));
-          await expect.poll(async () => (await showing(page)).map(board => board.stop)).not.toEqual(seen.slice(-2));
-          const boards = await showing(page);
-          // The pair sits where the usual two boards do, each board at full height.
-          expect(boards.map(board => board.box)).toEqual(places.slice(0, boards.length));
-          seen.push(...boards.map(board => board.stop));
+        const lefts: string[] = [];
+        let right = '';
+        /* eslint-disable no-await-in-loop -- one turn after another */
+        for (let turn = 0; turn < count; turn++) {
+          // Two seconds into the turn: the slide is over.
+          await page.clock.setFixedTime(new Date(NOW.getTime() + turn * TURN_MS + 2000));
+          await expect.poll(async () => (await showing(page))[0].stop).not.toBe(lefts.at(-1));
+          // Once the slide is over, the pair sits where the usual two boards do.
+          await expect.poll(async () => (await showing(page)).map(board => board.box)).toEqual(places);
+          const [leftBoard, rightBoard] = await showing(page);
+          // The right one has moved over to the left.
+          if (turn > 0) expect(leftBoard.stop).toBe(right);
+          lefts.push(leftBoard.stop);
+          right = rightBoard.stop;
         }
         /* eslint-enable no-await-in-loop */
-        expect(seen).toHaveLength(count);
+        // Every stop has had its turn on the left.
+        expect(new Set(lefts).size).toBe(count);
       }
     );
   }
