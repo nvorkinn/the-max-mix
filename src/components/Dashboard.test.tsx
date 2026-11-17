@@ -18,14 +18,14 @@ describe('Dashboard', () => {
 
   it('counts each departure down from now and shows Due at zero', () => {
     show(new Date(SAMPLE_NOW.getTime() + 2 * 60_000));
-    const bus = within(screen.getByRole('region', { name: 'Buses' }));
+    const bus = within(screen.getByRole('region', { name: /^Buses / }));
     expect(bus.getByText('Oxford Circus').closest('li')).toHaveTextContent('Due');
     expect(bus.getByText('New Cross').closest('li')).toHaveTextContent('4min');
   });
 
   it('drops a departure a minute after it was due and brings the next one up', () => {
     show(new Date(SAMPLE_NOW.getTime() + 4.5 * 60_000));
-    const tube = within(screen.getByRole('region', { name: 'Tube' }));
+    const tube = within(screen.getByRole('region', { name: /^Tube / }));
     expect(tube.queryByText('High Barnet')).not.toBeInTheDocument();
     expect(tube.getAllByRole('listitem')).toHaveLength(4);
     expect(tube.getByText("Queen's Park")).toBeInTheDocument();
@@ -33,8 +33,8 @@ describe('Dashboard', () => {
 
   it('shows four rows on each board', () => {
     show();
-    expect(within(screen.getByRole('region', { name: 'Tube' })).getAllByRole('listitem')).toHaveLength(4);
-    expect(within(screen.getByRole('region', { name: 'Buses' })).getAllByRole('listitem')).toHaveLength(4);
+    expect(within(screen.getByRole('region', { name: /^Tube / })).getAllByRole('listitem')).toHaveLength(4);
+    expect(within(screen.getByRole('region', { name: /^Buses / })).getAllByRole('listitem')).toHaveLength(4);
   });
 
   it('goes round Now, Tonight, Tomorrow and Weekend when the weather is tapped', () => {
@@ -110,7 +110,7 @@ describe('Dashboard', () => {
   it('keeps its layout, with nothing in them, while the forecast and the boards have no data', () => {
     render(<Dashboard tabBar={tabBar} weather={{ views: [] }} hourly={null} notices={{ notices: [] }} boards={[]} />);
     expect(screen.getByRole('heading', { name: /Notice board/ })).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Tube' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /^Tube / })).not.toBeInTheDocument();
     expect(document.querySelector('.dashboard-departures')).toBeInTheDocument();
   });
 
@@ -130,7 +130,7 @@ describe('Dashboard', () => {
     };
     const shown = () =>
       ['[data-slot="0"]', '[data-slot="1"]'].map(slot =>
-        document.querySelector(`${slot} .dashboard-board-stop`)?.textContent.trim()
+        document.querySelector(`${slot} .dashboard-board h2`)?.textContent.trim()
       );
 
     const { rerender } = render(at(0));
@@ -140,7 +140,7 @@ describe('Dashboard', () => {
     // The left one leaves, the right one moves over and the bus stop comes in.
     rerender(at(BOARD_TURN_MS));
     expect(shown()).toEqual(['Kennington', 'Elephant & Castle']);
-    expect(document.querySelector('[data-slot="-1"]')).toHaveTextContent(/Tube/);
+    expect(document.querySelector('[data-slot="-1"]')).toHaveAttribute('data-board', 'tube:sample');
     expect(document.querySelector('[data-slot="-1"]')).toHaveAttribute('inert');
 
     rerender(at(2 * BOARD_TURN_MS));

@@ -22,7 +22,7 @@ interface BoardBase {
 
 export type Board =
   | (BoardBase & { kind: 'tube'; departures: TubeDeparture[] })
-  | (BoardBase & { kind: 'bus'; departures: BusDeparture[] });
+  | (BoardBase & { kind: 'bus'; stopLetter: string | null; departures: BusDeparture[] });
 
 /** TfL's line id for a line's name, which picks its colour: "Hammersmith & City" is hammersmith-city. */
 export function lineIdOf(name: string): string {
@@ -69,6 +69,7 @@ function busBoard(stop: StopDepartures, departures: readonly Departure[]): Board
     id: `bus:${stop.stop_id}`,
     stopId: stop.stop_id,
     stopName: placeName(stop.name),
+    stopLetter: stop.stop_letter,
     departures: sorted.map((departure, index) => ({
       vehicleId: ids[index] ?? '',
       route: departure.line,

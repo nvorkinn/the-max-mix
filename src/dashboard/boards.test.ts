@@ -51,6 +51,7 @@ describe('toBoards', () => {
       id: 'bus:490000123W',
       stopId: '490000123W',
       stopName: 'Elephant & Castle',
+      stopLetter: 'W',
       departures: [
         {
           vehicleId: 'LTZ1234',
@@ -182,7 +183,14 @@ describe('toBoards', () => {
     };
 
     expect(toBoards(answer, NOW)).toEqual([
-      { kind: 'bus', id: 'bus:490000077E', stopId: '490000077E', stopName: 'Elephant & Castle', departures: [] }
+      {
+        kind: 'bus',
+        id: 'bus:490000077E',
+        stopId: '490000077E',
+        stopName: 'Elephant & Castle',
+        stopLetter: 'E',
+        departures: []
+      }
     ]);
     expect(toBoards(null, NOW)).toEqual([]);
   });
