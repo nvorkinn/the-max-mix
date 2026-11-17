@@ -285,7 +285,7 @@
 .dashboard-rail {
   width: 344px;
   flex-shrink: 0;
-  padding: 4px 16px 16px 24px;
+  padding: 12px 16px 16px 24px;
   display: flex;
   flex-direction: column;
 }
@@ -318,6 +318,14 @@
   line-height: 0.9;
   letter-spacing: -0.07em;
   margin: 4px 0 4px -6px;
+}
+/*
+  The tight tracking is for the digits. Letter spacing goes after every character, the last digit too, so it would pull
+  the degree sign 0.07em into the digit before it (the top of a 7 ran into it). The sign gets that space back and a
+  little more.
+*/
+.dashboard-wx-degree {
+  margin-left: 0.09em;
 }
 .dashboard-wx-condition {
   font-size: 30px;

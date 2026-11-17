@@ -62,7 +62,10 @@ export default function WeatherBlock({ views }: Readonly<WeatherBlockProps>) {
       }}
     >
       <p className="dashboard-wx-period">{PERIOD_LABELS[view.period]}</p>
-      <p className="dashboard-wx-temp">{view.temperature}°</p>
+      <p className="dashboard-wx-temp">
+        {view.temperature}
+        <span className="dashboard-wx-degree">°</span>
+      </p>
       <p className="dashboard-wx-condition">{view.condition}</p>
       <p className="dashboard-wx-summary">
         {view.summary && (
