@@ -28,7 +28,7 @@ describe('the departure boards', () => {
   const buses = (now: Date) => <BusBoard {...SAMPLE.bus} departures={busesAt(now)} now={now} />;
   const rowOf = (destination: string) => screen.getByText(destination).closest('li');
   const destinations = () =>
-    within(screen.getByRole('region', { name: 'Buses' }))
+    within(screen.getByRole('region', { name: /^Buses / }))
       .getAllByRole('listitem')
       .map(row => row.querySelector('strong')?.textContent);
 

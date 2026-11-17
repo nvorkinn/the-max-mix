@@ -1,21 +1,18 @@
 import { useId } from 'react';
-import { ChevronRight } from 'lucide-react';
+import roundel from '../../assets/dashboard/tfl-roundel.png';
 import type { TubeBoardProps } from '../../dashboard/props';
 import AnimatedRows from './AnimatedRows';
 import { byVehicle, Destination, Minutes, visibleDepartures } from './DepartureRows';
 import { FALLBACK_LINE_COLOURS, LINE_COLOURS } from './icons';
 
-/** Trains due at a Tube station: four rows, keyed by the train so a row follows its train. */
+/** Trains due at a Tube station, headed with its name: four rows, keyed by the train so a row follows its train. */
 export default function TubeBoard({ stopName, departures, now, stale }: Readonly<TubeBoardProps>) {
-  const titleId = useId();
+  const id = useId();
   return (
-    <section className="dashboard-board" aria-labelledby={titleId}>
+    <section className="dashboard-board" aria-labelledby={`${id}-mode ${id}-stop`}>
       <div className="dashboard-board-head">
-        <span className="dashboard-roundel" aria-hidden="true" />
-        <h2 id={titleId}>Tube</h2>
-        <span className="dashboard-board-stop">
-          {stopName} <ChevronRight className="lucide" aria-hidden="true" />
-        </span>
+        <img id={`${id}-mode`} className="dashboard-roundel" src={roundel} alt="Tube" />
+        <h2 id={`${id}-stop`}>{stopName}</h2>
       </div>
       <ol className="dashboard-rows" data-stale={stale}>
         <AnimatedRows
