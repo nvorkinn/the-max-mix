@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, CSSProperties } from 'react';
-import { AudioLines, Clock, LayoutDashboard, Music, Search, Settings } from 'lucide-react';
+import type { CSSProperties } from 'react';
 import { crossfade } from '../utils/crossfade';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { useSonosPlayer } from '../hooks/useSonosPlayer';
@@ -32,10 +31,10 @@ import { dynamicPalette, loadThemeColour, saveThemeColour } from '../utils/theme
 import { useTheme } from '../hooks/useTheme';
 import { saveTheme } from '../utils/theme';
 import type { Theme } from '../utils/theme';
-import { DEFAULT_CLOCK_FORMAT, formatClockTime } from '../utils/clockFormat';
+import { DEFAULT_CLOCK_FORMAT } from '../utils/clockFormat';
 import type { ThemeColour } from '../utils/themeColour';
 import type { MusicChoice, Track } from '../types';
-import type { TabBarProps } from '../dashboard/props';
+import type { TabBarProps, TabId } from '../dashboard/props';
 import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
 import SpotifySetup from './SpotifySetup';
@@ -51,47 +50,17 @@ import SpeakersView from './SpeakersView';
 import MusicPicker from './MusicPicker';
 import DebugConsole from './DebugConsole';
 import SleepScreen from './SleepScreen';
-import SleepIcon from './SleepIcon';
-import PersonSwitcher from './PersonSwitcher';
 import PairPhoneSheet from './PairPhoneSheet';
-import AppTabs, { tabPanelId } from './AppTabs';
+import { tabPanelId } from './AppTabs';
 import DashboardScreen from './DashboardScreen';
 import TabBar from './dashboard/TabBar';
-import type { AppTab } from './AppTabs';
 
-type Screen = 'spotify' | 'dashboard' | 'settings';
-const SCREENS: readonly AppTab<Screen>[] = [
-  { id: 'spotify', label: 'Spotify', icon: <Music aria-hidden="true" /> },
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard aria-hidden="true" /> },
-  { id: 'settings', label: 'Settings', icon: <Settings aria-hidden="true" /> }
-];
-
-/** The minute it is now; the header clock changes only when this does. */
+/** The minute it is now; the tab bar's clock changes only when this does. */
 const currentMinute = () => Math.floor(Date.now() / 60_000);
 
 // While this page's player is active the queue is re-read when the SDK says it changed; this is only a safety net.
 const QUEUE_POLL_MS = 10_000;
 const SDK_QUEUE_POLL_MS = 20_000;
-// Holding the header clock this long opens the debug console; long enough that nobody opens it by accident.
-const DEBUG_HOLD_MS = 2000;
-
-/** Pointer handlers that call `onHold` once the element has been held down for `ms`. */
-function useHold(onHold: () => void, ms: number) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => () => clearTimeout(timerRef.current), []);
-  const cancel = () => clearTimeout(timerRef.current);
-  return {
-    onPointerDown: (event: ReactPointerEvent) => {
-      if (event.button !== 0) return;
-      cancel();
-      timerRef.current = setTimeout(onHold, ms);
-    },
-    onPointerUp: cancel,
-    onPointerLeave: cancel,
-    onPointerCancel: cancel,
-    onContextMenu: (event: ReactMouseEvent) => event.preventDefault()
-  };
-}
 
 /** Writes `message` to the debug log each time it changes to a new, non-empty value. */
 function useLogChanges(message: string | null | undefined, source: string) {
@@ -152,11 +121,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // The Settings tab starts on the overview; the sign-in prompts bring it up on the Spotify page.
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('overview');
   const [isMusicOpen, setIsMusicOpen] = useState(false);
-  const [screen, setScreen] = useState<Screen>('spotify');
+  const [screen, setScreen] = useState<TabId>('spotify');
   // Every change of tab fades across the whole screen, whether tapped, idle or from a prompt.
-  const goToScreen = (next: Screen) => crossfade(() => setScreen(next));
+  const goToScreen = (next: TabId) => crossfade(() => setScreen(next));
   const [isDebugOpen, setIsDebugOpen] = useState(false);
-  const debugHold = useHold(() => setIsDebugOpen(true), DEBUG_HOLD_MS);
   const [queueError, setQueueError] = useState<string | null>(null);
   // AirPlay, Bluetooth and Sonos need the Pi's audio service, so they are offered on the kiosk only.
   const [onKiosk] = useState(isKiosk);
@@ -218,7 +186,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const ownedConfig = deviceConfig.owned ? deviceConfig.config : null;
   const style = ownedConfig?.style;
   const display = ownedConfig?.display;
-  // The time format applies across the tablet: the header clock and the Dashboard's times.
+  // The time format applies across the tablet: the tab bar's clock and the Dashboard's times.
   const clockFormat = ownedConfig?.clock_format ?? DEFAULT_CLOCK_FORMAT;
   const [localScreenSleep, setLocalScreenSleep] = useState(getScreenSleep);
   const [localThemeColour, setLocalThemeColour] = useState(loadThemeColour);
@@ -382,7 +350,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     };
   }, [artUrl]);
 
-  const showScreen = (next: Screen) => {
+  const showScreen = (next: TabId) => {
     crossfade(() => {
       if (next === 'settings' && screen !== 'settings') setSettingsSection('overview');
       setScreen(next);
@@ -502,7 +470,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     }
   };
 
-  // The Dashboard's tab bar, which floats on the Spotify tab too.
+  // The Dashboard's tab bar, which floats on the Spotify and Settings tabs too.
   const tabBar: TabBarProps = {
     active: screen,
     onSelect: showScreen,
@@ -527,59 +495,15 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           : undefined
       }
     >
-      {screen === 'settings' && (
-        <header className="app-header">
-          <div className="brand">
-            <div className="brand-mark">
-              <AudioLines size={22} strokeWidth={2.5} />
-            </div>
-            <div className="brand-copy">
-              <h1>
-                THE MAX MIX<span className="brand-dot">.</span>
-              </h1>
-            </div>
-          </div>
-          <AppTabs tabs={SCREENS} current={screen} onSelect={showScreen} />
-          <div className="header-actions">
-            {!needsConnection && (
-              <button
-                type="button"
-                onClick={() => setIsMusicOpen(true)}
-                className="icon-button"
-                title="Choose music"
-                aria-label="Choose music"
-              >
-                <Search size={28} />
-              </button>
-            )}
-            {onKiosk && (
-              <button
-                type="button"
-                onClick={sleep.sleepNow}
-                className="icon-button"
-                title="Sleep"
-                aria-label="Put the screen to sleep"
-              >
-                <SleepIcon size={28} />
-              </button>
-            )}
-            {isAuthenticated && <PersonSwitcher onSwitch={spotifyId => void switchTo(spotifyId)} />}
-            <span className="header-clock" {...debugHold}>
-              <Clock size={14} /> {formatClockTime(new Date(minute * 60_000), clockFormat)}
-            </span>
-          </div>
-        </header>
-      )}
-
       {isOffline && <OfflineBanner />}
       <div
-        className="app-tab-panel spotify-tab"
+        className="app-tab-panel"
         role="tabpanel"
         id={tabPanelId('spotify')}
         aria-label="Spotify"
         hidden={screen !== 'spotify'}
       >
-        <div className="spotify-bar">
+        <div className="floating-bar">
           <TabBar {...tabBar} />
         </div>
         {banner && (
@@ -691,6 +615,15 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         aria-label="Settings"
         hidden={screen !== 'settings'}
       >
+        {/* Sleep, switching person and holding the clock for the debug console live in this tab's bar. */}
+        <div className="floating-bar">
+          <TabBar
+            {...tabBar}
+            onSleep={onKiosk ? sleep.sleepNow : null}
+            onSwitchPerson={isAuthenticated ? spotifyId => void switchTo(spotifyId) : null}
+            onClockHold={() => setIsDebugOpen(true)}
+          />
+        </div>
         {screen === 'settings' && (
           <SettingsPanel
             initialSection={settingsSection}

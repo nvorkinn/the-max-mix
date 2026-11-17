@@ -20,6 +20,12 @@ export interface TabBarProps {
   /** For the clock, which the bar formats in `clockFormat`. */
   now: Date;
   clockFormat: '12h' | '24h';
+  /** The Settings tab's extras. Puts the screen to sleep; null or absent hides the button. */
+  onSleep?: (() => void) | null;
+  /** Makes the person's picture open the person switcher, which calls this with whoever is picked. */
+  onSwitchPerson?: ((spotifyId: string) => void) | null;
+  /** Called once the clock has been held for two seconds (the debug console). */
+  onClockHold?: (() => void) | null;
 }
 
 /** @public The kinds of weather drawn, each with its own icon (by day and by night where they differ). */

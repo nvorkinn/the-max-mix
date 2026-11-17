@@ -78,6 +78,8 @@ test.describe('Software update', { tag: '@update' }, () => {
     // A newer release comes out while the tablet runs; opening Settings again asks GitHub and finds it, with Settings open.
     github.newest = 'v1.13.0';
     await page.getByRole('tab', { name: 'Spotify' }).click();
+    // Each tab has its own bar, so the next tap waits for the Spotify tab's.
+    await expect(settings).toBeHidden();
     await page.getByRole('tab', { name: 'Settings' }).click();
     await expect(popup(page)).toBeVisible();
     await expect(settings).toBeVisible();

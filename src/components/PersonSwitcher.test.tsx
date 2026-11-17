@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { defined } from '../test/defined';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '../test/user';
 import PersonSwitcher from './PersonSwitcher';
 
@@ -39,7 +38,11 @@ describe('PersonSwitcher', () => {
 
   it('greys out everyone whose phone the Pi does not hear, and switches to someone it hears straight away', async () => {
     const onSwitch = vi.fn();
-    render(<PersonSwitcher onSwitch={onSwitch} />);
+    render(
+      <PersonSwitcher className="dashboard-avatar" onSwitch={onSwitch}>
+        N
+      </PersonSwitcher>
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Nikolai: switch person' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Anna' })).not.toHaveAttribute('data-away'));
     expect(screen.getByRole('button', { name: 'Nikolai' })).toHaveAttribute('aria-pressed', 'true');
@@ -65,7 +68,11 @@ describe('PersonSwitcher', () => {
 
     const showSongForOlav = async () => {
       const onSwitch = vi.fn();
-      render(<PersonSwitcher onSwitch={onSwitch} />);
+      render(
+        <PersonSwitcher className="dashboard-avatar" onSwitch={onSwitch}>
+          N
+        </PersonSwitcher>
+      );
       await userEvent.click(screen.getByRole('button', { name: 'Nikolai: switch person' }));
       await userEvent.click(await screen.findByRole('button', { name: 'Olav' }));
       expect(await screen.findByText('Random Song')).toBeInTheDocument();
@@ -94,7 +101,11 @@ describe('PersonSwitcher', () => {
 
     it('goes back to the faces when no song can be found', async () => {
       proof.findRandomTrack.mockRejectedValue(new Error('offline'));
-      render(<PersonSwitcher onSwitch={vi.fn()} />);
+      render(
+        <PersonSwitcher className="dashboard-avatar" onSwitch={vi.fn()}>
+          N
+        </PersonSwitcher>
+      );
       await userEvent.click(screen.getByRole('button', { name: 'Nikolai: switch person' }));
       await userEvent.click(await screen.findByRole('button', { name: 'Olav' }));
       expect(await screen.findByRole('button', { name: 'Olav' })).toBeInTheDocument();
@@ -107,7 +118,11 @@ describe('PersonSwitcher', () => {
   it('puts the active person through the same check, so it can be tried with one account', async () => {
     const onSwitch = vi.fn();
     proof.findRandomTrack.mockResolvedValue({ id: 'song-1', name: 'Random Song' });
-    render(<PersonSwitcher onSwitch={onSwitch} />);
+    render(
+      <PersonSwitcher className="dashboard-avatar" onSwitch={onSwitch}>
+        N
+      </PersonSwitcher>
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Nikolai: switch person' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Nikolai' })).toHaveAttribute('data-away', 'true'));
     await userEvent.click(screen.getByRole('button', { name: 'Nikolai' }));
@@ -118,7 +133,11 @@ describe('PersonSwitcher', () => {
   it('switches to the active person again at once when the Pi hears their phone', async () => {
     monitor.readBluetoothReport.mockResolvedValue({ phones: [{ address: 'AA:01', name: 'N', isHere: true }] });
     const onSwitch = vi.fn();
-    render(<PersonSwitcher onSwitch={onSwitch} />);
+    render(
+      <PersonSwitcher className="dashboard-avatar" onSwitch={onSwitch}>
+        N
+      </PersonSwitcher>
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Nikolai: switch person' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Nikolai' })).not.toHaveAttribute('data-away'));
     await userEvent.click(screen.getByRole('button', { name: 'Nikolai' }));
@@ -126,25 +145,13 @@ describe('PersonSwitcher', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('shows the person’s picture, and their initial once it fails to load', () => {
-    auth.peopleOnKiosk.mockReturnValue([{ ...person('nikolai', '', true), imageUrl: 'https://i.scdn.co/image/n' }]);
-    const { container } = render(<PersonSwitcher onSwitch={vi.fn()} />);
-    const picture = defined(container.querySelector('img'));
-    expect(picture).toHaveAttribute('src', 'https://i.scdn.co/image/n');
-    fireEvent.error(picture);
-    expect(container.querySelector('img')).toBeNull();
-    expect(screen.getByText('N')).toBeInTheDocument();
-  });
-
-  it('shows a question mark for someone Spotify has not named yet', () => {
-    auth.peopleOnKiosk.mockReturnValue([{ ...person('', '', true), name: ' ' }]);
-    render(<PersonSwitcher onSwitch={vi.fn()} />);
-    expect(screen.getByText('?')).toBeInTheDocument();
-  });
-
   it('shows nothing when nobody is active', () => {
     auth.peopleOnKiosk.mockReturnValue([]);
-    const { container } = render(<PersonSwitcher onSwitch={vi.fn()} />);
+    const { container } = render(
+      <PersonSwitcher className="dashboard-avatar" onSwitch={vi.fn()}>
+        N
+      </PersonSwitcher>
+    );
     expect(container).toBeEmptyDOMElement();
   });
 });
