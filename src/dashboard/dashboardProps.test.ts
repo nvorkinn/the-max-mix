@@ -83,6 +83,7 @@ describe('dashboardProps', () => {
       weather: { views: [] },
       hourly: null,
       notices: { notices: [] },
+      lineStatus: null,
       tube: null,
       bus: null
     });

@@ -1,6 +1,6 @@
 // The redesigned Dashboard's data, in its components' props (props.ts), from what the live feed last gave (live.ts):
 // the Tube and Bus boards (boards.ts), the weather block and hourly strip (weatherViews.ts) and the notice board
-// (notices.ts's notices, in the board's kinds and colours). The layout never depends on the data: a board, the
+// (notices.ts's notices, in the board's kinds and colours) and the Tube status panel (lineStatus.ts). The layout never depends on the data: a board, the
 // weather or the notices that the server has nothing for are null or empty, and each component keeps its space.
 //
 // Stale: once the feed has been down for STALE_AFTER_MS, everything is; before that, a board is stale while any of its
@@ -15,6 +15,7 @@ import type { ClockFormat } from '../utils/clockFormat';
 import { toBoards } from './boards';
 import type { Notice } from './data';
 import type { LiveSnapshot } from './live';
+import { toLineStatus } from './lineStatus';
 import { boardNotices } from './notices';
 import type { NoticeItem, NoticeKind, NoticeSeverity } from './props';
 import { toWeather } from './weatherViews';
@@ -121,6 +122,7 @@ export function dashboardProps(snapshot: LiveSnapshot, now: Date, clockFormat: C
           }
         : null,
     notices: { notices: toNoticeItems(snapshot, now, clockFormat) },
+    lineStatus: toLineStatus(snapshot.notices, now),
     tube: boards.tube && {
       stopName: boards.tube.stopName,
       departures: boards.tube.departures,

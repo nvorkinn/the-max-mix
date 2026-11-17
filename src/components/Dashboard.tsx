@@ -6,6 +6,7 @@ import type {
   NoticeBoardProps,
   TabBarProps,
   TubeBoardProps,
+  TubeStatusProps,
   WeatherBlockProps
 } from '../dashboard/props';
 import Backdrop from './dashboard/Backdrop';
@@ -14,6 +15,7 @@ import HourlyStrip from './dashboard/HourlyStrip';
 import NoticeBoard from './dashboard/NoticeBoard';
 import TabBar from './dashboard/TabBar';
 import TubeBoard from './dashboard/TubeBoard';
+import TubeStatus from './dashboard/TubeStatus';
 import WeatherBlock from './dashboard/WeatherBlock';
 import './dashboard/dashboard.css';
 
@@ -27,6 +29,8 @@ export interface DashboardProps {
   /** Null while there is no forecast to read; the strip's space stays empty. */
   hourly: HourlyStripProps | null;
   notices: NoticeBoardProps;
+  /** Every Tube line's status, shown in the notice board's place while it has no notices; null (or left out) without. */
+  lineStatus?: TubeStatusProps | null;
   /** Null while there is no Tube stop's departures; the board's space stays empty. */
   tube: TubeBoardProps | null;
   /** As `tube`, for the bus stop. */
@@ -36,11 +40,21 @@ export interface DashboardProps {
 }
 
 /**
- * The Dashboard: the photo full screen, the tab bar floating on it, weather and notices on the left, the hourly forecast
+ * The Dashboard: the photo full screen, the tab bar floating on it, weather and notices on the left (the Tube's status
+ * while there are no notices), the hourly forecast
  * top right and the Tube and bus boards along the bottom. It is laid out at 1280×800 and scaled to fit whichever of the
  * space's width or height is tighter, centred, so a smaller panel shows the same layout.
  */
-export default function Dashboard({ tabBar, weather, hourly, notices, tube, bus, backdrop }: Readonly<DashboardProps>) {
+export default function Dashboard({
+  tabBar,
+  weather,
+  hourly,
+  notices,
+  lineStatus,
+  tube,
+  bus,
+  backdrop
+}: Readonly<DashboardProps>) {
   const fitRef = useRef<HTMLDivElement>(null);
   const [placement, setPlacement] = useState({ scale: 1, left: 0, top: 0 });
 
@@ -76,7 +90,11 @@ export default function Dashboard({ tabBar, weather, hourly, notices, tube, bus,
           <main className="dashboard-main">
             <div className="dashboard-rail">
               <WeatherBlock {...weather} />
-              <NoticeBoard {...notices} />
+              {lineStatus && notices.notices.length === 0 ? (
+                <TubeStatus {...lineStatus} />
+              ) : (
+                <NoticeBoard {...notices} />
+              )}
             </div>
             <div className="dashboard-stage">
               <div className="dashboard-sky shadowed">{hourly && <HourlyStrip {...hourly} />}</div>
