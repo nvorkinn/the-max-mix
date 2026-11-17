@@ -5,14 +5,8 @@ import AnimatedRows from './AnimatedRows';
 import { byVehicle, Destination, Minutes, visibleDepartures } from './DepartureRows';
 import { FALLBACK_LINE_COLOURS, LINE_COLOURS } from './icons';
 
-/** Trains due at a Tube station: `rows` rows (four, or two when the boards are two deep), keyed by the train so a row follows its train. */
-export default function TubeBoard({
-  stopName,
-  departures,
-  now,
-  stale,
-  rows = 4
-}: Readonly<TubeBoardProps & { rows?: number }>) {
+/** Trains due at a Tube station: four rows, keyed by the train so a row follows its train. */
+export default function TubeBoard({ stopName, departures, now, stale }: Readonly<TubeBoardProps>) {
   const titleId = useId();
   return (
     <section className="dashboard-board" aria-labelledby={titleId}>
@@ -23,9 +17,9 @@ export default function TubeBoard({
           {stopName} <ChevronRight className="lucide" aria-hidden="true" />
         </span>
       </div>
-      <ol className="dashboard-rows" data-stale={stale} data-rows={rows}>
+      <ol className="dashboard-rows" data-stale={stale}>
         <AnimatedRows
-          items={visibleDepartures(departures, now, rows)}
+          items={visibleDepartures(departures, now)}
           keyOf={byVehicle}
           render={departure => {
             const [background, text] = LINE_COLOURS[departure.lineId] ?? FALLBACK_LINE_COLOURS;

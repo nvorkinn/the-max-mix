@@ -1,9 +1,9 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { showDashboard } from './dashboard.ts';
 import { stationsAt } from './fake-countdown.ts';
 
-// A kiosk with several stops gives each Tube station and bus stop its own board: up to three side by side, then two
-// deep with two rows each, every board and row inside the departures area and none overlapping.
+// A kiosk with several stops gives each Tube station and bus stop its own board, two at a time in the usual two
+// places, the next pair every 15 seconds.
 
 const SCREENS = [
   { width: 1024, height: 600 },
@@ -11,45 +11,42 @@ const SCREENS = [
 ] as const;
 
 const NOW = new Date('2026-11-17T09:20:00Z');
+const PAGE_MS = 15_000;
+
+/** The stops on the boards showing, and where those boards are. */
+async function showing(page: Page) {
+  return page.locator('.dashboard-departures-page[data-shown="true"] .dashboard-board').evaluateAll(elements =>
+    elements.map(element => {
+      const { x, y, width, height } = element.getBoundingClientRect();
+      const stop = element.querySelector('.dashboard-board-stop')?.textContent.trim() ?? '';
+      return { stop, box: [x, y, width, height].map(value => Math.round(value)) };
+    })
+  );
+}
 
 for (const screen of SCREENS) {
-  for (const [count, rows] of [
-    [3, 4],
-    [4, 2],
-    [6, 2]
-  ] as const) {
+  for (const count of [3, 6]) {
     test(
-      `${count} stops get a board each at ${screen.width}x${screen.height}`,
+      `${count} stops take turns two at a time at ${screen.width}x${screen.height}`,
       { tag: '@layout' },
       async ({ page }) => {
-        await showDashboard(page, screen, { arrivals: () => stationsAt(NOW, count) }, count * rows);
-        const area = await page.locator('.dashboard-departures').boundingBox();
-        const boards = await page.locator('.dashboard-board').evaluateAll(elements =>
-          elements.map(element => {
-            const { x, y, width, height } = element.getBoundingClientRect();
-            const hasRowsInside = [...element.querySelectorAll('li')].every(row => {
-              const box = row.getBoundingClientRect();
-              return box.top >= y - 0.5 && box.bottom <= y + height + 0.5;
-            });
-            return { x, y, width, height, hasRowsInside };
-          })
-        );
+        await showDashboard(page, screen);
+        const places = (await showing(page)).map(board => board.box);
+        expect(places).toHaveLength(2);
 
-        expect(boards).toHaveLength(count);
-        for (const [index, board] of boards.entries()) {
-          expect(board.hasRowsInside).toBe(true);
-          expect(board.x).toBeGreaterThanOrEqual((area?.x ?? 0) - 0.5);
-          expect(board.y + board.height).toBeLessThanOrEqual((area?.y ?? 0) + (area?.height ?? 0) + 0.5);
-          const later = boards.slice(index + 1);
-          for (const other of later) {
-            const isApart =
-              other.x >= board.x + board.width ||
-              board.x >= other.x + other.width ||
-              other.y >= board.y + board.height ||
-              board.y >= other.y + other.height;
-            expect(isApart).toBe(true);
-          }
+        await showDashboard(page, screen, { arrivals: () => stationsAt(NOW, count) }, count * 4);
+        const seen: string[] = [];
+        /* eslint-disable no-await-in-loop -- each pair shows in turn */
+        for (let turn = 0; turn < Math.ceil(count / 2); turn++) {
+          await page.clock.setFixedTime(new Date(NOW.getTime() + turn * PAGE_MS));
+          await expect.poll(async () => (await showing(page)).map(board => board.stop)).not.toEqual(seen.slice(-2));
+          const boards = await showing(page);
+          // The pair sits where the usual two boards do, each board at full height.
+          expect(boards.map(board => board.box)).toEqual(places.slice(0, boards.length));
+          seen.push(...boards.map(board => board.stop));
         }
+        /* eslint-enable no-await-in-loop */
+        expect(seen).toHaveLength(count);
       }
     );
   }

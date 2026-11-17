@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SAMPLE, SAMPLE_NOW, sampleDashboard } from '../dashboard/sample';
 import type { DepartureBoardProps } from '../dashboard/props';
-import Dashboard from './Dashboard';
+import Dashboard, { BOARD_PAGE_MS } from './Dashboard';
 
 const tabBar = { ...SAMPLE.tabBar, onSelect: vi.fn(), onSearch: vi.fn() };
 const show = (now = SAMPLE_NOW, noticeCount = 6) =>
@@ -114,29 +114,45 @@ describe('Dashboard', () => {
     expect(document.querySelector('.dashboard-departures')).toBeInTheDocument();
   });
 
-  it('gives each station its own board, side by side, and two deep with fewer rows when there are more', () => {
+  it('shows the boards two at a time, the next pair every 15 seconds, the hidden ones still mounted', () => {
     const [tube, bus] = sampleDashboard(SAMPLE_NOW, '24h').boards as [DepartureBoardProps, DepartureBoardProps];
     const station = (id: string, stopName: string): DepartureBoardProps => ({ ...tube, id, stopName });
-    const { unmount } = render(
+    const at = (now: Date) => (
       <Dashboard
         tabBar={tabBar}
-        {...sampleDashboard(SAMPLE_NOW, '24h')}
-        boards={[tube, station('tube:b', 'Kennington'), bus]}
+        {...sampleDashboard(now, '24h')}
+        boards={[tube, station('tube:b', 'Kennington'), bus].map(board => ({ ...board, now }))}
       />
     );
-    const boards = () => screen.getAllByRole('region', { name: /^(Tube|Buses)$/ });
-    expect(boards()).toHaveLength(3);
-    expect(boards().map(board => within(board).getAllByRole('listitem').length)).toEqual([4, 4, 4]);
-    expect(boards()[1]).toHaveTextContent(/Kennington/);
+    const shown = () =>
+      [...document.querySelectorAll('.dashboard-departures-page[data-shown="true"] .dashboard-board-stop')].map(stop =>
+        stop.textContent.trim()
+      );
+    const later = (ms: number) => new Date(SAMPLE_NOW.getTime() + ms);
 
-    unmount();
-    render(
-      <Dashboard
-        tabBar={tabBar}
-        {...sampleDashboard(SAMPLE_NOW, '24h')}
-        boards={[tube, station('tube:b', 'Kennington'), station('tube:c', 'Oval'), bus]}
-      />
-    );
-    expect(boards().map(board => within(board).getAllByRole('listitem').length)).toEqual([2, 2, 2, 2]);
+    const { rerender } = render(at(SAMPLE_NOW));
+    expect(document.querySelectorAll('.dashboard-departures-page')).toHaveLength(2);
+    expect(document.querySelectorAll('.dashboard-board')).toHaveLength(3);
+    const first = shown();
+    expect(first.length).toBeGreaterThan(0);
+
+    rerender(at(later(BOARD_PAGE_MS)));
+    const second = shown();
+    expect(second).not.toEqual(first);
+    expect([...first, ...second].toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'Elephant & Castle',
+      'Elephant & Castle',
+      'Kennington'
+    ]);
+    // The hidden pair can't be tapped or read out.
+    expect(document.querySelector('.dashboard-departures-page[data-shown="false"]')).toHaveAttribute('inert');
+
+    rerender(at(later(2 * BOARD_PAGE_MS)));
+    expect(shown()).toEqual(first);
+  });
+
+  it("doesn't turn with two boards or fewer", () => {
+    render(<Dashboard tabBar={tabBar} {...sampleDashboard(SAMPLE_NOW, '24h')} />);
+    expect(document.querySelectorAll('.dashboard-departures-page[data-shown="true"] .dashboard-board')).toHaveLength(2);
   });
 });
