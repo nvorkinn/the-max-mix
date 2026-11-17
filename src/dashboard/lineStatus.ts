@@ -57,3 +57,28 @@ export function toLineStatus(notices: DeviceNotices | null, now: Date): TubeStat
   const lines = (notices?.tfl_network?.lines ?? []) as unknown as TflLine[];
   return lines.length > 0 ? { lines: lines.map(line => toItem(line, now)) } : null;
 }
+
+/** A row of the Tube status panel: one line, or every line sharing a status. */
+export interface LineGroup {
+  status: string;
+  health: LineHealth;
+  /** In TfL's order. */
+  lines: LineStatusItem[];
+}
+
+/**
+ * The panel's rows: lines that share a status collapse into one row, worst first; among rows as bad as each other, a
+ * line on its own comes before a shared status, so the collapsed rows (Good service the last of all) sit at the bottom.
+ */
+export function groupLines(lines: readonly LineStatusItem[]): LineGroup[] {
+  const groups: LineGroup[] = [];
+  for (const line of lines) {
+    const group = groups.find(each => each.status === line.status);
+    if (group) group.lines.push(line);
+    else groups.push({ status: line.status, health: line.health, lines: [line] });
+  }
+  const shared = (group: LineGroup) => Number(group.lines.length > 1);
+  return groups.toSorted(
+    (a, b) => WORST_FIRST.indexOf(a.health) - WORST_FIRST.indexOf(b.health) || shared(a) - shared(b)
+  );
+}
