@@ -61,11 +61,15 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     await advance(page, 20_000);
     expect(reads() - before).toBeGreaterThanOrEqual(3);
 
+    // The sleep button is in the Settings tab's header.
     await page.getByRole('tab', { name: 'Settings' }).click();
+    await expect(page.getByRole('tabpanel', { name: 'Settings' })).toBeVisible();
+    const awake = reads();
     await page.getByRole('button', { name: 'Put the screen to sleep' }).click();
     await expect(page.getByRole('button', { name: 'Wake the screen' })).toBeVisible();
-    // Falling asleep reads once more, then it goes quiet.
+    // Falling asleep reads once more (waited for, as a slow machine may take a moment), then it goes quiet.
     await advance(page, 1000);
+    await expect.poll(reads).toBeGreaterThan(awake);
     const asleep = reads();
     await advance(page, 30_000, 5000);
     expect(reads()).toBe(asleep);
