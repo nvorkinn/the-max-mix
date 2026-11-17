@@ -119,6 +119,9 @@
 }
 
 .tablet-container {
+  /* The height of the tab bar floating on the Spotify tab (.spotify-tab below). */
+  --float-bar: 64px;
+
   width: 100%;
   min-height: 100svh;
   height: 100dvh;
@@ -347,6 +350,18 @@
 .app-tab-panel[hidden] {
   display: none;
 }
+/*
+  The Spotify tab has no header band: the Dashboard's tab bar floats over it (.spotify-bar), and the room is pushed
+  down by the bar's height, so its background and the album art's tint run up behind the bar.
+*/
+.spotify-tab {
+  position: relative;
+}
+@media (height <= 640px) {
+  .tablet-container {
+    --float-bar: 48px;
+  }
+}
 /* Changing tab fades the whole screen (see utils/crossfade.ts). The overlay lets taps through, so a quick second tap
   starts the next fade at once instead of being swallowed by the first. */
 ::view-transition {
@@ -427,7 +442,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
   gap: 28px;
-  padding: 24px 30px 18px;
+  padding: calc(24px + var(--float-bar)) 30px 18px;
 }
 /* The kiosk's touch screen (?kiosk=1, see utils/kiosk.ts): no mouse pointer, whatever an element asks for. */
 .hide-cursor,
@@ -451,10 +466,11 @@
 .listening-room:not(.is-setup) {
   --bar-height: 112px;
   --row-gap: 14px;
-  --room-padding-y: 32px;
+  /* Top and bottom padding together; the top one leaves room for the floating tab bar. */
+  --room-padding-y: calc(20px + var(--float-bar));
   /* Where the artwork's right edge falls: the room's 30px side padding plus the square art column. */
   --art-edge: calc(30px + 100cqh - var(--room-padding-y) - var(--bar-height) - var(--row-gap));
-  padding-block: 16px;
+  padding-block: calc(4px + var(--float-bar)) 16px;
   grid-template:
     'art . details . nav' auto
     'art . queue . nav' minmax(0, 1fr)
@@ -915,7 +931,7 @@
 }
 .playback-banner {
   position: absolute;
-  top: 88px;
+  top: calc(var(--float-bar) + 6px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 50;
@@ -2391,7 +2407,7 @@ input:disabled {
     min-height: 66px;
   }
   .listening-room {
-    padding-top: 18px;
+    padding-top: calc(18px + var(--float-bar));
     padding-bottom: 14px;
     gap: 24px;
   }

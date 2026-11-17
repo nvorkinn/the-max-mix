@@ -48,8 +48,8 @@ test.describe('Layout', { tag: '@layout' }, () => {
       await page.setViewportSize({ width: 1024, height: 600 });
       await page.goto('/?kiosk=1');
       await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
-      // The header's tabs, buttons and clock all fit across the screen.
-      await expect(page.locator('.header-clock')).toBeInViewport({ ratio: 1 });
+      // The bar's tabs, buttons and clock all fit across the screen.
+      await expect(page.locator('.spotify-bar .dashboard-clock')).toBeInViewport({ ratio: 1 });
       await expectTouchTargets(page.locator('body'));
       await expectNoHorizontalOverflow(page);
 
