@@ -686,9 +686,9 @@ button.dashboard-notice {
   letter-spacing: 0;
   flex-shrink: 0;
 }
-/* TfL's roundel, as its own image. */
+/* TfL's roundel, in white like the bus beside it and the words, the same width as the bus. */
 .dashboard-roundel {
-  width: 40px;
+  width: 34px;
   height: auto;
   flex-shrink: 0;
 }
