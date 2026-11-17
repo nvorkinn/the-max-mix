@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
+import { openSpotifyTab } from './spotify-tab.ts';
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://images.unsplash.com/**', route =>
@@ -13,7 +14,7 @@ const upcoming = (page: Page) => page.getByRole('region', { name: 'Upcoming trac
 
 test.describe('Queue', { tag: '@queue' }, () => {
   test('tapping a queued song plays it and drops the songs before it from the queue', async ({ page }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     await upcoming(page).getByRole('button', { name: 'Play Music Sounds Better with You by Stardust' }).click();
     await expect(nowPlaying(page)).toContainText('Music Sounds Better with You');
     await expect(upcoming(page)).not.toContainText('Starboy');

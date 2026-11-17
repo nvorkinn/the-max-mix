@@ -5,8 +5,8 @@ import type { TabBarProps, TabId } from '../../dashboard/props';
 import { tabPanelId } from '../AppTabs';
 
 const TABS: readonly { id: TabId; label: string; icon: ReactNode }[] = [
-  { id: 'spotify', label: 'Spotify', icon: <Music2 aria-hidden="true" className="lucide" /> },
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutGrid aria-hidden="true" className="lucide" /> },
+  { id: 'spotify', label: 'Spotify', icon: <Music2 aria-hidden="true" className="lucide" /> },
   { id: 'settings', label: 'Settings', icon: <Settings aria-hidden="true" className="lucide" /> }
 ];
 

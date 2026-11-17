@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSettings, showSection } from './settings.ts';
+import { openSpotifyTab } from './spotify-tab.ts';
 
 const LONG_TITLE = `${'An extended placeholder title with extra recording details '.repeat(8)}${'Unbroken'.repeat(24)}`;
 const LONG_ARTIST = 'A placeholder artist with a second guest artist '.repeat(4);
@@ -46,7 +47,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
 
     test('touch targets and dialogs fit 1024x600', async ({ page }) => {
       await page.setViewportSize({ width: 1024, height: 600 });
-      await page.goto('/?kiosk=1');
+      await openSpotifyTab(page, '/?kiosk=1');
       await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
       // The bar's tabs, buttons and clock all fit across the screen.
       await expect(page.locator('.spotify-bar .dashboard-clock')).toBeInViewport({ ratio: 1 });
@@ -84,7 +85,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
           route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
         );
         await fakeSpotify(page);
-        await page.goto('/');
+        await openSpotifyTab(page);
         const art = page.locator('.album-art');
         await expect(art).toBeVisible();
         const box = await art.boundingBox();
@@ -153,7 +154,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
         )
       );
       await fakeSpotify(page);
-      await page.goto('/?kiosk=1');
+      await openSpotifyTab(page, '/?kiosk=1');
       const settings = await openSettings(page);
       const nav = settings.getByRole('navigation', { name: 'Settings' });
       expect(await nav.evaluate(element => element.scrollHeight <= element.clientHeight)).toBe(true);
@@ -192,7 +193,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
         route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
       );
       await fakeSpotify(page);
-      await page.goto('/?kiosk=1');
+      await openSpotifyTab(page, '/?kiosk=1');
       const seek = page.getByRole('slider', { name: 'Playback position' });
       const volume = page.getByRole('slider', { name: 'Volume' });
       await expect(volume).toHaveValue('80');
@@ -268,7 +269,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
         localStorage.setItem('maxmix.playbackMode', 'remote');
         localStorage.setItem('maxmix.auth', JSON.stringify({ clientId, refreshToken: 'not-a-real-refresh-token' }));
       }, getClientId());
-      await page.goto('/');
+      await openSpotifyTab(page);
       const player = page.getByRole('region', { name: 'Now playing', exact: true });
       const metadata = player.getByRole('region', { name: 'Track information' });
       const title = metadata.getByRole('heading', { name: LONG_TITLE });
@@ -336,7 +337,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
       await fakeSpotify(page);
 
       await page.setViewportSize({ width: 1024, height: 600 });
-      await page.goto('/?kiosk=1');
+      await openSpotifyTab(page, '/?kiosk=1');
       await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
 
       // document.fonts.check() also passes when no @font-face matches, so look at the bundled faces' own status.

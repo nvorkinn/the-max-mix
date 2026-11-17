@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
+import { openSpotifyTab, showSpotifyTab } from './spotify-tab.ts';
 
 // What the fake Spotify account was sent, for the page of the test that is running.
 const accounts = new WeakMap<Page, Awaited<ReturnType<typeof fakeSpotify>>>();
@@ -23,7 +24,7 @@ const upcoming = (page: Page) => page.getByRole('region', { name: 'Upcoming trac
 
 test.describe('Player', { tag: '@player' }, () => {
   test('shows the playing track and what is queued next', { tag: '@queue' }, async ({ page }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     await expect(nowPlaying(page)).toContainText('One More Time');
     await expect(nowPlaying(page)).toContainText('Daft Punk');
     await expect(upcoming(page)).toContainText('Starboy');
@@ -32,7 +33,7 @@ test.describe('Player', { tag: '@player' }, () => {
 
   test('Pause and Play toggle playback', async ({ page }) => {
     const reads = countPlaybackReads(page);
-    await page.goto('/');
+    await openSpotifyTab(page);
     await nowPlaying(page).getByRole('button', { name: 'Pause' }).click();
     // The button flips to Play at once, but the app ignores a second press while the first command is still on its way
     // (Spotify refuses the same command twice), so Play is tapped once the pause has gone through and been read back.
@@ -47,7 +48,7 @@ test.describe('Player', { tag: '@player' }, () => {
   });
 
   test('the 15 second buttons rewind and fast-forward the song', async ({ page }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     const position = nowPlaying(page).getByRole('slider', { name: 'Playback position' });
     // The fake starts 45 s in and the clock keeps running, so the position is a second or two past the round number.
     await expect(position).toHaveAttribute('aria-valuetext', /^0:4[5-9] of /);
@@ -58,7 +59,7 @@ test.describe('Player', { tag: '@player' }, () => {
   });
 
   test('Next and Previous change the track', { tag: '@queue' }, async ({ page }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     await nowPlaying(page).getByRole('button', { name: 'Next track' }).click();
     await expect(nowPlaying(page)).toContainText('Starboy');
     await expect(upcoming(page)).not.toContainText('Starboy');
@@ -69,7 +70,7 @@ test.describe('Player', { tag: '@player' }, () => {
   });
 
   test('Shuffle turns on and off and shows which it is', async ({ page }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     const shuffle = nowPlaying(page).getByRole('button', { name: 'Shuffle' });
     await expect(shuffle).toHaveAttribute('aria-pressed', 'false');
     await shuffle.click();
@@ -81,7 +82,7 @@ test.describe('Player', { tag: '@player' }, () => {
   });
 
   test('Repeat goes from off to all to one and back, and says which it is', async ({ page }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     const repeat = (name: string) => nowPlaying(page).getByRole('button', { name });
     await expect(repeat('Repeat off')).toBeVisible();
     await repeat('Repeat off').click();
@@ -98,7 +99,7 @@ test.describe('Player', { tag: '@player' }, () => {
   });
 
   test('the volume slider sets the speaker volume, which is still there after a reload', async ({ page }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     const volume = nowPlaying(page).getByRole('slider', { name: 'Volume' });
     await expect(volume).toHaveValue('80');
     await volume.fill('35');
@@ -106,12 +107,13 @@ test.describe('Player', { tag: '@player' }, () => {
     await expect.poll(() => accountOf(page).commands).toContain('PUT /v1/me/player/volume?volume_percent=35');
 
     await page.reload();
+    await showSpotifyTab(page);
     await expect(nowPlaying(page).getByRole('slider', { name: 'Volume' })).toHaveValue('35');
   });
 
   test('failed images become local artwork rather than retrying URLs', { tag: '@queue' }, async ({ page }) => {
     await page.route('https://images.unsplash.com/**', route => route.abort());
-    await page.goto('/');
+    await openSpotifyTab(page);
     await expect(page.locator('.album-cover.image-placeholder')).toBeVisible();
     await expect(page.locator('.queue-art.image-placeholder')).toHaveCount(4);
 

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { DEVICE_CONFIGS, fakeCountdownServer } from './fake-countdown.ts';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSettings } from './settings.ts';
+import { openSpotifyTab } from './spotify-tab.ts';
 
 test.describe("The kiosk's config from countdown-server", { tag: ['@registration', '@appearance'] }, () => {
   test.beforeEach(async ({ page }) => {
@@ -17,7 +18,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
       ...DEVICE_CONFIGS.owned,
       style: { skin: 'night', colour: 'pink' }
     });
-    await page.goto('/?kiosk=1');
+    await openSpotifyTab(page, '/?kiosk=1');
 
     const room = page.locator('.tablet-container');
     await expect(room).toHaveAttribute('data-theme', 'night');
@@ -30,7 +31,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
       localStorage.setItem('maxmix.theme', 'night');
     });
     const server = await fakeCountdownServer(page);
-    await page.goto('/?kiosk=1');
+    await openSpotifyTab(page, '/?kiosk=1');
 
     await expect.poll(() => server.authorizations.length).toBe(1);
     await expect(page.locator('.tablet-container')).toHaveAttribute('data-theme', 'night');
@@ -39,7 +40,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
 
   test('a change in the settings saves to the server at once, and shows Saved', async ({ page }) => {
     const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
-    await page.goto('/?kiosk=1');
+    await openSpotifyTab(page, '/?kiosk=1');
     const settings = await openSettings(page, 'Appearance');
 
     await settings.getByRole('button', { name: 'Night' }).click();
@@ -51,7 +52,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
 
   test('a quick run of changes saves only the last one', async ({ page }) => {
     const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
-    await page.goto('/?kiosk=1');
+    await openSpotifyTab(page, '/?kiosk=1');
     const settings = await openSettings(page, 'General');
 
     await settings.getByRole('button', { name: '2 min' }).click();
@@ -62,7 +63,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
 
   test("a change the server refuses is undone, and says it wasn't saved", async ({ page }) => {
     await fakeCountdownServer(page, DEVICE_CONFIGS.owned, { saveStatus: 500 });
-    await page.goto('/?kiosk=1');
+    await openSpotifyTab(page, '/?kiosk=1');
     const settings = await openSettings(page, 'Appearance');
 
     await settings.getByRole('button', { name: 'Night' }).click();
@@ -72,7 +73,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
 
   test('the Countdown page adds a stop found by search and saves the departures', async ({ page }) => {
     const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
-    await page.goto('/?kiosk=1');
+    await openSpotifyTab(page, '/?kiosk=1');
     const settings = await openSettings(page, 'Countdown');
     // The config's stop, added elsewhere, takes its name from its departures on the server.
     await expect(settings.getByRole('list', { name: 'Saved stops' }).getByText('Majorstuen')).toBeVisible();
@@ -102,7 +103,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
   test('the time format on the General page changes the header clock and saves', async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-11-15T16:05:00'));
     const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
-    await page.goto('/?kiosk=1');
+    await openSpotifyTab(page, '/?kiosk=1');
     await expect(page.locator('.spotify-bar .dashboard-clock')).toHaveText('16:05');
     const settings = await openSettings(page, 'General');
 

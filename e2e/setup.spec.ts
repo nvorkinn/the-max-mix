@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { PIXEL } from './fake-spotify.ts';
+import { openSpotifyTab } from './spotify-tab.ts';
 
 test.describe('Setup and signing in', { tag: '@setup' }, () => {
   test.beforeEach(async ({ page }) => {
@@ -18,7 +19,7 @@ test.describe('Setup and signing in', { tag: '@setup' }, () => {
       commands.push(route.request().method());
       return route.fulfill({ status: 503 });
     });
-    await page.goto('/');
+    await openSpotifyTab(page);
     const setup = page.getByRole('region', { name: 'Now playing' });
     await expect(setup.getByRole('button', { name: 'Connect Spotify' })).toBeInViewport();
     await expect(setup.getByRole('slider')).toHaveCount(0);
@@ -37,7 +38,7 @@ test.describe('Setup and signing in', { tag: '@setup' }, () => {
     await page.route('https://accounts.spotify.com/authorize**', route =>
       route.fulfill({ contentType: 'text/html', body: '<h1>Test sign-in page</h1>' })
     );
-    await page.goto('/');
+    await openSpotifyTab(page);
     await page.getByRole('button', { name: 'Connect Spotify' }).click();
     await expect(page).toHaveURL(/^https:\/\/accounts\.spotify\.com\/authorize\?/);
     await expect(page.getByRole('heading', { name: 'Test sign-in page' })).toBeVisible();
@@ -47,7 +48,7 @@ test.describe('Setup and signing in', { tag: '@setup' }, () => {
 
   test('failed sign-in retains recovery and diagnostics', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 600 });
-    await page.goto('/?error=access_denied');
+    await openSpotifyTab(page, '/?error=access_denied');
     await expect(page.getByRole('alert')).toContainText(/Spotify|sign-in/i);
     await expect(page.getByRole('button', { name: 'Connect Spotify' })).toBeEnabled();
     await page.getByRole('button', { name: 'Details' }).click();

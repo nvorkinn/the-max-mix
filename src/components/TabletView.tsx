@@ -61,8 +61,8 @@ import type { AppTab } from './AppTabs';
 
 type Screen = 'spotify' | 'dashboard' | 'settings';
 const SCREENS: readonly AppTab<Screen>[] = [
-  { id: 'spotify', label: 'Spotify', icon: <Music aria-hidden="true" /> },
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard aria-hidden="true" /> },
+  { id: 'spotify', label: 'Spotify', icon: <Music aria-hidden="true" /> },
   { id: 'settings', label: 'Settings', icon: <Settings aria-hidden="true" /> }
 ];
 
@@ -152,7 +152,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // The Settings tab starts on the overview; the sign-in prompts bring it up on the Spotify page.
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('overview');
   const [isMusicOpen, setIsMusicOpen] = useState(false);
-  const [screen, setScreen] = useState<Screen>('spotify');
+  // Every start (kiosk start, reload, coming back from a sign-in) opens on the Dashboard, except after a failed sign-in,
+  // whose message the Spotify tab shows.
+  const [screen, setScreen] = useState<Screen>(signInError ? 'spotify' : 'dashboard');
   // Every change of tab fades across the whole screen, whether tapped, idle or from a prompt.
   const goToScreen = (next: Screen) => crossfade(() => setScreen(next));
   const [isDebugOpen, setIsDebugOpen] = useState(false);

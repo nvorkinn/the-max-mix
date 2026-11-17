@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { advance } from './clock.ts';
 import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSettings, showSection } from './settings.ts';
+import { openSpotifyTab, showSpotifyTab } from './spotify-tab.ts';
 
 const openDebug = async (page: Page) => {
   await page.keyboard.press('Control+Shift+D');
@@ -20,7 +21,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
   });
 
   test('opens on the overview and closes', async ({ page }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     const dialog = await openSettings(page);
     const nav = dialog.getByRole('navigation', { name: 'Settings' });
     await expect(nav.getByRole('button', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
@@ -30,7 +31,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
   });
 
   test('every section opens from the navigation and from its overview card', async ({ page }) => {
-    await page.goto('/?kiosk=1');
+    await openSpotifyTab(page, '/?kiosk=1');
     const dialog = await openSettings(page);
     const nav = dialog.getByRole('navigation', { name: 'Settings' });
     const sections = ['Overview', 'General', 'Appearance', 'Wi-Fi', 'Spotify', 'About'];
@@ -52,7 +53,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
   });
 
   test('shows that Spotify is connected', async ({ page }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     const dialog = await openSettings(page);
     await expect(
       dialog.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^Spotify/ })
@@ -63,7 +64,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
   });
 
   test('the colour choice recolours the app and is kept', async ({ page }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     const room = page.locator('.tablet-container');
     await expect(room).toHaveAttribute('data-colour', 'forest');
     const accent = () => room.evaluate(element => getComputedStyle(element).getPropertyValue('--accent').trim());
@@ -76,6 +77,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     expect(await accent()).not.toBe(before);
 
     await page.reload();
+    await showSpotifyTab(page);
     await expect(room).toHaveAttribute('data-colour', 'navy');
     await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
   });
@@ -88,7 +90,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
 
     test('unticked stops the timer reads, is kept across a reload, and ticked starts them again', async ({ page }) => {
       const reads = countPlaybackReads(page);
-      await page.goto('/');
+      await openSpotifyTab(page);
       await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
       // It is not a setting people are offered.
       const settings = await openSettings(page);
@@ -111,6 +113,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
 
       // Kept across a reload: the page reads once when it opens, and then not again.
       await page.reload();
+      await showSpotifyTab(page);
       await expect(page.getByRole('heading', { name: 'One More Time' })).toBeVisible();
       const reloaded = reads();
       await advance(page, 30_000, 5000);
@@ -133,7 +136,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     });
 
     test('Screen sleep keeps the choice across a reload', async ({ page }) => {
-      await page.goto('/');
+      await openSpotifyTab(page);
       const dialog = await openSettings(page, 'General');
       const choices = dialog.getByRole('group', { name: 'Screen sleep' });
       // Five minutes is the default.
@@ -168,7 +171,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
             : { status: 204 }
         );
       });
-      await page.goto('/');
+      await openSpotifyTab(page);
       const dialog = await openSettings(page);
       await expect(
         dialog.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^Wi-Fi/ })
@@ -199,11 +202,13 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await page.route('https://accounts.spotify.com/authorize**', route =>
       route.fulfill({ contentType: 'text/html', body: '<h1>Test sign-in page</h1>' })
     );
-    await page.goto('/');
+    await openSpotifyTab(page);
     const dialog = await openSettings(page, 'Spotify');
     await dialog.getByRole('button', { name: 'Sign out' }).click();
 
-    // The page reloads signed out, with nothing of the login kept.
+    // The page reloads signed out, on the Dashboard as every start does, with nothing of the login kept.
+    await expect(page.getByRole('tab', { name: 'Dashboard' })).toHaveAttribute('aria-selected', 'true');
+    await showSpotifyTab(page);
     const connect = page.getByRole('button', { name: 'Connect Spotify' });
     await expect(connect).toBeVisible();
     expect(await page.evaluate(() => localStorage.getItem('maxmix.people'))).toBeNull();
@@ -216,7 +221,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
   });
 
   test('the kiosk-only settings are not offered away from the kiosk', async ({ page }) => {
-    await page.goto('/?kiosk=0');
+    await openSpotifyTab(page, '/?kiosk=0');
     const dialog = await openSettings(page);
     await expect(dialog.getByRole('navigation', { name: 'Settings' }).getByRole('button')).toHaveText([
       'Overview',

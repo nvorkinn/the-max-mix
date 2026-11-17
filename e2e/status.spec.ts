@@ -4,6 +4,7 @@ import type { PlaybackState } from '../src/types.ts';
 import { advance } from './clock.ts';
 import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
 import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
+import { openSpotifyTab } from './spotify-tab.ts';
 
 const playback = {
   is_playing: true,
@@ -133,7 +134,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
   });
 
   test('signed-out playback is not a connected or empty session', async ({ page }) => {
-    await page.goto('/');
+    await openSpotifyTab(page);
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     await expect(player.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
     await expect(player.getByRole('slider', { name: 'Playback position' })).toHaveCount(0);
@@ -148,7 +149,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     const { promise, resolve } = Promise.withResolvers<undefined>();
     api.playback = null;
     api.playbackWait = promise;
-    await page.goto('/');
+    await openSpotifyTab(page);
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     await expect(player.getByRole('button', { name: 'Play', exact: true })).toBeDisabled();
     resolve(undefined);
@@ -164,7 +165,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
   test('restricted devices explain disabled controls', async ({ page }) => {
     const api = await mockSpotify(page);
     api.playback = { ...playback, device: { ...playback.device, is_restricted: true } };
-    await page.goto('/');
+    await openSpotifyTab(page);
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     const banner = page.locator('.playback-banner');
     await expect(banner.getByText('Controls unavailable on this device')).toBeVisible();
@@ -176,7 +177,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
 
   test('offline controls recover', async ({ page }) => {
     await mockSpotify(page);
-    await page.goto('/');
+    await openSpotifyTab(page);
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
     await page.context().setOffline(true);
@@ -194,7 +195,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     const { promise, resolve } = Promise.withResolvers<undefined>();
     api.queueStatus = 500;
     api.queueWait = promise;
-    await page.goto('/');
+    await openSpotifyTab(page);
     const queue = page.getByRole('region', { name: 'Upcoming tracks' });
     await expect(queue.getByText('Loading queue...')).toBeVisible();
     // The playing song arriving reads the queue again; let it land while the queue still fails, so that a read after
@@ -214,11 +215,14 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
       await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
       const api = await mockSpotify(page);
-      await page.goto('/');
+      await openSpotifyTab(page);
       const player = page.getByRole('region', { name: 'Now playing', exact: true });
       const queue = page.getByRole('region', { name: 'Upcoming tracks' });
       await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
-      await expect(queue.getByText('A little quiet in here.')).toBeVisible();
+      // The lyrics come forward once the queue is read and known to be empty.
+      await expect(
+        page.getByRole('navigation', { name: 'Beside the artwork' }).getByRole('button', { name: 'Lyrics' })
+      ).toHaveAttribute('aria-pressed', 'true');
       if (source === 'skip') {
         api.nextStatus = 429;
         await player.getByRole('button', { name: 'Next track' }).click();
@@ -273,7 +277,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
   test('playback recovery fits 1024x600 without repeating a skip', async ({ page }) => {
     const api = await mockSpotify(page);
     api.nextStatus = 500;
-    await page.goto('/');
+    await openSpotifyTab(page);
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     await player.getByRole('button', { name: 'Next track' }).click();
     await expect(page.getByRole('alert')).toContainText('Playback problem');
@@ -315,7 +319,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       page
     }) => {
       const reads = countPlaybackReads(page);
-      await page.goto('/');
+      await openSpotifyTab(page);
       await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 
       refusal = { reason: 'QUOTA_EXCEEDED' };
@@ -338,7 +342,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
 
     test('an ordinary 429 waits a while, says so, and carries on by itself', async ({ page }) => {
       const reads = countPlaybackReads(page);
-      await page.goto('/');
+      await openSpotifyTab(page);
       await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 
       refusal = {};
@@ -366,7 +370,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
 
     test('a player that drops offline offers Reconnect, and a fresh player clears the problem', async ({ page }) => {
       const sdk = await fakeSpotifySdk(page);
-      await page.goto('/');
+      await openSpotifyTab(page);
       await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
       await expect.poll(() => sdk.players()).toBe(1);
 
@@ -384,7 +388,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       page
     }) => {
       const sdk = await fakeSpotifySdk(page);
-      await page.goto('/');
+      await openSpotifyTab(page);
       await expect.poll(() => sdk.players()).toBe(1);
 
       await sdk.emit('autoplay_failed');
@@ -403,7 +407,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
         Object.defineProperty(navigator, 'requestMediaKeySystemAccess', { value: undefined, configurable: true });
       });
       const sdk = await fakeSpotifySdk(page);
-      await page.goto('/');
+      await openSpotifyTab(page);
       await expect.poll(() => sdk.players()).toBe(1);
 
       await sdk.emit('initialization_error', { message: 'Failed to initialize player' });

@@ -9,6 +9,7 @@ import { clearLyricsCache } from '../hooks/useLyrics';
 import { fetchSpotify, recordSpotifyRetryAfter, resetSpotifyRateLimit, SpotifyApiError } from '../spotify/http';
 import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import * as deviceConfig from '../countdown/config';
+import { renderOnSpotifyTab } from '../test/onSpotifyTab';
 import TabletView from './TabletView';
 
 const player = vi.hoisted(() => {
@@ -193,7 +194,7 @@ describe('TabletView', () => {
     vi.useFakeTimers();
     setPlayer({ problem: { message: 'Rate limited', recovery: 'wait' } });
     api.getQueue.mockRejectedValueOnce(new SpotifyApiError('Rate limited', 429, 1));
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -212,7 +213,7 @@ describe('TabletView', () => {
     vi.useFakeTimers();
     setPlayer({ playbackState: playing });
     api.getQueue.mockResolvedValue({ queue: queued });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -239,7 +240,7 @@ describe('TabletView', () => {
   });
 
   it('shows the queue beside the artwork while songs are queued, and fades to the lyrics on the Lyrics button', async () => {
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     const panels = document.querySelector('.side-panel');
     expect(panels).toHaveAttribute('data-showing', 'queue');
@@ -265,7 +266,7 @@ describe('TabletView', () => {
   });
 
   it('shows the speakers in the panel from the Speakers button beside it, and the queue again from Queue', async () => {
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     const nav = screen.getByRole('navigation', { name: 'Beside the artwork' });
     fireEvent.click(within(nav).getByRole('button', { name: 'Speakers' }));
@@ -279,7 +280,7 @@ describe('TabletView', () => {
 
   it('keeps the queue, with its retry, in view when the queue could not be read', async () => {
     api.getQueue.mockRejectedValue(new Error('Queue down'));
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(document.querySelector('.side-panel')).toHaveAttribute('data-showing', 'queue');
     expect(screen.getByRole('button', { name: 'Retry queue' })).toBeInTheDocument();
@@ -287,7 +288,7 @@ describe('TabletView', () => {
 
   it('shows the lyrics when nothing is queued', async () => {
     api.getQueue.mockResolvedValue({ queue: [] });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(document.querySelector('.side-panel')).toHaveAttribute('data-showing', 'lyrics');
     expect(screen.getByRole('button', { name: 'Lyrics' })).toHaveAttribute('aria-pressed', 'true');
@@ -299,7 +300,7 @@ describe('TabletView', () => {
       'fetch',
       vi.fn().mockResolvedValue(Response.json({ error: { reason: 'QUOTA_EXCEEDED' } }, { status: 429 }))
     );
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     const reads = api.getQueue.mock.calls.length;
     await act(() => fetchSpotify('https://api.spotify.com/v1/me/player', {}));
@@ -326,7 +327,7 @@ describe('TabletView', () => {
     });
 
     const switchToAnna = async () => {
-      render(<TabletView />);
+      renderOnSpotifyTab(<TabletView />);
       await flush();
       // The Spotify tab floats the Dashboard's bar, which has no switcher; the Settings tab's header does.
       showSettingsTab();
@@ -362,7 +363,7 @@ describe('TabletView', () => {
     it('offers to pair the phone of someone who has just signed in, on the kiosk only', async () => {
       people.takePhoneToPair.mockReturnValueOnce('anna');
       localStorage.setItem('maxmix.kiosk', 'true');
-      const { unmount } = render(<TabletView />);
+      const { unmount } = renderOnSpotifyTab(<TabletView />);
       await flush();
       expect(screen.getByRole('heading', { name: 'Pair anna’s iPhone' })).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
@@ -370,7 +371,7 @@ describe('TabletView', () => {
       unmount();
       localStorage.removeItem('maxmix.kiosk');
       people.takePhoneToPair.mockClear();
-      render(<TabletView />);
+      renderOnSpotifyTab(<TabletView />);
       expect(people.takePhoneToPair).not.toHaveBeenCalled();
     });
 
@@ -383,20 +384,20 @@ describe('TabletView', () => {
   });
 
   it('has no sleep button off the kiosk', () => {
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     expect(screen.queryByRole('button', { name: 'Put the screen to sleep' })).not.toBeInTheDocument();
   });
 
   it('shows the clock in 24-hour time', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 0, 1, 16, 46));
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     expect(document.querySelector('.spotify-bar .dashboard-clock')).toHaveTextContent(/^\s*16:46\s*$/);
     expect(document.querySelector('.spotify-bar .dashboard-clock')).not.toHaveTextContent(/AM|PM/i);
   });
 
   it('shows the playing device and loads the queue', async () => {
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(screen.getAllByText('Kitchen').length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Queued One' })).toBeInTheDocument();
@@ -416,7 +417,7 @@ describe('TabletView', () => {
           })
       )
     });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     const second = screen.getByRole('button', { name: 'Play Queued Two by Q' });
     fireEvent.click(second);
@@ -431,7 +432,7 @@ describe('TabletView', () => {
   });
 
   it('tints the page with colours from the album art', async () => {
-    const { container } = render(<TabletView />);
+    const { container } = renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(palette.extractArtColours).toHaveBeenCalledWith('http://art/a.jpg');
     const style = (container.firstChild as HTMLElement).style;
@@ -441,14 +442,14 @@ describe('TabletView', () => {
 
   it('leaves the page plain when the art has no usable colours', async () => {
     palette.extractArtColours.mockResolvedValue(null);
-    const { container } = render(<TabletView />);
+    const { container } = renderOnSpotifyTab(<TabletView />);
     await flush();
     expect((container.firstChild as HTMLElement).style.getPropertyValue('--art-tint-top')).toBe('');
   });
 
   it('prompts to sign in and does not poll the queue when unauthenticated', async () => {
     setPlayer({ isAuthenticated: false, isReady: false, playbackState: null });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     const panel = screen.getByRole('region', { name: 'Now playing' });
     expect(within(panel).getByRole('heading', { name: 'Bring your music to the tablet' })).toBeInTheDocument();
@@ -460,7 +461,7 @@ describe('TabletView', () => {
 
   it('changes and remembers the colour picked in the settings', async () => {
     setPlayer({ isAuthenticated: false, isReady: false, playbackState: null });
-    const { container } = render(<TabletView />);
+    const { container } = renderOnSpotifyTab(<TabletView />);
     await flush();
     const room = defined(container.querySelector('.tablet-container'));
     expect(room).toHaveAttribute('data-colour', 'forest');
@@ -492,7 +493,7 @@ describe('TabletView', () => {
       const save = vi
         .spyOn(deviceConfig, 'saveConfigSection')
         .mockImplementation((section, value) => Promise.resolve({ saved: { ...OWNED, [section]: value } }));
-      const { container } = render(<TabletView />);
+      const { container } = renderOnSpotifyTab(<TabletView />);
       await flush();
       const room = defined(container.querySelector('.tablet-container'));
       expect(room).toHaveAttribute('data-colour', 'teal');
@@ -515,7 +516,7 @@ describe('TabletView', () => {
     it('puts a change back when it does not save', async () => {
       vi.spyOn(deviceConfig, 'loadDeviceConfig').mockResolvedValue(OWNED);
       vi.spyOn(deviceConfig, 'saveConfigSection').mockResolvedValue({ error: 'failed' });
-      const { container } = render(<TabletView />);
+      const { container } = renderOnSpotifyTab(<TabletView />);
       await flush();
       vi.useFakeTimers();
       openAppearance();
@@ -529,7 +530,7 @@ describe('TabletView', () => {
 
   it('does not show confirmed playback indicators or fabricated times without a track', async () => {
     setPlayer({ playbackState: { device: { name: 'Kitchen' } } });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     const panel = screen.getByRole('region', { name: 'Now playing' });
     expect(within(panel).getAllByText('--:--')).toHaveLength(2);
@@ -538,7 +539,7 @@ describe('TabletView', () => {
 
   it('offers a speaker chooser without transferring playback when no device is active', async () => {
     setPlayer({ isReady: false, playbackState: null });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(screen.getByRole('heading', { name: 'Nothing playing' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Speakers:/ }));
@@ -550,7 +551,7 @@ describe('TabletView', () => {
 
   it('keeps explicit Play available for a ready browser device without an active track', async () => {
     setPlayer({ isReady: false, playbackState: null, browserDeviceId: 'this-browser' });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(screen.getByRole('button', { name: 'Play' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Next track' })).toBeDisabled();
@@ -559,7 +560,7 @@ describe('TabletView', () => {
 
   it('marks offline playback distinctly and disables live controls', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(screen.getByRole('alert')).toHaveTextContent('No internet connection');
     expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
@@ -571,7 +572,7 @@ describe('TabletView', () => {
     ['enable-audio', 'Allow browser audio', 'allowBrowserAudio']
   ] as const)('wires %s recovery without reissuing transport commands', async (recovery, label, method) => {
     setPlayer({ error: 'Playback failed', problem: { message: 'Playback failed', recovery } });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     fireEvent.click(screen.getByRole('button', { name: label }));
     await flush();
@@ -590,7 +591,7 @@ describe('TabletView', () => {
           finish = () => resolve(true);
         })
     );
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     fireEvent.click(screen.getByRole('button', { name: 'Refresh playback' }));
     const pending = screen.getByRole('button', { name: 'Checking...' });
@@ -606,7 +607,7 @@ describe('TabletView', () => {
 
   it('shows recovery in a top banner and preserves exact hook errors in the debug console', async () => {
     setPlayer({ error: 'Device offline' });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(screen.getByRole('alert')).toHaveTextContent('Playback problem');
     expect(screen.getByRole('button', { name: 'Refresh playback' })).toBeInTheDocument();
@@ -619,7 +620,7 @@ describe('TabletView', () => {
 
   it('opens the debug console when the clock is held for two seconds, not on a tap', async () => {
     vi.useFakeTimers();
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -643,7 +644,7 @@ describe('TabletView', () => {
   });
 
   it('toggles the debug console with Ctrl+Shift+D', async () => {
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     fireEvent.keyDown(window, { key: 'D', ctrlKey: true, shiftKey: true });
     expect(screen.getByRole('dialog', { name: 'Debug console' })).toBeInTheDocument();
@@ -655,7 +656,7 @@ describe('TabletView', () => {
     vi.useFakeTimers();
     const rateLimited = new SpotifyApiError('Slow down', 429, 30);
     api.getQueue.mockRejectedValueOnce(rateLimited).mockResolvedValue({ queue: queued });
-    const { rerender } = render(<TabletView />);
+    const { rerender } = renderOnSpotifyTab(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -678,14 +679,14 @@ describe('TabletView', () => {
 
   it('shows queue loading instead of an empty queue before a first result', () => {
     api.getQueue.mockReturnValue(new Promise(() => {}));
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     expect(screen.getByText('Loading queue...')).toBeInTheDocument();
     expect(screen.queryByText('A little quiet in here.')).not.toBeInTheDocument();
   });
 
   it('retries a failed queue immediately and only shows empty after a successful response', async () => {
     api.getQueue.mockRejectedValueOnce(new Error('Queue down')).mockResolvedValue({ queue: [] });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(screen.getByText('Queue unavailable.')).toBeInTheDocument();
     expect(screen.queryByText('A little quiet in here.')).not.toBeInTheDocument();
@@ -699,7 +700,7 @@ describe('TabletView', () => {
     vi.useFakeTimers();
     setPlayer({ playbackState: playing });
     api.getQueue.mockResolvedValueOnce({ queue: queued }).mockRejectedValueOnce(new Error('Queue down'));
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -710,9 +711,18 @@ describe('TabletView', () => {
     expect(screen.getByText('Showing the last known queue.')).toBeInTheDocument();
   });
 
-  it('shows a failed sign-in as an alert', async () => {
+  it('starts on the Dashboard, with the tabs in the order Dashboard, Spotify, Settings', async () => {
+    render(<TabletView />);
+    await flush();
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map(tab => tab.textContent.trim())).toEqual(['Dashboard', 'Spotify', 'Settings']);
+    expect(screen.getByRole('tab', { name: 'Dashboard' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('shows a failed sign-in as an alert, on the Spotify tab it starts on', async () => {
     render(<TabletView signInError="Spotify said no" />);
     await flush();
+    expect(screen.getByRole('tab', { name: 'Spotify' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('alert')).toHaveTextContent('Spotify said no');
     fireEvent.click(screen.getByRole('button', { name: 'Details' }));
     expect(
@@ -723,7 +733,7 @@ describe('TabletView', () => {
   it('re-reads the queue when the player says it changed, without polling while the SDK is active', async () => {
     vi.useFakeTimers();
     setPlayer({ sdkActive: true, queueVersion: 1, playbackState: playing });
-    const { rerender } = render(<TabletView />);
+    const { rerender } = renderOnSpotifyTab(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -749,7 +759,7 @@ describe('TabletView', () => {
   it('polls the queue every 10 seconds when no SDK events arrive', async () => {
     vi.useFakeTimers();
     setPlayer({ playbackState: playing });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -761,7 +771,7 @@ describe('TabletView', () => {
 
   it('reads the queue once while paused and polls again once playback starts', async () => {
     vi.useFakeTimers();
-    const { rerender } = render(<TabletView />);
+    const { rerender } = renderOnSpotifyTab(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(30_000);
     });
@@ -776,7 +786,7 @@ describe('TabletView', () => {
 
   it('stops polling on unmount', async () => {
     vi.useFakeTimers();
-    const { unmount } = render(<TabletView />);
+    const { unmount } = renderOnSpotifyTab(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -787,13 +797,13 @@ describe('TabletView', () => {
 
   it('uses Day unless Night was chosen, ignoring the old maxmix_theme setting', async () => {
     localStorage.setItem('maxmix_theme', 'neon');
-    const { container, unmount } = render(<TabletView />);
+    const { container, unmount } = renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(container.firstChild).toHaveAttribute('data-theme', 'day');
     unmount();
 
     localStorage.setItem('maxmix.theme', 'night');
-    const night = render(<TabletView />);
+    const night = renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(night.container.firstChild).toHaveAttribute('data-theme', 'night');
   });
@@ -806,7 +816,7 @@ describe('TabletView', () => {
         device: { name: 'K', volume_percent: 20 }
       }
     });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next track' }));
@@ -833,7 +843,7 @@ describe('TabletView', () => {
       },
       next: [{ name: 'After That', artists: [], album: { images: [] } }]
     });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(screen.getAllByText('Sonos Song').length).toBeGreaterThan(0);
     expect(screen.getByText('After That')).toBeInTheDocument();
@@ -857,7 +867,7 @@ describe('TabletView', () => {
 
   it('says when the Sonos cannot be read, and reads it again on Refresh', async () => {
     setSonos({ active: true, name: 'Kitchen', error: 'Sonos did not answer (500).' });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(screen.getByRole('alert')).toHaveTextContent('Playback problem');
     fireEvent.click(screen.getByRole('button', { name: 'Refresh playback' }));
@@ -867,14 +877,14 @@ describe('TabletView', () => {
 
   it('disables transport when the device is restricted', async () => {
     setPlayer({ playbackState: { is_playing: false, item: track, device: { name: 'K', is_restricted: true } } });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
   });
 
   it('moves playback to a ticked speaker only on Save, then goes straight back to Speakers', async () => {
     vi.useFakeTimers();
-    const { rerender } = render(<TabletView />);
+    const { rerender } = renderOnSpotifyTab(<TabletView />);
     await act(() => vi.advanceTimersByTimeAsync(0));
     fireEvent.click(screen.getByRole('button', { name: /^Speakers:/ }));
     await act(() => vi.advanceTimersByTimeAsync(0));
@@ -903,7 +913,7 @@ describe('TabletView', () => {
 
   it('keeps the draft and says so when the speaker never starts playing', async () => {
     vi.useFakeTimers();
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await act(() => vi.advanceTimersByTimeAsync(0));
     fireEvent.click(screen.getByRole('button', { name: /^Speakers:/ }));
     await act(() => vi.advanceTimersByTimeAsync(0));
@@ -930,7 +940,7 @@ describe('TabletView', () => {
     });
 
     it('the sleep button sleeps the screen even while music plays, and slows the polling until a tap wakes it', async () => {
-      render(<TabletView />);
+      renderOnSpotifyTab(<TabletView />);
       await flush();
       // Sleep is in the Settings tab's header; the bar floating on the Spotify tab has none.
       showSettingsTab();
@@ -952,7 +962,7 @@ describe('TabletView', () => {
       it('shows the Dashboard after a minute, dims it five minutes later and sleeps after the chosen delay', async () => {
         vi.useFakeTimers({ now: new Date('2026-01-01T12:00:00') });
         localStorage.setItem('maxmix.screenSleep', '15');
-        render(<TabletView />);
+        renderOnSpotifyTab(<TabletView />);
         await minutes(1);
         expect(tab('Dashboard')).toHaveAttribute('aria-selected', 'true');
         expect(screen.queryByRole('dialog', { name: 'Dimmed screen' })).not.toBeInTheDocument();
@@ -974,7 +984,7 @@ describe('TabletView', () => {
       it('in quiet hours sleeps a minute after the last touch, even on another tab', async () => {
         vi.useFakeTimers({ now: new Date('2026-01-01T23:00:00') });
         localStorage.setItem('maxmix.quietHours', JSON.stringify({ on: true, start: 22 * 60, end: 7 * 60 }));
-        render(<TabletView />);
+        renderOnSpotifyTab(<TabletView />);
         showSettingsTab();
         await minutes(1);
         expect(screen.getByRole('dialog', { name: 'Sleep screen' })).toBeInTheDocument();
@@ -988,7 +998,7 @@ describe('TabletView', () => {
           browserDeviceId: 'web-1',
           playbackState: { is_playing: true, item: track, device: { id: 'dev1', name: 'Soundbar' } }
         });
-        render(<TabletView />);
+        renderOnSpotifyTab(<TabletView />);
         fireEvent.click(tab('Dashboard'));
         await minutes(30);
         expect(screen.queryByRole('dialog', { name: 'Dimmed screen' })).not.toBeInTheDocument();
@@ -1012,18 +1022,18 @@ describe('TabletView', () => {
       afterEach(() => vi.unstubAllGlobals());
 
       it('asks once, and Not now keeps it quiet', async () => {
-        const { unmount } = render(<TabletView />);
+        const { unmount } = renderOnSpotifyTab(<TabletView />);
         expect(await screen.findByRole('dialog', { name: 'Update available' })).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
         expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
         unmount();
-        render(<TabletView />);
+        renderOnSpotifyTab(<TabletView />);
         await flush();
         expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
       });
 
       it('Update now opens the update stream and the console in place of the tablet', async () => {
-        render(<TabletView />);
+        renderOnSpotifyTab(<TabletView />);
         await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(screen.getByRole('button', { name: 'Update now' }));
         expect(await screen.findByRole('dialog', { name: 'Updating the Pi' })).toBeInTheDocument();
@@ -1034,7 +1044,7 @@ describe('TabletView', () => {
       });
 
       it('does not ask while the screen sleeps, but does once it wakes', async () => {
-        render(<TabletView />);
+        renderOnSpotifyTab(<TabletView />);
         await screen.findByRole('dialog', { name: 'Update available' });
         // A dialog would show over the black sleep screen, so the question waits for the screen to wake.
         showSettingsTab();
@@ -1045,7 +1055,7 @@ describe('TabletView', () => {
       });
 
       it('asks GitHub again each time Settings opens, and shows what it finds', async () => {
-        render(<TabletView />);
+        renderOnSpotifyTab(<TabletView />);
         await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
         const asked = fetchMock.mock.calls.length;
@@ -1060,7 +1070,7 @@ describe('TabletView', () => {
       });
 
       it('Update now in the popup over Settings opens the console; Not now leaves Settings showing', async () => {
-        render(<TabletView />);
+        renderOnSpotifyTab(<TabletView />);
         await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
         fetchMock.mockImplementation(() => Promise.resolve(release('v1.14.0')));
@@ -1080,7 +1090,7 @@ describe('TabletView', () => {
       });
 
       it('Check for updates in Settings asks again after Not now, and the update starts from the popup', async () => {
-        render(<TabletView />);
+        renderOnSpotifyTab(<TabletView />);
         await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
         fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
@@ -1098,7 +1108,7 @@ describe('TabletView', () => {
 
       it('asks GitHub again when the screen wakes', async () => {
         fetchMock.mockImplementation(() => Promise.resolve(release('v1.12.0')));
-        render(<TabletView />);
+        renderOnSpotifyTab(<TabletView />);
         await flush();
         expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
         showSettingsTab();
@@ -1121,7 +1131,7 @@ describe('TabletView', () => {
     };
     const outputs = (linked: boolean) => ({ outputs: [{ ...kitchen, linked }], legacy: false });
     const openSpeakers = async () => {
-      const view = render(<TabletView />);
+      const view = renderOnSpotifyTab(<TabletView />);
       await act(() => vi.advanceTimersByTimeAsync(0));
       fireEvent.click(screen.getByRole('button', { name: /^Speakers:/ }));
       await act(() => vi.advanceTimersByTimeAsync(0));
@@ -1207,7 +1217,7 @@ describe('TabletView', () => {
 
   it('shows the clock in the bar on the Spotify tab', async () => {
     vi.useFakeTimers({ now: new Date('2026-01-01T09:05:00') });
-    render(<TabletView />);
+    renderOnSpotifyTab(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
