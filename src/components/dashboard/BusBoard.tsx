@@ -1,24 +1,32 @@
+import { useId } from 'react';
 import { BusFront, ChevronRight } from 'lucide-react';
 import type { BusBoardProps } from '../../dashboard/props';
 import AnimatedRows from './AnimatedRows';
 import { byVehicle, Destination, Minutes, visibleDepartures } from './DepartureRows';
 
-/** Buses due at a stop: four rows, keyed by the bus so a row follows its bus. */
-export default function BusBoard({ stopName, departures, now, stale }: Readonly<BusBoardProps>) {
+/** Buses due at a stop: `rows` rows (four, or two when the boards are two deep), keyed by the bus so a row follows its bus. */
+export default function BusBoard({
+  stopName,
+  departures,
+  now,
+  stale,
+  rows = 4
+}: Readonly<BusBoardProps & { rows?: number }>) {
+  const titleId = useId();
   return (
-    <section className="dashboard-board" aria-labelledby="dashboard-bus-title">
+    <section className="dashboard-board" aria-labelledby={titleId}>
       <div className="dashboard-board-head">
         <span className="dashboard-bus-mark" aria-hidden="true">
           <BusFront className="lucide" />
         </span>
-        <h2 id="dashboard-bus-title">Buses</h2>
+        <h2 id={titleId}>Buses</h2>
         <span className="dashboard-board-stop">
           {stopName} <ChevronRight className="lucide" aria-hidden="true" />
         </span>
       </div>
-      <ol className="dashboard-rows" data-stale={stale}>
+      <ol className="dashboard-rows" data-stale={stale} data-rows={rows}>
         <AnimatedRows
-          items={visibleDepartures(departures, now)}
+          items={visibleDepartures(departures, now, rows)}
           keyOf={byVehicle}
           render={departure => (
             <>

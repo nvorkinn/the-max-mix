@@ -20,19 +20,20 @@ describe('useLiveDashboard', () => {
         return close;
       }
     );
+    const buses = () => result.current.boards.find(({ kind }) => kind === 'bus')?.departures;
     const { result, rerender, unmount } = renderHook(({ now }) => useLiveDashboard(now, '24h', source), {
       initialProps: { now: NOW }
     });
-    expect(result.current.bus).toBeNull();
+    expect(result.current.boards).toEqual([]);
 
     act(() => {
       feed?.onEvent({ event: 'arrivals', data: panels.arrivals as DeviceArrivals });
     });
-    expect(result.current.bus?.departures).toHaveLength(2);
+    expect(buses()).toHaveLength(2);
 
     // A minute on, the first bus (due 12:01) is still there to show as due; three minutes on it has gone.
     rerender({ now: new Date(NOW.getTime() + 3 * 60_000) });
-    expect(result.current.bus?.departures).toHaveLength(1);
+    expect(buses()).toHaveLength(1);
 
     unmount();
     expect(close).toHaveBeenCalled();

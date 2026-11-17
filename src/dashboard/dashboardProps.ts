@@ -1,10 +1,10 @@
 // The redesigned Dashboard's data, in its components' props (props.ts), from what the live feed last gave (live.ts):
-// the Tube and Bus boards (boards.ts), the weather block and hourly strip (weatherViews.ts) and the notice board
-// (notices.ts's notices, in the board's kinds and colours). The layout never depends on the data: a board, the
-// weather or the notices that the server has nothing for are null or empty, and each component keeps its space.
+// a Tube or Bus board per stop (boards.ts), the weather block and hourly strip (weatherViews.ts) and the notice board
+// (notices.ts's notices, in the board's kinds and colours). The weather or the notices that the server has nothing for
+// are null or empty, and each component keeps its space.
 //
-// Stale: once the feed has been down for STALE_AFTER_MS, everything is; before that, a board is stale while any of its
-// stops' departures are held from before (their provider is down) or were read longer ago than DEPARTURES_STALE_MS, and
+// Stale: once the feed has been down for STALE_AFTER_MS, everything is; before that, a board is stale while its
+// stop's departures are held from before (their provider is down) or were read longer ago than DEPARTURES_STALE_MS, and
 // the hourly strip while the forecast is held or older than WEATHER_STALE_MS.
 
 import type { DeviceWeather } from 'countdown-api';
@@ -98,8 +98,8 @@ export function dashboardProps(snapshot: LiveSnapshot, now: Date, clockFormat: C
   const fetchedAt = new Map(
     (snapshot.arrivals?.stops ?? []).flatMap(stop => (stop.departures ? [[stop.id, stop.departures.fetched_at]] : []))
   );
-  const boardStale = (stopIds: readonly string[]) =>
-    down || stopIds.some(id => snapshot.heldStops.has(id) || olderThan(fetchedAt.get(id), DEPARTURES_STALE_MS, now));
+  const boardStale = (stopId: string) =>
+    down || snapshot.heldStops.has(stopId) || olderThan(fetchedAt.get(stopId), DEPARTURES_STALE_MS, now);
 
   const weather = toWeather(snapshot.weather, now, clockFormat);
   const weatherRead = snapshot.weather?.forecast?.fetched_at;
@@ -121,17 +121,6 @@ export function dashboardProps(snapshot: LiveSnapshot, now: Date, clockFormat: C
           }
         : null,
     notices: { notices: toNoticeItems(snapshot, now, clockFormat) },
-    tube: boards.tube && {
-      stopName: boards.tube.stopName,
-      departures: boards.tube.departures,
-      now,
-      stale: boardStale(boards.tube.stopIds)
-    },
-    bus: boards.bus && {
-      stopName: boards.bus.stopName,
-      departures: boards.bus.departures,
-      now,
-      stale: boardStale(boards.bus.stopIds)
-    }
+    boards: boards.map(({ stopId, ...board }) => ({ ...board, now, stale: boardStale(stopId) }))
   };
 }
