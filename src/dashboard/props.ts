@@ -150,3 +150,8 @@ export type TubeBoardProps = BoardProps<TubeDeparture>;
 
 /** @public */
 export type BusBoardProps = BoardProps<BusDeparture>;
+
+/** @public One stop's board along the bottom: a Tube station's trains or a bus stop's buses. */
+export type DepartureBoardProps = { id: string } & (
+  ({ kind: 'tube' } & TubeBoardProps) | ({ kind: 'bus' } & BusBoardProps)
+);

@@ -1,4 +1,4 @@
-// cspell:ignore GZZLUEAC
+// cspell:ignore GZZLUEAC GZZLUBOR GZZLULBN
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 
@@ -305,6 +305,44 @@ function arrivalsAt(now: Date, hasLongNames: boolean) {
         departure('LX11AVD', '12', 'Oxford Circus', 11, null)
       ])
     ]
+  };
+}
+
+/** Tube stations and bus stops near Elephant & Castle, each with four departures, for a kiosk with more stops. */
+const NEARBY = [
+  ['940GZZLUEAC', 'Elephant & Castle Underground Station', 'tube', ['Northern', 'Bakerloo']],
+  ['940GZZLUKNG', 'Kennington Underground Station', 'tube', ['Northern', 'Northern']],
+  ['490000077E', 'Elephant & Castle', 'bus', ['12', '343']],
+  ['940GZZLUBOR', 'Borough Underground Station', 'tube', ['Northern', 'Northern']],
+  ['940GZZLULBN', 'Lambeth North Underground Station', 'tube', ['Bakerloo', 'Bakerloo']],
+  ['490000077F', 'Elephant & Castle', 'bus', ['35', '40']]
+] as const;
+
+/** The arrivals of a kiosk with the first `count` of NEARBY's stops, read at `now`. */
+export function stationsAt(now: Date, count: number) {
+  const at = (minutes: number) => new Date(now.getTime() + minutes * 60_000).toISOString();
+  const destinations = ['Morden', 'High Barnet', 'Harrow & Wealdstone', 'Oxford Circus'];
+  return {
+    stops: NEARBY.slice(0, count).map(([id, name, mode, lines], stop) => ({
+      source: 'tfl',
+      id,
+      departures: {
+        fetched_at: now.toISOString(),
+        stop_id: id,
+        name,
+        mode,
+        stop_letter: mode === 'bus' ? id.slice(-1) : null,
+        modes: [],
+        departures: [0, 1, 2, 3].map(index => ({
+          vehicle_id: `${id}-${index}`,
+          line: lines[index % 2],
+          destination: destinations[(index + stop) % destinations.length],
+          expected_at: at(2 + stop + index * 4),
+          platform: mode === 'bus' ? null : `Northbound - Platform ${index + 1}`,
+          mode: null
+        }))
+      }
+    }))
   };
 }
 

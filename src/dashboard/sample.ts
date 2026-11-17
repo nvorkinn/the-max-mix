@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import type {
   BusBoardProps,
+  DepartureBoardProps,
   HourlyStripProps,
   NoticeBoardProps,
   TabBarProps,
@@ -262,7 +263,7 @@ function catchingUpAt(now: Date): string {
 }
 
 /** The sample buses at `now`, soonest first as the server sends them. */
-function busesAt(now: Date): BusBoardProps['departures'] {
+export function busesAt(now: Date): BusBoardProps['departures'] {
   return SAMPLE.bus.departures
     .map(bus => (bus.vehicleId === CATCHING_UP ? { ...bus, expectedAt: catchingUpAt(now) } : bus))
     .toSorted((a, b) => a.expectedAt.localeCompare(b.expectedAt));
@@ -277,7 +278,9 @@ export function sampleDashboard(now: Date, clockFormat: '12h' | '24h', noticeCou
     weather: SAMPLE.weather,
     hourly: { ...SAMPLE.hourly, updatedAt: now.toISOString(), now, clockFormat },
     notices: { notices: SAMPLE.notices.notices.slice(0, noticeCount) },
-    tube: { ...SAMPLE.tube, now },
-    bus: { ...SAMPLE.bus, departures: busesAt(now), now }
+    boards: [
+      { kind: 'tube', id: 'tube:sample', ...SAMPLE.tube, now },
+      { kind: 'bus', id: 'bus:sample', ...SAMPLE.bus, departures: busesAt(now), now }
+    ] satisfies DepartureBoardProps[]
   };
 }

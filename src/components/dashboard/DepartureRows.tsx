@@ -1,20 +1,15 @@
 import type { ReactNode } from 'react';
 import { minutesUntil } from './icons';
 
-/** Rows each board shows. */
-const ROWS_PER_BOARD = 4;
-
 /** A departure this many minutes away or fewer is drawn green: time to go. */
 const SOON_MINUTES = 3;
 
 /** How long past its time a departure stays on the board as "Due" before it goes. */
 const DUE_GRACE_MS = 60_000;
 
-/** Those still to leave, soonest first, the rows the board has room for: one leaves a minute after it was due. */
-export function visibleDepartures<D extends { expectedAt: string }>(departures: D[], now: Date): D[] {
-  return departures
-    .filter(d => new Date(d.expectedAt).getTime() > now.getTime() - DUE_GRACE_MS)
-    .slice(0, ROWS_PER_BOARD);
+/** Those still to leave, soonest first, the `rows` the board has room for: one leaves a minute after it was due. */
+export function visibleDepartures<D extends { expectedAt: string }>(departures: D[], now: Date, rows = 4): D[] {
+  return departures.filter(d => new Date(d.expectedAt).getTime() > now.getTime() - DUE_GRACE_MS).slice(0, rows);
 }
 
 /** A departure row's key: its vehicle, so the row follows the vehicle when predictions reorder. */

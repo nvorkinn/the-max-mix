@@ -475,9 +475,38 @@ button.dashboard-notice {
   position: relative;
   height: 360px;
   flex-shrink: 0;
-  display: flex;
-  gap: 28px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 16px 28px;
   padding: 48px 24px 12px 8px;
+}
+/* Three boards across: narrower pills and times so the destination keeps its room. */
+.dashboard-departures[data-columns='3'] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 24px;
+}
+.dashboard-departures[data-columns='3'] .dashboard-rows li {
+  gap: 10px;
+}
+.dashboard-departures[data-columns='3'] .dashboard-line-pill {
+  width: 76px;
+  font-size: 13px;
+}
+.dashboard-departures[data-columns='3'] .dashboard-mins {
+  min-width: 56px;
+  font-size: 30px;
+}
+/* Two deep: a shorter head, and two rows a board. */
+.dashboard-departures[data-rows='2'] .dashboard-board-head {
+  height: 36px;
+  padding-bottom: 4px;
+}
+.dashboard-departures[data-rows='2'] .dashboard-board-head h2 {
+  font-size: 22px;
+}
+.dashboard-rows[data-rows='2'] li {
+  max-height: calc(50% + 0.5px);
 }
 .dashboard-departures::before {
   content: '';
@@ -640,6 +669,9 @@ button.dashboard-notice {
   display: block;
   font-size: 14px;
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .dashboard-mins {
   display: flex;

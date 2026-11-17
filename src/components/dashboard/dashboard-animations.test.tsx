@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NoticeItem } from '../../dashboard/props';
-import { SAMPLE, SAMPLE_NOW, sampleDashboard } from '../../dashboard/sample';
+import { busesAt, SAMPLE, SAMPLE_NOW, sampleDashboard } from '../../dashboard/sample';
 import Dashboard from '../Dashboard';
 import Backdrop, { BACKDROP_FADE_MS } from './Backdrop';
 import BusBoard from './BusBoard';
@@ -25,7 +25,7 @@ afterEach(() => {
 });
 
 describe('the departure boards', () => {
-  const buses = (now: Date) => <BusBoard {...sampleDashboard(now, '24h').bus} />;
+  const buses = (now: Date) => <BusBoard {...SAMPLE.bus} departures={busesAt(now)} now={now} />;
   const rowOf = (destination: string) => screen.getByText(destination).closest('li');
   const destinations = () =>
     within(screen.getByRole('region', { name: 'Buses' }))
