@@ -33,6 +33,7 @@ import type { Theme } from '../utils/theme';
 import { DEFAULT_CLOCK_FORMAT, formatClockTime } from '../utils/clockFormat';
 import type { ThemeColour } from '../utils/themeColour';
 import type { MusicChoice, Track } from '../types';
+import type { TabBarProps } from '../dashboard/props';
 import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
 import SpotifySetup from './SpotifySetup';
@@ -53,6 +54,7 @@ import PersonSwitcher from './PersonSwitcher';
 import PairPhoneSheet from './PairPhoneSheet';
 import AppTabs, { tabPanelId } from './AppTabs';
 import DashboardScreen from './DashboardScreen';
+import TabBar from './dashboard/TabBar';
 import type { AppTab } from './AppTabs';
 
 type Screen = 'spotify' | 'dashboard' | 'settings';
@@ -487,6 +489,16 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     }
   };
 
+  // The Dashboard's tab bar, which floats on the Spotify tab too.
+  const tabBar: TabBarProps = {
+    active: screen,
+    onSelect: showScreen,
+    person: activePerson ? { name: activePerson.name, pictureUrl: activePerson.imageUrl || null } : null,
+    onSearch: needsConnection ? null : () => setIsMusicOpen(true),
+    now: new Date(minute * 60_000),
+    clockFormat
+  };
+
   return (
     <div
       className="tablet-container"
@@ -502,7 +514,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           : undefined
       }
     >
-      {screen !== 'dashboard' && (
+      {screen === 'settings' && (
         <header className="app-header">
           <div className="brand">
             <div className="brand-mark">
@@ -548,12 +560,15 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
       {isOffline && <OfflineBanner />}
       <div
-        className="app-tab-panel"
+        className="app-tab-panel spotify-tab"
         role="tabpanel"
         id={tabPanelId('spotify')}
         aria-label="Spotify"
         hidden={screen !== 'spotify'}
       >
+        <div className="spotify-bar">
+          <TabBar {...tabBar} />
+        </div>
         {banner && (
           <PlaybackBanner
             notice={banner}
@@ -654,16 +669,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         hidden={screen !== 'dashboard'}
       >
         {/* Mounted while hidden, so its data keeps updating and it is current when the tab comes back. */}
-        <DashboardScreen
-          tabBar={{
-            active: screen,
-            onSelect: showScreen,
-            person: activePerson ? { name: activePerson.name, pictureUrl: activePerson.imageUrl || null } : null,
-            onSearch: needsConnection ? null : () => setIsMusicOpen(true),
-            now: new Date(minute * 60_000),
-            clockFormat
-          }}
-        />
+        <DashboardScreen tabBar={tabBar} />
       </section>
       <section
         className="app-tab-panel"

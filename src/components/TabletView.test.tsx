@@ -157,6 +157,8 @@ function setPlayer(overrides: Record<string, unknown> = {}) {
 }
 
 const flush = () => act(async () => {});
+/** Shows the Settings tab, whose header still has the sleep button, the person switcher and the clock to hold. */
+const showSettingsTab = () => fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
 
 beforeEach(() => {
   localStorage.clear();
@@ -326,6 +328,8 @@ describe('TabletView', () => {
     const switchToAnna = async () => {
       render(<TabletView />);
       await flush();
+      // The Spotify tab floats the Dashboard's bar, which has no switcher; the Settings tab's header does.
+      showSettingsTab();
       fireEvent.click(screen.getByRole('button', { name: 'max: switch person' }));
       await flush();
       fireEvent.click(screen.getByRole('button', { name: 'anna' }));
@@ -387,8 +391,8 @@ describe('TabletView', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 0, 1, 16, 46));
     render(<TabletView />);
-    expect(document.querySelector('.header-clock')).toHaveTextContent(/^\s*16:46\s*$/);
-    expect(document.querySelector('.header-clock')).not.toHaveTextContent(/AM|PM/i);
+    expect(document.querySelector('.spotify-bar .dashboard-clock')).toHaveTextContent(/^\s*16:46\s*$/);
+    expect(document.querySelector('.spotify-bar .dashboard-clock')).not.toHaveTextContent(/AM|PM/i);
   });
 
   it('shows the playing device and loads the queue', async () => {
@@ -619,6 +623,8 @@ describe('TabletView', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
+    // The Settings tab's header clock; the bar floating on the Spotify tab has no hold.
+    showSettingsTab();
     const clock = defined(document.querySelector('.header-clock'));
     fireEvent.pointerDown(clock, { button: 0 });
     act(() => {
@@ -926,6 +932,8 @@ describe('TabletView', () => {
     it('the sleep button sleeps the screen even while music plays, and slows the polling until a tap wakes it', async () => {
       render(<TabletView />);
       await flush();
+      // Sleep is in the Settings tab's header; the bar floating on the Spotify tab has none.
+      showSettingsTab();
       fireEvent.click(screen.getByRole('button', { name: 'Put the screen to sleep' }));
       expect(screen.getByRole('button', { name: 'Wake the screen' })).toBeInTheDocument();
       expect(player.current.setSlowPolling).toHaveBeenLastCalledWith(true);
@@ -975,6 +983,7 @@ describe('TabletView', () => {
         render(<TabletView />);
         await screen.findByRole('dialog', { name: 'Update available' });
         // A dialog would show over the black sleep screen, so the question waits for the screen to wake.
+        showSettingsTab();
         fireEvent.click(screen.getByRole('button', { name: 'Put the screen to sleep' }));
         expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Wake the screen' }));
@@ -1038,6 +1047,7 @@ describe('TabletView', () => {
         render(<TabletView />);
         await flush();
         expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
+        showSettingsTab();
         fireEvent.click(screen.getByRole('button', { name: 'Put the screen to sleep' }));
         // A newer release comes out while the screen is off.
         fetchMock.mockImplementation(() => Promise.resolve(release('v1.13.0')));
@@ -1141,12 +1151,12 @@ describe('TabletView', () => {
     });
   });
 
-  it('shows the clock in the header', async () => {
+  it('shows the clock in the bar on the Spotify tab', async () => {
     vi.useFakeTimers({ now: new Date('2026-01-01T09:05:00') });
     render(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(defined(document.querySelector('.header-clock'))).toHaveTextContent(/9:05|09:05/);
+    expect(defined(document.querySelector('.spotify-bar .dashboard-clock'))).toHaveTextContent(/9:05|09:05/);
   });
 });

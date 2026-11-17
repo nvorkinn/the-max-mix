@@ -22,6 +22,8 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
   test('the sleep button blacks out the screen, even while music plays, until it is tapped', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+    // The sleep button is in the Settings tab's header; the bar on the Spotify tab has none.
+    await page.getByRole('tab', { name: 'Settings' }).click();
     await page.getByRole('button', { name: 'Put the screen to sleep' }).click();
 
     const wake = page.getByRole('button', { name: 'Wake the screen' });
@@ -37,7 +39,9 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
 
     await wake.click();
     await expect(wake).toBeHidden();
-    // The tap woke the screen and did not press Pause behind it.
+    // The tap woke the screen and pressed nothing behind it: the Settings tab still shows, and the music still plays.
+    await expect(page.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('tab', { name: 'Spotify' }).click();
     await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
   });
 
@@ -57,6 +61,7 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     await advance(page, 20_000);
     expect(reads() - before).toBeGreaterThanOrEqual(3);
 
+    await page.getByRole('tab', { name: 'Settings' }).click();
     await page.getByRole('button', { name: 'Put the screen to sleep' }).click();
     await expect(page.getByRole('button', { name: 'Wake the screen' })).toBeVisible();
     // Falling asleep reads once more, then it goes quiet.
