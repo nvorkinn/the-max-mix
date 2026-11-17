@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { BusFront } from 'lucide-react';
+import { Bus } from 'lucide-react';
 import type { BusBoardProps } from '../../dashboard/props';
 import AnimatedRows from './AnimatedRows';
 import { byVehicle, Destination, Minutes, visibleDepartures } from './DepartureRows';
@@ -12,7 +12,7 @@ export default function BusBoard({ stopName, stopLetter, departures, now, stale 
     <section className="dashboard-board" aria-labelledby={labelledBy}>
       <div className="dashboard-board-head">
         <span id={`${id}-mode`} className="dashboard-bus-mark" role="img" aria-label="Buses">
-          <BusFront className="lucide" aria-hidden="true" />
+          <Bus className="lucide" aria-hidden="true" />
         </span>
         <h2 id={`${id}-stop`}>{stopName}</h2>
         {stopLetter && (

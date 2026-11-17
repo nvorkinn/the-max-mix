@@ -693,17 +693,14 @@ button.dashboard-notice {
   flex-shrink: 0;
 }
 .dashboard-bus-mark {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--red);
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
+/* A bus side on, drawn straight on the photo like the words. */
 .dashboard .dashboard-bus-mark svg.lucide {
-  width: 20px;
-  height: 20px;
+  width: 36px;
+  height: 36px;
 }
 
 .dashboard-rows {
