@@ -39,13 +39,11 @@ function ThemeChoice({
   );
 }
 
-/** The colour of the track title, player controls and highlights. Night has its own fixed colours, so it is greyed out
-    while Night shows (picked, or Auto after sunset); the Day choice is kept for when Day comes back. */
+/** The colour of the track title, player controls and highlights, in Day and in Night (a lighter shade of it there). */
 function ColourChoice({
   colour,
-  onChange,
-  disabled
-}: Readonly<{ colour: ThemeColour; onChange: (colour: ThemeColour) => void; disabled: boolean }>) {
+  onChange
+}: Readonly<{ colour: ThemeColour; onChange: (colour: ThemeColour) => void }>) {
   return (
     <section className="settings-group">
       <h5 className="settings-group-title" id="theme-colour-label">
@@ -59,9 +57,13 @@ function ColourChoice({
             aria-label={choice.label}
             aria-pressed={colour === choice.id}
             onClick={() => onChange(choice.id)}
-            disabled={disabled}
             className="colour-swatch rounded-full"
-            style={{ '--swatch': choice.swatch } as CSSProperties}
+            style={
+              {
+                '--swatch': choice.swatch,
+                ...('ring' in choice && { '--swatch-ring': choice.ring })
+              } as CSSProperties
+            }
           >
             {colour === choice.id && <Check className="colour-swatch-tick" aria-hidden="true" />}
           </button>
@@ -72,7 +74,7 @@ function ColourChoice({
 }
 
 /** Dynamic: while music plays, the colours follow the album art, and fade back to the colour above once it stops. Night
-    has its own fixed colours, so it is greyed out there too. */
+    shows the colour's own night shade instead, so Dynamic is greyed out there. */
 function DynamicChoice({
   on,
   onChange,
@@ -129,7 +131,7 @@ export default function AppearanceSettings({
     <div className="settings-stack">
       {theme !== undefined && onThemeChange && <ThemeChoice theme={theme} auto={autoTheme} onChange={onThemeChange} />}
       {themeColour !== undefined && onThemeColourChange && (
-        <ColourChoice colour={themeColour} onChange={onThemeColourChange} disabled={night} />
+        <ColourChoice colour={themeColour} onChange={onThemeColourChange} />
       )}
       {dynamicColour !== undefined && onDynamicColourChange && (
         <DynamicChoice on={dynamicColour} onChange={onDynamicColourChange} disabled={night} />

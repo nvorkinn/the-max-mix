@@ -522,7 +522,7 @@ describe('TabletView', () => {
   });
 
   describe("once someone owns the kiosk, countdown-server's config", () => {
-    const OWNED = { ...fixture.config, style: { skin: 'day', colour: 'teal' } } as TouchscreenConfig;
+    const OWNED = { ...fixture.config, style: { skin: 'day', colour: 'teal', dynamic: false } } as TouchscreenConfig;
 
     function openAppearance() {
       fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
@@ -550,14 +550,35 @@ describe('TabletView', () => {
       expect(room).toHaveAttribute('data-theme', 'night');
       await act(() => vi.advanceTimersByTimeAsync(500));
       expect(save).toHaveBeenCalledTimes(1);
-      expect(save.mock.calls[0]).toEqual(['style', { skin: 'night', colour: 'navy' }]);
+      expect(save.mock.calls[0]).toEqual(['style', { skin: 'night', colour: 'navy', dynamic: false }]);
       expect(screen.getByText('Saved')).toBeInTheDocument();
       expect(localStorage.getItem('maxmix.theme')).toBe('night');
       vi.restoreAllMocks();
     });
 
+    it('takes Dynamic from the config, and turning it on saves it there', async () => {
+      vi.spyOn(deviceConfig, 'loadDeviceConfig').mockResolvedValue(OWNED);
+      const save = vi
+        .spyOn(deviceConfig, 'saveConfigSection')
+        .mockImplementation((section, value) => Promise.resolve({ saved: { ...OWNED, [section]: value } }));
+      const { container } = renderOnSpotifyTab(<TabletView />);
+      await flush();
+      const room = defined(container.querySelector('.tablet-container'));
+      expect(room).not.toHaveAttribute('data-dynamic');
+
+      vi.useFakeTimers();
+      openAppearance();
+      fireEvent.click(within(screen.getByRole('group', { name: 'Dynamic' })).getByRole('button', { name: 'On' }));
+      await act(() => vi.advanceTimersByTimeAsync(500));
+      expect(save.mock.calls[0]).toEqual(['style', { skin: 'day', colour: 'teal', dynamic: true }]);
+      expect(room).toHaveAttribute('data-dynamic');
+      expect(localStorage.getItem('maxmix.dynamicColour')).toBe('on');
+      vi.restoreAllMocks();
+      localStorage.clear();
+    });
+
     describe('saying the old Dynamic colour', () => {
-      const OLD_DYNAMIC = { ...OWNED, style: { skin: 'day', colour: 'dynamic' } } as TouchscreenConfig;
+      const OLD_DYNAMIC = { ...OWNED, style: { skin: 'day', colour: 'dynamic', dynamic: false } } as TouchscreenConfig;
 
       async function renderOwned() {
         vi.spyOn(deviceConfig, 'loadDeviceConfig').mockResolvedValue(OLD_DYNAMIC);
@@ -579,7 +600,7 @@ describe('TabletView', () => {
         openAppearance();
         fireEvent.click(screen.getByRole('button', { name: 'Navy' }));
         await act(() => vi.advanceTimersByTimeAsync(500));
-        expect(save.mock.calls[0]).toEqual(['style', { skin: 'day', colour: 'navy' }]);
+        expect(save.mock.calls[0]).toEqual(['style', { skin: 'day', colour: 'navy', dynamic: true }]);
         expect(room).toHaveAttribute('data-colour', 'navy');
         expect(room).toHaveAttribute('data-dynamic');
         vi.restoreAllMocks();
@@ -592,7 +613,7 @@ describe('TabletView', () => {
         openAppearance();
         fireEvent.click(within(screen.getByRole('group', { name: 'Dynamic' })).getByRole('button', { name: 'Off' }));
         await act(() => vi.advanceTimersByTimeAsync(500));
-        expect(save.mock.calls[0]).toEqual(['style', { skin: 'day', colour: 'forest' }]);
+        expect(save.mock.calls[0]).toEqual(['style', { skin: 'day', colour: 'forest', dynamic: false }]);
         expect(room).not.toHaveAttribute('data-dynamic');
         vi.restoreAllMocks();
         localStorage.clear();

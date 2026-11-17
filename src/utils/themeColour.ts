@@ -27,7 +27,19 @@ export const THEME_COLOURS = [
   },
   { id: 'pink', label: 'Pink', swatch: '#ff69b4', accent: '#ff69b4', ink: '#3b1a2a', accentInk: '#3b1a2a' },
   { id: 'yellow', label: 'Yellow', swatch: '#e0b020', accent: '#a67c00', ink: '#3a3010', accentInk: '#1f1a05' },
-  { id: 'black', label: 'Black', swatch: '#111', accent: '#111', ink: '#111', accentInk: '#fff' }
+  { id: 'black', label: 'Black', swatch: '#111', accent: '#111', ink: '#111', accentInk: '#fff' },
+  // Night's look as a colour of its own: violet, with the play button running pink to violet.
+  {
+    id: 'violet',
+    label: 'Violet',
+    swatch: 'linear-gradient(135deg, #e94dae, #913fcb)',
+    accent: '#913fcb',
+    ink: '#2a1838',
+    accentInk: '#fff',
+    gradient: ['#e94dae', '#913fcb'],
+    // The selected outline, as a gradient can't be one.
+    ring: '#913fcb'
+  }
 ] as const;
 export type ThemeColour = (typeof THEME_COLOURS)[number]['id'];
 const DEFAULT_THEME_COLOUR: ThemeColour = 'forest';
@@ -153,15 +165,16 @@ export function dynamicPalette([first, second]: readonly [Rgb, Rgb]): DynamicPal
 
 /**
  * Dynamic's colours when nothing has played for a while: the chosen colour's own, so the page fades back to it, and the
- * play button's gradient runs from that colour to itself.
+ * play button runs that colour's own gradient (Violet's), or is flat in it.
  */
 export function basePalette(colour: ThemeColour): DynamicPalette {
   const choice = THEME_COLOURS.find(entry => entry.id === colour) ?? THEME_COLOURS[0];
+  const [from, to] = 'gradient' in choice ? choice.gradient : [choice.accent, choice.accent];
   return {
     '--dynamic-accent': choice.accent,
     '--dynamic-ink': choice.ink,
-    '--dynamic-from': choice.accent,
-    '--dynamic-to': choice.accent,
+    '--dynamic-from': from,
+    '--dynamic-to': to,
     '--dynamic-accent-ink': choice.accentInk
   };
 }
