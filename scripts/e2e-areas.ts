@@ -45,7 +45,12 @@ export const AREAS: Area[] = [
   {
     tag: 'queue',
     title: 'Queue',
-    sources: [/^src\/components\/TrackQueue/, /^src\/hooks\/useDragToReorder/, /^src\/components\/TrackImages/]
+    sources: [
+      /^src\/components\/TrackQueue/,
+      /^src\/hooks\/useDragToReorder/,
+      /^src\/hooks\/useWholeRows/,
+      /^src\/components\/TrackImages/
+    ]
   },
   {
     tag: 'lyrics',
