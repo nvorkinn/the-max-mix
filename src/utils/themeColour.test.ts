@@ -73,6 +73,17 @@ describe('Dynamic setting', () => {
     expect(localStorage.getItem('maxmix.dynamicColour')).toBe('on');
   });
 
+  it('tolerates unavailable storage', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(loadDynamicColour()).toBe(false);
+    expect(() => saveDynamicColour(true)).not.toThrow();
+  });
+
   it('keeps a colour picked alongside it', () => {
     saveThemeColour('navy');
     saveDynamicColour(true);

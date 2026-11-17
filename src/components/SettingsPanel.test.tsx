@@ -277,13 +277,17 @@ describe('SettingsPanel', () => {
           onThemeChange={onThemeChange}
           themeColour="navy"
           onThemeColourChange={vi.fn()}
+          dynamicColour
+          onDynamicColourChange={vi.fn()}
         />
       );
       const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Appearance/ });
       expect(card).toHaveTextContent('Night');
       expect(card).toHaveTextContent('Navy');
+      expect(card).toHaveTextContent('Dynamic');
       await userEvent.click(card);
       expect(screen.getByRole('button', { name: 'Navy' })).toBeDisabled();
+      expect(within(screen.getByRole('group', { name: 'Dynamic' })).getByRole('button', { name: 'On' })).toBeDisabled();
       await userEvent.click(within(screen.getByRole('group', { name: 'Theme' })).getByRole('button', { name: 'Day' }));
       expect(onThemeChange).toHaveBeenCalledWith('day');
     });
