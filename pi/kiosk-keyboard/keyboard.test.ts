@@ -189,7 +189,7 @@ describe('start', () => {
 
   it('keeps a row of digits above the letters and the symbols when asked to', () => {
     stop();
-    stop = start(document, document.documentElement, { hasNumberRow: true });
+    stop = start(document, { hasNumberRow: true });
     const field = input('password');
     field.focus();
     expect(board().querySelectorAll('.row')).toHaveLength(5);
@@ -208,7 +208,7 @@ describe('start', () => {
 
   it('shows and types capitals only, with no Shift key, when asked to', () => {
     stop();
-    stop = start(document, document.documentElement, { hasNumberRow: true, isUppercase: true });
+    stop = start(document, { hasNumberRow: true, isUppercase: true });
     const field = input();
     field.focus();
     const labels = [...board().querySelectorAll('button')].map(button => button.textContent);
@@ -229,7 +229,7 @@ describe('start', () => {
     stop();
     const mount = document.createElement('div');
     document.body.append(mount);
-    stop = start(document, mount);
+    stop = start(document, { mount });
     const field = input();
     field.focus();
     expect(mount.lastElementChild?.shadowRoot?.querySelector('.board')).not.toBeNull();

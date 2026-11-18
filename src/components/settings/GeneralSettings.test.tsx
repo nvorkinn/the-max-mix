@@ -150,7 +150,10 @@ describe('noticeBoardFor', () => {
   });
 
   describe('quiet hours', () => {
-    function setupQuiet(hours: QuietHours = DEFAULT_QUIET_HOURS, config?: TouchscreenConfig) {
+    function setupQuiet({
+      hours = DEFAULT_QUIET_HOURS,
+      config
+    }: { hours?: QuietHours; config?: TouchscreenConfig } = {}) {
       const onQuietHoursChange = vi.fn();
       render(<GeneralSettings config={config} quietHours={hours} onQuietHoursChange={onQuietHoursChange} />);
       return onQuietHoursChange;
@@ -166,7 +169,10 @@ describe('noticeBoardFor', () => {
     });
 
     it('move each end by half an hour, in the tablet time format', async () => {
-      const onChange = setupQuiet({ on: true, start: 22 * 60, end: 7 * 60 }, { ...OWNED, clock_format: '12h' });
+      const onChange = setupQuiet({
+        hours: { on: true, start: 22 * 60, end: 7 * 60 },
+        config: { ...OWNED, clock_format: '12h' }
+      });
       expect(within(screen.getByRole('group', { name: 'From' })).getByText(/10:00\sPM/)).toBeInTheDocument();
       expect(within(screen.getByRole('group', { name: 'To' })).getByText(/7:00\sAM/)).toBeInTheDocument();
       await userEvent.click(screen.getByRole('button', { name: 'From later' }));
@@ -176,7 +182,7 @@ describe('noticeBoardFor', () => {
     });
 
     it('never lets both ends meet', async () => {
-      const onChange = setupQuiet({ on: true, start: 6 * 60 + 30, end: 7 * 60 });
+      const onChange = setupQuiet({ hours: { on: true, start: 6 * 60 + 30, end: 7 * 60 } });
       await userEvent.click(screen.getByRole('button', { name: 'From later' }));
       expect(onChange).toHaveBeenLastCalledWith({ on: true, start: 7 * 60 + 30, end: 7 * 60 });
     });

@@ -25,7 +25,7 @@ export function useOnScreenKeyboard(
     let stop: (() => void) | undefined;
     let cancelled = false;
     void import('../../pi/kiosk-keyboard/keyboard').then(keyboard => {
-      if (!cancelled) stop = keyboard.start(document, mount, { hasNumberRow, isUppercase });
+      if (!cancelled) stop = keyboard.start(document, { mount, hasNumberRow, isUppercase });
     });
     return () => {
       cancelled = true;

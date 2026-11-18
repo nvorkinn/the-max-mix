@@ -18,8 +18,7 @@ vi.mock('./auth', () => ({
   discardAccessToken: vi.fn()
 }));
 
-const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
-  Response.json(body, { status, headers });
+const json = (body: unknown, init: ResponseInit = {}) => Response.json(body, init);
 
 const callOf = (fetchMock: Mock, call = 0) => {
   const [url, init] = fetchMock.mock.calls[call] as [string, RequestInit];
@@ -214,7 +213,7 @@ describe('spotify/api', () => {
   describe('401 retry', () => {
     it('refreshes the token and retries once', async () => {
       vi.mocked(auth.getAccessToken).mockResolvedValueOnce('old').mockResolvedValueOnce('new');
-      fetchMock.mockResolvedValueOnce(json({}, 401)).mockResolvedValueOnce(json({ is_playing: false }));
+      fetchMock.mockResolvedValueOnce(json({}, { status: 401 })).mockResolvedValueOnce(json({ is_playing: false }));
       expect(await api.getPlaybackState()).toEqual({ is_playing: false });
       expect(auth.discardAccessToken).toHaveBeenCalledTimes(1);
       expect(callOf(fetchMock, 0).headers['Authorization']).toBe('Bearer old');
@@ -222,13 +221,15 @@ describe('spotify/api', () => {
     });
 
     it('retries a command with its body', async () => {
-      fetchMock.mockResolvedValueOnce(json({}, 401)).mockResolvedValueOnce(new Response(null, { status: 204 }));
+      fetchMock
+        .mockResolvedValueOnce(json({}, { status: 401 }))
+        .mockResolvedValueOnce(new Response(null, { status: 204 }));
       await api.transferPlayback('d1', true);
       expect(callOf(fetchMock, 1).init.body).toBe(callOf(fetchMock, 0).init.body);
     });
 
     it('gives up after one retry', async () => {
-      fetchMock.mockResolvedValue(json({}, 401));
+      fetchMock.mockResolvedValue(json({}, { status: 401 }));
       await expect(api.getPlaybackState()).rejects.toMatchObject({
         status: 401,
         message: 'Spotify authorization failed. Sign in again in Settings.'
@@ -238,7 +239,7 @@ describe('spotify/api', () => {
 
     it('does not retry when there is no stored login', async () => {
       vi.mocked(auth.isSignedIn).mockReturnValue(false);
-      fetchMock.mockResolvedValue(json({}, 401));
+      fetchMock.mockResolvedValue(json({}, { status: 401 }));
       await expect(api.getPlaybackState()).rejects.toMatchObject({ status: 401 });
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(auth.discardAccessToken).not.toHaveBeenCalled();
@@ -246,7 +247,7 @@ describe('spotify/api', () => {
 
     it('asks to sign in when the refresh after a 401 finds the login revoked', async () => {
       vi.mocked(auth.getAccessToken).mockResolvedValueOnce('old').mockResolvedValueOnce(null);
-      fetchMock.mockResolvedValue(json({}, 401));
+      fetchMock.mockResolvedValue(json({}, { status: 401 }));
       await expect(api.getPlaybackState()).rejects.toMatchObject({
         message: 'Sign in to Spotify in Settings to control playback.'
       });
@@ -260,7 +261,7 @@ describe('spotify/api', () => {
       ['devices', api.getDevices]
     ])('a %s rate limit blocks other reads and commands until exact expiry', async (_name, source) => {
       vi.useFakeTimers();
-      fetchMock.mockResolvedValueOnce(json({}, 429, { 'Retry-After': '30' }));
+      fetchMock.mockResolvedValueOnce(json({}, { status: 429, headers: { 'Retry-After': '30' } }));
       await expect(source()).rejects.toMatchObject({ status: 429, retryAfter: 30 });
       const tokenCalls = vi.mocked(auth.getAccessToken).mock.calls.length;
       const retryAt = getSpotifyRetryAt();
@@ -293,7 +294,7 @@ describe('spotify/api', () => {
       const token = deferred<string>();
       vi.mocked(auth.getAccessToken).mockReturnValueOnce(token.promise);
       const playbackRead = api.getPlaybackState();
-      fetchMock.mockResolvedValueOnce(json({}, 429, { 'Retry-After': '30' }));
+      fetchMock.mockResolvedValueOnce(json({}, { status: 429, headers: { 'Retry-After': '30' } }));
       await fetchSpotify('https://api.spotify.com/v1/me/player/queue', {});
       token.resolve('token');
       await expect(playbackRead).rejects.toMatchObject({ status: 429, retryAfter: 30 });
@@ -303,7 +304,7 @@ describe('spotify/api', () => {
     it('does not reset a deadline while reading provider diagnostics', async () => {
       vi.useFakeTimers();
       const details = deferred<string>();
-      const response = json({}, 403, { 'Retry-After': '30' });
+      const response = json({}, { status: 403, headers: { 'Retry-After': '30' } });
       response.text = () => details.promise;
       fetchMock.mockResolvedValueOnce(response);
       const request = api.pause();
@@ -327,12 +328,12 @@ describe('spotify/api', () => {
       [500, 'Spotify request failed (500).'],
       [503, 'Spotify request failed (503).']
     ])('describes a %i', async (status, message) => {
-      fetchMock.mockResolvedValue(json({ error: { message: 'ignored' } }, status));
+      fetchMock.mockResolvedValue(json({ error: { message: 'ignored' } }, { status }));
       await expect(api.getPlaybackState()).rejects.toMatchObject({ status, message, retryAfter: 0 });
     });
 
     it('describes a 429 and assumes a wait when Spotify gives none the browser can read', async () => {
-      fetchMock.mockResolvedValue(json({}, 429));
+      fetchMock.mockResolvedValue(json({}, { status: 429 }));
       await expect(api.getPlaybackState()).rejects.toMatchObject({
         status: 429,
         message: 'Spotify rate limit reached. Wait before trying again.',
@@ -346,7 +347,7 @@ describe('spotify/api', () => {
 
     it('treats a QUOTA_EXCEEDED 429 as no longer worth waiting for: flags it and assumes no cooldown', async () => {
       const quota = { error: { status: 429, message: 'Quota', reason: 'QUOTA_EXCEEDED' } };
-      fetchMock.mockResolvedValue(json(quota, 429));
+      fetchMock.mockResolvedValue(json(quota, { status: 429 }));
       expect(isSpotifyQuotaExceeded()).toBe(false);
       await expect(api.getPlaybackState()).rejects.toMatchObject({ status: 429 });
       expect(isSpotifyQuotaExceeded()).toBe(true);
@@ -354,7 +355,7 @@ describe('spotify/api', () => {
     });
 
     it('does not flag the quota for an ordinary 429', async () => {
-      fetchMock.mockResolvedValue(json({ error: { status: 429, message: 'Slow down' } }, 429));
+      fetchMock.mockResolvedValue(json({ error: { status: 429, message: 'Slow down' } }, { status: 429 }));
       await expect(api.getPlaybackState()).rejects.toMatchObject({ status: 429 });
       expect(isSpotifyQuotaExceeded()).toBe(false);
       expect(getSpotifyRetryDelay()).toBeGreaterThan(0);
@@ -362,7 +363,9 @@ describe('spotify/api', () => {
 
     it('logs the headers and body of a 429', async () => {
       clearDebugLog();
-      fetchMock.mockResolvedValue(json({ error: { message: 'API rate limit exceeded' } }, 429, { 'X-Test': 'yes' }));
+      fetchMock.mockResolvedValue(
+        json({ error: { message: 'API rate limit exceeded' } }, { status: 429, headers: { 'X-Test': 'yes' } })
+      );
       await api.getPlaybackState().catch(() => {});
       const logged = getDebugEntries().find(entry => entry.message.startsWith('429 from /v1/me/player'));
       expect(logged?.message).toContain('x-test: yes');
@@ -371,7 +374,7 @@ describe('spotify/api', () => {
 
     it('doubles the assumed wait for every 429 in a row, up to five minutes, and starts over after a good reply', async () => {
       vi.useFakeTimers();
-      fetchMock.mockResolvedValue(json({}, 429));
+      fetchMock.mockResolvedValue(json({}, { status: 429 }));
       const waits: number[] = [];
       for (let attempt = 0; attempt < 6; attempt++) {
         // Each attempt must see the cooldown the one before it set, so they run one after the other.
@@ -383,37 +386,39 @@ describe('spotify/api', () => {
       expect(waits).toEqual([30, 60, 120, 240, 300, 300]);
       fetchMock.mockResolvedValueOnce(json({ is_playing: true }));
       await api.getPlaybackState();
-      fetchMock.mockResolvedValue(json({}, 429));
+      fetchMock.mockResolvedValue(json({}, { status: 429 }));
       await api.getPlaybackState().catch(() => {});
       expect(getSpotifyRetryDelay() / 1000).toBe(30);
     });
 
     it('counts concurrent 429s from one burst as a single event', async () => {
-      fetchMock.mockResolvedValue(json({}, 429));
+      fetchMock.mockResolvedValue(json({}, { status: 429 }));
       await Promise.allSettled([api.getPlaybackState(), api.getQueue(), api.getDevices()]);
       expect(fetchMock).toHaveBeenCalledTimes(3);
       expect(getSpotifyRetryDelay() / 1000).toBeLessThanOrEqual(30);
     });
 
     it('reads Retry-After as seconds', async () => {
-      fetchMock.mockResolvedValue(json({}, 429, { 'Retry-After': '7' }));
+      fetchMock.mockResolvedValue(json({}, { status: 429, headers: { 'Retry-After': '7' } }));
       const error = await api.pause().catch((e: unknown) => e);
       expect(error).toBeInstanceOf(api.SpotifyApiError);
       expect(error).toMatchObject({ status: 429, retryAfter: 7 });
     });
 
     it('rounds a fractional Retry-After up', async () => {
-      fetchMock.mockResolvedValueOnce(json({}, 429, { 'Retry-After': '1.2' }));
+      fetchMock.mockResolvedValueOnce(json({}, { status: 429, headers: { 'Retry-After': '1.2' } }));
       await expect(api.pause()).rejects.toMatchObject({ retryAfter: 2 });
     });
 
     it.each(['soon', '-3'])('ignores invalid Retry-After %s and assumes a wait instead', async header => {
-      fetchMock.mockResolvedValueOnce(json({}, 429, { 'Retry-After': header }));
+      fetchMock.mockResolvedValueOnce(json({}, { status: 429, headers: { 'Retry-After': header } }));
       await expect(api.pause()).rejects.toMatchObject({ retryAfter: 30 });
     });
 
     it('adds the reason Spotify gives for a 403', async () => {
-      fetchMock.mockResolvedValue(json({ error: { message: 'Player command failed: Premium required' } }, 403));
+      fetchMock.mockResolvedValue(
+        json({ error: { message: 'Player command failed: Premium required' } }, { status: 403 })
+      );
       await expect(api.play()).rejects.toMatchObject({
         status: 403,
         message:
@@ -423,9 +428,9 @@ describe('spotify/api', () => {
 
     it.each([
       ['an unreadable body', new Response('forbidden', { status: 403 })],
-      ['no message', json({ error: {} }, 403)],
-      ['a non-text message', json({ error: { message: 5 } }, 403)],
-      ['a null body', json(null, 403)]
+      ['no message', json({ error: {} }, { status: 403 })],
+      ['a non-text message', json({ error: { message: 5 } }, { status: 403 })],
+      ['a null body', json(null, { status: 403 })]
     ])('has no suffix for a 403 with %s', async (_name, response) => {
       fetchMock.mockResolvedValue(response);
       await expect(api.play()).rejects.toMatchObject({
@@ -434,7 +439,7 @@ describe('spotify/api', () => {
     });
 
     it('does not read the reason of other errors', async () => {
-      fetchMock.mockResolvedValue(json({ error: { message: 'secret' } }, 404));
+      fetchMock.mockResolvedValue(json({ error: { message: 'secret' } }, { status: 404 }));
       const error = (await api.play().catch((e: unknown) => e)) as Error;
       expect(error.message).not.toContain('secret');
     });

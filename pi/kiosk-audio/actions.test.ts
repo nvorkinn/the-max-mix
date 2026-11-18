@@ -24,9 +24,9 @@ describe('perform', () => {
       commands.push(argv);
       return Promise.resolve();
     };
-    await perform('restart', run, files);
-    await perform('reboot', run, files);
-    await perform('wake', run, files);
+    await perform('restart', { run, files });
+    await perform('reboot', { run, files });
+    await perform('wake', { run, files });
     expect(commands).toEqual([
       ['/usr/bin/systemctl', 'restart', '--no-block', 'kiosk.service'],
       ['/usr/bin/systemctl', 'reboot'],
@@ -38,7 +38,7 @@ describe('perform', () => {
     const terminate = vi.fn();
     vi.spyOn(process, 'kill').mockImplementation(terminate);
     await writeFile(files.pid, '4242\n');
-    await perform('wifi', vi.fn(), files);
+    await perform('wifi', { run: vi.fn(), files });
     await expect(readFile(files.flag, 'utf8')).resolves.toBe('');
     expect(terminate).toHaveBeenCalledWith(4242, 'SIGTERM');
   });
@@ -46,7 +46,7 @@ describe('perform', () => {
   it('leaves the flag even when Chromium is not running', async () => {
     const terminate = vi.fn();
     vi.spyOn(process, 'kill').mockImplementation(terminate);
-    await perform('wifi', vi.fn(), files);
+    await perform('wifi', { run: vi.fn(), files });
     await expect(readFile(files.flag, 'utf8')).resolves.toBe('');
     expect(terminate).not.toHaveBeenCalled();
   });
