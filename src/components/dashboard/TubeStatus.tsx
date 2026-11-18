@@ -20,7 +20,7 @@ export const LINE_ROW_HEIGHT = 34;
  */
 export default function TubeStatus({ lines }: Readonly<TubeStatusProps>) {
   return (
-    <section className="dashboard-notices" aria-labelledby="dashboard-lines-title">
+    <section className="dashboard-notices dashboard-tube-status" aria-labelledby="dashboard-lines-title">
       <h2 className="dashboard-eyebrow" id="dashboard-lines-title">
         <img className="dashboard-eyebrow-roundel" src={roundel} alt="" />
         Tube status

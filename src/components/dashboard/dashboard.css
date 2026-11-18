@@ -4,6 +4,14 @@
   below is in that panel's pixels. It follows public/dashboard-mockup/index.html, which stays as the reference.
   Geist (SIL OFL 1.1, assets/fonts/geist/OFL.txt) is bundled so nothing loads from a CDN.
 */
+/* Metropolitan Line: an open (OFL) digitisation of Edward Johnston's 1916 Underground type, for the Tube status. */
+@font-face {
+  font-family: 'Metropolitan Line';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('../../assets/fonts/metropolitan-line/MetropolitanLine-Regular.woff2') format('woff2');
+}
 @font-face {
   font-family: Geist;
   font-style: normal;
@@ -470,6 +478,15 @@ button.dashboard-notice {
   padding: 0;
   display: grid;
   grid-auto-rows: 34px;
+}
+/* The Tube's status in the Underground's own lettering, which has only the one weight. */
+.dashboard-tube-status {
+  font-family: 'Metropolitan Line', Geist, system-ui, sans-serif;
+  font-synthesis: none;
+}
+.dashboard-tube-status .dashboard-line-name,
+.dashboard-tube-status .dashboard-line[data-health] .dashboard-line-status {
+  font-weight: 400;
 }
 /* The roundel, as quiet as the heading's words. */
 .dashboard-eyebrow-roundel {
