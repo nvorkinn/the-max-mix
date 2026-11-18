@@ -5,7 +5,8 @@ import { busesAt, SAMPLE, SAMPLE_NOW, sampleDashboard } from '../../dashboard/sa
 import Dashboard from '../Dashboard';
 import Backdrop, { BACKDROP_FADE_MS } from './Backdrop';
 import BusBoard from './BusBoard';
-import NoticeBoard, { ARRIVE_MS } from './NoticeBoard';
+import { ARRIVE_MS } from './NoticeBoard';
+import RailPages from './RailPages';
 import WeatherBlock, { WEATHER_FADE_MS, WEATHER_VIEW_MS } from './WeatherBlock';
 import { ROW_FADE_MS } from './AnimatedRows';
 
@@ -116,11 +117,11 @@ describe('the notice board', () => {
   const rowOf = (title: string) => screen.getByText(title).closest('li');
 
   it('fades in a notice new to the board, but not those it started with', () => {
-    // Room for three rows.
-    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(68 * 3);
-    const { rerender } = render(<NoticeBoard notices={[first, third]} />);
+    // Room for the heading and three rows.
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(34 + 68 * 3);
+    const { rerender } = render(<RailPages notices={[first, third]} lineStatus={null} time={0} />);
     expect(rowOf(first.title)).not.toHaveAttribute('data-arriving');
-    rerender(<NoticeBoard notices={[first, second, third]} />);
+    rerender(<RailPages notices={[first, second, third]} lineStatus={null} time={0} />);
     expect(rowOf(second.title)).toHaveAttribute('data-arriving');
     expect(rowOf(first.title)).not.toHaveAttribute('data-arriving');
     run(ARRIVE_MS);

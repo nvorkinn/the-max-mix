@@ -1,4 +1,4 @@
-import { TrainFront } from 'lucide-react';
+import roundel from '../../assets/dashboard/tfl-roundel.png';
 import { groupLines } from '../../dashboard/lineStatus';
 import type { LineStatusItem, TubeStatusProps } from '../../dashboard/props';
 import { FALLBACK_LINE_COLOURS, LINE_COLOURS } from './icons';
@@ -11,15 +11,18 @@ const Swatch = ({ line }: Readonly<{ line: LineStatusItem }>) => (
   />
 );
 
+/** The Tube status panel's rows are this tall (and its heading as tall as the notice board's). */
+export const LINE_ROW_HEIGHT = 34;
+
 /**
- * Every Tube line's status, in the notice board's place while it has nothing to say, in TfL's colours: a line with
+ * Every Tube line's status, at the bottom of the rail under the notices, in TfL's colours: a line with
  * something wrong is named on its own row; quiet lines sharing a status are one row of their colours, at the bottom.
  */
 export default function TubeStatus({ lines }: Readonly<TubeStatusProps>) {
   return (
     <section className="dashboard-notices" aria-labelledby="dashboard-lines-title">
       <h2 className="dashboard-eyebrow" id="dashboard-lines-title">
-        <TrainFront className="lucide" style={{ width: 16, height: 16 }} aria-hidden="true" />
+        <img className="dashboard-eyebrow-roundel" src={roundel} alt="" />
         Tube status
       </h2>
       <ul className="dashboard-line-list">
