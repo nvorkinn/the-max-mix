@@ -12,8 +12,8 @@ const Swatch = ({ line }: Readonly<{ line: LineStatusItem }>) => (
 );
 
 /**
- * Every Tube line's status, in the notice board's place while it has nothing to say, in TfL's colours: a line with a
- * status of its own is named; lines sharing a status are one row of their colours, those rows at the bottom.
+ * Every Tube line's status, in the notice board's place while it has nothing to say, in TfL's colours: a line with
+ * something wrong is named on its own row; quiet lines sharing a status are one row of their colours, at the bottom.
  */
 export default function TubeStatus({ lines }: Readonly<TubeStatusProps>) {
   return (
@@ -27,7 +27,7 @@ export default function TubeStatus({ lines }: Readonly<TubeStatusProps>) {
           const [only] = group.lines;
           const names = group.lines.map(line => line.name).join(', ');
           return (
-            <li key={group.status} className="dashboard-line" data-health={group.health}>
+            <li key={group.key} className="dashboard-line" data-health={group.health}>
               {only && group.lines.length === 1 ? (
                 <>
                   <Swatch line={only} />

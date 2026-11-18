@@ -55,7 +55,7 @@ describe('toLineStatus', () => {
 });
 
 describe('groupLines', () => {
-  it('collapses lines sharing a status, worst first, a lone line before a shared status as bad', () => {
+  it('gives each line with something wrong its own row, worst first, and collapses quiet lines sharing a status', () => {
     const lines = toLineStatus(NOTICES, NOW)?.lines ?? [];
     const delayed = { id: 'jubilee', name: 'Jubilee', status: 'Minor delays', health: 'disruption' as const };
     const severe = { id: 'victoria', name: 'Victoria', status: 'Severe delays', health: 'severe' as const };
@@ -70,10 +70,13 @@ describe('groupLines', () => {
       ['Good service', 'bakerloo,circle,elizabeth,hammersmith-city,jubilee,metropolitan,northern,piccadilly,victoria']
     ]);
     const others = lines.filter(item => !['jubilee', 'victoria'].includes(item.id));
-    expect(rows([...others, delayed, severe]).slice(0, 3)).toEqual([
+    expect(rows([...others, delayed, severe]).slice(0, 4)).toEqual([
       ['Part closure', 'district'],
       ['Severe delays', 'victoria'],
-      ['Minor delays', 'central,jubilee']
+      ['Minor delays', 'central'],
+      ['Minor delays', 'jubilee']
     ]);
+    const closed = lines.map(item => ({ ...item, status: 'Service closed', health: 'closed' as const }));
+    expect(rows(closed)).toEqual([['Service closed', lines.map(item => item.id).join(',')]]);
   });
 });
