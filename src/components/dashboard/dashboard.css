@@ -4,6 +4,14 @@
   below is in that panel's pixels. It follows public/dashboard-mockup/index.html, which stays as the reference.
   Geist (SIL OFL 1.1, assets/fonts/geist/OFL.txt) is bundled so nothing loads from a CDN.
 */
+/* Metropolitan Line: an open (OFL) digitisation of Edward Johnston's 1916 Underground type, for the Tube status. */
+@font-face {
+  font-family: 'Metropolitan Line';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('../../assets/fonts/metropolitan-line/MetropolitanLine-Regular.woff2') format('woff2');
+}
 @font-face {
   font-family: Geist;
   font-style: normal;
@@ -341,10 +349,39 @@
   min-height: 24px;
 }
 
-.dashboard-notices {
-  margin-top: 24px;
+/*
+  Under the weather, the notices with the Tube's status under them, built up from the bottom. When they don't fit, they
+  page through like the boards along the bottom: the page on show (--slot 0) slides out to the left (-1) as the next
+  comes in from the right (1), cut off at the rail's edges.
+*/
+.dashboard-rail-pages {
+  position: relative;
   flex: 1;
   min-height: 0;
+  margin-top: 24px;
+  overflow: hidden;
+}
+.dashboard-rail-page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 24px;
+  transform: translateX(calc(var(--slot) * (100% + 28px)));
+  opacity: 0;
+  transition:
+    transform 700ms ease-in-out,
+    opacity 700ms ease-in-out;
+}
+.dashboard-rail-page[data-slot='0'] {
+  opacity: 1;
+}
+/* Out of sight, a page that has left moves round to wait on the right at once. */
+.dashboard-rail-page[data-slot='1'] {
+  transition: none;
+}
+.dashboard-notices {
   display: flex;
   flex-direction: column;
 }
@@ -365,34 +402,10 @@
   margin-left: auto;
   letter-spacing: 0.04em;
 }
-.dashboard-pages {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 34px;
-  padding: 0 2px 0 8px;
-  cursor: pointer;
-}
-.dashboard-pages i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--faint);
-}
-.dashboard-pages i.on {
-  background: var(--text);
-}
-/* Rows have a fixed height; the notices that don't fit page through. */
+/* Rows have a fixed height, so the number that fit a page is known. */
 .dashboard-notice-list {
   list-style: none;
   padding: 0;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  transition: opacity 300ms ease;
-}
-.dashboard-notice-list.fading {
-  opacity: 0;
 }
 .dashboard-notice-list li {
   height: 68px;
@@ -457,18 +470,28 @@ button.dashboard-notice {
 }
 
 /*
-  The Tube status panel, in the notice board's place while it is empty: a row per line with a status of its own, and
+  The Tube status panel, at the bottom of the rail: a row per line with a status of its own, and
   one per status lines share, its lines' colours side by side. Rows are as tall as twelve lines' would be.
 */
 .dashboard-line-list {
   list-style: none;
   padding: 0;
-  flex: 1;
-  min-height: 0;
   display: grid;
   grid-auto-rows: 34px;
-  align-content: start;
-  overflow: hidden;
+}
+/* The Tube's status in the Underground's own lettering, which has only the one weight. */
+.dashboard-tube-status {
+  font-family: 'Metropolitan Line', Geist, system-ui, sans-serif;
+  font-synthesis: none;
+}
+.dashboard-tube-status .dashboard-line-name,
+.dashboard-tube-status .dashboard-line[data-health] .dashboard-line-status {
+  font-weight: 400;
+}
+/* The roundel, as quiet as the heading's words. */
+.dashboard-eyebrow-roundel {
+  width: 18px;
+  opacity: 0.7;
 }
 .dashboard-line {
   display: flex;

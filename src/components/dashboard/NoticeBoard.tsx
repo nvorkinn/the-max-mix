@@ -1,91 +1,39 @@
 import { ChevronRight, Megaphone, X } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { CSSProperties } from 'react';
-import type { NoticeBoardProps, NoticeItem } from '../../dashboard/props';
+import type { NoticeItem } from '../../dashboard/props';
 import { NOTICE_ICONS } from './icons';
 
 /** Every row is this tall, so the number that fit is the same whatever the notices say. */
-const NOTICE_ROW_HEIGHT = 68;
-/** How long a page of notices shows before the next. */
-const NOTICE_PAGE_MS = 8000;
-/** The fade between pages. */
-const FADE_MS = 300;
+export const NOTICE_ROW_HEIGHT = 68;
 /** How long a notice new to the board takes to fade in. */
 export const ARRIVE_MS = 600;
 
 const severityStyle = (notice: NoticeItem) => ({ '--icon': `var(--${notice.severity})` }) as CSSProperties;
 
-/**
- * The notices, most urgent first, in fixed-height rows; those that don't fit page through, a page every few seconds,
- * and a tap on a page's dots moves on. A row with more to say opens it over the whole panel.
- */
-export default function NoticeBoard({ notices }: Readonly<NoticeBoardProps>) {
-  const listRef = useRef<HTMLUListElement>(null);
-  const [perPage, setPerPage] = useState(1);
-  const [page, setPage] = useState(0);
-  const [fading, setFading] = useState(false);
-  const [open, setOpen] = useState<NoticeItem | null>(null);
-  const pageCount = Math.max(1, Math.ceil(notices.length / perPage));
-  const shownPage = Math.min(page, pageCount - 1);
+interface NoticeBoardPageProps {
+  /** The notices on this page, most urgent first. */
+  notices: readonly NoticeItem[];
+  /** How many notices there are in all, across the pages. */
+  count: number;
+  /** The notices that are new to the board, fading in. */
+  arriving: ReadonlySet<string>;
+  /** Opens a notice's full text. */
+  onOpen: (notice: NoticeItem) => void;
+}
 
-  useLayoutEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
-    const measure = () => setPerPage(Math.max(1, Math.floor(list.clientHeight / NOTICE_ROW_HEIGHT)));
-    measure();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(list);
-    return () => observer.disconnect();
-  }, []);
-
-  // `turn` counts taps on the dots, so a tap starts the 8 seconds again.
-  const [turn, setTurn] = useState(0);
-  const next = useCallback(() => {
-    setFading(true);
-    return window.setTimeout(() => {
-      setPage(current => (current + 1) % pageCount);
-      setFading(false);
-    }, FADE_MS);
-  }, [pageCount]);
-  useEffect(() => {
-    if (open || pageCount < 2) return;
-    let fade: number | undefined;
-    const timer = window.setInterval(() => {
-      fade = next();
-    }, NOTICE_PAGE_MS);
-    return () => {
-      window.clearInterval(timer);
-      window.clearTimeout(fade);
-    };
-  }, [pageCount, open, next, turn]);
-
-  const arriving = useArrivals(notices);
-  const rows = notices.slice(shownPage * perPage, (shownPage + 1) * perPage);
+/** A page of the notices, in fixed-height rows. A row with more to say opens it over the whole panel. */
+export default function NoticeBoard({ notices, count, arriving, onOpen }: Readonly<NoticeBoardPageProps>) {
+  const titleId = useId();
   return (
-    <section className="dashboard-notices" aria-labelledby="dashboard-notice-title">
-      <h2 className="dashboard-eyebrow" id="dashboard-notice-title">
+    <section className="dashboard-notices" aria-labelledby={titleId}>
+      <h2 className="dashboard-eyebrow" id={titleId}>
         <Megaphone className="lucide" style={{ width: 16, height: 16 }} aria-hidden="true" />
         Notice board
-        <span className="dashboard-eyebrow-count">{notices.length || ''}</span>
-        {pageCount > 1 && (
-          <button
-            type="button"
-            className="dashboard-pages"
-            aria-label="Next notices"
-            onClick={() => {
-              setTurn(current => current + 1);
-              next();
-            }}
-          >
-            {Array.from({ length: pageCount }, (_, index) => (
-              <i key={index} className={index === shownPage ? 'on' : undefined} />
-            ))}
-          </button>
-        )}
+        <span className="dashboard-eyebrow-count">{count || ''}</span>
       </h2>
-      <ul className={`dashboard-notice-list${fading ? ' fading' : ''}`} ref={listRef}>
-        {rows.map(notice => {
+      <ul className="dashboard-notice-list">
+        {notices.map(notice => {
           const Icon = NOTICE_ICONS[notice.kind];
           const content = (
             <>
@@ -106,7 +54,7 @@ export default function NoticeBoard({ notices }: Readonly<NoticeBoardProps>) {
                   type="button"
                   className="dashboard-notice"
                   style={severityStyle(notice)}
-                  onClick={() => setOpen(notice)}
+                  onClick={() => onOpen(notice)}
                 >
                   {content}
                 </button>
@@ -119,7 +67,6 @@ export default function NoticeBoard({ notices }: Readonly<NoticeBoardProps>) {
           );
         })}
       </ul>
-      {open && <NoticeSheet notice={open} onClose={() => setOpen(null)} />}
     </section>
   );
 }
@@ -128,7 +75,7 @@ export default function NoticeBoard({ notices }: Readonly<NoticeBoardProps>) {
  * The ids of the notices that weren't on the board the last time it drew, for as long as they take to fade in. Those it
  * starts with are not new: they show at once.
  */
-function useArrivals(notices: readonly NoticeItem[]): ReadonlySet<string> {
+export function useArrivals(notices: readonly NoticeItem[]): ReadonlySet<string> {
   const signature = notices.map(notice => notice.id).join('\n');
   const [known, setKnown] = useState<string | null>(null);
   const [arriving, setArriving] = useState<ReadonlySet<string>>(() => new Set());
@@ -149,7 +96,7 @@ function useArrivals(notices: readonly NoticeItem[]): ReadonlySet<string> {
 }
 
 /** A notice's full text over the whole panel; a tap anywhere closes it. */
-function NoticeSheet({ notice, onClose }: Readonly<{ notice: NoticeItem; onClose: () => void }>) {
+export function NoticeSheet({ notice, onClose }: Readonly<{ notice: NoticeItem; onClose: () => void }>) {
   const Icon = NOTICE_ICONS[notice.kind];
   return (
     <div className="dashboard-sheet" role="presentation" onClick={onClose}>

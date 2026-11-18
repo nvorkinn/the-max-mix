@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SAMPLE, SAMPLE_NOW, sampleDashboard, useSimulatedNow } from '../../dashboard/sample';
 import Dashboard from '../Dashboard';
 import HourlyStrip from './HourlyStrip';
-import NoticeBoard from './NoticeBoard';
+import RailPages, { railPages } from './RailPages';
 import TabBar from './TabBar';
 import TubeBoard from './TubeBoard';
 
@@ -81,38 +81,42 @@ describe('TubeBoard', () => {
   });
 });
 
-describe('NoticeBoard', () => {
-  it('fits as many fixed-height rows as the list has room for, and a tap on the dots moves on a page', () => {
-    vi.useFakeTimers();
-    vi.stubGlobal(
-      'ResizeObserver',
-      class {
-        observe = vi.fn();
-        disconnect = vi.fn();
-      }
-    );
-    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(68 * 3);
-    render(<NoticeBoard {...SAMPLE.notices} />);
-    expect(screen.getByText('Weather warning')).toBeInTheDocument();
-    expect(screen.getByText('Upcoming bank holiday')).toBeInTheDocument();
-    expect(screen.queryByText('Victoria line: Planned work')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Next notices' }));
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-    expect(screen.getByText('Victoria line: Planned work')).toBeInTheDocument();
+describe('railPages', () => {
+  // The rail under the weather is 460px tall: the heading and six notices, or three notices and the status.
+  const HEIGHT = 460;
+
+  it('stacks the notices over the Tube status on one page when both fit', () => {
+    expect(railPages(3, 4, HEIGHT)).toEqual([{ from: 0, to: 3, status: true }]);
   });
 
-  it('holds the page while a notice is open', () => {
-    vi.useFakeTimers();
-    render(<NoticeBoard {...SAMPLE.notices} />);
+  it('pages the notices as many as fit, the status under the last page when it fits there', () => {
+    expect(railPages(8, 2, HEIGHT)).toEqual([
+      { from: 0, to: 6, status: false },
+      { from: 6, to: 8, status: true }
+    ]);
+  });
+
+  it('gives the status a page of its own when the last page has no room for it', () => {
+    expect(railPages(6, 4, HEIGHT)).toEqual([
+      { from: 0, to: 6, status: false },
+      { from: 6, to: 6, status: true }
+    ]);
+  });
+
+  it('shows the status alone without notices, and the empty notice board without either', () => {
+    expect(railPages(0, 12, HEIGHT)).toEqual([{ from: 0, to: 0, status: true }]);
+    expect(railPages(0, null, HEIGHT)).toEqual([{ from: 0, to: 0, status: false }]);
+  });
+});
+
+describe('RailPages', () => {
+  it('opens a notice over the whole panel, outside the sliding pages', () => {
+    render(<RailPages notices={SAMPLE.notices.notices} lineStatus={null} time={0} />);
     fireEvent.click(screen.getByRole('button', { name: /Weather warning/ }));
-    act(() => {
-      vi.advanceTimersByTime(20_000);
-    });
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const sheet = screen.getByRole('dialog');
+    expect(sheet.closest('.dashboard-rail-pages')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    expect(screen.getByText('Weather warning')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
 

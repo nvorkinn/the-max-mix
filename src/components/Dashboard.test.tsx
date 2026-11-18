@@ -68,16 +68,17 @@ describe('Dashboard', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('pages through notices that do not fit, with the count and the dots shown', () => {
-    show(SAMPLE_NOW, 8);
-    // Without a layout (jsdom) one notice fits a page.
-    expect(screen.getByText('Weather warning')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Notice board/ })).toHaveTextContent('8');
-    act(() => {
-      vi.advanceTimersByTime(8000 + 300);
-    });
-    expect(screen.queryByText('Weather warning')).not.toBeInTheDocument();
-    expect(screen.getByText('Northern line: Delays')).toBeInTheDocument();
+  it('pages through notices that do not fit with the boards, with the count shown', () => {
+    // Without a layout (jsdom) one notice fits a page: eight pages, the first on show at a multiple of eight turns.
+    const start = Math.ceil(SAMPLE_NOW.getTime() / (8 * BOARD_TURN_MS)) * 8 * BOARD_TURN_MS;
+    const onShow = () => document.querySelector('.dashboard-rail-page[data-slot="0"]');
+    const { rerender } = show(new Date(start), 8);
+    expect(onShow()).toHaveTextContent('Weather warning');
+    expect(within(onShow() as HTMLElement).getByRole('heading', { name: /Notice board/ })).toHaveTextContent('8');
+    rerender(<Dashboard tabBar={tabBar} {...sampleDashboard(new Date(start + BOARD_TURN_MS), '24h', 8)} />);
+    expect(onShow()).toHaveTextContent('Northern line: Delays');
+    expect(document.querySelector('.dashboard-rail-page[data-slot="-1"]')).toHaveTextContent('Weather warning');
+    expect(document.querySelector('.dashboard-rail-page[data-slot="-1"]')).toHaveAttribute('inert');
   });
 
   it('names its tabs for the tab bar and switches when one is picked', () => {
@@ -87,7 +88,7 @@ describe('Dashboard', () => {
     expect(tabBar.onSelect).toHaveBeenCalledWith('settings');
   });
 
-  it("shows the Tube's status in the notice board's place only while there are no notices", () => {
+  it("shows the Tube's status under the notices, and on its own while there are none", () => {
     const lineStatus = {
       lines: [
         { id: 'central', name: 'Central', status: 'Minor delays', health: 'disruption' as const },
@@ -104,7 +105,7 @@ describe('Dashboard', () => {
 
     rerender(<Dashboard tabBar={tabBar} {...sampleDashboard(SAMPLE_NOW, '24h', 1)} lineStatus={lineStatus} />);
     expect(screen.getByRole('heading', { name: /Notice board/ })).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Tube status' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Tube status' })).toBeInTheDocument();
   });
 
   it('keeps its layout, with nothing in them, while the forecast and the boards have no data', () => {
@@ -140,8 +141,11 @@ describe('Dashboard', () => {
     // The left one leaves, the right one moves over and the bus stop comes in.
     rerender(at(BOARD_TURN_MS));
     expect(shown()).toEqual(['Kennington', 'Elephant & Castle']);
-    expect(document.querySelector('[data-slot="-1"]')).toHaveAttribute('data-board', 'tube:sample');
-    expect(document.querySelector('[data-slot="-1"]')).toHaveAttribute('inert');
+    expect(document.querySelector('.dashboard-departures-slot[data-slot="-1"]')).toHaveAttribute(
+      'data-board',
+      'tube:sample'
+    );
+    expect(document.querySelector('.dashboard-departures-slot[data-slot="-1"]')).toHaveAttribute('inert');
 
     rerender(at(2 * BOARD_TURN_MS));
     expect(shown()).toEqual(['Elephant & Castle', 'Elephant & Castle']);
