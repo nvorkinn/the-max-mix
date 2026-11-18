@@ -17,10 +17,7 @@ afterEach(() => {
 });
 
 /** A fake nmcli that answers by sub-command and records every call. */
-function setup(
-  overrides: Partial<HotspotOptions> = {},
-  answers: Record<string, { code: number; stdout: string }> = {}
-) {
+function setup(answers: Record<string, { code: number; stdout: string }>, overrides: Partial<HotspotOptions> = {}) {
   const calls: string[][] = [];
   const run: Run = argv => {
     calls.push(argv);
@@ -78,7 +75,7 @@ describe('kiosk-audio/hotspot helpers', () => {
 
 describe('kiosk-audio/hotspot', () => {
   it('starts a hotspot with a password of its own and a page for the phone', async () => {
-    const { hotspot, calls, listen } = setup({}, base);
+    const { hotspot, calls, listen } = setup(base);
     const info = await hotspot.start();
     expect(info).toMatchObject({ ssid: HOTSPOT_SSID, password: 'AAAAAAAAAA', url: 'http://10.42.0.1/' });
     expect(info.wifiQr.length).toBeGreaterThanOrEqual(21);
@@ -106,17 +103,17 @@ describe('kiosk-audio/hotspot', () => {
 
   it('puts the port in the address when the page is not on port 80', async () => {
     const listen = vi.fn().mockResolvedValue({ port: 8080, close: vi.fn() });
-    const { hotspot } = setup({ listen }, base);
+    const { hotspot } = setup(base, { listen });
     expect((await hotspot.start()).url).toBe('http://10.42.0.1:8080/');
   });
 
   it('uses the usual hotspot address when NetworkManager does not say', async () => {
-    const { hotspot } = setup({}, { ...base, '-g IP4.ADDRESS device': { code: 0, stdout: '' } });
+    const { hotspot } = setup({ ...base, '-g IP4.ADDRESS device': { code: 0, stdout: '' } });
     expect((await hotspot.start()).url).toBe('http://10.42.0.1/');
   });
 
   it('starts only once, however often it is asked', async () => {
-    const { hotspot, listen } = setup({}, base);
+    const { hotspot, listen } = setup(base);
     const [first, second] = await Promise.all([hotspot.start(), hotspot.start()]);
     expect(second).toBe(first);
     expect(await hotspot.start()).toBe(first);
@@ -124,21 +121,21 @@ describe('kiosk-audio/hotspot', () => {
   });
 
   it('offers the networks it scanned before the hotspot took the radio', async () => {
-    const { hotspot } = setup({}, base);
+    const { hotspot } = setup(base);
     await hotspot.start();
     const sent = await overHotspot(hotspot, 'GET', '/networks.json');
     expect(JSON.parse(sent.body ?? '')).toEqual({ networks: NETWORKS });
   });
 
   it('goes on without a scan, and without a network to put back', async () => {
-    const { hotspot } = setup({ scan: () => Promise.reject(new Error('no scan')) }, base);
+    const { hotspot } = setup(base, { scan: () => Promise.reject(new Error('no scan')) });
     await hotspot.start();
     const sent = await overHotspot(hotspot, 'GET', '/networks.json');
     expect(JSON.parse(sent.body ?? '')).toEqual({ networks: [] });
   });
 
   it('answers 404 to the phone when no hotspot is up', async () => {
-    const { hotspot } = setup({}, base);
+    const { hotspot } = setup(base);
     expect((await overHotspot(hotspot, 'GET', '/')).status).toBe(404);
     await hotspot.start();
     expect((await overHotspot(hotspot, 'GET', '/')).status).toBe(200);
@@ -147,13 +144,13 @@ describe('kiosk-audio/hotspot', () => {
   });
 
   it('says so when there is no Wi-Fi adapter', async () => {
-    const { hotspot, calls } = setup({}, { ...base, '-t -f DEVICE,TYPE': { code: 0, stdout: 'eth0:ethernet\n' } });
+    const { hotspot, calls } = setup({ ...base, '-t -f DEVICE,TYPE': { code: 0, stdout: 'eth0:ethernet\n' } });
     await expect(hotspot.start()).rejects.toThrow(HotspotError);
     expect(calls.some(call => call.includes('hotspot'))).toBe(false);
   });
 
   it('takes the hotspot down again when it could not be started', async () => {
-    const { hotspot, calls } = setup({}, { ...base, hotspot: { code: 1, stdout: '' } });
+    const { hotspot, calls } = setup({ ...base, hotspot: { code: 1, stdout: '' } });
     await expect(hotspot.start()).rejects.toThrow('The hotspot could not be started.');
     expect(commands(calls)).toContain('connection delete id');
     expect(hotspot.status().state).toBe('idle');
@@ -161,14 +158,14 @@ describe('kiosk-audio/hotspot', () => {
 
   it('takes it down again when its page could not be served, and can be started again', async () => {
     const listen = vi.fn().mockRejectedValueOnce(new Error('no port')).mockResolvedValue({ port: 80, close: vi.fn() });
-    const { hotspot, calls } = setup({ listen }, base);
+    const { hotspot, calls } = setup(base, { listen });
     await expect(hotspot.start()).rejects.toThrow('The setup page could not be started.');
     expect(commands(calls)).toContain('connection down id');
     await expect(hotspot.start()).resolves.toMatchObject({ ssid: HOTSPOT_SSID });
   });
 
   it('ends after ten minutes and puts the earlier network back', async () => {
-    const { hotspot, calls, closed } = setup({}, base);
+    const { hotspot, calls, closed } = setup(base);
     await hotspot.start();
     await vi.advanceTimersByTimeAsync(10 * 60 * 1000 - 1);
     expect(closed).not.toHaveBeenCalled();
@@ -179,7 +176,7 @@ describe('kiosk-audio/hotspot', () => {
   });
 
   it('can be stopped, once, and does nothing when it is not running', async () => {
-    const { hotspot, calls, closed } = setup({}, base);
+    const { hotspot, calls, closed } = setup(base);
     await hotspot.stop();
     expect(calls).toHaveLength(2);
     await hotspot.start();
@@ -193,7 +190,7 @@ describe('kiosk-audio/hotspot', () => {
     const choose = (hotspot: Hotspot, chosen: unknown = request) => overHotspot(hotspot, 'POST', '/connect', chosen);
 
     it('leaves the hotspot after the phone was answered, joins the network, and closes the page', async () => {
-      const { hotspot, connect, done, closed } = setup({}, base);
+      const { hotspot, connect, done, closed } = setup(base);
       await hotspot.start();
       expect((await choose(hotspot)).status).toBe(200);
       expect(hotspot.status()).toEqual({ state: 'joining' });
@@ -208,7 +205,7 @@ describe('kiosk-audio/hotspot', () => {
 
     it('says why it failed, and puts the earlier network back', async () => {
       const connect = vi.fn().mockResolvedValue({ ok: false, error: 'Wrong password.' });
-      const { hotspot, done, calls } = setup({ connect }, base);
+      const { hotspot, done, calls } = setup(base, { connect });
       await hotspot.start();
       await choose(hotspot);
       await vi.advanceTimersByTimeAsync(1500);
@@ -219,7 +216,7 @@ describe('kiosk-audio/hotspot', () => {
 
     it('treats a connection that throws as a failed join', async () => {
       const connect = vi.fn().mockRejectedValue(new Error('nmcli is gone'));
-      const { hotspot } = setup({ connect }, base);
+      const { hotspot } = setup(base, { connect });
       await hotspot.start();
       await choose(hotspot);
       await vi.advanceTimersByTimeAsync(1500);
@@ -227,7 +224,7 @@ describe('kiosk-audio/hotspot', () => {
     });
 
     it('is not started again, or stopped, while it is joining', async () => {
-      const { hotspot, closed } = setup({}, base);
+      const { hotspot, closed } = setup(base);
       await hotspot.start();
       await choose(hotspot);
       await expect(hotspot.start()).rejects.toThrow('The kiosk is joining a network. Wait a moment.');
@@ -237,7 +234,7 @@ describe('kiosk-audio/hotspot', () => {
     });
 
     it('takes only the first choice', async () => {
-      const { hotspot, connect } = setup({}, base);
+      const { hotspot, connect } = setup(base);
       await hotspot.start();
       await choose(hotspot);
       await choose(hotspot, { ...request, ssid: 'Other' });
@@ -248,7 +245,7 @@ describe('kiosk-audio/hotspot', () => {
 
     it('can be started again after a failure', async () => {
       const connect = vi.fn().mockResolvedValue({ ok: false, error: 'No.' });
-      const { hotspot } = setup({ connect }, base);
+      const { hotspot } = setup(base, { connect });
       await hotspot.start();
       await choose(hotspot);
       await vi.advanceTimersByTimeAsync(1500);

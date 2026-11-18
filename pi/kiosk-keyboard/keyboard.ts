@@ -78,6 +78,11 @@ export interface KeyboardOptions {
   isUppercase?: boolean;
 }
 
+interface StartOptions extends KeyboardOptions {
+  /** Where the keyboard goes; the whole page unless given. */
+  mount?: Element;
+}
+
 /** The layouts without their Shift keys, for a keyboard that only types capitals. */
 function withoutShift(layouts: Layouts): Layouts {
   return Object.fromEntries(
@@ -179,12 +184,11 @@ const style = (rows: number): string => `
 
 /**
  * Shows the keyboard whenever a text field of `doc` has focus. Returns a function that removes it again. The keyboard
- * goes in `mount`: the app puts it inside its open dialog, as a modal dialog makes the rest of the page untouchable.
+ * goes in `mount` (the whole page unless given): the app puts it inside its open dialog, as a modal dialog makes the rest of the page untouchable.
  */
 export function start(
   doc: Document,
-  mount: Element = doc.documentElement,
-  { hasNumberRow = false, isUppercase = false }: KeyboardOptions = {}
+  { mount = doc.documentElement, hasNumberRow = false, isUppercase = false }: StartOptions = {}
 ): () => void {
   const chosen = hasNumberRow ? NUMBER_ROW_LAYOUTS : LAYOUTS;
   const layouts = isUppercase ? withoutShift(chosen) : chosen;

@@ -30,7 +30,7 @@ const art = (id: string) => [{ url: `https://images.unsplash.com/${id}` }];
  */
 export async function fakeSpotify(page: Page) {
   // The app also asks countdown-server for its config at start; unowned, the answer changes nothing.
-  await fakeCountdownServer(page);
+  await fakeCountdownServer(page, null);
   const commands: string[] = [];
   const playback = {
     is_playing: true as boolean,

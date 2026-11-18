@@ -30,7 +30,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     await page.addInitScript(() => {
       localStorage.setItem('maxmix.theme', 'night');
     });
-    const server = await fakeCountdownServer(page);
+    const server = await fakeCountdownServer(page, null);
     await openSpotifyTab(page, '/?kiosk=1');
 
     await expect.poll(() => server.authorizations.length).toBe(1);

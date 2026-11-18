@@ -48,7 +48,10 @@ async function showWifiPanel(flag: string, pidFile: string): Promise<void> {
 
 const WIFI_FILES = { flag: WIFI_FLAG, pid: CHROMIUM_PID };
 
-export async function perform(action: Action, run: Execute = execute, files = WIFI_FILES): Promise<void> {
+export async function perform(
+  action: Action,
+  { run = execute, files = WIFI_FILES }: { run?: Execute; files?: typeof WIFI_FILES } = {}
+): Promise<void> {
   if (action === 'wifi') await showWifiPanel(files.flag, files.pid);
   else await run(COMMANDS[action]);
 }

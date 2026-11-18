@@ -92,7 +92,7 @@ function corsFor(origin = '*') {
  */
 export async function fakeCountdownServer(
   page: Page,
-  config: object | null = null,
+  config: object | null,
   { saveStatus }: { saveStatus?: number } = {}
 ) {
   const authorizations: string[] = [];
