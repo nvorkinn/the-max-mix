@@ -49,6 +49,31 @@ test.describe('Choose music', { tag: '@music' }, () => {
 });
 
 test.describe('Search for music', { tag: '@music' }, () => {
+  for (const screen of [
+    { width: 1280, height: 800 },
+    { width: 1024, height: 600 }
+  ]) {
+    test(`keeps one size whatever it shows at ${screen.width}x${screen.height}`, async ({ page }) => {
+      await page.setViewportSize(screen);
+      const dialog = await openPicker(page);
+      await expect(dialog.getByRole('button', { name: /Deep Focus/ })).toBeVisible();
+      const size = async () => {
+        const box = await dialog.boundingBox();
+        return { y: box?.y, height: box?.height };
+      };
+      const playlists = await size();
+      await dialog.getByRole('button', { name: 'Search' }).click();
+      const field = dialog.getByRole('searchbox', { name: 'Search Spotify' });
+      expect(await size()).toEqual(playlists);
+      await field.fill('e');
+      await expect(dialog.getByRole('list', { name: 'Search results' })).toBeVisible();
+      expect(await size()).toEqual(playlists);
+      await field.fill('zzz');
+      await expect(dialog).toContainText('Nothing found.');
+      expect(await size()).toEqual(playlists);
+    });
+  }
+
   test('plays a song found by searching, carrying on with its album', async ({ page }) => {
     const dialog = await openPicker(page);
     await dialog.getByRole('button', { name: 'Search' }).click();

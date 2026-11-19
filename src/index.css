@@ -1745,9 +1745,24 @@ body:has(.app-dialog[open]) {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
 }
-/* Pinned to the top, so the results stay put under a finger when the keyboard closes and the dialog grows. */
-.app-dialog.music-picker-search {
+/*
+  A fixed size on every tab, so the dialog stays put while results come and go; only the results scroll. Pinned to the
+  top, so the results stay put under a finger when the on-screen keyboard closes and the dialog grows.
+*/
+.app-dialog.music-picker {
+  height: min(680px, calc(100dvh - 32px - var(--keyboard-height, 0px)));
   margin-top: 16px;
+  overflow: hidden;
+}
+.app-dialog.music-picker[open] {
+  display: flex;
+  flex-direction: column;
+}
+.music-picker-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .music-choice-liked {
   background: var(--accent-soft);

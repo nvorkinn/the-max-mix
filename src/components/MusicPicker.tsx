@@ -115,7 +115,7 @@ function SearchPanel({ disabled, onPick }: Readonly<{ disabled: boolean; onPick:
 
   const shown = result?.query === wanted ? result : undefined;
   return (
-    <div className="space-y-3">
+    <>
       <input
         ref={fieldRef}
         type="search"
@@ -125,28 +125,30 @@ function SearchPanel({ disabled, onPick }: Readonly<{ disabled: boolean; onPick:
         placeholder="Songs, albums or playlists"
         autoComplete="off"
         spellCheck={false}
-        className="music-search w-full min-h-11 px-3 rounded-xl border text-sm"
+        className="music-search w-full min-h-11 px-3 rounded-xl border text-sm mb-3"
       />
-      {!wanted && <p className="text-xs text-muted py-2">Type to search Spotify.</p>}
-      {wanted && !shown && (
-        <p role="status" className="text-xs text-muted py-2">
-          Searching...
-        </p>
-      )}
-      {shown?.error !== undefined && (
-        <FailedRead
-          error={shown.error}
-          onRetry={() => {
-            setResult(undefined);
-            setSearchVersion(version => version + 1);
-          }}
-        />
-      )}
-      {shown?.choices && (
-        <ChoiceList label="Search results" choices={shown.choices} disabled={disabled} onPick={onPick} />
-      )}
-      {shown?.choices?.length === 0 && <p className="text-xs text-muted py-2">Nothing found.</p>}
-    </div>
+      <div className="music-picker-results">
+        {!wanted && <p className="text-xs text-muted py-2">Type to search Spotify.</p>}
+        {wanted && !shown && (
+          <p role="status" className="text-xs text-muted py-2">
+            Searching...
+          </p>
+        )}
+        {shown?.error !== undefined && (
+          <FailedRead
+            error={shown.error}
+            onRetry={() => {
+              setResult(undefined);
+              setSearchVersion(version => version + 1);
+            }}
+          />
+        )}
+        {shown?.choices && (
+          <ChoiceList label="Search results" choices={shown.choices} disabled={disabled} onPick={onPick} />
+        )}
+        {shown?.choices?.length === 0 && <p className="text-xs text-muted py-2">Nothing found.</p>}
+      </div>
+    </>
   );
 }
 
@@ -201,7 +203,7 @@ function MusicPickerContent({
     <Modal
       labelledBy="music-title"
       onClose={onClose}
-      className={`app-modal-panel music-picker${tab === 'search' ? ' music-picker-search' : ''} border rounded-3xl p-6 max-w-lg relative shadow-2xl text-left select-none`}
+      className="app-modal-panel music-picker border rounded-3xl p-6 max-w-lg relative shadow-2xl text-left select-none"
     >
       <div className="modal-header flex items-center justify-between gap-2">
         <h3 id="music-title" className="text-lg font-semibold flex items-center gap-2">
@@ -237,7 +239,7 @@ function MusicPickerContent({
       {tab === 'search' ? (
         <SearchPanel disabled={disabled || starting} onPick={picked => void pick(picked)} />
       ) : (
-        <>
+        <div className="music-picker-results">
           {error && (
             <FailedRead
               error={error}
@@ -261,7 +263,7 @@ function MusicPickerContent({
             </p>
           )}
           {shown?.length === 0 && <p className="text-xs text-muted py-2">Nothing here yet.</p>}
-        </>
+        </div>
       )}
     </Modal>
   );
