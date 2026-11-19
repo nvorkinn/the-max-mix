@@ -22,8 +22,8 @@ function installed(): string[] {
 
 describe('kiosk-audio/install', () => {
   it('copies every file the service is made of to the Pi, or the service fails to start there', () => {
-    // screen-mode.ts is not part of the service: the role runs it from the checkout before it installs anything.
-    const notService = new Set(['fixtures.ts', 'screen-mode.ts']);
+    // screen-mode.ts is not part of the service, but kiosk.service runs the installed copy before Cage starts.
+    const notService = new Set(['fixtures.ts']);
     const sources = readdirSync(here).filter(
       name => name.endsWith('.ts') && !name.endsWith('.test.ts') && !notService.has(name)
     );
