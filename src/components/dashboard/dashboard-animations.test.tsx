@@ -7,7 +7,8 @@ import Backdrop, { BACKDROP_FADE_MS } from './Backdrop';
 import DepartureBoard from './DepartureBoard';
 import { ARRIVE_MS } from './NoticeBoard';
 import RailPages from './RailPages';
-import WeatherBlock, { WEATHER_FADE_MS, WEATHER_VIEW_MS } from './WeatherBlock';
+import WeatherBlock, { WEATHER_FADE_MS } from './WeatherBlock';
+import { carouselSlot, TURN_MS } from './carousel';
 import { ROW_FADE_MS } from './AnimatedRows';
 
 const at = (minutes: number) => new Date(SAMPLE_NOW.getTime() + minutes * 60_000);
@@ -75,53 +76,70 @@ describe('the departure boards', () => {
 describe('the weather block', () => {
   // Every period has its pill; the one on show is marked current.
   const shown = (weather: HTMLElement) => weather.querySelector('[aria-current="true"]');
+  // The Dashboard's clock, starting on a turn, and the block as of `ms` after it.
+  const start = Math.ceil(SAMPLE_NOW.getTime() / TURN_MS) * TURN_MS;
+  const block = (ms: number, views = SAMPLE.weather.views) => <WeatherBlock views={views} time={start + ms} />;
 
-  it('moves to the next period every ten seconds, fading the old one right out first', () => {
-    render(<WeatherBlock {...SAMPLE.weather} />);
+  it('moves to the next period on each turn of the shared clock, fading the old one right out first', () => {
+    const { rerender } = render(block(0));
     const weather = screen.getByRole('button');
     expect(shown(weather)).toHaveTextContent('Now');
-    run(WEATHER_VIEW_MS);
+    rerender(block(TURN_MS - 1000));
+    expect(weather).not.toHaveClass('fading');
+    rerender(block(TURN_MS));
     // Fading out, still the old period: the two never show together.
     expect(weather).toHaveClass('fading');
     expect(shown(weather)).toHaveTextContent('Now');
     run(WEATHER_FADE_MS);
     expect(weather).not.toHaveClass('fading');
     expect(shown(weather)).toHaveTextContent('Tonight');
-    run(WEATHER_VIEW_MS);
+    rerender(block(2 * TURN_MS + 1000));
     run(WEATHER_FADE_MS);
     expect(shown(weather)).toHaveTextContent('Tomorrow');
   });
 
-  it('gives a period it skipped to by a tap its full ten seconds', () => {
-    render(<WeatherBlock {...SAMPLE.weather} />);
+  it('turns on the same tick as the boards and the rail\'s pages', () => {
+    const { rerender } = render(block(0));
     const weather = screen.getByRole('button');
-    run(WEATHER_VIEW_MS - 1000);
+    rerender(block(TURN_MS));
+    expect(weather).toHaveClass('fading');
+    expect(carouselSlot(0, 3, start + TURN_MS, 1)).not.toBe(carouselSlot(0, 3, start + TURN_MS - 1, 1));
+  });
+
+  it('keeps a period tapped to in step, moving on at the next shared turn', () => {
+    const { rerender } = render(block(0));
+    const weather = screen.getByRole('button');
+    rerender(block(TURN_MS - 5000));
     fireEvent.click(weather);
     run(WEATHER_FADE_MS);
     expect(shown(weather)).toHaveTextContent('Tonight');
-    run(WEATHER_VIEW_MS - 1);
+    rerender(block(TURN_MS - 1));
     expect(weather).not.toHaveClass('fading');
-    run(1);
+    rerender(block(TURN_MS));
     expect(weather).toHaveClass('fading');
+    run(WEATHER_FADE_MS);
+    expect(shown(weather)).toHaveTextContent('Tomorrow');
   });
 
   it('shows a pill for each period, only the one on show filled, and its sky by day or night', () => {
-    render(<WeatherBlock {...SAMPLE.weather} />);
+    const { rerender } = render(block(0));
     const weather = screen.getByRole('button');
     expect(weather.querySelectorAll('.dashboard-wx-pill')).toHaveLength(4);
     expect(weather.querySelectorAll('[aria-current="true"]')).toHaveLength(1);
     expect(weather.querySelector('.dashboard-wx-icon')).toHaveClass('lucide-cloud-sun');
-    run(WEATHER_VIEW_MS);
+    rerender(block(TURN_MS));
     run(WEATHER_FADE_MS);
     expect(shown(weather)).toHaveTextContent('Tonight');
     expect(weather.querySelector('.dashboard-wx-icon')).toHaveClass('lucide-cloud-rain');
   });
 
   it('stays still with one period to show', () => {
-    render(<WeatherBlock views={SAMPLE.weather.views.slice(0, 1)} />);
+    const one = SAMPLE.weather.views.slice(0, 1);
+    const { rerender } = render(block(0, one));
     const weather = screen.getByRole('button');
     fireEvent.click(weather);
-    run(WEATHER_VIEW_MS * 2);
+    rerender(block(2 * TURN_MS, one));
+    run(WEATHER_FADE_MS);
     expect(weather).not.toHaveClass('fading');
     expect(shown(weather)).toHaveTextContent('Now');
   });

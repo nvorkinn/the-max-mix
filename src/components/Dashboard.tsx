@@ -74,7 +74,7 @@ export default function Dashboard({
   const [outlookShown, setOutlookShown] = useState(false);
   // Two boards at a time; with more, they move along one at a time, with the boards' clock so a hidden Dashboard,
   // whose clock stops, doesn't move. Every board stays mounted, so its rows keep following their vehicles. The rail's
-  // pages turn with them.
+  // pages and the weather's periods turn with them, on the same clock.
   const time = (boards[0]?.now ?? tabBar.now).getTime();
 
   useLayoutEffect(() => {
@@ -108,7 +108,7 @@ export default function Dashboard({
           <TabBar {...tabBar} />
           <main className="dashboard-main">
             <div className="dashboard-rail">
-              <WeatherBlock {...weather} />
+              <WeatherBlock {...weather} time={time} />
               <RailPages
                 notices={notices.notices}
                 lineStatus={lineStatus}
