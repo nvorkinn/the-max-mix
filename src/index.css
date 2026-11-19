@@ -379,6 +379,16 @@
   backdrop-filter: blur(18px) saturate(1.2);
   mask-image: linear-gradient(180deg, transparent 0, #000 var(--float-bar));
 }
+/* Changing tab fades the whole screen (see utils/crossfade.ts). The overlay lets taps through, so a quick second tap
+  starts the next fade at once instead of being swallowed by the first. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 300ms;
+}
 .button,
 .icon-button {
   display: inline-flex;
