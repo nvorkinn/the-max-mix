@@ -1,8 +1,9 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { groupLines } from '../../dashboard/lineStatus';
-import type { DayForecast, NoticeItem, TubeStatusProps } from '../../dashboard/props';
+import type { DayForecast, LineIncidentsProps, NoticeItem, TubeStatusProps } from '../../dashboard/props';
 import { carouselSlot } from './carousel';
+import LineIncidents, { INCIDENT_ROWS } from './LineIncidents';
 import Outlook from './Outlook';
 import NoticeBoard, { NOTICE_ROW_HEIGHT, NoticeSheet, useArrivals } from './NoticeBoard';
 import TubeStatus, { LINE_ROW_HEIGHT } from './TubeStatus';
@@ -74,6 +75,8 @@ export function outlookDays(days: number, noticeCount: number, statusRows: numbe
 interface RailPagesProps {
   notices: readonly NoticeItem[];
   lineStatus: TubeStatusProps | null;
+  /** The incidents at the kiosk's Norwegian stops, in the Tube's status's place (which wins if there are both). */
+  incidents?: LineIncidentsProps | null | undefined;
   /** The days after today, shown over the notices while there is room for them; none when left out. */
   days?: readonly DayForecast[] | undefined;
   /** Told whether the outlook shows, so the hourly strip can make way for it. */
@@ -90,6 +93,7 @@ interface RailPagesProps {
 export default function RailPages({
   notices,
   lineStatus,
+  incidents = null,
   days = NO_DAYS,
   onOutlook = ignore,
   time
@@ -110,7 +114,8 @@ export default function RailPages({
     return () => observer.disconnect();
   }, []);
 
-  const statusRows = lineStatus ? groupLines(lineStatus.lines).length : null;
+  const incidentRows = incidents ? incidents.incidents.length * INCIDENT_ROWS : null;
+  const statusRows = lineStatus ? groupLines(lineStatus.lines).length : incidentRows;
   const shownDays = height > 0 ? outlookDays(days.length, notices.length, statusRows, height) : 0;
   const pagesHeight = shownDays ? height - OUTLOOK_GAP - shownDays * OUTLOOK_ROW_HEIGHT : height;
   const pages = railPages(notices.length, statusRows, pagesHeight);
@@ -143,6 +148,7 @@ export default function RailPages({
                   />
                 )}
                 {page.status && lineStatus && <TubeStatus {...lineStatus} />}
+                {page.status && !lineStatus && incidents && <LineIncidents {...incidents} />}
               </div>
             );
           })}

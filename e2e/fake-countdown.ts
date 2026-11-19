@@ -450,6 +450,18 @@ function noticesAt(now: Date, isQuiet: boolean) {
   };
 }
 
+/** The notices of a kiosk in Oslo with `enturStops` (countdown-api's EnturStopNotices): none of London's sources. */
+const osloNotices = (enturStops: object[]) => ({
+  postcode: '0150',
+  country: 'NO',
+  tfl_stops: [],
+  tfl_roads: null,
+  met_office: null,
+  bank_holidays: null,
+  tfl_network: null,
+  entur_stops: enturStops
+});
+
 /** One server-sent event. */
 const message = (event: string, data: object) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 
@@ -462,6 +474,11 @@ interface FeedOptions {
   arrivals?: () => object;
   /** The wait before the next stream that each stream asks for. */
   retryMs?: number;
+  /**
+   * Notices as for a kiosk in Oslo instead: its Entur stops' situations (countdown-api's EnturStopNotices), and none
+   * of London's sources.
+   */
+  enturStops?: () => object[];
 }
 
 /**
@@ -470,14 +487,14 @@ interface FeedOptions {
  * server's do; its `retry` keeps the next one a minute off unless `retryMs` says otherwise.
  */
 export async function fakeFeed(page: Page, now: Date, options: FeedOptions = {}) {
-  const { long = false, none = false, arrivals = () => arrivalsAt(now, long), retryMs = 60_000 } = options;
+  const { long = false, none = false, arrivals = () => arrivalsAt(now, long), retryMs = 60_000, enturStops } = options;
   await page.route(FEED, route => {
     const cors = corsFor(route.request().headers()['origin']);
     if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
     const events = [
       message('weather', weatherAt(now)),
       message('arrivals', arrivals()),
-      message('notices', noticesAt(now, none))
+      message('notices', enturStops ? osloNotices(enturStops()) : { ...noticesAt(now, none), entur_stops: [] })
     ];
     return route.fulfill({
       status: 200,

@@ -641,6 +641,62 @@ button.dashboard-notice {
   font-weight: 600;
 }
 
+/*
+  The incidents panel, in the Tube status panel's place for a kiosk with Norwegian stops: only what's wrong, each the
+  operator's summary under its lines' route boxes, as tall as two of the Tube panel's rows.
+*/
+.dashboard-eyebrow-ruter {
+  height: 14px;
+  opacity: 0.8;
+}
+.dashboard-incident-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-auto-rows: 68px;
+}
+.dashboard-incident {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 2px;
+}
+.dashboard-incident-lines {
+  display: flex;
+  gap: 3px;
+  overflow: hidden;
+}
+.dashboard-route-ruter.dashboard-incident-route {
+  width: 30px;
+  min-width: 30px;
+  height: 22px;
+  padding: 0;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.dashboard-route-ruter.dashboard-incident-route:is([data-length='3'], [data-length='4']) {
+  width: 40px;
+  font-size: 13px;
+}
+.dashboard-route-ruter.dashboard-incident-route:is([data-length='5'], [data-length='6']) {
+  width: 48px;
+  font-size: 12px;
+}
+.dashboard-incident-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.25;
+}
+.dashboard-incident[data-health='severe'] .dashboard-incident-text {
+  color: var(--severe);
+}
+
 /* A notice's full text, over the whole panel; a tap anywhere closes it. */
 .dashboard-sheet {
   position: absolute;

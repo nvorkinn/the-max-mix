@@ -4,6 +4,7 @@ import fallbackBackdrop from '../assets/dashboard/backdrop.jpg';
 import type {
   DepartureBoardProps,
   HourlyStripProps,
+  LineIncidentsProps,
   NoticeBoardProps,
   OutlookProps,
   TabBarProps,
@@ -42,6 +43,8 @@ export interface DashboardProps {
   outlook?: OutlookProps | null;
   /** Every Tube line's status, at the bottom of the rail under the notices; null (or left out) without. */
   lineStatus?: TubeStatusProps | null;
+  /** The incidents on the lines at the kiosk's Norwegian stops, in the Tube status's place; null (or left out) without. */
+  incidents?: LineIncidentsProps | null;
   /** A board per stop, in the owner's order: each Tube station and each bus stop has its own. */
   boards: DepartureBoardProps[];
   /** The day's photo; a new one fades in slowly over the old. Left out (or null) for the photo bundled with the app. */
@@ -61,6 +64,7 @@ export default function Dashboard({
   notices,
   outlook = null,
   lineStatus = null,
+  incidents = null,
   boards,
   backdrop
 }: Readonly<DashboardProps>) {
@@ -108,6 +112,7 @@ export default function Dashboard({
               <RailPages
                 notices={notices.notices}
                 lineStatus={lineStatus}
+                incidents={incidents}
                 days={outlook?.days}
                 onOutlook={setOutlookShown}
                 time={time}

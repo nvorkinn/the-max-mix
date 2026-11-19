@@ -68,6 +68,9 @@ export function mergeArrivals(
   return { arrivals: { stops }, held };
 }
 
+/** The notices' Entur stops; none from an older countdown-server, which leaves them out. */
+const enturStopsOf = (notices: Partial<Pick<DeviceNotices, 'entur_stops'>>) => notices.entur_stops ?? [];
+
 /** The new notice sources, with each from before where the new answer has none (for the same board). */
 export function mergeNotices(
   previous: DeviceNotices | null,
@@ -85,6 +88,11 @@ export function mergeNotices(
     const before = stopsBefore.get(stop.stop_id);
     return { ...stop, lines: keep(stop.lines, before?.lines), stations: keep(stop.stations, before?.stations) };
   });
+  const enturBefore = new Map(enturStopsOf(previous).map(stop => [stop.stop_id, stop.situations]));
+  const enturStops = enturStopsOf(next).map(stop => ({
+    ...stop,
+    situations: keep(stop.situations, enturBefore.get(stop.stop_id))
+  }));
   const uk = next.country === 'GB';
   const notices: DeviceNotices = {
     ...next,
@@ -93,7 +101,8 @@ export function mergeNotices(
     met_office: uk ? keep(next.met_office, previous.met_office) : next.met_office,
     bank_holidays: uk ? keep(next.bank_holidays, previous.bank_holidays) : next.bank_holidays,
     // An older countdown-server leaves it out.
-    tfl_network: keep(next.tfl_network ?? null, previous.tfl_network)
+    tfl_network: keep(next.tfl_network ?? null, previous.tfl_network),
+    entur_stops: enturStops
   };
   return { notices, held };
 }
