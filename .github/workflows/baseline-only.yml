@@ -1,0 +1,102 @@
+name: Baseline only
+
+# Tells Tests and Lint whether a push to a pull request changed nothing but e2e screenshot baselines, so they can skip
+# their other jobs and rerun only the e2e tests. That is the usual fix for a failed e2e run, and a PNG under
+# e2e/screenshots/ cannot change what lint or the unit tests see. The answer is yes only when all of these hold, and
+# no on any doubt (an API error, a run still going), so the worst case is a full run:
+# - the event is a pull request's `synchronize` whose new commits build on the previous head (not a force-push),
+# - every file those commits add, change, delete or rename is under e2e/screenshots/,
+# - the calling workflow's latest run for the previous head has finished, with every job outside `ignore` passed or
+#   skipped. A job skipped there was skipped by this same check, so it rests on an earlier pass.
+# The skipped jobs show as skipped, which Global PR Status accepts. A push to main always runs everything.
+on:
+  workflow_call:
+    inputs:
+      ignore:
+        description: A regex of the calling workflow's jobs whose result on the previous head does not matter
+        type: string
+        default: '^$'
+    outputs:
+      skip:
+        description: '"true" when the calling workflow can skip everything but the e2e tests'
+        value: ${{ jobs.check.outputs.skip }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          IGNORE: ${{ inputs.ignore }}
+        run: |
+          check() {
+            if [[ $EVENT != pull_request || $ACTION != synchronize ]]; then
+              echo "Not a push to an open pull request."
+              return 1
+            fi
+            if [[ ! $BEFORE =~ ^[0-9a-f]{40}$ || $BEFORE =~ ^0+$ ]]; then
+              echo "No previous head to compare with."
+              return 1
+            fi
+            local compare status count outside workflow run jobs failed
+            compare=$(gh api "repos/$REPO/compare/$BEFORE...$AFTER") || return 1
+            status=$(jq -r .status <<< "$compare")
+            if [[ $status != ahead ]]; then
+              echo "The new head does not build on the previous one ($status), so this is a force-push."
+              return 1
+            fi
+            # The compare API lists at most 300 files.
+            count=$(jq '.files | length' <<< "$compare")
+            if ((count == 0 || count >= 300)); then
+              echo "$count changed files: too few or too many to judge."
+              return 1
+            fi
+            outside=$(jq -r '.files[] | .filename, (.previous_filename // empty) |
+              select(startswith("e2e/screenshots/") | not)' <<< "$compare")
+            if [[ -n $outside ]]; then
+              echo "Changes outside e2e/screenshots/, for example:"
+              head -n 5 <<< "$outside"
+              return 1
+            fi
+            echo "All $count changed files are e2e screenshot baselines."
+            # The calling workflow's file, from owner/repo/.github/workflows/<file>@<ref>.
+            workflow=${WORKFLOW_REF%@*}
+            workflow=${workflow##*/}
+            # Runs come newest first; the newest one must have finished.
+            run=$(gh api "repos/$REPO/actions/workflows/$workflow/runs?head_sha=$BEFORE&event=pull_request&per_page=1" \
+              --jq '.workflow_runs[0] | select(.status == "completed") | .id') || return 1
+            if [[ -z $run ]]; then
+              echo "No finished $workflow run for the previous head $BEFORE."
+              return 1
+            fi
+            jobs=$(gh api --paginate "repos/$REPO/actions/runs/$run/jobs" \
+              --jq '.jobs[] | select(.name | test(env.IGNORE) | not) | "\(.conclusion): \(.name)"') || return 1
+            if [[ -z $jobs ]]; then
+              echo "The previous run had no jobs to go by."
+              return 1
+            fi
+            failed=$(grep -Ev '^(success|skipped): ' <<< "$jobs")
+            if [[ -n $failed ]]; then
+              echo "On the previous head, these did not pass:"
+              echo "$failed"
+              return 1
+            fi
+            echo "On the previous head (run $run):"
+            echo "$jobs"
+          }
+          if check; then skip=true; else skip=false; fi
+          echo "Skip: $skip"
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
