@@ -13,9 +13,10 @@ import PairPhoneSheet from './PairPhoneSheet';
 export default function PhonePicker({
   spotifyId,
   name,
+  imageUrl = '',
   phoneAddress,
   onChange
-}: Readonly<{ spotifyId: string; name: string; phoneAddress: string; onChange: () => void }>) {
+}: Readonly<{ spotifyId: string; name: string; imageUrl?: string; phoneAddress: string; onChange: () => void }>) {
   const [isOpen, setIsOpen] = useState(false);
   const [isPairing, setIsPairing] = useState(false);
   const [pairings, setPairings] = useState(0);
@@ -89,6 +90,7 @@ export default function PhonePicker({
         <PairPhoneSheet
           spotifyId={spotifyId}
           name={name}
+          imageUrl={imageUrl}
           onDone={() => {
             setIsPairing(false);
             setPairings(count => count + 1);
