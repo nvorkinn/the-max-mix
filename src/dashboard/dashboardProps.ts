@@ -114,14 +114,13 @@ export function dashboardProps(snapshot: LiveSnapshot, now: Date, clockFormat: C
     backdrop: backdropOf(snapshot.weather, now),
     weather: { views: weather?.views ?? [] },
     outlook: { days: weather?.days ?? [] },
-    hourly:
-      weather
-        ? {
-            hours: weather.hours,
-            stale: down || snapshot.weatherHeld || olderThan(weatherRead, WEATHER_STALE_MS, now),
-            clockFormat
-          }
-        : null,
+    hourly: weather
+      ? {
+          hours: weather.hours,
+          stale: down || snapshot.weatherHeld || olderThan(weatherRead, WEATHER_STALE_MS, now),
+          clockFormat
+        }
+      : null,
     notices: { notices: toNoticeItems(snapshot, now, clockFormat) },
     lineStatus: toLineStatus(snapshot.notices, now),
     incidents: toLineIncidents(snapshot.notices, now),
