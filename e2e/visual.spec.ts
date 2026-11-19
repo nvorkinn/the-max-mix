@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { runningFades } from './crossfade.ts';
 import { showDashboard } from './dashboard.ts';
 import { DEVICE_CONFIGS, fakeCountdownServer } from './fake-countdown.ts';
 import { airPlayOutput, fakeKioskOutputs } from './fake-kiosk.ts';
@@ -195,6 +196,8 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
         await page.goto('/');
         await page.getByRole('tab', { name: 'Player' }).click();
         await expect(page.getByRole('tabpanel', { name: 'Player' })).toBeVisible();
+        // The tab change fades from the Dashboard; a screenshot during it catches the Dashboard's half.
+        await expect.poll(() => runningFades(page)).toEqual([]);
         await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
         await expect(page).toHaveScreenshot(shotName('player-photo-dynamic', screen), moving(page));
       }
@@ -209,6 +212,8 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await page.goto('/');
       await page.getByRole('tab', { name: 'Player' }).click();
       await expect(page.getByRole('tabpanel', { name: 'Player' })).toBeVisible();
+      // The tab change fades from the Dashboard; a screenshot during it catches the Dashboard's half.
+      await expect.poll(() => runningFades(page)).toEqual([]);
       await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
       await expect(page).toHaveScreenshot(shotName('player-photo', screen), moving(page));
     });
