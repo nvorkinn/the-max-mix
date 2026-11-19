@@ -129,6 +129,7 @@ openapi
 overscroll
 pagesize
 pairable
+parcelapp
 partuuid
 pavucontrol
 pipefail

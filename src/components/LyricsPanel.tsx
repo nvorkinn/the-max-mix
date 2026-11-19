@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { CSSProperties } from 'react';
 import { MicVocal, RotateCcw } from 'lucide-react';
 import { useLyrics } from '../hooks/useLyrics';
+import type { LyricsLookup } from '../hooks/useLyrics';
 import { activeLineIndex } from '../lyrics/lrc';
 import type { LyricsProvider } from '../lyrics/types';
 import type { Track } from '../types';
@@ -18,6 +19,8 @@ interface LyricsPanelProps {
   onSynced?: () => void;
   /** False while the panel is out of sight, so a hidden panel looks nothing up. */
   shown?: boolean;
+  /** The song's lyrics when the parent already looks them up, so the panel does not look them up a second time. */
+  lookup?: LyricsLookup;
   provider?: LyricsProvider;
 }
 
@@ -79,9 +82,11 @@ function LyricsPanelContent({
   syncing = false,
   onSynced,
   shown = true,
+  lookup,
   provider
 }: Readonly<LyricsPanelProps>) {
-  const { status, lyrics, error, retry } = useLyrics(track, shown, provider);
+  const own = useLyrics(track, shown && !lookup, provider);
+  const { status, lyrics, error, retry } = lookup ?? own;
   // Settings > Spotify > Synced Lyrics: the type size and alignment, which apply the moment they change.
   const look = useSyncExternalStore(subscribeLyricsStyle, getLyricsStyle);
   // A tap in sync mode moves this song's lyrics earlier or later; the panel is remade for every song, so it starts at 0.

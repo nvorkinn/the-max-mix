@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Bluetooth, LoaderCircle, Smartphone } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Bluetooth, CircleCheck, LoaderCircle, Smartphone } from 'lucide-react';
 import { pairPhone, pickPhone, readBluetoothReport } from '../utils/bluetoothMonitor';
 import type { PairingStatus } from '../utils/bluetoothMonitor';
 import { errorMessage } from '../utils/errorMessage';
@@ -39,25 +39,24 @@ function PairingCode({ code, isConfirmed }: Readonly<{ code: number | null; isCo
 }
 
 /**
- * Pairs a person's iPhone with the kiosk (pi/kiosk-audio/phone-pairing.ts). While the sheet is open the Pi looks for
- * phones; with Settings › Bluetooth open, the iPhone shows up in the list under its own name. Tapping it pairs: the phone
- * asks to confirm the code shown here too, and the phone is linked to that person (linkPhone), so the switcher knows
- * when they are here. Skip (or closing the sheet) stops the Pi looking.
+ * Pairs a person's phone with the kiosk (pi/kiosk-audio/phone-pairing.ts). It first says what pairing is for, and the
+ * Pi only starts looking once that is OK'd. While the sheet is looking, a
+ * phone with Settings › Bluetooth open shows up in the list under its own name. Tapping it pairs: the phone asks to
+ * accept the code shown here too, and the phone is linked to that person (linkPhone), so the switcher knows when they
+ * are here; the sheet then says so until Done. Skip (or closing the sheet) stops the Pi looking.
  */
 export default function PairPhoneSheet({
   spotifyId,
   name,
   onDone
 }: Readonly<{ spotifyId: string; name: string; onDone: () => void }>) {
+  const [isIntro, setIsIntro] = useState(true);
   const [pairing, setPairing] = useState<PairingStatus>({ state: 'idle' });
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
-  const onDoneRef = useRef(onDone);
-  useLayoutEffect(() => {
-    onDoneRef.current = onDone;
-  });
 
   useEffect(() => {
+    if (isIntro) return;
     let isCurrent = true;
     // Only a pairing that this sheet started counts: the Pi keeps reporting the last phone paired until the next start.
     let hasStarted = false;
@@ -77,8 +76,8 @@ export default function PairPhoneSheet({
           setPairing(report.pairing);
           if (report.pairing.state === 'paired') {
             isWaiting = false;
+            clearInterval(timer);
             setPersonPhone(spotifyId, report.pairing.address);
-            onDoneRef.current();
           } else if (report.pairing.state === 'failed') {
             isWaiting = false;
             setError(report.pairing.error);
@@ -91,7 +90,7 @@ export default function PairPhoneSheet({
       clearInterval(timer);
       if (hasStarted && isWaiting) void pairPhone(false).catch(() => null);
     };
-  }, [spotifyId, attempt]);
+  }, [spotifyId, attempt, isIntro]);
 
   const pick = (address: string, phoneName: string) => {
     setPairing({ state: 'pairing', name: phoneName, code: null, isConfirmed: false });
@@ -101,17 +100,61 @@ export default function PairPhoneSheet({
   // The Pi is busy from the moment the sheet opens until the phone shows its code: starting, looking, then pairing. Once
   // the code is confirmed on the phone, the big spinner in the code's place takes over.
   const isBusy =
+    !isIntro &&
     !error &&
     (pairing.state === 'idle' ||
       pairing.state === 'scanning' ||
       (pairing.state === 'pairing' && pairing.code === null && !pairing.isConfirmed));
+
+  const owner = name ? `${name}’s` : 'your';
+  const title = `Pair ${owner} phone`;
+  if (isIntro || pairing.state === 'paired') {
+    const isPaired = pairing.state === 'paired';
+    return (
+      <Modal labelledBy="pair-phone-title" onClose={onDone} className="app-modal-panel pair-phone-sheet">
+        <div className="pair-phone-header">
+          <h3 id="pair-phone-title" className="pair-phone-title">
+            {isPaired ? (
+              <CircleCheck className="w-7 h-7 text-accent" aria-hidden="true" />
+            ) : (
+              <Bluetooth className="w-7 h-7 text-accent" aria-hidden="true" />
+            )}
+            {isPaired ? 'Pairing successful' : title}
+          </h3>
+        </div>
+        <div className="pair-phone-body pair-phone-message">
+          {isPaired ? (
+            <>
+              <p className="pair-phone-step">You’re all set up.</p>
+              <p className="pair-phone-hint">Tap your photo at any time to switch accounts.</p>
+            </>
+          ) : (
+            <p className="pair-phone-step">
+              Pairing your phone lets the tablet know when you’re here. Your account can only be switched to while your
+              phone is nearby.
+            </p>
+          )}
+        </div>
+        <div className="pair-phone-actions">
+          <button
+            type="button"
+            data-modal-autofocus
+            className="spotify-sign-in pair-phone-button font-extrabold rounded-xl"
+            onClick={isPaired ? onDone : () => setIsIntro(false)}
+          >
+            {isPaired ? 'Done' : 'OK'}
+          </button>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal labelledBy="pair-phone-title" onClose={onDone} className="app-modal-panel pair-phone-sheet">
       <div className="pair-phone-header">
         <h3 id="pair-phone-title" className="pair-phone-title">
           <Bluetooth className="w-7 h-7 text-accent" aria-hidden="true" />
-          Pair {name ? `${name}’s` : 'your'} iPhone
+          {title}
         </h3>
         {isBusy && (
           <LoaderCircle className="pair-phone-spinner w-8 h-8 animate-spin" role="status" aria-label="Searching" />
@@ -121,15 +164,19 @@ export default function PairPhoneSheet({
         {!error && pairing.state === 'pairing' ? (
           <div className="pair-phone-pairing" aria-live="polite">
             <p className="pair-phone-pairing-name">{pairing.name}</p>
+            {pairing.code !== null && !pairing.isConfirmed && (
+              <p className="pair-phone-confirm">Accept the pairing request on your phone.</p>
+            )}
             <PairingCode code={pairing.code} isConfirmed={pairing.isConfirmed} />
           </div>
         ) : (
           !error && (
             <>
-              <p className="pair-phone-step">
-                Open Settings › Bluetooth on your iPhone and stay on that screen. Then tap your iPhone in the list
-                below.
-              </p>
+              <ol className="pair-phone-steps">
+                <li>Open Settings</li>
+                <li>Open Bluetooth</li>
+                <li>Tap your phone in the list below</li>
+              </ol>
               <ul
                 className="phone-picker-options pair-phone-nearby"
                 aria-label="Nearby"

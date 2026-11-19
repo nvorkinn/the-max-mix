@@ -8,6 +8,31 @@ const SEARCH_DELAY_MS = 300;
 
 const NONE: readonly string[] = [];
 
+/** One result, a button that picks it: its name, the line under it, and what shows at its end. */
+export function ResultButton<R extends SearchResult>({
+  result,
+  disabled = false,
+  keepFocus = false,
+  end,
+  onPick
+}: Readonly<{ result: R; disabled?: boolean; keepFocus?: boolean; end?: ReactNode; onPick: (result: R) => void }>) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onPointerDown={keepFocus ? event => event.preventDefault() : undefined}
+      onClick={() => onPick(result)}
+      className="modal-option search-result w-full px-4 py-2 flex gap-3 items-center text-left rounded-xl border"
+    >
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-semibold truncate">{result.name}</span>
+        <span className="block text-xs text-muted truncate">{result.detail}</span>
+      </span>
+      {end}
+    </button>
+  );
+}
+
 /**
  * What a search for `query` finds, each result a button that picks it: searched a moment after the query stops changing,
  * and nothing while it is empty. A late answer for an older query is never shown, only the one for the query now.
@@ -70,26 +95,22 @@ export default function SearchResults<R extends SearchResult>({
             const isChosen = chosen.includes(result.key);
             return (
               <li key={result.key} className={result.indent ? 'search-result-indent' : undefined}>
-                <button
-                  type="button"
+                <ResultButton
+                  result={result}
                   disabled={isChosen}
-                  onPointerDown={keepFocus ? event => event.preventDefault() : undefined}
-                  onClick={() => onPick(result)}
-                  className="modal-option search-result w-full px-4 py-2 flex gap-3 items-center text-left rounded-xl border"
-                >
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-semibold truncate">{result.name}</span>
-                    <span className="block text-xs text-muted truncate">{result.detail}</span>
-                  </span>
-                  {isChosen ? (
-                    <span className="search-result-added">
-                      <Check className="w-5 h-5 shrink-0" aria-hidden="true" />
-                      Added
-                    </span>
-                  ) : (
-                    icon
-                  )}
-                </button>
+                  keepFocus={keepFocus}
+                  onPick={onPick}
+                  end={
+                    isChosen ? (
+                      <span className="search-result-added">
+                        <Check className="w-5 h-5 shrink-0" aria-hidden="true" />
+                        Added
+                      </span>
+                    ) : (
+                      icon
+                    )
+                  }
+                />
               </li>
             );
           })}

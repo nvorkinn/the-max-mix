@@ -176,7 +176,7 @@ beforeEach(() => {
     ]
   });
   lyrics.lrclib.mockReset();
-  // Tests whose queue fails show the lyrics and would otherwise leave this song's lyrics cached for the ones after.
+  // The lyrics are looked up as each song starts, and would otherwise stay cached for the tests after.
   clearLyricsCache();
   lyrics.lrclib.mockResolvedValue({ kind: 'plain', lines: ['Placeholder lyric'], source: 'LRCLIB' });
   setPlayer();
@@ -245,29 +245,28 @@ describe('TabletView', () => {
     expect(player.current.nextTrack).toHaveBeenCalledOnce();
   });
 
-  it('shows the queue beside the artwork while songs are queued, and fades to the lyrics on the Lyrics button', async () => {
+  it('opens the panel beside the artwork on the lyrics, looked up as the song starts, and fades to the queue on Queue', async () => {
     renderOnSpotifyTab(<TabletView />);
     await flush();
     const panels = document.querySelector('.side-panel');
-    expect(panels).toHaveAttribute('data-showing', 'queue');
-    expect(screen.getByRole('button', { name: 'Queue' })).toHaveAttribute('aria-pressed', 'true');
-    // A hidden lyrics panel looks nothing up.
-    expect(lyrics.lrclib).not.toHaveBeenCalled();
-    expect(screen.getByRole('region', { name: 'Upcoming tracks' })).not.toHaveAttribute('inert');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Lyrics' }));
-    await flush();
     expect(panels).toHaveAttribute('data-showing', 'lyrics');
+    expect(screen.getByRole('button', { name: 'Lyrics' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('region', { name: 'Lyrics' })).toHaveTextContent('Placeholder lyric');
     // The queue behind the fade cannot be tapped.
     expect(screen.getByRole('region', { name: 'Upcoming tracks' })).toHaveAttribute('inert');
-    expect(screen.getByRole('region', { name: 'Lyrics' })).toHaveTextContent('Placeholder lyric');
     expect(screen.getByAltText('Now Song album artwork')).toBeInTheDocument();
-    expect(lyrics.lrclib).toHaveBeenCalledWith(
+    // Looked up once, though both the panel and the screen around it want the lyrics.
+    expect(lyrics.lrclib).toHaveBeenCalledExactlyOnceWith(
       { title: 'Now Song', artist: 'Art', durationMs: 1000 },
       expect.any(AbortSignal)
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }));
+    expect(panels).toHaveAttribute('data-showing', 'queue');
+    expect(screen.getByRole('region', { name: 'Upcoming tracks' })).not.toHaveAttribute('inert');
+    // Going to another tab and back keeps the queue.
+    fireEvent.click(screen.getByRole('tab', { name: 'Dashboard' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Spotify' }));
     expect(panels).toHaveAttribute('data-showing', 'queue');
   });
 
@@ -284,7 +283,8 @@ describe('TabletView', () => {
     expect(document.querySelector('.side-panel')).toHaveAttribute('data-showing', 'queue');
   });
 
-  it('keeps the queue, with its retry, in view when the queue could not be read', async () => {
+  it('shows the queue, with its retry, when the song has no lyrics and the queue could not be read', async () => {
+    lyrics.lrclib.mockResolvedValue(null);
     api.getQueue.mockRejectedValue(new Error('Queue down'));
     renderOnSpotifyTab(<TabletView />);
     await flush();
@@ -292,13 +292,12 @@ describe('TabletView', () => {
     expect(screen.getByRole('button', { name: 'Retry queue' })).toBeInTheDocument();
   });
 
-  it('shows the lyrics when nothing is queued', async () => {
-    api.getQueue.mockResolvedValue({ queue: [] });
+  it('shows the queue when the song has no lyrics', async () => {
+    lyrics.lrclib.mockResolvedValue(null);
     renderOnSpotifyTab(<TabletView />);
     await flush();
-    expect(document.querySelector('.side-panel')).toHaveAttribute('data-showing', 'lyrics');
-    expect(screen.getByRole('button', { name: 'Lyrics' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('region', { name: 'Lyrics' })).toHaveTextContent('Placeholder lyric');
+    expect(document.querySelector('.side-panel')).toHaveAttribute('data-showing', 'queue');
+    expect(screen.getByRole('button', { name: 'Queue' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('says so, and stops reading the queue, when Spotify says the quota is used up', async () => {
@@ -371,9 +370,10 @@ describe('TabletView', () => {
       localStorage.setItem('maxmix.kiosk', 'true');
       const { unmount } = renderOnSpotifyTab(<TabletView />);
       await flush();
-      expect(screen.getByRole('heading', { name: 'Pair anna’s iPhone' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Pair anna’s phone' })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'OK' }));
       fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
-      expect(screen.queryByRole('heading', { name: 'Pair anna’s iPhone' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Pair anna’s phone' })).not.toBeInTheDocument();
       unmount();
       localStorage.removeItem('maxmix.kiosk');
       people.takePhoneToPair.mockClear();
@@ -466,8 +466,7 @@ describe('TabletView', () => {
     expect(within(panel).getByRole('heading', { name: 'Bring your music to the tablet' })).toBeInTheDocument();
     expect(api.getQueue).not.toHaveBeenCalled();
     expect(screen.queryByRole('slider', { name: 'Playback position' })).not.toBeInTheDocument();
-    fireEvent.click(within(panel).getByRole('button', { name: 'Connection settings' }));
-    expect(screen.getByRole('tabpanel', { name: 'Settings' })).toBeInTheDocument();
+    expect(within(panel).queryByRole('button', { name: 'Connection settings' })).not.toBeInTheDocument();
   });
 
   it('changes and remembers the colour picked in the settings', async () => {
@@ -476,9 +475,7 @@ describe('TabletView', () => {
     await flush();
     const room = defined(container.querySelector('.tablet-container'));
     expect(room).toHaveAttribute('data-colour', 'forest');
-    fireEvent.click(screen.getByRole('button', { name: 'Connection settings' }));
-    // The sign-in prompt opens the Spotify page.
-    expect(screen.getByRole('region', { name: 'Spotify' })).toBeInTheDocument();
+    showSettingsTab();
     fireEvent.click(
       within(screen.getByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Appearance' })
     );

@@ -1488,6 +1488,26 @@
   font-size: 22px;
   font-weight: 650;
 }
+.pair-phone-steps {
+  display: grid;
+  gap: 6px;
+  margin: 22px 0 16px;
+  padding-left: 1.4em;
+  font-size: 22px;
+  font-weight: 650;
+  list-style: decimal;
+}
+.pair-phone-message {
+  justify-content: center;
+}
+.pair-phone-hint {
+  color: var(--muted);
+  font-size: 18px;
+}
+.pair-phone-confirm {
+  color: var(--muted);
+  font-size: 18px;
+}
 .pair-phone-nearby {
   flex: 1;
   align-content: start;
@@ -1992,6 +2012,39 @@ body:has(.app-dialog[open]) {
 }
 .about-debug {
   margin-top: auto;
+}
+/* The Parcels page while the owner has no Parcel API key: the steps, and the code for the settings site's account page. */
+.parcels-setup {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+}
+.parcels-setup-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+}
+.parcels-setup-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+}
+.parcels-setup-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 1.4em;
+  font-size: 17px;
+  list-style: decimal;
+}
+.parcels-setup-qr {
+  flex-shrink: 0;
+  width: 168px;
+  height: 168px;
+  border-radius: 12px;
 }
 .settings-dot {
   flex-shrink: 0;
@@ -2556,9 +2609,10 @@ body:has(.app-dialog[open]) {
 .lyrics-list[data-following='false'] {
   scroll-behavior: auto;
 }
+/* Sung lines take the chosen colour, or Dynamic's from the album art; lines still to come stay faint. */
 .lyrics-list.is-synced .lyrics-line.is-reached,
 .lyrics-list.is-synced .lyrics-word.is-reached {
-  color: var(--ink);
+  color: var(--accent);
 }
 /* Sync mode (the Lyrics button tapped again): every line is a button; tapping the one being sung moves the song's timing to match. */
 .lyrics-sync-line {

@@ -16,14 +16,14 @@ test.describe('Lyrics', { tag: '@lyrics' }, () => {
     await page.route('https://images.unsplash.com/**', route =>
       route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
     );
+    await fakeSpotify(page);
+    // After fakeSpotify, whose own answer (no lyrics) this one takes over from.
     await page.route('https://lrclib.net/api/**', route =>
       route.fulfill({ json: { instrumental: false, syncedLyrics } })
     );
-    await fakeSpotify(page);
     await openSpotifyTab(page);
-    // Songs are queued, so the queue shows first; the Lyrics button beside the panel fades to the lyrics.
-    await expect(page.getByRole('region', { name: 'Upcoming tracks' })).toBeVisible();
-    await page.getByRole('button', { name: 'Lyrics', exact: true }).click();
+    // The song has lyrics, so the panel opens on them, though songs are queued.
+    await expect(page.getByRole('button', { name: 'Lyrics', exact: true })).toHaveAttribute('aria-pressed', 'true');
     const panel = page.getByRole('region', { name: 'Lyrics', exact: true });
     const list = panel.getByRole('list');
     const active = list.locator('[aria-current="true"]');
@@ -76,15 +76,15 @@ test.describe('Lyrics', { tag: '@lyrics' }, () => {
     await page.route('https://images.unsplash.com/**', route =>
       route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
     );
+    await fakeSpotify(page);
+    // After fakeSpotify, whose own answer (no lyrics) this one takes over from.
     await page.route('https://lrclib.net/api/**', route =>
       route.fulfill({ json: { instrumental: false, syncedLyrics } })
     );
-    await fakeSpotify(page);
     await openSpotifyTab(page);
     // No clock tricks here: the position the page projects and the one the fake Spotify reports must agree.
-    await expect(page.getByRole('region', { name: 'Upcoming tracks' })).toBeVisible();
     const lyricsButton = page.getByRole('button', { name: 'Lyrics', exact: true });
-    await lyricsButton.click();
+    await expect(lyricsButton).toHaveAttribute('aria-pressed', 'true');
     const list = page.getByRole('region', { name: 'Lyrics', exact: true }).getByRole('list');
     const active = list.locator('[aria-current="true"]');
     const lineNumber = async () => Number((await active.textContent())?.replace('Placeholder line ', ''));

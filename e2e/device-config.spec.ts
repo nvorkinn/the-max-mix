@@ -148,7 +148,10 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     ]);
   });
 
-  test("the weather's Current location saves the place where the browser is", async ({ page, context }) => {
+  test("the weather's Current location fills in the place where the browser is, saved once tapped", async ({
+    page,
+    context
+  }) => {
     await context.grantPermissions(['geolocation']);
     await context.setGeolocation({ latitude: 59.9139, longitude: 10.7522 });
     const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
@@ -157,8 +160,12 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     const settings = await openSettings(page, 'General');
 
     await settings.getByRole('button', { name: 'Change' }).first().click();
-    await page.getByRole('dialog', { name: 'Weather place' }).getByRole('button', { name: 'Current location' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Weather place' });
+    await dialog.getByRole('button', { name: 'Current location' }).click();
     expect(new URL((await asked).url()).searchParams.get('latitude')).toBe('59.9139');
+    await expect(dialog.getByRole('searchbox', { name: 'Weather place' })).toHaveValue('Oslo');
+    expect(server.saves).toEqual([]);
+    await dialog.getByRole('button', { name: /^Oslo/ }).click();
     await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
     expect(server.saves.map(save => save['weather'])).toEqual([{ location: 'Oslo', key: 'oslo-no-3143244' }]);
   });
