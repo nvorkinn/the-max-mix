@@ -5,10 +5,7 @@ import { DASHBOARD_NOW, showDashboard } from './dashboard.ts';
 // Overnight, with the Tube shut, a station's board shows the first trains from the timetable: each as its clock time,
 // dimmed, where a live one counts down its minutes. A line TfL is predicting again shows only its predictions.
 
-const SCREENS = [
-  { width: 1024, height: 600 },
-  { width: 1280, height: 800 }
-] as const;
+const SCREENS = [{ width: 1280, height: 800 }] as const;
 
 /** Two stations read at `now`: one with only the timetable's first trains, one where the Victoria line is live. */
 function firstTrainsAt(now: Date) {

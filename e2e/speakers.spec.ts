@@ -8,7 +8,7 @@ const nav = (page: Page) => page.getByRole('navigation', { name: 'Beside the art
 
 test.describe('Speakers', { tag: '@speakers' }, () => {
   test.beforeEach(async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.route('https://images.unsplash.com/**', route =>
       route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
     );

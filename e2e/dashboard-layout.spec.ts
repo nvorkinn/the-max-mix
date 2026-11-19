@@ -4,10 +4,7 @@ import { showDashboard } from './dashboard.ts';
 // The Dashboard's layout never depends on its data: names too long for a board and an empty notice board leave every
 // panel, board and departure row where it is with the usual data.
 
-const SCREENS = [
-  { width: 1024, height: 600 },
-  { width: 1280, height: 800 }
-] as const;
+const SCREENS = [{ width: 1280, height: 800 }] as const;
 
 /** The panels, the boards and their rows. */
 const PARTS = '.dashboard-rail > *, .dashboard-sky, .dashboard-departures > *, .dashboard-rows li';

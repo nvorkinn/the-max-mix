@@ -32,7 +32,7 @@ test.describe('Registering with countdown-server', { tag: '@registration' }, () 
   });
 
   test('a new kiosk registers, keeps its device ID and opens the app', async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.setViewportSize({ width: 1280, height: 800 });
     const visits = await fakeRegisterPage(page, { device_id: '0a1b2c3d4e5f' });
     await page.goto('/?kiosk=1');
 
@@ -67,8 +67,6 @@ test.describe('Registering with countdown-server', { tag: '@registration' }, () 
     const problem = page.getByRole('dialog', { name: 'Couldn’t add this screen' });
     await expect(problem.getByText('This screen belongs to someone else.')).toBeVisible();
     expect(new URL(page.url()).search).toBe('');
-    await page.setViewportSize({ width: 1024, height: 600 });
-    await testInfo.attach('registration-taken-1024x600', { body: await page.screenshot(), contentType: 'image/png' });
     await page.setViewportSize({ width: 1280, height: 800 });
     await testInfo.attach('registration-taken-1280x800', { body: await page.screenshot(), contentType: 'image/png' });
 

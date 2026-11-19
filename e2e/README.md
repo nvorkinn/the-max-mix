@@ -21,7 +21,7 @@ browser. Run them with `npm run build && npm run test:e2e`.
 | `setup.spec.ts`      | Setup and signing in (`@setup`)                                                                               |
 | `status.spec.ts`     | Playback status (`@status`): errors, offline, rate limits and the quota, trouble with the tablet's own player |
 | `appearance.spec.ts` | Colours and contrast of dialogs (`@appearance`)                                                               |
-| `layout.spec.ts`     | What fits the 1024x600 screen: touch targets, long names, fonts (`@layout`)                                   |
+| `layout.spec.ts`     | What fits the 1280x800 screen: touch targets, long names, fonts (`@layout`)                                   |
 | `visual.spec.ts`     | Screenshots compared with `screenshots/` (`@visual`, CI only)                                                 |
 
 Each file is one `test.describe('<Feature>', { tag: '@feature' }, …)`, so the report reads _Feature › what it checks_,

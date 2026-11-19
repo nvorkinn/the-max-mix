@@ -11,8 +11,8 @@ const syncedLyrics = Array.from({ length: 120 }, (_, index) => {
 }).join('\n');
 
 test.describe('Lyrics', { tag: '@lyrics' }, () => {
-  test('lyric reading and follow fit 1024x600', async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 600 });
+  test('lyric reading and follow fit 1280x800', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.route('https://images.unsplash.com/**', route =>
       route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
     );
@@ -76,7 +76,7 @@ test.describe('Lyrics', { tag: '@lyrics' }, () => {
   });
 
   test('tapping Lyrics again syncs the lyrics to the line tapped next', async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.route('https://images.unsplash.com/**', route =>
       route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
     );

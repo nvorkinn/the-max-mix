@@ -8,7 +8,7 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
   // Midnight on the page's clock, which the quiet hours read in local time.
   test.use({ timezoneId: 'UTC' });
   test.beforeEach(async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.route('https://images.unsplash.com/**', route =>
       route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
     );
@@ -34,7 +34,7 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     // It covers the whole screen, so a tap on it cannot reach a button behind it.
     await expect(wake).toBeInViewport({ ratio: 1 });
     const box = await wake.boundingBox();
-    expect(box).toMatchObject({ x: 0, y: 0, width: 1024, height: 600 });
+    expect(box).toMatchObject({ x: 0, y: 0, width: 1280, height: 800 });
 
     // Music is playing, and still the screen stays asleep.
     await advance(page, 10_000, 5000);
