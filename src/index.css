@@ -449,9 +449,10 @@
   backdrop-filter: blur(18px) saturate(1.2);
 }
 /*
-  The Options tab: the Settings tab's pages, laid out as there, straight on the same photo. The cards, words and status
-  colours are Night's, the Settings tab's navy cards, whatever the skin, as the photo is always dark; highlights are the
-  photo's warm white (or Dynamic's colours), as on the Player tab. Words lying on the photo itself get a soft shadow.
+  The Options tab: the Settings tab's pages, laid out as there, on the same photo, blurred and darkened under the tab bar
+  as it is under the Dashboard's boards. The cards, words and status colours are Night's, the Settings tab's navy cards,
+  whatever the skin, as the photo is always dark; highlights are the photo's warm white (or Dynamic's colours), as on the
+  Player tab.
 */
 .app-tab-panel.on-photo .settings-panel.settings-tab {
   --surface: #101a33;
@@ -466,7 +467,18 @@
   --amber: #f0b64c;
   --danger: #ff7b8a;
 
-  text-shadow: 0 1px 10px rgb(0 0 0 / 55%);
+  position: relative;
+  isolation: isolate;
+}
+.app-tab-panel.on-photo .settings-panel.settings-tab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: rgb(var(--glass) / 62%);
+  backdrop-filter: blur(18px) saturate(1.2);
+  mask-image: linear-gradient(180deg, transparent 0, #000 var(--float-bar));
 }
 /* Changing tab fades the whole screen (see utils/crossfade.ts). The overlay lets taps through, so a quick second tap
   starts the next fade at once instead of being swallowed by the first. */
