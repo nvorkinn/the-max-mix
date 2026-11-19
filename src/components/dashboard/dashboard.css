@@ -184,6 +184,132 @@
   backdrop-filter: blur(12px);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%);
 }
+
+/*
+  The song playing, in a dark card hanging under the Spotify tab: the tab turns the same dark, runs down a short neck
+  clear of the Dashboard tab's pill and opens out to the right into the card, a small curve filling the corner where
+  they meet. It floats over the photo, so nothing below it moves.
+*/
+.dashboard-tabs-place {
+  --now-playing: rgb(9 12 16 / 58%);
+  --now-playing-neck: 6px;
+
+  position: relative;
+  z-index: 3;
+}
+.dashboard-tab[data-holds-player] {
+  position: relative;
+  background: var(--now-playing);
+  border-radius: 22px 22px 0 0;
+}
+.dashboard-tab[data-holds-player]::before {
+  content: '';
+  position: absolute;
+  inset: 100% 0 auto;
+  height: var(--now-playing-neck);
+  background: var(--now-playing);
+}
+.dashboard-tab[data-holds-player]::after {
+  content: '';
+  position: absolute;
+  top: calc(100% + var(--now-playing-neck) - 8px);
+  left: 100%;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle at 100% 0, transparent 7.5px, var(--now-playing) 8px);
+}
+.dashboard-now-playing {
+  position: absolute;
+  top: calc(100% + var(--now-playing-neck));
+  left: 0;
+  width: 430px;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 10px 0 12px;
+  overflow: hidden;
+  border-radius: 0 22px 22px;
+  background: var(--now-playing);
+  text-shadow: none;
+}
+.dashboard-now-playing-art {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  object-fit: cover;
+}
+.dashboard-now-playing-art.image-placeholder {
+  display: grid;
+  place-items: center;
+  background: rgb(255 255 255 / 10%);
+  color: var(--muted);
+}
+.dashboard-now-playing-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.15;
+}
+.dashboard-now-playing-title,
+.dashboard-now-playing-artist {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.dashboard-now-playing-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+.dashboard-now-playing-artist {
+  font-size: 15px;
+  color: var(--muted);
+}
+.dashboard-now-playing-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.dashboard-now-playing-controls button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--text);
+  cursor: pointer;
+}
+.dashboard-now-playing-controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.dashboard-now-playing-controls .dashboard-now-playing-play {
+  width: 48px;
+  height: 48px;
+  background: var(--mark-fill);
+  color: var(--mark-ink);
+}
+.dashboard-now-playing-controls svg.lucide {
+  width: 22px;
+  height: 22px;
+}
+.dashboard-now-playing-progress {
+  position: absolute;
+  inset: auto 22px 7px 12px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 18%);
+}
+.dashboard-now-playing-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--mark-fill);
+  transform-origin: 0 50%;
+}
 .dashboard-bar-end {
   justify-self: end;
   display: flex;

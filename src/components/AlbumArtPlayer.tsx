@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import type { PlayerControls } from '../types';
+import { goBack } from '../dashboard/nowPlaying';
 import { Artwork } from './TrackImages';
 
 type AlbumArtPlayerProps = Readonly<PlayerControls> & {
@@ -27,8 +28,6 @@ type AlbumArtPlayerProps = Readonly<PlayerControls> & {
   onOpenSpeakers?: () => void;
 };
 
-/** Past this far into a song, Previous starts the song over instead of going to the one before it. */
-const RESTART_AFTER_MS = 5000;
 /** How far the rewind and fast-forward buttons jump. */
 const JUMP_MS = 15_000;
 
@@ -66,11 +65,7 @@ export default function AlbumArtPlayer({
   const durationMs = hasTrack ? item.duration_ms || playback?.duration || 0 : 0;
   const progressPercent = durationMs > 0 ? Math.min(100, Math.max(0, (progressMs / durationMs) * 100)) : 0;
 
-  // Like most players: well into a song, Previous replays it from the start; near the start it goes back a song.
-  const previous = () => {
-    if (progressMs > RESTART_AFTER_MS && !playback?.actions?.disallows?.seeking) onSeek(0);
-    else onPrevious();
-  };
+  const previous = () => void goBack(playback, onSeek, onPrevious);
 
   const canSeek = controlsEnabled && durationMs > 0 && !playback?.actions?.disallows?.seeking;
   // Past the end clamps to the end, which moves Spotify on to the next song by itself.

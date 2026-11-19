@@ -5,6 +5,7 @@ import type { TabBarProps, TabId } from '../../dashboard/props';
 import { useHold } from '../../hooks/useHold';
 import { tabPanelId } from '../AppTabs';
 import PersonSwitcher from '../PersonSwitcher';
+import NowPlaying from './NowPlaying';
 
 // Dashboard, the home screen, sits in the middle, with a tab to either side of it (see TAB_PAN).
 const TABS: readonly { id: TabId; label: string; icon: ReactNode }[] = [
@@ -23,7 +24,10 @@ export const TAB_PAN: Readonly<Record<TabId, number>> = { spotify: -1, dashboard
 const CLOCK_HOLD_MS = 2000;
 const noop = () => {};
 
-/** The brand, the tabs, search, the signed-in person and the clock, floating on the Dashboard's photo. */
+/**
+ * The brand, the tabs, search, the signed-in person and the clock, floating on the Dashboard's photo; with `nowPlaying`,
+ * the song playing in a card hanging under the Spotify tab.
+ */
 export default function TabBar({
   active,
   onSelect,
@@ -32,7 +36,8 @@ export default function TabBar({
   now,
   clockFormat,
   onSwitchPerson,
-  onClockHold
+  onClockHold,
+  nowPlaying = null
 }: Readonly<TabBarProps>) {
   const clockHold = useHold(onClockHold ?? noop, CLOCK_HOLD_MS);
   const face =
@@ -46,21 +51,25 @@ export default function TabBar({
         </span>
         <span className="dashboard-brand-name">The Max Mix.</span>
       </div>
-      <div className="dashboard-tabs" role="tablist" aria-label="Screens">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            className="dashboard-tab"
-            aria-selected={tab.id === active}
-            aria-controls={tabPanelId(tab.id)}
-            onClick={() => onSelect(tab.id)}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
+      <div className="dashboard-tabs-place">
+        <div className="dashboard-tabs" role="tablist" aria-label="Screens">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              className="dashboard-tab"
+              aria-selected={tab.id === active}
+              aria-controls={tabPanelId(tab.id)}
+              data-holds-player={nowPlaying && tab.id === 'spotify' ? '' : undefined}
+              onClick={() => onSelect(tab.id)}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {nowPlaying && <NowPlaying {...nowPlaying} />}
       </div>
       <div className="dashboard-bar-end">
         {onSearch && (
