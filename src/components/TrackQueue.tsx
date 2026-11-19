@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Disc3, GripVertical } from 'lucide-react';
+import { GripVertical, Search } from 'lucide-react';
 import { useDragToReorder } from '../hooks/useDragToReorder';
 import { useWholeRows } from '../hooks/useWholeRows';
 import { trackKeys } from '../utils/trackKeys';
@@ -25,6 +25,8 @@ interface TrackQueueProps {
    * be reordered: a Sonos's can, Spotify's cannot); while playDisabled the handles are off too.
    */
   onMove?: ((from: number, to: number) => unknown) | undefined;
+  /** Opens the music search, offered as one big button while the queue is empty. */
+  onSearch?: (() => void) | undefined;
 }
 
 export default function TrackQueue({
@@ -36,7 +38,8 @@ export default function TrackQueue({
   retryAllowed = true,
   onPlay,
   playDisabled = false,
-  onMove
+  onMove,
+  onSearch
 }: Readonly<TrackQueueProps>) {
   const keys = trackKeys(queue);
   const listRef = useRef<HTMLDivElement>(null);
@@ -88,11 +91,11 @@ export default function TrackQueue({
     }
     return (
       <div className="queue-empty">
-        <div className="empty-record">
-          <Disc3 size={32} strokeWidth={1} />
-        </div>
-        <h3>A little quiet in here.</h3>
-        <p>Add a track in Spotify.</p>
+        {onSearch && (
+          <button type="button" className="queue-search" aria-label="Search for music" onClick={onSearch}>
+            <Search className="lucide" strokeWidth={1.75} />
+          </button>
+        )}
       </div>
     );
   };

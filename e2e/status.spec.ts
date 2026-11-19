@@ -139,7 +139,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     await expect(player.getByRole('button', { name: 'Connect Spotify' })).toBeVisible();
     await expect(player.getByRole('slider', { name: 'Playback position' })).toHaveCount(0);
-    await expect(page.getByText('A little quiet in here.')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Search for music' })).toHaveCount(0);
     await expectControlsFit(page, player);
   });
 
@@ -204,12 +204,15 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
     resolve(undefined);
     await expect(queue.getByText('Queue unavailable.')).toBeVisible();
-    await expect(queue.getByText('A little quiet in here.')).toHaveCount(0);
+    await expect(queue.getByRole('button', { name: 'Search for music' })).toHaveCount(0);
     api.queueStatus = 200;
     await queue.getByRole('button', { name: 'Retry queue' }).click();
     // The song has no lyrics, so the queue stays in view, now known to be empty.
-    await expect(queue.getByText('A little quiet in here.')).toBeVisible();
+    await expect(queue.getByRole('button', { name: 'Search for music' })).toBeVisible();
     await expect(queue.getByText('Queue unavailable.')).toHaveCount(0);
+    // The empty queue's big search button opens the same search as the header's.
+    await queue.getByRole('button', { name: 'Search for music' }).click();
+    await expect(page.getByRole('dialog', { name: 'Choose music' })).toBeVisible();
   });
 
   for (const source of ['skip', 'queue', 'devices']) {
@@ -222,7 +225,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       const queue = page.getByRole('region', { name: 'Upcoming tracks' });
       await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
       // The queue is read and known to be empty.
-      await expect(queue.getByText('A little quiet in here.')).toBeVisible();
+      await expect(queue.getByRole('button', { name: 'Search for music' })).toBeVisible();
       if (source === 'skip') {
         api.nextStatus = 429;
         await player.getByRole('button', { name: 'Next track' }).click();
