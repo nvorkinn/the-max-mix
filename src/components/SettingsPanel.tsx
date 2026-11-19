@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Check, Info, MicVocal, Package, Palette, SlidersHorizontal, TrainFront, Wifi } from 'lucide-react';
-import type { TouchscreenConfig } from 'countdown-api';
+import type { Parcels, TouchscreenConfig } from 'countdown-api';
 import { isKiosk } from '../utils/kiosk';
 import { reloadSettings } from '../spotify/settings';
 import type { QuietHours } from '../utils/quietHours';
@@ -9,6 +9,7 @@ import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import type { ThemeColour } from '../utils/themeColour';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import type { DeviceConfig, SaveStatus } from '../hooks/useDeviceConfig';
+import { useParcelLink } from '../hooks/useParcelLink';
 import SpotifyIcon from './SpotifyIcon';
 import AboutSettings from './settings/AboutSettings';
 import AppearanceSettings from './settings/AppearanceSettings';
@@ -79,6 +80,26 @@ function SaveNote({ status }: Readonly<{ status: SaveStatus }>) {
       )}
       {status === 'failed' && <span className="settings-status status-warning">Not saved</span>}
     </p>
+  );
+}
+
+/**
+ * The Parcels page, once countdown-server has said whether the owner's account has a Parcel API key: its settings with
+ * one, how to set Parcel up without. The config alone can't say, as its parcels are off either way.
+ */
+function ParcelsPage({
+  parcels,
+  onChange,
+  onLinked
+}: Readonly<{
+  parcels: Parcels | null | undefined;
+  onChange: (parcels: Parcels) => void;
+  onLinked: (() => void) | undefined;
+}>) {
+  const linked = useParcelLink(onLinked);
+  // Nothing for the moment before the answer, rather than the wrong page; parcels that are on have a key behind them.
+  return linked === undefined && !parcels?.enabled ? null : (
+    <ParcelsSettings parcels={parcels} keySaved={linked !== false} onChange={onChange} />
   );
 }
 
@@ -153,7 +174,11 @@ export default function SettingsPanel({
     }
     case 'parcels': {
       page = deviceConfig && onDeviceConfigSave && (
-        <ParcelsSettings parcels={deviceConfig.parcels} onChange={parcels => onDeviceConfigSave('parcels', parcels)} />
+        <ParcelsPage
+          parcels={deviceConfig.parcels}
+          onChange={parcels => onDeviceConfigSave('parcels', parcels)}
+          onLinked={onShow}
+        />
       );
       break;
     }

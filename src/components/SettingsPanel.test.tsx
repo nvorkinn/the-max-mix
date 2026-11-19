@@ -7,6 +7,9 @@ import { defined } from '../test/defined';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import { DEFAULT_LYRICS_STYLE, getLyricsStyle, setLyricsStyle } from '../utils/lyricsStyle';
+import * as deviceAccount from '../countdown/account';
+import * as deviceServer from '../countdown/config';
+import { PARCEL_LINK_POLL_MS } from '../hooks/useParcelLink';
 import SettingsPanelFull from './SettingsPanel';
 
 // eslint-disable-next-line sonarjs/no-hardcoded-ip -- a made-up address of the Pi on a home network
@@ -441,6 +444,42 @@ describe('SettingsPanel', () => {
     );
     expect(arriving.getByRole('button', { name: 'Tomorrow' })).toHaveAttribute('aria-pressed', 'true');
     expect(kept.getByRole('button', { name: 'A day' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it("says how to set Parcel up while the owner's account has no key, and has the settings once it does", async () => {
+    vi.spyOn(deviceServer, 'serverClient').mockReturnValue({ baseUrl: 'https://countdown.build', secret: 'a-secret' });
+    const fetchAccount = vi
+      .spyOn(deviceAccount, 'fetchDeviceAccount')
+      .mockResolvedValue({ parcel: { linked: false }, spotify: { linked: true } });
+    const onShow = vi.fn();
+    const props = {
+      ...base,
+      initialSection: 'parcels',
+      deviceConfig: fixture.config as TouchscreenConfig,
+      onDeviceConfigSave: vi.fn(),
+      onShow
+    } as const;
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(<SettingsPanel {...props} />);
+      // Neither page until the server has said which.
+      expect(screen.queryByRole('group', { name: 'Notice board' })).not.toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'Set up Parcel' })).toBeInTheDocument();
+      expect(screen.queryByRole('group', { name: 'Notice board' })).not.toBeInTheDocument();
+      expect(onShow).toHaveBeenCalledOnce();
+
+      // The key is pasted on the phone: the settings come up, and the config is read again.
+      fetchAccount.mockResolvedValue({ parcel: { linked: true }, spotify: { linked: true } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(PARCEL_LINK_POLL_MS);
+      });
+      expect(screen.getByRole('group', { name: 'Notice board' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Set up Parcel' })).not.toBeInTheDocument();
+      expect(onShow).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    }
   });
 
   it('turns parcels on from a config from before parcels, which has them off', async () => {

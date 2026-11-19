@@ -100,7 +100,10 @@ export default function ParcelsSettings({
   onChange
 }: Readonly<{
   parcels: Parcels | null | undefined;
-  /** Whether the owner's account has a Parcel API key; without one the page only says how to set Parcel up. */
+  /**
+   * Whether the owner's account has a Parcel API key (countdown-server's getAccount, as the Settings tab asks it);
+   * without one the page only says how to set Parcel up.
+   */
   keySaved?: boolean;
   onChange: (parcels: Parcels) => void;
 }>) {
