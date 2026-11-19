@@ -208,7 +208,13 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     await expect(queue.getByText('A little quiet in here.')).toHaveCount(0);
     api.queueStatus = 200;
     await queue.getByRole('button', { name: 'Retry queue' }).click();
-    await expect(queue.getByText('A little quiet in here.')).toBeVisible();
+    // A queue known to be empty brings the lyrics forward and hides the queue, so its empty state is there but not shown.
+    // (The queue's fade-out used to leave it visible for a moment, which is all the old check here ever caught.)
+    const nav = page.getByRole('navigation', { name: 'Beside the artwork' });
+    await expect(nav.getByRole('button', { name: 'Lyrics' })).toHaveAttribute('aria-pressed', 'true');
+    const hiddenQueue = page.getByRole('region', { name: 'Upcoming tracks', includeHidden: true });
+    await expect(hiddenQueue.getByText('A little quiet in here.')).toHaveCount(1);
+    await expect(hiddenQueue.getByText('Queue unavailable.')).toHaveCount(0);
   });
 
   for (const source of ['skip', 'queue', 'devices']) {
