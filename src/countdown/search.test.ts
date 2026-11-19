@@ -3,7 +3,15 @@ import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/searc
 import touchscreen from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import panels from '../../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json';
 import * as registration from './registration';
-import { SearchFailed, describeStop, learnStopNames, rememberStop, searchPlaces, searchStops } from './search';
+import {
+  SearchFailed,
+  describeStop,
+  learnStopNames,
+  locatePlace,
+  rememberStop,
+  searchPlaces,
+  searchStops
+} from './search';
 
 const SECRET = touchscreen.registration.secret;
 
@@ -83,6 +91,45 @@ describe('searchPlaces', () => {
   });
 });
 
+function browserAt(position: { latitude: number; longitude: number } | null) {
+  const getCurrentPosition = vi.fn<Geolocation['getCurrentPosition']>((found, failed) => {
+    if (position) found({ coords: position } as GeolocationPosition);
+    else failed?.({ code: 2 } as GeolocationPositionError);
+  });
+  vi.stubGlobal('navigator', { ...navigator, geolocation: { getCurrentPosition } });
+  return getCurrentPosition;
+}
+
+describe('locatePlace', () => {
+  it("asks for the place at the browser's position", async () => {
+    register();
+    browserAt(fixture.here_query);
+    const fetch = answer(200, fixture.here);
+    const place = await locatePlace();
+    expect(new Request(...(fetch.mock.calls[0] ?? [''])).url).toBe(
+      'https://api.countdown.build/api/places/here?latitude=59.9139&longitude=10.7522'
+    );
+    expect(place).toMatchObject({ name: 'Oslo', value: { location: 'Oslo', key: 'oslo-no-3143244' } });
+  });
+
+  it('lets the server place the kiosk by its IP when the browser has no position', async () => {
+    register();
+    browserAt(null);
+    const fetch = answer(200, fixture.here);
+    await locatePlace();
+    expect(new Request(...(fetch.mock.calls[0] ?? [''])).url).toBe('https://api.countdown.build/api/places/here');
+  });
+
+  it('is null when there is no telling, and rejects when the server refuses', async () => {
+    register();
+    browserAt(null);
+    answer(200, []);
+    await expect(locatePlace()).resolves.toBeNull();
+    answer(502, []);
+    await expect(locatePlace()).rejects.toBeInstanceOf(SearchFailed);
+  });
+});
+
 describe('a build that mocks the server', () => {
   it("searches countdown-api's example answers, asking nothing of the server", async () => {
     vi.stubEnv('VITE_COUNTDOWN_CONFIG', 'mock');
@@ -91,6 +138,7 @@ describe('a build that mocks the server', () => {
     const places = await searchPlaces('anything');
     expect(stops.map(result => result.name)).toEqual(['Oslo S', 'Oslo S', 'Oval Station']);
     expect(places.map(result => result.value)).toEqual([{ location: 'Oslo', key: 'oslo-no-3143244' }]);
+    expect((await locatePlace())?.value).toEqual({ location: 'Oslo', key: 'oslo-no-3143244' });
     expect(fetch).not.toHaveBeenCalled();
   });
 });

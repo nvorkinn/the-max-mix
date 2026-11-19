@@ -2384,6 +2384,12 @@ body:has(.app-dialog[open]) {
   min-height: 60px;
   font-size: 18px;
 }
+.search-dialog-locate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
 .search-dialog-confirm {
   background: var(--play-fill);
   color: var(--accent-ink);

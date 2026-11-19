@@ -44,7 +44,8 @@ vi.mock('../../countdown/search', async original => {
           value: result.value
         }))
       )
-    )
+    ),
+    locatePlace: vi.fn()
   };
 });
 
@@ -76,6 +77,27 @@ describe('GeneralSettings', () => {
     await userEvent.type(box, 'oslo');
     await userEvent.click(await within(dialog).findByRole('button', { name: /Oslo/ }));
     expect(onSave).toHaveBeenCalledWith('weather', { location: 'Oslo', key: 'oslo-no-3143244' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('saves the current location, and says when there is no telling', async () => {
+    const [here] = search.here;
+    vi.mocked(searches.locatePlace).mockResolvedValueOnce(null).mockResolvedValueOnce({
+      key: here.id,
+      name: here.name,
+      detail: here.subtitle,
+      indent: here.indent,
+      value: here.value
+    });
+    const onSave = setup({ ...OWNED, weather: { location: 'London', key: 'london' } });
+    const weather = screen.getByText('London').closest('.settings-row');
+    await userEvent.click(within(weather as HTMLElement).getByRole('button', { name: 'Change' }));
+    const dialog = screen.getByRole('dialog', { name: 'Weather place' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Current location' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent("Couldn't find the current location.");
+    expect(onSave).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Current location' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('weather', { location: 'Oslo', key: 'oslo-no-3143244' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
