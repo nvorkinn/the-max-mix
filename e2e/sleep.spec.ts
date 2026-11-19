@@ -22,53 +22,27 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
   });
 
-  test('the sleep button blacks out the screen, even while music plays, until it is tapped', async ({ page }) => {
-    await openSpotifyTab(page);
-    await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-    // The sleep button is in the Settings tab's header; the bar on the Spotify tab has none.
-    await page.getByRole('tab', { name: 'Settings' }).click();
-    await page.getByRole('button', { name: 'Put the screen to sleep' }).click();
-
-    const wake = page.getByRole('button', { name: 'Wake the screen' });
-    await expect(wake).toBeVisible();
-    // It covers the whole screen, so a tap on it cannot reach a button behind it.
-    await expect(wake).toBeInViewport({ ratio: 1 });
-    const box = await wake.boundingBox();
-    expect(box).toMatchObject({ x: 0, y: 0, width: 1280, height: 800 });
-
-    // Music is playing, and still the screen stays asleep.
-    await advance(page, 10_000, 5000);
-    await expect(wake).toBeVisible();
-
-    await wake.click();
-    await expect(wake).toBeHidden();
-    // The tap woke the screen and pressed nothing behind it: the Settings tab still shows, and the music still plays.
-    await expect(page.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true');
-    await page.getByRole('tab', { name: 'Spotify' }).click();
-    await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-  });
-
-  test('away from the kiosk there is no sleep button', async ({ page }) => {
-    await openSpotifyTab(page, '/?kiosk=0');
-    await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Put the screen to sleep' })).toHaveCount(0);
-  });
-
   test('a sleeping screen reads Spotify seldom, and reads again at once when it wakes', async ({ page }) => {
     const reads = countPlaybackReads(page);
     await openSpotifyTab(page);
-    await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+    // Music playing keeps the screen on, so it is paused (on the other device, which is still watched).
+    await page.getByRole('button', { name: 'Pause', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 
     // Awake and watching another device, it asks every few seconds.
     const before = reads();
     await advance(page, 20_000);
     expect(reads() - before).toBeGreaterThanOrEqual(3);
 
-    // The sleep button is in the Settings tab's header.
+    // Quiet hours (22:00 to 07:00, and the page's clock says midnight) sleep the screen a minute after the last touch.
     await page.getByRole('tab', { name: 'Settings' }).click();
-    await expect(page.getByRole('tabpanel', { name: 'Settings' })).toBeVisible();
+    const settings = page.getByRole('tabpanel', { name: 'Settings' });
+    await showSection(settings, 'General');
+    await settings.getByRole('group', { name: 'Quiet hours' }).getByRole('button', { name: 'On' }).click();
+    await expect(settings.getByRole('group', { name: 'From' })).toBeVisible();
+    await advance(page, 55_000, 5000);
     const awake = reads();
-    await page.getByRole('button', { name: 'Put the screen to sleep' }).click();
+    await advance(page, 10_000, 5000);
     await expect(page.getByRole('button', { name: 'Wake the screen' })).toBeVisible();
     // Falling asleep reads once more (waited for, as a slow machine may take a moment), then it goes quiet.
     await advance(page, 1000);
