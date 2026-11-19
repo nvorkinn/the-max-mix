@@ -116,14 +116,14 @@ describe('SettingsPanel', () => {
     expect(screen.queryByRole('button', { name: /studio|paper/i })).not.toBeInTheDocument();
   });
 
-  it('offers the first sign-in, and nothing else, while nobody is signed in', () => {
+  it('offers the first sign-in, and nothing else but the Synced Lyrics look, while nobody is signed in', () => {
     render(<SettingsPanel {...base} authInfo={{}} initialSection="spotify" />);
     const page = screen.getByRole('region', { name: 'Spotify' });
     expect(
       within(page)
         .getAllByRole('button')
         .map(button => button.textContent)
-    ).toEqual(['Log in with Spotify']);
+    ).toEqual(['Log in with Spotify', 'Small', 'Medium', 'Large', 'Extra large', 'Left', 'Centre', 'Right']);
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/server environment|restart/i);
   });
