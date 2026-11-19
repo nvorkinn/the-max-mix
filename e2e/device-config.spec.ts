@@ -70,6 +70,34 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     );
   });
 
+  test("parcels' switch, arriving by and delivered ones stay save from the Parcels page to the server", async ({
+    page
+  }) => {
+    const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
+    await openSpotifyTab(page, '/?kiosk=1');
+    const settings = await openSettings(page, 'Parcels');
+    // A quick run of changes saves only the last, so each waits for the one before it to save.
+    const pick = async (group: string, choice: string) => {
+      const saves = server.saves.length;
+      const button = settings.getByRole('group', { name: group }).getByRole('button', { name: choice });
+      await button.click();
+      await expect(button).toHaveAttribute('aria-pressed', 'true');
+      await expect.poll(() => server.saves.length).toBe(saves + 1);
+    };
+
+    const notices = settings.getByRole('group', { name: 'Notice board' });
+    await expect(notices.getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true');
+    await pick('Notice board', 'On');
+    await pick('Arriving by', 'Day after');
+    await pick('Delivered ones stay', 'A day');
+    await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
+    expect(server.saves.map(save => save['parcels'])).toEqual([
+      { enabled: true, days_ahead: null, kept_hours: 4 },
+      { enabled: true, days_ahead: 2, kept_hours: 4 },
+      { enabled: true, days_ahead: 2, kept_hours: 24 }
+    ]);
+  });
+
   test('a quick run of changes saves only the last one', async ({ page }) => {
     const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
     await openSpotifyTab(page, '/?kiosk=1');

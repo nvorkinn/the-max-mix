@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Info,
   MicVocal,
+  Package,
   Palette,
   SlidersHorizontal,
   TrainFront,
@@ -22,6 +23,7 @@ import SpotifyIcon from '../SpotifyIcon';
 import { APP_VERSION } from './appVersion';
 import CountryFlag from './CountryFlag';
 import { noticeBoardPlace } from './NoticeBoardDialog';
+import { daysAheadLabel } from './ParcelsSettings';
 import type { SettingsSection } from './sections';
 import { SOFTWARE_LOOK, softwareState } from './softwareStatus';
 import { wifiLabel } from './wifi';
@@ -141,6 +143,15 @@ export default function SettingsOverview({
           onOpen={() => onOpen('general')}
         >
           <GeneralSummary config={deviceConfig} screenSleep={screenSleep} />
+        </Card>
+      )}
+      {deviceConfig && (
+        <Card
+          icon={<Package className="w-6 h-6" aria-hidden="true" />}
+          title="Parcels"
+          onOpen={() => onOpen('parcels')}
+        >
+          <span>{deviceConfig.parcels?.enabled ? daysAheadLabel(deviceConfig.parcels) : 'Off'}</span>
         </Card>
       )}
       <Card

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Check, Info, LayoutGrid, MicVocal, Palette, SlidersHorizontal, TrainFront, Wifi } from 'lucide-react';
+import { Check, Info, LayoutGrid, MicVocal, Package, Palette, SlidersHorizontal, TrainFront, Wifi } from 'lucide-react';
 import type { TouchscreenConfig } from 'countdown-api';
 import { isKiosk } from '../utils/kiosk';
 import { reloadSettings } from '../spotify/settings';
@@ -16,6 +16,7 @@ import CountdownSettings from './settings/CountdownSettings';
 import GeneralSettings from './settings/GeneralSettings';
 import SettingsOverview from './settings/SettingsOverview';
 import LyricsSettings from './settings/LyricsSettings';
+import ParcelsSettings from './settings/ParcelsSettings';
 import SpotifySettings from './settings/SpotifySettings';
 import WifiSettings from './settings/WifiSettings';
 import { SETTINGS_SECTIONS } from './settings/sections';
@@ -28,6 +29,7 @@ const SECTION_ICONS: Record<SettingsSection, ReactNode> = {
   overview: <LayoutGrid className="w-6 h-6 shrink-0" aria-hidden="true" />,
   general: <SlidersHorizontal className="w-6 h-6 shrink-0" aria-hidden="true" />,
   countdown: <TrainFront className="w-6 h-6 shrink-0" aria-hidden="true" />,
+  parcels: <Package className="w-6 h-6 shrink-0" aria-hidden="true" />,
   appearance: <Palette className="w-6 h-6 shrink-0" aria-hidden="true" />,
   wifi: <Wifi className="w-6 h-6 shrink-0" aria-hidden="true" />,
   spotify: <SpotifyIcon className="w-6 h-6 shrink-0" />,
@@ -113,7 +115,8 @@ export default function SettingsPanel({
     choice =>
       (kiosk || !choice.kioskOnly) &&
       (choice.id !== 'general' || owned || hasSleep) &&
-      (choice.id !== 'countdown' || owned)
+      (choice.id !== 'countdown' || owned) &&
+      (choice.id !== 'parcels' || owned)
   );
   const current = sections.find(choice => choice.id === section) ?? SETTINGS_SECTIONS[0];
 
@@ -146,6 +149,12 @@ export default function SettingsPanel({
     case 'countdown': {
       page = deviceConfig && onDeviceConfigSave && (
         <CountdownSettings config={deviceConfig} onSave={onDeviceConfigSave} />
+      );
+      break;
+    }
+    case 'parcels': {
+      page = deviceConfig && onDeviceConfigSave && (
+        <ParcelsSettings parcels={deviceConfig.parcels} onChange={parcels => onDeviceConfigSave('parcels', parcels)} />
       );
       break;
     }
