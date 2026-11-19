@@ -164,6 +164,42 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await expect(page).toHaveScreenshot(shotName('player-dynamic', screen), moving(page));
     });
 
+    test(
+      `player screen at night with Dynamic on at ${size(screen)}`,
+      { tag: ['@player', '@appearance'] },
+      async ({ page }) => {
+        await page.addInitScript(() => {
+          localStorage.setItem('maxmix.theme', 'night');
+          localStorage.setItem('maxmix.dynamicColour', 'on');
+        });
+        await fakeSpotify(page);
+        await colouredArt(page);
+        await page.setViewportSize(screen);
+        await openSpotifyTab(page);
+        await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
+        await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
+        await expect(page).toHaveScreenshot(shotName('player-night-dynamic', screen), moving(page));
+      }
+    );
+
+    test(
+      `player on the photo with Dynamic on at ${size(screen)}`,
+      { tag: ['@player', '@appearance'] },
+      async ({ page }) => {
+        await page.addInitScript(() => {
+          localStorage.setItem('maxmix.dynamicColour', 'on');
+        });
+        await fakeSpotify(page);
+        await colouredArt(page);
+        await page.setViewportSize(screen);
+        await page.goto('/');
+        await page.getByRole('tab', { name: 'Player' }).click();
+        await expect(page.getByRole('tabpanel', { name: 'Player' })).toBeVisible();
+        await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
+        await expect(page).toHaveScreenshot(shotName('player-photo-dynamic', screen), moving(page));
+      }
+    );
+
     // The Player tab: the same player on the Dashboard's photo (the one bundled with the app, with no feed to give the
     // day's), the photo blurred and darkened under the controls.
     test(`player on the photo at ${size(screen)}`, { tag: '@player' }, async ({ page }) => {

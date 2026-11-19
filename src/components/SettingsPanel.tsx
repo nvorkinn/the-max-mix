@@ -7,7 +7,7 @@ import { reloadSettings } from '../spotify/settings';
 import type { QuietHours } from '../utils/quietHours';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import type { ThemeColour } from '../utils/themeColour';
-import type { Skin, Theme } from '../utils/theme';
+import type { Theme } from '../utils/theme';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import type { DeviceConfig, SaveStatus } from '../hooks/useDeviceConfig';
 import SpotifyIcon from './SpotifyIcon';
@@ -55,8 +55,6 @@ interface SettingsPanelProps {
   /** Whether Auto (sunrise to sunset) is offered: only when the kiosk knows its location. */
   autoTheme?: boolean;
   onThemeChange?: (theme: Theme) => void;
-  /** The skin on screen now (Auto resolves to Day or Night); the colour choice only applies to Day. */
-  skin?: Skin;
   /** The kiosk's software update, shown on the kiosk only. */
   kioskUpdate?: KioskUpdate;
   /** Where the last save of countdown-server's config stands: a Saved tick, or a message when it didn't save. */
@@ -103,7 +101,6 @@ export default function SettingsPanel({
   theme,
   autoTheme = false,
   onThemeChange,
-  skin,
   kioskUpdate,
   saveStatus = 'idle',
   onShow,
@@ -164,7 +161,6 @@ export default function SettingsPanel({
           theme={theme}
           autoTheme={autoTheme}
           onThemeChange={onThemeChange}
-          skin={skin}
           themeColour={themeColour}
           onThemeColourChange={onThemeColourChange}
           dynamicColour={dynamicColour}

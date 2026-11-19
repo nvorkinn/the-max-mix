@@ -230,6 +230,11 @@
 .floating-bar .dashboard-brand-mark {
   color: #f7f4ec;
 }
+/* With Dynamic on, the logo's tile runs the cover's gradient while music plays, and fades back to its green after. */
+.tablet-container[data-dynamic] .dashboard-brand-mark {
+  background: linear-gradient(135deg, var(--dynamic-mark-from), var(--dynamic-mark-to));
+  color: var(--dynamic-mark-ink);
+}
 .tablet-container[data-theme='night'] .floating-bar .shadowed {
   text-shadow: 0 1px 14px rgb(0 0 0 / 45%);
 }

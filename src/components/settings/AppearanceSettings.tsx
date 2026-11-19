@@ -3,7 +3,7 @@ import { Check, Moon, Sun, SunMoon } from 'lucide-react';
 import { THEME_COLOURS } from '../../utils/themeColour';
 import type { ThemeColour } from '../../utils/themeColour';
 import { THEMES } from '../../utils/theme';
-import type { Skin, Theme } from '../../utils/theme';
+import type { Theme } from '../../utils/theme';
 
 const THEME_ICONS = { day: Sun, night: Moon, auto: SunMoon } as const;
 
@@ -73,13 +73,8 @@ function ColourChoice({
   );
 }
 
-/** Dynamic: while music plays, the colours follow the album art, and fade back to the colour above once it stops. Night
-    shows the colour's own night shade instead, so Dynamic is greyed out there. */
-function DynamicChoice({
-  on,
-  onChange,
-  disabled
-}: Readonly<{ on: boolean; onChange: (on: boolean) => void; disabled: boolean }>) {
+/** Dynamic: while music plays, the colours follow the album art, and fade back to the colour above once it stops. */
+function DynamicChoice({ on, onChange }: Readonly<{ on: boolean; onChange: (on: boolean) => void }>) {
   return (
     <section className="settings-group">
       <h5 className="settings-group-title" id="dynamic-colour-label">
@@ -95,7 +90,6 @@ function DynamicChoice({
             key={choice.label}
             aria-pressed={on === choice.value}
             onClick={() => onChange(choice.value)}
-            disabled={disabled}
             className="settings-segment"
           >
             {choice.label}
@@ -110,7 +104,6 @@ export default function AppearanceSettings({
   theme,
   autoTheme,
   onThemeChange,
-  skin,
   themeColour,
   onThemeColourChange,
   dynamicColour,
@@ -119,14 +112,11 @@ export default function AppearanceSettings({
   theme: Theme | undefined;
   autoTheme: boolean;
   onThemeChange: ((theme: Theme) => void) | undefined;
-  /** The skin on screen; without it, the picked theme stands in (Auto then counts as Day). */
-  skin?: Skin | undefined;
   themeColour: ThemeColour | undefined;
   onThemeColourChange: ((colour: ThemeColour) => void) | undefined;
   dynamicColour?: boolean | undefined;
   onDynamicColourChange?: ((on: boolean) => void) | undefined;
 }>) {
-  const night = (skin ?? theme) === 'night';
   return (
     <div className="settings-stack">
       {theme !== undefined && onThemeChange && <ThemeChoice theme={theme} auto={autoTheme} onChange={onThemeChange} />}
@@ -134,7 +124,7 @@ export default function AppearanceSettings({
         <ColourChoice colour={themeColour} onChange={onThemeColourChange} />
       )}
       {dynamicColour !== undefined && onDynamicColourChange && (
-        <DynamicChoice on={dynamicColour} onChange={onDynamicColourChange} disabled={night} />
+        <DynamicChoice on={dynamicColour} onChange={onDynamicColourChange} />
       )}
     </div>
   );
