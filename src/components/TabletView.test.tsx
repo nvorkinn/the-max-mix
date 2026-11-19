@@ -159,7 +159,7 @@ function setPlayer(overrides: Record<string, unknown> = {}) {
 }
 
 const flush = () => act(async () => {});
-/** Shows the Settings tab, whose header has the person switcher and the clock to hold. */
+/** Shows the Settings tab, whose header has the person switcher. */
 const showSettingsTab = () => fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
 
 beforeEach(() => {
@@ -714,30 +714,32 @@ describe('TabletView', () => {
     expect(screen.queryByRole('dialog', { name: 'Debug console' })).not.toBeInTheDocument();
   });
 
-  it('opens the debug console when the clock is held for two seconds, not on a tap', async () => {
-    vi.useFakeTimers();
-    renderOnSpotifyTab(<TabletView />);
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-    // The clock in the Settings tab's bar; the bars on the Spotify and Dashboard tabs have no hold.
-    showSettingsTab();
-    const clock = defined(document.querySelector('#app-tab-settings .dashboard-clock'));
-    fireEvent.pointerDown(clock, { button: 0 });
-    act(() => {
-      vi.advanceTimersByTime(500);
-    });
-    fireEvent.pointerUp(clock);
-    act(() => {
-      vi.advanceTimersByTime(3000);
-    });
-    expect(screen.queryByRole('dialog', { name: 'Debug console' })).not.toBeInTheDocument();
-    fireEvent.pointerDown(clock, { button: 0 });
-    act(() => {
-      vi.advanceTimersByTime(2000);
-    });
-    expect(screen.getByRole('dialog', { name: 'Debug console' })).toBeInTheDocument();
-  });
+  it.each(['Spotify', 'Dashboard', 'Settings'] as const)(
+    'opens the debug console when the clock on the %s tab is held for two seconds, not on a tap',
+    async tab => {
+      vi.useFakeTimers();
+      renderOnSpotifyTab(<TabletView />);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      fireEvent.click(screen.getByRole('tab', { name: tab }));
+      const clock = defined(document.querySelector(`#app-tab-${tab.toLowerCase()} .dashboard-clock`));
+      fireEvent.pointerDown(clock, { button: 0 });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      fireEvent.pointerUp(clock);
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      expect(screen.queryByRole('dialog', { name: 'Debug console' })).not.toBeInTheDocument();
+      fireEvent.pointerDown(clock, { button: 0 });
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(screen.getByRole('dialog', { name: 'Debug console' })).toBeInTheDocument();
+    }
+  );
 
   it('toggles the debug console with Ctrl+Shift+D', async () => {
     renderOnSpotifyTab(<TabletView />);

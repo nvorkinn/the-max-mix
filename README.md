@@ -123,7 +123,7 @@ a signed-in web-player cookie (`sp_dc`) and a server to call it, and is against 
 
 ### Debug console
 
-On the Settings tab, hold the clock in the top right for two seconds (or press Ctrl+Shift+D with a keyboard) to open a hidden debug console.
+On any tab, hold the clock in the top right for two seconds, tap Debug console on Settings > About, or press Ctrl+Shift+D with a keyboard to open the debug console.
 It shows the app's state (version, connection, sign-in, playback mode, audio route, the browser player's device, the
 active device and whether Widevine works) and a log of recent problems, browser player events and console errors,
 newest first. The playback banner's Details button opens it too. The log lives in memory, keeps the last 200 entries, and is cleared by a reload.

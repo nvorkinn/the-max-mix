@@ -268,6 +268,11 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await expect(dialog.getByRole('button', { name: /^(Wi-Fi|General)/ })).toHaveCount(0);
     await showSection(dialog, 'About');
     await expect(dialog).toContainText('App version');
+    await dialog.getByRole('button', { name: 'Debug console' }).click();
+    const debug = page.getByRole('dialog', { name: 'Debug console' });
+    await expect(debug).toBeVisible();
+    await debug.getByRole('button', { name: 'Close debug console' }).click();
+    await expect(debug).toBeHidden();
     await showSection(dialog, 'Spotify');
     await expect(dialog.getByRole('button', { name: 'Remove' })).toBeVisible();
     await expect(dialog.getByRole('button', { name: /phone/ })).toHaveCount(0);

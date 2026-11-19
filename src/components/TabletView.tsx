@@ -531,7 +531,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     now: new Date(minute * 60_000),
     clockFormat,
     // Every tab's bar shows the signed-in person's face, so tapping it switches person on every tab.
-    onSwitchPerson: isAuthenticated ? spotifyId => void switchTo(spotifyId) : null
+    onSwitchPerson: isAuthenticated ? spotifyId => void switchTo(spotifyId) : null,
+    // Holding the clock opens the debug console, on every tab.
+    onClockHold: () => setIsDebugOpen(true)
   };
 
   return (
@@ -669,9 +671,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         hidden={screen !== 'settings'}
       >
         {screen === 'settings' && <TabBackdrop now={tabBar.now} />}
-        {/* Holding the clock for the debug console lives in this tab's bar. */}
         <div className="floating-bar">
-          <TabBar {...tabBar} onSearch={null} onClockHold={() => setIsDebugOpen(true)} />
+          <TabBar {...tabBar} onSearch={null} />
         </div>
         {screen === 'settings' && (
           <SettingsPanel
@@ -693,6 +694,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             onShow={deviceConfig.reload}
             deviceConfig={ownedConfig ?? undefined}
             onDeviceConfigSave={deviceConfig.save}
+            onOpenDebug={() => setIsDebugOpen(true)}
           />
         )}
       </section>
