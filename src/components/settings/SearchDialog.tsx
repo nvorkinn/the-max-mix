@@ -3,12 +3,12 @@ import { LocateFixed } from 'lucide-react';
 import type { SearchResult } from '../../countdown/search';
 import { useOnScreenKeyboard } from '../../hooks/useOnScreenKeyboard';
 import Modal from '../Modal';
-import SearchResults from './SearchResults';
+import SearchResults, { ResultButton } from './SearchResults';
 
 /**
  * A small dialog to find one place: a search box the on-screen keyboard types in, and what the search finds, one tap on
  * which picks it and closes the dialog. A box that starts with text (the place chosen now) waits for a change before it
- * searches. With `locate`, a Current location button picks where the kiosk is instead.
+ * searches. With `locate`, a Current location button fills in where the kiosk is, as a result to tap like any other.
  */
 export default function SearchDialog<R extends SearchResult>({
   title,
@@ -33,13 +33,19 @@ export default function SearchDialog<R extends SearchResult>({
   // Nothing is searched for until the text is changed, so the place chosen now doesn't bring up suggestions.
   const [edited, setEdited] = useState(false);
   const [locating, setLocating] = useState<'busy' | 'failed' | null>(null);
+  const [located, setLocated] = useState<R | null>(null);
   useOnScreenKeyboard(fieldRef, { focus: initialQuery === '', hasNumberRow: true });
 
   const pickHere = (find: () => Promise<R | null>) => {
     setLocating('busy');
     find()
       .then(found => {
-        if (found) onPick(found);
+        // The place is only filled in: it is saved once it is tapped, like any other result.
+        if (found) {
+          setLocated(found);
+          setQuery(found.name);
+          setEdited(false);
+        }
         setLocating(found ? null : 'failed');
       })
       .catch(() => setLocating('failed'));
@@ -69,6 +75,13 @@ export default function SearchDialog<R extends SearchResult>({
         spellCheck={false}
         className="music-search w-full min-h-12 px-4 rounded-xl border text-sm"
       />
+      {located && !edited && (
+        <ul className="search-dialog-results" aria-label="Results">
+          <li>
+            <ResultButton result={located} onPick={onPick} />
+          </li>
+        </ul>
+      )}
       <SearchResults query={edited ? query.trim() : ''} search={search} onPick={onPick} />
       {locating === 'failed' && (
         <p role="alert" className="text-muted py-2">

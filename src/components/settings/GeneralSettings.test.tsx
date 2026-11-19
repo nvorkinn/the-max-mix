@@ -80,7 +80,7 @@ describe('GeneralSettings', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
-  it('saves the current location, and says when there is no telling', async () => {
+  it('fills in the current location, saved only once it is tapped, and says when there is no telling', async () => {
     const here = search.here.map(result => ({
       key: result.id,
       name: result.name,
@@ -99,7 +99,10 @@ describe('GeneralSettings', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent("Couldn't find the current location.");
     expect(onSave).not.toHaveBeenCalled();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Current location' }));
-    await waitFor(() => expect(onSave).toHaveBeenCalledWith('weather', { location: 'Oslo', key: 'oslo-no-3143244' }));
+    expect(await within(dialog).findByRole('searchbox', { name: 'Weather place' })).toHaveValue('Oslo');
+    expect(onSave).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog).getByRole('button', { name: /^Oslo/ }));
+    expect(onSave).toHaveBeenCalledWith('weather', { location: 'Oslo', key: 'oslo-no-3143244' });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
