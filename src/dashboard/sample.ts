@@ -57,9 +57,7 @@ export const SAMPLE = {
       { time: hour('13'), temperature: 11, sky: 'drizzle', isDay: true },
       { time: hour('14'), temperature: 10, sky: 'rain', isDay: true }
     ],
-    updatedAt: SAMPLE_NOW.toISOString(),
     stale: false,
-    now: SAMPLE_NOW,
     clockFormat: '24h'
   } satisfies HourlyStripProps,
 
@@ -322,7 +320,7 @@ export function busesAt(now: Date): StopBoardProps['departures'] {
 export function sampleDashboard(now: Date, clockFormat: '12h' | '24h', noticeCount = 6) {
   return {
     weather: SAMPLE.weather,
-    hourly: { ...SAMPLE.hourly, updatedAt: now.toISOString(), now, clockFormat },
+    hourly: { ...SAMPLE.hourly, clockFormat },
     notices: { notices: SAMPLE.notices.notices.slice(0, noticeCount) },
     boards: [
       { id: 'tube:sample', ...SAMPLE.tube, now },

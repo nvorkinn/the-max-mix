@@ -109,21 +109,16 @@ export function dashboardProps(snapshot: LiveSnapshot, now: Date, clockFormat: C
 
   const weather = toWeather(snapshot.weather, now, clockFormat);
   const weatherRead = snapshot.weather?.forecast?.fetched_at;
-  // The "Updated" note says when the newest data on screen was read.
-  const reads = [weatherRead, ...fetchedAt.values()].filter((time): time is string => time !== undefined);
-  const updatedAt = reads.toSorted((a, b) => Date.parse(b) - Date.parse(a))[0];
 
   return {
     backdrop: backdropOf(snapshot.weather, now),
     weather: { views: weather?.views ?? [] },
     outlook: { days: weather?.days ?? [] },
     hourly:
-      weather && updatedAt
+      weather
         ? {
             hours: weather.hours,
-            updatedAt,
             stale: down || snapshot.weatherHeld || olderThan(weatherRead, WEATHER_STALE_MS, now),
-            now,
             clockFormat
           }
         : null,

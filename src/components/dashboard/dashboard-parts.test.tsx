@@ -20,16 +20,6 @@ describe('HourlyStrip', () => {
     expect(screen.getByText('1 PM')).toBeInTheDocument();
   });
 
-  it('says how long ago the data was read, and that the feed has dropped when stale', () => {
-    const later = new Date(SAMPLE_NOW.getTime() + 125 * 60_000);
-    const { rerender } = render(<HourlyStrip {...SAMPLE.hourly} now={later} />);
-    expect(screen.getByText(/Updated 2 h ago/)).toBeInTheDocument();
-    rerender(<HourlyStrip {...SAMPLE.hourly} now={new Date(SAMPLE_NOW.getTime() + 5 * 60_000)} stale />);
-    expect(screen.getByText(/Updated 5 min ago/)).toBeInTheDocument();
-    rerender(<HourlyStrip {...SAMPLE.hourly} stale />);
-    expect(screen.getByText(/Updated 0 min ago/)).toBeInTheDocument();
-  });
-
   it('draws night hours with the moon', () => {
     render(
       <HourlyStrip

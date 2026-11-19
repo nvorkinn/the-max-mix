@@ -106,11 +106,8 @@ export interface DayForecast {
 export interface HourlyStripProps {
   /** The coming hours, soonest first; the strip shows five. */
   hours: HourForecast[];
-  /** When countdown-server last read the data the Dashboard shows, as an ISO time, for the "Updated" note. */
-  updatedAt: string;
   /** True once the feed has dropped and the Dashboard is showing its last data. */
   stale: boolean;
-  now: Date;
   clockFormat: '12h' | '24h';
 }
 

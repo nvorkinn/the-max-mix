@@ -1,4 +1,3 @@
-import { RefreshCw } from 'lucide-react';
 import type { HourlyStripProps } from '../../dashboard/props';
 import { SKY_ICONS, sunny } from './icons';
 
@@ -11,15 +10,8 @@ function hourLabel(time: string, clockFormat: HourlyStripProps['clockFormat']): 
   return `${clock} ${hour < 12 ? 'AM' : 'PM'}`;
 }
 
-function updatedLabel(updatedAt: string, now: Date, stale: boolean): string {
-  const minutes = Math.max(0, Math.floor((now.getTime() - new Date(updatedAt).getTime()) / 60_000));
-  if (!stale && minutes < 1) return 'Updated just now';
-  const ago = minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h`;
-  return `Updated ${ago} ago`;
-}
-
-/** The next five hours of forecast and when the data was last read. */
-export default function HourlyStrip({ hours, updatedAt, stale, now, clockFormat }: Readonly<HourlyStripProps>) {
+/** The next five hours of forecast. */
+export default function HourlyStrip({ hours, stale, clockFormat }: Readonly<HourlyStripProps>) {
   return (
     <section aria-label="Hourly forecast" data-stale={stale}>
       <div className="dashboard-hours">
@@ -38,10 +30,6 @@ export default function HourlyStrip({ hours, updatedAt, stale, now, clockFormat 
           );
         })}
       </div>
-      <p className="dashboard-updated">
-        {updatedLabel(updatedAt, now, stale)}
-        <RefreshCw className="lucide" aria-hidden="true" />
-      </p>
     </section>
   );
 }

@@ -894,19 +894,6 @@ button.dashboard-notice {
   font-size: 24px;
   font-weight: 700;
 }
-.dashboard-updated {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--muted);
-  margin-top: 10px;
-  justify-content: flex-end;
-}
-.dashboard .dashboard-updated svg.lucide {
-  width: 13px;
-  height: 13px;
-}
 
 /* Four rows per board. */
 .dashboard-departures {
