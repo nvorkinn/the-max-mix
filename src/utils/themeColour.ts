@@ -194,28 +194,18 @@ export interface DynamicPalette {
   '--dynamic-from': string;
   '--dynamic-to': string;
   '--dynamic-accent-ink': string;
-  /** The Max Mix logo's tile: the play button's gradient while music plays, else the logo's own green. */
+  /** The Max Mix logo's tile: the play button's gradient while music plays, else the chosen colour. */
   '--dynamic-mark-from': string;
   '--dynamic-mark-to': string;
   '--dynamic-mark-ink': string;
 }
 
 /**
- * What Dynamic's colours sit on: the paper of Day, the navy of Night, or the Player tab's darkened photo, whose words
- * and controls are a warm white whatever the skin.
+ * What Dynamic's colours sit on: the paper of Day, or the dark: the navy of Night, and the darkened photo of the Player
+ * and Options tabs, whatever the skin.
  */
-export type DynamicSurface = 'day' | 'night' | 'photo';
+export type DynamicSurface = 'day' | 'night';
 
-/** The Player tab's warm white (src/index.css, .app-tab-panel.on-photo), with the dark icon on its play button. */
-const PHOTO_WHITE = '#f7f4ec';
-const PHOTO_ICON = '#10141a';
-/** The Max Mix logo's own tile and icon (src/components/dashboard/dashboard.css, .dashboard-brand-mark). */
-const MARK_GREEN = '#2f5a3c';
-const MARK_BASE = {
-  '--dynamic-mark-from': MARK_GREEN,
-  '--dynamic-mark-to': MARK_GREEN,
-  '--dynamic-mark-ink': PHOTO_WHITE
-};
 /** Night's text, which Dynamic leaves as it is on the dark. */
 const NIGHT_INK = '#f5f6ff';
 /** Night's page: the darkest the highlights have to read on. The Player tab's glass is about as dark. */
@@ -266,12 +256,12 @@ function nightAccent(hue: number, saturation: number, lightness: number): string
 /**
  * Turns the cover's two dominant colours into Dynamic's colours. The title and highlights take the first colour: by
  * day darkened where needed so it reads on the paper, with a near-black text ink of the same hue; on the dark (Night,
- * and the Player tab's photo) a lighter, softened shade, and the text stays the dark's own. The play button runs a
+ * and the photo tabs) a lighter, softened shade, and the text stays the dark's own. The play button runs a
  * gradient between the two colours, like Night's, kept in a middle lightness so it stands out, with a white or dark icon
  * on it, whichever reads better.
  */
 export function dynamicPalette([first, second]: readonly [Rgb, Rgb], surface: DynamicSurface = 'day'): DynamicPalette {
-  const dark = surface !== 'day';
+  const dark = surface === 'night';
   const [hue, saturation, lightness] = toHsl(first);
   const from = gradientEnd(first, dark);
   const to = gradientEnd(second, dark);
@@ -294,32 +284,40 @@ export function dynamicPalette([first, second]: readonly [Rgb, Rgb], surface: Dy
   };
 }
 
-/**
- * Dynamic's colours when nothing has played for a while, so the page fades back to what it shows with Dynamic off: by
- * day the chosen colour, with that colour's own gradient (Violet's) or flat; at night the colour's night shade; on the
- * Player tab its warm white. The logo goes back to its own green.
- */
-export function basePalette(colour: ThemeColour, surface: DynamicSurface = 'day'): DynamicPalette {
-  if (surface === 'photo') {
-    return {
-      '--dynamic-accent': PHOTO_WHITE,
-      '--dynamic-ink': PHOTO_WHITE,
-      '--dynamic-from': PHOTO_WHITE,
-      '--dynamic-to': PHOTO_WHITE,
-      '--dynamic-accent-ink': PHOTO_ICON,
-      ...MARK_BASE
-    };
-  }
+/** The chosen colour as its play button shows it: by day, or its night shade, flat or with Violet's gradient. */
+function chosen(colour: ThemeColour, night: boolean) {
   const choice: (typeof THEME_COLOURS)[number] = THEME_COLOURS.find(entry => entry.id === colour) ?? THEME_COLOURS[0];
-  const night = surface === 'night';
   const accent = night ? choice.night : choice.accent;
   const [from, to] = 'gradient' in choice ? choice.gradient : [accent, accent];
   return {
-    '--dynamic-accent': accent,
-    '--dynamic-ink': night ? NIGHT_INK : choice.ink,
-    '--dynamic-from': from,
-    '--dynamic-to': to,
-    '--dynamic-accent-ink': night && 'nightAccentInk' in choice ? choice.nightAccentInk : choice.accentInk,
-    ...MARK_BASE
+    accent,
+    ink: night ? NIGHT_INK : choice.ink,
+    from,
+    to,
+    accentInk: night && 'nightAccentInk' in choice ? choice.nightAccentInk : choice.accentInk
+  };
+}
+
+/**
+ * Dynamic's colours when nothing has played for a while, so the page fades back to what it shows with Dynamic off: by
+ * day the chosen colour, with that colour's own gradient (Violet's) or flat; on the dark the colour's night shade. The
+ * logo's tile goes back to the chosen colour as the skin shows it (`nightSkin`), which on a photo tab by day is the
+ * colour itself.
+ */
+export function basePalette(
+  colour: ThemeColour,
+  surface: DynamicSurface = 'day',
+  nightSkin: boolean = surface === 'night'
+): DynamicPalette {
+  const logo = chosen(colour, nightSkin);
+  const mark = { '--dynamic-mark-from': logo.from, '--dynamic-mark-to': logo.to, '--dynamic-mark-ink': logo.accentInk };
+  const page = chosen(colour, surface === 'night');
+  return {
+    '--dynamic-accent': page.accent,
+    '--dynamic-ink': page.ink,
+    '--dynamic-from': page.from,
+    '--dynamic-to': page.to,
+    '--dynamic-accent-ink': page.accentInk,
+    ...mark
   };
 }

@@ -208,7 +208,7 @@
   inherits: true;
   initial-value: #fff;
 }
-/* The Max Mix logo's tile (.dashboard-brand-mark): its own green until Dynamic gives it the cover's gradient. */
+/* The Max Mix logo's tile (.dashboard-brand-mark) with Dynamic on: the cover's gradient, else the chosen colour. */
 @property --dynamic-mark-from {
   syntax: '<color>';
   inherits: true;
@@ -234,6 +234,17 @@
   --accent-soft: color-mix(in srgb, var(--accent) 5%, transparent);
   --focus: var(--accent);
   --play-fill: var(--colour-fill, var(--accent));
+  /*
+    The Max Mix logo's tile (.dashboard-brand-mark): the chosen colour as the play button shows it, set on the container
+    so the photo tabs' own highlights don't reach it; Night's shades below resolve into it too. With Dynamic on (next
+    rule) it runs the cover's gradient instead and fades back to the chosen colour (basePalette).
+  */
+  --mark-fill: var(--play-fill);
+  --mark-ink: var(--accent-ink);
+}
+.tablet-container[data-colour][data-dynamic] {
+  --mark-fill: linear-gradient(135deg, var(--dynamic-mark-from), var(--dynamic-mark-to));
+  --mark-ink: var(--dynamic-mark-ink);
 }
 /* After the rule above: the play button runs a gradient between the cover's two colours, as Night's runs pink to violet. */
 .tablet-container[data-dynamic] {
@@ -344,8 +355,9 @@
 }
 /*
   The Player tab: the Spotify tab again with the Dashboard's photo behind it (PlayerBackdrop) and the controls laid
-  straight on the photo. Whatever the skin and colour, the words and controls here are the Dashboard's warm white, so
-  they read on any photo. Where controls lie over the photo it is blurred and darkened, as under the Dashboard's
+  straight on the photo. Whatever the skin, the words here are the Dashboard's warm white, so they read on any photo,
+  and the controls and highlights the chosen colour's Night shade (TabletView sets --night-accent), or Dynamic's
+  colours worked out for the dark. Where controls lie over the photo it is blurred and darkened, as under the Dashboard's
   boards: behind the column beside the artwork, behind the control bar, and a fade behind the tab bar.
 */
 .app-tab-panel.on-photo {
@@ -358,11 +370,11 @@
   --faint: rgb(247 244 236 / 55%);
   --border: rgb(255 255 255 / 16%);
   --track: rgb(255 255 255 / 24%);
-  --accent: #f7f4ec;
-  --accent-ink: #10141a;
-  --accent-soft: rgb(255 255 255 / 8%);
-  --focus: #f7f4ec;
-  --play-fill: #f7f4ec;
+  --accent: var(--night-accent);
+  --accent-ink: var(--night-accent-ink);
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --focus: color-mix(in srgb, var(--accent) 60%, #fff);
+  --play-fill: var(--colour-fill, var(--accent));
   --glow: none;
   --lyric-ahead: rgb(247 244 236 / 45%);
 
@@ -372,13 +384,12 @@
   color-scheme: dark;
 }
 /*
-  Dynamic on the Player tab: the title, highlights and play button take the cover's colours as worked out for the dark
-  (TabletView sets them for the photo), fading back to the warm white once the music has stopped. The words stay white.
+  Dynamic on the photo tabs: the controls and highlights take the cover's colours as worked out for the dark, fading
+  back to the chosen colour's Night shade once the music has stopped. The words stay white.
 */
 .tablet-container[data-dynamic] .app-tab-panel.on-photo {
   --accent: var(--dynamic-accent);
   --accent-ink: var(--dynamic-accent-ink);
-  --focus: var(--dynamic-accent);
   --play-fill: linear-gradient(135deg, var(--dynamic-from), var(--dynamic-to));
 }
 .app-tab-panel.on-photo::before {
@@ -466,18 +477,10 @@
   --warning: #f0b64c;
   --amber: #f0b64c;
   --danger: #ff7b8a;
-  --accent: var(--night-accent);
-  --accent-ink: var(--night-accent-ink);
-  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
-  --focus: color-mix(in srgb, var(--accent) 60%, #fff);
   --glow: 0 0 14px color-mix(in srgb, var(--accent) 30%, transparent);
 
   position: relative;
   isolation: isolate;
-}
-.tablet-container[data-dynamic] .app-tab-panel.on-photo .settings-panel.settings-tab {
-  --accent: var(--dynamic-accent);
-  --accent-ink: var(--dynamic-accent-ink);
 }
 .app-tab-panel.on-photo .settings-panel.settings-tab::before {
   content: '';
