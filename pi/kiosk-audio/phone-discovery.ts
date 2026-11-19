@@ -16,8 +16,11 @@ const LOCAL_NAME = 'THE MAX MIX';
 const PAIR_TIMEOUT_MS = 90_000;
 
 export interface PhoneDiscovery {
-  /** Stops scanning and pairs with the device at D-Bus `path`; rejects when it does not pair. */
-  pair: (path: string) => Promise<void>;
+  /**
+   * Stops scanning and pairs with the device at D-Bus `path`; rejects when it does not pair. `onConfirmed` is called
+   * once the code is confirmed on the phone, a few seconds before BlueZ has finished pairing.
+   */
+  pair: (path: string, onConfirmed: () => void) => Promise<void>;
   /** Stops scanning and takes the agent away; safe to call more than once. */
   stop: () => Promise<void>;
 }
@@ -95,6 +98,30 @@ export async function nameKiosk(given?: MessageBus): Promise<void> {
 }
 
 /**
+ * Calls `onBonded` when the device at `path` turns Bonded, which BlueZ (5.82 on the Pi) reports as soon as the phone's
+ * person confirms the code: on the Pi that came about 5 s before Paired, which waits for the phone's services to be
+ * read. Undefined when BlueZ cannot be watched; pairing goes on without it.
+ */
+async function watchBonded(
+  bus: MessageBus,
+  path: string,
+  onBonded: () => void
+): Promise<{ remove: () => Promise<void> } | undefined> {
+  let isBonded = false;
+  try {
+    const properties = await bus.proxy('org.bluez', path, { interface: 'org.freedesktop.DBus.Properties' });
+    return await properties.$watch('PropertiesChanged', (iface: string, changed: Record<string, unknown>) => {
+      if (isBonded || iface !== 'org.bluez.Device1' || changed['Bonded'] !== true) return;
+      isBonded = true;
+      onBonded();
+    });
+  } catch (error) {
+    console.warn(`bluetooth: cannot watch pairing: ${String(error)}`);
+    return undefined;
+  }
+}
+
+/**
  * Scans Classic and LE until `pair` or `stop`, with an agent that confirms the pairing and hands its code to `onCode`.
  * Rejects when BlueZ does not take it (no Bluetooth, or no permission). `given` is the system bus; the tests pass another.
  */
@@ -146,10 +173,15 @@ export async function discoverPhones(onCode: (code: number) => void, given?: Mes
   }
 
   return {
-    pair: async (path: string) => {
+    pair: async (path: string, onConfirmed: () => void) => {
       // BlueZ pairs more reliably with nothing else on the radio.
       await stopScanning();
-      await call(bus, path, 'org.bluez.Device1', 'Pair', {}, PAIR_TIMEOUT_MS);
+      const watch = await watchBonded(bus, path, onConfirmed);
+      try {
+        await call(bus, path, 'org.bluez.Device1', 'Pair', {}, PAIR_TIMEOUT_MS);
+      } finally {
+        if (watch) await ignoreFailure(watch.remove());
+      }
     },
     stop
   };

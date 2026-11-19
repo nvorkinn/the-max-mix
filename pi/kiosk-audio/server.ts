@@ -52,7 +52,7 @@
 //   POST /bluetooth/pair-phone   look for phones for two minutes so one can be picked and paired (phone-pairing.ts): 204,
 //                                or 503 {"error"}; its progress is "pairing" in GET /bluetooth/monitor: {"state": "idle" |
 //                                "scanning" | "pairing" | "paired" | "failed", "secondsLeft"?, "nearby"?: [{"address",
-//                                "name"}], "name"?, "code"?, "phone"?: {"address", "name"}, "error"?}
+//                                "name"}], "name"?, "code"?, "isConfirmed"?, "phone"?: {"address", "name"}, "error"?}
 //   POST /bluetooth/pair-phone/pick   {"address"} of a phone in "nearby": pair with it: 204, or 409 {"error"}
 //   POST /bluetooth/pair-phone/stop   stop looking
 //   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both

@@ -30,6 +30,7 @@ function pairingText(pairing: PairingStatus): string {
       return `Looking for phones, ${pairing.secondsLeft} s left`;
     }
     case 'pairing': {
+      if (pairing.isConfirmed) return `Pairing ${pairing.name}, code confirmed`;
       return pairing.code === null ? `Pairing ${pairing.name}` : `Pairing ${pairing.name}, code ${pairing.code}`;
     }
     case 'paired': {

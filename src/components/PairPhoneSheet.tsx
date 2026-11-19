@@ -11,6 +11,32 @@ const POLL_MS = 1500;
 
 /** A pairing code as the iPhone shows it: six digits. */
 const formatCode = (code: number) => String(code).padStart(6, '0');
+const PLACES = [0, 1, 2, 3, 4, 5] as const;
+
+/**
+ * The code the phone asks to confirm, each digit in its own box across the sheet; once it is confirmed on the phone, a
+ * spinner in its place until the Pi has finished pairing.
+ */
+function PairingCode({ code, isConfirmed }: Readonly<{ code: number | null; isConfirmed: boolean }>) {
+  if (isConfirmed) {
+    return (
+      <div className="pair-phone-code">
+        <LoaderCircle className="pair-phone-confirmed-spinner animate-spin" role="status" aria-label="Pairing" />
+      </div>
+    );
+  }
+  if (code === null) return null;
+  const digits = formatCode(code);
+  return (
+    <div className="pair-phone-code" role="group" aria-label={digits}>
+      {PLACES.map(place => (
+        <span key={place} className="pair-phone-digit" aria-hidden="true">
+          {digits[place]}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 /**
  * Pairs a person's iPhone with the kiosk (pi/kiosk-audio/phone-pairing.ts). While the sheet is open the Pi looks for
@@ -68,16 +94,17 @@ export default function PairPhoneSheet({
   }, [spotifyId, attempt]);
 
   const pick = (address: string, phoneName: string) => {
-    setPairing({ state: 'pairing', name: phoneName, code: null });
+    setPairing({ state: 'pairing', name: phoneName, code: null, isConfirmed: false });
     pickPhone(address).catch((caught: unknown) => setError(errorMessage(caught)));
   };
 
-  // The Pi is busy from the moment the sheet opens until the phone shows its code: starting, looking, then pairing.
+  // The Pi is busy from the moment the sheet opens until the phone shows its code: starting, looking, then pairing. Once
+  // the code is confirmed on the phone, the big spinner in the code's place takes over.
   const isBusy =
     !error &&
     (pairing.state === 'idle' ||
       pairing.state === 'scanning' ||
-      (pairing.state === 'pairing' && pairing.code === null));
+      (pairing.state === 'pairing' && pairing.code === null && !pairing.isConfirmed));
 
   return (
     <Modal labelledBy="pair-phone-title" onClose={onDone} className="app-modal-panel pair-phone-sheet">
@@ -94,7 +121,7 @@ export default function PairPhoneSheet({
         {!error && pairing.state === 'pairing' ? (
           <div className="pair-phone-pairing" aria-live="polite">
             <p className="pair-phone-pairing-name">{pairing.name}</p>
-            {pairing.code !== null && <p className="pair-phone-code">{formatCode(pairing.code)}</p>}
+            <PairingCode code={pairing.code} isConfirmed={pairing.isConfirmed} />
           </div>
         ) : (
           !error && (

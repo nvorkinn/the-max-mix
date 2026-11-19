@@ -29,7 +29,7 @@ const note = (call: string) => () => {
 };
 
 /** A stand-in for BlueZ: it owns org.bluez and notes what it is asked. */
-async function fakeBluez(options: { refusesPair?: boolean } = {}): Promise<MessageBus> {
+async function fakeBluez(options: { refusesPair?: boolean; bondsOnPair?: boolean } = {}): Promise<MessageBus> {
   const bluez = await client();
   await bluez.ownName('org.bluez');
   await bluez.export(
@@ -77,11 +77,17 @@ async function fakeBluez(options: { refusesPair?: boolean } = {}): Promise<Messa
     PHONE,
     defineInterface({
       name: 'org.bluez.Device1',
+      properties: { Bonded: { type: 'b', value: false }, Paired: { type: 'b', value: false } },
       methods: {
         Pair: {
-          handler: () => {
+          handler: async () => {
             bus.calls.push('pair');
             if (options.refusesPair) throw new Error('Authentication Failed');
+            if (!options.bondsOnPair) return;
+            // As on the Pi: Bonded once the code is confirmed on the phone, Paired a few seconds later on its own.
+            bluez.emitPropertiesChanged(PHONE, 'org.bluez.Device1', { Bonded: true });
+            await new Promise(resolve => setTimeout(resolve, 20));
+            bluez.emitPropertiesChanged(PHONE, 'org.bluez.Device1', { Paired: true });
           }
         }
       }
@@ -120,7 +126,7 @@ describe('kiosk-audio/phone-discovery', () => {
       'filter auto',
       'scan'
     ]);
-    await discovery.pair(PHONE);
+    await discovery.pair(PHONE, () => null);
     expect(bus.calls.slice(5)).toEqual(['stop scan', 'pair']);
     await discovery.stop();
     await discovery.stop();
@@ -130,7 +136,23 @@ describe('kiosk-audio/phone-discovery', () => {
   it('rejects when the phone does not pair', async () => {
     await fakeBluez({ refusesPair: true });
     const discovery = await discoverPhones(() => null, await client());
-    await expect(discovery.pair(PHONE)).rejects.toThrow();
+    await expect(discovery.pair(PHONE, () => null)).rejects.toThrow();
+    await discovery.stop();
+  });
+
+  it('says when the code is confirmed on the phone, before BlueZ has finished pairing', async () => {
+    await fakeBluez({ bondsOnPair: true });
+    const discovery = await discoverPhones(() => null, await client());
+    let hasPaired = false;
+    const confirmed: boolean[] = [];
+    await discovery
+      .pair(PHONE, () => {
+        confirmed.push(hasPaired);
+      })
+      .then(() => {
+        hasPaired = true;
+      });
+    expect(confirmed).toEqual([false]);
     await discovery.stop();
   });
 
