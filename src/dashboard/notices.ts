@@ -17,6 +17,7 @@ import type { ClockFormat } from '../utils/clockFormat';
 import { formatClockTime } from '../utils/clockFormat';
 import type { Notice } from './data';
 import { say } from './messages';
+import { parcelNotices } from './parcels';
 
 type Severity = Notice['severity'];
 
@@ -25,7 +26,7 @@ const DAY = 24 * HOUR;
 /** A bank holiday is mentioned this far ahead, as on the e-paper screens. */
 const HOLIDAY_AHEAD_DAYS = 31;
 /** Worst first. */
-const SEVERITY_ORDER: readonly Severity[] = ['severe', 'minor', 'info', 'planned'];
+const SEVERITY_ORDER: readonly Severity[] = ['severe', 'minor', 'info', 'planned', 'everyday'];
 
 /** The device's notice sources, as countdown-server gives them; null when it isn't registered or can't be asked. */
 export async function getDeviceNotices(client: Client | null = serverClient()): Promise<DeviceNotices | null> {
@@ -347,10 +348,12 @@ export function holidayNotices(events: readonly BankHoliday[], now: Date): Notic
 
 /**
  * The notice board's notices from what countdown-server gave, as of `now`: worst first, then the lines before the
- * weather before the holidays. None while the board is off (no postcode).
+ * weather before the holidays before the parcels. Only the parcels while the board has no postcode (an older
+ * countdown-server sends none).
  */
 export function boardNotices(device: DeviceNotices, now: Date, clockFormat: ClockFormat): Notice[] {
-  if (!device.postcode) return [];
+  const parcels = parcelNotices(device.parcels?.parcels ?? [], now);
+  if (!device.postcode) return byUrgency(parcels);
   const lines: TflLine[] = [];
   const shorts: NoticeShort[] = [];
   const seen = new Set<string>();
@@ -369,8 +372,14 @@ export function boardNotices(device: DeviceNotices, now: Date, clockFormat: Cloc
   const notices = [
     ...lineNotices(lines, now, clockFormat, shorts),
     ...weatherNotices(device.met_office?.items ?? [], now, clockFormat),
-    ...(device.country === 'GB' ? holidayNotices(events, now) : [])
+    ...(device.country === 'GB' ? holidayNotices(events, now) : []),
+    ...parcels
   ];
+  return byUrgency(notices);
+}
+
+/** `notices` worst first, keeping their order among equals. */
+function byUrgency(notices: Notice[]): Notice[] {
   return notices
     .map((notice, index) => ({ notice, index }))
     .toSorted(
@@ -445,7 +454,20 @@ export function mockDeviceNotices(now: Date): DeviceNotices {
     },
     bank_holidays: null,
     // The notice board has notices, so the Tube status panel doesn't show.
-    tfl_network: null
+    tfl_network: null,
+    parcels: {
+      fetched_at: now.toISOString(),
+      parcels: [
+        {
+          description: 'Running shoes',
+          carrier: 'DHL',
+          tracking_number: 'JD0000000000000001',
+          status: 'out_for_delivery',
+          expected_date: null,
+          updated_at: at(-2)
+        }
+      ]
+    }
   };
 }
 

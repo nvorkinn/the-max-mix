@@ -17,7 +17,8 @@ import type { DepartureBoardProps } from './props';
 // countdown-api's examples, read at 12:00:30 on 17 October 2026 (the departures were read at 12:00).
 const NOW = new Date('2026-10-17T12:00:30Z');
 const ARRIVALS = panels.arrivals as DeviceArrivals;
-const NOTICES = panels.notices as unknown as DeviceNotices;
+// Its parcels (as stored on another day) are parcels.test.ts's.
+const NOTICES = { ...panels.notices, parcels: null } as unknown as DeviceNotices;
 const WEATHER = panels.weather as unknown as DeviceWeather;
 
 function snapshot(more: Partial<LiveSnapshot> = {}): LiveSnapshot {

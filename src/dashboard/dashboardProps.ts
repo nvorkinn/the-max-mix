@@ -37,11 +37,13 @@ export function toNoticeItem(notice: Notice): NoticeItem {
     weather: 'weather-warning',
     holiday: 'bank-holiday',
     closure: planned ? 'planned-works' : 'closure',
-    delays: planned ? 'planned-works' : 'delays'
+    delays: planned ? 'planned-works' : 'delays',
+    parcel: 'parcel'
   };
   const kind = kinds[notice.kind];
   let severity: NoticeSeverity;
   if (planned) severity = 'planned';
+  else if (notice.severity === 'everyday') severity = 'everyday';
   else if (notice.severity === 'info') severity = 'info';
   // Weather warnings, and closures and suspensions in force, are red; a closure never looks milder than a delay.
   else if (kind === 'weather-warning' || kind === 'closure' || notice.severity === 'severe') severity = 'severe';
