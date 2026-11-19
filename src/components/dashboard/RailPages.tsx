@@ -45,8 +45,8 @@ export function railPages(noticeCount: number, statusRows: number | null, height
 }
 
 /** The space between the weather and the outlook, and each of the outlook's rows. */
-export const OUTLOOK_GAP = 26;
-export const OUTLOOK_ROW_HEIGHT = 42;
+const OUTLOOK_GAP = 26;
+const OUTLOOK_ROW_HEIGHT = 42;
 const NO_DAYS: readonly DayForecast[] = [];
 const ignore = () => {};
 /** The fewest days worth an outlook. */
