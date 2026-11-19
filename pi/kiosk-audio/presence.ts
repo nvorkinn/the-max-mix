@@ -27,7 +27,7 @@ interface PhonePresence {
 
 export interface PresenceStatus {
   /** Whether a watch began so lately that a phone not heard yet may still be heard. */
-  checking: boolean;
+  isChecking: boolean;
   phones: PhonePresence[];
 }
 
@@ -65,6 +65,23 @@ export class Presence {
     this.now = options.now ?? (() => Date.now());
   }
 
+  private async scan(controller: AbortController): Promise<void> {
+    try {
+      if ((await this.options.phones()).length === 0) return;
+      // Asking first starts the monitor watching, so it hears what the scan finds.
+      await this.options.devices();
+      if (controller.signal.aborted) return;
+      await this.options.scan(controller.signal);
+      this.hasScanFailed = false;
+    } catch (error) {
+      // Logged once, not on every watch.
+      if (!this.hasScanFailed) this.options.log(`Presence: scan failed: ${String(error)}`);
+      this.hasScanFailed = true;
+    } finally {
+      if (this.scanning === controller) this.scanning = null;
+    }
+  }
+
   /** Scans (when a phone is saved) for two minutes, or until `unwatch`. Asking again restarts the two minutes. */
   watch(): void {
     this.watchStartedAt ??= this.now();
@@ -84,23 +101,6 @@ export class Presence {
     this.watchStartedAt = null;
     this.scanning?.abort();
     this.scanning = null;
-  }
-
-  private async scan(controller: AbortController): Promise<void> {
-    try {
-      if ((await this.options.phones()).length === 0) return;
-      // Asking first starts the monitor watching, so it hears what the scan finds.
-      await this.options.devices();
-      if (controller.signal.aborted) return;
-      await this.options.scan(controller.signal);
-      this.hasScanFailed = false;
-    } catch (error) {
-      // Logged once, not on every watch.
-      if (!this.hasScanFailed) this.options.log(`Presence: scan failed: ${String(error)}`);
-      this.hasScanFailed = true;
-    } finally {
-      if (this.scanning === controller) this.scanning = null;
-    }
   }
 
   private update(phones: PairedPhone[], devices: HeardDevice[]): void {
@@ -128,8 +128,8 @@ export class Presence {
       this.options.log(`Presence: ${String(error)}`);
     }
     const startedAt = this.watchStartedAt;
-    const checking = startedAt !== null && this.now() - startedAt < (this.options.checkingMs ?? CHECKING_MS);
-    return { checking, phones: this.current };
+    const isChecking = startedAt !== null && this.now() - startedAt < (this.options.checkingMs ?? CHECKING_MS);
+    return { isChecking, phones: this.current };
   }
 }
 
@@ -146,10 +146,17 @@ export async function scanLe(signal: AbortSignal, given?: MessageBus): Promise<v
       body: [{ Transport: new dbus.Variant('s', 'le'), DuplicateData: new dbus.Variant('b', true) }]
     });
     await call('StartDiscovery');
-    await new Promise<void>(resolve => {
-      if (signal.aborted) resolve();
-      else signal.addEventListener('abort', () => resolve(), { once: true });
-    });
+    if (!signal.aborted) {
+      await new Promise<void>(resolve => {
+        signal.addEventListener(
+          'abort',
+          () => {
+            resolve();
+          },
+          { once: true }
+        );
+      });
+    }
     await call('StopDiscovery');
   } finally {
     // Closing also ends this client's discovery, if StopDiscovery did not run.

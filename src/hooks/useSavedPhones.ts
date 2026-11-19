@@ -43,13 +43,13 @@ export function useSavedPhones(enabled: boolean, rereadKey = 0): SavedPhone[] {
   return phones;
 }
 
-const UNHEARD: { phones: SavedPhone[]; checking: boolean } = { phones: [], checking: true };
+const UNHEARD: { phones: SavedPhone[]; isChecking: boolean } = { phones: [], isChecking: true };
 
 /**
  * While `isWatching` (the person switcher is open), has the Pi listen for the saved phones (it does not otherwise) and
- * re-reads every second whether it hears each. `checking` is true while a phone not heard yet may still be heard.
+ * re-reads every second whether it hears each. `isChecking` is true while a phone not heard yet may still be heard.
  */
-export function usePhonePresence(isWatching: boolean): { phones: SavedPhone[]; checking: boolean } {
+export function usePhonePresence(isWatching: boolean): { phones: SavedPhone[]; isChecking: boolean } {
   const [presence, setPresence] = useState(UNHEARD);
   useEffect(() => {
     if (!isWatching) return;
@@ -61,10 +61,10 @@ export function usePhonePresence(isWatching: boolean): { phones: SavedPhone[]; c
     const read = () => {
       readBluetoothReport()
         .then(report => {
-          if (isCurrent) setPresence({ phones: report.phones, checking: report.presenceChecking });
+          if (isCurrent) setPresence({ phones: report.phones, isChecking: report.presenceChecking });
         })
         .catch(() => {
-          if (isCurrent) setPresence({ phones: [], checking: false });
+          if (isCurrent) setPresence({ phones: [], isChecking: false });
         });
     };
     // Read once the Pi has started listening, so the first answer already says it is checking.

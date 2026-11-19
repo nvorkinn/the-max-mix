@@ -13,7 +13,13 @@ function setUp(options: { phones?: (typeof PHONE)[]; isScanFailing?: boolean } =
     signals.push(signal);
     if (options.isScanFailing) return Promise.reject(new Error('No adapter'));
     return new Promise<void>(resolve => {
-      signal.addEventListener('abort', () => resolve(), { once: true });
+      signal.addEventListener(
+        'abort',
+        () => {
+          resolve();
+        },
+        { once: true }
+      );
     });
   });
   const log = vi.fn();
@@ -52,16 +58,16 @@ describe('Presence', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(scan).toHaveBeenCalledTimes(1);
     expect(await presence.status()).toEqual({
-      checking: true,
+      isChecking: true,
       phones: [{ address: PHONE.address, name: 'Nikolai’s iPhone', isHere: false, lastSeen: null }]
     });
     heard.lastSeen = Date.now();
     expect((await presence.status()).phones[0]).toMatchObject({ isHere: true, lastSeen: heard.lastSeen });
     await vi.advanceTimersByTimeAsync(8000);
-    expect((await presence.status()).checking).toBe(false);
+    expect((await presence.status()).isChecking).toBe(false);
     presence.unwatch();
     expect(signals[0]?.aborted).toBe(true);
-    expect((await presence.status()).checking).toBe(false);
+    expect((await presence.status()).isChecking).toBe(false);
     await vi.advanceTimersByTimeAsync(120_000);
     expect((await presence.status()).phones[0]?.isHere).toBe(false);
     heard.connected = true;
@@ -88,7 +94,7 @@ describe('Presence', () => {
     presence.watch();
     await vi.advanceTimersByTimeAsync(0);
     expect(scan).toHaveBeenCalledTimes(2);
-    expect((await presence.status()).checking).toBe(true);
+    expect((await presence.status()).isChecking).toBe(true);
   });
 
   it('does not scan with no phone saved', async () => {
@@ -190,9 +196,7 @@ describe('scanLe', () => {
         }
       })
     );
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 20);
-    await scanLe(controller.signal, await client());
+    await scanLe(AbortSignal.timeout(20), await client());
     expect(calls).toEqual([{ Transport: 'le', DuplicateData: true }, 'start', 'stop']);
   });
 

@@ -26,29 +26,32 @@ export default function PersonSwitcher({
   const [proving, setProving] = useState<string | null>(null);
   // Who was tapped while the Pi was still listening for their phone, or null.
   const [waitingFor, setWaitingFor] = useState<string | null>(null);
-  const { phones, checking } = usePhonePresence(isOpen);
+  const { phones, isChecking } = usePhonePresence(isOpen);
+  // The latest answer, for a tap that waits for it.
+  const latestRef = useRef({ phones, isChecking });
+  const waitingRef = useRef<string | null>(null);
+  useEffect(() => {
+    latestRef.current = { phones, isChecking };
+  }, [phones, isChecking]);
   const people = peopleOnKiosk();
   const active = people.find(person => person.active);
+
+  if (!active) return null;
+
   const isHere = (phoneAddress: string) => phones.some(phone => phone.isHere && samePhone(phoneAddress, phone.address));
-  // The latest answer, for a tap that waits for it.
-  const latest = useRef({ phones, checking });
-  const waiting = useRef<string | null>(null);
-  useEffect(() => {
-    latest.current = { phones, checking };
-  }, [phones, checking]);
 
   /** Switches once the Pi hears their phone, or shows the song when it has stopped checking without hearing it. */
   const waitForPhone = async (spotifyId: string, phoneAddress: string) => {
-    waiting.current = spotifyId;
+    waitingRef.current = spotifyId;
     setWaitingFor(spotifyId);
-    const heard = () => latest.current.phones.some(phone => phone.isHere && samePhone(phoneAddress, phone.address));
-    while (waiting.current === spotifyId && latest.current.checking && !heard()) {
+    const heard = () => latestRef.current.phones.some(phone => phone.isHere && samePhone(phoneAddress, phone.address));
+    while (waitingRef.current === spotifyId && latestRef.current.isChecking && !heard()) {
       // eslint-disable-next-line no-await-in-loop
       await new Promise(resolve => setTimeout(resolve, WAIT_STEP_MS));
     }
     // Closed, or someone else tapped, meanwhile.
-    if (waiting.current !== spotifyId) return;
-    waiting.current = null;
+    if (waitingRef.current !== spotifyId) return;
+    waitingRef.current = null;
     setWaitingFor(null);
     if (heard()) {
       setIsOpen(false);
@@ -57,8 +60,6 @@ export default function PersonSwitcher({
       setProving(spotifyId);
     }
   };
-
-  if (!active) return null;
 
   return (
     <>
@@ -77,7 +78,7 @@ export default function PersonSwitcher({
           onClose={() => {
             setIsOpen(false);
             setProving(null);
-            waiting.current = null;
+            waitingRef.current = null;
             setWaitingFor(null);
           }}
           className="app-modal-panel person-sheet"
@@ -101,7 +102,7 @@ export default function PersonSwitcher({
                 const isActive = person.active;
                 // The active person goes through the same check, so the switch can be tried with only one account.
                 const isHeard = isHere(person.phoneAddress);
-                const isAway = !checking && !isHeard;
+                const isAway = !isChecking && !isHeard;
                 return (
                   <li key={person.spotifyId}>
                     <button
@@ -113,7 +114,7 @@ export default function PersonSwitcher({
                       {...(isActive && { 'data-modal-autofocus': true })}
                       onClick={() => {
                         if (!isHeard) {
-                          if (checking) void waitForPhone(person.spotifyId, person.phoneAddress);
+                          if (isChecking) void waitForPhone(person.spotifyId, person.phoneAddress);
                           else setProving(person.spotifyId);
                           return;
                         }

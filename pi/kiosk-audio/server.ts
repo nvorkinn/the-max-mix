@@ -268,6 +268,15 @@ async function wasAccepted(url: string, request: IncomingMessage, deps: Deps): P
 }
 
 /** Sets one output's volume from the body of POST /audio/volume; the status to answer with. */
+/** POST /bluetooth/presence: starts or stops listening for the saved phones; the status to answer with. */
+async function presenceStatus(request: IncomingMessage, deps: Deps): Promise<number> {
+  const body = JSON.parse(await readBody(request)) as { watch?: unknown } | null;
+  if (body?.watch === true) deps.presence.watch();
+  else if (body?.watch === false) deps.presence.unwatch();
+  else return 400;
+  return 204;
+}
+
 async function volumeStatus(request: IncomingMessage, deps: Deps): Promise<number> {
   const body = validVolume(JSON.parse(await readBody(request)) as unknown);
   if (!body) return 400;
@@ -360,7 +369,7 @@ async function sendMonitor(response: ServerResponse, deps: Deps): Promise<void> 
       ...snapshot,
       pairing: deps.phonePairing.status(),
       phones: presence.phones,
-      presenceChecking: presence.checking
+      presenceChecking: presence.isChecking
     });
   } catch {
     sendJson(response, 503, { error: BLUETOOTH_UNAVAILABLE });
@@ -472,10 +481,7 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
       break;
     }
     case '/bluetooth/presence': {
-      const body = JSON.parse(await readBody(request)) as { watch?: unknown } | null;
-      if (body?.watch === true) deps.presence.watch();
-      else if (body?.watch === false) deps.presence.unwatch();
-      else status = 400;
+      status = await presenceStatus(request, deps);
       break;
     }
     case '/bluetooth/pair-phone': {

@@ -177,7 +177,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
     presence: {
       status: () =>
         Promise.resolve({
-          checking: true,
+          isChecking: true,
           phones: [{ address: '4F:00:00:00:00:03', name: 'Nikolai’s iPhone', isHere: true, lastSeen: 5 }]
         }),
       watch: () => {
