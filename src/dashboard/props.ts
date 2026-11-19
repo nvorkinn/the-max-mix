@@ -67,8 +67,19 @@ export interface HourForecast {
   isDay: boolean;
 }
 
+/** @public One day of the outlook. */
+export interface DayForecast {
+  /** The place's date, "2026-11-20". */
+  date: string;
+  high: number;
+  low: number;
+  sky: Sky;
+}
+
 /** @public */
 export interface HourlyStripProps {
+  /** The coming days, tomorrow first. */
+  days?: DayForecast[];
   /** The coming hours, soonest first; the strip shows five. */
   hours: HourForecast[];
   /** When countdown-server last read the data the Dashboard shows, as an ISO time, for the "Updated" note. */

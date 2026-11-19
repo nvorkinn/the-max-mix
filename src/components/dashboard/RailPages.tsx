@@ -74,7 +74,17 @@ export default function RailPages({ notices, lineStatus, time }: Readonly<RailPa
   const pages = railPages(notices.length, lineStatus ? groupLines(lineStatus.lines).length : null, height);
   return (
     <>
-      <div className="dashboard-rail-pages" ref={pagesRef}>
+      <div
+        className="dashboard-rail-pages"
+        ref={pagesRef}
+        style={
+          lineStatus
+            ? ({
+                '--status-height': `${String(EYEBROW_HEIGHT + groupLines(lineStatus.lines).length * LINE_ROW_HEIGHT)}px`
+              } as CSSProperties)
+            : undefined
+        }
+      >
         {pages.map((page, index) => {
           const slot = carouselSlot(index, pages.length, time, 1);
           return (

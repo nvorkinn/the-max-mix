@@ -115,6 +115,7 @@ export function dashboardProps(snapshot: LiveSnapshot, now: Date, clockFormat: C
       weather && updatedAt
         ? {
             hours: weather.hours,
+            days: weather.days,
             updatedAt,
             stale: down || snapshot.weatherHeld || olderThan(weatherRead, WEATHER_STALE_MS, now),
             now,

@@ -7,12 +7,12 @@
 
 import type { DeviceWeather } from 'countdown-api';
 import type { ClockFormat } from '../utils/clockFormat';
-import type { HourForecast, Sky, WeatherView } from './props';
+import type { DayForecast, HourForecast, Sky, WeatherView } from './props';
 
 /** Hours the strip shows. */
 const STRIP_HOURS = 5;
 /** Hours handed to the strip, so it still has five as the hour turns before the next forecast. */
-const HOURS_KEPT = 8;
+const HOURS_KEPT = 13;
 /** Tonight runs from this hour (or now, if later) to MORNING the next day. */
 const EVENING = 18;
 const MORNING = 6;
@@ -175,6 +175,7 @@ function withIcon(summary: string | null): Pick<WeatherView, 'summary' | 'summar
 export interface WeatherProps {
   views: WeatherView[];
   hours: HourForecast[];
+  days: DayForecast[];
 }
 
 /** The weather block's views and the strip's hours at `now`, or null when the forecast is missing or can't be read. */
@@ -297,7 +298,17 @@ export function toWeather(answer: DeviceWeather | null, now: Date, clockFormat: 
     sky: hour.sky,
     isDay: isDay(hour)
   }));
-  return { views, hours: stripHours };
+  const days: DayForecast[] = [];
+  for (let ahead = 1; ahead <= 5; ahead += 1) {
+    const date = nextDate(today, ahead);
+    const index = dayIndex(date);
+    const high = fields.daily.temperature_max[index];
+    const low = fields.daily.temperature_min[index];
+    const code = fields.daily.weather_code[index];
+    if (high === undefined || low === undefined || code === undefined) break;
+    days.push({ date, high: Math.round(high), low: Math.round(low), sky: skyFor(code) });
+  }
+  return { views, hours: stripHours, days };
 }
 
 /** An offset from UTC as ISO writes it: "+01:00", "Z" for none. */

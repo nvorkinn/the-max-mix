@@ -1,6 +1,7 @@
 import { Sun, Umbrella } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { WeatherBlockProps, WeatherPeriod } from '../../dashboard/props';
+import { SKY_ICONS, sunny } from './icons';
 
 const PERIOD_LABELS: Record<WeatherPeriod, string> = {
   now: 'Now',
@@ -19,7 +20,7 @@ export const WEATHER_FADE_MS = 350;
  * or at once on a tap; the periods wrap round. The old period fades right out before the new one fades in, so two
  * temperatures never show on top of each other.
  */
-export default function WeatherBlock({ views }: Readonly<WeatherBlockProps>) {
+export default function WeatherBlock({ views, hero = false }: Readonly<WeatherBlockProps & { hero?: boolean }>) {
   const [index, setIndex] = useState(0);
   const [fading, setFading] = useState(false);
   const count = views.length;
@@ -53,6 +54,49 @@ export default function WeatherBlock({ views }: Readonly<WeatherBlockProps>) {
     );
   }
   const SummaryIcon = view.summaryIcon === 'sun' ? Sun : Umbrella;
+  if (hero) {
+    const isDay = view.period !== 'tonight';
+    const SkyIcon = SKY_ICONS[view.sky][isDay ? 'day' : 'night'];
+    return (
+      <button
+        type="button"
+        className="dashboard-weather dashboard-weather-hero shadowed"
+        onClick={() => {
+          if (count > 1) setFading(true);
+        }}
+      >
+        <span className="dashboard-wx-pills">
+          {views.map((option, at) => (
+            <span key={option.period} className="dashboard-wx-pill" data-on={at === index % count}>
+              {PERIOD_LABELS[option.period]}
+            </span>
+          ))}
+        </span>
+        <span className={`dashboard-wx-body${fading ? ' fading' : ''}`}>
+          <span className="dashboard-wx-row">
+            <span className="dashboard-wx-temp">
+              {view.temperature}
+              <span className="dashboard-wx-degree">°</span>
+            </span>
+            <SkyIcon
+              className="lucide dashboard-wx-icon"
+              aria-hidden="true"
+              style={sunny(view.sky, isDay) ? { color: '#f6c453' } : undefined}
+            />
+          </span>
+          <span className="dashboard-wx-condition">{view.condition}</span>
+          <span className="dashboard-wx-summary">
+            {view.summary && (
+              <>
+                <SummaryIcon className="lucide" style={{ width: 18, height: 18 }} aria-hidden="true" />
+                {view.summary}
+              </>
+            )}
+          </span>
+        </span>
+      </button>
+    );
+  }
   return (
     <button
       type="button"

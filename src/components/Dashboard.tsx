@@ -15,6 +15,7 @@ import { carouselSlot, TURN_MS } from './dashboard/carousel';
 import DepartureBoard from './dashboard/DepartureBoard';
 import TabBar from './dashboard/TabBar';
 import RailPages from './dashboard/RailPages';
+import { DayOutlook, HourCurve } from './dashboard/RailExtras';
 import WeatherBlock from './dashboard/WeatherBlock';
 import './dashboard/dashboard.css';
 
@@ -66,6 +67,9 @@ export default function Dashboard({
   // whose clock stops, doesn't move. Every board stays mounted, so its rows keep following their vehicles. The rail's
   // pages turn with them.
   const time = (boards[0]?.now ?? tabBar.now).getTime();
+  // Prototype: which use of the rail's empty space to draw (?rail=days|hours|photo), with no notices only.
+  const quiet = notices.notices.length === 0;
+  const railOption = quiet ? new URLSearchParams(window.location.search).get('rail') : null;
 
   useLayoutEffect(() => {
     const element = fitRef.current;
@@ -88,7 +92,7 @@ export default function Dashboard({
   }, []);
 
   return (
-    <div className="dashboard" ref={fitRef}>
+    <div className="dashboard" ref={fitRef} data-rail={railOption ?? undefined}>
       <div
         className="dashboard-scaler"
         style={{ transform: `translate(${placement.left}px, ${placement.top}px) scale(${placement.scale})` }}
@@ -98,11 +102,13 @@ export default function Dashboard({
           <TabBar {...tabBar} />
           <main className="dashboard-main">
             <div className="dashboard-rail">
-              <WeatherBlock {...weather} />
+              <WeatherBlock {...weather} hero={railOption !== null} />
+              {railOption === 'days' && hourly && <DayOutlook days={hourly.days ?? []} />}
+              {railOption === 'hours' && hourly && <HourCurve hours={hourly.hours} clockFormat={hourly.clockFormat} />}
               <RailPages notices={notices.notices} lineStatus={lineStatus} time={time} />
             </div>
             <div className="dashboard-stage">
-              <div className="dashboard-sky shadowed">{hourly && <HourlyStrip {...hourly} />}</div>
+              <div className="dashboard-sky shadowed">{hourly && railOption !== 'hours' && <HourlyStrip {...hourly} />}</div>
               <div className="dashboard-departures">
                 <div className="dashboard-departures-track">
                   {boards.map((board, index) => {
