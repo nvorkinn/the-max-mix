@@ -116,6 +116,15 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await expect(settings).toHaveScreenshot(shotName('settings-countdown', screen), SHOT);
     });
 
+    test(`settings General page of an owned kiosk at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
+      await page.setViewportSize(screen);
+      await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
+      await page.goto('/?kiosk=1');
+      const settings = await openSettings(page, 'General');
+      await expect(settings.getByRole('img', { name: 'Norway' })).toBeVisible();
+      await expect(settings).toHaveScreenshot(shotName('settings-general-owned', screen), SHOT);
+    });
+
     test(`player screen at ${size(screen)}`, { tag: '@player' }, async ({ page }) => {
       await fakeSpotify(page);
       await colouredArt(page);

@@ -5,7 +5,6 @@ import type { TabBarProps, TabId } from '../../dashboard/props';
 import { useHold } from '../../hooks/useHold';
 import { tabPanelId } from '../AppTabs';
 import PersonSwitcher from '../PersonSwitcher';
-import SleepIcon from '../SleepIcon';
 
 // Dashboard, the home screen, sits in the middle, with a tab to either side of it (see TAB_PAN).
 const TABS: readonly { id: TabId; label: string; icon: ReactNode }[] = [
@@ -32,7 +31,6 @@ export default function TabBar({
   onSearch,
   now,
   clockFormat,
-  onSleep,
   onSwitchPerson,
   onClockHold
 }: Readonly<TabBarProps>) {
@@ -73,17 +71,6 @@ export default function TabBar({
             onClick={onSearch}
           >
             <Search className="lucide" style={{ width: 26, height: 26 }} />
-          </button>
-        )}
-        {onSleep && (
-          <button
-            type="button"
-            className="dashboard-icon-button"
-            title="Sleep"
-            aria-label="Put the screen to sleep"
-            onClick={onSleep}
-          >
-            <SleepIcon className="lucide" style={{ width: 26, height: 26 }} />
           </button>
         )}
         {person &&

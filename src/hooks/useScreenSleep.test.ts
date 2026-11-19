@@ -201,36 +201,6 @@ describe('useScreenSleep', () => {
     expect(screenSleep.wakeDisplay).toHaveBeenCalledTimes(1);
   });
 
-  it('sleepNow sleeps at once, music or not, and music does not wake it', () => {
-    const { result, rerender } = renderSleep({ keepAwake: true });
-    act(() => {
-      result.current.sleepNow();
-    });
-    expect(result.current.asleep).toBe(true);
-    rerender({ keepAwake: false });
-    rerender({ keepAwake: true });
-    expect(result.current.asleep).toBe(true);
-    expect(screenSleep.wakeDisplay).not.toHaveBeenCalled();
-    act(() => {
-      result.current.wake();
-    });
-    expect(result.current.asleep).toBe(false);
-  });
-
-  it('music wakes a screen that fell asleep on its own again after a manual sleep was woken', () => {
-    const { result, rerender } = renderSleep();
-    act(() => {
-      result.current.sleepNow();
-    });
-    act(() => {
-      result.current.wake();
-    });
-    advanceToSleep();
-    expect(result.current.asleep).toBe(true);
-    rerender({ keepAwake: true });
-    expect(result.current.asleep).toBe(false);
-  });
-
   it('dims when the delay is off, and never sleeps', () => {
     const { result } = renderSleep({ sleepMs: null });
     advance(IDLE_MS * 100);

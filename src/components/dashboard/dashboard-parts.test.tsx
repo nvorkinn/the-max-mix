@@ -72,6 +72,18 @@ describe('DepartureBoard', () => {
     expect(screen.getByText('Tram')).toHaveClass('dashboard-line-pill');
   });
 
+  it("writes a line too long for its pill in TfL's short form", () => {
+    const [first] = SAMPLE.tube.departures;
+    if (!first) throw new Error('no sample departure');
+    render(
+      <DepartureBoard
+        {...SAMPLE.tube}
+        departures={[{ ...first, lineId: 'hammersmith-city', line: 'Hammersmith & City' }]}
+      />
+    );
+    expect(screen.getByText('H&C')).toHaveClass('dashboard-line-pill');
+  });
+
   it("heads a London stop with TfL's roundel and a Norwegian one with Ruter's mark, and its letter if it has one", () => {
     const { unmount } = render(<DepartureBoard {...SAMPLE.bus} stopLetter="E" />);
     expect(screen.getByRole('region', { name: 'TfL Elephant & Castle E' })).toBeInTheDocument();

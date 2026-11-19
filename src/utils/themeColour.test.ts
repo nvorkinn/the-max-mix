@@ -8,6 +8,8 @@ import {
   loadThemeColour,
   saveDynamicColour,
   saveThemeColour,
+  swatchOf,
+  THEME_COLOURS,
   toThemeColour
 } from './themeColour';
 
@@ -102,17 +104,21 @@ describe('basePalette', () => {
     });
   });
 
-  it("is the chosen colour's own, with a flat play button and its icon", () => {
+  it("is the chosen colour's own, its gradient on the play button and the logo, with its icon", () => {
     expect(basePalette('black')).toEqual({
       '--dynamic-accent': '#dfe3ee',
-      '--dynamic-from': '#dfe3ee',
-      '--dynamic-to': '#dfe3ee',
+      '--dynamic-from': '#f0f2f7',
+      '--dynamic-to': '#aab3c5',
       '--dynamic-accent-ink': '#111',
-      '--dynamic-mark-from': '#dfe3ee',
-      '--dynamic-mark-to': '#dfe3ee',
+      '--dynamic-mark-from': '#f0f2f7',
+      '--dynamic-mark-to': '#aab3c5',
       '--dynamic-mark-ink': '#111'
     });
-    expect(basePalette('navy')).toMatchObject({ '--dynamic-mark-from': '#5b8def', '--dynamic-mark-ink': '#fff' });
+    expect(basePalette('navy')).toMatchObject({ '--dynamic-mark-from': '#6fa8ff', '--dynamic-mark-ink': '#fff' });
+  });
+
+  it('gives every colour a gradient for its swatch', () => {
+    for (const choice of THEME_COLOURS) expect(swatchOf(choice)).toMatch(/^linear-gradient\(135deg, #\w+, #\w+\)$/);
   });
 });
 

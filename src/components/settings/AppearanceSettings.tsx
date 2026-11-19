@@ -25,7 +25,7 @@ function ColourChoice({
             style={
               {
                 '--swatch': swatchOf(choice),
-                ...('ring' in choice && { '--swatch-ring': choice.ring })
+                '--swatch-ring': choice.accent
               } as CSSProperties
             }
           >
@@ -44,7 +44,15 @@ function DynamicChoice({ on, onChange }: Readonly<{ on: boolean; onChange: (on: 
       <h5 className="settings-group-title" id="dynamic-colour-label">
         Dynamic
       </h5>
-      <div className="settings-segmented" role="group" aria-labelledby="dynamic-colour-label">
+      <p className="settings-group-note text-muted" id="dynamic-colour-note">
+        Colours follow the album art while music plays.
+      </p>
+      <div
+        className="settings-segmented"
+        role="group"
+        aria-labelledby="dynamic-colour-label"
+        aria-describedby="dynamic-colour-note"
+      >
         {[
           { value: false, label: 'Off' },
           { value: true, label: 'On' }

@@ -13,7 +13,7 @@ const PI_ADDRESS = '192.168.1.42';
 
 const auth = vi.hoisted(() => ({
   startSignIn: vi.fn(),
-  signOut: vi.fn(),
+  checkPerson: vi.fn(),
   startAddPerson: vi.fn(),
   removePerson: vi.fn(),
   peopleOnKiosk: vi.fn(),
@@ -36,6 +36,8 @@ describe('SettingsPanel', () => {
     auth.startSignIn.mockResolvedValue(undefined);
     auth.startAddPerson.mockResolvedValue(undefined);
     auth.peopleOnKiosk.mockReturnValue([]);
+    // Spotify does not answer unless a test says so.
+    auth.checkPerson.mockReturnValue(new Promise<never>(() => {}));
   });
 
   it('asks for a fresh update check each time it comes up', () => {
@@ -114,14 +116,14 @@ describe('SettingsPanel', () => {
     expect(screen.queryByRole('button', { name: /studio|paper/i })).not.toBeInTheDocument();
   });
 
-  it.each([
-    ['signed out', {}, 'Not connected', 'Log in with Spotify'],
-    ['signed in', { authenticated: true }, 'Connected', 'Re-authenticate with Spotify']
-  ])('shows the %s state', (_, authInfo, status, loginLabel) => {
-    render(<SettingsPanel {...base} authInfo={authInfo} initialSection="spotify" />);
-    expect(screen.getByText(status)).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /log in with|re-authenticate/i })).toHaveLength(1);
-    expect(screen.getByRole('button', { name: loginLabel })).toBeInTheDocument();
+  it('offers the first sign-in, and nothing else, while nobody is signed in', () => {
+    render(<SettingsPanel {...base} authInfo={{}} initialSection="spotify" />);
+    const page = screen.getByRole('region', { name: 'Spotify' });
+    expect(
+      within(page)
+        .getAllByRole('button')
+        .map(button => button.textContent)
+    ).toEqual(['Log in with Spotify']);
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/server environment|restart/i);
   });
@@ -322,17 +324,14 @@ describe('SettingsPanel', () => {
     });
   });
 
-  it('signs out and reloads', async () => {
-    // Off the kiosk: there is no browser extension to wait for.
-    history.replaceState(null, '', '/?kiosk=0');
-    render(<SettingsPanel {...base} authInfo={{ authenticated: true }} initialSection="spotify" />);
-    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
-    expect(auth.signOut).toHaveBeenCalledTimes(1);
-    await waitFor(() => expect(base.onReload).toHaveBeenCalled());
-  });
-
   describe('people', () => {
-    const person = (spotifyId: string, active = false) => ({ spotifyId, name: spotifyId, imageUrl: '', active });
+    const person = (spotifyId: string, active = false, signedIn = true) => ({
+      spotifyId,
+      name: spotifyId,
+      imageUrl: '',
+      active,
+      signedIn
+    });
 
     beforeEach(() => history.replaceState(null, '', '/?kiosk=0'));
 
@@ -340,9 +339,28 @@ describe('SettingsPanel', () => {
       auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true), person('Friend')]);
       render(<SettingsPanel {...base} authInfo={{ authenticated: true }} initialSection="spotify" />);
       const rows = within(screen.getByRole('list', { name: 'People' })).getAllByRole('listitem');
-      expect(rows.map(row => row.textContent)).toEqual(['NikolaiRemove', 'FriendRemove']);
+      expect(rows.map(row => row.textContent)).toEqual(['NikolaiConnectedRemove', 'FriendConnectedRemove']);
       expect(rows[0]).toHaveAttribute('aria-current', 'true');
       expect(within(defined(rows[0])).getByLabelText('Active')).toBeInTheDocument();
+    });
+
+    it('shows where each login stands once Spotify answers, and offers signing in again where it does not work', async () => {
+      auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true), person('Friend'), person('Guest', false, false)]);
+      const answers: Record<string, string> = { Nikolai: 'connected', Friend: 'refused', Guest: 'unknown' };
+      auth.checkPerson.mockImplementation((spotifyId: string) => Promise.resolve(answers[spotifyId]));
+      render(<SettingsPanel {...base} authInfo={{ authenticated: true }} initialSection="spotify" />);
+      const rows = () => within(screen.getByRole('list', { name: 'People' })).getAllByRole('listitem');
+      await waitFor(() =>
+        expect(rows().map(row => row.textContent)).toEqual([
+          'NikolaiConnectedRemove',
+          'FriendNot allowedSign inRemove',
+          // Spotify could not be asked: what the kiosk knows stands.
+          'GuestExpiredSign inRemove'
+        ])
+      );
+      const friend = defined(rows()[1]);
+      await userEvent.click(within(friend).getByRole('button', { name: 'Sign in' }));
+      await waitFor(() => expect(auth.startSignIn).toHaveBeenCalledWith('Friend'));
     });
 
     it('removes a person on the second tap, and reloads only when the active person changes', async () => {
@@ -393,9 +411,15 @@ describe('SettingsPanel', () => {
     });
   });
 
-  it('offers no sign out while signed out', () => {
-    render(<SettingsPanel {...base} authInfo={{}} />);
+  it('offers no sign out of everyone: removing the last person signs out', async () => {
+    history.replaceState(null, '', '/?kiosk=0');
+    auth.peopleOnKiosk.mockReturnValue([{ spotifyId: 'a', name: 'a', imageUrl: '', active: true, signedIn: true }]);
+    auth.removePerson.mockReturnValue('signed-out');
+    render(<SettingsPanel {...base} authInfo={{ authenticated: true }} initialSection="spotify" />);
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Tap again to remove' }));
+    await waitFor(() => expect(base.onReload).toHaveBeenCalled());
   });
 
   it('has no playback destination setting', () => {
@@ -430,7 +454,8 @@ describe('SettingsPanel', () => {
         .map(button => button.textContent)
     ).toEqual(['Overview', 'General', 'Countdown', 'Appearance', 'Spotify', 'About']);
     const overview = within(screen.getByRole('group', { name: 'Overview' }));
-    expect(overview.getByRole('button', { name: /^General/ })).toHaveTextContent('General24-hourOslo0150, Norway');
+    expect(overview.getByRole('button', { name: /^General/ })).toHaveTextContent('General24-hourOslo0150');
+    expect(overview.getByRole('img', { name: 'Norway' })).toBeInTheDocument();
     const card = overview.getByRole('button', { name: /^Countdown/ });
     expect(card).toHaveTextContent(/^Countdown1 stop$/);
     await userEvent.click(card);

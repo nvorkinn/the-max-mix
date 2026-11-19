@@ -88,7 +88,6 @@ const motion = async (page: Page) =>
   new Set(((await page.locator('html').getAttribute('data-motion')) ?? '').split(' ').filter(Boolean));
 
 test.describe('Dashboard motion', { tag: '@layout' }, () => {
-  test.use({ contextOptions: { reducedMotion: 'no-preference' } });
   test('a bus leaving, a bus overtaking and the weather moving on change only opacity and transforms', async ({
     page
   }) => {

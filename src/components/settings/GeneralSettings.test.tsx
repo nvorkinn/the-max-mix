@@ -81,8 +81,8 @@ describe('GeneralSettings', () => {
 
   it("saves the notice board's postcode with the country its form tells, and an empty postcode turns it off", async () => {
     const onSave = setup();
-    expect(screen.getByText('0150, Norway')).toBeInTheDocument();
-    const notices = screen.getByText('0150, Norway').closest('.settings-row');
+    const notices = screen.getByText('0150').closest('.settings-row');
+    expect(within(notices as HTMLElement).getByRole('img', { name: 'Norway' })).toBeInTheDocument();
     await userEvent.click(within(notices as HTMLElement).getByRole('button', { name: 'Change' }));
     let dialog = screen.getByRole('dialog', { name: 'Postcode' });
     const field = within(dialog).getByRole('textbox', { name: 'Postcode' });
@@ -91,6 +91,7 @@ describe('GeneralSettings', () => {
     expect(within(dialog).getByRole('button', { name: 'Save' })).toBeDisabled();
     expect(within(dialog).getByText('Enter a UK or Norwegian postcode.')).toBeInTheDocument();
     await userEvent.type(field, 'sw1a1aa');
+    expect(within(dialog).getByRole('img', { name: 'United Kingdom' })).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenLastCalledWith('notice_board', { postcode: 'SW1A 1AA', country: 'GB' });
 
