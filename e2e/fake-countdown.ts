@@ -1,4 +1,4 @@
-// cspell:ignore GZZLUEAC GZZLUBOR GZZLULBN Effra Southwrk Lambeth metalerts TIMS
+// cspell:ignore GZZLUEAC GZZLUBOR GZZLULBN Effra Southwrk Lambeth TIMS
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 

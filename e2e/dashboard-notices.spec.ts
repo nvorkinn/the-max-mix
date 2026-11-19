@@ -1,4 +1,4 @@
-// cspell:ignore Sterk vind kastene Akershus metalerts Lambeth
+// cspell:ignore Sterk vind kastene Akershus Lambeth
 import { expect, test, type Page } from '@playwright/test';
 import { showDashboard } from './dashboard.ts';
 

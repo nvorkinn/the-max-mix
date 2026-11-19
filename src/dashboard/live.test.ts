@@ -5,7 +5,7 @@ import type { Client } from '../../vendor/countdown-api/src/countdown_api/client
 import type { FeedHandlers } from './feed';
 import { EMPTY_SNAPSHOT, LiveDashboard, mergeArrivals, mergeNotices, mergeWeather, withEvent } from './live';
 
-// cspell:ignore GZZLUKNG metalerts
+// cspell:ignore GZZLUKNG
 
 const ARRIVALS = panels.arrivals as DeviceArrivals;
 const NOTICES = panels.notices as unknown as DeviceNotices;

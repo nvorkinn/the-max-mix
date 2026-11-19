@@ -1,4 +1,4 @@
-// cspell:ignore GZZLUEAC metalerts helligdager
+// cspell:ignore GZZLUEAC helligdager
 // The Dashboard's notice board, from countdown-server: GET /api/devices/notices (countdown-api's getNotices), with the
 // device secret. The server hands over what its providers stored for the device (TfL's line statuses and station
 // disruptions at its stops and its road disruptions, the Met Office's and the Environment Agency's warnings for a UK

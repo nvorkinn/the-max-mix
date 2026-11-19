@@ -1,4 +1,4 @@
-// cspell:ignore Effra Southwrk Rotherhithe Bankside Akershus Camberwell Lambeth metalerts TIMS
+// cspell:ignore Effra Southwrk Rotherhithe Bankside Akershus Camberwell Lambeth TIMS
 import type { DeviceNotices } from 'countdown-api';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import panels from '../../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json';
@@ -474,7 +474,7 @@ describe('the other notices the e-paper screens show', () => {
     ]);
     // An older countdown-server leaves the floods out.
     const older = { ...full, floods: undefined } as unknown as DeviceNotices;
-    expect(boardNotices(older, NOW, '24h').filter(n => n.title.includes('lood'))).toEqual([]);
+    expect(boardNotices(older, NOW, '24h').filter(n => n.id.startsWith('flood:'))).toEqual([]);
   });
 
   it("says MET Norway's warnings for the place by their colour and hazard, with their hours, until they end", () => {
