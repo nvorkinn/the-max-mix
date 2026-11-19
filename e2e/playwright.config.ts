@@ -13,6 +13,9 @@ export default defineConfig({
   // run side by side, one worker per CPU of the 4-CPU runner.
   workers: 4,
   fullyParallel: true,
+  // toPass retries every 50 ms rather than backing off to a real second, which waits needlessly on a test that moves the
+  // page's fake clock in its retries.
+  expect: { toPass: { intervals: [50] } },
   // Each test runs once: no retries, so a flaky test fails the job rather than passing on a second try.
   forbidOnly: !!process.env['CI'],
   // CI runs the tests in shards on separate machines (.github/workflows/e2e.yml), each writing a blob report; the job
@@ -22,6 +25,10 @@ export default defineConfig({
   // One baseline per screenshot, not per OS: they are only compared on the CI browser (see visual.spec.ts).
   snapshotPathTemplate: '{testDir}/screenshots/{testFileName}/{arg}{ext}',
   use: {
+    // The runner draws in software, where the tab crossfade and photo pan cost far more CPU than the rest of a test, so
+    // the tests ask for reduced motion, which the app honours. tab-fade.spec.ts and dashboard-motion.spec.ts turn the
+    // motion back on to test it.
+    contextOptions: { reducedMotion: 'reduce' },
     baseURL: `http://127.0.0.1:${port}`,
     // Every page starts as a kiosk already registered with countdown-server, so ?kiosk=1 opens the app rather than the
     // server's /register page; registration.spec.ts starts without it.

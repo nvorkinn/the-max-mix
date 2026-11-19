@@ -88,6 +88,8 @@ const motion = async (page: Page) =>
   new Set(((await page.locator('html').getAttribute('data-motion')) ?? '').split(' ').filter(Boolean));
 
 test.describe('Dashboard motion', { tag: '@layout' }, () => {
+  // The motion itself is under test (playwright.config.ts asks for reduced motion everywhere else).
+  test.use({ contextOptions: { reducedMotion: 'no-preference' } });
   test('a bus leaving, a bus overtaking and the weather moving on change only opacity and transforms', async ({
     page
   }) => {
