@@ -1503,6 +1503,8 @@
 }
 .pair-phone-pairing {
   display: grid;
+  flex: 1;
+  align-content: center;
   gap: 8px;
   margin: 22px 0 24px;
   text-align: center;
