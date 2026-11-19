@@ -108,8 +108,6 @@ export default function PairPhoneSheet({
       pairing.state === 'scanning' ||
       (pairing.state === 'pairing' && pairing.code === null && !pairing.isConfirmed));
 
-  const owner = name ? `${name}’s` : 'your';
-  const title = `Pair ${owner} phone`;
   if (pairing.state === 'paired') {
     return (
       <Modal labelledBy="pair-phone-title" onClose={onDone} className="app-modal-panel pair-phone-sheet">
@@ -136,6 +134,8 @@ export default function PairPhoneSheet({
       </Modal>
     );
   }
+  const owner = name ? `${name}’s` : 'your';
+  const title = `Pair ${owner} phone`;
   if (isIntro) {
     return (
       <Modal labelledBy="pair-phone-title" onClose={onDone} className="app-modal-panel pair-phone-sheet">
