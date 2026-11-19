@@ -8,7 +8,7 @@ import PersonSwitcher from '../PersonSwitcher';
 import SpotifyIcon from '../SpotifyIcon';
 import NowPlaying from './NowPlaying';
 
-// Dashboard, the home screen, sits in the middle, with a tab to either side of it (see TAB_PAN).
+// Dashboard, the home screen, sits in the middle, with a tab to either side of it.
 const TABS: readonly { id: TabId; label: string; icon: ReactNode }[] = [
   // Spotify's own logo in one colour, as its brand rules allow: white like the other tabs, green while the song playing
   // hangs under it (dashboard.css).
@@ -16,12 +16,6 @@ const TABS: readonly { id: TabId; label: string; icon: ReactNode }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutGrid aria-hidden="true" className="lucide" /> },
   { id: 'settings', label: 'Settings', icon: <Settings aria-hidden="true" className="lucide" /> }
 ];
-
-/**
- * Which way the photo behind each tab is panned, matching where its tab sits in the bar: -1 left, 0 middle, 1 right.
- * Changing tab slides the photo from the old tab's side to the new one's (`--pan-from` and `--pan`, dashboard.css).
- */
-export const TAB_PAN: Readonly<Record<TabId, number>> = { spotify: -1, dashboard: 0, settings: 1 };
 
 // Holding the clock this long opens the debug console; long enough that nobody opens it by accident.
 const CLOCK_HOLD_MS = 2000;

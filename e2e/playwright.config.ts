@@ -25,8 +25,8 @@ export default defineConfig({
   // One baseline per screenshot, not per OS: they are only compared on the CI browser (see visual.spec.ts).
   snapshotPathTemplate: '{testDir}/screenshots/{testFileName}/{arg}{ext}',
   use: {
-    // The runner draws in software, where the tab crossfade and photo pan cost far more CPU than the rest of a test, so
-    // the tests ask for reduced motion, which the app honours. tab-fade.spec.ts and dashboard-motion.spec.ts turn the
+    // The runner draws in software, where the Dashboard's motion costs far more CPU than the rest of a test, so
+    // the tests ask for reduced motion, which the app honours. dashboard-motion.spec.ts turns the
     // motion back on to test it.
     contextOptions: { reducedMotion: 'reduce' },
     baseURL: `http://127.0.0.1:${port}`,
