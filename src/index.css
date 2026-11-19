@@ -389,6 +389,33 @@
 ::view-transition-new(root) {
   animation-duration: 300ms;
 }
+/* Search shows on the Spotify tab only. It is lifted out of the fade, and when a tab change takes it away it slides up
+  out of the top of the screen; when one brings it back it slides down into place, in the fade's 300 ms. Between two
+  tabs that both have it, it stays put. */
+.floating-bar .dashboard-search {
+  view-transition-name: tab-search;
+}
+::view-transition-group(tab-search) {
+  animation-duration: 300ms;
+}
+/* stylelint-disable selector-no-unmatchable -- :only-child does match a view-transition image with no partner */
+::view-transition-old(tab-search):only-child {
+  animation: tab-search-out 300ms ease-in both;
+}
+::view-transition-new(tab-search):only-child {
+  animation: tab-search-in 300ms ease-out both;
+}
+/* stylelint-enable selector-no-unmatchable */
+@keyframes tab-search-out {
+  to {
+    transform: translateY(-80px);
+  }
+}
+@keyframes tab-search-in {
+  from {
+    transform: translateY(-80px);
+  }
+}
 .button,
 .icon-button {
   display: inline-flex;
