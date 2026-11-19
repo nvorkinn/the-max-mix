@@ -2549,9 +2549,10 @@ body:has(.app-dialog[open]) {
 .lyrics-list[data-following='false'] {
   scroll-behavior: auto;
 }
+/* Sung lines take the chosen colour, or Dynamic's from the album art; lines still to come stay faint. */
 .lyrics-list.is-synced .lyrics-line.is-reached,
 .lyrics-list.is-synced .lyrics-word.is-reached {
-  color: var(--ink);
+  color: var(--accent);
 }
 /* Sync mode (the Lyrics button tapped again): every line is a button; tapping the one being sung moves the song's timing to match. */
 .lyrics-sync-line {

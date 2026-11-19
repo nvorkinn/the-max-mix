@@ -3,7 +3,7 @@ import { getClientId } from '../src/spotify/settings.ts';
 import type { PlaybackState } from '../src/types.ts';
 import { advance } from './clock.ts';
 import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
-import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
+import { countPlaybackReads, fakeSpotify, noLyrics, PIXEL } from './fake-spotify.ts';
 import { openSpotifyTab } from './spotify-tab.ts';
 
 const playback = {
@@ -37,6 +37,7 @@ async function mockSpotify(page: Page) {
     playbackReads: number;
     requests: string[];
   } = { playback, nextStatus: 204, queueStatus: 200, devicesStatus: 200, commands: [], playbackReads: 0, requests: [] };
+  await noLyrics(page);
   await page.route('https://accounts.spotify.com/api/token', route =>
     route.fulfill({ json: { access_token: 'not-a-real-access-token', expires_in: 3600 } })
   );
@@ -208,13 +209,9 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     await expect(queue.getByText('A little quiet in here.')).toHaveCount(0);
     api.queueStatus = 200;
     await queue.getByRole('button', { name: 'Retry queue' }).click();
-    // A queue known to be empty brings the lyrics forward and hides the queue, so its empty state is there but not shown.
-    // (The queue's fade-out used to leave it visible for a moment, which is all the old check here ever caught.)
-    const nav = page.getByRole('navigation', { name: 'Beside the artwork' });
-    await expect(nav.getByRole('button', { name: 'Lyrics' })).toHaveAttribute('aria-pressed', 'true');
-    const hiddenQueue = page.getByRole('region', { name: 'Upcoming tracks', includeHidden: true });
-    await expect(hiddenQueue.getByText('A little quiet in here.')).toHaveCount(1);
-    await expect(hiddenQueue.getByText('Queue unavailable.')).toHaveCount(0);
+    // The song has no lyrics, so the queue stays in view, now known to be empty.
+    await expect(queue.getByText('A little quiet in here.')).toBeVisible();
+    await expect(queue.getByText('Queue unavailable.')).toHaveCount(0);
   });
 
   for (const source of ['skip', 'queue', 'devices']) {
@@ -226,10 +223,8 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       const player = page.getByRole('region', { name: 'Now playing', exact: true });
       const queue = page.getByRole('region', { name: 'Upcoming tracks' });
       await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
-      // The lyrics come forward once the queue is read and known to be empty.
-      await expect(
-        page.getByRole('navigation', { name: 'Beside the artwork' }).getByRole('button', { name: 'Lyrics' })
-      ).toHaveAttribute('aria-pressed', 'true');
+      // The queue is read and known to be empty.
+      await expect(queue.getByText('A little quiet in here.')).toBeVisible();
       if (source === 'skip') {
         api.nextStatus = 429;
         await player.getByRole('button', { name: 'Next track' }).click();

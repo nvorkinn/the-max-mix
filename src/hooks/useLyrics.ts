@@ -6,7 +6,7 @@ import { errorMessage } from '../utils/errorMessage';
 
 type LyricsStatus = 'idle' | 'loading' | 'ready' | 'missing' | 'error';
 
-interface UseLyrics {
+export interface LyricsLookup {
   status: LyricsStatus;
   lyrics: Lyrics | null;
   error: string | null;
@@ -42,7 +42,7 @@ export function useLyrics(
   track: Track | undefined,
   enabled: boolean,
   provider: LyricsProvider = defaultLyricsProvider
-): UseLyrics {
+): LyricsLookup {
   const query = toQuery(track);
   const key = query ? (track?.id ?? `${query.title}\n${query.artist}`) : null;
   const [failure, setFailure] = useState<{ key: string; message: string } | null>(null);
