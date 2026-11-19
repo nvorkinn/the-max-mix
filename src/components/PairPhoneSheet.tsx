@@ -156,8 +156,8 @@ export default function PairPhoneSheet({
     );
   }
 
-  // Once the intro is accepted, the Pi is busy until the phone shows its code: starting, looking, then pairing. Once the
-  // code is confirmed on the phone, the big spinner in the code's place takes over.
+  // After the intro, the Pi is busy until the phone shows its code: starting, looking, then pairing. Once the code is
+  // confirmed on the phone, the big spinner in the code's place takes over.
   const isBusy =
     !error &&
     (pairing.state === 'idle' ||
