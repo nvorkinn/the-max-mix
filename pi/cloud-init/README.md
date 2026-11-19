@@ -69,7 +69,7 @@ It asks for `yes`, then:
 - turns cloud-init off (`/etc/cloud/cloud-init.disabled`), so it never applies the setup network again;
 - clears the kiosk's Chromium profile (your Spotify login; the downloaded Widevine stays), the chosen speakers and the
   logs;
-- powers off. The admin SSH keys, the Tailscale login and the paired Bluetooth keyboard and mouse stay.
+- powers off. The admin SSH keys, the Tailscale login and the paired Bluetooth devices stay.
 
 Your SSH session drops when the Wi-Fi goes; the rest still runs. At its new home the Pi finds no network and shows the
 Wi-Fi panel. `--no-poweroff` starts the kiosk again instead, for trying it out.

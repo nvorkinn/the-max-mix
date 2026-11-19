@@ -49,7 +49,6 @@ check() {
 }
 
 for file in /usr/local/bin/kiosk-session \
-  /usr/local/bin/kiosk-bluetooth-pair /etc/the-max-mix/bluetooth-devices /etc/systemd/system/kiosk-bluetooth-pair.service \
   /etc/systemd/system/kiosk.service /etc/systemd/system/kiosk-pull.service /etc/systemd/system/kiosk-pull.timer \
   /etc/systemd/system/kiosk-restart.timer /etc/chromium/policies/managed/kiosk.json \
   /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules /etc/polkit-1/rules.d/50-kiosk-power.rules \
@@ -80,7 +79,7 @@ for file in /usr/local/bin/kiosk-session \
   /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf /etc/systemd/user/default.target.wants/kiosk-audio.service; do
   check test -e "$file"
 done
-for unit in kiosk.service kiosk-bluetooth-pair.service bluetooth.service avahi-daemon.service kiosk-pull.timer \
+for unit in kiosk.service bluetooth.service avahi-daemon.service kiosk-pull.timer \
   kiosk-restart.timer kiosk-ssh-keys.timer ssh.service tailscaled.service kiosk-widevine.path; do
   check systemctl is-enabled --quiet "$unit"
   # Enabled only: nothing is started with kiosk_enable_only.
@@ -89,8 +88,7 @@ for unit in kiosk.service kiosk-bluetooth-pair.service bluetooth.service avahi-d
     fail=1
   fi
 done
-check grep -q '^DE:E3:A5:BE:A8:00 mouse$' /etc/the-max-mix/bluetooth-devices
-check grep -q '^D1:B9:E3:A0:7A:9D keyboard$' /etc/the-max-mix/bluetooth-devices
+check test ! -e /usr/local/bin/kiosk-bluetooth-pair
 check grep -q ' console=tty3 ' /boot/firmware/cmdline.txt
 check grep -q 'video=HDMI-A-1:1024x600@60' /boot/firmware/cmdline.txt
 check grep -q 'kernel=kernel8.img' /boot/firmware/config.txt

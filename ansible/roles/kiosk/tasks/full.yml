@@ -421,7 +421,6 @@
     mode: '{{ item.mode }}'
   loop:
     - { src: bin/kiosk-session, dest: /usr/local/bin/kiosk-session, mode: '0755' }
-    - { src: bin/kiosk-bluetooth-pair, dest: /usr/local/bin/kiosk-bluetooth-pair, mode: '0755' }
     - { src: bin/kiosk-display, dest: /usr/local/bin/kiosk-display, mode: '0755' }
     - { src: bin/kiosk-handover, dest: /usr/local/sbin/kiosk-handover, mode: '0755' }
     - { src: bin/kiosk-pull, dest: /usr/local/sbin/kiosk-pull, mode: '0755' }
@@ -566,14 +565,6 @@
 - name: full | Install the kiosk service
   ansible.builtin.include_tasks: kiosk-service.yml
 
-- name: full | List the Bluetooth devices to pair
-  ansible.builtin.template:
-    src: kiosk-bluetooth-devices.j2
-    dest: /etc/the-max-mix/bluetooth-devices
-    owner: root
-    group: root
-    mode: '0644'
-
 - name: full | Install the Chromium policy
   ansible.builtin.template:
     src: kiosk-policy.json.j2
@@ -695,7 +686,6 @@
     group: root
     mode: '0644'
   loop:
-    - kiosk-bluetooth-pair.service
     - kiosk-pull.service
     - kiosk-pull.timer
     - kiosk-restart.service
@@ -717,6 +707,31 @@
   when: kiosk_admin_github_user | length > 0
   notify: Reload systemd
 
+# Pis built before 2026-11-19 had a service that paired a Bluetooth keyboard and mouse. It looped until both were paired,
+# turning BlueZ's scanning and pairable mode on and off every ~105 seconds, so it is gone.
+- name: full | Look for the retired keyboard and mouse pairing
+  ansible.builtin.stat:
+    path: /etc/systemd/system/kiosk-bluetooth-pair.service
+  register: kiosk_bluetooth_pair_unit
+
+- name: full | Stop the retired keyboard and mouse pairing
+  ansible.builtin.systemd_service:
+    name: kiosk-bluetooth-pair.service
+    state: stopped
+    enabled: false
+  when: kiosk_bluetooth_pair_unit.stat.exists and not kiosk_enable_only
+
+- name: full | Remove the retired keyboard and mouse pairing
+  ansible.builtin.file:
+    path: '{{ item }}'
+    state: absent
+  loop:
+    - /etc/systemd/system/kiosk-bluetooth-pair.service
+    - /etc/systemd/system/multi-user.target.wants/kiosk-bluetooth-pair.service
+    - /usr/local/bin/kiosk-bluetooth-pair
+    - /etc/the-max-mix/bluetooth-devices
+  notify: Reload systemd
+
 # The units must be known to systemd before they are enabled and started.
 - name: full | Apply the pending changes
   ansible.builtin.meta: flush_handlers
@@ -726,14 +741,10 @@
     name: kiosk.service
     enabled: true
 
-- name: full | Enable Bluetooth and the pairing of the keyboard and mouse
+- name: full | Enable Bluetooth, for pairing phones and hearing who is home
   ansible.builtin.systemd_service:
-    name: '{{ item }}'
+    name: bluetooth.service
     enabled: true
-  loop:
-    - bluetooth.service
-    - kiosk-bluetooth-pair.service
-  when: kiosk_bluetooth_devices | length > 0
 
 - name: full | Enable Avahi, which finds the AirPlay speakers
   ansible.builtin.systemd_service:
