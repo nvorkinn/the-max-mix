@@ -507,7 +507,7 @@ describe('TabletView', () => {
     fireEvent.click(dynamic.getByRole('button', { name: 'On' }));
     expect(room).toHaveAttribute('data-dynamic');
     expect(room).toHaveAttribute('data-colour', 'navy');
-    // Nothing plays, so Dynamic shows the picked colour, in its Night shade on the Settings tab's navy cards.
+    // Nothing plays, so Dynamic shows the picked colour.
     expect(room).toHaveStyle({ '--dynamic-accent': '#5b8def' });
     expect(localStorage.getItem('maxmix.dynamicColour')).toBe('on');
 
@@ -527,7 +527,7 @@ describe('TabletView', () => {
       );
     }
 
-    it('sets the skin and colour, and a change saves there and says so', async () => {
+    it('sets the colour, and a change saves there and says so, keeping its skin as it is', async () => {
       vi.spyOn(deviceConfig, 'loadDeviceConfig').mockResolvedValue(OWNED);
       const save = vi
         .spyOn(deviceConfig, 'saveConfigSection')
@@ -540,15 +540,12 @@ describe('TabletView', () => {
 
       vi.useFakeTimers();
       openAppearance();
-      // Night greys out the colours, so the colour goes first.
       fireEvent.click(screen.getByRole('button', { name: 'Navy' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Night' }));
-      expect(room).toHaveAttribute('data-theme', 'night');
+      expect(room).toHaveAttribute('data-colour', 'navy');
       await act(() => vi.advanceTimersByTimeAsync(500));
       expect(save).toHaveBeenCalledTimes(1);
-      expect(save.mock.calls[0]).toEqual(['style', { skin: 'night', colour: 'navy', dynamic: false }]);
+      expect(save.mock.calls[0]).toEqual(['style', { skin: 'day', colour: 'navy', dynamic: false }]);
       expect(screen.getByText('Saved')).toBeInTheDocument();
-      expect(localStorage.getItem('maxmix.theme')).toBe('night');
       vi.restoreAllMocks();
     });
 
@@ -896,19 +893,6 @@ describe('TabletView', () => {
     unmount();
     await vi.advanceTimersByTimeAsync(60_000);
     expect(api.getQueue).toHaveBeenCalledTimes(1);
-  });
-
-  it('uses Day unless Night was chosen, ignoring the old maxmix_theme setting', async () => {
-    localStorage.setItem('maxmix_theme', 'neon');
-    const { container, unmount } = renderOnSpotifyTab(<TabletView />);
-    await flush();
-    expect(container.firstChild).toHaveAttribute('data-theme', 'day');
-    unmount();
-
-    localStorage.setItem('maxmix.theme', 'night');
-    const night = renderOnSpotifyTab(<TabletView />);
-    await flush();
-    expect(night.container.firstChild).toHaveAttribute('data-theme', 'night');
   });
 
   it('routes player controls to the hook, converting volume to 0..1', async () => {

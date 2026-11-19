@@ -267,14 +267,11 @@ describe('SettingsPanel', () => {
       expect(onScreenSleepChange).toHaveBeenCalledWith(0);
     });
 
-    it('sums up the theme and colour, and the theme choice changes it', async () => {
-      const onThemeChange = vi.fn();
+    it('sums up the colour and Dynamic, and offers no theme choice', async () => {
       render(
         <SettingsPanel
           {...base}
           authInfo={{}}
-          theme="night"
-          onThemeChange={onThemeChange}
           themeColour="navy"
           onThemeColourChange={vi.fn()}
           dynamicColour
@@ -282,14 +279,12 @@ describe('SettingsPanel', () => {
         />
       );
       const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Appearance/ });
-      expect(card).toHaveTextContent('Night');
       expect(card).toHaveTextContent('Navy');
       expect(card).toHaveTextContent('Dynamic');
       await userEvent.click(card);
       expect(screen.getByRole('button', { name: 'Navy' })).toBeEnabled();
       expect(within(screen.getByRole('group', { name: 'Dynamic' })).getByRole('button', { name: 'On' })).toBeEnabled();
-      await userEvent.click(within(screen.getByRole('group', { name: 'Theme' })).getByRole('button', { name: 'Day' }));
-      expect(onThemeChange).toHaveBeenCalledWith('day');
+      expect(screen.queryByRole('group', { name: 'Theme' })).not.toBeInTheDocument();
     });
 
     it.each([

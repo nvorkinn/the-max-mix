@@ -7,7 +7,6 @@ import { reloadSettings } from '../spotify/settings';
 import type { QuietHours } from '../utils/quietHours';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import type { ThemeColour } from '../utils/themeColour';
-import type { Theme } from '../utils/theme';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import type { DeviceConfig, SaveStatus } from '../hooks/useDeviceConfig';
 import SpotifyIcon from './SpotifyIcon';
@@ -51,10 +50,6 @@ interface SettingsPanelProps {
   /** Whether the colours follow the album art while music plays. */
   dynamicColour?: boolean;
   onDynamicColourChange?: (on: boolean) => void;
-  theme?: Theme;
-  /** Whether Auto (sunrise to sunset) is offered: only when the kiosk knows its location. */
-  autoTheme?: boolean;
-  onThemeChange?: (theme: Theme) => void;
   /** The kiosk's software update, shown on the kiosk only. */
   kioskUpdate?: KioskUpdate;
   /** Where the last save of countdown-server's config stands: a Saved tick, or a message when it didn't save. */
@@ -98,9 +93,6 @@ export default function SettingsPanel({
   onThemeColourChange,
   dynamicColour,
   onDynamicColourChange,
-  theme,
-  autoTheme = false,
-  onThemeChange,
   kioskUpdate,
   saveStatus = 'idle',
   onShow,
@@ -158,9 +150,6 @@ export default function SettingsPanel({
     case 'appearance': {
       page = (
         <AppearanceSettings
-          theme={theme}
-          autoTheme={autoTheme}
-          onThemeChange={onThemeChange}
           themeColour={themeColour}
           onThemeColourChange={onThemeColourChange}
           dynamicColour={dynamicColour}
@@ -189,7 +178,6 @@ export default function SettingsPanel({
           onOpen={setSection}
           kiosk={kiosk}
           deviceConfig={owned ? deviceConfig : undefined}
-          theme={theme}
           themeColour={themeColour}
           dynamicColour={dynamicColour}
           screenSleep={hasSleep ? screenSleep : undefined}

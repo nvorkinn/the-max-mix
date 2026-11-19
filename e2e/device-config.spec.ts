@@ -12,7 +12,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     await fakeSpotify(page);
   });
 
-  test("an owned kiosk takes the server's skin and colour, asking with its secret", async ({ page }) => {
+  test("an owned kiosk takes the server's colour, asking with its secret", async ({ page }) => {
     // Routes added later answer first, so this one stands in for fakeSpotify's.
     const server = await fakeCountdownServer(page, {
       ...DEVICE_CONFIGS.owned,
@@ -20,22 +20,19 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     });
     await openSpotifyTab(page, '/?kiosk=1');
 
-    const room = page.locator('.tablet-container');
-    await expect(room).toHaveAttribute('data-theme', 'night');
-    await expect(room).toHaveAttribute('data-colour', 'pink');
+    await expect(page.locator('.tablet-container')).toHaveAttribute('data-colour', 'pink');
     expect(server.authorizations).toEqual(['Bearer e2e-not-a-real-secret']);
   });
 
   test('an unowned kiosk keeps its own settings', async ({ page }) => {
     await page.addInitScript(() => {
-      localStorage.setItem('maxmix.theme', 'night');
+      localStorage.setItem('maxmix.themeColour', 'teal');
     });
     const server = await fakeCountdownServer(page, null);
     await openSpotifyTab(page, '/?kiosk=1');
 
     await expect.poll(() => server.authorizations.length).toBe(1);
-    await expect(page.locator('.tablet-container')).toHaveAttribute('data-theme', 'night');
-    await expect(page.locator('.tablet-container')).toHaveAttribute('data-colour', 'forest');
+    await expect(page.locator('.tablet-container')).toHaveAttribute('data-colour', 'teal');
   });
 
   test('a change in the settings saves to the server at once, and shows Saved', async ({ page }) => {
@@ -43,13 +40,13 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     await openSpotifyTab(page, '/?kiosk=1');
     const settings = await openSettings(page, 'Appearance');
 
-    await settings.getByRole('button', { name: 'Night' }).click();
-    await expect(page.locator('.tablet-container')).toHaveAttribute('data-theme', 'night');
+    await settings.getByRole('button', { name: 'Navy' }).click();
+    await expect(page.locator('.tablet-container')).toHaveAttribute('data-colour', 'navy');
     await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
     expect(server.saves).toHaveLength(1);
     expect(server.saves[0]).toMatchObject({
       device_id: '0a1b2c3d4e5f',
-      style: { skin: 'night', colour: 'violet', dynamic: true }
+      style: { skin: 'auto', colour: 'navy', dynamic: true }
     });
   });
 
@@ -69,9 +66,9 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     await openSpotifyTab(page, '/?kiosk=1');
     const settings = await openSettings(page, 'Appearance');
 
-    await settings.getByRole('button', { name: 'Night' }).click();
+    await settings.getByRole('button', { name: 'Navy' }).click();
     await expect(settings.getByText('Not saved', { exact: true })).toBeVisible();
-    await expect(page.locator('.tablet-container')).toHaveAttribute('data-theme', 'day');
+    await expect(page.locator('.tablet-container')).toHaveAttribute('data-colour', 'violet');
   });
 
   test('the Countdown page adds a stop found by search and saves the departures', async ({ page }) => {
