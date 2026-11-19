@@ -1,21 +1,40 @@
+// cspell:ignore Effra Southwrk Rotherhithe Bankside Akershus Camberwell Lambeth TIMS
 import type { DeviceNotices } from 'countdown-api';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import panels from '../../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json';
+import norway from '../../vendor/countdown-api/src/countdown_api/fixtures/device_notices_norway.json';
 import {
   boardNotices,
+  clockChangeNotices,
   divisionOf,
+  floodNotices,
   forgetNotices,
   getDeviceNotices,
   holidayNotices,
   lineNotices,
+  metAlertsNotices,
   mockDeviceNotices,
+  nextClockChange,
+  norwegianHolidayNotices,
+  norwegianHolidays,
   readNotices,
-  sayWhen
+  roadNotices,
+  sayWhen,
+  stationNotices
 } from './notices';
 
 // countdown-api's example answer to getNotices: a Tube station and a bus stop in Kennington (SE17), as stored at
 // 2026-09-25 12:00 UTC. Its parcels (as stored on another day) are parcels.test.ts's, so they're left out here.
-const device = { ...panels.notices, parcels: null } as unknown as DeviceNotices;
+const full = { ...panels.notices, parcels: null } as unknown as DeviceNotices;
+// Its lines, weather and bank holidays; the stations, roads and floods are tested on their own, further down.
+const device: DeviceNotices = {
+  ...full,
+  tfl_stops: full.tfl_stops.map(stop => ({ ...stop, stations: null })),
+  tfl_roads: null,
+  floods: null
+};
+// countdown-api's example for an Oslo touchscreen: MET Norway's warnings covering 0150, as of 16 October 2026.
+const oslo = norway.notices as unknown as DeviceNotices;
 const NOW = new Date('2026-09-25T12:00:00Z');
 const events = device.bank_holidays?.divisions['england-and-wales']?.events ?? [];
 
@@ -352,7 +371,7 @@ describe('the odd cases', () => {
     expect(boardNotices(bare, NOW, '24h')).toEqual([]);
     expect(
       boardNotices({ ...device, country: 'NO', postcode: '0150' }, new Date(2026, 11, 20), '24h')
-    ).not.toContainEqual(expect.objectContaining({ kind: 'holiday' }));
+    ).not.toContainEqual(expect.objectContaining({ title: 'Upcoming bank holiday' }));
   });
 
   it('reads a warning into January in December as next year, and says holidays today and tomorrow', () => {
@@ -383,6 +402,170 @@ describe('the odd cases', () => {
   it('says one day for a closure that runs into the small hours of the next', () => {
     const now = new Date(2026, 8, 25, 12, 0);
     expect(sayWhen(new Date(2026, 8, 26, 0, 30), new Date(2026, 8, 27, 4, 0), now, '24h')).toBe('Sat');
+  });
+});
+
+describe('the other notices the e-paper screens show', () => {
+  it('ranks the stations, roads and floods among the lines and the weather, worst first', () => {
+    expect(boardNotices(full, NOW, '24h').map(n => [n.kind, n.severity, n.title])).toEqual([
+      ['weather', 'severe', 'Weather warning'],
+      ['weather', 'severe', 'Severe flood warning'],
+      ['delays', 'minor', 'Northern line: Severe delays'],
+      ['weather', 'minor', 'Weather warning'],
+      ['weather', 'minor', 'Weather warning'],
+      ['weather', 'minor', 'Flood warning'],
+      ['road', 'minor', 'Road disruption'],
+      ['delays', 'info', 'Kennington station'],
+      ['delays', 'info', 'Kennington station'],
+      ['weather', 'info', 'Flood alert'],
+      ['road', 'info', 'Road disruption'],
+      ['closure', 'planned', 'Northern line: Part closed']
+    ]);
+  });
+
+  it("says what's wrong at a station once, without TfL's name for it, and leaves out what's over", () => {
+    const points = full.tfl_stops[0]?.stations?.disruptions ?? [];
+    const notices = stationNotices(points, NOW);
+    expect(notices.map(n => [n.title, n.severity, n.summary])).toEqual([
+      ['Kennington station', 'info', 'The southbound Charing Cross branch platform is closed for cleaning.'],
+      ['Kennington station', 'info', 'No step-free access to the platforms.']
+    ]);
+    expect(notices[0]?.detail).toBe(
+      'KENNINGTON UNDERGROUND STATION: The southbound Charing Cross branch platform is closed for cleaning.'
+    );
+    const short = {
+      text: 'Kennington: No step-free access to the platforms.',
+      title: 'No step-free access',
+      summary: 'Stairs only to the platforms'
+    };
+    expect(stationNotices(points, NOW, [short])[1]?.summary).toBe('Stairs only to the platforms');
+    // Tomorrow the platform's notice listed for today is over, and the one for tomorrow is still there.
+    expect(stationNotices(points, new Date('2026-09-26T09:00:00Z'))).toHaveLength(2);
+  });
+
+  it('says the severe and serious road disruptions near the postcode while they last', () => {
+    const disruptions = (full.tfl_roads?.disruptions ?? []) as never[];
+    expect(roadNotices(disruptions, NOW).map(n => [n.kind, n.severity, n.title, n.summary])).toEqual([
+      [
+        'road',
+        'minor',
+        'Road disruption',
+        'Collisions: [A3] Kennington Park Road – Northbound closed at Kennington Cross after a collision.'
+      ],
+      ['road', 'info', 'Road disruption', 'Works: [A202] Camberwell New Road – Lane restrictions for gas main repairs.']
+    ]);
+    expect(roadNotices(disruptions, new Date('2026-09-25T16:00:00Z')).map(n => n.id)).toEqual(['road:TIMS-2']);
+    const short = {
+      text: '[A202] Camberwell New Road (SE5) (Lambeth) - Lane restrictions for gas main repairs.',
+      title: 'Gas works',
+      summary: 'Lanes shut on Camberwell New Rd'
+    };
+    expect(roadNotices(disruptions, NOW, [short])[1]?.summary).toBe('Lanes shut on Camberwell New Rd');
+    expect(roadNotices(disruptions, NOW)[0]?.detail).toBe(
+      '[A3] Kennington Park Road (SE11) (Lambeth) - Northbound closed at Kennington Cross after a collision.'
+    );
+  });
+
+  it("says each of the EA's warnings in force by its level and where it is", () => {
+    expect(floodNotices(full.floods?.floods.items ?? []).map(n => [n.severity, n.title, n.summary])).toEqual([
+      ['minor', 'Flood warning', 'River Thames at Southwark'],
+      ['severe', 'Severe flood warning', 'Tidal Thames at Bankside and Rotherhithe'],
+      ['info', 'Flood alert', 'Lower River Effra']
+    ]);
+    // An older countdown-server leaves the floods out.
+    const older = { ...full, floods: undefined } as unknown as DeviceNotices;
+    expect(boardNotices(older, NOW, '24h').filter(n => n.id.startsWith('flood:'))).toEqual([]);
+  });
+
+  it("says MET Norway's warnings for the place by their colour and hazard, with their hours, until they end", () => {
+    const during = new Date('2026-10-16T08:00:00Z');
+    const notices = boardNotices(oslo, during, '24h');
+    expect(notices.map(n => [n.kind, n.severity, n.title])).toEqual([
+      ['weather', 'severe', 'Weather warning'],
+      ['weather', 'minor', 'Weather warning']
+    ]);
+    expect(notices[0]?.summary).toMatch(/^Orange warning: wind until \d\d:00$/);
+    // Its colour from its awareness_level, as it has no riskMatrixColor.
+    expect(notices[1]?.summary).toMatch(/^Yellow warning: rain until \w{3} \d\d:00$/);
+    expect(notices[0]?.detail).toMatch(/^Wind, orange level, Oslo and Akershus/);
+    const before = metAlertsNotices(oslo.metalerts?.en, new Date('2026-10-15T07:00:00Z'), '24h');
+    expect(before.map(n => n.summary)).toEqual([
+      expect.stringMatching(/^Orange warning: wind \w{3} \d\d:00–\d\d:00$/),
+      expect.stringMatching(/^Yellow warning: rain /),
+      expect.stringMatching(/^Yellow warning: icing until \d\d:00$/)
+    ]);
+    expect(metAlertsNotices(oslo.metalerts?.en, new Date('2026-10-18T08:00:00Z'), '24h')).toEqual([]);
+    expect(metAlertsNotices(null, during, '24h')).toEqual([]);
+  });
+
+  it("mentions Norway's next public holiday on a Norwegian board, once it is less than a month away", () => {
+    expect(boardNotices(oslo, new Date(2026, 11, 20), '24h')).toMatchObject([
+      {
+        kind: 'holiday',
+        severity: 'info',
+        title: 'Upcoming public holiday',
+        summary: 'Fri 25 Dec – Christmas Day'
+      }
+    ]);
+    expect(norwegianHolidayNotices(new Date(2027, 2, 24))[0]?.summary).toBe('Tomorrow – Maundy Thursday');
+    expect(norwegianHolidayNotices(new Date(2026, 4, 16))[0]?.summary).toBe('Tomorrow – Constitution Day');
+    expect(norwegianHolidayNotices(new Date(2026, 11, 26))[0]?.summary).toBe('Today – Boxing Day');
+    expect(norwegianHolidayNotices(new Date(2026, 10, 17))).toEqual([]);
+    // Not on a British board, which has its bank holidays.
+    expect(boardNotices(device, new Date(2026, 11, 20), '24h').map(n => n.title)).not.toContain(
+      'Upcoming public holiday'
+    );
+  });
+
+  it("works out Norway's public holidays from Easter", () => {
+    const days = (year: number) =>
+      norwegianHolidays(year).map(
+        ({ day, holiday }) => `${String(day.getMonth() + 1)}/${String(day.getDate())} ${holiday}`
+      );
+    expect(days(2026)).toEqual([
+      '1/1 new_year',
+      '4/2 maundy_thursday',
+      '4/3 good_friday',
+      '4/5 easter_sunday',
+      '4/6 easter_monday',
+      '5/1 labour_day',
+      '5/14 ascension_day',
+      '5/17 constitution_day',
+      '5/24 whit_sunday',
+      '5/25 whit_monday',
+      '12/25 christmas_day',
+      '12/26 boxing_day'
+    ]);
+    expect(days(2027).slice(1, 5)).toEqual([
+      '3/25 maundy_thursday',
+      '3/26 good_friday',
+      '3/28 easter_sunday',
+      '3/29 easter_monday'
+    ]);
+  });
+
+  it('says the clocks are changing in the week before, and the time they change at on the clock before', () => {
+    const said = (now: string, zone: string, format: '24h' | '12h' = '24h') =>
+      clockChangeNotices(new Date(now), format, zone).map(n => [n.kind, n.severity, n.title, n.summary]);
+    expect(said('2026-03-25T12:00:00Z', 'Europe/London')).toEqual([
+      ['holiday', 'info', 'Clock change', 'Clocks go forward an hour on Sun 29 Mar, at 01:00']
+    ]);
+    expect(said('2026-03-28T12:00:00Z', 'Europe/London')[0]?.[3]).toBe('Clocks go forward an hour tonight, at 01:00');
+    expect(said('2026-03-25T12:00:00Z', 'Europe/London', '12h')[0]?.[3]).toBe(
+      'Clocks go forward an hour on Sun 29 Mar, at 1:00 AM'
+    );
+    expect(said('2026-10-20T12:00:00Z', 'Europe/London')[0]?.[3]).toBe(
+      'Clocks go back an hour on Sun 25 Oct, at 02:00'
+    );
+    expect(said('2026-10-24T22:00:00Z', 'Europe/Oslo')[0]?.[3]).toBe('Clocks go back an hour tonight, at 03:00');
+    expect(said('2027-03-24T09:00:00Z', 'Europe/Oslo')[0]?.[3]).toBe(
+      'Clocks go forward an hour on Sun 28 Mar, at 02:00'
+    );
+    expect(said('2026-03-20T12:00:00Z', 'Europe/London')).toEqual([]);
+    expect(said('2026-03-25T12:00:00Z', 'UTC')).toEqual([]);
+    expect(nextClockChange(new Date('2026-03-25T12:00:00Z'), 'Europe/London')).toEqual(
+      new Date('2026-03-29T01:00:00Z')
+    );
   });
 });
 

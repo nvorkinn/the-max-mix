@@ -128,6 +128,8 @@ describe('toNoticeItem', () => {
     expect(item({ severity: 'planned' })).toEqual(['planned-works', 'planned']);
     expect(item({ kind: 'weather', severity: 'minor' })).toEqual(['weather-warning', 'severe']);
     expect(item({ kind: 'holiday', severity: 'info' })).toEqual(['bank-holiday', 'info']);
+    expect(item({ kind: 'road', severity: 'minor' })).toEqual(['road-works', 'disruption']);
+    expect(item({ kind: 'road', severity: 'info' })).toEqual(['road-works', 'info']);
   });
 
   it('has no detail (so no chevron) when the full text says nothing more', () => {

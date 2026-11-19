@@ -100,6 +100,9 @@ export function mergeNotices(
     tfl_roads: uk ? keep(next.tfl_roads, previous.tfl_roads) : next.tfl_roads,
     met_office: uk ? keep(next.met_office, previous.met_office) : next.met_office,
     bank_holidays: uk ? keep(next.bank_holidays, previous.bank_holidays) : next.bank_holidays,
+    // An older countdown-server leaves these two out.
+    floods: uk ? keep(next.floods ?? null, previous.floods) : (next.floods ?? null),
+    metalerts: next.country === 'NO' ? keep(next.metalerts ?? null, previous.metalerts) : (next.metalerts ?? null),
     // An older countdown-server leaves it out.
     tfl_network: keep(next.tfl_network ?? null, previous.tfl_network),
     entur_stops: enturStops
