@@ -119,6 +119,8 @@ check node -e "await import('/opt/the-max-mix/kiosk-audio/speakers.ts')"
 check grep -q 'raop.latency.ms = 500' /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf
 check grep -q 'kiosk-audio.ts watch$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'try-restart kiosk-audio.service' /etc/systemd/system/kiosk.service
+check grep -q 'screen-mode.ts --correct' /etc/systemd/system/kiosk.service
+check test -f /opt/the-max-mix/kiosk-audio/screen-mode.ts
 check grep -q 'KIOSK_APP_ORIGIN=https://the-max-mix.countdown.build' /etc/systemd/user/kiosk-audio.service
 check grep -q '"LocalNetworkAccessAllowedForUrls"' /etc/chromium/policies/managed/kiosk.json
 # The back button is left off the app's own pages.

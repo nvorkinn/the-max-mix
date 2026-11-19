@@ -52,6 +52,8 @@ kiosk_wifi_country: GB
 # reads the screen's own mode from its EDID (pi/kiosk-audio/screen-mode.ts), such as 1280x800@60 for a 10.1 inch
 # screen; when no screen sends one, the mode already set stays, or kiosk_video_mode_fallback on a first run. Set it
 # (for example 1280x800@60 in /etc/the-max-mix/kiosk-vars.yml) only for a screen whose EDID is missing or wrong.
+# Cage chooses the screen's preferred mode whatever this says, so it only sets the console's. A screen whose own mode
+# the Pi 4 cannot send is corrected when the kiosk starts (screen-mode.ts --correct, in kiosk.service).
 kiosk_video_mode: ''
 # The 1024x600 HDMI screen (Waveshare 7 inch).
 kiosk_video_mode_fallback: 1024x600@60

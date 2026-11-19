@@ -4,7 +4,12 @@
 // Prints nothing when no screen has one (none plugged in, or a screen that sends no EDID), and the role keeps the mode
 // that is already set, or 1024x600 on a first run.
 //   node screen-mode.ts [drm folder]
-import { readdir, readFile } from 'node:fs/promises';
+//
+// With --correct it instead gives the kernel a corrected EDID for a screen whose own mode the Pi cannot send (see
+// evenTimings), and has the kernel read the screen again. kiosk.service runs that as root before Cage on every start,
+// so it always goes by the screen that is plugged in. The correction lasts until the Pi restarts.
+//   node screen-mode.ts --correct [drm folder] [debugfs dri folder]
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -35,17 +40,77 @@ export function preferredMode(edid: Uint8Array): string | undefined {
   return `${width}x${height}@${refresh}`;
 }
 
-/** The mode of the first HDMI screen in `drm` (HDMI-A-1 before HDMI-A-2) with a valid EDID. */
-export async function screenMode(drm: string): Promise<string | undefined> {
-  let names: string[];
-  try {
-    names = await readdir(drm);
-  } catch {
+/**
+ * A copy of `edid` whose preferred timing has even horizontal values, or undefined when they are even already (or the
+ * EDID is not valid, or its width is odd). The Pi 4's HDMI output cannot send a mode whose width, sync start, sync end
+ * or line length is odd: the kernel drops such a mode (H_ILLEGAL), and the screen is left with the other modes it lists,
+ * such as 1920x1080 on a 1280x800 panel whose sync pulse is 45 pixels wide. The pulse and the blanking around it move by
+ * one pixel at most.
+ */
+export function evenTimings(edid: Uint8Array): Uint8Array | undefined {
+  if (preferredMode(edid) === undefined) return undefined;
+  const at = (offset: number): number => edid[TIMING + offset] ?? 0;
+  const width = at(2) | ((at(4) >> 4) << 8);
+  const blank = at(3) | ((at(4) & 0x0f) << 8);
+  const front = at(8) | ((at(11) >> 6) << 8);
+  const pulse = at(9) | (((at(11) >> 4) & 0x03) << 8);
+  const evenBlank = blank + (blank % 2);
+  const evenFront = front + (front % 2);
+  const evenPulse = pulse - (pulse % 2);
+  const isEven = blank === evenBlank && front === evenFront && pulse === evenPulse;
+  if (isEven || evenPulse === 0 || width % 2 !== 0 || evenFront + evenPulse > evenBlank || evenBlank >= 4096) {
     return undefined;
   }
-  const ports = names.filter(name => /^card\d+-HDMI-A-\d+$/.test(name)).toSorted((a, b) => portOf(a) - portOf(b));
+  const corrected = Uint8Array.from(edid);
+  corrected.set([evenBlank & 0xff, (at(4) & 0xf0) | (evenBlank >> 8)], TIMING + 3);
+  corrected.set([evenFront & 0xff, evenPulse & 0xff], TIMING + 8);
+  corrected[TIMING + 11] = (at(11) & 0x0f) | ((evenFront >> 8) << 6) | ((evenPulse >> 8) << 4);
+  const sum = corrected.subarray(0, 127).reduce((total, byte) => total + byte, 0);
+  corrected[127] = (256 - (sum % 256)) % 256;
+  return corrected;
+}
+
+/** The HDMI ports in `drm`, such as card1-HDMI-A-1, HDMI-A-1 before HDMI-A-2. */
+async function hdmiPorts(drm: string): Promise<string[]> {
+  try {
+    const names = await readdir(drm);
+    return names.filter(name => /^card\d+-HDMI-A-\d+$/.test(name)).toSorted((a, b) => portOf(a) - portOf(b));
+  } catch {
+    return [];
+  }
+}
+
+/** The mode of the first HDMI screen in `drm` (HDMI-A-1 before HDMI-A-2) with a valid EDID. */
+export async function screenMode(drm: string): Promise<string | undefined> {
+  const ports = await hdmiPorts(drm);
   const modes = await Promise.all(ports.map(port => modeOf(path.join(drm, port, 'edid'))));
   return modes.find(mode => mode !== undefined);
+}
+
+/**
+ * Gives the kernel a corrected EDID (evenTimings) for each HDMI screen in `drm` that needs one, through the connector's
+ * edid_override file in `debug` (debugfs's dri folder), then has the kernel read the screen again so that its own mode
+ * is back among the modes Cage chooses from. Returns the connectors corrected, such as HDMI-A-2.
+ */
+export async function correctScreens(drm: string, debug: string): Promise<string[]> {
+  const ports = await hdmiPorts(drm);
+  const corrected = await Promise.all(
+    ports.map(async port => {
+      const [, card = '', connector = ''] = /^card(\d+)-(.+)$/.exec(port) ?? [];
+      let edid: Uint8Array;
+      try {
+        edid = await readFile(path.join(drm, port, 'edid'));
+      } catch {
+        return;
+      }
+      const even = evenTimings(edid);
+      if (!even) return;
+      await writeFile(path.join(debug, card, connector, 'edid_override'), even);
+      await writeFile(path.join(drm, port, 'status'), 'detect');
+      return connector;
+    })
+  );
+  return corrected.filter(connector => connector !== undefined);
 }
 
 async function modeOf(file: string): Promise<string | undefined> {
@@ -61,6 +126,12 @@ function portOf(name: string): number {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const mode = await screenMode(process.argv[2] ?? '/sys/class/drm');
-  if (mode) console.log(mode);
+  if (process.argv[2] === '--correct') {
+    const drm = process.argv[3] ?? '/sys/class/drm';
+    const corrected = await correctScreens(drm, process.argv[4] ?? '/sys/kernel/debug/dri');
+    for (const connector of corrected) console.log(`${connector}: gave its mode even horizontal timings`);
+  } else {
+    const mode = await screenMode(process.argv[2] ?? '/sys/class/drm');
+    if (mode) console.log(mode);
+  }
 }
