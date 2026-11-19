@@ -10,7 +10,19 @@ permissions:
   contents: read
 
 jobs:
+  # A push that only changes e2e screenshot baselines reruns just the e2e tests, once the unit tests passed on the
+  # previous commit (see baseline-only.yml).
+  baseline-only:
+    uses: ./.github/workflows/baseline-only.yml
+    permissions:
+      actions: read
+      contents: read
+    with:
+      ignore: '^(e2e /|screenshots$)'
+
   tests:
+    needs: baseline-only
+    if: ${{ !cancelled() && needs.baseline-only.outputs.skip != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

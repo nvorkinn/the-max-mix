@@ -10,9 +10,19 @@ permissions:
   contents: read
 
 jobs:
+  # A push that only changes e2e screenshot baselines skips Lint, once it passed on the previous commit (see
+  # baseline-only.yml).
+  baseline-only:
+    uses: ./.github/workflows/baseline-only.yml
+    permissions:
+      actions: read
+      contents: read
+
   # Picks the checks this change needs from the files it touches (scripts/lint-plan.ts has the list); a push to main
-  # runs them all. The other jobs skip themselves when they are not in the plan.
+  # runs them all. The other jobs skip themselves when they are not in the plan, or when this job is skipped.
   plan:
+    needs: baseline-only
+    if: ${{ !cancelled() && needs.baseline-only.outputs.skip != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
