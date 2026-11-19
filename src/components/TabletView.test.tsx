@@ -791,6 +791,14 @@ describe('TabletView', () => {
     expect(screen.getByRole('button', { name: 'Search for music' })).toBeInTheDocument();
   });
 
+  it('opens the music picker from the empty queue', async () => {
+    api.getQueue.mockResolvedValue({ queue: [] });
+    renderOnSpotifyTab(<TabletView />);
+    await flush();
+    fireEvent.click(screen.getByRole('button', { name: 'Search for music' }));
+    expect(screen.getByRole('dialog', { name: 'Choose music' })).toBeInTheDocument();
+  });
+
   it('labels cached queue contents when a later refresh fails', async () => {
     vi.useFakeTimers();
     setPlayer({ playbackState: playing });

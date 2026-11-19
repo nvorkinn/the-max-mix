@@ -210,9 +210,6 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     // The song has no lyrics, so the queue stays in view, now known to be empty.
     await expect(queue.getByRole('button', { name: 'Search for music' })).toBeVisible();
     await expect(queue.getByText('Queue unavailable.')).toHaveCount(0);
-    // The empty queue's big search button opens the same search as the header's.
-    await queue.getByRole('button', { name: 'Search for music' }).click();
-    await expect(page.getByRole('dialog', { name: 'Choose music' })).toBeVisible();
   });
 
   for (const source of ['skip', 'queue', 'devices']) {
