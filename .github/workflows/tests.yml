@@ -57,6 +57,8 @@ jobs:
   # EXPERIMENT: one e2e job runs the tests and publishes the report and screenshot comment itself.
   e2e:
     uses: ./.github/workflows/e2e.yml
+    with:
+      workers: '6'
     permissions:
       contents: write
       pull-requests: write
