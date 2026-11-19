@@ -34,7 +34,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
-      # Same node_modules cache as the e2e job: unpacking it is quicker than `npm ci` writing its 800 packages one by one.
+      # Same node_modules cache as Lint: unpacking it is quicker than `npm ci` writing its 800 packages one by one.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: modules
         with:
@@ -54,7 +54,7 @@ jobs:
           path: coverage
           if-no-files-found: ignore
 
-  # Browser tests of the built app, split over two machines and run in parallel with `tests` (see e2e.yml, which can
+  # Browser tests of the built app, split over three machines and run in parallel with `tests` (see e2e.yml, which can
   # also be dispatched on its own for a report with a trace of every test).
   e2e:
     uses: ./.github/workflows/e2e.yml
