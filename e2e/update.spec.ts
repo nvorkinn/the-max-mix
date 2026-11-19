@@ -83,9 +83,6 @@ test.describe('Software update', { tag: '@update' }, () => {
     await page.getByRole('tab', { name: 'Settings' }).click();
     await expect(popup(page)).toBeVisible();
     await expect(settings).toBeVisible();
-    await expect(
-      settings.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^About/ })
-    ).toContainText('v1.13.0 is out');
 
     // Whatever is at the popup's middle must be the popup (or part of it), not Settings behind it.
     // (While the tab fades the browser answers with the page itself, so this waits for the fade to end.)

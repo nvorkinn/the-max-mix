@@ -156,7 +156,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
       const nav = settings.getByRole('navigation', { name: 'Settings' });
       expect(await nav.evaluate(element => element.scrollHeight <= element.clientHeight)).toBe(true);
       const sections = await nav.getByRole('button').allTextContents();
-      expect(sections).toHaveLength(7);
+      expect(sections).toHaveLength(6);
       for (const section of sections) {
         // eslint-disable-next-line no-await-in-loop -- one page after another
         await showSection(settings, section);
@@ -178,7 +178,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
         element.style.setProperty('padding-bottom', '2000px');
         element.scrollTo({ top: 1000 });
       });
-      await expect(nav.getByRole('button', { name: 'Overview' })).toBeInViewport({ ratio: 1 });
+      await expect(nav.getByRole('button').first()).toBeInViewport({ ratio: 1 });
       await expect(page.getByRole('tab', { name: 'Settings' })).toBeInViewport({ ratio: 1 });
     });
   }

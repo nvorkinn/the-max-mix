@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Check, Info, LayoutGrid, MicVocal, Package, Palette, SlidersHorizontal, TrainFront, Wifi } from 'lucide-react';
+import { Check, Info, MicVocal, Package, Palette, SlidersHorizontal, TrainFront, Wifi } from 'lucide-react';
 import type { TouchscreenConfig } from 'countdown-api';
 import { isKiosk } from '../utils/kiosk';
 import { reloadSettings } from '../spotify/settings';
@@ -14,7 +14,6 @@ import AboutSettings from './settings/AboutSettings';
 import AppearanceSettings from './settings/AppearanceSettings';
 import CountdownSettings from './settings/CountdownSettings';
 import GeneralSettings from './settings/GeneralSettings';
-import SettingsOverview from './settings/SettingsOverview';
 import LyricsSettings from './settings/LyricsSettings';
 import ParcelsSettings from './settings/ParcelsSettings';
 import SpotifySettings from './settings/SpotifySettings';
@@ -26,7 +25,6 @@ import { useWifi } from './settings/wifi';
 export type { SettingsSection } from './settings/sections';
 
 const SECTION_ICONS: Record<SettingsSection, ReactNode> = {
-  overview: <LayoutGrid className="w-6 h-6 shrink-0" aria-hidden="true" />,
   general: <SlidersHorizontal className="w-6 h-6 shrink-0" aria-hidden="true" />,
   countdown: <TrainFront className="w-6 h-6 shrink-0" aria-hidden="true" />,
   parcels: <Package className="w-6 h-6 shrink-0" aria-hidden="true" />,
@@ -38,9 +36,8 @@ const SECTION_ICONS: Record<SettingsSection, ReactNode> = {
 };
 
 interface SettingsPanelProps {
-  /** The page the settings start on: Overview, unless they were brought up to fix the Spotify sign-in. */
-  initialSection?: SettingsSection;
-  authInfo?: { authenticated?: boolean };
+  /** The page the settings start on: the first one, unless they were brought up to fix the Spotify sign-in. */
+  initialSection?: SettingsSection | undefined;
   signInError?: string | null;
   onReload?: () => void;
   /** The kiosk's screen sleep delay, shown on the kiosk only. */
@@ -87,8 +84,7 @@ function SaveNote({ status }: Readonly<{ status: SaveStatus }>) {
 
 /** The Settings tab: the sections on the left and the chosen one's page on the right. */
 export default function SettingsPanel({
-  initialSection = 'overview',
-  authInfo,
+  initialSection,
   signInError = null,
   onReload = reloadSettings,
   screenSleep,
@@ -107,10 +103,9 @@ export default function SettingsPanel({
   onOpenDebug
 }: Readonly<SettingsPanelProps>) {
   const [kiosk] = useState(isKiosk);
-  const [section, setSection] = useState<SettingsSection>(initialSection);
+  const [section, setSection] = useState<SettingsSection | undefined>(initialSection);
   const wifi = useWifi(kiosk);
   const update = kiosk ? kioskUpdate : undefined;
-  const authenticated = authInfo?.authenticated ?? false;
   // Screen sleep is the kiosk's only: a browser has no screen of its own to put to sleep.
   const hasSleep = kiosk && screenSleep !== undefined && onScreenSleepChange !== undefined;
   const owned = deviceConfig !== undefined && onDeviceConfigSave !== undefined;
@@ -121,7 +116,8 @@ export default function SettingsPanel({
       (choice.id !== 'countdown' || owned) &&
       (choice.id !== 'parcels' || owned)
   );
-  const current = sections.find(choice => choice.id === section) ?? SETTINGS_SECTIONS[0];
+  // Appearance, Spotify, Lyrics and About always show, so there is always a first page.
+  const current = sections.find(choice => choice.id === section) ?? sections[0] ?? SETTINGS_SECTIONS[0];
 
   // Showing the settings (they mount each time the tab comes up) asks GitHub again whether a newer version is out, so the
   // answer is never the one from hours ago.
@@ -184,7 +180,7 @@ export default function SettingsPanel({
       page = <LyricsSettings onChange={owned ? lyrics => onDeviceConfigSave('lyrics', lyrics) : undefined} />;
       break;
     }
-    case 'about': {
+    default: {
       page = (
         <AboutSettings
           kioskUpdate={update}
@@ -195,21 +191,6 @@ export default function SettingsPanel({
         />
       );
       break;
-    }
-    default: {
-      page = (
-        <SettingsOverview
-          onOpen={setSection}
-          kiosk={kiosk}
-          deviceConfig={owned ? deviceConfig : undefined}
-          themeColour={themeColour}
-          dynamicColour={dynamicColour}
-          screenSleep={hasSleep ? screenSleep : undefined}
-          wifi={wifi}
-          authenticated={authenticated}
-          kioskUpdate={update}
-        />
-      );
     }
   }
 
