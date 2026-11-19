@@ -1,5 +1,4 @@
 import { expect, test, type Page } from '@playwright/test';
-import { runningFades } from './crossfade.ts';
 import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSpotifyTab, showSpotifyTab } from './spotify-tab.ts';
 
@@ -154,7 +153,6 @@ test.describe('Switching person', { tag: '@player' }, () => {
       await page.getByRole('tab', { name: tab }).click();
       const panel = page.getByRole('tabpanel', { name: tab });
       await expect(panel).toBeVisible();
-      await expect.poll(() => runningFades(page)).toEqual([]);
       await panel.getByRole('button', { name: 'max: switch person' }).click();
       const sheet = page.getByRole('dialog', { name: 'Switch person' });
       const ownFace = sheet.getByRole('button', { name: 'max', exact: true });

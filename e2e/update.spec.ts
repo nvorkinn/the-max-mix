@@ -85,7 +85,6 @@ test.describe('Software update', { tag: '@update' }, () => {
     await expect(settings).toBeVisible();
 
     // Whatever is at the popup's middle must be the popup (or part of it), not Settings behind it.
-    // (While the tab fades the browser answers with the page itself, so this waits for the fade to end.)
     await expect
       .poll(() =>
         popup(page).evaluate(element => {

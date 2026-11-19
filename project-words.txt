@@ -24,7 +24,6 @@ cmdline
 cntrl
 color
 connecttest
-crossfade
 cretpass
 dbus
 dejavu

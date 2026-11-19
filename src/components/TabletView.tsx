@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
-import { crossfade } from '../utils/crossfade';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { useSonosPlayer } from '../hooks/useSonosPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
@@ -66,7 +65,7 @@ import PairPhoneSheet from './PairPhoneSheet';
 import { tabPanelId } from './AppTabs';
 import DashboardScreen from './DashboardScreen';
 import TabBackdrop from './TabBackdrop';
-import TabBar, { TAB_PAN } from './dashboard/TabBar';
+import TabBar from './dashboard/TabBar';
 
 /** The minute it is now; the tab bar's clock changes only when this does. */
 const currentMinute = () => Math.floor(Date.now() / 60_000);
@@ -147,15 +146,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [isMusicOpen, setIsMusicOpen] = useState(false);
   // Every start (kiosk start, reload, coming back from a sign-in) opens on the Dashboard, except after a failed sign-in,
   // whose message the Spotify tab shows.
-  // With the tab shown before it: the photo pans from that tab's side to this one's as the screens fade (TAB_PAN).
-  const [screens, setScreens] = useState<{ screen: TabId; previous: TabId }>(() => {
-    const first = signInError ? 'spotify' : 'dashboard';
-    return { screen: first, previous: first };
-  });
-  const { screen, previous: previousScreen } = screens;
-  const setScreen = (next: TabId) => setScreens(current => ({ screen: next, previous: current.screen }));
-  // Every change of tab fades across the whole screen, whether tapped, idle or from a prompt.
-  const goToScreen = (next: TabId) => crossfade(() => setScreen(next));
+  const [screen, setScreen] = useState<TabId>(signInError ? 'spotify' : 'dashboard');
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const [queueError, setQueueError] = useState<string | null>(null);
   // AirPlay, Bluetooth and Sonos need the Pi's audio service, so they are offered on the kiosk only.
@@ -191,7 +182,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   // Music picked while a Sonos plays goes to the Sonos (a song, album or playlist; Liked Songs cannot).
   const playMusic = (choice: MusicChoice) => {
-    goToScreen('spotify');
+    setScreen('spotify');
     return sonos.active ? sonos.play(choice.uri) : playMusicOnSpotify(choice);
   };
 
@@ -210,7 +201,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // Left alone with nothing playing, the kiosk shows the Dashboard, which dims after a while and then sleeps the chosen
   // minutes later (see useScreenSleep). The screen stays on and bright while music plays. In quiet hours it sleeps a
   // minute after the last touch, on any tab.
-  useIdle({ enabled: onKiosk, busy: isPlaying, idleMs: IDLE_DASHBOARD_MS, onIdle: () => goToScreen('dashboard') });
+  useIdle({ enabled: onKiosk, busy: isPlaying, idleMs: IDLE_DASHBOARD_MS, onIdle: () => setScreen('dashboard') });
   // Once someone owns the kiosk, countdown-server's config is its colour, screen sleep and lyrics: the settings save there,
   // and whatever the config says (a change here, one undone, or the server's latest) shows, and is kept locally for
   // starts without the server. Before that the kiosk keeps its own.
@@ -401,17 +392,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   }, [artUrl]);
 
   const showScreen = (next: TabId) => {
-    crossfade(() => {
-      if (next === 'settings' && screen !== 'settings') setSettingsSection(undefined);
-      setScreen(next);
-    });
+    if (next === 'settings' && screen !== 'settings') setSettingsSection(undefined);
+    setScreen(next);
   };
   const activePerson = peopleOnKiosk().find(person => person.active);
   const showSettings = () => {
-    crossfade(() => {
-      setSettingsSection('spotify');
-      setScreen('settings');
-    });
+    setSettingsSection('spotify');
+    setScreen('settings');
   };
   // Switching person: the music this tablet plays (itself, or its Sonos) belongs to the person leaving, so it pauses;
   // then the page starts again as the new person. A pause that fails or hangs does not hold the switch up.
@@ -542,7 +529,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   });
 
   // The Dashboard's tab bar, which floats on the Spotify and Settings tabs too. Search is the Spotify tab's alone: the
-  // Dashboard and Settings bars drop it, and a tab change slides it out of or into the top of the screen (index.css).
+  // Dashboard and Settings bars drop it.
   const tabBar: TabBarProps = {
     active: screen,
     onSelect: showScreen,
@@ -561,13 +548,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       className="tablet-container"
       data-colour={themeColour}
       data-dynamic={dynamicVars ? '' : undefined}
-      style={
-        {
-          ...dynamicVars,
-          '--pan': TAB_PAN[screen],
-          '--pan-from': TAB_PAN[previousScreen]
-        } as CSSProperties
-      }
+      style={dynamicVars as CSSProperties | undefined}
     >
       {isOffline && <OfflineBanner />}
       <div
