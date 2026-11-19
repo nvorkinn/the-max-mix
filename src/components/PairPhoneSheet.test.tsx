@@ -52,7 +52,7 @@ describe('PairPhoneSheet', () => {
     expect(monitor.pickPhone).toHaveBeenCalledWith(PHONE.address);
     expect(screen.getByText(PHONE.name)).toBeInTheDocument();
     await flush();
-    expect(screen.getByRole('group', { name: '287389' }).textContent).toBe('287389');
+    expect(screen.getByRole('group', { name: '287389' })).toHaveTextContent('287389');
     expect(screen.queryByRole('status', { name: 'Searching' })).not.toBeInTheDocument();
     expect(onDone).not.toHaveBeenCalled();
 

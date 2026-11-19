@@ -145,14 +145,12 @@ describe('kiosk-audio/phone-discovery', () => {
     const discovery = await discoverPhones(() => null, await client());
     let hasPaired = false;
     const confirmed: boolean[] = [];
-    await discovery
-      .pair(PHONE, () => {
-        confirmed.push(hasPaired);
-      })
-      .then(() => {
-        hasPaired = true;
-      });
-    expect(confirmed).toEqual([false]);
+    await discovery.pair(PHONE, () => {
+      confirmed.push(hasPaired);
+    });
+    hasPaired = true;
+    confirmed.push(hasPaired);
+    expect(confirmed).toEqual([false, true]);
     await discovery.stop();
   });
 
