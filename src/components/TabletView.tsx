@@ -587,7 +587,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 <SpotifySetup
                   offline={isOffline}
                   signInError={signInError || (problem?.recovery === 'sign-in' ? problem.message : null)}
-                  onSettings={showSettings}
                   onDetails={() => setIsDebugOpen(true)}
                 />
               ) : (

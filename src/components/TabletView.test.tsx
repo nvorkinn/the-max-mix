@@ -370,9 +370,10 @@ describe('TabletView', () => {
       localStorage.setItem('maxmix.kiosk', 'true');
       const { unmount } = renderOnSpotifyTab(<TabletView />);
       await flush();
-      expect(screen.getByRole('heading', { name: 'Pair anna’s iPhone' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Pair anna’s phone' })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'OK' }));
       fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
-      expect(screen.queryByRole('heading', { name: 'Pair anna’s iPhone' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Pair anna’s phone' })).not.toBeInTheDocument();
       unmount();
       localStorage.removeItem('maxmix.kiosk');
       people.takePhoneToPair.mockClear();
@@ -465,8 +466,7 @@ describe('TabletView', () => {
     expect(within(panel).getByRole('heading', { name: 'Bring your music to the tablet' })).toBeInTheDocument();
     expect(api.getQueue).not.toHaveBeenCalled();
     expect(screen.queryByRole('slider', { name: 'Playback position' })).not.toBeInTheDocument();
-    fireEvent.click(within(panel).getByRole('button', { name: 'Connection settings' }));
-    expect(screen.getByRole('tabpanel', { name: 'Settings' })).toBeInTheDocument();
+    expect(within(panel).queryByRole('button', { name: 'Connection settings' })).not.toBeInTheDocument();
   });
 
   it('changes and remembers the colour picked in the settings', async () => {
@@ -475,9 +475,7 @@ describe('TabletView', () => {
     await flush();
     const room = defined(container.querySelector('.tablet-container'));
     expect(room).toHaveAttribute('data-colour', 'forest');
-    fireEvent.click(screen.getByRole('button', { name: 'Connection settings' }));
-    // The sign-in prompt opens the Spotify page.
-    expect(screen.getByRole('region', { name: 'Spotify' })).toBeInTheDocument();
+    showSettingsTab();
     fireEvent.click(
       within(screen.getByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Appearance' })
     );

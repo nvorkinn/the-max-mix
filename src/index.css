@@ -1488,6 +1488,26 @@
   font-size: 22px;
   font-weight: 650;
 }
+.pair-phone-steps {
+  display: grid;
+  gap: 6px;
+  margin: 22px 0 16px;
+  padding-left: 1.4em;
+  font-size: 22px;
+  font-weight: 650;
+  list-style: decimal;
+}
+.pair-phone-message {
+  justify-content: center;
+}
+.pair-phone-hint {
+  color: var(--muted);
+  font-size: 18px;
+}
+.pair-phone-confirm {
+  color: var(--muted);
+  font-size: 18px;
+}
 .pair-phone-nearby {
   flex: 1;
   align-content: start;
