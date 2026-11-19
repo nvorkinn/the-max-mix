@@ -4,7 +4,7 @@ import userEvent from '../test/user';
 import PersonSwitcher from './PersonSwitcher';
 
 const auth = vi.hoisted(() => ({ peopleOnKiosk: vi.fn(), PEOPLE_LIMIT: 5 }));
-const monitor = vi.hoisted(() => ({ readBluetoothReport: vi.fn() }));
+const monitor = vi.hoisted(() => ({ readBluetoothReport: vi.fn(), watchPresence: vi.fn() }));
 vi.mock('../spotify/auth', () => auth);
 vi.mock('../utils/bluetoothMonitor', () => monitor);
 const proof = vi.hoisted(() => ({ findRandomTrack: vi.fn(), playingTrackIdOf: vi.fn(), pauseFor: vi.fn() }));
@@ -21,6 +21,7 @@ const person = (spotifyId: string, phoneAddress: string, active = false) => ({
 
 describe('PersonSwitcher', () => {
   beforeEach(() => {
+    monitor.watchPresence.mockResolvedValue(undefined);
     auth.peopleOnKiosk.mockReturnValue([
       person('nikolai', 'AA:01', true),
       person('anna', 'aa:02'),
@@ -143,6 +144,43 @@ describe('PersonSwitcher', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Nikolai' }));
     expect(onSwitch).toHaveBeenCalledWith('nikolai');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('has the Pi listen only while the faces show', async () => {
+    const { unmount } = render(
+      <PersonSwitcher className="dashboard-avatar" onSwitch={vi.fn()}>
+        N
+      </PersonSwitcher>
+    );
+    expect(monitor.watchPresence).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Nikolai: switch person' }));
+    await waitFor(() => expect(monitor.watchPresence).toHaveBeenCalledWith(true));
+    unmount();
+    expect(monitor.watchPresence).toHaveBeenLastCalledWith(false);
+  });
+
+  it('greys nobody out while the Pi is still checking, and a tap waits for the answer', async () => {
+    monitor.readBluetoothReport.mockResolvedValue({
+      phones: [{ address: 'AA:03', name: 'O', isHere: false }],
+      presenceChecking: true
+    });
+    const onSwitch = vi.fn();
+    render(
+      <PersonSwitcher className="dashboard-avatar" onSwitch={onSwitch}>
+        N
+      </PersonSwitcher>
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Nikolai: switch person' }));
+    await waitFor(() => expect(monitor.readBluetoothReport).toHaveBeenCalled());
+    expect(screen.getByRole('button', { name: 'Olav' })).not.toHaveAttribute('data-away');
+    await userEvent.click(screen.getByRole('button', { name: 'Olav' }));
+    expect(screen.getByRole('button', { name: 'Olav' })).toHaveAttribute('aria-busy', 'true');
+    monitor.readBluetoothReport.mockResolvedValue({
+      phones: [{ address: 'AA:03', name: 'O', isHere: true }],
+      presenceChecking: true
+    });
+    await waitFor(() => expect(onSwitch).toHaveBeenCalledWith('olav'), { timeout: 3000 });
+    expect(proof.findRandomTrack).not.toHaveBeenCalled();
   });
 
   it('shows nothing when nobody is active', () => {

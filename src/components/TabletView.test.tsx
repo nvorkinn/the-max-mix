@@ -68,7 +68,8 @@ vi.mock('../spotify/settings', async importOriginal => ({
 }));
 vi.mock('../utils/bluetoothMonitor', () => ({
   readBluetoothReport: people.readBluetoothReport,
-  pairPhone: () => Promise.resolve()
+  pairPhone: () => Promise.resolve(),
+  watchPresence: () => Promise.resolve()
 }));
 vi.mock('../spotify/auth', () => ({
   startSignIn: vi.fn(),

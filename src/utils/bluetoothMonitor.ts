@@ -51,6 +51,8 @@ export interface BluetoothReport {
   adapter: BluetoothAdapter | null;
   pairing: PairingStatus;
   phones: PhonePresence[];
+  /** Whether the Pi began listening for the phones so lately that one not heard yet may still be heard. */
+  presenceChecking: boolean;
   devices: PairedDevice[];
   nearby: number;
   verbose: boolean;
@@ -133,6 +135,7 @@ export function parseBluetoothReport(value: unknown): BluetoothReport {
     phones: listOf(fields['phones'])
       .map(phone => fieldsOf(phone))
       .map(phone => ({ address: text(phone['address']), name: text(phone['name']), isHere: phone['isHere'] === true })),
+    presenceChecking: fields['presenceChecking'] === true,
     devices: listOf(fields['devices']).map(device => parseDevice(device)),
     nearby: typeof fields['nearby'] === 'number' ? fields['nearby'] : 0,
     verbose: fields['verbose'] === true,
@@ -168,6 +171,17 @@ export async function setBluetoothVerbose(verbose: boolean): Promise<void> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ verbose }),
+    signal: AbortSignal.timeout(TIMEOUT_MS)
+  });
+  if (!response.ok) throw new Error(`The kiosk refused that (${response.status}).`);
+}
+
+/** Has the Pi listen for the saved phones (for two minutes, or until told to stop), or stop. */
+export async function watchPresence(watch: boolean): Promise<void> {
+  const response = await fetch(`${KIOSK_SERVICE}/bluetooth/presence`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ watch }),
     signal: AbortSignal.timeout(TIMEOUT_MS)
   });
   if (!response.ok) throw new Error(`The kiosk refused that (${response.status}).`);

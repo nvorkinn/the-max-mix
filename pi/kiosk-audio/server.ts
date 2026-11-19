@@ -44,8 +44,11 @@
 //   GET  /bluetooth/monitor   for the debug console (bluetooth-monitor.ts): {"adapter", "devices": the paired ones,
 //                             "nearby": unpaired devices heard in the last minute, "verbose",
 //                             "log": [{"id", "time", "message"}], "pairing", "phones": [{"address", "name",
-//                             "isHere", "lastSeen"}] (presence.ts)}, or 503 {"error"}
+//                             "isHere", "lastSeen"}] (presence.ts), "presenceChecking": whether a watch began so
+//                             lately that a phone not heard yet may still be heard}, or 503 {"error"}
 //   POST /bluetooth/monitor   {"verbose": true}: log unpaired devices too
+//   POST /bluetooth/presence  {"watch": true}: listen for the saved phones for two minutes (the person switcher is
+//                             open), {"watch": false}: stop
 //   POST /bluetooth/pair-phone   look for phones for two minutes so one can be picked and paired (phone-pairing.ts): 204,
 //                                or 503 {"error"}; its progress is "pairing" in GET /bluetooth/monitor: {"state": "idle" |
 //                                "scanning" | "pairing" | "paired" | "failed", "secondsLeft"?, "nearby"?: [{"address",
@@ -80,7 +83,7 @@ import type { PairingStatus } from './phone-pairing.ts';
 import { PhoneSetup } from './phone-setup.ts';
 import type { Choice, Graph } from './pipewire.ts';
 import { Presence, scanLe } from './presence.ts';
-import type { PhonePresence } from './presence.ts';
+import type { PresenceStatus } from './presence.ts';
 import { SonosEventHub } from './sonos-events.ts';
 import type { SonosChange } from './sonos-events.ts';
 import { libraryEvents } from './sonos-library.ts';
@@ -143,8 +146,8 @@ export interface Deps {
     status: () => PairingStatus;
     forget: (address: string) => Promise<void>;
   };
-  /** Whether each saved phone is nearby, for the debug console. */
-  presence: { status: () => PhonePresence[] };
+  /** Whether each saved phone is nearby, for the person switcher and the debug console. */
+  presence: { status: () => Promise<PresenceStatus>; watch: () => void; unwatch: () => void };
   phone: { start: () => Promise<void> };
   hotspot: {
     start: () => Promise<HotspotInfo>;
@@ -265,6 +268,15 @@ async function wasAccepted(url: string, request: IncomingMessage, deps: Deps): P
 }
 
 /** Sets one output's volume from the body of POST /audio/volume; the status to answer with. */
+/** POST /bluetooth/presence: starts or stops listening for the saved phones; the status to answer with. */
+async function presenceStatus(request: IncomingMessage, deps: Deps): Promise<number> {
+  const body = JSON.parse(await readBody(request)) as { watch?: unknown } | null;
+  if (body?.watch === true) deps.presence.watch();
+  else if (body?.watch === false) deps.presence.unwatch();
+  else return 400;
+  return 204;
+}
+
 async function volumeStatus(request: IncomingMessage, deps: Deps): Promise<number> {
   const body = validVolume(JSON.parse(await readBody(request)) as unknown);
   if (!body) return 400;
@@ -351,10 +363,13 @@ async function sendDevices(response: ServerResponse, devices: () => Promise<Blue
 /** GET /bluetooth/monitor: what BlueZ reports, or 503 when it is not there. */
 async function sendMonitor(response: ServerResponse, deps: Deps): Promise<void> {
   try {
+    const snapshot = await deps.bluetoothMonitor.snapshot();
+    const presence = await deps.presence.status();
     sendJson(response, 200, {
-      ...(await deps.bluetoothMonitor.snapshot()),
+      ...snapshot,
       pairing: deps.phonePairing.status(),
-      phones: deps.presence.status()
+      phones: presence.phones,
+      presenceChecking: presence.isChecking
     });
   } catch {
     sendJson(response, 503, { error: BLUETOOTH_UNAVAILABLE });
@@ -463,6 +478,10 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
       const body = JSON.parse(await readBody(request)) as { verbose?: unknown } | null;
       if (typeof body?.verbose === 'boolean') deps.bluetoothMonitor.setVerbose(body.verbose);
       else status = 400;
+      break;
+    }
+    case '/bluetooth/presence': {
+      status = await presenceStatus(request, deps);
       break;
     }
     case '/bluetooth/pair-phone': {
@@ -748,12 +767,11 @@ export function serveSpeakers(
   const presence = new Presence({
     phones: () => readPhones(deps.phonesFile),
     devices: async () => (await bluetoothMonitor.snapshot()).devices,
-    scan: ms => scanLe(ms),
+    scan: signal => scanLe(signal),
     log: message => {
       bluetoothMonitor.note(message);
     }
   });
-  presence.start();
   const handler = handleRequest(origin, {
     ...deps,
     perform,

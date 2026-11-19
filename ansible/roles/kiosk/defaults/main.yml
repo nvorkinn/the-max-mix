@@ -93,13 +93,6 @@ kiosk_journal_max_use: 64M
 # Regenerate the initramfs when the Plymouth theme changes. Needs a kernel, so tests in a plain container turn it off.
 kiosk_update_initramfs: true
 
-# Bluetooth keyboard and mouse, paired on first boot by kiosk-bluetooth-pair (no network or touch screen needed). Put each
-# device in pairing mode when the Pi first starts. Several addresses with the same name are alternatives, for devices whose
-# channels have their own address; one paired address is enough. Use [] for none.
-kiosk_bluetooth_devices:
-  - { name: mouse, address: 'DE:E3:A5:BE:A8:00' }
-  - { name: keyboard, address: 'D1:B9:E3:A0:7A:9D' }
-
 # Screen sleep. The app decides when the screen may sleep (never while music plays, otherwise after the idle minutes chosen
 # in its settings) and shows a black sleep screen. This many seconds later without a touch, swayidle turns the HDMI output
 # off; the first touch turns it on again. Also how long the Wi-Fi panel stays lit without a touch. 0 never turns it off.
@@ -142,7 +135,7 @@ kiosk_packages:
   # The DHCP and DNS NetworkManager runs for the setup hotspot (pi/kiosk-audio/hotspot.ts)
   - dnsmasq-base
   - polkitd
-  # Bluetooth, for the keyboard and mouse, and speakers (libspa-0.2-bluetooth is PipeWire's A2DP support)
+  # Bluetooth, for phones and speakers (libspa-0.2-bluetooth is PipeWire's A2DP support)
   - bluez
   - libspa-0.2-bluetooth
   - rfkill
