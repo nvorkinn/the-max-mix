@@ -35,6 +35,7 @@ import {
   loadThemeColour,
   saveDynamicColour,
   saveThemeColour,
+  THEME_COLOURS,
   toThemeColour
 } from '../utils/themeColour';
 import { DYNAMIC_LINGER_MS, useLingers } from '../hooks/useLingers';
@@ -87,6 +88,13 @@ function coverOrChosenPalette(art: ArtColours | null, colour: ThemeColour, surfa
 }
 
 /** What Dynamic's colours sit on: the Player tab's photo, else the skin's page. */
+/** The chosen colour's Night shade, for the Options tab's highlights, which are Night's whatever the skin. */
+function nightColour(id: ThemeColour): CSSProperties {
+  const colour = THEME_COLOURS.find(choice => choice.id === id) ?? THEME_COLOURS[0];
+  const ink = 'nightAccentInk' in colour ? colour.nightAccentInk : colour.accentInk;
+  return { '--night-accent': colour.night, '--night-accent-ink': ink } as CSSProperties;
+}
+
 function surfaceFor(onPhoto: boolean, night: boolean): DynamicSurface {
   if (onPhoto) return 'photo';
   return night ? 'night' : 'day';
@@ -224,7 +232,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // With Dynamic on, the colours follow the album art while music plays, and fade back to the chosen colour once it
   // has stopped for a while; on the dark of Night and of the Player tab's photo they are lighter shades that read there.
   const liveArt = useLingers(isPlaying, DYNAMIC_LINGER_MS) ? artColours : null;
-  const dynamicSurface = surfaceFor(screen === 'player' || screen === 'options', theme.skin === 'night');
+  // The Options tab's cards are Night's whatever the skin, so Dynamic works its colours out for the dark there.
+  const dynamicSurface = surfaceFor(screen === 'player', theme.skin === 'night' || screen === 'options');
   const dynamicVars = dynamicColour ? coverOrChosenPalette(liveArt, themeColour, dynamicSurface) : undefined;
   useEffect(() => {
     if (!style) return;
@@ -661,6 +670,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         className={`app-tab-panel${screen === 'options' ? ' on-photo' : ''}`}
         role="tabpanel"
         id={tabPanelId('settings')}
+        style={screen === 'options' ? nightColour(themeColour) : undefined}
         aria-label={screen === 'options' ? 'Options' : 'Settings'}
         hidden={!settingsShown}
       >

@@ -451,8 +451,8 @@
 /*
   The Options tab: the Settings tab's pages, laid out as there, on the same photo, blurred and darkened under the tab bar
   as it is under the Dashboard's boards. The cards, words and status colours are Night's, the Settings tab's navy cards,
-  whatever the skin, as the photo is always dark; highlights are the photo's warm white (or Dynamic's colours), as on the
-  Player tab.
+  whatever the skin, as the photo is always dark, and so are the highlights: the chosen colour's Night shade (TabletView
+  sets --night-accent), or Dynamic's colours worked out for the dark.
 */
 .app-tab-panel.on-photo .settings-panel.settings-tab {
   --surface: #101a33;
@@ -466,9 +466,18 @@
   --warning: #f0b64c;
   --amber: #f0b64c;
   --danger: #ff7b8a;
+  --accent: var(--night-accent);
+  --accent-ink: var(--night-accent-ink);
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --focus: color-mix(in srgb, var(--accent) 60%, #fff);
+  --glow: 0 0 14px color-mix(in srgb, var(--accent) 30%, transparent);
 
   position: relative;
   isolation: isolate;
+}
+.tablet-container[data-dynamic] .app-tab-panel.on-photo .settings-panel.settings-tab {
+  --accent: var(--dynamic-accent);
+  --accent-ink: var(--dynamic-accent-ink);
 }
 .app-tab-panel.on-photo .settings-panel.settings-tab::before {
   content: '';
