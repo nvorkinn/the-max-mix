@@ -24,6 +24,17 @@ const track = (id: string, name: string, artist: string, durationMs: number): Tr
 const art = (id: string) => [{ url: `https://images.unsplash.com/${id}` }];
 
 /**
+ * LRCLIB has no lyrics for any song, so the panel beside the artwork opens on the queue. The lyrics are looked up as
+ * each song starts, and the real LRCLIB would answer differently from day to day. A test wanting lyrics routes LRCLIB
+ * itself after this.
+ */
+export async function noLyrics(page: Page) {
+  await page.route('https://lrclib.net/api/**', route =>
+    route.fulfill({ status: 404, json: { message: 'Not found' } })
+  );
+}
+
+/**
  * Signs the page in to a fake Spotify account that answers in memory: one track playing on a Spotify Connect speaker
  * and four queued. Play, pause, seek, next, previous, shuffle, repeat, and volume change what it reports, like
  * the real Web API does. Returns what a test may want to look at: every command it was sent.
@@ -31,6 +42,7 @@ const art = (id: string) => [{ url: `https://images.unsplash.com/${id}` }];
 export async function fakeSpotify(page: Page) {
   // The app also asks countdown-server for its config at start; unowned, the answer changes nothing.
   await fakeCountdownServer(page, null);
+  await noLyrics(page);
   const commands: string[] = [];
   const playback = {
     is_playing: true as boolean,

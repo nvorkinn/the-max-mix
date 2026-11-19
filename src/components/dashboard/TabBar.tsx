@@ -1,15 +1,18 @@
-import { AudioLines, Clock3, LayoutGrid, Music2, Search, Settings } from 'lucide-react';
+import { AudioLines, Clock3, LayoutGrid, Search, Settings } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { formatClockTime } from '../../utils/clockFormat';
 import type { TabBarProps, TabId } from '../../dashboard/props';
 import { useHold } from '../../hooks/useHold';
 import { tabPanelId } from '../AppTabs';
 import PersonSwitcher from '../PersonSwitcher';
+import SpotifyIcon from '../SpotifyIcon';
 import NowPlaying from './NowPlaying';
 
 // Dashboard, the home screen, sits in the middle, with a tab to either side of it (see TAB_PAN).
 const TABS: readonly { id: TabId; label: string; icon: ReactNode }[] = [
-  { id: 'spotify', label: 'Spotify', icon: <Music2 aria-hidden="true" className="lucide" /> },
+  // Spotify's own logo in one colour, as its brand rules allow: white like the other tabs, green while the song playing
+  // hangs under it (dashboard.css).
+  { id: 'spotify', label: 'Spotify', icon: <SpotifyIcon className="lucide dashboard-spotify-logo" /> },
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutGrid aria-hidden="true" className="lucide" /> },
   { id: 'settings', label: 'Settings', icon: <Settings aria-hidden="true" className="lucide" /> }
 ];

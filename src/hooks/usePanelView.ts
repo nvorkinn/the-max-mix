@@ -3,24 +3,37 @@ import { useState } from 'react';
 /** What the panel between the artwork and the right-hand buttons shows. */
 export type PanelView = 'queue' | 'lyrics' | 'speakers';
 
+/** Whether the song playing has lyrics to show: still being looked up, found, or none (no song, none found, instrumental). */
+export type LyricsAvailability = 'unknown' | 'found' | 'none';
+
+const SUITS: Readonly<Record<LyricsAvailability, 'queue' | 'lyrics' | null>> = {
+  unknown: null,
+  found: 'lyrics',
+  none: 'queue'
+};
+
 /**
- * Which view the middle panel shows. The queue shows while songs are queued and the lyrics while it is empty. A tapped
- * Queue or Lyrics holds until the queue fills up or runs dry, when the panel goes back to what suits it. Speakers holds
- * until another button is tapped: the queue filling or emptying meanwhile does not take the panel away from it.
+ * Which view the middle panel shows. The lyrics show whenever the song has them, and the queue when it has none; while
+ * a song's lyrics are looked up, the panel stays as it was (the lyrics, before anything is known), so it does not flick
+ * to the queue and back. A tapped Queue or Lyrics holds, whichever tab is shown meanwhile, until music starts playing
+ * again: a song other than the one paused on, so a pause and play keeps it, as does the queue playing on. Speakers holds until another button is tapped.
  *
- * `queueEmpty` is true only for a queue known to be empty (not one loading, failed or waiting for Spotify). `queueSettled`
- * is false while the queue is being read, so the panel does not change until the read is done.
+ * `track` identifies the song playing or paused, null with none.
  */
-export function usePanelView(queueEmpty: boolean, queueSettled: boolean) {
-  // What suits the queue as last read; null until it is first known, so the lyrics do not flash up while it is read.
-  const [suited, setSuited] = useState<'queue' | 'lyrics' | null>(null);
+export function usePanelView(lyrics: LyricsAvailability, playing: boolean, track: string | null) {
   const [picked, setPicked] = useState<PanelView | null>(null);
-  const suits = queueEmpty ? 'lyrics' : 'queue';
+  // Whether music was playing, and the song last seen playing: music starts when a song other than that one starts to play
+  // after nothing was playing. The next song in the queue playing on is not music starting.
+  const [last, setLast] = useState({ playing, track });
+  const [settled, setSettled] = useState<'queue' | 'lyrics' | null>(null);
   // Adjusted during render, not in an effect, so the panel never shows a stale choice for a frame.
-  if (queueSettled && suited !== suits) {
-    setSuited(suits);
-    if (picked !== 'speakers') setPicked(null);
+  if (playing !== last.playing || (playing && track !== last.track)) {
+    const started = playing && !last.playing && track !== last.track;
+    setLast({ playing, track: playing ? track : last.track });
+    if (started && picked !== 'speakers') setPicked(null);
   }
-  const view: PanelView = picked ?? suited ?? 'queue';
+  const suits = SUITS[lyrics];
+  if (suits && suits !== settled) setSettled(suits);
+  const view: PanelView = picked ?? suits ?? settled ?? 'lyrics';
   return { view, show: (next: PanelView) => setPicked(next) };
 }

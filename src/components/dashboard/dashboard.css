@@ -202,6 +202,10 @@
   background: var(--now-playing);
   border-radius: 22px 22px 0 0;
 }
+.dashboard-tab[data-holds-player] .dashboard-spotify-logo {
+  /* Spotify Green, one of the colours Spotify's brand rules allow its logo in. */
+  color: #1ed760;
+}
 .dashboard-tab[data-holds-player]::before {
   content: '';
   position: absolute;

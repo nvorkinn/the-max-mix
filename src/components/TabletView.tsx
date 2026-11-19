@@ -10,7 +10,9 @@ import { useDeviceConfig } from '../hooks/useDeviceConfig';
 import { useScreenSleep } from '../hooks/useScreenSleep';
 import { IDLE_DASHBOARD_MS, useIdle } from '../hooks/useIdle';
 import { usePanelView } from '../hooks/usePanelView';
-import type { PanelView } from '../hooks/usePanelView';
+import type { LyricsAvailability, PanelView } from '../hooks/usePanelView';
+import { useLyrics } from '../hooks/useLyrics';
+import type { LyricsLookup } from '../hooks/useLyrics';
 import { extractArtColours, type ArtColours } from '../utils/colorExtractor';
 import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
@@ -83,6 +85,12 @@ function useLogChanges(message: string | null | undefined, source: string) {
 /** Dynamic's colours: the cover's while it plays, else what shows with Dynamic off. */
 function coverOrChosenPalette(art: ArtColours | null, colour: ThemeColour) {
   return art ? dynamicPalette(art.dominant) : basePalette(colour);
+}
+
+/** Whether the song has lyrics to open the panel on; an instrumental, a failed lookup or no song counts as none. */
+function lyricsAvailability({ status, lyrics }: LyricsLookup): LyricsAvailability {
+  if (status === 'loading') return 'unknown';
+  return status === 'ready' && lyrics?.kind !== 'instrumental' ? 'found' : 'none';
 }
 
 export default function TabletView({ signInError = null }: Readonly<{ signInError?: string | null | undefined }>) {
@@ -466,15 +474,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   if (followingSonos) shownQueueStatus = 'ready';
   const shownQueue = followingSonos ? sonos.next : queue;
   const shownQueueError = followingSonos ? null : queueError;
-  // The lyrics come forward only once the queue is known to be empty: a queue that failed or is waiting for Spotify keeps
-  // the queue in view, with its retry. Each poll reads as loading for a moment, so the panel only changes between polls.
-  const queueSettled = shownQueueStatus !== 'loading' || shownQueue.length > 0;
-  const queueEmpty = shownQueue.length === 0 && shownQueueStatus === 'ready' && !shownQueueError;
-  const panel = usePanelView(queueEmpty, queueSettled);
+  const trackKey = currentTrack?.id ?? currentTrack?.uri ?? null;
+  // The song's lyrics are looked up as it starts, even with the panel on the queue, so the panel can open on them.
+  const lyrics = useLyrics(currentTrack, !needsConnection);
+  const panel = usePanelView(lyricsAvailability(lyrics), shownPlayback?.is_playing === true, trackKey);
   const lyricsShown = panel.view === 'lyrics';
   // Tapping Lyrics while the lyrics show starts sync mode for the song playing; it ends with a tap on a line, another tap
   // on Lyrics, another view or another song.
-  const trackKey = currentTrack?.id ?? currentTrack?.uri ?? null;
   const [syncingTrack, setSyncingTrack] = useState<string | null>(null);
   const lyricsSyncing = lyricsShown && trackKey !== null && syncingTrack === trackKey;
   const showPanel = (next: PanelView) => {
@@ -628,6 +634,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 <div className="side-panel-view" inert={!lyricsShown} data-view="lyrics">
                   <LyricsPanel
                     track={currentTrack}
+                    lookup={lyrics}
                     shown={lyricsShown}
                     progressMs={shownPlayback?.progress_ms ?? shownPlayback?.position ?? 0}
                     playing={shownPlayback?.is_playing === true}
