@@ -376,8 +376,15 @@
   grid-area: bar;
   margin: -6px -16px -8px;
 }
+/* The artwork's frame is a pane of the same darkened glass, so with nothing playing it matches the panel beside it. */
 .app-tab-panel.on-photo .album-art {
+  border-color: rgb(255 255 255 / 10%);
+  background: rgb(var(--glass) / 58%);
   box-shadow: 0 24px 60px -20px rgb(0 0 0 / 70%);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+.app-tab-panel.on-photo .album-art .image-placeholder {
+  background: none;
 }
 /* The setup card and a playback problem are words on the photo too, so they get the darker glass. */
 .app-tab-panel.on-photo .spotify-setup,
