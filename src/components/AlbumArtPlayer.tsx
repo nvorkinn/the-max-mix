@@ -104,18 +104,21 @@ export default function AlbumArtPlayer({
         <Artwork src={albumArt} alt={`${title} album artwork`} className="album-cover" />
       </div>
 
-      <div className="track-details">
-        <div
-          className="track-copy"
-          role="region"
-          aria-label="Track information"
-          // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- Oversized metadata must remain keyboard-scrollable on the kiosk.
-          tabIndex={0}
-        >
-          <h2 title={title}>{title}</h2>
-          {artist && <p title={artist}>{artist}</p>}
+      {/* With nothing playing the title is left out: the empty artwork and the greyed controls already say so. */}
+      {hasTrack && (
+        <div className="track-details">
+          <div
+            className="track-copy"
+            role="region"
+            aria-label="Track information"
+            // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- Oversized metadata must remain keyboard-scrollable on the kiosk.
+            tabIndex={0}
+          >
+            <h2 title={title}>{title}</h2>
+            {artist && <p title={artist}>{artist}</p>}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="player-controls">
         <div className="seek-control">

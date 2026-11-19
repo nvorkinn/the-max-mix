@@ -153,7 +153,8 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     await expect(player.getByRole('button', { name: 'Play', exact: true })).toBeDisabled();
     resolve(undefined);
-    await expect(player.getByRole('heading', { name: 'Nothing playing' })).toBeVisible();
+    await expect(player.getByRole('button', { name: 'Speakers: Select a device' })).toBeVisible();
+    await expect(player.getByRole('heading')).toHaveCount(0);
     await expect(page.getByRole('alert')).toHaveCount(0);
     await expectControlsFit(page, player);
     await expect(page.getByRole('button', { name: /^Speakers:/ })).toBeInViewport();

@@ -353,8 +353,12 @@
 .app-tab-panel.on-photo .floating-bar .shadowed {
   text-shadow: 0 1px 14px rgb(0 0 0 / 45%);
 }
-/* The album art's tint is the plain page's; here the photo is the background. */
+/*
+  The album art's tint is the plain page's; here the photo is the background. The column after the artwork is wider to
+  make room for the artwork reaching out as far as the glass panes (below).
+*/
 .app-tab-panel.on-photo .listening-room:not(.is-setup) {
+  grid-template-columns: var(--art-size) 40px minmax(0, 1fr);
   background: none;
 }
 /* The two panes of blurred, darkened photo: one behind the title, panel and its pills, one behind the control bar. */
@@ -376,9 +380,20 @@
   grid-area: bar;
   margin: -6px -16px -8px;
 }
-/* The artwork's frame is a pane of the same darkened glass, so with nothing playing it matches the panel beside it. */
+/*
+  The artwork's frame is a pane of the same darkened glass, so with nothing playing it matches the panel beside it. It
+  reaches out as far as the glass panes do, so it is as tall as the panel beside it and its left edge lines up with the
+  control bar's, the screen's margin then the same on both sides. It grows by the panes' 12px above and below and stays
+  square, so the column after it is wider, keeping the gap to the panel the same as the gap above the control bar.
+*/
+.app-tab-panel.on-photo .listening-room:not(.is-setup) .album-art {
+  width: auto;
+  height: auto;
+  margin: -12px -8px -12px -16px;
+}
 .app-tab-panel.on-photo .album-art {
   border-color: rgb(255 255 255 / 10%);
+  border-radius: 20px;
   background: rgb(var(--glass) / 58%);
   box-shadow: 0 24px 60px -20px rgb(0 0 0 / 70%);
   backdrop-filter: blur(18px) saturate(1.2);
