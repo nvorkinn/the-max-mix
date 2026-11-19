@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
 import type { PlaybackState, SpotifyDevice, Track } from '../src/types.ts';
+import { KIOSK_SERVICE } from '../src/utils/kioskService.ts';
 import { fakeCountdownServer } from './fake-countdown.ts';
 
 /** An opaque black 1x1 GIF that stands in for every album cover and playlist image in the tests. */
@@ -24,14 +25,20 @@ const track = (id: string, name: string, artist: string, durationMs: number): Tr
 const art = (id: string) => [{ url: `https://images.unsplash.com/${id}` }];
 
 /**
- * LRCLIB has no lyrics for any song, so the panel beside the artwork opens on the queue. The lyrics are looked up as
- * each song starts, and the real LRCLIB would answer differently from day to day. A test wanting lyrics routes LRCLIB
- * itself after this.
+ * Neither LRCLIB nor the kiosk's lyrics service has lyrics for any song, so the panel beside the artwork opens on the
+ * queue. The lyrics are looked up as each song starts, and the real LRCLIB would answer differently from day to day. A
+ * test wanting lyrics routes LRCLIB itself after this. Both answer an empty 200, which the app reads as nothing found,
+ * as a 404 or an unreachable kiosk would be logged to the console as an error.
  */
 export async function noLyrics(page: Page) {
-  await page.route('https://lrclib.net/api/**', route =>
-    route.fulfill({ status: 404, json: { message: 'Not found' } })
-  );
+  const nothing = {
+    status: 200,
+    contentType: 'application/json',
+    headers: { 'access-control-allow-origin': '*' },
+    body: 'null'
+  };
+  await page.route('https://lrclib.net/api/**', route => route.fulfill(nothing));
+  await page.route(`${KIOSK_SERVICE}/lyrics?*`, route => route.fulfill(nothing));
 }
 
 /**
