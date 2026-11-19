@@ -9,7 +9,7 @@ const NOTICE_CHOICES = [
 ] as const;
 
 /** The settings site's "Arriving by", as the e-paper screens have it: which dated parcels show, by their due day. */
-export const DAYS_AHEAD_CHOICES: readonly { value: DaysAhead; label: string }[] = [
+const DAYS_AHEAD_CHOICES: readonly { value: DaysAhead; label: string }[] = [
   { value: 0, label: 'Today' },
   { value: 1, label: 'Tomorrow' },
   { value: 2, label: 'Day after' },
