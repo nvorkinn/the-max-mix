@@ -104,7 +104,7 @@ test.describe('Dashboard motion', { tag: '@layout' }, () => {
     await page.clock.install({ time: NOW });
     await page.clock.pauseAt(new Date(NOW.getTime() + 1000));
     await page.goto('/');
-    const buses = page.getByRole('region', { name: /^Buses / });
+    const buses = page.getByRole('region', { name: /^TfL / });
     await expect(buses.getByText('Oxford Circus')).toBeVisible();
     const destinations = () => buses.locator('li strong').allTextContents();
     expect(await destinations()).toEqual(['Oxford Circus', 'New Cross', 'White City', 'Clapham Junction']);

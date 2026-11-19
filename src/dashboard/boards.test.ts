@@ -41,46 +41,49 @@ describe('toBoards', () => {
   it("gives each stop its own board, in the owner's order, keyed by the source's vehicle", () => {
     const boards = toBoards(ANSWER, NOW);
 
-    expect(boards.map(board => [board.kind, board.id, board.stopName])).toEqual([
-      ['tube', 'tube:940GZZLUKNG', 'Kennington'],
-      ['bus', 'bus:490000123W', 'Elephant & Castle'],
-      ['tube', 'tube:NSR:StopPlace:58381', 'Majorstuen']
+    expect(boards.map(board => [board.id, board.network, board.stopName])).toEqual([
+      ['940GZZLUKNG', 'tfl', 'Kennington'],
+      ['490000123W', 'tfl', 'Elephant & Castle'],
+      ['NSR:StopPlace:58381', 'entur', 'Majorstuen']
     ]);
-    // Only TfL's station gets the roundel.
-    expect(boards.map(board => (board.kind === 'tube' ? board.tfl : null))).toEqual([true, null, false]);
     expect(boards[1]).toEqual({
-      kind: 'bus',
-      id: 'bus:490000123W',
+      id: '490000123W',
       stopId: '490000123W',
       stopName: 'Elephant & Castle',
+      network: 'tfl',
       stopLetter: 'W',
       departures: [
         {
           vehicleId: 'LTZ1234',
-          route: '171',
+          mode: 'bus',
+          line: '171',
+          lineId: '171',
           destination: 'Elephant & Castle',
-          stopLetter: 'W',
-          expectedAt: '2026-10-17T12:01:00Z'
+          expectedAt: '2026-10-17T12:01:00Z',
+          detail: null
         },
         {
           vehicleId: 'LX11AVC',
-          route: '12',
+          mode: 'bus',
+          line: '12',
+          lineId: '12',
           destination: 'Oxford Circus',
-          stopLetter: 'W',
-          expectedAt: '2026-10-17T12:05:00Z'
+          expectedAt: '2026-10-17T12:05:00Z',
+          detail: null
         }
       ]
     });
-    const trains = (board: Board | undefined) =>
-      board?.kind === 'tube' ? board.departures.map(d => [d.vehicleId, d.lineId, d.destination, d.platform]) : null;
-    expect(trains(boards[0])).toEqual([
-      ['031', 'northern', 'Morden', 'Platform 2 · Southbound'],
-      ['057', 'northern', 'Edgware via Bank', 'Platform 1 · Northbound']
+    const rows = (board: Board | undefined) =>
+      board?.departures.map(d => [d.vehicleId, d.mode, d.lineId, d.destination, d.detail]);
+    expect(rows(boards[0])).toEqual([
+      ['031', 'tube', 'northern', 'Morden', 'Platform 2 · Southbound'],
+      ['057', 'tube', 'northern', 'Edgware via Bank', 'Platform 1 · Northbound']
     ]);
-    // Oslo's tram and metro: no vehicle id from Entur, so one made from the stop, line and destination.
-    expect(trains(boards[2])).toEqual([
-      ['NSR:StopPlace:58381:19:Ljabru', '19', 'Ljabru', 'Platform A'],
-      ['NSR:StopPlace:58381:5:Vestli', '5', 'Vestli', 'Platform 2']
+    // Oslo's tram and metro on the one board: no vehicle id from Entur, so one made from the stop, line and
+    // destination; the tram's stop is a lettered stop, the metro's a numbered platform.
+    expect(rows(boards[2])).toEqual([
+      ['NSR:StopPlace:58381:19:Ljabru', 'tram', '19', 'Ljabru', 'Stop A'],
+      ['NSR:StopPlace:58381:5:Vestli', 'metro', '5', 'Vestli', 'Platform 2']
     ]);
   });
 
@@ -93,24 +96,36 @@ describe('toBoards', () => {
     };
 
     expect(toBoards(answer, NOW).map(board => [board.id, board.departures.map(d => d.destination)])).toEqual([
-      ['tube:940GZZLUKNG', ['Morden']],
-      ['tube:940GZZLUEAC', ['Harrow & Wealdstone']]
+      ['940GZZLUKNG', ['Morden']],
+      ['940GZZLUEAC', ['Harrow & Wealdstone']]
     ]);
   });
 
-  it("gives a stop serving buses and trains a board of each, its main mode's first", () => {
-    const mixed = stop('NSR:StopPlace:1', 'tram', [
-      departure('31', 'Snarøya', 3, { mode: 'bus' }),
-      departure('12', 'Majorstuen', 1, { mode: 'tram' })
+  it('mixes the modes of a stop serving several on its one board, soonest first', () => {
+    const mixed = stop('NSR:StopPlace:1', 'metro', [
+      departure('31', 'Snarøya', 3, { mode: 'bus', platform: 'C' }),
+      departure('12', 'Majorstuen', 1, { mode: 'tram', platform: 'A' }),
+      departure('5', 'Vestli', 2, { mode: 'metro', platform: '2' })
     ]);
     const answer: DeviceArrivals = {
-      stops: [{ ...mixed, departures: { ...mixed.departures, modes: ['tram', 'bus'] } }]
+      stops: [{ ...mixed, source: 'entur', departures: { ...mixed.departures, modes: ['metro', 'tram', 'bus'] } }]
     };
 
-    expect(toBoards(answer, NOW).map(board => [board.kind, board.departures.map(d => d.destination)])).toEqual([
-      ['tube', ['Majorstuen']],
-      ['bus', ['Snarøya']]
+    const boards = toBoards(answer, NOW);
+    expect(boards).toHaveLength(1);
+    expect(boards[0]?.departures.map(d => [d.mode, d.line, d.detail])).toEqual([
+      ['tram', '12', 'Stop A'],
+      ['metro', '5', 'Platform 2'],
+      ['bus', '31', 'Stop C']
     ]);
+  });
+
+  it("says a bus's stop only where it isn't the board's own, as at a hub", () => {
+    const answer: DeviceArrivals = {
+      stops: [stop('490000077E', 'bus', [departure('12', 'A', 2), departure('35', 'B', 3, { platform: 'F' })], 'E')]
+    };
+
+    expect(toBoards(answer, NOW)[0]?.departures.map(d => d.detail)).toEqual([null, 'Stop F']);
   });
 
   it('keeps each made-up key unique, and the same while the order holds', () => {
@@ -186,10 +201,10 @@ describe('toBoards', () => {
 
     expect(toBoards(answer, NOW)).toEqual([
       {
-        kind: 'bus',
-        id: 'bus:490000077E',
+        id: '490000077E',
         stopId: '490000077E',
         stopName: 'Elephant & Castle',
+        network: 'tfl',
         stopLetter: 'E',
         departures: []
       }

@@ -8,6 +8,13 @@ const tabBar = { ...SAMPLE.tabBar, onSelect: vi.fn(), onSearch: vi.fn() };
 const show = (now = SAMPLE_NOW, noticeCount = 6) =>
   render(<Dashboard tabBar={tabBar} {...sampleDashboard(now, '24h', noticeCount)} />);
 
+/** The sample's boards, both Elephant & Castle's: its Tube station's (0) and its buses' (1). */
+const boardAt = (index: number): HTMLElement => {
+  const board = screen.getAllByRole('region', { name: /^TfL / })[index];
+  if (!board) throw new Error(`no board ${String(index)}`);
+  return board;
+};
+
 describe('Dashboard', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -18,14 +25,14 @@ describe('Dashboard', () => {
 
   it('counts each departure down from now and shows Due at zero', () => {
     show(new Date(SAMPLE_NOW.getTime() + 2 * 60_000));
-    const bus = within(screen.getByRole('region', { name: /^Buses / }));
+    const bus = within(boardAt(1));
     expect(bus.getByText('Oxford Circus').closest('li')).toHaveTextContent('Due');
     expect(bus.getByText('New Cross').closest('li')).toHaveTextContent('4min');
   });
 
   it('drops a departure a minute after it was due and brings the next one up', () => {
     show(new Date(SAMPLE_NOW.getTime() + 4.5 * 60_000));
-    const tube = within(screen.getByRole('region', { name: /^Tube / }));
+    const tube = within(boardAt(0));
     expect(tube.queryByText('High Barnet')).not.toBeInTheDocument();
     expect(tube.getAllByRole('listitem')).toHaveLength(4);
     expect(tube.getByText("Queen's Park")).toBeInTheDocument();
@@ -33,8 +40,8 @@ describe('Dashboard', () => {
 
   it('shows four rows on each board', () => {
     show();
-    expect(within(screen.getByRole('region', { name: /^Tube / })).getAllByRole('listitem')).toHaveLength(4);
-    expect(within(screen.getByRole('region', { name: /^Buses / })).getAllByRole('listitem')).toHaveLength(4);
+    expect(within(boardAt(0)).getAllByRole('listitem')).toHaveLength(4);
+    expect(within(boardAt(1)).getAllByRole('listitem')).toHaveLength(4);
   });
 
   it('goes round Now, Tonight, Tomorrow and Weekend when the weather is tapped', () => {
@@ -111,7 +118,7 @@ describe('Dashboard', () => {
   it('keeps its layout, with nothing in them, while the forecast and the boards have no data', () => {
     render(<Dashboard tabBar={tabBar} weather={{ views: [] }} hourly={null} notices={{ notices: [] }} boards={[]} />);
     expect(screen.getByRole('heading', { name: /Notice board/ })).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: /^Tube / })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /^TfL / })).not.toBeInTheDocument();
     expect(document.querySelector('.dashboard-departures')).toBeInTheDocument();
   });
 

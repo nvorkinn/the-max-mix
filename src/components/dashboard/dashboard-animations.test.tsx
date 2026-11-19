@@ -4,7 +4,7 @@ import type { NoticeItem } from '../../dashboard/props';
 import { busesAt, SAMPLE, SAMPLE_NOW, sampleDashboard } from '../../dashboard/sample';
 import Dashboard from '../Dashboard';
 import Backdrop, { BACKDROP_FADE_MS } from './Backdrop';
-import BusBoard from './BusBoard';
+import DepartureBoard from './DepartureBoard';
 import { ARRIVE_MS } from './NoticeBoard';
 import RailPages from './RailPages';
 import WeatherBlock, { WEATHER_FADE_MS, WEATHER_VIEW_MS } from './WeatherBlock';
@@ -26,10 +26,10 @@ afterEach(() => {
 });
 
 describe('the departure boards', () => {
-  const buses = (now: Date) => <BusBoard {...SAMPLE.bus} departures={busesAt(now)} now={now} />;
+  const buses = (now: Date) => <DepartureBoard {...SAMPLE.bus} departures={busesAt(now)} now={now} />;
   const rowOf = (destination: string) => screen.getByText(destination).closest('li');
   const destinations = () =>
-    within(screen.getByRole('region', { name: /^Buses / }))
+    within(screen.getByRole('region', { name: /^TfL / }))
       .getAllByRole('listitem')
       .map(row => row.querySelector('strong')?.textContent);
 

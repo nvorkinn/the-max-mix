@@ -21,7 +21,8 @@ describe('useLiveDashboard', () => {
         return close;
       }
     );
-    const buses = () => result.current.boards.find(({ kind }) => kind === 'bus')?.departures;
+    const buses = () =>
+      result.current.boards.find(({ departures }) => departures.some(({ mode }) => mode === 'bus'))?.departures;
     const { result, rerender, unmount } = renderHook(({ now }) => useLiveDashboard(now, '24h', source), {
       initialProps: { now: NOW }
     });

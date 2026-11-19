@@ -10,11 +10,10 @@ import type {
   WeatherBlockProps
 } from '../dashboard/props';
 import Backdrop from './dashboard/Backdrop';
-import BusBoard from './dashboard/BusBoard';
 import HourlyStrip from './dashboard/HourlyStrip';
 import { carouselSlot, TURN_MS } from './dashboard/carousel';
+import DepartureBoard from './dashboard/DepartureBoard';
 import TabBar from './dashboard/TabBar';
-import TubeBoard from './dashboard/TubeBoard';
 import RailPages from './dashboard/RailPages';
 import WeatherBlock from './dashboard/WeatherBlock';
 import './dashboard/dashboard.css';
@@ -118,7 +117,7 @@ export default function Dashboard({
                         inert={!isShown}
                         style={{ '--slot': slot } as CSSProperties}
                       >
-                        {board.kind === 'tube' ? <TubeBoard {...board} /> : <BusBoard {...board} />}
+                        <DepartureBoard {...board} />
                       </div>
                     );
                   })}

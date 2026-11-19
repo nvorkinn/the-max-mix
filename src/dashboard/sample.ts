@@ -4,12 +4,11 @@
 
 import { useEffect, useState } from 'react';
 import type {
-  BusBoardProps,
   DepartureBoardProps,
   HourlyStripProps,
   NoticeBoardProps,
   TabBarProps,
-  TubeBoardProps,
+  StopBoardProps,
   WeatherBlockProps
 } from './props';
 
@@ -144,89 +143,133 @@ export const SAMPLE = {
   } satisfies NoticeBoardProps,
 
   tube: {
+    network: 'tfl',
     stopName: 'Elephant & Castle',
-    tfl: true,
+    stopLetter: null,
     departures: [
       {
         vehicleId: '012',
+        mode: 'tube',
+        line: 'Northern',
         lineId: 'northern',
-        lineName: 'Northern',
         destination: 'High Barnet',
-        platform: 'Platform 1 · Northbound',
+        detail: 'Platform 1 · Northbound',
         expectedAt: minutesOn(3)
       },
       {
         vehicleId: '231',
+        mode: 'tube',
+        line: 'Bakerloo',
         lineId: 'bakerloo',
-        lineName: 'Bakerloo',
         destination: 'Stonebridge Park',
-        platform: 'Platform 3 · Northbound',
+        detail: 'Platform 3 · Northbound',
         expectedAt: minutesOn(4)
       },
       {
         vehicleId: '045',
+        mode: 'tube',
+        line: 'Northern',
         lineId: 'northern',
-        lineName: 'Northern',
         destination: 'Morden',
-        platform: 'Platform 2 · Southbound',
+        detail: 'Platform 2 · Southbound',
         expectedAt: minutesOn(7)
       },
       {
         vehicleId: '017',
+        mode: 'tube',
+        line: 'Northern',
         lineId: 'northern',
-        lineName: 'Northern',
         destination: 'Edgware',
-        platform: 'Platform 1 · Northbound',
+        detail: 'Platform 1 · Northbound',
         expectedAt: minutesOn(9)
       },
       {
         vehicleId: '236',
+        mode: 'tube',
+        line: 'Bakerloo',
         lineId: 'bakerloo',
-        lineName: 'Bakerloo',
         destination: "Queen's Park",
-        platform: 'Platform 4 · Northbound',
+        detail: 'Platform 4 · Northbound',
         expectedAt: minutesOn(11)
       },
       {
         vehicleId: '052',
+        mode: 'tube',
+        line: 'Northern',
         lineId: 'northern',
-        lineName: 'Northern',
         destination: 'Kennington',
-        platform: 'Platform 2 · Southbound',
+        detail: 'Platform 2 · Southbound',
         expectedAt: minutesOn(14)
       }
     ],
     now: SAMPLE_NOW,
     stale: false
-  } satisfies TubeBoardProps,
+  } satisfies StopBoardProps,
 
   bus: {
+    network: 'tfl',
     stopName: 'Elephant & Castle',
     // A hub of several stops, each departure with its own stop's letter.
     stopLetter: null,
     departures: [
-      { vehicleId: 'LJ17WRK', route: '12', destination: 'Oxford Circus', stopLetter: 'E', expectedAt: minutesOn(2) },
-      { vehicleId: 'LX58CWK', route: '343', destination: 'New Cross', stopLetter: 'F', expectedAt: minutesOn(6) },
-      { vehicleId: 'SN68AEJ', route: '148', destination: 'White City', stopLetter: 'D', expectedAt: minutesOn(8) },
+      {
+        vehicleId: 'LJ17WRK',
+        mode: 'bus',
+        line: '12',
+        lineId: '12',
+        destination: 'Oxford Circus',
+        detail: 'Stop E',
+        expectedAt: minutesOn(2)
+      },
+      {
+        vehicleId: 'LX58CWK',
+        mode: 'bus',
+        line: '343',
+        lineId: '343',
+        destination: 'New Cross',
+        detail: 'Stop F',
+        expectedAt: minutesOn(6)
+      },
+      {
+        vehicleId: 'SN68AEJ',
+        mode: 'bus',
+        line: '148',
+        lineId: '148',
+        destination: 'White City',
+        detail: 'Stop D',
+        expectedAt: minutesOn(8)
+      },
       {
         vehicleId: 'LF19FWM',
-        route: '35',
+        mode: 'bus',
+        line: '35',
+        lineId: '35',
         destination: 'Clapham Junction',
-        stopLetter: 'G',
+        detail: 'Stop G',
         expectedAt: minutesOn(10)
       },
-      { vehicleId: 'BV66GSO', route: '40', destination: 'Aldgate', stopLetter: 'B', expectedAt: minutesOn(13) },
+      {
+        vehicleId: 'BV66GSO',
+        mode: 'bus',
+        line: '40',
+        lineId: '40',
+        destination: 'Aldgate',
+        detail: 'Stop B',
+        expectedAt: minutesOn(13)
+      },
       {
         vehicleId: 'LK65EJN',
-        route: '363',
+        mode: 'bus',
+        line: '363',
+        lineId: '363',
         destination: 'Crystal Palace',
-        stopLetter: 'H',
+        detail: 'Stop H',
         expectedAt: minutesOn(16)
       }
     ],
     now: SAMPLE_NOW,
     stale: false
-  } satisfies BusBoardProps
+  } satisfies StopBoardProps
 };
 
 /** How long the simulated clock runs before it starts again, so the sample boards never run out of departures. */
@@ -266,7 +309,7 @@ function catchingUpAt(now: Date): string {
 }
 
 /** The sample buses at `now`, soonest first as the server sends them. */
-export function busesAt(now: Date): BusBoardProps['departures'] {
+export function busesAt(now: Date): StopBoardProps['departures'] {
   return SAMPLE.bus.departures
     .map(bus => (bus.vehicleId === CATCHING_UP ? { ...bus, expectedAt: catchingUpAt(now) } : bus))
     .toSorted((a, b) => a.expectedAt.localeCompare(b.expectedAt));
@@ -282,8 +325,8 @@ export function sampleDashboard(now: Date, clockFormat: '12h' | '24h', noticeCou
     hourly: { ...SAMPLE.hourly, updatedAt: now.toISOString(), now, clockFormat },
     notices: { notices: SAMPLE.notices.notices.slice(0, noticeCount) },
     boards: [
-      { kind: 'tube', id: 'tube:sample', ...SAMPLE.tube, now },
-      { kind: 'bus', id: 'bus:sample', ...SAMPLE.bus, departures: busesAt(now), now }
+      { id: 'tube:sample', ...SAMPLE.tube, now },
+      { id: 'bus:sample', ...SAMPLE.bus, departures: busesAt(now), now }
     ] satisfies DepartureBoardProps[]
   };
 }
