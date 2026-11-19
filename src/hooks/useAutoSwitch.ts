@@ -58,7 +58,10 @@ async function listen(activeAddress: string, isCancelled: () => boolean): Promis
       await pause(READ_STEP_MS);
     }
   } finally {
-    if (!isSwitcherWatching()) await watchPresence(false).catch(() => undefined);
+    if (!isSwitcherWatching())
+      await watchPresence(false).catch(() => {
+        // It stops by itself after two minutes.
+      });
   }
 }
 
@@ -83,30 +86,30 @@ export function useAutoSwitch({
   isBusy: boolean;
   onSwitch: (spotifyId: string, asleep: boolean) => void;
 }>): void {
-  const latest = useRef({ asleep, isPlaying, isBusy, onSwitch });
+  const latestRef = useRef({ asleep, isPlaying, isBusy, onSwitch });
   useEffect(() => {
-    latest.current = { asleep, isPlaying, isBusy, onSwitch };
+    latestRef.current = { asleep, isPlaying, isBusy, onSwitch };
   }, [asleep, isPlaying, isBusy, onSwitch]);
-  const isRunning = useRef(false);
-  const isMounted = useRef(true);
+  const isRunningRef = useRef(false);
+  const isMountedRef = useRef(true);
   useEffect(
     () => () => {
-      isMounted.current = false;
+      isMountedRef.current = false;
     },
     []
   );
-  const isCancelled = () => !isMounted.current;
+  const isCancelled = () => !isMountedRef.current;
 
   // A check that began asleep carries on when the screen wakes, and stands for the wake's own check.
-  const check = useRef(async (reason: string) => {
+  const checkRef = useRef(async (reason: string) => {
     const people = peopleOnKiosk();
-    if (isRunning.current || latest.current.isPlaying || !couldSwitch(people)) return;
-    isRunning.current = true;
+    if (isRunningRef.current || latestRef.current.isPlaying || !couldSwitch(people)) return;
+    isRunningRef.current = true;
     try {
       const active = people.find(person => person.active);
       const phones = await listen(active?.phoneAddress ?? '', isCancelled);
       if (!phones) return;
-      const now = latest.current;
+      const now = latestRef.current;
       const next = whoToSwitchTo(peopleOnKiosk(), phones);
       if (!next) {
         debugLog('info', 'presence', `${reason}: staying ${active?.name ?? ''}`);
@@ -120,23 +123,23 @@ export function useAutoSwitch({
     } catch (error) {
       debugLog('warn', 'presence', `${reason}: ${errorMessage(error)}`);
     } finally {
-      isRunning.current = false;
+      isRunningRef.current = false;
     }
   });
 
   // Woken from dimmed or asleep: someone is back, maybe not the person signed in.
-  const wasIdle = useRef(false);
+  const wasIdleRef = useRef(false);
   useEffect(() => {
     if (!enabled) return;
     const isIdle = asleep || dimmed;
-    if (wasIdle.current && !isIdle) void check.current('Woken');
-    wasIdle.current = isIdle;
+    if (!isIdle && wasIdleRef.current) void checkRef.current('Woken');
+    wasIdleRef.current = isIdle;
   }, [enabled, asleep, dimmed]);
 
   // Asleep: every five minutes, until it wakes.
   useEffect(() => {
     if (!enabled || !asleep) return;
-    const timer = setInterval(() => void check.current('Asleep'), ASLEEP_CHECK_MS);
+    const timer = setInterval(() => void checkRef.current('Asleep'), ASLEEP_CHECK_MS);
     return () => clearInterval(timer);
   }, [enabled, asleep]);
 }
