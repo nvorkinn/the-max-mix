@@ -148,6 +148,21 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     ]);
   });
 
+  test("the weather's Current location saves the place where the browser is", async ({ page, context }) => {
+    await context.grantPermissions(['geolocation']);
+    await context.setGeolocation({ latitude: 59.9139, longitude: 10.7522 });
+    const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
+    const asked = page.waitForRequest(request => request.url().includes('/api/places/here?'));
+    await openSpotifyTab(page, '/?kiosk=1');
+    const settings = await openSettings(page, 'General');
+
+    await settings.getByRole('button', { name: 'Change' }).first().click();
+    await page.getByRole('dialog', { name: 'Weather place' }).getByRole('button', { name: 'Current location' }).click();
+    expect(new URL((await asked).url()).searchParams.get('latitude')).toBe('59.9139');
+    await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
+    expect(server.saves.map(save => save['weather'])).toEqual([{ location: 'Oslo', key: 'oslo-no-3143244' }]);
+  });
+
   test('the time format on the General page changes the tab bar clock and saves', async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-11-15T16:05:00'));
     const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);

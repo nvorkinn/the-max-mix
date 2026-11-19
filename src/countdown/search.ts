@@ -7,6 +7,7 @@
 import type { DepartureStop, PlaceSearchResult, StopSearchResult, Weather } from 'countdown-api';
 import {
   getArrivals,
+  locatePlace as locatePlaceRoute,
   searchPlaces as searchPlacesRoute,
   searchStops as searchStopsRoute
 } from '../../vendor/countdown-api/src/countdown_api/client';
@@ -59,6 +60,7 @@ function fromPlace(result: PlaceSearchResult): PlaceResult {
 interface MockAnswers {
   stops: StopSearchResult[];
   places: PlaceSearchResult[];
+  here: PlaceSearchResult[];
 }
 
 /** countdown-api's example answer to one of the searches, for a build that mocks the server. */
@@ -88,6 +90,42 @@ export async function searchPlaces(query: string): Promise<PlaceResult[]> {
   const mock = import.meta.env.VITE_COUNTDOWN_CONFIG === 'mock';
   const found = mock ? await mockAnswer('places') : await ask(searchPlacesRoute, query);
   return found.map(result => fromPlace(result));
+}
+
+/** How long the browser may take to find where it is before the server places the kiosk by its IP instead. */
+const POSITION_TIMEOUT_MS = 10_000;
+/** How old a position the browser found earlier may be and still be used: a kiosk doesn't move far. */
+const POSITION_MAX_AGE_MS = 60 * 60 * 1000;
+
+/** Where the browser is (getCurrentPosition), or null when it can't tell or isn't allowed to. */
+function currentPosition(): Promise<{ latitude: number; longitude: number } | null> {
+  if (!('geolocation' in navigator)) return Promise.resolve(null);
+  return new Promise(resolve => {
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => resolve({ latitude: coords.latitude, longitude: coords.longitude }),
+      () => resolve(null),
+      { timeout: POSITION_TIMEOUT_MS, maximumAge: POSITION_MAX_AGE_MS }
+    );
+  });
+}
+
+/**
+ * The town or city the kiosk is in, for the weather: the one at the browser's position, or where countdown-server
+ * places its IP when the browser has none (a Pi has no GPS). Null when neither can tell. Rejects with SearchFailed when
+ * the server can't be asked.
+ */
+export async function locatePlace(): Promise<PlaceResult | null> {
+  if (import.meta.env.VITE_COUNTDOWN_CONFIG === 'mock') {
+    const [here] = await mockAnswer('here');
+    return here ? fromPlace(here) : null;
+  }
+  const client = serverClient();
+  if (!client) throw new SearchFailed();
+  const position = await currentPosition();
+  const answer = await locatePlaceRoute(client, position ?? {}).catch(() => null);
+  if (!answer?.data) throw new SearchFailed();
+  const [here] = answer.data;
+  return here ? fromPlace(here) : null;
 }
 
 type StopNames = Record<string, { name: string; detail: string }>;

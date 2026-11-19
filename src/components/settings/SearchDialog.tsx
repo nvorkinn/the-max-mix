@@ -1,4 +1,5 @@
 import { useId, useRef, useState } from 'react';
+import { LocateFixed } from 'lucide-react';
 import type { SearchResult } from '../../countdown/search';
 import { useOnScreenKeyboard } from '../../hooks/useOnScreenKeyboard';
 import Modal from '../Modal';
@@ -7,12 +8,13 @@ import SearchResults from './SearchResults';
 /**
  * A small dialog to find one place: a search box the on-screen keyboard types in, and what the search finds, one tap on
  * which picks it and closes the dialog. A box that starts with text (the place chosen now) waits for a change before it
- * searches.
+ * searches. With `locate`, a Current location button picks where the kiosk is instead.
  */
 export default function SearchDialog<R extends SearchResult>({
   title,
   search,
   initialQuery = '',
+  locate,
   onPick,
   onClose
 }: Readonly<{
@@ -20,6 +22,8 @@ export default function SearchDialog<R extends SearchResult>({
   search: (query: string) => Promise<R[]>;
   /** What the box starts with, such as the place chosen now; it isn't searched for until it is changed. */
   initialQuery?: string;
+  /** Finds the result for where the kiosk is: null when there's no telling; rejects when it can't be asked. */
+  locate?: (() => Promise<R | null>) | undefined;
   onPick: (result: R) => void;
   onClose: () => void;
 }>) {
@@ -28,7 +32,18 @@ export default function SearchDialog<R extends SearchResult>({
   const [query, setQuery] = useState(initialQuery);
   // Nothing is searched for until the text is changed, so the place chosen now doesn't bring up suggestions.
   const [edited, setEdited] = useState(false);
+  const [locating, setLocating] = useState<'busy' | 'failed' | null>(null);
   useOnScreenKeyboard(fieldRef, { focus: initialQuery === '', hasNumberRow: true });
+
+  const pickHere = (find: () => Promise<R | null>) => {
+    setLocating('busy');
+    find()
+      .then(found => {
+        if (found) onPick(found);
+        setLocating(found ? null : 'failed');
+      })
+      .catch(() => setLocating('failed'));
+  };
 
   return (
     <Modal
@@ -55,7 +70,23 @@ export default function SearchDialog<R extends SearchResult>({
         className="music-search w-full min-h-12 px-4 rounded-xl border text-sm"
       />
       <SearchResults query={edited ? query.trim() : ''} search={search} onPick={onPick} />
+      {locating === 'failed' && (
+        <p role="alert" className="text-muted py-2">
+          Couldn't find the current location.
+        </p>
+      )}
       <div className="search-dialog-actions">
+        {locate && (
+          <button
+            type="button"
+            disabled={locating === 'busy'}
+            onClick={() => pickHere(locate)}
+            className="button button-secondary search-dialog-locate"
+          >
+            <LocateFixed className="w-6 h-6" aria-hidden="true" />
+            {locating === 'busy' ? 'Locating...' : 'Current location'}
+          </button>
+        )}
         <button type="button" onClick={onClose} className="button button-secondary">
           Cancel
         </button>
