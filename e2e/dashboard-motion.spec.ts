@@ -8,6 +8,9 @@ import { fakeSpotify } from './fake-spotify.ts';
 // overtaking the 148 and the weather moving on, and checks every transition and animation that ran.
 
 const NOW = new Date('2026-11-17T09:20:00Z');
+// The page opens two and a half minutes after the feed was read, ten seconds before the first move. Every second the
+// page's clock passes costs the test real time (the Dashboard redraws each one), so it does not start at NOW.
+const START = new Date(NOW.getTime() + 150_000);
 
 /** A bus at the kiosk's stop, due at `time` (09:mm:ss). */
 const bus = (vehicle: string, line: string, destination: string, time: string) => ({
@@ -103,17 +106,16 @@ test.describe('Dashboard motion', { tag: '@layout' }, () => {
       arrivals: () => busStop([oxfordCircus, newCross, whiteCity, hasOvertaken ? ahead : behind, aldgate])
     });
     await recordMotion(page);
-    await page.clock.install({ time: NOW });
-    await page.clock.pauseAt(new Date(NOW.getTime() + 1000));
+    await page.clock.install({ time: START });
+    await page.clock.pauseAt(new Date(START.getTime() + 1000));
     await page.goto('/');
     const buses = page.getByRole('region', { name: /^TfL / });
     await expect(buses.getByText('Oxford Circus')).toBeVisible();
     const destinations = () => buses.locator('li strong').allTextContents();
     expect(await destinations()).toEqual(['Oxford Circus', 'New Cross', 'White City', 'Clapham Junction']);
 
-    // 2 min 40 s in: the 35 has passed the 148, and its row slides up past it. Nothing changes order on the way there,
-    // so the clock goes ten seconds at a time; the moves below are watched second by second.
-    await advance(page, 160_000, 10_000);
+    // 09:22:40: the 35 has passed the 148, and its row slides up past it.
+    await advance(page, 10_000);
     hasOvertaken = true;
     await advance(page, 2000);
     await expect.poll(destinations).toEqual(['Oxford Circus', 'New Cross', 'Clapham Junction', 'White City']);
