@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Bluetooth, CircleCheck, LoaderCircle, Smartphone } from 'lucide-react';
+import { Bluetooth, Check, LoaderCircle, Smartphone } from 'lucide-react';
 import { pairPhone, pickPhone, readBluetoothReport } from '../utils/bluetoothMonitor';
 import type { PairingStatus } from '../utils/bluetoothMonitor';
 import { errorMessage } from '../utils/errorMessage';
 import { setPersonPhone } from '../utils/phoneLinks';
 import Modal from './Modal';
+import PersonFace from './PersonFace';
 
 /** How often the sheet asks the Pi what it hears and how pairing is going. */
 const POLL_MS = 1500;
@@ -48,8 +49,9 @@ function PairingCode({ code, isConfirmed }: Readonly<{ code: number | null; isCo
 export default function PairPhoneSheet({
   spotifyId,
   name,
+  imageUrl = '',
   onDone
-}: Readonly<{ spotifyId: string; name: string; onDone: () => void }>) {
+}: Readonly<{ spotifyId: string; name: string; imageUrl?: string; onDone: () => void }>) {
   const [isIntro, setIsIntro] = useState(true);
   const [pairing, setPairing] = useState<PairingStatus>({ state: 'idle' });
   const [error, setError] = useState<string | null>(null);
@@ -108,41 +110,55 @@ export default function PairPhoneSheet({
 
   const owner = name ? `${name}’s` : 'your';
   const title = `Pair ${owner} phone`;
-  if (isIntro || pairing.state === 'paired') {
-    const isPaired = pairing.state === 'paired';
+  if (pairing.state === 'paired') {
     return (
       <Modal labelledBy="pair-phone-title" onClose={onDone} className="app-modal-panel pair-phone-sheet">
-        <div className="pair-phone-header">
-          <h3 id="pair-phone-title" className="pair-phone-title">
-            {isPaired ? (
-              <CircleCheck className="w-7 h-7 text-accent" aria-hidden="true" />
-            ) : (
-              <Bluetooth className="w-7 h-7 text-accent" aria-hidden="true" />
-            )}
-            {isPaired ? 'Pairing successful' : title}
+        <div className="pair-phone-done">
+          <h3 id="pair-phone-title" className="pair-phone-big-title">
+            You’re all set!
           </h3>
-        </div>
-        <div className="pair-phone-body pair-phone-message">
-          {isPaired ? (
-            <>
-              <p className="pair-phone-step">You’re all set up.</p>
-              <p className="pair-phone-hint">Tap your photo at any time to switch accounts.</p>
-            </>
-          ) : (
-            <p className="pair-phone-step">
-              Pairing your phone lets the tablet know when you’re here. Your account can only be switched to while your
-              phone is nearby.
-            </p>
-          )}
+          <div className="pair-phone-face">
+            <PersonFace name={name} imageUrl={imageUrl} className="pair-phone-face-picture" />
+            <Check className="pair-phone-face-tick" aria-hidden="true" />
+          </div>
+          <p className="pair-phone-big-text">Tap your photo any time to switch between accounts!</p>
         </div>
         <div className="pair-phone-actions">
           <button
             type="button"
             data-modal-autofocus
             className="spotify-sign-in pair-phone-button font-extrabold rounded-xl"
-            onClick={isPaired ? onDone : () => setIsIntro(false)}
+            onClick={onDone}
           >
-            {isPaired ? 'Done' : 'OK'}
+            Awesome!
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+  if (isIntro) {
+    return (
+      <Modal labelledBy="pair-phone-title" onClose={onDone} className="app-modal-panel pair-phone-sheet">
+        <div className="pair-phone-header">
+          <h3 id="pair-phone-title" className="pair-phone-title">
+            <Bluetooth className="w-7 h-7 text-accent" aria-hidden="true" />
+            {title}
+          </h3>
+        </div>
+        <div className="pair-phone-body pair-phone-intro">
+          <p className="pair-phone-big-title">Your phone is your key!</p>
+          <p className="pair-phone-big-text">
+            Once it’s paired, the tablet knows the moment you walk in, and only you can switch to your account.
+          </p>
+        </div>
+        <div className="pair-phone-actions">
+          <button
+            type="button"
+            data-modal-autofocus
+            className="spotify-sign-in pair-phone-button font-extrabold rounded-xl"
+            onClick={() => setIsIntro(false)}
+          >
+            Let’s do it!
           </button>
         </div>
       </Modal>

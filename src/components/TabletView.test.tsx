@@ -371,7 +371,7 @@ describe('TabletView', () => {
       const { unmount } = renderOnSpotifyTab(<TabletView />);
       await flush();
       expect(screen.getByRole('heading', { name: 'Pair anna’s phone' })).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Let’s do it!' }));
       fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
       expect(screen.queryByRole('heading', { name: 'Pair anna’s phone' })).not.toBeInTheDocument();
       unmount();

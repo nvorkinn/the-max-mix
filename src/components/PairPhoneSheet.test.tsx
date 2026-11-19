@@ -18,7 +18,7 @@ const scanning = (nearby: { address: string; name: string }[]) => ({
 /** Opens the sheet and OKs its intro, so the Pi starts looking. */
 async function renderSheet(name: string, onDone = vi.fn()) {
   const view = render(<PairPhoneSheet spotifyId="anna" name={name} onDone={onDone} />);
-  await userEvent.click(screen.getByRole('button', { name: 'OK' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Let’s do it!' }));
   return view;
 }
 
@@ -81,26 +81,28 @@ describe('PairPhoneSheet', () => {
     monitor.readBluetoothReport.mockResolvedValue({ pairing: { state: 'paired', ...PHONE } });
     await flush();
     expect(links.setPersonPhone).toHaveBeenCalledWith('anna', PHONE.address);
-    expect(screen.getByRole('heading', { name: 'Pairing successful' })).toBeInTheDocument();
-    expect(screen.getByText('Tap your photo at any time to switch accounts.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'You’re all set!' })).toBeInTheDocument();
+    expect(screen.getByText('Tap your photo any time to switch between accounts!')).toBeInTheDocument();
+    expect(document.querySelector('.pair-phone-face-picture')).toHaveTextContent('A');
     const polls = monitor.readBluetoothReport.mock.calls.length;
     await flush();
     expect(monitor.readBluetoothReport).toHaveBeenCalledTimes(polls);
     expect(onDone).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Awesome!' }));
     expect(onDone).toHaveBeenCalled();
     expect(monitor.pairPhone).not.toHaveBeenCalledWith(false);
   });
 
-  it('first says what pairing is for and only starts looking after OK', async () => {
+  it('first says what pairing is for and only starts looking once it is accepted', async () => {
     render(<PairPhoneSheet spotifyId="anna" name="Anna" onDone={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Pair Anna’s phone' })).toBeInTheDocument();
-    expect(screen.getByText(/Your account can only be switched to while your phone is nearby/)).toBeInTheDocument();
-    expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual(['OK']);
+    expect(screen.getByText('Your phone is your key!')).toBeInTheDocument();
+    expect(screen.getByText(/only you can switch to your account/)).toBeInTheDocument();
+    expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual(['Let’s do it!']);
     await flush();
     expect(monitor.pairPhone).not.toHaveBeenCalled();
     expect(monitor.readBluetoothReport).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('button', { name: 'OK' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Let’s do it!' }));
     expect(monitor.pairPhone).toHaveBeenCalledWith(true);
     expect(screen.getByRole('list', { name: 'Nearby' })).toBeInTheDocument();
   });

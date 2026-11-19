@@ -716,6 +716,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         <PairPhoneSheet
           spotifyId={pairingFor}
           name={peopleOnKiosk().find(person => person.spotifyId === pairingFor)?.name ?? ''}
+          imageUrl={peopleOnKiosk().find(person => person.spotifyId === pairingFor)?.imageUrl ?? ''}
           onDone={() => setIsPairingOpen(false)}
         />
       )}

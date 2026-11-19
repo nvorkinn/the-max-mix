@@ -123,6 +123,7 @@ export default function SpotifySettings({
                     <PhonePicker
                       spotifyId={person.spotifyId}
                       name={name}
+                      imageUrl={person.imageUrl}
                       phoneAddress={person.phoneAddress}
                       onChange={() => setPeople(peopleOnKiosk())}
                     />
