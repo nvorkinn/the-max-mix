@@ -461,7 +461,7 @@ describe('spotify/auth', () => {
         status: 401,
         message: 'Spotify login expired or was revoked. Sign in again in Settings.'
       });
-      expect(storedLogin()).toBeNull();
+      expect(storedLogin()?.refreshToken ?? '').toBe('');
       expect(auth.isSignedIn()).toBe(false);
       expect(await auth.getAccessToken()).toBeNull();
       expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -774,7 +774,7 @@ describe('spotify/auth', () => {
       });
     });
 
-    it('forgets only the active person when Spotify says their login was revoked', async () => {
+    it('keeps the active person, signed out, when Spotify says their login was revoked', async () => {
       setClientId('client-1');
       localStorage.setItem(
         'maxmix.people',
@@ -790,8 +790,19 @@ describe('spotify/auth', () => {
       const auth = await load();
       fetchMock.mockResolvedValueOnce(json({ error: 'invalid_grant' }, 400));
       await expect(auth.getAccessToken()).rejects.toMatchObject({ status: 401 });
-      expect(people()).toMatchObject({ activeId: null, people: [{ spotifyId: 'friend' }] });
+      expect(people()).toMatchObject({
+        activeId: 'nikolai',
+        people: [
+          { spotifyId: 'friend', refreshToken: 'rf' },
+          { spotifyId: 'nikolai', refreshToken: '' }
+        ]
+      });
       expect(auth.isSignedIn()).toBe(false);
+      expect(auth.peopleOnKiosk().map(person => person.signedIn)).toEqual([true, false]);
+      // Read back after a reload, they are still listed.
+      const reloaded = await load();
+      expect(reloaded.peopleOnKiosk().map(person => person.spotifyId)).toEqual(['friend', 'nikolai']);
+      expect(await reloaded.getAccessToken()).toBeNull();
     });
 
     it('reads a list it cannot make sense of as nobody', async () => {
@@ -831,8 +842,8 @@ describe('spotify/auth', () => {
       store('b', ['a', 'b']);
       const auth = await load();
       expect(auth.peopleOnKiosk()).toEqual([
-        { spotifyId: 'a', name: 'a', imageUrl: '', phoneAddress: '', active: false },
-        { spotifyId: 'b', name: 'b', imageUrl: '', phoneAddress: '', active: true }
+        { spotifyId: 'a', name: 'a', imageUrl: '', phoneAddress: '', active: false, signedIn: true },
+        { spotifyId: 'b', name: 'b', imageUrl: '', phoneAddress: '', active: true, signedIn: true }
       ]);
       setClientId('client-2');
       expect(auth.peopleOnKiosk()).toEqual([]);
@@ -961,14 +972,131 @@ describe('spotify/auth', () => {
       await expect(getAccessTokenFor('friend')).resolves.toBeNull();
     });
 
-    it('keeps someone else’s login when Spotify refuses their token', async () => {
+    it('marks only someone else signed out when Spotify says their login was revoked', async () => {
       setClientId('client-1');
       localStorage.setItem('maxmix.people', JSON.stringify(twoPeople));
-      const { getAccessTokenFor, isSignedIn } = await load();
+      const { getAccessTokenFor, isSignedIn, peopleOnKiosk } = await load();
       fetchMock.mockResolvedValueOnce(json({ error: 'invalid_grant' }, 400));
-      await expect(getAccessTokenFor('friend')).rejects.toThrow('Spotify authentication failed (400)');
+      await expect(getAccessTokenFor('friend')).rejects.toMatchObject({ status: 401 });
       expect(isSignedIn()).toBe(true);
-      expect(JSON.stringify(storedJson('maxmix.people'))).toContain('"friend"');
+      expect(peopleOnKiosk().map(person => [person.spotifyId, person.signedIn])).toEqual([
+        ['nikolai', true],
+        ['friend', false]
+      ]);
+      await expect(getAccessTokenFor('friend')).resolves.toBeNull();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps someone else’s login when Spotify refuses their token for another reason', async () => {
+      setClientId('client-1');
+      localStorage.setItem('maxmix.people', JSON.stringify(twoPeople));
+      const { getAccessTokenFor, peopleOnKiosk } = await load();
+      fetchMock.mockResolvedValueOnce(json({ error: 'invalid_client' }, 400));
+      await expect(getAccessTokenFor('friend')).rejects.toThrow('Spotify authentication failed (400)');
+      expect(peopleOnKiosk().every(person => person.signedIn)).toBe(true);
+    });
+
+    describe('checkPerson', () => {
+      const stubMe = (status: number) =>
+        vi.stubGlobal('fetch', (url: string, init: RequestInit) =>
+          url === 'https://api.spotify.com/v1/me'
+            ? Promise.resolve(json(ME, status))
+            : (fetchMock(url, init) as Promise<Response>)
+        );
+
+      it.each([
+        [200, 'connected'],
+        [403, 'refused'],
+        [500, 'unknown']
+      ])('reads GET /me answering %i as %s', async (status, expected) => {
+        setClientId('client-1');
+        localStorage.setItem('maxmix.people', JSON.stringify(twoPeople));
+        stubMe(status);
+        const { checkPerson } = await load();
+        fetchMock.mockResolvedValueOnce(json({ access_token: 'af', expires_in: 3600 }));
+        await expect(checkPerson('friend')).resolves.toBe(expected);
+      });
+
+      it('says expired when Spotify revokes the login, and without asking again once it has', async () => {
+        setClientId('client-1');
+        localStorage.setItem('maxmix.people', JSON.stringify(twoPeople));
+        const { checkPerson } = await load();
+        fetchMock.mockResolvedValueOnce(json({ error: 'invalid_grant' }, 400));
+        await expect(checkPerson('nikolai')).resolves.toBe('expired');
+        await expect(checkPerson('nikolai')).resolves.toBe('expired');
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('says unknown when Spotify cannot be reached', async () => {
+        setClientId('client-1');
+        localStorage.setItem('maxmix.people', JSON.stringify(twoPeople));
+        const { checkPerson } = await load();
+        fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+        await expect(checkPerson('friend')).resolves.toBe('unknown');
+      });
+    });
+
+    describe('signing someone in again', () => {
+      const signInAgain = async (as: string, activeId = 'nikolai') => {
+        setClientId('client-1');
+        localStorage.setItem(
+          'maxmix.people',
+          JSON.stringify({
+            ...twoPeople,
+            activeId,
+            people: twoPeople.people.map(person => ({ ...person, refreshToken: '' }))
+          })
+        );
+        const auth = await load();
+        await auth.startSignIn(as);
+        const address = new URL(app.leaveFor.mock.calls[0]?.[0] ?? '');
+        expect(address.searchParams.get('show_dialog')).toBe('true');
+        visit(`/?code=c&state=${address.searchParams.get('state') ?? ''}`);
+        fetchMock.mockResolvedValueOnce(json({ access_token: 'a', refresh_token: 'r-new', expires_in: 3600 }));
+        return { auth, result: await auth.completeSignIn() };
+      };
+
+      it('signs the same account in again, keeping their phone', async () => {
+        const { auth, result } = await signInAgain('nikolai');
+        expect(result).toEqual({ ok: true });
+        expect(auth.peopleOnKiosk()).toMatchObject([
+          { spotifyId: 'nikolai', phoneAddress: 'AA:BB', active: true, signedIn: true },
+          { spotifyId: 'friend', signedIn: false }
+        ]);
+      });
+
+      it('refuses a different account and changes nothing', async () => {
+        // GET /me answers as Nikolai, so signing Friend in again gets the wrong account.
+        const { auth, result } = await signInAgain('friend');
+        expect(result).toEqual({ ok: false, error: 'That was a different Spotify account, so nothing changed.' });
+        expect(auth.isPersonRefused(result && !result.ok ? result.error : '')).toBe(true);
+        expect(auth.peopleOnKiosk().map(person => person.signedIn)).toEqual([false, false]);
+      });
+
+      it('leaves someone else active when they are still signed in', async () => {
+        setClientId('client-1');
+        localStorage.setItem(
+          'maxmix.people',
+          JSON.stringify({
+            ...twoPeople,
+            activeId: 'friend',
+            people: [{ ...twoPeople.people[0], refreshToken: '' }, twoPeople.people[1]]
+          })
+        );
+        const auth = await load();
+        await auth.startSignIn('nikolai');
+        const address = new URL(app.leaveFor.mock.calls[0]?.[0] ?? '');
+        visit(`/?code=c&state=${address.searchParams.get('state') ?? ''}`);
+        fetchMock.mockResolvedValueOnce(json({ access_token: 'a', refresh_token: 'r-new', expires_in: 3600 }));
+        expect(await auth.completeSignIn()).toEqual({ ok: true });
+        expect(auth.peopleOnKiosk()).toMatchObject([
+          { spotifyId: 'nikolai', active: false, signedIn: true },
+          { spotifyId: 'friend', active: true }
+        ]);
+        // Their fresh token is kept for them, not handed to the active person.
+        await expect(auth.getAccessTokenFor('nikolai')).resolves.toBe('a');
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('links and unlinks a phone', async () => {
