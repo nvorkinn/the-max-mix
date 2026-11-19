@@ -409,11 +409,11 @@ describe('the other notices the e-paper screens show', () => {
   it('ranks the stations, roads and floods among the lines and the weather, worst first', () => {
     expect(boardNotices(full, NOW, '24h').map(n => [n.kind, n.severity, n.title])).toEqual([
       ['weather', 'severe', 'Weather warning'],
+      ['weather', 'severe', 'Flood warning'],
       ['weather', 'severe', 'Severe flood warning'],
       ['delays', 'minor', 'Northern line: Severe delays'],
       ['weather', 'minor', 'Weather warning'],
       ['weather', 'minor', 'Weather warning'],
-      ['weather', 'minor', 'Flood warning'],
       ['road', 'minor', 'Road disruption'],
       ['delays', 'info', 'Kennington station'],
       ['delays', 'info', 'Kennington station'],
@@ -468,7 +468,7 @@ describe('the other notices the e-paper screens show', () => {
 
   it("says each of the EA's warnings in force by its level and where it is", () => {
     expect(floodNotices(full.floods?.floods.items ?? []).map(n => [n.severity, n.title, n.summary])).toEqual([
-      ['minor', 'Flood warning', 'River Thames at Southwark'],
+      ['severe', 'Flood warning', 'River Thames at Southwark'],
       ['severe', 'Severe flood warning', 'Tidal Thames at Bankside and Rotherhithe'],
       ['info', 'Flood alert', 'Lower River Effra']
     ]);
