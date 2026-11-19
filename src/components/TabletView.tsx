@@ -708,7 +708,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       {pairingFor && isPairingOpen && (
         <PairPhoneSheet
           spotifyId={pairingFor}
-          hasIntro
           name={peopleOnKiosk().find(person => person.spotifyId === pairingFor)?.name ?? ''}
           onDone={() => setIsPairingOpen(false)}
         />

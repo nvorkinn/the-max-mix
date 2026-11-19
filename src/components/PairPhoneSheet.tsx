@@ -39,8 +39,8 @@ function PairingCode({ code, isConfirmed }: Readonly<{ code: number | null; isCo
 }
 
 /**
- * Pairs a person's phone with the kiosk (pi/kiosk-audio/phone-pairing.ts). With `hasIntro` (straight after signing in)
- * it first says what pairing is for, and the Pi only starts looking once that is OK'd. While the sheet is looking, a
+ * Pairs a person's phone with the kiosk (pi/kiosk-audio/phone-pairing.ts). It first says what pairing is for, and the
+ * Pi only starts looking once that is OK'd. While the sheet is looking, a
  * phone with Settings › Bluetooth open shows up in the list under its own name. Tapping it pairs: the phone asks to
  * accept the code shown here too, and the phone is linked to that person (linkPhone), so the switcher knows when they
  * are here; the sheet then says so until Done. Skip (or closing the sheet) stops the Pi looking.
@@ -48,10 +48,9 @@ function PairingCode({ code, isConfirmed }: Readonly<{ code: number | null; isCo
 export default function PairPhoneSheet({
   spotifyId,
   name,
-  hasIntro = false,
   onDone
-}: Readonly<{ spotifyId: string; name: string; hasIntro?: boolean; onDone: () => void }>) {
-  const [isIntro, setIsIntro] = useState(hasIntro);
+}: Readonly<{ spotifyId: string; name: string; onDone: () => void }>) {
+  const [isIntro, setIsIntro] = useState(true);
   const [pairing, setPairing] = useState<PairingStatus>({ state: 'idle' });
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
