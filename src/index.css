@@ -449,11 +449,19 @@
   backdrop-filter: blur(18px) saturate(1.2);
 }
 /*
-  The Options tab: the Settings tab's pages on the same photo, in the same warm white. The sections and the page each sit
-  on a pane of the blurred, darkened photo, the screen's margin around them as on the Player tab. Status colours are
-  Night's, which read on the dark glass.
+  The Options tab: the Settings tab's pages on the same photo. The sections and the page each sit on a pane of the
+  blurred, darkened photo, the screen's margin around them as on the Player tab. On the panes the cards, words and status
+  colours are Night's, the Settings tab's navy cards, whatever the skin, as the photo is always dark; highlights are the
+  photo's warm white (or Dynamic's colours), as on the Player tab.
 */
 .app-tab-panel.on-photo .settings-panel.settings-tab {
+  --surface: #101a33;
+  --surface-raised: #202b49;
+  --ink: #f5f6ff;
+  --muted: #aab5d0;
+  --faint: #7785a8;
+  --border: #33405f;
+  --track: #354260;
   --success: #57d3b4;
   --warning: #f0b64c;
   --amber: #f0b64c;
