@@ -427,9 +427,10 @@ export function roadNotices(
 // The Environment Agency's flood warnings near the postcode (v1:notices:floods:<place>).
 
 // Its severityLevel: 1 a severe flood warning, 2 a flood warning, 3 a flood alert; 4, no longer in force, isn't worth one.
+// Both warnings are red, as an amber weather warning is.
 const FLOOD_LEVELS = new Map<number, readonly [Severity, string]>([
   [1, ['severe', 'severe']],
-  [2, ['minor', 'warning']],
+  [2, ['severe', 'warning']],
   [3, ['info', 'alert']]
 ]);
 
