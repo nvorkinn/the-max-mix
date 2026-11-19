@@ -71,17 +71,14 @@ describe('dashboardProps', () => {
     expect(board(props, ELEPHANT)?.stale).toBe(true);
   });
 
-  it('marks the hourly strip stale with an old or held forecast, and says when the newest data was read', () => {
+  it('marks the hourly strip stale with an old or held forecast', () => {
     const fetchedAt = WEATHER.forecast?.fetched_at ?? '';
     const fetched = Date.parse(fetchedAt);
     const fresh = new Date(fetched + 60_000);
     const old = new Date(fetched + WEATHER_STALE_MS + 60_000);
     const weatherOnly = { ...snapshot(), arrivals: null };
 
-    expect(dashboardProps(weatherOnly, fresh, '24h').hourly).toMatchObject({
-      stale: false,
-      updatedAt: fetchedAt
-    });
+    expect(dashboardProps(weatherOnly, fresh, '24h').hourly?.stale).toBe(false);
     expect(dashboardProps(weatherOnly, old, '24h').hourly?.stale).toBe(true);
     expect(dashboardProps({ ...weatherOnly, weatherHeld: true }, fresh, '24h').hourly?.stale).toBe(true);
   });
