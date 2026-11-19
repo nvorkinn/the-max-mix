@@ -52,6 +52,7 @@ const odd = () => Promise.reject(new Error('internal detail'));
 function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotError?: Error, isPairingFailing = false) {
   const verboseCalls: boolean[] = [];
   const pairingCalls: string[] = [];
+  const presenceCalls: string[] = [];
   const hotspotCalls: string[] = [];
   const phoneStarts: string[] = [];
   const connected: string[] = [];
@@ -174,7 +175,17 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
       }
     },
     presence: {
-      status: () => [{ address: '4F:00:00:00:00:03', name: 'Nikolai’s iPhone', isHere: true, lastSeen: 5 }]
+      status: () =>
+        Promise.resolve({
+          checking: true,
+          phones: [{ address: '4F:00:00:00:00:03', name: 'Nikolai’s iPhone', isHere: true, lastSeen: 5 }]
+        }),
+      watch: () => {
+        presenceCalls.push('watch');
+      },
+      unwatch: () => {
+        presenceCalls.push('unwatch');
+      }
     },
     bluetoothMonitor: {
       snapshot: () => Promise.resolve(MONITOR),
@@ -188,6 +199,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
     deps,
     verboseCalls,
     pairingCalls,
+    presenceCalls,
     hotspotCalls,
     phoneStarts,
     connected,
@@ -783,7 +795,8 @@ describe('Bluetooth monitor', () => {
     await expect(answer.json()).resolves.toEqual({
       ...MONITOR,
       pairing: { state: 'scanning', secondsLeft: 90, nearby: [] },
-      phones: [{ address: '4F:00:00:00:00:03', name: 'Nikolai’s iPhone', isHere: true, lastSeen: 5 }]
+      phones: [{ address: '4F:00:00:00:00:03', name: 'Nikolai’s iPhone', isHere: true, lastSeen: 5 }],
+      presenceChecking: true
     });
     expect((await fetch(`${base}/bluetooth/monitor`)).status).toBe(403);
   });
@@ -804,6 +817,18 @@ describe('Bluetooth monitor', () => {
       (await post(base, '/bluetooth/monitor', { body: { verbose: false }, origin: 'https://example.com' })).status
     ).toBe(403);
     expect(verboseCalls).toEqual([true]);
+  });
+
+  it('listens for the saved phones while the app watches, for the app only', async () => {
+    const { deps, presenceCalls } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/bluetooth/presence', { body: { watch: true } })).status).toBe(204);
+    expect((await post(base, '/bluetooth/presence', { body: { watch: false } })).status).toBe(204);
+    expect((await post(base, '/bluetooth/presence', { body: { watch: 'yes' } })).status).toBe(400);
+    expect(
+      (await post(base, '/bluetooth/presence', { body: { watch: true }, origin: 'https://example.com' })).status
+    ).toBe(403);
+    expect(presenceCalls).toEqual(['watch', 'unwatch']);
   });
 });
 

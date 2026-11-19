@@ -68,9 +68,10 @@ phone's changing LE addresses later. **Forget** on a device row (`POST /bluetoot
 `phones.json`, so a phone can pair again. The adapter's Alias is THE MAX MIX (set at start-up), which is what the phone's
 pairing prompt shows. This was checked on the-max-mix-2 with `pi/tools/bt-probe.mts` before it was built.
 
-Once a phone is saved, `presence.ts` scans Bluetooth LE for 8 s every 30 s (an LE-only discovery filter on hci0) and
-counts a saved phone as here while it is connected or was heard in the last two minutes; the debug section shows Here or
-Away for each, and the log notes each change. With no phone saved it never scans.
+`presence.ts` scans Bluetooth LE (an LE-only discovery filter on hci0) only while the app's person switcher is open
+(`POST /bluetooth/presence`), for two minutes at most, and never with no phone saved. It counts a saved phone as here
+while it is connected or was heard in the last two minutes; for the first 8 s of a watch a phone not heard yet is
+"checking", not away. The debug section shows Here or Away for each, and the log notes each change.
 
 ## How it works
 

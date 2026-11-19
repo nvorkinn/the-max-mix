@@ -149,6 +149,7 @@ describe('BluetoothDebug', () => {
       adapter: null,
       pairing: { state: 'idle' },
       phones: [{ address: '', name: '', isHere: false }],
+      presenceChecking: false,
       devices: [
         {
           address: '',
