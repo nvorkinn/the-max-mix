@@ -343,20 +343,20 @@
 }
 /*
   The Settings tab: its pages on the photo, blurred and darkened under the tab bar as it is under the Dashboard's
-  boards, with the app's own navy cards and words.
+  boards. Its cards, rows and choices take the Spotify tab's look on the photo (the tokens above): warm white words,
+  a faint white tint with a hairline edge, and the panes' 20px corners; selections keep the chosen colour.
 */
 .app-tab-panel.on-photo .settings-panel.settings-tab {
-  --surface: #101a33;
-  --surface-raised: #202b49;
-  --ink: #f5f6ff;
-  --muted: #aab5d0;
-  --faint: #7785a8;
-  --border: #33405f;
-  --track: #354260;
-  --glow: 0 0 14px color-mix(in srgb, var(--accent) 30%, transparent);
+  --glow: none;
 
   position: relative;
   isolation: isolate;
+}
+.app-tab-panel.on-photo .settings-tab :is(.settings-nav-item, .settings-card, .settings-box, .settings-segmented) {
+  border-radius: 20px;
+}
+.app-tab-panel.on-photo .settings-tab .settings-segment {
+  border-radius: 16px;
 }
 .app-tab-panel.on-photo .settings-panel.settings-tab::before {
   content: '';
