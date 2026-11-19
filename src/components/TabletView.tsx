@@ -649,12 +649,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         hidden={screen !== 'settings'}
       >
         {screen === 'settings' && <TabBackdrop now={tabBar.now} />}
-        {/* Sleep, switching person and holding the clock for the debug console live in this tab's bar. */}
+        {/* Switching person and holding the clock for the debug console live in this tab's bar. */}
         <div className="floating-bar">
           <TabBar
             {...tabBar}
             onSearch={null}
-            onSleep={onKiosk ? sleep.sleepNow : null}
             onSwitchPerson={isAuthenticated ? spotifyId => void switchTo(spotifyId) : null}
             onClockHold={() => setIsDebugOpen(true)}
           />

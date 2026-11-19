@@ -15,7 +15,7 @@ browser. Run them with `npm run build && npm run test:e2e`.
 | `lyrics.spec.ts`     | Lyrics (`@lyrics`)                                                                                            |
 | `speakers.spec.ts`   | Speakers (`@speakers`): the drawer and AirPlay on the kiosk                                                   |
 | `settings.spec.ts`   | Settings (`@settings`): colour, polling, screen sleep, kiosk-only buttons                                     |
-| `sleep.spec.ts`      | Screen sleep (`@sleep`): sleep button, idle sleep, polling while asleep                                       |
+| `sleep.spec.ts`      | Screen sleep (`@sleep`): idle sleep, quiet hours, polling while asleep                                        |
 | `dialogs.spec.ts`    | Focus and dismissal of the dialogs: Settings, Speakers, debug (`@dialogs`)                                    |
 | `update.spec.ts`     | Software update (`@update`): popup, streamed console, restart, failure                                        |
 | `setup.spec.ts`      | Setup and signing in (`@setup`)                                                                               |
