@@ -59,11 +59,11 @@ describe('LyricsPanel', () => {
     renderPanel({ provider: providerOf(synced) });
     await flush();
     const list = screen.getByRole('list', { name: 'Lyrics of Placeholder Song' });
-    expect(list.style.getPropertyValue('--lyrics-scale')).toBe('1');
+    expect(list.style.getPropertyValue('--lyrics-scale')).toBe('0.7');
     expect(list).toHaveStyle({ textAlign: 'left' });
 
     act(() => setLyricsStyle({ size: 'x-large', align: 'center' }));
-    expect(list.style.getPropertyValue('--lyrics-scale')).toBe('1.4');
+    expect(list.style.getPropertyValue('--lyrics-scale')).toBe('1');
     expect(list).toHaveStyle({ textAlign: 'center' });
     act(() => setLyricsStyle(DEFAULT_LYRICS_STYLE));
   });
