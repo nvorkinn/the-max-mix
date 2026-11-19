@@ -459,7 +459,7 @@ describe('SettingsPanel', () => {
       within(nav)
         .getAllByRole('button')
         .map(button => button.textContent)
-    ).toEqual(['Overview', 'General', 'Countdown', 'Appearance', 'Spotify', 'Lyrics', 'About']);
+    ).toEqual(['Overview', 'General', 'Countdown', 'Parcels', 'Appearance', 'Spotify', 'Lyrics', 'About']);
     const overview = within(screen.getByRole('group', { name: 'Overview' }));
     expect(overview.getByRole('button', { name: /^General/ })).toHaveTextContent('General24-hourOslo0150');
     expect(overview.getByRole('img', { name: 'Norway' })).toBeInTheDocument();
@@ -468,6 +468,84 @@ describe('SettingsPanel', () => {
     await userEvent.click(card);
     expect(screen.getByRole('region', { name: 'Countdown' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add a station or stop' })).toBeInTheDocument();
+  });
+
+  it("saves each of the Parcels page's controls to the server as the whole of the parcels", async () => {
+    history.replaceState(null, '', '/?kiosk=0');
+    const onDeviceConfigSave = vi.fn();
+    const config = fixture.config as TouchscreenConfig;
+    const { rerender } = render(
+      <SettingsPanel {...base} authInfo={{}} deviceConfig={config} onDeviceConfigSave={onDeviceConfigSave} />
+    );
+    const overview = within(screen.getByRole('group', { name: 'Overview' }));
+    expect(overview.getByRole('button', { name: /^Parcels/ })).toHaveTextContent(/^ParcelsOff$/);
+    await userEvent.click(overview.getByRole('button', { name: /^Parcels/ }));
+
+    const notices = within(screen.getByRole('group', { name: 'Notice board' }));
+    const arriving = within(screen.getByRole('group', { name: 'Arriving by' }));
+    const kept = within(screen.getByRole('group', { name: 'Delivered ones stay' }));
+    expect(notices.getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true');
+    expect(arriving.getByRole('button', { name: 'Any day' })).toHaveAttribute('aria-pressed', 'true');
+    expect(kept.getByRole('button', { name: '4 hours' })).toHaveAttribute('aria-pressed', 'true');
+    expect(arriving.getAllByRole('button').map(button => button.textContent)).toEqual([
+      'Today',
+      'Tomorrow',
+      'Day after',
+      'Any day'
+    ]);
+    expect(kept.getAllByRole('button').map(button => button.textContent)).toEqual([
+      'Not kept',
+      '1 hour',
+      '4 hours',
+      'A day'
+    ]);
+
+    await userEvent.click(notices.getByRole('button', { name: 'On' }));
+    expect(onDeviceConfigSave).toHaveBeenLastCalledWith('parcels', { enabled: true, days_ahead: null, kept_hours: 4 });
+    await userEvent.click(arriving.getByRole('button', { name: 'Tomorrow' }));
+    expect(onDeviceConfigSave).toHaveBeenLastCalledWith('parcels', { enabled: false, days_ahead: 1, kept_hours: 4 });
+    await userEvent.click(kept.getByRole('button', { name: 'Not kept' }));
+    expect(onDeviceConfigSave).toHaveBeenLastCalledWith('parcels', { enabled: false, days_ahead: null, kept_hours: 0 });
+    expect(onDeviceConfigSave).toHaveBeenCalledTimes(3);
+
+    // Once the server has them, the page and the Overview card show them.
+    rerender(
+      <SettingsPanel
+        {...base}
+        authInfo={{}}
+        deviceConfig={{ ...config, parcels: { enabled: true, days_ahead: 1, kept_hours: 24 } }}
+        onDeviceConfigSave={onDeviceConfigSave}
+      />
+    );
+    expect(arriving.getByRole('button', { name: 'Tomorrow' })).toHaveAttribute('aria-pressed', 'true');
+    expect(kept.getByRole('button', { name: 'A day' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(
+      within(screen.getByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Overview' })
+    );
+    expect(
+      within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Parcels/ })
+    ).toHaveTextContent(/^ParcelsTomorrow$/);
+  });
+
+  it('turns parcels on from a config from before parcels, which has them off', async () => {
+    const onDeviceConfigSave = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- left out, as a config from before parcels has them
+    const { parcels, ...config } = fixture.config as TouchscreenConfig;
+    render(
+      <SettingsPanel
+        {...base}
+        authInfo={{}}
+        initialSection="parcels"
+        deviceConfig={config as TouchscreenConfig}
+        onDeviceConfigSave={onDeviceConfigSave}
+      />
+    );
+    const notices = within(screen.getByRole('group', { name: 'Notice board' }));
+    expect(notices.getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Any day' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '4 hours' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(notices.getByRole('button', { name: 'On' }));
+    expect(onDeviceConfigSave).toHaveBeenCalledExactlyOnceWith('parcels', { enabled: true });
   });
 
   it('saves the time format from the General page, which shows with an owned kiosk only off the kiosk', async () => {

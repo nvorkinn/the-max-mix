@@ -96,7 +96,8 @@ export async function loadDeviceConfig(): Promise<TouchscreenConfig | null> {
 }
 
 /** The parts of the config the Settings tab changes, each saved whole: the time format and the owner's sections. */
-export type ConfigSection = 'clock_format' | 'style' | 'display' | 'lyrics' | 'arrivals' | 'weather' | 'notice_board';
+export type ConfigSection =
+  'clock_format' | 'style' | 'display' | 'lyrics' | 'arrivals' | 'weather' | 'notice_board' | 'parcels';
 
 /**
  * What a save comes to: the config as the server saved it; `conflict` when the server says the config changed since
