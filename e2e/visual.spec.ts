@@ -118,16 +118,6 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await expect(settings).toHaveScreenshot(shotName('settings-countdown', screen), SHOT);
     });
 
-    test(`settings at night at ${size(screen)}`, { tag: ['@settings', '@appearance'] }, async ({ page }) => {
-      await page.addInitScript(() => {
-        localStorage.setItem('maxmix.theme', 'night');
-      });
-      await page.setViewportSize(screen);
-      await openSpotifyTab(page);
-      const settings = await openSettings(page, 'Appearance');
-      await expect(settings).toHaveScreenshot(shotName('settings-night', screen), SHOT);
-    });
-
     test(`player screen at ${size(screen)}`, { tag: '@player' }, async ({ page }) => {
       await fakeSpotify(page);
       await colouredArt(page);
@@ -136,19 +126,6 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
       await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
       await expect(page).toHaveScreenshot(shotName('player', screen), moving(page));
-    });
-
-    test(`player screen at night at ${size(screen)}`, { tag: ['@player', '@appearance'] }, async ({ page }) => {
-      await page.addInitScript(() => {
-        localStorage.setItem('maxmix.theme', 'night');
-      });
-      await fakeSpotify(page);
-      await colouredArt(page);
-      await page.setViewportSize(screen);
-      await openSpotifyTab(page);
-      await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
-      await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
-      await expect(page).toHaveScreenshot(shotName('player-night', screen), moving(page));
     });
 
     test(`player screen with Dynamic on at ${size(screen)}`, { tag: ['@player', '@appearance'] }, async ({ page }) => {
@@ -163,24 +140,6 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
       await expect(page).toHaveScreenshot(shotName('player-dynamic', screen), moving(page));
     });
-
-    test(
-      `player screen at night with Dynamic on at ${size(screen)}`,
-      { tag: ['@player', '@appearance'] },
-      async ({ page }) => {
-        await page.addInitScript(() => {
-          localStorage.setItem('maxmix.theme', 'night');
-          localStorage.setItem('maxmix.dynamicColour', 'on');
-        });
-        await fakeSpotify(page);
-        await colouredArt(page);
-        await page.setViewportSize(screen);
-        await openSpotifyTab(page);
-        await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
-        await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
-        await expect(page).toHaveScreenshot(shotName('player-night-dynamic', screen), moving(page));
-      }
-    );
 
     test(`speakers view at ${size(screen)}`, { tag: '@speakers' }, async ({ page }) => {
       await fakeSpotify(page);

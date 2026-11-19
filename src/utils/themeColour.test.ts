@@ -95,28 +95,16 @@ describe('Dynamic setting', () => {
 
 describe('basePalette', () => {
   it("runs Violet's play button pink to violet", () => {
-    expect(basePalette('violet')).toMatchObject({ '--dynamic-from': '#e94dae', '--dynamic-to': '#913fcb' });
-  });
-
-  it("is the chosen colour's own, with a flat play button", () => {
-    expect(basePalette('yellow')).toEqual({
-      '--dynamic-accent': '#a67c00',
-      '--dynamic-ink': '#3a3010',
-      '--dynamic-from': '#a67c00',
-      '--dynamic-to': '#a67c00',
-      '--dynamic-accent-ink': '#1f1a05',
-      '--dynamic-mark-from': '#a67c00',
-      '--dynamic-mark-to': '#a67c00',
-      '--dynamic-mark-ink': '#1f1a05'
+    expect(basePalette('violet')).toMatchObject({
+      '--dynamic-accent': '#a95be8',
+      '--dynamic-from': '#e94dae',
+      '--dynamic-to': '#913fcb'
     });
   });
-});
 
-describe('basePalette on the dark', () => {
-  it("is the colour's night shade at night, with Night's text", () => {
-    expect(basePalette('black', 'night')).toEqual({
+  it("is the chosen colour's own, with a flat play button and its icon", () => {
+    expect(basePalette('black')).toEqual({
       '--dynamic-accent': '#dfe3ee',
-      '--dynamic-ink': '#f5f6ff',
       '--dynamic-from': '#dfe3ee',
       '--dynamic-to': '#dfe3ee',
       '--dynamic-accent-ink': '#111',
@@ -124,23 +112,12 @@ describe('basePalette on the dark', () => {
       '--dynamic-mark-to': '#dfe3ee',
       '--dynamic-mark-ink': '#111'
     });
-    expect(basePalette('violet', 'night')).toMatchObject({
-      '--dynamic-accent': '#a95be8',
-      '--dynamic-from': '#e94dae'
-    });
-  });
-
-  it('keeps the logo in the colour as the Day skin shows it on a photo tab', () => {
-    expect(basePalette('navy', 'night', false)).toMatchObject({
-      '--dynamic-accent': '#5b8def',
-      '--dynamic-mark-from': '#1f3a5f',
-      '--dynamic-mark-ink': '#fff'
-    });
+    expect(basePalette('navy')).toMatchObject({ '--dynamic-mark-from': '#5b8def', '--dynamic-mark-ink': '#fff' });
   });
 });
 
-describe('dynamicPalette on the dark', () => {
-  const NIGHT_PAGE = [9, 14, 31] as const;
+describe('dynamicPalette', () => {
+  const PAGE = [9, 14, 31] as const;
   /** The rgb() of an hsl() string, via the browser-free formula. */
   function rgbOf(colour: string): [number, number, number] {
     const [h, s, l] = (colour.match(/[\d.]+/g) ?? []).map(Number) as [number, number, number];
@@ -161,53 +138,30 @@ describe('dynamicPalette on the dark', () => {
     ['a pale yellow', [250, 240, 180]],
     ['a vivid green', [30, 220, 40]]
   ] as const)('lights %s just enough to read on the navy, without glaring', (_name, first) => {
-    const palette = dynamicPalette([first, [120, 40, 160]], 'night');
+    const palette = dynamicPalette([first, [120, 40, 160]]);
     const accent = rgbOf(palette['--dynamic-accent']);
-    expect(contrast(accent, NIGHT_PAGE)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(accent, PAGE)).toBeGreaterThanOrEqual(4.5);
     expect(Number(palette['--dynamic-accent'].split(' ', 3)[2]?.replace('%)', ''))).toBeLessThanOrEqual(85);
-    expect(palette['--dynamic-ink']).toBe('#f5f6ff');
   });
 
   it('softens a vivid colour and keeps the play button out of the glare', () => {
-    const palette = dynamicPalette(
-      [
-        [255, 0, 60],
-        [255, 255, 255]
-      ],
-      'night'
-    );
+    const palette = dynamicPalette([
+      [255, 0, 60],
+      [255, 255, 255]
+    ]);
     expect(palette['--dynamic-accent']).toBe('hsl(346 70% 60%)');
     expect(palette['--dynamic-from']).toBe('hsl(346 75% 50%)');
     expect(palette['--dynamic-to']).toBe('hsl(0 0% 60%)');
-  });
-});
-
-describe('dynamicPalette', () => {
-  it('darkens a light first colour for text and keeps both colours for the gradient', () => {
-    expect(
-      dynamicPalette([
-        [240, 120, 120],
-        [60, 60, 200]
-      ])
-    ).toEqual({
-      '--dynamic-accent': 'hsl(0 80% 36%)',
-      '--dynamic-ink': 'hsl(0 30% 15%)',
-      '--dynamic-from': 'hsl(0 80% 60%)',
-      '--dynamic-to': 'hsl(240 56% 51%)',
-      '--dynamic-accent-ink': '#fff',
-      '--dynamic-mark-from': 'hsl(0 80% 60%)',
-      '--dynamic-mark-to': 'hsl(240 56% 51%)',
-      '--dynamic-mark-ink': '#fff'
-    });
+    expect(palette['--dynamic-mark-from']).toBe(palette['--dynamic-from']);
+    expect(palette['--dynamic-accent-ink']).toBe('#fff');
   });
 
-  it('keeps a dark first colour as it is and lifts a near-black gradient end', () => {
+  it('lifts a near-black gradient end', () => {
     const palette = dynamicPalette([
       [20, 50, 30],
       [10, 10, 40]
     ]);
-    expect(palette['--dynamic-accent']).toBe('hsl(140 43% 14%)');
-    expect(palette['--dynamic-to']).toBe('hsl(240 60% 35%)');
+    expect(palette['--dynamic-to']).toBe('hsl(240 60% 45%)');
   });
 
   it('puts a dark icon on a light yellow and green gradient', () => {

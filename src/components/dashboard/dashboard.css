@@ -204,9 +204,8 @@
 }
 
 /*
-  The same bar floating on the Spotify tab (TabletView), over the player's own background, which runs up behind it.
-  At night it looks as it does on the Dashboard; by day the page is light, so its words take the page's ink. On the
-  7 inch screen it is drawn at 0.75, the size the Dashboard's scaling gives it there.
+  The same bar floating on the Spotify and Settings tabs (TabletView), over the photo, which runs up behind it, looking
+  as it does on the Dashboard. On the 7 inch screen it is drawn at 0.75, the size the Dashboard's scaling gives it there.
 */
 .floating-bar {
   --text: #f7f4ec;
@@ -232,18 +231,8 @@
   background: var(--mark-fill);
   color: var(--mark-ink);
 }
-.tablet-container[data-theme='night'] .floating-bar .shadowed {
+.floating-bar .shadowed {
   text-shadow: 0 1px 14px rgb(0 0 0 / 45%);
-}
-.tablet-container[data-theme='day'] .floating-bar {
-  --text: var(--ink);
-}
-.tablet-container[data-theme='day'] .floating-bar .dashboard-tab[aria-selected='true'] {
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 14%, transparent);
-}
-.tablet-container[data-theme='day'] .floating-bar .dashboard-avatar {
-  border-color: color-mix(in srgb, var(--ink) 70%, transparent);
 }
 @media (height <= 640px) {
   .floating-bar {
@@ -263,8 +252,7 @@
     width: 59px;
     margin: 0 -7.5px;
   }
-  .floating-bar .dashboard-tab[aria-selected='true'],
-  .tablet-container[data-theme='day'] .floating-bar .dashboard-tab[aria-selected='true'] {
+  .floating-bar .dashboard-tab[aria-selected='true'] {
     background: none;
     box-shadow: none;
     backdrop-filter: none;
@@ -277,10 +265,6 @@
     border-radius: 999px;
     background: rgb(255 255 255 / 16%);
     box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%);
-  }
-  .tablet-container[data-theme='day'] .floating-bar .dashboard-tab[aria-selected='true']::before {
-    background: color-mix(in srgb, var(--ink) 8%, transparent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 14%, transparent);
   }
 }
 

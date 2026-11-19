@@ -15,9 +15,8 @@
 # Any other REF (a branch, for testing on your own Pi) is pulled with ansible-pull, where --only-if-changed means the
 # branch has not moved.
 #
-# The playbook itself skips what has not changed. Settings for this Pi only, such as an exact location instead of the one
-# its IP address gives (kiosk_latitude, kiosk_longitude), go in /etc/the-max-mix/kiosk-vars.yml, which is passed to the
-# playbook when it exists.
+# The playbook itself skips what has not changed. Settings for this Pi only, such as its screen mode (kiosk_video_mode),
+# go in /etc/the-max-mix/kiosk-vars.yml, which is passed to the playbook when it exists.
 set -euo pipefail
 
 PI_BUNDLE=the-max-mix-pi.tar.gz

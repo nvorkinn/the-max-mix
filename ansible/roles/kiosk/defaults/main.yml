@@ -11,26 +11,12 @@ kiosk_user: kiosk
 # that service pair and connect Bluetooth speakers (BlueZ's D-Bus policy), and WirePlumber play to them.
 kiosk_groups: [audio, bluetooth, input, netdev, render, systemd-journal, video]
 # The origin of the hosted app and the address the kiosk opens (?kiosk=1 turns on the app's kiosk-only settings,
-# ?pi_ref=&pi_commit= name the release (or other ref) and commit this playbook ran from, which the app's settings show,
-# and ?lat=&lon= are kiosk_latitude and kiosk_longitude when both are set).
+# ?pi_ref=&pi_commit= name the release (or other ref) and commit this playbook ran from, which the app's settings show).
 # Register the redirect URI of this address in the Spotify dashboard.
 kiosk_app_origin: https://the-max-mix.countdown.build
 kiosk_url: >-
   {{ kiosk_app_origin }}/?kiosk=1
   {{- ('&pi_ref=' ~ (kiosk_version | urlencode) ~ '&pi_commit=' ~ kiosk_commit) if kiosk_commit and kiosk_version else '' }}
-  {{- ('&lat=' ~ (kiosk_latitude | float | round(2)) ~ '&lon=' ~ (kiosk_longitude | float | round(2)))
-    if (kiosk_latitude | string | length) and (kiosk_longitude | string | length) else '' }}
-# Where the Pi is, in degrees (north and east positive), for the app's Auto theme: Day from sunrise to sunset, worked out
-# in the browser with no network. The address rounds them to about a kilometre. Left empty, each pull looks up the Pi's
-# rough location from its public IP address at kiosk_location_lookup_url (tasks/kiosk-service.yml); when that fails too,
-# the app offers only Day and Night. To give the exact place instead, set both on the Pi rather than here (this
-# repository is public), in /etc/the-max-mix/kiosk-vars.yml, which kiosk-pull passes to the playbook, for example:
-#   kiosk_latitude: 51.51
-#   kiosk_longitude: -0.13
-kiosk_latitude: ''
-kiosk_longitude: ''
-# Answers "<latitude>,<longitude>" for the address asking, with no account or key. Empty turns the lookup off.
-kiosk_location_lookup_url: https://ipinfo.io/loc
 # What a release's Pi bundle says about itself (release.json next to ansible/, written by the Release workflow): its tag,
 # commit and the tree ids tasks/main.yml compares. Empty in a Git checkout (a branch pulled with ansible-pull, or a hand
 # run), where git answers the same questions instead.
