@@ -77,6 +77,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
         ['Appearance', 'settings-appearance'],
         ['Wi-Fi', 'settings-wifi'],
         ['Spotify', 'settings-spotify'],
+        ['Lyrics', 'settings-lyrics'],
         ['About', 'settings-about']
       ] as const) {
         // eslint-disable-next-line no-await-in-loop -- one page after another

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Check, Info, LayoutGrid, Palette, SlidersHorizontal, TrainFront, Wifi } from 'lucide-react';
+import { Check, Info, LayoutGrid, MicVocal, Palette, SlidersHorizontal, TrainFront, Wifi } from 'lucide-react';
 import type { TouchscreenConfig } from 'countdown-api';
 import { isKiosk } from '../utils/kiosk';
 import { reloadSettings } from '../spotify/settings';
@@ -15,6 +15,7 @@ import AppearanceSettings from './settings/AppearanceSettings';
 import CountdownSettings from './settings/CountdownSettings';
 import GeneralSettings from './settings/GeneralSettings';
 import SettingsOverview from './settings/SettingsOverview';
+import LyricsSettings from './settings/LyricsSettings';
 import SpotifySettings from './settings/SpotifySettings';
 import WifiSettings from './settings/WifiSettings';
 import { SETTINGS_SECTIONS } from './settings/sections';
@@ -30,6 +31,7 @@ const SECTION_ICONS: Record<SettingsSection, ReactNode> = {
   appearance: <Palette className="w-6 h-6 shrink-0" aria-hidden="true" />,
   wifi: <Wifi className="w-6 h-6 shrink-0" aria-hidden="true" />,
   spotify: <SpotifyIcon className="w-6 h-6 shrink-0" />,
+  lyrics: <MicVocal className="w-6 h-6 shrink-0" aria-hidden="true" />,
   about: <Info className="w-6 h-6 shrink-0" aria-hidden="true" />
 };
 
@@ -163,13 +165,11 @@ export default function SettingsPanel({
       break;
     }
     case 'spotify': {
-      page = (
-        <SpotifySettings
-          signInError={signInError}
-          onReload={onReload}
-          onLyricsChange={owned ? lyrics => onDeviceConfigSave('lyrics', lyrics) : undefined}
-        />
-      );
+      page = <SpotifySettings signInError={signInError} onReload={onReload} />;
+      break;
+    }
+    case 'lyrics': {
+      page = <LyricsSettings onChange={owned ? lyrics => onDeviceConfigSave('lyrics', lyrics) : undefined} />;
       break;
     }
     case 'about': {
