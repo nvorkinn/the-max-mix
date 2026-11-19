@@ -141,8 +141,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // True while a tapped queue song is being skipped to, so a second tap cannot start another jump.
   const [isJumping, setIsJumping] = useState(false);
   const [minute, setMinute] = useState(currentMinute);
-  // The Settings tab starts on the overview; the sign-in prompts bring it up on the Spotify page.
-  const [settingsSection, setSettingsSection] = useState<SettingsSection>('overview');
+  // The Settings tab starts on its first page; the sign-in prompts bring it up on the Spotify page.
+  const [settingsSection, setSettingsSection] = useState<SettingsSection | undefined>();
   const [isMusicOpen, setIsMusicOpen] = useState(false);
   // Every start (kiosk start, reload, coming back from a sign-in) opens on the Dashboard, except after a failed sign-in,
   // whose message the Spotify tab shows.
@@ -401,7 +401,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   const showScreen = (next: TabId) => {
     crossfade(() => {
-      if (next === 'settings' && screen !== 'settings') setSettingsSection('overview');
+      if (next === 'settings' && screen !== 'settings') setSettingsSection(undefined);
       setScreen(next);
     });
   };
@@ -683,9 +683,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         {screen === 'settings' && (
           <SettingsPanel
             initialSection={settingsSection}
-            authInfo={{
-              authenticated: isAuthenticated && problem?.recovery !== 'sign-in'
-            }}
             signInError={signInError || (playerProblem?.recovery === 'sign-in' ? playerProblem.message : null)}
             screenSleep={screenSleepMinutes}
             onScreenSleepChange={changeScreenSleep}

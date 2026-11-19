@@ -178,7 +178,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
         element.style.setProperty('padding-bottom', '2000px');
         element.scrollTo({ top: 1000 });
       });
-      await expect(nav.getByRole('button', { name: 'Overview' })).toBeInViewport({ ratio: 1 });
+      await expect(nav.getByRole('button').first()).toBeInViewport({ ratio: 1 });
       await expect(page.getByRole('tab', { name: 'Settings' })).toBeInViewport({ ratio: 1 });
     });
   }

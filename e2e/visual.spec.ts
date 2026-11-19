@@ -49,7 +49,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
   });
 
   for (const screen of SCREENS) {
-    test(`settings overview and pages at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
+    test(`settings pages at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
       await page.setViewportSize(screen);
       await fakeSpotify(page);
       await page.route('http://127.0.0.1:7341/**', route =>
@@ -68,10 +68,6 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await page.clock.setFixedTime(new Date('2026-11-13T08:43:00'));
       await page.goto('/?kiosk=1&pi_ref=v1.12.0&pi_commit=5a39e9a');
       const settings = await openSettings(page);
-      await expect(
-        settings.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^About/ })
-      ).toHaveText('About');
-      await expect(settings).toHaveScreenshot(shotName('settings-overview', screen), SHOT);
       for (const [section, name] of [
         ['General', 'settings-general'],
         ['Appearance', 'settings-appearance'],
@@ -82,6 +78,9 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       ] as const) {
         // eslint-disable-next-line no-await-in-loop -- one page after another
         await showSection(settings, section);
+        // The About page waits for GitHub's answer, which it shows.
+        // eslint-disable-next-line no-await-in-loop -- the same
+        if (section === 'About') await expect(settings.getByRole('status')).toContainText('Up to date');
         // eslint-disable-next-line no-await-in-loop -- the same
         await expect.soft(settings).toHaveScreenshot(shotName(name, screen), SHOT);
       }

@@ -2,7 +2,7 @@ import { AlertCircle, ArrowUpCircle, CheckCircle2, LoaderCircle } from 'lucide-r
 import type { LucideIcon } from 'lucide-react';
 import type { KioskUpdate } from '../../hooks/useKioskUpdate';
 
-/** Where the Pi's software stands, so the overview and the Software page show it with the same icon and colour. */
+/** Where the Pi's software stands, so the Software page shows it with the same icon and colour. */
 export type SoftwareState = 'checking' | 'current' | 'newer' | 'unknown' | 'updating';
 
 export function softwareState({ version, latest, newer, isUpdating }: KioskUpdate): SoftwareState {

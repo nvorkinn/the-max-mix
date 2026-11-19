@@ -21,21 +21,22 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await fakeSpotify(page);
   });
 
-  test('opens on the overview and closes', async ({ page }) => {
+  test('opens on its first page and closes', async ({ page }) => {
     await openSpotifyTab(page);
     const dialog = await openSettings(page);
     const nav = dialog.getByRole('navigation', { name: 'Settings' });
-    await expect(nav.getByRole('button', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
-    await expect(dialog.getByRole('region', { name: 'Overview' })).toBeVisible();
+    const first = nav.getByRole('button').first();
+    await expect(first).toHaveAttribute('aria-current', 'page');
+    await expect(dialog.getByRole('region', { name: (await first.textContent()) ?? '' })).toBeVisible();
     await page.getByRole('tab', { name: 'Spotify' }).click();
     await expect(dialog).toBeHidden();
   });
 
-  test('every section opens from the navigation and from its overview card', async ({ page }) => {
+  test('every section opens from the navigation', async ({ page }) => {
     await openSpotifyTab(page, '/?kiosk=1');
     const dialog = await openSettings(page);
     const nav = dialog.getByRole('navigation', { name: 'Settings' });
-    const sections = ['Overview', 'General', 'Appearance', 'Wi-Fi', 'Spotify', 'Lyrics', 'About'];
+    const sections = ['General', 'Appearance', 'Wi-Fi', 'Spotify', 'Lyrics', 'About'];
     await expect(nav.getByRole('button')).toHaveText(sections);
     for (const section of sections) {
       // eslint-disable-next-line no-await-in-loop -- one section after another
@@ -43,23 +44,11 @@ test.describe('Settings', { tag: '@settings' }, () => {
       // eslint-disable-next-line no-await-in-loop -- the same
       await expect(nav.getByRole('button', { name: section, exact: true })).toHaveAttribute('aria-current', 'page');
     }
-    for (const section of sections.slice(1)) {
-      // eslint-disable-next-line no-await-in-loop -- one card after another
-      await showSection(dialog, 'Overview');
-      // eslint-disable-next-line no-await-in-loop -- the same
-      await dialog.getByRole('group', { name: 'Overview' }).getByRole('button', { name: section }).click();
-      // eslint-disable-next-line no-await-in-loop -- the same
-      await expect(dialog.getByRole('region', { name: section, exact: true })).toBeVisible();
-    }
   });
 
   test('shows that Spotify is connected', async ({ page }) => {
     await openSpotifyTab(page);
     const dialog = await openSettings(page);
-    // Connected needs no word on the overview: its card says only when Spotify isn't.
-    await expect(dialog.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^Spotify/ })).toHaveText(
-      'Spotify'
-    );
     await showSection(dialog, 'Spotify');
     const person = dialog.getByRole('list', { name: 'People' }).getByRole('listitem');
     await expect(person).toContainText('Connected');
@@ -256,7 +245,6 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await openSpotifyTab(page, '/?kiosk=0');
     const dialog = await openSettings(page);
     await expect(dialog.getByRole('navigation', { name: 'Settings' }).getByRole('button')).toHaveText([
-      'Overview',
       'Appearance',
       'Spotify',
       'Lyrics',
