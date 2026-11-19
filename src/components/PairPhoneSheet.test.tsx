@@ -51,7 +51,11 @@ describe('PairPhoneSheet', () => {
 
     monitor.readBluetoothReport.mockResolvedValue(scanning([PHONE, TV]));
     await flush();
-    expect(within(nearby).getAllByRole('listitem').map(item => item.textContent)).toEqual([PHONE.name, TV.name]);
+    expect(
+      within(nearby)
+        .getAllByRole('listitem')
+        .map(item => item.textContent)
+    ).toEqual([PHONE.name, TV.name]);
 
     monitor.readBluetoothReport.mockResolvedValue({
       pairing: { state: 'pairing', name: PHONE.name, code: 287_389, isConfirmed: false }
