@@ -1503,6 +1503,8 @@
 }
 .pair-phone-pairing {
   display: grid;
+  flex: 1;
+  align-content: center;
   gap: 8px;
   margin: 22px 0 24px;
   text-align: center;
@@ -1512,11 +1514,30 @@
   font-weight: 650;
 }
 .pair-phone-code {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  height: 132px;
+  margin-top: 16px;
+}
+.pair-phone-digit {
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
   color: var(--accent);
-  font-size: 44px;
+  font-size: 84px;
   font-weight: 750;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.12em;
+}
+.pair-phone-confirmed-spinner {
+  grid-column: 1 / -1;
+  place-self: center;
+  width: 88px;
+  height: 88px;
+  color: var(--accent);
 }
 .pair-phone-actions {
   display: flex;

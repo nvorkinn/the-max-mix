@@ -37,7 +37,8 @@ export interface NearbyDevice {
 export type PairingStatus =
   | { state: 'idle' }
   | { state: 'scanning'; secondsLeft: number; nearby: { address: string; name: string }[] }
-  | { state: 'pairing'; name: string; code: number | null }
+  /** `isConfirmed` once the code is confirmed on the phone, while the kiosk finishes pairing. */
+  | { state: 'pairing'; name: string; code: number | null; isConfirmed: boolean }
   | { state: 'paired'; phone: PairedPhone }
   | { state: 'failed'; error: string };
 
@@ -163,10 +164,14 @@ export class PhonePairing {
     if (!device || !running || !this.isScanning()) throw new Error(PAIRING_ERRORS.gone);
     clearInterval(running.timer);
     running.timer = undefined;
-    this.current = { state: 'pairing', name: device.name, code: null };
+    this.current = { state: 'pairing', name: device.name, code: null, isConfirmed: false };
     this.options.log(`Pairing: ${device.name} (${device.address})`);
     try {
-      await running.discovery.pair(device.path);
+      await running.discovery.pair(device.path, () => {
+        if (this.running !== running || this.current.state !== 'pairing') return;
+        this.current = { ...this.current, isConfirmed: true };
+        this.options.log(`Pairing: code confirmed on ${device.name}`);
+      });
     } catch (error) {
       console.warn(`bluetooth: pairing failed: ${String(error)}`);
       if (this.running === running) await this.end({ state: 'failed', error: PAIRING_ERRORS.refused });

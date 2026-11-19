@@ -16,12 +16,14 @@ function setUp(options: { failing?: boolean; refusing?: boolean } = {}) {
     showCode: (code: number): void => {
       throw new Error(`No pairing to show ${code} for`);
     },
-    finishPairing: (): void => undefined
+    finishPairing: (): void => undefined,
+    confirmCode: (): void => undefined
   };
   const stop = vi.fn(() => Promise.resolve());
   const pair = vi.fn(
-    (device: string) =>
+    (device: string, onConfirmed: () => void) =>
       new Promise<void>((resolve, reject) => {
+        radio.confirmCode = onConfirmed;
         radio.finishPairing = options.refusing
           ? () => {
               reject(new Error(`org.bluez.Error.AuthenticationFailed: ${device}`));
@@ -82,13 +84,15 @@ describe('PhonePairing', () => {
     });
 
     const picking = pairing.pick(PHONE.address);
-    expect(pair).toHaveBeenCalledWith(PHONE.path);
-    expect(pairing.status()).toEqual({ state: 'pairing', name: PHONE.name, code: null });
+    expect(pair).toHaveBeenCalledWith(PHONE.path, expect.any(Function));
+    expect(pairing.status()).toEqual({ state: 'pairing', name: PHONE.name, code: null, isConfirmed: false });
     radio.showCode(287_389);
-    expect(pairing.status()).toEqual({ state: 'pairing', name: PHONE.name, code: 287_389 });
+    expect(pairing.status()).toEqual({ state: 'pairing', name: PHONE.name, code: 287_389, isConfirmed: false });
     // The list is not checked again while the phone is pairing, and the window does not run out under it.
     await vi.advanceTimersByTimeAsync(20_000);
     expect(pairing.status()).toMatchObject({ state: 'pairing' });
+    radio.confirmCode();
+    expect(pairing.status()).toEqual({ state: 'pairing', name: PHONE.name, code: 287_389, isConfirmed: true });
 
     radio.finishPairing();
     await picking;
@@ -100,6 +104,7 @@ describe('PhonePairing', () => {
     expect(log.mock.calls.map(([message]) => String(message))).toEqual([
       'Pairing: looking for phones',
       `Pairing: ${PHONE.name} (${PHONE.address})`,
+      `Pairing: code confirmed on ${PHONE.name}`,
       `Pairing: paired ${PHONE.name} (${PHONE.address})`
     ]);
   });

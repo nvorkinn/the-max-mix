@@ -36,7 +36,7 @@ interface NearbyDevice {
 export type PairingStatus =
   | { state: 'idle' }
   | { state: 'scanning'; secondsLeft: number; nearby: NearbyDevice[] }
-  | { state: 'pairing'; name: string; code: number | null }
+  | { state: 'pairing'; name: string; code: number | null; isConfirmed: boolean }
   | { state: 'paired'; name: string; address: string }
   | { state: 'failed'; error: string };
 
@@ -112,7 +112,12 @@ function parsePairing(value: unknown): PairingStatus {
       };
     }
     case 'pairing': {
-      return { state: 'pairing', name: text(fields['name']), code: numberOrNull(fields['code']) };
+      return {
+        state: 'pairing',
+        name: text(fields['name']),
+        code: numberOrNull(fields['code']),
+        isConfirmed: fields['isConfirmed'] === true
+      };
     }
     case 'paired': {
       return { state: 'paired', name: text(phone['name']), address: text(phone['address']) };

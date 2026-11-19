@@ -45,14 +45,24 @@ describe('PairPhoneSheet', () => {
     await flush();
     expect(screen.getAllByRole('listitem').map(item => item.textContent)).toEqual([PHONE.name, TV.name]);
 
-    monitor.readBluetoothReport.mockResolvedValue({ pairing: { state: 'pairing', name: PHONE.name, code: 287_389 } });
+    monitor.readBluetoothReport.mockResolvedValue({
+      pairing: { state: 'pairing', name: PHONE.name, code: 287_389, isConfirmed: false }
+    });
     await userEvent.click(screen.getByRole('button', { name: PHONE.name }));
     expect(monitor.pickPhone).toHaveBeenCalledWith(PHONE.address);
     expect(screen.getByText(PHONE.name)).toBeInTheDocument();
     await flush();
-    expect(screen.getByText('287389')).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: '287389' })).toHaveTextContent('287389');
     expect(screen.queryByRole('status', { name: 'Searching' })).not.toBeInTheDocument();
     expect(onDone).not.toHaveBeenCalled();
+
+    monitor.readBluetoothReport.mockResolvedValue({
+      pairing: { state: 'pairing', name: PHONE.name, code: 287_389, isConfirmed: true }
+    });
+    await flush();
+    expect(screen.queryByRole('group', { name: '287389' })).not.toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Pairing' })).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Searching' })).not.toBeInTheDocument();
 
     monitor.readBluetoothReport.mockResolvedValue({ pairing: { state: 'paired', ...PHONE } });
     await flush();

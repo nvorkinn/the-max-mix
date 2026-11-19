@@ -125,6 +125,10 @@ describe('BluetoothDebug', () => {
   it.each([
     [{ state: 'failed', error: 'No phone paired within 2 minutes.' }, 'No phone paired within 2 minutes.'],
     [{ state: 'pairing', name: 'Anna’s iPhone', code: 287_389 }, 'Pairing Anna’s iPhone, code 287389'],
+    [
+      { state: 'pairing', name: 'Anna’s iPhone', code: 287_389, isConfirmed: true },
+      'Pairing Anna’s iPhone, code confirmed'
+    ],
     [{ state: 'idle' }, 'Not pairing']
   ])('shows pairing %o as %s', async (pairing, shown) => {
     fetchMock.mockImplementation(() => json({ ...REPORT, pairing }));
