@@ -67,13 +67,21 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
-          cache: npm
+      # The node_modules cache the tests on main saved (the key matches tests.yml): unpacking it is quicker than `npm ci`
+      # writing its 800 packages one by one. Restore only: a cache saved from a tag is one no other run can read. This
+      # comes before the version is set, which changes package-lock.json and with it the key.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: modules
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json') }}
       # The build gets the release's version (v1.2.3 becomes 1.2.3) without committing anything; npm rejects a tag that is
       # not a valid semantic version.
       - name: Set the version from the tag
         run: npm version "${TAG#v}" --no-git-tag-version --allow-same-version
       # Build before joining the tailnet, so a release that does not build fails before anything is deployed.
-      - run: npm ci
+      - if: steps.modules.outputs.cache-hit != 'true'
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Build
         run: npm run build
       # What the Pis install (see kiosk-pull): the three folders the playbook installs from, at the tag, and release.json
