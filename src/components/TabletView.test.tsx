@@ -407,6 +407,15 @@ describe('TabletView', () => {
     expect(panel).not.toHaveClass('on-photo');
   });
 
+  it('offers search on the Spotify and Player tabs only', async () => {
+    render(<TabletView />);
+    await flush();
+    const search = (tab: string) => document.querySelector(`#app-tab-${tab} [aria-label="Choose music"]`);
+    expect(search('spotify')).not.toBeNull();
+    expect(search('dashboard')).toBeNull();
+    expect(search('settings')).toBeNull();
+  });
+
   it('shows the clock in 24-hour time', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 0, 1, 16, 46));

@@ -61,7 +61,12 @@ export default function TabBar({
       </div>
       <div className="dashboard-bar-end">
         {onSearch && (
-          <button type="button" className="dashboard-icon-button" aria-label="Choose music" onClick={onSearch}>
+          <button
+            type="button"
+            className="dashboard-icon-button dashboard-search"
+            aria-label="Choose music"
+            onClick={onSearch}
+          >
             <Search className="lucide" style={{ width: 26, height: 26 }} />
           </button>
         )}
