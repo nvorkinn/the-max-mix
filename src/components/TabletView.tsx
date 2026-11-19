@@ -581,7 +581,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 <SpotifySetup
                   offline={isOffline}
                   signInError={signInError || (problem?.recovery === 'sign-in' ? problem.message : null)}
-                  onSettings={showSettings}
                   onDetails={() => setIsDebugOpen(true)}
                 />
               ) : (
@@ -709,6 +708,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       {pairingFor && isPairingOpen && (
         <PairPhoneSheet
           spotifyId={pairingFor}
+          hasIntro
           name={peopleOnKiosk().find(person => person.spotifyId === pairingFor)?.name ?? ''}
           onDone={() => setIsPairingOpen(false)}
         />

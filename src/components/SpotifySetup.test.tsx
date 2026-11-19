@@ -10,12 +10,9 @@ beforeEach(() => {
 });
 
 function setup(overrides: Partial<{ offline: boolean; signInError: string | null }> = {}) {
-  const onSettings = vi.fn();
   const onDetails = vi.fn();
-  render(
-    <SpotifySetup offline={false} signInError={null} {...overrides} onSettings={onSettings} onDetails={onDetails} />
-  );
-  return { onSettings, onDetails };
+  render(<SpotifySetup offline={false} signInError={null} {...overrides} onDetails={onDetails} />);
+  return { onDetails };
 }
 
 describe('SpotifySetup', () => {
@@ -35,12 +32,17 @@ describe('SpotifySetup', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('retains callback failures and offers connection settings and diagnostics', () => {
-    const { onSettings, onDetails } = setup({ signInError: 'Spotify declined sign-in' });
+  it('shows only the heading and the Connect button', () => {
+    setup();
+    expect(screen.getByRole('heading', { name: 'Bring your music to the tablet' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual(['Connect Spotify']);
+    expect(screen.queryByRole('paragraph')).not.toBeInTheDocument();
+  });
+
+  it('retains callback failures and offers diagnostics', () => {
+    const { onDetails } = setup({ signInError: 'Spotify declined sign-in' });
     expect(screen.getByRole('alert')).toHaveTextContent('Spotify declined sign-in');
-    fireEvent.click(screen.getByRole('button', { name: 'Connection settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'Details' }));
-    expect(onSettings).toHaveBeenCalledOnce();
     expect(onDetails).toHaveBeenCalledOnce();
     expect(auth.startSignIn).not.toHaveBeenCalled();
   });

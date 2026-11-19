@@ -140,8 +140,6 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     await expect(player.getByRole('slider', { name: 'Playback position' })).toHaveCount(0);
     await expect(page.getByText('A little quiet in here.')).toHaveCount(0);
     await expectControlsFit(page, player);
-    await player.getByRole('button', { name: 'Connection settings' }).click();
-    await expect(page.getByRole('tabpanel', { name: 'Settings' })).toBeVisible();
   });
 
   test('connecting and no-device states remain distinct', async ({ page }) => {

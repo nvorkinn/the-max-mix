@@ -24,11 +24,7 @@ test.describe('Setup and signing in', { tag: '@setup' }, () => {
     await expect(setup.getByRole('button', { name: 'Connect Spotify' })).toBeInViewport();
     await expect(setup.getByRole('slider')).toHaveCount(0);
     await expect(page.getByRole('region', { name: 'Upcoming tracks' })).toHaveCount(0);
-    await setup.getByRole('button', { name: 'Connection settings' }).click();
-    const settings = page.getByRole('tabpanel', { name: 'Settings' });
-    await expect(settings.getByRole('button', { name: 'Log in with Spotify' })).toBeInViewport();
-    await expect(settings.getByRole('radio')).toHaveCount(0);
-    await page.getByRole('tab', { name: 'Spotify' }).click();
+    await expect(setup.getByRole('button')).toHaveText(['Connect Spotify']);
     expect(commands).toEqual([]);
     expect(await page.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
   });

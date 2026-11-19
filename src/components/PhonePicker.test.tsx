@@ -54,7 +54,7 @@ describe('PhonePicker', () => {
     render(<PhonePicker spotifyId="anna" name="Anna" phoneAddress="" onChange={onChange} />);
     await userEvent.click(screen.getByRole('button', { name: 'Anna’s phone' }));
     await userEvent.click(screen.getByRole('button', { name: 'Pair new phone' }));
-    expect(screen.getByRole('heading', { name: 'Pair Anna’s iPhone' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Pair Anna’s phone' })).toBeInTheDocument();
     expect(monitor.pairPhone).toHaveBeenCalledWith(true);
     const reads = monitor.readBluetoothReport.mock.calls.length;
     await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
