@@ -660,11 +660,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         {screen === 'settings' && <TabBackdrop now={tabBar.now} />}
         {/* Holding the clock for the debug console lives in this tab's bar. */}
         <div className="floating-bar">
-          <TabBar
-            {...tabBar}
-            onSearch={null}
-            onClockHold={() => setIsDebugOpen(true)}
-          />
+          <TabBar {...tabBar} onSearch={null} onClockHold={() => setIsDebugOpen(true)} />
         </div>
         {screen === 'settings' && (
           <SettingsPanel
