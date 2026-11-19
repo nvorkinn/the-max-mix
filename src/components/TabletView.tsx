@@ -83,21 +83,20 @@ function useLogChanges(message: string | null | undefined, source: string) {
 
 // signInError: why finishing the Spotify sign-in failed
 /** Dynamic's colours on what they sit on: the cover's while it plays, else what shows with Dynamic off. */
-function coverOrChosenPalette(art: ArtColours | null, colour: ThemeColour, surface: DynamicSurface) {
-  return art ? dynamicPalette(art.dominant, surface) : basePalette(colour, surface);
+function coverOrChosenPalette(
+  art: ArtColours | null,
+  colour: ThemeColour,
+  surface: DynamicSurface,
+  nightSkin: boolean
+) {
+  return art ? dynamicPalette(art.dominant, surface) : basePalette(colour, surface, nightSkin);
 }
 
-/** The chosen colour's Night shade, for the Settings tab's highlights, which are Night's whatever the skin. */
+/** The chosen colour's Night shade, for the photo tabs' controls and highlights, which read on the dark whatever the skin. */
 function nightColour(id: ThemeColour): CSSProperties {
   const colour = THEME_COLOURS.find(choice => choice.id === id) ?? THEME_COLOURS[0];
   const ink = 'nightAccentInk' in colour ? colour.nightAccentInk : colour.accentInk;
   return { '--night-accent': colour.night, '--night-accent-ink': ink } as CSSProperties;
-}
-
-/** What Dynamic's colours sit on: the Spotify tab's photo, else the dark of Night and the Settings tab, else Day's page. */
-function surfaceFor(onPhoto: boolean, night: boolean): DynamicSurface {
-  if (onPhoto) return 'photo';
-  return night ? 'night' : 'day';
 }
 
 export default function TabletView({ signInError = null }: Readonly<{ signInError?: string | null | undefined }>) {
@@ -230,11 +229,14 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const dynamicColour = style ? style.dynamic || isOldDynamic(style.colour) : localDynamic;
   const theme = useTheme(style?.skin);
   // With Dynamic on, the colours follow the album art while music plays, and fade back to the chosen colour once it
-  // has stopped for a while; on the dark of Night and of the Spotify tab's photo they are lighter shades that read there.
+  // has stopped for a while; on the dark of Night and of the photo tabs they are lighter shades that read there.
   const liveArt = useLingers(isPlaying, DYNAMIC_LINGER_MS) ? artColours : null;
-  // The Settings tab's cards are Night's whatever the skin, so Dynamic works its colours out for the dark there.
-  const dynamicSurface = surfaceFor(screen === 'spotify', theme.skin === 'night' || screen === 'settings');
-  const dynamicVars = dynamicColour ? coverOrChosenPalette(liveArt, themeColour, dynamicSurface) : undefined;
+  // The Spotify and Settings tabs lie on the photo, dark whatever the skin, so Dynamic works its colours out for the
+  // dark there; only the Dashboard follows the skin.
+  const dynamicSurface: DynamicSurface = screen !== 'dashboard' || theme.skin === 'night' ? 'night' : 'day';
+  const dynamicVars = dynamicColour
+    ? coverOrChosenPalette(liveArt, themeColour, dynamicSurface, theme.skin === 'night')
+    : undefined;
   useEffect(() => {
     if (!style) return;
     saveTheme(style.skin);
@@ -547,6 +549,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         role="tabpanel"
         id={tabPanelId('spotify')}
         aria-label="Spotify"
+        style={nightColour(themeColour)}
         hidden={screen !== 'spotify'}
       >
         {screen === 'spotify' && <TabBackdrop now={tabBar.now} />}

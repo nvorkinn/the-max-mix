@@ -105,9 +105,9 @@ describe('basePalette', () => {
       '--dynamic-from': '#a67c00',
       '--dynamic-to': '#a67c00',
       '--dynamic-accent-ink': '#1f1a05',
-      '--dynamic-mark-from': '#2f5a3c',
-      '--dynamic-mark-to': '#2f5a3c',
-      '--dynamic-mark-ink': '#f7f4ec'
+      '--dynamic-mark-from': '#a67c00',
+      '--dynamic-mark-to': '#a67c00',
+      '--dynamic-mark-ink': '#1f1a05'
     });
   });
 });
@@ -120,9 +120,9 @@ describe('basePalette on the dark', () => {
       '--dynamic-from': '#dfe3ee',
       '--dynamic-to': '#dfe3ee',
       '--dynamic-accent-ink': '#111',
-      '--dynamic-mark-from': '#2f5a3c',
-      '--dynamic-mark-to': '#2f5a3c',
-      '--dynamic-mark-ink': '#f7f4ec'
+      '--dynamic-mark-from': '#dfe3ee',
+      '--dynamic-mark-to': '#dfe3ee',
+      '--dynamic-mark-ink': '#111'
     });
     expect(basePalette('violet', 'night')).toMatchObject({
       '--dynamic-accent': '#a95be8',
@@ -130,11 +130,11 @@ describe('basePalette on the dark', () => {
     });
   });
 
-  it("is the Spotify tab's warm white on the photo, whatever the colour", () => {
-    expect(basePalette('navy', 'photo')).toMatchObject({
-      '--dynamic-accent': '#f7f4ec',
-      '--dynamic-to': '#f7f4ec',
-      '--dynamic-accent-ink': '#10141a'
+  it('keeps the logo in the colour as the Day skin shows it on a photo tab', () => {
+    expect(basePalette('navy', 'night', false)).toMatchObject({
+      '--dynamic-accent': '#5b8def',
+      '--dynamic-mark-from': '#1f3a5f',
+      '--dynamic-mark-ink': '#fff'
     });
   });
 });
@@ -161,13 +161,11 @@ describe('dynamicPalette on the dark', () => {
     ['a pale yellow', [250, 240, 180]],
     ['a vivid green', [30, 220, 40]]
   ] as const)('lights %s just enough to read on the navy, without glaring', (_name, first) => {
-    for (const surface of ['night', 'photo'] as const) {
-      const palette = dynamicPalette([first, [120, 40, 160]], surface);
-      const accent = rgbOf(palette['--dynamic-accent']);
-      expect(contrast(accent, NIGHT_PAGE)).toBeGreaterThanOrEqual(4.5);
-      expect(Number(palette['--dynamic-accent'].split(' ', 3)[2]?.replace('%)', ''))).toBeLessThanOrEqual(85);
-      expect(palette['--dynamic-ink']).toBe('#f5f6ff');
-    }
+    const palette = dynamicPalette([first, [120, 40, 160]], 'night');
+    const accent = rgbOf(palette['--dynamic-accent']);
+    expect(contrast(accent, NIGHT_PAGE)).toBeGreaterThanOrEqual(4.5);
+    expect(Number(palette['--dynamic-accent'].split(' ', 3)[2]?.replace('%)', ''))).toBeLessThanOrEqual(85);
+    expect(palette['--dynamic-ink']).toBe('#f5f6ff');
   });
 
   it('softens a vivid colour and keeps the play button out of the glare', () => {
