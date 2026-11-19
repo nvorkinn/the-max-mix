@@ -25,9 +25,9 @@ export default defineConfig({
   // One baseline per screenshot, not per OS: they are only compared on the CI browser (see visual.spec.ts).
   snapshotPathTemplate: '{testDir}/screenshots/{testFileName}/{arg}{ext}',
   use: {
-    // The runner draws in software, where the Dashboard's motion costs far more CPU than the rest of a test, so
-    // the tests ask for reduced motion, which the app honours. dashboard-motion.spec.ts turns the
-    // motion back on to test it.
+    // The runner draws in software, where the tab fade and the Dashboard's motion cost far more CPU than the rest of a
+    // test, so the tests ask for reduced motion, which the app honours (the tab fade is then off: utils/crossfade.ts).
+    // dashboard-motion.spec.ts turns the motion back on to test it.
     contextOptions: { reducedMotion: 'reduce' },
     baseURL: `http://127.0.0.1:${port}`,
     // Every page starts as a kiosk already registered with countdown-server, so ?kiosk=1 opens the app rather than the

@@ -25,6 +25,7 @@ cntrl
 color
 connecttest
 cretpass
+crossfade
 dbus
 dejavu
 devicechange

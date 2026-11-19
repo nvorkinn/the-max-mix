@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
+import { crossfade } from '../utils/crossfade';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
 import { useSonosPlayer } from '../hooks/useSonosPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
@@ -147,6 +148,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // Every start (kiosk start, reload, coming back from a sign-in) opens on the Dashboard, except after a failed sign-in,
   // whose message the Spotify tab shows.
   const [screen, setScreen] = useState<TabId>(signInError ? 'spotify' : 'dashboard');
+  // Every change of tab fades across the whole screen, whether tapped, idle or from a prompt.
+  const goToScreen = (next: TabId) => crossfade(() => setScreen(next));
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const [queueError, setQueueError] = useState<string | null>(null);
   // AirPlay, Bluetooth and Sonos need the Pi's audio service, so they are offered on the kiosk only.
@@ -182,7 +185,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   // Music picked while a Sonos plays goes to the Sonos (a song, album or playlist; Liked Songs cannot).
   const playMusic = (choice: MusicChoice) => {
-    setScreen('spotify');
+    goToScreen('spotify');
     return sonos.active ? sonos.play(choice.uri) : playMusicOnSpotify(choice);
   };
 
@@ -201,7 +204,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // Left alone with nothing playing, the kiosk shows the Dashboard, which dims after a while and then sleeps the chosen
   // minutes later (see useScreenSleep). The screen stays on and bright while music plays. In quiet hours it sleeps a
   // minute after the last touch, on any tab.
-  useIdle({ enabled: onKiosk, busy: isPlaying, idleMs: IDLE_DASHBOARD_MS, onIdle: () => setScreen('dashboard') });
+  useIdle({ enabled: onKiosk, busy: isPlaying, idleMs: IDLE_DASHBOARD_MS, onIdle: () => goToScreen('dashboard') });
   // Once someone owns the kiosk, countdown-server's config is its colour, screen sleep and lyrics: the settings save there,
   // and whatever the config says (a change here, one undone, or the server's latest) shows, and is kept locally for
   // starts without the server. Before that the kiosk keeps its own.
@@ -392,13 +395,17 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   }, [artUrl]);
 
   const showScreen = (next: TabId) => {
-    if (next === 'settings' && screen !== 'settings') setSettingsSection(undefined);
-    setScreen(next);
+    crossfade(() => {
+      if (next === 'settings' && screen !== 'settings') setSettingsSection(undefined);
+      setScreen(next);
+    });
   };
   const activePerson = peopleOnKiosk().find(person => person.active);
   const showSettings = () => {
-    setSettingsSection('spotify');
-    setScreen('settings');
+    crossfade(() => {
+      setSettingsSection('spotify');
+      setScreen('settings');
+    });
   };
   // Switching person: the music this tablet plays (itself, or its Sonos) belongs to the person leaving, so it pauses;
   // then the page starts again as the new person. A pause that fails or hangs does not hold the switch up.
