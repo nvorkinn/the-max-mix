@@ -866,3 +866,9 @@ button.dashboard-notice {
   color: var(--soon);
   opacity: 0.8;
 }
+/* Only the timetable's time, with no live prediction (the first trains while the Tube is shut): a clock time, dimmed. */
+.dashboard-mins.scheduled {
+  color: var(--muted);
+  font-size: 28px;
+  font-weight: 600;
+}
