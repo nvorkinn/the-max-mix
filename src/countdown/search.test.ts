@@ -96,7 +96,8 @@ function browserAt(position: { latitude: number; longitude: number } | null) {
     if (position) found({ coords: position } as GeolocationPosition);
     else failed?.({ code: 2 } as GeolocationPositionError);
   });
-  vi.stubGlobal('navigator', { ...navigator, geolocation: { getCurrentPosition } });
+  // jsdom has no geolocation: a navigator like its own, with one.
+  vi.stubGlobal('navigator', Object.assign(Object.create(navigator) as Navigator, { geolocation: { getCurrentPosition } }));
   return getCurrentPosition;
 }
 
@@ -138,7 +139,8 @@ describe('a build that mocks the server', () => {
     const places = await searchPlaces('anything');
     expect(stops.map(result => result.name)).toEqual(['Oslo S', 'Oslo S', 'Oval Station']);
     expect(places.map(result => result.value)).toEqual([{ location: 'Oslo', key: 'oslo-no-3143244' }]);
-    expect((await locatePlace())?.value).toEqual({ location: 'Oslo', key: 'oslo-no-3143244' });
+    const here = await locatePlace();
+    expect(here?.value).toEqual({ location: 'Oslo', key: 'oslo-no-3143244' });
     expect(fetch).not.toHaveBeenCalled();
   });
 });
