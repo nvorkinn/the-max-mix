@@ -18,6 +18,7 @@ const departure = (line: string, destination: string, minutes: number, more: Par
   platform: null,
   vehicle_id: null,
   mode: null,
+  scheduled: false,
   ...more
 });
 
@@ -210,6 +211,25 @@ describe('toBoards', () => {
       }
     ]);
     expect(toBoards(null, NOW)).toEqual([]);
+  });
+});
+
+describe('timetabled departures', () => {
+  it("gives a departure that's only the timetable's its clock time, in the clock format, and a live one none", () => {
+    const first = new Date('2026-10-17T13:42:00');
+    const answer: DeviceArrivals = {
+      stops: [
+        stop('940GZZLUKNG', 'tube', [
+          departure('Northern', 'Morden', 1),
+          departure('Northern', 'High Barnet', (first.getTime() - NOW.getTime()) / 60_000, { scheduled: true })
+        ])
+      ]
+    };
+
+    const [live, scheduled] = toBoards(answer, NOW)[0]?.departures ?? [];
+    expect(live).not.toHaveProperty('scheduledAt');
+    expect(scheduled?.scheduledAt).toBe('13:42');
+    expect(toBoards(answer, NOW, '12h')[0]?.departures[1]?.scheduledAt).toMatch(/^1:42\s?PM$/);
   });
 });
 

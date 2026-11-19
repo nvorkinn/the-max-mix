@@ -37,6 +37,18 @@ export function Minutes({ expectedAt, now }: Readonly<{ expectedAt: string; now:
   );
 }
 
+/** A timetabled departure's clock time ("05:42", "5:42 AM"), dimmed: no live prediction to count down. */
+export function ScheduledTime({ time }: Readonly<{ time: string }>) {
+  const period = /[AaPp]\.?\s?[Mm]\.?$/.exec(time);
+  const clock = period ? time.slice(0, period.index).trim() : time;
+  return (
+    <span className="dashboard-mins scheduled">
+      {clock}
+      {period && <small>{period[0]}</small>}
+    </span>
+  );
+}
+
 /** A row's destination over its second line. */
 export function Destination({ name, detail }: Readonly<{ name: string; detail: ReactNode }>) {
   return (

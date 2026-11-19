@@ -132,6 +132,11 @@ export interface Departure extends DepartureBase {
   lineId: string;
   /** Under the destination: "Platform 1 · Northbound", "Stop E", or null when there's nothing to say. */
   detail: string | null;
+  /**
+   * Its clock time ("05:42") when it is only the timetable's, with no live prediction (the first trains while the
+   * Tube is shut): the board shows that, dimmed, instead of counting down. Absent for a live departure.
+   */
+  scheduledAt?: string;
 }
 
 /**
