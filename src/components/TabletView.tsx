@@ -508,7 +508,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   // The Player tab is the Spotify tab's panel with the Dashboard's photo behind it.
   const onPhoto = screen === 'player';
-  // The Dashboard's tab bar, which floats on the Spotify and Settings tabs too.
+  // The Dashboard's tab bar, which floats on the Spotify and Settings tabs too. Search is the Spotify tab's alone: the
+  // Dashboard and Settings bars drop it, and a tab change slides it out of or into the top of the screen (index.css).
   const tabBar: TabBarProps = {
     active: screen,
     onSelect: showScreen,
@@ -645,7 +646,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         hidden={screen !== 'dashboard'}
       >
         {/* Mounted while hidden, so its data keeps updating and it is current when the tab comes back. */}
-        <DashboardScreen tabBar={tabBar} />
+        <DashboardScreen tabBar={{ ...tabBar, onSearch: null }} />
       </section>
       <section
         className="app-tab-panel"
@@ -658,6 +659,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         <div className="floating-bar">
           <TabBar
             {...tabBar}
+            onSearch={null}
             onSleep={onKiosk ? sleep.sleepNow : null}
             onSwitchPerson={isAuthenticated ? spotifyId => void switchTo(spotifyId) : null}
             onClockHold={() => setIsDebugOpen(true)}
