@@ -97,7 +97,10 @@ function browserAt(position: { latitude: number; longitude: number } | null) {
     else failed?.({ code: 2 } as GeolocationPositionError);
   });
   // jsdom has no geolocation: a navigator like its own, with one.
-  vi.stubGlobal('navigator', Object.assign(Object.create(navigator) as Navigator, { geolocation: { getCurrentPosition } }));
+  vi.stubGlobal(
+    'navigator',
+    Object.assign(Object.create(navigator) as Navigator, { geolocation: { getCurrentPosition } })
+  );
   return getCurrentPosition;
 }
 
