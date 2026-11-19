@@ -63,6 +63,8 @@ interface SettingsPanelProps {
   /** countdown-server's config once someone owns the kiosk, which the General and Countdown pages show and change. */
   deviceConfig?: TouchscreenConfig | undefined;
   onDeviceConfigSave?: DeviceConfig['save'] | undefined;
+  /** Opens the debug console, from a button on the About page. */
+  onOpenDebug?: () => void;
 }
 
 /**
@@ -101,7 +103,8 @@ export default function SettingsPanel({
   saveStatus = 'idle',
   onShow,
   deviceConfig,
-  onDeviceConfigSave
+  onDeviceConfigSave,
+  onOpenDebug
 }: Readonly<SettingsPanelProps>) {
   const [kiosk] = useState(isKiosk);
   const [section, setSection] = useState<SettingsSection>(initialSection);
@@ -183,7 +186,13 @@ export default function SettingsPanel({
     }
     case 'about': {
       page = (
-        <AboutSettings kioskUpdate={update} deviceConfig={owned ? deviceConfig : undefined} wifi={wifi} kiosk={kiosk} />
+        <AboutSettings
+          kioskUpdate={update}
+          deviceConfig={owned ? deviceConfig : undefined}
+          wifi={wifi}
+          kiosk={kiosk}
+          onOpenDebug={onOpenDebug}
+        />
       );
       break;
     }

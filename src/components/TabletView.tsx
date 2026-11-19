@@ -693,6 +693,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             onShow={deviceConfig.reload}
             deviceConfig={ownedConfig ?? undefined}
             onDeviceConfigSave={deviceConfig.save}
+            onOpenDebug={() => setIsDebugOpen(true)}
           />
         )}
       </section>

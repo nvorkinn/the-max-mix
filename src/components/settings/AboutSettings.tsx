@@ -1,4 +1,5 @@
 import type { TouchscreenConfig } from 'countdown-api';
+import { Bug } from 'lucide-react';
 import { deviceCredentials } from '../../countdown/registration';
 import type { KioskUpdate } from '../../hooks/useKioskUpdate';
 import KioskSystem from '../KioskSystem';
@@ -18,19 +19,22 @@ function Fact({ name, value }: Readonly<{ name: string; value: string }>) {
 /**
  * The About page: what this screen is (its device ID, its size as it told countdown-server, and on the kiosk its IP
  * address), then its software: the Pi's version, the update check, restart and reboot on the kiosk, and the app's own
- * version everywhere.
+ * version everywhere, and a way into the debug console.
  */
 export default function AboutSettings({
   kioskUpdate,
   deviceConfig,
   wifi,
-  kiosk
+  kiosk,
+  onOpenDebug
 }: Readonly<{
   kioskUpdate: KioskUpdate | undefined;
   /** countdown-server's config, once someone owns the kiosk: the size it reported comes from it. */
   deviceConfig: TouchscreenConfig | undefined;
   wifi: WifiState;
   kiosk: boolean;
+  /** Opens the debug console, which otherwise takes holding the clock or Ctrl+Shift+D. */
+  onOpenDebug?: (() => void) | undefined;
 }>) {
   const deviceId = deviceConfig?.device_id ?? deviceCredentials()?.deviceId;
   let address = 'Unknown';
@@ -50,6 +54,18 @@ export default function AboutSettings({
           {kiosk && <Fact name="IP address" value={address} />}
           <Fact name="App version" value={APP_VERSION} />
         </dl>
+        {onOpenDebug && (
+          <div className="flex">
+            <button
+              type="button"
+              onClick={onOpenDebug}
+              className="modal-option settings-action flex-1 flex items-center justify-center gap-2 rounded-2xl border font-bold active:scale-98 transition-all"
+            >
+              <Bug className="w-5 h-5 shrink-0" aria-hidden="true" />
+              Debug console
+            </button>
+          </div>
+        )}
       </section>
       {kioskUpdate && (
         <section className="settings-group" aria-labelledby="about-software-label">
