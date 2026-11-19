@@ -8,7 +8,7 @@ const fixture = JSON.parse(
 
 const search = JSON.parse(
   readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/search.json', import.meta.url), 'utf8')
-) as { stops_query: string; stops: object[]; places_query: string; places: object[] };
+) as { stops_query: string; stops: object[]; places_query: string; places: object[]; here: object[] };
 
 const panels = JSON.parse(
   readFileSync(
@@ -182,6 +182,21 @@ export async function fakeCountdownServer(
       })
     )
   );
+  // The current location: countdown-api's example, wherever the browser is.
+  await page.route(`${API}/api/places/here*`, route => {
+    const request = route.request();
+    const cors = {
+      'Access-Control-Allow-Origin': request.headers()['origin'] ?? '*',
+      'Access-Control-Allow-Headers': 'Authorization'
+    };
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    return route.fulfill({
+      status: 200,
+      headers: cors,
+      contentType: 'application/json',
+      body: JSON.stringify(search.here)
+    });
+  });
   // The device's arrivals: countdown-api's example, once someone owns the kiosk.
   await page.route(ARRIVALS, route => {
     const request = route.request();

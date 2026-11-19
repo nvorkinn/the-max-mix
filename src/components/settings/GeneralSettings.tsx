@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CloudSun, Megaphone } from 'lucide-react';
 import type { TouchscreenConfig } from 'countdown-api';
-import { searchPlaces } from '../../countdown/search';
+import { locatePlace, searchPlaces } from '../../countdown/search';
 import type { DeviceConfig } from '../../hooks/useDeviceConfig';
 import { DEFAULT_CLOCK_FORMAT } from '../../utils/clockFormat';
 import type { QuietHours } from '../../utils/quietHours';
@@ -123,6 +123,7 @@ export default function GeneralSettings({
         <SearchDialog
           title="Weather place"
           search={searchPlaces}
+          locate={locatePlace}
           initialQuery={config.weather.key ? config.weather.location : ''}
           onClose={() => setDialog(null)}
           onPick={result => {
