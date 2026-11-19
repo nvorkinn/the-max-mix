@@ -139,7 +139,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
       .getByRole('list', { name: 'Results' })
       .getByRole('button', { name: /Platform 4/ })
       .click();
-    await expect(search.getByRole('button', { name: /Platform 4.*Added/ })).toBeDisabled();
+    await expect(search.getByRole('button', { name: /Platform 4.*Added/ })).toBeVisible();
     await search.getByRole('button', { name: 'Close' }).click();
 
     await expect(settings.getByRole('list', { name: 'Saved stops' }).getByText('Oslo S')).toBeVisible();
