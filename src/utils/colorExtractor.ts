@@ -1,13 +1,8 @@
 /** An RGB colour, each channel 0 to 255. */
 export type Rgb = readonly [number, number, number];
 
-/**
- * Colours taken from the album art: the average of the top half and of the bottom half (the background tint), and the
- * cover's two dominant colours (the Dynamic colour choice), the most prominent first.
- */
+/** Colours taken from the album art: the cover's two dominant colours (the Dynamic colour choice), the most prominent first. */
 export interface ArtColours {
-  top: string;
-  bottom: string;
   dominant: readonly [Rgb, Rgb];
 }
 
@@ -19,24 +14,12 @@ function usable(red: number, green: number, blue: number): boolean {
   return brightness > 30 && brightness < 230;
 }
 
-/** Averages the pixels in rows [fromRow, toRow) that are neither near-black nor near-white. */
-function averageRows(data: Uint8ClampedArray, fromRow: number, toRow: number): string | null {
-  let r = 0;
-  let g = 0;
-  let b = 0;
-  let count = 0;
-  for (let i = fromRow * SIZE * 4; i < Math.min(data.length, toRow * SIZE * 4); i += 4) {
-    const red = data[i] ?? 0;
-    const green = data[i + 1] ?? 0;
-    const blue = data[i + 2] ?? 0;
-    if (usable(red, green, blue)) {
-      r += red;
-      g += green;
-      b += blue;
-      count++;
-    }
+/** Whether any pixel is neither near-black nor near-white. */
+function hasColour(data: Uint8ClampedArray): boolean {
+  for (let i = 0; i < data.length; i += 4) {
+    if (usable(data[i] ?? 0, data[i + 1] ?? 0, data[i + 2] ?? 0)) return true;
   }
-  return count === 0 ? null : `rgb(${Math.round(r / count)} ${Math.round(g / count)} ${Math.round(b / count)})`;
+  return false;
 }
 
 function saturation([red, green, blue]: Rgb): number {
@@ -104,17 +87,7 @@ export async function extractArtColours(imageUrl?: string | null): Promise<ArtCo
         ctx.drawImage(img, 0, 0, SIZE, SIZE);
         const data = ctx.getImageData(0, 0, SIZE, SIZE).data;
 
-        const whole = averageRows(data, 0, SIZE);
-        if (!whole) {
-          resolve(null);
-          return;
-        }
-        // A half with only black or white falls back to the whole cover's colour.
-        resolve({
-          top: averageRows(data, 0, SIZE / 2) ?? whole,
-          bottom: averageRows(data, SIZE / 2, SIZE) ?? whole,
-          dominant: dominantColours(data)
-        });
+        resolve(hasColour(data) ? { dominant: dominantColours(data) } : null);
       } catch {
         resolve(null);
       }

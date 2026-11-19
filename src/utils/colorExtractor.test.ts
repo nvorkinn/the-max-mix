@@ -58,31 +58,6 @@ describe('extractArtColours', () => {
     expect(await extractArtColours('http://x/img.jpg')).toBeNull();
   });
 
-  it('averages the top and bottom halves separately', async () => {
-    stubCanvas(halves([200, 40, 60], [30, 90, 160]));
-    expect(await extractArtColours('http://x/img.jpg')).toMatchObject({
-      top: 'rgb(200 40 60)',
-      bottom: 'rgb(30 90 160)'
-    });
-  });
-
-  it('ignores near-black and near-white pixels in the average', async () => {
-    const pixels = halves([80, 40, 140], [80, 40, 140]);
-    pixels.splice(0, 8, 0, 0, 0, 255, 120, 60, 160, 255);
-    stubCanvas(pixels);
-    const colours = await extractArtColours('http://x/img.jpg');
-    // 48 pixels of (80, 40, 140) and one of (120, 60, 160), the black one skipped.
-    expect(colours?.top).toBe('rgb(81 40 140)');
-  });
-
-  it('uses the whole cover colour for a half that is only black or white', async () => {
-    stubCanvas(halves([0, 0, 0], [30, 90, 160]));
-    expect(await extractArtColours('http://x/img.jpg')).toMatchObject({
-      top: 'rgb(30 90 160)',
-      bottom: 'rgb(30 90 160)'
-    });
-  });
-
   describe('dominant colours', () => {
     async function dominant() {
       const colours = await extractArtColours('http://x/img.jpg');

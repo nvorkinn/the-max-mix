@@ -106,7 +106,8 @@ test.describe('Layout', { tag: '@layout' }, () => {
         for (const controlBox of controlBoxes) {
           expect(controlBox?.y ?? 0).toBeGreaterThan((box?.y ?? 0) + (box?.height ?? 0));
         }
-        // Queue, Lyrics and Speakers are one pill under the panel, centred in its column, its bottom level with the art's.
+        // Queue, Lyrics and Speakers are one pill under the panel, centred in its column. The artwork reaches out as far
+        // as the glass pane around the panel and pill, 12px below the pill's bottom.
         const nav = page.getByRole('navigation', { name: 'Beside the artwork' });
         const pill = await nav.boundingBox();
         const navButtons = await Promise.all(
@@ -118,9 +119,9 @@ test.describe('Layout', { tag: '@layout' }, () => {
         expect(
           Math.abs((pill?.x ?? 0) + (pill?.width ?? 0) / 2 - (panel?.x ?? 0) - (panel?.width ?? 0) / 2)
         ).toBeLessThanOrEqual(1);
-        expect(Math.abs((pill?.y ?? 0) + (pill?.height ?? 0) - (box?.y ?? 0) - (box?.height ?? 1))).toBeLessThanOrEqual(
-          1
-        );
+        expect(
+          Math.abs((pill?.y ?? 0) + (pill?.height ?? 0) + 12 - (box?.y ?? 0) - (box?.height ?? 1))
+        ).toBeLessThanOrEqual(1);
         // The queue shows whole rows only: each row is either all inside the list or all below it.
         const list = page.getByRole('list', { name: 'Track queue' });
         const isCut = await list.evaluate(element => {

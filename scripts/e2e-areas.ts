@@ -142,7 +142,7 @@ export const AREAS: Area[] = [
   {
     tag: 'app',
     title: 'The app as a whole',
-    sources: [/^src\/components\/TabletView\.tsx$/, /^src\/(main|App)\.tsx$/, /^vite\.config\.ts$/],
+    sources: [/^src\/components\/(TabletView|TabBackdrop)\.tsx$/, /^src\/(main|App)\.tsx$/, /^vite\.config\.ts$/],
     alsoAffects: ['player', 'queue', 'settings', 'update', 'status', 'dialogs', 'visual']
   }
 ];

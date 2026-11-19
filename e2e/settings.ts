@@ -1,10 +1,13 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { runningFades } from './crossfade.ts';
 
-/** Shows the Settings tab, on the overview, or on one section picked in its navigation. */
+/** Shows the Settings tab once its fade has ended, on the overview, or on one section picked in its navigation. */
 export async function openSettings(page: Page, section?: string): Promise<Locator> {
   await page.getByRole('tab', { name: 'Settings' }).click();
   const dialog = page.getByRole('tabpanel', { name: 'Settings' });
   await expect(dialog).toBeVisible();
+  // The tab change fades from the tab before; a screenshot during it catches that tab's half.
+  await expect.poll(() => runningFades(page)).toEqual([]);
   if (section) await showSection(dialog, section);
   return dialog;
 }

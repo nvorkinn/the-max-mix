@@ -1,5 +1,4 @@
 import { expect, test, type Page } from '@playwright/test';
-import { runningFades } from './crossfade.ts';
 import { showDashboard } from './dashboard.ts';
 import { DEVICE_CONFIGS, fakeCountdownServer } from './fake-countdown.ts';
 import { airPlayOutput, fakeKioskOutputs } from './fake-kiosk.ts';
@@ -180,70 +179,6 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
         await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
         await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
         await expect(page).toHaveScreenshot(shotName('player-night-dynamic', screen), moving(page));
-      }
-    );
-
-    test(
-      `player on the photo with Dynamic on at ${size(screen)}`,
-      { tag: ['@player', '@appearance'] },
-      async ({ page }) => {
-        await page.addInitScript(() => {
-          localStorage.setItem('maxmix.dynamicColour', 'on');
-        });
-        await fakeSpotify(page);
-        await colouredArt(page);
-        await page.setViewportSize(screen);
-        await page.goto('/');
-        await page.getByRole('tab', { name: 'Player' }).click();
-        await expect(page.getByRole('tabpanel', { name: 'Player' })).toBeVisible();
-        // The tab change fades from the Dashboard; a screenshot during it catches the Dashboard's half.
-        await expect.poll(() => runningFades(page)).toEqual([]);
-        await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
-        await expect(page).toHaveScreenshot(shotName('player-photo-dynamic', screen), moving(page));
-      }
-    );
-
-    // The Player tab: the same player on the Dashboard's photo (the one bundled with the app, with no feed to give the
-    // day's), the photo blurred and darkened under the controls.
-    test(`player on the photo at ${size(screen)}`, { tag: '@player' }, async ({ page }) => {
-      await fakeSpotify(page);
-      await colouredArt(page);
-      await page.setViewportSize(screen);
-      await page.goto('/');
-      await page.getByRole('tab', { name: 'Player' }).click();
-      await expect(page.getByRole('tabpanel', { name: 'Player' })).toBeVisible();
-      // The tab change fades from the Dashboard; a screenshot during it catches the Dashboard's half.
-      await expect.poll(() => runningFades(page)).toEqual([]);
-      await expect(page.getByRole('button', { name: /^Play Starboy/ })).toBeVisible();
-      await expect(page).toHaveScreenshot(shotName('player-photo', screen), moving(page));
-    });
-
-    // The Options tab: the Settings tab's pages on the Dashboard's photo, by day on the overview and at night on
-    // Appearance (the words are the photo's warm white either way).
-    test(`options on the photo at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
-      await page.setViewportSize(screen);
-      await openSpotifyTab(page);
-      await page.getByRole('tab', { name: 'Options' }).click();
-      await expect(page.getByRole('tabpanel', { name: 'Options' })).toBeVisible();
-      await expect.poll(() => runningFades(page)).toEqual([]);
-      await expect(page).toHaveScreenshot(shotName('options-photo', screen), moving(page));
-    });
-
-    test(
-      `options on the photo at night at ${size(screen)}`,
-      { tag: ['@settings', '@appearance'] },
-      async ({ page }) => {
-        await page.addInitScript(() => {
-          localStorage.setItem('maxmix.theme', 'night');
-        });
-        await page.setViewportSize(screen);
-        await openSpotifyTab(page);
-        await page.getByRole('tab', { name: 'Options' }).click();
-        const options = page.getByRole('tabpanel', { name: 'Options' });
-        await expect(options).toBeVisible();
-        await showSection(options, 'Appearance');
-        await expect.poll(() => runningFades(page)).toEqual([]);
-        await expect(page).toHaveScreenshot(shotName('options-photo-night', screen), moving(page));
       }
     );
 

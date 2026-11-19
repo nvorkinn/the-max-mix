@@ -201,14 +201,14 @@ export interface DynamicPalette {
 }
 
 /**
- * What Dynamic's colours sit on: the paper of Day, or the dark: the navy of Night, and the darkened photo of the Player
- * and Options tabs, whatever the skin.
+ * What Dynamic's colours sit on: the paper of Day, or the dark: the navy of Night, and the darkened photo of the Spotify
+ * and Settings tabs, whatever the skin.
  */
 export type DynamicSurface = 'day' | 'night';
 
 /** Night's text, which Dynamic leaves as it is on the dark. */
 const NIGHT_INK = '#f5f6ff';
-/** Night's page: the darkest the highlights have to read on. The Player tab's glass is about as dark. */
+/** Night's page: the darkest the highlights have to read on. The Spotify tab's glass is about as dark. */
 const NIGHT_PAGE: Rgb = [9, 14, 31];
 
 function hslToRgb(hue: number, saturation: number, lightness: number): Rgb {
