@@ -44,7 +44,7 @@ export interface DeviceConfig {
   /** Whether changes go to the server: once someone owns the kiosk. Before that the kiosk's settings are its own. */
   owned: boolean;
   /** Changes one section at once and saves it a moment later; a failed save puts the section back as it was. */
-  save: <K extends ConfigSection>(section: K, value: TouchscreenConfig[K]) => void;
+  save: <K extends ConfigSection>(section: K, value: NonNullable<TouchscreenConfig[K]>) => void;
   status: SaveStatus;
   /** Gets the config from the server again (the Settings tab does, each time it opens). */
   reload: () => void;
@@ -107,7 +107,7 @@ export function useDeviceConfig(): DeviceConfig {
   }, [status]);
 
   const save = useCallback(
-    <K extends ConfigSection>(section: K, value: TouchscreenConfig[K]) => {
+    <K extends ConfigSection>(section: K, value: NonNullable<TouchscreenConfig[K]>) => {
       const shown = shownRef.current;
       if (!shown) return;
       show({ ...shown, [section]: value });

@@ -25,6 +25,7 @@ import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
 import { loadQuietHours, isQuietTime, saveQuietHours } from '../utils/quietHours';
 import type { QuietHours } from '../utils/quietHours';
+import { setLyricsStyle } from '../utils/lyricsStyle';
 import { getScreenSleep, setScreenSleep } from '../utils/screenSleep';
 import type { ScreenSleepMinutes } from '../utils/screenSleep';
 import {
@@ -200,7 +201,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // minutes later (see useScreenSleep). The screen stays on and bright while music plays. In quiet hours it sleeps a
   // minute after the last touch, on any tab.
   useIdle({ enabled: onKiosk, busy: isPlaying, idleMs: IDLE_DASHBOARD_MS, onIdle: () => goToScreen('dashboard') });
-  // Once someone owns the kiosk, countdown-server's config is its colour and screen sleep: the settings save there,
+  // Once someone owns the kiosk, countdown-server's config is its colour, screen sleep and lyrics: the settings save there,
   // and whatever the config says (a change here, one undone, or the server's latest) shows, and is kept locally for
   // starts without the server. Before that the kiosk keeps its own.
   const deviceConfig = useDeviceConfig();
@@ -229,6 +230,12 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   useEffect(() => {
     if (display) setScreenSleep(display.sleep_minutes);
   }, [display]);
+  // The lyrics' size and alignment: the server's once someone owns the kiosk (Settings > Spotify saves them there),
+  // kept locally for starts without it.
+  const lyricsLook = ownedConfig?.lyrics;
+  useEffect(() => {
+    if (lyricsLook) setLyricsStyle(lyricsLook);
+  }, [lyricsLook]);
   const changeThemeColour = (colour: ThemeColour) => {
     if (style) {
       // Over the old Dynamic colour, Dynamic stays on.

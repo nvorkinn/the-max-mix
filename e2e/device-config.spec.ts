@@ -50,6 +50,26 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     });
   });
 
+  test("the Synced Lyrics look is the server's, and saves there from Settings > Spotify", async ({ page }) => {
+    const server = await fakeCountdownServer(page, {
+      ...DEVICE_CONFIGS.owned,
+      lyrics: { size: 'large', align: 'center' }
+    });
+    await openSpotifyTab(page, '/?kiosk=1');
+    const settings = await openSettings(page, 'Spotify');
+
+    await expect(settings.getByRole('button', { name: 'Large', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(settings.getByRole('button', { name: 'Centre' })).toHaveAttribute('aria-pressed', 'true');
+    await settings.getByRole('button', { name: 'Right' }).click();
+    await expect(settings.getByRole('button', { name: 'Right' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
+    expect(server.saves.map(save => save['lyrics'])).toEqual([{ size: 'large', align: 'right' }]);
+    // Kept on the tablet too, for a start without the server.
+    expect(await page.evaluate(() => localStorage.getItem('maxmix.lyricsStyle'))).toBe(
+      JSON.stringify({ size: 'large', align: 'right' })
+    );
+  });
+
   test('a quick run of changes saves only the last one', async ({ page }) => {
     const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
     await openSpotifyTab(page, '/?kiosk=1');

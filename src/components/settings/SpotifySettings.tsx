@@ -18,6 +18,7 @@ import ConfirmButton from '../ConfirmButton';
 import PhonePicker from '../PhonePicker';
 import { forgetUnlinkedPhone } from '../../utils/phoneLinks';
 import SpotifyIcon from '../SpotifyIcon';
+import type { LyricsStyle } from '../../utils/lyricsStyle';
 import LyricsSettings from './LyricsSettings';
 
 type ShownStatus = Exclude<PersonStatus, 'unknown'>;
@@ -38,8 +39,13 @@ const knownStatus = (person: PersonOnKiosk): ShownStatus => (person.signedIn ? '
  */
 export default function SpotifySettings({
   signInError,
-  onReload
-}: Readonly<{ signInError: string | null; onReload: () => void }>) {
+  onReload,
+  onLyricsChange
+}: Readonly<{
+  signInError: string | null;
+  onReload: () => void;
+  onLyricsChange?: ((style: LyricsStyle) => void) | undefined;
+}>) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [people, setPeople] = useState(peopleOnKiosk);
   const [statuses, setStatuses] = useState<Record<string, PersonStatus>>({});
@@ -167,7 +173,7 @@ export default function SpotifySettings({
         </button>
       )}
 
-      <LyricsSettings />
+      <LyricsSettings onChange={onLyricsChange} />
     </div>
   );
 }

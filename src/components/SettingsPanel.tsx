@@ -163,7 +163,13 @@ export default function SettingsPanel({
       break;
     }
     case 'spotify': {
-      page = <SpotifySettings signInError={signInError} onReload={onReload} />;
+      page = (
+        <SpotifySettings
+          signInError={signInError}
+          onReload={onReload}
+          onLyricsChange={owned ? lyrics => onDeviceConfigSave('lyrics', lyrics) : undefined}
+        />
+      );
       break;
     }
     case 'about': {
