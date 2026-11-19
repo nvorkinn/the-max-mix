@@ -82,6 +82,22 @@ export class Presence {
     }
   }
 
+  private update(phones: PairedPhone[], devices: HeardDevice[]): void {
+    const awayAfterMs = this.options.awayAfterMs ?? AWAY_AFTER_MS;
+    const before = new Map(this.current.map(phone => [phone.address, phone.isHere]));
+    this.current = phones.map(phone => {
+      const device = devices.find(known => known.address === phone.address);
+      const lastSeen = device?.lastSeen ?? null;
+      const isHere = Boolean(device?.connected) || (lastSeen !== null && this.now() - lastSeen < awayAfterMs);
+      return { address: phone.address, name: phone.name, isHere, lastSeen };
+    });
+    for (const phone of this.current) {
+      if (before.get(phone.address) !== phone.isHere) {
+        this.options.log(`Presence: ${phone.name} is ${phone.isHere ? 'here' : 'away'}`);
+      }
+    }
+  }
+
   /** Scans (when a phone is saved) for two minutes, or until `unwatch`. Asking again restarts the two minutes. */
   watch(): void {
     this.watchStartedAt ??= this.now();
@@ -101,22 +117,6 @@ export class Presence {
     this.watchStartedAt = null;
     this.scanning?.abort();
     this.scanning = null;
-  }
-
-  private update(phones: PairedPhone[], devices: HeardDevice[]): void {
-    const awayAfterMs = this.options.awayAfterMs ?? AWAY_AFTER_MS;
-    const before = new Map(this.current.map(phone => [phone.address, phone.isHere]));
-    this.current = phones.map(phone => {
-      const device = devices.find(known => known.address === phone.address);
-      const lastSeen = device?.lastSeen ?? null;
-      const isHere = Boolean(device?.connected) || (lastSeen !== null && this.now() - lastSeen < awayAfterMs);
-      return { address: phone.address, name: phone.name, isHere, lastSeen };
-    });
-    for (const phone of this.current) {
-      if (before.get(phone.address) !== phone.isHere) {
-        this.options.log(`Presence: ${phone.name} is ${phone.isHere ? 'here' : 'away'}`);
-      }
-    }
   }
 
   /** Who is here now; when BlueZ cannot say, what was last known. */
