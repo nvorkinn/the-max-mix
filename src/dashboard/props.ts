@@ -24,6 +24,25 @@ export interface TabBarProps {
   onSwitchPerson?: ((spotifyId: string) => void) | null;
   /** Called once the clock has been held for two seconds (the debug console). */
   onClockHold?: (() => void) | null;
+  /** The song playing, in a card hanging under the Spotify tab; null (or left out) hides it. */
+  nowPlaying?: NowPlayingProps | null;
+}
+
+/** @public The song the card under the Spotify tab shows, and its controls. */
+export interface NowPlayingProps {
+  title: string;
+  /** Every artist, comma separated. */
+  artist: string;
+  /** The album's cover, or null for none. */
+  artUrl: string | null;
+  isPlaying: boolean;
+  /** How far through the song, from 0 to 1. */
+  progress: number;
+  /** False while the player can't take commands: the buttons are disabled. */
+  controlsEnabled: boolean;
+  onPlayPause: () => unknown;
+  onPrevious: () => unknown;
+  onNext: () => unknown;
 }
 
 /** @public The kinds of weather drawn, each with its own icon (by day and by night where they differ). */

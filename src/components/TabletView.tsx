@@ -43,6 +43,7 @@ import { DEFAULT_CLOCK_FORMAT } from '../utils/clockFormat';
 import type { ThemeColour } from '../utils/themeColour';
 import type { MusicChoice, Track } from '../types';
 import type { TabBarProps, TabId } from '../dashboard/props';
+import { nowPlayingCard, PAUSED_SHOWN_MS } from '../dashboard/nowPlaying';
 import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
 import SpotifySetup from './SpotifySetup';
@@ -510,6 +511,16 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     }
   };
 
+  // The song playing, in a card under the Dashboard's Spotify tab: there while it plays, and a while after a pause.
+  const songShown = useLingers(isPlaying, PAUSED_SHOWN_MS) && !needsConnection;
+  const nowPlaying = nowPlayingCard(shownPlayback, {
+    controlsEnabled,
+    onPlayPause: followingSonos ? sonos.togglePlay : togglePlay,
+    onNext: followingSonos ? sonos.nextTrack : nextTrack,
+    onPrevious: followingSonos ? sonos.previousTrack : previousTrack,
+    onSeek: followingSonos ? sonos.seek : seek
+  });
+
   // The Dashboard's tab bar, which floats on the Spotify and Settings tabs too. Search is the Spotify tab's alone: the
   // Dashboard and Settings bars drop it, and a tab change slides it out of or into the top of the screen (index.css).
   const tabBar: TabBarProps = {
@@ -648,7 +659,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         hidden={screen !== 'dashboard'}
       >
         {/* Mounted while hidden, so its data keeps updating and it is current when the tab comes back. */}
-        <DashboardScreen tabBar={{ ...tabBar, onSearch: null }} />
+        <DashboardScreen tabBar={{ ...tabBar, onSearch: null, nowPlaying: songShown ? nowPlaying : null }} />
       </section>
       <section
         className="app-tab-panel on-photo"

@@ -7,7 +7,8 @@ export const DASHBOARD_NOW = new Date('2026-11-17T09:20:00Z');
 
 /**
  * Opens the Dashboard of an owned kiosk on `screen`, its data from the fake live feed (`feed` gives names too long for
- * the boards, no notices or other stops), once the boards have their `rows` departures.
+ * the boards, no notices or other stops), once the boards have their `rows` departures. Returns the fake Spotify
+ * account (fakeSpotify), which is playing a song.
  */
 export async function showDashboard(
   page: Page,
@@ -15,7 +16,7 @@ export async function showDashboard(
   feed: Parameters<typeof fakeFeed>[2] = {},
   rows = 6
 ) {
-  await fakeSpotify(page);
+  const spotify = await fakeSpotify(page);
   await fakeCountdownServer(page, dashboardConfig());
   await fakeFeed(page, DASHBOARD_NOW, feed);
   await page.clock.setFixedTime(DASHBOARD_NOW);
@@ -23,4 +24,5 @@ export async function showDashboard(
   await page.goto('/');
   await expect(page.getByRole('region', { name: /^(TfL|Ruter) / }).first()).toBeVisible();
   await expect(page.locator('.dashboard-rows li')).toHaveCount(rows);
+  return spotify;
 }
