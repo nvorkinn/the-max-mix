@@ -96,7 +96,7 @@ export async function loadDeviceConfig(): Promise<TouchscreenConfig | null> {
 }
 
 /** The parts of the config the Settings tab changes, each saved whole: the time format and the owner's sections. */
-export type ConfigSection = 'clock_format' | 'style' | 'display' | 'arrivals' | 'weather' | 'notice_board';
+export type ConfigSection = 'clock_format' | 'style' | 'display' | 'lyrics' | 'arrivals' | 'weather' | 'notice_board';
 
 /**
  * What a save comes to: the config as the server saved it; `conflict` when the server says the config changed since
@@ -105,7 +105,10 @@ export type ConfigSection = 'clock_format' | 'style' | 'display' | 'arrivals' | 
  */
 export type SaveResult = { saved: TouchscreenConfig } | { error: 'conflict' | 'failed' };
 
-async function putSection<K extends ConfigSection>(section: K, value: TouchscreenConfig[K]): Promise<SaveResult> {
+async function putSection<K extends ConfigSection>(
+  section: K,
+  value: NonNullable<TouchscreenConfig[K]>
+): Promise<SaveResult> {
   if (import.meta.env.VITE_COUNTDOWN_CONFIG === 'mock') {
     const kept = cachedDeviceConfig() ?? (await mockDeviceConfig());
     if (!kept) return { error: 'failed' };
@@ -137,7 +140,7 @@ async function putSection<K extends ConfigSection>(section: K, value: Touchscree
  */
 export function saveConfigSection<K extends ConfigSection>(
   section: K,
-  value: TouchscreenConfig[K]
+  value: NonNullable<TouchscreenConfig[K]>
 ): Promise<SaveResult> {
   const result = saving.then(() => putSection(section, value));
   saving = result;

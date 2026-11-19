@@ -56,7 +56,7 @@ export const AREAS: Area[] = [
   {
     tag: 'lyrics',
     title: 'Lyrics',
-    sources: [/^src\/components\/LyricsPanel/, /^src\/hooks\/useLyrics/, /^src\/lyrics\//]
+    sources: [/^src\/components\/LyricsPanel/, /^src\/hooks\/useLyrics/, /^src\/lyrics\//, /^src\/utils\/lyricsStyle/]
   },
   {
     tag: 'settings',

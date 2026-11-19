@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { clearLyricsCache } from '../hooks/useLyrics';
 import type { Lyrics, LyricsProvider } from '../lyrics/types';
+import { DEFAULT_LYRICS_STYLE, setLyricsStyle } from '../utils/lyricsStyle';
 import LyricsPanel from './LyricsPanel';
 
 const track = { id: 't1', name: 'Placeholder Song', artists: [{ name: 'Placeholder Artist' }], duration_ms: 200_000 };
@@ -52,6 +53,19 @@ describe('LyricsPanel', () => {
     rerender(<LyricsPanel track={track} progressMs={3500} provider={provider} />);
     expect(screen.getAllByRole('listitem')[3]).toHaveAttribute('aria-current', 'true');
     expect(provider).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes its type size and alignment from the Synced Lyrics settings, as soon as they change', async () => {
+    renderPanel({ provider: providerOf(synced) });
+    await flush();
+    const list = screen.getByRole('list', { name: 'Lyrics of Placeholder Song' });
+    expect(list.style.getPropertyValue('--lyrics-scale')).toBe('1');
+    expect(list).toHaveStyle({ textAlign: 'left' });
+
+    act(() => setLyricsStyle({ size: 'x-large', align: 'center' }));
+    expect(list.style.getPropertyValue('--lyrics-scale')).toBe('1.4');
+    expect(list).toHaveStyle({ textAlign: 'center' });
+    act(() => setLyricsStyle(DEFAULT_LYRICS_STYLE));
   });
 
   it('lights up the line being sung word by word when its source times each word', async () => {

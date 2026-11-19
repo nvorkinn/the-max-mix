@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import type { CSSProperties } from 'react';
 import { MicVocal, RotateCcw } from 'lucide-react';
 import { useLyrics } from '../hooks/useLyrics';
 import { activeLineIndex } from '../lyrics/lrc';
 import type { LyricsProvider } from '../lyrics/types';
 import type { Track } from '../types';
+import { getLyricsStyle, lyricsScale, subscribeLyricsStyle } from '../utils/lyricsStyle';
 
 interface LyricsPanelProps {
   track?: Track | undefined;
@@ -80,6 +82,8 @@ function LyricsPanelContent({
   provider
 }: Readonly<LyricsPanelProps>) {
   const { status, lyrics, error, retry } = useLyrics(track, shown, provider);
+  // Settings > Spotify > Synced Lyrics: the type size and alignment, which apply the moment they change.
+  const look = useSyncExternalStore(subscribeLyricsStyle, getLyricsStyle);
   // A tap in sync mode moves this song's lyrics earlier or later; the panel is remade for every song, so it starts at 0.
   const [shiftMs, setShiftMs] = useState(0);
   const smooth = useSmoothProgress(progressMs, playing && shown && lyrics?.kind === 'synced');
@@ -175,6 +179,7 @@ function LyricsPanelContent({
       <ol
         ref={listRef}
         className={`lyrics-list ${lyrics.kind === 'synced' ? 'is-synced' : ''}`}
+        style={{ '--lyrics-scale': lyricsScale(look.size), textAlign: look.align } as CSSProperties}
         data-following={isFollowing}
         data-syncing={syncing}
         // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- Keyboard users need focus for native list scrolling.

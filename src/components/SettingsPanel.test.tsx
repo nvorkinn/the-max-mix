@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import type { TouchscreenConfig } from 'countdown-api';
 import userEvent from '../test/user';
 import { partialProps } from '../test/partialProps';
 import { defined } from '../test/defined';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
+import { DEFAULT_LYRICS_STYLE, getLyricsStyle, setLyricsStyle } from '../utils/lyricsStyle';
 import SettingsPanelFull from './SettingsPanel';
 
 // eslint-disable-next-line sonarjs/no-hardcoded-ip -- a made-up address of the Pi on a home network
@@ -116,14 +117,14 @@ describe('SettingsPanel', () => {
     expect(screen.queryByRole('button', { name: /studio|paper/i })).not.toBeInTheDocument();
   });
 
-  it('offers the first sign-in, and nothing else, while nobody is signed in', () => {
+  it('offers the first sign-in, and nothing else but the Synced Lyrics look, while nobody is signed in', () => {
     render(<SettingsPanel {...base} authInfo={{}} initialSection="spotify" />);
     const page = screen.getByRole('region', { name: 'Spotify' });
     expect(
       within(page)
         .getAllByRole('button')
         .map(button => button.textContent)
-    ).toEqual(['Log in with Spotify']);
+    ).toEqual(['Log in with Spotify', 'Small', 'Medium', 'Large', 'Extra large', 'Left', 'Centre', 'Right']);
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/server environment|restart/i);
   });
@@ -485,6 +486,29 @@ describe('SettingsPanel', () => {
     expect(screen.getByRole('button', { name: '24-hour' })).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(screen.getByRole('button', { name: '12-hour' }));
     expect(onDeviceConfigSave).toHaveBeenCalledExactlyOnceWith('clock_format', '12h');
+  });
+
+  it('saves the Synced Lyrics look to the server once someone owns the kiosk, and on the tablet before that', async () => {
+    const onDeviceConfigSave = vi.fn();
+    const { rerender } = render(<SettingsPanel {...base} authInfo={{}} initialSection="spotify" />);
+    await userEvent.click(screen.getByRole('button', { name: 'Right' }));
+    expect(getLyricsStyle()).toEqual({ size: 'medium', align: 'right' });
+    expect(screen.getByRole('button', { name: 'Right' })).toHaveAttribute('aria-pressed', 'true');
+
+    rerender(
+      <SettingsPanel
+        {...base}
+        authInfo={{}}
+        initialSection="spotify"
+        deviceConfig={fixture.config as TouchscreenConfig}
+        onDeviceConfigSave={onDeviceConfigSave}
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Extra large' }));
+    expect(onDeviceConfigSave).toHaveBeenCalledExactlyOnceWith('lyrics', { size: 'x-large', align: 'right' });
+    // The look changes once the config does, which the kiosk then applies.
+    expect(getLyricsStyle()).toEqual({ size: 'medium', align: 'right' });
+    act(() => setLyricsStyle(DEFAULT_LYRICS_STYLE));
   });
 
   it('shows the save status over the page, which has no heading of its own', () => {
