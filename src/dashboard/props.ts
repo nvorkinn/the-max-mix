@@ -40,6 +40,8 @@ export interface WeatherView {
   /** Degrees Celsius, whole: now's temperature; tonight's low; tomorrow's and the weekend's high. */
   temperature: number;
   sky: Sky;
+  /** Whether its sky is drawn by day (a sun) or by night (a moon); by day when left out. */
+  isDay?: boolean;
   /** "Partly cloudy". */
   condition: string;
   /**
@@ -57,6 +59,12 @@ export interface WeatherBlockProps {
   views: WeatherView[];
 }
 
+/** @public The days after today, under the weather while the rail has room for them. */
+export interface OutlookProps {
+  /** Tomorrow first; empty with no forecast. */
+  days: DayForecast[];
+}
+
 /** @public One hour of the hourly strip. */
 export interface HourForecast {
   /** The start of the hour, as an ISO time in the place's offset. */
@@ -65,6 +73,16 @@ export interface HourForecast {
   temperature: number;
   sky: Sky;
   isDay: boolean;
+}
+
+/** @public One day of the outlook under the weather. */
+export interface DayForecast {
+  /** The place's date, "2026-11-20". */
+  date: string;
+  /** Degrees Celsius, whole. */
+  high: number;
+  low: number;
+  sky: Sky;
 }
 
 /** @public */

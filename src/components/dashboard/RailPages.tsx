@@ -1,8 +1,9 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { groupLines } from '../../dashboard/lineStatus';
-import type { NoticeItem, TubeStatusProps } from '../../dashboard/props';
+import type { DayForecast, NoticeItem, TubeStatusProps } from '../../dashboard/props';
 import { carouselSlot } from './carousel';
+import Outlook from './Outlook';
 import NoticeBoard, { NOTICE_ROW_HEIGHT, NoticeSheet, useArrivals } from './NoticeBoard';
 import TubeStatus, { LINE_ROW_HEIGHT } from './TubeStatus';
 
@@ -43,25 +44,63 @@ export function railPages(noticeCount: number, statusRows: number | null, height
   return pages;
 }
 
+/** The space between the weather and the outlook, and each of the outlook's rows. */
+const OUTLOOK_GAP = 26;
+const OUTLOOK_ROW_HEIGHT = 42;
+const NO_DAYS: readonly DayForecast[] = [];
+const ignore = () => {};
+/** The fewest days worth an outlook. */
+const OUTLOOK_MIN_DAYS = 3;
+
+/** How tall the notices and the Tube's status are on one page, all of them, the heading alone with neither. */
+function contentHeight(noticeCount: number, statusRows: number | null): number {
+  const status = statusRows === null ? 0 : EYEBROW_HEIGHT + statusRows * LINE_ROW_HEIGHT;
+  if (noticeCount === 0) return status || EYEBROW_HEIGHT;
+  const notices = EYEBROW_HEIGHT + noticeCount * NOTICE_ROW_HEIGHT;
+  return statusRows === null ? notices : notices + GAP + status;
+}
+
+/**
+ * How many of `days` days the outlook shows over `noticeCount` notices and `statusRows` rows of Tube status in `height`
+ * pixels: as many as fit (up to all of them) while every notice and the status still fit on one page; none if fewer than
+ * three would.
+ */
+export function outlookDays(days: number, noticeCount: number, statusRows: number | null, height: number): number {
+  const room = height - contentHeight(noticeCount, statusRows) - OUTLOOK_GAP;
+  const rows = Math.min(days, Math.floor(room / OUTLOOK_ROW_HEIGHT));
+  return rows >= OUTLOOK_MIN_DAYS ? rows : 0;
+}
+
 interface RailPagesProps {
   notices: readonly NoticeItem[];
   lineStatus: TubeStatusProps | null;
+  /** The days after today, shown over the notices while there is room for them; none when left out. */
+  days?: readonly DayForecast[] | undefined;
+  /** Told whether the outlook shows, so the hourly strip can make way for it. */
+  onOutlook?: (isShown: boolean) => void;
   /** The Dashboard's clock, which turns the pages with the boards along the bottom. */
   time: number;
 }
 
 /**
- * The rail under the weather: the notices with the Tube's status under them, built up from the bottom. When they
- * don't all fit, they page through the way the boards along the bottom do, at the same time.
+ * The rail under the weather: the next days' outlook while there is room for it, then the notices with the Tube's
+ * status under them, built up from the bottom. When they don't all fit, the outlook makes way and they page through the
+ * way the boards along the bottom do, at the same time.
  */
-export default function RailPages({ notices, lineStatus, time }: Readonly<RailPagesProps>) {
-  const pagesRef = useRef<HTMLDivElement>(null);
+export default function RailPages({
+  notices,
+  lineStatus,
+  days = NO_DAYS,
+  onOutlook = ignore,
+  time
+}: Readonly<RailPagesProps>) {
+  const bodyRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
   const [open, setOpen] = useState<NoticeItem | null>(null);
   const arriving = useArrivals(notices);
 
   useLayoutEffect(() => {
-    const element = pagesRef.current;
+    const element = bodyRef.current;
     if (!element) return;
     const measure = () => setHeight(element.clientHeight);
     measure();
@@ -71,32 +110,43 @@ export default function RailPages({ notices, lineStatus, time }: Readonly<RailPa
     return () => observer.disconnect();
   }, []);
 
-  const pages = railPages(notices.length, lineStatus ? groupLines(lineStatus.lines).length : null, height);
+  const statusRows = lineStatus ? groupLines(lineStatus.lines).length : null;
+  const shownDays = height > 0 ? outlookDays(days.length, notices.length, statusRows, height) : 0;
+  const pagesHeight = shownDays ? height - OUTLOOK_GAP - shownDays * OUTLOOK_ROW_HEIGHT : height;
+  const pages = railPages(notices.length, statusRows, pagesHeight);
+
+  useLayoutEffect(() => {
+    onOutlook(shownDays > 0);
+  }, [onOutlook, shownDays]);
+
   return (
     <>
-      <div className="dashboard-rail-pages" ref={pagesRef}>
-        {pages.map((page, index) => {
-          const slot = carouselSlot(index, pages.length, time, 1);
-          return (
-            <div
-              key={`${String(page.from)}:${String(page.status)}`}
-              className="dashboard-rail-page"
-              data-slot={slot}
-              inert={slot !== 0}
-              style={{ '--slot': slot } as CSSProperties}
-            >
-              {(page.to > page.from || !page.status) && (
-                <NoticeBoard
-                  notices={notices.slice(page.from, page.to)}
-                  count={notices.length}
-                  arriving={arriving}
-                  onOpen={setOpen}
-                />
-              )}
-              {page.status && lineStatus && <TubeStatus {...lineStatus} />}
-            </div>
-          );
-        })}
+      <div className="dashboard-rail-body" ref={bodyRef}>
+        {shownDays > 0 && <Outlook days={days.slice(0, shownDays)} />}
+        <div className="dashboard-rail-pages">
+          {pages.map((page, index) => {
+            const slot = carouselSlot(index, pages.length, time, 1);
+            return (
+              <div
+                key={`${String(page.from)}:${String(page.status)}`}
+                className="dashboard-rail-page"
+                data-slot={slot}
+                inert={slot !== 0}
+                style={{ '--slot': slot } as CSSProperties}
+              >
+                {(page.to > page.from || !page.status) && (
+                  <NoticeBoard
+                    notices={notices.slice(page.from, page.to)}
+                    count={notices.length}
+                    arriving={arriving}
+                    onOpen={setOpen}
+                  />
+                )}
+                {page.status && lineStatus && <TubeStatus {...lineStatus} />}
+              </div>
+            );
+          })}
+        </div>
       </div>
       {open && <NoticeSheet notice={open} onClose={() => setOpen(null)} />}
     </>

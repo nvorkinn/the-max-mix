@@ -5,6 +5,7 @@ import type {
   DepartureBoardProps,
   HourlyStripProps,
   NoticeBoardProps,
+  OutlookProps,
   TabBarProps,
   TubeStatusProps,
   WeatherBlockProps
@@ -37,6 +38,8 @@ export interface DashboardProps {
   /** Null while there is no forecast to read; the strip's space stays empty. */
   hourly: HourlyStripProps | null;
   notices: NoticeBoardProps;
+  /** The days after today, under the weather while the rail has room for them; null (or left out) without. */
+  outlook?: OutlookProps | null;
   /** Every Tube line's status, at the bottom of the rail under the notices; null (or left out) without. */
   lineStatus?: TubeStatusProps | null;
   /** A board per stop, in the owner's order: each Tube station and each bus stop has its own. */
@@ -47,7 +50,7 @@ export interface DashboardProps {
 
 /**
  * The Dashboard: the photo full screen, the tab bar floating on it, weather on the left with the notices and the Tube's
- * status under it, the hourly forecast
+ * status under it (and above them, while there's room, the next days in place of the hourly strip), the hourly forecast
  * top right and a board per Tube station and bus stop along the bottom, two at a time. It is laid out at 1280×800 and scaled to fit whichever of the
  * space's width or height is tighter, centred, so a smaller panel shows the same layout.
  */
@@ -56,12 +59,15 @@ export default function Dashboard({
   weather,
   hourly,
   notices,
+  outlook = null,
   lineStatus = null,
   boards,
   backdrop
 }: Readonly<DashboardProps>) {
   const fitRef = useRef<HTMLDivElement>(null);
   const [placement, setPlacement] = useState({ scale: 1, left: 0, top: 0 });
+  // The next days show under the weather while the rail has room, and then the hourly strip makes way for them.
+  const [outlookShown, setOutlookShown] = useState(false);
   // Two boards at a time; with more, they move along one at a time, with the boards' clock so a hidden Dashboard,
   // whose clock stops, doesn't move. Every board stays mounted, so its rows keep following their vehicles. The rail's
   // pages turn with them.
@@ -99,10 +105,18 @@ export default function Dashboard({
           <main className="dashboard-main">
             <div className="dashboard-rail">
               <WeatherBlock {...weather} />
-              <RailPages notices={notices.notices} lineStatus={lineStatus} time={time} />
+              <RailPages
+                notices={notices.notices}
+                lineStatus={lineStatus}
+                days={outlook?.days}
+                onOutlook={setOutlookShown}
+                time={time}
+              />
             </div>
             <div className="dashboard-stage">
-              <div className="dashboard-sky shadowed">{hourly && <HourlyStrip {...hourly} />}</div>
+              <div className="dashboard-sky shadowed">
+                {hourly && <HourlyStrip {...hourly} hours={outlookShown ? [] : hourly.hours} />}
+              </div>
               <div className="dashboard-departures">
                 <div className="dashboard-departures-track">
                   {boards.map((board, index) => {
