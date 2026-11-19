@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { runningFades } from './crossfade.ts';
 import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSpotifyTab, showSpotifyTab } from './spotify-tab.ts';
 
@@ -134,4 +135,32 @@ test.describe('Player', { tag: '@player' }, () => {
     await expect(page.getByRole('heading', { name: 'Starboy' }).first()).toBeVisible();
     await expect(page.locator('img.album-cover')).toBeVisible();
   });
+});
+
+test.describe('Switching person', { tag: '@player' }, () => {
+  // Off the kiosk the Pi hears no phone, so tapping a face (your own too) shows the random song to play on that phone.
+  for (const tab of ['Dashboard', 'Spotify', 'Settings']) {
+    test(`tapping your own picture on the ${tab} tab starts the switch`, async ({ page }) => {
+      await page.route('https://api.spotify.com/v1/search**', route =>
+        route.fulfill({
+          json: {
+            tracks: {
+              items: [{ id: 'proof', name: 'Proof Song', artists: [{ name: 'Proof Artist' }], album: { images: [] } }]
+            }
+          }
+        })
+      );
+      await page.goto('/');
+      await page.getByRole('tab', { name: tab }).click();
+      const panel = page.getByRole('tabpanel', { name: tab });
+      await expect(panel).toBeVisible();
+      await expect.poll(() => runningFades(page)).toEqual([]);
+      await panel.getByRole('button', { name: 'max: switch person' }).click();
+      const sheet = page.getByRole('dialog', { name: 'Switch person' });
+      const ownFace = sheet.getByRole('button', { name: 'max', exact: true });
+      await expect(ownFace).toHaveAttribute('aria-pressed', 'true');
+      await ownFace.click();
+      await expect(sheet).toContainText('Proof Song');
+    });
+  }
 });

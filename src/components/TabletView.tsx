@@ -518,7 +518,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     person: activePerson ? { name: activePerson.name, pictureUrl: activePerson.imageUrl || null } : null,
     onSearch: needsConnection ? null : () => setIsMusicOpen(true),
     now: new Date(minute * 60_000),
-    clockFormat
+    clockFormat,
+    // Every tab's bar shows the signed-in person's face, so tapping it switches person on every tab.
+    onSwitchPerson: isAuthenticated ? spotifyId => void switchTo(spotifyId) : null
   };
 
   return (
@@ -656,12 +658,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         hidden={screen !== 'settings'}
       >
         {screen === 'settings' && <TabBackdrop now={tabBar.now} />}
-        {/* Switching person and holding the clock for the debug console live in this tab's bar. */}
+        {/* Holding the clock for the debug console lives in this tab's bar. */}
         <div className="floating-bar">
           <TabBar
             {...tabBar}
             onSearch={null}
-            onSwitchPerson={isAuthenticated ? spotifyId => void switchTo(spotifyId) : null}
             onClockHold={() => setIsDebugOpen(true)}
           />
         </div>
