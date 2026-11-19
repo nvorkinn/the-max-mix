@@ -91,11 +91,14 @@ test.describe('Player', { tag: '@player' }, () => {
     await expect(repeat('Repeat one')).toBeVisible(AT_ONCE);
     await repeat('Repeat one').click();
     await expect(repeat('Repeat off')).toBeVisible(AT_ONCE);
-    expect(accountOf(page).commands.filter(command => command.includes('/repeat'))).toEqual([
-      'PUT /v1/me/player/repeat?state=context',
-      'PUT /v1/me/player/repeat?state=track',
-      'PUT /v1/me/player/repeat?state=off'
-    ]);
+    // The button changes at the tap, before the request reaches the fake Spotify, so wait for the last one.
+    await expect
+      .poll(() => accountOf(page).commands.filter(command => command.includes('/repeat')))
+      .toEqual([
+        'PUT /v1/me/player/repeat?state=context',
+        'PUT /v1/me/player/repeat?state=track',
+        'PUT /v1/me/player/repeat?state=off'
+      ]);
   });
 
   test('the volume slider sets the speaker volume, which is still there after a reload', async ({ page }) => {
