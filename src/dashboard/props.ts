@@ -1,5 +1,5 @@
 // The props of each Dashboard component in the redesign (the static page in public/dashboard-mockup): tab bar, weather
-// block, hourly strip, notice board, Tube board and Bus board. They are the contract between the components and the
+// block, hourly strip, notice board and the stops' departure boards. They are the contract between the components and the
 // data layer, which maps countdown-server's answers (countdown-api's shapes) to them, so a component never reads the
 // server's shapes and the data layer never knows how a component draws.
 //
@@ -122,45 +122,37 @@ interface DepartureBase {
   expectedAt: string;
 }
 
-/** @public One train on the Tube board. */
-export interface TubeDeparture extends DepartureBase {
-  /** TfL's line id ("northern", "bakerloo"), which picks the pill's colour. */
+/** @public One departure on a stop's board, a bus, tram or train: a stop serving several modes mixes them. */
+export interface Departure extends DepartureBase {
+  /** Its mode: bus, tube, metro, tram, rail, water..., which picks how its line is drawn. */
+  mode: string;
+  /** The line's name or number: "Northern", "12", "RE11". */
+  line: string;
+  /** TfL's line id ("northern", "bakerloo"), which picks a Tube line's colour. */
   lineId: string;
-  /** "Northern". */
-  lineName: string;
-  /** "Platform 1 · Northbound", or null when TfL doesn't say. */
-  platform: string | null;
+  /** Under the destination: "Platform 1 · Northbound", "Stop E", or null when there's nothing to say. */
+  detail: string | null;
 }
 
-/** @public One bus on the Bus board. */
-export interface BusDeparture extends DepartureBase {
-  /** "12", "N343". */
-  route: string;
-  /** The letter on the stop's flag ("E"), or null for a stop without one. */
-  stopLetter: string | null;
-}
+/**
+ * @public The network a stop belongs to, which heads its board with its mark (TfL's roundel, Ruter's hash) and picks
+ * how its lines are drawn: TfL's Tube lines as coloured pills and its buses as red route numbers; Norway's (Entur's)
+ * lines as route numbers coloured by mode.
+ */
+export type Network = 'tfl' | 'entur';
 
-/** What both boards take. */
-interface BoardProps<D> {
+/** @public A stop's board: its next departures, whatever their modes, soonest first. */
+export interface StopBoardProps {
+  network: Network;
   /** The stop, which heads the board ("Elephant & Castle"). */
   stopName: string;
+  /** The letter on a bus stop's flag ("E"), shown by its name; null for a stop without one, or a hub of several. */
+  stopLetter: string | null;
   /** Soonest first. The board shows the first four; the rest are waiting to move up. */
-  departures: D[];
+  departures: Departure[];
   now: Date;
   /** True once the feed has dropped and the board is showing its last departures. */
   stale: boolean;
-}
-
-/** @public */
-export interface TubeBoardProps extends BoardProps<TubeDeparture> {
-  /** A TfL station, headed by the roundel; another network's (Entur's) is headed by a plain train. */
-  tfl: boolean;
-}
-
-/** @public */
-export interface BusBoardProps extends BoardProps<BusDeparture> {
-  /** The letter on the stop's flag ("E"), shown by its name; null for a stop without one, or a hub of several stops. */
-  stopLetter: string | null;
 }
 
 /**
@@ -186,7 +178,5 @@ export interface TubeStatusProps {
   lines: LineStatusItem[];
 }
 
-/** @public One stop's board along the bottom: a Tube station's trains or a bus stop's buses. */
-export type DepartureBoardProps = { id: string } & (
-  ({ kind: 'tube' } & TubeBoardProps) | ({ kind: 'bus' } & BusBoardProps)
-);
+/** @public One stop's board along the bottom. */
+export type DepartureBoardProps = { id: string } & StopBoardProps;

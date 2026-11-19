@@ -5,7 +5,7 @@ import Dashboard from '../Dashboard';
 import HourlyStrip from './HourlyStrip';
 import RailPages, { railPages } from './RailPages';
 import TabBar from './TabBar';
-import TubeBoard from './TubeBoard';
+import DepartureBoard from './DepartureBoard';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -63,21 +63,53 @@ describe('TabBar', () => {
   });
 });
 
-describe('TubeBoard', () => {
-  it('draws a line it has no colour for in a plain pill', () => {
+describe('DepartureBoard', () => {
+  it('draws a Tube line it has no colour for in a plain pill', () => {
     const [first] = SAMPLE.tube.departures;
     if (!first) throw new Error('no sample departure');
-    render(<TubeBoard {...SAMPLE.tube} departures={[{ ...first, lineId: 'tram', lineName: 'Tram' }]} stale />);
-    expect(screen.getByText('Tram')).toBeInTheDocument();
+    render(<DepartureBoard {...SAMPLE.tube} departures={[{ ...first, lineId: 'tram', line: 'Tram' }]} stale />);
+    expect(screen.getByText('Tram')).toHaveClass('dashboard-line-pill');
   });
 
-  it('carries the TfL roundel only for a TfL station, and a plain train elsewhere', () => {
-    const { unmount } = render(<TubeBoard {...SAMPLE.tube} />);
-    expect(screen.getByRole('region', { name: 'Tube Elephant & Castle' })).toBeInTheDocument();
+  it("heads a London stop with TfL's roundel and a Norwegian one with Ruter's mark, and its letter if it has one", () => {
+    const { unmount } = render(<DepartureBoard {...SAMPLE.bus} stopLetter="E" />);
+    expect(screen.getByRole('region', { name: 'TfL Elephant & Castle E' })).toBeInTheDocument();
     unmount();
-    render(<TubeBoard {...SAMPLE.tube} stopName="Majorstuen" tfl={false} />);
-    expect(screen.getByRole('region', { name: 'Trains Majorstuen' })).toBeInTheDocument();
-    expect(screen.queryByRole('img', { name: 'Tube' })).not.toBeInTheDocument();
+    render(<DepartureBoard {...SAMPLE.tube} network="entur" stopName="Majorstuen" />);
+    expect(screen.getByRole('region', { name: 'Ruter Majorstuen' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'TfL' })).not.toBeInTheDocument();
+  });
+
+  it("mixes a stop's modes, each line drawn its network's way", () => {
+    const row = { vehicleId: '', destination: 'Somewhere', detail: null, expectedAt: SAMPLE_NOW.toISOString() };
+    const { unmount } = render(
+      <DepartureBoard
+        {...SAMPLE.tube}
+        departures={[
+          { ...row, vehicleId: 'a', mode: 'tube', line: 'Northern', lineId: 'northern' },
+          { ...row, vehicleId: 'b', mode: 'bus', line: '12', lineId: '12' }
+        ]}
+      />
+    );
+    expect(screen.getByText('Northern')).toHaveClass('dashboard-line-pill');
+    expect(screen.getByText('12')).toHaveClass('dashboard-route');
+    unmount();
+    render(
+      <DepartureBoard
+        {...SAMPLE.tube}
+        network="entur"
+        departures={[
+          { ...row, vehicleId: 'a', mode: 'metro', line: '5', lineId: '5' },
+          { ...row, vehicleId: 'b', mode: 'tram', line: '12', lineId: '12' },
+          { ...row, vehicleId: 'c', mode: 'rail', line: 'VY190', lineId: 'vy190' }
+        ]}
+      />
+    );
+    // Norway's lines are all route numbers, coloured by mode, a long one squeezed into the same width.
+    expect(screen.getByText('5')).toHaveAttribute('data-mode', 'metro');
+    expect(screen.getByText('12')).toHaveAttribute('data-mode', 'tram');
+    expect(screen.getByText('VY190')).toHaveAttribute('data-length', '5');
+    expect(screen.queryByText('5')).not.toHaveClass('dashboard-line-pill');
   });
 });
 

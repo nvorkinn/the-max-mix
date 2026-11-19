@@ -1,8 +1,9 @@
+// cspell:ignore Kjelsås Vestli
 import { expect, test, type Page } from '@playwright/test';
 import { showDashboard } from './dashboard.ts';
 import { stationsAt } from './fake-countdown.ts';
 
-// A kiosk with several stops gives each Tube station and bus stop its own board, two at a time in the usual two
+// A kiosk with several stops gives each stop its own board, whatever its modes, two at a time in the usual two
 // places. Every 15 seconds they move along by one: the left one leaves, the right one moves over, the next comes in.
 
 const SCREENS = [
@@ -56,18 +57,29 @@ for (const screen of SCREENS) {
   }
 }
 
-/** A Tube station and an Entur station (Oslo's metro), read at NOW. */
+/** A Tube station and an Entur station serving the metro and trams (Oslo's Majorstuen), read at NOW. */
 function londonAndOslo() {
   const answer = stationsAt(NOW, 2);
   const [first, second] = answer.stops;
   if (!first || !second) throw new Error('too few stops');
+  const [metro, tram] = second.departures.departures;
+  if (!metro || !tram) throw new Error('too few departures');
   return {
     stops: [
       first,
       {
         ...second,
         source: 'entur',
-        departures: { ...second.departures, name: 'Majorstuen', mode: 'metro', modes: ['metro'] }
+        departures: {
+          ...second.departures,
+          name: 'Majorstuen',
+          mode: 'metro',
+          modes: ['metro', 'tram'],
+          departures: [
+            { ...metro, vehicle_id: null, line: '5', destination: 'Vestli', platform: '2', mode: 'metro' },
+            { ...tram, vehicle_id: null, line: '12', destination: 'Kjelsås', platform: 'C', mode: 'tram' }
+          ]
+        }
       }
     ]
   };
@@ -75,14 +87,19 @@ function londonAndOslo() {
 
 for (const screen of SCREENS) {
   test(
-    `only a TfL station carries the roundel at ${screen.width}x${screen.height}`,
+    `a London stop carries the roundel and a Norwegian one Ruter's mark, its modes on one board, at ${screen.width}x${screen.height}`,
     { tag: '@layout' },
     async ({ page }) => {
-      await showDashboard(page, screen, { arrivals: londonAndOslo }, 8);
-      await expect(page.getByRole('region', { name: 'Tube Elephant & Castle' })).toBeVisible();
-      const oslo = page.getByRole('region', { name: 'Trains Majorstuen' });
+      await showDashboard(page, screen, { arrivals: londonAndOslo }, 6);
+      await expect(page.getByRole('region', { name: 'TfL Elephant & Castle' })).toBeVisible();
+      const oslo = page.getByRole('region', { name: 'Ruter Majorstuen' });
       await expect(oslo).toBeVisible();
-      await expect(oslo.getByRole('img', { name: 'Tube' })).toHaveCount(0);
+      await expect(oslo.getByRole('img', { name: 'TfL' })).toHaveCount(0);
+      // The metro and the tram on the one board, each a route number in its mode's colour.
+      await expect(oslo.locator('li')).toHaveCount(2);
+      await expect(oslo.getByText('5', { exact: true })).toHaveAttribute('data-mode', 'metro');
+      await expect(oslo.getByText('12', { exact: true })).toHaveAttribute('data-mode', 'tram');
+      await expect(oslo.getByText('Stop C')).toBeVisible();
     }
   );
 }

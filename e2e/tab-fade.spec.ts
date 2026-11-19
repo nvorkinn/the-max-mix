@@ -23,7 +23,7 @@ test.describe('Tab crossfade', { tag: '@layout' }, () => {
     // The fade starts a frame after the tap, so wait for it to show up.
     await expect.poll(async () => (await runningFades(page)).length > 0).toBe(true);
     expect((await runningFades(page)).filter(duration => duration !== 300)).toEqual([]);
-    await expect(page.getByRole('region', { name: /^Tube (?!status)/ })).toBeVisible();
+    await expect(page.getByRole('region', { name: /^TfL / }).first()).toBeVisible();
   });
 
   test('rapid taps between the tabs end on the last one tapped, with no fade left behind', async ({ page }) => {
@@ -46,8 +46,8 @@ test.describe('Tab crossfade', { tag: '@layout' }, () => {
 
   test('the Dashboard stays mounted while another tab shows', async ({ page }) => {
     await page.getByRole('tab', { name: 'Dashboard' }).click();
-    await expect(page.getByRole('region', { name: /^Tube (?!status)/ })).toBeVisible();
+    await expect(page.getByRole('region', { name: /^TfL / }).first()).toBeVisible();
     await page.getByRole('tab', { name: 'Spotify' }).click();
-    await expect(page.getByRole('region', { name: /^Tube (?!status)/, includeHidden: true })).toBeAttached();
+    await expect(page.getByRole('region', { name: /^TfL /, includeHidden: true }).first()).toBeAttached();
   });
 });

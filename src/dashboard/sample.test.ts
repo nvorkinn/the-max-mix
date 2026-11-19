@@ -29,7 +29,7 @@ describe('the Dashboard sample data', () => {
 
   it('has the 35 bus overtake the 148 as the clock runs, the order staying soonest first', () => {
     const routesAt = (minutes: number) =>
-      busesAt(new Date(SAMPLE_NOW.getTime() + minutes * 60_000)).map(bus => bus.route);
+      busesAt(new Date(SAMPLE_NOW.getTime() + minutes * 60_000)).map(bus => bus.line);
     expect(routesAt(0)).toEqual(['12', '343', '148', '35', '40', '363']);
     expect(routesAt(3)).toEqual(['12', '343', '35', '148', '40', '363']);
   });

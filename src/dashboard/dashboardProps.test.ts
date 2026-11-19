@@ -32,7 +32,7 @@ const later = (ms: number) => new Date(NOW.getTime() + ms);
 
 /** The board for the stop with `stopId`. */
 const board = (props: { boards: DepartureBoardProps[] }, stopId: string) =>
-  props.boards.find(({ id }) => id.endsWith(`:${stopId}`));
+  props.boards.find(({ id }) => id === stopId);
 const KENNINGTON = '940GZZLUKNG';
 const ELEPHANT = '490000123W';
 
@@ -40,10 +40,10 @@ describe('dashboardProps', () => {
   it('gives every component its props, none stale while the feed and providers are fine', () => {
     const props = dashboardProps(snapshot(), NOW, '24h');
 
-    expect(props.boards.map(({ kind, stopName, now, stale }) => ({ kind, stopName, now, stale }))).toEqual([
-      { kind: 'tube', stopName: 'Kennington', now: NOW, stale: false },
-      { kind: 'bus', stopName: 'Elephant & Castle', now: NOW, stale: false },
-      { kind: 'tube', stopName: 'Majorstuen', now: NOW, stale: false }
+    expect(props.boards.map(({ network, stopName, now, stale }) => ({ network, stopName, now, stale }))).toEqual([
+      { network: 'tfl', stopName: 'Kennington', now: NOW, stale: false },
+      { network: 'tfl', stopName: 'Elephant & Castle', now: NOW, stale: false },
+      { network: 'entur', stopName: 'Majorstuen', now: NOW, stale: false }
     ]);
     expect(props.notices.notices.length).toBeGreaterThan(0);
   });
