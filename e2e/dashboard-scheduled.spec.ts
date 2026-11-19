@@ -54,20 +54,24 @@ function firstTrainsAt(now: Date) {
 }
 
 for (const screen of SCREENS) {
-  test(`timetabled first trains show their clock time at ${screen.width}x${screen.height}`, async ({ page }) => {
-    await showDashboard(page, screen, { arrivals: () => firstTrainsAt(DASHBOARD_NOW) }, 8);
+  test(
+    `timetabled first trains show their clock time at ${screen.width}x${screen.height}`,
+    { tag: '@layout' },
+    async ({ page }) => {
+      await showDashboard(page, screen, { arrivals: () => firstTrainsAt(DASHBOARD_NOW) }, 8);
 
-    const kennington = page.getByRole('region', { name: 'TfL Kennington' });
-    const scheduled = kennington.locator('.dashboard-mins.scheduled');
-    await expect(scheduled).toHaveCount(4);
-    await expect(kennington.getByText('min', { exact: true })).toHaveCount(0);
-    const live = page.getByRole('region', { name: "TfL King's Cross St. Pancras" }).locator('.dashboard-mins');
-    await expect(live.filter({ hasText: 'min' })).toHaveCount(2);
-    await expect(live.and(page.locator('.scheduled'))).toHaveCount(2);
-    // Dimmer than a live time.
-    const colour = (locator: typeof live) => locator.first().evaluate(element => getComputedStyle(element).color);
-    expect(await colour(scheduled)).not.toBe(await colour(live.filter({ hasText: 'min' })));
+      const kennington = page.getByRole('region', { name: 'TfL Kennington' });
+      const scheduled = kennington.locator('.dashboard-mins.scheduled');
+      await expect(scheduled).toHaveCount(4);
+      await expect(kennington.getByText('min', { exact: true })).toHaveCount(0);
+      const live = page.getByRole('region', { name: "TfL King's Cross St. Pancras" }).locator('.dashboard-mins');
+      await expect(live.filter({ hasText: 'min' })).toHaveCount(2);
+      await expect(live.and(page.locator('.scheduled'))).toHaveCount(2);
+      // Dimmer than a live time.
+      const colour = (locator: typeof live) => locator.first().evaluate(element => getComputedStyle(element).color);
+      expect(await colour(scheduled)).not.toBe(await colour(live.filter({ hasText: 'min' })));
 
-    await page.screenshot({ path: test.info().outputPath(`scheduled-${screen.width}x${screen.height}.png`) });
-  });
+      await page.screenshot({ path: test.info().outputPath(`scheduled-${screen.width}x${screen.height}.png`) });
+    }
+  );
 }
