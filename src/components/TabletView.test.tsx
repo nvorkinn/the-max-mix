@@ -416,6 +416,28 @@ describe('TabletView', () => {
     expect(search('settings')).toBeNull();
   });
 
+  it('shows the same Settings pages on the Dashboard’s photo in the Options tab', async () => {
+    render(<TabletView />);
+    await flush();
+    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
+    const settings = screen.getByRole('tabpanel', { name: 'Settings' });
+    expect(settings).not.toHaveClass('on-photo');
+    expect(settings.querySelector('.dashboard-backdrop')).toBeNull();
+    fireEvent.click(within(settings).getByRole('button', { name: 'Appearance' }));
+    // The same panel, on the photo, and still on the page it was on.
+    fireEvent.click(screen.getByRole('tab', { name: 'Options' }));
+    const options = screen.getByRole('tabpanel', { name: 'Options' });
+    expect(options).toBe(settings);
+    expect(options).toHaveClass('on-photo');
+    expect(options.querySelector('.dashboard-backdrop')).not.toBeNull();
+    expect(within(options).getByRole('region', { name: 'Appearance' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Options' })).toHaveAttribute('aria-controls', options.id);
+    // Back on the Settings tab the photo is gone.
+    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
+    expect(screen.getByRole('tabpanel', { name: 'Settings' })).not.toHaveClass('on-photo');
+    expect(settings.querySelector('.dashboard-backdrop')).toBeNull();
+  });
+
   it('shows the clock in 24-hour time', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 0, 1, 16, 46));
@@ -827,11 +849,11 @@ describe('TabletView', () => {
     expect(screen.getByText('Showing the last known queue.')).toBeInTheDocument();
   });
 
-  it('starts on the Dashboard, with the tabs in the order Dashboard, Spotify, Player, Settings', async () => {
+  it('starts on the Dashboard, with the tabs in the order Dashboard, Spotify, Player, Settings, Options', async () => {
     render(<TabletView />);
     await flush();
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map(tab => tab.textContent.trim())).toEqual(['Dashboard', 'Spotify', 'Player', 'Settings']);
+    expect(tabs.map(tab => tab.textContent.trim())).toEqual(['Dashboard', 'Spotify', 'Player', 'Settings', 'Options']);
     expect(screen.getByRole('tab', { name: 'Dashboard' })).toHaveAttribute('aria-selected', 'true');
   });
 

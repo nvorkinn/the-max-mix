@@ -1,4 +1,4 @@
-import { AudioLines, Clock3, Disc3, LayoutGrid, Music2, Search, Settings } from 'lucide-react';
+import { AudioLines, Clock3, Disc3, LayoutGrid, Music2, Search, Settings, Settings2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { formatClockTime } from '../../utils/clockFormat';
 import type { TabBarProps, TabId } from '../../dashboard/props';
@@ -12,7 +12,9 @@ const TABS: readonly { id: TabId; label: string; icon: ReactNode; panel?: TabId 
   { id: 'spotify', label: 'Spotify', icon: <Music2 aria-hidden="true" className="lucide" /> },
   // The Spotify tab's player again, on the Dashboard's photo: it shows in the Spotify tab's panel.
   { id: 'player', label: 'Player', icon: <Disc3 aria-hidden="true" className="lucide" />, panel: 'spotify' },
-  { id: 'settings', label: 'Settings', icon: <Settings aria-hidden="true" className="lucide" /> }
+  { id: 'settings', label: 'Settings', icon: <Settings aria-hidden="true" className="lucide" /> },
+  // The Settings tab's pages again, on the Dashboard's photo: they show in the Settings tab's panel.
+  { id: 'options', label: 'Options', icon: <Settings2 aria-hidden="true" className="lucide" />, panel: 'settings' }
 ];
 
 // Holding the clock this long opens the debug console; long enough that nobody opens it by accident.

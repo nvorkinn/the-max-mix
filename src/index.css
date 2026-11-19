@@ -448,6 +448,33 @@
   background: rgb(var(--glass) / 72%);
   backdrop-filter: blur(18px) saturate(1.2);
 }
+/*
+  The Options tab: the Settings tab's pages on the same photo, in the same warm white. The sections and the page each sit
+  on a pane of the blurred, darkened photo, the screen's margin around them as on the Player tab. Status colours are
+  Night's, which read on the dark glass.
+*/
+.app-tab-panel.on-photo .settings-panel.settings-tab {
+  --success: #57d3b4;
+  --warning: #f0b64c;
+  --amber: #f0b64c;
+  --danger: #ff7b8a;
+
+  gap: 14px;
+  padding: var(--float-bar) 14px 14px;
+}
+.app-tab-panel.on-photo .settings-tab .settings-nav,
+.app-tab-panel.on-photo .settings-tab .settings-content {
+  border-radius: 20px;
+  background: rgb(var(--glass) / 58%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+.app-tab-panel.on-photo .settings-tab .settings-nav {
+  padding-inline: 12px;
+}
+.app-tab-panel.on-photo .settings-tab .settings-content-body {
+  padding-inline: 22px;
+}
 /* Changing tab fades the whole screen (see utils/crossfade.ts). The overlay lets taps through, so a quick second tap
   starts the next fade at once instead of being swallowed by the first. */
 ::view-transition {
