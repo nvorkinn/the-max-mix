@@ -147,6 +147,20 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await expect(page).toHaveScreenshot(shotName('player', screen), moving(page));
     });
 
+    test(`player screen with an empty queue at ${size(screen)}`, { tag: '@player' }, async ({ page }) => {
+      await fakeSpotify(page);
+      await colouredArt(page);
+      // Nothing queued: the queue's place holds one big button into search.
+      await page.route('https://api.spotify.com/v1/me/player/queue', route =>
+        route.fulfill({ json: { currently_playing: null, queue: [] } })
+      );
+      await page.setViewportSize(screen);
+      await openSpotifyTab(page);
+      await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Search for music' })).toBeVisible();
+      await expect(page).toHaveScreenshot(shotName('player-empty-queue', screen), moving(page));
+    });
+
     test(`player screen with Dynamic on at ${size(screen)}`, { tag: ['@player', '@appearance'] }, async ({ page }) => {
       await page.addInitScript(() => {
         localStorage.setItem('maxmix.dynamicColour', 'on');

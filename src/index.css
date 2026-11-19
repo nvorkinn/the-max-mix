@@ -1337,6 +1337,21 @@
   color: var(--accent);
   background: var(--accent-soft);
 }
+.queue-search {
+  width: 160px;
+  height: 160px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--accent);
+  background: var(--accent-soft);
+  cursor: pointer;
+}
+.queue-search .lucide {
+  width: 80px;
+  height: 80px;
+}
 .queue-empty h3 {
   font-size: 14px;
   font-weight: 550;

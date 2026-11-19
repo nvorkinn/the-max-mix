@@ -776,7 +776,7 @@ describe('TabletView', () => {
     api.getQueue.mockReturnValue(new Promise(() => {}));
     renderOnSpotifyTab(<TabletView />);
     expect(screen.getByText('Loading queue...')).toBeInTheDocument();
-    expect(screen.queryByText('A little quiet in here.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Search for music' })).not.toBeInTheDocument();
   });
 
   it('retries a failed queue immediately and only shows empty after a successful response', async () => {
@@ -784,11 +784,19 @@ describe('TabletView', () => {
     renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(screen.getByText('Queue unavailable.')).toBeInTheDocument();
-    expect(screen.queryByText('A little quiet in here.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Search for music' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry queue' }));
     await flush();
     expect(api.getQueue).toHaveBeenCalledTimes(2);
-    expect(screen.getByText('A little quiet in here.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Search for music' })).toBeInTheDocument();
+  });
+
+  it('opens the music picker from the empty queue', async () => {
+    api.getQueue.mockResolvedValue({ queue: [] });
+    renderOnSpotifyTab(<TabletView />);
+    await flush();
+    fireEvent.click(screen.getByRole('button', { name: 'Search for music' }));
+    expect(screen.getByRole('dialog', { name: 'Choose music' })).toBeInTheDocument();
   });
 
   it('labels cached queue contents when a later refresh fails', async () => {

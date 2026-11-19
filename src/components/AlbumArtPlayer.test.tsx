@@ -249,9 +249,11 @@ describe('TrackQueue', () => {
     expect(items[2]).toHaveTextContent('Unknown artist');
   });
 
-  it('shows an empty state', () => {
-    render(<TrackQueue />);
-    expect(screen.getByText('A little quiet in here.')).toBeInTheDocument();
+  it('offers search when the queue is empty', () => {
+    const onSearch = vi.fn();
+    render(<TrackQueue onSearch={onSearch} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Search for music' }));
+    expect(onSearch).toHaveBeenCalledOnce();
   });
 
   it('plays the tapped song and is not tappable without a way to play', () => {
@@ -278,8 +280,8 @@ describe('TrackQueue', () => {
   });
 
   it.each(['loading', 'idle', 'error'] as const)('does not claim an empty queue while %s', status => {
-    render(<TrackQueue queue={[]} status={status} />);
-    expect(screen.queryByText('A little quiet in here.')).not.toBeInTheDocument();
+    render(<TrackQueue queue={[]} status={status} onSearch={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Search for music' })).not.toBeInTheDocument();
   });
 
   it('labels stale results and allows a queue retry', () => {
