@@ -111,8 +111,9 @@ test.describe('Dashboard motion', { tag: '@layout' }, () => {
     const destinations = () => buses.locator('li strong').allTextContents();
     expect(await destinations()).toEqual(['Oxford Circus', 'New Cross', 'White City', 'Clapham Junction']);
 
-    // 2 min 40 s in: the 35 has passed the 148, and its row slides up past it.
-    await advance(page, 160_000);
+    // 2 min 40 s in: the 35 has passed the 148, and its row slides up past it. Nothing changes order on the way there,
+    // so the clock goes ten seconds at a time; the moves below are watched second by second.
+    await advance(page, 160_000, 10_000);
     hasOvertaken = true;
     await advance(page, 2000);
     await expect.poll(destinations).toEqual(['Oxford Circus', 'New Cross', 'Clapham Junction', 'White City']);
