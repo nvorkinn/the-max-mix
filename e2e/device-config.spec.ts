@@ -103,8 +103,14 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     await openSpotifyTab(page, '/?kiosk=1');
     const settings = await openSettings(page, 'General');
 
-    await settings.getByRole('button', { name: '2 min' }).click();
-    await settings.getByRole('button', { name: '30 min' }).click();
+    // Both taps in one go: two Playwright clicks each wait for the page to settle, which on a busy runner can take
+    // longer than the save's debounce and so save both.
+    await expect(settings.getByRole('button', { name: '2 min' })).toBeVisible();
+    await settings.evaluate(panel => {
+      for (const name of ['2 min', '30 min']) {
+        [...panel.querySelectorAll('button')].find(button => button.textContent === name)?.click();
+      }
+    });
     await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
     expect(server.saves.map(save => save['display'])).toEqual([{ sleep_minutes: 30 }]);
   });
