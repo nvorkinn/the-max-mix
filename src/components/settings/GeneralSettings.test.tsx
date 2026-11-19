@@ -81,14 +81,16 @@ describe('GeneralSettings', () => {
   });
 
   it('saves the current location, and says when there is no telling', async () => {
-    const [here] = search.here;
-    vi.mocked(searches.locatePlace).mockResolvedValueOnce(null).mockResolvedValueOnce({
-      key: here.id,
-      name: here.name,
-      detail: here.subtitle,
-      indent: here.indent,
-      value: here.value
-    });
+    const here = search.here.map(result => ({
+      key: result.id,
+      name: result.name,
+      detail: result.subtitle,
+      indent: result.indent,
+      value: result.value
+    }));
+    vi.mocked(searches.locatePlace)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(here[0] ?? null);
     const onSave = setup({ ...OWNED, weather: { location: 'London', key: 'london' } });
     const weather = screen.getByText('London').closest('.settings-row');
     await userEvent.click(within(weather as HTMLElement).getByRole('button', { name: 'Change' }));
