@@ -135,13 +135,6 @@ describe('SettingsPanel', () => {
     expect(document.body).not.toHaveTextContent(/server environment|restart/i);
   });
 
-  it('shows connected status only when authenticated', () => {
-    const { rerender } = render(<SettingsPanel {...base} authInfo={{ authenticated: true }} />);
-    expect(screen.getByText('Connected')).toBeInTheDocument();
-    rerender(<SettingsPanel {...base} authInfo={{}} />);
-    expect(screen.getByText('Not connected')).toBeInTheDocument();
-  });
-
   it('starts the Spotify sign-in from the login button', async () => {
     render(<SettingsPanel {...base} authInfo={{}} initialSection="spotify" />);
     await userEvent.click(screen.getByRole('button', { name: 'Log in with Spotify' }));

@@ -1896,11 +1896,6 @@ body:has(.app-dialog[open]) {
   width: 100%;
   height: auto;
 }
-.country-flag-inline {
-  width: 1.4em;
-  margin-top: 0.2em;
-  border-radius: 3px;
-}
 /* The postcode's field, with its country's flag at its start once the postcode tells it. */
 .postcode-field {
   position: relative;

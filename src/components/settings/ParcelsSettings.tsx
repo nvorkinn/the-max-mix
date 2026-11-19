@@ -29,12 +29,6 @@ const KEPT_HOURS_CHOICES: readonly { value: KeptHours; label: string }[] = [
 /** How long a delivered parcel stays when the config doesn't say (the server's default). */
 const DEFAULT_KEPT_HOURS: KeptHours = 4;
 
-/** The "Arriving by" label of a config's parcels: any day when it doesn't say. */
-export function daysAheadLabel(parcels: Parcels | null | undefined): string {
-  const daysAhead = parcels?.days_ahead ?? null;
-  return DAYS_AHEAD_CHOICES.find(choice => choice.value === daysAhead)?.label ?? 'Any day';
-}
-
 function Segmented<T>({
   id,
   title,
