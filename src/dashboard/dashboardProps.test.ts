@@ -96,6 +96,7 @@ describe('dashboardProps', () => {
       hourly: null,
       notices: { notices: [] },
       lineStatus: null,
+      incidents: null,
       boards: []
     });
     const noBoard = snapshot({ notices: { ...NOTICES, postcode: null } });
