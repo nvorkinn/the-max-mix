@@ -491,14 +491,15 @@
     - pipewire.ts
     - presence.ts
     - qr.ts
+    - screen-mode.ts
     - server.ts
     - sonos-events.ts
     - sonos-library.ts
     - sonos-shared.ts
     - sonos.ts
     - speakers.ts
-    - update.ts
     - update-socket.ts
+    - update.ts
     - watchdog.ts
     - wifi-page.ts
     - wifi-setup.ts
