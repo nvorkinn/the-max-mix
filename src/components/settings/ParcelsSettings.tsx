@@ -1,5 +1,6 @@
 import type { Parcels } from 'countdown-api';
 import { Package } from 'lucide-react';
+import { connectParcelPageUrl } from '../../../vendor/countdown-api/src/countdown_api/client';
 import { countdownServer } from '../../countdown/server';
 import QrCode from '../QrCode';
 
@@ -66,7 +67,7 @@ function Segmented<T>({
 
 /**
  * What the Parcels page shows while the owner's account has no Parcel API key: how to get one, and a code that opens the
- * settings site's account page, where it is entered.
+ * settings site's page for it (countdown-api's connectParcelPage), which says where the key is and takes it pasted.
  */
 function ParcelsSetup() {
   const site = countdownServer();
@@ -80,10 +81,10 @@ function ParcelsSetup() {
         <ol className="parcels-setup-steps">
           <li>Get Parcel Premium in the Parcel app</li>
           <li>Copy your API key from web.parcelapp.net</li>
-          <li>Scan the code and paste the key under Parcel</li>
+          <li>Scan the code and paste the key</li>
         </ol>
       </div>
-      {site && <QrCode text={`${site}/account`} className="parcels-setup-qr" />}
+      {site && <QrCode text={connectParcelPageUrl(site).href} className="parcels-setup-qr" />}
     </section>
   );
 }
