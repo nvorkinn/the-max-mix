@@ -13,6 +13,8 @@ export default defineConfig({
   // run side by side, one worker per CPU of the 4-CPU runner.
   workers: 4,
   fullyParallel: true,
+  // EXPERIMENT: retry toPass every 50 ms instead of backing off to 1 s.
+  expect: { toPass: { intervals: [50] } },
   // Each test runs once: no retries, so a flaky test fails the job rather than passing on a second try.
   forbidOnly: !!process.env['CI'],
   // CI runs the tests in shards on separate machines (.github/workflows/e2e.yml), each writing a blob report; the job

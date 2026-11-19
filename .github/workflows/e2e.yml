@@ -55,6 +55,8 @@ jobs:
       - if: steps.modules.outputs.cache-hit != 'true'
         run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run build
+      # EXPERIMENT: poll every 50 ms instead of backing off 100/250/500/1000 ms.
+      - run: sed -i 's/poll.intervals ?? \[100, 250, 500, 1e3\]/poll.intervals ?? [50]/' node_modules/playwright/lib/matchers/expect.js && grep -c 'poll.intervals ?? \[50\]' node_modules/playwright/lib/matchers/expect.js
       - run: npm run test:e2e -- --shard=${{ matrix.shard }}/2
       # The blob report carries the results (and the traces, when asked for); the PNGs are the screenshots that differ from their
       # baselines, which the pull request comment shows. Playwright always writes .last-run.json, which keeps e2e/ the
