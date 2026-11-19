@@ -4,6 +4,7 @@
 // train when predictions reorder.
 
 import type { DeviceArrivals, StopArrivals, StopDepartures } from 'countdown-api';
+import { type ClockFormat, DEFAULT_CLOCK_FORMAT, formatClockTime } from '../utils/clockFormat';
 import { placeName } from './arrivals';
 import type { Departure as BoardDeparture, Network } from './props';
 
@@ -72,7 +73,12 @@ function detailOf(stop: StopDepartures, mode: string, network: Network, platform
   return letter && letter !== stop.stop_letter ? `Stop ${letter}` : null;
 }
 
-function board(source: StopArrivals['source'], stop: StopDepartures, departures: readonly Departure[]): Board {
+function board(
+  source: StopArrivals['source'],
+  stop: StopDepartures,
+  departures: readonly Departure[],
+  clockFormat: ClockFormat
+): Board {
   const network: Network = source === 'tfl' ? 'tfl' : 'entur';
   const sorted = departures.toSorted(soonestFirst);
   const ids = vehicleIds(stop, sorted);
@@ -91,18 +97,26 @@ function board(source: StopArrivals['source'], stop: StopDepartures, departures:
         lineId: lineIdOf(departure.line),
         destination: departure.destination,
         expectedAt: departure.expected_at,
-        detail: detailOf(stop, mode, network, departure.platform)
+        detail: detailOf(stop, mode, network, departure.platform),
+        ...(departure.scheduled && { scheduledAt: formatClockTime(new Date(departure.expected_at), clockFormat) })
       };
     })
   };
 }
 
-/** The boards for `answer` at `now`, in the owner's order: none for a stop the server has no departures for yet. */
-export function toBoards(answer: DeviceArrivals | null, now: Date): Board[] {
+/**
+ * The boards for `answer` at `now`, in the owner's order: none for a stop the server has no departures for yet. A
+ * timetabled departure's time is written in `clockFormat`.
+ */
+export function toBoards(
+  answer: DeviceArrivals | null,
+  now: Date,
+  clockFormat: ClockFormat = DEFAULT_CLOCK_FORMAT
+): Board[] {
   const gone = now.getTime() - GONE_AFTER_MS;
   return (answer?.stops ?? []).flatMap(({ source, departures: stop }) => {
     if (!stop) return [];
     const departures = stop.departures.filter(departure => Date.parse(departure.expected_at) >= gone);
-    return [board(source, stop, departures)];
+    return [board(source, stop, departures, clockFormat)];
   });
 }

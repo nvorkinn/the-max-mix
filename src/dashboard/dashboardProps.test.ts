@@ -91,6 +91,7 @@ describe('dashboardProps', () => {
     expect(props).toEqual({
       backdrop: null,
       weather: { views: [] },
+      outlook: { days: [] },
       hourly: null,
       notices: { notices: [] },
       lineStatus: null,

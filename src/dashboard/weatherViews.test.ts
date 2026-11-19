@@ -126,6 +126,27 @@ describe('toWeather', () => {
     expect(hours).toHaveLength(8);
   });
 
+  it('gives the five days after today, each with its high, low and sky', () => {
+    const days = toWeather(answer({ dayCodes: { '2026-11-20': 61 } }), NOW, '24h')?.days;
+
+    expect(days).toEqual([
+      { date: '2026-11-18', high: 13, low: 5, sky: 'partly-cloudy' },
+      { date: '2026-11-19', high: 14, low: 5, sky: 'partly-cloudy' },
+      { date: '2026-11-20', high: 15, low: 5, sky: 'rain' },
+      { date: '2026-11-21', high: 16, low: 5, sky: 'partly-cloudy' },
+      { date: '2026-11-22', high: 17, low: 5, sky: 'partly-cloudy' }
+    ]);
+  });
+
+  it("draws Now's sky by day or night from sunrise and sunset, and tonight's by night", () => {
+    const morning = toWeather(answer(), NOW, '24h')?.views;
+    const evening = toWeather(answer(), new Date('2026-11-17T19:00:00Z'), '24h')?.views;
+
+    expect(morning?.[0]?.isDay).toBe(true);
+    expect(evening?.[0]?.isDay).toBe(false);
+    expect(morning?.find(view => view.period === 'tonight')?.isDay).toBe(false);
+  });
+
   it('is null without a forecast, or with one missing what it reads', () => {
     const broken = answer();
     Object.assign(broken.forecast?.forecast as unknown as { hourly: object }, { hourly: {} });

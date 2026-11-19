@@ -3,7 +3,7 @@ import roundel from '../../assets/dashboard/tfl-roundel.png';
 import ruter from '../../assets/dashboard/ruter-mark.svg';
 import type { Departure, Network, StopBoardProps } from '../../dashboard/props';
 import AnimatedRows from './AnimatedRows';
-import { byVehicle, Destination, Minutes, visibleDepartures } from './DepartureRows';
+import { byVehicle, Destination, Minutes, ScheduledTime, visibleDepartures } from './DepartureRows';
 import { FALLBACK_LINE_COLOURS, LINE_COLOURS } from './icons';
 
 /** Each network's mark, which heads its stops' boards. */
@@ -69,7 +69,11 @@ export default function DepartureBoard({
             <>
               <Line departure={departure} network={network} />
               <Destination name={departure.destination} detail={departure.detail} />
-              <Minutes expectedAt={departure.expectedAt} now={now} />
+              {departure.scheduledAt === undefined ? (
+                <Minutes expectedAt={departure.expectedAt} now={now} />
+              ) : (
+                <ScheduledTime time={departure.scheduledAt} />
+              )}
             </>
           )}
         />

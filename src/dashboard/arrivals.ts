@@ -70,7 +70,8 @@ export function mockAnswer(now: Date): DeviceArrivals {
     expected_at: at(minutes),
     platform: null,
     vehicle_id: `${line}-${destination}`,
-    mode: null
+    mode: null,
+    scheduled: false
   });
   const stop = (id: string, mode: string, departures: StopDepartures['departures'], letter: string | null = null) => ({
     source: 'tfl' as const,

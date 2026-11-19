@@ -3,7 +3,7 @@ import { dashboardConfig, fakeCountdownServer, fakeFeed } from './fake-countdown
 import { fakeSpotify } from './fake-spotify.ts';
 
 /** The time the Dashboard tests fix the page's clock at: Tuesday 17 November 2026, 09:20 in London. */
-const DASHBOARD_NOW = new Date('2026-11-17T09:20:00Z');
+export const DASHBOARD_NOW = new Date('2026-11-17T09:20:00Z');
 
 /**
  * Opens the Dashboard of an owned kiosk on `screen`, its data from the fake live feed (`feed` gives names too long for
