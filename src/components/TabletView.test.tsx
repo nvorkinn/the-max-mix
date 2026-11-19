@@ -814,11 +814,11 @@ describe('TabletView', () => {
     expect(screen.getByText('Showing the last known queue.')).toBeInTheDocument();
   });
 
-  it('starts on the Dashboard, with the tabs in the order Dashboard, Spotify, Settings', async () => {
+  it('starts on the Dashboard, with the tabs in the order Spotify, Dashboard, Settings', async () => {
     render(<TabletView />);
     await flush();
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map(tab => tab.textContent.trim())).toEqual(['Dashboard', 'Spotify', 'Settings']);
+    expect(tabs.map(tab => tab.textContent.trim())).toEqual(['Spotify', 'Dashboard', 'Settings']);
     expect(screen.getByRole('tab', { name: 'Dashboard' })).toHaveAttribute('aria-selected', 'true');
   });
 

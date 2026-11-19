@@ -50,4 +50,57 @@ test.describe('Tab crossfade', { tag: '@layout' }, () => {
     await page.getByRole('tab', { name: 'Spotify' }).click();
     await expect(page.getByRole('region', { name: /^TfL /, includeHidden: true }).first()).toBeAttached();
   });
+
+  test('the photo pans toward the side of the tab shown, in the fade', async ({ page }) => {
+    // How far the photo showing is moved sideways, in pixels, once the pan has finished.
+    const photoShift = async () => {
+      await expect
+        .poll(() =>
+          page.evaluate(() =>
+            globalThis.document
+              .getAnimations()
+              .some(a => (a as CSSAnimation).animationName === 'dashboard-backdrop-pan')
+          )
+        )
+        .toBe(false);
+      return page.evaluate(() => {
+        const photo = [...globalThis.document.querySelectorAll<HTMLElement>('.dashboard-backdrop')].find(
+          element => element.offsetParent !== null || element.getClientRects().length > 0
+        );
+        return photo ? Number(globalThis.getComputedStyle(photo).transform.split(',', 5)[4] ?? 0) : null;
+      });
+    };
+    // Spotify, on the left, looks a little to the left of the photo, which moves it right.
+    expect(await photoShift()).toBeGreaterThan(20);
+    await page.getByRole('tab', { name: 'Dashboard' }).click();
+    // The pan runs with the fade, for the same 300 ms.
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          globalThis.document
+            .getAnimations()
+            .filter(a => (a as CSSAnimation).animationName === 'dashboard-backdrop-pan')
+            .map(a => Number(a.effect?.getTiming().duration))
+        )
+      )
+      .toEqual([300]);
+    expect(await photoShift()).toBe(0);
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    await expect(page.getByRole('tabpanel', { name: 'Settings' })).toBeVisible();
+    expect(await photoShift()).toBeLessThan(-20);
+  });
+
+  test('with less motion asked for, the photo does not pan', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.getByRole('tab', { name: 'Dashboard' }).click();
+    await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
+    expect(
+      await page.evaluate(() =>
+        globalThis.document
+          .getAnimations()
+          .filter(a => (a as CSSAnimation).animationName === 'dashboard-backdrop-pan')
+          .map(a => (a as CSSAnimation).animationName)
+      )
+    ).toEqual([]);
+  });
 });

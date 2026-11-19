@@ -65,7 +65,7 @@ import PairPhoneSheet from './PairPhoneSheet';
 import { tabPanelId } from './AppTabs';
 import DashboardScreen from './DashboardScreen';
 import TabBackdrop from './TabBackdrop';
-import TabBar from './dashboard/TabBar';
+import TabBar, { TAB_PAN } from './dashboard/TabBar';
 
 /** The minute it is now; the tab bar's clock changes only when this does. */
 const currentMinute = () => Math.floor(Date.now() / 60_000);
@@ -152,7 +152,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [isMusicOpen, setIsMusicOpen] = useState(false);
   // Every start (kiosk start, reload, coming back from a sign-in) opens on the Dashboard, except after a failed sign-in,
   // whose message the Spotify tab shows.
-  const [screen, setScreen] = useState<TabId>(signInError ? 'spotify' : 'dashboard');
+  // With the tab shown before it: the photo pans from that tab's side to this one's as the screens fade (TAB_PAN).
+  const [screens, setScreens] = useState<{ screen: TabId; previous: TabId }>(() => {
+    const first = signInError ? 'spotify' : 'dashboard';
+    return { screen: first, previous: first };
+  });
+  const { screen, previous: previousScreen } = screens;
+  const setScreen = (next: TabId) => setScreens(current => ({ screen: next, previous: current.screen }));
   // Every change of tab fades across the whole screen, whether tapped, idle or from a prompt.
   const goToScreen = (next: TabId) => crossfade(() => setScreen(next));
   const [isDebugOpen, setIsDebugOpen] = useState(false);
@@ -541,7 +547,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       data-colour={themeColour}
       data-theme={theme.skin}
       data-dynamic={dynamicVars ? '' : undefined}
-      style={dynamicVars as CSSProperties | undefined}
+      style={
+        {
+          ...dynamicVars,
+          '--pan': TAB_PAN[screen],
+          '--pan-from': TAB_PAN[previousScreen]
+        } as CSSProperties
+      }
     >
       {isOffline && <OfflineBanner />}
       <div
