@@ -5,6 +5,7 @@ import { fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSpotifyTab } from './spotify-tab.ts';
 
 test.describe('Tab crossfade', { tag: '@layout' }, () => {
+  test.use({ contextOptions: { reducedMotion: 'no-preference' } });
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.route('https://images.unsplash.com/**', route =>
