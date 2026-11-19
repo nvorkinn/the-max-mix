@@ -134,4 +134,43 @@ describe('toLineIncidents', () => {
 
     expect(incidents?.incidents[0]?.text).toBe('Buss for trikk');
   });
+
+  it('makes do with what Entur leaves out, and says a situation once however its severities differ', () => {
+    const bare = { summary: [{ value: 'Signal fault', language: null }], reportType: 'incident' };
+    const severe = { ...bare, severity: 'verySevere' };
+    const sparse = {
+      stopPlace: {
+        situations: null,
+        quays: [
+          { lines: null },
+          { lines: [{ id: 'RUT:Line:9', publicCode: '9', transportMode: null, situations: [bare] }] }
+        ],
+        lines: [{ id: 'SKY:Line:1', publicCode: 'F1', transportMode: 'funicular', situations: [severe] }],
+        estimatedCalls: [
+          { serviceJourney: null, situations: [bare] },
+          { serviceJourney: { line: { id: null, publicCode: '3' } }, situations: null },
+          {
+            situations: [
+              { summary: [{ value: '  ' }, { value: null }], reportType: 'incident' },
+              { reportType: 'incident' }
+            ]
+          }
+        ]
+      }
+    };
+
+    const incidents = toLineIncidents(withStops(sparse, {}), NOW)?.incidents ?? [];
+
+    expect(incidents).toEqual([
+      {
+        key: 'Signal fault',
+        text: 'Signal fault',
+        health: 'severe',
+        lines: [
+          { id: 'RUT:Line:9', code: '9', mode: 'bus' },
+          { id: 'SKY:Line:1', code: 'F1', mode: 'funicular' }
+        ]
+      }
+    ]);
+  });
 });

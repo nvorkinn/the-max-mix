@@ -63,6 +63,17 @@ describe('merging an answer into the last', () => {
     });
   });
 
+  it("keeps an Entur stop's situations that lapsed, and reads an older server's answer as having no Entur stops", () => {
+    const stored = { fetched_at: '2026-11-19T08:30:00Z', stop_id: 'NSR:StopPlace:58366', data: {} };
+    const oslo: DeviceNotices = { ...NOTICES, entur_stops: [{ stop_id: 'NSR:StopPlace:58366', situations: stored }] };
+    const lapsed: DeviceNotices = { ...oslo, entur_stops: [{ stop_id: 'NSR:StopPlace:58366', situations: null }] };
+    const older = { ...NOTICES, entur_stops: undefined } as unknown as DeviceNotices;
+
+    expect(mergeNotices(oslo, lapsed)).toEqual({ notices: oslo, held: true });
+    expect(mergeNotices(older, lapsed)).toEqual({ notices: lapsed, held: false });
+    expect(mergeNotices(oslo, older).notices.entur_stops).toEqual([]);
+  });
+
   it('merges each event into its own part of the snapshot', () => {
     let snapshot = withEvent(EMPTY_SNAPSHOT, { event: 'weather', data: WEATHER });
     snapshot = withEvent(snapshot, { event: 'arrivals', data: ARRIVALS });
