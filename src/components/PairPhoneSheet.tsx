@@ -99,15 +99,6 @@ export default function PairPhoneSheet({
     pickPhone(address).catch((caught: unknown) => setError(errorMessage(caught)));
   };
 
-  // The Pi is busy from the moment the sheet opens until the phone shows its code: starting, looking, then pairing. Once
-  // the code is confirmed on the phone, the big spinner in the code's place takes over.
-  const isBusy =
-    !isIntro &&
-    !error &&
-    (pairing.state === 'idle' ||
-      pairing.state === 'scanning' ||
-      (pairing.state === 'pairing' && pairing.code === null && !pairing.isConfirmed));
-
   if (pairing.state === 'paired') {
     return (
       <Modal labelledBy="pair-phone-title" onClose={onDone} className="app-modal-panel pair-phone-sheet">
@@ -164,6 +155,14 @@ export default function PairPhoneSheet({
       </Modal>
     );
   }
+
+  // Once the intro is accepted, the Pi is busy until the phone shows its code: starting, looking, then pairing. Once the
+  // code is confirmed on the phone, the big spinner in the code's place takes over.
+  const isBusy =
+    !error &&
+    (pairing.state === 'idle' ||
+      pairing.state === 'scanning' ||
+      (pairing.state === 'pairing' && pairing.code === null && !pairing.isConfirmed));
 
   return (
     <Modal labelledBy="pair-phone-title" onClose={onDone} className="app-modal-panel pair-phone-sheet">
