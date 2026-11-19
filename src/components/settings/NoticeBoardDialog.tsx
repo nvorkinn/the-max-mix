@@ -2,8 +2,8 @@ import { useId, useRef, useState } from 'react';
 import type { NoticeBoard } from 'countdown-api';
 import { useOnScreenKeyboard } from '../../hooks/useOnScreenKeyboard';
 import Modal from '../Modal';
+import CountryFlag from './CountryFlag';
 
-const COUNTRY_NAMES: Record<NonNullable<NoticeBoard['country']>, string> = { GB: 'United Kingdom', NO: 'Norway' };
 // Norway's postcodes are four digits; the UK's are an outward code of letters and digits, then a digit and two letters.
 const NO_POSTCODE = /^\d{4}$/;
 const GB_POSTCODE = /^([A-Z]{1,2}\d[A-Z\d]?) ?(\d[A-Z]{2})$/;
@@ -19,9 +19,9 @@ export function noticeBoardFor(typed: string): NoticeBoard | null {
   return uk ? { postcode: `${uk[1]} ${uk[2]}`, country: 'GB' } : null;
 }
 
-/** The postcode and its country, as the notice board's row shows them. */
-export function noticeBoardLabel(board: NoticeBoard): string | null {
-  return board.postcode && board.country ? `${board.postcode}, ${COUNTRY_NAMES[board.country]}` : null;
+/** The notice board's postcode and its country, or null when it is off. Its country shows as a flag beside it. */
+export function noticeBoardPlace(board: NoticeBoard): { postcode: string; country: 'GB' | 'NO' } | null {
+  return board.postcode && board.country ? { postcode: board.postcode, country: board.country } : null;
 }
 
 /**
@@ -52,18 +52,21 @@ export default function NoticeBoardDialog({
           Postcode
         </h3>
       </div>
-      <input
-        ref={fieldRef}
-        type="text"
-        value={postcode}
-        onChange={event => setPostcode(event.target.value)}
-        aria-label="Postcode"
-        autoComplete="off"
-        spellCheck={false}
-        aria-invalid={!off && wanted === null}
-        aria-describedby={hintId}
-        className="music-search w-full min-h-12 px-4 rounded-xl border text-sm"
-      />
+      <div className="postcode-field">
+        {wanted?.country && <CountryFlag country={wanted.country} className="postcode-field-flag" />}
+        <input
+          ref={fieldRef}
+          type="text"
+          value={postcode}
+          onChange={event => setPostcode(event.target.value)}
+          aria-label="Postcode"
+          autoComplete="off"
+          spellCheck={false}
+          aria-invalid={!off && wanted === null}
+          aria-describedby={hintId}
+          className="music-search w-full min-h-12 px-4 rounded-xl border text-sm"
+        />
+      </div>
       <p id={hintId} className="text-muted py-2">
         {off || wanted ? 'A UK or Norwegian postcode. Leave it empty for none.' : 'Enter a UK or Norwegian postcode.'}
       </p>

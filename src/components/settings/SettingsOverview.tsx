@@ -17,7 +17,8 @@ import { swatchOf, THEME_COLOURS } from '../../utils/themeColour';
 import type { ThemeColour } from '../../utils/themeColour';
 import SpotifyIcon from '../SpotifyIcon';
 import { APP_VERSION } from './appVersion';
-import { noticeBoardLabel } from './NoticeBoardDialog';
+import CountryFlag from './CountryFlag';
+import { noticeBoardPlace } from './NoticeBoardDialog';
 import type { SettingsSection } from './sections';
 import { SOFTWARE_LOOK, softwareState } from './softwareStatus';
 import { wifiLabel } from './wifi';
@@ -73,12 +74,17 @@ function GeneralSummary({
   config,
   screenSleep
 }: Readonly<{ config: TouchscreenConfig | undefined; screenSleep: ScreenSleepMinutes | undefined }>) {
-  const notices = config && noticeBoardLabel(config.notice_board);
+  const notices = config && noticeBoardPlace(config.notice_board);
   return (
     <>
       {config && <span>{config.clock_format === '12h' ? '12-hour' : '24-hour'}</span>}
       {config?.weather.key && <span className="truncate">{config.weather.location}</span>}
-      {notices && <span className="truncate">{notices}</span>}
+      {notices && (
+        <span className="settings-status">
+          <CountryFlag country={notices.country} className="country-flag-inline" />
+          <span className="truncate">{notices.postcode}</span>
+        </span>
+      )}
       {screenSleep !== undefined && (
         <span>{screenSleep === 0 ? 'Never sleeps' : `Sleeps after ${screenSleep} min`}</span>
       )}
