@@ -15,23 +15,25 @@ const SCREENS = [
 /** Wednesday 24 March 2027, 10:00 in Oslo: Maundy Thursday is tomorrow, and the clocks go forward on Sunday. */
 const EASTER_WEEK = new Date('2027-03-24T09:00:00Z');
 
+/** One of MetAlerts' warnings: a strong wind in Oslo until tomorrow evening, `description` in its language. */
+const feature = (description: string) => ({
+  type: 'Feature',
+  geometry: null,
+  properties: {
+    id: '2.49.0.1.578.0.20270324060000.001',
+    area: 'Oslo and Akershus',
+    awareness_level: '3; orange; Severe',
+    eventAwarenessName: 'Wind',
+    event: 'wind',
+    riskMatrixColor: 'Orange',
+    title: 'Wind, orange level, Oslo and Akershus',
+    description
+  },
+  when: { interval: ['2027-03-24T06:00:00+00:00', '2027-03-25T18:00:00+00:00'] }
+});
+
 /** MetAlerts' answer for 0150, as countdown-server narrows it: a strong wind warning until tomorrow evening. */
 function windWarning() {
-  const feature = (description: string) => ({
-    type: 'Feature',
-    geometry: null,
-    properties: {
-      id: '2.49.0.1.578.0.20270324060000.001',
-      area: 'Oslo and Akershus',
-      awareness_level: '3; orange; Severe',
-      eventAwarenessName: 'Wind',
-      event: 'wind',
-      riskMatrixColor: 'Orange',
-      title: 'Wind, orange level, Oslo and Akershus',
-      description
-    },
-    when: { interval: ['2027-03-24T06:00:00+00:00', '2027-03-25T18:00:00+00:00'] }
-  });
   return {
     fetched_at: EASTER_WEEK.toISOString(),
     no: { type: 'FeatureCollection', features: [feature('Sterk vind i kastene.')] },

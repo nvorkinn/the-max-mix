@@ -425,7 +425,7 @@ describe('the other notices the e-paper screens show', () => {
 
   it("says what's wrong at a station once, without TfL's name for it, and leaves out what's over", () => {
     const points = full.tfl_stops[0]?.stations?.disruptions ?? [];
-    const notices = stationNotices(points as never[], NOW);
+    const notices = stationNotices(points, NOW);
     expect(notices.map(n => [n.title, n.severity, n.summary])).toEqual([
       ['Kennington station', 'info', 'The southbound Charing Cross branch platform is closed for cleaning.'],
       ['Kennington station', 'info', 'No step-free access to the platforms.']
@@ -438,9 +438,9 @@ describe('the other notices the e-paper screens show', () => {
       title: 'No step-free access',
       summary: 'Stairs only to the platforms'
     };
-    expect(stationNotices(points as never[], NOW, [short])[1]?.summary).toBe('Stairs only to the platforms');
+    expect(stationNotices(points, NOW, [short])[1]?.summary).toBe('Stairs only to the platforms');
     // Tomorrow the platform's notice listed for today is over, and the one for tomorrow is still there.
-    expect(stationNotices(points as never[], new Date('2026-09-26T09:00:00Z'))).toHaveLength(2);
+    expect(stationNotices(points, new Date('2026-09-26T09:00:00Z'))).toHaveLength(2);
   });
 
   it('says the severe and serious road disruptions near the postcode while they last', () => {

@@ -253,7 +253,8 @@ function wallClock(time: number, timeZone: string) {
     zoneClocks.set(timeZone, clock);
   }
   const parts: Partial<Record<Intl.DateTimeFormatPartTypes, number>> = {};
-  for (const part of clock.formatToParts(new Date(time))) parts[part.type] = Number(part.value);
+  const formatted = clock.formatToParts(new Date(time));
+  for (const part of formatted) parts[part.type] = Number(part.value);
   const { year = 0, month = 1, day = 1, hour = 0, minute = 0 } = parts;
   return { year, month, day, hour, minute };
 }
@@ -389,8 +390,8 @@ const ROAD_SEVERITY = new Map<string, Severity>([
 function roadComments(comments: string): string {
   const dash = comments.indexOf(' - ');
   if (dash === -1) return comments;
-  const road = comments.slice(0, dash).replaceAll(/\s*\([^)]*\)/g, '');
-  return `${road.trim()} – ${comments.slice(dash + 3).trim()}`;
+  const road = squash(comments.slice(0, dash).replaceAll(/\([^)]*\)/g, ''));
+  return `${road} – ${comments.slice(dash + 3).trim()}`;
 }
 
 /** The notices for the severe and serious road disruptions among `disruptions` (the nearby ones), while they last. */
@@ -606,7 +607,7 @@ export function norwegianHolidayNotices(now: Date): Notice[] {
 const CLOCK_CHANGE_AHEAD_HOURS = 7 * 24;
 
 /** The kiosk's own time zone. */
-const kioskZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+const kioskZone = () => new Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 /** When the clock in `timeZone` next goes forward or back, within a week of `now`, or null if it doesn't. On the hour. */
 export function nextClockChange(now: Date, timeZone = kioskZone()): Date | null {
