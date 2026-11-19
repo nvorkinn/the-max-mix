@@ -94,11 +94,6 @@ export default function PairPhoneSheet({
     };
   }, [spotifyId, attempt, isIntro]);
 
-  const pick = (address: string, phoneName: string) => {
-    setPairing({ state: 'pairing', name: phoneName, code: null, isConfirmed: false });
-    pickPhone(address).catch((caught: unknown) => setError(errorMessage(caught)));
-  };
-
   if (pairing.state === 'paired') {
     return (
       <Modal labelledBy="pair-phone-title" onClose={onDone} className="app-modal-panel pair-phone-sheet">
@@ -155,6 +150,11 @@ export default function PairPhoneSheet({
       </Modal>
     );
   }
+
+  const pick = (address: string, phoneName: string) => {
+    setPairing({ state: 'pairing', name: phoneName, code: null, isConfirmed: false });
+    pickPhone(address).catch((caught: unknown) => setError(errorMessage(caught)));
+  };
 
   // After the intro, the Pi is busy until the phone shows its code: starting, looking, then pairing. Once the code is
   // confirmed on the phone, the big spinner in the code's place takes over.
