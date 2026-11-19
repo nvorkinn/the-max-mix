@@ -390,7 +390,9 @@ const ROAD_SEVERITY = new Map<string, Severity>([
 function roadComments(comments: string): string {
   const dash = comments.indexOf(' - ');
   if (dash === -1) return comments;
-  const road = squash(comments.slice(0, dash).replaceAll(/\([^)]*\)/g, ''));
+  // Each "(...)" left out: what follows a "(" from its ")" on.
+  const parts = comments.slice(0, dash).split('(');
+  const road = squash(parts.map(part => part.slice(part.indexOf(')') + 1)).join(' '));
   return `${road} – ${comments.slice(dash + 3).trim()}`;
 }
 
