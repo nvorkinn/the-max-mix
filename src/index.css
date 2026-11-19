@@ -2002,6 +2002,39 @@ body:has(.app-dialog[open]) {
   height: 22px;
   color: var(--muted);
 }
+/* The Parcels page while the owner has no Parcel API key: the steps, and the code for the settings site's account page. */
+.parcels-setup {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+}
+.parcels-setup-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+}
+.parcels-setup-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+}
+.parcels-setup-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 1.4em;
+  font-size: 17px;
+  list-style: decimal;
+}
+.parcels-setup-qr {
+  flex-shrink: 0;
+  width: 168px;
+  height: 168px;
+  border-radius: 12px;
+}
 .settings-segmented {
   display: grid;
   grid-auto-columns: minmax(0, 1fr);
