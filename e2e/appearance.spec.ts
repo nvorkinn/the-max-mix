@@ -11,10 +11,9 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await fakeSpotify(page);
   });
 
-  // The Settings tab lies on the Dashboard's photo with the app's navy cards; the Spotify tab's words are the photo's
-  // warm white.
-  const NAVY = { surface: 'rgb(16, 26, 51)', ink: 'rgb(245, 246, 255)', scheme: 'dark' };
-  const PHOTO_INK = 'rgb(247, 244, 236)';
+  // The Spotify and Settings tabs lie on the Dashboard's photo: warm white words, and cards a faint white tint on it.
+  const PHOTO = { surface: 'rgba(255, 255, 255, 0.08)', ink: 'rgb(247, 244, 236)', scheme: 'dark' };
+  const PHOTO_INK = PHOTO.ink;
 
   test('The photo tabs keep their dark look for settings, status and kiosk controls', async ({ page }) => {
     await openSpotifyTab(page, '/?kiosk=1');
@@ -22,14 +21,14 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
     await expect(settings.locator('.settings-nav-item:not([aria-current])').first()).toHaveCSS(
       'background-color',
-      NAVY.surface
+      PHOTO.surface
     );
-    await expect(settings.locator('.settings-panel')).toHaveCSS('color', NAVY.ink);
-    await expect(settings.locator('.settings-panel')).toHaveCSS('color-scheme', NAVY.scheme);
+    await expect(settings.locator('.settings-panel')).toHaveCSS('color', PHOTO.ink);
+    await expect(settings.locator('.settings-panel')).toHaveCSS('color-scheme', PHOTO.scheme);
     await showSection(settings, 'Wi-Fi');
-    await expect(settings.getByRole('button', { name: 'Choose network' })).toHaveCSS('color', NAVY.ink);
+    await expect(settings.getByRole('button', { name: 'Choose network' })).toHaveCSS('color', PHOTO.ink);
     await showSection(settings, 'About');
-    await expect(settings.getByRole('button', { name: 'Restart kiosk' })).toHaveCSS('color', NAVY.ink);
+    await expect(settings.getByRole('button', { name: 'Restart kiosk' })).toHaveCSS('color', PHOTO.ink);
 
     const contrast = await settings.evaluate(panel => {
       const view = panel.ownerDocument.defaultView;
