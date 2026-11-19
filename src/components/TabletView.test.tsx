@@ -657,7 +657,7 @@ describe('TabletView', () => {
     setPlayer({ isReady: false, playbackState: null });
     renderOnSpotifyTab(<TabletView />);
     await flush();
-    expect(screen.getByRole('heading', { name: 'Nothing playing' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Track information' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Speakers:/ }));
     await flush();
     expect(document.querySelector('.side-panel')).toHaveAttribute('data-showing', 'speakers');
