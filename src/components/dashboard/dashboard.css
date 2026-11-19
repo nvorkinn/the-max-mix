@@ -324,6 +324,8 @@
   margin-bottom: 14px;
 }
 .dashboard-wx-pill {
+  position: relative;
+  isolation: isolate;
   padding: 6px 12px;
   border-radius: 999px;
   font-size: 15px;
@@ -332,14 +334,24 @@
   color: var(--muted);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent);
   text-shadow: none;
-  transition:
-    background-color 350ms ease,
-    color 350ms ease;
+}
+/* The fill fades in and out (only its opacity changes, which the Pi's GPU composites); the words change at once. */
+.dashboard-wx-pill::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--text);
+  opacity: 0;
+  transition: opacity 350ms ease;
 }
 .dashboard-wx-pill[aria-current='true'] {
-  background: var(--text);
   color: #111;
   box-shadow: none;
+}
+.dashboard-wx-pill[aria-current='true']::before {
+  opacity: 1;
 }
 .dashboard-wx-row {
   display: flex;
