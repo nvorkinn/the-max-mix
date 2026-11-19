@@ -44,7 +44,7 @@ describe('lyricsStyle', () => {
 
   it('turns a size into the multiple of the panel’s own type size', async () => {
     const { lyricsScale } = await fresh();
-    expect(lyricsScale('small')).toBeCloseTo(0.8);
-    expect(lyricsScale('x-large')).toBeCloseTo(1.4);
+    expect(lyricsScale('small')).toBeCloseTo(0.6);
+    expect(lyricsScale('x-large')).toBeCloseTo(1);
   });
 });

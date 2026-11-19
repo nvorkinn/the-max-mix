@@ -5,10 +5,10 @@ const LYRICS_STYLE_KEY = 'maxmix.lyricsStyle';
 
 /** Type sizes the settings offer, each a multiple of the size the panel works out for itself. */
 export const LYRICS_SIZES = [
-  { id: 'small', label: 'Small', scale: 0.8 },
-  { id: 'medium', label: 'Medium', scale: 1 },
-  { id: 'large', label: 'Large', scale: 1.2 },
-  { id: 'x-large', label: 'Extra large', scale: 1.4 }
+  { id: 'small', label: 'Small', scale: 0.6 },
+  { id: 'medium', label: 'Medium', scale: 0.7 },
+  { id: 'large', label: 'Large', scale: 0.85 },
+  { id: 'x-large', label: 'Extra large', scale: 1 }
 ] as const;
 export type LyricsSize = (typeof LYRICS_SIZES)[number]['id'];
 
@@ -74,5 +74,5 @@ export function subscribeLyricsStyle(listener: () => void): () => void {
 
 /** The multiple of the panel's own type size that `size` stands for. */
 export function lyricsScale(size: LyricsSize): number {
-  return LYRICS_SIZES.find(choice => choice.id === size)?.scale ?? 1;
+  return LYRICS_SIZES.find(choice => choice.id === size)?.scale ?? 0.7;
 }

@@ -2502,7 +2502,7 @@ body:has(.app-dialog[open]) {
   always where the eye left it.
 */
 .lyrics-list.is-synced .lyrics-line {
-  font-size: calc(clamp(20px, min(8.4cqh, 6.4cqw), 40px) * var(--lyrics-scale, 1));
+  font-size: calc(clamp(20px, min(8.4cqh, 6.4cqw), 40px) * var(--lyrics-scale, 0.7));
   line-height: 1.2;
   letter-spacing: -0.5px;
   padding: 0.2em 0;
