@@ -1986,6 +1986,13 @@ body:has(.app-dialog[open]) {
   height: 22px;
   color: var(--muted);
 }
+/* The About page fills the page's height, so the Debug console button sits at its bottom. */
+.about-page {
+  min-height: 100%;
+}
+.about-debug {
+  margin-top: auto;
+}
 .settings-dot {
   flex-shrink: 0;
   width: 14px;
