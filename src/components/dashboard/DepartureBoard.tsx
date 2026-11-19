@@ -4,7 +4,7 @@ import ruter from '../../assets/dashboard/ruter-mark.svg';
 import type { Departure, Network, StopBoardProps } from '../../dashboard/props';
 import AnimatedRows from './AnimatedRows';
 import { byVehicle, Destination, Minutes, ScheduledTime, visibleDepartures } from './DepartureRows';
-import { FALLBACK_LINE_COLOURS, LINE_COLOURS } from './icons';
+import { FALLBACK_LINE_COLOURS, LINE_COLOURS, pillName } from './icons';
 
 /** Each network's mark, which heads its stops' boards. */
 const MARKS: Record<Network, { src: string; name: string; className: string }> = {
@@ -14,8 +14,9 @@ const MARKS: Record<Network, { src: string; name: string; className: string }> =
 
 /**
  * A departure's line, the way its network signs it: TfL's buses as a red route number and its Tube lines as a pill in
- * the line's colour; Norway's lines as a route number in its mode's colour (Ruter's red bus, orange T-bane, blue tram
- * and dark blue train), squeezed rather than widened when the number is long ("VY190").
+ * the line's colour, in TfL's short form where the name is too long for it ("H&C"); Norway's lines as a route number in
+ * its mode's colour (Ruter's red bus, orange T-bane, blue tram and dark blue train), squeezed rather than widened when
+ * the number is long ("VY190").
  */
 function Line({ departure, network }: Readonly<{ departure: Departure; network: Network }>) {
   if (network === 'entur') {
@@ -30,7 +31,7 @@ function Line({ departure, network }: Readonly<{ departure: Departure; network: 
   const [background, text] = LINE_COLOURS[departure.lineId] ?? FALLBACK_LINE_COLOURS;
   return (
     <span className="dashboard-line-pill" style={{ background, color: text }}>
-      {departure.line}
+      {pillName(departure.lineId, departure.line)}
     </span>
   );
 }

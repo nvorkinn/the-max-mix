@@ -6,7 +6,8 @@ import type { DeviceConfig } from '../../hooks/useDeviceConfig';
 import { DEFAULT_CLOCK_FORMAT } from '../../utils/clockFormat';
 import type { QuietHours } from '../../utils/quietHours';
 import type { ScreenSleepMinutes } from '../../utils/screenSleep';
-import NoticeBoardDialog, { noticeBoardLabel } from './NoticeBoardDialog';
+import CountryFlag from './CountryFlag';
+import NoticeBoardDialog, { noticeBoardPlace } from './NoticeBoardDialog';
 import QuietHoursSettings from './QuietHoursSettings';
 import ScreenSleepSettings from './ScreenSleepSettings';
 import SearchDialog from './SearchDialog';
@@ -51,7 +52,7 @@ export default function GeneralSettings({
   onQuietHoursChange?: ((hours: QuietHours) => void) | undefined;
 }>) {
   const [dialog, setDialog] = useState<'place' | 'notices' | null>(null);
-  const notices = config && noticeBoardLabel(config.notice_board);
+  const notices = config && noticeBoardPlace(config.notice_board);
 
   return (
     <div className="settings-stack">
@@ -76,22 +77,33 @@ export default function GeneralSettings({
             </div>
           </section>
 
-          <section className="settings-group">
-            <h5 className="settings-group-title">Weather</h5>
-            <SettingsRow
-              icon={<CloudSun className="w-6 h-6" aria-hidden="true" />}
-              name={config.weather.key ? config.weather.location : 'No place'}
-            >
-              <ChangeButton onClick={() => setDialog('place')} />
-            </SettingsRow>
-          </section>
+          <div className="settings-pair">
+            <section className="settings-group">
+              <h5 className="settings-group-title">Weather</h5>
+              <SettingsRow
+                icon={<CloudSun className="w-6 h-6" aria-hidden="true" />}
+                name={config.weather.key ? config.weather.location : 'No place'}
+              >
+                <ChangeButton onClick={() => setDialog('place')} />
+              </SettingsRow>
+            </section>
 
-          <section className="settings-group">
-            <h5 className="settings-group-title">Postcode</h5>
-            <SettingsRow icon={<Megaphone className="w-6 h-6" aria-hidden="true" />} name={notices ?? 'Off'}>
-              <ChangeButton onClick={() => setDialog('notices')} />
-            </SettingsRow>
-          </section>
+            <section className="settings-group">
+              <h5 className="settings-group-title">Postcode</h5>
+              <SettingsRow
+                icon={
+                  notices ? (
+                    <CountryFlag country={notices.country} />
+                  ) : (
+                    <Megaphone className="w-6 h-6" aria-hidden="true" />
+                  )
+                }
+                name={notices?.postcode ?? 'Off'}
+              >
+                <ChangeButton onClick={() => setDialog('notices')} />
+              </SettingsRow>
+            </section>
+          </div>
         </>
       )}
 

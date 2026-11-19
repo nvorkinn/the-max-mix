@@ -130,32 +130,43 @@
 }
 /*
   Colour choices from the settings (src/utils/themeColour.ts), each bright enough to read on the navy, with a white icon
-  on the play button unless it is light. Forest is the default in :root.
+  on the play button unless it is light. Each has a gradient (--colour-fill) for what it fills: the play button, the
+  logo's tile and the selected choices; words and thin lines keep the flat colour. Forest is the default in :root.
 */
+.tablet-container[data-colour='forest'] {
+  --colour-fill: linear-gradient(135deg, #6cc070, #2e8b6e);
+}
 .tablet-container[data-colour='navy'] {
   --accent: #5b8def;
+  --colour-fill: linear-gradient(135deg, #6fa8ff, #4a5fd9);
 }
 .tablet-container[data-colour='teal'] {
   --accent: #2a9d9d;
+  --colour-fill: linear-gradient(135deg, #3cc0b0, #1f7fa0);
 }
 .tablet-container[data-colour='plum'] {
   --accent: #c25ea8;
+  --colour-fill: linear-gradient(135deg, #e070b8, #9a4a9e);
 }
 .tablet-container[data-colour='terracotta'] {
   --accent: #dd6b3d;
+  --colour-fill: linear-gradient(135deg, #f0894a, #c9483a);
 }
 .tablet-container[data-colour='pink'] {
   --accent: #ff69b4;
   --accent-ink: #3b1a2a;
+  --colour-fill: linear-gradient(135deg, #ff8cc6, #ff4f9a);
 }
 .tablet-container[data-colour='yellow'] {
   --accent: #e0b020;
   --accent-ink: #1f1a05;
+  --colour-fill: linear-gradient(135deg, #f5c842, #e09a1a);
 }
 /* Black would vanish on the navy, so it is a silver. */
 .tablet-container[data-colour='black'] {
   --accent: #dfe3ee;
   --accent-ink: #111;
+  --colour-fill: linear-gradient(135deg, #f0f2f7, #aab3c5);
 }
 /*
   Dynamic, when it is on, follows the album art: TabletView sets these colours from the cover's two dominant colours
@@ -714,7 +725,7 @@
 }
 .speaker-select[aria-checked='true'] .speaker-select-box {
   border-color: var(--accent);
-  background: var(--accent);
+  background: var(--play-fill);
 }
 .speaker-select:disabled .speaker-select-box {
   opacity: 0.35;
@@ -908,12 +919,12 @@
 }
 .panel-nav-button[aria-pressed='true'],
 .panel-nav-button.is-save {
-  background: var(--accent);
+  background: var(--play-fill);
   color: var(--accent-ink);
 }
 /* Lyrics in sync mode: a ring round the filled pill. */
 .panel-nav-button.is-syncing {
-  background: var(--accent);
+  background: var(--play-fill);
   color: var(--accent-ink);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
 }
@@ -1645,7 +1656,7 @@ body:has(.app-dialog[open]) {
 .colour-swatch[aria-pressed='true'] {
   box-shadow:
     0 0 0 3px var(--surface),
-    0 0 0 5px var(--swatch-ring, var(--swatch));
+    0 0 0 5px var(--swatch-ring);
 }
 .status-success {
   color: var(--success);
@@ -1815,6 +1826,49 @@ body:has(.app-dialog[open]) {
   font-size: 17px;
   font-weight: 700;
 }
+.settings-group-note {
+  margin-top: -6px;
+  font-size: 16px;
+}
+/* A country's flag (CountryFlag): 32px wide in a row's icon box, text-sized beside words. */
+.country-flag {
+  display: inline-flex;
+  flex-shrink: 0;
+  overflow: hidden;
+  width: 32px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 20%);
+}
+.country-flag-art {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.country-flag-inline {
+  width: 1.4em;
+  margin-top: 0.2em;
+  border-radius: 3px;
+}
+/* The postcode's field, with its country's flag at its start once the postcode tells it. */
+.postcode-field {
+  position: relative;
+}
+.postcode-field-flag {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.postcode-field:has(.postcode-field-flag) input {
+  padding-left: 58px;
+}
+/* Two short settings side by side, such as the weather's place and the postcode. */
+.settings-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
 .settings-box {
   padding: 16px 18px;
   border: 1px solid var(--border);
@@ -1931,7 +1985,7 @@ body:has(.app-dialog[open]) {
   transition: background 160ms;
 }
 .settings-segment[aria-pressed='true'] {
-  background: var(--accent);
+  background: var(--play-fill);
   box-shadow: var(--glow);
   color: var(--accent-ink);
   font-weight: 750;
@@ -2320,7 +2374,7 @@ body:has(.app-dialog[open]) {
   font-size: 18px;
 }
 .search-dialog-confirm {
-  background: var(--accent);
+  background: var(--play-fill);
   color: var(--accent-ink);
 }
 .search-dialog-confirm:disabled {

@@ -454,7 +454,8 @@ describe('SettingsPanel', () => {
         .map(button => button.textContent)
     ).toEqual(['Overview', 'General', 'Countdown', 'Appearance', 'Spotify', 'About']);
     const overview = within(screen.getByRole('group', { name: 'Overview' }));
-    expect(overview.getByRole('button', { name: /^General/ })).toHaveTextContent('General24-hourOslo0150, Norway');
+    expect(overview.getByRole('button', { name: /^General/ })).toHaveTextContent('General24-hourOslo0150');
+    expect(overview.getByRole('img', { name: 'Norway' })).toBeInTheDocument();
     const card = overview.getByRole('button', { name: /^Countdown/ });
     expect(card).toHaveTextContent(/^Countdown1 stop$/);
     await userEvent.click(card);

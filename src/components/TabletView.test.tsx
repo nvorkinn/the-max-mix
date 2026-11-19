@@ -158,7 +158,7 @@ function setPlayer(overrides: Record<string, unknown> = {}) {
 }
 
 const flush = () => act(async () => {});
-/** Shows the Settings tab, whose header still has the sleep button, the person switcher and the clock to hold. */
+/** Shows the Settings tab, whose header has the person switcher and the clock to hold. */
 const showSettingsTab = () => fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
 
 beforeEach(() => {
@@ -386,11 +386,6 @@ describe('TabletView', () => {
       expect(player.current.togglePlay).not.toHaveBeenCalled();
       expect(people.switchPerson).toHaveBeenCalledWith('anna');
     });
-  });
-
-  it('has no sleep button off the kiosk', () => {
-    renderOnSpotifyTab(<TabletView />);
-    expect(screen.queryByRole('button', { name: 'Put the screen to sleep' })).not.toBeInTheDocument();
   });
 
   it('shows the Spotify and Settings tabs on the Dashboard’s photo', async () => {
@@ -1026,19 +1021,6 @@ describe('TabletView', () => {
       });
     });
 
-    it('the sleep button sleeps the screen even while music plays, and slows the polling until a tap wakes it', async () => {
-      renderOnSpotifyTab(<TabletView />);
-      await flush();
-      // Sleep is in the Settings tab's header; the bar floating on the Spotify tab has none.
-      showSettingsTab();
-      fireEvent.click(screen.getByRole('button', { name: 'Put the screen to sleep' }));
-      expect(screen.getByRole('button', { name: 'Wake the screen' })).toBeInTheDocument();
-      expect(player.current.setSlowPolling).toHaveBeenLastCalledWith(true);
-      fireEvent.click(screen.getByRole('button', { name: 'Wake the screen' }));
-      expect(screen.queryByRole('button', { name: 'Wake the screen' })).not.toBeInTheDocument();
-      expect(player.current.setSlowPolling).toHaveBeenLastCalledWith(false);
-    });
-
     describe('left alone with nothing playing', () => {
       const minutes = (count: number) => act(() => vi.advanceTimersByTimeAsync(count * 60_000));
       const tab = (name: string) => screen.getByRole('tab', { name });
@@ -1068,13 +1050,17 @@ describe('TabletView', () => {
         expect(screen.getByRole('dialog', { name: 'Sleep screen' })).toBeInTheDocument();
       });
 
-      it('in quiet hours sleeps a minute after the last touch, even on another tab', async () => {
+      it('in quiet hours sleeps a minute after the last touch, even on another tab, and polls slowly until a tap wakes it', async () => {
         vi.useFakeTimers({ now: new Date('2026-01-01T23:00:00') });
         localStorage.setItem('maxmix.quietHours', JSON.stringify({ on: true, start: 22 * 60, end: 7 * 60 }));
         renderOnSpotifyTab(<TabletView />);
         showSettingsTab();
         await minutes(1);
         expect(screen.getByRole('dialog', { name: 'Sleep screen' })).toBeInTheDocument();
+        expect(player.current.setSlowPolling).toHaveBeenLastCalledWith(true);
+        fireEvent.click(screen.getByRole('button', { name: 'Wake the screen' }));
+        expect(screen.queryByRole('dialog', { name: 'Sleep screen' })).not.toBeInTheDocument();
+        expect(player.current.setSlowPolling).toHaveBeenLastCalledWith(false);
       });
 
       it('keeps the screen on and bright while music plays', async () => {
@@ -1107,6 +1093,12 @@ describe('TabletView', () => {
         vi.stubGlobal('WebSocket', FakeWebSocket);
       });
       afterEach(() => vi.unstubAllGlobals());
+      /** Quiet hours with nothing playing: the screen sleeps a minute after the last touch. */
+      const sleepInAMinute = () => {
+        vi.useFakeTimers({ now: new Date('2026-01-01T23:00:00') });
+        localStorage.setItem('maxmix.quietHours', JSON.stringify({ on: true, start: 22 * 60, end: 7 * 60 }));
+        setPlayer({ playbackMode: 'browser', browserDeviceId: 'web-1', playbackState: null });
+      };
 
       it('asks once, and Not now keeps it quiet', async () => {
         const { unmount } = renderOnSpotifyTab(<TabletView />);
@@ -1131,14 +1123,17 @@ describe('TabletView', () => {
       });
 
       it('does not ask while the screen sleeps, but does once it wakes', async () => {
+        sleepInAMinute();
         renderOnSpotifyTab(<TabletView />);
-        await screen.findByRole('dialog', { name: 'Update available' });
+        await flush();
+        expect(screen.getByRole('dialog', { name: 'Update available' })).toBeInTheDocument();
         // A dialog would show over the black sleep screen, so the question waits for the screen to wake.
-        showSettingsTab();
-        fireEvent.click(screen.getByRole('button', { name: 'Put the screen to sleep' }));
+        await act(() => vi.advanceTimersByTimeAsync(60_000));
+        expect(screen.getByRole('dialog', { name: 'Sleep screen' })).toBeInTheDocument();
         expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Wake the screen' }));
-        expect(await screen.findByRole('dialog', { name: 'Update available' })).toBeInTheDocument();
+        await flush();
+        expect(screen.getByRole('dialog', { name: 'Update available' })).toBeInTheDocument();
       });
 
       it('asks GitHub again each time Settings opens, and shows what it finds', async () => {
@@ -1194,17 +1189,19 @@ describe('TabletView', () => {
       });
 
       it('asks GitHub again when the screen wakes', async () => {
+        sleepInAMinute();
         fetchMock.mockImplementation(() => Promise.resolve(release('v1.12.0')));
         renderOnSpotifyTab(<TabletView />);
         await flush();
         expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
-        showSettingsTab();
-        fireEvent.click(screen.getByRole('button', { name: 'Put the screen to sleep' }));
+        await act(() => vi.advanceTimersByTimeAsync(60_000));
+        expect(screen.getByRole('dialog', { name: 'Sleep screen' })).toBeInTheDocument();
         // A newer release comes out while the screen is off.
         fetchMock.mockImplementation(() => Promise.resolve(release('v1.13.0')));
         const asked = fetchMock.mock.calls.length;
         fireEvent.click(screen.getByRole('button', { name: 'Wake the screen' }));
-        expect(await screen.findByRole('dialog', { name: 'Update available' })).toBeInTheDocument();
+        await flush();
+        expect(screen.getByRole('dialog', { name: 'Update available' })).toBeInTheDocument();
         expect(fetchMock.mock.calls.length).toBeGreaterThan(asked);
       });
     });

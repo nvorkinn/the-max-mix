@@ -316,10 +316,8 @@ the pull and then of the restart (`journalctl -u kiosk-pull`, `-u kiosk-restart`
 lines are written. The console has no way back while the update runs, because the kiosk restarts by itself when the
 update needs it (which ends the connection); if nothing needed a restart, or the update failed, it can be closed.
 
-The moon button beside Settings puts the screen to sleep straight away, even while music plays; only a touch wakes it
-(music that starts later does not). The Pi turns its display off a minute after that. While the screen sleeps the app
-asks Spotify about playback every 45 seconds instead of every 4 and stops reading the queue, so an idle tablet does not
-use up the account's rate limit.
+While the screen sleeps the app asks Spotify about playback every 45 seconds instead of every 4 and stops reading the
+queue, so an idle tablet does not use up the account's rate limit.
 
 When Spotify answers a 429 with the reason `QUOTA_EXCEEDED` (the quota, which waiting does not lift), the app stops reading
 Spotify by itself at once and does not start again until it is restarted (a reload, or Restart kiosk): no polling, and no

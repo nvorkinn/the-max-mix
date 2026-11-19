@@ -9,34 +9,27 @@ const THEME_COLOUR_KEY = 'maxmix.themeColour';
 const DYNAMIC_COLOUR_KEY = 'maxmix.dynamicColour';
 
 /**
- * The choices the settings offer, with the colour its `data-colour` rule in src/index.css sets (Dynamic fades back to it
- * when the music stops, see basePalette) and the icon on the play button where it is not white. Each is bright enough to
- * read on the navy. The first is the default.
+ * The choices the settings offer, with the colour its `data-colour` rule in src/index.css sets for words and thin lines,
+ * the gradient it fills the play button, the logo's tile and selections with (Dynamic fades back to them when the music
+ * stops, see basePalette), and the icon on the play button where it is not white. Each is bright enough to read on the
+ * navy. The first is the default.
  */
 export const THEME_COLOURS = [
-  { id: 'forest', label: 'Forest', accent: '#4a9d5e' },
-  { id: 'navy', label: 'Navy', accent: '#5b8def' },
-  { id: 'teal', label: 'Teal', accent: '#2a9d9d' },
-  { id: 'plum', label: 'Plum', accent: '#c25ea8' },
-  { id: 'terracotta', label: 'Terracotta', accent: '#dd6b3d' },
-  { id: 'pink', label: 'Pink', accent: '#ff69b4', accentInk: '#3b1a2a' },
-  { id: 'yellow', label: 'Yellow', accent: '#e0b020', accentInk: '#1f1a05' },
+  { id: 'forest', label: 'Forest', accent: '#4a9d5e', gradient: ['#6cc070', '#2e8b6e'] },
+  { id: 'navy', label: 'Navy', accent: '#5b8def', gradient: ['#6fa8ff', '#4a5fd9'] },
+  { id: 'teal', label: 'Teal', accent: '#2a9d9d', gradient: ['#3cc0b0', '#1f7fa0'] },
+  { id: 'plum', label: 'Plum', accent: '#c25ea8', gradient: ['#e070b8', '#9a4a9e'] },
+  { id: 'terracotta', label: 'Terracotta', accent: '#dd6b3d', gradient: ['#f0894a', '#c9483a'] },
+  { id: 'pink', label: 'Pink', accent: '#ff69b4', gradient: ['#ff8cc6', '#ff4f9a'], accentInk: '#3b1a2a' },
+  { id: 'yellow', label: 'Yellow', accent: '#e0b020', gradient: ['#f5c842', '#e09a1a'], accentInk: '#1f1a05' },
   // Black would vanish on the navy, so it is a silver.
-  { id: 'black', label: 'Black', accent: '#dfe3ee', accentInk: '#111' },
-  // Violet, with the play button running pink to violet.
-  {
-    id: 'violet',
-    label: 'Violet',
-    accent: '#a95be8',
-    gradient: ['#e94dae', '#913fcb'],
-    // The selected outline, as a gradient can't be one.
-    ring: '#a95be8'
-  }
+  { id: 'black', label: 'Black', accent: '#dfe3ee', gradient: ['#f0f2f7', '#aab3c5'], accentInk: '#111' },
+  { id: 'violet', label: 'Violet', accent: '#a95be8', gradient: ['#e94dae', '#913fcb'] }
 ] as const;
 
-/** What a colour's swatch in the settings shows: its colour, or Violet's gradient. */
+/** What a colour's swatch in the settings shows: its gradient. */
 export function swatchOf(choice: (typeof THEME_COLOURS)[number]): string {
-  return 'gradient' in choice ? `linear-gradient(135deg, ${choice.gradient[0]}, ${choice.gradient[1]})` : choice.accent;
+  return `linear-gradient(135deg, ${choice.gradient[0]}, ${choice.gradient[1]})`;
 }
 export type ThemeColour = (typeof THEME_COLOURS)[number]['id'];
 const DEFAULT_THEME_COLOUR: ThemeColour = 'forest';
@@ -210,11 +203,11 @@ export function dynamicPalette([first, second]: readonly [Rgb, Rgb]): DynamicPal
 
 /**
  * Dynamic's colours when nothing has played for a while, so the page fades back to what it shows with Dynamic off: the
- * chosen colour, with that colour's own gradient (Violet's) or flat, on the play button and the logo's tile alike.
+ * chosen colour, with its own gradient on the play button and the logo's tile.
  */
 export function basePalette(colour: ThemeColour): DynamicPalette {
   const choice: (typeof THEME_COLOURS)[number] = THEME_COLOURS.find(entry => entry.id === colour) ?? THEME_COLOURS[0];
-  const [from, to] = 'gradient' in choice ? choice.gradient : [choice.accent, choice.accent];
+  const [from, to] = choice.gradient;
   const ink = 'accentInk' in choice ? choice.accentInk : '#fff';
   return {
     '--dynamic-accent': choice.accent,

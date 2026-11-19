@@ -43,7 +43,6 @@ and the songs appear in the queue after a moment.
 - Without music the screen shows the Dashboard after a minute and dims 5 minutes later. Settings, **Screen sleep**:
   how long it stays dimmed before going dark. Choose 2, 5, 15 or 30 min, or **Never**.
 - Settings, **Quiet hours**: between the two times the screen goes dark a minute after the last touch.
-- The "zzz" button at the top puts it to sleep straight away. Touch the screen to wake it.
 - New Wi-Fi? Settings, **Wi-Fi network**.
 
 ## If something's wrong
