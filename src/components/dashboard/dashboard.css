@@ -881,8 +881,11 @@ button.dashboard-notice {
     opacity: 0;
   }
 }
+/* A name too long for the pill gets a short form (icons.ts); one still too long stays on one line rather than wrapping. */
 .dashboard-line-pill {
   width: 90px;
+  white-space: nowrap;
+  overflow: hidden;
   height: 32px;
   border-radius: 999px;
   display: grid;

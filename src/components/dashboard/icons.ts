@@ -66,6 +66,17 @@ export const LINE_COLOURS: Record<string, readonly [background: string, text: st
 };
 export const FALLBACK_LINE_COLOURS: readonly [string, string] = ['#3a4252', '#fff'];
 
+/** TfL's short forms for the lines whose names don't fit a departure's pill, by TfL's line id. */
+const LINE_SHORT_NAMES: Record<string, string> = {
+  elizabeth: 'Elizabeth',
+  'hammersmith-city': 'H&C',
+  metropolitan: 'Met',
+  'waterloo-city': 'W&C'
+};
+
+/** A line's name as its pill writes it: TfL's short form where the full name doesn't fit. */
+export const pillName = (lineId: string, name: string): string => LINE_SHORT_NAMES[lineId] ?? name;
+
 /** Whole minutes until `expectedAt`, none below zero: 0 reads "Due". */
 export function minutesUntil(expectedAt: string, now: Date): number {
   return Math.max(0, Math.ceil((new Date(expectedAt).getTime() - now.getTime()) / 60_000));

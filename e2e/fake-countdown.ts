@@ -487,3 +487,33 @@ export async function fakeFeed(page: Page, now: Date, options: FeedOptions = {})
     });
   });
 }
+
+/** The arrivals of a kiosk with a Tube station for each of `lines`' groups, each departure on the next of its lines, read at `now`. */
+export function linesAt(now: Date, lines: readonly (readonly string[])[]) {
+  const at = (minutes: number) => new Date(now.getTime() + minutes * 60_000).toISOString();
+  return {
+    stops: lines.map((names, stop) => {
+      const id = `lines-${String(stop)}`;
+      return {
+        source: 'tfl',
+        id,
+        departures: {
+          fetched_at: now.toISOString(),
+          stop_id: id,
+          name: `Station ${String(stop + 1)}`,
+          mode: 'tube',
+          stop_letter: null,
+          modes: [],
+          departures: names.map((lineName, index) => ({
+            vehicle_id: `${id}-${String(index)}`,
+            line: lineName,
+            destination: 'Aldgate',
+            expected_at: at(2 + index * 3),
+            platform: `Westbound - Platform ${String(index + 1)}`,
+            mode: null
+          }))
+        }
+      };
+    })
+  };
+}
