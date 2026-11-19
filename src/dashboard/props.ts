@@ -7,7 +7,7 @@
 // `now`, so a fixture can drive the board with a simulated clock and a test can freeze it.
 
 /** @public The tabs, in the order the tab bar shows them. */
-export type TabId = 'spotify' | 'player' | 'dashboard' | 'settings';
+export type TabId = 'spotify' | 'player' | 'dashboard' | 'settings' | 'options';
 
 /** @public */
 export interface TabBarProps {

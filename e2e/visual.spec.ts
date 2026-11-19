@@ -218,6 +218,35 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await expect(page).toHaveScreenshot(shotName('player-photo', screen), moving(page));
     });
 
+    // The Options tab: the Settings tab's pages on the Dashboard's photo, by day on the overview and at night on
+    // Appearance (the words are the photo's warm white either way).
+    test(`options on the photo at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
+      await page.setViewportSize(screen);
+      await openSpotifyTab(page);
+      await page.getByRole('tab', { name: 'Options' }).click();
+      await expect(page.getByRole('tabpanel', { name: 'Options' })).toBeVisible();
+      await expect.poll(() => runningFades(page)).toEqual([]);
+      await expect(page).toHaveScreenshot(shotName('options-photo', screen), moving(page));
+    });
+
+    test(
+      `options on the photo at night at ${size(screen)}`,
+      { tag: ['@settings', '@appearance'] },
+      async ({ page }) => {
+        await page.addInitScript(() => {
+          localStorage.setItem('maxmix.theme', 'night');
+        });
+        await page.setViewportSize(screen);
+        await openSpotifyTab(page);
+        await page.getByRole('tab', { name: 'Options' }).click();
+        const options = page.getByRole('tabpanel', { name: 'Options' });
+        await expect(options).toBeVisible();
+        await showSection(options, 'Appearance');
+        await expect.poll(() => runningFades(page)).toEqual([]);
+        await expect(page).toHaveScreenshot(shotName('options-photo-night', screen), moving(page));
+      }
+    );
+
     test(`speakers view at ${size(screen)}`, { tag: '@speakers' }, async ({ page }) => {
       await fakeSpotify(page);
       await page.setViewportSize(screen);

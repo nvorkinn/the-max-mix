@@ -224,7 +224,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // With Dynamic on, the colours follow the album art while music plays, and fade back to the chosen colour once it
   // has stopped for a while; on the dark of Night and of the Player tab's photo they are lighter shades that read there.
   const liveArt = useLingers(isPlaying, DYNAMIC_LINGER_MS) ? artColours : null;
-  const dynamicSurface = surfaceFor(screen === 'player', theme.skin === 'night');
+  const dynamicSurface = surfaceFor(screen === 'player' || screen === 'options', theme.skin === 'night');
   const dynamicVars = dynamicColour ? coverOrChosenPalette(liveArt, themeColour, dynamicSurface) : undefined;
   useEffect(() => {
     if (!style) return;
@@ -393,9 +393,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     };
   }, [artUrl]);
 
+  // The Options tab is the Settings tab's pages on the Dashboard's photo; between the two the page stays where it was.
+  const settingsShown = screen === 'settings' || screen === 'options';
   const showScreen = (next: TabId) => {
     crossfade(() => {
-      if (next === 'settings' && screen !== 'settings') setSettingsSection('overview');
+      if (!settingsShown && (next === 'settings' || next === 'options')) setSettingsSection('overview');
       setScreen(next);
     });
   };
@@ -403,7 +405,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const showSettings = () => {
     crossfade(() => {
       setSettingsSection('spotify');
-      setScreen('settings');
+      setScreen(screen === 'options' ? 'options' : 'settings');
     });
   };
   // Switching person: the music this tablet plays (itself, or its Sonos) belongs to the person leaving, so it pauses;
@@ -656,12 +658,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         <DashboardScreen tabBar={{ ...tabBar, onSearch: null }} />
       </section>
       <section
-        className="app-tab-panel"
+        className={`app-tab-panel${screen === 'options' ? ' on-photo' : ''}`}
         role="tabpanel"
         id={tabPanelId('settings')}
-        aria-label="Settings"
-        hidden={screen !== 'settings'}
+        aria-label={screen === 'options' ? 'Options' : 'Settings'}
+        hidden={!settingsShown}
       >
+        {screen === 'options' && <PlayerBackdrop now={tabBar.now} />}
         {/* Sleep, switching person and holding the clock for the debug console live in this tab's bar. */}
         <div className="floating-bar">
           <TabBar
@@ -672,7 +675,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             onClockHold={() => setIsDebugOpen(true)}
           />
         </div>
-        {screen === 'settings' && (
+        {settingsShown && (
           <SettingsPanel
             initialSection={settingsSection}
             authInfo={{
