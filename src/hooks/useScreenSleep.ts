@@ -11,6 +11,27 @@ export const DIM_AFTER_MS = 5 * 60_000;
 /** How long the screen stays on untouched during quiet hours, on any tab. */
 export const QUIET_SLEEP_MS = 60_000;
 
+const START_ASLEEP_KEY = 'maxmix.startAsleep';
+
+/** Has the next page load start with the screen asleep, as after switching person while nobody watched. */
+export function startNextAsleep(): void {
+  try {
+    sessionStorage.setItem(START_ASLEEP_KEY, '1');
+  } catch {
+    // Without storage the page starts awake and dims and sleeps again as usual.
+  }
+}
+
+function takeStartAsleep(): boolean {
+  try {
+    const isSet = sessionStorage.getItem(START_ASLEEP_KEY) === '1';
+    sessionStorage.removeItem(START_ASLEEP_KEY);
+    return isSet;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The kiosk's screen sleep (see utils/screenSleep). With nothing playing, the Dashboard dims once nobody has touched the
  * screen for DIM_AFTER_MS, and sleeps `sleepMs` after that (null: it stays dimmed). During `quiet` hours the screen
@@ -26,7 +47,9 @@ export function useScreenSleep({
   sleepMs,
   quiet
 }: Readonly<{ enabled: boolean; keepAwake: boolean; onDashboard: boolean; sleepMs: number | null; quiet: boolean }>) {
-  const [phase, setPhase] = useState<'awake' | 'dimmed' | 'asleep'>('awake');
+  const [phase, setPhase] = useState<'awake' | 'dimmed' | 'asleep'>(() =>
+    enabled && takeStartAsleep() ? 'asleep' : 'awake'
+  );
   const asleep = phase === 'asleep';
   const [lockHeld, setLockHeld] = useState(false);
   // Bumped by every touch and by wake(), which starts the countdown again.

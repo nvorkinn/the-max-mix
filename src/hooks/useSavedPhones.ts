@@ -45,6 +45,13 @@ export function useSavedPhones(enabled: boolean, rereadKey = 0): SavedPhone[] {
 
 const UNHEARD: { phones: SavedPhone[]; isChecking: boolean } = { phones: [], isChecking: true };
 
+// How many person switchers have the Pi listening, so the check that switches person by itself (useAutoSwitch) leaves
+// the Pi listening for them and does not read their closing, which stops it, as nobody being heard.
+let switcherWatchers = 0;
+
+/** Whether a person switcher has the Pi listening now. */
+export const isSwitcherWatching = (): boolean => switcherWatchers > 0;
+
 /**
  * While `isWatching` (the person switcher is open), has the Pi listen for the saved phones (it does not otherwise) and
  * re-reads every second whether it hears each. `isChecking` is true while a phone not heard yet may still be heard.
@@ -54,6 +61,7 @@ export function usePhonePresence(isWatching: boolean): { phones: SavedPhone[]; i
   useEffect(() => {
     if (!isWatching) return;
     let isCurrent = true;
+    switcherWatchers += 1;
     const watch = () =>
       watchPresence(true).catch(() => {
         // Off the kiosk there is no Pi; the read then says nobody is here.
@@ -73,6 +81,7 @@ export function usePhonePresence(isWatching: boolean): { phones: SavedPhone[]; i
     const rewatching = setInterval(() => void watch(), REWATCH_MS);
     return () => {
       isCurrent = false;
+      switcherWatchers -= 1;
       clearInterval(reading);
       clearInterval(rewatching);
       // The next watch starts from nobody heard yet, not from what this one heard.

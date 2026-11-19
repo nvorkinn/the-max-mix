@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { DIM_AFTER_MS, QUIET_SLEEP_MS, useScreenSleep } from './useScreenSleep';
+import { DIM_AFTER_MS, QUIET_SLEEP_MS, startNextAsleep, useScreenSleep } from './useScreenSleep';
 
 const screenSleep = vi.hoisted(() => ({ wakeDisplay: vi.fn() }));
 vi.mock('../utils/screenSleep', () => screenSleep);
@@ -246,5 +246,11 @@ describe('useScreenSleep', () => {
   it('says when the browser has no wake lock', () => {
     const { result } = renderSleep();
     expect(result.current.wakeLock).toBe('unsupported');
+  });
+
+  it('starts asleep once after a switch made while it slept', () => {
+    startNextAsleep();
+    expect(renderSleep().result.current.asleep).toBe(true);
+    expect(renderSleep().result.current.asleep).toBe(false);
   });
 });

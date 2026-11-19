@@ -7,7 +7,8 @@ import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useKioskUpdate } from '../hooks/useKioskUpdate';
 import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
 import { useDeviceConfig } from '../hooks/useDeviceConfig';
-import { useScreenSleep } from '../hooks/useScreenSleep';
+import { startNextAsleep, useScreenSleep } from '../hooks/useScreenSleep';
+import { useAutoSwitch } from '../hooks/useAutoSwitch';
 import { IDLE_DASHBOARD_MS, useIdle } from '../hooks/useIdle';
 import { usePanelView } from '../hooks/usePanelView';
 import type { LyricsAvailability, PanelView } from '../hooks/usePanelView';
@@ -422,6 +423,19 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     switchPerson(spotifyId);
     reloadSettings();
   };
+  // Left alone a while, the kiosk switches to whoever's phone it hears when the active person's has gone. A switch made
+  // while the screen sleeps starts the new page asleep too, so nobody's screen lights up at night.
+  useAutoSwitch({
+    enabled: onKiosk && isAuthenticated,
+    asleep: sleep.asleep,
+    dimmed: sleep.dimmed,
+    isPlaying,
+    isBusy: isMusicOpen,
+    onSwitch: (spotifyId, asleep) => {
+      if (asleep) startNextAsleep();
+      void switchTo(spotifyId);
+    }
+  });
   const recoverPlayback = async (action: () => Promise<boolean>) => {
     if (isRefreshingPlayback) return;
     setIsRefreshingPlayback(true);

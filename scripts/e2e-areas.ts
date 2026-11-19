@@ -65,7 +65,7 @@ export const AREAS: Area[] = [
       /^src\/components\/SettingsPanel/,
       /^src\/components\/settings\//,
       /^src\/components\/(KioskSystem|ConfirmButton|PhonePicker|PairPhoneSheet)/,
-      /^src\/hooks\/useSavedPhones/,
+      /^src\/hooks\/(useSavedPhones|useAutoSwitch)/,
       /^src\/utils\/(themeColour|clockFormat|phoneLinks)/,
       /^src\/sonos\//
     ]
