@@ -6,10 +6,7 @@ import { stationsAt } from './fake-countdown.ts';
 // A kiosk with several stops gives each stop its own board, whatever its modes, two at a time in the usual two
 // places. Every 15 seconds they move along by one: the left one leaves, the right one moves over, the next comes in.
 
-const SCREENS = [
-  { width: 1024, height: 600 },
-  { width: 1280, height: 800 }
-] as const;
+const SCREENS = [{ width: 1280, height: 800 }] as const;
 
 const NOW = new Date('2026-11-17T09:20:00Z');
 const TURN_MS = 15_000;

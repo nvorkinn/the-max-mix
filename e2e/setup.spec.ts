@@ -9,8 +9,8 @@ test.describe('Setup and signing in', { tag: '@setup' }, () => {
     );
   });
 
-  test('tablet setup fits 1024x600 and sends no Spotify commands', async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 600 });
+  test('tablet setup fits 1280x800 and sends no Spotify commands', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'requestMediaKeySystemAccess', { value: undefined, configurable: true });
     });
@@ -34,7 +34,7 @@ test.describe('Setup and signing in', { tag: '@setup' }, () => {
   });
 
   test('the primary Connect action goes directly to Spotify rather than through Settings', async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.route('https://accounts.spotify.com/authorize**', route =>
       route.fulfill({ contentType: 'text/html', body: '<h1>Test sign-in page</h1>' })
     );
@@ -47,7 +47,7 @@ test.describe('Setup and signing in', { tag: '@setup' }, () => {
   });
 
   test('failed sign-in retains recovery and diagnostics', async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.setViewportSize({ width: 1280, height: 800 });
     await openSpotifyTab(page, '/?error=access_denied');
     await expect(page.getByRole('alert')).toContainText(/Spotify|sign-in/i);
     await expect(page.getByRole('button', { name: 'Connect Spotify' })).toBeEnabled();

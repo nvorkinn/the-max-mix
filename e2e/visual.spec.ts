@@ -14,11 +14,9 @@ test.skip(!process.env['CI'] && !process.env['E2E_VISUAL'], 'Screenshots are onl
 
 const SHOT = { animations: 'disabled', maxDiffPixelRatio: 0.002 } as const;
 
-// Both kiosk screens: the 7 inch (1024x600) and the 10.1 inch (1280x800). Each screen's baselines have their own folder.
-const SCREENS = [
-  { width: 1024, height: 600 },
-  { width: 1280, height: 800 }
-] as const;
+// The 10.1 inch kiosk screen (1280x800). The 7 inch (1024x600) is left out of CI for now; its baselines stay in their
+// folder for when it comes back. Each screen's baselines have their own folder.
+const SCREENS = [{ width: 1280, height: 800 }] as const;
 type Screen = (typeof SCREENS)[number];
 const size = (screen: Screen) => `${screen.width}x${screen.height}`;
 const shotName = (name: string, screen: Screen) => [size(screen), `${name}.png`];

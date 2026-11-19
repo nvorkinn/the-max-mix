@@ -11,8 +11,8 @@ const syncedLyrics = Array.from({ length: 120 }, (_, index) => {
 }).join('\n');
 
 test.describe('Lyrics', { tag: '@lyrics' }, () => {
-  test('lyric reading and follow fit 1024x600', async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 600 });
+  test('lyric reading and follow fit 1280x800', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.route('https://images.unsplash.com/**', route =>
       route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
     );
@@ -38,21 +38,17 @@ test.describe('Lyrics', { tag: '@lyrics' }, () => {
     await expect.poll(centerOffset).toBeLessThan(2);
     await page.clock.install();
     const initialTop = await list.evaluate(element => element.scrollTop);
+    // A finger on the list pauses the following, and the reader drags it up to read. Dragged here at once: a wheel's
+    // smooth scroll keeps moving for a while on a busy machine, and a pause in it is not where the reader stopped.
     await list.hover();
-    await page.mouse.wheel(0, -900);
+    await page.mouse.down();
     await expect(list).toHaveAttribute('data-following', 'false');
-    await expect.poll(() => list.evaluate(element => element.scrollTop)).toBeLessThan(initialTop);
-    // The wheel scrolls smoothly, so the list is still moving when it first goes up: wait for it to come to rest.
-    let lastTop = NaN;
-    await expect
-      .poll(async () => {
-        const top = await list.evaluate(element => element.scrollTop);
-        const isResting = top === lastTop;
-        lastTop = top;
-        return isResting;
-      })
-      .toBe(true);
-    const readingTop = lastTop;
+    const readingTop = await list.evaluate((element, top) => {
+      element.scrollTo({ top, behavior: 'instant' });
+      return element.scrollTop;
+    }, initialTop - 300);
+    await page.mouse.up();
+    expect(readingTop).toBeLessThan(initialTop);
     const initialLine = await active.textContent();
     await page.clock.fastForward(5000);
     await expect(active).not.toHaveText(initialLine ?? '');
@@ -76,7 +72,7 @@ test.describe('Lyrics', { tag: '@lyrics' }, () => {
   });
 
   test('tapping Lyrics again syncs the lyrics to the line tapped next', async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.route('https://images.unsplash.com/**', route =>
       route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
     );

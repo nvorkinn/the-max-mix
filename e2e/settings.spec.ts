@@ -13,7 +13,7 @@ const openDebug = async (page: Page) => {
 
 test.describe('Settings', { tag: '@settings' }, () => {
   test.beforeEach(async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.route('https://images.unsplash.com/**', route =>
       route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
     );

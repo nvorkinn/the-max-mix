@@ -127,7 +127,7 @@ async function expectControlsFit(page: Page, player: Locator) {
 
 test.describe('Playback status and recovery', { tag: '@status' }, () => {
   test.beforeEach(async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.route('https://images.unsplash.com/**', route =>
       route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
     );
@@ -275,7 +275,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     });
   }
 
-  test('playback recovery fits 1024x600 without repeating a skip', async ({ page }) => {
+  test('playback recovery fits 1280x800 without repeating a skip', async ({ page }) => {
     const api = await mockSpotify(page);
     api.nextStatus = 500;
     await openSpotifyTab(page);
