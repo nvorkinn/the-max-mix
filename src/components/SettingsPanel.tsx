@@ -202,9 +202,7 @@ export default function SettingsPanel({
           onOpen={setSection}
           kiosk={kiosk}
           deviceConfig={owned ? deviceConfig : undefined}
-          themeColour={themeColour}
-          dynamicColour={dynamicColour}
-          screenSleep={hasSleep ? screenSleep : undefined}
+          hasGeneral={owned || hasSleep}
           wifi={wifi}
           authenticated={authenticated}
           kioskUpdate={update}

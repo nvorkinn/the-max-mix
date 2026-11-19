@@ -204,10 +204,6 @@ test.describe('Settings', { tag: '@settings' }, () => {
       });
       await openSpotifyTab(page);
       const dialog = await openSettings(page);
-      await expect(
-        dialog.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^Wi-Fi/ })
-      ).toContainText('Home network');
-
       await showSection(dialog, 'Wi-Fi');
       await expect(dialog).toContainText('Home network');
       await dialog.getByRole('button', { name: 'Change network' }).click();

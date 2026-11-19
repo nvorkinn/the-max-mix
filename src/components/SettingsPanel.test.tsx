@@ -199,13 +199,15 @@ describe('SettingsPanel', () => {
       expect(wifi()).toBeInTheDocument();
     });
 
-    it('names the network on the overview and its page, and offers to change it', async () => {
+    it('names the network on its page, not the overview, and offers to change it', async () => {
       history.replaceState(null, '', '/?kiosk=1');
       const fetchMock = kioskSays(Response.json({ ssid: 'Home' }));
       render(<SettingsPanel {...base} authInfo={{}} />);
       const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Wi-Fi/ });
-      await waitFor(() => expect(card).toHaveTextContent('Home'));
-      expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/status', expect.anything());
+      await waitFor(() =>
+        expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/status', expect.anything())
+      );
+      expect(card).toHaveTextContent(/^Wi-Fi$/);
       await userEvent.click(card);
       expect(screen.getByTestId('wifi-network')).toHaveTextContent('Home');
       expect(screen.getByRole('button', { name: 'Change network' })).toBeInTheDocument();
@@ -265,9 +267,8 @@ describe('SettingsPanel', () => {
       expect(within(nav).queryByRole('button', { name: 'Screen sleep' })).not.toBeInTheDocument();
       expect(within(nav).queryByRole('button', { name: 'Countdown' })).not.toBeInTheDocument();
       const overview = within(screen.getByRole('group', { name: 'Overview' }));
-      expect(overview.getByRole('button', { name: /^General/ })).toHaveTextContent('Never sleeps');
+      expect(overview.getByRole('button', { name: /^General/ })).toHaveTextContent(/^General$/);
       rerender(<SettingsPanel {...base} authInfo={{}} screenSleep={5} onScreenSleepChange={onScreenSleepChange} />);
-      expect(overview.getByRole('button', { name: /^General/ })).toHaveTextContent('Sleeps after 5 min');
       await userEvent.click(overview.getByRole('button', { name: /^General/ }));
       expect(screen.queryByText('Time format')).not.toBeInTheDocument();
       const choices = screen.getByRole('group', { name: 'Screen sleep' });
@@ -276,7 +277,7 @@ describe('SettingsPanel', () => {
       expect(onScreenSleepChange).toHaveBeenCalledWith(0);
     });
 
-    it('sums up the colour and Dynamic, and offers no theme choice', async () => {
+    it('names only the page on the Appearance card, and offers no theme choice', async () => {
       render(
         <SettingsPanel
           {...base}
@@ -288,8 +289,7 @@ describe('SettingsPanel', () => {
         />
       );
       const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Appearance/ });
-      expect(card).toHaveTextContent('Navy');
-      expect(card).toHaveTextContent('Dynamic');
+      expect(card).toHaveTextContent(/^Appearance$/);
       await userEvent.click(card);
       expect(screen.getByRole('button', { name: 'Navy' })).toBeEnabled();
       expect(within(screen.getByRole('group', { name: 'Dynamic' })).getByRole('button', { name: 'On' })).toBeEnabled();
@@ -297,15 +297,9 @@ describe('SettingsPanel', () => {
     });
 
     it.each([
-      [{ version: null, latest: { state: 'unknown' } }, 'Version unknown'],
-      [
-        { version: { ref: 'v1.2.0', commit: 'abcdef1' }, release: true, latest: { state: 'checking' } },
-        'Checking for updates'
-      ],
-      [
-        { version: { ref: 'v1.2.0', commit: 'abcdef1' }, release: true, latest: { state: 'unknown' } },
-        'Could not check'
-      ],
+      [{ version: null, latest: { state: 'unknown' } }, ''],
+      [{ version: { ref: 'v1.2.0', commit: 'abcdef1' }, release: true, latest: { state: 'checking' } }, ''],
+      [{ version: { ref: 'v1.2.0', commit: 'abcdef1' }, release: true, latest: { state: 'unknown' } }, ''],
       [
         {
           version: { ref: 'v1.2.0', commit: 'abcdef1' },
@@ -315,19 +309,26 @@ describe('SettingsPanel', () => {
         },
         'v1.3.0 is out'
       ],
-      [
-        { version: { ref: 'main', commit: 'abcdef1' }, release: false, latest: { state: 'known' }, newer: null },
-        'Up to date'
-      ],
+      [{ version: { ref: 'main', commit: 'abcdef1' }, release: false, latest: { state: 'known' }, newer: null }, ''],
       [
         { version: { ref: 'main', commit: 'abcdef1' }, release: false, latest: { state: 'known' }, isUpdating: true },
         'Updating'
       ]
-    ])('sums up the Pi software (%o)', (state, words) => {
+    ])('says on the About card only when Pi software is out or installing (%o)', (state, words) => {
       const update = { newer: null, isUpdating: false, checkNow: vi.fn(), ...state } as unknown as KioskUpdate;
       render(<SettingsPanel {...base} authInfo={{}} kioskUpdate={update} />);
       const card = within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^About/ });
-      expect(card).toHaveTextContent(words);
+      expect(card).toHaveTextContent(new RegExp(`^About${words}$`));
+    });
+
+    it('says on the Spotify card only when it is not connected', () => {
+      const { unmount } = render(<SettingsPanel {...base} authInfo={{ authenticated: true }} />);
+      const card = () =>
+        within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Spotify/ });
+      expect(card()).toHaveTextContent(/^Spotify$/);
+      unmount();
+      render(<SettingsPanel {...base} authInfo={{}} />);
+      expect(card()).toHaveTextContent(/^SpotifyNot connected$/);
     });
   });
 
@@ -461,10 +462,9 @@ describe('SettingsPanel', () => {
         .map(button => button.textContent)
     ).toEqual(['Overview', 'General', 'Countdown', 'Parcels', 'Appearance', 'Spotify', 'Lyrics', 'About']);
     const overview = within(screen.getByRole('group', { name: 'Overview' }));
-    expect(overview.getByRole('button', { name: /^General/ })).toHaveTextContent('General24-hourOslo0150');
-    expect(overview.getByRole('img', { name: 'Norway' })).toBeInTheDocument();
+    expect(overview.getByRole('button', { name: /^General/ })).toHaveTextContent(/^General$/);
     const card = overview.getByRole('button', { name: /^Countdown/ });
-    expect(card).toHaveTextContent(/^Countdown1 stop$/);
+    expect(card).toHaveTextContent(/^Countdown$/);
     await userEvent.click(card);
     expect(screen.getByRole('region', { name: 'Countdown' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add a station or stop' })).toBeInTheDocument();
@@ -478,7 +478,7 @@ describe('SettingsPanel', () => {
       <SettingsPanel {...base} authInfo={{}} deviceConfig={config} onDeviceConfigSave={onDeviceConfigSave} />
     );
     const overview = within(screen.getByRole('group', { name: 'Overview' }));
-    expect(overview.getByRole('button', { name: /^Parcels/ })).toHaveTextContent(/^ParcelsOff$/);
+    expect(overview.getByRole('button', { name: /^Parcels/ })).toHaveTextContent(/^Parcels$/);
     await userEvent.click(overview.getByRole('button', { name: /^Parcels/ }));
 
     const notices = within(screen.getByRole('group', { name: 'Notice board' }));
@@ -508,7 +508,7 @@ describe('SettingsPanel', () => {
     expect(onDeviceConfigSave).toHaveBeenLastCalledWith('parcels', { enabled: false, days_ahead: null, kept_hours: 0 });
     expect(onDeviceConfigSave).toHaveBeenCalledTimes(3);
 
-    // Once the server has them, the page and the Overview card show them.
+    // Once the server has them, the page shows them.
     rerender(
       <SettingsPanel
         {...base}
@@ -519,12 +519,6 @@ describe('SettingsPanel', () => {
     );
     expect(arriving.getByRole('button', { name: 'Tomorrow' })).toHaveAttribute('aria-pressed', 'true');
     expect(kept.getByRole('button', { name: 'A day' })).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.click(
-      within(screen.getByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Overview' })
-    );
-    expect(
-      within(screen.getByRole('group', { name: 'Overview' })).getByRole('button', { name: /^Parcels/ })
-    ).toHaveTextContent(/^ParcelsTomorrow$/);
   });
 
   it('turns parcels on from a config from before parcels, which has them off', async () => {

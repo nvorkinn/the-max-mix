@@ -1,8 +1,6 @@
-import { useSyncExternalStore } from 'react';
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
   AlertCircle,
-  CheckCircle2,
   ChevronRight,
   Info,
   MicVocal,
@@ -15,158 +13,117 @@ import {
 } from 'lucide-react';
 import type { TouchscreenConfig } from 'countdown-api';
 import type { KioskUpdate } from '../../hooks/useKioskUpdate';
-import { getLyricsStyle, LYRICS_ALIGNS, LYRICS_SIZES, subscribeLyricsStyle } from '../../utils/lyricsStyle';
-import type { ScreenSleepMinutes } from '../../utils/screenSleep';
-import { swatchOf, THEME_COLOURS } from '../../utils/themeColour';
-import type { ThemeColour } from '../../utils/themeColour';
 import SpotifyIcon from '../SpotifyIcon';
-import { APP_VERSION } from './appVersion';
-import CountryFlag from './CountryFlag';
-import { noticeBoardPlace } from './NoticeBoardDialog';
-import { daysAheadLabel } from './ParcelsSettings';
 import type { SettingsSection } from './sections';
 import { SOFTWARE_LOOK, softwareState } from './softwareStatus';
-import { wifiLabel } from './wifi';
 import type { WifiState } from './wifi';
 
-/** One summary on the overview; tapping it opens its page. */
+/**
+ * One page on the overview, by its icon and name; tapping it opens the page. A line under the name shows only when the
+ * page needs looking at.
+ */
 function Card({
   icon,
   title,
-  wide = false,
   onOpen,
-  children
-}: Readonly<{ icon: ReactNode; title: string; wide?: boolean; onOpen: () => void; children: ReactNode }>) {
+  line
+}: Readonly<{ icon: ReactNode; title: string; onOpen: () => void; line?: ReactNode }>) {
   return (
-    <button type="button" onClick={onOpen} className={`settings-card ${wide ? 'settings-card-wide' : ''}`}>
+    <button type="button" onClick={onOpen} className="settings-card">
       <span className="settings-box-icon">{icon}</span>
       <span className="settings-card-text">
         <span className="settings-box-title">{title}</span>
-        <span className="settings-card-value">{children}</span>
+        {line !== undefined && <span className="settings-card-value">{line}</span>}
       </span>
       <ChevronRight className="settings-card-chevron" aria-hidden="true" />
     </button>
   );
 }
 
-/** Which version the Pi runs and whether a newer one is out, with the Software page's icon and colour. */
-function PiSoftware({ update }: Readonly<{ update: KioskUpdate }>) {
+/** A card's line about something that needs looking at, with an icon in the given tone. */
+function Attention({
+  icon: Icon = AlertCircle,
+  tone = 'status-warning',
+  spin = false,
+  children
+}: Readonly<{
+  icon?: typeof AlertCircle;
+  tone?: string;
+  spin?: boolean | undefined;
+  children: ReactNode;
+}>) {
+  return (
+    <span className={`settings-status ${tone}`}>
+      <Icon className={`settings-status-icon ${spin ? 'animate-spin' : ''}`} aria-hidden="true" />
+      {children}
+    </span>
+  );
+}
+
+/** The Pi software's line, only while a newer version is out or one is being installed. */
+function softwareAttention(update: KioskUpdate | undefined): ReactNode {
+  if (!update) return undefined;
   const state = softwareState(update);
+  if (state !== 'newer' && state !== 'updating') return undefined;
   const look = SOFTWARE_LOOK[state];
-  const Icon = look.icon;
-  const words: Record<typeof state, string> = {
-    checking: 'Checking for updates',
-    updating: 'Updating',
-    current: 'Up to date',
-    newer: update.newer ?? '',
-    unknown: update.version ? 'Could not check for updates' : 'Version unknown'
-  };
   return (
-    <>
-      {update.version && (
-        <span className="font-mono">{update.release ? update.version.ref : update.version.commit}</span>
-      )}
-      <span className={`settings-status ${look.tone}`}>
-        <Icon className={`settings-status-icon ${look.spin ? 'animate-spin' : ''}`} aria-hidden="true" />
-        {words[state]}
-      </span>
-    </>
+    <Attention icon={look.icon} tone={look.tone} spin={look.spin}>
+      {state === 'updating' ? 'Updating' : update.newer}
+    </Attention>
   );
 }
 
-/** The General page in brief: the time format, the weather's place, the notice board's postcode and screen sleep. */
-function GeneralSummary({
-  config,
-  screenSleep
-}: Readonly<{ config: TouchscreenConfig | undefined; screenSleep: ScreenSleepMinutes | undefined }>) {
-  const notices = config && noticeBoardPlace(config.notice_board);
-  return (
-    <>
-      {config && <span>{config.clock_format === '12h' ? '12-hour' : '24-hour'}</span>}
-      {config?.weather.key && <span className="truncate">{config.weather.location}</span>}
-      {notices && (
-        <span className="settings-status">
-          <CountryFlag country={notices.country} className="country-flag-inline" />
-          <span className="truncate">{notices.postcode}</span>
-        </span>
-      )}
-      {screenSleep !== undefined && (
-        <span>{screenSleep === 0 ? 'Never sleeps' : `Sleeps after ${screenSleep} min`}</span>
-      )}
-    </>
-  );
-}
-
+/**
+ * The settings' first page: a plain grid of the other pages, each by its icon and name. Only a page that needs looking at
+ * says so under its name: Spotify not connected, the kiosk on no Wi-Fi, a newer Pi software out or being installed.
+ */
 export default function SettingsOverview({
   onOpen,
   kiosk,
   deviceConfig,
-  themeColour,
-  dynamicColour,
-  screenSleep,
+  hasGeneral,
   wifi,
   authenticated,
   kioskUpdate
 }: Readonly<{
   onOpen: (section: SettingsSection) => void;
   kiosk: boolean;
-  /** countdown-server's config, once someone owns the kiosk: the Countdown card shows only then. */
+  /** countdown-server's config, once someone owns the kiosk: the Countdown and Parcels cards show only then. */
   deviceConfig?: TouchscreenConfig | undefined;
-  themeColour: ThemeColour | undefined;
-  dynamicColour?: boolean | undefined;
-  screenSleep: ScreenSleepMinutes | undefined;
+  /** Whether there is a General page: once someone owns the kiosk, or on the kiosk itself (its screen sleep). */
+  hasGeneral: boolean;
   wifi: WifiState;
   authenticated: boolean;
   kioskUpdate: KioskUpdate | undefined;
 }>) {
-  const colour = THEME_COLOURS.find(choice => choice.id === themeColour);
-  const network = wifiLabel(wifi);
-  const stops = deviceConfig?.arrivals.stops.length ?? 0;
-  const lyrics = useSyncExternalStore(subscribeLyricsStyle, getLyricsStyle);
-
   return (
     <div className="settings-overview" role="group" aria-label="Overview">
       {deviceConfig && (
         <Card
           icon={<TrainFront className="w-6 h-6" aria-hidden="true" />}
           title="Countdown"
-          wide
           onOpen={() => onOpen('countdown')}
-        >
-          <span>{stops === 1 ? '1 stop' : `${stops} stops`}</span>
-        </Card>
+        />
       )}
-      {(deviceConfig !== undefined || screenSleep !== undefined) && (
+      {hasGeneral && (
         <Card
           icon={<SlidersHorizontal className="w-6 h-6" aria-hidden="true" />}
           title="General"
           onOpen={() => onOpen('general')}
-        >
-          <GeneralSummary config={deviceConfig} screenSleep={screenSleep} />
-        </Card>
+        />
       )}
       {deviceConfig && (
         <Card
           icon={<Package className="w-6 h-6" aria-hidden="true" />}
           title="Parcels"
           onOpen={() => onOpen('parcels')}
-        >
-          <span>{deviceConfig.parcels?.enabled ? daysAheadLabel(deviceConfig.parcels) : 'Off'}</span>
-        </Card>
+        />
       )}
       <Card
         icon={<Palette className="w-6 h-6" aria-hidden="true" />}
         title="Appearance"
         onOpen={() => onOpen('appearance')}
-      >
-        {colour && (
-          <span className="settings-status">
-            <span className="settings-dot" style={{ '--swatch': swatchOf(colour) } as CSSProperties} />
-            {colour.label}
-          </span>
-        )}
-        {dynamicColour && <span>Dynamic</span>}
-      </Card>
+      />
       {kiosk && (
         <Card
           icon={
@@ -178,38 +135,22 @@ export default function SettingsOverview({
           }
           title="Wi-Fi"
           onOpen={() => onOpen('wifi')}
-        >
-          <span className={`truncate ${wifi.state === 'connected' ? '' : 'text-muted'}`}>{network ?? '\u{A0}'}</span>
-        </Card>
+          line={wifi.state === 'disconnected' ? <Attention>Not connected</Attention> : undefined}
+        />
       )}
-      <Card icon={<SpotifyIcon className="w-6 h-6" />} title="Spotify" onOpen={() => onOpen('spotify')}>
-        {authenticated ? (
-          <span className="settings-status status-success">
-            <CheckCircle2 className="settings-status-icon" aria-hidden="true" />
-            Connected
-          </span>
-        ) : (
-          <span className="settings-status status-warning">
-            <AlertCircle className="settings-status-icon" aria-hidden="true" />
-            Not connected
-          </span>
-        )}
-      </Card>
-      <Card icon={<MicVocal className="w-6 h-6" aria-hidden="true" />} title="Lyrics" onOpen={() => onOpen('lyrics')}>
-        <span>
-          {LYRICS_SIZES.find(choice => choice.id === lyrics.size)?.label},{' '}
-          {LYRICS_ALIGNS.find(choice => choice.id === lyrics.align)?.label.toLowerCase()}
-        </span>
-      </Card>
-      <Card icon={<Info className="w-6 h-6" aria-hidden="true" />} title="About" wide onOpen={() => onOpen('about')}>
-        {kioskUpdate ? (
-          <PiSoftware update={kioskUpdate} />
-        ) : (
-          <span>
-            Version <span className="font-mono">{APP_VERSION}</span>
-          </span>
-        )}
-      </Card>
+      <Card
+        icon={<SpotifyIcon className="w-6 h-6" />}
+        title="Spotify"
+        onOpen={() => onOpen('spotify')}
+        line={authenticated ? undefined : <Attention>Not connected</Attention>}
+      />
+      <Card icon={<MicVocal className="w-6 h-6" aria-hidden="true" />} title="Lyrics" onOpen={() => onOpen('lyrics')} />
+      <Card
+        icon={<Info className="w-6 h-6" aria-hidden="true" />}
+        title="About"
+        onOpen={() => onOpen('about')}
+        line={softwareAttention(kioskUpdate)}
+      />
     </div>
   );
 }

@@ -70,7 +70,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       const settings = await openSettings(page);
       await expect(
         settings.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^About/ })
-      ).toContainText('Up to date');
+      ).toHaveText('About');
       await expect(settings).toHaveScreenshot(shotName('settings-overview', screen), SHOT);
       for (const [section, name] of [
         ['General', 'settings-general'],
