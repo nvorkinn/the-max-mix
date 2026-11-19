@@ -58,7 +58,7 @@ jobs:
   e2e:
     uses: ./.github/workflows/e2e.yml
     with:
-      workers: '12'
+      workers: '8'
     permissions:
       contents: write
       pull-requests: write
