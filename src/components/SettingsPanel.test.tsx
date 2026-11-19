@@ -58,7 +58,13 @@ describe('SettingsPanel', () => {
     render(<SettingsPanel {...base} authInfo={{}} />);
     const nav = screen.getByRole('navigation', { name: 'Settings' });
     const sections = within(nav).getAllByRole('button');
-    expect(sections.map(button => button.textContent)).toEqual(['Overview', 'Appearance', 'Spotify', 'About']);
+    expect(sections.map(button => button.textContent)).toEqual([
+      'Overview',
+      'Appearance',
+      'Spotify',
+      'Lyrics',
+      'About'
+    ]);
     expect(within(nav).getByRole('button', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('region', { name: 'Overview' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Overview' })).not.toBeInTheDocument();
@@ -117,14 +123,14 @@ describe('SettingsPanel', () => {
     expect(screen.queryByRole('button', { name: /studio|paper/i })).not.toBeInTheDocument();
   });
 
-  it('offers the first sign-in, and nothing else but the Synced Lyrics look, while nobody is signed in', () => {
+  it('offers the first sign-in, and nothing else, while nobody is signed in', () => {
     render(<SettingsPanel {...base} authInfo={{}} initialSection="spotify" />);
     const page = screen.getByRole('region', { name: 'Spotify' });
     expect(
       within(page)
         .getAllByRole('button')
         .map(button => button.textContent)
-    ).toEqual(['Log in with Spotify', 'Small', 'Medium', 'Large', 'Extra large', 'Left', 'Centre', 'Right']);
+    ).toEqual(['Log in with Spotify']);
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/server environment|restart/i);
   });
@@ -453,7 +459,7 @@ describe('SettingsPanel', () => {
       within(nav)
         .getAllByRole('button')
         .map(button => button.textContent)
-    ).toEqual(['Overview', 'General', 'Countdown', 'Appearance', 'Spotify', 'About']);
+    ).toEqual(['Overview', 'General', 'Countdown', 'Appearance', 'Spotify', 'Lyrics', 'About']);
     const overview = within(screen.getByRole('group', { name: 'Overview' }));
     expect(overview.getByRole('button', { name: /^General/ })).toHaveTextContent('General24-hourOslo0150');
     expect(overview.getByRole('img', { name: 'Norway' })).toBeInTheDocument();
@@ -488,9 +494,9 @@ describe('SettingsPanel', () => {
     expect(onDeviceConfigSave).toHaveBeenCalledExactlyOnceWith('clock_format', '12h');
   });
 
-  it('saves the Synced Lyrics look to the server once someone owns the kiosk, and on the tablet before that', async () => {
+  it('saves the lyrics look to the server once someone owns the kiosk, and on the tablet before that', async () => {
     const onDeviceConfigSave = vi.fn();
-    const { rerender } = render(<SettingsPanel {...base} authInfo={{}} initialSection="spotify" />);
+    const { rerender } = render(<SettingsPanel {...base} authInfo={{}} initialSection="lyrics" />);
     await userEvent.click(screen.getByRole('button', { name: 'Right' }));
     expect(getLyricsStyle()).toEqual({ size: 'medium', align: 'right' });
     expect(screen.getByRole('button', { name: 'Right' })).toHaveAttribute('aria-pressed', 'true');
@@ -499,7 +505,7 @@ describe('SettingsPanel', () => {
       <SettingsPanel
         {...base}
         authInfo={{}}
-        initialSection="spotify"
+        initialSection="lyrics"
         deviceConfig={fixture.config as TouchscreenConfig}
         onDeviceConfigSave={onDeviceConfigSave}
       />

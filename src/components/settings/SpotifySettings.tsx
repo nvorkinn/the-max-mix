@@ -18,8 +18,6 @@ import ConfirmButton from '../ConfirmButton';
 import PhonePicker from '../PhonePicker';
 import { forgetUnlinkedPhone } from '../../utils/phoneLinks';
 import SpotifyIcon from '../SpotifyIcon';
-import type { LyricsStyle } from '../../utils/lyricsStyle';
-import LyricsSettings from './LyricsSettings';
 
 type ShownStatus = Exclude<PersonStatus, 'unknown'>;
 
@@ -35,17 +33,12 @@ const knownStatus = (person: PersonOnKiosk): ShownStatus => (person.signedIn ? '
 /**
  * Everyone signed in to Spotify on this kiosk, one row each: whether their login works (asked of Spotify when the page
  * opens), signing them in again when it does not, their phone and removing them. Then adding a person, or the first
- * sign-in when nobody is signed in, and how the synced lyrics look.
+ * sign-in when nobody is signed in.
  */
 export default function SpotifySettings({
   signInError,
-  onReload,
-  onLyricsChange
-}: Readonly<{
-  signInError: string | null;
-  onReload: () => void;
-  onLyricsChange?: ((style: LyricsStyle) => void) | undefined;
-}>) {
+  onReload
+}: Readonly<{ signInError: string | null; onReload: () => void }>) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [people, setPeople] = useState(peopleOnKiosk);
   const [statuses, setStatuses] = useState<Record<string, PersonStatus>>({});
@@ -172,8 +165,6 @@ export default function SpotifySettings({
           Log in with Spotify
         </button>
       )}
-
-      <LyricsSettings onChange={onLyricsChange} />
     </div>
   );
 }

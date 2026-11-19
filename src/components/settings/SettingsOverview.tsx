@@ -1,9 +1,11 @@
+import { useSyncExternalStore } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
   ChevronRight,
   Info,
+  MicVocal,
   Palette,
   SlidersHorizontal,
   TrainFront,
@@ -12,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { TouchscreenConfig } from 'countdown-api';
 import type { KioskUpdate } from '../../hooks/useKioskUpdate';
+import { getLyricsStyle, LYRICS_ALIGNS, LYRICS_SIZES, subscribeLyricsStyle } from '../../utils/lyricsStyle';
 import type { ScreenSleepMinutes } from '../../utils/screenSleep';
 import { swatchOf, THEME_COLOURS } from '../../utils/themeColour';
 import type { ThemeColour } from '../../utils/themeColour';
@@ -117,6 +120,7 @@ export default function SettingsOverview({
   const colour = THEME_COLOURS.find(choice => choice.id === themeColour);
   const network = wifiLabel(wifi);
   const stops = deviceConfig?.arrivals.stops.length ?? 0;
+  const lyrics = useSyncExternalStore(subscribeLyricsStyle, getLyricsStyle);
 
   return (
     <div className="settings-overview" role="group" aria-label="Overview">
@@ -179,6 +183,12 @@ export default function SettingsOverview({
             Not connected
           </span>
         )}
+      </Card>
+      <Card icon={<MicVocal className="w-6 h-6" aria-hidden="true" />} title="Lyrics" onOpen={() => onOpen('lyrics')}>
+        <span>
+          {LYRICS_SIZES.find(choice => choice.id === lyrics.size)?.label},{' '}
+          {LYRICS_ALIGNS.find(choice => choice.id === lyrics.align)?.label.toLowerCase()}
+        </span>
       </Card>
       <Card icon={<Info className="w-6 h-6" aria-hidden="true" />} title="About" wide onOpen={() => onOpen('about')}>
         {kioskUpdate ? (

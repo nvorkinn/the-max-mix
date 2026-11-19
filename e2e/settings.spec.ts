@@ -35,7 +35,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await openSpotifyTab(page, '/?kiosk=1');
     const dialog = await openSettings(page);
     const nav = dialog.getByRole('navigation', { name: 'Settings' });
-    const sections = ['Overview', 'General', 'Appearance', 'Wi-Fi', 'Spotify', 'About'];
+    const sections = ['Overview', 'General', 'Appearance', 'Wi-Fi', 'Spotify', 'Lyrics', 'About'];
     await expect(nav.getByRole('button')).toHaveText(sections);
     for (const section of sections) {
       // eslint-disable-next-line no-await-in-loop -- one section after another
@@ -262,6 +262,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
       'Overview',
       'Appearance',
       'Spotify',
+      'Lyrics',
       'About'
     ]);
     await expect(dialog.getByRole('button', { name: /^(Wi-Fi|General)/ })).toHaveCount(0);
