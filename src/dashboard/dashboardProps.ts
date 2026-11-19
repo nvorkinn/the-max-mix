@@ -111,6 +111,7 @@ export function dashboardProps(snapshot: LiveSnapshot, now: Date, clockFormat: C
   return {
     backdrop: backdropOf(snapshot.weather, now),
     weather: { views: weather?.views ?? [] },
+    outlook: { days: weather?.days ?? [] },
     hourly:
       weather && updatedAt
         ? {

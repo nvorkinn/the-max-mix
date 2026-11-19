@@ -304,10 +304,11 @@
   text-align: left;
   cursor: pointer;
 }
-.dashboard-weather > * {
+.dashboard-wx-view {
+  display: block;
   transition: opacity 350ms ease;
 }
-.dashboard-weather.fading > * {
+.dashboard-weather.fading .dashboard-wx-view {
   opacity: 0;
 }
 .dashboard-weather:focus-visible {
@@ -315,13 +316,43 @@
   outline-offset: 4px;
   border-radius: 6px;
 }
-.dashboard-wx-period {
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+/* The periods the weather moves through, the one on show filled. */
+.dashboard-wx-pills {
+  display: flex;
+  gap: 6px;
+  min-height: 32px;
+  margin-bottom: 14px;
+}
+.dashboard-wx-pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--muted);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent);
+  text-shadow: none;
+  transition:
+    background-color 350ms ease,
+    color 350ms ease;
+}
+.dashboard-wx-pill[aria-current='true'] {
+  background: var(--text);
+  color: #111;
+  box-shadow: none;
+}
+.dashboard-wx-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.dashboard svg.lucide.dashboard-wx-icon {
+  width: 92px;
+  height: 92px;
+  stroke-width: 1.5;
 }
 .dashboard-wx-temp {
+  display: block;
   font-size: 132px;
   font-weight: 700;
   line-height: 0.9;
@@ -337,6 +368,7 @@
   margin-left: 0.09em;
 }
 .dashboard-wx-condition {
+  display: block;
   font-size: 30px;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -351,16 +383,65 @@
   min-height: 24px;
 }
 
+/* While there is room, the next days under the weather, a row each (RailPages.tsx's OUTLOOK_ sizes). */
+.dashboard-outlook {
+  flex: none;
+  list-style: none;
+  padding: 0;
+  margin-bottom: 26px;
+}
+.dashboard-outlook li {
+  height: 42px;
+  display: grid;
+  grid-template-columns: 52px 30px 40px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+  font-size: 19px;
+}
+.dashboard-outlook-day {
+  font-weight: 600;
+}
+.dashboard .dashboard-outlook svg.lucide {
+  width: 26px;
+  height: 26px;
+}
+.dashboard-outlook-low {
+  color: var(--muted);
+  text-align: right;
+}
+.dashboard-outlook strong {
+  font-weight: 700;
+}
+.dashboard-outlook-range {
+  position: relative;
+  height: 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text) 18%, transparent);
+}
+.dashboard-outlook-range span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  background: var(--text);
+}
+
 /*
   Under the weather, the notices with the Tube's status under them, built up from the bottom. When they don't fit, they
   page through like the boards along the bottom: the page on show (--slot 0) slides out to the left (-1) as the next
   comes in from the right (1), cut off at the rail's edges.
 */
+.dashboard-rail-body {
+  flex: 1;
+  min-height: 0;
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+}
 .dashboard-rail-pages {
   position: relative;
   flex: 1;
   min-height: 0;
-  margin-top: 24px;
   overflow: hidden;
 }
 .dashboard-rail-page {

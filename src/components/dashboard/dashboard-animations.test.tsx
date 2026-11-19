@@ -73,20 +73,23 @@ describe('the departure boards', () => {
 });
 
 describe('the weather block', () => {
+  // Every period has its pill; the one on show is marked current.
+  const shown = (weather: HTMLElement) => weather.querySelector('[aria-current="true"]');
+
   it('moves to the next period every ten seconds, fading the old one right out first', () => {
     render(<WeatherBlock {...SAMPLE.weather} />);
     const weather = screen.getByRole('button');
-    expect(weather).toHaveTextContent('Now');
+    expect(shown(weather)).toHaveTextContent('Now');
     run(WEATHER_VIEW_MS);
     // Fading out, still the old period: the two never show together.
     expect(weather).toHaveClass('fading');
-    expect(weather).toHaveTextContent('Now');
+    expect(shown(weather)).toHaveTextContent('Now');
     run(WEATHER_FADE_MS);
     expect(weather).not.toHaveClass('fading');
-    expect(weather).toHaveTextContent('Tonight');
+    expect(shown(weather)).toHaveTextContent('Tonight');
     run(WEATHER_VIEW_MS);
     run(WEATHER_FADE_MS);
-    expect(weather).toHaveTextContent('Tomorrow');
+    expect(shown(weather)).toHaveTextContent('Tomorrow');
   });
 
   it('gives a period it skipped to by a tap its full ten seconds', () => {
@@ -95,11 +98,23 @@ describe('the weather block', () => {
     run(WEATHER_VIEW_MS - 1000);
     fireEvent.click(weather);
     run(WEATHER_FADE_MS);
-    expect(weather).toHaveTextContent('Tonight');
+    expect(shown(weather)).toHaveTextContent('Tonight');
     run(WEATHER_VIEW_MS - 1);
     expect(weather).not.toHaveClass('fading');
     run(1);
     expect(weather).toHaveClass('fading');
+  });
+
+  it('shows a pill for each period, only the one on show filled, and its sky by day or night', () => {
+    render(<WeatherBlock {...SAMPLE.weather} />);
+    const weather = screen.getByRole('button');
+    expect(weather.querySelectorAll('.dashboard-wx-pill')).toHaveLength(4);
+    expect(weather.querySelectorAll('[aria-current="true"]')).toHaveLength(1);
+    expect(weather.querySelector('.dashboard-wx-icon')).toHaveClass('lucide-cloud-sun');
+    run(WEATHER_VIEW_MS);
+    run(WEATHER_FADE_MS);
+    expect(shown(weather)).toHaveTextContent('Tonight');
+    expect(weather.querySelector('.dashboard-wx-icon')).toHaveClass('lucide-cloud-rain');
   });
 
   it('stays still with one period to show', () => {
@@ -108,7 +123,7 @@ describe('the weather block', () => {
     fireEvent.click(weather);
     run(WEATHER_VIEW_MS * 2);
     expect(weather).not.toHaveClass('fading');
-    expect(weather).toHaveTextContent('Now');
+    expect(shown(weather)).toHaveTextContent('Now');
   });
 });
 

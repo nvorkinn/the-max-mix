@@ -55,14 +55,15 @@ describe('Dashboard', () => {
         vi.advanceTimersByTime(350);
       });
     };
+    const shown = () => weather.querySelector('[aria-current="true"]');
     tap();
-    expect(weather).toHaveTextContent('Tonight');
+    expect(shown()).toHaveTextContent('Tonight');
     expect(weather).toHaveTextContent('6°');
     tap();
     tap();
-    expect(weather).toHaveTextContent('Weekend');
+    expect(shown()).toHaveTextContent('Weekend');
     tap();
-    expect(weather).toHaveTextContent('Now');
+    expect(shown()).toHaveTextContent('Now');
   });
 
   it('opens a notice that has more to say, and has no way in on one that has not', () => {

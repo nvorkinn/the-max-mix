@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SAMPLE, SAMPLE_NOW, sampleDashboard, useSimulatedNow } from '../../dashboard/sample';
 import Dashboard from '../Dashboard';
 import HourlyStrip from './HourlyStrip';
-import RailPages, { railPages } from './RailPages';
+import Outlook from './Outlook';
+import RailPages, { outlookDays, railPages } from './RailPages';
 import TabBar from './TabBar';
 import DepartureBoard from './DepartureBoard';
 
@@ -138,6 +139,46 @@ describe('railPages', () => {
   it('shows the status alone without notices, and the empty notice board without either', () => {
     expect(railPages(0, 12, HEIGHT)).toEqual([{ from: 0, to: 0, status: true }]);
     expect(railPages(0, null, HEIGHT)).toEqual([{ from: 0, to: 0, status: false }]);
+  });
+});
+
+describe('outlookDays', () => {
+  // The rail under the weather is 460px tall.
+  const HEIGHT = 460;
+
+  it('shows every day over the Tube status when they fit', () => {
+    expect(outlookDays(5, 0, 2, HEIGHT)).toBe(5);
+  });
+
+  it('shows the days that fit over a few notices, and none when fewer than three would', () => {
+    // Two notices and two status rows leave room for three days.
+    expect(outlookDays(5, 2, 2, HEIGHT)).toBe(3);
+    expect(outlookDays(5, 3, 2, HEIGHT)).toBe(0);
+    expect(outlookDays(5, 0, 12, HEIGHT)).toBe(0);
+  });
+
+  it('shows none without days or before the rail is measured', () => {
+    expect(outlookDays(0, 0, 2, HEIGHT)).toBe(0);
+    expect(outlookDays(5, 0, 2, 0)).toBe(0);
+  });
+});
+
+describe('Outlook', () => {
+  it("names each day and gives its low and high, its bar spanning its range of the outlook's", () => {
+    render(
+      <Outlook
+        days={[
+          { date: '2026-11-20', high: 12, low: 4, sky: 'cloudy' },
+          { date: '2026-11-21', high: 8, low: 6, sky: 'rain' }
+        ]}
+      />
+    );
+    const [friday, saturday] = screen.getAllByRole('listitem') as [HTMLElement, HTMLElement];
+    expect(friday).toHaveTextContent('Fri4°12°');
+    expect(saturday).toHaveTextContent('Sat6°8°');
+    const bar = saturday.querySelector<HTMLElement>(':scope .dashboard-outlook-range span');
+    expect(bar?.style.left).toBe('25%');
+    expect(bar?.style.width).toBe('25%');
   });
 });
 
