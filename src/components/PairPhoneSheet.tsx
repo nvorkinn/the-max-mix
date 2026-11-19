@@ -106,7 +106,8 @@ export default function PairPhoneSheet({
       pairing.state === 'scanning' ||
       (pairing.state === 'pairing' && pairing.code === null && !pairing.isConfirmed));
 
-  const title = `Pair ${name ? `${name}’s` : 'your'} phone`;
+  const owner = name ? `${name}’s` : 'your';
+  const title = `Pair ${owner} phone`;
   if (isIntro || pairing.state === 'paired') {
     const isPaired = pairing.state === 'paired';
     return (
