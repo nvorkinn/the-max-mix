@@ -2,7 +2,7 @@ import { flushSync } from 'react-dom';
 
 /**
  * Runs a screen change as a full-screen crossfade (the View Transitions API: the browser snapshots the old screen,
- * applies `update`, and fades to the new one over 600 ms, see index.css). Chromium cuts the previous fade
+ * applies `update`, and fades to the new one over 500 ms, see index.css). Chromium cuts the previous fade
  * short when a new one starts, so rapid taps cannot leave a fade half done. Without the API, or when the person asks
  * for less motion, the screen changes at once.
  */
