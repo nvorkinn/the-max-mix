@@ -8,7 +8,8 @@ name: Baseline only
 # - every file those commits add, change, delete or rename is under e2e/screenshots/,
 # - the calling workflow's latest run for the previous head has finished, with every job outside `ignore` passed or
 #   skipped. A job skipped there was skipped by this same check, so it rests on an earlier pass.
-# The skipped jobs show as skipped, which Global PR Status accepts. A push to main always runs everything.
+# The skipped jobs show as skipped, which Global PR Status accepts. A push to main always runs everything, and so does
+# merging main into a pull request, since that changes more than baselines.
 on:
   workflow_call:
     inputs:
