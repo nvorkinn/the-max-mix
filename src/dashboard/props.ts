@@ -199,5 +199,33 @@ export interface TubeStatusProps {
   lines: LineStatusItem[];
 }
 
+/** @public A line in an incident, signed the way its stop's board signs it (Ruter's route box in its mode's colour). */
+export interface IncidentLine {
+  /** Entur's line id ("RUT:Line:4"). */
+  id: string;
+  /** "4", "74", "VY190". */
+  code: string;
+  /** Entur's transport mode ("metro", "tram", "bus", "rail"), which picks the box's colour. */
+  mode: string;
+}
+
+/** @public One incident on the lines serving a Norwegian kiosk's stops: the operator's words, and the lines they're about. */
+export interface LineIncident {
+  /** The text, which is what makes two of Entur's situations (one per line, the same words) one incident. */
+  key: string;
+  /** The operator's summary, in English where Entur has it ("The Metro will be closed from November 19.–22."). */
+  text: string;
+  /** Severe for the situations Entur marks severe, else a disruption. */
+  health: Extract<LineHealth, 'disruption' | 'severe'>;
+  /** Metro first, then tram, bus and rail, each by its code; empty for an incident at the stop itself. */
+  lines: IncidentLine[];
+}
+
+/** @public The incidents panel, in the Tube status panel's place for a kiosk with Norwegian stops: problems only. */
+export interface LineIncidentsProps {
+  /** Worst first, then in the order Entur gave them; never empty (no incidents is no panel). */
+  incidents: LineIncident[];
+}
+
 /** @public One stop's board along the bottom. */
 export type DepartureBoardProps = { id: string } & StopBoardProps;

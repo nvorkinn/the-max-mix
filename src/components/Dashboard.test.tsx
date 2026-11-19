@@ -116,6 +116,29 @@ describe('Dashboard', () => {
     expect(screen.getByRole('region', { name: 'Tube status' })).toBeInTheDocument();
   });
 
+  it("shows the incidents at Norwegian stops in the Tube status's place, each under its lines", () => {
+    const incidents = {
+      incidents: [
+        {
+          key: 'closed',
+          text: 'The Metro will be closed from November 19.–22.',
+          health: 'disruption' as const,
+          lines: [
+            { id: 'RUT:Line:1', code: '1', mode: 'metro' },
+            { id: 'RUT:Line:2', code: '2', mode: 'metro' }
+          ]
+        }
+      ]
+    };
+    render(<Dashboard tabBar={tabBar} {...sampleDashboard(SAMPLE_NOW, '24h', 0)} incidents={incidents} />);
+
+    const panel = within(screen.getByRole('region', { name: 'Disruptions' }));
+    const row = panel.getByText('The Metro will be closed from November 19.–22.').closest('li');
+    expect(row).toHaveAttribute('data-health', 'disruption');
+    expect(within(row as HTMLElement).getByText('2')).toHaveAttribute('data-mode', 'metro');
+    expect(screen.queryByRole('region', { name: 'Tube status' })).not.toBeInTheDocument();
+  });
+
   it('keeps its layout, with nothing in them, while the forecast and the boards have no data', () => {
     render(<Dashboard tabBar={tabBar} weather={{ views: [] }} hourly={null} notices={{ notices: [] }} boards={[]} />);
     expect(screen.getByRole('heading', { name: /Notice board/ })).toBeInTheDocument();
