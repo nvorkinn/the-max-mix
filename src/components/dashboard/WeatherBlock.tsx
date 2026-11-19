@@ -1,6 +1,7 @@
 import { Sun, Umbrella } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { WeatherBlockProps, WeatherPeriod } from '../../dashboard/props';
+import { TURN_MS } from './carousel';
 import { SKY_ICONS, sunny } from './icons';
 
 const PERIOD_LABELS: Record<WeatherPeriod, string> = {
@@ -10,38 +11,38 @@ const PERIOD_LABELS: Record<WeatherPeriod, string> = {
   weekend: 'Weekend'
 };
 
-/** How long each period shows before the next. */
-export const WEATHER_VIEW_MS = 10_000;
 /** How long the old period takes to fade out, and then the new one to fade in. */
 export const WEATHER_FADE_MS = 350;
 
+interface WeatherBlockOwnProps extends WeatherBlockProps {
+  /** The Dashboard's clock, in ms: the weather turns on the same TURN_MS beat as the boards and the rail's pages. */
+  time: number;
+}
+
 /**
  * The periods as pills, the one on show filled; then the temperature with its sky's icon, what it's like and one line
- * more. It starts on Now and moves to the next period every ten seconds,
- * or at once on a tap; the periods wrap round. The old period fades right out before the new one fades in, so two
- * temperatures never show on top of each other.
+ * more. It starts on Now and moves to the next period on every turn of the Dashboard's carousels (carousel.ts), at the
+ * same moment the boards and the rail's pages move, or at once on a tap; the periods wrap round. A period tapped to
+ * moves on at the next shared turn, so the weather never drifts out of step. The old period fades right out before the
+ * new one fades in, so two temperatures never show on top of each other.
  */
-export default function WeatherBlock({ views }: Readonly<WeatherBlockProps>) {
-  const [index, setIndex] = useState(0);
-  const [fading, setFading] = useState(false);
+export default function WeatherBlock({ views, time }: Readonly<WeatherBlockOwnProps>) {
   const count = views.length;
-  const view = views[index % Math.max(1, count)];
-
-  // Each new period gets its full ten seconds, however it came (the timer or a tap).
-  useEffect(() => {
-    if (fading || count < 2) return;
-    const timer = window.setTimeout(() => setFading(true), WEATHER_VIEW_MS);
-    return () => window.clearTimeout(timer);
-  }, [count, fading, index]);
+  const turn = Math.floor(time / TURN_MS);
+  // Counted from the turn it first showed in, so it starts on Now.
+  const [firstTurn] = useState(turn);
+  const [taps, setTaps] = useState(0);
+  const places = Math.max(1, count);
+  const due = (((turn - firstTurn + taps) % places) + places) % places;
+  const [index, setIndex] = useState(due);
+  const fading = count > 1 && index !== due;
+  const view = views[index % places];
 
   useEffect(() => {
     if (!fading) return;
-    const timer = window.setTimeout(() => {
-      setIndex(current => (current + 1) % Math.max(1, count));
-      setFading(false);
-    }, WEATHER_FADE_MS);
+    const timer = window.setTimeout(() => setIndex(due), WEATHER_FADE_MS);
     return () => window.clearTimeout(timer);
-  }, [count, fading]);
+  }, [due, fading]);
 
   // With no forecast the block keeps its space, so the notices under it stay where they are.
   if (!view) {
@@ -63,7 +64,7 @@ export default function WeatherBlock({ views }: Readonly<WeatherBlockProps>) {
       type="button"
       className={`dashboard-weather shadowed${fading ? ' fading' : ''}`}
       onClick={() => {
-        if (count > 1) setFading(true);
+        if (count > 1) setTaps(current => current + 1);
       }}
     >
       <span className="dashboard-wx-pills">
