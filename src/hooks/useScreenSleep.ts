@@ -74,7 +74,9 @@ export function useScreenSleep({
   }, [enabled, phase, wake]);
 
   // The countdown to the next step, from the last touch or from the moment the music stopped, the Dashboard came up or
-  // quiet hours began.
+  // quiet hours began. In quiet hours the Dashboard coming up does not start it again: it comes up by itself a minute
+  // after the last touch, just as the screen is due to sleep.
+  const dashboardShown = quiet ? null : onDashboard;
   useEffect(() => {
     if (!enabled || keepAwake || phase === 'asleep') return;
     let delay: number;
@@ -82,7 +84,7 @@ export function useScreenSleep({
     let reason: string;
     if (quiet) {
       [delay, next, reason] = [QUIET_SLEEP_MS, 'asleep', 'Quiet hours: the screen sleeps'];
-    } else if (!onDashboard) {
+    } else if (!dashboardShown) {
       return;
     } else if (phase === 'awake') {
       [delay, next, reason] = [DIM_AFTER_MS, 'dimmed', 'Dashboard idle: the screen dims'];
@@ -96,7 +98,7 @@ export function useScreenSleep({
       setPhase(next);
     }, delay);
     return () => clearTimeout(timer);
-  }, [enabled, keepAwake, phase, quiet, onDashboard, sleepMs, activity]);
+  }, [enabled, keepAwake, phase, quiet, dashboardShown, sleepMs, activity]);
 
   // Music that starts while the screen is dimmed or asleep (from a phone, say) brings it back. Only a touch turns the
   // Pi's output on by itself, so the app asks for it after sleep.

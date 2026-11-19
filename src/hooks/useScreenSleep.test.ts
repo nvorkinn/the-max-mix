@@ -131,6 +131,14 @@ describe('useScreenSleep', () => {
     expect(result.current.asleep).toBe(true);
   });
 
+  it('in quiet hours the Dashboard coming up by itself does not put sleep back', () => {
+    const { result, rerender } = renderSleep({ onDashboard: false, quiet: true });
+    advance(QUIET_SLEEP_MS - 1);
+    rerender({ onDashboard: true, quiet: true });
+    advance(1);
+    expect(result.current.asleep).toBe(true);
+  });
+
   it('quiet hours beginning while dimmed send the screen to sleep a minute later, delay or not', () => {
     const { result, rerender } = renderSleep({ sleepMs: null });
     advance(DIM_AFTER_MS);
