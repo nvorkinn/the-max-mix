@@ -10,13 +10,19 @@ import SearchResults from './SearchResults';
 /**
  * Finding stops for the Countdown, over the whole screen so nothing hides behind the on-screen keyboard: a search box
  * with Close along the top, and what the search finds filling the rest down to the keyboard. A tap adds a stop and leaves
- * the keyboard up for the next; one already saved shows a tick. Close (or Escape) goes back to the saved stops.
+ * the keyboard up for the next; one already saved shows a tick, and tapping it again removes it. Close (or Escape) goes back to the saved stops.
  */
 export default function StopSearch({
   stops,
   onAdd,
+  onRemove,
   onClose
-}: Readonly<{ stops: readonly DepartureStop[]; onAdd: (result: StopResult) => void; onClose: () => void }>) {
+}: Readonly<{
+  stops: readonly DepartureStop[];
+  onAdd: (result: StopResult) => void;
+  onRemove: (result: StopResult) => void;
+  onClose: () => void;
+}>) {
   const titleId = useId();
   const fieldRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
@@ -59,6 +65,7 @@ export default function StopSearch({
             icon={<Plus className="w-6 h-6 shrink-0 text-accent" aria-hidden="true" />}
             keepFocus
             onPick={onAdd}
+            onUnpick={onRemove}
           />
         )}
       </div>

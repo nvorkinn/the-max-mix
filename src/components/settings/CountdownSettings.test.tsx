@@ -65,8 +65,7 @@ describe('CountdownSettings', () => {
     expect(box).toHaveFocus();
     await userEvent.type(box, 'oslo s');
     const results = await within(dialog).findByRole('list', { name: 'Results' });
-    const added = within(results).getByRole('button', { name: /^Oslo S.*All platforms.*Added$/ });
-    expect(added).toBeDisabled();
+    expect(within(results).getByRole('button', { name: /^Oslo S.*All platforms.*Added$/ })).toBeEnabled();
     const platform = within(results).getByRole('button', { name: /Platform 4/ });
     expect(fireEvent.pointerDown(platform)).toBe(false);
     await userEvent.click(platform);
@@ -77,6 +76,18 @@ describe('CountdownSettings', () => {
     expect(screen.getByRole('dialog', { name: 'Add stops' })).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('removes a saved stop tapped again in the search', async () => {
+    const station = { source: 'entur', id: 'NSR:StopPlace:337' } as const;
+    const onSave = setup({ ...OWNED, arrivals: { stops: [station] } });
+    await userEvent.click(screen.getByRole('button', { name: 'Add a station or stop' }));
+    const dialog = screen.getByRole('dialog', { name: 'Add stops' });
+    await userEvent.type(within(dialog).getByRole('searchbox', { name: 'Search for a stop' }), 'oslo s');
+    const results = await within(dialog).findByRole('list', { name: 'Results' });
+    await userEvent.click(within(results).getByRole('button', { name: /^Oslo S.*All platforms.*Added$/ }));
+    expect(onSave).toHaveBeenCalledExactlyOnceWith('arrivals', { stops: [] });
+    expect(screen.getByRole('dialog', { name: 'Add stops' })).toBeInTheDocument();
   });
 
   it('removes a stop with its X', async () => {

@@ -43,7 +43,8 @@ export default function SearchResults<R extends SearchResult>({
   chosen = NONE,
   icon,
   keepFocus = false,
-  onPick
+  onPick,
+  onUnpick
 }: Readonly<{
   /** What to search for, already trimmed; empty searches for nothing. */
   query: string;
@@ -58,6 +59,8 @@ export default function SearchResults<R extends SearchResult>({
    */
   keepFocus?: boolean;
   onPick: (result: R) => void;
+  /** Takes back a chosen result tapped again. Without it a chosen result can't be tapped. */
+  onUnpick?: (result: R) => void;
 }>) {
   // What the last search came to: its results, or null when it couldn't be made.
   const [found, setFound] = useState<{ query: string; results: R[] | null }>();
@@ -97,9 +100,9 @@ export default function SearchResults<R extends SearchResult>({
               <li key={result.key} className={result.indent ? 'search-result-indent' : undefined}>
                 <ResultButton
                   result={result}
-                  disabled={isChosen}
+                  disabled={isChosen && !onUnpick}
                   keepFocus={keepFocus}
-                  onPick={onPick}
+                  onPick={isChosen && onUnpick ? onUnpick : onPick}
                   end={
                     isChosen ? (
                       <span className="search-result-added">

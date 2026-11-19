@@ -33,6 +33,8 @@ export default function CountdownSettings({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- namesLearnt: the names kept changed.
   const described = useMemo(() => stops.map(stop => describeStop(stop)), [stops, namesLearnt]);
   const saveStops = (next: typeof stops) => onSave('arrivals', { ...config.arrivals, stops: next });
+  const removeStop = (stop: (typeof stops)[number]) =>
+    saveStops(stops.filter(kept => kept.source !== stop.source || kept.id !== stop.id));
   const reorder = useDragToReorder(listRef, stops.length, (from, to) => {
     const next = [...stops];
     const [moved] = next.splice(from, 1);
@@ -87,9 +89,7 @@ export default function CountdownSettings({
                       type="button"
                       className="countdown-stop-remove"
                       aria-label={`Remove ${name}`}
-                      onClick={() =>
-                        saveStops(stops.filter(kept => kept.source !== stop.source || kept.id !== stop.id))
-                      }
+                      onClick={() => removeStop(stop)}
                     >
                       <X className="w-5 h-5" aria-hidden="true" />
                     </button>
@@ -109,6 +109,7 @@ export default function CountdownSettings({
             rememberStop(result);
             saveStops([...stops, result.value]);
           }}
+          onRemove={result => removeStop(result.value)}
         />
       )}
     </div>
