@@ -5,7 +5,7 @@ import type { Client } from '../../vendor/countdown-api/src/countdown_api/client
 import type { FeedHandlers } from './feed';
 import { EMPTY_SNAPSHOT, LiveDashboard, mergeArrivals, mergeNotices, mergeWeather, withEvent } from './live';
 
-// cspell:ignore GZZLUKNG
+// cspell:ignore GZZLUKNG metalerts
 
 const ARRIVALS = panels.arrivals as DeviceArrivals;
 const NOTICES = panels.notices as unknown as DeviceNotices;
@@ -72,6 +72,22 @@ describe('merging an answer into the last', () => {
     expect(mergeNotices(oslo, lapsed)).toEqual({ notices: oslo, held: true });
     expect(mergeNotices(older, lapsed)).toEqual({ notices: lapsed, held: false });
     expect(mergeNotices(oslo, older).notices.entur_stops).toEqual([]);
+  });
+
+  it("keeps a UK board's flood warnings and a Norwegian board's MET warnings that lapsed, and reads an older server's as none", () => {
+    const floods = NOTICES.floods;
+    expect(mergeNotices(NOTICES, { ...NOTICES, floods: null })).toEqual({ notices: NOTICES, held: true });
+    const metalerts = { fetched_at: '2026-10-16T08:00:00Z', no: {}, en: {} };
+    const oslo: DeviceNotices = { ...NOTICES, postcode: '0150', country: 'NO', floods: null, metalerts };
+    expect(mergeNotices(oslo, { ...oslo, metalerts: null })).toEqual({ notices: oslo, held: true });
+    // A Norwegian board has no flood warnings to keep, nor a British one MET's.
+    expect(mergeNotices({ ...oslo, floods }, oslo).notices.floods).toBeNull();
+    expect(mergeNotices({ ...NOTICES, metalerts }, NOTICES).notices.metalerts).toBeNull();
+    const older = { ...NOTICES, floods: undefined, metalerts: undefined } as unknown as DeviceNotices;
+    expect(mergeNotices({ ...NOTICES, floods: null }, older)).toEqual({
+      notices: { ...NOTICES, floods: null, metalerts: null },
+      held: false
+    });
   });
 
   it('merges each event into its own part of the snapshot', () => {

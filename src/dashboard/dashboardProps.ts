@@ -40,6 +40,7 @@ export function toNoticeItem(notice: Notice): NoticeItem {
     holiday: 'bank-holiday',
     closure: planned ? 'planned-works' : 'closure',
     delays: planned ? 'planned-works' : 'delays',
+    road: 'road-works',
     parcel: 'parcel'
   };
   const kind = kinds[notice.kind];

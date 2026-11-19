@@ -36,7 +36,7 @@ export interface Arrivals {
 }
 
 /** What a notice is about, which picks its icon. */
-type NoticeKind = 'weather' | 'delays' | 'holiday' | 'closure' | 'parcel';
+type NoticeKind = 'weather' | 'delays' | 'road' | 'holiday' | 'closure' | 'parcel';
 /** How much it matters, which picks the colour down its edge: red, amber, none, blue or (everyday things) white. */
 type NoticeSeverity = 'severe' | 'minor' | 'info' | 'planned' | 'everyday';
 

@@ -1,4 +1,4 @@
-// cspell:ignore GZZLUEAC GZZLUBOR GZZLULBN
+// cspell:ignore GZZLUEAC GZZLUBOR GZZLULBN Effra Southwrk Lambeth metalerts TIMS
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 
@@ -450,8 +450,82 @@ function noticesAt(now: Date, isQuiet: boolean) {
   };
 }
 
-/** The notices of a kiosk in Oslo with `enturStops` (countdown-api's EnturStopNotices): none of London's sources. */
-const osloNotices = (enturStops: object[]) => ({
+/**
+ * The notices of a London kiosk whose board has the e-paper screens' other kinds (countdown-api's DeviceNotices, read at
+ * `now`): a lift out at its Tube station, a road closed after a collision near it and the Environment Agency's flood
+ * warning and alert for the Thames, and nothing on the lines.
+ */
+function otherNoticesAt(now: Date) {
+  const fetchedAt = now.toISOString();
+  return {
+    postcode: 'SE17 3LL',
+    country: 'GB',
+    tfl_stops: [
+      {
+        stop_id: '940GZZLUEAC',
+        lines: null,
+        stations: {
+          fetched_at: fetchedAt,
+          stop_id: '940GZZLUEAC',
+          disruptions: [
+            {
+              commonName: 'Elephant & Castle Underground Station',
+              description: 'ELEPHANT & CASTLE UNDERGROUND STATION: The lift to the Bakerloo line is out of service.',
+              toDate: hoursFrom(now, 30).toISOString()
+            }
+          ],
+          shorts: []
+        }
+      }
+    ],
+    tfl_roads: {
+      fetched_at: fetchedAt,
+      postcode: 'SE17 3LL',
+      disruptions: [
+        {
+          id: 'TIMS-1',
+          severity: 'Severe',
+          category: 'Collisions',
+          comments:
+            '[A3] Kennington Park Road (SE11) (Lambeth) - Northbound closed at Kennington Cross after a collision.',
+          endDateTime: hoursFrom(now, 3).toISOString()
+        }
+      ],
+      shorts: []
+    },
+    met_office: null,
+    bank_holidays: null,
+    tfl_network: tflNetworkAt(now),
+    entur_stops: [],
+    floods: {
+      fetched_at: fetchedAt,
+      postcode: 'SE17 3LL',
+      floods: {
+        items: [
+          {
+            description: 'River Thames at Southwark',
+            severity: 'Flood Warning',
+            severityLevel: 2,
+            floodAreaID: '062FWF46Southwrk'
+          },
+          {
+            description: 'Lower River Effra',
+            severity: 'Flood Alert',
+            severityLevel: 3,
+            floodAreaID: '062WAF60LowEffra'
+          }
+        ]
+      }
+    },
+    metalerts: null
+  };
+}
+
+/**
+ * The notices of a kiosk in Oslo with `enturStops` (countdown-api's EnturStopNotices) and MET Norway's warnings for its
+ * place (`metalerts`, countdown-api's StoredMetAlerts): none of London's sources.
+ */
+const osloNotices = (enturStops: object[], metalerts: object | null = null) => ({
   postcode: '0150',
   country: 'NO',
   tfl_stops: [],
@@ -459,7 +533,9 @@ const osloNotices = (enturStops: object[]) => ({
   met_office: null,
   bank_holidays: null,
   tfl_network: null,
-  entur_stops: enturStops
+  entur_stops: enturStops,
+  floods: null,
+  metalerts
 });
 
 /** One server-sent event. */
@@ -479,6 +555,10 @@ interface FeedOptions {
    * of London's sources.
    */
   enturStops?: () => object[];
+  /** For the Oslo kiosk, MET Norway's warnings for its place (countdown-api's StoredMetAlerts). */
+  metalerts?: object;
+  /** A London board with the e-paper screens' other kinds of notice: a station's, a road's and flood warnings. */
+  others?: boolean;
 }
 
 /**
@@ -487,15 +567,23 @@ interface FeedOptions {
  * server's do; its `retry` keeps the next one a minute off unless `retryMs` says otherwise.
  */
 export async function fakeFeed(page: Page, now: Date, options: FeedOptions = {}) {
-  const { long = false, none = false, arrivals = () => arrivalsAt(now, long), retryMs = 60_000, enturStops } = options;
+  const {
+    long = false,
+    none = false,
+    arrivals = () => arrivalsAt(now, long),
+    retryMs = 60_000,
+    enturStops,
+    metalerts,
+    others = false
+  } = options;
+  const notices = () => {
+    if (enturStops) return osloNotices(enturStops(), metalerts);
+    return others ? otherNoticesAt(now) : { ...noticesAt(now, none), entur_stops: [] };
+  };
   await page.route(FEED, route => {
     const cors = corsFor(route.request().headers()['origin']);
     if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
-    const events = [
-      message('weather', weatherAt(now)),
-      message('arrivals', arrivals()),
-      message('notices', enturStops ? osloNotices(enturStops()) : { ...noticesAt(now, none), entur_stops: [] })
-    ];
+    const events = [message('weather', weatherAt(now)), message('arrivals', arrivals()), message('notices', notices())];
     return route.fulfill({
       status: 200,
       headers: { ...cors, 'Cache-Control': 'no-store' },
