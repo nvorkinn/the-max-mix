@@ -12,10 +12,6 @@ on:
         description: Record a trace of every test
         type: boolean
         default: false
-      workers:
-        description: Playwright workers
-        type: string
-        default: '4'
   workflow_dispatch:
     inputs:
       trace:
@@ -27,26 +23,67 @@ permissions:
   contents: read
 
 jobs:
-  # One machine runs the tests, writes the HTML and JSON reports directly, then publishes them and the screenshots for
-  # the pull request (EXPERIMENT: single job instead of two shards + report + screenshots jobs).
+  # The tests are split over two machines, a half each; the report job merges what they write.
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: write
-      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     env:
       E2E_TRACE: ${{ inputs.trace && 'on' || '' }}
-      E2E_WORKERS: ${{ inputs.workers }}
     steps:
+      # The runner's disk is read in lazily, so Chrome's first start takes about ten seconds. Starting it once in the
+      # background lets that happen while the dependencies install, instead of before the first test.
       - name: Warm up Chrome
         run: (google-chrome --headless --disable-gpu --dump-dom about:blank > /dev/null 2>&1 &)
-      - name: Runner size
-        run: echo "$(nproc) CPUs, $(free -g | awk '/Mem/{print $2}') GB"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # The countdown-api submodule: the browser tests answer the config route with its example configs.
           submodules: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      # Unpacking node_modules from the cache is quicker than `npm ci` writing its 800 packages one by one.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: modules
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json') }}
+      - if: steps.modules.outputs.cache-hit != 'true'
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      # EXPERIMENT: poll every 50 ms instead of backing off 100/250/500/1000 ms.
+      - run: sed -i 's/poll.intervals ?? \[100, 250, 500, 1e3\]/poll.intervals ?? [50]/' node_modules/playwright/lib/matchers/expect.js && grep -c 'poll.intervals ?? \[50\]' node_modules/playwright/lib/matchers/expect.js
+      - run: npm run test:e2e -- --shard=${{ matrix.shard }}/2
+      # The blob report carries the results (and the traces, when asked for); the PNGs are the screenshots that differ from their
+      # baselines, which the pull request comment shows. Playwright always writes .last-run.json, which keeps e2e/ the
+      # artifact's root (the folder its files share) when there are no PNGs, so the report job finds blob-report/.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: e2e-shard-${{ matrix.shard }}
+          path: |
+            e2e/blob-report
+            e2e/test-results/.last-run.json
+            e2e/test-results/**/*.png
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 1
+
+  # Merges the shards' reports into one HTML report and one JSON report, in the playwright-report artifact that the
+  # screenshots job in tests.yml publishes.
+  report:
+    needs: test
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
@@ -57,77 +94,22 @@ jobs:
           key: node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json') }}
       - if: steps.modules.outputs.cache-hit != 'true'
         run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: npm run build
-      - run: npm run test:e2e
+      # Each artifact holds e2e/blob-report and e2e/test-results; the blob files and test folders have unique names.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: e2e-shard-*
+          merge-multiple: true
+          path: e2e
+      - name: Merge the reports
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: e2e/playwright-report
+          PLAYWRIGHT_HTML_OPEN: never
+          PLAYWRIGHT_JSON_OUTPUT_FILE: e2e/test-results/results.json
+        run: npx playwright merge-reports --reporter html,json e2e/blob-report
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ !cancelled() }}
         with:
           name: playwright-report
           path: |
             e2e/playwright-report
             e2e/test-results
           if-no-files-found: ignore
-      - name: Check this run is for the PR's latest commit
-        id: latest
-        if: >-
-          ${{ !cancelled() && github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: echo "latest=$([[ $(gh api "repos/$REPO/pulls/$PR" --jq .head.sha) == "$HEAD_SHA" ]] && echo true)" >> "$GITHUB_OUTPUT"
-      - name: Publish to the gh-pages branch
-        if: ${{ !cancelled() && steps.latest.outputs.latest }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          FOLDER: pr-${{ github.event.pull_request.number }}/${{ github.run_id }}-${{ github.run_attempt }}
-        run: |
-          git init --quiet site && cd site
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
-          if git fetch --quiet --depth 1 origin gh-pages; then git checkout --quiet FETCH_HEAD; fi
-          git checkout --quiet --orphan publish
-          rm -rf "${FOLDER%/*}"
-          mkdir -p "$FOLDER/shots"
-          touch .nojekyll
-          cp -r ../e2e/playwright-report "$FOLDER/report"
-          if [[ -d ../e2e/test-results ]]; then
-            rsync -a --include='*/' --include='*.png' --exclude='*' --prune-empty-dirs \
-              ../e2e/test-results/ "$FOLDER/shots/"
-          fi
-          git add -A
-          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-            commit --quiet -m "Screenshots and reports of the open pull requests"
-          git push --quiet --force origin publish:gh-pages
-      - name: Update the pull request comment
-        if: ${{ !cancelled() && steps.latest.outputs.latest }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
-          FOLDER: pr-${{ github.event.pull_request.number }}/${{ github.run_id }}-${{ github.run_attempt }}
-          SHOTS_DIR: site/pr-${{ github.event.pull_request.number }}/${{ github.run_id }}-${{ github.run_attempt }}/shots
-          SHOTS_URL: https://raw.githubusercontent.com/${{ github.repository }}/gh-pages/pr-${{ github.event.pull_request.number }}/${{ github.run_id }}-${{ github.run_attempt }}/shots
-          REPORT_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/pr-${{ github.event.pull_request.number }}/${{ github.run_id }}-${{ github.run_attempt }}/report/
-          BASELINES_FILE: baselines.txt
-          CHANGED_FILES_FILE: changed-files.txt
-          RESULTS_FILE: e2e/test-results/results.json
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          E2E_RESULT: ${{ job.status }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          gh api --paginate "repos/$REPO/pulls/$PR/files" \
-            --jq '.[] | select(.filename | startswith("e2e/screenshots/")) | "\(.status) \(.filename)"' > baselines.txt
-          gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename' > changed-files.txt
-          node scripts/screenshot-comment.ts > comment.md
-          ids=$(gh api --paginate "repos/$REPO/issues/$PR/comments" --jq \
-            '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- playwright-screenshots -->"))) | .id')
-          id=$(head -n 1 <<< "$ids")
-          if [[ -n $id ]]; then
-            gh api --method PATCH "repos/$REPO/issues/comments/$id" -F body=@comment.md > /dev/null
-          else
-            gh api --method POST "repos/$REPO/issues/$PR/comments" -F body=@comment.md > /dev/null
-          fi

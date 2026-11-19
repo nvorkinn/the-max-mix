@@ -11,19 +11,15 @@ export default defineConfig({
   testMatch: '*.spec.ts',
   // Each page fakes its own Spotify and the preview server only serves static files, so tests share no state and can
   // run side by side, one worker per CPU of the 4-CPU runner.
-  workers: Number(process.env['E2E_WORKERS'] || 4),
+  workers: 4,
   fullyParallel: true,
+  // EXPERIMENT: retry toPass every 50 ms instead of backing off to 1 s.
+  expect: { toPass: { intervals: [50] } },
   // Each test runs once: no retries, so a flaky test fails the job rather than passing on a second try.
   forbidOnly: !!process.env['CI'],
   // CI runs the tests in shards on separate machines (.github/workflows/e2e.yml), each writing a blob report; the job
   // that merges them makes the HTML report and the JSON one the pull request comment (scripts/screenshot-comment.ts) reads.
-  reporter: process.env['CI']
-    ? [
-        ['list'],
-        ['html', { outputFolder: 'playwright-report', open: 'never' }],
-        ['json', { outputFile: 'test-results/results.json' }]
-      ]
-    : 'list',
+  reporter: process.env['CI'] ? [['list'], ['blob', { outputDir: 'blob-report' }]] : 'list',
   outputDir: 'test-results',
   // One baseline per screenshot, not per OS: they are only compared on the CI browser (see visual.spec.ts).
   snapshotPathTemplate: '{testDir}/screenshots/{testFileName}/{arg}{ext}',
