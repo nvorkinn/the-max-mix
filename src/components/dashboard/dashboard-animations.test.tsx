@@ -98,7 +98,7 @@ describe('the weather block', () => {
     expect(shown(weather)).toHaveTextContent('Tomorrow');
   });
 
-  it('turns on the same tick as the boards and the rail\'s pages', () => {
+  it("turns on the same tick as the boards and the rail's pages", () => {
     const { rerender } = render(block(0));
     const weather = screen.getByRole('button');
     rerender(block(TURN_MS));
