@@ -4,11 +4,15 @@
 # the same name are alternatives (the channels of a multi-channel device): one paired address satisfies the name.
 # Scans for 30 seconds, rests for 30 and repeats until every name is paired, then exits. Paired devices are trusted so that
 # they reconnect by themselves after a reboot. Progress goes to the journal (journalctl -u kiosk-bluetooth-pair).
+# Gives up 10 minutes after boot: each round turns BlueZ's scanning and pairable mode on and, when it ends, off again, and
+# registers a default pairing agent, so a Pi without these devices would otherwise do that every 105 seconds for ever, in
+# the middle of the app's own presence scans and phone pairing.
 set -u
 
 list=${KIOSK_BLUETOOTH_DEVICES:-/etc/the-max-mix/bluetooth-devices}
 scan_seconds=${KIOSK_BLUETOOTH_SCAN_SECONDS:-30}
 rest_seconds=${KIOSK_BLUETOOTH_REST_SECONDS:-30}
+give_up_seconds=${KIOSK_BLUETOOTH_GIVE_UP_SECONDS:-600}
 
 addresses=()
 names=()
@@ -65,6 +69,12 @@ while true; do
   done
   if ((${#missing[@]} == 0)); then
     echo "All devices are paired."
+    exit 0
+  fi
+  # Counted from boot, so a restart of the service does not start the 10 minutes again.
+  read -r uptime _ < /proc/uptime
+  if ((${uptime%.*} >= give_up_seconds)); then
+    echo "Not paired: ${missing[*]}. Gave up $((give_up_seconds / 60)) minutes after boot; reboot to try again."
     exit 0
   fi
   echo "Waiting for: ${missing[*]}. Put them in pairing mode."

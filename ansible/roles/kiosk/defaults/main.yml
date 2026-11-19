@@ -93,8 +93,8 @@ kiosk_journal_max_use: 64M
 # Regenerate the initramfs when the Plymouth theme changes. Needs a kernel, so tests in a plain container turn it off.
 kiosk_update_initramfs: true
 
-# Bluetooth keyboard and mouse, paired on first boot by kiosk-bluetooth-pair (no network or touch screen needed). Put each
-# device in pairing mode when the Pi first starts. Several addresses with the same name are alternatives, for devices whose
+# Bluetooth keyboard and mouse, paired after boot by kiosk-bluetooth-pair (no network or touch screen needed). Put each
+# device in pairing mode within 10 minutes of the Pi starting. Several addresses with the same name are alternatives, for devices whose
 # channels have their own address; one paired address is enough. Use [] for none.
 kiosk_bluetooth_devices:
   - { name: mouse, address: 'DE:E3:A5:BE:A8:00' }
