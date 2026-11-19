@@ -31,7 +31,8 @@ describe('dashboard data', () => {
     const settings = {
       arrivals: { stops: [{ source: 'tfl' as const, id: '490000077E' }] },
       weather: { location: 'London', key: 'london-gb-2643743' },
-      notice_board: { postcode: null, country: null }
+      notice_board: { postcode: null, country: null },
+      parcels: null
     };
     await getDashboardData(null, now);
     await getDashboardData({ ...settings, arrivals: { stops: [] } }, now);
@@ -44,13 +45,27 @@ describe('dashboard data', () => {
     const settings = {
       arrivals: { stops: [] },
       weather: { location: 'London', key: 'london-gb-2643743' },
-      notice_board: { postcode: null, country: null }
+      notice_board: { postcode: null, country: null },
+      parcels: null
     };
     await getDashboardData(null, now);
     await getDashboardData(settings, now);
     expect(notices.readNotices).not.toHaveBeenCalled();
     await getDashboardData({ ...settings, notice_board: { postcode: 'SE17 3LL', country: 'GB' } }, now, '12h');
     expect(notices.readNotices).toHaveBeenCalledWith(now, '12h');
+  });
+
+  it('asks countdown-server for notices for an owner with parcels switched on, without a postcode', async () => {
+    const settings = {
+      arrivals: { stops: [] },
+      weather: { location: 'London', key: 'london-gb-2643743' },
+      notice_board: { postcode: null, country: null },
+      parcels: { enabled: false }
+    };
+    await getDashboardData(settings, now);
+    expect(notices.readNotices).not.toHaveBeenCalled();
+    await getDashboardData({ ...settings, parcels: { enabled: true } }, now);
+    expect(notices.readNotices).toHaveBeenCalledOnce();
   });
 
   it("gives the server's weather", async () => {

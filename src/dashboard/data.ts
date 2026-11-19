@@ -36,9 +36,9 @@ export interface Arrivals {
 }
 
 /** What a notice is about, which picks its icon. */
-type NoticeKind = 'weather' | 'delays' | 'holiday' | 'closure';
-/** How much it matters, which picks the colour down its edge: red, amber, none or blue. */
-type NoticeSeverity = 'severe' | 'minor' | 'info' | 'planned';
+type NoticeKind = 'weather' | 'delays' | 'holiday' | 'closure' | 'parcel';
+/** How much it matters, which picks the colour down its edge: red, amber, none, blue or (everyday things) white. */
+type NoticeSeverity = 'severe' | 'minor' | 'info' | 'planned' | 'everyday';
 
 /**
  * One notice-board item: a headline and one short line, which is all the board shows; `detail` is the provider's whole
@@ -76,11 +76,12 @@ export function isFresh(updatedAt: string, maxAgeMs: number, now: Date): boolean
  * The owner's Dashboard settings from the kiosk's config on countdown-server (its stops, weather place and notice
  * board), or null before anyone owns the kiosk. The data is for these.
  */
-export type DashboardSettings = Pick<TouchscreenConfig, 'arrivals' | 'weather' | 'notice_board'> | null;
+export type DashboardSettings = Pick<TouchscreenConfig, 'arrivals' | 'weather' | 'notice_board' | 'parcels'> | null;
 
 /**
  * The Dashboard's data for the owner's settings, with times in `clockFormat`: the departures and the notices from
- * countdown-server (none asked for without an owner, or without stops or a notice board's postcode), and its weather.
+ * countdown-server (none asked for without an owner, or without stops, or without a notice board's postcode or its
+ * parcels), and its weather.
  */
 export async function getDashboardData(
   settings: DashboardSettings,
@@ -90,7 +91,7 @@ export async function getDashboardData(
   const [arrivals, weather, notices] = await Promise.all([
     settings && settings.arrivals.stops.length > 0 ? readArrivals(now) : null,
     getWeather(now),
-    settings?.notice_board.postcode ? readNotices(now, clockFormat) : []
+    settings?.notice_board.postcode || settings?.parcels?.enabled ? readNotices(now, clockFormat) : []
   ]);
   return { arrivals, weather, notices };
 }

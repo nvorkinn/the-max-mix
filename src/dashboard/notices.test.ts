@@ -14,8 +14,8 @@ import {
 } from './notices';
 
 // countdown-api's example answer to getNotices: a Tube station and a bus stop in Kennington (SE17), as stored at
-// 2026-09-25 12:00 UTC.
-const device = panels.notices as unknown as DeviceNotices;
+// 2026-09-25 12:00 UTC. Its parcels (as stored on another day) are parcels.test.ts's, so they're left out here.
+const device = { ...panels.notices, parcels: null } as unknown as DeviceNotices;
 const NOW = new Date('2026-09-25T12:00:00Z');
 const events = device.bank_holidays?.divisions['england-and-wales']?.events ?? [];
 
@@ -413,6 +413,7 @@ describe('readNotices', () => {
     expect(notices.map(notice => [notice.title, notice.summary])).toEqual([
       ['Northern line: Severe delays', 'Morden to Kennington, signal failure at Clapham Common'],
       ['Weather warning', 'Yellow warning: rain'],
+      ['Parcel out for delivery', 'Running shoes'],
       [
         'Victoria line: Part closed',
         'No service between Euston and Walthamstow Central while we carry out track renewal works.'
