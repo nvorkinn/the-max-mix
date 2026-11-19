@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   basePalette,
+  contrast,
   dynamicPalette,
   isOldDynamic,
   loadDynamicColour,
@@ -103,8 +104,83 @@ describe('basePalette', () => {
       '--dynamic-ink': '#3a3010',
       '--dynamic-from': '#a67c00',
       '--dynamic-to': '#a67c00',
-      '--dynamic-accent-ink': '#1f1a05'
+      '--dynamic-accent-ink': '#1f1a05',
+      '--dynamic-mark-from': '#2f5a3c',
+      '--dynamic-mark-to': '#2f5a3c',
+      '--dynamic-mark-ink': '#f7f4ec'
     });
+  });
+});
+
+describe('basePalette on the dark', () => {
+  it("is the colour's night shade at night, with Night's text", () => {
+    expect(basePalette('black', 'night')).toEqual({
+      '--dynamic-accent': '#dfe3ee',
+      '--dynamic-ink': '#f5f6ff',
+      '--dynamic-from': '#dfe3ee',
+      '--dynamic-to': '#dfe3ee',
+      '--dynamic-accent-ink': '#111',
+      '--dynamic-mark-from': '#2f5a3c',
+      '--dynamic-mark-to': '#2f5a3c',
+      '--dynamic-mark-ink': '#f7f4ec'
+    });
+    expect(basePalette('violet', 'night')).toMatchObject({
+      '--dynamic-accent': '#a95be8',
+      '--dynamic-from': '#e94dae'
+    });
+  });
+
+  it("is the Player tab's warm white on the photo, whatever the colour", () => {
+    expect(basePalette('navy', 'photo')).toMatchObject({
+      '--dynamic-accent': '#f7f4ec',
+      '--dynamic-to': '#f7f4ec',
+      '--dynamic-accent-ink': '#10141a'
+    });
+  });
+});
+
+describe('dynamicPalette on the dark', () => {
+  const NIGHT_PAGE = [9, 14, 31] as const;
+  /** The rgb() of an hsl() string, via the browser-free formula. */
+  function rgbOf(colour: string): [number, number, number] {
+    const [h, s, l] = (colour.match(/[\d.]+/g) ?? []).map(Number) as [number, number, number];
+    const sat = s / 100;
+    const light = l / 100;
+    const chroma = (1 - Math.abs(2 * light - 1)) * sat;
+    const part = (n: number) => {
+      const k = (n + h / 30) % 12;
+      return Math.round(255 * (light - (chroma / 2) * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
+    };
+    return [part(0), part(8), part(4)];
+  }
+
+  it.each([
+    ['a deep blue', [20, 30, 140]],
+    ['a dark red', [90, 10, 10]],
+    ['a near black', [12, 12, 14]],
+    ['a pale yellow', [250, 240, 180]],
+    ['a vivid green', [30, 220, 40]]
+  ] as const)('lights %s just enough to read on the navy, without glaring', (_name, first) => {
+    for (const surface of ['night', 'photo'] as const) {
+      const palette = dynamicPalette([first, [120, 40, 160]], surface);
+      const accent = rgbOf(palette['--dynamic-accent']);
+      expect(contrast(accent, NIGHT_PAGE)).toBeGreaterThanOrEqual(4.5);
+      expect(Number(palette['--dynamic-accent'].split(' ', 3)[2]?.replace('%)', ''))).toBeLessThanOrEqual(85);
+      expect(palette['--dynamic-ink']).toBe('#f5f6ff');
+    }
+  });
+
+  it('softens a vivid colour and keeps the play button out of the glare', () => {
+    const palette = dynamicPalette(
+      [
+        [255, 0, 60],
+        [255, 255, 255]
+      ],
+      'night'
+    );
+    expect(palette['--dynamic-accent']).toBe('hsl(346 70% 60%)');
+    expect(palette['--dynamic-from']).toBe('hsl(346 75% 50%)');
+    expect(palette['--dynamic-to']).toBe('hsl(0 0% 60%)');
   });
 });
 
@@ -120,7 +196,10 @@ describe('dynamicPalette', () => {
       '--dynamic-ink': 'hsl(0 30% 15%)',
       '--dynamic-from': 'hsl(0 80% 60%)',
       '--dynamic-to': 'hsl(240 56% 51%)',
-      '--dynamic-accent-ink': '#fff'
+      '--dynamic-accent-ink': '#fff',
+      '--dynamic-mark-from': 'hsl(0 80% 60%)',
+      '--dynamic-mark-to': 'hsl(240 56% 51%)',
+      '--dynamic-mark-ink': '#fff'
     });
   });
 

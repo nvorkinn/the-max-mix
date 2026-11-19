@@ -140,7 +140,10 @@
     --dynamic-accent 1.5s ease,
     --dynamic-ink 1.5s ease,
     --dynamic-from 1.5s ease,
-    --dynamic-to 1.5s ease;
+    --dynamic-to 1.5s ease,
+    --dynamic-mark-from 1.5s ease,
+    --dynamic-mark-to 1.5s ease,
+    --dynamic-mark-ink 1.5s ease;
 }
 /* Colour choices from the settings (src/utils/themeColour.ts); forest is the default in :root. */
 .tablet-container[data-colour='navy'] {
@@ -204,6 +207,22 @@
   syntax: '<color>';
   inherits: true;
   initial-value: #fff;
+}
+/* The Max Mix logo's tile (.dashboard-brand-mark): its own green until Dynamic gives it the cover's gradient. */
+@property --dynamic-mark-from {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #2f5a3c;
+}
+@property --dynamic-mark-to {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #2f5a3c;
+}
+@property --dynamic-mark-ink {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f7f4ec;
 }
 /* Violet: the title and highlights in violet, and the play button runs pink to violet (--colour-fill), in Day and Night. */
 .tablet-container[data-colour='violet'] {
@@ -290,6 +309,18 @@
   --focus: #de9eff;
   --glow: 0 0 14px rgb(193 77 225 / 30%);
 }
+/*
+  Dynamic at night: the cover's colours as TabletView works them out for the dark (lighter, softened shades), after the
+  colours' night shades so it wins over them. The text stays Night's own.
+*/
+.tablet-container[data-theme='night'][data-dynamic] {
+  --accent: var(--dynamic-accent);
+  --accent-ink: var(--dynamic-accent-ink);
+  --accent-soft: color-mix(in srgb, var(--dynamic-accent) 14%, transparent);
+  --focus: color-mix(in srgb, var(--dynamic-accent) 60%, #fff);
+  --play-fill: linear-gradient(135deg, var(--dynamic-from), var(--dynamic-to));
+  --glow: 0 0 14px color-mix(in srgb, var(--dynamic-accent) 30%, transparent);
+}
 
 /*
   What a tab shows fills the screen; the hidden ones keep their state but take no room. No tab has a header band: the
@@ -339,6 +370,16 @@
   background: #1c2230;
   color: var(--ink);
   color-scheme: dark;
+}
+/*
+  Dynamic on the Player tab: the title, highlights and play button take the cover's colours as worked out for the dark
+  (TabletView sets them for the photo), fading back to the warm white once the music has stopped. The words stay white.
+*/
+.tablet-container[data-dynamic] .app-tab-panel.on-photo {
+  --accent: var(--dynamic-accent);
+  --accent-ink: var(--dynamic-accent-ink);
+  --focus: var(--dynamic-accent);
+  --play-fill: linear-gradient(135deg, var(--dynamic-from), var(--dynamic-to));
 }
 .app-tab-panel.on-photo::before {
   content: '';

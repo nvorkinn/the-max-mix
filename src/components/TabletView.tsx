@@ -42,7 +42,7 @@ import { useTheme } from '../hooks/useTheme';
 import { saveTheme } from '../utils/theme';
 import type { Theme } from '../utils/theme';
 import { DEFAULT_CLOCK_FORMAT } from '../utils/clockFormat';
-import type { ThemeColour } from '../utils/themeColour';
+import type { DynamicSurface, ThemeColour } from '../utils/themeColour';
 import type { MusicChoice, Track } from '../types';
 import type { TabBarProps, TabId } from '../dashboard/props';
 import OfflineBanner from './OfflineBanner';
@@ -81,9 +81,15 @@ function useLogChanges(message: string | null | undefined, source: string) {
 }
 
 // signInError: why finishing the Spotify sign-in failed
-/** Dynamic's colours: the cover's while it plays, else the chosen colour's. */
-function coverOrChosenPalette(art: ArtColours | null, colour: ThemeColour) {
-  return art ? dynamicPalette(art.dominant) : basePalette(colour);
+/** Dynamic's colours on what they sit on: the cover's while it plays, else what shows with Dynamic off. */
+function coverOrChosenPalette(art: ArtColours | null, colour: ThemeColour, surface: DynamicSurface) {
+  return art ? dynamicPalette(art.dominant, surface) : basePalette(colour, surface);
+}
+
+/** What Dynamic's colours sit on: the Player tab's photo, else the skin's page. */
+function surfaceFor(onPhoto: boolean, night: boolean): DynamicSurface {
+  if (onPhoto) return 'photo';
+  return night ? 'night' : 'day';
 }
 
 export default function TabletView({ signInError = null }: Readonly<{ signInError?: string | null | undefined }>) {
@@ -216,9 +222,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const dynamicColour = style ? style.dynamic || isOldDynamic(style.colour) : localDynamic;
   const theme = useTheme(style?.skin);
   // With Dynamic on, the colours follow the album art while music plays, and fade back to the chosen colour once it
-  // has stopped for a while. Night keeps its own colours.
+  // has stopped for a while; on the dark of Night and of the Player tab's photo they are lighter shades that read there.
   const liveArt = useLingers(isPlaying, DYNAMIC_LINGER_MS) ? artColours : null;
-  const dynamicVars = dynamicColour && theme.skin !== 'night' ? coverOrChosenPalette(liveArt, themeColour) : undefined;
+  const dynamicSurface = surfaceFor(screen === 'player', theme.skin === 'night');
+  const dynamicVars = dynamicColour ? coverOrChosenPalette(liveArt, themeColour, dynamicSurface) : undefined;
   useEffect(() => {
     if (!style) return;
     saveTheme(style.skin);
@@ -683,7 +690,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             theme={theme.theme}
             autoTheme={theme.autoOffered}
             onThemeChange={changeTheme}
-            skin={theme.skin}
             kioskUpdate={kioskUpdate}
             saveStatus={deviceConfig.status}
             onShow={deviceConfig.reload}

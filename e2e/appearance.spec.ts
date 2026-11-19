@@ -129,7 +129,7 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await expect(settings.getByRole('button', { name: 'Navy' })).toBeEnabled();
   });
 
-  test('Dynamic turns on over the chosen colour, and Night greys it out', async ({ page }) => {
+  test('Dynamic turns on over the chosen colour, and stays on at Night', async ({ page }) => {
     await openSpotifyTab(page, '/?kiosk=1');
     const room = page.locator('.tablet-container');
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
@@ -150,8 +150,9 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await page.getByRole('tab', { name: 'Settings' }).click();
     await showSection(settings, 'Appearance');
     await settings.getByRole('group', { name: 'Theme' }).getByRole('button', { name: 'Night' }).click();
-    await expect(room).not.toHaveAttribute('data-dynamic');
-    await expect(settings.getByRole('group', { name: 'Dynamic' }).getByRole('button', { name: 'On' })).toBeDisabled();
+    await expect(room).toHaveAttribute('data-theme', 'night');
+    await expect(room).toHaveAttribute('data-dynamic', '');
+    await expect(settings.getByRole('group', { name: 'Dynamic' }).getByRole('button', { name: 'Off' })).toBeEnabled();
   });
 
   test('Auto, offered when the kiosk knows where it is, follows the sun', async ({ page }) => {
