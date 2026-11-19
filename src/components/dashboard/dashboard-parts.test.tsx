@@ -81,6 +81,34 @@ describe('DepartureBoard', () => {
     expect(screen.queryByRole('img', { name: 'TfL' })).not.toBeInTheDocument();
   });
 
+  it("shows a departure that's only the timetable's as its clock time, dimmed, and a live one counting down", () => {
+    const row = { detail: null, mode: 'tube', line: 'Northern', lineId: 'northern' };
+    const soon = new Date(SAMPLE_NOW.getTime() + 5 * 60_000).toISOString();
+    const later = new Date(SAMPLE_NOW.getTime() + 90 * 60_000).toISOString();
+    const { unmount } = render(
+      <DepartureBoard
+        {...SAMPLE.tube}
+        now={SAMPLE_NOW}
+        departures={[
+          { ...row, vehicleId: 'a', destination: 'Morden', expectedAt: soon },
+          { ...row, vehicleId: 'b', destination: 'Edgware', expectedAt: later, scheduledAt: '05:42' }
+        ]}
+      />
+    );
+    expect(screen.getByText('05:42')).toHaveClass('dashboard-mins', 'scheduled');
+    expect(screen.getByText('5')).not.toHaveClass('scheduled');
+    expect(screen.getAllByText('min')).toHaveLength(1);
+    unmount();
+    render(
+      <DepartureBoard
+        {...SAMPLE.tube}
+        departures={[{ ...row, vehicleId: 'b', destination: 'Edgware', expectedAt: later, scheduledAt: '5:42 AM' }]}
+      />
+    );
+    expect(screen.getByText('AM').tagName).toBe('SMALL');
+    expect(screen.getByText('AM').parentElement).toHaveTextContent(/^5:42AM$/);
+  });
+
   it("mixes a stop's modes, each line drawn its network's way", () => {
     const row = { vehicleId: '', destination: 'Somewhere', detail: null, expectedAt: SAMPLE_NOW.toISOString() };
     const { unmount } = render(

@@ -35,15 +35,11 @@ import {
   loadThemeColour,
   saveDynamicColour,
   saveThemeColour,
-  THEME_COLOURS,
   toThemeColour
 } from '../utils/themeColour';
 import { DYNAMIC_LINGER_MS, useLingers } from '../hooks/useLingers';
-import { useTheme } from '../hooks/useTheme';
-import { saveTheme } from '../utils/theme';
-import type { Theme } from '../utils/theme';
 import { DEFAULT_CLOCK_FORMAT } from '../utils/clockFormat';
-import type { DynamicSurface, ThemeColour } from '../utils/themeColour';
+import type { ThemeColour } from '../utils/themeColour';
 import type { MusicChoice, Track } from '../types';
 import type { TabBarProps, TabId } from '../dashboard/props';
 import OfflineBanner from './OfflineBanner';
@@ -82,21 +78,9 @@ function useLogChanges(message: string | null | undefined, source: string) {
 }
 
 // signInError: why finishing the Spotify sign-in failed
-/** Dynamic's colours on what they sit on: the cover's while it plays, else what shows with Dynamic off. */
-function coverOrChosenPalette(
-  art: ArtColours | null,
-  colour: ThemeColour,
-  surface: DynamicSurface,
-  nightSkin: boolean
-) {
-  return art ? dynamicPalette(art.dominant, surface) : basePalette(colour, surface, nightSkin);
-}
-
-/** The chosen colour's Night shade, for the photo tabs' controls and highlights, which read on the dark whatever the skin. */
-function nightColour(id: ThemeColour): CSSProperties {
-  const colour = THEME_COLOURS.find(choice => choice.id === id) ?? THEME_COLOURS[0];
-  const ink = 'nightAccentInk' in colour ? colour.nightAccentInk : colour.accentInk;
-  return { '--night-accent': colour.night, '--night-accent-ink': ink } as CSSProperties;
+/** Dynamic's colours: the cover's while it plays, else what shows with Dynamic off. */
+function coverOrChosenPalette(art: ArtColours | null, colour: ThemeColour) {
+  return art ? dynamicPalette(art.dominant) : basePalette(colour);
 }
 
 export default function TabletView({ signInError = null }: Readonly<{ signInError?: string | null | undefined }>) {
@@ -210,7 +194,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // minutes later (see useScreenSleep). The screen stays on and bright while music plays. In quiet hours it sleeps a
   // minute after the last touch, on any tab.
   useIdle({ enabled: onKiosk, busy: isPlaying, idleMs: IDLE_DASHBOARD_MS, onIdle: () => goToScreen('dashboard') });
-  // Once someone owns the kiosk, countdown-server's config is its skin, colour and screen sleep: the settings save there,
+  // Once someone owns the kiosk, countdown-server's config is its colour and screen sleep: the settings save there,
   // and whatever the config says (a change here, one undone, or the server's latest) shows, and is kept locally for
   // starts without the server. Before that the kiosk keeps its own.
   const deviceConfig = useDeviceConfig();
@@ -227,29 +211,18 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // over the default colour.
   const [localDynamic, setLocalDynamic] = useState(loadDynamicColour);
   const dynamicColour = style ? style.dynamic || isOldDynamic(style.colour) : localDynamic;
-  const theme = useTheme(style?.skin);
   // With Dynamic on, the colours follow the album art while music plays, and fade back to the chosen colour once it
-  // has stopped for a while; on the dark of Night and of the photo tabs they are lighter shades that read there.
+  // has stopped for a while.
   const liveArt = useLingers(isPlaying, DYNAMIC_LINGER_MS) ? artColours : null;
-  // The Spotify and Settings tabs lie on the photo, dark whatever the skin, so Dynamic works its colours out for the
-  // dark there; only the Dashboard follows the skin.
-  const dynamicSurface: DynamicSurface = screen !== 'dashboard' || theme.skin === 'night' ? 'night' : 'day';
-  const dynamicVars = dynamicColour
-    ? coverOrChosenPalette(liveArt, themeColour, dynamicSurface, theme.skin === 'night')
-    : undefined;
+  const dynamicVars = dynamicColour ? coverOrChosenPalette(liveArt, themeColour) : undefined;
   useEffect(() => {
     if (!style) return;
-    saveTheme(style.skin);
     saveThemeColour(toThemeColour(style.colour));
     saveDynamicColour(style.dynamic || isOldDynamic(style.colour));
   }, [style]);
   useEffect(() => {
     if (display) setScreenSleep(display.sleep_minutes);
   }, [display]);
-  const changeTheme = (skin: Theme) => {
-    if (style) deviceConfig.save('style', { ...style, skin });
-    else theme.change(skin);
-  };
   const changeThemeColour = (colour: ThemeColour) => {
     if (style) {
       // Over the old Dynamic colour, Dynamic stays on.
@@ -539,7 +512,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     <div
       className="tablet-container"
       data-colour={themeColour}
-      data-theme={theme.skin}
       data-dynamic={dynamicVars ? '' : undefined}
       style={dynamicVars as CSSProperties | undefined}
     >
@@ -549,7 +521,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         role="tabpanel"
         id={tabPanelId('spotify')}
         aria-label="Spotify"
-        style={nightColour(themeColour)}
         hidden={screen !== 'spotify'}
       >
         {screen === 'spotify' && <TabBackdrop now={tabBar.now} />}
@@ -662,7 +633,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         className="app-tab-panel on-photo"
         role="tabpanel"
         id={tabPanelId('settings')}
-        style={nightColour(themeColour)}
         aria-label="Settings"
         hidden={screen !== 'settings'}
       >
@@ -692,9 +662,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             onThemeColourChange={changeThemeColour}
             dynamicColour={dynamicColour}
             onDynamicColourChange={changeDynamicColour}
-            theme={theme.theme}
-            autoTheme={theme.autoOffered}
-            onThemeChange={changeTheme}
             kioskUpdate={kioskUpdate}
             saveStatus={deviceConfig.status}
             onShow={deviceConfig.reload}

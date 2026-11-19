@@ -39,14 +39,13 @@ Two Pis on one network can't both be `the-max-mix.local`. Before step 3, change 
 (for example to `the-max-mix-2`) and use `ssh admin@the-max-mix-2.local`. With a `CIDATA` stick, give `meta-data` its own
 `instance-id` too.
 
-Settings for one Pi only, such as its location, go in `/etc/the-max-mix/kiosk-vars.yml`, which every pull reads. To have
+Settings for one Pi only, such as its screen mode, go in `/etc/the-max-mix/kiosk-vars.yml`, which every pull reads. To have
 them from the first boot, add the file to `write_files` in the card's `user-data`:
 
 ```yaml
 - path: /etc/the-max-mix/kiosk-vars.yml
   content: |
-    kiosk_latitude: 51.51
-    kiosk_longitude: -0.13
+    kiosk_video_mode: 1280x800@60
 ```
 
 Later edits apply at the next release. To apply them now (the update timer skips a release it already ran):

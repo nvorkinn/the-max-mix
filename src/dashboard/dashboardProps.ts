@@ -95,7 +95,7 @@ const olderThan = (time: string | undefined, ms: number, now: Date) =>
 /** The Dashboard's props from `snapshot`, as of `now`. */
 export function dashboardProps(snapshot: LiveSnapshot, now: Date, clockFormat: ClockFormat): LiveProps {
   const down = feedStale(snapshot, now);
-  const boards = toBoards(snapshot.arrivals, now);
+  const boards = toBoards(snapshot.arrivals, now, clockFormat);
   const fetchedAt = new Map(
     (snapshot.arrivals?.stops ?? []).flatMap(stop => (stop.departures ? [[stop.id, stop.departures.fetched_at]] : []))
   );

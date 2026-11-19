@@ -7,7 +7,6 @@ import {
   isRelease,
   latestCommit,
   latestRelease,
-  getKioskLocation,
   openWifiSettings,
   piVersion,
   rebootPi,
@@ -290,55 +289,5 @@ describe('latestCommit', () => {
     await expect(latestCommit('stable')).resolves.toBeNull();
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
     await expect(latestCommit('stable')).resolves.toBeNull();
-  });
-});
-
-describe('getKioskLocation', () => {
-  beforeEach(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-    visit('');
-  });
-
-  it('reads ?lat= and ?lon= from the kiosk address and keeps them only for the session', () => {
-    visit('?kiosk=1&lat=51.51&lon=-0.13');
-    expect(getKioskLocation()).toEqual({ lat: 51.51, lon: -0.13 });
-    expect(localStorage.getItem('maxmix.kioskLocation')).toBeNull();
-    sessionStorage.clear();
-    visit('');
-    expect(getKioskLocation()).toBeNull();
-  });
-
-  it('keeps the location through the Spotify sign-in redirect, which drops the query', () => {
-    visit('?kiosk=1&lat=51.51&lon=-0.13');
-    getKioskLocation();
-    visit('?code=abc&state=xyz');
-    expect(getKioskLocation()).toEqual({ lat: 51.51, lon: -0.13 });
-    visit('');
-    expect(getKioskLocation()).toEqual({ lat: 51.51, lon: -0.13 });
-  });
-
-  it('forgets the location when the kiosk address comes without one', () => {
-    visit('?kiosk=1&lat=51.51&lon=-0.13');
-    getKioskLocation();
-    visit('?kiosk=1');
-    expect(getKioskLocation()).toBeNull();
-    visit('');
-    expect(getKioskLocation()).toBeNull();
-  });
-
-  it('gives no remembered location away from the kiosk', () => {
-    visit('?kiosk=1&lat=51.51&lon=-0.13');
-    getKioskLocation();
-    visit('?kiosk=0');
-    expect(getKioskLocation()).toBeNull();
-  });
-
-  it('ignores a missing half, values off the globe, and addresses that are not the kiosk', () => {
-    const broken = ['?kiosk=1&lat=51.51', '?kiosk=1&lat=91&lon=0', '?kiosk=1&lat=10&lon=181', '?kiosk=1&lat=x&lon=1'];
-    for (const search of [...broken, '?lat=51.51&lon=-0.13']) {
-      visit(search);
-      expect(getKioskLocation()).toBeNull();
-    }
   });
 });
