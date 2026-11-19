@@ -8,7 +8,7 @@ import { isSwitcherWatching, samePhone } from './useSavedPhones';
 import type { SavedPhone } from './useSavedPhones';
 
 /** How often the kiosk looks for who is home while the screen sleeps. */
-export const ASLEEP_CHECK_MS = 5 * 60_000;
+const ASLEEP_CHECK_MS = 5 * 60_000;
 /** How often a check re-reads what the Pi hears. */
 const READ_STEP_MS = 1000;
 /** The longest a check waits for the Pi to finish its first seconds of listening (pi/kiosk-audio/presence.ts). */
@@ -24,13 +24,16 @@ export function whoToSwitchTo(people: PersonOnKiosk[], phones: SavedPhone[]): st
   const active = people.find(person => person.active);
   if (!active?.phoneAddress || isHeard(active.phoneAddress)) return null;
   const heard = people.filter(person => !person.active && person.signedIn && isHeard(person.phoneAddress));
-  return heard.length === 1 ? heard[0].spotifyId : null;
+  const [only] = heard;
+  return heard.length === 1 && only ? only.spotifyId : null;
 }
 
 /** Whether a check could switch at all, before asking the Pi to listen. */
 function couldSwitch(people: PersonOnKiosk[]): boolean {
   const active = people.find(person => person.active);
-  return Boolean(active?.phoneAddress) && people.some(person => !person.active && person.signedIn && person.phoneAddress);
+  return (
+    Boolean(active?.phoneAddress) && people.some(person => !person.active && person.signedIn && person.phoneAddress)
+  );
 }
 
 const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
