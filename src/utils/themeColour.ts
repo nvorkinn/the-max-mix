@@ -9,98 +9,35 @@ const THEME_COLOUR_KEY = 'maxmix.themeColour';
 const DYNAMIC_COLOUR_KEY = 'maxmix.dynamicColour';
 
 /**
- * The choices the settings offer, with the swatch each one shows and the colours its `data-colour` rule in src/index.css
- * sets (Dynamic fades back to them when the music stops, see basePalette). `night` is the lighter shade Night shows
- * instead, with `nightAccentInk` on the play button where it differs from `accentInk`. The first is the default.
+ * The choices the settings offer, with the colour its `data-colour` rule in src/index.css sets (Dynamic fades back to it
+ * when the music stops, see basePalette) and the icon on the play button where it is not white. Each is bright enough to
+ * read on the navy. The first is the default.
  */
 export const THEME_COLOURS = [
-  {
-    id: 'forest',
-    label: 'Forest',
-    swatch: '#293a27',
-    accent: '#293a27',
-    ink: '#23291f',
-    accentInk: '#fff',
-    night: '#4a9d5e'
-  },
-  {
-    id: 'navy',
-    label: 'Navy',
-    swatch: '#1f3a5f',
-    accent: '#1f3a5f',
-    ink: '#1b2433',
-    accentInk: '#fff',
-    night: '#5b8def'
-  },
-  {
-    id: 'teal',
-    label: 'Teal',
-    swatch: '#155e63',
-    accent: '#155e63',
-    ink: '#17302f',
-    accentInk: '#fff',
-    night: '#2a9d9d'
-  },
-  {
-    id: 'plum',
-    label: 'Plum',
-    swatch: '#5b2a4e',
-    accent: '#5b2a4e',
-    ink: '#2e1f2b',
-    accentInk: '#fff',
-    night: '#c25ea8'
-  },
-  {
-    id: 'terracotta',
-    label: 'Terracotta',
-    swatch: '#9a3f24',
-    accent: '#9a3f24',
-    ink: '#3a221a',
-    accentInk: '#fff',
-    night: '#dd6b3d'
-  },
-  {
-    id: 'pink',
-    label: 'Pink',
-    swatch: '#ff69b4',
-    accent: '#ff69b4',
-    ink: '#3b1a2a',
-    accentInk: '#3b1a2a',
-    night: '#ff69b4'
-  },
-  {
-    id: 'yellow',
-    label: 'Yellow',
-    swatch: '#e0b020',
-    accent: '#a67c00',
-    ink: '#3a3010',
-    accentInk: '#1f1a05',
-    night: '#e0b020'
-  },
-  {
-    id: 'black',
-    label: 'Black',
-    swatch: '#111',
-    accent: '#111',
-    ink: '#111',
-    accentInk: '#fff',
-    night: '#dfe3ee',
-    nightAccentInk: '#111'
-  },
-  // Night's look as a colour of its own: violet, with the play button running pink to violet.
+  { id: 'forest', label: 'Forest', accent: '#4a9d5e' },
+  { id: 'navy', label: 'Navy', accent: '#5b8def' },
+  { id: 'teal', label: 'Teal', accent: '#2a9d9d' },
+  { id: 'plum', label: 'Plum', accent: '#c25ea8' },
+  { id: 'terracotta', label: 'Terracotta', accent: '#dd6b3d' },
+  { id: 'pink', label: 'Pink', accent: '#ff69b4', accentInk: '#3b1a2a' },
+  { id: 'yellow', label: 'Yellow', accent: '#e0b020', accentInk: '#1f1a05' },
+  // Black would vanish on the navy, so it is a silver.
+  { id: 'black', label: 'Black', accent: '#dfe3ee', accentInk: '#111' },
+  // Violet, with the play button running pink to violet.
   {
     id: 'violet',
     label: 'Violet',
-    swatch: 'linear-gradient(135deg, #e94dae, #913fcb)',
-    accent: '#913fcb',
-    ink: '#2a1838',
-    accentInk: '#fff',
-    night: '#a95be8',
+    accent: '#a95be8',
     gradient: ['#e94dae', '#913fcb'],
     // The selected outline, as a gradient can't be one.
-    ring: '#913fcb'
+    ring: '#a95be8'
   }
 ] as const;
+
+/** What a colour's swatch in the settings shows: its colour, or Violet's gradient. */
+export function swatchOf(choice: (typeof THEME_COLOURS)[number]): string {
+  return 'gradient' in choice ? `linear-gradient(135deg, ${choice.gradient[0]}, ${choice.gradient[1]})` : choice.accent;
+}
 export type ThemeColour = (typeof THEME_COLOURS)[number]['id'];
 const DEFAULT_THEME_COLOUR: ThemeColour = 'forest';
 /**
@@ -190,7 +127,6 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 /** The colours Dynamic gives the page, as the CSS variables src/index.css reads under data-dynamic. */
 export interface DynamicPalette {
   '--dynamic-accent': string;
-  '--dynamic-ink': string;
   '--dynamic-from': string;
   '--dynamic-to': string;
   '--dynamic-accent-ink': string;
@@ -200,16 +136,8 @@ export interface DynamicPalette {
   '--dynamic-mark-ink': string;
 }
 
-/**
- * What Dynamic's colours sit on: the paper of Day, or the dark: the navy of Night, and the darkened photo of the Spotify
- * and Settings tabs, whatever the skin.
- */
-export type DynamicSurface = 'day' | 'night';
-
-/** Night's text, which Dynamic leaves as it is on the dark. */
-const NIGHT_INK = '#f5f6ff';
-/** Night's page: the darkest the highlights have to read on. The Spotify tab's glass is about as dark. */
-const NIGHT_PAGE: Rgb = [9, 14, 31];
+/** The page: the darkest the highlights have to read on. The Spotify tab's glass is about as dark. */
+const PAGE: Rgb = [9, 14, 31];
 
 function hslToRgb(hue: number, saturation: number, lightness: number): Rgb {
   const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
@@ -235,46 +163,42 @@ export function contrast(first: Rgb, second: Rgb): number {
   return (light + 0.05) / (dark + 0.05);
 }
 
-/** One end of the play button's gradient: the colour at a middle lightness, neither washed out nor near black. */
-function gradientEnd(colour: Rgb, dark: boolean): { h: number; s: number; l: number } {
+/**
+ * One end of the play button's gradient: the colour at a middle lightness, a little dimmer and less saturated so it
+ * doesn't glare on the dark, near Violet's pink to violet.
+ */
+function gradientEnd(colour: Rgb): { h: number; s: number; l: number } {
   const [h, s, l] = toHsl(colour);
-  // On the dark the button is kept a little dimmer and less saturated, near Night's own pink to violet, so it doesn't glare.
-  return dark ? { h, s: Math.min(s, 0.75), l: clamp(l, 0.45, 0.6) } : { h, s, l: clamp(l, 0.35, 0.6) };
+  return { h, s: Math.min(s, 0.75), l: clamp(l, 0.45, 0.6) };
 }
 
 /**
- * The title and highlights on the dark: the cover's colour, softened, and only as light as it takes to read on the
- * navy (4.5:1), so it stays dim at night rather than glowing. Grey covers give a silver, as Black does at night.
+ * The title and highlights: the cover's colour, softened, and only as light as it takes to read on the navy (4.5:1),
+ * so it stays dim rather than glowing. Grey covers give a silver, as Black does.
  */
-function nightAccent(hue: number, saturation: number, lightness: number): string {
+function readableAccent(hue: number, saturation: number, lightness: number): string {
   const s = Math.min(saturation, 0.7);
   let l = clamp(lightness, 0.6, 0.72);
-  while (l < 0.85 && contrast(hslToRgb(hue, s, l), NIGHT_PAGE) < 4.5) l += 0.01;
+  while (l < 0.85 && contrast(hslToRgb(hue, s, l), PAGE) < 4.5) l += 0.01;
   return hsl(hue, s, l);
 }
 
 /**
- * Turns the cover's two dominant colours into Dynamic's colours. The title and highlights take the first colour: by
- * day darkened where needed so it reads on the paper, with a near-black text ink of the same hue; on the dark (Night,
- * and the photo tabs) a lighter, softened shade, and the text stays the dark's own. The play button runs a
- * gradient between the two colours, like Night's, kept in a middle lightness so it stands out, with a white or dark icon
- * on it, whichever reads better.
+ * Turns the cover's two dominant colours into Dynamic's colours. The title and highlights take a lighter, softened
+ * shade of the first colour; the text stays the app's own. The play button runs a gradient between the two colours,
+ * like Violet's, kept in a middle lightness so it stands out, with a white or dark icon on it, whichever reads better.
  */
-export function dynamicPalette([first, second]: readonly [Rgb, Rgb], surface: DynamicSurface = 'day'): DynamicPalette {
-  const dark = surface === 'night';
+export function dynamicPalette([first, second]: readonly [Rgb, Rgb]): DynamicPalette {
   const [hue, saturation, lightness] = toHsl(first);
-  const from = gradientEnd(first, dark);
-  const to = gradientEnd(second, dark);
+  const from = gradientEnd(first);
+  const to = gradientEnd(second);
   // A light gradient of yellows and greens gets a dark icon, as Pink and Yellow do.
   const light = [from, to].every(end => end.l >= 0.5 && end.h >= 40 && end.h <= 190 && end.s > 0.3);
   const fromColour = hsl(from.h, from.s, from.l);
   const toColour = hsl(to.h, to.s, to.l);
   const icon = light ? hsl(hue, Math.min(saturation, 0.3), 0.12) : '#fff';
   return {
-    '--dynamic-accent': dark
-      ? nightAccent(hue, saturation, lightness)
-      : hsl(hue, saturation, Math.min(lightness, 0.36)),
-    '--dynamic-ink': dark ? NIGHT_INK : hsl(hue, Math.min(saturation, 0.3), 0.15),
+    '--dynamic-accent': readableAccent(hue, saturation, lightness),
     '--dynamic-from': fromColour,
     '--dynamic-to': toColour,
     '--dynamic-accent-ink': icon,
@@ -284,40 +208,21 @@ export function dynamicPalette([first, second]: readonly [Rgb, Rgb], surface: Dy
   };
 }
 
-/** The chosen colour as its play button shows it: by day, or its night shade, flat or with Violet's gradient. */
-function chosen(colour: ThemeColour, night: boolean) {
-  const choice: (typeof THEME_COLOURS)[number] = THEME_COLOURS.find(entry => entry.id === colour) ?? THEME_COLOURS[0];
-  const accent = night ? choice.night : choice.accent;
-  const [from, to] = 'gradient' in choice ? choice.gradient : [accent, accent];
-  return {
-    accent,
-    ink: night ? NIGHT_INK : choice.ink,
-    from,
-    to,
-    accentInk: night && 'nightAccentInk' in choice ? choice.nightAccentInk : choice.accentInk
-  };
-}
-
 /**
- * Dynamic's colours when nothing has played for a while, so the page fades back to what it shows with Dynamic off: by
- * day the chosen colour, with that colour's own gradient (Violet's) or flat; on the dark the colour's night shade. The
- * logo's tile goes back to the chosen colour as the skin shows it (`nightSkin`), which on a photo tab by day is the
- * colour itself.
+ * Dynamic's colours when nothing has played for a while, so the page fades back to what it shows with Dynamic off: the
+ * chosen colour, with that colour's own gradient (Violet's) or flat, on the play button and the logo's tile alike.
  */
-export function basePalette(
-  colour: ThemeColour,
-  surface: DynamicSurface = 'day',
-  nightSkin: boolean = surface === 'night'
-): DynamicPalette {
-  const logo = chosen(colour, nightSkin);
-  const mark = { '--dynamic-mark-from': logo.from, '--dynamic-mark-to': logo.to, '--dynamic-mark-ink': logo.accentInk };
-  const page = chosen(colour, surface === 'night');
+export function basePalette(colour: ThemeColour): DynamicPalette {
+  const choice: (typeof THEME_COLOURS)[number] = THEME_COLOURS.find(entry => entry.id === colour) ?? THEME_COLOURS[0];
+  const [from, to] = 'gradient' in choice ? choice.gradient : [choice.accent, choice.accent];
+  const ink = 'accentInk' in choice ? choice.accentInk : '#fff';
   return {
-    '--dynamic-accent': page.accent,
-    '--dynamic-ink': page.ink,
-    '--dynamic-from': page.from,
-    '--dynamic-to': page.to,
-    '--dynamic-accent-ink': page.accentInk,
-    ...mark
+    '--dynamic-accent': choice.accent,
+    '--dynamic-from': from,
+    '--dynamic-to': to,
+    '--dynamic-accent-ink': ink,
+    '--dynamic-mark-from': from,
+    '--dynamic-mark-to': to,
+    '--dynamic-mark-ink': ink
   };
 }

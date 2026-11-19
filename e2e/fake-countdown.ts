@@ -203,12 +203,12 @@ export async function fakeCountdownServer(
 
 /**
  * An owned kiosk's config with the stops fakeFeed answers for and the London postcode its notices are for, in the
- * app's default look (or night's).
+ * app's default colour.
  */
-export function dashboardConfig(skin: 'day' | 'night' = 'day') {
+export function dashboardConfig() {
   return {
     ...fixture.config,
-    style: { skin, colour: 'forest' },
+    style: { skin: 'night', colour: 'forest' },
     notice_board: { postcode: 'SE17 3LL', country: 'GB' },
     arrivals: {
       stops: [

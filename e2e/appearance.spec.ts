@@ -11,16 +11,15 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await fakeSpotify(page);
   });
 
-  // The Settings tab lies on the Dashboard's photo, its cards Night's navy whatever the skin; the Spotify tab's words
-  // are the photo's warm white.
+  // The Settings tab lies on the Dashboard's photo with the app's navy cards; the Spotify tab's words are the photo's
+  // warm white.
   const NAVY = { surface: 'rgb(16, 26, 51)', ink: 'rgb(245, 246, 255)', scheme: 'dark' };
   const PHOTO_INK = 'rgb(247, 244, 236)';
 
-  test('By day the photo tabs keep their dark look for settings, status and kiosk controls', async ({ page }) => {
+  test('The photo tabs keep their dark look for settings, status and kiosk controls', async ({ page }) => {
     await openSpotifyTab(page, '/?kiosk=1');
     await page.getByRole('tab', { name: 'Settings' }).click();
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
-    await expect(page.locator('.tablet-container')).toHaveAttribute('data-theme', 'day');
     await expect(settings.locator('.settings-nav-item:not([aria-current])').first()).toHaveCSS(
       'background-color',
       NAVY.surface
@@ -95,50 +94,30 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await page.keyboard.press('Escape');
   });
 
-  test('Night recolours the app in a night shade of the colour, and Day brings the colour back', async ({ page }) => {
+  test('The chosen colour recolours the app on the navy, with no theme to choose', async ({ page }) => {
     await openSpotifyTab(page, '/?kiosk=1');
     const room = page.locator('.tablet-container');
-    await expect(room).toHaveAttribute('data-theme', 'day');
     let settings = page.getByRole('tabpanel', { name: 'Settings' });
     await page.getByRole('tab', { name: 'Settings' }).click();
     await showSection(settings, 'Appearance');
+    await expect(settings.getByRole('group', { name: 'Theme' })).toHaveCount(0);
     await settings.getByRole('button', { name: 'Navy' }).click();
-    const theme = settings.getByRole('group', { name: 'Theme' });
-    await expect(theme.getByRole('button', { name: 'Auto' })).toHaveCount(0);
-    await theme.getByRole('button', { name: 'Night' }).click();
 
-    await expect(room).toHaveAttribute('data-theme', 'night');
     await expect(room).toHaveCSS('background-color', 'rgb(9, 14, 31)');
-    await expect(settings.locator('.settings-nav-item:not([aria-current])').first()).toHaveCSS(
-      'background-color',
-      NAVY.surface
-    );
-    await expect(settings.locator('.settings-panel')).toHaveCSS('color', NAVY.ink);
-    await expect(settings.locator('.settings-panel')).toHaveCSS('color-scheme', NAVY.scheme);
-    await expect(settings.getByRole('button', { name: 'Navy' })).toBeEnabled();
-    // Navy's night shade, bright enough on the dark.
+    await expect(room).toHaveCSS('color-scheme', 'dark');
+    // Navy's shade, bright enough on the dark.
     await expect(room).toHaveCSS('--accent', '#5b8def');
     await expect(settings.getByRole('button', { name: 'Navy' })).toHaveAttribute('aria-pressed', 'true');
 
     await page.reload();
-    await expect(room).toHaveAttribute('data-theme', 'night');
+    await expect(room).toHaveAttribute('data-colour', 'navy');
     await page.getByRole('tab', { name: 'Settings' }).click();
     settings = page.getByRole('tabpanel', { name: 'Settings' });
     await showSection(settings, 'Appearance');
-    await settings.getByRole('group', { name: 'Theme' }).getByRole('button', { name: 'Day' }).click();
-    await expect(room).toHaveAttribute('data-theme', 'day');
-    await expect(room).toHaveAttribute('data-colour', 'navy');
-    // Day's paper page and its colour come back; the Settings tab's cards stay navy on the photo.
-    await expect(room).toHaveCSS('background-color', 'rgb(241, 241, 233)');
-    await expect(room).toHaveCSS('--accent', '#1f3a5f');
-    await expect(settings.locator('.settings-nav-item:not([aria-current])').first()).toHaveCSS(
-      'background-color',
-      NAVY.surface
-    );
-    await expect(settings.getByRole('button', { name: 'Navy' })).toBeEnabled();
+    await expect(settings.getByRole('button', { name: 'Navy' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('Dynamic turns on over the chosen colour, and stays on at Night', async ({ page }) => {
+  test('Dynamic turns on over the chosen colour, and stays on after a reload', async ({ page }) => {
     await openSpotifyTab(page, '/?kiosk=1');
     const room = page.locator('.tablet-container');
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
@@ -156,28 +135,6 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
 
     await page.reload();
     await expect(room).toHaveAttribute('data-dynamic', '');
-    await page.getByRole('tab', { name: 'Settings' }).click();
-    await showSection(settings, 'Appearance');
-    await settings.getByRole('group', { name: 'Theme' }).getByRole('button', { name: 'Night' }).click();
-    await expect(room).toHaveAttribute('data-theme', 'night');
-    await expect(room).toHaveAttribute('data-dynamic', '');
-    await expect(settings.getByRole('group', { name: 'Dynamic' }).getByRole('button', { name: 'Off' })).toBeEnabled();
-  });
-
-  test('Auto, offered when the kiosk knows where it is, follows the sun', async ({ page }) => {
-    // An hour after sunset in London on midsummer's day.
-    await page.clock.setFixedTime(new Date('2026-06-21T21:20:00Z'));
-    await openSpotifyTab(page, '/?kiosk=1&lat=51.51&lon=-0.13');
-    const room = page.locator('.tablet-container');
-    await page.getByRole('tab', { name: 'Settings' }).click();
-    await showSection(page.getByRole('tabpanel', { name: 'Settings' }), 'Appearance');
-    const theme = page.getByRole('tabpanel', { name: 'Settings' }).getByRole('group', { name: 'Theme' });
-    await theme.getByRole('button', { name: 'Auto' }).click();
-    await expect(theme.getByRole('button', { name: 'Auto' })).toHaveAttribute('aria-pressed', 'true');
-    await expect(room).toHaveAttribute('data-theme', 'night');
-
-    await page.clock.setFixedTime(new Date('2026-06-22T12:00:00Z'));
-    await page.reload();
-    await expect(room).toHaveAttribute('data-theme', 'day');
+    await expect(room).toHaveAttribute('data-colour', 'teal');
   });
 });

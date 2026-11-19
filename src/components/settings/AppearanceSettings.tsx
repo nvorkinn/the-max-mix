@@ -1,45 +1,9 @@
 import type { CSSProperties } from 'react';
-import { Check, Moon, Sun, SunMoon } from 'lucide-react';
-import { THEME_COLOURS } from '../../utils/themeColour';
+import { Check } from 'lucide-react';
+import { swatchOf, THEME_COLOURS } from '../../utils/themeColour';
 import type { ThemeColour } from '../../utils/themeColour';
-import { THEMES } from '../../utils/theme';
-import type { Theme } from '../../utils/theme';
 
-const THEME_ICONS = { day: Sun, night: Moon, auto: SunMoon } as const;
-
-/** Day (paper, with the colour choice below), Auto when the kiosk knows where it is, or Night (dark navy). */
-function ThemeChoice({
-  theme,
-  auto,
-  onChange
-}: Readonly<{ theme: Theme; auto: boolean; onChange: (theme: Theme) => void }>) {
-  return (
-    <section className="settings-group">
-      <h5 className="settings-group-title" id="theme-label">
-        Theme
-      </h5>
-      <div className="settings-segmented" role="group" aria-labelledby="theme-label">
-        {THEMES.filter(choice => auto || choice.id !== 'auto').map(choice => {
-          const Icon = THEME_ICONS[choice.id];
-          return (
-            <button
-              type="button"
-              key={choice.id}
-              aria-pressed={theme === choice.id}
-              onClick={() => onChange(choice.id)}
-              className="settings-segment"
-            >
-              <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
-              {choice.label}
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-/** The colour of the track title, player controls and highlights, in Day and in Night (a lighter shade of it there). */
+/** The colour of the track title, player controls and highlights. */
 function ColourChoice({
   colour,
   onChange
@@ -60,7 +24,7 @@ function ColourChoice({
             className="colour-swatch rounded-full"
             style={
               {
-                '--swatch': choice.swatch,
+                '--swatch': swatchOf(choice),
                 ...('ring' in choice && { '--swatch-ring': choice.ring })
               } as CSSProperties
             }
@@ -101,17 +65,11 @@ function DynamicChoice({ on, onChange }: Readonly<{ on: boolean; onChange: (on: 
 }
 
 export default function AppearanceSettings({
-  theme,
-  autoTheme,
-  onThemeChange,
   themeColour,
   onThemeColourChange,
   dynamicColour,
   onDynamicColourChange
 }: Readonly<{
-  theme: Theme | undefined;
-  autoTheme: boolean;
-  onThemeChange: ((theme: Theme) => void) | undefined;
   themeColour: ThemeColour | undefined;
   onThemeColourChange: ((colour: ThemeColour) => void) | undefined;
   dynamicColour?: boolean | undefined;
@@ -119,7 +77,6 @@ export default function AppearanceSettings({
 }>) {
   return (
     <div className="settings-stack">
-      {theme !== undefined && onThemeChange && <ThemeChoice theme={theme} auto={autoTheme} onChange={onThemeChange} />}
       {themeColour !== undefined && onThemeColourChange && (
         <ColourChoice colour={themeColour} onChange={onThemeColourChange} />
       )}

@@ -48,33 +48,34 @@
 }
 
 /*
-  Colour tokens. Every colour in the app comes from these, so a skin only redefines them; components never pick a
-  colour of their own. These are the Day (paper) values; the colour choice below changes --accent and --ink.
+  Colour tokens: dark navy. Every colour in the app comes from these, so components never pick a colour of their own;
+  the colour choice below changes --accent.
 */
 :root {
-  --page: #f1f1e9;
-  --surface: #fafaf6;
-  --surface-raised: #eeeee7;
-  --ink: #23291f;
-  --muted: #656b5e;
-  /* Quiet labels (times, queue numbers, the clock): the muted ink in Day, a fainter one at Night. */
-  --faint: var(--muted);
-  --border: rgb(35 41 31 / 13%);
-  --accent: #293a27;
+  --page: #090e1f;
+  --surface: #101a33;
+  --surface-raised: #202b49;
+  --ink: #f5f6ff;
+  --muted: #aab5d0;
+  /* Quiet labels: times, queue numbers, the clock. */
+  --faint: #7785a8;
+  --border: #33405f;
+  --accent: #4a9d5e;
   --accent-ink: #fff;
-  --accent-soft: rgb(41 58 39 / 5%);
-  --focus: #293a27;
-  --track: var(--border);
-  --success: #166534;
-  --warning: #854d0e;
-  --amber: #d18a17;
-  --danger: #bb374c;
+  --accent-soft: color-mix(in srgb, #4a9d5e 14%, transparent);
+  --focus: color-mix(in srgb, #4a9d5e 60%, #fff);
+  --track: #354260;
+  --success: #57d3b4;
+  --warning: #f0b64c;
+  --amber: #f0b64c;
+  --danger: #ff7b8a;
   --shadow: #000;
-  --scrim: rgb(20 24 18 / 22%);
+  --scrim: rgb(0 0 0 / 40%);
   --backdrop: rgb(0 0 0 / 85%);
   --glow: none;
   --spotify-brand: #1db954;
   --spotify-brand-ink: #000;
+  color-scheme: dark;
 }
 
 @layer base {
@@ -116,50 +117,45 @@
   user-select: none;
   background: var(--page);
   color: var(--ink);
-  color-scheme: light;
+  color-scheme: dark;
   /* Synced lyrics still to come; set here so it follows the theme's own muted and page colours. */
   --lyric-ahead: color-mix(in srgb, var(--muted) 55%, var(--page));
   transition:
     --dynamic-accent 1.5s ease,
-    --dynamic-ink 1.5s ease,
     --dynamic-from 1.5s ease,
     --dynamic-to 1.5s ease,
     --dynamic-mark-from 1.5s ease,
     --dynamic-mark-to 1.5s ease,
     --dynamic-mark-ink 1.5s ease;
 }
-/* Colour choices from the settings (src/utils/themeColour.ts); forest is the default in :root. */
+/*
+  Colour choices from the settings (src/utils/themeColour.ts), each bright enough to read on the navy, with a white icon
+  on the play button unless it is light. Forest is the default in :root.
+*/
 .tablet-container[data-colour='navy'] {
-  --accent: #1f3a5f;
-  --ink: #1b2433;
+  --accent: #5b8def;
 }
 .tablet-container[data-colour='teal'] {
-  --accent: #155e63;
-  --ink: #17302f;
+  --accent: #2a9d9d;
 }
 .tablet-container[data-colour='plum'] {
-  --accent: #5b2a4e;
-  --ink: #2e1f2b;
+  --accent: #c25ea8;
 }
 .tablet-container[data-colour='terracotta'] {
-  --accent: #9a3f24;
-  --ink: #3a221a;
+  --accent: #dd6b3d;
 }
-.tablet-container[data-colour='black'] {
-  --accent: #111;
-  --ink: #111;
-}
-/* Hot pink is light, so the play button gets a dark icon; text keeps a dark pink ink to stay readable. */
 .tablet-container[data-colour='pink'] {
   --accent: #ff69b4;
   --accent-ink: #3b1a2a;
-  --ink: #3b1a2a;
 }
-/* Yellow is a deep mustard so it stays readable on the light page, with a dark icon on the play button. */
 .tablet-container[data-colour='yellow'] {
-  --accent: #a67c00;
+  --accent: #e0b020;
   --accent-ink: #1f1a05;
-  --ink: #3a3010;
+}
+/* Black would vanish on the navy, so it is a silver. */
+.tablet-container[data-colour='black'] {
+  --accent: #dfe3ee;
+  --accent-ink: #111;
 }
 /*
   Dynamic, when it is on, follows the album art: TabletView sets these colours from the cover's two dominant colours
@@ -169,22 +165,17 @@
 @property --dynamic-accent {
   syntax: '<color>';
   inherits: true;
-  initial-value: #293a27;
-}
-@property --dynamic-ink {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #23291f;
+  initial-value: #4a9d5e;
 }
 @property --dynamic-from {
   syntax: '<color>';
   inherits: true;
-  initial-value: #293a27;
+  initial-value: #4a9d5e;
 }
 @property --dynamic-to {
   syntax: '<color>';
   inherits: true;
-  initial-value: #293a27;
+  initial-value: #4a9d5e;
 }
 @property --dynamic-accent-ink {
   syntax: '<color>';
@@ -195,119 +186,47 @@
 @property --dynamic-mark-from {
   syntax: '<color>';
   inherits: true;
-  initial-value: #2f5a3c;
+  initial-value: #4a9d5e;
 }
 @property --dynamic-mark-to {
   syntax: '<color>';
   inherits: true;
-  initial-value: #2f5a3c;
+  initial-value: #4a9d5e;
 }
 @property --dynamic-mark-ink {
   syntax: '<color>';
   inherits: true;
-  initial-value: #f7f4ec;
-}
-/* Violet: the title and highlights in violet, and the play button runs pink to violet (--colour-fill), in Day and Night. */
-.tablet-container[data-colour='violet'] {
-  --accent: #913fcb;
-  --ink: #2a1838;
-  --colour-fill: linear-gradient(135deg, #e94dae, #913fcb);
+  initial-value: #fff;
 }
 .tablet-container[data-colour] {
-  --accent-soft: color-mix(in srgb, var(--accent) 5%, transparent);
-  --focus: var(--accent);
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --focus: color-mix(in srgb, var(--accent) 60%, #fff);
   --play-fill: var(--colour-fill, var(--accent));
+  --glow: 0 0 14px color-mix(in srgb, var(--accent) 30%, transparent);
   /*
     The Max Mix logo's tile (.dashboard-brand-mark): the chosen colour as the play button shows it, set on the container
-    so the photo tabs' own highlights don't reach it; Night's shades below resolve into it too. With Dynamic on (next
-    rule) it runs the cover's gradient instead and fades back to the chosen colour (basePalette).
+    so the photo tabs' own highlights don't reach it. With Dynamic on (next rule) it runs the cover's gradient instead
+    and fades back to the chosen colour (basePalette).
   */
   --mark-fill: var(--play-fill);
   --mark-ink: var(--accent-ink);
+}
+/* Violet: the title and highlights in violet, the play button running pink to violet, and its own focus and glow. */
+.tablet-container[data-colour='violet'] {
+  --accent: #a95be8;
+  --colour-fill: linear-gradient(135deg, #e94dae, #913fcb);
+  --focus: #de9eff;
+  --glow: 0 0 14px rgb(193 77 225 / 30%);
 }
 .tablet-container[data-colour][data-dynamic] {
   --mark-fill: linear-gradient(135deg, var(--dynamic-mark-from), var(--dynamic-mark-to));
   --mark-ink: var(--dynamic-mark-ink);
 }
-/* After the rule above: the play button runs a gradient between the cover's two colours, as Night's runs pink to violet. */
+/*
+  Dynamic: the cover's colours as TabletView works them out for the dark (lighter, softened shades), after the colours
+  so it wins over them. The play button runs a gradient between the cover's two colours, as Violet's runs pink to violet.
+*/
 .tablet-container[data-dynamic] {
-  --accent: var(--dynamic-accent);
-  --accent-ink: var(--dynamic-accent-ink);
-  --ink: var(--dynamic-ink);
-  --play-fill: linear-gradient(135deg, var(--dynamic-from), var(--dynamic-to));
-}
-/*
-  Night (src/utils/theme.ts): dark navy. It comes after the colour choices so it overrides their page and ink; the chosen
-  colour still shows, as the lighter shade of it below that reads on the dark.
-*/
-.tablet-container[data-theme='night'] {
-  --page: #090e1f;
-  --surface: #101a33;
-  --surface-raised: #202b49;
-  --ink: #f5f6ff;
-  --muted: #aab5d0;
-  --faint: #7785a8;
-  --border: #33405f;
-  --accent: #a95be8;
-  --accent-ink: #fff;
-  --accent-soft: color-mix(in srgb, #a95be8 14%, transparent);
-  --focus: #de9eff;
-  --track: #354260;
-  --success: #57d3b4;
-  --warning: #f0b64c;
-  --amber: #f0b64c;
-  --danger: #ff7b8a;
-  --scrim: rgb(0 0 0 / 40%);
-  --play-fill: linear-gradient(135deg, #e94dae, #913fcb);
-  --glow: 0 0 14px rgb(193 77 225 / 30%);
-  color-scheme: dark;
-}
-/* Each colour at night: bright enough to read on the navy, with a white icon on the play button unless it is light. */
-.tablet-container[data-theme='night'][data-colour='forest'] {
-  --accent: #4a9d5e;
-}
-.tablet-container[data-theme='night'][data-colour='navy'] {
-  --accent: #5b8def;
-}
-.tablet-container[data-theme='night'][data-colour='teal'] {
-  --accent: #2a9d9d;
-}
-.tablet-container[data-theme='night'][data-colour='plum'] {
-  --accent: #c25ea8;
-}
-.tablet-container[data-theme='night'][data-colour='terracotta'] {
-  --accent: #dd6b3d;
-}
-.tablet-container[data-theme='night'][data-colour='pink'] {
-  --accent: #ff69b4;
-  --accent-ink: #3b1a2a;
-}
-.tablet-container[data-theme='night'][data-colour='yellow'] {
-  --accent: #e0b020;
-  --accent-ink: #1f1a05;
-}
-/* Black would vanish on the navy, so at night it is a silver. */
-.tablet-container[data-theme='night'][data-colour='black'] {
-  --accent: #dfe3ee;
-  --accent-ink: #111;
-}
-.tablet-container[data-theme='night'][data-colour] {
-  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
-  --focus: color-mix(in srgb, var(--accent) 60%, #fff);
-  --play-fill: var(--colour-fill, var(--accent));
-  --glow: 0 0 14px color-mix(in srgb, var(--accent) 30%, transparent);
-}
-/* Violet keeps Night's own look: its violet and focus, and the glow it always had. */
-.tablet-container[data-theme='night'][data-colour='violet'] {
-  --accent: #a95be8;
-  --focus: #de9eff;
-  --glow: 0 0 14px rgb(193 77 225 / 30%);
-}
-/*
-  Dynamic at night: the cover's colours as TabletView works them out for the dark (lighter, softened shades), after the
-  colours' night shades so it wins over them. The text stays Night's own.
-*/
-.tablet-container[data-theme='night'][data-dynamic] {
   --accent: var(--dynamic-accent);
   --accent-ink: var(--dynamic-accent-ink);
   --accent-soft: color-mix(in srgb, var(--dynamic-accent) 14%, transparent);
@@ -338,10 +257,9 @@
 }
 /*
   The Spotify and Settings tabs lie on the Dashboard's photo (TabBackdrop); on the Spotify tab the controls are laid
-  straight on it. Whatever the skin, the words here are the Dashboard's warm white, so they read on any photo,
-  and the controls and highlights the chosen colour's Night shade (TabletView sets --night-accent), or Dynamic's
-  colours worked out for the dark. Where controls lie over the photo it is blurred and darkened, as under the Dashboard's
-  boards: behind the column beside the artwork, behind the control bar, and a fade behind the tab bar.
+  straight on it. The words here are the Dashboard's warm white, so they read on any photo; the controls and highlights
+  keep the chosen colour, or Dynamic's. Where controls lie over the photo it is blurred and darkened, as under the
+  Dashboard's boards: behind the column beside the artwork, behind the control bar, and a fade behind the tab bar.
 */
 .app-tab-panel.on-photo {
   --glass: 9 12 16;
@@ -353,32 +271,12 @@
   --faint: rgb(247 244 236 / 55%);
   --border: rgb(255 255 255 / 16%);
   --track: rgb(255 255 255 / 24%);
-  --accent: var(--night-accent);
-  --accent-ink: var(--night-accent-ink);
-  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
-  --focus: color-mix(in srgb, var(--accent) 60%, #fff);
-  --play-fill: var(--colour-fill, var(--accent));
   --glow: none;
   --lyric-ahead: rgb(247 244 236 / 45%);
-  /* Night's status colours, which read on the dark. */
-  --success: #57d3b4;
-  --warning: #f0b64c;
-  --amber: #f0b64c;
-  --danger: #ff7b8a;
 
   isolation: isolate;
   background: #1c2230;
   color: var(--ink);
-  color-scheme: dark;
-}
-/*
-  Dynamic on the photo tabs: the controls and highlights take the cover's colours as worked out for the dark, fading
-  back to the chosen colour's Night shade once the music has stopped. The words stay white.
-*/
-.tablet-container[data-dynamic] .app-tab-panel.on-photo {
-  --accent: var(--dynamic-accent);
-  --accent-ink: var(--dynamic-accent-ink);
-  --play-fill: linear-gradient(135deg, var(--dynamic-from), var(--dynamic-to));
 }
 .app-tab-panel.on-photo::before {
   content: '';
@@ -390,12 +288,8 @@
     linear-gradient(180deg, rgb(var(--glass) / 55%) 0, rgb(var(--glass) / 0%) 120px),
     linear-gradient(0deg, rgb(var(--glass) / 45%) 0, rgb(var(--glass) / 0%) 260px);
 }
-.app-tab-panel.on-photo .floating-bar .shadowed {
-  text-shadow: 0 1px 14px rgb(0 0 0 / 45%);
-}
 /*
-  The album art's tint is the plain page's; here the photo is the background. The column after the artwork is wider to
-  make room for the artwork reaching out as far as the glass panes (below).
+  The column after the artwork is wider to make room for the artwork reaching out as far as the glass panes (below).
 */
 .app-tab-panel.on-photo .listening-room:not(.is-setup) {
   grid-template-columns: var(--art-size) 40px minmax(0, 1fr);
@@ -449,9 +343,7 @@
 }
 /*
   The Settings tab: its pages on the photo, blurred and darkened under the tab bar as it is under the Dashboard's
-  boards. The cards and words are Night's navy ones whatever the skin, as the photo is always dark, and so are the
-  highlights: the chosen colour's Night shade (TabletView sets --night-accent), or Dynamic's colours worked out for the
-  dark.
+  boards, with the app's own navy cards and words.
 */
 .app-tab-panel.on-photo .settings-panel.settings-tab {
   --surface: #101a33;

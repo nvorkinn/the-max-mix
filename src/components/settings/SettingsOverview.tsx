@@ -13,9 +13,7 @@ import {
 import type { TouchscreenConfig } from 'countdown-api';
 import type { KioskUpdate } from '../../hooks/useKioskUpdate';
 import type { ScreenSleepMinutes } from '../../utils/screenSleep';
-import { THEMES } from '../../utils/theme';
-import type { Theme } from '../../utils/theme';
-import { THEME_COLOURS } from '../../utils/themeColour';
+import { swatchOf, THEME_COLOURS } from '../../utils/themeColour';
 import type { ThemeColour } from '../../utils/themeColour';
 import SpotifyIcon from '../SpotifyIcon';
 import { APP_VERSION } from './appVersion';
@@ -92,7 +90,6 @@ export default function SettingsOverview({
   onOpen,
   kiosk,
   deviceConfig,
-  theme,
   themeColour,
   dynamicColour,
   screenSleep,
@@ -104,7 +101,6 @@ export default function SettingsOverview({
   kiosk: boolean;
   /** countdown-server's config, once someone owns the kiosk: the Countdown card shows only then. */
   deviceConfig?: TouchscreenConfig | undefined;
-  theme: Theme | undefined;
   themeColour: ThemeColour | undefined;
   dynamicColour?: boolean | undefined;
   screenSleep: ScreenSleepMinutes | undefined;
@@ -113,7 +109,6 @@ export default function SettingsOverview({
   kioskUpdate: KioskUpdate | undefined;
 }>) {
   const colour = THEME_COLOURS.find(choice => choice.id === themeColour);
-  const themeName = THEMES.find(choice => choice.id === theme)?.label;
   const network = wifiLabel(wifi);
   const stops = deviceConfig?.arrivals.stops.length ?? 0;
 
@@ -143,10 +138,9 @@ export default function SettingsOverview({
         title="Appearance"
         onOpen={() => onOpen('appearance')}
       >
-        {themeName && <span>{themeName}</span>}
         {colour && (
           <span className="settings-status">
-            <span className="settings-dot" style={{ '--swatch': colour.swatch } as CSSProperties} />
+            <span className="settings-dot" style={{ '--swatch': swatchOf(colour) } as CSSProperties} />
             {colour.label}
           </span>
         )}
