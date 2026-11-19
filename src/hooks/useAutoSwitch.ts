@@ -24,8 +24,8 @@ export function whoToSwitchTo(people: PersonOnKiosk[], phones: SavedPhone[]): st
   const active = people.find(person => person.active);
   if (!active?.phoneAddress || isHeard(active.phoneAddress)) return null;
   const heard = people.filter(person => !person.active && person.signedIn && isHeard(person.phoneAddress));
-  const [only] = heard;
-  return heard.length === 1 && only ? only.spotifyId : null;
+  const [only, another] = heard;
+  return another ? null : (only?.spotifyId ?? null);
 }
 
 /** Whether a check could switch at all, before asking the Pi to listen. */
@@ -58,10 +58,11 @@ async function listen(activeAddress: string, isCancelled: () => boolean): Promis
       await pause(READ_STEP_MS);
     }
   } finally {
-    if (!isSwitcherWatching())
+    if (!isSwitcherWatching()) {
       await watchPresence(false).catch(() => {
         // It stops by itself after two minutes.
       });
+    }
   }
 }
 
