@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { getClientId } from '../src/spotify/settings.ts';
 import { advance } from './clock.ts';
 import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSettings, showSection } from './settings.ts';
@@ -59,8 +60,38 @@ test.describe('Settings', { tag: '@settings' }, () => {
       dialog.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^Spotify/ })
     ).toContainText('Connected');
     await showSection(dialog, 'Spotify');
-    await expect(dialog).toContainText('Connected');
-    await expect(dialog.getByRole('button', { name: 'Sign out' })).toBeVisible();
+    const person = dialog.getByRole('list', { name: 'People' }).getByRole('listitem');
+    await expect(person).toContainText('Connected');
+    await expect(person.getByRole('button', { name: 'Remove' })).toBeVisible();
+  });
+
+  test('a revoked login stays listed as expired, and signing in again goes to Spotify’s account picker', async ({
+    page
+  }) => {
+    await page.route('https://accounts.spotify.com/authorize**', route =>
+      route.fulfill({ contentType: 'text/html', body: '<h1>Test sign-in page</h1>' })
+    );
+    await page.route('https://accounts.spotify.com/api/token', route =>
+      route.fulfill({ status: 400, json: { error: 'invalid_grant' } })
+    );
+    await page.addInitScript(clientId => {
+      localStorage.setItem(
+        'maxmix.people',
+        JSON.stringify({
+          clientId,
+          activeId: 'friend',
+          people: [{ spotifyId: 'friend', name: 'Friend', imageUrl: '', refreshToken: 'r', phoneAddress: '' }]
+        })
+      );
+    }, getClientId());
+    await page.goto('/?kiosk=0');
+    const dialog = await openSettings(page, 'Spotify');
+    const person = dialog.getByRole('list', { name: 'People' }).getByRole('listitem');
+    await expect(person).toContainText('Friend');
+    await expect(person).toContainText('Expired');
+    await person.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.getByRole('heading', { name: 'Test sign-in page' })).toBeVisible();
+    expect(new URL(page.url()).searchParams.get('show_dialog')).toBe('true');
   });
 
   test('the colour choice recolours the app and is kept', async ({ page }) => {
@@ -198,13 +229,17 @@ test.describe('Settings', { tag: '@settings' }, () => {
     });
   });
 
-  test('Sign out forgets the login, and signing in again goes to Spotify to approve once more', async ({ page }) => {
+  test('removing the last person forgets the login, and signing in again goes to Spotify to approve once more', async ({
+    page
+  }) => {
     await page.route('https://accounts.spotify.com/authorize**', route =>
       route.fulfill({ contentType: 'text/html', body: '<h1>Test sign-in page</h1>' })
     );
     await openSpotifyTab(page);
     const dialog = await openSettings(page, 'Spotify');
-    await dialog.getByRole('button', { name: 'Sign out' }).click();
+    const person = dialog.getByRole('list', { name: 'People' }).getByRole('listitem');
+    await person.getByRole('button', { name: 'Remove' }).click();
+    await person.getByRole('button', { name: 'Tap again to remove' }).click();
 
     // The page reloads signed out, on the Dashboard as every start does, with nothing of the login kept.
     await expect(page.getByRole('tab', { name: 'Dashboard' })).toHaveAttribute('aria-selected', 'true');
@@ -233,7 +268,8 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await showSection(dialog, 'About');
     await expect(dialog).toContainText('App version');
     await showSection(dialog, 'Spotify');
-    await expect(dialog.getByRole('button', { name: 'Sign out' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Remove' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /phone/ })).toHaveCount(0);
     const kioskOnly = ['Change network', 'Choose network', 'Restart kiosk', 'Reboot Pi', 'Check for updates'];
     await Promise.all(kioskOnly.map(name => expect(dialog.getByRole('button', { name })).toHaveCount(0)));
   });

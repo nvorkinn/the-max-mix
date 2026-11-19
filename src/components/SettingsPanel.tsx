@@ -163,7 +163,7 @@ export default function SettingsPanel({
       break;
     }
     case 'spotify': {
-      page = <SpotifySettings authenticated={authenticated} signInError={signInError} onReload={onReload} />;
+      page = <SpotifySettings signInError={signInError} onReload={onReload} />;
       break;
     }
     case 'about': {
