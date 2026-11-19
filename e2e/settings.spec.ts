@@ -56,9 +56,10 @@ test.describe('Settings', { tag: '@settings' }, () => {
   test('shows that Spotify is connected', async ({ page }) => {
     await openSpotifyTab(page);
     const dialog = await openSettings(page);
-    await expect(
-      dialog.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^Spotify/ })
-    ).toContainText('Connected');
+    // Connected needs no word on the overview: its card says only when Spotify isn't.
+    await expect(dialog.getByRole('group', { name: 'Overview' }).getByRole('button', { name: /^Spotify/ })).toHaveText(
+      'Spotify'
+    );
     await showSection(dialog, 'Spotify');
     const person = dialog.getByRole('list', { name: 'People' }).getByRole('listitem');
     await expect(person).toContainText('Connected');
