@@ -201,12 +201,12 @@ export interface DynamicPalette {
 }
 
 /**
- * What Dynamic's colours sit on: the paper of Day, the navy of Night, or the Player tab's darkened photo, whose words
+ * What Dynamic's colours sit on: the paper of Day, the navy of Night, or the Spotify tab's darkened photo, whose words
  * and controls are a warm white whatever the skin.
  */
 export type DynamicSurface = 'day' | 'night' | 'photo';
 
-/** The Player tab's warm white (src/index.css, .app-tab-panel.on-photo), with the dark icon on its play button. */
+/** The Spotify tab's warm white (src/index.css, .app-tab-panel.on-photo), with the dark icon on its play button. */
 const PHOTO_WHITE = '#f7f4ec';
 const PHOTO_ICON = '#10141a';
 /** The Max Mix logo's own tile and icon (src/components/dashboard/dashboard.css, .dashboard-brand-mark). */
@@ -218,7 +218,7 @@ const MARK_BASE = {
 };
 /** Night's text, which Dynamic leaves as it is on the dark. */
 const NIGHT_INK = '#f5f6ff';
-/** Night's page: the darkest the highlights have to read on. The Player tab's glass is about as dark. */
+/** Night's page: the darkest the highlights have to read on. The Spotify tab's glass is about as dark. */
 const NIGHT_PAGE: Rgb = [9, 14, 31];
 
 function hslToRgb(hue: number, saturation: number, lightness: number): Rgb {
@@ -266,7 +266,7 @@ function nightAccent(hue: number, saturation: number, lightness: number): string
 /**
  * Turns the cover's two dominant colours into Dynamic's colours. The title and highlights take the first colour: by
  * day darkened where needed so it reads on the paper, with a near-black text ink of the same hue; on the dark (Night,
- * and the Player tab's photo) a lighter, softened shade, and the text stays the dark's own. The play button runs a
+ * and the Spotify tab's photo) a lighter, softened shade, and the text stays the dark's own. The play button runs a
  * gradient between the two colours, like Night's, kept in a middle lightness so it stands out, with a white or dark icon
  * on it, whichever reads better.
  */
@@ -297,7 +297,7 @@ export function dynamicPalette([first, second]: readonly [Rgb, Rgb], surface: Dy
 /**
  * Dynamic's colours when nothing has played for a while, so the page fades back to what it shows with Dynamic off: by
  * day the chosen colour, with that colour's own gradient (Violet's) or flat; at night the colour's night shade; on the
- * Player tab its warm white. The logo goes back to its own green.
+ * Spotify tab its warm white. The logo goes back to its own green.
  */
 export function basePalette(colour: ThemeColour, surface: DynamicSurface = 'day'): DynamicPalette {
   if (surface === 'photo') {

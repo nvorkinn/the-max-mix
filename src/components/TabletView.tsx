@@ -64,7 +64,7 @@ import SleepScreen from './SleepScreen';
 import PairPhoneSheet from './PairPhoneSheet';
 import { tabPanelId } from './AppTabs';
 import DashboardScreen from './DashboardScreen';
-import PlayerBackdrop from './PlayerBackdrop';
+import TabBackdrop from './TabBackdrop';
 import TabBar from './dashboard/TabBar';
 
 /** The minute it is now; the tab bar's clock changes only when this does. */
@@ -87,14 +87,14 @@ function coverOrChosenPalette(art: ArtColours | null, colour: ThemeColour, surfa
   return art ? dynamicPalette(art.dominant, surface) : basePalette(colour, surface);
 }
 
-/** What Dynamic's colours sit on: the Player tab's photo, else the skin's page. */
-/** The chosen colour's Night shade, for the Options tab's highlights, which are Night's whatever the skin. */
+/** The chosen colour's Night shade, for the Settings tab's highlights, which are Night's whatever the skin. */
 function nightColour(id: ThemeColour): CSSProperties {
   const colour = THEME_COLOURS.find(choice => choice.id === id) ?? THEME_COLOURS[0];
   const ink = 'nightAccentInk' in colour ? colour.nightAccentInk : colour.accentInk;
   return { '--night-accent': colour.night, '--night-accent-ink': ink } as CSSProperties;
 }
 
+/** What Dynamic's colours sit on: the Spotify tab's photo, else the dark of Night and the Settings tab, else Day's page. */
 function surfaceFor(onPhoto: boolean, night: boolean): DynamicSurface {
   if (onPhoto) return 'photo';
   return night ? 'night' : 'day';
@@ -191,11 +191,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   // Music picked while a Sonos plays goes to the Sonos (a song, album or playlist; Liked Songs cannot).
   const playMusic = (choice: MusicChoice) => {
-    if (screen !== 'player') goToScreen('spotify');
+    goToScreen('spotify');
     return sonos.active ? sonos.play(choice.uri) : playMusicOnSpotify(choice);
   };
 
-  // Colours read from the album art tint the page faintly behind the queue; none means no tint.
+  // Colours read from the album art, which Dynamic follows.
   const [artColours, setArtColours] = useState<ArtColours | null>(null);
 
   // Spotify's device list can leave out a speaker that plays (Sonos does), so the drawer remembers each one seen playing.
@@ -230,10 +230,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const dynamicColour = style ? style.dynamic || isOldDynamic(style.colour) : localDynamic;
   const theme = useTheme(style?.skin);
   // With Dynamic on, the colours follow the album art while music plays, and fade back to the chosen colour once it
-  // has stopped for a while; on the dark of Night and of the Player tab's photo they are lighter shades that read there.
+  // has stopped for a while; on the dark of Night and of the Spotify tab's photo they are lighter shades that read there.
   const liveArt = useLingers(isPlaying, DYNAMIC_LINGER_MS) ? artColours : null;
-  // The Options tab's cards are Night's whatever the skin, so Dynamic works its colours out for the dark there.
-  const dynamicSurface = surfaceFor(screen === 'player', theme.skin === 'night' || screen === 'options');
+  // The Settings tab's cards are Night's whatever the skin, so Dynamic works its colours out for the dark there.
+  const dynamicSurface = surfaceFor(screen === 'spotify', theme.skin === 'night' || screen === 'settings');
   const dynamicVars = dynamicColour ? coverOrChosenPalette(liveArt, themeColour, dynamicSurface) : undefined;
   useEffect(() => {
     if (!style) return;
@@ -402,11 +402,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     };
   }, [artUrl]);
 
-  // The Options tab is the Settings tab's pages on the Dashboard's photo; between the two the page stays where it was.
-  const settingsShown = screen === 'settings' || screen === 'options';
   const showScreen = (next: TabId) => {
     crossfade(() => {
-      if (!settingsShown && (next === 'settings' || next === 'options')) setSettingsSection('overview');
+      if (next === 'settings' && screen !== 'settings') setSettingsSection('overview');
       setScreen(next);
     });
   };
@@ -414,7 +412,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const showSettings = () => {
     crossfade(() => {
       setSettingsSection('spotify');
-      setScreen(screen === 'options' ? 'options' : 'settings');
+      setScreen('settings');
     });
   };
   // Switching person: the music this tablet plays (itself, or its Sonos) belongs to the person leaving, so it pauses;
@@ -524,8 +522,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     }
   };
 
-  // The Player tab is the Spotify tab's panel with the Dashboard's photo behind it.
-  const onPhoto = screen === 'player';
   // The Dashboard's tab bar, which floats on the Spotify and Settings tabs too. Search is the Spotify tab's alone: the
   // Dashboard and Settings bars drop it, and a tab change slides it out of or into the top of the screen (index.css).
   const tabBar: TabBarProps = {
@@ -543,24 +539,17 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       data-colour={themeColour}
       data-theme={theme.skin}
       data-dynamic={dynamicVars ? '' : undefined}
-      style={
-        artColours || dynamicVars
-          ? ({
-              ...(artColours && { '--art-tint-top': artColours.top, '--art-tint-bottom': artColours.bottom }),
-              ...dynamicVars
-            } as CSSProperties)
-          : undefined
-      }
+      style={dynamicVars as CSSProperties | undefined}
     >
       {isOffline && <OfflineBanner />}
       <div
-        className={`app-tab-panel${onPhoto ? ' on-photo' : ''}`}
+        className="app-tab-panel on-photo"
         role="tabpanel"
         id={tabPanelId('spotify')}
-        aria-label={onPhoto ? 'Player' : 'Spotify'}
-        hidden={screen !== 'spotify' && !onPhoto}
+        aria-label="Spotify"
+        hidden={screen !== 'spotify'}
       >
-        {onPhoto && <PlayerBackdrop now={tabBar.now} />}
+        {screen === 'spotify' && <TabBackdrop now={tabBar.now} />}
         <div className="floating-bar">
           <TabBar {...tabBar} />
         </div>
@@ -667,14 +656,14 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         <DashboardScreen tabBar={{ ...tabBar, onSearch: null }} />
       </section>
       <section
-        className={`app-tab-panel${screen === 'options' ? ' on-photo' : ''}`}
+        className="app-tab-panel on-photo"
         role="tabpanel"
         id={tabPanelId('settings')}
-        style={screen === 'options' ? nightColour(themeColour) : undefined}
-        aria-label={screen === 'options' ? 'Options' : 'Settings'}
-        hidden={!settingsShown}
+        style={nightColour(themeColour)}
+        aria-label="Settings"
+        hidden={screen !== 'settings'}
       >
-        {screen === 'options' && <PlayerBackdrop now={tabBar.now} />}
+        {screen === 'settings' && <TabBackdrop now={tabBar.now} />}
         {/* Sleep, switching person and holding the clock for the debug console live in this tab's bar. */}
         <div className="floating-bar">
           <TabBar
@@ -685,7 +674,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             onClockHold={() => setIsDebugOpen(true)}
           />
         </div>
-        {settingsShown && (
+        {screen === 'settings' && (
           <SettingsPanel
             initialSection={settingsSection}
             authInfo={{

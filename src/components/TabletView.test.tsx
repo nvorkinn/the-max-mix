@@ -168,7 +168,12 @@ beforeEach(() => {
   api.getQueue.mockResolvedValue({ queue: queued });
   api.getDevices.mockResolvedValue({ devices: [{ id: 'dev1', name: 'Soundbar' }] });
   palette.extractArtColours.mockReset();
-  palette.extractArtColours.mockResolvedValue({ top: 'red', bottom: 'blue' });
+  palette.extractArtColours.mockResolvedValue({
+    dominant: [
+      [200, 40, 60],
+      [30, 90, 160]
+    ]
+  });
   lyrics.lrclib.mockReset();
   // Tests whose queue fails show the lyrics and would otherwise leave this song's lyrics cached for the ones after.
   clearLyricsCache();
@@ -388,54 +393,30 @@ describe('TabletView', () => {
     expect(screen.queryByRole('button', { name: 'Put the screen to sleep' })).not.toBeInTheDocument();
   });
 
-  it('shows the same player on the Dashboard’s photo in the Player tab', async () => {
+  it('shows the Spotify and Settings tabs on the Dashboard’s photo', async () => {
     render(<TabletView />);
     await flush();
-    // The Dashboard has the photo too, so only the Spotify tab's panel is looked at.
-    const panel = defined(document.querySelector<HTMLElement>('#app-tab-spotify'));
+    // The Dashboard has the photo too, so only the tab's own panel is looked at.
     fireEvent.click(screen.getByRole('tab', { name: 'Spotify' }));
-    expect(panel.querySelector('.dashboard-backdrop')).toBeNull();
-    fireEvent.click(screen.getByRole('tab', { name: 'Player' }));
-    expect(screen.getByRole('tabpanel', { name: 'Player' })).toBe(panel);
-    expect(panel).toHaveClass('on-photo');
-    expect(panel.querySelector('.dashboard-backdrop-photo')).not.toBeNull();
-    expect(within(panel).getByRole('slider', { name: 'Playback position' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Player' })).toHaveAttribute('aria-controls', panel.id);
-    // Back on the Spotify tab the photo is gone.
-    fireEvent.click(screen.getByRole('tab', { name: 'Spotify' }));
-    expect(panel.querySelector('.dashboard-backdrop')).toBeNull();
-    expect(panel).not.toHaveClass('on-photo');
+    const spotify = screen.getByRole('tabpanel', { name: 'Spotify' });
+    expect(spotify).toHaveClass('on-photo');
+    expect(spotify.querySelector('.dashboard-backdrop-photo')).not.toBeNull();
+    expect(within(spotify).getByRole('slider', { name: 'Playback position' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
+    const settings = screen.getByRole('tabpanel', { name: 'Settings' });
+    expect(settings).toHaveClass('on-photo');
+    expect(settings.querySelector('.dashboard-backdrop-photo')).not.toBeNull();
+    // The photo shows on the tab in view only.
+    expect(spotify.querySelector('.dashboard-backdrop')).toBeNull();
   });
 
-  it('offers search on the Spotify and Player tabs only', async () => {
+  it('offers search on the Spotify tab only', async () => {
     render(<TabletView />);
     await flush();
     const search = (tab: string) => document.querySelector(`#app-tab-${tab} [aria-label="Choose music"]`);
     expect(search('spotify')).not.toBeNull();
     expect(search('dashboard')).toBeNull();
     expect(search('settings')).toBeNull();
-  });
-
-  it('shows the same Settings pages on the Dashboard’s photo in the Options tab', async () => {
-    render(<TabletView />);
-    await flush();
-    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
-    const settings = screen.getByRole('tabpanel', { name: 'Settings' });
-    expect(settings).not.toHaveClass('on-photo');
-    expect(settings.querySelector('.dashboard-backdrop')).toBeNull();
-    fireEvent.click(within(settings).getByRole('button', { name: 'Appearance' }));
-    // The same panel, on the photo, and still on the page it was on.
-    fireEvent.click(screen.getByRole('tab', { name: 'Options' }));
-    const options = screen.getByRole('tabpanel', { name: 'Options' });
-    expect(options).toBe(settings);
-    expect(options).toHaveClass('on-photo');
-    expect(options.querySelector('.dashboard-backdrop')).not.toBeNull();
-    expect(within(options).getByRole('region', { name: 'Appearance' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Options' })).toHaveAttribute('aria-controls', options.id);
-    // Back on the Settings tab the photo is gone.
-    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
-    expect(screen.getByRole('tabpanel', { name: 'Settings' })).not.toHaveClass('on-photo');
-    expect(settings.querySelector('.dashboard-backdrop')).toBeNull();
   });
 
   it('shows the clock in 24-hour time', () => {
@@ -479,22 +460,6 @@ describe('TabletView', () => {
     });
     await flush();
     expect(second).toBeEnabled();
-  });
-
-  it('tints the page with colours from the album art', async () => {
-    const { container } = renderOnSpotifyTab(<TabletView />);
-    await flush();
-    expect(palette.extractArtColours).toHaveBeenCalledWith('http://art/a.jpg');
-    const style = (container.firstChild as HTMLElement).style;
-    expect(style.getPropertyValue('--art-tint-top')).toBe('red');
-    expect(style.getPropertyValue('--art-tint-bottom')).toBe('blue');
-  });
-
-  it('leaves the page plain when the art has no usable colours', async () => {
-    palette.extractArtColours.mockResolvedValue(null);
-    const { container } = renderOnSpotifyTab(<TabletView />);
-    await flush();
-    expect((container.firstChild as HTMLElement).style.getPropertyValue('--art-tint-top')).toBe('');
   });
 
   it('prompts to sign in and does not poll the queue when unauthenticated', async () => {
@@ -542,8 +507,8 @@ describe('TabletView', () => {
     fireEvent.click(dynamic.getByRole('button', { name: 'On' }));
     expect(room).toHaveAttribute('data-dynamic');
     expect(room).toHaveAttribute('data-colour', 'navy');
-    // Nothing plays, so Dynamic shows the picked colour.
-    expect(room).toHaveStyle({ '--dynamic-accent': '#1f3a5f' });
+    // Nothing plays, so Dynamic shows the picked colour, in its Night shade on the Settings tab's navy cards.
+    expect(room).toHaveStyle({ '--dynamic-accent': '#5b8def' });
     expect(localStorage.getItem('maxmix.dynamicColour')).toBe('on');
 
     fireEvent.click(dynamic.getByRole('button', { name: 'Off' }));
@@ -849,11 +814,11 @@ describe('TabletView', () => {
     expect(screen.getByText('Showing the last known queue.')).toBeInTheDocument();
   });
 
-  it('starts on the Dashboard, with the tabs in the order Dashboard, Spotify, Player, Settings, Options', async () => {
+  it('starts on the Dashboard, with the tabs in the order Dashboard, Spotify, Settings', async () => {
     render(<TabletView />);
     await flush();
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map(tab => tab.textContent.trim())).toEqual(['Dashboard', 'Spotify', 'Player', 'Settings', 'Options']);
+    expect(tabs.map(tab => tab.textContent.trim())).toEqual(['Dashboard', 'Spotify', 'Settings']);
     expect(screen.getByRole('tab', { name: 'Dashboard' })).toHaveAttribute('aria-selected', 'true');
   });
 

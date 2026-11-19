@@ -11,22 +11,26 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await fakeSpotify(page);
   });
 
-  const PAPER = { surface: 'rgb(250, 250, 246)', ink: 'rgb(35, 41, 31)', scheme: 'light' };
+  // The Settings tab lies on the Dashboard's photo, its cards Night's navy whatever the skin; the Spotify tab's words
+  // are the photo's warm white.
+  const NAVY = { surface: 'rgb(16, 26, 51)', ink: 'rgb(245, 246, 255)', scheme: 'dark' };
+  const PHOTO_INK = 'rgb(247, 244, 236)';
 
-  test('Paper appearance applies to dialogs, status and kiosk controls', async ({ page }) => {
+  test('By day the photo tabs keep their dark look for settings, status and kiosk controls', async ({ page }) => {
     await openSpotifyTab(page, '/?kiosk=1');
     await page.getByRole('tab', { name: 'Settings' }).click();
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
+    await expect(page.locator('.tablet-container')).toHaveAttribute('data-theme', 'day');
     await expect(settings.locator('.settings-nav-item:not([aria-current])').first()).toHaveCSS(
       'background-color',
-      PAPER.surface
+      NAVY.surface
     );
-    await expect(settings.locator('.settings-panel')).toHaveCSS('color', PAPER.ink);
-    await expect(settings.locator('.settings-panel')).toHaveCSS('color-scheme', PAPER.scheme);
+    await expect(settings.locator('.settings-panel')).toHaveCSS('color', NAVY.ink);
+    await expect(settings.locator('.settings-panel')).toHaveCSS('color-scheme', NAVY.scheme);
     await showSection(settings, 'Wi-Fi');
-    await expect(settings.getByRole('button', { name: 'Choose network' })).toHaveCSS('color', PAPER.ink);
+    await expect(settings.getByRole('button', { name: 'Choose network' })).toHaveCSS('color', NAVY.ink);
     await showSection(settings, 'About');
-    await expect(settings.getByRole('button', { name: 'Restart kiosk' })).toHaveCSS('color', PAPER.ink);
+    await expect(settings.getByRole('button', { name: 'Restart kiosk' })).toHaveCSS('color', NAVY.ink);
 
     const contrast = await settings.evaluate(panel => {
       const view = panel.ownerDocument.defaultView;
@@ -45,8 +49,10 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
       };
       const measure = (element: Element) => {
         const ancestors: Element[] = [];
+        // From the tab's own panel down: the page under it is hidden behind the photo.
         for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
           ancestors.unshift(ancestor);
+          if (ancestor === panel) break;
         }
         context.fillStyle = '#fff';
         context.fillRect(0, 0, 1, 1);
@@ -79,7 +85,7 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await showSpotifyTab(page);
     await page.getByRole('button', { name: /^Speakers:/ }).click();
     const speakers = page.getByRole('region', { name: 'Speakers' });
-    await expect(speakers).toHaveCSS('color', PAPER.ink);
+    await expect(speakers).toHaveCSS('color', PHOTO_INK);
     await expect(speakers.getByRole('checkbox', { name: 'Test speaker' })).toBeChecked();
 
     await page.keyboard.press('Control+Shift+D');
@@ -105,10 +111,10 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await expect(room).toHaveCSS('background-color', 'rgb(9, 14, 31)');
     await expect(settings.locator('.settings-nav-item:not([aria-current])').first()).toHaveCSS(
       'background-color',
-      'rgb(16, 26, 51)'
+      NAVY.surface
     );
-    await expect(settings.locator('.settings-panel')).toHaveCSS('color', 'rgb(245, 246, 255)');
-    await expect(settings.locator('.settings-panel')).toHaveCSS('color-scheme', 'dark');
+    await expect(settings.locator('.settings-panel')).toHaveCSS('color', NAVY.ink);
+    await expect(settings.locator('.settings-panel')).toHaveCSS('color-scheme', NAVY.scheme);
     await expect(settings.getByRole('button', { name: 'Navy' })).toBeEnabled();
     // Navy's night shade, bright enough on the dark.
     await expect(room).toHaveCSS('--accent', '#5b8def');
@@ -122,9 +128,12 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await settings.getByRole('group', { name: 'Theme' }).getByRole('button', { name: 'Day' }).click();
     await expect(room).toHaveAttribute('data-theme', 'day');
     await expect(room).toHaveAttribute('data-colour', 'navy');
+    // Day's paper page and its colour come back; the Settings tab's cards stay navy on the photo.
+    await expect(room).toHaveCSS('background-color', 'rgb(241, 241, 233)');
+    await expect(room).toHaveCSS('--accent', '#1f3a5f');
     await expect(settings.locator('.settings-nav-item:not([aria-current])').first()).toHaveCSS(
       'background-color',
-      PAPER.surface
+      NAVY.surface
     );
     await expect(settings.getByRole('button', { name: 'Navy' })).toBeEnabled();
   });

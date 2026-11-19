@@ -130,7 +130,7 @@ describe('basePalette on the dark', () => {
     });
   });
 
-  it("is the Player tab's warm white on the photo, whatever the colour", () => {
+  it("is the Spotify tab's warm white on the photo, whatever the colour", () => {
     expect(basePalette('navy', 'photo')).toMatchObject({
       '--dynamic-accent': '#f7f4ec',
       '--dynamic-to': '#f7f4ec',
