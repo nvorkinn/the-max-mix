@@ -1,4 +1,4 @@
-// cspell:ignore trikk ntrikk
+// cspell:ignore trikk ntrikk Forsinkelser linje
 import { describe, expect, it } from 'vitest';
 import type { DeviceNotices } from 'countdown-api';
 import example from '../../vendor/countdown-api/src/countdown_api/fixtures/entur_situations.json';
@@ -60,6 +60,17 @@ describe('toLineIncidents', () => {
         }
       ]
     });
+  });
+
+  it("says each incident in Norwegian, Entur's own Norwegian summary, when the tablet is", () => {
+    const notices = { ...NOTICES, entur_stops: [{ stop_id: example.value.stop_id, situations: example.value }] };
+    const norwegian = toLineIncidents(notices as unknown as DeviceNotices, NOW, 'nb')?.incidents ?? [];
+
+    expect(norwegian.map(incident => incident.text)).toEqual([
+      'Forsinkelser på linje 74',
+      expect.not.stringMatching(/^The Metro/)
+    ]);
+    expect(norwegian.map(incident => incident.lines.length)).toEqual([1, 2]);
   });
 
   it('shows an incident only once it has begun', () => {

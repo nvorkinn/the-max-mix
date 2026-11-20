@@ -2,6 +2,7 @@ import type { DeviceNotices, Parcel, ParcelList } from 'countdown-api';
 import { describe, expect, it } from 'vitest';
 import panels from '../../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json';
 import example from '../../vendor/countdown-api/src/countdown_api/fixtures/parcels.json';
+import { translate } from '../i18n/translate';
 import { toNoticeItem } from './dashboardProps';
 import { boardNotices } from './notices';
 import { parcelNotices } from './parcels';
@@ -24,6 +25,23 @@ const parcel = (more: Partial<Parcel>): Parcel => ({
 const said = (parcels: readonly Parcel[]) => parcelNotices(parcels, NOW).map(notice => [notice.title, notice.summary]);
 
 describe('parcelNotices', () => {
+  it('words the notices in Norwegian, counts and days too, when the tablet is', () => {
+    const notices = parcelNotices(stored.parcels, NOW, 'nb');
+    const day = new Date(2026, 9, 19).toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' });
+
+    expect(notices.map(notice => notice.title)).toEqual([
+      translate('parcel.out', 'nb', { count: 1 }),
+      translate('parcel.held', 'nb', { count: 1 }),
+      translate('parcel.arriving', 'nb', { count: 1, when: day.replace(',', '') }),
+      translate('parcel.undated', 'nb', { count: 1 }),
+      translate('parcel.delivered', 'nb', { count: 1 })
+    ]);
+    expect(notices.map(notice => notice.title)).not.toContain('Parcel delivered');
+    const two = parcelNotices([parcel({ status: 'delivered' }), parcel({ status: 'delivered' })], NOW, 'nb');
+    expect(two[0]?.title).toBe(translate('parcel.delivered', 'nb', { count: 2 }));
+    expect(two[0]?.title).toMatch(/^2 /);
+  });
+
   it("walks countdown-api's example: each state its own notice, the ones that need looking at first", () => {
     const notices = parcelNotices(stored.parcels, NOW);
 

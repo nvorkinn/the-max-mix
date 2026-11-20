@@ -68,9 +68,9 @@ export function toNoticeItem(notice: Notice): NoticeItem {
 const SEVERITY_ORDER: readonly NoticeSeverity[] = ['severe', 'disruption', 'planned', 'info', 'everyday'];
 
 /** The board's rows, most urgent first (notices.ts's order kept among equals). */
-function toNoticeItems(snapshot: LiveSnapshot, now: Date, clockFormat: ClockFormat): NoticeItem[] {
+function toNoticeItems(snapshot: LiveSnapshot, now: Date, clockFormat: ClockFormat, language: Language): NoticeItem[] {
   return snapshot.notices
-    ? boardNotices(snapshot.notices, now, clockFormat)
+    ? boardNotices(snapshot.notices, now, clockFormat, language)
         .map(notice => toNoticeItem(notice))
         .map((item, index) => ({ item, index }))
         .toSorted(
@@ -128,9 +128,9 @@ export function dashboardProps(
           clockFormat
         }
       : null,
-    notices: { notices: toNoticeItems(snapshot, now, clockFormat) },
+    notices: { notices: toNoticeItems(snapshot, now, clockFormat, language) },
     lineStatus: toLineStatus(snapshot.notices, now),
-    incidents: toLineIncidents(snapshot.notices, now),
+    incidents: toLineIncidents(snapshot.notices, now, language),
     boards: boards.map(({ stopId, ...board }) => ({ ...board, now, stale: boardStale(stopId) }))
   };
 }

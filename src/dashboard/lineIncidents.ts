@@ -5,6 +5,8 @@
 // gives no status like TfL's, so the panel shows the operator's own summary beside the lines it's about.
 
 import type { DeviceNotices, EnturStopNotices } from 'countdown-api';
+import type { Language } from '../i18n/language';
+import { DEFAULT_LANGUAGE } from '../i18n/language';
 import type { IncidentLine, LineIncident, LineIncidentsProps } from './props';
 
 /** The parts of Entur's situation read here (the contract leaves Entur's answer open). */
@@ -35,12 +37,17 @@ interface EnturStop {
 const SEVERE = new Set(['severe', 'verySevere']);
 // The order the modes' lines are listed in, as the boards' route boxes are coloured.
 const MODES = ['metro', 'tram', 'bus', 'rail', 'water', 'coach'];
-const ENGLISH = new Set(['en', 'eng']);
+// The codes Entur's texts are tagged with, for each of the kiosk's languages.
+const LANGUAGE_CODES: Readonly<Record<Language, ReadonlySet<string>>> = {
+  en: new Set(['en', 'eng']),
+  nb: new Set(['no', 'nb', 'nob', 'nor'])
+};
 
-/** The summary in English where Entur has it, else the first it has, each run of whitespace one space. */
-function summary(situation: EnturSituation): string {
+/** The summary in `language` where Entur has it, else the first it has, each run of whitespace one space. */
+function summary(situation: EnturSituation, language: Language): string {
+  const codes = LANGUAGE_CODES[language];
   const texts = (situation.summary ?? []).filter(text => text.value?.trim());
-  const text = texts.find(each => ENGLISH.has((each.language ?? '').toLowerCase())) ?? texts[0];
+  const text = texts.find(each => codes.has((each.language ?? '').toLowerCase())) ?? texts[0];
   return (text?.value ?? '').replaceAll(/\s+/g, ' ').trim();
 }
 
@@ -80,7 +87,11 @@ const situationsOf = (stop: EnturStopNotices): EnturStop | null => {
  * per summary, however many of Entur's situations say it (Ruter writes a network-wide closure once per line) and
  * however many of the kiosk's stops it's at, with every line it's about.
  */
-export function toLineIncidents(notices: DeviceNotices | null, now: Date): LineIncidentsProps | null {
+export function toLineIncidents(
+  notices: DeviceNotices | null,
+  now: Date,
+  language: Language = DEFAULT_LANGUAGE
+): LineIncidentsProps | null {
   // An older countdown-server leaves entur_stops out.
   const stops: readonly EnturStopNotices[] | undefined = notices?.entur_stops;
   const found = (stops ?? []).flatMap(stop => {
@@ -89,7 +100,7 @@ export function toLineIncidents(notices: DeviceNotices | null, now: Date): LineI
   });
   const incidents = new Map<string, LineIncident>();
   for (const { situation, line } of found) {
-    const text = summary(situation);
+    const text = summary(situation, language);
     if (!text || !inForce(situation, now)) continue;
     const health = SEVERE.has(situation.severity ?? '') ? 'severe' : 'disruption';
     const incident = incidents.get(text) ?? { key: text, text, health, lines: [] };

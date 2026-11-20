@@ -3,6 +3,7 @@ import type { DeviceNotices } from 'countdown-api';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import panels from '../../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json';
 import norway from '../../vendor/countdown-api/src/countdown_api/fixtures/device_notices_norway.json';
+import { say } from './messages';
 import {
   boardNotices,
   clockChangeNotices,
@@ -496,6 +497,39 @@ describe('the other notices the e-paper screens show', () => {
     ]);
     expect(metAlertsNotices(oslo.metalerts?.en, new Date('2026-10-18T08:00:00Z'), '24h')).toEqual([]);
     expect(metAlertsNotices(null, during, '24h')).toEqual([]);
+  });
+
+  it("says MET Norway's warnings in Norwegian, from its Norwegian answer, when the tablet is", () => {
+    const during = new Date('2026-10-16T08:00:00Z');
+    const notices = boardNotices(oslo, during, '24h', 'nb');
+    const fromNorwegian = metAlertsNotices(oslo.metalerts?.no, during, '24h', 'nb');
+
+    expect(notices.map(n => n.title)).toEqual([
+      say('notice.weather.title', {}, 'nb'),
+      say('notice.weather.title', {}, 'nb')
+    ]);
+    expect(notices.map(n => n.detail)).toEqual(fromNorwegian.map(n => n.detail));
+    expect(notices[0]?.detail).not.toBe(boardNotices(oslo, during, '24h')[0]?.detail);
+    expect(notices[0]?.summary).toMatch(/ \d\d:00$/);
+  });
+
+  it("names Norway's holidays and their days in Norwegian when the tablet is", () => {
+    const [christmas] = boardNotices(oslo, new Date(2026, 11, 20), '24h', 'nb');
+    const day = new Date(2026, 11, 25)
+      .toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })
+      .replace(',', '');
+
+    expect(christmas?.title).toBe(say('notice.holiday.public_title', {}, 'nb'));
+    expect(christmas?.summary).toBe(
+      say(
+        'notice.holiday.summary',
+        { when: day, name: say('notice.holiday.name', { holiday: 'christmas_day' }, 'nb') },
+        'nb'
+      )
+    );
+    expect(norwegianHolidayNotices(new Date(2026, 11, 26), 'nb')[0]?.summary).toMatch(
+      new RegExp(`^${say('notice.day.today', {}, 'nb')} `)
+    );
   });
 
   it("mentions Norway's next public holiday on a Norwegian board, once it is less than a month away", () => {

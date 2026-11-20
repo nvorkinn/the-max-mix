@@ -17,6 +17,8 @@ import { debugLog } from '../utils/debugLog';
 import { errorMessage } from '../utils/errorMessage';
 import type { ClockFormat } from '../utils/clockFormat';
 import { formatClockTime } from '../utils/clockFormat';
+import type { Language } from '../i18n/language';
+import { DEFAULT_LANGUAGE, LOCALES } from '../i18n/language';
 import type { Notice } from './data';
 import { say } from './messages';
 import { parcelNotices } from './parcels';
@@ -50,36 +52,47 @@ const pad = (n: number) => String(n).padStart(2, '0');
 const localDay = (time: Date) => `${time.getFullYear()}-${pad(time.getMonth() + 1)}-${pad(time.getDate())}`;
 const sameDay = (a: Date, b: Date) => localDay(a) === localDay(b);
 
-function dayName(day: Date, now: Date): string {
-  if (sameDay(day, now)) return say('notice.day.today');
-  if (sameDay(day, new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1))) return say('notice.day.tomorrow');
-  return day.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
+function dayName(day: Date, now: Date, language: Language): string {
+  if (sameDay(day, now)) return say('notice.day.today', {}, language);
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  return sameDay(day, tomorrow)
+    ? say('notice.day.tomorrow', {}, language)
+    : day.toLocaleDateString(LOCALES[language], { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
 }
 
 /** A day within the week as its weekday ("Sat"), further off as its date ("4 Oct"). */
-function shortDay(day: Date, now: Date): string {
+function shortDay(day: Date, now: Date, language: Language): string {
   const days = (day.getTime() - now.getTime()) / DAY;
-  return day.toLocaleDateString('en-GB', days < 6 ? { weekday: 'short' } : { day: 'numeric', month: 'short' });
+  return day.toLocaleDateString(
+    LOCALES[language],
+    days < 6 ? { weekday: 'short' } : { day: 'numeric', month: 'short' }
+  );
 }
 
 // A closure that ends in the small hours (TfL's often end at 04:30 Monday) is the day before's, for saying its days.
 const lastDay = (end: Date) => (end.getHours() < 5 ? new Date(end.getTime() - 5 * HOUR) : end);
 
 /** When something applies, as short as it can be said: "18:00–21:00", "until 21:00", "Sat–Sun", "until 4 Oct". */
-export function sayWhen(starts: Date | null, ends: Date | null, now: Date, clockFormat: ClockFormat): string | null {
+export function sayWhen(
+  starts: Date | null,
+  ends: Date | null,
+  now: Date,
+  clockFormat: ClockFormat,
+  language: Language = DEFAULT_LANGUAGE
+): string | null {
   if (!ends) return null;
   // A time today on its own ("21:00"), on another day with its day ("Sat 09:00").
   const time = (t: Date) => {
     const clock = formatClockTime(t, clockFormat);
-    return sameDay(t, now) ? clock : `${shortDay(t, now)} ${clock}`;
+    return sameDay(t, now) ? clock : `${shortDay(t, now, language)} ${clock}`;
   };
   if (!starts || starts <= now) {
-    const when = ends.getTime() - now.getTime() < DAY ? time(ends) : shortDay(lastDay(ends), now);
-    return say('notice.until', { when });
+    const when = ends.getTime() - now.getTime() < DAY ? time(ends) : shortDay(lastDay(ends), now, language);
+    return say('notice.until', { when }, language);
   }
   if (ends.getTime() - starts.getTime() < DAY) return `${time(starts)}–${formatClockTime(ends, clockFormat)}`;
-  const first = shortDay(starts, now);
-  const last = shortDay(lastDay(ends), now);
+  const first = shortDay(starts, now, language);
+  const last = shortDay(lastDay(ends), now, language);
   return first === last ? first : `${first}–${last}`;
 }
 
@@ -146,11 +159,16 @@ function periodInForce(periods: TflValidityPeriod[], now: Date): TflValidityPeri
 
 // TfL's period for a disruption is usually just "today", which says nothing: its end is said only for one that runs
 // for days.
-function periodWhen(period: TflValidityPeriod | undefined, now: Date, clockFormat: ClockFormat): string | null {
+function periodWhen(
+  period: TflValidityPeriod | undefined,
+  now: Date,
+  clockFormat: ClockFormat,
+  language: Language
+): string | null {
   if (!period) return null;
   const from = new Date(period.fromDate);
   const to = new Date(period.toDate);
-  return to.getTime() - from.getTime() >= DAY ? sayWhen(null, to, now, clockFormat) : null;
+  return to.getTime() - from.getTime() >= DAY ? sayWhen(null, to, now, clockFormat, language) : null;
 }
 
 interface LineEntry {
@@ -162,11 +180,15 @@ interface LineEntry {
 }
 
 /** A line's notice's title: "Northern line: Severe delays", "Bus 333: Suspended", "Buses 333, 415: Part suspended". */
-function lineTitle({ mode, lines, status }: LineEntry): string {
-  return say('notice.line.title', {
-    label: say('notice.line.label', { mode, count: lines.length, lines: lines.join(', ') }),
-    status: say('notice.line.status', { status })
-  });
+function lineTitle({ mode, lines, status }: LineEntry, language: Language): string {
+  return say(
+    'notice.line.title',
+    {
+      label: say('notice.line.label', { mode, count: lines.length, lines: lines.join(', ') }, language),
+      status: say('notice.line.status', { status }, language)
+    },
+    language
+  );
 }
 
 /**
@@ -177,7 +199,8 @@ export function lineNotices(
   lines: readonly TflLine[],
   now: Date,
   clockFormat: ClockFormat,
-  shorts: readonly NoticeShort[] = []
+  shorts: readonly NoticeShort[] = [],
+  language: Language = DEFAULT_LANGUAGE
 ): Notice[] {
   const shortOf = new Map(shorts.map(short => [short.text, short.summary]));
   const entries: LineEntry[] = [];
@@ -216,7 +239,10 @@ export function lineNotices(
           title: '',
           summary: reason
             ? (shortOf.get(reason) ?? headline(reason))
-            : joined(say('notice.line.status', { status: key }), periodWhen(period, now, clockFormat)),
+            : joined(
+                say('notice.line.status', { status: key }, language),
+                periodWhen(period, now, clockFormat, language)
+              ),
           detail: reason || description
         }
       };
@@ -224,7 +250,7 @@ export function lineNotices(
       entries.push(entry);
     }
   }
-  return entries.map(entry => ({ ...entry.notice, title: lineTitle(entry) }));
+  return entries.map(entry => ({ ...entry.notice, title: lineTitle(entry, language) }));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -285,7 +311,12 @@ function ukTime(hour: string, minute: string, day: string, month: string, now: D
 }
 
 /** The notices for the Met Office's warnings that haven't ended at `now`. */
-function weatherNotices(items: readonly MetOfficeFeedItem[], now: Date, clockFormat: ClockFormat): Notice[] {
+function weatherNotices(
+  items: readonly MetOfficeFeedItem[],
+  now: Date,
+  clockFormat: ClockFormat,
+  language: Language
+): Notice[] {
   const notices: Notice[] = [];
   for (const [index, item] of items.entries()) {
     const title = squash(item.title);
@@ -308,13 +339,13 @@ function weatherNotices(items: readonly MetOfficeFeedItem[], now: Date, clockFor
     const ends = ukTime(toHour, toMinute, toDay, toMonth, now);
     if (ends && ends < now) continue;
     const level = colour.toLowerCase();
-    const warning = say('notice.weather.warning', { colour: level, hazard: hazard.toLowerCase() });
+    const warning = say('notice.weather.warning', { colour: level, hazard: hazard.toLowerCase() }, language);
     notices.push({
       id: `met-office:${index}:${level}:${hazard.toLowerCase()}`,
       kind: 'weather',
       severity: level === 'yellow' ? 'minor' : 'severe',
-      title: say('notice.weather.title'),
-      summary: joined(warning, sayWhen(starts, ends, now, clockFormat)),
+      title: say('notice.weather.title', {}, language),
+      summary: joined(warning, sayWhen(starts, ends, now, clockFormat, language)),
       detail: description || title
     });
   }
@@ -343,7 +374,12 @@ function shortsOf(shorts: readonly NoticeShort[]): Map<string, string> {
  * The notices for what TfL says is wrong at the stops (`points`), leaving out what's over by `now`, each once: TfL often
  * lists the same one more than once, for different dates. Never more than info, as on the e-paper screens.
  */
-export function stationNotices(points: readonly TflDisruptedPoint[], now: Date, shorts: readonly NoticeShort[] = []) {
+export function stationNotices(
+  points: readonly TflDisruptedPoint[],
+  now: Date,
+  shorts: readonly NoticeShort[] = [],
+  language: Language = DEFAULT_LANGUAGE
+) {
   const shortOf = shortsOf(shorts);
   const notices: Notice[] = [];
   const seen = new Set<string>();
@@ -360,7 +396,7 @@ export function stationNotices(points: readonly TflDisruptedPoint[], now: Date, 
       id: `station:${station}:${text}`,
       kind: 'delays',
       severity: 'info',
-      title: say('notice.station.title', { station }),
+      title: say('notice.station.title', { station }, language),
       summary: shortOf.get(description) ?? headline(text),
       detail: description
     });
@@ -400,7 +436,8 @@ function roadComments(comments: string): string {
 export function roadNotices(
   disruptions: readonly TflRoadDisruption[],
   now: Date,
-  shorts: readonly NoticeShort[] = []
+  shorts: readonly NoticeShort[] = [],
+  language: Language = DEFAULT_LANGUAGE
 ): Notice[] {
   const shortOf = shortsOf(shorts);
   const notices: Notice[] = [];
@@ -413,10 +450,10 @@ export function roadNotices(
       id: `road:${disruption.id}`,
       kind: 'road',
       severity,
-      title: say('notice.road.title'),
+      title: say('notice.road.title', {}, language),
       summary:
         shortOf.get(comments) ??
-        say('notice.road.text', { category: squash(disruption.category), comments: roadComments(comments) }),
+        say('notice.road.text', { category: squash(disruption.category), comments: roadComments(comments) }, language),
       detail: comments
     });
   }
@@ -435,7 +472,7 @@ const FLOOD_LEVELS = new Map<number, readonly [Severity, string]>([
 ]);
 
 /** The notices for the EA's warnings still in force, in its order. */
-export function floodNotices(warnings: readonly FloodWarning[]): Notice[] {
+export function floodNotices(warnings: readonly FloodWarning[], language: Language = DEFAULT_LANGUAGE): Notice[] {
   const notices: Notice[] = [];
   for (const warning of warnings) {
     const known = FLOOD_LEVELS.get(warning.severityLevel);
@@ -446,7 +483,7 @@ export function floodNotices(warnings: readonly FloodWarning[]): Notice[] {
       id: `flood:${warning.floodAreaID}:${String(warning.severityLevel)}`,
       kind: 'weather',
       severity,
-      title: say('notice.flood.title', { level }),
+      title: say('notice.flood.title', { level }, language),
       summary: where,
       detail: where
     });
@@ -481,8 +518,13 @@ function metAlertsColour(properties: Record<string, unknown>): string | null {
   return parts.find(part => METALERTS_SEVERITY.has(part)) ?? null;
 }
 
-/** The notices for MetAlerts' warnings (`answer`, its English one) that haven't ended at `now`. */
-export function metAlertsNotices(answer: unknown, now: Date, clockFormat: ClockFormat): Notice[] {
+/** The notices for MetAlerts' warnings (`answer`, the one in the kiosk's language) that haven't ended at `now`. */
+export function metAlertsNotices(
+  answer: unknown,
+  now: Date,
+  clockFormat: ClockFormat,
+  language: Language = DEFAULT_LANGUAGE
+): Notice[] {
   const features = (answer as { features?: MetAlertsFeature[] | null } | null)?.features ?? [];
   const notices: Notice[] = [];
   for (const [index, feature] of features.entries()) {
@@ -499,8 +541,11 @@ export function metAlertsNotices(answer: unknown, now: Date, clockFormat: ClockF
       id: `metalerts:${text(properties['id']) || String(index)}`,
       kind: 'weather',
       severity: METALERTS_SEVERITY.get(colour) ?? 'minor',
-      title: say('notice.weather.title'),
-      summary: joined(say('notice.weather.warning', { colour, hazard }), sayWhen(starts, ends, now, clockFormat)),
+      title: say('notice.weather.title', {}, language),
+      summary: joined(
+        say('notice.weather.warning', { colour, hazard }, language),
+        sayWhen(starts, ends, now, clockFormat, language)
+      ),
       detail: said.length > 0 ? said.join(' ') : text(properties['title'])
     });
   }
@@ -524,7 +569,11 @@ export function divisionOf(postcode: string): Division {
 }
 
 /** The next of `events` from today, if it is less than a month away. */
-export function holidayNotices(events: readonly BankHoliday[], now: Date): Notice[] {
+export function holidayNotices(
+  events: readonly BankHoliday[],
+  now: Date,
+  language: Language = DEFAULT_LANGUAGE
+): Notice[] {
   const today = localDay(now);
   const limit = localDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() + HOLIDAY_AHEAD_DAYS));
   const next = events
@@ -539,8 +588,8 @@ export function holidayNotices(events: readonly BankHoliday[], now: Date): Notic
       id: `holiday:${next.date}`,
       kind: 'holiday',
       severity: 'info',
-      title: say('notice.holiday.title'),
-      summary: say('notice.holiday.summary', { when: dayName(holiday, now), name: next.title }),
+      title: say('notice.holiday.title', {}, language),
+      summary: say('notice.holiday.summary', { when: dayName(holiday, now, language), name: next.title }, language),
       detail: notes ? `${next.title} (${notes.toLowerCase()})` : next.title
     }
   ];
@@ -586,21 +635,21 @@ export function norwegianHolidays(year: number): { day: Date; holiday: string }[
 }
 
 /** The next Norwegian public holiday from today, if it is less than a month away, as on the e-paper screens. */
-export function norwegianHolidayNotices(now: Date): Notice[] {
+export function norwegianHolidayNotices(now: Date, language: Language = DEFAULT_LANGUAGE): Notice[] {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const limit = new Date(now.getFullYear(), now.getMonth(), now.getDate() + HOLIDAY_AHEAD_DAYS);
   const next = [now.getFullYear(), now.getFullYear() + 1]
     .flatMap(year => norwegianHolidays(year))
     .find(({ day }) => day >= today && day < limit);
   if (!next) return [];
-  const name = say('notice.holiday.name', { holiday: next.holiday });
+  const name = say('notice.holiday.name', { holiday: next.holiday }, language);
   return [
     {
       id: `holiday:${localDay(next.day)}`,
       kind: 'holiday',
       severity: 'info',
-      title: say('notice.holiday.public_title'),
-      summary: say('notice.holiday.summary', { when: dayName(next.day, now), name }),
+      title: say('notice.holiday.public_title', {}, language),
+      summary: say('notice.holiday.summary', { when: dayName(next.day, now, language), name }, language),
       detail: name
     }
   ];
@@ -633,7 +682,12 @@ function zoneDate(time: number, timeZone: string, days = 0): Date {
  * A reminder in the week before the clock in `timeZone` (the kiosk's) goes forward or back: which way, the night or
  * the day, and the time it changes at on the clock as it is before (01:00 in March, 02:00 in October in London).
  */
-export function clockChangeNotices(now: Date, clockFormat: ClockFormat, timeZone = kioskZone()): Notice[] {
+export function clockChangeNotices(
+  now: Date,
+  clockFormat: ClockFormat,
+  timeZone = kioskZone(),
+  language: Language = DEFAULT_LANGUAGE
+): Notice[] {
   const change = nextClockChange(now, timeZone);
   if (!change) return [];
   const before = zoneOffset(change.getTime() - 1, timeZone);
@@ -642,15 +696,22 @@ export function clockChangeNotices(now: Date, clockFormat: ClockFormat, timeZone
   const at = formatClockTime(new Date(change.getTime() + before), clockFormat, 'UTC');
   const day = zoneDate(change.getTime() - 1, timeZone);
   const tonight = [0, 1].some(days => zoneDate(now.getTime(), timeZone, days).getTime() === day.getTime());
-  const date = day.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
-  const when = tonight ? say('notice.clock.tonight') : say('notice.clock.on', { day: date.replace(',', '') });
-  const summary = `${say('notice.clock.text', { direction, when })} ${at}`;
+  const date = day.toLocaleDateString(LOCALES[language], {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC'
+  });
+  const when = tonight
+    ? say('notice.clock.tonight', {}, language)
+    : say('notice.clock.on', { day: date.replace(',', '') }, language);
+  const summary = `${say('notice.clock.text', { direction, when }, language)} ${at}`;
   return [
     {
       id: `clock:${change.toISOString()}`,
       kind: 'holiday',
       severity: 'info',
-      title: say('notice.clock.title'),
+      title: say('notice.clock.title', {}, language),
       summary,
       detail: summary
     }
@@ -666,9 +727,14 @@ export function clockChangeNotices(now: Date, clockFormat: ClockFormat, timeZone
  * holidays, before the parcels. Only the parcels and the clocks changing while the board has no postcode (an older
  * countdown-server sends none).
  */
-export function boardNotices(device: DeviceNotices, now: Date, clockFormat: ClockFormat): Notice[] {
-  const parcels = parcelNotices(device.parcels?.parcels ?? [], now);
-  const clocks = clockChangeNotices(now, clockFormat);
+export function boardNotices(
+  device: DeviceNotices,
+  now: Date,
+  clockFormat: ClockFormat,
+  language: Language = DEFAULT_LANGUAGE
+): Notice[] {
+  const parcels = parcelNotices(device.parcels?.parcels ?? [], now, language);
+  const clocks = clockChangeNotices(now, clockFormat, undefined, language);
   if (!device.postcode) return byUrgency(device.parcels ? [...clocks, ...parcels] : []);
   const lines: TflLine[] = [];
   const shorts: NoticeShort[] = [];
@@ -692,16 +758,21 @@ export function boardNotices(device: DeviceNotices, now: Date, clockFormat: Cloc
   const norwegian = device.country === 'NO';
   const events = device.bank_holidays?.divisions[divisionOf(device.postcode)]?.events ?? [];
   const notices = [
-    ...lineNotices(lines, now, clockFormat, shorts),
-    ...stationNotices(points, now, pointShorts),
-    ...weatherNotices(device.met_office?.items ?? [], now, clockFormat),
+    ...lineNotices(lines, now, clockFormat, shorts, language),
+    ...stationNotices(points, now, pointShorts, language),
+    ...weatherNotices(device.met_office?.items ?? [], now, clockFormat, language),
     // An older countdown-server leaves the floods and MetAlerts out.
-    ...floodNotices(device.floods?.floods.items ?? []),
-    ...roadNotices(roads, now, device.tfl_roads?.shorts ?? []),
-    ...metAlertsNotices(device.metalerts?.en ?? null, now, clockFormat),
+    ...floodNotices(device.floods?.floods.items ?? [], language),
+    ...roadNotices(roads, now, device.tfl_roads?.shorts ?? [], language),
+    ...metAlertsNotices(
+      (language === 'nb' ? device.metalerts?.no : device.metalerts?.en) ?? null,
+      now,
+      clockFormat,
+      language
+    ),
     ...clocks,
-    ...(device.country === 'GB' ? holidayNotices(events, now) : []),
-    ...(norwegian ? norwegianHolidayNotices(now) : []),
+    ...(device.country === 'GB' ? holidayNotices(events, now, language) : []),
+    ...(norwegian ? norwegianHolidayNotices(now, language) : []),
     ...parcels
   ];
   return byUrgency(notices);

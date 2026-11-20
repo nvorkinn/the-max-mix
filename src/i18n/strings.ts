@@ -106,7 +106,32 @@ export const STRINGS = {
   'weather.dry_from': { en: 'Dry from {hour}', nb: 'Opphold fra {hour}' },
   'weather.dry_all_day': { en: 'Dry all day', nb: 'Opphold hele dagen' },
   'weather.rain_saturday': { en: 'Rain on Saturday', nb: 'Regn på lørdag' },
-  'weather.rain_sunday': { en: 'Rain on Sunday', nb: 'Regn på søndag' }
+  'weather.rain_sunday': { en: 'Rain on Sunday', nb: 'Regn på søndag' },
+  // The parcels on the notice board: one parcel, or how many.
+  'parcel.out': {
+    en: '{count, plural, one {Parcel out for delivery} other {# parcels out for delivery}}',
+    nb: '{count, plural, one {Pakke ute for levering} other {# pakker ute for levering}}'
+  },
+  'parcel.held': {
+    en: '{count, plural, one {Parcel needs attention} other {# parcels need attention}}',
+    nb: '{count, plural, one {Pakke trenger oppfølging} other {# pakker trenger oppfølging}}'
+  },
+  'parcel.late': {
+    en: '{count, plural, one {Parcel late} other {# parcels late}}',
+    nb: '{count, plural, one {Pakke forsinket} other {# pakker forsinket}}'
+  },
+  'parcel.arriving': {
+    en: '{count, plural, one {Parcel arriving {when}} other {# parcels arriving {when}}}',
+    nb: '{count, plural, one {Pakke kommer {when}} other {# pakker kommer {when}}}'
+  },
+  'parcel.undated': {
+    en: '{count, plural, one {Parcel on its way} other {# parcels on their way}}',
+    nb: '{count, plural, one {Pakke på vei} other {# pakker på vei}}'
+  },
+  'parcel.delivered': {
+    en: '{count, plural, one {Parcel delivered} other {# parcels delivered}}',
+    nb: '{count, plural, one {Pakke levert} other {# pakker levert}}'
+  }
 } as const satisfies Record<string, Readonly<Record<Language, string>>>;
 
 /** An id STRINGS has: any other is a compile error. */
