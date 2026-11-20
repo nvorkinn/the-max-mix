@@ -221,6 +221,7 @@ describe('the backdrop', () => {
 describe('a route’s stack of times', () => {
   const NOW = new Date('2026-11-20T09:00:00Z');
   const later = (minutes: number) => ({ expectedAt: new Date(NOW.getTime() + minutes * 60_000).toISOString() });
+  const times = (...minutes: number[]) => minutes.map(minute => later(minute));
   const stack = (departures: readonly { expectedAt: string }[], now: Date) => (
     <EtaStack departures={departures} now={now} render={({ expectedAt }) => expectedAt.slice(11, 16)} />
   );
@@ -240,12 +241,7 @@ describe('a route’s stack of times', () => {
   });
 
   it('moves each card up a place when the front one leaves, which fades where it was', () => {
-    const { container, rerender } = render(
-      stack(
-        [2, 9, 15].map(minutes => later(minutes)),
-        NOW
-      )
-    );
+    const { container, rerender } = render(stack(times(2, 9, 15), NOW));
     const card = container.querySelector('[data-slot="card1"]');
     const after = new Date(NOW.getTime() + 3 * 60_000);
     rerender(
@@ -259,6 +255,26 @@ describe('a route’s stack of times', () => {
     expect(container.querySelector('[data-slot="front"]')).toBe(card);
     run(ROW_FADE_MS);
     expect(slots(container)).toEqual(['front:09:09', 'card1:09:15']);
+  });
+
+  it('slides each card up to its new place, and skips the slide under reduced motion', () => {
+    const animate = vi.fn();
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }));
+    Object.defineProperty(HTMLElement.prototype, 'animate', { value: animate, configurable: true });
+    try {
+      const { rerender } = render(stack(times(2, 9, 15), NOW));
+      const firstLeft = new Date(NOW.getTime() + 3 * 60_000);
+      rerender(stack(times(9, 15), firstLeft));
+      // The new front slides and sheds its card; the card behind it slides up a place.
+      expect(animate).toHaveBeenCalledTimes(3);
+      animate.mockClear();
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query }));
+      const secondLeft = new Date(NOW.getTime() + 10 * 60_000);
+      rerender(stack(times(15), secondLeft));
+      expect(animate).not.toHaveBeenCalled();
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'animate');
+    }
   });
 
   it('does not count a front that changed time but has not left', () => {
