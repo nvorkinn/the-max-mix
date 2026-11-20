@@ -708,7 +708,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           hidden={screen !== 'dashboard'}
         >
           {/* Mounted while hidden, so its data keeps updating and it is current when the tab comes back. */}
-          <DashboardScreen tabBar={{ ...tabBar, onSearch: null, nowPlaying: songShown ? nowPlaying : null }} />
+          <DashboardScreen
+            tabBar={{ ...tabBar, onSearch: null, nowPlaying: songShown ? nowPlaying : null }}
+            groupByRoute={ownedConfig?.arrivals.group_by_route ?? false}
+          />
         </section>
         <section
           className="app-tab-panel on-photo"

@@ -5,6 +5,7 @@ import { busesAt, SAMPLE, SAMPLE_NOW, sampleDashboard } from '../../dashboard/sa
 import Dashboard from '../Dashboard';
 import Backdrop, { BACKDROP_FADE_MS } from './Backdrop';
 import DepartureBoard from './DepartureBoard';
+import EtaStack from './EtaStack';
 import { ARRIVE_MS } from './NoticeBoard';
 import RailPages from './RailPages';
 import WeatherBlock, { WEATHER_FADE_MS } from './WeatherBlock';
@@ -214,5 +215,65 @@ describe('the backdrop', () => {
     const { container } = render(<Dashboard tabBar={tabBar} {...sampleDashboard(SAMPLE_NOW, '24h')} />);
     expect(photos(container)).toHaveLength(1);
     expect(photos(container)[0]).toMatch(/backdrop/);
+  });
+});
+
+describe('a route’s stack of times', () => {
+  const NOW = new Date('2026-11-20T09:00:00Z');
+  const later = (minutes: number) => ({ expectedAt: new Date(NOW.getTime() + minutes * 60_000).toISOString() });
+  const stack = (departures: readonly { expectedAt: string }[], now: Date) => (
+    <EtaStack departures={departures} now={now} render={({ expectedAt }) => expectedAt.slice(11, 16)} />
+  );
+  const slots = (container: HTMLElement) =>
+    [...container.querySelectorAll<HTMLElement>('.dashboard-stack-item')].map(
+      item => `${item.dataset['slot'] ?? ''}:${item.textContent}`
+    );
+
+  it('shows up to three later times on cards behind the next one', () => {
+    const { container } = render(
+      stack(
+        [2, 9, 15, 21, 27].map(minutes => later(minutes)),
+        NOW
+      )
+    );
+    expect(slots(container)).toEqual(['front:09:02', 'card1:09:09', 'card2:09:15', 'card3:09:21']);
+  });
+
+  it('moves each card up a place when the front one leaves, which fades where it was', () => {
+    const { container, rerender } = render(
+      stack(
+        [2, 9, 15].map(minutes => later(minutes)),
+        NOW
+      )
+    );
+    const card = container.querySelector('[data-slot="card1"]');
+    const after = new Date(NOW.getTime() + 3 * 60_000);
+    rerender(
+      stack(
+        [9, 15].map(minutes => later(minutes)),
+        after
+      )
+    );
+    expect(slots(container)).toEqual(['gone:09:02', 'front:09:09', 'card1:09:15']);
+    // The card keeps its element as it moves up, so it slides rather than reappearing.
+    expect(container.querySelector('[data-slot="front"]')).toBe(card);
+    run(ROW_FADE_MS);
+    expect(slots(container)).toEqual(['front:09:09', 'card1:09:15']);
+  });
+
+  it('does not count a front that changed time but has not left', () => {
+    const { container, rerender } = render(
+      stack(
+        [5, 9].map(minutes => later(minutes)),
+        NOW
+      )
+    );
+    rerender(
+      stack(
+        [6, 9].map(minutes => later(minutes)),
+        NOW
+      )
+    );
+    expect(slots(container)).toEqual(['front:09:06', 'card1:09:09']);
   });
 });

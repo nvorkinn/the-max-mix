@@ -3,7 +3,8 @@ import roundel from '../../assets/dashboard/tfl-roundel.png';
 import ruter from '../../assets/dashboard/ruter-mark.svg';
 import type { Departure, Network, StopBoardProps } from '../../dashboard/props';
 import AnimatedRows from './AnimatedRows';
-import { byVehicle, Destination, Minutes, ScheduledTime, visibleDepartures } from './DepartureRows';
+import { byVehicle, Destination, Minutes, routeRows, ScheduledTime, visibleDepartures } from './DepartureRows';
+import EtaStack from './EtaStack';
 import { FALLBACK_LINE_COLOURS, LINE_COLOURS, pillName } from './icons';
 
 /** Each network's mark, which heads its stops' boards. */
@@ -36,9 +37,19 @@ function Line({ departure, network }: Readonly<{ departure: Departure; network: 
   );
 }
 
+/** A departure's time: the minutes to it, or a timetabled one's clock time. */
+function Time({ departure, now }: Readonly<{ departure: Departure; now: Date }>) {
+  return departure.scheduledAt === undefined ? (
+    <Minutes expectedAt={departure.expectedAt} now={now} />
+  ) : (
+    <ScheduledTime time={departure.scheduledAt} />
+  );
+}
+
 /**
  * A stop's departures, whatever their modes, headed with its network's mark, its name and (a bus stop's) letter: four
- * rows, soonest first, keyed by the vehicle so a row follows its bus or train.
+ * rows, soonest first, keyed by the vehicle so a row follows its bus or train. Grouped by route, a row is a route
+ * instead, keyed by it, with its next time and the later ones on cards waiting behind it (EtaStack).
  */
 export default function DepartureBoard({
   network,
@@ -46,7 +57,8 @@ export default function DepartureBoard({
   stopLetter,
   departures,
   now,
-  stale
+  stale,
+  groupByRoute = false
 }: Readonly<StopBoardProps>) {
   const id = useId();
   const mark = MARKS[network];
@@ -63,21 +75,38 @@ export default function DepartureBoard({
         )}
       </div>
       <ol className="dashboard-rows" data-stale={stale}>
-        <AnimatedRows
-          items={visibleDepartures(departures, now)}
-          keyOf={byVehicle}
-          render={departure => (
-            <>
-              <Line departure={departure} network={network} />
-              <Destination name={departure.destination} detail={departure.detail} />
-              {departure.scheduledAt === undefined ? (
-                <Minutes expectedAt={departure.expectedAt} now={now} />
-              ) : (
-                <ScheduledTime time={departure.scheduledAt} />
-              )}
-            </>
-          )}
-        />
+        {/* Keyed apart, so turning grouping on or off starts the rows afresh rather than reading one kind as the other. */}
+        {groupByRoute ? (
+          <AnimatedRows
+            key="routes"
+            items={routeRows(departures, now)}
+            keyOf={row => row.key}
+            render={({ next, later }) => (
+              <>
+                <Line departure={next} network={network} />
+                <Destination name={next.destination} detail={next.detail} />
+                <EtaStack
+                  departures={[next, ...later]}
+                  now={now}
+                  render={departure => <Time departure={departure} now={now} />}
+                />
+              </>
+            )}
+          />
+        ) : (
+          <AnimatedRows
+            key="departures"
+            items={visibleDepartures(departures, now)}
+            keyOf={byVehicle}
+            render={departure => (
+              <>
+                <Line departure={departure} network={network} />
+                <Destination name={departure.destination} detail={departure.detail} />
+                <Time departure={departure} now={now} />
+              </>
+            )}
+          />
+        )}
       </ol>
     </section>
   );
