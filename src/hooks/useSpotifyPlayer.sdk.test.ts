@@ -459,6 +459,58 @@ describe('useSpotifyPlayer drives its own SDK player', () => {
     expect(result.current.sdkActive).toBe(true);
   });
 
+  it('connects the player again and retries when Spotify no longer knows it', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(webState('phone'));
+    const fake = makeSdk();
+    sdk.loadSpotifySDK.mockResolvedValue({ Player: fake.Player });
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(fake.players).toHaveLength(1));
+    const first = defined(fake.players[0]);
+    await waitFor(() => expect(first.connect).toHaveBeenCalled());
+    act(() => defined(first.listeners['ready'])({ device_id: 'web-1' }));
+    mocks.api.playChoice.mockRejectedValueOnce(new SpotifyApiError('Device not found', 404));
+    const choice = { uri: 'spotify:playlist:p', name: 'Road trip' };
+    let played: Promise<boolean> | undefined;
+    act(() => {
+      played = result.current.playMusic(choice);
+    });
+    await waitFor(() => expect(fake.players).toHaveLength(2));
+    expect(first.disconnect).toHaveBeenCalledOnce();
+    const second = defined(fake.players[1]);
+    await waitFor(() => expect(second.listeners['ready']).toBeDefined());
+    act(() => defined(second.listeners['ready'])({ device_id: 'web-2' }));
+    await act(async () => {
+      expect(await played).toBe(true);
+    });
+    expect(mocks.api.playChoice).toHaveBeenLastCalledWith(choice, 'web-2');
+    expect(result.current.browserDeviceId).toBe('web-2');
+    expect(result.current.problem).toBeNull();
+  });
+
+  it('moves playback to a player connected again when Spotify no longer knows it', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(webState('phone'));
+    const fake = makeSdk();
+    sdk.loadSpotifySDK.mockResolvedValue({ Player: fake.Player });
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(fake.players).toHaveLength(1));
+    const first = defined(fake.players[0]);
+    await waitFor(() => expect(first.connect).toHaveBeenCalled());
+    act(() => defined(first.listeners['ready'])({ device_id: 'web-1' }));
+    mocks.api.transferPlayback.mockRejectedValueOnce(new SpotifyApiError('Device not found', 404));
+    let moved: Promise<boolean> | undefined;
+    act(() => {
+      moved = result.current.transferPlayback('web-1');
+    });
+    await waitFor(() => expect(fake.players).toHaveLength(2));
+    const second = defined(fake.players[1]);
+    await waitFor(() => expect(second.listeners['ready']).toBeDefined());
+    act(() => defined(second.listeners['ready'])({ device_id: 'web-2' }));
+    await act(async () => {
+      expect(await moved).toBe(true);
+    });
+    expect(mocks.api.transferPlayback).toHaveBeenLastCalledWith('web-2', false);
+  });
+
   describe('the device while playback settles onto this page', () => {
     const choice = { uri: 'spotify:playlist:p', name: 'Road trip' };
     const reads = () => mocks.api.getPlaybackState.mock.calls.length;
