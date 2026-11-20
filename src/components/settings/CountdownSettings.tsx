@@ -10,7 +10,8 @@ import StopSearch from './StopSearch';
 /**
  * The stops whose departures the Countdown lists: a search box that opens the stop search over the whole screen
  * (StopSearch), then the saved stops in the Countdown's order, each with a handle to drag it to another place and an X
- * that removes it. Every change saves to countdown-server on its own as soon as it is made.
+ * that removes it, and whether the Dashboard's boards group them by route. Every change saves to countdown-server on its
+ * own as soon as it is made.
  */
 export default function CountdownSettings({
   config,
@@ -35,6 +36,7 @@ export default function CountdownSettings({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- namesLearnt: the names kept changed.
   const described = useMemo(() => stops.map(stop => describeStop(stop)), [stops, namesLearnt]);
   const saveStops = (next: typeof stops) => onSave('arrivals', { ...config.arrivals, stops: next });
+  const groupByRoute = config.arrivals.group_by_route ?? false;
   const removeStop = (stop: (typeof stops)[number]) =>
     saveStops(stops.filter(kept => kept.source !== stop.source || kept.id !== stop.id));
   const reorder = useDragToReorder(listRef, stops.length, (from, to) => {
@@ -50,6 +52,25 @@ export default function CountdownSettings({
         <Search className="w-6 h-6 shrink-0" aria-hidden="true" />
         {t('countdown.add')}
       </button>
+
+      <section className="settings-group countdown-grouping">
+        <h5 className="settings-group-title" id="group-by-route-label">
+          {t('countdown.group_by_route')}
+        </h5>
+        <div className="settings-segmented" role="group" aria-labelledby="group-by-route-label">
+          {[false, true].map(value => (
+            <button
+              type="button"
+              key={String(value)}
+              aria-pressed={groupByRoute === value}
+              onClick={() => onSave('arrivals', { ...config.arrivals, group_by_route: value })}
+              className="settings-segment"
+            >
+              {t(value ? 'common.on' : 'common.off')}
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="settings-group countdown-column" aria-labelledby="saved-stops-label">
         <h5 className="settings-group-title" id="saved-stops-label">
