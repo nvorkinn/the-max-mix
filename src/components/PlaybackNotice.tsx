@@ -1,5 +1,6 @@
 import { TriangleAlert } from 'lucide-react';
 import type { PlaybackProblem } from '../hooks/useSpotifyPlayer';
+import { useT } from '../i18n/translate';
 
 export type PlaybackNoticeState =
   | { kind: 'signed-out' | 'connecting' | 'no-device' | 'restricted' | 'offline' | 'idle' }
@@ -30,42 +31,43 @@ export default function PlaybackBanner({
   onAllowAudio,
   onDetails
 }: Readonly<PlaybackBannerProps>) {
+  const t = useT();
   let title: string;
   let text: string;
   let action: { label: string; run: () => void } | undefined;
   if (notice.kind === 'restricted') {
-    title = 'Controls unavailable on this device';
-    text = 'Choose another speaker, or use Spotify to control this device.';
-    action = { label: 'Choose speaker', run: onChooseSpeaker };
+    title = t('notice.restricted_title');
+    text = t('notice.restricted_text');
+    action = { label: t('notice.choose_speaker'), run: onChooseSpeaker };
   } else if (notice.problem.recovery === 'quota') {
-    title = 'Spotify quota used up';
-    text = 'The app has stopped reading Spotify by itself. Controls still work; restart the app to read it again.';
+    title = t('notice.quota_title');
+    text = t('notice.quota_text');
   } else if (notice.problem.recovery === 'wait') {
-    title = 'Waiting for Spotify';
-    text = 'Spotify asked this app to wait. Playback status will be checked again automatically.';
+    title = t('notice.wait_title');
+    text = t('notice.wait_text');
   } else {
-    title = 'Playback problem';
+    title = t('notice.problem_title');
     const recovery = {
-      'sign-in': { text: 'Your Spotify sign-in needs attention.', label: 'Reconnect Spotify', run: onSettings },
+      'sign-in': { text: t('notice.sign_in_text'), label: t('notice.reconnect_spotify'), run: onSettings },
       'choose-speaker': {
-        text: 'Choose an available speaker, or control this device in Spotify.',
-        label: 'Choose speaker',
+        text: t('notice.choose_speaker_text'),
+        label: t('notice.choose_speaker'),
         run: onChooseSpeaker
       },
-      settings: { text: 'Check your account and browser playback settings.', label: 'Settings', run: onSettings },
+      settings: { text: t('notice.settings_text'), label: t('settings.title'), run: onSettings },
       reconnect: {
-        text: 'The browser player could not connect to Spotify.',
-        label: 'Reconnect player',
+        text: t('notice.reconnect_text'),
+        label: t('notice.reconnect_player'),
         run: onReconnect
       },
       refresh: {
-        text: 'Refresh playback status, then try the control again.',
-        label: 'Refresh playback',
+        text: t('notice.refresh_text'),
+        label: t('notice.refresh'),
         run: onRefresh
       },
       'enable-audio': {
-        text: 'Allow browser audio, then press Play to start.',
-        label: 'Allow browser audio',
+        text: t('notice.audio_text'),
+        label: t('notice.allow_audio'),
         run: onAllowAudio
       }
     }[notice.problem.recovery];
@@ -85,12 +87,12 @@ export default function PlaybackBanner({
       </span>
       {action && (
         <button type="button" className="button button-secondary" disabled={busy} onClick={action.run}>
-          {busy ? 'Checking...' : action.label}
+          {busy ? t('notice.checking') : action.label}
         </button>
       )}
       {isProblem && (
         <button type="button" className="button button-secondary" onClick={onDetails}>
-          Details
+          {t('common.details')}
         </button>
       )}
     </div>

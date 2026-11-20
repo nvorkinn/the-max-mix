@@ -7,6 +7,7 @@ import { activeLineIndex } from '../lyrics/lrc';
 import type { LyricsProvider } from '../lyrics/types';
 import type { Track } from '../types';
 import { getLyricsStyle, lyricsScale, subscribeLyricsStyle } from '../utils/lyricsStyle';
+import { useT } from '../i18n/translate';
 
 interface LyricsPanelProps {
   track?: Track | undefined;
@@ -85,6 +86,7 @@ function LyricsPanelContent({
   lookup,
   provider
 }: Readonly<LyricsPanelProps>) {
+  const t = useT();
   const own = useLyrics(track, shown && !lookup, provider);
   const { status, lyrics, error, retry } = lookup ?? own;
   // Settings > Spotify > Synced Lyrics: the type size and alignment, which apply the moment they change.
@@ -150,12 +152,12 @@ function LyricsPanelContent({
   const body = () => {
     switch (status) {
       case 'idle': {
-        return <EmptyState title="Nothing to sing along to yet." text="Play a song and its lyrics show up here." />;
+        return <EmptyState title={t('lyrics.idle_title')} text={t('lyrics.idle_text')} />;
       }
       case 'loading': {
         return (
           <div className="queue-empty" role="status">
-            <p>Looking for the lyrics...</p>
+            <p>{t('lyrics.looking')}</p>
           </div>
         );
       }
@@ -166,7 +168,7 @@ function LyricsPanelContent({
               {error}
             </p>
             <button type="button" className="button button-secondary" onClick={retry}>
-              <RotateCcw size={14} /> Try again
+              <RotateCcw size={14} /> {t('common.try_again')}
             </button>
           </div>
         );
@@ -174,12 +176,15 @@ function LyricsPanelContent({
       default:
     }
     if (!lyrics) {
-      return <EmptyState title="No lyrics for this one." text="The lyrics database does not have this song yet." />;
+      return <EmptyState title={t('lyrics.none_title')} text={t('lyrics.none_text')} />;
     }
-    if (lyrics.kind === 'instrumental') return <EmptyState title="Instrumental." text="No words, just the music." />;
+    if (lyrics.kind === 'instrumental') {
+      return <EmptyState title={t('lyrics.instrumental_title')} text={t('lyrics.instrumental_text')} />;
+    }
     // An empty synced line is an instrumental break.
     const lines = lyrics.kind === 'synced' ? lyrics.lines.map(line => line.text || '\u{266A}') : lyrics.lines;
     const keys = lineKeys(lines);
+    const songTitle = track?.name || track?.title;
     return (
       <ol
         ref={listRef}
@@ -189,7 +194,7 @@ function LyricsPanelContent({
         data-syncing={syncing}
         // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- Keyboard users need focus for native list scrolling.
         tabIndex={0}
-        aria-label={`Lyrics of ${track?.name || track?.title || 'this song'}`}
+        aria-label={songTitle ? t('lyrics.of', { title: songTitle }) : t('lyrics.of_this_song')}
       >
         {lines.map((line, idx) => {
           // The line being sung lights up word by word when its source times each word, otherwise all at once.
@@ -226,7 +231,7 @@ function LyricsPanelContent({
   };
 
   return (
-    <div className="lyrics-panel" role="region" aria-label="Lyrics">
+    <div className="lyrics-panel" role="region" aria-label={t('lyrics.region')}>
       {body()}
     </div>
   );

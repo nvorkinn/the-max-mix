@@ -1,5 +1,6 @@
 import { Check, ListMusic, LoaderCircle, MicVocal, Speaker, X } from 'lucide-react';
 import type { PanelView } from '../hooks/usePanelView';
+import { useT } from '../i18n/translate';
 
 /** What the third button does: open the speakers, or save (and then show saving) a changed speaker choice. */
 type SpeakersButton = 'speakers' | 'save' | 'saving';
@@ -28,15 +29,16 @@ export default function PanelNav({
   /** Whether the lyrics are in sync mode, waiting for a tap on the line being sung. */
   lyricsSyncing?: boolean;
 }>) {
+  const t = useT();
   const saveShown = speakersButton !== 'speakers' && onSave !== undefined && onCancel !== undefined;
   if (saveShown) {
     const saving = speakersButton === 'saving';
     return (
-      <nav className="panel-nav" aria-label="Beside the artwork">
+      <nav className="panel-nav" aria-label={t('panel.nav')}>
         <button type="button" className="panel-nav-button" disabled aria-hidden="true" tabIndex={-1} />
         <button type="button" className="panel-nav-button" disabled={saving} onClick={onCancel}>
           <X size={26} aria-hidden="true" />
-          <span>Cancel</span>
+          <span>{t('common.cancel')}</span>
         </button>
         <button type="button" className="panel-nav-button is-save" disabled={saving} onClick={onSave}>
           {saving ? (
@@ -44,13 +46,13 @@ export default function PanelNav({
           ) : (
             <Check size={26} aria-hidden="true" />
           )}
-          <span>{saving ? 'Saving…' : 'Save'}</span>
+          <span>{t(saving ? 'common.saving' : 'common.save')}</span>
         </button>
       </nav>
     );
   }
   return (
-    <nav className="panel-nav" aria-label="Beside the artwork">
+    <nav className="panel-nav" aria-label={t('panel.nav')}>
       <button
         type="button"
         className="panel-nav-button"
@@ -58,7 +60,7 @@ export default function PanelNav({
         onClick={() => onShow('queue')}
       >
         <ListMusic size={26} aria-hidden="true" />
-        <span>Queue</span>
+        <span>{t('panel.queue')}</span>
       </button>
       <button
         type="button"
@@ -67,7 +69,7 @@ export default function PanelNav({
         onClick={() => onShow('lyrics')}
       >
         <MicVocal size={26} aria-hidden="true" />
-        <span>Lyrics</span>
+        <span>{t('panel.lyrics')}</span>
       </button>
       <button
         type="button"
@@ -76,7 +78,7 @@ export default function PanelNav({
         onClick={() => onShow('speakers')}
       >
         <Speaker size={26} aria-hidden="true" />
-        <span>Speakers</span>
+        <span>{t('panel.speakers')}</span>
       </button>
     </nav>
   );

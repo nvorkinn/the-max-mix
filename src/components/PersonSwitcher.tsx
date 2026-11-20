@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { PEOPLE_LIMIT, peopleOnKiosk } from '../spotify/auth';
 import { samePhone, usePhonePresence } from '../hooks/useSavedPhones';
+import { useT } from '../i18n/translate';
 import Modal from './Modal';
 import PersonFace from './PersonFace';
 import SongProof from './SongProof';
@@ -21,6 +22,7 @@ export default function PersonSwitcher({
   className,
   children
 }: Readonly<{ onSwitch: (spotifyId: string) => void; className: string; children: ReactNode }>) {
+  const t = useT();
   const [isOpen, setIsOpen] = useState(false);
   // Whose song is showing, or null for the faces.
   const [proving, setProving] = useState<string | null>(null);
@@ -68,7 +70,7 @@ export default function PersonSwitcher({
         className={className}
         onClick={() => setIsOpen(true)}
         title={active.name}
-        aria-label={`${active.name}: switch person`}
+        aria-label={t('person.switch_name', { name: active.name })}
       >
         {children}
       </button>
@@ -84,7 +86,7 @@ export default function PersonSwitcher({
           className="app-modal-panel person-sheet"
         >
           <h3 id="person-switcher-title" className="sr-only">
-            Switch person
+            {t('person.switch')}
           </h3>
           {proving ? (
             <SongProof
