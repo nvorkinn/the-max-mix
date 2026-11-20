@@ -371,6 +371,8 @@ export const STRINGS = {
 
   // Playback problems: a few words in the player and in the warning list, with the one button that fixes it.
   'problems.title': { en: 'Problems', nb: 'Problemer' },
+  'problems.dashboard': { en: 'Dashboard not updating', nb: 'Dashbordet oppdateres ikke' },
+  'problems.departures': { en: 'Departures not updating', nb: 'Avgangene oppdateres ikke' },
   'notice.restricted_title': { en: "Can't control this speaker", nb: 'Kan ikke styre denne høyttaleren' },
   'notice.choose_speaker': { en: 'Choose speaker', nb: 'Velg høyttaler' },
   'notice.quota_title': { en: 'Spotify quota used up', nb: 'Spotify-kvoten er brukt opp' },
