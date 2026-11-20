@@ -482,6 +482,7 @@
     - improv-gatt.ts
     - improv.ts
     - kiosk-audio.ts
+    - lyrics-lrclib.ts
     - lyrics-sources.ts
     - lyrics.ts
     - nmcli.ts

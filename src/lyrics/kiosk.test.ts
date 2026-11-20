@@ -33,6 +33,19 @@ describe('lyrics/kiosk', () => {
     });
   });
 
+  it('reads plain lyrics and an instrumental song', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ source: 'LRCLIB', plain: ' First \r\n\nSecond' }));
+    await expect(kioskLyrics(query, signal())).resolves.toEqual({
+      kind: 'plain',
+      lines: ['First', '', 'Second'],
+      source: 'LRCLIB'
+    });
+    fetchMock.mockResolvedValueOnce(Response.json({ source: 'LRCLIB', instrumental: true }));
+    await expect(kioskLyrics(query, signal())).resolves.toEqual({ kind: 'instrumental', source: 'LRCLIB' });
+    fetchMock.mockResolvedValueOnce(Response.json({ source: 'LRCLIB', plain: ' \n' }));
+    await expect(kioskLyrics(query, signal())).resolves.toBeNull();
+  });
+
   it('leaves the length out when it is not known, and names the kiosk when the source is missing', async () => {
     fetchMock.mockResolvedValueOnce(Response.json({ lrc: LRC }));
     const lyrics = await kioskLyrics({ title: 'A', artist: 'B' }, signal());

@@ -47,7 +47,7 @@ const airplay = vi.hoisted(() => ({
   setChosenSpeakers: vi.fn(),
   setSpeakerVolume: vi.fn()
 }));
-const lyrics = vi.hoisted(() => ({ lrclib: vi.fn() }));
+const lyrics = vi.hoisted(() => ({ kioskLyrics: vi.fn() }));
 const sonos = vi.hoisted(() => {
   const current: Record<string, unknown> = {};
   return { current };
@@ -82,9 +82,8 @@ vi.mock('../spotify/auth', () => ({
   getActivePersonId: () => 'me'
 }));
 vi.mock('../utils/colorExtractor', () => palette);
-vi.mock('../lyrics/lrclib', () => lyrics);
 // The kiosk's own lyrics service is not there in a test; without this its request would be a real one.
-vi.mock('../lyrics/kiosk', () => ({ kioskLyrics: () => Promise.resolve(null) }));
+vi.mock('../lyrics/kiosk', () => lyrics);
 // The kiosk's Bluetooth service is not there in a test.
 vi.mock('../audio/bluetooth', () => ({
   listBluetoothSpeakers: vi.fn().mockResolvedValue([]),
@@ -175,10 +174,10 @@ beforeEach(() => {
       [30, 90, 160]
     ]
   });
-  lyrics.lrclib.mockReset();
+  lyrics.kioskLyrics.mockReset();
   // The lyrics are looked up as each song starts, and would otherwise stay cached for the tests after.
   clearLyricsCache();
-  lyrics.lrclib.mockResolvedValue({ kind: 'plain', lines: ['Placeholder lyric'], source: 'LRCLIB' });
+  lyrics.kioskLyrics.mockResolvedValue({ kind: 'plain', lines: ['Placeholder lyric'], source: 'LRCLIB' });
   setPlayer();
   setSonos();
 });
@@ -259,7 +258,7 @@ describe('TabletView', () => {
     expect(screen.getByRole('region', { name: 'Upcoming tracks' })).toHaveAttribute('inert');
     expect(screen.getByAltText('Now Song album artwork')).toBeInTheDocument();
     // Looked up once, though both the panel and the screen around it want the lyrics.
-    expect(lyrics.lrclib).toHaveBeenCalledExactlyOnceWith(
+    expect(lyrics.kioskLyrics).toHaveBeenCalledExactlyOnceWith(
       { title: 'Now Song', artist: 'Art', durationMs: 1000 },
       expect.any(AbortSignal)
     );
@@ -287,7 +286,7 @@ describe('TabletView', () => {
   });
 
   it('shows the queue, with its retry, when the song has no lyrics and the queue could not be read', async () => {
-    lyrics.lrclib.mockResolvedValue(null);
+    lyrics.kioskLyrics.mockResolvedValue(null);
     api.getQueue.mockRejectedValue(new Error('Queue down'));
     renderOnSpotifyTab(<TabletView />);
     await flush();
@@ -296,7 +295,7 @@ describe('TabletView', () => {
   });
 
   it('shows the queue when the song has no lyrics', async () => {
-    lyrics.lrclib.mockResolvedValue(null);
+    lyrics.kioskLyrics.mockResolvedValue(null);
     renderOnSpotifyTab(<TabletView />);
     await flush();
     expect(document.querySelector('.side-panel')).toHaveAttribute('data-showing', 'queue');

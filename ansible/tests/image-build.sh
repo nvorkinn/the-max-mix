@@ -63,7 +63,7 @@ for file in /usr/local/bin/kiosk-session \
   /opt/the-max-mix/kiosk-audio/wifi-setup.ts /opt/the-max-mix/kiosk-audio/wifi-page.ts \
   /opt/the-max-mix/kiosk-audio/update.ts /opt/the-max-mix/kiosk-audio/update-socket.ts \
   /opt/the-max-mix/kiosk-audio/lyrics.ts /opt/the-max-mix/kiosk-audio/lyrics-sources.ts \
-  /opt/the-max-mix/kiosk-audio/qrc-cipher.ts \
+  /opt/the-max-mix/kiosk-audio/qrc-cipher.ts /opt/the-max-mix/kiosk-audio/lyrics-lrclib.ts \
   /opt/the-max-mix/kiosk-audio/bluetooth.ts /opt/the-max-mix/kiosk-audio/bluetooth-monitor.ts \
   /opt/the-max-mix/kiosk-audio/improv.ts \
   /opt/the-max-mix/kiosk-audio/improv-gatt.ts /opt/the-max-mix/kiosk-audio/phone-setup.ts \

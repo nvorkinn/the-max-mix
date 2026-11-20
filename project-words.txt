@@ -85,6 +85,7 @@ loglevel
 longenough
 lrclib
 lucide
+lyricsfile
 magicdns
 majorstuen
 mapfile

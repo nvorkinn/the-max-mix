@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { defaultLyricsProvider } from '../lyrics/providers';
+import { kioskLyrics } from '../lyrics/kiosk';
 import type { Lyrics, LyricsProvider, LyricsQuery } from '../lyrics/types';
 import type { Track } from '../types';
 import { errorMessage } from '../utils/errorMessage';
@@ -41,7 +41,7 @@ function toQuery(track: Track | undefined): LyricsQuery | null {
 export function useLyrics(
   track: Track | undefined,
   enabled: boolean,
-  provider: LyricsProvider = defaultLyricsProvider
+  provider: LyricsProvider = kioskLyrics
 ): LyricsLookup {
   const query = toQuery(track);
   const key = query ? (track?.id ?? `${query.title}\n${query.artist}`) : null;

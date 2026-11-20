@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fakeSpotify, PIXEL } from './fake-spotify.ts';
+import { fakeSpotify, kioskLyrics, PIXEL } from './fake-spotify.ts';
 import { openSpotifyTab } from './spotify-tab.ts';
 
 const syncedLyrics = Array.from({ length: 120 }, (_, index) => {
@@ -18,9 +18,7 @@ test.describe('Lyrics', { tag: '@lyrics' }, () => {
     );
     await fakeSpotify(page);
     // After fakeSpotify, whose own answer (no lyrics) this one takes over from.
-    await page.route('https://lrclib.net/api/**', route =>
-      route.fulfill({ json: { instrumental: false, syncedLyrics } })
-    );
+    await kioskLyrics(page, { source: 'LRCLIB', lrc: syncedLyrics });
     await openSpotifyTab(page);
     // The song has lyrics, so the panel opens on them, though songs are queued.
     await expect(page.getByRole('button', { name: 'Lyrics', exact: true })).toHaveAttribute('aria-pressed', 'true');
@@ -78,9 +76,7 @@ test.describe('Lyrics', { tag: '@lyrics' }, () => {
     );
     await fakeSpotify(page);
     // After fakeSpotify, whose own answer (no lyrics) this one takes over from.
-    await page.route('https://lrclib.net/api/**', route =>
-      route.fulfill({ json: { instrumental: false, syncedLyrics } })
-    );
+    await kioskLyrics(page, { source: 'LRCLIB', lrc: syncedLyrics });
     await openSpotifyTab(page);
     // No clock tricks here: the position the page projects and the one the fake Spotify reports must agree.
     const lyricsButton = page.getByRole('button', { name: 'Lyrics', exact: true });

@@ -108,17 +108,15 @@ Settings.
 ### Lyrics
 
 Tap the artwork (the microphone button in its corner) to show the current song's lyrics in place of the artwork; tap
-the picture button to bring the artwork back. The choice is remembered. Lyrics come from [LRCLIB](https://lrclib.net),
-a free, open lyrics database that needs no key and allows browser requests. When LRCLIB has no synced lyrics for a
-song, the kiosk service (`GET /lyrics`, see [pi/kiosk-audio](pi/kiosk-audio/README.md)) looks for them at NetEase
-Cloud Music, QQ Music and KuGou, which do not allow requests from a web page; off the kiosk that step is skipped.
-Those three can also time each word, which lights the words up as they are sung: the service asks all three for
-word-timed lyrics before it settles for line-timed ones, and the app prefers word-timed lyrics to LRCLIB's.
-Time-synced lyrics follow playback and keep the current line in the middle. Scrolling them pauses that, and they follow
-the song again after 8 seconds of being left alone. Songs with only plain lyrics show them unsynced. Lookups happen only
-while the lyrics are shown, once per track. Another source can be added as a `LyricsProvider`
-(`src/lyrics/types.ts`) in the list in `src/lyrics/providers.ts`; the sources are asked in order and the first one with
-synced lyrics wins, with plain lyrics as the fallback.
+the picture button to bring the artwork back. The choice is remembered. Lyrics come from the kiosk service
+(`GET /lyrics`, see [pi/kiosk-audio](pi/kiosk-audio/README.md)), which asks [LRCLIB](https://lrclib.net) (a free, open
+lyrics database), NetEase Cloud Music, QQ Music and KuGou; the app itself asks no lyrics site, so off the kiosk there
+are no lyrics. All four can time each word, which lights the words up as they are sung: the service asks every one of
+them for word-timed lyrics before it settles for line-timed ones, and for plain ones only when no source has synced
+lyrics. Time-synced lyrics follow playback and keep the current line in the middle. Scrolling them pauses that, and
+they follow the song again after 8 seconds of being left alone. Songs with only plain lyrics show them unsynced. Lookups
+happen only while the lyrics are shown, once per track. Another source can be added as a `LyricsSource`
+(`pi/kiosk-audio/lyrics-sources.ts`) in the `SOURCES` list in `pi/kiosk-audio/lyrics.ts`.
 
 Spotify's own lyrics are not used: they come from an internal endpoint that is not part of the public Web API, needs
 a signed-in web-player cookie (`sp_dc`) and a server to call it, and is against Spotify's terms.

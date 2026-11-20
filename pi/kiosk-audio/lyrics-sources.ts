@@ -1,6 +1,6 @@
-// The synced-lyrics sources the kiosk service asks for the app (lyrics.ts): NetEase Cloud Music, KuGou and QQ Music.
-// None of them has a public API or allows requests from a web page, which is why the Pi's Node service asks them, not
-// the app. Each is searched by title and artist, and gives back LRC text (time-stamped lines) for the song it found.
+// What a lyrics source is to the kiosk service (lyrics.ts), and three of them: NetEase Cloud Music, KuGou and QQ Music
+// (LRCLIB is in lyrics-lrclib.ts). None of the three has a public API or allows requests from a web page, which is why
+// the Pi's Node service asks them, not the app. Each is searched by title and artist, and gives back LRC text (time-stamped lines) for the song it found.
 // Each also has lyrics that time every word, in a format of its own (NetEase: YRC, QQ Music: QRC, KuGou: KRC), which
 // is asked for apart from the line-timed ones; those times come back as `<mm:ss.xxx>` tags inside the LRC's lines.
 import { inflateSync } from 'node:zlib';
@@ -22,6 +22,10 @@ export interface Candidate {
   title: string;
   artist: string;
   durationMs?: number;
+  /** Which kinds of lyrics the song has, from a source whose search says; a kind it lacks is not asked for. */
+  has?: { words: boolean; lines: boolean; plain: boolean };
+  /** The source knows the song as one without lyrics. */
+  isInstrumental?: boolean;
 }
 
 export interface LyricsSource {
@@ -31,30 +35,50 @@ export interface LyricsSource {
   words: (candidate: Candidate, get: GetJson) => Promise<string | null>;
   /** The song's line-timed LRC text, or null when the source has none for it. */
   lines: (candidate: Candidate, get: GetJson) => Promise<string | null>;
+  /** The song's lyrics without times, a line of text per line, from a source that keeps those too. */
+  plain?: (candidate: Candidate, get: GetJson) => Promise<string | null>;
 }
 
 const REQUEST_TIMEOUT_MS = 8000;
 const SEARCH_LIMIT = 8;
 
+/** A request a source answered with an error status. */
+export class HttpError extends Error {
+  readonly status: number;
+  /** How long the source asked to be left alone (its Retry-After header), if it did. */
+  readonly retryAfterMs: number | undefined;
+
+  constructor(host: string, status: number, retryAfterMs?: number) {
+    super(`${host} answered ${status}`);
+    this.name = 'HttpError';
+    this.status = status;
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
 export const getJson: GetJson = async (url, headers = {}) => {
   const response = await fetch(url, { headers, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-  if (!response.ok) throw new Error(`${new URL(url).hostname} answered ${response.status}`);
+  if (!response.ok) {
+    const seconds = Number(response.headers.get('Retry-After'));
+    throw new HttpError(new URL(url).hostname, response.status, seconds > 0 ? seconds * 1000 : undefined);
+  }
   // Some of these services answer JSON as text/html or text/plain, so the body is parsed by hand.
   return JSON.parse(await response.text()) as unknown;
 };
 
-const record = (value: unknown): Record<string, unknown> =>
+export const record = (value: unknown): Record<string, unknown> =>
   typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
-const list = (value: unknown): unknown[] => (Array.isArray(value) ? (value as unknown[]) : []);
-const text = (value: unknown): string => (typeof value === 'string' ? value : '');
-const count = (value: unknown): number | undefined => (typeof value === 'number' && value > 0 ? value : undefined);
+export const list = (value: unknown): unknown[] => (Array.isArray(value) ? (value as unknown[]) : []);
+export const text = (value: unknown): string => (typeof value === 'string' ? value : '');
+export const count = (value: unknown): number | undefined =>
+  typeof value === 'number' && value > 0 ? value : undefined;
 const withDuration = (candidate: Omit<Candidate, 'durationMs'>, durationMs: number | undefined): Candidate =>
   durationMs === undefined ? candidate : { ...candidate, durationMs };
 
 const NETEASE_HEADERS = { Referer: 'https://music.163.com' };
 
 /** A time in milliseconds as LRC writes it, `mm:ss.xxx`. */
-function lrcTime(ms: number): string {
+export function lrcTime(ms: number): string {
   const minutes = Math.floor(ms / 60_000);
   const seconds = (ms % 60_000) / 1000;
   return `${String(minutes).padStart(2, '0')}:${seconds.toFixed(3).padStart(6, '0')}`;
@@ -275,6 +299,3 @@ export const qqMusic: LyricsSource = {
     return text(body['lyric']) || null;
   }
 };
-
-/** The sources, in the order they are asked. */
-export const SOURCES: readonly LyricsSource[] = [netease, qqMusic, kugou];

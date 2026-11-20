@@ -69,8 +69,8 @@ export const HTTP_GROUPS: readonly HttpGroup[] = [
   },
   {
     id: 'lyrics',
-    label: 'Lyrics (LRCLIB and the kiosk)',
-    matches: url => url.hostname === 'lrclib.net' || (url.host === KIOSK_HOST && url.pathname === '/lyrics')
+    label: 'Lyrics (from the kiosk)',
+    matches: url => url.host === KIOSK_HOST && url.pathname === '/lyrics'
   },
   {
     id: 'kiosk',

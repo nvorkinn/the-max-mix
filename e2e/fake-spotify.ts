@@ -25,20 +25,25 @@ const track = (id: string, name: string, artist: string, durationMs: number): Tr
 const art = (id: string) => [{ url: `https://images.unsplash.com/${id}` }];
 
 /**
- * Neither LRCLIB nor the kiosk's lyrics service has lyrics for any song, so the panel beside the artwork opens on the
- * queue. The lyrics are looked up as each song starts, and the real LRCLIB would answer differently from day to day. A
- * test wanting lyrics routes LRCLIB itself after this. Both answer an empty 200, which the app reads as nothing found,
- * as a 404 or an unreachable kiosk would be logged to the console as an error.
+ * The kiosk's lyrics service has lyrics for no song, so the panel beside the artwork opens on the queue. The lyrics are
+ * looked up as each song starts, and there is no kiosk service to answer in a test. A test wanting lyrics routes the
+ * service itself after this (`kioskLyrics`). It answers an empty 200, which the app reads as nothing found, as a 404
+ * or an unreachable kiosk would be logged to the console as an error.
  */
 export async function noLyrics(page: Page) {
-  const nothing = {
-    status: 200,
-    contentType: 'application/json',
-    headers: { 'access-control-allow-origin': '*' },
-    body: 'null'
-  };
-  await page.route('https://lrclib.net/api/**', route => route.fulfill(nothing));
-  await page.route(`${KIOSK_SERVICE}/lyrics?*`, route => route.fulfill(nothing));
+  await kioskLyrics(page, null);
+}
+
+/** Has the kiosk's lyrics service answer every lookup with `answer`: what its GET /lyrics sends, or null for none. */
+export async function kioskLyrics(page: Page, answer: { source: string; lrc: string } | null) {
+  await page.route(`${KIOSK_SERVICE}/lyrics?*`, route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'access-control-allow-origin': '*' },
+      body: JSON.stringify(answer)
+    })
+  );
 }
 
 /**
