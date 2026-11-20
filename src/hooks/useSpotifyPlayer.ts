@@ -44,6 +44,8 @@ const ASLEEP_POLL_MS = 45_000;
 const SDK_POLL_MS = 30_000;
 // An SDK command that has not answered by now is given up on, so one lost reply cannot leave the buttons dead.
 const SDK_COMMAND_TIMEOUT_MS = 8000;
+// A player that has just connected again can take a moment to appear in Spotify's device list; one more try waits this.
+const REREGISTER_RETRY_MS = 1500;
 // The SDK numbers the repeat modes; the Web API names them.
 const SDK_REPEAT_MODES: readonly RepeatMode[] = ['off', 'context', 'track'];
 const NEXT_REPEAT: Record<RepeatMode, RepeatMode> = { off: 'context', context: 'track', track: 'off' };
@@ -67,6 +69,11 @@ export interface PlaybackProblem {
   message: string;
   recovery: 'sign-in' | 'choose-speaker' | 'settings' | 'reconnect' | 'refresh' | 'enable-audio' | 'wait' | 'quota';
 }
+
+/** Spotify's answer when it does not know the device a command named. */
+const isDeviceUnknown = (error: unknown) => error instanceof SpotifyApiError && error.status === 404;
+
+const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 function apiProblem(error: unknown): PlaybackProblem {
   let recovery: PlaybackProblem['recovery'] = 'refresh';
@@ -193,6 +200,8 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   const deviceIdRef = useRef<string | null>(null);
   // Brings the SDK player back in step after the page was in the background (set while the player exists).
   const resumeRef = useRef<(() => void) | null>(null);
+  // Waiting for the player, connected again, to report ready with its new device id.
+  const readyWaitersRef = useRef<((deviceId: string) => void)[]>([]);
 
   const problemForApi = useCallback((error: unknown) => {
     if (error instanceof SpotifyApiError) recordSpotifyRetryAfter(error);
@@ -482,6 +491,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
           debugLog('info', 'sdk', `Browser player ready as device ${device_id}`);
           deviceIdRef.current = device_id;
           setBrowserDeviceId(device_id);
+          for (const resolve of readyWaitersRef.current.splice(0)) resolve(device_id);
           setIsConnecting(false);
           setSdkError(null);
           refreshPlayback().catch(() => {});
@@ -633,8 +643,9 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
    * (its state lags by seconds and would name the previous device), and read once more shortly to check.
    */
   const holdThisDevice = useCallback(() => {
-    if (!browserDeviceId) return;
-    const device: SpotifyDevice = { id: browserDeviceId, name: THIS_DEVICE_NAME, type: 'Computer', is_active: true };
+    const id = deviceIdRef.current ?? browserDeviceId;
+    if (!id) return;
+    const device: SpotifyDevice = { id, name: THIS_DEVICE_NAME, type: 'Computer', is_active: true };
     expectedDeviceRef.current = { device, until: Date.now() + EXPECTED_DEVICE_MS };
     clearTimeout(deviceCheckRef.current);
     deviceCheckRef.current = setTimeout(() => {
@@ -646,12 +657,59 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     clearTimeout(deviceCheckRef.current);
   }, []);
 
+  /**
+   * Spotify can forget this page's player while the SDK still holds it as connected (no `not_ready` event comes), and
+   * then refuses every command naming it with 404. The player is connected again, which registers a new device, and
+   * this resolves with its id, or null when it does not come back in time.
+   */
+  const reregister = useCallback(async (): Promise<string | null> => {
+    debugLog('warn', 'sdk', 'Spotify does not know the browser player any more; connecting it again');
+    const ready = new Promise<string>(resolve => {
+      readyWaitersRef.current.push(resolve);
+    });
+    setConnectionVersion(version => version + 1);
+    try {
+      return await withTimeout(ready, SDK_COMMAND_TIMEOUT_MS, 'The tablet player did not connect again.');
+    } catch {
+      return null;
+    }
+  }, []);
+
+  /**
+   * Runs a command that names this page's player. When Spotify answers that it does not know the player, the player is
+   * connected again and the command runs once more on its new id (and once after a short wait, while Spotify catches up).
+   */
+  const onThisPlayer = useCallback(
+    async <T>(deviceId: string, run: (id: string) => Promise<T>): Promise<T> => {
+      try {
+        return await run(deviceId);
+      } catch (error) {
+        if (!isDeviceUnknown(error)) throw error;
+        const fresh = await reregister();
+        if (!fresh) throw error;
+        let result: T;
+        try {
+          result = await run(fresh);
+        } catch (again) {
+          if (!isDeviceUnknown(again)) throw again;
+          await pause(REREGISTER_RETRY_MS);
+          result = await run(fresh);
+        }
+        // The device shown while Spotify catches up is the player under its new id.
+        holdThisDevice();
+        return result;
+      }
+    },
+    [reregister, holdThisDevice]
+  );
+
   /** Moves playback to a device through the Web API and brings the state up to date. */
   const transferTo = useCallback(
     async (deviceId: string, play: boolean) => {
       checkRetryWindow();
-      await spotify.transferPlayback(deviceId, play);
       const toThisPage = deviceId === browserDeviceId;
+      if (toThisPage) await onThisPlayer(deviceId, id => spotify.transferPlayback(id, play));
+      else await spotify.transferPlayback(deviceId, play);
       setRemoteSelected(!toThisPage);
       // This page's player is now the active device: later presses use the SDK, not another transfer.
       if (toThisPage) {
@@ -664,7 +722,16 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       bumpQueue();
       setActionError(null);
     },
-    [browserDeviceId, markSdkActive, refreshPlayback, bumpQueue, checkRetryWindow, holdThisDevice, releaseDevice]
+    [
+      browserDeviceId,
+      markSdkActive,
+      refreshPlayback,
+      bumpQueue,
+      checkRetryWindow,
+      holdThisDevice,
+      releaseDevice,
+      onThisPlayer
+    ]
   );
 
   // Flips the button at once and holds that state against stale reads; a second press while the first command is still
@@ -814,7 +881,11 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     // Held before the command: the read that follows it already predates the change.
     if (toThisPage) holdThisDevice();
     else releaseDevice();
-    const ok = await runCommand(() => spotify.playChoice(choice, deviceId));
+    const ok = await runCommand(() =>
+      toThisPage && deviceId
+        ? onThisPlayer(deviceId, id => spotify.playChoice(choice, id))
+        : spotify.playChoice(choice, deviceId)
+    );
     if (ok) {
       if (toThisPage) {
         setRemoteSelected(false);
