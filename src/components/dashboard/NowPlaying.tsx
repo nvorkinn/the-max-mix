@@ -1,5 +1,6 @@
 import { Pause, Play, SkipBack, SkipForward } from 'lucide-react';
 import type { NowPlayingProps } from '../../dashboard/props';
+import { useT } from '../../i18n/translate';
 import { Artwork } from '../TrackImages';
 
 /**
@@ -17,22 +18,28 @@ export default function NowPlaying({
   onPrevious,
   onNext
 }: Readonly<NowPlayingProps>) {
+  const t = useT();
   const done = Math.min(1, Math.max(0, progress));
   return (
-    <section className="dashboard-now-playing" aria-label="Now playing">
+    <section className="dashboard-now-playing" aria-label={t('dashboard.now_playing')}>
       <Artwork src={artUrl ?? undefined} alt="" className="dashboard-now-playing-art" />
       <div className="dashboard-now-playing-text">
         <span className="dashboard-now-playing-title">{title}</span>
         {artist && <span className="dashboard-now-playing-artist">{artist}</span>}
       </div>
       <div className="dashboard-now-playing-controls">
-        <button type="button" aria-label="Previous" disabled={!controlsEnabled} onClick={() => void onPrevious()}>
+        <button
+          type="button"
+          aria-label={t('dashboard.previous')}
+          disabled={!controlsEnabled}
+          onClick={() => void onPrevious()}
+        >
           <SkipBack fill="currentColor" aria-hidden="true" />
         </button>
         <button
           type="button"
           className="dashboard-now-playing-play"
-          aria-label={isPlaying ? 'Pause' : 'Play'}
+          aria-label={t(isPlaying ? 'dashboard.pause' : 'dashboard.play')}
           disabled={!controlsEnabled}
           onClick={() => void onPlayPause()}
         >
@@ -42,7 +49,12 @@ export default function NowPlaying({
             <Play fill="currentColor" aria-hidden="true" />
           )}
         </button>
-        <button type="button" aria-label="Next" disabled={!controlsEnabled} onClick={() => void onNext()}>
+        <button
+          type="button"
+          aria-label={t('dashboard.next')}
+          disabled={!controlsEnabled}
+          onClick={() => void onNext()}
+        >
           <SkipForward fill="currentColor" aria-hidden="true" />
         </button>
       </div>

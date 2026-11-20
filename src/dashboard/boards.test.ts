@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DeviceArrivals, StopDepartures } from 'countdown-api';
 import panels from '../../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json';
+import { translate } from '../i18n/translate';
 import { lineIdOf, platformOf, toBoards } from './boards';
 import type { Board } from './boards';
 
@@ -127,6 +128,9 @@ describe('toBoards', () => {
     };
 
     expect(toBoards(answer, NOW)[0]?.departures.map(d => d.detail)).toEqual([null, 'Stop F']);
+    expect(toBoards(answer, NOW, '24h', 'nb')[0]?.departures[1]?.detail).toBe(
+      translate('board.stop', 'nb', { letter: 'F' })
+    );
   });
 
   it('keeps each made-up key unique, and the same while the order holds', () => {

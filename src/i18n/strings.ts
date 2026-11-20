@@ -58,7 +58,55 @@ export const STRINGS = {
   'general.from': { en: 'From', nb: 'Fra' },
   'general.to': { en: 'To', nb: 'Til' },
   'country.GB': { en: 'United Kingdom', nb: 'Storbritannia' },
-  'country.NO': { en: 'Norway', nb: 'Norge' }
+  'country.NO': { en: 'Norway', nb: 'Norge' },
+
+  // The tab bar.
+  'tabs.screens': { en: 'Screens', nb: 'Skjermer' },
+  'tabs.spotify': { en: 'Spotify', nb: 'Spotify' },
+  'tabs.dashboard': { en: 'Dashboard', nb: 'Oversikt' },
+  'tabs.settings': { en: 'Settings', nb: 'Innstillinger' },
+  'tabs.choose_music': { en: 'Choose music', nb: 'Velg musikk' },
+  'tabs.signed_in_as': { en: 'Signed in as {name}', nb: 'Logget inn som {name}' },
+
+  // The Dashboard.
+  'dashboard.now_playing': { en: 'Now playing', nb: 'Spilles nå' },
+  'dashboard.previous': { en: 'Previous', nb: 'Forrige' },
+  'dashboard.play': { en: 'Play', nb: 'Spill av' },
+  'dashboard.pause': { en: 'Pause', nb: 'Pause' },
+  'dashboard.next': { en: 'Next', nb: 'Neste' },
+  'dashboard.close': { en: 'Close', nb: 'Lukk' },
+  'dashboard.notice_board': { en: 'Notice board', nb: 'Oppslagstavle' },
+  'dashboard.tube_status': { en: 'Tube status', nb: 'Status for Tube' },
+  'dashboard.disruptions': { en: 'Disruptions', nb: 'Avvik' },
+  'dashboard.hourly_forecast': { en: 'Hourly forecast', nb: 'Time for time' },
+  'dashboard.next_days': { en: 'Next days', nb: 'De neste dagene' },
+  'board.due': { en: 'Due', nb: 'Nå' },
+  'board.platform': { en: 'Platform {platform}', nb: 'Spor {platform}' },
+  'board.stop': { en: 'Stop {letter}', nb: 'Plattform {letter}' },
+
+  // The weather.
+  'weather.now': { en: 'Now', nb: 'Nå' },
+  'weather.tonight': { en: 'Tonight', nb: 'I kveld' },
+  'weather.tomorrow': { en: 'Tomorrow', nb: 'I morgen' },
+  'weather.weekend': { en: 'Weekend', nb: 'Helgen' },
+  'weather.clear': { en: 'Clear', nb: 'Klart' },
+  'weather.mostly_clear': { en: 'Mostly clear', nb: 'Lettskyet' },
+  'weather.partly_cloudy': { en: 'Partly cloudy', nb: 'Delvis skyet' },
+  'weather.cloudy': { en: 'Cloudy', nb: 'Skyet' },
+  'weather.fog': { en: 'Fog', nb: 'Tåke' },
+  'weather.drizzle': { en: 'Drizzle', nb: 'Yr' },
+  'weather.light_rain': { en: 'Light rain', nb: 'Lett regn' },
+  'weather.rain': { en: 'Rain', nb: 'Regn' },
+  'weather.heavy_rain': { en: 'Heavy rain', nb: 'Kraftig regn' },
+  'weather.snow': { en: 'Snow', nb: 'Snø' },
+  'weather.showers': { en: 'Showers', nb: 'Regnbyger' },
+  'weather.snow_showers': { en: 'Snow showers', nb: 'Snøbyger' },
+  'weather.thunderstorms': { en: 'Thunderstorms', nb: 'Tordenvær' },
+  'weather.rain_from': { en: 'Rain from {hour}', nb: 'Regn fra {hour}' },
+  'weather.dry_from': { en: 'Dry from {hour}', nb: 'Opphold fra {hour}' },
+  'weather.dry_all_day': { en: 'Dry all day', nb: 'Opphold hele dagen' },
+  'weather.rain_saturday': { en: 'Rain on Saturday', nb: 'Regn på lørdag' },
+  'weather.rain_sunday': { en: 'Rain on Sunday', nb: 'Regn på søndag' }
 } as const satisfies Record<string, Readonly<Record<Language, string>>>;
 
 /** An id STRINGS has: any other is a compile error. */

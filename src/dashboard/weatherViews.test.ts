@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DeviceWeather } from 'countdown-api';
+import { translate } from '../i18n/translate';
 import { conditionFor, skyFor, toWeather } from './weatherViews';
 
 // Tuesday 17 November 2026, 09:20 in London (UTC, so the place's local time is UTC too).
@@ -88,6 +89,20 @@ describe('toWeather', () => {
       summary: 'Rain from 2pm'
     });
     expect(toWeather(answer(), NOW, '12h')?.views[2]?.summary).toBe('Dry all day');
+  });
+
+  it('says it all in Norwegian, with the dry summaries still under a sun', () => {
+    const codes: Record<string, number> = {};
+    for (let hour = 9; hour < 19; hour += 1) codes[`2026-11-17T${String(hour).padStart(2, '0')}`] = 63;
+    const views = toWeather(answer({ codes, dayCodes: { '2026-11-22': 65 } }), NOW, '24h', 'nb')?.views ?? [];
+
+    expect(views[0]).toMatchObject({
+      condition: translate('weather.partly_cloudy', 'nb'),
+      summary: translate('weather.dry_from', 'nb', { hour: '19:00' }),
+      summaryIcon: 'sun'
+    });
+    expect(views[2]).toMatchObject({ summary: translate('weather.dry_all_day', 'nb'), summaryIcon: 'sun' });
+    expect(views[3]?.summary).toBe(translate('weather.rain_sunday', 'nb'));
   });
 
   it('names the wet day of the weekend, and shows the worse sky', () => {

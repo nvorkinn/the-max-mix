@@ -2,6 +2,7 @@ import { ChevronRight, Megaphone, X } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { NoticeItem } from '../../dashboard/props';
+import { useT } from '../../i18n/translate';
 import { NOTICE_ICONS } from './icons';
 
 /** Every row is this tall, so the number that fit is the same whatever the notices say. */
@@ -24,12 +25,13 @@ interface NoticeBoardPageProps {
 
 /** A page of the notices, in fixed-height rows. A row with more to say opens it over the whole panel. */
 export default function NoticeBoard({ notices, count, arriving, onOpen }: Readonly<NoticeBoardPageProps>) {
+  const t = useT();
   const titleId = useId();
   return (
     <section className="dashboard-notices" aria-labelledby={titleId}>
       <h2 className="dashboard-eyebrow" id={titleId}>
         <Megaphone className="lucide" style={{ width: 16, height: 16 }} aria-hidden="true" />
-        Notice board
+        {t('dashboard.notice_board')}
         <span className="dashboard-eyebrow-count">{count || ''}</span>
       </h2>
       <ul className="dashboard-notice-list">
@@ -97,6 +99,7 @@ export function useArrivals(notices: readonly NoticeItem[]): ReadonlySet<string>
 
 /** A notice's full text over the whole panel; a tap anywhere closes it. */
 export function NoticeSheet({ notice, onClose }: Readonly<{ notice: NoticeItem; onClose: () => void }>) {
+  const t = useT();
   const Icon = NOTICE_ICONS[notice.kind];
   return (
     <div className="dashboard-sheet" role="presentation" onClick={onClose}>
@@ -106,7 +109,7 @@ export function NoticeSheet({ notice, onClose }: Readonly<{ notice: NoticeItem; 
           <h2 id="dashboard-sheet-title">{notice.title}</h2>
         </div>
         <p>{notice.detail}</p>
-        <button type="button" className="dashboard-icon-button" aria-label="Close" onClick={onClose}>
+        <button type="button" className="dashboard-icon-button" aria-label={t('dashboard.close')} onClick={onClose}>
           <X className="lucide" />
         </button>
       </div>

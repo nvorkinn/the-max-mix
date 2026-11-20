@@ -1,4 +1,5 @@
 import type { HourlyStripProps } from '../../dashboard/props';
+import { useT } from '../../i18n/translate';
 import { SKY_ICONS, sunny } from './icons';
 
 /** The hour as the place's own clock read it: the ISO time's hour, whatever zone this browser is in. */
@@ -12,8 +13,9 @@ function hourLabel(time: string, clockFormat: HourlyStripProps['clockFormat']): 
 
 /** The next five hours of forecast. */
 export default function HourlyStrip({ hours, stale, clockFormat }: Readonly<HourlyStripProps>) {
+  const t = useT();
   return (
-    <section aria-label="Hourly forecast" data-stale={stale}>
+    <section aria-label={t('dashboard.hourly_forecast')} data-stale={stale}>
       <div className="dashboard-hours">
         {hours.slice(0, 5).map(hour => {
           const Icon = SKY_ICONS[hour.sky][hour.isDay ? 'day' : 'night'];
