@@ -708,7 +708,7 @@ describe('TabletView', () => {
     setPlayer({ error: 'Device offline' });
     renderOnSpotifyTab(<TabletView />);
     await flush();
-    const nowPlaying = screen.getByRole('region', { name: 'Now playing', exact: true });
+    const nowPlaying = screen.getByRole('region', { name: 'Now playing' });
     expect(within(nowPlaying).getByRole('alert')).toHaveTextContent('Playback problem');
     expect(within(nowPlaying).getByRole('button', { name: 'Refresh playback' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Problems' }));

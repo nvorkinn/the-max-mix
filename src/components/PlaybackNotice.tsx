@@ -27,20 +27,18 @@ export function describePlayback(notice: PlayerNotice, t: Translate, fixes: Play
       action: { label: t('notice.choose_speaker'), run: fixes.onChooseSpeaker }
     };
   }
-  const described = {
+  const fix = (label: string, run: () => void) => ({ label, run });
+  const described: Record<PlaybackProblem['recovery'], Omit<Problem, 'id'>> = {
     quota: { title: t('notice.quota_title') },
     wait: { title: t('notice.wait_title') },
-    'sign-in': { title: t('notice.sign_in_title'), label: t('notice.reconnect_spotify'), run: fixes.onSettings },
-    'choose-speaker': { title: t('notice.no_speaker'), label: t('notice.choose_speaker'), run: fixes.onChooseSpeaker },
-    settings: { title: t('notice.settings_title'), label: t('settings.title'), run: fixes.onSettings },
-    reconnect: { title: t('notice.player_title'), label: t('notice.reconnect_player'), run: fixes.onReconnect },
-    refresh: { title: t('notice.problem_title'), label: t('notice.refresh'), run: fixes.onRefresh },
-    'enable-audio': { title: t('notice.audio_title'), label: t('notice.allow_audio'), run: fixes.onAllowAudio }
-  }[notice.problem.recovery];
-  return {
-    title: described.title,
-    action: 'label' in described ? { label: described.label, run: described.run } : undefined
+    'sign-in': { title: t('notice.sign_in_title'), action: fix(t('notice.reconnect_spotify'), fixes.onSettings) },
+    'choose-speaker': { title: t('notice.no_speaker'), action: fix(t('notice.choose_speaker'), fixes.onChooseSpeaker) },
+    settings: { title: t('notice.settings_title'), action: fix(t('settings.title'), fixes.onSettings) },
+    reconnect: { title: t('notice.player_title'), action: fix(t('notice.reconnect_player'), fixes.onReconnect) },
+    refresh: { title: t('notice.problem_title'), action: fix(t('notice.refresh'), fixes.onRefresh) },
+    'enable-audio': { title: t('notice.audio_title'), action: fix(t('notice.allow_audio'), fixes.onAllowAudio) }
   };
+  return described[notice.problem.recovery];
 }
 
 /**

@@ -83,7 +83,7 @@ export default function TabBar({
             <Search className="lucide" style={{ width: 26, height: 26 }} />
           </button>
         )}
-        <ProblemsButton onDetails={onClockHold} />
+        <ProblemsButton onDetails={onClockHold ?? undefined} />
         {person &&
           (onSwitchPerson ? (
             <PersonSwitcher className="dashboard-icon-button" onSwitch={onSwitchPerson}>
