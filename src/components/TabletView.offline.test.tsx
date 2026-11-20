@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent, within } from '@testing-library/react';
 import userEvent from '../test/user';
 import { getRedirectUri } from '../spotify/settings';
 import { NETWORK_ERROR_MESSAGE } from '../spotify/http';
@@ -13,6 +13,12 @@ vi.mock('./AlbumArtPlayer', () => ({ default: () => null }));
 vi.mock('./SettingsPanel', () => ({ default: () => null }));
 vi.mock('./SpeakerSelectorModal', () => ({ default: () => null }));
 vi.mock('./TrackQueue', () => ({ default: () => null }));
+
+/** The warning's list, opened. */
+function openProblems() {
+  fireEvent.click(screen.getByRole('button', { name: 'Problems' }));
+  return screen.getByRole('dialog', { name: 'Problems' });
+}
 
 function setOnLine(value: boolean) {
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(value);
@@ -39,14 +45,15 @@ describe('offline state in TabletView', () => {
 
   it('shows nothing while online', () => {
     render(<TabletView />);
-    expect(screen.queryByText('No internet connection')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Problems' })).not.toBeInTheDocument();
   });
 
-  it('shows the message without a Wi-Fi button for ordinary visitors', () => {
+  it('lists no internet under the warning, without a Wi-Fi button for ordinary visitors', () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     render(<TabletView />);
-    expect(screen.getByRole('alert')).toHaveTextContent('No internet connection');
-    expect(screen.queryByRole('button', { name: 'Wi-Fi settings' })).not.toBeInTheDocument();
+    const problems = openProblems();
+    expect(within(problems).getByText('No internet connection')).toBeInTheDocument();
+    expect(within(problems).queryByRole('button', { name: 'Wi-Fi settings' })).not.toBeInTheDocument();
   });
 
   it('offers the Wi-Fi panel on the kiosk and asks the service to show it', async () => {
@@ -55,6 +62,7 @@ describe('offline state in TabletView', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
     render(<TabletView />);
+    await userEvent.click(screen.getByRole('button', { name: 'Problems' }));
     await userEvent.click(screen.getByRole('button', { name: 'Wi-Fi settings' }));
     expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi', {
       method: 'POST',
@@ -66,20 +74,20 @@ describe('offline state in TabletView', () => {
   it('appears when the browser goes offline and disappears when it comes back', () => {
     render(<TabletView />);
     act(() => setOnLine(false));
-    expect(screen.getByText('No internet connection')).toBeInTheDocument();
+    expect(within(openProblems()).getByText('No internet connection')).toBeInTheDocument();
     act(() => setOnLine(true));
-    expect(screen.queryByText('No internet connection')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Problems' })).not.toBeInTheDocument();
   });
 
-  it('shows the offline banner after lasting network errors', () => {
+  it('lists no internet after lasting network errors', () => {
     vi.useFakeTimers();
     state.player = { ...state.player, error: NETWORK_ERROR_MESSAGE };
     render(<TabletView />);
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Problems' })).not.toBeInTheDocument();
     act(() => {
       vi.advanceTimersByTime(20_000);
     });
-    expect(screen.getByRole('alert')).toHaveTextContent('No internet connection');
+    expect(within(openProblems()).getByText('No internet connection')).toBeInTheDocument();
     expect(screen.queryByText(NETWORK_ERROR_MESSAGE)).not.toBeInTheDocument();
   });
 

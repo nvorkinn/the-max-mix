@@ -180,13 +180,17 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
     await page.context().setOffline(true);
-    // Offline, the lyrics lookup can fail too and raise its own alert, so look for the offline one by its text.
-    await expect(page.getByRole('alert').filter({ hasText: 'No internet connection' })).toBeVisible();
+    const warning = page.getByRole('button', { name: 'Problems', exact: true });
+    await warning.click();
+    const problems = page.getByRole('dialog', { name: 'Problems' });
+    await expect(problems).toContainText('No internet connection');
+    await problems.getByRole('button', { name: 'Close' }).click();
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeDisabled();
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeInViewport();
     await expectControlsFit(page, player);
     await page.context().setOffline(false);
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
+    await expect(warning).toHaveCount(0);
   });
 
   test('queue loading, failure and confirmed empty are distinct', async ({ page }) => {

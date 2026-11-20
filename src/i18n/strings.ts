@@ -393,10 +393,6 @@ export const STRINGS = {
   'setup.connecting': { en: 'Connecting...', nb: 'Kobler til …' },
   'setup.connect': { en: 'Connect Spotify', nb: 'Koble til Spotify' },
   'offline.title': { en: 'No internet connection', nb: 'Ingen internettilkobling' },
-  'offline.text': {
-    en: 'Reconnect to use Spotify controls. Music on another speaker may continue.',
-    nb: 'Koble til igjen for å styre Spotify. Musikk på en annen høyttaler kan spille videre.'
-  },
   'offline.wifi': { en: 'Wi-Fi settings', nb: 'Wi-Fi-innstillinger' },
 
   // Switching person, and pairing a phone.
