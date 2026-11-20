@@ -4,7 +4,7 @@ import { KIOSK_SERVICE } from '../utils/kioskService';
 import { parseLrc } from './lrc';
 import type { LyricsProvider } from './types';
 
-// The service calls three sites one after the other, which can take a while.
+// The service asks three sites, each with several requests and some of them one after the other, which can take a while.
 const TIMEOUT_MS = 30_000;
 
 /**

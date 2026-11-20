@@ -194,11 +194,15 @@ speaks Improv over Web Bluetooth, which Chrome on Android has and Safari on an i
 [improv-wifi.com](https://www.improv-wifi.com) is one; it is somebody else's page, which sees the password.
 
 `GET /lyrics` answers the app's origin only (each request makes the Pi call out). `lyrics.ts` asks NetEase, QQ Music and
-KuGou in turn (`lyrics-sources.ts`: none has a public API or allows a web page to call it, which is why this service
-does), keeps only a song whose title, artist and length match, and accepts only text with several timed lines. It
-remembers what it found, and for an hour what it did not. KuGou's search host is called over plain http because its
-https certificate is for another domain. These are unofficial endpoints and can change: a source that breaks is
-skipped, so remove it from `SOURCES` if it keeps failing.
+KuGou (`lyrics-sources.ts`: none has a public API or allows a web page to call it, which is why this service does),
+keeps only a song whose title, artist and length match, and accepts only text with several timed lines. Lyrics that
+time each word come first: all three are asked for those at once (NetEase's YRC, QQ Music's QRC and KuGou's KRC, each
+turned into LRC with a `<mm:ss.xxx>` tag before every word), and only when none has them are the three asked in turn
+for line-timed lyrics. QRC comes encrypted with QQ's own variant of Triple DES, which `qrc-cipher.ts` undoes. The
+service remembers what it found, and for an hour what it did not. KuGou's search host is called over plain http because
+its https certificate is for another domain. QQ Music's search answers with nothing for a few minutes after several
+searches in a row. These are unofficial endpoints and can change: a source that breaks is skipped, so remove it from
+`SOURCES` if it keeps failing.
 
 The Wi-Fi requests are for the Wi-Fi setup page (`wifi-page.ts`, served by `wifi-setup.ts`), which kiosk-session shows
 in Chromium when the Pi is offline or the app's Wi-Fi button was tapped. That page has to work offline, so this service serves it, and the Wi-Fi POSTs answer

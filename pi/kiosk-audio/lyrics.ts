@@ -1,5 +1,6 @@
-// Finds synced lyrics for the app's GET /lyrics (server.ts): asks each source in lyrics-sources.ts in turn, only keeps a
-// song that matches the title, artist and length asked for, and remembers the answers.
+// Finds synced lyrics for the app's GET /lyrics (server.ts): asks every source in lyrics-sources.ts for lyrics timed
+// word by word, and only when none has them asks each in turn for line-timed ones. It only keeps a song that matches
+// the title, artist and length asked for, and remembers the answers.
 import { getJson, SOURCES } from './lyrics-sources.ts';
 import type { Candidate, GetJson, LyricsQuery, LyricsSource } from './lyrics-sources.ts';
 
@@ -103,9 +104,22 @@ export function isSynced(lrc: string): boolean {
   return timed >= MIN_TIMED_LINES;
 }
 
+const TIMED_WORD = /<\d{1,3}:\d{1,2}[^>]{0,8}>[^<]/g;
+
 /**
- * The synced lyrics of the song from the first source that has them. A source that fails is skipped; when none has the
- * song and one failed, that failure is thrown so the app can tell "no lyrics" from "could not look".
+ * Whether `lrc` is synced lyrics that time each word: enough of its lines have two or more timed words. A source can
+ * have "word-timed" lyrics that only time whole lines, which are no better than line-timed ones.
+ */
+export function isWordTimed(lrc: string): boolean {
+  const lines = lrc.split('\n').filter(line => (line.match(TIMED_WORD)?.length ?? 0) >= 2);
+  return isSynced(lrc) && lines.length >= MIN_TIMED_LINES;
+}
+
+/**
+ * The synced lyrics of the song: word-timed ones from the first source that has them, else line-timed ones from the
+ * first source that has those. Every source is asked for word-timed lyrics before any is asked for line-timed ones. A
+ * source that fails is skipped; when none has the song and one failed, that failure is thrown so the app can tell "no
+ * lyrics" from "could not look".
  */
 export async function findLyrics(
   query: LyricsQuery,
@@ -113,30 +127,56 @@ export async function findLyrics(
   get: GetJson = getJson
 ): Promise<LyricsHit | null> {
   let failure: Error | undefined;
-  for (const source of sources) {
+  const failed = (source: LyricsSource, error: unknown) => {
+    failure ??= error instanceof Error ? error : new Error(String(error));
+    console.warn(`lyrics: ${source.name} failed: ${String(error)}`);
+  };
+  // All sources at once, since each is asked whatever the others answer; an earlier source still wins a tie.
+  const asked = sources.map(async source => {
+    let found: Candidate[] = [];
+    try {
+      found = matches(await source.search({ ...query, title: searchTitle(query.title) }, get), query).slice(
+        0,
+        TRIES_PER_SOURCE
+      );
+      const lrc = await firstLyrics(found, candidate => source.words(candidate, get), isWordTimed);
+      if (lrc) return { source, found, lrc };
+    } catch (error) {
+      failed(source, error);
+    }
+    return { source, found, lrc: null };
+  });
+  const wordless: { source: LyricsSource; found: Candidate[] }[] = [];
+  for (const pending of asked) {
+    // eslint-disable-next-line no-await-in-loop -- they are already running; this only takes them in order.
+    const { source, found, lrc } = await pending;
+    if (lrc) return { source: source.name, lrc };
+    wordless.push({ source, found });
+  }
+  for (const { source, found } of wordless) {
     try {
       // One source at a time on purpose: the later ones are only asked when the earlier ones have nothing.
       // eslint-disable-next-line no-await-in-loop
-      const hit = await fromSource(source, query, get);
-      if (hit) return hit;
+      const lrc = await firstLyrics(found, candidate => source.lines(candidate, get), isSynced);
+      if (lrc) return { source: source.name, lrc };
     } catch (error) {
-      failure ??= error instanceof Error ? error : new Error(String(error));
-      console.warn(`lyrics: ${source.name} failed: ${String(error)}`);
+      failed(source, error);
     }
   }
   if (failure) throw failure;
   return null;
 }
 
-async function fromSource(source: LyricsSource, query: LyricsQuery, get: GetJson): Promise<LyricsHit | null> {
-  const found = matches(await source.search({ ...query, title: searchTitle(query.title) }, get), query).slice(
-    0,
-    TRIES_PER_SOURCE
-  );
-  for (const candidate of found) {
+/** The lyrics of the first of `candidates` for which `ask` gives some that `isGood`, or null. */
+async function firstLyrics(
+  candidates: readonly Candidate[],
+  ask: (candidate: Candidate) => Promise<string | null>,
+  isGood: (lrc: string) => boolean
+): Promise<string | null> {
+  for (const candidate of candidates) {
     // eslint-disable-next-line no-await-in-loop
-    const lrc = await source.lyrics(candidate, get);
-    if (lrc && isSynced(lrc)) return { source: source.name, lrc };
+    const lrc = await ask(candidate);
+    if (lrc && isGood(lrc)) return lrc;
   }
   return null;
 }
