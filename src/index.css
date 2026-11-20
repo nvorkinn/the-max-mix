@@ -2603,10 +2603,15 @@ body:has(.app-dialog[open]) {
 .lyrics-list[data-following='false'] {
   scroll-behavior: auto;
 }
-/* Sung lines take the chosen colour, or Dynamic's from the album art; lines still to come stay faint. */
+/*
+  Sung lines take the play button's own fill, the chosen colour's gradient or Dynamic's from the album art, so they are
+  as rich as the button rather than the lighter flat shade the title uses; lines still to come stay faint.
+*/
 .lyrics-list.is-synced .lyrics-line.is-reached,
 .lyrics-list.is-synced .lyrics-word.is-reached {
-  color: var(--accent);
+  background: var(--play-fill);
+  background-clip: text;
+  color: transparent;
 }
 /* Sync mode (the Lyrics button tapped again): every line is a button; tapping the one being sung moves the song's timing to match. */
 .lyrics-sync-line {
