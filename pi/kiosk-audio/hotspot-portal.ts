@@ -11,6 +11,8 @@ import { createServer as createListener } from 'node:net';
 import type { Socket } from 'node:net';
 import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, Network } from './nmcli.ts';
+import { LOCALES, preferredLanguage, say } from './words.ts';
+import type { Language, WordId } from './words.ts';
 
 const PORTS = [80, 8080];
 const MAX_BODY = 4096;
@@ -34,9 +36,18 @@ export function isLoopback(address: string | undefined): boolean {
   return address === '::1' || address === '::ffff:127.0.0.1' || address?.startsWith('127.') === true;
 }
 
-// SSIDs are text anyone can broadcast, so the page only ever sets them as text, never as HTML.
-export const PORTAL_HTML = `<!doctype html>
-<html lang="en">
+// SSIDs are text anyone can broadcast, so the page only ever sets them as text, never as HTML. The words are the
+// catalogue's (words.ts), which has no markup in it.
+/** The page in `language`: the phone's, as it asks in Accept-Language. */
+export function portalHtml(language: Language): string {
+  const w = (id: WordId): string => say(id, language);
+  // A string for the script, quoted as the script quotes its own.
+  const js = (id: WordId): string => {
+    const escaped = w(id).replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+    return `'${escaped}'`;
+  };
+  return `<!doctype html>
+<html lang="${LOCALES[language]}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -56,20 +67,20 @@ export const PORTAL_HTML = `<!doctype html>
   </head>
   <body>
     <main>
-      <h1>Choose your Wi-Fi</h1>
-      <p>The kiosk will join the network you pick.</p>
+      <h1>${w('portal.choose')}</h1>
+      <p>${w('portal.intro')}</p>
       <p id="error" role="alert" hidden></p>
       <section id="list"></section>
-      <button type="button" id="other">Other network…</button>
+      <button type="button" id="other">${w('portal.otherNetwork')}</button>
       <form id="form" hidden autocomplete="off">
         <h2 id="title"></h2>
-        <input id="name" placeholder="Network name" hidden />
-        <input id="password" type="password" placeholder="Password" />
-        <button class="primary" type="submit">Connect</button>
+        <input id="name" placeholder="${w('wifi.networkName')}" hidden />
+        <input id="password" type="password" placeholder="${w('wifi.password')}" />
+        <button class="primary" type="submit">${w('wifi.connect')}</button>
       </form>
       <section id="done" hidden>
-        <h2>The kiosk is joining it</h2>
-        <p>This phone will leave the hotspot now. Join your usual Wi-Fi again, and watch the tablet: it says when it worked.</p>
+        <h2>${w('portal.joining')}</h2>
+        <p>${w('portal.leave')}</p>
       </section>
     </main>
     <script>
@@ -78,7 +89,7 @@ export const PORTAL_HTML = `<!doctype html>
       const fail = message => { $('error').textContent = message; $('error').hidden = message === ''; };
       const choose = (network, hidden) => {
         chosen = { ssid: network.ssid, security: network.security, hidden };
-        $('title').textContent = hidden ? 'Other network' : network.ssid;
+        $('title').textContent = hidden ? ${js('wifi.otherNetwork')} : network.ssid;
         $('name').hidden = !hidden;
         $('password').hidden = network.security === 'open' && !hidden;
         $('form').hidden = false;
@@ -93,7 +104,7 @@ export const PORTAL_HTML = `<!doctype html>
           button.addEventListener('click', () => choose(network, false));
           $('list').append(button);
         }
-      }).catch(() => fail('Could not load the networks. Reload this page.'));
+      }).catch(() => fail(${js('portal.loadFailed')}));
       $('other').addEventListener('click', () => choose({ ssid: '', security: 'psk' }, true));
       $('form').addEventListener('submit', async event => {
         event.preventDefault();
@@ -113,13 +124,17 @@ export const PORTAL_HTML = `<!doctype html>
           for (const id of ['list', 'other', 'form']) $(id).hidden = true;
           $('done').hidden = false;
         } catch {
-          fail('The kiosk did not accept that. Check the name and password.');
+          fail(${js('portal.refused')});
         }
       });
     </script>
   </body>
 </html>
 `;
+}
+
+/** The page in English. */
+export const PORTAL_HTML = portalHtml('en');
 
 async function readBody(request: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
@@ -165,7 +180,12 @@ export async function handlePortalRequest(
       send(response, 200, 'application/json', JSON.stringify({ networks: options.networks() }));
     } else if (request.method === 'GET' || request.method === 'HEAD') {
       // Every other address, for the phone's internet check too, gets the page: that is what opens it by itself.
-      send(response, 200, 'text/html; charset=utf-8', request.method === 'HEAD' ? '' : PORTAL_HTML);
+      send(
+        response,
+        200,
+        'text/html; charset=utf-8',
+        request.method === 'HEAD' ? '' : portalHtml(preferredLanguage(request.headers['accept-language']))
+      );
     } else {
       send(response, 405, 'text/plain', 'Not allowed');
     }

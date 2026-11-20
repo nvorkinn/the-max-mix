@@ -1,7 +1,8 @@
 /* eslint-disable sonarjs/no-clear-text-protocols -- the hotspot's page is plain http on a private address, by design */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { drawQr, startPage } from './wifi-page.ts';
-import { PAGE_HTML } from './wifi-setup.ts';
+import { PAGE_HTML, pageHtml } from './wifi-setup.ts';
+import { say } from './words.ts';
 
 const NETWORKS = [
   { ssid: 'Home', bars: 4, security: 'psk' },
@@ -344,6 +345,61 @@ describe('the Wi-Fi setup page', () => {
         expect(asks()).toBe(2);
         expect(byId('hotspot-view').hidden).toBe(false);
       });
+    });
+  });
+
+  describe('in Norwegian', () => {
+    beforeEach(() => {
+      const parsed = new DOMParser().parseFromString(pageHtml('nb'), 'text/html');
+      for (const script of parsed.querySelectorAll('script')) script.remove();
+      document.documentElement.lang = parsed.documentElement.lang;
+      document.body.replaceChildren(...parsed.body.childNodes);
+    });
+
+    afterEach(() => {
+      document.documentElement.lang = '';
+    });
+
+    it('says what it does in the page’s language', async () => {
+      await startPage(document, false).refresh();
+      expect(document.documentElement.lang).toBe('nb-NO');
+      expect(byId('refresh').textContent).toBe(say('wifi.refresh', 'nb'));
+      expect(networkButtons()[2]?.querySelector('.note')?.textContent).toBe(say('wifi.notSupported', 'nb'));
+      expect(networkButtons()[0]?.querySelector('.bars')?.getAttribute('aria-label')).toBe(
+        say('wifi.signal', 'nb', { bars: 4 })
+      );
+      networkButtons()[0]?.click();
+      expect(byId('join-title').textContent).toBe(say('wifi.joinNetwork', 'nb', { ssid: 'Home' }));
+      byId('show').click();
+      expect(byId('show').textContent).toBe(say('wifi.hide', 'nb'));
+    });
+
+    it('shows the service’s English messages in the page’s language', async () => {
+      state.connectReply = { ok: false, error: 'Wrong password. Check it and try again.' };
+      await startPage(document, false).refresh();
+      networkButtons()[0]?.click();
+      field('password').value = 'wrong-password';
+      byId('connect').click();
+      await vi.waitFor(() => {
+        expect(byId('error').textContent).toBe(say('error.wrongPassword', 'nb'));
+      });
+    });
+
+    it('says how the hotspot is going in the page’s language', async () => {
+      vi.useFakeTimers();
+      try {
+        await startPage(document, false).refresh();
+        byId('hotspot').click();
+        await later(0);
+        expect(byId('hotspot-status').textContent).toBe(say('wifi.waitingForPhone', 'nb'));
+        state.hotspotState = { state: 'failed', error: 'Could not join Home: Wrong password. Check it and try again.' };
+        await later(2000);
+        expect(byId('hotspot-status').textContent).toBe(
+          say('error.couldNotJoin', 'nb', { ssid: 'Home', error: say('error.wrongPassword', 'nb') })
+        );
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

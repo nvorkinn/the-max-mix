@@ -17,6 +17,7 @@ import type { AppLog, Deps } from './server.ts';
 import type { SonosChange } from './sonos-events.ts';
 import { SonosError } from './sonos.ts';
 import type { SonosOperations, SonosRequest } from './sonos.ts';
+import type { Language } from './words.ts';
 
 // eslint-disable-next-line sonarjs/no-hardcoded-ip -- a made-up address of the Pi on a home network
 const PI_ADDRESS = '192.168.1.42';
@@ -67,6 +68,8 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
   let beats = 0;
   let closed = 0;
   let clock = 0;
+  let language: Language = 'en';
+  const pageLanguages: Language[] = [];
   const deps: Deps = {
     graph: () => Promise.resolve(parseDump(dump())),
     route: choices => {
@@ -114,7 +117,16 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
         closed += 1;
       }
     },
-    asset: url => Promise.resolve(url === '/wifi-setup' ? { type: 'text/html', body: '<p>page</p>' } : null),
+    asset: (url, pageLanguage) => {
+      pageLanguages.push(pageLanguage);
+      return Promise.resolve(url === '/wifi-setup' ? { type: 'text/html', body: '<p>page</p>' } : null);
+    },
+    language: {
+      get: () => language,
+      set: next => {
+        language = next;
+      }
+    },
     lyrics: query => {
       if (query.title === 'Down') return Promise.reject(new Error('unreachable'));
       return Promise.resolve(query.title === 'Known' ? { source: 'NetEase', lrc: '[00:01.00]Placeholder' } : null);
@@ -212,7 +224,9 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
     joined,
     listeners,
     beats: () => beats,
-    closed: () => closed
+    closed: () => closed,
+    language: () => language,
+    pageLanguages
   };
 }
 
@@ -686,6 +700,32 @@ describe('the setup hotspot', () => {
 });
 
 describe('the Wi-Fi setup page', () => {
+  it('is in the language the app last asked for it in, and English for any other', async () => {
+    const { deps, performed, language, pageLanguages } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/wifi', { body: { language: 'nb' } })).status).toBe(204);
+    expect(language()).toBe('nb');
+    await fetch(`${base}/wifi-setup`);
+    expect(pageLanguages).toEqual(['nb']);
+    // No body (an app from before it said) keeps the language; anything but en or nb is English.
+    expect((await post(base, '/wifi')).status).toBe(204);
+    expect(language()).toBe('nb');
+    expect((await post(base, '/wifi', { body: { language: 'de' } })).status).toBe(204);
+    expect(language()).toBe('en');
+    await post(base, '/wifi', { body: { language: 'nb' } });
+    expect((await post(base, '/wifi', { body: 'nb' })).status).toBe(204);
+    expect(language()).toBe('en');
+    expect(performed).toEqual(['wifi', 'wifi', 'wifi', 'wifi', 'wifi']);
+  });
+
+  it('keeps its language when another web page asks', async () => {
+    const { deps, performed, language } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/wifi', { origin: 'https://evil.example', body: { language: 'nb' } })).status).toBe(403);
+    expect(language()).toBe('en');
+    expect(performed).toEqual([]);
+  });
+
   it('is served with its scripts', async () => {
     const base = await start(fakes().deps);
     const page = await fetch(`${base}/wifi-setup`);

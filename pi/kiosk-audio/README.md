@@ -118,31 +118,31 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 
 ## The requests
 
-| Request                                | What it does                                                             |
-| -------------------------------------- | ------------------------------------------------------------------------ |
-| `GET /speakers`                        | `{"speakers": [...], "volumes": {"Kitchen": 40}}`                        |
-| `POST /audio/route`                    | Routes the sound to the speakers in the JSON body                        |
-| `POST /audio/volume`                   | Sets one speaker's volume (404: not on the network)                      |
-| `WS /power/update`                     | Connecting starts the update and streams it (below)                      |
-| `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                                              |
-| `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)                                 |
-| `POST /wifi`                           | Shows the Wi-Fi setup page (flag file, then stops Chromium)              |
-| `POST /heartbeat`                      | The app is alive (the watchdog, below)                                   |
-| `POST /log`                            | An app error, written to the journal                                     |
-| `GET /lyrics?title=&artist=&duration=` | Synced lyrics as LRC: `{"source", "lrc"}` (404: none; 502: sources down) |
-| `GET /bluetooth/devices`               | `{"devices": [{"address", "name", "paired", "connected"}]}`              |
-| `POST /bluetooth/scan`                 | Looks for speakers for 8 seconds; the same answer                        |
-| `POST /bluetooth/connect`              | Pairs, trusts and connects `{"address"}`                                 |
-| `POST /bluetooth/remove`               | Forgets `{"address"}`                                                    |
-| `POST /wifi/phone`                     | Starts Wi-Fi setup from a phone over Bluetooth (5 minutes)               |
-| `POST /wifi/hotspot`                   | Starts the setup hotspot: name, password, address, QR codes              |
-| `POST /wifi/hotspot/stop`              | Ends it and puts the earlier network back                                |
-| `GET /wifi/hotspot`                    | `{"state": "running" \| "joining" \| "failed" \| "idle"}`                |
-| `GET /wifi/status`                     | `{"ssid"}`: the network the Wi-Fi is on, or null (the app only)          |
-| `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                             |
-| `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)                 |
-| `POST /wifi/done`                      | The setup page is finished: stops the Chromium showing it                |
-| `GET /wifi-setup`                      | The Wi-Fi setup page, and its scripts under `/wifi-setup/`               |
+| Request                                | What it does                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------- |
+| `GET /speakers`                        | `{"speakers": [...], "volumes": {"Kitchen": 40}}`                                     |
+| `POST /audio/route`                    | Routes the sound to the speakers in the JSON body                                     |
+| `POST /audio/volume`                   | Sets one speaker's volume (404: not on the network)                                   |
+| `WS /power/update`                     | Connecting starts the update and streams it (below)                                   |
+| `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                                                           |
+| `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)                                              |
+| `POST /wifi`                           | Shows the Wi-Fi setup page (flag file, then stops Chromium), in the body's `language` |
+| `POST /heartbeat`                      | The app is alive (the watchdog, below)                                                |
+| `POST /log`                            | An app error, written to the journal                                                  |
+| `GET /lyrics?title=&artist=&duration=` | Synced lyrics as LRC: `{"source", "lrc"}` (404: none; 502: sources down)              |
+| `GET /bluetooth/devices`               | `{"devices": [{"address", "name", "paired", "connected"}]}`                           |
+| `POST /bluetooth/scan`                 | Looks for speakers for 8 seconds; the same answer                                     |
+| `POST /bluetooth/connect`              | Pairs, trusts and connects `{"address"}`                                              |
+| `POST /bluetooth/remove`               | Forgets `{"address"}`                                                                 |
+| `POST /wifi/phone`                     | Starts Wi-Fi setup from a phone over Bluetooth (5 minutes)                            |
+| `POST /wifi/hotspot`                   | Starts the setup hotspot: name, password, address, QR codes                           |
+| `POST /wifi/hotspot/stop`              | Ends it and puts the earlier network back                                             |
+| `GET /wifi/hotspot`                    | `{"state": "running" \| "joining" \| "failed" \| "idle"}`                             |
+| `GET /wifi/status`                     | `{"ssid"}`: the network the Wi-Fi is on, or null (the app only)                       |
+| `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                                          |
+| `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)                              |
+| `POST /wifi/done`                      | The setup page is finished: stops the Chromium showing it                             |
+| `GET /wifi-setup`                      | The Wi-Fi setup page, and its scripts under `/wifi-setup/`                            |
 
 ## Bluetooth speakers
 
@@ -206,6 +206,13 @@ only that page's own origin (`http://127.0.0.1:7341`), not the app's. Node strip
 first asked for, and the page uses the sign-in keyboard (`pi/kiosk-keyboard`) for the password. They use nmcli (`nmcli.ts`): the password reaches nmcli on stdin,
 never in argv or the journal, and a failed attempt deletes the profile it made and brings back the Wi-Fi that was on.
 
+The setup page speaks the tablet's language, English or Norwegian Bokmål: the app's Wi-Fi button sends it in POST
+`/wifi` (`{"language": "nb"}`; anything but `en` or `nb` is English), and the service keeps the last one it heard in
+`~/.local/state/the-max-mix/language`, so the page is in it when it shows by itself because the Pi is offline. The
+hotspot's page for a phone follows the phone's `Accept-Language` instead. Their words are in `words.ts`, which the page
+script imports too; the service's own error messages stay in English in the code and the page shows them in its
+language through that catalogue.
+
 | File               | What it is                                                              |
 | ------------------ | ----------------------------------------------------------------------- |
 | `kiosk-audio.ts`   | The program: `watch`, the background unit that also starts the service. |
@@ -216,6 +223,7 @@ never in argv or the journal, and a failed attempt deletes the profile it made a
 | `nmcli.ts`         | Wi-Fi through nmcli: scanning, joining, and the messages for errors.    |
 | `wifi-setup.ts`    | Serves the Wi-Fi setup page: its HTML and its two scripts.              |
 | `wifi-page.ts`     | The Wi-Fi setup page itself, which runs in the browser.                 |
+| `words.ts`         | The setup pages' words in English and Norwegian Bokmål.                 |
 | `watchdog.ts`      | Restarts Chromium when the app's heartbeats stop.                       |
 | `speakers.ts`      | Checking speaker lists, the saved choice, and routing to it.            |
 | `pipewire.ts`      | `pw-dump` parsing, the link plan, `pw-link` and `wpctl set-volume`.     |

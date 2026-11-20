@@ -70,6 +70,7 @@ for file in /usr/local/bin/kiosk-session \
   /opt/the-max-mix/kiosk-audio/presence.ts \
   /opt/the-max-mix/kiosk-audio/node_modules/dbus-native/package.json \
   /opt/the-max-mix/kiosk-audio/hotspot.ts /opt/the-max-mix/kiosk-audio/hotspot-portal.ts /opt/the-max-mix/kiosk-audio/qr.ts \
+  /opt/the-max-mix/kiosk-audio/words.ts \
   /opt/the-max-mix/kiosk-audio/node_modules/qrcode-generator/package.json \
   /etc/NetworkManager/dnsmasq-shared.d/50-kiosk-captive.conf /etc/sysctl.d/50-kiosk-unprivileged-ports.conf \
   /opt/the-max-mix/kiosk-keyboard/extension/manifest.json /opt/the-max-mix/kiosk-keyboard/extension/loader.js \
