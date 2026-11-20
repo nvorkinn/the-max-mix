@@ -80,23 +80,27 @@ async function showGrouped(page: Page, screen: { width: number; height: number }
 }
 
 for (const screen of SCREENS) {
-  test(`a route shows once, with its next times, at ${screen.width}x${screen.height}`, async ({ page }) => {
-    await showGrouped(page, screen);
-    const london = page.getByRole('region', { name: 'TfL Elephant & Castle' });
-    const rows = london.locator('li');
-    await expect(rows).toHaveCount(4);
-    // Northern to Morden once, at 2 minutes, then 9 and 15; Edgware (16) and the fourth Morden (21) don't fit.
-    await expect(rows.nth(0)).toContainText('Morden');
-    await expect(rows.nth(0).locator('.dashboard-mins')).toHaveText('2min');
-    await expect(rows.nth(0).locator('.dashboard-later')).toHaveText('9 · 15');
-    await expect(rows.nth(1)).toContainText('Harrow & Wealdstone');
-    await expect(rows.nth(2)).toContainText('High Barnet');
-    await expect(rows.nth(2).locator('.dashboard-later')).toHaveText('12');
-    await expect(rows.nth(3)).toContainText('Edgware');
-    await expect(rows.nth(3).locator('.dashboard-later')).toHaveCount(0);
+  test(
+    `a route shows once, with its next times, at ${screen.width}x${screen.height}`,
+    { tag: '@layout' },
+    async ({ page }) => {
+      await showGrouped(page, screen);
+      const london = page.getByRole('region', { name: 'TfL Elephant & Castle' });
+      const rows = london.locator('li');
+      await expect(rows).toHaveCount(4);
+      // Northern to Morden once, at 2 minutes, then 9 and 15; Edgware (16) and the fourth Morden (21) don't fit.
+      await expect(rows.nth(0)).toContainText('Morden');
+      await expect(rows.nth(0).locator('.dashboard-mins')).toHaveText('2min');
+      await expect(rows.nth(0).locator('.dashboard-later')).toHaveText('9 · 15');
+      await expect(rows.nth(1)).toContainText('Harrow & Wealdstone');
+      await expect(rows.nth(2)).toContainText('High Barnet');
+      await expect(rows.nth(2).locator('.dashboard-later')).toHaveText('12');
+      await expect(rows.nth(3)).toContainText('Edgware');
+      await expect(rows.nth(3).locator('.dashboard-later')).toHaveCount(0);
 
-    const oslo = page.getByRole('region', { name: 'Ruter Jernbanetorget' });
-    await expect(oslo.locator('li')).toHaveCount(4);
-    await expect(oslo.locator('li').nth(0).locator('.dashboard-later')).toHaveText('8 · 16');
-  });
+      const oslo = page.getByRole('region', { name: 'Ruter Jernbanetorget' });
+      await expect(oslo.locator('li')).toHaveCount(4);
+      await expect(oslo.locator('li').nth(0).locator('.dashboard-later')).toHaveText('8 · 16');
+    }
+  );
 }

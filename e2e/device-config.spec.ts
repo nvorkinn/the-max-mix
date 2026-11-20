@@ -149,7 +149,8 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
         stops: [
           { source: 'entur', id: 'NSR:StopPlace:58381' },
           { source: 'entur', id: 'NSR:Quay:7333' }
-        ]
+        ],
+        group_by_route: false
       }
     ]);
   });

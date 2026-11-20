@@ -103,7 +103,10 @@ describe('CountdownSettings', () => {
     const [first] = OWNED.arrivals.stops;
     const { name } = searches.describeStop(defined(first));
     await userEvent.click(within(saved()).getByRole('button', { name: `Remove ${name}` }));
-    expect(onSave).toHaveBeenCalledExactlyOnceWith('arrivals', { stops: OWNED.arrivals.stops.slice(1) });
+    expect(onSave).toHaveBeenCalledExactlyOnceWith('arrivals', {
+      ...OWNED.arrivals,
+      stops: OWNED.arrivals.stops.slice(1)
+    });
   });
 
   it('moves a stop with the arrow keys on its handle', () => {
