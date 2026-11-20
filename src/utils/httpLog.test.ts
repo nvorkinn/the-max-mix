@@ -114,7 +114,6 @@ describe('httpLog', () => {
       expect(groupOf(`${kiosk}/heartbeat`, 'POST')).toBe('kiosk-heartbeat');
       expect(groupOf(`${kiosk}/log`, 'POST')).toBe('kiosk-heartbeat');
       expect(groupOf(`${kiosk}/lyrics?title=a&artist=b`, 'GET')).toBe('lyrics');
-      expect(groupOf('https://lrclib.net/api/get-cached?track_name=a', 'GET')).toBe('lyrics');
       expect(groupOf(`${kiosk}/bluetooth/devices`, 'GET')).toBe('kiosk');
       expect(groupOf('https://api.github.com/repos/a/b', 'GET')).toBe('other');
       expect(groupOf('/relative/path', 'GET')).toBe('other');

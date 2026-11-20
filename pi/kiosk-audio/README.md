@@ -129,7 +129,7 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 | `POST /wifi`                           | Shows the Wi-Fi setup page (flag file, then stops Chromium), in the body's `language` |
 | `POST /heartbeat`                      | The app is alive (the watchdog, below)                                                |
 | `POST /log`                            | An app error, written to the journal                                                  |
-| `GET /lyrics?title=&artist=&duration=` | Synced lyrics as LRC: `{"source", "lrc"}` (404: none; 502: sources down)              |
+| `GET /lyrics?title=&artist=&duration=` | Lyrics: `{"source"}` with `"lrc"`, `"plain"` or `"instrumental"` (404, 502)           |
 | `GET /bluetooth/devices`               | `{"devices": [{"address", "name", "paired", "connected"}]}`                           |
 | `POST /bluetooth/scan`                 | Looks for speakers for 8 seconds; the same answer                                     |
 | `POST /bluetooth/connect`              | Pairs, trusts and connects `{"address"}`                                              |
@@ -193,15 +193,22 @@ Bluetooth LE link, as Improv does, so the setup is only open for the minutes aft
 speaks Improv over Web Bluetooth, which Chrome on Android has and Safari on an iPhone does not.
 [improv-wifi.com](https://www.improv-wifi.com) is one; it is somebody else's page, which sees the password.
 
-`GET /lyrics` answers the app's origin only (each request makes the Pi call out). `lyrics.ts` asks NetEase, QQ Music and
-KuGou (`lyrics-sources.ts`: none has a public API or allows a web page to call it, which is why this service does),
-keeps only a song whose title, artist and length match, and accepts only text with several timed lines. Lyrics that
-time each word come first: all three are asked for those at once (NetEase's YRC, QQ Music's QRC and KuGou's KRC, each
-turned into LRC with a `<mm:ss.xxx>` tag before every word), and only when none has them are the three asked in turn
-for line-timed lyrics. QRC comes encrypted with QQ's own variant of Triple DES, which `qrc-cipher.ts` undoes. The
-service remembers what it found, and for an hour what it did not. KuGou's search host is called over plain http because
-its https certificate is for another domain. QQ Music's search answers with nothing for a few minutes after several
-searches in a row. These are unofficial endpoints and can change: a source that breaks is skipped, so remove it from
+`GET /lyrics` answers the app's origin only (each request makes the Pi call out), and is the app's only way to lyrics.
+`lyrics.ts` asks LRCLIB (`lyrics-lrclib.ts`) and NetEase, QQ Music and KuGou (`lyrics-sources.ts`: those three have no
+public API and do not allow a web page to call them), and keeps only a song whose title, artist and length match.
+Lyrics that time each word come first: all four are asked for those at once (LRCLIB's Lyricsfile, NetEase's YRC, QQ
+Music's QRC and KuGou's KRC, each turned into LRC with a `<mm:ss.xxx>` tag before every word), and the first in that
+order that has them wins. Only when none has them are the four asked in turn for line-timed lyrics (text with several
+timed lines), and after that for plain ones, which only LRCLIB keeps. A song LRCLIB knows as instrumental and has no
+synced lyrics for is answered as instrumental. QRC comes encrypted with QQ's own variant of Triple DES, which
+`qrc-cipher.ts` undoes. The service remembers the synced lyrics it found, and for an hour anything less (plain lyrics,
+an instrumental song, nothing).
+
+LRCLIB has a documented API (<https://lrclib.net/docs>): the service names itself in `User-Agent`, searches with the
+search that sends no lyrics and then fetches the one record it wants, and after an error with `Retry-After` does not
+call LRCLIB again until that time has passed. KuGou's search host is called over plain http because its https
+certificate is for another domain. QQ Music's search answers with nothing for a few minutes after several searches in a
+row. The endpoints of those three are unofficial and can change: a source that breaks is skipped, so remove it from
 `SOURCES` if it keeps failing.
 
 The Wi-Fi requests are for the Wi-Fi setup page (`wifi-page.ts`, served by `wifi-setup.ts`), which kiosk-session shows

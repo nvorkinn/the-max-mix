@@ -1,4 +1,4 @@
-// The shapes every lyrics source hands back, so the panel does not care which source found the words.
+// The shapes lyrics come in, whichever source the kiosk service found them at.
 
 /** One word (with the space after it) of a line whose source times every word; `timeMs` is when it is sung. */
 export interface SyncedWord {
@@ -25,12 +25,11 @@ export type Lyrics =
 export interface LyricsQuery {
   title: string;
   artist: string;
-  album?: string;
   durationMs?: number;
 }
 
 /**
- * A lyrics source. It resolves to null when it has no lyrics for the track and rejects when it could not be reached.
- * To try another source, write one of these and hand it to `useLyrics`.
+ * Something that looks lyrics up: the kiosk service (kiosk.ts), or a stand-in for it in a test. It resolves to null
+ * when there are no lyrics for the track and rejects when it could not look.
  */
 export type LyricsProvider = (query: LyricsQuery, signal: AbortSignal) => Promise<Lyrics | null>;

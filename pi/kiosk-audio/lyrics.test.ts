@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 import type { Candidate, LyricsQuery, LyricsSource } from './lyrics-sources.ts';
 import {
   cached,
@@ -33,6 +33,11 @@ const source = (
   search: vi.fn().mockResolvedValue(candidates),
   words: vi.fn().mockResolvedValue(words),
   lines: vi.fn().mockResolvedValue(lrc)
+});
+/** A source that also keeps plain lyrics. */
+const withPlain = (candidates: Candidate[], plain: string | null): LyricsSource & { plain: Mock } => ({
+  ...source('A', candidates, null),
+  plain: vi.fn().mockResolvedValue(plain)
 });
 const get = () => Promise.reject(new Error('unused'));
 
@@ -135,6 +140,43 @@ describe('kiosk-audio/lyrics', () => {
     await expect(findLyrics(query, [empty], get)).rejects.toThrow('unreadable');
   });
 
+  it('settles for plain lyrics only when no source has synced ones', async () => {
+    const plain = withPlain([song()], 'Plain\ntext');
+    const synced = source('B', [song()]);
+    await expect(findLyrics(query, [plain, synced], get)).resolves.toEqual({ source: 'B', lrc: LRC });
+    expect(plain.plain).not.toHaveBeenCalled();
+    const without = source('B', [song()], null);
+    await expect(findLyrics(query, [without, plain], get)).resolves.toEqual({ source: 'A', plain: 'Plain\ntext' });
+    const blank = withPlain([song()], ' \n');
+    await expect(findLyrics(query, [blank], get)).resolves.toBeNull();
+  });
+
+  it('takes a source at its word that the song is instrumental, unless an earlier one has synced lyrics', async () => {
+    const instrumental = source('A', [song({ isInstrumental: true })], null);
+    const later = source('B', [song()]);
+    await expect(findLyrics(query, [instrumental, later], get)).resolves.toEqual({ source: 'A', instrumental: true });
+    expect(later.lines).not.toHaveBeenCalled();
+    await expect(findLyrics(query, [later, instrumental], get)).resolves.toEqual({ source: 'B', lrc: LRC });
+    // Word-timed lyrics anywhere still come first.
+    const timed = source('B', [song()], LRC, WORDS);
+    await expect(findLyrics(query, [instrumental, timed], get)).resolves.toEqual({ source: 'B', lrc: WORDS });
+  });
+
+  it('does not ask for a kind of lyrics a match is known to lack, and tries three matches at most', async () => {
+    const has = { words: false, lines: true, plain: false };
+    const songs = [song({ id: 'no-words', has }), song({ id: 'words', has: { ...has, words: true } })];
+    const known = withPlain(songs, 'x');
+    await findLyrics(query, [known], get);
+    expect(known.words).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: 'words' }), get);
+    expect(known.lines).toHaveBeenCalledTimes(2);
+    expect(known.plain).not.toHaveBeenCalled();
+    const four = ['1', '2', '3', '4'].map(id => song({ id }));
+    const many = source('B', four, null);
+    await findLyrics(query, [many], get);
+    expect(many.words).toHaveBeenCalledTimes(3);
+    expect(many.lines).toHaveBeenCalledTimes(3);
+  });
+
   it('moves on from lyrics that are not synced', async () => {
     const hit = await findLyrics(query, [source('A', [song()], 'Plain text'), source('B', [song()])], get);
     expect(hit?.source).toBe('B');
@@ -168,6 +210,20 @@ describe('kiosk-audio/lyrics', () => {
     time = 61 * 60 * 1000;
     await lookup(other);
     expect(find).toHaveBeenCalledTimes(3);
+  });
+
+  it('remembers lyrics that are not synced for an hour only', async () => {
+    let time = 0;
+    const find = vi
+      .fn<(q: LyricsQuery) => Promise<LyricsHit | null>>()
+      .mockResolvedValueOnce({ source: 'A', plain: 'Plain' })
+      .mockResolvedValue({ source: 'A', lrc: LRC });
+    const lookup = cached(find, () => time);
+    await expect(lookup(query)).resolves.toEqual({ source: 'A', plain: 'Plain' });
+    await expect(lookup(query)).resolves.toEqual({ source: 'A', plain: 'Plain' });
+    time = 61 * 60 * 1000;
+    await expect(lookup(query)).resolves.toEqual({ source: 'A', lrc: LRC });
+    expect(find).toHaveBeenCalledTimes(2);
   });
 
   it('does not remember a failure', async () => {

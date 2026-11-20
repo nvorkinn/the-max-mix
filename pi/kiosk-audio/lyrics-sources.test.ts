@@ -188,10 +188,17 @@ describe('kiosk-audio/lyrics-sources', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response('{"a":1}', { headers: { 'Content-Type': 'text/html' } }))
-      .mockResolvedValueOnce(new Response('no', { status: 500 }));
+      .mockResolvedValueOnce(new Response('no', { status: 500 }))
+      .mockResolvedValueOnce(new Response('slow down', { status: 429, headers: { 'Retry-After': '30' } }));
     vi.stubGlobal('fetch', fetchMock);
     await expect(getJson('https://example.com/x', { Referer: 'r' })).resolves.toEqual({ a: 1 });
     await expect(getJson('https://example.com/x')).rejects.toThrow('example.com answered 500');
+    // The status and how long the source asked to be left alone come with the failure.
+    await expect(getJson('https://example.com/x')).rejects.toMatchObject({
+      name: 'HttpError',
+      status: 429,
+      retryAfterMs: 30_000
+    });
     vi.unstubAllGlobals();
   });
 });
