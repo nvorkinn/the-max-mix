@@ -28,7 +28,7 @@ export function reportProblem(problem: Problem): void {
   emit();
 }
 
-export function clearProblem(id: string): void {
+function clearProblem(id: string): void {
   if (!problems.some(problem => problem.id === id)) return;
   problems = problems.filter(problem => problem.id !== id);
   emit();
@@ -39,7 +39,7 @@ export function getProblems(): readonly Problem[] {
   return problems;
 }
 
-export function subscribeProblems(listener: () => void): () => void {
+function subscribeProblems(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
