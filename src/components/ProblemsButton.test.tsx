@@ -20,7 +20,7 @@ describe('the problems list', () => {
     const { rerender, unmount } = renderHook(
       ({ title }: { title: string | null }) =>
         useReportProblem('feed', title ? { title, action: { label: 'Try again', run } } : null),
-      { initialProps: { title: 'Departures not updating' as string | null } }
+      { initialProps: { title: 'Departures not updating' } }
     );
     expect(getProblems()).toMatchObject([{ id: 'feed', title: 'Departures not updating' }]);
     getProblems()[0]?.action?.run();

@@ -29,7 +29,7 @@ export function reportProblem(problem: Problem): void {
 }
 
 function clearProblem(id: string): void {
-  if (!problems.some(problem => problem.id === id)) return;
+  if (problems.every(problem => problem.id !== id)) return;
   problems = problems.filter(problem => problem.id !== id);
   emit();
 }
