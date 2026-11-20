@@ -16,6 +16,7 @@ import {
 import type { CSSProperties } from 'react';
 import type { PlayerControls } from '../types';
 import { goBack } from '../dashboard/nowPlaying';
+import { useT } from '../i18n/translate';
 import { Artwork } from './TrackImages';
 
 type AlbumArtPlayerProps = Readonly<PlayerControls> & {
@@ -30,6 +31,9 @@ type AlbumArtPlayerProps = Readonly<PlayerControls> & {
 
 /** How far the rewind and fast-forward buttons jump. */
 const JUMP_MS = 15_000;
+
+/** Stands in for the device's name, so the words around it can be split off it and the name set in bold. */
+const DEVICE_MARK = '\u{E000}';
 
 export default function AlbumArtPlayer({
   playback,
@@ -46,6 +50,7 @@ export default function AlbumArtPlayer({
   speakersOpen = false,
   onOpenSpeakers
 }: AlbumArtPlayerProps) {
+  const t = useT();
   // Local slider value, reset whenever the device reports a different volume (adjusted during render, not in an effect).
   const deviceVolume = playback?.device?.volume_percent ?? 0;
   const [volume, setVolume] = useState(deviceVolume);
@@ -58,7 +63,7 @@ export default function AlbumArtPlayer({
     controlsEnabled && playback?.device?.supports_volume !== false && playback?.device?.volume_percent != null;
   const item = playback?.item ?? playback?.track_window?.current_track ?? {};
   const hasTrack = Boolean(item.id || item.uri || item.name || item.title);
-  const title = item.name || item.title || 'Nothing playing';
+  const title = item.name || item.title || t('player.nothing_playing');
   const artist = item.artists ? item.artists.map(a => a.name).join(', ') : item.artist || '';
   const albumArt = item.album?.images?.[0]?.url || item.albumArt;
   const progressMs = hasTrack ? (playback?.progress_ms ?? playback?.position ?? 0) : 0;
@@ -72,14 +77,17 @@ export default function AlbumArtPlayer({
   const jump = (offsetMs: number) => onSeek(Math.min(durationMs, Math.max(0, progressMs + offsetMs)));
 
   const deviceName = speakerLabel ?? playback?.device?.name;
-  const speakerState = deviceName ? `Playing on ${deviceName}` : 'Select a device';
-  const speakerAriaLabel = `Speakers: ${speakerState}`;
+  const speakerState = deviceName ? t('player.playing_on', { device: deviceName }) : t('player.select_device');
+  const speakerAriaLabel = t('player.speakers', { state: speakerState });
+  const [beforeDevice = '', afterDevice = ''] = t('player.playing_on', { device: DEVICE_MARK }).split(DEVICE_MARK);
   const deviceText = deviceName ? (
     <>
-      Playing on <b>{deviceName}</b>
+      {beforeDevice}
+      <b>{deviceName}</b>
+      {afterDevice}
     </>
   ) : (
-    <b>Select a device</b>
+    <b>{t('player.select_device')}</b>
   );
 
   const formatTime = (ms: number) => {
@@ -89,14 +97,16 @@ export default function AlbumArtPlayer({
   const disallows = playback?.actions?.disallows;
   const shuffleOn = Boolean(playback?.shuffle_state);
   const repeatMode = playback?.repeat_state ?? 'off';
-  const repeatLabel = { off: 'Repeat off', context: 'Repeat all', track: 'Repeat one' }[repeatMode];
+  const repeatLabel = t(
+    ({ off: 'player.repeat_off', context: 'player.repeat_all', track: 'player.repeat_one' } as const)[repeatMode]
+  );
   const elapsedTime = hasTrack ? formatTime(progressMs) : '--:--';
   const totalTime = durationMs > 0 ? formatTime(durationMs) : '--:--';
 
   return (
     <div className="now-playing">
       <div className="album-art">
-        <Artwork src={albumArt} alt={`${title} album artwork`} className="album-cover" />
+        <Artwork src={albumArt} alt={t('player.artwork', { title })} className="album-cover" />
       </div>
 
       {/* With nothing playing the title is left out: the empty artwork and the greyed controls already say so. */}
@@ -105,7 +115,7 @@ export default function AlbumArtPlayer({
           <div
             className="track-copy"
             role="region"
-            aria-label="Track information"
+            aria-label={t('player.track_info')}
             // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- Oversized metadata must remain keyboard-scrollable on the kiosk.
             tabIndex={0}
           >
@@ -125,8 +135,12 @@ export default function AlbumArtPlayer({
             max={durationMs || 1}
             value={Math.min(progressMs, durationMs)}
             onChange={e => onSeek(Number(e.target.value))}
-            aria-label="Playback position"
-            aria-valuetext={durationMs > 0 ? `${elapsedTime} of ${totalTime}` : 'Playback time unavailable'}
+            aria-label={t('player.position')}
+            aria-valuetext={
+              durationMs > 0
+                ? t('player.position_of', { elapsed: elapsedTime, total: totalTime })
+                : t('player.time_unknown')
+            }
             className="range-control seek-range"
             style={{ '--range-progress': `${progressPercent}%` } as CSSProperties}
           />
@@ -159,7 +173,7 @@ export default function AlbumArtPlayer({
                 disabled={!controlsEnabled || !hasTrack || disallows?.toggling_shuffle}
                 className={`transport-skip transport-mode${shuffleOn ? ' is-on' : ''}`}
                 onClick={onToggleShuffle}
-                aria-label="Shuffle"
+                aria-label={t('player.shuffle')}
                 aria-pressed={shuffleOn}
               >
                 <Shuffle size={22} />
@@ -170,8 +184,8 @@ export default function AlbumArtPlayer({
               disabled={!canSeek}
               className="transport-skip transport-seek"
               onClick={() => jump(-JUMP_MS)}
-              aria-label="Back 15 seconds"
-              title="Back 15 seconds"
+              aria-label={t('player.back_15')}
+              title={t('player.back_15')}
             >
               <RotateCcw size={26} aria-hidden="true" />
               <span aria-hidden="true">15</span>
@@ -181,7 +195,7 @@ export default function AlbumArtPlayer({
               disabled={!controlsEnabled || !hasTrack || playback?.actions?.disallows?.skipping_prev}
               className="transport-skip"
               onClick={previous}
-              aria-label="Previous track"
+              aria-label={t('player.previous_track')}
             >
               <SkipBack size={24} fill="currentColor" />
             </button>
@@ -193,7 +207,7 @@ export default function AlbumArtPlayer({
               }
               className="transport-play"
               onClick={onPlayPause}
-              aria-label={isPlaying ? 'Pause' : 'Play'}
+              aria-label={t(isPlaying ? 'dashboard.pause' : 'dashboard.play')}
             >
               {isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" />}
             </button>
@@ -202,7 +216,7 @@ export default function AlbumArtPlayer({
               disabled={!controlsEnabled || !hasTrack || playback?.actions?.disallows?.skipping_next}
               className="transport-skip"
               onClick={onNext}
-              aria-label="Next track"
+              aria-label={t('player.next_track')}
             >
               <SkipForward size={24} fill="currentColor" />
             </button>
@@ -211,8 +225,8 @@ export default function AlbumArtPlayer({
               disabled={!canSeek}
               className="transport-skip transport-seek"
               onClick={() => jump(JUMP_MS)}
-              aria-label="Forward 15 seconds"
-              title="Forward 15 seconds"
+              aria-label={t('player.forward_15')}
+              title={t('player.forward_15')}
             >
               <RotateCw size={26} aria-hidden="true" />
               <span aria-hidden="true">15</span>
@@ -243,7 +257,7 @@ export default function AlbumArtPlayer({
             min="0"
             max="100"
             value={volume}
-            aria-label="Volume"
+            aria-label={t('player.volume')}
             onChange={e => {
               const value = Number(e.target.value);
               setVolume(value);

@@ -52,6 +52,7 @@ function selection(overrides: Partial<SpeakerSelection> = {}): SpeakerSelection 
     refresh: vi.fn(),
     tabletPlaying: true,
     playingLabel: 'Kitchen',
+    playingOn: { name: 'Kitchen' },
     readOutputs: vi.fn().mockResolvedValue(undefined),
     ...overrides
   };

@@ -86,6 +86,9 @@ async function regroupSonos(leader: string, current: readonly string[], rooms: r
   if (!rooms.includes(leader)) setKioskSonosLeader(rooms[0] ?? null);
 }
 
+/** What plays: a speaker or Sonos group by name, this tablet itself, or this many of its speakers. */
+export type PlayingOn = { name: string } | { tablet: true } | { speakers: number };
+
 /** What the page tells the selection, and the actions it already has for each kind of speaker. */
 export interface SpeakerSelectionOptions {
   /** The kiosk, whose Pi lists the speaker outputs and Sonos rooms. */
@@ -292,15 +295,19 @@ export function useSpeakerSelection({
     ...remembered.map(device => ({ ...device, remembered: true }))
   ].filter(device => device.id !== browserDeviceId && !roomNames.has(device.name.toLowerCase()));
 
-  let playingLabel: string | undefined;
-  if (leader) playingLabel = sonosName ?? 'Sonos';
+  let playingOn: PlayingOn | undefined;
+  if (leader) playingOn = { name: sonosName ?? 'Sonos' };
   else if (confirmed?.family === 'tablet') {
     const [only] = confirmed.outputs;
-    if (confirmed.outputs.length === 0) playingLabel = 'This tablet';
+    if (confirmed.outputs.length === 0) playingOn = { tablet: true };
     else if (only !== undefined && confirmed.outputs.length === 1) {
-      playingLabel = outputs?.find(output => output.id === only)?.name ?? only;
-    } else playingLabel = `${confirmed.outputs.length} speakers`;
+      playingOn = { name: outputs?.find(output => output.id === only)?.name ?? only };
+    } else playingOn = { speakers: confirmed.outputs.length };
   }
+  let playingLabel: string | undefined;
+  if (playingOn && 'name' in playingOn) playingLabel = playingOn.name;
+  else if (playingOn && 'tablet' in playingOn) playingLabel = 'This tablet';
+  else if (playingOn) playingLabel = `${playingOn.speakers} speakers`;
 
   return {
     connectDevices,
@@ -317,7 +324,10 @@ export function useSpeakerSelection({
     refresh,
     /** This tablet plays, so its outputs (AirPlay, Bluetooth) can be chosen. */
     tabletPlaying: confirmed?.family === 'tablet',
+    /** What plays, in English for the debug console. */
     playingLabel,
+    /** What plays, for the player to name in the tablet's language. */
+    playingOn,
     readOutputs
   };
 }

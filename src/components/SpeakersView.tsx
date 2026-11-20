@@ -15,6 +15,7 @@ import { isTicked } from '../speakers/selection';
 import type { SpeakerKey } from '../speakers/selection';
 import type { SpeakerSelection } from '../speakers/useSpeakerSelection';
 import { errorMessage } from '../utils/errorMessage';
+import { useT } from '../i18n/translate';
 
 /** How long a volume set here wins over the Pi's answer, so a list read during the drag does not move the slider back. */
 const HOLD_MS = 5000;
@@ -109,6 +110,7 @@ export default function SpeakersView({
   onKiosk: boolean;
   browserDeviceId: string | null;
 }>) {
+  const t = useT();
   const [pickedTab, setPickedTab] = useState<SpeakerTab>('connect');
   const [showVolumes, setShowVolumes] = useState(false);
   const [flash, setFlash] = useState<SpeakerTab | null>(null);
@@ -150,7 +152,7 @@ export default function SpeakersView({
     if (id === 'bluetooth') {
       return bluetooth.speakers.map(speaker => {
         const output = selection.outputs.find(candidate => candidate.address === speaker.address);
-        const action = speaker.paired ? 'Connect' : 'Pair';
+        const action = t(speaker.paired ? 'speakers.connect' : 'speakers.pair');
         // Not connected: no output yet, so a key of its own that nothing is ticked by.
         const outputId = output?.id ?? `bluetooth:${speaker.address}`;
         return {
@@ -165,10 +167,12 @@ export default function SpeakersView({
                   type="button"
                   onClick={() => bluetooth.connect(speaker.address)}
                   disabled={bluetooth.busy !== null}
-                  aria-label={`${action} ${speaker.name}`}
+                  aria-label={t(speaker.paired ? 'speakers.connect_name' : 'speakers.pair_name', {
+                    name: speaker.name
+                  })}
                   className="button-secondary speaker-row-action"
                 >
-                  {bluetooth.busy === speaker.address ? 'Connecting…' : action}
+                  {bluetooth.busy === speaker.address ? t('speakers.connecting') : action}
                 </button>
               )}
               {speaker.paired && (
@@ -176,10 +180,10 @@ export default function SpeakersView({
                   type="button"
                   onClick={() => bluetooth.forget(speaker.address)}
                   disabled={bluetooth.busy !== null}
-                  aria-label={`Forget ${speaker.name}`}
+                  aria-label={t('speakers.forget_name', { name: speaker.name })}
                   className="button-secondary speaker-row-action"
                 >
-                  Forget
+                  {t('speakers.forget')}
                 </button>
               )}
             </span>
@@ -189,7 +193,7 @@ export default function SpeakersView({
     }
     const rows: Row[] = [];
     if (browserDeviceId) {
-      rows.push({ key: 'tablet', name: 'This tablet', selectable: !waitingForSpotify });
+      rows.push({ key: 'tablet', name: t('speakers.this_tablet'), selectable: !waitingForSpotify });
     }
     for (const device of selection.connectDevices) {
       const deviceId = device.id ?? `unavailable:${device.name}`;
@@ -217,14 +221,14 @@ export default function SpeakersView({
           min="0"
           max="100"
           value={volume}
-          aria-label={`${row.name} volume`}
+          aria-label={t('speakers.volume_of', { name: row.name })}
           onChange={event => volumes.change(output, Number(event.target.value))}
           className="range-control volume-range speaker-row-volume"
           style={{ '--range-progress': `${volume}%` } as CSSProperties}
         />
       );
-    } else if (ticked && playing) detail = <span className="speaker-row-status">Playing</span>;
-    else if (ticked && saving) detail = <span className="speaker-row-status">Connecting…</span>;
+    } else if (ticked && playing) detail = <span className="speaker-row-status">{t('speakers.playing')}</span>;
+    else if (ticked && saving) detail = <span className="speaker-row-status">{t('speakers.connecting')}</span>;
     const flashing = flash !== null && row.key === 'tablet';
     return (
       <div key={row.key} className="speaker-row">
@@ -254,7 +258,7 @@ export default function SpeakersView({
     <div className="speakers-view">
       {onKiosk && (
         <div className="speaker-tabs-row">
-          <div className="speaker-tabs" role="group" aria-label="Kind of speaker">
+          <div className="speaker-tabs" role="group" aria-label={t('speakers.kind')}>
             {TABS.map(({ id, label, Icon }) => (
               <button
                 type="button"
@@ -274,8 +278,8 @@ export default function SpeakersView({
               type="button"
               onClick={() => setShowVolumes(shownNow => !shownNow)}
               aria-pressed={showVolumes}
-              aria-label="Volumes"
-              title="Volumes"
+              aria-label={t('speakers.volumes')}
+              title={t('speakers.volumes')}
               className="speaker-volumes-button"
             >
               <SlidersHorizontal size={20} aria-hidden="true" />
@@ -295,7 +299,7 @@ export default function SpeakersView({
           disabled={bluetooth.busy !== null}
           className="button-secondary speaker-find"
         >
-          {bluetooth.busy === 'scan' ? 'Looking for speakers…' : 'Find speakers'}
+          {t(bluetooth.busy === 'scan' ? 'speakers.looking' : 'speakers.find')}
         </button>
       )}
       <div

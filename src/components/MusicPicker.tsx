@@ -5,14 +5,16 @@ import { recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import { errorMessage } from '../utils/errorMessage';
 import { useOnScreenKeyboard } from '../hooks/useOnScreenKeyboard';
 import type { MusicChoice } from '../types';
+import { useT } from '../i18n/translate';
+import type { StringId } from '../i18n/strings';
 import { Artwork } from './TrackImages';
 import Modal from './Modal';
 
 type Tab = 'playlists' | 'recent' | 'search';
-const TABS: readonly { id: Tab; label: string }[] = [
-  { id: 'playlists', label: 'Playlists' },
-  { id: 'recent', label: 'Recently played' },
-  { id: 'search', label: 'Search' }
+const TABS: readonly { id: Tab; label: StringId }[] = [
+  { id: 'playlists', label: 'music.playlists' },
+  { id: 'recent', label: 'music.recent' },
+  { id: 'search', label: 'music.search' }
 ];
 
 /** How long typing must pause before Spotify is asked, so each key press does not send a search. */
@@ -30,6 +32,7 @@ function ChoiceRow({
   disabled,
   onPick
 }: Readonly<{ choice: MusicChoice; disabled: boolean; onPick: (choice: MusicChoice) => void }>) {
+  const t = useT();
   const liked = choice.uri.endsWith(':collection');
   return (
     <button
@@ -46,7 +49,7 @@ function ChoiceRow({
         <Artwork src={choice.image} alt="" className="music-choice-art" />
       )}
       <span className="flex-1 min-w-0">
-        <span className="block text-sm font-semibold truncate">{choice.name}</span>
+        <span className="block text-sm font-semibold truncate">{liked ? t('music.liked') : choice.name}</span>
         {choice.detail && <span className="block text-xs text-muted truncate">{choice.detail}</span>}
       </span>
     </button>
@@ -71,13 +74,14 @@ function ChoiceList({
 }
 
 function FailedRead({ error, onRetry }: Readonly<{ error: string; onRetry: () => void }>) {
+  const t = useT();
   return (
     <div className="space-y-2">
       <p role="alert" className="text-xs status-danger">
         {error}
       </p>
       <button type="button" className="button button-secondary" onClick={onRetry}>
-        Try again
+        {t('common.try_again')}
       </button>
     </div>
   );
@@ -85,6 +89,7 @@ function FailedRead({ error, onRetry }: Readonly<{ error: string; onRetry: () =>
 
 /** A search box and what Spotify finds for it. On the kiosk the on-screen keyboard types in the box. */
 function SearchPanel({ disabled, onPick }: Readonly<{ disabled: boolean; onPick: (choice: MusicChoice) => void }>) {
+  const t = useT();
   const fieldRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<{ query: string; choices?: MusicChoice[]; error?: string }>();
@@ -121,17 +126,17 @@ function SearchPanel({ disabled, onPick }: Readonly<{ disabled: boolean; onPick:
         type="search"
         value={query}
         onChange={event => setQuery(event.target.value)}
-        aria-label="Search Spotify"
-        placeholder="Songs, albums or playlists"
+        aria-label={t('music.search_spotify')}
+        placeholder={t('music.placeholder')}
         autoComplete="off"
         spellCheck={false}
         className="music-search w-full min-h-11 px-3 rounded-xl border text-sm mb-3"
       />
       <div className="music-picker-results">
-        {!wanted && <p className="text-xs text-muted py-2">Type to search Spotify.</p>}
+        {!wanted && <p className="text-xs text-muted py-2">{t('music.type_to_search')}</p>}
         {wanted && !shown && (
           <p role="status" className="text-xs text-muted py-2">
-            Searching...
+            {t('music.searching')}
           </p>
         )}
         {shown?.error !== undefined && (
@@ -144,9 +149,9 @@ function SearchPanel({ disabled, onPick }: Readonly<{ disabled: boolean; onPick:
           />
         )}
         {shown?.choices && (
-          <ChoiceList label="Search results" choices={shown.choices} disabled={disabled} onPick={onPick} />
+          <ChoiceList label={t('music.results')} choices={shown.choices} disabled={disabled} onPick={onPick} />
         )}
-        {shown?.choices?.length === 0 && <p className="text-xs text-muted py-2">Nothing found.</p>}
+        {shown?.choices?.length === 0 && <p className="text-xs text-muted py-2">{t('common.nothing_found')}</p>}
       </div>
     </>
   );
@@ -157,6 +162,7 @@ function MusicPickerContent({
   onPlay,
   disabled
 }: Readonly<{ onClose: () => void; onPlay: (choice: MusicChoice) => Promise<unknown>; disabled: boolean }>) {
+  const t = useT();
   const [tab, setTab] = useState<Tab>('playlists');
   // Each list tab is read once per opening; switching back shows what was read without asking Spotify again.
   const [choices, setChoices] = useState<Partial<Record<Tab, MusicChoice[]>>>({});
@@ -208,19 +214,19 @@ function MusicPickerContent({
       <div className="modal-header flex items-center justify-between gap-2">
         <h3 id="music-title" className="text-lg font-semibold flex items-center gap-2">
           <Library className="w-5 h-5 text-accent" />
-          Choose music
+          {t('tabs.choose_music')}
         </h3>
         <button
           type="button"
           data-modal-autofocus
           onClick={onClose}
-          aria-label="Close music"
+          aria-label={t('music.close')}
           className="modal-icon-button w-11 h-11 rounded-full flex items-center justify-center"
         >
           <X className="w-5 h-5" />
         </button>
       </div>
-      <div className="flex gap-1.5 mb-3" role="group" aria-label="Music to choose from">
+      <div className="flex gap-1.5 mb-3" role="group" aria-label={t('music.tabs')}>
         {TABS.map(({ id, label }) => (
           <button
             type="button"
@@ -232,7 +238,7 @@ function MusicPickerContent({
             }}
             className="modal-option flex-1 min-h-11 rounded-xl border text-xs font-bold"
           >
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>
@@ -251,7 +257,7 @@ function MusicPickerContent({
           )}
           {shown && (
             <ChoiceList
-              label={TABS.find(({ id }) => id === tab)?.label ?? ''}
+              label={t(TABS.find(({ id }) => id === tab)?.label ?? 'music.playlists')}
               choices={shown}
               disabled={disabled || starting}
               onPick={picked => void pick(picked)}
@@ -259,10 +265,10 @@ function MusicPickerContent({
           )}
           {!shown && !error && (
             <p role="status" className="text-xs text-muted py-2">
-              Loading...
+              {t('common.loading')}
             </p>
           )}
-          {shown?.length === 0 && <p className="text-xs text-muted py-2">Nothing here yet.</p>}
+          {shown?.length === 0 && <p className="text-xs text-muted py-2">{t('music.empty')}</p>}
         </div>
       )}
     </Modal>

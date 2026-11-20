@@ -44,6 +44,9 @@ import {
 import { DYNAMIC_LINGER_MS, useLingers } from '../hooks/useLingers';
 import { DEFAULT_CLOCK_FORMAT } from '../utils/clockFormat';
 import { DEFAULT_LANGUAGE, LanguageContext, LOCALES } from '../i18n/language';
+import type { Language } from '../i18n/language';
+import { translate } from '../i18n/translate';
+import type { PlayingOn } from '../speakers/useSpeakerSelection';
 import type { ThemeColour } from '../utils/themeColour';
 import type { MusicChoice, Track } from '../types';
 import type { TabBarProps, TabId } from '../dashboard/props';
@@ -87,6 +90,14 @@ function useLogChanges(message: string | null | undefined, source: string) {
 /** Dynamic's colours: the cover's while it plays, else what shows with Dynamic off. */
 function coverOrChosenPalette(art: ArtColours | null, colour: ThemeColour) {
   return art ? dynamicPalette(art.dominant) : basePalette(colour);
+}
+
+/** What the player names as playing, in `language`. */
+function playingOnLabel(playing: PlayingOn | undefined, language: Language): string | undefined {
+  if (!playing) return undefined;
+  if ('name' in playing) return playing.name;
+  if ('tablet' in playing) return translate('speakers.this_tablet', language);
+  return translate('speakers.count', language, { count: playing.speakers });
 }
 
 /** Whether the song has lyrics to open the panel on; an instrumental, a failed lookup or no song counts as none. */
@@ -167,7 +178,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const playOnSonos = async (room: string) => {
     const shown = sonos.active ? sonos.playback : playbackState;
     const uri = shown?.item?.uri;
-    if (!uri) throw new Error('Play a song first, then pick the Sonos speaker.');
+    if (!uri) throw new Error(translate('spotify_tab.sonos_first', language));
     const positionMs = shown.progress_ms ?? 0;
     if (sonos.active) {
       // The Pi carries over the queue of the Sonos group the music moves from.
@@ -458,11 +469,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   } else if (restricted) notice = { kind: 'restricted' };
   else if (problem?.recovery === 'sign-in') notice = { kind: 'problem', problem };
   else if (quotaExceeded) {
-    notice = { kind: 'problem', problem: { message: 'Spotify quota exceeded.', recovery: 'quota' } };
+    notice = { kind: 'problem', problem: { message: translate('spotify_tab.quota', language), recovery: 'quota' } };
   } else if (waitingForSpotify) {
     notice = {
       kind: 'problem',
-      problem: { message: playerError || 'Spotify asked this app to wait before retrying.', recovery: 'wait' }
+      problem: { message: playerError || translate('spotify_tab.wait', language), recovery: 'wait' }
     };
   } else if (problem) {
     const recovery = problem.recovery === 'wait' ? 'refresh' : problem.recovery;
@@ -569,7 +580,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           className="app-tab-panel on-photo"
           role="tabpanel"
           id={tabPanelId('spotify')}
-          aria-label="Spotify"
+          aria-label={translate('tabs.spotify', language)}
           hidden={screen !== 'spotify'}
         >
           {screen === 'spotify' && <TabBackdrop now={tabBar.now} />}
@@ -591,7 +602,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
           <div className="room-frame">
             <main className={`listening-room${needsConnection ? ' is-setup' : ''}`}>
-              <section className="player-section" aria-label="Now playing">
+              <section className="player-section" aria-label={translate('dashboard.now_playing', language)}>
                 {needsConnection ? (
                   <SpotifySetup
                     offline={isOffline}
@@ -610,7 +621,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                     onToggleShuffle={toggleShuffle}
                     onCycleRepeat={cycleRepeat}
                     controlsEnabled={controlsEnabled}
-                    speakerLabel={speakers.playingLabel}
+                    speakerLabel={playingOnLabel(speakers.playingOn, language)}
                     speakersOpen={speakersShown}
                     onOpenSpeakers={chooseSpeaker}
                   />
@@ -622,7 +633,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                   {/* All three stay put and cross-fade; the hidden ones are inert, so neither a tap nor a screen reader reaches them. */}
                   <section
                     className="queue-section side-panel-view"
-                    aria-label="Upcoming tracks"
+                    aria-label={translate('spotify_tab.upcoming', language)}
                     inert={panel.view !== 'queue'}
                     data-view="queue"
                   >
@@ -653,7 +664,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                   </div>
                   <section
                     className="side-panel-view"
-                    aria-label="Speakers"
+                    aria-label={translate('panel.speakers', language)}
                     inert={!speakersShown}
                     data-view="speakers"
                   >
@@ -678,7 +689,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           className="app-tab-panel"
           role="tabpanel"
           id={tabPanelId('dashboard')}
-          aria-label="Dashboard"
+          aria-label={translate('tabs.dashboard', language)}
           hidden={screen !== 'dashboard'}
         >
           {/* Mounted while hidden, so its data keeps updating and it is current when the tab comes back. */}
@@ -688,7 +699,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           className="app-tab-panel on-photo"
           role="tabpanel"
           id={tabPanelId('settings')}
-          aria-label="Settings"
+          aria-label={translate('tabs.settings', language)}
           hidden={screen !== 'settings'}
         >
           {screen === 'settings' && <TabBackdrop now={tabBar.now} />}
