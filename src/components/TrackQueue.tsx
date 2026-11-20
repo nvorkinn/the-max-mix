@@ -3,6 +3,7 @@ import { GripVertical, Search } from 'lucide-react';
 import { useDragToReorder } from '../hooks/useDragToReorder';
 import { useWholeRows } from '../hooks/useWholeRows';
 import { trackKeys } from '../utils/trackKeys';
+import { useT } from '../i18n/translate';
 import type { Track } from '../types';
 import { Artwork } from './TrackImages';
 
@@ -41,6 +42,7 @@ export default function TrackQueue({
   onMove,
   onSearch
 }: Readonly<TrackQueueProps>) {
+  const t = useT();
   const keys = trackKeys(queue);
   const listRef = useRef<HTMLDivElement>(null);
   const canMove = Boolean(onMove) && !playDisabled && queue.length > 1;
@@ -48,32 +50,32 @@ export default function TrackQueue({
   const panelRef = useRef<HTMLDivElement>(null);
   useWholeRows(panelRef, listRef, queue);
 
-  let retryLabel = 'Waiting to retry...';
-  if (status === 'loading') retryLabel = 'Retrying...';
-  else if (retryAllowed) retryLabel = 'Retry queue';
+  let retryLabel = t('queue.waiting_retry');
+  if (status === 'loading') retryLabel = t('queue.retrying');
+  else if (retryAllowed) retryLabel = t('queue.retry');
   const emptyState = () => {
     switch (status) {
       case 'loading': {
         return (
           <div className="queue-empty" role="status">
-            <p>Loading queue...</p>
+            <p>{t('queue.loading')}</p>
           </div>
         );
       }
       case 'waiting': {
         return (
           <div className="queue-empty" role="status">
-            <p>Waiting for Spotify...</p>
+            <p>{t('queue.waiting')}</p>
           </div>
         );
       }
       case 'idle': {
         return (
           <div className="queue-empty">
-            <h3>Connect Spotify to see the queue.</h3>
+            <h3>{t('queue.connect_hint')}</h3>
             {onConnect && (
               <button type="button" className="button button-secondary" onClick={onConnect}>
-                Connect Spotify
+                {t('setup.connect')}
               </button>
             )}
           </div>
@@ -84,15 +86,15 @@ export default function TrackQueue({
     if (status === 'error' || error) {
       return (
         <div className="queue-empty">
-          <h3>Queue unavailable.</h3>
-          <p>The queue could not be loaded.</p>
+          <h3>{t('queue.unavailable')}</h3>
+          <p>{t('queue.not_loaded')}</p>
         </div>
       );
     }
     return (
       <div className="queue-empty">
         {onSearch && (
-          <button type="button" className="queue-search" aria-label="Search for music" onClick={onSearch}>
+          <button type="button" className="queue-search" aria-label={t('queue.search')} onClick={onSearch}>
             <Search className="lucide" strokeWidth={1.75} />
           </button>
         )}
@@ -109,12 +111,10 @@ export default function TrackQueue({
       )}
       {status === 'waiting' && queue.length > 0 && (
         <p className="queue-status" role="status">
-          Waiting for Spotify before updating the queue.
+          {t('queue.waiting_update')}
         </p>
       )}
-      {(error || status === 'waiting') && queue.length > 0 && (
-        <p className="queue-status">Showing the last known queue.</p>
-      )}
+      {(error || status === 'waiting') && queue.length > 0 && <p className="queue-status">{t('queue.last_known')}</p>}
       {(status === 'error' || error) && onRetry && (
         <button
           type="button"
@@ -129,19 +129,19 @@ export default function TrackQueue({
         emptyState()
       ) : (
         <>
-          <p className="queue-heading">Up next:</p>
+          <p className="queue-heading">{t('queue.up_next')}</p>
           <div
             ref={listRef}
             className={`queue-list ${reorder.dragging ? 'is-reordering' : ''}`}
             role="list"
-            aria-label="Track queue"
+            aria-label={t('queue.list')}
           >
             {queue.map((track, idx) => {
               const title = track.name || track.title;
               const albumArt = track.album?.images?.[0]?.url || track.albumArt;
               const artist = track.artists
                 ? track.artists.map(a => a.name).join(', ')
-                : track.artist || 'Unknown artist';
+                : track.artist || t('queue.unknown_artist');
 
               const { style, isDragged } = reorder.rowStyle(idx);
               return (
@@ -156,14 +156,14 @@ export default function TrackQueue({
                     className="queue-track-button"
                     disabled={!onPlay || playDisabled}
                     onClick={() => void onPlay?.(idx)}
-                    aria-label={`Play ${title} by ${artist}`}
+                    aria-label={t('queue.play', { title: String(title), artist })}
                   >
                     <span className="queue-play queue-number">{String(idx + 1).padStart(2, '0')}</span>
                     <Artwork className="queue-art" src={albumArt} alt="" />
                     <div className="queue-track-copy">
                       <div className="queue-title">
                         <h3 title={title}>{title}</h3>
-                        {idx === 0 && <span className="next-label">NEXT</span>}
+                        {idx === 0 && <span className="next-label">{t('queue.next')}</span>}
                       </div>
                       <p title={artist}>{artist}</p>
                     </div>
@@ -173,7 +173,7 @@ export default function TrackQueue({
                       type="button"
                       className="queue-move"
                       disabled={!canMove}
-                      aria-label={`Move ${title}`}
+                      aria-label={t('countdown.move', { name: String(title) })}
                       aria-keyshortcuts="ArrowUp ArrowDown"
                       {...reorder.handleProps(idx)}
                     >

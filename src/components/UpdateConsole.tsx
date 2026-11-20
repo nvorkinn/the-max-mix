@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Download, LoaderCircle, X } from 'lucide-react';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
+import { useT } from '../i18n/translate';
 import Modal from './Modal';
 
 const noop = () => {};
@@ -13,6 +14,7 @@ const noop = () => {};
 export default function UpdateConsole({ update }: Readonly<{ update: KioskUpdate }>) {
   const { consoleOpen, isUpdating, progress, tasks, output, closeConsole } = update;
   const outputRef = useRef<HTMLPreElement>(null);
+  const t = useT();
 
   // Keep the newest output in view.
   useEffect(() => {
@@ -30,14 +32,14 @@ export default function UpdateConsole({ update }: Readonly<{ update: KioskUpdate
     >
       <header className="debug-console-header">
         <Download size={22} aria-hidden="true" />
-        <h2 id="update-console-title">Updating the Pi</h2>
+        <h2 id="update-console-title">{t('update.title')}</h2>
         {!isUpdating && (
           <div className="debug-console-actions">
             <button
               type="button"
               data-modal-autofocus
               onClick={closeConsole}
-              aria-label="Close update console"
+              aria-label={t('update.close')}
               className="debug-console-close"
             >
               <X size={20} />
@@ -47,24 +49,20 @@ export default function UpdateConsole({ update }: Readonly<{ update: KioskUpdate
       </header>
       <p role="status" className="update-console-status">
         {isUpdating && <LoaderCircle size={22} className="animate-spin" aria-hidden="true" />}
-        {progress ?? 'Updating… this can take a few minutes.'}
+        {progress ?? t('update.updating')}
       </p>
       {isUpdating && tasks && (
         <progress
           className="update-console-progress"
           max={tasks.total}
           value={tasks.done}
-          aria-label={`Task ${tasks.done} of ${tasks.total}`}
+          aria-label={t('update.task', { done: tasks.done, total: tasks.total })}
         />
       )}
-      <pre ref={outputRef} aria-label="Update output" className="update-console-output">
-        {output.length > 0 ? output.join('\n') : 'Starting the update…'}
+      <pre ref={outputRef} aria-label={t('update.output')} className="update-console-output">
+        {output.length > 0 ? output.join('\n') : t('update.starting')}
       </pre>
-      {isUpdating && (
-        <p className="update-console-hint">
-          The tablet restarts by itself when the update needs it. Please leave it on.
-        </p>
-      )}
+      {isUpdating && <p className="update-console-hint">{t('update.leave_on')}</p>}
     </Modal>
   );
 }

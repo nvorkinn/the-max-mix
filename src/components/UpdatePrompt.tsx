@@ -1,4 +1,5 @@
 import { Download } from 'lucide-react';
+import { useT } from '../i18n/translate';
 import Modal from './Modal';
 
 /** Asks whether to update the Pi now, when a newer version is out. "Not now" is remembered for that version. */
@@ -7,6 +8,7 @@ export default function UpdatePrompt({
   onUpdate,
   onLater
 }: Readonly<{ newer: string; onUpdate: () => void; onLater: () => void }>) {
+  const t = useT();
   return (
     <Modal
       labelledBy="update-prompt-title"
@@ -16,14 +18,11 @@ export default function UpdatePrompt({
       <div className="modal-header mb-2">
         <h3 id="update-prompt-title" className="text-lg font-semibold flex items-center gap-2">
           <Download className="w-5 h-5 text-accent" aria-hidden="true" />
-          Update available
+          {t('update.available')}
         </h3>
       </div>
       <p className="text-sm font-semibold">{newer}.</p>
-      <p className="mt-2 text-xs text-muted">
-        Updating takes a few minutes, and the tablet restarts by itself if anything changed. If you wait, the Pi picks
-        it up on its own and applies it at 04:30.
-      </p>
+      <p className="mt-2 text-xs text-muted">{t('update.prompt')}</p>
       <div className="mt-5 flex gap-3">
         <button
           type="button"
@@ -31,10 +30,10 @@ export default function UpdatePrompt({
           onClick={onUpdate}
           className="spotify-sign-in flex-1 py-3 px-4 font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
         >
-          Update now
+          {t('update.now')}
         </button>
         <button type="button" onClick={onLater} className="button button-secondary flex-1">
-          Not now
+          {t('update.later')}
         </button>
       </div>
     </Modal>

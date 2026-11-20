@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { LanguageContext } from '../i18n/language';
+import { translate } from '../i18n/translate';
 import PanelNav from './PanelNav';
 
 describe('PanelNav', () => {
@@ -13,6 +15,18 @@ describe('PanelNav', () => {
     expect(onShow).toHaveBeenLastCalledWith('queue');
     fireEvent.click(screen.getByRole('button', { name: 'Speakers' }));
     expect(onShow).toHaveBeenLastCalledWith('speakers');
+  });
+
+  it('speaks the tablet’s language', () => {
+    render(
+      <LanguageContext value="nb">
+        <PanelNav view="queue" onShow={vi.fn()} />
+      </LanguageContext>
+    );
+    for (const id of ['panel.queue', 'panel.lyrics', 'panel.speakers'] as const) {
+      expect(screen.getByRole('button', { name: translate(id, 'nb') })).toBeInTheDocument();
+    }
+    expect(screen.getByRole('navigation', { name: translate('panel.nav', 'nb') })).toBeInTheDocument();
   });
 
   it('fills the Lyrics button in while the lyrics are in sync mode', () => {

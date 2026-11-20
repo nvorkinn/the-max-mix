@@ -254,7 +254,230 @@ export const STRINGS = {
   'about.restart': { en: 'Restart kiosk', nb: 'Start kiosken på nytt' },
   'about.restart_confirm': { en: 'Tap again to restart', nb: 'Trykk igjen for å starte på nytt' },
   'about.reboot': { en: 'Reboot Pi', nb: 'Start Pi-en på nytt' },
-  'about.reboot_confirm': { en: 'Tap again to reboot', nb: 'Trykk igjen for å starte på nytt' }
+  'about.reboot_confirm': { en: 'Tap again to reboot', nb: 'Trykk igjen for å starte på nytt' },
+
+  // More words several screens use.
+  'common.try_again': { en: 'Try again', nb: 'Prøv igjen' },
+  'common.details': { en: 'Details', nb: 'Detaljer' },
+  'common.saving': { en: 'Saving…', nb: 'Lagrer …' },
+  'common.loading': { en: 'Loading...', nb: 'Laster …' },
+
+  // The Spotify tab and its panels.
+  'spotify_tab.upcoming': { en: 'Upcoming tracks', nb: 'Kommende spor' },
+  'spotify_tab.sonos_first': {
+    en: 'Play a song first, then pick the Sonos speaker.',
+    nb: 'Spill av en sang først, og velg så Sonos-høyttaleren.'
+  },
+  'spotify_tab.quota': { en: 'Spotify quota exceeded.', nb: 'Spotify-kvoten er brukt opp.' },
+  'spotify_tab.wait': {
+    en: 'Spotify asked this app to wait before retrying.',
+    nb: 'Spotify ba appen vente før den prøver igjen.'
+  },
+  'panel.nav': { en: 'Beside the artwork', nb: 'Ved siden av omslaget' },
+  'panel.queue': { en: 'Queue', nb: 'Kø' },
+  'panel.lyrics': { en: 'Lyrics', nb: 'Sangtekster' },
+  'panel.speakers': { en: 'Speakers', nb: 'Høyttalere' },
+
+  // The player.
+  'player.nothing_playing': { en: 'Nothing playing', nb: 'Ingenting spilles' },
+  'player.playing_on': { en: 'Playing on {device}', nb: 'Spiller på {device}' },
+  'player.select_device': { en: 'Select a device', nb: 'Velg en enhet' },
+  'player.speakers': { en: 'Speakers: {state}', nb: 'Høyttalere: {state}' },
+  'player.artwork': { en: '{title} album artwork', nb: 'Albumomslag for {title}' },
+  'player.track_info': { en: 'Track information', nb: 'Om sporet' },
+  'player.position': { en: 'Playback position', nb: 'Avspillingsposisjon' },
+  'player.position_of': { en: '{elapsed} of {total}', nb: '{elapsed} av {total}' },
+  'player.time_unknown': { en: 'Playback time unavailable', nb: 'Spilletiden er ukjent' },
+  'player.shuffle': { en: 'Shuffle', nb: 'Tilfeldig rekkefølge' },
+  'player.back_15': { en: 'Back 15 seconds', nb: '15 sekunder tilbake' },
+  'player.previous_track': { en: 'Previous track', nb: 'Forrige spor' },
+  'player.next_track': { en: 'Next track', nb: 'Neste spor' },
+  'player.forward_15': { en: 'Forward 15 seconds', nb: '15 sekunder frem' },
+  'player.repeat_off': { en: 'Repeat off', nb: 'Gjenta av' },
+  'player.repeat_all': { en: 'Repeat all', nb: 'Gjenta alle' },
+  'player.repeat_one': { en: 'Repeat one', nb: 'Gjenta én' },
+  'player.volume': { en: 'Volume', nb: 'Volum' },
+  'image.unavailable': { en: '{alt} unavailable', nb: '{alt} er ikke tilgjengelig' },
+
+  // The queue.
+  'queue.waiting_retry': { en: 'Waiting to retry...', nb: 'Venter før nytt forsøk …' },
+  'queue.retrying': { en: 'Retrying...', nb: 'Prøver igjen …' },
+  'queue.retry': { en: 'Retry queue', nb: 'Last inn køen på nytt' },
+  'queue.loading': { en: 'Loading queue...', nb: 'Laster køen …' },
+  'queue.waiting': { en: 'Waiting for Spotify...', nb: 'Venter på Spotify …' },
+  'queue.connect_hint': { en: 'Connect Spotify to see the queue.', nb: 'Koble til Spotify for å se køen.' },
+  'queue.unavailable': { en: 'Queue unavailable.', nb: 'Køen er utilgjengelig.' },
+  'queue.not_loaded': { en: 'The queue could not be loaded.', nb: 'Kunne ikke laste inn køen.' },
+  'queue.search': { en: 'Search for music', nb: 'Søk etter musikk' },
+  'queue.waiting_update': {
+    en: 'Waiting for Spotify before updating the queue.',
+    nb: 'Venter på Spotify før køen oppdateres.'
+  },
+  'queue.last_known': { en: 'Showing the last known queue.', nb: 'Viser den sist kjente køen.' },
+  'queue.up_next': { en: 'Up next:', nb: 'Neste i køen:' },
+  'queue.list': { en: 'Track queue', nb: 'Køen' },
+  'queue.unknown_artist': { en: 'Unknown artist', nb: 'Ukjent artist' },
+  'queue.play': { en: 'Play {title} by {artist}', nb: 'Spill av {title} av {artist}' },
+  'queue.next': { en: 'NEXT', nb: 'NESTE' },
+
+  // The lyrics.
+  'lyrics.idle_title': { en: 'Nothing to sing along to yet.', nb: 'Ingenting å synge med på ennå.' },
+  'lyrics.idle_text': { en: 'Play a song and its lyrics show up here.', nb: 'Spill av en sang, så vises teksten her.' },
+  'lyrics.looking': { en: 'Looking for the lyrics...', nb: 'Ser etter sangteksten …' },
+  'lyrics.none_title': { en: 'No lyrics for this one.', nb: 'Ingen sangtekst til denne.' },
+  'lyrics.none_text': {
+    en: 'The lyrics database does not have this song yet.',
+    nb: 'Tekstdatabasen har ikke denne sangen ennå.'
+  },
+  'lyrics.instrumental_title': { en: 'Instrumental.', nb: 'Instrumental.' },
+  'lyrics.instrumental_text': { en: 'No words, just the music.', nb: 'Ingen ord, bare musikk.' },
+  'lyrics.of': { en: 'Lyrics of {title}', nb: 'Sangteksten til {title}' },
+  'lyrics.of_this_song': { en: 'Lyrics of this song', nb: 'Sangteksten til denne sangen' },
+  'lyrics.region': { en: 'Lyrics', nb: 'Sangtekster' },
+
+  // The speakers.
+  'speakers.kind': { en: 'Kind of speaker', nb: 'Type høyttaler' },
+  'speakers.this_tablet': { en: 'This tablet', nb: 'Dette nettbrettet' },
+  'speakers.count': {
+    en: '{count, plural, one {# speaker} other {# speakers}}',
+    nb: '{count, plural, one {# høyttaler} other {# høyttalere}}'
+  },
+  'speakers.playing': { en: 'Playing', nb: 'Spiller' },
+  'speakers.connecting': { en: 'Connecting…', nb: 'Kobler til …' },
+  'speakers.connect': { en: 'Connect', nb: 'Koble til' },
+  'speakers.connect_name': { en: 'Connect {name}', nb: 'Koble til {name}' },
+  'speakers.pair': { en: 'Pair', nb: 'Koble sammen' },
+  'speakers.pair_name': { en: 'Pair {name}', nb: 'Koble sammen {name}' },
+  'speakers.forget': { en: 'Forget', nb: 'Glem' },
+  'speakers.forget_name': { en: 'Forget {name}', nb: 'Glem {name}' },
+  'speakers.volume_of': { en: '{name} volume', nb: 'Volum for {name}' },
+  'speakers.volumes': { en: 'Volumes', nb: 'Volum' },
+  'speakers.looking': { en: 'Looking for speakers…', nb: 'Ser etter høyttalere …' },
+  'speakers.find': { en: 'Find speakers', nb: 'Finn høyttalere' },
+
+  // The music picker.
+  'music.close': { en: 'Close music', nb: 'Lukk musikkvelgeren' },
+  'music.tabs': { en: 'Music to choose from', nb: 'Musikk å velge blant' },
+  'music.playlists': { en: 'Playlists', nb: 'Spillelister' },
+  'music.recent': { en: 'Recently played', nb: 'Nylig spilt' },
+  'music.search': { en: 'Search', nb: 'Søk' },
+  'music.liked': { en: 'Liked Songs', nb: 'Likte sanger' },
+  'music.search_spotify': { en: 'Search Spotify', nb: 'Søk i Spotify' },
+  'music.placeholder': { en: 'Songs, albums or playlists', nb: 'Sanger, album eller spillelister' },
+  'music.type_to_search': { en: 'Type to search Spotify.', nb: 'Skriv for å søke i Spotify.' },
+  'music.searching': { en: 'Searching...', nb: 'Søker …' },
+  'music.results': { en: 'Search results', nb: 'Søkeresultater' },
+  'music.empty': { en: 'Nothing here yet.', nb: 'Ingenting her ennå.' },
+
+  // The playback banner.
+  'notice.restricted_title': { en: 'Controls unavailable on this device', nb: 'Kan ikke styres på denne enheten' },
+  'notice.restricted_text': {
+    en: 'Choose another speaker, or use Spotify to control this device.',
+    nb: 'Velg en annen høyttaler, eller styr denne enheten i Spotify.'
+  },
+  'notice.choose_speaker': { en: 'Choose speaker', nb: 'Velg høyttaler' },
+  'notice.quota_title': { en: 'Spotify quota used up', nb: 'Spotify-kvoten er brukt opp' },
+  'notice.quota_text': {
+    en: 'The app has stopped reading Spotify by itself. Controls still work; restart the app to read it again.',
+    nb: 'Appen har sluttet å hente fra Spotify av seg selv. Kontrollene virker fortsatt; start appen på nytt for å hente igjen.'
+  },
+  'notice.wait_title': { en: 'Waiting for Spotify', nb: 'Venter på Spotify' },
+  'notice.wait_text': {
+    en: 'Spotify asked this app to wait. Playback status will be checked again automatically.',
+    nb: 'Spotify ba appen vente. Avspillingen sjekkes igjen automatisk.'
+  },
+  'notice.problem_title': { en: 'Playback problem', nb: 'Problem med avspillingen' },
+  'notice.sign_in_text': { en: 'Your Spotify sign-in needs attention.', nb: 'Spotify-innloggingen din må sjekkes.' },
+  'notice.reconnect_spotify': { en: 'Reconnect Spotify', nb: 'Koble til Spotify igjen' },
+  'notice.choose_speaker_text': {
+    en: 'Choose an available speaker, or control this device in Spotify.',
+    nb: 'Velg en tilgjengelig høyttaler, eller styr denne enheten i Spotify.'
+  },
+  'notice.settings_text': {
+    en: 'Check your account and browser playback settings.',
+    nb: 'Sjekk kontoen din og innstillingene for avspilling i nettleseren.'
+  },
+  'notice.reconnect_text': {
+    en: 'The browser player could not connect to Spotify.',
+    nb: 'Nettleserspilleren fikk ikke kontakt med Spotify.'
+  },
+  'notice.reconnect_player': { en: 'Reconnect player', nb: 'Koble til spilleren igjen' },
+  'notice.refresh_text': {
+    en: 'Refresh playback status, then try the control again.',
+    nb: 'Oppdater avspillingsstatusen, og prøv igjen.'
+  },
+  'notice.refresh': { en: 'Refresh playback', nb: 'Oppdater avspillingen' },
+  'notice.audio_text': {
+    en: 'Allow browser audio, then press Play to start.',
+    nb: 'Tillat lyd i nettleseren, og trykk på Spill av for å starte.'
+  },
+  'notice.allow_audio': { en: 'Allow browser audio', nb: 'Tillat lyd i nettleseren' },
+  'notice.checking': { en: 'Checking...', nb: 'Sjekker …' },
+
+  // Signing in to Spotify, and no internet.
+  'setup.title': { en: 'Bring your music to the tablet', nb: 'Ta med musikken din til nettbrettet' },
+  'setup.offline': { en: 'Reconnect to the network to sign in.', nb: 'Koble til nettverket igjen for å logge inn.' },
+  'setup.connecting': { en: 'Connecting...', nb: 'Kobler til …' },
+  'setup.connect': { en: 'Connect Spotify', nb: 'Koble til Spotify' },
+  'offline.title': { en: 'No internet connection', nb: 'Ingen internettilkobling' },
+  'offline.text': {
+    en: 'Reconnect to use Spotify controls. Music on another speaker may continue.',
+    nb: 'Koble til igjen for å styre Spotify. Musikk på en annen høyttaler kan spille videre.'
+  },
+  'offline.wifi': { en: 'Wi-Fi settings', nb: 'Wi-Fi-innstillinger' },
+
+  // Switching person, and pairing a phone.
+  'person.switch': { en: 'Switch person', nb: 'Bytt person' },
+  'person.switch_name': { en: '{name}: switch person', nb: '{name}: bytt person' },
+  'phone.none': { en: 'No phone', nb: 'Ingen telefon' },
+  'phone.of': { en: '{name}’s phone', nb: 'Telefonen til {name}' },
+  'phone.pair_new': { en: 'Pair new phone', nb: 'Koble sammen ny telefon' },
+  'pair.title': { en: 'Pair your phone', nb: 'Koble sammen telefonen din' },
+  'pair.title_of': { en: 'Pair {name}’s phone', nb: 'Koble sammen telefonen til {name}' },
+  'pair.key': { en: 'Your phone is your key!', nb: 'Telefonen din er nøkkelen din!' },
+  'pair.intro': {
+    en: 'Once it’s paired, the tablet knows the moment you walk in, and only you can switch to your account.',
+    nb: 'Når den er paret, vet nettbrettet med en gang når du kommer inn, og bare du kan bytte til kontoen din.'
+  },
+  'pair.go': { en: 'Let’s do it!', nb: 'Sett i gang!' },
+  'pair.searching': { en: 'Searching', nb: 'Søker' },
+  'pair.pairing': { en: 'Pairing', nb: 'Kobler sammen' },
+  'pair.accept': { en: 'Accept the pairing request on your phone.', nb: 'Godta paringsforespørselen på telefonen.' },
+  'pair.step_settings': { en: 'Open Settings', nb: 'Åpne Innstillinger' },
+  'pair.step_bluetooth': { en: 'Open Bluetooth', nb: 'Åpne Bluetooth' },
+  'pair.step_tap': { en: 'Tap your phone in the list below', nb: 'Trykk på telefonen din i listen nedenfor' },
+  'pair.nearby': { en: 'Nearby', nb: 'I nærheten' },
+  'pair.skip': { en: 'Skip', nb: 'Hopp over' },
+  'pair.all_set': { en: 'You’re all set!', nb: 'Alt er klart!' },
+  'pair.switch_hint': {
+    en: 'Tap your photo any time to switch between accounts!',
+    nb: 'Trykk på bildet ditt når som helst for å bytte konto!'
+  },
+  'pair.awesome': { en: 'Awesome!', nb: 'Supert!' },
+
+  // Updating the Pi, the sleep screen and adding the screen to countdown-server.
+  'update.available': { en: 'Update available', nb: 'Oppdatering tilgjengelig' },
+  'update.prompt': {
+    en: 'Updating takes a few minutes, and the tablet restarts by itself if anything changed. If you wait, the Pi picks it up on its own and applies it at 04:30.',
+    nb: 'Oppdateringen tar noen minutter, og nettbrettet starter på nytt av seg selv hvis noe er endret. Hvis du venter, henter Pi-en den selv og tar den i bruk kl. 04:30.'
+  },
+  'update.now': { en: 'Update now', nb: 'Oppdater nå' },
+  'update.later': { en: 'Not now', nb: 'Ikke nå' },
+  'update.title': { en: 'Updating the Pi', nb: 'Oppdaterer Pi-en' },
+  'update.close': { en: 'Close update console', nb: 'Lukk oppdateringskonsollen' },
+  'update.updating': { en: 'Updating… this can take a few minutes.', nb: 'Oppdaterer … dette kan ta noen minutter.' },
+  'update.task': { en: 'Task {done} of {total}', nb: 'Oppgave {done} av {total}' },
+  'update.output': { en: 'Update output', nb: 'Utdata fra oppdateringen' },
+  'update.starting': { en: 'Starting the update…', nb: 'Starter oppdateringen …' },
+  'update.leave_on': {
+    en: 'The tablet restarts by itself when the update needs it. Please leave it on.',
+    nb: 'Nettbrettet starter på nytt av seg selv når oppdateringen krever det. La det stå på.'
+  },
+  'sleep.dimmed': { en: 'Dimmed screen', nb: 'Dempet skjerm' },
+  'sleep.asleep': { en: 'Sleep screen', nb: 'Hvileskjerm' },
+  'sleep.wake': { en: 'Wake the screen', nb: 'Vekk skjermen' },
+  'registration.title': { en: 'Couldn’t add this screen', nb: 'Kunne ikke legge til denne skjermen' },
+  'registration.taken': { en: 'This screen belongs to someone else.', nb: 'Denne skjermen tilhører noen andre.' }
 } as const satisfies Record<string, Readonly<Record<Language, string>>>;
 
 /** An id STRINGS has: any other is a compile error. */

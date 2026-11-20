@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from 'react';
+import { useT } from '../i18n/translate';
 
 /**
  * The kiosk's black sleep screen (hooks/useScreenSleep), or while `dimmed` a half-black layer over the page, as the panel
@@ -9,6 +10,7 @@ import { useLayoutEffect, useRef } from 'react';
  */
 export default function SleepScreen({ dimmed = false, onWake }: Readonly<{ dimmed?: boolean; onWake: () => void }>) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const t = useT();
 
   useLayoutEffect(() => {
     const dialog = dialogRef.current;
@@ -21,7 +23,7 @@ export default function SleepScreen({ dimmed = false, onWake }: Readonly<{ dimme
     <dialog
       ref={dialogRef}
       className={dimmed ? 'sleep-screen sleep-screen-dimmed' : 'sleep-screen'}
-      aria-label={dimmed ? 'Dimmed screen' : 'Sleep screen'}
+      aria-label={t(dimmed ? 'sleep.dimmed' : 'sleep.asleep')}
       onCancel={event => {
         // Escape wakes the screen (useScreenSleep) rather than closing the dialog behind React's back.
         event.preventDefault();
@@ -30,7 +32,7 @@ export default function SleepScreen({ dimmed = false, onWake }: Readonly<{ dimme
       <button
         type="button"
         className="sleep-screen-button"
-        aria-label="Wake the screen"
+        aria-label={t('sleep.wake')}
         onPointerDown={event => event.preventDefault()}
         onClick={event => {
           event.stopPropagation();

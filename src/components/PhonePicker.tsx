@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Bluetooth, Smartphone } from 'lucide-react';
 import { samePhone, useSavedPhones } from '../hooks/useSavedPhones';
 import { setPersonPhone } from '../utils/phoneLinks';
+import { useT } from '../i18n/translate';
 import Modal from './Modal';
 import PairPhoneSheet from './PairPhoneSheet';
 
@@ -17,6 +18,7 @@ export default function PhonePicker({
   phoneAddress,
   onChange
 }: Readonly<{ spotifyId: string; name: string; imageUrl?: string; phoneAddress: string; onChange: () => void }>) {
+  const t = useT();
   const [isOpen, setIsOpen] = useState(false);
   const [isPairing, setIsPairing] = useState(false);
   const [pairings, setPairings] = useState(0);
@@ -28,7 +30,7 @@ export default function PhonePicker({
     setPersonPhone(spotifyId, address);
     onChange();
   };
-  const label = linked ? linked.name || linked.address : phoneAddress || 'No phone';
+  const label = linked ? linked.name || linked.address : phoneAddress || t('phone.none');
   const titleId = `phone-picker-title-${spotifyId}`;
 
   return (
@@ -37,7 +39,7 @@ export default function PhonePicker({
         type="button"
         className="button button-secondary phone-picker-button"
         onClick={() => setIsOpen(true)}
-        aria-label={`${name}’s phone`}
+        aria-label={t('phone.of', { name })}
       >
         <Smartphone className="w-5 h-5" aria-hidden="true" />
         <span>{label}</span>
@@ -45,7 +47,7 @@ export default function PhonePicker({
       {isOpen && (
         <Modal labelledBy={titleId} onClose={() => setIsOpen(false)} className="app-modal-panel phone-picker-sheet">
           <h3 id={titleId} className="phone-picker-title">
-            {name}’s phone
+            {t('phone.of', { name })}
           </h3>
           <ul className="phone-picker-options">
             <li>
@@ -58,7 +60,7 @@ export default function PhonePicker({
                 }}
               >
                 <Bluetooth className="w-5 h-5" aria-hidden="true" />
-                Pair new phone
+                {t('phone.pair_new')}
               </button>
             </li>
             {phones.map(phone => (
@@ -80,7 +82,7 @@ export default function PhonePicker({
                 aria-pressed={phoneAddress === ''}
                 onClick={() => choose('')}
               >
-                No phone
+                {t('phone.none')}
               </button>
             </li>
           </ul>

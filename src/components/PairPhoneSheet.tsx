@@ -4,6 +4,7 @@ import { pairPhone, pickPhone, readBluetoothReport } from '../utils/bluetoothMon
 import type { PairingStatus } from '../utils/bluetoothMonitor';
 import { errorMessage } from '../utils/errorMessage';
 import { setPersonPhone } from '../utils/phoneLinks';
+import { useT } from '../i18n/translate';
 import Modal from './Modal';
 import PersonFace from './PersonFace';
 
@@ -19,10 +20,15 @@ const PLACES = [0, 1, 2, 3, 4, 5] as const;
  * spinner in its place until the Pi has finished pairing.
  */
 function PairingCode({ code, isConfirmed }: Readonly<{ code: number | null; isConfirmed: boolean }>) {
+  const t = useT();
   if (isConfirmed) {
     return (
       <div className="pair-phone-code">
-        <LoaderCircle className="pair-phone-confirmed-spinner animate-spin" role="status" aria-label="Pairing" />
+        <LoaderCircle
+          className="pair-phone-confirmed-spinner animate-spin"
+          role="status"
+          aria-label={t('pair.pairing')}
+        />
       </div>
     );
   }
@@ -52,6 +58,7 @@ export default function PairPhoneSheet({
   imageUrl = '',
   onDone
 }: Readonly<{ spotifyId: string; name: string; imageUrl?: string; onDone: () => void }>) {
+  const t = useT();
   const [isIntro, setIsIntro] = useState(true);
   const [pairing, setPairing] = useState<PairingStatus>({ state: 'idle' });
   const [error, setError] = useState<string | null>(null);
@@ -99,13 +106,13 @@ export default function PairPhoneSheet({
       <Modal labelledBy="pair-phone-title" onClose={onDone} className="app-modal-panel pair-phone-sheet">
         <div className="pair-phone-done">
           <h3 id="pair-phone-title" className="pair-phone-big-title">
-            You’re all set!
+            {t('pair.all_set')}
           </h3>
           <div className="pair-phone-face">
             <PersonFace name={name} imageUrl={imageUrl} className="pair-phone-face-picture" />
             <Check className="pair-phone-face-tick" aria-hidden="true" />
           </div>
-          <p className="pair-phone-big-text">Tap your photo any time to switch between accounts!</p>
+          <p className="pair-phone-big-text">{t('pair.switch_hint')}</p>
         </div>
         <div className="pair-phone-actions">
           <button
@@ -114,14 +121,13 @@ export default function PairPhoneSheet({
             className="spotify-sign-in pair-phone-button font-extrabold rounded-xl"
             onClick={onDone}
           >
-            Awesome!
+            {t('pair.awesome')}
           </button>
         </div>
       </Modal>
     );
   }
-  const owner = name ? `${name}’s` : 'your';
-  const title = `Pair ${owner} phone`;
+  const title = name ? t('pair.title_of', { name }) : t('pair.title');
   if (isIntro) {
     return (
       <Modal labelledBy="pair-phone-title" onClose={onDone} className="app-modal-panel pair-phone-sheet">
@@ -132,10 +138,8 @@ export default function PairPhoneSheet({
           </h3>
         </div>
         <div className="pair-phone-body pair-phone-intro">
-          <p className="pair-phone-big-title">Your phone is your key!</p>
-          <p className="pair-phone-big-text">
-            Once it’s paired, the tablet knows the moment you walk in, and only you can switch to your account.
-          </p>
+          <p className="pair-phone-big-title">{t('pair.key')}</p>
+          <p className="pair-phone-big-text">{t('pair.intro')}</p>
         </div>
         <div className="pair-phone-actions">
           <button
@@ -144,7 +148,7 @@ export default function PairPhoneSheet({
             className="spotify-sign-in pair-phone-button font-extrabold rounded-xl"
             onClick={() => setIsIntro(false)}
           >
-            Let’s do it!
+            {t('pair.go')}
           </button>
         </div>
       </Modal>
@@ -172,29 +176,31 @@ export default function PairPhoneSheet({
           {title}
         </h3>
         {isBusy && (
-          <LoaderCircle className="pair-phone-spinner w-8 h-8 animate-spin" role="status" aria-label="Searching" />
+          <LoaderCircle
+            className="pair-phone-spinner w-8 h-8 animate-spin"
+            role="status"
+            aria-label={t('pair.searching')}
+          />
         )}
       </div>
       <div className="pair-phone-body">
         {!error && pairing.state === 'pairing' ? (
           <div className="pair-phone-pairing" aria-live="polite">
             <p className="pair-phone-pairing-name">{pairing.name}</p>
-            {pairing.code !== null && !pairing.isConfirmed && (
-              <p className="pair-phone-confirm">Accept the pairing request on your phone.</p>
-            )}
+            {pairing.code !== null && !pairing.isConfirmed && <p className="pair-phone-confirm">{t('pair.accept')}</p>}
             <PairingCode code={pairing.code} isConfirmed={pairing.isConfirmed} />
           </div>
         ) : (
           !error && (
             <>
               <ol className="pair-phone-steps">
-                <li>Open Settings</li>
-                <li>Open Bluetooth</li>
-                <li>Tap your phone in the list below</li>
+                <li>{t('pair.step_settings')}</li>
+                <li>{t('pair.step_bluetooth')}</li>
+                <li>{t('pair.step_tap')}</li>
               </ol>
               <ul
                 className="phone-picker-options pair-phone-nearby"
-                aria-label="Nearby"
+                aria-label={t('pair.nearby')}
                 aria-busy={pairing.state !== 'scanning'}
               >
                 {pairing.state === 'scanning' &&
@@ -231,7 +237,7 @@ export default function PairPhoneSheet({
               setAttempt(value => value + 1);
             }}
           >
-            Try again
+            {t('common.try_again')}
           </button>
         )}
         <button
@@ -240,7 +246,7 @@ export default function PairPhoneSheet({
           className="button button-secondary pair-phone-button"
           onClick={onDone}
         >
-          Skip
+          {t('pair.skip')}
         </button>
       </div>
     </Modal>

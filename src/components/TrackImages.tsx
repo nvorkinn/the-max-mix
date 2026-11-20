@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Disc3 } from 'lucide-react';
 import { debugLog } from '../utils/debugLog';
+import { useT } from '../i18n/translate';
 
 interface ImageProps {
   src?: string | undefined;
@@ -10,6 +11,7 @@ interface ImageProps {
 }
 
 function ImageWithFallback({ src, alt, className, fallback }: Readonly<ImageProps & { fallback: ReactNode }>) {
+  const t = useT();
   const [failedSource, setFailedSource] = useState<string | null>(null);
 
   if (!src || src === failedSource) {
@@ -17,7 +19,7 @@ function ImageWithFallback({ src, alt, className, fallback }: Readonly<ImageProp
       <span
         className={`${className} image-placeholder`}
         role={alt ? 'img' : undefined}
-        aria-label={alt ? `${alt} unavailable` : undefined}
+        aria-label={alt ? t('image.unavailable', { alt }) : undefined}
         aria-hidden={alt ? undefined : true}
       >
         {fallback}
