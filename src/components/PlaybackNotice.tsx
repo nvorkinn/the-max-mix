@@ -19,6 +19,8 @@ export interface PlaybackFixes {
   onAllowAudio: () => void;
 }
 
+const fix = (label: string, run: () => void) => ({ label, run });
+
 /** A playback problem in a few words, with the one button that fixes it. */
 export function describePlayback(notice: PlayerNotice, t: Translate, fixes: PlaybackFixes): Omit<Problem, 'id'> {
   if (notice.kind === 'restricted') {
@@ -27,7 +29,6 @@ export function describePlayback(notice: PlayerNotice, t: Translate, fixes: Play
       action: { label: t('notice.choose_speaker'), run: fixes.onChooseSpeaker }
     };
   }
-  const fix = (label: string, run: () => void) => ({ label, run });
   const described: Record<PlaybackProblem['recovery'], Omit<Problem, 'id'>> = {
     quota: { title: t('notice.quota_title') },
     wait: { title: t('notice.wait_title') },
