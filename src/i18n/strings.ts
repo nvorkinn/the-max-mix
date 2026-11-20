@@ -369,48 +369,21 @@ export const STRINGS = {
   'music.results': { en: 'Search results', nb: 'Søkeresultater' },
   'music.empty': { en: 'Nothing here yet.', nb: 'Ingenting her ennå.' },
 
-  // The playback banner.
-  'notice.restricted_title': { en: 'Controls unavailable on this device', nb: 'Kan ikke styres på denne enheten' },
-  'notice.restricted_text': {
-    en: 'Choose another speaker, or use Spotify to control this device.',
-    nb: 'Velg en annen høyttaler, eller styr denne enheten i Spotify.'
-  },
+  // Playback problems: a few words in the player and in the warning list, with the one button that fixes it.
+  'problems.title': { en: 'Problems', nb: 'Problemer' },
+  'notice.restricted_title': { en: "Can't control this speaker", nb: 'Kan ikke styre denne høyttaleren' },
   'notice.choose_speaker': { en: 'Choose speaker', nb: 'Velg høyttaler' },
   'notice.quota_title': { en: 'Spotify quota used up', nb: 'Spotify-kvoten er brukt opp' },
-  'notice.quota_text': {
-    en: 'The app has stopped reading Spotify by itself. Controls still work; restart the app to read it again.',
-    nb: 'Appen har sluttet å hente fra Spotify av seg selv. Kontrollene virker fortsatt; start appen på nytt for å hente igjen.'
-  },
   'notice.wait_title': { en: 'Waiting for Spotify', nb: 'Venter på Spotify' },
-  'notice.wait_text': {
-    en: 'Spotify asked this app to wait. Playback status will be checked again automatically.',
-    nb: 'Spotify ba appen vente. Avspillingen sjekkes igjen automatisk.'
-  },
   'notice.problem_title': { en: 'Playback problem', nb: 'Problem med avspillingen' },
-  'notice.sign_in_text': { en: 'Your Spotify sign-in needs attention.', nb: 'Spotify-innloggingen din må sjekkes.' },
+  'notice.no_speaker': { en: 'No speaker available', nb: 'Ingen høyttaler tilgjengelig' },
+  'notice.sign_in_title': { en: 'Spotify sign-in needed', nb: 'Spotify-innlogging trengs' },
   'notice.reconnect_spotify': { en: 'Reconnect Spotify', nb: 'Koble til Spotify igjen' },
-  'notice.choose_speaker_text': {
-    en: 'Choose an available speaker, or control this device in Spotify.',
-    nb: 'Velg en tilgjengelig høyttaler, eller styr denne enheten i Spotify.'
-  },
-  'notice.settings_text': {
-    en: 'Check your account and browser playback settings.',
-    nb: 'Sjekk kontoen din og innstillingene for avspilling i nettleseren.'
-  },
-  'notice.reconnect_text': {
-    en: 'The browser player could not connect to Spotify.',
-    nb: 'Nettleserspilleren fikk ikke kontakt med Spotify.'
-  },
+  'notice.settings_title': { en: 'Check Spotify settings', nb: 'Sjekk Spotify-innstillingene' },
+  'notice.player_title': { en: 'Tablet player disconnected', nb: 'Nettbrettspilleren er frakoblet' },
   'notice.reconnect_player': { en: 'Reconnect player', nb: 'Koble til spilleren igjen' },
-  'notice.refresh_text': {
-    en: 'Refresh playback status, then try the control again.',
-    nb: 'Oppdater avspillingsstatusen, og prøv igjen.'
-  },
   'notice.refresh': { en: 'Refresh playback', nb: 'Oppdater avspillingen' },
-  'notice.audio_text': {
-    en: 'Allow browser audio, then press Play to start.',
-    nb: 'Tillat lyd i nettleseren, og trykk på Spill av for å starte.'
-  },
+  'notice.audio_title': { en: 'Audio blocked', nb: 'Lyden er blokkert' },
   'notice.allow_audio': { en: 'Allow browser audio', nb: 'Tillat lyd i nettleseren' },
   'notice.checking': { en: 'Checking...', nb: 'Sjekker …' },
 

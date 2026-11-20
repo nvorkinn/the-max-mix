@@ -55,7 +55,8 @@ import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
 import SpotifySetup from './SpotifySetup';
 import TrackQueue, { type QueueStatus } from './TrackQueue';
-import PlaybackBanner, { type PlaybackNoticeState, type BannerNotice } from './PlaybackNotice';
+import { describePlayback, PlayerProblem, type PlaybackNoticeState, type PlayerNotice } from './PlaybackNotice';
+import { useReportProblem } from '../problems/problems';
 import LyricsPanel from './LyricsPanel';
 import PanelNav from './PanelNav';
 import SettingsPanel from './SettingsPanel';
@@ -481,10 +482,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   } else if (isLoading || (!isReady && isConnecting)) notice = { kind: 'connecting' };
   else if (!isReady && !browserDeviceId) notice = { kind: 'no-device' };
   else if (!currentTrack) notice = { kind: 'idle' };
-  // Only trouble needing the user's attention goes in the banner; idle and connecting states are the player's own.
-  let banner: BannerNotice | null = null;
-  if (!needsConnection && notice?.kind === 'problem') banner = notice;
-  else if (!needsConnection && notice?.kind === 'restricted') banner = { kind: 'restricted' };
+  // Only trouble needing the user's attention is said, in the player and in the warning list; idle and connecting states
+  // are the player's own.
+  let playerNotice: PlayerNotice | null = null;
+  if (!needsConnection && notice?.kind === 'problem') playerNotice = notice;
+  else if (!needsConnection && notice?.kind === 'restricted') playerNotice = { kind: 'restricted' };
   const spotifyControlsEnabled =
     isAuthenticated &&
     !isOffline &&
@@ -567,6 +569,19 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     onClockHold: () => setIsDebugOpen(true)
   };
 
+  // A playback problem is listed under the tab bar's warning, and one with a fix is said in the player too, in the
+  // speaker's place. Waiting or a used-up quota has nothing to tap, so the speaker stays.
+  const playbackProblem =
+    playerNotice &&
+    describePlayback(playerNotice, (id, args) => translate(id, language, args), {
+      onSettings: showSettings,
+      onChooseSpeaker: chooseSpeaker,
+      onRefresh: followingSonos ? sonos.refresh : () => void recoverPlayback(retryPlayback),
+      onReconnect: reconnectPlayer,
+      onAllowAudio: () => void recoverPlayback(allowBrowserAudio)
+    });
+  useReportProblem('playback', playbackProblem && { ...playbackProblem, busy: isRefreshingPlayback });
+
   return (
     <LanguageContext value={language}>
       <div
@@ -587,19 +602,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           <div className="floating-bar">
             <TabBar {...tabBar} />
           </div>
-          {banner && (
-            <PlaybackBanner
-              notice={banner}
-              busy={isRefreshingPlayback}
-              onSettings={showSettings}
-              onChooseSpeaker={chooseSpeaker}
-              onRefresh={followingSonos ? sonos.refresh : () => void recoverPlayback(retryPlayback)}
-              onReconnect={reconnectPlayer}
-              onAllowAudio={() => void recoverPlayback(allowBrowserAudio)}
-              onDetails={() => setIsDebugOpen(true)}
-            />
-          )}
-
           <div className="room-frame">
             <main className={`listening-room${needsConnection ? ' is-setup' : ''}`}>
               <section className="player-section" aria-label={translate('dashboard.now_playing', language)}>
@@ -624,6 +626,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                     speakerLabel={playingOnLabel(speakers.playingOn, language)}
                     speakersOpen={speakersShown}
                     onOpenSpeakers={chooseSpeaker}
+                    problem={
+                      playbackProblem?.action && <PlayerProblem problem={playbackProblem} busy={isRefreshingPlayback} />
+                    }
                   />
                 )}
               </section>

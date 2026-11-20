@@ -310,6 +310,9 @@
   border-radius: 50%;
   cursor: pointer;
 }
+.dashboard-problems {
+  color: var(--warning);
+}
 .dashboard-avatar {
   width: 44px;
   height: 44px;

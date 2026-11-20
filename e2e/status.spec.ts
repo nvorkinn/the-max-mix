@@ -167,10 +167,9 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     api.playback = { ...playback, device: { ...playback.device, is_restricted: true } };
     await openSpotifyTab(page);
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
-    const banner = page.locator('.playback-banner');
-    await expect(banner.getByText('Controls unavailable on this device')).toBeVisible();
+    await expect(player.getByText("Can't control this speaker")).toBeVisible();
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeDisabled();
-    await expect(banner.getByRole('button', { name: 'Choose speaker', exact: true })).toBeInViewport();
+    await expect(player.getByRole('button', { name: 'Choose speaker', exact: true })).toBeInViewport();
     await expectControlsFit(page, player);
     expect(api.commands).toEqual([]);
   });
@@ -220,6 +219,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       await openSpotifyTab(page);
       const player = page.getByRole('region', { name: 'Now playing', exact: true });
       const queue = page.getByRole('region', { name: 'Upcoming tracks' });
+      const warning = page.getByRole('button', { name: 'Problems', exact: true });
       await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
       // The queue is read and known to be empty.
       await expect(queue.getByRole('button', { name: 'Search for music' })).toBeVisible();
@@ -230,10 +230,9 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
         api.queueStatus = 429;
         // The next read is timed from when the last one answered (and is further off once the SDK plays here), which
         // on a busy machine can come after the clock has moved on: move it a second at a time until the read comes.
-        const banner = page.locator('.playback-banner').getByText('Waiting for Spotify', { exact: true });
         await expect(async () => {
           await page.clock.runFor(1000);
-          await expect(banner).toBeVisible({ timeout: 100 });
+          await expect(warning).toBeVisible({ timeout: 100 });
         }).toPass({ timeout: 15_000 });
       } else {
         api.devicesStatus = 429;
@@ -244,7 +243,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
           .getByRole('button', { name: 'Queue' })
           .click();
       }
-      await expect(page.locator('.playback-banner').getByText('Waiting for Spotify', { exact: true })).toBeVisible();
+      await expect(warning).toBeVisible();
       await expect(queue.getByText('Waiting for Spotify...')).toBeVisible();
       await expect(player.getByRole('button', { name: 'Next track' })).toBeDisabled();
       await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeDisabled();
@@ -264,7 +263,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       api.devicesStatus = 200;
       const playbackReads = api.playbackReads;
       await page.clock.runFor(1);
-      await expect(page.locator('.playback-banner').getByText('Waiting for Spotify', { exact: true })).toHaveCount(0);
+      await expect(warning).toHaveCount(0);
       await expect(player.getByRole('button', { name: 'Next track' })).toBeEnabled();
       await expect.poll(() => api.playbackReads).toBeGreaterThan(playbackReads);
       expect(api.commands).toEqual(commands);
@@ -280,16 +279,19 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     await openSpotifyTab(page);
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     await player.getByRole('button', { name: 'Next track' }).click();
-    await expect(page.getByRole('alert')).toContainText('Playback problem');
+    await expect(player.getByRole('alert')).toContainText('Playback problem');
     await expectControlsFit(page, player);
-    await expect(page.getByRole('button', { name: 'Refresh playback' })).toBeInViewport();
+    await expect(player.getByRole('button', { name: 'Refresh playback' })).toBeInViewport();
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeInViewport();
-    await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await page.getByRole('button', { name: 'Problems', exact: true }).click();
+    const problems = page.getByRole('dialog', { name: 'Problems' });
+    await expect(problems).toContainText('Playback problem');
+    await problems.getByRole('button', { name: 'Details', exact: true }).click();
     const debug = page.getByRole('dialog', { name: 'Debug console' });
     await expect(debug).toContainText('Spotify request failed (500).');
     await debug.getByRole('button', { name: 'Close debug console' }).click();
     const reads = api.playbackReads;
-    await page.getByRole('button', { name: 'Refresh playback' }).click();
+    await player.getByRole('button', { name: 'Refresh playback' }).click();
     await expect(page.getByRole('alert')).toHaveCount(0);
     expect(api.playbackReads).toBeGreaterThan(reads);
     expect(api.commands).toEqual(['/v1/me/player/next']);
@@ -315,7 +317,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
     });
 
-    test('QUOTA_EXCEEDED stops all polling for good and says so, in the banner and in the debug console', async ({
+    test('QUOTA_EXCEEDED stops all polling for good and says so, under the warning and in the debug console', async ({
       page
     }) => {
       const reads = countPlaybackReads(page);
@@ -324,16 +326,18 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
 
       refusal = { reason: 'QUOTA_EXCEEDED' };
       await advance(page, 6000);
-      const banner = page.locator('.playback-banner');
-      await expect(banner).toContainText('Spotify quota used up');
-      await expect(banner).toContainText('stopped reading Spotify by itself');
+      const warning = page.getByRole('button', { name: 'Problems', exact: true });
+      await warning.click();
+      const problems = page.getByRole('dialog', { name: 'Problems' });
+      await expect(problems).toContainText('Spotify quota used up');
+      await problems.getByRole('button', { name: 'Close' }).click();
 
       // Nothing asks again, however long the tablet runs, even once Spotify would answer.
       refusal = null;
       const stopped = reads();
       await advance(page, 120_000, 5000);
       expect(reads()).toBe(stopped);
-      await expect(banner).toContainText('Spotify quota used up');
+      await expect(warning).toBeVisible();
 
       await page.keyboard.press('Control+Shift+D');
       const debug = page.getByRole('dialog', { name: 'Debug console' });
@@ -347,9 +351,12 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
 
       refusal = {};
       await advance(page, 6000);
-      const banner = page.locator('.playback-banner');
-      await expect(banner).toContainText('Waiting for Spotify');
-      await expect(banner).not.toContainText('quota');
+      const warning = page.getByRole('button', { name: 'Problems', exact: true });
+      await warning.click();
+      const problems = page.getByRole('dialog', { name: 'Problems' });
+      await expect(problems).toContainText('Waiting for Spotify');
+      await expect(problems).not.toContainText('quota');
+      await problems.getByRole('button', { name: 'Close' }).click();
 
       // Nothing is asked while it waits (Spotify's wait is not readable by the browser, so a short one is assumed).
       const waiting = reads();
@@ -358,7 +365,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
 
       refusal = null;
       await advance(page, 40_000);
-      await expect(banner).toHaveCount(0);
+      await expect(warning).toHaveCount(0);
       expect(reads()).toBeGreaterThan(waiting);
     });
   });
@@ -375,13 +382,12 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       await expect.poll(() => sdk.players()).toBe(1);
 
       await sdk.emit('not_ready');
-      const banner = page.locator('.playback-banner');
-      await expect(banner).toContainText('Playback problem');
-      await expect(banner).toContainText('The browser player could not connect to Spotify.');
+      const problem = page.locator('.player-problem');
+      await expect(problem).toContainText('Tablet player disconnected');
 
-      await banner.getByRole('button', { name: 'Reconnect player' }).click();
+      await problem.getByRole('button', { name: 'Reconnect player' }).click();
       await expect.poll(() => sdk.players()).toBe(2);
-      await expect(banner).toHaveCount(0);
+      await expect(problem).toHaveCount(0);
     });
 
     test('blocked autoplay offers Allow browser audio, which asks the browser and clears the problem', async ({
@@ -392,13 +398,13 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       await expect.poll(() => sdk.players()).toBe(1);
 
       await sdk.emit('autoplay_failed');
-      const banner = page.locator('.playback-banner');
-      await expect(banner).toContainText('Allow browser audio, then press Play to start.');
+      const problem = page.locator('.player-problem');
+      await expect(problem).toContainText('Audio blocked');
       expect(await sdk.activations()).toBe(0);
 
-      await banner.getByRole('button', { name: 'Allow browser audio' }).click();
+      await problem.getByRole('button', { name: 'Allow browser audio' }).click();
       await expect.poll(() => sdk.activations()).toBe(1);
-      await expect(banner).toHaveCount(0);
+      await expect(problem).toHaveCount(0);
     });
 
     test('a browser that cannot play protected music falls back to controlling a Spotify speaker', async ({ page }) => {
@@ -411,9 +417,9 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       await expect.poll(() => sdk.players()).toBe(1);
 
       await sdk.emit('initialization_error', { message: 'Failed to initialize player' });
-      const banner = page.locator('.playback-banner');
-      await expect(banner).toContainText('Choose an available speaker');
-      await banner.getByRole('button', { name: 'Choose speaker' }).click();
+      const problem = page.locator('.player-problem');
+      await expect(problem).toContainText('No speaker available');
+      await problem.getByRole('button', { name: 'Choose speaker' }).click();
       const view = page.getByRole('region', { name: 'Speakers' });
       await expect(view.getByRole('checkbox', { name: 'Test speaker' })).toBeVisible();
       // This tablet is not offered as a speaker any more.

@@ -13,7 +13,7 @@ import {
   RotateCcw,
   RotateCw
 } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { PlayerControls } from '../types';
 import { goBack } from '../dashboard/nowPlaying';
 import { useT } from '../i18n/translate';
@@ -27,6 +27,8 @@ type AlbumArtPlayerProps = Readonly<PlayerControls> & {
   speakersOpen?: boolean;
   /** Makes the indicator a button that opens the speakers drawer. */
   onOpenSpeakers?: () => void;
+  /** A playback problem, said in the indicator's place while it lasts. */
+  problem?: ReactNode;
 };
 
 /** How far the rewind and fast-forward buttons jump. */
@@ -48,7 +50,8 @@ export default function AlbumArtPlayer({
   controlsEnabled = false,
   speakerLabel,
   speakersOpen = false,
-  onOpenSpeakers
+  onOpenSpeakers,
+  problem
 }: AlbumArtPlayerProps) {
   const t = useT();
   // Local slider value, reset whenever the device reports a different volume (adjusted during render, not in an effect).
@@ -146,25 +149,26 @@ export default function AlbumArtPlayer({
           />
           <span className="track-time">{totalTime}</span>
         </div>
-        {onOpenSpeakers ? (
-          <button
-            type="button"
-            className={`player-device${speakersOpen ? ' is-open' : ''}`}
-            onClick={onOpenSpeakers}
-            aria-haspopup="dialog"
-            aria-expanded={speakersOpen}
-            aria-label={speakerAriaLabel}
-          >
-            <Speaker size={14} aria-hidden="true" />
-            <span>{deviceText}</span>
-            <ChevronUp size={14} className="player-device-chevron" aria-hidden="true" />
-          </button>
-        ) : (
-          <div className="player-device">
-            <Speaker size={14} aria-hidden="true" />
-            <span>{deviceText}</span>
-          </div>
-        )}
+        {problem ??
+          (onOpenSpeakers ? (
+            <button
+              type="button"
+              className={`player-device${speakersOpen ? ' is-open' : ''}`}
+              onClick={onOpenSpeakers}
+              aria-haspopup="dialog"
+              aria-expanded={speakersOpen}
+              aria-label={speakerAriaLabel}
+            >
+              <Speaker size={14} aria-hidden="true" />
+              <span>{deviceText}</span>
+              <ChevronUp size={14} className="player-device-chevron" aria-hidden="true" />
+            </button>
+          ) : (
+            <div className="player-device">
+              <Speaker size={14} aria-hidden="true" />
+              <span>{deviceText}</span>
+            </div>
+          ))}
         <div className="transport-row">
           <div className="transport-buttons">
             {onToggleShuffle && (

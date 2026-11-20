@@ -225,7 +225,10 @@ describe('TabletView', () => {
     });
     const upcoming = screen.getByRole('region', { name: 'Upcoming tracks' });
     act(() => recordSpotifyRetryAfter(new SpotifyApiError('Device discovery rate limited', 429, 30)));
-    expect(screen.getByText('Waiting for Spotify', { selector: 'strong' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Problems' }));
+    const problems = screen.getByRole('dialog', { name: 'Problems' });
+    expect(within(problems).getByText('Waiting for Spotify')).toBeInTheDocument();
+    fireEvent.click(within(problems).getByRole('button', { name: 'Close' }));
     expect(within(upcoming).getByText('Showing the last known queue.')).toBeInTheDocument();
     expect(within(upcoming).getByText('Queued One')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next track' }));
@@ -309,8 +312,11 @@ describe('TabletView', () => {
     await flush();
     const reads = api.getQueue.mock.calls.length;
     await act(() => fetchSpotify('https://api.spotify.com/v1/me/player', {}));
-    // The banner and the status line next to the logo both say it.
-    expect(screen.getByRole('alert')).toHaveTextContent('Spotify quota used up');
+    // Nothing fixes it, so it is only under the warning.
+    fireEvent.click(screen.getByRole('button', { name: 'Problems' }));
+    expect(
+      within(screen.getByRole('dialog', { name: 'Problems' })).getByText('Spotify quota used up')
+    ).toBeInTheDocument();
     expect(api.getQueue.mock.calls).toHaveLength(reads);
   });
 
@@ -698,13 +704,18 @@ describe('TabletView', () => {
     expect(screen.getByRole('button', { name: 'Refresh playback' })).toBeEnabled();
   });
 
-  it('shows recovery in a top banner and preserves exact hook errors in the debug console', async () => {
+  it('says a problem in the player, lists it under the warning, and keeps the exact error for the debug console', async () => {
     setPlayer({ error: 'Device offline' });
     renderOnSpotifyTab(<TabletView />);
     await flush();
-    expect(screen.getByRole('alert')).toHaveTextContent('Playback problem');
-    expect(screen.getByRole('button', { name: 'Refresh playback' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Details' }));
+    const nowPlaying = screen.getByRole('region', { name: 'Now playing', exact: true });
+    expect(within(nowPlaying).getByRole('alert')).toHaveTextContent('Playback problem');
+    expect(within(nowPlaying).getByRole('button', { name: 'Refresh playback' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Problems' }));
+    const problems = screen.getByRole('dialog', { name: 'Problems' });
+    expect(within(problems).getByText('Playback problem')).toBeInTheDocument();
+    expect(within(problems).getByRole('button', { name: 'Refresh playback' })).toBeInTheDocument();
+    fireEvent.click(within(problems).getByRole('button', { name: 'Details' }));
     const panel = screen.getByRole('dialog', { name: 'Debug console' });
     expect(within(panel).getAllByText('Device offline').length).toBeGreaterThan(0);
     fireEvent.click(within(panel).getByRole('button', { name: 'Close debug console' }));
