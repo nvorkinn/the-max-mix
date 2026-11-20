@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import type { SearchResult } from '../../countdown/search';
+import { useT } from '../../i18n/translate';
 
 /** How long typing must pause before the search runs, so each key press does not send one. */
 const SEARCH_DELAY_MS = 300;
@@ -62,6 +63,7 @@ export default function SearchResults<R extends SearchResult>({
   /** Takes back a chosen result tapped again. Without it a chosen result can't be tapped. */
   onUnpick?: (result: R) => void;
 }>) {
+  const t = useT();
   // What the last search came to: its results, or null when it couldn't be made.
   const [found, setFound] = useState<{ query: string; results: R[] | null }>();
 
@@ -91,9 +93,9 @@ export default function SearchResults<R extends SearchResult>({
           Couldn't search. Try again in a moment.
         </p>
       )}
-      {shown?.length === 0 && <p className="text-muted py-2">Nothing found.</p>}
+      {shown?.length === 0 && <p className="text-muted py-2">{t('common.nothing_found')}</p>}
       {shown && shown.length > 0 && (
-        <ul className="space-y-2" aria-label="Results">
+        <ul className="space-y-2" aria-label={t('common.results')}>
           {shown.map(result => {
             const isChosen = chosen.includes(result.key);
             return (
@@ -107,7 +109,7 @@ export default function SearchResults<R extends SearchResult>({
                     isChosen ? (
                       <span className="search-result-added">
                         <Check className="w-5 h-5 shrink-0" aria-hidden="true" />
-                        Added
+                        {t('common.added')}
                       </span>
                     ) : (
                       icon

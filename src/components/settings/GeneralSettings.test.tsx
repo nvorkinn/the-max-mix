@@ -5,6 +5,8 @@ import fixture from '../../../vendor/countdown-api/src/countdown_api/fixtures/to
 import search from '../../../vendor/countdown-api/src/countdown_api/fixtures/search.json';
 import * as searches from '../../countdown/search';
 import userEvent from '../../test/user';
+import { LanguageContext } from '../../i18n/language';
+import { translate } from '../../i18n/translate';
 import { DEFAULT_QUIET_HOURS } from '../../utils/quietHours';
 import type { QuietHours } from '../../utils/quietHours';
 import GeneralSettings from './GeneralSettings';
@@ -56,6 +58,26 @@ function setup(config: TouchscreenConfig = OWNED) {
 }
 
 describe('GeneralSettings', () => {
+  it('saves the language tapped, each named in itself', async () => {
+    const onSave = setup({ ...OWNED, language: 'en' });
+    expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(screen.getByRole('button', { name: 'Norsk' }));
+    expect(onSave).toHaveBeenCalledExactlyOnceWith('language', 'nb');
+  });
+
+  it('is in Norwegian when the tablet is', () => {
+    render(
+      <LanguageContext value="nb">
+        <GeneralSettings config={{ ...OWNED, language: 'nb' }} onSave={vi.fn()} />
+      </LanguageContext>
+    );
+    const nb = (id: Parameters<typeof translate>[0]) => translate(id, 'nb');
+    expect(screen.getByRole('group', { name: nb('general.language') })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: nb('general.24h') })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Norsk' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(nb('general.weather'))).toBeInTheDocument();
+  });
+
   it('saves the time format tapped', async () => {
     const onSave = setup({ ...OWNED, clock_format: '24h' });
     expect(screen.getByRole('button', { name: '24-hour' })).toHaveAttribute('aria-pressed', 'true');

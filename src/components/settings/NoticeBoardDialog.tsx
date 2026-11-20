@@ -1,6 +1,7 @@
 import { useId, useRef, useState } from 'react';
 import type { NoticeBoard } from 'countdown-api';
 import { useOnScreenKeyboard } from '../../hooks/useOnScreenKeyboard';
+import { useT } from '../../i18n/translate';
 import Modal from '../Modal';
 import CountryFlag from './CountryFlag';
 
@@ -33,6 +34,7 @@ export default function NoticeBoardDialog({
   onSave,
   onClose
 }: Readonly<{ board: NoticeBoard; onSave: (board: NoticeBoard) => void; onClose: () => void }>) {
+  const t = useT();
   const titleId = useId();
   const hintId = useId();
   const fieldRef = useRef<HTMLInputElement>(null);
@@ -49,7 +51,7 @@ export default function NoticeBoardDialog({
     >
       <div className="modal-header">
         <h3 id={titleId} className="text-lg font-semibold">
-          Postcode
+          {t('general.postcode')}
         </h3>
       </div>
       <div className="postcode-field">
@@ -59,7 +61,7 @@ export default function NoticeBoardDialog({
           type="text"
           value={postcode}
           onChange={event => setPostcode(event.target.value)}
-          aria-label="Postcode"
+          aria-label={t('general.postcode')}
           autoComplete="off"
           spellCheck={false}
           aria-invalid={!off && wanted === null}
@@ -68,11 +70,11 @@ export default function NoticeBoardDialog({
         />
       </div>
       <p id={hintId} className="text-muted py-2">
-        {off || wanted ? 'A UK or Norwegian postcode. Leave it empty for none.' : 'Enter a UK or Norwegian postcode.'}
+        {t(off || wanted ? 'general.postcode_hint' : 'general.postcode_wrong')}
       </p>
       <div className="search-dialog-actions">
         <button type="button" onClick={onClose} className="button button-secondary">
-          Cancel
+          {t('common.cancel')}
         </button>
         <button
           type="button"
@@ -80,7 +82,7 @@ export default function NoticeBoardDialog({
           onClick={() => onSave(wanted ?? { postcode: null, country: null })}
           className="button search-dialog-confirm"
         >
-          Save
+          {t('common.save')}
         </button>
       </div>
     </Modal>

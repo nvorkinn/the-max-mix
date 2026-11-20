@@ -3,6 +3,7 @@ import { formatClockTime } from '../../utils/clockFormat';
 import type { ClockFormat } from '../../utils/clockFormat';
 import { stepTime, timeOfDay } from '../../utils/quietHours';
 import type { QuietHours } from '../../utils/quietHours';
+import { useT } from '../../i18n/translate';
 
 /** One end of the quiet hours, moved half an hour at a time; it skips over `other`, as equal times would never be quiet. */
 function TimeStepper({
@@ -43,10 +44,11 @@ export default function QuietHoursSettings({
   clockFormat,
   onChange
 }: Readonly<{ hours: QuietHours; clockFormat: ClockFormat; onChange: (hours: QuietHours) => void }>) {
+  const t = useT();
   return (
     <section className="settings-group">
       <h5 className="settings-group-title" id="quiet-hours-label">
-        Quiet hours
+        {t('general.quiet_hours')}
       </h5>
       <div className="settings-segmented" role="group" aria-labelledby="quiet-hours-label">
         {[false, true].map(on => (
@@ -57,21 +59,21 @@ export default function QuietHoursSettings({
             onClick={() => onChange({ ...hours, on })}
             className="settings-segment"
           >
-            {on ? 'On' : 'Off'}
+            {t(on ? 'common.on' : 'common.off')}
           </button>
         ))}
       </div>
       {hours.on && (
         <div className="quiet-hours">
           <TimeStepper
-            label="From"
+            label={t('general.from')}
             time={hours.start}
             other={hours.end}
             clockFormat={clockFormat}
             onChange={start => onChange({ ...hours, start })}
           />
           <TimeStepper
-            label="To"
+            label={t('general.to')}
             time={hours.end}
             other={hours.start}
             clockFormat={clockFormat}

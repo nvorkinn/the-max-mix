@@ -1,9 +1,8 @@
 import { useId } from 'react';
 import type { NoticeBoard } from 'countdown-api';
+import { useT } from '../../i18n/translate';
 
 type Country = NonNullable<NoticeBoard['country']>;
-
-const COUNTRY_NAMES: Record<Country, string> = { GB: 'United Kingdom', NO: 'Norway' };
 
 /** The Union Flag, drawn rather than an emoji, which the kiosk's Chromium on Linux has no font for. */
 function UnionFlag() {
@@ -40,8 +39,9 @@ function NorwegianFlag() {
 
 /** A country's flag, named for screen readers. */
 export default function CountryFlag({ country, className = '' }: Readonly<{ country: Country; className?: string }>) {
+  const t = useT();
   return (
-    <span role="img" aria-label={COUNTRY_NAMES[country]} className={`country-flag ${className}`}>
+    <span role="img" aria-label={t(`country.${country}`)} className={`country-flag ${className}`}>
       {country === 'GB' ? <UnionFlag /> : <NorwegianFlag />}
     </span>
   );
