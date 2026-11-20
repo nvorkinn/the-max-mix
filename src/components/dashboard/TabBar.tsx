@@ -7,6 +7,7 @@ import { useT } from '../../i18n/translate';
 import { useHold } from '../../hooks/useHold';
 import { tabPanelId } from '../AppTabs';
 import PersonSwitcher from '../PersonSwitcher';
+import ProblemsButton from '../ProblemsButton';
 import SpotifyIcon from '../SpotifyIcon';
 import NowPlaying from './NowPlaying';
 
@@ -24,8 +25,8 @@ const CLOCK_HOLD_MS = 2000;
 const noop = () => {};
 
 /**
- * The brand, the tabs, search, the signed-in person and the clock, floating on the Dashboard's photo; with `nowPlaying`,
- * the song playing in a card hanging under the Spotify tab.
+ * The brand, the tabs, search, a warning while anything is wrong, the signed-in person and the clock, floating on the
+ * Dashboard's photo; with `nowPlaying`, the song playing in a card hanging under the Spotify tab.
  */
 export default function TabBar({
   active,
@@ -82,6 +83,7 @@ export default function TabBar({
             <Search className="lucide" style={{ width: 26, height: 26 }} />
           </button>
         )}
+        <ProblemsButton onDetails={onClockHold ?? undefined} />
         {person &&
           (onSwitchPerson ? (
             <PersonSwitcher className="dashboard-icon-button" onSwitch={onSwitchPerson}>

@@ -346,9 +346,8 @@
 .app-tab-panel.on-photo .album-art .image-placeholder {
   background: none;
 }
-/* The setup card and a playback problem are words on the photo too, so they get the darker glass. */
-.app-tab-panel.on-photo .spotify-setup,
-.app-tab-panel.on-photo .playback-banner {
+/* The setup card is words on the photo too, so it gets the darker glass. */
+.app-tab-panel.on-photo .spotify-setup {
   background: rgb(var(--glass) / 72%);
   backdrop-filter: blur(18px) saturate(1.2);
 }
@@ -979,34 +978,80 @@
   margin-top: auto;
   flex-shrink: 0;
 }
-.playback-banner {
-  position: absolute;
-  top: calc(var(--float-bar) + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 50;
+/* A playback problem, in the speaker indicator's place under the seek bar: the warning, a few words and the fix. */
+.player-problem {
+  grid-column: 1;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: max-content;
-  max-width: calc(100% - 32px);
-  padding: 8px 10px 8px 14px;
-  border: 1px solid var(--warning);
-  border-radius: 12px;
-  background: var(--surface-raised);
-  box-shadow: 0 12px 28px -12px var(--shadow);
-  font-size: 13px;
+  gap: 8px;
+  font-size: 12.5px;
 }
-.playback-banner > svg {
+.player-problem > svg {
   color: var(--warning);
   flex-shrink: 0;
 }
-.playback-banner-text {
+.player-problem strong {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
 }
-.playback-banner .button {
+.player-problem .button {
   flex-shrink: 0;
   min-height: 44px;
+}
+/* The list under the tab bar's warning: what is wrong now, one row each with its fix. */
+.app-dialog.problems-sheet {
+  width: min(560px, calc(100% - 32px));
+  padding: 24px 28px 28px;
+  border-radius: 28px;
+}
+.problems-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.problems-sheet-header h3 {
+  font-size: 20px;
+  font-weight: 600;
+}
+.problems-sheet-close {
+  width: 60px;
+  height: 60px;
+  margin: -8px -14px -8px 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+.problems-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  border-bottom: 1px solid var(--border);
+  font-size: 16px;
+  font-weight: 600;
+}
+.problems-list li > svg {
+  color: var(--warning);
+  flex-shrink: 0;
+}
+.problems-list li > span {
+  flex: 1;
+  min-width: 0;
+}
+.problems-list .button,
+.problems-details {
+  flex-shrink: 0;
+  min-height: 52px;
+}
+.problems-details {
+  margin-top: 16px;
 }
 .queue-status {
   color: var(--muted);
