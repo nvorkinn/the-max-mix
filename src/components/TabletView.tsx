@@ -43,6 +43,7 @@ import {
 } from '../utils/themeColour';
 import { DYNAMIC_LINGER_MS, useLingers } from '../hooks/useLingers';
 import { DEFAULT_CLOCK_FORMAT } from '../utils/clockFormat';
+import { DEFAULT_LANGUAGE, LanguageContext, LOCALES } from '../i18n/language';
 import type { ThemeColour } from '../utils/themeColour';
 import type { MusicChoice, Track } from '../types';
 import type { TabBarProps, TabId } from '../dashboard/props';
@@ -211,6 +212,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const deviceConfig = useDeviceConfig();
   const ownedConfig = deviceConfig.owned ? deviceConfig.config : null;
   const style = ownedConfig?.style;
+  // The language everything on the tablet is in, and the page's own (lang), which Chromium's hyphenation and voices go by.
+  const language = ownedConfig?.language ?? DEFAULT_LANGUAGE;
+  useEffect(() => {
+    document.documentElement.lang = LOCALES[language];
+  }, [language]);
   const display = ownedConfig?.display;
   // The time format applies across the tablet: the tab bar's clock and the Dashboard's times.
   const clockFormat = ownedConfig?.clock_format ?? DEFAULT_CLOCK_FORMAT;
@@ -551,207 +557,219 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   };
 
   return (
-    <div
-      className="tablet-container"
-      data-colour={themeColour}
-      data-dynamic={dynamicVars ? '' : undefined}
-      style={dynamicVars as CSSProperties | undefined}
-    >
-      {isOffline && <OfflineBanner />}
+    <LanguageContext value={language}>
       <div
-        className="app-tab-panel on-photo"
-        role="tabpanel"
-        id={tabPanelId('spotify')}
-        aria-label="Spotify"
-        hidden={screen !== 'spotify'}
+        className="tablet-container"
+        data-colour={themeColour}
+        data-dynamic={dynamicVars ? '' : undefined}
+        style={dynamicVars as CSSProperties | undefined}
       >
-        {screen === 'spotify' && <TabBackdrop now={tabBar.now} />}
-        <div className="floating-bar">
-          <TabBar {...tabBar} />
-        </div>
-        {banner && (
-          <PlaybackBanner
-            notice={banner}
-            busy={isRefreshingPlayback}
-            onSettings={showSettings}
-            onChooseSpeaker={chooseSpeaker}
-            onRefresh={followingSonos ? sonos.refresh : () => void recoverPlayback(retryPlayback)}
-            onReconnect={reconnectPlayer}
-            onAllowAudio={() => void recoverPlayback(allowBrowserAudio)}
-            onDetails={() => setIsDebugOpen(true)}
-          />
-        )}
+        {isOffline && <OfflineBanner />}
+        <div
+          className="app-tab-panel on-photo"
+          role="tabpanel"
+          id={tabPanelId('spotify')}
+          aria-label="Spotify"
+          hidden={screen !== 'spotify'}
+        >
+          {screen === 'spotify' && <TabBackdrop now={tabBar.now} />}
+          <div className="floating-bar">
+            <TabBar {...tabBar} />
+          </div>
+          {banner && (
+            <PlaybackBanner
+              notice={banner}
+              busy={isRefreshingPlayback}
+              onSettings={showSettings}
+              onChooseSpeaker={chooseSpeaker}
+              onRefresh={followingSonos ? sonos.refresh : () => void recoverPlayback(retryPlayback)}
+              onReconnect={reconnectPlayer}
+              onAllowAudio={() => void recoverPlayback(allowBrowserAudio)}
+              onDetails={() => setIsDebugOpen(true)}
+            />
+          )}
 
-        <div className="room-frame">
-          <main className={`listening-room${needsConnection ? ' is-setup' : ''}`}>
-            <section className="player-section" aria-label="Now playing">
-              {needsConnection ? (
-                <SpotifySetup
-                  offline={isOffline}
-                  signInError={signInError || (problem?.recovery === 'sign-in' ? problem.message : null)}
-                  onDetails={() => setIsDebugOpen(true)}
-                />
-              ) : (
-                <AlbumArtPlayer
-                  playback={shownPlayback}
-                  isPlaying={isPlaying}
-                  onPlayPause={followingSonos ? sonos.togglePlay : togglePlay}
-                  onNext={followingSonos ? sonos.nextTrack : nextTrack}
-                  onPrevious={followingSonos ? sonos.previousTrack : previousTrack}
-                  onSeek={followingSonos ? sonos.seek : seek}
-                  onVolumeChange={(vol: number) => (followingSonos ? sonos.setVolume(vol) : setVolume(vol / 100))}
-                  onToggleShuffle={toggleShuffle}
-                  onCycleRepeat={cycleRepeat}
-                  controlsEnabled={controlsEnabled}
-                  speakerLabel={speakers.playingLabel}
-                  speakersOpen={speakersShown}
-                  onOpenSpeakers={chooseSpeaker}
+          <div className="room-frame">
+            <main className={`listening-room${needsConnection ? ' is-setup' : ''}`}>
+              <section className="player-section" aria-label="Now playing">
+                {needsConnection ? (
+                  <SpotifySetup
+                    offline={isOffline}
+                    signInError={signInError || (problem?.recovery === 'sign-in' ? problem.message : null)}
+                    onDetails={() => setIsDebugOpen(true)}
+                  />
+                ) : (
+                  <AlbumArtPlayer
+                    playback={shownPlayback}
+                    isPlaying={isPlaying}
+                    onPlayPause={followingSonos ? sonos.togglePlay : togglePlay}
+                    onNext={followingSonos ? sonos.nextTrack : nextTrack}
+                    onPrevious={followingSonos ? sonos.previousTrack : previousTrack}
+                    onSeek={followingSonos ? sonos.seek : seek}
+                    onVolumeChange={(vol: number) => (followingSonos ? sonos.setVolume(vol) : setVolume(vol / 100))}
+                    onToggleShuffle={toggleShuffle}
+                    onCycleRepeat={cycleRepeat}
+                    controlsEnabled={controlsEnabled}
+                    speakerLabel={speakers.playingLabel}
+                    speakersOpen={speakersShown}
+                    onOpenSpeakers={chooseSpeaker}
+                  />
+                )}
+              </section>
+
+              {!needsConnection && (
+                <div className="side-panel" data-showing={panel.view}>
+                  {/* All three stay put and cross-fade; the hidden ones are inert, so neither a tap nor a screen reader reaches them. */}
+                  <section
+                    className="queue-section side-panel-view"
+                    aria-label="Upcoming tracks"
+                    inert={panel.view !== 'queue'}
+                    data-view="queue"
+                  >
+                    <TrackQueue
+                      queue={shownQueue}
+                      error={shownQueueError}
+                      status={shownQueueStatus}
+                      onRetry={() => setQueueRequestVersion(version => version + 1)}
+                      onConnect={showSettings}
+                      retryAllowed={!waitingForSpotify}
+                      onPlay={playQueueTrack}
+                      playDisabled={!controlsEnabled || isJumping}
+                      // Only a Sonos's queue can be reordered; Spotify's Web API has no way to move a queued song.
+                      onMove={followingSonos ? sonos.moveSong : undefined}
+                      onSearch={() => setIsMusicOpen(true)}
+                    />
+                  </section>
+                  <div className="side-panel-view" inert={!lyricsShown} data-view="lyrics">
+                    <LyricsPanel
+                      track={currentTrack}
+                      lookup={lyrics}
+                      shown={lyricsShown}
+                      progressMs={shownPlayback?.progress_ms ?? shownPlayback?.position ?? 0}
+                      playing={shownPlayback?.is_playing === true}
+                      syncing={lyricsSyncing}
+                      onSynced={() => setSyncingTrack(null)}
+                    />
+                  </div>
+                  <section
+                    className="side-panel-view"
+                    aria-label="Speakers"
+                    inert={!speakersShown}
+                    data-view="speakers"
+                  >
+                    <SpeakersView selection={speakers} onKiosk={onKiosk} browserDeviceId={browserDeviceId ?? null} />
+                  </section>
+                </div>
+              )}
+              {!needsConnection && (
+                <PanelNav
+                  view={panel.view}
+                  onShow={showPanel}
+                  lyricsSyncing={lyricsSyncing}
+                  speakersButton={speakersButton}
+                  onSave={() => void speakers.save()}
+                  onCancel={speakers.cancel}
                 />
               )}
-            </section>
+            </main>
+          </div>
+        </div>
+        <section
+          className="app-tab-panel"
+          role="tabpanel"
+          id={tabPanelId('dashboard')}
+          aria-label="Dashboard"
+          hidden={screen !== 'dashboard'}
+        >
+          {/* Mounted while hidden, so its data keeps updating and it is current when the tab comes back. */}
+          <DashboardScreen tabBar={{ ...tabBar, onSearch: null, nowPlaying: songShown ? nowPlaying : null }} />
+        </section>
+        <section
+          className="app-tab-panel on-photo"
+          role="tabpanel"
+          id={tabPanelId('settings')}
+          aria-label="Settings"
+          hidden={screen !== 'settings'}
+        >
+          {screen === 'settings' && <TabBackdrop now={tabBar.now} />}
+          <div className="floating-bar">
+            <TabBar {...tabBar} onSearch={null} />
+          </div>
+          {screen === 'settings' && (
+            <SettingsPanel
+              initialSection={settingsSection}
+              signInError={signInError || (playerProblem?.recovery === 'sign-in' ? playerProblem.message : null)}
+              screenSleep={screenSleepMinutes}
+              onScreenSleepChange={changeScreenSleep}
+              quietHours={quietHours}
+              onQuietHoursChange={changeQuietHours}
+              themeColour={themeColour}
+              onThemeColourChange={changeThemeColour}
+              dynamicColour={dynamicColour}
+              onDynamicColourChange={changeDynamicColour}
+              kioskUpdate={kioskUpdate}
+              saveStatus={deviceConfig.status}
+              onShow={deviceConfig.reload}
+              deviceConfig={ownedConfig ?? undefined}
+              onDeviceConfigSave={deviceConfig.save}
+              onOpenDebug={() => setIsDebugOpen(true)}
+            />
+          )}
+        </section>
 
-            {!needsConnection && (
-              <div className="side-panel" data-showing={panel.view}>
-                {/* All three stay put and cross-fade; the hidden ones are inert, so neither a tap nor a screen reader reaches them. */}
-                <section
-                  className="queue-section side-panel-view"
-                  aria-label="Upcoming tracks"
-                  inert={panel.view !== 'queue'}
-                  data-view="queue"
-                >
-                  <TrackQueue
-                    queue={shownQueue}
-                    error={shownQueueError}
-                    status={shownQueueStatus}
-                    onRetry={() => setQueueRequestVersion(version => version + 1)}
-                    onConnect={showSettings}
-                    retryAllowed={!waitingForSpotify}
-                    onPlay={playQueueTrack}
-                    playDisabled={!controlsEnabled || isJumping}
-                    // Only a Sonos's queue can be reordered; Spotify's Web API has no way to move a queued song.
-                    onMove={followingSonos ? sonos.moveSong : undefined}
-                    onSearch={() => setIsMusicOpen(true)}
-                  />
-                </section>
-                <div className="side-panel-view" inert={!lyricsShown} data-view="lyrics">
-                  <LyricsPanel
-                    track={currentTrack}
-                    lookup={lyrics}
-                    shown={lyricsShown}
-                    progressMs={shownPlayback?.progress_ms ?? shownPlayback?.position ?? 0}
-                    playing={shownPlayback?.is_playing === true}
-                    syncing={lyricsSyncing}
-                    onSynced={() => setSyncingTrack(null)}
-                  />
-                </div>
-                <section className="side-panel-view" aria-label="Speakers" inert={!speakersShown} data-view="speakers">
-                  <SpeakersView selection={speakers} onKiosk={onKiosk} browserDeviceId={browserDeviceId ?? null} />
-                </section>
-              </div>
-            )}
-            {!needsConnection && (
-              <PanelNav
-                view={panel.view}
-                onShow={showPanel}
-                lyricsSyncing={lyricsSyncing}
-                speakersButton={speakersButton}
-                onSave={() => void speakers.save()}
-                onCancel={speakers.cancel}
-              />
-            )}
-          </main>
-        </div>
-      </div>
-      <section
-        className="app-tab-panel"
-        role="tabpanel"
-        id={tabPanelId('dashboard')}
-        aria-label="Dashboard"
-        hidden={screen !== 'dashboard'}
-      >
-        {/* Mounted while hidden, so its data keeps updating and it is current when the tab comes back. */}
-        <DashboardScreen tabBar={{ ...tabBar, onSearch: null, nowPlaying: songShown ? nowPlaying : null }} />
-      </section>
-      <section
-        className="app-tab-panel on-photo"
-        role="tabpanel"
-        id={tabPanelId('settings')}
-        aria-label="Settings"
-        hidden={screen !== 'settings'}
-      >
-        {screen === 'settings' && <TabBackdrop now={tabBar.now} />}
-        <div className="floating-bar">
-          <TabBar {...tabBar} onSearch={null} />
-        </div>
-        {screen === 'settings' && (
-          <SettingsPanel
-            initialSection={settingsSection}
-            signInError={signInError || (playerProblem?.recovery === 'sign-in' ? playerProblem.message : null)}
-            screenSleep={screenSleepMinutes}
-            onScreenSleepChange={changeScreenSleep}
-            quietHours={quietHours}
-            onQuietHoursChange={changeQuietHours}
-            themeColour={themeColour}
-            onThemeColourChange={changeThemeColour}
-            dynamicColour={dynamicColour}
-            onDynamicColourChange={changeDynamicColour}
-            kioskUpdate={kioskUpdate}
-            saveStatus={deviceConfig.status}
-            onShow={deviceConfig.reload}
-            deviceConfig={ownedConfig ?? undefined}
-            onDeviceConfigSave={deviceConfig.save}
-            onOpenDebug={() => setIsDebugOpen(true)}
+        <MusicPicker
+          isOpen={isMusicOpen && !needsConnection}
+          onClose={() => setIsMusicOpen(false)}
+          onPlay={playMusic}
+          disabled={!controlsEnabled}
+        />
+
+        {pairingFor && isPairingOpen && (
+          <PairPhoneSheet
+            spotifyId={pairingFor}
+            name={peopleOnKiosk().find(person => person.spotifyId === pairingFor)?.name ?? ''}
+            imageUrl={peopleOnKiosk().find(person => person.spotifyId === pairingFor)?.imageUrl ?? ''}
+            onDone={() => setIsPairingOpen(false)}
           />
         )}
-      </section>
 
-      <MusicPicker
-        isOpen={isMusicOpen && !needsConnection}
-        onClose={() => setIsMusicOpen(false)}
-        onPlay={playMusic}
-        disabled={!controlsEnabled}
-      />
-
-      {pairingFor && isPairingOpen && (
-        <PairPhoneSheet
-          spotifyId={pairingFor}
-          name={peopleOnKiosk().find(person => person.spotifyId === pairingFor)?.name ?? ''}
-          imageUrl={peopleOnKiosk().find(person => person.spotifyId === pairingFor)?.imageUrl ?? ''}
-          onDone={() => setIsPairingOpen(false)}
+        <DebugConsole
+          isOpen={isDebugOpen}
+          onClose={() => setIsDebugOpen(false)}
+          status={[
+            ['Connection', isOffline ? 'Offline' : 'Online'],
+            ['Kiosk', onKiosk ? 'Yes' : 'No'],
+            ['Signed in', isAuthenticated ? 'Yes' : 'No'],
+            ['Playback mode', playbackMode],
+            ['Playing on', speakers.playingLabel ?? playbackState?.device?.name ?? 'Nothing'],
+            ['Browser player', browserDeviceId ? `Ready (${browserDeviceId})` : 'Not connected'],
+            ['SDK driving', sdkActive ? 'Yes' : 'No'],
+            ['Active device', playbackState?.device?.name ?? 'None'],
+            ['Sonos', followingSonos ? `Following ${sonos.name ?? 'a group'}` : 'Not following'],
+            [
+              'Now playing',
+              currentTrack ? (currentTrack.name ?? currentTrack.title ?? currentTrack.id ?? '?') : 'Nothing'
+            ],
+            ['Screen', onKiosk ? screenStatus : 'Not managed'],
+            ['Current problem', error ?? 'None']
+          ]}
         />
-      )}
 
-      <DebugConsole
-        isOpen={isDebugOpen}
-        onClose={() => setIsDebugOpen(false)}
-        status={[
-          ['Connection', isOffline ? 'Offline' : 'Online'],
-          ['Kiosk', onKiosk ? 'Yes' : 'No'],
-          ['Signed in', isAuthenticated ? 'Yes' : 'No'],
-          ['Playback mode', playbackMode],
-          ['Playing on', speakers.playingLabel ?? playbackState?.device?.name ?? 'Nothing'],
-          ['Browser player', browserDeviceId ? `Ready (${browserDeviceId})` : 'Not connected'],
-          ['SDK driving', sdkActive ? 'Yes' : 'No'],
-          ['Active device', playbackState?.device?.name ?? 'None'],
-          ['Sonos', followingSonos ? `Following ${sonos.name ?? 'a group'}` : 'Not following'],
-          [
-            'Now playing',
-            currentTrack ? (currentTrack.name ?? currentTrack.title ?? currentTrack.id ?? '?') : 'Nothing'
-          ],
-          ['Screen', onKiosk ? screenStatus : 'Not managed'],
-          ['Current problem', error ?? 'None']
-        ]}
-      />
-
-      {/* A newer version is asked about once, with the screen awake and no music picker or debug dialog open. The Settings
+        {/* A newer version is asked about once, with the screen awake and no music picker or debug dialog open. The Settings
           tab checks again each time it comes up, so the question can show over it; starting the update hands over to the
           console. */}
-      {kioskUpdate.prompting && kioskUpdate.newer && !sleep.asleep && !sleep.dimmed && !isMusicOpen && !isDebugOpen && (
-        <UpdatePrompt newer={kioskUpdate.newer} onUpdate={kioskUpdate.start} onLater={kioskUpdate.dismissPrompt} />
-      )}
-      <UpdateConsole update={kioskUpdate} />
+        {kioskUpdate.prompting &&
+          kioskUpdate.newer &&
+          !sleep.asleep &&
+          !sleep.dimmed &&
+          !isMusicOpen &&
+          !isDebugOpen && (
+            <UpdatePrompt newer={kioskUpdate.newer} onUpdate={kioskUpdate.start} onLater={kioskUpdate.dismissPrompt} />
+          )}
+        <UpdateConsole update={kioskUpdate} />
 
-      {(sleep.asleep || sleep.dimmed) && <SleepScreen dimmed={sleep.dimmed} onWake={sleep.wake} />}
-    </div>
+        {(sleep.asleep || sleep.dimmed) && <SleepScreen dimmed={sleep.dimmed} onWake={sleep.wake} />}
+      </div>
+    </LanguageContext>
   );
 }

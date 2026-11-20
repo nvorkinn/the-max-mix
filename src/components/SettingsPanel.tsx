@@ -10,6 +10,7 @@ import type { ThemeColour } from '../utils/themeColour';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import type { DeviceConfig, SaveStatus } from '../hooks/useDeviceConfig';
 import { useParcelLink } from '../hooks/useParcelLink';
+import { useT } from '../i18n/translate';
 import SpotifyIcon from './SpotifyIcon';
 import AboutSettings from './settings/AboutSettings';
 import AppearanceSettings from './settings/AppearanceSettings';
@@ -70,15 +71,16 @@ interface SettingsPanelProps {
  * page's corner: the page has no header of its own, as the navigation already says which one it is.
  */
 function SaveNote({ status }: Readonly<{ status: SaveStatus }>) {
+  const t = useT();
   return (
     <p className="settings-save-note" aria-live="polite">
       {status === 'saved' && (
         <span className="settings-status status-success">
           <Check className="settings-status-icon" aria-hidden="true" />
-          Saved
+          {t('settings.saved')}
         </span>
       )}
-      {status === 'failed' && <span className="settings-status status-warning">Not saved</span>}
+      {status === 'failed' && <span className="settings-status status-warning">{t('settings.not_saved')}</span>}
     </p>
   );
 }
@@ -123,6 +125,7 @@ export default function SettingsPanel({
   onDeviceConfigSave,
   onOpenDebug
 }: Readonly<SettingsPanelProps>) {
+  const t = useT();
   const [kiosk] = useState(isKiosk);
   const [section, setSection] = useState<SettingsSection | undefined>(initialSection);
   const wifi = useWifi(kiosk);
@@ -221,7 +224,7 @@ export default function SettingsPanel({
 
   return (
     <div className="app-modal-panel settings-panel settings-tab text-left select-none">
-      <nav className="settings-nav" aria-label="Settings">
+      <nav className="settings-nav" aria-label={t('settings.title')}>
         <ul className="settings-nav-list">
           {sections.map(choice => (
             <li key={choice.id}>
@@ -232,13 +235,13 @@ export default function SettingsPanel({
                 className="settings-nav-item"
               >
                 {SECTION_ICONS[choice.id]}
-                <span className="truncate">{choice.label}</span>
+                <span className="truncate">{t(`settings.${choice.id}`)}</span>
               </button>
             </li>
           ))}
         </ul>
       </nav>
-      <section className="settings-content" aria-label={current.label}>
+      <section className="settings-content" aria-label={t(`settings.${current.id}`)}>
         <SaveNote status={saveStatus} />
         {/* Keyed by the page, so each one starts scrolled to the top. */}
         <div className="settings-content-body" key={current.id}>

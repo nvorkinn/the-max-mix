@@ -5,6 +5,6 @@
   "dictionaryDefinitions": [{ "name": "project-words", "path": "./project-words.txt", "addWords": true }],
   "dictionaries": ["project-words"],
   "useGitignore": true,
-  "ignoreRegExpList": ["/'[A-Za-z0-9+/]{32,}={0,2}'/"],
+  "ignoreRegExpList": ["/'[A-Za-z0-9+/]{32,}={0,2}'/", "/\\bnb: (['\"]).*?\\1/g"],
   "ignorePaths": [".git", "vendor", "**/package-lock.json", "project-words.txt", "LICENSE"]
 }

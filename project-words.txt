@@ -27,6 +27,7 @@ connecttest
 cretpass
 crossfade
 dbus
+debugfs
 dejavu
 devicechange
 dialog
@@ -117,6 +118,7 @@ nonint
 noninteractive
 NOPASSWD
 noqa
+norsk
 nosniff
 noto
 nullglob
@@ -231,4 +233,3 @@ xcursor
 xkb
 xterm
 zoneinfo
-debugfs

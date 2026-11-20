@@ -2,6 +2,7 @@ import { useId, useRef, useState } from 'react';
 import { LocateFixed } from 'lucide-react';
 import type { SearchResult } from '../../countdown/search';
 import { useOnScreenKeyboard } from '../../hooks/useOnScreenKeyboard';
+import { useT } from '../../i18n/translate';
 import Modal from '../Modal';
 import SearchResults, { ResultButton } from './SearchResults';
 
@@ -27,6 +28,7 @@ export default function SearchDialog<R extends SearchResult>({
   onPick: (result: R) => void;
   onClose: () => void;
 }>) {
+  const t = useT();
   const titleId = useId();
   const fieldRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState(initialQuery);
@@ -76,7 +78,7 @@ export default function SearchDialog<R extends SearchResult>({
         className="music-search w-full min-h-12 px-4 rounded-xl border text-sm"
       />
       {located && !edited && (
-        <ul className="search-dialog-results" aria-label="Results">
+        <ul className="search-dialog-results" aria-label={t('common.results')}>
           <li>
             <ResultButton result={located} onPick={onPick} />
           </li>
@@ -85,7 +87,7 @@ export default function SearchDialog<R extends SearchResult>({
       <SearchResults query={edited ? query.trim() : ''} search={search} onPick={onPick} />
       {locating === 'failed' && (
         <p role="alert" className="text-muted py-2">
-          Couldn't find the current location.
+          {t('general.location_failed')}
         </p>
       )}
       <div className="search-dialog-actions">
@@ -97,11 +99,11 @@ export default function SearchDialog<R extends SearchResult>({
             className="button button-secondary search-dialog-locate"
           >
             <LocateFixed className="w-6 h-6" aria-hidden="true" />
-            {locating === 'busy' ? 'Locating...' : 'Current location'}
+            {t(locating === 'busy' ? 'general.locating' : 'general.current_location')}
           </button>
         )}
         <button type="button" onClick={onClose} className="button button-secondary">
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
     </Modal>
