@@ -17,8 +17,8 @@ describe('the problems list', () => {
 
   it('holds a reported problem while it is given and takes it back after', () => {
     const run = vi.fn();
-    const { rerender, unmount } = renderHook(
-      ({ title }: { title: string | null }) =>
+    const { rerender, unmount } = renderHook<void, { title: string | null }>(
+      ({ title }) =>
         useReportProblem('feed', title ? { title, action: { label: 'Try again', run } } : null),
       { initialProps: { title: 'Departures not updating' } }
     );
