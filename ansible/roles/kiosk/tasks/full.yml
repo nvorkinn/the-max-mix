@@ -491,6 +491,7 @@
     - pipewire.ts
     - presence.ts
     - qr.ts
+    - qrc-cipher.ts
     - screen-mode.ts
     - server.ts
     - sonos-events.ts

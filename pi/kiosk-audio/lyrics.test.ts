@@ -1,6 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Candidate, LyricsQuery, LyricsSource } from './lyrics-sources.ts';
-import { cached, findLyrics, isSynced, matches, normalize, parseLyricsQuery, searchTitle } from './lyrics.ts';
+import {
+  cached,
+  findLyrics,
+  isSynced,
+  isWordTimed,
+  matches,
+  normalize,
+  parseLyricsQuery,
+  searchTitle
+} from './lyrics.ts';
 import type { LyricsHit } from './lyrics.ts';
 
 const LRC = ['[00:01.00]One', '[00:02.00]Two', '[00:03.00]Three', '[00:04.00]Four'].join('\n');
@@ -12,10 +21,18 @@ const song = (overrides: Partial<Candidate> = {}): Candidate => ({
   durationMs: 200_000,
   ...overrides
 });
-const source = (name: string, candidates: Candidate[], lrc: string | null = LRC): LyricsSource => ({
+const WORDS = [1, 2, 3, 4].map(second => `[00:0${second}.000]<00:0${second}.000>One <00:0${second}.500>two`).join('\n');
+/** A source with line-timed lyrics (`lrc`) and, when given, word-timed ones. */
+const source = (
+  name: string,
+  candidates: Candidate[],
+  lrc: string | null = LRC,
+  words: string | null = null
+): LyricsSource => ({
   name,
   search: vi.fn().mockResolvedValue(candidates),
-  lyrics: vi.fn().mockResolvedValue(lrc)
+  words: vi.fn().mockResolvedValue(words),
+  lines: vi.fn().mockResolvedValue(lrc)
 });
 const get = () => Promise.reject(new Error('unused'));
 
@@ -70,11 +87,52 @@ describe('kiosk-audio/lyrics', () => {
     expect(isSynced('Plain\ntext\nonly\nhere')).toBe(false);
   });
 
-  it('takes the first source that has the lyrics', async () => {
+  it('tells lyrics that time each word from ones that time whole lines', () => {
+    expect(isWordTimed(WORDS)).toBe(true);
+    expect(isWordTimed(LRC)).toBe(false);
+    const wholeLines = [1, 2, 3, 4].map(second => `[00:0${second}.000]<00:0${second}.000>One<00:0${second}.500>`);
+    expect(isWordTimed(wholeLines.join('\n'))).toBe(false);
+    expect(isWordTimed(WORDS.split('\n').slice(0, 3).join('\n'))).toBe(false);
+  });
+
+  it('takes the first source that has line-timed lyrics when none times the words', async () => {
     const later = source('C', [song()]);
     const hit = await findLyrics(query, [source('A', []), source('B', [song()]), later], get);
     expect(hit).toEqual({ source: 'B', lrc: LRC });
-    expect(later.search).not.toHaveBeenCalled();
+    expect(later.words).toHaveBeenCalledTimes(1);
+    expect(later.lines).not.toHaveBeenCalled();
+  });
+
+  it('asks every source for word-timed lyrics before any for line-timed ones', async () => {
+    const first = source('A', [song()]);
+    const second = source('B', [song()]);
+    const last = source('C', [song()], LRC, WORDS);
+    await expect(findLyrics(query, [first, second, last], get)).resolves.toEqual({ source: 'C', lrc: WORDS });
+    expect(first.words).toHaveBeenCalledTimes(1);
+    expect(second.words).toHaveBeenCalledTimes(1);
+    expect(first.lines).not.toHaveBeenCalled();
+    expect(second.lines).not.toHaveBeenCalled();
+  });
+
+  it('takes the earliest source that times the words, and a later match of a source when its first does not', async () => {
+    const both = [
+      source('A', [song()], LRC, WORDS),
+      source('B', [song()], LRC, `${WORDS}\n[00:09.000]<00:09.000>More`)
+    ];
+    await expect(findLyrics(query, both, get)).resolves.toEqual({ source: 'A', lrc: WORDS });
+    const second: LyricsSource = {
+      ...source('A', [song({ id: 'first' }), song({ id: 'second' })]),
+      words: candidate => Promise.resolve(candidate.id === 'second' ? WORDS : LRC)
+    };
+    await expect(findLyrics(query, [second], get)).resolves.toEqual({ source: 'A', lrc: WORDS });
+  });
+
+  it('falls back to the line-timed lyrics of a source whose word-timed ones could not be read', async () => {
+    vi.spyOn(console, 'warn').mockReturnValue();
+    const broken: LyricsSource = { ...source('A', [song()]), words: () => Promise.reject(new Error('unreadable')) };
+    await expect(findLyrics(query, [broken], get)).resolves.toEqual({ source: 'A', lrc: LRC });
+    const empty: LyricsSource = { ...broken, lines: () => Promise.reject(new Error('down')) };
+    await expect(findLyrics(query, [empty], get)).rejects.toThrow('unreadable');
   });
 
   it('moves on from lyrics that are not synced', async () => {

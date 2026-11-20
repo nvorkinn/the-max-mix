@@ -112,6 +112,8 @@ the picture button to bring the artwork back. The choice is remembered. Lyrics c
 a free, open lyrics database that needs no key and allows browser requests. When LRCLIB has no synced lyrics for a
 song, the kiosk service (`GET /lyrics`, see [pi/kiosk-audio](pi/kiosk-audio/README.md)) looks for them at NetEase
 Cloud Music, QQ Music and KuGou, which do not allow requests from a web page; off the kiosk that step is skipped.
+Those three can also time each word, which lights the words up as they are sung: the service asks all three for
+word-timed lyrics before it settles for line-timed ones, and the app prefers word-timed lyrics to LRCLIB's.
 Time-synced lyrics follow playback and keep the current line in the middle. Scrolling them pauses that, and they follow
 the song again after 8 seconds of being left alone. Songs with only plain lyrics show them unsynced. Lookups happen only
 while the lyrics are shown, once per track. Another source can be added as a `LyricsProvider`

@@ -96,6 +96,7 @@ metalerts
 meteo
 mktemp
 mockup
+musichall
 nationaltheatret
 nbbbb
 ncccc
