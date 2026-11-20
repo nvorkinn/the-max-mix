@@ -2356,6 +2356,9 @@ body:has(.app-dialog[open]) {
   font-size: 18px;
   text-align: left;
 }
+.countdown-grouping {
+  flex-shrink: 0;
+}
 .countdown-column {
   flex: 1;
   min-height: 0;

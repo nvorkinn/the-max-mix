@@ -90,12 +90,23 @@ describe('CountdownSettings', () => {
     expect(screen.getByRole('dialog', { name: 'Add stops' })).toBeInTheDocument();
   });
 
+  it('groups the boards by route, or not, saving it with the stops', async () => {
+    const onSave = setup();
+    const group = screen.getByRole('group', { name: 'Group by route' });
+    expect(within(group).getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(within(group).getByRole('button', { name: 'On' }));
+    expect(onSave).toHaveBeenCalledExactlyOnceWith('arrivals', { ...OWNED.arrivals, group_by_route: true });
+  });
+
   it('removes a stop with its X', async () => {
     const onSave = setup();
     const [first] = OWNED.arrivals.stops;
     const { name } = searches.describeStop(defined(first));
     await userEvent.click(within(saved()).getByRole('button', { name: `Remove ${name}` }));
-    expect(onSave).toHaveBeenCalledExactlyOnceWith('arrivals', { stops: OWNED.arrivals.stops.slice(1) });
+    expect(onSave).toHaveBeenCalledExactlyOnceWith('arrivals', {
+      ...OWNED.arrivals,
+      stops: OWNED.arrivals.stops.slice(1)
+    });
   });
 
   it('moves a stop with the arrow keys on its handle', () => {

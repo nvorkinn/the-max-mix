@@ -136,6 +136,7 @@ export const STRINGS = {
   'countdown.add': { en: 'Add a station or stop', nb: 'Legg til en stasjon eller et stopp' },
   'countdown.saved': { en: 'Saved stops', nb: 'Lagrede stopp' },
   'countdown.none': { en: 'No stops yet.', nb: 'Ingen stopp ennå.' },
+  'countdown.group_by_route': { en: 'Group by route', nb: 'Grupper etter linje' },
   'countdown.move': { en: 'Move {name}', nb: 'Flytt {name}' },
   'countdown.remove': { en: 'Remove {name}', nb: 'Fjern {name}' },
   'countdown.add_stops': { en: 'Add stops', nb: 'Legg til stopp' },

@@ -29,10 +29,16 @@ function useNow(running: boolean): Date {
  * The Dashboard tab's content: countdown-server's live feed (useLiveDashboard), counted down on a clock of its own, so
  * its ticks redraw only the Dashboard. The Dashboard stays mounted behind the other tabs, so the feed stays open and
  * it shows the latest at once, but its clock only runs while it shows: hidden, it isn't redrawn every second. What is
- * wrong with its data goes under the tab bar's warning, hidden or not.
+ * wrong with its data goes under the tab bar's warning, hidden or not. `groupByRoute` (the config's arrivals) gives the
+ * boards a row per route.
  */
-export default function DashboardScreen({ tabBar }: Readonly<{ tabBar: TabBarProps }>) {
+export default function DashboardScreen({
+  tabBar,
+  groupByRoute = false
+}: Readonly<{ tabBar: TabBarProps; groupByRoute?: boolean }>) {
   const now = useNow(tabBar.active === 'dashboard');
   useDashboardProblem();
-  return <Dashboard tabBar={tabBar} {...useLiveDashboard(now, tabBar.clockFormat)} />;
+  const live = useLiveDashboard(now, tabBar.clockFormat);
+  const boards = groupByRoute ? live.boards.map(board => ({ ...board, groupByRoute })) : live.boards;
+  return <Dashboard tabBar={tabBar} {...live} boards={boards} />;
 }
