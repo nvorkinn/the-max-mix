@@ -17,3 +17,38 @@ export function crossfade(update: () => void) {
   // eslint-disable-next-line @eslint-react/dom-no-flush-sync -- the snapshot of the new screen is taken when this returns
   start(() => flushSync(update));
 }
+
+/**
+ * Like crossfade, but one element flies from where it was to where its counterpart is after `update`, growing or
+ * shrinking on the way (a shared-element transition: `from` names the element before the change, `to` after it; both
+ * are looked up when needed, so they can be inside what `update` adds or removes). The rest of the screen fades as in
+ * crossfade. When either end is missing the whole screen just fades. Only one element carries the name at a time, as
+ * the API requires.
+ */
+export function flyAcross(
+  name: string,
+  from: () => HTMLElement | null,
+  to: () => HTMLElement | null,
+  update: () => void
+) {
+  const start = (document as Partial<Document>).startViewTransition?.bind(document);
+  const source = from();
+  if (!start || !source || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    update();
+    return;
+  }
+  let target: HTMLElement | null = null;
+  source.style.viewTransitionName = name;
+  const transition = start(() => {
+    // eslint-disable-next-line @eslint-react/dom-no-flush-sync -- the snapshot of the new screen is taken when this returns
+    flushSync(update);
+    source.style.viewTransitionName = '';
+    target = to();
+    if (target) target.style.viewTransitionName = name;
+  });
+  const clear = () => {
+    source.style.viewTransitionName = '';
+    if (target) target.style.viewTransitionName = '';
+  };
+  void transition.finished.finally(clear);
+}

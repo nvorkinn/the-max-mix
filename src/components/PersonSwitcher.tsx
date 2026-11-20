@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { PEOPLE_LIMIT, peopleOnKiosk } from '../spotify/auth';
 import { samePhone, usePhonePresence } from '../hooks/useSavedPhones';
 import { useT } from '../i18n/translate';
+import { flyAcross } from '../utils/crossfade';
 import Modal from './Modal';
 import PersonFace from './PersonFace';
 import SongProof from './SongProof';
@@ -16,6 +17,8 @@ import SongProof from './SongProof';
  */
 /** How often a tap that waits for the Pi looks at its latest answer. */
 const WAIT_STEP_MS = 200;
+/** The view-transition name the picture flies under (see index.css). */
+const FLYING_FACE = 'person-face';
 
 export default function PersonSwitcher({
   onSwitch,
@@ -35,6 +38,14 @@ export default function PersonSwitcher({
   useEffect(() => {
     latestRef.current = { phones, isChecking };
   }, [phones, isChecking]);
+  // The tab bar's picture, and the active person's face in the sheet: the picture flies from one to the other.
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const sheetFaceRef = useRef<HTMLLIElement>(null);
+  const barFace = () => {
+    const face = triggerRef.current?.firstElementChild;
+    return face instanceof HTMLElement ? face : null;
+  };
+  const sheetFace = () => sheetFaceRef.current?.querySelector<HTMLElement>('.person-face') ?? null;
   const people = peopleOnKiosk();
   const active = people.find(person => person.active);
 
@@ -67,8 +78,9 @@ export default function PersonSwitcher({
     <>
       <button
         type="button"
+        ref={triggerRef}
         className={className}
-        onClick={() => setIsOpen(true)}
+        onClick={() => flyAcross(FLYING_FACE, barFace, sheetFace, () => setIsOpen(true))}
         title={active.name}
         aria-label={t('person.switch_name', { name: active.name })}
       >
@@ -78,10 +90,12 @@ export default function PersonSwitcher({
         <Modal
           labelledBy="person-switcher-title"
           onClose={() => {
-            setIsOpen(false);
-            setProving(null);
             waitingRef.current = null;
             setWaitingFor(null);
+            flyAcross(FLYING_FACE, sheetFace, barFace, () => {
+              setIsOpen(false);
+              setProving(null);
+            });
           }}
           className="app-modal-panel person-sheet"
         >
@@ -106,7 +120,7 @@ export default function PersonSwitcher({
                 const isHeard = isHere(person.phoneAddress);
                 const isAway = !isChecking && !isHeard;
                 return (
-                  <li key={person.spotifyId}>
+                  <li key={person.spotifyId} ref={isActive ? sheetFaceRef : undefined}>
                     <button
                       type="button"
                       className="person-choice"

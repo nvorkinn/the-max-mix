@@ -397,6 +397,12 @@
 ::view-transition-group(tab-search) {
   animation-duration: 500ms;
 }
+/* Opening the face picker: the tab bar's picture flies down into the sheet and grows into the active person's face,
+  and flies back on close (see PersonSwitcher and flyAcross), while the rest of the screen fades. */
+::view-transition-group(person-face) {
+  animation-duration: 500ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
 /* stylelint-disable selector-no-unmatchable -- :only-child does match a view-transition image with no partner */
 ::view-transition-old(tab-search):only-child {
   animation: tab-search-out 500ms ease-in both;
