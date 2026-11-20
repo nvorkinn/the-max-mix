@@ -57,11 +57,12 @@ export default function EtaStack<D extends { expectedAt: string }>({
 
   const front = shown[0];
   if (state.front !== front && state.front?.expectedAt !== front?.expectedAt) {
-    const left = state.front !== undefined && hasLeft(state.front, front, now);
+    const previous = state.front;
+    const left = previous !== undefined && hasLeft(previous, front, now) ? previous : undefined;
     setState({
-      generation: left ? state.generation + 1 : state.generation,
+      generation: left === undefined ? state.generation : state.generation + 1,
       front,
-      gone: left ? { generation: state.generation, departure: state.front } : state.gone
+      gone: left === undefined ? state.gone : { generation: state.generation, departure: left }
     });
   }
   const { generation, gone } = state;
