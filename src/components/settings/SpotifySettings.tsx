@@ -18,13 +18,15 @@ import ConfirmButton from '../ConfirmButton';
 import PhonePicker from '../PhonePicker';
 import { forgetUnlinkedPhone } from '../../utils/phoneLinks';
 import SpotifyIcon from '../SpotifyIcon';
+import { useT } from '../../i18n/translate';
+import type { StringId } from '../../i18n/strings';
 
 type ShownStatus = Exclude<PersonStatus, 'unknown'>;
 
-const STATUS: Record<ShownStatus, { text: string; className: string; Icon: typeof CheckCircle2 }> = {
-  connected: { text: 'Connected', className: 'status-success', Icon: CheckCircle2 },
-  expired: { text: 'Expired', className: 'status-warning', Icon: AlertCircle },
-  refused: { text: 'Not allowed', className: 'status-danger', Icon: XCircle }
+const STATUS: Record<ShownStatus, { text: StringId; className: string; Icon: typeof CheckCircle2 }> = {
+  connected: { text: 'spotify.connected', className: 'status-success', Icon: CheckCircle2 },
+  expired: { text: 'spotify.expired', className: 'status-warning', Icon: AlertCircle },
+  refused: { text: 'spotify.refused', className: 'status-danger', Icon: XCircle }
 };
 
 /** What a person's row shows until Spotify answers (or when it cannot be asked): what this kiosk knows of their login. */
@@ -39,6 +41,7 @@ export default function SpotifySettings({
   signInError,
   onReload
 }: Readonly<{ signInError: string | null; onReload: () => void }>) {
+  const t = useT();
   const [actionError, setActionError] = useState<string | null>(null);
   const [people, setPeople] = useState(peopleOnKiosk);
   const [statuses, setStatuses] = useState<Record<string, PersonStatus>>({});
@@ -73,16 +76,15 @@ export default function SpotifySettings({
 
       {signInError && !isPersonRefused(signInError) && (
         <p className="text-muted break-words">
-          Register this exact redirect address in your Spotify app settings:{' '}
-          <code className="text-accent break-all">{getRedirectUri()}</code>
+          {t('spotify.redirect')} <code className="text-accent break-all">{getRedirectUri()}</code>
         </p>
       )}
 
       {people.length > 0 ? (
         <>
-          <ul className="settings-people" aria-label="People">
+          <ul className="settings-people" aria-label={t('spotify.people')}>
             {people.map(person => {
-              const name = person.name || 'Spotify account';
+              const name = person.name || t('spotify.account');
               const checked = statuses[person.spotifyId];
               const status = checked && checked !== 'unknown' ? checked : knownStatus(person);
               const shown = STATUS[status];
@@ -100,13 +102,15 @@ export default function SpotifySettings({
                         <UserRound className="w-6 h-6" aria-hidden="true" />
                       </span>
                     )}
-                    {person.active && <CheckCircle2 className="settings-person-active" aria-label="Active" />}
+                    {person.active && (
+                      <CheckCircle2 className="settings-person-active" aria-label={t('spotify.active')} />
+                    )}
                   </span>
                   <span className="settings-person-about">
                     <span className="settings-box-title truncate">{name}</span>
                     <span className={`settings-person-status modal-status ${shown.className}`}>
                       <shown.Icon className="w-4 h-4" aria-hidden="true" />
-                      {shown.text}
+                      {t(shown.text)}
                     </span>
                   </span>
                   {status !== 'connected' && (
@@ -116,7 +120,7 @@ export default function SpotifySettings({
                       className="spotify-sign-in settings-person-sign-in"
                     >
                       <SpotifyIcon className="w-5 h-5" />
-                      Sign in
+                      {t('spotify.sign_in')}
                     </button>
                   )}
                   {isKiosk() && (
@@ -129,8 +133,8 @@ export default function SpotifySettings({
                     />
                   )}
                   <ConfirmButton
-                    label="Remove"
-                    confirmLabel="Tap again to remove"
+                    label={t('spotify.remove')}
+                    confirmLabel={t('spotify.remove_confirm')}
                     className="shrink-0"
                     icon={<Trash2 className="w-5 h-5 shrink-0" aria-hidden="true" />}
                     onConfirm={() => {
@@ -153,7 +157,7 @@ export default function SpotifySettings({
             className="button button-secondary settings-wide-button"
           >
             <UserPlus className="w-5 h-5" aria-hidden="true" />
-            Add person
+            {t('spotify.add_person')}
           </button>
         </>
       ) : (
@@ -163,7 +167,7 @@ export default function SpotifySettings({
           className="spotify-sign-in settings-wide-button font-extrabold rounded-xl flex items-center justify-center gap-2 active:scale-98 transition-all"
         >
           <SpotifyIcon className="w-5 h-5" />
-          Log in with Spotify
+          {t('spotify.log_in')}
         </button>
       )}
     </div>

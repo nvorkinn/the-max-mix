@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { currentWifi } from '../../utils/kiosk';
+import type { Translate } from '../../i18n/translate';
 
 /**
  * The kiosk's Wi-Fi as far as its service says: still asking, on a network, on none, or it could not tell. With an
@@ -33,9 +34,9 @@ export function useWifi(enabled: boolean): WifiState {
 }
 
 /** What the settings say about the network; nothing while the kiosk is still being asked. */
-export function wifiLabel(wifi: WifiState): string | undefined {
+export function wifiLabel(wifi: WifiState, t: Translate): string | undefined {
   if (wifi.state === 'connected') return wifi.ssid;
-  if (wifi.state === 'disconnected') return 'Not connected';
-  if (wifi.state === 'unknown') return 'Status unknown';
+  if (wifi.state === 'disconnected') return t('wifi.not_connected');
+  if (wifi.state === 'unknown') return t('wifi.unknown');
   return undefined;
 }

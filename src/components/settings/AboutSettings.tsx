@@ -3,6 +3,7 @@ import { Bug } from 'lucide-react';
 import { deviceCredentials } from '../../countdown/registration';
 import type { KioskUpdate } from '../../hooks/useKioskUpdate';
 import KioskSystem from '../KioskSystem';
+import { useT } from '../../i18n/translate';
 import { APP_VERSION } from './appVersion';
 import type { WifiState } from './wifi';
 
@@ -36,29 +37,30 @@ export default function AboutSettings({
   /** Opens the debug console, which otherwise takes holding the clock or Ctrl+Shift+D. */
   onOpenDebug?: (() => void) | undefined;
 }>) {
+  const t = useT();
   const deviceId = deviceConfig?.device_id ?? deviceCredentials()?.deviceId;
-  let address = 'Unknown';
+  let address = t('about.unknown');
   if (wifi.state === 'loading') address = '…';
   else if ((wifi.state === 'connected' || wifi.state === 'disconnected') && wifi.address) address = wifi.address;
-  else if (wifi.state === 'disconnected') address = 'Not connected';
+  else if (wifi.state === 'disconnected') address = t('wifi.not_connected');
 
   return (
     <div className="settings-stack about-page">
       <section className="settings-group" aria-labelledby="about-screen-label">
         <h5 className="settings-group-title" id="about-screen-label">
-          This screen
+          {t('about.this_screen')}
         </h5>
         <dl className="settings-box about-facts">
-          <Fact name="Device ID" value={deviceId ?? 'Not registered'} />
-          {deviceConfig && <Fact name="Size" value={`${deviceConfig.width} × ${deviceConfig.height}`} />}
-          {kiosk && <Fact name="IP address" value={address} />}
-          <Fact name="App version" value={APP_VERSION} />
+          <Fact name={t('about.device_id')} value={deviceId ?? t('about.not_registered')} />
+          {deviceConfig && <Fact name={t('about.size')} value={`${deviceConfig.width} × ${deviceConfig.height}`} />}
+          {kiosk && <Fact name={t('about.ip_address')} value={address} />}
+          <Fact name={t('about.app_version')} value={APP_VERSION} />
         </dl>
       </section>
       {kioskUpdate && (
         <section className="settings-group" aria-labelledby="about-software-label">
           <h5 className="settings-group-title" id="about-software-label">
-            Software
+            {t('about.software')}
           </h5>
           <KioskSystem update={kioskUpdate} />
         </section>
@@ -71,7 +73,7 @@ export default function AboutSettings({
             className="modal-option settings-action flex-1 flex items-center justify-center gap-2 rounded-2xl border font-bold active:scale-98 transition-all"
           >
             <Bug className="w-5 h-5 shrink-0" aria-hidden="true" />
-            Debug console
+            {t('about.debug')}
           </button>
         </div>
       )}

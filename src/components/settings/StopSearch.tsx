@@ -5,6 +5,7 @@ import { searchStops } from '../../countdown/search';
 import type { StopResult } from '../../countdown/search';
 import { useOnScreenKeyboard } from '../../hooks/useOnScreenKeyboard';
 import Modal from '../Modal';
+import { useT } from '../../i18n/translate';
 import SearchResults from './SearchResults';
 
 /**
@@ -23,6 +24,7 @@ export default function StopSearch({
   onRemove: (result: StopResult) => void;
   onClose: () => void;
 }>) {
+  const t = useT();
   const titleId = useId();
   const fieldRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
@@ -33,7 +35,7 @@ export default function StopSearch({
   return (
     <Modal labelledBy={titleId} onClose={onClose} className="app-modal-panel stop-search select-none">
       <h3 id={titleId} className="sr-only">
-        Add stops
+        {t('countdown.add_stops')}
       </h3>
       <div className="stop-search-bar">
         <div className="stop-search-field">
@@ -43,20 +45,20 @@ export default function StopSearch({
             type="search"
             value={query}
             onChange={event => setQuery(event.target.value)}
-            aria-label="Search for a stop"
-            placeholder="Station or stop"
+            aria-label={t('countdown.search')}
+            placeholder={t('countdown.placeholder')}
             autoComplete="off"
             spellCheck={false}
             className="music-search w-full rounded-xl border"
           />
         </div>
         <button type="button" onClick={onClose} className="button search-dialog-confirm stop-search-done">
-          Close
+          {t('common.close')}
         </button>
       </div>
       <div className="stop-search-results">
         {wanted === '' ? (
-          <p className="text-muted py-2">Type the name of a station or stop, then tap it to add it.</p>
+          <p className="text-muted py-2">{t('countdown.hint')}</p>
         ) : (
           <SearchResults
             query={wanted}
