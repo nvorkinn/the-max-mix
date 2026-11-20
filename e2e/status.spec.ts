@@ -260,7 +260,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
           .getByRole('button', { name: 'Queue' })
           .click();
       }
-      expect(await listedProblems(page)).toContain('Waiting for Spotify');
+      await expect.poll(() => listedProblems(page)).toContain('Waiting for Spotify');
       await expect(queue.getByText('Waiting for Spotify...')).toBeVisible();
       await expect(player.getByRole('button', { name: 'Next track' })).toBeDisabled();
       await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeDisabled();
