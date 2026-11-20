@@ -371,6 +371,8 @@ export const STRINGS = {
 
   // Playback problems: a few words in the player and in the warning list, with the one button that fixes it.
   'problems.title': { en: 'Problems', nb: 'Problemer' },
+  'problems.dashboard': { en: 'Dashboard not updating', nb: 'Dashbordet oppdateres ikke' },
+  'problems.departures': { en: 'Departures not updating', nb: 'Avgangene oppdateres ikke' },
   'notice.restricted_title': { en: "Can't control this speaker", nb: 'Kan ikke styre denne høyttaleren' },
   'notice.choose_speaker': { en: 'Choose speaker', nb: 'Velg høyttaler' },
   'notice.quota_title': { en: 'Spotify quota used up', nb: 'Spotify-kvoten er brukt opp' },
@@ -393,10 +395,6 @@ export const STRINGS = {
   'setup.connecting': { en: 'Connecting...', nb: 'Kobler til …' },
   'setup.connect': { en: 'Connect Spotify', nb: 'Koble til Spotify' },
   'offline.title': { en: 'No internet connection', nb: 'Ingen internettilkobling' },
-  'offline.text': {
-    en: 'Reconnect to use Spotify controls. Music on another speaker may continue.',
-    nb: 'Koble til igjen for å styre Spotify. Musikk på en annen høyttaler kan spille videre.'
-  },
   'offline.wifi': { en: 'Wi-Fi settings', nb: 'Wi-Fi-innstillinger' },
 
   // Switching person, and pairing a phone.

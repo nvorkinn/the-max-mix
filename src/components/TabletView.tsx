@@ -24,7 +24,7 @@ import { getKioskSonosLeader, playOnSonosRoom } from '../sonos/kiosk';
 import { rememberSpeaker } from '../spotify/knownDevices';
 import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import { useSpeakerSelection } from '../speakers/useSpeakerSelection';
-import { isKiosk } from '../utils/kiosk';
+import { isKiosk, openWifiSettings } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
 import { loadQuietHours, isQuietTime, saveQuietHours } from '../utils/quietHours';
 import type { QuietHours } from '../utils/quietHours';
@@ -52,7 +52,6 @@ import type { MusicChoice, Track } from '../types';
 import type { TabBarProps, TabId } from '../dashboard/props';
 import { nowPlayingCard, PAUSED_SHOWN_MS } from '../dashboard/nowPlaying';
 import { useReportProblem } from '../problems/problems';
-import OfflineBanner from './OfflineBanner';
 import AlbumArtPlayer from './AlbumArtPlayer';
 import SpotifySetup from './SpotifySetup';
 import TrackQueue, { type QueueStatus } from './TrackQueue';
@@ -581,6 +580,18 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       onAllowAudio: () => void recoverPlayback(allowBrowserAudio)
     });
   useReportProblem('playback', playbackProblem && { ...playbackProblem, busy: isRefreshingPlayback });
+  // No internet goes under the warning with the rest; only the kiosk can open its Wi-Fi panel.
+  useReportProblem(
+    'offline',
+    isOffline
+      ? {
+          title: translate('offline.title', language),
+          action: onKiosk
+            ? { label: translate('offline.wifi', language), run: () => openWifiSettings(language) }
+            : undefined
+        }
+      : null
+  );
 
   return (
     <LanguageContext value={language}>
@@ -590,7 +601,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
         data-dynamic={dynamicVars ? '' : undefined}
         style={dynamicVars as CSSProperties | undefined}
       >
-        {isOffline && <OfflineBanner />}
         <div
           className="app-tab-panel on-photo"
           role="tabpanel"

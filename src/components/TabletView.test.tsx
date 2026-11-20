@@ -661,7 +661,11 @@ describe('TabletView', () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     renderOnSpotifyTab(<TabletView />);
     await flush();
-    expect(screen.getByRole('alert')).toHaveTextContent('No internet connection');
+    fireEvent.click(screen.getByRole('button', { name: 'Problems' }));
+    expect(
+      within(screen.getByRole('dialog', { name: 'Problems' })).getByText('No internet connection')
+    ).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Problems' })).getByRole('button', { name: 'Close' }));
     expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
   });
 

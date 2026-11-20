@@ -25,6 +25,29 @@ const playback = {
   }
 } satisfies PlaybackState;
 
+/**
+ * The problems listed under the tab bar's warning, as one text: empty while there is no warning. The Dashboard's own
+ * problems can be listed too (these tests run no live feed), so a test looks for its problem by name.
+ */
+/**
+ * Waits until "Waiting for Spotify" is (or is not) among the problems listed under the header's warning. The warning comes and goes
+ * as problems do, so a look that finds it gone mid-tap gives up quickly and looks again.
+ */
+async function expectWaitingListed(page: Page, isListed: boolean): Promise<void> {
+  const warning = page.getByRole('button', { name: 'Problems', exact: true });
+  const problems = page.getByRole('dialog', { name: 'Problems' });
+  await expect(async () => {
+    let text = '';
+    if ((await warning.count()) > 0) {
+      await warning.click({ timeout: 1000 });
+      text = await problems.innerText({ timeout: 1000 });
+      await problems.getByRole('button', { name: 'Close' }).click({ timeout: 1000 });
+    }
+    if (isListed) expect(text).toContain('Waiting for Spotify');
+    else expect(text).not.toContain('Waiting for Spotify');
+  }).toPass({ timeout: 10_000 });
+}
+
 async function mockSpotify(page: Page) {
   const api: {
     playback: PlaybackState | null;
@@ -180,13 +203,17 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
     const player = page.getByRole('region', { name: 'Now playing', exact: true });
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
     await page.context().setOffline(true);
-    // Offline, the lyrics lookup can fail too and raise its own alert, so look for the offline one by its text.
-    await expect(page.getByRole('alert').filter({ hasText: 'No internet connection' })).toBeVisible();
+    const warning = page.getByRole('button', { name: 'Problems', exact: true });
+    await warning.click();
+    const problems = page.getByRole('dialog', { name: 'Problems' });
+    await expect(problems).toContainText('No internet connection');
+    await problems.getByRole('button', { name: 'Close' }).click();
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeDisabled();
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeInViewport();
     await expectControlsFit(page, player);
     await page.context().setOffline(false);
     await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
+    await expect(warning).toHaveCount(0);
   });
 
   test('queue loading, failure and confirmed empty are distinct', async ({ page }) => {
@@ -219,7 +246,6 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       await openSpotifyTab(page);
       const player = page.getByRole('region', { name: 'Now playing', exact: true });
       const queue = page.getByRole('region', { name: 'Upcoming tracks' });
-      const warning = page.getByRole('button', { name: 'Problems', exact: true });
       await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeEnabled();
       // The queue is read and known to be empty.
       await expect(queue.getByRole('button', { name: 'Search for music' })).toBeVisible();
@@ -232,7 +258,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
         // on a busy machine can come after the clock has moved on: move it a second at a time until the read comes.
         await expect(async () => {
           await page.clock.runFor(1000);
-          await expect(warning).toBeVisible({ timeout: 100 });
+          await expect(queue.getByText('Waiting for Spotify...')).toBeVisible({ timeout: 100 });
         }).toPass({ timeout: 15_000 });
       } else {
         api.devicesStatus = 429;
@@ -243,7 +269,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
           .getByRole('button', { name: 'Queue' })
           .click();
       }
-      await expect(warning).toBeVisible();
+      await expectWaitingListed(page, true);
       await expect(queue.getByText('Waiting for Spotify...')).toBeVisible();
       await expect(player.getByRole('button', { name: 'Next track' })).toBeDisabled();
       await expect(player.getByRole('button', { name: 'Pause', exact: true })).toBeDisabled();
@@ -263,7 +289,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
       api.devicesStatus = 200;
       const playbackReads = api.playbackReads;
       await page.clock.runFor(1);
-      await expect(warning).toHaveCount(0);
+      await expectWaitingListed(page, false);
       await expect(player.getByRole('button', { name: 'Next track' })).toBeEnabled();
       await expect.poll(() => api.playbackReads).toBeGreaterThan(playbackReads);
       expect(api.commands).toEqual(commands);
@@ -365,7 +391,7 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
 
       refusal = null;
       await advance(page, 40_000);
-      await expect(warning).toHaveCount(0);
+      await expectWaitingListed(page, false);
       expect(reads()).toBeGreaterThan(waiting);
     });
   });
