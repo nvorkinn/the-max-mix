@@ -1,22 +1,29 @@
 // Serves the Wi-Fi setup page, which has to work with no internet, so it cannot live in the web app:
-//   GET /wifi-setup              the page (below)
+//   GET /wifi-setup              the page (below), in the tablet's language (POST /wifi says which: server.ts)
 //   GET /wifi-setup/page.js      wifi-page.ts, its types stripped by Node (no build step, no npm package)
+//   GET /wifi-setup/words.ts     words.ts, which page.js imports, stripped the same way
 //   GET /wifi-setup/keyboard.js  the sign-in keyboard (pi/kiosk-keyboard), as the Ansible role built it
 import { readFile } from 'node:fs/promises';
 // Experimental, but in every Node 24, and nothing else strips types without an npm package.
 // eslint-disable-next-line n/no-unsupported-features/node-builtins -- see above
 import { stripTypeScriptTypes } from 'node:module';
 import path from 'node:path';
+import { LOCALES, say } from './words.ts';
+import type { Language, WordId } from './words.ts';
 
 const KEYBOARD_JS = '/opt/the-max-mix/kiosk-keyboard/extension/keyboard.js';
 const PAGE_TS = path.join(import.meta.dirname, 'wifi-page.ts');
+const WORDS_TS = path.join(import.meta.dirname, 'words.ts');
 
-export const PAGE_HTML = `<!doctype html>
-<html lang="en">
+/** The page's HTML in `language`. Its words are the catalogue's (words.ts), which has no markup in it. */
+export function pageHtml(language: Language): string {
+  const w = (id: WordId): string => say(id, language);
+  return `<!doctype html>
+<html lang="${LOCALES[language]}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Wi-Fi setup</title>
+    <title>${w('wifi.title')}</title>
     <style>
       :root { color-scheme: dark; --bg: #101210; --card: #181c18; --row: #202520; --text: #e6ebe6; --muted: #8a948a;
         --accent: #3a8a55; --on: #5fbf7f; --off: #3a423a; --error: #e57373; }
@@ -68,12 +75,12 @@ export const PAGE_HTML = `<!doctype html>
     <main>
       <section id="list-view">
         <header>
-          <h1>Choose a Wi-Fi network</h1>
-          <button type="button" id="other">Other…</button>
-          <button type="button" id="phone">From phone</button>
-          <button type="button" id="hotspot">Hotspot</button>
-          <button type="button" id="refresh">Refresh</button>
-          <button type="button" id="cancel" hidden>Cancel</button>
+          <h1>${w('wifi.choose')}</h1>
+          <button type="button" id="other">${w('wifi.other')}</button>
+          <button type="button" id="phone">${w('wifi.fromPhone')}</button>
+          <button type="button" id="hotspot">${w('wifi.hotspot')}</button>
+          <button type="button" id="refresh">${w('wifi.refresh')}</button>
+          <button type="button" id="cancel" hidden>${w('wifi.cancel')}</button>
         </header>
         <p id="error" role="alert" hidden></p>
         <p id="status"></p>
@@ -82,31 +89,31 @@ export const PAGE_HTML = `<!doctype html>
       </section>
       <section id="hotspot-view" hidden>
         <header>
-          <button type="button" id="hotspot-back">Back</button>
-          <h1>Set up from any phone</h1>
+          <button type="button" id="hotspot-back">${w('wifi.back')}</button>
+          <h1>${w('wifi.anyPhone')}</h1>
         </header>
         <div class="steps">
           <figure>
-            <div class="qr" id="qr-wifi" role="img" aria-label="QR code that joins the hotspot"></div>
-            <figcaption>1. Scan to join <b id="hotspot-name"></b><br />Password: <b id="hotspot-password"></b></figcaption>
+            <div class="qr" id="qr-wifi" role="img" aria-label="${w('wifi.qrJoin')}"></div>
+            <figcaption>${w('wifi.scanToJoin')} <b id="hotspot-name"></b><br />${w('wifi.passwordIs')} <b id="hotspot-password"></b></figcaption>
           </figure>
           <figure>
-            <div class="qr" id="qr-url" role="img" aria-label="QR code that opens the setup page"></div>
-            <figcaption>2. If the page does not open by itself, scan to open <b id="hotspot-url"></b></figcaption>
+            <div class="qr" id="qr-url" role="img" aria-label="${w('wifi.qrOpen')}"></div>
+            <figcaption>${w('wifi.scanToOpen')} <b id="hotspot-url"></b></figcaption>
           </figure>
         </div>
         <p id="hotspot-status"></p>
       </section>
       <section id="join-view" hidden>
         <header>
-          <button type="button" id="back">Back</button>
-          <h1 id="join-title">Join</h1>
+          <button type="button" id="back">${w('wifi.back')}</button>
+          <h1 id="join-title">${w('wifi.join')}</h1>
         </header>
         <form id="join-form" autocomplete="off">
-          <label id="name-row">Network name<span class="field"><input id="name" type="text" spellcheck="false" /></span></label>
-          <label>Password<span class="field"><input id="password" type="password" spellcheck="false" />
-            <button type="button" id="show">Show</button></span></label>
-          <button type="submit" id="connect" class="primary">Connect</button>
+          <label id="name-row">${w('wifi.networkName')}<span class="field"><input id="name" type="text" spellcheck="false" /></span></label>
+          <label>${w('wifi.password')}<span class="field"><input id="password" type="password" spellcheck="false" />
+            <button type="button" id="show">${w('wifi.show')}</button></span></label>
+          <button type="submit" id="connect" class="primary">${w('wifi.connect')}</button>
         </form>
       </section>
     </main>
@@ -118,26 +125,41 @@ export const PAGE_HTML = `<!doctype html>
   </body>
 </html>
 `;
+}
+
+/** The page in English. */
+export const PAGE_HTML = pageHtml('en');
 
 export interface Asset {
   type: string;
   body: string;
 }
 
-// The page script, stripped once.
+// The page's scripts, each stripped once.
 const stripped = new Map<string, string>();
 
-/** The page or one of its scripts for a GET of `url`, or null when the URL is not one of them. */
-export async function wifiSetupAsset(url: string, keyboardFile = KEYBOARD_JS): Promise<Asset | null> {
+async function script(file: string): Promise<Asset> {
+  const body = stripped.get(file) ?? stripTypeScriptTypes(await readFile(file, 'utf8'));
+  stripped.set(file, body);
+  return { type: 'text/javascript; charset=utf-8', body };
+}
+
+/** The page (in `language`) or one of its scripts for a GET of `url`, or null when the URL is not one of them. */
+export async function wifiSetupAsset(
+  url: string,
+  keyboardFile = KEYBOARD_JS,
+  language: Language = 'en'
+): Promise<Asset | null> {
   const pathname = new URL(url, 'http://localhost').pathname;
   switch (pathname) {
     case '/wifi-setup': {
-      return { type: 'text/html; charset=utf-8', body: PAGE_HTML };
+      return { type: 'text/html; charset=utf-8', body: pageHtml(language) };
     }
     case '/wifi-setup/page.js': {
-      const body = stripped.get(PAGE_TS) ?? stripTypeScriptTypes(await readFile(PAGE_TS, 'utf8'));
-      stripped.set(PAGE_TS, body);
-      return { type: 'text/javascript; charset=utf-8', body };
+      return script(PAGE_TS);
+    }
+    case '/wifi-setup/words.ts': {
+      return script(WORDS_TS);
     }
     case '/wifi-setup/keyboard.js': {
       return { type: 'text/javascript; charset=utf-8', body: await readFile(keyboardFile, 'utf8') };

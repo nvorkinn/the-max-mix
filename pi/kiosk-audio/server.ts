@@ -25,6 +25,8 @@
 //                           `to` in the group's Sonos queue, if it is still the song called `name`
 //   GET  /sonos/events      server-sent events while the app listens: data {"kind": "groups"} when rooms join or leave,
 //                           {"kind": "now"} when what a group plays (or its volume) changes (sonos-events.ts)
+//   POST /wifi              {"language": "en" | "nb"}?   show the Wi-Fi setup page (actions.ts), in that language (the
+//                           tablet's; remembered, and kept when there is no body)
 //   GET  /wifi/status       {"ssid": "Home", "address": "192.168.1.42"}: the network the Wi-Fi is on and the Pi's IPv4
 //                           address on it, each or null (the app's origin only)
 //   GET  /wifi/networks     {"networks": [{"ssid", "signal", "bars", "security"}, …]}   or 503 {"error"}: a safe message
@@ -96,6 +98,8 @@ import { runUpdate } from './update.ts';
 import { chromiumPid, CHECK_MS, stopChromium, Watchdog } from './watchdog.ts';
 import { wifiSetupAsset } from './wifi-setup.ts';
 import type { Asset } from './wifi-setup.ts';
+import { parseLanguage } from './words.ts';
+import type { Language } from './words.ts';
 
 const SPEAKERS_PORT = 7341;
 /** The origin of the pages this service serves itself (the Wi-Fi setup page). */
@@ -131,8 +135,10 @@ export interface Deps {
   heartbeat: () => void;
   log: (entry: AppLog) => void;
   wifi: Wifi;
-  /** The setup page or one of its scripts for a GET of the URL, or null. */
-  asset: (url: string) => Promise<Asset | null>;
+  /** The setup page (in the language) or one of its scripts for a GET of the URL, or null. */
+  asset: (url: string, language: Language) => Promise<Asset | null>;
+  /** The tablet's language, which POST /wifi brings, for the setup page; kept across restarts. */
+  language: { get: () => Language; set: (language: Language) => void };
   /** Synced lyrics for a song, or null; rejects when no source could be reached. */
   lyrics: (query: LyricsQuery) => Promise<LyricsHit | null>;
   bluetooth: BluetoothControl;
@@ -447,6 +453,24 @@ async function postPick(
   else response.writeHead(204).end();
 }
 
+/**
+ * POST /wifi's body, `{"language": "nb"}`, says which language the setup page is to be in: 'en' or 'nb', and English for
+ * anything else. With no body (an app from before it said) the page keeps the language it had.
+ */
+async function noteLanguage(request: IncomingMessage, deps: Deps): Promise<void> {
+  const text = await readBody(request);
+  if (text.trim() === '') return;
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = null;
+  }
+  deps.language.set(
+    parseLanguage(typeof body === 'object' && body !== null && 'language' in body ? body.language : null)
+  );
+}
+
 async function post(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
   const url = request.url ?? '';
   const action = POST_ACTIONS[url];
@@ -506,6 +530,11 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
     case '/bluetooth/remove': {
       await postBluetooth(url, request, response, deps);
       return;
+    }
+    case '/wifi': {
+      await noteLanguage(request, deps);
+      await deps.perform('wifi');
+      break;
     }
     default: {
       if (action) await deps.perform(action);
@@ -634,7 +663,7 @@ async function get(url: string, response: ServerResponse, deps: Deps, isApp: boo
       break;
     }
     default: {
-      const asset = await deps.asset(url);
+      const asset = await deps.asset(url, deps.language.get());
       if (asset) response.writeHead(200, { 'Content-Type': asset.type }).end(asset.body);
       else response.writeHead(404).end();
     }
@@ -736,7 +765,7 @@ function nameKioskOnStart(monitor: { note: (message: string) => void }, retryMs 
 
 export function serveSpeakers(
   origin: string,
-  deps: Pick<Deps, 'graph' | 'route' | 'setVolume' | 'wifi'> & {
+  deps: Pick<Deps, 'graph' | 'route' | 'setVolume' | 'wifi' | 'language'> & {
     /** Where "Pair my phone" notes the phones it paired. */
     phonesFile: string;
   },
@@ -780,7 +809,7 @@ export function serveSpeakers(
     sonosEvents: new SonosEventHub(libraryEvents),
     heartbeat,
     log: journalLog(),
-    asset: wifiSetupAsset,
+    asset: (url, language) => wifiSetupAsset(url, undefined, language),
     lyrics: cached(query => findLyrics(query)),
     bluetooth,
     bluetoothMonitor,

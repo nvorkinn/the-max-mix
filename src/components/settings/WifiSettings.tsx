@@ -1,5 +1,6 @@
 import { Wifi, WifiOff } from 'lucide-react';
 import { openWifiSettings } from '../../utils/kiosk';
+import { useLanguage } from '../../i18n/language';
 import { useT } from '../../i18n/translate';
 import { wifiLabel } from './wifi';
 import type { WifiState } from './wifi';
@@ -10,6 +11,7 @@ import type { WifiState } from './wifi';
  */
 export default function WifiSettings({ wifi }: Readonly<{ wifi: WifiState }>) {
   const t = useT();
+  const language = useLanguage();
   const network = wifiLabel(wifi, t);
   const Icon = wifi.state === 'disconnected' ? WifiOff : Wifi;
   return (
@@ -30,7 +32,11 @@ export default function WifiSettings({ wifi }: Readonly<{ wifi: WifiState }>) {
           )}
         </div>
       </div>
-      <button type="button" onClick={openWifiSettings} className="button button-secondary settings-wide-button">
+      <button
+        type="button"
+        onClick={() => openWifiSettings(language)}
+        className="button button-secondary settings-wide-button"
+      >
         <Wifi className="w-5 h-5 shrink-0" aria-hidden="true" />
         {t(wifi.state === 'connected' ? 'wifi.change' : 'wifi.choose')}
       </button>

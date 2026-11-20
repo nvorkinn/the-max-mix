@@ -11,10 +11,12 @@ import {
   isLoopback,
   listenForHotspot,
   PORTAL_HTML,
+  portalHtml,
   refusePortalRequest
 } from './hotspot-portal.ts';
 import type { Portal } from './hotspot-portal.ts';
 import type { ConnectRequest } from './nmcli.ts';
+import { say } from './words.ts';
 
 const NETWORKS = [
   { ssid: 'Home', signal: 80, bars: 4, security: 'psk' as const },
@@ -35,6 +37,14 @@ async function handle(method: string, url: string, body?: unknown) {
   const { request, response, sent } = exchange(method, url, { body });
   await handlePortalRequest(request, response, options);
   return sent;
+}
+
+/** The page a phone gets when it asks for the languages in `acceptLanguage`. */
+async function pageFor(acceptLanguage?: string) {
+  const { request, response, sent } = exchange('GET', '/');
+  if (acceptLanguage !== undefined) request.headers['accept-language'] = acceptLanguage;
+  await handlePortalRequest(request, response, options);
+  return sent.body;
 }
 
 /** A stand-in for the service's own HTTP server. */
@@ -63,6 +73,21 @@ describe('kiosk-audio/hotspot-portal', () => {
       expect(sent.body).toBe(PORTAL_HTML);
     }
     expect((await handle('HEAD', '/')).body).toBe('');
+  });
+
+  it('speaks Norwegian to a phone that prefers it, and English to any other', async () => {
+    const norwegian = portalHtml('nb');
+    expect(norwegian).toContain('<html lang="nb-NO">');
+    expect(norwegian).toContain(`<h1>${say('portal.choose', 'nb')}</h1>`);
+    expect(norwegian).toContain(`fail('${say('portal.refused', 'nb')}')`);
+    for (const header of ['nb-NO,nb;q=0.9,en;q=0.8', 'no', 'nn-NO', 'de-DE,nb;q=0.5', 'en;q=0.4, nb']) {
+      // eslint-disable-next-line no-await-in-loop -- one page at a time, to say which header failed
+      expect(await pageFor(header), header).toBe(norwegian);
+    }
+    for (const header of [undefined, '', 'en-GB,en;q=0.9,nb;q=0.8', 'sv-SE', 'nb;q=0']) {
+      // eslint-disable-next-line no-await-in-loop -- as above
+      expect(await pageFor(header), header).toBe(PORTAL_HTML);
+    }
   });
 
   it('only runs its own script and talks only to itself', async () => {

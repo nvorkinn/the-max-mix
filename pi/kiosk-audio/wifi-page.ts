@@ -3,7 +3,10 @@
 // lists the networks in range, asks for the password on the sign-in keyboard (pi/kiosk-keyboard), and joins through
 // GET /wifi/networks and POST /wifi/connect. On success, or on Cancel, it calls POST /wifi/done, which closes it. Like
 // the app, it sends POST /heartbeat every 20 seconds, so the watchdog only restarts it when it hangs.
-// ?can-cancel=1 shows Cancel (only when there is a connection to go back to).
+// ?can-cancel=1 shows Cancel (only when there is a connection to go back to). Its words follow the page's <html lang>,
+// which wifi-setup.ts sets to the tablet's language, from words.ts (served next to it).
+import { languageOfTag, localize, say } from './words.ts';
+import type { WordId } from './words.ts';
 
 interface Network {
   ssid: string;
@@ -117,6 +120,8 @@ async function close(): Promise<void> {
 /** Wires the page to the service. `doc` and `fetch` come from the browser; the tests pass jsdom's. */
 export function startPage(doc: Document, canCancel: boolean): { refresh: () => Promise<void> } {
   const page = findPage(doc);
+  const language = languageOfTag(doc.documentElement.lang);
+  const w = (id: WordId, args?: Readonly<Record<string, string | number>>): string => say(id, language, args);
   let join: Join | undefined;
   let isBusy = false;
   let hotspotTimer: ReturnType<typeof setInterval> | undefined;
@@ -127,7 +132,8 @@ export function startPage(doc: Document, canCancel: boolean): { refresh: () => P
   };
 
   const showError = (message: string): void => {
-    page.error.textContent = message;
+    // The service's messages come in English.
+    page.error.textContent = localize(message, language);
     page.error.hidden = message === '';
   };
 
@@ -150,12 +156,12 @@ export function startPage(doc: Document, canCancel: boolean): { refresh: () => P
 
   const openJoin = (next: Join): void => {
     join = next;
-    page.joinTitle.textContent = next.isHidden ? 'Other network' : `Join ${next.ssid}`;
+    page.joinTitle.textContent = next.isHidden ? w('wifi.otherNetwork') : w('wifi.joinNetwork', { ssid: next.ssid });
     page.nameRow.hidden = !next.isHidden;
     page.name.value = '';
     page.password.value = '';
     page.password.type = 'password';
-    page.show.textContent = 'Show';
+    page.show.textContent = w('wifi.show');
     page.listView.hidden = true;
     page.joinView.hidden = false;
     page.joinView.append(page.error);
@@ -167,18 +173,18 @@ export function startPage(doc: Document, canCancel: boolean): { refresh: () => P
     if (isBusy) return;
     (doc.activeElement as HTMLElement | null)?.blur();
     showError('');
-    setBusy(`Connecting to ${ssid}…`);
+    setBusy(w('wifi.connecting', { ssid }));
     try {
       const response = await post('/wifi/connect', { ssid, password, hidden: isHidden, security });
       const result = (await response.json()) as { ok: true } | { ok: false; error: string };
       if (result.ok) {
-        setBusy(`Connected to ${ssid}`);
+        setBusy(w('wifi.connected', { ssid }));
         await close();
         return;
       }
       showError(result.error);
     } catch {
-      showError('Could not reach the kiosk service.');
+      showError(w('wifi.unreachable'));
     }
     setBusy('');
   };
@@ -194,11 +200,11 @@ export function startPage(doc: Document, canCancel: boolean): { refresh: () => P
     name.textContent = network.ssid;
     const note = doc.createElement('span');
     note.className = 'note';
-    if (network.security === 'unsupported') note.textContent = 'Not supported';
+    if (network.security === 'unsupported') note.textContent = w('wifi.notSupported');
     else if (network.security === 'psk') note.textContent = '🔒';
     const bars = doc.createElement('span');
     bars.className = 'bars';
-    bars.setAttribute('aria-label', `Signal ${network.bars} of 4`);
+    bars.setAttribute('aria-label', w('wifi.signal', { bars: network.bars }));
     for (let bar = 1; bar <= 4; bar += 1) {
       const level = doc.createElement('i');
       if (bar <= network.bars) level.className = 'on';
@@ -215,18 +221,18 @@ export function startPage(doc: Document, canCancel: boolean): { refresh: () => P
 
   const refresh = async (): Promise<void> => {
     page.refresh.disabled = true;
-    page.status.textContent = 'Looking for networks…';
+    page.status.textContent = w('wifi.searching');
     showError('');
     try {
       const response = await fetch('/wifi/networks');
       const body = (await response.json()) as { networks?: Network[]; error?: string };
       const networks = body.networks ?? [];
       page.list.replaceChildren(...networks.map(network => row(network)));
-      page.status.textContent = networks.length === 0 ? 'No networks found. Tap Refresh to scan again.' : '';
+      page.status.textContent = networks.length === 0 ? w('wifi.noNetworks') : '';
       if (body.error) showError(body.error);
     } catch {
       page.status.textContent = '';
-      showError('Could not reach the kiosk service.');
+      showError(w('wifi.unreachable'));
     }
     page.refresh.disabled = false;
   };
@@ -246,15 +252,13 @@ export function startPage(doc: Document, canCancel: boolean): { refresh: () => P
     try {
       const response = await post('/wifi/phone');
       if (response.ok) {
-        page.phoneHelp.textContent =
-          'On an Android phone with Chrome, open improv-wifi.com, tap Connect device and choose THE MAX MIX. ' +
-          'Waiting for your phone…';
+        page.phoneHelp.textContent = w('wifi.phoneHelp');
         page.phoneHelp.hidden = false;
         return;
       }
-      showError(((await response.json()) as { error?: string }).error ?? 'Could not start phone setup.');
+      showError(((await response.json()) as { error?: string }).error ?? w('wifi.phoneFailed'));
     } catch {
-      showError('Could not reach the kiosk service.');
+      showError(w('wifi.unreachable'));
     }
     page.phone.disabled = false;
   };
@@ -267,18 +271,19 @@ export function startPage(doc: Document, canCancel: boolean): { refresh: () => P
       const status = (await response.json()) as { state: string; error?: string };
       switch (status.state) {
         case 'joining': {
-          page.hotspotStatus.textContent = 'The phone chose a network. The kiosk is joining it…';
+          page.hotspotStatus.textContent = w('wifi.phoneJoining');
           break;
         }
         case 'failed': {
           stopHotspotPolling();
-          page.hotspotStatus.textContent = status.error ?? 'Could not join that network.';
+          page.hotspotStatus.textContent =
+            status.error === undefined ? w('wifi.joinFailed') : localize(status.error, language);
           break;
         }
         case 'idle': {
           stopHotspotPolling();
           showList();
-          showError('The hotspot ended. Tap Hotspot to start it again.');
+          showError(w('wifi.hotspotEnded'));
           break;
         }
         default: {
@@ -296,7 +301,7 @@ export function startPage(doc: Document, canCancel: boolean): { refresh: () => P
     element(doc, 'hotspot-name').textContent = info.ssid;
     element(doc, 'hotspot-password').textContent = info.password;
     element(doc, 'hotspot-url').textContent = info.url;
-    page.hotspotStatus.textContent = 'Waiting for your phone…';
+    page.hotspotStatus.textContent = w('wifi.waitingForPhone');
     page.listView.hidden = true;
     page.hotspotView.hidden = false;
     stopHotspotPolling();
@@ -310,9 +315,9 @@ export function startPage(doc: Document, canCancel: boolean): { refresh: () => P
       const response = await post('/wifi/hotspot');
       const body = (await response.json()) as HotspotInfo & { error?: string };
       if (response.ok) showHotspot(body);
-      else showError(body.error ?? 'Could not start the hotspot.');
+      else showError(body.error ?? w('wifi.hotspotFailed'));
     } catch {
-      showError('Could not reach the kiosk service.');
+      showError(w('wifi.unreachable'));
     }
     page.hotspot.disabled = false;
   };
@@ -344,7 +349,7 @@ export function startPage(doc: Document, canCancel: boolean): { refresh: () => P
   page.show.addEventListener('click', () => {
     const isHiddenNow = page.password.type === 'password';
     page.password.type = isHiddenNow ? 'text' : 'password';
-    page.show.textContent = isHiddenNow ? 'Hide' : 'Show';
+    page.show.textContent = w(isHiddenNow ? 'wifi.hide' : 'wifi.show');
     page.password.focus();
   });
   page.cancel.hidden = !canCancel;
