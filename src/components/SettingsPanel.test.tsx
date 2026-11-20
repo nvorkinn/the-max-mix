@@ -217,7 +217,11 @@ describe('SettingsPanel', () => {
       vi.stubGlobal('fetch', fetchMock);
       render(<SettingsPanel {...base} initialSection="wifi" />);
       await userEvent.click(defined(wifi()));
-      expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi', { method: 'POST' });
+      expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language: 'en' })
+      });
     });
   });
 

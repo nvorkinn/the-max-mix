@@ -56,7 +56,11 @@ describe('offline state in TabletView', () => {
     vi.stubGlobal('fetch', fetchMock);
     render(<TabletView />);
     await userEvent.click(screen.getByRole('button', { name: 'Wi-Fi settings' }));
-    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi', { method: 'POST' });
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language: 'en' })
+    });
   });
 
   it('appears when the browser goes offline and disappears when it comes back', () => {
