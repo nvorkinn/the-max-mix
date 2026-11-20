@@ -1140,24 +1140,6 @@ button.dashboard-notice {
   color: var(--soon);
   opacity: 0.8;
 }
-/* A route's row (grouped by route): its next time, and the later ones small under it. */
-.dashboard-times {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  flex-shrink: 0;
-}
-.dashboard-times .dashboard-mins {
-  line-height: 1;
-}
-.dashboard-later {
-  margin-top: 4px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
 /* Only the timetable's time, with no live prediction (the first trains while the Tube is shut): a clock time, dimmed. */
 .dashboard-mins.scheduled {
   color: var(--muted);

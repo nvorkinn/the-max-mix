@@ -175,42 +175,6 @@ describe('DepartureBoard', () => {
     expect(screen.getByText('VY190')).toHaveAttribute('data-length', '5');
     expect(screen.queryByText('5')).not.toHaveClass('dashboard-line-pill');
   });
-
-  it('grouped by route, shows each route once with its next time and the two after it', () => {
-    const at = (minutes: number) => new Date(SAMPLE_NOW.getTime() + minutes * 60_000).toISOString();
-    const leg = (vehicleId: string, line: string, destination: string, minutes: number) => ({
-      vehicleId,
-      mode: 'tube',
-      line,
-      lineId: line.toLowerCase(),
-      destination,
-      detail: null,
-      expectedAt: at(minutes)
-    });
-    render(
-      <DepartureBoard
-        {...SAMPLE.tube}
-        now={SAMPLE_NOW}
-        groupByRoute
-        departures={[
-          leg('a', 'Northern', 'Morden', 2),
-          leg('b', 'Northern', 'High Barnet', 5),
-          leg('c', 'Northern', 'Morden', 9),
-          leg('d', 'Bakerloo', 'Elephant & Castle', 10),
-          leg('e', 'Northern', 'Morden', 15),
-          leg('f', 'Northern', 'Morden', 21)
-        ]}
-      />
-    );
-    const rows = screen.getAllByRole('listitem');
-    expect(rows.map(row => row.querySelector('strong')?.textContent)).toEqual([
-      'Morden',
-      'High Barnet',
-      'Elephant & Castle'
-    ]);
-    expect(rows[0]?.querySelector('.dashboard-later')).toHaveTextContent(/^9 · 15$/);
-    expect(rows[1]?.querySelector('.dashboard-later')).toBeNull();
-  });
 });
 
 describe('railPages', () => {

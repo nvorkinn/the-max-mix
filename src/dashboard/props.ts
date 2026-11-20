@@ -190,8 +190,6 @@ export interface StopBoardProps {
   now: Date;
   /** True once the feed has dropped and the board is showing its last departures. */
   stale: boolean;
-  /** A row per route (mode, line and destination) with its next few times, rather than a row per departure. */
-  groupByRoute?: boolean;
 }
 
 /**
