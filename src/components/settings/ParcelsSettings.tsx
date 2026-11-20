@@ -3,28 +3,32 @@ import { Package } from 'lucide-react';
 import { connectParcelPageUrl } from '../../../vendor/countdown-api/src/countdown_api/client';
 import { countdownServer } from '../../countdown/server';
 import QrCode from '../QrCode';
+import { useT } from '../../i18n/translate';
+import type { StringId } from '../../i18n/strings';
 
 type DaysAhead = NonNullable<Parcels['days_ahead']> | null;
 type KeptHours = NonNullable<Parcels['kept_hours']>;
+/** A choice's words: a string's id, and its arguments. */
+type Label = readonly [StringId, Record<string, number>?];
 
-const NOTICE_CHOICES = [
-  { value: false, label: 'Off' },
-  { value: true, label: 'On' }
-] as const;
-
-/** The settings site's "Arriving by", as the e-paper screens have it: which dated parcels show, by their due day. */
-const DAYS_AHEAD_CHOICES: readonly { value: DaysAhead; label: string }[] = [
-  { value: 0, label: 'Today' },
-  { value: 1, label: 'Tomorrow' },
-  { value: 2, label: 'Day after' },
-  { value: null, label: 'Any day' }
+const NOTICE_CHOICES: readonly { value: boolean; label: Label }[] = [
+  { value: false, label: ['common.off'] },
+  { value: true, label: ['common.on'] }
 ];
 
-const KEPT_HOURS_CHOICES: readonly { value: KeptHours; label: string }[] = [
-  { value: 0, label: 'Not kept' },
-  { value: 1, label: '1 hour' },
-  { value: 4, label: '4 hours' },
-  { value: 24, label: 'A day' }
+/** The settings site's "Arriving by", as the e-paper screens have it: which dated parcels show, by their due day. */
+const DAYS_AHEAD_CHOICES: readonly { value: DaysAhead; label: Label }[] = [
+  { value: 0, label: ['parcels.today'] },
+  { value: 1, label: ['parcels.tomorrow'] },
+  { value: 2, label: ['parcels.day_after'] },
+  { value: null, label: ['parcels.any_day'] }
+];
+
+const KEPT_HOURS_CHOICES: readonly { value: KeptHours; label: Label }[] = [
+  { value: 0, label: ['parcels.not_kept'] },
+  { value: 1, label: ['parcels.hours', { hours: 1 }] },
+  { value: 4, label: ['parcels.hours', { hours: 4 }] },
+  { value: 24, label: ['parcels.a_day'] }
 ];
 
 /** How long a delivered parcel stays when the config doesn't say (the server's default). */
@@ -39,10 +43,11 @@ function Segmented<T>({
 }: Readonly<{
   id: string;
   title: string;
-  choices: readonly { value: T; label: string }[];
+  choices: readonly { value: T; label: Label }[];
   selected: T;
   onSelect: (value: T) => void;
 }>) {
+  const t = useT();
   return (
     <section className="settings-group">
       <h5 className="settings-group-title" id={id}>
@@ -52,12 +57,12 @@ function Segmented<T>({
         {choices.map(choice => (
           <button
             type="button"
-            key={choice.label}
+            key={String(choice.value)}
             aria-pressed={selected === choice.value}
             onClick={() => onSelect(choice.value)}
             className="settings-segment"
           >
-            {choice.label}
+            {t(...choice.label)}
           </button>
         ))}
       </div>
@@ -70,18 +75,19 @@ function Segmented<T>({
  * settings site's page for it (countdown-api's connectParcelPage), which says where the key is and takes it pasted.
  */
 function ParcelsSetup() {
+  const t = useT();
   const site = countdownServer();
   return (
     <section className="settings-box parcels-setup" aria-labelledby="parcels-setup-label">
       <div className="parcels-setup-text">
         <h5 className="settings-group-title parcels-setup-title" id="parcels-setup-label">
           <Package className="w-6 h-6" aria-hidden="true" />
-          Set up Parcel
+          {t('parcels.set_up')}
         </h5>
         <ol className="parcels-setup-steps">
-          <li>Get Parcel Premium in the Parcel app</li>
-          <li>Copy your API key from web.parcelapp.net</li>
-          <li>Scan the code and paste the key</li>
+          <li>{t('parcels.step_premium')}</li>
+          <li>{t('parcels.step_key')}</li>
+          <li>{t('parcels.step_scan')}</li>
         </ol>
       </div>
       {site && <QrCode text={connectParcelPageUrl(site).href} className="parcels-setup-qr" />}
@@ -108,6 +114,7 @@ export default function ParcelsSettings({
   keySaved?: boolean;
   onChange: (parcels: Parcels) => void;
 }>) {
+  const t = useT();
   if (!keySaved) return <ParcelsSetup />;
   // A config from before parcels has none, which is off.
   const current: Parcels = parcels ?? { enabled: false };
@@ -115,21 +122,21 @@ export default function ParcelsSettings({
     <div className="settings-stack">
       <Segmented
         id="parcels-notices-label"
-        title="Notice board"
+        title={t('parcels.notice_board')}
         choices={NOTICE_CHOICES}
         selected={current.enabled}
         onSelect={enabled => onChange({ ...current, enabled })}
       />
       <Segmented
         id="parcels-days-ahead-label"
-        title="Arriving by"
+        title={t('parcels.arriving_by')}
         choices={DAYS_AHEAD_CHOICES}
         selected={current.days_ahead ?? null}
         onSelect={days_ahead => onChange({ ...current, days_ahead })}
       />
       <Segmented
         id="parcels-kept-hours-label"
-        title="Delivered ones stay"
+        title={t('parcels.delivered_stay')}
         choices={KEPT_HOURS_CHOICES}
         selected={current.kept_hours ?? DEFAULT_KEPT_HOURS}
         onSelect={kept_hours => onChange({ ...current, kept_hours })}

@@ -15,16 +15,16 @@ const DYNAMIC_COLOUR_KEY = 'maxmix.dynamicColour';
  * navy. The first is the default.
  */
 export const THEME_COLOURS = [
-  { id: 'forest', label: 'Forest', accent: '#4a9d5e', gradient: ['#6cc070', '#2e8b6e'] },
-  { id: 'navy', label: 'Navy', accent: '#5b8def', gradient: ['#6fa8ff', '#4a5fd9'] },
-  { id: 'teal', label: 'Teal', accent: '#2a9d9d', gradient: ['#3cc0b0', '#1f7fa0'] },
-  { id: 'plum', label: 'Plum', accent: '#c25ea8', gradient: ['#e070b8', '#9a4a9e'] },
-  { id: 'terracotta', label: 'Terracotta', accent: '#dd6b3d', gradient: ['#f0894a', '#c9483a'] },
-  { id: 'pink', label: 'Pink', accent: '#ff69b4', gradient: ['#ff8cc6', '#ff4f9a'], accentInk: '#3b1a2a' },
-  { id: 'yellow', label: 'Yellow', accent: '#e0b020', gradient: ['#f5c842', '#e09a1a'], accentInk: '#1f1a05' },
+  { id: 'forest', accent: '#4a9d5e', gradient: ['#6cc070', '#2e8b6e'] },
+  { id: 'navy', accent: '#5b8def', gradient: ['#6fa8ff', '#4a5fd9'] },
+  { id: 'teal', accent: '#2a9d9d', gradient: ['#3cc0b0', '#1f7fa0'] },
+  { id: 'plum', accent: '#c25ea8', gradient: ['#e070b8', '#9a4a9e'] },
+  { id: 'terracotta', accent: '#dd6b3d', gradient: ['#f0894a', '#c9483a'] },
+  { id: 'pink', accent: '#ff69b4', gradient: ['#ff8cc6', '#ff4f9a'], accentInk: '#3b1a2a' },
+  { id: 'yellow', accent: '#e0b020', gradient: ['#f5c842', '#e09a1a'], accentInk: '#1f1a05' },
   // Black would vanish on the navy, so it is a silver.
-  { id: 'black', label: 'Black', accent: '#dfe3ee', gradient: ['#f0f2f7', '#aab3c5'], accentInk: '#111' },
-  { id: 'violet', label: 'Violet', accent: '#a95be8', gradient: ['#e94dae', '#913fcb'] }
+  { id: 'black', accent: '#dfe3ee', gradient: ['#f0f2f7', '#aab3c5'], accentInk: '#111' },
+  { id: 'violet', accent: '#a95be8', gradient: ['#e94dae', '#913fcb'] }
 ] as const;
 
 /** What a colour's swatch in the settings shows: its gradient. */

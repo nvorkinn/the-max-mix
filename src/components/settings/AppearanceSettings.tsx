@@ -2,23 +2,25 @@ import type { CSSProperties } from 'react';
 import { Check } from 'lucide-react';
 import { swatchOf, THEME_COLOURS } from '../../utils/themeColour';
 import type { ThemeColour } from '../../utils/themeColour';
+import { useT } from '../../i18n/translate';
 
 /** The colour of the track title, player controls and highlights. */
 function ColourChoice({
   colour,
   onChange
 }: Readonly<{ colour: ThemeColour; onChange: (colour: ThemeColour) => void }>) {
+  const t = useT();
   return (
     <section className="settings-group">
       <h5 className="settings-group-title" id="theme-colour-label">
-        Colour
+        {t('appearance.colour')}
       </h5>
       <div className="settings-swatches" role="group" aria-labelledby="theme-colour-label">
         {THEME_COLOURS.map(choice => (
           <button
             type="button"
             key={choice.id}
-            aria-label={choice.label}
+            aria-label={t(`colour.${choice.id}`)}
             aria-pressed={colour === choice.id}
             onClick={() => onChange(choice.id)}
             className="colour-swatch rounded-full"
@@ -39,13 +41,14 @@ function ColourChoice({
 
 /** Dynamic: while music plays, the colours follow the album art, and fade back to the colour above once it stops. */
 function DynamicChoice({ on, onChange }: Readonly<{ on: boolean; onChange: (on: boolean) => void }>) {
+  const t = useT();
   return (
     <section className="settings-group">
       <h5 className="settings-group-title" id="dynamic-colour-label">
-        Dynamic
+        {t('appearance.dynamic')}
       </h5>
       <p className="settings-group-note text-muted" id="dynamic-colour-note">
-        Colours follow the album art while music plays.
+        {t('appearance.dynamic_note')}
       </p>
       <div
         className="settings-segmented"
@@ -53,18 +56,15 @@ function DynamicChoice({ on, onChange }: Readonly<{ on: boolean; onChange: (on: 
         aria-labelledby="dynamic-colour-label"
         aria-describedby="dynamic-colour-note"
       >
-        {[
-          { value: false, label: 'Off' },
-          { value: true, label: 'On' }
-        ].map(choice => (
+        {[false, true].map(value => (
           <button
             type="button"
-            key={choice.label}
-            aria-pressed={on === choice.value}
-            onClick={() => onChange(choice.value)}
+            key={String(value)}
+            aria-pressed={on === value}
+            onClick={() => onChange(value)}
             className="settings-segment"
           >
-            {choice.label}
+            {t(value ? 'common.on' : 'common.off')}
           </button>
         ))}
       </div>

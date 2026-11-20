@@ -8,6 +8,7 @@ import {
   subscribeLyricsStyle
 } from '../../utils/lyricsStyle';
 import type { LyricsAlign, LyricsStyle } from '../../utils/lyricsStyle';
+import { useT } from '../../i18n/translate';
 
 const ALIGN_ICONS: Record<LyricsAlign, typeof AlignLeft> = { left: AlignLeft, center: AlignCenter, right: AlignRight };
 
@@ -18,12 +19,13 @@ const ALIGN_ICONS: Record<LyricsAlign, typeof AlignLeft> = { left: AlignLeft, ce
 export default function LyricsSettings({
   onChange = setLyricsStyle
 }: Readonly<{ onChange?: ((style: LyricsStyle) => void) | undefined }>) {
+  const t = useT();
   const style = useSyncExternalStore(subscribeLyricsStyle, getLyricsStyle);
   return (
     <div className="settings-stack">
       <section className="settings-group">
         <h5 className="settings-group-title" id="lyrics-size-label">
-          Size
+          {t('lyrics.size')}
         </h5>
         <div className="settings-segmented" role="group" aria-labelledby="lyrics-size-label">
           {LYRICS_SIZES.map(choice => (
@@ -34,14 +36,14 @@ export default function LyricsSettings({
               onClick={() => onChange({ ...style, size: choice.id })}
               className="settings-segment"
             >
-              {choice.label}
+              {t(`lyrics.size.${choice.id}`)}
             </button>
           ))}
         </div>
       </section>
       <section className="settings-group">
         <h5 className="settings-group-title" id="lyrics-align-label">
-          Alignment
+          {t('lyrics.alignment')}
         </h5>
         <div className="settings-segmented" role="group" aria-labelledby="lyrics-align-label">
           {LYRICS_ALIGNS.map(choice => {
@@ -55,7 +57,7 @@ export default function LyricsSettings({
                 className="settings-segment"
               >
                 <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
-                {choice.label}
+                {t(`lyrics.align.${choice.id}`)}
               </button>
             );
           })}

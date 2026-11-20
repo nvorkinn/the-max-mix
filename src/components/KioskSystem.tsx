@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Power, RefreshCw, RotateCw } from 'lucide-react';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import { rebootPi, restartKiosk } from '../utils/kiosk';
+import { useT } from '../i18n/translate';
 import ConfirmButton from './ConfirmButton';
 import { SOFTWARE_LOOK, softwareState } from './settings/softwareStatus';
 
@@ -17,19 +18,18 @@ const formatTime = (ms: number) =>
  * the update popup (UpdatePrompt), which is where an update starts, so after "Not now" the same button offers it again.
  */
 export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }>) {
-  const { version, release, what, latest, newer, isChecking, checkedAt, isUpdating, progress, checkNow } = update;
+  const { version, release, what = '', latest, newer, isChecking, checkedAt, isUpdating, progress, checkNow } = update;
   const [pressed, setPressed] = useState(false);
   const spinTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(spinTimerRef.current), []);
+  const t = useT();
   const spinning = isChecking || pressed;
-  let status = 'The Pi did not say which version it runs.';
-  if (version && latest.state === 'checking') status = `Checking GitHub for a newer ${what}…`;
-  if (version && latest.state === 'unknown') status = `Could not check GitHub for a newer ${what}.`;
+  let status = t('about.no_version');
+  if (version && latest.state === 'checking') status = t('about.checking', { what });
+  if (version && latest.state === 'unknown') status = t('about.check_failed', { what });
   if (version && latest.state === 'known') {
-    status = newer
-      ? `${newer}. Tap the button to install it now, or the Pi picks it up within 6 hours and applies it at 04:30.`
-      : 'Up to date.';
-    if (!newer && checkedAt !== null) status = `Up to date as of ${formatTime(checkedAt)}.`;
+    status = newer ? t('about.newer', { newer }) : t('about.up_to_date');
+    if (!newer && checkedAt !== null) status = t('about.up_to_date_at', { time: formatTime(checkedAt) });
   }
   if (progress) status = progress;
 
@@ -41,7 +41,7 @@ export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }
       <div className="settings-box flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="settings-box-title">
-            Pi software{' '}
+            {t('about.pi_software')}{' '}
             {version && (
               <span className="font-mono text-muted">{release ? version.ref : `${version.ref} ${version.commit}`}</span>
             )}
@@ -60,7 +60,7 @@ export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }
             spinTimerRef.current = setTimeout(() => setPressed(false), MIN_SPIN_MS);
           }}
           disabled={!version || spinning || isUpdating}
-          aria-label="Check for updates"
+          aria-label={t('about.check')}
           className="modal-icon-button shrink-0 rounded-full border active:scale-90 flex items-center justify-center transition-all"
         >
           <RefreshCw className={`w-6 h-6 ${spinning ? 'animate-spin' : ''}`} aria-hidden="true" />
@@ -68,14 +68,14 @@ export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }
       </div>
       <div className="flex gap-3">
         <ConfirmButton
-          label="Restart kiosk"
-          confirmLabel="Tap again to restart"
+          label={t('about.restart')}
+          confirmLabel={t('about.restart_confirm')}
           icon={<RotateCw className="w-5 h-5 shrink-0" aria-hidden="true" />}
           onConfirm={restartKiosk}
         />
         <ConfirmButton
-          label="Reboot Pi"
-          confirmLabel="Tap again to reboot"
+          label={t('about.reboot')}
+          confirmLabel={t('about.reboot_confirm')}
           icon={<Power className="w-5 h-5 shrink-0" aria-hidden="true" />}
           onConfirm={rebootPi}
         />

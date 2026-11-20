@@ -4,6 +4,7 @@ import type { TouchscreenConfig } from 'countdown-api';
 import { describeStop, learnStopNames, rememberStop } from '../../countdown/search';
 import type { DeviceConfig } from '../../hooks/useDeviceConfig';
 import { useDragToReorder } from '../../hooks/useDragToReorder';
+import { useT } from '../../i18n/translate';
 import StopSearch from './StopSearch';
 
 /**
@@ -15,6 +16,7 @@ export default function CountdownSettings({
   config,
   onSave
 }: Readonly<{ config: TouchscreenConfig; onSave: DeviceConfig['save'] }>) {
+  const t = useT();
   const listRef = useRef<HTMLUListElement>(null);
   const [isSearching, setIsSearching] = useState(false);
   const stops = config.arrivals.stops;
@@ -46,16 +48,16 @@ export default function CountdownSettings({
     <div className="countdown-settings">
       <button type="button" onClick={() => setIsSearching(true)} className="countdown-search-button">
         <Search className="w-6 h-6 shrink-0" aria-hidden="true" />
-        Add a station or stop
+        {t('countdown.add')}
       </button>
 
       <section className="settings-group countdown-column" aria-labelledby="saved-stops-label">
         <h5 className="settings-group-title" id="saved-stops-label">
-          Saved stops
+          {t('countdown.saved')}
         </h5>
         <div className="countdown-column-body">
           {stops.length === 0 ? (
-            <p className="text-muted py-2">No stops yet.</p>
+            <p className="text-muted py-2">{t('countdown.none')}</p>
           ) : (
             <ul
               ref={listRef}
@@ -74,7 +76,7 @@ export default function CountdownSettings({
                     <button
                       type="button"
                       className="countdown-stop-handle"
-                      aria-label={`Move ${name}`}
+                      aria-label={t('countdown.move', { name })}
                       aria-keyshortcuts="ArrowUp ArrowDown"
                       disabled={stops.length < 2}
                       {...reorder.handleProps(index)}
@@ -88,7 +90,7 @@ export default function CountdownSettings({
                     <button
                       type="button"
                       className="countdown-stop-remove"
-                      aria-label={`Remove ${name}`}
+                      aria-label={t('countdown.remove', { name })}
                       onClick={() => removeStop(stop)}
                     >
                       <X className="w-5 h-5" aria-hidden="true" />

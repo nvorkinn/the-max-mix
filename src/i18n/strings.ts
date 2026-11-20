@@ -131,7 +131,130 @@ export const STRINGS = {
   'parcel.delivered': {
     en: '{count, plural, one {Parcel delivered} other {# parcels delivered}}',
     nb: '{count, plural, one {Pakke levert} other {# pakker levert}}'
-  }
+  },
+  // Settings › Countdown.
+  'countdown.add': { en: 'Add a station or stop', nb: 'Legg til en stasjon eller et stopp' },
+  'countdown.saved': { en: 'Saved stops', nb: 'Lagrede stopp' },
+  'countdown.none': { en: 'No stops yet.', nb: 'Ingen stopp ennå.' },
+  'countdown.move': { en: 'Move {name}', nb: 'Flytt {name}' },
+  'countdown.remove': { en: 'Remove {name}', nb: 'Fjern {name}' },
+  'countdown.add_stops': { en: 'Add stops', nb: 'Legg til stopp' },
+  'countdown.search': { en: 'Search for a stop', nb: 'Søk etter et stopp' },
+  'countdown.placeholder': { en: 'Station or stop', nb: 'Stasjon eller stopp' },
+  'countdown.hint': {
+    en: 'Type the name of a station or stop, then tap it to add it.',
+    nb: 'Skriv navnet på en stasjon eller et stopp, og trykk på det for å legge det til.'
+  },
+  'common.close': { en: 'Close', nb: 'Lukk' },
+
+  // Settings › Parcels.
+  'parcels.notice_board': { en: 'Notice board', nb: 'Oppslagstavle' },
+  'parcels.arriving_by': { en: 'Arriving by', nb: 'Kommer innen' },
+  'parcels.today': { en: 'Today', nb: 'I dag' },
+  'parcels.tomorrow': { en: 'Tomorrow', nb: 'I morgen' },
+  'parcels.day_after': { en: 'Day after', nb: 'I overmorgen' },
+  'parcels.any_day': { en: 'Any day', nb: 'Når som helst' },
+  'parcels.delivered_stay': { en: 'Delivered ones stay', nb: 'Leverte vises i' },
+  'parcels.not_kept': { en: 'Not kept', nb: 'Ikke vist' },
+  'parcels.hours': {
+    en: '{hours, plural, one {# hour} other {# hours}}',
+    nb: '{hours, plural, one {# time} other {# timer}}'
+  },
+  'parcels.a_day': { en: 'A day', nb: 'Ett døgn' },
+  'parcels.set_up': { en: 'Set up Parcel', nb: 'Sett opp Parcel' },
+  'parcels.step_premium': { en: 'Get Parcel Premium in the Parcel app', nb: 'Skaff Parcel Premium i Parcel-appen' },
+  'parcels.step_key': {
+    en: 'Copy your API key from web.parcelapp.net',
+    nb: 'Kopier API-nøkkelen din fra web.parcelapp.net'
+  },
+  'parcels.step_scan': { en: 'Scan the code and paste the key', nb: 'Skann koden og lim inn nøkkelen' },
+
+  // Settings › Appearance.
+  'appearance.colour': { en: 'Colour', nb: 'Farge' },
+  'appearance.dynamic': { en: 'Dynamic', nb: 'Dynamisk' },
+  'appearance.dynamic_note': {
+    en: 'Colours follow the album art while music plays.',
+    nb: 'Fargene følger albumomslaget mens musikken spilles.'
+  },
+  'colour.forest': { en: 'Forest', nb: 'Skog' },
+  'colour.navy': { en: 'Navy', nb: 'Marineblå' },
+  'colour.teal': { en: 'Teal', nb: 'Blågrønn' },
+  'colour.plum': { en: 'Plum', nb: 'Plomme' },
+  'colour.terracotta': { en: 'Terracotta', nb: 'Terrakotta' },
+  'colour.pink': { en: 'Pink', nb: 'Rosa' },
+  'colour.yellow': { en: 'Yellow', nb: 'Gul' },
+  'colour.black': { en: 'Black', nb: 'Svart' },
+  'colour.violet': { en: 'Violet', nb: 'Fiolett' },
+
+  // Settings › Wi-Fi.
+  'wifi.network': { en: 'Network', nb: 'Nettverk' },
+  'wifi.change': { en: 'Change network', nb: 'Bytt nettverk' },
+  'wifi.choose': { en: 'Choose network', nb: 'Velg nettverk' },
+  'wifi.not_connected': { en: 'Not connected', nb: 'Ikke tilkoblet' },
+  'wifi.unknown': { en: 'Status unknown', nb: 'Ukjent status' },
+
+  // Settings › Spotify.
+  'spotify.connected': { en: 'Connected', nb: 'Tilkoblet' },
+  'spotify.expired': { en: 'Expired', nb: 'Utløpt' },
+  'spotify.refused': { en: 'Not allowed', nb: 'Ikke tillatt' },
+  'spotify.redirect': {
+    en: 'Register this exact redirect address in your Spotify app settings:',
+    nb: 'Registrer akkurat denne omdirigeringsadressen i innstillingene for Spotify-appen din:'
+  },
+  'spotify.people': { en: 'People', nb: 'Personer' },
+  'spotify.account': { en: 'Spotify account', nb: 'Spotify-konto' },
+  'spotify.active': { en: 'Active', nb: 'Aktiv' },
+  'spotify.sign_in': { en: 'Sign in', nb: 'Logg inn' },
+  'spotify.remove': { en: 'Remove', nb: 'Fjern' },
+  'spotify.remove_confirm': { en: 'Tap again to remove', nb: 'Trykk igjen for å fjerne' },
+  'spotify.add_person': { en: 'Add person', nb: 'Legg til person' },
+  'spotify.log_in': { en: 'Log in with Spotify', nb: 'Logg inn med Spotify' },
+
+  // Settings › Lyrics.
+  'lyrics.size': { en: 'Size', nb: 'Størrelse' },
+  'lyrics.alignment': { en: 'Alignment', nb: 'Justering' },
+  'lyrics.size.small': { en: 'Small', nb: 'Liten' },
+  'lyrics.size.medium': { en: 'Medium', nb: 'Middels' },
+  'lyrics.size.large': { en: 'Large', nb: 'Stor' },
+  'lyrics.size.x-large': { en: 'Extra large', nb: 'Ekstra stor' },
+  'lyrics.align.left': { en: 'Left', nb: 'Venstre' },
+  'lyrics.align.center': { en: 'Centre', nb: 'Midtstilt' },
+  'lyrics.align.right': { en: 'Right', nb: 'Høyre' },
+
+  // Settings › About.
+  'about.this_screen': { en: 'This screen', nb: 'Denne skjermen' },
+  'about.device_id': { en: 'Device ID', nb: 'Enhets-ID' },
+  'about.not_registered': { en: 'Not registered', nb: 'Ikke registrert' },
+  'about.size': { en: 'Size', nb: 'Størrelse' },
+  'about.ip_address': { en: 'IP address', nb: 'IP-adresse' },
+  'about.unknown': { en: 'Unknown', nb: 'Ukjent' },
+  'about.app_version': { en: 'App version', nb: 'Appversjon' },
+  'about.software': { en: 'Software', nb: 'Programvare' },
+  'about.debug': { en: 'Debug console', nb: 'Feilsøkingskonsoll' },
+  'about.pi_software': { en: 'Pi software', nb: 'Pi-programvare' },
+  'about.no_version': {
+    en: 'The Pi did not say which version it runs.',
+    nb: 'Pi-en sa ikke hvilken versjon den kjører.'
+  },
+  'about.checking': {
+    en: 'Checking GitHub for a newer {what}…',
+    nb: '{what, select, release {Ser etter en nyere utgivelse på GitHub …} other {Ser etter en nyere {what} på GitHub …}}'
+  },
+  'about.check_failed': {
+    en: 'Could not check GitHub for a newer {what}.',
+    nb: '{what, select, release {Kunne ikke se etter en nyere utgivelse på GitHub.} other {Kunne ikke se etter en nyere {what} på GitHub.}}'
+  },
+  'about.newer': {
+    en: '{newer}. Tap the button to install it now, or the Pi picks it up within 6 hours and applies it at 04:30.',
+    nb: '{newer}. Trykk på knappen for å installere nå, ellers henter Pi-en den innen 6 timer og tar den i bruk kl. 04:30.'
+  },
+  'about.up_to_date': { en: 'Up to date.', nb: 'Oppdatert.' },
+  'about.up_to_date_at': { en: 'Up to date as of {time}.', nb: 'Oppdatert per {time}.' },
+  'about.check': { en: 'Check for updates', nb: 'Se etter oppdateringer' },
+  'about.restart': { en: 'Restart kiosk', nb: 'Start kiosken på nytt' },
+  'about.restart_confirm': { en: 'Tap again to restart', nb: 'Trykk igjen for å starte på nytt' },
+  'about.reboot': { en: 'Reboot Pi', nb: 'Start Pi-en på nytt' },
+  'about.reboot_confirm': { en: 'Tap again to reboot', nb: 'Trykk igjen for å starte på nytt' }
 } as const satisfies Record<string, Readonly<Record<Language, string>>>;
 
 /** An id STRINGS has: any other is a compile error. */

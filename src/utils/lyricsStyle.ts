@@ -5,18 +5,14 @@ const LYRICS_STYLE_KEY = 'maxmix.lyricsStyle';
 
 /** Type sizes the settings offer, each a multiple of the size the panel works out for itself. */
 export const LYRICS_SIZES = [
-  { id: 'small', label: 'Small', scale: 0.6 },
-  { id: 'medium', label: 'Medium', scale: 0.7 },
-  { id: 'large', label: 'Large', scale: 0.85 },
-  { id: 'x-large', label: 'Extra large', scale: 1 }
+  { id: 'small', scale: 0.6 },
+  { id: 'medium', scale: 0.7 },
+  { id: 'large', scale: 0.85 },
+  { id: 'x-large', scale: 1 }
 ] as const;
 export type LyricsSize = (typeof LYRICS_SIZES)[number]['id'];
 
-export const LYRICS_ALIGNS = [
-  { id: 'left', label: 'Left' },
-  { id: 'center', label: 'Centre' },
-  { id: 'right', label: 'Right' }
-] as const;
+export const LYRICS_ALIGNS = [{ id: 'left' }, { id: 'center' }, { id: 'right' }] as const;
 export type LyricsAlign = (typeof LYRICS_ALIGNS)[number]['id'];
 
 export interface LyricsStyle {

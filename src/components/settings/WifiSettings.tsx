@@ -1,5 +1,6 @@
 import { Wifi, WifiOff } from 'lucide-react';
 import { openWifiSettings } from '../../utils/kiosk';
+import { useT } from '../../i18n/translate';
 import { wifiLabel } from './wifi';
 import type { WifiState } from './wifi';
 
@@ -8,7 +9,8 @@ import type { WifiState } from './wifi';
  * works offline), where networks are listed and passwords typed.
  */
 export default function WifiSettings({ wifi }: Readonly<{ wifi: WifiState }>) {
-  const network = wifiLabel(wifi);
+  const t = useT();
+  const network = wifiLabel(wifi, t);
   const Icon = wifi.state === 'disconnected' ? WifiOff : Wifi;
   return (
     <div className="settings-stack">
@@ -17,7 +19,7 @@ export default function WifiSettings({ wifi }: Readonly<{ wifi: WifiState }>) {
           <Icon className="w-6 h-6" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="settings-box-title">Network</div>
+          <div className="settings-box-title">{t('wifi.network')}</div>
           {network !== undefined && (
             <div
               data-testid="wifi-network"
@@ -30,7 +32,7 @@ export default function WifiSettings({ wifi }: Readonly<{ wifi: WifiState }>) {
       </div>
       <button type="button" onClick={openWifiSettings} className="button button-secondary settings-wide-button">
         <Wifi className="w-5 h-5 shrink-0" aria-hidden="true" />
-        {wifi.state === 'connected' ? 'Change network' : 'Choose network'}
+        {t(wifi.state === 'connected' ? 'wifi.change' : 'wifi.choose')}
       </button>
     </div>
   );
