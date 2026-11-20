@@ -17,9 +17,10 @@ describe('the problems list', () => {
 
   it('holds a reported problem while it is given and takes it back after', () => {
     const run = vi.fn();
-    const { rerender, unmount } = renderHook<void, { title: string | null }>(
+    const initialProps: { title: string | null } = { title: 'Departures not updating' };
+    const { rerender, unmount } = renderHook(
       ({ title }) => useReportProblem('feed', title ? { title, action: { label: 'Try again', run } } : null),
-      { initialProps: { title: 'Departures not updating' } }
+      { initialProps }
     );
     expect(getProblems()).toMatchObject([{ id: 'feed', title: 'Departures not updating' }]);
     getProblems()[0]?.action?.run();
