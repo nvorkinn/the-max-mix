@@ -4,6 +4,9 @@
 // train when predictions reorder.
 
 import type { DeviceArrivals, StopArrivals, StopDepartures } from 'countdown-api';
+import { DEFAULT_LANGUAGE } from '../i18n/language';
+import type { Language } from '../i18n/language';
+import { translate } from '../i18n/translate';
 import { type ClockFormat, DEFAULT_CLOCK_FORMAT, formatClockTime } from '../utils/clockFormat';
 import { placeName } from './arrivals';
 import type { Departure as BoardDeparture, Network } from './props';
@@ -34,12 +37,15 @@ export function lineIdOf(name: string): string {
     .join('-');
 }
 
-/** TfL's platformName ("Northbound - Platform 1") as the board writes it ("Platform 1 · Northbound"). */
-export function platformOf(platform: string | null): string | null {
+/**
+ * TfL's platformName ("Northbound - Platform 1") as the board writes it ("Platform 1 · Northbound"), as TfL words it;
+ * a bare one ("A", Entur's) in `language` ("Platform A" in English).
+ */
+export function platformOf(platform: string | null, language: Language = DEFAULT_LANGUAGE): string | null {
   if (!platform) return null;
   const [direction, place] = platform.split(' - ').map(part => part.trim());
   if (direction && place && /^platform /i.test(place)) return `${place} · ${direction}`;
-  return /^platform /i.test(platform) ? platform : `Platform ${platform}`;
+  return /^platform /i.test(platform) ? platform : translate('board.platform', language, { platform });
 }
 
 /**
@@ -66,18 +72,25 @@ const STOP_POLE_MODES = new Set(['bus', 'tram', 'coach', 'water']);
  * What a departure's row says under its destination: a train's platform; a bus's (or Entur's tram's) stop letter
  * where it isn't the stop's own, as at a hub whose departures leave from its several stops.
  */
-function detailOf(stop: StopDepartures, mode: string, network: Network, platform: string | null): string | null {
+function detailOf(
+  stop: StopDepartures,
+  mode: string,
+  network: Network,
+  platform: string | null,
+  language: Language
+): string | null {
   const isPole = mode === 'bus' || (network === 'entur' && STOP_POLE_MODES.has(mode));
-  if (!isPole) return platformOf(platform);
+  if (!isPole) return platformOf(platform, language);
   const letter = platform ?? stop.stop_letter;
-  return letter && letter !== stop.stop_letter ? `Stop ${letter}` : null;
+  return letter && letter !== stop.stop_letter ? translate('board.stop', language, { letter }) : null;
 }
 
 function board(
   source: StopArrivals['source'],
   stop: StopDepartures,
   departures: readonly Departure[],
-  clockFormat: ClockFormat
+  clockFormat: ClockFormat,
+  language: Language
 ): Board {
   const network: Network = source === 'tfl' ? 'tfl' : 'entur';
   const sorted = departures.toSorted(soonestFirst);
@@ -97,7 +110,7 @@ function board(
         lineId: lineIdOf(departure.line),
         destination: departure.destination,
         expectedAt: departure.expected_at,
-        detail: detailOf(stop, mode, network, departure.platform),
+        detail: detailOf(stop, mode, network, departure.platform, language),
         ...(departure.scheduled && { scheduledAt: formatClockTime(new Date(departure.expected_at), clockFormat) })
       };
     })
@@ -106,17 +119,18 @@ function board(
 
 /**
  * The boards for `answer` at `now`, in the owner's order: none for a stop the server has no departures for yet. A
- * timetabled departure's time is written in `clockFormat`.
+ * timetabled departure's time is written in `clockFormat`, and a stop or platform in `language`.
  */
 export function toBoards(
   answer: DeviceArrivals | null,
   now: Date,
-  clockFormat: ClockFormat = DEFAULT_CLOCK_FORMAT
+  clockFormat: ClockFormat = DEFAULT_CLOCK_FORMAT,
+  language: Language = DEFAULT_LANGUAGE
 ): Board[] {
   const gone = now.getTime() - GONE_AFTER_MS;
   return (answer?.stops ?? []).flatMap(({ source, departures: stop }) => {
     if (!stop) return [];
     const departures = stop.departures.filter(departure => Date.parse(departure.expected_at) >= gone);
-    return [board(source, stop, departures, clockFormat)];
+    return [board(source, stop, departures, clockFormat, language)];
   });
 }

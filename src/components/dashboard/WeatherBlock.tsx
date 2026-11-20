@@ -1,14 +1,16 @@
 import { Sun, Umbrella } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { WeatherBlockProps, WeatherPeriod } from '../../dashboard/props';
+import type { StringId } from '../../i18n/strings';
+import { useT } from '../../i18n/translate';
 import { TURN_MS } from './carousel';
 import { SKY_ICONS, sunny } from './icons';
 
-const PERIOD_LABELS: Record<WeatherPeriod, string> = {
-  now: 'Now',
-  tonight: 'Tonight',
-  tomorrow: 'Tomorrow',
-  weekend: 'Weekend'
+const PERIOD_LABELS: Record<WeatherPeriod, StringId> = {
+  now: 'weather.now',
+  tonight: 'weather.tonight',
+  tomorrow: 'weather.tomorrow',
+  weekend: 'weather.weekend'
 };
 
 /** How long the old period takes to fade out, and then the new one to fade in. */
@@ -27,6 +29,7 @@ interface WeatherBlockOwnProps extends WeatherBlockProps {
  * new one fades in, so two temperatures never show on top of each other.
  */
 export default function WeatherBlock({ views, time }: Readonly<WeatherBlockOwnProps>) {
+  const t = useT();
   const count = views.length;
   const turn = Math.floor(time / TURN_MS);
   // Counted from the turn it first showed in, so it starts on Now.
@@ -70,7 +73,7 @@ export default function WeatherBlock({ views, time }: Readonly<WeatherBlockOwnPr
       <span className="dashboard-wx-pills">
         {views.map((option, at) => (
           <span key={option.period} className="dashboard-wx-pill" aria-current={at === shown ? 'true' : undefined}>
-            {PERIOD_LABELS[option.period]}
+            {t(PERIOD_LABELS[option.period])}
           </span>
         ))}
       </span>

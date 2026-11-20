@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useT } from '../../i18n/translate';
 import { minutesUntil } from './icons';
 
 /** Rows each board shows. */
@@ -22,11 +23,12 @@ export const byVehicle = (departure: { vehicleId: string }): string => departure
 
 /** The minutes to a departure, or "Due". */
 export function Minutes({ expectedAt, now }: Readonly<{ expectedAt: string; now: Date }>) {
+  const t = useT();
   const minutes = minutesUntil(expectedAt, now);
   return (
     <span className={`dashboard-mins${minutes <= SOON_MINUTES ? ' soon' : ''}`}>
       {minutes <= 0 ? (
-        'Due'
+        t('board.due')
       ) : (
         <>
           {minutes}

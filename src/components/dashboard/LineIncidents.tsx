@@ -1,5 +1,6 @@
 import ruter from '../../assets/dashboard/ruter-mark.svg';
 import type { LineIncidentsProps } from '../../dashboard/props';
+import { useT } from '../../i18n/translate';
 
 /** Each incident's row is as tall as two of the Tube status panel's: its lines, then two lines of its text. */
 export const INCIDENT_ROWS = 2;
@@ -10,11 +11,12 @@ export const INCIDENT_ROWS = 2;
  * boards' Ruter route boxes. With nothing wrong there's no panel at all.
  */
 export default function LineIncidents({ incidents }: Readonly<LineIncidentsProps>) {
+  const t = useT();
   return (
     <section className="dashboard-notices dashboard-line-incidents" aria-labelledby="dashboard-incidents-title">
       <h2 className="dashboard-eyebrow" id="dashboard-incidents-title">
         <img className="dashboard-eyebrow-ruter" src={ruter} alt="" />
-        Disruptions
+        {t('dashboard.disruptions')}
       </h2>
       <ul className="dashboard-incident-list">
         {incidents.map(incident => (

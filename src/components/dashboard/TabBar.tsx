@@ -2,6 +2,8 @@ import { AudioLines, Clock3, LayoutGrid, Search, Settings } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { formatClockTime } from '../../utils/clockFormat';
 import type { TabBarProps, TabId } from '../../dashboard/props';
+import type { StringId } from '../../i18n/strings';
+import { useT } from '../../i18n/translate';
 import { useHold } from '../../hooks/useHold';
 import { tabPanelId } from '../AppTabs';
 import PersonSwitcher from '../PersonSwitcher';
@@ -9,12 +11,12 @@ import SpotifyIcon from '../SpotifyIcon';
 import NowPlaying from './NowPlaying';
 
 // Dashboard, the home screen, sits in the middle, with a tab to either side of it.
-const TABS: readonly { id: TabId; label: string; icon: ReactNode }[] = [
+const TABS: readonly { id: TabId; label: StringId; icon: ReactNode }[] = [
   // Spotify's own logo in one colour, as its brand rules allow: white like the other tabs, green while the song playing
   // hangs under it (dashboard.css).
-  { id: 'spotify', label: 'Spotify', icon: <SpotifyIcon className="lucide dashboard-spotify-logo" /> },
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutGrid aria-hidden="true" className="lucide" /> },
-  { id: 'settings', label: 'Settings', icon: <Settings aria-hidden="true" className="lucide" /> }
+  { id: 'spotify', label: 'tabs.spotify', icon: <SpotifyIcon className="lucide dashboard-spotify-logo" /> },
+  { id: 'dashboard', label: 'tabs.dashboard', icon: <LayoutGrid aria-hidden="true" className="lucide" /> },
+  { id: 'settings', label: 'tabs.settings', icon: <Settings aria-hidden="true" className="lucide" /> }
 ];
 
 // Holding the clock this long opens the debug console; long enough that nobody opens it by accident.
@@ -36,6 +38,7 @@ export default function TabBar({
   onClockHold,
   nowPlaying = null
 }: Readonly<TabBarProps>) {
+  const t = useT();
   const clockHold = useHold(onClockHold ?? noop, CLOCK_HOLD_MS);
   const face =
     person &&
@@ -49,7 +52,7 @@ export default function TabBar({
         <span className="dashboard-brand-name">The Max Mix.</span>
       </div>
       <div className="dashboard-tabs-place">
-        <div className="dashboard-tabs" role="tablist" aria-label="Screens">
+        <div className="dashboard-tabs" role="tablist" aria-label={t('tabs.screens')}>
           {TABS.map(tab => (
             <button
               key={tab.id}
@@ -62,7 +65,7 @@ export default function TabBar({
               onClick={() => onSelect(tab.id)}
             >
               {tab.icon}
-              {tab.label}
+              {t(tab.label)}
             </button>
           ))}
         </div>
@@ -73,7 +76,7 @@ export default function TabBar({
           <button
             type="button"
             className="dashboard-icon-button dashboard-search"
-            aria-label="Choose music"
+            aria-label={t('tabs.choose_music')}
             onClick={onSearch}
           >
             <Search className="lucide" style={{ width: 26, height: 26 }} />
@@ -85,7 +88,7 @@ export default function TabBar({
               <span className="dashboard-avatar">{face}</span>
             </PersonSwitcher>
           ) : (
-            <span className="dashboard-avatar" role="img" aria-label={`Signed in as ${person.name}`}>
+            <span className="dashboard-avatar" role="img" aria-label={t('tabs.signed_in_as', { name: person.name })}>
               {face}
             </span>
           ))}

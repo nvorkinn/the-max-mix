@@ -6,6 +6,10 @@
 // later today, when it starts tomorrow, or which weekend day is wet. With nothing like that to say there is none.
 
 import type { DeviceWeather } from 'countdown-api';
+import { DEFAULT_LANGUAGE } from '../i18n/language';
+import type { Language } from '../i18n/language';
+import type { StringId } from '../i18n/strings';
+import { translate } from '../i18n/translate';
 import type { ClockFormat } from '../utils/clockFormat';
 import type { DayForecast, HourForecast, Sky, WeatherView } from './props';
 
@@ -38,32 +42,37 @@ export function skyFor(code: number): Sky {
   return 'rain';
 }
 
-/** A WMO weather code in words. */
-export function conditionFor(code: number): string {
-  if (code === 0) return 'Clear';
-  if (code === 1) return 'Mostly clear';
-  if (code === 2) return 'Partly cloudy';
-  if (code === 3) return 'Cloudy';
-  if (code === 45 || code === 48) return 'Fog';
-  if (code >= 51 && code <= 57) return 'Drizzle';
-  if (code === 61 || code === 66) return 'Light rain';
-  if (code === 65 || code === 67) return 'Heavy rain';
-  if (code >= 71 && code <= 77) return 'Snow';
-  if (code >= 80 && code <= 82) return 'Showers';
-  if (code === 85 || code === 86) return 'Snow showers';
-  if (code >= 95) return 'Thunderstorms';
-  return 'Rain';
+/** A WMO weather code's words' id. */
+function conditionId(code: number): StringId {
+  if (code === 0) return 'weather.clear';
+  if (code === 1) return 'weather.mostly_clear';
+  if (code === 2) return 'weather.partly_cloudy';
+  if (code === 3) return 'weather.cloudy';
+  if (code === 45 || code === 48) return 'weather.fog';
+  if (code >= 51 && code <= 57) return 'weather.drizzle';
+  if (code === 61 || code === 66) return 'weather.light_rain';
+  if (code === 65 || code === 67) return 'weather.heavy_rain';
+  if (code >= 71 && code <= 77) return 'weather.snow';
+  if (code >= 80 && code <= 82) return 'weather.showers';
+  if (code === 85 || code === 86) return 'weather.snow_showers';
+  if (code >= 95) return 'weather.thunderstorms';
+  return 'weather.rain';
 }
 
-const SKY_WORDS: Record<Sky, string> = {
-  clear: 'Clear',
-  'partly-cloudy': 'Partly cloudy',
-  cloudy: 'Cloudy',
-  fog: 'Fog',
-  drizzle: 'Drizzle',
-  rain: 'Rain',
-  snow: 'Snow',
-  thunder: 'Thunderstorms'
+/** A WMO weather code in words. */
+export function conditionFor(code: number, language: Language = DEFAULT_LANGUAGE): string {
+  return translate(conditionId(code), language);
+}
+
+const SKY_WORDS: Record<Sky, StringId> = {
+  clear: 'weather.clear',
+  'partly-cloudy': 'weather.partly_cloudy',
+  cloudy: 'weather.cloudy',
+  fog: 'weather.fog',
+  drizzle: 'weather.drizzle',
+  rain: 'weather.rain',
+  snow: 'weather.snow',
+  thunder: 'weather.thunderstorms'
 };
 
 /** The fields of Open-Meteo's answer read here. */
@@ -162,16 +171,24 @@ function skyOf(hours: readonly Hour[]): Sky {
   return commonest;
 }
 
+/** A view's summary, and whether it says it stays or turns dry. */
+interface Summary {
+  text: string;
+  dry: boolean;
+}
+
 /** "Rain from 3pm" for the first wet hour of `hours` after a dry one, "Dry from 7pm" for the reverse; else null. */
-function turnOf(hours: readonly Hour[], wetNow: boolean, clockFormat: ClockFormat): string | null {
+function turnOf(hours: readonly Hour[], wetNow: boolean, clockFormat: ClockFormat, language: Language): Summary | null {
   const turn = hours.find(hour => WET.has(hour.sky) !== wetNow);
   if (!turn) return null;
-  return `${wetNow ? 'Dry' : 'Rain'} from ${hourWords(localHour(turn), clockFormat)}`;
+  const hour = hourWords(localHour(turn), clockFormat);
+  return { text: translate(wetNow ? 'weather.dry_from' : 'weather.rain_from', language, { hour }), dry: wetNow };
 }
 
 /** A summary with its icon: a sun for one that says it stays or turns dry, else the umbrella. */
-function withIcon(summary: string | null): Pick<WeatherView, 'summary' | 'summaryIcon'> {
-  return summary?.startsWith('Dry') ? { summary, summaryIcon: 'sun' } : { summary };
+function withIcon(summary: Summary | null): Pick<WeatherView, 'summary' | 'summaryIcon'> {
+  if (!summary) return { summary: null };
+  return summary.dry ? { summary: summary.text, summaryIcon: 'sun' } : { summary: summary.text };
 }
 
 export interface WeatherProps {
@@ -180,8 +197,16 @@ export interface WeatherProps {
   days: DayForecast[];
 }
 
-/** The weather block's views and the strip's hours at `now`, or null when the forecast is missing or can't be read. */
-export function toWeather(answer: DeviceWeather | null, now: Date, clockFormat: ClockFormat): WeatherProps | null {
+/**
+ * The weather block's views and the strip's hours at `now`, in `language`, or null when the forecast is missing or
+ * can't be read.
+ */
+export function toWeather(
+  answer: DeviceWeather | null,
+  now: Date,
+  clockFormat: ClockFormat,
+  language: Language = DEFAULT_LANGUAGE
+): WeatherProps | null {
   const stored = answer?.forecast;
   if (!stored) return null;
   const fields = readFields(stored.forecast);
@@ -219,13 +244,13 @@ export function toWeather(answer: DeviceWeather | null, now: Date, clockFormat: 
   const laterToday = ahead.slice(STRIP_HOURS).filter(hour => localDate(hour) === today);
   const strip = ahead.slice(0, STRIP_HOURS);
   const wetBy = (from: readonly Hour[]) => WET.has(from.at(-1)?.sky ?? nowSky);
-  const nowSummary = turnOf(laterToday, wetBy(strip), clockFormat);
+  const nowSummary = turnOf(laterToday, wetBy(strip), clockFormat, language);
   views.push({
     period: 'now',
     temperature: Math.round(fields.current.temperature),
     sky: nowSky,
     isDay: isDay({ at: nowMs, local: fields.current.time, temperature: 0, code: 0, sky: nowSky }),
-    condition: conditionFor(fields.current.weather_code),
+    condition: conditionFor(fields.current.weather_code, language),
     ...withIcon(nowSummary)
   });
 
@@ -244,7 +269,7 @@ export function toWeather(answer: DeviceWeather | null, now: Date, clockFormat: 
       temperature: Math.round(low),
       sky,
       isDay: false,
-      condition: SKY_WORDS[sky],
+      condition: translate(SKY_WORDS[sky], language),
       summary: null
     });
   }
@@ -258,14 +283,16 @@ export function toWeather(answer: DeviceWeather | null, now: Date, clockFormat: 
     const waking = hours.filter(h => localDate(h) === tomorrow && localHour(h) >= DAY_FROM && localHour(h) <= DAY_TO);
     const firstWet = waking.find(hour => WET.has(hour.sky));
     const dry = waking.length > 0 && !firstWet && !WET.has(skyFor(tomorrowCode));
-    let tomorrowSummary: string | null = null;
-    if (firstWet) tomorrowSummary = `Rain from ${hourWords(localHour(firstWet), clockFormat)}`;
-    else if (dry) tomorrowSummary = 'Dry all day';
+    let tomorrowSummary: Summary | null = null;
+    if (firstWet) {
+      const hour = hourWords(localHour(firstWet), clockFormat);
+      tomorrowSummary = { text: translate('weather.rain_from', language, { hour }), dry: false };
+    } else if (dry) tomorrowSummary = { text: translate('weather.dry_all_day', language), dry: true };
     views.push({
       period: 'tomorrow',
       temperature: Math.round(tomorrowHigh),
       sky: skyFor(tomorrowCode),
-      condition: conditionFor(tomorrowCode),
+      condition: conditionFor(tomorrowCode, language),
       ...withIcon(tomorrowSummary)
     });
   }
@@ -285,13 +312,13 @@ export function toWeather(answer: DeviceWeather | null, now: Date, clockFormat: 
       const worse = SKIES.indexOf(sun.sky) > SKIES.indexOf(sat.sky) ? sun : sat;
       const wetSat = WET.has(sat.sky);
       const wetSun = WET.has(sun.sky);
-      const wetDay = wetSat ? 'Saturday' : 'Sunday';
+      const wetDay = wetSat ? 'weather.rain_saturday' : 'weather.rain_sunday';
       views.push({
         period: 'weekend',
         temperature: Math.round(Math.max(sat.high, sun.high)),
         sky: worse.sky,
-        condition: conditionFor(worse.code),
-        summary: wetSat === wetSun ? null : `Rain on ${wetDay}`
+        condition: conditionFor(worse.code, language),
+        summary: wetSat === wetSun ? null : translate(wetDay, language)
       });
     }
   }

@@ -12,6 +12,8 @@ import type { DeviceWeather } from 'countdown-api';
 import { getBackgroundImageUrl } from '../../vendor/countdown-api/src/countdown_api/client';
 import type { DashboardProps } from '../components/Dashboard';
 import { countdownApi } from '../countdown/server';
+import { DEFAULT_LANGUAGE } from '../i18n/language';
+import type { Language } from '../i18n/language';
 import type { ClockFormat } from '../utils/clockFormat';
 import { toBoards } from './boards';
 import type { Notice } from './data';
@@ -97,17 +99,22 @@ function feedStale(snapshot: LiveSnapshot, now: Date): boolean {
 const olderThan = (time: string | undefined, ms: number, now: Date) =>
   time !== undefined && now.getTime() - Date.parse(time) > ms;
 
-/** The Dashboard's props from `snapshot`, as of `now`. */
-export function dashboardProps(snapshot: LiveSnapshot, now: Date, clockFormat: ClockFormat): LiveProps {
+/** The Dashboard's props from `snapshot`, as of `now`, in `language`. */
+export function dashboardProps(
+  snapshot: LiveSnapshot,
+  now: Date,
+  clockFormat: ClockFormat,
+  language: Language = DEFAULT_LANGUAGE
+): LiveProps {
   const down = feedStale(snapshot, now);
-  const boards = toBoards(snapshot.arrivals, now, clockFormat);
+  const boards = toBoards(snapshot.arrivals, now, clockFormat, language);
   const fetchedAt = new Map(
     (snapshot.arrivals?.stops ?? []).flatMap(stop => (stop.departures ? [[stop.id, stop.departures.fetched_at]] : []))
   );
   const boardStale = (stopId: string) =>
     down || snapshot.heldStops.has(stopId) || olderThan(fetchedAt.get(stopId), DEPARTURES_STALE_MS, now);
 
-  const weather = toWeather(snapshot.weather, now, clockFormat);
+  const weather = toWeather(snapshot.weather, now, clockFormat, language);
   const weatherRead = snapshot.weather?.forecast?.fetched_at;
 
   return {
