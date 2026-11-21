@@ -7,6 +7,7 @@ import Outlook from './Outlook';
 import RailPages, { outlookDays, railPages } from './RailPages';
 import TabBar from './TabBar';
 import DepartureBoard from './DepartureBoard';
+import { lineMark } from './icons';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -118,14 +119,14 @@ describe('DepartureBoard', () => {
     expect(slots(rows[1])).toEqual(['front']);
   });
 
-  it('draws a Tube line it has no colour for in a plain pill', () => {
+  it('draws a Tube line it has no colour for as its letter in a plain square', () => {
     const [first] = SAMPLE.tube.departures;
     if (!first) throw new Error('no sample departure');
     render(<DepartureBoard {...SAMPLE.tube} departures={[{ ...first, lineId: 'tram', line: 'Tram' }]} stale />);
-    expect(screen.getByText('Tram')).toHaveClass('dashboard-line-pill');
+    expect(screen.getByText('T')).toHaveClass('dashboard-line-mark');
   });
 
-  it("writes a line too long for its pill in TfL's short form", () => {
+  it("writes a Tube line as its first letter, and the DLR and the two '& City' lines in their short forms", () => {
     const [first] = SAMPLE.tube.departures;
     if (!first) throw new Error('no sample departure');
     render(
@@ -134,7 +135,21 @@ describe('DepartureBoard', () => {
         departures={[{ ...first, lineId: 'hammersmith-city', line: 'Hammersmith & City' }]}
       />
     );
-    expect(screen.getByText('H&C')).toHaveClass('dashboard-line-pill');
+    expect(screen.getByText('H&C')).toHaveClass('dashboard-line-mark');
+    expect(screen.getByText('H&C')).toHaveAttribute('data-length', '3');
+    const marks = [
+      ['central', 'Central'],
+      ['circle', 'Circle'],
+      ['elizabeth', 'Elizabeth line'],
+      ['dlr', 'DLR'],
+      ['waterloo-city', 'Waterloo & City'],
+      ['liberty', 'Liberty'],
+      ['lioness', 'Lioness'],
+      ['mildmay', 'Mildmay'],
+      ['weaver', 'Weaver'],
+      ['windrush', 'Windrush']
+    ].map(([lineId = '', name = '']) => lineMark(lineId, name));
+    expect(marks).toEqual(['C', 'C', 'E', 'DLR', 'W&C', 'Lib', 'Lion', 'M', 'Wea', 'Win']);
   });
 
   it("heads a London stop with TfL's roundel and a Norwegian one with Ruter's mark, and its letter if it has one", () => {
@@ -185,7 +200,7 @@ describe('DepartureBoard', () => {
         ]}
       />
     );
-    expect(screen.getByText('Northern')).toHaveClass('dashboard-line-pill');
+    expect(screen.getByText('N')).toHaveClass('dashboard-line-mark');
     expect(screen.getByText('12')).toHaveClass('dashboard-route');
     unmount();
     render(
@@ -203,7 +218,7 @@ describe('DepartureBoard', () => {
     expect(screen.getByText('5')).toHaveAttribute('data-mode', 'metro');
     expect(screen.getByText('12')).toHaveAttribute('data-mode', 'tram');
     expect(screen.getByText('VY190')).toHaveAttribute('data-length', '5');
-    expect(screen.queryByText('5')).not.toHaveClass('dashboard-line-pill');
+    expect(screen.queryByText('5')).not.toHaveClass('dashboard-line-mark');
   });
 });
 

@@ -47,6 +47,9 @@ export const NOTICE_ICONS: Record<NoticeKind, LucideIcon> = {
   parcel: Package
 };
 
+/** The Overground's orange, which all six of its lines share. */
+const OVERGROUND = ['#ee7c0e', '#fff'] as const;
+
 /** TfL's line colours and the text that reads on each, by TfL's line id. */
 export const LINE_COLOURS: Record<string, readonly [background: string, text: string]> = {
   bakerloo: ['#a45a2a', '#fff'],
@@ -57,25 +60,40 @@ export const LINE_COLOURS: Record<string, readonly [background: string, text: st
   elizabeth: ['#6950a1', '#fff'],
   'hammersmith-city': ['#f3a9bb', '#000'],
   jubilee: ['#a0a5a9', '#000'],
+  liberty: OVERGROUND,
+  lioness: OVERGROUND,
   metropolitan: ['#9b0056', '#fff'],
+  mildmay: OVERGROUND,
   northern: ['#111', '#fff'],
-  overground: ['#ee7c0e', '#fff'],
+  overground: OVERGROUND,
   piccadilly: ['#003688', '#fff'],
+  suffragette: OVERGROUND,
   victoria: ['#0098d4', '#fff'],
-  'waterloo-city': ['#95cdba', '#000']
+  'waterloo-city': ['#95cdba', '#000'],
+  weaver: OVERGROUND,
+  windrush: OVERGROUND
 };
 export const FALLBACK_LINE_COLOURS: readonly [string, string] = ['#3a4252', '#fff'];
 
-/** TfL's short forms for the lines whose names don't fit a departure's pill, by TfL's line id. */
-const LINE_SHORT_NAMES: Record<string, string> = {
-  elizabeth: 'Elizabeth',
+/**
+ * The lines whose first letter wouldn't name them, by TfL's line id: the DLR by its own name, the two "& City" lines by
+ * TfL's short forms, and the Overground lines that share a letter (and its orange) by their first few.
+ */
+const LINE_MARKS: Record<string, string> = {
+  dlr: 'DLR',
   'hammersmith-city': 'H&C',
-  metropolitan: 'Met',
-  'waterloo-city': 'W&C'
+  'waterloo-city': 'W&C',
+  liberty: 'Lib',
+  lioness: 'Lion',
+  weaver: 'Wea',
+  windrush: 'Win'
 };
 
-/** A line's name as its pill writes it: TfL's short form where the full name doesn't fit. */
-export const pillName = (lineId: string, name: string): string => LINE_SHORT_NAMES[lineId] ?? name;
+/**
+ * A line as its departure's square writes it: its first letter ("C" for both Central and Circle, told apart by their
+ * colours), or the DLR's or TfL's short form for the few a letter wouldn't name ("H&C").
+ */
+export const lineMark = (lineId: string, name: string): string => LINE_MARKS[lineId] ?? name.charAt(0).toUpperCase();
 
 /** Whole minutes until `expectedAt`, none below zero: 0 reads "Due". */
 export function minutesUntil(expectedAt: string, now: Date): number {
