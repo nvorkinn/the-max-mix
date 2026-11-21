@@ -21,12 +21,13 @@ const richsyncLine = (value: unknown): string | null => {
   const end = line['te'];
   if (typeof start !== 'number' || typeof end !== 'number') return null;
   let timed = '';
-  for (const item of list(line['l'])) {
+  const words = list(line['l']);
+  for (const item of words) {
     const word = record(item);
     const characters = text(word['c']);
     const offset = word['o'];
     // Spaces come as words of their own; they stay with the word before them, so every timed word has text.
-    if (characters.trim() === '' || typeof offset !== 'number') timed += characters;
+    if (typeof offset !== 'number' || characters.trim() === '') timed += characters;
     else timed += `<${lrcTime(Math.round((start + offset) * 1000))}>${characters}`;
   }
   return timed ? `[${lrcTime(Math.round(start * 1000))}]${timed.trimEnd()}<${lrcTime(Math.round(end * 1000))}>` : null;
@@ -73,7 +74,8 @@ const isRealToken = (token: string): boolean => /[^0]/.test(token);
  * clock, for tests.
  */
 export function musixmatchSource(now: () => number = () => Date.now()): LyricsSource {
-  let token: Promise<string> | undefined;
+  /** The token asked for, while it is being asked for and then for as long as it is taken. */
+  let issued: Promise<string> | undefined;
   let refusedUntil = 0;
 
   const call = async (method: string, params: Record<string, string>, get: GetJson, usertoken = '') => {
@@ -97,12 +99,12 @@ export function musixmatchSource(now: () => number = () => Date.now()): LyricsSo
 
   const tokenFor = (get: GetJson): Promise<string> => {
     if (now() < refusedUntil) return Promise.reject(new Error('Musixmatch refused a token a short while ago'));
-    if (token) return token;
+    if (issued) return issued;
     const fetching = fetchToken(get);
-    token = fetching;
+    issued = fetching;
     // A failed request for a token is not kept: the next song asks again (after the back-off, if it was refused).
     void fetching.catch(() => {
-      if (token === fetching) token = undefined;
+      if (issued === fetching) issued = undefined;
     });
     return fetching;
   };
@@ -110,13 +112,16 @@ export function musixmatchSource(now: () => number = () => Date.now()): LyricsSo
   /** The body of an API call made with the token, or null when Musixmatch has nothing for it. */
   const ask = async (method: string, params: Record<string, string>, get: GetJson): Promise<unknown> => {
     const usertoken = await tokenFor(get);
-    const answer = await call(method, params, get, usertoken).catch((error: unknown) => {
-      if (error instanceof HttpError && error.status === STATUS_UNAUTHORIZED) token = undefined;
+    let answer: Awaited<ReturnType<typeof call>>;
+    try {
+      answer = await call(method, params, get, usertoken);
+    } catch (error) {
+      if (error instanceof HttpError && error.status === STATUS_UNAUTHORIZED) issued = undefined;
       throw error;
-    });
+    }
     if (answer.status === STATUS_OK) return answer.body;
     if (answer.status === STATUS_NOT_FOUND) return null;
-    if (answer.status === STATUS_UNAUTHORIZED) token = undefined;
+    if (answer.status === STATUS_UNAUTHORIZED) issued = undefined;
     throw new Error(`Musixmatch ${method} answered ${answer.status}`);
   };
 
