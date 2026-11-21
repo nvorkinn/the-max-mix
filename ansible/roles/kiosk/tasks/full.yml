@@ -483,6 +483,7 @@
     - improv.ts
     - kiosk-audio.ts
     - lyrics-lrclib.ts
+    - lyrics-musixmatch.ts
     - lyrics-sources.ts
     - lyrics.ts
     - nmcli.ts
