@@ -70,16 +70,13 @@ function isHidden(element: HTMLElement): boolean {
 
 /**
  * Where each place sits and how it looks, given each place's measured width: each one's right edge just behind the
- * left edge of the one in front of it; and how wide the queue is, to the furthest one still showing, so the
- * destination keeps the rest.
+ * left edge of the one in front of it.
  */
 function layout<T>(items: readonly T[], widths: readonly number[]) {
   let edge = 0;
-  let width = 0;
   const placed = items.map((item, place) => {
     const look = lookAt(place);
     const drawnWidth = turnedWidth(widths[place] ?? UNMEASURED_WIDTH, look.turn) * look.scale;
-    if (look.opacity > 0) width = -edge + drawnWidth;
     const style = {
       transform: `translateY(-50%) translateX(${String(edge)}px) scale(${String(look.scale)}) perspective(${String(PERSPECTIVE)}px) rotateY(${String(look.turn)}deg)`,
       opacity: look.opacity
@@ -87,7 +84,7 @@ function layout<T>(items: readonly T[], widths: readonly number[]) {
     edge -= drawnWidth + GAP;
     return { ...item, style };
   });
-  return { placed, width: Math.ceil(width) };
+  return placed;
 }
 
 /**
@@ -179,8 +176,7 @@ export default function EtaStack<D extends { expectedAt: string }>({
   // Each place's width as drawn, so each waiting time sits just behind the one in front of it, whatever it says.
   const [widths, setWidths] = useState<readonly number[]>([]);
   const elementsRef = useRef(new Map<string, HTMLElement>());
-  const arranged = layout(items, widths);
-  const { placed } = arranged;
+  const placed = layout(items, widths);
   // Measured whenever any of them changes size, not only when they move: a time that gets wider ("9" to "10", or to
   // "Due") moves nothing by itself, and one drawn on the hidden Dashboard has no size until the tab comes back.
   const orderRef = useRef<readonly string[]>([]);
@@ -255,7 +251,8 @@ export default function EtaStack<D extends { expectedAt: string }>({
   }, [styleSignature]);
 
   return (
-    <span className="dashboard-stack" style={{ width: arranged.width }}>
+    // The room a destination leaves; a long one takes it back, down to the front time, and the queue fades under its end.
+    <span className="dashboard-stack" style={{ minWidth: Math.ceil(widths[0] ?? UNMEASURED_WIDTH) }}>
       {gone.map(({ key, face }) => (
         <span
           key={`gone:${key}`}
