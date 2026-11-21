@@ -1,14 +1,20 @@
 version: 2
 
-# Daily update PRs. Minor and patch updates are grouped per ecosystem to keep the number of PRs down; major
-# updates arrive one at a time. Security updates are opened separately by GitHub and are not affected by the schedule.
-updates:
-  - package-ecosystem: npm
-    directory: /
+# One daily PR for the whole project: every entry below feeds the `dependencies` multi-ecosystem group, which sets the
+# schedule and the commit message for all of them, and `patterns: ['*']` puts each of an entry's dependencies in it,
+# major updates included. Security updates are opened separately by GitHub and are not affected by the schedule.
+multi-ecosystem-groups:
+  dependencies:
     schedule:
       interval: daily
     commit-message:
       prefix: 'chore(deps)'
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    patterns: ['*']
+    multi-ecosystem-group: dependencies
     # typescript-eslint cannot load TypeScript 7 (the native compiler has no JS API) yet; its peer range is <6.1.
     ignore:
       - dependency-name: typescript
@@ -16,43 +22,21 @@ updates:
       # Node types follow the Node major in .nvmrc (24), so a newer major would allow APIs the Pi and CI lack.
       - dependency-name: '@types/node'
         update-types: [version-update:semver-major]
-    groups:
-      # stylelint-config-standard peers on one stylelint major, so a major of either fails npm ci on its own.
-      stylelint:
-        patterns: [stylelint, stylelint-config-standard]
-        update-types: [major]
-      npm-minor-patch:
-        update-types: [minor, patch]
 
   # ws, the kiosk-audio service's one package on the Pi: installed there from this lockfile by the playbook (npm ci).
   - package-ecosystem: npm
     directory: /ansible/roles/kiosk/files/kiosk-audio
-    schedule:
-      interval: daily
-    commit-message:
-      prefix: 'chore(deps)'
-    groups:
-      kiosk-audio-minor-patch:
-        update-types: [minor, patch]
+    patterns: ['*']
+    multi-ecosystem-group: dependencies
 
   # ansible-core and ansible-lint, which CI uses to lint the playbook. Unpinned in ansible/pyproject.toml, so the lockfile
   # is the only record of their versions.
   - package-ecosystem: uv
     directory: /ansible
-    schedule:
-      interval: daily
-    commit-message:
-      prefix: 'chore(deps)'
-    groups:
-      ansible-minor-patch:
-        update-types: [minor, patch]
+    patterns: ['*']
+    multi-ecosystem-group: dependencies
 
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: daily
-    commit-message:
-      prefix: 'chore(ci)'
-    groups:
-      actions-minor-patch:
-        update-types: [minor, patch]
+    patterns: ['*']
+    multi-ecosystem-group: dependencies
