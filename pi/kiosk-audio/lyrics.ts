@@ -1,16 +1,18 @@
-// Finds lyrics for the app's GET /lyrics (server.ts), which is the app's only way to lyrics. Every source (LRCLIB, and
-// the three in lyrics-sources.ts) is asked for lyrics timed word by word; only when none has them is each asked in
-// turn for line-timed ones, and after those for plain ones. It only keeps a song that matches the title, artist and
-// length asked for, and remembers the answers.
+// Finds lyrics for the app's GET /lyrics (server.ts), which is the app's only way to lyrics. Every source (LRCLIB,
+// Musixmatch, and the three in lyrics-sources.ts) is asked for lyrics timed word by word; only when none has them is
+// each asked in turn for line-timed ones, and after those for plain ones. It only keeps a song that matches the title,
+// artist and length asked for, and remembers the answers.
 import { lrclib } from './lyrics-lrclib.ts';
+import { musixmatch } from './lyrics-musixmatch.ts';
 import { getJson, kugou, netease, qqMusic } from './lyrics-sources.ts';
 import type { Candidate, GetJson, LyricsQuery, LyricsSource } from './lyrics-sources.ts';
 
 /**
  * The sources, in the order they are asked. LRCLIB is first: its lyrics are without the credit lines the others put
- * at the top, and it is the one that has plain lyrics and knows the instrumental songs.
+ * at the top, and it is the one that has plain lyrics and knows the instrumental songs. Musixmatch is next: it has the
+ * most songs sung in English, many of them timed word by word.
  */
-const SOURCES: readonly LyricsSource[] = [lrclib, netease, qqMusic, kugou];
+const SOURCES: readonly LyricsSource[] = [lrclib, musixmatch, netease, qqMusic, kugou];
 
 /**
  * What the app gets back, with the source it came from: synced lyrics as LRC text (with a time before each word when
