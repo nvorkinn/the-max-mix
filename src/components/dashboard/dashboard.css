@@ -1038,18 +1038,22 @@ button.dashboard-notice {
     opacity: 0;
   }
 }
-/* A name too long for the pill gets a short form (icons.ts); one still too long stays on one line rather than wrapping. */
-.dashboard-line-pill {
-  width: 90px;
-  white-space: nowrap;
-  overflow: hidden;
-  height: 32px;
-  border-radius: 999px;
+/* A Tube line's letter in a square as tall and round-cornered as a route box; a short form ("H&C") is set smaller to fit. */
+.dashboard-line-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
   flex-shrink: 0;
+}
+.dashboard-line-mark[data-length='3'] {
+  font-size: 13px;
+  letter-spacing: -0.03em;
 }
 .dashboard-route {
   min-width: 62px;

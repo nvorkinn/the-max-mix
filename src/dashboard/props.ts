@@ -178,7 +178,7 @@ export interface Departure extends DepartureBase {
 
 /**
  * @public The network a stop belongs to, which heads its board with its mark (TfL's roundel, Ruter's hash) and picks
- * how its lines are drawn: TfL's Tube lines as coloured pills and its buses as red route numbers; Norway's (Entur's)
+ * how its lines are drawn: TfL's Tube lines as lettered squares in their colours and its buses as red route numbers; Norway's (Entur's)
  * lines as route numbers coloured by mode.
  */
 export type Network = 'tfl' | 'entur';

@@ -5,7 +5,7 @@ import type { Departure, Network, StopBoardProps } from '../../dashboard/props';
 import AnimatedRows from './AnimatedRows';
 import { byVehicle, Destination, Minutes, routeRows, ScheduledTime, visibleDepartures } from './DepartureRows';
 import EtaStack from './EtaStack';
-import { FALLBACK_LINE_COLOURS, LINE_COLOURS, minutesUntil, pillName } from './icons';
+import { FALLBACK_LINE_COLOURS, LINE_COLOURS, lineMark, minutesUntil } from './icons';
 
 /** Each network's mark, which heads its stops' boards. */
 const MARKS: Record<Network, { src: string; name: string; className: string }> = {
@@ -14,8 +14,8 @@ const MARKS: Record<Network, { src: string; name: string; className: string }> =
 };
 
 /**
- * A departure's line, the way its network signs it: TfL's buses as a red route number and its Tube lines as a pill in
- * the line's colour, in TfL's short form where the name is too long for it ("H&C"); Norway's lines as a route number in
+ * A departure's line, the way its network signs it: TfL's buses as a red route number and its Tube lines as a square in
+ * the line's colour holding its first letter, or a short form where a letter wouldn't name it ("H&C"); Norway's lines as a route number in
  * its mode's colour (Ruter's red bus, orange T-bane, blue tram and dark blue train), squeezed rather than widened when
  * the number is long ("VY190").
  */
@@ -30,9 +30,10 @@ function Line({ departure, network }: Readonly<{ departure: Departure; network: 
   }
   if (departure.mode === 'bus') return <span className="dashboard-route">{departure.line}</span>;
   const [background, text] = LINE_COLOURS[departure.lineId] ?? FALLBACK_LINE_COLOURS;
+  const mark = lineMark(departure.lineId, departure.line);
   return (
-    <span className="dashboard-line-pill" style={{ background, color: text }}>
-      {pillName(departure.lineId, departure.line)}
+    <span className="dashboard-line-mark" data-length={mark.length} style={{ background, color: text }}>
+      {mark}
     </span>
   );
 }

@@ -66,16 +66,18 @@ export const LINE_COLOURS: Record<string, readonly [background: string, text: st
 };
 export const FALLBACK_LINE_COLOURS: readonly [string, string] = ['#3a4252', '#fff'];
 
-/** TfL's short forms for the lines whose names don't fit a departure's pill, by TfL's line id. */
-const LINE_SHORT_NAMES: Record<string, string> = {
-  elizabeth: 'Elizabeth',
+/** The lines whose first letter wouldn't name them, by TfL's line id: the DLR by its own name, the two "& City" lines by TfL's short forms. */
+const LINE_MARKS: Record<string, string> = {
+  dlr: 'DLR',
   'hammersmith-city': 'H&C',
-  metropolitan: 'Met',
   'waterloo-city': 'W&C'
 };
 
-/** A line's name as its pill writes it: TfL's short form where the full name doesn't fit. */
-export const pillName = (lineId: string, name: string): string => LINE_SHORT_NAMES[lineId] ?? name;
+/**
+ * A line as its departure's square writes it: its first letter ("C" for both Central and Circle, told apart by their
+ * colours), or the DLR's or TfL's short form for the few a letter wouldn't name ("H&C").
+ */
+export const lineMark = (lineId: string, name: string): string => LINE_MARKS[lineId] ?? name.charAt(0).toUpperCase();
 
 /** Whole minutes until `expectedAt`, none below zero: 0 reads "Due". */
 export function minutesUntil(expectedAt: string, now: Date): number {
