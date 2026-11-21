@@ -17,8 +17,6 @@ const OPACITY = [1, 0.5, 0.3];
 const PERSPECTIVE = 180;
 /** The space between a time and the one waiting behind it. */
 const GAP = 10;
-/** How far the queue fades in from its left edge, where a long destination comes in over it. */
-const FADE = 32;
 /** How many times a long destination always leaves in sight: the front one and the next. */
 const KEPT = 2;
 /** A time's width before it has been measured. */
@@ -75,7 +73,7 @@ function isHidden(element: HTMLElement): boolean {
 /**
  * Where each place sits and how it looks, given each place's measured width: each one's right edge just behind the
  * left edge of the one in front of it; and how much of the queue a long destination leaves in sight: the front time
- * and the next, clear of the fade.
+ * and the next.
  */
 function layout<T>(items: readonly T[], widths: readonly number[]) {
   let edge = 0;
@@ -83,7 +81,8 @@ function layout<T>(items: readonly T[], widths: readonly number[]) {
   const placed = items.map((item, place) => {
     const look = lookAt(place);
     const drawnWidth = turnedWidth(widths[place] ?? UNMEASURED_WIDTH, look.turn) * look.scale;
-    if (place < KEPT) kept = -edge + drawnWidth + (place > 0 ? FADE : 0);
+    // To the gap behind the last one kept, where the queue's edge fades in (dashboard.css), so the next is all hidden.
+    if (place < KEPT) kept = -edge + drawnWidth + (place > 0 ? GAP : 0);
     const style = {
       transform: `translateY(-50%) translateX(${String(edge)}px) scale(${String(look.scale)}) perspective(${String(PERSPECTIVE)}px) rotateY(${String(look.turn)}deg)`,
       opacity: look.opacity

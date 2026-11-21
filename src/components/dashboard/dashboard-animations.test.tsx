@@ -11,6 +11,7 @@ import RailPages from './RailPages';
 import WeatherBlock, { WEATHER_FADE_MS } from './WeatherBlock';
 import { carouselSlot, TURN_MS } from './carousel';
 import { ROW_FADE_MS } from './AnimatedRows';
+import { Destination, ROLL_ACROSS_EVERY_MS } from './DepartureRows';
 
 const at = (minutes: number) => new Date(SAMPLE_NOW.getTime() + minutes * 60_000);
 const run = (ms: number) =>
@@ -374,6 +375,50 @@ describe('a route’s queue of times', () => {
       Reflect.deleteProperty(HTMLElement.prototype, 'animate');
       Reflect.deleteProperty(HTMLElement.prototype, 'getAnimations');
       if (offsetWidth) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', offsetWidth);
+    }
+  });
+});
+
+describe('a destination cut short over a route’s queue', () => {
+  it('rolls across to its end and back every so often, and only when cut short and not asked for less motion', () => {
+    const animate = vi.fn(() => ({ cancel: vi.fn(), onfinish: null as (() => void) | null }));
+    let reduced = false;
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: reduced, media: query }));
+    const sizes = (scroll: number) =>
+      Object.defineProperties(HTMLElement.prototype, {
+        animate: { value: animate, configurable: true },
+        scrollWidth: { get: () => scroll, configurable: true },
+        clientWidth: { get: () => 200, configurable: true }
+      });
+    const saved = ['scrollWidth', 'clientWidth'].map(
+      key => [key, Object.getOwnPropertyDescriptor(HTMLElement.prototype, key)] as const
+    );
+    try {
+      sizes(260);
+      const { container, unmount } = render(<Destination name="Harrow & Wealdstone" detail="Platform 1" overQueue />);
+      run(ROLL_ACROSS_EVERY_MS);
+      expect(animate).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(animate.mock.calls[0])).toContain('translateX(-60px)');
+      const box = container.querySelector<HTMLElement>('strong');
+      expect(box?.dataset['rolling']).toBe('true');
+      act(() => {
+        (animate.mock.results[0]?.value as { onfinish: () => void }).onfinish();
+      });
+      expect(box?.dataset['rolling']).toBeUndefined();
+
+      reduced = true;
+      run(ROLL_ACROSS_EVERY_MS);
+      reduced = false;
+      sizes(200);
+      run(ROLL_ACROSS_EVERY_MS);
+      expect(animate).toHaveBeenCalledTimes(1);
+      unmount();
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'animate');
+      for (const [key, descriptor] of saved) {
+        if (descriptor) Object.defineProperty(HTMLElement.prototype, key, descriptor);
+        else Reflect.deleteProperty(HTMLElement.prototype, key);
+      }
     }
   });
 });

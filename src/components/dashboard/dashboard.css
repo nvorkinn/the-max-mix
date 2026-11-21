@@ -1107,7 +1107,7 @@ button.dashboard-notice {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.dashboard-dest span {
+.dashboard-dest > span {
   display: block;
   font-size: 14px;
   color: var(--muted);
@@ -1151,11 +1151,22 @@ button.dashboard-notice {
   flex: 1 1 0;
   height: 100%;
   overflow: hidden;
-  mask-image: linear-gradient(90deg, transparent 0, #000 32px);
+  /* Over the gap between two times (EtaStack.tsx's GAP), so a time is either in sight or hidden under the destination. */
+  mask-image: linear-gradient(90deg, transparent 0, #000 10px);
 }
 /* A route's destination takes only its own width, so a short one leaves the queue in sight and a long one covers it. */
 .dashboard-dest[data-over-queue] {
   flex: 0 1 auto;
+}
+/* A name cut short with "…", which while it rolls across (DepartureRows.tsx) shows whole, the box cutting it off. */
+.dashboard-dest-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dashboard-dest strong[data-rolling] .dashboard-dest-name {
+  width: max-content;
+  overflow: visible;
 }
 .dashboard-stack-item {
   position: absolute;
