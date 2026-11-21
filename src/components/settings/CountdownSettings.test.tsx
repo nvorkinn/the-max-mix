@@ -98,6 +98,21 @@ describe('CountdownSettings', () => {
     expect(onSave).toHaveBeenCalledExactlyOnceWith('arrivals', { ...OWNED.arrivals, group_by_route: true });
   });
 
+  it('shows the boards the chosen grouping gives', () => {
+    const { rerender } = render(<CountdownSettings config={OWNED} onSave={vi.fn()} />);
+    const off = screen.getByRole('img', { name: 'A board with a row for each departure' });
+    expect(off).toHaveAttribute('src', expect.stringMatching(/group-by-route-off/));
+    rerender(
+      <CountdownSettings
+        config={{ ...OWNED, arrivals: { ...OWNED.arrivals, group_by_route: true } }}
+        onSave={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('img', { name: 'A board with a row for each departure' })).not.toBeInTheDocument();
+    const on = screen.getByRole('img', { name: 'A board with a row for each route and its next departures' });
+    expect(on).toHaveAttribute('src', expect.stringMatching(/group-by-route-on/));
+  });
+
   it('removes a stop with its X', async () => {
     const onSave = setup();
     const [first] = OWNED.arrivals.stops;

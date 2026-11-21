@@ -2359,8 +2359,33 @@ body:has(.app-dialog[open]) {
 .countdown-grouping {
   flex-shrink: 0;
 }
-.countdown-column {
+/* The switch beside a picture of the boards it gives: the 2x GIF at a quarter of its width, a third on the 10" screen. */
+.countdown-grouping-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.countdown-grouping-row .settings-segmented {
   flex: 1;
+}
+.countdown-grouping-picture {
+  display: contents;
+}
+.countdown-grouping-preview {
+  flex-shrink: 0;
+  width: 242px;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+@media (width >= 1200px) and (height >= 760px) {
+  .countdown-grouping-preview {
+    width: 322px;
+  }
+}
+/* As tall as its stops, and Group by route straight after; a long list scrolls rather than pushing it off. */
+.countdown-column {
+  flex: 0 1 auto;
   min-height: 0;
 }
 .countdown-column-body {

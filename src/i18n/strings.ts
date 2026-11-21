@@ -137,6 +137,14 @@ export const STRINGS = {
   'countdown.saved': { en: 'Saved stops', nb: 'Lagrede stopp' },
   'countdown.none': { en: 'No stops yet.', nb: 'Ingen stopp ennå.' },
   'countdown.group_by_route': { en: 'Group by route', nb: 'Grupper etter linje' },
+  'countdown.grouped_off': {
+    en: 'A board with a row for each departure',
+    nb: 'En tavle med én rad for hver avgang'
+  },
+  'countdown.grouped_on': {
+    en: 'A board with a row for each route and its next departures',
+    nb: 'En tavle med én rad for hver linje og dens neste avganger'
+  },
   'countdown.move': { en: 'Move {name}', nb: 'Flytt {name}' },
   'countdown.remove': { en: 'Remove {name}', nb: 'Fjern {name}' },
   'countdown.add_stops': { en: 'Add stops', nb: 'Legg til stopp' },
