@@ -90,9 +90,13 @@ export function ScheduledTime({ time }: Readonly<{ time: string }>) {
 }
 
 /** A row's destination over its second line. */
-export function Destination({ name, detail }: Readonly<{ name: string; detail: ReactNode }>) {
+export function Destination({
+  name,
+  detail,
+  overQueue = false
+}: Readonly<{ name: string; detail: ReactNode; overQueue?: boolean }>) {
   return (
-    <span className="dashboard-dest">
+    <span className="dashboard-dest" data-over-queue={overQueue || undefined}>
       <strong>{name}</strong>
       <span>{detail}</span>
     </span>

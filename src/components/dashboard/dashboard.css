@@ -1147,8 +1147,15 @@ button.dashboard-notice {
 */
 .dashboard-stack {
   position: relative;
-  flex-shrink: 0;
+  /* The room the destination leaves, but at least the front time's width (EtaStack.tsx sets it). */
+  flex: 1 1 0;
   height: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent 0, #000 32px);
+}
+/* A route's destination takes only its own width, so a short one leaves the queue in sight and a long one covers it. */
+.dashboard-dest[data-over-queue] {
+  flex: 0 1 auto;
 }
 .dashboard-stack-item {
   position: absolute;

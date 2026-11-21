@@ -102,6 +102,9 @@ for (const screen of SCREENS) {
       await expect(rows.nth(0)).toContainText('Morden');
       expect(await stackOf(rows.nth(0))).toEqual(['front:2min', 'queued1:9min', 'queued2:15min', 'queued3:21min']);
       await expect(rows.nth(1)).toContainText('Harrow & Wealdstone');
+      // A long destination keeps its whole name, coming in over the queue rather than giving way to it.
+      const name = rows.nth(1).locator('.dashboard-dest strong');
+      expect(await name.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
       expect(await stackOf(rows.nth(2))).toEqual(['front:5min', 'queued1:12min']);
       expect(await stackOf(rows.nth(3))).toEqual(['front:16min']);
 
