@@ -293,6 +293,26 @@ describe('a route’s queue of times', () => {
     expect(faces('queued1')).toEqual([':8 min']);
   });
 
+  it('starts a move that interrupts another from wherever that one had got to', () => {
+    const animate = vi.fn();
+    const cancel = vi.fn();
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }));
+    Object.defineProperties(HTMLElement.prototype, {
+      animate: { value: animate, configurable: true },
+      getAnimations: { value: () => [{ cancel }], configurable: true }
+    });
+    try {
+      const { rerender } = render(stack([later(2, 'a'), later(9, 'b')], NOW));
+      const firstLeft = new Date(NOW.getTime() + 3 * 60_000);
+      rerender(stack([later(9, 'b')], firstLeft));
+      expect(cancel).toHaveBeenCalled();
+      expect(animate).toHaveBeenCalled();
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'animate');
+      Reflect.deleteProperty(HTMLElement.prototype, 'getAnimations');
+    }
+  });
+
   it('moves each one to its new place, after a changed minute has rolled, and not at all under reduced motion', () => {
     const animate = vi.fn();
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }));

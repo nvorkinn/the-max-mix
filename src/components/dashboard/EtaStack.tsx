@@ -6,12 +6,11 @@ import { ROW_FADE_MS } from './AnimatedRows';
 const PLACES = 4;
 
 /** Each place's look: how much smaller, how far turned to face the front and how dim, further back each time. */
-const LOOKS = [
-  { scale: 1, turn: 0, opacity: 1 },
-  { scale: 0.9, turn: 34, opacity: 0.5 },
-  { scale: 0.8, turn: 40, opacity: 0.3 },
-  { scale: 0.7, turn: 46, opacity: 0 }
-] as const;
+function lookAt(place: number): { scale: number; turn: number; opacity: number } {
+  return { scale: 1 - 0.1 * place, turn: Math.min(place, 1) * 28 + 6 * place, opacity: OPACITY[place] ?? 0 };
+}
+/** How bright each place is: the front, then the waiting ones; any further back wait out of sight, to come in from there. */
+const OPACITY = [1, 0.5, 0.3];
 /** How much of its width a turned time takes up on screen. */
 const TURNED_WIDTH = 0.82;
 /** The space between a time and the one waiting behind it. */
@@ -53,38 +52,27 @@ function hasLeft(previous: { expectedAt: string }, next: { expectedAt: string } 
   return due <= now.getTime() && (next === undefined || Date.parse(next.expectedAt) - due >= LATER_TRIP_MS);
 }
 
-/** Where each place's right edge sits, leftwards from the front's, given each place's measured width. */
-function offsets(widths: readonly number[]): number[] {
-  const result = [0];
+/**
+ * Where each place sits and how it looks, given each place's measured width: each one's right edge just behind the
+ * left edge of the one in front of it; and how wide the queue is, to the furthest one still showing, so the
+ * destination keeps the rest.
+ */
+function layout<T>(items: readonly T[], widths: readonly number[]) {
   let edge = 0;
-  for (let place = 1; place < PLACES; place++) {
-    const ahead = place - 1;
-    const width = widths[ahead] ?? UNMEASURED_WIDTH;
-    const look = LOOKS[ahead] ?? LOOKS[0];
-    edge -= width * look.scale * (ahead === 0 ? 1 : TURNED_WIDTH) + GAP;
-    result.push(edge);
-  }
-  return result;
+  let width = 0;
+  const placed = items.map((item, place) => {
+    const look = lookAt(place);
+    const drawnWidth = (widths[place] ?? UNMEASURED_WIDTH) * look.scale * (place === 0 ? 1 : TURNED_WIDTH);
+    if (look.opacity > 0) width = -edge + drawnWidth;
+    const style = {
+      transform: `translateY(-50%) translateX(${String(edge)}px) scale(${String(look.scale)}) perspective(180px) rotateY(${String(look.turn)}deg)`,
+      opacity: look.opacity
+    };
+    edge -= drawnWidth + GAP;
+    return { ...item, style };
+  });
+  return { placed, width: Math.ceil(width) };
 }
-
-/** How wide the queue is: to the left edge of the furthest time still showing, so the destination keeps the rest. */
-function queueWidth(widths: readonly number[], places: number): number {
-  const x = offsets(widths);
-  let width = widths[0] ?? UNMEASURED_WIDTH;
-  for (let place = 1; place < Math.min(places, PLACES); place++) {
-    const look = LOOKS[place] ?? LOOKS[0];
-    if (look.opacity === 0) break;
-    width = -(x[place] ?? 0) + (widths[place] ?? UNMEASURED_WIDTH) * look.scale * TURNED_WIDTH;
-  }
-  return Math.ceil(width);
-}
-
-function transformAt(place: number, x: number): string {
-  const look = LOOKS[Math.min(place, PLACES - 1)] ?? LOOKS[0];
-  return `translateY(-50%) translateX(${String(x)}px) scale(${String(look.scale)}) perspective(180px) rotateY(${String(look.turn)}deg)`;
-}
-
-const opacityAt = (place: number) => (LOOKS[Math.min(place, PLACES - 1)] ?? LOOKS[0]).opacity;
 
 /**
  * A route's next departures as a queue, as on a rolodex: the next one's time at the front, as on any row, and the ones
@@ -122,8 +110,7 @@ export default function EtaStack<D extends { expectedAt: string }>({
   }));
 
   // Untracked, an element stands for a place in the line, and the front leaving moves every place up.
-  const vehicles = shown.map(departure => keyOf(departure));
-  const tracked = vehicles.every(key => key !== undefined);
+  const tracked = shown.every(departure => keyOf(departure) !== undefined);
   let { generation } = queue;
   const front = shown[0];
   const frontLeft =
@@ -134,7 +121,7 @@ export default function EtaStack<D extends { expectedAt: string }>({
     hasLeft(queue.front, front, now);
   if (frontLeft) generation += 1;
   const items: Drawn[] = shown.map((departure, place) => ({
-    key: tracked ? `v:${vehicles[place] ?? ''}` : `p:${String(generation + place)}`,
+    key: tracked ? `v:${String(keyOf(departure))}` : `p:${String(generation + place)}`,
     place,
     label: labelOf(departure),
     face: render(departure)
@@ -176,23 +163,20 @@ export default function EtaStack<D extends { expectedAt: string }>({
   // Each place's width as drawn, so each waiting time sits just behind the one in front of it, whatever it says.
   const [widths, setWidths] = useState<readonly number[]>([]);
   const elementsRef = useRef(new Map<string, HTMLElement>());
-  const x = offsets(widths);
-  const styles = new Map(
-    items.map(({ key, place }) => [key, { transform: transformAt(place, x[place] ?? 0), opacity: opacityAt(place) }])
-  );
+  const arranged = layout(items, widths);
+  const { placed } = arranged;
 
   // Each element moves from where it was drawn to its new place; one that drops back dims as the other passes it.
   const drawnRef = useRef(new Map<string, { place: number; transform: string; opacity: number }>());
-  const styleSignature = items.map(({ key }) => `${key}:${styles.get(key)?.transform ?? ''}`).join(' ');
+  const styleSignature = placed.map(({ key, style }) => `${key}:${style.transform}`).join(' ');
   useLayoutEffect(() => {
     const before = drawnRef.current;
     const rolling = rolled.size > 0;
     const after = new Map<string, { place: number; transform: string; opacity: number }>();
     const measured: number[] = [];
-    for (const { key, place } of items) {
+    for (const { key, place, style } of placed) {
       const element = elementsRef.current.get(key);
-      const style = styles.get(key);
-      if (!element || !style) continue;
+      if (!element) continue;
       measured[place] = element.offsetWidth;
       after.set(key, { place, ...style });
       const was = before.get(key);
@@ -226,27 +210,23 @@ export default function EtaStack<D extends { expectedAt: string }>({
     // Measuring has to follow drawing; the widths settle after one more pass.
     // eslint-disable-next-line @eslint-react/set-state-in-effect -- set only when a width changed.
     if (measured.some((width, place) => Math.abs(width - (widths[place] ?? -1)) >= 1)) setWidths(measured);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `items` and `styles` are summed up by the signature.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `placed` is summed up by the signature.
   }, [styleSignature]);
 
-  const goneStyles = gone.map(({ key, place }) => ({
-    key,
-    transform: drawnRef.current.get(key)?.transform ?? transformAt(place, x[place] ?? 0)
-  }));
   return (
-    <span className="dashboard-stack" style={{ width: queueWidth(widths, items.length) }}>
-      {gone.map(({ key, face }, index) => (
+    <span className="dashboard-stack" style={{ width: arranged.width }}>
+      {gone.map(({ key, face }) => (
         <span
           key={`gone:${key}`}
           className="dashboard-stack-item"
           data-slot="gone"
-          style={{ transform: goneStyles[index]?.transform }}
+          style={{ transform: drawnRef.current.get(key)?.transform }}
           aria-hidden
         >
           {face}
         </span>
       ))}
-      {items.map(({ key, place, label, face }) => (
+      {placed.map(({ key, place, label, face, style }) => (
         <span
           key={key}
           ref={element => {
@@ -255,8 +235,8 @@ export default function EtaStack<D extends { expectedAt: string }>({
           }}
           className="dashboard-stack-item"
           data-slot={place === 0 ? 'front' : `queued${String(place)}`}
-          style={styles.get(key)}
-          aria-hidden={place > 0 && opacityAt(place) === 0 ? true : undefined}
+          style={style}
+          aria-hidden={style.opacity === 0 ? true : undefined}
         >
           {rolled.has(key) && (
             <span key={`out:${label}`} className="dashboard-stack-face" data-roll="out" aria-hidden>
