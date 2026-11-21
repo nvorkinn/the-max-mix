@@ -42,7 +42,8 @@ the units are enabled but not started, and runs it again to check that nothing c
 `audit.yml` scans the lockfile weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in
 `all-checks.yml`.
 
-`dependabot.yml` opens daily grouped update PRs for the npm project and the GitHub Actions used here.
+`dependabot.yml` opens one daily update PR for the whole project: its npm, uv and GitHub Actions entries share a
+multi-ecosystem group.
 
 - **Required check:** `Global PR Status`.
 - **Repository setting:** Settings > Actions > General > Workflow permissions >
