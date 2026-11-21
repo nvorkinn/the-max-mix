@@ -1,7 +1,7 @@
-// Musixmatch as a lyrics source of the kiosk service (lyrics.ts), through the API its desktop app uses
-// (apic-desktop.musixmatch.com), as syncedlyrics and onetagger do. That API needs no key, only a user token the API
-// itself hands out (token.get), which is then sent with every call. It has line-timed lyrics ("subtitles") and, for
-// many songs, word-timed ones ("richsync"), and its search says which a song has and whether it is instrumental.
+// Musixmatch as a lyrics source of the kiosk service (lyrics.ts), through the API its desktop app uses, as syncedlyrics
+// and onetagger do. That API needs no key, only a user token the API itself hands out (token.get), which is then sent
+// with every call. It has line-timed lyrics ("subtitles") and, for many songs, word-timed ones ("richsync"), and its
+// search says which a song has and whether it is instrumental.
 import { count, HttpError, list, lrcTime, record, text } from './lyrics-sources.ts';
 import type { Candidate, GetJson, LyricsSource } from './lyrics-sources.ts';
 
