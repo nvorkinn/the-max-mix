@@ -218,78 +218,101 @@ describe('the backdrop', () => {
   });
 });
 
-describe('a route’s stack of times', () => {
+describe('a route’s queue of times', () => {
   const NOW = new Date('2026-11-20T09:00:00Z');
-  const later = (minutes: number) => ({ expectedAt: new Date(NOW.getTime() + minutes * 60_000).toISOString() });
+  interface Trip {
+    expectedAt: string;
+    vehicle?: string;
+  }
+  const later = (minutes: number, vehicle?: string): Trip => ({
+    expectedAt: new Date(NOW.getTime() + minutes * 60_000).toISOString(),
+    ...(vehicle !== undefined && { vehicle })
+  });
   const times = (...minutes: number[]) => minutes.map(minute => later(minute));
-  const stack = (departures: readonly { expectedAt: string }[], now: Date) => (
-    <EtaStack departures={departures} now={now} render={({ expectedAt }) => expectedAt.slice(11, 16)} />
+  const minutesAt = (trip: Trip, now: Date) =>
+    String(Math.round((Date.parse(trip.expectedAt) - now.getTime()) / 60_000));
+  const stack = (departures: readonly Trip[], now: Date) => (
+    <EtaStack
+      departures={departures}
+      now={now}
+      keyOf={trip => trip.vehicle}
+      labelOf={trip => minutesAt(trip, now)}
+      render={trip => `${minutesAt(trip, now)} min`}
+    />
   );
   const slots = (container: HTMLElement) =>
-    [...container.querySelectorAll<HTMLElement>('.dashboard-stack-item')].map(
-      item => `${item.dataset['slot'] ?? ''}:${item.textContent}`
+    [...container.querySelectorAll<HTMLElement>(':scope .dashboard-stack-item')].map(
+      // What each says now: a minute rolling away has gone.
+      item =>
+        `${item.dataset['slot'] ?? ''}:${item.querySelector(':scope > :not([data-roll="out"])')?.textContent ?? ''}`
     );
 
-  it('shows up to three later times on cards behind the next one', () => {
-    const { container } = render(
-      stack(
-        [2, 9, 15, 21, 27].map(minutes => later(minutes)),
-        NOW
-      )
-    );
-    expect(slots(container)).toEqual(['front:09:02', 'card1:09:09', 'card2:09:15', 'card3:09:21']);
+  it('queues up to three later times behind the next one', () => {
+    const { container } = render(stack(times(2, 9, 15, 21, 27), NOW));
+    expect(slots(container)).toEqual(['front:2 min', 'queued1:9 min', 'queued2:15 min', 'queued3:21 min']);
   });
 
-  it('moves each card up a place when the front one leaves, which fades where it was', () => {
+  it('moves each one up a place when the front one leaves, which fades where it was', () => {
     const { container, rerender } = render(stack(times(2, 9, 15), NOW));
-    const card = container.querySelector('[data-slot="card1"]');
-    const after = new Date(NOW.getTime() + 3 * 60_000);
-    rerender(
-      stack(
-        [9, 15].map(minutes => later(minutes)),
-        after
-      )
-    );
-    expect(slots(container)).toEqual(['gone:09:02', 'front:09:09', 'card1:09:15']);
-    // The card keeps its element as it moves up, so it slides rather than reappearing.
-    expect(container.querySelector('[data-slot="front"]')).toBe(card);
+    const next = container.querySelector('[data-slot="queued1"]');
+    const gone = new Date(NOW.getTime() + 2.5 * 60_000);
+    rerender(stack(times(2, 9, 15), gone));
+    rerender(stack(times(9, 15), gone));
+    expect(slots(container)[0]).toMatch(/^gone:/);
+    expect(slots(container).slice(1)).toEqual(['front:7 min', 'queued1:13 min']);
+    // It keeps its element as it moves up, so it slides rather than reappearing.
+    expect(container.querySelector('[data-slot="front"]')).toBe(next);
     run(ROW_FADE_MS);
-    expect(slots(container)).toEqual(['front:09:09', 'card1:09:15']);
-  });
-
-  it('slides each card up to its new place, and skips the slide under reduced motion', () => {
-    const animate = vi.fn();
-    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }));
-    Object.defineProperty(HTMLElement.prototype, 'animate', { value: animate, configurable: true });
-    try {
-      const { rerender } = render(stack(times(2, 9, 15), NOW));
-      const firstLeft = new Date(NOW.getTime() + 3 * 60_000);
-      rerender(stack(times(9, 15), firstLeft));
-      // The new front slides and sheds its card; the card behind it slides up a place.
-      expect(animate).toHaveBeenCalledTimes(3);
-      animate.mockClear();
-      vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query }));
-      const secondLeft = new Date(NOW.getTime() + 10 * 60_000);
-      rerender(stack(times(15), secondLeft));
-      expect(animate).not.toHaveBeenCalled();
-    } finally {
-      Reflect.deleteProperty(HTMLElement.prototype, 'animate');
-    }
+    expect(slots(container)).toEqual(['front:7 min', 'queued1:13 min']);
   });
 
   it('does not count a front that changed time but has not left', () => {
-    const { container, rerender } = render(
-      stack(
-        [5, 9].map(minutes => later(minutes)),
-        NOW
-      )
-    );
-    rerender(
-      stack(
-        [6, 9].map(minutes => later(minutes)),
-        NOW
-      )
-    );
-    expect(slots(container)).toEqual(['front:09:06', 'card1:09:09']);
+    const { container, rerender } = render(stack(times(5, 9), NOW));
+    rerender(stack(times(6, 9), NOW));
+    expect(slots(container)).toEqual(['front:6 min', 'queued1:9 min']);
+  });
+
+  it('follows each vehicle, so one that overtakes another takes its place', () => {
+    const { container, rerender } = render(stack([later(2, 'a'), later(9, 'b'), later(15, 'c')], NOW));
+    const third = container.querySelector('[data-slot="queued2"]');
+    rerender(stack([later(2, 'a'), later(7, 'c'), later(9, 'b')], NOW));
+    expect(container.querySelector('[data-slot="queued1"]')).toBe(third);
+    expect(slots(container)).toEqual(['front:2 min', 'queued1:7 min', 'queued2:9 min']);
+  });
+
+  it('rolls a changed minute into place, the old one rolling away', () => {
+    const { container, rerender } = render(stack([later(2, 'a'), later(9, 'b')], NOW));
+    rerender(stack([later(2, 'a'), later(8, 'b')], NOW));
+    const faces = (slot: string) =>
+      [...container.querySelectorAll<HTMLElement>(`[data-slot="${CSS.escape(slot)}"] .dashboard-stack-face`)].map(
+        face => `${face.dataset['roll'] ?? ''}:${face.textContent}`
+      );
+    expect(faces('queued1')).toEqual(['out:9 min', 'in:8 min']);
+    expect(faces('front')).toEqual([':2 min']);
+    run(ROW_FADE_MS);
+    expect(faces('queued1')).toEqual([':8 min']);
+  });
+
+  it('moves each one to its new place, after a changed minute has rolled, and not at all under reduced motion', () => {
+    const animate = vi.fn();
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }));
+    Object.defineProperties(HTMLElement.prototype, {
+      animate: { value: animate, configurable: true },
+      getAnimations: { value: () => [], configurable: true }
+    });
+    try {
+      const { rerender } = render(stack([later(2, 'a'), later(9, 'b'), later(15, 'c')], NOW));
+      animate.mockClear();
+      rerender(stack([later(2, 'a'), later(7, 'c'), later(9, 'b')], NOW));
+      expect(animate).toHaveBeenCalled();
+      expect(animate.mock.calls.every(([, timing]) => (timing as { delay: number }).delay > 0)).toBe(true);
+      animate.mockClear();
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query }));
+      rerender(stack([later(2, 'a'), later(9, 'b'), later(15, 'c')], NOW));
+      expect(animate).not.toHaveBeenCalled();
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'animate');
+      Reflect.deleteProperty(HTMLElement.prototype, 'getAnimations');
+    }
   });
 });

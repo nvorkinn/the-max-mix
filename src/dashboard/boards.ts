@@ -105,6 +105,7 @@ function board(
       const mode = departure.mode ?? stop.mode;
       return {
         vehicleId: ids[index] ?? '',
+        ...(departure.vehicle_id !== null && { tracked: true as const }),
         mode,
         line: departure.line,
         lineId: lineIdOf(departure.line),

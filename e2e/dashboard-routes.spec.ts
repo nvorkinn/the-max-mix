@@ -5,7 +5,7 @@ import { dashboardConfig, fakeCountdownServer, fakeFeed } from './fake-countdown
 import { fakeSpotify } from './fake-spotify.ts';
 
 // Grouped by route (the config's arrivals.group_by_route), a board has a row per route (line and destination) with its
-// next time in front and the two after it on cards waiting behind it, instead of a row per departure.
+// next time in front and the ones after it queued behind it, instead of a row per departure.
 
 const SCREENS = [{ width: 1280, height: 800 }] as const;
 
@@ -84,14 +84,14 @@ const stackOf = (row: Locator) =>
   row.locator('.dashboard-stack-item').evaluateAll(items =>
     items.map(
       item =>
-        // eslint-disable-next-line unicorn/prefer-dom-node-text-content -- a card's hidden "min" must not count.
+        // eslint-disable-next-line unicorn/prefer-dom-node-text-content -- what shows, not the markup's spacing.
         `${(item as HTMLElement).dataset['slot'] ?? ''}:${(item as HTMLElement).innerText.replaceAll(/\s+/g, '')}`
     )
   );
 
 for (const screen of SCREENS) {
   test(
-    `a route shows once, its next time in front and the later ones on cards behind, at ${screen.width}x${screen.height}`,
+    `a route shows once, its next time in front and the later ones queued behind it, at ${screen.width}x${screen.height}`,
     { tag: '@layout' },
     async ({ page }) => {
       await showGrouped(page, screen);
@@ -100,15 +100,15 @@ for (const screen of SCREENS) {
       await expect(rows).toHaveCount(4);
       // Northern to Morden once, at 2 minutes, with 9, 15 and 21 waiting behind it.
       await expect(rows.nth(0)).toContainText('Morden');
-      expect(await stackOf(rows.nth(0))).toEqual(['front:2min', 'card1:9', 'card2:15', 'card3:21']);
+      expect(await stackOf(rows.nth(0))).toEqual(['front:2min', 'queued1:9min', 'queued2:15min', 'queued3:21min']);
       await expect(rows.nth(1)).toContainText('Harrow & Wealdstone');
-      expect(await stackOf(rows.nth(2))).toEqual(['front:5min', 'card1:12']);
+      expect(await stackOf(rows.nth(2))).toEqual(['front:5min', 'queued1:12min']);
       expect(await stackOf(rows.nth(3))).toEqual(['front:16min']);
 
-      // The 2-minute train goes: the 9-minute card moves up to the front, and the others a place each.
+      // The 2-minute train goes: the 9-minute one moves up to the front, and the others a place each.
       await page.clock.setFixedTime(new Date(DASHBOARD_NOW.getTime() + 3.5 * 60_000));
       const morden = rows.filter({ hasText: 'Morden' });
-      await expect.poll(() => stackOf(morden)).toEqual(['front:6min', 'card1:12', 'card2:18']);
+      await expect.poll(() => stackOf(morden)).toEqual(['front:6min', 'queued1:12min', 'queued2:18min']);
     }
   );
 }

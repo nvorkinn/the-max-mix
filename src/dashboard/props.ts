@@ -149,6 +149,11 @@ interface DepartureBase {
    * when predictions reorder. Unique within a board.
    */
   vehicleId: string;
+  /**
+   * Whether `vehicleId` is the source's own, so it follows one vehicle: absent where the source gives none (Entur, a
+   * train TfL hasn't matched to a set) and the key only counts the departures of its line and destination.
+   */
+  tracked?: true;
   destination: string;
   /** When it is due, as an ISO time; the board counts down from `now`. */
   expectedAt: string;

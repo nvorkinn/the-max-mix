@@ -5,7 +5,7 @@ import type { Departure, Network, StopBoardProps } from '../../dashboard/props';
 import AnimatedRows from './AnimatedRows';
 import { byVehicle, Destination, Minutes, routeRows, ScheduledTime, visibleDepartures } from './DepartureRows';
 import EtaStack from './EtaStack';
-import { FALLBACK_LINE_COLOURS, LINE_COLOURS, pillName } from './icons';
+import { FALLBACK_LINE_COLOURS, LINE_COLOURS, minutesUntil, pillName } from './icons';
 
 /** Each network's mark, which heads its stops' boards. */
 const MARKS: Record<Network, { src: string; name: string; className: string }> = {
@@ -49,7 +49,7 @@ function Time({ departure, now }: Readonly<{ departure: Departure; now: Date }>)
 /**
  * A stop's departures, whatever their modes, headed with its network's mark, its name and (a bus stop's) letter: four
  * rows, soonest first, keyed by the vehicle so a row follows its bus or train. Grouped by route, a row is a route
- * instead, keyed by it, with its next time and the later ones on cards waiting behind it (EtaStack).
+ * instead, keyed by it, with its next time and the later ones queued behind it (EtaStack).
  */
 export default function DepartureBoard({
   network,
@@ -88,6 +88,8 @@ export default function DepartureBoard({
                 <EtaStack
                   departures={[next, ...later]}
                   now={now}
+                  keyOf={departure => (departure.tracked ? departure.vehicleId : undefined)}
+                  labelOf={departure => departure.scheduledAt ?? String(minutesUntil(departure.expectedAt, now))}
                   render={departure => <Time departure={departure} now={now} />}
                 />
               </>

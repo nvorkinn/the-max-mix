@@ -1141,14 +1141,13 @@ button.dashboard-notice {
   opacity: 0.8;
 }
 /*
-  A route's row (grouped by route): its next time big on the right, as on any row, and up to three after it on cards
-  waiting to its left, each a step further back. Each time keeps its element as it moves up the stack, so only
-  transforms and opacity change.
+  A route's row (grouped by route): its next time big on the right, as on any row, and the ones after it queued to its
+  left as on a rolodex, in the same lettering, each a little smaller, dimmer and turned to face the front. Where each
+  sits, and its moves, are set by EtaStack.tsx; only transforms and opacity change.
 */
 .dashboard-stack {
   position: relative;
   flex-shrink: 0;
-  width: 186px;
   height: 100%;
 }
 .dashboard-stack-item {
@@ -1158,45 +1157,44 @@ button.dashboard-notice {
   transform-origin: right center;
   z-index: 4;
 }
-/* The card under a waiting time; the front one has none. */
-.dashboard-stack-item::before {
-  content: '';
-  position: absolute;
-  inset: -10px -12px;
-  border-radius: 16px;
-  background: rgb(38 44 62 / 92%);
-  border: 1px solid rgb(255 255 255 / 16%);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 40%);
-  opacity: 0;
+.dashboard-stack-face {
+  display: block;
 }
-.dashboard-stack-item > * {
-  position: relative;
-}
-/* Right-aligned at the front; on a card, the minutes alone, centred, every card the same width. */
 .dashboard-stack .dashboard-mins {
   min-width: 0;
 }
-.dashboard-stack-item:not([data-slot='front']) .dashboard-mins {
-  min-width: 42px;
-  justify-content: center;
-}
-.dashboard-stack-item:not([data-slot='front']) small {
-  display: none;
-}
-.dashboard-stack-item:not([data-slot='front'], [data-slot='gone'])::before {
-  opacity: 1;
-}
-.dashboard-stack-item[data-slot='card1'] {
+.dashboard-stack-item[data-slot='queued1'] {
   z-index: 3;
 }
-.dashboard-stack-item[data-slot='card2'] {
+.dashboard-stack-item[data-slot='queued2'] {
   z-index: 2;
 }
-.dashboard-stack-item[data-slot='card3'] {
+.dashboard-stack-item[data-slot='queued3'] {
   z-index: 1;
-  animation: dashboard-fade-in 400ms ease both;
 }
-/* The one that has left fades where it was, under the card moving up to take its place. */
+/* A changed minute rolls up into place, the old one rolling away above it. */
+.dashboard-stack-face[data-roll='in'] {
+  animation: dashboard-roll-in 350ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.dashboard-stack-face[data-roll='out'] {
+  position: absolute;
+  right: 0;
+  top: 0;
+  animation: dashboard-roll-out 350ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+@keyframes dashboard-roll-in {
+  from {
+    opacity: 0;
+    transform: translateY(40%);
+  }
+}
+@keyframes dashboard-roll-out {
+  to {
+    opacity: 0;
+    transform: translateY(-40%);
+  }
+}
+/* One that has left fades where it was, under the one moving up to take its place. */
 .dashboard-stack-item[data-slot='gone'] {
   z-index: 0;
   animation: dashboard-fade-out 400ms ease both;

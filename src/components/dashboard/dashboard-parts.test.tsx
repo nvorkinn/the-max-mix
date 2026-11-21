@@ -88,7 +88,7 @@ describe('TabBar', () => {
 });
 
 describe('DepartureBoard', () => {
-  it('grouped by route, shows each route once with its later times on cards behind the next', () => {
+  it('grouped by route, shows each route once with its later times queued behind the next', () => {
     const [first] = SAMPLE.bus.departures;
     if (!first) throw new Error('no sample departure');
     const at = (minutes: number) => new Date(SAMPLE_NOW.getTime() + minutes * 60_000).toISOString();
@@ -114,7 +114,7 @@ describe('DepartureBoard', () => {
     expect(rows).toHaveLength(2);
     const slots = (row: Element | undefined) =>
       [...(row?.querySelectorAll<HTMLElement>('.dashboard-stack-item') ?? [])].map(item => item.dataset['slot']);
-    expect(slots(rows[0])).toEqual(['front', 'card1', 'card2', 'card3']);
+    expect(slots(rows[0])).toEqual(['front', 'queued1', 'queued2', 'queued3']);
     expect(slots(rows[1])).toEqual(['front']);
   });
 
