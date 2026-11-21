@@ -1147,7 +1147,7 @@ button.dashboard-notice {
 */
 .dashboard-stack {
   position: relative;
-  /* The room the destination leaves, but at least the front time's width (EtaStack.tsx sets it). */
+  /* The room the destination leaves, but at least the front time and the next (EtaStack.tsx sets it). */
   flex: 1 1 0;
   height: 100%;
   overflow: hidden;
