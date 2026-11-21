@@ -15,6 +15,7 @@ blockinfile
 bluetoothctl
 bluez
 bootfs
+cacheinfo
 cenc
 chdir
 chpasswd
@@ -53,8 +54,9 @@ getaa
 getconf
 getent
 getty
-gitsubmodule
+gitlink
 groupadd
+gsub
 gzzlukng
 gzzluksx
 gzzluovl

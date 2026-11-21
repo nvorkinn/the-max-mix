@@ -56,12 +56,3 @@ updates:
     groups:
       actions-minor-patch:
         update-types: [minor, patch]
-
-  # vendor/countdown-api: a new commit of the store contract's main shows up as a PR, whose typecheck checks the app
-  # against it.
-  - package-ecosystem: gitsubmodule
-    directory: /
-    schedule:
-      interval: daily
-    commit-message:
-      prefix: 'chore(deps)'
