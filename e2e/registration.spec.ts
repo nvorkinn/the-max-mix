@@ -87,8 +87,9 @@ test.describe('Registering with countdown-server', { tag: '@registration' }, () 
 
     const secret = await page.evaluate(() => localStorage.getItem('maxmix.deviceSecret'));
     await problem.getByRole('button', { name: 'Try again' }).click();
+    // Try again asks the Pi what its screen is before it goes back to the server.
+    await expect.poll(() => visits.length).toBe(2);
     await expect(problem).toBeVisible();
-    expect(visits).toHaveLength(2);
     expect(visits[1]?.searchParams.get('secret_hash')).toBe(visits[0]?.searchParams.get('secret_hash'));
     expect(await page.evaluate(() => localStorage.getItem('maxmix.deviceSecret'))).toBe(secret);
 
