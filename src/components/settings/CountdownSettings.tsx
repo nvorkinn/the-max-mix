@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { GripVertical, Search, X } from 'lucide-react';
+import groupedOff from '../../assets/settings/group-by-route-off.gif';
+import groupedOn from '../../assets/settings/group-by-route-on.gif';
 import type { TouchscreenConfig } from 'countdown-api';
 import { describeStop, learnStopNames, rememberStop } from '../../countdown/search';
 import type { DeviceConfig } from '../../hooks/useDeviceConfig';
@@ -10,7 +12,7 @@ import StopSearch from './StopSearch';
 /**
  * The stops whose departures the Countdown lists: a search box that opens the stop search over the whole screen
  * (StopSearch), then the saved stops in the Countdown's order, each with a handle to drag it to another place and an X
- * that removes it, and whether the Dashboard's boards group them by route. Every change saves to countdown-server on its
+ * that removes it, and whether the Dashboard's boards group them by route, with a moving picture of the boards either way. Every change saves to countdown-server on its
  * own as soon as it is made.
  */
 export default function CountdownSettings({
@@ -57,18 +59,25 @@ export default function CountdownSettings({
         <h5 className="settings-group-title" id="group-by-route-label">
           {t('countdown.group_by_route')}
         </h5>
-        <div className="settings-segmented" role="group" aria-labelledby="group-by-route-label">
-          {[false, true].map(value => (
-            <button
-              type="button"
-              key={String(value)}
-              aria-pressed={groupByRoute === value}
-              onClick={() => onSave('arrivals', { ...config.arrivals, group_by_route: value })}
-              className="settings-segment"
-            >
-              {t(value ? 'common.on' : 'common.off')}
-            </button>
-          ))}
+        <div className="countdown-grouping-row">
+          <div className="settings-segmented" role="group" aria-labelledby="group-by-route-label">
+            {[false, true].map(value => (
+              <button
+                type="button"
+                key={String(value)}
+                aria-pressed={groupByRoute === value}
+                onClick={() => onSave('arrivals', { ...config.arrivals, group_by_route: value })}
+                className="settings-segment"
+              >
+                {t(value ? 'common.on' : 'common.off')}
+              </button>
+            ))}
+          </div>
+          <img
+            src={groupByRoute ? groupedOn : groupedOff}
+            alt={t(groupByRoute ? 'countdown.grouped_on' : 'countdown.grouped_off')}
+            className="countdown-grouping-preview"
+          />
         </div>
       </section>
 

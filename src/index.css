@@ -2359,6 +2359,27 @@ body:has(.app-dialog[open]) {
 .countdown-grouping {
   flex-shrink: 0;
 }
+/* The switch beside a picture of the boards it gives: the 2x GIF at a quarter of its width, a third on the 10" screen. */
+.countdown-grouping-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.countdown-grouping-row .settings-segmented {
+  flex: 1;
+}
+.countdown-grouping-preview {
+  flex-shrink: 0;
+  width: 242px;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+@media (width >= 1200px) and (height >= 760px) {
+  .countdown-grouping-preview {
+    width: 322px;
+  }
+}
 .countdown-column {
   flex: 1;
   min-height: 0;
