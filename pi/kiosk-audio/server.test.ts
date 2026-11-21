@@ -147,6 +147,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
         return Promise.resolve();
       }
     },
+    screen: () => Promise.resolve({ width: 1280, height: 800, brightness_control: false }),
     phone: {
       start: () => {
         phoneStarts.push('start');
@@ -311,6 +312,20 @@ describe('GET /speakers', () => {
   it('says when PipeWire cannot be read', async () => {
     const base = await start(fakes({ graph: () => Promise.reject(new Error('no PipeWire')) }).deps);
     expect((await fetch(`${base}/speakers`)).status).toBe(503);
+  });
+});
+
+describe('GET /screen', () => {
+  it('answers the app with the screen', async () => {
+    const base = await start(fakes().deps);
+    const response = await fetch(`${base}/screen`);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ width: 1280, height: 800, brightness_control: false });
+  });
+
+  it('says when there is no screen', async () => {
+    const base = await start(fakes({ screen: () => Promise.resolve(null) }).deps);
+    expect((await fetch(`${base}/screen`)).status).toBe(503);
   });
 });
 

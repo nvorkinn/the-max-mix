@@ -8,7 +8,7 @@ vi.mock('./spotify/auth', () => ({ completeSignIn: vi.fn() }));
 vi.mock('./countdown/registration', () => ({
   completeRegistration: vi.fn(() => null),
   needsRegistration: vi.fn(() => false),
-  startRegistration: vi.fn(() => Promise.resolve())
+  startRegistration: vi.fn(() => Promise.resolve(true))
 }));
 
 describe('main', () => {
@@ -50,5 +50,13 @@ describe('main', () => {
     await start(() => Promise.resolve(null));
     expect(registration.startRegistration).toHaveBeenCalled();
     expect(document.querySelector('#root')).toBeEmptyDOMElement();
+  });
+
+  it('starts unregistered when the Pi cannot say what its screen is', async () => {
+    const registration = await import('./countdown/registration');
+    vi.mocked(registration.needsRegistration).mockReturnValueOnce(true);
+    vi.mocked(registration.startRegistration).mockResolvedValueOnce(false);
+    await start(() => Promise.resolve(null));
+    expect(await screen.findByText('no sign-in error')).toBeInTheDocument();
   });
 });

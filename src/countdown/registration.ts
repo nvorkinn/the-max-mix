@@ -1,12 +1,14 @@
 // The kiosk's identity on countdown-server. The kiosk makes up its own secret and keeps it, with the device ID the
 // server gives it, in localStorage. To register, the whole page goes to the server's /register page (behind the
-// sign-in, so the person signing in becomes the screen's owner) with only the secret's SHA-256 hash, never the secret;
-// the server sends the browser back to `return_to` with `device_id`, or `error=taken` when someone else owns it.
+// sign-in, so the person signing in becomes the screen's owner) with only the secret's SHA-256 hash, never the secret,
+// and the screen as the Pi reports it (its size, and whether its brightness can be set); the server sends the browser
+// back to `return_to` with `device_id`, or `error=taken` when someone else owns it.
 
 import type { TouchscreenRegistration } from 'countdown-api';
 import { registerTouchscreenUrl } from '../../vendor/countdown-api/src/countdown_api/client';
 import { leaveFor } from '../spotify/settings';
 import { isKiosk } from '../utils/kiosk';
+import { KIOSK_SERVICE } from '../utils/kioskService';
 import { countdownServer } from './server';
 
 const SECRET_KEY = 'maxmix.deviceSecret';
@@ -91,24 +93,49 @@ export function needsRegistration(): boolean {
   return isKiosk() && countdownServer() !== null && deviceCredentials() === null && canStore();
 }
 
+/** The Pi's screen, as the kiosk's service reads it from the kernel (pi/kiosk-audio/screen.ts). */
+export type KioskScreen = Pick<TouchscreenRegistration, 'width' | 'height' | 'brightness_control'>;
+
+/** The screen as the Pi reports it (GET /screen), or null when the Pi cannot say. */
+export async function kioskScreen(): Promise<KioskScreen | null> {
+  try {
+    const response = await fetch(`${KIOSK_SERVICE}/screen`);
+    if (!response.ok) return null;
+    const { width, height, brightness_control } = (await response.json()) as Record<string, unknown>;
+    const isSize = (value: unknown): value is number => Number.isInteger(value) && (value as number) > 0;
+    if (!isSize(width) || !isSize(height) || typeof brightness_control !== 'boolean') return null;
+    return { width, height, brightness_control };
+  } catch {
+    return null;
+  }
+}
+
 /** The /register address for this kiosk's secret and screen. */
-export async function registrationAddress(server: string, secret: string): Promise<string> {
+export async function registrationAddress(server: string, secret: string, screen: KioskScreen): Promise<string> {
   const back = new URL('/', location.origin);
   back.searchParams.set(RETURN_MARK, RETURN_VALUE);
   const fields: TouchscreenRegistration = {
     secret_hash: await secretHash(secret),
-    width: screen.width,
-    height: screen.height,
+    ...screen,
     return_to: back.href
   };
   return registerTouchscreenUrl(server, fields).href;
 }
 
-/** Sends the whole page to the server's /register page. Keeps the secret it had, so a retry registers the same screen. */
-export async function startRegistration(): Promise<void> {
+/**
+ * Sends the whole page to the server's /register page, and says whether it did: not without a server, or while the Pi
+ * cannot say what its screen is. Keeps the secret it had, so a retry registers the same screen.
+ */
+export async function startRegistration(): Promise<boolean> {
   const server = countdownServer();
-  if (!server) return;
-  leaveFor(await registrationAddress(server, deviceSecret()));
+  if (!server) return false;
+  const screen = await kioskScreen();
+  if (!screen) {
+    console.warn('The kiosk did not say what its screen is, so it is not registered yet');
+    return false;
+  }
+  leaveFor(await registrationAddress(server, deviceSecret(), screen));
+  return true;
 }
 
 /**

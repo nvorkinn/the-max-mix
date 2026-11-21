@@ -27,12 +27,8 @@ if (isKiosk()) {
 const registration = completeRegistration();
 const registrationError = registration && !registration.ok ? registration.error : null;
 
-if (!registration && needsRegistration()) {
-  // A kiosk with no device ID adds itself to countdown-server before anything else; the server sends it back here.
-  void startRegistration();
-} else {
-  // Finishes a Spotify sign-in first (Spotify sends the browser back to / with ?code=), so the app starts with the auth
-  // state final.
+/** Starts the app, once a Spotify sign-in it came back from (Spotify sends the browser back to / with ?code=) is done. */
+function startApp(): void {
   const signedIn = completeSignIn().catch((error: unknown) => ({
     ok: false as const,
     error: errorMessage(error)
@@ -47,4 +43,14 @@ if (!registration && needsRegistration()) {
       </React.StrictMode>
     );
   });
+}
+
+if (!registration && needsRegistration()) {
+  // A kiosk with no device ID adds itself to countdown-server before anything else; the server sends it back here. When
+  // the Pi cannot say what its screen is, the app starts unregistered, and the next start tries again.
+  void startRegistration().then(hasLeft => {
+    if (!hasLeft) startApp();
+  });
+} else {
+  startApp();
 }
