@@ -2383,8 +2383,9 @@ body:has(.app-dialog[open]) {
     width: 322px;
   }
 }
+/* As tall as its stops, and Group by route straight after; a long list scrolls rather than pushing it off. */
 .countdown-column {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
 }
 .countdown-column-body {
