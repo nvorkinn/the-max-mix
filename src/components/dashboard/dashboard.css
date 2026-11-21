@@ -1140,6 +1140,70 @@ button.dashboard-notice {
   color: var(--soon);
   opacity: 0.8;
 }
+/*
+  A route's row (grouped by route): its next time big on the right, as on any row, and the ones after it queued to its
+  left as on a rolodex, in the same lettering, each a little smaller, dimmer and turned to face the front. Where each
+  sits, and its moves, are set by EtaStack.tsx; only transforms and opacity change.
+*/
+.dashboard-stack {
+  position: relative;
+  flex-shrink: 0;
+  height: 100%;
+}
+.dashboard-stack-item {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform-origin: right center;
+  z-index: 4;
+}
+.dashboard-stack-face {
+  display: block;
+}
+.dashboard-stack .dashboard-mins {
+  min-width: 0;
+}
+.dashboard-stack-item[data-slot='queued1'] {
+  z-index: 3;
+}
+.dashboard-stack-item[data-slot='queued2'] {
+  z-index: 2;
+}
+.dashboard-stack-item[data-slot='queued3'] {
+  z-index: 1;
+}
+/* A changed minute rolls up into place, the old one rolling away above it. */
+.dashboard-stack-face[data-roll='in'] {
+  animation: dashboard-roll-in 350ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.dashboard-stack-face[data-roll='out'] {
+  position: absolute;
+  right: 0;
+  top: 0;
+  animation: dashboard-roll-out 350ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+@keyframes dashboard-roll-in {
+  from {
+    opacity: 0;
+    transform: translateY(40%);
+  }
+}
+@keyframes dashboard-roll-out {
+  to {
+    opacity: 0;
+    transform: translateY(-40%);
+  }
+}
+/* One that has left fades where it was, under the one moving up to take its place. */
+.dashboard-stack-item[data-slot='gone'] {
+  z-index: 0;
+  animation: dashboard-fade-out 400ms ease both;
+}
+@keyframes dashboard-fade-out {
+  to {
+    opacity: 0;
+  }
+}
 /* Only the timetable's time, with no live prediction (the first trains while the Tube is shut): a clock time, dimmed. */
 .dashboard-mins.scheduled {
   color: var(--muted);

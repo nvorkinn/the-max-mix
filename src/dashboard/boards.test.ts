@@ -57,6 +57,7 @@ describe('toBoards', () => {
       departures: [
         {
           vehicleId: 'LTZ1234',
+          tracked: true,
           mode: 'bus',
           line: '171',
           lineId: '171',
@@ -66,6 +67,7 @@ describe('toBoards', () => {
         },
         {
           vehicleId: 'LX11AVC',
+          tracked: true,
           mode: 'bus',
           line: '12',
           lineId: '12',

@@ -149,6 +149,11 @@ interface DepartureBase {
    * when predictions reorder. Unique within a board.
    */
   vehicleId: string;
+  /**
+   * Whether `vehicleId` is the source's own, so it follows one vehicle: absent where the source gives none (Entur, a
+   * train TfL hasn't matched to a set) and the key only counts the departures of its line and destination.
+   */
+  tracked?: true;
   destination: string;
   /** When it is due, as an ISO time; the board counts down from `now`. */
   expectedAt: string;
@@ -190,6 +195,8 @@ export interface StopBoardProps {
   now: Date;
   /** True once the feed has dropped and the board is showing its last departures. */
   stale: boolean;
+  /** A row per route (mode, line and destination) with its next few times, rather than a row per departure. */
+  groupByRoute?: boolean;
 }
 
 /**

@@ -5,6 +5,7 @@ import { busesAt, SAMPLE, SAMPLE_NOW, sampleDashboard } from '../../dashboard/sa
 import Dashboard from '../Dashboard';
 import Backdrop, { BACKDROP_FADE_MS } from './Backdrop';
 import DepartureBoard from './DepartureBoard';
+import EtaStack from './EtaStack';
 import { ARRIVE_MS } from './NoticeBoard';
 import RailPages from './RailPages';
 import WeatherBlock, { WEATHER_FADE_MS } from './WeatherBlock';
@@ -214,5 +215,124 @@ describe('the backdrop', () => {
     const { container } = render(<Dashboard tabBar={tabBar} {...sampleDashboard(SAMPLE_NOW, '24h')} />);
     expect(photos(container)).toHaveLength(1);
     expect(photos(container)[0]).toMatch(/backdrop/);
+  });
+});
+
+describe('a route’s queue of times', () => {
+  const NOW = new Date('2026-11-20T09:00:00Z');
+  interface Trip {
+    expectedAt: string;
+    vehicle?: string;
+  }
+  const later = (minutes: number, vehicle?: string): Trip => ({
+    expectedAt: new Date(NOW.getTime() + minutes * 60_000).toISOString(),
+    ...(vehicle !== undefined && { vehicle })
+  });
+  const times = (...minutes: number[]) => minutes.map(minute => later(minute));
+  const minutesAt = (trip: Trip, now: Date) =>
+    String(Math.round((Date.parse(trip.expectedAt) - now.getTime()) / 60_000));
+  const stack = (departures: readonly Trip[], now: Date) => (
+    <EtaStack
+      departures={departures}
+      now={now}
+      keyOf={trip => trip.vehicle}
+      labelOf={trip => minutesAt(trip, now)}
+      render={trip => `${minutesAt(trip, now)} min`}
+    />
+  );
+  const slots = (container: HTMLElement) =>
+    [...container.querySelectorAll<HTMLElement>(':scope .dashboard-stack-item')].map(
+      // What each says now: a minute rolling away has gone.
+      item =>
+        `${item.dataset['slot'] ?? ''}:${item.querySelector(':scope > :not([data-roll="out"])')?.textContent ?? ''}`
+    );
+
+  it('queues up to three later times behind the next one', () => {
+    const { container } = render(stack(times(2, 9, 15, 21, 27), NOW));
+    expect(slots(container)).toEqual(['front:2 min', 'queued1:9 min', 'queued2:15 min', 'queued3:21 min']);
+  });
+
+  it('moves each one up a place when the front one leaves, which fades where it was', () => {
+    const { container, rerender } = render(stack(times(2, 9, 15), NOW));
+    const next = container.querySelector('[data-slot="queued1"]');
+    const gone = new Date(NOW.getTime() + 2.5 * 60_000);
+    rerender(stack(times(2, 9, 15), gone));
+    rerender(stack(times(9, 15), gone));
+    expect(slots(container)[0]).toMatch(/^gone:/);
+    expect(slots(container).slice(1)).toEqual(['front:7 min', 'queued1:13 min']);
+    // It keeps its element as it moves up, so it slides rather than reappearing.
+    expect(container.querySelector('[data-slot="front"]')).toBe(next);
+    run(ROW_FADE_MS);
+    expect(slots(container)).toEqual(['front:7 min', 'queued1:13 min']);
+  });
+
+  it('does not count a front that changed time but has not left', () => {
+    const { container, rerender } = render(stack(times(5, 9), NOW));
+    rerender(stack(times(6, 9), NOW));
+    expect(slots(container)).toEqual(['front:6 min', 'queued1:9 min']);
+  });
+
+  it('follows each vehicle, so one that overtakes another takes its place', () => {
+    const { container, rerender } = render(stack([later(2, 'a'), later(9, 'b'), later(15, 'c')], NOW));
+    const third = container.querySelector('[data-slot="queued2"]');
+    rerender(stack([later(2, 'a'), later(7, 'c'), later(9, 'b')], NOW));
+    expect(container.querySelector('[data-slot="queued1"]')).toBe(third);
+    expect(slots(container)).toEqual(['front:2 min', 'queued1:7 min', 'queued2:9 min']);
+  });
+
+  it('rolls a changed minute into place, the old one rolling away', () => {
+    const { container, rerender } = render(stack([later(2, 'a'), later(9, 'b')], NOW));
+    rerender(stack([later(2, 'a'), later(8, 'b')], NOW));
+    const faces = (slot: string) =>
+      [...container.querySelectorAll<HTMLElement>(`[data-slot="${CSS.escape(slot)}"] .dashboard-stack-face`)].map(
+        face => `${face.dataset['roll'] ?? ''}:${face.textContent}`
+      );
+    expect(faces('queued1')).toEqual(['out:9 min', 'in:8 min']);
+    expect(faces('front')).toEqual([':2 min']);
+    run(ROW_FADE_MS);
+    expect(faces('queued1')).toEqual([':8 min']);
+  });
+
+  it('starts a move that interrupts another from wherever that one had got to', () => {
+    const animate = vi.fn();
+    const cancel = vi.fn();
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }));
+    Object.defineProperties(HTMLElement.prototype, {
+      animate: { value: animate, configurable: true },
+      getAnimations: { value: () => [{ cancel }], configurable: true }
+    });
+    try {
+      const { rerender } = render(stack([later(2, 'a'), later(9, 'b')], NOW));
+      const firstLeft = new Date(NOW.getTime() + 3 * 60_000);
+      rerender(stack([later(9, 'b')], firstLeft));
+      expect(cancel).toHaveBeenCalled();
+      expect(animate).toHaveBeenCalled();
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'animate');
+      Reflect.deleteProperty(HTMLElement.prototype, 'getAnimations');
+    }
+  });
+
+  it('moves each one to its new place, after a changed minute has rolled, and not at all under reduced motion', () => {
+    const animate = vi.fn();
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }));
+    Object.defineProperties(HTMLElement.prototype, {
+      animate: { value: animate, configurable: true },
+      getAnimations: { value: () => [], configurable: true }
+    });
+    try {
+      const { rerender } = render(stack([later(2, 'a'), later(9, 'b'), later(15, 'c')], NOW));
+      animate.mockClear();
+      rerender(stack([later(2, 'a'), later(7, 'c'), later(9, 'b')], NOW));
+      expect(animate).toHaveBeenCalled();
+      expect(animate.mock.calls.every(([, timing]) => (timing as { delay: number }).delay > 0)).toBe(true);
+      animate.mockClear();
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query }));
+      rerender(stack([later(2, 'a'), later(9, 'b'), later(15, 'c')], NOW));
+      expect(animate).not.toHaveBeenCalled();
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'animate');
+      Reflect.deleteProperty(HTMLElement.prototype, 'getAnimations');
+    }
   });
 });

@@ -88,6 +88,36 @@ describe('TabBar', () => {
 });
 
 describe('DepartureBoard', () => {
+  it('grouped by route, shows each route once with its later times queued behind the next', () => {
+    const [first] = SAMPLE.bus.departures;
+    if (!first) throw new Error('no sample departure');
+    const at = (minutes: number) => new Date(SAMPLE_NOW.getTime() + minutes * 60_000).toISOString();
+    const trip = (vehicleId: string, minutes: number, destination = first.destination) => ({
+      ...first,
+      vehicleId,
+      destination,
+      expectedAt: at(minutes)
+    });
+    const departures = [
+      trip('a', 2),
+      trip('b', 4, 'Peckham'),
+      trip('c', 9),
+      trip('d', 15),
+      trip('e', 21),
+      trip('f', 27),
+      trip('g', -3)
+    ];
+    const { container } = render(
+      <DepartureBoard {...SAMPLE.bus} departures={departures} now={SAMPLE_NOW} groupByRoute />
+    );
+    const rows = container.querySelectorAll(':scope .dashboard-rows li');
+    expect(rows).toHaveLength(2);
+    const slots = (row: Element | undefined) =>
+      [...(row?.querySelectorAll<HTMLElement>('.dashboard-stack-item') ?? [])].map(item => item.dataset['slot']);
+    expect(slots(rows[0])).toEqual(['front', 'queued1', 'queued2', 'queued3']);
+    expect(slots(rows[1])).toEqual(['front']);
+  });
+
   it('draws a Tube line it has no colour for in a plain pill', () => {
     const [first] = SAMPLE.tube.departures;
     if (!first) throw new Error('no sample departure');
