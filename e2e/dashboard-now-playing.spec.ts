@@ -1,8 +1,8 @@
 import { expect, test, type Locator } from '@playwright/test';
 import { showDashboard } from './dashboard.ts';
 
-// While a song plays, the Dashboard shows it in a card hanging under the Spotify tab, clear of the Dashboard tab's pill,
-// with back, pause and skip working the player. A pause leaves the card there to play the song again.
+// While a song plays, the Dashboard shows it in a card hanging under the Spotify tab, wrapped round the Dashboard tab's
+// pill with the same gap as between the tabs, with back, pause and skip working the player. A pause leaves the card there to play the song again.
 
 const SCREENS = [
   { width: 1280, height: 800 },
@@ -29,10 +29,12 @@ for (const screen of SCREENS) {
       const spotifyTab = await box(dashboard.getByRole('tab', { name: 'Spotify' }));
       const dashboardTab = await box(dashboard.getByRole('tab', { name: 'Dashboard' }));
       const shown = await box(card);
-      // Lined up with the Spotify tab's left edge, below the tabs with a small gap, and on the screen.
+      // The tabs 5px apart (drawn smaller on the 7" screen), and the card lined up with the Spotify tab's left edge, the
+      // same gap below the Dashboard tab, and on the screen.
+      const gap = 5 * (screen.width / 1280);
+      expect(dashboardTab.x - (spotifyTab.x + spotifyTab.width)).toBeCloseTo(gap, 0);
       expect(Math.abs(shown.x - spotifyTab.x)).toBeLessThan(1);
-      expect(shown.y).toBeGreaterThan(dashboardTab.y + dashboardTab.height);
-      expect(shown.y - (spotifyTab.y + spotifyTab.height)).toBeLessThan(10);
+      expect(shown.y - (dashboardTab.y + dashboardTab.height)).toBeCloseTo(gap, 0);
       expect(shown.x + shown.width).toBeLessThanOrEqual(screen.width);
       // The buttons stay big enough to tap on the small screen too.
       const pause = await box(card.getByRole('button', { name: 'Pause' }));
