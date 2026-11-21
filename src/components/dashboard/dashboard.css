@@ -147,7 +147,7 @@
 }
 .dashboard-tabs {
   display: flex;
-  gap: 4px;
+  gap: var(--tab-gap);
 }
 .dashboard-tab {
   display: flex;
@@ -167,13 +167,13 @@
 }
 
 /*
-  The song playing, in a dark card hanging under the Spotify tab: the tab turns the same dark, runs down a short neck
-  clear of the Dashboard tab's pill and opens out to the right into the card, a small curve filling the corner where
-  they meet. It floats over the photo, so nothing below it moves.
+  The song playing, in a dark card hanging under the Spotify tab: the tab turns the same dark and runs down beside the
+  Dashboard tab's pill, curving round its rounded end and along under it, the same gap as between the tabs all the way
+  round, into the card. It floats over the photo, so nothing below it moves.
 */
 .dashboard-tabs-place {
+  --tab-gap: 5px;
   --now-playing: rgb(9 12 16 / 58%);
-  --now-playing-neck: 6px;
 
   position: relative;
   z-index: 3;
@@ -187,25 +187,37 @@
   /* Spotify Green, one of the colours Spotify's brand rules allow its logo in. */
   color: #1ed760;
 }
+/* Down from the tab to the card. */
 .dashboard-tab[data-holds-player]::before {
   content: '';
   position: absolute;
   inset: 100% 0 auto;
-  height: var(--now-playing-neck);
+  height: var(--tab-gap);
   background: var(--now-playing);
 }
+/*
+  In the gap beside the Dashboard tab, from halfway down to the card: dark outside a circle round the end of its pill,
+  a gap wider than the pill's 22px curve. The Dashboard tab starts one gap along, so the circle's centre is a gap and
+  22px past this tab's edge.
+*/
 .dashboard-tab[data-holds-player]::after {
+  --round: calc(22px + var(--tab-gap));
+
   content: '';
   position: absolute;
-  top: calc(100% + var(--now-playing-neck) - 8px);
+  top: 22px;
   left: 100%;
-  width: 8px;
-  height: 8px;
-  background: radial-gradient(circle at 100% 0, transparent 7.5px, var(--now-playing) 8px);
+  width: var(--round);
+  height: var(--round);
+  background: radial-gradient(
+    circle at 100% 0,
+    transparent calc(var(--round) - 0.5px),
+    var(--now-playing) var(--round)
+  );
 }
 .dashboard-now-playing {
   position: absolute;
-  top: calc(100% + var(--now-playing-neck));
+  top: calc(100% + var(--tab-gap));
   left: 0;
   width: 430px;
   height: 76px;
