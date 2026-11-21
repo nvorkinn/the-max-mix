@@ -1038,7 +1038,7 @@ button.dashboard-notice {
     opacity: 0;
   }
 }
-/* A Tube line's letter in a square as tall and round-cornered as a route box; a short form ("H&C") is set smaller to fit. */
+/* A Tube line's letter in a square as tall and round-cornered as a route box; a short form ("H&C", "Lion") is set smaller to fit. */
 .dashboard-line-mark {
   width: 38px;
   height: 38px;
@@ -1054,6 +1054,10 @@ button.dashboard-notice {
 .dashboard-line-mark[data-length='3'] {
   font-size: 13px;
   letter-spacing: -0.03em;
+}
+.dashboard-line-mark[data-length='4'] {
+  font-size: 11px;
+  letter-spacing: -0.04em;
 }
 .dashboard-route {
   min-width: 62px;

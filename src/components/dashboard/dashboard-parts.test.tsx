@@ -142,9 +142,14 @@ describe('DepartureBoard', () => {
       ['circle', 'Circle'],
       ['elizabeth', 'Elizabeth line'],
       ['dlr', 'DLR'],
-      ['waterloo-city', 'Waterloo & City']
+      ['waterloo-city', 'Waterloo & City'],
+      ['liberty', 'Liberty'],
+      ['lioness', 'Lioness'],
+      ['mildmay', 'Mildmay'],
+      ['weaver', 'Weaver'],
+      ['windrush', 'Windrush']
     ].map(([lineId = '', name = '']) => lineMark(lineId, name));
-    expect(marks).toEqual(['C', 'C', 'E', 'DLR', 'W&C']);
+    expect(marks).toEqual(['C', 'C', 'E', 'DLR', 'W&C', 'Lib', 'Lion', 'M', 'Wea', 'Win']);
   });
 
   it("heads a London stop with TfL's roundel and a Norwegian one with Ruter's mark, and its letter if it has one", () => {

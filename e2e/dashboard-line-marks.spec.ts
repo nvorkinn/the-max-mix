@@ -3,7 +3,7 @@ import { DASHBOARD_NOW, showDashboard } from './dashboard.ts';
 import { linesAt } from './fake-countdown.ts';
 
 // Every line TfL's arrivals name (its lineName), four to a station: each fits its square, as its first letter or, for the
-// DLR and the two "& City" lines, a short form.
+// DLR, the two "& City" lines and the Overground lines sharing a letter, a short form.
 const LINES = [
   ['Bakerloo', 'Central', 'Circle', 'District'],
   ['DLR', 'Elizabeth line', 'Hammersmith & City', 'Jubilee'],
@@ -37,7 +37,7 @@ for (const screen of SCREENS) {
         shown.push(...marks.map(mark => mark.name));
       }
       /* eslint-enable no-await-in-loop */
-      expect(shown).toEqual(expect.arrayContaining(['C', 'DLR', 'E', 'H&C', 'M', 'W&C']));
+      expect(shown).toEqual(expect.arrayContaining(['C', 'DLR', 'E', 'H&C', 'Lib', 'Lion', 'M', 'W&C', 'Wea', 'Win']));
       expect(shown).toHaveLength(LINES.flat().length);
     }
   );
