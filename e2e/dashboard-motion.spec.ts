@@ -117,8 +117,14 @@ test.describe('Dashboard motion', { tag: '@layout' }, () => {
     // 09:22:40: the 35 has passed the 148, and its row slides up past it.
     await advance(page, 10_000);
     hasOvertaken = true;
-    await advance(page, 2000);
-    await expect.poll(destinations).toEqual(['Oxford Circus', 'New Cross', 'Clapham Junction', 'White City']);
+    // The clock moves on a second at a time until the next stream has brought it: the stream's round trip is real time,
+    // and a slow one can miss a fixed couple of seconds, leaving the page waiting on a paused clock.
+    await expect
+      .poll(async () => {
+        await advance(page, 1000);
+        return destinations();
+      })
+      .toEqual(['Oxford Circus', 'New Cross', 'Clapham Junction', 'White City']);
 
     // A minute after the 12 was due it leaves: its row fades, then the rest move up and the 40 fades in.
     await advance(page, 20_000);

@@ -112,3 +112,35 @@ for (const screen of SCREENS) {
     }
   );
 }
+
+test(
+  'times that change while another tab shows still queue apart, none over another, when the Dashboard comes back',
+  { tag: '@layout' },
+  async ({ page }) => {
+    await showGrouped(page, SCREENS[0]);
+    // On Settings the Dashboard is hidden but still drawn: the front train goes, and the next one's time is "Due".
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    await page.clock.setFixedTime(new Date(DASHBOARD_NOW.getTime() + 3.5 * 60_000));
+    await page.getByRole('tab', { name: 'Dashboard' }).click();
+
+    const london = page.getByRole('region', { name: 'TfL Elephant & Castle' });
+    await expect(london.locator('li').first()).toContainText('Due');
+    // Each time's left edge clear of the right edge of the one waiting behind it.
+    const overlaps = () =>
+      london.locator('li').evaluateAll(rows =>
+        rows.flatMap(row => {
+          const edges = [...row.querySelectorAll('.dashboard-stack-item:not([data-slot="gone"])')]
+            .filter(item => Number(getComputedStyle(item).opacity) > 0)
+            .map(item => item.getBoundingClientRect());
+          return edges
+            .slice(1)
+            .filter((behind, index) => {
+              const inFront = edges[index];
+              return inFront !== undefined && behind.right > inFront.left + 1;
+            })
+            .map(() => row.textContent);
+        })
+      );
+    await expect.poll(overlaps).toEqual([]);
+  }
+);

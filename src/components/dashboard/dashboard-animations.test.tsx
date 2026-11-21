@@ -335,4 +335,45 @@ describe('a route’s queue of times', () => {
       Reflect.deleteProperty(HTMLElement.prototype, 'getAnimations');
     }
   });
+
+  it('neither moves nor measures on a hidden tab, and measures again once it shows', () => {
+    const animate = vi.fn();
+    let resized = () => {};
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }));
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe = vi.fn();
+        disconnect = vi.fn();
+        constructor(callback: () => void) {
+          resized = callback;
+        }
+      }
+    );
+    const offsetWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
+    Object.defineProperties(HTMLElement.prototype, {
+      animate: { value: animate, configurable: true },
+      getAnimations: { value: () => [], configurable: true },
+      offsetWidth: { get: () => 60, configurable: true }
+    });
+    try {
+      const hidden = (departures: readonly Trip[]) => <div hidden>{stack(departures, NOW)}</div>;
+      const { container, rerender } = render(hidden([later(2, 'a'), later(9, 'b'), later(15, 'c')]));
+      const queued = () => container.querySelector<HTMLElement>('[data-slot="queued1"]')?.style.transform;
+      const unmeasured = queued();
+      rerender(hidden([later(2, 'a'), later(7, 'c'), later(9, 'b')]));
+      expect(animate).not.toHaveBeenCalled();
+      expect(queued()).toBe(unmeasured);
+
+      container.querySelector('div')?.removeAttribute('hidden');
+      act(() => {
+        resized();
+      });
+      expect(queued()).not.toBe(unmeasured);
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'animate');
+      Reflect.deleteProperty(HTMLElement.prototype, 'getAnimations');
+      if (offsetWidth) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', offsetWidth);
+    }
+  });
 });
