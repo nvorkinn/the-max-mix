@@ -194,22 +194,24 @@ speaks Improv over Web Bluetooth, which Chrome on Android has and Safari on an i
 [improv-wifi.com](https://www.improv-wifi.com) is one; it is somebody else's page, which sees the password.
 
 `GET /lyrics` answers the app's origin only (each request makes the Pi call out), and is the app's only way to lyrics.
-`lyrics.ts` asks LRCLIB (`lyrics-lrclib.ts`) and NetEase, QQ Music and KuGou (`lyrics-sources.ts`: those three have no
-public API and do not allow a web page to call them), and keeps only a song whose title, artist and length match.
-Lyrics that time each word come first: all four are asked for those at once (LRCLIB's Lyricsfile, NetEase's YRC, QQ
-Music's QRC and KuGou's KRC, each turned into LRC with a `<mm:ss.xxx>` tag before every word), and the first in that
-order that has them wins. Only when none has them are the four asked in turn for line-timed lyrics (text with several
-timed lines), and after that for plain ones, which only LRCLIB keeps. A song LRCLIB knows as instrumental and has no
-synced lyrics for is answered as instrumental. QRC comes encrypted with QQ's own variant of Triple DES, which
-`qrc-cipher.ts` undoes. The service remembers the synced lyrics it found, and for an hour anything less (plain lyrics,
-an instrumental song, nothing).
+`lyrics.ts` asks LRCLIB (`lyrics-lrclib.ts`), Musixmatch (`lyrics-musixmatch.ts`) and NetEase, QQ Music and KuGou
+(`lyrics-sources.ts`; these four have no public API for this and do not allow a web page to call them), and keeps only a
+song whose title, artist and length match. Lyrics that time each word come first: all five are asked for those at once
+(LRCLIB's Lyricsfile, Musixmatch's richsync, NetEase's YRC, QQ Music's QRC and KuGou's KRC, each turned into LRC with a
+`<mm:ss.xxx>` tag before every word), and the first in that order that has them wins. Only when none has them are the
+five asked in turn for line-timed lyrics (text with several timed lines), and after that for plain ones, which only
+LRCLIB keeps. A song LRCLIB knows as instrumental and has no synced lyrics for is answered as instrumental. QRC comes
+encrypted with QQ's own variant of Triple DES, which `qrc-cipher.ts` undoes. The service remembers the synced lyrics it
+found, and for an hour anything less (plain lyrics, an instrumental song, nothing).
 
 LRCLIB has a documented API (<https://lrclib.net/docs>): the service names itself in `User-Agent`, searches with the
 search that sends no lyrics and then fetches the one record it wants, and after an error with `Retry-After` does not
-call LRCLIB again until that time has passed. KuGou's search host is called over plain http because its https
-certificate is for another domain. QQ Music's search answers with nothing for a few minutes after several searches in a
-row. The endpoints of those three are unofficial and can change: a source that breaks is skipped, so remove it from
-`SOURCES` if it keeps failing.
+call LRCLIB again until that time has passed. Musixmatch is called through the API its desktop app uses: the service
+asks it for a user token (`token.get`) and keeps it until Musixmatch stops taking it; when Musixmatch hands out a token
+of only zeros (it does for addresses it will not serve, such as cloud servers), the source is skipped for five minutes.
+KuGou's search host is called over plain http because its https certificate is for another domain. QQ Music's search
+answers with nothing for a few minutes after several searches in a row. The endpoints of those four are unofficial and
+can change: a source that breaks is skipped, so remove it from `SOURCES` if it keeps failing.
 
 The Wi-Fi requests are for the Wi-Fi setup page (`wifi-page.ts`, served by `wifi-setup.ts`), which kiosk-session shows
 in Chromium when the Pi is offline or the app's Wi-Fi button was tapped. That page has to work offline, so this service serves it, and the Wi-Fi POSTs answer

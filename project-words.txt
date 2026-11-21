@@ -100,6 +100,7 @@ meteo
 mktemp
 mockup
 musichall
+musixmatch
 nationaltheatret
 nbbbb
 ncccc
@@ -131,6 +132,7 @@ nvmrc
 nvorkinn
 offscreen
 oneshot
+onetagger
 openapi
 overscroll
 pagesize
@@ -166,6 +168,7 @@ regdom
 remi
 rescan
 rfkill
+richsync
 rincon
 rlength
 rootfs
@@ -191,6 +194,7 @@ stasjon
 stdin
 svrooij
 swayidle
+syncedlyrics
 tailnet
 tailscale
 tailscaled
@@ -206,6 +210,7 @@ unescaped
 unstub
 urlencode
 useradd
+usertoken
 utmp
 uuid
 uuids

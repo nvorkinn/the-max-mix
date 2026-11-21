@@ -37,9 +37,9 @@
 //                           or 503 {"error"}   POST /wifi/hotspot/stop  end it   GET /wifi/hotspot  {"state", "error"?}
 //   POST /wifi/done         the setup page is finished (joined, or Cancel): close it
 //   GET  /wifi-setup        the Wi-Fi setup page and its scripts (wifi-setup.ts)
-//   GET  /lyrics?title=&artist=&duration=   lyrics from LRCLIB, NetEase, QQ Music or KuGou (lyrics.ts): {"source"} and
-//                           "lrc" (synced, timed word by word when a source has that), "plain" (text only) or
-//                           "instrumental": true; the duration in ms is optional;
+//   GET  /lyrics?title=&artist=&duration=   lyrics from LRCLIB, Musixmatch, NetEase, QQ Music or KuGou (lyrics.ts):
+//                           {"source"} and "lrc" (synced, timed word by word when a source has that), "plain" (text
+//                           only) or "instrumental": true; the duration in ms is optional;
 //                           404: none found, 502: the sources could not be reached
 //   GET  /bluetooth/devices   {"devices": [{"address", "name", "paired", "connected"}, …]}   the Bluetooth speakers BlueZ knows
 //   POST /bluetooth/scan      look for speakers for a few seconds: the same answer      503 {"error"}: a safe message
