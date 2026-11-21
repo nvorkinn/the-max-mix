@@ -7,16 +7,18 @@ const PLACES = 4;
 
 /** Each place's look: how much smaller, how far turned to face the front and how dim, further back each time. */
 function lookAt(place: number): { scale: number; turn: number; opacity: number } {
-  return { scale: SCALE[place] ?? 0.5, turn: Math.min(place, 1) * 28 + 6 * place, opacity: OPACITY[place] ?? 0 };
+  return { scale: SCALE[place] ?? 0.4, turn: Math.min(place, 1) * 38 + 6 * place, opacity: OPACITY[place] ?? 0 };
 }
 /** How big each place is: each one back a good step smaller than the one in front, to keep the queue short. */
-const SCALE = [1, 0.78, 0.62, 0.5];
+const SCALE = [1, 0.68, 0.5, 0.4];
 /** How bright each place is: the front, then the waiting ones; any further back wait out of sight, to come in from there. */
 const OPACITY = [1, 0.5, 0.3];
 /** How far the eye is from a turned time, as in its transform's perspective(). */
 const PERSPECTIVE = 180;
 /** The space between a time and the one waiting behind it. */
-const GAP = 6;
+const GAP = 10;
+/** How many times a long destination always leaves in sight: the front one and the next. */
+const KEPT = 2;
 /** A time's width before it has been measured. */
 const UNMEASURED_WIDTH = 90;
 
@@ -70,13 +72,17 @@ function isHidden(element: HTMLElement): boolean {
 
 /**
  * Where each place sits and how it looks, given each place's measured width: each one's right edge just behind the
- * left edge of the one in front of it.
+ * left edge of the one in front of it; and how much of the queue a long destination leaves in sight: the front time
+ * and the next.
  */
 function layout<T>(items: readonly T[], widths: readonly number[]) {
   let edge = 0;
+  let kept = 0;
   const placed = items.map((item, place) => {
     const look = lookAt(place);
     const drawnWidth = turnedWidth(widths[place] ?? UNMEASURED_WIDTH, look.turn) * look.scale;
+    // To the gap behind the last one kept, where the queue's edge fades in (dashboard.css), so the next is all hidden.
+    if (place < KEPT) kept = -edge + drawnWidth + (place > 0 ? GAP : 0);
     const style = {
       transform: `translateY(-50%) translateX(${String(edge)}px) scale(${String(look.scale)}) perspective(${String(PERSPECTIVE)}px) rotateY(${String(look.turn)}deg)`,
       opacity: look.opacity
@@ -84,7 +90,7 @@ function layout<T>(items: readonly T[], widths: readonly number[]) {
     edge -= drawnWidth + GAP;
     return { ...item, style };
   });
-  return placed;
+  return { placed, kept: Math.ceil(kept) };
 }
 
 /**
@@ -176,7 +182,7 @@ export default function EtaStack<D extends { expectedAt: string }>({
   // Each place's width as drawn, so each waiting time sits just behind the one in front of it, whatever it says.
   const [widths, setWidths] = useState<readonly number[]>([]);
   const elementsRef = useRef(new Map<string, HTMLElement>());
-  const placed = layout(items, widths);
+  const { placed, kept } = layout(items, widths);
   // Measured whenever any of them changes size, not only when they move: a time that gets wider ("9" to "10", or to
   // "Due") moves nothing by itself, and one drawn on the hidden Dashboard has no size until the tab comes back.
   const orderRef = useRef<readonly string[]>([]);
@@ -251,8 +257,8 @@ export default function EtaStack<D extends { expectedAt: string }>({
   }, [styleSignature]);
 
   return (
-    // The room a destination leaves; a long one takes it back, down to the front time, and the queue fades under its end.
-    <span className="dashboard-stack" style={{ minWidth: Math.ceil(widths[0] ?? UNMEASURED_WIDTH) }}>
+    // The room a destination leaves; a long one takes it back, down to the next time, and the rest fade under its end.
+    <span className="dashboard-stack" style={{ minWidth: kept }}>
       {gone.map(({ key, face }) => (
         <span
           key={`gone:${key}`}
