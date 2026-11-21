@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { GripVertical, Search, X } from 'lucide-react';
+import type { TouchscreenConfig } from 'countdown-api';
 import groupedOff from '../../assets/settings/group-by-route-off.gif';
 import groupedOn from '../../assets/settings/group-by-route-on.gif';
-import type { TouchscreenConfig } from 'countdown-api';
+import groupedOffStill from '../../assets/settings/group-by-route-off.png';
+import groupedOnStill from '../../assets/settings/group-by-route-on.png';
 import { describeStop, learnStopNames, rememberStop } from '../../countdown/search';
 import type { DeviceConfig } from '../../hooks/useDeviceConfig';
 import { useDragToReorder } from '../../hooks/useDragToReorder';
@@ -73,11 +75,15 @@ export default function CountdownSettings({
               </button>
             ))}
           </div>
-          <img
-            src={groupByRoute ? groupedOn : groupedOff}
-            alt={t(groupByRoute ? 'countdown.grouped_on' : 'countdown.grouped_off')}
-            className="countdown-grouping-preview"
-          />
+          {/* Still under reduced motion: its last frame, how the board ends up. */}
+          <picture className="countdown-grouping-picture">
+            <source media="(prefers-reduced-motion: reduce)" srcSet={groupByRoute ? groupedOnStill : groupedOffStill} />
+            <img
+              src={groupByRoute ? groupedOn : groupedOff}
+              alt={t(groupByRoute ? 'countdown.grouped_on' : 'countdown.grouped_off')}
+              className="countdown-grouping-preview"
+            />
+          </picture>
         </div>
       </section>
 

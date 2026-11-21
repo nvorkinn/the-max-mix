@@ -2368,6 +2368,9 @@ body:has(.app-dialog[open]) {
 .countdown-grouping-row .settings-segmented {
   flex: 1;
 }
+.countdown-grouping-picture {
+  display: contents;
+}
 .countdown-grouping-preview {
   flex-shrink: 0;
   width: 242px;
