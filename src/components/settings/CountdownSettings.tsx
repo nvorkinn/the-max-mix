@@ -57,36 +57,6 @@ export default function CountdownSettings({
         {t('countdown.add')}
       </button>
 
-      <section className="settings-group countdown-grouping">
-        <h5 className="settings-group-title" id="group-by-route-label">
-          {t('countdown.group_by_route')}
-        </h5>
-        <div className="countdown-grouping-row">
-          <div className="settings-segmented" role="group" aria-labelledby="group-by-route-label">
-            {[false, true].map(value => (
-              <button
-                type="button"
-                key={String(value)}
-                aria-pressed={groupByRoute === value}
-                onClick={() => onSave('arrivals', { ...config.arrivals, group_by_route: value })}
-                className="settings-segment"
-              >
-                {t(value ? 'common.on' : 'common.off')}
-              </button>
-            ))}
-          </div>
-          {/* Still under reduced motion: its last frame, how the board ends up. */}
-          <picture className="countdown-grouping-picture">
-            <source media="(prefers-reduced-motion: reduce)" srcSet={groupByRoute ? groupedOnStill : groupedOffStill} />
-            <img
-              src={groupByRoute ? groupedOn : groupedOff}
-              alt={t(groupByRoute ? 'countdown.grouped_on' : 'countdown.grouped_off')}
-              className="countdown-grouping-preview"
-            />
-          </picture>
-        </div>
-      </section>
-
       <section className="settings-group countdown-column" aria-labelledby="saved-stops-label">
         <h5 className="settings-group-title" id="saved-stops-label">
           {t('countdown.saved')}
@@ -136,6 +106,36 @@ export default function CountdownSettings({
               })}
             </ul>
           )}
+        </div>
+      </section>
+
+      <section className="settings-group countdown-grouping">
+        <h5 className="settings-group-title" id="group-by-route-label">
+          {t('countdown.group_by_route')}
+        </h5>
+        <div className="countdown-grouping-row">
+          <div className="settings-segmented" role="group" aria-labelledby="group-by-route-label">
+            {[false, true].map(value => (
+              <button
+                type="button"
+                key={String(value)}
+                aria-pressed={groupByRoute === value}
+                onClick={() => onSave('arrivals', { ...config.arrivals, group_by_route: value })}
+                className="settings-segment"
+              >
+                {t(value ? 'common.on' : 'common.off')}
+              </button>
+            ))}
+          </div>
+          {/* Still under reduced motion: its last frame, how the board ends up. */}
+          <picture className="countdown-grouping-picture">
+            <source media="(prefers-reduced-motion: reduce)" srcSet={groupByRoute ? groupedOnStill : groupedOffStill} />
+            <img
+              src={groupByRoute ? groupedOn : groupedOff}
+              alt={t(groupByRoute ? 'countdown.grouped_on' : 'countdown.grouped_off')}
+              className="countdown-grouping-preview"
+            />
+          </picture>
         </div>
       </section>
 
