@@ -7,14 +7,16 @@ const PLACES = 4;
 
 /** Each place's look: how much smaller, how far turned to face the front and how dim, further back each time. */
 function lookAt(place: number): { scale: number; turn: number; opacity: number } {
-  return { scale: 1 - 0.1 * place, turn: Math.min(place, 1) * 28 + 6 * place, opacity: OPACITY[place] ?? 0 };
+  return { scale: SCALE[place] ?? 0.5, turn: Math.min(place, 1) * 28 + 6 * place, opacity: OPACITY[place] ?? 0 };
 }
+/** How big each place is: each one back a good step smaller than the one in front, to keep the queue short. */
+const SCALE = [1, 0.78, 0.62, 0.5];
 /** How bright each place is: the front, then the waiting ones; any further back wait out of sight, to come in from there. */
 const OPACITY = [1, 0.5, 0.3];
 /** How much of its width a turned time takes up on screen. */
 const TURNED_WIDTH = 0.82;
 /** The space between a time and the one waiting behind it. */
-const GAP = 14;
+const GAP = 6;
 /** A time's width before it has been measured. */
 const UNMEASURED_WIDTH = 90;
 
