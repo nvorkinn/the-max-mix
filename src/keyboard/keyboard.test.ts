@@ -131,14 +131,14 @@ describe('start', () => {
     const field = input('email');
     field.focus();
     expect(isShown()).toBe(true);
-    expect(document.body.style.paddingBottom).toBe(`${KEYBOARD_HEIGHT}px`);
+    expect(document.body).toHaveStyle({ paddingBottom: `${KEYBOARD_HEIGHT}px` });
     expect(document.documentElement.style.getPropertyValue('--keyboard-height')).toBe(`${KEYBOARD_HEIGHT}px`);
     expect(scrollIntoView).toHaveBeenCalled();
 
     field.blur();
     vi.runAllTimers();
     expect(isShown()).toBe(false);
-    expect(document.body.style.paddingBottom).toBe('');
+    expect(document.body).not.toHaveStyle({ paddingBottom: `${KEYBOARD_HEIGHT}px` });
     expect(document.documentElement.style.getPropertyValue('--keyboard-height')).toBe('');
   });
 
@@ -157,7 +157,7 @@ describe('start', () => {
     tap('@');
     tap('Delete');
     expect(field.value).toBe('Hi 1%');
-    expect(document.activeElement).toBe(field);
+    expect(field).toHaveFocus();
   });
 
   it('stays up when focus moves to another field', () => {
@@ -176,7 +176,7 @@ describe('start', () => {
     field.focus();
     tap('Done');
     expect(isShown()).toBe(false);
-    expect(document.activeElement).not.toBe(field);
+    expect(field).not.toHaveFocus();
   });
 
   it('keeps a row of digits above the letters and the symbols when asked to', () => {
@@ -186,7 +186,7 @@ describe('start', () => {
     field.focus();
     expect(board().querySelectorAll('.row')).toHaveLength(5);
     expect(keyboardHeight(4)).toBe(KEYBOARD_HEIGHT);
-    expect(document.body.style.paddingBottom).toBe(`${keyboardHeight(5)}px`);
+    expect(document.body).toHaveStyle({ paddingBottom: `${keyboardHeight(5)}px` });
     tap('7');
     tap('a');
     tap('#+=');
