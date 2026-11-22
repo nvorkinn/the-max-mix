@@ -1,0 +1,168 @@
+---
+# A part of the setup (tasks/main.yml runs it when what it installs changed, or a week after it last ran).
+# The kiosk itself: the journal, the kiosk programs, the kiosk-audio service, AirPlay, the Chromium policy, polkit
+# rules, the blank cursor and the console.
+
+# The kiosk -----------------------------------------------------------------------------------------------------------
+# Raspberry Pi OS keeps the journal in memory, so every log is lost at a reboot, including the one that shows why a shutdown
+# was slow. This keeps it on disk, capped so that it does not wear the SD card or fill it.
+- name: full | kiosk | Keep the journal across reboots
+  ansible.builtin.template:
+    src: kiosk-journald.conf.j2
+    dest: /etc/systemd/journald.conf.d/kiosk.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Apply the journal settings
+
+# The kiosk programs, and the kiosk-audio service's source files and package list. Ansible's copy module costs about 2.5
+# seconds per file on a Pi even when nothing changed (it starts Python for each), so rsync copies them all in one go:
+# by checksum, only what differs, and it prints a line for each file it changed or removed. kiosk-audio's tests and
+# their fixtures stay behind, and a source file the repository no longer has is removed (node_modules and the package
+# list are left alone). AirPlay: PipeWire makes a sink for each speaker Avahi finds; the app asks the kiosk-audio service
+# (127.0.0.1) to route the browser's audio to the chosen ones, and the same user unit keeps it there.
+- name: full | kiosk | Install the kiosk programs and the audio routing
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      copy=(rsync --recursive --checksum --perms --owner --group --chown=root:root --itemize-changes)
+      "${copy[@]}" --chmod=F0755 "$FILES/bin/kiosk-session" "$FILES/bin/kiosk-display" /usr/local/bin/
+      "${copy[@]}" --chmod=F0755 "$FILES/bin/kiosk-pull" "$FILES/bin/kiosk-app-switch" "$FILES/bin/kiosk-status" \
+        "$FILES/bin/kiosk-ssh-keys" /usr/local/sbin/
+      "${copy[@]}" --chmod=D0755,F0644 --delete --exclude='*.test.ts' --exclude=fixtures.ts --include='*.ts' \
+        --exclude='*' "$AUDIO_SRC/" "$AUDIO_DIR/"
+      "${copy[@]}" --chmod=F0644 "$FILES/kiosk-audio/package.json" "$FILES/kiosk-audio/package-lock.json" "$AUDIO_DIR/"
+    executable: /bin/bash
+  environment:
+    FILES: '{{ role_path }}/files'
+    AUDIO_SRC: '{{ kiosk_audio_src }}'
+    AUDIO_DIR: '{{ kiosk_audio_dir }}'
+  register: kiosk_copied
+  changed_when: kiosk_copied.stdout | length > 0
+  notify: Ask for a kiosk restart
+
+# ws, the one npm package, for the update stream (the WebSocket). Installed from the lockfile, so it is the version that
+# was reviewed; --ignore-scripts because nothing it needs has to build. Only when the lockfile is not the one installed.
+- name: full | kiosk | Install the audio routing's npm packages
+  when: >-
+    kiosk_audio_lock_id
+    != (lookup('ansible.builtin.file', kiosk_audio_deps_stamp, errors='ignore') | default('', true) | string | trim)
+  vars:
+    kiosk_audio_lock_id: "{{ lookup('ansible.builtin.file', 'kiosk-audio/package-lock.json') | hash('sha1') }}"
+  block:
+    - name: full | kiosk | Run npm ci
+      ansible.builtin.command:
+        cmd: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+        chdir: '{{ kiosk_audio_dir }}'
+      changed_when: true
+      notify: Ask for a kiosk restart
+
+    - name: full | kiosk | Record which lockfile was installed
+      ansible.builtin.copy:
+        content: '{{ kiosk_audio_lock_id }}'
+        dest: '{{ kiosk_audio_deps_stamp }}'
+        owner: root
+        group: root
+        mode: '0644'
+
+- name: full | kiosk | Install the AirPlay settings, the audio routing unit and the Chromium policy
+  ansible.builtin.template:
+    src: '{{ item.src }}'
+    dest: '{{ item.dest }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - { src: 50-kiosk-raop.conf.j2, dest: /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf }
+    - { src: kiosk-audio.service.j2, dest: /etc/systemd/user/kiosk-audio.service }
+    - { src: kiosk-policy.json.j2, dest: /etc/chromium/policies/managed/kiosk.json }
+  loop_control:
+    label: '{{ item.dest }}'
+  notify: Ask for a kiosk restart
+
+# What `systemctl --global enable` does, as a link, so it also works without a running systemd (kiosk_enable_only).
+- name: full | kiosk | Start the audio routing in the kiosk user's session
+  ansible.builtin.file:
+    src: ../kiosk-audio.service
+    dest: /etc/systemd/user/default.target.wants/kiosk-audio.service
+    state: link
+    force: true
+    follow: false
+  notify: Ask for a kiosk restart
+
+# polkitd reads rules.d itself. The kiosk user manages Wi-Fi connections without sudo (networkmanager), and may update and
+# restart the kiosk and reboot the Pi (power): the Update now, Restart kiosk and Reboot Pi buttons in the app's settings.
+- name: full | kiosk | Install the kiosk user's polkit rules
+  ansible.builtin.template:
+    src: '{{ item }}.j2'
+    dest: '/etc/polkit-1/rules.d/{{ item }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - 50-kiosk-networkmanager.rules
+    - 50-kiosk-power.rules
+
+- name: full | kiosk | Create /run/kiosk at every boot
+  ansible.builtin.template:
+    src: kiosk-tmpfiles.conf.j2
+    dest: /etc/tmpfiles.d/kiosk.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Create the run directory
+
+# A cursor theme of one transparent pixel (Cage loads it as its default theme, see below), for touch screens that look like a mouse.
+- name: full | kiosk | Install the blank cursor theme
+  ansible.builtin.copy:
+    src: icons/{{ item.src }}
+    dest: /usr/share/icons/blank/{{ item.dest }}
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - { src: index.theme, dest: index.theme }
+    - { src: left_ptr, dest: cursors/left_ptr }
+  loop_control:
+    label: '{{ item.dest }}'
+
+# One program makes all the links, for the same reason as the directories above. `ln -sfn` replaces a link that exists.
+- name: full | kiosk | Point the cursor names at the blank cursor
+  ansible.builtin.command:
+    argv: '{{ [''bash'', ''-c'', ''for name in "$@"; do ln -sfn left_ptr "$name"; done'', ''bash''] + kiosk_cursor_names }}'
+    chdir: /usr/share/icons/blank/cursors
+  vars:
+    kiosk_cursor_names:
+      - default
+      - arrow
+      - text
+      - xterm
+      - pointer
+      - hand1
+      - hand2
+      - grab
+      - grabbing
+      - crosshair
+      - wait
+      - watch
+      - progress
+      - not-allowed
+  changed_when: false
+
+# Cage ignores XCURSOR_THEME: wlroots always loads the theme called "default", which is Adwaita on Pi OS. kiosk.service
+# puts this folder first in Cage's XCURSOR_PATH, so there "default" is the blank theme. The rest of the system keeps its own.
+- name: full | kiosk | Make the blank cursor the kiosk's default theme
+  ansible.builtin.file:
+    src: /usr/share/icons/blank
+    dest: /usr/share/kiosk-cursors/default
+    state: link
+    owner: root
+    group: root
+
+# The kiosk takes the display on tty7 and tty1 shows nothing.
+- name: full | kiosk | Mask the login prompt on tty1
+  ansible.builtin.file:
+    src: /dev/null
+    dest: /etc/systemd/system/getty@tty1.service
+    state: link
+  notify: Reload systemd

@@ -1,0 +1,90 @@
+---
+# A part of the setup (tasks/main.yml runs it when what it installs changed, or a week after it last ran).
+# The kiosk user, and the admin account for maintenance over SSH (and Tailscale).
+
+# The kiosk user ------------------------------------------------------------------------------------------------------
+- name: full | users | Make sure the kiosk user's groups exist
+  ansible.builtin.group:
+    name: '{{ item }}'
+    system: true
+  loop: '{{ kiosk_groups }}'
+
+# Locked password and only the groups the kiosk needs, so nothing can log in as it and nothing can use sudo, whatever
+# created the user.
+- name: full | users | Set up the kiosk user
+  ansible.builtin.user:
+    name: '{{ kiosk_user }}'
+    comment: THE MAX MIX kiosk
+    shell: /bin/bash
+    password: '*'
+    groups: '{{ kiosk_groups }}'
+    append: false
+    create_home: true
+
+# Maintenance over SSH ------------------------------------------------------------------------------------------------
+# The admin account: no password ('*' cannot match one, but unlike '!' it does not lock out SSH keys), sudo without one,
+# and the GitHub account's public keys as its only way in.
+- name: full | users | Set up the admin user
+  ansible.builtin.user:
+    name: '{{ kiosk_admin_user }}'
+    comment: THE MAX MIX admin
+    shell: /bin/bash
+    password: '*'
+    groups: [sudo]
+    append: true
+    create_home: true
+
+- name: full | users | Let the admin user use sudo without a password
+  ansible.builtin.copy:
+    content: |
+      {{ kiosk_admin_user }} ALL=(ALL:ALL) NOPASSWD: ALL
+    dest: /etc/sudoers.d/50-kiosk-admin
+    owner: root
+    group: root
+    mode: '0440'
+    validate: /usr/sbin/visudo -cf %s
+
+# kiosk-ssh-keys writes the keys only where this exists.
+- name: full | users | Create the admin user's SSH directory
+  ansible.builtin.file:
+    path: '/home/{{ kiosk_admin_user }}/.ssh'
+    state: directory
+    owner: '{{ kiosk_admin_user }}'
+    group: '{{ kiosk_admin_user }}'
+    mode: '0700'
+
+# The keys themselves come from GitHub (kiosk_admin_github_user): kiosk-ssh-keys.timer fetches them soon after every boot
+# and then regularly, so a key removed there stops working without waiting for a release.
+# sshd uses the first value it reads and Debian's sshd_config includes sshd_config.d first, so these settings win.
+- name: full | users | Allow SSH for the admin user, by key only
+  ansible.builtin.copy:
+    content: |
+      # Installed by the kiosk playbook (ansible/roles/kiosk).
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      AuthenticationMethods publickey
+      AllowUsers {{ kiosk_admin_user }}
+    dest: /etc/ssh/sshd_config.d/10-kiosk.conf
+    owner: root
+    group: root
+    mode: '0644'
+  register: kiosk_sshd_config
+
+- name: full | users | Turn SSH on or off
+  ansible.builtin.systemd_service:
+    name: ssh.service
+    enabled: '{{ kiosk_ssh_enabled | bool }}'
+    state: >-
+      {{ omit if kiosk_enable_only else ('stopped' if not kiosk_ssh_enabled | bool
+      else ('restarted' if kiosk_sshd_config is changed else 'started')) }}
+
+# Tailscale: tailscaled runs from boot. It joins the tailnet only after a one-time `sudo tailscale up` by hand (see
+# pi/cloud-init/README.md), so no key is in the repository; the login lives in /var/lib/tailscale. SSH
+# then goes through sshd as above, over the tailnet address.
+- name: full | users | Start Tailscale at boot
+  ansible.builtin.systemd_service:
+    name: tailscaled.service
+    enabled: true
+    state: "{{ omit if kiosk_enable_only else 'started' }}"
+  when: kiosk_tailscale_enabled | bool

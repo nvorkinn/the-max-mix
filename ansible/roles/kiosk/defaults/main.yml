@@ -19,8 +19,8 @@ kiosk_app_origin: http://127.0.0.1:7341
 kiosk_url: >-
   {{ kiosk_app_origin }}/?kiosk=1
   {{- ('&pi_ref=' ~ (kiosk_version | urlencode) ~ '&pi_commit=' ~ kiosk_commit) if kiosk_commit and kiosk_version else '' }}
-# What a release's Pi bundle says about itself (release.json next to ansible/, written by the Release workflow): its tag,
-# commit and the tree ids tasks/main.yml compares. Empty in a Git checkout (a branch pulled with ansible-pull, or a hand
+# What a release's Pi bundle says about itself (release.json next to ansible/, written by the Release workflow): its tag
+# and commit. Empty in a Git checkout (a branch pulled with ansible-pull, or a hand
 # run), where git answers the same questions instead.
 kiosk_release_info: >-
   {{ lookup('ansible.builtin.file', playbook_dir ~ '/../release.json', errors='ignore') | default('{}', true) | from_json }}
@@ -81,9 +81,48 @@ kiosk_admin_keys_interval: 6h
 # installs it; join your tailnet once by hand with `sudo tailscale up` (pi/cloud-init/README.md). Turning this off later
 # leaves Tailscale installed: run `sudo tailscale logout` and `sudo apt purge tailscale` on the Pi.
 kiosk_tailscale_enabled: true
-# Where the playbook records which version of the files it installs (git's tree ids) it last applied completely; when they
-# are unchanged the slow part is skipped (tasks/main.yml).
-kiosk_applied_stamp: /var/lib/the-max-mix/applied.sha1
+# The parts of the setup (tasks/full/<name>.yml) and, besides its task file, what each one installs from the repository:
+# a part runs only when one of these, or what every part reads, changed since it last ran (tasks/main.yml).
+kiosk_sections:
+  - name: base
+    inputs: []
+  - name: system
+    inputs:
+      - ansible/roles/kiosk/files/20auto-upgrades
+      - ansible/roles/kiosk/files/52kiosk-unattended-upgrades
+      - ansible/roles/kiosk/files/50-kiosk-captive.conf
+      - ansible/roles/kiosk/files/50-kiosk-unprivileged-ports.conf
+      - pi/kiosk-audio/screen-mode.ts
+  - name: users
+    inputs: []
+  - name: kiosk
+    inputs:
+      - ansible/roles/kiosk/files/bin
+      - ansible/roles/kiosk/files/icons
+      - ansible/roles/kiosk/files/kiosk-audio
+      - pi/kiosk-audio
+      - ansible/roles/kiosk/templates/kiosk-journald.conf.j2
+      - ansible/roles/kiosk/templates/50-kiosk-raop.conf.j2
+      - ansible/roles/kiosk/templates/kiosk-audio.service.j2
+      - ansible/roles/kiosk/templates/kiosk-policy.json.j2
+      - ansible/roles/kiosk/templates/50-kiosk-networkmanager.rules.j2
+      - ansible/roles/kiosk/templates/50-kiosk-power.rules.j2
+      - ansible/roles/kiosk/templates/kiosk-tmpfiles.conf.j2
+  - name: units
+    inputs:
+      - ansible/roles/kiosk/templates/kiosk-pull.service.j2
+      - ansible/roles/kiosk/templates/kiosk-pull.timer.j2
+      - ansible/roles/kiosk/templates/kiosk-restart.service.j2
+      - ansible/roles/kiosk/templates/kiosk-restart.timer.j2
+      - ansible/roles/kiosk/templates/kiosk-widevine.path.j2
+      - ansible/roles/kiosk/templates/kiosk-widevine.service.j2
+      - ansible/roles/kiosk/templates/kiosk-ssh-keys.service.j2
+      - ansible/roles/kiosk/templates/kiosk-ssh-keys.timer.j2
+# Where the playbook records, for each part, what it last applied completely and when.
+kiosk_applied_stamp: /var/lib/the-max-mix/applied.json
+# A part whose files did not change still runs once it last ran this many days ago, which puts back anything changed on
+# the Pi by hand or by a package upgrade.
+kiosk_full_run_after_days: 7
 # Where the playbook records which packages and archives (kiosk_packages_id) it last installed, so that it skips that
 # slow step when nothing changed.
 kiosk_packages_stamp: /var/lib/the-max-mix/packages.sha1
@@ -144,7 +183,7 @@ kiosk_packages:
   - pipewire-bin
   # Security updates
   - unattended-upgrades
-  # Copies the kiosk programs and the kiosk-audio service in one go (tasks/full.yml)
+  # Copies the kiosk programs and the kiosk-audio service in one go (tasks/full/kiosk.yml)
   - rsync
 
 # The kiosk-audio service (pi/kiosk-audio): a user unit that answers the app on 127.0.0.1 (speakers, routing, the update

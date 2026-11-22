@@ -33,12 +33,21 @@ play() {
     --extra-vars kiosk_enable_only=true --extra-vars '{"kiosk_rpi_packages": []}' | tee "$1"
 }
 play /tmp/first-run.log
-# A run that finds nothing changed skips the slow part, so the idempotency check below needs the first run's record of what
-# it applied removed. The third run checks that skip.
-cp /var/lib/the-max-mix/applied.sha1 /tmp/applied.sha1
-rm /var/lib/the-max-mix/applied.sha1
+# A run skips each part of the setup whose files did not change, so the idempotency check below needs the first run's
+# record of what it applied removed. The third run checks that skip, and the fourth that a part last run over a week ago
+# runs again.
+stamp=/var/lib/the-max-mix/applied.json
+cp "$stamp" /tmp/applied.json
+rm "$stamp"
 play /tmp/second-run.log
 play /tmp/third-run.log
+node -e '
+  const fs = require("node:fs");
+  const stamp = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+  stamp.system.at -= 8 * 86400;
+  fs.writeFileSync(process.argv[1], JSON.stringify(stamp));
+' "$stamp"
+play /tmp/fourth-run.log
 
 fail=0
 check() {
@@ -129,18 +138,34 @@ second_run_skips() {
   grep -v '^Ansible progress: ' /tmp/second-run.log | grep -A1 "TASK \\[kiosk : full | $1\\]" | grep -q '^skipping'
 }
 check test -s /var/lib/the-max-mix/packages.sha1
-# The second run applied everything again and recorded the same ids as the first; the third found nothing to apply: only
-# kiosk.service was looked at, nothing changed and the slow tasks did not even run.
-check test -s /var/lib/the-max-mix/applied.sha1
-check cmp /tmp/applied.sha1 /var/lib/the-max-mix/applied.sha1
+# The second run applied everything again and recorded the same ids as the first, for all five parts; the third found
+# nothing to apply: only kiosk.service was looked at, nothing changed and no part ran. The fourth ran only the part whose
+# last run was over a week ago.
+# shellcheck disable=SC2329  # Called by check.
+same_ids() {
+  node -e '
+    const fs = require("node:fs");
+    const ids = file => Object.fromEntries(
+      Object.entries(JSON.parse(fs.readFileSync(file, "utf8"))).map(([name, { id }]) => [name, id]));
+    const [first, second] = process.argv.slice(1).map(ids);
+    process.exit(Object.keys(first).length === 5 && JSON.stringify(first) === JSON.stringify(second) ? 0 : 1);
+  ' "$@"
+}
+check same_ids /tmp/applied.json "$stamp"
 check grep -q 'TASK \[kiosk : Install the kiosk service\]' /tmp/third-run.log
-if grep -q 'TASK \[kiosk : full | Install the packages' /tmp/third-run.log; then
-  echo "FAILED: the third run did not skip the slow part" >&2
+if grep -q 'TASK \[kiosk : full | ' /tmp/third-run.log; then
+  echo "FAILED: the third run did not skip the parts" >&2
   fail=1
 fi
 check grep -Eq 'changed=0 ' /tmp/third-run.log
-check second_run_skips 'Install the packages'
-check second_run_skips "Install the other archives' packages"
+check grep -q 'TASK \[kiosk : full | system | Set the time zone\]' /tmp/fourth-run.log
+if grep -q 'TASK \[kiosk : full | base | Install the packages' /tmp/fourth-run.log; then
+  echo "FAILED: the fourth run ran a part that was not due" >&2
+  fail=1
+fi
+check grep -Eq 'changed=0 ' /tmp/fourth-run.log
+check second_run_skips 'base | Install the packages'
+check second_run_skips "base | Install the other archives' packages"
 check test -L /usr/share/icons/blank/cursors/not-allowed
 check test -f /usr/share/kiosk-cursors/default/cursors/left_ptr
 

@@ -273,9 +273,9 @@ device, so change the role, not the device.
   downloads that release's bundle into `/var/lib/the-max-mix/ansible-pull` and runs the playbook from it; a release
   without its bundle yet is "not ready" and the Pi stays where it is. `--only-if-changed` skips a release already
   installed completely (`/var/lib/the-max-mix/installed-release`), so a check with nothing new is a single request,
-  and the playbook applies its slow part only when `ansible/` or `pi/kiosk-audio`
-  differ from the last complete run (git's tree ids, kept in `/var/lib/the-max-mix/applied.sha1`; most
-  releases only change the web app, which the Pi loads from the internet). `kiosk.service` is rewritten either way,
+  and the playbook runs each of the five parts of the setup (`ansible/roles/kiosk/tasks/full/`) only when what it installs
+  changed since it last ran, or it last ran over a week ago (`/var/lib/the-max-mix/applied.json`; most releases only
+  change the web app, so no part runs). `kiosk.service` is rewritten either way,
   because it carries the release the settings show. A deployed Pi therefore gets fixes to the kiosk service, the session script, the
   Chromium policy and so on without a reflash. The playbook is idempotent, so repeated runs are safe. To pin one Pi,
   set `kiosk_pull_ref` to a tag (`v1.12.0`), or to a branch to test unreleased work on your own Pi (a branch is pulled
@@ -291,9 +291,8 @@ device, so change the role, not the device.
   before bundles existed gets one), and the Pis return to it at their next pull
   (or straight away with **Update now**). Publishing a newer tag later moves everything forward again.
 - **Run it by hand** on a Pi you can log in to, as root, from a clone of the repository:
-  `sudo ansible-playbook -c local -i localhost, ansible/local.yml` (which, like a pull, applies only what changed since the
-  last complete run; delete `/var/lib/the-max-mix/applied.sha1` to apply everything, and note that it compares committed
-  files, not edits in the working tree), or the same pull the timer runs: `sudo systemctl start kiosk-pull`. Add
+  `sudo ansible-playbook -c local -i localhost, ansible/local.yml` (which, like a pull, runs only the parts whose files changed
+  since they last ran; delete `/var/lib/the-max-mix/applied.json` to apply everything), or the same pull the timer runs: `sudo systemctl start kiosk-pull`. Add
   `--check --diff` to the playbook run to see what it would change.
 
 The kiosk opens the app with `?kiosk=1` (remembered across the Spotify sign-in redirect; `?kiosk=0` forgets it), which
