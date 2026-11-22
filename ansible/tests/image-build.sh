@@ -58,20 +58,7 @@ for file in /usr/local/bin/kiosk-session \
   /etc/systemd/system/kiosk-widevine.service /etc/NetworkManager/conf.d/20-connectivity.conf \
   /etc/tmpfiles.d/kiosk.conf /usr/share/plymouth/themes/the-max-mix/the-max-mix.plymouth \
   /usr/share/icons/blank/cursors/left_ptr /etc/apt/apt.conf.d/52kiosk-unattended-upgrades \
-  /opt/the-max-mix/kiosk-audio/kiosk-audio.ts /opt/the-max-mix/kiosk-audio/speakers.ts \
-  /opt/the-max-mix/kiosk-audio/server.ts /opt/the-max-mix/kiosk-audio/actions.ts /opt/the-max-mix/kiosk-audio/nmcli.ts \
-  /opt/the-max-mix/kiosk-audio/wifi-setup.ts /opt/the-max-mix/kiosk-audio/wifi-page.ts \
-  /opt/the-max-mix/kiosk-audio/update.ts /opt/the-max-mix/kiosk-audio/update-socket.ts \
-  /opt/the-max-mix/kiosk-audio/lyrics.ts /opt/the-max-mix/kiosk-audio/lyrics-sources.ts \
-  /opt/the-max-mix/kiosk-audio/qrc-cipher.ts /opt/the-max-mix/kiosk-audio/lyrics-lrclib.ts \
-  /opt/the-max-mix/kiosk-audio/bluetooth.ts /opt/the-max-mix/kiosk-audio/bluetooth-monitor.ts \
-  /opt/the-max-mix/kiosk-audio/improv.ts \
-  /opt/the-max-mix/kiosk-audio/improv-gatt.ts /opt/the-max-mix/kiosk-audio/phone-setup.ts \
-  /opt/the-max-mix/kiosk-audio/phone-discovery.ts /opt/the-max-mix/kiosk-audio/phone-pairing.ts \
-  /opt/the-max-mix/kiosk-audio/presence.ts \
   /opt/the-max-mix/kiosk-audio/node_modules/dbus-native/package.json \
-  /opt/the-max-mix/kiosk-audio/hotspot.ts /opt/the-max-mix/kiosk-audio/hotspot-portal.ts /opt/the-max-mix/kiosk-audio/qr.ts \
-  /opt/the-max-mix/kiosk-audio/words.ts \
   /opt/the-max-mix/kiosk-audio/node_modules/qrcode-generator/package.json \
   /etc/NetworkManager/dnsmasq-shared.d/50-kiosk-captive.conf /etc/sysctl.d/50-kiosk-unprivileged-ports.conf \
   /opt/the-max-mix/kiosk-keyboard/extension/manifest.json /opt/the-max-mix/kiosk-keyboard/extension/loader.js \
@@ -90,7 +77,19 @@ for unit in kiosk.service bluetooth.service avahi-daemon.service kiosk-pull.time
     fail=1
   fi
 done
-check test ! -e /usr/local/bin/kiosk-bluetooth-pair
+# Every source file of the service and of the sign-in keyboard is installed, and no test or fixture.
+for source in /work/pi/kiosk-audio/*.ts; do
+  case $source in
+    *.test.ts | */fixtures.ts) check test ! -e "/opt/the-max-mix/kiosk-audio/${source##*/}" ;;
+    *) check test -e "/opt/the-max-mix/kiosk-audio/${source##*/}" ;;
+  esac
+done
+for source in /work/pi/kiosk-keyboard/*.ts /work/pi/kiosk-keyboard/manifest.json; do
+  case $source in
+    *.test.ts) check test ! -e "/opt/the-max-mix/kiosk-keyboard/src/${source##*/}" ;;
+    *) check test -e "/opt/the-max-mix/kiosk-keyboard/src/${source##*/}" ;;
+  esac
+done
 check grep -q ' console=tty3 ' /boot/firmware/cmdline.txt
 check grep -q 'video=HDMI-A-1:1024x600@60' /boot/firmware/cmdline.txt
 check grep -q 'kernel=kernel8.img' /boot/firmware/config.txt
@@ -122,7 +121,6 @@ check grep -q 'raop.latency.ms = 500' /etc/pipewire/pipewire.conf.d/50-kiosk-rao
 check grep -q 'kiosk-audio.ts watch$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'try-restart kiosk-audio.service' /etc/systemd/system/kiosk.service
 check grep -q 'screen-mode.ts --correct' /etc/systemd/system/kiosk.service
-check test -f /opt/the-max-mix/kiosk-audio/screen-mode.ts
 check grep -q 'KIOSK_APP_ORIGIN=https://the-max-mix.countdown.build' /etc/systemd/user/kiosk-audio.service
 check grep -q '"LocalNetworkAccessAllowedForUrls"' /etc/chromium/policies/managed/kiosk.json
 # The back button is left off the app's own pages.
@@ -146,14 +144,14 @@ check test -s /var/lib/the-max-mix/packages.sha1
 # kiosk.service was looked at, nothing changed and the slow tasks did not even run.
 check test -s /var/lib/the-max-mix/applied.sha1
 check cmp /tmp/applied.sha1 /var/lib/the-max-mix/applied.sha1
-check grep -q 'TASK \[kiosk : kiosk-service | Install the kiosk service\]' /tmp/third-run.log
+check grep -q 'TASK \[kiosk : Install the kiosk service\]' /tmp/third-run.log
 if grep -q 'TASK \[kiosk : full | Install the packages' /tmp/third-run.log; then
   echo "FAILED: the third run did not skip the slow part" >&2
   fail=1
 fi
 check grep -Eq 'changed=0 ' /tmp/third-run.log
 check second_run_skips 'Install the packages'
-check second_run_skips 'Install Node.js'
+check second_run_skips "Install the other archives' packages"
 check test -L /usr/share/icons/blank/cursors/not-allowed
 check test -f /usr/share/kiosk-cursors/default/cursors/left_ptr
 check test -d /usr/share/plymouth/themes/the-max-mix
