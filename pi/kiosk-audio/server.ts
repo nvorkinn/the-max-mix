@@ -88,6 +88,8 @@ import { PhoneSetup } from './phone-setup.ts';
 import type { Choice, Graph } from './pipewire.ts';
 import { Presence, scanLe } from './presence.ts';
 import type { PresenceStatus } from './presence.ts';
+import { screenInfo } from './screen.ts';
+import type { ScreenInfo } from './screen.ts';
 import { SonosEventHub } from './sonos-events.ts';
 import type { SonosChange } from './sonos-events.ts';
 import { libraryEvents } from './sonos-library.ts';
@@ -157,6 +159,8 @@ export interface Deps {
   /** Whether each saved phone is nearby, for the person switcher and the debug console. */
   presence: { status: () => Promise<PresenceStatus>; watch: () => void; unwatch: () => void };
   phone: { start: () => Promise<void> };
+  /** The screen's size and whether its brightness can be set, for registering with countdown-server; null for none. */
+  screen: () => Promise<ScreenInfo | null>;
   hotspot: {
     start: () => Promise<HotspotInfo>;
     stop: () => Promise<void>;
@@ -664,6 +668,13 @@ async function get(url: string, response: ServerResponse, deps: Deps, isApp: boo
 
       break;
     }
+    case '/screen': {
+      const screen = await deps.screen();
+      if (screen) sendJson(response, 200, screen);
+      else response.writeHead(503).end();
+
+      break;
+    }
     default: {
       const asset = await deps.asset(url, deps.language.get());
       if (asset) response.writeHead(200, { 'Content-Type': asset.type }).end(asset.body);
@@ -816,6 +827,7 @@ export function serveSpeakers(
     bluetooth,
     bluetoothMonitor,
     presence,
+    screen: () => screenInfo(),
     phonePairing: new PhonePairing({
       discover: onCode => discoverPhones(onCode),
       nearby: () => bluetoothMonitor.nearbyNamed(),

@@ -17,6 +17,14 @@ app on `127.0.0.1:7341`. It does two jobs:
 - **AirPlay**: playback stays on the tablet's own player, and the Pi links Chromium's PipeWire stream to every speaker
   picked in the app, all at once, and off the Pi's own output. Speakers can be added and removed while the music plays.
 
+## Screen
+
+`GET /screen` answers what the tablet's screen is, for registering with countdown-server (`screen.ts`):
+`{"width": 1280, "height": 800, "brightness_control": false}`. The size is the first mode of the first connected
+display connector in `/sys/class/drm`, the mode Cage runs at, so it holds for a DSI panel (no EDID) as for HDMI.
+`brightness_control` is true when `/sys/class/backlight` has an entry: a DSI panel's driver makes one, HDMI never
+does. 503 with no screen connected.
+
 ## Sonos
 
 Spotify will not move its playback to a Sonos speaker from this app (its Web API hides Sonos as a restricted device), so

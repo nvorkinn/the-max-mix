@@ -29,6 +29,10 @@ test.describe('Registering with countdown-server', { tag: '@registration' }, () 
     await page.route('https://images.unsplash.com/**', route =>
       route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
     );
+    // The Pi's kiosk service, which says what the screen is: the-max-mix's HDMI 1280x800 panel, with no backlight.
+    await page.route('http://127.0.0.1:7341/screen', route =>
+      route.fulfill({ json: { width: 1280, height: 800, brightness_control: false } })
+    );
   });
 
   test('a new kiosk registers, keeps its device ID and opens the app', async ({ page }) => {
@@ -50,14 +54,25 @@ test.describe('Registering with countdown-server', { tag: '@registration' }, () 
     expect(visit?.searchParams.get('secret_hash')).toMatch(/^[0-9a-f]{64}$/);
     expect(visit?.searchParams.get('secret_hash')).not.toBe(stored.secret);
     expect(visit?.href).not.toContain(stored.secret ?? '');
-    expect(visit?.searchParams.get('width')).toMatch(/^\d+$/);
-    expect(visit?.searchParams.get('height')).toMatch(/^\d+$/);
+    expect(visit?.searchParams.get('width')).toBe('1280');
+    expect(visit?.searchParams.get('height')).toBe('800');
+    expect(visit?.searchParams.get('brightness_control')).toBe('false');
     expect(visit?.searchParams.get('return_to')).toBe('http://127.0.0.1:3100/?countdown=registered');
 
     // Registered: the next start opens the app without going back to the server.
     await page.goto('/?kiosk=1');
     await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
     expect(visits).toHaveLength(1);
+  });
+
+  test('a kiosk whose Pi cannot say what its screen is opens the app unregistered', async ({ page }) => {
+    await page.route('http://127.0.0.1:7341/screen', route => route.fulfill({ status: 503 }));
+    const visits = await fakeRegisterPage(page, { device_id: '0a1b2c3d4e5f' });
+    await page.goto('/?kiosk=1');
+
+    await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
+    expect(visits).toHaveLength(0);
+    expect(await page.evaluate(() => localStorage.getItem('maxmix.deviceId'))).toBeNull();
   });
 
   test('a screen someone else owns says so, and Try again goes back to the server', async ({ page }, testInfo) => {
@@ -72,8 +87,9 @@ test.describe('Registering with countdown-server', { tag: '@registration' }, () 
 
     const secret = await page.evaluate(() => localStorage.getItem('maxmix.deviceSecret'));
     await problem.getByRole('button', { name: 'Try again' }).click();
+    // Try again asks the Pi what its screen is before it goes back to the server.
+    await expect.poll(() => visits.length).toBe(2);
     await expect(problem).toBeVisible();
-    expect(visits).toHaveLength(2);
     expect(visits[1]?.searchParams.get('secret_hash')).toBe(visits[0]?.searchParams.get('secret_hash'));
     expect(await page.evaluate(() => localStorage.getItem('maxmix.deviceSecret'))).toBe(secret);
 

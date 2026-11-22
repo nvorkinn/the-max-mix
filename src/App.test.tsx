@@ -6,7 +6,7 @@ import App from './App';
 vi.mock('./components/TabletView', () => ({
   default: ({ signInError }: { signInError?: string }) => <div>tablet-view {signInError}</div>
 }));
-vi.mock('./countdown/registration', () => ({ startRegistration: vi.fn(() => Promise.resolve()) }));
+vi.mock('./countdown/registration', () => ({ startRegistration: vi.fn(() => Promise.resolve(true)) }));
 
 describe('App', () => {
   it('renders the tablet view', () => {

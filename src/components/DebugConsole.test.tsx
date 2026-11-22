@@ -8,7 +8,7 @@ import DebugConsole from './DebugConsole';
 
 vi.mock('../countdown/registration', async importOriginal => ({
   ...(await importOriginal<typeof import('../countdown/registration')>()),
-  startRegistration: vi.fn(() => Promise.resolve())
+  startRegistration: vi.fn(() => Promise.resolve(true))
 }));
 vi.mock('./BluetoothDebug', () => ({ default: () => <p>The Pi’s Bluetooth</p> }));
 vi.mock('../utils/widevine', () => ({ widevineProblem: vi.fn(() => Promise.resolve('Widevine is not available')) }));

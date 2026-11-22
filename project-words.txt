@@ -235,6 +235,7 @@ WPA
 WPA2
 WPA3
 wpctl
+writeback
 wrongpass
 xcb
 xcur

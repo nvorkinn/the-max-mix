@@ -5,6 +5,7 @@ import {
   deviceCredentials,
   forgetRegistration,
   needsRegistration,
+  kioskScreen,
   registrationAddress,
   secretHash,
   startRegistration
@@ -16,6 +17,14 @@ vi.mock('../spotify/settings', () => ({ leaveFor: vi.fn() }));
 // countdown-api's touchscreen.json: the hash of its example secret.
 const EXAMPLE_SECRET = 'example-not-a-real-secret-0001';
 const EXAMPLE_HASH = 'e29484a427fb8d21c05a08648d91396508cb9179c4aff263ca74f0f3e3b97f3d';
+// What the-max-mix's kiosk service answers GET /screen with: an HDMI 1280x800 panel, which has no backlight.
+const PI_SCREEN = { width: 1280, height: 800, brightness_control: false };
+
+function piAnswers(answer: Response | Error) {
+  return vi
+    .spyOn(globalThis, 'fetch')
+    .mockImplementation(() => (answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer.clone())));
+}
 
 function visit(search: string) {
   history.replaceState(null, '', `/${search}`);
@@ -66,13 +75,14 @@ describe('needsRegistration', () => {
 });
 
 describe('registering', () => {
-  it('sends only the secret hash, the screen size and the way back', async () => {
-    const address = new URL(await registrationAddress('https://countdown.build', EXAMPLE_SECRET));
+  it('sends only the secret hash, the screen as the Pi reports it and the way back', async () => {
+    const address = new URL(await registrationAddress('https://countdown.build', EXAMPLE_SECRET, PI_SCREEN));
     expect(address.origin + address.pathname).toBe('https://countdown.build/register');
     expect(Object.fromEntries(address.searchParams)).toEqual({
       secret_hash: EXAMPLE_HASH,
-      width: String(screen.width),
-      height: String(screen.height),
+      width: '1280',
+      height: '800',
+      brightness_control: 'false',
       return_to: `${location.origin}/?countdown=registered`
     });
     expect(address.href).not.toContain(EXAMPLE_SECRET);
@@ -83,14 +93,39 @@ describe('registering', () => {
   });
 
   it('makes up a secret once and keeps it for a retry', async () => {
+    const fetch = piAnswers(Response.json(PI_SCREEN));
     const leave = vi.mocked(leaveFor);
-    await startRegistration();
+    expect(await startRegistration()).toBe(true);
     const secret = localStorage.getItem('maxmix.deviceSecret');
     expect(secret).toMatch(/^[0-9a-f]{64}$/);
     await startRegistration();
     expect(localStorage.getItem('maxmix.deviceSecret')).toBe(secret);
     expect(leave).toHaveBeenCalledTimes(2);
     expect(leave.mock.calls[0]?.[0]).toContain(`secret_hash=${await secretHash(secret ?? '')}`);
+    expect(leave.mock.calls[0]?.[0]).toContain('width=1280&height=800&brightness_control=false');
+    expect(fetch).toHaveBeenCalledWith('http://127.0.0.1:7341/screen');
+  });
+
+  it('waits while the Pi cannot say what its screen is', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    for (const answer of [
+      new Error('Failed to fetch'),
+      new Response(null, { status: 503 }),
+      Response.json({ width: 1280, height: 800 }),
+      Response.json({ width: 0, height: 800, brightness_control: true })
+    ]) {
+      piAnswers(answer);
+      // eslint-disable-next-line no-await-in-loop
+      expect(await startRegistration()).toBe(false);
+    }
+    expect(leaveFor).not.toHaveBeenCalled();
+  });
+});
+
+describe('kioskScreen', () => {
+  it('reads a DSI panel that can set its brightness', async () => {
+    piAnswers(Response.json({ width: 1024, height: 600, brightness_control: true }));
+    expect(await kioskScreen()).toEqual({ width: 1024, height: 600, brightness_control: true });
   });
 });
 
@@ -152,7 +187,7 @@ describe('without storage', () => {
   it('does nothing without a server', async () => {
     vi.stubEnv('VITE_COUNTDOWN_SERVER', '');
     const leave = vi.mocked(leaveFor);
-    await startRegistration();
+    expect(await startRegistration()).toBe(false);
     expect(leave).not.toHaveBeenCalled();
   });
 
