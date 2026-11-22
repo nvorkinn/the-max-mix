@@ -83,7 +83,7 @@ describe('offline state in TabletView', () => {
     // Chromium says online whenever any interface has an address, Tailscale's among them, so that is not asked.
     vi.useFakeTimers();
     history.replaceState(null, '', '/?kiosk=1');
-    const wifi = { ssid: null as string | null };
+    const wifi: { ssid: string | null; address?: string } = { ssid: null };
     const fetchMock = kioskOnWifi(wifi);
     render(<TabletView />);
     await act(() => vi.advanceTimersByTimeAsync(10_000));

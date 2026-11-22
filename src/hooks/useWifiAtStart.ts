@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { currentWifi } from '../utils/kiosk';
 
 /** How often the kiosk's Wi-Fi is asked about while the app waits for it, or waits on the Wi-Fi page. */
-export const WIFI_POLL_MS = 3000;
+const WIFI_POLL_MS = 3000;
 /** How long the Wi-Fi may take to come up after a start before the app asks for a network: NetworkManager needs a while. */
-export const WIFI_GRACE_MS = 20_000;
+const WIFI_GRACE_MS = 20_000;
 
 /**
  * Whether the kiosk started with no Wi-Fi network: true once its service has said "no network" for WIFI_GRACE_MS from
