@@ -24,7 +24,7 @@ async function connector(drm: string, name: string, status: string, modes: strin
 describe('screenInfo', () => {
   it('reads the-max-mix: an HDMI 1280x800 panel on HDMI-A-2, with no backlight', async () => {
     const { drm, backlight } = await folders();
-    // As the probe found it on 2026-11-21 (pi/tools/capabilities-probe.mts).
+    // As the-max-mix's /sys/class showed it on 2026-11-21.
     await connector(drm, 'card1-HDMI-A-1', 'disconnected', []);
     await connector(drm, 'card1-HDMI-A-2', 'connected', ['1280x800', '1920x1080']);
     await connector(drm, 'card1-Writeback-1', 'unknown', []);

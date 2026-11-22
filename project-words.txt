@@ -4,7 +4,6 @@ adwaita
 alsa
 apos
 argv
-asound
 atrack
 autoclean
 autoplay
@@ -37,8 +36,6 @@ dialogs
 DIDL
 disallocate
 dnsmasq
-dtoverlay
-dtparam
 edid
 elif
 endfor
@@ -180,7 +177,6 @@ rootwait
 rssi
 rstart
 runcmd
-runuser
 ruter
 shellcheck
 shopt
@@ -210,7 +206,6 @@ trøndelag
 ttyv
 ttyvt
 tzdata
-udevadm
 unescaped
 unstub
 urlencode
