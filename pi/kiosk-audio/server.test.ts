@@ -58,6 +58,22 @@ const otherFailure = () => Promise.reject(new Error('dbus: /private/path failed'
 const busy = () => Promise.reject(new BluetoothError('Bluetooth is busy. Wait a moment and try again.'));
 const odd = () => Promise.reject(new Error('internal detail'));
 
+/** A handover kept in memory, as handover.ts keeps it in a file. */
+function memoryHandover(): Deps['handover'] {
+  let kept: Record<string, string> | null = null;
+  return {
+    save: handover => {
+      kept = handover;
+      return Promise.resolve();
+    },
+    read: () => Promise.resolve(kept),
+    remove: () => {
+      kept = null;
+      return Promise.resolve();
+    }
+  };
+}
+
 function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotError?: Error, isPairingFailing = false) {
   const verboseCalls: boolean[] = [];
   const pairingCalls: string[] = [];
@@ -129,6 +145,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
       pageLanguages.push(pageLanguage);
       return Promise.resolve(url === '/wifi-setup' ? { type: 'text/html', body: '<p>page</p>' } : null);
     },
+    handover: memoryHandover(),
     app: url =>
       Promise.resolve(
         url.split('?', 1)[0] === '/'
@@ -966,5 +983,27 @@ describe('isFromApp', () => {
     expect(isFromApp(request({ 'sec-fetch-site': 'same-origin' }), LOCAL_ORIGIN)).toBe(true);
     expect(isFromApp(request({ 'sec-fetch-site': 'same-origin' }), ORIGIN)).toBe(false);
     expect(isFromApp(request({}), LOCAL_ORIGIN)).toBe(false);
+  });
+});
+
+describe('the handover from the hosted app to the local copy', () => {
+  const items = { 'maxmix.people': '[{"id":"nikolai"}]', 'maxmix.deviceId': 'abc' };
+
+  it("takes the hosted app's items, and gives them to the local copy only", async () => {
+    const handover = memoryHandover();
+    const hosted = await start(fakes({ handover }).deps);
+    expect((await post(hosted, '/handover', { origin: 'https://evil.example', body: { items } })).status).toBe(403);
+    expect((await post(hosted, '/handover', { body: { items: { 'other.key': 'x' } } })).status).toBe(400);
+    expect((await post(hosted, '/handover', { body: { items } })).status).toBe(204);
+    expect((await fetch(`${hosted}/handover`, { headers: { Origin: ORIGIN } })).status).toBe(403);
+
+    const local = await start(fakes({ handover }).deps, LOCAL_ORIGIN);
+    const sameOrigin = { headers: { 'Sec-Fetch-Site': 'same-origin' } };
+    expect((await fetch(`${local}/handover`)).status).toBe(403);
+    const taken = await fetch(`${local}/handover`, sameOrigin);
+    await expect(taken.json()).resolves.toEqual({ items });
+    expect((await post(local, '/handover', { origin: LOCAL_ORIGIN, body: { items } })).status).toBe(403);
+    expect((await post(local, '/handover/done', { origin: LOCAL_ORIGIN })).status).toBe(204);
+    expect((await fetch(`${local}/handover`, sameOrigin)).status).toBe(404);
   });
 });

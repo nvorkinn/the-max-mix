@@ -6,6 +6,7 @@ import { completeSignIn } from './spotify/auth';
 import { captureBrowserErrors } from './utils/debugLog';
 import { installHttpLog } from './utils/httpLog';
 import { errorMessage } from './utils/errorMessage';
+import { startHandover, takeHandover } from './utils/handover';
 import { isKiosk, piVersion } from './utils/kiosk';
 import { startKioskWatch } from './utils/kioskWatch';
 import './index.css';
@@ -20,6 +21,8 @@ if (isKiosk()) {
   document.documentElement.classList.add('hide-cursor');
   // The Pi restarts Chromium when these heartbeats stop, and keeps the app's errors in its journal.
   startKioskWatch();
+  // The hosted app hands its saved data to the Pi, for the copy the Pi serves itself (utils/handover.ts).
+  startHandover();
 }
 
 // Coming back from countdown-server's /register page keeps the device ID it gave; that address's `error` is the
@@ -45,12 +48,15 @@ function startApp(): void {
   });
 }
 
-if (!registration && needsRegistration()) {
-  // A kiosk with no device ID adds itself to countdown-server before anything else; the server sends it back here. When
-  // the Pi cannot say what its screen is, the app starts unregistered, and the next start tries again.
-  void startRegistration().then(hasLeft => {
-    if (!hasLeft) startApp();
-  });
-} else {
-  startApp();
-}
+// The copy the Pi serves takes the hosted app's saved data first, so it starts signed in and registered as before.
+void (isKiosk() ? takeHandover() : Promise.resolve()).then(() => {
+  if (!registration && needsRegistration()) {
+    // A kiosk with no device ID adds itself to countdown-server before anything else; the server sends it back here.
+    // When the Pi cannot say what its screen is, the app starts unregistered, and the next start tries again.
+    void startRegistration().then(hasLeft => {
+      if (!hasLeft) startApp();
+    });
+  } else {
+    startApp();
+  }
+});

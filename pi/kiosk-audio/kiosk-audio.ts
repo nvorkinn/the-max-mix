@@ -94,7 +94,8 @@ if (process.argv[2] === 'watch') {
     wifi: wifi(),
     language: language(),
     phonesFile,
-    appFolder: process.env['KIOSK_APP_DIR'] ?? ''
+    appFolder: process.env['KIOSK_APP_DIR'] ?? '',
+    handoverFile: path.join(stateHome, 'the-max-mix', 'handover.json')
   });
 } else {
   console.error('Usage: kiosk-audio.ts watch');
