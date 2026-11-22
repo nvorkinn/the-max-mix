@@ -128,12 +128,11 @@ check grep -q '"https://the-max-mix.countdown.build/\*"' /opt/the-max-mix/kiosk-
 check grep -q '^Environment=KIOSK_SCREEN_OFF_AFTER=60$' /etc/systemd/system/kiosk.service
 check command -v swayidle wlr-randr
 check grep -q 'en_GB.UTF-8' /etc/default/locale
-check test "$(cat /etc/timezone)" = Europe/London
+check test "$(readlink /etc/localtime)" = /usr/share/zoneinfo/Europe/London
 check grep -q '^Storage=persistent$' /etc/systemd/journald.conf.d/kiosk.conf
 check grep -q '^SystemMaxUse=64M$' /etc/systemd/journald.conf.d/kiosk.conf
 
-# The slow package step records that it is done, and the second run skips it. (The SSH keys download is not checked: it
-# needs GitHub, which a test must not depend on.)
+# The slow package step records that it is done, and the second run skips it.
 # The progress lines the callback plugin prints after each task's header are left out.
 # shellcheck disable=SC2329  # Called by check.
 second_run_skips() {

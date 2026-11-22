@@ -1,7 +1,39 @@
 ---
-# Everything the playbook installs and configures, in order: packages, system settings, the kiosk user, the kiosk itself,
+# Everything the playbook installs and configures, in order: directories, packages, system settings, the kiosk user, the kiosk itself,
 # then updates. Run by main.yml only when the files it installs have changed. Every task is idempotent. Services are only
 # enabled when kiosk_enable_only is true; nothing restarts the running kiosk (see handlers).
+
+# Directories ---------------------------------------------------------------------------------------------------------
+# One program makes all of them: a module run costs about a second on a Pi, and there are over twenty directories.
+# `install -d` creates what is missing and sets the owner and mode of what exists, so it can run every time.
+- name: full | Create the directories
+  ansible.builtin.command:
+    argv: "{{ ['install', '-d', '-m', '0755', '-o', 'root', '-g', 'root'] + kiosk_directories }}"
+  vars:
+    kiosk_directories:
+      - /etc/apt/keyrings
+      - /etc/chromium/policies/managed
+      - /etc/NetworkManager/dnsmasq-shared.d
+      - /etc/systemd/journald.conf.d
+      - /etc/the-max-mix
+      - /etc/pipewire
+      - /etc/pipewire/pipewire.conf.d
+      - /etc/plymouth
+      - /etc/systemd/system
+      - /etc/systemd/user
+      - /etc/systemd/user/default.target.wants
+      - /etc/tmpfiles.d
+      - /opt/the-max-mix
+      - '{{ kiosk_audio_dir }}'
+      - '{{ kiosk_keyboard_dir }}'
+      - '{{ kiosk_keyboard_dir }}/src'
+      - '{{ kiosk_keyboard_dir }}/extension'
+      - /usr/share/icons/blank
+      - /usr/share/icons/blank/cursors
+      - /usr/share/kiosk-cursors
+      - /usr/share/plymouth/themes/the-max-mix
+      - /var/lib/the-max-mix
+  changed_when: false
 
 # Packages ------------------------------------------------------------------------------------------------------------
 # Installing packages is slow on a Pi even when nothing is missing (apt's cache is loaded from Python), and so are the
@@ -27,14 +59,6 @@
         lock_timeout: 300
 
     # Node.js and Tailscale come from their own archives (kiosk_apt_sources), each with its pinned signing key.
-    - name: full | Create the APT keyring directory
-      ansible.builtin.file:
-        path: /etc/apt/keyrings
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
-
     - name: full | Install the other archives' signing keys
       ansible.builtin.get_url:
         url: '{{ item.key_url }}'
@@ -72,14 +96,6 @@
         update_cache: '{{ kiosk_apt_keys is changed or kiosk_apt_lists is changed }}'
         lock_timeout: 300
 
-    - name: full | Create the directory for the package stamp
-      ansible.builtin.file:
-        path: '{{ kiosk_packages_stamp | dirname }}'
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
-
     - name: full | Record what was installed
       ansible.builtin.copy:
         content: '{{ kiosk_packages_id }}'
@@ -113,15 +129,6 @@
     line: '127.0.1.1 {{ kiosk_hostname }}'
     # A container's /etc/hosts (the playbook test) is a bind mount, which cannot be replaced by a rename.
     unsafe_writes: true
-
-- name: full | Set the time zone name
-  ansible.builtin.copy:
-    content: |
-      {{ kiosk_timezone }}
-    dest: /etc/timezone
-    owner: root
-    group: root
-    mode: '0644'
 
 - name: full | Set the time zone
   ansible.builtin.file:
@@ -192,34 +199,21 @@
 
       [all]
 
-- name: full | Install the unattended-upgrades settings
+# The setup hotspot (pi/kiosk-audio/hotspot.ts): NetworkManager's own DHCP and DNS for it answer every name with the kiosk
+# (50-kiosk-captive.conf), and the service may serve its page on port 80.
+- name: full | Install the settings for unattended upgrades and the setup hotspot's DNS
   ansible.builtin.copy:
-    src: '{{ item }}'
-    dest: '/etc/apt/apt.conf.d/{{ item }}'
+    src: '{{ item.src }}'
+    dest: '{{ item.dest }}/{{ item.src }}'
     owner: root
     group: root
     mode: '0644'
   loop:
-    - 20auto-upgrades
-    - 52kiosk-unattended-upgrades
-
-# The setup hotspot (pi/kiosk-audio/hotspot.ts): NetworkManager's own DHCP and DNS for it answer every name with the kiosk,
-# and the service may serve its page on port 80.
-- name: full | Create the directory for the hotspot's DNS settings
-  ansible.builtin.file:
-    path: /etc/NetworkManager/dnsmasq-shared.d
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-
-- name: full | Make the setup hotspot's DNS answer with the kiosk
-  ansible.builtin.copy:
-    src: 50-kiosk-captive.conf
-    dest: /etc/NetworkManager/dnsmasq-shared.d/50-kiosk-captive.conf
-    owner: root
-    group: root
-    mode: '0644'
+    - { src: 20auto-upgrades, dest: /etc/apt/apt.conf.d }
+    - { src: 52kiosk-unattended-upgrades, dest: /etc/apt/apt.conf.d }
+    - { src: 50-kiosk-captive.conf, dest: /etc/NetworkManager/dnsmasq-shared.d }
+  loop_control:
+    label: '{{ item.src }}'
 
 - name: full | Let the kiosk service serve the hotspot's page on port 80
   ansible.builtin.copy:
@@ -281,6 +275,7 @@
     mode: '0440'
     validate: /usr/sbin/visudo -cf %s
 
+# kiosk-ssh-keys writes the keys only where this exists.
 - name: full | Create the admin user's SSH directory
   ansible.builtin.file:
     path: '/home/{{ kiosk_admin_user }}/.ssh'
@@ -289,18 +284,8 @@
     group: '{{ kiosk_admin_user }}'
     mode: '0700'
 
-# The keys come from GitHub (kiosk_admin_github_user), fetched by kiosk-ssh-keys now and then by kiosk-ssh-keys.timer, so a
-# key removed there stops working without waiting for a release. Once here, so that the account has its keys at the first
-# boot; without a network this just logs, and the timer tries again.
-- name: full | Fetch the admin user's SSH keys for the first time
-  ansible.builtin.command:
-    cmd: /usr/local/sbin/kiosk-ssh-keys {{ kiosk_admin_github_user }} {{ kiosk_admin_user }}
-    creates: '/home/{{ kiosk_admin_user }}/.ssh/authorized_keys'
-  # A command always counts as a change; this one only matters the first time, and a Pi without a network just tries again.
-  changed_when: false
-  failed_when: false
-  when: kiosk_admin_github_user | length > 0
-
+# The keys themselves come from GitHub (kiosk_admin_github_user): kiosk-ssh-keys.timer fetches them soon after every boot
+# and then regularly, so a key removed there stops working without waiting for a release.
 # sshd uses the first value it reads and Debian's sshd_config includes sshd_config.d first, so these settings win.
 - name: full | Allow SSH for the admin user, by key only
   ansible.builtin.copy:
@@ -336,35 +321,6 @@
   when: kiosk_tailscale_enabled | bool
 
 # The kiosk -----------------------------------------------------------------------------------------------------------
-# One program makes all of them: a module run costs about a second on a Pi, and there are twenty directories.
-# `install -d` creates what is missing and sets the owner and mode of what exists, so it can run every time.
-- name: full | Create the directories
-  ansible.builtin.command:
-    argv: "{{ ['install', '-d', '-m', '0755', '-o', 'root', '-g', 'root'] + kiosk_directories }}"
-  vars:
-    kiosk_directories:
-      - /etc/chromium/policies/managed
-      - /etc/systemd/journald.conf.d
-      - /etc/the-max-mix
-      - /etc/pipewire
-      - /etc/pipewire/pipewire.conf.d
-      - /etc/plymouth
-      - /etc/systemd/system
-      - /etc/systemd/user
-      - /etc/systemd/user/default.target.wants
-      - /etc/tmpfiles.d
-      - /opt/the-max-mix
-      - '{{ kiosk_audio_dir }}'
-      - '{{ kiosk_keyboard_dir }}'
-      - '{{ kiosk_keyboard_dir }}/src'
-      - '{{ kiosk_keyboard_dir }}/extension'
-      - /usr/share/icons/blank
-      - /usr/share/icons/blank/cursors
-      - /usr/share/kiosk-cursors
-      - /usr/share/plymouth/themes/the-max-mix
-      - /var/lib/the-max-mix
-  changed_when: false
-
 # Raspberry Pi OS keeps the journal in memory, so every log is lost at a reboot, including the one that shows why a shutdown
 # was slow. This keeps it on disk, capped so that it does not wear the SD card or fill it.
 - name: full | Keep the journal across reboots
@@ -481,7 +437,7 @@
         group: root
         mode: '0644'
 
-- name: full | Install the AirPlay settings and the audio routing unit
+- name: full | Install the AirPlay settings, the audio routing unit and the Chromium policy
   ansible.builtin.template:
     src: '{{ item.src }}'
     dest: '{{ item.dest }}'
@@ -491,6 +447,7 @@
   loop:
     - { src: 50-kiosk-raop.conf.j2, dest: /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf }
     - { src: kiosk-audio.service.j2, dest: /etc/systemd/user/kiosk-audio.service }
+    - { src: kiosk-policy.json.j2, dest: /etc/chromium/policies/managed/kiosk.json }
   loop_control:
     label: '{{ item.dest }}'
   notify: Ask for a kiosk restart
@@ -505,32 +462,18 @@
     follow: false
   notify: Ask for a kiosk restart
 
-- name: full | Install the Chromium policy
+# polkitd reads rules.d itself. The kiosk user manages Wi-Fi connections without sudo (networkmanager), and may update and
+# restart the kiosk and reboot the Pi (power): the Update now, Restart kiosk and Reboot Pi buttons in the app's settings.
+- name: full | Install the kiosk user's polkit rules
   ansible.builtin.template:
-    src: kiosk-policy.json.j2
-    dest: /etc/chromium/policies/managed/kiosk.json
+    src: '{{ item }}.j2'
+    dest: '/etc/polkit-1/rules.d/{{ item }}'
     owner: root
     group: root
     mode: '0644'
-  notify: Ask for a kiosk restart
-
-# polkitd reads rules.d itself; the kiosk user manages Wi-Fi connections without sudo.
-- name: full | Allow the kiosk user to manage NetworkManager
-  ansible.builtin.template:
-    src: 50-kiosk-networkmanager.rules.j2
-    dest: /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules
-    owner: root
-    group: root
-    mode: '0644'
-
-# The Update now (a WebSocket), Restart kiosk and Reboot Pi buttons in the app's settings (requests to the kiosk-audio service).
-- name: full | Allow the kiosk user to update and restart the kiosk and reboot the Pi
-  ansible.builtin.template:
-    src: 50-kiosk-power.rules.j2
-    dest: /etc/polkit-1/rules.d/50-kiosk-power.rules
-    owner: root
-    group: root
-    mode: '0644'
+  loop:
+    - 50-kiosk-networkmanager.rules
+    - 50-kiosk-power.rules
 
 - name: full | Create /run/kiosk at every boot
   ansible.builtin.template:
@@ -618,68 +561,38 @@
   notify: Reload systemd
 
 # Updates -------------------------------------------------------------------------------------------------------------
-- name: full | Install the update units
+- name: full | Install the update and SSH key units
   ansible.builtin.template:
     src: '{{ item }}.j2'
     dest: '/etc/systemd/system/{{ item }}'
     owner: root
     group: root
     mode: '0644'
-  loop:
-    - kiosk-pull.service
-    - kiosk-pull.timer
-    - kiosk-restart.service
-    - kiosk-restart.timer
-    - kiosk-widevine.path
-    - kiosk-widevine.service
-  notify: Reload systemd
-
-- name: full | Install the SSH key units
-  ansible.builtin.template:
-    src: '{{ item }}.j2'
-    dest: '/etc/systemd/system/{{ item }}'
-    owner: root
-    group: root
-    mode: '0644'
-  loop:
-    - kiosk-ssh-keys.service
-    - kiosk-ssh-keys.timer
-  when: kiosk_admin_github_user | length > 0
+  loop: >-
+    {{ ['kiosk-pull.service', 'kiosk-pull.timer', 'kiosk-restart.service', 'kiosk-restart.timer',
+        'kiosk-widevine.path', 'kiosk-widevine.service']
+      + (['kiosk-ssh-keys.service', 'kiosk-ssh-keys.timer'] if kiosk_admin_github_user else []) }}
   notify: Reload systemd
 
 # The units must be known to systemd before they are enabled and started.
 - name: full | Apply the pending changes
   ansible.builtin.meta: flush_handlers
 
-- name: full | Enable the kiosk
+# Started by the next boot, not here: nothing starts or restarts the kiosk. Bluetooth pairs phones and hears who is home.
+- name: full | Enable the kiosk and Bluetooth
   ansible.builtin.systemd_service:
-    name: kiosk.service
+    name: '{{ item }}'
     enabled: true
+  loop:
+    - kiosk.service
+    - bluetooth.service
 
-- name: full | Enable Bluetooth, for pairing phones and hearing who is home
-  ansible.builtin.systemd_service:
-    name: bluetooth.service
-    enabled: true
-
-- name: full | Enable Avahi, which finds the AirPlay speakers
-  ansible.builtin.systemd_service:
-    name: avahi-daemon.service
-    enabled: true
-    state: "{{ 'started' if not kiosk_enable_only else omit }}"
-
-- name: full | Enable the SSH key timer
-  ansible.builtin.systemd_service:
-    name: kiosk-ssh-keys.timer
-    enabled: true
-    state: "{{ 'started' if not kiosk_enable_only else omit }}"
-  when: kiosk_admin_github_user | length > 0
-
-- name: full | Enable the update timers
+# Avahi finds the AirPlay speakers.
+- name: full | Enable and start Avahi and the timers
   ansible.builtin.systemd_service:
     name: '{{ item }}'
     enabled: true
     state: "{{ 'started' if not kiosk_enable_only else omit }}"
-  loop:
-    - kiosk-pull.timer
-    - kiosk-restart.timer
-    - kiosk-widevine.path
+  loop: >-
+    {{ ['avahi-daemon.service', 'kiosk-pull.timer', 'kiosk-restart.timer', 'kiosk-widevine.path']
+      + (['kiosk-ssh-keys.timer'] if kiosk_admin_github_user else []) }}
