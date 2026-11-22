@@ -2,13 +2,17 @@ import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./App', () => ({
-  default: ({ signInError }: { signInError: string | null }) => <p>{signInError ?? 'no sign-in error'}</p>
+  default: ({ signInError, pairScreen }: { signInError: string | null; pairScreen: { width: number } | null }) => (
+    <>
+      <p>{signInError ?? 'no sign-in error'}</p>
+      {pairScreen && <p>pairing {pairScreen.width}</p>}
+    </>
+  )
 }));
 vi.mock('./spotify/auth', () => ({ completeSignIn: vi.fn() }));
 vi.mock('./countdown/registration', () => ({
-  completeRegistration: vi.fn(() => null),
   needsRegistration: vi.fn(() => false),
-  startRegistration: vi.fn(() => Promise.resolve(true))
+  kioskScreen: vi.fn(() => Promise.resolve({ width: 1280, height: 800, brightness_control: false }))
 }));
 
 describe('main', () => {
@@ -44,19 +48,21 @@ describe('main', () => {
     });
   });
 
-  it('goes to register instead of starting when the kiosk has no device ID', async () => {
+  it('starts the app with the pairing QR code over it when the kiosk has no device ID', async () => {
     const registration = await import('./countdown/registration');
     vi.mocked(registration.needsRegistration).mockReturnValueOnce(true);
     await start(() => Promise.resolve(null));
-    expect(registration.startRegistration).toHaveBeenCalled();
-    expect(document.querySelector('#root')).toBeEmptyDOMElement();
+    expect(await screen.findByText('pairing 1280')).toBeInTheDocument();
+    expect(screen.getByText('no sign-in error')).toBeInTheDocument();
   });
 
-  it('starts unregistered when the Pi cannot say what its screen is', async () => {
+  it('starts unregistered, with no QR code, when the Pi cannot say what its screen is', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     const registration = await import('./countdown/registration');
     vi.mocked(registration.needsRegistration).mockReturnValueOnce(true);
-    vi.mocked(registration.startRegistration).mockResolvedValueOnce(false);
+    vi.mocked(registration.kioskScreen).mockResolvedValueOnce(null);
     await start(() => Promise.resolve(null));
     expect(await screen.findByText('no sign-in error')).toBeInTheDocument();
+    expect(screen.queryByText(/pairing/)).not.toBeInTheDocument();
   });
 });

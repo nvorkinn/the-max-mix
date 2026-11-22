@@ -37,8 +37,8 @@ export type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
 export interface DeviceConfig {
   /**
    * The config as the kiosk shows it: the server's, with any change not yet saved already in it. Null until the kiosk
-   * has one, which is once someone owns it: a touchscreen registers through its owner's sign-in, so it has no pairing
-   * code.
+   * has one, which is once someone owns it: the kiosk keeps its device ID only once someone has scanned its pairing QR
+   * code and signed in.
    */
   config: TouchscreenConfig | null;
   /** Whether changes go to the server: once someone owns the kiosk. Before that the kiosk's settings are its own. */

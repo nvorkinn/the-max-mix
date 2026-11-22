@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { X, Bug, RotateCw, Trash2, KeyRound, ChevronDown, ChevronRight } from 'lucide-react';
 import { forgetDeviceConfig } from '../countdown/config';
-import { deviceCredentials, forgetRegistration, startRegistration } from '../countdown/registration';
+import { deviceCredentials, forgetRegistration } from '../countdown/registration';
 import { clearDebugLog, getDebugEntries, subscribeDebugLog } from '../utils/debugLog';
 import type { DebugEntry } from '../utils/debugLog';
 import { getHttpLogMode, getMutedHttpGroups, HTTP_GROUPS, setHttpGroupMuted, setHttpLogMode } from '../utils/httpLog';
@@ -285,11 +285,10 @@ function DebugConsolePanel({
 
 const reloadPage = () => location.reload();
 
-/** Forgets the kiosk's device ID, secret and config, and goes to countdown-server's /register page as a new screen. */
-function registerAgain(): void {
+/** Forgets the kiosk's device ID, secret and config, so the app starts again as a new screen to countdown-server. */
+function forgetDevice(): void {
   forgetRegistration();
   forgetDeviceConfig();
-  void startRegistration();
 }
 
 /** A full-screen view of the app's state and recent log, opened by a hidden gesture on the kiosk. */
@@ -298,7 +297,7 @@ export default function DebugConsole({
   onClose,
   status,
   onReload = reloadPage,
-  onRegisterAgain = registerAgain
+  onRegisterAgain
 }: Readonly<{
   isOpen: boolean;
   onClose: () => void;
@@ -307,6 +306,17 @@ export default function DebugConsole({
   onRegisterAgain?: () => void;
 }>) {
   return isOpen ? (
-    <DebugConsolePanel onClose={onClose} status={status} onReload={onReload} onRegisterAgain={onRegisterAgain} />
+    <DebugConsolePanel
+      onClose={onClose}
+      status={status}
+      onReload={onReload}
+      onRegisterAgain={
+        onRegisterAgain ??
+        (() => {
+          forgetDevice();
+          onReload();
+        })
+      }
+    />
   ) : null;
 }
