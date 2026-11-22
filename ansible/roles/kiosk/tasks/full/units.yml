@@ -3,7 +3,7 @@
 # Updates: the pull, restart, Widevine and SSH key units, then enabling and starting what runs from boot.
 
 # Updates -------------------------------------------------------------------------------------------------------------
-- name: full | Install the update and SSH key units
+- name: full | units | Install the update and SSH key units
   ansible.builtin.template:
     src: '{{ item }}.j2'
     dest: '/etc/systemd/system/{{ item }}'
@@ -17,11 +17,11 @@
   notify: Reload systemd
 
 # The units must be known to systemd before they are enabled and started.
-- name: full | Apply the pending changes
+- name: full | units | Apply the pending changes
   ansible.builtin.meta: flush_handlers
 
 # Started by the next boot, not here: nothing starts or restarts the kiosk. Bluetooth pairs phones and hears who is home.
-- name: full | Enable the kiosk and Bluetooth
+- name: full | units | Enable the kiosk and Bluetooth
   ansible.builtin.systemd_service:
     name: '{{ item }}'
     enabled: true
@@ -30,7 +30,7 @@
     - bluetooth.service
 
 # Avahi finds the AirPlay speakers.
-- name: full | Enable and start Avahi and the timers
+- name: full | units | Enable and start Avahi and the timers
   ansible.builtin.systemd_service:
     name: '{{ item }}'
     enabled: true

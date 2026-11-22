@@ -158,14 +158,14 @@ if grep -q 'TASK \[kiosk : full | ' /tmp/third-run.log; then
   fail=1
 fi
 check grep -Eq 'changed=0 ' /tmp/third-run.log
-check grep -q 'TASK \[kiosk : full | Set the time zone\]' /tmp/fourth-run.log
-if grep -q 'TASK \[kiosk : full | Install the packages' /tmp/fourth-run.log; then
+check grep -q 'TASK \[kiosk : full | system | Set the time zone\]' /tmp/fourth-run.log
+if grep -q 'TASK \[kiosk : full | base | Install the packages' /tmp/fourth-run.log; then
   echo "FAILED: the fourth run ran a part that was not due" >&2
   fail=1
 fi
 check grep -Eq 'changed=0 ' /tmp/fourth-run.log
-check second_run_skips 'Install the packages'
-check second_run_skips "Install the other archives' packages"
+check second_run_skips 'base | Install the packages'
+check second_run_skips "base | Install the other archives' packages"
 check test -L /usr/share/icons/blank/cursors/not-allowed
 check test -f /usr/share/kiosk-cursors/default/cursors/left_ptr
 

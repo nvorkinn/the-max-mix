@@ -4,14 +4,14 @@
 # unattended upgrades and the setup hotspot.
 
 # System settings -----------------------------------------------------------------------------------------------------
-- name: full | Enable the locale
+- name: full | system | Enable the locale
   ansible.builtin.lineinfile:
     path: /etc/locale.gen
     regexp: '^#?\s*{{ kiosk_locale | regex_escape }}\s+UTF-8'
     line: '{{ kiosk_locale }} UTF-8'
   notify: Generate the locale
 
-- name: full | Set the default locale
+- name: full | system | Set the default locale
   ansible.builtin.copy:
     content: |
       LANG={{ kiosk_locale }}
@@ -21,7 +21,7 @@
     mode: '0644'
 
 # Debian's sudo and some tools look the host name up; Raspberry Pi OS's cloud-init does not add it to /etc/hosts.
-- name: full | Resolve the host name locally
+- name: full | system | Resolve the host name locally
   ansible.builtin.lineinfile:
     path: /etc/hosts
     regexp: '^127\.0\.1\.1\s'
@@ -29,7 +29,7 @@
     # A container's /etc/hosts (the playbook test) is a bind mount, which cannot be replaced by a rename.
     unsafe_writes: true
 
-- name: full | Set the time zone
+- name: full | system | Set the time zone
   ansible.builtin.file:
     src: '/usr/share/zoneinfo/{{ kiosk_timezone }}'
     dest: /etc/localtime
@@ -38,13 +38,13 @@
 
 # Boot: console on tty3 and a quiet boot, the Wi-Fi country, the screen mode. cmdline.txt is a single line. The params
 # are appended only if missing; [ \t]*$ (not \s*$) keeps the final newline.
-- name: full | Move the console to tty3
+- name: full | system | Move the console to tty3
   ansible.builtin.replace:
     path: /boot/firmware/cmdline.txt
     regexp: '\bconsole=tty1\b'
     replace: console=tty3
 
-- name: full | Add the kernel command line parameters
+- name: full | system | Add the kernel command line parameters
   ansible.builtin.replace:
     path: /boot/firmware/cmdline.txt
     regexp: '^(?!.*(?:^|\s){{ item | regex_escape }}(?:\s|$))(.*?)[ \t]*$'
@@ -52,7 +52,7 @@
   loop: '{{ kiosk_cmdline_params }}'
 
 # The screen mode (kiosk_video_mode in defaults/main.yml). Not read in a container, which has no screen of the Pi's.
-- name: full | Read the screen's own mode
+- name: full | system | Read the screen's own mode
   ansible.builtin.command:
     argv:
       - node
@@ -62,14 +62,14 @@
   failed_when: false
   when: not kiosk_video_mode and not kiosk_enable_only
 
-- name: full | Work out the screen mode
+- name: full | system | Work out the screen mode
   ansible.builtin.set_fact:
     kiosk_screen_mode: >-
       {{ kiosk_video_mode or (kiosk_screen_mode_read.stdout | default('') | trim
         | regex_search('^[0-9]+x[0-9]+@[0-9]+$') | default('', true)) }}
 
 # Only once the mode is known: without a screen to read it from, the mode already set stays.
-- name: full | Remove another screen mode from the kernel command line
+- name: full | system | Remove another screen mode from the kernel command line
   ansible.builtin.replace:
     path: /boot/firmware/cmdline.txt
     regexp: '[ \t]+video=HDMI-A-{{ item }}:(?!{{ kiosk_screen_mode | regex_escape }}(?:\s|$))\S*'
@@ -77,7 +77,7 @@
   loop: [1, 2]
   when: kiosk_screen_mode | length > 0
 
-- name: full | Add the screen mode to the kernel command line
+- name: full | system | Add the screen mode to the kernel command line
   ansible.builtin.replace:
     path: /boot/firmware/cmdline.txt
     regexp: '^(?!.*(?:^|\s)video=HDMI-A-{{ item }}:)(.*?)[ \t]*$'
@@ -86,7 +86,7 @@
 
 # disable_splash hides the firmware's rainbow screen. The Pi 5 would boot a kernel with 16 KB memory pages; kernel8.img
 # is the 4 KB-page kernel the Pi 4 already uses, which Widevine's module is built for.
-- name: full | Configure the boot firmware
+- name: full | system | Configure the boot firmware
   ansible.builtin.blockinfile:
     path: /boot/firmware/config.txt
     marker: '# {mark} THE MAX MIX KIOSK'
@@ -100,7 +100,7 @@
 
 # The setup hotspot (pi/kiosk-audio/hotspot.ts): NetworkManager's own DHCP and DNS for it answer every name with the kiosk
 # (50-kiosk-captive.conf), and the service may serve its page on port 80.
-- name: full | Install the settings for unattended upgrades and the setup hotspot's DNS
+- name: full | system | Install the settings for unattended upgrades and the setup hotspot's DNS
   ansible.builtin.copy:
     src: '{{ item.src }}'
     dest: '{{ item.dest }}/{{ item.src }}'
@@ -114,7 +114,7 @@
   loop_control:
     label: '{{ item.src }}'
 
-- name: full | Let the kiosk service serve the hotspot's page on port 80
+- name: full | system | Let the kiosk service serve the hotspot's page on port 80
   ansible.builtin.copy:
     src: 50-kiosk-unprivileged-ports.conf
     dest: /etc/sysctl.d/50-kiosk-unprivileged-ports.conf
@@ -124,7 +124,7 @@
   notify: Apply sysctl settings
 
 # Releases up to v2.22.0 pointed NetworkManager's connectivity check at Debian for kiosk-session, which no longer asks.
-- name: full | Remove NetworkManager's connectivity check
+- name: full | system | Remove NetworkManager's connectivity check
   ansible.builtin.file:
     path: /etc/NetworkManager/conf.d/20-connectivity.conf
     state: absent
