@@ -137,14 +137,18 @@ export function parseScan(output: string): Network[] {
 export const isValidPsk = (password: string): boolean =>
   password.length === 64 ? /^[\da-f]{64}$/i.test(password) : password.length >= 8 && password.length <= 63;
 
+/** The name of the kiosk's own setup hotspot (hotspot.ts). */
+export const HOTSPOT_SSID = 'THE MAX MIX setup';
+
 /**
  * The name of the network the Wi-Fi is on, from `nmcli -t -f ACTIVE,SSID device wifi list` output, or null when it is
- * on none.
+ * on none. While the setup hotspot is up, NetworkManager lists it as the active network, but the kiosk is on no network
+ * then: counting it would make the app think it is online (and reload, closing the hotspot's dialog).
  */
 export function parseActiveSsid(output: string): string | null {
   for (const line of output.split('\n')) {
     const [active, ssid = ''] = splitTerse(line);
-    if (active === 'yes' && ssid !== '') return ssid;
+    if (active === 'yes' && ssid !== '' && ssid !== HOTSPOT_SSID) return ssid;
   }
   return null;
 }

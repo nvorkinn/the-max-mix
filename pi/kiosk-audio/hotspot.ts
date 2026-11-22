@@ -7,11 +7,10 @@ import { randomInt } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { handlePortalRequest, refusePortalRequest } from './hotspot-portal.ts';
 import type { Portal } from './hotspot-portal.ts';
-import { runCommand } from './nmcli.ts';
+import { HOTSPOT_SSID, runCommand } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network, Run } from './nmcli.ts';
 import { qrRows, wifiQrText } from './qr.ts';
 
-export const HOTSPOT_SSID = 'THE MAX MIX setup';
 const CONNECTION = 'kiosk-setup';
 // What NetworkManager gives a hotspot's own address, unless it says otherwise.
 // eslint-disable-next-line sonarjs/no-hardcoded-ip -- NetworkManager's own default for a hotspot
