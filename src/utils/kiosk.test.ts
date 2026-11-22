@@ -7,7 +7,6 @@ import {
   isRelease,
   latestCommit,
   latestRelease,
-  openWifiSettings,
   piVersion,
   rebootPi,
   restartKiosk
@@ -83,27 +82,6 @@ describe('isKiosk', () => {
     expect(isKiosk()).toBe(true);
     visit('?kiosk=0');
     expect(isKiosk()).toBe(false);
-  });
-
-  it('asks the kiosk service to show the Wi-Fi panel', () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-    vi.stubGlobal('fetch', fetchMock);
-    openWifiSettings();
-    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi', { method: 'POST' });
-  });
-
-  it('asks for the Wi-Fi panel in the tablet’s language', () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-    vi.stubGlobal('fetch', fetchMock);
-    openWifiSettings('nb');
-    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ language: 'nb' })
-    });
-    // A click event, when it is a button's onClick, is no language: the kiosk keeps the one it has.
-    openWifiSettings(new MouseEvent('click'));
-    expect(fetchMock).toHaveBeenLastCalledWith('http://127.0.0.1:7341/wifi', { method: 'POST' });
   });
 });
 

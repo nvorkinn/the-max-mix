@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { showDashboard } from './dashboard.ts';
 import { DEVICE_CONFIGS, fakeCountdownServer } from './fake-countdown.ts';
-import { airPlayOutput, fakeKioskOutputs } from './fake-kiosk.ts';
+import { airPlayOutput, fakeKioskOutputs, wifiAnswer } from './fake-kiosk.ts';
 import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
 import { COLOURED_ART, fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSettings, showSection } from './settings.ts';
@@ -53,11 +53,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await page.setViewportSize(screen);
       await fakeSpotify(page);
       await page.route('http://127.0.0.1:7341/**', route =>
-        route.fulfill(
-          new URL(route.request().url()).pathname === '/wifi/status'
-            ? { headers: { 'Access-Control-Allow-Origin': '*' }, json: { ssid: 'Home network' } }
-            : { status: 204 }
-        )
+        route.fulfill(wifiAnswer(route.request(), 'Home network') ?? { status: 204 })
       );
       await page.route('https://api.github.com/**', route =>
         route.fulfill({

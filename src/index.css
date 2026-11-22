@@ -2334,6 +2334,65 @@ body:has(.app-dialog[open]) {
   gap: 14px;
   padding: 10px 10px 10px 14px;
 }
+/* Settings › Wi-Fi: the networks in range, each a row to tap, then Other network and Refresh. */
+.wifi-networks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.wifi-network {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 18px;
+  font-size: 18px;
+  text-align: left;
+}
+.wifi-network:disabled {
+  color: var(--muted);
+}
+.wifi-network[aria-current='true'] {
+  border-color: var(--accent);
+}
+.wifi-network-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wifi-network-current {
+  color: var(--accent);
+}
+.wifi-actions {
+  display: flex;
+  gap: 12px;
+}
+.wifi-actions .button {
+  flex: 1;
+  min-height: 60px;
+  font-size: 18px;
+}
+/* The join dialog: the network's name (a hidden one only), its password and Show, then the buttons. */
+.wifi-join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+.wifi-join-password {
+  display: flex;
+  gap: 8px;
+}
+.wifi-join-password .button {
+  min-width: 96px;
+  font-size: 18px;
+}
+.wifi-join .music-search {
+  font-size: 20px;
+}
 /* The Countdown page: a box that opens the stop search, then the saved stops, which scroll on their own under it. */
 .countdown-settings {
   display: flex;

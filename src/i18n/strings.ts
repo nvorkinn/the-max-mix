@@ -201,6 +201,25 @@ export const STRINGS = {
   'wifi.choose': { en: 'Choose network', nb: 'Velg nettverk' },
   'wifi.not_connected': { en: 'Not connected', nb: 'Ikke tilkoblet' },
   'wifi.unknown': { en: 'Status unknown', nb: 'Ukjent status' },
+  'wifi.networks': { en: 'Networks', nb: 'Nettverk' },
+  'wifi.other': { en: 'Other network', nb: 'Annet nettverk' },
+  'wifi.refresh': { en: 'Refresh', nb: 'Oppdater' },
+  'wifi.searching': { en: 'Looking for networks…', nb: 'Søker etter nettverk …' },
+  'wifi.no_networks': { en: 'No networks found.', nb: 'Ingen nettverk funnet.' },
+  'wifi.not_supported': { en: 'Not supported', nb: 'Støttes ikke' },
+  'wifi.secured': { en: 'Needs a password', nb: 'Krever passord' },
+  'wifi.signal': { en: 'Signal {bars} of 4', nb: 'Signal {bars} av 4' },
+  'wifi.join': { en: 'Join {ssid}', nb: 'Koble til {ssid}' },
+  'wifi.name': { en: 'Network name', nb: 'Nettverksnavn' },
+  'wifi.password': { en: 'Password', nb: 'Passord' },
+  'wifi.show': { en: 'Show', nb: 'Vis' },
+  'wifi.hide': { en: 'Hide', nb: 'Skjul' },
+  'wifi.connect': { en: 'Connect', nb: 'Koble til' },
+  'wifi.connecting': { en: 'Connecting to {ssid}…', nb: 'Kobler til {ssid} …' },
+  'wifi.unreachable': {
+    en: 'Could not reach the kiosk service.',
+    nb: 'Får ikke kontakt med tjenesten på nettbrettet.'
+  },
 
   // Settings › Spotify.
   'spotify.connected': { en: 'Connected', nb: 'Tilkoblet' },

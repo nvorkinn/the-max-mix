@@ -1,6 +1,6 @@
 // The kiosk's local service (pi/kiosk-audio/server.ts), which only answers the Pi's own browser, on its own address.
-// The app uses it for what a page cannot do itself: listing the AirPlay speakers, routing the sound, showing the Wi-Fi
-// panel, turning the screen on, restarting and rebooting the Pi, and updating it (which it streams back).
+// The app uses it for what a page cannot do itself: listing the AirPlay speakers, routing the sound, the Wi-Fi, turning
+// the screen on, restarting and rebooting the Pi, and updating it (which it streams back).
 export const KIOSK_SERVICE = 'http://127.0.0.1:7341';
 
 /**

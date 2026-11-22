@@ -64,6 +64,8 @@ interface SettingsPanelProps {
   onDeviceConfigSave?: DeviceConfig['save'] | undefined;
   /** Opens the debug console, from a button on the About page. */
   onOpenDebug?: () => void;
+  /** Called after the Wi-Fi page joined a network. */
+  onWifiJoined?: () => void;
 }
 
 /**
@@ -123,12 +125,13 @@ export default function SettingsPanel({
   onShow,
   deviceConfig,
   onDeviceConfigSave,
-  onOpenDebug
+  onOpenDebug,
+  onWifiJoined
 }: Readonly<SettingsPanelProps>) {
   const t = useT();
   const [kiosk] = useState(isKiosk);
   const [section, setSection] = useState<SettingsSection | undefined>(initialSection);
-  const wifi = useWifi(kiosk);
+  const [wifi, recheckWifi] = useWifi(kiosk);
   const update = kiosk ? kioskUpdate : undefined;
   // Screen sleep is the kiosk's only: a browser has no screen of its own to put to sleep.
   const hasSleep = kiosk && screenSleep !== undefined && onScreenSleepChange !== undefined;
@@ -197,7 +200,15 @@ export default function SettingsPanel({
       break;
     }
     case 'wifi': {
-      page = <WifiSettings wifi={wifi} />;
+      page = (
+        <WifiSettings
+          wifi={wifi}
+          onJoined={() => {
+            recheckWifi();
+            onWifiJoined?.();
+          }}
+        />
+      );
       break;
     }
     case 'spotify': {

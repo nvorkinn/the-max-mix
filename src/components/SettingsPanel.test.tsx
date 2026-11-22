@@ -149,10 +149,22 @@ describe('SettingsPanel', () => {
   });
 
   describe('Wi-Fi setting', () => {
-    const wifi = () => screen.queryByRole('button', { name: /(change|choose) network/i });
-    /** The kiosk service, answering GET /wifi/status with this. */
-    const kioskSays = (answer: Response | Error) => {
-      const fetchMock = vi.fn(() => (answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer)));
+    const JOINED = { ok: true };
+    const wifi = () => screen.queryByRole('button', { name: 'Other network' });
+    /**
+     * The kiosk service: GET /wifi/status answers `status`, GET /wifi/networks lists `networks`, and POST /wifi/connect
+     * answers `joined`.
+     */
+    const kioskSays = (
+      status: unknown,
+      { networks = [], joined = JOINED }: { networks?: unknown[]; joined?: unknown } = {}
+    ) => {
+      const fetchMock = vi.fn((url: string) => {
+        if (status instanceof Error) return Promise.reject(status);
+        if (url.endsWith('/wifi/networks')) return Promise.resolve(Response.json({ networks }));
+        if (url.endsWith('/wifi/connect')) return Promise.resolve(Response.json(joined));
+        return Promise.resolve(status instanceof Response ? status.clone() : Response.json(status));
+      });
       vi.stubGlobal('fetch', fetchMock);
       return fetchMock;
     };
@@ -178,29 +190,26 @@ describe('SettingsPanel', () => {
       expect(wifi()).toBeInTheDocument();
     });
 
-    it('names the network on its page, and offers to change it', async () => {
+    it('names the network on its page', async () => {
       history.replaceState(null, '', '/?kiosk=1');
-      const fetchMock = kioskSays(Response.json({ ssid: 'Home' }));
+      const fetchMock = kioskSays({ ssid: 'Home' });
       render(<SettingsPanel {...base} initialSection="wifi" />);
       await waitFor(() =>
         expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/status', expect.anything())
       );
-      expect(screen.getByTestId('wifi-network')).toHaveTextContent('Home');
-      expect(screen.getByRole('button', { name: 'Change network' })).toBeInTheDocument();
+      expect(await screen.findByTestId('wifi-network')).toHaveTextContent('Home');
     });
 
     it('says when the kiosk is on no network, and when it cannot tell', async () => {
       history.replaceState(null, '', '/?kiosk=1');
-      kioskSays(Response.json({ ssid: null }));
+      kioskSays({ ssid: null });
       const { unmount } = render(<SettingsPanel {...base} initialSection="wifi" />);
       expect(await screen.findByText('Not connected')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Choose network' })).toBeInTheDocument();
       unmount();
 
       kioskSays(new Response(null, { status: 404 }));
       render(<SettingsPanel {...base} initialSection="wifi" />);
       expect(await screen.findByTestId('wifi-network')).toHaveTextContent('Status unknown');
-      expect(screen.getByRole('button', { name: 'Choose network' })).toBeInTheDocument();
     });
 
     it('is forgotten with ?kiosk=0', () => {
@@ -211,17 +220,133 @@ describe('SettingsPanel', () => {
       expect(wifi()).not.toBeInTheDocument();
     });
 
-    it('asks the kiosk service to show the Wi-Fi panel', async () => {
+    it('lists the networks in range, and joins one with its password', async () => {
       history.replaceState(null, '', '/?kiosk=1');
-      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-      vi.stubGlobal('fetch', fetchMock);
-      render(<SettingsPanel {...base} initialSection="wifi" />);
-      await userEvent.click(defined(wifi()));
-      expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi', {
+      const onWifiJoined = vi.fn();
+      const fetchMock = kioskSays(
+        { ssid: null },
+        {
+          networks: [
+            { ssid: 'Home', bars: 4, security: 'psk' },
+            { ssid: 'Old', bars: 1, security: 'unsupported' }
+          ]
+        }
+      );
+      render(<SettingsPanel {...base} initialSection="wifi" onWifiJoined={onWifiJoined} />);
+      expect(await screen.findByRole('button', { name: /^Old/ })).toBeDisabled();
+      await userEvent.click(screen.getByRole('button', { name: /^Home/ }));
+      const dialog = screen.getByRole('dialog', { name: 'Join Home' });
+      const connect = within(dialog).getByRole('button', { name: 'Connect' });
+      expect(connect).toBeDisabled();
+      await userEvent.type(within(dialog).getByLabelText('Password'), 'secret123');
+      await userEvent.click(connect);
+      await waitFor(() => expect(onWifiJoined).toHaveBeenCalled());
+      expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ language: 'en' })
+        body: JSON.stringify({ ssid: 'Home', password: 'secret123', hidden: false, security: 'psk' })
       });
+      expect(screen.queryByRole('dialog', { name: 'Join Home' })).not.toBeInTheDocument();
+    });
+
+    it("says the kiosk's reason when it could not join, and keeps the dialog open", async () => {
+      history.replaceState(null, '', '/?kiosk=1');
+      kioskSays(
+        { ssid: null },
+        {
+          networks: [{ ssid: 'Home', bars: 3, security: 'psk' }],
+          joined: { ok: false, error: 'Wrong password. Check it and try again.' }
+        }
+      );
+      render(<SettingsPanel {...base} initialSection="wifi" />);
+      await userEvent.click(await screen.findByRole('button', { name: /^Home/ }));
+      const dialog = screen.getByRole('dialog', { name: 'Join Home' });
+      await userEvent.type(within(dialog).getByLabelText('Password'), 'wrong-one');
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Connect' }));
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('Wrong password. Check it and try again.');
+    });
+
+    it('joins an open network at a tap, and says why when it could not', async () => {
+      history.replaceState(null, '', '/?kiosk=1');
+      const onWifiJoined = vi.fn();
+      const fetchMock = kioskSays({ ssid: null }, { networks: [{ ssid: 'Cafe', bars: 2, security: 'open' }] });
+      const { unmount } = render(<SettingsPanel {...base} initialSection="wifi" onWifiJoined={onWifiJoined} />);
+      await userEvent.click(await screen.findByRole('button', { name: /^Cafe/ }));
+      await waitFor(() => expect(onWifiJoined).toHaveBeenCalled());
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://127.0.0.1:7341/wifi/connect',
+        expect.objectContaining({
+          body: JSON.stringify({ ssid: 'Cafe', password: '', hidden: false, security: 'open' })
+        })
+      );
+      unmount();
+
+      kioskSays(
+        { ssid: null },
+        { networks: [{ ssid: 'Cafe', bars: 2, security: 'open' }], joined: { ok: false, error: 'Could not connect.' } }
+      );
+      render(<SettingsPanel {...base} initialSection="wifi" />);
+      await userEvent.click(await screen.findByRole('button', { name: /^Cafe/ }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Could not connect.');
+    });
+
+    it('searches again on Refresh, and says when the kiosk does not answer', async () => {
+      history.replaceState(null, '', '/?kiosk=1');
+      const fetchMock = kioskSays({ ssid: 'Home' }, { networks: [{ ssid: 'Home', bars: 4, security: 'psk' }] });
+      render(<SettingsPanel {...base} initialSection="wifi" />);
+      expect(await screen.findByRole('button', { name: /^Home/ })).toHaveAttribute('aria-current', 'true');
+      fetchMock.mockImplementation(() => Promise.reject(new TypeError('Failed to fetch')));
+      await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the kiosk service.');
+      expect(screen.queryByRole('button', { name: /^Home/ })).not.toBeInTheDocument();
+    });
+
+    it('shows and hides the password, and Cancel closes the dialog without joining', async () => {
+      history.replaceState(null, '', '/?kiosk=1');
+      const fetchMock = kioskSays({ ssid: null }, { networks: [{ ssid: 'Home', bars: 4, security: 'psk' }] });
+      render(<SettingsPanel {...base} initialSection="wifi" />);
+      await userEvent.click(await screen.findByRole('button', { name: /^Home/ }));
+      const dialog = screen.getByRole('dialog', { name: 'Join Home' });
+      const password = within(dialog).getByLabelText('Password');
+      expect(password).toHaveAttribute('type', 'password');
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Show' }));
+      expect(password).toHaveAttribute('type', 'text');
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Hide' }));
+      expect(password).toHaveAttribute('type', 'password');
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+      expect(screen.queryByRole('dialog', { name: 'Join Home' })).not.toBeInTheDocument();
+      expect(fetchMock).not.toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/connect', expect.anything());
+    });
+
+    it('says when the kiosk did not answer a join', async () => {
+      history.replaceState(null, '', '/?kiosk=1');
+      kioskSays({ ssid: null }, { networks: [{ ssid: 'Home', bars: 4, security: 'psk' }], joined: { ok: false } });
+      render(<SettingsPanel {...base} initialSection="wifi" />);
+      await userEvent.click(await screen.findByRole('button', { name: /^Home/ }));
+      const dialog = screen.getByRole('dialog', { name: 'Join Home' });
+      await userEvent.type(within(dialog).getByLabelText('Password'), 'secret123');
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Connect' }));
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not reach the kiosk service.');
+    });
+
+    it('joins a hidden network by name', async () => {
+      history.replaceState(null, '', '/?kiosk=1');
+      const fetchMock = kioskSays({ ssid: null });
+      render(<SettingsPanel {...base} initialSection="wifi" />);
+      expect(await screen.findByText('No networks found.')).toBeInTheDocument();
+      await userEvent.click(defined(wifi()));
+      const dialog = screen.getByRole('dialog', { name: 'Other network' });
+      await userEvent.type(within(dialog).getByLabelText('Network name'), 'Secret');
+      await userEvent.type(within(dialog).getByLabelText('Password'), 'secret123');
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Connect' }));
+      await waitFor(() =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          'http://127.0.0.1:7341/wifi/connect',
+          expect.objectContaining({
+            body: JSON.stringify({ ssid: 'Secret', password: 'secret123', hidden: true, security: 'psk' })
+          })
+        )
+      );
     });
   });
 
