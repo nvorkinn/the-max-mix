@@ -30,6 +30,15 @@ and `X-Frame-Options`. A Pi following a branch serves the latest release's app, 
 When the app is this local copy, its own GETs are same-origin and Chromium sends no `Origin` with them, so the checks
 that answer only the app also take `Sec-Fetch-Site: same-origin` (`isFromApp` in `server.ts`).
 
+### Moving the saved data over
+
+The browser keeps `localStorage` per origin, so the people, their Spotify logins and the countdown device secret that the
+hosted app saved stay on its origin. While the kiosk still opens the hosted app, that app hands its `maxmix.*` items to
+this service at every start and every ten minutes (`POST /handover`, the hosted origin only), which keeps them in
+`~/.local/state/the-max-mix/handover.json` (readable by the kiosk user only, `handover.ts`). Once the kiosk opens the
+local copy, that copy takes them on its first start (`GET /handover`, same-origin only), keeping any it already has, and
+has the file deleted (`POST /handover/done`). See `src/utils/handover.ts`.
+
 ## Screen
 
 `GET /screen` answers what the tablet's screen is, for registering with countdown-server (`screen.ts`):

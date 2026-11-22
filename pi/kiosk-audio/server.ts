@@ -76,6 +76,8 @@ import type { MonitorSnapshot } from './bluetooth-monitor.ts';
 import { Bluetooth, BluetoothError, parseAddress } from './bluetooth.ts';
 import type { BluetoothDevice, ConnectResult as BluetoothConnectResult } from './bluetooth.ts';
 import { isLoopback, listenForHotspot } from './hotspot-portal.ts';
+import { handoverFile, MAX_HANDOVER, parseHandover } from './handover.ts';
+import type { HandoverStore } from './handover.ts';
 import { Hotspot, HotspotError } from './hotspot.ts';
 import type { HotspotInfo, HotspotStatus } from './hotspot.ts';
 import type { LyricsQuery } from './lyrics-sources.ts';
@@ -141,6 +143,8 @@ export interface Deps {
   heartbeat: () => void;
   log: (entry: AppLog) => void;
   wifi: Wifi;
+  /** The app's saved data on its way from the hosted app to the local copy (handover.ts). */
+  handover: HandoverStore;
   /** The web app installed on the Pi (app-files.ts): the file a GET of the URL asks for, or null. */
   app: (url: string) => Promise<AppFile | null>;
   /** The setup page (in the language) or one of its scripts for a GET of the URL, or null. */
@@ -259,12 +263,12 @@ export function speakerVolumes(graph: Graph): Record<string, number> {
   return volumes;
 }
 
-async function readBody(request: IncomingMessage): Promise<string> {
+async function readBody(request: IncomingMessage, maxSize = MAX_BODY): Promise<string> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of request as AsyncIterable<Buffer>) {
     size += chunk.length;
-    if (size > MAX_BODY) throw new RangeError('The request is too large');
+    if (size > maxSize) throw new RangeError('The request is too large');
     chunks.push(chunk);
   }
   return Buffer.concat(chunks).toString('utf8');
@@ -708,6 +712,37 @@ export function isFromApp(request: IncomingMessage, origin: string): boolean {
     : request.headers.origin === origin;
 }
 
+/**
+ * The handover (handover.ts). Only the hosted app may hand its data over (POST /handover), and only the local copy may
+ * take it (GET /handover) and have it deleted (POST /handover/done).
+ */
+async function handleHandover(
+  request: IncomingMessage,
+  response: ServerResponse,
+  origin: string,
+  store: HandoverStore
+): Promise<void> {
+  const isLocal = origin === LOCAL_ORIGIN && isFromApp(request, origin);
+  if (request.method === 'POST' && request.url === '/handover') {
+    if (origin === LOCAL_ORIGIN || request.headers.origin !== origin) {
+      response.writeHead(403).end();
+      return;
+    }
+    const handover = parseHandover(JSON.parse(await readBody(request, MAX_HANDOVER)) as unknown);
+    if (handover) await store.save(handover);
+    response.writeHead(handover ? 204 : 400).end();
+  } else if (!isLocal) {
+    response.writeHead(403).end();
+  } else if (request.method === 'GET') {
+    const handover = await store.read();
+    if (handover) sendJson(response, 200, { items: handover });
+    else response.writeHead(404).end();
+  } else {
+    await store.remove();
+    response.writeHead(204).end();
+  }
+}
+
 /** The GETs that answer the app's origin only (they make the Pi call out), and the rest (get). */
 async function handleGet(
   request: IncomingMessage,
@@ -764,6 +799,11 @@ export function handleRequest(origin: string, deps: Deps) {
     try {
       if (request.method === 'OPTIONS') {
         response.writeHead(204).end();
+      } else if (
+        (request.method === 'GET' && request.url === '/handover') ||
+        (request.method === 'POST' && (request.url === '/handover' || request.url === '/handover/done'))
+      ) {
+        await handleHandover(request, response, origin, deps.handover);
       } else if (request.method === 'GET') {
         await handleGet(request, response, origin, deps);
       } else if (
@@ -808,6 +848,8 @@ export function serveSpeakers(
     phonesFile: string;
     /** The web app's folder (KIOSK_APP_DIR), or '' for none. */
     appFolder: string;
+    /** Where the hosted app's saved data waits for the local copy (handover.ts). */
+    handoverFile: string;
   },
   update: Update = runUpdate
 ): Server {
@@ -851,6 +893,7 @@ export function serveSpeakers(
     log: journalLog(),
     asset: (url, language) => wifiSetupAsset(url, undefined, language),
     app: appFiles(deps.appFolder),
+    handover: handoverFile(deps.handoverFile),
     lyrics: cached(query => findLyrics(query)),
     bluetooth,
     bluetoothMonitor,
