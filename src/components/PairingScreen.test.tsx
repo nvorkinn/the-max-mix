@@ -1,8 +1,8 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pairingState, registerScreen } from '../countdown/registration';
 import { currentWifi } from '../utils/kiosk';
-import PairingScreen, { NETWORK_POLL_MS, NO_NETWORK_MS, PAIRING_POLL_MS, REGISTER_RETRY_MS } from './PairingScreen';
+import PairingScreen, { NETWORK_POLL_MS, PAIRING_POLL_MS, REGISTER_RETRY_MS } from './PairingScreen';
 
 vi.mock('../countdown/registration', async importOriginal => ({
   ...(await importOriginal<typeof import('../countdown/registration')>()),
@@ -35,12 +35,22 @@ afterEach(() => {
 
 const advance = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
 
+/** Past the Wi-Fi step, on a Pi that is on its network. */
+async function next() {
+  const button = await screen.findByRole('button', { name: 'Next' });
+  await waitFor(() => {
+    expect(button).toBeEnabled();
+  });
+  fireEvent.click(button);
+}
+
 describe('PairingScreen', () => {
   it('shows the QR code, waits for an owner, then keeps the device ID', async () => {
     vi.mocked(registerScreen).mockResolvedValue('0a1b2c3d4e5f');
     vi.mocked(pairingState).mockResolvedValueOnce('waiting').mockResolvedValueOnce('paired');
     const onPaired = vi.fn();
     render(<PairingScreen screen={PI_SCREEN} onPaired={onPaired} />);
+    await next();
 
     expect(await screen.findByRole('img', { name: 'QR code to add this screen to your account' })).toBeInTheDocument();
     expect(screen.getByText('Scan to get started')).toBeInTheDocument();
@@ -62,6 +72,7 @@ describe('PairingScreen', () => {
     vi.mocked(registerScreen).mockResolvedValueOnce(null).mockResolvedValue('0a1b2c3d4e5f');
     vi.mocked(pairingState).mockResolvedValueOnce('unregistered').mockResolvedValue('waiting');
     render(<PairingScreen screen={PI_SCREEN} onPaired={vi.fn()} />);
+    await next();
 
     await waitFor(() => {
       expect(registerScreen).toHaveBeenCalledTimes(1);
@@ -80,6 +91,7 @@ describe('PairingScreen', () => {
     vi.mocked(registerScreen).mockResolvedValue('0a1b2c3d4e5f');
     vi.mocked(pairingState).mockResolvedValue('waiting');
     const { unmount } = render(<PairingScreen screen={PI_SCREEN} onPaired={vi.fn()} />);
+    await next();
     await waitFor(() => {
       expect(pairingState).toHaveBeenCalledTimes(1);
     });
@@ -88,18 +100,27 @@ describe('PairingScreen', () => {
     expect(pairingState).toHaveBeenCalledTimes(1);
   });
 
-  it('makes way for Settings › Wi-Fi while the Pi is on no network, and comes back on one', async () => {
-    vi.mocked(registerScreen).mockResolvedValue(null);
+  it('starts on the Wi-Fi step, with Next once the Pi is on a network, and registers only after it', async () => {
     vi.mocked(currentWifi).mockResolvedValue({ ssid: null, address: null });
     render(<PairingScreen screen={PI_SCREEN} onPaired={vi.fn()} />);
-    const code = { name: 'Add this screen' };
-    expect(await screen.findByRole('main', code)).toBeInTheDocument();
-    await advance(NO_NETWORK_MS);
+    expect(await screen.findByRole('button', { name: 'Other network' })).toBeInTheDocument();
+    const nextButton = screen.getByRole('button', { name: 'Next' });
     await waitFor(() => {
-      expect(screen.queryByRole('main', code)).not.toBeInTheDocument();
+      expect(screen.getByTestId('wifi-network')).toHaveTextContent('Not connected');
     });
+    expect(nextButton).toBeDisabled();
+    expect(registerScreen).not.toHaveBeenCalled();
+
+    // The Pi joins its saved network by itself.
     vi.mocked(currentWifi).mockResolvedValue({ ssid: 'Home', address: 'an address' });
     await advance(NETWORK_POLL_MS);
-    expect(await screen.findByRole('main', code)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(nextButton).toBeEnabled();
+    });
+    fireEvent.click(nextButton);
+    expect(await screen.findByRole('img', { name: 'QR code to add this screen to your account' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(registerScreen).toHaveBeenCalled();
+    });
   });
 });

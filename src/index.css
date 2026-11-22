@@ -3214,6 +3214,24 @@ input:disabled {
   height: min(55vh, 420px);
   border-radius: 24px;
 }
+.pairing-screen-wifi {
+  justify-content: flex-start;
+  gap: 24px;
+  padding: 32px 16px;
+}
+.pairing-screen-wifi-settings {
+  width: min(760px, 100%);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.pairing-screen-next {
+  min-width: 240px;
+  min-height: 60px;
+  border-radius: 16px;
+  font-size: 20px;
+  font-weight: 700;
+}
 .pairing-screen-hint {
   margin: -16px 0 0;
   font-size: 26px;
