@@ -78,6 +78,40 @@ describe('kiosk-audio/phone-setup', () => {
     await firstOf(sessions).handle(wifiPacket('Home', 'placeholder-bad'));
     await vi.advanceTimersByTimeAsync(10_000);
     expect(stops).not.toHaveBeenCalled();
+    expect(phone.status()).toEqual({ state: 'waiting', error: 'Could not join that network.' });
+  });
+
+  it('says where the setup is: waiting, joining, then joined until it starts again', async () => {
+    const joining = Promise.withResolvers<{ ok: true }>();
+    const connect = vi.fn(() => joining.promise);
+    const sessions: ImprovSession[] = [];
+    const phone = new PhoneSetup({
+      connect,
+      advertise: session => {
+        sessions.push(session);
+        return Promise.resolve({ stop: vi.fn().mockResolvedValue(undefined) });
+      }
+    });
+    expect(phone.status()).toEqual({ state: 'idle' });
+    await phone.start();
+    expect(phone.status()).toEqual({ state: 'waiting' });
+    const handled = firstOf(sessions).handle(wifiPacket('Home', 'placeholder-pass'));
+    expect(phone.status()).toEqual({ state: 'joining' });
+    joining.resolve({ ok: true });
+    await handled;
+    expect(phone.status()).toEqual({ state: 'joined' });
+    // Advertising stops a moment later; the tablet still hears that it worked.
+    await vi.advanceTimersByTimeAsync(4000);
+    expect(phone.status()).toEqual({ state: 'joined' });
+    await phone.start();
+    expect(phone.status()).toEqual({ state: 'waiting' });
+  });
+
+  it('is idle again once stopped', async () => {
+    const { phone } = setup();
+    await phone.start();
+    await phone.stop();
+    expect(phone.status()).toEqual({ state: 'idle' });
   });
 
   it('rejects when Bluetooth would not start, and can be tried again', async () => {

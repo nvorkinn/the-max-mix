@@ -25,7 +25,9 @@ const LIFETIME_MS = 10 * 60 * 1000;
 const JOIN_DELAY_MS = 1500;
 const COMMAND_TIMEOUT_MS = 30_000;
 
-type HotspotState = 'idle' | 'running' | 'joining' | 'failed';
+// `connected` once a phone on the hotspot has asked the kiosk anything (every phone checks for internet as it joins),
+// so the tablet can swap the code that joins the hotspot for the one that opens its page.
+type HotspotState = 'idle' | 'running' | 'connected' | 'joining' | 'joined' | 'failed';
 
 export interface HotspotStatus {
   state: HotspotState;
@@ -203,16 +205,21 @@ export class Hotspot {
     if (this.previous) await this.nmcli(['connection', 'up', 'uuid', this.previous]);
   }
 
+  /** Whether the hotspot is up and a phone may still choose a network on its page. */
+  private isUp(): boolean {
+    return this.current.state === 'running' || this.current.state === 'connected';
+  }
+
   /** The phone chose a network: leave the hotspot (after its answer got out) and join it. */
   private joinNetwork(request: ConnectRequest): void {
-    if (this.current.state !== 'running') return;
+    if (!this.isUp()) return;
     this.current = { state: 'joining' };
     setTimeout(() => {
       void (async () => {
         await this.takeDown();
         const result = await this.connectQuietly(request);
         if (result.ok) {
-          this.current = { state: 'idle' };
+          this.current = { state: 'joined' };
         } else {
           await this.restorePrevious();
           this.current = { state: 'failed', error: `Could not join ${request.ssid}: ${result.error}` };
@@ -244,10 +251,11 @@ export class Hotspot {
 
   /** Answers a request that came in over the hotspot (the service hands those here, and nothing else reaches the phone). */
   async handlePortal(request: IncomingMessage, response: ServerResponse): Promise<void> {
-    if (this.current.state !== 'running') {
+    if (!this.isUp()) {
       refusePortalRequest(response);
       return;
     }
+    if (this.current.state === 'running') this.current = { state: 'connected' };
     await handlePortalRequest(request, response, {
       networks: () => this.networks,
       onJoin: chosen => {

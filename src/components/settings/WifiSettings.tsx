@@ -8,15 +8,27 @@ import { wifiLabel } from './wifi';
 import type { WifiState } from './wifi';
 import WifiJoinDialog from './WifiJoinDialog';
 import type { WifiTarget } from './WifiJoinDialog';
+import { WifiHotspotDialog, WifiPhoneDialog } from './WifiPhoneDialogs';
+import type { SetupEnd } from './WifiPhoneDialogs';
 
 const BARS = [WifiZero, WifiZero, WifiLow, WifiHigh, Wifi] as const;
 
 /**
  * The network the kiosk is on, the networks in range, and joining one: an open one at a tap, one with a password (or a
- * hidden one) in a dialog with the on-screen keyboard. `onJoined` follows every join, so the network shown is asked
- * again. The kiosk's service lists and joins them (utils/kioskWifi.ts).
+ * hidden one) in a dialog with the on-screen keyboard, or one a phone sends (From phone, over Bluetooth, or over the
+ * kiosk's own Hotspot). `onJoined` follows every join, so the network shown is asked again. The buttons for the other
+ * ways come above the list. The kiosk's service lists and joins them (utils/kioskWifi.ts).
  */
-export default function WifiSettings({ wifi, onJoined }: Readonly<{ wifi: WifiState; onJoined: () => void }>) {
+export default function WifiSettings({
+  wifi,
+  onJoined,
+  onPhoneSetup
+}: Readonly<{
+  wifi: WifiState;
+  onJoined: () => void;
+  /** Whether a setup from a phone is under way, so the kiosk does not leave Settings while the phone is used. */
+  onPhoneSetup?: ((isActive: boolean) => void) | undefined;
+}>) {
   const t = useT();
   const language = useLanguage();
   const network = wifiLabel(wifi, t);
@@ -24,9 +36,20 @@ export default function WifiSettings({ wifi, onJoined }: Readonly<{ wifi: WifiSt
   // Undefined while the kiosk looks for networks.
   const [scan, setScan] = useState<WifiScan | undefined>();
   const [target, setTarget] = useState<WifiTarget | null>(null);
+  const [phoneSetup, setPhoneSetup] = useState<'bluetooth' | 'hotspot' | null>(null);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
   const scanRef = useRef<AbortController | null>(null);
+  const onPhoneSetupRef = useRef(onPhoneSetup);
+  useEffect(() => {
+    onPhoneSetupRef.current = onPhoneSetup;
+  });
+  const isPhoneSetup = phoneSetup !== null;
+  useEffect(() => {
+    if (!isPhoneSetup) return;
+    onPhoneSetupRef.current?.(true);
+    return () => onPhoneSetupRef.current?.(false);
+  }, [isPhoneSetup]);
 
   const search = useCallback(() => {
     scanRef.current?.abort();
@@ -48,6 +71,17 @@ export default function WifiSettings({ wifi, onJoined }: Readonly<{ wifi: WifiSt
   const joined = () => {
     setTarget(null);
     onJoined();
+  };
+  // The phone's setup is over by itself: joined, or not, and the page says why when the kiosk did.
+  const phoneSetupEnded = (end: SetupEnd) => {
+    setPhoneSetup(null);
+    if (end.joined) {
+      onJoined();
+    } else {
+      setJoinError(end.error ?? null);
+      // The hotspot had the radio, so the list is asked again now that the kiosk is back on its network.
+      refresh();
+    }
   };
 
   const choose = async (choice: WifiNetwork) => {
@@ -84,6 +118,53 @@ export default function WifiSettings({ wifi, onJoined }: Readonly<{ wifi: WifiSt
             </div>
           )}
         </div>
+      </div>
+      <div className="wifi-actions">
+        <button
+          type="button"
+          disabled={connecting !== null}
+          onClick={() => {
+            setJoinError(null);
+            setTarget({ hidden: true });
+          }}
+          className="button button-secondary"
+        >
+          {t('wifi.other')}
+        </button>
+        <button
+          type="button"
+          disabled={connecting !== null}
+          onClick={() => {
+            setJoinError(null);
+            setPhoneSetup('bluetooth');
+          }}
+          className="button button-secondary"
+        >
+          {t('wifi.from_phone')}
+        </button>
+        <button
+          type="button"
+          disabled={connecting !== null}
+          onClick={() => {
+            setJoinError(null);
+            setPhoneSetup('hotspot');
+          }}
+          className="button button-secondary"
+        >
+          {t('wifi.hotspot')}
+        </button>
+        <button
+          type="button"
+          disabled={scan === undefined || connecting !== null}
+          onClick={() => {
+            setJoinError(null);
+            refresh();
+          }}
+          className="button button-secondary"
+        >
+          <RefreshCw className="w-5 h-5 shrink-0" aria-hidden="true" />
+          {t('wifi.refresh')}
+        </button>
       </div>
       <section className="settings-group" aria-labelledby="wifi-networks-label">
         <h5 className="settings-group-title" id="wifi-networks-label">
@@ -136,33 +217,20 @@ export default function WifiSettings({ wifi, onJoined }: Readonly<{ wifi: WifiSt
             })}
           </ul>
         )}
-        <div className="wifi-actions">
-          <button
-            type="button"
-            disabled={connecting !== null}
-            onClick={() => {
-              setJoinError(null);
-              setTarget({ hidden: true });
-            }}
-            className="button button-secondary"
-          >
-            {t('wifi.other')}
-          </button>
-          <button
-            type="button"
-            disabled={scan === undefined || connecting !== null}
-            onClick={() => {
-              setJoinError(null);
-              refresh();
-            }}
-            className="button button-secondary"
-          >
-            <RefreshCw className="w-5 h-5 shrink-0" aria-hidden="true" />
-            {t('wifi.refresh')}
-          </button>
-        </div>
       </section>
       {target && <WifiJoinDialog target={target} onJoined={joined} onClose={() => setTarget(null)} />}
+      {phoneSetup === 'bluetooth' && <WifiPhoneDialog onEnd={phoneSetupEnded} onClose={() => setPhoneSetup(null)} />}
+      {phoneSetup === 'hotspot' && (
+        <WifiHotspotDialog
+          onEnd={phoneSetupEnded}
+          onClose={stopped => {
+            setPhoneSetup(null);
+            // The hotspot had the radio, so the list is asked again once the kiosk is back on its network.
+            setScan(undefined);
+            void stopped.then(search);
+          }}
+        />
+      )}
     </div>
   );
 }

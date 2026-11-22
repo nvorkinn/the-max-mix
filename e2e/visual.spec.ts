@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { showDashboard } from './dashboard.ts';
 import { DEVICE_CONFIGS, fakeCountdownServer } from './fake-countdown.ts';
-import { airPlayOutput, fakeKioskOutputs, wifiAnswer } from './fake-kiosk.ts';
+import { airPlayOutput, fakeKioskOutputs, phoneSetupAnswer, wifiAnswer } from './fake-kiosk.ts';
 import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
 import { COLOURED_ART, fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSettings, showSection } from './settings.ts';
@@ -79,6 +79,33 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
         if (section === 'About') await expect(settings.getByRole('status')).toContainText('Up to date');
         // eslint-disable-next-line no-await-in-loop -- the same
         await expect.soft(settings).toHaveScreenshot(shotName(name, screen), SHOT);
+      }
+    });
+
+    test(`Wi-Fi From phone and Hotspot dialogs at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
+      await page.setViewportSize(screen);
+      await fakeSpotify(page);
+      await page.route('http://127.0.0.1:7341/**', route => {
+        const request = route.request();
+        return route.fulfill(phoneSetupAnswer(request) ?? wifiAnswer(request, 'Home network') ?? { status: 204 });
+      });
+      await page.goto('/?kiosk=1');
+      const settings = await openSettings(page, 'Wi-Fi');
+      for (const [button, name] of [
+        ['From phone', 'wifi-from-phone'],
+        ['Hotspot', 'wifi-hotspot']
+      ] as const) {
+        // eslint-disable-next-line no-await-in-loop -- one dialog after another
+        await settings.getByRole('button', { name: button, exact: true }).click();
+        const dialog = page.getByRole('dialog', { name: button });
+        // eslint-disable-next-line no-await-in-loop -- the same
+        await expect(dialog.getByText('Waiting for your phone…')).toBeVisible();
+        // eslint-disable-next-line no-await-in-loop -- the same
+        await expect.soft(page).toHaveScreenshot(shotName(name, screen), SHOT);
+        // eslint-disable-next-line no-await-in-loop -- the same
+        await dialog.getByRole('button', { name: 'Back' }).click();
+        // eslint-disable-next-line no-await-in-loop -- the same
+        await expect(dialog).toBeHidden();
       }
     });
 

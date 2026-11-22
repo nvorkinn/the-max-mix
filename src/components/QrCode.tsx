@@ -1,8 +1,15 @@
 import { useMemo } from 'react';
 import qrcode from 'qrcode-generator';
 
-/** `text` as a QR code a phone's camera opens, drawn dark on light whatever the theme so every camera reads it. */
-export default function QrCode({ text, className }: Readonly<{ text: string; className: string }>) {
+/**
+ * `text` as a QR code a phone's camera opens, drawn dark on light whatever the theme so every camera reads it. `label`
+ * names it for a screen reader instead of the text (which may hold a password).
+ */
+export default function QrCode({
+  text,
+  className,
+  label = text
+}: Readonly<{ text: string; className: string; label?: string }>) {
   const { size, path } = useMemo(() => {
     const code = qrcode(0, 'M');
     code.addData(text);
@@ -18,7 +25,13 @@ export default function QrCode({ text, className }: Readonly<{ text: string; cla
     return { size: count + 8, path: modules };
   }, [text]);
   return (
-    <svg className={className} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={text} shapeRendering="crispEdges">
+    <svg
+      className={className}
+      viewBox={`0 0 ${size} ${size}`}
+      role="img"
+      aria-label={label}
+      shapeRendering="crispEdges"
+    >
       <rect width={size} height={size} fill="#fff" />
       <path d={path} fill="#000" />
     </svg>

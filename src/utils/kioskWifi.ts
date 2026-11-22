@@ -20,7 +20,11 @@ export interface WifiScan {
 }
 
 /** Joined, or why not: the service's message (localized), or null when it did not answer. */
-export type WifiResult = { ok: true } | { ok: false; error: string | null };
+interface WifiFailure {
+  ok: false;
+  error: string | null;
+}
+export type WifiResult = WifiFailure | { ok: true };
 
 const SECURITIES: ReadonlySet<string> = new Set(['open', 'psk', 'unsupported']);
 
@@ -74,4 +78,106 @@ export async function joinWifi(
   } catch {
     return { ok: false, error: null };
   }
+}
+
+/** How a phone joins the kiosk's setup hotspot, and the address of the page it then gets. */
+export interface HotspotInfo {
+  ssid: string;
+  password: string;
+  url: string;
+}
+
+/**
+ * Where a setup from a phone (over Bluetooth, or over the hotspot) is: waiting for the phone, joining the network it
+ * sent, joined, failed, or ended (its few minutes ran out). `error` is the service's message (localized) about a network
+ * that could not be joined: the hotspot has then ended, while Bluetooth waits for the phone to send another.
+ */
+export interface SetupStatus {
+  state: 'waiting' | 'connected' | 'joining' | 'joined' | 'failed' | 'ended';
+  error?: string;
+}
+
+/** The service's states for each setup, as the tablet follows them. */
+const PHONE_STATES: Readonly<Record<string, SetupStatus['state']>> = {
+  idle: 'ended',
+  waiting: 'waiting',
+  joining: 'joining',
+  joined: 'joined'
+};
+const HOTSPOT_STATES: Readonly<Record<string, SetupStatus['state']>> = {
+  idle: 'ended',
+  running: 'waiting',
+  connected: 'connected',
+  joining: 'joining',
+  joined: 'joined',
+  failed: 'failed'
+};
+
+async function postSetup(path: string, language: Language): Promise<WifiFailure | { ok: true; body: unknown }> {
+  try {
+    const response = await fetch(`${KIOSK_SERVICE}${path}`, { method: 'POST' });
+    const body: unknown = response.status === 204 ? null : await response.json();
+    return response.ok ? { ok: true, body } : { ok: false, error: errorOf(body, language) ?? null };
+  } catch {
+    return { ok: false, error: null };
+  }
+}
+
+async function setupStatus(
+  path: string,
+  states: Readonly<Record<string, SetupStatus['state']>>,
+  language: Language,
+  signal: AbortSignal | null
+): Promise<SetupStatus | undefined> {
+  try {
+    const response = await fetch(`${KIOSK_SERVICE}${path}`, { signal });
+    const body: unknown = await response.json();
+    const state = isRecord(body) && typeof body['state'] === 'string' ? states[body['state']] : undefined;
+    if (state === undefined) return undefined;
+    const error = errorOf(body, language);
+    return error === undefined ? { state } : { state, error };
+  } catch {
+    return undefined;
+  }
+}
+
+/** Asks the kiosk to let a phone send it a network over Bluetooth (Improv Wi-Fi) for a few minutes. */
+export async function startPhoneSetup(language: Language): Promise<WifiResult> {
+  const result = await postSetup('/wifi/phone', language);
+  return result.ok ? { ok: true } : result;
+}
+
+/** Stops listening for a phone. */
+export async function stopPhoneSetup(): Promise<void> {
+  await postSetup('/wifi/phone/stop', 'en');
+}
+
+/** Where the phone's setup is; undefined when the kiosk did not answer (it may be busy changing networks). */
+export function phoneSetupStatus(
+  language: Language,
+  signal: AbortSignal | null = null
+): Promise<SetupStatus | undefined> {
+  return setupStatus('/wifi/phone', PHONE_STATES, language, signal);
+}
+
+/** Asks the kiosk to start its setup hotspot: how to join it, or why it could not. */
+export async function startHotspot(language: Language): Promise<WifiFailure | { ok: true; info: HotspotInfo }> {
+  const result = await postSetup('/wifi/hotspot', language);
+  if (!result.ok) return result;
+  const { body } = result;
+  if (!isRecord(body)) return { ok: false, error: null };
+  const { ssid, password, url } = body;
+  return typeof ssid === 'string' && typeof password === 'string' && typeof url === 'string'
+    ? { ok: true, info: { ssid, password, url } }
+    : { ok: false, error: null };
+}
+
+/** Ends the hotspot; the kiosk goes back to the network it was on. */
+export async function stopHotspot(): Promise<void> {
+  await postSetup('/wifi/hotspot/stop', 'en');
+}
+
+/** Where the hotspot is; undefined when the kiosk did not answer (it may be busy changing networks). */
+export function hotspotStatus(language: Language, signal: AbortSignal | null = null): Promise<SetupStatus | undefined> {
+  return setupStatus('/wifi/hotspot', HOTSPOT_STATES, language, signal);
 }

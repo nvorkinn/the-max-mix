@@ -87,3 +87,28 @@ export function wifiAnswer(request: Request, ssid: string | null) {
   const json = request.method() === 'GET' ? answers[new URL(request.url()).pathname] : undefined;
   return json && { headers: CORS, json };
 }
+
+/** How a phone joins the Pi's setup hotspot (pi/kiosk-audio/hotspot.ts), as POST /wifi/hotspot answers. */
+const FAKE_HOTSPOT = {
+  ssid: 'THE MAX MIX setup',
+  // eslint-disable-next-line sonarjs/no-hardcoded-passwords -- a made-up hotspot password, as hotspot.ts makes them
+  password: 'K7PX4RMW2N',
+  // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the hotspot's page is plain HTTP on the Pi
+  url: 'http://10.42.0.1/',
+  wifiQr: [],
+  urlQr: []
+};
+
+/**
+ * What the Pi answers while a phone sets up its Wi-Fi: From phone (Bluetooth) and Hotspot start, and each waits for the
+ * phone. Undefined for any other request.
+ */
+export function phoneSetupAnswer(request: Request) {
+  const path = new URL(request.url()).pathname;
+  const answers: Record<string, object | undefined> =
+    request.method() === 'POST'
+      ? { '/wifi/phone': { ok: true }, '/wifi/hotspot': FAKE_HOTSPOT }
+      : { '/wifi/phone': { state: 'waiting' }, '/wifi/hotspot': { state: 'running' } };
+  const json = answers[path];
+  return json && { headers: CORS, json };
+}

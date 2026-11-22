@@ -216,6 +216,24 @@ export const STRINGS = {
   'wifi.hide': { en: 'Hide', nb: 'Skjul' },
   'wifi.connect': { en: 'Connect', nb: 'Koble til' },
   'wifi.connecting': { en: 'Connecting to {ssid}…', nb: 'Kobler til {ssid} …' },
+  'wifi.from_phone': { en: 'From phone', nb: 'Fra telefon' },
+  'wifi.hotspot': { en: 'Hotspot', nb: 'Hotspot' },
+  'wifi.back': { en: 'Back', nb: 'Tilbake' },
+  'wifi.starting': { en: 'Starting…', nb: 'Starter …' },
+  'wifi.waiting_for_phone': { en: 'Waiting for your phone…', nb: 'Venter på telefonen …' },
+  'wifi.phone_joining': {
+    en: 'The phone chose a network. Joining it…',
+    nb: 'Telefonen valgte et nettverk. Kobler til …'
+  },
+  'wifi.phone_steps': {
+    en: 'On an Android phone, open improv-wifi.com in Chrome, tap Connect device and choose THE MAX MIX.',
+    nb: 'Åpne improv-wifi.com i Chrome på en Android-telefon, trykk på Connect device og velg THE MAX MIX.'
+  },
+  'wifi.qr_improv': { en: 'QR code that opens improv-wifi.com', nb: 'QR-kode som åpner improv-wifi.com' },
+  'wifi.qr_join': { en: 'QR code that joins the hotspot', nb: 'QR-kode som kobler til hotspoten' },
+  'wifi.qr_open': { en: 'QR code that opens the setup page', nb: 'QR-kode som åpner oppsettsiden' },
+  'wifi.scan_to_join': { en: '1. Scan to join', nb: '1. Skann for å koble til' },
+  'wifi.scan_to_open': { en: '2. Scan to open', nb: '2. Skann for å åpne' },
   'wifi.unreachable': {
     en: 'Could not reach the kiosk service.',
     nb: 'Får ikke kontakt med tjenesten på nettbrettet.'
