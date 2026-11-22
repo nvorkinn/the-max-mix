@@ -219,13 +219,11 @@
     mode: '0644'
   notify: Apply sysctl settings
 
-- name: full | Make NetworkManager's connectivity check reach the internet
-  ansible.builtin.copy:
-    src: 20-connectivity.conf
-    dest: /etc/NetworkManager/conf.d/20-connectivity.conf
-    owner: root
-    group: root
-    mode: '0644'
+# Releases up to v2.22.0 pointed NetworkManager's connectivity check at Debian for kiosk-session, which no longer asks.
+- name: full | Remove NetworkManager's connectivity check
+  ansible.builtin.file:
+    path: /etc/NetworkManager/conf.d/20-connectivity.conf
+    state: absent
   notify: Reload NetworkManager
 
 # The kiosk user ------------------------------------------------------------------------------------------------------
