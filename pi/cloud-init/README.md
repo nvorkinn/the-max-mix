@@ -65,8 +65,8 @@ sudo kiosk-pull https://github.com/nvorkinn/the-max-mix.git latest /var/lib/the-
 
 Once the first pull has worked, the first-boot script removes `network-config` and `user-data` from the card and turns
 cloud-init off (`/etc/cloud/cloud-init.disabled`), so the setup network is never applied again. Your Wi-Fi stays saved on
-the Pi, which keeps it working at your place (the playbook then moves it from cloud-init's netplan file into
-NetworkManager's own, so the app can forget it). Before it goes:
+the Pi, which keeps it working at your place. NetworkManager keeps each network as a netplan file
+(`/etc/netplan/90-NM-*.yaml`), which **Forget** deletes. Before it goes:
 
 1. Settings, **Spotify**: remove everyone.
 2. Settings, **Wi-Fi**: **Forget** each saved network. The Pi leaves the network it is on.

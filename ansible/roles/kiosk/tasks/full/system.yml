@@ -147,29 +147,3 @@
   when: "'/etc/sysctl.d/50-kiosk-unprivileged-ports.conf' in kiosk_system_files_installed.stdout_lines"
   changed_when: true
   notify: Apply sysctl settings
-
-# The Wi-Fi the card brought for the first boot: cloud-init wrote it as a netplan file, which NetworkManager runs from
-# /run and cannot delete, so Settings › Wi-Fi › Forget could not remove it before the Pi goes to a new home. Once the
-# first boot is done (pi/cloud-init/first-boot turns cloud-init off), its connections are copied, passwords and all,
-# into NetworkManager's own folder, and the netplan file goes: the Pi stays on the same network, and every network it
-# keeps is now one the app can forget. Nothing in a container or on a Pi without the file. Prints what it moved.
-- name: full | system | Hand the first boot's Wi-Fi to NetworkManager
-  ansible.builtin.shell:
-    cmd: |
-      set -euo pipefail
-      plan=/etc/netplan/50-cloud-init.yaml
-      [[ -e /etc/cloud/cloud-init.disabled && -e $plan ]] && command -v nmcli > /dev/null || exit 0
-      shopt -s nullglob
-      for file in /run/NetworkManager/system-connections/netplan-*.nmconnection; do
-        grep -qx 'type=wifi' "$file" || continue
-        kept=/etc/NetworkManager/system-connections/$(basename "${file#*/netplan-}")
-        install -m 600 -o root -g root "$file" "$kept"
-        echo "$kept"
-      done
-      rm "$plan"
-      echo "$plan"
-      netplan generate
-      nmcli connection reload
-    executable: /bin/bash
-  register: kiosk_first_wifi
-  changed_when: kiosk_first_wifi.stdout != ''
