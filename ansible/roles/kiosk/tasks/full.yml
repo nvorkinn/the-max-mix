@@ -147,25 +147,6 @@
     replace: '\1 {{ item }}'
   loop: '{{ kiosk_cmdline_params }}'
 
-# Releases up to v2.22.0 showed a Plymouth splash during boot; the boot is now just quiet, so its parameters, package and
-# theme go.
-- name: full | Remove the boot splash's kernel command line parameters
-  ansible.builtin.replace:
-    path: /boot/firmware/cmdline.txt
-    regexp: '[ \t]+(?:splash|plymouth\.ignore-serial-consoles)(?=\s|$)'
-    replace: ''
-
-- name: full | Remove the boot splash
-  ansible.builtin.apt:
-    name: plymouth
-    state: absent
-    purge: true
-
-- name: full | Remove the boot splash's theme
-  ansible.builtin.file:
-    path: /usr/share/plymouth/themes/the-max-mix
-    state: absent
-
 # The screen mode (kiosk_video_mode in defaults/main.yml). Not read in a container, which has no screen of the Pi's.
 - name: full | Read the screen's own mode
   ansible.builtin.command:

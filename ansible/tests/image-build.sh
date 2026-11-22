@@ -143,7 +143,6 @@ check second_run_skips 'Install the packages'
 check second_run_skips "Install the other archives' packages"
 check test -L /usr/share/icons/blank/cursors/not-allowed
 check test -f /usr/share/kiosk-cursors/default/cursors/left_ptr
-check test ! -e /usr/share/plymouth/themes/the-max-mix
 
 # The second run must not change anything.
 if ! grep -Eq 'changed=0 ' /tmp/second-run.log; then
