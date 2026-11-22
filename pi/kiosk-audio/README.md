@@ -17,6 +17,19 @@ app on `127.0.0.1:7341`. It does two jobs:
 - **AirPlay**: playback stays on the tablet's own player, and the Pi links Chromium's PipeWire stream to every speaker
   picked in the app, all at once, and off the Pi's own output. Speakers can be added and removed while the music plays.
 
+## The web app
+
+The release's Pi bundle carries the built web app (`app/`), and the Ansible role installs each release in
+`/opt/the-max-mix/app/releases/<commit>`. When the kiosk starts, `kiosk-app-switch` makes the newest one
+`/opt/the-max-mix/app/current` and removes the others, so a page that is already open never loses a file to a newer
+release. This service serves `current` (`KIOSK_APP_DIR`, `app-files.ts`) on `http://127.0.0.1:7341/`, which lets the
+kiosk start the app with no internet: `index.html` and the top-level files are checked again on every load, and the
+hashed files under `assets/` are kept for good. Every file goes out with `X-Content-Type-Options`, `Referrer-Policy`
+and `X-Frame-Options`. A Pi following a branch serves the latest release's app, which `kiosk-pull` fetches for it.
+
+When the app is this local copy, its own GETs are same-origin and Chromium sends no `Origin` with them, so the checks
+that answer only the app also take `Sec-Fetch-Site: same-origin` (`isFromApp` in `server.ts`).
+
 ## Screen
 
 `GET /screen` answers what the tablet's screen is, for registering with countdown-server (`screen.ts`):

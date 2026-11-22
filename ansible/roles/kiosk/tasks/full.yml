@@ -343,6 +343,7 @@
     - { src: bin/kiosk-session, dest: /usr/local/bin/kiosk-session, mode: '0755' }
     - { src: bin/kiosk-display, dest: /usr/local/bin/kiosk-display, mode: '0755' }
     - { src: bin/kiosk-pull, dest: /usr/local/sbin/kiosk-pull, mode: '0755' }
+    - { src: bin/kiosk-app-switch, dest: /usr/local/sbin/kiosk-app-switch, mode: '0755' }
     - { src: bin/kiosk-status, dest: /usr/local/sbin/kiosk-status, mode: '0755' }
     - { src: bin/kiosk-ssh-keys, dest: /usr/local/sbin/kiosk-ssh-keys, mode: '0755' }
   loop_control:

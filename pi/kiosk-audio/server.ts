@@ -67,6 +67,8 @@
 // its origin (LOCAL_ORIGIN) instead, and the app's origin cannot join a network.
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
+import { APP_HEADERS, appFiles } from './app-files.ts';
+import type { AppFile } from './app-files.ts';
 import { perform } from './actions.ts';
 import type { Action } from './actions.ts';
 import { BluetoothMonitor, UNAVAILABLE as BLUETOOTH_UNAVAILABLE } from './bluetooth-monitor.ts';
@@ -139,6 +141,8 @@ export interface Deps {
   heartbeat: () => void;
   log: (entry: AppLog) => void;
   wifi: Wifi;
+  /** The web app installed on the Pi (app-files.ts): the file a GET of the URL asks for, or null. */
+  app: (url: string) => Promise<AppFile | null>;
   /** The setup page (in the language) or one of its scripts for a GET of the URL, or null. */
   asset: (url: string, language: Language) => Promise<Asset | null>;
   /** The tablet's language, which POST /wifi brings, for the setup page; kept across restarts. */
@@ -571,7 +575,7 @@ async function getLyrics(
   deps: Deps
 ): Promise<void> {
   const query = parseLyricsQuery(new URL(request.url ?? '', LOCAL_ORIGIN).searchParams);
-  if (request.headers.origin !== origin) {
+  if (!isFromApp(request, origin)) {
     response.writeHead(403).end();
   } else if (query) {
     try {
@@ -677,10 +681,28 @@ async function get(url: string, response: ServerResponse, deps: Deps, isApp: boo
     }
     default: {
       const asset = await deps.asset(url, deps.language.get());
-      if (asset) response.writeHead(200, { 'Content-Type': asset.type }).end(asset.body);
-      else response.writeHead(404).end();
+      if (asset) {
+        response.writeHead(200, { 'Content-Type': asset.type }).end(asset.body);
+        return;
+      }
+      const file = await deps.app(url);
+      if (file) {
+        response.writeHead(200, { ...APP_HEADERS, 'Content-Type': file.type, 'Cache-Control': file.cache }).end(file.body);
+      } else {
+        response.writeHead(404).end();
+      }
     }
   }
+}
+
+/**
+ * Whether the request came from a page on the app's origin. A cross-origin request names its origin; when the app is the
+ * copy this service serves itself (LOCAL_ORIGIN), its GETs are same-origin, and Chromium sends no Origin with those, only
+ * Sec-Fetch-Site, which no page can set.
+ */
+export function isFromApp(request: IncomingMessage, origin: string): boolean {
+  if (request.headers.origin !== undefined) return request.headers.origin === origin;
+  return origin === LOCAL_ORIGIN && request.headers['sec-fetch-site'] === 'same-origin';
 }
 
 /** The GETs that answer the app's origin only (they make the Pi call out), and the rest (get). */
@@ -696,8 +718,8 @@ async function handleGet(
     return;
   }
   const appOnly = appOnlyGet(url, request, response, deps);
-  if (!appOnly) await get(url, response, deps, request.headers.origin === origin);
-  else if (request.headers.origin === origin) await appOnly();
+  if (!appOnly) await get(url, response, deps, isFromApp(request, origin));
+  else if (isFromApp(request, origin)) await appOnly();
   else response.writeHead(403).end();
 }
 
@@ -751,7 +773,7 @@ export function handleRequest(origin: string, deps: Deps) {
       } else if (request.method === 'POST') {
         // The Wi-Fi setup page runs in the kiosk's Chromium too, and sends heartbeats so the watchdog leaves it alone.
         const isHeartbeat = request.url === '/heartbeat' && request.headers.origin === LOCAL_ORIGIN;
-        if (isHeartbeat || request.headers.origin === origin) await post(request, response, deps);
+        if (isHeartbeat || isFromApp(request, origin)) await post(request, response, deps);
         else response.writeHead(403).end();
       } else {
         response.writeHead(404).end();
@@ -781,6 +803,8 @@ export function serveSpeakers(
   deps: Pick<Deps, 'graph' | 'route' | 'setVolume' | 'wifi' | 'language'> & {
     /** Where "Pair my phone" notes the phones it paired. */
     phonesFile: string;
+    /** The web app's folder (KIOSK_APP_DIR), or '' for none. */
+    appFolder: string;
   },
   update: Update = runUpdate
 ): Server {
@@ -823,6 +847,7 @@ export function serveSpeakers(
     heartbeat,
     log: journalLog(),
     asset: (url, language) => wifiSetupAsset(url, undefined, language),
+    app: appFiles(deps.appFolder),
     lyrics: cached(query => findLyrics(query)),
     bluetooth,
     bluetoothMonitor,

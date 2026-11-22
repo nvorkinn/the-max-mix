@@ -85,16 +85,19 @@ jobs:
       - name: Build
         run: npm run build
       # What the Pis install (see kiosk-pull): the three folders the playbook installs from, at the tag, kiosk-handover (run
-      # from the bundle by hand, pi/cloud-init/README.md) and release.json with what the playbook would otherwise ask git
-      # (roles/kiosk/defaults/main.yml, kiosk_release_info).
+      # from the bundle by hand, pi/cloud-init/README.md), release.json with what the playbook would otherwise ask git
+      # (roles/kiosk/defaults/main.yml, kiosk_release_info), and the built web app as app/, which each Pi serves itself
+      # (pi/kiosk-audio/app-files.ts) so it starts with no internet.
       - name: Pack the Pi bundle
         run: |
           jq --null-input --arg tag "$TAG" --arg commit "$(git rev-parse HEAD)" \
             --args '{tag: $tag, commit: $commit, trees: $ARGS.positional}' \
             "$(git rev-parse HEAD:ansible)" "$(git rev-parse HEAD:pi/kiosk-audio)" "$(git rev-parse HEAD:pi/kiosk-keyboard)" \
             > "$RUNNER_TEMP/release.json"
-          git archive --format=tar.gz --output="$RUNNER_TEMP/the-max-mix-pi.tar.gz" \
+          git archive --format=tar --output="$RUNNER_TEMP/the-max-mix-pi.tar" \
             --add-file="$RUNNER_TEMP/release.json" HEAD ansible pi/kiosk-audio pi/kiosk-keyboard pi/tools/kiosk-handover
+          tar --append --file="$RUNNER_TEMP/the-max-mix-pi.tar" --owner=0 --group=0 --transform='s,^dist,app,' dist
+          gzip --best "$RUNNER_TEMP/the-max-mix-pi.tar"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pi-bundle
