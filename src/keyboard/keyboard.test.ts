@@ -1,13 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  deleteBackward,
-  insertText,
-  isTextField,
-  KEYBOARD_HEIGHT,
-  keyboardHeight,
-  keyLabel,
-  start
-} from './keyboard';
+import { deleteBackward, insertText, isTextField, KEYBOARD_HEIGHT, keyboardHeight, keyLabel, start } from './keyboard';
 
 // jsdom has no editing commands. Chromium does, and then the fallback that sets the value is not used.
 function mockEditing(isSupported: boolean) {
