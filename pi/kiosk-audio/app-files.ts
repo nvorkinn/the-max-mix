@@ -54,7 +54,7 @@ export const APP_HEADERS: Readonly<Record<string, string>> = {
  * `current` moves.
  */
 export function appFiles(folder: string): (url: string) => Promise<AppFile | null> {
-  let root: string | undefined;
+  let root: string | null = null;
   return async url => {
     // Until the first release is installed there is no folder; it is looked for again on the next request.
     root ??= await resolved(folder);
@@ -73,13 +73,13 @@ export function appFiles(folder: string): (url: string) => Promise<AppFile | nul
   };
 }
 
-/** The folder with its links followed, or undefined when there is none. */
-async function resolved(folder: string): Promise<string | undefined> {
-  if (!folder) return;
+/** The folder with its links followed, or null when there is none (until the first release is installed). */
+async function resolved(folder: string): Promise<string | null> {
+  if (!folder) return null;
   try {
     return await realpath(folder);
   } catch {
-    // No folder until the first release is installed.
+    return null;
   }
 }
 
