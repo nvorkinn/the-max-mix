@@ -73,8 +73,7 @@ kiosk_ssh_enabled: true
 kiosk_admin_user: admin
 # The admin account's SSH keys are this GitHub account's public keys (https://github.com/<name>.keys). kiosk-ssh-keys.timer
 # fetches them this long after boot and then this long after each fetch finished, whether or not a release came out, so a
-# key added or removed on GitHub reaches the Pi within about the interval. The playbook fetches them once when the account
-# has none. Empty for no keys (and no timer).
+# key added or removed on GitHub reaches the Pi within about the interval. Empty for no keys (and no timer).
 kiosk_admin_github_user: nvorkinn
 kiosk_admin_keys_boot_delay: 2min
 kiosk_admin_keys_interval: 6h

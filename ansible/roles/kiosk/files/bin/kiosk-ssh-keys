@@ -2,8 +2,8 @@
 # Usage: kiosk-ssh-keys GITHUB_USER ADMIN_USER
 # Makes ADMIN_USER's authorized_keys the public keys of GITHUB_USER (https://github.com/<name>.keys). Run by
 # kiosk-ssh-keys.timer, so a key added or removed on GitHub reaches the Pi within the timer's interval whether or not any
-# release came out, and by the playbook once when the account has no keys yet. A failed download (no network, GitHub
-# down) leaves the keys that are there: the file is replaced only by a complete answer.
+# release came out. A failed download (no network, GitHub down) leaves the keys that are there: the file is replaced only
+# by a complete answer.
 set -euo pipefail
 
 if (($# != 2)); then
