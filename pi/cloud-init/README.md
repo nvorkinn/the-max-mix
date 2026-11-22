@@ -148,8 +148,6 @@ The `bootfs` partition holds `config.txt` and `cmdline.txt` (remove `quiet` and 
 - **The player says "Failed to initialize player":** Widevine is missing or not loaded yet. Check that
   `/home/kiosk/.config/chromium/WidevineCdm/` has a version folder, then `sudo systemctl restart kiosk`.
 - **Black screen, no panel or app:** check that `kiosk.service` started on tty7.
-- **Panel never offers Cancel / always appears:** the connectivity check failed. `network-test.debian.org` must be reachable
-  over plain HTTP; a captive portal that needs a browser login is not supported.
 - **The screen goes dark while music plays, or never goes dark:** the debug console's Screen row shows whether the app
   holds its wake lock, and `journalctl -u kiosk` shows `wlr-randr` errors from `kiosk-display`. Set
   `kiosk_screen_off_after: 0` to keep the output on for good.

@@ -56,7 +56,7 @@ for file in /usr/local/bin/kiosk-session \
   /usr/local/sbin/kiosk-app-switch \
   /etc/systemd/system/kiosk-ssh-keys.service /etc/systemd/system/kiosk-ssh-keys.timer \
   /etc/systemd/system/kiosk-widevine.path \
-  /etc/systemd/system/kiosk-widevine.service /etc/NetworkManager/conf.d/20-connectivity.conf \
+  /etc/systemd/system/kiosk-widevine.service \
   /etc/tmpfiles.d/kiosk.conf \
   /usr/share/icons/blank/cursors/left_ptr /etc/apt/apt.conf.d/52kiosk-unattended-upgrades \
   /opt/the-max-mix/kiosk-audio/node_modules/dbus-native/package.json \
