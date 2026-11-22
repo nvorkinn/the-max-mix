@@ -496,7 +496,10 @@ export const STRINGS = {
   'sleep.asleep': { en: 'Sleep screen', nb: 'Hvileskjerm' },
   'sleep.wake': { en: 'Wake the screen', nb: 'Vekk skjermen' },
   'pairing.title': { en: 'Add this screen', nb: 'Legg til denne skjermen' },
-  'pairing.code': { en: 'QR code to add this screen to your account', nb: 'QR-kode for å legge denne skjermen til kontoen din' }
+  'pairing.code': {
+    en: 'QR code to add this screen to your account',
+    nb: 'QR-kode for å legge denne skjermen til kontoen din'
+  }
 } as const satisfies Record<string, Readonly<Record<Language, string>>>;
 
 /** An id STRINGS has: any other is a compile error. */
