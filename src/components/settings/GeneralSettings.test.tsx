@@ -7,8 +7,6 @@ import * as searches from '../../countdown/search';
 import userEvent from '../../test/user';
 import { LanguageContext } from '../../i18n/language';
 import { translate } from '../../i18n/translate';
-import { DEFAULT_QUIET_HOURS } from '../../utils/quietHours';
-import type { QuietHours } from '../../utils/quietHours';
 import GeneralSettings from './GeneralSettings';
 import { noticeBoardFor } from './NoticeBoardDialog';
 
@@ -177,17 +175,6 @@ describe('GeneralSettings', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(onSave).not.toHaveBeenCalled();
   });
-
-  it('shows only screen sleep on a kiosk no one owns yet', async () => {
-    const onScreenSleepChange = vi.fn();
-    render(<GeneralSettings screenSleep={5} onScreenSleepChange={onScreenSleepChange} />);
-    expect(screen.queryByText('Time format')).not.toBeInTheDocument();
-    expect(screen.queryByText('Weather')).not.toBeInTheDocument();
-    const sleep = screen.getByRole('group', { name: 'Screen sleep' });
-    expect(within(sleep).getByRole('button', { name: '5 min' })).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.click(within(sleep).getByRole('button', { name: 'Never' }));
-    expect(onScreenSleepChange).toHaveBeenCalledExactlyOnceWith(0);
-  });
 });
 
 describe('noticeBoardFor', () => {
@@ -197,44 +184,5 @@ describe('noticeBoardFor', () => {
     expect(noticeBoardFor('m1  1ae')).toEqual({ postcode: 'M1 1AE', country: 'GB' });
     expect(noticeBoardFor('015')).toBeNull();
     expect(noticeBoardFor('London')).toBeNull();
-  });
-
-  describe('quiet hours', () => {
-    function setupQuiet({
-      hours = DEFAULT_QUIET_HOURS,
-      config
-    }: { hours?: QuietHours; config?: TouchscreenConfig } = {}) {
-      const onQuietHoursChange = vi.fn();
-      render(<GeneralSettings config={config} quietHours={hours} onQuietHoursChange={onQuietHoursChange} />);
-      return onQuietHoursChange;
-    }
-
-    it('turn on with the times they had', async () => {
-      const onChange = setupQuiet();
-      const group = screen.getByRole('group', { name: 'Quiet hours' });
-      expect(within(group).getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true');
-      expect(screen.queryByRole('group', { name: 'From' })).not.toBeInTheDocument();
-      await userEvent.click(within(group).getByRole('button', { name: 'On' }));
-      expect(onChange).toHaveBeenCalledExactlyOnceWith({ on: true, start: 22 * 60, end: 7 * 60 });
-    });
-
-    it('move each end by half an hour, in the tablet time format', async () => {
-      const onChange = setupQuiet({
-        hours: { on: true, start: 22 * 60, end: 7 * 60 },
-        config: { ...OWNED, clock_format: '12h' }
-      });
-      expect(within(screen.getByRole('group', { name: 'From' })).getByText(/10:00\sPM/)).toBeInTheDocument();
-      expect(within(screen.getByRole('group', { name: 'To' })).getByText(/7:00\sAM/)).toBeInTheDocument();
-      await userEvent.click(screen.getByRole('button', { name: 'From later' }));
-      expect(onChange).toHaveBeenLastCalledWith({ on: true, start: 22 * 60 + 30, end: 7 * 60 });
-      await userEvent.click(screen.getByRole('button', { name: 'To earlier' }));
-      expect(onChange).toHaveBeenLastCalledWith({ on: true, start: 22 * 60, end: 6 * 60 + 30 });
-    });
-
-    it('never lets both ends meet', async () => {
-      const onChange = setupQuiet({ hours: { on: true, start: 6 * 60 + 30, end: 7 * 60 } });
-      await userEvent.click(screen.getByRole('button', { name: 'From later' }));
-      expect(onChange).toHaveBeenLastCalledWith({ on: true, start: 7 * 60 + 30, end: 7 * 60 });
-    });
   });
 });

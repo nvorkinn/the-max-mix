@@ -123,11 +123,11 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await page.getByRole('tab', { name: 'Settings' }).click();
     await showSection(settings, 'Appearance');
     await settings.getByRole('button', { name: 'Teal' }).click();
-    const dynamic = settings.getByRole('group', { name: 'Dynamic' });
-    await expect(dynamic.getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true');
+    const dynamic = settings.getByRole('switch', { name: 'Dynamic' });
+    await expect(dynamic).toHaveAttribute('aria-checked', 'false');
     await expect(room).not.toHaveAttribute('data-dynamic');
 
-    await dynamic.getByRole('button', { name: 'On' }).click();
+    await dynamic.click();
     await expect(room).toHaveAttribute('data-dynamic', '');
     await expect(room).toHaveAttribute('data-colour', 'teal');
     await expect(settings.getByRole('button', { name: 'Teal' })).toHaveAttribute('aria-pressed', 'true');

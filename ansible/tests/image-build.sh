@@ -133,6 +133,9 @@ check grep -q '^Environment=KIOSK_SCREEN_SCALE=1.0$' /etc/systemd/system/kiosk.s
 check grep -q '^Environment=KIOSK_SCREEN_SCALE=1.0$' /etc/systemd/user/kiosk-audio.service
 check grep -q '^Environment=KIOSK_SCREEN_ROTATION=0$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'ENV{LIBINPUT_CALIBRATION_MATRIX}="1 0 0 0 1 0"$' /etc/udev/rules.d/90-kiosk-touch-rotation.rules
+# The kiosk user, in the video group, may set a panel's backlight.
+check grep -q 'chgrp video /sys/class/backlight/%k/brightness' /etc/udev/rules.d/90-kiosk-backlight.rules
+check bash -c 'id -nG kiosk | grep -qw video'
 check command -v swayidle wlr-randr
 check grep -q 'en_GB.UTF-8' /etc/default/locale
 check test "$(readlink /etc/localtime)" = /usr/share/zoneinfo/Europe/London

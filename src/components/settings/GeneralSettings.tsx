@@ -5,13 +5,8 @@ import { locatePlace, searchPlaces } from '../../countdown/search';
 import type { DeviceConfig } from '../../hooks/useDeviceConfig';
 import { useT } from '../../i18n/translate';
 import type { StringId } from '../../i18n/strings';
-import { DEFAULT_CLOCK_FORMAT } from '../../utils/clockFormat';
-import type { QuietHours } from '../../utils/quietHours';
-import type { ScreenSleepMinutes } from '../../utils/screenSleep';
 import CountryFlag from './CountryFlag';
 import NoticeBoardDialog, { noticeBoardPlace } from './NoticeBoardDialog';
-import QuietHoursSettings from './QuietHoursSettings';
-import ScreenSleepSettings from './ScreenSleepSettings';
 import SearchDialog from './SearchDialog';
 import SettingsRow from './SettingsRow';
 
@@ -41,117 +36,85 @@ function ChangeButton({ onClick }: Readonly<{ onClick: () => void }>) {
 }
 
 /**
- * What applies across the whole tablet: its language, the time format of the header clock and the Countdown's times, the place for the
- * weather, the postcode for the notice board, and on the kiosk how soon its screen sleeps and its quiet hours. The first three are kept on
- * countdown-server, so they show once someone owns the kiosk; each saves on its own as soon as it changes.
+ * What applies across the whole tablet: its language, the time format of the header clock and the Countdown's times, the
+ * place for the weather and the postcode for the notice board. They are kept on countdown-server, so the page shows once
+ * someone owns the kiosk; each saves on its own as soon as it changes.
  */
 export default function GeneralSettings({
   config,
-  onSave,
-  screenSleep,
-  onScreenSleepChange,
-  quietHours,
-  onQuietHoursChange
-}: Readonly<{
-  config?: TouchscreenConfig | undefined;
-  onSave?: DeviceConfig['save'] | undefined;
-  screenSleep?: ScreenSleepMinutes | undefined;
-  onScreenSleepChange?: ((minutes: ScreenSleepMinutes) => void) | undefined;
-  quietHours?: QuietHours | undefined;
-  onQuietHoursChange?: ((hours: QuietHours) => void) | undefined;
-}>) {
+  onSave
+}: Readonly<{ config: TouchscreenConfig; onSave: DeviceConfig['save'] }>) {
   const t = useT();
   const [dialog, setDialog] = useState<'place' | 'notices' | null>(null);
-  const notices = config && noticeBoardPlace(config.notice_board);
+  const notices = noticeBoardPlace(config.notice_board);
 
   return (
     <div className="settings-stack">
-      {config && onSave && (
-        <>
-          <div className="settings-pair">
-            <section className="settings-group">
-              <h5 className="settings-group-title" id="language-label">
-                {t('general.language')}
-              </h5>
-              <div className="settings-segmented" role="group" aria-labelledby="language-label">
-                {LANGUAGES.map(choice => (
-                  <button
-                    type="button"
-                    key={choice.id}
-                    lang={choice.lang}
-                    aria-pressed={config.language === choice.id}
-                    onClick={() => onSave('language', choice.id)}
-                    className="settings-segment"
-                  >
-                    {choice.name}
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="settings-group">
-              <h5 className="settings-group-title" id="clock-format-label">
-                {t('general.time_format')}
-              </h5>
-              <div className="settings-segmented" role="group" aria-labelledby="clock-format-label">
-                {CLOCK_FORMATS.map(choice => (
-                  <button
-                    type="button"
-                    key={choice.id}
-                    aria-pressed={config.clock_format === choice.id}
-                    onClick={() => onSave('clock_format', choice.id)}
-                    className="settings-segment"
-                  >
-                    {t(choice.label)}
-                  </button>
-                ))}
-              </div>
-            </section>
-          </div>
-
-          <div className="settings-pair">
-            <section className="settings-group">
-              <h5 className="settings-group-title">{t('general.weather')}</h5>
-              <SettingsRow
-                icon={<CloudSun className="w-6 h-6" aria-hidden="true" />}
-                name={config.weather.key ? config.weather.location : t('general.no_place')}
+      <div className="settings-pair">
+        <section className="settings-group">
+          <h5 className="settings-group-title" id="language-label">
+            {t('general.language')}
+          </h5>
+          <div className="settings-segmented" role="group" aria-labelledby="language-label">
+            {LANGUAGES.map(choice => (
+              <button
+                type="button"
+                key={choice.id}
+                lang={choice.lang}
+                aria-pressed={config.language === choice.id}
+                onClick={() => onSave('language', choice.id)}
+                className="settings-segment"
               >
-                <ChangeButton onClick={() => setDialog('place')} />
-              </SettingsRow>
-            </section>
-
-            <section className="settings-group">
-              <h5 className="settings-group-title">{t('general.postcode')}</h5>
-              <SettingsRow
-                icon={
-                  notices ? (
-                    <CountryFlag country={notices.country} />
-                  ) : (
-                    <Megaphone className="w-6 h-6" aria-hidden="true" />
-                  )
-                }
-                name={notices?.postcode ?? t('common.off')}
-              >
-                <ChangeButton onClick={() => setDialog('notices')} />
-              </SettingsRow>
-            </section>
+                {choice.name}
+              </button>
+            ))}
           </div>
-        </>
-      )}
+        </section>
 
-      {screenSleep !== undefined && onScreenSleepChange && (
-        <ScreenSleepSettings minutes={screenSleep} onChange={onScreenSleepChange} />
-      )}
+        <section className="settings-group">
+          <h5 className="settings-group-title" id="clock-format-label">
+            {t('general.time_format')}
+          </h5>
+          <div className="settings-segmented" role="group" aria-labelledby="clock-format-label">
+            {CLOCK_FORMATS.map(choice => (
+              <button
+                type="button"
+                key={choice.id}
+                aria-pressed={config.clock_format === choice.id}
+                onClick={() => onSave('clock_format', choice.id)}
+                className="settings-segment"
+              >
+                {t(choice.label)}
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
+      <div className="settings-pair">
+        <section className="settings-group">
+          <h5 className="settings-group-title">{t('general.weather')}</h5>
+          <SettingsRow
+            icon={<CloudSun className="w-6 h-6" aria-hidden="true" />}
+            name={config.weather.key ? config.weather.location : t('general.no_place')}
+          >
+            <ChangeButton onClick={() => setDialog('place')} />
+          </SettingsRow>
+        </section>
 
-      {quietHours && onQuietHoursChange && (
-        <QuietHoursSettings
-          hours={quietHours}
-          clockFormat={config?.clock_format ?? DEFAULT_CLOCK_FORMAT}
-          onChange={onQuietHoursChange}
-        />
-      )}
+        <section className="settings-group">
+          <h5 className="settings-group-title">{t('general.postcode')}</h5>
+          <SettingsRow
+            icon={
+              notices ? <CountryFlag country={notices.country} /> : <Megaphone className="w-6 h-6" aria-hidden="true" />
+            }
+            name={notices?.postcode ?? t('common.off')}
+          >
+            <ChangeButton onClick={() => setDialog('notices')} />
+          </SettingsRow>
+        </section>
+      </div>
 
-      {config && onSave && dialog === 'place' && (
+      {dialog === 'place' && (
         <SearchDialog
           title={t('general.weather_place')}
           search={searchPlaces}
@@ -164,7 +127,7 @@ export default function GeneralSettings({
           }}
         />
       )}
-      {config && onSave && dialog === 'notices' && (
+      {dialog === 'notices' && (
         <NoticeBoardDialog
           board={config.notice_board}
           onClose={() => setDialog(null)}

@@ -154,6 +154,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
       expect(await nav.evaluate(element => element.scrollHeight <= element.clientHeight)).toBe(true);
       const sections = await nav.getByRole('button').allTextContents();
       expect(sections).toHaveLength(6);
+      expect(sections[0]).toBe('Screen');
       for (const section of sections) {
         // eslint-disable-next-line no-await-in-loop -- one page after another
         await showSection(settings, section);

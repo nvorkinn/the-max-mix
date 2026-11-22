@@ -159,7 +159,10 @@ describe('saveConfigSection', () => {
     await loaded(SECTION.if_match);
     const fetch = saved();
     vi.stubGlobal('fetch', fetch);
-    await Promise.all([saveConfigSection('clock_format', '12h'), saveConfigSection('display', { sleep_minutes: 30 })]);
+    await Promise.all([
+      saveConfigSection('clock_format', '12h'),
+      saveConfigSection('display', { ...OWNED.display, sleep_minutes: 30 })
+    ]);
     const versions = fetch.mock.calls.map(([input, init]) => new Request(input, init).headers.get('If-Match'));
     expect(versions).toEqual([SECTION.if_match, SECTION.etag]);
   });
@@ -198,8 +201,8 @@ describe('saveConfigSection', () => {
     await expect(saveConfigSection('clock_format', '12h')).resolves.toEqual({
       saved: { ...OWNED, clock_format: '12h' }
     });
-    await expect(saveConfigSection('display', { sleep_minutes: 30 })).resolves.toEqual({
-      saved: { ...OWNED, clock_format: '12h', display: { sleep_minutes: 30 } }
+    await expect(saveConfigSection('display', { ...OWNED.display, sleep_minutes: 30 })).resolves.toEqual({
+      saved: { ...OWNED, clock_format: '12h', display: { ...OWNED.display, sleep_minutes: 30 } }
     });
     expect(fetch).not.toHaveBeenCalled();
   });

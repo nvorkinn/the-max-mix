@@ -106,7 +106,7 @@ describe('useDeviceConfig', () => {
   it('loads the latest config when the server says the copy was out of date', async () => {
     vi.spyOn(config, 'saveConfigSection').mockResolvedValue({ error: 'conflict' });
     const { result } = await owned();
-    const latest = { ...OWNED, display: { sleep_minutes: 2 as const } };
+    const latest = { ...OWNED, display: { ...OWNED.display, sleep_minutes: 2 as const } };
     vi.mocked(config.loadDeviceConfig).mockResolvedValue(latest);
 
     act(() => {

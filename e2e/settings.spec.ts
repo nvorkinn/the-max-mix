@@ -37,7 +37,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await openSpotifyTab(page, '/?kiosk=1');
     const dialog = await openSettings(page);
     const nav = dialog.getByRole('navigation', { name: 'Settings' });
-    const sections = ['General', 'Appearance', 'Wi-Fi', 'Spotify', 'Lyrics', 'About'];
+    const sections = ['Screen', 'Appearance', 'Wi-Fi', 'Spotify', 'Lyrics', 'About'];
     await expect(nav.getByRole('button')).toHaveText(sections);
     for (const section of sections) {
       // eslint-disable-next-line no-await-in-loop -- one section after another
@@ -159,7 +159,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
 
     test('Screen sleep keeps the choice across a reload', async ({ page }) => {
       await openSpotifyTab(page);
-      const dialog = await openSettings(page, 'General');
+      const dialog = await openSettings(page, 'Screen');
       const choices = dialog.getByRole('group', { name: 'Screen sleep' });
       // Five minutes is the default.
       await expect(choices.getByRole('button', { name: '5 min', exact: true })).toHaveAttribute('aria-pressed', 'true');
@@ -170,7 +170,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
       );
 
       await page.reload();
-      const again = await openSettings(page, 'General');
+      const again = await openSettings(page, 'Screen');
       await expect(
         again.getByRole('group', { name: 'Screen sleep' }).getByRole('button', { name: '15 min', exact: true })
       ).toHaveAttribute('aria-pressed', 'true');
