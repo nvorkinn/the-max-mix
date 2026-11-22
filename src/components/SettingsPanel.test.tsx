@@ -163,8 +163,9 @@ describe('SettingsPanel', () => {
         if (status instanceof Error) return Promise.reject(status);
         if (url.endsWith('/wifi/networks')) return Promise.resolve(Response.json({ networks }));
         if (url.endsWith('/wifi/saved')) return Promise.resolve(Response.json({ networks: saved }));
-        if (url.endsWith('/wifi/forget') || url.endsWith('/wifi/connect'))
+        if (url.endsWith('/wifi/forget') || url.endsWith('/wifi/connect')) {
           return Promise.resolve(Response.json(joined));
+        }
         return Promise.resolve(status instanceof Response ? status.clone() : Response.json(status));
       });
       vi.stubGlobal('fetch', fetchMock);
