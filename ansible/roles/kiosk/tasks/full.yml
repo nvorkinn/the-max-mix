@@ -325,54 +325,34 @@
     mode: '0644'
   notify: Apply the journal settings
 
-- name: full | Install the kiosk programs
-  ansible.builtin.copy:
-    src: '{{ item.src }}'
-    dest: '{{ item.dest }}'
-    owner: root
-    group: root
-    mode: '{{ item.mode }}'
-  loop:
-    - { src: bin/kiosk-session, dest: /usr/local/bin/kiosk-session, mode: '0755' }
-    - { src: bin/kiosk-display, dest: /usr/local/bin/kiosk-display, mode: '0755' }
-    - { src: bin/kiosk-pull, dest: /usr/local/sbin/kiosk-pull, mode: '0755' }
-    - { src: bin/kiosk-app-switch, dest: /usr/local/sbin/kiosk-app-switch, mode: '0755' }
-    - { src: bin/kiosk-status, dest: /usr/local/sbin/kiosk-status, mode: '0755' }
-    - { src: bin/kiosk-ssh-keys, dest: /usr/local/sbin/kiosk-ssh-keys, mode: '0755' }
-  loop_control:
-    label: '{{ item.dest }}'
-  notify: Ask for a kiosk restart
-
-# AirPlay: PipeWire makes a sink for each speaker Avahi finds; the app asks the kiosk-audio service (127.0.0.1) to route
-# the browser's audio to the chosen ones, and the same user unit keeps it there.
-# Every source file of the service, so a new one needs no mention here (the tests and their fixtures stay behind).
-- name: full | Install the audio routing
-  ansible.builtin.copy:
-    src: '{{ item }}'
-    dest: '{{ kiosk_audio_dir }}/{{ item | basename }}'
-    owner: root
-    group: root
-    mode: '0644'
-  loop: >-
-    {{ query('ansible.builtin.fileglob', kiosk_audio_src ~ '/*.ts') | reject('search', kiosk_not_installed) | sort }}
-  loop_control:
-    label: '{{ item | basename }}'
+# The kiosk programs, and the kiosk-audio service's source files and package list. Ansible's copy module costs about 2.5
+# seconds per file on a Pi even when nothing changed (it starts Python for each), so rsync copies them all in one go:
+# by checksum, only what differs, and it prints a line for each file it changed or removed. kiosk-audio's tests and
+# their fixtures stay behind, and a source file the repository no longer has is removed (node_modules and the package
+# list are left alone). AirPlay: PipeWire makes a sink for each speaker Avahi finds; the app asks the kiosk-audio service
+# (127.0.0.1) to route the browser's audio to the chosen ones, and the same user unit keeps it there.
+- name: full | Install the kiosk programs and the audio routing
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      copy=(rsync --recursive --checksum --perms --owner --group --chown=root:root --itemize-changes)
+      "${copy[@]}" --chmod=F0755 "$FILES/bin/kiosk-session" "$FILES/bin/kiosk-display" /usr/local/bin/
+      "${copy[@]}" --chmod=F0755 "$FILES/bin/kiosk-pull" "$FILES/bin/kiosk-app-switch" "$FILES/bin/kiosk-status" \
+        "$FILES/bin/kiosk-ssh-keys" /usr/local/sbin/
+      "${copy[@]}" --chmod=D0755,F0644 --delete --exclude='*.test.ts' --exclude=fixtures.ts --include='*.ts' \
+        --exclude='*' "$AUDIO_SRC/" "$AUDIO_DIR/"
+      "${copy[@]}" --chmod=F0644 "$FILES/kiosk-audio/package.json" "$FILES/kiosk-audio/package-lock.json" "$AUDIO_DIR/"
+    executable: /bin/bash
+  environment:
+    FILES: '{{ role_path }}/files'
+    AUDIO_SRC: '{{ kiosk_audio_src }}'
+    AUDIO_DIR: '{{ kiosk_audio_dir }}'
+  register: kiosk_copied
+  changed_when: kiosk_copied.stdout | length > 0
   notify: Ask for a kiosk restart
 
 # ws, the one npm package, for the update stream (the WebSocket). Installed from the lockfile, so it is the version that
 # was reviewed; --ignore-scripts because nothing it needs has to build. Only when the lockfile is not the one installed.
-- name: full | Install the audio routing's package list
-  ansible.builtin.copy:
-    src: kiosk-audio/{{ item }}
-    dest: '{{ kiosk_audio_dir }}/{{ item }}'
-    owner: root
-    group: root
-    mode: '0644'
-  loop:
-    - package.json
-    - package-lock.json
-  notify: Ask for a kiosk restart
-
 - name: full | Install the audio routing's npm packages
   when: >-
     kiosk_audio_lock_id
