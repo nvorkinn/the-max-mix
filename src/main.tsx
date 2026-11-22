@@ -1,7 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { completeRegistration, needsRegistration, startRegistration } from './countdown/registration';
+import { kioskScreen, needsRegistration } from './countdown/registration';
+import type { KioskScreen } from './countdown/registration';
 import { completeSignIn } from './spotify/auth';
 import { captureBrowserErrors } from './utils/debugLog';
 import { installHttpLog } from './utils/httpLog';
@@ -25,13 +26,8 @@ if (isKiosk()) {
   startHandover();
 }
 
-// Coming back from countdown-server's /register page keeps the device ID it gave; that address's `error` is the
-// server's, so it is read (and taken out of the address) before the Spotify sign-in looks for one of its own.
-const registration = completeRegistration();
-const registrationError = registration && !registration.ok ? registration.error : null;
-
 /** Starts the app, once a Spotify sign-in it came back from (Spotify sends the browser back to / with ?code=) is done. */
-function startApp(): void {
+function startApp(pairScreen: KioskScreen | null = null): void {
   const signedIn = completeSignIn().catch((error: unknown) => ({
     ok: false as const,
     error: errorMessage(error)
@@ -42,7 +38,7 @@ function startApp(): void {
     if (!root) throw new Error('Missing #root element');
     ReactDOM.createRoot(root).render(
       <React.StrictMode>
-        <App signInError={signInError} registrationError={registrationError} />
+        <App signInError={signInError} pairScreen={pairScreen} />
       </React.StrictMode>
     );
   });
@@ -50,11 +46,13 @@ function startApp(): void {
 
 // The copy the Pi serves takes the hosted app's saved data first, so it starts signed in and registered as before.
 void (isKiosk() ? takeHandover() : Promise.resolve()).then(() => {
-  if (!registration && needsRegistration()) {
-    // A kiosk with no device ID adds itself to countdown-server before anything else; the server sends it back here.
-    // When the Pi cannot say what its screen is, the app starts unregistered, and the next start tries again.
-    void startRegistration().then(hasLeft => {
-      if (!hasLeft) startApp();
+  if (needsRegistration()) {
+    // A kiosk with no device ID shows a QR code to add it to countdown-server over the app, until someone has (the
+    // sign-in is on their phone, so none waits on the kiosk). When the Pi cannot say what its screen is, the app starts
+    // unregistered, and the next start tries again.
+    void kioskScreen().then(screen => {
+      if (!screen) console.warn('The kiosk did not say what its screen is, so it is not registered yet');
+      startApp(screen);
     });
   } else {
     startApp();

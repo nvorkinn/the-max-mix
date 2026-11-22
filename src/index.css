@@ -3169,3 +3169,48 @@ input:disabled {
     background: transparent;
   }
 }
+/*
+  A kiosk nobody owns yet (components/PairingScreen.tsx): the brand and the pairing QR code, over the whole app. Not a
+  dialog, so Settings (in the top layer) still opens over it, for Wi-Fi on a kiosk with no network.
+*/
+.pairing-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  background: var(--page);
+  color: var(--ink);
+}
+.pairing-screen-brand {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.pairing-screen-mark {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: grid;
+  place-items: center;
+}
+.pairing-screen-mark .lucide {
+  width: 36px;
+  height: 36px;
+}
+.pairing-screen-name {
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+}
+.pairing-screen-code {
+  width: min(60vh, 420px);
+  height: min(60vh, 420px);
+  border-radius: 24px;
+}

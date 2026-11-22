@@ -25,9 +25,8 @@ const NOTICES = `${API}/api/devices/notices`;
 export const FEED = `${API}/api/devices/feed`;
 
 /**
- * countdown-api's example config, once someone owns the kiosk. Before that there's none: a touchscreen registers through
- * its owner's sign-in, so the server doesn't know an unowned kiosk's secret. Its quiet hours are off here, so that no
- * test's screen sleeps because of the hour it runs at.
+ * countdown-api's example config, once someone owns the kiosk (registration.spec.ts covers one nobody owns yet). Its
+ * quiet hours are off here, so that no test's screen sleeps because of the hour it runs at.
  */
 export const DEVICE_CONFIGS = {
   owned: {
