@@ -1,10 +1,9 @@
 #cloud-config
 # THE MAX MIX on stock Raspberry Pi OS Lite (64-bit, trixie). Copy this file over the
-# user-data on the SD card's boot partition (see README.md). cloud-init only does offline work here: it names the Pi,
-# creates the locked kiosk user and installs kiosk-first-pull.service. That unit waits for the network, runs this
-# repository's playbook from its latest GitHub release's Pi bundle (the same run kiosk-pull.timer repeats later),
-# removes the setup Wi-Fi and this file from the card, turns cloud-init off and reboots once it has worked. Until then
-# it tries again every minute.
+# user-data on the SD card's boot partition (see README.md). cloud-init names the Pi and creates the locked kiosk user,
+# then runcmd runs this repository's playbook from its latest GitHub release's Pi bundle (the same run kiosk-pull.timer
+# repeats later), removes the setup Wi-Fi and this file from the card and turns cloud-init off. It tries again every
+# minute until that has worked, and the Pi then reboots.
 hostname: the-max-mix
 create_hostname_file: true
 # The playbook sets up the kiosk user's groups and the admin account; cloud-init only has to create a user, so that the
@@ -16,77 +15,51 @@ users:
     lock_passwd: true
 ssh_pwauth: false
 
-write_files:
-  - path: /usr/local/sbin/kiosk-first-pull
-    owner: root:root
-    permissions: '0755'
-    content: |
-      #!/bin/bash
-      # Installs Ansible and applies the kiosk playbook from the latest GitHub release's Pi bundle, as the playbook's own
-      # kiosk-pull does later (ansible/roles/kiosk/files/bin/kiosk-pull), then reboots for the boot settings it changed.
-      # A release whose Release workflow has not uploaded the bundle yet is not ready: this fails and tries again.
-      set -euo pipefail
-      export DEBIAN_FRONTEND=noninteractive
+# cloud-init runs this once, after the network is up. A release whose Release workflow has not uploaded its Pi bundle
+# yet is not ready, so a failed try (no network yet, GitHub or apt down) waits a minute and tries again.
+runcmd:
+  # bash, not sh: the script uses arrays and [[ ]]. Each step returns on failure, because set -e is ignored in an until.
+  - - bash
+    - -c
+    - |
+      set -uo pipefail
+      export DEBIAN_FRONTEND=noninteractive HOME=/root LC_ALL=C.UTF-8 ANSIBLE_NOCOLOR=1 GIT_TERMINAL_PROMPT=0
       releases=https://github.com/nvorkinn/the-max-mix/releases
       bundle=the-max-mix-pi.tar.gz
       directory=/var/lib/the-max-mix/ansible-pull
-      apt-get update
-      apt-get install --yes --no-install-recommends ansible-core ca-certificates curl git python3-apt
-      location=$(curl --fail --silent --show-error --max-time 60 --head --output /dev/null \
-        --write-out '%{redirect_url}' "$releases/latest/download/$bundle")
-      tag=${location##*/releases/download/}
-      tag=${tag%%/*}
-      if [[ $location != */releases/download/* || ! $tag =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
-        echo "Could not find the latest release (got: ${location:-no redirect})" >&2
-        exit 1
-      fi
-      rm -rf "$directory"
-      mkdir -p "$directory"
-      curl --fail --silent --show-error --max-time 300 --location "$releases/download/$tag/$bundle" \
-        | tar --extract --gzip --directory "$directory" --no-same-owner
-      # Settings for this Pi only, as kiosk-pull passes them later (see README.md, "A second kiosk").
-      extra=()
-      if [[ -f /etc/the-max-mix/kiosk-vars.yml ]]; then
-        extra=(--extra-vars @/etc/the-max-mix/kiosk-vars.yml)
-      fi
-      cd "$directory"
-      ansible-playbook "${extra[@]}" --inventory localhost, ansible/local.yml
-      echo "$tag" > /var/lib/the-max-mix/installed-release
-      # The card's Wi-Fi is for the first boot only: cloud-init has made it a netplan file by now, which keeps the
-      # network, and the app's Wi-Fi screen sets up any other. So the card's copies go, with this user-data, and
-      # cloud-init is turned off so that it never applies them again.
+      pull() {
+        apt-get update || return
+        apt-get install --yes --no-install-recommends ansible-core ca-certificates curl git python3-apt || return
+        location=$(curl --fail --silent --show-error --max-time 60 --head --output /dev/null \
+          --write-out '%{redirect_url}' "$releases/latest/download/$bundle") || return
+        tag=${location##*/releases/download/}
+        tag=${tag%%/*}
+        if [[ $location != */releases/download/* || ! $tag =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+          echo "Could not find the latest release (got: ${location:-no redirect})" >&2
+          return 1
+        fi
+        rm -rf "$directory" && mkdir -p "$directory" || return
+        curl --fail --silent --show-error --max-time 300 --location "$releases/download/$tag/$bundle" \
+          | tar --extract --gzip --directory "$directory" --no-same-owner || return
+        # Settings for this Pi only, as kiosk-pull passes them later (see README.md, "A second kiosk").
+        extra=()
+        if [[ -f /etc/the-max-mix/kiosk-vars.yml ]]; then
+          extra=(--extra-vars @/etc/the-max-mix/kiosk-vars.yml)
+        fi
+        (cd "$directory" && ansible-playbook "${extra[@]}" --inventory localhost, ansible/local.yml) || return
+        echo "$tag" > /var/lib/the-max-mix/installed-release
+      }
+      until (pull); do
+        echo "The first pull failed; trying again in a minute" >&2
+        sleep 60
+      done
+      # The card's Wi-Fi is for the first boot only: cloud-init has made it a netplan file, which keeps the network, and
+      # the app's Wi-Fi screen sets up any other. So the card's copies go, with this user-data, and cloud-init is turned
+      # off so that it never applies them again.
       rm -f /boot/firmware/network-config /boot/firmware/user-data
       touch /etc/cloud/cloud-init.disabled
-      mkdir -p /var/lib/the-max-mix
-      touch /var/lib/the-max-mix/first-pull-done
-      systemctl --no-block reboot
-  - path: /etc/systemd/system/kiosk-first-pull.service
-    owner: root:root
-    permissions: '0644'
-    content: |
-      [Unit]
-      Description=Set up THE MAX MIX kiosk from GitHub (first boot)
-      Wants=network-online.target
-      After=network-online.target
-      ConditionPathExists=!/var/lib/the-max-mix/first-pull-done
-      # Keep trying for as long as it takes (no network yet, GitHub or apt down).
-      StartLimitIntervalSec=0
 
-      [Service]
-      Type=oneshot
-      Environment=HOME=/root
-      Environment=LC_ALL=C.UTF-8
-      Environment=ANSIBLE_NOCOLOR=1
-      Environment=GIT_TERMINAL_PROMPT=0
-      ExecStart=/usr/local/sbin/kiosk-first-pull
-      Restart=on-failure
-      RestartSec=60s
-      TimeoutStartSec=90min
-
-      [Install]
-      WantedBy=multi-user.target
-
-runcmd:
-  - [systemctl, daemon-reload]
-  - [systemctl, enable, kiosk-first-pull.service]
-  - [systemctl, start, --no-block, kiosk-first-pull.service]
+# Once runcmd has finished: the playbook changed boot settings (the kernel command line, config.txt).
+power_state:
+  mode: reboot
+  message: THE MAX MIX kiosk is set up
