@@ -18,7 +18,6 @@
       - /etc/the-max-mix
       - /etc/pipewire
       - /etc/pipewire/pipewire.conf.d
-      - /etc/plymouth
       - /etc/systemd/system
       - /etc/systemd/user
       - /etc/systemd/user/default.target.wants
@@ -28,7 +27,6 @@
       - /usr/share/icons/blank
       - /usr/share/icons/blank/cursors
       - /usr/share/kiosk-cursors
-      - /usr/share/plymouth/themes/the-max-mix
       - /var/lib/the-max-mix
   changed_when: false
 
@@ -134,7 +132,7 @@
     state: link
     force: true
 
-# Boot: console on tty3 and a quiet splash, the Wi-Fi country, the screen mode. cmdline.txt is a single line. The params
+# Boot: console on tty3 and a quiet boot, the Wi-Fi country, the screen mode. cmdline.txt is a single line. The params
 # are appended only if missing; [ \t]*$ (not \s*$) keeps the final newline.
 - name: full | Move the console to tty3
   ansible.builtin.replace:
@@ -148,6 +146,25 @@
     regexp: '^(?!.*(?:^|\s){{ item | regex_escape }}(?:\s|$))(.*?)[ \t]*$'
     replace: '\1 {{ item }}'
   loop: '{{ kiosk_cmdline_params }}'
+
+# Releases up to v2.22.0 showed a Plymouth splash during boot; the boot is now just quiet, so its parameters, package and
+# theme go.
+- name: full | Remove the boot splash's kernel command line parameters
+  ansible.builtin.replace:
+    path: /boot/firmware/cmdline.txt
+    regexp: '[ \t]+(?:splash|plymouth\.ignore-serial-consoles)(?=\s|$)'
+    replace: ''
+
+- name: full | Remove the boot splash
+  ansible.builtin.apt:
+    name: plymouth
+    state: absent
+    purge: true
+
+- name: full | Remove the boot splash's theme
+  ansible.builtin.file:
+    path: /usr/share/plymouth/themes/the-max-mix
+    state: absent
 
 # The screen mode (kiosk_video_mode in defaults/main.yml). Not read in a container, which has no screen of the Pi's.
 - name: full | Read the screen's own mode
@@ -472,27 +489,6 @@
     group: root
     mode: '0644'
   notify: Create the run directory
-
-- name: full | Install the Plymouth theme
-  ansible.builtin.copy:
-    src: plymouth/{{ item }}
-    dest: /usr/share/plymouth/themes/the-max-mix/{{ item }}
-    owner: root
-    group: root
-    mode: '0644'
-  loop:
-    - the-max-mix.plymouth
-    - the-max-mix.script
-  notify: Update the initramfs
-
-- name: full | Select the Plymouth theme
-  ansible.builtin.copy:
-    src: plymouthd.conf
-    dest: /etc/plymouth/plymouthd.conf
-    owner: root
-    group: root
-    mode: '0644'
-  notify: Update the initramfs
 
 # A cursor theme of one transparent pixel (Cage loads it as its default theme, see below), for touch screens that look like a mouse.
 - name: full | Install the blank cursor theme

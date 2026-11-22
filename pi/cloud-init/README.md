@@ -64,7 +64,7 @@ Give the new owner the [one-page guide](../../docs/friend-guide.md) (print it, o
 
 ## How the kiosk runs
 
-1. A black Plymouth splash covers the boot. The Wi-Fi country (GB), locale (`en_GB.UTF-8`) and time zone
+1. The boot is quiet: no logo, cursor or boot messages. The Wi-Fi country (GB), locale (`en_GB.UTF-8`) and time zone
    (`Europe/London`) come from the playbook.
 2. `kiosk.service` starts [Cage](https://github.com/cage-kiosk/cage), a single-app Wayland compositor, on tty7 as the
    `kiosk` user. Cage runs `/usr/local/bin/kiosk-session` forever.
@@ -142,7 +142,7 @@ Chromium restarts by the watchdog and the app's errors from the last 7 days (`su
 The kiosk logs go to the journal: `journalctl -u kiosk`, `journalctl -u kiosk-pull`, `journalctl -u kiosk-first-pull`. The journal is kept
 on disk (up to `kiosk_journal_max_use`, 64 MB), so logs from before a reboot are there too: `journalctl --list-boots`,
 `journalctl -b -1` for the previous boot, and `journalctl -b -1 | grep -i 'stop job'` for what held a shutdown up.
-The `bootfs` partition holds `config.txt` and `cmdline.txt` (remove `quiet splash` and change `console=tty3` back to
+The `bootfs` partition holds `config.txt` and `cmdline.txt` (remove `quiet` and change `console=tty3` back to
 `tty1` to see boot messages).
 
 - **The player says "Failed to initialize player":** Widevine is missing or not loaded yet. Check that
