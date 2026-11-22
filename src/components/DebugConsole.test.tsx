@@ -3,13 +3,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { fetchSpotify, resetSpotifyRateLimit } from '../spotify/http';
 import { clearDebugLog, debugLog } from '../utils/debugLog';
 import { HTTP_GROUPS } from '../utils/httpLog';
-import { startRegistration } from '../countdown/registration';
 import DebugConsole from './DebugConsole';
 
-vi.mock('../countdown/registration', async importOriginal => ({
-  ...(await importOriginal<typeof import('../countdown/registration')>()),
-  startRegistration: vi.fn(() => Promise.resolve(true))
-}));
 vi.mock('./BluetoothDebug', () => ({ default: () => <p>The Pi’s Bluetooth</p> }));
 vi.mock('../utils/widevine', () => ({ widevineProblem: vi.fn(() => Promise.resolve('Widevine is not available')) }));
 
@@ -136,12 +131,13 @@ describe('DebugConsole', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('on the kiosk, Register again forgets the device ID, secret and config and registers anew', async () => {
+  it('on the kiosk, Register again forgets the device ID, secret and config and starts again', async () => {
     history.replaceState(null, '', '/?kiosk=1');
     localStorage.setItem('maxmix.deviceSecret', 'not-a-real-secret');
     localStorage.setItem('maxmix.deviceId', '0a1b2c3d4e5f');
     localStorage.setItem('maxmix.deviceConfig', '{}');
-    render(<DebugConsole isOpen onClose={vi.fn()} status={[]} />);
+    const onReload = vi.fn();
+    render(<DebugConsole isOpen onClose={vi.fn()} status={[]} onReload={onReload} />);
     showStatus();
     await screen.findByText('Widevine is not available');
     expect(screen.getByText('Device ID').nextSibling).toHaveTextContent('0a1b2c3d4e5f');
@@ -149,7 +145,7 @@ describe('DebugConsole', () => {
     expect(localStorage.getItem('maxmix.deviceId')).toBeNull();
     expect(localStorage.getItem('maxmix.deviceSecret')).toBeNull();
     expect(localStorage.getItem('maxmix.deviceConfig')).toBeNull();
-    expect(startRegistration).toHaveBeenCalled();
+    expect(onReload).toHaveBeenCalled();
     localStorage.clear();
     history.replaceState(null, '', '/');
   });

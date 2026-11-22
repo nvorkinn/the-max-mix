@@ -7,9 +7,10 @@
 # Cage has no output power protocol, so the output is disabled and enabled again through wlr-randr. Without a signal
 # an HDMI screen should turn its backlight off, as a DSI panel's driver does; the app's black sleep screen covers it if
 # it does not.
-# Cage has no setting for rotation or scale either: with KIOSK_SCREEN_ROTATION (kiosk_screen_rotation in the Ansible
-# role: 90, 180 or 270 degrees) `on` also turns the output, and with KIOSK_SCREEN_SCALE (kiosk_screen_scale, such as
-# 1.5) it has Cage draw everything that much bigger. Every time, so both hold whatever enabling the output does.
+# Cage has no setting for rotation or scale either: with KIOSK_SCREEN_ROTATION (90, 180 or 270 degrees, from
+# /run/kiosk/screen.env, which screen-setup.ts writes as the kiosk starts) `on` also turns the output, and with
+# KIOSK_SCREEN_SCALE (such as 1.5) it has Cage draw everything that much bigger. Every time, so both hold whatever
+# enabling the output does.
 set -u
 
 # What wlr-randr is told about rotation and scale when it enables an output: nothing for no rotation, for a scale of 1,

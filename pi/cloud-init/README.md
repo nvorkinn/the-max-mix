@@ -105,11 +105,12 @@ The playbook also sets, among other things:
   none. Set `kiosk_video_mode` in `/etc/the-max-mix/kiosk-vars.yml` for a screen whose EDID is wrong; a new mode needs a
   reboot. The app fills a bigger screen at its own resolution. A DSI panel, such as the Raspberry Pi Touch Display 2,
   needs no mode: the firmware finds it (`display_auto_detect=1` in `config.txt`, Raspberry Pi OS's default) and Cage
-  runs it at its own. Its own mode is portrait, so set `kiosk_screen_rotation` to `90` or `270` (degrees clockwise,
-  whichever way up it is mounted) in `/etc/the-max-mix/kiosk-vars.yml`: the picture and the touches turn with it from
-  the next kiosk restart; the boot console does not. Where its small pixels leave everything small, set
-  `kiosk_screen_scale` too: `1.5` on the 1920x1200 one gives the app the 1280x800 page it is laid out for. A screen whose own mode has an
-  odd horizontal timing (a 10.1-inch MPI107 does), which the Pi 4 cannot send, gets that mode with even timings when
+  runs it at its own. Its own mode is portrait, so the kiosk turns it as it starts, and the touches with it
+  (`pi/kiosk-audio/screen-setup.ts`); the boot console stays portrait. A screen in that script's `KNOWN_SCREENS` needs
+  nothing on the card: the 10.1-inch Touch Display 2 is turned 90 degrees and drawn 1.5 times as big, which gives the
+  app the 1280x800 page it is laid out for. For any other, or one mounted the other way up, set `kiosk_screen_rotation`
+  (`90` or `270`, degrees clockwise) and `kiosk_screen_scale` in `/etc/the-max-mix/kiosk-vars.yml`; they apply from
+  the next kiosk restart. A screen whose own mode has an odd horizontal timing (a 10.1-inch MPI107 does), which the Pi 4 cannot send, gets that mode with even timings when
   the kiosk starts (`screen-mode.ts --correct`); without that it would run at another mode it lists, such as 1920x1080.
 
 ## Maintenance over SSH

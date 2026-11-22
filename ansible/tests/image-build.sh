@@ -127,12 +127,11 @@ check grep -q 'screen-mode.ts --correct' /etc/systemd/system/kiosk.service
 check grep -q 'KIOSK_APP_ORIGIN=http://127.0.0.1:7341' /etc/systemd/user/kiosk-audio.service
 check grep -q '"BrowserSignin": 0' /etc/chromium/policies/managed/kiosk.json
 check grep -q '^Environment=KIOSK_SCREEN_OFF_AFTER=60$' /etc/systemd/system/kiosk.service
-# No rotation by default: the output is left as it is, and touches are not turned.
-check grep -q '^Environment=KIOSK_SCREEN_ROTATION=0$' /etc/systemd/system/kiosk.service
-check grep -q '^Environment=KIOSK_SCREEN_SCALE=1.0$' /etc/systemd/system/kiosk.service
-check grep -q '^Environment=KIOSK_SCREEN_SCALE=1.0$' /etc/systemd/user/kiosk-audio.service
-check grep -q '^Environment=KIOSK_SCREEN_ROTATION=0$' /etc/systemd/user/kiosk-audio.service
-check grep -q 'ENV{LIBINPUT_CALIBRATION_MATRIX}="1 0 0 0 1 0"$' /etc/udev/rules.d/90-kiosk-touch-rotation.rules
+# The screen's rotation and scale are left to the screen that is plugged in, worked out as the kiosk starts.
+check grep -q 'screen-setup.ts --rotation= --scale=$' /etc/systemd/system/kiosk.service
+check grep -q '^EnvironmentFile=-/run/kiosk/screen.env$' /etc/systemd/system/kiosk.service
+check grep -q '^EnvironmentFile=-/run/kiosk/screen.env$' /etc/systemd/user/kiosk-audio.service
+check test ! -e /etc/udev/rules.d/90-kiosk-touch-rotation.rules
 # The kiosk user, in the video group, may set a panel's backlight.
 check grep -q 'chgrp video /sys/class/backlight/%k/brightness' /etc/udev/rules.d/90-kiosk-backlight.rules
 check bash -c 'id -nG kiosk | grep -qw video'

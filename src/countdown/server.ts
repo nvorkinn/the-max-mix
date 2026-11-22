@@ -1,8 +1,9 @@
 // Where countdown-server is. It answers on two names, and the build's environment (.env.development, .env.production)
 // names both, so a build for countdown.run needs no code change:
-// - the settings site (VITE_COUNTDOWN_SERVER), all behind the owner's sign-in: the kiosk sends the whole page to its
-//   /register page;
-// - the screens' API (VITE_COUNTDOWN_API), with no sign-in but the device secret: the kiosk's config and its saves.
+// - the settings site (VITE_COUNTDOWN_SERVER), all behind the owner's sign-in: the kiosk's pairing QR code opens its
+//   /pair/add page on the owner's phone;
+// - the screens' API (VITE_COUNTDOWN_API), with no sign-in but the device secret: the kiosk's registration, its config
+//   and its saves.
 //   The settings site's sign-in stands in front of anything else there, so the API's calls never reach it.
 
 /** The value as an https origin, or null when it is missing or not one. */

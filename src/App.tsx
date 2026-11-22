@@ -1,24 +1,17 @@
-import { useState } from 'react';
-import RegistrationProblem from './components/RegistrationProblem';
+import PairingScreen from './components/PairingScreen';
 import TabletView from './components/TabletView';
-import { startRegistration } from './countdown/registration';
+import type { KioskScreen } from './countdown/registration';
 
-// signInError: why finishing the Spotify sign-in failed; registrationError: why adding the screen to countdown-server did
+// signInError: why finishing the Spotify sign-in failed; pairScreen: the Pi's screen, while the kiosk still has to be
+// added to countdown-server (the pairing QR code covers the app until someone owns it).
 export default function App({
   signInError = null,
-  registrationError = null
-}: Readonly<{ signInError?: string | null; registrationError?: string | null }>) {
-  const [registrationProblem, setRegistrationProblem] = useState(registrationError);
+  pairScreen = null
+}: Readonly<{ signInError?: string | null; pairScreen?: KioskScreen | null }>) {
   return (
     <>
       <TabletView signInError={signInError} />
-      {registrationProblem && (
-        <RegistrationProblem
-          error={registrationProblem}
-          onRetry={() => void startRegistration()}
-          onClose={() => setRegistrationProblem(null)}
-        />
-      )}
+      {pairScreen && <PairingScreen screen={pairScreen} />}
     </>
   );
 }
