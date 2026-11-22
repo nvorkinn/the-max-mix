@@ -222,5 +222,5 @@ kiosk_pull_random_delay: 10min
 # kiosk at this time of day if the marker is there.
 kiosk_restart_time: '04:30'
 kiosk_restart_marker: /run/kiosk/restart-needed
-# Left once the kiosk restarted for its first Widevine download (kiosk-widevine.service); kiosk-handover removes it.
+# Left once the kiosk restarted for its first Widevine download (kiosk-widevine.service).
 kiosk_widevine_marker: /var/lib/the-max-mix/widevine-loaded
