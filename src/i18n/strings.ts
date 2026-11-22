@@ -506,7 +506,12 @@ export const STRINGS = {
     en: 'QR code to add this screen to your account',
     nb: 'QR-kode for å legge denne skjermen til kontoen din'
   },
-  'pairing.scan': { en: 'Scan to get started', nb: 'Skann for å komme i gang' }
+  'pairing.scan': { en: 'Scan to get started', nb: 'Skann for å komme i gang' },
+  'pairing.wifi_intro': {
+    en: 'To get started, your Max Mix needs internet access. Pick a network below, or choose another way to join one.',
+    nb: 'For å komme i gang trenger Max Mix tilgang til internett. Velg et nettverk nedenfor, eller en annen måte å koble til på.'
+  },
+  'pairing.connected': { en: 'Connected to {ssid}', nb: 'Koblet til {ssid}' }
 } as const satisfies Record<string, Readonly<Record<Language, string>>>;
 
 /** An id STRINGS has: any other is a compile error. */

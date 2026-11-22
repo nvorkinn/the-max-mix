@@ -1,4 +1,4 @@
-import { AudioLines } from 'lucide-react';
+import { AudioLines, Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
   deviceSecret,
@@ -27,7 +27,8 @@ const reloadPage = () => location.reload();
 
 /**
  * A kiosk nobody owns yet, set up in two steps over the whole app. First its Wi-Fi: the network it is on, and every way
- * to join another (Settings › Wi-Fi's page), with Next once it is on one; Next itself changes nothing. Then a QR code of
+ * to join another (Settings › Wi-Fi's page). A Pi on no network moves on once it joins one; one already on a network
+ * has Next, which changes nothing. The second step says which network the Pi is on, so the move is plain. Then a QR code of
  * countdown-server's pairing page with the kiosk's pairing token: whoever scans it signs in on their phone and becomes
  * the owner. Meanwhile the kiosk registers itself (a device nobody owns) and asks every couple of seconds whether it has
  * an owner, then keeps its device ID and calls `onPaired`. The steps' dialogs open above it.
@@ -40,6 +41,11 @@ export default function PairingScreen({
   const [address, setAddress] = useState<string | null>(null);
   const [isWifiStep, setIsWifiStep] = useState(true);
   const [wifi, recheckWifi] = useWifi(isWifiStep);
+  // A Pi that was on no network moves on by itself once it is on one (joined here, or back by itself); one that was on a
+  // network from the start shows Next, which changes nothing.
+  const [wasOffline, setWasOffline] = useState(false);
+  if (!wasOffline && wifi.state === 'disconnected') setWasOffline(true);
+  if (isWifiStep && wasOffline && wifi.state === 'connected') setIsWifiStep(false);
   // The Pi may join a saved network by itself (as at boot) while the step is open.
   useEffect(() => {
     if (!isWifiStep) return;
@@ -98,24 +104,33 @@ export default function PairingScreen({
     return (
       <main className="pairing-screen pairing-screen-wifi" aria-label={t('pairing.title')}>
         {brand}
+        <p className="pairing-screen-intro">{t('pairing.wifi_intro')}</p>
         <div className="pairing-screen-wifi-settings">
           <WifiSettings wifi={wifi} onJoined={recheckWifi} />
         </div>
-        <button
-          type="button"
-          // Off the Pi's service (it can't say), nothing is to be set up here.
-          disabled={wifi.state !== 'connected' && wifi.state !== 'unknown'}
-          onClick={() => setIsWifiStep(false)}
-          className="button search-dialog-confirm pairing-screen-next"
-        >
-          {t('common.next')}
-        </button>
+        {!wasOffline && (
+          <button
+            type="button"
+            // Off the Pi's service (it can't say), nothing is to be set up here.
+            disabled={wifi.state !== 'connected' && wifi.state !== 'unknown'}
+            onClick={() => setIsWifiStep(false)}
+            className="button search-dialog-confirm pairing-screen-next"
+          >
+            {t('common.next')}
+          </button>
+        )}
       </main>
     );
   }
   return (
     <main className="pairing-screen" aria-label={t('pairing.title')}>
       {brand}
+      {wifi.state === 'connected' && (
+        <p className="pairing-screen-network" role="status">
+          <Check className="lucide" aria-hidden="true" />
+          {t('pairing.connected', { ssid: wifi.ssid })}
+        </p>
+      )}
       {address && (
         <>
           <QrCode text={address} className="pairing-screen-code" label={t('pairing.code')} />

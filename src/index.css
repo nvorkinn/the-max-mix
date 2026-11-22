@@ -3287,6 +3287,26 @@ input:disabled {
   min-height: 0;
   overflow-y: auto;
 }
+.pairing-screen-intro {
+  width: min(760px, 100%);
+  margin: 0;
+  font-size: 20px;
+  text-align: center;
+}
+/* On the pairing step, the network the Wi-Fi step ended on. */
+.pairing-screen-network {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -16px 0 0;
+  font-size: 22px;
+  color: var(--muted);
+}
+.pairing-screen-network .lucide {
+  width: 24px;
+  height: 24px;
+  color: var(--accent);
+}
 .pairing-screen-next {
   min-width: 240px;
   min-height: 60px;
