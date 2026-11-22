@@ -112,7 +112,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
       }
     });
     await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
-    expect(server.saves.map(save => save['display'])).toEqual([{ sleep_minutes: 30 }]);
+    expect(server.saves.map(save => save['display'])).toEqual([{ ...DEVICE_CONFIGS.owned.display, sleep_minutes: 30 }]);
   });
 
   test("a change the server refuses is undone, and says it wasn't saved", async ({ page }) => {

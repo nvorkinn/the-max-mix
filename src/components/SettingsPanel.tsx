@@ -45,6 +45,9 @@ interface SettingsPanelProps {
   /** The kiosk's screen sleep delay, shown on the kiosk only. */
   screenSleep?: ScreenSleepMinutes;
   onScreenSleepChange?: (minutes: ScreenSleepMinutes) => void;
+  /** The kiosk screen's brightness in percent, shown on a kiosk whose panel has a backlight it can set. */
+  brightness?: number | undefined;
+  onBrightnessChange?: (percent: number) => void;
   /** The kiosk's quiet hours, shown with screen sleep. */
   quietHours?: QuietHours;
   onQuietHoursChange?: (hours: QuietHours) => void;
@@ -116,6 +119,8 @@ export default function SettingsPanel({
   onReload = reloadSettings,
   screenSleep,
   onScreenSleepChange,
+  brightness,
+  onBrightnessChange,
   quietHours,
   onQuietHoursChange,
   themeColour,
@@ -169,6 +174,8 @@ export default function SettingsPanel({
           onSave={owned ? onDeviceConfigSave : undefined}
           screenSleep={hasSleep ? screenSleep : undefined}
           onScreenSleepChange={hasSleep ? onScreenSleepChange : undefined}
+          brightness={hasSleep ? brightness : undefined}
+          onBrightnessChange={hasSleep ? onBrightnessChange : undefined}
           quietHours={hasSleep ? quietHours : undefined}
           onQuietHoursChange={hasSleep ? onQuietHoursChange : undefined}
         />

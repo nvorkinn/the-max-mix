@@ -11,6 +11,7 @@ import type { ScreenSleepMinutes } from '../../utils/screenSleep';
 import CountryFlag from './CountryFlag';
 import NoticeBoardDialog, { noticeBoardPlace } from './NoticeBoardDialog';
 import QuietHoursSettings from './QuietHoursSettings';
+import BrightnessSettings from './BrightnessSettings';
 import ScreenSleepSettings from './ScreenSleepSettings';
 import SearchDialog from './SearchDialog';
 import SettingsRow from './SettingsRow';
@@ -42,7 +43,7 @@ function ChangeButton({ onClick }: Readonly<{ onClick: () => void }>) {
 
 /**
  * What applies across the whole tablet: its language, the time format of the header clock and the Countdown's times, the place for the
- * weather, the postcode for the notice board, and on the kiosk how soon its screen sleeps and its quiet hours. The first three are kept on
+ * weather, the postcode for the notice board, and on the kiosk how bright its screen is (with a backlight the Pi can set), how soon it sleeps and its quiet hours. The first three are kept on
  * countdown-server, so they show once someone owns the kiosk; each saves on its own as soon as it changes.
  */
 export default function GeneralSettings({
@@ -50,6 +51,8 @@ export default function GeneralSettings({
   onSave,
   screenSleep,
   onScreenSleepChange,
+  brightness,
+  onBrightnessChange,
   quietHours,
   onQuietHoursChange
 }: Readonly<{
@@ -57,6 +60,8 @@ export default function GeneralSettings({
   onSave?: DeviceConfig['save'] | undefined;
   screenSleep?: ScreenSleepMinutes | undefined;
   onScreenSleepChange?: ((minutes: ScreenSleepMinutes) => void) | undefined;
+  brightness?: number | undefined;
+  onBrightnessChange?: ((percent: number) => void) | undefined;
   quietHours?: QuietHours | undefined;
   onQuietHoursChange?: ((hours: QuietHours) => void) | undefined;
 }>) {
@@ -137,6 +142,10 @@ export default function GeneralSettings({
             </section>
           </div>
         </>
+      )}
+
+      {brightness !== undefined && onBrightnessChange && (
+        <BrightnessSettings percent={brightness} onChange={onBrightnessChange} />
       )}
 
       {screenSleep !== undefined && onScreenSleepChange && (

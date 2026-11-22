@@ -297,12 +297,14 @@ device, so change the role, not the device.
 
 The kiosk opens the app with `?kiosk=1` (remembered across the Spotify sign-in redirect; `?kiosk=0` forgets it), which
 adds kiosk-only entries to Settings: **Wi-Fi** (the networks in range, and joining one; it opens by itself when the kiosk starts with no network), the release the Pi runs and whether
-a newer one is out, **Update now** (which opens the update console), **Restart kiosk**, **Reboot Pi**, **Screen sleep** and **Quiet hours**. These go through the Pi's
+a newer one is out, **Update now** (which opens the update console), **Restart kiosk**, **Reboot Pi**, **Screen sleep**, **Quiet hours** and, on a panel whose backlight the Pi can set (a DSI panel), **Brightness**. These go through the Pi's
 [local service](pi/kiosk-audio/README.md).
 
 Left alone with nothing playing, the kiosk switches to the Dashboard after a minute. Five minutes later it dims the
-Dashboard with a half-black layer (the panel has no brightness control), and after the **Screen sleep** time on top of
-that it goes to sleep (**Never** leaves it dimmed). During **Quiet hours** (a start and end time, which may run past
+Dashboard: on a panel with a backlight the Pi can set it turns the backlight down to under a third of the **Brightness**
+setting, and on any other (an HDMI screen has no brightness control) it puts a half-black layer over the page. After
+the **Screen sleep** time on top of that it goes to sleep (**Never** leaves it dimmed). Once someone owns the kiosk,
+the brightness, the screen sleep time and the quiet hours are kept on countdown-server with the rest of its settings. During **Quiet hours** (a start and end time, which may run past
 midnight) the screen sleeps a minute after the last touch, on any tab. Music playing keeps the screen on and bright, in
 quiet hours too, and music starting brings it back. The tap that brightens or wakes the screen presses nothing
 behind it.
