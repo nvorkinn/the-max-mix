@@ -8,7 +8,8 @@ import { EMPTY_SNAPSHOT, LiveDashboard, mergeArrivals, mergeNotices, mergeWeathe
 // cspell:ignore GZZLUKNG
 
 const ARRIVALS = panels.arrivals as DeviceArrivals;
-const NOTICES = panels.notices as unknown as DeviceNotices;
+// A London board's: it has no bins (the example predates them).
+const NOTICES = { ...panels.notices, bins: null } as unknown as DeviceNotices;
 const WEATHER = panels.weather as unknown as DeviceWeather;
 const CLIENT: Client = { baseUrl: 'https://api.countdown.build', secret: 'device-secret' };
 
@@ -83,11 +84,20 @@ describe('merging an answer into the last', () => {
     // A Norwegian board has no flood warnings to keep, nor a British one MET's.
     expect(mergeNotices({ ...oslo, floods }, oslo).notices.floods).toBeNull();
     expect(mergeNotices({ ...NOTICES, metalerts }, NOTICES).notices.metalerts).toBeNull();
-    const older = { ...NOTICES, floods: undefined, metalerts: undefined } as unknown as DeviceNotices;
+    const older = { ...NOTICES, floods: undefined, metalerts: undefined, bins: undefined } as unknown as DeviceNotices;
     expect(mergeNotices({ ...NOTICES, floods: null }, older)).toEqual({
-      notices: { ...NOTICES, floods: null, metalerts: null },
+      notices: { ...NOTICES, floods: null, metalerts: null, bins: null },
       held: false
     });
+  });
+
+  it("keeps a Norwegian board's bin collection days that lapsed, and no other board's", () => {
+    const bins = { fetched_at: '2026-11-22T12:00:00Z', found: true, provider: null, collections: [] };
+    const oslo: DeviceNotices = { ...NOTICES, postcode: '0150', country: 'NO', floods: null, bins };
+    expect(mergeNotices(oslo, { ...oslo, bins: null })).toEqual({ notices: oslo, held: true });
+    expect(mergeNotices({ ...NOTICES, bins }, NOTICES).notices.bins).toBeNull();
+    const older = { ...oslo, bins: undefined } as unknown as DeviceNotices;
+    expect(mergeNotices(oslo, older)).toEqual({ notices: oslo, held: true });
   });
 
   it('merges each event into its own part of the snapshot', () => {

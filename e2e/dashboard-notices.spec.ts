@@ -1,10 +1,10 @@
-// cspell:ignore Sterk vind kastene Akershus Lambeth
+// cspell:ignore Sterk vind kastene Akershus Lambeth kommune Renovasjons gjenvinningsetaten
 import { expect, test, type Page } from '@playwright/test';
 import { showDashboard } from './dashboard.ts';
 
 // The notice board has every kind of notice the e-paper screens have: beside the lines, the weather and the parcels, a
 // Tube station's own disruptions, TfL's road disruptions and the Environment Agency's flood warnings for a London
-// board; MET Norway's weather warnings and Norway's public holidays for an Oslo one; and on either, the clocks changing
+// board; MET Norway's weather warnings, Norway's public holidays and the household's next bin collection for an Oslo one; and on either, the clocks changing
 // in the week before, worked out on the kiosk in its own time zone.
 
 const SCREENS = [
@@ -41,6 +41,17 @@ function windWarning() {
   };
 }
 
+/** Binable's collection days for an Oslo household, as countdown's bins provider stores them: paper and residual waste on Friday. */
+const BINS = {
+  fetched_at: EASTER_WEEK.toISOString(),
+  found: true,
+  provider: 'Oslo kommune – Renovasjons- og gjenvinningsetaten',
+  collections: [
+    { fraction: 'paper', dates: ['2027-03-26', '2027-04-02'] },
+    { fraction: 'residualWaste', dates: ['2027-03-26', '2027-03-29'] }
+  ]
+};
+
 const titles = (page: Page) => page.locator('.dashboard-rail-page[data-slot="0"] .dashboard-notice-title');
 const summaries = (page: Page) => page.locator('.dashboard-rail-page[data-slot="0"] .dashboard-notice-summary');
 
@@ -70,19 +81,22 @@ test.describe('The notice board', { tag: '@layout' }, () => {
     for (const screen of SCREENS) {
       const size = `${String(screen.width)}x${String(screen.height)}`;
 
-      test(`has MET's warnings, the public holidays and the clocks changing at ${size}`, async ({ page }) => {
-        await showDashboard(page, screen, { enturStops: () => [], metalerts: windWarning() }, 6, EASTER_WEEK);
+      test(`has MET's warnings, the public holidays, the clocks changing and the bins at ${size}`, async ({ page }) => {
+        const feed = { enturStops: () => [], metalerts: windWarning(), bins: BINS };
+        await showDashboard(page, screen, feed, 6, EASTER_WEEK);
 
-        await expect(page.locator('.dashboard-eyebrow-count').first()).toHaveText('3');
+        await expect(page.locator('.dashboard-eyebrow-count').first()).toHaveText('4');
         await expect(page.locator('.dashboard-notice-title')).toContainText([
           'Weather warning',
           'Clock change',
-          'Upcoming public holiday'
+          'Upcoming public holiday',
+          'Bin collection'
         ]);
         await expect(page.locator('.dashboard-notice-summary')).toContainText([
           'Orange warning: wind until Thu',
           'Clocks go forward an hour on Sun 28 Mar, at 02:00',
-          'Tomorrow – Maundy Thursday'
+          'Tomorrow – Maundy Thursday',
+          'Fri 26 Mar – Paper, Residual waste'
         ]);
 
         await page.screenshot({ path: test.info().outputPath(`oslo-notices-${size}.png`) });

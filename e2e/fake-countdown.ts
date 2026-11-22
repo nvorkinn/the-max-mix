@@ -230,7 +230,7 @@ export function dashboardConfig() {
   return {
     ...fixture.config,
     style: { skin: 'night', colour: 'forest' },
-    notice_board: { postcode: 'SE17 3LL', country: 'GB' },
+    notice_board: { postcode: 'SE17 3LL', country: 'GB', address: null },
     arrivals: {
       stops: [
         { source: 'tfl', id: '940GZZLUEAC' },
@@ -538,15 +538,17 @@ function otherNoticesAt(now: Date) {
         ]
       }
     },
-    metalerts: null
+    metalerts: null,
+    bins: null
   };
 }
 
 /**
- * The notices of a kiosk in Oslo with `enturStops` (countdown-api's EnturStopNotices) and MET Norway's warnings for its
- * place (`metalerts`, countdown-api's StoredMetAlerts): none of London's sources.
+ * The notices of a kiosk in Oslo with `enturStops` (countdown-api's EnturStopNotices), MET Norway's warnings for its
+ * place (`metalerts`, countdown-api's StoredMetAlerts) and its household's bin collection days (`bins`, countdown-api's
+ * StoredBinCollections): none of London's sources.
  */
-const osloNotices = (enturStops: object[], metalerts: object | null = null) => ({
+const osloNotices = (enturStops: object[], metalerts: object | null = null, bins: object | null = null) => ({
   postcode: '0150',
   country: 'NO',
   tfl_stops: [],
@@ -556,7 +558,8 @@ const osloNotices = (enturStops: object[], metalerts: object | null = null) => (
   tfl_network: null,
   entur_stops: enturStops,
   floods: null,
-  metalerts
+  metalerts,
+  bins
 });
 
 /** One server-sent event. */
@@ -578,6 +581,8 @@ interface FeedOptions {
   enturStops?: () => object[];
   /** For the Oslo kiosk, MET Norway's warnings for its place (countdown-api's StoredMetAlerts). */
   metalerts?: object;
+  /** For the Oslo kiosk, its household's bin collection days (countdown-api's StoredBinCollections). */
+  bins?: object;
   /** A London board with the e-paper screens' other kinds of notice: a station's, a road's and flood warnings. */
   others?: boolean;
 }
@@ -595,10 +600,11 @@ export async function fakeFeed(page: Page, now: Date, options: FeedOptions = {})
     retryMs = 60_000,
     enturStops,
     metalerts,
+    bins,
     others = false
   } = options;
   const notices = () => {
-    if (enturStops) return osloNotices(enturStops(), metalerts);
+    if (enturStops) return osloNotices(enturStops(), metalerts, bins);
     return others ? otherNoticesAt(now) : { ...noticesAt(now, none), entur_stops: [] };
   };
   await page.route(FEED, route => {

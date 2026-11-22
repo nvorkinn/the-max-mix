@@ -31,7 +31,7 @@ describe('dashboard data', () => {
     const settings = {
       arrivals: { stops: [{ source: 'tfl' as const, id: '490000077E' }] },
       weather: { location: 'London', key: 'london-gb-2643743' },
-      notice_board: { postcode: null, country: null },
+      notice_board: { postcode: null, country: null, address: null },
       parcels: null
     };
     await getDashboardData(null, now);
@@ -45,13 +45,17 @@ describe('dashboard data', () => {
     const settings = {
       arrivals: { stops: [] },
       weather: { location: 'London', key: 'london-gb-2643743' },
-      notice_board: { postcode: null, country: null },
+      notice_board: { postcode: null, country: null, address: null },
       parcels: null
     };
     await getDashboardData(null, now);
     await getDashboardData(settings, now);
     expect(notices.readNotices).not.toHaveBeenCalled();
-    await getDashboardData({ ...settings, notice_board: { postcode: 'SE17 3LL', country: 'GB' } }, now, '12h');
+    await getDashboardData(
+      { ...settings, notice_board: { postcode: 'SE17 3LL', country: 'GB', address: null } },
+      now,
+      '12h'
+    );
     expect(notices.readNotices).toHaveBeenCalledWith(now, '12h');
   });
 
@@ -59,7 +63,7 @@ describe('dashboard data', () => {
     const settings = {
       arrivals: { stops: [] },
       weather: { location: 'London', key: 'london-gb-2643743' },
-      notice_board: { postcode: null, country: null },
+      notice_board: { postcode: null, country: null, address: null },
       parcels: { enabled: false }
     };
     await getDashboardData(settings, now);
