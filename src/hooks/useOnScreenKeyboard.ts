@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { RefObject } from 'react';
-import type { KeyboardOptions } from '../../pi/kiosk-keyboard/keyboard';
+import type { KeyboardOptions } from '../keyboard/keyboard';
 import { isKiosk } from '../utils/kiosk';
 
 export interface OnScreenKeyboardOptions extends KeyboardOptions {
@@ -24,7 +24,7 @@ export function useOnScreenKeyboard(
     const mount = field.closest('dialog') ?? document.body;
     let stop: (() => void) | undefined;
     let cancelled = false;
-    void import('../../pi/kiosk-keyboard/keyboard').then(keyboard => {
+    void import('../keyboard/keyboard').then(keyboard => {
       if (!cancelled) stop = keyboard.start(document, { mount, hasNumberRow, isUppercase });
     });
     return () => {
