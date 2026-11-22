@@ -33,17 +33,24 @@ export function cookieOrigins(cookies: { domain: string }[]): string[] {
     .toSorted((a, b) => a.localeCompare(b));
 }
 
-/** A DevTools session on one of the browser's pages, or undefined when there is none to attach to. */
+/** A DevTools session on one of the browser's pages, or undefined when there is none it could attach to. */
 async function pageSession(send: Send): Promise<string | undefined> {
-  const { targetInfos = [] } = (await send('Target.getTargets')) as {
-    targetInfos?: { targetId: string; type: string }[];
-  };
-  const page = targetInfos.find(target => target.type === 'page');
-  if (page === undefined) return undefined;
-  const { sessionId } = (await send('Target.attachToTarget', { targetId: page.targetId, flatten: true })) as {
-    sessionId?: string;
-  };
-  return sessionId;
+  let session: string | undefined;
+  try {
+    const { targetInfos = [] } = (await send('Target.getTargets')) as {
+      targetInfos?: { targetId: string; type: string }[];
+    };
+    const page = targetInfos.find(target => target.type === 'page');
+    if (page) {
+      const { sessionId } = (await send('Target.attachToTarget', { targetId: page.targetId, flatten: true })) as {
+        sessionId?: string;
+      };
+      session = sessionId;
+    }
+  } catch {
+    // No page to attach to: the sites' storage stays, the cookies are gone anyway.
+  }
+  return session;
 }
 
 /** Clears every cookie, then the storage of each site that had one, as far as Chromium lets it. */
@@ -53,13 +60,17 @@ export async function forgetSites(send: Send): Promise<Forgotten> {
   const origins = cookieOrigins(cookies);
   let sitesCleared = 0;
   if (origins.length > 0) {
-    const session = await pageSession(send).catch(() => undefined);
+    const session = await pageSession(send);
     if (session !== undefined) {
       const results = await Promise.allSettled(
         origins.map(origin => send('Storage.clearDataForOrigin', { origin, storageTypes: STORAGE_TYPES }, session))
       );
       sitesCleared = results.filter(result => result.status === 'fulfilled').length;
-      await send('Target.detachFromTarget', { sessionId: session }).catch(() => undefined);
+      try {
+        await send('Target.detachFromTarget', { sessionId: session });
+      } catch {
+        // The page went away (a reload): its session went with it.
+      }
     }
   }
   return { cookies: cookies.length, sites: origins.length, sitesCleared };
