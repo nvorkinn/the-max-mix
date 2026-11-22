@@ -7,7 +7,7 @@ import {
   keyboardHeight,
   keyLabel,
   start
-} from './keyboard.ts';
+} from './keyboard';
 
 // jsdom has no editing commands. Chromium does, and then the fallback that sets the value is not used.
 function mockEditing(isSupported: boolean) {
