@@ -27,7 +27,7 @@ export function dimmedBrightness(percent: number): number {
   return Math.max(1, Math.round(percent * DIMMED_SHARE));
 }
 
-/** Asks the kiosk to set its screen's backlight (pi/kiosk-audio/backlight.ts). */
-export function setBacklight(percent: number): void {
-  kioskPost('/display/brightness', { percent });
+/** Asks the kiosk to set its screen's backlight (pi/kiosk-audio/backlight.ts), fading down to it with `fade`. */
+export function setBacklight(percent: number, fade = false): void {
+  kioskPost('/display/brightness', fade ? { percent, fade } : { percent });
 }

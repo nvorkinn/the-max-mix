@@ -126,7 +126,7 @@ check grep -q 'try-restart kiosk-audio.service' /etc/systemd/system/kiosk.servic
 check grep -q 'screen-mode.ts --correct' /etc/systemd/system/kiosk.service
 check grep -q 'KIOSK_APP_ORIGIN=http://127.0.0.1:7341' /etc/systemd/user/kiosk-audio.service
 check grep -q '"BrowserSignin": 0' /etc/chromium/policies/managed/kiosk.json
-check grep -q '^Environment=KIOSK_SCREEN_OFF_AFTER=60$' /etc/systemd/system/kiosk.service
+check grep -q '^Environment=KIOSK_SCREEN_OFF_AFTER=10$' /etc/systemd/system/kiosk.service
 # The screen's rotation and scale are left to the screen that is plugged in, worked out as the kiosk starts.
 check grep -q 'screen-setup.ts --rotation= --scale=$' /etc/systemd/system/kiosk.service
 check grep -q '^EnvironmentFile=-/run/kiosk/screen.env$' /etc/systemd/system/kiosk.service

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { DIM_AFTER_MS, QUIET_SLEEP_MS, startNextAsleep, useScreenSleep } from './useScreenSleep';
+import { DIM_AFTER_MS, QUIET_DIM_MS, QUIET_SLEEP_MS, startNextAsleep, useScreenSleep } from './useScreenSleep';
 
 const screenSleep = vi.hoisted(() => ({ wakeDisplay: vi.fn() }));
 vi.mock('../utils/screenSleep', () => screenSleep);
@@ -53,6 +53,7 @@ interface Props {
   onDashboard: boolean;
   sleepMs: number | null;
   quiet: boolean;
+  backlit?: boolean;
 }
 
 const DEFAULTS: Props = { enabled: true, keepAwake: false, onDashboard: true, sleepMs: SLEEP_MS, quiet: false };
@@ -146,6 +147,31 @@ describe('useScreenSleep', () => {
     rerender({ sleepMs: null, quiet: true });
     advance(QUIET_SLEEP_MS);
     expect(result.current.asleep).toBe(true);
+  });
+
+  it('in quiet hours a backlit screen dims ten seconds after the last touch and still sleeps at the minute', () => {
+    const { result } = renderSleep({ onDashboard: false, quiet: true, backlit: true });
+    advance(QUIET_DIM_MS - 1);
+    expect(result.current.dimmed).toBe(false);
+    advance(1);
+    expect(result.current.dimmed).toBe(true);
+    advance(QUIET_SLEEP_MS - QUIET_DIM_MS - 1);
+    expect(result.current.asleep).toBe(false);
+    advance(1);
+    expect(result.current.asleep).toBe(true);
+  });
+
+  it('in quiet hours the tap on a dimmed backlit screen brightens it for another ten seconds', () => {
+    const { result } = renderSleep({ quiet: true, backlit: true });
+    advance(QUIET_DIM_MS);
+    act(() => {
+      result.current.wake();
+    });
+    expect(result.current.dimmed).toBe(false);
+    advance(QUIET_DIM_MS - 1);
+    expect(result.current.dimmed).toBe(false);
+    advance(1);
+    expect(result.current.dimmed).toBe(true);
   });
 
   it('music keeps the screen on in quiet hours too', () => {

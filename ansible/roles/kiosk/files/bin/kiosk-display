@@ -4,9 +4,9 @@
 #   kiosk-display on                   from swayidle at the first touch after that, from the kiosk-audio service when the
 #                                      app wakes the screen for music that starts while it sleeps, and from
 #                                      kiosk-session when the kiosk starts with a rotated screen
-# Cage has no output power protocol, so the output is disabled and enabled again through wlr-randr. Without a signal
-# an HDMI screen should turn its backlight off, as a DSI panel's driver does; the app's black sleep screen covers it if
-# it does not.
+# Cage has no output power protocol, so the output is disabled and enabled again through wlr-randr. A DSI panel's driver
+# then switches its backlight off (bl_power 4, seen on the Touch Display 2); without a signal an HDMI screen should turn
+# its own off, and the app's black sleep screen covers it if it does not.
 # Cage has no setting for rotation or scale either: with KIOSK_SCREEN_ROTATION (90, 180 or 270 degrees, from
 # /run/kiosk/screen.env, which screen-setup.ts writes as the kiosk starts) `on` also turns the output, and with
 # KIOSK_SCREEN_SCALE (such as 1.5) it has Cage draw everything that much bigger. Every time, so both hold whatever

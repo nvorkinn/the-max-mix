@@ -220,7 +220,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   // Left alone with nothing playing, the kiosk shows the Dashboard, which dims after a while and then sleeps the chosen
   // minutes later (see useScreenSleep). The screen stays on and bright while music plays. In quiet hours it sleeps a
-  // minute after the last touch, on any tab.
+  // minute after the last touch, on any tab, and a screen with a backlight fades down ten seconds after the touch.
   // A kiosk that starts with no network opens on Settings › Wi-Fi, and stays there (rather than going idle to the
   // Dashboard) until it is on one, joined there or back by itself; then it goes to the Dashboard.
   const needsWifi = useWifiAtStart(onKiosk, {
@@ -339,7 +339,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     keepAwake: isPlaying || isPhoneSetup,
     onDashboard: screen === 'dashboard',
     sleepMs: screenSleepMinutes === 0 ? null : screenSleepMinutes * 60_000,
-    quiet: isQuietTime(quietHours, new Date(minute * 60_000))
+    quiet: isQuietTime(quietHours, new Date(minute * 60_000)),
+    backlit: hasBacklight
   });
   // Waking the screen asks GitHub again whether a newer version is out: someone is back, and hours may have passed.
   const checkForUpdate = kioskUpdate.checkNow;
@@ -355,12 +356,12 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     setSlowPolling(sleep.asleep || followingSonos);
     setSonosSlowPolling(sleep.asleep);
   }, [sleep.asleep, followingSonos, setSlowPolling, setSonosSlowPolling]);
-  // The backlight follows the setting, turned down while the screen is dimmed. Asleep, the Pi turns the output off, and
-  // waking sets the backlight again.
+  // The backlight follows the setting, faded down while the screen is dimmed. Asleep, the Pi turns the output off, and
+  // waking sets the backlight again, at once.
   const backlight = sleep.dimmed ? dimmedBrightness(brightness) : brightness;
   useEffect(() => {
-    if (hasBacklight && !sleep.asleep) setBacklight(backlight);
-  }, [hasBacklight, backlight, sleep.asleep]);
+    if (hasBacklight && !sleep.asleep) setBacklight(backlight, sleep.dimmed);
+  }, [hasBacklight, backlight, sleep.asleep, sleep.dimmed]);
   let screenState = 'Awake';
   if (sleep.asleep) screenState = 'Asleep';
   else if (sleep.dimmed) screenState = 'Dimmed';

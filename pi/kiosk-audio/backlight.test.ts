@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, onTestFinished } from 'vitest';
-import { setBrightness, validBrightness } from './backlight.ts';
+import { setBrightness, validBrightness, isFadeAsked } from './backlight.ts';
 
 /** A backlight folder for one test, removed after it, with a panel of this full brightness in it. */
 async function backlight(max?: string): Promise<{ folder: string; level: () => Promise<string> }> {
@@ -30,6 +30,15 @@ describe('validBrightness', () => {
   });
 });
 
+describe('isFadeAsked', () => {
+  it('is only for "fade": true', () => {
+    expect(isFadeAsked({ percent: 40, fade: true })).toBe(true);
+    for (const body of [null, { percent: 40 }, { percent: 40, fade: 'yes' }, { percent: 40, fade: false }]) {
+      expect(isFadeAsked(body)).toBe(false);
+    }
+  });
+});
+
 describe('setBrightness', () => {
   it('sets the panel to that share of its own full brightness', async () => {
     const { folder, level } = await backlight('255');
@@ -37,6 +46,28 @@ describe('setBrightness', () => {
     expect(await level()).toBe('102');
     expect(await setBrightness(100, folder)).toBe(1);
     expect(await level()).toBe('255');
+  });
+
+  it('fades there in steps, and a newer change stops the fade', async () => {
+    const { folder, level } = await backlight('200');
+    const levels: string[] = [];
+    const fading = setBrightness(10, folder, 500);
+    // Watch the level go down on the way.
+    const look = async () => {
+      await new Promise(resolve => setTimeout(resolve, 60));
+      levels.push((await level()).trim());
+    };
+    await look();
+    await look();
+    await look();
+    await look();
+    expect(Number(levels[0])).toBeLessThan(200);
+    expect(Number(levels[3])).toBeLessThan(Number(levels[0]));
+    expect(Number(levels[3])).toBeGreaterThan(20);
+    // A tap brightens it at once, and the fade leaves it there.
+    expect(await setBrightness(100, folder)).toBe(1);
+    expect(await fading).toBe(1);
+    expect(await level()).toBe('200');
   });
 
   it('never turns the backlight off', async () => {

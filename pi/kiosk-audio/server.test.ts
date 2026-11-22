@@ -82,7 +82,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
   const connected: string[] = [];
   const removed: string[] = [];
   const performed: Action[] = [];
-  const brightnesses: number[] = [];
+  const brightnesses: (number | { percent: number; fade: boolean })[] = [];
   const routed: Choice[][] = [];
   const volumes: [Choice, number][] = [];
   const played: SonosRequest[] = [];
@@ -163,8 +163,8 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
       }
     },
     screen: () => Promise.resolve({ width: 1280, height: 800, brightness_control: false }),
-    setBrightness: percent => {
-      brightnesses.push(percent);
+    setBrightness: (percent, isFaded) => {
+      brightnesses.push(isFaded ? { percent, fade: isFaded } : percent);
       return Promise.resolve(1);
     },
     phone: {
@@ -343,6 +343,13 @@ describe('POST /display/brightness', () => {
     const base = await start(deps);
     expect((await post(base, '/display/brightness', { body: { percent: 40 } })).status).toBe(204);
     expect(brightnesses).toEqual([40]);
+  });
+
+  it('fades to it when asked', async () => {
+    const { deps, brightnesses } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/display/brightness', { body: { percent: 24, fade: true } })).status).toBe(204);
+    expect(brightnesses).toEqual([{ percent: 24, fade: true }]);
   });
 
   it('refuses a body that is not a percentage, and another origin', async () => {
