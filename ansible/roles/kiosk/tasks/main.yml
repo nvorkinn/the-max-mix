@@ -56,6 +56,10 @@
 
 - name: Install the web app
   when: kiosk_app_source | length > 0 and kiosk_app_release is match('^[0-9a-f]{7,40}$')
+  vars:
+    kiosk_app_is_current: >-
+      {{ (kiosk_app_current.stat.islnk | default(false))
+      and kiosk_app_current.stat.lnk_target == 'releases/' ~ kiosk_app_release }}
   block:
     - name: Copy the release's web app into a folder of its own
       ansible.builtin.shell:
@@ -96,10 +100,6 @@
         path: '{{ kiosk_app_dir }}/next'
         state: absent
       when: kiosk_app_is_current
-  vars:
-    kiosk_app_is_current: >-
-      {{ (kiosk_app_current.stat.islnk | default(false))
-      and kiosk_app_current.stat.lnk_target == 'releases/' ~ kiosk_app_release }}
 
 # Before full.yml, which enables it.
 - name: Install the kiosk service
