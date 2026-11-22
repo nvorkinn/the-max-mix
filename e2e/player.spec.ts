@@ -75,10 +75,10 @@ test.describe('Player', { tag: '@player' }, () => {
     await expect(shuffle).toHaveAttribute('aria-pressed', 'false');
     await shuffle.click();
     await expect(shuffle).toHaveAttribute('aria-pressed', 'true', AT_ONCE);
-    expect(accountOf(page).commands).toContain('PUT /v1/me/player/shuffle?state=true');
+    await expect.poll(() => accountOf(page).commands).toContain('PUT /v1/me/player/shuffle?state=true');
     await shuffle.click();
     await expect(shuffle).toHaveAttribute('aria-pressed', 'false', AT_ONCE);
-    expect(accountOf(page).commands).toContain('PUT /v1/me/player/shuffle?state=false');
+    await expect.poll(() => accountOf(page).commands).toContain('PUT /v1/me/player/shuffle?state=false');
   });
 
   test('Repeat goes from off to all to one and back, and says which it is', async ({ page }) => {
