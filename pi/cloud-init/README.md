@@ -2,7 +2,7 @@
 
 A kiosk is stock Raspberry Pi OS Lite plus this repository's Ansible playbook. You flash the OS, cloud-init and the
 playbook build the kiosk on your own Wi-Fi, and `kiosk-handover` scrubs your Wi-Fi before the Pi goes to its new home.
-There, it shows the Wi-Fi panel so its owner can pick their own network.
+There, the app opens Settings > Wi-Fi so its owner can pick their own network.
 
 Tested on a Raspberry Pi 4 Model B with a Waveshare 7-inch 1024x600 HDMI and USB touch screen. A Pi 5 should work the
 same; the playbook boots it with the 4 KB-page kernel (`kernel=kernel8.img`) for Widevine.
@@ -74,8 +74,8 @@ It asks for `yes`, then:
   logs;
 - powers off. The admin SSH keys, the Tailscale login and the paired Bluetooth devices stay.
 
-Your SSH session drops when the Wi-Fi goes; the rest still runs. At its new home the Pi finds no network and shows the
-Wi-Fi panel. `--no-poweroff` starts the kiosk again instead, for trying it out.
+Your SSH session drops when the Wi-Fi goes; the rest still runs. At its new home the Pi finds no network and the app
+opens Settings > Wi-Fi. `--no-poweroff` starts the kiosk again instead, for trying it out.
 
 Give the new owner the [one-page guide](../../docs/friend-guide.md) (print it, or send the link).
 
@@ -85,10 +85,10 @@ Give the new owner the [one-page guide](../../docs/friend-guide.md) (print it, o
    (`Europe/London`) come from the playbook.
 2. `kiosk.service` starts [Cage](https://github.com/cage-kiosk/cage), a single-app Wayland compositor, on tty7 as the
    `kiosk` user. Cage runs `/usr/local/bin/kiosk-session` forever.
-3. `kiosk-session` waits up to 30 seconds for NetworkManager to report full connectivity (a check against
-   `network-test.debian.org`, set in `/etc/NetworkManager/conf.d/20-connectivity.conf`). If it does, it runs Chromium on the app; if
-   not, it runs Chromium on the Wi-Fi setup page (`http://127.0.0.1:7341/wifi-setup`, served by kiosk-audio) until it
-   connects. The page offers Cancel only when a connection already works.
+3. `kiosk-session` runs Chromium on the app, and starts it again whenever it exits. When the app is served by kiosk-audio
+   on this machine, it first waits up to 30 seconds for that service to answer. The app handles having no network
+   itself: when the kiosk starts with none, it opens Settings > Wi-Fi, which lists the networks in range and joins one
+   through kiosk-audio. Joining restarts nothing; the app sees the new network by itself.
 4. `kiosk-pull.timer` runs `kiosk-pull` three minutes after boot and then every six hours (or at once from the app's
    Update now button, which also follows the pull's journal), applying the playbook only when there is a new release whose Release workflow has uploaded its Pi bundle, and its slow part only when the files it installs changed. A failed run only logs
    (`journalctl -u kiosk-pull`). A pull that changed kiosk files makes `kiosk-restart.timer` restart the kiosk at 04:30.
@@ -96,12 +96,10 @@ Give the new owner the [one-page guide](../../docs/friend-guide.md) (print it, o
    default), by holding a screen wake lock that Chromium passes to Cage. After that, the app shows a black sleep screen
    and lets go. A minute later without a touch (`kiosk_screen_off_after`), `swayidle` runs `kiosk-display off`, which
    turns the HDMI output off with `wlr-randr`. The next touch turns it on again, and that tap only dismisses the sleep
-   screen. Music that starts while the screen sleeps wakes it through the kiosk service (`POST /display/wake`). The Wi-Fi panel holds no
-   wake lock, so it goes dark after a minute without a touch.
+   screen. Music that starts while the screen sleeps wakes it through the kiosk service (`POST /display/wake`).
 
-The app's Wi-Fi button (shown with `?kiosk=1`) sends `POST /wifi` to the kiosk service on 127.0.0.1 (pi/kiosk-audio), which
-creates `/run/kiosk/show-wifi` and stops Chromium. The session loop then runs
-the panel and starts Chromium again afterwards. Nothing watches the network while Chromium runs.
+The app's Settings > Wi-Fi (with `?kiosk=1`) changes the network through the kiosk service on 127.0.0.1
+(pi/kiosk-audio): `GET /wifi/networks`, `GET /wifi/status` and `POST /wifi/connect`.
 
 The playbook also sets, among other things:
 
@@ -185,8 +183,8 @@ and reboot, SSH, and Widevine after a restart. Still to check:
 
 1. A `CIDATA` USB stick is read. Pi OS also points cloud-init at the boot partition.
 2. `kiosk-widevine.path` restarts the kiosk by itself after the first Widevine download.
-3. After `kiosk-handover`, `nmcli connection show` lists no Wi-Fi, `/etc/netplan/` has no Wi-Fi file, and the next boot
-   shows the Wi-Fi panel.
+3. After `kiosk-handover`, `nmcli connection show` lists no Wi-Fi, `/etc/netplan/` has no Wi-Fi file, and on the next
+   boot the app opens Settings > Wi-Fi.
 4. On a Pi 5, Widevine plays with the 4 KB-page kernel (`getconf PAGESIZE` prints 4096).
 5. Screen sleep: the Waveshare turns its backlight off when `kiosk-display off` disables the output, Chromium's wake
    lock keeps it on while music plays, and the first touch brings it back at 1024x600.

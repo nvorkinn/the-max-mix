@@ -17,7 +17,6 @@ import type { AppLog, Deps } from './server.ts';
 import type { SonosChange } from './sonos-events.ts';
 import { SonosError } from './sonos.ts';
 import type { SonosOperations, SonosRequest } from './sonos.ts';
-import type { Language } from './words.ts';
 
 // eslint-disable-next-line sonarjs/no-hardcoded-ip -- a made-up address of the Pi on a home network
 const PI_ADDRESS = '192.168.1.42';
@@ -66,10 +65,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
   const joined: ConnectRequest[] = [];
   const listeners = new Set<(change: SonosChange) => void>();
   let beats = 0;
-  let closed = 0;
   let clock = 0;
-  let language: Language = 'en';
-  const pageLanguages: Language[] = [];
   const deps: Deps = {
     graph: () => Promise.resolve(parseDump(dump())),
     route: choices => {
@@ -112,19 +108,6 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
       connect: request => {
         joined.push(request);
         return Promise.resolve(request.password === 'right-password' ? { ok: true } : { ok: false, error: 'Nope.' });
-      },
-      done: () => {
-        closed += 1;
-      }
-    },
-    asset: (url, pageLanguage) => {
-      pageLanguages.push(pageLanguage);
-      return Promise.resolve(url === '/wifi-setup' ? { type: 'text/html', body: '<p>page</p>' } : null);
-    },
-    language: {
-      get: () => language,
-      set: next => {
-        language = next;
       }
     },
     lyrics: query => {
@@ -224,15 +207,12 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
     logged,
     joined,
     listeners,
-    beats: () => beats,
-    closed: () => closed,
-    language: () => language,
-    pageLanguages
+    beats: () => beats
   };
 }
 
-async function start(deps: Deps): Promise<string> {
-  const handler = handleRequest(ORIGIN, deps);
+async function start(deps: Deps, origin = ORIGIN): Promise<string> {
+  const handler = handleRequest(origin, deps);
   const server = createServer((request, response) => void handler(request, response));
   servers.push(server);
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -333,10 +313,10 @@ describe('POST', () => {
   it('runs the named kiosk action', async () => {
     const { deps, performed } = fakes();
     const base = await start(deps);
-    const paths = ['/power/restart', '/power/reboot', '/display/wake', '/wifi'];
+    const paths = ['/power/restart', '/power/reboot', '/display/wake'];
     const statuses = await Promise.all(paths.map(async path => (await post(base, path)).status));
-    expect(statuses).toEqual([204, 204, 204, 204]);
-    expect(new Set(performed)).toEqual(new Set(['restart', 'reboot', 'wake', 'wifi']));
+    expect(statuses).toEqual([204, 204, 204]);
+    expect(new Set(performed)).toEqual(new Set(['restart', 'reboot', 'wake']));
   });
 
   it('routes the sound to the outputs or speakers in the body, or to none', async () => {
@@ -503,6 +483,10 @@ describe('POST', () => {
     expect((await post(base, '/power/halt')).status).toBe(404);
     // The update is a WebSocket now: a plain POST to its path starts nothing.
     expect((await post(base, '/power/update')).status).toBe(404);
+    // The old Wi-Fi setup page and its requests are gone.
+    expect((await post(base, '/wifi')).status).toBe(404);
+    expect((await post(base, '/wifi/done')).status).toBe(404);
+    expect((await fetch(`${base}/wifi-setup`)).status).toBe(404);
     expect((await post(base, '/power/reboot')).status).toBe(503);
   });
 });
@@ -513,15 +497,21 @@ describe('POST /heartbeat and /log', () => {
     const base = await start(deps);
     expect((await post(base, '/heartbeat')).status).toBe(204);
     expect((await post(base, '/heartbeat', { origin: 'https://evil.example' })).status).toBe(403);
+    // This service's own origin is not the app's here, so it is any other page.
+    expect((await post(base, '/heartbeat', { origin: LOCAL_ORIGIN })).status).toBe(403);
     expect(beats()).toBe(1);
-    // The Wi-Fi setup page sends heartbeats too, but nothing else from its origin reaches the app's requests.
-    expect((await post(base, '/heartbeat', { origin: LOCAL_ORIGIN })).status).toBe(204);
-    expect(beats()).toBe(2);
-    expect((await post(base, '/power/reboot', { origin: LOCAL_ORIGIN })).status).toBe(403);
     const body = { level: 'error', source: 'page', message: 'TypeError: x is undefined' };
     expect((await post(base, '/log', { body })).status).toBe(204);
     expect((await post(base, '/log', { body: { level: 'debug', message: 'x' } })).status).toBe(400);
     expect(logged).toEqual([body]);
+  });
+
+  it('takes heartbeats from the app when this service serves it', async () => {
+    const { deps, beats } = fakes();
+    const base = await start(deps, LOCAL_ORIGIN);
+    expect((await post(base, '/heartbeat', { origin: LOCAL_ORIGIN })).status).toBe(204);
+    expect((await post(base, '/heartbeat')).status).toBe(403);
+    expect(beats()).toBe(1);
   });
 });
 
@@ -592,8 +582,7 @@ describe('Wi-Fi', () => {
       scan: () => Promise.reject(new ScanError(ERRORS.disabled)),
       current: vi.fn(),
       address: vi.fn(),
-      connect: vi.fn(),
-      done: vi.fn()
+      connect: vi.fn()
     };
     const base = await start(fakes({ wifi }).deps);
     const response = await fetch(`${base}/wifi/networks`);
@@ -601,45 +590,52 @@ describe('Wi-Fi', () => {
     await expect(response.json()).resolves.toEqual({ error: ERRORS.disabled });
   });
 
-  it('joins a network for the setup page, and says when it could not', async () => {
+  it('joins a network for the app, and says when it could not', async () => {
     const { deps, joined } = fakes();
     const base = await start(deps);
     const request = { ssid: 'Home', password: 'right-password', hidden: false, security: 'psk' };
-    const done = await post(base, '/wifi/connect', { origin: LOCAL_ORIGIN, body: request });
-    await expect(done.json()).resolves.toEqual({ ok: true });
-    const failed = await post(base, '/wifi/connect', {
-      origin: LOCAL_ORIGIN,
-      body: { ...request, password: 'wrong-one' }
-    });
+    const joinedHome = await post(base, '/wifi/connect', { body: request });
+    await expect(joinedHome.json()).resolves.toEqual({ ok: true });
+    const failed = await post(base, '/wifi/connect', { body: { ...request, password: 'wrong-one' } });
     await expect(failed.json()).resolves.toEqual({ ok: false, error: 'Nope.' });
     expect(joined.map(entry => entry.password)).toEqual(['right-password', 'wrong-one']);
   });
 
-  it('refuses the app and other pages, and a bad request', async () => {
+  it('refuses other pages, and a bad request', async () => {
     const { deps, joined } = fakes();
     const base = await start(deps);
     const request = { ssid: 'Home', password: 'right-password', hidden: false, security: 'psk' };
-    expect((await post(base, '/wifi/connect', { body: request })).status).toBe(403);
     expect((await post(base, '/wifi/connect', { origin: 'https://evil.example', body: request })).status).toBe(403);
-    expect((await post(base, '/wifi/connect', { origin: LOCAL_ORIGIN, body: { ssid: 'Home' } })).status).toBe(400);
+    expect((await post(base, '/wifi/connect', { origin: LOCAL_ORIGIN, body: request })).status).toBe(403);
+    expect((await post(base, '/wifi/connect', { body: { ssid: 'Home' } })).status).toBe(400);
     expect(joined).toEqual([]);
+  });
+
+  it('joins a network for the app when this service serves it', async () => {
+    const { deps, joined } = fakes();
+    const base = await start(deps, LOCAL_ORIGIN);
+    const request = { ssid: 'Home', password: 'right-password', hidden: false, security: 'psk' };
+    expect((await post(base, '/wifi/connect', { body: request })).status).toBe(403);
+    const answer = await post(base, '/wifi/connect', { origin: LOCAL_ORIGIN, body: request });
+    await expect(answer.json()).resolves.toEqual({ ok: true });
+    expect(joined).toHaveLength(1);
   });
 });
 
 describe('Wi-Fi setup from a phone', () => {
-  it('starts for the setup page only, and says when Bluetooth would not', async () => {
+  it('starts for the app only, and says when Bluetooth would not', async () => {
     const { deps, phoneStarts } = fakes();
     const base = await start(deps);
-    expect((await post(base, '/wifi/phone')).status).toBe(403);
+    expect((await post(base, '/wifi/phone', { origin: 'https://evil.example' })).status).toBe(403);
     expect(phoneStarts).toEqual([]);
-    const started = await post(base, '/wifi/phone', { origin: LOCAL_ORIGIN });
+    const started = await post(base, '/wifi/phone');
     expect(started.status).toBe(200);
     await expect(started.json()).resolves.toEqual({ ok: true });
     expect(phoneStarts).toEqual(['start']);
 
     const warn = vi.spyOn(console, 'warn').mockReturnValue();
     const broken = await start(fakes({}, true).deps);
-    const refused = await post(broken, '/wifi/phone', { origin: LOCAL_ORIGIN });
+    const refused = await post(broken, '/wifi/phone');
     expect(refused.status).toBe(503);
     await expect(refused.json()).resolves.toEqual({
       error: 'Bluetooth is not available, so the phone cannot be used.'
@@ -652,12 +648,12 @@ describe('Wi-Fi setup from a phone', () => {
 });
 
 describe('the setup hotspot', () => {
-  it('starts for the setup page only, and says why it could not start', async () => {
+  it('starts for the app only, and says why it could not start', async () => {
     const { deps, hotspotCalls } = fakes();
     const base = await start(deps);
-    expect((await post(base, '/wifi/hotspot')).status).toBe(403);
+    expect((await post(base, '/wifi/hotspot', { origin: 'https://evil.example' })).status).toBe(403);
     expect(hotspotCalls).toEqual([]);
-    const started = await post(base, '/wifi/hotspot', { origin: LOCAL_ORIGIN });
+    const started = await post(base, '/wifi/hotspot');
     expect(started.status).toBe(200);
     await expect(started.json()).resolves.toEqual(HOTSPOT_INFO);
 
@@ -665,25 +661,25 @@ describe('the setup hotspot', () => {
     const failing = await start(
       fakes({}, false, new HotspotError('There is no Wi-Fi adapter to make a hotspot with.')).deps
     );
-    const refused = await post(failing, '/wifi/hotspot', { origin: LOCAL_ORIGIN });
+    const refused = await post(failing, '/wifi/hotspot');
     expect(refused.status).toBe(503);
     await expect(refused.json()).resolves.toEqual({ error: 'There is no Wi-Fi adapter to make a hotspot with.' });
     const other = await start(fakes({}, false, new Error('internal detail')).deps);
-    await expect((await post(other, '/wifi/hotspot', { origin: LOCAL_ORIGIN })).json()).resolves.toEqual({
+    await expect((await post(other, '/wifi/hotspot')).json()).resolves.toEqual({
       error: 'The hotspot could not be started.'
     });
   });
 
-  it('stops for the setup page only, and reports where it is', async () => {
+  it('stops for the app only, and reports where it is', async () => {
     const { deps, hotspotCalls } = fakes();
     const base = await start(deps);
-    expect((await post(base, '/wifi/hotspot/stop')).status).toBe(403);
-    expect((await post(base, '/wifi/hotspot/stop', { origin: LOCAL_ORIGIN })).status).toBe(204);
+    expect((await post(base, '/wifi/hotspot/stop', { origin: 'https://evil.example' })).status).toBe(403);
+    expect((await post(base, '/wifi/hotspot/stop')).status).toBe(204);
     expect(hotspotCalls).toEqual(['stop']);
     await expect((await fetch(`${base}/wifi/hotspot`)).json()).resolves.toEqual({ state: 'running' });
   });
 
-  it('gives a request that came over the hotspot the setup page and nothing of the kiosk’s own', async () => {
+  it('gives a request that came over the hotspot the hotspot’s page and nothing of the kiosk’s own', async () => {
     const { deps, hotspotCalls, performed, beats } = fakes();
     const handle = handleRequest(ORIGIN, deps);
     for (const [method, url] of [
@@ -711,52 +707,6 @@ describe('the setup hotspot', () => {
     await handleRequest(ORIGIN, deps)(request, response);
     expect(beats()).toBe(1);
     expect(hotspotCalls).toEqual([]);
-  });
-});
-
-describe('the Wi-Fi setup page', () => {
-  it('is in the language the app last asked for it in, and English for any other', async () => {
-    const { deps, performed, language, pageLanguages } = fakes();
-    const base = await start(deps);
-    expect((await post(base, '/wifi', { body: { language: 'nb' } })).status).toBe(204);
-    expect(language()).toBe('nb');
-    await fetch(`${base}/wifi-setup`);
-    expect(pageLanguages).toEqual(['nb']);
-    // No body (an app from before it said) keeps the language; anything but en or nb is English.
-    expect((await post(base, '/wifi')).status).toBe(204);
-    expect(language()).toBe('nb');
-    expect((await post(base, '/wifi', { body: { language: 'de' } })).status).toBe(204);
-    expect(language()).toBe('en');
-    await post(base, '/wifi', { body: { language: 'nb' } });
-    expect((await post(base, '/wifi', { body: 'nb' })).status).toBe(204);
-    expect(language()).toBe('en');
-    expect(performed).toEqual(['wifi', 'wifi', 'wifi', 'wifi', 'wifi']);
-  });
-
-  it('keeps its language when another web page asks', async () => {
-    const { deps, performed, language } = fakes();
-    const base = await start(deps);
-    expect((await post(base, '/wifi', { origin: 'https://evil.example', body: { language: 'nb' } })).status).toBe(403);
-    expect(language()).toBe('en');
-    expect(performed).toEqual([]);
-  });
-
-  it('is served with its scripts', async () => {
-    const base = await start(fakes().deps);
-    const page = await fetch(`${base}/wifi-setup`);
-    expect(page.status).toBe(200);
-    expect(page.headers.get('content-type')).toBe('text/html');
-    await expect(page.text()).resolves.toBe('<p>page</p>');
-    expect((await fetch(`${base}/nothing-here`)).status).toBe(404);
-  });
-
-  it('closes when it is done, for its own origin only', async () => {
-    const { deps, closed } = fakes();
-    const base = await start(deps);
-    expect((await post(base, '/wifi/done')).status).toBe(403);
-    expect(closed()).toBe(0);
-    expect((await post(base, '/wifi/done', { origin: LOCAL_ORIGIN })).status).toBe(204);
-    expect(closed()).toBe(1);
   });
 });
 

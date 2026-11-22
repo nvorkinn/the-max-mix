@@ -1,7 +1,7 @@
-// Wi-Fi setup from a phone, started by the button on the tablet's Wi-Fi setup page. The kiosk then advertises Improv Wi-Fi
+// Wi-Fi setup from a phone, started by a button on the tablet (POST /wifi/phone). The kiosk then advertises Improv Wi-Fi
 // over Bluetooth (improv-gatt.ts) for a few minutes. Pressing the button is the proof that a person is next to the kiosk,
-// so nothing else is advertised, ever: Improv's "authorized" state starts out true because of it. When the phone has
-// joined a network the setup page is closed, as it is after a join on the tablet.
+// so nothing else is advertised, ever: Improv's "authorized" state starts out true because of it. Once the phone has
+// joined a network, advertising stops; the app sees the new network by itself.
 import { advertise } from './improv-gatt.ts';
 import type { Advertising } from './improv-gatt.ts';
 import { ImprovSession, State } from './improv.ts';
@@ -9,13 +9,11 @@ import type { Connect } from './improv.ts';
 
 /** How long the phone has to find the kiosk and send the network. */
 const ADVERTISE_MS = 5 * 60 * 1000;
-/** After the phone is told it worked, so it sees the result before the page closes and the app comes back. */
+/** After the phone is told it worked, so it sees the result before advertising stops. */
 const FINISH_MS = 4000;
 
 export interface PhoneSetupOptions {
   connect: Connect;
-  /** Closes the setup page. */
-  done: () => void;
   advertise?: (session: ImprovSession) => Promise<Advertising>;
   advertiseMs?: number;
   finishMs?: number;
@@ -41,11 +39,7 @@ export class PhoneSetup {
     const advertising = await (this.options.advertise ?? (target => advertise(target)))(session);
     const unsubscribe = session.onChange(() => {
       if (session.state === State.provisioned) {
-        setTimeout(() => {
-          void this.stop().then(() => {
-            this.options.done();
-          });
-        }, this.options.finishMs ?? FINISH_MS);
+        setTimeout(() => void this.stop(), this.options.finishMs ?? FINISH_MS);
       }
     });
     this.running = { advertising, timer: this.timeout(), unsubscribe };

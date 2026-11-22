@@ -15,7 +15,7 @@ none of the Wayland protocols an on-screen keyboard needs. So the extension draw
 
 The kiosk has no address bar and no back button. Sign-in leaves the app, and so does anything that goes wrong there (a
 redirect address Spotify does not know shows only an error on a white page) and any link on those pages. `back.ts` runs
-on every `http` and `https` page except the app and the kiosk's own pages on `127.0.0.1` (the Wi-Fi setup), and draws a
+on every `http` and `https` page except the app and the kiosk's own pages on `127.0.0.1` (where the kiosk service serves the app), and draws a
 **Back to THE MAX MIX** button in the top right corner. Chromium starts on the app, so the button goes to the first
 entry of the history, which is the app at the address the kiosk gave it.
 
@@ -30,7 +30,7 @@ kiosk-audio watchdog brings the app back, after 3 minutes without a heartbeat.
 - When a text field gets focus, the keyboard appears at the bottom of the screen (262 pixels high), the page gets the
   same room at the bottom, and the field scrolls into view. It hides when no field has focus, or on **Done**.
 - Three layouts: letters (with a one-shot Shift, `@` and `.`), digits and symbols, and more symbols.
-- The Wi-Fi setup page asks for a row of digits that stays at the top (`hasNumberRow`), for passwords: five rows, 290
+- The app's Wi-Fi join dialog asks for a row of digits that stays at the top (`hasNumberRow`), for passwords: five rows, 290
   pixels high, with the letters and one page holding every other ASCII symbol.
 - The app's Dashboard dialogs (stop and place search, the notice board's postcode) ask for the number row too. The
   postcode's also asks for capitals only (`isUppercase`): the letters show and type as capitals, with no Shift key.

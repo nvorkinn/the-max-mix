@@ -2,8 +2,6 @@
 //   node kiosk-audio.ts watch   the background unit. It answers the app on 127.0.0.1 (server.ts: the speaker list, routing,
 //                               the kiosk buttons, and the update stream), and every few seconds routes any stream Chromium opened again and
 //                               any chosen speaker that came back.
-import { readFileSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
 import { homedir, networkInterfaces } from 'node:os';
 import path from 'node:path';
 import { lanAddress } from './address.ts';
@@ -13,59 +11,21 @@ import { PipeWire } from './pipewire.ts';
 import { serveSpeakers } from './server.ts';
 import { loadSpeakers, route, saveSpeakers, setSpeakerVolume, withNames } from './speakers.ts';
 import { stopFollowers } from './update.ts';
-import { chromiumPid, stopChromium } from './watchdog.ts';
-import { parseLanguage } from './words.ts';
-import type { Language } from './words.ts';
 
 const WATCH_MS = 2000;
 const stateHome = process.env['XDG_STATE_HOME'] || path.join(homedir(), '.local', 'state');
 const stateFile = path.join(stateHome, 'the-max-mix', 'speakers.json');
 const phonesFile = path.join(stateHome, 'the-max-mix', 'phones.json');
-const languageFile = path.join(stateHome, 'the-max-mix', 'language');
 const pipewire = new PipeWire();
 
-/** NetworkManager for the Wi-Fi setup page, and closing that page: it shows in a Chromium of its own. */
+/** NetworkManager, for the app's Settings > Wi-Fi. */
 function wifi() {
   const nmcli = new Nmcli();
   return {
     scan: () => nmcli.scan(),
     current: () => nmcli.current(),
     address: () => lanAddress(networkInterfaces()),
-    connect: (request: ConnectRequest) => nmcli.connect(request),
-    done: () => {
-      void (async () => {
-        const pid = await chromiumPid();
-        if (pid !== null) await stopChromium(pid);
-      })();
-    }
-  };
-}
-
-/**
- * The tablet's language for the Wi-Fi setup page, as the app last said it, kept in a file so the page is in it after a
- * restart too: the page shows by itself when the Pi is offline, and the app cannot say so then.
- */
-function language() {
-  let current: Language = 'en';
-  try {
-    current = parseLanguage(readFileSync(languageFile, 'utf8').trim());
-  } catch {
-    // Nothing said yet: English.
-  }
-  return {
-    get: () => current,
-    set: (next: Language) => {
-      if (next === current) return;
-      current = next;
-      void (async () => {
-        try {
-          await mkdir(path.dirname(languageFile), { recursive: true });
-          await writeFile(languageFile, next);
-        } catch (error) {
-          console.warn(`Could not save the language: ${String(error)}`);
-        }
-      })();
-    }
+    connect: (request: ConnectRequest) => nmcli.connect(request)
   };
 }
 
@@ -92,7 +52,6 @@ if (process.argv[2] === 'watch') {
     },
     setVolume: (target, volume) => setSpeakerVolume(pipewire, target, volume),
     wifi: wifi(),
-    language: language(),
     phonesFile
   });
 } else {

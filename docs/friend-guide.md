@@ -5,9 +5,9 @@ account. The words in bold are what you'll see on the screen.
 
 ## 1. Get it online
 
-1. Plug it in. With no known Wi-Fi it opens **Choose a Wi-Fi network**.
+1. Plug it in. With no known Wi-Fi it opens Settings, **Wi-Fi**.
 2. Tap your network, type the password on the on-screen keyboard and tap **Connect**.
-3. Your network isn't listed? Tap **Refresh**, or **Other…** to type its name.
+3. Your network isn't listed? Tap **Refresh**, or **Other network** to type its name.
 
 ## 2. Sign in to Spotify
 
@@ -43,7 +43,7 @@ and the songs appear in the queue after a moment.
 - Without music the screen shows the Dashboard after a minute and dims 5 minutes later. Settings, **Screen sleep**:
   how long it stays dimmed before going dark. Choose 2, 5, 15 or 30 min, or **Never**.
 - Settings, **Quiet hours**: between the two times the screen goes dark a minute after the last touch.
-- New Wi-Fi? Settings, **Wi-Fi network**.
+- New Wi-Fi? Settings, **Wi-Fi**.
 
 ## If something's wrong
 

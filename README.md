@@ -64,18 +64,18 @@ AirPlay sinks PipeWire made; picking them asks the Pi's local
 
 ### Wi-Fi from any phone (hotspot)
 
-The Wi-Fi setup page also has a **Hotspot** button that works with any phone, an iPhone too, and needs no app. The tablet
+Settings > Wi-Fi also has a **Hotspot** button that works with any phone, an iPhone too, and needs no app. The tablet
 starts a temporary Wi-Fi network and shows two QR codes. Scan the first with the phone's camera to join it; the phone then
 opens a page by itself (or scan the second code) where you choose your Wi-Fi and type its password on the phone. The
-kiosk joins it, and the tablet's page closes. The hotspot replaces the kiosk's current Wi-Fi while it is up, ends by
+kiosk joins it, and the tablet shows the new network. The hotspot replaces the kiosk's current Wi-Fi while it is up, ends by
 itself after 10 minutes, and shows its own random password under the first code. How it works is in
 [pi/kiosk-audio](pi/kiosk-audio/README.md).
 
 ### Wi-Fi from an Android phone (Bluetooth)
 
-When the Pi has no network, the tablet shows a Wi-Fi setup page. Instead of typing the password there, tap **From phone**,
+When the Pi has no network, the app opens Settings > Wi-Fi. Instead of typing the password there, tap **From phone**,
 then on an Android phone with Chrome open [improv-wifi.com](https://www.improv-wifi.com), tap _Connect device_, choose
-THE MAX MIX and enter the network and its password. The tablet's page closes when the phone has joined. It only works
+THE MAX MIX and enter the network and its password. The tablet shows the new network when the phone has joined. It only works
 for the 5 minutes after the tap, and an iPhone cannot do it (Safari has no Web Bluetooth). How it works is in
 [pi/kiosk-audio](pi/kiosk-audio/README.md).
 
@@ -244,12 +244,12 @@ louder. There is no Sonos sign-in: everything stays on the home network, so Sono
 ## Raspberry Pi kiosk
 
 The kiosk is a Raspberry Pi 4 or 5 with the Waveshare 7-inch 1024x600 touch screen, running the deployed app in Chromium
-under the Cage kiosk compositor, with a Wi-Fi setup panel when there is no connection. Flash stock Raspberry Pi OS Lite, add the cloud-init files and
+under the Cage kiosk compositor; with no connection, the app opens its Wi-Fi settings. Flash stock Raspberry Pi OS Lite, add the cloud-init files and
 power on; [`pi/cloud-init/README.md`](pi/cloud-init/README.md) covers the setup, handing a Pi over, how the kiosk runs,
 SSH, troubleshooting and what is still to be verified on a device.
 
 **[Ansible](https://docs.ansible.com) is the single source of truth** for everything installed and configured on the device:
-packages, the `kiosk` user and its service, `kiosk-session`, the local kiosk service, the Wi-Fi panel, the AirPlay
+packages, the `kiosk` user and its service, `kiosk-session`, the local kiosk service, the AirPlay
 audio routing and PipeWire's AirPlay settings, the Chromium policy, Plymouth, boot settings (`cmdline.txt`, `config.txt`), locale, time zone, unattended upgrades and the update timer.
 It is one role, [`ansible/roles/kiosk`](ansible/roles/kiosk), run by [`ansible/local.yml`](ansible/local.yml); its
 variables and defaults are in [`defaults/main.yml`](ansible/roles/kiosk/defaults/main.yml). Nothing else configures the
@@ -275,7 +275,7 @@ device, so change the role, not the device.
   and the playbook applies its slow part only when `ansible/`, `pi/kiosk-audio` or
   `pi/kiosk-keyboard` differ from the last complete run (git's tree ids, kept in `/var/lib/the-max-mix/applied.sha1`; most
   releases only change the web app, which the Pi loads from the internet). `kiosk.service` is rewritten either way,
-  because it carries the release the settings show. A deployed Pi therefore gets fixes to the Wi-Fi setup page, the session script, the
+  because it carries the release the settings show. A deployed Pi therefore gets fixes to the kiosk service, the session script, the
   Chromium policy and so on without a reflash. The playbook is idempotent, so repeated runs are safe. To pin one Pi,
   set `kiosk_pull_ref` to a tag (`v1.12.0`), or to a branch to test unreleased work on your own Pi (a branch is pulled
   with `ansible-pull`, as it has no bundle).
@@ -296,7 +296,7 @@ device, so change the role, not the device.
   `--check --diff` to the playbook run to see what it would change.
 
 The kiosk opens the app with `?kiosk=1` (remembered across the Spotify sign-in redirect; `?kiosk=0` forgets it), which
-adds kiosk-only entries to Settings: **Wi-Fi network** (the Pi's Wi-Fi setup page), the release the Pi runs and whether
+adds kiosk-only entries to Settings: **Wi-Fi** (the networks in range, and joining one; it opens by itself when the kiosk starts with no network), the release the Pi runs and whether
 a newer one is out, **Update now** (which opens the update console), **Restart kiosk**, **Reboot Pi**, **Screen sleep** and **Quiet hours**. These go through the Pi's
 [local service](pi/kiosk-audio/README.md).
 

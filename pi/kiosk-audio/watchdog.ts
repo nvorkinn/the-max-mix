@@ -1,7 +1,6 @@
 // Restarts Chromium when the app stops answering: a crashed tab, a page that hangs, or an app that went blank. The app
 // (?kiosk=1) sends POST /heartbeat every 20 seconds while it shows something; when none has come for a while, Chromium is
-// stopped and kiosk-session's loop starts it again (or shows the Wi-Fi setup page when there is no connection). The setup
-// page sends heartbeats too.
+// stopped and kiosk-session's loop starts it again.
 //
 // It never fights the kiosk's own restarts: it only acts once this service has had a heartbeat (so an app from before the
 // watchdog is left alone), and every new Chromium gets the full wait from its start. A restart of the kiosk (an update,

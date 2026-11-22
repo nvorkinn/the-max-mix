@@ -74,9 +74,9 @@ export function portalHtml(language: Language): string {
       <button type="button" id="other">${w('portal.otherNetwork')}</button>
       <form id="form" hidden autocomplete="off">
         <h2 id="title"></h2>
-        <input id="name" placeholder="${w('wifi.networkName')}" hidden />
-        <input id="password" type="password" placeholder="${w('wifi.password')}" />
-        <button class="primary" type="submit">${w('wifi.connect')}</button>
+        <input id="name" placeholder="${w('portal.networkName')}" hidden />
+        <input id="password" type="password" placeholder="${w('portal.password')}" />
+        <button class="primary" type="submit">${w('portal.connect')}</button>
       </form>
       <section id="done" hidden>
         <h2>${w('portal.joining')}</h2>
@@ -89,7 +89,7 @@ export function portalHtml(language: Language): string {
       const fail = message => { $('error').textContent = message; $('error').hidden = message === ''; };
       const choose = (network, hidden) => {
         chosen = { ssid: network.ssid, security: network.security, hidden };
-        $('title').textContent = hidden ? ${js('wifi.otherNetwork')} : network.ssid;
+        $('title').textContent = hidden ? ${js('portal.otherTitle')} : network.ssid;
         $('name').hidden = !hidden;
         $('password').hidden = network.security === 'open' && !hidden;
         $('form').hidden = false;

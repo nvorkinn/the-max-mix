@@ -1,23 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { ERRORS } from './nmcli.ts';
-import { languageOfTag, localize, parseLanguage, preferredLanguage, say } from './words.ts';
+import { localize, preferredLanguage, say } from './words.ts';
 
 describe('kiosk-audio/words', () => {
   it('fills in the arguments, and leaves a placeholder it has no argument for', () => {
-    expect(say('wifi.joinNetwork', 'en', { ssid: 'Home' })).toBe('Join Home');
-    expect(say('wifi.signal', 'en', { bars: 3 })).toBe('Signal 3 of 4');
-    expect(say('wifi.joinNetwork', 'en')).toBe('Join {ssid}');
+    expect(say('error.couldNotJoin', 'en', { ssid: 'Home', error: 'Nope.' })).toBe('Could not join Home: Nope.');
+    expect(say('error.couldNotJoin', 'en', { ssid: 'Home' })).toBe('Could not join Home: {error}');
     // A network's name is filled in as it is, even when it looks like a placeholder.
-    expect(say('wifi.connecting', 'en', { ssid: '{ssid}' })).toBe('Connecting to {ssid}…');
-  });
-
-  it('takes nb as Norwegian and anything else as English', () => {
-    expect(parseLanguage('nb')).toBe('nb');
-    for (const other of ['en', 'no', 'NB', 'de', '', null, undefined, 1, {}]) expect(parseLanguage(other)).toBe('en');
-    expect(languageOfTag('nb-NO')).toBe('nb');
-    expect(languageOfTag('nb')).toBe('nb');
-    expect(languageOfTag('en-GB')).toBe('en');
-    expect(languageOfTag('')).toBe('en');
+    expect(say('error.couldNotJoin', 'en', { ssid: '{error}', error: 'Nope.' })).toBe('Could not join {error}: Nope.');
   });
 
   it('picks the language a phone prefers of the ones it has', () => {
@@ -33,7 +23,7 @@ describe('kiosk-audio/words', () => {
     expect(preferredLanguage()).toBe('en');
   });
 
-  it('knows every message the Wi-Fi service sends, so the page can show it in Norwegian', () => {
+  it('knows every message the Wi-Fi service sends, so the app can show it in Norwegian', () => {
     for (const message of Object.values(ERRORS)) {
       expect(localize(message, 'nb'), message).not.toBe(message);
       expect(localize(message, 'en')).toBe(message);

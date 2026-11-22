@@ -31,7 +31,7 @@ describe('build', () => {
     const manifest = JSON.parse(await readFile(path.join(destination, 'manifest.json'), 'utf8')) as {
       content_scripts: { js: string[]; exclude_matches?: string[] }[];
     };
-    // The back button stays off the app itself and off the kiosk's own pages (the Wi-Fi setup).
+    // The back button stays off the app itself, wherever it is served from: the kiosk's own address or the app's.
     const back = manifest.content_scripts.find(script => script.js.includes('back.js'));
     expect(back?.exclude_matches).toEqual(['http://127.0.0.1/*', 'https://app.example/*']);
     const keys = manifest.content_scripts.find(script => script.js.includes('loader.js'));

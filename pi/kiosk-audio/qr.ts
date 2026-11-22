@@ -1,5 +1,5 @@
 // QR codes for the hotspot setup: the Wi-Fi code a phone's camera joins the network with, and the code for the page's
-// address. Made here, on the Pi, because the setup page has to work with no internet. qrcode-generator is loaded only
+// address. Made here, on the Pi, because Wi-Fi setup has to work with no internet. qrcode-generator is loaded only
 // when a code is made, so a Pi where it is missing loses the hotspot button and nothing else.
 
 // What the Wi-Fi QR format escapes with a backslash.

@@ -118,39 +118,35 @@ the Pi confirms.
 
 With `?kiosk=1` the app sends `POST /heartbeat` every 20 seconds while it shows something. When none has come for 3
 minutes (a crashed tab, a hung page, or an app that went blank), the service stops Chromium and kiosk-session starts it
-again, or shows the Wi-Fi setup page when there is no connection. The setup page sends heartbeats too. It only acts
-after this service has had a heartbeat, and gives every new Chromium the full 3 minutes; each restart without a heartbeat in between
+again. It only acts after this service has had a heartbeat, and gives every new Chromium the full 3 minutes; each restart without a heartbeat in between
 doubles the wait (up to an hour), so a page that cannot load is not restarted in a loop. The app also sends its errors
 to `POST /log` (at most 30 lines a minute reach the journal). Both are in the journal:
 `journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service` (as root), lines starting `app` or `No heartbeat`.
 
 ## The requests
 
-| Request                                | What it does                                                                          |
-| -------------------------------------- | ------------------------------------------------------------------------------------- |
-| `GET /speakers`                        | `{"speakers": [...], "volumes": {"Kitchen": 40}}`                                     |
-| `POST /audio/route`                    | Routes the sound to the speakers in the JSON body                                     |
-| `POST /audio/volume`                   | Sets one speaker's volume (404: not on the network)                                   |
-| `WS /power/update`                     | Connecting starts the update and streams it (below)                                   |
-| `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                                                           |
-| `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)                                              |
-| `POST /wifi`                           | Shows the Wi-Fi setup page (flag file, then stops Chromium), in the body's `language` |
-| `POST /heartbeat`                      | The app is alive (the watchdog, below)                                                |
-| `POST /log`                            | An app error, written to the journal                                                  |
-| `GET /lyrics?title=&artist=&duration=` | Lyrics: `{"source"}` with `"lrc"`, `"plain"` or `"instrumental"` (404, 502)           |
-| `GET /bluetooth/devices`               | `{"devices": [{"address", "name", "paired", "connected"}]}`                           |
-| `POST /bluetooth/scan`                 | Looks for speakers for 8 seconds; the same answer                                     |
-| `POST /bluetooth/connect`              | Pairs, trusts and connects `{"address"}`                                              |
-| `POST /bluetooth/remove`               | Forgets `{"address"}`                                                                 |
-| `POST /wifi/phone`                     | Starts Wi-Fi setup from a phone over Bluetooth (5 minutes)                            |
-| `POST /wifi/hotspot`                   | Starts the setup hotspot: name, password, address, QR codes                           |
-| `POST /wifi/hotspot/stop`              | Ends it and puts the earlier network back                                             |
-| `GET /wifi/hotspot`                    | `{"state": "running" \| "joining" \| "failed" \| "idle"}`                             |
-| `GET /wifi/status`                     | `{"ssid"}`: the network the Wi-Fi is on, or null (the app only)                       |
-| `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                                          |
-| `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)                              |
-| `POST /wifi/done`                      | The setup page is finished: stops the Chromium showing it                             |
-| `GET /wifi-setup`                      | The Wi-Fi setup page, and its scripts under `/wifi-setup/`                            |
+| Request                                | What it does                                                                |
+| -------------------------------------- | --------------------------------------------------------------------------- |
+| `GET /speakers`                        | `{"speakers": [...], "volumes": {"Kitchen": 40}}`                           |
+| `POST /audio/route`                    | Routes the sound to the speakers in the JSON body                           |
+| `POST /audio/volume`                   | Sets one speaker's volume (404: not on the network)                         |
+| `WS /power/update`                     | Connecting starts the update and streams it (below)                         |
+| `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                                                 |
+| `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)                                    |
+| `POST /heartbeat`                      | The app is alive (the watchdog, below)                                      |
+| `POST /log`                            | An app error, written to the journal                                        |
+| `GET /lyrics?title=&artist=&duration=` | Lyrics: `{"source"}` with `"lrc"`, `"plain"` or `"instrumental"` (404, 502) |
+| `GET /bluetooth/devices`               | `{"devices": [{"address", "name", "paired", "connected"}]}`                 |
+| `POST /bluetooth/scan`                 | Looks for speakers for 8 seconds; the same answer                           |
+| `POST /bluetooth/connect`              | Pairs, trusts and connects `{"address"}`                                    |
+| `POST /bluetooth/remove`               | Forgets `{"address"}`                                                       |
+| `POST /wifi/phone`                     | Starts Wi-Fi setup from a phone over Bluetooth (5 minutes)                  |
+| `POST /wifi/hotspot`                   | Starts the setup hotspot: name, password, address, QR codes                 |
+| `POST /wifi/hotspot/stop`              | Ends it and puts the earlier network back                                   |
+| `GET /wifi/hotspot`                    | `{"state": "running" \| "joining" \| "failed" \| "idle"}`                   |
+| `GET /wifi/status`                     | `{"ssid"}`: the network the Wi-Fi is on, or null (the app only)             |
+| `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                                |
+| `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)                    |
 
 ## Bluetooth speakers
 
@@ -165,35 +161,34 @@ speakers, Pair or Connect, Forget).
 
 ## Wi-Fi from any phone (the hotspot)
 
-The Wi-Fi setup page's **Hotspot** button works with any phone, with no app (the Bluetooth route below needs Chrome on
-Android). `hotspot.ts` scans the networks in range, then asks NetworkManager for a hotspot (`nmcli device wifi hotspot`:
+`POST /wifi/hotspot` (a **Hotspot** button on the tablet) works with any phone, with no app (the Bluetooth route below
+needs Chrome on Android). `hotspot.ts` scans the networks in range, then asks NetworkManager for a hotspot (`nmcli device wifi hotspot`:
 the name `THE MAX MIX setup`, a random 10-character password, 2.4 GHz). NetworkManager runs the DHCP and DNS for it
 (`dnsmasq-base`), and `50-kiosk-captive.conf` makes that DNS answer every name with the kiosk's address, so the phone's
-check for internet ends at the kiosk and its _sign in to Wi-Fi_ screen opens the setup page by itself. The tablet shows
+check for internet ends at the kiosk and its _sign in to Wi-Fi_ screen opens the hotspot's page by itself. The tablet shows
 two QR codes (`qr.ts`, made on the Pi with `qrcode-generator`, loaded only when needed): one the phone's camera joins the
 hotspot with, and one that opens the page, for a phone that does not open it by itself. The page (`hotspot-portal.ts`)
 lists the networks scanned before the hotspot took the radio and asks for the password on the phone's own keyboard.
 
 It is the service's own HTTP server that answers the phone: while the hotspot is up it also accepts connections on the
 hotspot's address, on port 80 (`50-kiosk-unprivileged-ports.conf` lets the service use it; without that, port 8080, and
-only the second QR code reaches it). Whatever arrives that way, and not on `127.0.0.1`, is given to the setup page's
+only the second QR code reaches it). Whatever arrives that way, and not on `127.0.0.1`, is given to the hotspot page's
 handler and to nothing else, whatever its `Origin` says, and the update WebSocket refuses it too, so nobody on the
 hotspot can reboot the kiosk or start an update.
 
 The Pi has one Wi-Fi radio, so the hotspot replaces the network it was on. When the phone has chosen a network, the
-kiosk answers it, leaves the hotspot, and joins; the tablet's page closes when that works. When it fails, the tablet says
-why and the earlier network comes back, and the hotspot can be started again. The hotspot also ends by itself after 10
+kiosk answers it, leaves the hotspot, and joins; the app sees the new network by itself. When it fails,
+`GET /wifi/hotspot` says why and the earlier network comes back, and the hotspot can be started again. The hotspot also ends by itself after 10
 minutes. The hotspot's own password is shown on the tablet, and is only a barrier for those who can see the screen.
 
 ## Wi-Fi from a phone over Bluetooth
 
-The Wi-Fi setup page has a **From phone** button, so nobody has to type a long password on the tablet. It sends
-`POST /wifi/phone`, and `phone-setup.ts` makes the kiosk advertise [Improv Wi-Fi](https://www.improv-wifi.com/ble/) over
+A **From phone** button on the tablet saves typing a long password there. It sends `POST /wifi/phone`, and `phone-setup.ts` makes the kiosk advertise [Improv Wi-Fi](https://www.improv-wifi.com/ble/) over
 Bluetooth LE for 5 minutes (a tap on the button again gives another 5). `improv.ts` is the protocol (packets, checksum,
-and a session that turns the phone's "send Wi-Fi settings" command into the same `Nmcli.connect` the page uses), and
+and a session that turns the phone's "send Wi-Fi settings" command into the same `Nmcli.connect` that `POST /wifi/connect` uses), and
 `improv-gatt.ts` is the Bluetooth side: it exports a GATT service and an advertisement on the system bus with
 `dbus-native` and registers them with BlueZ (`RegisterApplication`, `RegisterAdvertisement`; the first adapter, hci0).
-When the phone has joined a network, the page closes itself 4 seconds later, as it does after a join on the tablet.
+When the phone has joined a network, advertising stops 4 seconds later; the app sees the new network by itself.
 
 The button is the authorization Improv asks for: nothing advertises until someone taps it on the tablet, so a phone
 that is only nearby cannot change the Wi-Fi. The password goes from the phone to the kiosk over an unencrypted
@@ -221,18 +216,14 @@ KuGou's search host is called over plain http because its https certificate is f
 answers with nothing for a few minutes after several searches in a row. The endpoints of those four are unofficial and
 can change: a source that breaks is skipped, so remove it from `SOURCES` if it keeps failing.
 
-The Wi-Fi requests are for the Wi-Fi setup page (`wifi-page.ts`, served by `wifi-setup.ts`), which kiosk-session shows
-in Chromium when the Pi is offline or the app's Wi-Fi button was tapped. That page has to work offline, so this service serves it, and the Wi-Fi POSTs answer
-only that page's own origin (`http://127.0.0.1:7341`), not the app's. Node strips the page script's types when it is
-first asked for, and the page uses the sign-in keyboard (`pi/kiosk-keyboard`) for the password. They use nmcli (`nmcli.ts`): the password reaches nmcli on stdin,
-never in argv or the journal, and a failed attempt deletes the profile it made and brings back the Wi-Fi that was on.
+The Wi-Fi requests are for the app's Settings > Wi-Fi, which lists the networks in range and joins one, and which opens
+by itself when the kiosk starts with no network. The app works offline because this service serves it (its origin is
+then `http://127.0.0.1:7341`), and the Wi-Fi POSTs answer the app's origin only. They use nmcli (`nmcli.ts`): the
+password reaches nmcli on stdin, never in argv or the journal, and a failed attempt deletes the profile it made and
+brings back the Wi-Fi that was on. Joining a network restarts nothing: the app stays up and sees the new network.
 
-The setup page speaks the tablet's language, English or Norwegian Bokmål: the app's Wi-Fi button sends it in POST
-`/wifi` (`{"language": "nb"}`; anything but `en` or `nb` is English), and the service keeps the last one it heard in
-`~/.local/state/the-max-mix/language`, so the page is in it when it shows by itself because the Pi is offline. The
-hotspot's page for a phone follows the phone's `Accept-Language` instead. Their words are in `words.ts`, which the page
-script imports too; the service's own error messages stay in English in the code and the page shows them in its
-language through that catalogue.
+The service's own error messages stay in English in the code; the app shows them in its language with `localize` from
+`words.ts`. The hotspot's page for a phone follows the phone's `Accept-Language`, with its words in `words.ts` too.
 
 | File               | What it is                                                              |
 | ------------------ | ----------------------------------------------------------------------- |
@@ -240,11 +231,9 @@ language through that catalogue.
 | `server.ts`        | The HTTP service: the requests above, and the origin checks.            |
 | `update-socket.ts` | The WebSocket at `/power/update`: origin check, one update at a time.   |
 | `update.ts`        | The update: follows the journal, runs the pull and the restart.         |
-| `actions.ts`       | The fixed commands behind the power, screen and Wi-Fi requests.         |
+| `actions.ts`       | The fixed commands behind the power and screen requests.                |
 | `nmcli.ts`         | Wi-Fi through nmcli: scanning, joining, and the messages for errors.    |
-| `wifi-setup.ts`    | Serves the Wi-Fi setup page: its HTML and its two scripts.              |
-| `wifi-page.ts`     | The Wi-Fi setup page itself, which runs in the browser.                 |
-| `words.ts`         | The setup pages' words in English and Norwegian Bokmål.                 |
+| `words.ts`         | The hotspot page's words and the service's messages, in two languages.  |
 | `watchdog.ts`      | Restarts Chromium when the app's heartbeats stop.                       |
 | `speakers.ts`      | Checking speaker lists, the saved choice, and routing to it.            |
 | `pipewire.ts`      | `pw-dump` parsing, the link plan, `pw-link` and `wpctl set-volume`.     |
