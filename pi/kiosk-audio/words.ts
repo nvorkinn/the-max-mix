@@ -16,17 +16,11 @@ const WORDS = {
   'portal.networkName': { en: 'Network name', nb: 'Nettverksnavn' },
   'portal.password': { en: 'Password', nb: 'Passord' },
   'portal.connect': { en: 'Connect', nb: 'Koble til' },
-  'portal.choose': { en: 'Choose your Wi-Fi', nb: 'Velg Wi-Fi-nettverk' },
-  'portal.intro': {
-    en: 'The kiosk will join the network you pick.',
-    nb: 'Nettbrettet kobler seg til nettverket du velger.'
-  },
+  'portal.back': { en: 'Back', nb: 'Tilbake' },
+  'portal.choose': { en: 'Connected to the tablet', nb: 'Koblet til nettbrettet' },
   'portal.otherNetwork': { en: 'Other network…', nb: 'Annet nettverk …' },
-  'portal.joining': { en: 'The kiosk is joining it', nb: 'Nettbrettet kobler til' },
-  'portal.leave': {
-    en: 'This phone will leave the hotspot now. Join your usual Wi-Fi again, and watch the tablet: it says when it worked.',
-    nb: 'Telefonen kobles fra hotspoten nå. Koble til det vanlige Wi-Fi-nettverket igjen, og følg med på nettbrettet: der ser du om det gikk.'
-  },
+  'portal.done': { en: 'Sent to the tablet', nb: 'Sendt til nettbrettet' },
+  'portal.joining': { en: 'The tablet is joining {ssid}.', nb: 'Nettbrettet kobler til {ssid}.' },
   'portal.loadFailed': {
     en: 'Could not load the networks. Reload this page.',
     nb: 'Kunne ikke hente nettverkene. Last inn siden på nytt.'

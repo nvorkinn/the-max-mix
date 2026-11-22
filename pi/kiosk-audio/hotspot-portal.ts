@@ -1,6 +1,7 @@
 // The page a phone gets after it joins the kiosk's setup hotspot (hotspot.ts): the networks the kiosk saw, and a
-// password box, so the password is typed on the phone's own keyboard. The hotspot's DNS answers every name with the
-// kiosk's address, so the phone's check for internet ends here, and its "sign in to Wi-Fi" page opens this one.
+// password box (alone at the top once a network is chosen, so the phone's keyboard cannot cover it), so the password
+// is typed on the phone's own keyboard. The hotspot's DNS answers every name with the kiosk's address, so the phone's
+// check for internet ends here, and its "sign in to Wi-Fi" page opens this one.
 //
 // It is the service's own HTTP server that answers: it also accepts connections on the hotspot's address (port 80 when
 // the service may, so that check can reach it, and 8080 when not) while the hotspot is up. Everything that arrives
@@ -42,8 +43,8 @@ export function isLoopback(address: string | undefined): boolean {
 export function portalHtml(language: Language): string {
   const w = (id: WordId): string => say(id, language);
   // A string for the script, quoted as the script quotes its own.
-  const js = (id: WordId): string => {
-    const escaped = w(id).replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+  const js = (id: WordId, args: Readonly<Record<string, string>> = {}): string => {
+    const escaped = say(id, language, args).replaceAll('\\', '\\\\').replaceAll("'", "\\'");
     return `'${escaped}'`;
   };
   return `<!doctype html>
@@ -60,6 +61,7 @@ export function portalHtml(language: Language): string {
       button, input { font: inherit; border-radius: 10px; border: 0; padding: 14px; }
       button { width: 100%; text-align: left; background: #262b2c; color: inherit; margin-bottom: 8px; }
       button.primary { background: #6f9a52; color: #101310; text-align: center; font-weight: 600; }
+      #back { text-align: center; }
       input { width: 100%; box-sizing: border-box; background: #262b2c; color: inherit; margin-bottom: 12px; }
       #error { color: #ff8a80; }
       [hidden] { display: none; }
@@ -67,20 +69,20 @@ export function portalHtml(language: Language): string {
   </head>
   <body>
     <main>
-      <h1>${w('portal.choose')}</h1>
-      <p>${w('portal.intro')}</p>
+      <h1 id="heading">${w('portal.choose')}</h1>
       <p id="error" role="alert" hidden></p>
-      <section id="list"></section>
-      <button type="button" id="other">${w('portal.otherNetwork')}</button>
       <form id="form" hidden autocomplete="off">
         <h2 id="title"></h2>
         <input id="name" placeholder="${w('portal.networkName')}" hidden />
         <input id="password" type="password" placeholder="${w('portal.password')}" />
         <button class="primary" type="submit">${w('portal.connect')}</button>
+        <button type="button" id="back">${w('portal.back')}</button>
       </form>
+      <section id="list"></section>
+      <button type="button" id="other">${w('portal.otherNetwork')}</button>
       <section id="done" hidden>
-        <h2>${w('portal.joining')}</h2>
-        <p>${w('portal.leave')}</p>
+        <h1>${w('portal.done')}</h1>
+        <p id="joining"></p>
       </section>
     </main>
     <script>
@@ -92,9 +94,19 @@ export function portalHtml(language: Language): string {
         $('title').textContent = hidden ? ${js('portal.otherTitle')} : network.ssid;
         $('name').hidden = !hidden;
         $('password').hidden = network.security === 'open' && !hidden;
+        // The chosen network's box takes the top of the page, where the phone's keyboard cannot cover it.
+        for (const id of ['list', 'other']) $(id).hidden = true;
         $('form').hidden = false;
+        window.scrollTo(0, 0);
         (hidden ? $('name') : $('password')).focus();
       };
+      $('back').addEventListener('click', () => {
+        fail('');
+        $('form').hidden = true;
+        $('name').value = '';
+        $('password').value = '';
+        for (const id of ['list', 'other']) $(id).hidden = false;
+      });
       fetch('/networks.json').then(r => r.json()).then(body => {
         for (const network of body.networks) {
           if (network.security === 'unsupported') continue;
@@ -121,7 +133,9 @@ export function portalHtml(language: Language): string {
             body: JSON.stringify({ ssid, password, hidden, security: password === '' ? 'open' : security })
           });
           if (!response.ok) throw new Error('refused');
-          for (const id of ['list', 'other', 'form']) $(id).hidden = true;
+          // Only the result is left on the page.
+          for (const id of ['heading', 'list', 'other', 'form']) $(id).hidden = true;
+          $('joining').textContent = ${js('portal.joining', { ssid: '%s' })}.replace('%s', ssid);
           $('done').hidden = false;
           // The phone has nothing more to do here. A browser closes only a tab that nothing else was opened in (the
           // camera's link, the sign-in sheet), so the words above stay for one that will not.

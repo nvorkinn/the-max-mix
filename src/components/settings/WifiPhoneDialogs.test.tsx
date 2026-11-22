@@ -160,7 +160,7 @@ describe('Settings › Wi-Fi over the hotspot', () => {
     vi.clearAllMocks();
   });
 
-  it('shows the code that joins the hotspot, then the one that opens its page once a phone is on it, and closes once the kiosk joined the network the phone chose', async () => {
+  it('shows step 1 (the code that joins the hotspot), then only step 2 (the code that opens its page) once a phone is on it, and closes once the kiosk joined the network the phone chose', async () => {
     const onJoined = vi.fn();
     renderWifi({ onJoined });
     await userEvent.click(screen.getByRole('button', { name: 'Hotspot' }));
@@ -170,15 +170,19 @@ describe('Settings › Wi-Fi over the hotspot', () => {
     expect(within(dialog).getByTestId('hotspot-password')).toHaveTextContent('ABCDE23456');
     expect(within(dialog).getByRole('img', { name: 'QR code that joins the hotspot' })).toBeInTheDocument();
     expect(within(dialog).queryByRole('img', { name: 'QR code that opens the setup page' })).not.toBeInTheDocument();
-    expect(within(dialog).getByText('1. Scan to join')).toBeInTheDocument();
-    expect(within(dialog).getByText('Waiting for your phone…')).toBeInTheDocument();
+    const steps = within(dialog).getAllByRole('listitem');
+    expect(steps.map(step => step.getAttribute('aria-current'))).toEqual(['step', null]);
+    expect(steps[0]).toHaveTextContent('Join the hotspot');
+    expect(steps[1]).toHaveTextContent('Open the setup page');
+    expect(within(dialog).queryByText('Waiting for your phone…')).not.toBeInTheDocument();
 
     wifi.hotspotStatus.mockResolvedValue({ state: 'connected' });
     await poll();
     expect(within(dialog).getByRole('img', { name: 'QR code that opens the setup page' })).toBeInTheDocument();
     expect(within(dialog).queryByRole('img', { name: 'QR code that joins the hotspot' })).not.toBeInTheDocument();
-    expect(within(dialog).getByText('2. Scan to open')).toBeInTheDocument();
-    expect(within(dialog).getByTestId('hotspot-password')).toHaveTextContent('ABCDE23456');
+    expect(steps.map(step => step.getAttribute('aria-current'))).toEqual([null, 'step']);
+    expect(steps[0]).toHaveTextContent('Phone connected');
+    expect(within(dialog).queryByTestId('hotspot-password')).not.toBeInTheDocument();
 
     wifi.hotspotStatus.mockResolvedValue({ state: 'joining' });
     await poll();
