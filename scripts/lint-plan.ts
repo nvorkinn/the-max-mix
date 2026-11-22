@@ -56,7 +56,14 @@ const CHECKS: Record<string, Matcher[]> = {
     isKioskAudioPackageFile
   ],
   'lint:lockfiles': [isKioskAudioPackageFile],
-  shellcheck: [paths(/^ansible\/roles\/kiosk\/files\/bin\//, /^ansible\/tests\/[^/]+\.sh$/)],
+  shellcheck: [
+    paths(
+      /^ansible\/roles\/kiosk\/files\/bin\//,
+      /^ansible\/tests\/[^/]+\.sh$/,
+      'pi/cloud-init/first-boot',
+      'pi/cloud-init/build-image.sh'
+    )
+  ],
   actionlint: [paths(/^\.github\/workflows\//)],
   editorconfig: [isAnyFile]
 };
