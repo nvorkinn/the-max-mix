@@ -129,6 +129,7 @@ check grep -q '"BrowserSignin": 0' /etc/chromium/policies/managed/kiosk.json
 check grep -q '^Environment=KIOSK_SCREEN_OFF_AFTER=60$' /etc/systemd/system/kiosk.service
 # No rotation by default: the output is left as it is, and touches are not turned.
 check grep -q '^Environment=KIOSK_SCREEN_ROTATION=0$' /etc/systemd/system/kiosk.service
+check grep -q '^Environment=KIOSK_SCREEN_SCALE=1.0$' /etc/systemd/system/kiosk.service
 check grep -q '^Environment=KIOSK_SCREEN_ROTATION=0$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'ENV{LIBINPUT_CALIBRATION_MATRIX}="1 0 0 0 1 0"$' /etc/udev/rules.d/90-kiosk-touch-rotation.rules
 check command -v swayidle wlr-randr
