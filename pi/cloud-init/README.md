@@ -1,7 +1,7 @@
 # Setting up a kiosk
 
 A kiosk is stock Raspberry Pi OS Lite plus this repository's Ansible playbook. You flash the OS, cloud-init and the
-playbook build the kiosk on your own Wi-Fi. That Wi-Fi is for the first boot only: the playbook removes it from the card,
+playbook build the kiosk on your own Wi-Fi. That Wi-Fi is for the first boot only: the first boot removes it from the card,
 and at its new home the Pi's owner picks their own network in the app.
 
 Tested on a Raspberry Pi 4 Model B with a Waveshare 7-inch 1024x600 HDMI and USB touch screen. A Pi 5 should work the
@@ -24,10 +24,9 @@ same; the playbook boots it with the 4 KB-page kernel (`kernel=kernel8.img`) for
      next to a copy of `user-data` and a `meta-data` file holding one line, `instance-id: the-max-mix-1`. cloud-init's
      NoCloud source reads a drive with that label at boot. Unplug it after the first boot.
 3. Put the card in the Pi, connect the screen and power it on. cloud-init names the Pi (`hostname:` in `user-data`,
-   `the-max-mix`), creates the
-   locked `kiosk` user and starts `kiosk-first-pull.service`. That installs Ansible and runs the playbook from the latest
-   GitHub release, the same run the Pi's update timer repeats later, then reboots. Expect 15 to 30 minutes. It tries again every minute
-   until it has worked (`journalctl -u kiosk-first-pull`).
+   `the-max-mix`) and creates the locked `kiosk` user. Then `user-data` installs Ansible and runs the playbook from the
+   latest GitHub release, the same run the Pi's update timer repeats later, and reboots. Expect 15 to 30 minutes. It
+   tries again every minute until it has worked (`/var/log/cloud-init-output.log`).
 4. After the reboot the kiosk starts. On its first run Chromium downloads Widevine, the module Spotify needs, and the
    kiosk restarts by itself once that is done (`kiosk-widevine.path`), a minute or two later. Test it: sign in to
    Spotify, play something, try the speakers.
@@ -55,7 +54,7 @@ sudo kiosk-pull https://github.com/nvorkinn/the-max-mix.git latest /var/lib/the-
 
 ## Hand it over
 
-The first pull removes `network-config` and `user-data` from the card and turns cloud-init off
+Once the first pull has worked, `user-data` removes `network-config` and `user-data` from the card and turns cloud-init off
 (`/etc/cloud/cloud-init.disabled`), so the setup network is never applied again. Your Wi-Fi stays saved on the Pi, which
 keeps it working at your place; at its new home the Pi finds no network it knows, and the app's Wi-Fi screen joins
 theirs. Before it goes, sign everyone out of Spotify in Settings.
@@ -139,7 +138,7 @@ Configure if it does not).
 `sudo kiosk-status` sums it up in one go: the installed version, the last update and the next check, which services run,
 Chromium restarts by the watchdog and the app's errors from the last 7 days (`sudo kiosk-status 30` looks further back).
 
-The kiosk logs go to the journal: `journalctl -u kiosk`, `journalctl -u kiosk-pull`, `journalctl -u kiosk-first-pull`. The journal is kept
+The kiosk logs go to the journal: `journalctl -u kiosk`, `journalctl -u kiosk-pull`, and the first boot's setup in `/var/log/cloud-init-output.log`. The journal is kept
 on disk (up to `kiosk_journal_max_use`, 64 MB), so logs from before a reboot are there too: `journalctl --list-boots`,
 `journalctl -b -1` for the previous boot, and `journalctl -b -1 | grep -i 'stop job'` for what held a shutdown up.
 The `bootfs` partition holds `config.txt` and `cmdline.txt` (remove `quiet` and change `console=tty3` back to
