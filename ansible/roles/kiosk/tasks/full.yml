@@ -311,8 +311,8 @@
       else ('restarted' if kiosk_sshd_config is changed else 'started')) }}
 
 # Tailscale: tailscaled runs from boot. It joins the tailnet only after a one-time `sudo tailscale up` by hand (see
-# pi/cloud-init/README.md), so no key is in the repository; the login lives in /var/lib/tailscale and kiosk-handover
-# keeps it. SSH then goes through sshd as above, over the tailnet address.
+# pi/cloud-init/README.md), so no key is in the repository; the login lives in /var/lib/tailscale. SSH
+# then goes through sshd as above, over the tailnet address.
 - name: full | Start Tailscale at boot
   ansible.builtin.systemd_service:
     name: tailscaled.service
@@ -350,11 +350,38 @@
     label: '{{ item.dest }}'
   notify: Ask for a kiosk restart
 
-# Releases up to v2.19.0 installed pi/tools/kiosk-handover; it now runs from the pulled release (pi/cloud-init/README.md).
-- name: full | Remove the installed handover script
+# Releases up to v2.19.0 installed pi/tools/kiosk-handover, and later ones ran it from the pulled release.
+- name: full | Remove the handover script
   ansible.builtin.file:
     path: /usr/local/sbin/kiosk-handover
     state: absent
+
+# The card's Wi-Fi is for the first boot only: cloud-init has made it a netplan file by now, which keeps the network,
+# and the app's Wi-Fi screen sets up any other. So the card's copies go, with the setup user-data, and cloud-init is
+# turned off so that it never applies them again.
+- name: full | Remove the card's first-boot setup
+  ansible.builtin.file:
+    path: '{{ item }}'
+    state: absent
+  loop:
+    - /boot/firmware/network-config
+    - /boot/firmware/user-data
+
+- name: full | Make cloud-init's settings folder
+  ansible.builtin.file:
+    path: /etc/cloud
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: full | Turn cloud-init off
+  ansible.builtin.copy:
+    content: ''
+    dest: /etc/cloud/cloud-init.disabled
+    owner: root
+    group: root
+    mode: '0644'
 
 # A small Chromium extension draws a button back to the app on every page outside the app, as the kiosk has no back
 # button, and clears Spotify's own sign-in when the app signs out, so it gets the app's origin. The build also writes
