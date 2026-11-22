@@ -22,8 +22,7 @@ export async function screenInfo(
   backlight = '/sys/class/backlight'
 ): Promise<ScreenInfo | null> {
   const size = await screenSize(drm);
-  if (!size) return null;
-  return { ...size, brightness_control: (await names(backlight)).length > 0 };
+  return size ? { ...size, brightness_control: (await names(backlight)).length > 0 } : null;
 }
 
 async function screenSize(drm: string): Promise<{ width: number; height: number } | null> {
@@ -42,7 +41,7 @@ async function screenSize(drm: string): Promise<{ width: number; height: number 
 
 async function names(folder: string): Promise<string[]> {
   try {
-    return (await readdir(folder)).toSorted();
+    return (await readdir(folder)).toSorted((a, b) => a.localeCompare(b));
   } catch {
     return [];
   }

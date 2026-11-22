@@ -102,9 +102,10 @@ export async function kioskScreen(): Promise<KioskScreen | null> {
     const response = await fetch(`${KIOSK_SERVICE}/screen`);
     if (!response.ok) return null;
     const { width, height, brightness_control } = (await response.json()) as Record<string, unknown>;
-    const isSize = (value: unknown): value is number => Number.isInteger(value) && (value as number) > 0;
-    if (!isSize(width) || !isSize(height) || typeof brightness_control !== 'boolean') return null;
-    return { width, height, brightness_control };
+    const isSize = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) > 0;
+    return typeof brightness_control === 'boolean' && isSize(width) && isSize(height)
+      ? { width, height, brightness_control }
+      : null;
   } catch {
     return null;
   }
