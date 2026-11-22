@@ -152,19 +152,12 @@ kiosk_packages:
   # Security updates
   - unattended-upgrades
 
-# The button back to the app on every page outside it and the full sign-out from Spotify
-# (pi/kiosk-keyboard): a Chromium extension in TypeScript. Its
-# sources go to src/, and its build script (Node's own type stripper) writes the extension that kiosk-session loads
-# into extension/.
-kiosk_keyboard_src: '{{ playbook_dir }}/../pi/kiosk-keyboard'
-kiosk_keyboard_dir: /opt/the-max-mix/kiosk-keyboard
-
 # The kiosk-audio service (pi/kiosk-audio): a user unit that answers the app on 127.0.0.1 (speakers, routing, the update
 # stream, restart, reboot, Wi-Fi, screen wake) and keeps the audio links in place. Its one npm package (ws, for the
 # update stream) is installed from files/kiosk-audio/package-lock.json with npm ci; kiosk_audio_deps_stamp records which
 # lockfile was installed.
 kiosk_audio_src: '{{ playbook_dir }}/../pi/kiosk-audio'
-# The source files of pi/kiosk-audio and pi/kiosk-keyboard that stay behind: the tests and what only they use.
+# The source files of pi/kiosk-audio that stay behind: the tests and what only they use.
 kiosk_not_installed: '(\.test|/fixtures)\.ts$'
 kiosk_audio_dir: /opt/the-max-mix/kiosk-audio
 # The web app itself (Vite's build), which the kiosk-audio service serves on 127.0.0.1:7341 so it starts with no internet

@@ -144,44 +144,34 @@ describe('forgetSignIns', () => {
     localStorage.clear();
     visit('');
   });
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => vi.unstubAllGlobals());
 
   it('asks nothing outside the kiosk', async () => {
-    const posted = vi.spyOn(window, 'postMessage');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
     await forgetSignIns();
-    expect(posted).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('asks the kiosk extension and waits for its answer', async () => {
+  it('asks the kiosk service to clear the other sites', async () => {
     visit('?kiosk=1');
-    const asked: unknown[] = [];
-    // Stands in for the extension: answers the request at once.
-    vi.spyOn(window, 'postMessage').mockImplementation((message: unknown) => {
-      asked.push(message);
-      const { origin } = location;
-      const answer = { type: 'maxmix:sign-ins-forgotten' };
-      window.dispatchEvent(new MessageEvent('message', { data: { type: 'other' }, origin, source: window }));
-      window.dispatchEvent(new MessageEvent('message', { data: answer, origin }));
-      window.dispatchEvent(new MessageEvent('message', { data: answer, origin: 'https://x', source: window }));
-      window.dispatchEvent(new MessageEvent('message', { data: answer, origin, source: window }));
-    });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
     await forgetSignIns();
-    expect(asked).toEqual([{ type: 'maxmix:forget-sign-ins' }]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:7341/browser/forget-sign-ins',
+      expect.objectContaining({ method: 'POST' })
+    );
   });
 
-  it('gives up when no extension answers', async () => {
-    vi.useFakeTimers();
+  it('carries on when the kiosk refuses or does not answer', async () => {
     visit('?kiosk=1');
-    vi.spyOn(window, 'postMessage').mockImplementation(() => {});
-    let done = false;
-    const forgetting = forgetSignIns().then(() => {
-      done = true;
-    });
-    await vi.advanceTimersByTimeAsync(2999);
-    expect(done).toBe(false);
-    await vi.advanceTimersByTimeAsync(1);
-    await forgetting;
-    expect(done).toBe(true);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 503 })));
+    await forgetSignIns();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
+    await forgetSignIns();
+    expect(warn).toHaveBeenCalledTimes(2);
   });
 });
 

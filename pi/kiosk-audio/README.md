@@ -155,6 +155,7 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 | `WS /power/update`                     | Connecting starts the update and streams it (below)                         |
 | `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                                                 |
 | `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)                                    |
+| `POST /browser/forget-sign-ins`        | Clears every other site's cookies and storage in Chromium, over DevTools    |
 | `POST /heartbeat`                      | The app is alive (the watchdog, below)                                      |
 | `POST /log`                            | An app error, written to the journal                                        |
 | `GET /lyrics?title=&artist=&duration=` | Lyrics: `{"source"}` with `"lrc"`, `"plain"` or `"instrumental"` (404, 502) |

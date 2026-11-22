@@ -1,6 +1,6 @@
 ---
-# What a pull does. The playbook installs files from three folders of the pulled repository (ansible/,
-# pi/kiosk-audio and pi/kiosk-keyboard). Most releases change none of them (they change only the web app, which is
+# What a pull does. The playbook installs files from two folders of the pulled repository (ansible/ and
+# pi/kiosk-audio). Most releases change none of them (they change only the web app, which is
 # installed below on every run), and running every task on a Pi takes minutes, so the full set (full.yml) runs only when git's tree
 # ids for those folders are not the ones last applied. A release's Pi bundle has no .git, so there the ids come from the
 # release.json the Release workflow wrote into it: the same ids, so both ways of pulling compare the same thing.
@@ -18,7 +18,6 @@
       - rev-parse
       - 'HEAD:ansible'
       - 'HEAD:pi/kiosk-audio'
-      - 'HEAD:pi/kiosk-keyboard'
   register: kiosk_trees
   changed_when: false
   failed_when: false

@@ -7,13 +7,9 @@ set -u
 url=${KIOSK_URL:?KIOSK_URL is not set}
 chromium_pid=/run/kiosk/chromium.pid
 
-# The button back to the app on every page outside it and the full sign-out from Spotify
-# (pi/kiosk-keyboard, built by the Ansible role). Chrome turned
-# --load-extension off by default in 2025; the --disable-features switch turns it back on where a build follows that.
-keyboard_extension=/opt/the-max-mix/kiosk-keyboard/extension
-
-# DevTools for remote screenshots and inspecting the page (scripts/kiosk-screenshot.ts, through an SSH tunnel). Chromium
-# listens on 127.0.0.1 only, so nothing on the network reaches it.
+# DevTools for remote screenshots and inspecting the page (scripts/kiosk-screenshot.ts, through an SSH tunnel), and for
+# the kiosk-audio service, which clears the other sites' sign-ins through it when someone signs out
+# (pi/kiosk-audio/browser-data.ts). Chromium listens on 127.0.0.1 only, so nothing on the network reaches it.
 devtools_port=9222
 
 # When the app comes from this machine (the kiosk-audio service), wait for it to answer: the service starts with the
@@ -33,7 +29,6 @@ wait_app() {
 run_chromium() {
   chromium --kiosk --ozone-platform=wayland --noerrdialogs --disable-infobars --no-first-run --password-store=basic \
     --autoplay-policy=no-user-gesture-required --disable-session-crashed-bubble --overscroll-history-navigation=0 \
-    --load-extension="$keyboard_extension" --disable-features=DisableLoadExtensionCommandLineSwitch \
     --remote-debugging-port="$devtools_port" \
     "$1" &
   echo $! > "$chromium_pid"
