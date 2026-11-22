@@ -72,7 +72,7 @@ interface SettingsPanelProps {
   onOpenDebug?: () => void;
   /** Called after the Wi-Fi page joined a network. */
   onWifiJoined?: () => void;
-  /** Whether a Wi-Fi setup from a phone (From phone or Hotspot) is under way on the Wi-Fi page. */
+  /** Whether a Wi-Fi setup from a phone (Hotspot) is under way on the Wi-Fi page. */
   onPhoneSetup?: (isActive: boolean) => void;
 }
 

@@ -7,7 +7,7 @@
 // so presence.ts can tell its changing LE adverts are that phone. Checked on the Pi with pi/tools/bt-probe.mts.
 import type * as DBus from 'dbus-native';
 import type { MessageBus } from 'dbus-native';
-import { ignoreFailure, untilConnected } from './improv-gatt.ts';
+import { ignoreFailure, untilConnected } from './system-bus.ts';
 
 const ADAPTER = '/org/bluez/hci0';
 const AGENT = '/org/themaxmix/pairing_agent';

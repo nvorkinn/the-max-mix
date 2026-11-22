@@ -31,9 +31,6 @@
 //   POST /wifi/connect      {"ssid", "password", "hidden", "security"}   join a network: {"ok": true} or {"ok": false, "error"}
 //   GET  /wifi/saved        {"networks": ["Home", …]}: the networks the Pi keeps, to join again (the app's origin only)
 //   POST /wifi/forget       {"ssid"}   delete the Pi's saved connections to a network: {"ok": true} or {"ok": false, "error"}
-//   POST /wifi/phone        start Wi-Fi setup from a phone over Bluetooth for a few minutes (phone-setup.ts): {"ok": true}
-//                           or 503 {"error"}   POST /wifi/phone/stop  stop it
-//                           GET /wifi/phone  {"state": "idle" | "waiting" | "joining" | "joined", "error"?}
 //   POST /wifi/hotspot      start a setup hotspot for a phone (hotspot.ts): {"ssid", "password", "url", "wifiQr", "urlQr"}
 //                           or 503 {"error"}   POST /wifi/hotspot/stop  end it
 //                           GET /wifi/hotspot  {"state": "idle" | "running" | "connected" | "joining" | "joined" | "failed", "error"?,
@@ -93,8 +90,6 @@ import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
 import { discoverPhones, nameKiosk } from './phone-discovery.ts';
 import { forgetPhone, PhonePairing, readPhones, savePhone } from './phone-pairing.ts';
 import type { PairingStatus } from './phone-pairing.ts';
-import { PhoneSetup } from './phone-setup.ts';
-import type { PhoneSetupStatus } from './phone-setup.ts';
 import type { Choice, Graph } from './pipewire.ts';
 import { Presence, scanLe } from './presence.ts';
 import type { PresenceStatus } from './presence.ts';
@@ -164,7 +159,6 @@ export interface Deps {
   };
   /** Whether each saved phone is nearby, for the person switcher and the debug console. */
   presence: { status: () => Promise<PresenceStatus>; watch: () => void; unwatch: () => void };
-  phone: { start: () => Promise<void>; stop: () => Promise<void>; status: () => PhoneSetupStatus };
   /** The screen's size and whether its brightness can be set, for registering with countdown-server; null for none. */
   screen: () => Promise<ScreenInfo | null>;
   /** Sets the screen's backlight, in percent; returns how many backlights it set (none: the screen has none). */
@@ -619,21 +613,6 @@ async function postWifi(request: IncomingMessage, response: ServerResponse, orig
     response.writeHead(403).end();
     return;
   }
-  if (request.url === '/wifi/phone') {
-    try {
-      await deps.phone.start();
-      sendJson(response, 200, { ok: true });
-    } catch (error) {
-      console.warn(`wifi: phone setup did not start: ${describeError(error)}`);
-      sendJson(response, 503, { error: 'Bluetooth is not available, so the phone cannot be used.' });
-    }
-    return;
-  }
-  if (request.url === '/wifi/phone/stop') {
-    await deps.phone.stop();
-    response.writeHead(204).end();
-    return;
-  }
   if (request.url === '/wifi/hotspot') {
     try {
       sendJson(response, 200, await deps.hotspot.start());
@@ -684,11 +663,6 @@ async function get(url: string, response: ServerResponse, deps: Deps, isApp: boo
     }
     case '/wifi/networks': {
       await listNetworks(response, deps.wifi);
-
-      break;
-    }
-    case '/wifi/phone': {
-      sendJson(response, 200, deps.phone.status());
 
       break;
     }
@@ -824,14 +798,7 @@ export function handleRequest(origin: string, deps: Deps) {
         await handleGet(request, response, origin, deps);
       } else if (
         request.method === 'POST' &&
-        [
-          '/wifi/connect',
-          '/wifi/forget',
-          '/wifi/phone',
-          '/wifi/phone/stop',
-          '/wifi/hotspot',
-          '/wifi/hotspot/stop'
-        ].includes(request.url ?? '')
+        ['/wifi/connect', '/wifi/forget', '/wifi/hotspot', '/wifi/hotspot/stop'].includes(request.url ?? '')
       ) {
         await postWifi(request, response, origin, deps);
       } else if (request.method === 'POST') {
@@ -928,7 +895,6 @@ export function serveSpeakers(
         bluetoothMonitor.note(message);
       }
     }),
-    phone: new PhoneSetup({ connect: request => deps.wifi.connect(request) }),
     hotspot: new Hotspot({
       listen: host => listenForHotspot(server, host),
       scan: () => deps.wifi.scan(),

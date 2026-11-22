@@ -82,7 +82,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       }
     });
 
-    test(`Wi-Fi From phone and Hotspot dialogs at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
+    test(`Wi-Fi Hotspot dialog at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
       await page.setViewportSize(screen);
       await fakeSpotify(page);
       let hotspotState = 'running';
@@ -94,13 +94,6 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       });
       await page.goto('/?kiosk=1');
       const settings = await openSettings(page, 'Wi-Fi');
-
-      await settings.getByRole('button', { name: 'From phone', exact: true }).click();
-      const phone = page.getByRole('dialog', { name: 'From phone' });
-      await expect(phone.getByText('Waiting for your phone…')).toBeVisible();
-      await expect.soft(page).toHaveScreenshot(shotName('wifi-from-phone', screen), SHOT);
-      await phone.getByRole('button', { name: 'Back' }).click();
-      await expect(phone).toBeHidden();
 
       // Step 1 open, then step 2 once a phone is on the hotspot.
       await settings.getByRole('button', { name: 'Hotspot', exact: true }).click();

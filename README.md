@@ -71,14 +71,6 @@ kiosk joins it, and the tablet shows the new network. The hotspot replaces the k
 itself after 10 minutes, and shows its own random password under the first code. How it works is in
 [pi/kiosk-audio](pi/kiosk-audio/README.md).
 
-### Wi-Fi from an Android phone (Bluetooth)
-
-When the Pi has no network, the app opens Settings > Wi-Fi. Instead of typing the password there, tap **From phone**,
-then on an Android phone with Chrome open [improv-wifi.com](https://www.improv-wifi.com), tap _Connect device_, choose
-THE MAX MIX and enter the network and its password. The tablet shows the new network when the phone has joined. It only works
-for the 5 minutes after the tap, and an iPhone cannot do it (Safari has no Web Bluetooth). How it works is in
-[pi/kiosk-audio](pi/kiosk-audio/README.md).
-
 ### Bluetooth speakers
 
 On the kiosk, the Speakers drawer has a Bluetooth section below AirPlay. Put the speaker in pairing mode and tap **Find

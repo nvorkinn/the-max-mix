@@ -5,22 +5,13 @@ import { wifiQrText } from '../../../pi/kiosk-audio/qr';
 import { useLanguage } from '../../i18n/language';
 import { useT } from '../../i18n/translate';
 import type { StringId } from '../../i18n/strings';
-import {
-  hotspotStatus,
-  phoneSetupStatus,
-  startHotspot,
-  startPhoneSetup,
-  stopHotspot,
-  stopPhoneSetup
-} from '../../utils/kioskWifi';
+import { hotspotStatus, startHotspot, stopHotspot } from '../../utils/kioskWifi';
 import type { HotspotInfo, SetupStatus } from '../../utils/kioskWifi';
 import Modal from '../Modal';
 import QrCode from '../QrCode';
 
 /** How often the dialogs ask the kiosk how the phone is getting on. */
 export const SETUP_POLL_MS = 2000;
-/** The page a phone sends the kiosk its network from, over Bluetooth (Improv Wi-Fi, in Chrome on Android). */
-export const IMPROV_URL = 'https://www.improv-wifi.com/';
 
 /** Where a dialog is: starting the setup, following it (with the kiosk's last word), or it could not start. */
 type Progress = SetupStatus | { state: 'starting' } | { state: 'refused'; error: string | null };
@@ -174,35 +165,6 @@ export type SetupEnd = { joined: false; error?: string | undefined } | { joined:
 interface SetupDialogProps {
   onEnd: (end: SetupEnd) => void;
   onClose: (stopped: Promise<void>) => void;
-}
-
-/**
- * From phone: the kiosk listens over Bluetooth for a few minutes for a phone to send it a network (Improv Wi-Fi, from
- * improv-wifi.com in Chrome on Android, which the code opens).
- */
-export function WifiPhoneDialog({ onEnd, onClose }: Readonly<SetupDialogProps>) {
-  const t = useT();
-  const language = useLanguage();
-  const { progress, leave } = useSetup(
-    async () => {
-      const result = await startPhoneSetup(language);
-      return result.ok ? true : result.error;
-    },
-    signal => phoneSetupStatus(language, signal),
-    stopPhoneSetup,
-    onEnd
-  );
-  return (
-    <SetupDialog title={t('wifi.from_phone')} onClose={() => onClose(leave())}>
-      <div className="wifi-setup-body">
-        <QrCode text={IMPROV_URL} label={t('wifi.qr_improv')} className="wifi-setup-qr" />
-        <div className="wifi-setup-text">
-          <p>{t('wifi.phone_steps')}</p>
-          <SetupProgress progress={progress} />
-        </div>
-      </div>
-    </SetupDialog>
-  );
 }
 
 /**

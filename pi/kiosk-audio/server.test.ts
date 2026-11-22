@@ -73,12 +73,11 @@ function memoryHandover(): Deps['handover'] {
   };
 }
 
-function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotError?: Error, isPairingFailing = false) {
+function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFailing = false) {
   const verboseCalls: boolean[] = [];
   const pairingCalls: string[] = [];
   const presenceCalls: string[] = [];
   const hotspotCalls: string[] = [];
-  const phoneStarts: string[] = [];
   const connected: string[] = [];
   const removed: string[] = [];
   const performed: Action[] = [];
@@ -173,19 +172,6 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
       brightnesses.push(isFaded ? { percent, fade: isFaded } : percent);
       return Promise.resolve(1);
     },
-    phone: {
-      start: () => {
-        phoneStarts.push('start');
-        return isPhoneFailing
-          ? Promise.reject(new Error('no bluetooth', { cause: new Error('Failed to register advertisement') }))
-          : Promise.resolve();
-      },
-      stop: () => {
-        phoneStarts.push('stop');
-        return Promise.resolve();
-      },
-      status: () => ({ state: 'waiting' })
-    },
     bluetooth: {
       list: () => Promise.resolve([speaker]),
       scan: () => Promise.resolve([speaker, { ...speaker, address: '11:22:33:44:55:66', paired: false }]),
@@ -244,7 +230,6 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
     pairingCalls,
     presenceCalls,
     hotspotCalls,
-    phoneStarts,
     connected,
     removed,
     performed,
@@ -723,40 +708,6 @@ describe('saved Wi-Fi networks', () => {
   });
 });
 
-describe('Wi-Fi setup from a phone', () => {
-  it('starts for the app only, and says when Bluetooth would not', async () => {
-    const { deps, phoneStarts } = fakes();
-    const base = await start(deps, LOCAL_ORIGIN);
-    expect((await post(base, '/wifi/phone', { origin: 'https://evil.example' })).status).toBe(403);
-    expect(phoneStarts).toEqual([]);
-    const started = await post(base, '/wifi/phone', { origin: LOCAL_ORIGIN });
-    expect(started.status).toBe(200);
-    await expect(started.json()).resolves.toEqual({ ok: true });
-    expect(phoneStarts).toEqual(['start']);
-
-    const warn = vi.spyOn(console, 'warn').mockReturnValue();
-    const broken = await start(fakes({}, true).deps, LOCAL_ORIGIN);
-    const refused = await post(broken, '/wifi/phone', { origin: LOCAL_ORIGIN });
-    expect(refused.status).toBe(503);
-    await expect(refused.json()).resolves.toEqual({
-      error: 'Bluetooth is not available, so the phone cannot be used.'
-    });
-    // The journal gets the reason, not only what failed.
-    expect(warn).toHaveBeenCalledWith(
-      'wifi: phone setup did not start: no bluetooth: Failed to register advertisement'
-    );
-  });
-
-  it('stops for the app only, and reports where it is', async () => {
-    const { deps, phoneStarts } = fakes();
-    const base = await start(deps, LOCAL_ORIGIN);
-    expect((await post(base, '/wifi/phone/stop', { origin: 'https://evil.example' })).status).toBe(403);
-    expect((await post(base, '/wifi/phone/stop', { origin: LOCAL_ORIGIN })).status).toBe(204);
-    expect(phoneStarts).toEqual(['stop']);
-    await expect((await fetch(`${base}/wifi/phone`)).json()).resolves.toEqual({ state: 'waiting' });
-  });
-});
-
 describe('the setup hotspot', () => {
   it('starts for the app only, and says why it could not start', async () => {
     const { deps, hotspotCalls } = fakes();
@@ -769,13 +720,13 @@ describe('the setup hotspot', () => {
 
     vi.spyOn(console, 'warn').mockReturnValue();
     const failing = await start(
-      fakes({}, false, new HotspotError('There is no Wi-Fi adapter to make a hotspot with.')).deps,
+      fakes({}, new HotspotError('There is no Wi-Fi adapter to make a hotspot with.')).deps,
       LOCAL_ORIGIN
     );
     const refused = await post(failing, '/wifi/hotspot', { origin: LOCAL_ORIGIN });
     expect(refused.status).toBe(503);
     await expect(refused.json()).resolves.toEqual({ error: 'There is no Wi-Fi adapter to make a hotspot with.' });
-    const other = await start(fakes({}, false, new Error('internal detail')).deps, LOCAL_ORIGIN);
+    const other = await start(fakes({}, new Error('internal detail')).deps, LOCAL_ORIGIN);
     await expect((await post(other, '/wifi/hotspot', { origin: LOCAL_ORIGIN })).json()).resolves.toEqual({
       error: 'The hotspot could not be started.'
     });
@@ -968,7 +919,7 @@ describe('Pair my phone', () => {
   });
 
   it('says why when Bluetooth would not start pairing', async () => {
-    const base = await start(fakes({}, false, undefined, true).deps);
+    const base = await start(fakes({}, undefined, true).deps);
     const answer = await post(base, '/bluetooth/pair-phone');
     expect(answer.status).toBe(503);
     await expect(answer.json()).resolves.toEqual({ error: PAIRING_ERRORS.unavailable });

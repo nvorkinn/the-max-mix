@@ -8,17 +8,17 @@ import { wifiLabel } from './wifi';
 import type { WifiState } from './wifi';
 import WifiJoinDialog from './WifiJoinDialog';
 import type { WifiTarget } from './WifiJoinDialog';
-import { WifiHotspotDialog, WifiPhoneDialog } from './WifiPhoneDialogs';
+import { WifiHotspotDialog } from './WifiPhoneDialogs';
 import type { SetupEnd } from './WifiPhoneDialogs';
 
 const BARS = [WifiZero, WifiZero, WifiLow, WifiHigh, Wifi] as const;
 
 /**
  * The network the kiosk is on, the networks in range, and joining one: an open one at a tap, one with a password (or a
- * hidden one) in a dialog with the on-screen keyboard, or one a phone sends (From phone, over Bluetooth, or over the
- * kiosk's own Hotspot). `onJoined` follows every join, and every network forgotten, so the network shown is asked again.
- * The buttons for the other ways come above the list. Under it, the networks the kiosk keeps, each with Forget, so
- * nobody's Wi-Fi password leaves with it. The kiosk's service lists, joins and forgets them (utils/kioskWifi.ts).
+ * hidden one) in a dialog with the on-screen keyboard, or one a phone sends over the kiosk's own Hotspot. `onJoined`
+ * follows every join, and every network forgotten, so the network shown is asked again. The buttons for the other ways
+ * come above the list. Under it, the networks the kiosk keeps, each with Forget, so nobody's Wi-Fi password leaves with
+ * it. The kiosk's service lists, joins and forgets them (utils/kioskWifi.ts).
  */
 export default function WifiSettings({
   wifi,
@@ -37,7 +37,7 @@ export default function WifiSettings({
   // Undefined while the kiosk looks for networks.
   const [scan, setScan] = useState<WifiScan | undefined>();
   const [target, setTarget] = useState<WifiTarget | null>(null);
-  const [phoneSetup, setPhoneSetup] = useState<'bluetooth' | 'hotspot' | null>(null);
+  const [phoneSetup, setPhoneSetup] = useState<'hotspot' | null>(null);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
   const scanRef = useRef<AbortController | null>(null);
@@ -163,17 +163,6 @@ export default function WifiSettings({
           disabled={connecting !== null}
           onClick={() => {
             setJoinError(null);
-            setPhoneSetup('bluetooth');
-          }}
-          className="button button-secondary"
-        >
-          {t('wifi.from_phone')}
-        </button>
-        <button
-          type="button"
-          disabled={connecting !== null}
-          onClick={() => {
-            setJoinError(null);
             setPhoneSetup('hotspot');
           }}
           className="button button-secondary"
@@ -269,7 +258,6 @@ export default function WifiSettings({
         </section>
       )}
       {target && <WifiJoinDialog target={target} onJoined={joined} onClose={() => setTarget(null)} />}
-      {phoneSetup === 'bluetooth' && <WifiPhoneDialog onEnd={phoneSetupEnded} onClose={() => setPhoneSetup(null)} />}
       {phoneSetup === 'hotspot' && (
         <WifiHotspotDialog
           onEnd={phoneSetupEnded}

@@ -6,8 +6,8 @@ account. The words in bold are what you'll see on the screen.
 ## 1. Get it online
 
 1. Plug it in. It opens on **Wi-Fi**.
-2. Tap your network, type the password on the on-screen keyboard and tap **Connect**. Or tap **From phone** or
-   **Hotspot** and follow the screen to send the Wi-Fi from your phone instead.
+2. Tap your network, type the password on the on-screen keyboard and tap **Connect**. Or tap **Hotspot** and
+   follow the screen to send the Wi-Fi from your phone instead.
 3. Your network isn't listed? Tap **Refresh**, or **Other network** to type its name.
 4. Once it's on your network, tap **Next**.
 
