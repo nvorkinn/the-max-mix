@@ -76,7 +76,9 @@ jobs:
           fi
       - name: Build the image
         if: steps.check.outputs.build == 'true'
+        # The folder is made first, as the runner user, so that the step can still write to it after the root build.
         run: |
+          mkdir -p "$RUNNER_TEMP/out"
           sudo pi/cloud-init/build-image.sh build "$RUNNER_TEMP/upstream.json" "$RUNNER_TEMP/out" \
             "https://github.com/$GH_REPO/releases/download/$TAG/the-max-mix.img.xz"
           jq -r '.os_list[0].description' "$RUNNER_TEMP/out/the-max-mix.rpi-imager-manifest" > "$RUNNER_TEMP/out/description.txt"
