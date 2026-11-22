@@ -3,22 +3,21 @@ import { render, screen, act, fireEvent, within } from '@testing-library/react';
 import userEvent from '../test/user';
 import { getRedirectUri } from '../spotify/settings';
 import { NETWORK_ERROR_MESSAGE } from '../spotify/http';
+import { reloadApp } from '../utils/reloadApp';
 import TabletView from './TabletView';
 
 const state = vi.hoisted((): { player: Record<string, unknown> } => ({ player: {} }));
+// eslint-disable-next-line sonarjs/no-hardcoded-ip -- a made-up address of the Pi on a home network
+const PI_ADDRESS = '192.168.1.42';
+
 vi.mock('../spotify/api', () => ({ getQueue: vi.fn() }));
 vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => state.player }));
 vi.mock('../utils/colorExtractor', () => ({ extractArtColours: vi.fn().mockResolvedValue(null) }));
 vi.mock('./AlbumArtPlayer', () => ({ default: () => null }));
-vi.mock('./SettingsPanel', () => ({
-  default: ({ onWifiJoined }: { onWifiJoined?: () => void }) => (
-    <button type="button" onClick={onWifiJoined}>
-      Joined
-    </button>
-  )
-}));
+vi.mock('./SettingsPanel', () => ({ default: () => null }));
 vi.mock('./SpeakerSelectorModal', () => ({ default: () => null }));
 vi.mock('./TrackQueue', () => ({ default: () => null }));
+vi.mock('../utils/reloadApp', () => ({ reloadApp: vi.fn() }));
 
 /** The warning's list, opened. */
 function openProblems() {
@@ -45,6 +44,7 @@ describe('offline state in TabletView', () => {
   });
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.mocked(reloadApp).mockClear();
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });
@@ -72,38 +72,52 @@ describe('offline state in TabletView', () => {
     expect(screen.getByRole('tabpanel', { name: 'Settings' })).toBeInTheDocument();
   });
 
-  it('opens on the Settings tab when the kiosk starts with no network', async () => {
-    history.replaceState(null, '', '/?kiosk=1');
-    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-    const fetchMock = vi.fn(() => Promise.resolve(Response.json({ ssid: null, address: null })));
+  /** The kiosk service, saying which network the Wi-Fi is on (with an address once on one): whatever `wifi` holds. */
+  function kioskOnWifi(wifi: { ssid: string | null; address?: string }) {
+    const fetchMock = vi.fn(() => Promise.resolve(Response.json({ ssid: wifi.ssid, address: wifi.address ?? null })));
     vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  it('opens on Settings › Wi-Fi when the kiosk has no network a while after starting, even if the browser says online', async () => {
+    // Chromium says online whenever any interface has an address, Tailscale's among them, so that is not asked.
+    vi.useFakeTimers();
+    history.replaceState(null, '', '/?kiosk=1');
+    const wifi = { ssid: null as string | null };
+    const fetchMock = kioskOnWifi(wifi);
     render(<TabletView />);
-    expect(await screen.findByRole('tabpanel', { name: 'Settings' })).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/status', expect.anything());
-    // Once Settings › Wi-Fi joined a network, the kiosk goes to the Dashboard.
-    await userEvent.click(screen.getByRole('button', { name: 'Joined' }));
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
     expect(screen.queryByRole('tabpanel', { name: 'Settings' })).not.toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(12_000));
+    expect(screen.getByRole('tabpanel', { name: 'Settings' })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/status', expect.anything());
+    // Once the kiosk is on a network (joined there, or the router came back) and has an address, the app starts again.
+    wifi.ssid = 'Home';
+    await act(() => vi.advanceTimersByTimeAsync(4000));
+    expect(reloadApp).not.toHaveBeenCalled();
+    wifi.address = PI_ADDRESS;
+    await act(() => vi.advanceTimersByTimeAsync(4000));
+    expect(reloadApp).toHaveBeenCalledOnce();
   });
 
-  it('stays on the Dashboard when the kiosk is on a network, or is not a kiosk', async () => {
-    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.resolve(Response.json({ ssid: null, address: null })))
-    );
+  it('stays on the Dashboard when the Wi-Fi comes up soon after starting, or off the kiosk', async () => {
+    vi.useFakeTimers();
+    const wifi: { ssid: string | null; address?: string } = { ssid: null };
+    kioskOnWifi(wifi);
     const { unmount } = render(<TabletView />);
-    await act(async () => {});
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
     expect(screen.queryByRole('tabpanel', { name: 'Settings' })).not.toBeInTheDocument();
     unmount();
 
     history.replaceState(null, '', '/?kiosk=1');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.resolve(Response.json({ ssid: 'Home', address: null })))
-    );
     render(<TabletView />);
-    await act(async () => {});
+    await act(() => vi.advanceTimersByTimeAsync(9000));
+    wifi.ssid = 'Home';
+    wifi.address = PI_ADDRESS;
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
     expect(screen.queryByRole('tabpanel', { name: 'Settings' })).not.toBeInTheDocument();
+    // It started without a network, so it starts again now that it has one.
+    expect(reloadApp).toHaveBeenCalledOnce();
   });
 
   it('appears when the browser goes offline and disappears when it comes back', () => {
