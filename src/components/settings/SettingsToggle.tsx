@@ -38,7 +38,9 @@ export default function SettingsToggle({
           onClick={() => onChange(!on)}
           className="settings-switch"
         >
-          <span className="settings-switch-thumb" aria-hidden="true" />
+          <span className="settings-switch-track" aria-hidden="true">
+            <span className="settings-switch-thumb" />
+          </span>
         </button>
       </div>
       {note && (

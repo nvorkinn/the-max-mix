@@ -1915,10 +1915,6 @@ body:has(.app-dialog[open]) {
   .settings-nav-list:has(> li:nth-child(7)) {
     gap: 4px;
   }
-  /* With the kiosk's Screen page there are nine, which fit as 52px rows. */
-  .settings-panel .settings-nav-list:has(> li:nth-child(9)) .settings-nav-item {
-    min-height: 52px;
-  }
 }
 .settings-nav-item {
   display: flex;
@@ -2157,13 +2153,23 @@ body:has(.app-dialog[open]) {
   justify-content: space-between;
   gap: 16px;
 }
+/* The button is the 60px touch target; the track drawn inside it is slimmer. */
 .settings-panel .settings-switch {
-  position: relative;
+  display: grid;
   flex-shrink: 0;
+  place-items: center;
   width: 84px;
   min-width: 84px;
+  height: 60px;
+  min-height: 60px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.settings-switch-track {
+  position: relative;
+  width: 84px;
   height: 48px;
-  min-height: 48px;
   border: 1px solid var(--border);
   border-radius: 24px;
   background: var(--surface-raised);
@@ -2183,7 +2189,7 @@ body:has(.app-dialog[open]) {
     transform 160ms,
     background 160ms;
 }
-.settings-switch[aria-checked='true'] {
+.settings-switch[aria-checked='true'] .settings-switch-track {
   border-color: transparent;
   background: var(--play-fill);
   box-shadow: var(--glow);
@@ -2245,10 +2251,8 @@ body:has(.app-dialog[open]) {
   display: grid;
   flex-shrink: 0;
   place-items: center;
-  width: 52px;
-  min-width: 52px;
-  height: 52px;
-  min-height: 52px;
+  width: 60px;
+  height: 60px;
   border-radius: 14px;
   background: var(--surface);
   color: var(--ink);
@@ -2748,7 +2752,7 @@ body:has(.app-dialog[open]) {
     font-size: 18px;
   }
   .settings-panel .settings-segment {
-    min-height: 56px;
+    min-height: 60px;
     font-size: 19px;
   }
   .settings-swatches {
