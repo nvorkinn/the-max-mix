@@ -42,11 +42,15 @@
         mode=$(node "$AUDIO_SRC/screen-mode.ts" 2> /dev/null || true)
       fi
       [[ $mode =~ ^[0-9]+x[0-9]+@[0-9]+$ ]] || mode=
-      read -r -a words < "$file"
+      # The file may end without a newline (an image's own, or one a package rewrote), which read reports as a failure.
+      read -r -a words < "$file" || [[ ${#words[@]} -gt 0 ]]
       new=()
       for word in "${words[@]}"; do
         if [[ $word == console=tty1 ]]; then
           word=console=tty3
+        # The kiosk has no boot splash; installing Plymouth adds these.
+        elif [[ $word == splash || $word == plymouth.* ]]; then
+          continue
         elif [[ -n $mode && $word == video=HDMI-A-[12]:* && $word != "${word%%:*}:$mode" ]]; then
           continue
         fi

@@ -16,7 +16,8 @@ apt-get install --yes --quiet --no-install-recommends ansible-core ca-certificat
 # What Raspberry Pi OS and cloud-init provide before the playbook runs: the boot files and the kiosk user, with a password and
 # in the sudo group.
 mkdir -p /boot/firmware
-echo 'console=serial0,115200 console=tty1 root=PARTUUID=00000000-02 rootfstype=ext4 fsck.repair=yes rootwait' > /boot/firmware/cmdline.txt
+# No newline at the end, and Plymouth's words, as on a Pi where a package rewrote it.
+printf '%s' 'console=serial0,115200 console=tty1 root=PARTUUID=00000000-02 rootfstype=ext4 fsck.repair=yes rootwait splash plymouth.ignore-serial-consoles' > /boot/firmware/cmdline.txt
 printf '# For more options and information see\n[all]\n' > /boot/firmware/config.txt
 getent group sudo > /dev/null || groupadd sudo
 useradd --create-home --shell /bin/bash --groups sudo kiosk
@@ -93,6 +94,7 @@ for source in /work/pi/kiosk-audio/*.ts; do
 done
 check grep -q ' console=tty3 ' /boot/firmware/cmdline.txt
 check grep -q 'video=HDMI-A-1:1024x600@60' /boot/firmware/cmdline.txt
+check bash -c "! grep -Eq '(^| )(splash|plymouth\\.)' /boot/firmware/cmdline.txt"
 check grep -q 'kernel=kernel8.img' /boot/firmware/config.txt
 check test "$(grep -c 'THE MAX MIX KIOSK' /boot/firmware/config.txt)" -eq 2
 check test "$(wc -l < /boot/firmware/cmdline.txt)" -eq 1
