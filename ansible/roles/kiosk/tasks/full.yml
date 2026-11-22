@@ -383,12 +383,13 @@
     group: root
     mode: '0644'
 
-# Spotify's sign-in page needs a keyboard, and Cage has no protocol for a system one, so a small Chromium extension draws
-# its own on Spotify's sign-in pages. The same extension draws a button back to the app on every page outside the app, as
-# the kiosk has no back button, and clears Spotify's own sign-in when the app signs out, so it gets the app's origin.
+# A small Chromium extension draws a button back to the app on every page outside the app, as the kiosk has no back
+# button, and clears Spotify's own sign-in when the app signs out, so it gets the app's origin. The build also writes
+# the on-screen keyboard (keyboard.js) that the Wi-Fi setup page loads. Spotify's sign-in pages get no keyboard: people
+# sign in with the QR code that Spotify's "Continue with Apple" shows.
 # Chromium cannot load TypeScript, so the build strips the types (Node, no packages) and prints "changed" only when it
 # wrote a file.
-- name: full | Install the sign-in keyboard's source
+- name: full | Install the kiosk extension's source
   ansible.builtin.copy:
     src: '{{ item }}'
     dest: '{{ kiosk_keyboard_dir }}/src/{{ item | basename }}'
@@ -401,7 +402,7 @@
   loop_control:
     label: '{{ item | basename }}'
 
-- name: full | Build the sign-in keyboard
+- name: full | Build the kiosk extension
   ansible.builtin.command:
     argv:
       - node
@@ -412,6 +413,15 @@
   register: kiosk_keyboard_build
   changed_when: "'changed' in kiosk_keyboard_build.stdout"
   notify: Ask for a kiosk restart
+
+# Releases before the keyboard left Spotify's sign-in pages installed its content script.
+- name: full | Remove the sign-in keyboard's content script
+  ansible.builtin.file:
+    path: '{{ item }}'
+    state: absent
+  loop:
+    - '{{ kiosk_keyboard_dir }}/src/loader.ts'
+    - '{{ kiosk_keyboard_dir }}/extension/loader.js'
 
 # AirPlay: PipeWire makes a sink for each speaker Avahi finds; the app asks the kiosk-audio service (127.0.0.1) to route
 # the browser's audio to the chosen ones, and the same user unit keeps it there.

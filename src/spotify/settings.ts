@@ -32,8 +32,15 @@ export function reloadSettings(): void {
   location.reload();
 }
 
-/** Leaves the app for another page (Spotify's sign-in). A function of its own so tests can see where it would go. */
+/**
+ * Leaves the app for another page (Spotify's sign-in, countdown-server's /register). A function of its own so tests can
+ * see where it would go. With no network it stays: the kiosk would be left on Chromium's error page, with no way back.
+ */
 export function leaveFor(address: string): void {
+  if (!navigator.onLine) {
+    console.warn(`Offline, so the app stays instead of going to ${new URL(address).origin}`);
+    return;
+  }
   location.assign(address);
 }
 

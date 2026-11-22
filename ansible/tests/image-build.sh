@@ -62,7 +62,7 @@ for file in /usr/local/bin/kiosk-session \
   /opt/the-max-mix/kiosk-audio/node_modules/dbus-native/package.json \
   /opt/the-max-mix/kiosk-audio/node_modules/qrcode-generator/package.json \
   /etc/NetworkManager/dnsmasq-shared.d/50-kiosk-captive.conf /etc/sysctl.d/50-kiosk-unprivileged-ports.conf \
-  /opt/the-max-mix/kiosk-keyboard/extension/manifest.json /opt/the-max-mix/kiosk-keyboard/extension/loader.js \
+  /opt/the-max-mix/kiosk-keyboard/extension/manifest.json \
   /opt/the-max-mix/kiosk-keyboard/extension/keyboard.js /opt/the-max-mix/kiosk-keyboard/extension/background.js \
   /opt/the-max-mix/kiosk-keyboard/extension/sign-out.js /opt/the-max-mix/kiosk-keyboard/extension/back.js \
   /opt/the-max-mix/kiosk-audio/node_modules/ws/package.json /var/lib/the-max-mix/kiosk-audio-deps.sha1 \
@@ -78,7 +78,7 @@ for unit in kiosk.service bluetooth.service avahi-daemon.service kiosk-pull.time
     fail=1
   fi
 done
-# Every source file of the service and of the sign-in keyboard is installed, and no test or fixture.
+# Every source file of the service and of the kiosk extension is installed, and no test or fixture.
 for source in /work/pi/kiosk-audio/*.ts; do
   case $source in
     *.test.ts | */fixtures.ts) check test ! -e "/opt/the-max-mix/kiosk-audio/${source##*/}" ;;
@@ -122,10 +122,10 @@ check grep -q 'raop.latency.ms = 500' /etc/pipewire/pipewire.conf.d/50-kiosk-rao
 check grep -q 'kiosk-audio.ts watch$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'try-restart kiosk-audio.service' /etc/systemd/system/kiosk.service
 check grep -q 'screen-mode.ts --correct' /etc/systemd/system/kiosk.service
-check grep -q 'KIOSK_APP_ORIGIN=https://the-max-mix.countdown.build' /etc/systemd/user/kiosk-audio.service
+check grep -q 'KIOSK_APP_ORIGIN=http://127.0.0.1:7341' /etc/systemd/user/kiosk-audio.service
 check grep -q '"LocalNetworkAccessAllowedForUrls"' /etc/chromium/policies/managed/kiosk.json
 # The back button is left off the app's own pages.
-check grep -q '"https://the-max-mix.countdown.build/\*"' /opt/the-max-mix/kiosk-keyboard/extension/manifest.json
+check grep -q '"http://127.0.0.1:7341/\*"' /opt/the-max-mix/kiosk-keyboard/extension/manifest.json
 check grep -q '^Environment=KIOSK_SCREEN_OFF_AFTER=60$' /etc/systemd/system/kiosk.service
 check command -v swayidle wlr-randr
 check grep -q 'en_GB.UTF-8' /etc/default/locale
