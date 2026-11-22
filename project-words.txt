@@ -3,6 +3,7 @@
 adwaita
 alsa
 apos
+argjson
 argv
 atrack
 autoclean
@@ -23,6 +24,7 @@ chgrp
 chpasswd
 chvt
 CIDATA
+cloudinit
 cmdline
 cntrl
 color
@@ -90,6 +92,7 @@ lockfiles
 logind
 loglevel
 longenough
+losetup
 lrclib
 lucide
 lyricsfile
@@ -104,6 +107,7 @@ metalerts
 meteo
 mktemp
 mockup
+mountpoint
 musichall
 musixmatch
 nationaltheatret
@@ -143,6 +147,8 @@ overscroll
 pagesize
 pairable
 parcelapp
+partitiontable
+partscan
 partuuid
 pavucontrol
 pidwait
@@ -166,6 +172,7 @@ qrcode
 quot
 randr
 raop
+raspios
 readables
 readlink
 reflash
@@ -185,9 +192,11 @@ rstart
 rstrip
 runcmd
 ruter
+sfdisk
 shellcheck
 shopt
 singername
+slurpfile
 songmid
 songname
 sonos
