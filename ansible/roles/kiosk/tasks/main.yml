@@ -28,7 +28,7 @@
   ansible.builtin.set_fact:
     # kiosk_enable_only is in it because a run that only enables services has not applied what a normal run does.
     kiosk_trees_id: >-
-      {{ (kiosk_tree_ids + [kiosk_enable_only | string]) | join(' ') | hash('sha1') if kiosk_tree_ids else '' }}
+      {{ [kiosk_tree_ids, kiosk_enable_only | string] | flatten | join(' ') | hash('sha1') if kiosk_tree_ids else '' }}
     kiosk_trees_applied: >-
       {{ lookup('ansible.builtin.file', kiosk_applied_stamp, errors='ignore') | default('', true) | string | trim }}
   vars:
