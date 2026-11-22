@@ -5,7 +5,9 @@
 #   - clears what testing left in the kiosk: the Chromium profile (the Spotify login; the downloaded Widevine stays), the
 #     chosen speakers, the logs.
 # At the next start there is no network, so the kiosk shows its Wi-Fi panel. The admin SSH keys, the Tailscale login and
-# the paired Bluetooth devices stay. Run it over SSH: sudo kiosk-handover [--yes] [--no-poweroff]
+# the paired Bluetooth devices stay. Not installed: every pull leaves the release it installed on the Pi, this script
+# included (kiosk_pull_dir). Run it from there over SSH:
+#   sudo bash /var/lib/the-max-mix/ansible-pull/pi/tools/kiosk-handover [--yes] [--no-poweroff]
 set -euo pipefail
 
 kiosk_user=kiosk
@@ -16,7 +18,7 @@ for arg in "$@"; do
     --yes) confirmed=true ;;
     --no-poweroff) poweroff=false ;;
     *)
-      echo "Usage: sudo kiosk-handover [--yes] [--no-poweroff]" >&2
+      echo "Usage: sudo bash $0 [--yes] [--no-poweroff]" >&2
       exit 2
       ;;
   esac

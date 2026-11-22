@@ -59,8 +59,11 @@ sudo kiosk-pull https://github.com/nvorkinn/the-max-mix.git latest /var/lib/the-
 Over SSH (`ssh admin@the-max-mix.local`), run:
 
 ```sh
-sudo kiosk-handover
+sudo bash /var/lib/the-max-mix/ansible-pull/pi/tools/kiosk-handover
 ```
+
+The script is not installed: it runs from the release the Pi last pulled, which every pull leaves in
+`/var/lib/the-max-mix/ansible-pull`.
 
 It asks for `yes`, then:
 

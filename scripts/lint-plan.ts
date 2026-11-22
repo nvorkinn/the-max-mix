@@ -56,7 +56,9 @@ const CHECKS: Record<string, Matcher[]> = {
     isKioskAudioPackageFile
   ],
   'lint:lockfiles': [isKioskAudioPackageFile],
-  shellcheck: [paths(/^ansible\/roles\/kiosk\/files\/bin\//, /^ansible\/tests\/[^/]+\.sh$/)],
+  shellcheck: [
+    paths(/^ansible\/roles\/kiosk\/files\/bin\//, /^ansible\/tests\/[^/]+\.sh$/, /^pi\/tools\/kiosk-handover$/)
+  ],
   actionlint: [paths(/^\.github\/workflows\//)],
   editorconfig: [isAnyFile]
 };
