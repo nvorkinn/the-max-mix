@@ -50,8 +50,8 @@ export function startHandover(storage: Storage = localStorage): void {
  * The local copy on its first start: takes the hosted app's items, keeping any it already has, then has the service
  * delete them. Resolves when that is done; when the service does not answer, it tries again at the next start.
  */
-export async function takeHandover(storage: Storage = localStorage): Promise<void> {
-  if (!isLocalCopy()) return;
+export async function takeHandover(storage: Storage = localStorage, origin = location.origin): Promise<void> {
+  if (!isLocalCopy(origin)) return;
   try {
     if (storage.getItem(TAKEN_KEY)) return;
     const response = await fetch(`${KIOSK_SERVICE}/handover`);

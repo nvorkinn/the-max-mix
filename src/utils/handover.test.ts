@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { handoverItems, isLocalCopy, TAKEN_KEY, takeHandover } from './handover';
 
+const LOCAL = 'http://127.0.0.1:7341';
+
 function storage(items: Record<string, string>): Storage {
   const map = new Map(Object.entries(items));
   return {
@@ -46,7 +48,6 @@ describe('takeHandover', () => {
   });
 
   it('takes the items once, keeping its own, and has them deleted', async () => {
-    vi.stubGlobal('location', { origin: 'http://127.0.0.1:7341' });
     const fetchSpy = vi.fn((url: string) =>
       Promise.resolve(
         url.endsWith('/handover')
@@ -56,23 +57,22 @@ describe('takeHandover', () => {
     );
     vi.stubGlobal('fetch', fetchSpy);
     const local = storage({ 'maxmix.kiosk': 'true' });
-    await takeHandover(local);
+    await takeHandover(local, LOCAL);
     expect(local.getItem('maxmix.people')).toBe('[1]');
     expect(local.getItem('maxmix.kiosk')).toBe('true');
     expect(local.getItem(TAKEN_KEY)).toBe('1');
     expect(fetchSpy).toHaveBeenLastCalledWith('http://127.0.0.1:7341/handover/done', { method: 'POST' });
-    await takeHandover(local);
+    await takeHandover(local, LOCAL);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
   it('tries again next time when the service does not answer', async () => {
-    vi.stubGlobal('location', { origin: 'http://127.0.0.1:7341' });
     vi.stubGlobal(
       'fetch',
       vi.fn(() => Promise.reject(new Error('down')))
     );
     const local = storage({});
-    await takeHandover(local);
+    await takeHandover(local, LOCAL);
     expect(local.getItem(TAKEN_KEY)).toBeNull();
   });
 });
