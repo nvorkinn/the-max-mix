@@ -144,9 +144,11 @@ kiosk_screen_off_after: 60
 # kiosk starts and each time the screen wakes, and a udev rule turns the touch screen's coordinates the same way
 # (kiosk_touch_matrices). The boot console is not rotated. A new value takes effect at the next kiosk restart.
 kiosk_screen_rotation: 0
-# How much bigger Chromium draws everything (its --force-device-scale-factor), for a panel with small pixels: 1.5 on a
-# 1920x1200 one gives the app the 1280x800 page it is laid out for, half as big again. 1 leaves the page at the
-# panel's own pixels. A new value takes effect at the next kiosk restart.
+# How much bigger everything is drawn, for a panel with small pixels: 1.5 on a 1920x1200 one gives the app the 1280x800
+# page it is laid out for, half as big again. It is the output's scale in Cage, which kiosk-display sets with wlr-randr
+# as it does the rotation, so Chromium's window is the smaller size and Chromium draws it at the panel's own pixels.
+# (Chromium's --force-device-scale-factor does not do it: Cage is not told, and the window shows only its top left
+# corner.) 1 leaves the page at the panel's own pixels. A new value takes effect at the next kiosk restart.
 kiosk_screen_scale: 1
 # libinput's calibration matrix for each rotation (LIBINPUT_CALIBRATION_MATRIX), the first two rows of the matrix that
 # turns a touch the way the picture is turned.

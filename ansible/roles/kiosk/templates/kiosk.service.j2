@@ -48,7 +48,7 @@ Environment=XCURSOR_THEME=blank
 Environment=KIOSK_SCREEN_OFF_AFTER={{ kiosk_screen_off_after | int }}
 # For kiosk-display, which turns the output this many degrees (kiosk_screen_rotation).
 Environment=KIOSK_SCREEN_ROTATION={{ kiosk_screen_rotation | int }}
-# For kiosk-session, which has Chromium draw the page this much bigger (kiosk_screen_scale).
+# For kiosk-display, which has Cage draw everything this much bigger (kiosk_screen_scale).
 Environment=KIOSK_SCREEN_SCALE={{ kiosk_screen_scale | float }}
 Environment="KIOSK_URL={{ kiosk_url | replace('%', '%%') }}"
 ExecStart=/usr/bin/cage -d -- /usr/local/bin/kiosk-session
