@@ -2478,24 +2478,67 @@ body:has(.app-dialog[open]) {
   height: 180px;
   border-radius: 12px;
 }
-.wifi-setup.wifi-hotspot {
+.app-dialog.wifi-setup.wifi-hotspot {
   max-width: 900px;
 }
-/* The code beside the hotspot's name and password. */
-.wifi-hotspot-codes {
+/* The hotspot's two steps side by side: the open one takes the room, the other is only its heading, dimmed. */
+.wifi-hotspot-steps {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 48px;
-  margin-bottom: 12px;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 16px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
 }
-.wifi-hotspot-code {
+.wifi-hotspot-step {
   display: flex;
   flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 16px 20px;
+  border: 2px solid transparent;
+  border-radius: 20px;
+  background: rgb(255 255 255 / 6%);
+  opacity: 0.5;
+}
+.wifi-hotspot-steps:has(> :last-child[data-open='true']) {
+  grid-template-columns: 240px minmax(0, 1fr);
+}
+.wifi-hotspot-step[data-open='true'] {
+  border-color: var(--accent);
+  opacity: 1;
+}
+.wifi-hotspot-step-title {
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   margin: 0;
-  font-size: 16px;
+  font-size: 20px;
+  font-weight: 600;
+}
+.wifi-hotspot-step-number {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 12%);
+  font-size: 18px;
+}
+.wifi-hotspot-step[data-open='true'] .wifi-hotspot-step-number {
+  background: var(--accent);
+}
+.wifi-hotspot-step-number .lucide {
+  width: 20px;
+  height: 20px;
+}
+/* The open step's code, and beside step 1's the hotspot's name and password. */
+.wifi-hotspot-step-body {
+  display: flex;
+  align-items: center;
+  gap: 32px;
 }
 /* The hotspot's name and password, for a phone whose camera does not join it. */
 .wifi-hotspot-login {

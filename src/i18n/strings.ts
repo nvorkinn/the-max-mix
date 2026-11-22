@@ -239,8 +239,9 @@ export const STRINGS = {
   'wifi.qr_improv': { en: 'QR code that opens improv-wifi.com', nb: 'QR-kode som åpner improv-wifi.com' },
   'wifi.qr_join': { en: 'QR code that joins the hotspot', nb: 'QR-kode som kobler til hotspoten' },
   'wifi.qr_open': { en: 'QR code that opens the setup page', nb: 'QR-kode som åpner oppsettsiden' },
-  'wifi.scan_to_join': { en: '1. Scan to join', nb: '1. Skann for å koble til' },
-  'wifi.scan_to_open': { en: '2. Scan to open', nb: '2. Skann for å åpne' },
+  'wifi.step_join': { en: 'Join the hotspot', nb: 'Koble til hotspoten' },
+  'wifi.step_open': { en: 'Open the setup page', nb: 'Åpne oppsettsiden' },
+  'wifi.step_joined': { en: 'Phone connected', nb: 'Telefonen er koblet til' },
   'wifi.unreachable': {
     en: 'Could not reach the kiosk service.',
     nb: 'Får ikke kontakt med tjenesten på nettbrettet.'

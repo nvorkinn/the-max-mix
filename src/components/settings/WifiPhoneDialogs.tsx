@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Check } from 'lucide-react';
 import { wifiQrText } from '../../../pi/kiosk-audio/qr';
 import { useLanguage } from '../../i18n/language';
 import { useT } from '../../i18n/translate';
@@ -24,7 +25,9 @@ export const IMPROV_URL = 'https://www.improv-wifi.com/';
 /** Where a dialog is: starting the setup, following it (with the kiosk's last word), or it could not start. */
 type Progress = SetupStatus | { state: 'starting' } | { state: 'refused'; error: string | null };
 
-const STATUS_WORDS: Readonly<Record<Progress['state'], StringId | null>> = {
+type StatusWords = Readonly<Record<Progress['state'], StringId | null>>;
+
+const STATUS_WORDS: StatusWords = {
   starting: 'wifi.starting',
   waiting: 'wifi.waiting_for_phone',
   connected: 'wifi.waiting_for_phone',
@@ -34,6 +37,8 @@ const STATUS_WORDS: Readonly<Record<Progress['state'], StringId | null>> = {
   ended: null,
   refused: null
 };
+// The Hotspot dialog's steps say what it waits for, so only starting and joining get a line.
+const HOTSPOT_WORDS: StatusWords = { ...STATUS_WORDS, waiting: null, connected: null };
 
 /**
  * Starts a setup from a phone and asks the kiosk where it is every couple of seconds until the phone's network is
@@ -104,9 +109,12 @@ function useSetup(
 }
 
 /** The kiosk's state as a line, and its error (or that it could not be reached) as an alert. */
-function SetupProgress({ progress }: Readonly<{ progress: Progress }>) {
+function SetupProgress({
+  progress,
+  words: wordsFor = STATUS_WORDS
+}: Readonly<{ progress: Progress; words?: StatusWords }>) {
   const t = useT();
-  const words = STATUS_WORDS[progress.state];
+  const words = wordsFor[progress.state];
   let error: string | undefined;
   if (progress.state === 'refused') error = progress.error ?? t('wifi.unreachable');
   else if ('error' in progress) error = progress.error;
@@ -198,9 +206,10 @@ export function WifiPhoneDialog({ onEnd, onClose }: Readonly<SetupDialogProps>) 
 }
 
 /**
- * Hotspot: the kiosk makes its own Wi-Fi for a few minutes. Its code joins it (its name and password are there to type
- * too), and once a phone is on it the code is swapped for one that opens the page to choose the kiosk's network on, for
- * a phone that does not open it by itself. One code at a time, so a camera cannot read the wrong one.
+ * Hotspot, in two numbered steps, one open at a time so a camera cannot read the wrong code. Step 1: the kiosk's own
+ * Wi-Fi for a few minutes, its code to join it, and its name and password to type. Step 2, once a phone is on it: the
+ * code that opens the page to choose the kiosk's network on, for a phone that does not open it by itself. The step not
+ * open shows only its heading, so the move from one to the other is plain.
  */
 export function WifiHotspotDialog({ onEnd, onClose }: Readonly<SetupDialogProps>) {
   const t = useT();
@@ -221,27 +230,48 @@ export function WifiHotspotDialog({ onEnd, onClose }: Readonly<SetupDialogProps>
   return (
     <SetupDialog title={t('wifi.hotspot')} className="wifi-hotspot" onClose={() => onClose(leave())}>
       {info && (
-        <div className="wifi-hotspot-codes">
-          {isPhoneOn ? (
-            <figure className="wifi-hotspot-code" key="open">
-              <QrCode text={info.url} label={t('wifi.qr_open')} className="wifi-setup-qr" />
-              <figcaption>{t('wifi.scan_to_open')}</figcaption>
-            </figure>
-          ) : (
-            <figure className="wifi-hotspot-code" key="join">
-              <QrCode text={wifiQrText(info.ssid, info.password)} label={t('wifi.qr_join')} className="wifi-setup-qr" />
-              <figcaption>{t('wifi.scan_to_join')}</figcaption>
-            </figure>
-          )}
-          <dl className="wifi-hotspot-login">
-            <dt>{t('wifi.name')}</dt>
-            <dd data-testid="hotspot-name">{info.ssid}</dd>
-            <dt>{t('wifi.password')}</dt>
-            <dd data-testid="hotspot-password">{info.password}</dd>
-          </dl>
-        </div>
+        <ol className="wifi-hotspot-steps">
+          <HotspotStep
+            number={1}
+            title={t(isPhoneOn ? 'wifi.step_joined' : 'wifi.step_join')}
+            isOpen={!isPhoneOn}
+            isDone={isPhoneOn}
+          >
+            <QrCode text={wifiQrText(info.ssid, info.password)} label={t('wifi.qr_join')} className="wifi-setup-qr" />
+            <dl className="wifi-hotspot-login">
+              <dt>{t('wifi.name')}</dt>
+              <dd data-testid="hotspot-name">{info.ssid}</dd>
+              <dt>{t('wifi.password')}</dt>
+              <dd data-testid="hotspot-password">{info.password}</dd>
+            </dl>
+          </HotspotStep>
+          <HotspotStep number={2} title={t('wifi.step_open')} isOpen={isPhoneOn} isDone={false}>
+            <QrCode text={info.url} label={t('wifi.qr_open')} className="wifi-setup-qr" />
+          </HotspotStep>
+        </ol>
       )}
-      <SetupProgress progress={progress} />
+      <SetupProgress progress={progress} words={HOTSPOT_WORDS} />
     </SetupDialog>
+  );
+}
+
+/** One of the Hotspot dialog's steps: its number (a tick once done) and title, and what to do while it is open. */
+function HotspotStep({
+  number,
+  title,
+  isOpen,
+  isDone,
+  children
+}: Readonly<{ number: number; title: string; isOpen: boolean; isDone: boolean; children: ReactNode }>) {
+  return (
+    <li className="wifi-hotspot-step" data-open={isOpen} aria-current={isOpen ? 'step' : undefined}>
+      <h4 className="wifi-hotspot-step-title">
+        <span className="wifi-hotspot-step-number" aria-hidden="true">
+          {isDone ? <Check className="lucide" /> : number}
+        </span>
+        {title}
+      </h4>
+      {isOpen && <div className="wifi-hotspot-step-body">{children}</div>}
+    </li>
   );
 }
