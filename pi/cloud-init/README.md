@@ -98,7 +98,8 @@ The playbook also sets, among other things:
   needs no mode: the firmware finds it (`display_auto_detect=1` in `config.txt`, Raspberry Pi OS's default) and Cage
   runs it at its own. Its own mode is portrait, so set `kiosk_screen_rotation` to `90` or `270` (degrees clockwise,
   whichever way up it is mounted) in `/etc/the-max-mix/kiosk-vars.yml`: the picture and the touches turn with it from
-  the next kiosk restart; the boot console does not. A screen whose own mode has an
+  the next kiosk restart; the boot console does not. Where its small pixels leave everything small, set
+  `kiosk_screen_scale` too: `1.5` on the 1920x1200 one gives the app the 1280x800 page it is laid out for. A screen whose own mode has an
   odd horizontal timing (a 10.1-inch MPI107 does), which the Pi 4 cannot send, gets that mode with even timings when
   the kiosk starts (`screen-mode.ts --correct`); without that it would run at another mode it lists, such as 1920x1080.
 

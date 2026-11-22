@@ -24,12 +24,20 @@ wait_app() {
   echo "kiosk-session: the app at $url is not answering" >&2
 }
 
+# A panel with small pixels (kiosk_screen_scale in the Ansible role): Chromium draws the page this much bigger. Nothing
+# for 1, or for anything that is not a number.
+screen_scale=${KIOSK_SCREEN_SCALE:-1}
+scale=()
+if [[ $screen_scale =~ ^[0-9]+(\.[0-9]+)?$ && ! $screen_scale =~ ^[01](\.0+)?$ ]]; then
+  scale=(--force-device-scale-factor="$screen_scale")
+fi
+
 # Shows the app until Chromium exits. The kiosk-audio service's watchdog stops Chromium through the pid file when the
 # app stops sending heartbeats, and the loop below starts it again.
 run_chromium() {
   chromium --kiosk --ozone-platform=wayland --noerrdialogs --disable-infobars --no-first-run --password-store=basic \
     --autoplay-policy=no-user-gesture-required --disable-session-crashed-bubble --overscroll-history-navigation=0 \
-    --remote-debugging-port="$devtools_port" \
+    --remote-debugging-port="$devtools_port" "${scale[@]}" \
     "$1" &
   echo $! > "$chromium_pid"
   wait $!
