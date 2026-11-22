@@ -2,8 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { exchange } from './fixtures.ts';
 import { activeWifiUuid, addressOf, Hotspot, HotspotError, makePassword, wifiDevice } from './hotspot.ts';
-import { HOTSPOT_SSID } from './nmcli.ts';
 import type { HotspotOptions } from './hotspot.ts';
+import { HOTSPOT_SSID } from './nmcli.ts';
 import type { Run } from './nmcli.ts';
 
 const DEVICES = 'lo:loopback\nwlan0:wifi\neth0:ethernet\n';
