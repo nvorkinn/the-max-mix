@@ -25,7 +25,7 @@ const MODE = /^(\d+)x(\d+)/;
 export async function screenInfo(
   drm = '/sys/class/drm',
   backlight = '/sys/class/backlight',
-  rotation = Number(process.env.KIOSK_SCREEN_ROTATION)
+  rotation = Number(process.env['KIOSK_SCREEN_ROTATION'])
 ): Promise<ScreenInfo | null> {
   const size = await screenSize(drm);
   if (!size) return null;
