@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Check } from 'lucide-react';
+import { Check, LoaderCircle } from 'lucide-react';
 import { wifiQrText } from '../../../pi/kiosk-audio/qr';
 import { useLanguage } from '../../i18n/language';
 import { useT } from '../../i18n/translate';
@@ -37,8 +37,8 @@ const STATUS_WORDS: StatusWords = {
   ended: null,
   refused: null
 };
-// The Hotspot dialog's steps say what it waits for, so only starting and joining get a line.
-const HOTSPOT_WORDS: StatusWords = { ...STATUS_WORDS, waiting: null, connected: null };
+// The Hotspot dialog's steps say what it waits for, and step 2 which network it joins, so only starting gets a line.
+const HOTSPOT_WORDS: StatusWords = { ...STATUS_WORDS, waiting: null, connected: null, joining: null };
 
 /**
  * Starts a setup from a phone and asks the kiosk where it is every couple of seconds until the phone's network is
@@ -247,6 +247,14 @@ export function WifiHotspotDialog({ onEnd, onClose }: Readonly<SetupDialogProps>
           </HotspotStep>
           <HotspotStep number={2} title={t('wifi.step_open')} isOpen={isPhoneOn} isDone={false}>
             <QrCode text={info.url} label={t('wifi.qr_open')} className="wifi-setup-qr" />
+            {progress.state === 'joining' && progress.ssid !== undefined && (
+              <p className="wifi-hotspot-joining" role="status">
+                <LoaderCircle className="wifi-hotspot-joining-spinner animate-spin" aria-hidden="true" />
+                <span className="wifi-hotspot-joining-name" data-testid="hotspot-joining">
+                  {progress.ssid}
+                </span>
+              </p>
+            )}
           </HotspotStep>
         </ol>
       )}

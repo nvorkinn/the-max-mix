@@ -193,6 +193,8 @@ describe('the setup hotspot', () => {
       // eslint-disable-next-line no-await-in-loop -- one answer after another, each stubbed before it is asked
       await expect(hotspotStatus('en')).resolves.toEqual({ state: tablet });
     }
+    answer(200, { state: 'joining', ssid: 'Home' });
+    await expect(hotspotStatus('en')).resolves.toEqual({ state: 'joining', ssid: 'Home' });
     answer(200, { state: 'failed', error: 'Could not join Home: Wrong password. Check it and try again.' });
     await expect(hotspotStatus('nb')).resolves.toEqual({
       state: 'failed',

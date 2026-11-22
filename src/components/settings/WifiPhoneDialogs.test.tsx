@@ -184,9 +184,10 @@ describe('Settings › Wi-Fi over the hotspot', () => {
     expect(steps[0]).toHaveTextContent('Phone connected');
     expect(within(dialog).queryByTestId('hotspot-password')).not.toBeInTheDocument();
 
-    wifi.hotspotStatus.mockResolvedValue({ state: 'joining' });
+    wifi.hotspotStatus.mockResolvedValue({ state: 'joining', ssid: 'Home' });
     await poll();
-    expect(within(dialog).getByText('The phone chose a network. Joining it…')).toBeInTheDocument();
+    expect(within(dialog).getByTestId('hotspot-joining')).toHaveTextContent('Home');
+    expect(within(dialog).queryByText('The phone chose a network. Joining it…')).not.toBeInTheDocument();
     wifi.hotspotStatus.mockResolvedValue({ state: 'joined' });
     await poll();
     expect(onJoined).toHaveBeenCalledOnce();
