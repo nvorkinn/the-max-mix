@@ -65,8 +65,16 @@ sudo kiosk-pull https://github.com/nvorkinn/the-max-mix.git latest /var/lib/the-
 
 Once the first pull has worked, the first-boot script removes `network-config` and `user-data` from the card and turns
 cloud-init off (`/etc/cloud/cloud-init.disabled`), so the setup network is never applied again. Your Wi-Fi stays saved on
-the Pi, which keeps it working at your place; at its new home the Pi finds no network it knows, and the app's Wi-Fi screen
-joins theirs. Before it goes, sign everyone out of Spotify in Settings.
+the Pi, which keeps it working at your place. NetworkManager keeps each network as a netplan file
+(`/etc/netplan/90-NM-*.yaml`), which **Forget** deletes. Before it goes:
+
+1. Settings, **Spotify**: remove everyone.
+2. Settings, **Wi-Fi**: **Forget** each saved network. The Pi leaves the network it is on.
+3. Hold the clock for two seconds for the debug console, then **Register again**: the screen forgets its countdown-server
+   device and shows the pairing QR code, for the new owner to add it to their own account. Wait a minute before
+   unplugging, so Chromium has saved it.
+
+At its new home the Pi finds no network it knows, and the app's Wi-Fi screen joins theirs.
 
 Give the new owner the [one-page guide](../../docs/friend-guide.md) (print it, or send the link).
 

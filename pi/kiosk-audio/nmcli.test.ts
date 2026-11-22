@@ -8,6 +8,7 @@ import {
   Nmcli,
   parseActiveSsid,
   parseConnectRequest,
+  parseForgetRequest,
   parseScan,
   runCommand,
   ScanError,
@@ -262,6 +263,51 @@ describe('connect', () => {
     });
     attempt.resolve(ok());
     await expect(first).resolves.toEqual({ ok: true });
+  });
+});
+
+describe('saved networks', () => {
+  // aaaa-1 is Home, saved twice (bbbb-2 is ethernet); cccc-3 is the setup hotspot; dddd-4 is a network with a colon.
+  const SAVED =
+    'aaaa-1:802-11-wireless\nbbbb-2:802-3-ethernet\ncccc-3:802-11-wireless\ndddd-4:802-11-wireless\neeee-5:802-11-wireless\n';
+  const details: Record<string, string> = {
+    'aaaa-1': 'Home\ninfrastructure\n',
+    'cccc-3': 'kiosk-setup-1234\nap\n',
+    'dddd-4': 'Cafe\\:Wifi\n\n',
+    'eeee-5': 'Home\ninfrastructure\n'
+  };
+  const saved = (deleted: Result = ok()) =>
+    stub([
+      [['nmcli', '-t', '-f', 'UUID,TYPE', 'connection', 'show'], ok(SAVED)],
+      [['nmcli', '-g'], argv => ok(details[argv.at(-1) ?? ''] ?? '')],
+      [['nmcli', 'connection', 'delete'], deleted]
+    ]);
+
+  it('lists each saved network once, but not the setup hotspot', async () => {
+    const { run } = saved();
+    await expect(new Nmcli(run).saved()).resolves.toEqual(['Cafe:Wifi', 'Home']);
+  });
+
+  it('forgets every saved connection to a network', async () => {
+    const { run, called } = saved();
+    await expect(new Nmcli(run).forget('Home')).resolves.toEqual({ ok: true });
+    expect(called('nmcli', 'connection', 'delete')).toEqual([
+      ['nmcli', 'connection', 'delete', 'uuid', 'aaaa-1'],
+      ['nmcli', 'connection', 'delete', 'uuid', 'eeee-5']
+    ]);
+  });
+
+  it('says when NetworkManager would not forget it', async () => {
+    vi.spyOn(console, 'info').mockReturnValue();
+    const { run } = saved({ code: 4, stdout: '', stderr: 'Error: not authorized' });
+    await expect(new Nmcli(run).forget('Home')).resolves.toEqual({ ok: false, error: ERRORS.forget });
+  });
+
+  it('takes a network name from the request', () => {
+    expect(parseForgetRequest({ ssid: 'Home' })).toBe('Home');
+    for (const body of [null, 'Home', {}, { ssid: '' }, { ssid: 7 }, { ssid: 'x'.repeat(33) }]) {
+      expect(parseForgetRequest(body)).toBeNull();
+    }
   });
 });
 

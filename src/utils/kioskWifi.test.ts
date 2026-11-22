@@ -1,9 +1,11 @@
-// cspell:ignore Kunne ikke søke etter nettverk Feil passord Sjekk prøv igjen koble nettverket Bluetooth tilgjengelig telefonen brukes Hotspoten startes
+// cspell:ignore glemme Kunne ikke søke etter nettverk Feil passord Sjekk prøv igjen koble nettverket Bluetooth tilgjengelig telefonen brukes Hotspoten startes
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  forgetWifi,
   hotspotStatus,
   joinWifi,
   phoneSetupStatus,
+  savedWifi,
   scanWifi,
   startHotspot,
   startPhoneSetup,
@@ -25,6 +27,28 @@ function fail() {
 }
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe('saved networks', () => {
+  it('lists the networks the kiosk keeps, and none when it does not answer', async () => {
+    answer(200, { networks: ['Home', '', 7, 'Office'] });
+    await expect(savedWifi()).resolves.toEqual(['Home', 'Office']);
+    fail();
+    await expect(savedWifi()).resolves.toEqual([]);
+  });
+
+  it('forgets one, saying why when the kiosk could not', async () => {
+    const fetchMock = answer(200, { ok: true });
+    await expect(forgetWifi('Home', 'en')).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:7341/wifi/forget',
+      expect.objectContaining({ method: 'POST' })
+    );
+    answer(200, { ok: false, error: 'Could not forget the network.' });
+    await expect(forgetWifi('Home', 'nb')).resolves.toEqual({ ok: false, error: 'Kunne ikke glemme nettverket.' });
+    fail();
+    await expect(forgetWifi('Home', 'en')).resolves.toEqual({ ok: false, error: null });
+  });
+});
 
 describe('scanWifi', () => {
   it('lists the networks the kiosk sees, dropping anything malformed', async () => {

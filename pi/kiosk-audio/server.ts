@@ -29,6 +29,8 @@
 //                           address on it, each or null (the app's origin only)
 //   GET  /wifi/networks     {"networks": [{"ssid", "signal", "bars", "security"}, …]}   or 503 {"error"}: a safe message
 //   POST /wifi/connect      {"ssid", "password", "hidden", "security"}   join a network: {"ok": true} or {"ok": false, "error"}
+//   GET  /wifi/saved        {"networks": ["Home", …]}: the networks the Pi keeps, to join again (the app's origin only)
+//   POST /wifi/forget       {"ssid"}   delete the Pi's saved connections to a network: {"ok": true} or {"ok": false, "error"}
 //   POST /wifi/phone        start Wi-Fi setup from a phone over Bluetooth for a few minutes (phone-setup.ts): {"ok": true}
 //                           or 503 {"error"}   POST /wifi/phone/stop  stop it
 //                           GET /wifi/phone  {"state": "idle" | "waiting" | "joining" | "joined", "error"?}
@@ -85,7 +87,7 @@ import type { HotspotInfo, HotspotStatus } from './hotspot.ts';
 import type { LyricsQuery } from './lyrics-sources.ts';
 import { cached, findLyrics, parseLyricsQuery } from './lyrics.ts';
 import type { LyricsHit } from './lyrics.ts';
-import { parseConnectRequest } from './nmcli.ts';
+import { parseConnectRequest, parseForgetRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
 import { discoverPhones, nameKiosk } from './phone-discovery.ts';
 import { forgetPhone, PhonePairing, readPhones, savePhone } from './phone-pairing.ts';
@@ -192,6 +194,10 @@ interface Wifi {
   /** The Pi's IPv4 address on its network, or null. */
   address: () => string | null;
   connect: (request: ConnectRequest) => Promise<ConnectResult>;
+  /** The names of the networks the Pi keeps. */
+  saved: () => Promise<string[]>;
+  /** Deletes the Pi's saved connections to a network. */
+  forget: (ssid: string) => Promise<ConnectResult>;
 }
 
 /** An error the app reported, for the journal. */
@@ -591,6 +597,18 @@ function describeError(error: unknown): string {
   return messages.join(': ');
 }
 
+/** POST /wifi/connect: joins the network, or null for a bad request. */
+const joinWifi = (body: unknown, wifi: Wifi): Promise<ConnectResult> | null => {
+  const join = parseConnectRequest(body);
+  return join ? wifi.connect(join) : null;
+};
+
+/** POST /wifi/forget: forgets the network, or null for a bad request. */
+const forgetWifi = (body: unknown, wifi: Wifi): Promise<ConnectResult> | null => {
+  const ssid = parseForgetRequest(body);
+  return ssid === null ? null : wifi.forget(ssid);
+};
+
 /** The Wi-Fi POSTs: the app's origin only, since each changes the network or the radio. */
 async function postWifi(request: IncomingMessage, response: ServerResponse, origin: string, deps: Deps): Promise<void> {
   const { wifi } = deps;
@@ -630,8 +648,10 @@ async function postWifi(request: IncomingMessage, response: ServerResponse, orig
     response.writeHead(204).end();
     return;
   }
-  const body = parseConnectRequest(JSON.parse(await readBody(request)) as unknown);
-  if (body) sendJson(response, 200, await wifi.connect(body));
+  const body = JSON.parse(await readBody(request)) as unknown;
+  const answer = request.url === '/wifi/forget' ? forgetWifi(body, wifi) : joinWifi(body, wifi);
+  const result = await answer;
+  if (result) sendJson(response, 200, result);
   else response.writeHead(400).end();
 }
 
@@ -640,6 +660,13 @@ async function get(url: string, response: ServerResponse, deps: Deps, isApp: boo
     case '/wifi/status': {
       // The name of the home network is for the app's settings, not for any page that asks.
       if (isApp) sendJson(response, 200, { ssid: await deps.wifi.current(), address: deps.wifi.address() });
+      else response.writeHead(403).end();
+
+      break;
+    }
+    case '/wifi/saved': {
+      // Like the network it is on, the networks the Pi keeps are for the app's settings only.
+      if (isApp) sendJson(response, 200, { networks: await deps.wifi.saved() });
       else response.writeHead(403).end();
 
       break;
@@ -796,9 +823,14 @@ export function handleRequest(origin: string, deps: Deps) {
         await handleGet(request, response, origin, deps);
       } else if (
         request.method === 'POST' &&
-        ['/wifi/connect', '/wifi/phone', '/wifi/phone/stop', '/wifi/hotspot', '/wifi/hotspot/stop'].includes(
-          request.url ?? ''
-        )
+        [
+          '/wifi/connect',
+          '/wifi/forget',
+          '/wifi/phone',
+          '/wifi/phone/stop',
+          '/wifi/hotspot',
+          '/wifi/hotspot/stop'
+        ].includes(request.url ?? '')
       ) {
         await postWifi(request, response, origin, deps);
       } else if (request.method === 'POST') {

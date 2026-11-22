@@ -66,6 +66,7 @@ const WORDS = {
     nb: 'Kobler allerede til. Vent til det er ferdig.'
   },
   'error.scan': { en: 'Could not scan for networks.', nb: 'Kunne ikke søke etter nettverk.' },
+  'error.forget': { en: 'Could not forget the network.', nb: 'Kunne ikke glemme nettverket.' },
   'error.noBluetooth': {
     en: 'Bluetooth is not available, so the phone cannot be used.',
     nb: 'Bluetooth er ikke tilgjengelig, så telefonen kan ikke brukes.'
