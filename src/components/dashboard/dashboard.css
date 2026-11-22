@@ -669,18 +669,25 @@ button.dashboard-notice {
   flex: 1;
   min-width: 0;
 }
-.dashboard-notice-title,
+.dashboard-notice-title-text,
 .dashboard-notice-summary {
   display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* The box that cuts a long title off: its words show whole while they roll across (rollAcross.ts). */
 .dashboard-notice-title {
+  display: block;
+  overflow: hidden;
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.25;
+}
+.dashboard-notice-title[data-rolling] .dashboard-notice-title-text {
+  width: max-content;
+  overflow: visible;
 }
 .dashboard-notice-summary {
   font-size: 14px;
@@ -1178,7 +1185,7 @@ button.dashboard-notice {
 .dashboard-dest[data-over-queue] {
   flex: 0 1 auto;
 }
-/* A name cut short with "…", which while it rolls across (DepartureRows.tsx) shows whole, the box cutting it off. */
+/* A name cut short with "…", which while it rolls across (rollAcross.ts) shows whole, the box cutting it off. */
 .dashboard-dest-name {
   display: block;
   overflow: hidden;
