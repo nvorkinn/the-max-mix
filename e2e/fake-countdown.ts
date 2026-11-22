@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 
 const fixture = JSON.parse(
   readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json', import.meta.url), 'utf8')
-) as { config: object };
+) as { config: { display: { quiet_hours: object } } };
 
 const search = JSON.parse(
   readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/search.json', import.meta.url), 'utf8')
@@ -26,9 +26,15 @@ export const FEED = `${API}/api/devices/feed`;
 
 /**
  * countdown-api's example config, once someone owns the kiosk. Before that there's none: a touchscreen registers through
- * its owner's sign-in, so the server doesn't know an unowned kiosk's secret.
+ * its owner's sign-in, so the server doesn't know an unowned kiosk's secret. Its quiet hours are off here, so that no
+ * test's screen sleeps because of the hour it runs at.
  */
-export const DEVICE_CONFIGS = { owned: fixture.config };
+export const DEVICE_CONFIGS = {
+  owned: {
+    ...fixture.config,
+    display: { ...fixture.config.display, quiet_hours: { ...fixture.config.display.quiet_hours, on: false } }
+  }
+};
 
 const onTheHour = (hour: number) => `2026-11-15T${String(hour).padStart(2, '0')}:00`;
 // What each hour of 15 November brings: [temperature, WMO code]; cloudy at 8° but for the morning the screenshots show.

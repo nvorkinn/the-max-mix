@@ -54,6 +54,7 @@ export const STRINGS = {
   'general.screen_sleep': { en: 'Screen sleep', nb: 'Hvilemodus' },
   'general.never': { en: 'Never', nb: 'Aldri' },
   'general.minutes': { en: '{minutes} min', nb: '{minutes} min' },
+  'general.brightness': { en: 'Brightness', nb: 'Lysstyrke' },
   'general.quiet_hours': { en: 'Quiet hours', nb: 'Stille timer' },
   'general.from': { en: 'From', nb: 'Fra' },
   'general.to': { en: 'To', nb: 'Til' },

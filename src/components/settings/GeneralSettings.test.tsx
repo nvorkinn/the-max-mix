@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { TouchscreenConfig } from 'countdown-api';
 import fixture from '../../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import search from '../../../vendor/countdown-api/src/countdown_api/fixtures/search.json';
@@ -197,6 +197,19 @@ describe('noticeBoardFor', () => {
     expect(noticeBoardFor('m1  1ae')).toEqual({ postcode: 'M1 1AE', country: 'GB' });
     expect(noticeBoardFor('015')).toBeNull();
     expect(noticeBoardFor('London')).toBeNull();
+  });
+
+  it('sets the brightness as the slider moves, on a kiosk whose screen has one to set', () => {
+    const onBrightnessChange = vi.fn();
+    const { rerender } = render(<GeneralSettings brightness={80} onBrightnessChange={onBrightnessChange} />);
+    const slider = screen.getByRole('slider', { name: 'Brightness' });
+    expect(slider).toHaveValue('80');
+    expect(screen.getByText('80%')).toBeInTheDocument();
+    fireEvent.change(slider, { target: { value: '45' } });
+    expect(onBrightnessChange).toHaveBeenCalledExactlyOnceWith(45);
+
+    rerender(<GeneralSettings screenSleep={5} onScreenSleepChange={vi.fn()} />);
+    expect(screen.queryByRole('slider', { name: 'Brightness' })).not.toBeInTheDocument();
   });
 
   describe('quiet hours', () => {

@@ -1050,6 +1050,54 @@ describe('TabletView', () => {
         setPlayer({ playbackMode: 'browser', browserDeviceId: 'web-1', playbackState: null });
       });
 
+      describe('with a backlight the Pi can set', () => {
+        const BACKLIT = {
+          ...fixture.config,
+          brightness_control: true,
+          display: { sleep_minutes: 15, brightness: 80, quiet_hours: { on: false, start: 22 * 60, end: 7 * 60 } }
+        } as TouchscreenConfig;
+        /** The percentages the kiosk was asked to set its backlight to, in order. */
+        const backlights = (fetch: ReturnType<typeof vi.fn>) =>
+          fetch.mock.calls
+            .filter(([url]) => String(url).endsWith('/display/brightness'))
+            .map(([, init]) => (JSON.parse((init as { body: string }).body) as { percent: number }).percent);
+
+        it('sets it to the brightness setting, dims with it instead of darkening the page, and sets it again on waking', async () => {
+          vi.useFakeTimers({ now: new Date('2026-01-01T12:00:00') });
+          vi.spyOn(deviceConfig, 'loadDeviceConfig').mockResolvedValue(BACKLIT);
+          const fetch = vi.fn(() => Promise.resolve(new Response(null, { status: 204 })));
+          vi.stubGlobal('fetch', fetch);
+          renderOnSpotifyTab(<TabletView />);
+          await minutes(1);
+          expect(backlights(fetch)).toEqual([80]);
+          await minutes(5);
+          expect(screen.getByRole('dialog', { name: 'Dimmed screen' })).toHaveClass('sleep-screen-clear');
+          expect(backlights(fetch)).toEqual([80, 24]);
+          fireEvent.click(screen.getByRole('button', { name: 'Wake the screen' }));
+          expect(backlights(fetch)).toEqual([80, 24, 80]);
+        });
+
+        it('keeps quiet hours on the server, and hands it the ones set on the kiosk before', async () => {
+          vi.useFakeTimers({ now: new Date('2026-01-01T12:00:00') });
+          const hours = { on: true, start: 23 * 60, end: 6 * 60 };
+          localStorage.setItem('maxmix.quietHours', JSON.stringify(hours));
+          const before = { ...BACKLIT, display: { sleep_minutes: 15, brightness: 80 } } as TouchscreenConfig;
+          vi.spyOn(deviceConfig, 'loadDeviceConfig').mockResolvedValue(before);
+          const save = vi
+            .spyOn(deviceConfig, 'saveConfigSection')
+            .mockImplementation((section, value) => Promise.resolve({ saved: { ...before, [section]: value } }));
+          vi.stubGlobal(
+            'fetch',
+            vi.fn(() => Promise.resolve(new Response(null, { status: 204 })))
+          );
+          renderOnSpotifyTab(<TabletView />);
+          // The config loads, then the save waits out its debounce.
+          await minutes(1);
+          await minutes(1);
+          expect(save).toHaveBeenCalledExactlyOnceWith('display', { ...before.display, quiet_hours: hours });
+        });
+      });
+
       it('shows the Dashboard after a minute, dims it five minutes later and sleeps after the chosen delay', async () => {
         vi.useFakeTimers({ now: new Date('2026-01-01T12:00:00') });
         localStorage.setItem('maxmix.screenSleep', '15');

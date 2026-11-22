@@ -2174,6 +2174,27 @@ body:has(.app-dialog[open]) {
 .settings-choice svg {
   color: var(--accent);
 }
+/* The brightness slider, between its sun and its percentage. */
+.brightness-setting {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+.brightness-range {
+  flex: 1;
+}
+.brightness-value {
+  min-width: 3em;
+  font-size: 20px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
 .quiet-hours {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3115,7 +3136,12 @@ input:disabled {
   background: rgb(0 0 0 / 50%);
   animation: sleep-screen-dim 1s ease-out;
 }
-.sleep-screen-dimmed::backdrop {
+.sleep-screen-dimmed::backdrop,
+.sleep-screen-clear::backdrop {
+  background: transparent;
+}
+/* Dimmed by the backlight: the layer only takes the tap that wakes the screen. */
+.sleep-screen-clear {
   background: transparent;
 }
 @keyframes sleep-screen-dim {

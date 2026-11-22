@@ -28,6 +28,7 @@ import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '
 import { useSpeakerSelection } from '../speakers/useSpeakerSelection';
 import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
+import { BRIGHTNESS_MAX, brightnessOf, dimmedBrightness, setBacklight } from '../utils/backlight';
 import { loadQuietHours, isQuietTime, saveQuietHours } from '../utils/quietHours';
 import type { QuietHours } from '../utils/quietHours';
 import { setLyricsStyle } from '../utils/lyricsStyle';
@@ -303,10 +304,34 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     setLocalScreenSleep(minutes);
     setScreenSleep(minutes);
   };
-  const [quietHours, setQuietHours] = useState(loadQuietHours);
+  // Quiet hours: the server's once someone owns the kiosk, kept locally for starts without it. Hours set on the kiosk
+  // before the server kept them are handed to it once.
+  const [localQuietHours, setLocalQuietHours] = useState(loadQuietHours);
+  const serverQuietHours = display?.quiet_hours;
+  const quietHours = serverQuietHours ?? localQuietHours;
+  useEffect(() => {
+    if (serverQuietHours) saveQuietHours(serverQuietHours);
+  }, [serverQuietHours]);
+  const saveConfigSection = deviceConfig.save;
+  const hasHandedQuietHoursRef = useRef(false);
+  useEffect(() => {
+    if (!display || display.quiet_hours || !localQuietHours.on || hasHandedQuietHoursRef.current) return;
+    hasHandedQuietHoursRef.current = true;
+    saveConfigSection('display', { ...display, quiet_hours: localQuietHours });
+  }, [display, localQuietHours, saveConfigSection]);
   const changeQuietHours = (hours: QuietHours) => {
-    setQuietHours(hours);
+    if (display) {
+      deviceConfig.save('display', { ...display, quiet_hours: hours });
+      return;
+    }
+    setLocalQuietHours(hours);
     saveQuietHours(hours);
+  };
+  // The brightness setting, on a kiosk whose panel has a backlight the Pi can set (utils/backlight).
+  const hasBacklight = onKiosk && ownedConfig?.brightness_control === true;
+  const brightness = display ? brightnessOf(display) : BRIGHTNESS_MAX;
+  const changeBrightness = (percent: number) => {
+    if (display) deviceConfig.save('display', { ...display, brightness: percent });
   };
   const kioskUpdate = useKioskUpdate(onKiosk);
   const sleep = useScreenSleep({
@@ -330,6 +355,12 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     setSlowPolling(sleep.asleep || followingSonos);
     setSonosSlowPolling(sleep.asleep);
   }, [sleep.asleep, followingSonos, setSlowPolling, setSonosSlowPolling]);
+  // The backlight follows the setting, turned down while the screen is dimmed. Asleep, the Pi turns the output off, and
+  // waking sets the backlight again.
+  const backlight = sleep.dimmed ? dimmedBrightness(brightness) : brightness;
+  useEffect(() => {
+    if (hasBacklight && !sleep.asleep) setBacklight(backlight);
+  }, [hasBacklight, backlight, sleep.asleep]);
   let screenState = 'Awake';
   if (sleep.asleep) screenState = 'Asleep';
   else if (sleep.dimmed) screenState = 'Dimmed';
@@ -752,6 +783,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               signInError={signInError || (playerProblem?.recovery === 'sign-in' ? playerProblem.message : null)}
               screenSleep={screenSleepMinutes}
               onScreenSleepChange={changeScreenSleep}
+              brightness={hasBacklight ? brightness : undefined}
+              onBrightnessChange={changeBrightness}
               quietHours={quietHours}
               onQuietHoursChange={changeQuietHours}
               themeColour={themeColour}
@@ -820,7 +853,9 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           )}
         <UpdateConsole update={kioskUpdate} />
 
-        {(sleep.asleep || sleep.dimmed) && <SleepScreen dimmed={sleep.dimmed} onWake={sleep.wake} />}
+        {(sleep.asleep || sleep.dimmed) && (
+          <SleepScreen dimmed={sleep.dimmed} backlit={hasBacklight} onWake={sleep.wake} />
+        )}
       </div>
     </LanguageContext>
   );
