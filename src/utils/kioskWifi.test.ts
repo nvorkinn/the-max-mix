@@ -1,3 +1,4 @@
+// cspell:ignore Kunne ikke søke etter nettverk Feil passord Sjekk prøv igjen
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { joinWifi, scanWifi } from './kioskWifi';
 

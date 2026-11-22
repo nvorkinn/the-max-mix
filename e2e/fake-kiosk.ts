@@ -68,7 +68,7 @@ export async function fakeKioskOutputs(page: Page, outputs: FakeOutput[]) {
 }
 
 /** The networks the Pi's Wi-Fi sees (pi/kiosk-audio/nmcli.ts), the one it is on first. */
-export const FAKE_NETWORKS = [
+const FAKE_NETWORKS = [
   { ssid: 'Home network', bars: 4, security: 'psk' },
   { ssid: 'Neighbour', bars: 3, security: 'psk' },
   { ssid: 'Cafe guest', bars: 2, security: 'open' },
@@ -80,8 +80,10 @@ export const FAKE_NETWORKS = [
  * any other request.
  */
 export function wifiAnswer(request: Request, ssid: string | null) {
-  if (request.method() !== 'GET') return;
-  const path = new URL(request.url()).pathname;
-  if (path === '/wifi/status') return { headers: CORS, json: { ssid, address: null } };
-  if (path === '/wifi/networks') return { headers: CORS, json: { networks: FAKE_NETWORKS } };
+  const answers: Record<string, object | undefined> = {
+    '/wifi/status': { ssid, address: null },
+    '/wifi/networks': { networks: FAKE_NETWORKS }
+  };
+  const json = request.method() === 'GET' ? answers[new URL(request.url()).pathname] : undefined;
+  return json && { headers: CORS, json };
 }
