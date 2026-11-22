@@ -10,6 +10,7 @@ export const STRINGS = {
   'settings.general': { en: 'General', nb: 'Generelt' },
   'settings.countdown': { en: 'Countdown', nb: 'Countdown' },
   'settings.parcels': { en: 'Parcels', nb: 'Pakker' },
+  'settings.screen': { en: 'Screen', nb: 'Skjerm' },
   'settings.appearance': { en: 'Appearance', nb: 'Utseende' },
   'settings.wifi': { en: 'Wi-Fi', nb: 'Wi-Fi' },
   'settings.spotify': { en: 'Spotify', nb: 'Spotify' },

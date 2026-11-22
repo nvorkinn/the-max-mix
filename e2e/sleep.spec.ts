@@ -37,8 +37,8 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     // Quiet hours (22:00 to 07:00, and the page's clock says midnight) sleep the screen a minute after the last touch.
     await page.getByRole('tab', { name: 'Settings' }).click();
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
-    await showSection(settings, 'General');
-    await settings.getByRole('group', { name: 'Quiet hours' }).getByRole('button', { name: 'On' }).click();
+    await showSection(settings, 'Screen');
+    await settings.getByRole('switch', { name: 'Quiet hours' }).click();
     await expect(settings.getByRole('group', { name: 'From' })).toBeVisible();
     await advance(page, 55_000, 5000);
     const awake = reads();
@@ -65,7 +65,7 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     await openSpotifyTab(page);
     await page.getByRole('tab', { name: 'Settings' }).click();
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
-    await showSection(settings, 'General');
+    await showSection(settings, 'Screen');
     const choices = settings.getByRole('group', { name: 'Screen sleep' });
     await choices.getByRole('button', { name: '2 min', exact: true }).click();
     await expect(choices.getByRole('button', { name: '2 min', exact: true })).toHaveAttribute('aria-pressed', 'true');
@@ -137,9 +137,9 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
     await page.getByRole('tab', { name: 'Settings' }).click();
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
-    await showSection(settings, 'General');
+    await showSection(settings, 'Screen');
     // Quiet hours start out 22:00 to 07:00, and the page's clock says midnight.
-    await settings.getByRole('group', { name: 'Quiet hours' }).getByRole('button', { name: 'On' }).click();
+    await settings.getByRole('switch', { name: 'Quiet hours' }).click();
     await expect(settings.getByRole('group', { name: 'From' })).toBeVisible();
 
     const asleep = page.getByRole('dialog', { name: 'Sleep screen' });

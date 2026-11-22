@@ -9,6 +9,7 @@ import { describeStop, learnStopNames, rememberStop } from '../../countdown/sear
 import type { DeviceConfig } from '../../hooks/useDeviceConfig';
 import { useDragToReorder } from '../../hooks/useDragToReorder';
 import { useT } from '../../i18n/translate';
+import SettingsToggle from './SettingsToggle';
 import StopSearch from './StopSearch';
 
 /**
@@ -109,24 +110,14 @@ export default function CountdownSettings({
         </div>
       </section>
 
-      <section className="settings-group countdown-grouping">
-        <h5 className="settings-group-title" id="group-by-route-label">
-          {t('countdown.group_by_route')}
-        </h5>
+      <SettingsToggle
+        id="group-by-route-label"
+        title={t('countdown.group_by_route')}
+        on={groupByRoute}
+        onChange={value => onSave('arrivals', { ...config.arrivals, group_by_route: value })}
+        className="countdown-grouping"
+      >
         <div className="countdown-grouping-row">
-          <div className="settings-segmented" role="group" aria-labelledby="group-by-route-label">
-            {[false, true].map(value => (
-              <button
-                type="button"
-                key={String(value)}
-                aria-pressed={groupByRoute === value}
-                onClick={() => onSave('arrivals', { ...config.arrivals, group_by_route: value })}
-                className="settings-segment"
-              >
-                {t(value ? 'common.on' : 'common.off')}
-              </button>
-            ))}
-          </div>
           {/* Still under reduced motion: its last frame, how the board ends up. */}
           <picture className="countdown-grouping-picture">
             <source media="(prefers-reduced-motion: reduce)" srcSet={groupByRoute ? groupedOnStill : groupedOffStill} />
@@ -137,7 +128,7 @@ export default function CountdownSettings({
             />
           </picture>
         </div>
-      </section>
+      </SettingsToggle>
 
       {isSearching && (
         <StopSearch

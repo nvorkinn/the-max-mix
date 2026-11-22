@@ -92,9 +92,9 @@ describe('CountdownSettings', () => {
 
   it('groups the boards by route, or not, saving it with the stops', async () => {
     const onSave = setup();
-    const group = screen.getByRole('group', { name: 'Group by route' });
-    expect(within(group).getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.click(within(group).getByRole('button', { name: 'On' }));
+    const grouping = screen.getByRole('switch', { name: 'Group by route' });
+    expect(grouping).not.toBeChecked();
+    await userEvent.click(grouping);
     expect(onSave).toHaveBeenCalledExactlyOnceWith('arrivals', { ...OWNED.arrivals, group_by_route: true });
   });
 

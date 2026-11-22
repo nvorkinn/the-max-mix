@@ -3,6 +3,7 @@ import { Check } from 'lucide-react';
 import { swatchOf, THEME_COLOURS } from '../../utils/themeColour';
 import type { ThemeColour } from '../../utils/themeColour';
 import { useT } from '../../i18n/translate';
+import SettingsToggle from './SettingsToggle';
 
 /** The colour of the track title, player controls and highlights. */
 function ColourChoice({
@@ -43,32 +44,13 @@ function ColourChoice({
 function DynamicChoice({ on, onChange }: Readonly<{ on: boolean; onChange: (on: boolean) => void }>) {
   const t = useT();
   return (
-    <section className="settings-group">
-      <h5 className="settings-group-title" id="dynamic-colour-label">
-        {t('appearance.dynamic')}
-      </h5>
-      <p className="settings-group-note text-muted" id="dynamic-colour-note">
-        {t('appearance.dynamic_note')}
-      </p>
-      <div
-        className="settings-segmented"
-        role="group"
-        aria-labelledby="dynamic-colour-label"
-        aria-describedby="dynamic-colour-note"
-      >
-        {[false, true].map(value => (
-          <button
-            type="button"
-            key={String(value)}
-            aria-pressed={on === value}
-            onClick={() => onChange(value)}
-            className="settings-segment"
-          >
-            {t(value ? 'common.on' : 'common.off')}
-          </button>
-        ))}
-      </div>
-    </section>
+    <SettingsToggle
+      id="dynamic-colour-label"
+      title={t('appearance.dynamic')}
+      note={t('appearance.dynamic_note')}
+      on={on}
+      onChange={onChange}
+    />
   );
 }
 
