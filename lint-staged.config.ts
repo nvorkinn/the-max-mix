@@ -29,7 +29,7 @@ const formatAndLintData = (files: string[]) => {
 
 const tasks = {
   '{*.{js,mjs,ts},{src,scripts,e2e,pi}/**/*.{js,mjs,ts,tsx}}': [prettier, lint],
-  '{ansible/roles/kiosk/files/bin/*,ansible/tests/*.sh}': shellcheck,
+  '{ansible/roles/kiosk/files/bin/*,ansible/tests/*.sh,pi/tools/kiosk-handover}': shellcheck,
   '*.md': [prettier, (files: string[]) => `markdownlint-cli2 ${quote(files)}`],
   '*.{yml,yaml}': prettier,
   '*.css': [prettier, (files: string[]) => `stylelint --max-warnings 0 ${quote(files)}`],

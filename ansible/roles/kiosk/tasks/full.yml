@@ -386,13 +386,18 @@
   loop:
     - { src: bin/kiosk-session, dest: /usr/local/bin/kiosk-session, mode: '0755' }
     - { src: bin/kiosk-display, dest: /usr/local/bin/kiosk-display, mode: '0755' }
-    - { src: bin/kiosk-handover, dest: /usr/local/sbin/kiosk-handover, mode: '0755' }
     - { src: bin/kiosk-pull, dest: /usr/local/sbin/kiosk-pull, mode: '0755' }
     - { src: bin/kiosk-status, dest: /usr/local/sbin/kiosk-status, mode: '0755' }
     - { src: bin/kiosk-ssh-keys, dest: /usr/local/sbin/kiosk-ssh-keys, mode: '0755' }
   loop_control:
     label: '{{ item.dest }}'
   notify: Ask for a kiosk restart
+
+# Releases up to v2.19.0 installed pi/tools/kiosk-handover; it now runs from the pulled release (pi/cloud-init/README.md).
+- name: full | Remove the installed handover script
+  ansible.builtin.file:
+    path: /usr/local/sbin/kiosk-handover
+    state: absent
 
 # Spotify's sign-in page needs a keyboard, and Cage has no protocol for a system one, so a small Chromium extension draws
 # its own on Spotify's sign-in pages. The same extension draws a button back to the app on every page outside the app, as

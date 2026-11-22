@@ -84,8 +84,9 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Build
         run: npm run build
-      # What the Pis install (see kiosk-pull): the three folders the playbook installs from, at the tag, and release.json
-      # with what the playbook would otherwise ask git (roles/kiosk/defaults/main.yml, kiosk_release_info).
+      # What the Pis install (see kiosk-pull): the three folders the playbook installs from, at the tag, kiosk-handover (run
+      # from the bundle by hand, pi/cloud-init/README.md) and release.json with what the playbook would otherwise ask git
+      # (roles/kiosk/defaults/main.yml, kiosk_release_info).
       - name: Pack the Pi bundle
         run: |
           jq --null-input --arg tag "$TAG" --arg commit "$(git rev-parse HEAD)" \
@@ -93,7 +94,7 @@ jobs:
             "$(git rev-parse HEAD:ansible)" "$(git rev-parse HEAD:pi/kiosk-audio)" "$(git rev-parse HEAD:pi/kiosk-keyboard)" \
             > "$RUNNER_TEMP/release.json"
           git archive --format=tar.gz --output="$RUNNER_TEMP/the-max-mix-pi.tar.gz" \
-            --add-file="$RUNNER_TEMP/release.json" HEAD ansible pi/kiosk-audio pi/kiosk-keyboard
+            --add-file="$RUNNER_TEMP/release.json" HEAD ansible pi/kiosk-audio pi/kiosk-keyboard pi/tools/kiosk-handover
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pi-bundle
