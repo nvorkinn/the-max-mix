@@ -569,6 +569,39 @@
   background: var(--text);
 }
 
+/* Always under the weather (and the outlook), the coming hours' trend in one row (RailPages.tsx's TREND_ sizes). */
+.dashboard-trend {
+  flex: none;
+  margin-bottom: 26px;
+}
+.dashboard-hours {
+  height: 52px;
+  display: flex;
+  justify-content: space-between;
+  padding-right: 6px;
+}
+.dashboard-hour {
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 8px;
+  align-items: center;
+}
+.dashboard-hour time {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--muted);
+}
+.dashboard .dashboard-hour svg.lucide {
+  width: 26px;
+  height: 26px;
+}
+.dashboard-hour strong {
+  font-size: 22px;
+  font-weight: 700;
+}
+
 /*
   Under the weather, the notices with the Tube's status under them, built up from the bottom. When they don't fit, they
   page through like the boards along the bottom: the page on show (--slot 0) slides out to the left (-1) as the next
@@ -892,31 +925,6 @@ button.dashboard-notice {
   align-items: flex-start;
   padding: 4px 24px 0;
 }
-.dashboard-hours {
-  display: flex;
-  gap: 26px;
-  text-align: center;
-}
-.dashboard-hour {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-.dashboard-hour time {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--muted);
-}
-.dashboard .dashboard-hour svg.lucide {
-  width: 30px;
-  height: 30px;
-}
-.dashboard-hour strong {
-  font-size: 24px;
-  font-weight: 700;
-}
-
 /* Four rows per board. */
 .dashboard-departures {
   position: relative;

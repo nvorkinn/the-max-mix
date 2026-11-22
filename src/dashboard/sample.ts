@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import type {
   DepartureBoardProps,
-  HourlyStripProps,
+  HourlyTrendProps,
   NoticeBoardProps,
   TabBarProps,
   StopBoardProps,
@@ -36,7 +36,6 @@ export const SAMPLE = {
         condition: 'Partly cloudy',
         summary: 'Heavy rain from 14:00'
       },
-      { period: 'tonight', temperature: 6, sky: 'rain', condition: 'Showers', summary: null },
       {
         period: 'tomorrow',
         temperature: 12,
@@ -44,22 +43,19 @@ export const SAMPLE = {
         condition: 'Cloudy',
         summary: 'Dry all day',
         summaryIcon: 'sun'
-      },
-      { period: 'weekend', temperature: 14, sky: 'clear', condition: 'Sunny spells', summary: null }
+      }
     ]
   } satisfies WeatherBlockProps,
 
   hourly: {
     hours: [
       { time: hour('10'), temperature: 9, sky: 'partly-cloudy', isDay: true },
-      { time: hour('11'), temperature: 10, sky: 'cloudy', isDay: true },
       { time: hour('12'), temperature: 11, sky: 'cloudy', isDay: true },
-      { time: hour('13'), temperature: 11, sky: 'drizzle', isDay: true },
       { time: hour('14'), temperature: 10, sky: 'rain', isDay: true }
     ],
     stale: false,
     clockFormat: '24h'
-  } satisfies HourlyStripProps,
+  } satisfies HourlyTrendProps,
 
   notices: {
     notices: [

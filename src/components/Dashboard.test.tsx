@@ -44,7 +44,7 @@ describe('Dashboard', () => {
     expect(within(boardAt(1)).getAllByRole('listitem')).toHaveLength(4);
   });
 
-  it('goes round Now, Tonight, Tomorrow and Weekend when the weather is tapped', () => {
+  it('goes round Now and Tomorrow when the weather is tapped', () => {
     show();
     const weather = screen.getByRole('button', { name: /Now/ });
     expect(weather).toHaveTextContent('9°');
@@ -57,11 +57,8 @@ describe('Dashboard', () => {
     };
     const shown = () => weather.querySelector('[aria-current="true"]');
     tap();
-    expect(shown()).toHaveTextContent('Tonight');
-    expect(weather).toHaveTextContent('6°');
-    tap();
-    tap();
-    expect(shown()).toHaveTextContent('Weekend');
+    expect(shown()).toHaveTextContent('Tomorrow');
+    expect(weather).toHaveTextContent('12°');
     tap();
     expect(shown()).toHaveTextContent('Now');
   });

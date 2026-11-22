@@ -1,9 +1,9 @@
-// The weather block's views (Now, Tonight, Tomorrow, Weekend) and the hourly strip's hours (props.ts) from the forecast
+// The weather block's views (Now, Tomorrow) and the hourly trend's hours (props.ts) from the forecast
 // countdown-server keeps for the kiosk's place: Open-Meteo's own answer, in the place's local time (utc_offset_seconds
 // from UTC), which countdown-api leaves open, so the fields read here are checked here.
 //
-// Each view's summary says only what the hourly strip doesn't (it shows the next STRIP_HOURS): when rain comes or goes
-// later today, when it starts tomorrow, or which weekend day is wet. With nothing like that to say there is none.
+// Each view's summary says only what the trend doesn't (TREND_HOURS hours TREND_STEP apart): when rain comes or goes
+// later today, or when it starts tomorrow. With nothing like that to say there is none.
 
 import type { DeviceWeather } from 'countdown-api';
 import { DEFAULT_LANGUAGE } from '../i18n/language';
@@ -13,21 +13,15 @@ import { translate } from '../i18n/translate';
 import type { ClockFormat } from '../utils/clockFormat';
 import type { DayForecast, HourForecast, Sky, WeatherView } from './props';
 
-/** Hours the strip shows. */
-const STRIP_HOURS = 5;
-/** Hours handed to the strip, so it still has five as the hour turns before the next forecast. */
-const HOURS_KEPT = 8;
+/** The trend's hours, and how many hours apart they are: on the place's even hours, the next one first. */
+const TREND_HOURS = 3;
+const TREND_STEP = 2;
 /** Days in the outlook under the weather, from tomorrow. */
 const OUTLOOK_DAYS = 5;
-/** Tonight runs from this hour (or now, if later) to MORNING the next day. */
-const EVENING = 18;
-const MORNING = 6;
 /** The waking hours a day's summary is about. */
 const DAY_FROM = 7;
 const DAY_TO = 21;
 
-/** Each sky, worst last: a period that has several shows its worst wet one. */
-const SKIES: readonly Sky[] = ['clear', 'partly-cloudy', 'cloudy', 'fog', 'drizzle', 'rain', 'snow', 'thunder'];
 const WET: ReadonlySet<Sky> = new Set(['drizzle', 'rain', 'snow', 'thunder']);
 
 /** A WMO weather code as the sky it draws. */
@@ -63,17 +57,6 @@ function conditionId(code: number): StringId {
 export function conditionFor(code: number, language: Language = DEFAULT_LANGUAGE): string {
   return translate(conditionId(code), language);
 }
-
-const SKY_WORDS: Record<Sky, StringId> = {
-  clear: 'weather.clear',
-  'partly-cloudy': 'weather.partly_cloudy',
-  cloudy: 'weather.cloudy',
-  fog: 'weather.fog',
-  drizzle: 'weather.drizzle',
-  rain: 'weather.rain',
-  snow: 'weather.snow',
-  thunder: 'weather.thunderstorms'
-};
 
 /** The fields of Open-Meteo's answer read here. */
 interface Fields {
@@ -153,24 +136,6 @@ function hourWords(hour: number, clockFormat: ClockFormat): string {
   return `${twelve}${hour < 12 ? 'am' : 'pm'}`;
 }
 
-/** The sky of a run of hours: their worst wet one if a quarter or more are wet, else the commonest dry one. */
-function skyOf(hours: readonly Hour[]): Sky {
-  const wet = hours.filter(hour => WET.has(hour.sky));
-  if (wet.length > 0 && wet.length * 4 >= hours.length) {
-    let worst: Sky = 'drizzle';
-    for (const hour of wet) if (SKIES.indexOf(hour.sky) > SKIES.indexOf(worst)) worst = hour.sky;
-    return worst;
-  }
-  const counts = new Map<Sky, number>();
-  for (const hour of hours) counts.set(hour.sky, (counts.get(hour.sky) ?? 0) + 1);
-  let commonest: Sky = 'clear';
-  for (const [sky, count] of counts) {
-    const best = counts.get(commonest) ?? 0;
-    if (count > best || (count === best && SKIES.indexOf(sky) > SKIES.indexOf(commonest))) commonest = sky;
-  }
-  return commonest;
-}
-
 /** A view's summary, and whether it says it stays or turns dry. */
 interface Summary {
   text: string;
@@ -198,7 +163,7 @@ export interface WeatherProps {
 }
 
 /**
- * The weather block's views and the strip's hours at `now`, in `language`, or null when the forecast is missing or
+ * The weather block's views and the trend's hours at `now`, in `language`, or null when the forecast is missing or
  * can't be read.
  */
 export function toWeather(
@@ -239,12 +204,12 @@ export function toWeather(
 
   const views: WeatherView[] = [];
 
-  // Now: what the strip doesn't show is the rest of today after it.
+  // Now: what the trend doesn't show is the rest of today after it.
   const nowSky = skyFor(fields.current.weather_code);
-  const laterToday = ahead.slice(STRIP_HOURS).filter(hour => localDate(hour) === today);
-  const strip = ahead.slice(0, STRIP_HOURS);
-  const wetBy = (from: readonly Hour[]) => WET.has(from.at(-1)?.sky ?? nowSky);
-  const nowSummary = turnOf(laterToday, wetBy(strip), clockFormat, language);
+  const trend = ahead.filter(hour => localHour(hour) % TREND_STEP === 0).slice(0, TREND_HOURS);
+  const trendEnd = trend.at(-1)?.at ?? nowMs;
+  const laterToday = ahead.filter(hour => hour.at > trendEnd && localDate(hour) === today);
+  const nowSummary = turnOf(laterToday, WET.has(trend.at(-1)?.sky ?? nowSky), clockFormat, language);
   views.push({
     period: 'now',
     temperature: Math.round(fields.current.temperature),
@@ -253,26 +218,6 @@ export function toWeather(
     condition: conditionFor(fields.current.weather_code, language),
     ...withIcon(nowSummary)
   });
-
-  // Tonight: from EVENING (or now) to MORNING tomorrow.
-  const at = (date: string, hour: number) => toInstant(`${date}T${String(hour).padStart(2, '0')}:00`);
-  const placeNow = new Date(nowMs + offsetMs);
-  const small = placeNow.getUTCHours() < MORNING;
-  const endsAt = at(small ? today : nextDate(today), MORNING);
-  const startsAt = small ? nowMs : Math.max(nowMs, at(today, EVENING));
-  const night = hours.filter(hour => hour.at >= startsAt && hour.at < endsAt);
-  if (night.length > 0) {
-    const sky = skyOf(night);
-    const low = Math.min(...night.map(hour => hour.temperature));
-    views.push({
-      period: 'tonight',
-      temperature: Math.round(low),
-      sky,
-      isDay: false,
-      condition: translate(SKY_WORDS[sky], language),
-      summary: null
-    });
-  }
 
   // Tomorrow: its high and its own code, and when rain starts in its waking hours.
   const tomorrow = nextDate(today);
@@ -297,33 +242,7 @@ export function toWeather(
     });
   }
 
-  // The weekend: the coming Saturday and Sunday, while today isn't one of them (Tomorrow says Sunday on a Saturday).
-  const weekday = new Date(`${today}T12:00:00Z`).getUTCDay();
-  if (weekday >= 1 && weekday <= 5) {
-    const saturday = nextDate(today, 6 - weekday);
-    const days = [saturday, nextDate(saturday)].map(date => {
-      const index = dayIndex(date);
-      const high = fields.daily.temperature_max[index];
-      const code = fields.daily.weather_code[index];
-      return high === undefined || code === undefined ? null : { high, code, sky: skyFor(code) };
-    });
-    const [sat, sun] = days;
-    if (sat && sun) {
-      const worse = SKIES.indexOf(sun.sky) > SKIES.indexOf(sat.sky) ? sun : sat;
-      const wetSat = WET.has(sat.sky);
-      const wetSun = WET.has(sun.sky);
-      const wetDay = wetSat ? 'weather.rain_saturday' : 'weather.rain_sunday';
-      views.push({
-        period: 'weekend',
-        temperature: Math.round(Math.max(sat.high, sun.high)),
-        sky: worse.sky,
-        condition: conditionFor(worse.code, language),
-        summary: wetSat === wetSun ? null : translate(wetDay, language)
-      });
-    }
-  }
-
-  const stripHours: HourForecast[] = ahead.slice(0, HOURS_KEPT).map(hour => ({
+  const trendHours: HourForecast[] = trend.map(hour => ({
     time: `${hour.local.slice(0, 13)}:00:00${offsetText(fields.utc_offset_seconds)}`,
     temperature: Math.round(hour.temperature),
     sky: hour.sky,
@@ -339,7 +258,7 @@ export function toWeather(
     if (high === undefined || low === undefined || code === undefined) break;
     days.push({ date, high: Math.round(high), low: Math.round(low), sky: skyFor(code) });
   }
-  return { views, hours: stripHours, days };
+  return { views, hours: trendHours, days };
 }
 
 /** An offset from UTC as ISO writes it: "+01:00", "Z" for none. */

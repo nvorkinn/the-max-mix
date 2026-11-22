@@ -88,9 +88,7 @@ export const STRINGS = {
 
   // The weather.
   'weather.now': { en: 'Now', nb: 'Nå' },
-  'weather.tonight': { en: 'Tonight', nb: 'I kveld' },
   'weather.tomorrow': { en: 'Tomorrow', nb: 'I morgen' },
-  'weather.weekend': { en: 'Weekend', nb: 'Helgen' },
   'weather.clear': { en: 'Clear', nb: 'Klart' },
   'weather.mostly_clear': { en: 'Mostly clear', nb: 'Lettskyet' },
   'weather.partly_cloudy': { en: 'Partly cloudy', nb: 'Delvis skyet' },
@@ -107,8 +105,6 @@ export const STRINGS = {
   'weather.rain_from': { en: 'Rain from {hour}', nb: 'Regn fra {hour}' },
   'weather.dry_from': { en: 'Dry from {hour}', nb: 'Opphold fra {hour}' },
   'weather.dry_all_day': { en: 'Dry all day', nb: 'Opphold hele dagen' },
-  'weather.rain_saturday': { en: 'Rain on Saturday', nb: 'Regn på lørdag' },
-  'weather.rain_sunday': { en: 'Rain on Sunday', nb: 'Regn på søndag' },
   // The parcels on the notice board: one parcel, or how many.
   'parcel.out': {
     en: '{count, plural, one {Parcel out for delivery} other {# parcels out for delivery}}',

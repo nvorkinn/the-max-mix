@@ -8,9 +8,7 @@ import { SKY_ICONS, sunny } from './icons';
 
 const PERIOD_LABELS: Record<WeatherPeriod, StringId> = {
   now: 'weather.now',
-  tonight: 'weather.tonight',
-  tomorrow: 'weather.tomorrow',
-  weekend: 'weather.weekend'
+  tomorrow: 'weather.tomorrow'
 };
 
 /** How long the old period takes to fade out, and then the new one to fade in. */

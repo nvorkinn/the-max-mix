@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import fallbackBackdrop from '../assets/dashboard/backdrop.jpg';
 import type {
   DepartureBoardProps,
-  HourlyStripProps,
+  HourlyTrendProps,
   LineIncidentsProps,
   NoticeBoardProps,
   OutlookProps,
@@ -12,7 +12,6 @@ import type {
   WeatherBlockProps
 } from '../dashboard/props';
 import Backdrop from './dashboard/Backdrop';
-import HourlyStrip from './dashboard/HourlyStrip';
 import { carouselSlot, TURN_MS } from './dashboard/carousel';
 import DepartureBoard from './dashboard/DepartureBoard';
 import TabBar from './dashboard/TabBar';
@@ -36,10 +35,10 @@ export const boardSlot = (index: number, count: number, time: number): number =>
 export interface DashboardProps {
   tabBar: TabBarProps;
   weather: WeatherBlockProps;
-  /** Null while there is no forecast to read; the strip's space stays empty. */
-  hourly: HourlyStripProps | null;
+  /** The coming hours' trend under the weather; null while there is no forecast to read. */
+  hourly: HourlyTrendProps | null;
   notices: NoticeBoardProps;
-  /** The days after today, under the weather while the rail has room for them; null (or left out) without. */
+  /** The days after today, under the weather (over the trend) while the rail has room; null (or left out) without. */
   outlook?: OutlookProps | null;
   /** Every Tube line's status, at the bottom of the rail under the notices; null (or left out) without. */
   lineStatus?: TubeStatusProps | null;
@@ -52,9 +51,9 @@ export interface DashboardProps {
 }
 
 /**
- * The Dashboard: the photo full screen, the tab bar floating on it, weather on the left with the notices and the Tube's
- * status under it (and above them, while there's room, the next days in place of the hourly strip), the hourly forecast
- * top right and a board per Tube station and bus stop along the bottom, two at a time. It is laid out at 1280×800 and scaled to fit whichever of the
+ * The Dashboard: the photo full screen, the tab bar floating on it, weather on the left with the coming hours' trend and
+ * the notices and the Tube's status under it (and over the trend, while there's room, the next days), and a board per
+ * Tube station and bus stop along the bottom, two at a time. It is laid out at 1280×800 and scaled to fit whichever of the
  * space's width or height is tighter, centred, so a smaller panel shows the same layout.
  */
 export default function Dashboard({
@@ -70,8 +69,6 @@ export default function Dashboard({
 }: Readonly<DashboardProps>) {
   const fitRef = useRef<HTMLDivElement>(null);
   const [placement, setPlacement] = useState({ scale: 1, left: 0, top: 0 });
-  // The next days show under the weather while the rail has room, and then the hourly strip makes way for them.
-  const [outlookShown, setOutlookShown] = useState(false);
   // Two boards at a time; with more, they move along one at a time, with the boards' clock so a hidden Dashboard,
   // whose clock stops, doesn't move. Every board stays mounted, so its rows keep following their vehicles. The rail's
   // pages and the weather's periods turn with them, on the same clock.
@@ -114,14 +111,12 @@ export default function Dashboard({
                 lineStatus={lineStatus}
                 incidents={incidents}
                 days={outlook?.days}
-                onOutlook={setOutlookShown}
+                trend={hourly}
                 time={time}
               />
             </div>
             <div className="dashboard-stage">
-              <div className="dashboard-sky shadowed">
-                {hourly && <HourlyStrip {...hourly} hours={outlookShown ? [] : hourly.hours} />}
-              </div>
+              <div className="dashboard-sky" />
               <div className="dashboard-departures">
                 <div className="dashboard-departures-track">
                   {boards.map((board, index) => {

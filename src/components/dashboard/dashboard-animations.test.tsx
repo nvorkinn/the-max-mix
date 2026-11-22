@@ -95,10 +95,10 @@ describe('the weather block', () => {
     expect(shown(weather)).toHaveTextContent('Now');
     run(WEATHER_FADE_MS);
     expect(weather).not.toHaveClass('fading');
-    expect(shown(weather)).toHaveTextContent('Tonight');
+    expect(shown(weather)).toHaveTextContent('Tomorrow');
     rerender(block(2 * TURN_MS + 1000));
     run(WEATHER_FADE_MS);
-    expect(shown(weather)).toHaveTextContent('Tomorrow');
+    expect(shown(weather)).toHaveTextContent('Now');
   });
 
   it("turns on the same tick as the boards and the rail's pages", () => {
@@ -115,25 +115,25 @@ describe('the weather block', () => {
     rerender(block(TURN_MS - 5000));
     fireEvent.click(weather);
     run(WEATHER_FADE_MS);
-    expect(shown(weather)).toHaveTextContent('Tonight');
+    expect(shown(weather)).toHaveTextContent('Tomorrow');
     rerender(block(TURN_MS - 1));
     expect(weather).not.toHaveClass('fading');
     rerender(block(TURN_MS));
     expect(weather).toHaveClass('fading');
     run(WEATHER_FADE_MS);
-    expect(shown(weather)).toHaveTextContent('Tomorrow');
+    expect(shown(weather)).toHaveTextContent('Now');
   });
 
   it('shows a pill for each period, only the one on show filled, and its sky by day or night', () => {
     const { rerender } = render(block(0));
     const weather = screen.getByRole('button');
-    expect(weather.querySelectorAll('.dashboard-wx-pill')).toHaveLength(4);
+    expect(weather.querySelectorAll('.dashboard-wx-pill')).toHaveLength(2);
     expect(weather.querySelectorAll('[aria-current="true"]')).toHaveLength(1);
     expect(weather.querySelector('.dashboard-wx-icon')).toHaveClass('lucide-cloud-sun');
     rerender(block(TURN_MS));
     run(WEATHER_FADE_MS);
-    expect(shown(weather)).toHaveTextContent('Tonight');
-    expect(weather.querySelector('.dashboard-wx-icon')).toHaveClass('lucide-cloud-rain');
+    expect(shown(weather)).toHaveTextContent('Tomorrow');
+    expect(weather.querySelector('.dashboard-wx-icon')).toHaveClass('lucide-cloud');
   });
 
   it('stays still with one period to show', () => {

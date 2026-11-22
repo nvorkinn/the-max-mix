@@ -1,6 +1,6 @@
 // What is wrong with the Dashboard's departures, for the warning in the tab bar (problems.ts): the boards dim themselves
 // when their data is old (dashboardProps.ts), and this says so in words, on every tab, with the same thresholds. Old
-// weather only dims the hourly strip: it changes slowly, so it isn't worth a warning. The check runs on a clock of its
+// weather only dims the hourly trend: it changes slowly, so it isn't worth a warning. The check runs on a clock of its
 // own, as the Dashboard's clock stops while another tab shows.
 
 import { useEffect, useState, useSyncExternalStore } from 'react';

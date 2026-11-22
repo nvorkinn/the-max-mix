@@ -1,12 +1,12 @@
 // The redesigned Dashboard's data, in its components' props (props.ts), from what the live feed last gave (live.ts):
-// a Tube or Bus board per stop (boards.ts), the weather block and hourly strip (weatherViews.ts) and the notice board
+// a Tube or Bus board per stop (boards.ts), the weather block and hourly trend (weatherViews.ts) and the notice board
 // (notices.ts's notices, in the board's kinds and colours), with the Tube status panel (lineStatus.ts) or the Norwegian
 // stops' incidents (lineIncidents.ts). The weather or the notices that the server has nothing for are null or empty,
 // and each component keeps its space.
 //
 // Stale: once the feed has been down for STALE_AFTER_MS, everything is; before that, a board is stale while its
 // stop's departures are held from before (their provider is down) or were read longer ago than DEPARTURES_STALE_MS, and
-// the hourly strip while the forecast is held or older than WEATHER_STALE_MS.
+// the hourly trend while the forecast is held or older than WEATHER_STALE_MS.
 
 import type { DeviceWeather } from 'countdown-api';
 import { getBackgroundImageUrl } from '../../vendor/countdown-api/src/countdown_api/client';
