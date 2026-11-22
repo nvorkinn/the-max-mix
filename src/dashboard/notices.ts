@@ -2,14 +2,21 @@
 // The Dashboard's notice board, from countdown-server: GET /api/devices/notices (countdown-api's getNotices), with the
 // device secret. The server hands over what its providers stored for the device (TfL's line statuses and station
 // disruptions at its stops and its road disruptions, the Met Office's and the Environment Agency's warnings for a UK
-// postcode, GOV.UK's bank holidays, MET Norway's warnings for a Norwegian one) as the providers had it, and the kiosk
+// postcode, GOV.UK's bank holidays, MET Norway's warnings and the household's bin collection days for a Norwegian one) as the providers had it, and the kiosk
 // makes the notices from it here, as the e-paper renderer does when it draws: a headline and one short line each, with
 // the provider's own text kept for a tap, so the times are said as of now and in the kiosk's clock format. Norway's
 // public holidays and the clocks changing need no data: they are worked out here. Which of it is worth a notice, how
 // much each matters, and the words (messages.ts), are the e-paper screens' too. A build that sets
 // VITE_COUNTDOWN_CONFIG=mock gets made-up notices instead.
 
-import type { BankHoliday, DeviceNotices, FloodWarning, MetOfficeFeedItem, NoticeShort } from 'countdown-api';
+import type {
+  BankHoliday,
+  DeviceNotices,
+  FloodWarning,
+  MetOfficeFeedItem,
+  NoticeShort,
+  StoredBinCollections
+} from 'countdown-api';
 import { getNotices as getNoticesRoute } from '../../vendor/countdown-api/src/countdown_api/client';
 import type { Client } from '../../vendor/countdown-api/src/countdown_api/client';
 import { serverClient } from '../countdown/config';
@@ -655,6 +662,67 @@ export function norwegianHolidayNotices(now: Date, language: Language = DEFAULT_
   ];
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// A Norwegian household's bin collection days (Binable's, from countdown's bins provider).
+
+/** The next bin collection is mentioned this many days ahead, as on the e-paper screens: within the week. */
+const BINS_AHEAD_DAYS = 7;
+/** Binable's collection days are Norwegian dates. */
+const BINS_ZONE = 'Europe/Oslo';
+
+/** A "YYYY-MM-DD" date as its midnight in UTC. */
+function utcDay(date: string): number {
+  const [year = 0, month = 1, day = 1] = date.split('-').map(Number);
+  return Date.UTC(year, month - 1, day);
+}
+
+/** Days from one "YYYY-MM-DD" date to another. */
+const daysBetween = (from: string, to: string) => Math.round((utcDay(to) - utcDay(from)) / DAY);
+
+/**
+ * The household's next bin collection day from today (in Norway), if it is less than a week away, as on the e-paper
+ * screens: when, and every kind of waste emptied that day, each said once ("Tomorrow – Paper, Residual waste").
+ */
+export function binNotices(
+  bins: StoredBinCollections | null | undefined,
+  now: Date,
+  language: Language = DEFAULT_LANGUAGE
+): Notice[] {
+  if (!bins?.found) return [];
+  const clock = wallClock(now.getTime(), BINS_ZONE);
+  const today = `${String(clock.year)}-${pad(clock.month)}-${pad(clock.day)}`;
+  const next = bins.collections
+    .flatMap(({ dates }) => dates)
+    .filter(date => date >= today && daysBetween(today, date) < BINS_AHEAD_DAYS)
+    .toSorted((a, b) => a.localeCompare(b))[0];
+  if (!next) return [];
+  const fractions = [
+    ...new Set(
+      bins.collections
+        .filter(({ dates }) => dates.includes(next))
+        .map(({ fraction }) => say('notice.bins.fraction', { fraction }, language))
+    )
+  ].join(', ');
+  // The day and today on the kiosk's calendar, at noon, as Norway has them.
+  const [year = 0, month = 1, day = 1] = next.split('-').map(Number);
+  const when = dayName(
+    new Date(year, month - 1, day, 12),
+    new Date(clock.year, clock.month - 1, clock.day, 12),
+    language
+  );
+  const summary = say('notice.bins.summary', { when, fractions }, language);
+  return [
+    {
+      id: `bins:${next}`,
+      kind: 'holiday',
+      severity: 'info',
+      title: say('notice.bins.title', {}, language),
+      summary,
+      detail: bins.provider ? `${summary} (${bins.provider})` : summary
+    }
+  ];
+}
+
 /** How far ahead the clocks changing is mentioned, as on the e-paper screens. */
 const CLOCK_CHANGE_AHEAD_HOURS = 7 * 24;
 
@@ -723,8 +791,8 @@ export function clockChangeNotices(
 
 /**
  * The notice board's notices from what countdown-server gave, as of `now`, worst first, then as the e-paper screens
- * rank them: the lines and the stations before the weather, the floods and the roads, before the clocks changing and the
- * holidays, before the parcels. Only the parcels and the clocks changing while the board has no postcode (an older
+ * rank them: the lines and the stations before the weather, the floods and the roads, before the clocks changing, the
+ * holidays and the bins, before the parcels. Only the parcels and the clocks changing while the board has no postcode (an older
  * countdown-server sends none).
  */
 export function boardNotices(
@@ -773,6 +841,8 @@ export function boardNotices(
     ...clocks,
     ...(device.country === 'GB' ? holidayNotices(events, now, language) : []),
     ...(norwegian ? norwegianHolidayNotices(now, language) : []),
+    // An older countdown-server leaves the bins out.
+    ...(norwegian ? binNotices(device.bins, now, language) : []),
     ...parcels
   ];
   return byUrgency(notices);
@@ -855,6 +925,7 @@ export function mockDeviceNotices(now: Date): DeviceNotices {
     bank_holidays: null,
     floods: null,
     metalerts: null,
+    bins: null,
     // The notice board has notices, so the Tube status panel doesn't show.
     tfl_network: null,
     entur_stops: [],

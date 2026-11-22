@@ -10,14 +10,24 @@ const NO_POSTCODE = /^\d{4}$/;
 const GB_POSTCODE = /^([A-Z]{1,2}\d[A-Z\d]?) ?(\d[A-Z]{2})$/;
 
 /**
- * The notice board for a postcode as typed: its country told by its form, and a UK one spaced as usual. Null when it is
- * neither a UK nor a Norwegian postcode.
+ * The notice board for a postcode as typed: its country told by its form, and a UK one spaced as usual, with no address.
+ * Null when it is neither a UK nor a Norwegian postcode.
  */
 export function noticeBoardFor(typed: string): NoticeBoard | null {
   const postcode = typed.trim().toUpperCase().replaceAll(/\s+/g, ' ');
-  if (NO_POSTCODE.test(postcode)) return { postcode, country: 'NO' };
+  if (NO_POSTCODE.test(postcode)) return { postcode, country: 'NO', address: null };
   const uk = GB_POSTCODE.exec(postcode);
-  return uk ? { postcode: `${uk[1]} ${uk[2]}`, country: 'GB' } : null;
+  return uk ? { postcode: `${uk[1]} ${uk[2]}`, country: 'GB', address: null } : null;
+}
+
+/**
+ * The board to save for `wanted` (null turns it off): the household's address (for its bins, set elsewhere) is kept
+ * while the postcode stays the same, as an address is always in its board's postcode.
+ */
+export function savedBoard(board: NoticeBoard, wanted: NoticeBoard | null): NoticeBoard {
+  if (!wanted) return { postcode: null, country: null, address: null };
+  const sameBoard = wanted.postcode === board.postcode && wanted.country === board.country;
+  return sameBoard ? { ...wanted, address: board.address ?? null } : wanted;
 }
 
 /** The notice board's postcode and its country, or null when it is off. Its country shows as a flag beside it. */
@@ -79,7 +89,7 @@ export default function NoticeBoardDialog({
         <button
           type="button"
           disabled={!off && wanted === null}
-          onClick={() => onSave(wanted ?? { postcode: null, country: null })}
+          onClick={() => onSave(savedBoard(board, wanted))}
           className="button search-dialog-confirm"
         >
           {t('common.save')}

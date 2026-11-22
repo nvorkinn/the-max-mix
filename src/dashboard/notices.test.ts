@@ -1,10 +1,12 @@
-// cspell:ignore Effra Southwrk Rotherhithe Bankside Akershus Camberwell Lambeth TIMS
-import type { DeviceNotices } from 'countdown-api';
+// cspell:ignore Effra Southwrk Rotherhithe Bankside Akershus Camberwell Lambeth TIMS kommune Renovasjons gjenvinningsetaten Avfallstømming Papir Restavfall Matavfall Annet avfall eufemia Thorvald
+import type { DeviceNotices, StoredBinCollections } from 'countdown-api';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import panels from '../../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json';
+import bins from '../../vendor/countdown-api/src/countdown_api/fixtures/bins.json';
 import norway from '../../vendor/countdown-api/src/countdown_api/fixtures/device_notices_norway.json';
 import { say } from './messages';
 import {
+  binNotices,
   boardNotices,
   clockChangeNotices,
   divisionOf,
@@ -600,6 +602,74 @@ describe('the other notices the e-paper screens show', () => {
     expect(nextClockChange(new Date('2026-03-25T12:00:00Z'), 'Europe/London')).toEqual(
       new Date('2026-03-29T01:00:00Z')
     );
+  });
+});
+
+describe('the bin collections', () => {
+  // countdown-api's example: Thorvald Meyers gate 10 has residual waste emptied on Mondays (23 and 30 November) and paper
+  // on Thursdays and Fridays (26 and 27 November), as stored at Sunday 22 November 2026 12:00 UTC.
+  const [meyers, eufemia] = bins.addresses.map(({ value }) => value) as [StoredBinCollections, StoredBinCollections];
+  const sunday = new Date('2026-11-22T12:00:00Z');
+  const summary = (at: string, value = meyers) => binNotices(value, new Date(at)).map(n => n.summary);
+
+  it('mentions the next collection day as a reminder, until the end of that day', () => {
+    expect(binNotices(meyers, sunday)).toEqual([
+      {
+        id: 'bins:2026-11-23',
+        kind: 'holiday',
+        severity: 'info',
+        title: 'Bin collection',
+        summary: 'Tomorrow – Residual waste',
+        detail: 'Tomorrow – Residual waste (Oslo kommune – Renovasjons- og gjenvinningsetaten)'
+      }
+    ]);
+    expect(summary('2026-11-23T06:00:00Z')).toEqual(['Today – Residual waste']);
+    // Late on Monday in Oslo it is still Monday's.
+    expect(summary('2026-11-23T22:30:00Z')).toEqual(['Today – Residual waste']);
+    // Then the past days are skipped: just after midnight in Oslo on Tuesday (still Monday in UTC), it is Thursday's.
+    expect(summary('2026-11-23T23:30:00Z')).toEqual(['Thu 26 Nov – Paper']);
+    expect(binNotices(meyers, new Date('2026-11-24T12:00:00Z'))[0]?.id).toBe('bins:2026-11-26');
+  });
+
+  it('names each kind of waste emptied that day once, in order, the variants of residual waste as one', () => {
+    const day = (fraction: string, dates = ['2026-11-25']) => ({ fraction, dates });
+    const many: StoredBinCollections = {
+      ...meyers,
+      collections: [
+        day('paper', ['2026-11-25', '2026-11-30']),
+        day('residualWaste'),
+        day('glassContainer', ['2026-11-27']),
+        day('residualWasteContainerLessFrequent'),
+        day('bio'),
+        day('somethingNew')
+      ]
+    };
+    expect(summary('2026-11-22T12:00:00Z', many)).toEqual([
+      'Wed 25 Nov – Paper, Residual waste, Food waste, Other waste'
+    ]);
+    expect(binNotices(many, sunday, 'nb')[0]).toMatchObject({ title: 'Avfallstømming' });
+    expect(binNotices(many, sunday, 'nb')[0]?.summary).toMatch(/ – Papir, Restavfall, Matavfall, Annet avfall$/);
+    expect(binNotices(meyers, sunday, 'nb')[0]?.summary).toBe('I morgen – Restavfall');
+  });
+
+  it('says nothing about a day a week or more away, an address with no calendar, or no bins', () => {
+    const later: StoredBinCollections = { ...meyers, collections: [{ fraction: 'paper', dates: ['2026-11-29'] }] };
+    expect(binNotices(later, sunday)).toEqual([]);
+    expect(
+      summary('2026-11-22T12:00:00Z', { ...later, collections: [{ fraction: 'paper', dates: ['2026-11-28'] }] })
+    ).toEqual(['Sat 28 Nov – Paper']);
+    expect(binNotices({ ...meyers, collections: [{ fraction: 'paper', dates: ['2026-11-20'] }] }, sunday)).toEqual([]);
+    expect(binNotices(eufemia, sunday)).toEqual([]);
+    expect(binNotices(oslo.bins, sunday)).toEqual([]);
+    expect(binNotices(null, sunday)).toEqual([]);
+    expect(binNotices(undefined, sunday)).toEqual([]);
+  });
+
+  it("puts the next collection on a Norwegian board's notices, and not on a British board's", () => {
+    const titles = (board: DeviceNotices) => boardNotices(board, sunday, '24h').map(n => n.title);
+    expect(titles({ ...oslo, metalerts: null, bins: meyers })).toContain('Bin collection');
+    expect(titles({ ...device, bins: meyers })).not.toContain('Bin collection');
+    expect(titles({ ...oslo, metalerts: null, bins: eufemia })).not.toContain('Bin collection');
   });
 });
 

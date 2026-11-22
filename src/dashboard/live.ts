@@ -103,6 +103,8 @@ export function mergeNotices(
     // An older countdown-server leaves these two out.
     floods: uk ? keep(next.floods ?? null, previous.floods) : (next.floods ?? null),
     metalerts: next.country === 'NO' ? keep(next.metalerts ?? null, previous.metalerts) : (next.metalerts ?? null),
+    // An older countdown-server leaves it out too.
+    bins: next.country === 'NO' ? keep(next.bins ?? null, previous.bins) : (next.bins ?? null),
     // An older countdown-server leaves it out.
     tfl_network: keep(next.tfl_network ?? null, previous.tfl_network),
     entur_stops: enturStops
