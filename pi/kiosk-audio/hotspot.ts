@@ -15,6 +15,10 @@ const CONNECTION = 'kiosk-setup';
 // What NetworkManager gives a hotspot's own address, unless it says otherwise.
 // eslint-disable-next-line sonarjs/no-hardcoded-ip -- NetworkManager's own default for a hotspot
 const DEFAULT_ADDRESS = '10.42.0.1';
+// The address in the code that opens the page: the hotspot answers every name with its own address, so it lands here,
+// and it is the address an iPhone itself asks to see whether a network needs signing in to.
+// eslint-disable-next-line sonarjs/no-clear-text-protocols, unicorn/prefer-https -- the hotspot's page is plain HTTP, by design
+const PAGE_URL = 'http://captive.apple.com/';
 // No 0, O, 1, I or L: the password is read off a screen when the QR code cannot be scanned.
 // cspell:disable-next-line
 const PASSWORD_CHARACTERS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -171,7 +175,8 @@ export class Hotspot {
       await this.takeDown();
       throw new HotspotError('The setup page could not be started.', { cause: error });
     }
-    const url = this.portal.port === 80 ? `http://${host}/` : `http://${host}:${this.portal.port}/`;
+    // A name reaches only port 80; on another port the code needs the address and port.
+    const url = this.portal.port === 80 ? PAGE_URL : `http://${host}:${this.portal.port}/`;
     this.info = {
       ssid: HOTSPOT_SSID,
       password,
