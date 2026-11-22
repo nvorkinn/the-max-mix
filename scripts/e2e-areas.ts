@@ -34,7 +34,7 @@ export const AREAS: Area[] = [
     sources: [
       /^src\/countdown\//,
       /^src\/hooks\/useDeviceConfig/,
-      /^src\/components\/RegistrationProblem/,
+      /^src\/components\/(PairingScreen|GetStarted)/,
       /^\.env\.(production|development)$/
     ]
   },
