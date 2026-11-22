@@ -152,17 +152,19 @@ describe('SettingsPanel', () => {
     const JOINED = { ok: true };
     const wifi = () => screen.queryByRole('button', { name: 'Other network' });
     /**
-     * The kiosk service: GET /wifi/status answers `status`, GET /wifi/networks lists `networks`, and POST /wifi/connect
-     * answers `joined`.
+     * The kiosk service: GET /wifi/status answers `status`, GET /wifi/networks lists `networks`, GET /wifi/saved lists
+     * `saved`, and POST /wifi/connect and /wifi/forget answer `joined`.
      */
     const kioskSays = (
       status: unknown,
-      { networks = [], joined = JOINED }: { networks?: unknown[]; joined?: unknown } = {}
+      { networks = [], saved = [], joined = JOINED }: { networks?: unknown[]; saved?: string[]; joined?: unknown } = {}
     ) => {
       const fetchMock = vi.fn((url: string) => {
         if (status instanceof Error) return Promise.reject(status);
         if (url.endsWith('/wifi/networks')) return Promise.resolve(Response.json({ networks }));
-        if (url.endsWith('/wifi/connect')) return Promise.resolve(Response.json(joined));
+        if (url.endsWith('/wifi/saved')) return Promise.resolve(Response.json({ networks: saved }));
+        if (url.endsWith('/wifi/forget') || url.endsWith('/wifi/connect'))
+          return Promise.resolve(Response.json(joined));
         return Promise.resolve(status instanceof Response ? status.clone() : Response.json(status));
       });
       vi.stubGlobal('fetch', fetchMock);
@@ -247,6 +249,28 @@ describe('SettingsPanel', () => {
         body: JSON.stringify({ ssid: 'Home', password: 'secret123', hidden: false, security: 'psk' })
       });
       expect(screen.queryByRole('dialog', { name: 'Join Home' })).not.toBeInTheDocument();
+    });
+
+    it('forgets a saved network', async () => {
+      history.replaceState(null, '', '/?kiosk=1');
+      const onWifiJoined = vi.fn();
+      const fetchMock = kioskSays({ ssid: 'Home', address: 'an address' }, { saved: ['Home'] });
+      render(<SettingsPanel {...base} initialSection="wifi" onWifiJoined={onWifiJoined} />);
+      await userEvent.click(await screen.findByRole('button', { name: 'Forget Home' }));
+      await waitFor(() => expect(onWifiJoined).toHaveBeenCalled());
+      expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/forget', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ssid: 'Home' })
+      });
+    });
+
+    it('says when the kiosk could not forget a network', async () => {
+      history.replaceState(null, '', '/?kiosk=1');
+      kioskSays({ ssid: null }, { saved: ['Home'], joined: { ok: false, error: 'Could not forget the network.' } });
+      render(<SettingsPanel {...base} initialSection="wifi" />);
+      await userEvent.click(await screen.findByRole('button', { name: 'Forget Home' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Could not forget the network.');
     });
 
     it("says the kiosk's reason when it could not join, and keeps the dialog open", async () => {

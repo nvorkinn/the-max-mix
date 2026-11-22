@@ -88,6 +88,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
   const played: SonosRequest[] = [];
   const logged: AppLog[] = [];
   const joined: ConnectRequest[] = [];
+  const forgotten: string[] = [];
   const listeners = new Set<(change: SonosChange) => void>();
   let beats = 0;
   let clock = 0;
@@ -133,6 +134,11 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
       connect: request => {
         joined.push(request);
         return Promise.resolve(request.password === 'right-password' ? { ok: true } : { ok: false, error: 'Nope.' });
+      },
+      saved: () => Promise.resolve(['Home', 'Office']),
+      forget: ssid => {
+        forgotten.push(ssid);
+        return Promise.resolve({ ok: true });
       }
     },
     handover: memoryHandover(),
@@ -248,6 +254,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
     played,
     logged,
     joined,
+    forgotten,
     listeners,
     beats: () => beats
   };
@@ -651,7 +658,9 @@ describe('Wi-Fi', () => {
       scan: () => Promise.reject(new ScanError(ERRORS.disabled)),
       current: vi.fn(),
       address: vi.fn(),
-      connect: vi.fn()
+      connect: vi.fn(),
+      saved: vi.fn(),
+      forget: vi.fn()
     };
     const base = await start(fakes({ wifi }).deps);
     const response = await fetch(`${base}/wifi/networks`);
@@ -683,6 +692,27 @@ describe('Wi-Fi', () => {
     const hosted = await start(deps);
     expect((await post(hosted, '/wifi/connect', { body: request })).status).toBe(403);
     expect(joined).toEqual([]);
+  });
+});
+
+describe('saved Wi-Fi networks', () => {
+  it('lists them for the app only', async () => {
+    const base = await start(fakes().deps);
+    const response = await fetch(`${base}/wifi/saved`, { headers: { Origin: ORIGIN } });
+    await expect(response.json()).resolves.toEqual({ networks: ['Home', 'Office'] });
+    expect((await fetch(`${base}/wifi/saved`)).status).toBe(403);
+  });
+
+  it('forgets one for the app this service serves, and nothing for anyone else', async () => {
+    const { deps, forgotten } = fakes();
+    const base = await start(deps, LOCAL_ORIGIN);
+    const forgot = await post(base, '/wifi/forget', { origin: LOCAL_ORIGIN, body: { ssid: 'Home' } });
+    await expect(forgot.json()).resolves.toEqual({ ok: true });
+    expect(
+      (await post(base, '/wifi/forget', { origin: 'https://evil.example', body: { ssid: 'Office' } })).status
+    ).toBe(403);
+    expect((await post(base, '/wifi/forget', { origin: LOCAL_ORIGIN, body: {} })).status).toBe(400);
+    expect(forgotten).toEqual(['Home']);
   });
 });
 

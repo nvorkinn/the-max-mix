@@ -31,7 +31,8 @@ export const ERRORS = {
   noNmcli: 'NetworkManager is not available.',
   generic: 'Could not connect.',
   busy: 'Already connecting. Wait for it to finish.',
-  scan: 'Could not scan for networks.'
+  scan: 'Could not scan for networks.',
+  forget: 'Could not forget the network.'
 } as const;
 
 /** How a command ended: 124 means it timed out, 127 that it could not start. */
@@ -248,6 +249,51 @@ export class Nmcli {
     return { ok: false, error: friendlyError(code, stderr) };
   }
 
+  /** The saved Wi-Fi connections, each with its network's name; the setup hotspot (an access point) is not one. */
+  private async savedConnections(): Promise<{ uuid: string; ssid: string }[]> {
+    const rows = await Promise.all(
+      (await this.wifiUuids(false)).map(async uuid => {
+        const { code, stdout } = await this.call([
+          'nmcli',
+          '-g',
+          '802-11-wireless.ssid,802-11-wireless.mode',
+          'connection',
+          'show',
+          'uuid',
+          uuid
+        ]);
+        // One value a line, with nmcli's terse escapes.
+        const [ssid = '', mode = ''] = stdout.split('\n').map(line => splitTerse(line).join(':'));
+        return code === 0 && ssid !== '' && mode !== 'ap' ? { uuid, ssid } : null;
+      })
+    );
+    return rows.filter(row => row !== null);
+  }
+
+  /** The names of the networks the Pi keeps, to join again by itself: once each, in name order. */
+  async saved(): Promise<string[]> {
+    const names = new Set((await this.savedConnections()).map(({ ssid }) => ssid));
+    return [...names].toSorted((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+  }
+
+  /**
+   * Deletes every saved connection to a network, password and all, so the Pi never joins it again by itself. When it is
+   * the one the Wi-Fi is on, the Pi leaves it.
+   */
+  async forget(ssid: string): Promise<ConnectResult> {
+    if (this.isConnecting) return { ok: false, error: ERRORS.busy };
+    let isForgotten = true;
+    const connections = await this.savedConnections();
+    for (const row of connections) {
+      if (row.ssid !== ssid) continue;
+      // One at a time: NetworkManager handles these in order anyway.
+      // eslint-disable-next-line no-await-in-loop -- see above
+      const { code } = await this.call(['nmcli', 'connection', 'delete', 'uuid', row.uuid]);
+      if (code !== 0) isForgotten = false;
+    }
+    return isForgotten ? { ok: true } : { ok: false, error: ERRORS.forget };
+  }
+
   /** The name of the network the Wi-Fi is on now, or null when it is on none or NetworkManager cannot say. */
   async current(): Promise<string | null> {
     // What NetworkManager already knows: a scan would take seconds, and this is asked each time the settings open.
@@ -285,6 +331,13 @@ export class Nmcli {
       this.isConnecting = false;
     }
   }
+}
+
+/** The network named in the body of POST /wifi/forget, or null when there is none. */
+export function parseForgetRequest(value: unknown): string | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const { ssid } = value as Record<string, unknown>;
+  return typeof ssid === 'string' && ssid !== '' && ssid.length <= 32 ? ssid : null;
 }
 
 /** The body of POST /wifi/connect as a request, or null when it is not one. */

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Lock, RefreshCw, Wifi, WifiHigh, WifiLow, WifiOff, WifiZero } from 'lucide-react';
 import { useLanguage } from '../../i18n/language';
 import { useT } from '../../i18n/translate';
-import { joinWifi, scanWifi } from '../../utils/kioskWifi';
+import { forgetWifi, joinWifi, savedWifi, scanWifi } from '../../utils/kioskWifi';
 import type { WifiNetwork, WifiScan } from '../../utils/kioskWifi';
 import { wifiLabel } from './wifi';
 import type { WifiState } from './wifi';
@@ -16,8 +16,9 @@ const BARS = [WifiZero, WifiZero, WifiLow, WifiHigh, Wifi] as const;
 /**
  * The network the kiosk is on, the networks in range, and joining one: an open one at a tap, one with a password (or a
  * hidden one) in a dialog with the on-screen keyboard, or one a phone sends (From phone, over Bluetooth, or over the
- * kiosk's own Hotspot). `onJoined` follows every join, so the network shown is asked again. The buttons for the other
- * ways come above the list. The kiosk's service lists and joins them (utils/kioskWifi.ts).
+ * kiosk's own Hotspot). `onJoined` follows every join, and every network forgotten, so the network shown is asked again.
+ * The buttons for the other ways come above the list. Under it, the networks the kiosk keeps, each with Forget, so
+ * nobody's Wi-Fi password leaves with it. The kiosk's service lists, joins and forgets them (utils/kioskWifi.ts).
  */
 export default function WifiSettings({
   wifi,
@@ -40,6 +41,21 @@ export default function WifiSettings({
   const [connecting, setConnecting] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
   const scanRef = useRef<AbortController | null>(null);
+  const [saved, setSaved] = useState<string[]>([]);
+  const [forgetting, setForgetting] = useState<string | null>(null);
+  const savedRef = useRef<AbortController | null>(null);
+  const listSaved = useCallback(() => {
+    savedRef.current?.abort();
+    const controller = new AbortController();
+    savedRef.current = controller;
+    void savedWifi(controller.signal).then(names => {
+      if (!controller.signal.aborted) setSaved(names);
+    });
+  }, []);
+  useEffect(() => {
+    listSaved();
+    return () => savedRef.current?.abort();
+  }, [listSaved]);
   const onPhoneSetupRef = useRef(onPhoneSetup);
   useEffect(() => {
     onPhoneSetupRef.current = onPhoneSetup;
@@ -70,12 +86,23 @@ export default function WifiSettings({
 
   const joined = () => {
     setTarget(null);
+    listSaved();
+    onJoined();
+  };
+  const forget = async (ssid: string) => {
+    setJoinError(null);
+    setForgetting(ssid);
+    const result = await forgetWifi(ssid, language);
+    setForgetting(null);
+    if (!result.ok) setJoinError(result.error ?? t('wifi.unreachable'));
+    listSaved();
     onJoined();
   };
   // The phone's setup is over by itself: joined, or not, and the page says why when the kiosk did.
   const phoneSetupEnded = (end: SetupEnd) => {
     setPhoneSetup(null);
     if (end.joined) {
+      listSaved();
       onJoined();
     } else {
       setJoinError(end.error ?? null);
@@ -218,6 +245,29 @@ export default function WifiSettings({
           </ul>
         )}
       </section>
+      {saved.length > 0 && (
+        <section className="settings-group" aria-labelledby="wifi-saved-label">
+          <h5 className="settings-group-title" id="wifi-saved-label">
+            {t('wifi.saved')}
+          </h5>
+          <ul className="wifi-networks">
+            {saved.map(ssid => (
+              <li key={ssid} className="settings-box wifi-network">
+                <span className="wifi-network-name">{ssid}</span>
+                <button
+                  type="button"
+                  disabled={forgetting !== null || connecting !== null}
+                  aria-label={t('wifi.forget_name', { ssid })}
+                  onClick={() => void forget(ssid)}
+                  className="button button-secondary shrink-0"
+                >
+                  {t('wifi.forget')}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {target && <WifiJoinDialog target={target} onJoined={joined} onClose={() => setTarget(null)} />}
       {phoneSetup === 'bluetooth' && <WifiPhoneDialog onEnd={phoneSetupEnded} onClose={() => setPhoneSetup(null)} />}
       {phoneSetup === 'hotspot' && (

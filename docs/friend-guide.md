@@ -5,19 +5,24 @@ account. The words in bold are what you'll see on the screen.
 
 ## 1. Get it online
 
-1. Plug it in. With no known Wi-Fi it opens Settings, **Wi-Fi**.
-2. Tap your network, type the password on the on-screen keyboard and tap **Connect**.
+1. Plug it in. With no known Wi-Fi it opens Settings, **Wi-Fi** after about 20 seconds.
+2. Tap your network, type the password on the on-screen keyboard and tap **Connect**. Or tap **From phone** or
+   **Hotspot** and follow the screen to send the Wi-Fi from your phone instead.
 3. Your network isn't listed? Tap **Refresh**, or **Other network** to type its name.
 
-## 2. Sign in to Spotify
+## 2. Add it to your account
 
-1. Tap **Connect Spotify**.
-2. Sign in on Spotify's page with your email and password and agree. A keyboard appears when you tap a box; **Done**
-   hides it. The Google, Apple and Facebook buttons don't get a keyboard, so use your email instead.
+1. Once it's online the screen shows a QR code. Scan it with your phone's camera.
+2. Sign in on your phone. When it says **All set**, the screen opens on its Dashboard by itself.
+
+## 3. Sign in to Spotify
+
+1. The Dashboard offers **Connect Spotify**. Tap it (or tap **Not now** and do it later from the **Spotify** tab).
+2. Spotify's page shows a QR code: scan it with your phone and sign in there.
 3. You only do this once. To switch account, open the **Settings** tab at the top, tap **Sign out**, then **Log in with
    Spotify**.
 
-## 3. Pick where it plays
+## 4. Pick where it plays
 
 - Tap the speaker name at the bottom left to open the speakers list.
 - **This tablet** plays through the screen. Choose it first if you want AirPlay speakers such as Sonos, then tap one or
@@ -25,19 +30,19 @@ account. The words in bold are what you'll see on the screen.
   Each speaker's own volume slider shows only after you tap the sliders button at the top of the list.
 - Spotify Connect speakers are listed too. Open Spotify on them once so they show up.
 
-## 4. Choose music
+## 5. Choose music
 
 - Tap the magnifying glass at the top to open **Choose music**: Liked Songs, your playlists, what you played recently,
   or **Search** to find any song, album or playlist.
 - Tap a song in the queue on the right to jump to it.
 - Tap the microphone on the cover to show the lyrics, and the picture button to bring the cover back.
 
-## 5. Party with friends
+## 6. Party with friends
 
 Start a Jam in the Spotify app on your phone while the screen is playing. Guests add songs from their own Spotify app,
 and the songs appear in the queue after a moment.
 
-## 6. Make it yours
+## 7. Make it yours
 
 - Settings, **Colour**: eight colours for the screen.
 - Without music the screen shows the Dashboard after a minute and dims 5 minutes later. Settings, **Screen sleep**:
