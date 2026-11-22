@@ -5,22 +5,17 @@
 
 # Packages ------------------------------------------------------------------------------------------------------------
 # Installing packages is slow on a Pi even when nothing is missing (apt's cache is loaded from Python), and so are the
-# NodeSource key and archive checks. They are done again only when what they depend on changed: a stamp records the
-# packages, the Node.js version and the NodeSource key as last installed. The stamp is written after a successful install
-# only, so a failed run tries again. A package removed by hand is not put back until the list changes; the nightly
+# key and archive checks. They are done again only when what they depend on changed: a stamp records the packages and
+# the other archives (kiosk_packages_id) as last installed. The stamp is written after a successful install only, so a
+# failed run tries again. A package removed by hand is not put back until the list changes; the nightly
 # unattended-upgrades run keeps what is installed up to date.
-- name: full | Work out what the package step depends on
+- name: full | Read what the package step last installed
   ansible.builtin.set_fact:
-    kiosk_all_packages: >-
-      {{ (kiosk_ansible_packages + kiosk_packages + kiosk_rpi_packages) | unique }}
     kiosk_packages_done: >-
       {{ (lookup('ansible.builtin.file', kiosk_packages_stamp, errors='ignore') | default('', true)) | string | trim }}
 
-- name: full | Install the packages, Node.js and their sources
-  when: >-
-    ([kiosk_all_packages, kiosk_nodejs_major, kiosk_nodesource_key_url, kiosk_nodesource_key_sha256,
-      kiosk_tailscale_enabled, kiosk_tailscale_key_sha256] | to_json | hash('sha1'))
-    != kiosk_packages_done
+- name: full | Install the packages and the other archives' own
+  when: kiosk_packages_id != kiosk_packages_done
   block:
     - name: full | Install the packages
       ansible.builtin.apt:
@@ -31,7 +26,7 @@
         cache_valid_time: 3600
         lock_timeout: 300
 
-    # Node.js for the audio routing, from NodeSource (Debian's is too old to run TypeScript).
+    # Node.js and Tailscale come from their own archives (kiosk_apt_sources), each with its pinned signing key.
     - name: full | Create the APT keyring directory
       ansible.builtin.file:
         path: /etc/apt/keyrings
@@ -40,71 +35,42 @@
         group: root
         mode: '0755'
 
-    - name: full | Install NodeSource's signing key
+    - name: full | Install the other archives' signing keys
       ansible.builtin.get_url:
-        url: '{{ kiosk_nodesource_key_url }}'
-        dest: /etc/apt/keyrings/nodesource.asc
-        checksum: 'sha256:{{ kiosk_nodesource_key_sha256 }}'
+        url: '{{ item.key_url }}'
+        dest: '{{ item.key }}'
+        checksum: 'sha256:{{ item.key_sha256 }}'
         owner: root
         group: root
         mode: '0644'
-      register: kiosk_nodesource_key
+      loop: '{{ kiosk_apt_sources }}'
+      loop_control:
+        label: '{{ item.name }}'
+      register: kiosk_apt_keys
 
-    - name: full | Add NodeSource's archive
+    - name: full | Add the other archives
       ansible.builtin.copy:
         content: |
           Types: deb
-          URIs: https://deb.nodesource.com/node_{{ kiosk_nodejs_major }}.x
-          Suites: nodistro
+          URIs: {{ item.uris }}
+          Suites: {{ item.suite }}
           Components: main
-          Signed-By: /etc/apt/keyrings/nodesource.asc
-        dest: /etc/apt/sources.list.d/nodesource.sources
+          Signed-By: {{ item.key }}
+        dest: '/etc/apt/sources.list.d/{{ item.name }}.sources'
         owner: root
         group: root
         mode: '0644'
-      register: kiosk_nodesource_list
+      loop: '{{ kiosk_apt_sources }}'
+      loop_control:
+        label: '{{ item.name }}'
+      register: kiosk_apt_lists
 
-    - name: full | Install Node.js
+    - name: full | Install the other archives' packages
       ansible.builtin.apt:
-        name: nodejs
+        name: "{{ kiosk_apt_sources | map(attribute='package') }}"
         state: present
-        update_cache: '{{ kiosk_nodesource_key is changed or kiosk_nodesource_list is changed }}'
+        update_cache: '{{ kiosk_apt_keys is changed or kiosk_apt_lists is changed }}'
         lock_timeout: 300
-
-    # Tailscale, for SSH from outside the Pi's home network (kiosk_tailscale_enabled), from Tailscale's archive.
-    - name: full | Install Tailscale's signing key
-      ansible.builtin.get_url:
-        url: https://pkgs.tailscale.com/stable/debian/trixie.noarmor.gpg
-        dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
-        checksum: 'sha256:{{ kiosk_tailscale_key_sha256 }}'
-        owner: root
-        group: root
-        mode: '0644'
-      register: kiosk_tailscale_key
-      when: kiosk_tailscale_enabled | bool
-
-    - name: full | Add Tailscale's archive
-      ansible.builtin.copy:
-        content: |
-          Types: deb
-          URIs: https://pkgs.tailscale.com/stable/debian
-          Suites: trixie
-          Components: main
-          Signed-By: /usr/share/keyrings/tailscale-archive-keyring.gpg
-        dest: /etc/apt/sources.list.d/tailscale.sources
-        owner: root
-        group: root
-        mode: '0644'
-      register: kiosk_tailscale_list
-      when: kiosk_tailscale_enabled | bool
-
-    - name: full | Install Tailscale
-      ansible.builtin.apt:
-        name: tailscale
-        state: present
-        update_cache: '{{ kiosk_tailscale_key is changed or kiosk_tailscale_list is changed }}'
-        lock_timeout: 300
-      when: kiosk_tailscale_enabled | bool
 
     - name: full | Create the directory for the package stamp
       ansible.builtin.file:
@@ -116,9 +82,7 @@
 
     - name: full | Record what was installed
       ansible.builtin.copy:
-        content: >-
-          {{ [kiosk_all_packages, kiosk_nodejs_major, kiosk_nodesource_key_url, kiosk_nodesource_key_sha256,
-          kiosk_tailscale_enabled, kiosk_tailscale_key_sha256] | to_json | hash('sha1') }}
+        content: '{{ kiosk_packages_id }}'
         dest: '{{ kiosk_packages_stamp }}'
         owner: root
         group: root
@@ -437,19 +401,16 @@
 # wrote a file.
 - name: full | Install the sign-in keyboard's source
   ansible.builtin.copy:
-    src: '{{ kiosk_keyboard_src }}/{{ item }}'
-    dest: '{{ kiosk_keyboard_dir }}/src/{{ item }}'
+    src: '{{ item }}'
+    dest: '{{ kiosk_keyboard_dir }}/src/{{ item | basename }}'
     owner: root
     group: root
     mode: '0644'
-  loop:
-    - back.ts
-    - background.ts
-    - build.ts
-    - keyboard.ts
-    - loader.ts
-    - manifest.json
-    - sign-out.ts
+  loop: >-
+    {{ query('ansible.builtin.fileglob', kiosk_keyboard_src ~ '/*.ts', kiosk_keyboard_src ~ '/manifest.json')
+      | reject('search', kiosk_not_installed) | sort }}
+  loop_control:
+    label: '{{ item | basename }}'
 
 - name: full | Build the sign-in keyboard
   ansible.builtin.command:
@@ -465,49 +426,18 @@
 
 # AirPlay: PipeWire makes a sink for each speaker Avahi finds; the app asks the kiosk-audio service (127.0.0.1) to route
 # the browser's audio to the chosen ones, and the same user unit keeps it there.
+# Every source file of the service, so a new one needs no mention here (the tests and their fixtures stay behind).
 - name: full | Install the audio routing
   ansible.builtin.copy:
-    src: '{{ kiosk_audio_src }}/{{ item }}'
-    dest: '{{ kiosk_audio_dir }}/{{ item }}'
+    src: '{{ item }}'
+    dest: '{{ kiosk_audio_dir }}/{{ item | basename }}'
     owner: root
     group: root
     mode: '0644'
-  loop:
-    - actions.ts
-    - address.ts
-    - bluetooth-monitor.ts
-    - bluetooth.ts
-    - hotspot-portal.ts
-    - hotspot.ts
-    - improv-gatt.ts
-    - improv.ts
-    - kiosk-audio.ts
-    - lyrics-lrclib.ts
-    - lyrics-musixmatch.ts
-    - lyrics-sources.ts
-    - lyrics.ts
-    - nmcli.ts
-    - phone-discovery.ts
-    - phone-pairing.ts
-    - phone-setup.ts
-    - pipewire.ts
-    - presence.ts
-    - qr.ts
-    - qrc-cipher.ts
-    - screen-mode.ts
-    - screen.ts
-    - server.ts
-    - sonos-events.ts
-    - sonos-library.ts
-    - sonos-shared.ts
-    - sonos.ts
-    - speakers.ts
-    - update-socket.ts
-    - update.ts
-    - watchdog.ts
-    - wifi-page.ts
-    - wifi-setup.ts
-    - words.ts
+  loop: >-
+    {{ query('ansible.builtin.fileglob', kiosk_audio_src ~ '/*.ts') | reject('search', kiosk_not_installed) | sort }}
+  loop_control:
+    label: '{{ item | basename }}'
   notify: Ask for a kiosk restart
 
 # ws, the one npm package, for the update stream (the WebSocket). Installed from the lockfile, so it is the version that
@@ -526,8 +456,10 @@
 
 - name: full | Install the audio routing's npm packages
   when: >-
-    (lookup('ansible.builtin.file', 'kiosk-audio/package-lock.json') | hash('sha1'))
+    kiosk_audio_lock_id
     != (lookup('ansible.builtin.file', kiosk_audio_deps_stamp, errors='ignore') | default('', true) | string | trim)
+  vars:
+    kiosk_audio_lock_id: "{{ lookup('ansible.builtin.file', 'kiosk-audio/package-lock.json') | hash('sha1') }}"
   block:
     - name: full | Run npm ci
       ansible.builtin.command:
@@ -538,7 +470,7 @@
 
     - name: full | Record which lockfile was installed
       ansible.builtin.copy:
-        content: "{{ lookup('ansible.builtin.file', 'kiosk-audio/package-lock.json') | hash('sha1') }}"
+        content: '{{ kiosk_audio_lock_id }}'
         dest: '{{ kiosk_audio_deps_stamp }}'
         owner: root
         group: root
@@ -567,9 +499,6 @@
     force: true
     follow: false
   notify: Ask for a kiosk restart
-
-- name: full | Install the kiosk service
-  ansible.builtin.include_tasks: kiosk-service.yml
 
 - name: full | Install the Chromium policy
   ansible.builtin.template:
@@ -711,31 +640,6 @@
     - kiosk-ssh-keys.service
     - kiosk-ssh-keys.timer
   when: kiosk_admin_github_user | length > 0
-  notify: Reload systemd
-
-# Pis built before 2026-11-19 had a service that paired a Bluetooth keyboard and mouse. It looped until both were paired,
-# turning BlueZ's scanning and pairable mode on and off every ~105 seconds, so it is gone.
-- name: full | Look for the retired keyboard and mouse pairing
-  ansible.builtin.stat:
-    path: /etc/systemd/system/kiosk-bluetooth-pair.service
-  register: kiosk_bluetooth_pair_unit
-
-- name: full | Stop the retired keyboard and mouse pairing
-  ansible.builtin.systemd_service:
-    name: kiosk-bluetooth-pair.service
-    state: stopped
-    enabled: false
-  when: kiosk_bluetooth_pair_unit.stat.exists and not kiosk_enable_only
-
-- name: full | Remove the retired keyboard and mouse pairing
-  ansible.builtin.file:
-    path: '{{ item }}'
-    state: absent
-  loop:
-    - /etc/systemd/system/kiosk-bluetooth-pair.service
-    - /etc/systemd/system/multi-user.target.wants/kiosk-bluetooth-pair.service
-    - /usr/local/bin/kiosk-bluetooth-pair
-    - /etc/the-max-mix/bluetooth-devices
   notify: Reload systemd
 
 # The units must be known to systemd before they are enabled and started.

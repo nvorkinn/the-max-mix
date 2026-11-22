@@ -80,16 +80,16 @@ kiosk_admin_keys_boot_delay: 2min
 kiosk_admin_keys_interval: 6h
 # Tailscale, so the admin account can SSH in from anywhere once the Pi lives on someone else's network. The playbook only
 # installs it; join your tailnet once by hand with `sudo tailscale up` (pi/cloud-init/README.md). Turning this off later
-# leaves Tailscale installed: run `sudo tailscale logout` and `sudo apt purge tailscale` on the Pi. The archive key
-# (https://pkgs.tailscale.com/stable/debian/trixie.noarmor.gpg) is pinned by its checksum.
+# leaves Tailscale installed: run `sudo tailscale logout` and `sudo apt purge tailscale` on the Pi.
 kiosk_tailscale_enabled: true
-kiosk_tailscale_key_sha256: 3e03dacf222698c60b8e2f990b809ca1b3e104de127767864284e6c228f1fb39
 # Where the playbook records which version of the files it installs (git's tree ids) it last applied completely; when they
 # are unchanged the slow part is skipped (tasks/main.yml).
 kiosk_applied_stamp: /var/lib/the-max-mix/applied.sha1
-# Where the playbook records which packages (and Node.js) it last installed, so that it skips that slow step when nothing
-# changed.
+# Where the playbook records which packages and archives (kiosk_packages_id) it last installed, so that it skips that
+# slow step when nothing changed.
 kiosk_packages_stamp: /var/lib/the-max-mix/packages.sha1
+kiosk_all_packages: '{{ (kiosk_ansible_packages + kiosk_packages + kiosk_rpi_packages) | unique }}'
+kiosk_packages_id: "{{ [kiosk_all_packages, kiosk_apt_sources] | to_json | hash('sha1') }}"
 # The journal is kept on disk (it is in memory by default, so a reboot loses it), up to this much of the SD card.
 kiosk_journal_max_use: 64M
 # Regenerate the initramfs when the Plymouth theme changes. Needs a kernel, so tests in a plain container turn it off.
@@ -163,6 +163,8 @@ kiosk_keyboard_dir: /opt/the-max-mix/kiosk-keyboard
 # update stream) is installed from files/kiosk-audio/package-lock.json with npm ci; kiosk_audio_deps_stamp records which
 # lockfile was installed.
 kiosk_audio_src: '{{ playbook_dir }}/../pi/kiosk-audio'
+# The source files of pi/kiosk-audio and pi/kiosk-keyboard that stay behind: the tests and what only they use.
+kiosk_not_installed: '(\.test|/fixtures)\.ts$'
 kiosk_audio_dir: /opt/the-max-mix/kiosk-audio
 # The LAN port the Sonos speakers send their events to while the app follows them (pi/kiosk-audio/sonos-events.ts).
 kiosk_sonos_events_port: 6329
@@ -171,10 +173,28 @@ kiosk_audio_deps_stamp: /var/lib/the-max-mix/kiosk-audio-deps.sha1
 # Wi-Fi network makes them drop out.
 kiosk_raop_latency_ms: 500
 # The audio routing is TypeScript that Node runs directly, which needs Node 22.18 or later; Debian trixie has 20, so
-# Node comes from NodeSource's archive (the same major version as .nvmrc). The key is pinned by its checksum.
+# Node comes from NodeSource's archive (the same major version as .nvmrc).
 kiosk_nodejs_major: 24
-kiosk_nodesource_key_url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
-kiosk_nodesource_key_sha256: b42e0321dabdc24e892115da705cf061167eac12a317f23d329862d0aa0a271d
+# The archives besides Debian's and Raspberry Pi's, and the package each is there for. Every signing key is pinned by its
+# checksum.
+kiosk_apt_sources: >-
+  {{ [kiosk_nodesource_source] + ([kiosk_tailscale_source] if kiosk_tailscale_enabled | bool else []) }}
+kiosk_nodesource_source:
+  name: nodesource
+  package: nodejs
+  uris: 'https://deb.nodesource.com/node_{{ kiosk_nodejs_major }}.x'
+  suite: nodistro
+  key: /etc/apt/keyrings/nodesource.asc
+  key_url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
+  key_sha256: b42e0321dabdc24e892115da705cf061167eac12a317f23d329862d0aa0a271d
+kiosk_tailscale_source:
+  name: tailscale
+  package: tailscale
+  uris: https://pkgs.tailscale.com/stable/debian
+  suite: trixie
+  key: /usr/share/keyrings/tailscale-archive-keyring.gpg
+  key_url: https://pkgs.tailscale.com/stable/debian/trixie.noarmor.gpg
+  key_sha256: 3e03dacf222698c60b8e2f990b809ca1b3e104de127767864284e6c228f1fb39
 
 # On-device updates: kiosk-pull.timer runs /usr/local/sbin/kiosk-pull against this repository and ref. "latest" follows
 # the repository's latest GitHub release, installed from the Pi bundle the Release workflow uploads to it once the web
