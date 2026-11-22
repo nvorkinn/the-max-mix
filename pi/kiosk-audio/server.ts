@@ -67,10 +67,10 @@
 // its origin (LOCAL_ORIGIN) instead, and the app's origin cannot join a network.
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
-import { APP_HEADERS, appFiles } from './app-files.ts';
-import type { AppFile } from './app-files.ts';
 import { perform } from './actions.ts';
 import type { Action } from './actions.ts';
+import { APP_HEADERS, appFiles } from './app-files.ts';
+import type { AppFile } from './app-files.ts';
 import { BluetoothMonitor, UNAVAILABLE as BLUETOOTH_UNAVAILABLE } from './bluetooth-monitor.ts';
 import type { MonitorSnapshot } from './bluetooth-monitor.ts';
 import { Bluetooth, BluetoothError, parseAddress } from './bluetooth.ts';
@@ -687,7 +687,9 @@ async function get(url: string, response: ServerResponse, deps: Deps, isApp: boo
       }
       const file = await deps.app(url);
       if (file) {
-        response.writeHead(200, { ...APP_HEADERS, 'Content-Type': file.type, 'Cache-Control': file.cache }).end(file.body);
+        response
+          .writeHead(200, { ...APP_HEADERS, 'Content-Type': file.type, 'Cache-Control': file.cache })
+          .end(file.body);
       } else {
         response.writeHead(404).end();
       }
@@ -701,8 +703,9 @@ async function get(url: string, response: ServerResponse, deps: Deps, isApp: boo
  * Sec-Fetch-Site, which no page can set.
  */
 export function isFromApp(request: IncomingMessage, origin: string): boolean {
-  if (request.headers.origin !== undefined) return request.headers.origin === origin;
-  return origin === LOCAL_ORIGIN && request.headers['sec-fetch-site'] === 'same-origin';
+  return request.headers.origin === undefined
+    ? origin === LOCAL_ORIGIN && request.headers['sec-fetch-site'] === 'same-origin'
+    : request.headers.origin === origin;
 }
 
 /** The GETs that answer the app's origin only (they make the Pi call out), and the rest (get). */

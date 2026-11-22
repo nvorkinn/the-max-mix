@@ -82,14 +82,24 @@
       ansible.builtin.file:
         src: releases/{{ kiosk_app_release }}
         dest: '{{ kiosk_app_dir }}/next'
-        state: '{{ "absent" if kiosk_app_is_current | bool else "link" }}'
+        state: link
         force: true
         follow: false
-      vars:
-        kiosk_app_is_current: >-
-          {{ kiosk_app_current.stat.islnk | default(false)
-          and kiosk_app_current.stat.lnk_target == 'releases/' ~ kiosk_app_release }}
+        owner: root
+        group: root
+      when: not kiosk_app_is_current
       notify: Ask for a kiosk restart
+
+    # A release installed again (the same one, or a rollback to the one already served) leaves nothing to switch to.
+    - name: Forget a switch the kiosk does not need
+      ansible.builtin.file:
+        path: '{{ kiosk_app_dir }}/next'
+        state: absent
+      when: kiosk_app_is_current
+  vars:
+    kiosk_app_is_current: >-
+      {{ (kiosk_app_current.stat.islnk | default(false))
+      and kiosk_app_current.stat.lnk_target == 'releases/' ~ kiosk_app_release }}
 
 # Before full.yml, which enables it.
 - name: Install the kiosk service

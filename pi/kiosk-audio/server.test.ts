@@ -12,7 +12,15 @@ import type { ConnectRequest } from './nmcli.ts';
 import { PAIRING_ERRORS } from './phone-pairing.ts';
 import { parseDump } from './pipewire.ts';
 import type { Choice } from './pipewire.ts';
-import { handleRequest, isFromApp, journalLog, LOCAL_ORIGIN, parseAppLog, speakerNames, speakerVolumes } from './server.ts';
+import {
+  handleRequest,
+  isFromApp,
+  journalLog,
+  LOCAL_ORIGIN,
+  parseAppLog,
+  speakerNames,
+  speakerVolumes
+} from './server.ts';
 import type { AppLog, Deps } from './server.ts';
 import type { SonosChange } from './sonos-events.ts';
 import { SonosError } from './sonos.ts';
@@ -123,7 +131,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
     },
     app: url =>
       Promise.resolve(
-        url.split('?')[0] === '/'
+        url.split('?', 1)[0] === '/'
           ? { type: 'text/html; charset=utf-8', body: Buffer.from('<p>app</p>'), cache: 'no-cache' }
           : null
       ),
@@ -944,9 +952,9 @@ describe('the app installed on the Pi', () => {
   });
 });
 
-describe('isFromApp', () => {
-  const request = (headers: Record<string, string>) => ({ headers }) as unknown as Parameters<typeof isFromApp>[0];
+const request = (headers: Record<string, string>) => ({ headers }) as unknown as Parameters<typeof isFromApp>[0];
 
+describe('isFromApp', () => {
   it('goes by the Origin a request names', () => {
     expect(isFromApp(request({ origin: ORIGIN }), ORIGIN)).toBe(true);
     expect(isFromApp(request({ origin: 'https://evil.example', 'sec-fetch-site': 'same-origin' }), LOCAL_ORIGIN)).toBe(

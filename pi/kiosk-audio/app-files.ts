@@ -57,7 +57,7 @@ export function appFiles(folder: string): (url: string) => Promise<AppFile | nul
   let root: string | undefined;
   return async url => {
     // Until the first release is installed there is no folder; it is looked for again on the next request.
-    root ??= folder ? await realpath(folder).catch(() => undefined) : undefined;
+    root ??= await resolved(folder);
     const base = root;
     if (!base) return null;
     const file = fileFor(base, url);
@@ -73,6 +73,16 @@ export function appFiles(folder: string): (url: string) => Promise<AppFile | nul
   };
 }
 
+/** The folder with its links followed, or undefined when there is none. */
+async function resolved(folder: string): Promise<string | undefined> {
+  if (!folder) return;
+  try {
+    return await realpath(folder);
+  } catch {
+    return;
+  }
+}
+
 /** The path in `base` for the URL, or null for one that would leave it, is hidden or has no extension. */
 export function fileFor(base: string, url: string): string | null {
   let pathname: string;
@@ -82,8 +92,13 @@ export function fileFor(base: string, url: string): string | null {
     return null;
   }
   if (pathname === '/') pathname = '/index.html';
-  if (pathname.includes('\0') || pathname.split('/').some(part => part.startsWith('.'))) return null;
-  if (!path.posix.extname(pathname)) return null;
+  if (
+    pathname.includes('\0') ||
+    pathname.split('/').some(part => part.startsWith('.')) ||
+    !path.posix.extname(pathname)
+  ) {
+    return null;
+  }
   const file = path.join(base, pathname);
   return file.startsWith(base + path.sep) ? file : null;
 }
