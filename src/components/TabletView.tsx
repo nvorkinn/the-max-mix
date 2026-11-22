@@ -232,7 +232,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     // Started without a network, so the Spotify player and the Dashboard's data failed to load: start again.
     onConnected: reloadApp
   });
-  // A phone giving the kiosk its Wi-Fi (Settings › Wi-Fi › From phone or Hotspot) takes minutes with nobody touching the
+  // A phone giving the kiosk its Wi-Fi (Settings › Wi-Fi › Hotspot) takes minutes with nobody touching the
   // screen, so the kiosk stays on Settings, awake, until it is done.
   const [isPhoneSetup, setIsPhoneSetup] = useState(false);
   useIdle({

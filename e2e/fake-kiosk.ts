@@ -100,15 +100,15 @@ const FAKE_HOTSPOT = {
 };
 
 /**
- * What the Pi answers while a phone sets up its Wi-Fi: From phone (Bluetooth) and Hotspot start, and each waits for the
- * phone, or the hotspot says `hotspotState` (`connected` once a phone is on it). Undefined for any other request.
+ * What the Pi answers while a phone sets up its Wi-Fi over the Hotspot: it starts, then says `hotspotState` (`connected`
+ * once a phone is on it). Undefined for any other request.
  */
 export function phoneSetupAnswer(request: Request, hotspotState = 'running') {
   const path = new URL(request.url()).pathname;
   const answers: Record<string, object | undefined> =
     request.method() === 'POST'
-      ? { '/wifi/phone': { ok: true }, '/wifi/hotspot': FAKE_HOTSPOT }
-      : { '/wifi/phone': { state: 'waiting' }, '/wifi/hotspot': { state: hotspotState } };
+      ? { '/wifi/hotspot': FAKE_HOTSPOT }
+      : { '/wifi/hotspot': { state: hotspotState } };
   const json = answers[path];
   return json && { headers: CORS, json };
 }

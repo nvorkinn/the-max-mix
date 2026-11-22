@@ -223,7 +223,6 @@ export const STRINGS = {
   'wifi.hide': { en: 'Hide', nb: 'Skjul' },
   'wifi.connect': { en: 'Connect', nb: 'Koble til' },
   'wifi.connecting': { en: 'Connecting to {ssid}…', nb: 'Kobler til {ssid} …' },
-  'wifi.from_phone': { en: 'From phone', nb: 'Fra telefon' },
   'wifi.hotspot': { en: 'Hotspot', nb: 'Hotspot' },
   'wifi.back': { en: 'Back', nb: 'Tilbake' },
   'wifi.starting': { en: 'Starting…', nb: 'Starter …' },
@@ -232,11 +231,6 @@ export const STRINGS = {
     en: 'The phone chose a network. Joining it…',
     nb: 'Telefonen valgte et nettverk. Kobler til …'
   },
-  'wifi.phone_steps': {
-    en: 'On an Android phone, open improv-wifi.com in Chrome, tap Connect device and choose THE MAX MIX.',
-    nb: 'Åpne improv-wifi.com i Chrome på en Android-telefon, trykk på Connect device og velg THE MAX MIX.'
-  },
-  'wifi.qr_improv': { en: 'QR code that opens improv-wifi.com', nb: 'QR-kode som åpner improv-wifi.com' },
   'wifi.qr_join': { en: 'QR code that joins the hotspot', nb: 'QR-kode som kobler til hotspoten' },
   'wifi.qr_open': { en: 'QR code that opens the setup page', nb: 'QR-kode som åpner oppsettsiden' },
   'wifi.step_join': { en: 'Join the hotspot', nb: 'Koble til hotspoten' },

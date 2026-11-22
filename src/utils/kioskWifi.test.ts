@@ -1,16 +1,13 @@
-// cspell:ignore glemme Kunne ikke søke etter nettverk Feil passord Sjekk prøv igjen koble nettverket Bluetooth tilgjengelig telefonen brukes Hotspoten startes
+// cspell:ignore glemme Kunne ikke søke etter nettverk Feil passord Sjekk prøv igjen koble nettverket Hotspoten startes
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   forgetWifi,
   hotspotStatus,
   joinWifi,
-  phoneSetupStatus,
   savedWifi,
   scanWifi,
   startHotspot,
-  startPhoneSetup,
-  stopHotspot,
-  stopPhoneSetup
+  stopHotspot
 } from './kioskWifi';
 
 function answer(status: number, body: unknown) {
@@ -107,49 +104,6 @@ describe('joinWifi', () => {
     await expect(joinWifi(request, 'en')).resolves.toEqual({ ok: false, error: null });
     fail();
     await expect(joinWifi(request, 'en')).resolves.toEqual({ ok: false, error: null });
-  });
-});
-
-describe('setup from a phone', () => {
-  it('starts and stops listening for the phone', async () => {
-    const fetchMock = answer(200, { ok: true });
-    await expect(startPhoneSetup('en')).resolves.toEqual({ ok: true });
-    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/phone', { method: 'POST' });
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.resolve(new Response(null, { status: 204 })))
-    );
-    await expect(stopPhoneSetup()).resolves.toBeUndefined();
-    expect(fetch).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/phone/stop', { method: 'POST' });
-  });
-
-  it("says why Bluetooth would not start, in the tablet's language", async () => {
-    answer(503, { error: 'Bluetooth is not available, so the phone cannot be used.' });
-    await expect(startPhoneSetup('nb')).resolves.toEqual({
-      ok: false,
-      error: 'Bluetooth er ikke tilgjengelig, så telefonen kan ikke brukes.'
-    });
-    fail();
-    await expect(startPhoneSetup('en')).resolves.toEqual({ ok: false, error: null });
-  });
-
-  it('follows the phone: waiting, joining, joined, and ended once its time ran out', async () => {
-    const fetchMock = answer(200, { state: 'waiting', error: 'Could not join that network.' });
-    await expect(phoneSetupStatus('nb')).resolves.toEqual({
-      state: 'waiting',
-      error: 'Kunne ikke koble til det nettverket.'
-    });
-    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/phone', { signal: null });
-    answer(200, { state: 'joining' });
-    await expect(phoneSetupStatus('en')).resolves.toEqual({ state: 'joining' });
-    answer(200, { state: 'joined' });
-    await expect(phoneSetupStatus('en')).resolves.toEqual({ state: 'joined' });
-    answer(200, { state: 'idle' });
-    await expect(phoneSetupStatus('en')).resolves.toEqual({ state: 'ended' });
-    answer(200, { state: 'dancing' });
-    await expect(phoneSetupStatus('en')).resolves.toBeUndefined();
-    fail();
-    await expect(phoneSetupStatus('en')).resolves.toBeUndefined();
   });
 });
 

@@ -125,12 +125,6 @@ export interface SetupStatus {
 }
 
 /** The service's states for each setup, as the tablet follows them. */
-const PHONE_STATES: Readonly<Record<string, SetupStatus['state']>> = {
-  idle: 'ended',
-  waiting: 'waiting',
-  joining: 'joining',
-  joined: 'joined'
-};
 const HOTSPOT_STATES: Readonly<Record<string, SetupStatus['state']>> = {
   idle: 'ended',
   running: 'waiting',
@@ -166,25 +160,6 @@ async function setupStatus(
   } catch {
     return undefined;
   }
-}
-
-/** Asks the kiosk to let a phone send it a network over Bluetooth (Improv Wi-Fi) for a few minutes. */
-export async function startPhoneSetup(language: Language): Promise<WifiResult> {
-  const result = await postSetup('/wifi/phone', language);
-  return result.ok ? { ok: true } : result;
-}
-
-/** Stops listening for a phone. */
-export async function stopPhoneSetup(): Promise<void> {
-  await postSetup('/wifi/phone/stop', 'en');
-}
-
-/** Where the phone's setup is; undefined when the kiosk did not answer (it may be busy changing networks). */
-export function phoneSetupStatus(
-  language: Language,
-  signal: AbortSignal | null = null
-): Promise<SetupStatus | undefined> {
-  return setupStatus('/wifi/phone', PHONE_STATES, language, signal);
 }
 
 /** Asks the kiosk to start its setup hotspot: how to join it, or why it could not. */

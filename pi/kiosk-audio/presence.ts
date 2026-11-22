@@ -9,7 +9,7 @@
 // A phone is known by the fixed address it paired under (phone-pairing.ts) and keeps the name it was picked by: BlueZ's
 // own name for it changes with whatever its adverts carry, so it is never read here.
 import type { MessageBus } from 'dbus-native';
-import { ignoreFailure, untilConnected } from './improv-gatt.ts';
+import { ignoreFailure, untilConnected } from './system-bus.ts';
 import type { PairedPhone } from './phone-pairing.ts';
 
 const ADAPTER = '/org/bluez/hci0';

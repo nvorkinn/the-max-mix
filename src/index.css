@@ -2398,7 +2398,7 @@ body:has(.app-dialog[open]) {
   gap: 14px;
   padding: 10px 10px 10px 14px;
 }
-/* Settings › Wi-Fi: the networks in range, each a row to tap, then Other network, From phone, Hotspot and Refresh. */
+/* Settings › Wi-Fi: the networks in range, each a row to tap, then Other network, Hotspot and Refresh. */
 .wifi-networks {
   display: flex;
   flex-direction: column;
@@ -2457,21 +2457,7 @@ body:has(.app-dialog[open]) {
 .wifi-join .music-search {
   font-size: 20px;
 }
-/* From phone and Hotspot: the codes a phone scans, what to type when it can't, and how the kiosk is getting on. */
-.wifi-setup-body {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-.wifi-setup-text {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-}
-.wifi-setup .wifi-setup-text p:first-child {
-  font-size: 18px;
-}
+/* Hotspot: the codes a phone scans, what to type when it can't, and how the kiosk is getting on. */
 .wifi-setup-qr {
   flex-shrink: 0;
   width: 180px;

@@ -52,7 +52,6 @@ fileglob
 firstrun
 fsck
 fulfill
-gatt
 gecos
 geist
 getaa
@@ -68,7 +67,6 @@ gzzluovl
 ieee
 ifname
 imager
-improv
 indexeddb
 infobars
 initramfs

@@ -178,9 +178,6 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 | `POST /bluetooth/scan`                 | Looks for speakers for 8 seconds; the same answer                                    |
 | `POST /bluetooth/connect`              | Pairs, trusts and connects `{"address"}`                                             |
 | `POST /bluetooth/remove`               | Forgets `{"address"}`                                                                |
-| `POST /wifi/phone`                     | Starts Wi-Fi setup from a phone over Bluetooth (5 minutes)                           |
-| `POST /wifi/phone/stop`                | Stops it                                                                             |
-| `GET /wifi/phone`                      | `{"state": "waiting" \| "joining" \| "joined" \| "idle", "error"?}`                  |
 | `POST /wifi/hotspot`                   | Starts the setup hotspot: name, password, address, QR codes                          |
 | `POST /wifi/hotspot/stop`              | Ends it and puts the earlier network back                                            |
 | `GET /wifi/hotspot`                    | `{"state": "running" \| "connected" \| "joining" \| "joined" \| "failed" \| "idle"}` |
@@ -221,23 +218,6 @@ kiosk answers it, leaves the hotspot, and joins; `GET /wifi/hotspot` then says `
 dialog waits for. When it fails,
 `GET /wifi/hotspot` says why and the earlier network comes back, and the hotspot can be started again. The hotspot also ends by itself after 10
 minutes. The hotspot's own password is shown on the tablet, and is only a barrier for those who can see the screen.
-
-## Wi-Fi from a phone over Bluetooth
-
-A **From phone** button on the tablet saves typing a long password there. It sends `POST /wifi/phone`, and `phone-setup.ts` makes the kiosk advertise [Improv Wi-Fi](https://www.improv-wifi.com/ble/) over
-Bluetooth LE for 5 minutes (a tap on the button again gives another 5). `improv.ts` is the protocol (packets, checksum,
-and a session that turns the phone's "send Wi-Fi settings" command into the same `Nmcli.connect` that `POST /wifi/connect` uses), and
-`improv-gatt.ts` is the Bluetooth side: it exports a GATT service and an advertisement on the system bus with
-`dbus-native` and registers them with BlueZ (`RegisterApplication`, `RegisterAdvertisement`; the first adapter, hci0).
-When the phone has joined a network, advertising stops 4 seconds later. `GET /wifi/phone` says where it is (waiting,
-with the reason when the phone's last network could not be joined; joining; then joined until the next start), which
-the tablet's From phone dialog follows; Back there sends `POST /wifi/phone/stop`.
-
-The button is the authorization Improv asks for: nothing advertises until someone taps it on the tablet, so a phone
-that is only nearby cannot change the Wi-Fi. The password goes from the phone to the kiosk over an unencrypted
-Bluetooth LE link, as Improv does, so the setup is only open for the minutes after the tap. The phone needs a page that
-speaks Improv over Web Bluetooth, which Chrome on Android has and Safari on an iPhone does not.
-[improv-wifi.com](https://www.improv-wifi.com) is one; it is somebody else's page, which sees the password.
 
 `GET /lyrics` answers the app's origin only (each request makes the Pi call out), and is the app's only way to lyrics.
 `lyrics.ts` asks LRCLIB (`lyrics-lrclib.ts`), Musixmatch (`lyrics-musixmatch.ts`) and NetEase, QQ Music and KuGou

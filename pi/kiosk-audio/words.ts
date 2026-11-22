@@ -60,10 +60,6 @@ const WORDS = {
   },
   'error.scan': { en: 'Could not scan for networks.', nb: 'Kunne ikke søke etter nettverk.' },
   'error.forget': { en: 'Could not forget the network.', nb: 'Kunne ikke glemme nettverket.' },
-  'error.noBluetooth': {
-    en: 'Bluetooth is not available, so the phone cannot be used.',
-    nb: 'Bluetooth er ikke tilgjengelig, så telefonen kan ikke brukes.'
-  },
   'error.hotspotNotStarted': { en: 'The hotspot could not be started.', nb: 'Hotspoten kunne ikke startes.' },
   'error.noAdapter': {
     en: 'There is no Wi-Fi adapter to make a hotspot with.',
@@ -74,7 +70,6 @@ const WORDS = {
     en: 'The kiosk is joining a network. Wait a moment.',
     nb: 'Nettbrettet kobler til et nettverk. Vent litt.'
   },
-  'error.phoneJoinFailed': { en: 'Could not join that network.', nb: 'Kunne ikke koble til det nettverket.' },
   'error.couldNotJoin': { en: 'Could not join {ssid}: {error}', nb: 'Kunne ikke koble til {ssid}: {error}' }
 } as const satisfies Record<string, Readonly<Record<Language, string>>>;
 
