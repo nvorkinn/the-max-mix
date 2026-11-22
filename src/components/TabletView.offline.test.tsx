@@ -10,7 +10,13 @@ vi.mock('../spotify/api', () => ({ getQueue: vi.fn() }));
 vi.mock('../hooks/useSpotifyPlayer', () => ({ useSpotifyPlayer: () => state.player }));
 vi.mock('../utils/colorExtractor', () => ({ extractArtColours: vi.fn().mockResolvedValue(null) }));
 vi.mock('./AlbumArtPlayer', () => ({ default: () => null }));
-vi.mock('./SettingsPanel', () => ({ default: () => null }));
+vi.mock('./SettingsPanel', () => ({
+  default: ({ onWifiJoined }: { onWifiJoined?: () => void }) => (
+    <button type="button" onClick={onWifiJoined}>
+      Joined
+    </button>
+  )
+}));
 vi.mock('./SpeakerSelectorModal', () => ({ default: () => null }));
 vi.mock('./TrackQueue', () => ({ default: () => null }));
 
@@ -74,6 +80,9 @@ describe('offline state in TabletView', () => {
     render(<TabletView />);
     expect(await screen.findByRole('tabpanel', { name: 'Settings' })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/status', expect.anything());
+    // Once Settings › Wi-Fi joined a network, the kiosk goes to the Dashboard.
+    await userEvent.click(screen.getByRole('button', { name: 'Joined' }));
+    expect(screen.queryByRole('tabpanel', { name: 'Settings' })).not.toBeInTheDocument();
   });
 
   it('stays on the Dashboard when the kiosk is on a network, or is not a kiosk', async () => {

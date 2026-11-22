@@ -10,10 +10,12 @@ kiosk_user: kiosk
 # service read the journal of the pull and the restart, which it streams to the app's update console. bluetooth lets
 # that service pair and connect Bluetooth speakers (BlueZ's D-Bus policy), and WirePlumber play to them.
 kiosk_groups: [audio, bluetooth, input, netdev, render, systemd-journal, video]
-# The origin of the hosted app and the address the kiosk opens (?kiosk=1 turns on the app's kiosk-only settings,
+# The origin of the app the kiosk opens and the address it opens (?kiosk=1 turns on the app's kiosk-only settings,
 # ?pi_ref=&pi_commit= name the release (or other ref) and commit this playbook ran from, which the app's settings show).
-# Register the redirect URI of this address in the Spotify dashboard.
-kiosk_app_origin: https://the-max-mix.countdown.build
+# The kiosk-audio service serves the app the release installed (kiosk_app_dir) on 127.0.0.1:7341, so it starts with no
+# internet. Register the redirect URI of this address in the Spotify dashboard, and list the origin in countdown-server's
+# TOUCHSCREEN_RETURN_ORIGINS.
+kiosk_app_origin: http://127.0.0.1:7341
 kiosk_url: >-
   {{ kiosk_app_origin }}/?kiosk=1
   {{- ('&pi_ref=' ~ (kiosk_version | urlencode) ~ '&pi_commit=' ~ kiosk_commit) if kiosk_commit and kiosk_version else '' }}

@@ -86,11 +86,12 @@ export async function secretHash(secret: string): Promise<string> {
 }
 
 /**
- * Whether the app should go to /register now rather than start: on the kiosk, with a server named in this build,
- * nothing registered yet, and storage that can keep the secret (without it, every start would register anew).
+ * Whether the app should go to /register now rather than start: on the kiosk, online (offline it starts unregistered and
+ * the next start tries again), with a server named in this build, nothing registered yet, and storage that can keep the
+ * secret (without it, every start would register anew).
  */
 export function needsRegistration(): boolean {
-  return isKiosk() && countdownServer() !== null && deviceCredentials() === null && canStore();
+  return isKiosk() && navigator.onLine && countdownServer() !== null && deviceCredentials() === null && canStore();
 }
 
 /** The Pi's screen, as the kiosk's service reads it from the kernel (pi/kiosk-audio/screen.ts). */
