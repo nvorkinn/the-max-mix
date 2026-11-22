@@ -79,7 +79,7 @@ async function resolved(folder: string): Promise<string | undefined> {
   try {
     return await realpath(folder);
   } catch {
-    return;
+    // No folder until the first release is installed.
   }
 }
 
