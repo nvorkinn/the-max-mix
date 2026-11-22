@@ -123,7 +123,7 @@ check grep -q 'kiosk-audio.ts watch$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'try-restart kiosk-audio.service' /etc/systemd/system/kiosk.service
 check grep -q 'screen-mode.ts --correct' /etc/systemd/system/kiosk.service
 check grep -q 'KIOSK_APP_ORIGIN=http://127.0.0.1:7341' /etc/systemd/user/kiosk-audio.service
-check grep -q '"LocalNetworkAccessAllowedForUrls"' /etc/chromium/policies/managed/kiosk.json
+check grep -q '"BrowserSignin": 0' /etc/chromium/policies/managed/kiosk.json
 # The back button is left off the app's own pages.
 check grep -q '"http://127.0.0.1:7341/\*"' /opt/the-max-mix/kiosk-keyboard/extension/manifest.json
 check grep -q '^Environment=KIOSK_SCREEN_OFF_AFTER=60$' /etc/systemd/system/kiosk.service
