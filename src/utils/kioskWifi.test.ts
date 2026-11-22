@@ -156,9 +156,10 @@ describe('the setup hotspot', () => {
     await expect(stopHotspot()).resolves.toBeUndefined();
   });
 
-  it('follows it: waiting for the phone, joining, joined, failed or ended', async () => {
+  it('follows it: waiting for the phone, a phone on it, joining, joined, failed or ended', async () => {
     const states = [
       ['running', 'waiting'],
+      ['connected', 'connected'],
       ['joining', 'joining'],
       ['joined', 'joined'],
       ['idle', 'ended']

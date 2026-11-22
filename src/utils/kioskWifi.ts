@@ -93,7 +93,7 @@ export interface HotspotInfo {
  * that could not be joined: the hotspot has then ended, while Bluetooth waits for the phone to send another.
  */
 export interface SetupStatus {
-  state: 'waiting' | 'joining' | 'joined' | 'failed' | 'ended';
+  state: 'waiting' | 'connected' | 'joining' | 'joined' | 'failed' | 'ended';
   error?: string;
 }
 
@@ -107,6 +107,7 @@ const PHONE_STATES: Readonly<Record<string, SetupStatus['state']>> = {
 const HOTSPOT_STATES: Readonly<Record<string, SetupStatus['state']>> = {
   idle: 'ended',
   running: 'waiting',
+  connected: 'connected',
   joining: 'joining',
   joined: 'joined',
   failed: 'failed'

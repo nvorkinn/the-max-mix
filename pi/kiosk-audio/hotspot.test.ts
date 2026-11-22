@@ -183,6 +183,14 @@ describe('kiosk-audio/hotspot', () => {
     expect(calls.at(-1)).toEqual(['nmcli', 'connection', 'up', 'uuid', 'aaaa-1111']);
   });
 
+  it('says a phone is on it once one asks the kiosk anything over it', async () => {
+    const { hotspot } = setup(base);
+    await hotspot.start();
+    expect(hotspot.status()).toEqual({ state: 'running' });
+    await overHotspot(hotspot, 'GET', '/generate_204');
+    expect(hotspot.status()).toEqual({ state: 'connected' });
+  });
+
   describe('when the phone chooses a network', () => {
     const request = { ssid: 'Home', password: 'placeholder-pass', hidden: false, security: 'psk' as const };
     const choose = (hotspot: Hotspot, chosen: unknown = request) => overHotspot(hotspot, 'POST', '/connect', chosen);

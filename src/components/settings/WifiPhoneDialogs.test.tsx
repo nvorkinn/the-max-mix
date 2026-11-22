@@ -160,7 +160,7 @@ describe('Settings › Wi-Fi over the hotspot', () => {
     vi.clearAllMocks();
   });
 
-  it('shows the codes, name and password, and closes once the kiosk joined the network the phone chose', async () => {
+  it('shows the code that joins the hotspot, then the one that opens its page once a phone is on it, and closes once the kiosk joined the network the phone chose', async () => {
     const onJoined = vi.fn();
     renderWifi({ onJoined });
     await userEvent.click(screen.getByRole('button', { name: 'Hotspot' }));
@@ -169,9 +169,16 @@ describe('Settings › Wi-Fi over the hotspot', () => {
     expect(await within(dialog).findByTestId('hotspot-name')).toHaveTextContent('THE MAX MIX setup');
     expect(within(dialog).getByTestId('hotspot-password')).toHaveTextContent('ABCDE23456');
     expect(within(dialog).getByRole('img', { name: 'QR code that joins the hotspot' })).toBeInTheDocument();
-    expect(within(dialog).getByRole('img', { name: 'QR code that opens the setup page' })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('img', { name: 'QR code that opens the setup page' })).not.toBeInTheDocument();
     expect(within(dialog).getByText('1. Scan to join')).toBeInTheDocument();
     expect(within(dialog).getByText('Waiting for your phone…')).toBeInTheDocument();
+
+    wifi.hotspotStatus.mockResolvedValue({ state: 'connected' });
+    await poll();
+    expect(within(dialog).getByRole('img', { name: 'QR code that opens the setup page' })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('img', { name: 'QR code that joins the hotspot' })).not.toBeInTheDocument();
+    expect(within(dialog).getByText('2. Scan to open')).toBeInTheDocument();
+    expect(within(dialog).getByTestId('hotspot-password')).toHaveTextContent('ABCDE23456');
 
     wifi.hotspotStatus.mockResolvedValue({ state: 'joining' });
     await poll();

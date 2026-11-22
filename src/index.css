@@ -2417,10 +2417,10 @@ body:has(.app-dialog[open]) {
 .wifi-setup.wifi-hotspot {
   max-width: 900px;
 }
-/* The two codes at either end, with the hotspot's name and password between them, so a camera reads one at a time. */
+/* The code beside the hotspot's name and password. */
 .wifi-hotspot-codes {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 48px;
   margin-bottom: 12px;

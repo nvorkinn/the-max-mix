@@ -27,6 +27,7 @@ type Progress = SetupStatus | { state: 'starting' } | { state: 'refused'; error:
 const STATUS_WORDS: Readonly<Record<Progress['state'], StringId | null>> = {
   starting: 'wifi.starting',
   waiting: 'wifi.waiting_for_phone',
+  connected: 'wifi.waiting_for_phone',
   joining: 'wifi.phone_joining',
   joined: null,
   failed: null,
@@ -197,10 +198,9 @@ export function WifiPhoneDialog({ onEnd, onClose }: Readonly<SetupDialogProps>) 
 }
 
 /**
- * Hotspot: the kiosk makes its own Wi-Fi for a few minutes. The first code (on the left, the second well apart on the
- * right, so a camera reads one at a time) joins it (its name and password are there to
- * type too), and the phone then gets a page to choose the kiosk's network on, which the second code opens when the phone
- * does not by itself.
+ * Hotspot: the kiosk makes its own Wi-Fi for a few minutes. Its code joins it (its name and password are there to type
+ * too), and once a phone is on it the code is swapped for one that opens the page to choose the kiosk's network on, for
+ * a phone that does not open it by itself. One code at a time, so a camera cannot read the wrong one.
  */
 export function WifiHotspotDialog({ onEnd, onClose }: Readonly<SetupDialogProps>) {
   const t = useT();
@@ -217,24 +217,28 @@ export function WifiHotspotDialog({ onEnd, onClose }: Readonly<SetupDialogProps>
     stopHotspot,
     onEnd
   );
+  const isPhoneOn = progress.state === 'connected' || progress.state === 'joining';
   return (
     <SetupDialog title={t('wifi.hotspot')} className="wifi-hotspot" onClose={() => onClose(leave())}>
       {info && (
         <div className="wifi-hotspot-codes">
-          <figure className="wifi-hotspot-code">
-            <QrCode text={wifiQrText(info.ssid, info.password)} label={t('wifi.qr_join')} className="wifi-setup-qr" />
-            <figcaption>{t('wifi.scan_to_join')}</figcaption>
-          </figure>
+          {isPhoneOn ? (
+            <figure className="wifi-hotspot-code" key="open">
+              <QrCode text={info.url} label={t('wifi.qr_open')} className="wifi-setup-qr" />
+              <figcaption>{t('wifi.scan_to_open')}</figcaption>
+            </figure>
+          ) : (
+            <figure className="wifi-hotspot-code" key="join">
+              <QrCode text={wifiQrText(info.ssid, info.password)} label={t('wifi.qr_join')} className="wifi-setup-qr" />
+              <figcaption>{t('wifi.scan_to_join')}</figcaption>
+            </figure>
+          )}
           <dl className="wifi-hotspot-login">
             <dt>{t('wifi.name')}</dt>
             <dd data-testid="hotspot-name">{info.ssid}</dd>
             <dt>{t('wifi.password')}</dt>
             <dd data-testid="hotspot-password">{info.password}</dd>
           </dl>
-          <figure className="wifi-hotspot-code">
-            <QrCode text={info.url} label={t('wifi.qr_open')} className="wifi-setup-qr" />
-            <figcaption>{t('wifi.scan_to_open')}</figcaption>
-          </figure>
         </div>
       )}
       <SetupProgress progress={progress} />

@@ -34,7 +34,7 @@
 //                           GET /wifi/phone  {"state": "idle" | "waiting" | "joining" | "joined", "error"?}
 //   POST /wifi/hotspot      start a setup hotspot for a phone (hotspot.ts): {"ssid", "password", "url", "wifiQr", "urlQr"}
 //                           or 503 {"error"}   POST /wifi/hotspot/stop  end it
-//                           GET /wifi/hotspot  {"state": "idle" | "running" | "joining" | "joined" | "failed", "error"?}
+//                           GET /wifi/hotspot  {"state": "idle" | "running" | "connected" | "joining" | "joined" | "failed", "error"?}
 //   GET  /lyrics?title=&artist=&duration=   lyrics from LRCLIB, Musixmatch, NetEase, QQ Music or KuGou (lyrics.ts):
 //                           {"source"} and "lrc" (synced, timed word by word when a source has that), "plain" (text
 //                           only) or "instrumental": true; the duration in ms is optional;
