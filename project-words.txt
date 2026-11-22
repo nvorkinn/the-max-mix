@@ -11,6 +11,7 @@ avahi
 avenir
 bakerloo
 behavior
+binable
 blockinfile
 bluetoothctl
 bluez
@@ -144,6 +145,7 @@ pairable
 parcelapp
 partuuid
 pavucontrol
+pidwait
 pipefail
 pipelining
 pipewire

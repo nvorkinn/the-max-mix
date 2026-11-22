@@ -1,3 +1,4 @@
+// cspell:ignore Thorvald
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import type { TouchscreenConfig } from 'countdown-api';
@@ -8,7 +9,7 @@ import userEvent from '../../test/user';
 import { LanguageContext } from '../../i18n/language';
 import { translate } from '../../i18n/translate';
 import GeneralSettings from './GeneralSettings';
-import { noticeBoardFor } from './NoticeBoardDialog';
+import { noticeBoardFor, savedBoard } from './NoticeBoardDialog';
 
 const OWNED = fixture.config as TouchscreenConfig;
 
@@ -140,20 +141,20 @@ describe('GeneralSettings', () => {
     await userEvent.type(field, 'sw1a1aa');
     expect(within(dialog).getByRole('img', { name: 'United Kingdom' })).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
-    expect(onSave).toHaveBeenLastCalledWith('notice_board', { postcode: 'SW1A 1AA', country: 'GB' });
+    expect(onSave).toHaveBeenLastCalledWith('notice_board', { postcode: 'SW1A 1AA', country: 'GB', address: null });
 
     await userEvent.click(within(notices as HTMLElement).getByRole('button', { name: 'Change' }));
     dialog = screen.getByRole('dialog', { name: 'Postcode' });
     await userEvent.type(within(dialog).getByRole('textbox', { name: 'Postcode' }), ' ');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
-    expect(onSave).toHaveBeenLastCalledWith('notice_board', { postcode: null, country: null });
+    expect(onSave).toHaveBeenLastCalledWith('notice_board', { postcode: null, country: null, address: null });
   });
 
   it('shows no place and no notice board when none is set, and a search that finds nothing', async () => {
     const onSave = setup({
       ...OWNED,
       weather: { location: '', key: null },
-      notice_board: { postcode: null, country: null }
+      notice_board: { postcode: null, country: null, address: null }
     });
     expect(screen.getByText('No place')).toBeInTheDocument();
     expect(screen.getByText('Off')).toBeInTheDocument();
@@ -179,10 +180,21 @@ describe('GeneralSettings', () => {
 
 describe('noticeBoardFor', () => {
   it('tells a Norwegian postcode from a UK one by its form, and spaces a UK one as usual', () => {
-    expect(noticeBoardFor(' 0150 ')).toEqual({ postcode: '0150', country: 'NO' });
-    expect(noticeBoardFor('sw1a1aa')).toEqual({ postcode: 'SW1A 1AA', country: 'GB' });
-    expect(noticeBoardFor('m1  1ae')).toEqual({ postcode: 'M1 1AE', country: 'GB' });
+    expect(noticeBoardFor(' 0150 ')).toEqual({ postcode: '0150', country: 'NO', address: null });
+    expect(noticeBoardFor('sw1a1aa')).toEqual({ postcode: 'SW1A 1AA', country: 'GB', address: null });
+    expect(noticeBoardFor('m1  1ae')).toEqual({ postcode: 'M1 1AE', country: 'GB', address: null });
     expect(noticeBoardFor('015')).toBeNull();
     expect(noticeBoardFor('London')).toBeNull();
+  });
+});
+
+describe('savedBoard', () => {
+  const address = { street: 'Thorvald Meyers gate', house_number: '10', city: 'Oslo' };
+  const board = { postcode: '0555', country: 'NO' as const, address };
+
+  it("keeps the household's address while the postcode stays the same, and drops it for another or none", () => {
+    expect(savedBoard(board, noticeBoardFor('0555'))).toEqual(board);
+    expect(savedBoard(board, noticeBoardFor('0150'))).toEqual({ postcode: '0150', country: 'NO', address: null });
+    expect(savedBoard(board, null)).toEqual({ postcode: null, country: null, address: null });
   });
 });

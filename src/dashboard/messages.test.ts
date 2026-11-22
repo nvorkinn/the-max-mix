@@ -1,4 +1,4 @@
-// cspell:ignore linjen
+// cspell:ignore linjen Avfallstømming Restavfall
 import { describe, expect, it } from 'vitest';
 import { say } from './messages';
 
@@ -40,6 +40,32 @@ describe('say', () => {
     );
     expect(say('notice.day.today')).toBe('Today');
     expect(say('notice.day.tomorrow')).toBe('Tomorrow');
+  });
+
+  it('says the next bin collection and each kind of waste emptied, the variants of residual waste alike', () => {
+    expect(say('notice.bins.title')).toBe('Bin collection');
+    expect(say('notice.bins.summary', { when: 'Tomorrow', fractions: 'Paper, Residual waste' })).toBe(
+      'Tomorrow – Paper, Residual waste'
+    );
+    const fraction = (key: string, language: 'en' | 'nb' = 'en') =>
+      say('notice.bins.fraction', { fraction: key }, language);
+    expect(
+      [
+        'residualWaste',
+        'residualWasteLessFrequent',
+        'residualWasteContainer',
+        'residualWasteContainerLessFrequent'
+      ].map(key => fraction(key))
+    ).toEqual(Array.from({ length: 4 }, () => 'Residual waste'));
+    expect(['paper', 'bio', 'reusableMaterials', 'glassContainer'].map(key => fraction(key))).toEqual([
+      'Paper',
+      'Food waste',
+      'Plastic',
+      'Glass and metal'
+    ]);
+    expect(fraction('anything else')).toBe('Other waste');
+    expect(say('notice.bins.title', {}, 'nb')).toBe('Avfallstømming');
+    expect(fraction('residualWasteContainer', 'nb')).toBe('Restavfall');
   });
 
   it("puts an argument in as it is, whatever of ICU's own characters it has", () => {
