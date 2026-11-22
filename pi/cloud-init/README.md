@@ -1,8 +1,8 @@
 # Setting up a kiosk
 
 A kiosk is stock Raspberry Pi OS Lite plus this repository's Ansible playbook. You flash the OS, cloud-init and the
-playbook build the kiosk on your own Wi-Fi, and `kiosk-handover` scrubs your Wi-Fi before the Pi goes to its new home.
-There, the app opens Settings > Wi-Fi so its owner can pick their own network.
+playbook build the kiosk on your own Wi-Fi. That Wi-Fi is for the first boot only: the playbook removes it from the card,
+and at its new home the Pi's owner picks their own network in the app.
 
 Tested on a Raspberry Pi 4 Model B with a Waveshare 7-inch 1024x600 HDMI and USB touch screen. A Pi 5 should work the
 same; the playbook boots it with the 4 KB-page kernel (`kernel=kernel8.img`) for Widevine.
@@ -11,7 +11,6 @@ same; the playbook boots it with the 4 KB-page kernel (`kernel=kernel8.img`) for
 
 - Raspberry Pi OS Lite (64-bit, trixie) and a recent [Raspberry Pi Imager](https://www.raspberrypi.com/software/).
 - A Wi-Fi network you control, or Ethernet, for the first boot.
-- An SSH key on the GitHub account in `kiosk_admin_github_user` (see "Maintenance over SSH"), for `kiosk-handover`.
 
 ## Set up
 
@@ -56,26 +55,10 @@ sudo kiosk-pull https://github.com/nvorkinn/the-max-mix.git latest /var/lib/the-
 
 ## Hand it over
 
-Over SSH (`ssh admin@the-max-mix.local`), run:
-
-```sh
-sudo bash /var/lib/the-max-mix/ansible-pull/pi/tools/kiosk-handover
-```
-
-The script is not installed: it runs from the release the Pi last pulled, which every pull leaves in
-`/var/lib/the-max-mix/ansible-pull`.
-
-It asks for `yes`, then:
-
-- forgets every Wi-Fi network and removes cloud-init's copies of yours: `network-config` and `user-data` on the boot
-  partition, the netplan file made from them, and cloud-init's cache;
-- turns cloud-init off (`/etc/cloud/cloud-init.disabled`), so it never applies the setup network again;
-- clears the kiosk's Chromium profile (your Spotify login; the downloaded Widevine stays), the chosen speakers and the
-  logs;
-- powers off. The admin SSH keys, the Tailscale login and the paired Bluetooth devices stay.
-
-Your SSH session drops when the Wi-Fi goes; the rest still runs. At its new home the Pi finds no network and the app
-opens Settings > Wi-Fi. `--no-poweroff` starts the kiosk again instead, for trying it out.
+The first pull removes `network-config` and `user-data` from the card and turns cloud-init off
+(`/etc/cloud/cloud-init.disabled`), so the setup network is never applied again. Your Wi-Fi stays saved on the Pi, which
+keeps it working at your place; at its new home the Pi finds no network it knows, and the app's Wi-Fi screen joins
+theirs. Before it goes, sign everyone out of Spotify in Settings.
 
 Give the new owner the [one-page guide](../../docs/friend-guide.md) (print it, or send the link).
 
@@ -85,10 +68,10 @@ Give the new owner the [one-page guide](../../docs/friend-guide.md) (print it, o
    (`Europe/London`) come from the playbook.
 2. `kiosk.service` starts [Cage](https://github.com/cage-kiosk/cage), a single-app Wayland compositor, on tty7 as the
    `kiosk` user. Cage runs `/usr/local/bin/kiosk-session` forever.
-3. `kiosk-session` runs Chromium on the app, and starts it again whenever it exits. When the app is served by kiosk-audio
-   on this machine, it first waits up to 30 seconds for that service to answer. The app handles having no network
-   itself: when the kiosk starts with none, it opens Settings > Wi-Fi, which lists the networks in range and joins one
-   through kiosk-audio. Joining restarts nothing; the app sees the new network by itself.
+3. `kiosk-session` waits up to 30 seconds for NetworkManager to report full connectivity (a check against
+   `network-test.debian.org`, set in `/etc/NetworkManager/conf.d/20-connectivity.conf`). If it does, it runs Chromium on the app; if
+   not, it runs Chromium on the Wi-Fi setup page (`http://127.0.0.1:7341/wifi-setup`, served by kiosk-audio) until it
+   connects. The page offers Cancel only when a connection already works.
 4. `kiosk-pull.timer` runs `kiosk-pull` three minutes after boot and then every six hours (or at once from the app's
    Update now button, which also follows the pull's journal), applying the playbook only when there is a new release whose Release workflow has uploaded its Pi bundle, and its slow part only when the files it installs changed. A failed run only logs
    (`journalctl -u kiosk-pull`). A pull that changed kiosk files makes `kiosk-restart.timer` restart the kiosk at 04:30.
@@ -96,10 +79,12 @@ Give the new owner the [one-page guide](../../docs/friend-guide.md) (print it, o
    default), by holding a screen wake lock that Chromium passes to Cage. After that, the app shows a black sleep screen
    and lets go. A minute later without a touch (`kiosk_screen_off_after`), `swayidle` runs `kiosk-display off`, which
    turns the HDMI output off with `wlr-randr`. The next touch turns it on again, and that tap only dismisses the sleep
-   screen. Music that starts while the screen sleeps wakes it through the kiosk service (`POST /display/wake`).
+   screen. Music that starts while the screen sleeps wakes it through the kiosk service (`POST /display/wake`). The Wi-Fi panel holds no
+   wake lock, so it goes dark after a minute without a touch.
 
-The app's Settings > Wi-Fi (with `?kiosk=1`) changes the network through the kiosk service on 127.0.0.1
-(pi/kiosk-audio): `GET /wifi/networks`, `GET /wifi/status` and `POST /wifi/connect`.
+The app's Wi-Fi button (shown with `?kiosk=1`) sends `POST /wifi` to the kiosk service on 127.0.0.1 (pi/kiosk-audio), which
+creates `/run/kiosk/show-wifi` and stops Chromium. The session loop then runs
+the panel and starts Chromium again afterwards. Nothing watches the network while Chromium runs.
 
 The playbook also sets, among other things:
 
@@ -131,8 +116,7 @@ address) clears it.
 ### From anywhere, over Tailscale
 
 `the-max-mix.local` only works on the Pi's own network. For SSH once the Pi is at its new home, the playbook installs
-[Tailscale](https://tailscale.com) (`kiosk_tailscale_enabled`). Join it to your tailnet once, at home, before
-`kiosk-handover`:
+[Tailscale](https://tailscale.com) (`kiosk_tailscale_enabled`). Join it to your tailnet once, at home, before it goes:
 
 1. `ssh admin@the-max-mix.local`, then `sudo tailscale up`. It prints a login link; open it on your computer and sign in
    to your Tailscale account.
@@ -141,8 +125,7 @@ address) clears it.
 3. With Tailscale on your computer too: `ssh admin@the-max-mix` (MagicDNS) or `ssh admin@<the Pi's 100.x address>`.
 
 No auth key goes in the repository or on the card. SSH still goes through `sshd` with your GitHub keys; Tailscale only
-carries it. `kiosk-handover` keeps the login. To take a Pi off your tailnet: `sudo tailscale logout`, or remove it in the
-admin console.
+carries it. To take a Pi off your tailnet: `sudo tailscale logout`, or remove it in the admin console.
 
 ### Screenshots and DevTools
 
@@ -183,8 +166,8 @@ and reboot, SSH, and Widevine after a restart. Still to check:
 
 1. A `CIDATA` USB stick is read. Pi OS also points cloud-init at the boot partition.
 2. `kiosk-widevine.path` restarts the kiosk by itself after the first Widevine download.
-3. After `kiosk-handover`, `nmcli connection show` lists no Wi-Fi, `/etc/netplan/` has no Wi-Fi file, and on the next
-   boot the app opens Settings > Wi-Fi.
+3. After the first pull, the boot partition has no `network-config` or `user-data`, and the Pi still joins your Wi-Fi
+   after a reboot.
 4. On a Pi 5, Widevine plays with the 4 KB-page kernel (`getconf PAGESIZE` prints 4096).
 5. Screen sleep: the Waveshare turns its backlight off when `kiosk-display off` disables the output, Chromium's wake
    lock keeps it on while music plays, and the first touch brings it back at 1024x600.

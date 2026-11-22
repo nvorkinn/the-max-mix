@@ -44,7 +44,7 @@ the app posts `{ type: 'maxmix:forget-sign-ins' }` to its window before it reloa
 the app's pages only, passes that to `background.ts`, which clears the cookies and storage of every site except the app
 (`browsingData`, the extension's one permission): Spotify, and Google, Apple or Facebook when one of them was used to
 sign in. It then answers `{ type: 'maxmix:sign-ins-forgotten' }`. The app reloads after the answer, or after 3 seconds
-without one. `kiosk-handover` removes the whole Chromium profile, so it needs none of this.
+without one.
 
 ## In the app
 
