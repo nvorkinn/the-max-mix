@@ -157,6 +157,7 @@ export const STRINGS = {
     nb: 'Skriv navnet på en stasjon eller et stopp, og trykk på det for å legge det til.'
   },
   'common.close': { en: 'Close', nb: 'Lukk' },
+  'common.next': { en: 'Next', nb: 'Neste' },
   'common.not_now': { en: 'Not now', nb: 'Ikke nå' },
 
   // Settings › Parcels.

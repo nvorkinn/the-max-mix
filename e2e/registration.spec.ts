@@ -57,12 +57,25 @@ test.describe('Adding a new kiosk to countdown-server', { tag: '@registration' }
     await page.route('http://127.0.0.1:7341/screen', route =>
       route.fulfill({ json: { width: 1280, height: 800, brightness_control: false } })
     );
+    // On its network already, with no other in range.
+    await page.route('http://127.0.0.1:7341/wifi/status', route =>
+      route.fulfill({ json: { ssid: 'Home', address: null } })
+    );
+    await page.route('http://127.0.0.1:7341/wifi/networks', route => route.fulfill({ json: { networks: [] } }));
   });
 
-  test('a new kiosk shows a QR code until someone owns it, then opens the app', async ({ page }, testInfo) => {
+  test('a new kiosk shows its Wi-Fi, then a QR code until someone owns it, then opens the app', async ({
+    page
+  }, testInfo) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     const server = await fakePairing(page);
     await page.goto('/?kiosk=1');
+
+    // First its Wi-Fi: Next goes on without changing it, and nothing registers before.
+    await expect(page.getByTestId('wifi-network')).toHaveText('Home');
+    await testInfo.attach('pairing-wifi-1280x800', { body: await page.screenshot(), contentType: 'image/png' });
+    expect(server.registrations).toHaveLength(0);
+    await page.getByRole('button', { name: 'Next' }).click();
 
     const code = page.getByRole('img', { name: 'QR code to add this screen to your account' });
     await expect(code).toBeVisible();

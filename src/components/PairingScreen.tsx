@@ -12,19 +12,25 @@ import type { KioskScreen } from '../countdown/registration';
 import { countdownServer } from '../countdown/server';
 import { useT } from '../i18n/translate';
 import QrCode from './QrCode';
+import { useWifi } from './settings/wifi';
+import WifiSettings from './settings/WifiSettings';
 
 /** How often the kiosk asks whether someone owns it yet, while its QR code is showing. */
 export const PAIRING_POLL_MS = 2000;
 /** How long it waits before registering again when the server can't be reached or refuses for now. */
 export const REGISTER_RETRY_MS = 10_000;
 
+/** How often the Wi-Fi step asks the Pi which network it is on, so Next comes on once the Pi has joined one by itself. */
+export const NETWORK_POLL_MS = 3000;
+
 const reloadPage = () => location.reload();
 
 /**
- * A kiosk nobody owns yet: the brand and a QR code of countdown-server's pairing page with the kiosk's pairing token.
- * Whoever scans it signs in on their phone and becomes the owner; meanwhile the kiosk registers itself (a device nobody
- * owns) and asks every couple of seconds whether it has an owner, then keeps its device ID and calls `onPaired`. It
- * covers the app but not its dialogs, so Settings > Wi-Fi still opens over it on a kiosk with no network.
+ * A kiosk nobody owns yet, set up in two steps over the whole app. First its Wi-Fi: the network it is on, and every way
+ * to join another (Settings › Wi-Fi's page), with Next once it is on one; Next itself changes nothing. Then a QR code of
+ * countdown-server's pairing page with the kiosk's pairing token: whoever scans it signs in on their phone and becomes
+ * the owner. Meanwhile the kiosk registers itself (a device nobody owns) and asks every couple of seconds whether it has
+ * an owner, then keeps its device ID and calls `onPaired`. The steps' dialogs open above it.
  */
 export default function PairingScreen({
   screen,
@@ -32,8 +38,17 @@ export default function PairingScreen({
 }: Readonly<{ screen: KioskScreen; onPaired?: () => void }>) {
   const t = useT();
   const [address, setAddress] = useState<string | null>(null);
+  const [isWifiStep, setIsWifiStep] = useState(true);
+  const [wifi, recheckWifi] = useWifi(isWifiStep);
+  // The Pi may join a saved network by itself (as at boot) while the step is open.
+  useEffect(() => {
+    if (!isWifiStep) return;
+    const timer = setInterval(recheckWifi, NETWORK_POLL_MS);
+    return () => clearInterval(timer);
+  }, [isWifiStep, recheckWifi]);
 
   useEffect(() => {
+    if (isWifiStep) return;
     let stopped = false;
     // Read through a call, so each step sees whether the screen has gone while it waited.
     const gone = () => stopped;
@@ -69,16 +84,38 @@ export default function PairingScreen({
       stopped = true;
       clearTimeout(timer);
     };
-  }, [screen, onPaired]);
+  }, [screen, onPaired, isWifiStep]);
 
+  const brand = (
+    <div className="pairing-screen-brand">
+      <span className="pairing-screen-mark" aria-hidden="true">
+        <AudioLines className="lucide" />
+      </span>
+      <span className="pairing-screen-name">The Max Mix.</span>
+    </div>
+  );
+  if (isWifiStep) {
+    return (
+      <main className="pairing-screen pairing-screen-wifi" aria-label={t('pairing.title')}>
+        {brand}
+        <div className="pairing-screen-wifi-settings">
+          <WifiSettings wifi={wifi} onJoined={recheckWifi} />
+        </div>
+        <button
+          type="button"
+          // Off the Pi's service (it can't say), nothing is to be set up here.
+          disabled={wifi.state !== 'connected' && wifi.state !== 'unknown'}
+          onClick={() => setIsWifiStep(false)}
+          className="button search-dialog-confirm pairing-screen-next"
+        >
+          {t('common.next')}
+        </button>
+      </main>
+    );
+  }
   return (
     <main className="pairing-screen" aria-label={t('pairing.title')}>
-      <div className="pairing-screen-brand">
-        <span className="pairing-screen-mark" aria-hidden="true">
-          <AudioLines className="lucide" />
-        </span>
-        <span className="pairing-screen-name">The Max Mix.</span>
-      </div>
+      {brand}
       {address && (
         <>
           <QrCode text={address} className="pairing-screen-code" label={t('pairing.code')} />
