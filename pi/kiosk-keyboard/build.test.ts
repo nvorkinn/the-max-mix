@@ -16,15 +16,14 @@ describe('build', () => {
     const app = 'https://app.example';
     expect(await build(import.meta.dirname, destination, app)).toEqual([
       'manifest.json',
-      'keyboard.js',
       'background.js',
       'sign-out.js',
       'back.js'
     ]);
 
-    const keyboard = await readFile(path.join(destination, 'keyboard.js'), 'utf8');
-    expect(keyboard).toContain('export function start(');
-    expect(keyboard).not.toContain('export type');
+    const background = await readFile(path.join(destination, 'background.js'), 'utf8');
+    expect(background).toContain('export async function forgetSignIns(');
+    expect(background).not.toContain('interface ');
     const manifest = JSON.parse(await readFile(path.join(destination, 'manifest.json'), 'utf8')) as {
       content_scripts: { js: string[]; exclude_matches?: string[] }[];
     };

@@ -15,7 +15,6 @@ import { fileURLToPath } from 'node:url';
 // Source file -> the file Chromium loads.
 const FILES: Record<string, string> = {
   'manifest.json': 'manifest.json',
-  'keyboard.ts': 'keyboard.js',
   'background.ts': 'background.js',
   'sign-out.ts': 'sign-out.js',
   'back.ts': 'back.js'

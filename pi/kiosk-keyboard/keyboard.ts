@@ -1,4 +1,4 @@
-// An on-screen keyboard for the kiosk's own pages: the app's search dialogs and the Wi-Fi setup page. Cage has no
+// An on-screen keyboard for the kiosk's own pages: the app's search and Wi-Fi dialogs. Cage has no
 // protocol for a system keyboard, so this one is drawn at the bottom of the page (or in a dialog) whenever a text field
 // has focus. Keys type with the editing command a real key press uses, which fires the same input events, so the page
 // sees the text. Nothing is stored or sent anywhere.

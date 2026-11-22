@@ -1,8 +1,8 @@
 # THE MAX MIX kiosk extension
 
 A small Chromium extension for the kiosk's touch screen. It draws a button back to the app on every page outside the
-app, so no page is a dead end, and clears Spotify's own sign-in when the app signs out (see [Sign-out](#sign-out)). Its
-build also writes the on-screen keyboard (`keyboard.ts`) that the kiosk's own pages use.
+app, so no page is a dead end, and clears Spotify's own sign-in when the app signs out (see [Sign-out](#sign-out)). The
+on-screen keyboard (`keyboard.ts`) lives here too, but the app bundles it: it is not part of the extension.
 
 ## Signing in to Spotify
 
@@ -23,7 +23,7 @@ kiosk-audio watchdog brings the app back, after 3 minutes without a heartbeat.
 
 ## The keyboard
 
-`keyboard.ts` is not a content script: the pages that want it start it themselves.
+`keyboard.ts` is not a content script: the app bundles it and starts it itself (see [In the app](#in-the-app)).
 
 - When a text field gets focus, the keyboard appears at the bottom of the screen (262 pixels high), the page gets the
   same room at the bottom, and the field scrolls into view. It hides when no field has focus, or on **Done**.
@@ -58,7 +58,7 @@ dialog, since a modal dialog makes the rest of the page untouchable. While the k
 | --------------- | ------------------------------------------------------------------------------------------------ |
 | `manifest.json` | Manifest V3: the content scripts and the pages they run on.                                      |
 | `back.ts`       | The content script for every page outside the app: the button back to the app.                   |
-| `keyboard.ts`   | The on-screen keyboard the kiosk's own pages start: layouts, typing, showing and hiding.         |
+| `keyboard.ts`   | The on-screen keyboard the app bundles: layouts, typing, showing and hiding. Not installed.      |
 | `sign-out.ts`   | Content script on the app's pages: passes the app's sign-out to `background.ts`.                 |
 | `background.ts` | Service worker: clears every other site's cookies and storage on that request.                   |
 | `build.ts`      | Strips the types (Node's `stripTypeScriptTypes`), copies the manifest and adds the app's origin. |

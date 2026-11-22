@@ -378,9 +378,9 @@
     mode: '0644'
 
 # A small Chromium extension draws a button back to the app on every page outside the app, as the kiosk has no back
-# button, and clears Spotify's own sign-in when the app signs out, so it gets the app's origin. The build also writes
-# the on-screen keyboard (keyboard.js) that the Wi-Fi setup page loads. Spotify's sign-in pages get no keyboard: people
-# sign in with the QR code that Spotify's "Continue with Apple" shows.
+# button, and clears Spotify's own sign-in when the app signs out, so it gets the app's origin. The on-screen keyboard
+# beside it (keyboard.ts) is bundled into the app, so it is not installed. Spotify's sign-in pages get no keyboard:
+# people sign in with the QR code that Spotify's "Continue with Apple" shows.
 # Chromium cannot load TypeScript, so the build strips the types (Node, no packages) and prints "changed" only when it
 # wrote a file.
 - name: full | Install the kiosk extension's source
@@ -392,7 +392,7 @@
     mode: '0644'
   loop: >-
     {{ query('ansible.builtin.fileglob', kiosk_keyboard_src ~ '/*.ts', kiosk_keyboard_src ~ '/manifest.json')
-      | reject('search', kiosk_not_installed) | sort }}
+      | reject('search', kiosk_not_installed) | reject('search', '/keyboard\\.ts$') | sort }}
   loop_control:
     label: '{{ item | basename }}'
 
@@ -408,14 +408,17 @@
   changed_when: "'changed' in kiosk_keyboard_build.stdout"
   notify: Ask for a kiosk restart
 
-# Releases before the keyboard left Spotify's sign-in pages installed its content script.
-- name: full | Remove the sign-in keyboard's content script
+# Releases before the keyboard left Spotify's sign-in pages installed its content script, and before the Wi-Fi setup
+# moved into the app, the keyboard the Wi-Fi page loaded.
+- name: full | Remove the extension's keyboard
   ansible.builtin.file:
     path: '{{ item }}'
     state: absent
   loop:
     - '{{ kiosk_keyboard_dir }}/src/loader.ts'
     - '{{ kiosk_keyboard_dir }}/extension/loader.js'
+    - '{{ kiosk_keyboard_dir }}/src/keyboard.ts'
+    - '{{ kiosk_keyboard_dir }}/extension/keyboard.js'
 
 # AirPlay: PipeWire makes a sink for each speaker Avahi finds; the app asks the kiosk-audio service (127.0.0.1) to route
 # the browser's audio to the chosen ones, and the same user unit keeps it there.
