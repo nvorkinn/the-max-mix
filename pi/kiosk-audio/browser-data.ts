@@ -21,15 +21,15 @@ export function cookieOrigins(cookies: { domain: string }[]): string[] {
   return [...hosts]
     .filter(host => host !== '' && !OWN_HOSTS.has(host))
     .map(host => `https://${host}`)
-    .sort();
+    .toSorted((a, b) => a.localeCompare(b));
 }
 
 /** Clears each cookie site's storage, then every cookie. */
 export async function forgetSites(send: Send): Promise<void> {
   const { cookies = [] } = (await send('Storage.getCookies')) as { cookies?: { domain: string }[] };
-  for (const origin of cookieOrigins(cookies)) {
-    await send('Storage.clearDataForOrigin', { origin, storageTypes: STORAGE_TYPES });
-  }
+  await Promise.all(
+    cookieOrigins(cookies).map(origin => send('Storage.clearDataForOrigin', { origin, storageTypes: STORAGE_TYPES }))
+  );
   await send('Storage.clearCookies');
 }
 
@@ -40,8 +40,20 @@ async function connect(base: string): Promise<{ send: Send; close: () => void }>
   if (webSocketDebuggerUrl === undefined) throw new Error('Chromium gave no DevTools address');
   const socket = new WebSocket(webSocketDebuggerUrl);
   await new Promise<void>((resolve, reject) => {
-    socket.addEventListener('open', () => resolve(), { once: true });
-    socket.addEventListener('error', () => reject(new Error('Could not reach Chromium over DevTools')), { once: true });
+    socket.addEventListener(
+      'open',
+      () => {
+        resolve();
+      },
+      { once: true }
+    );
+    socket.addEventListener(
+      'error',
+      () => {
+        reject(new Error('Could not reach Chromium over DevTools'));
+      },
+      { once: true }
+    );
   });
   const waiting = new Map<number, { resolve: (result: unknown) => void; reject: (error: Error) => void }>();
   socket.addEventListener('message', (event: MessageEvent<string>) => {
@@ -74,7 +86,12 @@ async function connect(base: string): Promise<{ send: Send; close: () => void }>
       });
       socket.send(JSON.stringify({ id, method, params }));
     });
-  return { send, close: () => socket.close() };
+  return {
+    send,
+    close: () => {
+      socket.close();
+    }
+  };
 }
 
 /** Clears every other site's sign-in from the kiosk's Chromium. Rejects when DevTools could not be reached. */
