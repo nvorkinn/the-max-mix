@@ -43,7 +43,9 @@ has the file deleted (`POST /handover/done`). See `src/utils/handover.ts`.
 
 `GET /screen` answers what the tablet's screen is, for registering with countdown-server (`screen.ts`):
 `{"width": 1280, "height": 800, "brightness_control": false}`. The size is the first mode of the first connected
-display connector in `/sys/class/drm`, the mode Cage runs at, so it holds for a DSI panel (no EDID) as for HDMI.
+display connector in `/sys/class/drm`, the mode Cage runs at, so it holds for a DSI panel (no EDID) as for HDMI. A
+screen the kiosk shows turned by 90 or 270 degrees (`KIOSK_SCREEN_ROTATION`, the role's `kiosk_screen_rotation`) has its
+width and height the other way round: 1920x1200 for a 1200x1920 panel.
 `brightness_control` is true when `/sys/class/backlight` has an entry: a DSI panel's driver makes one, HDMI never
 does. 503 with no screen connected.
 

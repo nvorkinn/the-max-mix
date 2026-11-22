@@ -93,8 +93,10 @@
 
 # The default locale, the settings for unattended upgrades, and the setup hotspot (pi/kiosk-audio/hotspot.ts):
 # NetworkManager's own DHCP and DNS for it answer every name with the kiosk (50-kiosk-captive.conf), and the service may
-# serve its page on port 80. In one step, as a module run costs seconds on a Pi.
-- name: full | system | Install the locale, unattended upgrade and setup hotspot settings
+# serve its page on port 80. And the touch screen's rotation (kiosk_screen_rotation): libinput reads the matrix from
+# udev when Cage opens the touch screen, DSI or USB, and turns every touch by it, as kiosk-display turns the picture.
+# In one step, as a module run costs seconds on a Pi.
+- name: full | system | Install the locale, unattended upgrade, setup hotspot and touch rotation settings
   ansible.builtin.command:
     argv: [node, '{{ kiosk_install_files }}']
     stdin: '{{ kiosk_system_files | to_json }}'
@@ -116,8 +118,22 @@
       - path: /etc/sysctl.d/50-kiosk-unprivileged-ports.conf
         mode: '0644'
         content: "{{ lookup('ansible.builtin.file', '50-kiosk-unprivileged-ports.conf', rstrip=false) }}"
+      - path: /etc/udev/rules.d/90-kiosk-touch-rotation.rules
+        mode: '0644'
+        content: |
+          ACTION!="remove", SUBSYSTEM=="input", ENV{ID_INPUT_TOUCHSCREEN}=="1", ENV{LIBINPUT_CALIBRATION_MATRIX}="{{ kiosk_touch_matrices[kiosk_screen_rotation | int] }}"
   register: kiosk_system_files_installed
   changed_when: kiosk_system_files_installed.stdout | length > 0
+
+# Runs no module, so it costs nothing: it only passes the change on to the handlers.
+- name: full | system | Apply the touch rotation
+  ansible.builtin.debug:
+    msg: The touch rotation changed.
+  when: "'/etc/udev/rules.d/90-kiosk-touch-rotation.rules' in kiosk_system_files_installed.stdout_lines"
+  changed_when: true
+  notify:
+    - Apply the udev rules
+    - Ask for a kiosk restart
 
 # Runs no module, so it costs nothing: it only passes the change on to the handler.
 - name: full | system | Apply the port setting

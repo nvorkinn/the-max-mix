@@ -94,7 +94,11 @@ The playbook also sets, among other things:
 - `config.txt` and the kernel command line for the screen, a quiet boot and no cursor. The mode is forced on both HDMI
   ports: the screen's own mode from its EDID (1280x800 on a 10.1-inch screen), or 1024x600 for a screen that sends
   none. Set `kiosk_video_mode` in `/etc/the-max-mix/kiosk-vars.yml` for a screen whose EDID is wrong; a new mode needs a
-  reboot. The app fills a bigger screen at its own resolution. The screen is not rotated. A screen whose own mode has an
+  reboot. The app fills a bigger screen at its own resolution. A DSI panel, such as the Raspberry Pi Touch Display 2,
+  needs no mode: the firmware finds it (`display_auto_detect=1` in `config.txt`, Raspberry Pi OS's default) and Cage
+  runs it at its own. Its own mode is portrait, so set `kiosk_screen_rotation` to `90` or `270` (degrees clockwise,
+  whichever way up it is mounted) in `/etc/the-max-mix/kiosk-vars.yml`: the picture and the touches turn with it from
+  the next kiosk restart; the boot console does not. A screen whose own mode has an
   odd horizontal timing (a 10.1-inch MPI107 does), which the Pi 4 cannot send, gets that mode with even timings when
   the kiosk starts (`screen-mode.ts --correct`); without that it would run at another mode it lists, such as 1920x1080.
 

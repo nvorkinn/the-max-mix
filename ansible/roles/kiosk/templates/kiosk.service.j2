@@ -46,6 +46,8 @@ Environment=WLR_LIBINPUT_NO_DEVICES=1
 Environment=XCURSOR_PATH=/usr/share/kiosk-cursors:/usr/share/icons
 Environment=XCURSOR_THEME=blank
 Environment=KIOSK_SCREEN_OFF_AFTER={{ kiosk_screen_off_after | int }}
+# For kiosk-display, which turns the output this many degrees (kiosk_screen_rotation).
+Environment=KIOSK_SCREEN_ROTATION={{ kiosk_screen_rotation | int }}
 Environment="KIOSK_URL={{ kiosk_url | replace('%', '%%') }}"
 ExecStart=/usr/bin/cage -d -- /usr/local/bin/kiosk-session
 Restart=always
