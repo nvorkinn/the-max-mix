@@ -7,7 +7,7 @@ set -u
 url=${KIOSK_URL:?KIOSK_URL is not set}
 chromium_pid=/run/kiosk/chromium.pid
 
-# The on-screen keyboard for Spotify's sign-in pages and the button back to the app on every page outside it
+# The button back to the app on every page outside it and the full sign-out from Spotify
 # (pi/kiosk-keyboard, built by the Ansible role). Chrome turned
 # --load-extension off by default in 2025; the --disable-features switch turns it back on where a build follows that.
 keyboard_extension=/opt/the-max-mix/kiosk-keyboard/extension

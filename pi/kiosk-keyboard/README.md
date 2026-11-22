@@ -1,15 +1,14 @@
-# THE MAX MIX sign-in keyboard
+# THE MAX MIX kiosk extension
 
-A small Chromium extension that shows an on-screen keyboard on Spotify's sign-in pages, so the kiosk can sign in to
-Spotify with the touch screen alone, without a Bluetooth keyboard. It also draws a button back to the app on every page
-outside the app, so no page is a dead end, and clears Spotify's own sign-in when the app signs out (see
-[Sign-out](#sign-out)).
+A small Chromium extension for the kiosk's touch screen. It draws a button back to the app on every page outside the
+app, so no page is a dead end, and clears Spotify's own sign-in when the app signs out (see [Sign-out](#sign-out)). Its
+build also writes the on-screen keyboard (`keyboard.ts`) that the kiosk's own pages use.
 
-## Why an extension
+## Signing in to Spotify
 
-Signing in leaves the app: Chromium goes to `accounts.spotify.com`, and the email and password are typed on Spotify's
-own page. The app cannot draw a keyboard there. A system keyboard cannot help either, because Cage (the compositor) has
-none of the Wayland protocols an on-screen keyboard needs. So the extension draws its own keyboard on the page.
+Signing in leaves the app for `accounts.spotify.com`, and the kiosk has no keyboard there: Cage (the compositor) has none
+of the Wayland protocols a system keyboard needs, and the extension draws none on Spotify's pages. People sign in with
+**Continue with Apple**, whose page shows a QR code to scan with an iPhone, so nothing is typed on the tablet.
 
 ## The way back
 
@@ -22,11 +21,10 @@ entry of the history, which is the app at the address the kiosk gave it.
 Chromium's own error pages (no connection, for example) run no extension scripts, so they get no button: there the
 kiosk-audio watchdog brings the app back, after 3 minutes without a heartbeat.
 
-## What it does
+## The keyboard
 
-- The keyboard runs only on `https://accounts.spotify.com/*`, `https://challenge.spotify.com/*` (the manifest's
-  `matches`).
-  "Continue with Google", Apple or Facebook leave those hosts, so those pages get no keyboard (only the button back).
+`keyboard.ts` is not a content script: the pages that want it start it themselves.
+
 - When a text field gets focus, the keyboard appears at the bottom of the screen (262 pixels high), the page gets the
   same room at the bottom, and the field scrolls into view. It hides when no field has focus, or on **Done**.
 - Three layouts: letters (with a one-shot Shift, `@` and `.`), digits and symbols, and more symbols.
@@ -35,9 +33,8 @@ kiosk-audio watchdog brings the app back, after 3 minutes without a heartbeat.
 - The app's Dashboard dialogs (stop and place search, the notice board's postcode) ask for the number row too. The
   postcode's also asks for capitals only (`isUppercase`): the letters show and type as capitals, with no Shift key.
 - Keys type with the browser's own editing command (`insertText`), which fires the same trusted input events as a key
-  press, so Spotify's form sees the text. Each key acts on touch and keeps the focus in the field.
-- The keyboard stores nothing and sends nothing. It runs in the extension's isolated world, inside a shadow root, so
-  the page's styles do not reach it.
+  press. Each key acts on touch and keeps the focus in the field.
+- The keyboard stores nothing and sends nothing. It draws inside a shadow root, so the page's styles do not reach it.
 
 ## Sign-out
 
@@ -61,8 +58,7 @@ dialog, since a modal dialog makes the rest of the page untouchable. While the k
 | --------------- | ------------------------------------------------------------------------------------------------ |
 | `manifest.json` | Manifest V3: the content scripts and the pages they run on.                                      |
 | `back.ts`       | The content script for every page outside the app: the button back to the app.                   |
-| `loader.ts`     | The content script. Content scripts cannot be modules, so it imports `keyboard.js` by its URL.   |
-| `keyboard.ts`   | The keyboard: layouts, typing, showing and hiding.                                               |
+| `keyboard.ts`   | The on-screen keyboard the kiosk's own pages start: layouts, typing, showing and hiding.         |
 | `sign-out.ts`   | Content script on the app's pages: passes the app's sign-out to `background.ts`.                 |
 | `background.ts` | Service worker: clears every other site's cookies and storage on that request.                   |
 | `build.ts`      | Strips the types (Node's `stripTypeScriptTypes`), copies the manifest and adds the app's origin. |
@@ -78,7 +74,7 @@ Chrome turned that switch off by default in 2025, so `kiosk-session` also passes
 
 To try it on a computer:
 `node pi/kiosk-keyboard/build.ts pi/kiosk-keyboard /tmp/kiosk-keyboard https://the-max-mix.countdown.build`, then load
-`/tmp/kiosk-keyboard` as an unpacked extension in Chromium and open the Spotify sign-in page.
+`/tmp/kiosk-keyboard` as an unpacked extension in Chromium and open any page outside the app.
 
 ## Tests
 

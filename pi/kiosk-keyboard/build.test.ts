@@ -16,7 +16,6 @@ describe('build', () => {
     const app = 'https://app.example';
     expect(await build(import.meta.dirname, destination, app)).toEqual([
       'manifest.json',
-      'loader.js',
       'keyboard.js',
       'background.js',
       'sign-out.js',
@@ -26,16 +25,14 @@ describe('build', () => {
     const keyboard = await readFile(path.join(destination, 'keyboard.js'), 'utf8');
     expect(keyboard).toContain('export function start(');
     expect(keyboard).not.toContain('export type');
-    const loader = await readFile(path.join(destination, 'loader.js'), 'utf8');
-    expect(loader).not.toContain('declare const');
     const manifest = JSON.parse(await readFile(path.join(destination, 'manifest.json'), 'utf8')) as {
       content_scripts: { js: string[]; exclude_matches?: string[] }[];
     };
     // The back button stays off the app itself, wherever it is served from: the kiosk's own address or the app's.
     const back = manifest.content_scripts.find(script => script.js.includes('back.js'));
     expect(back?.exclude_matches).toEqual(['http://127.0.0.1/*', 'https://app.example/*']);
-    const keys = manifest.content_scripts.find(script => script.js.includes('loader.js'));
-    expect(keys?.exclude_matches).toBeUndefined();
+    // Spotify's sign-in pages get no keyboard.
+    expect(manifest.content_scripts.flatMap(script => script.js)).not.toContain('loader.js');
 
     expect(await build(import.meta.dirname, destination, app)).toEqual([]);
   });
@@ -58,6 +55,6 @@ describe('build', () => {
     const manifest = JSON.parse(await readFile(path.join(destination, 'manifest.json'), 'utf8')) as {
       content_scripts: { js: string[] }[];
     };
-    expect(manifest.content_scripts.map(script => script.js)).toEqual([['loader.js']]);
+    expect(manifest.content_scripts.map(script => script.js)).toEqual([]);
   });
 });
