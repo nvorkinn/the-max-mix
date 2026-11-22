@@ -117,6 +117,10 @@ jobs:
           if ! gh release view "$TAG" > /dev/null 2>&1; then
             gh release create "$TAG" --target "$GITHUB_SHA" --prerelease --latest=false --title 'Flash image' --notes 'Building'
           fi
+          echo "Uploading the-max-mix.img.xz ($(($(stat --format=%s the-max-mix.img.xz) / 1048576)) MiB)"
+          SECONDS=0
           gh release upload "$TAG" the-max-mix.img.xz --clobber
+          echo "Uploaded in ${SECONDS}s; uploading the Imager list"
           gh release upload "$TAG" the-max-mix.rpi-imager-manifest --clobber
           gh release edit "$TAG" --prerelease --latest=false --notes "$notes"
+          echo "Published: https://github.com/$GH_REPO/releases/download/$TAG/the-max-mix.rpi-imager-manifest"
