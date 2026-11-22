@@ -20,11 +20,6 @@ export const REGISTER_RETRY_MS = 10_000;
 
 const reloadPage = () => location.reload();
 
-const wait = (ms: number) =>
-  new Promise<void>(resolve => {
-    setTimeout(resolve, ms);
-  });
-
 /**
  * A kiosk nobody owns yet: the brand and a QR code of countdown-server's pairing page with the kiosk's pairing token.
  * Whoever scans it signs in on their phone and becomes the owner; meanwhile the kiosk registers itself (a device nobody
@@ -40,35 +35,39 @@ export default function PairingScreen({
 
   useEffect(() => {
     let stopped = false;
+    // Read through a call, so each step sees whether the screen has gone while it waited.
+    const gone = () => stopped;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let deviceId: string | null = null;
     const server = countdownServer();
     const secret = deviceSecret();
 
     void pairingToken(secret).then(token => {
-      if (!stopped && server) setAddress(pairingPageUrl(server, token));
+      if (server && !gone()) setAddress(pairingPageUrl(server, token));
     });
 
-    const run = async () => {
-      let deviceId: string | null = null;
-      while (!stopped) {
-        deviceId ??= await registerScreen(secret, screen);
-        if (stopped) return;
-        if (!deviceId) {
-          await wait(REGISTER_RETRY_MS);
-          continue;
-        }
-        const state = await pairingState(secret);
-        if (stopped) return;
-        if (state === 'paired') {
-          if (keepDeviceId(deviceId)) onPaired();
-          return;
-        }
-        if (state === 'unregistered') deviceId = null;
-        await wait(PAIRING_POLL_MS);
+    // Registers (again, when the server can't be reached or has forgotten the screen), then asks whether someone owns
+    // it, until someone does.
+    const step = async (): Promise<void> => {
+      deviceId ??= await registerScreen(secret, screen);
+      if (gone()) return;
+      if (!deviceId) {
+        timer = setTimeout(() => void step(), REGISTER_RETRY_MS);
+        return;
       }
+      const state = await pairingState(secret);
+      if (gone()) return;
+      if (state === 'paired') {
+        if (keepDeviceId(deviceId)) onPaired();
+        return;
+      }
+      if (state === 'unregistered') deviceId = null;
+      timer = setTimeout(() => void step(), PAIRING_POLL_MS);
     };
-    void run();
+    void step();
     return () => {
       stopped = true;
+      clearTimeout(timer);
     };
   }, [screen, onPaired]);
 

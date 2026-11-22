@@ -106,9 +106,9 @@ describe('registerScreen', () => {
     const fetch = answers(Response.json({ device_id: '0a1b2c3d4e5f' }, { status: 201 }));
     expect(await registerScreen(EXAMPLE_SECRET, PI_SCREEN)).toBe('0a1b2c3d4e5f');
     const [url, init] = fetch.mock.calls[0] ?? [];
-    expect(String(url)).toBe('https://api.countdown.build/api/devices/register');
+    expect((url as URL).href).toBe('https://api.countdown.build/api/devices/register');
     expect(init?.method).toBe('POST');
-    expect(JSON.parse(String(init?.body))).toEqual({ secret: EXAMPLE_SECRET, type: 'touchscreen', ...PI_SCREEN });
+    expect(JSON.parse(init?.body as string)).toEqual({ secret: EXAMPLE_SECRET, type: 'touchscreen', ...PI_SCREEN });
   });
 
   it('answers null when the server refuses or cannot be reached', async () => {
@@ -129,7 +129,7 @@ describe('pairingState', () => {
     const fetch = answers(Response.json({ parcel: { linked: false }, spotify: { linked: true } }));
     expect(await pairingState(EXAMPLE_SECRET)).toBe('paired');
     const [url, init] = fetch.mock.calls[0] ?? [];
-    expect(String(url)).toBe('https://api.countdown.build/api/devices/account');
+    expect((url as URL).href).toBe('https://api.countdown.build/api/devices/account');
     expect(new Headers(init?.headers).get('Authorization')).toBe(`Bearer ${EXAMPLE_SECRET}`);
   });
 

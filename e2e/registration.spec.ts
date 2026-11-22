@@ -17,7 +17,7 @@ const CORS = {
 async function fakePairing(page: Page) {
   const registrations: Record<string, unknown>[] = [];
   const accountAuthorizations: string[] = [];
-  let paired = false;
+  let isPaired = false;
   // Anything else of the API's, e.g. the config an unowned kiosk doesn't ask for: as for a secret it doesn't know.
   await page.route(`${API}/**`, route => route.fulfill({ status: 401, headers: CORS }));
   await page.route(`${API}/api/devices/register`, (route: Route) => {
@@ -30,15 +30,17 @@ async function fakePairing(page: Page) {
     const request = route.request();
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
     accountAuthorizations.push(request.headers()['authorization'] ?? '');
-    return paired
-      ? route.fulfill({ status: 200, headers: CORS, json: { parcel: { linked: false }, spotify: { linked: false } } })
-      : route.fulfill({ status: 409, headers: CORS, json: { error: "the device isn't paired yet" } });
+    return route.fulfill(
+      isPaired
+        ? { status: 200, headers: CORS, json: { parcel: { linked: false }, spotify: { linked: false } } }
+        : { status: 409, headers: CORS, json: { error: "the device isn't paired yet" } }
+    );
   });
   return {
     registrations,
     accountAuthorizations,
     pair: () => {
-      paired = true;
+      isPaired = true;
     }
   };
 }
