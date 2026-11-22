@@ -165,6 +165,13 @@ kiosk_audio_src: '{{ playbook_dir }}/../pi/kiosk-audio'
 # The source files of pi/kiosk-audio and pi/kiosk-keyboard that stay behind: the tests and what only they use.
 kiosk_not_installed: '(\.test|/fixtures)\.ts$'
 kiosk_audio_dir: /opt/the-max-mix/kiosk-audio
+# The web app itself (Vite's build), which the kiosk-audio service serves on 127.0.0.1:7341 so it starts with no internet
+# (pi/kiosk-audio/app-files.ts). A release's Pi bundle carries it in app/; a Pi following a branch has no build in its
+# checkout, so kiosk-pull puts the latest release's app (with its release.json) in kiosk_branch_app_dir instead. Each
+# release goes in releases/<commit>, `next` points at the one installed last, and kiosk-app-switch makes it `current`
+# when the kiosk starts.
+kiosk_app_dir: /opt/the-max-mix/app
+kiosk_branch_app_dir: /var/lib/the-max-mix/branch-app
 # The LAN port the Sonos speakers send their events to while the app follows them (pi/kiosk-audio/sonos-events.ts).
 kiosk_sonos_events_port: 6329
 kiosk_audio_deps_stamp: /var/lib/the-max-mix/kiosk-audio-deps.sha1

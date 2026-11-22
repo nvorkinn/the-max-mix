@@ -9,6 +9,8 @@ After=pipewire.service wireplumber.service
 
 [Service]
 Environment=KIOSK_APP_ORIGIN={{ kiosk_app_origin }}
+# The web app this service serves (app-files.ts), the release kiosk-app-switch made current when the kiosk started.
+Environment=KIOSK_APP_DIR={{ kiosk_app_dir }}/current
 # The port the Sonos speakers send their events to (sonos-events.ts), on the Pi's home network address. The sonos-ts
 # library opens it the first time the app listens. It takes events only for the subscriptions it holds (anything else
 # gets 412) and otherwise answers just its /status and /health pages.

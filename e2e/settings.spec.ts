@@ -203,10 +203,10 @@ test.describe('Settings', { tag: '@settings' }, () => {
       const asked: string[] = [];
       await page.route('http://127.0.0.1:7341/**', route => {
         const { pathname } = new URL(route.request().url());
-        // The app also sends its errors to the kiosk's log (POST /log) and reads which speakers play (GET); neither is
-        // what is being asked about here.
+        // The app also sends its errors to the kiosk's log (POST /log), hands its saved data over (POST /handover) and
+        // reads which speakers play (GET); none is what is being asked about here.
         const method = route.request().method();
-        if (method === 'POST' && pathname !== '/log') asked.push(`${method} ${pathname}`);
+        if (method === 'POST' && pathname !== '/log' && pathname !== '/handover') asked.push(`${method} ${pathname}`);
         return route.fulfill({ status: 204 });
       });
       await openSpotifyTab(page);
@@ -273,7 +273,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await showSection(dialog, 'Spotify');
     await expect(dialog.getByRole('button', { name: 'Remove' })).toBeVisible();
     await expect(dialog.getByRole('button', { name: /phone/ })).toHaveCount(0);
-    const kioskOnly = ['Change network', 'Choose network', 'Restart kiosk', 'Reboot Pi', 'Check for updates'];
+    const kioskOnly = ['Other network', 'Restart kiosk', 'Reboot Pi', 'Check for updates'];
     await Promise.all(kioskOnly.map(name => expect(dialog.getByRole('button', { name })).toHaveCount(0)));
   });
 });
