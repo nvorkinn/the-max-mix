@@ -50,8 +50,20 @@ if [[ ${KIOSK_SCREEN_ROTATION:-0} != 0 || ! ${KIOSK_SCREEN_SCALE:-1} =~ ^1(\.0+)
 fi
 
 # Cage does not signal this script when it stops, and it waits for us to exit (kiosk.service sends the signal from ExecStop).
-# Stop the app with us so nothing is left running without a compositor.
-trap 'kill $(jobs -p) 2> /dev/null; exit 0' TERM
+# Stop the app with us so nothing is left running without a compositor, and wait for it to quit (up to 10 s) before
+# exiting: Chromium writes out its storage and cookies as it quits, and loses them if Cage takes the display first.
+stop() {
+  local pids i
+  pids=$(jobs -p)
+  # shellcheck disable=SC2086 # one PID per word
+  [[ -n $pids ]] && kill $pids 2> /dev/null
+  for ((i = 0; i < 100; i++)); do
+    [[ -z $(jobs -pr) ]] && break
+    sleep 0.1
+  done
+  exit 0
+}
+trap stop TERM
 
 while true; do
   wait_app
