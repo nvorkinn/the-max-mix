@@ -5,11 +5,19 @@ const LOCAL = 'http://127.0.0.1:7341';
 
 function storage(items: Record<string, string>): Storage {
   const map = new Map(Object.entries(items));
+  const keyAt = (index: number): string | null => {
+    let position = 0;
+    for (const key of map.keys()) {
+      if (position === index) return key;
+      position += 1;
+    }
+    return null;
+  };
   return {
     get length() {
       return map.size;
     },
-    key: index => [...map.keys()][index] ?? null,
+    key: keyAt,
     getItem: key => map.get(key) ?? null,
     setItem: (key, value) => map.set(key, value),
     removeItem: key => map.delete(key),
@@ -51,7 +59,7 @@ describe('takeHandover', () => {
     const fetchSpy = vi.fn((url: string) =>
       Promise.resolve(
         url.endsWith('/handover')
-          ? new Response(JSON.stringify({ items: { 'maxmix.people': '[1]', 'maxmix.kiosk': 'false' } }))
+          ? Response.json({ items: { 'maxmix.people': '[1]', 'maxmix.kiosk': 'false' } })
           : new Response(null, { status: 204 })
       )
     );

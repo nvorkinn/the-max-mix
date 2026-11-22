@@ -23,7 +23,7 @@ export function parseHandover(body: unknown): Handover | null {
   if (entries.length > MAX_ITEMS) return null;
   const handover: Handover = {};
   for (const [key, value] of entries) {
-    if (!/^maxmix\.[\w.]+$/.test(key) || typeof value !== 'string') return null;
+    if (typeof value !== 'string' || !/^maxmix\.[\w.]+$/.test(key)) return null;
     handover[key] = value;
   }
   return handover;

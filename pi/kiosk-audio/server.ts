@@ -75,9 +75,9 @@ import { BluetoothMonitor, UNAVAILABLE as BLUETOOTH_UNAVAILABLE } from './blueto
 import type { MonitorSnapshot } from './bluetooth-monitor.ts';
 import { Bluetooth, BluetoothError, parseAddress } from './bluetooth.ts';
 import type { BluetoothDevice, ConnectResult as BluetoothConnectResult } from './bluetooth.ts';
-import { isLoopback, listenForHotspot } from './hotspot-portal.ts';
 import { handoverFile, MAX_HANDOVER, parseHandover } from './handover.ts';
 import type { HandoverStore } from './handover.ts';
+import { isLoopback, listenForHotspot } from './hotspot-portal.ts';
 import { Hotspot, HotspotError } from './hotspot.ts';
 import type { HotspotInfo, HotspotStatus } from './hotspot.ts';
 import type { LyricsQuery } from './lyrics-sources.ts';

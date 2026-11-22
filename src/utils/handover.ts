@@ -57,8 +57,9 @@ export async function takeHandover(storage: Storage = localStorage, origin = loc
     const response = await fetch(`${KIOSK_SERVICE}/handover`);
     if (response.ok) {
       const body = (await response.json()) as { items?: Record<string, unknown> };
-      for (const [key, value] of Object.entries(body.items ?? {})) {
-        if (key.startsWith(PREFIX) && typeof value === 'string' && storage.getItem(key) === null) {
+      const entries = Object.entries(body.items ?? {});
+      for (const [key, value] of entries) {
+        if (typeof value === 'string' && key.startsWith(PREFIX) && storage.getItem(key) === null) {
           storage.setItem(key, value);
         }
       }
