@@ -25,9 +25,6 @@
       - /etc/tmpfiles.d
       - /opt/the-max-mix
       - '{{ kiosk_audio_dir }}'
-      - '{{ kiosk_keyboard_dir }}'
-      - '{{ kiosk_keyboard_dir }}/src'
-      - '{{ kiosk_keyboard_dir }}/extension'
       - /usr/share/icons/blank
       - /usr/share/icons/blank/cursors
       - /usr/share/kiosk-cursors
@@ -350,12 +347,6 @@
     label: '{{ item.dest }}'
   notify: Ask for a kiosk restart
 
-# Releases up to v2.19.0 installed pi/tools/kiosk-handover, and later ones ran it from the pulled release.
-- name: full | Remove the handover script
-  ansible.builtin.file:
-    path: /usr/local/sbin/kiosk-handover
-    state: absent
-
 # The card's Wi-Fi is for the first boot only: cloud-init has made it a netplan file by now, which keeps the network,
 # and the app's Wi-Fi screen sets up any other. So the card's copies go, with the setup user-data, and cloud-init is
 # turned off so that it never applies them again.
@@ -382,46 +373,6 @@
     owner: root
     group: root
     mode: '0644'
-
-# A small Chromium extension draws a button back to the app on every page outside the app, as the kiosk has no back
-# button, and clears Spotify's own sign-in when the app signs out, so it gets the app's origin. The build also writes
-# the on-screen keyboard (keyboard.js) that the Wi-Fi setup page loads. Spotify's sign-in pages get no keyboard: people
-# sign in with the QR code that Spotify's "Continue with Apple" shows.
-# Chromium cannot load TypeScript, so the build strips the types (Node, no packages) and prints "changed" only when it
-# wrote a file.
-- name: full | Install the kiosk extension's source
-  ansible.builtin.copy:
-    src: '{{ item }}'
-    dest: '{{ kiosk_keyboard_dir }}/src/{{ item | basename }}'
-    owner: root
-    group: root
-    mode: '0644'
-  loop: >-
-    {{ query('ansible.builtin.fileglob', kiosk_keyboard_src ~ '/*.ts', kiosk_keyboard_src ~ '/manifest.json')
-      | reject('search', kiosk_not_installed) | sort }}
-  loop_control:
-    label: '{{ item | basename }}'
-
-- name: full | Build the kiosk extension
-  ansible.builtin.command:
-    argv:
-      - node
-      - '{{ kiosk_keyboard_dir }}/src/build.ts'
-      - '{{ kiosk_keyboard_dir }}/src'
-      - '{{ kiosk_keyboard_dir }}/extension'
-      - '{{ kiosk_app_origin }}'
-  register: kiosk_keyboard_build
-  changed_when: "'changed' in kiosk_keyboard_build.stdout"
-  notify: Ask for a kiosk restart
-
-# Releases before the keyboard left Spotify's sign-in pages installed its content script.
-- name: full | Remove the sign-in keyboard's content script
-  ansible.builtin.file:
-    path: '{{ item }}'
-    state: absent
-  loop:
-    - '{{ kiosk_keyboard_dir }}/src/loader.ts'
-    - '{{ kiosk_keyboard_dir }}/extension/loader.js'
 
 # AirPlay: PipeWire makes a sink for each speaker Avahi finds; the app asks the kiosk-audio service (127.0.0.1) to route
 # the browser's audio to the chosen ones, and the same user unit keeps it there.

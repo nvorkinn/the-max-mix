@@ -9,7 +9,6 @@ on:
     paths:
       - 'ansible/**'
       - 'pi/kiosk-audio/**'
-      - 'pi/kiosk-keyboard/**'
       - '.ansible-lint'
       - '.yamllint.yml'
       - '.github/workflows/ansible.yml'
@@ -18,7 +17,6 @@ on:
     paths:
       - 'ansible/**'
       - 'pi/kiosk-audio/**'
-      - 'pi/kiosk-keyboard/**'
       - '.ansible-lint'
       - '.yamllint.yml'
       - '.github/workflows/ansible.yml'

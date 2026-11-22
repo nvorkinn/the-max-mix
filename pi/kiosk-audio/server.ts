@@ -114,7 +114,8 @@ const LOGS_PER_MINUTE = 30;
 const POST_ACTIONS: Record<string, Action> = {
   '/power/restart': 'restart',
   '/power/reboot': 'reboot',
-  '/display/wake': 'wake'
+  '/display/wake': 'wake',
+  '/browser/forget-sign-ins': 'forget-sign-ins'
 };
 
 /** What the service needs: PipeWire's graph, routing, and a way to run an action; tests pass fakes. */

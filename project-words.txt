@@ -65,6 +65,7 @@ ieee
 ifname
 imager
 improv
+indexeddb
 infobars
 initramfs
 islnk

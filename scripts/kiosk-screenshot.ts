@@ -34,7 +34,7 @@ interface Target {
   webSocketDebuggerUrl?: string;
 }
 
-/** The page on screen: Chromium's page targets, leaving out the keyboard extension's and DevTools' own. */
+/** The page on screen: Chromium's page targets, leaving out DevTools' own. */
 async function findScreenTarget(base: string): Promise<Target> {
   const response = await fetch(`${base}/json/list`);
   const targets = (await response.json()) as Target[];

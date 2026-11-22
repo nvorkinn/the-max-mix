@@ -175,7 +175,7 @@ Register `http://127.0.0.1:5173/` as a redirect URI in the Spotify dashboard to 
 To try the production build (the same files the Pi serves), run
 `npm run build && npm start` and open
 **<http://127.0.0.1:4173/>** (`vite preview`). Register that address too if you want to sign in there. `npm test` runs the
-app, kiosk service and kiosk extension tests.
+app and kiosk service tests.
 
 ### Checks and Git hooks
 
@@ -260,7 +260,7 @@ device, so change the role, not the device.
   form, or push a version tag from `main` (`git tag v1.12.0 && git push origin v1.12.0`): the Release workflow deploys
   the web app to the server and, once that has worked, publishes the GitHub release (with notes generated from the
   merged pull requests when it has none) and, as its very last step, uploads the Pi bundle `the-max-mix-pi.tar.gz` to
-  it: `ansible/`, `pi/kiosk-audio` and `pi/kiosk-keyboard` at the tag, plus `release.json` (tag, commit, tree ids). A
+  it: `ansible/` and `pi/kiosk-audio` at the tag, plus `release.json` (tag, commit, tree ids). A
   Pi installs a release only once its bundle is there, so it can never run ahead of the workflow, and a release whose
   workflow failed is never installed. That one tag ships both the web app and the Pi, and the version in the kiosk's
   Settings is the release's name.
@@ -273,8 +273,8 @@ device, so change the role, not the device.
   downloads that release's bundle into `/var/lib/the-max-mix/ansible-pull` and runs the playbook from it; a release
   without its bundle yet is "not ready" and the Pi stays where it is. `--only-if-changed` skips a release already
   installed completely (`/var/lib/the-max-mix/installed-release`), so a check with nothing new is a single request,
-  and the playbook applies its slow part only when `ansible/`, `pi/kiosk-audio` or
-  `pi/kiosk-keyboard` differ from the last complete run (git's tree ids, kept in `/var/lib/the-max-mix/applied.sha1`; most
+  and the playbook applies its slow part only when `ansible/` or `pi/kiosk-audio`
+  differ from the last complete run (git's tree ids, kept in `/var/lib/the-max-mix/applied.sha1`; most
   releases only change the web app, which the Pi loads from the internet). `kiosk.service` is rewritten either way,
   because it carries the release the settings show. A deployed Pi therefore gets fixes to the kiosk service, the session script, the
   Chromium policy and so on without a reflash. The playbook is idempotent, so repeated runs are safe. To pin one Pi,

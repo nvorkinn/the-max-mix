@@ -155,7 +155,7 @@ The `bootfs` partition holds `config.txt` and `cmdline.txt` (remove `quiet splas
   `kiosk_screen_off_after: 0` to keep the output on for good.
 - **The Wi-Fi, update, restart, reboot or speaker buttons do nothing:** the app talks to the kiosk service. Check
   `curl -s http://127.0.0.1:7341/speakers`, `journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service` (as root) and
-  `journalctl -b | grep polkit`. Chromium 156 may also need its `LocalNetworkAccessAllowedForUrls` policy (`chrome://policy`).
+  `journalctl -b | grep polkit`.
 
 ## Still to verify
 

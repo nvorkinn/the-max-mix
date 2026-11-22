@@ -1,29 +1,15 @@
-# THE MAX MIX kiosk extension
+# THE MAX MIX on-screen keyboard
 
-A small Chromium extension for the kiosk's touch screen. It draws a button back to the app on every page outside the
-app, so no page is a dead end, and clears Spotify's own sign-in when the app signs out (see [Sign-out](#sign-out)). Its
-build also writes the on-screen keyboard (`keyboard.ts`) that the kiosk's own pages use.
+The kiosk's touch screen has no keyboard, and Cage (the compositor) has none of the Wayland protocols a system keyboard
+needs, so the app draws its own. The app bundles `keyboard.ts` on the kiosk and starts it inside the dialog that wants
+it (music search, stop and place search, the postcode, the Wi-Fi password), since a modal dialog makes the rest of the
+page untouchable. While the keyboard shows it sets `--keyboard-height` on the page, and the app's dialogs move up above
+it.
 
-## Signing in to Spotify
-
-Signing in leaves the app for `accounts.spotify.com`, and the kiosk has no keyboard there: Cage (the compositor) has none
-of the Wayland protocols a system keyboard needs, and the extension draws none on Spotify's pages. People sign in with
-**Continue with Apple**, whose page shows a QR code to scan with an iPhone, so nothing is typed on the tablet.
-
-## The way back
-
-The kiosk has no address bar and no back button. Sign-in leaves the app, and so does anything that goes wrong there (a
-redirect address Spotify does not know shows only an error on a white page) and any link on those pages. `back.ts` runs
-on every `http` and `https` page except the app and the kiosk's own pages on `127.0.0.1` (where the kiosk service serves the app), and draws a
-**Back to THE MAX MIX** button in the top right corner. Chromium starts on the app, so the button goes to the first
-entry of the history, which is the app at the address the kiosk gave it.
-
-Chromium's own error pages (no connection, for example) run no extension scripts, so they get no button: there the
-kiosk-audio watchdog brings the app back, after 3 minutes without a heartbeat.
+Spotify's sign-in pages get no keyboard: people sign in with **Continue with Apple**, whose page shows a QR code to scan
+with an iPhone, so nothing is typed on the tablet.
 
 ## The keyboard
-
-`keyboard.ts` is not a content script: the pages that want it start it themselves.
 
 - When a text field gets focus, the keyboard appears at the bottom of the screen (262 pixels high), the page gets the
   same room at the bottom, and the field scrolls into view. It hides when no field has focus, or on **Done**.
@@ -36,47 +22,7 @@ kiosk-audio watchdog brings the app back, after 3 minutes without a heartbeat.
   press. Each key acts on touch and keeps the focus in the field.
 - The keyboard stores nothing and sends nothing. It draws inside a shadow root, so the page's styles do not reach it.
 
-## Sign-out
-
-The app's Sign out forgets the app's own Spotify tokens, but Chromium still holds Spotify's sign-in cookies, so the next
-"Log in with Spotify" would skip the password and go straight to the approval page as the same person. So on the kiosk
-the app posts `{ type: 'maxmix:forget-sign-ins' }` to its window before it reloads. `sign-out.ts`, a content script on
-the app's pages only, passes that to `background.ts`, which clears the cookies and storage of every site except the app
-(`browsingData`, the extension's one permission): Spotify, and Google, Apple or Facebook when one of them was used to
-sign in. It then answers `{ type: 'maxmix:sign-ins-forgotten' }`. The app reloads after the answer, or after 3 seconds
-without one.
-
-## In the app
-
-The app's music picker (Choose music, Search tab) bundles `keyboard.ts` itself on the kiosk and starts it inside its
-dialog, since a modal dialog makes the rest of the page untouchable. While the keyboard shows it sets
-`--keyboard-height` on the page, and the app's dialogs move up above it. The extension is not involved there.
-
-## Files
-
-| File            | Role                                                                                             |
-| --------------- | ------------------------------------------------------------------------------------------------ |
-| `manifest.json` | Manifest V3: the content scripts and the pages they run on.                                      |
-| `back.ts`       | The content script for every page outside the app: the button back to the app.                   |
-| `keyboard.ts`   | The on-screen keyboard the kiosk's own pages start: layouts, typing, showing and hiding.         |
-| `sign-out.ts`   | Content script on the app's pages: passes the app's sign-out to `background.ts`.                 |
-| `background.ts` | Service worker: clears every other site's cookies and storage on that request.                   |
-| `build.ts`      | Strips the types (Node's `stripTypeScriptTypes`), copies the manifest and adds the app's origin. |
-
-## Install
-
-The Ansible role in [`ansible/roles/kiosk`](../../ansible/roles/kiosk) copies these files to
-`/opt/the-max-mix/kiosk-keyboard/src` and runs `node build.ts` with the app's origin (`kiosk_app_origin`: the pages
-that get the sign-out relay and do not get the button), which writes the extension to
-`/opt/the-max-mix/kiosk-keyboard/extension`. `kiosk-session` starts Chromium with `--load-extension` pointing there.
-Chrome turned that switch off by default in 2025, so `kiosk-session` also passes
-`--disable-features=DisableLoadExtensionCommandLineSwitch`.
-
-To try it on a computer:
-`node pi/kiosk-keyboard/build.ts pi/kiosk-keyboard /tmp/kiosk-keyboard https://the-max-mix.countdown.build`, then load
-`/tmp/kiosk-keyboard` as an unpacked extension in Chromium and open any page outside the app.
-
 ## Tests
 
-`npm test` runs `keyboard.test.ts` (in jsdom, which has no editing commands, so the fallback that sets the value is
-what types there), `back.test.ts` and `build.test.ts`.
+`npm test` runs `keyboard.test.ts`, in jsdom, which has no editing commands, so the fallback that sets the value is what
+types there.
