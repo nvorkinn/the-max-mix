@@ -36,6 +36,7 @@ describe('PairingScreen', () => {
     render(<PairingScreen screen={PI_SCREEN} onPaired={onPaired} />);
 
     expect(await screen.findByRole('img', { name: 'QR code to add this screen to your account' })).toBeInTheDocument();
+    expect(screen.getByText('Scan to get started')).toBeInTheDocument();
     await waitFor(() => {
       expect(pairingState).toHaveBeenCalledTimes(1);
     });

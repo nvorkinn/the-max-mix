@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   deviceCredentials,
   deviceSecret,
+  forgetGetStarted,
   forgetRegistration,
   keepDeviceId,
   kioskScreen,
@@ -10,7 +11,8 @@ import {
   pairingState,
   pairingToken,
   registerScreen,
-  secretHash
+  secretHash,
+  wantsGetStarted
 } from './registration';
 import { countdownServer } from './server';
 
@@ -168,6 +170,14 @@ describe('keeping the device', () => {
     const secret = deviceSecret();
     expect(keepDeviceId('0a1b2c3d4e5f')).toBe(true);
     expect(deviceCredentials()).toEqual({ deviceId: '0a1b2c3d4e5f', secret });
+  });
+
+  it('asks for Get started once the kiosk is paired, until someone deals with it', () => {
+    expect(wantsGetStarted()).toBe(false);
+    keepDeviceId('0a1b2c3d4e5f');
+    expect(wantsGetStarted()).toBe(true);
+    forgetGetStarted();
+    expect(wantsGetStarted()).toBe(false);
   });
 
   it('forgets the device ID and the secret', () => {
