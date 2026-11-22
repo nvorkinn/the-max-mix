@@ -1,4 +1,4 @@
-// cspell:ignore Kunne ikke koble nettverket
+// cspell:ignore Kunne ikke koble nettverket tilgjengelig telefon Tilbake
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '../../test/user';

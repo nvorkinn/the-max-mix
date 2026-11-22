@@ -1,4 +1,4 @@
-// cspell:ignore Kunne ikke søke etter nettverk Feil passord Sjekk prøv igjen koble nettverket Bluetooth tilgjengelig telefonen brukes
+// cspell:ignore Kunne ikke søke etter nettverk Feil passord Sjekk prøv igjen koble nettverket Bluetooth tilgjengelig telefonen brukes Hotspoten
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   hotspotStatus,

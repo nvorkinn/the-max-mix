@@ -22,7 +22,7 @@ export const SETUP_POLL_MS = 2000;
 export const IMPROV_URL = 'https://www.improv-wifi.com/';
 
 /** Where a dialog is: starting the setup, following it (with the kiosk's last word), or it could not start. */
-type Progress = { state: 'starting' } | SetupStatus | { state: 'unstarted'; error: string | null };
+type Progress = { state: 'starting' } | SetupStatus | { state: 'refused'; error: string | null };
 
 const STATUS_WORDS: Readonly<Record<Progress['state'], StringId | null>> = {
   starting: 'wifi.starting',
@@ -31,7 +31,7 @@ const STATUS_WORDS: Readonly<Record<Progress['state'], StringId | null>> = {
   joined: null,
   failed: null,
   ended: 'wifi.setup_ended',
-  unstarted: null
+  refused: null
 };
 
 /**
@@ -89,7 +89,7 @@ function useSetup(
         timer = setTimeout(() => void follow(), SETUP_POLL_MS);
       } else {
         isOver.current = true;
-        setProgress({ state: 'unstarted', error: started });
+        setProgress({ state: 'refused', error: started });
       }
     });
     return () => {
@@ -107,7 +107,7 @@ function SetupProgress({ progress }: Readonly<{ progress: Progress }>) {
   const t = useT();
   const words = STATUS_WORDS[progress.state];
   let error: string | undefined;
-  if (progress.state === 'unstarted') error = progress.error ?? t('wifi.unreachable');
+  if (progress.state === 'refused') error = progress.error ?? t('wifi.unreachable');
   else if ('error' in progress) error = progress.error;
   return (
     <>
