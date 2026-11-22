@@ -43,7 +43,7 @@
       fi
       [[ $mode =~ ^[0-9]+x[0-9]+@[0-9]+$ ]] || mode=
       # The file may end without a newline (an image's own, or one a package rewrote), which read reports as a failure.
-      read -r -a words < "$file" || [[ ${#words[@]} -gt 0 ]]
+      read -r -a words < "$file" || [[ -n ${words[*]-} ]]
       new=()
       for word in "${words[@]}"; do
         if [[ $word == console=tty1 ]]; then
