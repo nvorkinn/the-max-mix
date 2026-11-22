@@ -89,9 +89,7 @@ jobs:
       # (pi/kiosk-audio/app-files.ts) so it starts with no internet.
       - name: Pack the Pi bundle
         run: |
-          jq --null-input --arg tag "$TAG" --arg commit "$(git rev-parse HEAD)" \
-            --args '{tag: $tag, commit: $commit, trees: $ARGS.positional}' \
-            "$(git rev-parse HEAD:ansible)" "$(git rev-parse HEAD:pi/kiosk-audio)" \
+          jq --null-input --arg tag "$TAG" --arg commit "$(git rev-parse HEAD)" '{tag: $tag, commit: $commit}' \
             > "$RUNNER_TEMP/release.json"
           git archive --format=tar --output="$RUNNER_TEMP/the-max-mix-pi.tar" \
             --add-file="$RUNNER_TEMP/release.json" HEAD ansible pi/kiosk-audio

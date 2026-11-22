@@ -1,0 +1,99 @@
+---
+# A part of the setup (tasks/main.yml runs it when what it installs changed, or a week after it last ran).
+# The folders the other parts install into, and the packages.
+
+# Directories ---------------------------------------------------------------------------------------------------------
+# One program makes all of them: a module run costs about a second on a Pi, and there are over twenty directories.
+# `install -d` creates what is missing and sets the owner and mode of what exists, so it can run every time.
+- name: full | Create the directories
+  ansible.builtin.command:
+    argv: "{{ ['install', '-d', '-m', '0755', '-o', 'root', '-g', 'root'] + kiosk_directories }}"
+  vars:
+    kiosk_directories:
+      - /etc/apt/keyrings
+      - /etc/chromium/policies/managed
+      - /etc/NetworkManager/dnsmasq-shared.d
+      - /etc/systemd/journald.conf.d
+      - /etc/the-max-mix
+      - /etc/pipewire
+      - /etc/pipewire/pipewire.conf.d
+      - /etc/systemd/system
+      - /etc/systemd/user
+      - /etc/systemd/user/default.target.wants
+      - /etc/tmpfiles.d
+      - /opt/the-max-mix
+      - '{{ kiosk_audio_dir }}'
+      - /usr/share/icons/blank
+      - /usr/share/icons/blank/cursors
+      - /usr/share/kiosk-cursors
+      - /var/lib/the-max-mix
+  changed_when: false
+
+# Packages ------------------------------------------------------------------------------------------------------------
+# Installing packages is slow on a Pi even when nothing is missing (apt's cache is loaded from Python), and so are the
+# key and archive checks. They are done again only when what they depend on changed: a stamp records the packages and
+# the other archives (kiosk_packages_id) as last installed. The stamp is written after a successful install only, so a
+# failed run tries again. A package removed by hand is not put back until the list changes; the nightly
+# unattended-upgrades run keeps what is installed up to date.
+- name: full | Read what the package step last installed
+  ansible.builtin.set_fact:
+    kiosk_packages_done: >-
+      {{ (lookup('ansible.builtin.file', kiosk_packages_stamp, errors='ignore') | default('', true)) | string | trim }}
+
+- name: full | Install the packages and the other archives' own
+  when: kiosk_packages_id != kiosk_packages_done
+  block:
+    - name: full | Install the packages
+      ansible.builtin.apt:
+        name: '{{ kiosk_all_packages }}'
+        state: present
+        install_recommends: false
+        update_cache: true
+        cache_valid_time: 3600
+        lock_timeout: 300
+
+    # Node.js and Tailscale come from their own archives (kiosk_apt_sources), each with its pinned signing key.
+    - name: full | Install the other archives' signing keys
+      ansible.builtin.get_url:
+        url: '{{ item.key_url }}'
+        dest: '{{ item.key }}'
+        checksum: 'sha256:{{ item.key_sha256 }}'
+        owner: root
+        group: root
+        mode: '0644'
+      loop: '{{ kiosk_apt_sources }}'
+      loop_control:
+        label: '{{ item.name }}'
+      register: kiosk_apt_keys
+
+    - name: full | Add the other archives
+      ansible.builtin.copy:
+        content: |
+          Types: deb
+          URIs: {{ item.uris }}
+          Suites: {{ item.suite }}
+          Components: main
+          Signed-By: {{ item.key }}
+        dest: '/etc/apt/sources.list.d/{{ item.name }}.sources'
+        owner: root
+        group: root
+        mode: '0644'
+      loop: '{{ kiosk_apt_sources }}'
+      loop_control:
+        label: '{{ item.name }}'
+      register: kiosk_apt_lists
+
+    - name: full | Install the other archives' packages
+      ansible.builtin.apt:
+        name: "{{ kiosk_apt_sources | map(attribute='package') }}"
+        state: present
+        update_cache: '{{ kiosk_apt_keys is changed or kiosk_apt_lists is changed }}'
+        lock_timeout: 300
+
+    - name: full | Record what was installed
+      ansible.builtin.copy:
+        content: '{{ kiosk_packages_id }}'
+        dest: '{{ kiosk_packages_stamp }}'
+        owner: root
+        group: root
+        mode: '0644'

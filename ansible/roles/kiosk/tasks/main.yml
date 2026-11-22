@@ -1,41 +1,71 @@
 ---
-# What a pull does. The playbook installs files from two folders of the pulled repository (ansible/ and
-# pi/kiosk-audio). Most releases change none of them (they change only the web app, which is
-# installed below on every run), and running every task on a Pi takes minutes, so the full set (full.yml) runs only when git's tree
-# ids for those folders are not the ones last applied. A release's Pi bundle has no .git, so there the ids come from the
-# release.json the Release workflow wrote into it: the same ids, so both ways of pulling compare the same thing.
-# kiosk.service is written either way: it carries the release the settings show (kiosk_url), which changes with every new
-# commit the pull finds (the playbook only runs then), not only when those folders do. So a release that changed nothing
-# else still restarts the kiosk at kiosk_restart_time, and the app then shows the new version.
-# Without git, or on a first run (no stamp), everything runs. A hand run follows the same rule; to apply everything
-# anyway, delete kiosk_applied_stamp. The stamp holds the ids of the last run that finished, handlers included.
-- name: Look up the tree ids of what the playbook installs
-  ansible.builtin.command:
-    argv:
-      - git
-      - -C
-      - '{{ playbook_dir }}'
-      - rev-parse
-      - 'HEAD:ansible'
-      - 'HEAD:pi/kiosk-audio'
-  register: kiosk_trees
+# What a pull does. The web app and kiosk.service are installed on every run (below). The rest of the setup is in five
+# parts (tasks/full/, listed in kiosk_sections), and running all of them on a Pi takes minutes even when nothing changed,
+# so each part runs only when what it installs changed since it last ran: its task file, the files and templates it
+# copies, and what every part reads (the defaults, the handlers, this file, /etc/the-max-mix/kiosk-vars.yml, the host
+# name). A part also runs once it last ran more than kiosk_full_run_after_days ago, which puts back anything changed on
+# the Pi by hand or by a package upgrade. kiosk_applied_stamp records, for each part, what it last applied and when; it
+# is written only once the run, handlers included, went through, so a failed run tries again. A hand run follows the
+# same rule (it does not see -e variables); to apply everything, delete kiosk_applied_stamp.
+- name: Work out what each part of the setup installs
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      cd "$ROOT"
+      # The checksums of these files, and of every file in these folders, as one id.
+      digest() {
+        local path
+        for path in "$@"; do
+          if [[ -d $path ]]; then
+            find "$path" -type f -not -path '*/node_modules/*' -print0 | sort -z | xargs -0 -r sha1sum
+          elif [[ -e $path ]]; then
+            sha1sum "$path"
+          else
+            echo "missing $path"
+          fi
+        done | sha1sum | cut -c1-40
+      }
+      shared=$(digest $SHARED)
+      while read -r name inputs; do
+        [[ -n $name ]] || continue
+        # shellcheck disable=SC2086  # The inputs are separate paths.
+        echo "$name $( (echo "$shared $EXTRA"; digest $inputs) | sha1sum | cut -c1-40)"
+      done <<< "$SECTIONS"
+    executable: /bin/bash
+  environment:
+    ROOT: '{{ playbook_dir }}/..'
+    SHARED: >-
+      ansible/local.yml ansible/roles/kiosk/tasks/main.yml ansible/roles/kiosk/defaults/main.yml
+      ansible/roles/kiosk/handlers/main.yml /etc/the-max-mix/kiosk-vars.yml
+    EXTRA: '{{ kiosk_enable_only | string }} {{ kiosk_hostname }}'
+    SECTIONS: |
+      {% for section in kiosk_sections %}
+      {{ section.name }} ansible/roles/kiosk/tasks/full/{{ section.name }}.yml {{ section.inputs | join(' ') }}
+      {% endfor %}
+  register: kiosk_section_digests
   changed_when: false
-  failed_when: false
-  when: kiosk_release_info.trees is not defined
 
-- name: Work out whether any of it changed since the last run
+- name: Work out which parts to run
   ansible.builtin.set_fact:
-    # kiosk_enable_only is in it because a run that only enables services has not applied what a normal run does.
-    kiosk_trees_id: >-
-      {{ [kiosk_tree_ids, kiosk_enable_only | string] | flatten | join(' ') | hash('sha1') if kiosk_tree_ids else '' }}
-    kiosk_trees_applied: >-
-      {{ lookup('ansible.builtin.file', kiosk_applied_stamp, errors='ignore') | default('', true) | string | trim }}
-  vars:
-    kiosk_tree_ids: >-
-      {{ kiosk_release_info.trees if kiosk_release_info.trees is defined else
-      (kiosk_trees.stdout_lines if kiosk_trees.rc == 0 else []) }}
+    kiosk_section_ids: "{{ dict(kiosk_section_digests.stdout_lines | map('split', ' ')) }}"
+    kiosk_applied: >-
+      {{ lookup('ansible.builtin.file', kiosk_applied_stamp, errors='ignore') | default('{}', true) | from_json }}
+    kiosk_now: "{{ now(utc=true, fmt='%s') | int }}"
 
-# The web app changes with every release, so it is installed on every run, not only by full.yml. Each release gets a folder
+- name: List the parts to run
+  ansible.builtin.set_fact:
+    kiosk_sections_due: >-
+      {%- set due = [] -%}
+      {%- for section in kiosk_sections -%}
+      {%- set last = kiosk_applied[section.name] | default({}) -%}
+      {%- if last.id | default('') != kiosk_section_ids[section.name]
+        or kiosk_now | int - last.at | default(0) | int > kiosk_full_run_after_days | int * 86400 -%}
+      {%- set _ = due.append(section.name) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ due }}
+
+# The web app changes with every release, so it is installed on every run. Each release gets a folder
 # of its own, written once; `next` then points at it, and the kiosk serves it from its next start (kiosk-app-switch), when
 # the page loads again. Nothing is installed when there is no build: a branch checkout before kiosk-pull fetched one, or
 # the playbook test.
@@ -100,7 +130,7 @@
         state: absent
       when: kiosk_app_is_current
 
-# Before full.yml, which enables it.
+# Before the parts, which enable it.
 - name: Install the kiosk service
   ansible.builtin.template:
     src: kiosk.service.j2
@@ -112,9 +142,11 @@
     - Reload systemd
     - Ask for a kiosk restart
 
-- name: Apply everything
-  ansible.builtin.include_tasks: full.yml
-  when: kiosk_trees_id | length == 0 or kiosk_trees_id != kiosk_trees_applied
+- name: Apply the parts that changed
+  ansible.builtin.include_tasks: full/{{ kiosk_section }}.yml
+  loop: '{{ kiosk_sections_due }}'
+  loop_control:
+    loop_var: kiosk_section
 
 # The stamp is written only when everything, handlers included, went through, so a failed run tries again.
 - name: Run the pending handlers
@@ -122,11 +154,16 @@
 
 - name: Record what was applied
   ansible.builtin.copy:
-    content: '{{ kiosk_trees_id }}'
+    content: >-
+      {%- set applied = dict(kiosk_applied) -%}
+      {%- for name in kiosk_sections_due -%}
+      {%- set _ = applied.update({name: {'id': kiosk_section_ids[name], 'at': kiosk_now | int}}) -%}
+      {%- endfor -%}
+      {{ applied | to_json }}
     dest: '{{ kiosk_applied_stamp }}'
     owner: root
     group: root
     mode: '0644'
   # Bookkeeping, not a change to the Pi: a run that applied nothing new must report changed=0 (the playbook test relies on it).
   changed_when: false
-  when: kiosk_trees_id | length > 0 and kiosk_trees_id != kiosk_trees_applied
+  when: kiosk_sections_due | length > 0
