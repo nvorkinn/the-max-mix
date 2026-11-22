@@ -49,7 +49,8 @@ export async function connectedScreen(
       text(path.join(drm, connector, 'modes'))
     ]);
     const match = status?.trim() === 'connected' ? MODE.exec(modes ?? '') : null;
-    if (match) return { connector: connector.replace(/^card\d+-/, ''), width: Number(match[1]), height: Number(match[2]) };
+    if (match)
+      return { connector: connector.replace(/^card\d+-/, ''), width: Number(match[1]), height: Number(match[2]) };
   }
   return null;
 }

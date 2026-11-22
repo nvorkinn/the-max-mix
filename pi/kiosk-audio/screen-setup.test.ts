@@ -2,14 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, onTestFinished } from 'vitest';
-import {
-  environmentFile,
-  knownScreen,
-  rotationSetting,
-  scaleSetting,
-  screenSetup,
-  touchRule
-} from './screen-setup.ts';
+import { environmentFile, knownScreen, rotationSetting, scaleSetting, screenSetup, touchRule } from './screen-setup.ts';
 
 /** An empty drm folder for one test, removed after it. */
 async function drmFolder(): Promise<string> {
@@ -56,7 +49,10 @@ describe('screenSetup', () => {
 
   it("lets the role's settings win over the known screen's", async () => {
     expect(await screenSetup(await touchDisplay2(), { rotation: 270 })).toMatchObject({ rotation: 270, scale: 1.5 });
-    expect(await screenSetup(await touchDisplay2(), { rotation: 0, scale: 1 })).toMatchObject({ rotation: 0, scale: 1 });
+    expect(await screenSetup(await touchDisplay2(), { rotation: 0, scale: 1 })).toMatchObject({
+      rotation: 0,
+      scale: 1
+    });
   });
 });
 
