@@ -1,14 +1,6 @@
 // cspell:ignore glemme Kunne ikke søke etter nettverk Feil passord Sjekk prøv igjen koble nettverket Hotspoten startes
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  forgetWifi,
-  hotspotStatus,
-  joinWifi,
-  savedWifi,
-  scanWifi,
-  startHotspot,
-  stopHotspot
-} from './kioskWifi';
+import { forgetWifi, hotspotStatus, joinWifi, savedWifi, scanWifi, startHotspot, stopHotspot } from './kioskWifi';
 
 function answer(status: number, body: unknown) {
   const fetchMock = vi.fn(() => Promise.resolve(Response.json(body, { status })));

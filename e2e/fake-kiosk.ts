@@ -106,9 +106,7 @@ const FAKE_HOTSPOT = {
 export function phoneSetupAnswer(request: Request, hotspotState = 'running') {
   const path = new URL(request.url()).pathname;
   const answers: Record<string, object | undefined> =
-    request.method() === 'POST'
-      ? { '/wifi/hotspot': FAKE_HOTSPOT }
-      : { '/wifi/hotspot': { state: hotspotState } };
+    request.method() === 'POST' ? { '/wifi/hotspot': FAKE_HOTSPOT } : { '/wifi/hotspot': { state: hotspotState } };
   const json = answers[path];
   return json && { headers: CORS, json };
 }

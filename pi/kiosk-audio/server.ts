@@ -797,12 +797,7 @@ export function handleRequest(origin: string, deps: Deps) {
         await handleGet(request, response, origin, deps);
       } else if (
         request.method === 'POST' &&
-        [
-          '/wifi/connect',
-          '/wifi/forget',
-          '/wifi/hotspot',
-          '/wifi/hotspot/stop'
-        ].includes(request.url ?? '')
+        ['/wifi/connect', '/wifi/forget', '/wifi/hotspot', '/wifi/hotspot/stop'].includes(request.url ?? '')
       ) {
         await postWifi(request, response, origin, deps);
       } else if (request.method === 'POST') {
