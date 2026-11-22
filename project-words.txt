@@ -18,6 +18,7 @@ bootfs
 cacheinfo
 cenc
 chdir
+chgrp
 chpasswd
 chvt
 CIDATA

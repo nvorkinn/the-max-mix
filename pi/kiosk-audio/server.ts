@@ -57,6 +57,8 @@
 //                                "name"}], "name"?, "code"?, "isConfirmed"?, "phone"?: {"address", "name"}, "error"?}
 //   POST /bluetooth/pair-phone/pick   {"address"} of a phone in "nearby": pair with it: 204, or 409 {"error"}
 //   POST /bluetooth/pair-phone/stop   stop looking
+//   POST /display/brightness   {"percent": 1-100}   set the screen's backlight (backlight.ts): 204, or 404 for a screen
+//                           with none (GET /screen says which: "brightness_control")
 //   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
 //                           (update-socket.ts)
 // Only the app's origin is answered (CORS, and every POST and WebSocket is refused without its Origin header, so no other
@@ -70,6 +72,7 @@ import { perform } from './actions.ts';
 import type { Action } from './actions.ts';
 import { APP_HEADERS, appFiles } from './app-files.ts';
 import type { AppFile } from './app-files.ts';
+import { setBrightness, validBrightness } from './backlight.ts';
 import { BluetoothMonitor, UNAVAILABLE as BLUETOOTH_UNAVAILABLE } from './bluetooth-monitor.ts';
 import type { MonitorSnapshot } from './bluetooth-monitor.ts';
 import { Bluetooth, BluetoothError, parseAddress } from './bluetooth.ts';
@@ -161,6 +164,8 @@ export interface Deps {
   phone: { start: () => Promise<void>; stop: () => Promise<void>; status: () => PhoneSetupStatus };
   /** The screen's size and whether its brightness can be set, for registering with countdown-server; null for none. */
   screen: () => Promise<ScreenInfo | null>;
+  /** Sets the screen's backlight, in percent; returns how many backlights it set (none: the screen has none). */
+  setBrightness: (percent: number) => Promise<number>;
   hotspot: {
     start: () => Promise<HotspotInfo>;
     stop: () => Promise<void>;
@@ -285,6 +290,13 @@ async function presenceStatus(request: IncomingMessage, deps: Deps): Promise<num
   else if (body?.watch === false) deps.presence.unwatch();
   else return 400;
   return 204;
+}
+
+/** Sets the screen's backlight from the body of POST /display/brightness; the status to answer with. */
+async function brightnessStatus(request: IncomingMessage, deps: Deps): Promise<number> {
+  const percent = validBrightness(JSON.parse(await readBody(request)) as unknown);
+  if (percent === null) return 400;
+  return (await deps.setBrightness(percent)) === 0 ? 404 : 204;
 }
 
 async function volumeStatus(request: IncomingMessage, deps: Deps): Promise<number> {
@@ -473,6 +485,10 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
     }
     case '/audio/volume': {
       status = await volumeStatus(request, deps);
+      break;
+    }
+    case '/display/brightness': {
+      status = await brightnessStatus(request, deps);
       break;
     }
     case '/sonos/play':
@@ -866,6 +882,7 @@ export function serveSpeakers(
     bluetoothMonitor,
     presence,
     screen: () => screenInfo(),
+    setBrightness: percent => setBrightness(percent),
     phonePairing: new PhonePairing({
       discover: onCode => discoverPhones(onCode),
       nearby: () => bluetoothMonitor.nearbyNamed(),

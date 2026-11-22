@@ -82,6 +82,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
   const connected: string[] = [];
   const removed: string[] = [];
   const performed: Action[] = [];
+  const brightnesses: number[] = [];
   const routed: Choice[][] = [];
   const volumes: [Choice, number][] = [];
   const played: SonosRequest[] = [];
@@ -162,6 +163,10 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
       }
     },
     screen: () => Promise.resolve({ width: 1280, height: 800, brightness_control: false }),
+    setBrightness: percent => {
+      brightnesses.push(percent);
+      return Promise.resolve(1);
+    },
     phone: {
       start: () => {
         phoneStarts.push('start');
@@ -237,6 +242,7 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
     connected,
     removed,
     performed,
+    brightnesses,
     routed,
     volumes,
     played,
@@ -328,6 +334,33 @@ describe('GET /speakers', () => {
   it('says when PipeWire cannot be read', async () => {
     const base = await start(fakes({ graph: () => Promise.reject(new Error('no PipeWire')) }).deps);
     expect((await fetch(`${base}/speakers`)).status).toBe(503);
+  });
+});
+
+describe('POST /display/brightness', () => {
+  it("sets the screen's backlight", async () => {
+    const { deps, brightnesses } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/display/brightness', { body: { percent: 40 } })).status).toBe(204);
+    expect(brightnesses).toEqual([40]);
+  });
+
+  it('refuses a body that is not a percentage, and another origin', async () => {
+    const { deps, brightnesses } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/display/brightness', { body: { percent: 0 } })).status).toBe(400);
+    expect((await post(base, '/display/brightness', { body: {} })).status).toBe(400);
+    const elsewhere = await post(base, '/display/brightness', {
+      origin: 'https://evil.example',
+      body: { percent: 40 }
+    });
+    expect(elsewhere.status).toBe(403);
+    expect(brightnesses).toEqual([]);
+  });
+
+  it('says when the screen has no backlight', async () => {
+    const base = await start(fakes({ setBrightness: () => Promise.resolve(0) }).deps);
+    expect((await post(base, '/display/brightness', { body: { percent: 40 } })).status).toBe(404);
   });
 });
 

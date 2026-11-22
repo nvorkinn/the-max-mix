@@ -31,10 +31,13 @@
   changed_when: true
   when: not kiosk_enable_only
 
-# The input devices get the new rule's properties now; libinput reads them when Cage next starts.
+# The input devices get the new rule's properties now (libinput reads them when Cage next starts), and the backlight its
+# new group.
 - name: Apply the udev rules
   ansible.builtin.shell:
-    cmd: udevadm control --reload && udevadm trigger --subsystem-match=input --action=change
+    cmd: >-
+      udevadm control --reload
+      && udevadm trigger --subsystem-match=input --subsystem-match=backlight --action=change
   changed_when: true
   failed_when: false
   when: not kiosk_enable_only
