@@ -122,10 +122,10 @@ check grep -q 'raop.latency.ms = 500' /etc/pipewire/pipewire.conf.d/50-kiosk-rao
 check grep -q 'kiosk-audio.ts watch$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'try-restart kiosk-audio.service' /etc/systemd/system/kiosk.service
 check grep -q 'screen-mode.ts --correct' /etc/systemd/system/kiosk.service
-check grep -q 'KIOSK_APP_ORIGIN=https://the-max-mix.countdown.build' /etc/systemd/user/kiosk-audio.service
+check grep -q 'KIOSK_APP_ORIGIN=http://127.0.0.1:7341' /etc/systemd/user/kiosk-audio.service
 check grep -q '"LocalNetworkAccessAllowedForUrls"' /etc/chromium/policies/managed/kiosk.json
 # The back button is left off the app's own pages.
-check grep -q '"https://the-max-mix.countdown.build/\*"' /opt/the-max-mix/kiosk-keyboard/extension/manifest.json
+check grep -q '"http://127.0.0.1:7341/\*"' /opt/the-max-mix/kiosk-keyboard/extension/manifest.json
 check grep -q '^Environment=KIOSK_SCREEN_OFF_AFTER=60$' /etc/systemd/system/kiosk.service
 check command -v swayidle wlr-randr
 check grep -q 'en_GB.UTF-8' /etc/default/locale
