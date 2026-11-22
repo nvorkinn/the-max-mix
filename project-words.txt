@@ -145,6 +145,7 @@ pairable
 parcelapp
 partuuid
 pavucontrol
+pidwait
 pipefail
 pipelining
 pipewire
