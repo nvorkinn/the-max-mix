@@ -21,6 +21,7 @@ import { useIsOffline } from '../hooks/useOnlineStatus';
 import { errorMessage } from '../utils/errorMessage';
 import { getQueue } from '../spotify/api';
 import { peopleOnKiosk, switchPerson, takePhoneToPair } from '../spotify/auth';
+import { forgetGetStarted, wantsGetStarted } from '../countdown/registration';
 import { reloadSettings } from '../spotify/settings';
 import { getKioskSonosLeader, playOnSonosRoom } from '../sonos/kiosk';
 import { rememberSpeaker } from '../spotify/knownDevices';
@@ -57,6 +58,7 @@ import { nowPlayingCard, PAUSED_SHOWN_MS } from '../dashboard/nowPlaying';
 import { useReportProblem } from '../problems/problems';
 import AlbumArtPlayer from './AlbumArtPlayer';
 import SpotifySetup from './SpotifySetup';
+import GetStarted from './GetStarted';
 import TrackQueue, { type QueueStatus } from './TrackQueue';
 import { describePlayback, PlayerProblem, type PlaybackNoticeState, type PlayerNotice } from './PlaybackNotice';
 import LyricsPanel from './LyricsPanel';
@@ -509,6 +511,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   };
   const problem = signInError ? { message: signInError, recovery: 'sign-in' as const } : playerProblem;
   const needsConnection = !isLoading && (!isAuthenticated || problem?.recovery === 'sign-in');
+  // A kiosk that was just paired opens on the Dashboard with nobody signed in to Spotify: offer the first sign-in there.
+  const [getStarted, setGetStarted] = useState(wantsGetStarted);
+  const hasPeople = peopleOnKiosk().length > 0;
+  // Once someone has signed in it is done with; it already hides while anyone is on the kiosk.
+  useEffect(() => {
+    if (hasPeople) forgetGetStarted();
+  }, [hasPeople]);
   const restricted = Boolean(playbackState?.device?.is_restricted);
   let notice: PlaybackNoticeState | null = null;
   if (isOffline) notice = { kind: 'offline' };
@@ -806,6 +815,16 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           onPlay={playMusic}
           disabled={!controlsEnabled}
         />
+
+        {getStarted && !hasPeople && screen === 'dashboard' && (
+          <GetStarted
+            offline={isOffline}
+            onClose={() => {
+              forgetGetStarted();
+              setGetStarted(false);
+            }}
+          />
+        )}
 
         {pairingFor && isPairingOpen && (
           <PairPhoneSheet

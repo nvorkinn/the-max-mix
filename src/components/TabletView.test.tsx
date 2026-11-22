@@ -319,6 +319,33 @@ describe('TabletView', () => {
     expect(api.getQueue.mock.calls).toHaveLength(reads);
   });
 
+  describe('Get started after pairing', () => {
+    afterEach(() => {
+      people.peopleOnKiosk.mockReturnValue([]);
+    });
+
+    it('offers the first Spotify sign-in on the Dashboard until Not now', async () => {
+      localStorage.setItem('maxmix.getStarted', '1');
+      render(<TabletView />);
+      await flush();
+      const dialog = screen.getByRole('dialog', { name: 'Bring your music to the tablet' });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Not now' }));
+      expect(screen.queryByRole('dialog', { name: 'Bring your music to the tablet' })).not.toBeInTheDocument();
+      expect(localStorage.getItem('maxmix.getStarted')).toBeNull();
+    });
+
+    it('is done with once someone is signed in', async () => {
+      localStorage.setItem('maxmix.getStarted', '1');
+      people.peopleOnKiosk.mockReturnValue([
+        { spotifyId: 'max', name: 'max', imageUrl: '', phoneAddress: 'phone-max', active: true }
+      ]);
+      render(<TabletView />);
+      await flush();
+      expect(screen.queryByRole('dialog', { name: 'Bring your music to the tablet' })).not.toBeInTheDocument();
+      expect(localStorage.getItem('maxmix.getStarted')).toBeNull();
+    });
+  });
+
   describe('switching person from the banner', () => {
     const face = (spotifyId: string, active: boolean) => ({
       spotifyId,

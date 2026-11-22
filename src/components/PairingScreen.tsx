@@ -79,7 +79,12 @@ export default function PairingScreen({
         </span>
         <span className="pairing-screen-name">The Max Mix.</span>
       </div>
-      {address && <QrCode text={address} className="pairing-screen-code" label={t('pairing.code')} />}
+      {address && (
+        <>
+          <QrCode text={address} className="pairing-screen-code" label={t('pairing.code')} />
+          <p className="pairing-screen-hint">{t('pairing.scan')}</p>
+        </>
+      )}
     </main>
   );
 }

@@ -15,6 +15,8 @@ import { countdownApi, countdownServer } from './server';
 const SECRET_KEY = 'maxmix.deviceSecret';
 const DEVICE_ID_KEY = 'maxmix.deviceId';
 const DEVICE_ID_PATTERN = /^[\w-]{1,64}$/;
+// Set when the kiosk is paired, until someone signs in to Spotify on it or closes the Dashboard's Get started.
+const GET_STARTED_KEY = 'maxmix.getStarted';
 
 /** The kiosk's secret and the device ID the server gave it, once it is registered. */
 export interface DeviceCredentials {
@@ -166,8 +168,23 @@ export async function pairingState(secret: string): Promise<'paired' | 'waiting'
 export function keepDeviceId(deviceId: string): boolean {
   try {
     localStorage.setItem(DEVICE_ID_KEY, deviceId);
+    localStorage.setItem(GET_STARTED_KEY, '1');
     return true;
   } catch {
     return false;
+  }
+}
+
+/** Whether the kiosk was just paired and nobody has dealt with its Get started yet (components/GetStarted.tsx). */
+export function wantsGetStarted(): boolean {
+  return read(GET_STARTED_KEY) !== null;
+}
+
+/** Done with Get started: someone signed in, or closed it. */
+export function forgetGetStarted(): void {
+  try {
+    localStorage.removeItem(GET_STARTED_KEY);
+  } catch {
+    // Storage is unavailable, so there was nothing kept to forget.
   }
 }

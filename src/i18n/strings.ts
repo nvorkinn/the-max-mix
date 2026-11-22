@@ -157,6 +157,7 @@ export const STRINGS = {
     nb: 'Skriv navnet på en stasjon eller et stopp, og trykk på det for å legge det til.'
   },
   'common.close': { en: 'Close', nb: 'Lukk' },
+  'common.not_now': { en: 'Not now', nb: 'Ikke nå' },
 
   // Settings › Parcels.
   'parcels.notice_board': { en: 'Notice board', nb: 'Oppslagstavle' },
@@ -499,7 +500,8 @@ export const STRINGS = {
   'pairing.code': {
     en: 'QR code to add this screen to your account',
     nb: 'QR-kode for å legge denne skjermen til kontoen din'
-  }
+  },
+  'pairing.scan': { en: 'Scan to get started', nb: 'Skann for å komme i gang' }
 } as const satisfies Record<string, Readonly<Record<Language, string>>>;
 
 /** An id STRINGS has: any other is a compile error. */

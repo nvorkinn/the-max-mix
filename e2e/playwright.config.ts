@@ -30,8 +30,8 @@ export default defineConfig({
     // dashboard-motion.spec.ts turns the motion back on to test it.
     contextOptions: { reducedMotion: 'reduce' },
     baseURL: `http://127.0.0.1:${port}`,
-    // Every page starts as a kiosk already registered with countdown-server, so ?kiosk=1 opens the app rather than the
-    // server's /register page; registration.spec.ts starts without it.
+    // Every page starts as a kiosk already paired with countdown-server, so ?kiosk=1 opens the app rather than the
+    // pairing screen's QR code; registration.spec.ts starts without it.
     storageState: {
       cookies: [],
       origins: [
