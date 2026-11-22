@@ -4,6 +4,7 @@ import {
   classifySecurity,
   ERRORS,
   friendlyError,
+  HOTSPOT_SSID,
   isValidPsk,
   Nmcli,
   parseActiveSsid,
@@ -164,6 +165,10 @@ describe('current', () => {
     expect(parseActiveSsid('')).toBeNull();
     const { run } = stub([[['nmcli'], { code: 127, stdout: '', stderr: 'not found' }]]);
     await expect(new Nmcli(run).current()).resolves.toBeNull();
+  });
+
+  it('is null while the kiosk only runs its own setup hotspot', () => {
+    expect(parseActiveSsid(`no:Cafe\nyes:${HOTSPOT_SSID}\n`)).toBeNull();
   });
 });
 
