@@ -1,0 +1,24 @@
+#!/bin/bash
+# Usage: kiosk-app-switch [APP_DIR]
+# Makes the web app release the playbook installed last the one the kiosk serves. kiosk.service runs it as root before
+# Cage starts, and before it restarts the kiosk-audio service, which serves the app from APP_DIR/current. The playbook
+# installs each release in APP_DIR/releases/<commit> and points APP_DIR/next at it; moving `next` over `current` here,
+# and only here, means a page that is already open never loses a file to a newer release. Then every release folder but
+# the current one is removed. Does nothing when there is no `next`.
+set -euo pipefail
+
+app_dir=${1:-/opt/the-max-mix/app}
+next=$app_dir/next
+current=$app_dir/current
+
+if [[ -L $next ]]; then
+  mv -T "$next" "$current"
+fi
+[[ -L $current ]] || exit 0
+target=$(readlink "$current")
+for release in "$app_dir"/releases/*; do
+  [[ -d $release ]] || continue
+  if [[ $release != "$app_dir/$target" && $release != "$target" ]]; then
+    rm -rf -- "$release"
+  fi
+done

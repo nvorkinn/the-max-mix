@@ -13,7 +13,9 @@
 # With --only-if-changed a release that was already installed completely (INSTALLED) is not downloaded again.
 #
 # Any other REF (a branch, for testing on your own Pi) is pulled with ansible-pull, where --only-if-changed means the
-# branch has not moved.
+# branch has not moved. A branch has no built web app, so the latest release's (app/ in its bundle, with its
+# release.json) is unpacked into BRANCH_APP first, where the playbook looks for it: the app a branch Pi shows is the
+# latest release's, as when it came from the hosted site.
 #
 # The playbook itself skips what has not changed. Settings for this Pi only, such as its screen mode (kiosk_video_mode),
 # go in /etc/the-max-mix/kiosk-vars.yml, which is passed to the playbook when it exists.
@@ -22,6 +24,7 @@ set -euo pipefail
 PI_BUNDLE=the-max-mix-pi.tar.gz
 INSTALLED=/var/lib/the-max-mix/installed-release
 RELEASE_PATTERN='^v[0-9A-Za-z][0-9A-Za-z._-]*$'
+BRANCH_APP=/var/lib/the-max-mix/branch-app
 
 if (($# < 3)); then
   echo "usage: $0 REPO_URL REF DIRECTORY [--only-if-changed] [ansible options...]" >&2
@@ -44,12 +47,30 @@ finish() {
   exit "$1"
 }
 
+# The latest release's web app for a branch checkout (see above). A failure keeps the app the Pi already has.
+fetch_branch_app() {
+  local unpacked
+  mkdir -p "$(dirname "$BRANCH_APP")"
+  unpacked=$(mktemp -d "$BRANCH_APP.XXXXXX")
+  if curl --fail --silent --show-error --max-time 300 --retry 3 --location "$1/latest/download/$PI_BUNDLE" \
+    | tar --extract --gzip --directory "$unpacked" --no-same-owner app release.json 2> /dev/null &&
+    [[ -f $unpacked/app/index.html ]]; then
+    rm -rf "$BRANCH_APP"
+    mv "$unpacked" "$BRANCH_APP"
+    chmod 0755 "$BRANCH_APP"
+  else
+    echo "Could not fetch the latest release's web app; keeping the one installed" >&2
+    rm -rf "$unpacked"
+  fi
+}
+
 # A branch: ansible-pull, as before releases came as bundles. It cannot clone over an unpacked bundle.
 if [[ $ref != latest && ! $ref =~ $RELEASE_PATTERN ]]; then
   if [[ -d $directory && ! -d $directory/.git ]]; then
     rm -rf "$directory"
   fi
   rm -f "$INSTALLED"
+  fetch_branch_app "${repo%.git}/releases"
   status=0
   ansible-pull --url "$repo" --checkout "$ref" --directory "$directory" "${extra[@]}" "$@" \
     --inventory localhost, ansible/local.yml || status=$?

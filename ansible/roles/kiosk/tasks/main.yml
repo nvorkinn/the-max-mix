@@ -1,7 +1,7 @@
 ---
 # What a pull does. The playbook installs files from three folders of the pulled repository (ansible/,
-# pi/kiosk-audio and pi/kiosk-keyboard). Most releases change none of them (they change the web app, which the Pi loads
-# from the internet), and running every task on a Pi takes minutes, so the full set (full.yml) runs only when git's tree
+# pi/kiosk-audio and pi/kiosk-keyboard). Most releases change none of them (they change only the web app, which is
+# installed below on every run), and running every task on a Pi takes minutes, so the full set (full.yml) runs only when git's tree
 # ids for those folders are not the ones last applied. A release's Pi bundle has no .git, so there the ids come from the
 # release.json the Release workflow wrote into it: the same ids, so both ways of pulling compare the same thing.
 # kiosk.service is written either way: it carries the release the settings show (kiosk_url), which changes with every new
@@ -35,6 +35,71 @@
     kiosk_tree_ids: >-
       {{ kiosk_release_info.trees if kiosk_release_info.trees is defined else
       (kiosk_trees.stdout_lines if kiosk_trees.rc == 0 else []) }}
+
+# The web app changes with every release, so it is installed on every run, not only by full.yml. Each release gets a folder
+# of its own, written once; `next` then points at it, and the kiosk serves it from its next start (kiosk-app-switch), when
+# the page loads again. Nothing is installed when there is no build: a branch checkout before kiosk-pull fetched one, or
+# the playbook test.
+- name: Find the web app this run installs
+  ansible.builtin.set_fact:
+    kiosk_app_source: '{{ kiosk_app_from[0].source | default("") }}'
+    kiosk_app_release: '{{ kiosk_app_from[0].commit | default("") }}'
+  vars:
+    kiosk_branch_release: >-
+      {{ lookup('ansible.builtin.file', kiosk_branch_app_dir ~ '/release.json', errors='ignore')
+      | default('{}', true) | from_json }}
+    kiosk_app_from: >-
+      {{ ([{'source': playbook_dir ~ '/../app', 'commit': kiosk_release_info.commit | default('') | string}]
+      if (playbook_dir ~ '/../app/index.html') is file else [])
+      + ([{'source': kiosk_branch_app_dir ~ '/app', 'commit': kiosk_branch_release.commit | default('') | string}]
+      if (kiosk_branch_app_dir ~ '/app/index.html') is file else []) }}
+
+- name: Install the web app
+  when: kiosk_app_source | length > 0 and kiosk_app_release is match('^[0-9a-f]{7,40}$')
+  vars:
+    kiosk_app_is_current: >-
+      {{ (kiosk_app_current.stat.islnk | default(false))
+      and kiosk_app_current.stat.lnk_target == 'releases/' ~ kiosk_app_release }}
+  block:
+    - name: Copy the release's web app into a folder of its own
+      ansible.builtin.shell:
+        cmd: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$DEST")"
+          rm -rf "$DEST.tmp"
+          cp -R "$SOURCE" "$DEST.tmp"
+          chmod -R u=rwX,go=rX "$DEST.tmp"
+          mv -T "$DEST.tmp" "$DEST"
+        executable: /bin/bash
+        creates: '{{ kiosk_app_dir }}/releases/{{ kiosk_app_release }}/index.html'
+      environment:
+        SOURCE: '{{ kiosk_app_source }}'
+        DEST: '{{ kiosk_app_dir }}/releases/{{ kiosk_app_release }}'
+
+    - name: Look at the web app the kiosk serves
+      ansible.builtin.stat:
+        path: '{{ kiosk_app_dir }}/current'
+        follow: false
+      register: kiosk_app_current
+
+    - name: Serve the new web app from the next kiosk start
+      ansible.builtin.file:
+        src: releases/{{ kiosk_app_release }}
+        dest: '{{ kiosk_app_dir }}/next'
+        state: link
+        force: true
+        follow: false
+        owner: root
+        group: root
+      when: not kiosk_app_is_current
+      notify: Ask for a kiosk restart
+
+    # A release installed again (the same one, or a rollback to the one already served) leaves nothing to switch to.
+    - name: Forget a switch the kiosk does not need
+      ansible.builtin.file:
+        path: '{{ kiosk_app_dir }}/next'
+        state: absent
+      when: kiosk_app_is_current
 
 # Before full.yml, which enables it.
 - name: Install the kiosk service

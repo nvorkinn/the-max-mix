@@ -93,7 +93,8 @@ if (process.argv[2] === 'watch') {
     setVolume: (target, volume) => setSpeakerVolume(pipewire, target, volume),
     wifi: wifi(),
     language: language(),
-    phonesFile
+    phonesFile,
+    appFolder: process.env['KIOSK_APP_DIR'] ?? ''
   });
 } else {
   console.error('Usage: kiosk-audio.ts watch');
