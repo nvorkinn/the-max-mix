@@ -4,37 +4,53 @@
 
 # Updates -------------------------------------------------------------------------------------------------------------
 - name: full | units | Install the update and SSH key units
-  ansible.builtin.template:
-    src: '{{ item }}.j2'
-    dest: '/etc/systemd/system/{{ item }}'
-    owner: root
-    group: root
-    mode: '0644'
-  loop: >-
-    {{ ['kiosk-pull.service', 'kiosk-pull.timer', 'kiosk-restart.service', 'kiosk-restart.timer',
+  ansible.builtin.command:
+    argv: [node, '{{ kiosk_install_files }}']
+    stdin: '{{ kiosk_units | to_json }}'
+  vars:
+    kiosk_units: >-
+      {%- set units = [] -%}
+      {%- for name in ['kiosk-pull.service', 'kiosk-pull.timer', 'kiosk-restart.service', 'kiosk-restart.timer',
         'kiosk-widevine.path', 'kiosk-widevine.service']
-      + (['kiosk-ssh-keys.service', 'kiosk-ssh-keys.timer'] if kiosk_admin_github_user else []) }}
+        + (['kiosk-ssh-keys.service', 'kiosk-ssh-keys.timer'] if kiosk_admin_github_user else []) -%}
+      {%- set _ = units.append({'path': '/etc/systemd/system/' ~ name, 'mode': '0644',
+        'content': lookup('ansible.builtin.template', name ~ '.j2')}) -%}
+      {%- endfor -%}
+      {{ units }}
+  register: kiosk_units_installed
+  changed_when: kiosk_units_installed.stdout | length > 0
   notify: Reload systemd
 
 # The units must be known to systemd before they are enabled and started.
 - name: full | units | Apply the pending changes
   ansible.builtin.meta: flush_handlers
 
-# Started by the next boot, not here: nothing starts or restarts the kiosk. Bluetooth pairs phones and hears who is home.
-- name: full | units | Enable the kiosk and Bluetooth
-  ansible.builtin.systemd_service:
-    name: '{{ item }}'
-    enabled: true
-  loop:
-    - kiosk.service
-    - bluetooth.service
-
-# Avahi finds the AirPlay speakers.
-- name: full | units | Enable and start Avahi and the timers
-  ansible.builtin.systemd_service:
-    name: '{{ item }}'
-    enabled: true
-    state: "{{ 'started' if not kiosk_enable_only else omit }}"
-  loop: >-
-    {{ ['avahi-daemon.service', 'kiosk-pull.timer', 'kiosk-restart.timer', 'kiosk-widevine.path']
-      + (['kiosk-ssh-keys.timer'] if kiosk_admin_github_user else []) }}
+# One program for all of them, as a module run costs seconds on a Pi. The kiosk and Bluetooth are only enabled: the next
+# boot starts them, and nothing here starts or restarts the kiosk. Bluetooth pairs phones and hears who is home; Avahi
+# finds the AirPlay speakers. Prints each unit it enabled or started.
+- name: full | units | Enable the kiosk, Bluetooth, Avahi and the timers, and start Avahi and the timers
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      for unit in $ENABLE $START; do
+        if ! systemctl is-enabled --quiet "$unit"; then
+          systemctl enable --quiet "$unit"
+          echo "enabled $unit"
+        fi
+      done
+      [[ $ENABLE_ONLY != True ]] || exit 0
+      for unit in $START; do
+        if ! systemctl is-active --quiet "$unit"; then
+          systemctl start "$unit"
+          echo "started $unit"
+        fi
+      done
+    executable: /bin/bash
+  environment:
+    ENABLE: kiosk.service bluetooth.service
+    START: >-
+      {{ (['avahi-daemon.service', 'kiosk-pull.timer', 'kiosk-restart.timer', 'kiosk-widevine.path']
+      + (['kiosk-ssh-keys.timer'] if kiosk_admin_github_user else [])) | join(' ') }}
+    ENABLE_ONLY: '{{ kiosk_enable_only | bool }}'
+  register: kiosk_units_enabled
+  changed_when: kiosk_units_enabled.stdout | length > 0

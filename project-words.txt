@@ -179,6 +179,7 @@ rootfstype
 rootwait
 rssi
 rstart
+rstrip
 runcmd
 ruter
 shellcheck

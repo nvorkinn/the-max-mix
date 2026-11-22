@@ -118,6 +118,8 @@ kiosk_sections:
       - ansible/roles/kiosk/templates/kiosk-widevine.service.j2
       - ansible/roles/kiosk/templates/kiosk-ssh-keys.service.j2
       - ansible/roles/kiosk/templates/kiosk-ssh-keys.timer.j2
+# The program the playbook installs most files with, all of a step's files in one run (see the file).
+kiosk_install_files: '{{ role_path }}/files/install-files.ts'
 # Where the playbook records, for each part, what it last applied completely and when.
 kiosk_applied_stamp: /var/lib/the-max-mix/applied.json
 # A part whose files did not change still runs once it last ran this many days ago, which puts back anything changed on

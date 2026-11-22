@@ -11,15 +11,6 @@
     line: '{{ kiosk_locale }} UTF-8'
   notify: Generate the locale
 
-- name: full | system | Set the default locale
-  ansible.builtin.copy:
-    content: |
-      LANG={{ kiosk_locale }}
-    dest: /etc/default/locale
-    owner: root
-    group: root
-    mode: '0644'
-
 # Debian's sudo and some tools look the host name up; Raspberry Pi OS's cloud-init does not add it to /etc/hosts.
 - name: full | system | Resolve the host name locally
   ansible.builtin.lineinfile:
@@ -36,53 +27,51 @@
     state: link
     force: true
 
-# Boot: console on tty3 and a quiet boot, the Wi-Fi country, the screen mode. cmdline.txt is a single line. The params
-# are appended only if missing; [ \t]*$ (not \s*$) keeps the final newline.
-- name: full | system | Move the console to tty3
-  ansible.builtin.replace:
-    path: /boot/firmware/cmdline.txt
-    regexp: '\bconsole=tty1\b'
-    replace: console=tty3
-
-- name: full | system | Add the kernel command line parameters
-  ansible.builtin.replace:
-    path: /boot/firmware/cmdline.txt
-    regexp: '^(?!.*(?:^|\s){{ item | regex_escape }}(?:\s|$))(.*?)[ \t]*$'
-    replace: '\1 {{ item }}'
-  loop: '{{ kiosk_cmdline_params }}'
-
-# The screen mode (kiosk_video_mode in defaults/main.yml). Not read in a container, which has no screen of the Pi's.
-- name: full | system | Read the screen's own mode
-  ansible.builtin.command:
-    argv:
-      - node
-      - '{{ kiosk_audio_src }}/screen-mode.ts'
-  register: kiosk_screen_mode_read
-  changed_when: false
-  failed_when: false
-  when: not kiosk_video_mode and not kiosk_enable_only
-
-- name: full | system | Work out the screen mode
-  ansible.builtin.set_fact:
-    kiosk_screen_mode: >-
-      {{ kiosk_video_mode or (kiosk_screen_mode_read.stdout | default('') | trim
-        | regex_search('^[0-9]+x[0-9]+@[0-9]+$') | default('', true)) }}
-
-# Only once the mode is known: without a screen to read it from, the mode already set stays.
-- name: full | system | Remove another screen mode from the kernel command line
-  ansible.builtin.replace:
-    path: /boot/firmware/cmdline.txt
-    regexp: '[ \t]+video=HDMI-A-{{ item }}:(?!{{ kiosk_screen_mode | regex_escape }}(?:\s|$))\S*'
-    replace: ''
-  loop: [1, 2]
-  when: kiosk_screen_mode | length > 0
-
-- name: full | system | Add the screen mode to the kernel command line
-  ansible.builtin.replace:
-    path: /boot/firmware/cmdline.txt
-    regexp: '^(?!.*(?:^|\s)video=HDMI-A-{{ item }}:)(.*?)[ \t]*$'
-    replace: '\1 video=HDMI-A-{{ item }}:{{ kiosk_screen_mode or kiosk_video_mode_fallback }}'
-  loop: [1, 2]
+# Boot: console on tty3 and a quiet boot, the Wi-Fi country, the screen mode (kiosk_video_mode in defaults/main.yml, or
+# the screen's own, read here but not in a container, which has no screen of the Pi's). cmdline.txt is a single line. One
+# program makes every change to it, as a module run costs seconds on a Pi: a parameter is added only if missing, and
+# another screen mode is removed only once the mode is known (without a screen to read it from, the mode already set
+# stays). Prints the new line when it changed it.
+- name: full | system | Set the kernel command line
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      file=/boot/firmware/cmdline.txt
+      mode=$VIDEO_MODE
+      if [[ -z $mode && $ENABLE_ONLY != True ]]; then
+        mode=$(node "$AUDIO_SRC/screen-mode.ts" 2> /dev/null || true)
+      fi
+      [[ $mode =~ ^[0-9]+x[0-9]+@[0-9]+$ ]] || mode=
+      read -r -a words < "$file"
+      new=()
+      for word in "${words[@]}"; do
+        if [[ $word == console=tty1 ]]; then
+          word=console=tty3
+        elif [[ -n $mode && $word == video=HDMI-A-[12]:* && $word != "${word%%:*}:$mode" ]]; then
+          continue
+        fi
+        new+=("$word")
+      done
+      # The parameters are one a line.
+      while read -r param; do
+        [[ -z $param || " ${new[*]} " == *" $param "* ]] || new+=("$param")
+      done <<< "$PARAMS"
+      for output in HDMI-A-1 HDMI-A-2; do
+        [[ " ${new[*]}" == *" video=$output:"* ]] || new+=("video=$output:${mode:-$FALLBACK}")
+      done
+      if [[ "${new[*]}" != "${words[*]}" ]]; then
+        printf '%s\n' "${new[*]}" > "$file"
+        echo "${new[*]}"
+      fi
+    executable: /bin/bash
+  environment:
+    VIDEO_MODE: '{{ kiosk_video_mode }}'
+    FALLBACK: '{{ kiosk_video_mode_fallback }}'
+    PARAMS: "{{ kiosk_cmdline_params | join('\n') }}"
+    AUDIO_SRC: '{{ kiosk_audio_src }}'
+    ENABLE_ONLY: '{{ kiosk_enable_only | bool }}'
+  register: kiosk_cmdline
+  changed_when: kiosk_cmdline.stdout | length > 0
 
 # disable_splash hides the firmware's rainbow screen. The Pi 5 would boot a kernel with 16 KB memory pages; kernel8.img
 # is the 4 KB-page kernel the Pi 4 already uses, which Widevine's module is built for.
@@ -98,34 +87,38 @@
 
       [all]
 
-# The setup hotspot (pi/kiosk-audio/hotspot.ts): NetworkManager's own DHCP and DNS for it answer every name with the kiosk
-# (50-kiosk-captive.conf), and the service may serve its page on port 80.
-- name: full | system | Install the settings for unattended upgrades and the setup hotspot's DNS
-  ansible.builtin.copy:
-    src: '{{ item.src }}'
-    dest: '{{ item.dest }}/{{ item.src }}'
-    owner: root
-    group: root
-    mode: '0644'
-  loop:
-    - { src: 20auto-upgrades, dest: /etc/apt/apt.conf.d }
-    - { src: 52kiosk-unattended-upgrades, dest: /etc/apt/apt.conf.d }
-    - { src: 50-kiosk-captive.conf, dest: /etc/NetworkManager/dnsmasq-shared.d }
-  loop_control:
-    label: '{{ item.src }}'
+# The default locale, the settings for unattended upgrades, and the setup hotspot (pi/kiosk-audio/hotspot.ts):
+# NetworkManager's own DHCP and DNS for it answer every name with the kiosk (50-kiosk-captive.conf), and the service may
+# serve its page on port 80. In one step, as a module run costs seconds on a Pi.
+- name: full | system | Install the locale, unattended upgrade and setup hotspot settings
+  ansible.builtin.command:
+    argv: [node, '{{ kiosk_install_files }}']
+    stdin: '{{ kiosk_system_files | to_json }}'
+  vars:
+    kiosk_system_files:
+      - path: /etc/default/locale
+        mode: '0644'
+        content: |
+          LANG={{ kiosk_locale }}
+      - path: /etc/apt/apt.conf.d/20auto-upgrades
+        mode: '0644'
+        content: "{{ lookup('ansible.builtin.file', '20auto-upgrades', rstrip=false) }}"
+      - path: /etc/apt/apt.conf.d/52kiosk-unattended-upgrades
+        mode: '0644'
+        content: "{{ lookup('ansible.builtin.file', '52kiosk-unattended-upgrades', rstrip=false) }}"
+      - path: /etc/NetworkManager/dnsmasq-shared.d/50-kiosk-captive.conf
+        mode: '0644'
+        content: "{{ lookup('ansible.builtin.file', '50-kiosk-captive.conf', rstrip=false) }}"
+      - path: /etc/sysctl.d/50-kiosk-unprivileged-ports.conf
+        mode: '0644'
+        content: "{{ lookup('ansible.builtin.file', '50-kiosk-unprivileged-ports.conf', rstrip=false) }}"
+  register: kiosk_system_files_installed
+  changed_when: kiosk_system_files_installed.stdout | length > 0
 
-- name: full | system | Let the kiosk service serve the hotspot's page on port 80
-  ansible.builtin.copy:
-    src: 50-kiosk-unprivileged-ports.conf
-    dest: /etc/sysctl.d/50-kiosk-unprivileged-ports.conf
-    owner: root
-    group: root
-    mode: '0644'
+# Runs no module, so it costs nothing: it only passes the change on to the handler.
+- name: full | system | Apply the port setting
+  ansible.builtin.debug:
+    msg: The port setting changed.
+  when: "'/etc/sysctl.d/50-kiosk-unprivileged-ports.conf' in kiosk_system_files_installed.stdout_lines"
+  changed_when: true
   notify: Apply sysctl settings
-
-# Releases up to v2.22.0 pointed NetworkManager's connectivity check at Debian for kiosk-session, which no longer asks.
-- name: full | system | Remove NetworkManager's connectivity check
-  ansible.builtin.file:
-    path: /etc/NetworkManager/conf.d/20-connectivity.conf
-    state: absent
-  notify: Reload NetworkManager
