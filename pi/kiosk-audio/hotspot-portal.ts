@@ -56,12 +56,16 @@ export function portalHtml(language: Language): string {
     <style>
       body { margin: 0; font: 17px/1.4 system-ui, sans-serif; background: #16191a; color: #f0f0ea; }
       main { max-width: 480px; margin: 0 auto; padding: 20px 16px 40px; }
-      h1 { font-size: 22px; margin: 0 0 4px; }
       p { color: #b9bdb4; margin: 4px 0 16px; }
       button, input { font: inherit; border-radius: 10px; border: 0; padding: 14px; }
       button { width: 100%; text-align: left; background: #262b2c; color: inherit; margin-bottom: 8px; }
       button.primary { background: #6f9a52; color: #101310; text-align: center; font-weight: 600; }
       #back { text-align: center; }
+      #done { display: flex; flex-direction: column; align-items: center; gap: 20px; padding-top: 40px; text-align: center; }
+      #done[hidden] { display: none; }
+      #done p { color: inherit; font-size: 20px; }
+      .spinner { width: 44px; height: 44px; border: 4px solid #262b2c; border-top-color: #6f9a52; border-radius: 50%; animation: spin 0.9s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
       input { width: 100%; box-sizing: border-box; background: #262b2c; color: inherit; margin-bottom: 12px; }
       #error { color: #ff8a80; }
       [hidden] { display: none; }
@@ -69,20 +73,18 @@ export function portalHtml(language: Language): string {
   </head>
   <body>
     <main>
-      <h1 id="heading">${w('portal.choose')}</h1>
       <p id="error" role="alert" hidden></p>
       <form id="form" hidden autocomplete="off">
-        <h2 id="title"></h2>
         <input id="name" placeholder="${w('portal.networkName')}" hidden />
         <input id="password" type="password" placeholder="${w('portal.password')}" />
-        <button class="primary" type="submit">${w('portal.connect')}</button>
+        <button class="primary" type="submit" id="connect">${w('portal.connect')}</button>
         <button type="button" id="back">${w('portal.back')}</button>
       </form>
       <section id="list"></section>
       <button type="button" id="other">${w('portal.otherNetwork')}</button>
       <section id="done" hidden>
-        <h1>${w('portal.done')}</h1>
-        <p id="joining"></p>
+        <div class="spinner" aria-hidden="true"></div>
+        <p id="joining" role="status"></p>
       </section>
     </main>
     <script>
@@ -91,9 +93,13 @@ export function portalHtml(language: Language): string {
       const fail = message => { $('error').textContent = message; $('error').hidden = message === ''; };
       const choose = (network, hidden) => {
         chosen = { ssid: network.ssid, security: network.security, hidden };
-        $('title').textContent = hidden ? ${js('portal.otherTitle')} : network.ssid;
+        $('password').placeholder = hidden ? ${js('portal.password')} : ${js('portal.passwordFor', { ssid: '%s' })}.replace('%s', network.ssid);
         $('name').hidden = !hidden;
         $('password').hidden = network.security === 'open' && !hidden;
+        // An open network has no password box to name it, so its button does.
+        $('connect').textContent = $('password').hidden
+          ? ${js('portal.connectTo', { ssid: '%s' })}.replace('%s', network.ssid)
+          : ${js('portal.connect')};
         // The chosen network's box takes the top of the page, where the phone's keyboard cannot cover it.
         for (const id of ['list', 'other']) $(id).hidden = true;
         $('form').hidden = false;
@@ -134,7 +140,7 @@ export function portalHtml(language: Language): string {
           });
           if (!response.ok) throw new Error('refused');
           // Only the result is left on the page.
-          for (const id of ['heading', 'list', 'other', 'form']) $(id).hidden = true;
+          for (const id of ['list', 'other', 'form']) $(id).hidden = true;
           $('joining').textContent = ${js('portal.joining', { ssid: '%s' })}.replace('%s', ssid);
           $('done').hidden = false;
           // The phone has nothing more to do here. A browser closes only a tab that nothing else was opened in (the

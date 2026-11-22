@@ -78,7 +78,7 @@ describe('kiosk-audio/hotspot-portal', () => {
   it('speaks Norwegian to a phone that prefers it, and English to any other', async () => {
     const norwegian = portalHtml('nb');
     expect(norwegian).toContain('<html lang="nb-NO">');
-    expect(norwegian).toContain(`<h1 id="heading">${say('portal.choose', 'nb')}</h1>`);
+    expect(norwegian).toContain(`>${say('portal.otherNetwork', 'nb')}</button>`);
     expect(norwegian).toContain(`fail('${say('portal.refused', 'nb')}')`);
     for (const header of ['nb-NO,nb;q=0.9,en;q=0.8', 'no', 'nn-NO', 'de-DE,nb;q=0.5', 'en;q=0.4, nb']) {
       // eslint-disable-next-line no-await-in-loop -- one page at a time, to say which header failed

@@ -12,15 +12,14 @@ export const LOCALES: Readonly<Record<Language, string>> = { en: 'en-GB', nb: 'n
 
 const WORDS = {
   // The hotspot's page on a phone.
-  'portal.otherTitle': { en: 'Other network', nb: 'Annet nettverk' },
   'portal.networkName': { en: 'Network name', nb: 'Nettverksnavn' },
   'portal.password': { en: 'Password', nb: 'Passord' },
+  'portal.passwordFor': { en: 'Password for {ssid}', nb: 'Passord for {ssid}' },
   'portal.connect': { en: 'Connect', nb: 'Koble til' },
+  'portal.connectTo': { en: 'Connect to {ssid}', nb: 'Koble til {ssid}' },
   'portal.back': { en: 'Back', nb: 'Tilbake' },
-  'portal.choose': { en: 'Connected to the tablet', nb: 'Koblet til nettbrettet' },
   'portal.otherNetwork': { en: 'Other network…', nb: 'Annet nettverk …' },
-  'portal.done': { en: 'Sent to the tablet', nb: 'Sendt til nettbrettet' },
-  'portal.joining': { en: 'The tablet is joining {ssid}.', nb: 'Nettbrettet kobler til {ssid}.' },
+  'portal.joining': { en: 'The tablet is joining {ssid}', nb: 'Nettbrettet kobler til {ssid}' },
   'portal.loadFailed': {
     en: 'Could not load the networks. Reload this page.',
     nb: 'Kunne ikke hente nettverkene. Last inn siden på nytt.'
