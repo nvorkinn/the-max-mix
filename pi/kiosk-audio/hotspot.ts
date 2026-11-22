@@ -25,7 +25,7 @@ const LIFETIME_MS = 10 * 60 * 1000;
 const JOIN_DELAY_MS = 1500;
 const COMMAND_TIMEOUT_MS = 30_000;
 
-type HotspotState = 'idle' | 'running' | 'joining' | 'failed';
+type HotspotState = 'idle' | 'running' | 'joining' | 'joined' | 'failed';
 
 export interface HotspotStatus {
   state: HotspotState;
@@ -212,7 +212,7 @@ export class Hotspot {
         await this.takeDown();
         const result = await this.connectQuietly(request);
         if (result.ok) {
-          this.current = { state: 'idle' };
+          this.current = { state: 'joined' };
         } else {
           await this.restorePrevious();
           this.current = { state: 'failed', error: `Could not join ${request.ssid}: ${result.error}` };

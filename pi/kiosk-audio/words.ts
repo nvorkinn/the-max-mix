@@ -80,6 +80,7 @@ const WORDS = {
     en: 'The kiosk is joining a network. Wait a moment.',
     nb: 'Nettbrettet kobler til et nettverk. Vent litt.'
   },
+  'error.phoneJoinFailed': { en: 'Could not join that network.', nb: 'Kunne ikke koble til det nettverket.' },
   'error.couldNotJoin': { en: 'Could not join {ssid}: {error}', nb: 'Kunne ikke koble til {ssid}: {error}' }
 } as const satisfies Record<string, Readonly<Record<Language, string>>>;
 

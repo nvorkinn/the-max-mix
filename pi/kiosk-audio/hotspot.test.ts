@@ -197,7 +197,7 @@ describe('kiosk-audio/hotspot', () => {
       await vi.advanceTimersByTimeAsync(1500);
       expect(closed).toHaveBeenCalledOnce();
       expect(connect).toHaveBeenCalledWith(request);
-      expect(hotspot.status()).toEqual({ state: 'idle' });
+      expect(hotspot.status()).toEqual({ state: 'joined' });
     });
 
     it('says why it failed, and puts the earlier network back', async () => {

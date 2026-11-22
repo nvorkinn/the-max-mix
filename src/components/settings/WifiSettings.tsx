@@ -8,13 +8,15 @@ import { wifiLabel } from './wifi';
 import type { WifiState } from './wifi';
 import WifiJoinDialog from './WifiJoinDialog';
 import type { WifiTarget } from './WifiJoinDialog';
+import { WifiHotspotDialog, WifiPhoneDialog } from './WifiPhoneDialogs';
 
 const BARS = [WifiZero, WifiZero, WifiLow, WifiHigh, Wifi] as const;
 
 /**
  * The network the kiosk is on, the networks in range, and joining one: an open one at a tap, one with a password (or a
- * hidden one) in a dialog with the on-screen keyboard. `onJoined` follows every join, so the network shown is asked
- * again. The kiosk's service lists and joins them (utils/kioskWifi.ts).
+ * hidden one) in a dialog with the on-screen keyboard, or one a phone sends (From phone, over Bluetooth, or over the
+ * kiosk's own Hotspot). `onJoined` follows every join, so the network shown is asked again. The kiosk's service lists
+ * and joins them (utils/kioskWifi.ts).
  */
 export default function WifiSettings({ wifi, onJoined }: Readonly<{ wifi: WifiState; onJoined: () => void }>) {
   const t = useT();
@@ -24,6 +26,7 @@ export default function WifiSettings({ wifi, onJoined }: Readonly<{ wifi: WifiSt
   // Undefined while the kiosk looks for networks.
   const [scan, setScan] = useState<WifiScan | undefined>();
   const [target, setTarget] = useState<WifiTarget | null>(null);
+  const [phoneSetup, setPhoneSetup] = useState<'bluetooth' | 'hotspot' | null>(null);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
   const scanRef = useRef<AbortController | null>(null);
@@ -47,6 +50,7 @@ export default function WifiSettings({ wifi, onJoined }: Readonly<{ wifi: WifiSt
 
   const joined = () => {
     setTarget(null);
+    setPhoneSetup(null);
     onJoined();
   };
 
@@ -150,6 +154,28 @@ export default function WifiSettings({ wifi, onJoined }: Readonly<{ wifi: WifiSt
           </button>
           <button
             type="button"
+            disabled={connecting !== null}
+            onClick={() => {
+              setJoinError(null);
+              setPhoneSetup('bluetooth');
+            }}
+            className="button button-secondary"
+          >
+            {t('wifi.from_phone')}
+          </button>
+          <button
+            type="button"
+            disabled={connecting !== null}
+            onClick={() => {
+              setJoinError(null);
+              setPhoneSetup('hotspot');
+            }}
+            className="button button-secondary"
+          >
+            {t('wifi.hotspot')}
+          </button>
+          <button
+            type="button"
             disabled={scan === undefined || connecting !== null}
             onClick={() => {
               setJoinError(null);
@@ -163,6 +189,18 @@ export default function WifiSettings({ wifi, onJoined }: Readonly<{ wifi: WifiSt
         </div>
       </section>
       {target && <WifiJoinDialog target={target} onJoined={joined} onClose={() => setTarget(null)} />}
+      {phoneSetup === 'bluetooth' && <WifiPhoneDialog onJoined={joined} onClose={() => setPhoneSetup(null)} />}
+      {phoneSetup === 'hotspot' && (
+        <WifiHotspotDialog
+          onJoined={joined}
+          onClose={stopped => {
+            setPhoneSetup(null);
+            // The hotspot had the radio, so the list is asked again once the kiosk is back on its network.
+            setScan(undefined);
+            void stopped.then(search);
+          }}
+        />
+      )}
     </div>
   );
 }

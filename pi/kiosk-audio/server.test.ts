@@ -168,7 +168,12 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
         return isPhoneFailing
           ? Promise.reject(new Error('no bluetooth', { cause: new Error('Failed to register advertisement') }))
           : Promise.resolve();
-      }
+      },
+      stop: () => {
+        phoneStarts.push('stop');
+        return Promise.resolve();
+      },
+      status: () => ({ state: 'waiting' })
     },
     bluetooth: {
       list: () => Promise.resolve([speaker]),
@@ -670,6 +675,15 @@ describe('Wi-Fi setup from a phone', () => {
     expect(warn).toHaveBeenCalledWith(
       'wifi: phone setup did not start: no bluetooth: Failed to register advertisement'
     );
+  });
+
+  it('stops for the app only, and reports where it is', async () => {
+    const { deps, phoneStarts } = fakes();
+    const base = await start(deps, LOCAL_ORIGIN);
+    expect((await post(base, '/wifi/phone/stop', { origin: 'https://evil.example' })).status).toBe(403);
+    expect((await post(base, '/wifi/phone/stop', { origin: LOCAL_ORIGIN })).status).toBe(204);
+    expect(phoneStarts).toEqual(['stop']);
+    await expect((await fetch(`${base}/wifi/phone`)).json()).resolves.toEqual({ state: 'waiting' });
   });
 });
 

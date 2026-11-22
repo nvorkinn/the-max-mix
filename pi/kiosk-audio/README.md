@@ -164,9 +164,11 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 | `POST /bluetooth/connect`              | Pairs, trusts and connects `{"address"}`                                    |
 | `POST /bluetooth/remove`               | Forgets `{"address"}`                                                       |
 | `POST /wifi/phone`                     | Starts Wi-Fi setup from a phone over Bluetooth (5 minutes)                  |
+| `POST /wifi/phone/stop`                | Stops it                                                                    |
+| `GET /wifi/phone`                      | `{"state": "waiting" \| "joining" \| "joined" \| "idle", "error"?}`         |
 | `POST /wifi/hotspot`                   | Starts the setup hotspot: name, password, address, QR codes                 |
 | `POST /wifi/hotspot/stop`              | Ends it and puts the earlier network back                                   |
-| `GET /wifi/hotspot`                    | `{"state": "running" \| "joining" \| "failed" \| "idle"}`                   |
+| `GET /wifi/hotspot`                    | `{"state": "running" \| "joining" \| "joined" \| "failed" \| "idle"}`       |
 | `GET /wifi/status`                     | `{"ssid"}`: the network the Wi-Fi is on, or null (the app only)             |
 | `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                                |
 | `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)                    |
@@ -200,7 +202,8 @@ handler and to nothing else, whatever its `Origin` says, and the update WebSocke
 hotspot can reboot the kiosk or start an update.
 
 The Pi has one Wi-Fi radio, so the hotspot replaces the network it was on. When the phone has chosen a network, the
-kiosk answers it, leaves the hotspot, and joins; the app sees the new network by itself. When it fails,
+kiosk answers it, leaves the hotspot, and joins; `GET /wifi/hotspot` then says `joined`, which the tablet's Hotspot
+dialog waits for. When it fails,
 `GET /wifi/hotspot` says why and the earlier network comes back, and the hotspot can be started again. The hotspot also ends by itself after 10
 minutes. The hotspot's own password is shown on the tablet, and is only a barrier for those who can see the screen.
 
@@ -211,7 +214,9 @@ Bluetooth LE for 5 minutes (a tap on the button again gives another 5). `improv.
 and a session that turns the phone's "send Wi-Fi settings" command into the same `Nmcli.connect` that `POST /wifi/connect` uses), and
 `improv-gatt.ts` is the Bluetooth side: it exports a GATT service and an advertisement on the system bus with
 `dbus-native` and registers them with BlueZ (`RegisterApplication`, `RegisterAdvertisement`; the first adapter, hci0).
-When the phone has joined a network, advertising stops 4 seconds later; the app sees the new network by itself.
+When the phone has joined a network, advertising stops 4 seconds later. `GET /wifi/phone` says where it is (waiting,
+with the reason when the phone's last network could not be joined; joining; then joined until the next start), which
+the tablet's From phone dialog follows; Back there sends `POST /wifi/phone/stop`.
 
 The button is the authorization Improv asks for: nothing advertises until someone taps it on the tablet, so a phone
 that is only nearby cannot change the Wi-Fi. The password goes from the phone to the kiosk over an unencrypted
