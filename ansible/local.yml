@@ -1,7 +1,8 @@
 ---
 # The single source of truth for everything installed and configured on the THE MAX MIX kiosk (Raspberry Pi OS Lite,
 # trixie). It runs in three ways, all with this same file:
-#   - on the first boot, by cloud-init's runcmd (pi/cloud-init/user-data), from the latest release's Pi bundle
+#   - on the first boot, by the flash image's cloud-init script (pi/cloud-init/first-boot), from the latest release's Pi
+#     bundle
 #   - on the device, by the kiosk-pull.timer: ansible-pull (see roles/kiosk/templates/kiosk-pull.service.j2)
 #   - by hand, as root on the device: ansible-playbook -c local -i localhost, ansible/local.yml
 # The variables and their defaults are listed in roles/kiosk/defaults/main.yml.

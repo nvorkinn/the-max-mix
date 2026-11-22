@@ -4,7 +4,7 @@
 # systemd, D-Bus or NetworkManager is run.
 kiosk_enable_only: false
 
-# The account Cage and Chromium run as. cloud-init creates it on the first boot (pi/cloud-init/user-data).
+# The account Cage and Chromium run as. The playbook creates it (tasks/full/users.yml).
 kiosk_user: kiosk
 # The only groups the kiosk user is in (the user has no sudo and no password). systemd-journal lets the kiosk-audio
 # service read the journal of the pull and the restart, which it streams to the app's update console. bluetooth lets
@@ -44,8 +44,8 @@ kiosk_version: >-
     | regex_search('^v[0-9A-Za-z][0-9A-Za-z._-]*$') | default('', true))
     if kiosk_pull_ref == 'latest' else kiosk_pull_ref }}
 # System settings.
-# The name /etc/hosts gives 127.0.1.1: the Pi's own host name, which cloud-init set from pi/cloud-init/user-data, so a
-# second kiosk renamed there (the-max-mix-2) resolves its own name. The playbook never changes the host name itself.
+# The name /etc/hosts gives 127.0.1.1: the Pi's own host name, which cloud-init set from the host name chosen in
+# Raspberry Pi Imager, so a second kiosk (the-max-mix-2) resolves its own name. The playbook never changes the host name itself.
 kiosk_hostname: "{{ lookup('ansible.builtin.file', '/proc/sys/kernel/hostname') | trim }}"
 kiosk_locale: en_GB.UTF-8
 kiosk_timezone: Europe/London
@@ -250,7 +250,7 @@ kiosk_tailscale_source:
 
 # On-device updates: kiosk-pull.timer runs /usr/local/sbin/kiosk-pull against this repository and ref. "latest" follows
 # the repository's latest GitHub release, installed from the Pi bundle the Release workflow uploads to it once the web
-# app is deployed (a release without one is not ready yet); pi/cloud-init/user-data installs the same on the first boot.
+# app is deployed (a release without one is not ready yet); pi/cloud-init/first-boot installs the same on the first boot.
 # To roll every device back, mark an older release as Latest (run the Release workflow with its tag). A tag such as
 # v1.12.0 pins a device to that release, and a branch (pulled with ansible-pull) is only for testing on your own Pi. The
 # repository is public, so no credentials are needed.

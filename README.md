@@ -245,7 +245,7 @@ louder. There is no Sonos sign-in: everything stays on the home network, so Sono
 ## Raspberry Pi kiosk
 
 The kiosk is a Raspberry Pi 4 or 5 with the Waveshare 7-inch 1024x600 touch screen, running the deployed app in Chromium
-under the Cage kiosk compositor; with no connection, the app opens its Wi-Fi settings. Flash stock Raspberry Pi OS Lite, add the cloud-init files and
+under the Cage kiosk compositor; with no connection, the app opens its Wi-Fi settings. Flash the ready-made image with Raspberry Pi Imager and
 power on; [`pi/cloud-init/README.md`](pi/cloud-init/README.md) covers the setup, handing a Pi over, how the kiosk runs,
 SSH, troubleshooting and what is still to be verified on a device.
 
@@ -264,8 +264,8 @@ device, so change the role, not the device.
   Pi installs a release only once its bundle is there, so it can never run ahead of the workflow, and a release whose
   workflow failed is never installed. That one tag ships both the web app and the Pi, and the version in the kiosk's
   Settings is the release's name.
-- **First boot:** cloud-init's `user-data` installs Ansible and applies the latest release's Pi bundle (trying again
-  every minute until it is there), then reboots. Reflash only for a fresh device.
+- **First boot:** the flash image's cloud-init script ([`pi/cloud-init/first-boot`](pi/cloud-init/first-boot)) installs
+  Ansible and applies the latest release's Pi bundle (trying again every minute until it is there), then reboots. Reflash only for a fresh device.
 - **On-device updates:** `kiosk-pull.timer` runs `/usr/local/sbin/kiosk-pull` 3 minutes after boot and then every 6 hours
   (with up to 10 minutes of random delay), and at once when the kiosk's **Update now** button starts
   `kiosk-pull.service` (through the kiosk-audio service, which also streams the pull's journal to the app). With `kiosk_pull_ref: latest` (the default) it looks up the tag that

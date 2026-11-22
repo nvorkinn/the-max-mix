@@ -1,52 +1,61 @@
 # Setting up a kiosk
 
-A kiosk is stock Raspberry Pi OS Lite plus this repository's Ansible playbook. You flash the OS, cloud-init and the
-playbook build the kiosk on your own Wi-Fi. That Wi-Fi is for the first boot only: the first boot removes it from the card,
-and at its new home the Pi's owner picks their own network in the app.
+A kiosk is stock Raspberry Pi OS Lite plus this repository's Ansible playbook. You flash a ready-made image with
+Raspberry Pi Imager, and at the first boot it builds itself into a kiosk on your own Wi-Fi. That Wi-Fi is for the first
+boot only: the first boot removes it from the card, and at its new home the Pi's owner picks their own network in the
+app.
 
 Tested on a Raspberry Pi 4 Model B with a Waveshare 7-inch 1024x600 HDMI and USB touch screen. A Pi 5 should work the
 same; the playbook boots it with the 4 KB-page kernel (`kernel=kernel8.img`) for Widevine.
 
 ## What you need
 
-- Raspberry Pi OS Lite (64-bit, trixie) and a recent [Raspberry Pi Imager](https://www.raspberrypi.com/software/).
+- A recent [Raspberry Pi Imager](https://www.raspberrypi.com/software/) (2.0 or later).
 - A Wi-Fi network you control, or Ethernet, for the first boot.
 
 ## Set up
 
-1. Flash Raspberry Pi OS Lite with Imager. Skip its customisation (OS settings), or set only the Wi-Fi.
-2. Take the card out and put it back in, then open its boot partition (`bootfs`) on your computer:
-   - copy [`user-data`](user-data) over the `user-data` there (Imager's would create a different user). Keep the name
-     exactly `user-data`, with no extension, as plain text;
-   - unless Imager already wrote your Wi-Fi, copy [`network-config.example`](network-config.example) to `network-config`
-     and fill in your network name and password. With Ethernet, leave it out;
-   - or, to keep your Wi-Fi off the card, put `network-config` on a USB stick formatted as FAT with the label `CIDATA`,
-     next to a copy of `user-data` and a `meta-data` file holding one line, `instance-id: the-max-mix-1`. cloud-init's
-     NoCloud source reads a drive with that label at boot. Unplug it after the first boot.
-3. Put the card in the Pi, connect the screen and power it on. cloud-init names the Pi (`hostname:` in `user-data`,
-   `the-max-mix`) and creates the locked `kiosk` user. Then `user-data` installs Ansible and runs the playbook from the
-   latest GitHub release, the same run the Pi's update timer repeats later, and reboots. Expect 15 to 30 minutes. It
-   tries again every minute until it has worked (`/var/log/cloud-init-output.log`).
+1. Open the image list in Imager. Download
+   [`the-max-mix.rpi-imager-manifest`](https://github.com/nvorkinn/the-max-mix/releases/download/flash-image/the-max-mix.rpi-imager-manifest)
+   and double-click it, or start Imager with
+   `--repo https://github.com/nvorkinn/the-max-mix/releases/download/flash-image/the-max-mix.rpi-imager-manifest`.
+   Imager then offers one OS, **The Max Mix**.
+2. Choose your Pi, **The Max Mix** and the card, and fill in Imager's customisation:
+   - host name `the-max-mix` (`the-max-mix-2` and so on for another kiosk on the same network);
+   - user name `admin`. Any password will do: the playbook removes it, and SSH then takes only the keys of the GitHub
+     account in `kiosk_admin_github_user` (see "Maintenance over SSH");
+   - your Wi-Fi, unless the Pi is on Ethernet;
+   - SSH on, if you like. The playbook turns it on in any case.
+3. Put the card in the Pi, connect the screen and power it on. cloud-init applies Imager's settings, then the image's
+   first-boot script ([`first-boot`](first-boot)) installs Ansible and runs the playbook from the latest GitHub release,
+   the same run the Pi's update timer repeats later, and the Pi reboots. Expect 15 to 30 minutes. It tries again every
+   minute until it has worked (`/var/log/cloud-init-output.log`).
 4. After the reboot the kiosk starts. On its first run Chromium downloads Widevine, the module Spotify needs, and the
    kiosk restarts by itself once that is done (`kiosk-widevine.path`), a minute or two later. Test it: sign in to
    Spotify, play something, try the speakers.
 
+### The image
+
+The image is the newest stock Raspberry Pi OS Lite (64-bit) with two files added to its system partition, and it carries
+no release: the first boot always installs the latest one. It lives in the system partition because Imager writes its own
+`user-data` over whatever the card had.
+
+- `/var/lib/cloud/scripts/per-instance/the-max-mix-first-boot` ([`first-boot`](first-boot)): cloud-init runs it once
+  for each newly flashed card (Imager gives every card its own instance id), after Imager's settings.
+- `/etc/cloud/cloud.cfg.d/99-the-max-mix.cfg` ([`the-max-mix.cfg`](the-max-mix.cfg)): reboot once that has finished.
+
+The [Flash image workflow](../../.github/workflows/flash-image.yml) builds it with [`build-image.sh`](build-image.sh) and
+publishes it with Imager's list on the `flash-image` pre-release, which never becomes the latest release, so the links
+above never change. It builds when one of those files changes on `main`, when Raspberry Pi OS has a new image (it checks
+weekly) or when you run it by hand.
+
 ## A second kiosk
 
-Two Pis on one network can't both be `the-max-mix.local`. Before step 3, change `hostname:` in the card's `user-data`
-(for example to `the-max-mix-2`) and use `ssh admin@the-max-mix-2.local`. With a `CIDATA` stick, give `meta-data` its own
-`instance-id` too.
+Two Pis on one network can't both be `the-max-mix.local`: give the second its own host name in Imager (for example
+`the-max-mix-2`) and use `ssh admin@the-max-mix-2.local`.
 
-Settings for one Pi only, such as its screen mode, go in `/etc/the-max-mix/kiosk-vars.yml`, which every pull reads. To have
-them from the first boot, add the file to `write_files` in the card's `user-data`:
-
-```yaml
-- path: /etc/the-max-mix/kiosk-vars.yml
-  content: |
-    kiosk_video_mode: 1280x800@60
-```
-
-Later edits apply at the next release. To apply them now (the update timer skips a release it already ran):
+Settings for one Pi only go in `/etc/the-max-mix/kiosk-vars.yml`, which every pull reads. Edits apply at the next
+release. To apply them now (the update timer skips a release it already ran):
 
 ```sh
 sudo kiosk-pull https://github.com/nvorkinn/the-max-mix.git latest /var/lib/the-max-mix/ansible-pull && sudo reboot
@@ -54,10 +63,10 @@ sudo kiosk-pull https://github.com/nvorkinn/the-max-mix.git latest /var/lib/the-
 
 ## Hand it over
 
-Once the first pull has worked, `user-data` removes `network-config` and `user-data` from the card and turns cloud-init off
-(`/etc/cloud/cloud-init.disabled`), so the setup network is never applied again. Your Wi-Fi stays saved on the Pi, which
-keeps it working at your place; at its new home the Pi finds no network it knows, and the app's Wi-Fi screen joins
-theirs. Before it goes, sign everyone out of Spotify in Settings.
+Once the first pull has worked, the first-boot script removes `network-config` and `user-data` from the card and turns
+cloud-init off (`/etc/cloud/cloud-init.disabled`), so the setup network is never applied again. Your Wi-Fi stays saved on
+the Pi, which keeps it working at your place; at its new home the Pi finds no network it knows, and the app's Wi-Fi screen
+joins theirs. Before it goes, sign everyone out of Spotify in Settings.
 
 Give the new owner the [one-page guide](../../docs/friend-guide.md) (print it, or send the link).
 
@@ -162,10 +171,11 @@ The `bootfs` partition holds `config.txt` and `cmdline.txt` (remove `quiet` and 
 
 ## Still to verify
 
-Checked on the first real Pi: the first boot from this `user-data` with `network-config` on the card, the first pull
-and reboot, SSH, and Widevine after a restart. Still to check:
+Checked on the first real Pi, with the setup then in a hand-copied `user-data`: the first boot with `network-config` on
+the card, the first pull and reboot, SSH, and Widevine after a restart. Still to check:
 
-1. A `CIDATA` USB stick is read. Pi OS also points cloud-init at the boot partition.
+1. The ready-made image: Imager offers it from its list, its settings apply (host name, `admin`, Wi-Fi), the first-boot
+   script runs once and the Pi reboots when it has finished.
 2. `kiosk-widevine.path` restarts the kiosk by itself after the first Widevine download.
 3. After the first pull, the boot partition has no `network-config` or `user-data`, and the Pi still joins your Wi-Fi
    after a reboot.

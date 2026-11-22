@@ -1,0 +1,122 @@
+name: Flash image
+
+# Builds THE MAX MIX's ready-made flash image (pi/cloud-init/build-image.sh): stock Raspberry Pi OS Lite (64-bit) with
+# the first-boot setup added, and the Raspberry Pi Imager list that offers it. Both go on one rolling pre-release,
+# flash-image, so their links never change:
+#   https://github.com/nvorkinn/the-max-mix/releases/download/flash-image/the-max-mix.rpi-imager-manifest
+# It is a pre-release so that releases/latest, which the Pis and the app follow, never points at it.
+#
+# The image only starts the setup, which installs the latest release at the first boot, so it does not follow releases.
+# It builds when the files it adds change on main, when Raspberry Pi OS has a new image (checked weekly), or by hand. A
+# pull request that changes them builds the image too, to check it, but publishes nothing.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'pi/cloud-init/first-boot'
+      - 'pi/cloud-init/the-max-mix.cfg'
+      - 'pi/cloud-init/build-image.sh'
+      - '.github/workflows/flash-image.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'pi/cloud-init/first-boot'
+      - 'pi/cloud-init/the-max-mix.cfg'
+      - 'pi/cloud-init/build-image.sh'
+      - '.github/workflows/flash-image.yml'
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Build even when neither the files nor Raspberry Pi OS changed
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flash-image
+  cancel-in-progress: false
+
+env:
+  TAG: flash-image
+  GH_REPO: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+      key: ${{ steps.check.outputs.key }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # What the image is made of: the newest Raspberry Pi OS Lite and the three files. The release notes keep the last
+      # build's, so an unchanged week builds nothing.
+      - name: Check whether anything changed
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE: ${{ inputs.force || github.event_name == 'pull_request' }}
+        run: |
+          pi/cloud-init/build-image.sh upstream > "$RUNNER_TEMP/upstream.json"
+          key=$( (jq -r .os.url "$RUNNER_TEMP/upstream.json"
+            sha256sum pi/cloud-init/first-boot pi/cloud-init/the-max-mix.cfg pi/cloud-init/build-image.sh) | sha256sum | cut -c1-16)
+          last=$(gh release view "$TAG" --json body --jq '.body' 2>/dev/null | sed -n 's/^Build: //p' || true)
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+          if [[ $FORCE == true || $key != "$last" ]]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nothing changed since the last build ($key)"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build the image
+        if: steps.check.outputs.build == 'true'
+        # The folder is made first, as the runner user, so that the step can still write to it after the root build.
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          sudo pi/cloud-init/build-image.sh build "$RUNNER_TEMP/upstream.json" "$RUNNER_TEMP/out" \
+            "https://github.com/$GH_REPO/releases/download/$TAG/the-max-mix.img.xz"
+          jq -r '.os_list[0].description' "$RUNNER_TEMP/out/the-max-mix.rpi-imager-manifest" > "$RUNNER_TEMP/out/description.txt"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.check.outputs.build == 'true' && github.event_name != 'pull_request'
+        with:
+          name: flash-image
+          path: ${{ runner.temp }}/out/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  # A separate job, so that only this one, which runs no code from the repository, can write to it.
+  publish:
+    needs: build
+    if: needs.build.outputs.build == 'true' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      KEY: ${{ needs.build.outputs.key }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: flash-image
+      # The image goes up before the list that names its checksum. Never the latest release: see the top of this file.
+      - name: Publish the flash-image pre-release
+        run: |
+          notes=$(printf '%s\n\n%s\n\n%s\n\nBuild: %s\n' \
+            'Ready-made flash image for a Max Mix kiosk. See pi/cloud-init/README.md for how to flash it with Raspberry Pi Imager.' \
+            "$(cat description.txt)" \
+            "Imager list: https://github.com/$GH_REPO/releases/download/$TAG/the-max-mix.rpi-imager-manifest" \
+            "$KEY")
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            gh release create "$TAG" --target "$GITHUB_SHA" --prerelease --latest=false --title 'Flash image' --notes 'Building'
+          fi
+          gh release upload "$TAG" the-max-mix.img.xz --clobber
+          gh release upload "$TAG" the-max-mix.rpi-imager-manifest --clobber
+          gh release edit "$TAG" --prerelease --latest=false --notes "$notes"
