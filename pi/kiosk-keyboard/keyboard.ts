@@ -1,7 +1,7 @@
-// An on-screen keyboard for Spotify's sign-in pages on the kiosk. Cage has no protocol for a system keyboard, and the
-// sign-in form is Spotify's page, not the app, so the extension draws this one at the bottom of the page whenever a
-// text field has focus. Keys type with the editing command a real key press uses, which fires the same input events,
-// so Spotify's form sees the text. Nothing is stored or sent anywhere.
+// An on-screen keyboard for the kiosk's own pages: the app's search dialogs and the Wi-Fi setup page. Cage has no
+// protocol for a system keyboard, so this one is drawn at the bottom of the page (or in a dialog) whenever a text field
+// has focus. Keys type with the editing command a real key press uses, which fires the same input events, so the page
+// sees the text. Nothing is stored or sent anywhere.
 
 type Page = 'letters' | 'symbols' | 'more';
 export type Key =

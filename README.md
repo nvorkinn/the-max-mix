@@ -175,7 +175,7 @@ Register `http://127.0.0.1:5173/` as a redirect URI in the Spotify dashboard to 
 To try the production build (the same files the Pi serves), run
 `npm run build && npm start` and open
 **<http://127.0.0.1:4173/>** (`vite preview`). Register that address too if you want to sign in there. `npm test` runs the
-app, kiosk service and sign-in keyboard tests.
+app, kiosk service and kiosk extension tests.
 
 ### Checks and Git hooks
 
