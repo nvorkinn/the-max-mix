@@ -95,8 +95,10 @@
 # NetworkManager's own DHCP and DNS for it answer every name with the kiosk (50-kiosk-captive.conf), and the service may
 # serve its page on port 80. And the touch screen's rotation (kiosk_screen_rotation): libinput reads the matrix from
 # udev when Cage opens the touch screen, DSI or USB, and turns every touch by it, as kiosk-display turns the picture.
+# And the backlight of a panel that has one (DSI): the kernel lets only root write its brightness, so a udev rule gives
+# it to the video group, which the kiosk user is in, for the kiosk-audio service (pi/kiosk-audio/backlight.ts).
 # In one step, as a module run costs seconds on a Pi.
-- name: full | system | Install the locale, unattended upgrade, setup hotspot and touch rotation settings
+- name: full | system | Install the locale, unattended upgrade, setup hotspot, touch rotation and backlight settings
   ansible.builtin.command:
     argv: [node, '{{ kiosk_install_files }}']
     stdin: '{{ kiosk_system_files | to_json }}'
@@ -122,10 +124,14 @@
         mode: '0644'
         content: |
           ACTION!="remove", SUBSYSTEM=="input", ENV{ID_INPUT_TOUCHSCREEN}=="1", ENV{LIBINPUT_CALIBRATION_MATRIX}="{{ kiosk_touch_matrices[kiosk_screen_rotation | int] }}"
+      - path: /etc/udev/rules.d/90-kiosk-backlight.rules
+        mode: '0644'
+        content: |
+          ACTION!="remove", SUBSYSTEM=="backlight", RUN+="/bin/chgrp video /sys/class/backlight/%k/brightness", RUN+="/bin/chmod g+w /sys/class/backlight/%k/brightness"
   register: kiosk_system_files_installed
   changed_when: kiosk_system_files_installed.stdout | length > 0
 
-# Runs no module, so it costs nothing: it only passes the change on to the handlers.
+# These run no module, so they cost nothing: they only pass each change on to its handlers.
 - name: full | system | Apply the touch rotation
   ansible.builtin.debug:
     msg: The touch rotation changed.
@@ -134,6 +140,13 @@
   notify:
     - Apply the udev rules
     - Ask for a kiosk restart
+
+- name: full | system | Let the kiosk set the backlight
+  ansible.builtin.debug:
+    msg: The backlight's rule changed.
+  when: "'/etc/udev/rules.d/90-kiosk-backlight.rules' in kiosk_system_files_installed.stdout_lines"
+  changed_when: true
+  notify: Apply the udev rules
 
 # Runs no module, so it costs nothing: it only passes the change on to the handler.
 - name: full | system | Apply the port setting
