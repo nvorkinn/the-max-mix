@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { handoverItems, isLocalCopy, TAKEN_KEY, takeHandover } from './handover';
+import { handoverItems, isLocalCopy, startHandover, TAKEN_KEY, takeHandover } from './handover';
 
 const LOCAL = 'http://127.0.0.1:7341';
 
@@ -29,6 +29,7 @@ function storage(items: Record<string, string>): Storage {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe('handoverItems', () => {
@@ -82,5 +83,53 @@ describe('takeHandover', () => {
     const local = storage({});
     await takeHandover(local, LOCAL);
     expect(local.getItem(TAKEN_KEY)).toBeNull();
+  });
+});
+
+describe('startHandover', () => {
+  it('hands the items to the kiosk service now and every ten minutes', async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi.fn(() => Promise.resolve(new Response(null, { status: 204 })));
+    vi.stubGlobal('fetch', fetchSpy);
+    startHandover(storage({ 'maxmix.deviceId': 'abc' }));
+    expect(fetchSpy).toHaveBeenCalledWith('http://127.0.0.1:7341/handover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: { 'maxmix.deviceId': 'abc' } })
+    });
+    await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('carries on when the service does not answer', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new Error('down')))
+    );
+    vi.useFakeTimers();
+    expect(() => {
+      startHandover(storage({}));
+    }).not.toThrow();
+    await vi.advanceTimersByTimeAsync(0);
+  });
+});
+
+describe('takeHandover with nothing handed over', () => {
+  it('notes that there was none, and asks again after an error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response(null, { status: 404 })))
+    );
+    const empty = storage({});
+    await takeHandover(empty, LOCAL);
+    expect(empty.getItem(TAKEN_KEY)).toBe('1');
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response(null, { status: 503 })))
+    );
+    const failing = storage({});
+    await takeHandover(failing, LOCAL);
+    expect(failing.getItem(TAKEN_KEY)).toBeNull();
   });
 });
