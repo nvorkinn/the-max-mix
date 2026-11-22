@@ -59,12 +59,10 @@ kiosk_wifi_country: GB
 kiosk_video_mode: ''
 # The 1024x600 HDMI screen (Waveshare 7 inch).
 kiosk_video_mode_fallback: 1024x600@60
-# Added to the kernel command line (/boot/firmware/cmdline.txt) if missing; console=tty1 becomes tty3. Quiet boot with
-# the Plymouth splash, no logo or cursor, and the Wi-Fi regulatory domain. The screen mode is added separately.
+# Added to the kernel command line (/boot/firmware/cmdline.txt) if missing; console=tty1 becomes tty3. A quiet boot
+# with no logo or cursor, and the Wi-Fi regulatory domain. The screen mode is added separately.
 kiosk_cmdline_params:
   - quiet
-  - splash
-  - plymouth.ignore-serial-consoles
   - logo.nologo
   - vt.global_cursor_default=0
   - loglevel=3
@@ -93,8 +91,6 @@ kiosk_all_packages: '{{ (kiosk_ansible_packages + kiosk_packages + kiosk_rpi_pac
 kiosk_packages_id: "{{ [kiosk_all_packages, kiosk_apt_sources] | to_json | hash('sha1') }}"
 # The journal is kept on disk (it is in memory by default, so a reboot loses it), up to this much of the SD card.
 kiosk_journal_max_use: 64M
-# Regenerate the initramfs when the Plymouth theme changes. Needs a kernel, so tests in a plain container turn it off.
-kiosk_update_initramfs: true
 
 # Screen sleep. The app decides when the screen may sleep (never while music plays, otherwise after the idle minutes chosen
 # in its settings) and shows a black sleep screen. This many seconds later without a touch, swayidle turns the HDMI output
@@ -128,9 +124,6 @@ kiosk_packages:
   # Maintenance over SSH (kiosk_ssh_enabled)
   - openssh-server
   - sudo
-  # Boot splash
-  - initramfs-tools
-  - plymouth
   # Locale, time zone and NetworkManager (polkit lets the kiosk user manage connections)
   - locales
   - tzdata

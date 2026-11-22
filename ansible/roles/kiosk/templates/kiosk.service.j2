@@ -1,9 +1,9 @@
 # {{ ansible_managed }}
 [Unit]
 Description=THE MAX MIX kiosk (Cage on tty7)
-# Based on Cage's own systemd example. Cage fails to display if it starts before Plymouth has quit.
-After=systemd-user-sessions.service plymouth-quit-wait.service systemd-logind.service dbus.socket getty@tty7.service
-Wants=dbus.socket systemd-logind.service plymouth-quit.service
+# Based on Cage's own systemd example.
+After=systemd-user-sessions.service systemd-logind.service dbus.socket getty@tty7.service
+Wants=dbus.socket systemd-logind.service
 Conflicts=getty@tty7.service
 ConditionPathExists=/dev/tty0
 

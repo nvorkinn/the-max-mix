@@ -10,6 +10,8 @@ import { useDeviceConfig } from '../hooks/useDeviceConfig';
 import { startNextAsleep, useScreenSleep } from '../hooks/useScreenSleep';
 import { useAutoSwitch } from '../hooks/useAutoSwitch';
 import { IDLE_DASHBOARD_MS, useIdle } from '../hooks/useIdle';
+import { useWifiAtStart } from '../hooks/useWifiAtStart';
+import { reloadApp } from '../utils/reloadApp';
 import { usePanelView } from '../hooks/usePanelView';
 import type { LyricsAvailability, PanelView } from '../hooks/usePanelView';
 import { useLyrics } from '../hooks/useLyrics';
@@ -24,7 +26,7 @@ import { getKioskSonosLeader, playOnSonosRoom } from '../sonos/kiosk';
 import { rememberSpeaker } from '../spotify/knownDevices';
 import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import { useSpeakerSelection } from '../speakers/useSpeakerSelection';
-import { currentWifi, isKiosk } from '../utils/kiosk';
+import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
 import { loadQuietHours, isQuietTime, saveQuietHours } from '../utils/quietHours';
 import type { QuietHours } from '../utils/quietHours';
@@ -217,24 +219,16 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // minutes later (see useScreenSleep). The screen stays on and bright while music plays. In quiet hours it sleeps a
   // minute after the last touch, on any tab.
   // A kiosk that starts with no network opens on Settings › Wi-Fi, and stays there (rather than going idle to the
-  // Dashboard) until it has joined one; then it goes to the Dashboard.
-  const [needsWifi, setNeedsWifi] = useState(false);
-  useEffect(() => {
-    if (!onKiosk) return;
-    const controller = new AbortController();
-    void currentWifi(controller.signal).then(answer => {
-      if (controller.signal.aborted || answer?.ssid !== null || navigator.onLine) return;
-      setNeedsWifi(true);
-      setSettingsSection('wifi');
-      setScreen('settings');
-    });
-    return () => controller.abort();
-  }, [onKiosk]);
-  const wifiJoined = () => {
-    if (!needsWifi) return;
-    setNeedsWifi(false);
-    goToScreen('dashboard');
-  };
+  // Dashboard) until it is on one, joined there or back by itself; then it goes to the Dashboard.
+  const needsWifi = useWifiAtStart(onKiosk, {
+    onNeeded: () =>
+      crossfade(() => {
+        setSettingsSection('wifi');
+        setScreen('settings');
+      }),
+    // Started without a network, so the Spotify player and the Dashboard's data failed to load: start again.
+    onConnected: reloadApp
+  });
   useIdle({
     enabled: onKiosk,
     busy: isPlaying || needsWifi,
@@ -767,7 +761,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               deviceConfig={ownedConfig ?? undefined}
               onDeviceConfigSave={deviceConfig.save}
               onOpenDebug={() => setIsDebugOpen(true)}
-              onWifiJoined={wifiJoined}
             />
           )}
         </section>

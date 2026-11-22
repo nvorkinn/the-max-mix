@@ -1710,7 +1710,7 @@
 .app-dialog {
   margin: auto;
   width: calc(100% - 32px);
-  /* The kiosk's on-screen keyboard (pi/kiosk-keyboard) sets --keyboard-height while it shows; the dialog sits above it. */
+  /* The kiosk's on-screen keyboard (src/keyboard) sets --keyboard-height while it shows; the dialog sits above it. */
   bottom: var(--keyboard-height, 0);
   max-height: calc(100dvh - 32px - var(--keyboard-height, 0px));
   overflow-y: auto;

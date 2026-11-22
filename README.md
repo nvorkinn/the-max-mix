@@ -251,7 +251,7 @@ SSH, troubleshooting and what is still to be verified on a device.
 
 **[Ansible](https://docs.ansible.com) is the single source of truth** for everything installed and configured on the device:
 packages, the `kiosk` user and its service, `kiosk-session`, the local kiosk service, the AirPlay
-audio routing and PipeWire's AirPlay settings, the Chromium policy, Plymouth, boot settings (`cmdline.txt`, `config.txt`), locale, time zone, unattended upgrades and the update timer.
+audio routing and PipeWire's AirPlay settings, the Chromium policy, boot settings (`cmdline.txt`, `config.txt`), locale, time zone, unattended upgrades and the update timer.
 It is one role, [`ansible/roles/kiosk`](ansible/roles/kiosk), run by [`ansible/local.yml`](ansible/local.yml); its
 variables and defaults are in [`defaults/main.yml`](ansible/roles/kiosk/defaults/main.yml). Nothing else configures the
 device, so change the role, not the device.

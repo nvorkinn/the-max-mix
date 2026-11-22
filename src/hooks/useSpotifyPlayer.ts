@@ -5,6 +5,7 @@ import type {
   RepeatMode,
   SdkPlaybackState,
   SpotifyDevice,
+  SpotifySdk,
   SpotifyPlayer,
   Track
 } from '../types';
@@ -179,6 +180,11 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   const [sdkError, setSdkError] = useState<PlaybackProblem | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionVersion, setConnectionVersion] = useState(0);
+  // The browser player failed to start (its SDK did not load, or its token could not be fetched): 'failed', then
+  // 'unreachable' once a read finds Spotify unreachable too. Nothing else retries the player, and its network problem
+  // would stay, so it is connected again when a read gets through after that. A player that fails while Spotify answers
+  // (the SDK blocked, say) is not retried on every read.
+  const sdkFailureRef = useRef<'none' | 'failed' | 'unreachable'>('none');
   // True while the SDK reports this player as the active device (it reports null once another device takes over).
   const [sdkActive, setSdkActive] = useState(false);
   const [slowPolling, setSlowPolling] = useState(false);
@@ -295,6 +301,10 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     setActionError(current =>
       current?.message === NETWORK_ERROR_MESSAGE || current?.recovery === 'wait' ? null : current
     );
+    if (sdkFailureRef.current === 'unreachable') {
+      sdkFailureRef.current = 'none';
+      setConnectionVersion(version => version + 1);
+    }
     const expected = expectedPlayingRef.current;
     if (expected && state) {
       // Spotify agreeing, or the window passing, ends the hold; until then a stale read must not flip the button back.
@@ -309,7 +319,11 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
 
   const reportConnectionError = useCallback(
     (error: unknown) => {
-      setConnectionError(problemForApi(error));
+      const problem = problemForApi(error);
+      setConnectionError(problem);
+      if (problem.message === NETWORK_ERROR_MESSAGE && sdkFailureRef.current === 'failed') {
+        sdkFailureRef.current = 'unreachable';
+      }
       if (error instanceof SpotifyApiError && error.status === 401 && !isSignedIn()) {
         setIsAuthenticated(false);
         setPlayback(null);
@@ -459,8 +473,19 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     const initialize = async () => {
       setIsConnecting(true);
       setSdkError(null);
+      sdkFailureRef.current = 'none';
+      let sdk: SpotifySdk;
       try {
-        const sdk = await loadSpotifySDK();
+        sdk = await loadSpotifySDK();
+      } catch (error) {
+        if (!isCancelled()) {
+          disconnect();
+          sdkFailureRef.current = 'failed';
+          setSdkError({ message: errorMessage(error), recovery: 'reconnect' });
+        }
+        return;
+      }
+      try {
         if (isCancelled()) return;
         player = new sdk.Player({
           name: 'The Max Mix',
@@ -477,6 +502,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
                 if (!isCancelled()) {
                   setIsConnecting(false);
                   const problem = apiProblem(error);
+                  if (problem.message === NETWORK_ERROR_MESSAGE) sdkFailureRef.current = 'failed';
                   setSdkError({ ...problem, recovery: problem.recovery === 'sign-in' ? 'sign-in' : 'reconnect' });
                 }
               });

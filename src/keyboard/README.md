@@ -1,7 +1,7 @@
 # THE MAX MIX on-screen keyboard
 
 The kiosk's touch screen has no keyboard, and Cage (the compositor) has none of the Wayland protocols a system keyboard
-needs, so the app draws its own. The app bundles `keyboard.ts` on the kiosk and starts it inside the dialog that wants
+needs, so the app draws its own. The app loads `keyboard.ts` on the kiosk only and starts it inside the dialog that wants
 it (music search, stop and place search, the postcode, the Wi-Fi password), since a modal dialog makes the rest of the
 page untouchable. While the keyboard shows it sets `--keyboard-height` on the page, and the app's dialogs move up above
 it.

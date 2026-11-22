@@ -1,8 +1,0 @@
-[Plymouth Theme]
-Name=THE MAX MIX
-Description=Plain black screen
-ModuleName=script
-
-[script]
-ImageDir=/usr/share/plymouth/themes/the-max-mix
-ScriptFile=/usr/share/plymouth/themes/the-max-mix/the-max-mix.script
