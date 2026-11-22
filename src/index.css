@@ -2414,11 +2414,15 @@ body:has(.app-dialog[open]) {
   height: 180px;
   border-radius: 12px;
 }
+.wifi-setup.wifi-hotspot {
+  max-width: 900px;
+}
+/* The two codes at either end, with the hotspot's name and password between them, so a camera reads one at a time. */
 .wifi-hotspot-codes {
   display: grid;
-  grid-template-columns: auto auto;
-  justify-content: center;
-  gap: 12px 20px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 48px;
   margin-bottom: 12px;
 }
 .wifi-hotspot-code {
@@ -2429,13 +2433,11 @@ body:has(.app-dialog[open]) {
   margin: 0;
   font-size: 16px;
 }
-/* The hotspot's name and password, under both codes, for a phone whose camera does not join it. */
+/* The hotspot's name and password, for a phone whose camera does not join it. */
 .wifi-hotspot-login {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: baseline;
-  gap: 4px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin: 0;
 }
 .wifi-hotspot-login dt {
@@ -2443,7 +2445,7 @@ body:has(.app-dialog[open]) {
   color: var(--muted);
 }
 .wifi-hotspot-login dd {
-  margin: 0;
+  margin: 0 0 12px;
   font-size: 20px;
   font-weight: 600;
   overflow-wrap: anywhere;

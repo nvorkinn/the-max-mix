@@ -127,16 +127,17 @@ function SetupProgress({ progress }: Readonly<{ progress: Progress }>) {
 
 function SetupDialog({
   title,
+  className = '',
   onClose,
   children
-}: Readonly<{ title: string; onClose: () => void; children: ReactNode }>) {
+}: Readonly<{ title: string; className?: string; onClose: () => void; children: ReactNode }>) {
   const t = useT();
   const titleId = useId();
   return (
     <Modal
       labelledBy={titleId}
       onClose={onClose}
-      className="app-modal-panel search-dialog wifi-setup border rounded-3xl p-6 shadow-2xl text-left select-none"
+      className={`app-modal-panel search-dialog wifi-setup ${className} border rounded-3xl p-6 shadow-2xl text-left select-none`}
     >
       <div className="modal-header">
         <h3 id={titleId} className="text-lg font-semibold truncate">
@@ -196,7 +197,8 @@ export function WifiPhoneDialog({ onEnd, onClose }: Readonly<SetupDialogProps>) 
 }
 
 /**
- * Hotspot: the kiosk makes its own Wi-Fi for a few minutes. The first code joins it (its name and password are there to
+ * Hotspot: the kiosk makes its own Wi-Fi for a few minutes. The first code (on the left, the second well apart on the
+ * right, so a camera reads one at a time) joins it (its name and password are there to
  * type too), and the phone then gets a page to choose the kiosk's network on, which the second code opens when the phone
  * does not by itself.
  */
@@ -216,16 +218,12 @@ export function WifiHotspotDialog({ onEnd, onClose }: Readonly<SetupDialogProps>
     onEnd
   );
   return (
-    <SetupDialog title={t('wifi.hotspot')} onClose={() => onClose(leave())}>
+    <SetupDialog title={t('wifi.hotspot')} className="wifi-hotspot" onClose={() => onClose(leave())}>
       {info && (
         <div className="wifi-hotspot-codes">
           <figure className="wifi-hotspot-code">
             <QrCode text={wifiQrText(info.ssid, info.password)} label={t('wifi.qr_join')} className="wifi-setup-qr" />
             <figcaption>{t('wifi.scan_to_join')}</figcaption>
-          </figure>
-          <figure className="wifi-hotspot-code">
-            <QrCode text={info.url} label={t('wifi.qr_open')} className="wifi-setup-qr" />
-            <figcaption>{t('wifi.scan_to_open')}</figcaption>
           </figure>
           <dl className="wifi-hotspot-login">
             <dt>{t('wifi.name')}</dt>
@@ -233,6 +231,10 @@ export function WifiHotspotDialog({ onEnd, onClose }: Readonly<SetupDialogProps>
             <dt>{t('wifi.password')}</dt>
             <dd data-testid="hotspot-password">{info.password}</dd>
           </dl>
+          <figure className="wifi-hotspot-code">
+            <QrCode text={info.url} label={t('wifi.qr_open')} className="wifi-setup-qr" />
+            <figcaption>{t('wifi.scan_to_open')}</figcaption>
+          </figure>
         </div>
       )}
       <SetupProgress progress={progress} />
