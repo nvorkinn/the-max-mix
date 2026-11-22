@@ -100,27 +100,37 @@ describe('PairingScreen', () => {
     expect(pairingState).toHaveBeenCalledTimes(1);
   });
 
-  it('starts on the Wi-Fi step, with Next once the Pi is on a network, and registers only after it', async () => {
+  it('starts on the Wi-Fi step, and moves on by itself once a Pi that was on no network joins one', async () => {
     vi.mocked(currentWifi).mockResolvedValue({ ssid: null, address: null });
     render(<PairingScreen screen={PI_SCREEN} onPaired={vi.fn()} />);
     expect(await screen.findByRole('button', { name: 'Other network' })).toBeInTheDocument();
-    const nextButton = screen.getByRole('button', { name: 'Next' });
+    expect(screen.getByText(/To get started, your Max Mix needs internet access/)).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId('wifi-network')).toHaveTextContent('Not connected');
     });
-    expect(nextButton).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument();
     expect(registerScreen).not.toHaveBeenCalled();
 
     // The Pi joins its saved network by itself.
     vi.mocked(currentWifi).mockResolvedValue({ ssid: 'Home', address: 'an address' });
     await advance(NETWORK_POLL_MS);
-    await waitFor(() => {
-      expect(nextButton).toBeEnabled();
-    });
-    fireEvent.click(nextButton);
     expect(await screen.findByRole('img', { name: 'QR code to add this screen to your account' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Connected to Home');
     await waitFor(() => {
       expect(registerScreen).toHaveBeenCalled();
     });
+  });
+
+  it('waits for Next on a Pi that was on a network from the start', async () => {
+    render(<PairingScreen screen={PI_SCREEN} onPaired={vi.fn()} />);
+    const nextButton = await screen.findByRole('button', { name: 'Next' });
+    await waitFor(() => {
+      expect(nextButton).toBeEnabled();
+    });
+    await advance(NETWORK_POLL_MS);
+    expect(screen.queryByRole('img', { name: 'QR code to add this screen to your account' })).not.toBeInTheDocument();
+    expect(registerScreen).not.toHaveBeenCalled();
+    fireEvent.click(nextButton);
+    expect(await screen.findByRole('img', { name: 'QR code to add this screen to your account' })).toBeInTheDocument();
   });
 });
