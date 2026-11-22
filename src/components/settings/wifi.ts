@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { currentWifi } from '../../utils/kiosk';
 import type { Translate } from '../../i18n/translate';
 
@@ -13,12 +13,13 @@ export type WifiState =
   | { state: 'unknown' };
 
 /**
- * Asks the kiosk once, when the settings open, which network it is on. The Wi-Fi setup page replaces the app while it
- * is up and the app starts again after it, so the answer never goes stale while the settings show it. Off the kiosk
- * nothing is asked.
+ * Asks the kiosk which network it is on when the settings open, and again each time `recheck` is called (after the
+ * Wi-Fi page joined one). Off the kiosk nothing is asked.
  */
-export function useWifi(enabled: boolean): WifiState {
+export function useWifi(enabled: boolean): [wifi: WifiState, recheck: () => void] {
   const [wifi, setWifi] = useState<WifiState>({ state: enabled ? 'loading' : 'unknown' });
+  const [asked, setAsked] = useState(0);
+  const recheck = useCallback(() => setAsked(count => count + 1), []);
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
@@ -29,8 +30,8 @@ export function useWifi(enabled: boolean): WifiState {
       else setWifi({ state: 'connected', ssid: answer.ssid, address: answer.address });
     });
     return () => controller.abort();
-  }, [enabled]);
-  return wifi;
+  }, [enabled, asked]);
+  return [wifi, recheck];
 }
 
 /** What the settings say about the network; nothing while the kiosk is still being asked. */

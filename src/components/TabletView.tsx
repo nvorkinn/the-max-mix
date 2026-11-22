@@ -24,7 +24,7 @@ import { getKioskSonosLeader, playOnSonosRoom } from '../sonos/kiosk';
 import { rememberSpeaker } from '../spotify/knownDevices';
 import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import { useSpeakerSelection } from '../speakers/useSpeakerSelection';
-import { isKiosk, openWifiSettings } from '../utils/kiosk';
+import { currentWifi, isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
 import { loadQuietHours, isQuietTime, saveQuietHours } from '../utils/quietHours';
 import type { QuietHours } from '../utils/quietHours';
@@ -216,7 +216,31 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // Left alone with nothing playing, the kiosk shows the Dashboard, which dims after a while and then sleeps the chosen
   // minutes later (see useScreenSleep). The screen stays on and bright while music plays. In quiet hours it sleeps a
   // minute after the last touch, on any tab.
-  useIdle({ enabled: onKiosk, busy: isPlaying, idleMs: IDLE_DASHBOARD_MS, onIdle: () => goToScreen('dashboard') });
+  // A kiosk that starts with no network opens on Settings › Wi-Fi, and stays there (rather than going idle to the
+  // Dashboard) until it has joined one; then it goes to the Dashboard.
+  const [needsWifi, setNeedsWifi] = useState(false);
+  useEffect(() => {
+    if (!onKiosk) return;
+    const controller = new AbortController();
+    void currentWifi(controller.signal).then(answer => {
+      if (controller.signal.aborted || answer?.ssid !== null || navigator.onLine) return;
+      setNeedsWifi(true);
+      setSettingsSection('wifi');
+      setScreen('settings');
+    });
+    return () => controller.abort();
+  }, [onKiosk]);
+  const wifiJoined = () => {
+    if (!needsWifi) return;
+    setNeedsWifi(false);
+    goToScreen('dashboard');
+  };
+  useIdle({
+    enabled: onKiosk,
+    busy: isPlaying || needsWifi,
+    idleMs: IDLE_DASHBOARD_MS,
+    onIdle: () => goToScreen('dashboard')
+  });
   // Once someone owns the kiosk, countdown-server's config is its colour, screen sleep and lyrics: the settings save there,
   // and whatever the config says (a change here, one undone, or the server's latest) shows, and is kept locally for
   // starts without the server. Before that the kiosk keeps its own.
@@ -418,12 +442,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     });
   };
   const activePerson = peopleOnKiosk().find(person => person.active);
-  const showSettings = () => {
+  const openSettingsOn = (section: SettingsSection) => {
     crossfade(() => {
-      setSettingsSection('spotify');
+      setSettingsSection(section);
       setScreen('settings');
     });
   };
+  const showSettings = () => openSettingsOn('spotify');
   // Switching person: the music this tablet plays (itself, or its Sonos) belongs to the person leaving, so it pauses;
   // then the page starts again as the new person. A pause that fails or hangs does not hold the switch up.
   const switchTo = async (spotifyId: string) => {
@@ -580,14 +605,14 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       onAllowAudio: () => void recoverPlayback(allowBrowserAudio)
     });
   useReportProblem('playback', playbackProblem && { ...playbackProblem, busy: isRefreshingPlayback });
-  // No internet goes under the warning with the rest; only the kiosk can open its Wi-Fi panel.
+  // No internet goes under the warning with the rest; only the kiosk has Wi-Fi settings.
   useReportProblem(
     'offline',
     isOffline
       ? {
           title: translate('offline.title', language),
           action: onKiosk
-            ? { label: translate('offline.wifi', language), run: () => openWifiSettings(language) }
+            ? { label: translate('offline.wifi', language), run: () => openSettingsOn('wifi') }
             : undefined
         }
       : null
@@ -742,6 +767,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               deviceConfig={ownedConfig ?? undefined}
               onDeviceConfigSave={deviceConfig.save}
               onOpenDebug={() => setIsDebugOpen(true)}
+              onWifiJoined={wifiJoined}
             />
           )}
         </section>

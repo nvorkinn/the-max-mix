@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
+import { wifiAnswer } from './fake-kiosk.ts';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSettings, showSection } from './settings.ts';
 import { openSpotifyTab } from './spotify-tab.ts';
@@ -144,11 +145,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
         route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL })
       );
       await page.route('http://127.0.0.1:7341/**', route =>
-        route.fulfill(
-          new URL(route.request().url()).pathname === '/wifi/status'
-            ? { headers: { 'Access-Control-Allow-Origin': '*' }, json: { ssid: LONG_ARTIST } }
-            : { status: 204 }
-        )
+        route.fulfill(wifiAnswer(route.request(), LONG_ARTIST) ?? { status: 204 })
       );
       await fakeSpotify(page);
       await openSpotifyTab(page, '/?kiosk=1');

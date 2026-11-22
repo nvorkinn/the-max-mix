@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
 import { advance } from './clock.ts';
+import { wifiAnswer } from './fake-kiosk.ts';
 import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSettings, showSection } from './settings.ts';
 import { openSpotifyTab, showSpotifyTab } from './spotify-tab.ts';
@@ -175,9 +176,30 @@ test.describe('Settings', { tag: '@settings' }, () => {
       ).toHaveAttribute('aria-pressed', 'true');
     });
 
-    test('Wi-Fi names the network; it, Restart kiosk and Reboot Pi ask the kiosk service, the last two only on a second tap', async ({
-      page
-    }) => {
+    test('Wi-Fi names the network and joins another with its password', async ({ page }) => {
+      const joined: unknown[] = [];
+      await page.route('http://127.0.0.1:7341/**', route => {
+        const request = route.request();
+        if (request.method() === 'POST' && new URL(request.url()).pathname === '/wifi/connect') {
+          joined.push(request.postDataJSON());
+          return route.fulfill({ headers: { 'Access-Control-Allow-Origin': '*' }, json: { ok: true } });
+        }
+        return route.fulfill(wifiAnswer(request, 'Home network') ?? { status: 204 });
+      });
+      await openSpotifyTab(page);
+      const dialog = await openSettings(page);
+      await showSection(dialog, 'Wi-Fi');
+      await expect(dialog.getByTestId('wifi-network')).toHaveText('Home network');
+      await expect(dialog.getByRole('button', { name: /^Old router/ })).toBeDisabled();
+      await dialog.getByRole('button', { name: /^Neighbour/ }).click();
+      const join = page.getByRole('dialog', { name: 'Join Neighbour' });
+      await join.getByLabel('Password').fill('secret123');
+      await join.getByRole('button', { name: 'Connect' }).click();
+      await expect(join).toBeHidden();
+      expect(joined).toEqual([{ ssid: 'Neighbour', password: 'secret123', hidden: false, security: 'psk' }]);
+    });
+
+    test('Restart kiosk and Reboot Pi ask the kiosk service, only on a second tap', async ({ page }) => {
       const asked: string[] = [];
       await page.route('http://127.0.0.1:7341/**', route => {
         const { pathname } = new URL(route.request().url());
@@ -185,33 +207,23 @@ test.describe('Settings', { tag: '@settings' }, () => {
         // what is being asked about here.
         const method = route.request().method();
         if (method === 'POST' && pathname !== '/log') asked.push(`${method} ${pathname}`);
-        const isStatus = method === 'GET' && pathname === '/wifi/status';
-        return route.fulfill(
-          isStatus
-            ? { headers: { 'Access-Control-Allow-Origin': '*' }, json: { ssid: 'Home network' } }
-            : { status: 204 }
-        );
+        return route.fulfill({ status: 204 });
       });
       await openSpotifyTab(page);
       const dialog = await openSettings(page);
-      await showSection(dialog, 'Wi-Fi');
-      await expect(dialog).toContainText('Home network');
-      await dialog.getByRole('button', { name: 'Change network' }).click();
-      await expect.poll(() => asked).toEqual(['POST /wifi']);
-
       await showSection(dialog, 'About');
 
       await dialog.getByRole('button', { name: 'Restart kiosk' }).click();
       await expect(dialog.getByRole('button', { name: 'Tap again to restart' })).toBeVisible();
-      expect(asked).toEqual(['POST /wifi']);
+      expect(asked).toEqual([]);
       await dialog.getByRole('button', { name: 'Tap again to restart' }).click();
-      await expect.poll(() => asked).toEqual(['POST /wifi', 'POST /power/restart']);
+      await expect.poll(() => asked).toEqual(['POST /power/restart']);
 
       await dialog.getByRole('button', { name: 'Reboot Pi' }).click();
       await expect(dialog.getByRole('button', { name: 'Tap again to reboot' })).toBeVisible();
-      expect(asked).toEqual(['POST /wifi', 'POST /power/restart']);
+      expect(asked).toEqual(['POST /power/restart']);
       await dialog.getByRole('button', { name: 'Tap again to reboot' }).click();
-      await expect.poll(() => asked).toEqual(['POST /wifi', 'POST /power/restart', 'POST /power/reboot']);
+      await expect.poll(() => asked).toEqual(['POST /power/restart', 'POST /power/reboot']);
     });
   });
 

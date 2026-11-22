@@ -7,15 +7,6 @@ import { KIOSK_SERVICE, kioskPost } from './kioskService';
 const KIOSK_KEY = 'maxmix.kiosk';
 
 /**
- * Asks the kiosk to show its Wi-Fi setup page, in `language` (the tablet's). Given anything else, such as the click event
- * when it is a button's onClick, it asks without one, and the page keeps the language the kiosk last heard.
- */
-export function openWifiSettings(language?: unknown): void {
-  if (language === 'en' || language === 'nb') kioskPost('/wifi', { language });
-  else kioskPost('/wifi');
-}
-
-/**
  * The name of the Wi-Fi network the kiosk is on (null when it is on none) and the Pi's IPv4 address on its network (null
  * when it has none, or its service is too old to say), or undefined when the kiosk could not say at all (its service
  * did not answer, or is older than this question).

@@ -56,19 +56,45 @@ describe('offline state in TabletView', () => {
     expect(within(problems).queryByRole('button', { name: 'Wi-Fi settings' })).not.toBeInTheDocument();
   });
 
-  it('offers the Wi-Fi panel on the kiosk and asks the service to show it', async () => {
+  it('offers the Wi-Fi settings on the kiosk, and opens them', async () => {
     history.replaceState(null, '', '/?kiosk=1');
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
     render(<TabletView />);
     await userEvent.click(screen.getByRole('button', { name: 'Problems' }));
     await userEvent.click(screen.getByRole('button', { name: 'Wi-Fi settings' }));
-    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ language: 'en' })
-    });
+    expect(screen.getByRole('tabpanel', { name: 'Settings' })).toBeInTheDocument();
+  });
+
+  it('opens on the Settings tab when the kiosk starts with no network', async () => {
+    history.replaceState(null, '', '/?kiosk=1');
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const fetchMock = vi.fn(() => Promise.resolve(Response.json({ ssid: null, address: null })));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<TabletView />);
+    expect(await screen.findByRole('tabpanel', { name: 'Settings' })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/status', expect.anything());
+  });
+
+  it('stays on the Dashboard when the kiosk is on a network, or is not a kiosk', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(Response.json({ ssid: null, address: null })))
+    );
+    const { unmount } = render(<TabletView />);
+    await act(async () => {});
+    expect(screen.queryByRole('tabpanel', { name: 'Settings' })).not.toBeInTheDocument();
+    unmount();
+
+    history.replaceState(null, '', '/?kiosk=1');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(Response.json({ ssid: 'Home', address: null })))
+    );
+    render(<TabletView />);
+    await act(async () => {});
+    expect(screen.queryByRole('tabpanel', { name: 'Settings' })).not.toBeInTheDocument();
   });
 
   it('appears when the browser goes offline and disappears when it comes back', () => {
