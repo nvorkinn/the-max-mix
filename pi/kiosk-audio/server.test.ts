@@ -12,7 +12,15 @@ import type { ConnectRequest } from './nmcli.ts';
 import { PAIRING_ERRORS } from './phone-pairing.ts';
 import { parseDump } from './pipewire.ts';
 import type { Choice } from './pipewire.ts';
-import { handleRequest, journalLog, LOCAL_ORIGIN, parseAppLog, speakerNames, speakerVolumes } from './server.ts';
+import {
+  handleRequest,
+  isFromApp,
+  journalLog,
+  LOCAL_ORIGIN,
+  parseAppLog,
+  speakerNames,
+  speakerVolumes
+} from './server.ts';
 import type { AppLog, Deps } from './server.ts';
 import type { SonosChange } from './sonos-events.ts';
 import { SonosError } from './sonos.ts';
@@ -48,6 +56,22 @@ const unavailable = () => Promise.reject(new BluetoothError('Bluetooth is not av
 const otherFailure = () => Promise.reject(new Error('dbus: /private/path failed'));
 const busy = () => Promise.reject(new BluetoothError('Bluetooth is busy. Wait a moment and try again.'));
 const odd = () => Promise.reject(new Error('internal detail'));
+
+/** A handover kept in memory, as handover.ts keeps it in a file. */
+function memoryHandover(): Deps['handover'] {
+  let kept: Record<string, string> | null = null;
+  return {
+    save: handover => {
+      kept = handover;
+      return Promise.resolve();
+    },
+    read: () => Promise.resolve(kept),
+    remove: () => {
+      kept = null;
+      return Promise.resolve();
+    }
+  };
+}
 
 function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotError?: Error, isPairingFailing = false) {
   const verboseCalls: boolean[] = [];
@@ -110,6 +134,13 @@ function fakes(overrides: Partial<Deps> = {}, isPhoneFailing = false, hotspotErr
         return Promise.resolve(request.password === 'right-password' ? { ok: true } : { ok: false, error: 'Nope.' });
       }
     },
+    handover: memoryHandover(),
+    app: url =>
+      Promise.resolve(
+        url.split('?', 1)[0] === '/'
+          ? { type: 'text/html; charset=utf-8', body: Buffer.from('<p>app</p>'), cache: 'no-cache' }
+          : null
+      ),
     lyrics: query => {
       if (query.title === 'Down') return Promise.reject(new Error('unreachable'));
       return Promise.resolve(query.title === 'Known' ? { source: 'NetEase', lrc: '[00:01.00]Placeholder' } : null);
@@ -590,52 +621,47 @@ describe('Wi-Fi', () => {
     await expect(response.json()).resolves.toEqual({ error: ERRORS.disabled });
   });
 
-  it('joins a network for the app, and says when it could not', async () => {
+  it('joins a network for the app this service serves, and says when it could not', async () => {
     const { deps, joined } = fakes();
-    const base = await start(deps);
+    const base = await start(deps, LOCAL_ORIGIN);
     const request = { ssid: 'Home', password: 'right-password', hidden: false, security: 'psk' };
-    const joinedHome = await post(base, '/wifi/connect', { body: request });
+    const joinedHome = await post(base, '/wifi/connect', { origin: LOCAL_ORIGIN, body: request });
     await expect(joinedHome.json()).resolves.toEqual({ ok: true });
-    const failed = await post(base, '/wifi/connect', { body: { ...request, password: 'wrong-one' } });
+    const failed = await post(base, '/wifi/connect', {
+      origin: LOCAL_ORIGIN,
+      body: { ...request, password: 'wrong-one' }
+    });
     await expect(failed.json()).resolves.toEqual({ ok: false, error: 'Nope.' });
     expect(joined.map(entry => entry.password)).toEqual(['right-password', 'wrong-one']);
   });
 
-  it('refuses other pages, and a bad request', async () => {
-    const { deps, joined } = fakes();
-    const base = await start(deps);
-    const request = { ssid: 'Home', password: 'right-password', hidden: false, security: 'psk' };
-    expect((await post(base, '/wifi/connect', { origin: 'https://evil.example', body: request })).status).toBe(403);
-    expect((await post(base, '/wifi/connect', { origin: LOCAL_ORIGIN, body: request })).status).toBe(403);
-    expect((await post(base, '/wifi/connect', { body: { ssid: 'Home' } })).status).toBe(400);
-    expect(joined).toEqual([]);
-  });
-
-  it('joins a network for the app when this service serves it', async () => {
+  it('refuses other pages, a hosted app, and a bad request', async () => {
     const { deps, joined } = fakes();
     const base = await start(deps, LOCAL_ORIGIN);
     const request = { ssid: 'Home', password: 'right-password', hidden: false, security: 'psk' };
+    expect((await post(base, '/wifi/connect', { origin: 'https://evil.example', body: request })).status).toBe(403);
     expect((await post(base, '/wifi/connect', { body: request })).status).toBe(403);
-    const answer = await post(base, '/wifi/connect', { origin: LOCAL_ORIGIN, body: request });
-    await expect(answer.json()).resolves.toEqual({ ok: true });
-    expect(joined).toHaveLength(1);
+    expect((await post(base, '/wifi/connect', { origin: LOCAL_ORIGIN, body: { ssid: 'Home' } })).status).toBe(400);
+    const hosted = await start(deps);
+    expect((await post(hosted, '/wifi/connect', { body: request })).status).toBe(403);
+    expect(joined).toEqual([]);
   });
 });
 
 describe('Wi-Fi setup from a phone', () => {
   it('starts for the app only, and says when Bluetooth would not', async () => {
     const { deps, phoneStarts } = fakes();
-    const base = await start(deps);
+    const base = await start(deps, LOCAL_ORIGIN);
     expect((await post(base, '/wifi/phone', { origin: 'https://evil.example' })).status).toBe(403);
     expect(phoneStarts).toEqual([]);
-    const started = await post(base, '/wifi/phone');
+    const started = await post(base, '/wifi/phone', { origin: LOCAL_ORIGIN });
     expect(started.status).toBe(200);
     await expect(started.json()).resolves.toEqual({ ok: true });
     expect(phoneStarts).toEqual(['start']);
 
     const warn = vi.spyOn(console, 'warn').mockReturnValue();
-    const broken = await start(fakes({}, true).deps);
-    const refused = await post(broken, '/wifi/phone');
+    const broken = await start(fakes({}, true).deps, LOCAL_ORIGIN);
+    const refused = await post(broken, '/wifi/phone', { origin: LOCAL_ORIGIN });
     expect(refused.status).toBe(503);
     await expect(refused.json()).resolves.toEqual({
       error: 'Bluetooth is not available, so the phone cannot be used.'
@@ -650,31 +676,32 @@ describe('Wi-Fi setup from a phone', () => {
 describe('the setup hotspot', () => {
   it('starts for the app only, and says why it could not start', async () => {
     const { deps, hotspotCalls } = fakes();
-    const base = await start(deps);
+    const base = await start(deps, LOCAL_ORIGIN);
     expect((await post(base, '/wifi/hotspot', { origin: 'https://evil.example' })).status).toBe(403);
     expect(hotspotCalls).toEqual([]);
-    const started = await post(base, '/wifi/hotspot');
+    const started = await post(base, '/wifi/hotspot', { origin: LOCAL_ORIGIN });
     expect(started.status).toBe(200);
     await expect(started.json()).resolves.toEqual(HOTSPOT_INFO);
 
     vi.spyOn(console, 'warn').mockReturnValue();
     const failing = await start(
-      fakes({}, false, new HotspotError('There is no Wi-Fi adapter to make a hotspot with.')).deps
+      fakes({}, false, new HotspotError('There is no Wi-Fi adapter to make a hotspot with.')).deps,
+      LOCAL_ORIGIN
     );
-    const refused = await post(failing, '/wifi/hotspot');
+    const refused = await post(failing, '/wifi/hotspot', { origin: LOCAL_ORIGIN });
     expect(refused.status).toBe(503);
     await expect(refused.json()).resolves.toEqual({ error: 'There is no Wi-Fi adapter to make a hotspot with.' });
-    const other = await start(fakes({}, false, new Error('internal detail')).deps);
-    await expect((await post(other, '/wifi/hotspot')).json()).resolves.toEqual({
+    const other = await start(fakes({}, false, new Error('internal detail')).deps, LOCAL_ORIGIN);
+    await expect((await post(other, '/wifi/hotspot', { origin: LOCAL_ORIGIN })).json()).resolves.toEqual({
       error: 'The hotspot could not be started.'
     });
   });
 
   it('stops for the app only, and reports where it is', async () => {
     const { deps, hotspotCalls } = fakes();
-    const base = await start(deps);
+    const base = await start(deps, LOCAL_ORIGIN);
     expect((await post(base, '/wifi/hotspot/stop', { origin: 'https://evil.example' })).status).toBe(403);
-    expect((await post(base, '/wifi/hotspot/stop')).status).toBe(204);
+    expect((await post(base, '/wifi/hotspot/stop', { origin: LOCAL_ORIGIN })).status).toBe(204);
     expect(hotspotCalls).toEqual(['stop']);
     await expect((await fetch(`${base}/wifi/hotspot`)).json()).resolves.toEqual({ state: 'running' });
   });
@@ -861,5 +888,68 @@ describe('Pair my phone', () => {
     const answer = await post(base, '/bluetooth/pair-phone');
     expect(answer.status).toBe(503);
     await expect(answer.json()).resolves.toEqual({ error: PAIRING_ERRORS.unavailable });
+  });
+});
+
+describe('the app installed on the Pi', () => {
+  it('serves its files with the site headers, and nothing for a file it does not have', async () => {
+    const base = await start(fakes().deps, LOCAL_ORIGIN);
+    const page = await fetch(`${base}/?kiosk=1`);
+    expect(page.status).toBe(200);
+    expect(page.headers.get('content-type')).toBe('text/html; charset=utf-8');
+    expect(page.headers.get('cache-control')).toBe('no-cache');
+    expect(page.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(page.headers.get('x-frame-options')).toBe('DENY');
+    await expect(page.text()).resolves.toBe('<p>app</p>');
+    expect((await fetch(`${base}/assets/missing.js`)).status).toBe(404);
+  });
+
+  it('answers its same-origin GETs, which carry no Origin', async () => {
+    const lyrics = vi.fn<Deps['lyrics']>().mockResolvedValue(null);
+    const base = await start(fakes({ lyrics }).deps, LOCAL_ORIGIN);
+    const sameOrigin = { headers: { 'Sec-Fetch-Site': 'same-origin' } };
+    expect((await fetch(`${base}/lyrics?title=Known&artist=Someone`, sameOrigin)).status).toBe(404);
+    expect(lyrics).toHaveBeenCalledOnce();
+    expect((await fetch(`${base}/wifi/status`, sameOrigin)).status).toBe(200);
+    expect((await fetch(`${base}/wifi/status`, { headers: { 'Sec-Fetch-Site': 'cross-site' } })).status).toBe(403);
+  });
+});
+
+const request = (headers: Record<string, string>) => ({ headers }) as unknown as Parameters<typeof isFromApp>[0];
+
+describe('isFromApp', () => {
+  it('goes by the Origin a request names', () => {
+    expect(isFromApp(request({ origin: ORIGIN }), ORIGIN)).toBe(true);
+    expect(isFromApp(request({ origin: 'https://evil.example', 'sec-fetch-site': 'same-origin' }), LOCAL_ORIGIN)).toBe(
+      false
+    );
+  });
+
+  it('takes a same-origin request without one only when the app is the local copy', () => {
+    expect(isFromApp(request({ 'sec-fetch-site': 'same-origin' }), LOCAL_ORIGIN)).toBe(true);
+    expect(isFromApp(request({ 'sec-fetch-site': 'same-origin' }), ORIGIN)).toBe(false);
+    expect(isFromApp(request({}), LOCAL_ORIGIN)).toBe(false);
+  });
+});
+
+describe('the handover from the hosted app to the local copy', () => {
+  const items = { 'maxmix.people': '[{"id":"nikolai"}]', 'maxmix.deviceId': 'abc' };
+
+  it("takes the hosted app's items, and gives them to the local copy only", async () => {
+    const handover = memoryHandover();
+    const hosted = await start(fakes({ handover }).deps);
+    expect((await post(hosted, '/handover', { origin: 'https://evil.example', body: { items } })).status).toBe(403);
+    expect((await post(hosted, '/handover', { body: { items: { 'other.key': 'x' } } })).status).toBe(400);
+    expect((await post(hosted, '/handover', { body: { items } })).status).toBe(204);
+    expect((await fetch(`${hosted}/handover`, { headers: { Origin: ORIGIN } })).status).toBe(403);
+
+    const local = await start(fakes({ handover }).deps, LOCAL_ORIGIN);
+    const sameOrigin = { headers: { 'Sec-Fetch-Site': 'same-origin' } };
+    expect((await fetch(`${local}/handover`)).status).toBe(403);
+    const taken = await fetch(`${local}/handover`, sameOrigin);
+    await expect(taken.json()).resolves.toEqual({ items });
+    expect((await post(local, '/handover', { origin: LOCAL_ORIGIN, body: { items } })).status).toBe(403);
+    expect((await post(local, '/handover/done', { origin: LOCAL_ORIGIN })).status).toBe(204);
+    expect((await fetch(`${local}/handover`, sameOrigin)).status).toBe(404);
   });
 });

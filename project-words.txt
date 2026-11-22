@@ -67,6 +67,7 @@ imager
 improv
 infobars
 initramfs
+islnk
 jernbanetorget
 journalctl
 katex
@@ -163,6 +164,7 @@ quot
 randr
 raop
 readables
+readlink
 reflash
 reflashing
 regdom
