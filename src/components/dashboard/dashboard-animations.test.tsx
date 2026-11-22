@@ -6,12 +6,13 @@ import Dashboard from '../Dashboard';
 import Backdrop, { BACKDROP_FADE_MS } from './Backdrop';
 import DepartureBoard from './DepartureBoard';
 import EtaStack from './EtaStack';
-import { ARRIVE_MS } from './NoticeBoard';
+import NoticeBoard, { ARRIVE_MS } from './NoticeBoard';
+import { ROLL_ACROSS_EVERY_MS } from './rollAcross';
 import RailPages from './RailPages';
 import WeatherBlock, { WEATHER_FADE_MS } from './WeatherBlock';
 import { carouselSlot, TURN_MS } from './carousel';
 import { ROW_FADE_MS } from './AnimatedRows';
-import { Destination, ROLL_ACROSS_EVERY_MS } from './DepartureRows';
+import { Destination } from './DepartureRows';
 
 const at = (minutes: number) => new Date(SAMPLE_NOW.getTime() + minutes * 60_000);
 const run = (ms: number) =>
@@ -410,6 +411,55 @@ describe('a destination cut short over a route’s queue', () => {
       run(ROLL_ACROSS_EVERY_MS);
       reduced = false;
       sizes(200);
+      run(ROLL_ACROSS_EVERY_MS);
+      expect(animate).toHaveBeenCalledTimes(1);
+      unmount();
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'animate');
+      for (const [key, descriptor] of saved) {
+        if (descriptor) Object.defineProperty(HTMLElement.prototype, key, descriptor);
+        else Reflect.deleteProperty(HTMLElement.prototype, key);
+      }
+    }
+  });
+});
+
+describe('a notice whose title is too long for its row', () => {
+  it('rolls the title across every so often, and leaves one that fits alone', () => {
+    const animate = vi.fn(() => ({ cancel: vi.fn(), onfinish: null as (() => void) | null }));
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }));
+    const sizes = (scroll: number) =>
+      Object.defineProperties(HTMLElement.prototype, {
+        animate: { value: animate, configurable: true },
+        scrollWidth: { get: () => scroll, configurable: true },
+        clientWidth: { get: () => 300, configurable: true }
+      });
+    const saved = ['scrollWidth', 'clientWidth'].map(
+      key => [key, Object.getOwnPropertyDescriptor(HTMLElement.prototype, key)] as const
+    );
+    const notice = {
+      id: 'works',
+      kind: 'road-works',
+      severity: 'disruption',
+      title: 'Kennington Park Road closed southbound between Kennington Road and Camberwell New Road',
+      summary: 'Until Friday'
+    } as NoticeItem;
+    try {
+      sizes(420);
+      const { container, unmount } = render(
+        <NoticeBoard notices={[notice]} count={1} arriving={new Set()} onOpen={vi.fn()} />
+      );
+      run(ROLL_ACROSS_EVERY_MS);
+      expect(animate).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(animate.mock.calls[0])).toContain('translateX(-120px)');
+      const box = container.querySelector<HTMLElement>('.dashboard-notice-title');
+      expect(box?.dataset['rolling']).toBe('true');
+      act(() => {
+        (animate.mock.results[0]?.value as { onfinish: () => void }).onfinish();
+      });
+      expect(box?.dataset['rolling']).toBeUndefined();
+
+      sizes(300);
       run(ROLL_ACROSS_EVERY_MS);
       expect(animate).toHaveBeenCalledTimes(1);
       unmount();

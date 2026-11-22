@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react';
 import type { NoticeItem } from '../../dashboard/props';
 import { useT } from '../../i18n/translate';
 import { NOTICE_ICONS } from './icons';
+import { useRollAcross } from './rollAcross';
 
 /** Every row is this tall, so the number that fit is the same whatever the notices say. */
 export const NOTICE_ROW_HEIGHT = 68;
@@ -11,6 +12,18 @@ export const NOTICE_ROW_HEIGHT = 68;
 export const ARRIVE_MS = 600;
 
 const severityStyle = (notice: NoticeItem) => ({ '--icon': `var(--${notice.severity})` }) as CSSProperties;
+
+/** A notice's title on one line: one too long for the row is cut short, and every so often rolls across to show the rest. */
+function NoticeTitle({ title }: Readonly<{ title: string }>) {
+  const textRef = useRollAcross();
+  return (
+    <span className="dashboard-notice-title">
+      <span ref={textRef} className="dashboard-notice-title-text">
+        {title}
+      </span>
+    </span>
+  );
+}
 
 interface NoticeBoardPageProps {
   /** The notices on this page, most urgent first. */
@@ -43,7 +56,7 @@ export default function NoticeBoard({ notices, count, arriving, onOpen }: Readon
                 <Icon className="lucide" aria-hidden="true" />
               </span>
               <span className="dashboard-notice-body">
-                <span className="dashboard-notice-title">{notice.title}</span>
+                <NoticeTitle title={notice.title} />
                 <span className="dashboard-notice-summary">{notice.summary}</span>
               </span>
               {notice.detail && <ChevronRight className="lucide dashboard-notice-chevron" aria-hidden="true" />}
