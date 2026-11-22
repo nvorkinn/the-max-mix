@@ -10,6 +10,8 @@ const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel'] as const;
 export const DIM_AFTER_MS = 5 * 60_000;
 /** How long the screen stays on untouched during quiet hours, on any tab. */
 export const QUIET_SLEEP_MS = 60_000;
+/** How long a screen with a backlight stays bright untouched during quiet hours, before it dims for the rest of that minute. */
+export const QUIET_DIM_MS = 10_000;
 
 const START_ASLEEP_KEY = 'maxmix.startAsleep';
 
@@ -35,7 +37,9 @@ function takeStartAsleep(): boolean {
 /**
  * The kiosk's screen sleep (see utils/screenSleep). With nothing playing, the Dashboard dims once nobody has touched the
  * screen for DIM_AFTER_MS, and sleeps `sleepMs` after that (null: it stays dimmed). During `quiet` hours the screen
- * sleeps QUIET_SLEEP_MS after the last touch instead, on any tab. Music playing keeps the screen on and bright.
+ * sleeps QUIET_SLEEP_MS after the last touch instead, on any tab; a `backlit` screen (one whose backlight the Pi can turn
+ * down) dims QUIET_DIM_MS after the touch on the way there, so it is not left bright for the whole minute. Music
+ * playing keeps the screen on and bright.
  * Dimmed and asleep both last until `wake` is called, so the tap that wakes the screen never reaches the page behind the
  * overlay. Music starting brings the screen back by itself. While not asleep the page holds a screen wake lock. Does
  * nothing when not `enabled` (not on the kiosk).
@@ -45,8 +49,16 @@ export function useScreenSleep({
   keepAwake,
   onDashboard,
   sleepMs,
-  quiet
-}: Readonly<{ enabled: boolean; keepAwake: boolean; onDashboard: boolean; sleepMs: number | null; quiet: boolean }>) {
+  quiet,
+  backlit = false
+}: Readonly<{
+  enabled: boolean;
+  keepAwake: boolean;
+  onDashboard: boolean;
+  sleepMs: number | null;
+  quiet: boolean;
+  backlit?: boolean;
+}>) {
   const [phase, setPhase] = useState<'awake' | 'dimmed' | 'asleep'>(() =>
     enabled && takeStartAsleep() ? 'asleep' : 'awake'
   );
@@ -82,8 +94,12 @@ export function useScreenSleep({
     let delay: number;
     let next: 'dimmed' | 'asleep';
     let reason: string;
-    if (quiet) {
-      [delay, next, reason] = [QUIET_SLEEP_MS, 'asleep', 'Quiet hours: the screen sleeps'];
+    if (quiet && backlit && phase === 'awake') {
+      [delay, next, reason] = [QUIET_DIM_MS, 'dimmed', 'Quiet hours: the screen dims'];
+    } else if (quiet) {
+      // Dimmed already, a backlit screen sleeps after the rest of the minute.
+      const delayMs = backlit && phase === 'dimmed' ? QUIET_SLEEP_MS - QUIET_DIM_MS : QUIET_SLEEP_MS;
+      [delay, next, reason] = [delayMs, 'asleep', 'Quiet hours: the screen sleeps'];
     } else if (!dashboardShown) {
       return;
     } else if (phase === 'awake') {
@@ -98,7 +114,7 @@ export function useScreenSleep({
       setPhase(next);
     }, delay);
     return () => clearTimeout(timer);
-  }, [enabled, keepAwake, phase, quiet, dashboardShown, sleepMs, activity]);
+  }, [enabled, keepAwake, phase, quiet, backlit, dashboardShown, sleepMs, activity]);
 
   // Music that starts while the screen is dimmed or asleep (from a phone, say) brings it back. Only a touch turns the
   // Pi's output on by itself, so the app asks for it after sleep.

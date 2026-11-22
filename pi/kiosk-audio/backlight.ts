@@ -5,6 +5,19 @@
 // kiosk user is in.
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
+
+/** How long a faded change of brightness takes (`"fade": true`), and how often it steps on the way. */
+export const FADE_MS = 1500;
+const FADE_STEP_MS = 50;
+
+// Counts every change of brightness, so a newer one (a tap that brightens the screen) stops a fade still running.
+const changes = { count: 0 };
+
+/** Whether the body of POST /display/brightness asks for the change to fade in, `"fade": true`, rather than jump. */
+export function isFadeAsked(body: unknown): boolean {
+  return (body as { fade?: unknown } | null)?.fade === true;
+}
 
 /** The percentage in the body of POST /display/brightness, `{"percent": 1-100}`, or null when it is not one. */
 export function validBrightness(body: unknown): number | null {
@@ -16,9 +29,21 @@ export function validBrightness(body: unknown): number | null {
 
 /**
  * Sets every backlight in `folder` to `percent` of its own full brightness, never to nothing: turning the screen off is
- * kiosk-display's. Returns how many it set: none when the screen has no backlight, or none that the service may write.
+ * kiosk-display's. With `fadeMs` it gets there in small steps over that long, from where it is. Returns how many it set:
+ * none when the screen has no backlight, or none that the service may write.
  */
-export async function setBrightness(percent: number, folder = '/sys/class/backlight'): Promise<number> {
+export async function setBrightness(percent: number, folder = '/sys/class/backlight', fadeMs = 0): Promise<number> {
+  changes.count += 1;
+  const change = changes.count;
+  // Writes the levels one by one, FADE_STEP_MS apart, and stops once a newer change has taken over: it sets the level.
+  const fade = async (file: string, levels: number[]): Promise<void> => {
+    const [next, ...rest] = levels;
+    if (next === undefined || changes.count !== change) return;
+    await writeFile(file, String(next));
+    if (rest.length === 0) return;
+    await sleep(FADE_STEP_MS);
+    await fade(file, rest);
+  };
   let names: string[];
   try {
     names = await readdir(folder);
@@ -31,7 +56,13 @@ export async function setBrightness(percent: number, folder = '/sys/class/backli
         const max = Number((await readFile(path.join(folder, name, 'max_brightness'), 'utf8')).trim());
         if (!Number.isSafeInteger(max) || max < 1) return false;
         const level = Math.max(1, Math.round((max * percent) / 100));
-        await writeFile(path.join(folder, name, 'brightness'), String(level));
+        const file = path.join(folder, name, 'brightness');
+        const from = Number((await readFile(file, 'utf8')).trim());
+        const steps = Number.isSafeInteger(from) ? Math.max(1, Math.floor(fadeMs / FADE_STEP_MS)) : 1;
+        await fade(
+          file,
+          Array.from({ length: steps }, (_, step) => Math.round(from + ((level - from) * (step + 1)) / steps))
+        );
         return true;
       } catch {
         return false;

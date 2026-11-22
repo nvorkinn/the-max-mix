@@ -1,5 +1,5 @@
 // The kiosk's quiet hours: a stretch of the day (it may run past midnight) when the screen sleeps a minute after the last
-// touch, on any tab, whatever the screen sleep delay says. Kept on countdown-server once someone owns the kiosk (the
+// touch (fading down after ten seconds where it has a backlight), on any tab, whatever the screen sleep delay says. Kept on countdown-server once someone owns the kiosk (the
 // config's display.quiet_hours, the same shape), and here for starts without it. Storage can be unavailable: every
 // access tolerates that.
 

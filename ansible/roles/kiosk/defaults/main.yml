@@ -134,9 +134,11 @@ kiosk_packages_id: "{{ [kiosk_all_packages, kiosk_apt_sources] | to_json | hash(
 kiosk_journal_max_use: 64M
 
 # Screen sleep. The app decides when the screen may sleep (never while music plays, otherwise after the idle minutes chosen
-# in its settings) and shows a black sleep screen. This many seconds later without a touch, swayidle turns the output
-# off; the first touch turns it on again. 0 never turns it off.
-kiosk_screen_off_after: 60
+# in its settings, or a minute in quiet hours) and shows a black sleep screen. This many seconds later without a touch,
+# swayidle turns the output off, which also switches a DSI panel's backlight off; the first touch turns it on again. Kept
+# short, so the panel is not left lit behind the black screen: the app holds a wake lock whenever it is awake, so this
+# only counts once it sleeps. 0 never turns it off.
+kiosk_screen_off_after: 10
 
 # Screen rotation, in degrees clockwise: 0, 90, 180 or 270. Empty (the default) leaves it to the screen that is plugged
 # in: kiosk.service runs pi/kiosk-audio/screen-setup.ts as the kiosk starts, which turns a screen it knows (its

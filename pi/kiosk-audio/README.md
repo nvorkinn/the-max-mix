@@ -57,8 +57,8 @@ known screen registers with its landscape size from the first start, with no `ki
 does. 503 with no screen connected.
 
 `POST /display/brightness` sets that backlight (`backlight.ts`): `{"percent": 40}` is 40% of the panel's own full
-brightness, and never off, which is `kiosk-display`'s. The app uses it for its brightness setting and to dim an idle
-screen; on a screen with no backlight it answers 404 and the app darkens its page instead. The kernel lets only root
+brightness, and never off, which is `kiosk-display`'s. With `"fade": true` it gets there in steps over 1.5 s, and a
+newer request stops the fade. The app uses it for its brightness setting and to fade an idle screen down; on a screen with no backlight it answers 404 and the app darkens its page instead. The kernel lets only root
 write the backlight, so the role's udev rule (`90-kiosk-backlight.rules`) gives it to the `video` group.
 
 ## Sonos
@@ -169,7 +169,7 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 | `WS /power/update`                     | Connecting starts the update and streams it (below)                                  |
 | `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                                                          |
 | `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)                                             |
-| `POST /display/brightness`             | Sets the backlight to `{"percent": 1-100}` (404: the screen has none)                |
+| `POST /display/brightness`             | Sets the backlight to `{"percent": 1-100, "fade"?: true}` (404: the screen has none) |
 | `POST /browser/forget-sign-ins`        | Clears every other site's cookies and storage in Chromium, over DevTools             |
 | `POST /heartbeat`                      | The app is alive (the watchdog, below)                                               |
 | `POST /log`                            | An app error, written to the journal                                                 |
