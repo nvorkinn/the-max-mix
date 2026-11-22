@@ -148,7 +148,6 @@ pipelining
 pipewire
 pkce
 pkgs
-plymouthd
 pointerdown
 polkit
 polkitd

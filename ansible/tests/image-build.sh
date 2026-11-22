@@ -27,10 +27,10 @@ cd /work
 # cp -a keeps the runner's owner, and git refuses to read a repository another user owns (the Pi's checkout is root's own).
 git config --global --add safe.directory /work
 
-# The Raspberry Pi archive's packages are not in Debian, and there is no kernel to build an initramfs for.
+# The Raspberry Pi archive's packages are not in Debian.
 play() {
   ansible-playbook --connection local --inventory localhost, ansible/local.yml \
-    --extra-vars kiosk_enable_only=true --extra-vars '{"kiosk_rpi_packages": [], "kiosk_update_initramfs": false}' | tee "$1"
+    --extra-vars kiosk_enable_only=true --extra-vars '{"kiosk_rpi_packages": []}' | tee "$1"
 }
 play /tmp/first-run.log
 # A run that finds nothing changed skips the slow part, so the idempotency check below needs the first run's record of what
@@ -57,7 +57,7 @@ for file in /usr/local/bin/kiosk-session \
   /etc/systemd/system/kiosk-ssh-keys.service /etc/systemd/system/kiosk-ssh-keys.timer \
   /etc/systemd/system/kiosk-widevine.path \
   /etc/systemd/system/kiosk-widevine.service /etc/NetworkManager/conf.d/20-connectivity.conf \
-  /etc/tmpfiles.d/kiosk.conf /usr/share/plymouth/themes/the-max-mix/the-max-mix.plymouth \
+  /etc/tmpfiles.d/kiosk.conf \
   /usr/share/icons/blank/cursors/left_ptr /etc/apt/apt.conf.d/52kiosk-unattended-upgrades \
   /opt/the-max-mix/kiosk-audio/node_modules/dbus-native/package.json \
   /opt/the-max-mix/kiosk-audio/node_modules/qrcode-generator/package.json \
@@ -143,9 +143,7 @@ check second_run_skips 'Install the packages'
 check second_run_skips "Install the other archives' packages"
 check test -L /usr/share/icons/blank/cursors/not-allowed
 check test -f /usr/share/kiosk-cursors/default/cursors/left_ptr
-check test -d /usr/share/plymouth/themes/the-max-mix
-# The boot splash theme uses Plymouth's script module, which comes with the plymouth package (no plymouth-themes).
-check bash -c 'ls /usr/lib/*/plymouth/script.so'
+check test ! -e /usr/share/plymouth/themes/the-max-mix
 
 # The second run must not change anything.
 if ! grep -Eq 'changed=0 ' /tmp/second-run.log; then
