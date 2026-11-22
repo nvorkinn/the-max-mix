@@ -34,7 +34,37 @@ work=$(mktemp -d)
 root=$work/root
 image=$work/the-max-mix.img
 
+started=$SECONDS
+ticker=
+# One line per step, with the time since the start, so the log shows where a slow build spends its time.
+step() {
+  printf '[%3dm%02ds] %s\n' $(((SECONDS - started) / 60)) $(((SECONDS - started) % 60)) "$*"
+}
+mib() {
+  echo "$(($(stat --format=%s "$1") / 1048576)) MiB"
+}
+# During a long step, report how far a file has grown every 30 seconds.
+watch_file() {
+  stop_watching
+  (
+    while sleep 30; do
+      if [[ -f $1 ]]; then
+        step "  ... $2: $(mib "$1") so far"
+      fi
+    done
+  ) &
+  ticker=$!
+}
+stop_watching() {
+  if [[ -n $ticker ]]; then
+    kill "$ticker" 2> /dev/null || true
+    wait "$ticker" 2> /dev/null || true
+    ticker=
+  fi
+}
+
 cleanup() {
+  stop_watching
   if mountpoint --quiet "$root"; then
     umount "$root"
   fi
@@ -44,28 +74,38 @@ trap cleanup EXIT
 
 upstream_url=$(jq -r .os.url "$upstream")
 upstream_sha256=$(jq -r .os.extract_sha256 "$upstream")
-echo "Base image: $upstream_url"
+step "Downloading and unpacking $upstream_url ($(($(jq -r .os.image_download_size "$upstream") / 1048576)) MiB to download, $(($(jq -r .os.extract_size "$upstream") / 1048576)) MiB unpacked)"
+watch_file "$image" unpacked
 curl --fail --silent --show-error --location --retry 3 "$upstream_url" | xz --decompress --stdout > "$image"
+stop_watching
+step "Unpacked $(mib "$image"); checking its sha256 against Imager's official list"
 echo "$upstream_sha256  $image" | sha256sum --check --strict -
 
 # The system partition is the second one. Mounting it at its offset needs no partition devices (losetup --partscan
 # leaves them to udev, which a runner does not always have ready in time).
 start=$(sfdisk --json "$image" | jq -e '.partitiontable.partitions[1].start')
+step "Mounting the system partition (sector $start)"
 mkdir "$root"
 mount -o "loop,offset=$((start * 512))" "$image" "$root"
 if [[ ! -d $root/etc/cloud/cloud.cfg.d ]]; then
   echo "This Raspberry Pi OS has no cloud-init (no /etc/cloud/cloud.cfg.d), so the first-boot setup would never run" >&2
   exit 1
 fi
+step "Adding /var/lib/cloud/scripts/per-instance/the-max-mix-first-boot and /etc/cloud/cloud.cfg.d/99-the-max-mix.cfg"
 install -D --mode=0755 --owner=root --group=root "$here/first-boot" \
   "$root/var/lib/cloud/scripts/per-instance/the-max-mix-first-boot"
 install --mode=0644 --owner=root --group=root "$here/the-max-mix.cfg" "$root/etc/cloud/cloud.cfg.d/99-the-max-mix.cfg"
 umount "$root"
 
+step "Hashing the image"
 extract_size=$(stat --format=%s "$image")
 extract_sha256=$(sha256sum "$image" | cut -d' ' -f1)
 mkdir -p "$out"
+step "Compressing with xz on $(nproc) threads (the slow part, about 3 minutes)"
+watch_file "$out/the-max-mix.img.xz" compressed
 xz --threads=0 -6 --stdout "$image" > "$out/the-max-mix.img.xz"
+stop_watching
+step "Compressed to $(mib "$out/the-max-mix.img.xz"); hashing it and writing the Imager list"
 download_size=$(stat --format=%s "$out/the-max-mix.img.xz")
 download_sha256=$(sha256sum "$out/the-max-mix.img.xz" | cut -d' ' -f1)
 
@@ -98,4 +138,4 @@ jq --null-input \
       capabilities: ($base.capabilities // [])
     }]
   }' > "$out/the-max-mix.rpi-imager-manifest"
-echo "Built $out/the-max-mix.img.xz ($download_size bytes) and $out/the-max-mix.rpi-imager-manifest"
+step "Built $out/the-max-mix.img.xz ($download_size bytes) and $out/the-max-mix.rpi-imager-manifest"
