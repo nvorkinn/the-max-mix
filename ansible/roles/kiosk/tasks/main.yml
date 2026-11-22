@@ -36,7 +36,7 @@
     ROOT: '{{ playbook_dir }}/..'
     SHARED: >-
       ansible/local.yml ansible/roles/kiosk/tasks/main.yml ansible/roles/kiosk/defaults/main.yml
-      ansible/roles/kiosk/handlers/main.yml /etc/the-max-mix/kiosk-vars.yml
+      ansible/roles/kiosk/handlers/main.yml ansible/roles/kiosk/files/install-files.ts /etc/the-max-mix/kiosk-vars.yml
     EXTRA: '{{ kiosk_enable_only | string }} {{ kiosk_hostname }}'
     SECTIONS: |
       {% for section in kiosk_sections %}
@@ -83,61 +83,70 @@
       + ([{'source': kiosk_branch_app_dir ~ '/app', 'commit': kiosk_branch_release.commit | default('') | string}]
       if (kiosk_branch_app_dir ~ '/app/index.html') is file else []) }}
 
+# One program, as a module run costs seconds on a Pi. Prints what it did: "copied", and "next" when the kiosk is to switch
+# (or "forgot next" when a release installed again, the same one or a rollback to the one already served, leaves nothing
+# to switch to).
 - name: Install the web app
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      dest=$APP_DIR/releases/$RELEASE
+      if [[ ! -e $dest/index.html ]]; then
+        mkdir -p "$APP_DIR/releases"
+        rm -rf "$dest.tmp"
+        cp -R "$SOURCE" "$dest.tmp"
+        chmod -R u=rwX,go=rX "$dest.tmp"
+        mv -T "$dest.tmp" "$dest"
+        echo copied
+      fi
+      if [[ $(readlink "$APP_DIR/current" || true) == "releases/$RELEASE" ]]; then
+        if [[ -L $APP_DIR/next || -e $APP_DIR/next ]]; then
+          rm -f "$APP_DIR/next"
+          echo forgot next
+        fi
+      elif [[ $(readlink "$APP_DIR/next" || true) != "releases/$RELEASE" ]]; then
+        ln -sfn "releases/$RELEASE" "$APP_DIR/next"
+        echo next
+      fi
+    executable: /bin/bash
+  environment:
+    SOURCE: '{{ kiosk_app_source }}'
+    APP_DIR: '{{ kiosk_app_dir }}'
+    RELEASE: '{{ kiosk_app_release }}'
+  register: kiosk_app_installed
+  changed_when: kiosk_app_installed.stdout | length > 0
   when: kiosk_app_source | length > 0 and kiosk_app_release is match('^[0-9a-f]{7,40}$')
-  vars:
-    kiosk_app_is_current: >-
-      {{ (kiosk_app_current.stat.islnk | default(false))
-      and kiosk_app_current.stat.lnk_target == 'releases/' ~ kiosk_app_release }}
-  block:
-    - name: Copy the release's web app into a folder of its own
-      ansible.builtin.shell:
-        cmd: |
-          set -euo pipefail
-          mkdir -p "$(dirname "$DEST")"
-          rm -rf "$DEST.tmp"
-          cp -R "$SOURCE" "$DEST.tmp"
-          chmod -R u=rwX,go=rX "$DEST.tmp"
-          mv -T "$DEST.tmp" "$DEST"
-        executable: /bin/bash
-        creates: '{{ kiosk_app_dir }}/releases/{{ kiosk_app_release }}/index.html'
-      environment:
-        SOURCE: '{{ kiosk_app_source }}'
-        DEST: '{{ kiosk_app_dir }}/releases/{{ kiosk_app_release }}'
 
-    - name: Look at the web app the kiosk serves
-      ansible.builtin.stat:
-        path: '{{ kiosk_app_dir }}/current'
-        follow: false
-      register: kiosk_app_current
+# Runs no module, so it costs nothing: it only passes the change on to the handler.
+- name: Serve the new web app from the next kiosk start
+  ansible.builtin.debug:
+    msg: The kiosk serves the new web app from its next start.
+  when: "'next' in kiosk_app_installed.stdout_lines | default([])"
+  changed_when: true
+  notify: Ask for a kiosk restart
 
-    - name: Serve the new web app from the next kiosk start
-      ansible.builtin.file:
-        src: releases/{{ kiosk_app_release }}
-        dest: '{{ kiosk_app_dir }}/next'
-        state: link
-        force: true
-        follow: false
-        owner: root
-        group: root
-      when: not kiosk_app_is_current
-      notify: Ask for a kiosk restart
-
-    # A release installed again (the same one, or a rollback to the one already served) leaves nothing to switch to.
-    - name: Forget a switch the kiosk does not need
-      ansible.builtin.file:
-        path: '{{ kiosk_app_dir }}/next'
-        state: absent
-      when: kiosk_app_is_current
-
-# Before the parts, which enable it.
+# Before the parts, which enable it. With the shell rather than install-files.ts, as Node.js is not there yet on the first
+# run. Prints the unit's path when it changed it.
 - name: Install the kiosk service
-  ansible.builtin.template:
-    src: kiosk.service.j2
-    dest: /etc/systemd/system/kiosk.service
-    owner: root
-    group: root
-    mode: '0644'
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      next=$(mktemp "$UNIT.XXXXXX")
+      cat > "$next"
+      if cmp -s "$next" "$UNIT" && [[ $(stat -c '%a %u %g' "$UNIT") == '644 0 0' ]]; then
+        rm "$next"
+      else
+        chmod 0644 "$next"
+        mv "$next" "$UNIT"
+        echo "$UNIT"
+      fi
+    executable: /bin/bash
+    stdin: "{{ lookup('ansible.builtin.template', 'kiosk.service.j2') }}"
+    stdin_add_newline: false
+  environment:
+    UNIT: /etc/systemd/system/kiosk.service
+  register: kiosk_service_installed
+  changed_when: kiosk_service_installed.stdout | length > 0
   notify:
     - Reload systemd
     - Ask for a kiosk restart
@@ -153,17 +162,14 @@
   ansible.builtin.meta: flush_handlers
 
 - name: Record what was applied
-  ansible.builtin.copy:
-    content: >-
+  ansible.builtin.command:
+    argv: [node, '{{ kiosk_install_files }}']
+    stdin: >-
       {%- set applied = dict(kiosk_applied) -%}
       {%- for name in kiosk_sections_due -%}
       {%- set _ = applied.update({name: {'id': kiosk_section_ids[name], 'at': kiosk_now | int}}) -%}
       {%- endfor -%}
-      {{ applied | to_json }}
-    dest: '{{ kiosk_applied_stamp }}'
-    owner: root
-    group: root
-    mode: '0644'
+      {{ [{'path': kiosk_applied_stamp, 'mode': '0644', 'content': applied | to_json}] | to_json }}
   # Bookkeeping, not a change to the Pi: a run that applied nothing new must report changed=0 (the playbook test relies on it).
   changed_when: false
   when: kiosk_sections_due | length > 0
