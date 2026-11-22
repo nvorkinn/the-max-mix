@@ -1,12 +1,18 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pairingState, registerScreen } from '../countdown/registration';
-import PairingScreen, { PAIRING_POLL_MS, REGISTER_RETRY_MS } from './PairingScreen';
+import { currentWifi } from '../utils/kiosk';
+import PairingScreen, { NETWORK_POLL_MS, NO_NETWORK_MS, PAIRING_POLL_MS, REGISTER_RETRY_MS } from './PairingScreen';
 
 vi.mock('../countdown/registration', async importOriginal => ({
   ...(await importOriginal<typeof import('../countdown/registration')>()),
   registerScreen: vi.fn(),
   pairingState: vi.fn()
+}));
+
+vi.mock('../utils/kiosk', async importOriginal => ({
+  ...(await importOriginal<typeof import('../utils/kiosk')>()),
+  currentWifi: vi.fn()
 }));
 
 const PI_SCREEN = { width: 1280, height: 800, brightness_control: false };
@@ -15,6 +21,7 @@ beforeEach(() => {
   localStorage.clear();
   vi.mocked(registerScreen).mockReset();
   vi.mocked(pairingState).mockReset();
+  vi.mocked(currentWifi).mockReset().mockResolvedValue({ ssid: 'Home', address: 'an address' });
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.stubEnv('VITE_COUNTDOWN_SERVER', 'https://countdown.build');
   vi.stubEnv('VITE_COUNTDOWN_API', 'https://api.countdown.build');
@@ -79,5 +86,20 @@ describe('PairingScreen', () => {
     unmount();
     await advance(PAIRING_POLL_MS * 3);
     expect(pairingState).toHaveBeenCalledTimes(1);
+  });
+
+  it('makes way for Settings › Wi-Fi while the Pi is on no network, and comes back on one', async () => {
+    vi.mocked(registerScreen).mockResolvedValue(null);
+    vi.mocked(currentWifi).mockResolvedValue({ ssid: null, address: null });
+    render(<PairingScreen screen={PI_SCREEN} onPaired={vi.fn()} />);
+    const code = { name: 'Add this screen' };
+    expect(await screen.findByRole('main', code)).toBeInTheDocument();
+    await advance(NO_NETWORK_MS);
+    await waitFor(() => {
+      expect(screen.queryByRole('main', code)).not.toBeInTheDocument();
+    });
+    vi.mocked(currentWifi).mockResolvedValue({ ssid: 'Home', address: 'an address' });
+    await advance(NETWORK_POLL_MS);
+    expect(await screen.findByRole('main', code)).toBeInTheDocument();
   });
 });
