@@ -201,7 +201,7 @@ describe('kiosk-audio/hotspot', () => {
       const { hotspot, connect, closed } = setup(base);
       await hotspot.start();
       expect((await choose(hotspot)).status).toBe(200);
-      expect(hotspot.status()).toEqual({ state: 'joining' });
+      expect(hotspot.status()).toEqual({ state: 'joining', ssid: request.ssid });
       expect(connect).not.toHaveBeenCalled();
 
       await vi.advanceTimersByTimeAsync(1500);

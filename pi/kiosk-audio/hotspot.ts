@@ -36,6 +36,8 @@ export interface HotspotStatus {
   state: HotspotState;
   /** Why the last attempt to join failed, for the tablet to show. */
   error?: string;
+  /** The network the phone chose, while the kiosk joins it. */
+  ssid?: string;
 }
 
 /** What the tablet shows: how to join the hotspot, and where its page is, as text and as QR codes (rows of 0 and 1). */
@@ -217,7 +219,7 @@ export class Hotspot {
   /** The phone chose a network: leave the hotspot (after its answer got out) and join it. */
   private joinNetwork(request: ConnectRequest): void {
     if (!this.isUp()) return;
-    this.current = { state: 'joining' };
+    this.current = { state: 'joining', ssid: request.ssid };
     setTimeout(() => {
       void (async () => {
         await this.takeDown();
