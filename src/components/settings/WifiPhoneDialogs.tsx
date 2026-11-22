@@ -22,7 +22,7 @@ export const SETUP_POLL_MS = 2000;
 export const IMPROV_URL = 'https://www.improv-wifi.com/';
 
 /** Where a dialog is: starting the setup, following it (with the kiosk's last word), or it could not start. */
-type Progress = { state: 'starting' } | SetupStatus | { state: 'refused'; error: string | null };
+type Progress = SetupStatus | { state: 'starting' } | { state: 'refused'; error: string | null };
 
 const STATUS_WORDS: Readonly<Record<Progress['state'], StringId | null>> = {
   starting: 'wifi.starting',
@@ -46,41 +46,41 @@ function useSetup(
   onJoined: () => void
 ): { progress: Progress; leave: () => Promise<void> } {
   const [progress, setProgress] = useState<Progress>({ state: 'starting' });
-  const latest = useRef({ start, status, stop, onJoined });
+  const latestRef = useRef({ start, status, stop, onJoined });
   useEffect(() => {
-    latest.current = { start, status, stop, onJoined };
+    latestRef.current = { start, status, stop, onJoined };
   });
   // Whether the setup is over by itself (or never started), so there is nothing to stop.
-  const isOver = useRef(false);
+  const isOverRef = useRef(false);
   // Whether the dialog is still up: a start that answers after it closed is stopped again.
-  const isShown = useRef(false);
+  const isShownRef = useRef(false);
   const leave = useCallback(async () => {
-    if (isOver.current) return;
-    isOver.current = true;
-    await latest.current.stop();
+    if (isOverRef.current) return;
+    isOverRef.current = true;
+    await latestRef.current.stop();
   }, []);
   useEffect(() => {
-    isShown.current = true;
-    isOver.current = false;
+    isShownRef.current = true;
+    isOverRef.current = false;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     let hasStarted = false;
     const follow = async () => {
-      const answer = await latest.current.status(controller.signal);
+      const answer = await latestRef.current.status(controller.signal);
       if (controller.signal.aborted) return;
       if (answer) setProgress(answer);
       if (answer?.state === 'joined' || answer?.state === 'failed' || answer?.state === 'ended') {
-        isOver.current = true;
-        if (answer.state === 'joined') latest.current.onJoined();
+        isOverRef.current = true;
+        if (answer.state === 'joined') latestRef.current.onJoined();
         return;
       }
       timer = setTimeout(() => void follow(), SETUP_POLL_MS);
     };
-    void latest.current.start().then(started => {
+    void latestRef.current.start().then(started => {
       if (controller.signal.aborted) {
         // Closed while starting. When the dialog came straight back (React mounts it twice in development), its own
         // start was answered with this same setup, so only a dialog that is gone stops it.
-        if (started === true && !isShown.current) void latest.current.stop();
+        if (started === true && !isShownRef.current) void latestRef.current.stop();
         return;
       }
       if (started === true) {
@@ -88,12 +88,12 @@ function useSetup(
         setProgress({ state: 'waiting' });
         timer = setTimeout(() => void follow(), SETUP_POLL_MS);
       } else {
-        isOver.current = true;
+        isOverRef.current = true;
         setProgress({ state: 'refused', error: started });
       }
     });
     return () => {
-      isShown.current = false;
+      isShownRef.current = false;
       controller.abort();
       clearTimeout(timer);
       if (hasStarted) void leave();

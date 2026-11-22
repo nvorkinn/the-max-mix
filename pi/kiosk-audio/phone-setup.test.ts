@@ -82,13 +82,8 @@ describe('kiosk-audio/phone-setup', () => {
   });
 
   it('says where the setup is: waiting, joining, then joined until it starts again', async () => {
-    let finish: (result: { ok: true }) => void = () => {};
-    const connect = vi.fn(
-      () =>
-        new Promise<{ ok: true }>(resolve => {
-          finish = resolve;
-        })
-    );
+    const joining = Promise.withResolvers<{ ok: true }>();
+    const connect = vi.fn(() => joining.promise);
     const sessions: ImprovSession[] = [];
     const phone = new PhoneSetup({
       connect,
@@ -102,7 +97,7 @@ describe('kiosk-audio/phone-setup', () => {
     expect(phone.status()).toEqual({ state: 'waiting' });
     const handled = firstOf(sessions).handle(wifiPacket('Home', 'placeholder-pass'));
     expect(phone.status()).toEqual({ state: 'joining' });
-    finish({ ok: true });
+    joining.resolve({ ok: true });
     await handled;
     expect(phone.status()).toEqual({ state: 'joined' });
     // Advertising stops a moment later; the tablet still hears that it worked.

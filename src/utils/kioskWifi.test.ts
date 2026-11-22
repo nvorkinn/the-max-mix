@@ -165,6 +165,7 @@ describe('the setup hotspot', () => {
     ] as const;
     for (const [kiosk, tablet] of states) {
       answer(200, { state: kiosk });
+      // eslint-disable-next-line no-await-in-loop -- one answer after another, each stubbed before it is asked
       await expect(hotspotStatus('en')).resolves.toEqual({ state: tablet });
     }
     answer(200, { state: 'failed', error: 'Could not join Home: Wrong password. Check it and try again.' });

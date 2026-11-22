@@ -20,8 +20,11 @@ export interface WifiScan {
 }
 
 /** Joined, or why not: the service's message (localized), or null when it did not answer. */
-type WifiFailure = { ok: false; error: string | null };
-export type WifiResult = { ok: true } | WifiFailure;
+interface WifiFailure {
+  ok: false;
+  error: string | null;
+}
+export type WifiResult = WifiFailure | { ok: true };
 
 const SECURITIES: ReadonlySet<string> = new Set(['open', 'psk', 'unsupported']);
 
@@ -109,7 +112,7 @@ const HOTSPOT_STATES: Readonly<Record<string, SetupStatus['state']>> = {
   failed: 'failed'
 };
 
-async function postSetup(path: string, language: Language): Promise<{ ok: true; body: unknown } | WifiFailure> {
+async function postSetup(path: string, language: Language): Promise<WifiFailure | { ok: true; body: unknown }> {
   try {
     const response = await fetch(`${KIOSK_SERVICE}${path}`, { method: 'POST' });
     const body: unknown = response.status === 204 ? null : await response.json();
@@ -157,7 +160,7 @@ export function phoneSetupStatus(
 }
 
 /** Asks the kiosk to start its setup hotspot: how to join it, or why it could not. */
-export async function startHotspot(language: Language): Promise<{ ok: true; info: HotspotInfo } | WifiFailure> {
+export async function startHotspot(language: Language): Promise<WifiFailure | { ok: true; info: HotspotInfo }> {
   const result = await postSetup('/wifi/hotspot', language);
   if (!result.ok) return result;
   const { body } = result;

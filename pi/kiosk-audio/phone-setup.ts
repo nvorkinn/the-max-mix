@@ -56,10 +56,9 @@ export class PhoneSetup {
     const session = new ImprovSession(this.options.connect);
     const advertising = await (this.options.advertise ?? (target => advertise(target)))(session);
     const unsubscribe = session.onChange(() => {
-      if (session.state === State.provisioned) {
-        this.hasJoined = true;
-        setTimeout(() => void this.stop(), this.options.finishMs ?? FINISH_MS);
-      }
+      if (session.state !== State.provisioned) return;
+      this.hasJoined = true;
+      setTimeout(() => void this.stop(), this.options.finishMs ?? FINISH_MS);
     });
     this.running = { session, advertising, timer: this.timeout(), unsubscribe };
   }
@@ -89,8 +88,8 @@ export class PhoneSetup {
   }
 
   status(): PhoneSetupStatus {
-    const session = this.running?.session;
     if (this.hasJoined) return { state: 'joined' };
+    const session = this.running?.session;
     if (!session) return { state: 'idle' };
     if (session.state === State.provisioning) return { state: 'joining' };
     return session.error === ErrorCode.unableToConnect
