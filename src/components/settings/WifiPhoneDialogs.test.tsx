@@ -183,8 +183,8 @@ describe('Settings › Wi-Fi over the hotspot', () => {
   });
 
   it('ends the hotspot on Back, then looks for networks again', async () => {
-    const stopping = Promise.withResolvers<undefined>();
-    wifi.stopHotspot.mockReturnValue(stopping.promise);
+    let stopped: () => void = () => {};
+    wifi.stopHotspot.mockImplementationOnce(() => new Promise<void>(resolve => (stopped = resolve)));
     renderWifi();
     expect(wifi.scanWifi).toHaveBeenCalledOnce();
     await userEvent.click(screen.getByRole('button', { name: 'Hotspot' }));
@@ -195,7 +195,7 @@ describe('Settings › Wi-Fi over the hotspot', () => {
     expect(screen.queryByRole('dialog', { name: 'Hotspot' })).not.toBeInTheDocument();
     expect(screen.getByText('Looking for networks…')).toBeInTheDocument();
     expect(wifi.scanWifi).toHaveBeenCalledOnce();
-    stopping.resolve(undefined);
+    stopped();
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(wifi.scanWifi).toHaveBeenCalledTimes(2);
   });
@@ -209,15 +209,15 @@ describe('Settings › Wi-Fi over the hotspot', () => {
   });
 
   it('ends a hotspot that only finished starting after the dialog closed', async () => {
-    const starting = Promise.withResolvers<unknown>();
-    wifi.startHotspot.mockReturnValue(starting.promise);
+    let started: (result: unknown) => void = () => {};
+    wifi.startHotspot.mockImplementationOnce(() => new Promise(resolve => (started = resolve)));
     renderWifi();
     await userEvent.click(screen.getByRole('button', { name: 'Hotspot' }));
     await userEvent.click(
       within(screen.getByRole('dialog', { name: 'Hotspot' })).getByRole('button', { name: 'Back' })
     );
     expect(wifi.stopHotspot).toHaveBeenCalledOnce();
-    starting.resolve({ ok: true, info: HOTSPOT });
+    started({ ok: true, info: HOTSPOT });
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(wifi.stopHotspot).toHaveBeenCalledTimes(2);
   });
