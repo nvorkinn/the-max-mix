@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { defined } from '../test/defined';
 import { resetSpotifyMocks } from '../test/spotifyMocks';
-import { recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
+import { NETWORK_ERROR_MESSAGE, recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 
 interface SdkOptions {
@@ -121,6 +121,35 @@ describe('useSpotifyPlayer browser playback', () => {
     mocks.auth.getAccessToken.mockRejectedValue(new Error('token down'));
     player.options.getOAuthToken(vi.fn());
     await waitFor(() => expect(result.current.error).toBe('token down'));
+  });
+
+  it('connects the player again once Spotify answers after a token fetch failed for want of a network', async () => {
+    const { result, player } = await connect();
+    mocks.auth.getAccessToken.mockRejectedValue(new SpotifyApiError(NETWORK_ERROR_MESSAGE, 502));
+    player.options.getOAuthToken(vi.fn());
+    await waitFor(() => expect(result.current.error).toBe(NETWORK_ERROR_MESSAGE));
+    // Spotify unreachable for the reads too, then back.
+    mocks.api.getPlaybackState.mockRejectedValueOnce(new SpotifyApiError(NETWORK_ERROR_MESSAGE, 502));
+    await act(async () => result.current.retryPlayback());
+    await act(async () => result.current.retryPlayback());
+    await waitFor(() => expect(sdk.loadSpotifySDK).toHaveBeenCalledTimes(2));
+    expect(player.disconnect).toHaveBeenCalled();
+  });
+
+  it('loads the SDK again once Spotify answers after it failed to load offline, but not while Spotify answered', async () => {
+    sdk.loadSpotifySDK.mockRejectedValueOnce(new Error('Could not load the Spotify SDK.'));
+    const fake = makeSdk();
+    sdk.loadSpotifySDK.mockResolvedValue({ Player: fake.Player });
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await waitFor(() => expect(result.current.error).toBe('Could not load the Spotify SDK.'));
+    // A read that gets through while the SDK failed does not retry it.
+    await act(async () => result.current.retryPlayback());
+    expect(sdk.loadSpotifySDK).toHaveBeenCalledTimes(1);
+    mocks.api.getPlaybackState.mockRejectedValueOnce(new SpotifyApiError(NETWORK_ERROR_MESSAGE, 502));
+    await act(async () => result.current.retryPlayback());
+    await act(async () => result.current.retryPlayback());
+    await waitFor(() => expect(fake.players).toHaveLength(1));
+    expect(sdk.loadSpotifySDK).toHaveBeenCalledTimes(2);
   });
 
   it('clears the device and warns when the tablet player disconnects', async () => {
