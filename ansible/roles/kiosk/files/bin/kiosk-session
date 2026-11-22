@@ -24,20 +24,12 @@ wait_app() {
   echo "kiosk-session: the app at $url is not answering" >&2
 }
 
-# A panel with small pixels (kiosk_screen_scale in the Ansible role): Chromium draws the page this much bigger. Nothing
-# for 1, or for anything that is not a number.
-screen_scale=${KIOSK_SCREEN_SCALE:-1}
-scale=()
-if [[ $screen_scale =~ ^[0-9]+(\.[0-9]+)?$ && ! $screen_scale =~ ^[01](\.0+)?$ ]]; then
-  scale=(--force-device-scale-factor="$screen_scale")
-fi
-
 # Shows the app until Chromium exits. The kiosk-audio service's watchdog stops Chromium through the pid file when the
 # app stops sending heartbeats, and the loop below starts it again.
 run_chromium() {
   chromium --kiosk --ozone-platform=wayland --noerrdialogs --disable-infobars --no-first-run --password-store=basic \
     --autoplay-policy=no-user-gesture-required --disable-session-crashed-bubble --overscroll-history-navigation=0 \
-    --remote-debugging-port="$devtools_port" "${scale[@]}" \
+    --remote-debugging-port="$devtools_port" \
     "$1" &
   echo $! > "$chromium_pid"
   wait $!
@@ -51,9 +43,11 @@ if [[ $screen_off_after =~ ^[1-9][0-9]*$ ]] && command -v swayidle > /dev/null; 
   swayidle timeout "$screen_off_after" '/usr/local/bin/kiosk-display off' resume '/usr/local/bin/kiosk-display on' &
 fi
 
-# A rotated screen (kiosk_screen_rotation in the Ansible role): Cage starts every output as the panel is, so turn it before
-# Chromium opens its window.
-[[ ${KIOSK_SCREEN_ROTATION:-0} == 0 ]] || /usr/local/bin/kiosk-display on
+# A rotated or scaled screen (kiosk_screen_rotation and kiosk_screen_scale in the Ansible role): Cage starts every
+# output as the panel is, so turn and scale it before Chromium opens its window.
+if [[ ${KIOSK_SCREEN_ROTATION:-0} != 0 || ! ${KIOSK_SCREEN_SCALE:-1} =~ ^1(\.0+)?$ ]]; then
+  /usr/local/bin/kiosk-display on
+fi
 
 # Cage does not signal this script when it stops, and it waits for us to exit (kiosk.service sends the signal from ExecStop).
 # Stop the app with us so nothing is left running without a compositor.

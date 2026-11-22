@@ -7,15 +7,21 @@
 # Cage has no output power protocol, so the output is disabled and enabled again through wlr-randr. Without a signal
 # an HDMI screen should turn its backlight off, as a DSI panel's driver does; the app's black sleep screen covers it if
 # it does not.
-# Cage has no setting for rotation either: with KIOSK_SCREEN_ROTATION (kiosk_screen_rotation in the Ansible role: 90,
-# 180 or 270 degrees) `on` also turns the output, every time, so the rotation holds whatever enabling the output does.
+# Cage has no setting for rotation or scale either: with KIOSK_SCREEN_ROTATION (kiosk_screen_rotation in the Ansible
+# role: 90, 180 or 270 degrees) `on` also turns the output, and with KIOSK_SCREEN_SCALE (kiosk_screen_scale, such as
+# 1.5) it has Cage draw everything that much bigger. Every time, so both hold whatever enabling the output does.
 set -u
 
-# What wlr-randr is told about rotation when it enables an output: nothing for 0 or anything else.
+# What wlr-randr is told about rotation and scale when it enables an output: nothing for no rotation, for a scale of 1,
+# or for anything else.
+settings=()
 case ${KIOSK_SCREEN_ROTATION:-0} in
-  90 | 180 | 270) transform=(--transform "$KIOSK_SCREEN_ROTATION") ;;
-  *) transform=() ;;
+  90 | 180 | 270) settings+=(--transform "$KIOSK_SCREEN_ROTATION") ;;
 esac
+screen_scale=${KIOSK_SCREEN_SCALE:-1}
+if [[ $screen_scale =~ ^[0-9]+(\.[0-9]+)?$ && ! $screen_scale =~ ^[01](\.0+)?$ ]]; then
+  settings+=(--scale "$screen_scale")
+fi
 
 # The outputs Cage has: wlr-randr starts each one's block with its name at the start of a line.
 outputs() {
@@ -28,8 +34,8 @@ turn() {
     [[ -n $output ]] || continue
     if [[ $state == on ]]; then
       # Enabling without a mode can fail where the firmware set none; the preferred mode is the one Cage started with.
-      wlr-randr --output "$output" --on "${transform[@]}" \
-        || wlr-randr --output "$output" --on --preferred "${transform[@]}" || status=1
+      wlr-randr --output "$output" --on "${settings[@]}" \
+        || wlr-randr --output "$output" --on --preferred "${settings[@]}" || status=1
     else
       wlr-randr --output "$output" --off || status=1
     fi
