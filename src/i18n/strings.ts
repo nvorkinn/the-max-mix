@@ -225,7 +225,6 @@ export const STRINGS = {
     en: 'The phone chose a network. Joining it…',
     nb: 'Telefonen valgte et nettverk. Kobler til …'
   },
-  'wifi.setup_ended': { en: 'Time ran out.', nb: 'Tiden gikk ut.' },
   'wifi.phone_steps': {
     en: 'On an Android phone, open improv-wifi.com in Chrome, tap Connect device and choose THE MAX MIX.',
     nb: 'Åpne improv-wifi.com i Chrome på en Android-telefon, trykk på Connect device og velg THE MAX MIX.'

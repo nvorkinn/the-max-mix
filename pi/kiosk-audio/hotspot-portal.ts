@@ -123,6 +123,9 @@ export function portalHtml(language: Language): string {
           if (!response.ok) throw new Error('refused');
           for (const id of ['list', 'other', 'form']) $(id).hidden = true;
           $('done').hidden = false;
+          // The phone has nothing more to do here. A browser closes only a tab that nothing else was opened in (the
+          // camera's link, the sign-in sheet), so the words above stay for one that will not.
+          setTimeout(() => window.close(), 1000);
         } catch {
           fail(${js('portal.refused')});
         }

@@ -66,6 +66,8 @@ interface SettingsPanelProps {
   onOpenDebug?: () => void;
   /** Called after the Wi-Fi page joined a network. */
   onWifiJoined?: () => void;
+  /** Whether a Wi-Fi setup from a phone (From phone or Hotspot) is under way on the Wi-Fi page. */
+  onPhoneSetup?: (isActive: boolean) => void;
 }
 
 /**
@@ -126,7 +128,8 @@ export default function SettingsPanel({
   deviceConfig,
   onDeviceConfigSave,
   onOpenDebug,
-  onWifiJoined
+  onWifiJoined,
+  onPhoneSetup
 }: Readonly<SettingsPanelProps>) {
   const t = useT();
   const [kiosk] = useState(isKiosk);
@@ -207,6 +210,7 @@ export default function SettingsPanel({
             recheckWifi();
             onWifiJoined?.();
           }}
+          onPhoneSetup={onPhoneSetup}
         />
       );
       break;

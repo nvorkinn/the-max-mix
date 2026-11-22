@@ -30,25 +30,25 @@ const STATUS_WORDS: Readonly<Record<Progress['state'], StringId | null>> = {
   joining: 'wifi.phone_joining',
   joined: null,
   failed: null,
-  ended: 'wifi.setup_ended',
+  ended: null,
   refused: null
 };
 
 /**
  * Starts a setup from a phone and asks the kiosk where it is every couple of seconds until the phone's network is
- * joined (then `onJoined`), it failed, or it ended. `leave` stops a setup still under way, and resolves once the kiosk
+ * joined, it failed, or it ended (then `onEnd`, which closes the dialog). `leave` stops a setup still under way, and resolves once the kiosk
  * has (the hotspot gives the radio back); unmounting first stops it too.
  */
 function useSetup(
   start: () => Promise<true | string | null>,
   status: (signal: AbortSignal) => Promise<SetupStatus | undefined>,
   stop: () => Promise<void>,
-  onJoined: () => void
+  onEnd: (end: SetupEnd) => void
 ): { progress: Progress; leave: () => Promise<void> } {
   const [progress, setProgress] = useState<Progress>({ state: 'starting' });
-  const latestRef = useRef({ start, status, stop, onJoined });
+  const latestRef = useRef({ start, status, stop, onEnd });
   useEffect(() => {
-    latestRef.current = { start, status, stop, onJoined };
+    latestRef.current = { start, status, stop, onEnd };
   });
   // Whether the setup is over by itself (or never started), so there is nothing to stop.
   const isOverRef = useRef(false);
@@ -71,7 +71,7 @@ function useSetup(
       if (answer) setProgress(answer);
       if (answer?.state === 'joined' || answer?.state === 'failed' || answer?.state === 'ended') {
         isOverRef.current = true;
-        if (answer.state === 'joined') latestRef.current.onJoined();
+        latestRef.current.onEnd(answer.state === 'joined' ? { joined: true } : { joined: false, error: answer.error });
         return;
       }
       timer = setTimeout(() => void follow(), SETUP_POLL_MS);
@@ -153,20 +153,24 @@ function SetupDialog({
   );
 }
 
+/** How a setup ended by itself: the phone's network joined, or not (with the kiosk's reason, when it gave one). */
+export type SetupEnd = { joined: false; error?: string | undefined } | { joined: true };
+
 /**
- * `onJoined` once the kiosk is on the phone's network. `onClose` (Back) comes at once, with a promise that resolves when
- * the kiosk has stopped the setup: the hotspot has then given the radio back to the kiosk's own network.
+ * `onEnd` once the setup is over by itself: the kiosk joined the phone's network, could not, or the setup's minutes ran
+ * out. `onClose` (Back) comes at once, with a promise that resolves when the kiosk has stopped the setup: the hotspot has
+ * then given the radio back to the kiosk's own network.
  */
 interface SetupDialogProps {
-  onJoined: () => void;
+  onEnd: (end: SetupEnd) => void;
   onClose: (stopped: Promise<void>) => void;
 }
 
 /**
  * From phone: the kiosk listens over Bluetooth for a few minutes for a phone to send it a network (Improv Wi-Fi, from
- * improv-wifi.com in Chrome on Android, which the code opens). Closes with `onJoined` once the kiosk is on it.
+ * improv-wifi.com in Chrome on Android, which the code opens).
  */
-export function WifiPhoneDialog({ onJoined, onClose }: Readonly<SetupDialogProps>) {
+export function WifiPhoneDialog({ onEnd, onClose }: Readonly<SetupDialogProps>) {
   const t = useT();
   const language = useLanguage();
   const { progress, leave } = useSetup(
@@ -176,7 +180,7 @@ export function WifiPhoneDialog({ onJoined, onClose }: Readonly<SetupDialogProps
     },
     signal => phoneSetupStatus(language, signal),
     stopPhoneSetup,
-    onJoined
+    onEnd
   );
   return (
     <SetupDialog title={t('wifi.from_phone')} onClose={() => onClose(leave())}>
@@ -194,9 +198,9 @@ export function WifiPhoneDialog({ onJoined, onClose }: Readonly<SetupDialogProps
 /**
  * Hotspot: the kiosk makes its own Wi-Fi for a few minutes. The first code joins it (its name and password are there to
  * type too), and the phone then gets a page to choose the kiosk's network on, which the second code opens when the phone
- * does not by itself. Closes with `onJoined` once the kiosk is on that network.
+ * does not by itself.
  */
-export function WifiHotspotDialog({ onJoined, onClose }: Readonly<SetupDialogProps>) {
+export function WifiHotspotDialog({ onEnd, onClose }: Readonly<SetupDialogProps>) {
   const t = useT();
   const language = useLanguage();
   const [info, setInfo] = useState<HotspotInfo | null>(null);
@@ -209,7 +213,7 @@ export function WifiHotspotDialog({ onJoined, onClose }: Readonly<SetupDialogPro
     },
     signal => hotspotStatus(language, signal),
     stopHotspot,
-    onJoined
+    onEnd
   );
   return (
     <SetupDialog title={t('wifi.hotspot')} onClose={() => onClose(leave())}>

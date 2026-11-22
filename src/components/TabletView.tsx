@@ -229,9 +229,12 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     // Started without a network, so the Spotify player and the Dashboard's data failed to load: start again.
     onConnected: reloadApp
   });
+  // A phone giving the kiosk its Wi-Fi (Settings › Wi-Fi › From phone or Hotspot) takes minutes with nobody touching the
+  // screen, so the kiosk stays on Settings, awake, until it is done.
+  const [isPhoneSetup, setIsPhoneSetup] = useState(false);
   useIdle({
     enabled: onKiosk,
-    busy: isPlaying || needsWifi,
+    busy: isPlaying || needsWifi || isPhoneSetup,
     idleMs: IDLE_DASHBOARD_MS,
     onIdle: () => goToScreen('dashboard')
   });
@@ -308,7 +311,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const kioskUpdate = useKioskUpdate(onKiosk);
   const sleep = useScreenSleep({
     enabled: onKiosk,
-    keepAwake: isPlaying,
+    keepAwake: isPlaying || isPhoneSetup,
     onDashboard: screen === 'dashboard',
     sleepMs: screenSleepMinutes === 0 ? null : screenSleepMinutes * 60_000,
     quiet: isQuietTime(quietHours, new Date(minute * 60_000))
@@ -761,6 +764,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
               deviceConfig={ownedConfig ?? undefined}
               onDeviceConfigSave={deviceConfig.save}
               onOpenDebug={() => setIsDebugOpen(true)}
+              onPhoneSetup={setIsPhoneSetup}
             />
           )}
         </section>

@@ -21,12 +21,22 @@ vi.mock('../../utils/kioskWifi', async importOriginal => ({
 }));
 
 const HOTSPOT = { ssid: 'THE MAX MIX setup', password: 'ABCDE23456', url: 'http://10.42.0.1/' };
+interface RenderOptions {
+  onJoined?: () => void;
+  language?: 'en' | 'nb';
+  onPhoneSetup?: (isActive: boolean) => void;
+}
+
 const poll = () => act(() => vi.advanceTimersByTimeAsync(SETUP_POLL_MS));
 
-function renderWifi(onJoined = vi.fn(), language: 'en' | 'nb' = 'en') {
+function renderWifi({ onJoined = vi.fn(), language = 'en', onPhoneSetup = vi.fn() }: RenderOptions = {}) {
   return render(
     <LanguageContext value={language}>
-      <WifiSettings wifi={{ state: 'connected', ssid: 'Home', address: null }} onJoined={onJoined} />
+      <WifiSettings
+        wifi={{ state: 'connected', ssid: 'Home', address: null }}
+        onJoined={onJoined}
+        onPhoneSetup={onPhoneSetup}
+      />
     </LanguageContext>
   );
 }
@@ -49,8 +59,12 @@ describe('Settings › Wi-Fi from a phone', () => {
 
   it('listens for the phone over Bluetooth until it has sent a network the kiosk joined', async () => {
     const onJoined = vi.fn();
-    renderWifi(onJoined);
+    const onPhoneSetup = vi.fn();
+    renderWifi({ onJoined, onPhoneSetup });
+    expect(onPhoneSetup).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'From phone' }));
+    // Settings stays up while the phone is used, however long nobody touches the screen.
+    expect(onPhoneSetup).toHaveBeenLastCalledWith(true);
     const dialog = screen.getByRole('dialog', { name: 'From phone' });
     expect(within(dialog).getByRole('img', { name: 'QR code that opens improv-wifi.com' })).toBeInTheDocument();
     expect(IMPROV_URL).toBe('https://www.improv-wifi.com/');
@@ -64,6 +78,7 @@ describe('Settings › Wi-Fi from a phone', () => {
     wifi.phoneSetupStatus.mockResolvedValue({ state: 'joined' });
     await poll();
     expect(onJoined).toHaveBeenCalledOnce();
+    expect(onPhoneSetup).toHaveBeenLastCalledWith(false);
     expect(screen.queryByRole('dialog', { name: 'From phone' })).not.toBeInTheDocument();
     // Joined by itself: there is nothing left to stop.
     expect(wifi.stopPhoneSetup).not.toHaveBeenCalled();
@@ -82,7 +97,7 @@ describe('Settings › Wi-Fi from a phone', () => {
     expect(wifi.phoneSetupStatus).toHaveBeenCalledOnce();
   });
 
-  it('stops listening on Back, and says when the time ran out', async () => {
+  it('stops listening on Back, and closes by itself when the time ran out', async () => {
     renderWifi();
     await userEvent.click(screen.getByRole('button', { name: 'From phone' }));
     await poll();
@@ -95,18 +110,17 @@ describe('Settings › Wi-Fi from a phone', () => {
     await userEvent.click(screen.getByRole('button', { name: 'From phone' }));
     wifi.phoneSetupStatus.mockResolvedValue({ state: 'ended' });
     await poll();
-    const dialog = screen.getByRole('dialog', { name: 'From phone' });
-    expect(within(dialog).getByText('Time ran out.')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'From phone' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     wifi.phoneSetupStatus.mockClear();
     await poll();
     expect(wifi.phoneSetupStatus).not.toHaveBeenCalled();
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Back' }));
     expect(wifi.stopPhoneSetup).toHaveBeenCalledOnce();
   });
 
   it("says the kiosk's reason when Bluetooth would not start, in the tablet's language", async () => {
     wifi.startPhoneSetup.mockResolvedValue({ ok: false, error: 'Bluetooth er ikke tilgjengelig.' });
-    renderWifi(vi.fn(), 'nb');
+    renderWifi({ language: 'nb' });
     await userEvent.click(screen.getByRole('button', { name: 'Fra telefon' }));
     const dialog = screen.getByRole('dialog', { name: 'Fra telefon' });
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Bluetooth er ikke tilgjengelig.');
@@ -148,7 +162,7 @@ describe('Settings › Wi-Fi over the hotspot', () => {
 
   it('shows the codes, name and password, and closes once the kiosk joined the network the phone chose', async () => {
     const onJoined = vi.fn();
-    renderWifi(onJoined);
+    renderWifi({ onJoined });
     await userEvent.click(screen.getByRole('button', { name: 'Hotspot' }));
     const dialog = screen.getByRole('dialog', { name: 'Hotspot' });
     expect(within(dialog).getByText('Starting…')).toBeInTheDocument();
@@ -169,17 +183,34 @@ describe('Settings › Wi-Fi over the hotspot', () => {
     expect(wifi.stopHotspot).not.toHaveBeenCalled();
   });
 
-  it('says why the kiosk could not join, and stops asking', async () => {
-    renderWifi();
+  it('closes when the kiosk could not join, says why on the page, and looks for networks again', async () => {
+    const onJoined = vi.fn();
+    renderWifi({ onJoined });
     await userEvent.click(screen.getByRole('button', { name: 'Hotspot' }));
     const dialog = screen.getByRole('dialog', { name: 'Hotspot' });
     await within(dialog).findByTestId('hotspot-name');
+    wifi.scanWifi.mockClear();
     wifi.hotspotStatus.mockResolvedValue({ state: 'failed', error: 'Could not join Home: Wrong password.' });
     await poll();
-    expect(within(dialog).getByRole('alert')).toHaveTextContent('Could not join Home: Wrong password.');
+    expect(screen.queryByRole('dialog', { name: 'Hotspot' })).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not join Home: Wrong password.');
+    expect(wifi.scanWifi).toHaveBeenCalledOnce();
+    expect(onJoined).not.toHaveBeenCalled();
     wifi.hotspotStatus.mockClear();
     await poll();
     expect(wifi.hotspotStatus).not.toHaveBeenCalled();
+    // It ended by itself, so there is nothing to stop.
+    expect(wifi.stopHotspot).not.toHaveBeenCalled();
+  });
+
+  it('closes when the hotspot ended by itself', async () => {
+    renderWifi();
+    await userEvent.click(screen.getByRole('button', { name: 'Hotspot' }));
+    await within(screen.getByRole('dialog', { name: 'Hotspot' })).findByTestId('hotspot-name');
+    wifi.hotspotStatus.mockResolvedValue({ state: 'ended' });
+    await poll();
+    expect(screen.queryByRole('dialog', { name: 'Hotspot' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('ends the hotspot on Back, then looks for networks again', async () => {
