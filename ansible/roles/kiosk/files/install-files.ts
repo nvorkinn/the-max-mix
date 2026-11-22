@@ -41,7 +41,7 @@ for (const { path, content, mode, validate } of entries) {
     chownSync(next, 0, 0);
     chmodSync(next, wanted);
     if (validate) {
-      const [command, ...args] = validate.map(word => word.replaceAll('%s', next));
+      const [command, ...args] = validate.map(word => word.replaceAll('%s', () => next));
       if (command) execFileSync(command, args, { stdio: ['ignore', 'ignore', 'inherit'] });
     }
     renameSync(next, path);
