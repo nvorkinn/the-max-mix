@@ -89,7 +89,7 @@ export function wifiAnswer(request: Request, ssid: string | null) {
 }
 
 /** How a phone joins the Pi's setup hotspot (pi/kiosk-audio/hotspot.ts), as POST /wifi/hotspot answers. */
-export const FAKE_HOTSPOT = {
+const FAKE_HOTSPOT = {
   ssid: 'THE MAX MIX setup',
   password: 'K7PX4RMW2N',
   // eslint-disable-next-line sonarjs/no-hardcoded-ip -- NetworkManager's own address for a hotspot
