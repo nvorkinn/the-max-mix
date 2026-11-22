@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Check, Info, MicVocal, Package, Palette, SlidersHorizontal, TrainFront, Wifi } from 'lucide-react';
+import { Check, Info, MicVocal, Monitor, Package, Palette, SlidersHorizontal, TrainFront, Wifi } from 'lucide-react';
 import type { Parcels, TouchscreenConfig } from 'countdown-api';
+import { DEFAULT_CLOCK_FORMAT } from '../utils/clockFormat';
 import { isKiosk } from '../utils/kiosk';
 import { reloadSettings } from '../spotify/settings';
 import type { QuietHours } from '../utils/quietHours';
@@ -18,6 +19,7 @@ import CountdownSettings from './settings/CountdownSettings';
 import GeneralSettings from './settings/GeneralSettings';
 import LyricsSettings from './settings/LyricsSettings';
 import ParcelsSettings from './settings/ParcelsSettings';
+import ScreenSettings from './settings/ScreenSettings';
 import SpotifySettings from './settings/SpotifySettings';
 import WifiSettings from './settings/WifiSettings';
 import { SETTINGS_SECTIONS } from './settings/sections';
@@ -30,6 +32,7 @@ const SECTION_ICONS: Record<SettingsSection, ReactNode> = {
   general: <SlidersHorizontal className="w-6 h-6 shrink-0" aria-hidden="true" />,
   countdown: <TrainFront className="w-6 h-6 shrink-0" aria-hidden="true" />,
   parcels: <Package className="w-6 h-6 shrink-0" aria-hidden="true" />,
+  screen: <Monitor className="w-6 h-6 shrink-0" aria-hidden="true" />,
   appearance: <Palette className="w-6 h-6 shrink-0" aria-hidden="true" />,
   wifi: <Wifi className="w-6 h-6 shrink-0" aria-hidden="true" />,
   spotify: <SpotifyIcon className="w-6 h-6 shrink-0" />,
@@ -42,7 +45,7 @@ interface SettingsPanelProps {
   initialSection?: SettingsSection | undefined;
   signInError?: string | null;
   onReload?: () => void;
-  /** The kiosk's screen sleep delay, shown on the kiosk only. */
+  /** The kiosk's screen sleep delay; with it the kiosk has a Screen page. */
   screenSleep?: ScreenSleepMinutes;
   onScreenSleepChange?: (minutes: ScreenSleepMinutes) => void;
   /** The kiosk screen's brightness in percent, shown on a kiosk whose panel has a backlight it can set. */
@@ -141,13 +144,14 @@ export default function SettingsPanel({
   const [section, setSection] = useState<SettingsSection | undefined>(initialSection);
   const [wifi, recheckWifi] = useWifi(kiosk);
   const update = kiosk ? kioskUpdate : undefined;
-  // Screen sleep is the kiosk's only: a browser has no screen of its own to put to sleep.
+  // The Screen page is the kiosk's only: a browser has no screen of its own to dim or put to sleep.
   const hasSleep = kiosk && screenSleep !== undefined && onScreenSleepChange !== undefined;
   const owned = deviceConfig !== undefined && onDeviceConfigSave !== undefined;
   const sections = SETTINGS_SECTIONS.filter(
     choice =>
       (kiosk || !choice.kioskOnly) &&
-      (choice.id !== 'general' || owned || hasSleep) &&
+      (choice.id !== 'general' || owned) &&
+      (choice.id !== 'screen' || hasSleep) &&
       (choice.id !== 'countdown' || owned) &&
       (choice.id !== 'parcels' || owned)
   );
@@ -168,16 +172,21 @@ export default function SettingsPanel({
   let page: ReactNode;
   switch (current.id) {
     case 'general': {
-      page = (
-        <GeneralSettings
-          config={owned ? deviceConfig : undefined}
-          onSave={owned ? onDeviceConfigSave : undefined}
-          screenSleep={hasSleep ? screenSleep : undefined}
-          onScreenSleepChange={hasSleep ? onScreenSleepChange : undefined}
-          brightness={hasSleep ? brightness : undefined}
-          onBrightnessChange={hasSleep ? onBrightnessChange : undefined}
-          quietHours={hasSleep ? quietHours : undefined}
-          onQuietHoursChange={hasSleep ? onQuietHoursChange : undefined}
+      page = deviceConfig && onDeviceConfigSave && (
+        <GeneralSettings config={deviceConfig} onSave={onDeviceConfigSave} />
+      );
+      break;
+    }
+    case 'screen': {
+      page = hasSleep && (
+        <ScreenSettings
+          brightness={brightness}
+          onBrightnessChange={onBrightnessChange}
+          screenSleep={screenSleep}
+          onScreenSleepChange={onScreenSleepChange}
+          quietHours={quietHours}
+          onQuietHoursChange={onQuietHoursChange}
+          clockFormat={deviceConfig?.clock_format ?? DEFAULT_CLOCK_FORMAT}
         />
       );
       break;

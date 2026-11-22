@@ -1915,6 +1915,10 @@ body:has(.app-dialog[open]) {
   .settings-nav-list:has(> li:nth-child(7)) {
     gap: 4px;
   }
+  /* With the kiosk's Screen page there are nine, which fit as 52px rows. */
+  .settings-panel .settings-nav-list:has(> li:nth-child(9)) .settings-nav-item {
+    min-height: 52px;
+  }
 }
 .settings-nav-item {
   display: flex;
@@ -2146,33 +2150,47 @@ body:has(.app-dialog[open]) {
   stroke-width: 3;
   filter: drop-shadow(0 0 2px rgb(0 0 0 / 60%));
 }
-.settings-choices {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
-  gap: 10px;
-}
-.settings-panel .settings-choice {
+/* A group's title with its switch on the same line (SettingsToggle). */
+.settings-group-head {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 64px;
-  border: 2px solid var(--border);
-  border-radius: 16px;
-  background: var(--surface);
-  color: var(--ink);
-  font-size: 18px;
-  font-weight: 700;
+  justify-content: space-between;
+  gap: 16px;
+}
+.settings-panel .settings-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 84px;
+  min-width: 84px;
+  height: 48px;
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--surface-raised);
   transition:
     background 160ms,
     border-color 160ms;
 }
-.settings-choice[aria-pressed='true'] {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+.settings-switch-thumb {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition:
+    transform 160ms,
+    background 160ms;
 }
-.settings-choice svg {
-  color: var(--accent);
+.settings-switch[aria-checked='true'] {
+  border-color: transparent;
+  background: var(--play-fill);
+  box-shadow: var(--glow);
+}
+.settings-switch[aria-checked='true'] .settings-switch-thumb {
+  background: var(--accent-ink);
+  transform: translateX(36px);
 }
 /* The brightness slider, between its sun and its percentage. */
 .brightness-setting {
@@ -2227,8 +2245,10 @@ body:has(.app-dialog[open]) {
   display: grid;
   flex-shrink: 0;
   place-items: center;
-  width: 60px;
-  height: 60px;
+  width: 52px;
+  min-width: 52px;
+  height: 52px;
+  min-height: 52px;
   border-radius: 14px;
   background: var(--surface);
   color: var(--ink);
@@ -2508,9 +2528,6 @@ body:has(.app-dialog[open]) {
   align-items: center;
   gap: 16px;
 }
-.countdown-grouping-row .settings-segmented {
-  flex: 1;
-}
 .countdown-grouping-picture {
   display: contents;
 }
@@ -2730,10 +2747,9 @@ body:has(.app-dialog[open]) {
   .settings-box-value {
     font-size: 18px;
   }
-  .settings-panel .settings-segment,
-  .settings-panel .settings-choice {
-    min-height: 72px;
-    font-size: 20px;
+  .settings-panel .settings-segment {
+    min-height: 56px;
+    font-size: 19px;
   }
   .settings-swatches {
     gap: 14px;

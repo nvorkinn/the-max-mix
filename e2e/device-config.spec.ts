@@ -85,9 +85,11 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
       await expect.poll(() => server.saves.length).toBe(saves + 1);
     };
 
-    const notices = settings.getByRole('group', { name: 'Notice board' });
-    await expect(notices.getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true');
-    await pick('Notice board', 'On');
+    const notices = settings.getByRole('switch', { name: 'Notice board' });
+    await expect(notices).toHaveAttribute('aria-checked', 'false');
+    await notices.click();
+    await expect(notices).toHaveAttribute('aria-checked', 'true');
+    await expect.poll(() => server.saves.length).toBe(1);
     await pick('Arriving by', 'Day after');
     await pick('Delivered ones stay', 'A day');
     await expect(settings.getByText('Saved', { exact: true })).toBeVisible();
@@ -101,7 +103,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
   test('a quick run of changes saves only the last one', async ({ page }) => {
     const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
     await openSpotifyTab(page, '/?kiosk=1');
-    const settings = await openSettings(page, 'General');
+    const settings = await openSettings(page, 'Screen');
 
     // Both taps in one go: two Playwright clicks each wait for the page to settle, which on a busy runner can take
     // longer than the save's debounce and so save both.

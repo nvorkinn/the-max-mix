@@ -5,16 +5,12 @@ import { countdownServer } from '../../countdown/server';
 import QrCode from '../QrCode';
 import { useT } from '../../i18n/translate';
 import type { StringId } from '../../i18n/strings';
+import SettingsToggle from './SettingsToggle';
 
 type DaysAhead = NonNullable<Parcels['days_ahead']> | null;
 type KeptHours = NonNullable<Parcels['kept_hours']>;
 /** A choice's words: a string's id, and its arguments. */
 type Label = readonly [StringId, Record<string, number>?];
-
-const NOTICE_CHOICES: readonly { value: boolean; label: Label }[] = [
-  { value: false, label: ['common.off'] },
-  { value: true, label: ['common.on'] }
-];
 
 /** The settings site's "Arriving by", as the e-paper screens have it: which dated parcels show, by their due day. */
 const DAYS_AHEAD_CHOICES: readonly { value: DaysAhead; label: Label }[] = [
@@ -120,12 +116,11 @@ export default function ParcelsSettings({
   const current: Parcels = parcels ?? { enabled: false };
   return (
     <div className="settings-stack">
-      <Segmented
+      <SettingsToggle
         id="parcels-notices-label"
         title={t('parcels.notice_board')}
-        choices={NOTICE_CHOICES}
-        selected={current.enabled}
-        onSelect={enabled => onChange({ ...current, enabled })}
+        on={current.enabled}
+        onChange={enabled => onChange({ ...current, enabled })}
       />
       <Segmented
         id="parcels-days-ahead-label"

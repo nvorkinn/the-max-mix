@@ -363,18 +363,39 @@ describe('SettingsPanel', () => {
       history.replaceState(null, '', '/?kiosk=0');
     });
 
-    it('opens on General on the kiosk, with screen sleep there, which changes it', async () => {
+    it('opens on Screen on a kiosk no one owns yet, with screen sleep there, which changes it', async () => {
       const onScreenSleepChange = vi.fn();
       render(<SettingsPanel {...base} screenSleep={5} onScreenSleepChange={onScreenSleepChange} />);
       const nav = screen.getByRole('navigation', { name: 'Settings' });
-      expect(within(nav).queryByRole('button', { name: 'Screen sleep' })).not.toBeInTheDocument();
+      expect(within(nav).queryByRole('button', { name: 'General' })).not.toBeInTheDocument();
       expect(within(nav).queryByRole('button', { name: 'Countdown' })).not.toBeInTheDocument();
-      expect(within(nav).getByRole('button', { name: 'General' })).toHaveAttribute('aria-current', 'page');
-      expect(screen.queryByText('Time format')).not.toBeInTheDocument();
+      expect(within(nav).getByRole('button', { name: 'Screen' })).toHaveAttribute('aria-current', 'page');
       const choices = screen.getByRole('group', { name: 'Screen sleep' });
       expect(within(choices).getByRole('button', { name: '5 min' })).toHaveAttribute('aria-pressed', 'true');
       await userEvent.click(within(choices).getByRole('button', { name: 'Never' }));
       expect(onScreenSleepChange).toHaveBeenCalledWith(0);
+    });
+
+    it('keeps the screen settings off General once someone owns the kiosk, and shows brightness with a backlight', async () => {
+      render(
+        <SettingsPanel
+          {...base}
+          screenSleep={5}
+          onScreenSleepChange={vi.fn()}
+          brightness={80}
+          onBrightnessChange={vi.fn()}
+          deviceConfig={fixture.config as TouchscreenConfig}
+          onDeviceConfigSave={vi.fn()}
+        />
+      );
+      const nav = screen.getByRole('navigation', { name: 'Settings' });
+      expect(within(nav).getByRole('button', { name: 'General' })).toHaveAttribute('aria-current', 'page');
+      expect(screen.getByText('Time format')).toBeInTheDocument();
+      expect(screen.queryByText('Screen sleep')).not.toBeInTheDocument();
+      await userEvent.click(within(nav).getByRole('button', { name: 'Screen' }));
+      expect(screen.getByRole('slider', { name: 'Brightness' })).toHaveValue('80');
+      expect(screen.getByRole('group', { name: 'Screen sleep' })).toBeInTheDocument();
+      expect(screen.queryByText('Time format')).not.toBeInTheDocument();
     });
 
     it('offers the colour and Dynamic on the Appearance page, and no theme choice', () => {
@@ -389,7 +410,7 @@ describe('SettingsPanel', () => {
         />
       );
       expect(screen.getByRole('button', { name: 'Navy' })).toBeEnabled();
-      expect(within(screen.getByRole('group', { name: 'Dynamic' })).getByRole('button', { name: 'On' })).toBeEnabled();
+      expect(screen.getByRole('switch', { name: 'Dynamic' })).toBeChecked();
       expect(screen.queryByRole('group', { name: 'Theme' })).not.toBeInTheDocument();
     });
   });
@@ -535,10 +556,10 @@ describe('SettingsPanel', () => {
       within(screen.getByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Parcels' })
     );
 
-    const notices = within(screen.getByRole('group', { name: 'Notice board' }));
+    const notices = screen.getByRole('switch', { name: 'Notice board' });
     const arriving = within(screen.getByRole('group', { name: 'Arriving by' }));
     const kept = within(screen.getByRole('group', { name: 'Delivered ones stay' }));
-    expect(notices.getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true');
+    expect(notices).not.toBeChecked();
     expect(arriving.getByRole('button', { name: 'Any day' })).toHaveAttribute('aria-pressed', 'true');
     expect(kept.getByRole('button', { name: '4 hours' })).toHaveAttribute('aria-pressed', 'true');
     expect(arriving.getAllByRole('button').map(button => button.textContent)).toEqual([
@@ -554,7 +575,7 @@ describe('SettingsPanel', () => {
       'A day'
     ]);
 
-    await userEvent.click(notices.getByRole('button', { name: 'On' }));
+    await userEvent.click(notices);
     expect(onDeviceConfigSave).toHaveBeenLastCalledWith('parcels', { enabled: true, days_ahead: null, kept_hours: 4 });
     await userEvent.click(arriving.getByRole('button', { name: 'Tomorrow' }));
     expect(onDeviceConfigSave).toHaveBeenLastCalledWith('parcels', { enabled: false, days_ahead: 1, kept_hours: 4 });
@@ -592,9 +613,9 @@ describe('SettingsPanel', () => {
     try {
       render(<SettingsPanel {...props} />);
       // Neither page until the server has said which.
-      expect(screen.queryByRole('group', { name: 'Notice board' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('switch', { name: 'Notice board' })).not.toBeInTheDocument();
       expect(await screen.findByRole('heading', { name: 'Set up Parcel' })).toBeInTheDocument();
-      expect(screen.queryByRole('group', { name: 'Notice board' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('switch', { name: 'Notice board' })).not.toBeInTheDocument();
       expect(onShow).toHaveBeenCalledOnce();
 
       // The key is pasted on the phone: the settings come up, and the config is read again.
@@ -602,7 +623,7 @@ describe('SettingsPanel', () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(PARCEL_LINK_POLL_MS);
       });
-      expect(screen.getByRole('group', { name: 'Notice board' })).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'Notice board' })).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: 'Set up Parcel' })).not.toBeInTheDocument();
       expect(onShow).toHaveBeenCalledTimes(2);
     } finally {
@@ -624,11 +645,11 @@ describe('SettingsPanel', () => {
         onDeviceConfigSave={onDeviceConfigSave}
       />
     );
-    const notices = within(screen.getByRole('group', { name: 'Notice board' }));
-    expect(notices.getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true');
+    const notices = screen.getByRole('switch', { name: 'Notice board' });
+    expect(notices).not.toBeChecked();
     expect(screen.getByRole('button', { name: 'Any day' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: '4 hours' })).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.click(notices.getByRole('button', { name: 'On' }));
+    await userEvent.click(notices);
     expect(onDeviceConfigSave).toHaveBeenCalledExactlyOnceWith('parcels', { enabled: true });
   });
 

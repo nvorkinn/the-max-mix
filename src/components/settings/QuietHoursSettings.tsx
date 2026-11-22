@@ -4,6 +4,7 @@ import type { ClockFormat } from '../../utils/clockFormat';
 import { stepTime, timeOfDay } from '../../utils/quietHours';
 import type { QuietHours } from '../../utils/quietHours';
 import { useT } from '../../i18n/translate';
+import SettingsToggle from './SettingsToggle';
 
 /** One end of the quiet hours, moved half an hour at a time; it skips over `other`, as equal times would never be quiet. */
 function TimeStepper({
@@ -46,23 +47,12 @@ export default function QuietHoursSettings({
 }: Readonly<{ hours: QuietHours; clockFormat: ClockFormat; onChange: (hours: QuietHours) => void }>) {
   const t = useT();
   return (
-    <section className="settings-group">
-      <h5 className="settings-group-title" id="quiet-hours-label">
-        {t('general.quiet_hours')}
-      </h5>
-      <div className="settings-segmented" role="group" aria-labelledby="quiet-hours-label">
-        {[false, true].map(on => (
-          <button
-            type="button"
-            key={String(on)}
-            aria-pressed={hours.on === on}
-            onClick={() => onChange({ ...hours, on })}
-            className="settings-segment"
-          >
-            {t(on ? 'common.on' : 'common.off')}
-          </button>
-        ))}
-      </div>
+    <SettingsToggle
+      id="quiet-hours-label"
+      title={t('general.quiet_hours')}
+      on={hours.on}
+      onChange={on => onChange({ ...hours, on })}
+    >
       {hours.on && (
         <div className="quiet-hours">
           <TimeStepper
@@ -81,6 +71,6 @@ export default function QuietHoursSettings({
           />
         </div>
       )}
-    </section>
+    </SettingsToggle>
   );
 }

@@ -501,15 +501,15 @@ describe('TabletView', () => {
       within(screen.getByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Appearance' })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Navy' }));
-    const dynamic = within(screen.getByRole('group', { name: 'Dynamic' }));
-    fireEvent.click(dynamic.getByRole('button', { name: 'On' }));
+    const dynamic = screen.getByRole('switch', { name: 'Dynamic' });
+    fireEvent.click(dynamic);
     expect(room).toHaveAttribute('data-dynamic');
     expect(room).toHaveAttribute('data-colour', 'navy');
     // Nothing plays, so Dynamic shows the picked colour.
     expect(room).toHaveStyle({ '--dynamic-accent': '#5b8def' });
     expect(localStorage.getItem('maxmix.dynamicColour')).toBe('on');
 
-    fireEvent.click(dynamic.getByRole('button', { name: 'Off' }));
+    fireEvent.click(dynamic);
     expect(room).not.toHaveAttribute('data-dynamic');
     expect(localStorage.getItem('maxmix.dynamicColour')).toBeNull();
     localStorage.removeItem('maxmix.themeColour');
@@ -559,7 +559,7 @@ describe('TabletView', () => {
 
       vi.useFakeTimers();
       openAppearance();
-      fireEvent.click(within(screen.getByRole('group', { name: 'Dynamic' })).getByRole('button', { name: 'On' }));
+      fireEvent.click(screen.getByRole('switch', { name: 'Dynamic' }));
       await act(() => vi.advanceTimersByTimeAsync(500));
       expect(save.mock.calls[0]).toEqual(['style', { skin: 'day', colour: 'teal', dynamic: true }]);
       expect(room).toHaveAttribute('data-dynamic');
@@ -602,7 +602,7 @@ describe('TabletView', () => {
         const { room, save } = await renderOwned();
         vi.useFakeTimers();
         openAppearance();
-        fireEvent.click(within(screen.getByRole('group', { name: 'Dynamic' })).getByRole('button', { name: 'Off' }));
+        fireEvent.click(screen.getByRole('switch', { name: 'Dynamic' }));
         await act(() => vi.advanceTimersByTimeAsync(500));
         expect(save.mock.calls[0]).toEqual(['style', { skin: 'day', colour: 'forest', dynamic: false }]);
         expect(room).not.toHaveAttribute('data-dynamic');

@@ -65,7 +65,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await page.goto('/?kiosk=1&pi_ref=v1.12.0&pi_commit=5a39e9a');
       const settings = await openSettings(page);
       for (const [section, name] of [
-        ['General', 'settings-general'],
+        ['Screen', 'settings-screen'],
         ['Appearance', 'settings-appearance'],
         ['Wi-Fi', 'settings-wifi'],
         ['Spotify', 'settings-spotify'],
@@ -147,6 +147,26 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await expect(settings.getByRole('img', { name: 'Norway' })).toBeVisible();
       await expect(settings).toHaveScreenshot(shotName('settings-general-owned', screen), SHOT);
     });
+
+    test(
+      `settings Screen page with a backlight and quiet hours at ${size(screen)}`,
+      { tag: '@settings' },
+      async ({ page }) => {
+        await page.setViewportSize(screen);
+        await fakeCountdownServer(page, {
+          ...DEVICE_CONFIGS.owned,
+          brightness_control: true,
+          display: { sleep_minutes: 15, brightness: 80, quiet_hours: { on: true, start: 22 * 60, end: 7 * 60 } }
+        });
+        // Midday, outside the quiet hours, so the screen stays awake.
+        await page.clock.setFixedTime(new Date('2026-11-13T12:00:00'));
+        await page.goto('/?kiosk=1');
+        const settings = await openSettings(page, 'Screen');
+        await expect(settings.getByRole('slider', { name: 'Brightness' })).toHaveValue('80');
+        await expect(settings.getByRole('group', { name: 'From' })).toBeVisible();
+        await expect(settings).toHaveScreenshot(shotName('settings-screen-backlit', screen), SHOT);
+      }
+    );
 
     test(`settings Parcels page at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
       await page.setViewportSize(screen);
