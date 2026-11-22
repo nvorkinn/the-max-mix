@@ -320,12 +320,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     saveConfigSection('display', { ...display, quiet_hours: localQuietHours });
   }, [display, localQuietHours, saveConfigSection]);
   const changeQuietHours = (hours: QuietHours) => {
-    if (display) {
-      deviceConfig.save('display', { ...display, quiet_hours: hours });
-      return;
-    }
+    // Kept locally too, so the change holds with a server that predates quiet hours and answers without them.
     setLocalQuietHours(hours);
     saveQuietHours(hours);
+    if (display) deviceConfig.save('display', { ...display, quiet_hours: hours });
   };
   // The brightness setting, on a kiosk whose panel has a backlight the Pi can set (utils/backlight).
   const hasBacklight = onKiosk && ownedConfig?.brightness_control === true;
