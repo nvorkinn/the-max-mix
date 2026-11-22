@@ -35,7 +35,7 @@ interface KnownScreen extends ScreenSetup {
  * The screens the kiosk sets up by itself. A DSI panel sends no EDID, so it is known by its connector and mode. Add a
  * screen here once it has been tried on a Pi.
  */
-export const KNOWN_SCREENS: readonly KnownScreen[] = [
+const KNOWN_SCREENS: readonly KnownScreen[] = [
   {
     // Raspberry Pi Touch Display 2, 10.1 inch (the-max-mix-4, 2026-11-22): portrait 1200x1920 on DSI, so turned to
     // landscape, and drawn half as big again so the app gets the 1280x800 page it is laid out for.
@@ -54,7 +54,7 @@ const PLAIN: ScreenSetup = { rotation: 0, scale: 1 };
  * libinput's calibration matrix for each rotation (LIBINPUT_CALIBRATION_MATRIX), the first two rows of the matrix that
  * turns a touch the way the picture is turned.
  */
-export const TOUCH_MATRICES: Record<Rotation, string> = {
+const TOUCH_MATRICES: Record<Rotation, string> = {
   0: '1 0 0 0 1 0',
   90: '0 -1 1 1 0 0',
   180: '-1 0 1 0 -1 1',
