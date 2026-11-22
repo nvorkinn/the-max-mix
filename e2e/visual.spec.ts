@@ -85,28 +85,32 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
     test(`Wi-Fi From phone and Hotspot dialogs at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
       await page.setViewportSize(screen);
       await fakeSpotify(page);
+      let hotspotState = 'running';
       await page.route('http://127.0.0.1:7341/**', route => {
         const request = route.request();
-        return route.fulfill(phoneSetupAnswer(request) ?? wifiAnswer(request, 'Home network') ?? { status: 204 });
+        return route.fulfill(
+          phoneSetupAnswer(request, hotspotState) ?? wifiAnswer(request, 'Home network') ?? { status: 204 }
+        );
       });
       await page.goto('/?kiosk=1');
       const settings = await openSettings(page, 'Wi-Fi');
-      for (const [button, name] of [
-        ['From phone', 'wifi-from-phone'],
-        ['Hotspot', 'wifi-hotspot']
-      ] as const) {
-        // eslint-disable-next-line no-await-in-loop -- one dialog after another
-        await settings.getByRole('button', { name: button, exact: true }).click();
-        const dialog = page.getByRole('dialog', { name: button });
-        // eslint-disable-next-line no-await-in-loop -- the same
-        await expect(dialog.getByText('Waiting for your phone…')).toBeVisible();
-        // eslint-disable-next-line no-await-in-loop -- the same
-        await expect.soft(page).toHaveScreenshot(shotName(name, screen), SHOT);
-        // eslint-disable-next-line no-await-in-loop -- the same
-        await dialog.getByRole('button', { name: 'Back' }).click();
-        // eslint-disable-next-line no-await-in-loop -- the same
-        await expect(dialog).toBeHidden();
-      }
+
+      await settings.getByRole('button', { name: 'From phone', exact: true }).click();
+      const phone = page.getByRole('dialog', { name: 'From phone' });
+      await expect(phone.getByText('Waiting for your phone…')).toBeVisible();
+      await expect.soft(page).toHaveScreenshot(shotName('wifi-from-phone', screen), SHOT);
+      await phone.getByRole('button', { name: 'Back' }).click();
+      await expect(phone).toBeHidden();
+
+      // Step 1 open, then step 2 once a phone is on the hotspot.
+      await settings.getByRole('button', { name: 'Hotspot', exact: true }).click();
+      const hotspot = page.getByRole('dialog', { name: 'Hotspot' });
+      const steps = hotspot.getByRole('listitem');
+      await expect(steps.first()).toHaveAttribute('aria-current', 'step');
+      await expect.soft(page).toHaveScreenshot(shotName('wifi-hotspot', screen), SHOT);
+      hotspotState = 'connected';
+      await expect(steps.last()).toHaveAttribute('aria-current', 'step');
+      await expect.soft(page).toHaveScreenshot(shotName('wifi-hotspot-step-2', screen), SHOT);
     });
 
     test(`settings Countdown page at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
