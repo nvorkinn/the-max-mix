@@ -18,10 +18,9 @@ function setup(isJoining = true) {
     sessions.push(session);
     return Promise.resolve({ stop: stops });
   });
-  const done = vi.fn();
   const connect = vi.fn().mockResolvedValue(isJoining ? { ok: true } : { ok: false, error: 'Wrong password.' });
-  const phone = new PhoneSetup({ connect, done, advertise });
-  return { phone, sessions, stops, advertise, done, connect };
+  const phone = new PhoneSetup({ connect, advertise });
+  return { phone, sessions, stops, advertise, connect };
 }
 
 const firstOf = (sessions: ImprovSession[]): ImprovSession => {
@@ -60,30 +59,30 @@ describe('kiosk-audio/phone-setup', () => {
     expect(stops).toHaveBeenCalledOnce();
   });
 
-  it('closes the setup page a moment after the phone has joined a network, and stops advertising', async () => {
-    const { phone, sessions, stops, done, connect } = setup();
+  it('stops advertising a moment after the phone has joined a network', async () => {
+    const { phone, sessions, stops, connect } = setup();
     await phone.start();
     const session = firstOf(sessions);
     await session.handle(wifiPacket('Home', 'placeholder-pass'));
     expect(session.state).toBe(State.provisioned);
     expect(connect).toHaveBeenCalledOnce();
-    expect(done).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(4000);
+    await vi.advanceTimersByTimeAsync(4000 - 1);
+    expect(stops).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
     expect(stops).toHaveBeenCalledOnce();
-    expect(done).toHaveBeenCalledOnce();
   });
 
-  it('leaves the page open when the phone could not join', async () => {
-    const { phone, sessions, done } = setup(false);
+  it('keeps advertising when the phone could not join, so it can try again', async () => {
+    const { phone, sessions, stops } = setup(false);
     await phone.start();
     await firstOf(sessions).handle(wifiPacket('Home', 'placeholder-bad'));
     await vi.advanceTimersByTimeAsync(10_000);
-    expect(done).not.toHaveBeenCalled();
+    expect(stops).not.toHaveBeenCalled();
   });
 
   it('rejects when Bluetooth would not start, and can be tried again', async () => {
     const advertise = vi.fn().mockRejectedValueOnce(new Error('no bluetooth')).mockResolvedValue({ stop: vi.fn() });
-    const phone = new PhoneSetup({ connect: vi.fn(), done: vi.fn(), advertise });
+    const phone = new PhoneSetup({ connect: vi.fn(), advertise });
     await expect(phone.start()).rejects.toThrow('no bluetooth');
     await expect(phone.start()).resolves.toBeUndefined();
   });

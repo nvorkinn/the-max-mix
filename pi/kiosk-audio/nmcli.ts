@@ -1,4 +1,4 @@
-// Wi-Fi through NetworkManager's nmcli, for the Wi-Fi setup page.
+// Wi-Fi through NetworkManager's nmcli, for the app's Settings > Wi-Fi and the phone setups.
 // Every command is an argument list, never a shell. The password reaches nmcli on stdin (`--ask`), never in argv, so
 // `ps` does not show it, and it is never logged. The service runs as the kiosk user, which polkit lets manage
 // NetworkManager (50-kiosk-networkmanager.rules).

@@ -50,10 +50,8 @@ export class HotspotError extends Error {
 export interface HotspotOptions {
   /** The networks in range (the kiosk's scan), asked before the hotspot takes the radio. */
   scan: () => Promise<Network[]>;
-  /** Joins a network, as the setup page's Connect does. */
+  /** Joins a network, as Connect in the app's Settings > Wi-Fi does. */
   connect: (request: ConnectRequest) => Promise<ConnectResult>;
-  /** Closes the setup page. */
-  done: () => void;
   run?: Run;
   /** Makes the service's HTTP server accept connections on the hotspot's address. */
   listen: (host: string) => Promise<Portal>;
@@ -215,7 +213,6 @@ export class Hotspot {
         const result = await this.connectQuietly(request);
         if (result.ok) {
           this.current = { state: 'idle' };
-          this.options.done();
         } else {
           await this.restorePrevious();
           this.current = { state: 'failed', error: `Could not join ${request.ssid}: ${result.error}` };

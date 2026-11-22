@@ -98,7 +98,7 @@ kiosk_update_initramfs: true
 
 # Screen sleep. The app decides when the screen may sleep (never while music plays, otherwise after the idle minutes chosen
 # in its settings) and shows a black sleep screen. This many seconds later without a touch, swayidle turns the HDMI output
-# off; the first touch turns it on again. Also how long the Wi-Fi panel stays lit without a touch. 0 never turns it off.
+# off; the first touch turns it on again. 0 never turns it off.
 kiosk_screen_off_after: 60
 
 # Packages from the Raspberry Pi archive only (not in Debian). Tests in a plain Debian container set this to [].
@@ -160,7 +160,7 @@ kiosk_keyboard_src: '{{ playbook_dir }}/../pi/kiosk-keyboard'
 kiosk_keyboard_dir: /opt/the-max-mix/kiosk-keyboard
 
 # The kiosk-audio service (pi/kiosk-audio): a user unit that answers the app on 127.0.0.1 (speakers, routing, the update
-# stream, restart, reboot, Wi-Fi panel, screen wake) and keeps the audio links in place. Its one npm package (ws, for the
+# stream, restart, reboot, Wi-Fi, screen wake) and keeps the audio links in place. Its one npm package (ws, for the
 # update stream) is installed from files/kiosk-audio/package-lock.json with npm ci; kiosk_audio_deps_stamp records which
 # lockfile was installed.
 kiosk_audio_src: '{{ playbook_dir }}/../pi/kiosk-audio'

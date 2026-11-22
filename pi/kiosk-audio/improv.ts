@@ -80,7 +80,7 @@ export function resultPacket(command: number, strings: readonly string[] = []): 
   return Uint8Array.from([...body, checksum(body)]);
 }
 
-/** Joins a network; the same as the Wi-Fi setup page's Connect. */
+/** Joins a network; the same as Connect in the app's Settings > Wi-Fi. */
 export type Connect = (request: ConnectRequest) => Promise<ConnectResult>;
 
 /**

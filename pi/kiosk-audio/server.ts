@@ -25,18 +25,14 @@
 //                           `to` in the group's Sonos queue, if it is still the song called `name`
 //   GET  /sonos/events      server-sent events while the app listens: data {"kind": "groups"} when rooms join or leave,
 //                           {"kind": "now"} when what a group plays (or its volume) changes (sonos-events.ts)
-//   POST /wifi              {"language": "en" | "nb"}?   show the Wi-Fi setup page (actions.ts), in that language (the
-//                           tablet's; remembered, and kept when there is no body)
 //   GET  /wifi/status       {"ssid": "Home", "address": "192.168.1.42"}: the network the Wi-Fi is on and the Pi's IPv4
 //                           address on it, each or null (the app's origin only)
 //   GET  /wifi/networks     {"networks": [{"ssid", "signal", "bars", "security"}, …]}   or 503 {"error"}: a safe message
 //   POST /wifi/connect      {"ssid", "password", "hidden", "security"}   join a network: {"ok": true} or {"ok": false, "error"}
 //   POST /wifi/phone        start Wi-Fi setup from a phone over Bluetooth for a few minutes (phone-setup.ts): {"ok": true}
-//                           or 503 {"error"}. The page that shows the button is the only thing that can ask.
+//                           or 503 {"error"}
 //   POST /wifi/hotspot      start a setup hotspot for a phone (hotspot.ts): {"ssid", "password", "url", "wifiQr", "urlQr"}
 //                           or 503 {"error"}   POST /wifi/hotspot/stop  end it   GET /wifi/hotspot  {"state", "error"?}
-//   POST /wifi/done         the setup page is finished (joined, or Cancel): close it
-//   GET  /wifi-setup        the Wi-Fi setup page and its scripts (wifi-setup.ts)
 //   GET  /lyrics?title=&artist=&duration=   lyrics from LRCLIB, Musixmatch, NetEase, QQ Music or KuGou (lyrics.ts):
 //                           {"source"} and "lrc" (synced, timed word by word when a source has that), "plain" (text
 //                           only) or "instrumental": true; the duration in ms is optional;
@@ -63,8 +59,9 @@
 //                           (update-socket.ts)
 // Only the app's origin is answered (CORS, and every POST and WebSocket is refused without its Origin header, so no other
 // web page can trigger one). A request carries no command, only the name of one of the fixed actions in actions.ts.
-// The Wi-Fi POSTs are for the Wi-Fi setup page this service serves itself (it has to work offline), so they answer
-// its origin (LOCAL_ORIGIN) instead, and the app's origin cannot join a network.
+// The Wi-Fi requests are for the app's Settings > Wi-Fi, which opens by itself when the kiosk starts with no network: the
+// app works offline because this service serves it. The POSTs that change the network answer only that copy
+// (LOCAL_ORIGIN), never a hosted app.
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { perform } from './actions.ts';
@@ -104,13 +101,9 @@ import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
 import { runUpdate } from './update.ts';
 import { chromiumPid, CHECK_MS, stopChromium, Watchdog } from './watchdog.ts';
-import { wifiSetupAsset } from './wifi-setup.ts';
-import type { Asset } from './wifi-setup.ts';
-import { parseLanguage } from './words.ts';
-import type { Language } from './words.ts';
 
 const SPEAKERS_PORT = 7341;
-/** The origin of the pages this service serves itself (the Wi-Fi setup page). */
+/** This service's own origin, which is the app's when the service serves it (kiosk_app_origin). */
 export const LOCAL_ORIGIN = `http://127.0.0.1:${SPEAKERS_PORT}`;
 const MAX_BODY = 4096;
 /** How long POST /bluetooth/pair-phone/pick waits to hear that a pick was refused before answering 204. */
@@ -121,8 +114,7 @@ const LOGS_PER_MINUTE = 30;
 const POST_ACTIONS: Record<string, Action> = {
   '/power/restart': 'restart',
   '/power/reboot': 'reboot',
-  '/display/wake': 'wake',
-  '/wifi': 'wifi'
+  '/display/wake': 'wake'
 };
 
 /** What the service needs: PipeWire's graph, routing, and a way to run an action; tests pass fakes. */
@@ -147,10 +139,6 @@ export interface Deps {
   handover: HandoverStore;
   /** The web app installed on the Pi (app-files.ts): the file a GET of the URL asks for, or null. */
   app: (url: string) => Promise<AppFile | null>;
-  /** The setup page (in the language) or one of its scripts for a GET of the URL, or null. */
-  asset: (url: string, language: Language) => Promise<Asset | null>;
-  /** The tablet's language, which POST /wifi brings, for the setup page; kept across restarts. */
-  language: { get: () => Language; set: (language: Language) => void };
   /** Lyrics for a song, or null; rejects when no source could be reached. */
   lyrics: (query: LyricsQuery) => Promise<LyricsHit | null>;
   bluetooth: BluetoothControl;
@@ -186,7 +174,7 @@ interface BluetoothControl {
   remove: (address: string) => Promise<void>;
 }
 
-/** NetworkManager, for the Wi-Fi setup page (nmcli.ts). */
+/** NetworkManager, for the app's Settings > Wi-Fi (nmcli.ts). */
 interface Wifi {
   scan: () => Promise<Network[]>;
   /** The name of the network the Wi-Fi is on, or null. */
@@ -194,8 +182,6 @@ interface Wifi {
   /** The Pi's IPv4 address on its network, or null. */
   address: () => string | null;
   connect: (request: ConnectRequest) => Promise<ConnectResult>;
-  /** Closes the setup page (stops the Chromium that shows it); does not wait for that. */
-  done: () => void;
 }
 
 /** An error the app reported, for the journal. */
@@ -467,24 +453,6 @@ async function postPick(
   else response.writeHead(204).end();
 }
 
-/**
- * POST /wifi's body, `{"language": "nb"}`, says which language the setup page is to be in: 'en' or 'nb', and English for
- * anything else. With no body (an app from before it said) the page keeps the language it had.
- */
-async function noteLanguage(request: IncomingMessage, deps: Deps): Promise<void> {
-  const text = await readBody(request);
-  if (text.trim() === '') return;
-  let body: unknown;
-  try {
-    body = JSON.parse(text);
-  } catch {
-    body = null;
-  }
-  deps.language.set(
-    parseLanguage(typeof body === 'object' && body !== null && 'language' in body ? body.language : null)
-  );
-}
-
 async function post(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
   const url = request.url ?? '';
   const action = POST_ACTIONS[url];
@@ -545,11 +513,6 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
       await postBluetooth(url, request, response, deps);
       return;
     }
-    case '/wifi': {
-      await noteLanguage(request, deps);
-      await deps.perform('wifi');
-      break;
-    }
     default: {
       if (action) await deps.perform(action);
       else status = 404;
@@ -606,9 +569,12 @@ function describeError(error: unknown): string {
   return messages.join(': ');
 }
 
-async function postWifi(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
+/** The Wi-Fi POSTs: the app's origin only, since each changes the network or the radio. */
+async function postWifi(request: IncomingMessage, response: ServerResponse, origin: string, deps: Deps): Promise<void> {
   const { wifi } = deps;
-  if (request.headers.origin !== LOCAL_ORIGIN) {
+  // Only the copy of the app this service serves changes the network, never a page from elsewhere, so a hosted app
+  // origin (kiosk_app_origin before the move to the Pi) cannot.
+  if (origin !== LOCAL_ORIGIN || request.headers.origin !== LOCAL_ORIGIN) {
     response.writeHead(403).end();
     return;
   }
@@ -635,11 +601,6 @@ async function postWifi(request: IncomingMessage, response: ServerResponse, deps
   if (request.url === '/wifi/hotspot/stop') {
     await deps.hotspot.stop();
     response.writeHead(204).end();
-    return;
-  }
-  if (request.url === '/wifi/done') {
-    response.writeHead(204).end();
-    wifi.done();
     return;
   }
   const body = parseConnectRequest(JSON.parse(await readBody(request)) as unknown);
@@ -684,11 +645,6 @@ async function get(url: string, response: ServerResponse, deps: Deps, isApp: boo
       break;
     }
     default: {
-      const asset = await deps.asset(url, deps.language.get());
-      if (asset) {
-        response.writeHead(200, { 'Content-Type': asset.type }).end(asset.body);
-        return;
-      }
       const file = await deps.app(url);
       if (file) {
         response
@@ -785,7 +741,7 @@ function appOnlyGet(
 export function handleRequest(origin: string, deps: Deps) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     // A request that did not come in on this machine's own address came over the setup hotspot, whose password anyone
-    // nearby may be given: it gets the setup page and nothing of the kiosk's own requests, whatever its Origin says.
+    // nearby may be given: it gets the hotspot's page (hotspot-portal.ts) and nothing of the kiosk's own requests, whatever its Origin says.
     if (!isLoopback(request.socket.localAddress)) {
       await deps.hotspot.handlePortal(request, response);
       return;
@@ -808,15 +764,11 @@ export function handleRequest(origin: string, deps: Deps) {
         await handleGet(request, response, origin, deps);
       } else if (
         request.method === 'POST' &&
-        ['/wifi/connect', '/wifi/done', '/wifi/phone', '/wifi/hotspot', '/wifi/hotspot/stop'].includes(
-          request.url ?? ''
-        )
+        ['/wifi/connect', '/wifi/phone', '/wifi/hotspot', '/wifi/hotspot/stop'].includes(request.url ?? '')
       ) {
-        await postWifi(request, response, deps);
+        await postWifi(request, response, origin, deps);
       } else if (request.method === 'POST') {
-        // The Wi-Fi setup page runs in the kiosk's Chromium too, and sends heartbeats so the watchdog leaves it alone.
-        const isHeartbeat = request.url === '/heartbeat' && request.headers.origin === LOCAL_ORIGIN;
-        if (isHeartbeat || isFromApp(request, origin)) await post(request, response, deps);
+        if (isFromApp(request, origin)) await post(request, response, deps);
         else response.writeHead(403).end();
       } else {
         response.writeHead(404).end();
@@ -843,7 +795,7 @@ function nameKioskOnStart(monitor: { note: (message: string) => void }, retryMs 
 
 export function serveSpeakers(
   origin: string,
-  deps: Pick<Deps, 'graph' | 'route' | 'setVolume' | 'wifi' | 'language'> & {
+  deps: Pick<Deps, 'graph' | 'route' | 'setVolume' | 'wifi'> & {
     /** Where "Pair my phone" notes the phones it paired. */
     phonesFile: string;
     /** The web app's folder (KIOSK_APP_DIR), or '' for none. */
@@ -891,7 +843,6 @@ export function serveSpeakers(
     sonosEvents: new SonosEventHub(libraryEvents),
     heartbeat,
     log: journalLog(),
-    asset: (url, language) => wifiSetupAsset(url, undefined, language),
     app: appFiles(deps.appFolder),
     handover: handoverFile(deps.handoverFile),
     lyrics: cached(query => findLyrics(query)),
@@ -909,19 +860,11 @@ export function serveSpeakers(
         bluetoothMonitor.note(message);
       }
     }),
-    phone: new PhoneSetup({
-      connect: request => deps.wifi.connect(request),
-      done: () => {
-        deps.wifi.done();
-      }
-    }),
+    phone: new PhoneSetup({ connect: request => deps.wifi.connect(request) }),
     hotspot: new Hotspot({
       listen: host => listenForHotspot(server, host),
       scan: () => deps.wifi.scan(),
-      connect: request => deps.wifi.connect(request),
-      done: () => {
-        deps.wifi.done();
-      }
+      connect: request => deps.wifi.connect(request)
     })
   });
   const server = createServer((request, response) => void handler(request, response));

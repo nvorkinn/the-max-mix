@@ -43,7 +43,7 @@ describe('Watchdog', () => {
     expect(state.logs[0]).toMatch(/No heartbeat/);
   });
 
-  it('gives a new Chromium the whole wait, and leaves the Wi-Fi panel alone', async () => {
+  it('gives a new Chromium the whole wait, and leaves a stopped one alone', async () => {
     const { state, watchdog } = setup();
     await watchdog.check();
     watchdog.beat();

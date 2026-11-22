@@ -1,19 +1,16 @@
 // What the app's kiosk buttons can ask of the Pi, and nothing else: each action is a fixed command (no argument comes
 // from the request). The service runs as the kiosk user, so polkit (50-kiosk-power.rules) still decides what it may do.
 import { execFile } from 'node:child_process';
-import { readFile, writeFile } from 'node:fs/promises';
 
-export type Action = 'restart' | 'reboot' | 'wake' | 'wifi';
+export type Action = 'restart' | 'reboot' | 'wake';
 
 const SYSTEMCTL = '/usr/bin/systemctl';
-const COMMANDS: Record<Exclude<Action, 'wifi'>, string[]> = {
+const COMMANDS: Record<Action, string[]> = {
   restart: [SYSTEMCTL, 'restart', '--no-block', 'kiosk.service'],
   reboot: [SYSTEMCTL, 'reboot'],
   // Turns the screen back on; it needs Cage's Wayland socket.
   wake: ['/usr/local/bin/kiosk-display', 'on']
 };
-const WIFI_FLAG = '/run/kiosk/show-wifi';
-const CHROMIUM_PID = '/run/kiosk/chromium.pid';
 
 export type Execute = (argv: string[]) => Promise<void>;
 
@@ -33,25 +30,6 @@ const execute: Execute = ([file = '', ...args]) =>
     });
   });
 
-/** Shows the Wi-Fi setup page: kiosk-session looks for the flag when Chromium stops, so stop Chromium. */
-async function showWifiPanel(flag: string, pidFile: string): Promise<void> {
-  await writeFile(flag, '');
-  let text = '';
-  try {
-    text = await readFile(pidFile, 'utf8');
-  } catch {
-    // Chromium is not running; the flag is enough.
-  }
-  const pid = Number(text.trim());
-  if (Number.isSafeInteger(pid) && pid > 1) process.kill(pid, 'SIGTERM');
-}
-
-const WIFI_FILES = { flag: WIFI_FLAG, pid: CHROMIUM_PID };
-
-export async function perform(
-  action: Action,
-  { run = execute, files = WIFI_FILES }: { run?: Execute; files?: typeof WIFI_FILES } = {}
-): Promise<void> {
-  if (action === 'wifi') await showWifiPanel(files.flag, files.pid);
-  else await run(COMMANDS[action]);
+export async function perform(action: Action, { run = execute }: { run?: Execute } = {}): Promise<void> {
+  await run(COMMANDS[action]);
 }

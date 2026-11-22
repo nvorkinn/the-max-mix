@@ -27,18 +27,16 @@ function setup(answers: Record<string, { code: number; stdout: string }>, overri
   };
   const closed = vi.fn().mockResolvedValue(undefined);
   const listen = vi.fn().mockResolvedValue({ port: 80, close: closed });
-  const done = vi.fn();
   const connect = vi.fn().mockResolvedValue({ ok: true });
   const hotspot = new Hotspot({
     scan: () => Promise.resolve(NETWORKS),
     connect,
-    done,
     run,
     listen,
     random: () => 0,
     ...overrides
   });
-  return { hotspot, calls, listen, closed, done, connect };
+  return { hotspot, calls, listen, closed, connect };
 }
 const base = {
   '-t -f DEVICE,TYPE': { code: 0, stdout: DEVICES },
@@ -189,8 +187,8 @@ describe('kiosk-audio/hotspot', () => {
     const request = { ssid: 'Home', password: 'placeholder-pass', hidden: false, security: 'psk' as const };
     const choose = (hotspot: Hotspot, chosen: unknown = request) => overHotspot(hotspot, 'POST', '/connect', chosen);
 
-    it('leaves the hotspot after the phone was answered, joins the network, and closes the page', async () => {
-      const { hotspot, connect, done, closed } = setup(base);
+    it('leaves the hotspot after the phone was answered, and joins the network', async () => {
+      const { hotspot, connect, closed } = setup(base);
       await hotspot.start();
       expect((await choose(hotspot)).status).toBe(200);
       expect(hotspot.status()).toEqual({ state: 'joining' });
@@ -199,17 +197,15 @@ describe('kiosk-audio/hotspot', () => {
       await vi.advanceTimersByTimeAsync(1500);
       expect(closed).toHaveBeenCalledOnce();
       expect(connect).toHaveBeenCalledWith(request);
-      expect(done).toHaveBeenCalledOnce();
       expect(hotspot.status()).toEqual({ state: 'idle' });
     });
 
     it('says why it failed, and puts the earlier network back', async () => {
       const connect = vi.fn().mockResolvedValue({ ok: false, error: 'Wrong password.' });
-      const { hotspot, done, calls } = setup(base, { connect });
+      const { hotspot, calls } = setup(base, { connect });
       await hotspot.start();
       await choose(hotspot);
       await vi.advanceTimersByTimeAsync(1500);
-      expect(done).not.toHaveBeenCalled();
       expect(hotspot.status()).toEqual({ state: 'failed', error: 'Could not join Home: Wrong password.' });
       expect(calls.at(-1)).toEqual(['nmcli', 'connection', 'up', 'uuid', 'aaaa-1111']);
     });

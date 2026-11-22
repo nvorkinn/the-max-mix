@@ -10,7 +10,6 @@
   "entry": [
     "pi/kiosk-audio/kiosk-audio.ts",
     "pi/kiosk-audio/screen-mode.ts",
-    "pi/kiosk-audio/wifi-page.ts",
     "pi/kiosk-keyboard/back.ts",
     "pi/kiosk-keyboard/build.ts",
     "pi/tools/*.mts"

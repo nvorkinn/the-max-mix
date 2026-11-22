@@ -1,7 +1,7 @@
-// The words of the kiosk's own pages, in English and Norwegian Bokmål: the Wi-Fi setup page (wifi-setup.ts and
-// wifi-page.ts), which follows the tablet's language, and the hotspot's page for a phone (hotspot-portal.ts), which
-// follows the phone's. The app has its own catalogue (src/i18n); this service ships to the Pi on its own, so it keeps
-// this small one. It runs in the browser too (wifi-setup.ts serves it next to the page script), so it imports nothing.
+// The words of this service, in English and Norwegian Bokmål: the hotspot's page for a phone (hotspot-portal.ts), which
+// follows the phone's language, and the service's own messages. The app has its own catalogue (src/i18n); this service
+// ships to the Pi on its own, so it keeps this small one. The app imports it too (src/utils/kioskWifi.ts, for
+// `localize`), so it imports nothing.
 // `{name}` in a text is filled in from `say`'s arguments.
 
 /** English (en) or Norwegian Bokmål (nb), as the app's config names them. */
@@ -11,63 +11,11 @@ export type Language = 'en' | 'nb';
 export const LOCALES: Readonly<Record<Language, string>> = { en: 'en-GB', nb: 'nb-NO' };
 
 const WORDS = {
-  // The Wi-Fi setup page on the kiosk's screen.
-  'wifi.title': { en: 'Wi-Fi setup', nb: 'Wi-Fi-oppsett' },
-  'wifi.choose': { en: 'Choose a Wi-Fi network', nb: 'Velg nettverk' },
-  'wifi.other': { en: 'Other…', nb: 'Annet …' },
-  'wifi.fromPhone': { en: 'From phone', nb: 'Fra telefon' },
-  'wifi.hotspot': { en: 'Hotspot', nb: 'Hotspot' },
-  'wifi.refresh': { en: 'Refresh', nb: 'Oppdater' },
-  'wifi.cancel': { en: 'Cancel', nb: 'Avbryt' },
-  'wifi.back': { en: 'Back', nb: 'Tilbake' },
-  'wifi.anyPhone': { en: 'Set up from any phone', nb: 'Sett opp fra en telefon' },
-  'wifi.qrJoin': { en: 'QR code that joins the hotspot', nb: 'QR-kode som kobler til hotspoten' },
-  'wifi.scanToJoin': { en: '1. Scan to join', nb: '1. Skann for å koble til' },
-  'wifi.passwordIs': { en: 'Password:', nb: 'Passord:' },
-  'wifi.qrOpen': { en: 'QR code that opens the setup page', nb: 'QR-kode som åpner oppsettsiden' },
-  'wifi.scanToOpen': {
-    en: '2. If the page does not open by itself, scan to open',
-    nb: '2. Åpnes ikke siden? Skann for å åpne'
-  },
-  'wifi.join': { en: 'Join', nb: 'Koble til' },
-  'wifi.joinNetwork': { en: 'Join {ssid}', nb: 'Koble til {ssid}' },
-  'wifi.otherNetwork': { en: 'Other network', nb: 'Annet nettverk' },
-  'wifi.networkName': { en: 'Network name', nb: 'Nettverksnavn' },
-  'wifi.password': { en: 'Password', nb: 'Passord' },
-  'wifi.show': { en: 'Show', nb: 'Vis' },
-  'wifi.hide': { en: 'Hide', nb: 'Skjul' },
-  'wifi.connect': { en: 'Connect', nb: 'Koble til' },
-  'wifi.connecting': { en: 'Connecting to {ssid}…', nb: 'Kobler til {ssid} …' },
-  'wifi.connected': { en: 'Connected to {ssid}', nb: 'Tilkoblet {ssid}' },
-  'wifi.unreachable': {
-    en: 'Could not reach the kiosk service.',
-    nb: 'Får ikke kontakt med tjenesten på nettbrettet.'
-  },
-  'wifi.notSupported': { en: 'Not supported', nb: 'Støttes ikke' },
-  'wifi.signal': { en: 'Signal {bars} of 4', nb: 'Signal {bars} av 4' },
-  'wifi.searching': { en: 'Looking for networks…', nb: 'Søker etter nettverk …' },
-  'wifi.noNetworks': {
-    en: 'No networks found. Tap Refresh to scan again.',
-    nb: 'Ingen nettverk funnet. Trykk på Oppdater for å søke igjen.'
-  },
-  'wifi.phoneHelp': {
-    en: 'On an Android phone with Chrome, open improv-wifi.com, tap Connect device and choose THE MAX MIX. Waiting for your phone…',
-    nb: 'Åpne improv-wifi.com i Chrome på en Android-telefon, trykk på Connect device og velg THE MAX MIX. Venter på telefonen …'
-  },
-  'wifi.phoneFailed': { en: 'Could not start phone setup.', nb: 'Kunne ikke starte oppsett fra telefon.' },
-  'wifi.phoneJoining': {
-    en: 'The phone chose a network. The kiosk is joining it…',
-    nb: 'Telefonen valgte et nettverk. Nettbrettet kobler til …'
-  },
-  'wifi.joinFailed': { en: 'Could not join that network.', nb: 'Kunne ikke koble til det nettverket.' },
-  'wifi.hotspotEnded': {
-    en: 'The hotspot ended. Tap Hotspot to start it again.',
-    nb: 'Hotspoten ble avsluttet. Trykk på Hotspot for å starte den igjen.'
-  },
-  'wifi.waitingForPhone': { en: 'Waiting for your phone…', nb: 'Venter på telefonen …' },
-  'wifi.hotspotFailed': { en: 'Could not start the hotspot.', nb: 'Kunne ikke starte hotspoten.' },
-
   // The hotspot's page on a phone.
+  'portal.otherTitle': { en: 'Other network', nb: 'Annet nettverk' },
+  'portal.networkName': { en: 'Network name', nb: 'Nettverksnavn' },
+  'portal.password': { en: 'Password', nb: 'Passord' },
+  'portal.connect': { en: 'Connect', nb: 'Koble til' },
   'portal.choose': { en: 'Choose your Wi-Fi', nb: 'Velg Wi-Fi-nettverk' },
   'portal.intro': {
     en: 'The kiosk will join the network you pick.',
@@ -88,8 +36,8 @@ const WORDS = {
     nb: 'Nettbrettet godtok ikke det. Sjekk navnet og passordet.'
   },
 
-  // The service's own messages, which reach the setup page in English (nmcli.ts, hotspot.ts, server.ts): the page
-  // shows them in its language with `localize`.
+  // The service's own messages, which reach the app in English (nmcli.ts, hotspot.ts, server.ts): the app shows them in
+  // its language with `localize`.
   'error.wrongPassword': {
     en: 'Wrong password. Check it and try again.',
     nb: 'Feil passord. Sjekk det og prøv igjen.'
@@ -140,16 +88,6 @@ export type WordId = keyof typeof WORDS;
 /** The text for `id` in `language`, with each `{name}` filled in from `args` (left as it is when `args` has none). */
 export function say(id: WordId, language: Language, args: Readonly<Record<string, string | number>> = {}): string {
   return WORDS[id][language].replaceAll(/\{(\w+)\}/g, (whole, name: string) => String(args[name] ?? whole));
-}
-
-/** A language from a request or a config: 'nb' is Norwegian; anything else, or nothing, is English. */
-export function parseLanguage(value: unknown): Language {
-  return value === 'nb' ? 'nb' : 'en';
-}
-
-/** The language of a page from its `<html lang>`: Norwegian for nb-NO (or nb), English for anything else. */
-export function languageOfTag(tag: string): Language {
-  return /^nb\b/i.test(tag) ? 'nb' : 'en';
 }
 
 const NORWEGIAN = new Set(['nb', 'no', 'nn']);
