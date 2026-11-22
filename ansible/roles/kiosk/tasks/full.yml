@@ -408,18 +408,6 @@
   changed_when: "'changed' in kiosk_keyboard_build.stdout"
   notify: Ask for a kiosk restart
 
-# Releases before the keyboard left Spotify's sign-in pages installed its content script, and before the Wi-Fi setup
-# moved into the app, the keyboard the Wi-Fi page loaded.
-- name: full | Remove the extension's keyboard
-  ansible.builtin.file:
-    path: '{{ item }}'
-    state: absent
-  loop:
-    - '{{ kiosk_keyboard_dir }}/src/loader.ts'
-    - '{{ kiosk_keyboard_dir }}/extension/loader.js'
-    - '{{ kiosk_keyboard_dir }}/src/keyboard.ts'
-    - '{{ kiosk_keyboard_dir }}/extension/keyboard.js'
-
 # AirPlay: PipeWire makes a sink for each speaker Avahi finds; the app asks the kiosk-audio service (127.0.0.1) to route
 # the browser's audio to the chosen ones, and the same user unit keeps it there.
 # Every source file of the service, so a new one needs no mention here (the tests and their fixtures stay behind).
