@@ -101,12 +101,14 @@ const FAKE_HOTSPOT = {
 
 /**
  * What the Pi answers while a phone sets up its Wi-Fi over the Hotspot: it starts, then says `hotspotState` (`connected`
- * once a phone is on it). Undefined for any other request.
+ * once a phone is on it, `joining` Home network). Undefined for any other request.
  */
 export function phoneSetupAnswer(request: Request, hotspotState = 'running') {
   const path = new URL(request.url()).pathname;
   const answers: Record<string, object | undefined> =
-    request.method() === 'POST' ? { '/wifi/hotspot': FAKE_HOTSPOT } : { '/wifi/hotspot': { state: hotspotState } };
+    request.method() === 'POST'
+      ? { '/wifi/hotspot': FAKE_HOTSPOT }
+      : { '/wifi/hotspot': { state: hotspotState, ...(hotspotState === 'joining' && { ssid: 'Home network' }) } };
   const json = answers[path];
   return json && { headers: CORS, json };
 }

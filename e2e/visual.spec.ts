@@ -104,6 +104,9 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       hotspotState = 'connected';
       await expect(steps.last()).toHaveAttribute('aria-current', 'step');
       await expect.soft(page).toHaveScreenshot(shotName('wifi-hotspot-step-2', screen), SHOT);
+      hotspotState = 'joining';
+      await expect(hotspot.getByTestId('hotspot-joining')).toHaveText('Home network');
+      await expect.soft(page).toHaveScreenshot(shotName('wifi-hotspot-joining', screen), SHOT);
     });
 
     test(`settings Countdown page at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {

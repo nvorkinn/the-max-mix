@@ -2521,6 +2521,28 @@ body:has(.app-dialog[open]) {
   height: 20px;
 }
 /* The open step's code, and beside step 1's the hotspot's name and password. */
+/* Beside step 2's code, the network the phone chose while the kiosk joins it. */
+.wifi-hotspot-joining {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+}
+.wifi-hotspot-joining-name {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.wifi-hotspot-joining-spinner {
+  width: 48px;
+  height: 48px;
+  color: var(--accent);
+}
 .wifi-hotspot-step-body {
   display: flex;
   align-items: center;

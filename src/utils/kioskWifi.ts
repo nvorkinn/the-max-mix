@@ -122,6 +122,8 @@ export interface HotspotInfo {
 export interface SetupStatus {
   state: 'waiting' | 'connected' | 'joining' | 'joined' | 'failed' | 'ended';
   error?: string;
+  /** The network the phone chose, while the kiosk joins it (the hotspot says). */
+  ssid?: string;
 }
 
 /** The service's states for each setup, as the tablet follows them. */
@@ -156,7 +158,12 @@ async function setupStatus(
     const state = isRecord(body) && typeof body['state'] === 'string' ? states[body['state']] : undefined;
     if (state === undefined) return undefined;
     const error = errorOf(body, language);
-    return error === undefined ? { state } : { state, error };
+    const ssid = isRecord(body) ? body['ssid'] : undefined;
+    return {
+      state,
+      ...(error !== undefined && { error }),
+      ...(typeof ssid === 'string' && ssid !== '' && { ssid })
+    };
   } catch {
     return undefined;
   }
