@@ -48,6 +48,8 @@ const KNOWN_SCREENS: readonly KnownScreen[] = [
   }
 ];
 
+const ROTATIONS: ReadonlySet<Rotation> = new Set([0, 90, 180, 270]);
+
 const PLAIN: ScreenSetup = { rotation: 0, scale: 1 };
 
 /**
@@ -66,7 +68,7 @@ export function knownScreen(
   screen: { connector: string; width: number; height: number } | null
 ): KnownScreen | undefined {
   if (!screen) return undefined;
-  const type = screen.connector.replace(/-[\d-]+$/, '');
+  const [type] = screen.connector.split('-', 1);
   return KNOWN_SCREENS.find(
     known => known.connector === type && known.width === screen.width && known.height === screen.height
   );
@@ -75,9 +77,7 @@ export function knownScreen(
 /** A rotation or scale from the Ansible role: undefined when it is empty or not one the kiosk can use. */
 export function rotationSetting(value: string | undefined): Rotation | undefined {
   const rotation = Number(value);
-  return value?.trim() && (rotation === 0 || rotation === 90 || rotation === 180 || rotation === 270)
-    ? rotation
-    : undefined;
+  return value?.trim() && ROTATIONS.has(rotation as Rotation) ? (rotation as Rotation) : undefined;
 }
 
 export function scaleSetting(value: string | undefined): number | undefined {
@@ -92,7 +92,7 @@ export async function screenSetup(
 ): Promise<ScreenSetup & { name?: string }> {
   const known = knownScreen(await connectedScreen(drm));
   return {
-    ...(known ? { name: known.name } : {}),
+    ...(known && { name: known.name }),
     rotation: settings.rotation ?? known?.rotation ?? PLAIN.rotation,
     scale: settings.scale ?? known?.scale ?? PLAIN.scale
   };
@@ -105,17 +105,18 @@ export function environmentFile(setup: ScreenSetup): string {
 
 /** The udev rule that turns the touch screen's touches as the picture is turned. */
 export function touchRule(setup: ScreenSetup): string {
-  return (
-    '# Written by screen-setup.ts (kiosk.service) on every kiosk start.\n' +
-    'ACTION!="remove", SUBSYSTEM=="input", ENV{ID_INPUT_TOUCHSCREEN}=="1", ' +
-    `ENV{LIBINPUT_CALIBRATION_MATRIX}="${TOUCH_MATRICES[setup.rotation]}"\n`
-  );
+  const conditions = 'ACTION!="remove", SUBSYSTEM=="input", ENV{ID_INPUT_TOUCHSCREEN}=="1"';
+  const matrix = 'ENV{LIBINPUT_CALIBRATION_MATRIX}';
+  return `# Written by screen-setup.ts (kiosk.service) on every kiosk start.\n${conditions}, ${matrix}="${TOUCH_MATRICES[setup.rotation]}"\n`;
 }
 
 /** Writes `content` to `file` unless it holds that already; says whether it wrote. */
-async function update(file: string, content: string): Promise<boolean> {
-  const old = await readFile(file, 'utf8').catch(() => undefined);
-  if (old === content) return false;
+async function didUpdate(file: string, content: string): Promise<boolean> {
+  try {
+    if ((await readFile(file, 'utf8')) === content) return false;
+  } catch {
+    // Not written yet.
+  }
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, content, { mode: 0o644 });
   return true;
@@ -136,8 +137,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     scale: scaleSetting(values.scale)
   });
   console.log(`${setup.name ?? 'Screen'}: rotation ${setup.rotation}, scale ${setup.scale}`);
-  await update(values.env, environmentFile(setup));
-  if (await update(values.rule, touchRule(setup))) {
+  await didUpdate(values.env, environmentFile(setup));
+  if (await didUpdate(values.rule, touchRule(setup))) {
     // The touch screen gets the new matrix now, before Cage opens it.
     const run = promisify(execFile);
     await run('udevadm', ['control', '--reload']);
