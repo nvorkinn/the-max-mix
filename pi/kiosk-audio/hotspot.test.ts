@@ -1,4 +1,4 @@
-/* eslint-disable sonarjs/no-hardcoded-ip, sonarjs/no-clear-text-protocols -- the hotspot's address and page are plain http on a private address, by design */
+/* eslint-disable sonarjs/no-hardcoded-ip, sonarjs/no-clear-text-protocols, unicorn/prefer-https -- the hotspot's address and page are plain http on a private address, by design */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { exchange } from './fixtures.ts';
 import { activeWifiUuid, addressOf, Hotspot, HotspotError, makePassword, wifiDevice } from './hotspot.ts';
@@ -76,7 +76,7 @@ describe('kiosk-audio/hotspot', () => {
   it('starts a hotspot with a password of its own and a page for the phone', async () => {
     const { hotspot, calls, listen } = setup(base);
     const info = await hotspot.start();
-    expect(info).toMatchObject({ ssid: HOTSPOT_SSID, password: 'AAAAAAAAAA', url: 'http://10.42.0.1/' });
+    expect(info).toMatchObject({ ssid: HOTSPOT_SSID, password: 'AAAAAAAAAA', url: 'http://captive.apple.com/' });
     expect(info.wifiQr.length).toBeGreaterThanOrEqual(21);
     expect(info.urlQr.length).toBeGreaterThanOrEqual(21);
     const made = calls.find(call => call.includes('hotspot'));
@@ -107,8 +107,9 @@ describe('kiosk-audio/hotspot', () => {
   });
 
   it('uses the usual hotspot address when NetworkManager does not say', async () => {
-    const { hotspot } = setup({ ...base, '-g IP4.ADDRESS device': { code: 0, stdout: '' } });
-    expect((await hotspot.start()).url).toBe('http://10.42.0.1/');
+    const listen = vi.fn().mockResolvedValue({ port: 8080, close: vi.fn() });
+    const { hotspot } = setup({ ...base, '-g IP4.ADDRESS device': { code: 0, stdout: '' } }, { listen });
+    expect((await hotspot.start()).url).toBe('http://10.42.0.1:8080/');
   });
 
   it('starts only once, however often it is asked', async () => {
