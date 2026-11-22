@@ -40,6 +40,19 @@ describe('screenInfo', () => {
     expect(await screenInfo(drm, backlight)).toEqual({ width: 1024, height: 600, brightness_control: true });
   });
 
+  it('gives a portrait panel that the kiosk shows turned on its side as landscape', async () => {
+    const { drm, backlight } = await folders();
+    // The 10.1 inch Raspberry Pi Touch Display 2.
+    await connector(drm, 'card1-DSI-2', 'connected', ['1200x1920']);
+    await mkdir(path.join(backlight, '11-0045'));
+
+    const landscape = { width: 1920, height: 1200, brightness_control: true };
+    expect(await screenInfo(drm, backlight, 90)).toEqual(landscape);
+    expect(await screenInfo(drm, backlight, 270)).toEqual(landscape);
+    expect(await screenInfo(drm, backlight, 180)).toEqual({ ...landscape, width: 1200, height: 1920 });
+    expect(await screenInfo(drm, backlight, 0)).toEqual({ ...landscape, width: 1200, height: 1920 });
+  });
+
   it('knows no screen when none is connected or the connected one lists no mode', async () => {
     const { drm, backlight } = await folders();
     await connector(drm, 'card1-HDMI-A-1', 'disconnected', ['1280x800']);

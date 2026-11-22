@@ -1,11 +1,21 @@
 #!/usr/bin/env bash
 # Turns the screen off and on, inside the Cage session (it needs Cage's WAYLAND_DISPLAY):
 #   kiosk-display off                  from swayidle (kiosk-session), once the app let the screen sleep and nobody touched it
-#   kiosk-display on                   from swayidle at the first touch after that, and from the kiosk-audio service when the
-#                                      app wakes the screen for music that starts while it sleeps
-# Cage has no output power protocol, so the HDMI output is disabled and enabled again through wlr-randr. Without a signal
-# the Waveshare screen should turn its backlight off; the app's black sleep screen covers it if it does not.
+#   kiosk-display on                   from swayidle at the first touch after that, from the kiosk-audio service when the
+#                                      app wakes the screen for music that starts while it sleeps, and from
+#                                      kiosk-session when the kiosk starts with a rotated screen
+# Cage has no output power protocol, so the output is disabled and enabled again through wlr-randr. Without a signal
+# an HDMI screen should turn its backlight off, as a DSI panel's driver does; the app's black sleep screen covers it if
+# it does not.
+# Cage has no setting for rotation either: with KIOSK_SCREEN_ROTATION (kiosk_screen_rotation in the Ansible role: 90,
+# 180 or 270 degrees) `on` also turns the output, every time, so the rotation holds whatever enabling the output does.
 set -u
+
+# What wlr-randr is told about rotation when it enables an output: nothing for 0 or anything else.
+case ${KIOSK_SCREEN_ROTATION:-0} in
+  90 | 180 | 270) transform=(--transform "$KIOSK_SCREEN_ROTATION") ;;
+  *) transform=() ;;
+esac
 
 # The outputs Cage has: wlr-randr starts each one's block with its name at the start of a line.
 outputs() {
@@ -18,7 +28,8 @@ turn() {
     [[ -n $output ]] || continue
     if [[ $state == on ]]; then
       # Enabling without a mode can fail where the firmware set none; the preferred mode is the one Cage started with.
-      wlr-randr --output "$output" --on || wlr-randr --output "$output" --on --preferred || status=1
+      wlr-randr --output "$output" --on "${transform[@]}" \
+        || wlr-randr --output "$output" --on --preferred "${transform[@]}" || status=1
     else
       wlr-randr --output "$output" --off || status=1
     fi

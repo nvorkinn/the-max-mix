@@ -3,6 +3,8 @@
 // connector in /sys/class/drm (HDMI-A-1 or DSI-1, never a writeback one), which is the mode the kernel command line
 // sets and Cage runs at, so it holds for a DSI panel, which has no EDID, as for an HDMI one. Brightness is there when
 // the screen has a backlight in /sys/class/backlight: a DSI panel's driver makes one, an HDMI screen never has one.
+// The kernel knows the panel's own mode only: a screen the kiosk shows turned by 90 or 270 degrees (KIOSK_SCREEN_ROTATION,
+// kiosk_screen_rotation in the Ansible role) has its width and height the other way round.
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -16,13 +18,23 @@ export interface ScreenInfo {
 const CONNECTOR = /^card\d+-(?!Writeback)/;
 const MODE = /^(\d+)x(\d+)/;
 
-/** The connected screen, or null when no display connector is connected or none lists a mode. */
+/**
+ * The connected screen as the kiosk shows it, turned by `rotation` degrees, or null when no display connector is
+ * connected or none lists a mode.
+ */
 export async function screenInfo(
   drm = '/sys/class/drm',
-  backlight = '/sys/class/backlight'
+  backlight = '/sys/class/backlight',
+  rotation = Number(process.env['KIOSK_SCREEN_ROTATION'])
 ): Promise<ScreenInfo | null> {
   const size = await screenSize(drm);
-  return size ? { ...size, brightness_control: (await names(backlight)).length > 0 } : null;
+  if (!size) return null;
+  const isSideways = rotation === 90 || rotation === 270;
+  return {
+    width: isSideways ? size.height : size.width,
+    height: isSideways ? size.width : size.height,
+    brightness_control: (await names(backlight)).length > 0
+  };
 }
 
 async function screenSize(drm: string): Promise<{ width: number; height: number } | null> {
