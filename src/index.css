@@ -2211,6 +2211,25 @@ body:has(.app-dialog[open]) {
 }
 .brightness-range {
   flex: 1;
+  height: 64px;
+}
+/* A big handle, easy to find and drag with a finger, on a track thick enough to sit it on. */
+.brightness-range::-webkit-slider-runnable-track {
+  height: 6px;
+}
+.brightness-range::-moz-range-track {
+  height: 6px;
+}
+.brightness-range::-webkit-slider-thumb {
+  width: 36px;
+  height: 36px;
+  margin-top: -15px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 40%);
+}
+.brightness-range::-moz-range-thumb {
+  width: 36px;
+  height: 36px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 40%);
 }
 .brightness-value {
   min-width: 3em;
