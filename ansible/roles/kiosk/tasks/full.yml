@@ -343,33 +343,6 @@
     label: '{{ item.dest }}'
   notify: Ask for a kiosk restart
 
-# The card's Wi-Fi is for the first boot only: cloud-init has made it a netplan file by now, which keeps the network,
-# and the app's Wi-Fi screen sets up any other. So the card's copies go, with the setup user-data, and cloud-init is
-# turned off so that it never applies them again.
-- name: full | Remove the card's first-boot setup
-  ansible.builtin.file:
-    path: '{{ item }}'
-    state: absent
-  loop:
-    - /boot/firmware/network-config
-    - /boot/firmware/user-data
-
-- name: full | Make cloud-init's settings folder
-  ansible.builtin.file:
-    path: /etc/cloud
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-
-- name: full | Turn cloud-init off
-  ansible.builtin.copy:
-    content: ''
-    dest: /etc/cloud/cloud-init.disabled
-    owner: root
-    group: root
-    mode: '0644'
-
 # AirPlay: PipeWire makes a sink for each speaker Avahi finds; the app asks the kiosk-audio service (127.0.0.1) to route
 # the browser's audio to the chosen ones, and the same user unit keeps it there.
 # Every source file of the service, so a new one needs no mention here (the tests and their fixtures stay behind).

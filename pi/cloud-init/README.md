@@ -1,7 +1,7 @@
 # Setting up a kiosk
 
 A kiosk is stock Raspberry Pi OS Lite plus this repository's Ansible playbook. You flash the OS, cloud-init and the
-playbook build the kiosk on your own Wi-Fi. That Wi-Fi is for the first boot only: the playbook removes it from the card,
+playbook build the kiosk on your own Wi-Fi. That Wi-Fi is for the first boot only: the first boot removes it from the card,
 and at its new home the Pi's owner picks their own network in the app.
 
 Tested on a Raspberry Pi 4 Model B with a Waveshare 7-inch 1024x600 HDMI and USB touch screen. A Pi 5 should work the
@@ -55,7 +55,7 @@ sudo kiosk-pull https://github.com/nvorkinn/the-max-mix.git latest /var/lib/the-
 
 ## Hand it over
 
-The first pull removes `network-config` and `user-data` from the card and turns cloud-init off
+Once the first pull has worked, `kiosk-first-pull` removes `network-config` and `user-data` from the card and turns cloud-init off
 (`/etc/cloud/cloud-init.disabled`), so the setup network is never applied again. Your Wi-Fi stays saved on the Pi, which
 keeps it working at your place; at its new home the Pi finds no network it knows, and the app's Wi-Fi screen joins
 theirs. Before it goes, sign everyone out of Spotify in Settings.
