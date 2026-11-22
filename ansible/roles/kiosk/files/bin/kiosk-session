@@ -43,7 +43,7 @@ if [[ $screen_off_after =~ ^[1-9][0-9]*$ ]] && command -v swayidle > /dev/null; 
   swayidle timeout "$screen_off_after" '/usr/local/bin/kiosk-display off' resume '/usr/local/bin/kiosk-display on' &
 fi
 
-# A rotated or scaled screen (kiosk_screen_rotation and kiosk_screen_scale in the Ansible role): Cage starts every
+# A rotated or scaled screen (KIOSK_SCREEN_ROTATION and KIOSK_SCREEN_SCALE, from screen-setup.ts): Cage starts every
 # output as the panel is, so turn and scale it before Chromium opens its window.
 if [[ ${KIOSK_SCREEN_ROTATION:-0} != 0 || ! ${KIOSK_SCREEN_SCALE:-1} =~ ^1(\.0+)?$ ]]; then
   /usr/local/bin/kiosk-display on

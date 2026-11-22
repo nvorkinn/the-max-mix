@@ -44,8 +44,15 @@ has the file deleted (`POST /handover/done`). See `src/utils/handover.ts`.
 `GET /screen` answers what the tablet's screen is, for registering with countdown-server (`screen.ts`):
 `{"width": 1280, "height": 800, "brightness_control": false}`. The size is the first mode of the first connected
 display connector in `/sys/class/drm`, the mode Cage runs at, so it holds for a DSI panel (no EDID) as for HDMI. A
-screen the kiosk shows turned by 90 or 270 degrees (`KIOSK_SCREEN_ROTATION`, the role's `kiosk_screen_rotation`) has its
-width and height the other way round: 1920x1200 for a 1200x1920 panel.
+screen the kiosk shows turned by 90 or 270 degrees (`KIOSK_SCREEN_ROTATION`) has its width and height the other way
+round: 1920x1200 for a 1200x1920 panel.
+
+How the kiosk shows the screen is worked out as it starts (`screen-setup.ts`, run as root by `kiosk.service`): a screen
+in its `KNOWN_SCREENS` table gets its own rotation and scale (the 10.1 inch Raspberry Pi Touch Display 2: 90 degrees,
+1.5), any other is shown as it is, and the role's `kiosk_screen_rotation` and `kiosk_screen_scale` win when set. It
+writes `KIOSK_SCREEN_ROTATION` and `KIOSK_SCREEN_SCALE` to `/run/kiosk/screen.env`, which `kiosk.service` and this
+service read, and the touch screen's rotation to `/run/udev/rules.d/90-kiosk-touch-rotation.rules`. So a fresh Pi with a
+known screen registers with its landscape size from the first start, with no `kiosk-vars.yml`.
 `brightness_control` is true when `/sys/class/backlight` has an entry: a DSI panel's driver makes one, HDMI never
 does. 503 with no screen connected.
 

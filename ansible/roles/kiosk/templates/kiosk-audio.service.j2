@@ -15,10 +15,10 @@ Environment=KIOSK_APP_DIR={{ kiosk_app_dir }}/current
 # library opens it the first time the app listens. It takes events only for the subscriptions it holds (anything else
 # gets 412) and otherwise answers just its /status and /health pages.
 Environment=SONOS_LISTENER_PORT={{ kiosk_sonos_events_port }}
-# How far the screen is turned (kiosk_screen_rotation): for the size GET /screen answers (screen.ts), and, with its
-# scale (kiosk_screen_scale), for kiosk-display when this service wakes the screen.
-Environment=KIOSK_SCREEN_ROTATION={{ kiosk_screen_rotation | int }}
-Environment=KIOSK_SCREEN_SCALE={{ kiosk_screen_scale | float }}
+# How far the screen is turned and how much bigger it is drawn (KIOSK_SCREEN_ROTATION, KIOSK_SCREEN_SCALE), which
+# screen-setup.ts writes as kiosk.service starts, before it restarts this service: for the size GET /screen answers
+# (screen.ts), and for kiosk-display when this service wakes the screen.
+EnvironmentFile=-/run/kiosk/screen.env
 ExecStart=/usr/bin/node {{ kiosk_audio_dir }}/kiosk-audio.ts watch
 Restart=always
 RestartSec=2

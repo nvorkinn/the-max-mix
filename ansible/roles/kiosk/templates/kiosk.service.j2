@@ -25,6 +25,10 @@ StandardError=journal
 # (1920x1080 on a 1280x800 panel). This gives the kernel that mode with even timings before Cage chooses one; it does
 # nothing for any other screen (the + runs it as root, the - ignores a failure). See pi/kiosk-audio/screen-mode.ts.
 ExecStartPre=-+/usr/bin/node {{ kiosk_audio_dir }}/screen-mode.ts --correct
+# How to show the screen that is plugged in (kiosk_screen_rotation and kiosk_screen_scale, or the screen's own settings
+# when they are empty): writes /run/kiosk/screen.env, read below and by kiosk-audio, and the touch screen's rotation
+# (the + runs it as root, the - ignores a failure, which leaves the screen as it is). See pi/kiosk-audio/screen-setup.ts.
+ExecStartPre=-+/usr/bin/node {{ kiosk_audio_dir }}/screen-setup.ts --rotation={{ kiosk_screen_rotation }} --scale={{ kiosk_screen_scale }}
 # Show VT 7 (the + runs this as root). Cage cannot take the display while another VT is in front.
 ExecStartPre=+/usr/bin/chvt 7
 # Any start of the kiosk applies the changes an update left, so the scheduled restart is not needed.
@@ -46,10 +50,9 @@ Environment=WLR_LIBINPUT_NO_DEVICES=1
 Environment=XCURSOR_PATH=/usr/share/kiosk-cursors:/usr/share/icons
 Environment=XCURSOR_THEME=blank
 Environment=KIOSK_SCREEN_OFF_AFTER={{ kiosk_screen_off_after | int }}
-# For kiosk-display, which turns the output this many degrees (kiosk_screen_rotation).
-Environment=KIOSK_SCREEN_ROTATION={{ kiosk_screen_rotation | int }}
-# For kiosk-display, which has Cage draw everything this much bigger (kiosk_screen_scale).
-Environment=KIOSK_SCREEN_SCALE={{ kiosk_screen_scale | float }}
+# KIOSK_SCREEN_ROTATION and KIOSK_SCREEN_SCALE, from screen-setup.ts above, for kiosk-session and kiosk-display, which
+# turn the output and have Cage draw everything bigger. systemd reads the file when it starts Cage, after it was written.
+EnvironmentFile=-/run/kiosk/screen.env
 Environment="KIOSK_URL={{ kiosk_url | replace('%', '%%') }}"
 ExecStart=/usr/bin/cage -d -- /usr/local/bin/kiosk-session
 Restart=always

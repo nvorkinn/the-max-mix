@@ -27,7 +27,7 @@ export async function screenInfo(
   backlight = '/sys/class/backlight',
   rotation = Number(process.env['KIOSK_SCREEN_ROTATION'])
 ): Promise<ScreenInfo | null> {
-  const size = await screenSize(drm);
+  const size = await connectedScreen(drm);
   if (!size) return null;
   const isSideways = rotation === 90 || rotation === 270;
   return {
@@ -37,7 +37,10 @@ export async function screenInfo(
   };
 }
 
-async function screenSize(drm: string): Promise<{ width: number; height: number } | null> {
+/** The first connected display connector in `drm` that lists a mode, such as DSI-2, and that mode's size. */
+export async function connectedScreen(
+  drm = '/sys/class/drm'
+): Promise<{ connector: string; width: number; height: number } | null> {
   const connectors = (await names(drm)).filter(name => CONNECTOR.test(name));
   for (const connector of connectors) {
     // eslint-disable-next-line no-await-in-loop
@@ -46,7 +49,7 @@ async function screenSize(drm: string): Promise<{ width: number; height: number 
       text(path.join(drm, connector, 'modes'))
     ]);
     const match = status?.trim() === 'connected' ? MODE.exec(modes ?? '') : null;
-    if (match) return { width: Number(match[1]), height: Number(match[2]) };
+    if (match) return { connector: connector.replace(/^card\d+-/, ''), width: Number(match[1]), height: Number(match[2]) };
   }
   return null;
 }

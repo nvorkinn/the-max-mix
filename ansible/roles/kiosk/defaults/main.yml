@@ -138,25 +138,22 @@ kiosk_journal_max_use: 64M
 # off; the first touch turns it on again. 0 never turns it off.
 kiosk_screen_off_after: 60
 
-# Screen rotation, in degrees clockwise: 0, 90, 180 or 270. For a panel whose own mode is portrait, such as the
-# Raspberry Pi Touch Display 2 (DSI, 1200x1920 on the 10.1 inch one), which the app needs in landscape: 90 or 270,
-# whichever way up it is mounted. Cage has no setting for it, so kiosk-display turns the output with wlr-randr when the
-# kiosk starts and each time the screen wakes, and a udev rule turns the touch screen's coordinates the same way
-# (kiosk_touch_matrices). The boot console is not rotated. A new value takes effect at the next kiosk restart.
-kiosk_screen_rotation: 0
+# Screen rotation, in degrees clockwise: 0, 90, 180 or 270. Empty (the default) leaves it to the screen that is plugged
+# in: kiosk.service runs pi/kiosk-audio/screen-setup.ts as the kiosk starts, which turns a screen it knows (its
+# KNOWN_SCREENS, such as the 10.1 inch Raspberry Pi Touch Display 2, portrait 1200x1920 on DSI) the way it needs and
+# leaves any other as it is. Set it in /etc/the-max-mix/kiosk-vars.yml only for a screen that table does not know or
+# gets wrong, such as a portrait panel mounted the other way up (90 or 270). Cage has no setting for it, so
+# kiosk-display turns the output with wlr-randr when the kiosk starts and each time the screen wakes, and a udev rule
+# (/run/udev/rules.d, written by screen-setup.ts) turns the touch screen's coordinates the same way. The boot console
+# is not rotated. A new value takes effect at the next kiosk restart.
+kiosk_screen_rotation: ''
 # How much bigger everything is drawn, for a panel with small pixels: 1.5 on a 1920x1200 one gives the app the 1280x800
 # page it is laid out for, half as big again. It is the output's scale in Cage, which kiosk-display sets with wlr-randr
 # as it does the rotation, so Chromium's window is the smaller size and Chromium draws it at the panel's own pixels.
 # (Chromium's --force-device-scale-factor does not do it: Cage is not told, and the window shows only its top left
-# corner.) 1 leaves the page at the panel's own pixels. A new value takes effect at the next kiosk restart.
-kiosk_screen_scale: 1
-# libinput's calibration matrix for each rotation (LIBINPUT_CALIBRATION_MATRIX), the first two rows of the matrix that
-# turns a touch the way the picture is turned.
-kiosk_touch_matrices:
-  0: '1 0 0 0 1 0'
-  90: '0 -1 1 1 0 0'
-  180: '-1 0 1 0 -1 1'
-  270: '0 1 0 -1 0 1'
+# corner.) 1 leaves the page at the panel's own pixels. Empty (the default) leaves it to screen-setup.ts, as the
+# rotation. A new value takes effect at the next kiosk restart.
+kiosk_screen_scale: ''
 
 # Packages from the Raspberry Pi archive only (not in Debian). Tests in a plain Debian container set this to [].
 kiosk_rpi_packages:
