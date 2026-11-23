@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { NoticeItem } from '../../dashboard/props';
+import type { NoticeItem, WeatherView } from '../../dashboard/props';
 import { busesAt, SAMPLE, SAMPLE_NOW, sampleDashboard } from '../../dashboard/sample';
 import Dashboard from '../Dashboard';
 import Backdrop, { BACKDROP_FADE_MS } from './Backdrop';
@@ -134,6 +134,19 @@ describe('the weather block', () => {
     run(WEATHER_FADE_MS);
     expect(shown(weather)).toHaveTextContent('Tomorrow');
     expect(weather.querySelector('.dashboard-wx-icon')).toHaveClass('lucide-cloud');
+  });
+
+  it("shows the period's own trend under it, and an empty one for a period without hours", () => {
+    const trend = { stale: false, clockFormat: '24h' as const };
+    const views: WeatherView[] = [
+      { period: 'now', temperature: 9, sky: 'clear', condition: 'Clear', hours: SAMPLE.weather.views[0]?.hours ?? [] },
+      { period: 'tomorrow', temperature: 12, sky: 'cloudy', condition: 'Cloudy' }
+    ];
+    const { container, rerender } = render(<WeatherBlock views={views} time={start} trend={trend} />);
+    expect(container.querySelectorAll('.dashboard-hour')).toHaveLength(3);
+    rerender(<WeatherBlock views={views} time={start + TURN_MS} trend={trend} />);
+    run(WEATHER_FADE_MS);
+    expect(container.querySelectorAll('.dashboard-hour')).toHaveLength(0);
   });
 
   it('stays still with one period to show', () => {

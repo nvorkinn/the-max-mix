@@ -30,6 +30,19 @@ describe('HourlyTrend', () => {
     );
     expect(screen.getByText('23:00')).toBeInTheDocument();
   });
+
+  it('writes half hours in either format, and midnight for a time it cannot read', () => {
+    const hours = [
+      { time: '2026-11-17T23:30:00Z', temperature: 3, sky: 'clear' as const, isDay: false },
+      { time: 'soon', temperature: 3, sky: 'clear' as const, isDay: false }
+    ];
+    const { rerender } = render(<HourlyTrend {...SAMPLE.hourly} hours={hours} clockFormat="12h" />);
+    expect(screen.getByText('11:30 PM')).toBeInTheDocument();
+    expect(screen.getByText('12 AM')).toBeInTheDocument();
+    rerender(<HourlyTrend {...SAMPLE.hourly} hours={hours} clockFormat="24h" />);
+    expect(screen.getByText('23:30')).toBeInTheDocument();
+    expect(screen.getByText('00:00')).toBeInTheDocument();
+  });
 });
 
 describe('TabBar', () => {
