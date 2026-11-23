@@ -77,25 +77,25 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     // Music plays for nine minutes, longer than the minute to the Dashboard, five to dim and two to sleep put together.
     const pause = page.getByRole('button', { name: 'Pause', exact: true });
     await expect(pause).toBeVisible();
-    // Playback stays constant here. Run its timers without waiting for each background poll.
-    await page.clock.runFor(9 * 60_000);
+    // These cases assert screen transitions at specific times. Skip the intervening repeating timers.
+    await page.clock.fastForward(9 * 60_000);
     await expect(dimmed).toHaveCount(0);
     await expect(asleep).toHaveCount(0);
     await expect(dashboard).toHaveAttribute('aria-selected', 'false');
 
     await pause.click();
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
-    await advance(page, 50_000, 5000);
+    await page.clock.fastForward(50_000);
     await expect(dashboard).toHaveAttribute('aria-selected', 'false');
-    await advance(page, 15_000, 5000);
+    await page.clock.fastForward(15_000);
     await expect(dashboard).toHaveAttribute('aria-selected', 'true');
-    await advance(page, 270_000, 15_000);
+    await page.clock.fastForward(270_000);
     await expect(dimmed).toHaveCount(0);
-    await advance(page, 40_000, 5000);
+    await page.clock.fastForward(40_000);
     await expect(dimmed).toBeVisible();
-    await advance(page, 90_000, 15_000);
+    await page.clock.fastForward(90_000);
     await expect(asleep).toHaveCount(0);
-    await advance(page, 30_000, 5000);
+    await page.clock.fastForward(30_000);
     await expect(asleep).toBeVisible();
   });
 
@@ -109,10 +109,10 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     await expect(page.getByRole('tabpanel', { name: 'Settings' })).toBeVisible();
 
     // Nobody touches the screen, with nothing playing: a minute to the Dashboard, five more to dim it.
-    await advance(page, 60_000 + 5000, 5000);
+    await page.clock.fastForward(60_000 + 5000);
     await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
     await expect(page.getByRole('tabpanel', { name: 'Settings' })).toBeHidden();
-    await advance(page, 5 * 60_000, 15_000);
+    await page.clock.fastForward(5 * 60_000);
     const dimmed = page.getByRole('dialog', { name: 'Dimmed screen' });
     await expect(dimmed).toBeVisible();
     // The overlay covers everything, so the tap that brightens the screen reaches nothing behind it: here the Settings tab.
@@ -124,9 +124,9 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
 
     // Left alone again it dims, then sleeps after the default five minutes, and a tap wakes it to the Dashboard.
-    await advance(page, 5 * 60_000 + 5000, 15_000);
+    await page.clock.fastForward(5 * 60_000 + 5000);
     await expect(dimmed).toBeVisible();
-    await advance(page, 5 * 60_000, 15_000);
+    await page.clock.fastForward(5 * 60_000);
     const asleep = page.getByRole('dialog', { name: 'Sleep screen' });
     await expect(asleep).toBeVisible();
     await page.mouse.click(512, 300);
@@ -146,9 +146,9 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     await expect(settings.getByRole('slider', { name: 'From' })).toBeVisible();
 
     const asleep = page.getByRole('dialog', { name: 'Sleep screen' });
-    await advance(page, 55_000, 5000);
+    await page.clock.fastForward(55_000);
     await expect(asleep).toHaveCount(0);
-    await advance(page, 10_000, 5000);
+    await page.clock.fastForward(10_000);
     await expect(asleep).toBeVisible();
   });
 });
