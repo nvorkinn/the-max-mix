@@ -2032,7 +2032,7 @@ body:has(.app-dialog[open]) {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 56px;
+  min-height: 60px;
   padding: 0 22px;
   border: 1px solid var(--border);
   border-radius: 999px;
