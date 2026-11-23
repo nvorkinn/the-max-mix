@@ -63,7 +63,15 @@ jobs:
           node scripts/e2e-package.ts
           npm install --ignore-scripts --no-audit --no-fund
       - run: npm run build
-      - run: npm run test:e2e -- --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+      - name: Run Playwright shard
+        env:
+          SHARD_INDEX: ${{ matrix.shardIndex }}
+          SHARD_TOTAL: ${{ matrix.shardTotal }}
+          PLAYWRIGHT_BLOB_OUTPUT_NAME: report-${{ matrix.shardIndex }}.zip
+        run: |
+          list="$RUNNER_TEMP/e2e-shard-$SHARD_INDEX.txt"
+          node scripts/e2e-shard.ts select "$SHARD_INDEX" "$SHARD_TOTAL" "$list"
+          npm run test:e2e -- --test-list="$list"
       # The blob report carries the results (and the traces, when asked for); the PNGs are the screenshots that differ from their
       # baselines, which the pull request comment shows. Playwright always writes .last-run.json, which keeps e2e/ the
       # artifact's root (the folder its files share) when there are no PNGs, so the report job finds blob-report/.

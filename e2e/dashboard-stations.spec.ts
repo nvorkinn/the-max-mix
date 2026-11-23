@@ -1,7 +1,7 @@
 // cspell:ignore Kjelsås Vestli
 import { expect, test, type Page } from '@playwright/test';
 import { showDashboard } from './dashboard.ts';
-import { stationsAt } from './fake-countdown.ts';
+import { arrivalsAt, stationsAt } from './fake-countdown.ts';
 
 // A kiosk with several stops gives each stop its own board, whatever its modes, two at a time in the usual two
 // places. Every 15 seconds they move along by one: the left one leaves, the right one moves over, the next comes in.
@@ -27,10 +27,23 @@ for (const screen of SCREENS) {
       `${count} stops move along one at a time at ${screen.width}x${screen.height}`,
       { tag: '@layout' },
       async ({ page }) => {
-        await showDashboard(page, screen);
+        const reference = arrivalsAt(NOW, false);
+        let hasMoreStops = false;
+        await showDashboard(
+          page,
+          screen,
+          {
+            arrivals: () => (hasMoreStops ? stationsAt(NOW, count) : reference),
+            retryMs: () => (hasMoreStops ? 60_000 : 100)
+          },
+          6,
+          NOW
+        );
         const places = (await showing(page)).map(board => board.box);
 
-        await showDashboard(page, screen, { arrivals: () => stationsAt(NOW, count) }, count * 4);
+        // The next feed connection brings the additional stops into the same Dashboard.
+        hasMoreStops = true;
+        await expect(page.locator('.dashboard-rows li')).toHaveCount(count * 4);
         const lefts: string[] = [];
         let right = '';
         /* eslint-disable no-await-in-loop -- one turn after another */

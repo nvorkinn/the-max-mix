@@ -297,7 +297,7 @@ const LONG = {
  * The kiosk's departures (countdown-api's DeviceArrivals) read at `now` and timed from it: a Tube station's trains on
  * their platforms and a bus stop's buses, each with its vehicle, or with names far too long for the boards.
  */
-function arrivalsAt(now: Date, hasLongNames: boolean) {
+export function arrivalsAt(now: Date, hasLongNames: boolean) {
   const at = (minutes: number) => new Date(now.getTime() + minutes * 60_000).toISOString();
   const departure = (vehicle: string, line: string, destination: string, minutes: number, platform: string | null) => ({
     vehicle_id: vehicle,
@@ -572,7 +572,7 @@ interface FeedOptions {
   /** The departures each stream sends instead (countdown-api's DeviceArrivals), asked as each opens. */
   arrivals?: () => object;
   /** The wait before the next stream that each stream asks for. */
-  retryMs?: number;
+  retryMs?: number | (() => number);
   /**
    * Notices as for a kiosk in Oslo instead: its Entur stops' situations (countdown-api's EnturStopNotices), and none
    * of London's sources.
@@ -614,7 +614,7 @@ export async function fakeFeed(page: Page, now: Date, options: FeedOptions = {})
       status: 200,
       headers: { ...cors, 'Cache-Control': 'no-store' },
       contentType: 'text/event-stream',
-      body: `retry: ${String(retryMs)}\n\n${events.join('')}`
+      body: `retry: ${String(typeof retryMs === 'function' ? retryMs() : retryMs)}\n\n${events.join('')}`
     });
   });
 }

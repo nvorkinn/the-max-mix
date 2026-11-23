@@ -44,7 +44,9 @@ When you add a feature:
 
 ## Traces and shards
 
-CI splits the tests over three machines (`.github/workflows/e2e.yml`, with `--shard`) and merges their reports into one.
+CI discovers the tests and assigns them to three machines using the median durations in `shard-timings.json`.
+New or renamed tests get the suite median. The reports are merged into one. To refresh the timing estimates, download
+the JSON reports from several recent CI runs and run `node scripts/e2e-shard.ts timings <report1.json> <report2.json>`.
 Each test runs once, with no retries, so a flaky test fails the run. CI records no traces, because tracing every test
 took a third or more of the run. For a report with a trace of every test, dispatch the workflow on a branch:
 `gh workflow run e2e.yml --ref <branch>` (or **Run workflow** on the E2E workflow's page), then download the run's
