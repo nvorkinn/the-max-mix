@@ -170,6 +170,15 @@ export const STRINGS = {
     en: 'A board with a row for each route and its next departures',
     nb: 'En tavle med én rad for hver linje og dens neste avganger'
   },
+  'countdown.transition': { en: 'Changing stops', nb: 'Bytte av stopp' },
+  'countdown.transition_caption': {
+    en: 'How a board changes to the next stop, when there are more stops than places. Tap the one you like.',
+    nb: 'Slik bytter en tavle til neste stopp når det er flere stopp enn plasser. Trykk på den du liker.'
+  },
+  'countdown.transition.flip': { en: 'Flip', nb: 'Vend' },
+  'countdown.transition.slide': { en: 'Slide', nb: 'Skyv' },
+  'countdown.transition.sinkRise': { en: 'Sink and rise', nb: 'Synk og stig' },
+  'countdown.transition.none': { en: 'None', nb: 'Ingen' },
   'countdown.move': { en: 'Move {name}', nb: 'Flytt {name}' },
   'countdown.remove': { en: 'Remove {name}', nb: 'Fjern {name}' },
   'countdown.add_stops': { en: 'Add stops', nb: 'Legg til stopp' },
@@ -253,11 +262,6 @@ export const STRINGS = {
     en: 'Colours follow the album art while music plays.',
     nb: 'Fargene følger albumomslaget mens musikken spilles.'
   },
-  'appearance.arrivals': { en: 'Arrivals transition', nb: 'Overgang for avganger' },
-  'appearance.arrivals.flip': { en: 'Flip', nb: 'Vend' },
-  'appearance.arrivals.slide': { en: 'Slide', nb: 'Skyv' },
-  'appearance.arrivals.sinkRise': { en: 'Sink and rise', nb: 'Synk og stig' },
-  'appearance.arrivals.none': { en: 'None', nb: 'Ingen' },
   'colour.forest': { en: 'Forest', nb: 'Skog' },
   'colour.navy': { en: 'Navy', nb: 'Marineblå' },
   'colour.teal': { en: 'Teal', nb: 'Blågrønn' },

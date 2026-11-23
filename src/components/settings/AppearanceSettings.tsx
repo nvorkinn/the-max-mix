@@ -3,8 +3,6 @@ import { Check, Disc3, Play } from 'lucide-react';
 import { swatchOf, THEME_COLOURS } from '../../utils/themeColour';
 import type { ThemeColour } from '../../utils/themeColour';
 import { useT } from '../../i18n/translate';
-import { ARRIVALS_TRANSITIONS, saveArrivalsTransition, useArrivalsTransition } from '../../utils/arrivalsTransition';
-import SettingsChips from './SettingsChips';
 import SettingsSection from './SettingsSection';
 import SettingsToggle from './SettingsToggle';
 
@@ -71,8 +69,7 @@ function ColourSample({ paint, caption }: Readonly<{ paint: SamplePaint; caption
 /**
  * The Appearance page: the colour of the track title, player controls and highlights, shown on a sample of the player as
  * it is picked; and Dynamic, which while music plays takes the colours from the album art instead (and fades back once
- * it stops), shown on a second sample beside the first while it is on. Then how the Dashboard's arrivals change from one
- * stop to the next, a setting of this tablet's own that the Dashboard follows as soon as it is picked.
+ * it stops), shown on a second sample beside the first while it is on.
  */
 export default function AppearanceSettings({
   themeColour,
@@ -87,7 +84,6 @@ export default function AppearanceSettings({
 }>) {
   const t = useT();
   const hasDynamic = dynamicColour !== undefined && onDynamicColourChange !== undefined;
-  const arrivalsTransition = useArrivalsTransition();
   return (
     <div className="settings-stack">
       {themeColour !== undefined && onThemeColourChange && (
@@ -125,14 +121,6 @@ export default function AppearanceSettings({
           onChange={onDynamicColourChange}
         />
       )}
-      <SettingsSection id="arrivals-transition-label" title={t('appearance.arrivals')}>
-        <SettingsChips
-          labelledBy="arrivals-transition-label"
-          value={arrivalsTransition}
-          onChange={saveArrivalsTransition}
-          options={ARRIVALS_TRANSITIONS.map(id => ({ id, label: t(`appearance.arrivals.${id}`) }))}
-        />
-      </SettingsSection>
     </div>
   );
 }

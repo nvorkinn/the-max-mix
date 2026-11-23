@@ -9,6 +9,7 @@ import { describeStop, learnStopNames, rememberStop } from '../../countdown/sear
 import type { DeviceConfig } from '../../hooks/useDeviceConfig';
 import { useDragToReorder } from '../../hooks/useDragToReorder';
 import { useT } from '../../i18n/translate';
+import ArrivalsTransitionSettings from './ArrivalsTransitionSettings';
 import SettingsSection from './SettingsSection';
 import SettingsToggle from './SettingsToggle';
 import StopSearch from './StopSearch';
@@ -17,7 +18,8 @@ import StopSearch from './StopSearch';
  * The stops whose departures the Countdown lists: a search box that opens the stop search over the whole screen
  * (StopSearch), then the saved stops in the Countdown's order, each with a handle to drag it to another place and an X
  * that removes it, and whether the Dashboard's boards group them by route, with a moving picture under it of the boards
- * it gives. Every change saves to countdown-server on its own as soon as it is made.
+ * it gives, then how a board changes to the next stop. Every change saves as soon as it is made: the stops and grouping to
+ * countdown-server, the change of stop on this tablet.
  */
 export default function CountdownSettings({
   config,
@@ -53,59 +55,57 @@ export default function CountdownSettings({
   });
 
   return (
-    <div className="countdown-settings">
+    <div className="settings-stack">
       <button type="button" onClick={() => setIsSearching(true)} className="countdown-search-button">
         <Search className="w-6 h-6 shrink-0" aria-hidden="true" />
         {t('countdown.add')}
       </button>
 
-      <SettingsSection id="saved-stops-label" title={t('countdown.saved')} className="countdown-column">
-        <div className="countdown-column-body">
-          {stops.length === 0 ? (
-            <p className="text-muted py-2">{t('countdown.none')}</p>
-          ) : (
-            <ul
-              ref={listRef}
-              className={`countdown-saved ${reorder.dragging ? 'is-reordering' : ''}`}
-              aria-labelledby="saved-stops-label"
-            >
-              {stops.map((stop, index) => {
-                const { name, detail } = described[index] ?? describeStop(stop);
-                const { style, isDragged } = reorder.rowStyle(index);
-                return (
-                  <li
-                    key={`${stop.source}:${stop.id}`}
-                    className={`settings-box countdown-stop ${isDragged ? 'is-dragged' : ''}`}
-                    style={style}
+      <SettingsSection id="saved-stops-label" title={t('countdown.saved')}>
+        {stops.length === 0 ? (
+          <p className="text-muted py-2">{t('countdown.none')}</p>
+        ) : (
+          <ul
+            ref={listRef}
+            className={`countdown-saved ${reorder.dragging ? 'is-reordering' : ''}`}
+            aria-labelledby="saved-stops-label"
+          >
+            {stops.map((stop, index) => {
+              const { name, detail } = described[index] ?? describeStop(stop);
+              const { style, isDragged } = reorder.rowStyle(index);
+              return (
+                <li
+                  key={`${stop.source}:${stop.id}`}
+                  className={`settings-box countdown-stop ${isDragged ? 'is-dragged' : ''}`}
+                  style={style}
+                >
+                  <button
+                    type="button"
+                    className="countdown-stop-handle"
+                    aria-label={t('countdown.move', { name })}
+                    aria-keyshortcuts="ArrowUp ArrowDown"
+                    disabled={stops.length < 2}
+                    {...reorder.handleProps(index)}
                   >
-                    <button
-                      type="button"
-                      className="countdown-stop-handle"
-                      aria-label={t('countdown.move', { name })}
-                      aria-keyshortcuts="ArrowUp ArrowDown"
-                      disabled={stops.length < 2}
-                      {...reorder.handleProps(index)}
-                    >
-                      <GripVertical className="w-5 h-5" aria-hidden="true" />
-                    </button>
-                    <span className="min-w-0 flex-1">
-                      <span className="settings-box-title block truncate">{name}</span>
-                      {detail && <span className="block text-muted truncate">{detail}</span>}
-                    </span>
-                    <button
-                      type="button"
-                      className="countdown-stop-remove"
-                      aria-label={t('countdown.remove', { name })}
-                      onClick={() => removeStop(stop)}
-                    >
-                      <X className="w-5 h-5" aria-hidden="true" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
+                    <GripVertical className="w-5 h-5" aria-hidden="true" />
+                  </button>
+                  <span className="min-w-0 flex-1">
+                    <span className="settings-box-title block truncate">{name}</span>
+                    {detail && <span className="block text-muted truncate">{detail}</span>}
+                  </span>
+                  <button
+                    type="button"
+                    className="countdown-stop-remove"
+                    aria-label={t('countdown.remove', { name })}
+                    onClick={() => removeStop(stop)}
+                  >
+                    <X className="w-5 h-5" aria-hidden="true" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </SettingsSection>
 
       <SettingsToggle
@@ -114,7 +114,6 @@ export default function CountdownSettings({
         note={t('countdown.group_caption')}
         on={groupByRoute}
         onChange={value => onSave('arrivals', { ...config.arrivals, group_by_route: value })}
-        className="countdown-grouping"
       >
         {/* Still under reduced motion: its last frame, how the board ends up. */}
         <picture className="countdown-grouping-picture">
@@ -126,6 +125,8 @@ export default function CountdownSettings({
           />
         </picture>
       </SettingsToggle>
+
+      <ArrivalsTransitionSettings />
 
       {isSearching && (
         <StopSearch
