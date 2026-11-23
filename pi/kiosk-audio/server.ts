@@ -28,8 +28,9 @@
 //   GET  /wifi/status       {"ssid": "Home", "address": "192.168.1.42"}: the network the Wi-Fi is on and the Pi's IPv4
 //                           address on it, each or null (the app's origin only)
 //   GET  /wifi/networks     {"networks": [{"ssid", "signal", "bars", "security"}, …]}   or 503 {"error"}: a safe message
-//   POST /wifi/connect      {"ssid", "password", "hidden", "security"}   join a network: {"ok": true} or {"ok": false, "error"}
-//   GET  /wifi/saved        {"networks": ["Home", …]}: the networks the Pi keeps, to join again (the app's origin only)
+//   POST /wifi/connect      {"ssid", "password", "hidden", "security"}   join a network: {"ok": true} or {"ok": false, "error"};
+//                           once joined, the Pi forgets every other saved network, so it keeps only the one it is on
+//   GET  /wifi/saved        {"networks": ["Home"]}: the network the Pi keeps, to join again (the app's origin only)
 //   POST /wifi/forget       {"ssid"}   delete the Pi's saved connections to a network: {"ok": true} or {"ok": false, "error"}
 //   POST /wifi/hotspot      start a setup hotspot for a phone (hotspot.ts): {"ssid", "password", "url", "wifiQr", "urlQr"}
 //                           or 503 {"error"}   POST /wifi/hotspot/stop  end it
@@ -189,7 +190,7 @@ interface Wifi {
   /** The Pi's IPv4 address on its network, or null. */
   address: () => string | null;
   connect: (request: ConnectRequest) => Promise<ConnectResult>;
-  /** The names of the networks the Pi keeps. */
+  /** The names of the networks the Pi keeps (after a join, only the one it is on). */
   saved: () => Promise<string[]>;
   /** Deletes the Pi's saved connections to a network. */
   forget: (ssid: string) => Promise<ConnectResult>;

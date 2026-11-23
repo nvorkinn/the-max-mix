@@ -1,4 +1,6 @@
 // Wi-Fi through NetworkManager's nmcli, for the app's Settings > Wi-Fi and the phone setups.
+// The Pi keeps only the network it is on: once a new one is joined, the saved connections to every other network are
+// deleted (a failed join changes nothing it kept).
 // Every command is an argument list, never a shell. The password reaches nmcli on stdin (`--ask`), never in argv, so
 // `ps` does not show it, and it is never logged. The service runs as the kiosk user, which polkit lets manage
 // NetworkManager (50-kiosk-networkmanager.rules).
@@ -236,7 +238,10 @@ export class Nmcli {
     if (hidden) argv.push('hidden', 'yes');
     const stdin = security === 'psk' ? `${password}\n` : '';
     const { code, stderr } = await this.call(argv, stdin, (CONNECT_WAIT_SECONDS + 15) * 1000);
-    if (code === 0) return { ok: true };
+    if (code === 0) {
+      await this.forgetAllBut(ssid);
+      return { ok: true };
+    }
 
     const saved = new Set(savedBefore);
     const savedNow = await this.wifiUuids(false);
@@ -272,6 +277,17 @@ export class Nmcli {
       })
     );
     return rows.filter(row => row !== null);
+  }
+
+  /** Deletes the saved connections to every network but this one (and never the setup hotspot), so only it is kept. */
+  private async forgetAllBut(ssid: string): Promise<void> {
+    for (const row of await this.savedConnections()) {
+      if (row.ssid === ssid) continue;
+      // One at a time: NetworkManager handles these in order anyway. A failure is logged by call() and otherwise
+      // ignored: the join itself worked.
+      // eslint-disable-next-line no-await-in-loop -- see above
+      await this.call(['nmcli', 'connection', 'delete', 'uuid', row.uuid]);
+    }
   }
 
   /** The names of the networks the Pi keeps, to join again by itself: once each, in name order. */
@@ -325,7 +341,10 @@ export class Nmcli {
     }
   }
 
-  /** Joins a network. A failed attempt deletes the profile it created and brings the Wi-Fi that was on back. */
+  /**
+   * Joins a network. Once joined, the saved connections to every other network are deleted, so the Pi keeps only this
+   * one. A failed attempt deletes only the profile it created and brings the Wi-Fi that was on back.
+   */
   async connect(request: ConnectRequest): Promise<ConnectResult> {
     if (this.isConnecting) return { ok: false, error: ERRORS.busy };
     this.isConnecting = true;
