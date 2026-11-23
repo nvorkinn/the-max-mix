@@ -439,7 +439,8 @@
   display: block;
   transition: opacity 350ms ease;
 }
-.dashboard-weather.fading .dashboard-wx-view {
+.dashboard-weather.fading .dashboard-wx-view,
+.dashboard-wx-summary.fading {
   opacity: 0;
 }
 .dashboard-weather:focus-visible {
@@ -522,8 +523,9 @@
   gap: 8px;
   font-size: 17px;
   color: var(--muted);
-  margin-top: 4px;
+  margin-top: 6px;
   min-height: 24px;
+  transition: opacity 350ms ease;
 }
 
 /* While there is room, the next days under the weather, a row each (RailPages.tsx's OUTLOOK_ sizes). */
@@ -572,7 +574,7 @@
 /* Always right under the weather, the coming hours' trend in one row. */
 .dashboard-trend {
   flex: none;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 .dashboard-hours {
   display: flex;

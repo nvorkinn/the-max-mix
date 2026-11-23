@@ -106,8 +106,7 @@ export default function Dashboard({
           <TabBar {...tabBar} />
           <main className="dashboard-main">
             <div className="dashboard-rail">
-              <WeatherBlock {...weather} time={time} />
-              {hourly && <HourlyTrend {...hourly} />}
+              <WeatherBlock {...weather} time={time} trend={hourly && <HourlyTrend {...hourly} />} />
               <RailPages
                 notices={notices.notices}
                 lineStatus={lineStatus}
