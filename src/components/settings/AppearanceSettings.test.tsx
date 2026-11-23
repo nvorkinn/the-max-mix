@@ -1,0 +1,41 @@
+import { describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '../../test/user';
+import AppearanceSettings from './AppearanceSettings';
+
+describe('AppearanceSettings', () => {
+  it('picks a colour, shown on a sample of the player', async () => {
+    const onThemeColourChange = vi.fn();
+    render(<AppearanceSettings themeColour="forest" onThemeColourChange={onThemeColourChange} />);
+    expect(screen.getByRole('button', { name: 'Forest' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Your colour')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Navy' }));
+    expect(onThemeColourChange).toHaveBeenCalledExactlyOnceWith('navy');
+  });
+
+  it("shows the album art's colours beside the chosen one while Dynamic is on", async () => {
+    const onDynamicColourChange = vi.fn();
+    const { rerender } = render(
+      <AppearanceSettings
+        themeColour="teal"
+        onThemeColourChange={vi.fn()}
+        dynamicColour={false}
+        onDynamicColourChange={onDynamicColourChange}
+      />
+    );
+    expect(screen.queryByText('While music plays')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('switch', { name: 'Dynamic' }));
+    expect(onDynamicColourChange).toHaveBeenCalledExactlyOnceWith(true);
+
+    rerender(
+      <AppearanceSettings
+        themeColour="teal"
+        onThemeColourChange={vi.fn()}
+        dynamicColour
+        onDynamicColourChange={onDynamicColourChange}
+      />
+    );
+    expect(screen.getByText('Your colour, when nothing plays')).toBeInTheDocument();
+    expect(screen.getByText('While music plays')).toBeInTheDocument();
+  });
+});
