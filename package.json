@@ -19,6 +19,7 @@
     "lint:css": "stylelint \"src/**/*.css\" --max-warnings 0",
     "lint:unused-css": "node scripts/check-unused-css.ts",
     "lint:spelling": "cspell --no-progress --dot \"**/*\"",
+    "lint:stale-words": "node scripts/check-stale-words.ts",
     "lint:editorconfig": "editorconfig-checker",
     "knip": "knip",
     "lint:package-json": "npmPkgJsonLint . && node scripts/check-version-ranges.ts",

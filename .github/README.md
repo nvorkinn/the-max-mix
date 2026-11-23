@@ -42,6 +42,9 @@ the units are enabled but not started, and runs it again to check that nothing c
 `audit.yml` scans the lockfile weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in
 `all-checks.yml`.
 
+`stale-words.yml` checks weekly that cspell still needs every word in `project-words.txt`
+(`npm run lint:stale-words`). It does not run on pull requests either, so it is not in `all-checks.yml`.
+
 `dependabot.yml` opens one daily update PR for the whole project: its npm, uv and GitHub Actions entries share a
 multi-ecosystem group.
 
