@@ -1,8 +1,8 @@
 name: Stale words
 
-# Weekly check that every word in project-words.txt is still needed by cspell. It is a second full cspell pass and a
-# stale word harms nothing, so it is not a pull request check and is not listed in all-checks.yml; a failing run
-# notifies the repository owner instead. Run it by hand from the Actions tab with "Run workflow".
+# Weekly check (cspell-check-unused-words) that cspell still needs every word in cspell.json's `words` list. It is a
+# second full cspell pass and a stale word harms nothing, so it is not a pull request check and is not listed in
+# all-checks.yml; a failing run notifies the repository owner instead. Run it by hand from the Actions tab with "Run workflow".
 on:
   schedule:
     - cron: '43 6 * * 1'
