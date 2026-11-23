@@ -2201,6 +2201,88 @@ body:has(.app-dialog[open]) {
   display: grid;
   place-items: center;
 }
+/*
+  The Appearance page's samples of the player (AppearanceSettings): a cover, the title in the accent, the progress bar
+  and the play button in the fill, each painted with its own colours; with Dynamic on, the album art's beside it.
+*/
+.colour-samples {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 6px;
+}
+.colour-sample {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+.colour-sample-player {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+.colour-sample-art {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+.colour-sample-art.has-art {
+  background: var(--sample-art);
+}
+.colour-sample-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.colour-sample-title {
+  color: var(--sample-accent);
+  font-size: 17px;
+  font-weight: 750;
+}
+.colour-sample-artist {
+  color: var(--muted);
+  font-size: 14px;
+}
+.colour-sample-bar {
+  height: 5px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--border);
+}
+.colour-sample-progress {
+  display: block;
+  width: 42%;
+  height: 100%;
+  background: var(--sample-fill);
+}
+.colour-sample-play {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--sample-fill);
+  color: var(--sample-ink);
+}
+.colour-sample-caption {
+  padding-left: 4px;
+  color: var(--muted);
+  font-size: 15px;
+}
 .colour-swatch-tick {
   width: 28px;
   height: 28px;
