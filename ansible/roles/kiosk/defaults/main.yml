@@ -85,7 +85,7 @@ kiosk_tailscale_enabled: true
 # player for now. The name it has in the Spotify app, how much of the SD card its cache may use (100 at least), and the
 # port of its WebSocket control API on 127.0.0.1. kiosk-soloist-update.timer installs the latest build this long after
 # boot and then this long after each run, well inside the 90 days a build works for. It plays once its API key is stored
-# with kiosk-soloist-key (pi/cloud-init/README.md).
+# by kiosk-audio, which gets it from countdown-server through the app (pi/kiosk-audio/soloist.ts).
 kiosk_soloist_device_name: The Max Mix Soloist
 kiosk_soloist_cache_mb: 200
 kiosk_soloist_ws_port: 7342

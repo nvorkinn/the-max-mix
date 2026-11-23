@@ -2,8 +2,9 @@
 # Spotify Soloist, Spotify's headless Spotify Connect player, as "{{ kiosk_soloist_device_name }}". A user unit, enabled
 # for every user but run only for the kiosk user: it plays through that user's PipeWire session, which kiosk.service's
 # login session starts, and its sound goes to PipeWire's default output. kiosk-soloist-update installs the program;
-# kiosk-soloist-key stores the API key, and until then this does not start. It signs in when someone picks it in the
-# Spotify app on the same network, and keeps that session in its state folder.
+# the API key comes from countdown-server through the app and kiosk-audio (pi/kiosk-audio/soloist.ts), and until it is
+# stored this does not start. It signs in when someone picks it in the Spotify app on the same network, and keeps that
+# session in its state folder.
 [Unit]
 Description=Spotify Soloist (Spotify Connect player)
 ConditionUser={{ kiosk_user }}

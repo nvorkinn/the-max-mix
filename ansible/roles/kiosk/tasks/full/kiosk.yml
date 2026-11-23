@@ -19,7 +19,7 @@
       copy=(rsync --recursive --checksum --perms --owner --group --chown=root:root --itemize-changes)
       "${copy[@]}" --chmod=F0755 "$FILES/bin/kiosk-session" "$FILES/bin/kiosk-display" /usr/local/bin/
       "${copy[@]}" --chmod=F0755 "$FILES/bin/kiosk-pull" "$FILES/bin/kiosk-app-switch" "$FILES/bin/kiosk-status" \
-        "$FILES/bin/kiosk-ssh-keys" "$FILES/bin/kiosk-soloist-update" "$FILES/bin/kiosk-soloist-key" /usr/local/sbin/
+        "$FILES/bin/kiosk-ssh-keys" "$FILES/bin/kiosk-soloist-update" /usr/local/sbin/
       "${copy[@]}" --chmod=D0755,F0644 --delete --exclude='*.test.ts' --exclude=fixtures.ts --include='*.ts' \
         --exclude='*' "$AUDIO_SRC/" "$AUDIO_DIR/"
       "${copy[@]}" --chmod=F0644 "$FILES/kiosk-audio/package.json" "$FILES/kiosk-audio/package-lock.json" "$AUDIO_DIR/"

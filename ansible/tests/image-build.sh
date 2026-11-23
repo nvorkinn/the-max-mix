@@ -65,7 +65,7 @@ for file in /usr/local/bin/kiosk-session \
   /usr/local/sbin/kiosk-status /usr/local/bin/kiosk-display /usr/local/sbin/kiosk-ssh-keys \
   /usr/local/sbin/kiosk-app-switch \
   /etc/systemd/system/kiosk-ssh-keys.service /etc/systemd/system/kiosk-ssh-keys.timer \
-  /usr/local/sbin/kiosk-soloist-update /usr/local/sbin/kiosk-soloist-key \
+  /usr/local/sbin/kiosk-soloist-update \
   /etc/systemd/system/kiosk-soloist-update.service /etc/systemd/system/kiosk-soloist-update.timer \
   /etc/systemd/user/kiosk-soloist.service /etc/systemd/user/default.target.wants/kiosk-soloist.service \
   /etc/systemd/system/kiosk-widevine.path \

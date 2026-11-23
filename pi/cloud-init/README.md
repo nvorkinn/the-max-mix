@@ -166,13 +166,11 @@ built; a new build takes over at the next kiosk start. Spotify does not allow pa
 downloads its own and it is never in the release bundle or the flash image.
 
 It needs an API key, made at [developer.spotify.com/dashboard/soloist](https://developer.spotify.com/dashboard/soloist)
-by a Spotify Premium account (each owner makes their own; never share it). Until one is stored, the player does not
-start. Store it once per Pi, over SSH and on standard input so it never shows in a command line, for example from
-the Bitwarden CLI (`bw get password <item id>`):
-
-```sh
-bw get password <item id> | ssh admin@the-max-mix.local sudo kiosk-soloist-key kiosk
-```
+by a Spotify Premium account. The Pi installs from a public release, so the key can't come with it: it is
+countdown-server's secret (`SPOTIFY_SOLOIST_API_KEY`). Once the kiosk is paired, the app fetches it from
+`GET /api/devices/soloist/key` with its device secret and hands it to kiosk-audio (`POST /soloist/key`), which stores
+it with `soloist setup-api-key` and starts the player (`pi/kiosk-audio/soloist.ts`). Until then the player does not
+start. A new key on the server reaches every Pi the same way.
 
 Then pick **The Max Mix Soloist** in the Spotify app on a phone on the same network; it signs in and remembers that
 session in `~kiosk/.local/state/soloist`. Its WebSocket control API listens on `127.0.0.1:7342`
@@ -213,5 +211,5 @@ the card, the first pull and reboot, SSH, and Widevine after a restart. Still to
 4. On a Pi 5, Widevine plays with the 4 KB-page kernel (`getconf PAGESIZE` prints 4096).
 5. Screen sleep: the Waveshare turns its backlight off when `kiosk-display off` disables the output, Chromium's wake
    lock keeps it on while music plays, and the first touch brings it back at 1024x600.
-6. Spotify Soloist: after `kiosk-soloist-key`, the player starts, shows in the Spotify app, signs in when picked,
+6. Spotify Soloist: once the kiosk is paired, the key arrives and the player starts, shows in the Spotify app, signs in when picked,
    plays, and is still paired after a reboot; a new build from `kiosk-soloist-update` takes over at the next kiosk start.
