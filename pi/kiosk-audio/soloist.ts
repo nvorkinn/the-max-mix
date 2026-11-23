@@ -28,7 +28,7 @@ export type RunWithInput = (
 ) => Promise<{ code: number; stderr: string }>;
 
 /** Runs a program without a shell, with `input` on its standard input. 124 means it timed out, 127 that it didn't start. */
-export const runWithInput: RunWithInput = ([file = '', ...args], input, env) =>
+const runWithInput: RunWithInput = ([file = '', ...args], input, env) =>
   new Promise(resolve => {
     const child = execFile(
       // Callers pass absolute paths (SOLOIST, SYSTEMCTL), so PATH is never searched.
