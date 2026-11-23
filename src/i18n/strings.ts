@@ -102,9 +102,6 @@ export const STRINGS = {
   'weather.showers': { en: 'Showers', nb: 'Regnbyger' },
   'weather.snow_showers': { en: 'Snow showers', nb: 'Snøbyger' },
   'weather.thunderstorms': { en: 'Thunderstorms', nb: 'Tordenvær' },
-  'weather.rain_from': { en: 'Rain from {hour}', nb: 'Regn fra {hour}' },
-  'weather.dry_from': { en: 'Dry from {hour}', nb: 'Opphold fra {hour}' },
-  'weather.dry_all_day': { en: 'Dry all day', nb: 'Opphold hele dagen' },
   // The parcels on the notice board: one parcel, or how many.
   'parcel.out': {
     en: '{count, plural, one {Parcel out for delivery} other {# parcels out for delivery}}',

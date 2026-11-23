@@ -61,13 +61,6 @@ export interface WeatherView {
   isDay?: boolean;
   /** "Partly cloudy". */
   condition: string;
-  /**
-   * One short line the hourly trend doesn't already say ("Umbrella after 1pm"), or null to show none. The data layer
-   * decides; the component never makes one up.
-   */
-  summary: string | null;
-  /** The icon beside `summary`: an umbrella (the default) for rain, a sun for fine weather. */
-  summaryIcon?: 'umbrella' | 'sun';
   /** The trend under it, soonest first: Now's next three even hours, Tomorrow's 08:00, 13:00 and 18:00. */
   hours?: HourForecast[];
 }

@@ -1,4 +1,3 @@
-import { Sun, Umbrella } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { HourlyTrendProps, WeatherBlockProps, WeatherPeriod } from '../../dashboard/props';
 import type { StringId } from '../../i18n/strings';
@@ -23,8 +22,8 @@ interface WeatherBlockOwnProps extends WeatherBlockProps {
 }
 
 /**
- * The periods as pills, the one on show filled; then the temperature with its sky's icon and what it's like, the
- * coming hours' trend, and one line more. It starts on Now and moves to the next period on every turn of the Dashboard's carousels (carousel.ts), at the
+ * The periods as pills, the one on show filled; then the temperature with its sky's icon and what it's like, and the
+ * period's hourly trend. It starts on Now and moves to the next period on every turn of the Dashboard's carousels (carousel.ts), at the
  * same moment the boards and the rail's pages move, or at once on a tap; the periods wrap round. A period tapped to
  * moves on at the next shared turn, so the weather never drifts out of step. The old period fades right out before the
  * new one fades in, so two temperatures never show on top of each other.
@@ -55,11 +54,9 @@ export default function WeatherBlock({ views, time, trend = null }: Readonly<Wea
         <p className="dashboard-wx-pills">&nbsp;</p>
         <p className="dashboard-wx-temp">&nbsp;</p>
         <p className="dashboard-wx-condition">&nbsp;</p>
-        <p className="dashboard-wx-summary" />
       </div>
     );
   }
-  const SummaryIcon = view.summaryIcon === 'sun' ? Sun : Umbrella;
   const isDay = view.isDay ?? true;
   const SkyIcon = SKY_ICONS[view.sky][isDay ? 'day' : 'night'];
   const shown = index % count;
@@ -99,14 +96,6 @@ export default function WeatherBlock({ views, time, trend = null }: Readonly<Wea
           <HourlyTrend {...trend} hours={view.hours ?? []} />
         </div>
       )}
-      <p className={`dashboard-wx-summary shadowed${fading ? ' fading' : ''}`}>
-        {view.summary && (
-          <>
-            <SummaryIcon className="lucide" style={{ width: 18, height: 18 }} aria-hidden="true" />
-            {view.summary}
-          </>
-        )}
-      </p>
     </>
   );
 }

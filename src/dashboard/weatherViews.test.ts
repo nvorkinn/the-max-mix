@@ -50,7 +50,7 @@ function answer({ codes = {}, dayCodes = {}, offsetSeconds = 0 }: Options = {}):
 
 describe('toWeather', () => {
   it('rotates Now and Tomorrow, each with its own temperature', () => {
-    const weather = toWeather(answer(), NOW, '24h');
+    const weather = toWeather(answer(), NOW);
 
     expect(weather?.views.map(view => [view.period, view.temperature, view.sky, view.condition])).toEqual([
       ['now', 9, 'partly-cloudy', 'Partly cloudy'],
@@ -58,51 +58,15 @@ describe('toWeather', () => {
     ]);
   });
 
-  it("says when rain comes later today only past the trend's hours", () => {
-    const rainLater = toWeather(answer({ codes: { '2026-11-17T16': 61, '2026-11-17T17': 61 } }), NOW, '12h');
-    const rainSoon = toWeather(answer({ codes: { '2026-11-17T12': 61 } }), NOW, '12h');
+  it('gives Tomorrow its own sky and words, in Norwegian too', () => {
+    const wet = answer({ dayCodes: { '2026-11-18': 80 } });
 
-    expect(rainLater?.views[0]?.summary).toBe('Rain from 4pm');
-    expect(toWeather(answer({ codes: { '2026-11-17T16': 61 } }), NOW, '24h')?.views[0]?.summary).toBe(
-      'Rain from 16:00'
-    );
-    // The trend already shows it.
-    expect(rainSoon?.views[0]?.summary).toBeNull();
-  });
-
-  it('says when it dries up, when it is still raining at the end of the trend', () => {
-    const codes: Record<string, number> = {};
-    for (let hour = 9; hour < 19; hour += 1) codes[`2026-11-17T${String(hour).padStart(2, '0')}`] = 63;
-
-    expect(toWeather(answer({ codes }), NOW, '12h')?.views[0]?.summary).toBe('Dry from 7pm');
-  });
-
-  it("gives tomorrow's rain hour, or says it stays dry", () => {
-    const wet = answer({ codes: { '2026-11-18T14': 80 }, dayCodes: { '2026-11-18': 80 } });
-
-    expect(toWeather(wet, NOW, '12h')?.views[1]).toMatchObject({
-      sky: 'rain',
-      condition: 'Showers',
-      summary: 'Rain from 2pm'
-    });
-    expect(toWeather(answer(), NOW, '12h')?.views[1]?.summary).toBe('Dry all day');
-  });
-
-  it('says it all in Norwegian, with the dry summaries still under a sun', () => {
-    const codes: Record<string, number> = {};
-    for (let hour = 9; hour < 19; hour += 1) codes[`2026-11-17T${String(hour).padStart(2, '0')}`] = 63;
-    const views = toWeather(answer({ codes }), NOW, '24h', 'nb')?.views ?? [];
-
-    expect(views[0]).toMatchObject({
-      condition: translate('weather.partly_cloudy', 'nb'),
-      summary: translate('weather.dry_from', 'nb', { hour: '19:00' }),
-      summaryIcon: 'sun'
-    });
-    expect(views[1]).toMatchObject({ summary: translate('weather.dry_all_day', 'nb'), summaryIcon: 'sun' });
+    expect(toWeather(wet, NOW)?.views[1]).toMatchObject({ sky: 'rain', condition: 'Showers' });
+    expect(toWeather(answer(), NOW, 'nb')?.views[0]?.condition).toBe(translate('weather.partly_cloudy', 'nb'));
   });
 
   it("gives the next three even hours, in the place's offset, with day and night from sunrise and sunset", () => {
-    const at = (utc: string) => toWeather(answer({ offsetSeconds: 3600 }), new Date(utc), '24h')?.views[0]?.hours;
+    const at = (utc: string) => toWeather(answer({ offsetSeconds: 3600 }), new Date(utc))?.views[0]?.hours;
 
     // 13:30 there: the trend starts at 14:00, and the sun sets at 16:00.
     expect(at('2026-11-17T12:30:00Z')).toEqual([
@@ -119,7 +83,7 @@ describe('toWeather', () => {
   });
 
   it('gives Tomorrow its own trend: its morning, midday and evening', () => {
-    const tomorrow = toWeather(answer({ codes: { '2026-11-18T13': 61 } }), NOW, '24h')?.views[1];
+    const tomorrow = toWeather(answer({ codes: { '2026-11-18T13': 61 } }), NOW)?.views[1];
 
     expect(tomorrow?.hours).toEqual([
       { time: '2026-11-18T08:00:00Z', temperature: 12, sky: 'partly-cloudy', isDay: true },
@@ -129,7 +93,7 @@ describe('toWeather', () => {
   });
 
   it('gives the five days after today, each with its high, low and sky', () => {
-    const days = toWeather(answer({ dayCodes: { '2026-11-20': 61 } }), NOW, '24h')?.days;
+    const days = toWeather(answer({ dayCodes: { '2026-11-20': 61 } }), NOW)?.days;
 
     expect(days).toEqual([
       { date: '2026-11-18', high: 13, low: 5, sky: 'partly-cloudy' },
@@ -141,8 +105,8 @@ describe('toWeather', () => {
   });
 
   it("draws Now's sky by day or night from sunrise and sunset", () => {
-    const morning = toWeather(answer(), NOW, '24h')?.views;
-    const evening = toWeather(answer(), new Date('2026-11-17T19:00:00Z'), '24h')?.views;
+    const morning = toWeather(answer(), NOW)?.views;
+    const evening = toWeather(answer(), new Date('2026-11-17T19:00:00Z'))?.views;
 
     expect(morning?.[0]?.isDay).toBe(true);
     expect(evening?.[0]?.isDay).toBe(false);
@@ -152,9 +116,9 @@ describe('toWeather', () => {
     const broken = answer();
     Object.assign(broken.forecast?.forecast as unknown as { hourly: object }, { hourly: {} });
 
-    expect(toWeather({ ...answer(), forecast: null }, NOW, '24h')).toBeNull();
-    expect(toWeather(null, NOW, '24h')).toBeNull();
-    expect(toWeather(broken, NOW, '24h')).toBeNull();
+    expect(toWeather({ ...answer(), forecast: null }, NOW)).toBeNull();
+    expect(toWeather(null, NOW)).toBeNull();
+    expect(toWeather(broken, NOW)).toBeNull();
   });
 });
 

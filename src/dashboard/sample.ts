@@ -35,7 +35,6 @@ export const SAMPLE = {
         temperature: 9,
         sky: 'partly-cloudy',
         condition: 'Partly cloudy',
-        summary: 'Heavy rain from 16:00',
         hours: [
           { time: hour('10'), temperature: 9, sky: 'partly-cloudy', isDay: true },
           { time: hour('12'), temperature: 11, sky: 'cloudy', isDay: true },
@@ -47,8 +46,6 @@ export const SAMPLE = {
         temperature: 12,
         sky: 'cloudy',
         condition: 'Cloudy',
-        summary: 'Dry all day',
-        summaryIcon: 'sun',
         hours: [
           { time: tomorrowHour('08'), temperature: 7, sky: 'cloudy', isDay: true },
           { time: tomorrowHour('13'), temperature: 12, sky: 'cloudy', isDay: true },

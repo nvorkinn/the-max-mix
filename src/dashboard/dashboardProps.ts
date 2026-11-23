@@ -114,7 +114,7 @@ export function dashboardProps(
   const boardStale = (stopId: string) =>
     down || snapshot.heldStops.has(stopId) || olderThan(fetchedAt.get(stopId), DEPARTURES_STALE_MS, now);
 
-  const weather = toWeather(snapshot.weather, now, clockFormat, language);
+  const weather = toWeather(snapshot.weather, now, language);
   const weatherRead = snapshot.weather?.forecast?.fetched_at;
 
   return {

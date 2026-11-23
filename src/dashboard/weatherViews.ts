@@ -1,30 +1,21 @@
 // The weather block's views (Now, Tomorrow, each with its hourly trend) and the outlook (props.ts) from the forecast
 // countdown-server keeps for the kiosk's place: Open-Meteo's own answer, in the place's local time (utc_offset_seconds
 // from UTC), which countdown-api leaves open, so the fields read here are checked here.
-//
-// Each view's summary says only what the trend doesn't (TREND_HOURS hours TREND_STEP apart): when rain comes or goes
-// later today, or when it starts tomorrow. With nothing like that to say there is none.
 
 import type { DeviceWeather } from 'countdown-api';
 import { DEFAULT_LANGUAGE } from '../i18n/language';
 import type { Language } from '../i18n/language';
 import type { StringId } from '../i18n/strings';
 import { translate } from '../i18n/translate';
-import type { ClockFormat } from '../utils/clockFormat';
 import type { DayForecast, HourForecast, Sky, WeatherView } from './props';
 
 /** The trend's hours, and how many hours apart they are: on the place's even hours, the next one first. */
 const TREND_HOURS = 3;
 const TREND_STEP = 2;
 /** Tomorrow's trend: its morning, midday and evening. */
-const TOMORROW_HOURS: readonly number[] = [8, 13, 18];
+const TOMORROW_HOURS: ReadonlySet<number> = new Set([8, 13, 18]);
 /** Days in the outlook under the weather, from tomorrow. */
 const OUTLOOK_DAYS = 5;
-/** The waking hours a day's summary is about. */
-const DAY_FROM = 7;
-const DAY_TO = 21;
-
-const WET: ReadonlySet<Sky> = new Set(['drizzle', 'rain', 'snow', 'thunder']);
 
 /** A WMO weather code as the sky it draws. */
 export function skyFor(code: number): Sky {
@@ -131,33 +122,6 @@ function nextDate(date: string, days = 1): string {
   return day.toISOString().slice(0, 10);
 }
 
-/** An hour of the place's local time as the clock format writes it: "1pm" or "13:00". */
-function hourWords(hour: number, clockFormat: ClockFormat): string {
-  if (clockFormat === '24h') return `${String(hour).padStart(2, '0')}:00`;
-  const twelve = hour % 12 === 0 ? 12 : hour % 12;
-  return `${twelve}${hour < 12 ? 'am' : 'pm'}`;
-}
-
-/** A view's summary, and whether it says it stays or turns dry. */
-interface Summary {
-  text: string;
-  dry: boolean;
-}
-
-/** "Rain from 3pm" for the first wet hour of `hours` after a dry one, "Dry from 7pm" for the reverse; else null. */
-function turnOf(hours: readonly Hour[], wetNow: boolean, clockFormat: ClockFormat, language: Language): Summary | null {
-  const turn = hours.find(hour => WET.has(hour.sky) !== wetNow);
-  if (!turn) return null;
-  const hour = hourWords(localHour(turn), clockFormat);
-  return { text: translate(wetNow ? 'weather.dry_from' : 'weather.rain_from', language, { hour }), dry: wetNow };
-}
-
-/** A summary with its icon: a sun for one that says it stays or turns dry, else the umbrella. */
-function withIcon(summary: Summary | null): Pick<WeatherView, 'summary' | 'summaryIcon'> {
-  if (!summary) return { summary: null };
-  return summary.dry ? { summary: summary.text, summaryIcon: 'sun' } : { summary: summary.text };
-}
-
 export interface WeatherProps {
   views: WeatherView[];
   days: DayForecast[];
@@ -170,7 +134,6 @@ export interface WeatherProps {
 export function toWeather(
   answer: DeviceWeather | null,
   now: Date,
-  clockFormat: ClockFormat,
   language: Language = DEFAULT_LANGUAGE
 ): WeatherProps | null {
   const stored = answer?.forecast;
@@ -211,43 +174,32 @@ export function toWeather(
     isDay: isDay(hour)
   });
 
-  // Now: what the trend doesn't show is the rest of today after it.
+  // Now, and its next even hours.
   const nowSky = skyFor(fields.current.weather_code);
   const trend = ahead.filter(hour => localHour(hour) % TREND_STEP === 0).slice(0, TREND_HOURS);
-  const trendEnd = trend.at(-1)?.at ?? nowMs;
-  const laterToday = ahead.filter(hour => hour.at > trendEnd && localDate(hour) === today);
-  const nowSummary = turnOf(laterToday, WET.has(trend.at(-1)?.sky ?? nowSky), clockFormat, language);
   views.push({
     period: 'now',
     temperature: Math.round(fields.current.temperature),
     sky: nowSky,
     isDay: isDay({ at: nowMs, local: fields.current.time, temperature: 0, code: 0, sky: nowSky }),
     condition: conditionFor(fields.current.weather_code, language),
-    hours: trend.map(toForecast),
-    ...withIcon(nowSummary)
+    hours: trend.map(hour => toForecast(hour))
   });
 
-  // Tomorrow: its high and its own code, and when rain starts in its waking hours.
+  // Tomorrow: its high and its own code, and its own hours.
   const tomorrow = nextDate(today);
   const tomorrowIndex = dayIndex(tomorrow);
   const tomorrowHigh = fields.daily.temperature_max[tomorrowIndex];
   const tomorrowCode = fields.daily.weather_code[tomorrowIndex];
   if (tomorrowHigh !== undefined && tomorrowCode !== undefined) {
-    const waking = hours.filter(h => localDate(h) === tomorrow && localHour(h) >= DAY_FROM && localHour(h) <= DAY_TO);
-    const firstWet = waking.find(hour => WET.has(hour.sky));
-    const dry = waking.length > 0 && !firstWet && !WET.has(skyFor(tomorrowCode));
-    let tomorrowSummary: Summary | null = null;
-    if (firstWet) {
-      const hour = hourWords(localHour(firstWet), clockFormat);
-      tomorrowSummary = { text: translate('weather.rain_from', language, { hour }), dry: false };
-    } else if (dry) tomorrowSummary = { text: translate('weather.dry_all_day', language), dry: true };
     views.push({
       period: 'tomorrow',
       temperature: Math.round(tomorrowHigh),
       sky: skyFor(tomorrowCode),
       condition: conditionFor(tomorrowCode, language),
-      hours: hours.filter(h => localDate(h) === tomorrow && TOMORROW_HOURS.includes(localHour(h))).map(toForecast),
-      ...withIcon(tomorrowSummary)
+      hours: hours
+        .filter(h => localDate(h) === tomorrow && TOMORROW_HOURS.has(localHour(h)))
+        .map(hour => toForecast(hour))
     });
   }
 
