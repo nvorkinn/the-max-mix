@@ -1,7 +1,8 @@
 // Spotify Soloist's API key, from countdown-server to the Pi. Soloist (Spotify's headless Spotify Connect player, which
 // runs on the Pi beside the app's own player) won't start without the key on the Pi, and the Pi installs from a public
-// release, so the key is the server's secret: GET /api/devices/soloist/key (countdown-api's getSoloistKey) answers it
-// to a paired touchscreen, with the device secret. The kiosk hands it straight to its local service (POST /soloist/key,
+// release, so it comes from the owner's account: they save their own key on countdown-server's Account page, and
+// GET /api/devices/soloist/key (countdown-api's getSoloistKey) answers it to their paired touchscreen, with the device
+// secret. The kiosk hands it straight to its local service (POST /soloist/key,
 // pi/kiosk-audio/soloist.ts), which stores it for the player. The key is never kept, logged or shown here.
 
 import { getSoloistKey } from '../../vendor/countdown-api/src/countdown_api/client';
