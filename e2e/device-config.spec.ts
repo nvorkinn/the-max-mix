@@ -50,13 +50,13 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     });
   });
 
-  test("the lyrics look is the server's, and saves there from the Lyrics page", async ({ page }) => {
+  test("the lyrics look is the server's, and saves there from the Spotify page", async ({ page }) => {
     const server = await fakeCountdownServer(page, {
       ...DEVICE_CONFIGS.owned,
       lyrics: { size: 'large', align: 'center' }
     });
     await openSpotifyTab(page, '/?kiosk=1');
-    const settings = await openSettings(page, 'Lyrics');
+    const settings = await openSettings(page, 'Spotify');
 
     await expect(settings.getByRole('button', { name: 'Large', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(settings.getByRole('button', { name: 'Centre' })).toHaveAttribute('aria-pressed', 'true');
@@ -168,7 +168,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     await openSpotifyTab(page, '/?kiosk=1');
     const settings = await openSettings(page, 'General');
 
-    await settings.getByRole('button', { name: 'Change' }).first().click();
+    await settings.getByRole('region', { name: 'Weather' }).getByRole('button', { name: 'Change' }).click();
     const dialog = page.getByRole('dialog', { name: 'Weather place' });
     await dialog.getByRole('button', { name: 'Current location' }).click();
     expect(new URL((await asked).url()).searchParams.get('latitude')).toBe('59.9139');
@@ -186,6 +186,9 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     await expect(page.getByRole('tabpanel', { name: 'Spotify' }).locator('.dashboard-clock')).toHaveText('16:05');
     const settings = await openSettings(page, 'General');
 
+    // Each format shows the clock as it writes it.
+    await expect(settings.getByRole('button', { name: '24-hour' })).toContainText('16:05');
+    await expect(settings.getByRole('button', { name: '12-hour' })).toContainText(/4:05\sPM/i);
     await settings.getByRole('button', { name: '12-hour' }).click();
     await expect(settings.locator('.dashboard-clock')).toHaveText(/^\s*4:05\sPM$/i);
     await expect(settings.getByText('Saved', { exact: true })).toBeVisible();

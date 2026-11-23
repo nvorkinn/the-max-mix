@@ -362,11 +362,8 @@
   position: relative;
   isolation: isolate;
 }
-.app-tab-panel.on-photo .settings-tab :is(.settings-nav-item, .settings-box, .settings-segmented) {
+.app-tab-panel.on-photo .settings-tab :is(.settings-nav-item, .settings-box, .settings-value) {
   border-radius: 20px;
-}
-.app-tab-panel.on-photo .settings-tab .settings-segment {
-  border-radius: 16px;
 }
 .app-tab-panel.on-photo .settings-panel.settings-tab::before {
   content: '';
@@ -1997,10 +1994,6 @@ body:has(.app-dialog[open]) {
   font-size: 17px;
   font-weight: 700;
 }
-.settings-group-note {
-  margin-top: -6px;
-  font-size: 16px;
-}
 /*
   A setting's section (SettingsSection): its heading, with a switch or small button straight after the words, the line
   saying what it does, and its own control. Pages are columns of these, no wider than reads well.
@@ -2058,6 +2051,85 @@ body:has(.app-dialog[open]) {
   color: var(--accent-ink);
   font-weight: 750;
 }
+/*
+  Two large choices side by side (General's language and time format), each showing what it gives: the language's flag
+  and name, or the clock as that format writes it with the format's name under it.
+*/
+.settings-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.settings-panel .settings-choice {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 88px;
+  padding: 14px 22px;
+  border: 2px solid var(--border);
+  border-radius: 22px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  text-align: left;
+  transition:
+    background 160ms,
+    border-color 160ms;
+}
+.settings-panel .settings-choice.is-stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+}
+.settings-choice[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: var(--glow);
+}
+.settings-choice .settings-choice-flag {
+  width: 48px;
+  border-radius: 6px;
+}
+.settings-choice-name {
+  font-size: 22px;
+  font-weight: 750;
+}
+.settings-choice-clock {
+  font-size: 32px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+.settings-choice[aria-pressed='true'] .settings-choice-clock {
+  color: var(--accent);
+}
+.settings-choice-note {
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 650;
+}
+/* A value chosen in a dialog (the weather's place, the postcode): the value as it is, its Change button beside it. */
+.settings-value {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 520px;
+  padding: 8px 8px 8px 20px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface-raised);
+}
+.settings-value-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.settings-value-text .country-flag {
+  margin-right: 12px;
+  vertical-align: -2px;
+}
 /* A country's flag (CountryFlag): 32px wide in a row's icon box, text-sized beside words. */
 .country-flag {
   display: inline-flex;
@@ -2085,12 +2157,6 @@ body:has(.app-dialog[open]) {
 }
 .postcode-field:has(.postcode-field-flag) input {
   padding-left: 58px;
-}
-/* Two short settings side by side, such as the weather's place and the postcode. */
-.settings-pair {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
 }
 .settings-box {
   padding: 16px 18px;
@@ -2163,33 +2229,6 @@ body:has(.app-dialog[open]) {
   height: 168px;
   border-radius: 12px;
 }
-.settings-segmented {
-  display: grid;
-  grid-auto-columns: minmax(0, 1fr);
-  grid-auto-flow: column;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: var(--surface-raised);
-}
-.settings-segment {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border-radius: 14px;
-  color: var(--ink);
-  font-size: 17px;
-  font-weight: 650;
-  transition: background 160ms;
-}
-.settings-segment[aria-pressed='true'] {
-  background: var(--play-fill);
-  box-shadow: var(--glow);
-  color: var(--accent-ink);
-  font-weight: 750;
-}
 /* Eight 60px swatches fit one row on the 7" screen with this gap. */
 .settings-swatches {
   display: flex;
@@ -2207,13 +2246,6 @@ body:has(.app-dialog[open]) {
   color: #fff;
   stroke-width: 3;
   filter: drop-shadow(0 0 2px rgb(0 0 0 / 60%));
-}
-/* A group's title with its switch on the same line (SettingsToggle). */
-.settings-group-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
 }
 /* The button is the 60px touch target; the track drawn inside it is slimmer. */
 .settings-panel .settings-switch {
@@ -2421,60 +2453,6 @@ body:has(.app-dialog[open]) {
   padding: 0 20px;
   font-size: 18px;
 }
-.settings-people {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.settings-person {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 10px 10px 10px 14px;
-}
-.settings-person[aria-current='true'] {
-  border-color: var(--accent);
-}
-.settings-person-picture {
-  flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-.settings-person-face {
-  position: relative;
-  flex-shrink: 0;
-}
-.settings-person-active {
-  position: absolute;
-  right: -4px;
-  bottom: -4px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--surface);
-  color: var(--accent);
-}
-.settings-person-about {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  /* The status pill keeps its width; the phone button gives way (its name is cut short) on the narrow screen. */
-  min-width: min-content;
-}
-.settings-person .phone-picker-button {
-  flex-shrink: 1;
-  min-width: 0;
-}
-.settings-person .phone-picker-button svg {
-  flex-shrink: 0;
-}
-.settings-person-about .settings-box-title {
-  max-width: 100%;
-}
 /*
   The Spotify page's people as faces (SpotifySettings): a ring round the chosen one, a dot for whether their login
   works, a tick on the one playing, and a dashed face to add someone. The chosen person's login, phone and removal sit
@@ -2665,13 +2643,6 @@ body:has(.app-dialog[open]) {
   min-width: 0;
   overflow-wrap: anywhere;
   text-align: right;
-}
-/* The General page's rows: the weather's place and the notice board's postcode, each with its button. */
-.settings-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 10px 10px 10px 14px;
 }
 /* Settings › Wi-Fi: the networks in range, each a row to tap, then Other network, Hotspot and Refresh. */
 .wifi-networks {
@@ -2871,17 +2842,9 @@ body:has(.app-dialog[open]) {
 .countdown-grouping {
   flex-shrink: 0;
 }
-/* The switch beside a picture of the boards it gives: the 2x GIF at a quarter of its width, a third on the 10" screen. */
-.countdown-grouping-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.countdown-grouping-picture {
-  display: contents;
-}
+/* The boards Group by route gives, under its switch: the 2x GIF at a quarter of its width, a third on the 10" screen. */
 .countdown-grouping-preview {
-  flex-shrink: 0;
+  display: block;
   width: 242px;
   height: auto;
   border: 1px solid var(--border);
@@ -3095,10 +3058,6 @@ body:has(.app-dialog[open]) {
   }
   .settings-box-value {
     font-size: 18px;
-  }
-  .settings-panel .settings-segment {
-    min-height: 60px;
-    font-size: 19px;
   }
   .settings-swatches {
     gap: 14px;

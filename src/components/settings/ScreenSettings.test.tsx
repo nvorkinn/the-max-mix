@@ -59,7 +59,7 @@ describe('ScreenSettings', () => {
       const onChange = setupQuiet();
       const quiet = screen.getByRole('switch', { name: 'Quiet hours' });
       expect(quiet).not.toBeChecked();
-      expect(screen.queryByRole('group', { name: 'From' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('slider', { name: 'From' })).not.toBeInTheDocument();
       await userEvent.click(quiet);
       expect(onChange).toHaveBeenCalledExactlyOnceWith({ on: true, start: 22 * 60, end: 7 * 60 });
     });
@@ -72,20 +72,16 @@ describe('ScreenSettings', () => {
       expect(onChange).toHaveBeenCalledExactlyOnceWith({ on: false, start: 23 * 60, end: 6 * 60 });
     });
 
-    it('move each end by half an hour, in the tablet time format', async () => {
+    it('show each end on the day in the tablet time format, and step it half an hour with the arrow keys', () => {
       const onChange = setupQuiet({ hours: { on: true, start: 22 * 60, end: 7 * 60 }, clockFormat: '12h' });
-      expect(within(screen.getByRole('group', { name: 'From' })).getByText(/10:00\sPM/)).toBeInTheDocument();
-      expect(within(screen.getByRole('group', { name: 'To' })).getByText(/7:00\sAM/)).toBeInTheDocument();
-      await userEvent.click(screen.getByRole('button', { name: 'From later' }));
+      const from = screen.getByRole('slider', { name: 'From' });
+      const to = screen.getByRole('slider', { name: 'To' });
+      expect(from).toHaveAttribute('aria-valuetext', expect.stringMatching(/^10:00\sPM$/));
+      expect(to).toHaveAttribute('aria-valuetext', expect.stringMatching(/^7:00\sAM$/));
+      fireEvent.keyDown(from, { key: 'ArrowRight' });
       expect(onChange).toHaveBeenLastCalledWith({ on: true, start: 22 * 60 + 30, end: 7 * 60 });
-      await userEvent.click(screen.getByRole('button', { name: 'To earlier' }));
+      fireEvent.keyDown(to, { key: 'ArrowLeft' });
       expect(onChange).toHaveBeenLastCalledWith({ on: true, start: 22 * 60, end: 6 * 60 + 30 });
-    });
-
-    it('never lets both ends meet', async () => {
-      const onChange = setupQuiet({ hours: { on: true, start: 6 * 60 + 30, end: 7 * 60 } });
-      await userEvent.click(screen.getByRole('button', { name: 'From later' }));
-      expect(onChange).toHaveBeenLastCalledWith({ on: true, start: 7 * 60 + 30, end: 7 * 60 });
     });
   });
 });
