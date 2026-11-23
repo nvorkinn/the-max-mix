@@ -15,6 +15,8 @@ const TURN_MS = 15_000;
 async function showing(page: Page) {
   const board = (slot: number) =>
     page.locator(`.dashboard-departures-slot[data-slot="${slot}"]`).evaluate(element => {
+      // Measure the settled position without waiting for the real-time slide.
+      for (const animation of element.getAnimations()) animation.finish();
       const { x, y, width, height } = element.getBoundingClientRect();
       return { stop: element.dataset['board'] ?? '', box: [x, y, width, height].map(value => Math.round(value)) };
     });
@@ -27,6 +29,7 @@ for (const screen of SCREENS) {
       `${count} stops move along one at a time at ${screen.width}x${screen.height}`,
       { tag: '@layout' },
       async ({ page }) => {
+        await page.clock.install({ time: NOW });
         const reference = arrivalsAt(NOW, false);
         let hasMoreStops = false;
         await showDashboard(
@@ -44,18 +47,23 @@ for (const screen of SCREENS) {
         // The next feed connection brings the additional stops into the same Dashboard.
         hasMoreStops = true;
         await expect(page.locator('.dashboard-rows li')).toHaveCount(count * 4);
+        // The feed has arrived. Pause the clock so wall time between turns cannot move the carousel.
+        await page.clock.setSystemTime(new Date(NOW.getTime() - 1000));
+        await page.clock.pauseAt(NOW);
         const lefts: string[] = [];
         let right = '';
         /* eslint-disable no-await-in-loop -- one turn after another */
         for (let turn = 0; turn < count; turn++) {
-          // Two seconds into the turn: the slide is over.
-          await page.clock.setFixedTime(new Date(NOW.getTime() + turn * TURN_MS + 2000));
-          await expect.poll(async () => (await showing(page))[0].stop).not.toBe(lefts.at(-1));
-          // Once the slide is over, the pair sits where the usual two boards do.
-          await expect.poll(async () => (await showing(page)).map(board => board.box)).toEqual(places);
+          // Two seconds into each turn, the previous right board is now on the left.
+          await page.clock.fastForward(turn === 0 ? 2000 : TURN_MS);
+          if (turn > 0) {
+            await expect(page.locator('.dashboard-departures-slot[data-slot="0"]')).toHaveAttribute(
+              'data-board',
+              right
+            );
+          }
           const [leftBoard, rightBoard] = await showing(page);
-          // The right one has moved over to the left.
-          if (turn > 0) expect(leftBoard.stop).toBe(right);
+          expect([leftBoard.box, rightBoard.box]).toEqual(places);
           lefts.push(leftBoard.stop);
           right = rightBoard.stop;
         }
