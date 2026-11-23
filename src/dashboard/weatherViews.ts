@@ -16,8 +16,8 @@ import type { DayForecast, HourForecast, Sky, WeatherView } from './props';
 /** The trend's hours, and how many hours apart they are: on the place's even hours, the next one first. */
 const TREND_HOURS = 3;
 const TREND_STEP = 2;
-/** Tomorrow's trend: its morning, midday and afternoon. */
-const TOMORROW_HOURS: readonly number[] = [8, 12, 16];
+/** Tomorrow's trend: its morning, midday and evening. */
+const TOMORROW_HOURS: readonly number[] = [8, 13, 18];
 /** Days in the outlook under the weather, from tomorrow. */
 const OUTLOOK_DAYS = 5;
 /** The waking hours a day's summary is about. */

@@ -68,7 +68,7 @@ export interface WeatherView {
   summary: string | null;
   /** The icon beside `summary`: an umbrella (the default) for rain, a sun for fine weather. */
   summaryIcon?: 'umbrella' | 'sun';
-  /** The trend under it, soonest first: Now's next three even hours, Tomorrow's morning, midday and afternoon. */
+  /** The trend under it, soonest first: Now's next three even hours, Tomorrow's 08:00, 13:00 and 18:00. */
   hours?: HourForecast[];
 }
 

@@ -51,8 +51,8 @@ export const SAMPLE = {
         summaryIcon: 'sun',
         hours: [
           { time: tomorrowHour('08'), temperature: 7, sky: 'cloudy', isDay: true },
-          { time: tomorrowHour('12'), temperature: 12, sky: 'cloudy', isDay: true },
-          { time: tomorrowHour('16'), temperature: 10, sky: 'cloudy', isDay: false }
+          { time: tomorrowHour('13'), temperature: 12, sky: 'cloudy', isDay: true },
+          { time: tomorrowHour('18'), temperature: 8, sky: 'cloudy', isDay: false }
         ]
       }
     ]

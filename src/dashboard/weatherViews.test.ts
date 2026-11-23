@@ -118,13 +118,13 @@ describe('toWeather', () => {
     ]);
   });
 
-  it('gives Tomorrow its own trend: its morning, midday and afternoon', () => {
-    const tomorrow = toWeather(answer({ codes: { '2026-11-18T12': 61 } }), NOW, '24h')?.views[1];
+  it('gives Tomorrow its own trend: its morning, midday and evening', () => {
+    const tomorrow = toWeather(answer({ codes: { '2026-11-18T13': 61 } }), NOW, '24h')?.views[1];
 
     expect(tomorrow?.hours).toEqual([
       { time: '2026-11-18T08:00:00Z', temperature: 12, sky: 'partly-cloudy', isDay: true },
-      { time: '2026-11-18T12:00:00Z', temperature: 12, sky: 'rain', isDay: true },
-      { time: '2026-11-18T16:00:00Z', temperature: 8, sky: 'partly-cloudy', isDay: false }
+      { time: '2026-11-18T13:00:00Z', temperature: 12, sky: 'rain', isDay: true },
+      { time: '2026-11-18T18:00:00Z', temperature: 8, sky: 'partly-cloudy', isDay: false }
     ]);
   });
 
