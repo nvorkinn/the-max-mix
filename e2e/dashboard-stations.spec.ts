@@ -16,7 +16,8 @@ async function showing(page: Page) {
   const board = (slot: number) =>
     page.locator(`.dashboard-departures-slot[data-slot="${slot}"]`).evaluate(element => {
       // Measure the settled position without waiting for a change of stop to run (e2e asks for less motion anyway).
-      for (const animation of element.getAnimations({ subtree: true })) animation.finish();
+      const animations = element.getAnimations({ subtree: true });
+      for (const animation of animations) animation.finish();
       const { x, y, width, height } = element.getBoundingClientRect();
       return { stop: element.dataset['board'] ?? '', box: [x, y, width, height].map(value => Math.round(value)) };
     });

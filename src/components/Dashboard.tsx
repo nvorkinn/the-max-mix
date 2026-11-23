@@ -10,8 +10,8 @@ import type {
   TubeStatusProps,
   WeatherBlockProps
 } from '../dashboard/props';
-import Backdrop from './dashboard/Backdrop';
 import { useArrivalsTransition } from '../utils/arrivalsTransition';
+import Backdrop from './dashboard/Backdrop';
 import BoardSlot from './dashboard/BoardSlot';
 import { TURN_MS } from './dashboard/carousel';
 import TabBar from './dashboard/TabBar';
@@ -83,6 +83,7 @@ export default function Dashboard({
   // whose clock stops, doesn't change. The rail's pages and the weather's periods turn with them, on the same clock.
   const time = (boards[0]?.now ?? tabBar.now).getTime();
   const transition = useArrivalsTransition();
+  const [left, right] = shownBoards(boards.length, time).map(index => boards[index]);
 
   useLayoutEffect(() => {
     const element = fitRef.current;
@@ -128,10 +129,8 @@ export default function Dashboard({
               <div className="dashboard-sky" />
               <div className="dashboard-departures">
                 <div className="dashboard-departures-track">
-                  {shownBoards(boards.length, time).map((index, slot) => {
-                    const board = boards[index];
-                    return board && <BoardSlot key={slot} slot={slot} board={board} transition={transition} />;
-                  })}
+                  {left && <BoardSlot slot={0} board={left} transition={transition} />}
+                  {right && <BoardSlot slot={1} board={right} transition={transition} />}
                 </div>
               </div>
             </div>

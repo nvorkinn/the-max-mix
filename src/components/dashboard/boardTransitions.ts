@@ -74,7 +74,7 @@ const STYLES: Record<Exclude<ArrivalsTransition, 'none'>, Style> = {
 
 /** A board's lines, top to bottom: its heading, then each departure's row. */
 const linesOf = (board: HTMLElement): HTMLElement[] => [
-  ...board.querySelectorAll<HTMLElement>('.dashboard-board-head, .dashboard-rows > li')
+  ...board.querySelectorAll<HTMLElement>(':scope .dashboard-board-head, :scope .dashboard-rows > li')
 ];
 
 function play(lines: readonly HTMLElement[], phase: Phase, fill: FillMode): Animation[] {
@@ -107,7 +107,7 @@ export function runBoardTransition(
 ): () => void {
   if (style === 'none' || typeof to.animate !== 'function' || lessMotion()) {
     done();
-    return () => undefined;
+    return () => {};
   }
   const leaving = linesOf(from);
   const arriving = linesOf(to);
@@ -115,12 +115,12 @@ export function runBoardTransition(
   // The old lines stay where they went until the old board goes; the new ones wait where they start until their turn.
   const animations = [...play(leaving, leave, 'forwards'), ...play(arriving, arrive, 'backwards')];
   let stopped = false;
-  Promise.all(animations.map(animation => animation.finished)).then(
-    () => {
+  Promise.all(animations.map(animation => animation.finished))
+    .then(() => {
       if (!stopped) done();
-    },
-    () => undefined
-  );
+    })
+    // Stopped part way: cancelling rejects the animations' finish.
+    .catch(() => {});
   return () => {
     stopped = true;
     for (const animation of animations) animation.cancel();

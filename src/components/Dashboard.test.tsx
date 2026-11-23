@@ -16,6 +16,18 @@ const boardAt = (index: number): HTMLElement => {
   return board;
 };
 
+/**
+ * The Dashboard with `boards`, `turn` turns into a run of the boards' turns: every six turns, three stops come round to
+ * where they started.
+ */
+function atTurn(boards: readonly DepartureBoardProps[], turn: number) {
+  const start = Math.ceil(SAMPLE_NOW.getTime() / (6 * BOARD_TURN_MS)) * 6 * BOARD_TURN_MS;
+  const now = new Date(start + turn * BOARD_TURN_MS);
+  return (
+    <Dashboard tabBar={tabBar} {...sampleDashboard(now, '24h')} boards={boards.map(board => ({ ...board, now }))} />
+  );
+}
+
 describe('Dashboard', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -147,15 +159,9 @@ describe('Dashboard', () => {
   it('shows the boards two at a time, changing one place a turn and never moving a board across', () => {
     const [tube, bus] = sampleDashboard(SAMPLE_NOW, '24h').boards as [DepartureBoardProps, DepartureBoardProps];
     const boards = [tube, { ...tube, id: 'tube:b', stopName: 'Kennington' }, { ...bus, stopName: 'Walworth Road' }];
-    // Three stops come round every six turns.
-    const start = Math.ceil(SAMPLE_NOW.getTime() / (6 * BOARD_TURN_MS)) * 6 * BOARD_TURN_MS;
-    const at = (turn: number) => {
-      const now = new Date(start + turn * BOARD_TURN_MS);
-      return (
-        <Dashboard tabBar={tabBar} {...sampleDashboard(now, '24h')} boards={boards.map(board => ({ ...board, now }))} />
-      );
-    };
-    const board = (slot: number) => document.querySelector(`[data-slot="${String(slot)}"] .dashboard-board`);
+    const at = (turn: number) => atTurn(boards, turn);
+    const board = (slot: number) =>
+      document.querySelector(`[data-slot="${CSS.escape(String(slot))}"] .dashboard-board`);
     const shown = () => [0, 1].map(slot => board(slot)?.querySelector('h2')?.textContent.trim());
 
     const { rerender } = render(at(0));
@@ -222,7 +228,7 @@ describe('Dashboard', () => {
         });
         return { finished, cancel: vi.fn() } as unknown as Animation;
       });
-      HTMLElement.prototype.animate = animate as unknown as HTMLElement['animate'];
+      HTMLElement.prototype.animate = animate;
     });
     afterEach(() => {
       Reflect.deleteProperty(HTMLElement.prototype, 'animate');
@@ -233,14 +239,12 @@ describe('Dashboard', () => {
 
     const [tube, bus] = sampleDashboard(SAMPLE_NOW, '24h').boards as [DepartureBoardProps, DepartureBoardProps];
     const boards = [tube, bus, { ...tube, id: 'tube:b', stopName: 'Kennington' }];
-    const start = Math.ceil(SAMPLE_NOW.getTime() / (6 * BOARD_TURN_MS)) * 6 * BOARD_TURN_MS;
-    const at = (turn: number) => {
-      const now = new Date(start + turn * BOARD_TURN_MS);
-      return (
-        <Dashboard tabBar={tabBar} {...sampleDashboard(now, '24h')} boards={boards.map(board => ({ ...board, now }))} />
-      );
+    const at = (turn: number) => atTurn(boards, turn);
+    const left = () => {
+      const place = document.querySelector<HTMLElement>('.dashboard-departures-slot[data-slot="0"]');
+      if (!place) throw new Error('no left place');
+      return place;
     };
-    const left = () => document.querySelector('[data-slot="0"]') as HTMLElement;
 
     it('lays the old board under the new one, line by line, until the last line has changed', async () => {
       const { rerender } = render(at(0));
@@ -251,7 +255,7 @@ describe('Dashboard', () => {
       expect(within(layers[1] as HTMLElement).getByRole('heading', { name: 'Kennington' })).toBeInTheDocument();
       expect(left()).toHaveAttribute('data-turning', 'true');
       // Sliding moves what is in each line: the heading's mark and name and each departure's three parts.
-      const lines = left().querySelectorAll('.dashboard-board-layer:last-child :is(.dashboard-board-head, li)');
+      const lines = left().querySelectorAll(':scope .dashboard-board-layer:last-child :is(.dashboard-board-head, li)');
       const delays = animate.mock.calls.map(([, timing]) => Number(timing.delay));
       expect(Math.max(...delays)).toBe((lines.length - 1) * 120);
 
@@ -267,7 +271,9 @@ describe('Dashboard', () => {
       act(() => saveArrivalsTransition('flip'));
       const { rerender } = render(at(0));
       rerender(at(1));
-      const lines = left().querySelectorAll('.dashboard-board-layer :is(.dashboard-board-head, .dashboard-rows > li)');
+      const lines = left().querySelectorAll(
+        ':scope .dashboard-board-layer :is(.dashboard-board-head, .dashboard-rows > li)'
+      );
       expect(animate).toHaveBeenCalledTimes(lines.length);
       expect(animate.mock.calls[0]?.[0]).toEqual([{ transform: 'scaleY(1)' }, { transform: 'scaleY(0)' }]);
 
@@ -276,7 +282,9 @@ describe('Dashboard', () => {
       animate.mockClear();
       rerender(at(2));
       expect(animate).not.toHaveBeenCalled();
-      expect(document.querySelector('[data-slot="1"]')?.querySelectorAll('.dashboard-board-layer')).toHaveLength(1);
+      expect(
+        document.querySelector('.dashboard-departures-slot[data-slot="1"]')?.querySelectorAll('.dashboard-board-layer')
+      ).toHaveLength(1);
     });
   });
 
