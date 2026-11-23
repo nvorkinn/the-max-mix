@@ -253,6 +253,11 @@ export const STRINGS = {
     en: 'Colours follow the album art while music plays.',
     nb: 'Fargene følger albumomslaget mens musikken spilles.'
   },
+  'appearance.arrivals': { en: 'Arrivals transition', nb: 'Overgang for avganger' },
+  'appearance.arrivals.flip': { en: 'Flip', nb: 'Vend' },
+  'appearance.arrivals.slide': { en: 'Slide', nb: 'Skyv' },
+  'appearance.arrivals.sinkRise': { en: 'Sink and rise', nb: 'Synk og stig' },
+  'appearance.arrivals.none': { en: 'None', nb: 'Ingen' },
   'colour.forest': { en: 'Forest', nb: 'Skog' },
   'colour.navy': { en: 'Navy', nb: 'Marineblå' },
   'colour.teal': { en: 'Teal', nb: 'Blågrønn' },

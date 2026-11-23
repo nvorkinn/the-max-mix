@@ -1,9 +1,28 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '../../test/user';
+import { loadArrivalsTransition, saveArrivalsTransition } from '../../utils/arrivalsTransition';
 import AppearanceSettings from './AppearanceSettings';
 
 describe('AppearanceSettings', () => {
+  afterEach(() => {
+    saveArrivalsTransition('slide');
+  });
+
+  it("picks how the Dashboard's arrivals change stop, Slide until another is picked, and keeps it", async () => {
+    render(<AppearanceSettings themeColour="forest" onThemeColourChange={vi.fn()} />);
+    const group = screen.getByRole('group', { name: 'Arrivals transition' });
+    expect(group).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Slide' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(screen.getByRole('button', { name: 'Sink and rise' }));
+    expect(screen.getByRole('button', { name: 'Sink and rise' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Slide' })).toHaveAttribute('aria-pressed', 'false');
+    expect(localStorage.getItem('maxmix.arrivalsTransition')).toBe('sinkRise');
+    expect(loadArrivalsTransition()).toBe('sinkRise');
+    expect(screen.getByRole('button', { name: 'Flip' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'None' })).toBeInTheDocument();
+  });
+
   it('picks a colour, shown on a sample of the player', async () => {
     const onThemeColourChange = vi.fn();
     render(<AppearanceSettings themeColour="forest" onThemeColourChange={onThemeColourChange} />);

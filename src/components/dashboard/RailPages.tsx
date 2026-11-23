@@ -84,8 +84,8 @@ interface RailPagesProps {
 
 /**
  * The rail under the weather: the next days' outlook while there is room for it, then the notices with the Tube's
- * status under them, built up from the bottom. When they don't all fit, the outlook makes way and they page through the
- * way the boards along the bottom do, at the same time.
+ * status under them, built up from the bottom. When they don't all fit, the outlook makes way and they page through,
+ * turning when the boards along the bottom do.
  */
 export default function RailPages({
   notices,

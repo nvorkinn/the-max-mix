@@ -1,5 +1,4 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
 import fallbackBackdrop from '../assets/dashboard/backdrop.jpg';
 import type {
   DepartureBoardProps,
@@ -12,8 +11,9 @@ import type {
   WeatherBlockProps
 } from '../dashboard/props';
 import Backdrop from './dashboard/Backdrop';
-import { carouselSlot, TURN_MS } from './dashboard/carousel';
-import DepartureBoard from './dashboard/DepartureBoard';
+import { useArrivalsTransition } from '../utils/arrivalsTransition';
+import BoardSlot from './dashboard/BoardSlot';
+import { TURN_MS } from './dashboard/carousel';
 import TabBar from './dashboard/TabBar';
 import RailPages from './dashboard/RailPages';
 import WeatherBlock from './dashboard/WeatherBlock';
@@ -22,14 +22,24 @@ import './dashboard/dashboard.css';
 const PANEL_WIDTH = 1280;
 const PANEL_HEIGHT = 800;
 
-/** With more than two stops, how often the boards move along by one. */
+/** With more than two stops, how often one of the two places along the bottom changes to another stop. */
 export const BOARD_TURN_MS = TURN_MS;
 
 /**
- * Where board `index` of `count` is at `time`, by the boards' clock: 0 and 1 are the two places along the bottom; -1
- * is just off to the left, where the board that has just left slid; 2 is off to the right, where the rest wait.
+ * Which of `count` boards the two places along the bottom show at `time`, by the boards' clock: left, then right (just
+ * the one with a single board). With more than two, every BOARD_TURN_MS one place changes, the left and the right in
+ * turn, to the next stop in the owner's order; a board never crosses from one place to the other. With stops A, B and
+ * C: A+B, C+B, C+A, B+A, B+C, A+C, then A+B again.
  */
-export const boardSlot = (index: number, count: number, time: number): number => carouselSlot(index, count, time, 2);
+export function shownBoards(count: number, time: number): number[] {
+  if (count <= 2) return Array.from({ length: count }, (_, index) => index);
+  const turn = Math.floor(time / BOARD_TURN_MS);
+  // Turn t brings stop t + 1 in, alternately on the left and on the right: each place shows the latest one it took.
+  return [0, 1].map(slot => {
+    const latest = turn + 1 - ((turn + 1 - slot) % 2);
+    return ((latest % count) + count) % count;
+  });
+}
 
 /** What the Dashboard draws; each part has its own props (src/dashboard/props.ts). */
 export interface DashboardProps {
@@ -69,10 +79,10 @@ export default function Dashboard({
 }: Readonly<DashboardProps>) {
   const fitRef = useRef<HTMLDivElement>(null);
   const [placement, setPlacement] = useState({ scale: 1, left: 0, top: 0 });
-  // Two boards at a time; with more, they move along one at a time, with the boards' clock so a hidden Dashboard,
-  // whose clock stops, doesn't move. Every board stays mounted, so its rows keep following their vehicles. The rail's
-  // pages and the weather's periods turn with them, on the same clock.
+  // Two boards at a time; with more, one place changes stop a turn, with the boards' clock so a hidden Dashboard,
+  // whose clock stops, doesn't change. The rail's pages and the weather's periods turn with them, on the same clock.
   const time = (boards[0]?.now ?? tabBar.now).getTime();
+  const transition = useArrivalsTransition();
 
   useLayoutEffect(() => {
     const element = fitRef.current;
@@ -118,21 +128,9 @@ export default function Dashboard({
               <div className="dashboard-sky" />
               <div className="dashboard-departures">
                 <div className="dashboard-departures-track">
-                  {boards.map((board, index) => {
-                    const slot = boardSlot(index, boards.length, time);
-                    const isShown = slot === 0 || slot === 1;
-                    return (
-                      <div
-                        key={board.id}
-                        className="dashboard-departures-slot"
-                        data-slot={slot}
-                        data-board={board.id}
-                        inert={!isShown}
-                        style={{ '--slot': slot } as CSSProperties}
-                      >
-                        <DepartureBoard {...board} />
-                      </div>
-                    );
+                  {shownBoards(boards.length, time).map((index, slot) => {
+                    const board = boards[index];
+                    return board && <BoardSlot key={slot} slot={slot} board={board} transition={transition} />;
                   })}
                 </div>
               </div>

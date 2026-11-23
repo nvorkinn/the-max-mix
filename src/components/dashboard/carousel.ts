@@ -1,4 +1,4 @@
-/** How often a carousel on the Dashboard moves along by one: the boards along the bottom, the rail's pages and the weather's periods. */
+/** How often the Dashboard turns: the boards along the bottom change stop, the rail's pages and the weather's periods move along by one. */
 export const TURN_MS = 15_000;
 /** How long after a turn the one that left stays where it went, before it waits off to the right for its next turn. */
 const LEFT_FOR_MS = 1000;
