@@ -65,6 +65,14 @@ const DUPLICATE_RULES_OFF = {
   'unicorn/number-literal-case': 'off',
   'unicorn/template-indent': 'off'
 };
+// sonarjs's AWS rules only check AWS CDK infrastructure code, which this repository has none of. They still inspect every
+// call and `new` expression, which cost about 5 s of each run.
+/** @type {import('eslint').Linter.RulesRecord} */
+const UNUSED_FRAMEWORK_RULES_OFF = Object.fromEntries(
+  Object.keys(sonarjs.rules)
+    .filter(name => name.startsWith('aws-'))
+    .map(name => [`sonarjs/${name}`, 'off'])
+);
 /** @type {import('eslint').Linter.RulesRecord} */
 const IMPORT_RULES = {
   // Packages can't import our files back, so following them only costs time (it was a third of ESLint's run).
@@ -136,6 +144,7 @@ export default defineConfig([
 
       ...STYLE_RULES,
       ...DUPLICATE_RULES_OFF,
+      ...UNUSED_FRAMEWORK_RULES_OFF,
       'no-console': 'off',
 
       // `||` is deliberate on strings and numbers: an empty string or 0 (an unset or blank env var, a missing id) must
@@ -210,6 +219,7 @@ export default defineConfig([
     rules: {
       ...STYLE_RULES,
       ...DUPLICATE_RULES_OFF,
+      ...UNUSED_FRAMEWORK_RULES_OFF,
       // The typescript-eslint rule: the base rule misreads parameter names in function types as unused variables.
       '@typescript-eslint/no-unused-vars': ['error', { caughtErrors: 'none' }],
       // @eslint-react's stricter rules (set-state-in-effect, use-state, web-api-no-leaked-fetch, no-array-index-key,
