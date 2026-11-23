@@ -4,7 +4,7 @@ import { showDashboard } from './dashboard.ts';
 import { arrivalsAt, stationsAt } from './fake-countdown.ts';
 
 // A kiosk with several stops gives each stop its own board, whatever its modes, two at a time in the usual two
-// places. Every 15 seconds they move along by one: the left one leaves, the right one moves over, the next comes in.
+// places. Every 15 seconds one place changes to the next stop, the left and the right in turn; no board crosses over.
 
 const SCREENS = [{ width: 1280, height: 800 }] as const;
 
@@ -15,8 +15,9 @@ const TURN_MS = 15_000;
 async function showing(page: Page) {
   const board = (slot: number) =>
     page.locator(`.dashboard-departures-slot[data-slot="${slot}"]`).evaluate(element => {
-      // Measure the settled position without waiting for the real-time slide.
-      for (const animation of element.getAnimations()) animation.finish();
+      // Measure the settled position without waiting for a change of stop to run (e2e asks for less motion anyway).
+      const animations = element.getAnimations({ subtree: true });
+      for (const animation of animations) animation.finish();
       const { x, y, width, height } = element.getBoundingClientRect();
       return { stop: element.dataset['board'] ?? '', box: [x, y, width, height].map(value => Math.round(value)) };
     });
@@ -26,7 +27,7 @@ async function showing(page: Page) {
 for (const screen of SCREENS) {
   for (const count of [3, 6]) {
     test(
-      `${count} stops move along one at a time at ${screen.width}x${screen.height}`,
+      `${count} stops take turns in one place at a time at ${screen.width}x${screen.height}`,
       { tag: '@layout' },
       async ({ page }) => {
         await page.clock.install({ time: NOW });
@@ -44,32 +45,37 @@ for (const screen of SCREENS) {
         );
         const places = (await showing(page)).map(board => board.box);
 
-        // The next feed connection brings the additional stops into the same Dashboard.
+        // The next feed connection brings the additional stops into the same Dashboard, which by now is part way
+        // through its turns: the two places no longer show the Tube station and the bus stop, in that order.
+        const before = (await showing(page)).map(board => board.stop);
         hasMoreStops = true;
-        await expect(page.locator('.dashboard-rows li')).toHaveCount(count * 4);
-        // The feed has arrived. Pause the clock so wall time between turns cannot move the carousel.
+        await expect.poll(async () => (await showing(page)).map(board => board.stop)).not.toEqual(before);
+        // The feed has arrived. Pause the clock so wall time between turns cannot move the boards.
         await page.clock.setSystemTime(new Date(NOW.getTime() - 1000));
         await page.clock.pauseAt(NOW);
-        const lefts: string[] = [];
-        let right = '';
+        const seen = new Set<string>();
+        let previous: string[] = [];
+        let lastChanged: number | undefined;
         /* eslint-disable no-await-in-loop -- one turn after another */
-        for (let turn = 0; turn < count; turn++) {
-          // Two seconds into each turn, the previous right board is now on the left.
+        for (let turn = 0; turn <= count; turn++) {
           await page.clock.fastForward(turn === 0 ? 2000 : TURN_MS);
-          if (turn > 0) {
-            await expect(page.locator('.dashboard-departures-slot[data-slot="0"]')).toHaveAttribute(
-              'data-board',
-              right
-            );
-          }
           const [leftBoard, rightBoard] = await showing(page);
           expect([leftBoard.box, rightBoard.box]).toEqual(places);
-          lefts.push(leftBoard.stop);
-          right = rightBoard.stop;
+          const stops = [leftBoard.stop, rightBoard.stop];
+          expect(stops[0]).not.toBe(stops[1]);
+          if (turn > 0) {
+            // Just one place changed, the left and the right in turn.
+            const changed = [0, 1].filter(slot => stops[slot] !== previous[slot]);
+            expect(changed).toHaveLength(1);
+            if (lastChanged !== undefined) expect(changed[0]).not.toBe(lastChanged);
+            lastChanged = changed[0];
+          }
+          for (const stop of stops) seen.add(stop);
+          previous = stops;
         }
         /* eslint-enable no-await-in-loop */
-        // Every stop has had its turn on the left.
-        expect(new Set(lefts).size).toBe(count);
+        // Every stop has had its turn.
+        expect(seen.size).toBe(count);
       }
     );
   }
