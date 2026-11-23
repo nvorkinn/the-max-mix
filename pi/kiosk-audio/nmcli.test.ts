@@ -31,6 +31,8 @@ const SCAN = [
 ].join('\n');
 
 const WIFI_ROWS = 'aaaa-1:802-11-wireless\nbbbb-2:802-3-ethernet\ncccc-3:802-11-wireless\n';
+/** `nmcli -t -f UUID,TYPE connection show` output listing these Wi-Fi connections. */
+const rows = (uuids: string[]) => uuids.map(uuid => `${uuid}:802-11-wireless\n`).join('');
 const ok = (stdout = ''): Result => ({ code: 0, stdout, stderr: '' });
 
 type Reply = Result | ((argv: string[]) => Result);
@@ -268,6 +270,74 @@ describe('connect', () => {
     });
     attempt.resolve(ok());
     await expect(first).resolves.toEqual({ ok: true });
+  });
+});
+
+describe('keeping only the network it is on', () => {
+  // Before the attempt: aaaa-1 Home (active), bbbb-2 Office, cccc-3 the setup hotspot, eeee-5 Cafe. The attempt adds
+  // dddd-4, a new connection to Cafe.
+  const details: Record<string, string> = {
+    'aaaa-1': 'Home\ninfrastructure\n',
+    'bbbb-2': 'Office\ninfrastructure\n',
+    'cccc-3': `${HOTSPOT_SSID}\nap\n`,
+    'dddd-4': 'Cafe\ninfrastructure\n',
+    'eeee-5': 'Cafe\ninfrastructure\n'
+  };
+  const BEFORE = ['aaaa-1', 'bbbb-2', 'cccc-3', 'eeee-5'];
+
+  function joining(connectReply: Result) {
+    let isAttempted = false;
+    return stub([
+      [
+        ['nmcli', '-t', '-f', 'UUID,TYPE', 'connection', 'show'],
+        argv => {
+          if (argv.includes('--active')) return ok(rows([isAttempted ? 'dddd-4' : 'aaaa-1']));
+          return ok(rows(isAttempted ? [...BEFORE, 'dddd-4'] : BEFORE));
+        }
+      ],
+      [['nmcli', '-g'], argv => ok(details[argv.at(-1) ?? ''] ?? '')],
+      [
+        ['nmcli', '--wait'],
+        () => {
+          isAttempted = true;
+          return connectReply;
+        }
+      ]
+    ]);
+  }
+
+  it('forgets every other network once the join worked, but never the setup hotspot', async () => {
+    const { run, called } = joining(ok());
+    await expect(
+      new Nmcli(run).connect({ ssid: 'Cafe', password: 'longenough', hidden: false, security: 'psk' })
+    ).resolves.toEqual({ ok: true });
+    expect(called('nmcli', 'connection', 'delete')).toEqual([
+      ['nmcli', 'connection', 'delete', 'uuid', 'aaaa-1'],
+      ['nmcli', 'connection', 'delete', 'uuid', 'bbbb-2']
+    ]);
+    expect(called('nmcli', 'connection', 'up')).toEqual([]);
+  });
+
+  it('still reports the join when a network could not be forgotten', async () => {
+    vi.spyOn(console, 'info').mockReturnValue();
+    const fake = joining(ok());
+    const run: Run = (argv, stdin, timeout) =>
+      argv[2] === 'delete'
+        ? Promise.resolve({ code: 4, stdout: '', stderr: 'Error: not authorized' })
+        : fake.run(argv, stdin, timeout);
+    await expect(
+      new Nmcli(run).connect({ ssid: 'Cafe', password: 'longenough', hidden: false, security: 'psk' })
+    ).resolves.toEqual({ ok: true });
+  });
+
+  it('keeps every network after a failed join, deleting only what the attempt added', async () => {
+    vi.spyOn(console, 'info').mockReturnValue();
+    const { run, called } = joining({ code: 1, stdout: '', stderr: 'Error: Secrets were required, but not provided.' });
+    await expect(
+      new Nmcli(run).connect({ ssid: 'Cafe', password: 'wrongpass1', hidden: false, security: 'psk' })
+    ).resolves.toEqual({ ok: false, error: ERRORS.wrongPassword });
+    expect(called('nmcli', 'connection', 'delete')).toEqual([['nmcli', 'connection', 'delete', 'uuid', 'dddd-4']]);
+    expect(called('nmcli', 'connection', 'up')).toEqual([['nmcli', 'connection', 'up', 'uuid', 'aaaa-1']]);
   });
 });
 

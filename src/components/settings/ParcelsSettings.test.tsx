@@ -1,3 +1,4 @@
+import type { Parcels } from 'countdown-api';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import ParcelsSettings from './ParcelsSettings';
@@ -26,6 +27,10 @@ describe('ParcelsSettings', () => {
     rerender(<ParcelsSettings parcels={{ enabled: true, days_ahead: 0, kept_hours: 0 }} onChange={vi.fn()} />);
     expect(arriving).toHaveTextContent('Parcels due today show on the board.');
     expect(kept).toHaveTextContent('A parcel leaves the board as soon as it is delivered.');
+    // A stay this tablet doesn't know (from a newer server) has no chip pressed and no sentence.
+    const newer = { enabled: true, kept_hours: 2 } as unknown as Parcels;
+    rerender(<ParcelsSettings parcels={newer} onChange={vi.fn()} />);
+    expect(kept).toHaveTextContent(/^Delivered ones stay(Not kept|1 hour|4 hours|A day)+$/);
   });
 
   it('only says how to set Parcel up while no key is saved', () => {

@@ -486,9 +486,9 @@ describe('SettingsPanel', () => {
       auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true), person('Friend')]);
       render(<SettingsPanel {...base} initialSection="spotify" />);
       expect(faces().map(row => row.textContent)).toEqual(['Nikolai', 'Friend', 'Add']);
-      const first = defined(faces()[0]);
-      expect(first).toHaveAttribute('aria-current', 'true');
-      expect(within(first).getByLabelText('Active')).toBeInTheDocument();
+      const playing = defined(faces()[0]);
+      expect(playing).toHaveAttribute('aria-current', 'true');
+      expect(within(playing).getByLabelText('Active')).toBeInTheDocument();
       expect(face('Nikolai')).toHaveAttribute('aria-pressed', 'true');
       expect(face('Friend')).toHaveAttribute('aria-pressed', 'false');
       expect(screen.getByRole('group', { name: 'Nikolai' })).toHaveTextContent('NikolaiConnectedRemove');
