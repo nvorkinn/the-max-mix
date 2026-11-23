@@ -1971,7 +1971,7 @@ body:has(.app-dialog[open]) {
 .settings-content-body {
   flex: 1;
   min-height: 0;
-  padding: 20px 44px 24px 12px;
+  padding: 20px 36px 24px 20px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -3216,7 +3216,7 @@ body:has(.app-dialog[open]) {
     font-size: 19px;
   }
   .settings-content-body {
-    padding: 28px 56px 32px 16px;
+    padding: 28px 46px 32px 26px;
   }
   .settings-stack {
     gap: 36px;
