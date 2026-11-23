@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, Lock, RefreshCw, Wifi, WifiHigh, WifiLow, WifiOff, WifiZero } from 'lucide-react';
+import { Lock, RefreshCw, Trash2, Wifi, WifiHigh, WifiLow, WifiOff, WifiZero } from 'lucide-react';
 import { useLanguage } from '../../i18n/language';
 import { useT } from '../../i18n/translate';
-import { forgetWifi, joinWifi, savedWifi, scanWifi } from '../../utils/kioskWifi';
+import { forgetWifi, joinWifi, scanWifi } from '../../utils/kioskWifi';
 import type { WifiNetwork, WifiScan } from '../../utils/kioskWifi';
+import ConfirmButton from '../ConfirmButton';
+import SettingsSection from './SettingsSection';
 import { wifiLabel } from './wifi';
 import type { WifiState } from './wifi';
 import WifiJoinDialog from './WifiJoinDialog';
@@ -14,11 +16,12 @@ import type { SetupEnd } from './WifiPhoneDialogs';
 const BARS = [WifiZero, WifiZero, WifiLow, WifiHigh, Wifi] as const;
 
 /**
- * The network the kiosk is on, the networks in range, and joining one: an open one at a tap, one with a password (or a
- * hidden one) in a dialog with the on-screen keyboard, or one a phone sends over the kiosk's own Hotspot. `onJoined`
- * follows every join, and every network forgotten, so the network shown is asked again. The buttons for the other ways
- * come above the list. Under it, the networks the kiosk keeps, each with Forget, so nobody's Wi-Fi password leaves with
- * it. The kiosk's service lists, joins and forgets them (utils/kioskWifi.ts).
+ * The network the kiosk is on, large at the top with its signal, its address and Forget (on a second tap, since it drops
+ * the connection); under it the other networks in range, strongest first, and joining one: an open one at a tap, one
+ * with a password (or a hidden one, Other network) in a dialog with the on-screen keyboard, or one a phone sends over
+ * the kiosk's own Hotspot. The kiosk keeps only the network it is on, so there is no list of saved ones. `onJoined`
+ * follows every join and every forget, so the network shown is asked again. The kiosk's service lists, joins and
+ * forgets them (utils/kioskWifi.ts).
  */
 export default function WifiSettings({
   wifi,
@@ -32,30 +35,14 @@ export default function WifiSettings({
 }>) {
   const t = useT();
   const language = useLanguage();
-  const network = wifiLabel(wifi, t);
-  const Icon = wifi.state === 'disconnected' ? WifiOff : Wifi;
   // Undefined while the kiosk looks for networks.
   const [scan, setScan] = useState<WifiScan | undefined>();
   const [target, setTarget] = useState<WifiTarget | null>(null);
   const [phoneSetup, setPhoneSetup] = useState<'hotspot' | null>(null);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const forgettingRef = useRef(false);
   const scanRef = useRef<AbortController | null>(null);
-  const [saved, setSaved] = useState<string[]>([]);
-  const [forgetting, setForgetting] = useState<string | null>(null);
-  const savedRef = useRef<AbortController | null>(null);
-  const listSaved = useCallback(() => {
-    savedRef.current?.abort();
-    const controller = new AbortController();
-    savedRef.current = controller;
-    void savedWifi(controller.signal).then(names => {
-      if (!controller.signal.aborted) setSaved(names);
-    });
-  }, []);
-  useEffect(() => {
-    listSaved();
-    return () => savedRef.current?.abort();
-  }, [listSaved]);
   const onPhoneSetupRef = useRef(onPhoneSetup);
   useEffect(() => {
     onPhoneSetupRef.current = onPhoneSetup;
@@ -86,23 +73,21 @@ export default function WifiSettings({
 
   const joined = () => {
     setTarget(null);
-    listSaved();
     onJoined();
   };
   const forget = async (ssid: string) => {
+    if (forgettingRef.current) return;
+    forgettingRef.current = true;
     setJoinError(null);
-    setForgetting(ssid);
     const result = await forgetWifi(ssid, language);
-    setForgetting(null);
+    forgettingRef.current = false;
     if (!result.ok) setJoinError(result.error ?? t('wifi.unreachable'));
-    listSaved();
     onJoined();
   };
   // The phone's setup is over by itself: joined, or not, and the page says why when the kiosk did.
   const phoneSetupEnded = (end: SetupEnd) => {
     setPhoneSetup(null);
     if (end.joined) {
-      listSaved();
       onJoined();
     } else {
       setJoinError(end.error ?? null);
@@ -127,65 +112,55 @@ export default function WifiSettings({
   const current = wifi.state === 'connected' ? wifi.ssid : null;
   const scanError = scan?.error === undefined ? null : (scan.error ?? t('wifi.unreachable'));
   const error = joinError ?? scanError;
+  // The others, strongest first; the one the kiosk is on is at the top of the page instead.
+  const others = (scan?.networks ?? []).filter(choice => choice.ssid !== current).toSorted((a, b) => b.bars - a.bars);
 
   return (
     <div className="settings-stack">
-      <div className="settings-box flex items-center gap-4">
-        <span className="settings-box-icon">
-          <Icon className="w-6 h-6" aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="settings-box-title">{t('wifi.network')}</div>
-          {network !== undefined && (
-            <div
-              data-testid="wifi-network"
-              className={`settings-box-value truncate ${wifi.state === 'connected' ? '' : 'text-muted'}`}
+      <CurrentNetwork wifi={wifi} scan={scan} onForget={ssid => void forget(ssid)} />
+      <SettingsSection
+        id="wifi-others-label"
+        title={t('wifi.others')}
+        className="wifi-others"
+        aside={
+          <div className="wifi-others-actions">
+            <button
+              type="button"
+              disabled={connecting !== null}
+              onClick={() => {
+                setJoinError(null);
+                setTarget({ hidden: true });
+              }}
+              className="button button-secondary"
             >
-              {network}
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="wifi-actions">
-        <button
-          type="button"
-          disabled={connecting !== null}
-          onClick={() => {
-            setJoinError(null);
-            setTarget({ hidden: true });
-          }}
-          className="button button-secondary"
-        >
-          {t('wifi.other')}
-        </button>
-        <button
-          type="button"
-          disabled={connecting !== null}
-          onClick={() => {
-            setJoinError(null);
-            setPhoneSetup('hotspot');
-          }}
-          className="button button-secondary"
-        >
-          {t('wifi.hotspot')}
-        </button>
-        <button
-          type="button"
-          disabled={scan === undefined || connecting !== null}
-          onClick={() => {
-            setJoinError(null);
-            refresh();
-          }}
-          className="button button-secondary"
-        >
-          <RefreshCw className="w-5 h-5 shrink-0" aria-hidden="true" />
-          {t('wifi.refresh')}
-        </button>
-      </div>
-      <section className="settings-group" aria-labelledby="wifi-networks-label">
-        <h5 className="settings-group-title" id="wifi-networks-label">
-          {t('wifi.networks')}
-        </h5>
+              {t('wifi.other')}
+            </button>
+            <button
+              type="button"
+              disabled={connecting !== null}
+              onClick={() => {
+                setJoinError(null);
+                setPhoneSetup('hotspot');
+              }}
+              className="button button-secondary"
+            >
+              {t('wifi.hotspot')}
+            </button>
+            <button
+              type="button"
+              disabled={scan === undefined || connecting !== null}
+              aria-label={t('wifi.refresh')}
+              onClick={() => {
+                setJoinError(null);
+                refresh();
+              }}
+              className="button button-secondary wifi-refresh"
+            >
+              <RefreshCw className="w-5 h-5 shrink-0" aria-hidden="true" />
+            </button>
+          </div>
+        }
+      >
         {error !== null && (
           <p role="alert" className="settings-error">
             {error}
@@ -197,30 +172,27 @@ export default function WifiSettings({
           </p>
         )}
         {scan === undefined && <p className="text-muted">{t('wifi.searching')}</p>}
-        {scan?.networks.length === 0 && scan.error === undefined && (
+        {scan !== undefined && others.length === 0 && scan.error === undefined && (
           <p className="text-muted">{t('wifi.no_networks')}</p>
         )}
-        {scan !== undefined && scan.networks.length > 0 && (
+        {others.length > 0 && (
           <ul className="wifi-networks">
-            {scan.networks.map(choice => {
+            {others.map(choice => {
               const Bars = BARS[choice.bars] ?? WifiZero;
-              const isCurrent = choice.ssid === current;
               return (
                 <li key={choice.ssid}>
                   <button
                     type="button"
                     disabled={choice.security === 'unsupported' || connecting !== null}
-                    aria-current={isCurrent ? 'true' : undefined}
                     onClick={() => void choose(choice)}
-                    className="settings-box wifi-network"
+                    className="wifi-network"
                   >
                     <span className="wifi-network-name">{choice.ssid}</span>
-                    {isCurrent && <Check className="w-5 h-5 shrink-0 wifi-network-current" aria-hidden="true" />}
                     {choice.security === 'psk' && (
                       <Lock className="w-5 h-5 shrink-0 text-muted" aria-label={t('wifi.secured')} />
                     )}
                     {choice.security === 'unsupported' && (
-                      <span className="text-muted shrink-0">{t('wifi.not_supported')}</span>
+                      <span className="wifi-network-note shrink-0">{t('wifi.not_supported')}</span>
                     )}
                     <Bars
                       className="w-6 h-6 shrink-0"
@@ -233,30 +205,7 @@ export default function WifiSettings({
             })}
           </ul>
         )}
-      </section>
-      {saved.length > 0 && (
-        <section className="settings-group" aria-labelledby="wifi-saved-label">
-          <h5 className="settings-group-title" id="wifi-saved-label">
-            {t('wifi.saved')}
-          </h5>
-          <ul className="wifi-networks">
-            {saved.map(ssid => (
-              <li key={ssid} className="settings-box wifi-network">
-                <span className="wifi-network-name">{ssid}</span>
-                <button
-                  type="button"
-                  disabled={forgetting !== null || connecting !== null}
-                  aria-label={t('wifi.forget_name', { ssid })}
-                  onClick={() => void forget(ssid)}
-                  className="button button-secondary shrink-0"
-                >
-                  {t('wifi.forget')}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      </SettingsSection>
       {target && <WifiJoinDialog target={target} onJoined={joined} onClose={() => setTarget(null)} />}
       {phoneSetup === 'hotspot' && (
         <WifiHotspotDialog
@@ -270,5 +219,56 @@ export default function WifiSettings({
         />
       )}
     </div>
+  );
+}
+
+/**
+ * The network the kiosk is on: its name large, its signal (once the scan has found it), Connected with the kiosk's
+ * address, and Forget. Off a network it says so, with nothing to forget; while the kiosk is still asked, only its icon.
+ */
+function CurrentNetwork({
+  wifi,
+  scan,
+  onForget
+}: Readonly<{ wifi: WifiState; scan: WifiScan | undefined; onForget: (ssid: string) => void }>) {
+  const t = useT();
+  const label = wifiLabel(wifi, t);
+  const isConnected = wifi.state === 'connected';
+  const seen = isConnected ? scan?.networks.find(choice => choice.ssid === wifi.ssid) : undefined;
+  let Icon = WifiOff;
+  if (seen) Icon = BARS[seen.bars] ?? WifiZero;
+  else if (isConnected) Icon = Wifi;
+  const address = wifi.state === 'connected' ? wifi.address : null;
+  return (
+    <section className={`wifi-current ${isConnected ? 'is-connected' : ''}`} aria-label={t('wifi.current')}>
+      <span className="wifi-current-icon">
+        {seen ? (
+          <Icon className="w-9 h-9" role="img" aria-label={t('wifi.signal', { bars: seen.bars })} />
+        ) : (
+          <Icon className="w-9 h-9" aria-hidden="true" />
+        )}
+      </span>
+      <div className="wifi-current-about">
+        {label !== undefined && (
+          <div data-testid="wifi-network" className="wifi-current-name truncate">
+            {label}
+          </div>
+        )}
+        {isConnected && (
+          <div className="wifi-current-status">
+            {address === null ? t('wifi.connected') : t('wifi.connected_address', { address })}
+          </div>
+        )}
+      </div>
+      {wifi.state === 'connected' && (
+        <ConfirmButton
+          label={t('wifi.forget')}
+          confirmLabel={t('wifi.forget_confirm')}
+          className="wifi-forget shrink-0"
+          icon={<Trash2 className="w-5 h-5 shrink-0" aria-hidden="true" />}
+          onConfirm={() => onForget(wifi.ssid)}
+        />
+      )}
+    </section>
   );
 }

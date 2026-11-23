@@ -188,12 +188,19 @@ test.describe('Settings', { tag: '@settings' }, () => {
       ).toHaveAttribute('aria-pressed', 'true');
     });
 
-    test('Wi-Fi names the network and joins another with its password', async ({ page }) => {
+    test('Wi-Fi names the network, forgets it on a second tap, and joins another with its password', async ({
+      page
+    }) => {
       const joined: unknown[] = [];
+      const forgotten: unknown[] = [];
       await page.route('http://127.0.0.1:7341/**', route => {
         const request = route.request();
         if (request.method() === 'POST' && new URL(request.url()).pathname === '/wifi/connect') {
           joined.push(request.postDataJSON());
+          return route.fulfill({ headers: { 'Access-Control-Allow-Origin': '*' }, json: { ok: true } });
+        }
+        if (request.method() === 'POST' && new URL(request.url()).pathname === '/wifi/forget') {
+          forgotten.push(request.postDataJSON());
           return route.fulfill({ headers: { 'Access-Control-Allow-Origin': '*' }, json: { ok: true } });
         }
         return route.fulfill(wifiAnswer(request, 'Home network') ?? { status: 204 });
@@ -202,6 +209,13 @@ test.describe('Settings', { tag: '@settings' }, () => {
       const dialog = await openSettings(page);
       await showSection(dialog, 'Wi-Fi');
       await expect(dialog.getByTestId('wifi-network')).toHaveText('Home network');
+      // The network it is on is at the top, not among the others, which come strongest first.
+      const others = dialog.getByRole('region', { name: 'Other networks' }).getByRole('listitem');
+      await expect(others).toHaveText(['Neighbour', 'Cafe guest', /^Old router/]);
+      await dialog.getByRole('button', { name: 'Forget', exact: true }).click();
+      expect(forgotten).toEqual([]);
+      await dialog.getByRole('button', { name: 'Tap again to forget' }).click();
+      await expect.poll(() => forgotten).toEqual([{ ssid: 'Home network' }]);
       await expect(dialog.getByRole('button', { name: /^Old router/ })).toBeDisabled();
       await dialog.getByRole('button', { name: /^Neighbour/ }).click();
       const join = page.getByRole('dialog', { name: 'Join Neighbour' });

@@ -74,15 +74,7 @@ describe('SettingsPanel', () => {
   it('says what the screen is on the About page, with no IP address or Pi software off the kiosk', () => {
     history.replaceState(null, '', '/?kiosk=0');
     const config = fixture.config as TouchscreenConfig;
-    render(
-      <SettingsPanel
-        {...base}
-
-        initialSection="about"
-        deviceConfig={config}
-        onDeviceConfigSave={vi.fn()}
-      />
-    );
+    render(<SettingsPanel {...base} initialSection="about" deviceConfig={config} onDeviceConfigSave={vi.fn()} />);
     const facts = screen.getByRole('region', { name: 'About' });
     expect(within(facts).getByText('Device ID').nextSibling).toHaveTextContent(config.device_id);
     expect(within(facts).getByText('Size').nextSibling).toHaveTextContent(`${config.width} × ${config.height}`);
@@ -156,17 +148,16 @@ describe('SettingsPanel', () => {
     const JOINED = { ok: true };
     const wifi = () => screen.queryByRole('button', { name: 'Other network' });
     /**
-     * The kiosk service: GET /wifi/status answers `status`, GET /wifi/networks lists `networks`, GET /wifi/saved lists
-     * `saved`, and POST /wifi/connect and /wifi/forget answer `joined`.
+     * The kiosk service: GET /wifi/status answers `status`, GET /wifi/networks lists `networks`, and POST /wifi/connect
+     * and /wifi/forget answer `joined`.
      */
     const kioskSays = (
       status: unknown,
-      { networks = [], saved = [], joined = JOINED }: { networks?: unknown[]; saved?: string[]; joined?: unknown } = {}
+      { networks = [], joined = JOINED }: { networks?: unknown[]; joined?: unknown } = {}
     ) => {
       const fetchMock = vi.fn((url: string) => {
         if (status instanceof Error) return Promise.reject(status);
         if (url.endsWith('/wifi/networks')) return Promise.resolve(Response.json({ networks }));
-        if (url.endsWith('/wifi/saved')) return Promise.resolve(Response.json({ networks: saved }));
         if (url.endsWith('/wifi/forget') || url.endsWith('/wifi/connect')) {
           return Promise.resolve(Response.json(joined));
         }
@@ -256,12 +247,15 @@ describe('SettingsPanel', () => {
       expect(screen.queryByRole('dialog', { name: 'Join Home' })).not.toBeInTheDocument();
     });
 
-    it('forgets a saved network', async () => {
+    it('shows the network it is on with its address, and forgets it on a second tap', async () => {
       history.replaceState(null, '', '/?kiosk=1');
       const onWifiJoined = vi.fn();
-      const fetchMock = kioskSays({ ssid: 'Home', address: 'an address' }, { saved: ['Home'] });
+      const fetchMock = kioskSays({ ssid: 'Home', address: 'the address' });
       render(<SettingsPanel {...base} initialSection="wifi" onWifiJoined={onWifiJoined} />);
-      await userEvent.click(await screen.findByRole('button', { name: 'Forget Home' }));
+      expect(await screen.findByText('Connected · the address')).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Forget' }));
+      expect(fetchMock).not.toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/forget', expect.anything());
+      await userEvent.click(screen.getByRole('button', { name: 'Tap again to forget' }));
       await waitFor(() => expect(onWifiJoined).toHaveBeenCalled());
       expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/wifi/forget', {
         method: 'POST',
@@ -270,11 +264,20 @@ describe('SettingsPanel', () => {
       });
     });
 
-    it('says when the kiosk could not forget a network', async () => {
+    it('has nothing to forget when the kiosk is on no network', async () => {
       history.replaceState(null, '', '/?kiosk=1');
-      kioskSays({ ssid: null }, { saved: ['Home'], joined: { ok: false, error: 'Could not forget the network.' } });
+      kioskSays({ ssid: null });
       render(<SettingsPanel {...base} initialSection="wifi" />);
-      await userEvent.click(await screen.findByRole('button', { name: 'Forget Home' }));
+      expect(await screen.findByTestId('wifi-network')).toHaveTextContent('Not connected');
+      expect(screen.queryByRole('button', { name: 'Forget' })).not.toBeInTheDocument();
+    });
+
+    it('says when the kiosk could not forget the network', async () => {
+      history.replaceState(null, '', '/?kiosk=1');
+      kioskSays({ ssid: 'Home' }, { joined: { ok: false, error: 'Could not forget the network.' } });
+      render(<SettingsPanel {...base} initialSection="wifi" />);
+      await userEvent.click(await screen.findByRole('button', { name: 'Forget' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Tap again to forget' }));
       expect(await screen.findByRole('alert')).toHaveTextContent('Could not forget the network.');
     });
 
@@ -321,13 +324,31 @@ describe('SettingsPanel', () => {
 
     it('searches again on Refresh, and says when the kiosk does not answer', async () => {
       history.replaceState(null, '', '/?kiosk=1');
-      const fetchMock = kioskSays({ ssid: 'Home' }, { networks: [{ ssid: 'Home', bars: 4, security: 'psk' }] });
+      const fetchMock = kioskSays(
+        { ssid: 'Home' },
+        {
+          networks: [
+            { ssid: 'Cafe', bars: 1, security: 'open' },
+            { ssid: 'Home', bars: 4, security: 'psk' },
+            { ssid: 'Neighbour', bars: 3, security: 'psk' }
+          ]
+        }
+      );
       render(<SettingsPanel {...base} initialSection="wifi" />);
-      expect(await screen.findByRole('button', { name: /^Home/ })).toHaveAttribute('aria-current', 'true');
+      expect(await screen.findByRole('button', { name: /^Cafe/ })).toBeInTheDocument();
+      // The network the kiosk is on stands at the top with its signal, not in the list, which is strongest first.
+      expect(screen.queryByRole('button', { name: /Home/ })).not.toBeInTheDocument();
+      expect(screen.getByRole('img', { name: 'Signal 4 of 4' })).toBeInTheDocument();
+      const others = within(screen.getByRole('region', { name: 'Other networks' })).getByRole('list');
+      expect(
+        within(others)
+          .getAllByRole('button')
+          .map(button => button.textContent)
+      ).toEqual(['Neighbour', 'Cafe']);
       fetchMock.mockImplementation(() => Promise.reject(new TypeError('Failed to fetch')));
       await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
       expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the kiosk service.');
-      expect(screen.queryByRole('button', { name: /^Home/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Cafe/ })).not.toBeInTheDocument();
     });
 
     it('shows and hides the password, and Cancel closes the dialog without joining', async () => {
@@ -431,7 +452,6 @@ describe('SettingsPanel', () => {
       render(
         <SettingsPanel
           {...base}
-
           themeColour="navy"
           onThemeColourChange={vi.fn()}
           dynamicColour
@@ -570,12 +590,7 @@ describe('SettingsPanel', () => {
     expect(within(nav).queryByRole('button', { name: 'Countdown' })).not.toBeInTheDocument();
 
     rerender(
-      <SettingsPanel
-        {...base}
-
-        deviceConfig={fixture.config as TouchscreenConfig}
-        onDeviceConfigSave={vi.fn()}
-      />
+      <SettingsPanel {...base} deviceConfig={fixture.config as TouchscreenConfig} onDeviceConfigSave={vi.fn()} />
     );
     expect(
       within(nav)
@@ -629,7 +644,6 @@ describe('SettingsPanel', () => {
     rerender(
       <SettingsPanel
         {...base}
-
         deviceConfig={{ ...config, parcels: { enabled: true, days_ahead: 1, kept_hours: 24 } }}
         onDeviceConfigSave={onDeviceConfigSave}
       />
@@ -681,7 +695,6 @@ describe('SettingsPanel', () => {
     render(
       <SettingsPanel
         {...base}
-
         initialSection="parcels"
         deviceConfig={config as TouchscreenConfig}
         onDeviceConfigSave={onDeviceConfigSave}
@@ -705,7 +718,6 @@ describe('SettingsPanel', () => {
     rerender(
       <SettingsPanel
         {...base}
-
         deviceConfig={fixture.config as TouchscreenConfig}
         onDeviceConfigSave={onDeviceConfigSave}
       />
@@ -729,7 +741,6 @@ describe('SettingsPanel', () => {
     rerender(
       <SettingsPanel
         {...base}
-
         initialSection="spotify"
         deviceConfig={fixture.config as TouchscreenConfig}
         onDeviceConfigSave={onDeviceConfigSave}

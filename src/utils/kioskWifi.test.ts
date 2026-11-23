@@ -1,6 +1,6 @@
 // cspell:ignore glemme Kunne ikke søke etter nettverk Feil passord Sjekk prøv igjen koble nettverket Hotspoten startes
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { forgetWifi, hotspotStatus, joinWifi, savedWifi, scanWifi, startHotspot, stopHotspot } from './kioskWifi';
+import { forgetWifi, hotspotStatus, joinWifi, scanWifi, startHotspot, stopHotspot } from './kioskWifi';
 
 function answer(status: number, body: unknown) {
   const fetchMock = vi.fn(() => Promise.resolve(Response.json(body, { status })));
@@ -17,14 +17,7 @@ function fail() {
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe('saved networks', () => {
-  it('lists the networks the kiosk keeps, and none when it does not answer', async () => {
-    answer(200, { networks: ['Home', '', 7, 'Office'] });
-    await expect(savedWifi()).resolves.toEqual(['Home', 'Office']);
-    fail();
-    await expect(savedWifi()).resolves.toEqual([]);
-  });
-
+describe('forgetting a network', () => {
   it('forgets one, saying why when the kiosk could not', async () => {
     const fetchMock = answer(200, { ok: true });
     await expect(forgetWifi('Home', 'en')).resolves.toEqual({ ok: true });
