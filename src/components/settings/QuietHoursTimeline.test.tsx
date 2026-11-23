@@ -22,12 +22,17 @@ function Kept({ initial, onChange }: Readonly<{ initial: QuietHours; onChange: (
 function setup(initial: QuietHours) {
   const onChange = vi.fn();
   const { container } = render(<Kept initial={initial} onChange={onChange} />);
+  // The day is 240px wide, ten to the hour, as jsdom lays nothing out.
+  const track = container.querySelector<HTMLElement>('.quiet-timeline-track');
+  if (!track) throw new Error('The timeline has no track');
+  track.getBoundingClientRect = () => ({ left: 0, width: 240 }) as DOMRect;
+  track.setPointerCapture = vi.fn();
   // Each band's start and length, in hours of the day.
   const bands = () =>
     [...container.querySelectorAll<HTMLElement>('.quiet-timeline-band')].map(band =>
       [band.style.left, band.style.width].map(share => Math.round((Number(share.replace('%', '')) / 100) * 24 * 2) / 2)
     );
-  return { onChange, bands };
+  return { onChange, bands, track };
 }
 
 const from = () => screen.getByRole('slider', { name: 'From' });
@@ -84,5 +89,31 @@ describe('QuietHoursTimeline', () => {
     press(to(), 'ArrowUp', 17);
     expect(to()).toHaveAttribute('aria-valuetext', '16:00');
     expect(bands()).toEqual([[13, 3]]);
+  });
+
+  it('moves the nearer end to where the day is tapped, to the half hour', () => {
+    const { onChange, track } = setup({ on: true, start: 22 * 60, end: 7 * 60 });
+    fireEvent.pointerDown(track, { clientX: 31, pointerId: 1 });
+    fireEvent.pointerUp(track, { pointerId: 1 });
+    expect(onChange).toHaveBeenLastCalledWith({ on: true, start: 22 * 60, end: 3 * 60 });
+    // Past the end of the day is midnight, nearer the start.
+    fireEvent.pointerDown(track, { clientX: 300, pointerId: 1 });
+    fireEvent.pointerUp(track, { pointerId: 1 });
+    expect(onChange).toHaveBeenLastCalledWith({ on: true, start: 0, end: 3 * 60 });
+  });
+
+  it('drags the end held, and stops when the finger lifts', () => {
+    const { onChange, track } = setup({ on: true, start: 22 * 60, end: 7 * 60 });
+    // Held on the From handle: it doesn't jump, it follows the finger.
+    fireEvent.pointerDown(from(), { clientX: 120, pointerId: 1 });
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.pointerMove(track, { clientX: 230, pointerId: 1 });
+    expect(onChange).toHaveBeenLastCalledWith({ on: true, start: 23 * 60, end: 7 * 60 });
+    // Onto the other end, it stays put.
+    fireEvent.pointerMove(track, { clientX: 70, pointerId: 1 });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    fireEvent.pointerCancel(track, { pointerId: 1 });
+    fireEvent.pointerMove(track, { clientX: 100, pointerId: 1 });
+    expect(onChange).toHaveBeenCalledTimes(1);
   });
 });

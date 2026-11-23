@@ -60,7 +60,11 @@ describe('GeneralSettings', () => {
   it('saves the language tapped, each named in itself beside its flag', async () => {
     const onSave = setup({ ...OWNED, language: 'en' });
     const languages = screen.getByRole('group', { name: 'Language' });
-    expect(within(languages).getAllByRole('button').map(button => button.textContent)).toEqual(['English', 'Norsk']);
+    expect(
+      within(languages)
+        .getAllByRole('button')
+        .map(button => button.textContent)
+    ).toEqual(['English', 'Norsk']);
     expect(within(languages).getByRole('button', { name: 'English' }).querySelector('.country-flag')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(screen.getByRole('button', { name: 'Norsk' }));
