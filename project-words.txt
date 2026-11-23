@@ -258,3 +258,4 @@ xcursor
 xkb
 xterm
 zoneinfo
+zstd

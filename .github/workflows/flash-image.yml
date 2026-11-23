@@ -80,7 +80,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/out"
           sudo pi/cloud-init/build-image.sh build "$RUNNER_TEMP/upstream.json" "$RUNNER_TEMP/out" \
-            "https://github.com/$GH_REPO/releases/download/$TAG/the-max-mix.img.xz"
+            "https://github.com/$GH_REPO/releases/download/$TAG/the-max-mix.img.zst"
           jq -r '.os_list[0].description' "$RUNNER_TEMP/out/the-max-mix.rpi-imager-manifest" > "$RUNNER_TEMP/out/description.txt"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.check.outputs.build == 'true' && github.event_name != 'pull_request'
@@ -117,10 +117,12 @@ jobs:
           if ! gh release view "$TAG" > /dev/null 2>&1; then
             gh release create "$TAG" --target "$GITHUB_SHA" --prerelease --latest=false --title 'Flash image' --notes 'Building'
           fi
-          echo "Uploading the-max-mix.img.xz ($(($(stat --format=%s the-max-mix.img.xz) / 1048576)) MiB)"
+          echo "Uploading the-max-mix.img.zst ($(($(stat --format=%s the-max-mix.img.zst) / 1048576)) MiB)"
           SECONDS=0
-          gh release upload "$TAG" the-max-mix.img.xz --clobber
+          gh release upload "$TAG" the-max-mix.img.zst --clobber
           echo "Uploaded in ${SECONDS}s; uploading the Imager list"
           gh release upload "$TAG" the-max-mix.rpi-imager-manifest --clobber
+          # The image was the-max-mix.img.xz until the build moved to zstd; nothing names it any more.
+          gh release delete-asset "$TAG" the-max-mix.img.xz --yes 2> /dev/null || true
           gh release edit "$TAG" --prerelease --latest=false --notes "$notes"
           echo "Published: https://github.com/$GH_REPO/releases/download/$TAG/the-max-mix.rpi-imager-manifest"
