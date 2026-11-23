@@ -30,7 +30,7 @@ function answer(server: { status: number; body?: unknown }, kiosk = 200) {
 beforeEach(() => {
   localStorage.clear();
   vi.stubEnv('VITE_COUNTDOWN_API', 'https://countdown.build');
-  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
 afterEach(() => {

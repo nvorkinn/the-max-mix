@@ -15,7 +15,7 @@ async function setUp() {
   let setupCode = 0;
   const run: RunWithInput = async (argv, input, env) => {
     calls.push({ argv, input, env });
-    if (argv[0] === SOLOIST && argv[1] === 'setup-api-key' && setupCode === 0) {
+    if (setupCode === 0 && argv[0] === SOLOIST && argv[1] === 'setup-api-key') {
       await mkdir(path.join(stateDir, 'credentials'), { recursive: true });
       await writeFile(path.join(stateDir, 'credentials', 'key'), input);
     }

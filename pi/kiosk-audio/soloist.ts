@@ -18,7 +18,13 @@ const MAX_KEY = 512;
 /** The key in the body of POST /soloist/key, `{"api_key": "..."}`, or null when it is not one. */
 export function validSoloistKey(body: unknown): string | null {
   const key = (body as { api_key?: unknown } | null)?.api_key;
-  return typeof key === 'string' && key.length > 0 && key.length <= MAX_KEY && /^[\x21-\x7E]+$/.test(key) ? key : null;
+  if (typeof key !== 'string' || key.length === 0 || key.length > MAX_KEY) return null;
+  // Printable ASCII only, with no spaces: it goes on a line of its own to Soloist.
+  for (let index = 0; index < key.length; index += 1) {
+    const code = key.codePointAt(index) ?? 0;
+    if (code <= 0x20 || code > 0x7e) return null;
+  }
+  return key;
 }
 
 export type RunWithInput = (

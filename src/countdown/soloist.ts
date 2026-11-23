@@ -10,9 +10,9 @@ import { KIOSK_SERVICE } from '../utils/kioskService';
 import { serverClient } from './config';
 
 /** How often the kiosk tries again while the player has no key (not paired yet, server or Pi not answering). */
-export const SOLOIST_KEY_RETRY_MS = 10 * 60_000;
+const SOLOIST_KEY_RETRY_MS = 10 * 60_000;
 /** How often it asks again once the player has one, so a new key on the server reaches the Pi. */
-export const SOLOIST_KEY_REFRESH_MS = 6 * 60 * 60_000;
+const SOLOIST_KEY_REFRESH_MS = 6 * 60 * 60_000;
 
 /** Fetches the key and hands it to the kiosk's service; true once the service has it. */
 export async function handOverSoloistKey(client: Client | null = serverClient()): Promise<boolean> {
