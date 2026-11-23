@@ -5,6 +5,7 @@ import type { KioskUpdate } from '../../hooks/useKioskUpdate';
 import KioskSystem from '../KioskSystem';
 import { useT } from '../../i18n/translate';
 import { APP_VERSION } from './appVersion';
+import SettingsSection from './SettingsSection';
 import type { WifiState } from './wifi';
 
 /** One fact about the screen: its name, and its value in a typeface that tells 0 from O. */
@@ -46,24 +47,18 @@ export default function AboutSettings({
 
   return (
     <div className="settings-stack about-page">
-      <section className="settings-group" aria-labelledby="about-screen-label">
-        <h5 className="settings-group-title" id="about-screen-label">
-          {t('about.this_screen')}
-        </h5>
+      <SettingsSection id="about-screen-label" title={t('about.this_screen')}>
         <dl className="settings-box about-facts">
           <Fact name={t('about.device_id')} value={deviceId ?? t('about.not_registered')} />
           {deviceConfig && <Fact name={t('about.size')} value={`${deviceConfig.width} × ${deviceConfig.height}`} />}
           {kiosk && <Fact name={t('about.ip_address')} value={address} />}
           <Fact name={t('about.app_version')} value={APP_VERSION} />
         </dl>
-      </section>
+      </SettingsSection>
       {kioskUpdate && (
-        <section className="settings-group" aria-labelledby="about-software-label">
-          <h5 className="settings-group-title" id="about-software-label">
-            {t('about.software')}
-          </h5>
+        <SettingsSection id="about-software-label" title={t('about.software')}>
           <KioskSystem update={kioskUpdate} />
-        </section>
+        </SettingsSection>
       )}
       {onOpenDebug && (
         <div className="flex about-debug">

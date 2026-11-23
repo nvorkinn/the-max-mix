@@ -57,8 +57,11 @@ function setup(config: TouchscreenConfig = OWNED) {
 }
 
 describe('GeneralSettings', () => {
-  it('saves the language tapped, each named in itself', async () => {
+  it('saves the language tapped, each named in itself beside its flag', async () => {
     const onSave = setup({ ...OWNED, language: 'en' });
+    const languages = screen.getByRole('group', { name: 'Language' });
+    expect(within(languages).getAllByRole('button').map(button => button.textContent)).toEqual(['English', 'Norsk']);
+    expect(within(languages).getByRole('button', { name: 'English' }).querySelector('.country-flag')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(screen.getByRole('button', { name: 'Norsk' }));
     expect(onSave).toHaveBeenCalledExactlyOnceWith('language', 'nb');
@@ -77,8 +80,15 @@ describe('GeneralSettings', () => {
     expect(screen.getByText(nb('general.weather'))).toBeInTheDocument();
   });
 
-  it('saves the time format tapped', async () => {
+  it('shows the clock as each time format writes it, and saves the one tapped', async () => {
+    vi.useFakeTimers({ now: new Date(2026, 10, 23, 13, 44), toFake: ['Date'] });
     const onSave = setup({ ...OWNED, clock_format: '24h' });
+    vi.useRealTimers();
+    const formats = within(screen.getByRole('group', { name: 'Time format' })).getAllByRole('button');
+    expect(formats.map(button => button.textContent)).toEqual([
+      '13:4424-hour',
+      expect.stringMatching(/^1:44\s?PM12-hour$/i)
+    ]);
     expect(screen.getByRole('button', { name: '24-hour' })).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(screen.getByRole('button', { name: '12-hour' }));
     expect(onSave).toHaveBeenCalledExactlyOnceWith('clock_format', '12h');
@@ -87,8 +97,8 @@ describe('GeneralSettings', () => {
   it("shows the weather's place chosen now without searching for it, and saves the one tapped", async () => {
     vi.mocked(searches.searchPlaces).mockClear();
     const onSave = setup({ ...OWNED, weather: { location: 'London', key: 'london' } });
-    const weather = screen.getByText('London').closest('.settings-row');
-    await userEvent.click(within(weather as HTMLElement).getByRole('button', { name: 'Change' }));
+    const weather = screen.getByRole('region', { name: 'Weather' });
+    await userEvent.click(within(weather).getByRole('button', { name: 'Change' }));
     const dialog = screen.getByRole('dialog', { name: 'Weather place' });
     const box = within(dialog).getByRole('searchbox');
     expect(box).toHaveValue('London');
@@ -113,8 +123,8 @@ describe('GeneralSettings', () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(here[0] ?? null);
     const onSave = setup({ ...OWNED, weather: { location: 'London', key: 'london' } });
-    const weather = screen.getByText('London').closest('.settings-row');
-    await userEvent.click(within(weather as HTMLElement).getByRole('button', { name: 'Change' }));
+    const weather = screen.getByRole('region', { name: 'Weather' });
+    await userEvent.click(within(weather).getByRole('button', { name: 'Change' }));
     const dialog = screen.getByRole('dialog', { name: 'Weather place' });
     await userEvent.click(within(dialog).getByRole('button', { name: 'Current location' }));
     expect(await within(dialog).findByRole('alert')).toHaveTextContent("Couldn't find the current location.");
@@ -129,9 +139,10 @@ describe('GeneralSettings', () => {
 
   it("saves the notice board's postcode with the country its form tells, and an empty postcode turns it off", async () => {
     const onSave = setup();
-    const notices = screen.getByText('0150').closest('.settings-row');
-    expect(within(notices as HTMLElement).getByRole('img', { name: 'Norway' })).toBeInTheDocument();
-    await userEvent.click(within(notices as HTMLElement).getByRole('button', { name: 'Change' }));
+    const notices = screen.getByRole('region', { name: 'Postcode' });
+    expect(notices).toHaveTextContent('0150');
+    expect(within(notices).getByRole('img', { name: 'Norway' })).toBeInTheDocument();
+    await userEvent.click(within(notices).getByRole('button', { name: 'Change' }));
     let dialog = screen.getByRole('dialog', { name: 'Postcode' });
     const field = within(dialog).getByRole('textbox', { name: 'Postcode' });
     expect(field).toHaveValue('0150');
@@ -143,7 +154,7 @@ describe('GeneralSettings', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenLastCalledWith('notice_board', { postcode: 'SW1A 1AA', country: 'GB', address: null });
 
-    await userEvent.click(within(notices as HTMLElement).getByRole('button', { name: 'Change' }));
+    await userEvent.click(within(notices).getByRole('button', { name: 'Change' }));
     dialog = screen.getByRole('dialog', { name: 'Postcode' });
     await userEvent.type(within(dialog).getByRole('textbox', { name: 'Postcode' }), ' ');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
@@ -159,14 +170,16 @@ describe('GeneralSettings', () => {
     expect(screen.getByText('No place')).toBeInTheDocument();
     expect(screen.getByText('Off')).toBeInTheDocument();
 
-    const notices = screen.getByText('Off').closest('.settings-row');
-    await userEvent.click(within(notices as HTMLElement).getByRole('button', { name: 'Change' }));
+    const notices = screen.getByRole('region', { name: 'Postcode' });
+    expect(notices).toHaveTextContent('Off');
+    await userEvent.click(within(notices).getByRole('button', { name: 'Change' }));
     let dialog = screen.getByRole('dialog', { name: 'Postcode' });
     expect(within(dialog).getByRole('textbox', { name: 'Postcode' })).toHaveValue('');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
 
-    const weather = screen.getByText('No place').closest('.settings-row');
-    await userEvent.click(within(weather as HTMLElement).getByRole('button', { name: 'Change' }));
+    const weather = screen.getByRole('region', { name: 'Weather' });
+    expect(weather).toHaveTextContent('No place');
+    await userEvent.click(within(weather).getByRole('button', { name: 'Change' }));
     dialog = screen.getByRole('dialog', { name: 'Weather place' });
     expect(within(dialog).getByRole('searchbox')).toHaveValue('');
     await userEvent.type(within(dialog).getByRole('searchbox'), 'atlantis');

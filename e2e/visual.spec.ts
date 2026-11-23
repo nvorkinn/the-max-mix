@@ -69,7 +69,6 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
         ['Appearance', 'settings-appearance'],
         ['Wi-Fi', 'settings-wifi'],
         ['Spotify', 'settings-spotify'],
-        ['Lyrics', 'settings-lyrics'],
         ['About', 'settings-about']
       ] as const) {
         // eslint-disable-next-line no-await-in-loop -- one page after another
@@ -142,6 +141,8 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
     test(`settings General page of an owned kiosk at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
       await page.setViewportSize(screen);
       await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
+      // The time formats show the clock as each writes it.
+      await page.clock.setFixedTime(new Date('2026-11-13T13:44:00'));
       await page.goto('/?kiosk=1');
       const settings = await openSettings(page, 'General');
       await expect(settings.getByRole('img', { name: 'Norway' })).toBeVisible();
@@ -163,7 +164,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
         await page.goto('/?kiosk=1');
         const settings = await openSettings(page, 'Screen');
         await expect(settings.getByRole('slider', { name: 'Brightness' })).toHaveValue('80');
-        await expect(settings.getByRole('group', { name: 'From' })).toBeVisible();
+        await expect(settings.getByRole('slider', { name: 'From' })).toBeVisible();
         await expect(settings).toHaveScreenshot(shotName('settings-screen-backlit', screen), SHOT);
       }
     );

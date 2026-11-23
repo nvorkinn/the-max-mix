@@ -9,14 +9,15 @@ import { describeStop, learnStopNames, rememberStop } from '../../countdown/sear
 import type { DeviceConfig } from '../../hooks/useDeviceConfig';
 import { useDragToReorder } from '../../hooks/useDragToReorder';
 import { useT } from '../../i18n/translate';
+import SettingsSection from './SettingsSection';
 import SettingsToggle from './SettingsToggle';
 import StopSearch from './StopSearch';
 
 /**
  * The stops whose departures the Countdown lists: a search box that opens the stop search over the whole screen
  * (StopSearch), then the saved stops in the Countdown's order, each with a handle to drag it to another place and an X
- * that removes it, and whether the Dashboard's boards group them by route, with a moving picture of the boards either way. Every change saves to countdown-server on its
- * own as soon as it is made.
+ * that removes it, and whether the Dashboard's boards group them by route, with a moving picture under it of the boards
+ * it gives. Every change saves to countdown-server on its own as soon as it is made.
  */
 export default function CountdownSettings({
   config,
@@ -58,10 +59,7 @@ export default function CountdownSettings({
         {t('countdown.add')}
       </button>
 
-      <section className="settings-group countdown-column" aria-labelledby="saved-stops-label">
-        <h5 className="settings-group-title" id="saved-stops-label">
-          {t('countdown.saved')}
-        </h5>
+      <SettingsSection id="saved-stops-label" title={t('countdown.saved')} className="countdown-column">
         <div className="countdown-column-body">
           {stops.length === 0 ? (
             <p className="text-muted py-2">{t('countdown.none')}</p>
@@ -108,26 +106,25 @@ export default function CountdownSettings({
             </ul>
           )}
         </div>
-      </section>
+      </SettingsSection>
 
       <SettingsToggle
         id="group-by-route-label"
         title={t('countdown.group_by_route')}
+        note={t('countdown.group_caption')}
         on={groupByRoute}
         onChange={value => onSave('arrivals', { ...config.arrivals, group_by_route: value })}
         className="countdown-grouping"
       >
-        <div className="countdown-grouping-row">
-          {/* Still under reduced motion: its last frame, how the board ends up. */}
-          <picture className="countdown-grouping-picture">
-            <source media="(prefers-reduced-motion: reduce)" srcSet={groupByRoute ? groupedOnStill : groupedOffStill} />
-            <img
-              src={groupByRoute ? groupedOn : groupedOff}
-              alt={t(groupByRoute ? 'countdown.grouped_on' : 'countdown.grouped_off')}
-              className="countdown-grouping-preview"
-            />
-          </picture>
-        </div>
+        {/* Still under reduced motion: its last frame, how the board ends up. */}
+        <picture className="countdown-grouping-picture">
+          <source media="(prefers-reduced-motion: reduce)" srcSet={groupByRoute ? groupedOnStill : groupedOffStill} />
+          <img
+            src={groupByRoute ? groupedOn : groupedOff}
+            alt={t(groupByRoute ? 'countdown.grouped_on' : 'countdown.grouped_off')}
+            className="countdown-grouping-preview"
+          />
+        </picture>
       </SettingsToggle>
 
       {isSearching && (

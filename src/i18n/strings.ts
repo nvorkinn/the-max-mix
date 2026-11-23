@@ -34,10 +34,26 @@ export const STRINGS = {
   'general.time_format': { en: 'Time format', nb: 'Tidsformat' },
   'general.24h': { en: '24-hour', nb: '24 timer' },
   'general.12h': { en: '12-hour', nb: '12 timer' },
+  'general.language_caption': {
+    en: 'The words on every page of the tablet.',
+    nb: 'Ordene på alle sidene på nettbrettet.'
+  },
+  'general.time_format_caption': {
+    en: 'How the header clock and the Countdown write times.',
+    nb: 'Slik skriver klokken øverst og Countdown klokkeslett.'
+  },
   'general.weather': { en: 'Weather', nb: 'Vær' },
   'general.no_place': { en: 'No place', nb: 'Ikke valgt' },
+  'general.weather_caption': {
+    en: 'The place the Dashboard shows the weather for.',
+    nb: 'Stedet Dashbordet viser været for.'
+  },
   'general.weather_place': { en: 'Weather place', nb: 'Sted for været' },
   'general.postcode': { en: 'Postcode', nb: 'Postnummer' },
+  'general.postcode_caption': {
+    en: 'Where the notice board finds local notices. Off shows none.',
+    nb: 'Der oppslagstavlen finner lokale oppslag. Av viser ingen.'
+  },
   'general.postcode_hint': {
     en: 'A UK or Norwegian postcode. Leave it empty for none.',
     nb: 'Et norsk eller britisk postnummer. La feltet stå tomt for ingen.'
@@ -142,6 +158,10 @@ export const STRINGS = {
   'countdown.saved': { en: 'Saved stops', nb: 'Lagrede stopp' },
   'countdown.none': { en: 'No stops yet.', nb: 'Ingen stopp ennå.' },
   'countdown.group_by_route': { en: 'Group by route', nb: 'Grupper etter linje' },
+  'countdown.group_caption': {
+    en: 'One row for each route with its next departures, rather than a row for each departure.',
+    nb: 'Én rad for hver linje med de neste avgangene, i stedet for én rad for hver avgang.'
+  },
   'countdown.grouped_off': {
     en: 'A board with a row for each departure',
     nb: 'En tavle med én rad for hver avgang'
@@ -165,6 +185,38 @@ export const STRINGS = {
 
   // Settings › Parcels.
   'parcels.notice_board': { en: 'Notice board', nb: 'Oppslagstavle' },
+  'parcels.notice_board_caption': {
+    en: 'Your Parcel deliveries on the Dashboard’s notice board.',
+    nb: 'Pakkene dine fra Parcel på oppslagstavlen på Dashbordet.'
+  },
+  'parcels.arriving_today': {
+    en: 'Parcels due today show on the board.',
+    nb: 'Pakker som kommer i dag, vises på tavlen.'
+  },
+  'parcels.arriving_tomorrow': {
+    en: 'Parcels due today or tomorrow show on the board.',
+    nb: 'Pakker som kommer i dag eller i morgen, vises på tavlen.'
+  },
+  'parcels.arriving_day_after': {
+    en: 'Parcels due by the day after tomorrow show on the board.',
+    nb: 'Pakker som kommer innen i overmorgen, vises på tavlen.'
+  },
+  'parcels.arriving_any_day': {
+    en: 'Every parcel on its way shows on the board, whenever it is due.',
+    nb: 'Alle pakker på vei vises på tavlen, uansett når de kommer.'
+  },
+  'parcels.kept_none': {
+    en: 'A parcel leaves the board as soon as it is delivered.',
+    nb: 'En pakke forsvinner fra tavlen så snart den er levert.'
+  },
+  'parcels.kept_hours': {
+    en: '{hours, plural, one {A delivered parcel stays on the board for # hour.} other {A delivered parcel stays on the board for # hours.}}',
+    nb: '{hours, plural, one {En levert pakke blir på tavlen i # time.} other {En levert pakke blir på tavlen i # timer.}}'
+  },
+  'parcels.kept_day': {
+    en: 'A delivered parcel stays on the board for a day.',
+    nb: 'En levert pakke blir på tavlen i ett døgn.'
+  },
   'parcels.arriving_by': { en: 'Arriving by', nb: 'Kommer innen' },
   'parcels.today': { en: 'Today', nb: 'I dag' },
   'parcels.tomorrow': { en: 'Tomorrow', nb: 'I morgen' },

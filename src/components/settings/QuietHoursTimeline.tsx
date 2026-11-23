@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react';
 import { formatClockTime } from '../../utils/clockFormat';
 import type { ClockFormat } from '../../utils/clockFormat';
 import { isQuietTime, stepTime, timeOfDay } from '../../utils/quietHours';
 import type { QuietHours } from '../../utils/quietHours';
+import { useClock } from '../../hooks/useClock';
 import { useT } from '../../i18n/translate';
 
 const DAY_MINUTES = 24 * 60;
@@ -29,16 +30,6 @@ function hourLabel(hour: number, format: ClockFormat): string {
   return `${twelve}${hour % 24 < 12 ? 'a' : 'p'}`;
 }
 
-/** The clock now, again each minute, for the mark on the day. */
-function useMinute(): Date {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 30_000);
-    return () => clearInterval(timer);
-  }, []);
-  return now;
-}
-
 /**
  * The quiet hours drawn on the day: a band from one end to the other (running past midnight wraps it round), each end a
  * handle to drag, or to step half an hour with the arrow keys, and a mark at the time now. Tapping the day moves the
@@ -51,7 +42,7 @@ export default function QuietHoursTimeline({
 }: Readonly<{ hours: QuietHours; clockFormat: ClockFormat; onChange: (hours: QuietHours) => void }>) {
   type End = 'start' | 'end';
   const t = useT();
-  const now = useMinute();
+  const now = useClock();
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState<End | null>(null);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();

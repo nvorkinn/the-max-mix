@@ -61,7 +61,7 @@ describe('SettingsPanel', () => {
     render(<SettingsPanel {...base} />);
     const nav = screen.getByRole('navigation', { name: 'Settings' });
     const sections = within(nav).getAllByRole('button');
-    expect(sections.map(button => button.textContent)).toEqual(['Appearance', 'Spotify', 'Lyrics', 'About']);
+    expect(sections.map(button => button.textContent)).toEqual(['Appearance', 'Spotify', 'About']);
     expect(within(nav).getByRole('button', { name: 'Appearance' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('region', { name: 'Appearance' })).toBeInTheDocument();
 
@@ -101,14 +101,18 @@ describe('SettingsPanel', () => {
     expect(screen.queryByRole('button', { name: /studio|paper/i })).not.toBeInTheDocument();
   });
 
-  it('offers the first sign-in, and nothing else, while nobody is signed in', () => {
+  it('offers the first sign-in, and nothing else of the people, while nobody is signed in', () => {
     render(<SettingsPanel {...base} initialSection="spotify" />);
     const page = screen.getByRole('region', { name: 'Spotify' });
+    // Under it, only the lyrics' look.
+    const lyrics = screen.getByRole('region', { name: 'Lyrics' });
     expect(
       within(page)
         .getAllByRole('button')
+        .filter(button => !lyrics.contains(button))
         .map(button => button.textContent)
     ).toEqual(['Log in with Spotify']);
+    expect(screen.queryByRole('list', { name: 'People' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/server environment|restart/i);
   });
@@ -471,13 +475,23 @@ describe('SettingsPanel', () => {
 
     beforeEach(() => history.replaceState(null, '', '/?kiosk=0'));
 
-    it('lists everyone signed in, with the active person marked', () => {
+    const faces = () => within(screen.getByRole('list', { name: 'People' })).getAllByRole('listitem');
+    const face = (name: string) => {
+      const list = screen.getByRole('list', { name: 'People' });
+      const named = new RegExp(name);
+      return within(list).getByRole('button', { name: named });
+    };
+
+    it('lists everyone signed in as faces, with the active person marked and chosen first', () => {
       auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true), person('Friend')]);
       render(<SettingsPanel {...base} initialSection="spotify" />);
-      const rows = within(screen.getByRole('list', { name: 'People' })).getAllByRole('listitem');
-      expect(rows.map(row => row.textContent)).toEqual(['NikolaiConnectedRemove', 'FriendConnectedRemove']);
-      expect(rows[0]).toHaveAttribute('aria-current', 'true');
-      expect(within(defined(rows[0])).getByLabelText('Active')).toBeInTheDocument();
+      expect(faces().map(row => row.textContent)).toEqual(['Nikolai', 'Friend', 'Add']);
+      const first = defined(faces()[0]);
+      expect(first).toHaveAttribute('aria-current', 'true');
+      expect(within(first).getByLabelText('Active')).toBeInTheDocument();
+      expect(face('Nikolai')).toHaveAttribute('aria-pressed', 'true');
+      expect(face('Friend')).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByRole('group', { name: 'Nikolai' })).toHaveTextContent('NikolaiConnectedRemove');
     });
 
     it('shows where each login stands once Spotify answers, and offers signing in again where it does not work', async () => {
@@ -485,17 +499,18 @@ describe('SettingsPanel', () => {
       const answers: Record<string, string> = { Nikolai: 'connected', Friend: 'refused', Guest: 'unknown' };
       auth.checkPerson.mockImplementation((spotifyId: string) => Promise.resolve(answers[spotifyId]));
       render(<SettingsPanel {...base} initialSection="spotify" />);
-      const rows = () => within(screen.getByRole('list', { name: 'People' })).getAllByRole('listitem');
-      await waitFor(() =>
-        expect(rows().map(row => row.textContent)).toEqual([
-          'NikolaiConnectedRemove',
-          'FriendNot allowedSign inRemove',
-          // Spotify could not be asked: what the kiosk knows stands.
-          'GuestExpiredSign inRemove'
-        ])
+      expect(screen.getByRole('group', { name: 'Nikolai' })).toHaveTextContent('NikolaiConnectedRemove');
+      await userEvent.click(face('Friend'));
+      expect(face('Friend')).toHaveAttribute('aria-pressed', 'true');
+      const friend = screen.getByRole('group', { name: 'Friend' });
+      await waitFor(() => expect(friend).toHaveTextContent('FriendNot allowedSign inRemove'));
+      // Spotify could not be asked: what the kiosk knows stands.
+      await userEvent.click(face('Guest'));
+      expect(screen.getByRole('group', { name: 'Guest' })).toHaveTextContent('GuestExpiredSign inRemove');
+      await userEvent.click(face('Friend'));
+      await userEvent.click(
+        within(screen.getByRole('group', { name: 'Friend' })).getByRole('button', { name: 'Sign in' })
       );
-      const friend = defined(rows()[1]);
-      await userEvent.click(within(friend).getByRole('button', { name: 'Sign in' }));
       await waitFor(() => expect(auth.startSignIn).toHaveBeenCalledWith('Friend'));
     });
 
@@ -503,13 +518,15 @@ describe('SettingsPanel', () => {
       auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true), person('Friend')]);
       auth.removePerson.mockReturnValue('kept');
       render(<SettingsPanel {...base} initialSection="spotify" />);
-      const friend = defined(within(screen.getByRole('list', { name: 'People' })).getAllByRole('listitem')[1]);
+      await userEvent.click(face('Friend'));
+      const friend = screen.getByRole('group', { name: 'Friend' });
       await userEvent.click(within(friend).getByRole('button', { name: 'Remove' }));
       expect(auth.removePerson).not.toHaveBeenCalled();
       auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true)]);
       await userEvent.click(within(friend).getByRole('button', { name: 'Tap again to remove' }));
       expect(auth.removePerson).toHaveBeenCalledWith('Friend');
-      expect(within(screen.getByRole('list', { name: 'People' })).getAllByRole('listitem')).toHaveLength(1);
+      expect(faces().map(row => row.textContent)).toEqual(['Nikolai', 'Add']);
+      expect(screen.getByRole('group', { name: 'Nikolai' })).toBeInTheDocument();
       expect(base.onReload).not.toHaveBeenCalled();
     });
 
@@ -517,10 +534,10 @@ describe('SettingsPanel', () => {
       auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true), person('Friend')]);
       auth.removePerson.mockReturnValue('switched');
       render(<SettingsPanel {...base} initialSection="spotify" />);
-      const rows = within(screen.getByRole('list', { name: 'People' })).getAllByRole('listitem');
-      const button = within(defined(rows[0])).getByRole('button');
-      await userEvent.click(button);
-      await userEvent.click(button);
+      const nikolai = within(screen.getByRole('group', { name: 'Nikolai' }));
+      await userEvent.click(nikolai.getByRole('button', { name: 'Remove' }));
+      await userEvent.click(nikolai.getByRole('button', { name: 'Tap again to remove' }));
+      expect(auth.removePerson).toHaveBeenCalledWith('Nikolai');
       expect(base.onReload).toHaveBeenCalled();
     });
 
@@ -579,7 +596,7 @@ describe('SettingsPanel', () => {
       within(nav)
         .getAllByRole('button')
         .map(button => button.textContent)
-    ).toEqual(['General', 'Countdown', 'Parcels', 'Appearance', 'Spotify', 'Lyrics', 'About']);
+    ).toEqual(['General', 'Countdown', 'Parcels', 'Appearance', 'Spotify', 'About']);
     await userEvent.click(within(nav).getByRole('button', { name: 'Countdown' }));
     expect(screen.getByRole('region', { name: 'Countdown' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add a station or stop' })).toBeInTheDocument();
@@ -716,7 +733,7 @@ describe('SettingsPanel', () => {
 
   it('saves the lyrics look to the server once someone owns the kiosk, and on the tablet before that', async () => {
     const onDeviceConfigSave = vi.fn();
-    const { rerender } = render(<SettingsPanel {...base} initialSection="lyrics" />);
+    const { rerender } = render(<SettingsPanel {...base} initialSection="spotify" />);
     await userEvent.click(screen.getByRole('button', { name: 'Right' }));
     expect(getLyricsStyle()).toEqual({ size: 'medium', align: 'right' });
     expect(screen.getByRole('button', { name: 'Right' })).toHaveAttribute('aria-pressed', 'true');
@@ -724,7 +741,7 @@ describe('SettingsPanel', () => {
     rerender(
       <SettingsPanel
         {...base}
-        initialSection="lyrics"
+        initialSection="spotify"
         deviceConfig={fixture.config as TouchscreenConfig}
         onDeviceConfigSave={onDeviceConfigSave}
       />

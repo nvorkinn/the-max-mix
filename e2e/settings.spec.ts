@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
 import { advance } from './clock.ts';
 import { wifiAnswer } from './fake-kiosk.ts';
@@ -12,6 +12,12 @@ const openDebug = async (page: Page) => {
   await expect(debug).toBeVisible();
   return debug;
 };
+
+/** The chosen person's login, phone and removal, under the faces on the Spotify page: the group with a Remove button. */
+const chosenPerson = (dialog: Locator) =>
+  dialog
+    .getByRole('group')
+    .filter({ has: dialog.page().getByRole('button', { name: /^(Remove|Tap again to remove)$/ }) });
 
 test.describe('Settings', { tag: '@settings' }, () => {
   test.beforeEach(async ({ page }) => {
@@ -37,7 +43,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await openSpotifyTab(page, '/?kiosk=1');
     const dialog = await openSettings(page);
     const nav = dialog.getByRole('navigation', { name: 'Settings' });
-    const sections = ['Screen', 'Appearance', 'Wi-Fi', 'Spotify', 'Lyrics', 'About'];
+    const sections = ['Screen', 'Appearance', 'Wi-Fi', 'Spotify', 'About'];
     await expect(nav.getByRole('button')).toHaveText(sections);
     for (const section of sections) {
       // eslint-disable-next-line no-await-in-loop -- one section after another
@@ -51,7 +57,10 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await openSpotifyTab(page);
     const dialog = await openSettings(page);
     await showSection(dialog, 'Spotify');
-    const person = dialog.getByRole('list', { name: 'People' }).getByRole('listitem');
+    // The one face, chosen, with its login, phone and removal under the faces.
+    const face = dialog.getByRole('list', { name: 'People' }).getByRole('listitem').first().getByRole('button');
+    await expect(face).toHaveAttribute('aria-pressed', 'true');
+    const person = chosenPerson(dialog);
     await expect(person).toContainText('Connected');
     await expect(person.getByRole('button', { name: 'Remove' })).toBeVisible();
   });
@@ -77,8 +86,11 @@ test.describe('Settings', { tag: '@settings' }, () => {
     }, getClientId());
     await page.goto('/?kiosk=0');
     const dialog = await openSettings(page, 'Spotify');
-    const person = dialog.getByRole('list', { name: 'People' }).getByRole('listitem');
-    await expect(person).toContainText('Friend');
+    await expect(dialog.getByRole('list', { name: 'People' }).getByRole('button', { name: 'Friend' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    const person = dialog.getByRole('group', { name: 'Friend' });
     await expect(person).toContainText('Expired');
     await person.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.getByRole('heading', { name: 'Test sign-in page' })).toBeVisible();
@@ -249,7 +261,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     );
     await openSpotifyTab(page);
     const dialog = await openSettings(page, 'Spotify');
-    const person = dialog.getByRole('list', { name: 'People' }).getByRole('listitem');
+    const person = chosenPerson(dialog);
     await person.getByRole('button', { name: 'Remove' }).click();
     await person.getByRole('button', { name: 'Tap again to remove' }).click();
 
@@ -273,7 +285,6 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await expect(dialog.getByRole('navigation', { name: 'Settings' }).getByRole('button')).toHaveText([
       'Appearance',
       'Spotify',
-      'Lyrics',
       'About'
     ]);
     await expect(dialog.getByRole('button', { name: /^(Wi-Fi|General)/ })).toHaveCount(0);
