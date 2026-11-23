@@ -1,8 +1,8 @@
 import { expect, test, type Locator } from '@playwright/test';
 import { showDashboard } from './dashboard.ts';
 
-// While a song plays, the Dashboard shows it in a card hanging under the Spotify tab, wrapped round the Dashboard tab's
-// pill with the same gap as between the tabs, with back, pause and skip working the player. A pause leaves the card there to play the song again.
+// While a song plays, the Dashboard shows it in a card under the clock, clear of the weather, with pause and skip
+// working the player. A pause leaves the card there to play the song again.
 
 const SCREENS = [
   { width: 1280, height: 800 },
@@ -17,7 +17,7 @@ const box = async (locator: Locator) => {
 
 for (const screen of SCREENS) {
   test(
-    `the song playing hangs under the Spotify tab at ${screen.width}x${screen.height}`,
+    `the song playing sits under the clock at ${screen.width}x${screen.height}`,
     { tag: '@layout' },
     async ({ page }) => {
       await showDashboard(page, screen);
@@ -26,16 +26,17 @@ for (const screen of SCREENS) {
       await expect(card).toContainText('One More Time');
       await expect(card).toContainText('Daft Punk');
 
-      const spotifyTab = await box(dashboard.getByRole('tab', { name: 'Spotify' }));
-      const dashboardTab = await box(dashboard.getByRole('tab', { name: 'Dashboard' }));
+      const clock = await box(dashboard.locator('.dashboard-clock'));
       const shown = await box(card);
-      // The tabs 5px apart (drawn smaller on the 7" screen), and the card lined up with the Spotify tab's left edge, the
-      // same gap below the Dashboard tab, and on the screen.
-      const gap = 5 * (screen.width / 1280);
-      expect(dashboardTab.x - (spotifyTab.x + spotifyTab.width)).toBeCloseTo(gap, 0);
-      expect(Math.abs(shown.x - spotifyTab.x)).toBeLessThan(1);
-      expect(shown.y - (dashboardTab.y + dashboardTab.height)).toBeCloseTo(gap, 0);
+      // Under the clock, lined up with its right edge, on the screen and in the band of plain sky along the top of the
+      // backdrop (its top fifth), and clear of the weather on the left.
+      expect(shown.y).toBeGreaterThan(clock.y + clock.height);
+      expect(Math.abs(shown.x + shown.width - (clock.x + clock.width))).toBeLessThan(1);
       expect(shown.x + shown.width).toBeLessThanOrEqual(screen.width);
+      expect(shown.y + shown.height).toBeLessThanOrEqual(screen.height / 5);
+      const weather = await box(dashboard.locator('.dashboard-weather'));
+      expect(shown.x).toBeGreaterThan(weather.x + weather.width);
+      await expect(card.getByRole('button', { name: 'Previous' })).toHaveCount(0);
       // The buttons stay big enough to tap on the small screen too.
       const pause = await box(card.getByRole('button', { name: 'Pause' }));
       expect(pause.width).toBeGreaterThanOrEqual(36);

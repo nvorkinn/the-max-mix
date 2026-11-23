@@ -7,6 +7,7 @@ import Backdrop, { BACKDROP_FADE_MS } from './Backdrop';
 import DepartureBoard from './DepartureBoard';
 import EtaStack from './EtaStack';
 import NoticeBoard, { ARRIVE_MS } from './NoticeBoard';
+import NowPlaying from './NowPlaying';
 import { ROLL_ACROSS_EVERY_MS } from './rollAcross';
 import RailPages from './RailPages';
 import WeatherBlock, { WEATHER_FADE_MS } from './WeatherBlock';
@@ -475,6 +476,46 @@ describe('a notice whose title is too long for its row', () => {
       sizes(300);
       run(ROLL_ACROSS_EVERY_MS);
       expect(animate).toHaveBeenCalledTimes(1);
+      unmount();
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'animate');
+      for (const [key, descriptor] of saved) {
+        if (descriptor) Object.defineProperty(HTMLElement.prototype, key, descriptor);
+        else Reflect.deleteProperty(HTMLElement.prototype, key);
+      }
+    }
+  });
+});
+
+describe('a song whose title is too long for the card under the clock', () => {
+  it('rolls the title across every so often, like the notices', () => {
+    const animate = vi.fn(() => ({ cancel: vi.fn(), onfinish: null as (() => void) | null }));
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }));
+    const saved = ['scrollWidth', 'clientWidth'].map(
+      key => [key, Object.getOwnPropertyDescriptor(HTMLElement.prototype, key)] as const
+    );
+    Object.defineProperties(HTMLElement.prototype, {
+      animate: { value: animate, configurable: true },
+      scrollWidth: { get: () => 260, configurable: true },
+      clientWidth: { get: () => 200, configurable: true }
+    });
+    try {
+      const { container, unmount } = render(
+        <NowPlaying
+          title="Harder, Better, Faster, Stronger (Alive 2007 Live Version)"
+          artist="Daft Punk"
+          artUrl={null}
+          isPlaying
+          progress={0.3}
+          controlsEnabled
+          onPlayPause={vi.fn()}
+          onNext={vi.fn()}
+        />
+      );
+      run(ROLL_ACROSS_EVERY_MS);
+      expect(animate).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(animate.mock.calls[0])).toContain('translateX(-60px)');
+      expect(container.querySelector<HTMLElement>('.dashboard-now-playing-title')?.dataset['rolling']).toBe('true');
       unmount();
     } finally {
       Reflect.deleteProperty(HTMLElement.prototype, 'animate');

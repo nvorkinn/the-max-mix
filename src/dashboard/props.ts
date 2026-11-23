@@ -28,7 +28,7 @@ export interface TabBarProps {
   nowPlaying?: NowPlayingProps | null;
 }
 
-/** @public The song the card under the Spotify tab shows, and its controls. */
+/** @public The song the card under the clock shows, and its controls. */
 export interface NowPlayingProps {
   title: string;
   /** Every artist, comma separated. */
@@ -41,7 +41,6 @@ export interface NowPlayingProps {
   /** False while the player can't take commands: the buttons are disabled. */
   controlsEnabled: boolean;
   onPlayPause: () => unknown;
-  onPrevious: () => unknown;
   onNext: () => unknown;
 }
 

@@ -85,7 +85,6 @@ export const STRINGS = {
 
   // The Dashboard.
   'dashboard.now_playing': { en: 'Now playing', nb: 'Spilles nå' },
-  'dashboard.previous': { en: 'Previous', nb: 'Forrige' },
   'dashboard.play': { en: 'Play', nb: 'Spill av' },
   'dashboard.pause': { en: 'Pause', nb: 'Pause' },
   'dashboard.next': { en: 'Next', nb: 'Neste' },

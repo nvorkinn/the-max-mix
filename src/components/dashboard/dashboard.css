@@ -166,68 +166,28 @@
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%);
 }
 
-/*
-  The song playing, in a dark card hanging under the Spotify tab: the tab turns the same dark and runs down beside the
-  Dashboard tab's pill, curving round its rounded end and along under it, the same gap as between the tabs all the way
-  round, into the card. It floats over the photo, so nothing below it moves.
-*/
 .dashboard-tabs-place {
   --tab-gap: 5px;
-  --now-playing: rgb(9 12 16 / 58%);
+}
 
-  position: relative;
-  z-index: 3;
-}
-.dashboard-tab[data-holds-player] {
-  position: relative;
-  background: var(--now-playing);
-  border-radius: 22px 22px 0 0;
-}
-.dashboard-tab[data-holds-player] .dashboard-spotify-logo {
-  /* Spotify Green, one of the colours Spotify's brand rules allow its logo in. */
-  color: #1ed760;
-}
-/* Down from the tab to the card. */
-.dashboard-tab[data-holds-player]::before {
-  content: '';
-  position: absolute;
-  inset: 100% 0 auto;
-  height: var(--tab-gap);
-  background: var(--now-playing);
-}
 /*
-  In the gap beside the Dashboard tab, from halfway down to the card: dark outside a circle round the end of its pill,
-  a gap wider than the pill's 22px curve. The Dashboard tab starts one gap along, so the circle's centre is a gap and
-  22px past this tab's edge.
+  The song playing, in a dark card under the clock and lined up with its right edge, in the plain band of sky the
+  backdrop keeps along its top. It floats over the photo, so nothing below it moves.
 */
-.dashboard-tab[data-holds-player]::after {
-  --round: calc(22px + var(--tab-gap));
-
-  content: '';
-  position: absolute;
-  top: 22px;
-  left: 100%;
-  width: var(--round);
-  height: var(--round);
-  background: radial-gradient(
-    circle at 100% 0,
-    transparent calc(var(--round) - 0.5px),
-    var(--now-playing) var(--round)
-  );
-}
 .dashboard-now-playing {
   position: absolute;
-  top: calc(100% + var(--tab-gap));
-  left: 0;
-  width: 430px;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 3;
+  width: 380px;
   height: 76px;
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 0 10px 0 12px;
   overflow: hidden;
-  border-radius: 0 22px 22px;
-  background: var(--now-playing);
+  border-radius: 22px;
+  background: rgb(9 12 16 / 58%);
   text-shadow: none;
 }
 .dashboard-now-playing-art {
@@ -251,15 +211,25 @@
   gap: 2px;
   line-height: 1.15;
 }
-.dashboard-now-playing-title,
+.dashboard-now-playing-title-text,
 .dashboard-now-playing-artist {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+/* The box that cuts a long title off: its words show whole while they roll across (rollAcross.ts). */
 .dashboard-now-playing-title {
+  display: block;
+  overflow: hidden;
   font-size: 20px;
   font-weight: 600;
+}
+.dashboard-now-playing-title-text {
+  display: block;
+}
+.dashboard-now-playing-title[data-rolling] .dashboard-now-playing-title-text {
+  width: max-content;
+  overflow: visible;
 }
 .dashboard-now-playing-artist {
   font-size: 15px;
@@ -308,6 +278,7 @@
   transform-origin: 0 50%;
 }
 .dashboard-bar-end {
+  position: relative;
   justify-self: end;
   display: flex;
   align-items: center;

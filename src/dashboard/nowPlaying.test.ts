@@ -5,9 +5,7 @@ import { goBack, nowPlayingCard } from './nowPlaying';
 const controls = () => ({
   controlsEnabled: true,
   onPlayPause: vi.fn(),
-  onNext: vi.fn(),
-  onPrevious: vi.fn(),
-  onSeek: vi.fn()
+  onNext: vi.fn()
 });
 
 const playing: PlaybackState = {
@@ -55,13 +53,6 @@ describe('nowPlayingCard', () => {
   it('is null with no song', () => {
     expect(nowPlayingCard(null, controls())).toBeNull();
     expect(nowPlayingCard({ is_playing: false }, controls())).toBeNull();
-  });
-
-  it('goes back the way the Spotify tab does', () => {
-    const player = controls();
-    nowPlayingCard(playing, player)?.onPrevious();
-    expect(player.onSeek).toHaveBeenCalledWith(0);
-    expect(player.onPrevious).not.toHaveBeenCalled();
   });
 });
 
