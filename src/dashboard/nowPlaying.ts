@@ -13,8 +13,7 @@ function trackOf(playback: PlaybackState | null | undefined) {
 }
 
 /**
- * Like most players: well into a song, Previous replays it from the start; near the start it goes back a song. The
- * Spotify tab's player and the Dashboard's card both go back this way.
+ * Like most players: well into a song, Previous replays it from the start; near the start it goes back a song.
  */
 export function goBack(
   playback: PlaybackState | null | undefined,
@@ -25,10 +24,10 @@ export function goBack(
   return progressMs > RESTART_AFTER_MS && !playback?.actions?.disallows?.seeking ? onSeek(0) : onPrevious();
 }
 
-/** What the Dashboard's card under the Spotify tab shows for `playback`, or null with no song to show. */
+/** What the Dashboard's card under the clock shows for `playback`, or null with no song to show. */
 export function nowPlayingCard(
   playback: PlaybackState | null | undefined,
-  controls: Pick<PlayerControls, 'onPlayPause' | 'onNext' | 'onPrevious' | 'onSeek'> & { controlsEnabled: boolean }
+  controls: Pick<PlayerControls, 'onPlayPause' | 'onNext'> & { controlsEnabled: boolean }
 ): NowPlayingProps | null {
   const track = trackOf(playback);
   const title = track?.name || track?.title;
@@ -43,7 +42,6 @@ export function nowPlayingCard(
     progress: durationMs > 0 ? progressMs / durationMs : 0,
     controlsEnabled: controls.controlsEnabled,
     onPlayPause: controls.onPlayPause,
-    onNext: controls.onNext,
-    onPrevious: () => goBack(playback, controls.onSeek, controls.onPrevious)
+    onNext: controls.onNext
   };
 }

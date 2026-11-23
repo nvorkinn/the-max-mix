@@ -13,9 +13,8 @@ import NowPlaying from './NowPlaying';
 
 // Dashboard, the home screen, sits in the middle, with a tab to either side of it.
 const TABS: readonly { id: TabId; label: StringId; icon: ReactNode }[] = [
-  // Spotify's own logo in one colour, as its brand rules allow: white like the other tabs, green while the song playing
-  // hangs under it (dashboard.css).
-  { id: 'spotify', label: 'tabs.spotify', icon: <SpotifyIcon className="lucide dashboard-spotify-logo" /> },
+  // Spotify's own logo in one colour, as its brand rules allow: white like the other tabs.
+  { id: 'spotify', label: 'tabs.spotify', icon: <SpotifyIcon className="lucide" /> },
   { id: 'dashboard', label: 'tabs.dashboard', icon: <LayoutGrid aria-hidden="true" className="lucide" /> },
   { id: 'settings', label: 'tabs.settings', icon: <Settings aria-hidden="true" className="lucide" /> }
 ];
@@ -26,7 +25,7 @@ const noop = () => {};
 
 /**
  * The brand, the tabs, search, a warning while anything is wrong, the signed-in person and the clock, floating on the
- * Dashboard's photo; with `nowPlaying`, the song playing in a card hanging under the Spotify tab.
+ * Dashboard's photo; with `nowPlaying`, the song playing in a card under the clock.
  */
 export default function TabBar({
   active,
@@ -62,7 +61,6 @@ export default function TabBar({
               className="dashboard-tab"
               aria-selected={tab.id === active}
               aria-controls={tabPanelId(tab.id)}
-              data-holds-player={nowPlaying && tab.id === 'spotify' ? '' : undefined}
               onClick={() => onSelect(tab.id)}
             >
               {tab.icon}
@@ -70,7 +68,6 @@ export default function TabBar({
             </button>
           ))}
         </div>
-        {nowPlaying && <NowPlaying {...nowPlaying} />}
       </div>
       <div className="dashboard-bar-end">
         {onSearch && (
@@ -98,6 +95,7 @@ export default function TabBar({
           <Clock3 className="lucide" style={{ width: 20, height: 20 }} />
           <time>{formatClockTime(now, clockFormat)}</time>
         </span>
+        {nowPlaying && <NowPlaying {...nowPlaying} />}
       </div>
     </header>
   );

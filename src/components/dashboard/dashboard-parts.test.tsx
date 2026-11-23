@@ -67,7 +67,7 @@ describe('TabBar', () => {
     expect(onSearch).toHaveBeenCalled();
   });
 
-  it('hangs the song playing under the Spotify tab, its buttons working the player, and nothing without one', () => {
+  it('shows the song playing under the clock, its buttons working the player, and nothing without one', () => {
     const song = {
       title: 'Midnight City',
       artist: 'M83',
@@ -76,20 +76,17 @@ describe('TabBar', () => {
       progress: 0.4,
       controlsEnabled: true,
       onPlayPause: vi.fn(),
-      onPrevious: vi.fn(),
       onNext: vi.fn()
     };
-    const { container, rerender } = render(<TabBar {...base} nowPlaying={song} />);
+    const { rerender } = render(<TabBar {...base} nowPlaying={song} />);
     const card = screen.getByRole('region', { name: 'Now playing' });
     expect(card).toHaveTextContent('Midnight City');
     expect(card).toHaveTextContent('M83');
     expect(card.querySelector('img')).toHaveAttribute('src', 'https://x/cover.jpg');
-    expect(screen.getByRole('tab', { name: 'Spotify' })).toHaveAttribute('data-holds-player');
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+    expect(screen.queryByRole('button', { name: 'Previous' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(song.onPlayPause).toHaveBeenCalledTimes(1);
-    expect(song.onPrevious).toHaveBeenCalledTimes(1);
     expect(song.onNext).toHaveBeenCalledTimes(1);
 
     rerender(<TabBar {...base} nowPlaying={{ ...song, isPlaying: false, controlsEnabled: false }} />);
@@ -97,7 +94,6 @@ describe('TabBar', () => {
 
     rerender(<TabBar {...base} nowPlaying={null} />);
     expect(screen.queryByRole('region', { name: 'Now playing' })).not.toBeInTheDocument();
-    expect(container.querySelector('[data-holds-player]')).toBeNull();
   });
 });
 
