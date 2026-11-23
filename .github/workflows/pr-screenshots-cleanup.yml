@@ -1,7 +1,7 @@
 name: PR screenshots cleanup
 
 # When a pull request closes, removes the screenshots and Playwright reports of every pull request that is no longer
-# open from the gh-pages branch, which the screenshots job in tests.yml fills, so a cleanup that failed is caught up by
+# open from the gh-pages branch, which the screenshots job in e2e-publish.yml fills, so a cleanup that failed is caught up by
 # the next one. Like that job, it rebuilds the branch as a single commit.
 on:
   pull_request:

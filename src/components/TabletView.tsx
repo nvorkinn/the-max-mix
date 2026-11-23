@@ -403,7 +403,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   useEffect(() => {
     // The queue is not shown while the screen sleeps; waking it reads the queue again at once.
-    if (quotaExceeded || !canPollQueue || sleep.asleep) return;
+    // Wait for the first playback read so its track and playing state do not immediately restart queue polling.
+    if (quotaExceeded || !canPollQueue || isLoading || sleep.asleep) return;
     let cancelled = false;
     // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
     const isCancelled = () => cancelled;
@@ -443,6 +444,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   }, [
     currentTrack?.id,
     canPollQueue,
+    isLoading,
     sleep.asleep,
     quotaExceeded,
     pollEnabled,
