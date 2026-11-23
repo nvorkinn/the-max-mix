@@ -31,6 +31,8 @@ const SCAN = [
 ].join('\n');
 
 const WIFI_ROWS = 'aaaa-1:802-11-wireless\nbbbb-2:802-3-ethernet\ncccc-3:802-11-wireless\n';
+/** `nmcli -t -f UUID,TYPE connection show` output listing these Wi-Fi connections. */
+const rows = (uuids: string[]) => uuids.map(uuid => `${uuid}:802-11-wireless\n`).join('');
 const ok = (stdout = ''): Result => ({ code: 0, stdout, stderr: '' });
 
 type Reply = Result | ((argv: string[]) => Result);
@@ -282,7 +284,6 @@ describe('keeping only the network it is on', () => {
     'eeee-5': 'Cafe\ninfrastructure\n'
   };
   const BEFORE = ['aaaa-1', 'bbbb-2', 'cccc-3', 'eeee-5'];
-  const rows = (uuids: string[]) => uuids.map(uuid => `${uuid}:802-11-wireless\n`).join('');
 
   function joining(connectReply: Result) {
     let isAttempted = false;

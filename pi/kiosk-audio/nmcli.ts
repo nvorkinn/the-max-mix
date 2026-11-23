@@ -281,7 +281,8 @@ export class Nmcli {
 
   /** Deletes the saved connections to every network but this one (and never the setup hotspot), so only it is kept. */
   private async forgetAllBut(ssid: string): Promise<void> {
-    for (const row of await this.savedConnections()) {
+    const connections = await this.savedConnections();
+    for (const row of connections) {
       if (row.ssid === ssid) continue;
       // One at a time: NetworkManager handles these in order anyway. A failure is logged by call() and otherwise
       // ignored: the join itself worked.
