@@ -13,32 +13,31 @@ type DaysAhead = NonNullable<Parcels['days_ahead']> | null;
 type KeptHours = NonNullable<Parcels['kept_hours']>;
 /** Words: a string's id, and its arguments. */
 type Words = readonly [StringId, Record<string, number>?];
-/** A choice: its value, its chip's words, and the sentence under the chips that reads it back once it is chosen. */
+/** A choice: its value and its chip's words. */
 interface Choice<T> {
   value: T;
   label: Words;
-  readBack: Words;
 }
 
 /** The settings site's "Arriving by", as the e-paper screens have it: which dated parcels show, by their due day. */
 const DAYS_AHEAD_CHOICES: readonly Choice<DaysAhead>[] = [
-  { value: 0, label: ['parcels.today'], readBack: ['parcels.arriving_today'] },
-  { value: 1, label: ['parcels.tomorrow'], readBack: ['parcels.arriving_tomorrow'] },
-  { value: 2, label: ['parcels.day_after'], readBack: ['parcels.arriving_day_after'] },
-  { value: null, label: ['parcels.any_day'], readBack: ['parcels.arriving_any_day'] }
+  { value: 0, label: ['parcels.today'] },
+  { value: 1, label: ['parcels.tomorrow'] },
+  { value: 2, label: ['parcels.day_after'] },
+  { value: null, label: ['parcels.any_day'] }
 ];
 
 const KEPT_HOURS_CHOICES: readonly Choice<KeptHours>[] = [
-  { value: 0, label: ['parcels.not_kept'], readBack: ['parcels.kept_none'] },
-  { value: 1, label: ['parcels.hours', { hours: 1 }], readBack: ['parcels.kept_hours', { hours: 1 }] },
-  { value: 4, label: ['parcels.hours', { hours: 4 }], readBack: ['parcels.kept_hours', { hours: 4 }] },
-  { value: 24, label: ['parcels.a_day'], readBack: ['parcels.kept_day'] }
+  { value: 0, label: ['parcels.not_kept'] },
+  { value: 1, label: ['parcels.hours', { hours: 1 }] },
+  { value: 4, label: ['parcels.hours', { hours: 4 }] },
+  { value: 24, label: ['parcels.a_day'] }
 ];
 
 /** How long a delivered parcel stays when the config doesn't say (the server's default). */
 const DEFAULT_KEPT_HOURS: KeptHours = 4;
 
-/** One of the page's choices as chips, with a sentence under its heading saying what the chosen one does. */
+/** One of the page's choices as chips. */
 function ChoiceSection<T extends number | null>({
   id,
   title,
@@ -55,9 +54,8 @@ function ChoiceSection<T extends number | null>({
   const t = useT();
   // Chips take strings and numbers as their ids; null (any day) goes as 'any'.
   const key = (value: T): string => String(value ?? 'any');
-  const chosen = choices.find(choice => choice.value === selected);
   return (
-    <SettingsSection id={id} title={title} caption={chosen && t(...chosen.readBack)}>
+    <SettingsSection id={id} title={title}>
       <SettingsChips
         labelledBy={id}
         value={key(selected)}
@@ -124,7 +122,6 @@ export default function ParcelsSettings({
       <SettingsToggle
         id="parcels-notices-label"
         title={t('parcels.notice_board')}
-        note={t('parcels.notice_board_caption')}
         on={current.enabled}
         onChange={enabled => onChange({ ...current, enabled })}
       />

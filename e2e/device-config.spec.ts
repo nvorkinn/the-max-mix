@@ -168,11 +168,11 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     await openSpotifyTab(page, '/?kiosk=1');
     const settings = await openSettings(page, 'General');
 
-    await settings.getByRole('region', { name: 'Weather' }).getByRole('button', { name: 'Change' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Weather place' });
+    await settings.getByRole('region', { name: 'Location' }).getByRole('button', { name: 'Change' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Location' });
     await dialog.getByRole('button', { name: 'Current location' }).click();
     expect(new URL((await asked).url()).searchParams.get('latitude')).toBe('59.9139');
-    await expect(dialog.getByRole('searchbox', { name: 'Weather place' })).toHaveValue('Oslo');
+    await expect(dialog.getByRole('searchbox', { name: 'Location' })).toHaveValue('Oslo');
     expect(server.saves).toEqual([]);
     await dialog.getByRole('button', { name: /^Oslo/ }).click();
     await expect(settings.getByText('Saved', { exact: true })).toBeVisible();

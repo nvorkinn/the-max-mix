@@ -6,28 +6,21 @@ import ParcelsSettings from './ParcelsSettings';
 describe('ParcelsSettings', () => {
   it('has the parcel settings while a Parcel API key is saved', () => {
     render(<ParcelsSettings parcels={{ enabled: true, days_ahead: 1, kept_hours: 4 }} onChange={vi.fn()} />);
-    expect(screen.getByRole('switch', { name: 'Notice board' })).toHaveAccessibleDescription(
-      'Your Parcel deliveries on the Dashboard’s notice board.'
-    );
+    expect(screen.getByRole('switch', { name: 'Notice board' })).toBeChecked();
     expect(screen.getByRole('button', { name: 'Tomorrow' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByRole('heading', { name: 'Set up Parcel' })).not.toBeInTheDocument();
   });
 
-  it('reads back each choice in a sentence under its heading', () => {
+  it('presses the chip of each chosen value', () => {
     const { rerender } = render(
       <ParcelsSettings parcels={{ enabled: true, days_ahead: 1, kept_hours: 4 }} onChange={vi.fn()} />
     );
-    const arriving = screen.getByRole('region', { name: 'Arriving by' });
     const kept = screen.getByRole('region', { name: 'Delivered ones stay' });
-    expect(arriving).toHaveTextContent('Parcels due today or tomorrow show on the board.');
-    expect(kept).toHaveTextContent('A delivered parcel stays on the board for 4 hours.');
-    rerender(<ParcelsSettings parcels={{ enabled: true, days_ahead: null, kept_hours: 1 }} onChange={vi.fn()} />);
-    expect(arriving).toHaveTextContent('Every parcel on its way shows on the board, whenever it is due.');
-    expect(kept).toHaveTextContent('A delivered parcel stays on the board for 1 hour.');
-    rerender(<ParcelsSettings parcels={{ enabled: true, days_ahead: 0, kept_hours: 0 }} onChange={vi.fn()} />);
-    expect(arriving).toHaveTextContent('Parcels due today show on the board.');
-    expect(kept).toHaveTextContent('A parcel leaves the board as soon as it is delivered.');
-    // A stay this tablet doesn't know (from a newer server) has no chip pressed and no sentence.
+    expect(screen.getByRole('button', { name: '4 hours' })).toHaveAttribute('aria-pressed', 'true');
+    rerender(<ParcelsSettings parcels={{ enabled: true, days_ahead: null, kept_hours: 0 }} onChange={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Any day' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Not kept' })).toHaveAttribute('aria-pressed', 'true');
+    // A stay this tablet doesn't know (from a newer server) has no chip pressed.
     const newer = { enabled: true, kept_hours: 2 } as unknown as Parcels;
     rerender(<ParcelsSettings parcels={newer} onChange={vi.fn()} />);
     expect(kept).toHaveTextContent(/^Delivered ones stay(Not kept|1 hour|4 hours|A day)+$/);
