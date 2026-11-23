@@ -239,6 +239,15 @@ export const STRINGS = {
 
   // Settings › Appearance.
   'appearance.colour': { en: 'Colour', nb: 'Farge' },
+  'appearance.colour_note': {
+    en: 'The colour of the song’s title, the player’s controls and the highlights.',
+    nb: 'Fargen på sangtittelen, spillerens knapper og fremhevinger.'
+  },
+  'appearance.sample_title': { en: 'Song title', nb: 'Sangtittel' },
+  'appearance.sample_artist': { en: 'Artist', nb: 'Artist' },
+  'appearance.sample_always': { en: 'Your colour', nb: 'Din farge' },
+  'appearance.sample_idle': { en: 'Your colour, when nothing plays', nb: 'Din farge, når ingenting spilles' },
+  'appearance.sample_playing': { en: 'While music plays', nb: 'Mens musikken spilles' },
   'appearance.dynamic': { en: 'Dynamic', nb: 'Dynamisk' },
   'appearance.dynamic_note': {
     en: 'Colours follow the album art while music plays.',
