@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
-    "lint": "eslint . --max-warnings 0",
+    "lint": "eslint . --max-warnings 0 --concurrency auto",
     "lint:shell": "shellcheck ansible/roles/kiosk/files/bin/* ansible/tests/*.sh",
     "lint:md": "markdownlint-cli2",
     "lint:css": "stylelint \"src/**/*.css\" --max-warnings 0",
