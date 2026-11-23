@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # Builds THE MAX MIX's ready-made flash image: stock Raspberry Pi OS Lite (64-bit) with the first-boot setup added, and
 # the Raspberry Pi Imager list that offers it. The flash-image workflow runs it and publishes both on the flash-image
-# pre-release. Needs root (it mounts the image), curl, jq, sfdisk and xz.
+# pre-release. Needs root (it mounts the image), curl, jq, sfdisk, xz and zstd.
 #
 # Usage:
 #   build-image.sh upstream > upstream.json
 #     prints the newest Raspberry Pi OS Lite (64-bit) in Imager's official list, as {os, devices}: its list entry and
 #     the Pis it runs on. The workflow compares it with the last build's, to build only when something changed.
 #   sudo build-image.sh build upstream.json <output folder> <image URL>
-#     writes the-max-mix.img.xz and the-max-mix.rpi-imager-manifest into the output folder. The image URL is where the
-#     published the-max-mix.img.xz is downloaded from.
+#     writes the-max-mix.img.zst and the-max-mix.rpi-imager-manifest into the output folder. The image URL is where the
+#     published the-max-mix.img.zst is downloaded from.
 #
 # Only two files are added to the system partition, and the playbook still installs everything at the first boot:
 #   /var/lib/cloud/scripts/per-instance/the-max-mix-first-boot  (first-boot)
@@ -101,13 +101,15 @@ step "Hashing the image"
 extract_size=$(stat --format=%s "$image")
 extract_sha256=$(sha256sum "$image" | cut -d' ' -f1)
 mkdir -p "$out"
-step "Compressing with xz on $(nproc) threads (the slow part, about 3 minutes)"
-watch_file "$out/the-max-mix.img.xz" compressed
-xz --threads=0 -6 --stdout "$image" > "$out/the-max-mix.img.xz"
+# zstd rather than xz, which Imager reads too: level 9 takes about 10 seconds where xz -6 took over 3 minutes, for a
+# file about a fifth bigger (2026-10-06 Lite: 713 MiB against 587 MiB). Levels above 9 cost minutes for little.
+step "Compressing with zstd -9 on $(nproc) threads"
+watch_file "$out/the-max-mix.img.zst" compressed
+zstd --quiet --threads=0 -9 --stdout "$image" > "$out/the-max-mix.img.zst"
 stop_watching
-step "Compressed to $(mib "$out/the-max-mix.img.xz"); hashing it and writing the Imager list"
-download_size=$(stat --format=%s "$out/the-max-mix.img.xz")
-download_sha256=$(sha256sum "$out/the-max-mix.img.xz" | cut -d' ' -f1)
+step "Compressed to $(mib "$out/the-max-mix.img.zst"); hashing it and writing the Imager list"
+download_size=$(stat --format=%s "$out/the-max-mix.img.zst")
+download_sha256=$(sha256sum "$out/the-max-mix.img.zst" | cut -d' ' -f1)
 
 # Imager's list format (rpi-imager doc/json-schema/os-list-schema.json). The devices are the official list's own Pis
 # that this image runs on, so Imager asks which Pi as usual. init_format (cloudinit-rpi) turns Imager's customisation
@@ -138,4 +140,4 @@ jq --null-input \
       capabilities: ($base.capabilities // [])
     }]
   }' > "$out/the-max-mix.rpi-imager-manifest"
-step "Built $out/the-max-mix.img.xz ($download_size bytes) and $out/the-max-mix.rpi-imager-manifest"
+step "Built $out/the-max-mix.img.zst ($download_size bytes) and $out/the-max-mix.rpi-imager-manifest"
