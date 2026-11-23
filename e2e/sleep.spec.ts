@@ -75,12 +75,15 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     const asleep = page.getByRole('dialog', { name: 'Sleep screen' });
     const dashboard = page.getByRole('tab', { name: 'Dashboard' });
     // Music plays for nine minutes, longer than the minute to the Dashboard, five to dim and two to sleep put together.
-    await advance(page, 9 * 60_000, 15_000);
+    const pause = page.getByRole('button', { name: 'Pause', exact: true });
+    await expect(pause).toBeVisible();
+    // Playback stays constant here. Run its timers without waiting for each background poll.
+    await page.clock.runFor(9 * 60_000);
     await expect(dimmed).toHaveCount(0);
     await expect(asleep).toHaveCount(0);
     await expect(dashboard).toHaveAttribute('aria-selected', 'false');
 
-    await page.getByRole('button', { name: 'Pause', exact: true }).click();
+    await pause.click();
     await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
     await advance(page, 50_000, 5000);
     await expect(dashboard).toHaveAttribute('aria-selected', 'false');
