@@ -2808,13 +2808,14 @@ body:has(.app-dialog[open]) {
   flex-wrap: wrap;
   gap: 8px;
 }
+/* Compact across, but as tall as Settings' touch targets (60px). */
 .wifi-others-actions .button {
-  min-height: 48px;
-  padding: 0 16px;
-  font-size: 16px;
+  min-height: 60px;
+  padding: 0 18px;
+  font-size: 17px;
 }
 .wifi-others-actions .wifi-refresh {
-  width: 48px;
+  width: 60px;
   padding: 0;
 }
 .wifi-networks {
