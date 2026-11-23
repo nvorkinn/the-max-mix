@@ -59,6 +59,16 @@ export const STRINGS = {
   'general.quiet_hours': { en: 'Quiet hours', nb: 'Stille timer' },
   'general.from': { en: 'From', nb: 'Fra' },
   'general.to': { en: 'To', nb: 'Til' },
+  'quiet.caption': {
+    en: 'Between these times the screen sleeps a minute after the last touch.',
+    nb: 'Mellom disse tidene sovner skjermen et minutt etter siste berøring.'
+  },
+  'quiet.now_quiet': { en: 'quiet now', nb: 'stille nå' },
+  'quiet.now_awake': { en: 'awake now, at {time}', nb: 'våken nå, klokken {time}' },
+  'screen.sleep_caption': {
+    en: 'How long the screen stays on after nobody has touched it.',
+    nb: 'Hvor lenge skjermen er på etter at ingen har rørt den.'
+  },
   'country.GB': { en: 'United Kingdom', nb: 'Storbritannia' },
   'country.NO': { en: 'Norway', nb: 'Norge' },
 
@@ -249,9 +259,21 @@ export const STRINGS = {
   'spotify.remove': { en: 'Remove', nb: 'Fjern' },
   'spotify.remove_confirm': { en: 'Tap again to remove', nb: 'Trykk igjen for å fjerne' },
   'spotify.add_person': { en: 'Add person', nb: 'Legg til person' },
+  'spotify.add': { en: 'Add', nb: 'Legg til' },
+  'spotify.people_caption': {
+    en: 'Everyone who can play their music here. Tap a face for their login, phone and removal.',
+    nb: 'Alle som kan spille musikken sin her. Trykk på et ansikt for innlogging, telefon og fjerning.'
+  },
   'spotify.log_in': { en: 'Log in with Spotify', nb: 'Logg inn med Spotify' },
 
   // Settings › Lyrics.
+  'lyrics.caption': {
+    en: 'How synced lyrics look while a song plays.',
+    nb: 'Slik ser synkroniserte sangtekster ut mens en sang spilles.'
+  },
+  'lyrics.sample_1': { en: 'Under the kitchen light', nb: 'Under lyset på kjøkkenet' },
+  'lyrics.sample_2': { en: 'we sang the whole way home', nb: 'sang vi hele veien hjem' },
+  'lyrics.sample_3': { en: 'and the night kept time for us', nb: 'og natten holdt takten for oss' },
   'lyrics.size': { en: 'Size', nb: 'Størrelse' },
   'lyrics.alignment': { en: 'Alignment', nb: 'Justering' },
   'lyrics.size.small': { en: 'Small', nb: 'Liten' },

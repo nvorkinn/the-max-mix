@@ -1984,6 +1984,11 @@ body:has(.app-dialog[open]) {
   flex-direction: column;
   gap: 16px;
 }
+/* A page: its sections one under another, far enough apart to read as separate settings, no wider than reads well. */
+.settings-stack {
+  gap: 32px;
+  max-width: 760px;
+}
 .settings-group {
   gap: 10px;
 }
@@ -1995,6 +2000,63 @@ body:has(.app-dialog[open]) {
 .settings-group-note {
   margin-top: -6px;
   font-size: 16px;
+}
+/*
+  A setting's section (SettingsSection): its heading, with a switch or small button straight after the words, the line
+  saying what it does, and its own control. Pages are columns of these, no wider than reads well.
+*/
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.settings-section-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 48px;
+}
+.settings-section-title {
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -0.2px;
+}
+.settings-section-caption {
+  max-width: 36em;
+  margin-top: -8px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.35;
+}
+/* A short list of values as pills (SettingsChips). */
+.settings-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.settings-panel .settings-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 0 22px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 650;
+  transition:
+    background 160ms,
+    border-color 160ms;
+}
+.settings-chip[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--play-fill);
+  box-shadow: var(--glow);
+  color: var(--accent-ink);
+  font-weight: 750;
 }
 /* A country's flag (CountryFlag): 32px wide in a row's icon box, text-sized beside words. */
 .country-flag {
@@ -2198,86 +2260,161 @@ body:has(.app-dialog[open]) {
   background: var(--accent-ink);
   transform: translateX(36px);
 }
-/* The brightness slider, between its sun and its percentage. */
+/* The Screen page's day: the sleep delay, with the brightness column standing beside it. */
+.screen-day {
+  display: flex;
+  align-items: stretch;
+  gap: 28px;
+}
+.screen-day > .settings-section {
+  flex: 1;
+}
+/*
+  Brightness as a tall column that fills from the bottom as it brightens. The range input lies over all of it, unseen
+  and upright, so a touch anywhere on the column sets it and a drag follows the finger.
+*/
 .brightness-setting {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 16px;
+  flex-shrink: 0;
+}
+.brightness-column {
+  position: relative;
+  width: 104px;
+  min-height: 168px;
+  overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 26px;
   background: var(--surface-raised);
+}
+.brightness-column:has(.brightness-range:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+.brightness-fill {
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--brightness);
+  background: var(--play-fill);
+  box-shadow: var(--glow);
+}
+.brightness-sun {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  transform: translateX(-50%);
   color: var(--ink);
-}
-.brightness-range {
-  flex: 1;
-  height: 64px;
-}
-/* A big handle, easy to find and drag with a finger, on a track thick enough to sit it on. */
-.brightness-range::-webkit-slider-runnable-track {
-  height: 6px;
-}
-.brightness-range::-moz-range-track {
-  height: 6px;
-}
-.brightness-range::-webkit-slider-thumb {
-  width: 36px;
-  height: 36px;
-  margin-top: -15px;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 40%);
-}
-.brightness-range::-moz-range-thumb {
-  width: 36px;
-  height: 36px;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 40%);
 }
 .brightness-value {
-  min-width: 3em;
-  font-size: 20px;
-  font-weight: 750;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-.quiet-hours {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-.quiet-hours-time {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 6px 6px 16px;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: var(--surface-raised);
-}
-.quiet-hours-label {
-  min-width: 2.5em;
-  color: var(--muted);
-  font-size: 16px;
-  font-weight: 650;
-}
-.quiet-hours-value {
-  flex: 1;
-  color: var(--ink);
+  position: absolute;
+  inset: auto 0 14px;
+  color: var(--accent-ink);
   font-size: 20px;
   font-weight: 750;
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
-.settings-panel .quiet-hours-step {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 60px;
-  height: 60px;
-  border-radius: 14px;
-  background: var(--surface);
-  color: var(--ink);
+.brightness-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  touch-action: none;
+  writing-mode: vertical-lr;
+  direction: rtl;
 }
-.quiet-hours-step:active {
-  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+/*
+  The quiet hours on the day (QuietHoursTimeline): the band from one end to the other, wrapping past midnight, a mark at
+  the time now, and a handle at each end with its time above it. The day is clipped to its rounded track; the handles
+  and their times stand out of it.
+*/
+.quiet-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 38px;
+}
+.quiet-timeline-track {
+  position: relative;
+  height: 64px;
+  cursor: pointer;
+  touch-action: none;
+}
+.quiet-timeline-day {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface-raised);
+}
+.quiet-timeline-tick {
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  width: 1px;
+  background: var(--border);
+}
+.quiet-timeline-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.quiet-timeline-now {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--ink);
+}
+.quiet-timeline-handle {
+  position: absolute;
+  top: 50%;
+  left: var(--at);
+  width: 22px;
+  height: 52px;
+  margin: -26px 0 0 -11px;
+  border-radius: 11px;
+  background: var(--play-fill);
+  box-shadow: var(--glow);
+}
+/* A finger-sized grip round the slim handle. */
+.quiet-timeline-handle::before {
+  content: '';
+  position: absolute;
+  inset: -6px -16px;
+}
+.quiet-timeline-handle-time {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.quiet-timeline-hours {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.quiet-timeline-readout {
+  font-size: 17px;
 }
 .settings-wide-button {
   width: 100%;
@@ -2337,6 +2474,144 @@ body:has(.app-dialog[open]) {
 }
 .settings-person-about .settings-box-title {
   max-width: 100%;
+}
+/*
+  The Spotify page's people as faces (SpotifySettings): a ring round the chosen one, a dot for whether their login
+  works, a tick on the one playing, and a dashed face to add someone. The chosen person's login, phone and removal sit
+  under the row.
+*/
+.person-faces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+}
+.settings-panel .person-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+}
+.person-face:disabled {
+  opacity: 0.4;
+}
+.person-face-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  padding: 4px;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  transition: border-color 160ms;
+}
+.person-face[aria-pressed='true'] .person-face-ring {
+  border-color: var(--accent);
+  box-shadow: var(--glow);
+}
+.person-face-picture {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.person-face-blank {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+.person-face-add {
+  border: 2px dashed var(--border);
+  color: var(--muted);
+}
+.person-face-dot {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: currentcolor;
+  box-shadow: 0 0 0 3px var(--surface);
+}
+.person-face-active {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 28px;
+  height: 28px;
+  padding: 2px;
+  border-radius: 50%;
+  background: var(--play-fill);
+  color: var(--accent-ink);
+  stroke-width: 2.5;
+}
+.person-face-name {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.person-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 20px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface-raised);
+}
+.person-detail-about {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 8em;
+}
+.person-detail-name {
+  max-width: 100%;
+  font-size: 18px;
+  font-weight: 750;
+}
+/*
+  The lyrics' look, previewed with the lyrics panel's own classes: three lines at the size the panel gives a large
+  screen, two sung and one to come, aligned as chosen.
+*/
+.lyrics-preview {
+  padding: 14px 24px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+.lyrics-preview .lyrics-list {
+  overflow: hidden;
+  padding: 0;
+  mask-image: none;
+}
+.lyrics-preview .lyrics-list.is-synced .lyrics-line {
+  font-size: calc(38px * var(--lyrics-scale, 0.7));
+}
+.lyrics-look {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 28px;
+}
+.lyrics-size-glyph {
+  font-weight: 750;
+  line-height: 1;
 }
 .settings-person-status {
   display: flex;
@@ -2812,7 +3087,7 @@ body:has(.app-dialog[open]) {
     padding: 28px 36px 32px;
   }
   .settings-stack {
-    gap: 20px;
+    gap: 36px;
   }
   .settings-group-title,
   .settings-box-title {

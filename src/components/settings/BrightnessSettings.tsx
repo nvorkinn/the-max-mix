@@ -4,8 +4,9 @@ import { BRIGHTNESS_MAX, BRIGHTNESS_MIN, BRIGHTNESS_STEP } from '../../utils/bac
 import { useT } from '../../i18n/translate';
 
 /**
- * How bright the kiosk's screen is in use, on a panel whose backlight the Pi can set (utils/backlight). Every step of the
- * slider is passed on at once, so the screen follows the finger.
+ * How bright the kiosk's screen is in use, on a panel whose backlight the Pi can set (utils/backlight): a tall column
+ * that fills as it brightens, dragged up and down anywhere on it. Every step is passed on at once, so the screen itself
+ * follows the finger.
  */
 export default function BrightnessSettings({
   percent,
@@ -14,12 +15,14 @@ export default function BrightnessSettings({
   const t = useT();
   const progress = ((percent - BRIGHTNESS_MIN) / (BRIGHTNESS_MAX - BRIGHTNESS_MIN)) * 100;
   return (
-    <section className="settings-group">
-      <h5 className="settings-group-title" id="brightness-label">
+    <section className="brightness-setting" aria-labelledby="brightness-label">
+      <h5 className="sr-only" id="brightness-label">
         {t('general.brightness')}
       </h5>
-      <div className="brightness-setting">
-        <Sun className="w-5 h-5 shrink-0" aria-hidden="true" />
+      <div className="brightness-column" style={{ '--brightness': `${progress}%` } as CSSProperties}>
+        <span className="brightness-fill" aria-hidden="true" />
+        <Sun className="brightness-sun" aria-hidden="true" />
+        <output className="brightness-value">{percent}%</output>
         <input
           type="range"
           min={BRIGHTNESS_MIN}
@@ -28,10 +31,8 @@ export default function BrightnessSettings({
           value={percent}
           aria-labelledby="brightness-label"
           onChange={event => onChange(Number(event.target.value))}
-          className="range-control brightness-range"
-          style={{ '--range-progress': `${progress}%` } as CSSProperties}
+          className="brightness-range"
         />
-        <output className="brightness-value">{percent}%</output>
       </div>
     </section>
   );
