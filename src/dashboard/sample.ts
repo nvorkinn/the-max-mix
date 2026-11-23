@@ -17,6 +17,7 @@ export const SAMPLE_NOW = new Date('2026-11-17T09:20:00Z');
 
 const minutesOn = (minutes: number): string => new Date(SAMPLE_NOW.getTime() + minutes * 60_000).toISOString();
 const hour = (hh: string): string => `2026-11-17T${hh}:00:00Z`;
+const tomorrowHour = (hh: string): string => `2026-11-18T${hh}:00:00Z`;
 
 /** Each component's props, minus the callbacks. */
 export const SAMPLE = {
@@ -34,7 +35,12 @@ export const SAMPLE = {
         temperature: 9,
         sky: 'partly-cloudy',
         condition: 'Partly cloudy',
-        summary: 'Heavy rain from 14:00'
+        summary: 'Heavy rain from 16:00',
+        hours: [
+          { time: hour('10'), temperature: 9, sky: 'partly-cloudy', isDay: true },
+          { time: hour('12'), temperature: 11, sky: 'cloudy', isDay: true },
+          { time: hour('14'), temperature: 10, sky: 'rain', isDay: true }
+        ]
       },
       {
         period: 'tomorrow',
@@ -42,17 +48,17 @@ export const SAMPLE = {
         sky: 'cloudy',
         condition: 'Cloudy',
         summary: 'Dry all day',
-        summaryIcon: 'sun'
+        summaryIcon: 'sun',
+        hours: [
+          { time: tomorrowHour('08'), temperature: 7, sky: 'cloudy', isDay: true },
+          { time: tomorrowHour('12'), temperature: 12, sky: 'cloudy', isDay: true },
+          { time: tomorrowHour('16'), temperature: 10, sky: 'cloudy', isDay: false }
+        ]
       }
     ]
   } satisfies WeatherBlockProps,
 
   hourly: {
-    hours: [
-      { time: hour('10'), temperature: 9, sky: 'partly-cloudy', isDay: true },
-      { time: hour('12'), temperature: 11, sky: 'cloudy', isDay: true },
-      { time: hour('14'), temperature: 10, sky: 'rain', isDay: true }
-    ],
     stale: false,
     clockFormat: '24h'
   } satisfies HourlyTrendProps,

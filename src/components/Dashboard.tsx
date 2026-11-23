@@ -12,7 +12,6 @@ import type {
   WeatherBlockProps
 } from '../dashboard/props';
 import Backdrop from './dashboard/Backdrop';
-import HourlyTrend from './dashboard/HourlyTrend';
 import { carouselSlot, TURN_MS } from './dashboard/carousel';
 import DepartureBoard from './dashboard/DepartureBoard';
 import TabBar from './dashboard/TabBar';
@@ -36,7 +35,7 @@ export const boardSlot = (index: number, count: number, time: number): number =>
 export interface DashboardProps {
   tabBar: TabBarProps;
   weather: WeatherBlockProps;
-  /** The coming hours' trend under the weather; null while there is no forecast to read. */
+  /** How the weather's hourly trend is drawn; null while there is no forecast to read. */
   hourly: HourlyTrendProps | null;
   notices: NoticeBoardProps;
   /** The days after today, under the weather and its trend while the rail has room; null (or left out) without. */
@@ -106,7 +105,7 @@ export default function Dashboard({
           <TabBar {...tabBar} />
           <main className="dashboard-main">
             <div className="dashboard-rail">
-              <WeatherBlock {...weather} time={time} trend={hourly && <HourlyTrend {...hourly} />} />
+              <WeatherBlock {...weather} time={time} trend={hourly} />
               <RailPages
                 notices={notices.notices}
                 lineStatus={lineStatus}

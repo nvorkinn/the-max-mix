@@ -68,6 +68,8 @@ export interface WeatherView {
   summary: string | null;
   /** The icon beside `summary`: an umbrella (the default) for rain, a sun for fine weather. */
   summaryIcon?: 'umbrella' | 'sun';
+  /** The trend under it, soonest first: Now's next three even hours, Tomorrow's morning, midday and afternoon. */
+  hours?: HourForecast[];
 }
 
 /** @public */
@@ -102,10 +104,8 @@ export interface DayForecast {
   sky: Sky;
 }
 
-/** @public */
+/** @public How the hourly trend under each weather view is drawn. */
 export interface HourlyTrendProps {
-  /** The next three even hours of the place's clock, soonest first. */
-  hours: HourForecast[];
   /** True once the feed has dropped and the Dashboard is showing its last data. */
   stale: boolean;
   clockFormat: '12h' | '24h';

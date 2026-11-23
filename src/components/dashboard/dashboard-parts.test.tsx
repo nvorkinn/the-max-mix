@@ -16,7 +16,7 @@ afterEach(() => {
 
 describe('HourlyTrend', () => {
   it('writes the hours the place read them, in the chosen format', () => {
-    render(<HourlyTrend {...SAMPLE.hourly} clockFormat="12h" />);
+    render(<HourlyTrend {...SAMPLE.hourly} hours={SAMPLE.weather.views[0]?.hours ?? []} clockFormat="12h" />);
     expect(screen.getByText('10 AM')).toBeInTheDocument();
     expect(screen.getByText('2 PM')).toBeInTheDocument();
   });

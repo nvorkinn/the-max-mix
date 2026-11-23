@@ -1,4 +1,4 @@
-import type { HourlyTrendProps } from '../../dashboard/props';
+import type { HourForecast, HourlyTrendProps } from '../../dashboard/props';
 import { useT } from '../../i18n/translate';
 import { SKY_ICONS, sunny } from './icons';
 
@@ -11,8 +11,12 @@ function hourLabel(time: string, clockFormat: HourlyTrendProps['clockFormat']): 
   return `${clock} ${hour < 12 ? 'AM' : 'PM'}`;
 }
 
-/** The trend of the coming hours right under the weather, one row: three hours two apart, each its time over its sky and temperature. */
-export default function HourlyTrend({ hours, stale, clockFormat }: Readonly<HourlyTrendProps>) {
+/** A weather view's trend right under it, one row of three hours, each its time over its sky and temperature. */
+export default function HourlyTrend({
+  hours,
+  stale,
+  clockFormat
+}: Readonly<HourlyTrendProps & { hours: readonly HourForecast[] }>) {
   const t = useT();
   return (
     <section className="dashboard-trend shadowed" aria-label={t('dashboard.hourly_forecast')} data-stale={stale}>

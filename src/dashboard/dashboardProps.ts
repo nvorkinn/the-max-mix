@@ -123,7 +123,6 @@ export function dashboardProps(
     outlook: { days: weather?.days ?? [] },
     hourly: weather
       ? {
-          hours: weather.hours,
           stale: down || snapshot.weatherHeld || olderThan(weatherRead, WEATHER_STALE_MS, now),
           clockFormat
         }

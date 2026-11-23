@@ -102,7 +102,7 @@ describe('toWeather', () => {
   });
 
   it("gives the next three even hours, in the place's offset, with day and night from sunrise and sunset", () => {
-    const at = (utc: string) => toWeather(answer({ offsetSeconds: 3600 }), new Date(utc), '24h')?.hours;
+    const at = (utc: string) => toWeather(answer({ offsetSeconds: 3600 }), new Date(utc), '24h')?.views[0]?.hours;
 
     // 13:30 there: the trend starts at 14:00, and the sun sets at 16:00.
     expect(at('2026-11-17T12:30:00Z')).toEqual([
@@ -115,6 +115,16 @@ describe('toWeather', () => {
       '2026-11-18T00:00:00+01:00',
       '2026-11-18T02:00:00+01:00',
       '2026-11-18T04:00:00+01:00'
+    ]);
+  });
+
+  it('gives Tomorrow its own trend: its morning, midday and afternoon', () => {
+    const tomorrow = toWeather(answer({ codes: { '2026-11-18T12': 61 } }), NOW, '24h')?.views[1];
+
+    expect(tomorrow?.hours).toEqual([
+      { time: '2026-11-18T08:00:00Z', temperature: 12, sky: 'partly-cloudy', isDay: true },
+      { time: '2026-11-18T12:00:00Z', temperature: 12, sky: 'rain', isDay: true },
+      { time: '2026-11-18T16:00:00Z', temperature: 8, sky: 'partly-cloudy', isDay: false }
     ]);
   });
 

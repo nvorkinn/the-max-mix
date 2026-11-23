@@ -440,6 +440,7 @@
   transition: opacity 350ms ease;
 }
 .dashboard-weather.fading .dashboard-wx-view,
+.dashboard-wx-trend.fading,
 .dashboard-wx-summary.fading {
   opacity: 0;
 }
@@ -571,7 +572,10 @@
   background: var(--text);
 }
 
-/* Always right under the weather, the coming hours' trend in one row. */
+/* Right under the weather, the view's hourly trend in one row; it fades with the view. */
+.dashboard-wx-trend {
+  transition: opacity 350ms ease;
+}
 .dashboard-trend {
   flex: none;
   margin-top: 8px;
@@ -579,6 +583,7 @@
 .dashboard-hours {
   display: flex;
   gap: 28px;
+  min-height: 46px;
 }
 .dashboard-hour {
   display: grid;

@@ -1,10 +1,10 @@
 import { Sun, Umbrella } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
-import type { WeatherBlockProps, WeatherPeriod } from '../../dashboard/props';
+import type { HourlyTrendProps, WeatherBlockProps, WeatherPeriod } from '../../dashboard/props';
 import type { StringId } from '../../i18n/strings';
 import { useT } from '../../i18n/translate';
 import { TURN_MS } from './carousel';
+import HourlyTrend from './HourlyTrend';
 import { SKY_ICONS, sunny } from './icons';
 
 const PERIOD_LABELS: Record<WeatherPeriod, StringId> = {
@@ -18,8 +18,8 @@ export const WEATHER_FADE_MS = 350;
 interface WeatherBlockOwnProps extends WeatherBlockProps {
   /** The Dashboard's clock, in ms: the weather turns on the same TURN_MS beat as the boards and the rail's pages. */
   time: number;
-  /** The coming hours' trend, right under the temperature and its words, over the period's summary line. */
-  trend?: ReactNode;
+  /** How each view's hourly trend is drawn, right under its temperature and words; no trend when null or left out. */
+  trend?: HourlyTrendProps | null;
 }
 
 /**
@@ -55,7 +55,6 @@ export default function WeatherBlock({ views, time, trend = null }: Readonly<Wea
         <p className="dashboard-wx-pills">&nbsp;</p>
         <p className="dashboard-wx-temp">&nbsp;</p>
         <p className="dashboard-wx-condition">&nbsp;</p>
-        {trend}
         <p className="dashboard-wx-summary" />
       </div>
     );
@@ -95,7 +94,11 @@ export default function WeatherBlock({ views, time, trend = null }: Readonly<Wea
           <span className="dashboard-wx-condition">{view.condition}</span>
         </span>
       </button>
-      {trend}
+      {trend && (
+        <div className={`dashboard-wx-trend${fading ? ' fading' : ''}`}>
+          <HourlyTrend {...trend} hours={view.hours ?? []} />
+        </div>
+      )}
       <p className={`dashboard-wx-summary shadowed${fading ? ' fading' : ''}`}>
         {view.summary && (
           <>

@@ -1,4 +1,4 @@
-// The weather block's views (Now, Tomorrow) and the hourly trend's hours (props.ts) from the forecast
+// The weather block's views (Now, Tomorrow, each with its hourly trend) and the outlook (props.ts) from the forecast
 // countdown-server keeps for the kiosk's place: Open-Meteo's own answer, in the place's local time (utc_offset_seconds
 // from UTC), which countdown-api leaves open, so the fields read here are checked here.
 //
@@ -16,6 +16,8 @@ import type { DayForecast, HourForecast, Sky, WeatherView } from './props';
 /** The trend's hours, and how many hours apart they are: on the place's even hours, the next one first. */
 const TREND_HOURS = 3;
 const TREND_STEP = 2;
+/** Tomorrow's trend: its morning, midday and afternoon. */
+const TOMORROW_HOURS: readonly number[] = [8, 12, 16];
 /** Days in the outlook under the weather, from tomorrow. */
 const OUTLOOK_DAYS = 5;
 /** The waking hours a day's summary is about. */
@@ -158,12 +160,11 @@ function withIcon(summary: Summary | null): Pick<WeatherView, 'summary' | 'summa
 
 export interface WeatherProps {
   views: WeatherView[];
-  hours: HourForecast[];
   days: DayForecast[];
 }
 
 /**
- * The weather block's views and the trend's hours at `now`, in `language`, or null when the forecast is missing or
+ * The weather block's views and the outlook's days at `now`, in `language`, or null when the forecast is missing or
  * can't be read.
  */
 export function toWeather(
@@ -203,6 +204,12 @@ export function toWeather(
   };
 
   const views: WeatherView[] = [];
+  const toForecast = (hour: Hour): HourForecast => ({
+    time: `${hour.local.slice(0, 13)}:00:00${offsetText(fields.utc_offset_seconds)}`,
+    temperature: Math.round(hour.temperature),
+    sky: hour.sky,
+    isDay: isDay(hour)
+  });
 
   // Now: what the trend doesn't show is the rest of today after it.
   const nowSky = skyFor(fields.current.weather_code);
@@ -216,6 +223,7 @@ export function toWeather(
     sky: nowSky,
     isDay: isDay({ at: nowMs, local: fields.current.time, temperature: 0, code: 0, sky: nowSky }),
     condition: conditionFor(fields.current.weather_code, language),
+    hours: trend.map(toForecast),
     ...withIcon(nowSummary)
   });
 
@@ -238,16 +246,11 @@ export function toWeather(
       temperature: Math.round(tomorrowHigh),
       sky: skyFor(tomorrowCode),
       condition: conditionFor(tomorrowCode, language),
+      hours: hours.filter(h => localDate(h) === tomorrow && TOMORROW_HOURS.includes(localHour(h))).map(toForecast),
       ...withIcon(tomorrowSummary)
     });
   }
 
-  const trendHours: HourForecast[] = trend.map(hour => ({
-    time: `${hour.local.slice(0, 13)}:00:00${offsetText(fields.utc_offset_seconds)}`,
-    temperature: Math.round(hour.temperature),
-    sky: hour.sky,
-    isDay: isDay(hour)
-  }));
   const days: DayForecast[] = [];
   for (let offset = 1; offset <= OUTLOOK_DAYS; offset += 1) {
     const date = nextDate(today, offset);
@@ -258,7 +261,7 @@ export function toWeather(
     if (high === undefined || low === undefined || code === undefined) break;
     days.push({ date, high: Math.round(high), low: Math.round(low), sky: skyFor(code) });
   }
-  return { views, hours: trendHours, days };
+  return { views, days };
 }
 
 /** An offset from UTC as ISO writes it: "+01:00", "Z" for none. */
