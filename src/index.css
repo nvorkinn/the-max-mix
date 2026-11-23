@@ -2943,14 +2943,7 @@ body:has(.app-dialog[open]) {
     height: 220px;
   }
 }
-/* The Countdown page: a box that opens the stop search, then the saved stops, which scroll on their own under it. */
-.countdown-settings {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  height: 100%;
-  min-height: 0;
-}
+/* The Countdown page's search box, which opens the stop search over the whole screen. */
 .countdown-search-button {
   display: flex;
   flex-shrink: 0;
@@ -2965,9 +2958,6 @@ body:has(.app-dialog[open]) {
   font-size: 18px;
   text-align: left;
 }
-.countdown-grouping {
-  flex-shrink: 0;
-}
 /* The boards Group by route gives, under its switch: the 2x GIF at a quarter of its width, a third on the 10" screen. */
 .countdown-grouping-preview {
   display: block;
@@ -2981,18 +2971,49 @@ body:has(.app-dialog[open]) {
     width: 322px;
   }
 }
-/* As tall as its stops, and Group by route straight after; a long list scrolls rather than pushing it off. */
-.countdown-column {
-  flex: 0 1 auto;
-  min-height: 0;
+/*
+  How a board changes stop (ArrivalsTransitionSettings): each choice a panel playing that change on a real board, its
+  name under it, two to a row; the chosen one ringed in the accent.
+*/
+.transition-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
-.countdown-column-body {
-  flex: 1;
-  min-height: 0;
-  margin-inline: -4px;
-  padding: 0 4px 8px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+.settings-panel .transition-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 6px 10px;
+  border: 2px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  transition:
+    background 160ms,
+    border-color 160ms;
+}
+.transition-choice[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: var(--glow);
+}
+.transition-choice-picture {
+  display: contents;
+}
+.transition-choice-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 400 / 161;
+  border-radius: 14px;
+}
+.transition-choice-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+.transition-choice[aria-pressed='true'] .transition-choice-name {
+  color: var(--accent);
 }
 /*
   The stop search fills the screen above the on-screen keyboard, so nothing it shows is hidden behind it: the search
