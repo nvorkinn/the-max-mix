@@ -1,0 +1,28 @@
+# {{ ansible_managed }}
+# Spotify Soloist, Spotify's headless Spotify Connect player, as "{{ kiosk_soloist_device_name }}". A user unit, enabled
+# for every user but run only for the kiosk user: it plays through that user's PipeWire session, which kiosk.service's
+# login session starts, and its sound goes to PipeWire's default output. kiosk-soloist-update installs the program;
+# kiosk-soloist-key stores the API key, and until then this does not start. It signs in when someone picks it in the
+# Spotify app on the same network, and keeps that session in its state folder.
+[Unit]
+Description=Spotify Soloist (Spotify Connect player)
+ConditionUser={{ kiosk_user }}
+ConditionPathExists=/usr/local/bin/soloist
+ConditionDirectoryNotEmpty=%S/soloist/credentials
+Wants=pipewire.service wireplumber.service
+After=pipewire.service wireplumber.service
+
+[Service]
+# State (device id, API key, session, and its cache, which it keeps there too) in ~/.local/state/soloist.
+StateDirectory=soloist
+# The WebSocket control API has no authentication, so it listens on 127.0.0.1 only.
+ExecStart=/usr/local/bin/soloist --device-name "{{ kiosk_soloist_device_name }}" --cache-size {{ kiosk_soloist_cache_mb }} --ws 127.0.0.1:{{ kiosk_soloist_ws_port }}
+Restart=on-failure
+RestartSec=10
+# 10 means the build expired: restarting does not help, kiosk-soloist-update installs a new one and starts it.
+RestartPreventExitStatus=10
+NoNewPrivileges=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=default.target

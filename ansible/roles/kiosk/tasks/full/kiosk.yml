@@ -19,7 +19,7 @@
       copy=(rsync --recursive --checksum --perms --owner --group --chown=root:root --itemize-changes)
       "${copy[@]}" --chmod=F0755 "$FILES/bin/kiosk-session" "$FILES/bin/kiosk-display" /usr/local/bin/
       "${copy[@]}" --chmod=F0755 "$FILES/bin/kiosk-pull" "$FILES/bin/kiosk-app-switch" "$FILES/bin/kiosk-status" \
-        "$FILES/bin/kiosk-ssh-keys" /usr/local/sbin/
+        "$FILES/bin/kiosk-ssh-keys" "$FILES/bin/kiosk-soloist-update" "$FILES/bin/kiosk-soloist-key" /usr/local/sbin/
       "${copy[@]}" --chmod=D0755,F0644 --delete --exclude='*.test.ts' --exclude=fixtures.ts --include='*.ts' \
         --exclude='*' "$AUDIO_SRC/" "$AUDIO_DIR/"
       "${copy[@]}" --chmod=F0644 "$FILES/kiosk-audio/package.json" "$FILES/kiosk-audio/package-lock.json" "$AUDIO_DIR/"
@@ -75,6 +75,7 @@
         ('kiosk-journald.conf', '/etc/systemd/journald.conf.d/kiosk.conf'),
         ('50-kiosk-raop.conf', '/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf'),
         ('kiosk-audio.service', '/etc/systemd/user/kiosk-audio.service'),
+        ('kiosk-soloist.service', '/etc/systemd/user/kiosk-soloist.service'),
         ('kiosk-policy.json', '/etc/chromium/policies/managed/kiosk.json'),
         ('50-kiosk-networkmanager.rules', '/etc/polkit-1/rules.d/50-kiosk-networkmanager.rules'),
         ('50-kiosk-power.rules', '/etc/polkit-1/rules.d/50-kiosk-power.rules'),
@@ -100,6 +101,7 @@
   when: >-
     kiosk_settings_installed.stdout_lines
     | intersect(['/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf', '/etc/systemd/user/kiosk-audio.service',
+    '/etc/systemd/user/kiosk-soloist.service',
     '/etc/chromium/policies/managed/kiosk.json'])
     | length > 0
   changed_when: true
@@ -130,6 +132,7 @@
         fi
       }
       link ../kiosk-audio.service /etc/systemd/user/default.target.wants/kiosk-audio.service
+      link ../kiosk-soloist.service /etc/systemd/user/default.target.wants/kiosk-soloist.service
       link /usr/share/icons/blank /usr/share/kiosk-cursors/default
       link /dev/null /etc/systemd/system/getty@tty1.service
       for name in $CURSOR_NAMES; do
