@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { NoticeItem } from '../../dashboard/props';
+import type { NoticeItem, WeatherView } from '../../dashboard/props';
 import { busesAt, SAMPLE, SAMPLE_NOW, sampleDashboard } from '../../dashboard/sample';
 import Dashboard from '../Dashboard';
 import Backdrop, { BACKDROP_FADE_MS } from './Backdrop';
@@ -95,10 +95,10 @@ describe('the weather block', () => {
     expect(shown(weather)).toHaveTextContent('Now');
     run(WEATHER_FADE_MS);
     expect(weather).not.toHaveClass('fading');
-    expect(shown(weather)).toHaveTextContent('Tonight');
+    expect(shown(weather)).toHaveTextContent('Tomorrow');
     rerender(block(2 * TURN_MS + 1000));
     run(WEATHER_FADE_MS);
-    expect(shown(weather)).toHaveTextContent('Tomorrow');
+    expect(shown(weather)).toHaveTextContent('Now');
   });
 
   it("turns on the same tick as the boards and the rail's pages", () => {
@@ -115,25 +115,38 @@ describe('the weather block', () => {
     rerender(block(TURN_MS - 5000));
     fireEvent.click(weather);
     run(WEATHER_FADE_MS);
-    expect(shown(weather)).toHaveTextContent('Tonight');
+    expect(shown(weather)).toHaveTextContent('Tomorrow');
     rerender(block(TURN_MS - 1));
     expect(weather).not.toHaveClass('fading');
     rerender(block(TURN_MS));
     expect(weather).toHaveClass('fading');
     run(WEATHER_FADE_MS);
-    expect(shown(weather)).toHaveTextContent('Tomorrow');
+    expect(shown(weather)).toHaveTextContent('Now');
   });
 
   it('shows a pill for each period, only the one on show filled, and its sky by day or night', () => {
     const { rerender } = render(block(0));
     const weather = screen.getByRole('button');
-    expect(weather.querySelectorAll('.dashboard-wx-pill')).toHaveLength(4);
+    expect(weather.querySelectorAll('.dashboard-wx-pill')).toHaveLength(2);
     expect(weather.querySelectorAll('[aria-current="true"]')).toHaveLength(1);
     expect(weather.querySelector('.dashboard-wx-icon')).toHaveClass('lucide-cloud-sun');
     rerender(block(TURN_MS));
     run(WEATHER_FADE_MS);
-    expect(shown(weather)).toHaveTextContent('Tonight');
-    expect(weather.querySelector('.dashboard-wx-icon')).toHaveClass('lucide-cloud-rain');
+    expect(shown(weather)).toHaveTextContent('Tomorrow');
+    expect(weather.querySelector('.dashboard-wx-icon')).toHaveClass('lucide-cloud');
+  });
+
+  it("shows the period's own trend under it, and an empty one for a period without hours", () => {
+    const trend = { stale: false, clockFormat: '24h' as const };
+    const views: WeatherView[] = [
+      { period: 'now', temperature: 9, sky: 'clear', condition: 'Clear', hours: SAMPLE.weather.views[0]?.hours ?? [] },
+      { period: 'tomorrow', temperature: 12, sky: 'cloudy', condition: 'Cloudy' }
+    ];
+    const { container, rerender } = render(<WeatherBlock views={views} time={start} trend={trend} />);
+    expect(container.querySelectorAll('.dashboard-hour')).toHaveLength(3);
+    rerender(<WeatherBlock views={views} time={start + TURN_MS} trend={trend} />);
+    run(WEATHER_FADE_MS);
+    expect(container.querySelectorAll('.dashboard-hour')).toHaveLength(0);
   });
 
   it('stays still with one period to show', () => {

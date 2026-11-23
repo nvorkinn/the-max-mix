@@ -49,7 +49,6 @@ export function railPages(noticeCount: number, statusRows: number | null, height
 const OUTLOOK_GAP = 26;
 const OUTLOOK_ROW_HEIGHT = 42;
 const NO_DAYS: readonly DayForecast[] = [];
-const ignore = () => {};
 /** The fewest days worth an outlook. */
 const OUTLOOK_MIN_DAYS = 3;
 
@@ -79,8 +78,6 @@ interface RailPagesProps {
   incidents?: LineIncidentsProps | null | undefined;
   /** The days after today, shown over the notices while there is room for them; none when left out. */
   days?: readonly DayForecast[] | undefined;
-  /** Told whether the outlook shows, so the hourly strip can make way for it. */
-  onOutlook?: (isShown: boolean) => void;
   /** The Dashboard's clock, which turns the pages with the boards along the bottom. */
   time: number;
 }
@@ -95,7 +92,6 @@ export default function RailPages({
   lineStatus,
   incidents = null,
   days = NO_DAYS,
-  onOutlook = ignore,
   time
 }: Readonly<RailPagesProps>) {
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -119,10 +115,6 @@ export default function RailPages({
   const shownDays = height > 0 ? outlookDays(days.length, notices.length, statusRows, height) : 0;
   const pagesHeight = shownDays ? height - OUTLOOK_GAP - shownDays * OUTLOOK_ROW_HEIGHT : height;
   const pages = railPages(notices.length, statusRows, pagesHeight);
-
-  useLayoutEffect(() => {
-    onOutlook(shownDays > 0);
-  }, [onOutlook, shownDays]);
 
   return (
     <>

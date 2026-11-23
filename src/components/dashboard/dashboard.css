@@ -439,7 +439,8 @@
   display: block;
   transition: opacity 350ms ease;
 }
-.dashboard-weather.fading .dashboard-wx-view {
+.dashboard-weather.fading .dashboard-wx-view,
+.dashboard-wx-trend.fading {
   opacity: 0;
 }
 .dashboard-weather:focus-visible {
@@ -516,15 +517,6 @@
   font-weight: 600;
   letter-spacing: -0.02em;
 }
-.dashboard-wx-summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 17px;
-  color: var(--muted);
-  margin-top: 4px;
-  min-height: 24px;
-}
 
 /* While there is room, the next days under the weather, a row each (RailPages.tsx's OUTLOOK_ sizes). */
 .dashboard-outlook {
@@ -567,6 +559,41 @@
   bottom: 0;
   border-radius: 3px;
   background: var(--text);
+}
+
+/* Right under the weather, the view's hourly trend in one row; it fades with the view. */
+.dashboard-wx-trend {
+  transition: opacity 350ms ease;
+}
+.dashboard-trend {
+  flex: none;
+  margin-top: 8px;
+}
+.dashboard-hours {
+  display: flex;
+  gap: 28px;
+  min-height: 46px;
+}
+.dashboard-hour {
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 6px;
+  align-items: center;
+}
+.dashboard-hour time {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--muted);
+}
+.dashboard .dashboard-hour svg.lucide {
+  width: 24px;
+  height: 24px;
+}
+.dashboard-hour strong {
+  font-size: 20px;
+  font-weight: 700;
 }
 
 /*
@@ -892,31 +919,6 @@ button.dashboard-notice {
   align-items: flex-start;
   padding: 4px 24px 0;
 }
-.dashboard-hours {
-  display: flex;
-  gap: 26px;
-  text-align: center;
-}
-.dashboard-hour {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-.dashboard-hour time {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--muted);
-}
-.dashboard .dashboard-hour svg.lucide {
-  width: 30px;
-  height: 30px;
-}
-.dashboard-hour strong {
-  font-size: 24px;
-  font-weight: 700;
-}
-
 /* Four rows per board. */
 .dashboard-departures {
   position: relative;

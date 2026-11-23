@@ -1,5 +1,5 @@
 // The props of each Dashboard component in the redesign (the static page in public/dashboard-mockup): tab bar, weather
-// block, hourly strip, notice board and the stops' departure boards. They are the contract between the components and the
+// block, hourly trend, notice board and the stops' departure boards. They are the contract between the components and the
 // data layer, which maps countdown-server's answers (countdown-api's shapes) to them, so a component never reads the
 // server's shapes and the data layer never knows how a component draws.
 //
@@ -49,25 +49,20 @@ export interface NowPlayingProps {
 export type Sky = 'clear' | 'partly-cloudy' | 'cloudy' | 'fog' | 'drizzle' | 'rain' | 'snow' | 'thunder';
 
 /** @public The periods the weather block rotates through, Now first. */
-export type WeatherPeriod = 'now' | 'tonight' | 'tomorrow' | 'weekend';
+export type WeatherPeriod = 'now' | 'tomorrow';
 
 /** @public One view of the weather block. */
 export interface WeatherView {
   period: WeatherPeriod;
-  /** Degrees Celsius, whole: now's temperature; tonight's low; tomorrow's and the weekend's high. */
+  /** Degrees Celsius, whole: now's temperature; tomorrow's high. */
   temperature: number;
   sky: Sky;
   /** Whether its sky is drawn by day (a sun) or by night (a moon); by day when left out. */
   isDay?: boolean;
   /** "Partly cloudy". */
   condition: string;
-  /**
-   * One short line the hourly strip doesn't already say ("Umbrella after 1pm"), or null to show none. The data layer
-   * decides; the component never makes one up.
-   */
-  summary: string | null;
-  /** The icon beside `summary`: an umbrella (the default) for rain, a sun for fine weather. */
-  summaryIcon?: 'umbrella' | 'sun';
+  /** The trend under it, soonest first: Now's next three even hours, Tomorrow's 08:00, 13:00 and 18:00. */
+  hours?: HourForecast[];
 }
 
 /** @public */
@@ -82,7 +77,7 @@ export interface OutlookProps {
   days: DayForecast[];
 }
 
-/** @public One hour of the hourly strip. */
+/** @public One hour of the hourly trend. */
 export interface HourForecast {
   /** The start of the hour, as an ISO time in the place's offset. */
   time: string;
@@ -102,10 +97,8 @@ export interface DayForecast {
   sky: Sky;
 }
 
-/** @public */
-export interface HourlyStripProps {
-  /** The coming hours, soonest first; the strip shows five. */
-  hours: HourForecast[];
+/** @public How the hourly trend under each weather view is drawn. */
+export interface HourlyTrendProps {
   /** True once the feed has dropped and the Dashboard is showing its last data. */
   stale: boolean;
   clockFormat: '12h' | '24h';

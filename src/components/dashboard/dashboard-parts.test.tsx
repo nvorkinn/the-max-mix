@@ -2,7 +2,7 @@ import { act, fireEvent, render, renderHook, screen } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SAMPLE, SAMPLE_NOW, sampleDashboard, useSimulatedNow } from '../../dashboard/sample';
 import Dashboard from '../Dashboard';
-import HourlyStrip from './HourlyStrip';
+import HourlyTrend from './HourlyTrend';
 import Outlook from './Outlook';
 import RailPages, { outlookDays, railPages } from './RailPages';
 import TabBar from './TabBar';
@@ -14,21 +14,34 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('HourlyStrip', () => {
+describe('HourlyTrend', () => {
   it('writes the hours the place read them, in the chosen format', () => {
-    render(<HourlyStrip {...SAMPLE.hourly} clockFormat="12h" />);
+    render(<HourlyTrend {...SAMPLE.hourly} hours={SAMPLE.weather.views[0]?.hours ?? []} clockFormat="12h" />);
     expect(screen.getByText('10 AM')).toBeInTheDocument();
-    expect(screen.getByText('1 PM')).toBeInTheDocument();
+    expect(screen.getByText('2 PM')).toBeInTheDocument();
   });
 
   it('draws night hours with the moon', () => {
     render(
-      <HourlyStrip
+      <HourlyTrend
         {...SAMPLE.hourly}
         hours={[{ time: '2026-11-17T23:00:00Z', temperature: 3, sky: 'clear', isDay: false }]}
       />
     );
     expect(screen.getByText('23:00')).toBeInTheDocument();
+  });
+
+  it('writes half hours in either format, and midnight for a time it cannot read', () => {
+    const hours = [
+      { time: '2026-11-17T23:30:00Z', temperature: 3, sky: 'clear' as const, isDay: false },
+      { time: 'soon', temperature: 3, sky: 'clear' as const, isDay: false }
+    ];
+    const { rerender } = render(<HourlyTrend {...SAMPLE.hourly} hours={hours} clockFormat="12h" />);
+    expect(screen.getByText('11:30 PM')).toBeInTheDocument();
+    expect(screen.getByText('12 AM')).toBeInTheDocument();
+    rerender(<HourlyTrend {...SAMPLE.hourly} hours={hours} clockFormat="24h" />);
+    expect(screen.getByText('23:30')).toBeInTheDocument();
+    expect(screen.getByText('00:00')).toBeInTheDocument();
   });
 });
 

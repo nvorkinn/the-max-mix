@@ -71,7 +71,7 @@ describe('dashboardProps', () => {
     expect(board(props, ELEPHANT)?.stale).toBe(true);
   });
 
-  it('marks the hourly strip stale with an old or held forecast', () => {
+  it('marks the hourly trend stale with an old or held forecast', () => {
     const fetchedAt = WEATHER.forecast?.fetched_at ?? '';
     const fetched = Date.parse(fetchedAt);
     const fresh = new Date(fetched + 60_000);
