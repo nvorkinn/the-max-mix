@@ -2673,27 +2673,93 @@ body:has(.app-dialog[open]) {
   gap: 14px;
   padding: 10px 10px 10px 14px;
 }
-/* Settings › Wi-Fi: the networks in range, each a row to tap, then Other network, Hotspot and Refresh. */
-.wifi-networks {
+/*
+  Settings › Wi-Fi: the network the kiosk is on, large, with its signal, address and Forget; then the other networks in
+  range as a grid of two columns (one when the page is narrow), with Other network, Hotspot and Refresh by their heading.
+*/
+.wifi-current {
   display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 18px 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--surface-raised);
+}
+.wifi-current.is-connected {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+.wifi-current-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--muted);
+}
+.wifi-current.is-connected .wifi-current-icon {
+  color: var(--accent);
+}
+.wifi-current-about {
+  display: flex;
+  flex: 1;
   flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.wifi-current-name {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+}
+.wifi-current-status {
+  color: var(--muted);
+  font-size: 16px;
+}
+.wifi-others {
+  container: wifi-others / inline-size;
+}
+.wifi-others-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.wifi-others-actions .button {
+  min-height: 48px;
+  padding: 0 16px;
+  font-size: 16px;
+}
+.wifi-others-actions .wifi-refresh {
+  width: 48px;
+  padding: 0;
+}
+.wifi-networks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+@container wifi-others (width < 700px) {
+  .wifi-networks {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .wifi-network {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
   min-height: 60px;
-  padding: 10px 18px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-raised);
   font-size: 18px;
   text-align: left;
 }
 .wifi-network:disabled {
   color: var(--muted);
-}
-.wifi-network[aria-current='true'] {
-  border-color: var(--accent);
 }
 .wifi-network-name {
   flex: 1;
@@ -2702,17 +2768,8 @@ body:has(.app-dialog[open]) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.wifi-network-current {
-  color: var(--accent);
-}
-.wifi-actions {
-  display: flex;
-  gap: 12px;
-}
-.wifi-actions .button {
-  flex: 1;
-  min-height: 60px;
-  font-size: 18px;
+.wifi-network-note {
+  font-size: 14px;
 }
 /* The join dialog: the network's name (a hidden one only), its password and Show, then the buttons. */
 .wifi-join-form {

@@ -80,18 +80,6 @@ export async function joinWifi(
   }
 }
 
-/** The networks the kiosk keeps, to join again by itself; empty when it did not answer. */
-export async function savedWifi(signal: AbortSignal | null = null): Promise<string[]> {
-  try {
-    const response = await fetch(`${KIOSK_SERVICE}/wifi/saved`, { signal });
-    const body: unknown = await response.json();
-    const listed = isRecord(body) && Array.isArray(body['networks']) ? (body['networks'] as unknown[]) : [];
-    return listed.filter((ssid): ssid is string => typeof ssid === 'string' && ssid !== '');
-  } catch {
-    return [];
-  }
-}
-
 /** Asks the kiosk to forget a network: delete what it keeps of it, password and all, so it never joins it again. */
 export async function forgetWifi(ssid: string, language: Language): Promise<WifiResult> {
   try {
