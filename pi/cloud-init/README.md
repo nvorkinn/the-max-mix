@@ -159,18 +159,18 @@ Configure if it does not).
 ## Spotify Soloist
 
 Each Pi also runs [Spotify Soloist](https://developer.spotify.com/documentation/soloist), Spotify's headless Spotify
-Connect player, as **The Max Mix Soloist** (`kiosk_soloist_device_name`), beside the app's own player for now. It plays
-through PipeWire to the Pi's default output. `kiosk-soloist-update.timer` installs the latest build to
+Connect player, as **The Max Mix Soloist** (`kiosk_soloist_device_name`), beside the app's own player for now. Its sound
+follows the speakers picked in the app, like the app's own player (kiosk-audio routes its `soloist` stream). `kiosk-soloist-update.timer` installs the latest build to
 `/usr/local/bin/soloist` five minutes after boot and then weekly, because a build stops working 90 days after it was
 built; a new build takes over at the next kiosk start. Spotify does not allow passing the program on, so every Pi
 downloads its own and it is never in the release bundle or the flash image.
 
 It needs an API key, made at [developer.spotify.com/dashboard/soloist](https://developer.spotify.com/dashboard/soloist)
-by a Spotify Premium account. The Pi installs from a public release, so the key can't come with it: it is
-countdown-server's secret (`SPOTIFY_SOLOIST_API_KEY`). Once the kiosk is paired, the app fetches it from
-`GET /api/devices/soloist/key` with its device secret and hands it to kiosk-audio (`POST /soloist/key`), which stores
-it with `soloist setup-api-key` and starts the player (`pi/kiosk-audio/soloist.ts`). Until then the player does not
-start. A new key on the server reaches every Pi the same way.
+by the kiosk's owner with their own Spotify Premium account; each owner makes their own. The owner enters it on the
+countdown-server settings site, which keeps it with their account. The Pi installs from a public release, so the key
+never comes with it: once the kiosk is paired, the app fetches the owner's key from countdown-server with its device
+secret and hands it to kiosk-audio (`POST /soloist/key`), which stores it with `soloist setup-api-key` and starts the
+player (`pi/kiosk-audio/soloist.ts`). Until then the player does not start. A changed key reaches the Pi the same way.
 
 Then pick **The Max Mix Soloist** in the Spotify app on a phone on the same network; it signs in and remembers that
 session in `~kiosk/.local/state/soloist`. Its WebSocket control API listens on `127.0.0.1:7342`

@@ -1,5 +1,5 @@
 // PipeWire through pw-dump and pw-link, without a shell. Reads the graph (nodes, ports, links and the default sink) from
-// `pw-dump` and works out which links send the browser's audio to the chosen AirPlay (RAOP) sinks. `run` is injectable
+// `pw-dump` and works out which links send the players' audio to the chosen AirPlay (RAOP) sinks. `run` is injectable
 // so tests stub it.
 import { execFile } from 'node:child_process';
 
@@ -9,8 +9,9 @@ export const PW_DUMP = '/usr/bin/pw-dump';
 export const PW_LINK = '/usr/bin/pw-link';
 // WirePlumber's control tool; it sets a node's volume on the same cubic scale it reports (and as volume sliders do).
 export const WPCTL = '/usr/bin/wpctl';
-// Chromium's audio reaches PipeWire through pipewire-pulse as an output stream named after the browser.
-const PLAYER_NAMES = ['chromium', 'chrome'];
+// Chromium's audio reaches PipeWire through pipewire-pulse as an output stream named after the browser. Spotify Soloist
+// plays through its own stream (node.name "spotify"); only its client names the soloist binary.
+const PLAYER_NAMES = ['chromium', 'chrome', 'soloist'];
 
 interface CommandResult {
   code: number;
@@ -79,6 +80,8 @@ interface Link {
 
 export interface Graph {
   nodes: Node[];
+  /** Each client's program (application.process.binary), by client id. */
+  clients: Map<number, string>;
   ports: Port[];
   links: Link[];
   defaultSink: string | null;
@@ -86,7 +89,7 @@ export interface Graph {
 
 const isSink = (node: Node): boolean => node.mediaClass === 'Audio/Sink';
 
-/** An output stream of the kiosk's browser, which is where the Web Playback SDK plays. */
+/** An output stream of the kiosk's browser (where the Web Playback SDK plays) or of Spotify Soloist. */
 function isPlayer(node: Node): boolean {
   if (node.mediaClass !== 'Stream/Output/Audio') return false;
   const names = [node.props['application.process.binary'], node.props['application.name']];
@@ -156,6 +159,9 @@ function addObject(graph: Graph, item: Json, id: number): void {
       props,
       volume: volumeOf(info)
     });
+  } else if (type === 'PipeWire:Interface:Client') {
+    const binary = asString(props['application.process.binary']);
+    if (binary) graph.clients.set(id, binary);
   } else if (type === 'PipeWire:Interface:Port' && typeof props['node.id'] === 'number') {
     const direction = asString(info['direction']) || asString(props['port.direction']);
     graph.ports.push({
@@ -185,10 +191,18 @@ export function parseDump(text: string): Graph {
     throw new PipeWireError(`pw-dump did not return JSON: ${String(error)}`);
   }
   if (!Array.isArray(objects)) throw new PipeWireError('pw-dump did not return a list');
-  const graph: Graph = { nodes: [], ports: [], links: [], defaultSink: null };
+  const graph: Graph = { nodes: [], clients: new Map(), ports: [], links: [], defaultSink: null };
   const items: unknown[] = objects;
   for (const item of items) {
     if (isRecord(item) && typeof item['id'] === 'number') addObject(graph, item, item['id']);
+  }
+  // A native stream (Soloist's) names its program only on its client, so the node borrows it.
+  for (const node of graph.nodes) {
+    const client = node.props['client.id'];
+    const binary = typeof client === 'number' ? graph.clients.get(client) : undefined;
+    if (binary && node.props['application.process.binary'] === undefined) {
+      node.props['application.process.binary'] = binary;
+    }
   }
   return graph;
 }

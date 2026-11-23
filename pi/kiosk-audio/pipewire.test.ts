@@ -80,6 +80,29 @@ describe('parseDump', () => {
     const players = playersOf(parseDump(dump([mpv])));
     expect(players.map(node => node.id)).toEqual([70]);
   });
+
+  it("counts Soloist's stream as a player, by its client's program", () => {
+    const client = (id: number, binary: string) => ({
+      id,
+      type: 'PipeWire:Interface:Client',
+      info: { props: { 'application.name': 'Spotify', 'application.process.binary': binary } }
+    });
+    const stream = (id: number, clientId: number) => ({
+      id,
+      type: 'PipeWire:Interface:Node',
+      info: {
+        props: {
+          'node.name': 'spotify',
+          'media.class': 'Stream/Output/Audio',
+          'application.name': 'Spotify',
+          'client.id': clientId
+        }
+      }
+    });
+    // The node comes before its client, as pw-dump may list them; a Spotify stream from another program is not a player.
+    const graph = parseDump(dump([stream(110, 108), client(108, 'soloist'), stream(120, 118), client(118, 'spotify')]));
+    expect(playersOf(graph).map(node => node.id)).toEqual([70, 110]);
+  });
 });
 
 describe('volumeOf', () => {
