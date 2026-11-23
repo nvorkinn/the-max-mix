@@ -56,7 +56,10 @@ if (process.argv[2] === 'watch') {
     wifi: wifi(),
     phonesFile,
     appFolder: process.env['KIOSK_APP_DIR'] ?? '',
-    handoverFile: path.join(stateHome, 'the-max-mix', 'handover.json')
+    handoverFile: path.join(stateHome, 'the-max-mix', 'handover.json'),
+    // kiosk-soloist.service's StateDirectory=soloist.
+    soloistStateDir: path.join(stateHome, 'soloist'),
+    soloistDigestFile: path.join(stateHome, 'the-max-mix', 'soloist-key.sha256')
   });
 } else {
   console.error('Usage: kiosk-audio.ts watch');

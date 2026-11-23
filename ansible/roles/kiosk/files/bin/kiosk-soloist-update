@@ -1,0 +1,50 @@
+#!/bin/bash
+# Usage: kiosk-soloist-update KIOSK_USER
+# Installs the latest Spotify Soloist (Spotify's headless Spotify Connect player) as /usr/local/bin/soloist. Run by
+# kiosk-soloist-update.timer. Spotify only publishes the latest build, and a build stops working 90 days after it was
+# built (it exits with 10), so the Pi fetches it again regularly. The terms do not allow passing the binary on, so it is
+# never part of the release bundle or the flash image. A failed download, or a build that does not run, leaves the one
+# that is there. A running player keeps its old copy until the kiosk next starts (kiosk.service restarts it), so music is
+# not cut off; a player that is not running (it had expired, or this is the first install) is started.
+set -euo pipefail
+
+if (($# != 1)); then
+  echo "usage: $0 KIOSK_USER" >&2
+  exit 2
+fi
+user=$1
+target=/usr/local/bin/soloist
+
+case $(uname -m) in
+  aarch64) arch=arm64 ;;
+  armv7l) arch=arm32 ;;
+  x86_64) arch=x86_64 ;;
+  *)
+    echo "kiosk-soloist-update: no Soloist build for $(uname -m)" >&2
+    exit 1
+    ;;
+esac
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+curl --fail --silent --show-error --location --max-time 300 --retry 2 --output "$work/soloist.tar.gz" \
+  "https://soloist-builds.spotifycdn.com/soloist_release_$arch.tar.gz"
+tar -xzf "$work/soloist.tar.gz" -C "$work" soloist
+if ! version=$("$work/soloist" --version 2>&1); then
+  echo "kiosk-soloist-update: the downloaded build does not run: $version" >&2
+  exit 1
+fi
+
+if cmp -s "$work/soloist" "$target"; then
+  echo "kiosk-soloist-update: $version is already installed"
+else
+  install -m 0755 -o root -g root "$work/soloist" "$target.new"
+  mv -f "$target.new" "$target"
+  echo "kiosk-soloist-update: installed $version"
+fi
+
+# Start the player if it is not running. This fails quietly when the kiosk user is not logged in yet: the kiosk's
+# login session starts it then.
+if ! systemctl --user -M "$user@" is-active --quiet kiosk-soloist.service 2>/dev/null; then
+  systemctl --user -M "$user@" restart kiosk-soloist.service 2>/dev/null || true
+fi

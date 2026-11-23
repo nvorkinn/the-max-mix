@@ -82,6 +82,7 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
   const removed: string[] = [];
   const performed: Action[] = [];
   const brightnesses: (number | { percent: number; fade: boolean })[] = [];
+  const soloistKeys: string[] = [];
   const routed: Choice[][] = [];
   const volumes: [Choice, number][] = [];
   const played: SonosRequest[] = [];
@@ -172,6 +173,12 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
       brightnesses.push(isFaded ? { percent, fade: isFaded } : percent);
       return Promise.resolve(1);
     },
+    soloistKey: key => {
+      soloistKeys.push(key);
+      return key === 'refused-key'
+        ? Promise.reject(new Error('soloist setup-api-key failed (1): nope'))
+        : Promise.resolve('stored');
+    },
     bluetooth: {
       list: () => Promise.resolve([speaker]),
       scan: () => Promise.resolve([speaker, { ...speaker, address: '11:22:33:44:55:66', paired: false }]),
@@ -234,6 +241,7 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
     removed,
     performed,
     brightnesses,
+    soloistKeys,
     routed,
     volumes,
     played,
@@ -326,6 +334,33 @@ describe('GET /speakers', () => {
   it('says when PipeWire cannot be read', async () => {
     const base = await start(fakes({ graph: () => Promise.reject(new Error('no PipeWire')) }).deps);
     expect((await fetch(`${base}/speakers`)).status).toBe(503);
+  });
+});
+
+describe('POST /soloist/key', () => {
+  it('stores the key for the Soloist player', async () => {
+    const { deps, soloistKeys } = fakes();
+    const base = await start(deps);
+    const response = await post(base, '/soloist/key', { body: { api_key: 'soloist-key' } });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ state: 'stored' });
+    expect(soloistKeys).toEqual(['soloist-key']);
+  });
+
+  it('refuses a body without a key, and another origin', async () => {
+    const { deps, soloistKeys } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/soloist/key', { body: {} })).status).toBe(400);
+    const elsewhere = await post(base, '/soloist/key', { origin: 'https://evil.example', body: { api_key: 'k' } });
+    expect(elsewhere.status).toBe(403);
+    expect(soloistKeys).toEqual([]);
+  });
+
+  it('says when Soloist refused it', async () => {
+    const base = await start(fakes().deps);
+    const response = await post(base, '/soloist/key', { body: { api_key: 'refused-key' } });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: 'soloist setup-api-key failed (1): nope' });
   });
 });
 

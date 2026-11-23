@@ -65,6 +65,9 @@ for file in /usr/local/bin/kiosk-session \
   /usr/local/sbin/kiosk-status /usr/local/bin/kiosk-display /usr/local/sbin/kiosk-ssh-keys \
   /usr/local/sbin/kiosk-app-switch \
   /etc/systemd/system/kiosk-ssh-keys.service /etc/systemd/system/kiosk-ssh-keys.timer \
+  /usr/local/sbin/kiosk-soloist-update \
+  /etc/systemd/system/kiosk-soloist-update.service /etc/systemd/system/kiosk-soloist-update.timer \
+  /etc/systemd/user/kiosk-soloist.service /etc/systemd/user/default.target.wants/kiosk-soloist.service \
   /etc/systemd/system/kiosk-widevine.path \
   /etc/systemd/system/kiosk-widevine.service \
   /etc/tmpfiles.d/kiosk.conf \
@@ -77,7 +80,8 @@ for file in /usr/local/bin/kiosk-session \
   check test -e "$file"
 done
 for unit in kiosk.service bluetooth.service avahi-daemon.service kiosk-pull.timer \
-  kiosk-restart.timer kiosk-ssh-keys.timer ssh.service tailscaled.service kiosk-widevine.path; do
+  kiosk-restart.timer kiosk-ssh-keys.timer ssh.service tailscaled.service kiosk-widevine.path \
+  kiosk-soloist-update.timer; do
   check systemctl is-enabled --quiet "$unit"
   # Enabled only: nothing is started with kiosk_enable_only.
   if systemctl is-active --quiet "$unit"; then
