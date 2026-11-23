@@ -26,15 +26,18 @@ export default function ScreenSettings({
   onQuietHoursChange?: ((hours: QuietHours) => void) | undefined;
   clockFormat: ClockFormat;
 }>) {
+  // Brightness stands beside the sleep delay as a column, so the page reads top to bottom: the night, then the day.
   return (
     <div className="settings-stack">
-      {brightness !== undefined && onBrightnessChange && (
-        <BrightnessSettings percent={brightness} onChange={onBrightnessChange} />
-      )}
-      <ScreenSleepSettings minutes={screenSleep} onChange={onScreenSleepChange} />
       {quietHours && onQuietHoursChange && (
         <QuietHoursSettings hours={quietHours} clockFormat={clockFormat} onChange={onQuietHoursChange} />
       )}
+      <div className="screen-day">
+        <ScreenSleepSettings minutes={screenSleep} onChange={onScreenSleepChange} />
+        {brightness !== undefined && onBrightnessChange && (
+          <BrightnessSettings percent={brightness} onChange={onBrightnessChange} />
+        )}
+      </div>
     </div>
   );
 }

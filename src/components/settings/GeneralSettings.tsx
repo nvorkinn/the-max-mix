@@ -1,37 +1,56 @@
 import { useState } from 'react';
-import { CloudSun, Megaphone } from 'lucide-react';
+import type { ReactNode } from 'react';
 import type { TouchscreenConfig } from 'countdown-api';
 import { locatePlace, searchPlaces } from '../../countdown/search';
+import { useClock } from '../../hooks/useClock';
 import type { DeviceConfig } from '../../hooks/useDeviceConfig';
+import { formatClockTime } from '../../utils/clockFormat';
 import { useT } from '../../i18n/translate';
 import type { StringId } from '../../i18n/strings';
 import CountryFlag from './CountryFlag';
 import NoticeBoardDialog, { noticeBoardPlace } from './NoticeBoardDialog';
 import SearchDialog from './SearchDialog';
-import SettingsRow from './SettingsRow';
+import SettingsSection from './SettingsSection';
 
 const CLOCK_FORMATS: readonly { id: TouchscreenConfig['clock_format']; label: StringId }[] = [
   { id: '24h', label: 'general.24h' },
   { id: '12h', label: 'general.12h' }
 ];
 
-// Each language by its own name, whichever the tablet is in, so someone who can't read the other one finds theirs.
-const LANGUAGES: readonly { id: TouchscreenConfig['language']; name: string; lang: string }[] = [
-  { id: 'en', name: 'English', lang: 'en' },
-  { id: 'nb', name: 'Norsk', lang: 'nb' }
+// Each language by its own name, whichever the tablet is in, so someone who can't read the other one finds theirs, with
+// the flag of the country it is spoken in.
+const LANGUAGES: readonly { id: TouchscreenConfig['language']; name: string; lang: string; country: 'GB' | 'NO' }[] = [
+  { id: 'en', name: 'English', lang: 'en', country: 'GB' },
+  { id: 'nb', name: 'Norsk', lang: 'nb', country: 'NO' }
 ];
 
-/** A row's Change button, which opens its dialog. */
-function ChangeButton({ onClick }: Readonly<{ onClick: () => void }>) {
+/**
+ * A setting that is a value chosen in a dialog (the weather's place, the postcode): the value as it is now, and the
+ * Change button that opens the dialog beside it.
+ */
+function ValueSection({
+  id,
+  title,
+  caption,
+  value,
+  muted,
+  onChange
+}: Readonly<{ id: string; title: string; caption: string; value: ReactNode; muted: boolean; onChange: () => void }>) {
   const t = useT();
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="modal-option settings-action shrink-0 rounded-2xl border font-bold"
-    >
-      {t('common.change')}
-    </button>
+    <SettingsSection id={id} title={title} caption={caption}>
+      <div className="settings-value">
+        <span className={`settings-value-text truncate ${muted ? 'text-muted' : ''}`}>{value}</span>
+        <button
+          type="button"
+          onClick={onChange}
+          aria-describedby={id}
+          className="modal-option settings-action shrink-0 rounded-2xl border font-bold"
+        >
+          {t('common.change')}
+        </button>
+      </div>
+    </SettingsSection>
   );
 }
 
@@ -47,72 +66,79 @@ export default function GeneralSettings({
   const t = useT();
   const [dialog, setDialog] = useState<'place' | 'notices' | null>(null);
   const notices = noticeBoardPlace(config.notice_board);
+  const now = useClock();
 
   return (
     <div className="settings-stack">
-      <div className="settings-pair">
-        <section className="settings-group">
-          <h5 className="settings-group-title" id="language-label">
-            {t('general.language')}
-          </h5>
-          <div className="settings-segmented" role="group" aria-labelledby="language-label">
-            {LANGUAGES.map(choice => (
-              <button
-                type="button"
-                key={choice.id}
-                lang={choice.lang}
-                aria-pressed={config.language === choice.id}
-                onClick={() => onSave('language', choice.id)}
-                className="settings-segment"
-              >
-                {choice.name}
-              </button>
-            ))}
-          </div>
-        </section>
+      <SettingsSection id="language-label" title={t('general.language')} caption={t('general.language_caption')}>
+        <div className="settings-choices" role="group" aria-labelledby="language-label">
+          {LANGUAGES.map(choice => (
+            <button
+              type="button"
+              key={choice.id}
+              lang={choice.lang}
+              aria-pressed={config.language === choice.id}
+              onClick={() => onSave('language', choice.id)}
+              className="settings-choice"
+            >
+              <span aria-hidden="true">
+                <CountryFlag country={choice.country} className="settings-choice-flag" />
+              </span>
+              <span className="settings-choice-name">{choice.name}</span>
+            </button>
+          ))}
+        </div>
+      </SettingsSection>
 
-        <section className="settings-group">
-          <h5 className="settings-group-title" id="clock-format-label">
-            {t('general.time_format')}
-          </h5>
-          <div className="settings-segmented" role="group" aria-labelledby="clock-format-label">
-            {CLOCK_FORMATS.map(choice => (
-              <button
-                type="button"
-                key={choice.id}
-                aria-pressed={config.clock_format === choice.id}
-                onClick={() => onSave('clock_format', choice.id)}
-                className="settings-segment"
-              >
-                {t(choice.label)}
-              </button>
-            ))}
-          </div>
-        </section>
-      </div>
-      <div className="settings-pair">
-        <section className="settings-group">
-          <h5 className="settings-group-title">{t('general.weather')}</h5>
-          <SettingsRow
-            icon={<CloudSun className="w-6 h-6" aria-hidden="true" />}
-            name={config.weather.key ? config.weather.location : t('general.no_place')}
-          >
-            <ChangeButton onClick={() => setDialog('place')} />
-          </SettingsRow>
-        </section>
+      <SettingsSection
+        id="clock-format-label"
+        title={t('general.time_format')}
+        caption={t('general.time_format_caption')}
+      >
+        <div className="settings-choices" role="group" aria-labelledby="clock-format-label">
+          {CLOCK_FORMATS.map(choice => (
+            <button
+              type="button"
+              key={choice.id}
+              aria-pressed={config.clock_format === choice.id}
+              onClick={() => onSave('clock_format', choice.id)}
+              className="settings-choice is-stacked"
+            >
+              <span className="settings-choice-clock" aria-hidden="true">
+                {formatClockTime(now, choice.id)}
+              </span>
+              <span className="settings-choice-note">{t(choice.label)}</span>
+            </button>
+          ))}
+        </div>
+      </SettingsSection>
 
-        <section className="settings-group">
-          <h5 className="settings-group-title">{t('general.postcode')}</h5>
-          <SettingsRow
-            icon={
-              notices ? <CountryFlag country={notices.country} /> : <Megaphone className="w-6 h-6" aria-hidden="true" />
-            }
-            name={notices?.postcode ?? t('common.off')}
-          >
-            <ChangeButton onClick={() => setDialog('notices')} />
-          </SettingsRow>
-        </section>
-      </div>
+      <ValueSection
+        id="weather-label"
+        title={t('general.weather')}
+        caption={t('general.weather_caption')}
+        value={config.weather.key ? config.weather.location : t('general.no_place')}
+        muted={!config.weather.key}
+        onChange={() => setDialog('place')}
+      />
+
+      <ValueSection
+        id="postcode-label"
+        title={t('general.postcode')}
+        caption={t('general.postcode_caption')}
+        value={
+          notices ? (
+            <>
+              <CountryFlag country={notices.country} />
+              {notices.postcode}
+            </>
+          ) : (
+            t('common.off')
+          )
+        }
+        muted={!notices}
+        onChange={() => setDialog('notices')}
+      />
 
       {dialog === 'place' && (
         <SearchDialog

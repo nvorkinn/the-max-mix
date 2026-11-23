@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Check, Info, MicVocal, Monitor, Package, Palette, SlidersHorizontal, TrainFront, Wifi } from 'lucide-react';
+import { Check, Info, Monitor, Package, Palette, SlidersHorizontal, TrainFront, Wifi } from 'lucide-react';
 import type { Parcels, TouchscreenConfig } from 'countdown-api';
 import { DEFAULT_CLOCK_FORMAT } from '../utils/clockFormat';
 import { isKiosk } from '../utils/kiosk';
@@ -17,7 +17,6 @@ import AboutSettings from './settings/AboutSettings';
 import AppearanceSettings from './settings/AppearanceSettings';
 import CountdownSettings from './settings/CountdownSettings';
 import GeneralSettings from './settings/GeneralSettings';
-import LyricsSettings from './settings/LyricsSettings';
 import ParcelsSettings from './settings/ParcelsSettings';
 import ScreenSettings from './settings/ScreenSettings';
 import SpotifySettings from './settings/SpotifySettings';
@@ -36,7 +35,6 @@ const SECTION_ICONS: Record<SettingsSection, ReactNode> = {
   appearance: <Palette className="w-6 h-6 shrink-0" aria-hidden="true" />,
   wifi: <Wifi className="w-6 h-6 shrink-0" aria-hidden="true" />,
   spotify: <SpotifyIcon className="w-6 h-6 shrink-0" />,
-  lyrics: <MicVocal className="w-6 h-6 shrink-0" aria-hidden="true" />,
   about: <Info className="w-6 h-6 shrink-0" aria-hidden="true" />
 };
 
@@ -155,7 +153,7 @@ export default function SettingsPanel({
       (choice.id !== 'countdown' || owned) &&
       (choice.id !== 'parcels' || owned)
   );
-  // Appearance, Spotify, Lyrics and About always show, so there is always a first page.
+  // Appearance, Spotify and About always show, so there is always a first page.
   const current = sections.find(choice => choice.id === section) ?? sections[0] ?? SETTINGS_SECTIONS[0];
 
   // Showing the settings (they mount each time the tab comes up) asks GitHub again whether a newer version is out, so the
@@ -232,11 +230,13 @@ export default function SettingsPanel({
       break;
     }
     case 'spotify': {
-      page = <SpotifySettings signInError={signInError} onReload={onReload} />;
-      break;
-    }
-    case 'lyrics': {
-      page = <LyricsSettings onChange={owned ? lyrics => onDeviceConfigSave('lyrics', lyrics) : undefined} />;
+      page = (
+        <SpotifySettings
+          signInError={signInError}
+          onReload={onReload}
+          onLyricsChange={owned ? lyrics => onDeviceConfigSave('lyrics', lyrics) : undefined}
+        />
+      );
       break;
     }
     default: {

@@ -34,10 +34,26 @@ export const STRINGS = {
   'general.time_format': { en: 'Time format', nb: 'Tidsformat' },
   'general.24h': { en: '24-hour', nb: '24 timer' },
   'general.12h': { en: '12-hour', nb: '12 timer' },
+  'general.language_caption': {
+    en: 'The words on every page of the tablet.',
+    nb: 'Ordene på alle sidene på nettbrettet.'
+  },
+  'general.time_format_caption': {
+    en: 'How the header clock and the Countdown write times.',
+    nb: 'Slik skriver klokken øverst og Countdown klokkeslett.'
+  },
   'general.weather': { en: 'Weather', nb: 'Vær' },
   'general.no_place': { en: 'No place', nb: 'Ikke valgt' },
+  'general.weather_caption': {
+    en: 'The place the Dashboard shows the weather for.',
+    nb: 'Stedet Dashbordet viser været for.'
+  },
   'general.weather_place': { en: 'Weather place', nb: 'Sted for været' },
   'general.postcode': { en: 'Postcode', nb: 'Postnummer' },
+  'general.postcode_caption': {
+    en: 'Where the notice board finds local notices. Off shows none.',
+    nb: 'Der oppslagstavlen finner lokale oppslag. Av viser ingen.'
+  },
   'general.postcode_hint': {
     en: 'A UK or Norwegian postcode. Leave it empty for none.',
     nb: 'Et norsk eller britisk postnummer. La feltet stå tomt for ingen.'
@@ -59,6 +75,16 @@ export const STRINGS = {
   'general.quiet_hours': { en: 'Quiet hours', nb: 'Stille timer' },
   'general.from': { en: 'From', nb: 'Fra' },
   'general.to': { en: 'To', nb: 'Til' },
+  'quiet.caption': {
+    en: 'Between these times the screen sleeps a minute after the last touch.',
+    nb: 'Mellom disse tidene sovner skjermen et minutt etter siste berøring.'
+  },
+  'quiet.now_quiet': { en: 'quiet now', nb: 'stille nå' },
+  'quiet.now_awake': { en: 'awake now, at {time}', nb: 'våken nå, klokken {time}' },
+  'screen.sleep_caption': {
+    en: 'How long the screen stays on after nobody has touched it.',
+    nb: 'Hvor lenge skjermen er på etter at ingen har rørt den.'
+  },
   'country.GB': { en: 'United Kingdom', nb: 'Storbritannia' },
   'country.NO': { en: 'Norway', nb: 'Norge' },
 
@@ -132,6 +158,10 @@ export const STRINGS = {
   'countdown.saved': { en: 'Saved stops', nb: 'Lagrede stopp' },
   'countdown.none': { en: 'No stops yet.', nb: 'Ingen stopp ennå.' },
   'countdown.group_by_route': { en: 'Group by route', nb: 'Grupper etter linje' },
+  'countdown.group_caption': {
+    en: 'One row for each route with its next departures, rather than a row for each departure.',
+    nb: 'Én rad for hver linje med de neste avgangene, i stedet for én rad for hver avgang.'
+  },
   'countdown.grouped_off': {
     en: 'A board with a row for each departure',
     nb: 'En tavle med én rad for hver avgang'
@@ -155,6 +185,38 @@ export const STRINGS = {
 
   // Settings › Parcels.
   'parcels.notice_board': { en: 'Notice board', nb: 'Oppslagstavle' },
+  'parcels.notice_board_caption': {
+    en: 'Your Parcel deliveries on the Dashboard’s notice board.',
+    nb: 'Pakkene dine fra Parcel på oppslagstavlen på Dashbordet.'
+  },
+  'parcels.arriving_today': {
+    en: 'Parcels due today show on the board.',
+    nb: 'Pakker som kommer i dag, vises på tavlen.'
+  },
+  'parcels.arriving_tomorrow': {
+    en: 'Parcels due today or tomorrow show on the board.',
+    nb: 'Pakker som kommer i dag eller i morgen, vises på tavlen.'
+  },
+  'parcels.arriving_day_after': {
+    en: 'Parcels due by the day after tomorrow show on the board.',
+    nb: 'Pakker som kommer innen i overmorgen, vises på tavlen.'
+  },
+  'parcels.arriving_any_day': {
+    en: 'Every parcel on its way shows on the board, whenever it is due.',
+    nb: 'Alle pakker på vei vises på tavlen, uansett når de kommer.'
+  },
+  'parcels.kept_none': {
+    en: 'A parcel leaves the board as soon as it is delivered.',
+    nb: 'En pakke forsvinner fra tavlen så snart den er levert.'
+  },
+  'parcels.kept_hours': {
+    en: '{hours, plural, one {A delivered parcel stays on the board for # hour.} other {A delivered parcel stays on the board for # hours.}}',
+    nb: '{hours, plural, one {En levert pakke blir på tavlen i # time.} other {En levert pakke blir på tavlen i # timer.}}'
+  },
+  'parcels.kept_day': {
+    en: 'A delivered parcel stays on the board for a day.',
+    nb: 'En levert pakke blir på tavlen i ett døgn.'
+  },
   'parcels.arriving_by': { en: 'Arriving by', nb: 'Kommer innen' },
   'parcels.today': { en: 'Today', nb: 'I dag' },
   'parcels.tomorrow': { en: 'Tomorrow', nb: 'I morgen' },
@@ -177,6 +239,15 @@ export const STRINGS = {
 
   // Settings › Appearance.
   'appearance.colour': { en: 'Colour', nb: 'Farge' },
+  'appearance.colour_note': {
+    en: 'The colour of the song’s title, the player’s controls and the highlights.',
+    nb: 'Fargen på sangtittelen, spillerens knapper og fremhevinger.'
+  },
+  'appearance.sample_title': { en: 'Song title', nb: 'Sangtittel' },
+  'appearance.sample_artist': { en: 'Artist', nb: 'Artist' },
+  'appearance.sample_always': { en: 'Your colour', nb: 'Din farge' },
+  'appearance.sample_idle': { en: 'Your colour, when nothing plays', nb: 'Din farge, når ingenting spilles' },
+  'appearance.sample_playing': { en: 'While music plays', nb: 'Mens musikken spilles' },
   'appearance.dynamic': { en: 'Dynamic', nb: 'Dynamisk' },
   'appearance.dynamic_note': {
     en: 'Colours follow the album art while music plays.',
@@ -249,9 +320,21 @@ export const STRINGS = {
   'spotify.remove': { en: 'Remove', nb: 'Fjern' },
   'spotify.remove_confirm': { en: 'Tap again to remove', nb: 'Trykk igjen for å fjerne' },
   'spotify.add_person': { en: 'Add person', nb: 'Legg til person' },
+  'spotify.add': { en: 'Add', nb: 'Legg til' },
+  'spotify.people_caption': {
+    en: 'Everyone who can play their music here. Tap a face for their login, phone and removal.',
+    nb: 'Alle som kan spille musikken sin her. Trykk på et ansikt for innlogging, telefon og fjerning.'
+  },
   'spotify.log_in': { en: 'Log in with Spotify', nb: 'Logg inn med Spotify' },
 
   // Settings › Lyrics.
+  'lyrics.caption': {
+    en: 'How synced lyrics look while a song plays.',
+    nb: 'Slik ser synkroniserte sangtekster ut mens en sang spilles.'
+  },
+  'lyrics.sample_1': { en: 'Under the kitchen light', nb: 'Under lyset på kjøkkenet' },
+  'lyrics.sample_2': { en: 'we sang the whole way home', nb: 'sang vi hele veien hjem' },
+  'lyrics.sample_3': { en: 'and the night kept time for us', nb: 'og natten holdt takten for oss' },
   'lyrics.size': { en: 'Size', nb: 'Størrelse' },
   'lyrics.alignment': { en: 'Alignment', nb: 'Justering' },
   'lyrics.size.small': { en: 'Small', nb: 'Liten' },

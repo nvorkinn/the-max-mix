@@ -39,7 +39,7 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
     await showSection(settings, 'Screen');
     await settings.getByRole('switch', { name: 'Quiet hours' }).click();
-    await expect(settings.getByRole('group', { name: 'From' })).toBeVisible();
+    await expect(settings.getByRole('slider', { name: 'From' })).toBeVisible();
     await advance(page, 55_000, 5000);
     const awake = reads();
     await advance(page, 10_000, 5000);
@@ -140,7 +140,7 @@ test.describe('Screen sleep', { tag: '@sleep' }, () => {
     await showSection(settings, 'Screen');
     // Quiet hours start out 22:00 to 07:00, and the page's clock says midnight.
     await settings.getByRole('switch', { name: 'Quiet hours' }).click();
-    await expect(settings.getByRole('group', { name: 'From' })).toBeVisible();
+    await expect(settings.getByRole('slider', { name: 'From' })).toBeVisible();
 
     const asleep = page.getByRole('dialog', { name: 'Sleep screen' });
     await advance(page, 55_000, 5000);
