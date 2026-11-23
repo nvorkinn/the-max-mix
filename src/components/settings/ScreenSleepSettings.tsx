@@ -11,7 +11,7 @@ export default function ScreenSleepSettings({
 }: Readonly<{ minutes: ScreenSleepMinutes; onChange: (minutes: ScreenSleepMinutes) => void }>) {
   const t = useT();
   return (
-    <SettingsSection id="screen-sleep-label" title={t('general.screen_sleep')} caption={t('screen.sleep_caption')}>
+    <SettingsSection id="screen-sleep-label" title={t('general.screen_sleep')}>
       <SettingsChips
         labelledBy="screen-sleep-label"
         value={minutes}

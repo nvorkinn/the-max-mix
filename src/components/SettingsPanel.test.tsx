@@ -723,7 +723,7 @@ describe('SettingsPanel', () => {
       />
     );
     await userEvent.click(within(nav).getByRole('button', { name: 'General' }));
-    expect(screen.getByText('Weather')).toBeInTheDocument();
+    expect(screen.getByText('Location')).toBeInTheDocument();
     expect(screen.getByText('Postcode')).toBeInTheDocument();
     expect(screen.queryByText('Screen sleep')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '24-hour' })).toHaveAttribute('aria-pressed', 'true');

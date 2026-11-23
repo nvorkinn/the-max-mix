@@ -70,7 +70,7 @@ export default function GeneralSettings({
 
   return (
     <div className="settings-stack">
-      <SettingsSection id="language-label" title={t('general.language')} caption={t('general.language_caption')}>
+      <SettingsSection id="language-label" title={t('general.language')}>
         <div className="settings-choices" role="group" aria-labelledby="language-label">
           {LANGUAGES.map(choice => (
             <button
@@ -90,11 +90,7 @@ export default function GeneralSettings({
         </div>
       </SettingsSection>
 
-      <SettingsSection
-        id="clock-format-label"
-        title={t('general.time_format')}
-        caption={t('general.time_format_caption')}
-      >
+      <SettingsSection id="clock-format-label" title={t('general.time_format')}>
         <div className="settings-choices" role="group" aria-labelledby="clock-format-label">
           {CLOCK_FORMATS.map(choice => (
             <button
@@ -114,9 +110,9 @@ export default function GeneralSettings({
       </SettingsSection>
 
       <ValueSection
-        id="weather-label"
-        title={t('general.weather')}
-        caption={t('general.weather_caption')}
+        id="location-label"
+        title={t('general.location')}
+        caption={t('general.location_caption')}
         value={config.weather.key ? config.weather.location : t('general.no_place')}
         muted={!config.weather.key}
         onChange={() => setDialog('place')}
@@ -142,7 +138,7 @@ export default function GeneralSettings({
 
       {dialog === 'place' && (
         <SearchDialog
-          title={t('general.weather_place')}
+          title={t('general.location')}
           search={searchPlaces}
           locate={locatePlace}
           initialQuery={config.weather.key ? config.weather.location : ''}

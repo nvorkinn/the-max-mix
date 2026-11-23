@@ -27,11 +27,4 @@ describe('ArrivalsTransitionSettings', () => {
     expect(localStorage.getItem('maxmix.arrivalsTransition')).toBe('sinkRise');
     expect(loadArrivalsTransition()).toBe('sinkRise');
   });
-
-  it('says what it changes', () => {
-    render(<ArrivalsTransitionSettings />);
-    expect(screen.getByRole('region', { name: 'Changing stops' })).toHaveTextContent(
-      'How a board changes to the next stop, when there are more stops than places.'
-    );
-  });
 });

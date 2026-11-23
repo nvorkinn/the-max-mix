@@ -20,11 +20,7 @@ export default function ArrivalsTransitionSettings() {
   const t = useT();
   const chosen = useArrivalsTransition();
   return (
-    <SettingsSection
-      id="arrivals-transition-label"
-      title={t('countdown.transition')}
-      caption={t('countdown.transition_caption')}
-    >
+    <SettingsSection id="arrivals-transition-label" title={t('countdown.transition')}>
       <div className="transition-choices" role="group" aria-labelledby="arrivals-transition-label">
         {ARRIVALS_TRANSITIONS.map(id => (
           <button

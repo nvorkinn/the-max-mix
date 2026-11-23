@@ -110,7 +110,7 @@ export default function SpotifySettings({
       )}
 
       {chosen ? (
-        <SettingsSection id="spotify-people-label" title={t('spotify.people')} caption={t('spotify.people_caption')}>
+        <SettingsSection id="spotify-people-label" title={t('spotify.people')}>
           <ul className="person-faces" aria-label={t('spotify.people')}>
             {people.map(person => {
               const name = person.name || t('spotify.account');

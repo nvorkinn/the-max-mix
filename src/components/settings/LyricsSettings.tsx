@@ -31,7 +31,7 @@ export default function LyricsSettings({
   const t = useT();
   const style = useSyncExternalStore(subscribeLyricsStyle, getLyricsStyle);
   return (
-    <SettingsSection id="lyrics-label" title={t('settings.lyrics')} caption={t('lyrics.caption')}>
+    <SettingsSection id="lyrics-label" title={t('settings.lyrics')}>
       <div className="lyrics-preview" aria-hidden="true">
         <ol
           className="lyrics-list is-synced"

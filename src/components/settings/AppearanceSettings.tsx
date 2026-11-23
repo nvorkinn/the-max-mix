@@ -87,7 +87,7 @@ export default function AppearanceSettings({
   return (
     <div className="settings-stack">
       {themeColour !== undefined && onThemeColourChange && (
-        <SettingsSection id="theme-colour-label" title={t('appearance.colour')} caption={t('appearance.colour_note')}>
+        <SettingsSection id="theme-colour-label" title={t('appearance.colour')}>
           <div className="settings-swatches" role="group" aria-labelledby="theme-colour-label">
             {THEME_COLOURS.map(choice => (
               <button

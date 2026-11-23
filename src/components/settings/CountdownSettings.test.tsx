@@ -94,9 +94,6 @@ describe('CountdownSettings', () => {
     const onSave = setup();
     const grouping = screen.getByRole('switch', { name: 'Group by route' });
     expect(grouping).not.toBeChecked();
-    expect(grouping).toHaveAccessibleDescription(
-      'One row for each route with its next departures, rather than a row for each departure.'
-    );
     await userEvent.click(grouping);
     expect(onSave).toHaveBeenCalledExactlyOnceWith('arrivals', { ...OWNED.arrivals, group_by_route: true });
   });

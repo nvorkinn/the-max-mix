@@ -111,7 +111,6 @@ export default function CountdownSettings({
       <SettingsToggle
         id="group-by-route-label"
         title={t('countdown.group_by_route')}
-        note={t('countdown.group_caption')}
         on={groupByRoute}
         onChange={value => onSave('arrivals', { ...config.arrivals, group_by_route: value })}
       >
