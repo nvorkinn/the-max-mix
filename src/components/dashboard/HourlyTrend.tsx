@@ -11,7 +11,7 @@ function hourLabel(time: string, clockFormat: HourlyTrendProps['clockFormat']): 
   return `${clock} ${hour < 12 ? 'AM' : 'PM'}`;
 }
 
-/** The trend of the coming hours under the weather, one row: three hours two apart, each its time over its sky and temperature. */
+/** The trend of the coming hours right under the weather, one row: three hours two apart, each its time over its sky and temperature. */
 export default function HourlyTrend({ hours, stale, clockFormat }: Readonly<HourlyTrendProps>) {
   const t = useT();
   return (

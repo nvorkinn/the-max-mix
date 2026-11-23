@@ -1,15 +1,8 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { groupLines } from '../../dashboard/lineStatus';
-import type {
-  DayForecast,
-  HourlyTrendProps,
-  LineIncidentsProps,
-  NoticeItem,
-  TubeStatusProps
-} from '../../dashboard/props';
+import type { DayForecast, LineIncidentsProps, NoticeItem, TubeStatusProps } from '../../dashboard/props';
 import { carouselSlot } from './carousel';
-import HourlyTrend from './HourlyTrend';
 import LineIncidents, { INCIDENT_ROWS } from './LineIncidents';
 import Outlook from './Outlook';
 import NoticeBoard, { NOTICE_ROW_HEIGHT, NoticeSheet, useArrivals } from './NoticeBoard';
@@ -55,9 +48,6 @@ export function railPages(noticeCount: number, statusRows: number | null, height
 /** The space between the weather and the outlook, and each of the outlook's rows. */
 const OUTLOOK_GAP = 26;
 const OUTLOOK_ROW_HEIGHT = 42;
-/** The hourly trend's row, and the space under it. */
-const TREND_HEIGHT = 52;
-const TREND_GAP = 26;
 const NO_DAYS: readonly DayForecast[] = [];
 /** The fewest days worth an outlook. */
 const OUTLOOK_MIN_DAYS = 3;
@@ -88,14 +78,12 @@ interface RailPagesProps {
   incidents?: LineIncidentsProps | null | undefined;
   /** The days after today, shown over the notices while there is room for them; none when left out. */
   days?: readonly DayForecast[] | undefined;
-  /** The coming hours' trend, always under the weather and the outlook; none when null or left out. */
-  trend?: HourlyTrendProps | null | undefined;
   /** The Dashboard's clock, which turns the pages with the boards along the bottom. */
   time: number;
 }
 
 /**
- * The rail under the weather: the next days' outlook while there is room for it, the coming hours' trend, then the notices with the Tube's
+ * The rail under the weather: the next days' outlook while there is room for it, then the notices with the Tube's
  * status under them, built up from the bottom. When they don't all fit, the outlook makes way and they page through the
  * way the boards along the bottom do, at the same time.
  */
@@ -104,7 +92,6 @@ export default function RailPages({
   lineStatus,
   incidents = null,
   days = NO_DAYS,
-  trend = null,
   time
 }: Readonly<RailPagesProps>) {
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -125,16 +112,14 @@ export default function RailPages({
 
   const incidentRows = incidents ? incidents.incidents.length * INCIDENT_ROWS : null;
   const statusRows = lineStatus ? groupLines(lineStatus.lines).length : incidentRows;
-  const belowTrend = trend ? height - TREND_HEIGHT - TREND_GAP : height;
-  const shownDays = height > 0 ? outlookDays(days.length, notices.length, statusRows, belowTrend) : 0;
-  const pagesHeight = shownDays ? belowTrend - OUTLOOK_GAP - shownDays * OUTLOOK_ROW_HEIGHT : belowTrend;
+  const shownDays = height > 0 ? outlookDays(days.length, notices.length, statusRows, height) : 0;
+  const pagesHeight = shownDays ? height - OUTLOOK_GAP - shownDays * OUTLOOK_ROW_HEIGHT : height;
   const pages = railPages(notices.length, statusRows, pagesHeight);
 
   return (
     <>
       <div className="dashboard-rail-body" ref={bodyRef}>
         {shownDays > 0 && <Outlook days={days.slice(0, shownDays)} />}
-        {trend && <HourlyTrend {...trend} />}
         <div className="dashboard-rail-pages">
           {pages.map((page, index) => {
             const slot = carouselSlot(index, pages.length, time, 1);

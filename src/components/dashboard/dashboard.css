@@ -569,21 +569,19 @@
   background: var(--text);
 }
 
-/* Always under the weather (and the outlook), the coming hours' trend in one row (RailPages.tsx's TREND_ sizes). */
+/* Always right under the weather, the coming hours' trend in one row. */
 .dashboard-trend {
   flex: none;
-  margin-bottom: 26px;
+  margin-top: 10px;
 }
 .dashboard-hours {
-  height: 52px;
   display: flex;
-  justify-content: space-between;
-  padding-right: 6px;
+  gap: 28px;
 }
 .dashboard-hour {
   display: grid;
   grid-template-columns: auto auto;
-  column-gap: 8px;
+  column-gap: 6px;
   align-items: center;
 }
 .dashboard-hour time {
@@ -594,11 +592,11 @@
   color: var(--muted);
 }
 .dashboard .dashboard-hour svg.lucide {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
 }
 .dashboard-hour strong {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
 }
 

@@ -12,6 +12,7 @@ import type {
   WeatherBlockProps
 } from '../dashboard/props';
 import Backdrop from './dashboard/Backdrop';
+import HourlyTrend from './dashboard/HourlyTrend';
 import { carouselSlot, TURN_MS } from './dashboard/carousel';
 import DepartureBoard from './dashboard/DepartureBoard';
 import TabBar from './dashboard/TabBar';
@@ -38,7 +39,7 @@ export interface DashboardProps {
   /** The coming hours' trend under the weather; null while there is no forecast to read. */
   hourly: HourlyTrendProps | null;
   notices: NoticeBoardProps;
-  /** The days after today, under the weather (over the trend) while the rail has room; null (or left out) without. */
+  /** The days after today, under the weather and its trend while the rail has room; null (or left out) without. */
   outlook?: OutlookProps | null;
   /** Every Tube line's status, at the bottom of the rail under the notices; null (or left out) without. */
   lineStatus?: TubeStatusProps | null;
@@ -51,8 +52,8 @@ export interface DashboardProps {
 }
 
 /**
- * The Dashboard: the photo full screen, the tab bar floating on it, weather on the left with the coming hours' trend and
- * the notices and the Tube's status under it (and over the trend, while there's room, the next days), and a board per
+ * The Dashboard: the photo full screen, the tab bar floating on it, weather on the left with the coming hours' trend
+ * right under it, then (while there's room) the next days, the notices and the Tube's status, and a board per
  * Tube station and bus stop along the bottom, two at a time. It is laid out at 1280×800 and scaled to fit whichever of the
  * space's width or height is tighter, centred, so a smaller panel shows the same layout.
  */
@@ -106,12 +107,12 @@ export default function Dashboard({
           <main className="dashboard-main">
             <div className="dashboard-rail">
               <WeatherBlock {...weather} time={time} />
+              {hourly && <HourlyTrend {...hourly} />}
               <RailPages
                 notices={notices.notices}
                 lineStatus={lineStatus}
                 incidents={incidents}
                 days={outlook?.days}
-                trend={hourly}
                 time={time}
               />
             </div>
