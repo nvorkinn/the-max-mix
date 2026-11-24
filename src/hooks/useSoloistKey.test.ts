@@ -4,7 +4,7 @@ import * as config from '../countdown/config';
 import * as soloistKeys from '../countdown/soloistKeys';
 import { SOLOIST_KEY_POLL_MS, useSoloistKey } from './useSoloistKey';
 
-const PERSON = 'wizzler';
+const PERSON = 'someone';
 /** How long a code lasts (countdown-api's expires_in, 600 seconds). */
 const CODE_MS = 600_000;
 
