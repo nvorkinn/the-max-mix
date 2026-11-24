@@ -1,5 +1,5 @@
 // PipeWire through pw-dump and pw-link, without a shell. Reads the graph (nodes, ports, links and the default sink) from
-// `pw-dump` and works out which links send the browser's audio to the chosen AirPlay (RAOP) sinks. `run` is injectable
+// `pw-dump` and works out which links send the players' audio to the chosen AirPlay (RAOP) sinks. `run` is injectable
 // so tests stub it.
 import { execFile } from 'node:child_process';
 
@@ -9,8 +9,15 @@ export const PW_DUMP = '/usr/bin/pw-dump';
 export const PW_LINK = '/usr/bin/pw-link';
 // WirePlumber's control tool; it sets a node's volume on the same cubic scale it reports (and as volume sliders do).
 export const WPCTL = '/usr/bin/wpctl';
-// Chromium's audio reaches PipeWire through pipewire-pulse as an output stream named after the browser.
-const PLAYER_NAMES = ['chromium', 'chrome'];
+// The kiosk's music is Spotify Soloist's: it plays through its own stream (node.name "spotify"), and only its client
+// names the soloist binary. The browser plays nothing since the app stopped using the Web Playback SDK.
+const PLAYER_NAMES = ['soloist'];
+/**
+ * The silent sink the kiosk's PipeWire config makes (50-kiosk-raop.conf): where the music goes while no speaker is
+ * chosen. The kiosk has no speaker of its own, so the default sink would otherwise be whichever AirPlay speaker
+ * WirePlumber picked; this keeps Soloist's stream running, with its position moving, and no sound leaving the Pi.
+ */
+export const SILENT_SINK = 'kiosk_silent';
 
 interface CommandResult {
   code: number;
@@ -79,6 +86,8 @@ interface Link {
 
 export interface Graph {
   nodes: Node[];
+  /** Each client's program (application.process.binary), by client id. */
+  clients: Map<number, string>;
   ports: Port[];
   links: Link[];
   defaultSink: string | null;
@@ -86,7 +95,7 @@ export interface Graph {
 
 const isSink = (node: Node): boolean => node.mediaClass === 'Audio/Sink';
 
-/** An output stream of the kiosk's browser, which is where the Web Playback SDK plays. */
+/** An output stream of Spotify Soloist. */
 function isPlayer(node: Node): boolean {
   if (node.mediaClass !== 'Stream/Output/Audio') return false;
   const names = [node.props['application.process.binary'], node.props['application.name']];
@@ -156,6 +165,9 @@ function addObject(graph: Graph, item: Json, id: number): void {
       props,
       volume: volumeOf(info)
     });
+  } else if (type === 'PipeWire:Interface:Client') {
+    const binary = asString(props['application.process.binary']);
+    if (binary) graph.clients.set(id, binary);
   } else if (type === 'PipeWire:Interface:Port' && typeof props['node.id'] === 'number') {
     const direction = asString(info['direction']) || asString(props['port.direction']);
     graph.ports.push({
@@ -185,10 +197,18 @@ export function parseDump(text: string): Graph {
     throw new PipeWireError(`pw-dump did not return JSON: ${String(error)}`);
   }
   if (!Array.isArray(objects)) throw new PipeWireError('pw-dump did not return a list');
-  const graph: Graph = { nodes: [], ports: [], links: [], defaultSink: null };
+  const graph: Graph = { nodes: [], clients: new Map(), ports: [], links: [], defaultSink: null };
   const items: unknown[] = objects;
   for (const item of items) {
     if (isRecord(item) && typeof item['id'] === 'number') addObject(graph, item, item['id']);
+  }
+  // A native stream (Soloist's) names its program only on its client, so the node borrows it.
+  for (const node of graph.nodes) {
+    const client = node.props['client.id'];
+    const binary = typeof client === 'number' ? graph.clients.get(client) : undefined;
+    if (binary && node.props['application.process.binary'] === undefined) {
+      node.props['application.process.binary'] = binary;
+    }
   }
   return graph;
 }
@@ -236,16 +256,18 @@ function sinksFor(graph: Graph, choice: Choice): Node[] {
 }
 
 /**
- * The sinks the browser should play to: the chosen outputs that are there, or else the default output. The name is the
- * label Chromium gives the same output (through pipewire-pulse).
+ * The sinks the music should play to: the chosen outputs that are there, or else the silent sink, so that no speaker
+ * plays that nobody chose. Without one (a PipeWire config from before it), the default output, as before.
  */
 function targetsOf(graph: Graph, choices: readonly Choice[]): Node[] {
   if (choices.length > 0) return [...new Set(choices.flatMap(choice => sinksFor(graph, choice)))];
+  const silent = graph.nodes.find(node => node.name === SILENT_SINK && isSink(node));
+  if (silent) return [silent];
   const fallback = graph.nodes.find(node => node.name === graph.defaultSink);
   return fallback && isSink(fallback) ? [fallback] : [];
 }
 
-/** The ids of the sinks one of the browser's streams is linked to now: where its sound really goes. */
+/** The ids of the sinks one of Soloist's streams is linked to now: where its sound really goes. */
 export function linkedSinks(graph: Graph): Set<number> {
   const outputs = new Set(playersOf(graph).flatMap(player => portsOf(graph, player.id, 'out').map(port => port.id)));
   const portNode = new Map(graph.ports.map(port => [port.id, port.node]));
@@ -284,9 +306,9 @@ function planPlayer(graph: Graph, player: Node, targets: Node[], plan: Plan): vo
 }
 
 /**
- * The changes that send every browser stream to exactly these sinks, or, with no choices, back to the default sink
- * only. Links to anything other than a sink (a level meter, a recorder) are left alone. When none of
- * the chosen speakers is on the network, nothing changes, so the music is never cut off by a speaker that went away.
+ * The changes that send every player stream to exactly these sinks, or, with no choices, to the silent sink only.
+ * Links to anything other than a sink (a level meter, a recorder) are left alone. When none of the chosen speakers is
+ * on the network, nothing changes, so the music is never cut off by a speaker that went away.
  */
 export function planRoutes(graph: Graph, choices: readonly Choice[]): Plan {
   const plan: Plan = { connect: [], disconnect: [] };

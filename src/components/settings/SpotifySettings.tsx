@@ -2,27 +2,25 @@ import { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, Plus, Trash2, UserRound, XCircle } from 'lucide-react';
 import {
   checkPerson,
-  isPersonRefused,
   PEOPLE_LIMIT,
   peopleOnKiosk,
   type PersonOnKiosk,
   type PersonStatus,
-  removePerson,
-  startAddPerson,
-  startSignIn
+  removePerson
 } from '../../spotify/auth';
-import { getRedirectUri } from '../../spotify/settings';
-import { errorMessage } from '../../utils/errorMessage';
-import { forgetSignIns, isKiosk } from '../../utils/kiosk';
+import { forgetSoloistKey } from '../../countdown/soloistKeys';
+import { isKiosk } from '../../utils/kiosk';
 import ConfirmButton from '../ConfirmButton';
 import PhonePicker from '../PhonePicker';
 import { forgetUnlinkedPhone } from '../../utils/phoneLinks';
 import SpotifyIcon from '../SpotifyIcon';
+import SpotifySignInDialog from '../SpotifySignInDialog';
 import { useT } from '../../i18n/translate';
 import type { StringId } from '../../i18n/strings';
 import type { LyricsStyle } from '../../utils/lyricsStyle';
 import LyricsSettings from './LyricsSettings';
 import SettingsSection from './SettingsSection';
+import SoloistKeyButton from './SoloistKeyButton';
 
 type ShownStatus = Exclude<PersonStatus, 'unknown'>;
 
@@ -48,9 +46,9 @@ function Face({ person }: Readonly<{ person: PersonOnKiosk }>) {
 
 /**
  * The Spotify page. Everyone signed in on this kiosk as a row of faces, each with a dot for whether their login works
- * (asked of Spotify when the page opens) and a mark on the one playing; then the chosen face's login, phone and
- * removal; then adding a person, or the first sign-in when nobody is signed in. Under them, how synced lyrics look,
- * shown on a few lines as they will play. `onLyricsChange` saves that where the kiosk keeps it.
+ * (asked of Spotify when the page opens) and a mark on the one playing; then the chosen face's login, phone, Soloist
+ * key and removal; then adding a person, or the first sign-in when nobody is signed in. Under them, how synced lyrics
+ * look, shown on a few lines as they will play. `onLyricsChange` saves that where the kiosk keeps it.
  */
 export default function SpotifySettings({
   signInError,
@@ -62,15 +60,11 @@ export default function SpotifySettings({
   onLyricsChange?: ((style: LyricsStyle) => void) | undefined;
 }>) {
   const t = useT();
-  const [actionError, setActionError] = useState<string | null>(null);
+  // Who is signing in on a phone: '' for someone new, a person's Spotify ID to sign them in again, null for nobody.
+  const [signingInAs, setSigningInAs] = useState<string | null>(null);
   const [people, setPeople] = useState(peopleOnKiosk);
   const [statuses, setStatuses] = useState<Record<string, PersonStatus>>({});
   const [chosenId, setChosenId] = useState<string | undefined>();
-  const error = actionError || signInError;
-  const leave = (start: () => Promise<void>) => {
-    setActionError(null);
-    start().catch((caught: unknown) => setActionError(errorMessage(caught)));
-  };
 
   useEffect(() => {
     let current = true;
@@ -97,15 +91,9 @@ export default function SpotifySettings({
 
   return (
     <div className="settings-stack">
-      {error && (
+      {signInError && (
         <p role="alert" className="settings-error status-danger">
-          {error}
-        </p>
-      )}
-
-      {signInError && !isPersonRefused(signInError) && (
-        <p className="text-muted break-words">
-          {t('spotify.redirect')} <code className="text-accent break-all">{getRedirectUri()}</code>
+          {signInError}
         </p>
       )}
 
@@ -139,7 +127,7 @@ export default function SpotifySettings({
               <button
                 type="button"
                 disabled={people.length >= PEOPLE_LIMIT}
-                onClick={() => leave(() => forgetSignIns().then(startAddPerson))}
+                onClick={() => setSigningInAs('')}
                 className="person-face"
                 aria-label={t('spotify.add_person')}
               >
@@ -156,22 +144,22 @@ export default function SpotifySettings({
             key={chosen.spotifyId}
             person={chosen}
             status={statusOf(chosen)}
-            onSignIn={() => leave(() => forgetSignIns().then(() => startSignIn(chosen.spotifyId)))}
+            onSignIn={() => setSigningInAs(chosen.spotifyId)}
             onPhoneChange={() => setPeople(peopleOnKiosk())}
             onRemove={() => {
               const outcome = removePerson(chosen.spotifyId);
               forgetUnlinkedPhone(chosen.phoneAddress);
+              forgetSoloistKey(chosen.spotifyId);
               setChosenId(undefined);
               if (outcome === 'kept') setPeople(peopleOnKiosk());
-              else if (outcome === 'switched') onReload();
-              else void forgetSignIns().then(() => onReload());
+              else onReload();
             }}
           />
         </SettingsSection>
       ) : (
         <button
           type="button"
-          onClick={() => leave(() => startSignIn())}
+          onClick={() => setSigningInAs('')}
           className="spotify-sign-in settings-wide-button font-extrabold rounded-xl flex items-center justify-center gap-2 active:scale-98 transition-all"
         >
           <SpotifyIcon className="w-5 h-5" />
@@ -179,12 +167,19 @@ export default function SpotifySettings({
         </button>
       )}
 
+      {signingInAs !== null && (
+        <SpotifySignInDialog as={signingInAs} onSignedIn={onReload} onClose={() => setSigningInAs(null)} />
+      )}
+
       <LyricsSettings onChange={onLyricsChange} />
     </div>
   );
 }
 
-/** The chosen person: their name and whether their login works, signing in again when it does not, their phone, and removing them. */
+/**
+ * The chosen person: their name and whether their login works, signing in again when it does not, their phone, saving
+ * their Soloist key while they have none, and removing them.
+ */
 function PersonDetail({
   person,
   status,
@@ -225,6 +220,7 @@ function PersonDetail({
           onChange={onPhoneChange}
         />
       )}
+      <SoloistKeyButton spotifyId={person.spotifyId} name={name} />
       <ConfirmButton
         label={t('spotify.remove')}
         confirmLabel={t('spotify.remove_confirm')}

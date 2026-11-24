@@ -1,0 +1,6 @@
+// The kiosk user manages Wi-Fi connections through NetworkManager without sudo.
+polkit.addRule(function (action, subject) {
+  if (action.id.indexOf('org.freedesktop.NetworkManager.') === 0 && subject.user === 'kiosk') {
+    return polkit.Result.YES;
+  }
+});

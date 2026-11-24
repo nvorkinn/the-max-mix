@@ -1,6 +1,6 @@
 ---
 # A part of the setup (tasks/main.yml runs it when what it installs changed, or a week after it last ran).
-# Updates: the pull, restart, Widevine and SSH key units, then enabling and starting what runs from boot.
+# Updates: the pull, restart, SSH key and Soloist update units, then enabling and starting what runs from boot.
 
 # Updates -------------------------------------------------------------------------------------------------------------
 - name: full | units | Install the update and SSH key units
@@ -11,7 +11,7 @@
     kiosk_units: >-
       {%- set units = [] -%}
       {%- for name in ['kiosk-pull.service', 'kiosk-pull.timer', 'kiosk-restart.service', 'kiosk-restart.timer',
-        'kiosk-widevine.path', 'kiosk-widevine.service']
+        'kiosk-soloist-update.service', 'kiosk-soloist-update.timer']
         + (['kiosk-ssh-keys.service', 'kiosk-ssh-keys.timer'] if kiosk_admin_github_user else []) -%}
       {%- set _ = units.append({'path': '/etc/systemd/system/' ~ name, 'mode': '0644',
         'content': lookup('ansible.builtin.template', name ~ '.j2')}) -%}
@@ -49,7 +49,7 @@
   environment:
     ENABLE: kiosk.service bluetooth.service
     START: >-
-      {{ (['avahi-daemon.service', 'kiosk-pull.timer', 'kiosk-restart.timer', 'kiosk-widevine.path']
+      {{ (['avahi-daemon.service', 'kiosk-pull.timer', 'kiosk-restart.timer', 'kiosk-soloist-update.timer']
       + (['kiosk-ssh-keys.timer'] if kiosk_admin_github_user else [])) | join(' ') }}
     ENABLE_ONLY: '{{ kiosk_enable_only | bool }}'
   register: kiosk_units_enabled

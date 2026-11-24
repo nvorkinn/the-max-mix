@@ -13,8 +13,7 @@ kiosk_groups: [audio, bluetooth, input, netdev, render, systemd-journal, video]
 # The origin of the app the kiosk opens and the address it opens (?kiosk=1 turns on the app's kiosk-only settings,
 # ?pi_ref=&pi_commit= name the release (or other ref) and commit this playbook ran from, which the app's settings show).
 # The kiosk-audio service serves the app the release installed (kiosk_app_dir) on 127.0.0.1:7341, so it starts with no
-# internet. Register the redirect URI of this address in the Spotify dashboard, and list the origin in countdown-server's
-# TOUCHSCREEN_RETURN_ORIGINS.
+# internet. List the origin in countdown-server's TOUCHSCREEN_RETURN_ORIGINS.
 kiosk_app_origin: http://127.0.0.1:7341
 kiosk_url: >-
   {{ kiosk_app_origin }}/?kiosk=1
@@ -47,6 +46,11 @@ kiosk_version: >-
 # The name /etc/hosts gives 127.0.1.1: the Pi's own host name, which cloud-init set from the host name chosen in
 # Raspberry Pi Imager, so a second kiosk (the-max-mix-2) resolves its own name. The playbook never changes the host name itself.
 kiosk_hostname: "{{ lookup('ansible.builtin.file', '/proc/sys/kernel/hostname') | trim }}"
+# The kiosk's own name, which Spotify Soloist goes by in Spotify Connect (pi/kiosk-audio/soloist.ts), such as Kitchen in
+# /etc/the-max-mix/kiosk-vars.yml. Empty (the default) names it after the host name: the-max-mix-4 is The Max Mix 4.
+# Every kiosk on one Spotify account needs a name of its own. A new name takes effect when kiosk-audio restarts, and
+# people may then need to pick the kiosk in Spotify on their phone again.
+kiosk_name: ''
 kiosk_locale: en_GB.UTF-8
 kiosk_timezone: Europe/London
 kiosk_wifi_country: GB
@@ -81,6 +85,11 @@ kiosk_admin_keys_interval: 6h
 # installs it; join your tailnet once by hand with `sudo tailscale up` (pi/cloud-init/README.md). Turning this off later
 # leaves Tailscale installed: run `sudo tailscale logout` and `sudo apt purge tailscale` on the Pi.
 kiosk_tailscale_enabled: true
+# Spotify Soloist, Spotify's headless Spotify Connect player, which kiosk-audio runs for whoever is active, with their own
+# API key from countdown-server (pi/kiosk-audio/soloist.ts). kiosk-soloist-update.timer installs the latest build this
+# long after boot and then this long after each run, well inside the 90 days a build works for.
+kiosk_soloist_update_boot_delay: 5min
+kiosk_soloist_update_interval: 1w
 # The parts of the setup (tasks/full/<name>.yml) and, besides its task file, what each one installs from the repository:
 # a part runs only when one of these, or what every part reads, changed since it last ran (tasks/main.yml).
 kiosk_sections:
@@ -114,10 +123,10 @@ kiosk_sections:
       - ansible/roles/kiosk/templates/kiosk-pull.timer.j2
       - ansible/roles/kiosk/templates/kiosk-restart.service.j2
       - ansible/roles/kiosk/templates/kiosk-restart.timer.j2
-      - ansible/roles/kiosk/templates/kiosk-widevine.path.j2
-      - ansible/roles/kiosk/templates/kiosk-widevine.service.j2
       - ansible/roles/kiosk/templates/kiosk-ssh-keys.service.j2
       - ansible/roles/kiosk/templates/kiosk-ssh-keys.timer.j2
+      - ansible/roles/kiosk/templates/kiosk-soloist-update.service.j2
+      - ansible/roles/kiosk/templates/kiosk-soloist-update.timer.j2
 # The program the playbook installs most files with, all of a step's files in one run (see the file).
 kiosk_install_files: '{{ role_path }}/files/install-files.ts'
 # Where the playbook records, for each part, what it last applied completely and when.
@@ -161,7 +170,6 @@ kiosk_screen_scale: ''
 kiosk_rpi_packages:
   - pi-bluetooth
   - rpi-chromium-mods
-  - libwidevinecdm0
 # Packages the playbook needs to run again with ansible-pull.
 kiosk_ansible_packages:
   - ansible-core
@@ -176,10 +184,12 @@ kiosk_packages:
   # Screen sleep: swayidle notices when nobody touches the screen, wlr-randr turns the output off and on (kiosk-display).
   - swayidle
   - wlr-randr
+  # Screenshots over SSH (kiosk-screenshot): grim asks Cage for the screen.
+  - grim
   - xkb-data
   - fonts-dejavu-core
   - fonts-noto-color-emoji
-  # Browser; libwidevinecdm0 (kiosk_rpi_packages) is the Widevine DRM module Spotify's player needs.
+  # Browser
   - chromium
   # Maintenance over SSH (kiosk_ssh_enabled)
   - openssh-server
@@ -196,7 +206,6 @@ kiosk_packages:
   - libspa-0.2-bluetooth
   - rfkill
   - pipewire
-  - pipewire-pulse
   - wireplumber
   # AirPlay: PipeWire's RAOP modules find speakers over mDNS (Avahi); pw-dump and pw-link route the sound to them.
   - avahi-daemon
@@ -270,5 +279,3 @@ kiosk_pull_random_delay: 10min
 # kiosk at this time of day if the marker is there.
 kiosk_restart_time: '04:30'
 kiosk_restart_marker: /run/kiosk/restart-needed
-# Left once the kiosk restarted for its first Widevine download (kiosk-widevine.service).
-kiosk_widevine_marker: /var/lib/the-max-mix/widevine-loaded

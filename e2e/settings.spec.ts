@@ -65,12 +65,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await expect(person.getByRole('button', { name: 'Remove' })).toBeVisible();
   });
 
-  test('a revoked login stays listed as expired, and signing in again goes to Spotify’s account picker', async ({
-    page
-  }) => {
-    await page.route('https://accounts.spotify.com/authorize**', route =>
-      route.fulfill({ contentType: 'text/html', body: '<h1>Test sign-in page</h1>' })
-    );
+  test('a revoked login stays listed as expired, and signing in again shows the code for a phone', async ({ page }) => {
     await page.route('https://accounts.spotify.com/api/token', route =>
       route.fulfill({ status: 400, json: { error: 'invalid_grant' } })
     );
@@ -93,8 +88,9 @@ test.describe('Settings', { tag: '@settings' }, () => {
     const person = dialog.getByRole('group', { name: 'Friend' });
     await expect(person).toContainText('Expired');
     await person.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page.getByRole('heading', { name: 'Test sign-in page' })).toBeVisible();
-    expect(new URL(page.url()).searchParams.get('show_dialog')).toBe('true');
+    await expect(
+      page.getByRole('dialog', { name: 'Sign in to Spotify' }).getByRole('img', { name: 'Sign in to Spotify' })
+    ).toBeVisible();
   });
 
   test('the colour choice recolours the app and is kept', async ({ page }) => {
@@ -255,12 +251,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     });
   });
 
-  test('removing the last person forgets the login, and signing in again goes to Spotify to approve once more', async ({
-    page
-  }) => {
-    await page.route('https://accounts.spotify.com/authorize**', route =>
-      route.fulfill({ contentType: 'text/html', body: '<h1>Test sign-in page</h1>' })
-    );
+  test('removing the last person forgets the login', async ({ page }) => {
     await openSpotifyTab(page);
     const dialog = await openSettings(page, 'Spotify');
     const person = chosenPerson(dialog);
@@ -273,12 +264,6 @@ test.describe('Settings', { tag: '@settings' }, () => {
     const connect = page.getByRole('button', { name: 'Connect Spotify' });
     await expect(connect).toBeVisible();
     expect(await page.evaluate(() => localStorage.getItem('maxmix.people'))).toBeNull();
-    expect(await page.evaluate(() => sessionStorage.getItem('maxmix.pkce'))).toBeNull();
-
-    // Spotify may remember the person and sign the same account in silently; this makes it show its page instead.
-    await connect.click();
-    await expect(page.getByRole('heading', { name: 'Test sign-in page' })).toBeVisible();
-    expect(new URL(page.url()).searchParams.get('show_dialog')).toBe('true');
   });
 
   test('the kiosk-only settings are not offered away from the kiosk', async ({ page }) => {

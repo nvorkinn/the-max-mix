@@ -1,6 +1,6 @@
 import { deflateSync } from 'node:zlib';
 import { describe, expect, it, vi } from 'vitest';
-import { getJson, krcToLrc, kugou, netease, qqMusic, qrcToLrc, yrcToLrc } from './lyrics-sources.ts';
+import { getJson, krcToLrc, kugou, netease, qqMusic, parseRetryAfter, qrcToLrc, yrcToLrc } from './lyrics-sources.ts';
 import type { GetJson } from './lyrics-sources.ts';
 import { decryptQrc } from './qrc-cipher.ts';
 
@@ -200,5 +200,16 @@ describe('kiosk-audio/lyrics-sources', () => {
       retryAfterMs: 30_000
     });
     vi.unstubAllGlobals();
+  });
+
+  it('reads Retry-After as seconds or as a date', () => {
+    const now = Date.parse('2026-01-01T00:00:00Z');
+    expect(parseRetryAfter('120', now)).toBe(120_000);
+    expect(parseRetryAfter('Thu, 01 Jan 2026 00:00:30 GMT', now)).toBe(30_000);
+    expect(parseRetryAfter('Wed, 31 Dec 2025 23:59:00 GMT', now)).toBeUndefined();
+    expect(parseRetryAfter('0', now)).toBeUndefined();
+    expect(parseRetryAfter('soon', now)).toBeUndefined();
+    expect(parseRetryAfter(null, now)).toBeUndefined();
+    expect(parseRetryAfter(' ', now)).toBeUndefined();
   });
 });

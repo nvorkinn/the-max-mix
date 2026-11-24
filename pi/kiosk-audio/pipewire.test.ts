@@ -13,6 +13,7 @@ import {
   PW_DUMP,
   PW_LINK,
   runCommand,
+  SILENT_SINK,
   volumeOf,
   WPCTL
 } from './pipewire.ts';
@@ -44,6 +45,32 @@ const stub = (replies: Record<string, { code: number; stderr?: string; stdout?: 
 const byName = (names: string[]) => names.map(name => ({ name }));
 const planWith = (links: unknown[], speakers: string[]) => planRoutes(parseDump(dump([], links)), byName(speakers));
 
+/** A PipeWire client, which names its program, and a native Spotify output stream from it (as Soloist's). */
+const client = (id: number, binary: string) => ({
+  id,
+  type: 'PipeWire:Interface:Client',
+  info: { props: { 'application.name': 'Spotify', 'application.process.binary': binary } }
+});
+/** Another program's output stream, named after it. */
+const otherStream = (id: number, name: string) => ({
+  id,
+  type: 'PipeWire:Interface:Node',
+  info: { props: { 'node.name': name, 'media.class': 'Stream/Output/Audio', 'application.name': name } }
+});
+
+const spotifyStream = (id: number, clientId: number) => ({
+  id,
+  type: 'PipeWire:Interface:Node',
+  info: {
+    props: {
+      'node.name': 'spotify',
+      'media.class': 'Stream/Output/Audio',
+      'application.name': 'Spotify',
+      'client.id': clientId
+    }
+  }
+});
+
 describe('parseDump', () => {
   it('reads the players and the default sink', () => {
     expect(playersOf(GRAPH).map(node => node.id)).toEqual([70]);
@@ -71,14 +98,19 @@ describe('parseDump', () => {
     expect(nodeAt(40).description).toBe('Built-in Audio');
   });
 
-  it('only counts browser streams as players', () => {
-    const mpv = {
-      id: 100,
-      type: 'PipeWire:Interface:Node',
-      info: { props: { 'node.name': 'mpv', 'media.class': 'Stream/Output/Audio', 'application.name': 'mpv' } }
-    };
-    const players = playersOf(parseDump(dump([mpv])));
+  it("only counts Soloist's streams as players", () => {
+    // The browser plays nothing now, so its stream (a page's sound, say) stays where PipeWire put it.
+    const others = [otherStream(100, 'mpv'), otherStream(101, 'Chromium')];
+    const players = playersOf(parseDump(dump(others)));
     expect(players.map(node => node.id)).toEqual([70]);
+  });
+
+  it("counts Soloist's stream as a player, by its client's program", () => {
+    // The node comes before its client, as pw-dump may list them; a Spotify stream from another program is not a player.
+    const soloist = [spotifyStream(110, 108), client(108, 'soloist')];
+    const desktopApp = [spotifyStream(120, 118), client(118, 'spotify')];
+    const graph = parseDump(dump([...soloist, ...desktopApp]));
+    expect(playersOf(graph).map(node => node.id)).toEqual([70, 110]);
   });
 });
 
@@ -118,12 +150,49 @@ describe('planRoutes', () => {
     expect(plan).toEqual({ connect: [], disconnect: [83, 84] });
   });
 
-  it('hands back to the default output with no speakers', () => {
+  it('hands back to the default output with no speakers and no silent sink (an older PipeWire config)', () => {
     const plan = planWith([link(83, 71, 51), link(84, 72, 52)], []);
     expect(plan).toEqual({
       connect: [
         [71, 41],
         [72, 42]
+      ],
+      disconnect: [83, 84]
+    });
+  });
+
+  it('sends the music to the silent sink with no speakers, off a speaker nobody chose', () => {
+    // The kiosk has no speaker of its own, so the default sink is an AirPlay speaker (Kitchen here).
+    const meta = {
+      id: 31,
+      type: 'PipeWire:Interface:Metadata',
+      props: { 'metadata.name': 'default' },
+      metadata: [{ key: 'default.audio.sink', value: { name: 'raop_sink.Kitchen.local.7000' } }]
+    };
+    const silent = [
+      {
+        id: 160,
+        type: 'PipeWire:Interface:Node',
+        info: {
+          props: { 'node.name': SILENT_SINK, 'media.class': 'Audio/Sink', 'node.description': 'Kiosk (no speaker)' }
+        }
+      },
+      {
+        id: 161,
+        type: 'PipeWire:Interface:Port',
+        info: { direction: 'input', props: { 'node.id': 160, 'audio.channel': 'FL' } }
+      },
+      {
+        id: 162,
+        type: 'PipeWire:Interface:Port',
+        info: { direction: 'input', props: { 'node.id': 160, 'audio.channel': 'FR' } }
+      }
+    ];
+    const graph = parseDump(dump([meta, ...silent], [link(83, 71, 51), link(84, 72, 52)]));
+    expect(planRoutes(graph, [])).toEqual({
+      connect: [
+        [71, 161],
+        [72, 162]
       ],
       disconnect: [83, 84]
     });

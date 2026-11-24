@@ -49,7 +49,8 @@ function selection(overrides: Partial<SpeakerSelection> = {}): SpeakerSelection 
     toggle: vi.fn(),
     save: vi.fn(),
     cancel: vi.fn(),
-    refresh: vi.fn(),
+    refresh: vi.fn().mockResolvedValue(undefined),
+    refreshing: false,
     tabletPlaying: true,
     playingLabel: 'Kitchen',
     playingOn: { name: 'Kitchen' },
@@ -86,6 +87,18 @@ describe('SpeakersView', () => {
     // Only the selector does anything: the name is not a button.
     fireEvent.click(screen.getByText('Soundbar'));
     expect(given.toggle).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads the speakers again from the refresh button, which is busy while it reads', () => {
+    const given = selection();
+    const { rerender } = render(<SpeakersView selection={given} onKiosk={false} browserDeviceId="web-1" />);
+    const button = screen.getByRole('button', { name: 'Refresh speakers' });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    expect(given.refresh).toHaveBeenCalledTimes(1);
+    rerender(<SpeakersView selection={selection({ refreshing: true })} onKiosk browserDeviceId="web-1" />);
+    expect(screen.getByRole('button', { name: 'Refresh speakers' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Refresh speakers' })).toHaveAttribute('aria-busy', 'true');
   });
 
   it('has no tabs away from the kiosk', () => {

@@ -26,8 +26,7 @@ const player = vi.hoisted(() => {
         | 'setSlowPolling'
         | 'transferPlayback'
         | 'retryPlayback'
-        | 'reconnectPlayer'
-        | 'allowBrowserAudio',
+        | 'reconnectPlayer',
         Mock
       >
     >;
@@ -72,10 +71,8 @@ vi.mock('../utils/bluetoothMonitor', () => ({
   watchPresence: () => Promise.resolve()
 }));
 vi.mock('../spotify/auth', () => ({
-  startSignIn: vi.fn(),
   signOut: vi.fn(),
   peopleOnKiosk: people.peopleOnKiosk,
-  isPersonRefused: () => false,
   PEOPLE_LIMIT: 5,
   switchPerson: people.switchPerson,
   takePhoneToPair: people.takePhoneToPair,
@@ -152,7 +149,6 @@ function setPlayer(overrides: Record<string, unknown> = {}) {
     transferPlayback: vi.fn().mockResolvedValue(undefined),
     retryPlayback: vi.fn().mockResolvedValue(true),
     reconnectPlayer: vi.fn(),
-    allowBrowserAudio: vi.fn().mockResolvedValue(true),
     ...overrides
   };
 }
@@ -376,7 +372,7 @@ describe('TabletView', () => {
 
     it('pauses this tablet’s own music first, then switches and reloads', async () => {
       setPlayer({
-        sdkActive: true,
+        isPlayerActive: true,
         playbackState: { is_playing: true, item: track, device: { name: 'Kitchen' } },
         togglePlay: vi.fn().mockResolvedValue(true)
       });
@@ -414,7 +410,10 @@ describe('TabletView', () => {
     });
 
     it('leaves music playing elsewhere alone', async () => {
-      setPlayer({ sdkActive: false, playbackState: { is_playing: true, item: track, device: { name: 'Kitchen' } } });
+      setPlayer({
+        isPlayerActive: false,
+        playbackState: { is_playing: true, item: track, device: { name: 'Kitchen' } }
+      });
       await switchToAnna();
       expect(player.current.togglePlay).not.toHaveBeenCalled();
       expect(people.switchPerson).toHaveBeenCalledWith('anna');
@@ -697,8 +696,7 @@ describe('TabletView', () => {
 
   it.each([
     ['refresh', 'Refresh playback', 'retryPlayback'],
-    ['reconnect', 'Reconnect player', 'reconnectPlayer'],
-    ['enable-audio', 'Allow browser audio', 'allowBrowserAudio']
+    ['reconnect', 'Reconnect player', 'reconnectPlayer']
   ] as const)('wires %s recovery without reissuing transport commands', async (recovery, label, method) => {
     setPlayer({ error: 'Playback failed', problem: { message: 'Playback failed', recovery } });
     renderOnSpotifyTab(<TabletView />);
@@ -863,26 +861,15 @@ describe('TabletView', () => {
     expect(screen.getByRole('tab', { name: 'Dashboard' })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('shows a failed sign-in as an alert, on the Spotify tab it starts on', async () => {
-    render(<TabletView signInError="Spotify said no" />);
-    await flush();
-    expect(screen.getByRole('tab', { name: 'Spotify' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('alert')).toHaveTextContent('Spotify said no');
-    fireEvent.click(screen.getByRole('button', { name: 'Details' }));
-    expect(
-      within(screen.getByRole('dialog', { name: 'Debug console' })).getAllByText('Spotify said no').length
-    ).toBeGreaterThan(0);
-  });
-
-  it('re-reads the queue when the player says it changed, without polling while the SDK is active', async () => {
+  it('re-reads the queue when the player says it changed, without polling while the kiosk player is active', async () => {
     vi.useFakeTimers();
-    setPlayer({ sdkActive: true, queueVersion: 1, playbackState: playing });
+    setPlayer({ isPlayerActive: true, queueVersion: 1, playbackState: playing });
     const { rerender } = renderOnSpotifyTab(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
     expect(api.getQueue).toHaveBeenCalledTimes(1);
-    // The remote-mode rate (10 s) is not used while the SDK reports changes; the safety net is 20 s.
+    // The remote-mode rate (10 s) is not used while the kiosk player reports changes; the safety net is 20 s.
     await act(async () => {
       await vi.advanceTimersByTimeAsync(19_000);
     });
@@ -892,7 +879,7 @@ describe('TabletView', () => {
     });
     expect(api.getQueue).toHaveBeenCalledTimes(2);
 
-    setPlayer({ sdkActive: true, queueVersion: 2, playbackState: playing });
+    setPlayer({ isPlayerActive: true, queueVersion: 2, playbackState: playing });
     rerender(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
@@ -900,7 +887,50 @@ describe('TabletView', () => {
     expect(api.getQueue).toHaveBeenCalledTimes(3);
   });
 
-  it('polls the queue every 10 seconds when no SDK events arrive', async () => {
+  it('shows the kiosk player’s own queue without asking the Web API, and polls again once it has none', async () => {
+    vi.useFakeTimers();
+    const kioskQueue = [{ id: 'k1', uri: 'spotify:track:k1', name: 'From Soloist', artists: [{ name: 'S' }] }];
+    api.getQueue.mockResolvedValue({ queue: queued });
+    setPlayer({ isPlayerActive: true, queueVersion: 1, playbackState: playing, kioskQueue });
+    const { rerender } = renderOnSpotifyTab(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(api.getQueue).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'From Soloist' })).toBeInTheDocument();
+    // Its next list shows at once, and a rate limit on the Web API does not hold it back.
+    act(() => recordSpotifyRetryAfter(new SpotifyApiError('Rate limited', 429, 30)));
+    setPlayer({
+      isPlayerActive: true,
+      queueVersion: 2,
+      playbackState: playing,
+      kioskQueue: [...kioskQueue, { ...kioskQueue[0], id: 'k2', name: 'Also From Soloist' }]
+    });
+    rerender(<TabletView />);
+    await flush();
+    expect(screen.getByRole('heading', { name: 'Also From Soloist' })).toBeInTheDocument();
+    expect(screen.queryByText('Showing the last known queue.')).not.toBeInTheDocument();
+    expect(api.getQueue).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(31_000);
+    });
+
+    // Another device plays: the Web API's queue is read, and polled.
+    setPlayer({ isPlayerActive: false, queueVersion: 2, playbackState: playing, kioskQueue: null });
+    rerender(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(api.getQueue).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('heading', { name: 'Queued One' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'From Soloist' })).not.toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_500);
+    });
+    expect(api.getQueue).toHaveBeenCalledTimes(2);
+  });
+
+  it('polls the queue every 10 seconds when no player events arrive', async () => {
     vi.useFakeTimers();
     setPlayer({ playbackState: playing });
     renderOnSpotifyTab(<TabletView />);

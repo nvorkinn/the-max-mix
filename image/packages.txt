@@ -1,0 +1,66 @@
+# The packages the image build installs on top of Raspberry Pi OS Lite (arm64), with no recommended packages, in one apt
+# run after adding the archives in rootfs/etc/apt/sources.list.d. A line starting with - is a package the build purges
+# from Pi OS. One package a line; # starts a comment. Checked by scripts/check-image.ts.
+
+# Display: Cage runs one app full screen on Wayland. kbd provides chvt, xkb-data the keyboard layouts.
+cage
+kbd
+xkb-data
+# Screen sleep: swayidle notices when nobody touches the screen, wlr-randr turns the output off and on (kiosk-display).
+swayidle
+wlr-randr
+# Screenshots over SSH (kiosk-screenshot): grim asks Cage for the screen.
+grim
+fonts-dejavu-core
+fonts-noto-color-emoji
+
+# Browser, with Raspberry Pi's changes (from the Raspberry Pi archive)
+chromium
+rpi-chromium-mods
+
+# The kiosk-audio service and the kiosk programs (Node.js from NodeSource: Debian's is too old)
+nodejs
+curl
+ca-certificates
+
+# Maintenance over SSH, and over Tailscale once the Pi lives on someone else's network
+openssh-server
+sudo
+tailscale
+
+# Locale and time zone
+locales
+tzdata
+# The Pi's own host name resolves without a line in /etc/hosts, which is read-only and the same on every Pi.
+libnss-myhostname
+
+# NetworkManager (polkit lets the kiosk user manage connections), and the DHCP and DNS it runs for the setup hotspot
+# (pi/kiosk-audio/hotspot.ts)
+network-manager
+dnsmasq-base
+polkitd
+
+# Bluetooth, for phones and speakers (libspa-0.2-bluetooth is PipeWire's A2DP support; pi-bluetooth sets up the Pi's
+# own adapter)
+bluez
+libspa-0.2-bluetooth
+pi-bluetooth
+rfkill
+pipewire
+wireplumber
+# AirPlay: PipeWire's RAOP modules find speakers over mDNS (Avahi); pw-dump and pw-link route the sound to them.
+avahi-daemon
+libpipewire-0.3-modules
+pipewire-bin
+
+# First boot grows and formats /data (kiosk-first-boot.service): sfdisk, partx, mkfs.ext4
+fdisk
+util-linux
+e2fsprogs
+
+# Updates: RAUC installs each release into the other slot. rpi-eeprom keeps the bootloader new enough for tryboot.
+rauc
+rpi-eeprom
+
+# Pi OS's first boot setup writes to /etc, which is read-only here; kiosk-first-boot.service does the kiosk's instead.
+-cloud-init

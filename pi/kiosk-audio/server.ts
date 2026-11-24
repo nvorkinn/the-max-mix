@@ -3,7 +3,7 @@
 //                           plus {"volumes": {"Kitchen": 40, …}}, each speaker's volume in percent, and
 //                           {"outputs": [{"id", "name", "kind", "address"?, "volume", "linked"}, …]}: each sink by its
 //                           PipeWire node name, "airplay" or "bluetooth", a Bluetooth speaker's address, its volume in
-//                           percent or null, and whether the browser's sound goes to it now (speakers.ts)
+//                           percent or null, and whether the music goes to it now (speakers.ts)
 //   POST /audio/route       {"outputs": [id, …]}           route the sound to those outputs (none: the Pi's own output);
 //                           {"speakers": [name, …]} still works
 //   POST /audio/volume      {"output": id, "volume": 40}   set one output's volume (404: not on the network);
@@ -60,8 +60,12 @@
 //   POST /bluetooth/pair-phone/stop   stop looking
 //   POST /display/brightness   {"percent": 1-100, "fade"?: true}   set the screen's backlight, fading to it over 1.5 s
 //                           with "fade" (backlight.ts): 204, or 404 for a screen with none (GET /screen says which: "brightness_control")
+//   POST /soloist/person   {"person", "server", "secret"}   run Spotify Soloist for the active person (their Spotify ID),
+//                           with their key from countdown-server (soloist.ts): 200 {"state"}
+//   POST /soloist/stop      stop it, when nobody is signed in on the kiosk: 204
 //   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
 //                           (update-socket.ts)
+//   WS   /soloist           Spotify Soloist's events, and the app's commands to it (soloist-socket.ts)
 // Only the app's origin is answered (CORS, and every POST and WebSocket is refused without its Origin header, so no other
 // web page can trigger one). A request carries no command, only the name of one of the fixed actions in actions.ts.
 // The Wi-Fi requests are for the app's Settings > Wi-Fi, which opens by itself when the kiosk starts with no network: the
@@ -84,7 +88,7 @@ import { isLoopback, listenForHotspot } from './hotspot-portal.ts';
 import { Hotspot, HotspotError } from './hotspot.ts';
 import type { HotspotInfo, HotspotStatus } from './hotspot.ts';
 import type { LyricsQuery } from './lyrics-sources.ts';
-import { cached, findLyrics, parseLyricsQuery } from './lyrics.ts';
+import { lyricsLookup, parseLyricsQuery } from './lyrics.ts';
 import type { LyricsHit } from './lyrics.ts';
 import { parseConnectRequest, parseForgetRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
@@ -96,6 +100,9 @@ import { Presence, scanLe } from './presence.ts';
 import type { PresenceStatus } from './presence.ts';
 import { screenInfo } from './screen.ts';
 import type { ScreenInfo } from './screen.ts';
+import { SOLOIST_PATH, SoloistBridge } from './soloist-socket.ts';
+import { SoloistPlayer, validSoloistRequest } from './soloist.ts';
+import type { SoloistRequest, SoloistState } from './soloist.ts';
 import { SonosEventHub } from './sonos-events.ts';
 import type { SonosChange } from './sonos-events.ts';
 import { libraryEvents } from './sonos-library.ts';
@@ -119,8 +126,7 @@ const LOGS_PER_MINUTE = 30;
 const POST_ACTIONS: Record<string, Action> = {
   '/power/restart': 'restart',
   '/power/reboot': 'reboot',
-  '/display/wake': 'wake',
-  '/browser/forget-sign-ins': 'forget-sign-ins'
+  '/display/wake': 'wake'
 };
 
 /** What the service needs: PipeWire's graph, routing, and a way to run an action; tests pass fakes. */
@@ -145,8 +151,8 @@ export interface Deps {
   handover: HandoverStore;
   /** The web app installed on the Pi (app-files.ts): the file a GET of the URL asks for, or null. */
   app: (url: string) => Promise<AppFile | null>;
-  /** Lyrics for a song, or null; rejects when no source could be reached. */
-  lyrics: (query: LyricsQuery) => Promise<LyricsHit | null>;
+  /** Lyrics for a song, or null; rejects when no source could be reached, or once `signal` aborts. */
+  lyrics: (query: LyricsQuery, signal?: AbortSignal) => Promise<LyricsHit | null>;
   bluetooth: BluetoothControl;
   /** What BlueZ reports, for the debug console. */
   bluetoothMonitor: { snapshot: () => Promise<MonitorSnapshot>; setVerbose: (isVerbose: boolean) => void };
@@ -165,6 +171,10 @@ export interface Deps {
   /** Sets the screen's backlight, in percent; returns how many backlights it set (none: the screen has none). */
   /** Sets the backlight in percent, fading to it when asked; returns how many it set (none: no backlight). */
   setBrightness: (percent: number, isFaded: boolean) => Promise<number>;
+  /** Runs Spotify Soloist for the person asked for, with their own key (soloist.ts). */
+  soloist: (request: SoloistRequest) => Promise<SoloistState>;
+  /** Stops Spotify Soloist until someone is asked for again. */
+  stopSoloist: () => Promise<void>;
   hotspot: {
     start: () => Promise<HotspotInfo>;
     stop: () => Promise<void>;
@@ -293,6 +303,16 @@ async function presenceStatus(request: IncomingMessage, deps: Deps): Promise<num
   else if (body?.watch === false) deps.presence.unwatch();
   else return 400;
   return 204;
+}
+
+/** POST /soloist/person: runs Soloist for the person now active on the kiosk; answers its state. */
+async function postSoloistPerson(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
+  const soloistRequest = validSoloistRequest(JSON.parse(await readBody(request)));
+  if (soloistRequest === null) {
+    response.writeHead(400).end();
+    return;
+  }
+  sendJson(response, 200, { state: await deps.soloist(soloistRequest) });
 }
 
 /** Sets the screen's backlight from the body of POST /display/brightness; the status to answer with. */
@@ -495,6 +515,14 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
       status = await brightnessStatus(request, deps);
       break;
     }
+    case '/soloist/person': {
+      await postSoloistPerson(request, response, deps);
+      return;
+    }
+    case '/soloist/stop': {
+      await deps.stopSoloist();
+      break;
+    }
     case '/sonos/play':
     case '/sonos/control':
     case '/sonos/volume':
@@ -569,12 +597,17 @@ async function getLyrics(
   if (!isFromApp(request, origin)) {
     response.writeHead(403).end();
   } else if (query) {
+    // The app hangs up when it moves on to another song; the lookup then stops asking the sources.
+    const gone = new AbortController();
+    response.once('close', () => {
+      gone.abort();
+    });
     try {
-      const hit = await deps.lyrics(query);
+      const hit = await deps.lyrics(query, gone.signal);
       if (hit) sendJson(response, 200, hit);
       else response.writeHead(404).end();
     } catch {
-      response.writeHead(502).end();
+      if (!gone.signal.aborted) response.writeHead(502).end();
     }
   } else {
     response.writeHead(400).end();
@@ -837,6 +870,10 @@ export function serveSpeakers(
     appFolder: string;
     /** Where the hosted app's saved data waits for the local copy (handover.ts). */
     handoverFile: string;
+    /** The folder that holds Soloist's data folder for each person (soloist.ts). */
+    soloistStateDir: string;
+    /** The name Soloist goes by in Spotify Connect (soloistDeviceName). */
+    soloistDeviceName: string;
   },
   update: Update = runUpdate
 ): Server {
@@ -860,6 +897,9 @@ export function serveSpeakers(
     watchdog.beat();
   };
   const bluetooth = new Bluetooth();
+  void bluetooth.switchOn().then(isOn => {
+    if (!isOn) console.warn('Bluetooth: could not turn the adapter on');
+  });
   const bluetoothMonitor = new BluetoothMonitor();
   nameKioskOnStart(bluetoothMonitor);
   const presence = new Presence({
@@ -870,6 +910,7 @@ export function serveSpeakers(
       bluetoothMonitor.note(message);
     }
   });
+  const soloistPlayer = new SoloistPlayer({ stateDir: deps.soloistStateDir, deviceName: deps.soloistDeviceName });
   const handler = handleRequest(origin, {
     ...deps,
     perform,
@@ -880,12 +921,14 @@ export function serveSpeakers(
     log: journalLog(),
     app: appFiles(deps.appFolder),
     handover: handoverFile(deps.handoverFile),
-    lyrics: cached(query => findLyrics(query)),
+    lyrics: lyricsLookup(),
     bluetooth,
     bluetoothMonitor,
     presence,
     screen: () => screenInfo(),
     setBrightness: (percent, isFaded) => setBrightness(percent, undefined, isFaded ? FADE_MS : 0),
+    soloist: request => soloistPlayer.play(request),
+    stopSoloist: () => soloistPlayer.stop(),
     phonePairing: new PhonePairing({
       discover: onCode => discoverPhones(onCode),
       nearby: () => bluetoothMonitor.nearbyNamed(),
@@ -903,6 +946,11 @@ export function serveSpeakers(
     })
   });
   const server = createServer((request, response) => void handler(request, response));
-  attachUpdateSocket(server, origin, update);
+  const soloist = new SoloistBridge();
+  attachUpdateSocket(server, origin, update, {
+    [SOLOIST_PATH]: connection => {
+      soloist.add(connection);
+    }
+  });
   return server.listen(SPEAKERS_PORT, '127.0.0.1');
 }

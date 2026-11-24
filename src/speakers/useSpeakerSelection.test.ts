@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { getKioskSonosLeader, setKioskSonosLeader } from '../sonos/kiosk';
+import { getDevices } from '../spotify/api';
+import { deferred } from '../test/deferred';
+import type { SpotifyDevice } from '../types';
+import { recordSpotifyRetryAfter, resetSpotifyRateLimit, SpotifyApiError } from '../spotify/http';
 import type { PiSonosGroup } from '../sonos/kiosk';
-import { useSpeakerSelection } from './useSpeakerSelection';
+import { DEVICES_POLL_MS, useSpeakerSelection } from './useSpeakerSelection';
 import type { SpeakerSelectionOptions } from './useSpeakerSelection';
 
 const pi = vi.hoisted(() => ({
@@ -74,11 +78,34 @@ beforeEach(() => {
   airplay.getChosenSpeakers.mockReturnValue([]);
 });
 afterEach(() => {
+  resetSpotifyRateLimit();
   vi.useRealTimers();
   vi.clearAllMocks();
 });
 
 describe('useSpeakerSelection with Sonos', () => {
+  it("leaves out a Sonos room's AirPlay sink, and what it plays, since Sonos plays it", async () => {
+    const output = (name: string, kind: 'airplay' | 'bluetooth', linked: boolean) => ({
+      id: `${kind}.${name}`,
+      name,
+      kind,
+      volume: 10,
+      linked
+    });
+    airplay.listAudioOutputs.mockResolvedValue({
+      outputs: [
+        output('kitchen', 'airplay', true),
+        output('Mac mini', 'airplay', false),
+        output('Kitchen', 'bluetooth', false)
+      ],
+      legacy: false
+    });
+    const { result } = renderHook(() => useSpeakerSelection(options()));
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(result.current.outputs.map(shown => shown.id)).toEqual(['airplay.Mac mini', 'bluetooth.Kitchen']);
+    expect(result.current.confirmed).toEqual({ family: 'tablet', outputs: [] });
+  });
+
   it('drops a draft on Cancel, changing nothing', async () => {
     const given = options();
     const { result } = renderHook(() => useSpeakerSelection(given));
@@ -173,5 +200,62 @@ describe('useSpeakerSelection with Sonos', () => {
     await act(() => result.current.save());
     expect(result.current.error).toBe('Sonos: no speakers answered.');
     expect(result.current.dirty).toBe(true);
+  });
+});
+
+describe('useSpeakerSelection keeping the lists fresh', () => {
+  const devicesRead = () => vi.mocked(getDevices).mock.calls.length;
+
+  it("reads Spotify's devices again every few seconds while the view shows, and stops when it closes", async () => {
+    const { result, rerender } = renderHook((given: SpeakerSelectionOptions) => useSpeakerSelection(given), {
+      initialProps: options()
+    });
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(devicesRead()).toBe(1);
+    vi.mocked(getDevices).mockResolvedValue({ devices: [{ id: 'phone', name: 'Phone' }] });
+    await act(() => vi.advanceTimersByTimeAsync(DEVICES_POLL_MS));
+    expect(devicesRead()).toBe(2);
+    expect(result.current.connectDevices.map(device => device.name)).toEqual(['Phone']);
+    // Only Spotify's list is polled: the Pi's lists have their own watchers.
+    expect(pi.findSonosOnPi).toHaveBeenCalledTimes(1);
+    rerender(options({ open: false }));
+    await act(() => vi.advanceTimersByTimeAsync(DEVICES_POLL_MS * 3));
+    expect(devicesRead()).toBe(2);
+  });
+
+  it('does not poll while Spotify has asked the app to wait', async () => {
+    renderHook(() => useSpeakerSelection(options()));
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(devicesRead()).toBe(1);
+    recordSpotifyRetryAfter(new SpotifyApiError('Too many requests', 429, 25));
+    await act(() => vi.advanceTimersByTimeAsync(DEVICES_POLL_MS * 2));
+    expect(devicesRead()).toBe(1);
+    await act(() => vi.advanceTimersByTimeAsync(DEVICES_POLL_MS));
+    expect(devicesRead()).toBe(2);
+  });
+
+  it('reads every list again on refresh, busy until the reads finish', async () => {
+    const { result } = renderHook(() => useSpeakerSelection(options()));
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(result.current.refreshing).toBe(false);
+    const answer = deferred<{ devices: SpotifyDevice[] }>();
+    vi.mocked(getDevices).mockReturnValueOnce(answer.promise);
+    let done: Promise<void> = Promise.resolve();
+    act(() => {
+      done = result.current.refresh();
+    });
+    expect(result.current.refreshing).toBe(true);
+    // A second tap while it reads asks nothing more.
+    act(() => {
+      void result.current.refresh();
+    });
+    expect(devicesRead()).toBe(2);
+    expect(pi.findSonosOnPi).toHaveBeenCalledTimes(2);
+    expect(airplay.listAudioOutputs).toHaveBeenCalled();
+    await act(async () => {
+      answer.resolve({ devices: [] });
+      await done;
+    });
+    expect(result.current.refreshing).toBe(false);
   });
 });

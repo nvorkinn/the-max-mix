@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { lrclibSource, lyricsfileToLrc } from './lyrics-lrclib.ts';
-import { HttpError } from './lyrics-sources.ts';
+import { HttpError, SourceResting } from './lyrics-sources.ts';
 import type { GetJson } from './lyrics-sources.ts';
 
 const query = { title: 'Placeholder Song', artist: 'Placeholder Artist', durationMs: 200_400 };
@@ -139,6 +139,7 @@ describe('kiosk-audio/lyrics-lrclib', () => {
   });
 
   it('leaves LRCLIB alone for as long as it asks to be', async () => {
+    const warn = vi.spyOn(console, 'warn').mockReturnValue();
     let time = 1000;
     const source = lrclibSource(() => time);
     const limited = answering({ 'v2/search?': new HttpError('lrclib.net', 429, 30_000) });
@@ -149,5 +150,58 @@ describe('kiosk-audio/lyrics-lrclib', () => {
     expect(urls).toEqual([]);
     time += 1000;
     await expect(source.search(query, get)).resolves.toEqual([candidate]);
+    expect(warn).toHaveBeenCalledExactlyOnceWith('lyrics: lrclib.net answered 429; not calling it for 30 s');
+  });
+
+  it('leaves LRCLIB alone for a minute after a 429 that does not say for how long', async () => {
+    vi.spyOn(console, 'warn').mockReturnValue();
+    let time = 0;
+    const source = lrclibSource(() => time);
+    const limited = answering({ 'v2/search?': new HttpError('lrclib.net', 429) });
+    await expect(source.search(query, limited.get)).rejects.toBeInstanceOf(SourceResting);
+    const { get, urls } = answering({ 'v2/search?': [song] });
+    time += 59_000;
+    await expect(source.search(query, get)).rejects.toBeInstanceOf(SourceResting);
+    expect(urls).toEqual([]);
+    time += 1000;
+    await expect(source.search(query, get)).resolves.toEqual([candidate]);
+  });
+
+  it('sends one request at a time, so lookups that overlap get one 429 between them and log it once', async () => {
+    const warn = vi.spyOn(console, 'warn').mockReturnValue();
+    const source = lrclibSource(() => 0);
+    let inFlight = 0;
+    let most = 0;
+    const urls: string[] = [];
+    const get = vi.fn<GetJson>(async url => {
+      urls.push(url);
+      inFlight += 1;
+      most = Math.max(most, inFlight);
+      await new Promise(resolve => setTimeout(resolve, 5));
+      inFlight -= 1;
+      throw new HttpError('lrclib.net', 429);
+    });
+    const lookups = ['One', 'Two', 'Three', 'Four'].map(title => source.search({ ...query, title }, get));
+    const results = await Promise.allSettled(lookups);
+    expect(results.map(result => result.status)).toEqual(['rejected', 'rejected', 'rejected', 'rejected']);
+    expect(urls).toHaveLength(1);
+    expect(most).toBe(1);
+    expect(warn).toHaveBeenCalledOnce();
+
+    // While nothing fails, they still all get their turn.
+    const ok = answering({ 'v2/search?': [song] });
+    const fresh = lrclibSource();
+    const found = await Promise.all([1, 2, 3].map(() => fresh.search(query, ok.get)));
+    expect(found).toEqual([[candidate], [candidate], [candidate]]);
+    expect(ok.urls).toHaveLength(3);
+  });
+
+  it('still takes a 503 with Retry-After as a song it does not have, but leaves LRCLIB alone after it', async () => {
+    vi.spyOn(console, 'warn').mockReturnValue();
+    const source = lrclibSource(() => 0);
+    const busy = answering({ 'v2/search?': [], 'get?': new HttpError('lrclib.net', 503, 10_000) });
+    await expect(source.search(query, busy.get)).resolves.toEqual([]);
+    await expect(source.search(query, busy.get)).rejects.toBeInstanceOf(SourceResting);
+    expect(busy.urls).toHaveLength(2);
   });
 });

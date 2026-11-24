@@ -1,10 +1,12 @@
 // Finds lyrics for the app's GET /lyrics (server.ts), which is the app's only way to lyrics. Every source (LRCLIB,
 // Musixmatch, and the three in lyrics-sources.ts) is asked for lyrics timed word by word; only when none has them is
 // each asked in turn for line-timed ones, and after those for plain ones. It only keeps a song that matches the title,
-// artist and length asked for, and remembers the answers.
+// artist and length asked for, and remembers the answers. A lookup waits a moment before asking any source, and stops
+// asking when the app no longer wants the answer, so songs skipped in a row cost (almost) no requests.
+import { setTimeout as pause } from 'node:timers/promises';
 import { lrclib } from './lyrics-lrclib.ts';
 import { musixmatch } from './lyrics-musixmatch.ts';
-import { getJson, kugou, netease, qqMusic } from './lyrics-sources.ts';
+import { getJson, kugou, netease, qqMusic, SourceResting } from './lyrics-sources.ts';
 import type { Candidate, GetJson, LyricsQuery, LyricsSource } from './lyrics-sources.ts';
 
 /**
@@ -29,6 +31,14 @@ const TRIES_PER_SOURCE = 3;
 const MIN_TIMED_LINES = 4;
 const CACHE_LIMIT = 300;
 const MISS_TTL_MS = 60 * 60 * 1000;
+/**
+ * How long a lookup waits before asking any source. The app gives up on a song's lookup when it moves on to the next,
+ * so a song skipped within this time costs no request at all.
+ */
+const PAUSE_MS = 1500;
+
+/** Looks up a song's lyrics; `signal` aborts when whoever asked no longer wants them. */
+export type FindLyrics = (query: LyricsQuery, signal?: AbortSignal) => Promise<LyricsHit | null>;
 
 /** The body of a GET /lyrics as a query, or null when it lacks a title or artist. */
 export function parseLyricsQuery(params: URLSearchParams): LyricsQuery | null {
@@ -140,6 +150,15 @@ interface Searched {
   found: Candidate[];
 }
 
+/** `get`, failing at once instead of asking once `signal` has aborted. */
+function until(signal: AbortSignal | undefined, get: GetJson): GetJson {
+  return signal ? (url, headers) => (signal.aborted ? Promise.reject(signal.reason as Error) : get(url, headers)) : get;
+}
+
+/** Whether a failure is not worth a line in the journal: a lookup given up on, or a source that logged it itself. */
+const isQuiet = (error: unknown, signal: AbortSignal | undefined): boolean =>
+  signal?.aborted === true || error instanceof SourceResting;
+
 /** One kind of lyrics from a source: those of the first of its best matches that has good ones, or null. */
 async function ask(kind: Kind, { source, found }: Searched, get: GetJson): Promise<string | null> {
   const read = source[kind];
@@ -158,21 +177,24 @@ async function ask(kind: Kind, { source, found }: Searched, get: GetJson): Promi
  * line-timed ones, else plain ones. Every source is asked for word-timed lyrics before any is asked for another kind.
  * A source that knows the song as instrumental and has no synced lyrics for it settles it, unless an earlier source has
  * line-timed ones. A source that fails is skipped; when none has the song and one failed, that failure is thrown so
- * the app can tell "no lyrics" from "could not look".
+ * the app can tell "no lyrics" from "could not look". Once `signal` aborts no source is sent another request, and the
+ * lookup rejects with the abort's reason. A source that is resting (SourceResting) has logged that itself already.
  */
 export async function findLyrics(
   query: LyricsQuery,
   sources: readonly LyricsSource[] = SOURCES,
-  get: GetJson = getJson
+  get: GetJson = getJson,
+  signal?: AbortSignal
 ): Promise<LyricsHit | null> {
   let failure: Error | undefined;
   const failed = (source: LyricsSource, error: unknown) => {
     failure ??= error instanceof Error ? error : new Error(String(error));
-    console.warn(`lyrics: ${source.name} failed: ${String(error)}`);
+    if (!isQuiet(error, signal)) console.warn(`lyrics: ${source.name} failed: ${String(error)}`);
   };
+  const reach = until(signal, get);
   const attempt = async (kind: Kind, searched: Searched): Promise<string | null> => {
     try {
-      return await ask(kind, searched, get);
+      return await ask(kind, searched, reach);
     } catch (error) {
       failed(searched.source, error);
       return null;
@@ -182,7 +204,7 @@ export async function findLyrics(
   const asked = sources.map(async source => {
     const searched: Searched = { source, found: [] };
     try {
-      searched.found = matches(await source.search({ ...query, title: searchTitle(query.title) }, get), query);
+      searched.found = matches(await source.search({ ...query, title: searchTitle(query.title) }, reach), query);
     } catch (error) {
       failed(source, error);
     }
@@ -207,6 +229,7 @@ export async function findLyrics(
     const plain = await attempt('plain', searched);
     if (plain) return { source: searched.source.name, plain };
   }
+  signal?.throwIfAborted();
   if (failure) throw failure;
   return null;
 }
@@ -215,19 +238,31 @@ export async function findLyrics(
  * `find`, remembering the synced lyrics it found (for good) and, for an hour, anything less: a song without lyrics or
  * with only plain ones may have synced ones later. Failures are not remembered.
  */
-export function cached(
-  find: (query: LyricsQuery) => Promise<LyricsHit | null>,
-  now: () => number = () => Date.now()
-): (query: LyricsQuery) => Promise<LyricsHit | null> {
+export function cached(find: FindLyrics, now: () => number = () => Date.now()): FindLyrics {
   const memory = new Map<string, { hit: LyricsHit | null; at: number }>();
-  return async query => {
+  return async (query, signal) => {
     const key = `${normalize(query.title)}\n${normalize(query.artist)}\n${Math.round((query.durationMs ?? 0) / 5000)}`;
     const known = memory.get(key);
     if (known && ((known.hit && 'lrc' in known.hit) || now() - known.at < MISS_TTL_MS)) return known.hit;
-    const hit = await find(query);
+    const hit = await find(query, signal);
     memory.delete(key);
     memory.set(key, { hit, at: now() });
     if (memory.size > CACHE_LIMIT) memory.delete(memory.keys().next().value ?? key);
     return hit;
   };
 }
+
+/**
+ * `find`, after waiting `pauseMs`; a lookup whose `signal` aborts in that time (the app moved on to another song) asks
+ * no source and rejects with the abort's reason.
+ */
+export function afterPause(find: FindLyrics, pauseMs: number = PAUSE_MS): FindLyrics {
+  return async (query, signal) => {
+    await pause(pauseMs, undefined, signal ? { signal } : {});
+    return find(query, signal);
+  };
+}
+
+/** What GET /lyrics answers with (server.ts): every source, remembered answers at once, the rest after a pause. */
+export const lyricsLookup = (): FindLyrics =>
+  cached(afterPause((query, signal) => findLyrics(query, SOURCES, getJson, signal)));

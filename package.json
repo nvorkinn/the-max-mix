@@ -14,7 +14,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "lint": "eslint . --max-warnings 0 --concurrency auto",
-    "lint:shell": "shellcheck ansible/roles/kiosk/files/bin/* ansible/tests/*.sh",
+    "lint:shell": "shellcheck ansible/roles/kiosk/files/bin/* ansible/tests/*.sh image/rootfs/usr/local/bin/* image/rootfs/usr/local/sbin/*",
+    "lint:image": "node scripts/check-image.ts",
     "lint:md": "markdownlint-cli2",
     "lint:css": "stylelint \"src/**/*.css\" --max-warnings 0",
     "lint:unused-css": "node scripts/check-unused-css.ts",
@@ -29,7 +30,7 @@
     "format:check": "prettier --check .",
     "prepare": "node scripts/install-hooks.ts",
     "kiosk-screenshot": "node scripts/kiosk-screenshot.ts",
-    "check": "npm run lint && npm run typecheck && npm run format:check && npm run lint:shell && npm run knip && npm run lint:spelling && npm run lint:editorconfig && npm run lint:md && npm run lint:css && npm run lint:unused-css && npm run lint:package-json && npm run lint:lockfiles"
+    "check": "npm run lint && npm run typecheck && npm run format:check && npm run lint:shell && npm run knip && npm run lint:spelling && npm run lint:editorconfig && npm run lint:md && npm run lint:css && npm run lint:unused-css && npm run lint:package-json && npm run lint:lockfiles && npm run lint:image"
   },
   "dependencies": {
     "@svrooij/sonos": "2.7.0",

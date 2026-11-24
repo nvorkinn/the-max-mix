@@ -3,10 +3,9 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { kioskScreen, needsRegistration } from './countdown/registration';
 import type { KioskScreen } from './countdown/registration';
-import { completeSignIn } from './spotify/auth';
+import { startSoloistPerson } from './countdown/soloist';
 import { captureBrowserErrors } from './utils/debugLog';
 import { installHttpLog } from './utils/httpLog';
-import { errorMessage } from './utils/errorMessage';
 import { startHandover, takeHandover } from './utils/handover';
 import { isKiosk, piVersion } from './utils/kiosk';
 import { startKioskWatch } from './utils/kioskWatch';
@@ -16,7 +15,7 @@ import './index.css';
 captureBrowserErrors();
 installHttpLog();
 
-// Remembers ?kiosk=1 and the Pi version before anything can navigate away (the sign-in redirect returns without the query).
+// Remembers ?kiosk=1 and the Pi version before anything can navigate away (registration returns without the query).
 piVersion();
 if (isKiosk()) {
   document.documentElement.classList.add('hide-cursor');
@@ -24,24 +23,19 @@ if (isKiosk()) {
   startKioskWatch();
   // The hosted app hands its saved data to the Pi, for the copy the Pi serves itself (utils/handover.ts).
   startHandover();
+  // The Pi runs Spotify Soloist for whoever is active, with their own key from countdown-server (countdown/soloist.ts).
+  startSoloistPerson();
 }
 
-/** Starts the app, once a Spotify sign-in it came back from (Spotify sends the browser back to / with ?code=) is done. */
+/** Starts the app. */
 function startApp(pairScreen: KioskScreen | null = null): void {
-  const signedIn = completeSignIn().catch((error: unknown) => ({
-    ok: false as const,
-    error: errorMessage(error)
-  }));
-  void signedIn.then(result => {
-    const signInError = result && !result.ok ? result.error : null;
-    const root = document.querySelector('#root');
-    if (!root) throw new Error('Missing #root element');
-    ReactDOM.createRoot(root).render(
-      <React.StrictMode>
-        <App signInError={signInError} pairScreen={pairScreen} />
-      </React.StrictMode>
-    );
-  });
+  const root = document.querySelector('#root');
+  if (!root) throw new Error('Missing #root element');
+  ReactDOM.createRoot(root).render(
+    <React.StrictMode>
+      <App pairScreen={pairScreen} />
+    </React.StrictMode>
+  );
 }
 
 // The copy the Pi serves takes the hosted app's saved data first, so it starts signed in and registered as before.

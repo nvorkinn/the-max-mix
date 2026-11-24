@@ -80,9 +80,10 @@ import TabBar from './dashboard/TabBar';
 /** The minute it is now; the tab bar's clock changes only when this does. */
 const currentMinute = () => Math.floor(Date.now() / 60_000);
 
-// While this page's player is active the queue is re-read when the SDK says it changed; this is only a safety net.
+// While the kiosk's player is active and lists its queue itself the Web API is not asked at all; while it is active
+// without a list, the queue is re-read when it says the queue changed, and this is only a safety net.
 const QUEUE_POLL_MS = 10_000;
-const SDK_QUEUE_POLL_MS = 20_000;
+const PLAYER_QUEUE_POLL_MS = 20_000;
 
 /** Writes `message` to the debug log each time it changes to a new, non-empty value. */
 function useLogChanges(message: string | null | undefined, source: string) {
@@ -91,7 +92,6 @@ function useLogChanges(message: string | null | undefined, source: string) {
   }, [message, source]);
 }
 
-// signInError: why finishing the Spotify sign-in failed
 /** Dynamic's colours: the cover's while it plays, else what shows with Dynamic off. */
 function coverOrChosenPalette(art: ArtColours | null, colour: ThemeColour) {
   return art ? dynamicPalette(art.dominant) : basePalette(colour);
@@ -111,7 +111,7 @@ function lyricsAvailability({ status, lyrics }: LyricsLookup): LyricsAvailabilit
   return status === 'ready' && lyrics?.kind !== 'instrumental' ? 'found' : 'none';
 }
 
-export default function TabletView({ signInError = null }: Readonly<{ signInError?: string | null | undefined }>) {
+export default function TabletView() {
   const {
     isReady,
     playbackState,
@@ -120,13 +120,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     isConnecting,
     playbackMode,
     browserDeviceId,
-    sdkActive,
+    isPlayerActive,
     queueVersion,
+    kioskQueue: playerQueue,
     error: playerError,
     problem: playerProblem,
     retryPlayback,
     reconnectPlayer,
-    allowBrowserAudio,
     togglePlay,
     nextTrack,
     skipAhead,
@@ -144,10 +144,15 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const followingSonos = sonos.active;
   // What the tablet shows: the Sonos group the kiosk plays on, or else Spotify's playback.
   const shownPlayback = followingSonos ? sonos.playback : playbackState;
-  const error = playerError || signInError;
+  const error = playerError;
   const isOffline = useIsOffline(playerError);
   // While a Sonos plays, Spotify's queue is not what plays next; the Sonos says its next song itself.
   const canPollQueue = isAuthenticated && !followingSonos;
+  // While the kiosk's player (Soloist) is signed in and the active device, it lists the whole queue itself, at every
+  // change; the Web API is only polled without that list. Soloist's queue is its own, not the playing device's, so while
+  // another device plays the Web API's is used.
+  const kioskQueue = canPollQueue ? playerQueue : null;
+  const hasKioskQueue = Boolean(kioskQueue);
   const spotifyRetryAt = useSpotifyCooldown();
   const waitingForSpotify = spotifyRetryAt > 0;
   const { enabled: pollEnabled, quotaExceeded } = useSpotifyPolling();
@@ -164,7 +169,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [isMusicOpen, setIsMusicOpen] = useState(false);
   // Every start (kiosk start, reload, coming back from a sign-in) opens on the Dashboard, except after a failed sign-in,
   // whose message the Spotify tab shows.
-  const [screen, setScreen] = useState<TabId>(signInError ? 'spotify' : 'dashboard');
+  const [screen, setScreen] = useState<TabId>('dashboard');
   // Every change of tab fades across the whole screen, whether tapped, idle or from a prompt.
   const goToScreen = (next: TabId) => crossfade(() => setScreen(next));
   const [isDebugOpen, setIsDebugOpen] = useState(false);
@@ -190,10 +195,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       await playOnSonosRoom(room, uri, { positionMs, queueFrom: getKioskSonosLeader() });
       return;
     }
-    // The queue as Spotify has it now; the one on screen may be a few seconds old, or not read at all.
-    const upcoming = await getQueue()
-      .then(reply => reply.queue)
-      .catch(() => queue);
+    // The queue as it is now: the kiosk player's, every song of it, or else Spotify's (about 20 songs), as the one on
+    // screen may be a few seconds old, or not read at all.
+    const upcoming =
+      kioskQueue ??
+      (await getQueue()
+        .then(reply => reply.queue)
+        .catch(() => queue));
     if (playbackState?.is_playing && !(await togglePlay())) debugLog('warn', 'sonos', 'Spotify did not pause');
     const next = upcoming.map(track => track.uri).filter((song): song is string => Boolean(song));
     await playOnSonosRoom(room, uri, { next, positionMs });
@@ -369,7 +377,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   // Problems go to the debug console.
   useLogChanges(playerError, 'player');
-  useLogChanges(signInError, 'sign-in');
   useLogChanges(queueError, 'queue');
   useLogChanges(sonos.error, 'sonos');
 
@@ -404,13 +411,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   useEffect(() => {
     // The queue is not shown while the screen sleeps; waking it reads the queue again at once.
     // Wait for the first playback read so its track and playing state do not immediately restart queue polling.
-    if (quotaExceeded || !canPollQueue || isLoading || sleep.asleep) return;
+    if (quotaExceeded || !canPollQueue || hasKioskQueue || isLoading || sleep.asleep) return;
     let cancelled = false;
     // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
     const isCancelled = () => cancelled;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let failures = 0;
-    const base = sdkActive ? SDK_QUEUE_POLL_MS : QUEUE_POLL_MS;
+    const base = isPlayerActive ? PLAYER_QUEUE_POLL_MS : QUEUE_POLL_MS;
     const poll = async () => {
       const retryWait = getSpotifyRetryDelay();
       if (retryWait > 0) {
@@ -444,11 +451,12 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   }, [
     currentTrack?.id,
     canPollQueue,
+    hasKioskQueue,
     isLoading,
     sleep.asleep,
     quotaExceeded,
     pollEnabled,
-    sdkActive,
+    isPlayerActive,
     isPlaying,
     queueVersion,
     queueRequestVersion
@@ -483,7 +491,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // Switching person: the music this tablet plays (itself, or its Sonos) belongs to the person leaving, so it pauses;
   // then the page starts again as the new person. A pause that fails or hangs does not hold the switch up.
   const switchTo = async (spotifyId: string) => {
-    if (isPlaying && (followingSonos || sdkActive)) {
+    if (isPlaying && (followingSonos || isPlayerActive)) {
       const pause = followingSonos ? sonos.togglePlay() : togglePlay();
       await Promise.race([pause.catch(() => false), new Promise(resolve => setTimeout(resolve, 3000))]);
     }
@@ -512,7 +520,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       setIsRefreshingPlayback(false);
     }
   };
-  const problem = signInError ? { message: signInError, recovery: 'sign-in' as const } : playerProblem;
+  const problem = playerProblem;
   const needsConnection = !isLoading && (!isAuthenticated || problem?.recovery === 'sign-in');
   // A kiosk that was just paired opens on the Dashboard with nobody signed in to Spotify: offer the first sign-in there.
   const [getStarted, setGetStarted] = useState(wantsGetStarted);
@@ -524,7 +532,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const restricted = Boolean(playbackState?.device?.is_restricted);
   let notice: PlaybackNoticeState | null = null;
   if (isOffline) notice = { kind: 'offline' };
-  else if (signInError && problem) notice = { kind: 'problem', problem };
   else if (!isAuthenticated) notice = { kind: 'signed-out' };
   else if (followingSonos && problem?.recovery !== 'sign-in') {
     // Spotify has let go of the music, so its own problems (no player, a restricted device) are not this screen's.
@@ -554,15 +561,16 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     !isOffline &&
     (isReady || Boolean(browserDeviceId)) &&
     !restricted &&
-    (!waitingForSpotify || sdkActive) &&
+    (!waitingForSpotify || isPlayerActive) &&
     !isLoading;
   const controlsEnabled = followingSonos
     ? isAuthenticated && !isOffline && Boolean(sonos.playback)
     : spotifyControlsEnabled;
   let shownQueueStatus: QueueStatus = waitingForSpotify ? 'waiting' : queueStatus;
-  if (followingSonos) shownQueueStatus = 'ready';
-  const shownQueue = followingSonos ? sonos.next : queue;
-  const shownQueueError = followingSonos ? null : queueError;
+  // Neither the Sonos's queue nor the kiosk player's waits for the Web API.
+  if (followingSonos || kioskQueue) shownQueueStatus = 'ready';
+  const shownQueue = followingSonos ? sonos.next : (kioskQueue ?? queue);
+  const shownQueueError = followingSonos || kioskQueue ? null : queueError;
   const trackKey = currentTrack?.id ?? currentTrack?.uri ?? null;
   // The song's lyrics are looked up as it starts, even with the panel on the queue, so the panel can open on them.
   const lyrics = useLyrics(currentTrack, !needsConnection);
@@ -637,8 +645,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       onSettings: showSettings,
       onChooseSpeaker: chooseSpeaker,
       onRefresh: followingSonos ? sonos.refresh : () => void recoverPlayback(retryPlayback),
-      onReconnect: reconnectPlayer,
-      onAllowAudio: () => void recoverPlayback(allowBrowserAudio)
+      onReconnect: reconnectPlayer
     });
   useReportProblem('playback', playbackProblem && { ...playbackProblem, busy: isRefreshingPlayback });
   // No internet goes under the warning with the rest; only the kiosk has Wi-Fi settings.
@@ -679,7 +686,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 {needsConnection ? (
                   <SpotifySetup
                     offline={isOffline}
-                    signInError={signInError || (problem?.recovery === 'sign-in' ? problem.message : null)}
+                    signInError={problem?.recovery === 'sign-in' ? problem.message : null}
                     onDetails={() => setIsDebugOpen(true)}
                   />
                 ) : (
@@ -788,7 +795,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           {screen === 'settings' && (
             <SettingsPanel
               initialSection={settingsSection}
-              signInError={signInError || (playerProblem?.recovery === 'sign-in' ? playerProblem.message : null)}
+              signInError={playerProblem?.recovery === 'sign-in' ? playerProblem.message : null}
               screenSleep={screenSleepMinutes}
               onScreenSleepChange={changeScreenSleep}
               brightness={hasBacklight ? brightness : undefined}
@@ -845,8 +852,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             ['Signed in', isAuthenticated ? 'Yes' : 'No'],
             ['Playback mode', playbackMode],
             ['Playing on', speakers.playingLabel ?? playbackState?.device?.name ?? 'Nothing'],
-            ['Browser player', browserDeviceId ? `Ready (${browserDeviceId})` : 'Not connected'],
-            ['SDK driving', sdkActive ? 'Yes' : 'No'],
+            ['Kiosk player', browserDeviceId ? `Ready (${browserDeviceId})` : 'Not connected'],
+            ['Kiosk player active', isPlayerActive ? 'Yes' : 'No'],
             ['Active device', playbackState?.device?.name ?? 'None'],
             ['Sonos', followingSonos ? `Following ${sonos.name ?? 'a group'}` : 'Not following'],
             [

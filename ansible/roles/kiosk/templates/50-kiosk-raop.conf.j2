@@ -1,6 +1,26 @@
 # {{ ansible_managed }}
 # Finds AirPlay (RAOP) speakers through Avahi and makes a PipeWire sink for each, with a short latency so the music
-# follows the touch screen's controls quickly. The audio service links the browser's stream to the chosen sinks.
+# follows the touch screen's controls quickly. The audio service links Spotify Soloist's stream to the chosen sinks.
+#
+# And a silent sink, kiosk_silent (SILENT_SINK in pi/kiosk-audio/pipewire.ts), for when no speaker is chosen: the
+# kiosk has no speaker of its own, so the default sink would otherwise be whichever AirPlay speaker WirePlumber picked,
+# and that speaker would play. Its high session priority makes it the default, so Soloist's stream joins it when it
+# starts; it keeps the stream running, with its position moving, and nothing leaves the Pi.
+context.objects = [
+    {   factory = adapter
+        args = {
+            factory.name = support.null-audio-sink
+            node.name = kiosk_silent
+            node.description = "Kiosk (no speaker)"
+            media.class = Audio/Sink
+            audio.position = [ FL FR ]
+            priority.session = 3000
+            object.linger = true
+            monitor.channel-volumes = true
+        }
+    }
+]
+
 context.modules = [
     {   name = libpipewire-module-raop-discover
         args = {

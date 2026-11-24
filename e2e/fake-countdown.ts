@@ -22,6 +22,10 @@ const API = 'https://api.countdown.build';
 export const CONFIG = `${API}/api/devices/config`;
 const ARRIVALS = `${API}/api/devices/arrivals`;
 const NOTICES = `${API}/api/devices/notices`;
+const SOLOIST = `${API}/api/devices/soloist`;
+const SPOTIFY_SIGN_INS = `${API}/api/devices/spotify/sign-ins`;
+/** Where the fake server says Spotify sends the phone back to, which the kiosk sends again with the code. */
+export const SPOTIFY_REDIRECT = 'https://app.countdown.build/spotify/sign-in/callback';
 export const FEED = `${API}/api/devices/feed`;
 
 /**
@@ -88,12 +92,94 @@ function corsFor(origin = '*') {
 }
 
 /**
+ * The people's Soloist keys: none saved until a test adds some to the set it returns, a code for anyone, and a key
+ * forgotten when asked. Refused, as the config is, while nobody owns the kiosk. Never a key: the page never asks for one.
+ */
+async function fakeSoloistKeys(page: Page, isOwned: () => boolean): Promise<Set<string>> {
+  const soloistKeys = new Set<string>();
+  await page.route(`${SOLOIST}/**`, route => {
+    const request = route.request();
+    const cors = { ...corsFor(request.headers()['origin']), 'Access-Control-Allow-Methods': 'GET, POST, DELETE' };
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    if (!isOwned()) return route.fulfill({ status: 401, headers: cors });
+    const path = new URL(request.url()).pathname;
+    if (path === '/api/devices/soloist/codes' && request.method() === 'POST') {
+      return route.fulfill({
+        status: 201,
+        headers: cors,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 'a-soloist-key-code', expires_in: 600 })
+      });
+    }
+    if (path === '/api/devices/soloist/keys' && request.method() === 'GET') {
+      return route.fulfill({
+        status: 200,
+        headers: cors,
+        contentType: 'application/json',
+        body: JSON.stringify({ people: [...soloistKeys] })
+      });
+    }
+    if (path.startsWith('/api/devices/soloist/keys/') && request.method() === 'DELETE') {
+      const person = decodeURIComponent(path.replace('/api/devices/soloist/keys/', ''));
+      return route.fulfill({ status: soloistKeys.delete(person) ? 204 : 404, headers: cors });
+    }
+    return route.fulfill({ status: 404, headers: cors });
+  });
+  return soloistKeys;
+}
+
+/**
+ * The Spotify sign-ins the kiosk hands to phones: a new one each time it asks, waiting until a test has the phone come
+ * back (`phoneComesBack`, for the newest one), then answered once. Answered whoever owns the kiosk, as the real server
+ * answers any touchscreen. `started` is each request's body, so a test sees the challenge the kiosk sent.
+ */
+async function fakeSpotifySignIns(page: Page) {
+  /** What a phone that scanned the kiosk's code brings back from Spotify: its code, or its error. */
+  type PhoneReply = { code: string } | { error: string };
+  const started: Record<string, unknown>[] = [];
+  const replies = new Map<string, PhoneReply | null>();
+  await page.route(`${SPOTIFY_SIGN_INS}**`, route => {
+    const request = route.request();
+    const cors = { ...corsFor(request.headers()['origin']), 'Access-Control-Allow-Methods': 'GET, POST' };
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    if (request.method() === 'POST') {
+      started.push(request.postDataJSON() as Record<string, unknown>);
+      const id = String(started.length).padStart(32, '0');
+      replies.set(id, null);
+      return route.fulfill({
+        status: 201,
+        headers: cors,
+        json: { id, redirect_uri: SPOTIFY_REDIRECT, expires_in: 600 }
+      });
+    }
+    const id = new URL(request.url()).pathname.split('/').at(-1) ?? '';
+    if (!replies.has(id)) return route.fulfill({ status: 404, headers: cors });
+    const reply = replies.get(id);
+    if (!reply) return route.fulfill({ status: 200, headers: cors, json: { status: 'waiting' } });
+    replies.delete(id);
+    return route.fulfill({
+      status: 200,
+      headers: cors,
+      json: 'code' in reply ? { status: 'done', code: reply.code } : { status: 'failed', error: reply.error }
+    });
+  });
+  return {
+    started,
+    phoneComesBack: (reply: PhoneReply) => {
+      const newest = String(started.length).padStart(32, '0');
+      if (replies.has(newest)) replies.set(newest, reply);
+    }
+  };
+}
+
+/**
  * Stands in for countdown-server's config routes, which the app asks at start and each time the Settings tab opens (the
  * tests start registered: see playwright.config.ts). Answers 401, as for a secret it doesn't know, unless a test gives a
  * config, and the CORS headers the real server sends the app's origin. The config has a version (its ETag), which each
  * save changes. A save of a section (PUT /api/devices/config/{section}) with the version as If-Match is answered with the
  * whole config, the section replaced; one with an older version is a 409; and every save is `saveStatus` with no body
- * when a test gives one. Returns the Authorization header of each request and the whole config each save made.
+ * when a test gives one. Returns the Authorization header of each request, the whole config each save made, and the
+ * people with a Soloist key saved, which a test may add to, and the Spotify sign-ins handed to phones.
  */
 export async function fakeCountdownServer(
   page: Page,
@@ -218,7 +304,9 @@ export async function fakeCountdownServer(
       body: JSON.stringify(panels.arrivals)
     });
   });
-  return { authorizations, saves };
+  const soloistKeys = await fakeSoloistKeys(page, () => current !== null);
+  const spotifySignIns = await fakeSpotifySignIns(page);
+  return { authorizations, saves, soloistKeys, spotifySignIns };
 }
 
 /**

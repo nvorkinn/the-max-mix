@@ -2,7 +2,7 @@
 // documented API (https://lrclib.net/docs) that needs no key. Besides line-timed lyrics it has plain ones, knows which
 // songs are instrumental, and has word-timed lyrics for the songs whose record says `hasWordSync`.
 import { parse } from 'yaml';
-import { count, HttpError, list, lrcTime, record, text } from './lyrics-sources.ts';
+import { count, HttpError, list, lrcTime, record, SourceResting, text } from './lyrics-sources.ts';
 import type { Candidate, GetJson, LyricsSource } from './lyrics-sources.ts';
 
 const API = 'https://lrclib.net/api';
@@ -12,6 +12,8 @@ const HEADERS = { 'User-Agent': 'THE MAX MIX (https://github.com/nvorkinn/the-ma
 const RECORDS_KEPT = 20;
 // LRCLIB answers 503 not only when it is busy but also for a song it does not have, so that is "nothing found" too.
 const NOT_FOUND = new Set([404, 503]);
+/** How long LRCLIB is left alone after a 429 that does not say for how long. */
+const DEFAULT_BACK_OFF_MS = 60_000;
 
 const time = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
@@ -73,22 +75,49 @@ function candidateOf(value: unknown): Candidate {
   };
 }
 
+/** Settles when `request` does, whether it succeeds or fails: its own caller handles a failure. */
+async function answered(request: Promise<unknown>): Promise<void> {
+  try {
+    await request;
+  } catch {
+    // Handled by whoever made the request.
+  }
+}
+
 /**
- * LRCLIB as a source. When LRCLIB asks to be left alone for a while (a Retry-After on an error), it is not called
- * until then, as its terms require: the source fails at once instead. `now` is the clock, for tests.
+ * LRCLIB as a source. Its requests go out one at a time, so lookups that overlap (songs skipped in a row) do not hit it
+ * all at once. When LRCLIB answers 429, or asks to be left alone for a while (a Retry-After on an error), it is not
+ * called until then, as its terms require: that is logged once, and each request until then fails at once, with a
+ * SourceResting that findLyrics does not log again. A request that was waiting its turn when the 429 came is not sent
+ * either. `now` is the clock, for tests.
  */
 export function lrclibSource(now: () => number = () => Date.now()): LyricsSource {
   let waitUntil = 0;
+  let queue: Promise<void> = Promise.resolve();
   const records = new Map<string, Promise<Record<string, unknown>>>();
 
-  const ask = async (path: string, get: GetJson): Promise<unknown> => {
-    if (now() < waitUntil) throw new Error('lrclib.net asked not to be called for a while');
+  const send = async (path: string, get: GetJson): Promise<unknown> => {
+    if (now() < waitUntil) throw new SourceResting('lrclib.net asked not to be called for a while');
     try {
       return await get(`${API}/${path}`, HEADERS);
     } catch (error) {
-      if (error instanceof HttpError && error.retryAfterMs !== undefined) waitUntil = now() + error.retryAfterMs;
-      throw error;
+      if (!(error instanceof HttpError) || (error.status !== 429 && error.retryAfterMs === undefined)) throw error;
+      const wait = error.retryAfterMs ?? DEFAULT_BACK_OFF_MS;
+      waitUntil = now() + wait;
+      console.warn(`lyrics: lrclib.net answered ${error.status}; not calling it for ${Math.ceil(wait / 1000)} s`);
+      throw error.status === 429 ? new SourceResting(error.message, { cause: error }) : error;
     }
+  };
+
+  /** `send`, after the requests before it have been answered. */
+  const ask = (path: string, get: GetJson): Promise<unknown> => {
+    const before = queue;
+    const turn = (async () => {
+      await before;
+      return send(path, get);
+    })();
+    queue = answered(turn);
+    return turn;
   };
 
   /** A failure is not kept: the next kind of lyrics asked for tries again. */

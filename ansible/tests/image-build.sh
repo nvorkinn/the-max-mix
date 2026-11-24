@@ -63,10 +63,10 @@ for file in /usr/local/bin/kiosk-session \
   /etc/systemd/system/kiosk-restart.timer /etc/chromium/policies/managed/kiosk.json \
   /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules /etc/polkit-1/rules.d/50-kiosk-power.rules \
   /usr/local/sbin/kiosk-status /usr/local/bin/kiosk-display /usr/local/sbin/kiosk-ssh-keys \
-  /usr/local/sbin/kiosk-app-switch \
+  /usr/local/sbin/kiosk-app-switch /usr/local/sbin/kiosk-screenshot \
   /etc/systemd/system/kiosk-ssh-keys.service /etc/systemd/system/kiosk-ssh-keys.timer \
-  /etc/systemd/system/kiosk-widevine.path \
-  /etc/systemd/system/kiosk-widevine.service \
+  /usr/local/sbin/kiosk-soloist-update \
+  /etc/systemd/system/kiosk-soloist-update.service /etc/systemd/system/kiosk-soloist-update.timer \
   /etc/tmpfiles.d/kiosk.conf \
   /usr/share/icons/blank/cursors/left_ptr /etc/apt/apt.conf.d/52kiosk-unattended-upgrades \
   /opt/the-max-mix/kiosk-audio/node_modules/dbus-native/package.json \
@@ -77,7 +77,8 @@ for file in /usr/local/bin/kiosk-session \
   check test -e "$file"
 done
 for unit in kiosk.service bluetooth.service avahi-daemon.service kiosk-pull.timer \
-  kiosk-restart.timer kiosk-ssh-keys.timer ssh.service tailscaled.service kiosk-widevine.path; do
+  kiosk-restart.timer kiosk-ssh-keys.timer ssh.service tailscaled.service \
+  kiosk-soloist-update.timer; do
   check systemctl is-enabled --quiet "$unit"
   # Enabled only: nothing is started with kiosk_enable_only.
   if systemctl is-active --quiet "$unit"; then
@@ -121,6 +122,7 @@ check node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 
 # (node --check does not strip types, so load the modules instead; importing them starts nothing.)
 check node -e "await import('/opt/the-max-mix/kiosk-audio/speakers.ts')"
 check grep -q 'raop.latency.ms = 500' /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf
+check grep -q 'node.name = kiosk_silent' /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf
 check grep -q 'kiosk-audio.ts watch$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'try-restart kiosk-audio.service' /etc/systemd/system/kiosk.service
 check grep -q 'screen-mode.ts --correct' /etc/systemd/system/kiosk.service

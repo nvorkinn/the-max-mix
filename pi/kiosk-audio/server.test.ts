@@ -22,6 +22,7 @@ import {
   speakerVolumes
 } from './server.ts';
 import type { AppLog, Deps } from './server.ts';
+import type { SoloistRequest } from './soloist.ts';
 import type { SonosChange } from './sonos-events.ts';
 import { SonosError } from './sonos.ts';
 import type { SonosOperations, SonosRequest } from './sonos.ts';
@@ -82,6 +83,8 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
   const removed: string[] = [];
   const performed: Action[] = [];
   const brightnesses: (number | { percent: number; fade: boolean })[] = [];
+  const soloistRequests: SoloistRequest[] = [];
+  const soloistStops: true[] = [];
   const routed: Choice[][] = [];
   const volumes: [Choice, number][] = [];
   const played: SonosRequest[] = [];
@@ -172,6 +175,14 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
       brightnesses.push(isFaded ? { percent, fade: isFaded } : percent);
       return Promise.resolve(1);
     },
+    soloist: request => {
+      soloistRequests.push(request);
+      return Promise.resolve(request.person === 'no-key-person' ? 'no-key' : 'playing');
+    },
+    stopSoloist: () => {
+      soloistStops.push(true);
+      return Promise.resolve();
+    },
     bluetooth: {
       list: () => Promise.resolve([speaker]),
       scan: () => Promise.resolve([speaker, { ...speaker, address: '11:22:33:44:55:66', paired: false }]),
@@ -234,6 +245,8 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
     removed,
     performed,
     brightnesses,
+    soloistRequests,
+    soloistStops,
     routed,
     volumes,
     played,
@@ -329,6 +342,44 @@ describe('GET /speakers', () => {
   });
 });
 
+describe('POST /soloist/person', () => {
+  const body = { person: 'nikolai', server: 'https://countdown.run/api', secret: 'device-secret' };
+
+  it('runs Soloist for the person, with the server origin', async () => {
+    const { deps, soloistRequests } = fakes();
+    const base = await start(deps);
+    const response = await post(base, '/soloist/person', { body });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ state: 'playing' });
+    expect(soloistRequests).toEqual([{ person: 'nikolai', server: 'https://countdown.run', secret: 'device-secret' }]);
+  });
+
+  it('answers why Soloist is not playing', async () => {
+    const base = await start(fakes().deps);
+    const response = await post(base, '/soloist/person', { body: { ...body, person: 'no-key-person' } });
+    expect(await response.json()).toEqual({ state: 'no-key' });
+  });
+
+  it('refuses a bad body, and another origin', async () => {
+    const { deps, soloistRequests } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/soloist/person', { body: { ...body, person: '../x' } })).status).toBe(400);
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols, unicorn/prefer-https -- plain http is what it refuses
+    const plain = await post(base, '/soloist/person', { body: { ...body, server: 'http://countdown.run' } });
+    expect(plain.status).toBe(400);
+    const elsewhere = await post(base, '/soloist/person', { origin: 'https://evil.example', body });
+    expect(elsewhere.status).toBe(403);
+    expect(soloistRequests).toEqual([]);
+  });
+
+  it('stops Soloist', async () => {
+    const { deps, soloistStops } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/soloist/stop')).status).toBe(204);
+    expect(soloistStops).toEqual([true]);
+  });
+});
+
 describe('POST /display/brightness', () => {
   it("sets the screen's backlight", async () => {
     const { deps, brightnesses } = fakes();
@@ -381,10 +432,10 @@ describe('POST', () => {
   it('runs the named kiosk action', async () => {
     const { deps, performed } = fakes();
     const base = await start(deps);
-    const paths = ['/power/restart', '/power/reboot', '/display/wake', '/browser/forget-sign-ins'];
+    const paths = ['/power/restart', '/power/reboot', '/display/wake'];
     const statuses = await Promise.all(paths.map(async path => (await post(base, path)).status));
-    expect(statuses).toEqual([204, 204, 204, 204]);
-    expect(new Set(performed)).toEqual(new Set(['restart', 'reboot', 'wake', 'forget-sign-ins']));
+    expect(statuses).toEqual([204, 204, 204]);
+    expect(new Set(performed)).toEqual(new Set(['restart', 'reboot', 'wake']));
   });
 
   it('routes the sound to the outputs or speakers in the body, or to none', async () => {
@@ -788,6 +839,30 @@ describe('GET /lyrics', () => {
     expect((await ask(base, 'title=Unknown&artist=Someone')).status).toBe(404);
     expect((await ask(base, 'title=Down&artist=Someone')).status).toBe(502);
     expect((await ask(base, 'title=Known')).status).toBe(400);
+  });
+
+  it('stops the lookup when the app hangs up', async () => {
+    let asked: AbortSignal | undefined;
+    const lyrics = vi.fn<Deps['lyrics']>((_query, signal) => {
+      asked = signal;
+      // A lookup that never ends, for the app to hang up on.
+      return Promise.race([]);
+    });
+    const base = await start(fakes({ lyrics }).deps);
+    const app = new AbortController();
+    const request = fetch(`${base}/lyrics?title=Known&artist=Someone`, {
+      headers: { Origin: ORIGIN },
+      signal: app.signal
+    });
+    await vi.waitFor(() => {
+      expect(asked).toBeDefined();
+    });
+    expect(asked?.aborted).toBe(false);
+    app.abort();
+    await expect(request).rejects.toThrow();
+    await vi.waitFor(() => {
+      expect(asked?.aborted).toBe(true);
+    });
   });
 
   it('answers the app only', async () => {

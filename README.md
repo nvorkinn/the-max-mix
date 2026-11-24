@@ -11,15 +11,15 @@ phone and desktop layouts are not supported.
   using Spotify's real APIs. Device restrictions and API failures are shown.
   Previous restarts the song when it is more than 5 seconds in, and goes to the
   song before it only within the first 5 seconds.
-- **Browser mode** registers Chromium as THE MAX MIX, a Spotify Connect player.
+- **Browser mode** (on the kiosk) plays through the kiosk's own Spotify Connect
+  player, Spotify Soloist, which the Pi runs for the active person under the kiosk's own name
+  (`kiosk_name`, or "The Max Mix 4" on host `the-max-mix-4`).
   Select it in the speakers drawer before playing; opening the UI does not steal playback.
-- **Remote mode** controls an existing Spotify Connect device without loading
-  the Web Playback SDK or requiring DRM on the Pi.
+- **Remote mode** (anywhere else) controls an existing Spotify Connect device.
 
 Spotify Premium and access to a Spotify developer app are required for real
-playback. Browser streaming also requires a working encrypted-media/Widevine
-setup on the exact Pi OS/Chromium image. Validate audio on the device; kiosk mode
-alone does not make DRM available.
+playback. Playing on the kiosk itself also needs the active person's own Soloist
+API key, saved on countdown-server's settings site.
 
 ### The screen
 
@@ -44,16 +44,17 @@ outside the drawer, the close button or Escape closes it.
 
 ### How playback is controlled
 
-In browser mode (the default, and the fallback when the browser cannot play) this page is the speaker: it registers a Spotify Connect device called "The Max Mix"
-with the Web Playback SDK and drives it directly. The SDK reports every change as an event, so while this page is the
-player there is no polling: the play/pause button, progress and track follow the events at once. A slow safety-net
-refresh from the Web API catches anything missed. The first Play press makes it the active device (pressing, not
-loading the page, so it never takes over what is playing elsewhere). If you pick another device in the speakers drawer (or
-the browser cannot play audio), the page is that device's remote and polls the Web API until you pick "The Max Mix"
-again. Browsers only start audio after a click, so the very first Play press is also what unlocks sound.
+In browser mode (the default on the kiosk) the kiosk is the speaker: the Pi runs Spotify Soloist, a headless Spotify
+Connect player, for the active person, and the page drives it through the Pi service's `/soloist` WebSocket. Soloist
+reports every change as an event, so while it is the active device there is no polling: the play/pause button, progress
+and track follow the events at once. A slow safety-net refresh from the Web API catches anything missed. Soloist's
+commands act on whichever device is active, so the page only sends them while Soloist itself is the active device. The
+first Play press makes it the active device (pressing, not loading the page, so it never takes over what is playing
+elsewhere). If you pick another device in the speakers drawer, the page is that device's remote and polls the Web API
+until you pick This tablet again.
 If Spotify provides a retry deadline, Web API playback, queue and device requests all wait for it. Status reads
-resume after the wait; failed controls are not automatically sent again. Active SDK controls remain independent
-of this Web API cooldown.
+resume after the wait; failed controls are not automatically sent again. Commands to the kiosk's own player remain
+independent of this Web API cooldown.
 
 On the Pi kiosk, the speakers drawer also switches between two playback modes. **Spotify Connect** is the above: the tablet plays,
 or Spotify moves playback to a Connect speaker. **AirPlay** keeps playback on the tablet and the Pi sends its sound on
@@ -86,8 +87,8 @@ Jam **in the official Spotify app**. This display reads the playback queue and
 controls the active device. The public API does not expose Jam membership,
 contributor identities, Jam status, or live queue reordering.
 
-Guests add songs through the Spotify app. This page sees queue changes when the track changes and through the SDK's
-upcoming-tracks list, so a guest add can take a moment to show.
+Guests add songs through the Spotify app. This page sees queue changes when the track changes and, while the kiosk
+plays, when Soloist says its queue changed, so a guest add can take a moment to show.
 
 ### Choosing music
 
@@ -116,8 +117,8 @@ a signed-in web-player cookie (`sp_dc`) and a server to call it, and is against 
 ### Debug console
 
 On any tab, hold the clock in the top right for two seconds, tap Debug console on Settings > About, or press Ctrl+Shift+D with a keyboard to open the debug console.
-It shows the app's state (version, connection, sign-in, playback mode, audio route, the browser player's device, the
-active device and whether Widevine works) and a log of recent problems, browser player events and console errors,
+It shows the app's state (version, connection, sign-in, playback mode, audio route, the kiosk player's device and the
+active device) and a log of recent problems, kiosk player events and console errors,
 newest first. The playback banner's Details button opens it too. The log lives in memory, keeps the last 200 entries, and is cleared by a reload.
 
 Two switches at the top of the log (remembered across reloads) log every HTTP call the page makes: **Log every HTTP call
@@ -146,8 +147,6 @@ Set it up once:
    `Cache-Control` for `/assets/` and the response headers listed in [SECURITY.md](SECURITY.md). None of this is in
    the repository.
 3. Push a tag to release: `git tag v1.2.3 && git push origin v1.2.3`.
-4. Register the redirect URI of any address you sign in from in the Spotify dashboard (see
-   [Spotify configuration](#spotify-configuration)).
 
 The Raspberry Pi kiosk opens the deployed app (see [Raspberry Pi kiosk](#raspberry-pi-kiosk)), so
 a release is also how a change reaches the kiosk.
@@ -162,12 +161,10 @@ npm run dev
 ```
 
 Open **<http://127.0.0.1:5173/>**; the dev server uses exactly that address and port (it stops rather than choosing another port).
-Register `http://127.0.0.1:5173/` as a redirect URI in the Spotify dashboard to sign in during development.
 
 To try the production build (the same files the Pi serves), run
 `npm run build && npm start` and open
-**<http://127.0.0.1:4173/>** (`vite preview`). Register that address too if you want to sign in there. `npm test` runs the
-app and kiosk service tests.
+**<http://127.0.0.1:4173/>** (`vite preview`). `npm test` runs the app and kiosk service tests.
 
 ### Checks and Git hooks
 
@@ -184,29 +181,28 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 ## Spotify configuration
 
 1. Create an app in the [Spotify developer dashboard](https://developer.spotify.com/dashboard).
-2. Register the redirect URI **exactly**, including the trailing slash:
-   - `http://127.0.0.1:7341/` for the Raspberry Pi kiosk, which serves the app the release installed (its `kiosk_url`);
-   - `https://the-max-mix.countdown.build/` for signing in on the deployed site;
-   - `http://127.0.0.1:5173/` for local development, and `http://127.0.0.1:4173/` for `npm start`.
+2. Register countdown-server's callback as the redirect URI, **exactly**:
+   `https://app.countdown.build/spotify/sign-in/callback` and `https://app.countdown.run/spotify/sign-in/callback`.
 3. The client ID is a constant in `src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
    it there.
-4. Choose **Connect Spotify** in the browser that will play (on the kiosk, the Pi's Chromium).
+4. Choose **Connect Spotify** on the kiosk and scan the code with your phone. Spotify's sign-in opens on the phone; the
+   kiosk signs in once the phone is back. The kiosk must be added to countdown-server first.
 5. Tap the device indicator at the bottom left to open the speakers drawer, then select This tablet, an AirPlay speaker (kiosk only, several at once) or a Spotify Connect device. Press
    Play when ready. For a Connect device, first open Spotify on it so it is discoverable.
 
-There is no backend and no client secret. Sign-in uses the Authorization Code flow with PKCE, which Spotify provides
-for apps that cannot keep a secret: the browser creates a one-time code verifier for each sign-in, sends only its
-SHA-256 hash to Spotify, and proves it holds the verifier when exchanging the code. The client ID is public by design,
-so building it into the site is fine.
+There is no client secret. Sign-in uses the Authorization Code flow with PKCE, which Spotify provides for apps that
+cannot keep a secret: the kiosk creates a one-time code verifier for each sign-in and keeps it, and countdown-server
+(`src/countdown/spotifySignIn.ts`) passes only its SHA-256 hash to the phone, which takes it to Spotify. Spotify sends
+the phone back to countdown-server, which hands Spotify's code to the kiosk; the kiosk proves it holds the verifier
+when it exchanges the code. countdown-server never sees the verifier or a token. The client ID is public by design, so
+building it into the site is fine.
 
 The refresh token is kept in the browser's `localStorage`, and the page calls the Spotify Web API directly. The
 trade-offs:
 
 - Clearing the site data signs you out; sign in again.
-- **Sign out** in Settings drops the stored login, the cached access token and any sign-in left half done. Spotify itself
-  may still remember the person in the browser, so the next sign-in asks Spotify to show its approval page again
-  (`show_dialog=true`, until a sign-in goes through) rather than letting it sign the same account straight back in; the
-  app cannot sign the person out of Spotify's own website.
+- Removing the last person in Settings drops the stored login and the cached access token. Spotify's own sign-in is on
+  the phone, so the kiosk's browser never holds it.
 - There is one login per browser profile.
 - Anyone with access to the kiosk's browser profile has the Spotify login. See [SECURITY.md](SECURITY.md).
 
@@ -215,10 +211,6 @@ A login saved for a different client ID is ignored. Access tokens are short-live
 Choose remote mode if the Pi should only control another player or if its
 browser cannot stream Spotify audio. Remote mode follows the active device's real
 playback state and controls, not the browser player's local state.
-
-Spotify does not accept `localhost` redirect URIs. HTTP is allowed only with a
-literal loopback address such as `127.0.0.1`; other redirect addresses require HTTPS. Sign in from the same address you
-registered: an address that is not registered cannot sign in.
 
 ## Sonos
 
@@ -329,4 +321,4 @@ booting the result on a real Pi is not covered.
 
 References: [Raspberry Pi kiosk guide](https://www.raspberrypi.com/tutorials/how-to-use-a-raspberry-pi-in-kiosk-mode/),
 [Spotify redirect requirements](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri),
-[Web Playback SDK](https://developer.spotify.com/documentation/web-playback-sdk).
+[Spotify Soloist](https://developer.spotify.com/documentation/soloist).

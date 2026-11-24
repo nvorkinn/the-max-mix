@@ -6,7 +6,7 @@ boot only: the first boot removes it from the card, and at its new home the Pi's
 app.
 
 Tested on a Raspberry Pi 4 Model B with a Waveshare 7-inch 1024x600 HDMI and USB touch screen. A Pi 5 should work the
-same; the playbook boots it with the 4 KB-page kernel (`kernel=kernel8.img`) for Widevine.
+same; the playbook boots it with the 4 KB-page kernel (`kernel=kernel8.img`), which Spotify Soloist has been run on.
 
 ## What you need
 
@@ -30,9 +30,8 @@ same; the playbook boots it with the 4 KB-page kernel (`kernel=kernel8.img`) for
    first-boot script ([`first-boot`](first-boot)) installs Ansible and runs the playbook from the latest GitHub release,
    the same run the Pi's update timer repeats later, and the Pi reboots. Expect 15 to 30 minutes. It tries again every
    minute until it has worked (`/var/log/cloud-init-output.log`).
-4. After the reboot the kiosk starts. On its first run Chromium downloads Widevine, the module Spotify needs, and the
-   kiosk restarts by itself once that is done (`kiosk-widevine.path`), a minute or two later. Test it: sign in to
-   Spotify, play something, try the speakers.
+4. After the reboot the kiosk starts. Test it: sign in to Spotify, save your Soloist key, play something, try the
+   speakers.
 
 ### The image
 
@@ -94,7 +93,7 @@ Give the new owner the [one-page guide](../../docs/friend-guide.md) (print it, o
 5. The screen sleeps. The app keeps it on while music plays and for the idle minutes chosen in its settings (5 by
    default), by holding a screen wake lock that Chromium passes to Cage. After that, the app shows a black sleep screen
    and lets go. Ten seconds later without a touch (`kiosk_screen_off_after`), `swayidle` runs `kiosk-display off`, which
-   turns the output off with `wlr-randr` (on a DSI panel that switches its backlight off too). The next touch turns it on again, and that tap only dismisses the sleep
+   turns a DSI panel's output off with `wlr-randr`, which switches its backlight off too. An HDMI output stays on behind the black sleep screen, because an HDMI screen's USB touch panel can stop sending touches without a signal. The next touch turns it on again, and that tap only dismisses the sleep
    screen. Music that starts while the screen sleeps wakes it through the kiosk service (`POST /display/wake`).
 
 The app's Settings > Wi-Fi (with `?kiosk=1`) changes the network through the kiosk service on 127.0.0.1
@@ -106,7 +105,7 @@ The playbook also sets, among other things:
 - SSH for the `admin` account only, by key only, with `sudo`, and Tailscale for SSH from anywhere (see "Maintenance
   over SSH");
 - `kiosk` manages NetworkManager connections without sudo through `/etc/polkit-1/rules.d/50-kiosk-networkmanager.rules`;
-- PipeWire, `pipewire-pulse` and WirePlumber, and AirPlay speakers through Avahi;
+- PipeWire and WirePlumber, and AirPlay speakers through Avahi;
 - `unattended-upgrades` for Debian security updates and the Raspberry Pi archive (Chromium, kernel);
 - `config.txt` and the kernel command line for the screen, a quiet boot and no cursor. The mode is forced on both HDMI
   ports: the screen's own mode from its EDID (1280x800 on a 10.1-inch screen), or 1024x600 for a screen that sends
@@ -149,12 +148,42 @@ carries it. To take a Pi off your tailnet: `sudo tailscale logout`, or remove it
 
 ### Screenshots and DevTools
 
-The kiosk's Chromium listens for DevTools on `127.0.0.1:9222`, on the Pi only. From a clone of the repository on your
-computer, `npm run kiosk-screenshot -- the-max-mix.local` saves what the screen shows as a PNG (`kiosk-<host>-<time>.png`,
-or name it as the second argument). It goes over SSH as `admin`, so any host that `ssh admin@<host>` reaches works,
-Tailscale names included. To inspect the page, open a tunnel with `ssh -N -L 9222:127.0.0.1:9222 admin@the-max-mix.local`,
-then `chrome://inspect` in Chrome on your computer lists the kiosk's page under Remote Target (add `localhost:9222` under
-Configure if it does not).
+From a clone of the repository on your computer, `npm run kiosk-screenshot -- the-max-mix.local` saves what the screen
+shows as a PNG (`kiosk-<host>-<time>.png`, or name it as the second argument). It goes over SSH as `admin`, so any host
+that `ssh admin@<host>` reaches works, Tailscale names included, and runs `sudo kiosk-screenshot` there, which has `grim`
+take the screen from Cage. On the Pi itself, `sudo kiosk-screenshot > screen.png` does the same.
+
+The kiosk's Chromium also listens for DevTools on `127.0.0.1:9222`, on the Pi only. To inspect the page, open a tunnel
+with `ssh -N -L 9222:127.0.0.1:9222 admin@the-max-mix.local`, then `chrome://inspect` in Chrome on your computer lists
+the kiosk's page under Remote Target (add `localhost:9222` under Configure if it does not).
+
+## Spotify Soloist
+
+Each Pi also runs [Spotify Soloist](https://developer.spotify.com/documentation/soloist), Spotify's headless Spotify
+Connect player, under the kiosk's own name, beside the app's own player for now. Its sound follows the speakers picked in
+the app, like the app's own player (kiosk-audio routes its `soloist` stream). `kiosk-soloist-update.timer` installs the
+latest build to `/usr/local/bin/soloist` five minutes after boot and then weekly, because a build stops working 90 days
+after it was built; a new build takes over at the next kiosk start. Spotify does not allow passing the program on, so
+every Pi downloads its own and it is never in the release bundle or the flash image.
+
+Every person on the kiosk needs their own API key, made at
+[developer.spotify.com/dashboard/soloist](https://developer.spotify.com/dashboard/soloist) with their own Spotify Premium
+account, and saved on the countdown-server settings site, which keeps it by their Spotify ID. The Pi installs from a
+public release, so no key ever comes with it, and countdown-server hands a key only to kiosk-audio, never to a web page.
+The app tells kiosk-audio who is active (`POST /soloist/person`, with the device secret); kiosk-audio fetches that
+person's key, holds it in memory only and runs Soloist with it and the person's own data folder,
+`~kiosk/.local/state/soloist/people/<Spotify ID>` (`pi/kiosk-audio/soloist.ts`). Switching person restarts it with the
+other key and folder. A person without a key gets no Soloist.
+
+Every kiosk on one Spotify account needs a name of its own, because the app finds its Soloist in Spotify's device list
+by name. It is `kiosk_name` in `/etc/the-max-mix/kiosk-vars.yml` (such as `kiosk_name: Kitchen`) or, without one, comes
+from the host name: `the-max-mix-4` is **The Max Mix 4**, and any other host name goes in brackets, as in
+**The Max Mix (kitchen-pi)**. The app shows whatever name Soloist reports.
+
+The first time, the person picks the kiosk's name in the Spotify app on a phone on the same network; it signs in
+and keeps that session in their folder. Its WebSocket control API listens on `127.0.0.1:7342` only. Check it with
+`sudo journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service | grep Soloist`, `journalctl -u kiosk-soloist-update` and
+`sudo -u kiosk env STATE_DIRECTORY=/home/kiosk/.local/state/soloist/people/<Spotify ID> soloist ctl now`.
 
 ## Troubleshooting
 
@@ -167,8 +196,6 @@ on disk (up to `kiosk_journal_max_use`, 64 MB), so logs from before a reboot are
 The `bootfs` partition holds `config.txt` and `cmdline.txt` (remove `quiet` and change `console=tty3` back to
 `tty1` to see boot messages).
 
-- **The player says "Failed to initialize player":** Widevine is missing or not loaded yet. Check that
-  `/home/kiosk/.config/chromium/WidevineCdm/` has a version folder, then `sudo systemctl restart kiosk`.
 - **Black screen, no panel or app:** check that `kiosk.service` started on tty7.
 - **The screen goes dark while music plays, or never goes dark:** the debug console's Screen row shows whether the app
   holds its wake lock, and `journalctl -u kiosk` shows `wlr-randr` errors from `kiosk-display`. Set
@@ -180,13 +207,13 @@ The `bootfs` partition holds `config.txt` and `cmdline.txt` (remove `quiet` and 
 ## Still to verify
 
 Checked on the first real Pi, with the setup then in a hand-copied `user-data`: the first boot with `network-config` on
-the card, the first pull and reboot, SSH, and Widevine after a restart. Still to check:
+the card, the first pull and reboot, and SSH. Still to check:
 
 1. The ready-made image: Imager offers it from its list, its settings apply (host name, `admin`, Wi-Fi), the first-boot
    script runs once and the Pi reboots when it has finished.
-2. `kiosk-widevine.path` restarts the kiosk by itself after the first Widevine download.
-3. After the first pull, the boot partition has no `network-config` or `user-data`, and the Pi still joins your Wi-Fi
+2. After the first pull, the boot partition has no `network-config` or `user-data`, and the Pi still joins your Wi-Fi
    after a reboot.
-4. On a Pi 5, Widevine plays with the 4 KB-page kernel (`getconf PAGESIZE` prints 4096).
-5. Screen sleep: the Waveshare turns its backlight off when `kiosk-display off` disables the output, Chromium's wake
+3. Screen sleep: the Waveshare turns its backlight off when `kiosk-display off` disables the output, Chromium's wake
    lock keeps it on while music plays, and the first touch brings it back at 1024x600.
+4. Spotify Soloist: once a person has saved their key, the player starts for them, shows in the Spotify app, signs in when picked,
+   plays, and is still paired after a reboot; a new build from `kiosk-soloist-update` takes over at the next kiosk start.

@@ -22,6 +22,7 @@ export const STRINGS = {
   // Words every page uses.
   'common.change': { en: 'Change', nb: 'Endre' },
   'common.cancel': { en: 'Cancel', nb: 'Avbryt' },
+  'common.back': { en: 'Back', nb: 'Tilbake' },
   'common.save': { en: 'Save', nb: 'Lagre' },
   'common.on': { en: 'On', nb: 'På' },
   'common.off': { en: 'Off', nb: 'Av' },
@@ -261,10 +262,6 @@ export const STRINGS = {
   'spotify.connected': { en: 'Connected', nb: 'Tilkoblet' },
   'spotify.expired': { en: 'Expired', nb: 'Utløpt' },
   'spotify.refused': { en: 'Not allowed', nb: 'Ikke tillatt' },
-  'spotify.redirect': {
-    en: 'Register this exact redirect address in your Spotify app settings:',
-    nb: 'Registrer akkurat denne omdirigeringsadressen i innstillingene for Spotify-appen din:'
-  },
   'spotify.people': { en: 'People', nb: 'Personer' },
   'spotify.account': { en: 'Spotify account', nb: 'Spotify-konto' },
   'spotify.active': { en: 'Active', nb: 'Aktiv' },
@@ -274,6 +271,13 @@ export const STRINGS = {
   'spotify.add_person': { en: 'Add person', nb: 'Legg til person' },
   'spotify.add': { en: 'Add', nb: 'Legg til' },
   'spotify.log_in': { en: 'Log in with Spotify', nb: 'Logg inn med Spotify' },
+  'spotify.sign_in_title': { en: 'Sign in to Spotify', nb: 'Logg inn på Spotify' },
+  'spotify.sign_in_unavailable': {
+    en: 'Add this screen to Countdown to sign in.',
+    nb: 'Legg til denne skjermen i Countdown for å logge inn.'
+  },
+  'soloist.add_key': { en: 'Add Soloist key', nb: 'Legg til Soloist-nøkkel' },
+  'soloist.key_of': { en: '{name}’s Soloist key', nb: 'Soloist-nøkkelen til {name}' },
 
   // Settings › Lyrics.
   'lyrics.sample_1': { en: 'Under the kitchen light', nb: 'Under lyset på kjøkkenet' },
@@ -432,6 +436,7 @@ export const STRINGS = {
   'speakers.volumes': { en: 'Volumes', nb: 'Volum' },
   'speakers.looking': { en: 'Looking for speakers…', nb: 'Ser etter høyttalere …' },
   'speakers.find': { en: 'Find speakers', nb: 'Finn høyttalere' },
+  'speakers.refresh': { en: 'Refresh speakers', nb: 'Oppdater høyttalerne' },
 
   // The music picker.
   'music.close': { en: 'Close music', nb: 'Lukk musikkvelgeren' },
@@ -460,17 +465,23 @@ export const STRINGS = {
   'notice.sign_in_title': { en: 'Spotify sign-in needed', nb: 'Spotify-innlogging trengs' },
   'notice.reconnect_spotify': { en: 'Reconnect Spotify', nb: 'Koble til Spotify igjen' },
   'notice.settings_title': { en: 'Check Spotify settings', nb: 'Sjekk Spotify-innstillingene' },
+  'notice.soloist_key_title': { en: 'Soloist key needed', nb: 'Soloist-nøkkel trengs' },
+  'notice.pick_on_phone_title': {
+    en: 'Pick {device} in Spotify on your phone',
+    nb: 'Velg {device} i Spotify på telefonen'
+  },
+  'notice.pick_kiosk_on_phone_title': {
+    en: 'Pick this kiosk in Spotify on your phone',
+    nb: 'Velg denne kiosken i Spotify på telefonen'
+  },
   'notice.player_title': { en: 'Tablet player disconnected', nb: 'Nettbrettspilleren er frakoblet' },
   'notice.reconnect_player': { en: 'Reconnect player', nb: 'Koble til spilleren igjen' },
   'notice.refresh': { en: 'Refresh playback', nb: 'Oppdater avspillingen' },
-  'notice.audio_title': { en: 'Audio blocked', nb: 'Lyden er blokkert' },
-  'notice.allow_audio': { en: 'Allow browser audio', nb: 'Tillat lyd i nettleseren' },
   'notice.checking': { en: 'Checking...', nb: 'Sjekker …' },
 
   // Signing in to Spotify, and no internet.
   'setup.title': { en: 'Bring your music to the tablet', nb: 'Ta med musikken din til nettbrettet' },
   'setup.offline': { en: 'Reconnect to the network to sign in.', nb: 'Koble til nettverket igjen for å logge inn.' },
-  'setup.connecting': { en: 'Connecting...', nb: 'Kobler til …' },
   'setup.connect': { en: 'Connect Spotify', nb: 'Koble til Spotify' },
   'offline.title': { en: 'No internet connection', nb: 'Ingen internettilkobling' },
   'offline.wifi': { en: 'Wi-Fi settings', nb: 'Wi-Fi-innstillinger' },

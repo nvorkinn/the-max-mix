@@ -20,6 +20,7 @@ import type { AudioGraph } from './speakers.ts';
 
 class FakePipeWire implements AudioGraph {
   applied: Plan[] = [];
+  volumes: [number, number][] = [];
 
   graph() {
     return Promise.resolve(parseDump(dump()));
@@ -28,6 +29,11 @@ class FakePipeWire implements AudioGraph {
   apply(plan: Plan) {
     this.applied.push(plan);
     return Promise.resolve(true);
+  }
+
+  setVolume(node: number, volume: number) {
+    this.volumes.push([node, volume]);
+    return Promise.resolve();
   }
 }
 
@@ -148,8 +154,16 @@ describe('route', () => {
       [72, 52]
     ]);
     expect(fake.applied).toEqual([plan]);
-    await route(fake, []); // Chromium already plays to the default output
+    await route(fake, []); // Soloist already plays to the default output
     expect(fake.applied).toHaveLength(1);
+  });
+
+  it('turns a loud speaker down before the music starts going to it', async () => {
+    silence('info');
+    const fake = new FakePipeWire();
+    // Kitchen is at 40%.
+    await route(fake, [{ name: 'Kitchen' }]);
+    expect(fake.volumes).toEqual([[50, 0.25]]);
   });
 });
 

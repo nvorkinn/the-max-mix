@@ -1,4 +1,4 @@
-/** Shared types for the Spotify data the app reads and the Web Playback SDK parts it uses. */
+/** Shared types for the Spotify data the app reads. */
 
 /** A track in Spotify playback or the queue. */
 export interface Track {
@@ -64,42 +64,6 @@ export interface PlaybackState {
       toggling_repeat_track?: boolean;
     };
   };
-}
-
-/**
- * What the Web Playback SDK reports on `player_state_changed` (null when this player is no longer the active device).
- */
-export type SdkPlaybackState = {
-  paused: boolean;
-  position: number;
-  duration?: number;
-  shuffle?: boolean;
-  /** 0 off, 1 the album or playlist, 2 the track. */
-  repeat_mode?: number;
-  track_window?: { current_track?: Track; next_tracks?: { id?: string | null; uri?: string }[] };
-} | null;
-
-/** The part of the Spotify Web Playback SDK player that the app uses. */
-export interface SpotifyPlayer {
-  addListener: (event: string, listener: (payload: never) => void) => unknown;
-  connect: () => Promise<boolean>;
-  disconnect: () => unknown;
-  togglePlay: () => Promise<void>;
-  nextTrack: () => Promise<void>;
-  previousTrack: () => Promise<void>;
-  seek: (positionMs: number) => Promise<void>;
-  setVolume: (volume: number) => Promise<void>;
-  activateElement: () => Promise<void>;
-  getCurrentState: () => Promise<SdkPlaybackState>;
-}
-
-/** The `Spotify` namespace that the Web Playback SDK script puts on `window`. */
-export interface SpotifySdk {
-  Player: new (options: {
-    name: string;
-    getOAuthToken: (callback: (token: string) => void) => void;
-    volume?: number;
-  }) => SpotifyPlayer;
 }
 
 /** Playback controls used by AlbumArtPlayer. */

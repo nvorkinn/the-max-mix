@@ -9,26 +9,39 @@ import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touch
 import { DEFAULT_LYRICS_STYLE, getLyricsStyle, setLyricsStyle } from '../utils/lyricsStyle';
 import * as deviceAccount from '../countdown/account';
 import * as deviceServer from '../countdown/config';
+import * as soloistKeys from '../countdown/soloistKeys';
 import { PARCEL_LINK_POLL_MS } from '../hooks/useParcelLink';
+import { SOLOIST_KEY_POLL_MS } from '../hooks/useSoloistKey';
 import SettingsPanelFull from './SettingsPanel';
 
 // eslint-disable-next-line sonarjs/no-hardcoded-ip -- a made-up address of the Pi on a home network
 const PI_ADDRESS = '192.168.1.42';
 
 const auth = vi.hoisted(() => ({
-  startSignIn: vi.fn(),
   checkPerson: vi.fn(),
-  startAddPerson: vi.fn(),
   removePerson: vi.fn(),
   peopleOnKiosk: vi.fn(),
-  isPersonRefused: vi.fn()
+  getActivePersonId: vi.fn()
 }));
 const settings = vi.hoisted(() => ({
-  reloadSettings: vi.fn(),
-  getRedirectUri: vi.fn()
+  reloadSettings: vi.fn()
 }));
 vi.mock('../spotify/auth', () => ({ ...auth, PEOPLE_LIMIT: 5 }));
 vi.mock('../spotify/settings', () => settings);
+// The QR code's dialog has tests of its own; here it shows whom it signs in ('' for someone new), and signs them in.
+vi.mock('./SpotifySignInDialog', () => ({
+  default: ({ as, onSignedIn, onClose }: { as?: string; onSignedIn: () => void; onClose: () => void }) => (
+    <div role="dialog" aria-label="Sign in to Spotify" data-as={as}>
+      <button type="button" onClick={onSignedIn}>
+        Signed in
+      </button>
+      <button type="button" onClick={onClose}>
+        Back
+      </button>
+    </div>
+  )
+}));
+const signInDialog = () => screen.getByRole('dialog', { name: 'Sign in to Spotify' });
 const SettingsPanel = partialProps(SettingsPanelFull);
 
 describe('SettingsPanel', () => {
@@ -36,9 +49,6 @@ describe('SettingsPanel', () => {
 
   beforeEach(() => {
     for (const mock of [...Object.values(auth), ...Object.values(settings), base.onReload]) mock.mockReset();
-    settings.getRedirectUri.mockReturnValue('http://127.0.0.1:3000/');
-    auth.startSignIn.mockResolvedValue(undefined);
-    auth.startAddPerson.mockResolvedValue(undefined);
     auth.peopleOnKiosk.mockReturnValue([]);
     // Spotify does not answer unless a test says so.
     auth.checkPerson.mockReturnValue(new Promise<never>(() => {}));
@@ -117,31 +127,29 @@ describe('SettingsPanel', () => {
     expect(document.body).not.toHaveTextContent(/server environment|restart/i);
   });
 
-  it('starts the Spotify sign-in from the login button', async () => {
+  it('opens the QR code to sign in on a phone from the login button, and reloads once someone has', async () => {
     render(<SettingsPanel {...base} initialSection="spotify" />);
     await userEvent.click(screen.getByRole('button', { name: 'Log in with Spotify' }));
-    expect(auth.startSignIn).toHaveBeenCalledTimes(1);
+    expect(signInDialog()).toHaveAttribute('data-as', '');
+    await userEvent.click(screen.getByRole('button', { name: 'Signed in' }));
+    expect(base.onReload).toHaveBeenCalledOnce();
   });
 
-  it('shows why the sign-in could not start', async () => {
-    auth.startSignIn.mockRejectedValue(new Error('Add a Spotify client ID first.'));
+  it('closes the QR code on Back', async () => {
     render(<SettingsPanel {...base} initialSection="spotify" />);
     await userEvent.click(screen.getByRole('button', { name: 'Log in with Spotify' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Add a Spotify client ID first.');
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.queryByRole('dialog', { name: 'Sign in to Spotify' })).not.toBeInTheDocument();
   });
 
-  it('shows a sign-in failure and the redirect address to register', () => {
-    render(<SettingsPanel {...base} signInError="Invalid redirect URI" initialSection="spotify" />);
-    expect(screen.getByRole('alert')).toHaveTextContent('Invalid redirect URI');
-    expect(screen.getByText('http://127.0.0.1:3000/')).toBeInTheDocument();
+  it('shows why the login stopped working', () => {
+    render(<SettingsPanel {...base} signInError="Spotify login expired" initialSection="spotify" />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Spotify login expired');
   });
 
-  it('has no client ID field, and shows the redirect address only after a sign-in error', () => {
-    const { rerender } = render(<SettingsPanel {...base} initialSection="spotify" />);
+  it('has no client ID field', () => {
+    render(<SettingsPanel {...base} initialSection="spotify" />);
     expect(screen.queryByLabelText('Spotify client ID')).not.toBeInTheDocument();
-    expect(screen.queryByText('http://127.0.0.1:3000/')).not.toBeInTheDocument();
-    rerender(<SettingsPanel {...base} signInError="Invalid redirect URI" initialSection="spotify" />);
-    expect(screen.getByText('http://127.0.0.1:3000/')).toBeInTheDocument();
   });
 
   describe('Wi-Fi setting', () => {
@@ -511,20 +519,25 @@ describe('SettingsPanel', () => {
       await userEvent.click(
         within(screen.getByRole('group', { name: 'Friend' })).getByRole('button', { name: 'Sign in' })
       );
-      await waitFor(() => expect(auth.startSignIn).toHaveBeenCalledWith('Friend'));
+      expect(signInDialog()).toHaveAttribute('data-as', 'Friend');
     });
 
     it('removes a person on the second tap, and reloads only when the active person changes', async () => {
       auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true), person('Friend')]);
       auth.removePerson.mockReturnValue('kept');
+      const forgetKey = vi.spyOn(soloistKeys, 'forgetSoloistKey').mockReturnValue();
       render(<SettingsPanel {...base} initialSection="spotify" />);
       await userEvent.click(face('Friend'));
       const friend = screen.getByRole('group', { name: 'Friend' });
       await userEvent.click(within(friend).getByRole('button', { name: 'Remove' }));
       expect(auth.removePerson).not.toHaveBeenCalled();
+      expect(forgetKey).not.toHaveBeenCalled();
       auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true)]);
       await userEvent.click(within(friend).getByRole('button', { name: 'Tap again to remove' }));
       expect(auth.removePerson).toHaveBeenCalledWith('Friend');
+      // Their Soloist key goes from the server with them.
+      expect(forgetKey).toHaveBeenCalledExactlyOnceWith('Friend');
+      forgetKey.mockRestore();
       expect(faces().map(row => row.textContent)).toEqual(['Nikolai', 'Add']);
       expect(screen.getByRole('group', { name: 'Nikolai' })).toBeInTheDocument();
       expect(base.onReload).not.toHaveBeenCalled();
@@ -545,18 +558,75 @@ describe('SettingsPanel', () => {
       auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true)]);
       const { unmount } = render(<SettingsPanel {...base} initialSection="spotify" />);
       await userEvent.click(screen.getByRole('button', { name: 'Add person' }));
-      await waitFor(() => expect(auth.startAddPerson).toHaveBeenCalledTimes(1));
+      expect(signInDialog()).toHaveAttribute('data-as', '');
       unmount();
       auth.peopleOnKiosk.mockReturnValue(['a', 'b', 'c', 'd', 'e'].map(id => person(id, id === 'a')));
       render(<SettingsPanel {...base} initialSection="spotify" />);
       expect(screen.getByRole('button', { name: 'Add person' })).toBeDisabled();
     });
 
-    it('shows why a person was refused without the redirect address', () => {
-      auth.isPersonRefused.mockReturnValue(true);
-      render(<SettingsPanel {...base} signInError="Spotify refused this account." initialSection="spotify" />);
-      expect(screen.getByRole('alert')).toHaveTextContent('Spotify refused this account.');
-      expect(screen.queryByText(/redirect address/)).not.toBeInTheDocument();
+    describe('Soloist keys', () => {
+      beforeEach(() => {
+        vi.spyOn(deviceServer, 'serverClient').mockReturnValue({
+          baseUrl: 'https://countdown.build',
+          secret: 'a-secret'
+        });
+        vi.stubEnv('VITE_COUNTDOWN_SERVER', 'https://app.countdown.build');
+        vi.spyOn(soloistKeys, 'newSoloistKeyCode').mockResolvedValue({
+          pageUrl: 'https://app.countdown.build/soloist?code=a-code',
+          expiresAt: Date.now() + 600_000
+        });
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+        vi.unstubAllEnvs();
+        vi.restoreAllMocks();
+      });
+
+      it('closes the code with Back', async () => {
+        auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true)]);
+        vi.spyOn(soloistKeys, 'soloistKeyPeople').mockResolvedValue([]);
+        render(<SettingsPanel {...base} initialSection="spotify" />);
+        await userEvent.click(await screen.findByRole('button', { name: 'Add Soloist key' }));
+        const dialog = screen.getByRole('dialog', { name: 'Nikolai’s Soloist key' });
+        await userEvent.click(within(dialog).getByRole('button', { name: 'Back' }));
+        expect(screen.queryByRole('dialog', { name: 'Nikolai’s Soloist key' })).not.toBeInTheDocument();
+      });
+
+      it("shows the code for a person's Soloist key while they have none, and neither once it is saved", async () => {
+        auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true), person('Friend')]);
+        const list = vi.spyOn(soloistKeys, 'soloistKeyPeople').mockResolvedValue(['Friend']);
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        render(<SettingsPanel {...base} initialSection="spotify" />);
+        await userEvent.click(await screen.findByRole('button', { name: 'Add Soloist key' }));
+        const dialog = within(screen.getByRole('dialog', { name: 'Nikolai’s Soloist key' }));
+        expect(await dialog.findByRole('img', { name: 'Nikolai’s Soloist key' })).toBeInTheDocument();
+
+        // Someone with a key has nothing to add.
+        await userEvent.click(face('Friend'));
+        await waitFor(() => expect(list).toHaveBeenCalledTimes(3));
+        expect(screen.queryByRole('button', { name: 'Add Soloist key' })).not.toBeInTheDocument();
+
+        // Nikolai pastes theirs on the phone: the code and the button go.
+        await userEvent.click(face('Nikolai'));
+        await userEvent.click(await screen.findByRole('button', { name: 'Add Soloist key' }));
+        expect(await screen.findByRole('img', { name: 'Nikolai’s Soloist key' })).toBeInTheDocument();
+        list.mockResolvedValue(['Friend', 'Nikolai']);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(SOLOIST_KEY_POLL_MS);
+        });
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Add Soloist key' })).not.toBeInTheDocument();
+      });
+
+      it('offers no Soloist key while nobody owns the kiosk', async () => {
+        auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true)]);
+        const list = vi.spyOn(soloistKeys, 'soloistKeyPeople').mockResolvedValue('unpaired');
+        render(<SettingsPanel {...base} initialSection="spotify" />);
+        await waitFor(() => expect(list).toHaveBeenCalledOnce());
+        expect(screen.getByRole('group', { name: 'Nikolai' })).toHaveTextContent('NikolaiConnectedRemove');
+      });
     });
   });
 

@@ -15,6 +15,10 @@ Environment=KIOSK_APP_DIR={{ kiosk_app_dir }}/current
 # library opens it the first time the app listens. It takes events only for the subscriptions it holds (anything else
 # gets 412) and otherwise answers just its /status and /health pages.
 Environment=SONOS_LISTENER_PORT={{ kiosk_sonos_events_port }}
+{% if kiosk_name | trim %}
+# The kiosk's own name (kiosk_name), which Soloist goes by in Spotify Connect; without it, the host name decides (soloist.ts).
+Environment="KIOSK_NAME={{ kiosk_name | trim | replace('\\', '') | replace('"', '') | replace('%', '%%') }}"
+{% endif %}
 # How far the screen is turned and how much bigger it is drawn (KIOSK_SCREEN_ROTATION, KIOSK_SCREEN_SCALE), which
 # screen-setup.ts writes as kiosk.service starts, before it restarts this service: for the size GET /screen answers
 # (screen.ts), and for kiosk-display when this service wakes the screen.
@@ -27,7 +31,9 @@ LockPersonality=yes
 # PipeWire's socket, the app's requests on 127.0.0.1 (server.ts), the Sonos events port above, and the sonos-ts library (sonos.ts),
 # which finds the Sonos speakers on the home network, talks to them and takes their events, and reads the network
 # interfaces over netlink. So there is no IP address allow list: the speakers are wherever the home network puts them.
-RestrictAddressFamilies=AF_UNIX AF_INET AF_NETLINK
+# Spotify Soloist, which this service runs (soloist.ts) and which inherits these limits, also reaches Spotify and
+# announces itself to phones over IPv6.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 
 [Install]
 WantedBy=default.target
