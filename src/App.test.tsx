@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import App from './App';
 
 vi.mock('./components/TabletView', () => ({
-  default: ({ signInError }: { signInError?: string }) => <div>tablet-view {signInError}</div>
+  default: () => <div>tablet-view</div>
 }));
 vi.mock('./components/PairingScreen', () => ({
   default: ({ screen: pi }: { screen: { width: number; height: number } }) => (
@@ -18,11 +18,6 @@ describe('App', () => {
     render(<App />);
     expect(screen.getByText('tablet-view')).toBeInTheDocument();
     expect(screen.queryByText(/pairing/)).not.toBeInTheDocument();
-  });
-
-  it('passes a failed sign-in on to the tablet view', () => {
-    render(<App signInError="Spotify said no" />);
-    expect(screen.getByText('tablet-view Spotify said no')).toBeInTheDocument();
   });
 
   it('covers the tablet view with the pairing QR code while the kiosk has no owner', () => {

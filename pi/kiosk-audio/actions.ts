@@ -1,13 +1,11 @@
 // What the app's kiosk buttons can ask of the Pi, and nothing else: each action is a fixed command (no argument comes
-// from the request), or clearing the other sites' sign-ins from Chromium (browser-data.ts). The service runs as the kiosk
-// user, so polkit (50-kiosk-power.rules) still decides what it may do.
+// from the request). The service runs as the kiosk user, so polkit (50-kiosk-power.rules) still decides what it may do.
 import { execFile } from 'node:child_process';
-import { forgetSignIns } from './browser-data.ts';
 
-export type Action = 'restart' | 'reboot' | 'wake' | 'forget-sign-ins';
+export type Action = 'restart' | 'reboot' | 'wake';
 
 const SYSTEMCTL = '/usr/bin/systemctl';
-const COMMANDS: Record<Exclude<Action, 'forget-sign-ins'>, string[]> = {
+const COMMANDS: Record<Action, string[]> = {
   restart: [SYSTEMCTL, 'restart', '--no-block', 'kiosk.service'],
   reboot: [SYSTEMCTL, 'reboot'],
   // Turns the screen back on; it needs Cage's Wayland socket.
@@ -32,9 +30,6 @@ const execute: Execute = ([file = '', ...args]) =>
     });
   });
 
-export async function perform(
-  action: Action,
-  { run = execute, forget = forgetSignIns }: { run?: Execute; forget?: () => Promise<void> } = {}
-): Promise<void> {
-  await (action === 'forget-sign-ins' ? forget() : run(COMMANDS[action]));
+export async function perform(action: Action, { run = execute }: { run?: Execute } = {}): Promise<void> {
+  await run(COMMANDS[action]);
 }

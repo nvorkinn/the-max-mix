@@ -2,23 +2,19 @@ import { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, Plus, Trash2, UserRound, XCircle } from 'lucide-react';
 import {
   checkPerson,
-  isPersonRefused,
   PEOPLE_LIMIT,
   peopleOnKiosk,
   type PersonOnKiosk,
   type PersonStatus,
-  removePerson,
-  startAddPerson,
-  startSignIn
+  removePerson
 } from '../../spotify/auth';
-import { getRedirectUri } from '../../spotify/settings';
 import { forgetSoloistKey } from '../../countdown/soloistKeys';
-import { errorMessage } from '../../utils/errorMessage';
-import { forgetSignIns, isKiosk } from '../../utils/kiosk';
+import { isKiosk } from '../../utils/kiosk';
 import ConfirmButton from '../ConfirmButton';
 import PhonePicker from '../PhonePicker';
 import { forgetUnlinkedPhone } from '../../utils/phoneLinks';
 import SpotifyIcon from '../SpotifyIcon';
+import SpotifySignInDialog from '../SpotifySignInDialog';
 import { useT } from '../../i18n/translate';
 import type { StringId } from '../../i18n/strings';
 import type { LyricsStyle } from '../../utils/lyricsStyle';
@@ -64,15 +60,11 @@ export default function SpotifySettings({
   onLyricsChange?: ((style: LyricsStyle) => void) | undefined;
 }>) {
   const t = useT();
-  const [actionError, setActionError] = useState<string | null>(null);
+  // Who is signing in on a phone: '' for someone new, a person's Spotify ID to sign them in again, null for nobody.
+  const [signingInAs, setSigningInAs] = useState<string | null>(null);
   const [people, setPeople] = useState(peopleOnKiosk);
   const [statuses, setStatuses] = useState<Record<string, PersonStatus>>({});
   const [chosenId, setChosenId] = useState<string | undefined>();
-  const error = actionError || signInError;
-  const leave = (start: () => Promise<void>) => {
-    setActionError(null);
-    start().catch((caught: unknown) => setActionError(errorMessage(caught)));
-  };
 
   useEffect(() => {
     let current = true;
@@ -99,15 +91,9 @@ export default function SpotifySettings({
 
   return (
     <div className="settings-stack">
-      {error && (
+      {signInError && (
         <p role="alert" className="settings-error status-danger">
-          {error}
-        </p>
-      )}
-
-      {signInError && !isPersonRefused(signInError) && (
-        <p className="text-muted break-words">
-          {t('spotify.redirect')} <code className="text-accent break-all">{getRedirectUri()}</code>
+          {signInError}
         </p>
       )}
 
@@ -141,7 +127,7 @@ export default function SpotifySettings({
               <button
                 type="button"
                 disabled={people.length >= PEOPLE_LIMIT}
-                onClick={() => leave(() => forgetSignIns().then(startAddPerson))}
+                onClick={() => setSigningInAs('')}
                 className="person-face"
                 aria-label={t('spotify.add_person')}
               >
@@ -158,7 +144,7 @@ export default function SpotifySettings({
             key={chosen.spotifyId}
             person={chosen}
             status={statusOf(chosen)}
-            onSignIn={() => leave(() => forgetSignIns().then(() => startSignIn(chosen.spotifyId)))}
+            onSignIn={() => setSigningInAs(chosen.spotifyId)}
             onPhoneChange={() => setPeople(peopleOnKiosk())}
             onRemove={() => {
               const outcome = removePerson(chosen.spotifyId);
@@ -166,20 +152,23 @@ export default function SpotifySettings({
               forgetSoloistKey(chosen.spotifyId);
               setChosenId(undefined);
               if (outcome === 'kept') setPeople(peopleOnKiosk());
-              else if (outcome === 'switched') onReload();
-              else void forgetSignIns().then(() => onReload());
+              else onReload();
             }}
           />
         </SettingsSection>
       ) : (
         <button
           type="button"
-          onClick={() => leave(() => startSignIn())}
+          onClick={() => setSigningInAs('')}
           className="spotify-sign-in settings-wide-button font-extrabold rounded-xl flex items-center justify-center gap-2 active:scale-98 transition-all"
         >
           <SpotifyIcon className="w-5 h-5" />
           {t('spotify.log_in')}
         </button>
+      )}
+
+      {signingInAs !== null && (
+        <SpotifySignInDialog as={signingInAs} onSignedIn={onReload} onClose={() => setSigningInAs(null)} />
       )}
 
       <LyricsSettings onChange={onLyricsChange} />

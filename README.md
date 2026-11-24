@@ -146,8 +146,6 @@ Set it up once:
    `Cache-Control` for `/assets/` and the response headers listed in [SECURITY.md](SECURITY.md). None of this is in
    the repository.
 3. Push a tag to release: `git tag v1.2.3 && git push origin v1.2.3`.
-4. Register the redirect URI of any address you sign in from in the Spotify dashboard (see
-   [Spotify configuration](#spotify-configuration)).
 
 The Raspberry Pi kiosk opens the deployed app (see [Raspberry Pi kiosk](#raspberry-pi-kiosk)), so
 a release is also how a change reaches the kiosk.
@@ -162,12 +160,10 @@ npm run dev
 ```
 
 Open **<http://127.0.0.1:5173/>**; the dev server uses exactly that address and port (it stops rather than choosing another port).
-Register `http://127.0.0.1:5173/` as a redirect URI in the Spotify dashboard to sign in during development.
 
 To try the production build (the same files the Pi serves), run
 `npm run build && npm start` and open
-**<http://127.0.0.1:4173/>** (`vite preview`). Register that address too if you want to sign in there. `npm test` runs the
-app and kiosk service tests.
+**<http://127.0.0.1:4173/>** (`vite preview`). `npm test` runs the app and kiosk service tests.
 
 ### Checks and Git hooks
 
@@ -184,29 +180,28 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 ## Spotify configuration
 
 1. Create an app in the [Spotify developer dashboard](https://developer.spotify.com/dashboard).
-2. Register the redirect URI **exactly**, including the trailing slash:
-   - `http://127.0.0.1:7341/` for the Raspberry Pi kiosk, which serves the app the release installed (its `kiosk_url`);
-   - `https://the-max-mix.countdown.build/` for signing in on the deployed site;
-   - `http://127.0.0.1:5173/` for local development, and `http://127.0.0.1:4173/` for `npm start`.
+2. Register countdown-server's callback as the redirect URI, **exactly**:
+   `https://app.countdown.build/spotify/sign-in/callback` and `https://app.countdown.run/spotify/sign-in/callback`.
 3. The client ID is a constant in `src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
    it there.
-4. Choose **Connect Spotify** in the browser that will play (on the kiosk, the Pi's Chromium).
+4. Choose **Connect Spotify** on the kiosk and scan the code with your phone. Spotify's sign-in opens on the phone; the
+   kiosk signs in once the phone is back. The kiosk must be added to countdown-server first.
 5. Tap the device indicator at the bottom left to open the speakers drawer, then select This tablet, an AirPlay speaker (kiosk only, several at once) or a Spotify Connect device. Press
    Play when ready. For a Connect device, first open Spotify on it so it is discoverable.
 
-There is no backend and no client secret. Sign-in uses the Authorization Code flow with PKCE, which Spotify provides
-for apps that cannot keep a secret: the browser creates a one-time code verifier for each sign-in, sends only its
-SHA-256 hash to Spotify, and proves it holds the verifier when exchanging the code. The client ID is public by design,
-so building it into the site is fine.
+There is no client secret. Sign-in uses the Authorization Code flow with PKCE, which Spotify provides for apps that
+cannot keep a secret: the kiosk creates a one-time code verifier for each sign-in and keeps it, and countdown-server
+(`src/countdown/spotifySignIn.ts`) passes only its SHA-256 hash to the phone, which takes it to Spotify. Spotify sends
+the phone back to countdown-server, which hands Spotify's code to the kiosk; the kiosk proves it holds the verifier
+when it exchanges the code. countdown-server never sees the verifier or a token. The client ID is public by design, so
+building it into the site is fine.
 
 The refresh token is kept in the browser's `localStorage`, and the page calls the Spotify Web API directly. The
 trade-offs:
 
 - Clearing the site data signs you out; sign in again.
-- **Sign out** in Settings drops the stored login, the cached access token and any sign-in left half done. Spotify itself
-  may still remember the person in the browser, so the next sign-in asks Spotify to show its approval page again
-  (`show_dialog=true`, until a sign-in goes through) rather than letting it sign the same account straight back in; the
-  app cannot sign the person out of Spotify's own website.
+- Removing the last person in Settings drops the stored login and the cached access token. Spotify's own sign-in is on
+  the phone, so the kiosk's browser never holds it.
 - There is one login per browser profile.
 - Anyone with access to the kiosk's browser profile has the Spotify login. See [SECURITY.md](SECURITY.md).
 
@@ -215,10 +210,6 @@ A login saved for a different client ID is ignored. Access tokens are short-live
 Choose remote mode if the Pi should only control another player or if its
 browser cannot stream Spotify audio. Remote mode follows the active device's real
 playback state and controls, not the browser player's local state.
-
-Spotify does not accept `localhost` redirect URIs. HTTP is allowed only with a
-literal loopback address such as `127.0.0.1`; other redirect addresses require HTTPS. Sign in from the same address you
-registered: an address that is not registered cannot sign in.
 
 ## Sonos
 

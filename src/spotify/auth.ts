@@ -1,27 +1,25 @@
-// Spotify sign-in with PKCE, entirely in the browser (RFC 7636): a random code verifier stays in sessionStorage while
-// Spotify's page is open, and only its SHA-256 hash is sent. The long-lived refresh tokens are kept in localStorage: one
-// per person who signed in on this kiosk, with their Spotify ID, name and picture, and which of them is active.
+// Spotify sign-in with PKCE (RFC 7636), on a phone: the kiosk keeps a random code verifier in memory and hands only its
+// SHA-256 hash to countdown-server, which sends the phone that scanned the kiosk's code to Spotify and hands Spotify's
+// code back (countdown/spotifySignIn.ts). The kiosk then exchanges the code itself, with its verifier. The long-lived
+// refresh tokens are kept in localStorage: one per person who signed in on this kiosk, with their Spotify ID, name and
+// picture, and which of them is active.
 
-import { getClientId, getRedirectUri, leaveFor } from './settings';
+import { getClientId } from './settings';
 import { fetchSpotify, parseJson, readJson, SpotifyApiError } from './http';
 import { recordOf } from './parse';
 
 const PEOPLE_KEY = 'maxmix.people';
 // The single login kept before there were people; moved into the people list the first time it is read.
 const LEGACY_AUTH_KEY = 'maxmix.auth';
-const PKCE_KEY = 'maxmix.pkce';
 // Who just signed in without a phone linked, until the app has offered to pair one (takePhoneToPair).
 const PAIR_PHONE_KEY = 'maxmix.pairPhoneFor';
 // Each person's remembered speakers (knownDevices.ts), dropped with the person.
 const KNOWN_SPEAKERS_KEY = 'maxmix.knownSpeakers';
-// Set by signOut, until the next sign-in goes through: the sign-in then asks Spotify to show its approval page again
-// (show_dialog) instead of letting Spotify's own remembered session sign the same account straight back in.
-const FRESH_SIGN_IN_KEY = 'maxmix.freshSignIn';
-const SCOPES =
+/** What the kiosk asks Spotify for when someone signs in. */
+export const SCOPES =
   'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing user-library-read user-read-recently-played playlist-read-private';
 // An access token is renewed this long before it expires, so a request never starts with one about to lapse.
 const EXPIRY_MARGIN_MS = 60_000;
-const REPLY_PARAMETERS = ['code', 'state', 'error', 'error_description'];
 
 interface StoredLogin {
   clientId: string;
@@ -62,7 +60,7 @@ function parseTokenResponse(value: unknown): TokenResponse {
     ...(typeof error === 'string' && { error })
   };
 }
-type SignInResult = { ok: true } | { ok: false; error: string };
+export type SignInResult = { ok: true } | { ok: false; error: string };
 
 /** The people as far as this page knows them; the only copy when storage is unavailable. */
 let memoryPeople: People | null = null;
@@ -70,7 +68,6 @@ let cachedAccess: { token: string; clientId: string; expiresAt: number } | null 
 /** Access tokens for people other than the active one, by Spotify ID (see getAccessTokenFor). */
 const otherAccess = new Map<string, { token: string; expiresAt: number }>();
 let refreshing: Promise<string | null> | null = null;
-let completing: Promise<SignInResult | null> | null = null;
 // Bumped by signOut so that a refresh already under way cannot bring a forgotten login back.
 let generation = 0;
 
@@ -187,27 +184,6 @@ function expirePerson(spotifyId: string): void {
   otherAccess.delete(spotifyId);
 }
 
-/** Whether the next sign-in must show Spotify's approval page (see FRESH_SIGN_IN_KEY). */
-let memoryFreshSignIn = false;
-
-function setFreshSignIn(fresh: boolean): void {
-  memoryFreshSignIn = fresh;
-  try {
-    if (fresh) localStorage.setItem(FRESH_SIGN_IN_KEY, 'true');
-    else localStorage.removeItem(FRESH_SIGN_IN_KEY);
-  } catch {
-    // Storage is unavailable; the choice then lasts only until the page reloads.
-  }
-}
-
-function isFreshSignIn(): boolean {
-  try {
-    return memoryFreshSignIn || localStorage.getItem(FRESH_SIGN_IN_KEY) === 'true';
-  } catch {
-    return memoryFreshSignIn;
-  }
-}
-
 /** The active person's login, unless the people belong to a different client ID than the one in use. */
 function currentLogin(): (StoredLogin & { spotifyId: string }) | null {
   const people = readPeople();
@@ -296,48 +272,10 @@ async function requestTokens(
   };
 }
 
-/**
- * Starts sign-in: stores a PKCE verifier and state, then navigates to Spotify. With `as`, it signs that person in again:
- * Spotify shows its page so the account can be picked, and any other account is refused.
- */
-export async function startSignIn(as?: string): Promise<void> {
-  const clientId = getClientId();
+/** A fresh PKCE verifier, which stays on the kiosk, and its S256 challenge, which goes to the phone. */
+export async function newVerifier(): Promise<{ verifier: string; challenge: string }> {
   const verifier = randomString(64);
-  const state = randomString(32);
-  const challenge = await challengeFor(verifier);
-  try {
-    sessionStorage.setItem(PKCE_KEY, JSON.stringify({ state, verifier, ...(as && { as }) }));
-  } catch {
-    throw new Error('Browser storage is blocked, so Spotify sign-in cannot finish. Allow site data and try again.');
-  }
-  const parameters = new URLSearchParams({
-    response_type: 'code',
-    client_id: clientId,
-    redirect_uri: getRedirectUri(),
-    state,
-    code_challenge_method: 'S256',
-    code_challenge: challenge,
-    scope: SCOPES,
-    // After a sign-out: show Spotify's page again, so the person approves (or picks another account) and nothing signs in silently.
-    ...((isFreshSignIn() || as) && { show_dialog: 'true' })
-  });
-  leaveFor(`https://accounts.spotify.com/authorize?${parameters}`);
-}
-
-function takePkce(): { state: string; verifier: string; as: string } | null {
-  try {
-    const raw = sessionStorage.getItem(PKCE_KEY);
-    // A verifier is good for one exchange: remove it before using it, so a replayed reply cannot reuse it.
-    sessionStorage.removeItem(PKCE_KEY);
-    if (raw === null) return null;
-    const { state, verifier, as } = recordOf(parseJson(raw));
-    if (typeof state === 'string' && typeof verifier === 'string' && verifier) {
-      return { state, verifier, as: textOf(as) };
-    }
-  } catch {
-    // Unavailable or unreadable: treated as missing.
-  }
-  return null;
+  return { verifier, challenge: await challengeFor(verifier) };
 }
 
 const failure = (error: string) => ({ ok: false as const, error });
@@ -349,9 +287,6 @@ const NOT_LISTED =
   "Spotify refused this account. Add it under User Management in the Spotify app's dashboard, then sign in again.";
 const OTHER_ACCOUNT = 'That was a different Spotify account, so nothing changed.';
 
-/** Whether a sign-in failed over who signed in (not over the app's setup, such as its redirect address). */
-export const isPersonRefused = (error: string): boolean => [FULL, NOT_LISTED, OTHER_ACCOUNT].includes(error);
-
 /** Whether adding `spotifyId` with `clientId` would go past PEOPLE_LIMIT (someone already listed can always sign in again). */
 function isFull(clientId: string, spotifyId: string): boolean {
   const people = readPeople();
@@ -362,36 +297,43 @@ function isFull(clientId: string, spotifyId: string): boolean {
   );
 }
 
-async function finishSignIn(query: URLSearchParams): Promise<SignInResult> {
-  const pkce = takePkce();
-  const error = query.get('error');
+/** What a phone sign-in came back with: Spotify's code, or its error, and where Spotify sent the phone. */
+export interface PhoneReply {
+  code?: string | undefined;
+  error?: string | undefined;
+  redirectUri: string;
+}
+
+/**
+ * Finishes a sign-in on a phone: exchanges Spotify's code for tokens with the kiosk's own `verifier` and keeps them as
+ * a person, who becomes active. With `as`, it was signing that person in again: any other account is refused, and
+ * whoever is active stays so.
+ */
+export async function finishSignIn(reply: PhoneReply, verifier: string, as = ''): Promise<SignInResult> {
+  const { code, error, redirectUri } = reply;
   if (error) {
     return failure(error === 'access_denied' ? 'Spotify sign-in was declined.' : `Spotify sign-in failed (${error}).`);
   }
-  if (!pkce?.verifier || pkce.state !== query.get('state')) {
-    return failure('Spotify sign-in expired or has an invalid state. Start again from Settings.');
-  }
-  const code = query.get('code');
   if (!code) return failure('Missing Spotify authorization code.');
   try {
     const clientId = getClientId();
     const tokens = await requestTokens({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: getRedirectUri(),
-      code_verifier: pkce.verifier
+      redirect_uri: redirectUri,
+      code_verifier: verifier
     });
     if (!tokens.refreshToken) return failure('Spotify did not provide a refresh token. Sign in again.');
     const profile = await readProfile(tokens.accessToken);
     if (!profile) return failure(NOT_LISTED);
-    if (pkce.as && profile.spotifyId !== pkce.as) return failure(OTHER_ACCOUNT);
+    if (as && profile.spotifyId !== as) return failure(OTHER_ACCOUNT);
     if (isFull(clientId, profile.spotifyId)) return failure(FULL);
     generation += 1;
     const known = readPeople()?.people.find(person => profile.spotifyId && person.spotifyId === profile.spotifyId);
     const active = addPerson(
       clientId,
       { ...profile, refreshToken: tokens.refreshToken, phoneAddress: known?.phoneAddress ?? '' },
-      Boolean(pkce.as)
+      Boolean(as)
     );
     if (!known?.phoneAddress && profile.spotifyId) {
       try {
@@ -400,7 +342,6 @@ async function finishSignIn(query: URLSearchParams): Promise<SignInResult> {
         // Storage is unavailable; they can still pair from Settings.
       }
     }
-    setFreshSignIn(false);
     const access = { token: tokens.accessToken, expiresAt: Date.now() + tokens.expiresInMs - EXPIRY_MARGIN_MS };
     if (active) cachedAccess = { ...access, clientId };
     else otherAccess.set(profile.spotifyId, access);
@@ -408,26 +349,6 @@ async function finishSignIn(query: URLSearchParams): Promise<SignInResult> {
   } catch (cause) {
     return failure(cause instanceof Error ? cause.message : 'Spotify sign-in failed.');
   }
-}
-
-/**
- * Finishes sign-in when the address carries Spotify's ?code=&state= (or ?error=) reply: checks the state, exchanges
- * the code for tokens, stores them and removes the query from the address. Call once at startup (a second call while
- * the first is still running shares its result). Resolves to null when the address is not a sign-in reply.
- */
-export function completeSignIn(): Promise<SignInResult | null> {
-  if (completing) return completing;
-  const query = new URLSearchParams(location.search);
-  if (!query.has('code') && !query.has('error')) return Promise.resolve(null);
-  const remaining = new URLSearchParams(location.search);
-  for (const name of REPLY_PARAMETERS) remaining.delete(name);
-  const search = remaining.size > 0 ? `?${remaining}` : '';
-  history.replaceState(history.state, '', `${location.pathname}${search}${location.hash}`);
-  const attempt = finishSignIn(query).finally(() => {
-    completing = null;
-  });
-  completing = attempt;
-  return attempt;
 }
 
 /**
@@ -525,21 +446,12 @@ export function discardAccessToken(): void {
   cachedAccess = null;
 }
 
-/**
- * Forgets everyone signed in on this kiosk and everything cached for them (the access token, and a sign-in that was started and never
- * finished), and makes the next sign-in show Spotify's approval page again.
- */
+/** Forgets everyone signed in on this kiosk and everything cached for them. */
 export function signOut(): void {
   generation += 1;
   cachedAccess = null;
   otherAccess.clear();
   writePeople(null);
-  try {
-    sessionStorage.removeItem(PKCE_KEY);
-  } catch {
-    // Storage is unavailable; there is nothing kept in it either.
-  }
-  setFreshSignIn(true);
 }
 
 /** Someone signed in on this kiosk, as Settings shows them; the refresh token stays in here. */
@@ -596,17 +508,6 @@ export async function checkPerson(spotifyId: string): Promise<PersonStatus> {
   }
 }
 
-/**
- * Starts signing in one more person: always with Spotify's approval page, so they can pick their own account. Throws
- * when the kiosk already has PEOPLE_LIMIT people. Clear the other sites' sign-ins first (forgetSignIns), so the
- * previous person's Spotify session does not carry over.
- */
-export async function startAddPerson(): Promise<void> {
-  if (peopleOnKiosk().length >= PEOPLE_LIMIT) throw new Error(FULL);
-  setFreshSignIn(true);
-  await startSignIn();
-}
-
 /** Drops the person's own list in maxmix.knownSpeakers (an object keyed by Spotify ID; see knownDevices.ts). */
 function forgetSpeakersOf(spotifyId: string): void {
   if (!spotifyId) return;
@@ -623,7 +524,7 @@ function forgetSpeakersOf(spotifyId: string): void {
 /**
  * Forgets one person. Says what follows: 'kept' when someone else was active, 'switched' when they were the active
  * person and the next person on the list is now active (reload to play as them), 'signed-out' when they were the last
- * (as signOut, so clear the other sites' sign-ins and reload).
+ * (as signOut, so reload).
  */
 export function removePerson(spotifyId: string): 'kept' | 'switched' | 'signed-out' {
   const people = readPeople();

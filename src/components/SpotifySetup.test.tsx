@@ -1,13 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import SpotifySetup from './SpotifySetup';
 
-const auth = vi.hoisted(() => ({ startSignIn: vi.fn() }));
-vi.mock('../spotify/auth', () => auth);
-
-beforeEach(() => {
-  auth.startSignIn.mockReset().mockResolvedValue(undefined);
-});
+// The QR code's dialog has tests of its own; here it only shows that it opened, and can be closed.
+vi.mock('./SpotifySignInDialog', () => ({
+  default: ({ onClose }: { onClose: () => void }) => (
+    <div role="dialog" aria-label="Sign in to Spotify">
+      <button type="button" onClick={onClose}>
+        Back
+      </button>
+    </div>
+  )
+}));
 
 function setup(overrides: Partial<{ offline: boolean; signInError: string | null }> = {}) {
   const onDetails = vi.fn();
@@ -16,20 +20,12 @@ function setup(overrides: Partial<{ offline: boolean; signInError: string | null
 }
 
 describe('SpotifySetup', () => {
-  it('starts sign-in directly', async () => {
+  it('opens the QR code to sign in on a phone, and closes it on Back', () => {
     setup();
     fireEvent.click(screen.getByRole('button', { name: 'Connect Spotify' }));
-    await waitFor(() => expect(auth.startSignIn).toHaveBeenCalledOnce());
-  });
-
-  it('surfaces failed sign-in and allows another attempt', async () => {
-    auth.startSignIn.mockRejectedValueOnce(new Error('Sign-in could not start'));
-    setup();
-    fireEvent.click(screen.getByRole('button', { name: 'Connect Spotify' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Sign-in could not start');
-    fireEvent.click(screen.getByRole('button', { name: 'Connect Spotify' }));
-    await waitFor(() => expect(auth.startSignIn).toHaveBeenCalledTimes(2));
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Sign in to Spotify' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('shows only the heading and the Connect button', () => {
@@ -39,12 +35,11 @@ describe('SpotifySetup', () => {
     expect(screen.queryByRole('paragraph')).not.toBeInTheDocument();
   });
 
-  it('retains callback failures and offers diagnostics', () => {
-    const { onDetails } = setup({ signInError: 'Spotify declined sign-in' });
-    expect(screen.getByRole('alert')).toHaveTextContent('Spotify declined sign-in');
+  it('shows why the login stopped working and offers diagnostics', () => {
+    const { onDetails } = setup({ signInError: 'Spotify login expired' });
+    expect(screen.getByRole('alert')).toHaveTextContent('Spotify login expired');
     fireEvent.click(screen.getByRole('button', { name: 'Details' }));
     expect(onDetails).toHaveBeenCalledOnce();
-    expect(auth.startSignIn).not.toHaveBeenCalled();
   });
 
   it('explains that sign-in needs a connection', () => {

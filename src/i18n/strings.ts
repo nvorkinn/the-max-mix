@@ -262,10 +262,6 @@ export const STRINGS = {
   'spotify.connected': { en: 'Connected', nb: 'Tilkoblet' },
   'spotify.expired': { en: 'Expired', nb: 'Utløpt' },
   'spotify.refused': { en: 'Not allowed', nb: 'Ikke tillatt' },
-  'spotify.redirect': {
-    en: 'Register this exact redirect address in your Spotify app settings:',
-    nb: 'Registrer akkurat denne omdirigeringsadressen i innstillingene for Spotify-appen din:'
-  },
   'spotify.people': { en: 'People', nb: 'Personer' },
   'spotify.account': { en: 'Spotify account', nb: 'Spotify-konto' },
   'spotify.active': { en: 'Active', nb: 'Aktiv' },
@@ -275,6 +271,11 @@ export const STRINGS = {
   'spotify.add_person': { en: 'Add person', nb: 'Legg til person' },
   'spotify.add': { en: 'Add', nb: 'Legg til' },
   'spotify.log_in': { en: 'Log in with Spotify', nb: 'Logg inn med Spotify' },
+  'spotify.sign_in_title': { en: 'Sign in to Spotify', nb: 'Logg inn på Spotify' },
+  'spotify.sign_in_unavailable': {
+    en: 'Add this screen to Countdown to sign in.',
+    nb: 'Legg til denne skjermen i Countdown for å logge inn.'
+  },
   'soloist.add_key': { en: 'Add Soloist key', nb: 'Legg til Soloist-nøkkel' },
   'soloist.key_of': { en: '{name}’s Soloist key', nb: 'Soloist-nøkkelen til {name}' },
 
@@ -467,7 +468,6 @@ export const STRINGS = {
   // Signing in to Spotify, and no internet.
   'setup.title': { en: 'Bring your music to the tablet', nb: 'Ta med musikken din til nettbrettet' },
   'setup.offline': { en: 'Reconnect to the network to sign in.', nb: 'Koble til nettverket igjen for å logge inn.' },
-  'setup.connecting': { en: 'Connecting...', nb: 'Kobler til …' },
   'setup.connect': { en: 'Connect Spotify', nb: 'Koble til Spotify' },
   'offline.title': { en: 'No internet connection', nb: 'Ingen internettilkobling' },
   'offline.wifi': { en: 'Wi-Fi settings', nb: 'Wi-Fi-innstillinger' },

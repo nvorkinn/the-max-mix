@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getPlaybackMode, getRedirectUri, leaveFor } from '../spotify/settings';
+import { getPlaybackMode } from '../spotify/settings';
 import {
   currentWifi,
-  forgetSignIns,
   isKiosk,
   isRelease,
   latestCommit,
@@ -65,19 +64,6 @@ describe('isKiosk', () => {
     visit('?kiosk=yes');
     expect(isKiosk()).toBe(false);
     expect(localStorage.getItem('maxmix.kiosk')).toBeNull();
-  });
-
-  it('never changes the Spotify redirect address', () => {
-    visit('?kiosk=1');
-    isKiosk();
-    expect(getRedirectUri()).toBe(`${location.origin}/`);
-    expect(getRedirectUri()).not.toContain('kiosk');
-  });
-
-  it('leaves for another address through the browser', () => {
-    // The test page cannot load another page, so this goes to a place on the same one.
-    leaveFor('#elsewhere');
-    expect(location.hash).toBe('#elsewhere');
   });
 
   it('copes with unavailable storage', () => {
@@ -151,42 +137,6 @@ describe('restart and reboot', () => {
       ['http://127.0.0.1:7341/power/restart', { method: 'POST' }],
       ['http://127.0.0.1:7341/power/reboot', { method: 'POST' }]
     ]);
-  });
-});
-
-describe('forgetSignIns', () => {
-  beforeEach(() => {
-    localStorage.clear();
-    visit('');
-  });
-  afterEach(() => vi.unstubAllGlobals());
-
-  it('asks nothing outside the kiosk', async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-    await forgetSignIns();
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('asks the kiosk service to clear the other sites', async () => {
-    visit('?kiosk=1');
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
-    vi.stubGlobal('fetch', fetchMock);
-    await forgetSignIns();
-    expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:7341/browser/forget-sign-ins',
-      expect.objectContaining({ method: 'POST' })
-    );
-  });
-
-  it('carries on when the kiosk refuses or does not answer', async () => {
-    visit('?kiosk=1');
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 503 })));
-    await forgetSignIns();
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
-    await forgetSignIns();
-    expect(warn).toHaveBeenCalledTimes(2);
   });
 });
 

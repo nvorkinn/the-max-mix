@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { startSignIn } from '../spotify/auth';
-import { errorMessage } from '../utils/errorMessage';
-import { debugLog } from '../utils/debugLog';
+import { reloadSettings } from '../spotify/settings';
 import { useT } from '../i18n/translate';
+import SpotifySignInDialog from './SpotifySignInDialog';
 
 interface SpotifySetupProps {
   offline: boolean;
@@ -12,29 +11,14 @@ interface SpotifySetupProps {
 
 export default function SpotifySetup({ offline, signInError, onDetails }: Readonly<SpotifySetupProps>) {
   const t = useT();
-  const [connecting, setConnecting] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const connect = async () => {
-    setConnecting(true);
-    setActionError(null);
-    try {
-      await startSignIn();
-    } catch (caught) {
-      const message = errorMessage(caught);
-      setActionError(message);
-      debugLog('error', 'sign-in', message);
-    } finally {
-      setConnecting(false);
-    }
-  };
-  const error = actionError || signInError;
+  const [signingIn, setSigningIn] = useState(false);
   return (
     <div className="spotify-setup">
       <h2>{t('setup.title')}</h2>
-      {error && (
+      {signInError && (
         <div>
           <p role="alert" className="text-danger">
-            {error}
+            {signInError}
           </p>
           <button type="button" className="button button-secondary" onClick={onDetails}>
             {t('common.details')}
@@ -42,14 +26,10 @@ export default function SpotifySetup({ offline, signInError, onDetails }: Readon
         </div>
       )}
       {offline && <p>{t('setup.offline')}</p>}
-      <button
-        type="button"
-        className="spotify-sign-in button"
-        disabled={offline || connecting}
-        onClick={() => void connect()}
-      >
-        {t(connecting ? 'setup.connecting' : 'setup.connect')}
+      <button type="button" className="spotify-sign-in button" disabled={offline} onClick={() => setSigningIn(true)}>
+        {t('setup.connect')}
       </button>
+      {signingIn && <SpotifySignInDialog onSignedIn={reloadSettings} onClose={() => setSigningIn(false)} />}
     </div>
   );
 }
