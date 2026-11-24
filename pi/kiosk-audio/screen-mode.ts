@@ -151,10 +151,10 @@ export function cmdlineWithMode(line: string, mode: string | undefined): string 
   const words = line.split(/\s+/).filter(word => word !== '');
   const kept = words.filter(word => {
     const [, output] = /^video=(HDMI-A-[12]):/.exec(word) ?? [];
-    return !(mode && output && word !== `video=${output}:${mode}`);
+    return !mode || !output || word === `video=${output}:${mode}`;
   });
   for (const output of HDMI_OUTPUTS) {
-    if (!kept.some(word => word.startsWith(`video=${output}:`))) {
+    if (kept.every(word => !word.startsWith(`video=${output}:`))) {
       kept.push(`video=${output}:${mode ?? FALLBACK_MODE}`);
     }
   }

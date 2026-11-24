@@ -163,7 +163,9 @@ describe('DebugConsole', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Factory reset' }));
     expect(onFactoryReset).not.toHaveBeenCalled();
     // A first tap that is not followed up is forgotten.
-    act(() => vi.advanceTimersByTime(4000));
+    act(() => {
+      vi.advanceTimersByTime(4000);
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Factory reset' }));
     fireEvent.click(screen.getByRole('button', { name: 'Tap again to reset' }));
     expect(onFactoryReset).toHaveBeenCalledTimes(1);

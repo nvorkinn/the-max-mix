@@ -9,7 +9,7 @@ import {
   ensureIdentity,
   importImager,
   keyFileValue,
-  needsGrowing,
+  canGrow,
   nmConnection,
   parseNetworkConfig,
   parseUserData,
@@ -146,14 +146,18 @@ describe('nmConnection', () => {
   });
 });
 
-describe('importImager', () => {
-  async function card(name: string): Promise<string> {
-    const copy = path.join(await folder(), 'card');
-    await cp(path.join(FIXTURES, name), copy, { recursive: true });
-    await writeFile(path.join(copy, 'config.txt'), 'arm_64bit=1\n');
-    return copy;
-  }
+/** A copy of an Imager fixture as a card's first partition, with a file of the card's own beside it. */
+async function card(name: string): Promise<string> {
+  const copy = path.join(await folder(), 'card');
+  await cp(path.join(FIXTURES, name), copy, { recursive: true });
+  await writeFile(path.join(copy, 'config.txt'), 'arm_64bit=1\n');
+  return copy;
+}
 
+/** A command runner whose every command fails. */
+const failing = (): Promise<Result> => Promise.resolve({ code: 1, stdout: '', stderr: 'sfdisk: device busy\n' });
+
+describe('importImager', () => {
   it("puts Imager's settings on /data and deletes them from the card", async () => {
     const boot = await card('imager-2');
     const data = await folder();
@@ -185,7 +189,7 @@ describe('importImager', () => {
       wifi: ['Café/Guest']
     });
     expect(await readdir(path.join(data, DATA_PATHS.connections))).toEqual(['Café_Guest.nmconnection']);
-    expect(await stat(path.join(data, DATA_PATHS.adminHome)).catch(() => null)).toBeNull();
+    await expect(stat(path.join(data, DATA_PATHS.adminHome))).rejects.toThrow();
   });
 
   it('does nothing without Imager files', async () => {
@@ -267,8 +271,8 @@ describe('prepareData', () => {
       number: 6,
       ...FLASHED
     });
-    expect(needsGrowing({ disk: '', number: 6, ...FLASHED })).toBe(true);
-    expect(needsGrowing({ disk: '', number: 6, ...FLASHED, size: SECTORS_16_GB - FLASHED.start - 33 })).toBe(false);
+    expect(canGrow({ disk: '', number: 6, ...FLASHED })).toBe(true);
+    expect(canGrow({ disk: '', number: 6, ...FLASHED, size: SECTORS_16_GB - FLASHED.start - 33 })).toBe(false);
   });
 
   it('grows and formats a freshly flashed card', async () => {
@@ -277,9 +281,9 @@ describe('prepareData', () => {
     const { run, calls } = fakeCommands(devices.mountpoint, '');
 
     expect(await prepareData(devices.partition, devices.mountpoint, { run, sys: devices.sys })).toEqual({
-      grown: true,
-      formatted: true,
-      reset: false
+      isGrown: true,
+      isFormatted: true,
+      isReset: false
     });
     expect(calls).toEqual([
       'sfdisk --relocate gpt-bak-std /dev/mmcblk0',
@@ -297,9 +301,9 @@ describe('prepareData', () => {
     const { run, calls } = fakeCommands(devices.mountpoint, 'ext4');
 
     expect(await prepareData(devices.partition, devices.mountpoint, { run, sys: devices.sys })).toEqual({
-      grown: false,
-      formatted: false,
-      reset: false
+      isGrown: false,
+      isFormatted: false,
+      isReset: false
     });
     expect(calls).toEqual([
       `blkid --probe --output value --match-tag TYPE ${devices.partition}`,
@@ -326,9 +330,9 @@ describe('prepareData', () => {
     const { run, calls } = fakeCommands(data, 'ext4');
 
     expect(await prepareData(devices.partition, data, { run, sys: devices.sys })).toEqual({
-      grown: false,
-      formatted: true,
-      reset: true
+      isGrown: false,
+      isFormatted: true,
+      isReset: true
     });
     expect(calls.slice(1)).toEqual([
       `mount -t ext4 ${devices.partition} MNT`,
@@ -336,7 +340,7 @@ describe('prepareData', () => {
       `mkfs.ext4 -F -q -L data ${devices.partition}`,
       `mount -t ext4 ${devices.partition} MNT`
     ]);
-    expect((await readdir(data)).toSorted()).toEqual(['identity', 'the-max-mix']);
+    expect((await readdir(data)).toSorted((a, b) => a.localeCompare(b))).toEqual(['identity', 'the-max-mix']);
     expect(await readdir(path.join(data, 'identity'))).toEqual(['hostname']);
     expect(await readFile(path.join(data, DATA_PATHS.kioskEnv), 'utf8')).toBe('KIOSK_VIDEO_MODE=1280x800@60\n');
   });
@@ -352,8 +356,8 @@ describe('prepareData', () => {
 
   it('stops when a command fails', async () => {
     const devices = await blockDevices(FLASHED);
-    const run = (): Promise<Result> => Promise.resolve({ code: 1, stdout: '', stderr: 'sfdisk: device busy\n' });
-    await expect(prepareData(devices.partition, devices.mountpoint, { run, sys: devices.sys })).rejects.toThrow(
+    const prepared = prepareData(devices.partition, devices.mountpoint, { run: failing, sys: devices.sys });
+    await expect(prepared).rejects.toThrow(
       'sfdisk --relocate gpt-bak-std /dev/mmcblk0 failed (1): sfdisk: device busy'
     );
   });

@@ -15,6 +15,7 @@
 // 4. The Pi's identity: a machine ID the first time, and the host name from /data, which the kernel gets here because
 //    systemd set it from the image's /etc/hostname before /data was there.
 import { randomBytes, randomUUID } from 'node:crypto';
+import type { Stats } from 'node:fs';
 import { chown, mkdir, mkdtemp, readFile, realpath, rename, rm, rmdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -66,7 +67,23 @@ interface WifiNetwork {
   isHidden: boolean;
 }
 
-const HOSTNAME = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/i;
+/** A host name the Pi can have: one label of letters, digits and hyphens, not starting or ending with a hyphen. */
+function isHostname(name: string): boolean {
+  return name.length <= 63 && /^[a-z0-9-]+$/i.test(name) && !name.startsWith('-') && !name.endsWith('-');
+}
+
+function isMachineId(id: string): boolean {
+  return /^[0-9a-f]{32}$/.test(id);
+}
+
+/** The file's details, or null when it is not there. */
+async function statOrNull(file: string): Promise<Stats | null> {
+  try {
+    return await stat(file);
+  } catch {
+    return null;
+  }
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -83,7 +100,7 @@ function text(value: unknown): string | undefined {
 export function parseUserData(document: string): UserData {
   const data: unknown = parse(document);
   if (!isRecord(data)) return { sshKeys: [] };
-  const users = Array.isArray(data['users']) ? data['users'] : [];
+  const users: unknown[] = Array.isArray(data['users']) ? data['users'] : [];
   // A `users:` list may start with the word default, the image's own account.
   const user = [data['user'], ...users].find(entry => isRecord(entry));
   const listed = isRecord(user) ? user['ssh_authorized_keys'] : undefined;
@@ -91,8 +108,8 @@ export function parseUserData(document: string): UserData {
   const hostname = text(data['hostname']);
   const name = isRecord(user) ? text(user['name']) : undefined;
   return {
-    ...(hostname !== undefined && HOSTNAME.test(hostname) ? { hostname: hostname.toLowerCase() } : {}),
-    ...(name === undefined ? {} : { user: name }),
+    ...(hostname !== undefined && isHostname(hostname) && { hostname: hostname.toLowerCase() }),
+    ...(name !== undefined && { user: name }),
     sshKeys: keys.map(key => text(key)).filter((key): key is string => key !== undefined && !/[\r\n]/.test(key))
   };
 }
@@ -111,8 +128,9 @@ export function parseNetworkConfig(document: string): WifiNetwork[] {
       // As typed: spaces at either end are part of a passphrase.
       const password = [point['password'], auth['password']].find(value => typeof value === 'string' && value !== '');
       const isHidden = point['hidden'] === true;
-      if (typeof password !== 'string' || auth['key-management'] === 'none') return [{ ssid, isHidden }];
-      return [{ ssid, password, isHidden }];
+      return typeof password !== 'string' || auth['key-management'] === 'none'
+        ? [{ ssid, isHidden }]
+        : [{ ssid, password, isHidden }];
     });
   });
 }
@@ -137,8 +155,16 @@ export function keyFileValue(value: string): string {
 /** The NetworkManager profile (keyfile) for a Wi-Fi network, which joins it whenever it is in range. */
 export function nmConnection(wifi: WifiNetwork, uuid: string = randomUUID()): string {
   const ssid = keyFileValue(wifi.ssid);
-  const lines = ['[connection]', `id=${ssid}`, `uuid=${uuid}`, 'type=wifi', '', '[wifi]', 'mode=infrastructure'];
-  lines.push(`ssid=${ssid}`);
+  const lines = [
+    '[connection]',
+    `id=${ssid}`,
+    `uuid=${uuid}`,
+    'type=wifi',
+    '',
+    '[wifi]',
+    'mode=infrastructure',
+    `ssid=${ssid}`
+  ];
   if (wifi.isHidden) lines.push('hidden=true');
   if (wifi.password) lines.push('', '[wifi-security]', 'key-mgmt=wpa-psk', `psk=${keyFileValue(wifi.password)}`);
   lines.push('', '[ipv4]', 'method=auto', '', '[ipv6]', 'addr-gen-mode=default', 'method=auto', '');
@@ -208,7 +234,7 @@ export async function importImager(
   // The card's copies go once everything is on /data: they hold the Wi-Fi password, and would be taken in again.
   await Promise.all(IMAGER_FILES.map(name => rm(path.join(card, name), { force: true })));
   return {
-    ...(user.hostname === undefined ? {} : { hostname: user.hostname }),
+    ...(user.hostname !== undefined && { hostname: user.hostname }),
     sshKeys: user.sshKeys.length,
     wifi: wifi.map(network => network.ssid)
   };
@@ -221,13 +247,12 @@ export async function importImager(
  */
 export async function ensureIdentity(data: string, current?: string): Promise<string | undefined> {
   const machineId = path.join(data, DATA_PATHS.machineId);
-  const isMachineId = (id: string) => /^[0-9a-f]{32}$/.test(id);
   if (!isMachineId((await readOptional(machineId))?.trim() ?? '')) {
     const now = current?.trim() ?? '';
     await writeAtomic(machineId, `${isMachineId(now) ? now : randomBytes(16).toString('hex')}\n`, 0o444);
   }
   const hostname = (await readOptional(path.join(data, DATA_PATHS.hostname)))?.trim() ?? '';
-  return HOSTNAME.test(hostname) ? hostname : undefined;
+  return isHostname(hostname) ? hostname : undefined;
 }
 
 /** Where a partition sits on its card, in 512-byte sectors (from /sys/class/block). */
@@ -241,7 +266,7 @@ interface PartitionPlace {
 }
 
 /** True when the partition does not yet reach the end of the card. */
-export function needsGrowing(place: PartitionPlace): boolean {
+export function canGrow(place: PartitionPlace): boolean {
   return place.diskSize - (place.start + place.size) > GROW_SLACK_SECTORS;
 }
 
@@ -250,7 +275,10 @@ export async function partitionPlace(device: string, sys = '/sys/class/block'): 
   const name = path.basename(await realpath(device));
   // /sys/class/block/<partition> links into its card's folder.
   const disk = path.basename(path.dirname(await realpath(path.join(sys, name))));
-  const read = async (...parts: string[]) => Number((await readFile(path.join(sys, ...parts), 'utf8')).trim());
+  const read = async (...parts: string[]) => {
+    const content = await readFile(path.join(sys, ...parts), 'utf8');
+    return Number(content.trim());
+  };
   return {
     disk: `/dev/${disk}`,
     number: await read(name, 'partition'),
@@ -295,9 +323,9 @@ async function keptFiles(data: string): Promise<[file: string, content: string][
 
 /** What prepareData did, for the journal. */
 interface Prepared {
-  grown: boolean;
-  formatted: boolean;
-  reset: boolean;
+  isGrown: boolean;
+  isFormatted: boolean;
+  isReset: boolean;
 }
 
 /**
@@ -310,38 +338,38 @@ export async function prepareData(
   { run = runCommand, sys }: { run?: Run; sys?: string } = {}
 ): Promise<Prepared> {
   const place = await partitionPlace(partition, sys);
-  const grown = needsGrowing(place);
-  if (grown) await grow(run, place);
+  const isGrown = canGrow(place);
+  if (isGrown) await grow(run, place);
   const mount = () => must(run, ['mount', '-t', 'ext4', partition, mountpoint]);
   const unmount = () => must(run, ['umount', mountpoint]);
 
-  let formatted = false;
-  let reset = false;
+  let isFormatted = false;
+  let isReset = false;
   if ((await filesystemOf(run, partition)) === '') {
     await format(run, partition);
-    formatted = true;
+    isFormatted = true;
     await mount();
   } else {
     await mount();
-    if (await stat(path.join(mountpoint, RESET_FLAG)).catch(() => undefined)) {
+    if (await statOrNull(path.join(mountpoint, RESET_FLAG))) {
       const kept = await keptFiles(mountpoint);
       await unmount();
       await format(run, partition);
       await mount();
       await Promise.all(kept.map(([file, content]) => writeAtomic(path.join(mountpoint, file), content, 0o644)));
-      formatted = true;
-      reset = true;
-    } else if (grown) {
+      isFormatted = true;
+      isReset = true;
+    } else if (isGrown) {
       // ext4 grows while mounted.
       await must(run, ['resize2fs', partition], undefined, FORMAT_TIMEOUT_MS);
     }
   }
-  return { grown, formatted, reset };
+  return { isGrown, isFormatted, isReset };
 }
 
 /** A card folder, or a FAT partition (mounted here for the import, `mounted` collects it to unmount). */
 async function cardFolder(card: string, run: Run, mounted: string[]): Promise<string | undefined> {
-  const info = await stat(card).catch(() => undefined);
+  const info = await statOrNull(card);
   if (!info) return undefined;
   if (info.isDirectory()) return card;
   const folder = await mkdtemp('/run/kiosk-first-boot-card-');
@@ -362,9 +390,9 @@ async function main(): Promise<void> {
   const mounted = [mountpoint];
   try {
     const prepared = await prepareData(values.data, mountpoint, { run });
-    if (prepared.grown) console.log('Grew the data partition to the end of the card');
-    if (prepared.reset) console.log('Reset: formatted the data partition, keeping the name and kiosk.env');
-    else if (prepared.formatted) console.log('Formatted the data partition');
+    if (prepared.isGrown) console.log('Grew the data partition to the end of the card');
+    if (prepared.isReset) console.log('Reset: formatted the data partition, keeping the name and kiosk.env');
+    else if (prepared.isFormatted) console.log('Formatted the data partition');
 
     for (const card of values.card) {
       // One card at a time, in the order given: each may mount a partition.
@@ -388,7 +416,11 @@ async function main(): Promise<void> {
     await Promise.all(
       mounted.map(async folder => {
         await run(['umount', folder]);
-        await rmdir(folder).catch(() => undefined);
+        try {
+          await rmdir(folder);
+        } catch {
+          // Still mounted: left for the reboot to clear.
+        }
       })
     );
   }
