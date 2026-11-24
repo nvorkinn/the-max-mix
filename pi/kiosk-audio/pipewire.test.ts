@@ -13,6 +13,7 @@ import {
   PW_DUMP,
   PW_LINK,
   runCommand,
+  SILENT_SINK,
   volumeOf,
   WPCTL
 } from './pipewire.ts';
@@ -149,12 +150,49 @@ describe('planRoutes', () => {
     expect(plan).toEqual({ connect: [], disconnect: [83, 84] });
   });
 
-  it('hands back to the default output with no speakers', () => {
+  it('hands back to the default output with no speakers and no silent sink (an older PipeWire config)', () => {
     const plan = planWith([link(83, 71, 51), link(84, 72, 52)], []);
     expect(plan).toEqual({
       connect: [
         [71, 41],
         [72, 42]
+      ],
+      disconnect: [83, 84]
+    });
+  });
+
+  it('sends the music to the silent sink with no speakers, off a speaker nobody chose', () => {
+    // The kiosk has no speaker of its own, so the default sink is an AirPlay speaker (Kitchen here).
+    const meta = {
+      id: 31,
+      type: 'PipeWire:Interface:Metadata',
+      props: { 'metadata.name': 'default' },
+      metadata: [{ key: 'default.audio.sink', value: { name: 'raop_sink.Kitchen.local.7000' } }]
+    };
+    const silent = [
+      {
+        id: 160,
+        type: 'PipeWire:Interface:Node',
+        info: {
+          props: { 'node.name': SILENT_SINK, 'media.class': 'Audio/Sink', 'node.description': 'Kiosk (no speaker)' }
+        }
+      },
+      {
+        id: 161,
+        type: 'PipeWire:Interface:Port',
+        info: { direction: 'input', props: { 'node.id': 160, 'audio.channel': 'FL' } }
+      },
+      {
+        id: 162,
+        type: 'PipeWire:Interface:Port',
+        info: { direction: 'input', props: { 'node.id': 160, 'audio.channel': 'FR' } }
+      }
+    ];
+    const graph = parseDump(dump([meta, ...silent], [link(83, 71, 51), link(84, 72, 52)]));
+    expect(planRoutes(graph, [])).toEqual({
+      connect: [
+        [71, 161],
+        [72, 162]
       ],
       disconnect: [83, 84]
     });

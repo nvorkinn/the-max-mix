@@ -12,8 +12,8 @@ app on `127.0.0.1:7341`. It does two jobs:
 ## The two playback modes
 
 - **Spotify Connect** (the default): Spotify plays on the kiosk's own player (Spotify Soloist), or on any Spotify Connect
-  speaker it is moved to under Speakers. Switching to it sends `POST /audio/route` with no speakers, which hands the sound back to the
-  Pi's default output.
+  speaker it is moved to under Speakers. Switching to it sends `POST /audio/route` with no speakers, which sends Soloist's sound to the
+  silent sink, `kiosk_silent`: the kiosk has no speaker of its own, so no speaker plays that nobody chose.
 - **AirPlay**: playback stays on the kiosk's own player, and the Pi links Soloist's PipeWire stream to every speaker
   picked in the app, all at once, and off the Pi's own output. Speakers can be added and removed while the music plays.
 
@@ -121,7 +121,9 @@ while it is connected or was heard in the last two minutes; for the first 8 s of
 
 1. **Discovery.** `libpipewire-module-raop-discover` (enabled by `/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf`)
    finds RAOP speakers through Avahi and makes a PipeWire sink for each, with `raop.latency.ms = 500`
-   (`kiosk_raop_latency_ms`) so play, pause and skip reach the speakers quickly. The audio service
+   (`kiosk_raop_latency_ms`) so play, pause and skip reach the speakers quickly. The same file makes `kiosk_silent`, a
+   null sink with a high session priority, so it is the default sink and Soloist's stream joins it at start without
+   making a sound; it is not listed as a speaker. The audio service
    also answers `GET http://127.0.0.1:7341/speakers` (`server.ts`, localhost only, readable by the app's origin alone) with
    the names of those sinks and of connected Bluetooth speakers' sinks, and the app lists them every 5 seconds. Its
    `outputs` list gives each sink by PipeWire's node name (its `id`), its `kind` (`airplay` for `raop_sink.*`,

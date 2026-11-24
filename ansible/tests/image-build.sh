@@ -122,6 +122,7 @@ check node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 
 # (node --check does not strip types, so load the modules instead; importing them starts nothing.)
 check node -e "await import('/opt/the-max-mix/kiosk-audio/speakers.ts')"
 check grep -q 'raop.latency.ms = 500' /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf
+check grep -q 'node.name = kiosk_silent' /etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf
 check grep -q 'kiosk-audio.ts watch$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'try-restart kiosk-audio.service' /etc/systemd/system/kiosk.service
 check grep -q 'screen-mode.ts --correct' /etc/systemd/system/kiosk.service
