@@ -21,9 +21,12 @@
   changed_when: kiosk_units_installed.stdout | length > 0
   notify: Reload systemd
 
-# Chromium needed Widevine (Spotify's DRM module) while the Web Playback SDK played the music; Spotify Soloist plays it
-# now, so the units that restarted the kiosk after Chromium's Widevine download go. Prints what it removed.
-- name: full | units | Remove the Widevine units
+# Leftovers of the Web Playback SDK, which Spotify Soloist replaced: Chromium needed Widevine (Spotify's DRM module),
+# with units that restarted the kiosk after Chromium's Widevine download, and played through PipeWire's PulseAudio
+# server, which Soloist (a native PipeWire client) and kiosk-audio (wpctl, pw-link) do not use. The units, Chromium's
+# downloaded Widevine, its package and pipewire-pulse go. A one-off: remove this task once every kiosk has run it.
+# Prints what it removed.
+- name: full | units | Remove the Web Playback SDK leftovers
   ansible.builtin.shell:
     cmd: |
       set -euo pipefail
@@ -31,11 +34,21 @@
         systemctl disable --now --quiet kiosk-widevine.path 2>/dev/null || true
         rm -f /etc/systemd/system/kiosk-widevine.path /etc/systemd/system/kiosk-widevine.service \
           /var/lib/the-max-mix/widevine-loaded
-        echo removed
+        echo "removed the Widevine units"
       fi
+      if [[ -e /home/kiosk/.config/chromium/WidevineCdm ]]; then
+        rm -rf /home/kiosk/.config/chromium/WidevineCdm
+        echo "removed Chromium's Widevine download"
+      fi
+      for package in libwidevinecdm0 pipewire-pulse; do
+        if dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q 'ok installed'; then
+          DEBIAN_FRONTEND=noninteractive apt-get purge -y -qq "$package" > /dev/null
+          echo "purged $package"
+        fi
+      done
     executable: /bin/bash
-  register: kiosk_widevine_removed
-  changed_when: kiosk_widevine_removed.stdout | length > 0
+  register: kiosk_sdk_leftovers_removed
+  changed_when: kiosk_sdk_leftovers_removed.stdout | length > 0
   notify: Reload systemd
 
 # The units must be known to systemd before they are enabled and started.
