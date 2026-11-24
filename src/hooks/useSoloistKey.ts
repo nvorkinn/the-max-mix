@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { serverClient } from '../countdown/config';
 import { countdownServer } from '../countdown/server';
 import { tellSoloistPerson } from '../countdown/soloist';
 import { newSoloistKeyCode, soloistKeyPeople } from '../countdown/soloistKeys';
 import type { SoloistKeyCode } from '../countdown/soloistKeys';
+import { getActivePersonId } from '../spotify/auth';
 
 /**
  * How often the kiosk asks again while a person's Soloist key code is up, so the code goes soon after they paste their
@@ -25,6 +26,11 @@ export type SoloistKey = 'unavailable' | 'saved' | 'missing' | { readonly pageUr
  */
 export function useSoloistKey(person: string, isAsking: boolean): SoloistKey {
   const [key, setKey] = useState<SoloistKey>('unavailable');
+  // What was last shown, and for whom: a key that turns up after `missing` or a code was saved just now.
+  const shownRef = useRef<{ person: string; key: SoloistKey }>({ person, key });
+  useEffect(() => {
+    shownRef.current = { person, key };
+  }, [person, key]);
 
   useEffect(() => {
     const client = serverClient();
@@ -43,9 +49,12 @@ export function useSoloistKey(person: string, isAsking: boolean): SoloistKey {
         return;
       }
       if (people?.includes(person)) {
+        const before = shownRef.current.person === person ? shownRef.current.key : 'unavailable';
+        const wasWaiting = before === 'missing' || typeof before === 'object';
         setKey('saved');
-        // A key saved just now: the kiosk's service starts Soloist with it at once, not at its next reminder.
-        if (isAsking) void tellSoloistPerson(client);
+        // A key the active person saved just now: the kiosk's service starts Soloist with it at once, not at its next
+        // reminder (countdown/soloist.ts). Another person's key waits until they are the active one.
+        if ((isAsking || wasWaiting) && getActivePersonId() === person) void tellSoloistPerson(client);
         return;
       }
       if (!isAsking) {
