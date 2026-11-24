@@ -99,7 +99,8 @@ describe('parseDump', () => {
 
   it("only counts Soloist's streams as players", () => {
     // The browser plays nothing now, so its stream (a page's sound, say) stays where PipeWire put it.
-    const players = playersOf(parseDump(dump([otherStream(100, 'mpv'), otherStream(101, 'Chromium')])));
+    const others = [otherStream(100, 'mpv'), otherStream(101, 'Chromium')];
+    const players = playersOf(parseDump(dump(others)));
     expect(players.map(node => node.id)).toEqual([70]);
   });
 
