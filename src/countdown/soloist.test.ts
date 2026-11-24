@@ -4,7 +4,7 @@ import * as auth from '../spotify/auth';
 import type { PersonOnKiosk } from '../spotify/auth';
 import { KIOSK_SERVICE } from '../utils/kioskService';
 import * as registration from './registration';
-import { startSoloistPerson, tellSoloistPerson } from './soloist';
+import { lastSoloistState, startSoloistPerson, tellSoloistPerson } from './soloist';
 
 const SECRET = fixture.registration.secret;
 const PERSON = fixture.soloist_key_query.person;
@@ -89,11 +89,12 @@ describe('tellSoloistPerson', () => {
     await expect(tellSoloistPerson()).resolves.toBeNull();
   });
 
-  it('passes on why Soloist is not playing', async () => {
+  it('passes on why Soloist is not playing, and keeps it', async () => {
     register();
     signIn();
     answer({ body: { state: 'no-key' } });
     await expect(tellSoloistPerson()).resolves.toBe('no-key');
+    expect(lastSoloistState()).toBe('no-key');
   });
 });
 

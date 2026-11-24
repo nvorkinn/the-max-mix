@@ -4,6 +4,7 @@ import { FakeWebSocket, fakeSocketCount, latestFakeSocket, resetFakeSockets } fr
 import { authState, recordedNow, recordedQueue, recordedReplies, RECORDED_DEVICE_NAME } from '../test/soloistFixtures';
 import { resetSpotifyMocks } from '../test/spotifyMocks';
 import { recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
+import * as soloist from '../countdown/soloist';
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 
 const mocks = await vi.hoisted(async () => {
@@ -165,6 +166,17 @@ describe('useSpotifyPlayer with the kiosk player', () => {
     await advance(0);
     expect(result.current.browserDeviceId).toBe('soloist-1');
     expect(result.current.problem).toBeNull();
+  });
+
+  it('sends the person to Settings when Soloist does not start because they saved no key', async () => {
+    vi.spyOn(soloist, 'lastSoloistState').mockReturnValue('no-key');
+    mocks.api.getDevices.mockResolvedValue({ devices: [] });
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await advance(0);
+    await advance(20_000);
+    expect(result.current.error).toBe('To play on the kiosk, add your Soloist key under Settings.');
+    expect(result.current.problem?.recovery).toBe('settings');
   });
 
   it('closes the connection on unmount', async () => {
