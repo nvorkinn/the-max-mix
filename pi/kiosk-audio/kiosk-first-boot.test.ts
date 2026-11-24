@@ -208,7 +208,7 @@ describe('defaultHostname', () => {
   });
 
   it('is plain the-max-mix without a serial number', () => {
-    expect(defaultHostname(undefined)).toBe('the-max-mix');
+    expect(defaultHostname()).toBe('the-max-mix');
     expect(defaultHostname('')).toBe('the-max-mix');
   });
 });
