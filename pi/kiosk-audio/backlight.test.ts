@@ -53,7 +53,7 @@ describe('setBrightness', () => {
     const levels: string[] = [];
     const fading = setBrightness(10, folder, 500);
     // Watch the level go down on the way.
-    // A read can land between the fade's truncate and its write (a real sysfs file has no such gap), and finds it
+    // A read can land between the fade's truncate and its write (the real backlight file has no such gap), and finds it
     // empty: read again then.
     const look = async () => {
       await new Promise(resolve => setTimeout(resolve, 60));
