@@ -4,6 +4,7 @@
 // app connection and only well-formed commands back. Soloist restarts (a new build, a new key, another person) close its
 // socket; this connects again on its own, and tells the app whether Soloist is there with {"type": "bridge"} messages.
 import { WebSocket } from 'ws';
+import type { RawData } from 'ws';
 
 export const SOLOIST_PATH = '/soloist';
 // kiosk_soloist_ws_port in ansible/roles/kiosk/defaults/main.yml.
@@ -40,8 +41,20 @@ export function soloistCommand(text: string): string | null {
   }
   if (typeof message !== 'object' || message === null || Array.isArray(message)) return null;
   const { type, command } = message as Record<string, unknown>;
-  if (type !== 'command' || typeof command !== 'string' || !COMMANDS.has(command)) return null;
-  return JSON.stringify(message);
+  const isCommand = type === 'command' && typeof command === 'string' && COMMANDS.has(command);
+  return isCommand ? JSON.stringify(message) : null;
+}
+
+/** A WebSocket message's text, whichever form `ws` handed it over in. */
+function textOf(data: RawData): string {
+  if (Array.isArray(data)) return Buffer.concat(data).toString('utf8');
+  return Buffer.from(data).toString('utf8');
+}
+
+const bridgeMessage = (isConnected: boolean) => JSON.stringify({ type: 'bridge', connected: isConnected });
+
+function send(socket: WebSocket, text: string): void {
+  if (socket.readyState === WebSocket.OPEN) socket.send(text);
 }
 
 type Connect = (url: string) => WebSocket;
@@ -61,11 +74,48 @@ export class SoloistBridge {
     this.#retryMs = options.retryMs ?? SOLOIST_RETRY_MS;
   }
 
+  #open(): void {
+    this.#retry = undefined;
+    const soloist = this.#connect(this.#url);
+    this.#soloist = soloist;
+    soloist.on('open', () => {
+      this.#broadcast(bridgeMessage(true));
+    });
+    soloist.on('message', data => {
+      this.#broadcast(textOf(data));
+    });
+    soloist.on('error', () => {
+      // A close follows, which connects again.
+    });
+    soloist.on('close', () => {
+      if (this.#soloist !== soloist) return;
+      this.#soloist = null;
+      this.#broadcast(bridgeMessage(false));
+      if (this.#apps.size > 0) {
+        this.#retry = setTimeout(() => {
+          this.#open();
+        }, this.#retryMs);
+      }
+    });
+  }
+
+  #stop(): void {
+    clearTimeout(this.#retry);
+    this.#retry = undefined;
+    const soloist = this.#soloist;
+    this.#soloist = null;
+    soloist?.close();
+  }
+
+  #broadcast(text: string): void {
+    for (const app of this.#apps) send(app, text);
+  }
+
   /** Takes on one app connection until it closes. */
   add(app: WebSocket): void {
     this.#apps.add(app);
     app.on('message', data => {
-      const command = soloistCommand(String(data));
+      const command = soloistCommand(textOf(data));
       if (command === null) {
         send(app, JSON.stringify({ type: 'error', message: 'not a Soloist command' }));
       } else if (this.#soloist?.readyState === WebSocket.OPEN) {
@@ -83,43 +133,4 @@ export class SoloistBridge {
     send(app, bridgeMessage(this.#soloist?.readyState === WebSocket.OPEN));
     if (!this.#soloist && this.#retry === undefined) this.#open();
   }
-
-  #open(): void {
-    this.#retry = undefined;
-    const soloist = this.#connect(this.#url);
-    this.#soloist = soloist;
-    soloist.on('open', () => {
-      this.#broadcast(bridgeMessage(true));
-    });
-    soloist.on('message', data => {
-      this.#broadcast(String(data));
-    });
-    soloist.on('error', () => {
-      // A close follows, which connects again.
-    });
-    soloist.on('close', () => {
-      if (this.#soloist !== soloist) return;
-      this.#soloist = null;
-      this.#broadcast(bridgeMessage(false));
-      if (this.#apps.size > 0) this.#retry = setTimeout(() => this.#open(), this.#retryMs);
-    });
-  }
-
-  #stop(): void {
-    clearTimeout(this.#retry);
-    this.#retry = undefined;
-    const soloist = this.#soloist;
-    this.#soloist = null;
-    soloist?.close();
-  }
-
-  #broadcast(text: string): void {
-    for (const app of this.#apps) send(app, text);
-  }
-}
-
-const bridgeMessage = (connected: boolean) => JSON.stringify({ type: 'bridge', connected });
-
-function send(socket: WebSocket, text: string): void {
-  if (socket.readyState === WebSocket.OPEN) socket.send(text);
 }

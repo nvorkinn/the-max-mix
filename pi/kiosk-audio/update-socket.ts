@@ -41,10 +41,7 @@ export function attachUpdateSocket(
       refuse(socket, 404);
     } else if (request.headers.origin !== origin) {
       refuse(socket, 403);
-    } else if (request.url !== UPDATE_PATH) {
-      const route = routes[request.url ?? ''];
-      sockets.handleUpgrade(request, socket, head, connection => route?.(connection));
-    } else {
+    } else if (request.url === UPDATE_PATH) {
       sockets.handleUpgrade(request, socket, head, connection => {
         const controller = new AbortController();
         const send: Send = message => {
@@ -73,6 +70,11 @@ export function attachUpdateSocket(
             connection.close(1000);
           }
         })();
+      });
+    } else {
+      const route = routes[request.url ?? ''];
+      sockets.handleUpgrade(request, socket, head, connection => {
+        route?.(connection);
       });
     }
   });

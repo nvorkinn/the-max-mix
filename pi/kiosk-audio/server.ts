@@ -933,6 +933,10 @@ export function serveSpeakers(
   });
   const server = createServer((request, response) => void handler(request, response));
   const soloist = new SoloistBridge();
-  attachUpdateSocket(server, origin, update, { [SOLOIST_PATH]: connection => soloist.add(connection) });
+  attachUpdateSocket(server, origin, update, {
+    [SOLOIST_PATH]: connection => {
+      soloist.add(connection);
+    }
+  });
   return server.listen(SPEAKERS_PORT, '127.0.0.1');
 }

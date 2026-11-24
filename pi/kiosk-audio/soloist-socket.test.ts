@@ -10,7 +10,7 @@ import { attachUpdateSocket } from './update-socket.ts';
 const ORIGIN = 'https://the-max-mix.vorkinn.org';
 const closers: (() => void)[] = [];
 afterEach(() => {
-  for (const close of closers.splice(0).reverse()) close();
+  for (const close of closers.splice(0).toReversed()) close();
 });
 
 /** Stands in for Soloist's WebSocket API: greets each client with its auth state and records the commands. */
@@ -20,7 +20,7 @@ async function fakeSoloist(port = 0) {
   server.on('connection', client => {
     client.send(JSON.stringify({ type: 'auth_state', logged_in: true, is_active: false, device_name: 'Probe' }));
     client.on('message', data => {
-      commands.push(JSON.parse(String(data)));
+      commands.push(JSON.parse((data as Buffer).toString('utf8')));
       client.send(JSON.stringify({ type: 'command_result', command: 'pause' }));
     });
   });
@@ -30,14 +30,20 @@ async function fakeSoloist(port = 0) {
       for (const client of server.clients) client.terminate();
       server.close(() => resolve());
     });
-  closers.push(() => void stop());
+  closers.push(() => {
+    void stop();
+  });
   return { url: `ws://127.0.0.1:${(server.address() as AddressInfo).port}`, commands, stop, server };
 }
 
 async function service(soloistUrl: string): Promise<string> {
   const server: Server = createServer();
   const bridge = new SoloistBridge({ url: soloistUrl, retryMs: 20 });
-  attachUpdateSocket(server, ORIGIN, () => Promise.resolve(), { [SOLOIST_PATH]: connection => bridge.add(connection) });
+  attachUpdateSocket(server, ORIGIN, () => Promise.resolve(), {
+    [SOLOIST_PATH]: connection => {
+      bridge.add(connection);
+    }
+  });
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   closers.push(() => {
     server.closeAllConnections();
@@ -46,22 +52,22 @@ async function service(soloistUrl: string): Promise<string> {
   return `ws://127.0.0.1:${(server.address() as AddressInfo).port}${SOLOIST_PATH}`;
 }
 
-/** An app connection that collects what it is sent; `next(n)` waits until it has n messages. */
-function app(url: string, origin = ORIGIN) {
-  const socket = new WebSocket(url, { origin });
+/** An app connection that collects what it is sent; `until(isDone)` waits for `isDone` to hold. */
+function app(url: string) {
+  const socket = new WebSocket(url, { origin: ORIGIN });
   const messages: Record<string, unknown>[] = [];
   const waiters: (() => void)[] = [];
   socket.on('message', data => {
-    messages.push(JSON.parse(String(data)) as Record<string, unknown>);
+    messages.push(JSON.parse((data as Buffer).toString('utf8')) as Record<string, unknown>);
     for (const wake of waiters.splice(0)) wake();
   });
   closers.push(() => {
     socket.terminate();
   });
-  const until = (done: () => boolean) =>
+  const until = (isDone: () => boolean) =>
     new Promise<void>(resolve => {
       const check = () => {
-        if (done()) resolve();
+        if (isDone()) resolve();
         else waiters.push(check);
       };
       check();
