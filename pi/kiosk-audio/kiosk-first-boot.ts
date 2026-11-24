@@ -286,10 +286,11 @@ async function format(run: Run, partition: string): Promise<void> {
 
 /** The files a reset keeps, read from the data partition mounted at `data`. */
 async function keptFiles(data: string): Promise<[file: string, content: string][]> {
-  const files = await Promise.all(
-    RESET_KEEPS.map(async file => [file, await readOptional(path.join(data, file))] as const)
-  );
-  return files.filter((entry): entry is [string, string] => entry[1] !== undefined);
+  const contents = await Promise.all(RESET_KEEPS.map(file => readOptional(path.join(data, file))));
+  return RESET_KEEPS.flatMap((file, index): [string, string][] => {
+    const content = contents[index];
+    return content === undefined ? [] : [[file, content]];
+  });
 }
 
 /** What prepareData did, for the journal. */
@@ -327,9 +328,7 @@ export async function prepareData(
       await unmount();
       await format(run, partition);
       await mount();
-      await Promise.all(
-        kept.map(([file, content]) => writeAtomic(path.join(mountpoint, file), content, 0o644))
-      );
+      await Promise.all(kept.map(([file, content]) => writeAtomic(path.join(mountpoint, file), content, 0o644)));
       formatted = true;
       reset = true;
     } else if (grown) {

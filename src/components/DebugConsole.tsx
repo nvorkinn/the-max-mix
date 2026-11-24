@@ -315,7 +315,7 @@ export default function DebugConsole({
   status,
   onReload = reloadPage,
   onRegisterAgain,
-  onFactoryReset = factoryReset
+  onFactoryReset
 }: Readonly<{
   isOpen: boolean;
   onClose: () => void;
@@ -336,7 +336,7 @@ export default function DebugConsole({
           onReload();
         })
       }
-      onFactoryReset={onFactoryReset}
+      onFactoryReset={onFactoryReset ?? (() => factoryReset())}
     />
   ) : null;
 }
