@@ -157,7 +157,6 @@ describe('SetupWizard', () => {
     });
     const onFinished = vi.fn();
     render(<SetupWizard onFinished={onFinished} />);
-    await userEvent.click(screen.getByRole('button', { name: 'OK' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Done' }));
     expect(takePhoneToPair).toHaveBeenCalled();
     expect(finishSetup).toHaveBeenCalled();
