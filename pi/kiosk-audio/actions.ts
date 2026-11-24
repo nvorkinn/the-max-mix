@@ -4,7 +4,7 @@ import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { RAUC_CONFIG } from './image-update.ts';
 
-export type Action = 'restart' | 'reboot' | 'wake';
+export type Action = 'restart' | 'reboot' | 'reset' | 'wake';
 
 const SYSTEMCTL = '/usr/bin/systemctl';
 const COMMANDS: Record<Action, string[]> = {
@@ -13,6 +13,8 @@ const COMMANDS: Record<Action, string[]> = {
     ? [SYSTEMCTL, 'start', '--no-block', 'kiosk-restart.service']
     : [SYSTEMCTL, 'restart', '--no-block', 'kiosk.service'],
   reboot: [SYSTEMCTL, 'reboot'],
+  // An image-based Pi's factory reset (kiosk-reset.service, the debug console's button): it wipes /data and reboots.
+  reset: [SYSTEMCTL, 'start', '--no-block', 'kiosk-reset.service'],
   // Turns the screen back on; it needs Cage's Wayland socket.
   wake: ['/usr/local/bin/kiosk-display', 'on']
 };

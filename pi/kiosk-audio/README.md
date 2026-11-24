@@ -56,6 +56,27 @@ known screen registers with its landscape size from the first start, with no `ki
 `brightness_control` is true when `/sys/class/backlight` has an entry: a DSI panel's driver makes one, HDMI never
 does. 503 with no screen connected.
 
+The screen mode on the kernel command line (`video=HDMI-A-1:1280x800@60`, which sets the console's mode and the one an
+HDMI screen with no EDID gets) is the Ansible role's on today's Pis. On an image-based Pi, whose boot partition comes
+from the image, `screen-setup.ts --cmdline=/boot/firmware/cmdline.txt` writes it at every kiosk start: `KIOSK_VIDEO_MODE`
+from `/data/the-max-mix/kiosk.env` (`--video-mode`) if set, else the screen's own (`screen-mode.ts`), else the mode
+already there, else 1024x600. It takes effect at the next boot, so an update writes it into the new slot's boot
+partition too (`node screen-mode.ts --cmdline <file> [--mode <mode>]`).
+
+## First boot and factory reset (image-based Pis)
+
+`kiosk-first-boot.ts` runs as root on every boot, before `/data` is mounted
+(`image/rootfs/etc/systemd/system/kiosk-first-boot.service`). It grows the data partition to the end of the card and
+formats it when it holds no filesystem, then takes in what Raspberry Pi Imager's customisation wrote to the card's first
+partition: the host name (`/data/identity/hostname`), the SSH keys (the `admin` account's, whatever account name was
+typed), and the Wi-Fi as a NetworkManager profile (`/data/network/system-connections`). It then deletes Imager's
+`user-data`, `network-config` and `meta-data` from the card, as they hold the Wi-Fi password. The tests read Imager's
+files from `imager-fixtures/`.
+
+`sudo kiosk-reset` over SSH, or **Factory reset** in the debug console (`POST /power/reset`, which starts
+`kiosk-reset.service`), logs out of Tailscale, marks `/data` and reboots. The next boot formats `/data`, keeping only
+the Pi's name and `kiosk.env`, so the Pi starts as a new kiosk with the Wi-Fi step and the QR code.
+
 `POST /display/brightness` sets that backlight (`backlight.ts`): `{"percent": 40}` is 40% of the panel's own full
 brightness, and never off, which is `kiosk-display`'s. With `"fade": true` it gets there in steps over 1.5 s, and a
 newer request stops the fade. The app uses it for its brightness setting and to fade an idle screen down; on a screen with no backlight it answers 404 and the app darkens its page instead. The kernel lets only root

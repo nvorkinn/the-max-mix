@@ -2,7 +2,16 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { correctScreens, evenTimings, preferredMode, screenMode } from './screen-mode.ts';
+import {
+  cmdlineWithMode,
+  correctScreens,
+  evenTimings,
+  FALLBACK_MODE,
+  modeSetting,
+  preferredMode,
+  screenMode,
+  writeCmdlineMode
+} from './screen-mode.ts';
 
 /** A base EDID block whose preferred timing is `width` x `height` with the given blanking and pixel clock (10 kHz). */
 function edid(width: number, height: number, widthBlank: number, heightBlank: number, clock: number): Uint8Array {
@@ -39,6 +48,9 @@ const ODD_TEN_INCH = Uint8Array.from(
     'hex'
   )
 );
+// The kernel command line of an image's boot partition, before the kiosk adds the screen mode.
+const IMAGE_CMDLINE =
+  'console=serial0,115200 console=tty3 root=PARTLABEL=root-a rootfstype=ext4 ro rootwait quiet logo.nologo loglevel=3';
 const sumOf = (block: Uint8Array) => block.reduce((total, byte) => total + byte, 0) % 256;
 
 describe('kiosk-audio/screen-mode', () => {
@@ -98,6 +110,37 @@ describe('kiosk-audio/screen-mode', () => {
     expect(evenTimings(ODD_TEN_INCH.subarray(0, 100))).toBeUndefined();
   });
 
+  describe('cmdlineWithMode', () => {
+    it('forces the mode on both HDMI ports, after the other parameters', () => {
+      expect(cmdlineWithMode(IMAGE_CMDLINE, '1280x800@60')).toBe(
+        `${IMAGE_CMDLINE} video=HDMI-A-1:1280x800@60 video=HDMI-A-2:1280x800@60`
+      );
+    });
+
+    it('replaces another mode once the mode is known', () => {
+      const line = `${IMAGE_CMDLINE} video=HDMI-A-1:1024x600@60 video=HDMI-A-2:1024x600@60 video=DSI-1:800x480@60`;
+      expect(cmdlineWithMode(line, '1280x800@60')).toBe(
+        `${IMAGE_CMDLINE} video=DSI-1:800x480@60 video=HDMI-A-1:1280x800@60 video=HDMI-A-2:1280x800@60`
+      );
+    });
+
+    it('keeps the mode set when the mode is not known, and falls back to the 7 inch one without any', () => {
+      const line = `${IMAGE_CMDLINE} video=HDMI-A-1:1280x800@60 video=HDMI-A-2:1280x800@60`;
+      expect(cmdlineWithMode(line, undefined)).toBe(line);
+      expect(cmdlineWithMode(`  ${IMAGE_CMDLINE}\n`, undefined)).toBe(
+        `${IMAGE_CMDLINE} video=HDMI-A-1:${FALLBACK_MODE} video=HDMI-A-2:${FALLBACK_MODE}`
+      );
+    });
+
+    it('takes only a mode as a setting', () => {
+      expect(modeSetting(' 1280x800@60 ')).toBe('1280x800@60');
+      expect(modeSetting('')).toBeUndefined();
+      expect(modeSetting(undefined)).toBeUndefined();
+      expect(modeSetting('1280x800')).toBeUndefined();
+      expect(modeSetting('1280x800@60 quiet')).toBeUndefined();
+    });
+  });
+
   describe('from the DRM folder', () => {
     let drm: string;
 
@@ -150,6 +193,24 @@ describe('kiosk-audio/screen-mode', () => {
       await writeFile(path.join(drm, 'card1-HDMI-A-2', 'edid'), override);
       expect(await correctScreens(drm, debug)).toEqual([]);
       expect(await correctScreens(path.join(drm, 'missing'), debug)).toEqual([]);
+    });
+
+    it("writes the screen's own mode into the kernel command line, and a setting over it", async () => {
+      await port('card1-HDMI-A-1', TEN_INCH);
+      const cmdline = path.join(drm, 'cmdline.txt');
+      await writeFile(cmdline, `${IMAGE_CMDLINE}\n`);
+
+      expect(await writeCmdlineMode(cmdline, { drm })).toBe(
+        `${IMAGE_CMDLINE} video=HDMI-A-1:1280x800@60 video=HDMI-A-2:1280x800@60`
+      );
+      // Right already: the file is left alone.
+      expect(await writeCmdlineMode(cmdline, { drm })).toBeUndefined();
+      expect(await writeCmdlineMode(cmdline, { drm, setting: '1024x600@60' })).toBe(
+        `${IMAGE_CMDLINE} video=HDMI-A-1:1024x600@60 video=HDMI-A-2:1024x600@60`
+      );
+      expect(await readFile(cmdline, 'utf8')).toBe(
+        `${IMAGE_CMDLINE} video=HDMI-A-1:1024x600@60 video=HDMI-A-2:1024x600@60\n`
+      );
     });
   });
 });

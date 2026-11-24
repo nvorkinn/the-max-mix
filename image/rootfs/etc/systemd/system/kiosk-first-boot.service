@@ -1,0 +1,21 @@
+# Gets the data partition ready before it is mounted at /data, on every boot (pi/kiosk-audio/kiosk-first-boot.ts): grows
+# and formats it on the first boot and after kiosk-reset, takes in Raspberry Pi Imager's settings from the card's first
+# partition (host name, the admin account's SSH keys, Wi-Fi) and gives the kernel the Pi's own host name. On a boot with
+# nothing to do it only checks, in well under a second.
+[Unit]
+Description=THE MAX MIX data partition and first boot
+DefaultDependencies=no
+Requires=dev-disk-by\x2dpartlabel-data.device
+After=dev-disk-by\x2dpartlabel-data.device dev-disk-by\x2dpartlabel-autoboot.device systemd-remount-fs.service
+Before=data.mount local-fs.target shutdown.target
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/node /opt/the-max-mix/kiosk-audio/kiosk-first-boot.ts --data=/dev/disk/by-partlabel/data --card=/dev/disk/by-partlabel/autoboot
+# Formatting a large card takes a while; growing it, a little.
+TimeoutStartSec=5min
+
+[Install]
+WantedBy=local-fs.target

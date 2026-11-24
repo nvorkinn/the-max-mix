@@ -435,10 +435,10 @@ describe('POST', () => {
   it('runs the named kiosk action', async () => {
     const { deps, performed } = fakes();
     const base = await start(deps);
-    const paths = ['/power/restart', '/power/reboot', '/display/wake'];
+    const paths = ['/power/restart', '/power/reboot', '/power/reset', '/display/wake'];
     const statuses = await Promise.all(paths.map(async path => (await post(base, path)).status));
-    expect(statuses).toEqual([204, 204, 204]);
-    expect(new Set(performed)).toEqual(new Set(['restart', 'reboot', 'wake']));
+    expect(statuses).toEqual([204, 204, 204, 204]);
+    expect(new Set(performed)).toEqual(new Set(['restart', 'reboot', 'reset', 'wake']));
   });
 
   it('routes the sound to the outputs or speakers in the body, or to none', async () => {

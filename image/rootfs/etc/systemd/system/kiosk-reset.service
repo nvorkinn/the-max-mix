@@ -1,0 +1,8 @@
+# The factory reset from the app's debug console (kiosk-audio's POST /power/reset, which polkit lets the kiosk user
+# start). Over SSH, run `sudo kiosk-reset` instead, which asks first.
+[Unit]
+Description=THE MAX MIX factory reset
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/kiosk-reset --yes

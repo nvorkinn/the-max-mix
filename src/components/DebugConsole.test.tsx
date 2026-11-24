@@ -147,11 +147,32 @@ describe('DebugConsole', () => {
     history.replaceState(null, '', '/');
   });
 
-  it('offers Register again only on the kiosk', () => {
+  it('offers Register again and Factory reset only on the kiosk', () => {
     render(<DebugConsole isOpen onClose={vi.fn()} status={[]} />);
     showStatus();
     expect(screen.getByText('Device ID').nextSibling).toHaveTextContent('Not registered');
     expect(screen.queryByRole('button', { name: /register again/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /factory reset/i })).not.toBeInTheDocument();
+  });
+
+  it('on the kiosk, resets the Pi on a second tap only', () => {
+    vi.useFakeTimers();
+    history.replaceState(null, '', '/?kiosk=1');
+    const onFactoryReset = vi.fn();
+    render(<DebugConsole isOpen onClose={vi.fn()} status={[]} onFactoryReset={onFactoryReset} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Factory reset' }));
+    expect(onFactoryReset).not.toHaveBeenCalled();
+    // A first tap that is not followed up is forgotten.
+    act(() => {
+      vi.advanceTimersByTime(4000);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Factory reset' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tap again to reset' }));
+    expect(onFactoryReset).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Factory reset' })).toBeInTheDocument();
+    vi.useRealTimers();
+    localStorage.clear();
+    history.replaceState(null, '', '/');
   });
 
   it('remembers whether the status was left open', () => {

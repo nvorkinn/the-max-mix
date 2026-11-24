@@ -1,0 +1,19 @@
+#cloud-config
+manage_resolv_conf: false
+
+hostname: "Kitchen-Kiosk"
+manage_etc_hosts: true
+packages:
+- avahi-daemon
+apt:
+  preserve_sources_list: true
+  conf: |
+    Acquire {
+      Check-Date "false";
+    };
+user:
+  name: "pi"
+  shell: /bin/bash
+  lock_passwd: false
+  passwd: "$y$j9T$Q2ZpZHVyZXNhbHQ$Sf5Q0QnBk6cK2kq3mM2b6p1x1oK7yQyQ0bq6Yh8b2nB"
+  sudo: null
