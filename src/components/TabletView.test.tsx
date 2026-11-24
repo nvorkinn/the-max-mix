@@ -900,6 +900,49 @@ describe('TabletView', () => {
     expect(api.getQueue).toHaveBeenCalledTimes(3);
   });
 
+  it('shows the kiosk player’s own queue without asking the Web API, and polls again once it has none', async () => {
+    vi.useFakeTimers();
+    const kioskQueue = [{ id: 'k1', uri: 'spotify:track:k1', name: 'From Soloist', artists: [{ name: 'S' }] }];
+    api.getQueue.mockResolvedValue({ queue: queued });
+    setPlayer({ isPlayerActive: true, queueVersion: 1, playbackState: playing, kioskQueue });
+    const { rerender } = renderOnSpotifyTab(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(api.getQueue).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'From Soloist' })).toBeInTheDocument();
+    // Its next list shows at once, and a rate limit on the Web API does not hold it back.
+    act(() => recordSpotifyRetryAfter(new SpotifyApiError('Rate limited', 429, 30)));
+    setPlayer({
+      isPlayerActive: true,
+      queueVersion: 2,
+      playbackState: playing,
+      kioskQueue: [...kioskQueue, { ...kioskQueue[0], id: 'k2', name: 'Also From Soloist' }]
+    });
+    rerender(<TabletView />);
+    await flush();
+    expect(screen.getByRole('heading', { name: 'Also From Soloist' })).toBeInTheDocument();
+    expect(screen.queryByText('Showing the last known queue.')).not.toBeInTheDocument();
+    expect(api.getQueue).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(31_000);
+    });
+
+    // Another device plays: the Web API's queue is read, and polled.
+    setPlayer({ isPlayerActive: false, queueVersion: 2, playbackState: playing, kioskQueue: null });
+    rerender(<TabletView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(api.getQueue).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('heading', { name: 'Queued One' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'From Soloist' })).not.toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_500);
+    });
+    expect(api.getQueue).toHaveBeenCalledTimes(2);
+  });
+
   it('polls the queue every 10 seconds when no player events arrive', async () => {
     vi.useFakeTimers();
     setPlayer({ playbackState: playing });

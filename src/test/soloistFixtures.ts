@@ -53,3 +53,36 @@ export function recordedReplies(command: string): Message[] {
     .filter(entry => entry.conn === conn && entry.dir === 'received')
     .map(entry => entry.message as Message);
 }
+
+/** The song of a queue entry, if it came with its details. */
+function songOf(entry: unknown): Message | undefined {
+  const item = isMessage(entry) ? entry['item'] : undefined;
+  return isMessage(item) && isMessage(item['decorations']) && 'identity' in item['decorations'] ? item : undefined;
+}
+
+/**
+ * Every song with its details that the recorded Soloist listed in a queue, once each, as its queue entries: eleven, more
+ * than Soloist's own queue_changed lists.
+ */
+export function recordedSongs(): Message[] {
+  const songs: Message[] = [];
+  const seen = new Set<unknown>();
+  for (const { message } of recorded) {
+    if (!isMessage(message) || message['type'] !== 'queue_changed') continue;
+    for (const entry of [message['previous'], message['upcoming']].flat()) {
+      const uri = songOf(entry)?.['uri'];
+      if (uri !== undefined && !seen.has(uri)) {
+        seen.add(uri);
+        songs.push(entry as Message);
+      }
+    }
+  }
+  return songs;
+}
+
+/** A queue_changed with these songs coming up, as Soloist sends it. */
+export const queueChanged = (upcoming: readonly unknown[]): Message => ({
+  type: 'queue_changed',
+  previous: [],
+  upcoming
+});

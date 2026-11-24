@@ -65,7 +65,7 @@ for file in /usr/local/bin/kiosk-session \
   /etc/systemd/system/kiosk-restart.timer /usr/local/bin/kiosk-shell \
   /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules /etc/polkit-1/rules.d/50-kiosk-power.rules \
   /usr/local/sbin/kiosk-status /usr/local/bin/kiosk-display /usr/local/sbin/kiosk-ssh-keys \
-  /usr/local/sbin/kiosk-app-switch \
+  /usr/local/sbin/kiosk-app-switch /usr/local/sbin/kiosk-screenshot \
   /etc/systemd/system/kiosk-ssh-keys.service /etc/systemd/system/kiosk-ssh-keys.timer \
   /usr/local/sbin/kiosk-soloist-update \
   /etc/systemd/system/kiosk-soloist-update.service /etc/systemd/system/kiosk-soloist-update.timer \

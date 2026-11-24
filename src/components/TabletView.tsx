@@ -80,7 +80,8 @@ import TabBar from './dashboard/TabBar';
 /** The minute it is now; the tab bar's clock changes only when this does. */
 const currentMinute = () => Math.floor(Date.now() / 60_000);
 
-// While the kiosk's player is active the queue is re-read when it says the queue changed; this is only a safety net.
+// While the kiosk's player is active and lists its queue itself the Web API is not asked at all; while it is active
+// without a list, the queue is re-read when it says the queue changed, and this is only a safety net.
 const QUEUE_POLL_MS = 10_000;
 const PLAYER_QUEUE_POLL_MS = 20_000;
 
@@ -122,6 +123,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     browserDeviceId,
     isPlayerActive,
     queueVersion,
+    kioskQueue: playerQueue,
     error: playerError,
     problem: playerProblem,
     retryPlayback,
@@ -147,6 +149,11 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const isOffline = useIsOffline(playerError);
   // While a Sonos plays, Spotify's queue is not what plays next; the Sonos says its next song itself.
   const canPollQueue = isAuthenticated && !followingSonos;
+  // While the kiosk's player (Soloist) is signed in and the active device, it lists the whole queue itself, at every
+  // change; the Web API is only polled without that list. Soloist's queue is its own, not the playing device's, so while
+  // another device plays the Web API's is used.
+  const kioskQueue = canPollQueue ? playerQueue : null;
+  const hasKioskQueue = Boolean(kioskQueue);
   const spotifyRetryAt = useSpotifyCooldown();
   const waitingForSpotify = spotifyRetryAt > 0;
   const { enabled: pollEnabled, quotaExceeded } = useSpotifyPolling();
@@ -189,10 +196,13 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       await playOnSonosRoom(room, uri, { positionMs, queueFrom: getKioskSonosLeader() });
       return;
     }
-    // The queue as Spotify has it now; the one on screen may be a few seconds old, or not read at all.
-    const upcoming = await getQueue()
-      .then(reply => reply.queue)
-      .catch(() => queue);
+    // The queue as it is now: the kiosk player's, every song of it, or else Spotify's (about 20 songs), as the one on
+    // screen may be a few seconds old, or not read at all.
+    const upcoming =
+      kioskQueue ??
+      (await getQueue()
+        .then(reply => reply.queue)
+        .catch(() => queue));
     if (playbackState?.is_playing && !(await togglePlay())) debugLog('warn', 'sonos', 'Spotify did not pause');
     const next = upcoming.map(track => track.uri).filter((song): song is string => Boolean(song));
     await playOnSonosRoom(room, uri, { next, positionMs });
@@ -403,7 +413,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   useEffect(() => {
     // The queue is not shown while the screen sleeps; waking it reads the queue again at once.
     // Wait for the first playback read so its track and playing state do not immediately restart queue polling.
-    if (quotaExceeded || !canPollQueue || isLoading || sleep.asleep) return;
+    if (quotaExceeded || !canPollQueue || hasKioskQueue || isLoading || sleep.asleep) return;
     let cancelled = false;
     // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
     const isCancelled = () => cancelled;
@@ -443,6 +453,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   }, [
     currentTrack?.id,
     canPollQueue,
+    hasKioskQueue,
     isLoading,
     sleep.asleep,
     quotaExceeded,
@@ -559,9 +570,10 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     ? isAuthenticated && !isOffline && Boolean(sonos.playback)
     : spotifyControlsEnabled;
   let shownQueueStatus: QueueStatus = waitingForSpotify ? 'waiting' : queueStatus;
-  if (followingSonos) shownQueueStatus = 'ready';
-  const shownQueue = followingSonos ? sonos.next : queue;
-  const shownQueueError = followingSonos ? null : queueError;
+  // Neither the Sonos's queue nor the kiosk player's waits for the Web API.
+  if (followingSonos || kioskQueue) shownQueueStatus = 'ready';
+  const shownQueue = followingSonos ? sonos.next : (kioskQueue ?? queue);
+  const shownQueueError = followingSonos || kioskQueue ? null : queueError;
   const trackKey = currentTrack?.id ?? currentTrack?.uri ?? null;
   // The song's lyrics are looked up as it starts, even with the panel on the queue, so the panel can open on them.
   const lyrics = useLyrics(currentTrack, !needsConnection);

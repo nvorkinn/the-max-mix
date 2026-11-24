@@ -147,14 +147,12 @@ address) clears it.
 No auth key goes in the repository or on the card. SSH still goes through `sshd` with your GitHub keys; Tailscale only
 carries it. To take a Pi off your tailnet: `sudo tailscale logout`, or remove it in the admin console.
 
-### Screenshots and DevTools
+### Screenshots
 
-The kiosk's Chromium listens for DevTools on `127.0.0.1:9222`, on the Pi only. From a clone of the repository on your
-computer, `npm run kiosk-screenshot -- the-max-mix.local` saves what the screen shows as a PNG (`kiosk-<host>-<time>.png`,
-or name it as the second argument). It goes over SSH as `admin`, so any host that `ssh admin@<host>` reaches works,
-Tailscale names included. To inspect the page, open a tunnel with `ssh -N -L 9222:127.0.0.1:9222 admin@the-max-mix.local`,
-then `chrome://inspect` in Chrome on your computer lists the kiosk's page under Remote Target (add `localhost:9222` under
-Configure if it does not).
+From a clone of the repository on your computer, `npm run kiosk-screenshot -- the-max-mix.local` saves what the screen
+shows as a PNG (`kiosk-<host>-<time>.png`, or name it as the second argument). It goes over SSH as `admin`, so any host
+that `ssh admin@<host>` reaches works, Tailscale names included, and runs `sudo kiosk-screenshot` there, which has `grim`
+take the screen from Cage. On the Pi itself, `sudo kiosk-screenshot > screen.png` does the same.
 
 ## Spotify Soloist
 

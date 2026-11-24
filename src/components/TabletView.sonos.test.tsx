@@ -101,6 +101,18 @@ describe('TabletView with Sonos', () => {
     expect(state.player['handOff']).toHaveBeenCalled();
   });
 
+  it('hands the Sonos every song of the kiosk player’s own queue, when it has one, without asking the Web API', async () => {
+    const songs = Array.from({ length: 30 }, (_, index) => ({ uri: `spotify:track:kiosk${index}`, name: `K${index}` }));
+    setUp(false, { isPlayerActive: true, kioskQueue: songs });
+    await act(() => defined(props.selection.playOnSonos)('Kitchen'));
+    expect(playOnSonosRoom).toHaveBeenCalledWith('Kitchen', URI, {
+      next: songs.map(song => song.uri),
+      positionMs: 61_000
+    });
+    expect(getQueue).not.toHaveBeenCalled();
+    expect(state.player['handOff']).toHaveBeenCalled();
+  });
+
   it('still starts the song on the Sonos when Spotify’s queue cannot be read', async () => {
     getQueue.mockRejectedValue(new Error('Rate limited'));
     setUp(false);
