@@ -65,10 +65,9 @@
 //   POST /soloist/stop      stop it, when nobody is signed in on the kiosk: 204
 //   POST /power/restart, /power/reboot   restart the kiosk, reboot the Pi; /power/reset   an image-based Pi's factory
 //                           reset (kiosk-reset): wipe /data and reboot; /display/wake   turn the screen on: 204
-//   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
-//                           (update-socket.ts); on an image Pi, run kiosk-update.service and stream its journal, RAUC's
-//                           progress among it (update.ts runImageUpdate)
-//   POST /update/check      image Pis only (404 elsewhere): what the update channel has (image-update.ts check):
+//   WS   /power/update      run kiosk-update.service and stream its journal, RAUC's progress among it (update-socket.ts,
+//                           update.ts)
+//   POST /update/check      what the update channel has (image-update.ts check):
 //                           {"channel", "current", "installed", "failed", "busy", "result", "latest"}
 //   GET  /health            {"heartbeatAgeMs"}: how long ago the app last sent a heartbeat, or null; for kiosk-health
 //   WS   /soloist           Spotify Soloist's events, and the app's commands to it (soloist-socket.ts)
@@ -77,7 +76,6 @@
 // The Wi-Fi requests are for the app's Settings > Wi-Fi, which opens by itself when the kiosk starts with no network: the
 // app works offline because this service serves it. The POSTs that change the network answer only that copy
 // (LOCAL_ORIGIN), never a hosted app.
-import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { perform } from './actions.ts';
@@ -95,7 +93,7 @@ import { isLoopback, listenForHotspot } from './hotspot-portal.ts';
 import { Hotspot, HotspotError } from './hotspot.ts';
 import type { HotspotInfo, HotspotStatus } from './hotspot.ts';
 import { readText, updateIO } from './image-update-io.ts';
-import { check as checkForUpdate, RAUC_CONFIG, readState } from './image-update.ts';
+import { check as checkForUpdate, readState } from './image-update.ts';
 import type { Checked } from './image-update.ts';
 import type { LyricsQuery } from './lyrics-sources.ts';
 import { lyricsLookup, parseLyricsQuery } from './lyrics.ts';
@@ -122,7 +120,7 @@ import type { SonosOperations, SonosRequest } from './sonos.ts';
 import { speakerOutputs, speakerSinks, validChoices, validVolume } from './speakers.ts';
 import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
-import { runImageUpdate, runUpdate } from './update.ts';
+import { runUpdate } from './update.ts';
 import { chromiumPid, CHECK_MS, stopChromium, Watchdog } from './watchdog.ts';
 
 const SPEAKERS_PORT = 7341;
@@ -159,8 +157,8 @@ export interface Deps {
   heartbeat: () => void;
   /** How long ago the app's last heartbeat came, in ms; null before the first. */
   heartbeatAge: () => number | null;
-  /** The updater on an image Pi (image-update.ts); null on a Pi Ansible installed. */
-  imageUpdates: { check: () => Promise<Checked> } | null;
+  /** The updater (image-update.ts). */
+  updates: { check: () => Promise<Checked> };
   log: (entry: AppLog) => void;
   wifi: Wifi;
   /** The app's saved data on its way from the hosted app to the local copy (handover.ts). */
@@ -597,10 +595,9 @@ const sendJson = (response: ServerResponse, status: number, body: unknown): void
   response.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(body));
 };
 
-/** POST /update/check: what an image Pi's update channel has; 404 on a Pi Ansible installed. */
+/** POST /update/check: what the Pi's update channel has. */
 async function postUpdateCheck(response: ServerResponse, deps: Deps): Promise<void> {
-  if (deps.imageUpdates) sendJson(response, 200, await deps.imageUpdates.check());
-  else response.writeHead(404).end();
+  sendJson(response, 200, await deps.updates.check());
 }
 
 /** Nothing of the check is logged when the screen asks: the app shows it. */
@@ -917,21 +914,17 @@ export function serveSpeakers(
   },
   update?: Update
 ): Server {
-  const isImage = existsSync(RAUC_CONFIG);
-  const imageUpdates = isImage
-    ? {
-        check: async () => {
-          const rauc = await raucOverDbus();
-          try {
-            return await checkForUpdate(updateIO(rauc, quiet));
-          } finally {
-            await rauc.close();
-          }
-        }
+  const updates = {
+    check: async () => {
+      const rauc = await raucOverDbus();
+      try {
+        return await checkForUpdate(updateIO(rauc, quiet));
+      } finally {
+        await rauc.close();
       }
-    : null;
-  const runAnUpdate: Update =
-    update ?? (isImage ? (send, signal) => runImageUpdate(send, signal, installedUpdate) : runUpdate);
+    }
+  };
+  const runAnUpdate: Update = update ?? ((send, signal) => runUpdate(send, signal, installedUpdate));
   let lastBeat: number | null = null;
   const watchdog = new Watchdog({
     now: () => Date.now(),
@@ -976,7 +969,7 @@ export function serveSpeakers(
     sonosEvents: new SonosEventHub(libraryEvents),
     heartbeat,
     heartbeatAge: () => (lastBeat === null ? null : Date.now() - lastBeat),
-    imageUpdates,
+    updates,
     log: journalLog(),
     app: appFiles(deps.appFolder),
     handover: handoverFile(deps.handoverFile),

@@ -1,18 +1,16 @@
 // Works out how the kiosk shows the screen that is plugged in: how far it turns the picture and the touches, and how much
 // bigger it draws everything. A screen in KNOWN_SCREENS gets its own settings, so a freshly flashed Pi with one of them
-// needs no /etc/the-max-mix/kiosk-vars.yml; any other screen is shown as it is. kiosk_screen_rotation and
-// kiosk_screen_scale in the Ansible role, or KIOSK_ROTATION and KIOSK_SCALE in an image-based Pi's kiosk.env (passed
-// here as --rotation and --scale), win over the table when they are set.
+// needs no settings; any other screen is shown as it is. KIOSK_ROTATION and KIOSK_SCALE in the Pi's kiosk.env (passed
+// here as --rotation and --scale) win over the table when they are set.
 //
 // kiosk.service runs it as root before Cage on every start, so it always goes by the screen that is plugged in:
 //   node screen-setup.ts [--rotation <0|90|180|270>] [--scale <number>] [--video-mode <mode>] [--cmdline <cmdline.txt>]
 // It writes the result to /run/kiosk/screen.env (KIOSK_SCREEN_ROTATION and KIOSK_SCREEN_SCALE), which kiosk.service
 // (for kiosk-session and kiosk-display) and the kiosk-audio service (for GET /screen) read, and the touch screen's
 // rotation to a udev rule in /run/udev/rules.d, which libinput reads when Cage opens the touch screen.
-// On an image-based Pi (whose boot partition comes from the image, so no playbook writes video= into it) --cmdline names
-// the kernel command line, and it also writes the screen mode there, for the console and the next boot: --video-mode
-// (KIOSK_VIDEO_MODE in kiosk.env) if set, else the screen's own (screen-mode.ts). Without --cmdline it leaves the
-// command line to the Ansible role, as before.
+// The boot partition comes from the image, so --cmdline names the kernel command line, and it also writes the screen
+// mode there, for the console and the next boot: --video-mode (KIOSK_VIDEO_MODE in kiosk.env) if set, else the screen's
+// own (screen-mode.ts). Without --cmdline it leaves the command line as it is.
 import { execFile } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -80,7 +78,7 @@ export function knownScreen(
   );
 }
 
-/** A rotation or scale from the Ansible role: undefined when it is empty or not one the kiosk can use. */
+/** A rotation or scale from kiosk.env: undefined when it is empty or not one the kiosk can use. */
 export function rotationSetting(value: string | undefined): Rotation | undefined {
   const rotation = Number(value);
   return value?.trim() && ROTATIONS.has(rotation as Rotation) ? (rotation as Rotation) : undefined;

@@ -1,19 +1,15 @@
 // What the app's kiosk buttons can ask of the Pi, and nothing else: each action is a fixed command (no argument comes
 // from the request). The service runs as the kiosk user, so polkit (50-kiosk-power.rules) still decides what it may do.
 import { execFile } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { RAUC_CONFIG } from './image-update.ts';
 
 export type Action = 'restart' | 'reboot' | 'reset' | 'wake';
 
 const SYSTEMCTL = '/usr/bin/systemctl';
 const COMMANDS: Record<Action, string[]> = {
-  // On an image Pi, Restart also starts an installed update (kiosk-update.ts restart), as 04:30 does.
-  restart: existsSync(RAUC_CONFIG)
-    ? [SYSTEMCTL, 'start', '--no-block', 'kiosk-restart.service']
-    : [SYSTEMCTL, 'restart', '--no-block', 'kiosk.service'],
+  // Restart also starts an installed update (kiosk-update.ts restart), as 04:30 does.
+  restart: [SYSTEMCTL, 'start', '--no-block', 'kiosk-restart.service'],
   reboot: [SYSTEMCTL, 'reboot'],
-  // An image-based Pi's factory reset (kiosk-reset.service, the debug console's button): it wipes /data and reboots.
+  // The factory reset (kiosk-reset.service, the debug console's button): it wipes /data and reboots.
   reset: [SYSTEMCTL, 'start', '--no-block', 'kiosk-reset.service'],
   // Turns the screen back on; it needs Cage's Wayland socket.
   wake: ['/usr/local/bin/kiosk-display', 'on']

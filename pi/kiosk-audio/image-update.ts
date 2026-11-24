@@ -21,8 +21,6 @@ export const KIOSK_ENV = '/data/the-max-mix/kiosk.env';
 export const RELEASE_ENV = '/usr/lib/the-max-mix/release.env';
 /** The updater's own state, on /data so both slots share it. Root writes it; kiosk-audio only reads it. */
 export const STATE_FILE = '/data/the-max-mix/update/state.json';
-/** Only image Pis have it; a Pi installed by Ansible updates the old way. */
-export const RAUC_CONFIG = '/etc/rauc/system.conf';
 /** The timer runs every 2 minutes; a Pi on the stable channel checks only this often. */
 export const STABLE_EVERY_MS = 6 * 60 * 60 * 1000;
 /** How many failed versions are remembered. */

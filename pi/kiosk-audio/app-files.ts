@@ -1,7 +1,6 @@
-// Serves the web app that the release installed on the Pi (KIOSK_APP_DIR, /opt/the-max-mix/app/current), so the kiosk
-// starts the app with no internet. The folder is Vite's build (dist/) at the release's commit; the Ansible role
-// installs each release in a folder of its own and points `current` at it only when the kiosk starts
-// (kiosk-app-switch), so a page that is already open never asks for files that a newer release removed.
+// Serves the web app that is part of the Pi's image (KIOSK_APP_DIR, /opt/the-max-mix/app), so the kiosk starts the app
+// with no internet. The folder is Vite's build (dist/) at the image's commit; a new one arrives only with a reboot into
+// a new slot, so a page that is already open never asks for files that a newer release removed.
 //   GET /                 index.html (the app takes everything else it needs from the query: ?kiosk=1&pi_ref=…)
 //   GET /assets/…         the built scripts, styles and images, whose names carry a hash of their content
 //   GET /<file>           anything else at the top of the build (public/)

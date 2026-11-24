@@ -1,8 +1,6 @@
-// Prints the screen's own mode, such as 1280x800@60, for the kernel command line (the Ansible role runs it from the
-// checkout before it writes video= into cmdline.txt). The kernel reads each HDMI screen's EDID even when cmdline.txt
+// Prints the screen's own mode, such as 1280x800@60, for the kernel command line. The kernel reads each HDMI screen's EDID even when cmdline.txt
 // forces a mode, and keeps it in /sys/class/drm/card*-HDMI-A-*/edid; the first screen with a valid EDID wins.
-// Prints nothing when no screen has one (none plugged in, or a screen that sends no EDID), and the role keeps the mode
-// that is already set, or 1024x600 on a first run.
+// Prints nothing when no screen has one (none plugged in, or a screen that sends no EDID).
 //   node screen-mode.ts [drm folder]
 //
 // With --correct it instead gives the kernel a corrected EDID for a screen whose own mode the Pi cannot send (see
@@ -10,8 +8,8 @@
 // so it always goes by the screen that is plugged in. The correction lasts until the Pi restarts.
 //   node screen-mode.ts --correct [drm folder] [debugfs dri folder]
 //
-// With --cmdline it writes the mode into a kernel command line file itself (cmdlineWithMode), as the Ansible role does,
-// for an image-based Pi, whose boot partition comes from the image: screen-setup.ts does it as the kiosk starts, and an
+// With --cmdline it writes the mode into a kernel command line file itself (cmdlineWithMode), since the boot partition
+// comes from the image: screen-setup.ts does it as the kiosk starts, and an
 // update writes it into the new slot's boot partition before booting it. --mode (KIOSK_VIDEO_MODE in kiosk.env) wins
 // over the screen's own mode.
 //   node screen-mode.ts --cmdline <cmdline.txt> [--mode <mode>] [drm folder]
@@ -143,8 +141,7 @@ export function modeSetting(value: string | undefined): string | undefined {
 }
 
 /**
- * The kernel command line `line` with `mode` forced on both HDMI ports (video=HDMI-A-1:<mode>), as the Ansible role
- * writes it: another mode is replaced only once the mode is known, and a port with no mode at all gets the fallback. The
+ * The kernel command line `line` with `mode` forced on both HDMI ports (video=HDMI-A-1:<mode>): another mode is replaced only once the mode is known, and a port with no mode at all gets the fallback. The
  * other parameters stay as they are, in their order.
  */
 export function cmdlineWithMode(line: string, mode: string | undefined): string {
