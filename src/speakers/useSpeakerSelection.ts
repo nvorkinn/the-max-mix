@@ -22,7 +22,7 @@ import {
 } from '../sonos/kiosk';
 import type { PiSonosGroup } from '../sonos/kiosk';
 import { getDevices } from '../spotify/api';
-import { recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
+import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import { getKnownSpeakers } from '../spotify/knownDevices';
 import type { SpotifyDevice } from '../types';
 import { debugLog } from '../utils/debugLog';
@@ -34,6 +34,11 @@ import type { SpeakerChoice, SpeakerKey } from './selection';
 const CONFIRM_MS = 1000;
 const CONFIRM_READS = 8;
 const NOT_CONFIRMED = 'The speakers did not take the change.';
+/**
+ * While the view shows, Spotify's device list is read again this often: Spotify drops a phone whose Spotify app sleeps
+ * and lists it again once it wakes, and nothing else says so.
+ */
+export const DEVICES_POLL_MS = 10_000;
 
 /** A Spotify Connect device to list: `remembered` when Spotify left it out but the app has seen it playing. */
 interface ConnectDevice extends SpotifyDevice {
@@ -129,6 +134,8 @@ export function useSpeakerSelection({
   const [draft, setDraft] = useState<SpeakerChoice | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshingRef = useRef(false);
   const leader = useSyncExternalStore(subscribeKioskSonosLeader, getKioskSonosLeader);
 
   const readDevices = useCallback(async () => {
@@ -158,17 +165,33 @@ export function useSpeakerSelection({
     }
   }, []);
 
-  const refresh = useCallback(() => {
-    void readDevices();
-    if (!onKiosk) return;
-    void readGroups();
-    void readOutputs();
+  /** Reads every list again (Spotify's devices, and on the kiosk the Sonos rooms and outputs); one read at a time. */
+  const refresh = useCallback(async () => {
+    if (refreshingRef.current) return;
+    refreshingRef.current = true;
+    setRefreshing(true);
+    try {
+      await Promise.all(onKiosk ? [readDevices(), readGroups(), readOutputs()] : [readDevices()]);
+    } finally {
+      refreshingRef.current = false;
+      setRefreshing(false);
+    }
   }, [onKiosk, readDevices, readGroups, readOutputs]);
 
   // Everything is read again each time the view opens.
   useEffect(() => {
-    if (open) refresh();
+    if (open) void refresh();
   }, [open, refresh]);
+  // While the view shows, Spotify's devices are read again now and then, so a phone that just woke turns up untapped;
+  // not while Spotify has asked the app to wait.
+  useEffect(() => {
+    if (!open) return;
+    const timer = setInterval(() => {
+      if (getSpotifyRetryDelay() > 0 || refreshingRef.current) return;
+      void readDevices();
+    }, DEVICES_POLL_MS);
+    return () => clearInterval(timer);
+  }, [open, readDevices]);
   // The outputs are kept fresh on the kiosk, since the label under the artwork says which of them play.
   useEffect(() => {
     if (!onKiosk) return;
@@ -328,6 +351,8 @@ export function useSpeakerSelection({
     save,
     cancel,
     refresh,
+    /** A refresh is reading the lists. */
+    refreshing,
     /** This tablet plays, so its outputs (AirPlay, Bluetooth) can be chosen. */
     tabletPlaying: confirmed?.family === 'tablet',
     /** What plays, in English for the debug console. */

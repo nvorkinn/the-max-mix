@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { Airplay, Bluetooth, Check, SlidersHorizontal, Speaker } from 'lucide-react';
+import { Airplay, Bluetooth, Check, RefreshCw, SlidersHorizontal, Speaker } from 'lucide-react';
 import { setSpeakerVolume } from '../audio/airplay';
 import type { AudioOutput } from '../audio/airplay';
 import {
@@ -256,8 +256,8 @@ export default function SpeakersView({
   const error = tab === 'bluetooth' ? (bluetooth.error ?? selection.error) : selection.error;
   return (
     <div className="speakers-view">
-      {onKiosk && (
-        <div className="speaker-tabs-row">
+      <div className="speaker-tabs-row">
+        {onKiosk && (
           <div className="speaker-tabs" role="group" aria-label={t('speakers.kind')}>
             {TABS.map(({ id, label, Icon }) => (
               <button
@@ -273,20 +273,31 @@ export default function SpeakersView({
               </button>
             ))}
           </div>
-          {tab !== 'connect' && tabletPlaying && (
-            <button
-              type="button"
-              onClick={() => setShowVolumes(shownNow => !shownNow)}
-              aria-pressed={showVolumes}
-              aria-label={t('speakers.volumes')}
-              title={t('speakers.volumes')}
-              className="speaker-volumes-button"
-            >
-              <SlidersHorizontal size={20} aria-hidden="true" />
-            </button>
-          )}
-        </div>
-      )}
+        )}
+        {onKiosk && tab !== 'connect' && tabletPlaying && (
+          <button
+            type="button"
+            onClick={() => setShowVolumes(shownNow => !shownNow)}
+            aria-pressed={showVolumes}
+            aria-label={t('speakers.volumes')}
+            title={t('speakers.volumes')}
+            className="speaker-volumes-button"
+          >
+            <SlidersHorizontal size={20} aria-hidden="true" />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => void selection.refresh()}
+          disabled={selection.refreshing}
+          aria-busy={selection.refreshing}
+          aria-label={t('speakers.refresh')}
+          title={t('speakers.refresh')}
+          className="speaker-volumes-button speaker-refresh-button"
+        >
+          <RefreshCw size={20} aria-hidden="true" className={selection.refreshing ? 'animate-spin' : undefined} />
+        </button>
+      </div>
       {error && (
         <p role="alert" className="speaker-error">
           {error}
