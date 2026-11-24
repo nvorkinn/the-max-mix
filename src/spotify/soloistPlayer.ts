@@ -140,6 +140,25 @@ export class SoloistPlayer {
     this.#url = url;
   }
 
+  #open(): void {
+    this.#reconnect = undefined;
+    const socket = new WebSocket(this.#url);
+    this.#socket = socket;
+    socket.addEventListener('open', () => {
+      if (this.#socket === socket) this.#isOpen = true;
+    });
+    socket.addEventListener('message', message => {
+      if (this.#socket === socket) this.#receive(message.data);
+    });
+    socket.addEventListener('close', () => {
+      if (this.#socket !== socket) return;
+      this.#socket = null;
+      this.#isOpen = false;
+      this.#lost();
+      if (!this.#isStopped) this.#reconnect = setTimeout(() => this.#open(), RECONNECT_MS);
+    });
+  }
+
   /** Whether Soloist is the account's active device, which is when its commands reach it. */
   get isActive(): boolean {
     return this.#isActive;
@@ -209,25 +228,6 @@ export class SoloistPlayer {
     const volume = Math.min(100, Math.max(0, Math.round(percent)));
     this.#volume = volume;
     return this.#control('set_volume', { volume });
-  }
-
-  #open(): void {
-    this.#reconnect = undefined;
-    const socket = new WebSocket(this.#url);
-    this.#socket = socket;
-    socket.addEventListener('open', () => {
-      if (this.#socket === socket) this.#isOpen = true;
-    });
-    socket.addEventListener('message', message => {
-      if (this.#socket === socket) this.#receive(message.data);
-    });
-    socket.addEventListener('close', () => {
-      if (this.#socket !== socket) return;
-      this.#socket = null;
-      this.#isOpen = false;
-      this.#lost();
-      if (!this.#isStopped) this.#reconnect = setTimeout(() => this.#open(), RECONNECT_MS);
-    });
   }
 
   /** Sends a command without waiting for its result: get_state and the like answer with events, not a result. */
@@ -333,7 +333,7 @@ export class SoloistPlayer {
     if (volume === undefined) return;
     const wanted = this.#volume;
     // Starting playback can raise the volume by one: the volume it had is set again, once.
-    if (wanted !== null && this.#isActive && volume !== wanted && Date.now() - this.#startedAt < VOLUME_HOLD_MS) {
+    if (wanted !== null && volume !== wanted && this.#isActive && Date.now() - this.#startedAt < VOLUME_HOLD_MS) {
       this.#startedAt = 0;
       this.#ask('set_volume', { volume: wanted });
       return;
