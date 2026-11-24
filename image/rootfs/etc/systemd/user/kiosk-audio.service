@@ -1,0 +1,38 @@
+# A user unit, enabled for every user but run only for the kiosk user: it needs that user's PipeWire session, which
+# kiosk.service's login session starts.
+[Unit]
+Description=THE MAX MIX audio routing (keeps the browser's sound on the chosen AirPlay speakers)
+ConditionUser=kiosk
+Wants=pipewire.service wireplumber.service
+After=pipewire.service wireplumber.service
+
+[Service]
+Environment=KIOSK_APP_ORIGIN=http://127.0.0.1:7341
+# The web app this service serves (app-files.ts). It is part of the image, so a new release arrives with the reboot
+# into the new slot and an open page never loses a file to it.
+Environment=KIOSK_APP_DIR=/opt/the-max-mix/app
+# The port the Sonos speakers send their events to (sonos-events.ts), on the Pi's home network address. The sonos-ts
+# library opens it the first time the app listens. It takes events only for the subscriptions it holds (anything else
+# gets 412) and otherwise answers just its /status and /health pages.
+Environment=SONOS_LISTENER_PORT=6329
+# The Pi's own settings: KIOSK_NAME, the name Soloist goes by in Spotify Connect (empty or missing: the host name
+# decides, soloist.ts). A new name takes effect when this service restarts.
+EnvironmentFile=-/data/the-max-mix/kiosk.env
+# How far the screen is turned and how much bigger it is drawn (KIOSK_SCREEN_ROTATION, KIOSK_SCREEN_SCALE), which
+# screen-setup.ts writes as kiosk.service starts, before it restarts this service: for the size GET /screen answers
+# (screen.ts), and for kiosk-display when this service wakes the screen.
+EnvironmentFile=-/run/kiosk/screen.env
+ExecStart=/usr/bin/node /opt/the-max-mix/kiosk-audio/kiosk-audio.ts watch
+Restart=always
+RestartSec=2
+NoNewPrivileges=yes
+LockPersonality=yes
+# PipeWire's socket, the app's requests on 127.0.0.1 (server.ts), the Sonos events port above, and the sonos-ts library
+# (sonos.ts), which finds the Sonos speakers on the home network, talks to them and takes their events, and reads the
+# network interfaces over netlink. So there is no IP address allow list: the speakers are wherever the home network puts
+# them. Spotify Soloist, which this service runs (soloist.ts) and which inherits these limits, also reaches Spotify and
+# announces itself to phones over IPv6.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+[Install]
+WantedBy=default.target
