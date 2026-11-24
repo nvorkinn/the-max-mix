@@ -47,46 +47,70 @@ const SYSTEM_OWNED = ['/data', '/dev', '/proc', '/run', '/sys', '/tmp'];
 
 const isWithin = (inner: string, outer: string) => inner === outer || inner.startsWith(`${outer}/`);
 
-export function checkPersistList(text: string): string[] {
+interface PersistEntry {
+  number: number;
+  target: string;
+  source: string;
+}
+
+const isPlainTarget = (target: string) =>
+  target !== '/' && target.startsWith('/') && !target.endsWith('/') && path.posix.normalize(target) === target;
+
+const isPlainSource = (source: string) =>
+  source !== '.' &&
+  !source.startsWith('/') &&
+  !source.endsWith('/') &&
+  !source.split('/').includes('..') &&
+  path.posix.normalize(source) === source;
+
+function persistLineProblems({ number, target, source }: PersistEntry, kind: string | undefined): string[] {
   const problems: string[] = [];
-  const entries: { number: number; target: string; source: string }[] = [];
-  for (const { number, words } of meaningfulLines(text)) {
-    const [kind, target = '', source = ''] = words;
-    if (words.length !== 3) {
-      problems.push(`line ${number}: expected KIND PATH SOURCE, got "${words.join(' ')}"`);
-      continue;
-    }
-    if (kind !== 'dir' && kind !== 'file') {
-      problems.push(`line ${number}: the kind is dir or file, not "${kind}"`);
-    }
-    if (!target.startsWith('/') || target === '/' || path.posix.normalize(target) !== target || target.endsWith('/')) {
-      problems.push(`line ${number}: "${target}" is not a plain absolute path`);
-    } else if (SYSTEM_OWNED.some(outer => isWithin(target, outer))) {
-      problems.push(`line ${number}: ${target} cannot be kept on /data`);
-    }
-    if (
-      source.startsWith('/') ||
-      path.posix.normalize(source) !== source ||
-      source.endsWith('/') ||
-      source === '.' ||
-      source.split('/').includes('..')
-    ) {
-      problems.push(`line ${number}: "${source}" is not a plain path under /data`);
-    }
-    entries.push({ number, target, source });
+  if (kind !== 'dir' && kind !== 'file') {
+    problems.push(`line ${number}: the kind is dir or file, not "${kind}"`);
   }
-  // Two lines for one place, or one inside the other: which bind mount wins would depend on their order.
-  for (const [index, entry] of entries.entries()) {
-    for (const earlier of entries.slice(0, index)) {
-      if (isWithin(entry.target, earlier.target) || isWithin(earlier.target, entry.target)) {
-        problems.push(`line ${entry.number}: ${entry.target} overlaps ${earlier.target} on line ${earlier.number}`);
-      }
-      if (isWithin(entry.source, earlier.source) || isWithin(earlier.source, entry.source)) {
-        problems.push(`line ${entry.number}: ${entry.source} overlaps ${earlier.source} on line ${earlier.number}`);
-      }
-    }
+  if (!isPlainTarget(target)) {
+    problems.push(`line ${number}: "${target}" is not a plain absolute path`);
+  } else if (SYSTEM_OWNED.some(outer => isWithin(target, outer))) {
+    problems.push(`line ${number}: ${target} cannot be kept on /data`);
+  }
+  if (!isPlainSource(source)) {
+    problems.push(`line ${number}: "${source}" is not a plain path under /data`);
   }
   return problems;
+}
+
+const overlap = (a: string, b: string) => isWithin(a, b) || isWithin(b, a);
+
+// Two lines for one place, or one inside the other: which bind mount wins would depend on their order.
+function overlapProblems(entries: PersistEntry[]): string[] {
+  return entries.flatMap((entry, index) =>
+    entries
+      .slice(0, index)
+      .flatMap(earlier => [
+        ...(overlap(entry.target, earlier.target)
+          ? [`line ${entry.number}: ${entry.target} overlaps ${earlier.target} on line ${earlier.number}`]
+          : []),
+        ...(overlap(entry.source, earlier.source)
+          ? [`line ${entry.number}: ${entry.source} overlaps ${earlier.source} on line ${earlier.number}`]
+          : [])
+      ])
+  );
+}
+
+export function checkPersistList(text: string): string[] {
+  const problems: string[] = [];
+  const entries: PersistEntry[] = [];
+  for (const { number, words } of meaningfulLines(text)) {
+    const [kind, target = '', source = ''] = words;
+    if (words.length === 3) {
+      const entry = { number, target, source };
+      problems.push(...persistLineProblems(entry, kind));
+      entries.push(entry);
+    } else {
+      problems.push(`line ${number}: expected KIND PATH SOURCE, got "${words.join(' ')}"`);
+    }
+  }
+  return [...problems, ...overlapProblems(entries)];
 }
 
 /** A unit file in the image's rootfs (etc/systemd/system or etc/systemd/user), and whether it can be enabled. */
@@ -96,45 +120,60 @@ export interface RootfsUnit {
   hasInstall: boolean;
 }
 
-const UNIT = /^[A-Za-z0-9:_.\\-]+(@[A-Za-z0-9:_.\\-]*)?\.(service|socket|timer|mount|automount|path|target|swap)$/;
+const UNIT_TYPES = new Set(['.service', '.socket', '.timer', '.mount', '.automount', '.path', '.target', '.swap']);
 const ACTIONS = ['enable', 'enable-global', 'mask'];
+
+// systemd's unit name characters, with at most one @ (a template's instance).
+const isUnitName = (unit: string) =>
+  UNIT_TYPES.has(path.extname(unit)) && /^[\w:.@\\-]+$/.test(unit) && unit.split('@').length <= 2;
+
+/** What is wrong with listing one of the image's own units with this action. */
+function ownUnitProblem(own: RootfsUnit, action: string): string | undefined {
+  // A mask needs no unit file, and a bad action is reported on its own.
+  if (action === 'mask' || !ACTIONS.includes(action)) {
+    return undefined;
+  }
+  if (!own.hasInstall) {
+    return `${own.name} has no [Install] section, so it cannot be enabled`;
+  }
+  const expected = own.scope === 'user' ? 'enable-global' : 'enable';
+  return action === expected ? undefined : `${own.name} is a ${own.scope} unit, so its action is ${expected}`;
+}
+
+function unitLineProblems(number: number, action: string, unit: string): string[] {
+  const problems: string[] = [];
+  if (!ACTIONS.includes(action)) {
+    problems.push(`line ${number}: the action is ${ACTIONS.join(', ')}, not "${action}"`);
+  }
+  if (!isUnitName(unit)) {
+    problems.push(`line ${number}: "${unit}" is not a unit name`);
+  }
+  return problems;
+}
 
 export function checkUnits(text: string, rootfsUnits: RootfsUnit[]): string[] {
   const problems: string[] = [];
-  const listed = new Map<string, { number: number; action: string }>();
+  const listed = new Map<string, number>();
   for (const { number, words } of meaningfulLines(text)) {
     const [action = '', unit = ''] = words;
+    const earlier = listed.get(unit);
     if (words.length !== 2) {
       problems.push(`line ${number}: expected ACTION UNIT, got "${words.join(' ')}"`);
-      continue;
-    }
-    if (!ACTIONS.includes(action)) {
-      problems.push(`line ${number}: the action is ${ACTIONS.join(', ')}, not "${action}"`);
-    }
-    if (!UNIT.test(unit)) {
-      problems.push(`line ${number}: "${unit}" is not a unit name`);
-    }
-    const earlier = listed.get(unit);
-    if (earlier) {
-      problems.push(`line ${number}: ${unit} is already on line ${earlier.number}`);
-      continue;
-    }
-    listed.set(unit, { number, action });
-    const own = rootfsUnits.find(candidate => candidate.name === unit);
-    if (own && action !== 'mask') {
-      if (!own.hasInstall) {
-        problems.push(`line ${number}: ${unit} has no [Install] section, so it cannot be enabled`);
-      } else if ((own.scope === 'user') !== (action === 'enable-global')) {
-        problems.push(
-          `line ${number}: ${unit} is a ${own.scope} unit, so its action is ${own.scope === 'user' ? 'enable-global' : 'enable'}`
-        );
+    } else if (earlier === undefined) {
+      listed.set(unit, number);
+      problems.push(...unitLineProblems(number, action, unit));
+      const own = rootfsUnits.find(candidate => candidate.name === unit);
+      const ownProblem = own && ownUnitProblem(own, action);
+      if (ownProblem) {
+        problems.push(`line ${number}: ${ownProblem}`);
       }
+    } else {
+      problems.push(...unitLineProblems(number, action, unit), `line ${number}: ${unit} is already on line ${earlier}`);
     }
   }
-  for (const unit of rootfsUnits) {
-    if (unit.hasInstall && !listed.has(unit.name)) {
-      problems.push(`${unit.name} has an [Install] section but is not listed, so nothing would start it`);
-    }
-  }
-  return problems;
+  const unlisted = rootfsUnits.filter(unit => unit.hasInstall && !listed.has(unit.name));
+  return [
+    ...problems,
+    ...unlisted.map(unit => `${unit.name} has an [Install] section but is not listed, so nothing would start it`)
+  ];
 }

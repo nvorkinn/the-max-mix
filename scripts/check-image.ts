@@ -19,7 +19,10 @@ function rootfsUnits(): RootfsUnit[] {
       continue;
     }
     // Drop-in folders (ssh.service.d) are not units.
-    for (const entry of entries.filter(candidate => candidate.isFile())) {
+    for (const entry of entries) {
+      if (!entry.isFile()) {
+        continue;
+      }
       const text = readFileSync(path.join(folder, entry.name), 'utf8');
       units.push({ name: entry.name, scope, hasInstall: /^\[Install\]\s*$/m.test(text) });
     }
