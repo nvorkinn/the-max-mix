@@ -64,7 +64,7 @@ export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }
             onClick={installed ? restartKiosk : start}
             className="modal-option settings-action shrink-0 rounded-2xl border font-bold active:scale-98 transition-all"
           >
-            {installed ? t('about.restart_now') : t('about.install')}
+            {t(installed ? 'about.restart_now' : 'about.install')}
           </button>
         )}
         <button

@@ -157,7 +157,7 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
     const controller = new AbortController();
     void checkImageUpdate(controller.signal).then(found => {
       if (controller.signal.aborted) return;
-      setImage(previous => (found && (found.result !== 'unreachable' || !previous) ? found : previous));
+      setImage(previous => (found && (!previous || found.result !== 'unreachable') ? found : previous));
       if (found && found.result !== 'unreachable') setCheckedAt(Date.now());
       if (found && check.ask) setDismissed(null);
       setImageAnswered(check.id);
