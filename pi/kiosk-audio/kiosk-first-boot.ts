@@ -53,7 +53,7 @@ const IMAGER_FILES = ['user-data', 'network-config', 'meta-data'] as const;
 const GROW_SLACK_SECTORS = 2048;
 const FORMAT_TIMEOUT_MS = 180_000;
 /** The Pi's serial number, from the firmware's device tree (16 hex digits, ending in a NUL). */
-const SERIAL_NUMBER = '/sys/firmware/devicetree/base/serial-number';
+const SERIAL_NUMBER = '/proc/device-tree/serial-number';
 /** What a Pi is called when nobody named it: this, a hyphen and the end of its serial number. */
 const HOSTNAME_PREFIX = 'the-max-mix';
 
