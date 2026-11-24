@@ -12,7 +12,8 @@ phone and desktop layouts are not supported.
   Previous restarts the song when it is more than 5 seconds in, and goes to the
   song before it only within the first 5 seconds.
 - **Browser mode** (on the kiosk) plays through the kiosk's own Spotify Connect
-  player, Spotify Soloist, which the Pi runs for the active person as "The Max Mix Soloist".
+  player, Spotify Soloist, which the Pi runs for the active person under the kiosk's own name
+  (`kiosk_name`, or "The Max Mix 4" on host `the-max-mix-4`).
   Select it in the speakers drawer before playing; opening the UI does not steal playback.
 - **Remote mode** (anywhere else) controls an existing Spotify Connect device.
 

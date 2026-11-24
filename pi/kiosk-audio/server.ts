@@ -872,6 +872,8 @@ export function serveSpeakers(
     handoverFile: string;
     /** The folder that holds Soloist's data folder for each person (soloist.ts). */
     soloistStateDir: string;
+    /** The name Soloist goes by in Spotify Connect (soloistDeviceName). */
+    soloistDeviceName: string;
   },
   update: Update = runUpdate
 ): Server {
@@ -908,7 +910,7 @@ export function serveSpeakers(
       bluetoothMonitor.note(message);
     }
   });
-  const soloistPlayer = new SoloistPlayer({ stateDir: deps.soloistStateDir });
+  const soloistPlayer = new SoloistPlayer({ stateDir: deps.soloistStateDir, deviceName: deps.soloistDeviceName });
   const handler = handleRequest(origin, {
     ...deps,
     perform,

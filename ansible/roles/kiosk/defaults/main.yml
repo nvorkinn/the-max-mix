@@ -46,6 +46,11 @@ kiosk_version: >-
 # The name /etc/hosts gives 127.0.1.1: the Pi's own host name, which cloud-init set from the host name chosen in
 # Raspberry Pi Imager, so a second kiosk (the-max-mix-2) resolves its own name. The playbook never changes the host name itself.
 kiosk_hostname: "{{ lookup('ansible.builtin.file', '/proc/sys/kernel/hostname') | trim }}"
+# The kiosk's own name, which Spotify Soloist goes by in Spotify Connect (pi/kiosk-audio/soloist.ts), such as Kitchen in
+# /etc/the-max-mix/kiosk-vars.yml. Empty (the default) names it after the host name: the-max-mix-4 is The Max Mix 4.
+# Every kiosk on one Spotify account needs a name of its own. A new name takes effect when kiosk-audio restarts, and
+# people may then need to pick the kiosk in Spotify on their phone again.
+kiosk_name: ''
 kiosk_locale: en_GB.UTF-8
 kiosk_timezone: Europe/London
 kiosk_wifi_country: GB
