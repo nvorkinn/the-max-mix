@@ -195,8 +195,10 @@ describe('SoloistPlayer', () => {
   ] as const)('sends %s and resolves once Soloist took it', async (command, send, fields) => {
     const { player, socket } = await ready();
     answerAsRecorded(socket);
+    const before = socket.sent.length;
     await expect(send(player)).resolves.toBeUndefined();
-    expect(socket.sent.at(-1)).toEqual({ type: 'command', command, ...fields });
+    // A play is followed by the volume set again once it plays.
+    expect(socket.sent[before]).toEqual({ type: 'command', command, ...fields });
   });
 
   it('keeps the seek and the volume in range', async () => {
@@ -254,6 +256,73 @@ describe('SoloistPlayer', () => {
     socket.receive({ type: 'playback_changed', status: 'paused' });
     socket.receive({ type: 'playback_changed', status: 'buffering' });
     socket.receive({ type: 'volume_changed', volume: 9 });
+    expect(socket.sent).toHaveLength(sent);
+  });
+
+  it('sets the volume again once a play it sent starts playing, as recorded', async () => {
+    const { player, socket } = await ready();
+    answerAsRecorded(socket);
+    await player.setVolume(4);
+    // Soloist was asked to play at 4 (the recorded answer to a volume): it plays, then comes up a step louder.
+    socket.reply = frame =>
+      (frame as { command?: unknown }).command === 'play'
+        ? [
+            { type: 'playback_changed', status: 'buffering' },
+            { type: 'command_result', command: 'play' }
+          ]
+        : [];
+    const sent = socket.sent.length;
+    await player.play();
+    expect(commandsSent(socket).slice(sent)).toEqual(['play']);
+    socket.receive({ type: 'volume_changed', volume: 5 });
+    socket.receive({ type: 'playback_changed', status: 'playing' });
+    expect(socket.sent.slice(sent + 1)).toEqual([{ type: 'command', command: 'set_volume', volume: 4 }]);
+    socket.receive({ type: 'volume_changed', volume: 4 });
+    // A step up that comes after it, as recorded about 180 ms after the play, is put back too.
+    vi.advanceTimersByTime(180);
+    socket.receive({ type: 'volume_changed', volume: 5 });
+    expect(socket.sent.slice(sent + 1)).toEqual([
+      { type: 'command', command: 'set_volume', volume: 4 },
+      { type: 'command', command: 'set_volume', volume: 4 }
+    ]);
+    // Once only: later news that it plays sends nothing more.
+    socket.receive({ type: 'volume_changed', volume: 6 });
+    socket.receive({ type: 'playback_changed', status: 'paused' });
+    socket.receive({ type: 'playback_changed', status: 'playing' });
+    expect(socket.sent).toHaveLength(sent + 3);
+  });
+
+  it('sets the volume again after a start it was told of, once it is active and playing', async () => {
+    const { player, socket } = await ready(false);
+    player.expectStart();
+    socket.receive({ type: 'playback_changed', status: 'playing' });
+    // Not the active device yet: nothing goes, as it would reach the phone.
+    expect(commandsSent(socket)).toEqual(['get_state']);
+    socket.receive({ type: 'device_changed', is_active: true, device_name: RECORDED_DEVICE_NAME });
+    expect(commandsSent(socket)).toEqual(['get_state', 'set_volume']);
+  });
+
+  it('forgets a start that never plays', async () => {
+    const { player, socket } = await ready();
+    player.expectStart();
+    vi.advanceTimersByTime(6000);
+    socket.receive({ type: 'playback_changed', status: 'playing' });
+    expect(commandsSent(socket)).toEqual(['get_state']);
+  });
+
+  it('sends nothing to Soloist once another device took over, not even a volume put back', async () => {
+    const { player, socket } = await ready();
+    answerAsRecorded(socket);
+    await player.setVolume(4);
+    socket.reply = null;
+    const sent = socket.sent.length;
+    // The phone takes playback back, as recorded.
+    socket.receive({ type: 'device_changed', is_active: false, device_name: RECORDED_DEVICE_NAME });
+    socket.receive({ type: 'playback_changed', status: 'paused' });
+    socket.receive({ type: 'playback_changed', status: 'playing' });
+    socket.receive({ type: 'volume_changed', volume: 5 });
+    await expect(player.pause()).rejects.toThrow('The kiosk player is not the active speaker.');
+    await expect(player.setVolume(3)).rejects.toThrow('The kiosk player is not the active speaker.');
     expect(socket.sent).toHaveLength(sent);
   });
 

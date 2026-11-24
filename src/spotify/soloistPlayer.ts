@@ -2,8 +2,9 @@
 // active person (pi/kiosk-audio/soloist.ts). The page reaches it through the service's WebSocket at /soloist
 // (pi/kiosk-audio/soloist-socket.ts), which passes Soloist's events on, only Soloist's commands back, and says with
 // {"type": "bridge"} whether Soloist is there at all. Soloist's commands act on the Spotify account's active device,
-// whichever that is, so the transport commands here are only sent while Soloist itself is the active device: otherwise a
-// pause from the kiosk would stop the person's phone.
+// whichever that is, so the control commands here are only sent while Soloist itself is the active device: otherwise a
+// pause from the kiosk would stop the person's phone. They are refused rather than sent after an `activate`, which would
+// take playback away from the phone; the app sends those through the Web API to the active device instead.
 
 import type { RepeatMode, Track } from '../types';
 import { KIOSK_SERVICE } from '../utils/kioskService';
@@ -22,6 +23,19 @@ const DEVICE_RETRY_MS = 3000;
 const DEVICE_RETRY_MAX_MS = 60_000;
 // Starting playback can raise Soloist's volume by one; a change of volume this soon after a start is put back.
 const VOLUME_HOLD_MS = 5000;
+// The commands that act on the account's active device. None is sent while Soloist is not it.
+const CONTROL_COMMANDS = new Set([
+  'play',
+  'pause',
+  'skip_next',
+  'skip_prev',
+  'seek',
+  'set_volume',
+  'set_shuffle',
+  'set_repeat_context',
+  'set_repeat_track',
+  'add_to_queue'
+]);
 // Soloist's queue can briefly hold these stand-ins while it works out what comes next.
 const PLACEHOLDER_PREFIX = 'spotify:meta:';
 const COVER_SIZES = ['xlarge', 'large', 'default', 'small'];
@@ -136,6 +150,8 @@ export class SoloistPlayer {
   #options: Record<string, unknown> = {};
   #volume: number | null = null;
   #startedAt = 0;
+  // The volume to set again once a start the page asked for plays, until when, and whether Soloist said it plays.
+  #volumeOnStart: { volume: number; until: number; isPlaying: boolean } | null = null;
 
   constructor(handlers: SoloistHandlers, url = SOLOIST_SOCKET) {
     this.#handlers = handlers;
@@ -161,9 +177,15 @@ export class SoloistPlayer {
     });
   }
 
-  /** Sends a command without waiting for its result: get_state and the like answer with events, not a result. */
-  #ask(command: string, fields?: Record<string, unknown>): void {
-    if (this.#isOpen) this.#socket?.send(JSON.stringify({ type: 'command', command, ...fields }));
+  /**
+   * Sends a command without waiting for its result: get_state and the like answer with events, not a result. A control
+   * command is not sent while Soloist is not the active device; says whether it went.
+   */
+  #ask(command: string, fields?: Record<string, unknown>): boolean {
+    if (!this.#isOpen || !this.#socket) return false;
+    if (CONTROL_COMMANDS.has(command) && !this.#isActive) return false;
+    this.#socket.send(JSON.stringify({ type: 'command', command, ...fields }));
+    return true;
   }
 
   /** Sends a transport command, only while Soloist is the active device, and resolves once Soloist took it. */
@@ -176,7 +198,11 @@ export class SoloistPlayer {
         reject(new Error('Spotify did not answer. Try again.'));
       }, COMMAND_TIMEOUT_MS);
       this.#pending.push({ command, resolve, reject, timer });
-      this.#ask(command, fields);
+      if (!this.#ask(command, fields)) {
+        this.#pending = this.#pending.filter(pending => pending.timer !== timer);
+        clearTimeout(timer);
+        reject(new Error('The kiosk player is not the active speaker.'));
+      }
     });
   }
 
@@ -213,6 +239,7 @@ export class SoloistPlayer {
     this.#isLoggedIn = false;
     this.#isActive = false;
     this.#status = '';
+    this.#volumeOnStart = null;
     this.#failPending('The kiosk player disconnected.');
     if (this.#isStopped) return;
     if (wasReady) this.#handlers.onNotReady();
@@ -265,11 +292,31 @@ export class SoloistPlayer {
     const wanted = this.#volume;
     // Starting playback can raise the volume by one: the volume it had is set again, once.
     if (wanted !== null && volume !== wanted && this.#isActive && Date.now() - this.#startedAt < VOLUME_HOLD_MS) {
+      // A start the page asked for sets it again once it plays (#applyVolumeOnStart).
+      if (this.#volumeOnStart) return;
       this.#startedAt = 0;
       this.#ask('set_volume', { volume: wanted });
       return;
     }
     this.#volume = volume;
+  }
+
+  /**
+   * Once a start the page asked for plays (the first playback_changed to `playing` after it), the volume it had is set
+   * again: Soloist can come up a step louder. A change that comes after that is put back too, for a while (#setVolume).
+   */
+  #applyVolumeOnStart(): void {
+    const wanted = this.#volumeOnStart;
+    if (!wanted) return;
+    if (Date.now() > wanted.until) {
+      this.#volumeOnStart = null;
+      return;
+    }
+    if (!wanted.isPlaying || !this.#isActive) return;
+    this.#volumeOnStart = null;
+    this.#volume = wanted.volume;
+    this.#startedAt = Date.now();
+    this.#ask('set_volume', { volume: wanted.volume });
   }
 
   #state(): KioskPlaybackState {
@@ -335,6 +382,7 @@ export class SoloistPlayer {
       }
       case 'playback_changed': {
         this.#setStatus(message['status']);
+        if (this.#volumeOnStart && message['status'] === 'playing') this.#volumeOnStart.isPlaying = true;
         break;
       }
       case 'position_sync': {
@@ -373,6 +421,7 @@ export class SoloistPlayer {
         return;
       }
     }
+    this.#applyVolumeOnStart();
     this.#handlers.onState(this.#state());
   }
 
@@ -420,8 +469,24 @@ export class SoloistPlayer {
     return this.#findDevice();
   }
 
-  play(): Promise<void> {
-    return this.#control('play');
+  /**
+   * Playback is about to start on Soloist at the page's asking (a play, or a move to it that plays): once it plays, the
+   * volume it had is set again.
+   */
+  expectStart(): void {
+    const volume = this.#volume;
+    if (volume === null) return;
+    this.#volumeOnStart = { volume, until: Date.now() + VOLUME_HOLD_MS, isPlaying: false };
+  }
+
+  async play(): Promise<void> {
+    this.expectStart();
+    try {
+      await this.#control('play');
+    } catch (error) {
+      this.#volumeOnStart = null;
+      throw error;
+    }
   }
 
   pause(): Promise<void> {
@@ -444,6 +509,7 @@ export class SoloistPlayer {
   setVolume(percent: number): Promise<void> {
     const volume = Math.min(100, Math.max(0, Math.round(percent)));
     this.#volume = volume;
+    if (this.#volumeOnStart) this.#volumeOnStart.volume = volume;
     return this.#control('set_volume', { volume });
   }
 }

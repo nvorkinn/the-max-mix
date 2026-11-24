@@ -577,6 +577,8 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     async (deviceId: string, play: boolean) => {
       checkRetryWindow();
       const toThisPage = deviceId === browserDeviceId;
+      // Starting on the kiosk's player can raise its volume a step; it sets the volume it had again once it plays.
+      if (toThisPage && play) playerRef.current?.expectStart();
       if (toThisPage) await onThisPlayer(deviceId, id => spotify.transferPlayback(id, play));
       else await spotify.transferPlayback(deviceId, play);
       setRemoteSelected(!toThisPage);

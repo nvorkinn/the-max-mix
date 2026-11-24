@@ -23,7 +23,8 @@ const auth = vi.hoisted(() => ({
   startAddPerson: vi.fn(),
   removePerson: vi.fn(),
   peopleOnKiosk: vi.fn(),
-  isPersonRefused: vi.fn()
+  isPersonRefused: vi.fn(),
+  getActivePersonId: vi.fn()
 }));
 const settings = vi.hoisted(() => ({
   reloadSettings: vi.fn(),

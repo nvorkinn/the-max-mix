@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as config from '../countdown/config';
 import * as soloist from '../countdown/soloist';
 import * as soloistKeys from '../countdown/soloistKeys';
+import * as auth from '../spotify/auth';
 import { SOLOIST_KEY_POLL_MS, useSoloistKey } from './useSoloistKey';
 import type { SoloistKey } from './useSoloistKey';
 
@@ -108,6 +109,7 @@ describe('useSoloistKey', () => {
     const list = vi.spyOn(soloistKeys, 'soloistKeyPeople').mockResolvedValue([]);
     const code = codes();
     const tell = vi.spyOn(soloist, 'tellSoloistPerson').mockResolvedValue('starting');
+    vi.spyOn(auth, 'getActivePersonId').mockReturnValue(PERSON);
     const { result, rerender } = renderHook(({ isAsking }) => useSoloistKey(PERSON, isAsking), {
       initialProps: { isAsking: false }
     });
@@ -159,6 +161,52 @@ describe('useSoloistKey', () => {
       await vi.advanceTimersByTimeAsync(SOLOIST_KEY_POLL_MS * 3);
     });
     expect(list).toHaveBeenCalledTimes(asked);
+  });
+
+  it("tells the kiosk at once when the active person's missing key turns up, but not for anyone else", async () => {
+    registered();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const list = vi.spyOn(soloistKeys, 'soloistKeyPeople').mockResolvedValue([]);
+    codes();
+    const tell = vi.spyOn(soloist, 'tellSoloistPerson').mockResolvedValue('starting');
+    const active = vi.spyOn(auth, 'getActivePersonId').mockReturnValue('someone-else');
+
+    // Someone who is not the active person saves a key: Soloist plays for the active one, so nothing is said.
+    const asking = renderHook(() => useSoloistKey(PERSON, true));
+    await waitFor(() => {
+      expect(pageUrl(asking.result.current)).not.toBe('');
+    });
+    list.mockResolvedValue([PERSON]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SOLOIST_KEY_POLL_MS);
+    });
+    expect(asking.result.current).toBe('saved');
+    expect(tell).not.toHaveBeenCalled();
+    asking.unmount();
+
+    // The active person closes their code just as their key lands: it is said all the same.
+    active.mockReturnValue(PERSON);
+    list.mockResolvedValue([]);
+    const { result, rerender, unmount } = renderHook(({ isAsking }) => useSoloistKey(PERSON, isAsking), {
+      initialProps: { isAsking: true }
+    });
+    await waitFor(() => {
+      expect(pageUrl(result.current)).not.toBe('');
+    });
+    list.mockResolvedValue([PERSON]);
+    rerender({ isAsking: false });
+    await waitFor(() => {
+      expect(result.current).toBe('saved');
+    });
+    expect(tell).toHaveBeenCalledOnce();
+    unmount();
+
+    // A key that was there already is not news.
+    const later = renderHook(() => useSoloistKey(PERSON, false));
+    await waitFor(() => {
+      expect(later.result.current).toBe('saved');
+    });
+    expect(tell).toHaveBeenCalledOnce();
   });
 
   it('shows no code once it is no longer asked for', async () => {
