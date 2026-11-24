@@ -19,7 +19,11 @@ flutterpi_tool build --arch=arm64 --cpu=pi5 --release
 
 ```sh
 sudo systemctl stop kiosk
-sudo ./measure.sh <bundle dir> idle 60     # clock only
-sudo ./measure.sh <bundle dir> active 60   # board change every 6 s, dialog every 18 s
+export FLUTTER_PI_ARGS="-r 90 -d 211,337 --enable-impeller"   # the-max-mix-4: sideways panel, scale 1.5
+sudo -E ./measure.sh <bundle dir> idle 60     # clock only
+sudo -E ./measure.sh <bundle dir> active 60   # board change every 6 s, dialog every 18 s
 sudo systemctl start kiosk
 ```
+
+The bundled flutter-pi links GStreamer: on Pi OS trixie it needs `libgstreamer1.0-0 libgstreamer-plugins-base1.0-0
+liborc-0.4-0t64`. Vulkan (`--vulkan`) can't rotate the DSI screen, so it is no use on the-max-mix-4.

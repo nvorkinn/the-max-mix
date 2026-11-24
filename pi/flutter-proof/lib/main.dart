@@ -64,8 +64,8 @@ class FrameProbe {
     if (!_running) return;
     _running = false;
     _clock.stop();
-    // Timings arrive in batches after the frame; give the last batch a moment before reporting.
-    Timer(const Duration(milliseconds: 200), () {
+    // In release builds the engine reports frame timings about once a second; wait for the last batch.
+    Timer(const Duration(milliseconds: 1200), () {
       SchedulerBinding.instance.removeTimingsCallback(_onTimings);
       _report();
     });

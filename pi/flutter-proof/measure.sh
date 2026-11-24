@@ -6,6 +6,9 @@
 # The kiosk must be stopped first (sudo systemctl stop kiosk): flutter-pi needs the screen to itself.
 # Prints: time to first frame, memory (PSS) and average CPU over the run, and the app's own frame lines
 # (see lib/main.dart). The app's output is kept in /tmp/flutter-proof-<mode>.log.
+#
+# FLUTTER_PI_ARGS adds flutter-pi options. the-max-mix-4's screen is a 1200x1920 panel turned on its side, which Cage
+# shows at scale 1.5; to lay out at 1280x800 the same way: FLUTTER_PI_ARGS='-r 90 -d 211,337 --enable-impeller'.
 set -euo pipefail
 
 bundle=${1:?bundle dir}
@@ -19,7 +22,8 @@ env=()
 [[ $mode == idle ]] && env=(PROOF_IDLE=1)
 
 start=$(date +%s%3N)
-env "${env[@]}" "$flutter_pi" --release "$bundle" >"$log" 2>&1 &
+# shellcheck disable=SC2086 # FLUTTER_PI_ARGS is a list of options.
+env "${env[@]}" "$flutter_pi" --release ${FLUTTER_PI_ARGS:-} "$bundle" >"$log" 2>&1 &
 pid=$!
 trap 'kill "$pid" 2>/dev/null || true' EXIT
 
