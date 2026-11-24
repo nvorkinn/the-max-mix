@@ -1684,8 +1684,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* A person's Soloist key: the button beside their phone, and the dialog with the code their phone scans; the Spotify
-   sign-in's dialog is the same. */
+/* A person's Soloist key: the button beside their phone, and the dialog with the code their phone scans. The
+ * Spotify sign-in's dialog is the same. */
 .soloist-key-button {
   flex-shrink: 0;
   min-height: 60px;
