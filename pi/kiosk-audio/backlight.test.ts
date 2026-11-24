@@ -55,11 +55,10 @@ describe('setBrightness', () => {
     // Watch the level go down on the way.
     // A read can land between the fade's truncate and its write (the real backlight file has no such gap), and finds it
     // empty: read again then.
+    const settled = async (): Promise<string> => (await level()).trim() || settled();
     const look = async () => {
       await new Promise(resolve => setTimeout(resolve, 60));
-      let read = '';
-      while (read === '') read = (await level()).trim();
-      levels.push(read);
+      levels.push(await settled());
     };
     await look();
     await look();
