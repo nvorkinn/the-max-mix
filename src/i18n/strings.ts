@@ -453,8 +453,6 @@ export const STRINGS = {
   'notice.player_title': { en: 'Tablet player disconnected', nb: 'Nettbrettspilleren er frakoblet' },
   'notice.reconnect_player': { en: 'Reconnect player', nb: 'Koble til spilleren igjen' },
   'notice.refresh': { en: 'Refresh playback', nb: 'Oppdater avspillingen' },
-  'notice.audio_title': { en: 'Audio blocked', nb: 'Lyden er blokkert' },
-  'notice.allow_audio': { en: 'Allow browser audio', nb: 'Tillat lyd i nettleseren' },
   'notice.checking': { en: 'Checking...', nb: 'Sjekker …' },
 
   // Signing in to Spotify, and no internet.

@@ -13,14 +13,13 @@ const mocks = await vi.hoisted(async () => {
 vi.mock('../spotify/api', () => mocks.api);
 vi.mock('../spotify/auth', () => mocks.auth);
 vi.mock('../spotify/settings', () => mocks.settings);
-vi.mock('../utils/spotifySdk', () => ({ loadSpotifySDK: vi.fn() }));
 
 const playing = { is_playing: true, device: { id: 'd' } };
 
 describe('useSpotifyPlayer', () => {
   beforeEach(() => {
     resetSpotifyMocks(mocks);
-    // Remote mode: signed in, no SDK.
+    // Remote mode: signed in, no player of its own.
     mocks.settings.getPlaybackMode.mockReturnValue('remote');
   });
 

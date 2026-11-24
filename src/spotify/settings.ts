@@ -1,6 +1,8 @@
 // The app's settings, kept in the browser's own storage, so the app needs no backend. Storage can be unavailable
 // (private windows, blocked site data): every access tolerates that.
 
+import { isKiosk } from '../utils/kiosk';
+
 // The app's Spotify client ID. It is public by design (sign-in uses PKCE and there is no client secret), so it lives in the
 // code and users never enter it.
 const SPOTIFY_CLIENT_ID = '79012ca710ca4dd5ad18c2973510b670';
@@ -19,12 +21,12 @@ export function getClientId(): string {
 }
 
 /**
- * browser: this page is the speaker (Web Playback SDK). remote: it only controls another Spotify Connect device. There is
- * no setting for it: the player falls back to remote by itself when the browser cannot play. Only tests and tooling
- * set the stored value (end-to-end tests run without a Widevine player).
+ * browser: the kiosk is the speaker, through its own player (Spotify Soloist, which the Pi runs). remote: the page only
+ * controls another Spotify Connect device, as it does anywhere but on the kiosk, which has no player of its own. There
+ * is no setting for it: only tests and tooling set the stored value (end-to-end tests mostly run without the Pi).
  */
 export function getPlaybackMode(): 'browser' | 'remote' {
-  return read(PLAYBACK_MODE_KEY) === 'remote' ? 'remote' : 'browser';
+  return isKiosk() && read(PLAYBACK_MODE_KEY) !== 'remote' ? 'browser' : 'remote';
 }
 
 /** Reload the app so it picks up the stored preferences. */
