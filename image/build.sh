@@ -27,7 +27,9 @@ repo=$(cd "$here/.." && pwd)
 # The card's partitions (pi/kiosk-audio/boot-slots.ts numbers the boot ones; rootfs/etc/rauc/system.conf names them).
 AUTOBOOT_MIB=32
 BOOT_MIB=256
-ROOT_MIB=3072
+# Room to grow: the Pi 5 spike filled a 4 GiB slot once the base image's 1 GiB swap file and the apt cache were added
+# (neither is in a bundle). Adaptive updates skip the empty blocks, so the space costs nothing to download.
+ROOT_MIB=4096
 DATA_MIB=256
 # The same every build, so unchanged files land on the same blocks.
 ROOT_UUID=6d61786d-6978-4000-8000-726f6f746673
@@ -252,6 +254,7 @@ ext4_image() {
   find "$dir" -xdev -exec touch --no-dereference --date="@$SOURCE_DATE_EPOCH" {} +
   local used
   used=$(du --summarize --block-size=1M --apparent-size "$dir" | cut -f1)
+  echo "The root file system needs ${used} MiB of the ${ROOT_MIB} MiB slot"
   if ((used * 115 / 100 > ROOT_MIB)); then
     echo "The root file system needs ${used} MiB, too much for a ${ROOT_MIB} MiB slot" >&2
     exit 1
