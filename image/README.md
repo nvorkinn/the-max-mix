@@ -25,7 +25,7 @@ KIOSK_RELEASE_COMMIT=<the full commit>
 It drops in the built artefacts: the web app at `/opt/the-max-mix/app`, `pi/kiosk-audio` (without its tests) with its
 `node_modules` at `/opt/the-max-mix/kiosk-audio`. Spotify Soloist is not in the image: its terms do not allow passing it
 on, and each build expires after 90 days, so `kiosk-soloist-update.timer` fetches it onto `/data/soloist`, where
-`/usr/local/bin/soloist` links.
+`/usr/local/bin/soloist` links (the build makes the link).
 
 ## The Pi's own settings
 

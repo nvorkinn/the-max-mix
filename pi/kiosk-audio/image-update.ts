@@ -336,6 +336,9 @@ export function installedRootLabel(env: Readonly<Record<string, string | undefin
  * (root=PARTLABEL=root-a); RAUC writes it into either slot, so the post-install handler points it at its own root.
  */
 export function cmdlineWithRoot(line: string, label: string): string {
-  const words = line.trim().split(/\s+/).filter(word => word !== '' && !word.startsWith('root='));
+  const words = line
+    .trim()
+    .split(/\s+/)
+    .filter(word => word !== '' && !word.startsWith('root='));
   return `${[`root=PARTLABEL=${label}`, ...words].join(' ')}\n`;
 }

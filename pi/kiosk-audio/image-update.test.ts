@@ -308,7 +308,7 @@ describe('installedRootLabel', () => {
 });
 
 describe('cmdlineWithRoot', () => {
-  it('points the bundle's slot a command line at slot b', () => {
+  it('points the bundle slot-a command line at slot b', () => {
     expect(cmdlineWithRoot('console=tty3 root=PARTLABEL=root-a rootfstype=ext4 ro quiet\n', 'root-b')).toBe(
       'root=PARTLABEL=root-b console=tty3 rootfstype=ext4 ro quiet\n'
     );

@@ -183,6 +183,9 @@ assemble() {
   chown -R root:root "$root/opt/the-max-mix"
   chmod -R u=rwX,go=rX "$root/opt/the-max-mix"
 
+  # Spotify Soloist lives on /data (kiosk-soloist-update): its terms keep it out of the image.
+  ln -sfn /data/soloist/soloist "$root/usr/local/bin/soloist"
+
   printf 'KIOSK_RELEASE_REF=%s\nKIOSK_RELEASE_COMMIT=%s\n' "$ref" "$commit" \
     | install -D -m 0644 /dev/stdin "$root/usr/lib/the-max-mix/release.env"
 
