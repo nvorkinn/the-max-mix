@@ -226,9 +226,9 @@ class _DashboardState extends State<Dashboard> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(width: 360, child: Glass(child: Weather())),
+                    const SizedBox(width: 330, child: Glass(child: Weather())),
                     const SizedBox(width: 20),
-                    const SizedBox(width: 420, child: Glass(child: TubeStatus())),
+                    const SizedBox(width: 400, child: Glass(child: TubeStatus())),
                     const Spacer(),
                     const Clock(),
                   ],
@@ -312,7 +312,7 @@ class _ClockState extends State<Clock> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text('${two(_now.hour)}:${two(_now.minute)}:${two(_now.second)}', style: _weight(96, 800)),
+        Text('${two(_now.hour)}:${two(_now.minute)}', style: _weight(96, 800)),
         Text('${_days[_now.weekday - 1]} ${_now.day} ${_months[_now.month - 1]}', style: _weight(26, 600)),
       ],
     );
@@ -360,8 +360,7 @@ class LinePill extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0x40FFFFFF)),
       ),
-      alignment: Alignment.center,
-      child: Text(name, style: _weight(16, 700)),
+      child: Center(heightFactor: 1, child: Text(name, style: _weight(16, 700))),
     );
   }
 }
@@ -375,10 +374,10 @@ class TubeStatus extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Tube status', style: _weight(22, 700)),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         for (final (name, colour, status) in _lines)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(vertical: 2),
             child: Row(
               children: [
                 LinePill(name, colour),
@@ -598,8 +597,6 @@ class _DepartureDialogState extends State<DepartureDialog> with SingleTickerProv
                 d.minutes <= 1 ? 'Due now' : 'In ${d.minutes} minutes',
                 style: _weight(24, 600, colour: const Color(0xCCFFFFFF)),
               ),
-              const SizedBox(height: 18),
-              Text('Tap anywhere to close', style: _weight(18, 500, colour: const Color(0x99FFFFFF))),
             ],
           ),
         ),
