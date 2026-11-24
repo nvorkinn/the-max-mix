@@ -66,8 +66,8 @@ function pi(options: { channel?: string; state?: Partial<UpdateState>; trial?: b
       );
       return Promise.resolve();
     },
-    mark: (state, slot) => {
-      world.marks.push(`${state} ${slot}`);
+    mark: (mark, slot) => {
+      world.marks.push(`${mark} ${slot}`);
       return Promise.resolve();
     },
     close: () => Promise.resolve()
@@ -75,8 +75,8 @@ function pi(options: { channel?: string; state?: Partial<UpdateState>; trial?: b
   const io: UpdateIO = {
     rauc,
     readText: file => Promise.resolve(file === STATE_FILE ? JSON.stringify(world.state) : (world.files[file] ?? null)),
-    writeState: state => {
-      world.state = state;
+    writeState: next => {
+      world.state = next;
       return Promise.resolve();
     },
     head: () =>

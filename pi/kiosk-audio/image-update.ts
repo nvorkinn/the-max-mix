@@ -42,7 +42,7 @@ export function parseEnv(content: string): Record<string, string> {
     const key = line.slice(0, Math.max(equals, 0)).trim();
     if (line.startsWith('#') || !/^[A-Za-z_]\w*$/.test(key)) continue;
     const value = line.slice(equals + 1).trim();
-    const isQuoted = value.length >= 2 && (value[0] === '"' || value[0] === "'") && value.at(-1) === value[0];
+    const isQuoted = value.length >= 2 && (value.startsWith('"') || value.startsWith("'")) && value.at(-1) === value[0];
     values[key] = isQuoted ? value.slice(1, -1) : value;
   }
   return values;
@@ -236,10 +236,13 @@ export async function run(io: UpdateIO, isScheduled: boolean): Promise<Checked |
     return null;
   }
   const done = await install(io);
-  if (done.result === 'up-to-date') io.log(`Up to date (${done.current ?? 'unknown version'}).`);
-  else if (done.result === 'failed')
+  if (done.result === 'up-to-date') {
+    io.log(`Up to date (${done.current ?? 'unknown version'}).`);
+  } else if (done.result === 'failed') {
     io.log(`${done.latest ?? ''} failed on this Pi before, so it is not installed again.`);
-  else if (channel !== 'stable' && done.result === 'installed') await apply(io);
+  } else if (channel !== 'stable' && done.result === 'installed') {
+    await apply(io);
+  }
   return done;
 }
 

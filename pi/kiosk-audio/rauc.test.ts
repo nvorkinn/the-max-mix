@@ -1,6 +1,6 @@
 // @vitest-environment node
 import type { MessageBus } from 'dbus-native';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { inspectedVersion, raucOverDbus, toProgress, toSlot } from './rauc.ts';
 import type { Progress } from './rauc.ts';
 
@@ -98,7 +98,7 @@ describe('raucOverDbus', () => {
 
   it('rejects with RAUC’s own error when the install fails', async () => {
     const rauc = await raucOverDbus(fakeRauc(1).bus);
-    await expect(rauc.install('https://example.test/b.raucb', () => undefined)).rejects.toThrow(
+    await expect(rauc.install('https://example.test/b.raucb', vi.fn())).rejects.toThrow(
       'Failed to download bundle: 404'
     );
   });

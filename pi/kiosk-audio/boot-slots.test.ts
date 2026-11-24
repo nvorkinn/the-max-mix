@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { deviceTreeNumber, parseAutoboot, renderAutoboot, runBackend } from './boot-slots.ts';
 import type { BackendIO } from './boot-slots.ts';
 
-function pi(autoboot: string, booted: number, states: Record<string, string> = {}) {
+function pi(autoboot: string, booted: number) {
+  const states: Record<string, string> = {};
   const disk = { autoboot, states, writes: 0 };
   const io: BackendIO = {
     readAutoboot: () => Promise.resolve(disk.autoboot),

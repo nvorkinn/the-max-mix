@@ -63,9 +63,7 @@ export function toSlot(name: string, properties: Plain): Slot {
 /** The version in InspectBundle's answer (`update.version`), or in the older flat shape. */
 export function inspectedVersion(info: Plain): string | null {
   const update = info['update'];
-  return typeof update === 'object' && update !== null && 'version' in update
-    ? text(update.version)
-    : text(info['version']);
+  return text(typeof update === 'object' && update !== null && 'version' in update ? update.version : info['version']);
 }
 
 /** RAUC's Progress property, (percentage, message, depth). */
