@@ -416,6 +416,14 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
           recovery: 'reconnect'
         });
       },
+      onSignedOut: () => {
+        clearTimeout(startTimer);
+        debugLog('info', 'soloist', 'Kiosk player waits to be signed in');
+        setPlayerError({
+          message: `To sign the kiosk in, pick ${KIOSK_DEVICE_NAME} in Spotify on your phone.`,
+          recovery: 'wait'
+        });
+      },
       onState: applyPlayerState,
       onQueue: bumpQueue
     });

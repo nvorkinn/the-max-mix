@@ -44,6 +44,8 @@ export interface SoloistHandlers {
   onReady: (deviceId: string) => void;
   /** Soloist went away (the service, Soloist itself, or its sign-in) after it was ready. */
   onNotReady: () => void;
+  /** Soloist runs but nobody has signed it in: the person picks it in Spotify on their phone the first time. */
+  onSignedOut: () => void;
   onState: (state: KioskPlaybackState) => void;
   /** Whatever plays next changed. */
   onQueue: () => void;
@@ -314,6 +316,7 @@ export class SoloistPlayer {
         this.#deviceName = name;
         this.#isLoggedIn = isLoggedIn;
         this.#setActive(message['is_active']);
+        if (!isLoggedIn) this.#handlers.onSignedOut();
         if (this.#isLoggedIn && this.#deviceId === null && this.#lookup === undefined) void this.#findDevice();
         break;
       }
