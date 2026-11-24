@@ -7,7 +7,7 @@ set -u
 url=${KIOSK_URL:?KIOSK_URL is not set}
 chromium_pid=/run/kiosk/chromium.pid
 
-# DevTools for remote screenshots and inspecting the page (scripts/kiosk-screenshot.ts, through an SSH tunnel).
+# DevTools for inspecting the page (chrome://inspect through an SSH tunnel).
 # Chromium listens on 127.0.0.1 only, so nothing on the network reaches it.
 devtools_port=9222
 

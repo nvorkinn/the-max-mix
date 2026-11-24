@@ -39,7 +39,7 @@ const behind = bus('LX11AVD', '35', 'Clapham Junction', '09:29:00');
 const ahead = { ...behind, expected_at: '2026-11-17T09:27:30Z' };
 
 /**
- * Records the property of every transition that starts, and the properties the keyframes of every animation change on
+ * Records the property of every transition that runs, and the properties the keyframes of every animation change on
  * the Dashboard's rows and notices, read as the animation is given (the page's clock runs far faster than the screen's).
  */
 async function recordMotion(page: Page) {
@@ -50,8 +50,10 @@ async function recordMotion(page: Page) {
       const root = document.documentElement;
       root.dataset['motion'] = `${root.dataset['motion'] ?? ''} ${kind}`;
     };
+    // Transitions are also read from getAnimations() below: the faked clock can end a row's fade (its timer removes the
+    // row) before the engine draws a frame, and WebKit then drops the transition's events.
     document.addEventListener(
-      'transitionstart',
+      'transitionrun',
       event => {
         note(`transition:${event.propertyName}`);
       },
@@ -60,6 +62,10 @@ async function recordMotion(page: Page) {
     const ignored = new Set(['offset', 'easing', 'composite', 'computedOffset']);
     const read = (element: Element) => {
       for (const animation of element.getAnimations()) {
+        if (animation instanceof CSSTransition) {
+          note(`transition:${animation.transitionProperty}`);
+          continue;
+        }
         const keyframes = (animation.effect as KeyframeEffect | null)?.getKeyframes() ?? [];
         const properties = keyframes.flatMap(frame => Object.keys(frame));
         for (const property of properties) {
@@ -82,7 +88,8 @@ async function recordMotion(page: Page) {
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: ['data-row', 'data-arriving', 'class']
+      // style: a row's slide is a transition its inline transform starts (AnimatedRows).
+      attributeFilter: ['data-row', 'data-arriving', 'class', 'style']
     });
   });
 }
