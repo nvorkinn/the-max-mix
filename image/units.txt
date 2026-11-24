@@ -30,6 +30,9 @@ enable ssh.service
 enable tailscaled.service
 enable kiosk-ssh-keys.timer
 
+# Spotify Soloist, fetched onto /data: its terms keep it out of the image, and each build expires after 90 days
+enable kiosk-soloist-update.timer
+
 # Package upkeep, for a system that changes itself: here each release is a new image, and /var/lib/apt and
 # /var/backups are read-only.
 mask apt-daily.timer

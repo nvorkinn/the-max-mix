@@ -6,23 +6,48 @@
 //   node kiosk-update.ts restart             into an installed update when one waits, else restart the kiosk
 //                                            (04:30, Restart)
 //   node kiosk-update.ts rollback            go back to the other slot's version now (kiosk-rollback)
-//   node kiosk-update.ts post-install        RAUC's post-install handler: writes the screen's video= into the new
-//                                            slot's cmdline.txt
-import { mkdtemp, rmdir } from 'node:fs/promises';
+//   node kiosk-update.ts post-install        RAUC's post-install handler: points the new slot's cmdline.txt at its
+//                                            own root partition and writes the screen's video= into it
+import { mkdtemp, rmdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { readText, runProgram, updateIO } from './image-update-io.ts';
-import { apply, check, installedBootDevice, KIOSK_ENV, parseEnv, restart, rollback, run } from './image-update.ts';
+import {
+  apply,
+  check,
+  cmdlineWithRoot,
+  installedBootDevice,
+  installedRootLabel,
+  KIOSK_ENV,
+  parseEnv,
+  restart,
+  rollback,
+  run
+} from './image-update.ts';
 import { raucOverDbus } from './rauc.ts';
 
 const USAGE = 'Usage: kiosk-update.ts run [--scheduled] | check | apply | restart | rollback | post-install';
 
-/** Writes the screen's video= mode into the boot slot RAUC just installed, so its first boot already has it. */
+/**
+ * Points the boot slot RAUC just installed at its own root partition, and writes the screen's video= mode into it, so its
+ * first boot already has it.
+ */
 async function postInstall(): Promise<void> {
   const device = installedBootDevice(process.env);
   if (!device) return;
   const videoMode = parseEnv((await readText(KIOSK_ENV)) ?? '')['KIOSK_VIDEO_MODE'];
   const mountPoint = await mkdtemp('/run/kiosk-update-boot-');
   await runProgram(['/usr/bin/mount', device, mountPoint]);
+  try {
+    const cmdline = path.join(mountPoint, 'cmdline.txt');
+    const root = installedRootLabel(process.env);
+    if (!root) throw new Error('RAUC wrote a boot slot without its root slot.');
+    // Not caught: a slot that would boot the other slot's root must fail the install.
+    await writeFile(cmdline, cmdlineWithRoot((await readText(cmdline)) ?? '', root));
+  } catch (error) {
+    await runProgram(['/usr/bin/umount', mountPoint]);
+    await rmdir(mountPoint);
+    throw error;
+  }
   try {
     // An empty --mode is the screen's own (EDID) mode; screen-mode.ts rewrites only the video= words.
     await runProgram([

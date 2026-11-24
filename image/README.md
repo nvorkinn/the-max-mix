@@ -10,7 +10,7 @@ Today's Pis still run Ansible (`ansible/`); nothing here is used until the Relea
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | [packages.txt](packages.txt) | Installs these on Raspberry Pi OS Lite (arm64) with no recommended packages, after adding the archives in `rootfs/`; purges the `-` lines |
 | [rootfs/](rootfs)            | Copies it over the root file system as root:root, keeping symlinks and the executable bit (files 0644, programs 0755)                     |
-| [boot/](boot)                | `config.txt` and `cmdline.txt` for each slot's boot partition; slot B's `cmdline.txt` says `root=PARTLABEL=root-b`                        |
+| [boot/](boot)                | The boot partition for either slot (`root=PARTLABEL=root-a`); RAUC's post-install handler points slot B's at `root-b`                     |
 | [units.txt](units.txt)       | `systemctl enable`, `systemctl --global enable` or `systemctl mask` for each line                                                         |
 | [persist.list](persist.list) | Each line becomes a bind mount from `/data`; the build makes each path, empty, in the image                                               |
 
@@ -23,7 +23,9 @@ KIOSK_RELEASE_COMMIT=<the full commit>
 ```
 
 It drops in the built artefacts: the web app at `/opt/the-max-mix/app`, `pi/kiosk-audio` (without its tests) with its
-`node_modules` at `/opt/the-max-mix/kiosk-audio`, and Spotify Soloist at `/usr/local/bin/soloist`.
+`node_modules` at `/opt/the-max-mix/kiosk-audio`. Spotify Soloist is not in the image: its terms do not allow passing it
+on, and each build expires after 90 days, so `kiosk-soloist-update.timer` fetches it onto `/data/soloist`, where
+`/usr/local/bin/soloist` links.
 
 ## The Pi's own settings
 
@@ -59,7 +61,6 @@ Left out, because the image replaces them:
   `kiosk-update` and RAUC.
 - `kiosk-app-switch` and the app's `releases/`, `next` and `current`: the app is part of the image, and the reboot into
   the new slot is the switch.
-- `kiosk-soloist-update`: Soloist is built in at a pinned version.
 - unattended-upgrades and its settings: security fixes ship as image releases.
 
 Still to prove on a Pi (the spike): that `/etc/hostname` and `/etc/machine-id` from `/data` are in place before

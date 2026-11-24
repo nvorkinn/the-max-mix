@@ -1,0 +1,229 @@
+name: Image bundle
+
+# Builds the A/B update bundle (image/build.sh bundle, the-max-mix.raucb) and publishes it to a channel's rolling
+# pre-release, which Pis on that channel install (pi/kiosk-audio/image-update.ts):
+#   dev             every push to main
+#   branch-<name>   by hand on a branch (Run workflow), or a pull request with the pi-bundle label; the pre-release goes
+#                   when the branch is deleted
+# Stable releases (v* tags) are built by release.yml. Pre-releases never become releases/latest, which stable Pis follow.
+#
+# Fast on purpose: the slow part, Raspberry Pi OS with image/packages.txt installed, is a cached base layer rebuilt only
+# when its inputs change or once a week, on GitHub's arm64 runners (no QEMU). The web app and kiosk-audio are built in
+# their own job and dropped in; nothing is compiled in the chroot. A pull request that changes image/ builds a bundle
+# with a throwaway key to check it, and publishes nothing.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+  delete:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-${{ github.event_name == 'delete' && github.event.ref || github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    if: github.event_name != 'delete'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.plan.outputs.build }}
+      channel: ${{ steps.plan.outputs.channel }}
+      publish: ${{ steps.plan.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Work out the channel
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.head_ref || github.ref_name }}
+          LABELLED: ${{ contains(github.event.pull_request.labels.*.name, 'pi-bundle') }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          channel="branch-$(tr -c 'A-Za-z0-9._\n-' '-' <<< "$REF_NAME")"
+          build=true
+          publish=true
+          case $EVENT in
+            push) channel=dev ;;
+            workflow_dispatch) [[ $REF_NAME == main ]] && channel=dev ;;
+            pull_request)
+              if [[ $LABELLED != true ]]; then
+                publish=false
+                git diff --quiet "$BASE" HEAD -- image .github/workflows/image.yml || changed=yes
+                [[ ${changed:-} == yes ]] || build=false
+              fi
+              ;;
+          esac
+          {
+            echo "build=$build"
+            echo "channel=$channel"
+            echo "publish=$publish"
+          } >> "$GITHUB_OUTPUT"
+          echo "Channel $channel, build $build, publish $publish"
+
+  artefacts:
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          submodules: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: modules
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json') }}
+      - if: steps.modules.outputs.cache-hit != 'true'
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build the web app
+        run: npm run build
+      # kiosk-audio's packages are plain JavaScript, so they install on this x86 runner for the Pi.
+      - name: Pack the web app and kiosk-audio
+        run: |
+          out=$RUNNER_TEMP/artefacts
+          mkdir -p "$out/kiosk-audio"
+          cp -r dist "$out/app"
+          git ls-files -z pi/kiosk-audio | grep -zv -e '\.test\.ts$' -e '/imager-fixtures/' -e '/fixtures\.ts$' \
+            | xargs -0 cp --target-directory="$out/kiosk-audio"
+          cp ansible/roles/kiosk/files/kiosk-audio/package.json ansible/roles/kiosk/files/kiosk-audio/package-lock.json \
+            "$out/kiosk-audio/"
+          (cd "$out/kiosk-audio" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund)
+          tar --create --zstd --file="$RUNNER_TEMP/artefacts.tar.zst" --directory="$out" .
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: artefacts
+          path: ${{ runner.temp }}/artefacts.tar.zst
+          if-no-files-found: error
+          retention-days: 1
+
+  bundle:
+    needs: [plan, artefacts]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the build tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install --yes --no-install-recommends rauc dosfstools mtools e2fsprogs zstd jq
+      # The base layer's inputs: the newest Raspberry Pi OS Lite, the package list and its archives, the build script,
+      # and the week, so that security updates reach the next bundle within seven days.
+      - name: Find Raspberry Pi OS
+        id: upstream
+        run: |
+          image/build.sh upstream > "$RUNNER_TEMP/upstream.json"
+          echo "sha=$(jq -r .os.extract_sha256 "$RUNNER_TEMP/upstream.json")" >> "$GITHUB_OUTPUT"
+          echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: base
+        with:
+          path: ${{ runner.temp }}/base
+          key: >-
+            image-base-${{ steps.upstream.outputs.sha }}-${{ steps.upstream.outputs.week }}-${{
+            hashFiles('image/packages.txt', 'image/rootfs/etc/apt/**', 'image/build.sh') }}
+      - name: Build the base layer
+        if: steps.base.outputs.cache-hit != 'true'
+        run: sudo image/build.sh base "$RUNNER_TEMP/upstream.json" "$RUNNER_TEMP/base"
+      - if: steps.base.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/base
+          key: ${{ steps.base.outputs.cache-primary-key }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: artefacts
+          path: ${{ runner.temp }}
+      # Signed with the real key only when the bundle is published; a check build signs with a throwaway one.
+      - name: Build the bundle
+        env:
+          RAUC_SIGNING_KEY: ${{ needs.plan.outputs.publish == 'true' && secrets.RAUC_SIGNING_KEY || '' }}
+          CHANNEL: ${{ needs.plan.outputs.channel }}
+        run: |
+          mkdir "$RUNNER_TEMP/artefacts"
+          tar --extract --zstd --file="$RUNNER_TEMP/artefacts.tar.zst" --directory="$RUNNER_TEMP/artefacts"
+          key=$RUNNER_TEMP/signing.key.pem
+          if [[ -n $RAUC_SIGNING_KEY ]]; then
+            if [[ ! -f image/rootfs/etc/rauc/keyring.pem ]]; then
+              echo "::error::image/rootfs/etc/rauc/keyring.pem is missing: the Pis could not check a signed bundle"
+              exit 1
+            fi
+            (umask 077 && printf '%s\n' "$RAUC_SIGNING_KEY" > "$key")
+          else
+            openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 1 \
+              -subj '/CN=THE MAX MIX check build' -keyout "$key" -out "$RUNNER_TEMP/check.cert.pem" 2> /dev/null
+            export RAUC_CERT=$RUNNER_TEMP/check.cert.pem
+          fi
+          sudo env RAUC_KEY="$key" RAUC_CERT="${RAUC_CERT:-}" image/build.sh bundle "$RUNNER_TEMP/base/base.tar.zst" \
+            "$RUNNER_TEMP/artefacts" "$CHANNEL" "$RUNNER_TEMP/out"
+          sudo rm -f "$key"
+      - if: needs.plan.outputs.publish == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: bundle
+          path: ${{ runner.temp }}/out/the-max-mix.raucb
+          if-no-files-found: error
+          retention-days: 1
+
+  # A separate job, so that only this one, which runs no code from the repository, can write releases.
+  publish:
+    needs: [plan, bundle]
+    if: needs.plan.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      CHANNEL: ${{ needs.plan.outputs.channel }}
+      SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: bundle
+      # The tag moves to the bundle's commit, so the pre-release's page says what it holds.
+      - name: Publish to the channel
+        run: |
+          gh api --method PATCH "repos/$GH_REPO/git/refs/tags/$CHANNEL" -f sha="$SHA" -F force=true > /dev/null 2>&1 \
+            || gh api "repos/$GH_REPO/git/refs" -f ref="refs/tags/$CHANNEL" -f sha="$SHA" > /dev/null
+          if ! gh release view "$CHANNEL" > /dev/null 2>&1; then
+            gh release create "$CHANNEL" --prerelease --latest=false --title "$CHANNEL" \
+              --notes "Rolling A/B update bundle for Pis on the $CHANNEL channel (KIOSK_UPDATE_CHANNEL=$CHANNEL)."
+          fi
+          gh release upload "$CHANNEL" the-max-mix.raucb --clobber
+
+  # A deleted branch takes its channel's pre-release with it.
+  forget:
+    if: github.event_name == 'delete' && github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      REF_NAME: ${{ github.event.ref }}
+    steps:
+      - name: Delete the branch's pre-release
+        run: |
+          channel="branch-$(tr -c 'A-Za-z0-9._\n-' '-' <<< "$REF_NAME")"
+          if gh release view "$channel" > /dev/null 2>&1; then
+            gh release delete "$channel" --yes --cleanup-tag
+          fi

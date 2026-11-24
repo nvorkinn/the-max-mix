@@ -1,0 +1,11 @@
+# Installs the latest Spotify Soloist on /data (see the script). A failure only shows up in the journal
+# (journalctl -u kiosk-soloist-update): the build that is there stays, and the timer tries again.
+[Unit]
+Description=Install the latest Spotify Soloist
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/kiosk-soloist-update
+TimeoutStartSec=10min

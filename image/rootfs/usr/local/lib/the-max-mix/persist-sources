@@ -1,0 +1,20 @@
+#!/bin/sh
+# Run by kiosk-persist.service, before the bind mounts from /data: makes each source that image/persist.list names,
+# from /usr/lib/the-max-mix/persist-sources (KIND PATH SOURCE a line, written by image/build.sh). A new one starts as a
+# copy of what the image has at PATH, with its owners and modes.
+set -eu
+while read -r kind target source; do
+  from=/data/$source
+  if [ -e "$from" ]; then
+    continue
+  fi
+  mkdir -p "$(dirname "$from")"
+  if [ "$kind" = dir ]; then
+    mkdir "$from"
+    cp -a "$target/." "$from/"
+  elif [ -e "$target" ]; then
+    cp -a "$target" "$from"
+  else
+    : > "$from"
+  fi
+done < /usr/lib/the-max-mix/persist-sources
