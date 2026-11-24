@@ -469,6 +469,26 @@ describe('SoloistPlayer', () => {
     expect(on.onReady).toHaveBeenLastCalledWith('soloist-2');
   });
 
+  it("finds its own kiosk's Soloist by the name it reported, beside another kiosk's", async () => {
+    vi.mocked(getDevices).mockResolvedValue({
+      devices: [
+        { id: 'other-kiosk', name: 'The Max Mix 1' },
+        { id: 'this-kiosk', name: 'The Max Mix 4' }
+      ]
+    });
+    const on = handlers();
+    const player = new SoloistPlayer(on);
+    player.connect();
+    const socket = latestFakeSocket();
+    socket.open();
+    socket.receive({ type: 'bridge', connected: true });
+    socket.receive(authState(false, 'The Max Mix 4'));
+    await settle();
+    expect(player.deviceName).toBe('The Max Mix 4');
+    expect(on.onReady).toHaveBeenCalledExactlyOnceWith('this-kiosk');
+    player.disconnect();
+  });
+
   it('says when Soloist waits to be signed in, and looks it up once someone does', async () => {
     const on = handlers();
     const player = new SoloistPlayer(on);

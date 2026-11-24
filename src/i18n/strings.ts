@@ -457,8 +457,12 @@ export const STRINGS = {
   'notice.settings_title': { en: 'Check Spotify settings', nb: 'Sjekk Spotify-innstillingene' },
   'notice.soloist_key_title': { en: 'Soloist key needed', nb: 'Soloist-nøkkel trengs' },
   'notice.pick_on_phone_title': {
-    en: 'Pick The Max Mix Soloist in Spotify on your phone',
-    nb: 'Velg The Max Mix Soloist i Spotify på telefonen'
+    en: 'Pick {device} in Spotify on your phone',
+    nb: 'Velg {device} i Spotify på telefonen'
+  },
+  'notice.pick_kiosk_on_phone_title': {
+    en: 'Pick this kiosk in Spotify on your phone',
+    nb: 'Velg denne kiosken i Spotify på telefonen'
   },
   'notice.player_title': { en: 'Tablet player disconnected', nb: 'Nettbrettspilleren er frakoblet' },
   'notice.reconnect_player': { en: 'Reconnect player', nb: 'Koble til spilleren igjen' },

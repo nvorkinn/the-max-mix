@@ -482,6 +482,11 @@ export class SoloistPlayer {
     this.#handlers.onState(this.#state());
   }
 
+  /** The name Soloist goes by in Spotify Connect, as it reported it (kiosk-audio picks one per kiosk), or null before. */
+  get deviceName(): string | null {
+    return this.#deviceName;
+  }
+
   /** Whether Soloist is the account's active device, which is when its commands reach it. */
   get isActive(): boolean {
     return this.#isActive;
