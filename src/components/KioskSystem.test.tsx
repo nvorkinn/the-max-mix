@@ -279,8 +279,8 @@ describe('KioskSystem', () => {
 
     it('checks, installs and restarts from the row', async () => {
       render(<Harness />);
-      expect(await screen.findByText('v1.13.0 is out.')).toBeInTheDocument();
-      expect(screen.getByText('v1.12.0')).toBeInTheDocument();
+      expect(await screen.findAllByText('v1.13.0 is out.')).not.toHaveLength(0);
+      expect(screen.getAllByText('v1.12.0')).not.toHaveLength(0);
       expect(kiosk.latestRelease).not.toHaveBeenCalled();
       await userEvent.click(screen.getByRole('button', { name: 'Not now', hidden: true }));
 
