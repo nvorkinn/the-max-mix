@@ -37,6 +37,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.main.outputs.sha }}
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
     steps:
@@ -48,6 +50,7 @@ jobs:
           fi
       # The Pis run whatever the latest release holds as root (see SECURITY.md), so only release a commit that is on main.
       - name: Check the tag is on main
+        id: main
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -58,6 +61,7 @@ jobs:
             echo "::error::$TAG ($sha) is not on main. Only tag commits on main."
             exit 1
           fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
   release:
     needs: check
@@ -112,13 +116,13 @@ jobs:
           # shellcheck disable=SC2029 # the paths are meant to be filled in here, on the runner
           ssh "${ssh_opts[@]}" "$HOST" "ln -sfn $rel /srv/sites/$APP.tmp && mv -T /srv/sites/$APP.tmp /srv/sites/$APP"
 
-  # The Pis' bundle, built from the tag in parallel with the deploy.
+  # The Pis' bundle, built in parallel with the deploy from the tag's commit, which the check found on main.
   bundle:
     needs: check
     uses: ./.github/workflows/bundle.yml
     with:
       channel: ${{ inputs.tag || github.ref_name }}
-      ref: refs/tags/${{ inputs.tag || github.ref_name }}
+      ref: ${{ needs.check.outputs.sha }}
       version: ${{ inputs.tag || github.ref_name }}
       sign: true
     secrets: inherit

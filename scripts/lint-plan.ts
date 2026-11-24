@@ -30,10 +30,7 @@ const isRunAllFile = paths(
 );
 
 // The root package.json and lockfile run everything; the Pi's kiosk-audio ones only need the two package checks.
-const isKioskAudioPackageFile = paths(
-  'image/kiosk-audio/package.json',
-  'image/kiosk-audio/package-lock.json'
-);
+const isKioskAudioPackageFile = paths('image/kiosk-audio/package.json', 'image/kiosk-audio/package-lock.json');
 
 // A bump of the countdown-api submodule (its commit, listed as the folder) can change the types the app imports.
 const isCountdownApi = paths('vendor/countdown-api', '.gitmodules');
@@ -57,12 +54,7 @@ const CHECKS: Record<string, Matcher[]> = {
   ],
   'lint:lockfiles': [isKioskAudioPackageFile],
   'lint:image': [paths(/^image\//, 'scripts/check-image.ts', 'scripts/image-lists.ts')],
-  shellcheck: [
-    paths(
-      'image/build.sh',
-      /^image\/rootfs\/usr\/local\/(s?bin|lib\/the-max-mix)\//
-    )
-  ],
+  shellcheck: [paths('image/build.sh', /^image\/rootfs\/usr\/local\/(s?bin|lib\/the-max-mix)\//)],
   actionlint: [paths(/^\.github\/workflows\//)],
   editorconfig: [isAnyFile]
 };

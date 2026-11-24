@@ -29,7 +29,8 @@ const formatAndLintData = (files: string[]) => {
 
 const tasks = {
   '{*.{js,mjs,ts},{src,scripts,e2e,pi}/**/*.{js,mjs,ts,tsx}}': [prettier, lint],
-  '{image/build.sh,image/rootfs/usr/local/lib/the-max-mix/*,image/rootfs/usr/local/bin/*,image/rootfs/usr/local/sbin/*}': shellcheck,
+  '{image/build.sh,image/rootfs/usr/local/lib/the-max-mix/*,image/rootfs/usr/local/bin/*,image/rootfs/usr/local/sbin/*}':
+    shellcheck,
   '*.md': [prettier, (files: string[]) => `markdownlint-cli2 ${quote(files)}`],
   '*.{yml,yaml}': prettier,
   '*.css': [prettier, (files: string[]) => `stylelint --max-warnings 0 ${quote(files)}`],

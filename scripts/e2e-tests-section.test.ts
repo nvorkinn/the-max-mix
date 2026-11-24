@@ -85,9 +85,11 @@ describe('testsSection', () => {
   });
 
   it('says so when the change is outside what the browser tests are about', () => {
-    const text = testsSection({ files: ['README.md', 'image/packages.txt'], tests: [test({})], reportUrl: REPORT }).join(
-      '\n'
-    );
+    const text = testsSection({
+      files: ['README.md', 'image/packages.txt'],
+      tests: [test({})],
+      reportUrl: REPORT
+    }).join('\n');
     expect(text).toContain('touches nothing the browser tests are about');
     expect(text).toContain(`[All tests](${REPORT})`);
   });

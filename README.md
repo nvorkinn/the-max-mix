@@ -261,7 +261,7 @@ Pi's own settings in `/data/the-max-mix/kiosk.env` ([image/README.md](image/READ
   bundle rebuilt from the tag, and the Pis install it as an ordinary update. On a Pi over SSH, `sudo kiosk-rollback`
   boots the other slot at once, since it still holds the previous version.
 - **Check an update:** `journalctl -u kiosk-update -n 100`, `sudo rauc status`, and `sudo node
-  /opt/the-max-mix/kiosk-audio/kiosk-update.ts check` for what the channel has.
+/opt/the-max-mix/kiosk-audio/kiosk-update.ts check` for what the channel has.
 
 The kiosk opens the app with `?kiosk=1` (remembered across the Spotify sign-in redirect; `?kiosk=0` forgets it), which
 adds kiosk-only entries to Settings: **Wi-Fi** (the networks in range, and joining one; it opens by itself when the kiosk starts with no network), the release the Pi runs and whether

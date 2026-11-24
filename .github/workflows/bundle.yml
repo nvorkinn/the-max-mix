@@ -116,7 +116,8 @@ jobs:
       - name: Build the base layer
         if: steps.base.outputs.cache-hit != 'true'
         run: sudo image/build.sh base "$RUNNER_TEMP/upstream.json" "$RUNNER_TEMP/base"
-      - if: steps.base.outputs.cache-hit != 'true'
+      # Saved only from the caller's own commit: a release's build of another one leaves the cache alone.
+      - if: steps.base.outputs.cache-hit != 'true' && inputs.ref == ''
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/base
