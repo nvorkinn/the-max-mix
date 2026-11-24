@@ -68,5 +68,8 @@ The read-only root: `/tmp`, `/var/tmp` and `/var/cache` are in memory, and `/var
 in memory (logind, the backlight level, udisks2), with `persist.list`'s binds from `/data` on top. Swap is zram only
 (`/etc/rpi/swap.conf.d`), and the radios' rfkill state is not restored, so Wi-Fi is never left blocked.
 
-Still to prove on a Pi (the spike): that `/etc/hostname` and `/etc/machine-id` from `/data` are in place before
-systemd reads them early in boot, and that nothing else needs to write to the root.
+Proven on a Pi 5 with the Touch Display 2 (the spike, 2026-11-24): booting from either slot on the read-only root with
+Wi-Fi, SSH, Cage, Chromium and kiosk-audio up; adaptive installs that download under a tenth of the bundle; a healthy
+trial slot kept, and a failed one marked bad with the Pi back on its old slot. After a fallback, the firmware's
+[tryboot] section points at the good slot again, so a plain `reboot '0 tryboot'` does not retry the bad one: only a
+new install, or `rauc status mark-active other`, makes it the slot to try.
