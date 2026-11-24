@@ -16,7 +16,14 @@ export const CHECK_MS = 15_000;
 const STOP_WAIT_MS = 10_000;
 const CHROMIUM_PID = '/run/kiosk/chromium.pid';
 
+/**
+ * Milliseconds on a clock that only moves forward, for measuring how long something took. Not Date.now(): a Pi without
+ * a real-time clock boots with a stale time and jumps when NTP syncs, which looked like minutes of silence.
+ */
+export const monotonicNow = (): number => performance.now();
+
 export interface WatchdogDeps {
+  /** A monotonic clock (monotonicNow). */
   now: () => number;
   /** The running Chromium's process id, or null when it is not running. */
   chromiumPid: () => Promise<number | null>;

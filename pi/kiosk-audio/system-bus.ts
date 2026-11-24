@@ -5,9 +5,9 @@ const CONNECT_WAIT_MS = 5000;
 
 /** Waits until the bus has said hello (it has a unique name), which BlueZ needs to call back. */
 export async function untilConnected(bus: MessageBus): Promise<void> {
-  const deadline = Date.now() + CONNECT_WAIT_MS;
+  const deadline = performance.now() + CONNECT_WAIT_MS;
   while (!bus.name) {
-    if (Date.now() > deadline) throw new Error('The system bus did not answer.');
+    if (performance.now() > deadline) throw new Error('The system bus did not answer.');
     // A short poll for the hello reply.
     // eslint-disable-next-line no-await-in-loop
     await new Promise(resolve => setTimeout(resolve, 10));
