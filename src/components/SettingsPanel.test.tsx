@@ -9,7 +9,9 @@ import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touch
 import { DEFAULT_LYRICS_STYLE, getLyricsStyle, setLyricsStyle } from '../utils/lyricsStyle';
 import * as deviceAccount from '../countdown/account';
 import * as deviceServer from '../countdown/config';
+import * as soloistKeys from '../countdown/soloistKeys';
 import { PARCEL_LINK_POLL_MS } from '../hooks/useParcelLink';
+import { SOLOIST_KEY_POLL_MS } from '../hooks/useSoloistKey';
 import SettingsPanelFull from './SettingsPanel';
 
 // eslint-disable-next-line sonarjs/no-hardcoded-ip -- a made-up address of the Pi on a home network
@@ -517,14 +519,19 @@ describe('SettingsPanel', () => {
     it('removes a person on the second tap, and reloads only when the active person changes', async () => {
       auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true), person('Friend')]);
       auth.removePerson.mockReturnValue('kept');
+      const forgetKey = vi.spyOn(soloistKeys, 'forgetSoloistKey').mockReturnValue();
       render(<SettingsPanel {...base} initialSection="spotify" />);
       await userEvent.click(face('Friend'));
       const friend = screen.getByRole('group', { name: 'Friend' });
       await userEvent.click(within(friend).getByRole('button', { name: 'Remove' }));
       expect(auth.removePerson).not.toHaveBeenCalled();
+      expect(forgetKey).not.toHaveBeenCalled();
       auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true)]);
       await userEvent.click(within(friend).getByRole('button', { name: 'Tap again to remove' }));
       expect(auth.removePerson).toHaveBeenCalledWith('Friend');
+      // Their Soloist key goes from the server with them.
+      expect(forgetKey).toHaveBeenCalledExactlyOnceWith('Friend');
+      forgetKey.mockRestore();
       expect(faces().map(row => row.textContent)).toEqual(['Nikolai', 'Add']);
       expect(screen.getByRole('group', { name: 'Nikolai' })).toBeInTheDocument();
       expect(base.onReload).not.toHaveBeenCalled();
@@ -550,6 +557,60 @@ describe('SettingsPanel', () => {
       auth.peopleOnKiosk.mockReturnValue(['a', 'b', 'c', 'd', 'e'].map(id => person(id, id === 'a')));
       render(<SettingsPanel {...base} initialSection="spotify" />);
       expect(screen.getByRole('button', { name: 'Add person' })).toBeDisabled();
+    });
+
+    describe('Soloist keys', () => {
+      beforeEach(() => {
+        vi.spyOn(deviceServer, 'serverClient').mockReturnValue({
+          baseUrl: 'https://countdown.build',
+          secret: 'a-secret'
+        });
+        vi.stubEnv('VITE_COUNTDOWN_SERVER', 'https://app.countdown.build');
+        vi.spyOn(soloistKeys, 'newSoloistKeyCode').mockResolvedValue({
+          pageUrl: 'https://app.countdown.build/soloist?code=a-code',
+          expiresAt: Date.now() + 600_000
+        });
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+        vi.unstubAllEnvs();
+        vi.restoreAllMocks();
+      });
+
+      it("shows the code for a person's Soloist key while they have none, and neither once it is saved", async () => {
+        auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true), person('Friend')]);
+        const list = vi.spyOn(soloistKeys, 'soloistKeyPeople').mockResolvedValue(['Friend']);
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        render(<SettingsPanel {...base} initialSection="spotify" />);
+        await userEvent.click(await screen.findByRole('button', { name: 'Add Soloist key' }));
+        const dialog = within(screen.getByRole('dialog', { name: 'Nikolai’s Soloist key' }));
+        expect(await dialog.findByRole('img', { name: 'Nikolai’s Soloist key' })).toBeInTheDocument();
+
+        // Someone with a key has nothing to add.
+        await userEvent.click(face('Friend'));
+        await waitFor(() => expect(list).toHaveBeenCalledTimes(3));
+        expect(screen.queryByRole('button', { name: 'Add Soloist key' })).not.toBeInTheDocument();
+
+        // Nikolai pastes theirs on the phone: the code and the button go.
+        await userEvent.click(face('Nikolai'));
+        await userEvent.click(await screen.findByRole('button', { name: 'Add Soloist key' }));
+        expect(await screen.findByRole('img', { name: 'Nikolai’s Soloist key' })).toBeInTheDocument();
+        list.mockResolvedValue(['Friend', 'Nikolai']);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(SOLOIST_KEY_POLL_MS);
+        });
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Add Soloist key' })).not.toBeInTheDocument();
+      });
+
+      it('offers no Soloist key while nobody owns the kiosk', async () => {
+        auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true)]);
+        const list = vi.spyOn(soloistKeys, 'soloistKeyPeople').mockResolvedValue('unpaired');
+        render(<SettingsPanel {...base} initialSection="spotify" />);
+        await waitFor(() => expect(list).toHaveBeenCalledOnce());
+        expect(screen.getByRole('group', { name: 'Nikolai' })).toHaveTextContent('NikolaiConnectedRemove');
+      });
     });
 
     it('shows why a person was refused without the redirect address', () => {

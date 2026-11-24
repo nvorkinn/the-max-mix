@@ -22,6 +22,7 @@ export const STRINGS = {
   // Words every page uses.
   'common.change': { en: 'Change', nb: 'Endre' },
   'common.cancel': { en: 'Cancel', nb: 'Avbryt' },
+  'common.back': { en: 'Back', nb: 'Tilbake' },
   'common.save': { en: 'Save', nb: 'Lagre' },
   'common.on': { en: 'On', nb: 'På' },
   'common.off': { en: 'Off', nb: 'Av' },
@@ -274,6 +275,8 @@ export const STRINGS = {
   'spotify.add_person': { en: 'Add person', nb: 'Legg til person' },
   'spotify.add': { en: 'Add', nb: 'Legg til' },
   'spotify.log_in': { en: 'Log in with Spotify', nb: 'Logg inn med Spotify' },
+  'soloist.add_key': { en: 'Add Soloist key', nb: 'Legg til Soloist-nøkkel' },
+  'soloist.key_of': { en: '{name}’s Soloist key', nb: 'Soloist-nøkkelen til {name}' },
 
   // Settings › Lyrics.
   'lyrics.sample_1': { en: 'Under the kitchen light', nb: 'Under lyset på kjøkkenet' },
