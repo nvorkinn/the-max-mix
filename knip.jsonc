@@ -4,13 +4,16 @@
   // Vitest configs, ESLint, Playwright (e2e/*.spec.ts), lint-staged and husky.
   // Files those do not reach directly (scripts/*.ts) are entries via package.json scripts.
   // ShellCheck and editorconfig-checker are system binaries installed separately (apt/brew/CI download), not npm dependencies.
-  // The Pi's audio service is started by its systemd unit (ansible/roles/kiosk/templates/kiosk-audio.service.j2).
-  // The role also runs screen-mode.ts and its own install-files.ts from the checkout. An image-based Pi runs
-  // kiosk-first-boot.ts at every boot (image/rootfs/etc/systemd/system/kiosk-first-boot.service). pi/tools/*.mts are run
-  // by hand on a Pi over SSH.
+  // The Pi's audio service is started by its systemd unit (ansible/roles/kiosk/templates/kiosk-audio.service.j2); on image
+  // Pis the updater, the health check, RAUC's boot backend and the first-boot setup are started by theirs (image/rootfs).
+  // The role also runs screen-mode.ts and its own install-files.ts from the checkout. pi/tools/*.mts are run by hand on a
+  // Pi over SSH.
   "entry": [
     "pi/kiosk-audio/kiosk-audio.ts",
     "pi/kiosk-audio/screen-mode.ts",
+    "pi/kiosk-audio/kiosk-update.ts",
+    "pi/kiosk-audio/kiosk-health.ts",
+    "pi/kiosk-audio/rauc-backend.ts",
     "pi/kiosk-audio/kiosk-first-boot.ts",
     "ansible/roles/kiosk/files/install-files.ts",
     "pi/tools/*.mts"

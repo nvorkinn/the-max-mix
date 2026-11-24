@@ -1,0 +1,23 @@
+# The boot firmware's settings, on each slot's boot partition (boot-a, boot-b). This file replaces Raspberry Pi OS's
+# own: its defaults that the kiosk needs are kept, and anything not written here is not set. https://rptl.io/configtxt
+
+# The KMS display driver Cage and Chromium draw with, and screens it finds by itself (the Touch Display 2 on DSI).
+dtoverlay=vc4-kms-v3d
+max_framebuffers=2
+display_auto_detect=1
+# Leaves the screen mode to video= on the kernel command line, which screen-setup.ts writes.
+disable_fw_kms_setup=1
+disable_overscan=1
+# No rainbow screen at power on.
+disable_splash=1
+
+auto_initramfs=1
+arm_64bit=1
+arm_boost=1
+
+[pi5]
+# The Pi 5 would boot a kernel with 16 KB memory pages; kernel8.img is the 4 KB-page kernel the Pi 4 uses, which Spotify
+# Soloist has been run on.
+kernel=kernel8.img
+
+[all]

@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Prints the kiosk's state in one go, for a look over SSH or Tailscale: the running release and slot, the last update
+# check and the next one, whether the services run, how often the watchdog restarted Chromium, and the app's recent
+# errors. Only reads; changes nothing. Usage: sudo kiosk-status [DAYS]   (how far back to look in the journal, default 7)
+set -uo pipefail
+
+days=${1:-7}
+if [[ ! $days =~ ^[0-9]+$ ]]; then
+  echo "Usage: sudo kiosk-status [DAYS]" >&2
+  exit 2
+fi
+if ((EUID != 0)); then
+  echo "kiosk-status: run it with sudo (the journal and the kiosk user's service need it)." >&2
+  exit 1
+fi
+
+since="$days days ago"
+heading() { printf '\n== %s ==\n' "$1"; }
+# The kiosk user's services (kiosk-audio) log under this match, not under -u.
+audio_journal() { journalctl --quiet --no-pager --output=short-iso _SYSTEMD_USER_UNIT=kiosk-audio.service "$@"; }
+
+heading Version
+# Written by the image build: the release (or channel) and commit the running slot was built from.
+release=$(sed -n -e 's/^KIOSK_RELEASE_REF=//p' /usr/lib/the-max-mix/release.env 2> /dev/null)
+commit=$(sed -n -e 's/^KIOSK_RELEASE_COMMIT=//p' /usr/lib/the-max-mix/release.env 2> /dev/null)
+echo "Running:    ${release:-unknown} (${commit:0:7})"
+if command -v rauc > /dev/null; then
+  rauc status 2> /dev/null | sed -n -e 's/^Booted from: /Slot:       /p' -e 's/^Activated: /Activated:  /p'
+fi
+echo "Up since:   $(uptime --since) ($(uptime --pretty))"
+
+heading 'Last update check (kiosk-update)'
+systemctl show kiosk-update.service --property=ActiveState,Result,ExecMainStatus,ExecMainExitTimestamp |
+  sed -e 's/^ActiveState=/State:      /' -e 's/^Result=/Result:     /' -e 's/^ExecMainStatus=/Exit code:  /' \
+    -e 's/^ExecMainExitTimestamp=/Ended:      /'
+echo "Next check: $(systemctl show kiosk-update.timer --property=NextElapseUSecRealtime --value)"
+journalctl --quiet --no-pager --output=cat -u kiosk-update.service --since "$since" | tail -n 4
+
+heading Services
+for unit in kiosk kiosk-update.timer kiosk-health ssh tailscaled; do
+  printf '%-22s %s\n' "$unit" "$(systemctl is-active "$unit" 2> /dev/null)"
+done
+printf '%-22s %s\n' kiosk-audio "$(systemctl --user --machine=kiosk@ is-active kiosk-audio 2> /dev/null)"
+
+heading "Chromium restarts by the watchdog (last $days days)"
+restarts=$(audio_journal --since "$since" --grep 'No heartbeat from the app')
+if [[ -n $restarts ]]; then
+  echo "$(wc -l <<< "$restarts") restart(s), the latest:"
+  tail -n 5 <<< "$restarts"
+else
+  echo "None"
+fi
+
+heading "Recent app errors and warnings (last $days days)"
+errors=$(audio_journal --since "$since" --grep '^app (error|warn)')
+if [[ -n $errors ]]; then
+  echo "$(wc -l <<< "$errors") line(s), the latest:"
+  tail -n 10 <<< "$errors"
+else
+  echo "None"
+fi
+
+heading "Kiosk warnings (last $days days)"
+journalctl --quiet --no-pager --output=short-iso -u kiosk -u kiosk-update -u kiosk-health --since "$since" \
+  --priority warning | tail -n 10 | grep . || echo None
+echo
+echo "More: journalctl -u kiosk -u kiosk-update -u kiosk-health, and journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service"

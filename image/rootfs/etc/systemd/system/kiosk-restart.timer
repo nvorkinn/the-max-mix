@@ -1,0 +1,9 @@
+[Unit]
+Description=Restart THE MAX MIX kiosk at a quiet time
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,14 @@
+# After each boot: gives the kiosk 5 minutes to come up (kiosk-audio answers, Cage and Chromium run, the app sends
+# heartbeats). A new slot's first boot that passes becomes the slot every boot starts; one that fails reboots into the
+# old slot. Type=simple, so the boot never waits for it.
+[Unit]
+Description=Keep a THE MAX MIX update only if the kiosk comes up
+Wants=rauc.service
+After=rauc.service kiosk.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/node /opt/the-max-mix/kiosk-audio/kiosk-health.ts
+
+[Install]
+WantedBy=multi-user.target
