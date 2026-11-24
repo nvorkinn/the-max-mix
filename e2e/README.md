@@ -25,8 +25,8 @@ browser. Run them with `npm run build && npm run test:e2e`.
 | `visual.spec.ts`     | Screenshots compared with `screenshots/` (`@visual`, CI only)                                                 |
 
 Each file is one `test.describe('<Feature>', { tag: '@feature' }, …)`, so the report reads _Feature › what it checks_,
-and a test can carry further tags (`test('…', { tag: '@queue' }, …)`). `fake-spotify.ts` is the shared fake account (and counts its playback reads); `fake-spotify-sdk.ts` fakes the Web Playback SDK (this tablet's own player, which tests make drop or block
-autoplay); `settings.ts` opens Settings on a section; `spotify-tab.ts` opens the app (which starts on the Dashboard) on the Spotify tab; `clock.ts` moves a faked clock for the tests
+and a test can carry further tags (`test('…', { tag: '@queue' }, …)`). `fake-spotify.ts` is the shared fake account (and counts its playback reads); `fake-soloist.ts` fakes the kiosk's own player, Spotify Soloist, behind the Pi
+service's `/soloist` WebSocket (tests make it drop); `settings.ts` opens Settings on a section; `spotify-tab.ts` opens the app (which starts on the Dashboard) on the Spotify tab; `clock.ts` moves a faked clock for the tests
 that count polling or wait out an idle timer.
 
 ## Finding the tests for a pull request

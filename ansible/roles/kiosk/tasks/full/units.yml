@@ -1,6 +1,6 @@
 ---
 # A part of the setup (tasks/main.yml runs it when what it installs changed, or a week after it last ran).
-# Updates: the pull, restart, Widevine, SSH key and Soloist update units, then enabling and starting what runs from boot.
+# Updates: the pull, restart, SSH key and Soloist update units, then enabling and starting what runs from boot.
 
 # Updates -------------------------------------------------------------------------------------------------------------
 - name: full | units | Install the update and SSH key units
@@ -11,7 +11,7 @@
     kiosk_units: >-
       {%- set units = [] -%}
       {%- for name in ['kiosk-pull.service', 'kiosk-pull.timer', 'kiosk-restart.service', 'kiosk-restart.timer',
-        'kiosk-widevine.path', 'kiosk-widevine.service', 'kiosk-soloist-update.service', 'kiosk-soloist-update.timer']
+        'kiosk-soloist-update.service', 'kiosk-soloist-update.timer']
         + (['kiosk-ssh-keys.service', 'kiosk-ssh-keys.timer'] if kiosk_admin_github_user else []) -%}
       {%- set _ = units.append({'path': '/etc/systemd/system/' ~ name, 'mode': '0644',
         'content': lookup('ansible.builtin.template', name ~ '.j2')}) -%}
@@ -19,6 +19,23 @@
       {{ units }}
   register: kiosk_units_installed
   changed_when: kiosk_units_installed.stdout | length > 0
+  notify: Reload systemd
+
+# Chromium needed Widevine (Spotify's DRM module) while the Web Playback SDK played the music; Spotify Soloist plays it
+# now, so the units that restarted the kiosk after Chromium's Widevine download go. Prints what it removed.
+- name: full | units | Remove the Widevine units
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      if [[ -e /etc/systemd/system/kiosk-widevine.path ]]; then
+        systemctl disable --now --quiet kiosk-widevine.path 2>/dev/null || true
+        rm -f /etc/systemd/system/kiosk-widevine.path /etc/systemd/system/kiosk-widevine.service \
+          /var/lib/the-max-mix/widevine-loaded
+        echo removed
+      fi
+    executable: /bin/bash
+  register: kiosk_widevine_removed
+  changed_when: kiosk_widevine_removed.stdout | length > 0
   notify: Reload systemd
 
 # The units must be known to systemd before they are enabled and started.
@@ -49,8 +66,7 @@
   environment:
     ENABLE: kiosk.service bluetooth.service
     START: >-
-      {{ (['avahi-daemon.service', 'kiosk-pull.timer', 'kiosk-restart.timer', 'kiosk-widevine.path',
-      'kiosk-soloist-update.timer']
+      {{ (['avahi-daemon.service', 'kiosk-pull.timer', 'kiosk-restart.timer', 'kiosk-soloist-update.timer']
       + (['kiosk-ssh-keys.timer'] if kiosk_admin_github_user else [])) | join(' ') }}
     ENABLE_ONLY: '{{ kiosk_enable_only | bool }}'
   register: kiosk_units_enabled

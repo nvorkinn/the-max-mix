@@ -119,8 +119,6 @@ kiosk_sections:
       - ansible/roles/kiosk/templates/kiosk-pull.timer.j2
       - ansible/roles/kiosk/templates/kiosk-restart.service.j2
       - ansible/roles/kiosk/templates/kiosk-restart.timer.j2
-      - ansible/roles/kiosk/templates/kiosk-widevine.path.j2
-      - ansible/roles/kiosk/templates/kiosk-widevine.service.j2
       - ansible/roles/kiosk/templates/kiosk-ssh-keys.service.j2
       - ansible/roles/kiosk/templates/kiosk-ssh-keys.timer.j2
       - ansible/roles/kiosk/templates/kiosk-soloist-update.service.j2
@@ -168,7 +166,6 @@ kiosk_screen_scale: ''
 kiosk_rpi_packages:
   - pi-bluetooth
   - rpi-chromium-mods
-  - libwidevinecdm0
 # Packages the playbook needs to run again with ansible-pull.
 kiosk_ansible_packages:
   - ansible-core
@@ -186,7 +183,7 @@ kiosk_packages:
   - xkb-data
   - fonts-dejavu-core
   - fonts-noto-color-emoji
-  # Browser; libwidevinecdm0 (kiosk_rpi_packages) is the Widevine DRM module Spotify's player needs.
+  # Browser
   - chromium
   # Maintenance over SSH (kiosk_ssh_enabled)
   - openssh-server
@@ -277,5 +274,3 @@ kiosk_pull_random_delay: 10min
 # kiosk at this time of day if the marker is there.
 kiosk_restart_time: '04:30'
 kiosk_restart_marker: /run/kiosk/restart-needed
-# Left once the kiosk restarted for its first Widevine download (kiosk-widevine.service).
-kiosk_widevine_marker: /var/lib/the-max-mix/widevine-loaded

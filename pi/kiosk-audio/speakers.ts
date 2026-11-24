@@ -38,7 +38,7 @@ export interface Output {
   address?: string;
   /** Percent, or null when the sink reports none. */
   volume: number | null;
-  /** The browser's sound goes to it now. */
+  /** The music (Soloist's stream) goes to it now. */
   linked: boolean;
 }
 

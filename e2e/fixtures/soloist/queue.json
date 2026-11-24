@@ -1,0 +1,193 @@
+{
+  "type": "queue_changed",
+  "previous": [],
+  "upcoming": [
+    {
+      "uid": "65333939373639656238333231313838386130633939643937393461393032313333646338623065",
+      "source": "autoplay",
+      "item": {
+        "uri": "spotify:track:5wlCtqYAIJDDwtytVWi8Ts",
+        "entity_type": "track",
+        "decorations": {
+          "identity": {
+            "name": "Villblomst"
+          },
+          "visual_identity": {
+            "cover": [
+              {
+                "url": "https://i.scdn.co/image/ab67616d0000485140409fb27bfddc433b3086b2",
+                "size": "small"
+              },
+              {
+                "url": "https://i.scdn.co/image/ab67616d00001e0240409fb27bfddc433b3086b2",
+                "size": "default"
+              },
+              {
+                "url": "https://i.scdn.co/image/ab67616d0000b27340409fb27bfddc433b3086b2",
+                "size": "large"
+              },
+              {
+                "url": "https://i.scdn.co/image/ab67616d0000b27340409fb27bfddc433b3086b2",
+                "size": "xlarge"
+              }
+            ]
+          },
+          "parent": {
+            "entity": {
+              "uri": "spotify:album:5qoqTlxuHpnlE5EedFXJkD",
+              "entity_type": "album",
+              "decorations": {
+                "identity": {
+                  "name": "VILLBLOMST"
+                }
+              }
+            }
+          },
+          "creators": [
+            {
+              "entity": {
+                "uri": "spotify:artist:7HbJecOAhTcyj5x9P95kQz",
+                "entity_type": "artist",
+                "decorations": {
+                  "identity": {
+                    "name": "Madeléne"
+                  }
+                }
+              }
+            }
+          ],
+          "playback": {
+            "duration_ms": 157000,
+            "content_ratings": []
+          }
+        }
+      }
+    },
+    {
+      "uid": "66316364356133633264663662346534613730653434656338353465666637383966643664393362",
+      "source": "autoplay",
+      "item": {
+        "uri": "spotify:track:3ZVNAnhDjk8GhTeFzaRjsp",
+        "entity_type": "track",
+        "decorations": {
+          "playback": {
+            "duration_ms": 0,
+            "content_ratings": []
+          }
+        }
+      }
+    },
+    {
+      "uid": "37363636376237346463386261353265323831613839333564663561313430633438633839663538",
+      "source": "autoplay",
+      "item": {
+        "uri": "spotify:track:70ZfQL8Gcr5nL8jPoo1i11",
+        "entity_type": "track",
+        "decorations": {
+          "playback": {
+            "duration_ms": 0,
+            "content_ratings": []
+          }
+        }
+      }
+    },
+    {
+      "uid": "36393463383363363831316335633831306534666462653165626132336533613739346164376562",
+      "source": "autoplay",
+      "item": {
+        "uri": "spotify:track:2HrQbrT7N3VcV3PmZIy9Wq",
+        "entity_type": "track",
+        "decorations": {
+          "playback": {
+            "duration_ms": 0,
+            "content_ratings": []
+          }
+        }
+      }
+    },
+    {
+      "uid": "61386465343465666564633930323337643532656534393538613161306230616238306334323635",
+      "source": "autoplay",
+      "item": {
+        "uri": "spotify:track:4vXBW2z1uXXyMvCkDG6c5Z",
+        "entity_type": "track",
+        "decorations": {
+          "playback": {
+            "duration_ms": 0,
+            "content_ratings": []
+          }
+        }
+      }
+    },
+    {
+      "uid": "33366139323832386635663333663934316335303939333039613962313937323134636166316538",
+      "source": "autoplay",
+      "item": {
+        "uri": "spotify:track:2q5ndRxFsCsDMUY0MjbXAZ",
+        "entity_type": "track",
+        "decorations": {
+          "playback": {
+            "duration_ms": 0,
+            "content_ratings": []
+          }
+        }
+      }
+    },
+    {
+      "uid": "34353761316138613266383632346533633963333866653036323266633063363035623236393464",
+      "source": "autoplay",
+      "item": {
+        "uri": "spotify:track:47Gmpv3DjH5WdTFqBLsQ8S",
+        "entity_type": "track",
+        "decorations": {
+          "playback": {
+            "duration_ms": 0,
+            "content_ratings": []
+          }
+        }
+      }
+    },
+    {
+      "uid": "33306139616539346637643630613538623439636333383836623831353032623961363263346561",
+      "source": "autoplay",
+      "item": {
+        "uri": "spotify:track:67uW3NHeJlhP0uNFGtjdcX",
+        "entity_type": "track",
+        "decorations": {
+          "playback": {
+            "duration_ms": 0,
+            "content_ratings": []
+          }
+        }
+      }
+    },
+    {
+      "uid": "30353931313462363431326139636434383733373436363963363366386563316332663337396539",
+      "source": "autoplay",
+      "item": {
+        "uri": "spotify:track:0JOibKHNTVny3eo1PkroUu",
+        "entity_type": "track",
+        "decorations": {
+          "playback": {
+            "duration_ms": 0,
+            "content_ratings": []
+          }
+        }
+      }
+    },
+    {
+      "uid": "63366162343234366337623938336338636332666163383265393166616266393863393832343430",
+      "source": "autoplay",
+      "item": {
+        "uri": "spotify:track:6VcwOQoNQ8orTmGfQljzYX",
+        "entity_type": "track",
+        "decorations": {
+          "playback": {
+            "duration_ms": 0,
+            "content_ratings": []
+          }
+        }
+      }
+    }
+  ]
+}

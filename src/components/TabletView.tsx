@@ -80,9 +80,9 @@ import TabBar from './dashboard/TabBar';
 /** The minute it is now; the tab bar's clock changes only when this does. */
 const currentMinute = () => Math.floor(Date.now() / 60_000);
 
-// While this page's player is active the queue is re-read when the SDK says it changed; this is only a safety net.
+// While the kiosk's player is active the queue is re-read when it says the queue changed; this is only a safety net.
 const QUEUE_POLL_MS = 10_000;
-const SDK_QUEUE_POLL_MS = 20_000;
+const PLAYER_QUEUE_POLL_MS = 20_000;
 
 /** Writes `message` to the debug log each time it changes to a new, non-empty value. */
 function useLogChanges(message: string | null | undefined, source: string) {
@@ -120,13 +120,12 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     isConnecting,
     playbackMode,
     browserDeviceId,
-    sdkActive,
+    isPlayerActive,
     queueVersion,
     error: playerError,
     problem: playerProblem,
     retryPlayback,
     reconnectPlayer,
-    allowBrowserAudio,
     togglePlay,
     nextTrack,
     skipAhead,
@@ -410,7 +409,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     const isCancelled = () => cancelled;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let failures = 0;
-    const base = sdkActive ? SDK_QUEUE_POLL_MS : QUEUE_POLL_MS;
+    const base = isPlayerActive ? PLAYER_QUEUE_POLL_MS : QUEUE_POLL_MS;
     const poll = async () => {
       const retryWait = getSpotifyRetryDelay();
       if (retryWait > 0) {
@@ -448,7 +447,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     sleep.asleep,
     quotaExceeded,
     pollEnabled,
-    sdkActive,
+    isPlayerActive,
     isPlaying,
     queueVersion,
     queueRequestVersion
@@ -483,7 +482,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   // Switching person: the music this tablet plays (itself, or its Sonos) belongs to the person leaving, so it pauses;
   // then the page starts again as the new person. A pause that fails or hangs does not hold the switch up.
   const switchTo = async (spotifyId: string) => {
-    if (isPlaying && (followingSonos || sdkActive)) {
+    if (isPlaying && (followingSonos || isPlayerActive)) {
       const pause = followingSonos ? sonos.togglePlay() : togglePlay();
       await Promise.race([pause.catch(() => false), new Promise(resolve => setTimeout(resolve, 3000))]);
     }
@@ -554,7 +553,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
     !isOffline &&
     (isReady || Boolean(browserDeviceId)) &&
     !restricted &&
-    (!waitingForSpotify || sdkActive) &&
+    (!waitingForSpotify || isPlayerActive) &&
     !isLoading;
   const controlsEnabled = followingSonos
     ? isAuthenticated && !isOffline && Boolean(sonos.playback)
@@ -637,8 +636,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       onSettings: showSettings,
       onChooseSpeaker: chooseSpeaker,
       onRefresh: followingSonos ? sonos.refresh : () => void recoverPlayback(retryPlayback),
-      onReconnect: reconnectPlayer,
-      onAllowAudio: () => void recoverPlayback(allowBrowserAudio)
+      onReconnect: reconnectPlayer
     });
   useReportProblem('playback', playbackProblem && { ...playbackProblem, busy: isRefreshingPlayback });
   // No internet goes under the warning with the rest; only the kiosk has Wi-Fi settings.
@@ -845,8 +843,8 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
             ['Signed in', isAuthenticated ? 'Yes' : 'No'],
             ['Playback mode', playbackMode],
             ['Playing on', speakers.playingLabel ?? playbackState?.device?.name ?? 'Nothing'],
-            ['Browser player', browserDeviceId ? `Ready (${browserDeviceId})` : 'Not connected'],
-            ['SDK driving', sdkActive ? 'Yes' : 'No'],
+            ['Kiosk player', browserDeviceId ? `Ready (${browserDeviceId})` : 'Not connected'],
+            ['Kiosk player active', isPlayerActive ? 'Yes' : 'No'],
             ['Active device', playbackState?.device?.name ?? 'None'],
             ['Sonos', followingSonos ? `Following ${sonos.name ?? 'a group'}` : 'Not following'],
             [

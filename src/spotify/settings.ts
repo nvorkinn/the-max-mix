@@ -19,12 +19,22 @@ export function getClientId(): string {
 }
 
 /**
- * browser: this page is the speaker (Web Playback SDK). remote: it only controls another Spotify Connect device. There is
- * no setting for it: the player falls back to remote by itself when the browser cannot play. Only tests and tooling
- * set the stored value (end-to-end tests run without a Widevine player).
+ * browser: the kiosk is the speaker, through its own player (Spotify Soloist, which the Pi runs). remote: the page only
+ * controls another Spotify Connect device, as it does anywhere but on the kiosk, which has no player of its own. There
+ * is no setting for it: only tests and tooling set the stored value (end-to-end tests mostly run without the Pi).
  */
 export function getPlaybackMode(): 'browser' | 'remote' {
-  return read(PLAYBACK_MODE_KEY) === 'remote' ? 'remote' : 'browser';
+  return isOnKiosk() && read(PLAYBACK_MODE_KEY) !== 'remote' ? 'browser' : 'remote';
+}
+
+/**
+ * Whether this is the Pi kiosk, as utils/kiosk.ts's isKiosk says it (?kiosk=1 or 0, else the flag it keeps), without
+ * remembering anything. Not imported from there: the end-to-end tests load this file in Node, which needs every import
+ * to name its file, and kiosk.ts's imports don't.
+ */
+function isOnKiosk(): boolean {
+  const flag = new URLSearchParams(location.search).get('kiosk');
+  return flag === '1' || (flag !== '0' && read('maxmix.kiosk') === 'true');
 }
 
 /** Reload the app so it picks up the stored preferences. */
