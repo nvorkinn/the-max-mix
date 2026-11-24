@@ -93,7 +93,7 @@ Give the new owner the [one-page guide](../../docs/friend-guide.md) (print it, o
 5. The screen sleeps. The app keeps it on while music plays and for the idle minutes chosen in its settings (5 by
    default), by holding a screen wake lock that Chromium passes to Cage. After that, the app shows a black sleep screen
    and lets go. Ten seconds later without a touch (`kiosk_screen_off_after`), `swayidle` runs `kiosk-display off`, which
-   turns the output off with `wlr-randr` (on a DSI panel that switches its backlight off too). The next touch turns it on again, and that tap only dismisses the sleep
+   turns a DSI panel's output off with `wlr-randr`, which switches its backlight off too. An HDMI output stays on behind the black sleep screen, because an HDMI screen's USB touch panel can stop sending touches without a signal. The next touch turns it on again, and that tap only dismisses the sleep
    screen. Music that starts while the screen sleeps wakes it through the kiosk service (`POST /display/wake`).
 
 The app's Settings > Wi-Fi (with `?kiosk=1`) changes the network through the kiosk service on 127.0.0.1
