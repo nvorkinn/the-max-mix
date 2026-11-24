@@ -5,7 +5,7 @@
   "files": ["**"],
   "enableGlobDot": true,
   "useGitignore": true,
-  "ignoreRegExpList": ["/'[A-Za-z0-9+/]{32,}={0,2}'/", "/\\bnb: (['\"]).*?\\1/g"],
+  "ignoreRegExpList": ["/'[A-Za-z0-9+/]{32,}={0,2}'/", "/\\b[A-Za-z0-9]{22}\\b/", "/\\bnb: (['\"]).*?\\1/g"],
   "ignorePaths": [".git", "vendor", "**/package-lock.json", "LICENSE", "e2e/fixtures/soloist"],
   "words": [
     "adwaita",
@@ -33,6 +33,7 @@
     "cmdline",
     "cntrl",
     "color",
+    "conn",
     "connecttest",
     "cretpass",
     "crossfade",
