@@ -64,4 +64,4 @@ Left out, because the image replaces them:
 
 Still to prove on a Pi (the spike): that `/etc/hostname` and `/etc/machine-id` from `/data` are in place before
 systemd reads them early in boot, that `root=PARTLABEL=` boots, and that the read-only root needs nothing else
-writable (`/var/log` besides the journal, `/var/lib/systemd`).
+to write to (`/var/log` besides the journal, `/var/lib/systemd`).

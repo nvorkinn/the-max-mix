@@ -29,8 +29,8 @@ enable ssh.service
 enable tailscaled.service
 enable kiosk-ssh-keys.timer
 
-# Package upkeep for a writable system: here each release is a new image, and /var/lib/apt and /var/backups are
-# read-only.
+# Package upkeep, for a system that changes itself: here each release is a new image, and /var/lib/apt and
+# /var/backups are read-only.
 mask apt-daily.timer
 mask apt-daily-upgrade.timer
 mask dpkg-db-backup.timer
