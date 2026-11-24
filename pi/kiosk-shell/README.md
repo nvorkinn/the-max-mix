@@ -17,6 +17,8 @@ place of Chromium.
 
 - Refuses navigation away from the app's origin, except to Spotify (`*.spotify.com`) and countdown-server
   (`*.countdown.run`, `*.countdown.build`) over https.
+- One finger at a time: WebKitGTK zooms the page on a two-finger pinch whatever the page does with the touches, and
+  leaves it zoomed, so the shell drops every finger after the first. The app has no two-finger gestures.
 - No context menu, no back/forward swipe; media plays without a tap first; permission requests (location,
   notifications, the wake lock) are granted, since only those sites load.
 - Keeps the screen on while the app holds a wake lock. WebKitGTK sends the wake lock to the session bus's

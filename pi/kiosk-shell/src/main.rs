@@ -77,6 +77,32 @@ mod linux {
             request.allow();
             true
         });
+        one_finger(webview);
+    }
+
+    /// Passes WebKit one finger at a time. WebKitGTK zooms the page on a two-finger pinch, whatever the page does with
+    /// the touches, and leaves it zoomed; the app has no two-finger gestures, so the second finger is simply dropped.
+    fn one_finger(webview: &WebView) {
+        use gtk::gdk::EventType;
+        use gtk::glib::{translate::ToGlibPtr, Propagation};
+        use gtk::prelude::*;
+        use std::cell::Cell;
+
+        // The finger that is down, by its event sequence (a pointer GDK keeps for as long as the finger is down).
+        let first: Cell<Option<usize>> = Cell::new(None);
+        webview.connect_touch_event(move |_, event| {
+            let Some(sequence) = event.event_sequence() else {
+                return Propagation::Proceed;
+            };
+            let id = ToGlibPtr::<*mut gtk::gdk::ffi::GdkEventSequence>::to_glib_none(&sequence).0 as usize;
+            match event.event_type() {
+                EventType::TouchBegin if first.get().is_none() => first.set(Some(id)),
+                EventType::TouchEnd | EventType::TouchCancel if first.get() == Some(id) => first.set(None),
+                _ if first.get() == Some(id) => {}
+                _ => return Propagation::Stop,
+            }
+            Propagation::Proceed
+        });
     }
 }
 
