@@ -10,6 +10,11 @@ mod awake;
 /// countdown-server's pages (device registration, the settings site).
 const ALLOWED_DOMAINS: &[&str] = &["spotify.com", "countdown.run", "countdown.build"];
 
+/// Runs in every page before its own scripts. WebKitGTK 2.54 (Pi OS trixie) aborts its page process on the app's view
+/// transitions (a tab switch crashed it every time on the-max-mix-4), so the page is told it has none: the app checks for
+/// `startViewTransition` and changes views without the animation.
+const PAGE_SCRIPT: &str = "delete Document.prototype.startViewTransition;";
+
 fn allowed(app: &Url, to: &Url) -> bool {
     if to.origin() == app.origin() || to.scheme() == "about" || to.scheme() == "blob" || to.scheme() == "data" {
         return true;
@@ -38,6 +43,7 @@ fn main() {
                 .title("THE MAX MIX")
                 .fullscreen(true)
                 .decorations(false)
+                .initialization_script(PAGE_SCRIPT)
                 .on_navigation(move |to| {
                     let ok = allowed(&app_for_check, to);
                     if !ok {

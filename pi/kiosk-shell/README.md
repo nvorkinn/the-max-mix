@@ -19,6 +19,9 @@ place of Chromium.
   (`*.countdown.run`, `*.countdown.build`) over https.
 - One finger at a time: WebKitGTK zooms the page on a two-finger pinch whatever the page does with the touches, and
   leaves it zoomed, so the shell drops every finger after the first. The app has no two-finger gestures.
+- No view transitions: WebKitGTK 2.54 (Pi OS trixie) aborts its page process on the app's view transitions, so the
+  shell removes `document.startViewTransition` before the page's scripts run and the app switches views without the
+  animation. A page process that still ends is loaded again at once.
 - No context menu, no back/forward swipe; media plays without a tap first; permission requests (location,
   notifications, the wake lock) are granted, since only those sites load.
 - Keeps the screen on while the app holds a wake lock. WebKitGTK sends the wake lock to the session bus's
