@@ -44,9 +44,9 @@ export default defineConfig({
         }
       ]
     },
-    // The kiosk shows the app in WebKit (WebKitGTK, in the Tauri shell), so the tests run in Playwright's WebKit, which
-    // finds the engine's gaps before a Pi does. Install it with `npx playwright install --with-deps webkit`.
-    browserName: 'webkit',
+    // CI uses the Chrome preinstalled on ubuntu-latest; locally Playwright's own Chromium is used, or the binary in E2E_BROWSER_PATH.
+    ...(process.env['CI'] && { channel: 'chrome' }),
+    launchOptions: { ...(process.env['E2E_BROWSER_PATH'] && { executablePath: process.env['E2E_BROWSER_PATH'] }) },
     // Locally a failed test keeps its trace.
     trace: process.env['CI'] ? ciTrace : 'retain-on-failure'
   },
