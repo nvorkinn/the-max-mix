@@ -96,6 +96,8 @@ export interface UpdateIO {
   fetchText: (url: string) => Promise<string | null>;
   /** Runs a program; rejects when it fails. */
   run: (argv: string[]) => Promise<void>;
+  /** Reboots once into the other slot: the firmware's tryboot. */
+  tryboot: () => Promise<void>;
   /** Whether the firmware started this boot as a tryboot. */
   isTrialBoot: () => Promise<boolean>;
   now: () => number;
@@ -209,11 +211,12 @@ async function install(io: UpdateIO): Promise<Checked> {
     shown = percent;
     io.log(`Update progress: ${percent}% ${message}`.trimEnd());
   });
-  // RAUC knows what it put in.
+  // The bundle at a URL is never replaced, so it holds the version its manifest said. Anything else here would not
+  // match the next check's, which would then install it again.
   const booted = await io.rauc.bootSlot();
   const slot = (await io.rauc.slots()).find(found => found.bootname !== null && found.bootname !== booted);
   if (!slot?.bootname) throw new Error('RAUC installed the update into no other slot.');
-  const version = slot.bundleVersion ?? checked.latest;
+  const version = checked.latest;
   await io.writeState({ ...(await readState(io)), pending: { version, slot: slot.bootname, tried: false } });
   io.log(`Installed ${version}. It starts with the next restart.`);
   return { ...checked, result: 'installed', installed: version };
@@ -225,7 +228,13 @@ export async function apply(io: UpdateIO): Promise<'restarting' | 'none'> {
   if (!state.pending || state.pending.tried) return 'none';
   await io.writeState({ ...state, pending: { ...state.pending, tried: true } });
   io.log(RESTART_LINE);
-  await io.run([SYSTEMCTL, 'reboot', '0 tryboot']);
+  try {
+    await io.tryboot();
+  } catch (error) {
+    // Still waiting for a restart, so the next check does not install it again.
+    await io.writeState({ ...(await readState(io)), pending: { ...state.pending, tried: false } });
+    throw error;
+  }
   return 'restarting';
 }
 
@@ -320,7 +329,7 @@ export async function rollback(io: UpdateIO): Promise<void> {
     pending: { version: other.bundleVersion ?? 'the previous version', slot: other.bootname, tried: true }
   });
   io.log(`Going back from ${current} to ${other.bundleVersion ?? 'the previous version'}.`);
-  await io.run([SYSTEMCTL, 'reboot', '0 tryboot']);
+  await io.tryboot();
 }
 
 /** The boot slot RAUC just wrote, from its post-install handler's environment; null when it wrote none. */

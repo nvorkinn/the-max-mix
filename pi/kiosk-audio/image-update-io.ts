@@ -10,6 +10,7 @@ import type { Rauc } from './rauc.ts';
 
 const FETCH_TIMEOUT_MS = 30_000;
 const TRYBOOT = '/proc/device-tree/chosen/bootloader/tryboot';
+const REBOOT_PARAM = '/run/systemd/reboot-param';
 
 export async function readText(file: string): Promise<string | null> {
   try {
@@ -47,6 +48,15 @@ export function runProgram([file = '', ...args]: string[]): Promise<void> {
   });
 }
 
+/**
+ * Reboots with the firmware's tryboot flag: "0 tryboot" in the reboot parameter, which systemd passes to the kernel at
+ * the very end. Written here rather than through `systemctl reboot '0 tryboot'`, which failed on the Pi 5.
+ */
+async function tryboot(): Promise<void> {
+  await writeFile(REBOOT_PARAM, '0 tryboot\n');
+  await runProgram(['/usr/bin/systemctl', 'reboot']);
+}
+
 /** Whether the firmware started this boot with tryboot. */
 async function isTrialBoot(): Promise<boolean> {
   try {
@@ -67,6 +77,7 @@ export function updateIO(rauc: Rauc, log: (line: string) => void = print): Updat
     writeState: (state: UpdateState) => replaceFile(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`),
     fetchText,
     run: runProgram,
+    tryboot,
     isTrialBoot,
     now: () => Date.now(),
     log

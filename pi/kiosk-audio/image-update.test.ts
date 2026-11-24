@@ -51,7 +51,8 @@ function pi(options: { channel?: string; state?: Partial<UpdateState>; trial?: b
       { name: 'rootfs.1', class: 'rootfs', bootname: 'b', state: 'inactive', bundleVersion: 'dev+old' },
       { name: 'boot.0', class: 'boot', bootname: null, state: 'booted', bundleVersion: null }
     ] as Slot[],
-    now: 1_000_000_000
+    now: 1_000_000_000,
+    isTrybootBroken: false
   };
   const rauc: Rauc = {
     bootSlot: () => Promise.resolve(booted),
@@ -90,6 +91,11 @@ function pi(options: { channel?: string; state?: Partial<UpdateState>; trial?: b
     },
     run: argv => {
       world.ran.push(argv);
+      return Promise.resolve();
+    },
+    tryboot: () => {
+      if (world.isTrybootBroken) return Promise.reject(new Error('reboot failed'));
+      world.ran.push(['tryboot']);
       return Promise.resolve();
     },
     isTrialBoot: () => Promise.resolve(options.trial ?? false),
@@ -194,7 +200,19 @@ describe('run', () => {
       'Restarting into the update.'
     ]);
     expect(world.state.pending).toEqual({ version: 'dev+bbb', slot: 'b', tried: true });
-    expect(world.ran).toEqual([['/usr/bin/systemctl', 'reboot', '0 tryboot']]);
+    expect(world.ran).toEqual([['tryboot']]);
+  });
+
+  it('keeps an install waiting when the reboot into it fails, and does not install it again', async () => {
+    const { io, world } = pi();
+    world.isTrybootBroken = true;
+    await expect(run(io, true)).rejects.toThrow('reboot failed');
+    expect(world.state.pending).toEqual({ version: 'dev+bbb', slot: 'b', tried: false });
+    world.isTrybootBroken = false;
+    world.now += 2 * 60 * 1000;
+    await run(io, true);
+    expect(world.installed).toEqual([DEV]);
+    expect(world.ran).toEqual([['tryboot']]);
   });
 
   it('leaves a stable Pi’s install for the next restart, and checks it every 6 hours only', async () => {
@@ -229,10 +247,7 @@ describe('restart', () => {
     const { io, world } = pi({ state: { pending: { version: 'v2+bbb', slot: 'b', tried: false } } });
     await restart(io);
     await restart(io);
-    expect(world.ran).toEqual([
-      ['/usr/bin/systemctl', 'reboot', '0 tryboot'],
-      ['/usr/bin/systemctl', 'restart', 'kiosk.service']
-    ]);
+    expect(world.ran).toEqual([['tryboot'], ['/usr/bin/systemctl', 'restart', 'kiosk.service']]);
     await expect(apply(io)).resolves.toBe('none');
   });
 });
@@ -296,7 +311,7 @@ describe('rollback', () => {
     await rollback(io);
     expect(world.marks).toEqual(['active other']);
     expect(world.state).toMatchObject({ pending: { version: 'dev+old', slot: 'b', tried: true }, failed: ['dev+aaa'] });
-    expect(world.ran).toEqual([['/usr/bin/systemctl', 'reboot', '0 tryboot']]);
+    expect(world.ran).toEqual([['tryboot']]);
   });
 });
 
