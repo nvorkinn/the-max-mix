@@ -201,7 +201,7 @@ async function look(io: UpdateIO, shouldRemember: boolean): Promise<{ checked: C
 /** Installs the channel's bundle into the other slot when it is newer; the progress goes to the log as it comes. */
 async function install(io: UpdateIO): Promise<Checked> {
   const { checked, url } = await look(io, true);
-  if (checked.result !== 'available' || checked.latest === null || url === null) return checked;
+  if (url === null || checked.latest === null || checked.result !== 'available') return checked;
   io.log(`Installing ${checked.latest}.`);
   let shown = -1;
   await io.rauc.install(url, ({ percent, message }) => {
