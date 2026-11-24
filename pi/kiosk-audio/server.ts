@@ -88,7 +88,7 @@ import { isLoopback, listenForHotspot } from './hotspot-portal.ts';
 import { Hotspot, HotspotError } from './hotspot.ts';
 import type { HotspotInfo, HotspotStatus } from './hotspot.ts';
 import type { LyricsQuery } from './lyrics-sources.ts';
-import { cached, findLyrics, parseLyricsQuery } from './lyrics.ts';
+import { lyricsLookup, parseLyricsQuery } from './lyrics.ts';
 import type { LyricsHit } from './lyrics.ts';
 import { parseConnectRequest, parseForgetRequest } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
@@ -152,8 +152,8 @@ export interface Deps {
   handover: HandoverStore;
   /** The web app installed on the Pi (app-files.ts): the file a GET of the URL asks for, or null. */
   app: (url: string) => Promise<AppFile | null>;
-  /** Lyrics for a song, or null; rejects when no source could be reached. */
-  lyrics: (query: LyricsQuery) => Promise<LyricsHit | null>;
+  /** Lyrics for a song, or null; rejects when no source could be reached, or once `signal` aborts. */
+  lyrics: (query: LyricsQuery, signal?: AbortSignal) => Promise<LyricsHit | null>;
   bluetooth: BluetoothControl;
   /** What BlueZ reports, for the debug console. */
   bluetoothMonitor: { snapshot: () => Promise<MonitorSnapshot>; setVerbose: (isVerbose: boolean) => void };
@@ -598,12 +598,17 @@ async function getLyrics(
   if (!isFromApp(request, origin)) {
     response.writeHead(403).end();
   } else if (query) {
+    // The app hangs up when it moves on to another song; the lookup then stops asking the sources.
+    const gone = new AbortController();
+    response.once('close', () => {
+      gone.abort();
+    });
     try {
-      const hit = await deps.lyrics(query);
+      const hit = await deps.lyrics(query, gone.signal);
       if (hit) sendJson(response, 200, hit);
       else response.writeHead(404).end();
     } catch {
-      response.writeHead(502).end();
+      if (!gone.signal.aborted) response.writeHead(502).end();
     }
   } else {
     response.writeHead(400).end();
@@ -915,7 +920,7 @@ export function serveSpeakers(
     log: journalLog(),
     app: appFiles(deps.appFolder),
     handover: handoverFile(deps.handoverFile),
-    lyrics: cached(query => findLyrics(query)),
+    lyrics: lyricsLookup(),
     bluetooth,
     bluetoothMonitor,
     presence,

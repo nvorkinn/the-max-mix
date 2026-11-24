@@ -228,11 +228,14 @@ song whose title, artist and length match. Lyrics that time each word come first
 five asked in turn for line-timed lyrics (text with several timed lines), and after that for plain ones, which only
 LRCLIB keeps. A song LRCLIB knows as instrumental and has no synced lyrics for is answered as instrumental. QRC comes
 encrypted with QQ's own variant of Triple DES, which `qrc-cipher.ts` undoes. The service remembers the synced lyrics it
-found, and for an hour anything less (plain lyrics, an instrumental song, nothing).
+found, and for an hour anything less (plain lyrics, an instrumental song, nothing). A song it does not remember is only
+looked up after a pause of 1.5 s, and the lookup stops asking the sources once the app hangs up (the app cancels the
+request when it moves on to the next song), so songs skipped in a row cost (almost) no requests.
 
 LRCLIB has a documented API (<https://lrclib.net/docs>): the service names itself in `User-Agent`, searches with the
-search that sends no lyrics and then fetches the one record it wants, and after an error with `Retry-After` does not
-call LRCLIB again until that time has passed. Musixmatch is called through the API its desktop app uses: the service
+search that sends no lyrics and then fetches the one record it wants, one request at a time. After a 429, or an error
+with `Retry-After`, it does not call LRCLIB again until that time has passed (a minute for a 429 that does not say),
+logging that once rather than for each lookup it fails meanwhile. Musixmatch is called through the API its desktop app uses: the service
 asks it for a user token (`token.get`) and keeps it until Musixmatch stops taking it; when Musixmatch hands out a token
 of only zeros (it does for addresses it will not serve, such as cloud servers), the source is skipped for five minutes.
 KuGou's search host is called over plain http because its https certificate is for another domain. QQ Music's search

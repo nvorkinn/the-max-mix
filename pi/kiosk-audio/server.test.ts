@@ -841,6 +841,30 @@ describe('GET /lyrics', () => {
     expect((await ask(base, 'title=Known')).status).toBe(400);
   });
 
+  it('stops the lookup when the app hangs up', async () => {
+    let asked: AbortSignal | undefined;
+    const lyrics = vi.fn<Deps['lyrics']>((_query, signal) => {
+      asked = signal;
+      // A lookup that never ends, for the app to hang up on.
+      return Promise.race([]);
+    });
+    const base = await start(fakes({ lyrics }).deps);
+    const app = new AbortController();
+    const request = fetch(`${base}/lyrics?title=Known&artist=Someone`, {
+      headers: { Origin: ORIGIN },
+      signal: app.signal
+    });
+    await vi.waitFor(() => {
+      expect(asked).toBeDefined();
+    });
+    expect(asked?.aborted).toBe(false);
+    app.abort();
+    await expect(request).rejects.toThrow();
+    await vi.waitFor(() => {
+      expect(asked?.aborted).toBe(true);
+    });
+  });
+
   it('answers the app only', async () => {
     const lyrics = vi.fn<Deps['lyrics']>();
     const base = await start(fakes({ lyrics }).deps);
