@@ -141,6 +141,7 @@
     "mmcblk",
     "mockup",
     "mountpoint",
+    "mountprefix",
     "mtools",
     "musichall",
     "myhostname",
