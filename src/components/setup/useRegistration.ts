@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 import { deviceSecret, keepDeviceId, kioskScreen, pairingState, registerScreen } from '../../countdown/registration';
 
 /** How often the kiosk asks whether someone owns it yet, while its QR code is showing. */
-const PAIRING_POLL_MS = 2000;
+export const PAIRING_POLL_MS = 2000;
 /** How long it waits before trying again when the Pi can't say what its screen is, or the server can't be reached. */
-const REGISTER_RETRY_MS = 10_000;
+export const REGISTER_RETRY_MS = 10_000;
 
 /**
  * While `isRunning`: registers the kiosk with countdown-server as a touchscreen nobody owns yet (with its screen as the

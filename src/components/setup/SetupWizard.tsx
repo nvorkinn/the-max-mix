@@ -25,7 +25,7 @@ import WifiSettings from '../settings/WifiSettings';
 import { useRegistration } from './useRegistration';
 
 /** How often the Wi-Fi chapter asks the Pi which network it is on, so it moves on once the Pi has joined one. */
-const NETWORK_POLL_MS = 3000;
+export const NETWORK_POLL_MS = 3000;
 
 const CHAPTERS = ['wifi', 'account', 'spotify', 'soloist', 'presence'] as const;
 type Chapter = (typeof CHAPTERS)[number];
