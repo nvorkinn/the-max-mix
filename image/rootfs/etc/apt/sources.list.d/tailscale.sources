@@ -1,7 +1,7 @@
 # Tailscale, so the admin account can SSH in from anywhere once the Pi lives on someone else's network. The signing key
-# it names was checked against the checksum Ansible pinned.
+# it names (keyrings/tailscale.gpg) was checked against the checksum Ansible pinned.
 Types: deb
 URIs: https://pkgs.tailscale.com/stable/debian
 Suites: trixie
 Components: main
-Signed-By: /usr/share/keyrings/tailscale-archive-keyring.gpg
+Signed-By: /etc/apt/keyrings/tailscale.gpg
