@@ -23,6 +23,8 @@ enable kiosk-boot-firmware.service
 
 # Network, Bluetooth (phones and speakers) and Avahi (AirPlay speakers)
 enable NetworkManager.service
+# Runs /etc/NetworkManager/dispatcher.d when a connection comes up: the SSH keys and Soloist on the first network
+enable NetworkManager-dispatcher.service
 enable bluetooth.service
 enable avahi-daemon.service
 enable systemd-timesyncd.service
