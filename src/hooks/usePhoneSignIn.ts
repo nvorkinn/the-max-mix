@@ -35,6 +35,8 @@ export function usePhoneSignIn(onSignedIn: () => void, as = ''): PhoneSignInStat
     if (!client || !site) return;
     const controller = new AbortController();
     const { signal } = controller;
+    // A function, so each await's check reads the signal again rather than what an earlier check narrowed it to.
+    const stopped = () => signal.aborted;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let signIn: PhoneSignIn | null = null;
     const later = () => {
@@ -43,7 +45,7 @@ export function usePhoneSignIn(onSignedIn: () => void, as = ''): PhoneSignInStat
     const ask = async () => {
       if (!signIn || Date.now() >= signIn.expiresAt) {
         signIn = await startPhoneSignIn(client, site, signal);
-        if (signal.aborted) return;
+        if (stopped()) return;
         if (signIn) {
           const { pageUrl } = signIn;
           setState(current => ({ ...current, code: { pageUrl } }));
@@ -53,7 +55,7 @@ export function usePhoneSignIn(onSignedIn: () => void, as = ''): PhoneSignInStat
       }
       const { verifier } = signIn;
       const reply = await phoneSignInReply(client, signIn, signal);
-      if (signal.aborted) return;
+      if (stopped()) return;
       if (reply === null || reply === 'waiting') {
         later();
         return;
@@ -64,7 +66,7 @@ export function usePhoneSignIn(onSignedIn: () => void, as = ''): PhoneSignInStat
         return;
       }
       const result = await finishSignIn(reply, verifier, as);
-      if (signal.aborted) return;
+      if (stopped()) return;
       if (result.ok) {
         onSignedInRef.current();
         return;
