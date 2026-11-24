@@ -217,6 +217,7 @@ describe('ensureIdentity', () => {
   it('keeps the machine ID systemd made up for the first boot, and returns the name on /data', async () => {
     const data = await folder();
     const id = '0123456789abcdef0123456789abcdef';
+    await mkdir(path.dirname(path.join(data, DATA_PATHS.hostname)), { recursive: true });
     await writeFile(path.join(data, DATA_PATHS.hostname), 'kitchen\n');
     expect(await ensureIdentity(data, `${id}\n`, '10000000abcd1234\0')).toBe('kitchen');
     expect(await readFile(path.join(data, DATA_PATHS.machineId), 'utf8')).toBe(`${id}\n`);

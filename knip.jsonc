@@ -18,5 +18,5 @@
   ],
   // The countdown-api submodule is its own project; the app only imports its types and generated client.
   "ignore": ["vendor/**"],
-  "ignoreBinaries": ["shellcheck", "editorconfig-checker"]
+  "ignoreBinaries": ["shellcheck", "editorconfig-checker", "diskutil"]
 }
