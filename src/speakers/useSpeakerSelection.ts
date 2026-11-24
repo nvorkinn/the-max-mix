@@ -108,6 +108,9 @@ export interface SpeakerSelectionOptions {
   leaveSonos: () => Promise<void>;
 }
 
+/** How often Spotify's devices are read again while the Speakers view shows. */
+const DEVICES_EVERY_MS = 5000;
+
 /**
  * The Speakers view's state: the speakers to list, where the music plays now (`confirmed`, from Spotify and the Pi only),
  * the draft the selectors change, Cancel, which drops it, and Save, which carries the draft out and waits until Spotify or the Pi shows it.
@@ -169,6 +172,13 @@ export function useSpeakerSelection({
   useEffect(() => {
     if (open) refresh();
   }, [open, refresh]);
+  // While the view shows, Spotify's devices are read again every few seconds, since a phone joins or leaves the list
+  // as Spotify opens or sleeps on it, and Spotify tells nobody.
+  useEffect(() => {
+    if (!open) return;
+    const timer = setInterval(() => void readDevices(), DEVICES_EVERY_MS);
+    return () => clearInterval(timer);
+  }, [open, readDevices]);
   // The outputs are kept fresh on the kiosk, since the label under the artwork says which of them play.
   useEffect(() => {
     if (!onKiosk) return;

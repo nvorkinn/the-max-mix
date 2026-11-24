@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { getKioskSonosLeader, setKioskSonosLeader } from '../sonos/kiosk';
 import type { PiSonosGroup } from '../sonos/kiosk';
+import { getDevices } from '../spotify/api';
 import { useSpeakerSelection } from './useSpeakerSelection';
 import type { SpeakerSelectionOptions } from './useSpeakerSelection';
 
@@ -76,6 +77,21 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.clearAllMocks();
+});
+
+describe("useSpeakerSelection with Spotify's devices", () => {
+  it('reads them again every few seconds while the view shows, and stops when it closes', async () => {
+    const { rerender } = renderHook((given: SpeakerSelectionOptions) => useSpeakerSelection(given), {
+      initialProps: options()
+    });
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(getDevices).toHaveBeenCalledTimes(1);
+    await seconds(10);
+    expect(getDevices).toHaveBeenCalledTimes(3);
+    rerender(options({ open: false }));
+    await seconds(10);
+    expect(getDevices).toHaveBeenCalledTimes(3);
+  });
 });
 
 describe('useSpeakerSelection with Sonos', () => {
