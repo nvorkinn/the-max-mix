@@ -1,0 +1,10 @@
+[Unit]
+Description=Check for THE MAX MIX updates
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+Unit=kiosk-update-scheduled.service
+
+[Install]
+WantedBy=timers.target

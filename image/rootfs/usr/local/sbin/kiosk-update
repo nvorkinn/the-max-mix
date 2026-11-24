@@ -1,0 +1,3 @@
+#!/bin/sh
+# THE MAX MIX's updater: kiosk-update run | check | apply | restart | rollback (pi/kiosk-audio/kiosk-update.ts).
+exec /usr/bin/node /opt/the-max-mix/kiosk-audio/kiosk-update.ts "$@"

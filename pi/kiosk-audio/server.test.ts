@@ -7,6 +7,7 @@ import type { Action } from './actions.ts';
 import { BluetoothError } from './bluetooth.ts';
 import { dump, exchange } from './fixtures.ts';
 import { HotspotError } from './hotspot.ts';
+import type { Checked } from './image-update.ts';
 import { ERRORS, ScanError } from './nmcli.ts';
 import type { ConnectRequest } from './nmcli.ts';
 import { PAIRING_ERRORS } from './phone-pairing.ts';
@@ -126,6 +127,8 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
     heartbeat: () => {
       beats += 1;
     },
+    heartbeatAge: () => (beats === 0 ? null : 12_000),
+    imageUpdates: null,
     log: entry => {
       logged.push(entry);
     },
@@ -631,6 +634,41 @@ describe('POST /heartbeat and /log', () => {
     expect((await post(base, '/heartbeat', { origin: LOCAL_ORIGIN })).status).toBe(204);
     expect((await post(base, '/heartbeat')).status).toBe(403);
     expect(beats()).toBe(1);
+  });
+});
+
+describe('GET /health', () => {
+  it('says how long ago the app last sent a heartbeat, to kiosk-health on this machine', async () => {
+    const { deps } = fakes();
+    const base = await start(deps);
+    await expect((await fetch(`${base}/health`)).json()).resolves.toEqual({ heartbeatAgeMs: null });
+    await post(base, '/heartbeat');
+    await expect((await fetch(`${base}/health`)).json()).resolves.toEqual({ heartbeatAgeMs: 12_000 });
+  });
+});
+
+describe('POST /update/check', () => {
+  const checked: Checked = {
+    channel: 'dev',
+    current: 'dev+aaa',
+    installed: null,
+    failed: null,
+    busy: false,
+    result: 'available',
+    latest: 'dev+bbb'
+  };
+
+  it('answers what the channel has on an image Pi, to the app only', async () => {
+    const base = await start(fakes({ imageUpdates: { check: () => Promise.resolve(checked) } }).deps);
+    const response = await post(base, '/update/check');
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(checked);
+    expect((await post(base, '/update/check', { origin: 'https://evil.example' })).status).toBe(403);
+  });
+
+  it('is not there on a Pi Ansible installed', async () => {
+    const base = await start(fakes().deps);
+    expect((await post(base, '/update/check')).status).toBe(404);
   });
 });
 

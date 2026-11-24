@@ -1,0 +1,3 @@
+#!/bin/sh
+# RAUC's post-install handler: writes the screen's video= mode into the new slot's cmdline.txt.
+exec /usr/local/sbin/kiosk-update post-install

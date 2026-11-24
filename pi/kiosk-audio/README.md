@@ -290,6 +290,32 @@ It needs the `kiosk` user to read the journal (the `systemd-journal` group, `kio
 (`50-kiosk-power.rules`). The group applies when the user's session next starts, so the first update after a deploy may
 show journalctl's "no permission" instead of the lines; the pull and restart still run.
 
+## Updates on image Pis
+
+A Pi flashed with the A/B image (it has `/etc/rauc/system.conf`) updates as a whole: the OS, this service and the web app
+are one signed RAUC bundle on GitHub, installed into the slot the Pi does not run from. `image-update.ts` holds the one
+code path the timer, the screen and `kiosk-rollback` share:
+
+- **Channels.** `KIOSK_UPDATE_CHANNEL` in `/data/the-max-mix/kiosk.env`: `stable` (the default; the latest release,
+  checked every 6 hours), `dev` (the rolling `dev` pre-release, checked every 2 minutes) or `branch-<name>` (that
+  pre-release, also every 2 minutes). The bundle is `the-max-mix.raucb` on each.
+- **Check.** A HEAD of the bundle's URL (not the rate-limited API); only when the file changed is its manifest read
+  (RAUC's `InspectBundle`, a few range requests). Its version (`<ref>+<commit>`) is compared with the running one
+  (`/usr/lib/the-max-mix/release.env`), the one waiting for a restart and the ones that failed here.
+- **Install.** `kiosk-update.service` (root) runs `rauc install` over D-Bus, streaming from the URL, and logs
+  `Update progress: N% …` lines. `WS /power/update` starts that unit and streams its journal, as for the Ansible pull, and
+  ends with `installed` (with the version) or `done`. `POST /update/check` answers what the channel has (404 on a Pi
+  Ansible installed).
+- **Apply.** At 04:30 and on Restart (`kiosk-restart.service`) the Pi reboots with `tryboot` into the new slot, once.
+  Dev and branch Pis do that straight after the install.
+- **Health.** `kiosk-health.service` gives each boot 5 minutes: this service answers, Cage and Chromium run and the app
+  sends heartbeats (`GET /health`). Then `rauc status mark-good`, which makes a new slot the one every boot starts
+  (`boot-slots.ts` rewrites `autoboot.txt`). A new slot that fails, hangs (hardware watchdog) or panics ends up back on
+  the old slot, and its version is never installed again.
+- **Rollback.** `sudo kiosk-rollback` tries the other slot (the previous version) at once and keeps it once healthy.
+
+State lives in `/data/the-max-mix/update/state.json`; `sudo kiosk-update check` prints what the channel has.
+
 ## Security
 
 - It listens on 127.0.0.1 only (`server.ts` binds there), apart from the Sonos events port (6329) that the sonos-ts

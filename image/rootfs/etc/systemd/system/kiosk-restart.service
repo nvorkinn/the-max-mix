@@ -1,0 +1,7 @@
+# 04:30 and the Restart button: reboot into an installed update when one waits (tryboot), otherwise restart the kiosk.
+[Unit]
+Description=Restart THE MAX MIX kiosk, into an installed update if one waits
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/kiosk-update restart
