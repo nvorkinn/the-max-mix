@@ -14,11 +14,6 @@ on:
         description: The bundle's channel or tag (dev, branch-<name>, v1.2.3), recorded in its version
         required: true
         type: string
-      ref:
-        description: The commit, branch or tag to build; the caller's commit when empty
-        required: false
-        type: string
-        default: ''
       version:
         description: A release tag whose version the web app carries (v1.2.3); none when empty
         required: false
@@ -46,7 +41,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.ref }}
           persist-credentials: false
           submodules: true
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -92,7 +86,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.ref }}
           persist-credentials: false
       - name: Install the build tools
         run: |
@@ -116,8 +109,7 @@ jobs:
       - name: Build the base layer
         if: steps.base.outputs.cache-hit != 'true'
         run: sudo image/build.sh base "$RUNNER_TEMP/upstream.json" "$RUNNER_TEMP/base"
-      # Saved only from the caller's own commit: a release's build of another one leaves the cache alone.
-      - if: steps.base.outputs.cache-hit != 'true' && inputs.ref == ''
+      - if: steps.base.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/base

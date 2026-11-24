@@ -12,7 +12,7 @@ name: Release
 # only once the deploy has worked and its bundle is there, and the Pis and the web app move together.
 #
 # Run it by hand with an existing tag to redeploy that release and mark it as the latest one again, which also rolls the
-# Pis back (or forward) to it at their next update. The runner joins the tailnet with its GitHub identity (id-token); the
+# Pis back (or forward) to its bundle at their next update. The runner joins the tailnet with its GitHub identity (id-token); the
 # bundle's signing key comes from Vaultwarden (bundle.yml).
 on:
   push:
@@ -37,8 +37,6 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    outputs:
-      sha: ${{ steps.main.outputs.sha }}
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
     steps:
@@ -50,7 +48,6 @@ jobs:
           fi
       # The Pis run whatever the latest release holds as root (see SECURITY.md), so only release a commit that is on main.
       - name: Check the tag is on main
-        id: main
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -61,7 +58,6 @@ jobs:
             echo "::error::$TAG ($sha) is not on main. Only tag commits on main."
             exit 1
           fi
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
   release:
     needs: check
@@ -116,20 +112,22 @@ jobs:
           # shellcheck disable=SC2029 # the paths are meant to be filled in here, on the runner
           ssh "${ssh_opts[@]}" "$HOST" "ln -sfn $rel /srv/sites/$APP.tmp && mv -T /srv/sites/$APP.tmp /srv/sites/$APP"
 
-  # The Pis' bundle, built in parallel with the deploy from the tag's commit, which the check found on main.
+  # The Pis' bundle, built from the pushed tag in parallel with the deploy. A run by hand (a redeploy or a rollback)
+  # keeps the bundle the release already has, so the Pis go back to exactly what was released.
   bundle:
     needs: check
+    if: github.event_name == 'push'
     uses: ./.github/workflows/bundle.yml
     with:
-      channel: ${{ inputs.tag || github.ref_name }}
-      ref: ${{ needs.check.outputs.sha }}
-      version: ${{ inputs.tag || github.ref_name }}
+      channel: ${{ github.ref_name }}
+      version: ${{ github.ref_name }}
       sign: true
     secrets: inherit
 
   # A separate job, so that only this step, which runs no code from the repository, can write to it.
   publish:
     needs: [release, bundle]
+    if: ${{ !cancelled() && needs.release.result == 'success' && contains(fromJSON('["success", "skipped"]'), needs.bundle.result) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -139,17 +137,25 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - if: needs.bundle.result == 'success'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: bundle
       # A new tag gets a new release; a tag that already has one (made with the New release form, a redeploy or a
-      # rollback) only becomes the latest again. The bundle goes up last: the Pis install a release only once it is there.
-      # On a redeploy it replaces the bundle already there, which leaves the Pis where they are for a moment.
+      # rollback) only becomes the latest again. A new bundle goes up last: the Pis install a release only once it is
+      # there. A run by hand needs the bundle the release already has.
       - name: Publish the GitHub release
         run: |
+          if [[ ! -f the-max-mix.raucb ]] \
+            && ! gh release view "$TAG" --json assets --jq '.assets[].name' 2> /dev/null | grep -qx the-max-mix.raucb; then
+            echo "::error::$TAG has no the-max-mix.raucb, so the Pis could not install it. Push a new tag instead."
+            exit 1
+          fi
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release edit "$TAG" --draft=false --prerelease=false --latest
           else
             gh release create "$TAG" --verify-tag --generate-notes --latest --title "$TAG"
           fi
-          gh release upload "$TAG" the-max-mix.raucb --clobber
+          if [[ -f the-max-mix.raucb ]]; then
+            gh release upload "$TAG" the-max-mix.raucb --clobber
+          fi

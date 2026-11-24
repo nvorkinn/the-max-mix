@@ -257,8 +257,8 @@ Pi's own settings in `/data/the-max-mix/kiosk.env` ([image/README.md](image/READ
   app and the Pi, and the version in the kiosk's Settings is the release's name.
 - **The flash image** is promoted by hand: Actions > Flash image > Run workflow with a tag (or `dev`) puts that bundle's
   slots on a card image for Imager. A freshly flashed Pi updates itself to its channel's newest bundle, so it may lag.
-- **Roll back:** run the Release workflow by hand with the earlier tag; it marks that release as the latest again with a
-  bundle rebuilt from the tag, and the Pis install it as an ordinary update. On a Pi over SSH, `sudo kiosk-rollback`
+- **Roll back:** run the Release workflow by hand with the earlier tag; it marks that release, with the bundle it
+  already has, as the latest again, and the Pis install it as an ordinary update. On a Pi over SSH, `sudo kiosk-rollback`
   boots the other slot at once, since it still holds the previous version.
 - **Check an update:** `journalctl -u kiosk-update -n 100`, `sudo rauc status`, and `sudo node
 /opt/the-max-mix/kiosk-audio/kiosk-update.ts check` for what the channel has.
