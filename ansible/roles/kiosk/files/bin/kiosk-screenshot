@@ -28,5 +28,5 @@ if [[ -z $socket ]]; then
   exit 1
 fi
 
-# grim asks Cage for the screen over the screencopy protocol, as the kiosk user, and writes the PNG to standard output.
+# grim asks Cage for the screen as the kiosk user, and writes the PNG to standard output.
 exec runuser -u "$kiosk_user" -- env XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY="$socket" grim -t png -
