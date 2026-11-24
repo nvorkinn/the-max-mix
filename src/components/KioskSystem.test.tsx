@@ -295,7 +295,9 @@ describe('KioskSystem', () => {
       expect(screen.getAllByText('v1.13.0 is installed. Restart to finish.').length).toBeGreaterThan(0);
       const restarts = screen.getAllByRole('button', { name: 'Restart now', hidden: true });
       expect(restarts).toHaveLength(2);
-      await userEvent.click(restarts[0] as HTMLElement);
+      const [restart] = restarts;
+      if (!restart) throw new Error('No Restart now button');
+      await userEvent.click(restart);
       expect(kiosk.restartKiosk).toHaveBeenCalledTimes(1);
     });
   });
