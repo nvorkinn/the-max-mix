@@ -85,6 +85,18 @@ async function hdmiPorts(drm: string): Promise<string[]> {
   }
 }
 
+/** Whether a DSI panel (such as the Touch Display 2) is connected: its driver knows its mode, and HDMI is not used. */
+async function hasPanel(drm: string): Promise<boolean> {
+  let names: string[];
+  try {
+    names = (await readdir(drm)).filter(name => /^card\d+-DSI-\d+$/.test(name));
+  } catch {
+    return false;
+  }
+  const states = await Promise.all(names.map(name => readFile(path.join(drm, name, 'status'), 'utf8').catch(() => '')));
+  return states.some(state => state.trim() === 'connected');
+}
+
 /** The mode of the first HDMI screen in `drm` (HDMI-A-1 before HDMI-A-2) with a valid EDID. */
 export async function screenMode(drm: string): Promise<string | undefined> {
   const ports = await hdmiPorts(drm);
@@ -160,14 +172,17 @@ export function cmdlineWithMode(line: string, mode: string | undefined): string 
 
 /**
  * Writes the screen mode into the kernel command line in `file`: `setting` if it is one, else the mode of the screen
- * plugged in (screenMode). Takes effect at the next boot. Returns the new line, or undefined when it was right already.
+ * plugged in (screenMode), else the fallback unless a DSI panel is connected. Takes effect at the next boot. Returns the new line, or undefined when it was right already.
  */
 export async function writeCmdlineMode(
   file: string,
   { setting, drm = '/sys/class/drm' }: { setting?: string | undefined; drm?: string } = {}
 ): Promise<string | undefined> {
   const line = (await readFile(file, 'utf8')).trim();
-  const next = cmdlineWithMode(line, modeSetting(setting) ?? (await screenMode(drm)));
+  const mode = modeSetting(setting) ?? (await screenMode(drm));
+  // The fallback mode is for an HDMI screen with no EDID; a Pi with a DSI panel gets none.
+  if (!mode && (await hasPanel(drm))) return undefined;
+  const next = cmdlineWithMode(line, mode);
   if (next === line) return undefined;
   // Written beside it and moved over it, so a power cut never leaves the Pi a half-written command line.
   await writeFile(`${file}.tmp`, `${next}\n`);

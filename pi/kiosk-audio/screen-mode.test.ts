@@ -195,6 +195,21 @@ describe('kiosk-audio/screen-mode', () => {
       expect(await correctScreens(path.join(drm, 'missing'), debug)).toEqual([]);
     });
 
+    it('writes no fallback mode on a Pi with a DSI panel', async () => {
+      await port('card1-HDMI-A-1');
+      await port('card1-DSI-2');
+      await writeFile(path.join(drm, 'card1-DSI-2', 'status'), 'connected\n');
+      const cmdline = path.join(drm, 'cmdline.txt');
+      await writeFile(cmdline, `${IMAGE_CMDLINE}\n`);
+
+      expect(await writeCmdlineMode(cmdline, { drm })).toBeUndefined();
+      expect(await readFile(cmdline, 'utf8')).toBe(`${IMAGE_CMDLINE}\n`);
+      // A setting still applies.
+      expect(await writeCmdlineMode(cmdline, { drm, setting: '1280x800@60' })).toBe(
+        `${IMAGE_CMDLINE} video=HDMI-A-1:1280x800@60 video=HDMI-A-2:1280x800@60`
+      );
+    });
+
     it("writes the screen's own mode into the kernel command line, and a setting over it", async () => {
       await port('card1-HDMI-A-1', TEN_INCH);
       const cmdline = path.join(drm, 'cmdline.txt');
