@@ -12,6 +12,12 @@ export const WPCTL = '/usr/bin/wpctl';
 // The kiosk's music is Spotify Soloist's: it plays through its own stream (node.name "spotify"), and only its client
 // names the soloist binary. The browser plays nothing since the app stopped using the Web Playback SDK.
 const PLAYER_NAMES = ['soloist'];
+/**
+ * The silent sink the kiosk's PipeWire config makes (50-kiosk-raop.conf): where the music goes while no speaker is
+ * chosen. The kiosk has no speaker of its own, so the default sink would otherwise be whichever AirPlay speaker
+ * WirePlumber picked; this keeps Soloist's stream running, with its position moving, and no sound leaving the Pi.
+ */
+export const SILENT_SINK = 'kiosk_silent';
 
 interface CommandResult {
   code: number;
@@ -250,10 +256,13 @@ function sinksFor(graph: Graph, choice: Choice): Node[] {
 }
 
 /**
- * The sinks the music should play to: the chosen outputs that are there, or else the default output.
+ * The sinks the music should play to: the chosen outputs that are there, or else the silent sink, so that no speaker
+ * plays that nobody chose. Without one (a PipeWire config from before it), the default output, as before.
  */
 function targetsOf(graph: Graph, choices: readonly Choice[]): Node[] {
   if (choices.length > 0) return [...new Set(choices.flatMap(choice => sinksFor(graph, choice)))];
+  const silent = graph.nodes.find(node => node.name === SILENT_SINK && isSink(node));
+  if (silent) return [silent];
   const fallback = graph.nodes.find(node => node.name === graph.defaultSink);
   return fallback && isSink(fallback) ? [fallback] : [];
 }
@@ -297,9 +306,9 @@ function planPlayer(graph: Graph, player: Node, targets: Node[], plan: Plan): vo
 }
 
 /**
- * The changes that send every browser stream to exactly these sinks, or, with no choices, back to the default sink
- * only. Links to anything other than a sink (a level meter, a recorder) are left alone. When none of
- * the chosen speakers is on the network, nothing changes, so the music is never cut off by a speaker that went away.
+ * The changes that send every player stream to exactly these sinks, or, with no choices, to the silent sink only.
+ * Links to anything other than a sink (a level meter, a recorder) are left alone. When none of the chosen speakers is
+ * on the network, nothing changes, so the music is never cut off by a speaker that went away.
  */
 export function planRoutes(graph: Graph, choices: readonly Choice[]): Plan {
   const plan: Plan = { connect: [], disconnect: [] };
