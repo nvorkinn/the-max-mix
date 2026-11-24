@@ -1,46 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { debugLog } from '../utils/debugLog';
-import {
-  getDismissedUpdate,
-  isRelease,
-  latestCommit,
-  latestRelease,
-  piVersion,
-  setDismissedUpdate
-} from '../utils/kiosk';
+import { getDismissedUpdate, isRelease, piVersion, setDismissedUpdate } from '../utils/kiosk';
 import type { PiVersion } from '../utils/kiosk';
 import { checkImageUpdate, openUpdateStream } from '../utils/kioskService';
 import type { ImageUpdateCheck } from '../utils/kioskService';
 
-/** Give up following an update after this long; a pull of a big release can take minutes. */
+/** Give up following an update after this long; an install over a slow connection can take minutes. */
 const GIVE_UP_MS = 20 * 60 * 1000;
 /** The console keeps the newest lines only. */
 const MAX_LINES = 500;
-/** Printed by the playbook's callback plugin (ansible/callback_plugins/task_progress.py) as each task starts. */
-const TASK_PROGRESS = /Ansible progress: (\d+)\/(\d+)\s*$/;
-/** Logged by an image Pi's updater (pi/kiosk-audio/image-update.ts) as RAUC installs. */
+/** Logged by the Pi's updater (pi/kiosk-audio/image-update.ts) as RAUC installs. */
 const INSTALL_PROGRESS = /Update progress: (\d+)%/;
 
-/** An image Pi's version, `<ref>+<commit>`, as the ref and commit the settings show. */
-function imageVersion(value: string | null): PiVersion | null {
+/** The Pi's version, `<ref>+<commit>`, as the ref and commit the settings show. */
+function parseVersion(value: string | null): PiVersion | null {
   const plus = value?.indexOf('+') ?? -1;
   return value && plus > 0 ? { ref: value.slice(0, plus), commit: value.slice(plus + 1, plus + 8) } : null;
 }
 
 /** How a version is named on screen: the release tag, or the branch and short commit. */
 export function versionLabel(value: string): string {
-  const version = imageVersion(value);
+  const version = parseVersion(value);
   if (!version) return value;
   return isRelease(version.ref) ? version.ref : `${version.ref} ${version.commit}`;
 }
 
-/** How many of the playbook's tasks have started so far, out of how many it knows about. */
-interface TaskProgress {
-  done: number;
-  total: number;
-}
-
-/** The newest release tag on GitHub for a Pi on a release, otherwise the newest commit of the ref it is pinned to. */
+/** The newest version on the Pi's update channel, as its kiosk service tells it. */
 type LatestVersion = { state: 'checking' } | { state: 'unknown' } | { state: 'known'; value: string };
 
 /** The kiosk's software update: what it runs, whether a newer version is out, and how an update in progress is going. */
@@ -55,27 +40,25 @@ export interface KioskUpdate {
   isUpdating: boolean;
   /** What the update says it is doing, from the kiosk service; null until it has said anything. */
   progress: string | null;
-  /** How far the playbook (or, on an image Pi, the install in percent) has got, for the progress bar; null until said. */
-  tasks: TaskProgress | null;
-  /** True on a Pi flashed with the A/B image: it installs updates itself and finishes them with a restart. */
-  isImage: boolean;
-  /** An image Pi's version installed and waiting for a restart (`<ref>+<commit>`), or null. */
+  /** How far the install has got, in percent, for the progress bar; null until said. */
+  percent: number | null;
+  /** A version installed and waiting for a restart (`<ref>+<commit>`), or null. */
   installed: string | null;
-  /** The newest version on an image Pi's channel, when it failed to start here before and so is not installed. */
+  /** The newest version on the channel, when it failed to start here before and so is not installed. */
   failed: string | null;
-  /** The newest lines of the update's output (the journal of the pull and the restart), shown as they arrive. */
+  /** The newest lines of the update's output (the updater's journal), shown as they arrive. */
   output: string[];
   /** The full-screen console that follows an update: open from the moment one starts until it is closed. */
   consoleOpen: boolean;
   /** Whether to ask the person about the newer version: once for each version, not while one is under way. */
   prompting: boolean;
-  /** True while GitHub is being asked what is newest. */
+  /** True while the kiosk service is being asked what is newest. */
   isChecking: boolean;
-  /** When GitHub last told what is newest (ms since the epoch), or null until it has. */
+  /** When the channel was last read (ms since the epoch), or null until it has been. */
   checkedAt: number | null;
   /**
-   * Asks GitHub again what is newest (the settings do it every time they open). The last answer stays until the new one
-   * comes. With `ask`, a newer version is asked about again even after "Not now": the person asked for it themselves.
+   * Asks again what is newest (the settings do it every time they open). The last answer stays until the new one comes.
+   * With `ask`, a newer version is asked about again even after "Not now": the person asked for it themselves.
    */
   checkNow: (ask?: boolean) => void;
   start: () => void;
@@ -93,12 +76,11 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
   const [isUpdating, setIsUpdating] = useState(false);
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
-  const [tasks, setTasks] = useState<TaskProgress | null>(null);
+  const [percent, setPercent] = useState<number | null>(null);
   const [output, setOutput] = useState<string[]>([]);
-  const [latest, setLatest] = useState<LatestVersion>({ state: version ? 'checking' : 'unknown' });
   const [dismissed, setDismissed] = useState(getDismissedUpdate);
-  // An image Pi's answer to POST /update/check; null on a Pi Ansible installed, which keeps the GitHub check below.
-  const [image, setImage] = useState<ImageUpdateCheck | null>(null);
+  // The kiosk service's answer to POST /update/check; null until it has given one.
+  const [answer, setAnswer] = useState<ImageUpdateCheck | null>(null);
 
   // The connection that carries the update: opening it starts the update, and the kiosk sends the journal lines as they
   // are written. Closed when the page lets go of it, so no update outlives the hook's listening.
@@ -123,68 +105,39 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
   }, [isUpdating]);
 
   // Asked once at the start and again whenever checkNow is called. A newer check replaces one still under way, and an
-  // answer that could not be had (offline, rate limited) does not throw away an earlier one that could.
+  // answer that could not be had (the service or the internet unreachable) does not throw away an earlier one that could.
   const [check, setCheck] = useState({ id: 0, ask: false });
   const [answered, setAnswered] = useState(-1);
   const [checkedAt, setCheckedAt] = useState<number | null>(null);
   const checkNow = useCallback((ask = false) => setCheck(({ id }) => ({ id: id + 1, ask })), []);
   useEffect(() => {
-    if (!version) return;
-    const controller = new AbortController();
-    // A release that is not ready yet (its Release workflow is still running) is not offered: the Pi would not install
-    // it. Until then the one the Pi runs counts as the newest.
-    const latestValue = isRelease(version.ref)
-      ? latestRelease(controller.signal).then(found => (found && !found.ready ? version.ref : (found?.tag ?? null)))
-      : latestCommit(version.ref, controller.signal);
-    void latestValue.then(value => {
-      if (controller.signal.aborted) return;
-      setLatest(previous => {
-        if (value) return { state: 'known', value };
-        return previous.state === 'known' ? previous : { state: 'unknown' };
-      });
-      // Forgotten for this page only: "Not now" writes it down again.
-      if (check.ask) setDismissed(null);
-      if (value) setCheckedAt(Date.now());
-      setAnswered(check.id);
-    });
-    return () => controller.abort();
-  }, [version, check]);
-
-  // An image Pi answers for its own channel, at the same times. An answer that could not be had keeps the earlier one.
-  const [imageAnswered, setImageAnswered] = useState(-1);
-  useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
     void checkImageUpdate(controller.signal).then(found => {
       if (controller.signal.aborted) return;
-      setImage(previous => (found && (!previous || found.result !== 'unreachable') ? found : previous));
+      setAnswer(previous => (found && (!previous || found.result !== 'unreachable') ? found : previous));
       if (found && found.result !== 'unreachable') setCheckedAt(Date.now());
+      // Forgotten for this page only: "Not now" writes it down again.
       if (found && check.ask) setDismissed(null);
-      setImageAnswered(check.id);
+      setAnswered(check.id);
     });
     return () => controller.abort();
   }, [enabled, check]);
 
-  const shown = image ? imageVersion(image.current) : version;
+  const shown = (answer && parseVersion(answer.current)) ?? version;
   const release = Boolean(shown && isRelease(shown.ref));
+  let latest: LatestVersion = { state: 'unknown' };
+  if (answer && answer.result !== 'unreachable')
+    latest = { state: 'known', value: answer.latest ?? answer.current ?? '' };
+  else if (enabled && !answer && answered === -1) latest = { state: 'checking' };
+  const offered = answer?.result === 'available' ? parseVersion(answer.latest) : null;
   let newer: string | null = null;
-  let newest: LatestVersion = latest;
-  if (image) {
-    newest =
-      image.result === 'unreachable'
-        ? { state: 'unknown' }
-        : { state: 'known', value: image.latest ?? image.current ?? '' };
-    const offered = image.result === 'available' ? imageVersion(image.latest) : null;
-    if (offered) newer = release ? `${offered.ref} is out` : `${offered.ref} is now ${offered.commit}`;
-  } else if (version && latest.state === 'known') {
-    if (release) newer = latest.value === version.ref ? null : `${latest.value} is out`;
-    else newer = latest.value.startsWith(version.commit) ? null : `${version.ref} is now ${latest.value.slice(0, 7)}`;
-  }
+  if (offered) newer = release ? `${offered.ref} is out` : `${offered.ref} is now ${offered.commit}`;
 
   const start = useCallback(() => {
     streamRef.current?.();
     setProgress(null);
-    setTasks(null);
+    setPercent(null);
     setOutput([]);
     setIsUpdating(true);
     setConsoleOpen(true);
@@ -206,7 +159,7 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
               isEnded = true;
               const installed = event.message ?? null;
               setProgress(`${installed ? versionLabel(installed) : 'The update'} is installed. Restart to finish.`);
-              setImage(previous => previous && { ...previous, installed, result: 'installed' });
+              setAnswer(previous => previous && { ...previous, installed, result: 'installed' });
               setIsUpdating(false);
               break;
             }
@@ -231,15 +184,10 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
           }
           return;
         }
-        const counted = event.type === 'log' ? TASK_PROGRESS.exec(event.line) : null;
+        const counted = event.type === 'log' ? INSTALL_PROGRESS.exec(event.line) : null;
         if (counted) {
-          // Drives the bar only: a line for every task would bury the output.
-          setTasks({ done: Number(counted[1]), total: Number(counted[2]) });
-          return;
-        }
-        const percent = event.type === 'log' ? INSTALL_PROGRESS.exec(event.line) : null;
-        if (percent) {
-          setTasks({ done: Number(percent[1]), total: 100 });
+          // Drives the bar only: a line for every step would bury the output.
+          setPercent(Number(counted[1]));
           return;
         }
         debugLog(event.type === 'error' ? 'error' : 'info', 'update', event.line);
@@ -259,7 +207,7 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
     });
   }, []);
 
-  const newerId = newest.state === 'known' ? newest.value : null;
+  const newerId = latest.state === 'known' ? latest.value : null;
   const dismissPrompt = useCallback(() => {
     if (newerId === null) return;
     setDismissed(newerId);
@@ -270,18 +218,17 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
     version: shown,
     release,
     what: release ? 'release' : shown?.ref,
-    latest: newest,
+    latest,
     newer,
     isUpdating,
     progress,
-    tasks,
-    isImage: image !== null,
-    installed: image?.installed ?? null,
-    failed: image?.result === 'failed' ? image.latest : null,
+    percent,
+    installed: answer?.installed ?? null,
+    failed: answer?.result === 'failed' ? answer.latest : null,
     output,
     consoleOpen,
     prompting: newer !== null && newerId !== dismissed && !consoleOpen,
-    isChecking: image ? imageAnswered !== check.id : version !== null && answered !== check.id,
+    isChecking: enabled && answered !== check.id,
     checkedAt,
     checkNow,
     start,

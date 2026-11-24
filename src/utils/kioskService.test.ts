@@ -6,7 +6,7 @@ describe('parseUpdateEvent', () => {
   it('reads the frames the kiosk sends', () => {
     expect(parseUpdateEvent('{"type":"log","line":"a"}')).toEqual({ type: 'log', line: 'a' });
     expect(parseUpdateEvent('{"type":"error","line":"b"}')).toEqual({ type: 'error', line: 'b' });
-    expect(parseUpdateEvent('{"type":"status","state":"pulling"}')).toEqual({ type: 'status', state: 'pulling' });
+    expect(parseUpdateEvent('{"type":"status","state":"installing"}')).toEqual({ type: 'status', state: 'installing' });
     expect(parseUpdateEvent('{"type":"status","state":"installed","message":"v2+abc"}')).toEqual({
       type: 'status',
       state: 'installed',
@@ -92,7 +92,7 @@ describe('checkImageUpdate', () => {
     });
   });
 
-  it('is null on a Pi Ansible installed, when the service does not answer, and for anything else', async () => {
+  it('is null when the service refuses or does not answer, and for anything else', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(() => Promise.resolve(new Response(null, { status: 404 })))

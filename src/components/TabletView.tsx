@@ -350,7 +350,7 @@ export default function TabletView() {
     quiet: isQuietTime(quietHours, new Date(minute * 60_000)),
     backlit: hasBacklight
   });
-  // Waking the screen asks GitHub again whether a newer version is out: someone is back, and hours may have passed.
+  // Waking the screen checks the update channel again for a newer version: someone is back, and hours may have passed.
   const checkForUpdate = kioskUpdate.checkNow;
   const wasAsleepRef = useRef(false);
   useEffect(() => {

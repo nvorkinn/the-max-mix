@@ -55,12 +55,15 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await page.route('http://127.0.0.1:7341/**', route =>
         route.fulfill(wifiAnswer(route.request(), 'Home network') ?? { status: 204 })
       );
-      await page.route('https://api.github.com/**', route =>
+      const current = 'v1.12.0+5a39e9a0';
+      const upToDate = { channel: 'stable', current, installed: null, failed: null, busy: false, latest: current };
+      await page.route('http://127.0.0.1:7341/update/check', route =>
         route.fulfill({
-          json: { tag_name: 'v1.12.0', assets: [{ name: 'the-max-mix-pi.tar.gz', state: 'uploaded' }] }
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          json: { ...upToDate, result: 'up-to-date' }
         })
       );
-      // The About page says when GitHub last answered.
+      // The About page says when the update channel was last read.
       await page.clock.setFixedTime(new Date('2026-11-13T08:43:00'));
       await page.goto('/?kiosk=1&pi_ref=v1.12.0&pi_commit=5a39e9a');
       const settings = await openSettings(page);
@@ -73,7 +76,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       ] as const) {
         // eslint-disable-next-line no-await-in-loop -- one page after another
         await showSection(settings, section);
-        // The About page waits for GitHub's answer, which it shows.
+        // The About page waits for the update channel's answer, which it shows.
         // eslint-disable-next-line no-await-in-loop -- the same
         if (section === 'About') await expect(settings.getByRole('status')).toContainText('Up to date');
         // eslint-disable-next-line no-await-in-loop -- the same

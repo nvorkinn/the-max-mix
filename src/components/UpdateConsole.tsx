@@ -13,7 +13,7 @@ const noop = () => {};
  * once the update has finished, failed or been given up on.
  */
 export default function UpdateConsole({ update }: Readonly<{ update: KioskUpdate }>) {
-  const { consoleOpen, isUpdating, progress, tasks, output, closeConsole, isImage, installed } = update;
+  const { consoleOpen, isUpdating, progress, percent, output, closeConsole, installed } = update;
   const outputRef = useRef<HTMLPreElement>(null);
   const t = useT();
 
@@ -52,16 +52,12 @@ export default function UpdateConsole({ update }: Readonly<{ update: KioskUpdate
         {isUpdating && <LoaderCircle size={22} className="animate-spin" aria-hidden="true" />}
         {progress ?? t('update.updating')}
       </p>
-      {isUpdating && tasks && (
+      {isUpdating && percent !== null && (
         <progress
           className="update-console-progress"
-          max={tasks.total}
-          value={tasks.done}
-          aria-label={
-            isImage
-              ? t('update.percent', { percent: tasks.done })
-              : t('update.task', { done: tasks.done, total: tasks.total })
-          }
+          max={100}
+          value={percent}
+          aria-label={t('update.percent', { percent })}
         />
       )}
       {!isUpdating && installed && (

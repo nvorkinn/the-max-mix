@@ -7,21 +7,20 @@ import { useT } from '../i18n/translate';
 import ConfirmButton from './ConfirmButton';
 import { SOFTWARE_LOOK, softwareState } from './settings/softwareStatus';
 
-/** The refresh button spins at least this long, so a check GitHub answers at once still shows it ran. */
+/** The refresh button spins at least this long, so a check answered at once still shows it ran. */
 const MIN_SPIN_MS = 800;
 
 const formatTime = (ms: number) =>
   new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
 
 /**
- * The kiosk's own section of the settings: which release (or pinned ref and commit) the Pi runs, whether a newer one is
- * out, restart and reboot. The button beside the version asks GitHub again; a newer version it finds is asked about in
- * the update popup (UpdatePrompt), which is where an update starts, so after "Not now" the same button offers it again.
- * An image Pi checks its own update channel instead, and the row itself offers Install, then Restart now.
+ * The kiosk's own section of the settings: which release (or channel and commit) the Pi runs, whether a newer one is
+ * on its update channel, restart and reboot. The button beside the version checks the channel again; a newer version it
+ * finds is asked about in the update popup (UpdatePrompt), and the row itself offers Install, then Restart now.
  */
 export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }>) {
   const { version, release, what = '', latest, newer, isChecking, checkedAt, isUpdating, progress, checkNow } = update;
-  const { isImage, installed, failed, start } = update;
+  const { installed, failed, start } = update;
   const [pressed, setPressed] = useState(false);
   const spinTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(spinTimerRef.current), []);
@@ -31,14 +30,13 @@ export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }
   if (version && latest.state === 'checking') status = t('about.checking', { what });
   if (version && latest.state === 'unknown') status = t('about.check_failed', { what });
   if (version && latest.state === 'known') {
-    status = newer ? t('about.newer', { newer }) : t('about.up_to_date');
-    if (!newer && checkedAt !== null) status = t('about.up_to_date_at', { time: formatTime(checkedAt) });
+    status = checkedAt === null ? t('about.up_to_date') : t('about.up_to_date_at', { time: formatTime(checkedAt) });
+    if (newer) status = `${newer}.`;
+    if (failed) status = t('about.failed', { version: versionLabel(failed) });
+    if (installed) status = t('about.installed', { version: versionLabel(installed) });
   }
-  if (isImage && newer) status = `${newer}.`;
-  if (isImage && failed) status = t('about.failed', { version: versionLabel(failed) });
-  if (isImage && installed) status = t('about.installed', { version: versionLabel(installed) });
   if (progress) status = progress;
-  const offer = isImage && !isUpdating && (installed !== null || newer !== null);
+  const offer = !isUpdating && (installed !== null || newer !== null);
 
   const look = SOFTWARE_LOOK[softwareState(update)];
   const StatusIcon = look.icon;

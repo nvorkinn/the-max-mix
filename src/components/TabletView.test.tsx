@@ -1208,9 +1208,21 @@ describe('TabletView', () => {
 
     describe('when a newer version is out', () => {
       const fetchMock = vi.fn();
-      /** GitHub's answer for a release whose Release workflow has uploaded the Pi bundle. */
-      const release = (tag: string) =>
-        Response.json({ tag_name: tag, assets: [{ name: 'the-max-mix-pi.tar.gz', state: 'uploaded' }] });
+      /** The kiosk service's answer to POST /update/check when `tag` is the newest release on the Pi's channel. */
+      const release = (tag: string) => {
+        const current = 'v1.12.0+5a39e9a0';
+        const latest = tag === 'v1.12.0' ? current : `${tag}+bbbbbbb0`;
+        const result = latest === current ? 'up-to-date' : 'available';
+        return Response.json({
+          channel: 'stable',
+          current,
+          installed: null,
+          failed: null,
+          busy: false,
+          result,
+          latest
+        });
+      };
       beforeEach(() => {
         localStorage.setItem('maxmix.piVersion', 'v1.12.0 5a39e9a');
         fetchMock.mockReset();
@@ -1245,8 +1257,8 @@ describe('TabletView', () => {
         expect(await screen.findByRole('dialog', { name: 'Updating the Pi' })).toBeInTheDocument();
         expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
         expect(latestFakeSocket().url).toBe('ws://127.0.0.1:7341/power/update');
-        act(() => latestFakeSocket().receive({ type: 'log', line: '2026-11-04T20:00:00+0000 kiosk-pull[1]: hello' }));
-        expect(screen.getByLabelText('Update output')).toHaveTextContent('kiosk-pull[1]: hello');
+        act(() => latestFakeSocket().receive({ type: 'log', line: '2026-11-04T20:00:00+0000 kiosk-update[1]: hello' }));
+        expect(screen.getByLabelText('Update output')).toHaveTextContent('kiosk-update[1]: hello');
       });
 
       it('does not ask while the screen sleeps, but does once it wakes', async () => {
@@ -1263,7 +1275,7 @@ describe('TabletView', () => {
         expect(screen.getByRole('dialog', { name: 'Update available' })).toBeInTheDocument();
       });
 
-      it('asks GitHub again each time Settings opens, and shows what it finds', async () => {
+      it('checks again each time Settings opens, and shows what it finds', async () => {
         renderOnSpotifyTab(<TabletView />);
         await screen.findByRole('dialog', { name: 'Update available' });
         fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
@@ -1271,7 +1283,9 @@ describe('TabletView', () => {
         fetchMock.mockImplementation(() => Promise.resolve(release('v1.14.0')));
         fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
         openAbout();
-        expect(await screen.findByText(/v1\.14\.0 is out\. Tap the button to install it now/)).toBeInTheDocument();
+        expect(
+          await within(screen.getByRole('tabpanel', { name: 'Settings' })).findByText('v1.14.0 is out.')
+        ).toBeInTheDocument();
         expect(fetchMock.mock.calls.length).toBeGreaterThan(asked);
         // The newer version is asked about at once, over the open Settings.
         expect(screen.getByRole('dialog', { name: 'Update available' })).toBeInTheDocument();
@@ -1305,7 +1319,7 @@ describe('TabletView', () => {
         fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
         openAbout();
         // The same version was declined, so opening Settings only says it is out.
-        expect(await screen.findByText(/v1\.13\.0 is out\. Tap the button to install it now/)).toBeInTheDocument();
+        expect(await screen.findByText('v1.13.0 is out.')).toBeInTheDocument();
         await flush();
         expect(screen.queryByRole('dialog', { name: 'Update available' })).not.toBeInTheDocument();
 
@@ -1315,7 +1329,7 @@ describe('TabletView', () => {
         expect(await screen.findByRole('dialog', { name: 'Updating the Pi' })).toBeInTheDocument();
       });
 
-      it('asks GitHub again when the screen wakes', async () => {
+      it('checks again when the screen wakes', async () => {
         sleepInAMinute();
         fetchMock.mockImplementation(() => Promise.resolve(release('v1.12.0')));
         renderOnSpotifyTab(<TabletView />);

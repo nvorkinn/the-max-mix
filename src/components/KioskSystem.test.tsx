@@ -23,8 +23,6 @@ function Harness() {
 
 const kiosk = vi.hoisted(() => ({
   piVersion: vi.fn(),
-  latestCommit: vi.fn(),
-  latestRelease: vi.fn(),
   isRelease: (ref: string) => /^v\d/.test(ref),
   restartKiosk: vi.fn(),
   rebootPi: vi.fn(),
@@ -37,94 +35,112 @@ vi.mock('../utils/debugLog', () => debug);
 
 const running = '5a39e9a';
 const UP_TO_DATE = /^Up to date as of \d\d:\d\d:\d\d\.$/;
+const STABLE = { channel: 'stable', current: `v1.12.0+${running}0`, installed: null, failed: null, busy: false };
+const CURRENT = { result: 'up-to-date', latest: `v1.12.0+${running}0` };
+const NEWER = { result: 'available', latest: 'v1.13.0+bbbbbbb0' };
+/** The kiosk service's answer to POST /update/check from now on; null for a service that does not answer. */
+const channel = (body: Record<string, unknown> | null) => {
+  const fetch = vi.fn(() =>
+    body ? Promise.resolve(Response.json({ ...STABLE, ...body })) : Promise.reject(new TypeError('Failed to fetch'))
+  );
+  vi.stubGlobal('fetch', fetch);
+  return fetch;
+};
 
 describe('KioskSystem', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetFakeSockets();
     vi.stubGlobal('WebSocket', FakeWebSocket);
-    // A Pi Ansible installed: its service has no POST /update/check.
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.resolve(new Response(null, { status: 404 })))
-    );
+    channel(CURRENT);
     kiosk.piVersion.mockReturnValue({ ref: 'v1.12.0', commit: running });
   });
 
   afterEach(() => vi.unstubAllGlobals());
 
   it('shows the running release and that it is the latest', async () => {
-    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.12.0', ready: true });
+    const fetch = channel(CURRENT);
     render(<Harness />);
     expect(screen.getByText('v1.12.0')).toBeInTheDocument();
     expect(await screen.findByText(UP_TO_DATE)).toBeInTheDocument();
-    expect(kiosk.latestRelease).toHaveBeenCalledWith(expect.any(AbortSignal));
-    expect(kiosk.latestCommit).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:7341/update/check',
+      expect.objectContaining({ method: 'POST' })
+    );
   });
 
   it('says when a newer release is out', async () => {
-    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
+    channel(NEWER);
     render(<Harness />);
-    expect(await screen.findByText(/v1\.13\.0 is out\. Tap the button to install it now/)).toBeInTheDocument();
+    expect(await screen.findAllByText('v1.13.0 is out.')).not.toHaveLength(0);
   });
 
-  it('says when GitHub cannot be asked for the latest release', async () => {
-    kiosk.latestRelease.mockResolvedValue(null);
+  it('says when the channel cannot be read, or the service does not answer', async () => {
+    channel({ result: 'unreachable', latest: null });
+    const { unmount } = render(<Harness />);
+    expect(await screen.findByText('Could not check for a newer release.')).toBeInTheDocument();
+    unmount();
+
+    channel(null);
     render(<Harness />);
-    expect(await screen.findByText('Could not check GitHub for a newer release.')).toBeInTheDocument();
+    expect(await screen.findByText('Could not check for a newer release.')).toBeInTheDocument();
   });
 
-  it('shows the commit of a Pi pinned to a branch and that it is up to date', async () => {
+  it('shows the commit of a Pi following a branch and that it is up to date', async () => {
     kiosk.piVersion.mockReturnValue({ ref: 'main', commit: running });
-    kiosk.latestCommit.mockResolvedValue(`${running}0123456789abcdef0123456789abcdef0`);
+    channel({ channel: 'main', current: `main+${running}0`, result: 'up-to-date', latest: `main+${running}0` });
     render(<Harness />);
     expect(screen.getByText(`main ${running}`)).toBeInTheDocument();
     expect(await screen.findByText(UP_TO_DATE)).toBeInTheDocument();
-    expect(kiosk.latestCommit).toHaveBeenCalledWith('main', expect.any(AbortSignal));
   });
 
-  it('says when a newer commit is waiting on the pinned branch', async () => {
+  it('says when a newer commit is waiting on the branch', async () => {
     kiosk.piVersion.mockReturnValue({ ref: 'main', commit: running });
-    kiosk.latestCommit.mockResolvedValue('abcdef0123456789abcdef0123456789abcdef01');
+    channel({ channel: 'main', current: `main+${running}0`, result: 'available', latest: 'main+abcdef01' });
     render(<Harness />);
-    expect(await screen.findByText(/main is now abcdef0\. Tap the button to install it now/)).toBeInTheDocument();
+    expect(await screen.findAllByText('main is now abcdef0.')).not.toHaveLength(0);
   });
 
-  it('copes with a Pi that does not say its version', () => {
+  it('takes the version from the service when the page was not told it', async () => {
     kiosk.piVersion.mockReturnValue(null);
     render(<Harness />);
+    expect(await screen.findByText('v1.12.0')).toBeInTheDocument();
+  });
+
+  it('copes with a Pi that does not say its version', async () => {
+    kiosk.piVersion.mockReturnValue(null);
+    channel(null);
+    render(<Harness />);
     expect(screen.getByText('The Pi did not say which version it runs.')).toBeInTheDocument();
-    expect(kiosk.latestCommit).not.toHaveBeenCalled();
-    expect(kiosk.latestRelease).not.toHaveBeenCalled();
+    await act(async () => {});
+    expect(screen.getByText('The Pi did not say which version it runs.')).toBeInTheDocument();
   });
 
   describe('the check button', () => {
     const check = () => screen.getByRole('button', { name: 'Check for updates' });
     const popup = () => screen.queryByRole('dialog', { name: 'Update available', hidden: true });
 
-    it('asks GitHub again, and shows what it finds without a popup when nothing is newer', async () => {
-      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.12.0', ready: true });
+    it('asks again, and shows what it finds without a popup when nothing is newer', async () => {
+      const fetch = channel(CURRENT);
       render(<Harness />);
       expect(await screen.findByText(UP_TO_DATE)).toBeInTheDocument();
       await userEvent.click(check());
-      expect(kiosk.latestRelease).toHaveBeenCalledTimes(2);
+      expect(fetch).toHaveBeenCalledTimes(2);
       expect(await screen.findByText(UP_TO_DATE)).toBeInTheDocument();
       expect(popup()).not.toBeInTheDocument();
     });
 
-    it('says when GitHub last answered, and keeps that time when a check cannot reach it', async () => {
-      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.12.0', ready: true });
+    it('says when the channel was last read, and keeps that time when a check cannot read it', async () => {
       render(<Harness />);
       const shown = await screen.findByText(UP_TO_DATE);
       const first = shown.textContent;
-      kiosk.latestRelease.mockResolvedValue(null);
+      channel({ result: 'unreachable', latest: null });
       await userEvent.click(check());
       await waitFor(() => expect(check()).toBeEnabled());
       expect(screen.getByText(UP_TO_DATE)).toHaveTextContent(first);
     });
 
-    it('spins while it checks, even when GitHub answers at once', async () => {
-      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.12.0', ready: true });
+    it('spins while it checks, even when the service answers at once', async () => {
       render(<Harness />);
       await screen.findByText(UP_TO_DATE);
       await userEvent.click(check());
@@ -134,17 +150,19 @@ describe('KioskSystem', () => {
       expect(check().querySelector('svg')).not.toHaveClass('animate-spin');
     });
 
-    it('is busy while GitHub is asked', () => {
-      kiosk.latestRelease.mockReturnValue(new Promise(() => {}));
+    it('is busy while the service is asked', () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => new Promise(() => {}))
+      );
       render(<Harness />);
       expect(check()).toBeDisabled();
     });
 
     it('opens the popup for a newer version it finds, where the update starts', async () => {
-      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.12.0', ready: true });
       render(<Harness />);
       await screen.findByText(UP_TO_DATE);
-      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
+      channel(NEWER);
       await userEvent.click(check());
       expect(await screen.findByRole('dialog', { name: 'Update available', hidden: true })).toBeInTheDocument();
       await userEvent.click(screen.getByRole('button', { name: 'Update now', hidden: true }));
@@ -152,12 +170,12 @@ describe('KioskSystem', () => {
     });
 
     it('after Not now, says what is newer and asks again when pressed', async () => {
-      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
+      channel(NEWER);
       render(<Harness />);
       await userEvent.click(await screen.findByRole('button', { name: 'Not now', hidden: true }));
       expect(popup()).not.toBeInTheDocument();
-      expect(kiosk.setDismissedUpdate).toHaveBeenCalledWith('v1.13.0');
-      expect(screen.getByText(/v1\.13\.0 is out\. Tap the button to install it now/)).toBeInTheDocument();
+      expect(kiosk.setDismissedUpdate).toHaveBeenCalledWith('v1.13.0+bbbbbbb0');
+      expect(screen.getByText('v1.13.0 is out.')).toBeInTheDocument();
 
       await userEvent.click(check());
       expect(await screen.findByRole('dialog', { name: 'Update available', hidden: true })).toBeInTheDocument();
@@ -165,13 +183,17 @@ describe('KioskSystem', () => {
 
     it('cannot be pressed when the Pi did not say its version', () => {
       kiosk.piVersion.mockReturnValue(null);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => new Promise(() => {}))
+      );
       render(<Harness />);
       expect(check()).toBeDisabled();
     });
   });
 
   it('says it is updating once the popup starts the update', async () => {
-    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
+    channel(NEWER);
     render(<Harness />);
     expect(() => latestFakeSocket()).toThrow('No WebSocket was opened');
     await userEvent.click(await screen.findByRole('button', { name: 'Update now', hidden: true }));
@@ -187,7 +209,7 @@ describe('KioskSystem', () => {
 
   describe('while an update runs', () => {
     const tap = async () => {
-      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
+      channel(NEWER);
       render(<Harness />);
       await userEvent.click(await screen.findByRole('button', { name: 'Update now', hidden: true }));
       act(() => latestFakeSocket().open());
@@ -196,33 +218,33 @@ describe('KioskSystem', () => {
 
     it('shows the lines as they arrive, writes each once to the debug console and ends when done', async () => {
       await tap();
-      receive({ type: 'status', state: 'pulling' });
-      receive({ type: 'log', line: '2026-11-04T20:00:00+0000 kiosk-pull[1]: The latest release is v1.14.0' });
-      expect(screen.getByLabelText('Update output')).toHaveTextContent('The latest release is v1.14.0');
-      receive({ type: 'log', line: '2026-11-04T20:00:09+0000 kiosk-pull[1]: TASK [kiosk]' });
-      expect(screen.getByLabelText('Update output')).toHaveTextContent('v1.14.0 2026-11-04T20:00:09');
+      receive({ type: 'status', state: 'installing' });
+      receive({ type: 'log', line: '2026-11-04T20:00:00+0000 kiosk-update[1]: Installing v1.13.0+bbbbbbb0' });
+      expect(screen.getByLabelText('Update output')).toHaveTextContent('Installing v1.13.0+bbbbbbb0');
+      receive({ type: 'log', line: '2026-11-04T20:00:09+0000 kiosk-update[1]: Installed v1.13.0+bbbbbbb0' });
+      expect(screen.getByLabelText('Update output')).toHaveTextContent('bbbbbbb0 2026-11-04T20:00:09');
       receive({ type: 'status', state: 'done', message: 'Nothing needed a restart.' });
       act(() => latestFakeSocket().end());
       // The settings section and the console both say it.
       expect(screen.getAllByText('Update finished. Nothing needed a restart.')).toHaveLength(2);
       // The console stays up with its output after the update ends, until it is closed; checking is usable again.
-      expect(screen.getByLabelText('Update output')).toHaveTextContent('TASK [kiosk]');
+      expect(screen.getByLabelText('Update output')).toHaveTextContent('Installed v1.13.0+bbbbbbb0');
       expect(screen.getByRole('button', { name: 'Check for updates', hidden: true })).toBeEnabled();
       await userEvent.click(screen.getByRole('button', { name: 'Close update console' }));
       expect(screen.queryByLabelText('Update output')).not.toBeInTheDocument();
       expect(debug.debugLog.mock.calls.map(call => String(call.at(2)))).toEqual([
-        '2026-11-04T20:00:00+0000 kiosk-pull[1]: The latest release is v1.14.0',
-        '2026-11-04T20:00:09+0000 kiosk-pull[1]: TASK [kiosk]'
+        '2026-11-04T20:00:00+0000 kiosk-update[1]: Installing v1.13.0+bbbbbbb0',
+        '2026-11-04T20:00:09+0000 kiosk-update[1]: Installed v1.13.0+bbbbbbb0'
       ]);
     });
 
     it('says when it failed', async () => {
       await tap();
       receive({ type: 'log', line: 'fatal: could not resolve host' });
-      receive({ type: 'status', state: 'failed', message: 'The pull ended with status 2.' });
+      receive({ type: 'status', state: 'failed', message: 'rauc install ended with status 2.' });
       act(() => latestFakeSocket().end());
       // The settings section and the console both say it.
-      expect(screen.getAllByText('The update failed. The pull ended with status 2.')).toHaveLength(2);
+      expect(screen.getAllByText('The update failed. rauc install ended with status 2.')).toHaveLength(2);
       expect(screen.getByLabelText('Update output')).toHaveTextContent('fatal: could not resolve host');
     });
 
@@ -236,7 +258,7 @@ describe('KioskSystem', () => {
     });
 
     it('says so when the service never answers', async () => {
-      kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
+      channel(NEWER);
       render(<Harness />);
       await userEvent.click(await screen.findByRole('button', { name: 'Update now', hidden: true }));
       act(() => latestFakeSocket().end());
@@ -246,7 +268,7 @@ describe('KioskSystem', () => {
   });
 
   it('restarts and reboots only on a second tap', async () => {
-    kiosk.latestRelease.mockResolvedValue(null);
+    channel(null);
     render(<Harness />);
     await userEvent.click(screen.getByRole('button', { name: 'Restart kiosk' }));
     expect(kiosk.restartKiosk).not.toHaveBeenCalled();
@@ -259,46 +281,25 @@ describe('KioskSystem', () => {
     expect(kiosk.rebootPi).toHaveBeenCalledTimes(1);
   });
 
-  describe('on an image Pi', () => {
-    beforeEach(() => {
-      kiosk.piVersion.mockReturnValue(null);
-      const answer = {
-        channel: 'stable',
-        current: 'v1.12.0+5a39e9a0',
-        installed: null,
-        failed: null,
-        busy: false,
-        result: 'available',
-        latest: 'v1.13.0+bbbbbbb0'
-      };
-      vi.stubGlobal(
-        'fetch',
-        vi.fn(() => Promise.resolve(Response.json(answer)))
-      );
-    });
+  it('installs and restarts from the row', async () => {
+    channel(NEWER);
+    render(<Harness />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Not now', hidden: true }));
 
-    it('checks, installs and restarts from the row', async () => {
-      render(<Harness />);
-      expect(await screen.findAllByText('v1.13.0 is out.')).not.toHaveLength(0);
-      expect(screen.getAllByText('v1.12.0')).not.toHaveLength(0);
-      expect(kiosk.latestRelease).not.toHaveBeenCalled();
-      await userEvent.click(screen.getByRole('button', { name: 'Not now', hidden: true }));
+    await userEvent.click(screen.getByRole('button', { name: 'Install' }));
+    act(() => latestFakeSocket().open());
+    act(() => latestFakeSocket().receive({ type: 'status', state: 'installing' }));
+    act(() => latestFakeSocket().receive({ type: 'log', line: 'x kiosk-update[1]: Update progress: 60% Copying' }));
+    expect(screen.getByLabelText('60% installed')).toBeInTheDocument();
+    act(() => latestFakeSocket().receive({ type: 'status', state: 'installed', message: 'v1.13.0+bbbbbbb0' }));
+    act(() => latestFakeSocket().end());
 
-      await userEvent.click(screen.getByRole('button', { name: 'Install' }));
-      act(() => latestFakeSocket().open());
-      act(() => latestFakeSocket().receive({ type: 'status', state: 'installing' }));
-      act(() => latestFakeSocket().receive({ type: 'log', line: 'x kiosk-update[1]: Update progress: 60% Copying' }));
-      expect(screen.getByLabelText('60% installed')).toBeInTheDocument();
-      act(() => latestFakeSocket().receive({ type: 'status', state: 'installed', message: 'v1.13.0+bbbbbbb0' }));
-      act(() => latestFakeSocket().end());
-
-      expect(screen.getAllByText('v1.13.0 is installed. Restart to finish.').length).toBeGreaterThan(0);
-      const restarts = screen.getAllByRole('button', { name: 'Restart now', hidden: true });
-      expect(restarts).toHaveLength(2);
-      const [restart] = restarts;
-      if (!restart) throw new Error('No Restart now button');
-      await userEvent.click(restart);
-      expect(kiosk.restartKiosk).toHaveBeenCalledTimes(1);
-    });
+    expect(screen.getAllByText('v1.13.0 is installed. Restart to finish.').length).toBeGreaterThan(0);
+    const restarts = screen.getAllByRole('button', { name: 'Restart now', hidden: true });
+    expect(restarts).toHaveLength(2);
+    const [restart] = restarts;
+    if (!restart) throw new Error('No Restart now button');
+    await userEvent.click(restart);
+    expect(kiosk.restartKiosk).toHaveBeenCalledTimes(1);
   });
 });
