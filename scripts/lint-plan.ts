@@ -31,8 +31,8 @@ const isRunAllFile = paths(
 
 // The root package.json and lockfile run everything; the Pi's kiosk-audio ones only need the two package checks.
 const isKioskAudioPackageFile = paths(
-  'ansible/roles/kiosk/files/kiosk-audio/package.json',
-  'ansible/roles/kiosk/files/kiosk-audio/package-lock.json'
+  'image/kiosk-audio/package.json',
+  'image/kiosk-audio/package-lock.json'
 );
 
 // A bump of the countdown-api submodule (its commit, listed as the folder) can change the types the app imports.
@@ -59,11 +59,8 @@ const CHECKS: Record<string, Matcher[]> = {
   'lint:image': [paths(/^image\//, 'scripts/check-image.ts', 'scripts/image-lists.ts')],
   shellcheck: [
     paths(
-      /^ansible\/roles\/kiosk\/files\/bin\//,
-      /^ansible\/tests\/[^/]+\.sh$/,
-      'pi/cloud-init/first-boot',
-      'pi/cloud-init/build-image.sh',
-      /^image\/rootfs\/usr\/local\/s?bin\//
+      'image/build.sh',
+      /^image\/rootfs\/usr\/local\/(s?bin|lib\/the-max-mix)\//
     )
   ],
   actionlint: [paths(/^\.github\/workflows\//)],

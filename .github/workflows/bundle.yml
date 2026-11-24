@@ -1,0 +1,176 @@
+name: Build bundle
+
+# Builds THE MAX MIX's A/B update bundle (image/build.sh bundle, the-max-mix.raucb) for image.yml (dev and branch
+# channels, and check builds on pull requests) and release.yml (stable releases). A signed build leaves it as the bundle
+# artifact for the caller to publish; a check build publishes nothing.
+#
+# Fast on purpose: the slow part, Raspberry Pi OS with image/packages.txt installed, is a cached base layer rebuilt only
+# when its inputs change or once a week, on GitHub's arm64 runners (no QEMU). The web app and kiosk-audio are built in
+# their own job and dropped in; nothing is compiled in the chroot.
+on:
+  workflow_call:
+    inputs:
+      channel:
+        description: The bundle's channel or tag (dev, branch-<name>, v1.2.3), recorded in its version
+        required: true
+        type: string
+      ref:
+        description: The commit, branch or tag to build; the caller's commit when empty
+        required: false
+        type: string
+        default: ''
+      version:
+        description: A release tag whose version the web app carries (v1.2.3); none when empty
+        required: false
+        type: string
+        default: ''
+      sign:
+        description: Sign with the real key from Vaultwarden and upload the bundle artifact; else a throwaway key
+        required: true
+        type: boolean
+    secrets:
+      BW_CLIENTID:
+        required: false
+      BW_CLIENTSECRET:
+        required: false
+      BW_PASSWORD:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  artefacts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+          submodules: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: modules
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json') }}
+      # A release's app carries its version (v1.2.3 becomes 1.2.3), as the one Release deploys does.
+      - name: Set the version from the tag
+        if: inputs.version != ''
+        env:
+          VERSION: ${{ inputs.version }}
+        run: npm version "${VERSION#v}" --no-git-tag-version --allow-same-version
+      - if: steps.modules.outputs.cache-hit != 'true'
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build the web app
+        run: npm run build
+      # kiosk-audio's packages are plain JavaScript, so they install on this x86 runner for the Pi.
+      - name: Pack the web app and kiosk-audio
+        run: |
+          out=$RUNNER_TEMP/artefacts
+          mkdir -p "$out/kiosk-audio"
+          cp -r dist "$out/app"
+          git ls-files -z pi/kiosk-audio | grep -zv -e '\.test\.ts$' -e '/imager-fixtures/' -e '/fixtures\.ts$' \
+            | xargs -0 cp --target-directory="$out/kiosk-audio"
+          cp image/kiosk-audio/package.json image/kiosk-audio/package-lock.json "$out/kiosk-audio/"
+          (cd "$out/kiosk-audio" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund)
+          tar --create --zstd --file="$RUNNER_TEMP/artefacts.tar.zst" --directory="$out" .
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: artefacts
+          path: ${{ runner.temp }}/artefacts.tar.zst
+          if-no-files-found: error
+          retention-days: 1
+
+  bundle:
+    needs: artefacts
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - name: Install the build tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install --yes --no-install-recommends rauc dosfstools mtools e2fsprogs zstd jq
+      # The base layer's inputs: the newest Raspberry Pi OS Lite, the package list and its archives, the build script,
+      # and the week, so that security updates reach the next bundle within seven days.
+      - name: Find Raspberry Pi OS
+        id: upstream
+        run: |
+          image/build.sh upstream > "$RUNNER_TEMP/upstream.json"
+          echo "sha=$(jq -r .os.extract_sha256 "$RUNNER_TEMP/upstream.json")" >> "$GITHUB_OUTPUT"
+          echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: base
+        with:
+          path: ${{ runner.temp }}/base
+          key: >-
+            image-base-${{ steps.upstream.outputs.sha }}-${{ steps.upstream.outputs.week }}-${{
+            hashFiles('image/packages.txt', 'image/rootfs/etc/apt/**', 'image/build.sh') }}
+      - name: Build the base layer
+        if: steps.base.outputs.cache-hit != 'true'
+        run: sudo image/build.sh base "$RUNNER_TEMP/upstream.json" "$RUNNER_TEMP/base"
+      - if: steps.base.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/base
+          key: ${{ steps.base.outputs.cache-primary-key }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: artefacts
+          path: ${{ runner.temp }}
+      # Signed with the real key only when the bundle is to be published: Vaultwarden's the-max-mix/ci collection holds it, as
+      # base64 on one line, and the shared action reads it as deploy-bot, as countdown-server's deploys do. A check build
+      # signs with a throwaway one.
+      - name: Fetch the signing key from Vaultwarden
+        if: inputs.sign
+        uses: nvorkinn/.github/actions/vaultwarden-secrets@1b00d2394ad1b431ccd01e54e8075dc97244936e # v1.0.0
+        with:
+          map: image/secrets-map.json
+          target: bundle
+          collection: the-max-mix/ci
+          export-env: 'true'
+          bw-clientid: ${{ secrets.BW_CLIENTID }}
+          bw-clientsecret: ${{ secrets.BW_CLIENTSECRET }}
+          bw-password: ${{ secrets.BW_PASSWORD }}
+      - name: Build the bundle
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          PUBLISH: ${{ inputs.sign }}
+        run: |
+          rm -rf "$RUNNER_TEMP/secrets"
+          mkdir "$RUNNER_TEMP/artefacts"
+          tar --extract --zstd --file="$RUNNER_TEMP/artefacts.tar.zst" --directory="$RUNNER_TEMP/artefacts"
+          key=$RUNNER_TEMP/signing.key.pem
+          if [[ $PUBLISH == true ]]; then
+            if [[ -z ${RAUC_SIGNING_KEY_B64:-} ]]; then
+              echo "::error::Vaultwarden gave no RAUC_SIGNING_KEY_B64 (collection the-max-mix/ci)"
+              exit 1
+            fi
+            if [[ ! -f image/rootfs/etc/rauc/keyring.pem ]]; then
+              echo "::error::image/rootfs/etc/rauc/keyring.pem is missing: the Pis could not check a signed bundle"
+              exit 1
+            fi
+            (umask 077 && base64 --decode <<< "$RAUC_SIGNING_KEY_B64" > "$key")
+            unset RAUC_SIGNING_KEY_B64
+          else
+            openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 1 \
+              -subj '/CN=THE MAX MIX check build' -keyout "$key" -out "$RUNNER_TEMP/check.cert.pem" 2> /dev/null
+            export RAUC_CERT=$RUNNER_TEMP/check.cert.pem
+          fi
+          sudo env RAUC_KEY="$key" RAUC_CERT="${RAUC_CERT:-}" image/build.sh bundle "$RUNNER_TEMP/base/base.tar.zst" \
+            "$RUNNER_TEMP/artefacts" "$CHANNEL" "$RUNNER_TEMP/out"
+          sudo rm -f "$key"
+      - if: inputs.sign
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: bundle
+          path: ${{ runner.temp }}/out/the-max-mix.raucb
+          if-no-files-found: error
+          retention-days: 1

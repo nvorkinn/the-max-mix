@@ -4,7 +4,7 @@ What the A/B image is made of, as plain files: the image build reads them, and n
 release replaces the whole root file system, so a file removed here is gone from every Pi after its next update. Only
 what [persist.list](persist.list) names outlives an update.
 
-Today's Pis still run Ansible (`ansible/`); nothing here is used until the Release workflow builds images.
+Every bundle is built from this folder: `dev` on each merge to `main`, and a release's from its tag.
 
 | File                         | What the build does with it                                                                                                               |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
@@ -23,7 +23,8 @@ KIOSK_RELEASE_COMMIT=<the full commit>
 ```
 
 It drops in the built artefacts: the web app at `/opt/the-max-mix/app`, `pi/kiosk-audio` (without its tests) with its
-`node_modules` at `/opt/the-max-mix/kiosk-audio`. Spotify Soloist is not in the image: its terms do not allow passing it
+`node_modules` (installed from [kiosk-audio/package-lock.json](kiosk-audio/package-lock.json)) at
+`/opt/the-max-mix/kiosk-audio`. Spotify Soloist is not in the image: its terms do not allow passing it
 on, and each build expires after 90 days, so `kiosk-soloist-update.timer` fetches it onto `/data/soloist`, where
 `/usr/local/bin/soloist` links (the build makes the link).
 
@@ -44,7 +45,7 @@ on, and each build expires after 90 days, so `kiosk-soloist-update.timer` fetche
 
 ## From Ansible
 
-Where each part of `ansible/roles/kiosk` went:
+Where each part of the Ansible role that set up the first Pis went:
 
 - Values from `defaults/main.yml` are written into the files (the kiosk and admin accounts, ports, timer intervals,
   the journal cap, the AirPlay latency), except the ones above, which each Pi reads from `kiosk.env`.
@@ -57,7 +58,7 @@ Where each part of `ansible/roles/kiosk` went:
 
 Left out, because the image replaces them:
 
-- `kiosk-pull`, the restart marker, the package and part stamps, `install-files.ts`, `task_progress.py`: updates are
+- `kiosk-pull`, the release tarball, the restart marker, the package and part stamps, `install-files.ts`, `task_progress.py`: updates are
   `kiosk-update` and RAUC.
 - `kiosk-app-switch` and the app's `releases/`, `next` and `current`: the app is part of the image, and the reboot into
   the new slot is the switch.

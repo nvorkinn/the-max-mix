@@ -20,7 +20,7 @@ describe('areasFor', () => {
   });
 
   it('finds nothing for files the browser tests are not about', () => {
-    expect(tagsOf(['README.md', 'ansible/roles/kiosk/tasks/main.yml', '.github/workflows/tests.yml'])).toEqual([]);
+    expect(tagsOf(['README.md', 'image/packages.txt', '.github/workflows/tests.yml'])).toEqual([]);
   });
 });
 

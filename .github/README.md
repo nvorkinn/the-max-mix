@@ -31,13 +31,15 @@ the workflow or the plan runs them all); a push to `main` runs every check. The 
 against a SHA-256 before running. It is listed in `all-checks.yml` too.
 
 `release.yml` runs on a version tag (`v*`) or by hand with an existing tag: it builds the app on the runner, joins the
-tailnet, copies `dist/` to the server with `rsync` and then publishes the GitHub release the Pis pull. It is the only way
-production is deployed. It needs no repository secrets: the runner joins the tailnet with its GitHub identity
-(`id-token: write`). It has read-only `contents` access and does not run on pull requests, so it is not in
-`all-checks.yml`.
+tailnet, copies `dist/` to the server with `rsync`, builds the Pis' signed update bundle from the tag (`bundle.yml`)
+and then publishes the GitHub release with the bundle on it. It is the only way production is deployed. The runner joins
+the tailnet with its GitHub identity (`id-token: write`); the bundle's signing key comes from Vaultwarden through the
+`BW_*` secrets. It does not run on pull requests, so it is not in `all-checks.yml`.
 
-`ansible.yml` runs `ansible-lint` over `ansible/` and runs that playbook, only when `ansible/`, `pi/kiosk-audio/` or the workflow changes, with `kiosk_enable_only=true` (enable services, start nothing) in a Debian trixie container, checks the key files and that
-the units are enabled but not started, and runs it again to check that nothing changes (`ansible/tests/image-build.sh`).
+`image.yml` builds the Pis' A/B update bundle (`bundle.yml`, on arm64 runners with a cached base layer) and publishes it
+to the rolling `dev` pre-release on every merge to `main`, or to `branch-<name>` when run on a branch or for a pull
+request labelled `pi-bundle`. On other pull requests it builds an unsigned check bundle only when `image/` changes.
+`flash-image.yml` is run by hand to put a release's or channel's bundle on the Raspberry Pi Imager card image.
 
 `audit.yml` scans the lockfile weekly with `npm audit`. It does not run on pull requests, so it is deliberately not in
 `all-checks.yml`.

@@ -136,7 +136,7 @@ THE MAX MIX is plain static files on a self-hosted server. Production deploys ha
 the app on the GitHub runner, joins the tailnet and copies `dist/` to the server with `rsync`, into
 `/srv/releases/the-max-mix/<commit>`, and then points `/srv/sites/the-max-mix` at it, which
 [home-stack](https://github.com/nvorkinn/home-stack)'s Caddy serves as `https://the-max-mix.countdown.build` (its DNS
-record is in countdown-server's `infra/cloudflare`). The same build goes into the release's Pi bundle, and each kiosk
+record is in countdown-server's `infra/cloudflare`). The same build goes into the release's Pi update bundle, and each kiosk
 serves its own copy (pi/kiosk-audio, "The web app"). A merge to `main` does not change production.
 
 Set it up once:
@@ -228,56 +228,40 @@ louder. There is no Sonos sign-in: everything stays on the home network, so Sono
 
 ## Raspberry Pi kiosk
 
-The kiosk is a Raspberry Pi 4 or 5 with the Waveshare 7-inch 1024x600 touch screen, running the deployed app in Chromium
-under the Cage kiosk compositor; with no connection, the app opens its Wi-Fi settings. Flash the ready-made image with Raspberry Pi Imager and
-power on; [`pi/cloud-init/README.md`](pi/cloud-init/README.md) covers the setup, handing a Pi over, how the kiosk runs,
-SSH, troubleshooting and what is still to be verified on a device.
+The kiosk is a Raspberry Pi 4 or 5 with the Waveshare 7-inch 1024x600 touch screen, running the app in Chromium under the
+Cage kiosk compositor; with no connection, the app opens its Wi-Fi settings. Flash it with Raspberry Pi Imager from the
+list at `https://github.com/nvorkinn/the-max-mix/releases/download/flash-image/the-max-mix.rpi-imager-manifest` and power
+on.
 
-**[Ansible](https://docs.ansible.com) is the single source of truth** for everything installed and configured on the device:
-packages, the `kiosk` user and its service, `kiosk-session`, the local kiosk service, the AirPlay
-audio routing and PipeWire's AirPlay settings, the Chromium policy, boot settings (`cmdline.txt`, `config.txt`), locale, time zone, unattended upgrades and the update timer.
-It is one role, [`ansible/roles/kiosk`](ansible/roles/kiosk), run by [`ansible/local.yml`](ansible/local.yml); its
-variables and defaults are in [`defaults/main.yml`](ansible/roles/kiosk/defaults/main.yml). Nothing else configures the
-device, so change the role, not the device.
+**The whole OS is one image**, built from [`image/`](image/README.md): the packages, the files over the root file
+system, the systemd units, the accounts, the boot settings, the web app and the kiosk-audio service. The root file system
+is read-only and every update replaces it whole, so a file removed from `image/` is gone from every Pi after its next
+update. Only what [`image/persist.list`](image/persist.list) names lives on `/data` and outlives updates, with the
+Pi's own settings in `/data/the-max-mix/kiosk.env` ([image/README.md](image/README.md#the-pis-own-settings)). Change
+`image/`, not the device.
 
-- **Releases** are what deployed devices follow. Create a release for a new tag on `main` with GitHub's **New release**
-  form, or push a version tag from `main` (`git tag v1.12.0 && git push origin v1.12.0`): the Release workflow deploys
-  the web app to the server and, once that has worked, publishes the GitHub release (with notes generated from the
-  merged pull requests when it has none) and, as its very last step, uploads the Pi bundle `the-max-mix-pi.tar.gz` to
-  it: `ansible/` and `pi/kiosk-audio` at the tag, plus `release.json` (tag, commit, tree ids). A
-  Pi installs a release only once its bundle is there, so it can never run ahead of the workflow, and a release whose
-  workflow failed is never installed. That one tag ships both the web app and the Pi, and the version in the kiosk's
-  Settings is the release's name.
-- **First boot:** the flash image's cloud-init script ([`pi/cloud-init/first-boot`](pi/cloud-init/first-boot)) installs
-  Ansible and applies the latest release's Pi bundle (trying again every minute until it is there), then reboots. Reflash only for a fresh device.
-- **On-device updates:** `kiosk-pull.timer` runs `/usr/local/sbin/kiosk-pull` 3 minutes after boot and then every 6 hours
-  (with up to 10 minutes of random delay), and at once when the kiosk's **Update now** button starts
-  `kiosk-pull.service` (through the kiosk-audio service, which also streams the pull's journal to the app). With `kiosk_pull_ref: latest` (the default) it looks up the tag that
-  `github.com/nvorkinn/the-max-mix/releases/latest/download/the-max-mix-pi.tar.gz` redirects to (no API call or token),
-  downloads that release's bundle into `/var/lib/the-max-mix/ansible-pull` and runs the playbook from it; a release
-  without its bundle yet is "not ready" and the Pi stays where it is. `--only-if-changed` skips a release already
-  installed completely (`/var/lib/the-max-mix/installed-release`), so a check with nothing new is a single request,
-  and the playbook runs each of the five parts of the setup (`ansible/roles/kiosk/tasks/full/`) only when what it installs
-  changed since it last ran, or it last ran over a week ago (`/var/lib/the-max-mix/applied.json`; most releases only
-  change the web app, so no part runs). `kiosk.service` is rewritten either way,
-  because it carries the release the settings show. A deployed Pi therefore gets fixes to the kiosk service, the session script, the
-  Chromium policy and so on without a reflash. The playbook is idempotent, so repeated runs are safe. To pin one Pi,
-  set `kiosk_pull_ref` to a tag (`v1.12.0`), or to a branch to test unreleased work on your own Pi (a branch is pulled
-  with `ansible-pull`, as it has no bundle).
-- **A failing pull never affects the kiosk.** Nothing depends on `kiosk-pull.service`; a failure is only in the journal
-  and the next timer run tries again. A pull never restarts the kiosk either: it leaves a marker when kiosk files changed,
-  and `kiosk-restart.timer` restarts the kiosk at 04:30 if the marker is there (a reboot also applies the changes).
-- **Check the last pull:** `journalctl -u kiosk-pull -n 100`, and `systemctl list-timers 'kiosk-*'` for the next runs.
-  Every pull ends with how long it took. As each playbook task starts, `ansible/callback_plugins/task_progress.py` prints
-  how many have run out of the total, which drives the bar on the app's update screen.
-- **Roll back:** run the Release workflow by hand (Actions > Release > Run workflow) with the earlier tag. It redeploys
-  that version of the web app, marks its release as the latest again and uploads its Pi bundle again (so a release from
-  before bundles existed gets one), and the Pis return to it at their next pull
-  (or straight away with **Update now**). Publishing a newer tag later moves everything forward again.
-- **Run it by hand** on a Pi you can log in to, as root, from a clone of the repository:
-  `sudo ansible-playbook -c local -i localhost, ansible/local.yml` (which, like a pull, runs only the parts whose files changed
-  since they last ran; delete `/var/lib/the-max-mix/applied.json` to apply everything), or the same pull the timer runs: `sudo systemctl start kiosk-pull`. Add
-  `--check --diff` to the playbook run to see what it would change.
+- **A/B slots:** the card has two boot and two root partitions. [RAUC](https://rauc.io) installs an update into the
+  slot the Pi is not running from, streaming the signed bundle (`the-max-mix.raucb`) from GitHub and downloading only
+  the blocks that changed. The next boot tries the new slot once (the Pi firmware's `tryboot`); `kiosk-health` keeps it
+  only when kiosk-audio, Cage and the app are up within 5 minutes, and otherwise the Pi boots its old slot again and
+  never retries that version.
+- **Channels:** `KIOSK_UPDATE_CHANNEL` in `kiosk.env` picks what a Pi follows. `stable` (the default) is the latest
+  release; `dev` is every merge to `main`; `branch-<name>` is a branch built by hand (Actions > Image bundle > Run
+  workflow) or a pull request with the `pi-bundle` label. `kiosk-update.timer` checks every 2 minutes (a stable Pi
+  every 6 hours) with one request to the bundle's URL. A stable Pi restarts into an update at 04:30 or on **Restart**;
+  dev and branch Pis restart straight away.
+- **Releases** are what stable Pis follow. Create a release for a new tag on `main` with GitHub's **New release** form,
+  or push a version tag from `main` (`git tag v1.12.0 && git push origin v1.12.0`): the Release workflow deploys the web
+  app to the server, builds the bundle from the tag in parallel and, once both have worked, publishes the GitHub release
+  with the bundle uploaded last. A Pi installs a release only once its bundle is there. That one tag ships both the web
+  app and the Pi, and the version in the kiosk's Settings is the release's name.
+- **The flash image** is promoted by hand: Actions > Flash image > Run workflow with a tag (or `dev`) puts that bundle's
+  slots on a card image for Imager. A freshly flashed Pi updates itself to its channel's newest bundle, so it may lag.
+- **Roll back:** run the Release workflow by hand with the earlier tag; it marks that release as the latest again with a
+  bundle rebuilt from the tag, and the Pis install it as an ordinary update. On a Pi over SSH, `sudo kiosk-rollback`
+  boots the other slot at once, since it still holds the previous version.
+- **Check an update:** `journalctl -u kiosk-update -n 100`, `sudo rauc status`, and `sudo node
+  /opt/the-max-mix/kiosk-audio/kiosk-update.ts check` for what the channel has.
 
 The kiosk opens the app with `?kiosk=1` (remembered across the Spotify sign-in redirect; `?kiosk=0` forgets it), which
 adds kiosk-only entries to Settings: **Wi-Fi** (the networks in range, and joining one; it opens by itself when the kiosk starts with no network), the release the Pi runs and whether
@@ -314,10 +298,6 @@ page returns to the front, not every few seconds.
 Spotify's browser API does not let the page read `Retry-After`, so after a 429 with no readable wait the app assumes one:
 30 seconds, doubling with every 429 in a row up to 5 minutes. All polling and the controls hold off until it passes
 (the banner says "Waiting for Spotify"), and each assumed wait is written to the debug console.
-
-Any change on the device that is not in the role is undone the next time a pull finds changed files (for example, SSH is
-switched off again when `kiosk_ssh_enabled` is false). A CI job runs the playbook in a Debian trixie container and checks that it is idempotent;
-booting the result on a real Pi is not covered.
 
 References: [Raspberry Pi kiosk guide](https://www.raspberrypi.com/tutorials/how-to-use-a-raspberry-pi-in-kiosk-mode/),
 [Spotify redirect requirements](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri),

@@ -29,7 +29,6 @@
     "scripts/*.ts",
     "e2e/*.ts",
     "pi/kiosk-audio/*.ts",
-    "ansible/roles/kiosk/files/*.ts",
     "lint-staged.config.ts",
     "*.config.js",
     "*.config.mjs"
