@@ -39,6 +39,8 @@ const PLAYER_POLL_MS = 30_000;
 // Soloist starts with the page (countdown/soloist.ts) and signs in; a player that has not come up by then is reported,
 // and keeps trying.
 const PLAYER_START_MS = 20_000;
+// Soloist reports itself signed out for a moment while it restores a session; asking for a pick waits this long first.
+const SIGN_IN_GRACE_MS = 5000;
 // Spotify can take a moment to answer for a player it has just listed again; one more try waits this.
 const REREGISTER_RETRY_MS = 1500;
 const NEXT_REPEAT: Record<RepeatMode, RepeatMode> = { off: 'context', context: 'track', track: 'off' };
@@ -404,6 +406,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       }
     };
 
+    let signInTimer: ReturnType<typeof setTimeout> | undefined;
     const startTimer = setTimeout(() => {
       setPlayerError(
         lastSoloistState() === 'no-key'
@@ -414,6 +417,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     const player = new SoloistPlayer({
       onReady: deviceId => {
         clearTimeout(startTimer);
+        clearTimeout(signInTimer);
         debugLog('info', 'soloist', `Kiosk player ready as device ${deviceId}`);
         deviceIdRef.current = deviceId;
         setBrowserDeviceId(deviceId);
@@ -432,11 +436,15 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       },
       onSignedOut: () => {
         clearTimeout(startTimer);
+        clearTimeout(signInTimer);
         debugLog('info', 'soloist', 'Kiosk player waits to be signed in');
-        setPlayerError({
-          message: `To sign the kiosk in, pick ${KIOSK_DEVICE_NAME} in Spotify on your phone.`,
-          recovery: 'pick-on-phone'
-        });
+        // Soloist says it is signed out for a moment as it starts, before it restores the person's session.
+        signInTimer = setTimeout(() => {
+          setPlayerError({
+            message: `To sign the kiosk in, pick ${KIOSK_DEVICE_NAME} in Spotify on your phone.`,
+            recovery: 'pick-on-phone'
+          });
+        }, SIGN_IN_GRACE_MS);
       },
       onState: applyPlayerState,
       onQueue: bumpQueue
@@ -446,6 +454,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     player.connect();
     return () => {
       clearTimeout(startTimer);
+      clearTimeout(signInTimer);
       player.disconnect();
       playerRef.current = null;
       deviceIdRef.current = null;
