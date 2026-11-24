@@ -5,11 +5,11 @@ import type { KioskUpdate } from '../../hooks/useKioskUpdate';
 /** Where the Pi's software stands, so the Software page shows it with the same icon and colour. */
 export type SoftwareState = 'checking' | 'current' | 'newer' | 'unknown' | 'updating';
 
-export function softwareState({ version, latest, newer, isUpdating }: KioskUpdate): SoftwareState {
+export function softwareState({ version, latest, newer, installed, isUpdating }: KioskUpdate): SoftwareState {
   if (isUpdating) return 'updating';
   if (!version || latest.state === 'unknown') return 'unknown';
   if (latest.state === 'checking') return 'checking';
-  return newer ? 'newer' : 'current';
+  return newer || installed ? 'newer' : 'current';
 }
 
 export const SOFTWARE_LOOK: Record<SoftwareState, { icon: LucideIcon; tone: string; spin?: boolean }> = {

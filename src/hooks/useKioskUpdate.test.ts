@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { FakeWebSocket, fakeSocketCount, latestFakeSocket, resetFakeSockets } from '../test/fakeWebSocket';
 import { useKioskUpdate } from './useKioskUpdate';
 
@@ -22,6 +22,11 @@ describe('useKioskUpdate', () => {
     vi.clearAllMocks();
     resetFakeSockets();
     vi.stubGlobal('WebSocket', FakeWebSocket);
+    // A Pi Ansible installed: its service has no POST /update/check.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response(null, { status: 404 })))
+    );
     kiosk.piVersion.mockReturnValue({ ref: 'v1.12.0', commit: '5a39e9a' });
     kiosk.getDismissedUpdate.mockReturnValue(null);
     kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
@@ -228,6 +233,66 @@ describe('useKioskUpdate', () => {
       expect(result.current.isUpdating).toBe(false);
       expect(result.current.progress).toBe('Stopped waiting for the update. It may still be running.');
       expect(socket.isClosed).toBe(true);
+    });
+  });
+
+  describe('on an image Pi', () => {
+    const channel = (body: Record<string, unknown>) => {
+      const fetch = vi.fn(() => Promise.resolve(Response.json(body)));
+      vi.stubGlobal('fetch', fetch);
+      return fetch;
+    };
+    const DEV = { channel: 'dev', current: 'dev+aaaaaaa111', installed: null, failed: null, busy: false };
+
+    it('asks its own service what the channel has, instead of GitHub', async () => {
+      kiosk.piVersion.mockReturnValue(null);
+      const fetch = channel({ ...DEV, result: 'available', latest: 'dev+bbbbbbb222' });
+      const { result } = renderHook(() => useKioskUpdate(true));
+      await waitFor(() => expect(result.current.isImage).toBe(true));
+      expect(fetch).toHaveBeenCalledWith(
+        'http://127.0.0.1:7341/update/check',
+        expect.objectContaining({ method: 'POST' })
+      );
+      expect(result.current).toMatchObject({
+        version: { ref: 'dev', commit: 'aaaaaaa' },
+        release: false,
+        newer: 'dev is now bbbbbbb',
+        prompting: true,
+        installed: null,
+        failed: null,
+        isChecking: false
+      });
+    });
+
+    it('says what waits for a restart, and what failed here before', async () => {
+      channel({ ...DEV, current: 'v1.12.0+aaa', installed: 'v1.13.0+bbb', result: 'installed', latest: 'v1.13.0+bbb' });
+      const installed = renderHook(() => useKioskUpdate(true));
+      await waitFor(() => expect(installed.result.current.installed).toBe('v1.13.0+bbb'));
+      expect(installed.result.current).toMatchObject({ newer: null, prompting: false, release: true });
+
+      channel({ ...DEV, current: 'v1.12.0+aaa', result: 'failed', latest: 'v1.13.0+bbb' });
+      const failed = renderHook(() => useKioskUpdate(true));
+      await waitFor(() => expect(failed.result.current.failed).toBe('v1.13.0+bbb'));
+      expect(failed.result.current.newer).toBeNull();
+    });
+
+    it('installs with a bar in percent, then waits for a restart', async () => {
+      channel({ ...DEV, result: 'available', latest: 'dev+bbbbbbb222' });
+      const { result } = renderHook(() => useKioskUpdate(true));
+      await waitFor(() => expect(result.current.isImage).toBe(true));
+      act(() => result.current.start());
+      act(() => latestFakeSocket().open());
+      act(() => latestFakeSocket().receive({ type: 'status', state: 'installing' }));
+      expect(result.current.progress).toBe('Installing the update…');
+      act(() => latestFakeSocket().receive({ type: 'log', line: '… kiosk-update[1]: Update progress: 40% Copying' }));
+      expect(result.current).toMatchObject({ tasks: { done: 40, total: 100 }, output: [] });
+      act(() => latestFakeSocket().receive({ type: 'status', state: 'installed', message: 'dev+bbbbbbb222' }));
+      act(() => latestFakeSocket().end());
+      expect(result.current).toMatchObject({
+        isUpdating: false,
+        installed: 'dev+bbbbbbb222',
+        progress: 'dev bbbbbbb is installed. Restart to finish.'
+      });
     });
   });
 });

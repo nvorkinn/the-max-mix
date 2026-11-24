@@ -43,6 +43,11 @@ describe('KioskSystem', () => {
     vi.clearAllMocks();
     resetFakeSockets();
     vi.stubGlobal('WebSocket', FakeWebSocket);
+    // A Pi Ansible installed: its service has no POST /update/check.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response(null, { status: 404 })))
+    );
     kiosk.piVersion.mockReturnValue({ ref: 'v1.12.0', commit: running });
   });
 
@@ -252,5 +257,48 @@ describe('KioskSystem', () => {
     expect(kiosk.rebootPi).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'Tap again to reboot' }));
     expect(kiosk.rebootPi).toHaveBeenCalledTimes(1);
+  });
+
+  describe('on an image Pi', () => {
+    beforeEach(() => {
+      kiosk.piVersion.mockReturnValue(null);
+      const answer = {
+        channel: 'stable',
+        current: 'v1.12.0+5a39e9a0',
+        installed: null,
+        failed: null,
+        busy: false,
+        result: 'available',
+        latest: 'v1.13.0+bbbbbbb0'
+      };
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.resolve(Response.json(answer)))
+      );
+    });
+
+    it('checks, installs and restarts from the row', async () => {
+      render(<Harness />);
+      expect(await screen.findAllByText('v1.13.0 is out.')).not.toHaveLength(0);
+      expect(screen.getAllByText('v1.12.0')).not.toHaveLength(0);
+      expect(kiosk.latestRelease).not.toHaveBeenCalled();
+      await userEvent.click(screen.getByRole('button', { name: 'Not now', hidden: true }));
+
+      await userEvent.click(screen.getByRole('button', { name: 'Install' }));
+      act(() => latestFakeSocket().open());
+      act(() => latestFakeSocket().receive({ type: 'status', state: 'installing' }));
+      act(() => latestFakeSocket().receive({ type: 'log', line: 'x kiosk-update[1]: Update progress: 60% Copying' }));
+      expect(screen.getByLabelText('60% installed')).toBeInTheDocument();
+      act(() => latestFakeSocket().receive({ type: 'status', state: 'installed', message: 'v1.13.0+bbbbbbb0' }));
+      act(() => latestFakeSocket().end());
+
+      expect(screen.getAllByText('v1.13.0 is installed. Restart to finish.').length).toBeGreaterThan(0);
+      const restarts = screen.getAllByRole('button', { name: 'Restart now', hidden: true });
+      expect(restarts).toHaveLength(2);
+      const [restart] = restarts;
+      if (!restart) throw new Error('No Restart now button');
+      await userEvent.click(restart);
+      expect(kiosk.restartKiosk).toHaveBeenCalledTimes(1);
+    });
   });
 });
