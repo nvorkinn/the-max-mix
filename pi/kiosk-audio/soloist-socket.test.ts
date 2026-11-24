@@ -28,7 +28,9 @@ async function fakeSoloist(port = 0) {
   const stop = () =>
     new Promise<void>(resolve => {
       for (const client of server.clients) client.terminate();
-      server.close(() => resolve());
+      server.close(() => {
+        resolve();
+      });
     });
   closers.push(() => {
     void stop();
