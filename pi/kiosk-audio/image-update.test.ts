@@ -6,7 +6,9 @@ import {
   bundleUrl,
   check,
   giveUp,
+  cmdlineWithRoot,
   installedBootDevice,
+  installedRootLabel,
   KIOSK_ENV,
   keep,
   parseChannel,
@@ -287,5 +289,32 @@ describe('installedBootDevice', () => {
       })
     ).toBe('/dev/disk/by-partlabel/boot-b');
     expect(installedBootDevice({})).toBeNull();
+  });
+});
+
+describe('installedRootLabel', () => {
+  it('finds the root slot RAUC wrote', () => {
+    expect(
+      installedRootLabel({
+        RAUC_TARGET_SLOTS: '1 2',
+        RAUC_SLOT_CLASS_1: 'rootfs',
+        RAUC_SLOT_DEVICE_1: '/dev/disk/by-partlabel/root-b',
+        RAUC_SLOT_CLASS_2: 'boot',
+        RAUC_SLOT_DEVICE_2: '/dev/disk/by-partlabel/boot-b'
+      })
+    ).toBe('root-b');
+    expect(installedRootLabel({})).toBeNull();
+  });
+});
+
+describe('cmdlineWithRoot', () => {
+  it('points the bundle slot-a command line at slot b', () => {
+    expect(cmdlineWithRoot('console=tty3 root=PARTLABEL=root-a rootfstype=ext4 ro quiet\n', 'root-b')).toBe(
+      'root=PARTLABEL=root-b console=tty3 rootfstype=ext4 ro quiet\n'
+    );
+  });
+
+  it('adds root= to a line without one', () => {
+    expect(cmdlineWithRoot('quiet', 'root-a')).toBe('root=PARTLABEL=root-a quiet\n');
   });
 });

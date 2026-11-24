@@ -316,3 +316,30 @@ export function installedBootDevice(env: Readonly<Record<string, string | undefi
   }
   return null;
 }
+
+/**
+ * The partition label of the root slot RAUC just wrote (root-a or root-b), from its device (/etc/rauc/system.conf names
+ * each by /dev/disk/by-partlabel); null when it wrote none.
+ */
+export function installedRootLabel(env: Readonly<Record<string, string | undefined>>): string | null {
+  const targets = (env['RAUC_TARGET_SLOTS'] ?? '').split(/\s+/);
+  for (const number of targets) {
+    if (number === '' || env[`RAUC_SLOT_CLASS_${number}`] !== 'rootfs') continue;
+    const label = /\/by-partlabel\/(root-[a-z]+)$/.exec(env[`RAUC_SLOT_DEVICE_${number}`] ?? '')?.[1];
+    return label ?? null;
+  }
+  return null;
+}
+
+/**
+ * The kernel command line with root= pointing at `label`. Every bundle carries one boot partition, built for slot a
+ * (root=PARTLABEL=root-a); RAUC writes it into either slot, so the post-install handler points it at its own root.
+ */
+export function cmdlineWithRoot(line: string, label: string): string {
+  const words = line
+    .trim()
+    .split(/\s+/)
+    .filter(word => word !== '' && !word.startsWith('root='));
+  const root = `root=PARTLABEL=${label}`;
+  return `${[root, ...words].join(' ')}\n`;
+}

@@ -1,0 +1,14 @@
+# Makes each source on /data that image/persist.list binds (the list is /usr/lib/the-max-mix/persist-sources, written by
+# image/build.sh), before any of the bind mounts in /etc/fstab, which require this. A source that is not there yet (the
+# first boot, or after kiosk-reset) starts as a copy of what the image has at that path.
+[Unit]
+Description=THE MAX MIX state folders on /data
+DefaultDependencies=no
+Requires=data.mount
+After=data.mount
+Before=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/lib/the-max-mix/persist-sources
