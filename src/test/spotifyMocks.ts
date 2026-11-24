@@ -24,15 +24,12 @@ export function createSpotifyMocks() {
     playChoice: vi.fn()
   };
   const auth = {
-    startSignIn: vi.fn(),
-    completeSignIn: vi.fn(),
     isSignedIn: vi.fn(),
     getAccessToken: vi.fn(),
     signOut: vi.fn()
   };
   const settings = {
-    getPlaybackMode: vi.fn(),
-    getRedirectUri: vi.fn()
+    getPlaybackMode: vi.fn()
   };
   return { api, auth, settings };
 }
@@ -43,7 +40,6 @@ export function resetSpotifyMocks({ api, auth, settings }: ReturnType<typeof cre
   auth.isSignedIn.mockReturnValue(true);
   auth.getAccessToken.mockResolvedValue('tok');
   settings.getPlaybackMode.mockReturnValue('browser');
-  settings.getRedirectUri.mockReturnValue('http://127.0.0.1:3000/');
   api.transferPlayback.mockResolvedValue(undefined);
   const commands = [
     'play',

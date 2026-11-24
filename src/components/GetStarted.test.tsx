@@ -1,28 +1,26 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import GetStarted from './GetStarted';
 
-const auth = vi.hoisted(() => ({ startSignIn: vi.fn() }));
-vi.mock('../spotify/auth', () => auth);
-
-beforeEach(() => {
-  auth.startSignIn.mockReset().mockResolvedValue(undefined);
-});
+// The QR code's dialog has tests of its own; here it only shows that it opened, and can be closed.
+vi.mock('./SpotifySignInDialog', () => ({
+  default: ({ onClose }: { onClose: () => void }) => (
+    <div role="dialog" aria-label="Sign in to Spotify">
+      <button type="button" onClick={onClose}>
+        Back
+      </button>
+    </div>
+  )
+}));
 
 describe('GetStarted', () => {
-  it('starts the Spotify sign-in', async () => {
+  it('opens the QR code to sign in on a phone, and comes back on Back', () => {
     render(<GetStarted offline={false} onClose={vi.fn()} />);
     expect(screen.getByRole('dialog', { name: 'Bring your music to the tablet' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Connect Spotify' }));
-    await waitFor(() => expect(auth.startSignIn).toHaveBeenCalledOnce());
-  });
-
-  it('shows why the sign-in failed, and lets you try again', async () => {
-    auth.startSignIn.mockRejectedValueOnce(new Error('Sign-in could not start'));
-    render(<GetStarted offline={false} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Connect Spotify' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Sign-in could not start');
-    expect(screen.getByRole('button', { name: 'Connect Spotify' })).toBeEnabled();
+    expect(screen.getByRole('dialog', { name: 'Sign in to Spotify' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('dialog', { name: 'Bring your music to the tablet' })).toBeInTheDocument();
   });
 
   it('cannot sign in offline', () => {

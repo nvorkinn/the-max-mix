@@ -3,15 +3,18 @@ import { parseJson } from './http';
 
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 
-const app = vi.hoisted(() => ({ clientId: '', leaveFor: vi.fn<(address: string) => void>() }));
+const app = vi.hoisted(() => ({ clientId: '' }));
 
-// The real client ID is a constant; tests switch it to check that a login belongs to one client ID. Leaving for
-// Spotify's sign-in page is recorded instead of done: the test page cannot navigate.
+// The real client ID is a constant; tests switch it to check that a login belongs to one client ID.
 vi.mock('./settings', async importOriginal => ({
   ...(await importOriginal<typeof import('./settings')>()),
-  getClientId: () => app.clientId,
-  leaveFor: app.leaveFor
+  getClientId: () => app.clientId
 }));
+
+// Where countdown-server says Spotify sent the phone back to.
+const REDIRECT = 'https://app.countdown.build/spotify/sign-in/callback';
+/** Spotify's reply to a sign-in on a phone, with its code. */
+const reply = (code = 'abc') => ({ code, redirectUri: REDIRECT });
 
 const setClientId = (clientId: string) => {
   app.clientId = clientId;
@@ -44,8 +47,6 @@ const ME = { id: 'nikolai', display_name: 'Nikolai', images: [{ url: 'https://i.
 
 const requestOf = (fetchMock: Mock, call = 0) => fetchMock.mock.calls[call] as [string, RequestInit];
 
-const visit = (address: string) => history.replaceState(null, '', address);
-
 const formOf = (fetchMock: Mock, call = 0) => {
   const init = requestOf(fetchMock, call)[1];
   return new URLSearchParams(init.body as URLSearchParams);
@@ -58,13 +59,11 @@ describe('spotify/auth', () => {
     localStorage.clear();
     sessionStorage.clear();
     setClientId('');
-    visit('/');
     fetchMock = vi.fn();
     // GET /me names the account; fetchMock sees the token endpoint only.
     vi.stubGlobal('fetch', (url: string, init: RequestInit) =>
       url === 'https://api.spotify.com/v1/me' ? Promise.resolve(json(ME)) : (fetchMock(url, init) as Promise<Response>)
     );
-    app.leaveFor.mockReset();
   });
 
   afterEach(() => {
@@ -72,78 +71,35 @@ describe('spotify/auth', () => {
     vi.unstubAllGlobals();
   });
 
-  describe('startSignIn', () => {
-    it('stores a verifier and state, then goes to Spotify with an S256 challenge', async () => {
-      const { startSignIn } = await load();
-      setClientId('client-1');
+  describe('newVerifier', () => {
+    it('makes a verifier and its S256 challenge', async () => {
+      const { newVerifier } = await load();
 
-      await startSignIn();
+      const { verifier, challenge } = await newVerifier();
 
-      const url = new URL(String(app.leaveFor.mock.calls[0]?.[0]));
-      expect(`${url.origin}${url.pathname}`).toBe('https://accounts.spotify.com/authorize');
-      expect(url.searchParams.get('client_id')).toBe('client-1');
-      expect(url.searchParams.get('response_type')).toBe('code');
-      expect(url.searchParams.get('redirect_uri')).toBe(`${location.origin}/`);
-      expect(url.searchParams.get('code_challenge_method')).toBe('S256');
-      expect(url.searchParams.get('scope')).toBe(
-        'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing user-library-read user-read-recently-played playlist-read-private'
-      );
-      const { state, verifier } = parseJson(sessionStorage.getItem('maxmix.pkce') ?? 'null') as {
-        state: string;
-        verifier: string;
-      };
-      expect(state).toBe(url.searchParams.get('state'));
       expect(verifier).toMatch(/^[\w-]{43,128}$/);
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
       const expected = btoa(String.fromCodePoint(...new Uint8Array(digest)))
         .replaceAll('+', '-')
         .replaceAll('/', '_')
         .replaceAll('=', '');
-      expect(url.searchParams.get('code_challenge')).toBe(expected);
-      // A first sign-in lets Spotify skip its approval page when the person has approved before.
-      expect(url.searchParams.has('show_dialog')).toBe(false);
+      expect(challenge).toBe(expected);
     });
 
-    it('uses a new verifier and state every time', async () => {
-      const { startSignIn } = await load();
-      setClientId('client-1');
-      await startSignIn();
-      const first = sessionStorage.getItem('maxmix.pkce');
-      await startSignIn();
-      expect(sessionStorage.getItem('maxmix.pkce')).not.toBe(first);
-    });
-
-    it('refuses when session storage is blocked, since the reply could never be checked', async () => {
-      const { startSignIn } = await load();
-      setClientId('client-1');
-      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-        throw new Error('blocked');
-      });
-      await expect(startSignIn()).rejects.toThrow('Browser storage is blocked');
-      expect(app.leaveFor).not.toHaveBeenCalled();
+    it('makes a new verifier every time', async () => {
+      const { newVerifier } = await load();
+      const first = await newVerifier();
+      expect((await newVerifier()).verifier).not.toBe(first.verifier);
     });
   });
 
-  describe('completeSignIn', () => {
-    const startedSignIn = (state: string) =>
-      sessionStorage.setItem('maxmix.pkce', JSON.stringify({ state, verifier: 'the-verifier' }));
-
-    it('returns null when the address is not a sign-in reply', async () => {
-      visit('/?kiosk=1');
-      const { completeSignIn } = await load();
-      expect(await completeSignIn()).toBeNull();
-      expect(location.search).toBe('?kiosk=1');
-      expect(fetchMock).not.toHaveBeenCalled();
-    });
-
-    it('exchanges the code, stores the login, cleans the address and keeps other parameters', async () => {
-      const { completeSignIn, isSignedIn, getAccessToken } = await load();
+  describe('finishSignIn', () => {
+    it('exchanges the code with the kiosk’s verifier and the phone’s redirect address, and stores the login', async () => {
+      const { finishSignIn, isSignedIn, getAccessToken } = await load();
       setClientId('client-1');
-      startedSignIn('s1');
-      visit('/?kiosk=1&code=abc&state=s1#top');
       fetchMock.mockResolvedValue(json({ access_token: 'access-1', refresh_token: 'refresh-1', expires_in: 3600 }));
 
-      expect(await completeSignIn()).toEqual({ ok: true });
+      expect(await finishSignIn(reply(), 'the-verifier')).toEqual({ ok: true });
 
       expect(requestOf(fetchMock)[0]).toBe(TOKEN_URL);
       const init = requestOf(fetchMock)[1];
@@ -153,127 +109,49 @@ describe('spotify/auth', () => {
         client_id: 'client-1',
         grant_type: 'authorization_code',
         code: 'abc',
-        redirect_uri: `${location.origin}/`,
+        redirect_uri: REDIRECT,
         code_verifier: 'the-verifier'
       });
       expect(storedLogin()).toEqual({
         clientId: 'client-1',
         refreshToken: 'refresh-1'
       });
-      expect(sessionStorage.getItem('maxmix.pkce')).toBeNull();
-      expect(`${location.pathname}${location.search}${location.hash}`).toBe('/?kiosk=1#top');
       expect(isSignedIn()).toBe(true);
       // The access token from the exchange is reused rather than refreshed at once.
       expect(await getAccessToken()).toBe('access-1');
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    it('removes the whole query when only the reply was in it', async () => {
-      const { completeSignIn } = await load();
-      setClientId('client-1');
-      startedSignIn('s1');
-      visit('/?code=abc&state=s1');
-      fetchMock.mockResolvedValue(json({ access_token: 'a', refresh_token: 'r', expires_in: 3600 }));
-      await completeSignIn();
-      expect(`${location.pathname}${location.search}`).toBe('/');
-    });
-
-    it('rejects a state that does not match and never calls Spotify', async () => {
-      const { completeSignIn, isSignedIn } = await load();
-      setClientId('client-1');
-      startedSignIn('expected');
-      visit('/?code=abc&state=other');
-      expect(await completeSignIn()).toEqual({
-        ok: false,
-        error: 'Spotify sign-in expired or has an invalid state. Start again from Settings.'
-      });
-      expect(fetchMock).not.toHaveBeenCalled();
-      expect(isSignedIn()).toBe(false);
-      expect(location.search).toBe('');
-      expect(sessionStorage.getItem('maxmix.pkce')).toBeNull();
-    });
-
-    it('rejects a reply with no state', async () => {
-      const { completeSignIn } = await load();
-      startedSignIn('expected');
-      visit('/?code=abc');
-      await expect(completeSignIn()).resolves.toMatchObject({ ok: false });
-      expect(fetchMock).not.toHaveBeenCalled();
-    });
-
-    it('rejects a reply when no sign-in was started here (missing verifier)', async () => {
-      const { completeSignIn } = await load();
-      visit('/?code=abc&state=s1');
-      expect(await completeSignIn()).toEqual({
-        ok: false,
-        error: 'Spotify sign-in expired or has an invalid state. Start again from Settings.'
-      });
-      expect(fetchMock).not.toHaveBeenCalled();
-    });
-
-    it.each(['not json', '{"state":"s1"}', '{"state":"s1","verifier":""}', 'null'])(
-      'treats a stale or damaged verifier (%s) as missing',
-      async stored => {
-        const { completeSignIn } = await load();
-        sessionStorage.setItem('maxmix.pkce', stored);
-        visit('/?code=abc&state=s1');
-        await expect(completeSignIn()).resolves.toMatchObject({ ok: false });
-        expect(fetchMock).not.toHaveBeenCalled();
-      }
-    );
-
-    it('treats blocked session storage as a missing verifier', async () => {
-      const { completeSignIn } = await load();
-      visit('/?code=abc&state=s1');
-      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-        throw new Error('blocked');
-      });
-      await expect(completeSignIn()).resolves.toMatchObject({ ok: false });
-    });
-
-    it('uses a verifier only once', async () => {
-      const { completeSignIn } = await load();
-      setClientId('client-1');
-      startedSignIn('s1');
-      fetchMock.mockResolvedValue(json({ access_token: 'a', refresh_token: 'r', expires_in: 3600 }));
-      visit('/?code=abc&state=s1');
-      await completeSignIn();
-      visit('/?code=abc&state=s1');
-      await expect(completeSignIn()).resolves.toMatchObject({ ok: false });
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-    });
-
     it('reports a declined sign-in', async () => {
-      const { completeSignIn } = await load();
-      startedSignIn('s1');
-      visit('/?error=access_denied&state=s1');
-      expect(await completeSignIn()).toEqual({ ok: false, error: 'Spotify sign-in was declined.' });
-      expect(location.search).toBe('');
-      expect(sessionStorage.getItem('maxmix.pkce')).toBeNull();
+      const { finishSignIn } = await load();
+      expect(await finishSignIn({ error: 'access_denied', redirectUri: REDIRECT }, 'v')).toEqual({
+        ok: false,
+        error: 'Spotify sign-in was declined.'
+      });
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('reports any other error code', async () => {
-      const { completeSignIn } = await load();
-      visit('/?error=server_error');
-      expect(await completeSignIn()).toEqual({ ok: false, error: 'Spotify sign-in failed (server_error).' });
+      const { finishSignIn } = await load();
+      expect(await finishSignIn({ error: 'server_error', redirectUri: REDIRECT }, 'v')).toEqual({
+        ok: false,
+        error: 'Spotify sign-in failed (server_error).'
+      });
     });
 
     it('reports a missing code', async () => {
-      const { completeSignIn } = await load();
-      startedSignIn('s1');
-      visit('/?state=s1&error=');
-      expect(await completeSignIn()).toEqual({ ok: false, error: 'Missing Spotify authorization code.' });
+      const { finishSignIn } = await load();
+      expect(await finishSignIn({ redirectUri: REDIRECT }, 'v')).toEqual({
+        ok: false,
+        error: 'Missing Spotify authorization code.'
+      });
     });
 
     it('reports a token endpoint refusal', async () => {
-      const { completeSignIn, isSignedIn } = await load();
+      const { finishSignIn, isSignedIn } = await load();
       setClientId('client-1');
-      startedSignIn('s1');
-      visit('/?code=abc&state=s1');
       fetchMock.mockResolvedValue(json({ error: 'invalid_grant' }, 400));
-      const result = await completeSignIn();
-      expect(result).toEqual({
+      expect(await finishSignIn(reply(), 'v')).toEqual({
         ok: false,
         error: 'Spotify authentication failed (400). Check the client ID and the redirect address, then sign in again.'
       });
@@ -281,12 +159,10 @@ describe('spotify/auth', () => {
     });
 
     it('reports a network failure', async () => {
-      const { completeSignIn } = await load();
+      const { finishSignIn } = await load();
       setClientId('client-1');
-      startedSignIn('s1');
-      visit('/?code=abc&state=s1');
       fetchMock.mockRejectedValue(new TypeError('offline'));
-      expect(await completeSignIn()).toEqual({
+      expect(await finishSignIn(reply(), 'v')).toEqual({
         ok: false,
         error: 'Could not reach Spotify. Check the network connection.'
       });
@@ -297,46 +173,31 @@ describe('spotify/auth', () => {
       ['no lifetime', { access_token: 'a', refresh_token: 'r' }],
       ['a non-numeric lifetime', { access_token: 'a', refresh_token: 'r', expires_in: 'soon' }]
     ])('rejects a token response with %s', async (_name, body) => {
-      const { completeSignIn } = await load();
+      const { finishSignIn } = await load();
       setClientId('client-1');
-      startedSignIn('s1');
-      visit('/?code=abc&state=s1');
       fetchMock.mockResolvedValue(json(body));
-      expect(await completeSignIn()).toEqual({ ok: false, error: 'Spotify returned an invalid token response.' });
+      expect(await finishSignIn(reply(), 'v')).toEqual({
+        ok: false,
+        error: 'Spotify returned an invalid token response.'
+      });
     });
 
     it('rejects an unreadable token response', async () => {
-      const { completeSignIn } = await load();
+      const { finishSignIn } = await load();
       setClientId('client-1');
-      startedSignIn('s1');
-      visit('/?code=abc&state=s1');
       fetchMock.mockResolvedValue(new Response('<html>', { status: 200 }));
-      await expect(completeSignIn()).resolves.toMatchObject({ ok: false });
+      await expect(finishSignIn(reply(), 'v')).resolves.toMatchObject({ ok: false });
     });
 
     it('needs a refresh token in the response', async () => {
-      const { completeSignIn, isSignedIn } = await load();
+      const { finishSignIn, isSignedIn } = await load();
       setClientId('client-1');
-      startedSignIn('s1');
-      visit('/?code=abc&state=s1');
       fetchMock.mockResolvedValue(json({ access_token: 'a', expires_in: 3600 }));
-      expect(await completeSignIn()).toEqual({
+      expect(await finishSignIn(reply(), 'v')).toEqual({
         ok: false,
         error: 'Spotify did not provide a refresh token. Sign in again.'
       });
       expect(isSignedIn()).toBe(false);
-    });
-
-    it('shares the result when called twice at once (a StrictMode double effect)', async () => {
-      const { completeSignIn } = await load();
-      setClientId('client-1');
-      startedSignIn('s1');
-      visit('/?code=abc&state=s1');
-      fetchMock.mockResolvedValue(json({ access_token: 'a', refresh_token: 'r', expires_in: 3600 }));
-      const [first, second] = await Promise.all([completeSignIn(), completeSignIn()]);
-      expect(first).toEqual({ ok: true });
-      expect(second).toEqual({ ok: true });
-      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -531,73 +392,12 @@ describe('spotify/auth', () => {
       expect(auth.isSignedIn()).toBe(false);
       expect(await auth.getAccessToken()).toBeNull();
     });
-
-    it('also forgets a sign-in that was started and never finished', async () => {
-      const { signOut } = await load();
-      sessionStorage.setItem('maxmix.pkce', JSON.stringify({ state: 's', verifier: 'v' }));
-      signOut();
-      expect(sessionStorage.getItem('maxmix.pkce')).toBeNull();
-    });
-
-    it('makes the next sign-in show Spotify’s approval page again, so nothing signs in silently', async () => {
-      const { signOut, startSignIn } = await load();
-      setClientId('client-1');
-      signOut();
-      await startSignIn();
-      const url = new URL(String(app.leaveFor.mock.calls[0]?.[0]));
-      expect(url.searchParams.get('show_dialog')).toBe('true');
-      // And again, until a sign-in has gone through.
-      await startSignIn();
-      expect(new URL(String(app.leaveFor.mock.calls[1]?.[0])).searchParams.get('show_dialog')).toBe('true');
-    });
-
-    it('asks for the approval page only until a sign-in goes through', async () => {
-      const { signOut, completeSignIn } = await load();
-      setClientId('client-1');
-      signOut();
-      expect(localStorage.getItem('maxmix.freshSignIn')).toBe('true');
-      sessionStorage.setItem('maxmix.pkce', JSON.stringify({ state: 's1', verifier: 'v' }));
-      visit('/?code=abc&state=s1');
-      fetchMock.mockResolvedValue(json({ access_token: 'a', refresh_token: 'r', expires_in: 3600 }));
-      expect(await completeSignIn()).toEqual({ ok: true });
-      expect(localStorage.getItem('maxmix.freshSignIn')).toBeNull();
-    });
-
-    it('keeps asking after a sign-in that was declined', async () => {
-      const { signOut, completeSignIn } = await load();
-      setClientId('client-1');
-      signOut();
-      sessionStorage.setItem('maxmix.pkce', JSON.stringify({ state: 's1', verifier: 'v' }));
-      visit('/?error=access_denied&state=s1');
-      expect(await completeSignIn()).toMatchObject({ ok: false });
-      expect(localStorage.getItem('maxmix.freshSignIn')).toBe('true');
-    });
-
-    it('still asks when browser storage cannot hold the choice', async () => {
-      const { signOut, startSignIn } = await load();
-      setClientId('client-1');
-      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-        throw new Error('blocked');
-      });
-      vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
-        throw new Error('blocked');
-      });
-      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(key => {
-        if (key === 'maxmix.pkce') return;
-        throw new Error('blocked');
-      });
-      signOut();
-      await startSignIn();
-      expect(new URL(String(app.leaveFor.mock.calls[0]?.[0])).searchParams.get('show_dialog')).toBe('true');
-    });
   });
 
   describe('storage unavailable', () => {
     it('keeps the login in memory until the page reloads', async () => {
-      const { completeSignIn, isSignedIn, getAccessToken, signOut } = await load();
+      const { finishSignIn, isSignedIn, getAccessToken, signOut } = await load();
       setClientId('client-1');
-      sessionStorage.setItem('maxmix.pkce', JSON.stringify({ state: 's1', verifier: 'v' }));
-      visit('/?code=abc&state=s1');
       fetchMock.mockResolvedValue(json({ access_token: 'a1', refresh_token: 'r1', expires_in: 3600 }));
       const getItem = vi.spyOn(Storage.prototype, 'getItem');
       const removeItem = vi.spyOn(Storage.prototype, 'removeItem');
@@ -606,10 +406,10 @@ describe('spotify/auth', () => {
       });
       getItem.mockImplementation(key => {
         if (key === 'maxmix.people') throw new Error('blocked');
-        return key === 'maxmix.pkce' ? JSON.stringify({ state: 's1', verifier: 'v' }) : null;
+        return null;
       });
 
-      await expect(completeSignIn()).resolves.toMatchObject({ ok: true });
+      await expect(finishSignIn(reply(), 'v')).resolves.toMatchObject({ ok: true });
       expect(isSignedIn()).toBe(true);
       expect(await getAccessToken()).toBe('a1');
 
@@ -622,12 +422,10 @@ describe('spotify/auth', () => {
   });
 
   describe('people', () => {
-    const signIn = async (state: string, refreshToken: string) => {
-      const { completeSignIn } = await load();
-      sessionStorage.setItem('maxmix.pkce', JSON.stringify({ state, verifier: 'v' }));
-      visit(`/?code=c&state=${state}`);
+    const signIn = async (code: string, refreshToken: string) => {
+      const { finishSignIn } = await load();
       fetchMock.mockResolvedValueOnce(json({ access_token: 'a', refresh_token: refreshToken, expires_in: 3600 }));
-      return completeSignIn();
+      return finishSignIn(reply(code), 'v');
     };
     const people = () => storedJson('maxmix.people');
 
@@ -828,12 +626,10 @@ describe('spotify/auth', () => {
         'maxmix.people',
         JSON.stringify({ clientId: 'client-1', activeId, people: ids.map(id => person(id)) })
       );
-    const signIn = async (state: string) => {
+    const signIn = async (code: string) => {
       const auth = await load();
-      sessionStorage.setItem('maxmix.pkce', JSON.stringify({ state, verifier: 'v' }));
-      visit(`/?code=c&state=${state}`);
       fetchMock.mockResolvedValueOnce(json({ access_token: 'a', refresh_token: 'r-new', expires_in: 3600 }));
-      return { auth, result: await auth.completeSignIn() };
+      return { auth, result: await auth.finishSignIn(reply(code), 'v') };
     };
     const people = () => storedJson('maxmix.people');
 
@@ -849,24 +645,12 @@ describe('spotify/auth', () => {
       expect(auth.peopleOnKiosk()).toEqual([]);
     });
 
-    it('adds a person through Spotify’s approval page', async () => {
-      setClientId('client-1');
-      store('a', ['a']);
-      const auth = await load();
-      await auth.startAddPerson();
-      const address = new URL(app.leaveFor.mock.calls[0]?.[0] ?? '');
-      expect(address.searchParams.get('show_dialog')).toBe('true');
-    });
-
-    it('refuses a sixth person before and after Spotify', async () => {
+    it('refuses a sixth person', async () => {
       setClientId('client-1');
       store('a', ['a', 'b', 'c', 'd', 'e']);
-      const auth = await load();
-      await expect(auth.startAddPerson()).rejects.toThrow('Spotify allows five people on this kiosk.');
-      expect(app.leaveFor).not.toHaveBeenCalled();
 
       const { result } = await signIn('s1');
-      expect(result).toMatchObject({ ok: false });
+      expect(result).toEqual({ ok: false, error: 'Spotify allows five people on this kiosk. Remove someone first.' });
       expect(people()).toMatchObject({ activeId: 'a' });
       expect(people()?.['people']).toHaveLength(5);
     });
@@ -887,9 +671,8 @@ describe('spotify/auth', () => {
           ? Promise.resolve(new Response('User not registered in the Developer Dashboard', { status: 403 }))
           : (fetchMock(url, init) as Promise<Response>)
       );
-      const { auth, result } = await signIn('s1');
+      const { result } = await signIn('s1');
       expect(result).toMatchObject({ ok: false, error: expect.stringContaining('User Management') as unknown });
-      expect(auth.isPersonRefused((result as { error: string }).error)).toBe(true);
       expect(people()).toMatchObject({ activeId: 'a', people: [{ spotifyId: 'a' }] });
     });
 
@@ -1048,12 +831,8 @@ describe('spotify/auth', () => {
           })
         );
         const auth = await load();
-        await auth.startSignIn(as);
-        const address = new URL(app.leaveFor.mock.calls[0]?.[0] ?? '');
-        expect(address.searchParams.get('show_dialog')).toBe('true');
-        visit(`/?code=c&state=${address.searchParams.get('state') ?? ''}`);
         fetchMock.mockResolvedValueOnce(json({ access_token: 'a', refresh_token: 'r-new', expires_in: 3600 }));
-        return { auth, result: await auth.completeSignIn() };
+        return { auth, result: await auth.finishSignIn(reply('c'), 'v', as) };
       };
 
       it('signs the same account in again, keeping their phone', async () => {
@@ -1069,7 +848,6 @@ describe('spotify/auth', () => {
         // GET /me answers as Nikolai, so signing Friend in again gets the wrong account.
         const { auth, result } = await signInAgain('friend');
         expect(result).toEqual({ ok: false, error: 'That was a different Spotify account, so nothing changed.' });
-        expect(auth.isPersonRefused(result && !result.ok ? result.error : '')).toBe(true);
         expect(auth.peopleOnKiosk().map(person => person.signedIn)).toEqual([false, false]);
       });
 
@@ -1084,11 +862,8 @@ describe('spotify/auth', () => {
           })
         );
         const auth = await load();
-        await auth.startSignIn('nikolai');
-        const address = new URL(app.leaveFor.mock.calls[0]?.[0] ?? '');
-        visit(`/?code=c&state=${address.searchParams.get('state') ?? ''}`);
         fetchMock.mockResolvedValueOnce(json({ access_token: 'a', refresh_token: 'r-new', expires_in: 3600 }));
-        expect(await auth.completeSignIn()).toEqual({ ok: true });
+        expect(await auth.finishSignIn(reply('c'), 'v', 'nikolai')).toEqual({ ok: true });
         expect(auth.peopleOnKiosk()).toMatchObject([
           { spotifyId: 'nikolai', active: false, signedIn: true },
           { spotifyId: 'friend', active: true }

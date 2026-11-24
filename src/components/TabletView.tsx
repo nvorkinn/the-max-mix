@@ -91,7 +91,6 @@ function useLogChanges(message: string | null | undefined, source: string) {
   }, [message, source]);
 }
 
-// signInError: why finishing the Spotify sign-in failed
 /** Dynamic's colours: the cover's while it plays, else what shows with Dynamic off. */
 function coverOrChosenPalette(art: ArtColours | null, colour: ThemeColour) {
   return art ? dynamicPalette(art.dominant) : basePalette(colour);
@@ -111,7 +110,7 @@ function lyricsAvailability({ status, lyrics }: LyricsLookup): LyricsAvailabilit
   return status === 'ready' && lyrics?.kind !== 'instrumental' ? 'found' : 'none';
 }
 
-export default function TabletView({ signInError = null }: Readonly<{ signInError?: string | null | undefined }>) {
+export default function TabletView() {
   const {
     isReady,
     playbackState,
@@ -143,7 +142,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const followingSonos = sonos.active;
   // What the tablet shows: the Sonos group the kiosk plays on, or else Spotify's playback.
   const shownPlayback = followingSonos ? sonos.playback : playbackState;
-  const error = playerError || signInError;
+  const error = playerError;
   const isOffline = useIsOffline(playerError);
   // While a Sonos plays, Spotify's queue is not what plays next; the Sonos says its next song itself.
   const canPollQueue = isAuthenticated && !followingSonos;
@@ -163,7 +162,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const [isMusicOpen, setIsMusicOpen] = useState(false);
   // Every start (kiosk start, reload, coming back from a sign-in) opens on the Dashboard, except after a failed sign-in,
   // whose message the Spotify tab shows.
-  const [screen, setScreen] = useState<TabId>(signInError ? 'spotify' : 'dashboard');
+  const [screen, setScreen] = useState<TabId>('dashboard');
   // Every change of tab fades across the whole screen, whether tapped, idle or from a prompt.
   const goToScreen = (next: TabId) => crossfade(() => setScreen(next));
   const [isDebugOpen, setIsDebugOpen] = useState(false);
@@ -368,7 +367,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
 
   // Problems go to the debug console.
   useLogChanges(playerError, 'player');
-  useLogChanges(signInError, 'sign-in');
   useLogChanges(queueError, 'queue');
   useLogChanges(sonos.error, 'sonos');
 
@@ -511,7 +509,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
       setIsRefreshingPlayback(false);
     }
   };
-  const problem = signInError ? { message: signInError, recovery: 'sign-in' as const } : playerProblem;
+  const problem = playerProblem;
   const needsConnection = !isLoading && (!isAuthenticated || problem?.recovery === 'sign-in');
   // A kiosk that was just paired opens on the Dashboard with nobody signed in to Spotify: offer the first sign-in there.
   const [getStarted, setGetStarted] = useState(wantsGetStarted);
@@ -523,7 +521,6 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
   const restricted = Boolean(playbackState?.device?.is_restricted);
   let notice: PlaybackNoticeState | null = null;
   if (isOffline) notice = { kind: 'offline' };
-  else if (signInError && problem) notice = { kind: 'problem', problem };
   else if (!isAuthenticated) notice = { kind: 'signed-out' };
   else if (followingSonos && problem?.recovery !== 'sign-in') {
     // Spotify has let go of the music, so its own problems (no player, a restricted device) are not this screen's.
@@ -677,7 +674,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
                 {needsConnection ? (
                   <SpotifySetup
                     offline={isOffline}
-                    signInError={signInError || (problem?.recovery === 'sign-in' ? problem.message : null)}
+                    signInError={problem?.recovery === 'sign-in' ? problem.message : null}
                     onDetails={() => setIsDebugOpen(true)}
                   />
                 ) : (
@@ -786,7 +783,7 @@ export default function TabletView({ signInError = null }: Readonly<{ signInErro
           {screen === 'settings' && (
             <SettingsPanel
               initialSection={settingsSection}
-              signInError={signInError || (playerProblem?.recovery === 'sign-in' ? playerProblem.message : null)}
+              signInError={playerProblem?.recovery === 'sign-in' ? playerProblem.message : null}
               screenSleep={screenSleepMinutes}
               onScreenSleepChange={changeScreenSleep}
               brightness={hasBacklight ? brightness : undefined}
