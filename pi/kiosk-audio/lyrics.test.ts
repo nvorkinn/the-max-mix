@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, type Mock } from 'vitest';
-import type { Candidate, LyricsQuery, LyricsSource } from './lyrics-sources.ts';
+import { SourceResting } from './lyrics-sources.ts';
+import type { Candidate, GetJson, LyricsQuery, LyricsSource } from './lyrics-sources.ts';
 import {
+  afterPause,
   cached,
   findLyrics,
   isSynced,
@@ -224,6 +226,65 @@ describe('kiosk-audio/lyrics', () => {
     time = 61 * 60 * 1000;
     await expect(lookup(query)).resolves.toEqual({ source: 'A', lrc: LRC });
     expect(find).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not log each lookup a resting source fails, but still tells that it could not look', async () => {
+    const warn = vi.spyOn(console, 'warn').mockReturnValue();
+    const resting: LyricsSource = {
+      ...source('A', []),
+      search: () => Promise.reject(new SourceResting('lrclib.net asked not to be called for a while'))
+    };
+    const without = source('B', []);
+    const withSong = source('B', [song()]);
+    await expect(findLyrics(query, [resting, without], get)).rejects.toBeInstanceOf(SourceResting);
+    await expect(findLyrics(query, [resting, withSong], get)).resolves.toMatchObject({ source: 'B' });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('sends no more requests once the lookup is no longer wanted', async () => {
+    const warn = vi.spyOn(console, 'warn').mockReturnValue();
+    const gone = new AbortController();
+    const urls: string[] = [];
+    const reach = vi.fn<GetJson>(url => {
+      urls.push(url);
+      if (url === 'search') gone.abort(new Error('hung up'));
+      return Promise.resolve(url === 'search' ? [song()] : LRC);
+    });
+    const asking: LyricsSource = {
+      name: 'A',
+      search: async (_query, getJson) => (await getJson('search')) as Candidate[],
+      words: async (_candidate, getJson) => (await getJson('words')) as string,
+      lines: async (_candidate, getJson) => (await getJson('lines')) as string
+    };
+    await expect(findLyrics(query, [asking], reach, gone.signal)).rejects.toThrow('hung up');
+    expect(urls).toEqual(['search']);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('waits a moment before looking, and does not look for a song given up on meanwhile', async () => {
+    const hit: LyricsHit = { source: 'A', lrc: LRC };
+    const find = vi.fn<(q: LyricsQuery, signal?: AbortSignal) => Promise<LyricsHit | null>>().mockResolvedValue(hit);
+    const lookup = afterPause(find, 20);
+    const skipped = new AbortController();
+    const asked = lookup(query, skipped.signal);
+    skipped.abort();
+    await expect(asked).rejects.toThrow();
+    expect(find).not.toHaveBeenCalled();
+    const kept = new AbortController();
+    await expect(lookup(query, kept.signal)).resolves.toBe(hit);
+    expect(find).toHaveBeenCalledExactlyOnceWith(query, kept.signal);
+  });
+
+  it('answers a song it remembers at once, without the pause, and hands the signal on', async () => {
+    const hit: LyricsHit = { source: 'A', lrc: LRC };
+    const find = vi.fn<(q: LyricsQuery, signal?: AbortSignal) => Promise<LyricsHit | null>>().mockResolvedValue(hit);
+    const lookup = cached(afterPause(find, 20));
+    const signal = new AbortController().signal;
+    await expect(lookup(query, signal)).resolves.toBe(hit);
+    expect(find).toHaveBeenCalledExactlyOnceWith(query, signal);
+    // Already given up on: the pause would reject, so this answer did not wait for it.
+    await expect(lookup(query, AbortSignal.abort())).resolves.toBe(hit);
+    expect(find).toHaveBeenCalledOnce();
   });
 
   it('does not remember a failure', async () => {
