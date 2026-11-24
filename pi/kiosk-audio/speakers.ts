@@ -14,7 +14,16 @@ const BLUETOOTH_PREFIX = 'bluez_output.';
 export interface AudioGraph {
   graph: () => Promise<Graph>;
   apply: (plan: Plan) => Promise<boolean>;
+  /** Sets a node's volume, 0 to 1 on wpctl's cubic scale. */
+  setVolume: (node: number, volume: number) => Promise<void>;
 }
+
+/**
+ * The loudest a speaker is when the music starts going to it, as the app's SAFE_START_VOLUME (src/audio/safeVolume.ts).
+ * PipeWire forgets AirPlay speakers' volumes when it restarts and makes them again at 100%, and the watcher links the
+ * saved choice again by itself, with no app to turn them down first.
+ */
+const SAFE_START_VOLUME = 0.25;
 
 /**
  * The sinks PipeWire made for speakers: an AirPlay (RAOP) sink for each speaker it found on the network, and a Bluetooth
@@ -120,12 +129,29 @@ export async function saveSpeakers(file: string, choices: Choice[]): Promise<voi
 
 /** Brings the links in line with the choice. Returns the plan it applied (empty when nothing needed to change). */
 export async function route(pipewire: AudioGraph, choices: Choice[]): Promise<Plan> {
-  const plan = planRoutes(await pipewire.graph(), choices);
+  const graph = await pipewire.graph();
+  const plan = planRoutes(graph, choices);
   if (!isEmptyPlan(plan)) {
+    await turnDownJoining(pipewire, graph, plan);
     console.info(`Routing: link ${JSON.stringify(plan.connect)}, unlink ${JSON.stringify(plan.disconnect)}`);
     await pipewire.apply(plan);
   }
   return plan;
+}
+
+/** Turns each speaker the plan starts sending sound to down to SAFE_START_VOLUME when it is louder; never up. */
+async function turnDownJoining(pipewire: AudioGraph, graph: Graph, plan: Plan): Promise<void> {
+  const portNode = new Map(graph.ports.map(port => [port.id, port.node]));
+  const playing = new Set(graph.links.map(link => portNode.get(link.inputPort)));
+  const joining = new Set(plan.connect.map(([, input]) => portNode.get(input)).filter(node => !playing.has(node)));
+  const loud = speakerSinks(graph).filter(
+    sink => joining.has(sink.id) && sink.volume !== null && sink.volume > SAFE_START_VOLUME
+  );
+  for (const sink of loud) {
+    console.info(`Routing: turning ${sink.description} down to ${SAFE_START_VOLUME * 100}% before it plays`);
+    // eslint-disable-next-line no-await-in-loop
+    await pipewire.setVolume(sink.id, SAFE_START_VOLUME);
+  }
 }
 
 /**
