@@ -66,7 +66,7 @@ else
 fi
 
 heading "Kiosk warnings (last $days days)"
-journalctl --quiet --no-pager --output=short-iso -u kiosk -u kiosk-pull -u kiosk-widevine --since "$since" \
+journalctl --quiet --no-pager --output=short-iso -u kiosk -u kiosk-pull --since "$since" \
   --priority warning | tail -n 10 | grep . || echo None
 echo
 echo "More: journalctl -u kiosk -u kiosk-pull, and journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service"

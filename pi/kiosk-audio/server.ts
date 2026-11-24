@@ -3,7 +3,7 @@
 //                           plus {"volumes": {"Kitchen": 40, …}}, each speaker's volume in percent, and
 //                           {"outputs": [{"id", "name", "kind", "address"?, "volume", "linked"}, …]}: each sink by its
 //                           PipeWire node name, "airplay" or "bluetooth", a Bluetooth speaker's address, its volume in
-//                           percent or null, and whether the browser's sound goes to it now (speakers.ts)
+//                           percent or null, and whether the music goes to it now (speakers.ts)
 //   POST /audio/route       {"outputs": [id, …]}           route the sound to those outputs (none: the Pi's own output);
 //                           {"speakers": [name, …]} still works
 //   POST /audio/volume      {"output": id, "volume": 40}   set one output's volume (404: not on the network);
@@ -891,6 +891,9 @@ export function serveSpeakers(
     watchdog.beat();
   };
   const bluetooth = new Bluetooth();
+  void bluetooth.switchOn().then(isOn => {
+    if (!isOn) console.warn('Bluetooth: could not turn the adapter on');
+  });
   const bluetoothMonitor = new BluetoothMonitor();
   nameKioskOnStart(bluetoothMonitor);
   const presence = new Presence({

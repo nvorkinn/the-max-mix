@@ -16,7 +16,6 @@ export interface PlaybackFixes {
   onChooseSpeaker: () => void;
   onRefresh: () => void;
   onReconnect: () => void;
-  onAllowAudio: () => void;
 }
 
 const fix = (label: string, run: () => void) => ({ label, run });
@@ -35,9 +34,10 @@ export function describePlayback(notice: PlayerNotice, t: Translate, fixes: Play
     'sign-in': { title: t('notice.sign_in_title'), action: fix(t('notice.reconnect_spotify'), fixes.onSettings) },
     'choose-speaker': { title: t('notice.no_speaker'), action: fix(t('notice.choose_speaker'), fixes.onChooseSpeaker) },
     settings: { title: t('notice.settings_title'), action: fix(t('settings.title'), fixes.onSettings) },
+    'soloist-key': { title: t('notice.soloist_key_title'), action: fix(t('settings.title'), fixes.onSettings) },
+    'pick-on-phone': { title: t('notice.pick_on_phone_title') },
     reconnect: { title: t('notice.player_title'), action: fix(t('notice.reconnect_player'), fixes.onReconnect) },
-    refresh: { title: t('notice.problem_title'), action: fix(t('notice.refresh'), fixes.onRefresh) },
-    'enable-audio': { title: t('notice.audio_title'), action: fix(t('notice.allow_audio'), fixes.onAllowAudio) }
+    refresh: { title: t('notice.problem_title'), action: fix(t('notice.refresh'), fixes.onRefresh) }
   };
   return described[notice.problem.recovery];
 }

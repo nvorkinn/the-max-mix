@@ -1,6 +1,6 @@
 // The kiosk's audio routing and local service (see README.md), run as the kiosk user next to its PipeWire:
 //   node kiosk-audio.ts watch   the background unit. It answers the app on 127.0.0.1 (server.ts: the speaker list, routing,
-//                               the kiosk buttons, and the update stream), and every few seconds routes any stream Chromium opened again and
+//                               the kiosk buttons, and the update stream), and every few seconds routes any stream Soloist opened again and
 //                               any chosen speaker that came back.
 import { homedir, networkInterfaces } from 'node:os';
 import path from 'node:path';

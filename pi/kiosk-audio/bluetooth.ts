@@ -117,6 +117,15 @@ export class Bluetooth {
     );
   }
 
+  /**
+   * Turns the Bluetooth adapter on: a freshly flashed Pi can start with it blocked, which leaves the browser's passkey
+   * sign-in (a phone over Bluetooth) saying Bluetooth is off. Whether it worked is only logged.
+   */
+  async switchOn(): Promise<boolean> {
+    await this.run(['rfkill', 'unblock', 'bluetooth'], '', QUICK_TIMEOUT_MS);
+    return (await this.ctl(['power', 'on'])).code === 0;
+  }
+
   /** Looks for speakers for a few seconds, then lists what BlueZ knows. */
   async scan(): Promise<BluetoothDevice[]> {
     return this.exclusive(async () => {

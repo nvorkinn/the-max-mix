@@ -3,7 +3,7 @@
 A small TypeScript service that runs on the Pi as a user unit (`kiosk-audio.service`, as the `kiosk` user) and answers the
 app on `127.0.0.1:7341`. It does two jobs:
 
-- **AirPlay.** It lists the AirPlay speakers PipeWire found, and sends the kiosk browser's sound to the ones picked in the
+- **AirPlay.** It lists the AirPlay speakers PipeWire found, and sends the kiosk's music (Spotify Soloist's stream) to the ones picked in the
   app (Sonos and other AirPlay 2 speakers that also accept RAOP). It is what the app's **AirPlay** mode under Speakers
   drives.
 - **The kiosk buttons.** Update now (which streams the update's journal to the app), Restart kiosk, Reboot Pi, the Wi-Fi
@@ -11,10 +11,10 @@ app on `127.0.0.1:7341`. It does two jobs:
 
 ## The two playback modes
 
-- **Spotify Connect** (the default): Spotify plays on the tablet's Web Playback SDK player, or on any Spotify Connect
+- **Spotify Connect** (the default): Spotify plays on the kiosk's own player (Spotify Soloist), or on any Spotify Connect
   speaker it is moved to under Speakers. Switching to it sends `POST /audio/route` with no speakers, which hands the sound back to the
   Pi's default output.
-- **AirPlay**: playback stays on the tablet's own player, and the Pi links Chromium's PipeWire stream to every speaker
+- **AirPlay**: playback stays on the kiosk's own player, and the Pi links Soloist's PipeWire stream to every speaker
   picked in the app, all at once, and off the Pi's own output. Speakers can be added and removed while the music plays.
 
 ## The web app
@@ -127,17 +127,17 @@ while it is connected or was heard in the last two minutes; for the first 8 s of
    `outputs` list gives each sink by PipeWire's node name (its `id`), its `kind` (`airplay` for `raop_sink.*`,
    `bluetooth` for `bluez_output.*`, the names PipeWire's own modules give them), a Bluetooth speaker's `address` (from
    the sink's `api.bluez5.address`, as in `GET /bluetooth/devices`), its volume, and `linked`: whether one of
-   Chromium's streams is linked to it in PipeWire right now, which is where the sound really goes. Chromium's own device list is not used: it hides
+   Soloist's streams is linked to it in PipeWire right now, which is where the sound really goes. Chromium's own device list is not used: it hides
    the names until a microphone is open, and the Pi has none.
 2. **Routing.** Picking speakers sends `POST /audio/route` with `{"outputs": ["raop_sink.Kitchen.local.7000", …]}` (ids
    from `outputs`), or `{"speakers": ["Kitchen", "Lounge"]}` (the sinks' descriptions) from older apps. An id keeps two
    speakers with the same name apart; but an AirPlay sink's node name holds the speaker's address and port, so the
    service saves each id with its name, and routes by the name only while no sink has the id. The service saves the
-   choice in `~/.local/state/the-max-mix/speakers.json` and links each of Chromium's
+   choice in `~/.local/state/the-max-mix/speakers.json` and links each of Soloist's
    channels to the same channel of every chosen sink with `pw-link`, before removing its links to other sinks, so the
    music does not drop out. Links to anything that is not a sink (a level meter) are left alone.
 3. **Keeping it there.** The `kiosk-audio` user unit (`node kiosk-audio.ts watch`) reads the saved choice every 2
-   seconds and routes again when needed, so a stream Chromium opens again, or a speaker that drops off the network and
+   seconds and routes again when needed, so a stream Soloist opens again, or a speaker that drops off the network and
    comes back, plays in the right place. If none of the chosen speakers is on the network, nothing changes.
 
 4. **Volume.** `GET /speakers` also gives each speaker's volume, and the drawer shows a slider under each chosen
@@ -294,7 +294,7 @@ show journalctl's "no permission" instead of the lines; the pull and restart sti
   (CORS), and refuses every POST and every WebSocket whose `Origin` header is not the app's (a browser does not apply CORS
   to a WebSocket), so no other web page can trigger an action.
 - A request names a fixed action; it never carries a command. Routing accepts at most 16 speaker names of up to 256
-  characters and can only link the browser's stream to existing sinks. Everything runs by absolute path with an argument
+  characters and can only link Soloist's stream to existing sinks. Everything runs by absolute path with an argument
   list, no shell. `POST /sonos/play` takes a room name (one line, at most 64 characters, not starting with `-`) and a
   `spotify:<kind>:<22-character id>` URI, and hands them to the sonos-ts library, which runs no program. polkit (`50-kiosk-power.rules`) limits what the `kiosk` user may do with systemd and power.
 - Everything runs as the `kiosk` user, next to that user's PipeWire.
@@ -302,7 +302,7 @@ show journalctl's "no permission" instead of the lines; the pull and restart sti
 ## On the device
 
 - `systemctl --user -M kiosk@ status kiosk-audio` and `journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service` (as root).
-- `wpctl status` lists the AirPlay sinks; `pw-link -l` shows where Chromium's stream goes; `wpctl get-volume <id>`
+- `wpctl status` lists the AirPlay sinks; `pw-link -l` shows where Soloist's stream goes; `wpctl get-volume <id>`
   shows a speaker's volume as the app does.
 - `curl -s http://127.0.0.1:7341/speakers` lists what the app sees. A POST needs the app's `Origin`, for example
   `curl -X POST -H 'Origin: http://127.0.0.1:7341' http://127.0.0.1:7341/power/restart`.

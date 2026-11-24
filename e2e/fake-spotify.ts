@@ -49,7 +49,7 @@ export async function kioskLyrics(page: Page, answer: { source: string; lrc: str
 /**
  * Signs the page in to a fake Spotify account that answers in memory: one track playing on a Spotify Connect speaker
  * and four queued. Play, pause, seek, next, previous, shuffle, repeat, and volume change what it reports, like
- * the real Web API does. Returns what a test may want to look at: every command it was sent.
+ * the real Web API does. Returns what a test may want to look at: every command it was sent, and the devices it lists.
  */
 export async function fakeSpotify(page: Page) {
   // The app also asks countdown-server for its config at start; unowned, the answer changes nothing.
@@ -87,8 +87,9 @@ export async function fakeSpotify(page: Page) {
     { track: { ...track('recent-1', 'Get Lucky', 'Daft Punk', 248_000), uri: 'spotify:track:recent1' }, context: null },
     { track: { ...track('recent-2', 'Blinding Lights', 'The Weeknd', 200_000), uri: 'spotify:track:recent2' } }
   ];
-  // The devices Spotify lists: the speaker that plays, and any other one (this tablet's own player) once it is played on.
-  const devices = [playback.device];
+  // The devices Spotify lists: the speaker that plays, the kiosk's own player when a test fakes it (fake-soloist.ts), and
+  // any other one once it is played on.
+  const devices: SpotifyDevice[] = [playback.device];
   const play = (target: Track) => {
     playback.item = target;
     playback.progress_ms = 0;
@@ -203,7 +204,7 @@ export async function fakeSpotify(page: Page) {
     localStorage.setItem('maxmix.auth', JSON.stringify({ clientId, refreshToken: 'not-a-real-refresh-token' }));
     sessionStorage.setItem('fake-spotify-signed-in', 'true');
   }, getClientId());
-  return { commands };
+  return { commands, devices };
 }
 
 /** Counts the app's reads of the playback state (GET /v1/me/player), which is what its polling is. */

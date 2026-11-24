@@ -1,5 +1,5 @@
-// A pw-dump reply for the tests: the local output (40), two AirPlay speakers (50, 60) and Chromium (70) playing to the
-// local output, with a level meter (90) also listening to Chromium. Kitchen's volume is 40% (0.064 = 0.4 cubed); Lounge
+// A pw-dump reply for the tests: the local output (40), two AirPlay speakers (50, 60) and Soloist (70) playing to the
+// local output, with a level meter (90) also listening to Soloist. Kitchen's volume is 40% (0.064 = 0.4 cubed); Lounge
 // reports none.
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { Readable } from 'node:stream';
@@ -49,9 +49,9 @@ export function dump(extra: unknown[] = [], links?: unknown[]): string {
     node(60, 'raop_sink.Lounge.local.7000', 'Audio/Sink', { 'node.description': 'Lounge' }),
     port(61, 60, 'input', 'FL'),
     port(62, 60, 'input', 'FR'),
-    node(70, 'Chromium', 'Stream/Output/Audio', {
-      'application.name': 'Chromium',
-      'application.process.binary': 'chromium'
+    node(70, 'spotify', 'Stream/Output/Audio', {
+      'application.name': 'Spotify',
+      'application.process.binary': 'soloist'
     }),
     port(71, 70, 'output', 'FL'),
     port(72, 70, 'output', 'FR'),

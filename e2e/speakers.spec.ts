@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { airPlayOutput, fakeKioskOutputs } from './fake-kiosk.ts';
-import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
+import { fakeSoloist } from './fake-soloist.ts';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSpotifyTab } from './spotify-tab.ts';
 
@@ -35,7 +35,7 @@ test.describe('Speakers', { tag: '@speakers' }, () => {
     test('a speaker is only played on after Save, and AirPlay opens once this tablet plays', async ({ page }) => {
       const api = await fakeSpotify(page);
       const pi = await fakeKioskOutputs(page, [airPlayOutput('Kitchen', 60), airPlayOutput('Lounge', 20)]);
-      await fakeSpotifySdk(page);
+      await fakeSoloist(page, api);
       await openSpotifyTab(page);
       await nav(page).getByRole('button', { name: 'Speakers' }).click();
       const view = page.getByRole('region', { name: 'Speakers' });

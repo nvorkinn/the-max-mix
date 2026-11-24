@@ -12,6 +12,7 @@ import {
   startSignIn
 } from '../../spotify/auth';
 import { getRedirectUri } from '../../spotify/settings';
+import { forgetSoloistKey } from '../../countdown/soloistKeys';
 import { errorMessage } from '../../utils/errorMessage';
 import { forgetSignIns, isKiosk } from '../../utils/kiosk';
 import ConfirmButton from '../ConfirmButton';
@@ -23,6 +24,7 @@ import type { StringId } from '../../i18n/strings';
 import type { LyricsStyle } from '../../utils/lyricsStyle';
 import LyricsSettings from './LyricsSettings';
 import SettingsSection from './SettingsSection';
+import SoloistKeyButton from './SoloistKeyButton';
 
 type ShownStatus = Exclude<PersonStatus, 'unknown'>;
 
@@ -48,9 +50,9 @@ function Face({ person }: Readonly<{ person: PersonOnKiosk }>) {
 
 /**
  * The Spotify page. Everyone signed in on this kiosk as a row of faces, each with a dot for whether their login works
- * (asked of Spotify when the page opens) and a mark on the one playing; then the chosen face's login, phone and
- * removal; then adding a person, or the first sign-in when nobody is signed in. Under them, how synced lyrics look,
- * shown on a few lines as they will play. `onLyricsChange` saves that where the kiosk keeps it.
+ * (asked of Spotify when the page opens) and a mark on the one playing; then the chosen face's login, phone, Soloist
+ * key and removal; then adding a person, or the first sign-in when nobody is signed in. Under them, how synced lyrics
+ * look, shown on a few lines as they will play. `onLyricsChange` saves that where the kiosk keeps it.
  */
 export default function SpotifySettings({
   signInError,
@@ -161,6 +163,7 @@ export default function SpotifySettings({
             onRemove={() => {
               const outcome = removePerson(chosen.spotifyId);
               forgetUnlinkedPhone(chosen.phoneAddress);
+              forgetSoloistKey(chosen.spotifyId);
               setChosenId(undefined);
               if (outcome === 'kept') setPeople(peopleOnKiosk());
               else if (outcome === 'switched') onReload();
@@ -184,7 +187,10 @@ export default function SpotifySettings({
   );
 }
 
-/** The chosen person: their name and whether their login works, signing in again when it does not, their phone, and removing them. */
+/**
+ * The chosen person: their name and whether their login works, signing in again when it does not, their phone, saving
+ * their Soloist key while they have none, and removing them.
+ */
 function PersonDetail({
   person,
   status,
@@ -225,6 +231,7 @@ function PersonDetail({
           onChange={onPhoneChange}
         />
       )}
+      <SoloistKeyButton spotifyId={person.spotifyId} name={name} />
       <ConfirmButton
         label={t('spotify.remove')}
         confirmLabel={t('spotify.remove_confirm')}

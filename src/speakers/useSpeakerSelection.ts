@@ -185,12 +185,18 @@ export function useSpeakerSelection({
 
   // Where the music plays now: a Sonos group the kiosk started, else this tablet with the outputs the Pi says it sends
   // the sound to (or, from an older Pi, the ones this page last chose), else the Connect device Spotify names.
+  // A Sonos room is played through Sonos itself, which streams from Spotify; its AirPlay sink is left out, since Sonos
+  // takes the Pi's AirPlay and plays nothing.
+  const sonosNames = new Set((groups ?? []).flatMap(group => group.rooms.map(room => room.name.toLowerCase())));
+  const shownOutputs = (outputs ?? []).filter(
+    output => output.kind !== 'airplay' || !sonosNames.has(output.name.toLowerCase())
+  );
   let confirmed: SpeakerChoice | null = null;
   if (leader) confirmed = sonosChoice(groupRooms(leader, groups));
   else if (browserDeviceId && playingDeviceId === browserDeviceId) {
     let linked: string[] = [];
     if (onKiosk) {
-      linked = legacy || !outputs ? getChosenSpeakers() : outputs.filter(output => output.linked).map(o => o.id);
+      linked = legacy || !outputs ? getChosenSpeakers() : shownOutputs.filter(output => output.linked).map(o => o.id);
     }
     confirmed = tabletChoice(linked);
   } else if (playingDeviceId) confirmed = { family: 'connect', id: playingDeviceId };
@@ -312,7 +318,7 @@ export function useSpeakerSelection({
   return {
     connectDevices,
     sonosRooms,
-    outputs: outputs ?? [],
+    outputs: shownOutputs,
     confirmed,
     shown,
     dirty,

@@ -6,7 +6,7 @@ boot only: the first boot removes it from the card, and at its new home the Pi's
 app.
 
 Tested on a Raspberry Pi 4 Model B with a Waveshare 7-inch 1024x600 HDMI and USB touch screen. A Pi 5 should work the
-same; the playbook boots it with the 4 KB-page kernel (`kernel=kernel8.img`) for Widevine.
+same; the playbook boots it with the 4 KB-page kernel (`kernel=kernel8.img`), which Spotify Soloist has been run on.
 
 ## What you need
 
@@ -30,9 +30,8 @@ same; the playbook boots it with the 4 KB-page kernel (`kernel=kernel8.img`) for
    first-boot script ([`first-boot`](first-boot)) installs Ansible and runs the playbook from the latest GitHub release,
    the same run the Pi's update timer repeats later, and the Pi reboots. Expect 15 to 30 minutes. It tries again every
    minute until it has worked (`/var/log/cloud-init-output.log`).
-4. After the reboot the kiosk starts. On its first run Chromium downloads Widevine, the module Spotify needs, and the
-   kiosk restarts by itself once that is done (`kiosk-widevine.path`), a minute or two later. Test it: sign in to
-   Spotify, play something, try the speakers.
+4. After the reboot the kiosk starts. Test it: sign in to Spotify, save your Soloist key, play something, try the
+   speakers.
 
 ### The image
 
@@ -190,8 +189,6 @@ on disk (up to `kiosk_journal_max_use`, 64 MB), so logs from before a reboot are
 The `bootfs` partition holds `config.txt` and `cmdline.txt` (remove `quiet` and change `console=tty3` back to
 `tty1` to see boot messages).
 
-- **The player says "Failed to initialize player":** Widevine is missing or not loaded yet. Check that
-  `/home/kiosk/.config/chromium/WidevineCdm/` has a version folder, then `sudo systemctl restart kiosk`.
 - **Black screen, no panel or app:** check that `kiosk.service` started on tty7.
 - **The screen goes dark while music plays, or never goes dark:** the debug console's Screen row shows whether the app
   holds its wake lock, and `journalctl -u kiosk` shows `wlr-randr` errors from `kiosk-display`. Set
@@ -203,15 +200,13 @@ The `bootfs` partition holds `config.txt` and `cmdline.txt` (remove `quiet` and 
 ## Still to verify
 
 Checked on the first real Pi, with the setup then in a hand-copied `user-data`: the first boot with `network-config` on
-the card, the first pull and reboot, SSH, and Widevine after a restart. Still to check:
+the card, the first pull and reboot, and SSH. Still to check:
 
 1. The ready-made image: Imager offers it from its list, its settings apply (host name, `admin`, Wi-Fi), the first-boot
    script runs once and the Pi reboots when it has finished.
-2. `kiosk-widevine.path` restarts the kiosk by itself after the first Widevine download.
-3. After the first pull, the boot partition has no `network-config` or `user-data`, and the Pi still joins your Wi-Fi
+2. After the first pull, the boot partition has no `network-config` or `user-data`, and the Pi still joins your Wi-Fi
    after a reboot.
-4. On a Pi 5, Widevine plays with the 4 KB-page kernel (`getconf PAGESIZE` prints 4096).
-5. Screen sleep: the Waveshare turns its backlight off when `kiosk-display off` disables the output, Chromium's wake
+3. Screen sleep: the Waveshare turns its backlight off when `kiosk-display off` disables the output, Chromium's wake
    lock keeps it on while music plays, and the first touch brings it back at 1024x600.
-6. Spotify Soloist: once the kiosk is paired, the key arrives and the player starts, shows in the Spotify app, signs in when picked,
+4. Spotify Soloist: once a person has saved their key, the player starts for them, shows in the Spotify app, signs in when picked,
    plays, and is still paired after a reboot; a new build from `kiosk-soloist-update` takes over at the next kiosk start.

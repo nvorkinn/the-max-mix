@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { showDashboard } from './dashboard.ts';
 import { DEVICE_CONFIGS, fakeCountdownServer } from './fake-countdown.ts';
 import { airPlayOutput, fakeKioskOutputs, phoneSetupAnswer, wifiAnswer } from './fake-kiosk.ts';
-import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
+import { fakeSoloist } from './fake-soloist.ts';
 import { COLOURED_ART, fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSettings, showSection } from './settings.ts';
 import { openSpotifyTab } from './spotify-tab.ts';
@@ -229,13 +229,13 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
     });
 
     test(`speakers view with AirPlay volumes at ${size(screen)}`, { tag: '@speakers' }, async ({ page }) => {
-      await fakeSpotify(page);
+      const spotify = await fakeSpotify(page);
       await fakeKioskOutputs(page, [
         airPlayOutput('Kitchen', 40),
         airPlayOutput('Lounge', 20),
         airPlayOutput('Study', 30)
       ]);
-      await fakeSpotifySdk(page);
+      await fakeSoloist(page, spotify);
       await page.setViewportSize(screen);
       await openSpotifyTab(page);
       await page.getByRole('button', { name: /^Speakers:/ }).click();

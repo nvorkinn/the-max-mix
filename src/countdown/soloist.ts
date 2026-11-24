@@ -18,6 +18,13 @@ const SOLOIST_PERSON_MS = 10 * 60_000;
 /** What the service said Soloist is doing (pi/kiosk-audio/soloist.ts's SoloistState), or null when it did not answer. */
 type SoloistState = string | null;
 
+let lastState: SoloistState = null;
+
+/** What the service said Soloist was doing the last time it was told, or null before it answered. */
+export function lastSoloistState(): SoloistState {
+  return lastState;
+}
+
 async function postToKiosk(path: string, body?: unknown): Promise<Response> {
   return fetch(`${KIOSK_SERVICE}${path}`, {
     method: 'POST',
@@ -28,6 +35,12 @@ async function postToKiosk(path: string, body?: unknown): Promise<Response> {
 
 /** Tells the kiosk's service who Soloist plays for now; resolves with its state. */
 export async function tellSoloistPerson(client: Client | null = serverClient()): Promise<SoloistState> {
+  const state = await askSoloistPerson(client);
+  lastState = state;
+  return state;
+}
+
+async function askSoloistPerson(client: Client | null): Promise<SoloistState> {
   try {
     if (peopleOnKiosk().length === 0) {
       await postToKiosk('/soloist/stop');

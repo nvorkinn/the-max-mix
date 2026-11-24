@@ -9,9 +9,9 @@ export const PW_DUMP = '/usr/bin/pw-dump';
 export const PW_LINK = '/usr/bin/pw-link';
 // WirePlumber's control tool; it sets a node's volume on the same cubic scale it reports (and as volume sliders do).
 export const WPCTL = '/usr/bin/wpctl';
-// Chromium's audio reaches PipeWire through pipewire-pulse as an output stream named after the browser. Spotify Soloist
-// plays through its own stream (node.name "spotify"); only its client names the soloist binary.
-const PLAYER_NAMES = ['chromium', 'chrome', 'soloist'];
+// The kiosk's music is Spotify Soloist's: it plays through its own stream (node.name "spotify"), and only its client
+// names the soloist binary. The browser plays nothing since the app stopped using the Web Playback SDK.
+const PLAYER_NAMES = ['soloist'];
 
 interface CommandResult {
   code: number;
@@ -89,7 +89,7 @@ export interface Graph {
 
 const isSink = (node: Node): boolean => node.mediaClass === 'Audio/Sink';
 
-/** An output stream of the kiosk's browser (where the Web Playback SDK plays) or of Spotify Soloist. */
+/** An output stream of Spotify Soloist. */
 function isPlayer(node: Node): boolean {
   if (node.mediaClass !== 'Stream/Output/Audio') return false;
   const names = [node.props['application.process.binary'], node.props['application.name']];
@@ -250,8 +250,7 @@ function sinksFor(graph: Graph, choice: Choice): Node[] {
 }
 
 /**
- * The sinks the browser should play to: the chosen outputs that are there, or else the default output. The name is the
- * label Chromium gives the same output (through pipewire-pulse).
+ * The sinks the music should play to: the chosen outputs that are there, or else the default output.
  */
 function targetsOf(graph: Graph, choices: readonly Choice[]): Node[] {
   if (choices.length > 0) return [...new Set(choices.flatMap(choice => sinksFor(graph, choice)))];
@@ -259,7 +258,7 @@ function targetsOf(graph: Graph, choices: readonly Choice[]): Node[] {
   return fallback && isSink(fallback) ? [fallback] : [];
 }
 
-/** The ids of the sinks one of the browser's streams is linked to now: where its sound really goes. */
+/** The ids of the sinks one of Soloist's streams is linked to now: where its sound really goes. */
 export function linkedSinks(graph: Graph): Set<number> {
   const outputs = new Set(playersOf(graph).flatMap(player => portsOf(graph, player.id, 'out').map(port => port.id)));
   const portNode = new Map(graph.ports.map(port => [port.id, port.node]));
