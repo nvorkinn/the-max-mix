@@ -134,7 +134,7 @@ export function soloistTrack(item: unknown): Track | undefined {
 }
 
 /** The songs of a queue Soloist sent, as the app's tracks; null when one of them has not got its details yet. */
-export function soloistQueue(upcoming: readonly unknown[]): Track[] | null {
+function soloistQueue(upcoming: readonly unknown[]): Track[] | null {
   const tracks: Track[] = [];
   for (const entry of upcoming) {
     const track = soloistTrack(recordOf(entry)['item']);
