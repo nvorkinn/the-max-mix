@@ -2,8 +2,8 @@
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { chromiumPid, MAX_STALE_MS, STALE_MS, Watchdog } from './watchdog.ts';
+import { describe, expect, it, vi } from 'vitest';
+import { chromiumPid, MAX_STALE_MS, monotonicNow, STALE_MS, Watchdog } from './watchdog.ts';
 
 function setup() {
   const state = { now: 0, pid: 100 as number | null, stopped: [] as number[], logs: [] as string[] };
@@ -91,5 +91,19 @@ describe('chromiumPid', () => {
     expect(await chromiumPid(file)).toBe(process.pid);
     await writeFile(file, 'nonsense');
     expect(await chromiumPid(file)).toBeNull();
+  });
+});
+
+describe('monotonicNow', () => {
+  it('ignores the wall clock jumping, as it does when NTP first syncs on a Pi without a real-time clock', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-11-24T22:00:00Z'));
+      const before = monotonicNow();
+      vi.setSystemTime(new Date('2026-11-24T22:28:00Z'));
+      expect(monotonicNow() - before).toBeLessThan(STALE_MS);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

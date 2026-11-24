@@ -15,6 +15,7 @@ export interface HealthIO {
   isRunning: (name: string) => Promise<boolean>;
   /** Whether the Chromium kiosk-session started runs. */
   isChromiumRunning: () => Promise<boolean>;
+  /** A monotonic clock: the clock jumps when NTP first syncs, often inside the health window. */
   now: () => number;
   sleep: (ms: number) => Promise<void>;
 }

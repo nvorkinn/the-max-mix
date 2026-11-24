@@ -121,7 +121,7 @@ import { speakerOutputs, speakerSinks, validChoices, validVolume } from './speak
 import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
 import { runUpdate } from './update.ts';
-import { chromiumPid, CHECK_MS, stopChromium, Watchdog } from './watchdog.ts';
+import { chromiumPid, CHECK_MS, monotonicNow, stopChromium, Watchdog } from './watchdog.ts';
 
 const SPEAKERS_PORT = 7341;
 /** This service's own origin, which is the app's when the service serves it (kiosk_app_origin). */
@@ -250,7 +250,7 @@ export function journalLog(
   write: (line: string) => void = line => {
     console.error(line);
   },
-  now = () => Date.now()
+  now = monotonicNow
 ) {
   let windowStart = 0;
   let written = 0;
@@ -927,7 +927,7 @@ export function serveSpeakers(
   const runAnUpdate: Update = update ?? ((send, signal) => runUpdate(send, signal, installedUpdate));
   let lastBeat: number | null = null;
   const watchdog = new Watchdog({
-    now: () => Date.now(),
+    now: monotonicNow,
     chromiumPid: () => chromiumPid(),
     stop: pid => stopChromium(pid),
     log: message => {
@@ -943,7 +943,7 @@ export function serveSpeakers(
   };
   setInterval(() => void check(), CHECK_MS);
   const heartbeat = () => {
-    lastBeat = Date.now();
+    lastBeat = monotonicNow();
     watchdog.beat();
   };
   const bluetooth = new Bluetooth();
@@ -968,7 +968,7 @@ export function serveSpeakers(
     sonosCalls: sonos,
     sonosEvents: new SonosEventHub(libraryEvents),
     heartbeat,
-    heartbeatAge: () => (lastBeat === null ? null : Date.now() - lastBeat),
+    heartbeatAge: () => (lastBeat === null ? null : monotonicNow() - lastBeat),
     updates,
     log: journalLog(),
     app: appFiles(deps.appFolder),

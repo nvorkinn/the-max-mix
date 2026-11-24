@@ -7,7 +7,7 @@ import { waitForHealth } from './health.ts';
 import { updateIO } from './image-update-io.ts';
 import { afterBoot, giveUp, keep } from './image-update.ts';
 import { raucOverDbus } from './rauc.ts';
-import { chromiumPid } from './watchdog.ts';
+import { chromiumPid, monotonicNow } from './watchdog.ts';
 
 const AUDIO_HEALTH = 'http://127.0.0.1:7341/health';
 
@@ -45,7 +45,7 @@ try {
     audio,
     isRunning,
     isChromiumRunning: async () => (await chromiumPid()) !== null,
-    now: () => Date.now(),
+    now: monotonicNow,
     sleep: ms => sleep(ms)
   });
   if (wrong === null) await keep(io, boot);
