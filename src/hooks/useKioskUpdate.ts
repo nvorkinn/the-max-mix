@@ -127,9 +127,11 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
   const shown = (answer && parseVersion(answer.current)) ?? version;
   const release = Boolean(shown && isRelease(shown.ref));
   let latest: LatestVersion = { state: 'unknown' };
-  if (answer && answer.result !== 'unreachable')
+  if (answer && answer.result !== 'unreachable') {
     latest = { state: 'known', value: answer.latest ?? answer.current ?? '' };
-  else if (enabled && !answer && answered === -1) latest = { state: 'checking' };
+  } else if (enabled && !answer && answered === -1) {
+    latest = { state: 'checking' };
+  }
   const offered = answer?.result === 'available' ? parseVersion(answer.latest) : null;
   let newer: string | null = null;
   if (offered) newer = release ? `${offered.ref} is out` : `${offered.ref} is now ${offered.commit}`;
