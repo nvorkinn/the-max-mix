@@ -38,7 +38,7 @@ The Pi 5 booted slot A from it unchanged. The firmware reports the partition it 
 
 From stock Pi OS, an image must:
 
-- drop ` resize` from `cmdline.txt`: Pi OS's initramfs (`resize_early`, `set_partuuid`) would otherwise grow the root
+- drop `resize` from `cmdline.txt`: Pi OS's initramfs (`resize_early`, `set_partuuid`) would otherwise grow the root
   partition and rewrite the MBR disk ID;
 - say `ro` or `rw` on the kernel command line: with no root line in `/etc/fstab` nothing remounts root;
 - leave out `/var/swap` (1 GB in Pi OS's image).
