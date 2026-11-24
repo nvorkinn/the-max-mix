@@ -158,11 +158,16 @@ describe('SoloistPlayer', () => {
     expect(on.onReady).toHaveBeenCalledExactlyOnceWith('soloist-1');
   });
 
-  it('reports nothing while another device is the active one, and the playback once Soloist is', async () => {
+  it('reports the playback while another device is the active one, and once Soloist is', async () => {
     const { on, socket } = await ready(false);
-    expect(on.onState).toHaveBeenLastCalledWith(null);
+    expect(on.onState.mock.lastCall?.[0]).toMatchObject({
+      isActive: false,
+      paused: false,
+      track: { id: '342fawASzRGGLF1oFqfhtK', name: 'Henda mot himmelen' }
+    });
     socket.receive({ type: 'device_changed', is_active: true, device_name: RECORDED_DEVICE_NAME });
     expect(on.onState.mock.lastCall?.[0]).toMatchObject({
+      isActive: true,
       paused: false,
       duration: 205_049,
       shuffle: false,
@@ -184,11 +189,26 @@ describe('SoloistPlayer', () => {
     expect(on.onState).toHaveBeenLastCalledWith(expect.objectContaining({ shuffle: true, repeat: 'track' }));
     socket.receive({ type: 'options_changed', options: { repeat: 'sometimes' } });
     expect(defined(on.onState.mock.lastCall)[0]).not.toHaveProperty('repeat');
-    // The first report of a new song comes without its details.
-    socket.receive({ type: 'track_changed', item: { uri: 'spotify:track:5wlCtqYAIJDDwtytVWi8Ts' } });
-    expect(defined(on.onState.mock.lastCall)[0]).not.toHaveProperty('track');
+    // The first report of a new song comes without its details: only its id, until they arrive.
+    socket.receive({
+      type: 'track_changed',
+      item: { uri: 'spotify:track:5wlCtqYAIJDDwtytVWi8Ts', decorations: { playback: { duration_ms: 157_209 } } }
+    });
+    expect(defined(on.onState.mock.lastCall)[0]?.track).toEqual({
+      id: '5wlCtqYAIJDDwtytVWi8Ts',
+      uri: 'spotify:track:5wlCtqYAIJDDwtytVWi8Ts',
+      duration_ms: 157_209
+    });
+    socket.receive({ type: 'volume_changed', volume: 9 });
+    expect(on.onState).toHaveBeenLastCalledWith(expect.objectContaining({ volume: 9 }));
     socket.receive({ type: 'playback_state', status: 'idle', is_active: true, item: { uri: '' } });
-    expect(on.onState).toHaveBeenLastCalledWith({ paused: true, position: 0 });
+    expect(on.onState).toHaveBeenLastCalledWith({ isActive: true, paused: true, position: 0, volume: 9 });
+  });
+
+  it('reports nothing while another device is the active one and no song is known', async () => {
+    const { on, socket } = await ready(false);
+    socket.receive({ type: 'playback_state', status: 'idle', is_active: false, item: null });
+    expect(on.onState).toHaveBeenLastCalledWith(null);
   });
 
   describe('the queue', () => {

@@ -29,13 +29,13 @@ const KIOSK_DEVICE_NAME = 'The Max Mix Soloist';
 const DEVICE_CHECK_MS = 3000;
 // The same for shuffle and repeat: a tap shows its result at once and keeps it this long against reads that predate it.
 const EXPECTED_SETTING_MS = 5000;
-// While another device plays the kiosk's player reports nothing, so the state is read this often.
+// Without the kiosk's player (signed out, no Soloist key, an older Pi, remote mode) the state is read this often. While
+// it is signed in, its events carry every change, whichever device plays, and the state is read only to learn which
+// device took over from the kiosk (Soloist does not name it).
 const REMOTE_POLL_MS = 4000;
 // While the kiosk's screen sleeps nobody is watching, so the state is read this seldom: a sleeping tablet that kept
 // polling every 4 s used up Spotify's rate limit for everyone else on the account. Music started elsewhere wakes it late.
 const ASLEEP_POLL_MS = 45_000;
-// While the kiosk's player is the active device its events carry the changes; this is only a safety net.
-const PLAYER_POLL_MS = 30_000;
 // Soloist starts with the page (countdown/soloist.ts) and signs in; a player that has not come up by then is reported,
 // and keeps trying.
 const PLAYER_START_MS = 20_000;
@@ -128,7 +128,7 @@ export interface UseSpotifyPlayer {
   /** Starts a playlist, Liked Songs or a track: on the device that is playing, otherwise on the kiosk's player. */
   playMusic: (choice: MusicChoice) => Promise<boolean>;
   refreshPlayback: () => Promise<void>;
-  /** Reads playback seldom (instead of every 4 s) while another device plays and nobody is watching the screen. */
+  /** Reads playback seldom (instead of every 4 s), while it is read at all, when nobody is watching the screen. */
   setSlowPolling: (slow: boolean) => void;
   retryPlayback: () => Promise<boolean>;
   reconnectPlayer: () => void;
@@ -155,6 +155,35 @@ function withPlaying(state: PlaybackState, playing: boolean): PlaybackState {
     Object.entries(state.actions?.disallows ?? {}).filter(([action]) => action !== 'pausing' && action !== 'resuming')
   );
   return { ...state, is_playing: playing, actions: { ...state.actions, disallows } };
+}
+
+/**
+ * The device to show with a report from the kiosk's player, which names no other device: the kiosk while it is the
+ * active device, otherwise the one last known, unless that was the kiosk.
+ */
+function deviceFor(
+  state: NonNullable<KioskPlaybackState>,
+  kioskId: string | null,
+  known: SpotifyDevice | undefined
+): SpotifyDevice | undefined {
+  if (!kioskId) return known;
+  if (state.isActive) {
+    return {
+      id: kioskId,
+      name: KIOSK_DEVICE_NAME,
+      type: 'Speaker',
+      is_active: true,
+      ...(state.volume !== undefined && { volume_percent: state.volume })
+    };
+  }
+  return known?.id === kioskId ? undefined : known;
+}
+
+/** The device Spotify says plays, if any. */
+async function playingDevice(): Promise<SpotifyDevice | null> {
+  checkSpotifyRetryWindow();
+  const state = await spotify.getPlaybackState();
+  return state?.device ?? null;
 }
 
 export function useSpotifyPlayer(): UseSpotifyPlayer {
@@ -186,7 +215,6 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   const playPauseInFlightRef = useRef(false);
   // The kiosk's own player (Spotify Soloist on the Pi), while the page is in browser mode.
   const playerRef = useRef<SoloistPlayer | null>(null);
-  const lastTrackIdRef = useRef<string | null>(null);
   const deviceIdRef = useRef<string | null>(null);
 
   const problemForApi = useCallback((error: unknown) => {
@@ -316,25 +344,23 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     }
   };
 
-  // Reads playback from Spotify: at once, then every 4 s while another device plays, and only as a slow safety
-  // net while the kiosk's player is active and tells us about every change itself.
-  // Not while Spotify says another device plays (another device took over, or the kiosk's player has not yet): the
-  // events then cannot be trusted to carry the changes, so the state is read every few seconds until it agrees.
   const readDeviceId = snapshot.state?.device?.id;
   const playerDriven =
     playerActive && !remoteSelected && (!readDeviceId || !browserDeviceId || readDeviceId === browserDeviceId);
+  // The kiosk's player is signed in and listed: its events carry the playback, whichever device plays.
+  const soloistReady = browserDeviceId !== null;
+  // Reads playback from Spotify, at once and then every 4 s, until the kiosk's player is ready; from then on its events
+  // carry every change and nothing is read.
   useEffect(() => {
     // Once Spotify's quota is used up nothing reads it again until the app is restarted.
-    if (!isAuthenticated || quotaExceeded) return;
+    if (!isAuthenticated || quotaExceeded || soloistReady) return;
     let cancelled = false;
     // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
     const isCancelled = () => cancelled;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let failures = 0;
     const poll = async () => {
-      let base = REMOTE_POLL_MS;
-      if (playerDriven) base = PLAYER_POLL_MS;
-      else if (slowPolling) base = ASLEEP_POLL_MS;
+      const base = slowPolling ? ASLEEP_POLL_MS : REMOTE_POLL_MS;
       let delay = base;
       try {
         await refreshPlayback();
@@ -353,14 +379,16 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     void poll();
     return () => {
       cancelled = true;
-      invalidatePlayback();
+      // Reading stops because the kiosk's player is ready: a read still on its way is the last word from Spotify, and
+      // is kept.
+      if (!deviceIdRef.current) invalidatePlayback();
       clearTimeout(timer);
     };
   }, [
     isAuthenticated,
     quotaExceeded,
     pollEnabled,
-    playerDriven,
+    soloistReady,
     slowPolling,
     refreshPlayback,
     invalidatePlayback,
@@ -373,7 +401,8 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     if (!isAuthenticated || quotaExceeded) return;
     const wake = () => {
       if (document.visibilityState === 'hidden') return;
-      refreshPlayback().catch(() => {});
+      // The kiosk's player, once ready, brings the playback with its state; Spotify is read only without it.
+      if (!deviceIdRef.current) refreshPlayback().catch(() => {});
       bumpQueue();
       playerRef.current?.refresh();
     };
@@ -387,35 +416,57 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     };
   }, [isAuthenticated, quotaExceeded, refreshPlayback, bumpQueue]);
 
-  // The kiosk's own player: Spotify Soloist, which the Pi's service runs for the active person. Its events show every
-  // change at once, which the Web API's state endpoint only does a second or so later.
+  // The kiosk's own player: Spotify Soloist, which the Pi's service runs for the active person. While it is signed in it
+  // reports the account's playback, whichever device plays, the moment it changes.
   useEffect(() => {
     if (!isAuthenticated || playbackMode !== 'browser') return;
-    const applyPlayerState = (state: KioskPlaybackState) => {
-      setPlayerActive(Boolean(state));
-      if (!state) {
-        // Another device plays (or none): its queue comes from the Web API, and Soloist's list is stale by the time it
-        // is the active device again.
-        setPlayerQueue(null);
-        return;
+    // Whether the ready player last said it is the active device; null until it said either.
+    let wasActive: boolean | null = null;
+    // Soloist never names the device that plays, so once another one takes over, Spotify is asked which (and its
+    // volume): once, and once more if that fails.
+    const readPlayingDevice = async () => {
+      let device: SpotifyDevice | null;
+      try {
+        device = await playingDevice();
+      } catch {
+        device = await playingDevice().catch(() => null);
       }
+      // Not once the kiosk took over again meanwhile, nor while Spotify still names the kiosk.
+      if (wasActive !== false || !device || device.id === deviceIdRef.current) return;
+      setPlayback(current => current && { ...current, device });
+    };
+    const applyPlayerState = (state: KioskPlaybackState) => {
+      const isActive = Boolean(state?.isActive);
+      if (deviceIdRef.current) {
+        if (!isActive && wasActive !== false) void readPlayingDevice();
+        wasActive = isActive;
+      }
+      setPlayerActive(isActive);
+      // While another device plays (or none) the queue comes from the Web API, and Soloist's list is stale by the time
+      // it is the active device again.
+      if (!state?.isActive) setPlayerQueue(null);
+      if (!state) return;
       holdPlaying(!state.paused);
       const { track } = state;
-      setPlayback(current => ({
-        ...withPlaying(current ?? {}, !state.paused),
-        progress_ms: state.position,
-        ...(state.duration !== undefined && { duration: state.duration }),
-        ...(state.shuffle !== undefined && { shuffle_state: heldShuffle(state.shuffle) }),
-        ...(state.repeat && { repeat_state: heldRepeat(state.repeat) }),
-        // The Web API's track has more detail than the player's, so it is only replaced when the track changed.
-        ...(track && current?.item?.id !== track.id && { item: track })
-      }));
-      const trackId = track?.id ?? null;
-      if (trackId !== lastTrackIdRef.current) {
-        lastTrackIdRef.current = trackId;
-        // The device and the rest of the details come from the Web API; read them now, not at the next safety poll.
-        refreshPlayback().catch(() => {});
-      }
+      const kioskId = deviceIdRef.current;
+      setPlayback(current => {
+        const { device, ...rest } = withPlaying(current ?? {}, !state.paused);
+        const shown = deviceFor(state, kioskId, device);
+        return {
+          ...rest,
+          ...(shown && { device: shown }),
+          progress_ms: state.position,
+          ...(state.duration !== undefined && { duration: state.duration }),
+          ...(state.shuffle !== undefined && { shuffle_state: heldShuffle(state.shuffle) }),
+          ...(state.repeat && { repeat_state: heldRepeat(state.repeat) }),
+          // A new song shows at once, without its name until that arrives; a song reported again without its details
+          // keeps those already shown.
+          ...(track &&
+            (current?.item?.id !== track.id || (current?.item?.name === undefined && track.name !== undefined)) && {
+              item: track
+            })
+        };
+      });
     };
 
     let signInTimer: ReturnType<typeof setTimeout> | undefined;
@@ -434,12 +485,14 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         deviceIdRef.current = deviceId;
         setBrowserDeviceId(deviceId);
         setPlayerError(null);
-        refreshPlayback().catch(() => {});
+        // Its state came before its id was known: asked for again, it can show the kiosk as the device.
+        playerRef.current?.refresh();
         bumpQueue();
       },
       onNotReady: () => {
         debugLog('warn', 'soloist', 'Kiosk player went offline');
         deviceIdRef.current = null;
+        wasActive = null;
         setBrowserDeviceId(null);
         setPlayerError({
           message: 'The tablet player disconnected. Check the connection or select another speaker.',
@@ -476,22 +529,11 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       player.disconnect();
       playerRef.current = null;
       deviceIdRef.current = null;
-      lastTrackIdRef.current = null;
       setPlayerActive(false);
       setPlayerQueue(null);
       setBrowserDeviceId(null);
     };
-  }, [
-    isAuthenticated,
-    playbackMode,
-    holdPlaying,
-    refreshPlayback,
-    setPlayback,
-    bumpQueue,
-    heldShuffle,
-    heldRepeat,
-    connectionVersion
-  ]);
+  }, [isAuthenticated, playbackMode, holdPlaying, setPlayback, bumpQueue, heldShuffle, heldRepeat, connectionVersion]);
 
   const runCommand = useCallback(
     async (command: () => Promise<unknown>) => {
@@ -761,7 +803,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     browserDeviceId,
     isAuthenticated,
     playbackMode,
-    isLoading: isAuthenticated && !loaded,
+    isLoading: isAuthenticated && !loaded && !soloistReady,
     isConnecting,
     isReady: Boolean(playbackState?.device),
     isPlayerActive: playerDriven,
