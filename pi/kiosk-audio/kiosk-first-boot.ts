@@ -249,8 +249,8 @@ export async function importImager(
  * The name a Pi with no name of its own gets: the-max-mix-<the last 4 hex digits of its serial number>, or plain
  * the-max-mix when the serial number cannot be read.
  */
-export function defaultHostname(serial: string | undefined): string {
-  const digits = (serial ?? '').replaceAll('\0', '').trim().toLowerCase();
+export function defaultHostname(serial = ''): string {
+  const digits = serial.replaceAll('\0', '').trim().toLowerCase();
   return /^[0-9a-f]{4,}$/.test(digits) ? `${HOSTNAME_PREFIX}-${digits.slice(-4)}` : HOSTNAME_PREFIX;
 }
 
