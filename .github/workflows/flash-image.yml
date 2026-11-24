@@ -58,6 +58,8 @@ jobs:
       - name: Build the card
         run: |
           mkdir -p "$RUNNER_TEMP/out"
+          # RAUC, run as root, refuses a bundle another user could change while it is read ("unsafe bundle uid").
+          sudo chown root:root "$RUNNER_TEMP/the-max-mix.raucb"
           sudo env IMAGE_URL="https://github.com/$GH_REPO/releases/download/$TAG/the-max-mix.img.zst" \
             image/build.sh card "$RUNNER_TEMP/the-max-mix.raucb" "$RUNNER_TEMP/out"
           jq -r '.os_list[0].description' "$RUNNER_TEMP/out/the-max-mix.rpi-imager-manifest" > "$RUNNER_TEMP/out/description.txt"
