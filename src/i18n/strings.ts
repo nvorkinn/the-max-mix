@@ -425,6 +425,7 @@ export const STRINGS = {
   'speakers.volumes': { en: 'Volumes', nb: 'Volum' },
   'speakers.looking': { en: 'Looking for speakers…', nb: 'Ser etter høyttalere …' },
   'speakers.find': { en: 'Find speakers', nb: 'Finn høyttalere' },
+  'speakers.refresh': { en: 'Refresh speakers', nb: 'Oppdater høyttalerne' },
 
   // The music picker.
   'music.close': { en: 'Close music', nb: 'Lukk musikkvelgeren' },

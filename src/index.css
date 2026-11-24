@@ -620,6 +620,7 @@
 .speaker-tabs-row {
   flex-shrink: 0;
   display: flex;
+  justify-content: flex-end;
   gap: 8px;
 }
 .speaker-tabs {
@@ -673,6 +674,9 @@
 .speaker-volumes-button[aria-pressed='true'] {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   color: var(--ink);
+}
+.speaker-refresh-button:disabled {
+  opacity: 0.6;
 }
 .speaker-error {
   flex-shrink: 0;
