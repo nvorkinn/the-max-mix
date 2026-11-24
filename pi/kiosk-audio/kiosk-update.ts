@@ -24,11 +24,14 @@ async function postInstall(): Promise<void> {
   const mountPoint = await mkdtemp('/run/kiosk-update-boot-');
   await runProgram(['/usr/bin/mount', device, mountPoint]);
   try {
+    // An empty --mode is the screen's own (EDID) mode; screen-mode.ts rewrites only the video= words.
     await runProgram([
       process.execPath,
-      path.join(import.meta.dirname, 'screen-setup.ts'),
-      `--cmdline=${path.join(mountPoint, 'cmdline.txt')}`,
-      ...(videoMode ? [`--video-mode=${videoMode}`] : [])
+      path.join(import.meta.dirname, 'screen-mode.ts'),
+      '--cmdline',
+      path.join(mountPoint, 'cmdline.txt'),
+      '--mode',
+      videoMode ?? ''
     ]);
   } catch (error) {
     // Most screens start without it; the kiosk's own start sets the mode again.
