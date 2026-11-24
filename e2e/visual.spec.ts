@@ -8,8 +8,10 @@ import { openSettings, showSection } from './settings.ts';
 import { openSpotifyTab } from './spotify-tab.ts';
 
 // Layout bugs such as an overlapping or gapped sticky modal header are invisible to the DOM assertions elsewhere, so
-// these tests compare screenshots. Baselines are rendered by Chrome on ubuntu-latest, the only place they are
+// these tests compare screenshots. Baselines are rendered by Playwright's WebKit on ubuntu-latest, the only place they are
 // reliable, so the tests run in CI or when E2E_VISUAL is set (and the baselines then come from a matching machine).
+// Playwright's WebKit on Linux draws no backdrop-filter (it has no GPU compositing), so the baselines show the panels
+// unblurred; whether the blur draws on the Pi's WebKitGTK is checked there.
 test.skip(!process.env['CI'] && !process.env['E2E_VISUAL'], 'Screenshots are only stable on the CI browser.');
 
 const SHOT = { animations: 'disabled', maxDiffPixelRatio: 0.002 } as const;

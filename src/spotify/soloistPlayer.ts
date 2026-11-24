@@ -1,8 +1,9 @@
 // The kiosk's own Spotify player: Spotify Soloist, the headless Spotify Connect player that the Pi's service runs for the
 // active person (pi/kiosk-audio/soloist.ts). The page reaches it through the service's WebSocket at /soloist
 // (pi/kiosk-audio/soloist-socket.ts), which passes Soloist's events on, only Soloist's commands back, and says with
-// {"type": "bridge"} whether Soloist is there at all. Soloist's commands act on the Spotify account's active device,
-// whichever that is, so the control commands here are only sent while Soloist itself is the active device: otherwise a
+// {"type": "bridge"} whether Soloist is there at all. While it is signed in, Soloist follows the account's playback
+// whichever device plays and pushes every change as it happens; the app takes playback from these events alone.
+// Soloist's commands act on the Spotify account's active device, whichever that is, so the control commands here are only sent while Soloist itself is the active device: otherwise a
 // pause from the kiosk would stop the person's phone. They are refused rather than sent after an `activate`, which would
 // take playback away from the phone; the app sends those through the Web API to the active device instead.
 
@@ -44,14 +45,21 @@ const PUSHED_QUEUE_MAX = 10;
 const COVER_SIZES = ['xlarge', 'large', 'default', 'small'];
 const REPEAT_MODES = new Set<unknown>(['off', 'context', 'track']);
 
-/** What the kiosk's player reports; null while it is not the account's active device. */
+/**
+ * The account's playback as the kiosk's player reports it, whichever device plays; null while it is not signed in, or
+ * while another device is the active one and no song is known yet.
+ */
 export type KioskPlaybackState = {
+  /** Whether Soloist itself is the active device. */
+  isActive: boolean;
   paused: boolean;
   position: number;
   duration?: number;
   shuffle?: boolean;
   repeat?: RepeatMode;
-  /** Missing while the song's details have not arrived yet. */
+  /** Soloist's own volume, in percent: not that of another device that plays. */
+  volume?: number;
+  /** The song; only its id, uri and duration while its name and the rest have not arrived yet. */
   track?: Track;
 } | null;
 
@@ -131,6 +139,20 @@ export function soloistTrack(item: unknown): Track | undefined {
   const duration = finite(recordOf(decorations['playback'])['duration_ms']);
   if (duration !== undefined) track.duration_ms = duration;
   return track;
+}
+
+/** The song Soloist named, with its details once they arrived, or only its id while they have not. */
+function nowPlaying(item: unknown): Track | undefined {
+  const uri = text(recordOf(item)['uri']);
+  if (!uri) return undefined;
+  const duration = finite(recordOf(decorationsOf(item)['playback'])['duration_ms']);
+  return (
+    soloistTrack(item) ?? {
+      id: uri.split(':').at(-1) ?? uri,
+      uri,
+      ...(duration !== undefined && { duration_ms: duration })
+    }
+  );
 }
 
 /** The songs of a queue Soloist sent, as the app's tracks; null when one of them has not got its details yet. */
@@ -378,19 +400,21 @@ export class SoloistPlayer {
   }
 
   #state(): KioskPlaybackState {
-    if (!this.#isActive) return null;
+    const track = nowPlaying(this.#item);
+    if (!this.#isLoggedIn || (!track && !this.#isActive)) return null;
     const position = this.#position;
     const elapsed = position && position.speed > 0 ? (Date.now() - position.timestamp_ms) * position.speed : 0;
-    const track = soloistTrack(this.#item);
     const shuffle = this.#options['shuffle'];
     const repeat = this.#options['repeat'];
     return {
+      isActive: this.#isActive,
       paused: !isGoing(this.#status),
       position: Math.max(0, (position?.position_ms ?? 0) + elapsed),
       ...(track && { track }),
       ...(track?.duration_ms !== undefined && { duration: track.duration_ms }),
       ...(typeof shuffle === 'boolean' && { shuffle }),
-      ...(REPEAT_MODES.has(repeat) && { repeat: repeat as RepeatMode })
+      ...(REPEAT_MODES.has(repeat) && { repeat: repeat as RepeatMode }),
+      ...(this.#volume !== null && { volume: this.#volume })
     };
   }
 
@@ -458,6 +482,7 @@ export class SoloistPlayer {
       }
       case 'volume_changed': {
         this.#setVolume(message['volume']);
+        this.#handlers.onState(this.#state());
         return;
       }
       case 'queue_changed': {
@@ -480,6 +505,11 @@ export class SoloistPlayer {
     if (!wasActive && this.#isActive && this.#isLoggedIn) this.#askQueue();
     this.#applyVolumeOnStart();
     this.#handlers.onState(this.#state());
+  }
+
+  /** The name Soloist goes by in Spotify Connect, as it reported it (kiosk-audio picks one per kiosk), or null before. */
+  get deviceName(): string | null {
+    return this.#deviceName;
   }
 
   /** Whether Soloist is the account's active device, which is when its commands reach it. */

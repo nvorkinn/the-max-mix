@@ -13,8 +13,7 @@ kiosk_groups: [audio, bluetooth, input, netdev, render, systemd-journal, video]
 # The origin of the app the kiosk opens and the address it opens (?kiosk=1 turns on the app's kiosk-only settings,
 # ?pi_ref=&pi_commit= name the release (or other ref) and commit this playbook ran from, which the app's settings show).
 # The kiosk-audio service serves the app the release installed (kiosk_app_dir) on 127.0.0.1:7341, so it starts with no
-# internet. Register the redirect URI of this address in the Spotify dashboard, and list the origin in countdown-server's
-# TOUCHSCREEN_RETURN_ORIGINS.
+# internet. List the origin in countdown-server's TOUCHSCREEN_RETURN_ORIGINS.
 kiosk_app_origin: http://127.0.0.1:7341
 kiosk_url: >-
   {{ kiosk_app_origin }}/?kiosk=1
@@ -47,6 +46,11 @@ kiosk_version: >-
 # The name /etc/hosts gives 127.0.1.1: the Pi's own host name, which cloud-init set from the host name chosen in
 # Raspberry Pi Imager, so a second kiosk (the-max-mix-2) resolves its own name. The playbook never changes the host name itself.
 kiosk_hostname: "{{ lookup('ansible.builtin.file', '/proc/sys/kernel/hostname') | trim }}"
+# The kiosk's own name, which Spotify Soloist goes by in Spotify Connect (pi/kiosk-audio/soloist.ts), such as Kitchen in
+# /etc/the-max-mix/kiosk-vars.yml. Empty (the default) names it after the host name: the-max-mix-4 is The Max Mix 4.
+# Every kiosk on one Spotify account needs a name of its own. A new name takes effect when kiosk-audio restarts, and
+# people may then need to pick the kiosk in Spotify on their phone again.
+kiosk_name: ''
 kiosk_locale: en_GB.UTF-8
 kiosk_timezone: Europe/London
 kiosk_wifi_country: GB

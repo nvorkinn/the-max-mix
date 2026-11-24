@@ -1,7 +1,7 @@
 ---
 galaxy_info:
   author: nvorkinn
-  description: THE MAX MIX kiosk (Cage, Chromium and the local kiosk service) on Raspberry Pi OS Lite
+  description: THE MAX MIX kiosk (Cage, the kiosk shell and the local kiosk service) on Raspberry Pi OS Lite
   license: MIT
   min_ansible_version: '2.16'
   platforms:

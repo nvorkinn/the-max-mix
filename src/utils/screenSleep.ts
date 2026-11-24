@@ -1,5 +1,5 @@
 // The kiosk's screen sleep. The app decides when the screen may sleep: never while music plays, otherwise after a few
-// idle minutes. While it must stay on, the app holds a screen wake lock, which Chromium passes to Cage as an idle
+// idle minutes. While it must stay on, the app holds a screen wake lock, which the browser passes to Cage as an idle
 // inhibitor. Once the app lets go and shows its black sleep screen, the Pi's swayidle turns the output off, and the
 // first touch turns it back on (ansible/roles/kiosk/files/bin/kiosk-display). Storage can be unavailable: every access
 // tolerates that.

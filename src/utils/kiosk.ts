@@ -53,29 +53,7 @@ export function isKiosk(): boolean {
   return flag === '1' || (flag !== '0' && read(KIOSK_KEY));
 }
 
-// How long a sign-out waits for the kiosk to clear the other sites.
-const FORGET_TIMEOUT_MS = 5000;
-
-/**
- * On the kiosk, asks its service to clear what every other site keeps in its browser, Spotify's own sign-in among them
- * (pi/kiosk-audio/browser-data.ts), so the next "Log in with Spotify" asks for a password again. Resolves when that is
- * done, or failed, or after a few seconds; at once anywhere else, where the browser and its sign-ins belong to the
- * person using it.
- */
-export async function forgetSignIns(): Promise<void> {
-  if (!isKiosk()) return;
-  try {
-    const response = await fetch(`${KIOSK_SERVICE}/browser/forget-sign-ins`, {
-      method: 'POST',
-      signal: AbortSignal.timeout(FORGET_TIMEOUT_MS)
-    });
-    if (!response.ok) console.warn(`The kiosk could not clear the other sites' sign-ins (${response.status})`);
-  } catch (error) {
-    console.warn("The kiosk did not clear the other sites' sign-ins", error);
-  }
-}
-
-/** Asks the kiosk to restart the kiosk (Cage and Chromium), which applies an update that waits for a restart. */
+/** Asks the kiosk to restart the kiosk (Cage and the kiosk shell), which applies an update that waits for a restart. */
 export function restartKiosk(): void {
   kioskPost('/power/restart');
 }

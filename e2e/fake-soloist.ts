@@ -4,10 +4,13 @@ import { KIOSK_SERVICE } from '../src/utils/kioskService.ts';
 
 const SOLOIST_SOCKET = `${KIOSK_SERVICE.replace(/^http/, 'ws')}/soloist`;
 
-/** Spotify Soloist as Spotify lists it, under the name the Pi's service gives it (pi/kiosk-audio/soloist.ts). */
+/**
+ * Spotify Soloist as Spotify lists it, under the name the Pi's service gives it, from the kiosk's name or its host name
+ * (pi/kiosk-audio/soloist.ts): the-max-mix-1's.
+ */
 const SOLOIST_DEVICE: SpotifyDevice = {
   id: 'soloist-device',
-  name: 'The Max Mix Soloist',
+  name: 'The Max Mix 1',
   type: 'Speaker',
   is_active: false,
   is_restricted: false,

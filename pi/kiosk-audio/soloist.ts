@@ -11,7 +11,9 @@ import path from 'node:path';
 
 // An absolute path, so nothing on PATH can stand in for it. kiosk-soloist-update installs it.
 const SOLOIST = '/usr/local/bin/soloist';
-const DEVICE_NAME = 'The Max Mix Soloist';
+// What every kiosk's name starts with, unless it was given one of its own.
+const NAME_PREFIX = 'The Max Mix';
+const MAX_NAME = 64;
 const CACHE_MB = '200';
 // Its WebSocket API, which soloist-socket.ts joins to the app.
 const SOLOIST_WS = '127.0.0.1:7342';
@@ -22,6 +24,28 @@ const EXPIRED_RETRY_MS = 60 * 60_000;
 const STOP_MS = 5000;
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_TEXT = 512;
+
+/**
+ * The name Soloist goes by in Spotify Connect, which must differ between kiosks on one account: the app finds its own
+ * Soloist in Spotify's device list by it, and people pick it on their phone by it. A configured name (kiosk_name in
+ * /etc/the-max-mix/kiosk-vars.yml, KIOSK_NAME to this service) comes first; otherwise the host name says which kiosk
+ * it is: the-max-mix-4 is "The Max Mix 4", and any other host name is put in brackets after "The Max Mix".
+ */
+export function soloistDeviceName(configured: string | undefined, host: string): string {
+  // Without control characters, and short enough for a phone's device list.
+  const clean = (value: string) =>
+    value
+      .replaceAll(/\p{Cc}/gu, '')
+      .trim()
+      .slice(0, MAX_NAME)
+      .trim();
+  const name = clean(configured ?? '');
+  if (name) return name;
+  const hostName = clean(host).toLowerCase();
+  if (!hostName || hostName === 'the-max-mix') return NAME_PREFIX;
+  const suffix = /^the-max-mix-([\da-z-]+)$/.exec(hostName)?.[1];
+  return suffix ? `${NAME_PREFIX} ${suffix}` : `${NAME_PREFIX} (${hostName})`.slice(0, MAX_NAME);
+}
 
 /** Who Soloist plays for, and how to ask countdown-server for their key. */
 export interface SoloistRequest {
@@ -102,6 +126,8 @@ export type SoloistState =
 interface SoloistOptions {
   /** The folder that holds a data folder per person. */
   stateDir: string;
+  /** The name it goes by in Spotify Connect (soloistDeviceName). */
+  deviceName: string;
   fetchKey?: FetchKey;
   spawn?: Spawn;
   restartMs?: number;
@@ -114,6 +140,7 @@ const isSameRequest = (a: SoloistRequest | null, b: SoloistRequest) =>
 /** Runs one Soloist at a time, for the person last asked for, and starts it again when it stops. */
 export class SoloistPlayer {
   readonly #stateDir: string;
+  readonly #deviceName: string;
   readonly #fetchKey: FetchKey;
   readonly #spawn: Spawn;
   readonly #restartMs: number;
@@ -127,6 +154,7 @@ export class SoloistPlayer {
 
   constructor(options: SoloistOptions) {
     this.#stateDir = options.stateDir;
+    this.#deviceName = options.deviceName;
     this.#fetchKey = options.fetchKey ?? fetchSoloistKey;
     this.#spawn = options.spawn ?? spawnSoloist;
     this.#restartMs = options.restartMs ?? RESTART_MS;
@@ -162,7 +190,7 @@ export class SoloistPlayer {
     if (generation !== this.#generation) return this.#state;
     const child = this.#spawn([
       '--device-name',
-      DEVICE_NAME,
+      this.#deviceName,
       '--cache-size',
       CACHE_MB,
       '--ws',

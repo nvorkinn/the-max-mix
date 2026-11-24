@@ -13,6 +13,7 @@ import {
 import { resetSpotifyMocks } from '../test/spotifyMocks';
 import { recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import * as soloist from '../countdown/soloist';
+import { soloistTrack } from '../spotify/soloistPlayer';
 import { useSpotifyPlayer } from './useSpotifyPlayer';
 
 const mocks = await vi.hoisted(async () => {
@@ -64,9 +65,11 @@ function joinSoloist(isActive: boolean) {
   return socket;
 }
 
-/** The hook with the kiosk's player ready as `soloist-1`, active or not. */
+/** The hook with the kiosk's player ready as `soloist-1`, active or not, after Spotify's first answer came. */
 async function ready(isActive = false) {
   const hook = renderHook(() => useSpotifyPlayer());
+  await waitFor(() => expect(playbackCalls()).toBe(1));
+  await act(async () => {});
   const socket = joinSoloist(isActive);
   await waitFor(() => expect(hook.result.current.browserDeviceId).toBe('soloist-1'));
   return { ...hook, socket };
@@ -183,11 +186,12 @@ describe('useSpotifyPlayer with the kiosk player', () => {
     const socket = joinSoloist(false);
     await advance(0);
     act(() => {
-      socket.receive({ ...authState(false), logged_in: false });
+      socket.receive({ ...authState(false, 'The Max Mix 4'), logged_in: false });
     });
     await advance(30_000);
-    expect(result.current.error).toBe('To sign the kiosk in, pick The Max Mix Soloist in Spotify on your phone.');
-    expect(result.current.problem?.recovery).toBe('pick-on-phone');
+    // The name Soloist reported, which kiosk-audio picks for each kiosk.
+    expect(result.current.error).toBe('To sign the kiosk in, pick The Max Mix 4 in Spotify on your phone.');
+    expect(result.current.problem).toMatchObject({ recovery: 'pick-on-phone', device: 'The Max Mix 4' });
     act(() => {
       socket.receive(authState(false));
     });
@@ -265,18 +269,17 @@ describe('useSpotifyPlayer is driven by the kiosk player', () => {
     expect(result.current.playbackState).toMatchObject({ shuffle_state: false, repeat_state: 'context' });
   });
 
-  it('reads playback when the song changes, not on every event', async () => {
+  it('does not read playback from Spotify on its events', async () => {
     const { socket } = await ready(true);
     await act(async () => {});
     const before = playbackCalls();
+    const [next] = recordedQueue()['upcoming'] as { item: unknown }[];
     act(() => {
       socket.receive({ type: 'position_sync', position: { position_ms: 9000, timestamp_ms: Date.now(), speed: 1 } });
+      socket.receive({ type: 'track_changed', item: next?.item });
     });
     await act(async () => {});
     expect(playbackCalls()).toBe(before);
-    const [next] = recordedQueue()['upcoming'] as { item: unknown }[];
-    act(() => socket.receive({ type: 'track_changed', item: next?.item }));
-    await waitFor(() => expect(playbackCalls()).toBeGreaterThan(before));
   });
 
   it('takes the whole queue from Soloist while it is the active device, without reading the Web API', async () => {
@@ -312,24 +315,127 @@ describe('useSpotifyPlayer is driven by the kiosk player', () => {
     expect(result.current.queueVersion).toBe(first + 2);
   });
 
-  it('reads playback only as a safety net while the kiosk player is active', async () => {
-    await readyWithFakeTimers(true);
-    await advance(100);
+  it('reads playback from Spotify every 4 seconds until Soloist is signed in, then not at all', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await advance(0);
+    const socket = latestFakeSocket();
+    answerAsSoloist(socket, true);
+    act(() => {
+      socket.open();
+      socket.receive({ type: 'bridge', connected: true });
+      socket.receive({ ...authState(true), logged_in: false });
+    });
+    await advance(8000);
+    expect(playbackCalls()).toBe(3);
+    act(() => socket.receive(authState(true)));
+    await advance(0);
+    expect(result.current.browserDeviceId).toBe('soloist-1');
     const settled = playbackCalls();
-    await advance(25_000);
+    await advance(120_000);
     expect(playbackCalls()).toBe(settled);
-    await advance(6000);
-    expect(playbackCalls()).toBeGreaterThan(settled);
   });
 
-  it('reads every 4 seconds again once another device takes over', async () => {
+  it('reads nothing while another device plays, apart from asking once which device took over', async () => {
     const { result, socket } = await readyWithFakeTimers(true);
-    act(() => socket.receive({ type: 'device_changed', is_active: false, device_name: RECORDED_DEVICE_NAME }));
-    expect(result.current.isPlayerActive).toBe(false);
     await advance(100);
-    const calls = playbackCalls();
-    await advance(8000);
-    expect(playbackCalls() - calls).toBeGreaterThanOrEqual(2);
+    const before = playbackCalls();
+    mocks.api.getPlaybackState.mockResolvedValue({
+      ...webState('phone'),
+      device: { id: 'phone', name: 'Phone', volume_percent: 70 }
+    });
+    act(() => socket.receive({ type: 'device_changed', is_active: false, device_name: RECORDED_DEVICE_NAME }));
+    await advance(0);
+    expect(result.current.isPlayerActive).toBe(false);
+    expect(playbackCalls()).toBe(before + 1);
+    expect(result.current.playbackState?.device).toMatchObject({ id: 'phone', name: 'Phone', volume_percent: 70 });
+    act(() => socket.receive(recordedNow(false)));
+    await advance(120_000);
+    expect(playbackCalls()).toBe(before + 1);
+  });
+
+  it('asks once more when Spotify fails to say which device took over, and no more', async () => {
+    const { result, socket } = await readyWithFakeTimers(true);
+    await advance(100);
+    const before = playbackCalls();
+    mocks.api.getPlaybackState.mockRejectedValue(new Error('blip'));
+    act(() => socket.receive({ type: 'device_changed', is_active: false, device_name: RECORDED_DEVICE_NAME }));
+    await advance(60_000);
+    expect(playbackCalls()).toBe(before + 2);
+    expect(result.current.problem).toBeNull();
+  });
+
+  it('asks which device plays once Soloist is ready while another device is active', async () => {
+    // Spotify's first answer, on loading, came before anything played.
+    mocks.api.getPlaybackState.mockResolvedValueOnce(null).mockResolvedValue(webState('phone'));
+    const { result } = await readyWithFakeTimers(false);
+    await advance(0);
+    expect(playbackCalls()).toBe(2);
+    expect(result.current.playbackState?.device?.id).toBe('phone');
+    expect(result.current.playbackState?.item?.name).toBe('Henda mot himmelen');
+  });
+});
+
+describe('useSpotifyPlayer follows another device from the kiosk player', () => {
+  const position = (ms: number, speed: number) => ({
+    type: 'position_sync',
+    position: { position_ms: ms, timestamp_ms: Date.now(), speed }
+  });
+
+  it('follows a skip, a pause and resume, and a seek on the phone, without reading Spotify', async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(webState('phone'));
+    const { result, socket } = await ready(false);
+    await waitFor(() => expect(result.current.playbackState?.device?.id).toBe('phone'));
+    const before = playbackCalls();
+    expect(result.current.isPlayerActive).toBe(false);
+    expect(result.current.playbackState?.item?.name).toBe('Henda mot himmelen');
+
+    // A skip: the new song comes first without its name, then the rest.
+    const next = recordedSongs().find(
+      song => song['item'] && (song['item'] as { uri: string }).uri !== result.current.playbackState?.item?.uri
+    ) as { item: { uri: string } } | undefined;
+    const nextName = soloistTrack(next?.item)?.name;
+    expect(nextName).toBeDefined();
+    act(() => {
+      socket.receive({ type: 'track_changed', item: { uri: next?.item.uri } });
+      socket.receive({
+        type: 'playback_state',
+        ...recordedNow(false),
+        item: { uri: next?.item.uri },
+        position: { position_ms: 0, timestamp_ms: Date.now(), speed: 1 }
+      });
+    });
+    expect(result.current.playbackState?.item).toMatchObject({ uri: next?.item.uri });
+    expect(result.current.playbackState?.item?.name).toBeUndefined();
+    expect(result.current.playbackState?.progress_ms).toBe(0);
+    act(() => socket.receive({ ...recordedNow(false), item: next?.item }));
+    expect(result.current.playbackState?.item?.name).toBe(nextName);
+
+    act(() => {
+      socket.receive({ type: 'playback_changed', status: 'paused' });
+      socket.receive(position(12_000, 0));
+    });
+    expect(result.current.playbackState).toMatchObject({ is_playing: false, progress_ms: 12_000 });
+    act(() => {
+      socket.receive({ type: 'playback_changed', status: 'playing' });
+      socket.receive(position(12_000, 1));
+    });
+    expect(result.current.playbackState?.is_playing).toBe(true);
+    act(() => socket.receive(position(90_000, 1)));
+    expect(result.current.playbackState?.progress_ms).toBeGreaterThanOrEqual(90_000);
+    expect(result.current.playbackState?.progress_ms).toBeLessThan(91_000);
+
+    // The device stays what Spotify said.
+    expect(result.current.playbackState?.device).toMatchObject({ id: 'phone', name: 'Somewhere' });
+    expect(playbackCalls()).toBe(before);
+  });
+
+  it('keeps the title shown when the same song is reported again without its name', async () => {
+    const { result, socket } = await ready(false);
+    await waitFor(() => expect(result.current.playbackState?.item?.name).toBe('Henda mot himmelen'));
+    const uri = result.current.playbackState?.item?.uri;
+    act(() => socket.receive({ type: 'track_changed', item: { uri } }));
+    expect(result.current.playbackState?.item?.name).toBe('Henda mot himmelen');
   });
 });
 
@@ -390,7 +496,7 @@ describe('useSpotifyPlayer drives the kiosk player', () => {
     expect(mocks.api.playChoice).toHaveBeenCalledWith(choice, 'soloist-1');
     expect(result.current.isPlayerActive).toBe(true);
     // Spotify still names the phone; the kiosk is shown while it catches up.
-    expect(result.current.playbackState?.device).toMatchObject({ id: 'soloist-1', name: 'The Max Mix Soloist' });
+    expect(result.current.playbackState?.device).toMatchObject({ id: 'soloist-1', name: RECORDED_DEVICE_NAME });
   });
 
   it('looks the player up again and retries when Spotify no longer knows it', async () => {
@@ -492,6 +598,7 @@ describe('useSpotifyPlayer drives the kiosk player', () => {
   it('makes the kiosk the player on Play, then sends it the next press once Soloist is active', async () => {
     mocks.api.getPlaybackState.mockResolvedValue(webState('phone', false));
     const { result, socket } = await ready();
+    act(() => socket.receive({ type: 'playback_changed', status: 'paused' }));
     await act(async () => {
       expect(await result.current.togglePlay()).toBe(true);
     });
@@ -510,6 +617,7 @@ describe('useSpotifyPlayer drives the kiosk player', () => {
   it("sets the kiosk player's volume again once the first Play has moved playback to it and it plays", async () => {
     mocks.api.getPlaybackState.mockResolvedValue(webState('phone', false));
     const { result, socket } = await ready();
+    act(() => socket.receive({ type: 'playback_changed', status: 'paused' }));
     await act(async () => {
       expect(await result.current.togglePlay()).toBe(true);
     });
@@ -525,7 +633,8 @@ describe('useSpotifyPlayer drives the kiosk player', () => {
   it('reports a failed first-Play transfer and puts the button back', async () => {
     mocks.api.getPlaybackState.mockResolvedValue(webState('phone', false));
     mocks.api.transferPlayback.mockRejectedValue(new Error('No premium'));
-    const { result } = await ready();
+    const { result, socket } = await ready();
+    act(() => socket.receive({ type: 'playback_changed', status: 'paused' }));
     await act(async () => {
       expect(await result.current.togglePlay()).toBe(false);
     });
@@ -604,7 +713,7 @@ describe('useSpotifyPlayer keeps the Play button usable', () => {
   it('drops the stale resuming restriction when Soloist pauses, and keeps the others', async () => {
     mocks.api.getPlaybackState.mockResolvedValue(playingWithRestrictions);
     const { result, socket } = await ready(true);
-    await waitFor(() => expect(result.current.playbackState?.actions?.disallows?.resuming).toBe(true));
+    await waitFor(() => expect(result.current.playbackState?.actions?.disallows?.skipping_prev).toBe(true));
     act(() => socket.receive({ type: 'playback_changed', status: 'paused' }));
     expect(result.current.playbackState?.is_playing).toBe(false);
     expect(result.current.playbackState?.actions?.disallows).toEqual({ skipping_prev: true });
@@ -619,7 +728,7 @@ describe('useSpotifyPlayer keeps the Play button usable', () => {
 });
 
 describe('useSpotifyPlayer recovers after the page was in the background', () => {
-  it('reads playback, the queue and the player state again when the tab comes back', async () => {
+  it('asks Soloist for its state and reads the queue again when the tab comes back, not Spotify playback', async () => {
     const { result, socket } = await ready();
     await act(async () => {});
     const reads = playbackCalls();
@@ -628,9 +737,9 @@ describe('useSpotifyPlayer recovers after the page was in the background', () =>
     act(() => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
-    await waitFor(() => expect(playbackCalls()).toBe(reads + 1));
-    expect(result.current.queueVersion).toBe(queue + 1);
+    await waitFor(() => expect(result.current.queueVersion).toBe(queue + 1));
     expect(socket.sent.slice(asked)).toEqual([{ type: 'command', command: 'get_state' }]);
+    expect(playbackCalls()).toBe(reads);
   });
 
   it('connects a dropped player again at once when the network is back', async () => {

@@ -71,10 +71,8 @@ vi.mock('../utils/bluetoothMonitor', () => ({
   watchPresence: () => Promise.resolve()
 }));
 vi.mock('../spotify/auth', () => ({
-  startSignIn: vi.fn(),
   signOut: vi.fn(),
   peopleOnKiosk: people.peopleOnKiosk,
-  isPersonRefused: () => false,
   PEOPLE_LIMIT: 5,
   switchPerson: people.switchPerson,
   takePhoneToPair: people.takePhoneToPair,
@@ -861,17 +859,6 @@ describe('TabletView', () => {
     const tabs = screen.getAllByRole('tab');
     expect(tabs.map(tab => tab.textContent.trim())).toEqual(['Spotify', 'Dashboard', 'Settings']);
     expect(screen.getByRole('tab', { name: 'Dashboard' })).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('shows a failed sign-in as an alert, on the Spotify tab it starts on', async () => {
-    render(<TabletView signInError="Spotify said no" />);
-    await flush();
-    expect(screen.getByRole('tab', { name: 'Spotify' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('alert')).toHaveTextContent('Spotify said no');
-    fireEvent.click(screen.getByRole('button', { name: 'Details' }));
-    expect(
-      within(screen.getByRole('dialog', { name: 'Debug console' })).getAllByText('Spotify said no').length
-    ).toBeGreaterThan(0);
   });
 
   it('re-reads the queue when the player says it changed, without polling while the kiosk player is active', async () => {

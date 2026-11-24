@@ -126,8 +126,7 @@ const LOGS_PER_MINUTE = 30;
 const POST_ACTIONS: Record<string, Action> = {
   '/power/restart': 'restart',
   '/power/reboot': 'reboot',
-  '/display/wake': 'wake',
-  '/browser/forget-sign-ins': 'forget-sign-ins'
+  '/display/wake': 'wake'
 };
 
 /** What the service needs: PipeWire's graph, routing, and a way to run an action; tests pass fakes. */
@@ -873,6 +872,8 @@ export function serveSpeakers(
     handoverFile: string;
     /** The folder that holds Soloist's data folder for each person (soloist.ts). */
     soloistStateDir: string;
+    /** The name Soloist goes by in Spotify Connect (soloistDeviceName). */
+    soloistDeviceName: string;
   },
   update: Update = runUpdate
 ): Server {
@@ -909,7 +910,7 @@ export function serveSpeakers(
       bluetoothMonitor.note(message);
     }
   });
-  const soloistPlayer = new SoloistPlayer({ stateDir: deps.soloistStateDir });
+  const soloistPlayer = new SoloistPlayer({ stateDir: deps.soloistStateDir, deviceName: deps.soloistDeviceName });
   const handler = handleRequest(origin, {
     ...deps,
     perform,

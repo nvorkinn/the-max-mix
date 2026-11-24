@@ -2,13 +2,14 @@
 //   node kiosk-audio.ts watch   the background unit. It answers the app on 127.0.0.1 (server.ts: the speaker list, routing,
 //                               the kiosk buttons, and the update stream), and every few seconds routes any stream Soloist opened again and
 //                               any chosen speaker that came back.
-import { homedir, networkInterfaces } from 'node:os';
+import { homedir, hostname, networkInterfaces } from 'node:os';
 import path from 'node:path';
 import { lanAddress } from './address.ts';
 import { Nmcli } from './nmcli.ts';
 import type { ConnectRequest } from './nmcli.ts';
 import { PipeWire } from './pipewire.ts';
 import { serveSpeakers } from './server.ts';
+import { soloistDeviceName } from './soloist.ts';
 import { loadSpeakers, route, saveSpeakers, setSpeakerVolume, withNames } from './speakers.ts';
 import { stopFollowers } from './update.ts';
 
@@ -57,7 +58,9 @@ if (process.argv[2] === 'watch') {
     phonesFile,
     appFolder: process.env['KIOSK_APP_DIR'] ?? '',
     handoverFile: path.join(stateHome, 'the-max-mix', 'handover.json'),
-    soloistStateDir: path.join(stateHome, 'soloist')
+    soloistStateDir: path.join(stateHome, 'soloist'),
+    // The kiosk's own name (kiosk_name), or one from its host name, so two kiosks on one account differ in Spotify.
+    soloistDeviceName: soloistDeviceName(process.env['KIOSK_NAME'], hostname())
   });
 } else {
   console.error('Usage: kiosk-audio.ts watch');

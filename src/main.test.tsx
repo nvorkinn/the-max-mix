@@ -1,15 +1,14 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./App', () => ({
-  default: ({ signInError, pairScreen }: { signInError: string | null; pairScreen: { width: number } | null }) => (
+  default: ({ pairScreen }: { pairScreen: { width: number } | null }) => (
     <>
-      <p>{signInError ?? 'no sign-in error'}</p>
+      <p>the app</p>
       {pairScreen && <p>pairing {pairScreen.width}</p>}
     </>
   )
 }));
-vi.mock('./spotify/auth', () => ({ completeSignIn: vi.fn() }));
 vi.mock('./countdown/registration', () => ({
   needsRegistration: vi.fn(() => false),
   kioskScreen: vi.fn(() => Promise.resolve({ width: 1280, height: 800, brightness_control: false }))
@@ -25,35 +24,17 @@ describe('main', () => {
     document.body.replaceChildren();
   });
 
-  const start = async (signIn: () => Promise<{ ok: true } | { ok: false; error: string } | null>) => {
-    const { completeSignIn } = await import('./spotify/auth');
-    vi.mocked(completeSignIn).mockImplementation(signIn);
+  it('renders the app', async () => {
     await import('./main');
-  };
-
-  it('renders the app once the sign-in check is done', async () => {
-    await start(() => Promise.resolve(null));
-    expect(await screen.findByText('no sign-in error')).toBeInTheDocument();
-  });
-
-  it('passes a failed sign-in on to the app', async () => {
-    await start(() => Promise.resolve({ ok: false, error: 'Spotify said no' }));
-    expect(await screen.findByText('Spotify said no')).toBeInTheDocument();
-  });
-
-  it('passes the message of a sign-in that threw', async () => {
-    await start(() => Promise.reject(new Error('network down')));
-    await waitFor(() => {
-      expect(screen.getByText('network down')).toBeInTheDocument();
-    });
+    expect(await screen.findByText('the app')).toBeInTheDocument();
   });
 
   it('starts the app with the pairing QR code over it when the kiosk has no device ID', async () => {
     const registration = await import('./countdown/registration');
     vi.mocked(registration.needsRegistration).mockReturnValueOnce(true);
-    await start(() => Promise.resolve(null));
+    await import('./main');
     expect(await screen.findByText('pairing 1280')).toBeInTheDocument();
-    expect(screen.getByText('no sign-in error')).toBeInTheDocument();
+    expect(screen.getByText('the app')).toBeInTheDocument();
   });
 
   it('starts unregistered, with no QR code, when the Pi cannot say what its screen is', async () => {
@@ -61,8 +42,8 @@ describe('main', () => {
     const registration = await import('./countdown/registration');
     vi.mocked(registration.needsRegistration).mockReturnValueOnce(true);
     vi.mocked(registration.kioskScreen).mockResolvedValueOnce(null);
-    await start(() => Promise.resolve(null));
-    expect(await screen.findByText('no sign-in error')).toBeInTheDocument();
+    await import('./main');
+    expect(await screen.findByText('the app')).toBeInTheDocument();
     expect(screen.queryByText(/pairing/)).not.toBeInTheDocument();
   });
 });

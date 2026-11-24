@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, fireEvent, within } from '@testing-library/react';
 import userEvent from '../test/user';
-import { getRedirectUri } from '../spotify/settings';
 import { NETWORK_ERROR_MESSAGE } from '../spotify/http';
 import { reloadApp } from '../utils/reloadApp';
 import TabletView from './TabletView';
@@ -138,10 +137,5 @@ describe('offline state in TabletView', () => {
     });
     expect(within(openProblems()).getByText('No internet connection')).toBeInTheDocument();
     expect(screen.queryByText(NETWORK_ERROR_MESSAGE)).not.toBeInTheDocument();
-  });
-
-  it('leaves the Spotify redirect address alone', () => {
-    history.replaceState(null, '', '/?kiosk=1');
-    expect(getRedirectUri()).toBe(`${location.origin}/`);
   });
 });
