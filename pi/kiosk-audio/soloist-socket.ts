@@ -48,7 +48,8 @@ export function soloistCommand(text: string): string | null {
 /** A WebSocket message's text, whichever form `ws` handed it over in. */
 function textOf(data: RawData): string {
   if (Array.isArray(data)) return Buffer.concat(data).toString('utf8');
-  return Buffer.from(data).toString('utf8');
+  if (Buffer.isBuffer(data)) return data.toString('utf8');
+  return Buffer.from(new Uint8Array(data)).toString('utf8');
 }
 
 const bridgeMessage = (isConnected: boolean) => JSON.stringify({ type: 'bridge', connected: isConnected });
