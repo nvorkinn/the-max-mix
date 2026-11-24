@@ -53,6 +53,11 @@ avahi-daemon
 libpipewire-0.3-modules
 pipewire-bin
 
+# First boot grows and formats /data (kiosk-first-boot.service): sfdisk, partx, mkfs.ext4
+fdisk
+util-linux
+e2fsprogs
+
 # Updates: RAUC installs each release into the other slot. rpi-eeprom keeps the bootloader new enough for tryboot.
 rauc
 rpi-eeprom
