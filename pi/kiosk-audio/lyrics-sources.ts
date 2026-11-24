@@ -56,11 +56,30 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * A source that is left alone for a while, after it asked to be (lyrics-lrclib.ts), failing a lookup without asking it.
+ * The source logs once when that starts, so findLyrics (lyrics.ts) does not log each lookup this fails.
+ */
+export class SourceResting extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'SourceResting';
+  }
+}
+
+/** A Retry-After header (seconds, or an HTTP date) as milliseconds from `now`, or undefined when there is none. */
+export function parseRetryAfter(header: string | null, now: number = Date.now()): number | undefined {
+  if (!header?.trim()) return undefined;
+  const seconds = Number(header);
+  const ms = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(header) - now;
+  return ms > 0 ? ms : undefined;
+}
+
 export const getJson: GetJson = async (url, headers = {}) => {
   const response = await fetch(url, { headers, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
   if (!response.ok) {
-    const seconds = Number(response.headers.get('Retry-After'));
-    throw new HttpError(new URL(url).hostname, response.status, seconds > 0 ? seconds * 1000 : undefined);
+    const wait = parseRetryAfter(response.headers.get('Retry-After'));
+    throw new HttpError(new URL(url).hostname, response.status, wait);
   }
   // Some of these services answer JSON as text/html or text/plain, so the body is parsed by hand.
   return JSON.parse(await response.text()) as unknown;
