@@ -160,7 +160,7 @@ jobs:
           map: image/secrets-map.json
           target: bundle
           collection: the-max-mix/ci
-          export-env: "true"
+          export-env: 'true'
           bw-clientid: ${{ secrets.BW_CLIENTID }}
           bw-clientsecret: ${{ secrets.BW_CLIENTSECRET }}
           bw-password: ${{ secrets.BW_PASSWORD }}
