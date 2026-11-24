@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prints the kiosk's state in one go, for a look over SSH or Tailscale: the installed version, the last update and the
-# next one, whether the services run, how often the watchdog restarted Chromium, and the app's recent errors.
+# next one, whether the services run, how often the watchdog restarted the kiosk shell, and the app's recent errors.
 # Only reads; changes nothing. Usage: sudo kiosk-status [DAYS]   (how far back to look in the journal, default 7)
 set -uo pipefail
 
@@ -46,8 +46,11 @@ for unit in kiosk kiosk-pull.timer kiosk-restart.timer tailscaled; do
   printf '%-22s %s\n' "$unit" "$(systemctl is-active "$unit" 2> /dev/null)"
 done
 printf '%-22s %s\n' kiosk-audio "$(systemctl --user --machine=kiosk@ is-active kiosk-audio 2> /dev/null)"
+# The window on the app (kiosk-session runs it under Cage).
+if pgrep -x kiosk-shell > /dev/null; then shell=active; else shell=inactive; fi
+printf '%-22s %s\n' kiosk-shell "$shell"
 
-heading "Chromium restarts by the watchdog (last $days days)"
+heading "Kiosk shell restarts by the watchdog (last $days days)"
 restarts=$(audio_journal --since "$since" --grep 'No heartbeat from the app')
 if [[ -n $restarts ]]; then
   echo "$(wc -l <<< "$restarts") restart(s), the latest:"

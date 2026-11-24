@@ -190,7 +190,7 @@ skipped automatically when there is no `.git` directory or when dev dependencies
    - `http://127.0.0.1:5173/` for local development, and `http://127.0.0.1:4173/` for `npm start`.
 3. The client ID is a constant in `src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
    it there.
-4. Choose **Connect Spotify** in the browser that will play (on the kiosk, the Pi's Chromium).
+4. Choose **Connect Spotify** in the browser that will play (on the kiosk, the Pi's own screen).
 5. Tap the device indicator at the bottom left to open the speakers drawer, then select This tablet, an AirPlay speaker (kiosk only, several at once) or a Spotify Connect device. Press
    Play when ready. For a Connect device, first open Spotify on it so it is discoverable.
 
@@ -236,14 +236,14 @@ louder. There is no Sonos sign-in: everything stays on the home network, so Sono
 
 ## Raspberry Pi kiosk
 
-The kiosk is a Raspberry Pi 4 or 5 with the Waveshare 7-inch 1024x600 touch screen, running the deployed app in Chromium
-under the Cage kiosk compositor; with no connection, the app opens its Wi-Fi settings. Flash the ready-made image with Raspberry Pi Imager and
+The kiosk is a Raspberry Pi 4 or 5 with the Waveshare 7-inch 1024x600 touch screen, running the app in the kiosk shell
+([`pi/kiosk-shell`](pi/kiosk-shell), one full-screen WebKit view) under the Cage kiosk compositor; with no connection, the app opens its Wi-Fi settings. Flash the ready-made image with Raspberry Pi Imager and
 power on; [`pi/cloud-init/README.md`](pi/cloud-init/README.md) covers the setup, handing a Pi over, how the kiosk runs,
 SSH, troubleshooting and what is still to be verified on a device.
 
 **[Ansible](https://docs.ansible.com) is the single source of truth** for everything installed and configured on the device:
 packages, the `kiosk` user and its service, `kiosk-session`, the local kiosk service, the AirPlay
-audio routing and PipeWire's AirPlay settings, the Chromium policy, boot settings (`cmdline.txt`, `config.txt`), locale, time zone, unattended upgrades and the update timer.
+audio routing and PipeWire's AirPlay settings, the kiosk shell, boot settings (`cmdline.txt`, `config.txt`), locale, time zone, unattended upgrades and the update timer.
 It is one role, [`ansible/roles/kiosk`](ansible/roles/kiosk), run by [`ansible/local.yml`](ansible/local.yml); its
 variables and defaults are in [`defaults/main.yml`](ansible/roles/kiosk/defaults/main.yml). Nothing else configures the
 device, so change the role, not the device.
@@ -269,7 +269,7 @@ device, so change the role, not the device.
   changed since it last ran, or it last ran over a week ago (`/var/lib/the-max-mix/applied.json`; most releases only
   change the web app, so no part runs). `kiosk.service` is rewritten either way,
   because it carries the release the settings show. A deployed Pi therefore gets fixes to the kiosk service, the session script, the
-  Chromium policy and so on without a reflash. The playbook is idempotent, so repeated runs are safe. To pin one Pi,
+  kiosk shell and so on without a reflash. The playbook is idempotent, so repeated runs are safe. To pin one Pi,
   set `kiosk_pull_ref` to a tag (`v1.12.0`), or to a branch to test unreleased work on your own Pi (a branch is pulled
   with `ansible-pull`, as it has no bundle).
 - **A failing pull never affects the kiosk.** Nothing depends on `kiosk-pull.service`; a failure is only in the journal

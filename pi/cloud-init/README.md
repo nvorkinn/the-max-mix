@@ -71,7 +71,7 @@ the Pi, which keeps it working at your place. NetworkManager keeps each network 
 2. Settings, **Wi-Fi**: **Forget** each saved network. The Pi leaves the network it is on.
 3. Hold the clock for two seconds for the debug console, then **Register again**: the screen forgets its countdown-server
    device and shows the pairing QR code, for the new owner to add it to their own account. Wait a minute before
-   unplugging, so Chromium has saved it.
+   unplugging, so the app's storage has been written out.
 
 At its new home the Pi finds no network it knows, and the app's Wi-Fi screen joins theirs.
 
@@ -83,7 +83,8 @@ Give the new owner the [one-page guide](../../docs/friend-guide.md) (print it, o
    (`Europe/London`) come from the playbook.
 2. `kiosk.service` starts [Cage](https://github.com/cage-kiosk/cage), a single-app Wayland compositor, on tty7 as the
    `kiosk` user. Cage runs `/usr/local/bin/kiosk-session` forever.
-3. `kiosk-session` runs Chromium on the app, and starts it again whenever it exits. When the app is served by kiosk-audio
+3. `kiosk-session` runs the kiosk shell ([`pi/kiosk-shell`](../kiosk-shell), one full-screen WebKit view) on the app,
+   and starts it again whenever it exits. When the app is served by kiosk-audio
    on this machine, it first waits up to 30 seconds for that service to answer. The app handles having no network
    itself: when the kiosk starts with none, it opens Settings > Wi-Fi, which lists the networks in range and joins one
    through kiosk-audio. Joining restarts nothing; the app sees the new network by itself.
@@ -91,7 +92,7 @@ Give the new owner the [one-page guide](../../docs/friend-guide.md) (print it, o
    Update now button, which also follows the pull's journal), applying the playbook only when there is a new release whose Release workflow has uploaded its Pi bundle, and its slow part only when the files it installs changed. A failed run only logs
    (`journalctl -u kiosk-pull`). A pull that changed kiosk files makes `kiosk-restart.timer` restart the kiosk at 04:30.
 5. The screen sleeps. The app keeps it on while music plays and for the idle minutes chosen in its settings (5 by
-   default), by holding a screen wake lock that Chromium passes to Cage. After that, the app shows a black sleep screen
+   default), by holding a screen wake lock that reaches Cage as an idle inhibitor. After that, the app shows a black sleep screen
    and lets go. Ten seconds later without a touch (`kiosk_screen_off_after`), `swayidle` runs `kiosk-display off`, which
    turns the output off with `wlr-randr` (on a DSI panel that switches its backlight off too). The next touch turns it on again, and that tap only dismisses the sleep
    screen. Music that starts while the screen sleeps wakes it through the kiosk service (`POST /display/wake`).
@@ -106,7 +107,7 @@ The playbook also sets, among other things:
   over SSH");
 - `kiosk` manages NetworkManager connections without sudo through `/etc/polkit-1/rules.d/50-kiosk-networkmanager.rules`;
 - PipeWire and WirePlumber, and AirPlay speakers through Avahi;
-- `unattended-upgrades` for Debian security updates and the Raspberry Pi archive (Chromium, kernel);
+- `unattended-upgrades` for Debian security updates and the Raspberry Pi archive (WebKitGTK, kernel);
 - `config.txt` and the kernel command line for the screen, a quiet boot and no cursor. The mode is forced on both HDMI
   ports: the screen's own mode from its EDID (1280x800 on a 10.1-inch screen), or 1024x600 for a screen that sends
   none. Set `kiosk_video_mode` in `/etc/the-max-mix/kiosk-vars.yml` for a screen whose EDID is wrong; a new mode needs a
@@ -181,7 +182,7 @@ and keeps that session in their folder. Its WebSocket control API listens on `12
 ## Troubleshooting
 
 `sudo kiosk-status` sums it up in one go: the installed version, the last update and the next check, which services run,
-Chromium restarts by the watchdog and the app's errors from the last 7 days (`sudo kiosk-status 30` looks further back).
+kiosk shell restarts by the watchdog and the app's errors from the last 7 days (`sudo kiosk-status 30` looks further back).
 
 The kiosk logs go to the journal: `journalctl -u kiosk`, `journalctl -u kiosk-pull`, and the first boot's setup in `/var/log/cloud-init-output.log`. The journal is kept
 on disk (up to `kiosk_journal_max_use`, 64 MB), so logs from before a reboot are there too: `journalctl --list-boots`,
@@ -206,7 +207,7 @@ the card, the first pull and reboot, and SSH. Still to check:
    script runs once and the Pi reboots when it has finished.
 2. After the first pull, the boot partition has no `network-config` or `user-data`, and the Pi still joins your Wi-Fi
    after a reboot.
-3. Screen sleep: the Waveshare turns its backlight off when `kiosk-display off` disables the output, Chromium's wake
+3. Screen sleep: the Waveshare turns its backlight off when `kiosk-display off` disables the output, the app's wake
    lock keeps it on while music plays, and the first touch brings it back at 1024x600.
 4. Spotify Soloist: once a person has saved their key, the player starts for them, shows in the Spotify app, signs in when picked,
    plays, and is still paired after a reboot; a new build from `kiosk-soloist-update` takes over at the next kiosk start.

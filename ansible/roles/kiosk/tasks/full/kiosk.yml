@@ -1,7 +1,7 @@
 ---
 # A part of the setup (tasks/main.yml runs it when what it installs changed, or a week after it last ran).
-# The kiosk itself: the journal, the kiosk programs, the kiosk-audio service, AirPlay, the Chromium policy, polkit
-# rules, the blank cursor and the console.
+# The kiosk itself: the journal, the kiosk programs, the kiosk shell, the kiosk-audio service, AirPlay, polkit rules, the
+# blank cursor and the console.
 
 # The kiosk -----------------------------------------------------------------------------------------------------------
 # The kiosk programs, and the kiosk-audio service's source files and package list. Ansible's copy module costs about 2.5
@@ -34,6 +34,39 @@
   changed_when: kiosk_copied.stdout | length > 0
   notify: Ask for a kiosk restart
 
+# The kiosk shell, the window kiosk-session shows the app in (kiosk_shell_bin): the binary in a release's Pi bundle, or
+# for a branch checkout, which has only its source, CI's build of that source (kiosk_shell_builds). Replaced only when it
+# differs, and then the kiosk restarts into it. Prints its path when it installed a new one.
+- name: full | kiosk | Install the kiosk shell
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      new=$(mktemp "$BIN.XXXXXX")
+      trap 'rm -f "$new"' EXIT
+      if [[ -f $ROOT/pi/kiosk-shell/kiosk-shell ]]; then
+        cp "$ROOT/pi/kiosk-shell/kiosk-shell" "$new"
+      else
+        tree=$(git -C "$ROOT" rev-parse HEAD:pi/kiosk-shell)
+        if ! curl --fail --silent --show-error --location --max-time 300 --retry 3 --output "$new" \
+          "$BUILDS/kiosk-shell-$tree"; then
+          echo "No build of the kiosk shell for this checkout (tree $tree) at $BUILDS; CI may still be building it" >&2
+          exit 1
+        fi
+      fi
+      if ! cmp -s "$new" "$BIN"; then
+        chmod 0755 "$new"
+        mv "$new" "$BIN"
+        echo "$BIN"
+      fi
+    executable: /bin/bash
+  environment:
+    ROOT: '{{ playbook_dir }}/..'
+    BIN: '{{ kiosk_shell_bin }}'
+    BUILDS: '{{ kiosk_shell_builds }}'
+  register: kiosk_shell_installed
+  changed_when: kiosk_shell_installed.stdout | length > 0
+  notify: Ask for a kiosk restart
+
 # ws, the one npm package, for the update stream (the WebSocket). Installed from the lockfile, so it is the version that
 # was reviewed; --ignore-scripts because nothing it needs has to build. Only when the lockfile is not the one installed.
 - name: full | kiosk | Install the audio routing's npm packages
@@ -58,13 +91,13 @@
         group: root
         mode: '0644'
 
-# The journal, AirPlay, the audio routing's unit, the Chromium policy, polkit and /run/kiosk, in one step, as a module run
+# The journal, AirPlay, the audio routing's unit, polkit and /run/kiosk, in one step, as a module run
 # costs seconds on a Pi. Raspberry Pi OS keeps the journal in memory, so every log is lost at a reboot, including the one
 # that shows why a shutdown was slow: kiosk-journald.conf keeps it on disk, capped so that it does not wear the SD card or
 # fill it. polkitd reads rules.d itself. The kiosk user manages Wi-Fi connections without sudo (networkmanager), and may
 # update and restart the kiosk and reboot the Pi (power): the Update now, Restart kiosk and Reboot Pi buttons in the
 # app's settings.
-- name: full | kiosk | Install the journal, AirPlay, audio routing, Chromium, polkit and run directory settings
+- name: full | kiosk | Install the journal, AirPlay, audio routing, polkit and run directory settings
   ansible.builtin.command:
     argv: [node, '{{ kiosk_install_files }}']
     stdin: '{{ kiosk_settings | to_json }}'
@@ -75,7 +108,6 @@
         ('kiosk-journald.conf', '/etc/systemd/journald.conf.d/kiosk.conf'),
         ('50-kiosk-raop.conf', '/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf'),
         ('kiosk-audio.service', '/etc/systemd/user/kiosk-audio.service'),
-        ('kiosk-policy.json', '/etc/chromium/policies/managed/kiosk.json'),
         ('50-kiosk-networkmanager.rules', '/etc/polkit-1/rules.d/50-kiosk-networkmanager.rules'),
         ('50-kiosk-power.rules', '/etc/polkit-1/rules.d/50-kiosk-power.rules'),
         ('kiosk-tmpfiles.conf', '/etc/tmpfiles.d/kiosk.conf')] -%}
@@ -94,13 +126,12 @@
   changed_when: true
   notify: Apply the journal settings
 
-- name: full | kiosk | Restart the kiosk for its new audio and Chromium settings
+- name: full | kiosk | Restart the kiosk for its new audio settings
   ansible.builtin.debug:
-    msg: The kiosk's audio or Chromium settings changed.
+    msg: The kiosk's audio settings changed.
   when: >-
     kiosk_settings_installed.stdout_lines
-    | intersect(['/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf', '/etc/systemd/user/kiosk-audio.service',
-    '/etc/chromium/policies/managed/kiosk.json'])
+    | intersect(['/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf', '/etc/systemd/user/kiosk-audio.service'])
     | length > 0
   changed_when: true
   notify: Ask for a kiosk restart

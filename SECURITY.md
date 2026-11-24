@@ -14,7 +14,7 @@ Spotify refresh token). You can expect an initial reply within a few days.
 
 ## Threat model
 
-THE MAX MIX is a client-only app: static files that run in the browser. The kiosk is Chromium opening the deployed site. There is no backend of ours and no server-side secret.
+THE MAX MIX is a client-only app: static files that run in the browser. The kiosk is a WebKit window (pi/kiosk-shell) on the copy of the app the Pi serves itself. There is no backend of ours and no server-side secret.
 
 - **No client secret.** Sign-in uses the Authorization Code flow with PKCE, which Spotify provides for apps that cannot
   keep a secret. The Spotify client ID is public by design and is a constant in the code (`src/spotify/settings.ts`).
@@ -34,7 +34,8 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
   `v*` tag, publish a release, upload a release asset or mark a release as the latest can change what runs on every deployed Pi, so protect the
   repository and its tag rules. The Release workflow refuses a tag that is not on `main` or whose `main` CI has not
   passed. The `kiosk` user has no password, no
-  `sudo` and no SSH; Chromium keeps its sandbox enabled. The `admin` account has no password either: SSH lets it in
+  `sudo` and no SSH; WebKit keeps its web process sandbox enabled, and the kiosk shell refuses to leave the app's
+  origin except for Spotify and countdown-server. The `admin` account has no password either: SSH lets it in
   by key only (the keys of the GitHub account in `kiosk_admin_github_user`, fetched at every pull), and it has `sudo`.
   Whoever can add a key to that GitHub account can log in to the Pi.
 - **The app is public static code.** Anyone who runs it can sign in with their own Spotify account, and each browser

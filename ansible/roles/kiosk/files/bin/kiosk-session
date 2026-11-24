@@ -1,16 +1,12 @@
 #!/usr/bin/env bash
-# The one program Cage runs. Loops forever, running the app in Chromium. The app handles having no network itself: it
-# opens Settings > Wi-Fi when it starts with none.
+# The one program Cage runs. Loops forever, showing the app in the kiosk shell (pi/kiosk-shell, one full-screen WebKit
+# view). The app handles having no network itself: it opens Settings > Wi-Fi when it starts with none.
 set -u
 
 # The address comes from kiosk.service (kiosk_url in the Ansible role).
 url=${KIOSK_URL:?KIOSK_URL is not set}
-chromium_pid=/run/kiosk/chromium.pid
-
-# DevTools for remote screenshots and inspecting the page (scripts/kiosk-screenshot.ts, through an SSH tunnel), and for
-# the kiosk-audio service, which clears the other sites' sign-ins through it when someone signs out
-# (pi/kiosk-audio/browser-data.ts). Chromium listens on 127.0.0.1 only, so nothing on the network reaches it.
-devtools_port=9222
+# The kiosk-audio service's watchdog reads it (pi/kiosk-audio/watchdog.ts).
+app_pid=/run/kiosk/app.pid
 
 # When the app comes from this machine (the kiosk-audio service), wait for it to answer: the service starts with the
 # kiosk user's session and may not be up yet. An app from elsewhere is started at once.
@@ -24,16 +20,13 @@ wait_app() {
   echo "kiosk-session: the app at $url is not answering" >&2
 }
 
-# Shows the app until Chromium exits. The kiosk-audio service's watchdog stops Chromium through the pid file when the
+# Shows the app until the shell exits. The kiosk-audio service's watchdog stops the shell through the pid file when the
 # app stops sending heartbeats, and the loop below starts it again.
-run_chromium() {
-  chromium --kiosk --ozone-platform=wayland --noerrdialogs --disable-infobars --no-first-run --password-store=basic \
-    --disable-session-crashed-bubble --overscroll-history-navigation=0 \
-    --remote-debugging-port="$devtools_port" \
-    "$1" &
-  echo $! > "$chromium_pid"
+run_app() {
+  /usr/local/bin/kiosk-shell "$1" &
+  echo $! > "$app_pid"
   wait $!
-  rm -f "$chromium_pid"
+  rm -f "$app_pid"
 }
 
 # Screen sleep: once nothing holds the screen awake (the app's wake lock reaches Cage as an idle inhibitor) and nobody
@@ -44,14 +37,14 @@ if [[ $screen_off_after =~ ^[1-9][0-9]*$ ]] && command -v swayidle > /dev/null; 
 fi
 
 # A rotated or scaled screen (KIOSK_SCREEN_ROTATION and KIOSK_SCREEN_SCALE, from screen-setup.ts): Cage starts every
-# output as the panel is, so turn and scale it before Chromium opens its window.
+# output as the panel is, so turn and scale it before the shell opens its window.
 if [[ ${KIOSK_SCREEN_ROTATION:-0} != 0 || ! ${KIOSK_SCREEN_SCALE:-1} =~ ^1(\.0+)?$ ]]; then
   /usr/local/bin/kiosk-display on
 fi
 
 # Cage does not signal this script when it stops, and it waits for us to exit (kiosk.service sends the signal from ExecStop).
 # Stop the app with us so nothing is left running without a compositor, and wait for it to quit (up to 10 s) before
-# exiting: Chromium writes out its storage and cookies as it quits, and loses them if Cage takes the display first.
+# exiting: WebKit writes out the app's storage as it quits, which is lost if Cage takes the display first.
 stop() {
   local pids i
   pids=$(jobs -p)
@@ -67,7 +60,7 @@ trap stop TERM
 
 while true; do
   wait_app
-  run_chromium "$url"
+  run_app "$url"
   # Never spin if an app fails to start.
   sleep 1
 done

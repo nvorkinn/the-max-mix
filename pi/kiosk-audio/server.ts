@@ -112,7 +112,7 @@ import { speakerOutputs, speakerSinks, validChoices, validVolume } from './speak
 import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
 import { runUpdate } from './update.ts';
-import { chromiumPid, CHECK_MS, stopChromium, Watchdog } from './watchdog.ts';
+import { appPid, CHECK_MS, stopApp, Watchdog } from './watchdog.ts';
 
 const SPEAKERS_PORT = 7341;
 /** This service's own origin, which is the app's when the service serves it (kiosk_app_origin). */
@@ -878,8 +878,8 @@ export function serveSpeakers(
 ): Server {
   const watchdog = new Watchdog({
     now: () => Date.now(),
-    chromiumPid: () => chromiumPid(),
-    stop: pid => stopChromium(pid),
+    appPid: () => appPid(),
+    stop: pid => stopApp(pid),
     log: message => {
       console.warn(message);
     }

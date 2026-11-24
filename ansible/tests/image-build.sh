@@ -25,6 +25,8 @@ echo 'kiosk:throwaway' | chpasswd
 
 cp -a /repo /work
 cd /work
+# The kiosk shell as a release's Pi bundle carries it (CI builds the real one in the Kiosk shell workflow).
+printf '#!/bin/sh\n' > pi/kiosk-shell/kiosk-shell
 # cp -a keeps the runner's owner, and git refuses to read a repository another user owns (the Pi's checkout is root's own).
 git config --global --add safe.directory /work
 
@@ -60,7 +62,7 @@ check() {
 
 for file in /usr/local/bin/kiosk-session \
   /etc/systemd/system/kiosk.service /etc/systemd/system/kiosk-pull.service /etc/systemd/system/kiosk-pull.timer \
-  /etc/systemd/system/kiosk-restart.timer /etc/chromium/policies/managed/kiosk.json \
+  /etc/systemd/system/kiosk-restart.timer /usr/local/bin/kiosk-shell \
   /etc/polkit-1/rules.d/50-kiosk-networkmanager.rules /etc/polkit-1/rules.d/50-kiosk-power.rules \
   /usr/local/sbin/kiosk-status /usr/local/bin/kiosk-display /usr/local/sbin/kiosk-ssh-keys \
   /usr/local/sbin/kiosk-app-switch \
@@ -127,7 +129,7 @@ check grep -q 'kiosk-audio.ts watch$' /etc/systemd/user/kiosk-audio.service
 check grep -q 'try-restart kiosk-audio.service' /etc/systemd/system/kiosk.service
 check grep -q 'screen-mode.ts --correct' /etc/systemd/system/kiosk.service
 check grep -q 'KIOSK_APP_ORIGIN=http://127.0.0.1:7341' /etc/systemd/user/kiosk-audio.service
-check grep -q '"BrowserSignin": 0' /etc/chromium/policies/managed/kiosk.json
+check test -x /usr/local/bin/kiosk-shell
 check grep -q '^Environment=KIOSK_SCREEN_OFF_AFTER=10$' /etc/systemd/system/kiosk.service
 # The screen's rotation and scale are left to the screen that is plugged in, worked out as the kiosk starts.
 check grep -q 'screen-setup.ts --rotation= --scale=$' /etc/systemd/system/kiosk.service

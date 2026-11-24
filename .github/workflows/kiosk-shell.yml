@@ -1,0 +1,112 @@
+name: Kiosk shell
+
+# Builds the kiosk shell (pi/kiosk-shell), the window the Pis show the app in, for arm64, and runs its tests. It builds
+# in Debian bookworm on GitHub's arm runner, so the binary links against a WebKitGTK (libwebkit2gtk-4.1) and glibc that
+# bookworm and trixie Pis both have.
+#
+# A push (any branch) also puts the build in the kiosk-shell-builds pre-release as kiosk-shell-<tree>, named after the
+# git tree id of pi/kiosk-shell: a Pi pinned to a branch (kiosk_pull_ref) downloads the build of its checkout's source
+# from there (ansible/roles/kiosk/tasks/full/kiosk.yml). A pre-release is never the latest release, so the Pis that
+# follow releases never see it. The Release workflow calls this to put the binary in its Pi bundle.
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'pi/kiosk-shell/**'
+      - '.github/workflows/kiosk-shell.yml'
+  workflow_call:
+    inputs:
+      ref:
+        description: The ref to build (the release's tag)
+        required: true
+        type: string
+    outputs:
+      tree:
+        description: The git tree id of pi/kiosk-shell, which names the binary in the kiosk-shell artifact
+        value: ${{ jobs.build.outputs.tree }}
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    container: debian:bookworm
+    outputs:
+      tree: ${{ steps.tree.outputs.tree }}
+    defaults:
+      run:
+        working-directory: pi/kiosk-shell
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      # git first, so the checkout is a repository (the tree id below needs one).
+      - name: Install the build tools and WebKitGTK
+        working-directory: /
+        run: |
+          apt-get update --quiet
+          apt-get install --yes --quiet --no-install-recommends build-essential ca-certificates curl git pkg-config \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libssl-dev
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      # Bookworm's own Rust is too old for Tauri (Cargo.toml's rust-version).
+      - name: Install Rust
+        working-directory: /
+        run: |
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error https://sh.rustup.rs \
+            | sh -s -- -y --profile minimal --default-toolchain stable
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: Name the build after its source
+        id: tree
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          echo "tree=$(git rev-parse HEAD:pi/kiosk-shell)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            pi/kiosk-shell/target
+          key: kiosk-shell-bookworm-arm64-${{ hashFiles('pi/kiosk-shell/Cargo.toml', 'pi/kiosk-shell/Cargo.lock') }}
+          restore-keys: kiosk-shell-bookworm-arm64-
+      - run: cargo test
+      - run: cargo build --release
+      - name: Name the binary after its source
+        env:
+          TREE: ${{ steps.tree.outputs.tree }}
+        run: cp target/release/kiosk-shell "$RUNNER_TEMP/kiosk-shell-$TREE"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kiosk-shell
+          path: ${{ runner.temp }}/kiosk-shell-${{ steps.tree.outputs.tree }}
+          if-no-files-found: error
+          retention-days: 7
+
+  # Only for pushes: the Release workflow puts the build in its own bundle instead. Dependabot's pushes get a read-only
+  # token.
+  publish:
+    needs: build
+    if: github.event_name == 'push' && inputs.ref == '' && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      ASSET: kiosk-shell-${{ needs.build.outputs.tree }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: kiosk-shell
+      - name: Put the build in the kiosk-shell-builds pre-release
+        run: |
+          if ! gh release view kiosk-shell-builds > /dev/null 2>&1; then
+            gh release create kiosk-shell-builds --prerelease --latest=false --target main --title 'Kiosk shell builds' \
+              --notes 'Builds of pi/kiosk-shell for Pis pinned to a branch, one per version of its source. Not a release.'
+          fi
+          gh release upload kiosk-shell-builds "$ASSET" --clobber

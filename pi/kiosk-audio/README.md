@@ -155,8 +155,8 @@ the Pi confirms.
 ## The watchdog
 
 With `?kiosk=1` the app sends `POST /heartbeat` every 20 seconds while it shows something. When none has come for 3
-minutes (a crashed tab, a hung page, or an app that went blank), the service stops Chromium and kiosk-session starts it
-again. It only acts after this service has had a heartbeat, and gives every new Chromium the full 3 minutes; each restart without a heartbeat in between
+minutes (a crashed web process, a hung page, or an app that went blank), the service stops the kiosk shell and kiosk-session starts it
+again. It only acts after this service has had a heartbeat, and gives every new shell the full 3 minutes; each restart without a heartbeat in between
 doubles the wait (up to an hour), so a page that cannot load is not restarted in a loop. The app also sends its errors
 to `POST /log` (at most 30 lines a minute reach the journal). Both are in the journal:
 `journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service` (as root), lines starting `app` or `No heartbeat`.
@@ -262,7 +262,7 @@ The service's own error messages stay in English in the code; the app shows them
 | `actions.ts`       | The fixed commands behind the power and screen requests.                |
 | `nmcli.ts`         | Wi-Fi through nmcli: scanning, joining, and the messages for errors.    |
 | `words.ts`         | The hotspot page's words and the service's messages, in two languages.  |
-| `watchdog.ts`      | Restarts Chromium when the app's heartbeats stop.                       |
+| `watchdog.ts`      | Restarts the kiosk shell when the app's heartbeats stop.                |
 | `speakers.ts`      | Checking speaker lists, the saved choice, and routing to it.            |
 | `pipewire.ts`      | `pw-dump` parsing, the link plan, `pw-link` and `wpctl set-volume`.     |
 

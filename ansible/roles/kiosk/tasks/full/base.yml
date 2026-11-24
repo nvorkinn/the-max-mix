@@ -11,7 +11,6 @@
   vars:
     kiosk_directories:
       - /etc/apt/keyrings
-      - /etc/chromium/policies/managed
       - /etc/NetworkManager/dnsmasq-shared.d
       - /etc/systemd/journald.conf.d
       - /etc/the-max-mix
@@ -89,6 +88,21 @@
         state: present
         update_cache: '{{ kiosk_apt_keys is changed or kiosk_apt_lists is changed }}'
         lock_timeout: 300
+
+    # apt leaves the folders the packages' own files are not in: Chromium's policy and the kiosk user's profile.
+    - name: full | base | Remove the packages the kiosk no longer uses
+      ansible.builtin.apt:
+        name: '{{ kiosk_removed_packages }}'
+        state: absent
+        purge: true
+        autoremove: true
+        lock_timeout: 300
+
+    - name: full | base | Remove what Chromium kept
+      ansible.builtin.file:
+        path: '{{ item }}'
+        state: absent
+      loop: [/etc/chromium, '/home/{{ kiosk_user }}/.config/chromium', '/home/{{ kiosk_user }}/.cache/chromium']
 
     - name: full | base | Record what was installed
       ansible.builtin.copy:

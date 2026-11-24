@@ -4,7 +4,7 @@
 # systemd, D-Bus or NetworkManager is run.
 kiosk_enable_only: false
 
-# The account Cage and Chromium run as. The playbook creates it (tasks/full/users.yml).
+# The account Cage and the kiosk shell run as. The playbook creates it (tasks/full/users.yml).
 kiosk_user: kiosk
 # The only groups the kiosk user is in (the user has no sudo and no password). systemd-journal lets the kiosk-audio
 # service read the journal of the pull and the restart, which it streams to the app's update console. bluetooth lets
@@ -106,10 +106,10 @@ kiosk_sections:
       - ansible/roles/kiosk/files/icons
       - ansible/roles/kiosk/files/kiosk-audio
       - pi/kiosk-audio
+      - pi/kiosk-shell
       - ansible/roles/kiosk/templates/kiosk-journald.conf.j2
       - ansible/roles/kiosk/templates/50-kiosk-raop.conf.j2
       - ansible/roles/kiosk/templates/kiosk-audio.service.j2
-      - ansible/roles/kiosk/templates/kiosk-policy.json.j2
       - ansible/roles/kiosk/templates/50-kiosk-networkmanager.rules.j2
       - ansible/roles/kiosk/templates/50-kiosk-power.rules.j2
       - ansible/roles/kiosk/templates/kiosk-tmpfiles.conf.j2
@@ -134,7 +134,7 @@ kiosk_full_run_after_days: 7
 # slow step when nothing changed.
 kiosk_packages_stamp: /var/lib/the-max-mix/packages.sha1
 kiosk_all_packages: '{{ (kiosk_ansible_packages + kiosk_packages + kiosk_rpi_packages) | unique }}'
-kiosk_packages_id: "{{ [kiosk_all_packages, kiosk_apt_sources] | to_json | hash('sha1') }}"
+kiosk_packages_id: "{{ [kiosk_all_packages, kiosk_removed_packages, kiosk_apt_sources] | to_json | hash('sha1') }}"
 # The journal is kept on disk (it is in memory by default, so a reboot loses it), up to this much of the SD card.
 kiosk_journal_max_use: 64M
 
@@ -156,16 +156,14 @@ kiosk_screen_off_after: 10
 kiosk_screen_rotation: ''
 # How much bigger everything is drawn, for a panel with small pixels: 1.5 on a 1920x1200 one gives the app the 1280x800
 # page it is laid out for, half as big again. It is the output's scale in Cage, which kiosk-display sets with wlr-randr
-# as it does the rotation, so Chromium's window is the smaller size and Chromium draws it at the panel's own pixels.
-# (Chromium's --force-device-scale-factor does not do it: Cage is not told, and the window shows only its top left
-# corner.) 1 leaves the page at the panel's own pixels. Empty (the default) leaves it to screen-setup.ts, as the
+# as it does the rotation, so the shell's window is the smaller size and WebKit draws it at the panel's own pixels.
+# 1 leaves the page at the panel's own pixels. Empty (the default) leaves it to screen-setup.ts, as the
 # rotation. A new value takes effect at the next kiosk restart.
 kiosk_screen_scale: ''
 
 # Packages from the Raspberry Pi archive only (not in Debian). Tests in a plain Debian container set this to [].
 kiosk_rpi_packages:
   - pi-bluetooth
-  - rpi-chromium-mods
 # Packages the playbook needs to run again with ansible-pull.
 kiosk_ansible_packages:
   - ansible-core
@@ -183,8 +181,8 @@ kiosk_packages:
   - xkb-data
   - fonts-dejavu-core
   - fonts-noto-color-emoji
-  # Browser
-  - chromium
+  # The kiosk shell's web view (pi/kiosk-shell, installed as kiosk_shell_bin)
+  - libwebkit2gtk-4.1-0
   # Maintenance over SSH (kiosk_ssh_enabled)
   - openssh-server
   - sudo
@@ -226,6 +224,14 @@ kiosk_branch_app_dir: /var/lib/the-max-mix/branch-app
 # The LAN port the Sonos speakers send their events to while the app follows them (pi/kiosk-audio/sonos-events.ts).
 kiosk_sonos_events_port: 6329
 kiosk_audio_deps_stamp: /var/lib/the-max-mix/kiosk-audio-deps.sha1
+# The kiosk shell (pi/kiosk-shell): the window kiosk-session shows the app in, one full-screen WebKit view under Cage.
+# CI builds it for arm64. A release's Pi bundle carries the binary as pi/kiosk-shell/kiosk-shell; a Pi following a
+# branch has only the source in its checkout, so the playbook downloads the build of that source (named after its git
+# tree id) from kiosk_shell_builds, where the Kiosk shell workflow puts a build of every pushed version.
+kiosk_shell_bin: /usr/local/bin/kiosk-shell
+kiosk_shell_builds: "{{ kiosk_pull_repo | regex_replace('[.]git$', '') }}/releases/download/kiosk-shell-builds"
+# Chromium ran the app before the kiosk shell; a run that installs the packages removes it and what it kept.
+kiosk_removed_packages: [chromium, chromium-common, chromium-l10n, chromium-sandbox, rpi-chromium-mods]
 # PipeWire's AirPlay buffer. Shorter means play, pause and skip are heard sooner on the speakers; too short and a busy
 # Wi-Fi network makes them drop out.
 kiosk_raop_latency_ms: 500

@@ -3,13 +3,13 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { chromiumPid, MAX_STALE_MS, STALE_MS, Watchdog } from './watchdog.ts';
+import { appPid, MAX_STALE_MS, STALE_MS, Watchdog } from './watchdog.ts';
 
 function setup() {
   const state = { now: 0, pid: 100 as number | null, stopped: [] as number[], logs: [] as string[] };
   const watchdog = new Watchdog({
     now: () => state.now,
-    chromiumPid: () => Promise.resolve(state.pid),
+    appPid: () => Promise.resolve(state.pid),
     stop: stopped => {
       state.stopped.push(stopped);
       state.pid = null;
@@ -23,7 +23,7 @@ function setup() {
 }
 
 describe('Watchdog', () => {
-  it('leaves Chromium alone until the app has sent a heartbeat', async () => {
+  it('leaves the shell alone until the app has sent a heartbeat', async () => {
     const { state, watchdog } = setup();
     await watchdog.check();
     state.now = 10 * STALE_MS;
@@ -31,7 +31,7 @@ describe('Watchdog', () => {
     expect(state.stopped).toEqual([]);
   });
 
-  it('restarts Chromium when the heartbeats stop', async () => {
+  it('restarts the shell when the heartbeats stop', async () => {
     const { state, watchdog } = setup();
     await watchdog.check();
     watchdog.beat();
@@ -43,7 +43,7 @@ describe('Watchdog', () => {
     expect(state.logs[0]).toMatch(/No heartbeat/);
   });
 
-  it('gives a new Chromium the whole wait, and leaves a stopped one alone', async () => {
+  it('gives a new shell the whole wait, and leaves a stopped one alone', async () => {
     const { state, watchdog } = setup();
     await watchdog.check();
     watchdog.beat();
@@ -82,14 +82,14 @@ describe('Watchdog', () => {
   });
 });
 
-describe('chromiumPid', () => {
+describe('appPid', () => {
   it('reads a running process from the pid file', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'watchdog-'));
-    const file = path.join(dir, 'chromium.pid');
-    expect(await chromiumPid(file)).toBeNull();
+    const file = path.join(dir, 'app.pid');
+    expect(await appPid(file)).toBeNull();
     await writeFile(file, `${process.pid}\n`);
-    expect(await chromiumPid(file)).toBe(process.pid);
+    expect(await appPid(file)).toBe(process.pid);
     await writeFile(file, 'nonsense');
-    expect(await chromiumPid(file)).toBeNull();
+    expect(await appPid(file)).toBeNull();
   });
 });

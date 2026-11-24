@@ -42,12 +42,13 @@ ExecStartPre=-+/usr/bin/systemctl --user -M {{ kiosk_user }}@ daemon-reload
 ExecStartPre=-+/usr/bin/systemctl --user -M {{ kiosk_user }}@ try-restart kiosk-audio.service
 # PAMName=login puts Cage and its children in the login session scope, so systemd signals only Cage, which then waits for
 # kiosk-session to exit. Tell kiosk-session to stop first (the + runs this as root, the - ignores a failure), and wait
-# for it: it waits for Chromium to quit, and Cage must keep the display until then. Chromium that loses its display
-# crashes before writing what it last saved (a device ID saved seconds before an update's restart was lost that way).
+# for it: it waits for the kiosk shell to quit, and Cage must keep the display until then. A browser that loses its
+# display crashes before writing what it last saved (a device ID saved seconds before an update's restart was lost that
+# way with Chromium).
 ExecStop=-+/usr/bin/pkill -TERM -f "^bash /usr/local/bin/kiosk-session"
 ExecStop=-+/usr/bin/timeout 15 /usr/bin/pidwait -f "^bash /usr/local/bin/kiosk-session"
 Environment=WLR_LIBINPUT_NO_DEVICES=1
-# No mouse pointer on the touch screen. Cage draws the pointer itself (its own default, and the shapes Chromium asks for
+# No mouse pointer on the touch screen. Cage draws the pointer itself (its own default, and the shapes the page asks for
 # over the cursor-shape protocol) from the theme called "default" and ignores XCURSOR_THEME, so the folder first in
 # XCURSOR_PATH holds a "default" that is the blank theme of one transparent pixel. XCURSOR_THEME covers the apps.
 Environment=XCURSOR_PATH=/usr/share/kiosk-cursors:/usr/share/icons
