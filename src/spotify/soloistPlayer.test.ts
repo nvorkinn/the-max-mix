@@ -326,31 +326,6 @@ describe('SoloistPlayer', () => {
     expect(socket.sent).toHaveLength(sent);
   });
 
-  it('waits a moment after Soloist comes up before saying it is not signed in', async () => {
-    const on = handlers();
-    const player = new SoloistPlayer(on);
-    player.connect();
-    const socket = latestFakeSocket();
-    socket.open();
-    // Soloist restarts and restores its session about half a second later.
-    socket.receive({ type: 'bridge', connected: true });
-    socket.receive({ ...authState(false), logged_in: false });
-    await vi.advanceTimersByTimeAsync(500);
-    socket.receive(authState(false));
-    await vi.advanceTimersByTimeAsync(5000);
-    expect(on.onSignedOut).not.toHaveBeenCalled();
-    // Signed out later, long after it came up: said at once.
-    socket.receive({ ...authState(false), logged_in: false });
-    expect(on.onSignedOut).toHaveBeenCalledOnce();
-    // Nothing is said once the player is closed.
-    socket.receive({ type: 'bridge', connected: false });
-    socket.receive({ type: 'bridge', connected: true });
-    socket.receive({ ...authState(false), logged_in: false });
-    player.disconnect();
-    await vi.advanceTimersByTimeAsync(5000);
-    expect(on.onSignedOut).toHaveBeenCalledOnce();
-  });
-
   it('is no longer ready once Soloist goes, and ready again once it is back', async () => {
     const { on, player, socket } = await ready();
     const pending = player.pause();
@@ -391,9 +366,6 @@ describe('SoloistPlayer', () => {
     socket.receive({ type: 'bridge', connected: true });
     socket.receive({ ...authState(false), logged_in: false });
     await settle();
-    // Soloist may still be restoring its session: it is given a moment first.
-    expect(on.onSignedOut).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(2000);
     expect(on.onSignedOut).toHaveBeenCalledOnce();
     expect(getDevices).not.toHaveBeenCalled();
     socket.receive(authState(false));

@@ -23,9 +23,6 @@ const DEVICE_RETRY_MS = 3000;
 const DEVICE_RETRY_MAX_MS = 60_000;
 // Starting playback can raise Soloist's volume by one; a change of volume this soon after a start is put back.
 const VOLUME_HOLD_MS = 5000;
-// Soloist reports itself signed out for about half a second as it starts, before it has restored the person's session;
-// that is said only once it has had this long since it came up.
-const SIGN_IN_GRACE_MS = 2000;
 // The commands that act on the account's active device. None is sent while Soloist is not it.
 const CONTROL_COMMANDS = new Set([
   'play',
@@ -155,9 +152,6 @@ export class SoloistPlayer {
   #startedAt = 0;
   // The volume to set again once a start the page asked for plays, until when, and whether Soloist said it plays.
   #volumeOnStart: { volume: number; until: number; isPlaying: boolean } | null = null;
-  // When Soloist last came up, and the wait before saying it is not signed in.
-  #soloistSince = 0;
-  #signedOut: ReturnType<typeof setTimeout> | undefined;
 
   constructor(handlers: SoloistHandlers, url = SOLOIST_SOCKET) {
     this.#handlers = handlers;
@@ -246,8 +240,6 @@ export class SoloistPlayer {
     this.#isActive = false;
     this.#status = '';
     this.#volumeOnStart = null;
-    clearTimeout(this.#signedOut);
-    this.#signedOut = undefined;
     this.#failPending('The kiosk player disconnected.');
     if (this.#isStopped) return;
     if (wasReady) this.#handlers.onNotReady();
@@ -327,20 +319,6 @@ export class SoloistPlayer {
     this.#ask('set_volume', { volume: wanted.volume });
   }
 
-  /** Says Soloist waits to be signed in, unless it came up so recently that it may still be restoring its session. */
-  #reportSignedOut(): void {
-    const wait = this.#soloistSince + SIGN_IN_GRACE_MS - Date.now();
-    if (wait <= 0) {
-      this.#handlers.onSignedOut();
-      return;
-    }
-    if (this.#signedOut !== undefined) return;
-    this.#signedOut = setTimeout(() => {
-      this.#signedOut = undefined;
-      if (!this.#isStopped && !this.#isLoggedIn) this.#handlers.onSignedOut();
-    }, wait);
-  }
-
   #state(): KioskPlaybackState {
     if (!this.#isActive) return null;
     const position = this.#position;
@@ -374,10 +352,8 @@ export class SoloistPlayer {
     switch (message['type']) {
       case 'bridge': {
         // Soloist greets a connection of its own with its state; one joined to the service's asks for it.
-        if (message['connected'] === true) {
-          this.#soloistSince = Date.now();
-          this.#ask('get_state');
-        } else this.#lost();
+        if (message['connected'] === true) this.#ask('get_state');
+        else this.#lost();
         return;
       }
       case 'auth_state': {
@@ -387,7 +363,7 @@ export class SoloistPlayer {
         this.#deviceName = name;
         this.#isLoggedIn = isLoggedIn;
         this.#setActive(message['is_active']);
-        if (!isLoggedIn) this.#reportSignedOut();
+        if (!isLoggedIn) this.#handlers.onSignedOut();
         if (this.#isLoggedIn && this.#deviceId === null && this.#lookup === undefined) void this.#findDevice();
         break;
       }
@@ -466,8 +442,6 @@ export class SoloistPlayer {
     clearTimeout(this.#reconnect);
     this.#reconnect = undefined;
     clearTimeout(this.#lookup);
-    clearTimeout(this.#signedOut);
-    this.#signedOut = undefined;
     const socket = this.#socket;
     this.#socket = null;
     this.#isOpen = false;
