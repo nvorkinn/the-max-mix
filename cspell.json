@@ -61,6 +61,7 @@
     "getconf",
     "getent",
     "gitlink",
+    "gobject",
     "gsub",
     "gzzlukng",
     "henda",
