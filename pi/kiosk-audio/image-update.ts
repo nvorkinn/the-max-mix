@@ -340,5 +340,6 @@ export function cmdlineWithRoot(line: string, label: string): string {
     .trim()
     .split(/\s+/)
     .filter(word => word !== '' && !word.startsWith('root='));
-  return `${[`root=PARTLABEL=${label}`, ...words].join(' ')}\n`;
+  const root = `root=PARTLABEL=${label}`;
+  return `${[root, ...words].join(' ')}\n`;
 }
