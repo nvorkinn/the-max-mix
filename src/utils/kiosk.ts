@@ -64,6 +64,14 @@ export function rebootPi(): void {
 }
 
 /**
+ * Asks an image-based kiosk for a factory reset (kiosk-reset): Tailscale logs out, everything the Pi keeps but its name
+ * and settings is wiped (Wi-Fi, people, Spotify logins, pairings, the device ID), and it reboots into its first start.
+ */
+export function factoryReset(): void {
+  kioskPost('/power/reset');
+}
+
+/**
  * What the Pi runs, at the kiosk's last start: the release tag it pulled (v1.2.3, when it follows the latest release) or
  * the branch or tag it is pinned to (kiosk_pull_ref), and the commit its playbook ran from.
  */

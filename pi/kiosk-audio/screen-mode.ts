@@ -9,9 +9,16 @@
 // evenTimings), and has the kernel read the screen again. kiosk.service runs that as root before Cage on every start,
 // so it always goes by the screen that is plugged in. The correction lasts until the Pi restarts.
 //   node screen-mode.ts --correct [drm folder] [debugfs dri folder]
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+//
+// With --cmdline it writes the mode into a kernel command line file itself (cmdlineWithMode), as the Ansible role does,
+// for an image-based Pi, whose boot partition comes from the image: screen-setup.ts does it as the kiosk starts, and an
+// update writes it into the new slot's boot partition before booting it. --mode (KIOSK_VIDEO_MODE in kiosk.env) wins
+// over the screen's own mode.
+//   node screen-mode.ts --cmdline <cmdline.txt> [--mode <mode>] [drm folder]
+import { readdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 
 const HEADER = [0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00];
 // The first detailed timing descriptor, which EDID 1.3 and later make the preferred (native) mode.
@@ -125,8 +132,63 @@ function portOf(name: string): number {
   return Number(/HDMI-A-(\d+)$/.exec(name)?.[1]);
 }
 
+/** The mode a screen gets when nothing says which (no setting, no EDID): the 7 inch 1024x600 screen's. */
+export const FALLBACK_MODE = '1024x600@60';
+const HDMI_OUTPUTS = ['HDMI-A-1', 'HDMI-A-2'] as const;
+
+/** A screen mode setting such as 1280x800@60, or undefined when it is empty or not one. */
+export function modeSetting(value: string | undefined): string | undefined {
+  const mode = value?.trim();
+  return mode && /^\d+x\d+@\d+$/.test(mode) ? mode : undefined;
+}
+
+/**
+ * The kernel command line `line` with `mode` forced on both HDMI ports (video=HDMI-A-1:<mode>), as the Ansible role
+ * writes it: another mode is replaced only once the mode is known, and a port with no mode at all gets the fallback. The
+ * other parameters stay as they are, in their order.
+ */
+export function cmdlineWithMode(line: string, mode: string | undefined): string {
+  const words = line.split(/\s+/).filter(word => word !== '');
+  const kept = words.filter(word => {
+    const [, output] = /^video=(HDMI-A-[12]):/.exec(word) ?? [];
+    return !(mode && output && word !== `video=${output}:${mode}`);
+  });
+  for (const output of HDMI_OUTPUTS) {
+    if (!kept.some(word => word.startsWith(`video=${output}:`))) {
+      kept.push(`video=${output}:${mode ?? FALLBACK_MODE}`);
+    }
+  }
+  return kept.join(' ');
+}
+
+/**
+ * Writes the screen mode into the kernel command line in `file`: `setting` if it is one, else the mode of the screen
+ * plugged in (screenMode). Takes effect at the next boot. Returns the new line, or undefined when it was right already.
+ */
+export async function writeCmdlineMode(
+  file: string,
+  { setting, drm = '/sys/class/drm' }: { setting?: string | undefined; drm?: string } = {}
+): Promise<string | undefined> {
+  const line = (await readFile(file, 'utf8')).trim();
+  const next = cmdlineWithMode(line, modeSetting(setting) ?? (await screenMode(drm)));
+  if (next === line) return undefined;
+  // Written beside it and moved over it, so a power cut never leaves the Pi a half-written command line.
+  await writeFile(`${file}.tmp`, `${next}\n`);
+  await rename(`${file}.tmp`, file);
+  return next;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  if (process.argv[2] === '--correct') {
+  if (process.argv[2] === '--cmdline') {
+    const { values, positionals } = parseArgs({
+      args: process.argv.slice(3),
+      allowPositionals: true,
+      options: { mode: { type: 'string' } }
+    });
+    const [file = '', drm = '/sys/class/drm'] = positionals;
+    const line = await writeCmdlineMode(file, { setting: values.mode, drm });
+    if (line) console.log(line);
+  } else if (process.argv[2] === '--correct') {
     const drm = process.argv[3] ?? '/sys/class/drm';
     const corrected = await correctScreens(drm, process.argv[4] ?? '/sys/kernel/debug/dri');
     for (const connector of corrected) console.log(`${connector}: gave its mode even horizontal timings`);

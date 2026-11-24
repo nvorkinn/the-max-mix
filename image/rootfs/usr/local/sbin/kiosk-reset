@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Factory reset of an image-based kiosk, for handing it to someone else: logs out of Tailscale (which takes the Pi off
+# the tailnet), marks /data to be wiped and reboots. The next boot formats /data before anything uses it
+# (kiosk-first-boot.ts), keeping only the Pi's name and its settings (identity/hostname, the-max-mix/kiosk.env), so the
+# Wi-Fi, the people, their Spotify logins, the Bluetooth pairings, the countdown device ID and the SSH host keys go. The
+# Pi then starts as a new kiosk: the Wi-Fi step and the QR code. The image itself, on its read-only slots, stays.
+#   sudo kiosk-reset          asks first
+#   sudo kiosk-reset --yes    does not (kiosk-reset.service, from the app's debug console)
+set -euo pipefail
+
+if ((EUID != 0)); then
+  echo 'kiosk-reset: run it as root: sudo kiosk-reset' >&2
+  exit 1
+fi
+if ! mountpoint --quiet /data; then
+  echo 'kiosk-reset: /data is not mounted; this Pi is not image-based' >&2
+  exit 1
+fi
+if [[ ${1:-} != --yes ]]; then
+  if [[ ! -t 0 ]]; then
+    echo 'kiosk-reset: pass --yes to reset without being asked' >&2
+    exit 2
+  fi
+  read -r -p "Wipe everything $(hostname) keeps but its name and settings, and reboot? Type reset to go on: " answer
+  if [[ $answer != reset ]]; then
+    echo 'Nothing changed.'
+    exit 1
+  fi
+fi
+
+# Off the tailnet while the network is still up. A failure (no network, Tailscale off) leaves the node in the admin
+# console, where it can be removed by hand; the wipe takes the Pi's own login anyway.
+if systemctl is-active --quiet tailscaled.service; then
+  timeout 20 tailscale logout || echo 'kiosk-reset: could not log out of Tailscale; remove the Pi in its admin console' >&2
+fi
+
+touch /data/.kiosk-reset
+sync
+echo 'Rebooting to wipe /data.'
+systemctl reboot

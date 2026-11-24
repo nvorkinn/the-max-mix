@@ -14,7 +14,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "lint": "eslint . --max-warnings 0 --concurrency auto",
-    "lint:shell": "shellcheck ansible/roles/kiosk/files/bin/* ansible/tests/*.sh",
+    "lint:shell": "shellcheck ansible/roles/kiosk/files/bin/* ansible/tests/*.sh image/rootfs/usr/local/sbin/*",
     "lint:md": "markdownlint-cli2",
     "lint:css": "stylelint \"src/**/*.css\" --max-warnings 0",
     "lint:unused-css": "node scripts/check-unused-css.ts",

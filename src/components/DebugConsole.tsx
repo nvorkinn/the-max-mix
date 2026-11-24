@@ -1,6 +1,6 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
-import { X, Bug, RotateCw, Trash2, KeyRound, ChevronDown, ChevronRight } from 'lucide-react';
+import { X, Bug, RotateCw, Trash2, KeyRound, ChevronDown, ChevronRight, Eraser } from 'lucide-react';
 import { forgetDeviceConfig } from '../countdown/config';
 import { deviceCredentials, forgetRegistration } from '../countdown/registration';
 import { clearDebugLog, getDebugEntries, subscribeDebugLog } from '../utils/debugLog';
@@ -9,7 +9,7 @@ import { getHttpLogMode, getMutedHttpGroups, HTTP_GROUPS, setHttpGroupMuted, set
 import type { HttpLogMode } from '../utils/httpLog';
 import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
 import { setPollSpotify } from '../spotify/polling';
-import { isKiosk } from '../utils/kiosk';
+import { factoryReset, isKiosk } from '../utils/kiosk';
 import BluetoothDebug from './BluetoothDebug';
 import Modal from './Modal';
 
@@ -164,6 +164,37 @@ function LogOptions({ status }: Readonly<{ status: DebugStatus }>) {
 
 type DebugTab = 'log' | 'bluetooth';
 
+/** How long the factory reset's first tap waits for the second. */
+const RESET_CONFIRM_MS = 4000;
+
+/**
+ * Factory reset, on a second tap within a few seconds so a stray touch never wipes the Pi: an image-based Pi logs out of
+ * Tailscale, wipes everything it keeps but its name and settings, and reboots into its first start (kiosk-reset).
+ */
+function FactoryResetButton({ onConfirm }: Readonly<{ onConfirm: () => void }>) {
+  const [isArmed, setIsArmed] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        clearTimeout(timerRef.current);
+        if (isArmed) {
+          setIsArmed(false);
+          onConfirm();
+          return;
+        }
+        setIsArmed(true);
+        timerRef.current = setTimeout(() => setIsArmed(false), RESET_CONFIRM_MS);
+      }}
+    >
+      <Eraser size={14} aria-hidden="true" /> {isArmed ? 'Tap again to reset' : 'Factory reset'}
+    </button>
+  );
+}
+
 const TABS: readonly (readonly [tab: DebugTab, label: string])[] = [
   ['log', 'Log'],
   ['bluetooth', 'Bluetooth']
@@ -173,8 +204,15 @@ function DebugConsolePanel({
   onClose,
   status,
   onReload,
-  onRegisterAgain
-}: Readonly<{ onClose: () => void; status: DebugStatus; onReload: () => void; onRegisterAgain: () => void }>) {
+  onRegisterAgain,
+  onFactoryReset
+}: Readonly<{
+  onClose: () => void;
+  status: DebugStatus;
+  onReload: () => void;
+  onRegisterAgain: () => void;
+  onFactoryReset: () => void;
+}>) {
   const entries = useSyncExternalStore(subscribeDebugLog, getDebugEntries);
   const [tab, setTab] = useState<DebugTab>('log');
   const rows: DebugStatus = [
@@ -220,6 +258,7 @@ function DebugConsolePanel({
               <KeyRound size={14} aria-hidden="true" /> Register again
             </button>
           )}
+          {isKiosk() && <FactoryResetButton onConfirm={onFactoryReset} />}
           <button
             type="button"
             data-modal-autofocus
@@ -275,13 +314,15 @@ export default function DebugConsole({
   onClose,
   status,
   onReload = reloadPage,
-  onRegisterAgain
+  onRegisterAgain,
+  onFactoryReset = factoryReset
 }: Readonly<{
   isOpen: boolean;
   onClose: () => void;
   status: DebugStatus;
   onReload?: () => void;
   onRegisterAgain?: () => void;
+  onFactoryReset?: () => void;
 }>) {
   return isOpen ? (
     <DebugConsolePanel
@@ -295,6 +336,7 @@ export default function DebugConsole({
           onReload();
         })
       }
+      onFactoryReset={onFactoryReset}
     />
   ) : null;
 }

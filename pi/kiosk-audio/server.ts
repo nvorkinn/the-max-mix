@@ -63,6 +63,8 @@
 //   POST /soloist/person   {"person", "server", "secret"}   run Spotify Soloist for the active person (their Spotify ID),
 //                           with their key from countdown-server (soloist.ts): 200 {"state"}
 //   POST /soloist/stop      stop it, when nobody is signed in on the kiosk: 204
+//   POST /power/restart, /power/reboot   restart the kiosk, reboot the Pi; /power/reset   an image-based Pi's factory
+//                           reset (kiosk-reset): wipe /data and reboot; /display/wake   turn the screen on: 204
 //   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
 //                           (update-socket.ts)
 //   WS   /soloist           Spotify Soloist's events, and the app's commands to it (soloist-socket.ts)
@@ -126,6 +128,7 @@ const LOGS_PER_MINUTE = 30;
 const POST_ACTIONS: Record<string, Action> = {
   '/power/restart': 'restart',
   '/power/reboot': 'reboot',
+  '/power/reset': 'reset',
   '/display/wake': 'wake'
 };
 

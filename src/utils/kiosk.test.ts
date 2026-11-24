@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getPlaybackMode } from '../spotify/settings';
 import {
   currentWifi,
+  factoryReset,
   isKiosk,
   isRelease,
   latestCommit,
@@ -133,9 +134,11 @@ describe('restart and reboot', () => {
     vi.stubGlobal('fetch', fetchMock);
     restartKiosk();
     rebootPi();
+    factoryReset();
     expect(fetchMock.mock.calls).toEqual([
       ['http://127.0.0.1:7341/power/restart', { method: 'POST' }],
-      ['http://127.0.0.1:7341/power/reboot', { method: 'POST' }]
+      ['http://127.0.0.1:7341/power/reboot', { method: 'POST' }],
+      ['http://127.0.0.1:7341/power/reset', { method: 'POST' }]
     ]);
   });
 });

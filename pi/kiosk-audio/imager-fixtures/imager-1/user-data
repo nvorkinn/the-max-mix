@@ -1,0 +1,28 @@
+#cloud-config
+hostname: the-max-mix
+manage_etc_hosts: true
+packages:
+- avahi-daemon
+apt:
+  conf: |
+    Acquire {
+      Check-Date "false";
+    };
+
+users:
+- name: admin
+  groups: users,adm,dialout,audio,netdev,video,plugdev,cdrom,games,input,gpio,spi,i2c,render,sudo
+  shell: /bin/bash
+  lock_passwd: false
+  passwd: $5$abcdefgh$FixturePasswordHashOnlyForTests000000000000000
+  ssh_authorized_keys:
+    - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFixtureKeyForTestsOnlyNotARealKey0000000003 nikolai@old-laptop
+  sudo: ALL=(ALL) NOPASSWD:ALL
+
+enable_ssh: true
+ssh_pwauth: false
+
+timezone: Europe/London
+runcmd:
+- localectl set-x11-keymap "gb" pc105
+- setupcon -k --force || true

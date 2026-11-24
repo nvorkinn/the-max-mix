@@ -61,7 +61,8 @@ const CHECKS: Record<string, Matcher[]> = {
       /^ansible\/roles\/kiosk\/files\/bin\//,
       /^ansible\/tests\/[^/]+\.sh$/,
       'pi/cloud-init/first-boot',
-      'pi/cloud-init/build-image.sh'
+      'pi/cloud-init/build-image.sh',
+      /^image\/rootfs\/usr\/local\/sbin\//
     )
   ],
   actionlint: [paths(/^\.github\/workflows\//)],

@@ -1,0 +1,29 @@
+#cloud-config
+manage_resolv_conf: false
+
+hostname: "the-max-mix-4"
+manage_etc_hosts: true
+packages:
+- avahi-daemon
+apt:
+  preserve_sources_list: true
+  conf: |
+    Acquire {
+      Check-Date "false";
+    };
+timezone: "Europe/London"
+keyboard:
+  model: pc105
+  layout: "gb"
+user:
+  name: "admin"
+  shell: /bin/bash
+  lock_passwd: false
+  passwd: "$y$j9T$Q2ZpZHVyZXNhbHQ$Sf5Q0QnBk6cK2kq3mM2b6p1x1oK7yQyQ0bq6Yh8b2nB"
+  ssh_authorized_keys:
+    - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFixtureKeyForTestsOnlyNotARealKey0000000001 nikolai@laptop"
+    - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFixtureKeyForTestsOnlyNotARealKey0000000002 nikolai@phone"
+  sudo: null
+ssh_pwauth: false
+runcmd:
+  - [ systemctl, enable, --now, ssh ]
