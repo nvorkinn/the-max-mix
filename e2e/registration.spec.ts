@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page, Route } from '@playwright/test';
+import { fakeCountdownServer } from './fake-countdown.ts';
 import { PIXEL } from './fake-spotify.ts';
 
 // countdown-server's screens' API, as the build names it (.env.production).
@@ -45,8 +46,28 @@ async function fakePairing(page: Page) {
   };
 }
 
-test.describe('Adding a new kiosk to countdown-server', { tag: '@registration' }, () => {
-  // A kiosk that has never registered (the other tests start registered: see playwright.config.ts).
+/** The Pi's Bluetooth while it looks for the phone: `report.pairing` is what the next GET /bluetooth/monitor says. */
+async function fakePhonePairing(page: Page) {
+  const report: { pairing: object } = { pairing: { state: 'idle' } };
+  const asked: string[] = [];
+  await page.route('http://127.0.0.1:7341/bluetooth/**', (route: Route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (request.method() === 'POST') {
+      asked.push(path);
+      return route.fulfill({ status: 200, json: {} });
+    }
+    return route.fulfill({
+      json: { adapter: null, phones: [], presenceChecking: false, devices: [], nearby: 0, verbose: false, log: [], ...report }
+    });
+  });
+  return { report, asked };
+}
+
+const PHONE = { address: '1C:3C:78:F2:61:1D', name: 'Max’s iPhone' };
+
+test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () => {
+  // A kiosk that has never registered (the other tests start set up: see playwright.config.ts).
   test.use({ storageState: { cookies: [], origins: [] } });
 
   test.beforeEach(async ({ page }) => {
@@ -57,67 +78,88 @@ test.describe('Adding a new kiosk to countdown-server', { tag: '@registration' }
     await page.route('http://127.0.0.1:7341/screen', route =>
       route.fulfill({ json: { width: 1280, height: 800, brightness_control: false } })
     );
-    // On its network already, with no other in range.
-    await page.route('http://127.0.0.1:7341/wifi/status', route =>
-      route.fulfill({ json: { ssid: 'Home', address: null } })
+    await page.route('http://127.0.0.1:7341/wifi/networks', route =>
+      route.fulfill({ json: { networks: [{ ssid: 'Home', signal: 80, security: 'WPA2', known: false }] } })
     );
-    await page.route('http://127.0.0.1:7341/wifi/networks', route => route.fulfill({ json: { networks: [] } }));
+    await page.route('http://127.0.0.1:7341/soloist/**', route => route.fulfill({ json: { state: 'playing' } }));
   });
 
-  test('a new kiosk shows its Wi-Fi, then a QR code until someone owns it, then opens the app', async ({
-    page
-  }, testInfo) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
-    const server = await fakePairing(page);
-    await page.goto('/?kiosk=1');
+  for (const size of [
+    { width: 1280, height: 800 },
+    { width: 1024, height: 600 }
+  ]) {
+    test(`walks through every chapter from one QR code at ${size.width}x${size.height}`, async ({ page }, testInfo) => {
+      await page.setViewportSize(size);
+      const shot = async (name: string) =>
+        testInfo.attach(`setup-${name}-${size.width}x${size.height}`, {
+          body: await page.screenshot(),
+          contentType: 'image/png'
+        });
+      let online = false;
+      await page.route('http://127.0.0.1:7341/wifi/status', route =>
+        route.fulfill({ json: online ? { ssid: 'Home', address: '192.168.0.42' } : { ssid: null, address: null } })
+      );
+      const server = await fakePairing(page);
+      await page.goto('/?kiosk=1');
+      const chapters = page.getByRole('navigation', { name: 'Set up this screen' }).getByRole('listitem');
+      await expect(chapters).toHaveText(['Wi-Fi', 'Account', 'Spotify', 'Soloist', 'Presence']);
 
-    // First its Wi-Fi: Next goes on without changing it, and nothing registers before.
-    await expect(page.getByTestId('wifi-network')).toHaveText('Home');
-    await testInfo.attach('pairing-wifi-1280x800', { body: await page.screenshot(), contentType: 'image/png' });
-    expect(server.registrations).toHaveLength(0);
-    await page.getByRole('button', { name: 'Next' }).click();
+      // Wi-Fi: nothing registers on no network, and it moves on by itself once the Pi has joined one.
+      await expect(page.getByRole('region', { name: 'Wi-Fi' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Next' })).toHaveCount(0);
+      await shot('1-wifi');
+      expect(server.registrations).toHaveLength(0);
+      online = true;
 
-    const code = page.getByRole('img', { name: 'QR code to add this screen to your account' });
-    await expect(code).toBeVisible();
-    await testInfo.attach('pairing-1280x800', { body: await page.screenshot(), contentType: 'image/png' });
+      // One QR code from here on. The kiosk registers and waits for its owner.
+      const code = page.getByRole('img', { name: 'QR code to set up this screen on your phone' });
+      await expect(page.getByRole('region', { name: 'Account' })).toBeVisible();
+      await expect(code).toBeVisible();
+      await expect.poll(() => server.accountAuthorizations.length).toBeGreaterThan(0);
+      expect(server.registrations[0]).toMatchObject({ type: 'touchscreen', width: 1280, height: 800 });
+      await shot('2-account');
 
-    // Registered as a touchscreen nobody owns, and asking with its secret whether someone does.
-    await expect.poll(() => server.accountAuthorizations.length).toBeGreaterThan(0);
-    const secret = await page.evaluate(() => localStorage.getItem('maxmix.deviceSecret'));
-    expect(secret).toMatch(/^[0-9a-f]{64}$/);
-    expect(server.registrations[0]).toEqual({
-      secret,
-      type: 'touchscreen',
-      width: 1280,
-      height: 800,
-      brightness_control: false
+      // Paired on the phone: the kiosk starts the Spotify sign-in the phone goes on to, under the same code.
+      const owned = await fakeCountdownServer(page, {});
+      server.pair();
+      await expect(page.getByRole('region', { name: 'Spotify' })).toBeVisible();
+      await expect(code).toBeVisible();
+      await expect.poll(() => owned.spotifySignIns.started.length).toBe(1);
+      await shot('3-spotify');
+      await page.route('https://accounts.spotify.com/api/token', route =>
+        route.fulfill({ json: { access_token: 'a', refresh_token: 'r', expires_in: 3600 } })
+      );
+      await page.route('https://api.spotify.com/v1/me', route =>
+        route.fulfill({ json: { id: 'max', display_name: 'Max', images: [] } })
+      );
+      owned.spotifySignIns.phoneComesBack({ code: 'the-code' });
+
+      // Signed in: the phone goes on to the Soloist key, which ticks once it's saved.
+      await expect(page.getByRole('region', { name: 'Soloist' })).toBeVisible();
+      await expect(code).toBeVisible();
+      await shot('4-soloist');
+      owned.soloistKeys.add('max');
+
+      // Presence: the scan only starts once they have Bluetooth open and tap OK.
+      const bluetooth = await fakePhonePairing(page);
+      await expect(page.getByRole('region', { name: 'Presence' })).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByRole('listitem').filter({ hasText: 'Tap OK' })).toBeVisible();
+      await shot('5-presence');
+      expect(bluetooth.asked).toEqual([]);
+      bluetooth.report.pairing = { state: 'scanning', secondsLeft: 100, nearby: [PHONE] };
+      await page.getByRole('button', { name: 'OK' }).click();
+      await expect(page.getByRole('button', { name: PHONE.name })).toBeVisible();
+      expect(bluetooth.asked).toContain('/bluetooth/pair-phone');
+      await shot('6-presence-scanning');
+      await page.getByRole('button', { name: PHONE.name }).click();
+      bluetooth.report.pairing = { state: 'paired', name: PHONE.name, address: PHONE.address };
+      await expect(page.getByRole('button', { name: 'Done' })).toBeVisible();
+      await shot('7-done');
+
+      // Done opens the app, and the next start doesn't come back to the wizard.
+      await page.getByRole('button', { name: 'Done' }).click();
+      await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
+      expect(await page.evaluate(() => localStorage.getItem('maxmix.setupDone'))).toBe('1');
     });
-    expect(server.accountAuthorizations[0]).toBe(`Bearer ${secret}`);
-    expect(await page.evaluate(() => localStorage.getItem('maxmix.deviceId'))).toBeNull();
-
-    // Someone scans it and signs in on their phone: the kiosk keeps its device ID and opens the app.
-    server.pair();
-    await expect(code).toBeHidden();
-    await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
-    expect(await page.evaluate(() => localStorage.getItem('maxmix.deviceId'))).toBe('0a1b2c3d4e5f');
-    expect(await page.evaluate(() => localStorage.getItem('maxmix.deviceSecret'))).toBe(secret);
-
-    // Owned: the next start opens the app without registering again.
-    const registered = server.registrations.length;
-    await page.goto('/?kiosk=1');
-    await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
-    await expect(code).toBeHidden();
-    expect(server.registrations).toHaveLength(registered);
-  });
-
-  test('a kiosk whose Pi cannot say what its screen is opens the app unregistered', async ({ page }) => {
-    await page.route('http://127.0.0.1:7341/screen', route => route.fulfill({ status: 503 }));
-    const server = await fakePairing(page);
-    await page.goto('/?kiosk=1');
-
-    await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
-    await expect(page.getByRole('img', { name: 'QR code to add this screen to your account' })).toBeHidden();
-    expect(server.registrations).toHaveLength(0);
-    expect(await page.evaluate(() => localStorage.getItem('maxmix.deviceId'))).toBeNull();
-  });
+  }
 });

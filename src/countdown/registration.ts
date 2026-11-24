@@ -15,8 +15,8 @@ import { countdownApi, countdownServer } from './server';
 const SECRET_KEY = 'maxmix.deviceSecret';
 const DEVICE_ID_KEY = 'maxmix.deviceId';
 const DEVICE_ID_PATTERN = /^[\w-]{1,64}$/;
-// Set when the kiosk is paired, until someone signs in to Spotify on it or closes the Dashboard's Get started.
-const GET_STARTED_KEY = 'maxmix.getStarted';
+// Set once the first-time setup wizard is done (components/setup/SetupWizard.tsx).
+const SETUP_DONE_KEY = 'maxmix.setupDone';
 
 /** The kiosk's secret and the device ID the server gave it, once it is registered. */
 export interface DeviceCredentials {
@@ -50,13 +50,14 @@ export function deviceCredentials(): DeviceCredentials | null {
 }
 
 /**
- * Forgets the device ID and the secret, so the next registration is a new screen to the server (the debug console's
- * Register again).
+ * Forgets the device ID and the secret, so the next start is a new screen to the server and goes through the setup
+ * wizard again (the debug console's Register again).
  */
 export function forgetRegistration(): void {
   try {
     localStorage.removeItem(DEVICE_ID_KEY);
     localStorage.removeItem(SECRET_KEY);
+    localStorage.removeItem(SETUP_DONE_KEY);
   } catch {
     // Storage is unavailable, so there was nothing kept to forget.
   }
@@ -101,14 +102,21 @@ export function pairingPageUrl(server: string, token: string): string {
 }
 
 /**
- * Whether the app should pair the kiosk before anything else: on the kiosk, with the server's settings site and API
- * named in this build, nothing registered yet, and storage that can keep the secret (without it, every start would be
- * a new screen).
+ * Whether the kiosk still has to go through its first-time setup (components/setup/SetupWizard.tsx) before anything
+ * else: on the kiosk, with the server's settings site and API named in this build, the wizard not yet finished, and
+ * storage that can keep the secret (without it, every start would be a new screen).
  */
-export function needsRegistration(): boolean {
-  return (
-    isKiosk() && countdownServer() !== null && countdownApi() !== null && deviceCredentials() === null && canStore()
-  );
+export function needsSetup(): boolean {
+  return isKiosk() && countdownServer() !== null && countdownApi() !== null && read(SETUP_DONE_KEY) === null && canStore();
+}
+
+/** The wizard is done: the next start opens the app. */
+export function finishSetup(): void {
+  try {
+    localStorage.setItem(SETUP_DONE_KEY, '1');
+  } catch {
+    // Storage is unavailable: the wizard comes back at the next start, with every chapter ticked.
+  }
 }
 
 /** The Pi's screen, as the kiosk's service reads it from the kernel (pi/kiosk-audio/screen.ts). */
@@ -168,23 +176,8 @@ export async function pairingState(secret: string): Promise<'paired' | 'waiting'
 export function keepDeviceId(deviceId: string): boolean {
   try {
     localStorage.setItem(DEVICE_ID_KEY, deviceId);
-    localStorage.setItem(GET_STARTED_KEY, '1');
     return true;
   } catch {
     return false;
-  }
-}
-
-/** Whether the kiosk was just paired and nobody has dealt with its Get started yet (components/GetStarted.tsx). */
-export function wantsGetStarted(): boolean {
-  return read(GET_STARTED_KEY) !== null;
-}
-
-/** Done with Get started: someone signed in, or closed it. */
-export function forgetGetStarted(): void {
-  try {
-    localStorage.removeItem(GET_STARTED_KEY);
-  } catch {
-    // Storage is unavailable, so there was nothing kept to forget.
   }
 }

@@ -168,8 +168,8 @@ export const STRINGS = {
     nb: 'Skriv navnet på en stasjon eller et stopp, og trykk på det for å legge det til.'
   },
   'common.close': { en: 'Close', nb: 'Lukk' },
-  'common.next': { en: 'Next', nb: 'Neste' },
-  'common.not_now': { en: 'Not now', nb: 'Ikke nå' },
+  'common.ok': { en: 'OK', nb: 'OK' },
+  'common.done': { en: 'Done', nb: 'Ferdig' },
 
   // Settings › Parcels.
   'parcels.notice_board': { en: 'Notice board', nb: 'Oppslagstavle' },
@@ -490,18 +490,12 @@ export const STRINGS = {
   'phone.pair_new': { en: 'Pair new phone', nb: 'Koble sammen ny telefon' },
   'pair.title': { en: 'Pair your phone', nb: 'Koble sammen telefonen din' },
   'pair.title_of': { en: 'Pair {name}’s phone', nb: 'Koble sammen telefonen til {name}' },
-  'pair.key': { en: 'Your phone is your key!', nb: 'Telefonen din er nøkkelen din!' },
-  'pair.intro': {
-    en: 'Once it’s paired, the tablet knows the moment you walk in, and only you can switch to your account.',
-    nb: 'Når den er paret, vet nettbrettet med en gang når du kommer inn, og bare du kan bytte til kontoen din.'
-  },
-  'pair.go': { en: 'Let’s do it!', nb: 'Sett i gang!' },
   'pair.searching': { en: 'Searching', nb: 'Søker' },
   'pair.pairing': { en: 'Pairing', nb: 'Kobler sammen' },
   'pair.accept': { en: 'Accept the pairing request on your phone.', nb: 'Godta paringsforespørselen på telefonen.' },
   'pair.step_settings': { en: 'Open Settings', nb: 'Åpne Innstillinger' },
   'pair.step_bluetooth': { en: 'Open Bluetooth', nb: 'Åpne Bluetooth' },
-  'pair.step_tap': { en: 'Tap your phone in the list below', nb: 'Trykk på telefonen din i listen nedenfor' },
+  'pair.step_ok': { en: 'Tap OK', nb: 'Trykk OK' },
   'pair.nearby': { en: 'Nearby', nb: 'I nærheten' },
   'pair.skip': { en: 'Skip', nb: 'Hopp over' },
   'pair.all_set': { en: 'You’re all set!', nb: 'Alt er klart!' },
@@ -532,17 +526,16 @@ export const STRINGS = {
   'sleep.dimmed': { en: 'Dimmed screen', nb: 'Dempet skjerm' },
   'sleep.asleep': { en: 'Sleep screen', nb: 'Hvileskjerm' },
   'sleep.wake': { en: 'Wake the screen', nb: 'Vekk skjermen' },
-  'pairing.title': { en: 'Add this screen', nb: 'Legg til denne skjermen' },
+  'pairing.title': { en: 'Set up this screen', nb: 'Sett opp denne skjermen' },
   'pairing.code': {
-    en: 'QR code to add this screen to your account',
-    nb: 'QR-kode for å legge denne skjermen til kontoen din'
+    en: 'QR code to set up this screen on your phone',
+    nb: 'QR-kode for å sette opp denne skjermen på telefonen'
   },
-  'pairing.scan': { en: 'Scan to get started', nb: 'Skann for å komme i gang' },
-  'pairing.wifi_intro': {
-    en: 'To get started, your Max Mix needs internet access. Pick a network below, or choose another way to join one.',
-    nb: 'For å komme i gang trenger Max Mix tilgang til internett. Velg et nettverk nedenfor, eller en annen måte å koble til på.'
-  },
-  'pairing.connected': { en: 'Connected to {ssid}', nb: 'Koblet til {ssid}' }
+  'setup.chapter_wifi': { en: 'Wi-Fi', nb: 'Wi-Fi' },
+  'setup.chapter_account': { en: 'Account', nb: 'Konto' },
+  'setup.chapter_spotify': { en: 'Spotify', nb: 'Spotify' },
+  'setup.chapter_soloist': { en: 'Soloist', nb: 'Soloist' },
+  'setup.chapter_presence': { en: 'Presence', nb: 'Tilstedeværelse' }
 } as const satisfies Record<string, Readonly<Record<Language, string>>>;
 
 /** An id STRINGS has: any other is a compile error. */

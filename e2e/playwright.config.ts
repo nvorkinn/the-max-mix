@@ -30,8 +30,8 @@ export default defineConfig({
     // dashboard-motion.spec.ts turns the motion back on to test it.
     contextOptions: { reducedMotion: 'reduce' },
     baseURL: `http://127.0.0.1:${port}`,
-    // Every page starts as a kiosk already paired with countdown-server, so ?kiosk=1 opens the app rather than the
-    // pairing screen's QR code; registration.spec.ts starts without it.
+    // Every page starts as a kiosk already paired with countdown-server and through its setup, so ?kiosk=1 opens the
+    // app rather than the setup wizard; registration.spec.ts starts without it.
     storageState: {
       cookies: [],
       origins: [
@@ -39,7 +39,8 @@ export default defineConfig({
           origin: `http://127.0.0.1:${port}`,
           localStorage: [
             { name: 'maxmix.deviceSecret', value: 'e2e-not-a-real-secret' },
-            { name: 'maxmix.deviceId', value: 'e2e-device' }
+            { name: 'maxmix.deviceId', value: 'e2e-device' },
+            { name: 'maxmix.setupDone', value: '1' }
           ]
         }
       ]
