@@ -1,36 +1,47 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
+import * as auth from '../spotify/auth';
+import type { PersonOnKiosk } from '../spotify/auth';
 import { KIOSK_SERVICE } from '../utils/kioskService';
 import * as registration from './registration';
-import { handOverSoloistKey } from './soloist';
+import { tellSoloistPerson } from './soloist';
 
 const SECRET = fixture.registration.secret;
-const KEY = 'soloist-key-for-tests';
+const PERSON = fixture.soloist_key_query.person;
+
+const someone: PersonOnKiosk = {
+  spotifyId: PERSON,
+  name: 'Wizzler',
+  imageUrl: '',
+  phoneAddress: '',
+  active: true,
+  signedIn: true
+};
 
 function register() {
   vi.spyOn(registration, 'deviceCredentials').mockReturnValue({ deviceId: fixture.device_id, secret: SECRET });
 }
 
-/** The server answers `server`; the kiosk's service answers `kiosk`. */
-function answer(server: { status: number; body?: unknown }, kiosk = 200) {
-  const fetch = vi.fn<(input: string | URL | Request, init?: RequestInit) => Promise<Response>>(input => {
-    const url = new Request(input).url;
-    if (url.startsWith(KIOSK_SERVICE)) return Promise.resolve(new Response('{"state":"stored"}', { status: kiosk }));
-    return Promise.resolve(
-      new Response(server.body === undefined ? null : JSON.stringify(server.body), {
-        status: server.status,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    );
-  });
+function signIn(people: PersonOnKiosk[] = [someone]) {
+  vi.spyOn(auth, 'peopleOnKiosk').mockReturnValue(people);
+  vi.spyOn(auth, 'getActivePersonId').mockReturnValue(people.find(person => person.active)?.spotifyId ?? null);
+}
+
+/** The kiosk's service answers with `status` and `body`. */
+function answer(status = 200, body: unknown = { state: 'playing' }) {
+  const fetch = vi.fn<(input: string | URL | Request, init?: RequestInit) => Promise<Response>>(() =>
+    Promise.resolve(new Response(status === 204 ? null : JSON.stringify(body), { status }))
+  );
   vi.stubGlobal('fetch', fetch);
   return fetch;
 }
 
+const requests = (fetch: ReturnType<typeof answer>) =>
+  fetch.mock.calls.map(([input, init]) => new Request(input, init));
+
 beforeEach(() => {
   localStorage.clear();
   vi.stubEnv('VITE_COUNTDOWN_API', 'https://countdown.build');
-  vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -39,37 +50,46 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('handOverSoloistKey', () => {
-  it('asks nothing before the kiosk is registered', async () => {
-    const fetch = answer({ status: 200, body: { api_key: KEY } });
-    await expect(handOverSoloistKey()).resolves.toBe(false);
+describe('tellSoloistPerson', () => {
+  it("tells the kiosk's service who is active, with the server and the device secret", async () => {
+    register();
+    signIn();
+    const fetch = answer();
+
+    await expect(tellSoloistPerson()).resolves.toBe('playing');
+
+    const [request] = requests(fetch);
+    expect(request?.url).toBe(`${KIOSK_SERVICE}/soloist/person`);
+    expect(request?.method).toBe('POST');
+    expect(await request?.json()).toEqual({ person: PERSON, server: 'https://countdown.build', secret: SECRET });
+  });
+
+  it('says nothing before the kiosk is registered', async () => {
+    signIn();
+    const fetch = answer();
+    await expect(tellSoloistPerson()).resolves.toBeNull();
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("fetches the key with the device secret and hands it to the kiosk's service", async () => {
+  it('stops Soloist when nobody is signed in', async () => {
     register();
-    const fetch = answer({ status: 200, body: { api_key: KEY } });
-
-    await expect(handOverSoloistKey()).resolves.toBe(true);
-
-    const [server, kiosk] = fetch.mock.calls.map(([input, init]) => new Request(input, init));
-    expect(server?.url).toBe('https://countdown.build/api/devices/soloist/key');
-    expect(server?.headers.get('Authorization')).toBe(`Bearer ${SECRET}`);
-    expect(kiosk?.url).toBe(`${KIOSK_SERVICE}/soloist/key`);
-    expect(kiosk?.method).toBe('POST');
-    expect(await kiosk?.json()).toEqual({ api_key: KEY });
+    signIn([]);
+    const fetch = answer(204);
+    await expect(tellSoloistPerson()).resolves.toBe('stopped');
+    expect(requests(fetch).map(request => request.url)).toEqual([`${KIOSK_SERVICE}/soloist/stop`]);
   });
 
-  it('hands nothing over while the kiosk is not paired', async () => {
+  it("is null when the kiosk's service does not answer", async () => {
     register();
-    const fetch = answer({ status: 409, body: { error: 'only a paired touchscreen gets the Soloist key' } });
-    await expect(handOverSoloistKey()).resolves.toBe(false);
-    expect(fetch).toHaveBeenCalledTimes(1);
+    signIn();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))));
+    await expect(tellSoloistPerson()).resolves.toBeNull();
   });
 
-  it("is not done when the kiosk's service could not store it", async () => {
+  it('passes on why Soloist is not playing', async () => {
     register();
-    answer({ status: 200, body: { api_key: KEY } }, 503);
-    await expect(handOverSoloistKey()).resolves.toBe(false);
+    signIn();
+    answer(200, { state: 'no-key' });
+    await expect(tellSoloistPerson()).resolves.toBe('no-key');
   });
 });

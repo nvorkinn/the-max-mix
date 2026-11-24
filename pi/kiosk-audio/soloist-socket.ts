@@ -1,5 +1,5 @@
-// The WebSocket at /soloist: the app's line to Spotify Soloist, the Spotify Connect player that runs beside it
-// (kiosk-soloist.service). Soloist's own WebSocket API (--ws 127.0.0.1:7342) checks nothing, so the app never talks to
+// The WebSocket at /soloist: the app's line to Spotify Soloist, the Spotify Connect player this service runs for the
+// active person (soloist.ts). Soloist's own WebSocket API (--ws 127.0.0.1:7342) checks nothing, so the app never talks to
 // it directly: it connects here, on the service's origin-checked socket, and this passes Soloist's events on to every
 // app connection and only well-formed commands back. Soloist restarts (a new build, a new key, another person) close its
 // socket; this connects again on its own, and tells the app whether Soloist is there with {"type": "bridge"} messages.
@@ -7,7 +7,7 @@ import { WebSocket } from 'ws';
 import type { RawData } from 'ws';
 
 export const SOLOIST_PATH = '/soloist';
-// kiosk_soloist_ws_port in ansible/roles/kiosk/defaults/main.yml.
+// The --ws address soloist.ts starts Soloist with.
 const SOLOIST_URL = 'ws://127.0.0.1:7342';
 /** How long to wait before connecting to Soloist again once it went away (or was not running). */
 const SOLOIST_RETRY_MS = 3000;

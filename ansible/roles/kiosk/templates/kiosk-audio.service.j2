@@ -27,7 +27,9 @@ LockPersonality=yes
 # PipeWire's socket, the app's requests on 127.0.0.1 (server.ts), the Sonos events port above, and the sonos-ts library (sonos.ts),
 # which finds the Sonos speakers on the home network, talks to them and takes their events, and reads the network
 # interfaces over netlink. So there is no IP address allow list: the speakers are wherever the home network puts them.
-RestrictAddressFamilies=AF_UNIX AF_INET AF_NETLINK
+# Spotify Soloist, which this service runs (soloist.ts) and which inherits these limits, also reaches Spotify and
+# announces itself to phones over IPv6.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 
 [Install]
 WantedBy=default.target

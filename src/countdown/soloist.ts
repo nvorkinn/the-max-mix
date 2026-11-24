@@ -1,45 +1,60 @@
-// Spotify Soloist's API key, from countdown-server to the Pi. Soloist (Spotify's headless Spotify Connect player, which
-// runs on the Pi beside the app's own player) won't start without the key on the Pi, and the Pi installs from a public
-// release, so it comes from the owner's account: they save their own key on countdown-server's Account page, and
-// GET /api/devices/soloist/key (countdown-api's getSoloistKey) answers it to their paired touchscreen, with the device
-// secret. The kiosk hands it straight to its local service (POST /soloist/key,
-// pi/kiosk-audio/soloist.ts), which stores it for the player. The key is never kept, logged or shown here.
+// Who Spotify Soloist plays for. Soloist (Spotify's headless Spotify Connect player) runs on the Pi with the active
+// person's own API key, which they saved on countdown-server's settings site. That key is answered only to the Pi's
+// service, never to this page, so this only says who is active, with the device secret: the service
+// (POST /soloist/person, pi/kiosk-audio/soloist.ts) fetches their key and runs Soloist for them. With nobody signed in,
+// it stops Soloist (POST /soloist/stop). Switching person reloads the page, which says it again.
 
-import { getSoloistKey } from '../../vendor/countdown-api/src/countdown_api/client';
 import type { Client } from '../../vendor/countdown-api/src/countdown_api/client';
+import { getActivePersonId, peopleOnKiosk } from '../spotify/auth';
 import { KIOSK_SERVICE } from '../utils/kioskService';
 import { serverClient } from './config';
 
-/** How often the kiosk tries again while the player has no key (not paired yet, server or Pi not answering). */
-const SOLOIST_KEY_RETRY_MS = 10 * 60_000;
-/** How often it asks again once the player has one, so a new key on the server reaches the Pi. */
-const SOLOIST_KEY_REFRESH_MS = 6 * 60 * 60_000;
+/**
+ * How often the page says it again: a key saved since, or a restarted service, then takes effect. Saying the same
+ * person again changes nothing while Soloist plays for them.
+ */
+const SOLOIST_PERSON_MS = 10 * 60_000;
 
-/** Fetches the key and hands it to the kiosk's service; true once the service has it. */
-export async function handOverSoloistKey(client: Client | null = serverClient()): Promise<boolean> {
-  if (!client) return false;
+/** What the service said Soloist is doing (pi/kiosk-audio/soloist.ts's SoloistState), or null when it did not answer. */
+type SoloistState = string | null;
+
+async function postToKiosk(path: string, body?: unknown): Promise<Response> {
+  return fetch(`${KIOSK_SERVICE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    ...(body !== undefined && { body: JSON.stringify(body) })
+  });
+}
+
+/** Tells the kiosk's service who Soloist plays for now; resolves with its state. */
+export async function tellSoloistPerson(client: Client | null = serverClient()): Promise<SoloistState> {
   try {
-    const { data } = await getSoloistKey(client);
-    if (!data?.api_key) return false;
-    const response = await fetch(`${KIOSK_SERVICE}/soloist/key`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ api_key: data.api_key })
+    if (peopleOnKiosk().length === 0) {
+      await postToKiosk('/soloist/stop');
+      return 'stopped';
+    }
+    const person = getActivePersonId();
+    if (!client || !person) return null;
+    const response = await postToKiosk('/soloist/person', {
+      person,
+      server: client.baseUrl,
+      secret: client.secret
     });
-    if (!response.ok) console.warn(`The kiosk could not store the Soloist key (${response.status})`);
-    return response.ok;
+    if (!response.ok) return null;
+    const { state } = (await response.json()) as { state?: unknown };
+    return typeof state === 'string' ? state : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
-/** Hands the key over now, then again on a timer. Returns the function that stops it. */
-export function startSoloistKey(): () => void {
+/** Says who is active now, then again on a timer. Returns the function that stops it. */
+export function startSoloistPerson(): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
   const run = async () => {
-    const isStored = await handOverSoloistKey();
-    if (!stopped) timer = setTimeout(() => void run(), isStored ? SOLOIST_KEY_REFRESH_MS : SOLOIST_KEY_RETRY_MS);
+    await tellSoloistPerson();
+    if (!stopped) timer = setTimeout(() => void run(), SOLOIST_PERSON_MS);
   };
   void run();
   return () => {

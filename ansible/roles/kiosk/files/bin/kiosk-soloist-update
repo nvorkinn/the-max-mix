@@ -1,18 +1,17 @@
 #!/bin/bash
-# Usage: kiosk-soloist-update KIOSK_USER
+# Usage: kiosk-soloist-update
 # Installs the latest Spotify Soloist (Spotify's headless Spotify Connect player) as /usr/local/bin/soloist. Run by
 # kiosk-soloist-update.timer. Spotify only publishes the latest build, and a build stops working 90 days after it was
 # built (it exits with 10), so the Pi fetches it again regularly. The terms do not allow passing the binary on, so it is
 # never part of the release bundle or the flash image. A failed download, or a build that does not run, leaves the one
-# that is there. A running player keeps its old copy until the kiosk next starts (kiosk.service restarts it), so music is
-# not cut off; a player that is not running (it had expired, or this is the first install) is started.
+# that is there. kiosk-audio runs it (pi/kiosk-audio/soloist.ts): a running player keeps its old copy until the kiosk next
+# starts, so music is not cut off, and one that had expired is started again within the hour.
 set -euo pipefail
 
-if (($# != 1)); then
-  echo "usage: $0 KIOSK_USER" >&2
+if (($# != 0)); then
+  echo "usage: $0" >&2
   exit 2
 fi
-user=$1
 target=/usr/local/bin/soloist
 
 case $(uname -m) in
@@ -43,8 +42,3 @@ else
   echo "kiosk-soloist-update: installed $version"
 fi
 
-# Start the player if it is not running. This fails quietly when the kiosk user is not logged in yet: the kiosk's
-# login session starts it then.
-if ! systemctl --user -M "$user@" is-active --quiet kiosk-soloist.service 2>/dev/null; then
-  systemctl --user -M "$user@" restart kiosk-soloist.service 2>/dev/null || true
-fi
