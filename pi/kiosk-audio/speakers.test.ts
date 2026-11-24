@@ -148,7 +148,7 @@ describe('route', () => {
       [72, 52]
     ]);
     expect(fake.applied).toEqual([plan]);
-    await route(fake, []); // Chromium already plays to the default output
+    await route(fake, []); // Soloist already plays to the default output
     expect(fake.applied).toHaveLength(1);
   });
 });

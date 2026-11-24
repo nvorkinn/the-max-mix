@@ -78,7 +78,7 @@
   changed_when: kiosk_cmdline.stdout | length > 0
 
 # disable_splash hides the firmware's rainbow screen. The Pi 5 would boot a kernel with 16 KB memory pages; kernel8.img
-# is the 4 KB-page kernel the Pi 4 already uses, which Widevine's module is built for.
+# is the 4 KB-page kernel the Pi 4 already uses, which Spotify Soloist has been run on (and Widevine needed).
 - name: full | system | Configure the boot firmware
   ansible.builtin.blockinfile:
     path: /boot/firmware/config.txt

@@ -50,6 +50,13 @@ const client = (id: number, binary: string) => ({
   type: 'PipeWire:Interface:Client',
   info: { props: { 'application.name': 'Spotify', 'application.process.binary': binary } }
 });
+/** Another program's output stream, named after it. */
+const otherStream = (id: number, name: string) => ({
+  id,
+  type: 'PipeWire:Interface:Node',
+  info: { props: { 'node.name': name, 'media.class': 'Stream/Output/Audio', 'application.name': name } }
+});
+
 const spotifyStream = (id: number, clientId: number) => ({
   id,
   type: 'PipeWire:Interface:Node',
@@ -90,13 +97,9 @@ describe('parseDump', () => {
     expect(nodeAt(40).description).toBe('Built-in Audio');
   });
 
-  it('only counts browser streams as players', () => {
-    const mpv = {
-      id: 100,
-      type: 'PipeWire:Interface:Node',
-      info: { props: { 'node.name': 'mpv', 'media.class': 'Stream/Output/Audio', 'application.name': 'mpv' } }
-    };
-    const players = playersOf(parseDump(dump([mpv])));
+  it("only counts Soloist's streams as players", () => {
+    // The browser plays nothing now, so its stream (a page's sound, say) stays where PipeWire put it.
+    const players = playersOf(parseDump(dump([otherStream(100, 'mpv'), otherStream(101, 'Chromium')])));
     expect(players.map(node => node.id)).toEqual([70]);
   });
 
