@@ -1,8 +1,6 @@
 // The app's settings, kept in the browser's own storage, so the app needs no backend. Storage can be unavailable
 // (private windows, blocked site data): every access tolerates that.
 
-import { isKiosk } from '../utils/kiosk';
-
 // The app's Spotify client ID. It is public by design (sign-in uses PKCE and there is no client secret), so it lives in the
 // code and users never enter it.
 const SPOTIFY_CLIENT_ID = '79012ca710ca4dd5ad18c2973510b670';
@@ -26,7 +24,17 @@ export function getClientId(): string {
  * is no setting for it: only tests and tooling set the stored value (end-to-end tests mostly run without the Pi).
  */
 export function getPlaybackMode(): 'browser' | 'remote' {
-  return isKiosk() && read(PLAYBACK_MODE_KEY) !== 'remote' ? 'browser' : 'remote';
+  return isOnKiosk() && read(PLAYBACK_MODE_KEY) !== 'remote' ? 'browser' : 'remote';
+}
+
+/**
+ * Whether this is the Pi kiosk, as utils/kiosk.ts's isKiosk says it (?kiosk=1 or 0, else the flag it keeps), without
+ * remembering anything. Not imported from there: the end-to-end tests load this file in Node, which needs every import
+ * to name its file, and kiosk.ts's imports don't.
+ */
+function isOnKiosk(): boolean {
+  const flag = new URLSearchParams(location.search).get('kiosk');
+  return flag === '1' || (flag !== '0' && read('maxmix.kiosk') === 'true');
 }
 
 /** Reload the app so it picks up the stored preferences. */
