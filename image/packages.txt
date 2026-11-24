@@ -59,7 +59,10 @@ util-linux
 e2fsprogs
 
 # Updates: RAUC installs each release into the other slot. rpi-eeprom keeps the bootloader new enough for tryboot.
+# rauc-service is its D-Bus service (started on demand), which rauc status, kiosk-update and kiosk-health talk to; rauc
+# only recommends it, and the build installs no recommends.
 rauc
+rauc-service
 rpi-eeprom
 
 # Pi OS's first boot setup writes to /etc, which is read-only here; kiosk-first-boot.service does the kiosk's instead.
