@@ -55,7 +55,7 @@ Where each part of `ansible/roles/kiosk` went:
 
 Left out, because the image replaces them:
 
-- `kiosk-pull`, `kiosk-restart`, the package and part stamps, `install-files.ts`, `task_progress.py`: updates are
+- `kiosk-pull`, the restart marker, the package and part stamps, `install-files.ts`, `task_progress.py`: updates are
   `kiosk-update` and RAUC.
 - `kiosk-app-switch` and the app's `releases/`, `next` and `current`: the app is part of the image, and the reboot into
   the new slot is the switch.

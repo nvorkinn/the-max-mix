@@ -15,8 +15,9 @@ enable kiosk-first-boot.service
 # Updates: the A/B update check and install, the health check that keeps a new slot or falls back, and the partition
 # that says which slot boots
 enable kiosk-update.timer
+enable kiosk-restart.timer
 enable kiosk-health.service
-enable boot-autoboot.mount
+enable run-autoboot.mount
 
 # Network, Bluetooth (phones and speakers) and Avahi (AirPlay speakers)
 enable NetworkManager.service
