@@ -28,7 +28,7 @@ function signIn(people: PersonOnKiosk[] = [someone]) {
 }
 
 /** The kiosk's service answers with `status` and `body`. */
-function answer(status = 200, body: unknown = { state: 'playing' }) {
+function answer({ status = 200, body = { state: 'playing' } }: { status?: number; body?: unknown } = {}) {
   const fetch = vi.fn<(input: string | URL | Request, init?: RequestInit) => Promise<Response>>(() =>
     Promise.resolve(new Response(status === 204 ? null : JSON.stringify(body), { status }))
   );
@@ -74,7 +74,7 @@ describe('tellSoloistPerson', () => {
   it('stops Soloist when nobody is signed in', async () => {
     register();
     signIn([]);
-    const fetch = answer(204);
+    const fetch = answer({ status: 204 });
     await expect(tellSoloistPerson()).resolves.toBe('stopped');
     expect(requests(fetch).map(request => request.url)).toEqual([`${KIOSK_SERVICE}/soloist/stop`]);
   });
@@ -92,7 +92,7 @@ describe('tellSoloistPerson', () => {
   it('passes on why Soloist is not playing', async () => {
     register();
     signIn();
-    answer(200, { state: 'no-key' });
+    answer({ body: { state: 'no-key' } });
     await expect(tellSoloistPerson()).resolves.toBe('no-key');
   });
 });

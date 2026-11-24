@@ -364,9 +364,9 @@ describe('POST /soloist/person', () => {
     const { deps, soloistRequests } = fakes();
     const base = await start(deps);
     expect((await post(base, '/soloist/person', { body: { ...body, person: '../x' } })).status).toBe(400);
-    expect((await post(base, '/soloist/person', { body: { ...body, server: 'http://countdown.run' } })).status).toBe(
-      400
-    );
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols, unicorn/prefer-https -- plain http is what it refuses
+    const plain = await post(base, '/soloist/person', { body: { ...body, server: 'http://countdown.run' } });
+    expect(plain.status).toBe(400);
     const elsewhere = await post(base, '/soloist/person', { origin: 'https://evil.example', body });
     expect(elsewhere.status).toBe(403);
     expect(soloistRequests).toEqual([]);

@@ -1,10 +1,11 @@
 // @vitest-environment node
+/* eslint-disable unicorn/prefer-event-target -- A child process is an EventEmitter, so the stand-in is one. */
 import type { ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchSoloistKey, SoloistPlayer, validSoloistRequest } from './soloist.ts';
 import type { FetchKey, KeyResult, SoloistRequest } from './soloist.ts';
 
@@ -26,19 +27,20 @@ class FakeChild extends EventEmitter {
   }
 }
 
-let stateDir = '';
-beforeEach(async () => {
-  stateDir = await mkdtemp(path.join(tmpdir(), 'soloist-'));
-});
+const KEYS: Record<string, KeyResult> = { nikolai: { key: 'key-n' }, ola: { key: 'key-o' } };
+const stateDirs: string[] = [];
+
 afterEach(async () => {
   vi.unstubAllGlobals();
-  await rm(stateDir, { recursive: true, force: true });
+  await Promise.all(stateDirs.splice(0).map(folder => rm(folder, { recursive: true, force: true })));
 });
 
-function player(keys: Record<string, KeyResult> = { nikolai: { key: 'key-n' }, ola: { key: 'key-o' } }) {
+async function player() {
+  const stateDir = await mkdtemp(path.join(tmpdir(), 'soloist-'));
+  stateDirs.push(stateDir);
   const children: FakeChild[] = [];
   const runs: string[][] = [];
-  const fetchKey = vi.fn<FetchKey>(request => Promise.resolve(keys[request.person] ?? { error: 'no-key' }));
+  const fetchKey = vi.fn<FetchKey>(request => Promise.resolve(KEYS[request.person] ?? { error: 'no-key' }));
   const soloist = new SoloistPlayer({
     stateDir,
     fetchKey,
@@ -53,7 +55,7 @@ function player(keys: Record<string, KeyResult> = { nikolai: { key: 'key-n' }, o
       return child as unknown as ChildProcess;
     }
   });
-  return { soloist, children, runs, fetchKey };
+  return { soloist, children, runs, fetchKey, stateDir };
 }
 
 const argument = (args: string[] | undefined, flag: string) => args?.[args.indexOf(flag) + 1];
@@ -67,6 +69,7 @@ describe('validSoloistRequest', () => {
     for (const person of ['', '../x', '.hidden', 'a/b', 'with space', 'x'.repeat(129), 7]) {
       expect(validSoloistRequest({ ...REQUEST, person })).toBeNull();
     }
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols, unicorn/prefer-https -- plain http is what it refuses
     expect(validSoloistRequest({ ...REQUEST, server: 'http://api.countdown.build' })).toBeNull();
     expect(validSoloistRequest({ ...REQUEST, server: 'not a url' })).toBeNull();
     expect(validSoloistRequest({ ...REQUEST, secret: 'has space' })).toBeNull();
@@ -76,7 +79,7 @@ describe('validSoloistRequest', () => {
 
 describe('SoloistPlayer', () => {
   it("runs Soloist with the person's key and their own data folder", async () => {
-    const { soloist, runs, fetchKey } = player();
+    const { soloist, runs, fetchKey, stateDir } = await player();
     expect(await soloist.play(REQUEST)).toBe('playing');
     expect(fetchKey).toHaveBeenCalledWith(REQUEST);
     expect(argument(runs[0], '--api-key')).toBe('key-n');
@@ -87,14 +90,14 @@ describe('SoloistPlayer', () => {
   });
 
   it('changes nothing when asked for the same person again', async () => {
-    const { soloist, runs } = player();
+    const { soloist, runs } = await player();
     await soloist.play(REQUEST);
     expect(await soloist.play({ ...REQUEST })).toBe('playing');
     expect(runs).toHaveLength(1);
   });
 
   it('stops one person’s Soloist before starting the next one’s', async () => {
-    const { soloist, runs, children } = player();
+    const { soloist, runs, children, stateDir } = await player();
     await soloist.play(REQUEST);
     await soloist.play({ ...REQUEST, person: 'ola' });
     expect(children[0]?.signals).toEqual(['SIGTERM']);
@@ -103,13 +106,13 @@ describe('SoloistPlayer', () => {
   });
 
   it('starts nothing for someone with no key', async () => {
-    const { soloist, runs } = player();
+    const { soloist, runs } = await player();
     expect(await soloist.play({ ...REQUEST, person: 'nobody' })).toBe('no-key');
     expect(runs).toEqual([]);
   });
 
   it('starts Soloist again, with a fresh key, when it stops by itself', async () => {
-    const { soloist, runs, children, fetchKey } = player();
+    const { soloist, runs, children, fetchKey } = await player();
     await soloist.play(REQUEST);
     children[0]?.end(1);
     expect(soloist.state).toBe('failed');
@@ -121,7 +124,7 @@ describe('SoloistPlayer', () => {
   });
 
   it('waits for a new build when this one has expired', async () => {
-    const { soloist, runs, children } = player();
+    const { soloist, runs, children } = await player();
     await soloist.play(REQUEST);
     children[0]?.end(10);
     expect(soloist.state).toBe('expired');
@@ -131,7 +134,7 @@ describe('SoloistPlayer', () => {
   });
 
   it('stops', async () => {
-    const { soloist, children, runs } = player();
+    const { soloist, children, runs } = await player();
     await soloist.play(REQUEST);
     await soloist.stop();
     expect(children[0]?.signals).toEqual(['SIGTERM']);
@@ -147,7 +150,7 @@ describe('fetchSoloistKey', () => {
     vi.stubGlobal('fetch', fetch);
     expect(await fetchSoloistKey(REQUEST)).toEqual({ key: 'key-n' });
     const [url, init] = fetch.mock.calls[0] ?? [];
-    expect(String(url)).toBe('https://api.countdown.build/api/devices/soloist/key?person=nikolai');
+    expect(new Request(url ?? '').url).toBe('https://api.countdown.build/api/devices/soloist/key?person=nikolai');
     expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer device-secret');
   });
 

@@ -48,16 +48,21 @@ export function validSoloistRequest(body: unknown): SoloistRequest | null {
   if (typeof body !== 'object' || body === null) return null;
   const { person, server, secret } = body as Record<string, unknown>;
   // A Spotify ID, which also names a folder: letters, digits, '.', '_' and '-', not starting with a dot.
-  if (typeof person !== 'string' || !/^[\w-][\w.-]{0,127}$/.test(person)) return null;
-  if (typeof server !== 'string' || !isToken(secret)) return null;
+  if (
+    typeof person !== 'string' ||
+    !/^[\w-][\w.-]{0,127}$/.test(person) ||
+    typeof server !== 'string' ||
+    !isToken(secret)
+  ) {
+    return null;
+  }
   let url: URL;
   try {
     url = new URL(server);
   } catch {
     return null;
   }
-  if (url.protocol !== 'https:') return null;
-  return { person, server: url.origin, secret };
+  return url.protocol === 'https:' ? { person, server: url.origin, secret } : null;
 }
 
 /** What fetching a person's key gave: the key, or why there is none. */
@@ -103,7 +108,7 @@ interface SoloistOptions {
   log?: (line: string) => void;
 }
 
-const sameRequest = (a: SoloistRequest | null, b: SoloistRequest) =>
+const isSameRequest = (a: SoloistRequest | null, b: SoloistRequest) =>
   a?.person === b.person && a.server === b.server && a.secret === b.secret;
 
 /** Runs one Soloist at a time, for the person last asked for, and starts it again when it stops. */
@@ -130,7 +135,9 @@ export class SoloistPlayer {
 
   #later(ms: number): void {
     clearTimeout(this.#timer);
-    this.#timer = setTimeout(() => void this.#start(), ms);
+    this.#timer = setTimeout(() => {
+      void this.#start();
+    }, ms);
   }
 
   async #start(): Promise<SoloistState> {
@@ -188,7 +195,7 @@ export class SoloistPlayer {
     clearTimeout(this.#timer);
     const child = this.#child;
     this.#child = null;
-    if (!child || child.exitCode !== null) return;
+    if (child?.exitCode !== null) return;
     const exited = new Promise<void>(resolve => {
       child.once('exit', () => {
         resolve();
@@ -206,7 +213,7 @@ export class SoloistPlayer {
 
   /** Runs Soloist for `request.person`: nothing changes while it already plays for them. Resolves with the state. */
   async play(request: SoloistRequest): Promise<SoloistState> {
-    if (sameRequest(this.#request, request) && (this.#state === 'playing' || this.#state === 'starting')) {
+    if (isSameRequest(this.#request, request) && (this.#state === 'playing' || this.#state === 'starting')) {
       return this.#state;
     }
     this.#request = request;
