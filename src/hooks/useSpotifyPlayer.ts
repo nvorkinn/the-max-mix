@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import type { MusicChoice, PlaybackState, RepeatMode, SpotifyDevice } from '../types';
 import * as spotify from '../spotify/api';
+import { lastSoloistState } from '../countdown/soloist';
 import { isSignedIn } from '../spotify/auth';
 import {
   checkSpotifyRetryWindow,
@@ -46,7 +47,16 @@ type PlaybackOrNull = PlaybackState | null;
 
 export interface PlaybackProblem {
   message: string;
-  recovery: 'sign-in' | 'choose-speaker' | 'settings' | 'reconnect' | 'refresh' | 'wait' | 'quota';
+  recovery:
+    | 'sign-in'
+    | 'choose-speaker'
+    | 'settings'
+    | 'soloist-key'
+    | 'pick-on-phone'
+    | 'reconnect'
+    | 'refresh'
+    | 'wait'
+    | 'quota';
 }
 
 /** Spotify's answer when it does not know the device a command named. */
@@ -395,7 +405,11 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     };
 
     const startTimer = setTimeout(() => {
-      setPlayerError({ message: 'The kiosk player did not start. Try reconnecting.', recovery: 'reconnect' });
+      setPlayerError(
+        lastSoloistState() === 'no-key'
+          ? { message: 'To play on the kiosk, add your Soloist key under Settings.', recovery: 'soloist-key' }
+          : { message: 'The kiosk player did not start. Try reconnecting.', recovery: 'reconnect' }
+      );
     }, PLAYER_START_MS);
     const player = new SoloistPlayer({
       onReady: deviceId => {
@@ -421,7 +435,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         debugLog('info', 'soloist', 'Kiosk player waits to be signed in');
         setPlayerError({
           message: `To sign the kiosk in, pick ${KIOSK_DEVICE_NAME} in Spotify on your phone.`,
-          recovery: 'wait'
+          recovery: 'pick-on-phone'
         });
       },
       onState: applyPlayerState,

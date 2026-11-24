@@ -68,6 +68,17 @@ describe('kiosk-audio/bluetooth', () => {
     await expect(withAnswers({ scan: fail(127) }).scan()).rejects.toThrow(BluetoothError);
   });
 
+  it('turns the adapter on: unblocks it, then powers it', async () => {
+    const { run, calls } = fake({});
+    await expect(new Bluetooth(run).switchOn()).resolves.toBe(true);
+    expect(calls).toEqual([
+      ['rfkill', 'unblock', 'bluetooth'],
+      ['bluetoothctl', 'power', 'on']
+    ]);
+    const failing = fake({ bluetoothctl: fail() });
+    await expect(new Bluetooth(failing.run).switchOn()).resolves.toBe(false);
+  });
+
   it('scans for a few seconds, then lists', async () => {
     const { run, calls } = fake({ devices: ok(`Device ${SPEAKER} Kitchen\n`), info: ok(info({ Paired: 'no' })) });
     const devices = await new Bluetooth(run).scan();

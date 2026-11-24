@@ -891,6 +891,9 @@ export function serveSpeakers(
     watchdog.beat();
   };
   const bluetooth = new Bluetooth();
+  void bluetooth.switchOn().then(isOn => {
+    if (!isOn) console.warn('Bluetooth: could not turn the adapter on');
+  });
   const bluetoothMonitor = new BluetoothMonitor();
   nameKioskOnStart(bluetoothMonitor);
   const presence = new Presence({

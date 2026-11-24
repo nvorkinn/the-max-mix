@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { serverClient } from '../countdown/config';
 import { countdownServer } from '../countdown/server';
+import { tellSoloistPerson } from '../countdown/soloist';
 import { newSoloistKeyCode, soloistKeyPeople } from '../countdown/soloistKeys';
 import type { SoloistKeyCode } from '../countdown/soloistKeys';
 
@@ -43,6 +44,8 @@ export function useSoloistKey(person: string, isAsking: boolean): SoloistKey {
       }
       if (people?.includes(person)) {
         setKey('saved');
+        // A key saved just now: the kiosk's service starts Soloist with it at once, not at its next reminder.
+        if (isAsking) void tellSoloistPerson(client);
         return;
       }
       if (!isAsking) {

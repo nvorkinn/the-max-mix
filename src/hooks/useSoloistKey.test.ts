@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as config from '../countdown/config';
+import * as soloist from '../countdown/soloist';
 import * as soloistKeys from '../countdown/soloistKeys';
 import { SOLOIST_KEY_POLL_MS, useSoloistKey } from './useSoloistKey';
 import type { SoloistKey } from './useSoloistKey';
@@ -106,6 +107,7 @@ describe('useSoloistKey', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const list = vi.spyOn(soloistKeys, 'soloistKeyPeople').mockResolvedValue([]);
     const code = codes();
+    const tell = vi.spyOn(soloist, 'tellSoloistPerson').mockResolvedValue('starting');
     const { result, rerender } = renderHook(({ isAsking }) => useSoloistKey(PERSON, isAsking), {
       initialProps: { isAsking: false }
     });
@@ -144,12 +146,14 @@ describe('useSoloistKey', () => {
     expect(code).toHaveBeenCalledTimes(2);
     expect(pageUrl(result.current)).toContain('code=code-2');
 
-    // The key is pasted on the phone: the code goes, and nothing more is asked.
+    // The key is pasted on the phone: the code goes, the kiosk's service is told at once, and nothing more is asked.
+    expect(tell).not.toHaveBeenCalled();
     list.mockResolvedValue([PERSON]);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(SOLOIST_KEY_POLL_MS);
     });
     expect(result.current).toBe('saved');
+    expect(tell).toHaveBeenCalledOnce();
     const asked = list.mock.calls.length;
     await act(async () => {
       await vi.advanceTimersByTimeAsync(SOLOIST_KEY_POLL_MS * 3);

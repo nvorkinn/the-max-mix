@@ -79,6 +79,28 @@ afterEach(() => {
 });
 
 describe('useSpeakerSelection with Sonos', () => {
+  it("leaves out a Sonos room's AirPlay sink, and what it plays, since Sonos plays it", async () => {
+    const output = (name: string, kind: 'airplay' | 'bluetooth', linked: boolean) => ({
+      id: `${kind}.${name}`,
+      name,
+      kind,
+      volume: 10,
+      linked
+    });
+    airplay.listAudioOutputs.mockResolvedValue({
+      outputs: [
+        output('kitchen', 'airplay', true),
+        output('Mac mini', 'airplay', false),
+        output('Kitchen', 'bluetooth', false)
+      ],
+      legacy: false
+    });
+    const { result } = renderHook(() => useSpeakerSelection(options()));
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(result.current.outputs.map(shown => shown.id)).toEqual(['airplay.Mac mini', 'bluetooth.Kitchen']);
+    expect(result.current.confirmed).toEqual({ family: 'tablet', outputs: [] });
+  });
+
   it('drops a draft on Cancel, changing nothing', async () => {
     const given = options();
     const { result } = renderHook(() => useSpeakerSelection(given));
