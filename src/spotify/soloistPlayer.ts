@@ -38,6 +38,9 @@ const CONTROL_COMMANDS = new Set([
 ]);
 // Soloist's queue can briefly hold these stand-ins while it works out what comes next.
 const PLACEHOLDER_PREFIX = 'spotify:meta:';
+// Soloist's own queue_changed lists at most this many songs coming up; its answer to a get_queue without a limit lists
+// them all, so a longer list can only be such an answer.
+const PUSHED_QUEUE_MAX = 10;
 const COVER_SIZES = ['xlarge', 'large', 'default', 'small'];
 const REPEAT_MODES = new Set<unknown>(['off', 'context', 'track']);
 
@@ -61,8 +64,12 @@ export interface SoloistHandlers {
   /** Soloist runs but nobody has signed it in: the person picks it in Spotify on their phone the first time. */
   onSignedOut: () => void;
   onState: (state: KioskPlaybackState) => void;
-  /** Whatever plays next changed. */
-  onQueue: () => void;
+  /**
+   * Whatever plays next changed. While Soloist is the active device this brings its whole queue, every song coming up;
+   * null when it has no list to show (another device plays, or songs in it lack their details), and the queue has to be
+   * read from the Web API instead.
+   */
+  onQueue: (upcoming: Track[] | null) => void;
 }
 
 interface Position {
@@ -85,6 +92,7 @@ const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 const decorationsOf = (entity: unknown) => recordOf(recordOf(entity)['decorations']);
 const nameOf = (entity: unknown): string | undefined => text(recordOf(decorationsOf(entity)['identity'])['name']);
 const isGoing = (status: string) => status === 'playing' || status === 'buffering';
+const uriOf = (entry: unknown): string => text(recordOf(recordOf(entry)['item'])['uri']) ?? '';
 /** Where a cover's size comes in COVER_SIZES; an unknown size goes last. */
 function coverRank(cover: Record<string, unknown>): number {
   const index = COVER_SIZES.indexOf(text(cover['size']) ?? '');
@@ -125,6 +133,17 @@ export function soloistTrack(item: unknown): Track | undefined {
   return track;
 }
 
+/** The songs of a queue Soloist sent, as the app's tracks; null when one of them has not got its details yet. */
+export function soloistQueue(upcoming: readonly unknown[]): Track[] | null {
+  const tracks: Track[] = [];
+  for (const entry of upcoming) {
+    const track = soloistTrack(recordOf(entry)['item']);
+    if (!track) return null;
+    tracks.push(track);
+  }
+  return tracks;
+}
+
 /** Connects to Soloist through the kiosk's service and keeps connecting while it is wanted. */
 export class SoloistPlayer {
   readonly #handlers: SoloistHandlers;
@@ -152,6 +171,8 @@ export class SoloistPlayer {
   #startedAt = 0;
   // The volume to set again once a start the page asked for plays, until when, and whether Soloist said it plays.
   #volumeOnStart: { volume: number; until: number; isPlaying: boolean } | null = null;
+  // Running while a get_queue waits for its answer, which comes as a queue_changed of its own.
+  #queueAsk: ReturnType<typeof setTimeout> | undefined;
 
   constructor(handlers: SoloistHandlers, url = SOLOIST_SOCKET) {
     this.#handlers = handlers;
@@ -206,6 +227,42 @@ export class SoloistPlayer {
     });
   }
 
+  /**
+   * Asks Soloist for its whole queue: its own queue_changed lists only the first few songs. The answer is a queue_changed
+   * too, which must not ask again, so a queue_changed that comes while one is asked for is taken as its answer.
+   */
+  #askQueue(): void {
+    if (this.#queueAsk !== undefined) return;
+    // Set before sending: the answer can come at once.
+    this.#queueAsk = setTimeout(() => {
+      this.#queueAsk = undefined;
+    }, COMMAND_TIMEOUT_MS);
+    if (!this.#ask('get_queue')) this.#forgetQueueAsk();
+  }
+
+  #forgetQueueAsk(): void {
+    clearTimeout(this.#queueAsk);
+    this.#queueAsk = undefined;
+  }
+
+  /**
+   * A queue_changed: Soloist pushes one, trimmed, on every change, and answers a get_queue with one listing every song.
+   * A pushed one asks for the whole list while Soloist is the active device; an answer is handed on.
+   */
+  #queueChanged(upcoming: unknown[]): void {
+    const isAnswer = this.#queueAsk !== undefined || upcoming.length > PUSHED_QUEUE_MAX;
+    if (isAnswer) this.#forgetQueueAsk();
+    // A list with stand-ins is followed by the settled one.
+    if (upcoming.some(entry => uriOf(entry).startsWith(PLACEHOLDER_PREFIX))) return;
+    if (!this.#isActive || !this.#isLoggedIn) {
+      // Soloist's queue is its own, not that of the device that plays: the app reads that one from the Web API.
+      this.#handlers.onQueue(null);
+      return;
+    }
+    if (isAnswer) this.#handlers.onQueue(soloistQueue(upcoming));
+    else this.#askQueue();
+  }
+
   #failPending(message: string): void {
     for (const pending of this.#pending.splice(0)) {
       clearTimeout(pending.timer);
@@ -240,6 +297,7 @@ export class SoloistPlayer {
     this.#isActive = false;
     this.#status = '';
     this.#volumeOnStart = null;
+    this.#forgetQueueAsk();
     this.#failPending('The kiosk player disconnected.');
     if (this.#isStopped) return;
     if (wasReady) this.#handlers.onNotReady();
@@ -349,6 +407,7 @@ export class SoloistPlayer {
       return;
     }
     if (!isRecord(message) || this.#isStopped) return;
+    const wasActive = this.#isActive;
     switch (message['type']) {
       case 'bridge': {
         // Soloist greets a connection of its own with its state; one joined to the service's asks for it.
@@ -402,11 +461,7 @@ export class SoloistPlayer {
         return;
       }
       case 'queue_changed': {
-        const upcoming = list(message['upcoming']);
-        const isSettled = upcoming.every(
-          entry => !(text(recordOf(recordOf(entry)['item'])['uri']) ?? '').startsWith(PLACEHOLDER_PREFIX)
-        );
-        if (isSettled) this.#handlers.onQueue();
+        this.#queueChanged(list(message['upcoming']));
         return;
       }
       case 'command_result': {
@@ -421,6 +476,8 @@ export class SoloistPlayer {
         return;
       }
     }
+    // On connecting, signing in or taking over playback, the queue is read whole once.
+    if (!wasActive && this.#isActive && this.#isLoggedIn) this.#askQueue();
     this.#applyVolumeOnStart();
     this.#handlers.onState(this.#state());
   }
@@ -442,6 +499,7 @@ export class SoloistPlayer {
     clearTimeout(this.#reconnect);
     this.#reconnect = undefined;
     clearTimeout(this.#lookup);
+    this.#forgetQueueAsk();
     const socket = this.#socket;
     this.#socket = null;
     this.#isOpen = false;

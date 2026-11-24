@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import type { MusicChoice, PlaybackState, RepeatMode, SpotifyDevice } from '../types';
+import type { MusicChoice, PlaybackState, RepeatMode, SpotifyDevice, Track } from '../types';
 import * as spotify from '../spotify/api';
 import { lastSoloistState } from '../countdown/soloist';
 import { isSignedIn } from '../spotify/auth';
@@ -105,6 +105,11 @@ export interface UseSpotifyPlayer {
   /** Whether the kiosk's own player is the active device, and so reports every change itself. */
   isPlayerActive: boolean;
   queueVersion: number;
+  /**
+   * Every song coming up, as the kiosk's player (Soloist) lists it, while it is the active device and has a list to show;
+   * null otherwise, when the queue is read from the Web API.
+   */
+  kioskQueue: Track[] | null;
   error: string | null;
   problem: PlaybackProblem | null;
   clearError: () => void;
@@ -172,6 +177,8 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   const [remoteSelected, setRemoteSelected] = useState(false);
   // Counts the moments the queue is likely to have changed, so the queue view re-reads it.
   const [queueVersion, setQueueVersion] = useState(0);
+  // The queue as the kiosk's player last listed it (see kioskQueue).
+  const [playerQueue, setPlayerQueue] = useState<Track[] | null>(null);
   const playbackRequestRef = useRef(0);
   const expectedPlayingRef = useRef<{ playing: boolean; until: number } | null>(null);
   const expectedDeviceRef = useRef<{ device: SpotifyDevice; until: number } | null>(null);
@@ -386,7 +393,12 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     if (!isAuthenticated || playbackMode !== 'browser') return;
     const applyPlayerState = (state: KioskPlaybackState) => {
       setPlayerActive(Boolean(state));
-      if (!state) return;
+      if (!state) {
+        // Another device plays (or none): its queue comes from the Web API, and Soloist's list is stale by the time it
+        // is the active device again.
+        setPlayerQueue(null);
+        return;
+      }
       holdPlaying(!state.paused);
       const { track } = state;
       setPlayback(current => ({
@@ -449,7 +461,11 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         }, SIGN_IN_GRACE_MS);
       },
       onState: applyPlayerState,
-      onQueue: bumpQueue
+      onQueue: upcoming => {
+        setPlayerQueue(upcoming);
+        // Without Soloist's list, the queue view reads the Web API's.
+        if (!upcoming) bumpQueue();
+      }
     });
     playerRef.current = player;
     debugLog('info', 'soloist', 'Connecting the kiosk player');
@@ -462,6 +478,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       deviceIdRef.current = null;
       lastTrackIdRef.current = null;
       setPlayerActive(false);
+      setPlayerQueue(null);
       setBrowserDeviceId(null);
     };
   }, [
@@ -749,6 +766,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     isReady: Boolean(playbackState?.device),
     isPlayerActive: playerDriven,
     queueVersion,
+    kioskQueue: playerDriven ? playerQueue : null,
     error: problem?.message ?? null,
     problem,
     clearError: () => setActionError(null),

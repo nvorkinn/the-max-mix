@@ -1,7 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { FakeWebSocket, fakeSocketCount, latestFakeSocket, resetFakeSockets } from '../test/fakeWebSocket';
-import { authState, recordedNow, recordedQueue, recordedReplies, RECORDED_DEVICE_NAME } from '../test/soloistFixtures';
+import {
+  authState,
+  queueChanged,
+  recordedNow,
+  recordedQueue,
+  recordedReplies,
+  recordedSongs,
+  RECORDED_DEVICE_NAME
+} from '../test/soloistFixtures';
 import { resetSpotifyMocks } from '../test/spotifyMocks';
 import { recordSpotifyRetryAfter, SpotifyApiError } from '../spotify/http';
 import * as soloist from '../countdown/soloist';
@@ -39,11 +47,11 @@ function answerAsSoloist(socket: FakeWebSocket, isActive: boolean) {
   };
 }
 
-/** The commands the page sent Soloist, apart from its requests for the state. */
+/** The commands the page sent Soloist, apart from its requests for the state and the queue. */
 const commandsSent = (socket: FakeWebSocket) =>
   socket.sent
     .map(frame => (frame as { command?: unknown }).command)
-    .filter(command => command !== undefined && command !== 'get_state');
+    .filter(command => typeof command === 'string' && !['get_state', 'get_queue'].includes(command));
 
 /** The service connects the page to Soloist. */
 function joinSoloist(isActive: boolean) {
@@ -271,11 +279,37 @@ describe('useSpotifyPlayer is driven by the kiosk player', () => {
     await waitFor(() => expect(playbackCalls()).toBeGreaterThan(before));
   });
 
-  it('reads the queue again when Soloist says it changed', async () => {
+  it('takes the whole queue from Soloist while it is the active device, without reading the Web API', async () => {
     const { result, socket } = await ready(true);
+    // Soloist answered the get_queue sent on connecting, as recorded.
+    await waitFor(() => expect(result.current.kioskQueue).toHaveLength(5));
+    expect(result.current.kioskQueue?.[0]).toMatchObject({
+      uri: 'spotify:track:2HrQbrT7N3VcV3PmZIy9Wq',
+      name: 'Alle vil til himmelen'
+    });
+    const version = result.current.queueVersion;
+    act(() => socket.receive(queueChanged(recordedSongs())));
+    expect(result.current.kioskQueue).toHaveLength(recordedSongs().length);
+    expect(result.current.queueVersion).toBe(version);
+    expect(mocks.api.getQueue).not.toHaveBeenCalled();
+  });
+
+  it('reads the queue again when Soloist has no list to show, or another device takes over', async () => {
+    const { result, socket } = await ready(true);
+    await waitFor(() => expect(result.current.kioskQueue).not.toBeNull());
     const first = result.current.queueVersion;
+    // Songs in the answer lack their details.
+    socket.reply = () => [recordedQueue()];
     act(() => socket.receive(recordedQueue()));
+    expect(result.current.kioskQueue).toBeNull();
     expect(result.current.queueVersion).toBe(first + 1);
+    socket.reply = () => [queueChanged(recordedSongs())];
+    act(() => socket.receive(recordedQueue()));
+    expect(result.current.kioskQueue).toHaveLength(recordedSongs().length);
+    act(() => socket.receive({ type: 'device_changed', is_active: false, device_name: RECORDED_DEVICE_NAME }));
+    expect(result.current.kioskQueue).toBeNull();
+    act(() => socket.receive(recordedQueue()));
+    expect(result.current.queueVersion).toBe(first + 2);
   });
 
   it('reads playback only as a safety net while the kiosk player is active', async () => {

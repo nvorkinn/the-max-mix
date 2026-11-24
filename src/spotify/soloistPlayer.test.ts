@@ -2,7 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { deferred } from '../test/deferred';
 import { defined } from '../test/defined';
 import { FakeWebSocket, fakeSocketCount, latestFakeSocket, resetFakeSockets } from '../test/fakeWebSocket';
-import { authState, recordedNow, recordedReplies, RECORDED_DEVICE_NAME } from '../test/soloistFixtures';
+import {
+  authState,
+  queueChanged,
+  recordedNow,
+  recordedQueue,
+  recordedReplies,
+  recordedSongs,
+  RECORDED_DEVICE_NAME
+} from '../test/soloistFixtures';
 import type { SpotifyDevice } from '../types';
 import { getDevices } from './api';
 import { SoloistPlayer, soloistTrack } from './soloistPlayer';
@@ -22,9 +30,15 @@ function handlers() {
   };
 }
 
-/** The commands the page sent, by name. */
+/** The commands the page sent, by name, apart from its requests for the queue (counted by queueAsks). */
 const commandsSent = (socket: FakeWebSocket) =>
-  socket.sent.map(frame => (frame as { command?: unknown }).command).filter(command => command !== undefined);
+  socket.sent
+    .map(frame => (frame as { command?: unknown }).command)
+    .filter(command => command !== undefined && command !== 'get_queue');
+
+/** How many times the page asked Soloist for its queue. */
+const queueAsks = (socket: FakeWebSocket) =>
+  socket.sent.filter(frame => (frame as { command?: unknown }).command === 'get_queue').length;
 
 /** Lets the device lookup answer. */
 const settle = () => vi.advanceTimersByTimeAsync(0);
@@ -177,12 +191,110 @@ describe('SoloistPlayer', () => {
     expect(on.onState).toHaveBeenLastCalledWith({ paused: true, position: 0 });
   });
 
-  it('tells about a changed queue, but not while it holds stand-ins', async () => {
-    const { on, socket } = await ready();
-    socket.receive({ type: 'queue_changed', upcoming: [{ item: { uri: 'spotify:meta:node_rules_placeholder' } }] });
-    expect(on.onQueue).not.toHaveBeenCalled();
-    socket.receive({ type: 'queue_changed', previous: [], upcoming: [{ item: { uri: 'spotify:track:a' } }] });
-    expect(on.onQueue).toHaveBeenCalledOnce();
+  describe('the queue', () => {
+    const PLACEHOLDER = { item: { uri: 'spotify:meta:node_rules_placeholder' } };
+    const tracksOf = (entries: readonly Record<string, unknown>[]) => entries.map(entry => soloistTrack(entry['item']));
+
+    it('asks for the whole queue once it is the active device, and hands on every song of the answer', async () => {
+      const { on, socket } = await ready();
+      // Without a limit: Soloist then lists every song, not only the first ten.
+      expect(socket.sent).toEqual([
+        { type: 'command', command: 'get_state' },
+        { type: 'command', command: 'get_queue' }
+      ]);
+      const songs = recordedSongs();
+      expect(songs.length).toBeGreaterThan(10);
+      socket.receive(queueChanged(songs));
+      expect(on.onQueue).toHaveBeenCalledExactlyOnceWith(tracksOf(songs));
+      expect(defined(on.onQueue.mock.lastCall)[0]?.[0]).toMatchObject({
+        name: 'Alle vil til himmelen',
+        artists: [{ name: expect.any(String) as unknown }, { name: expect.any(String) as unknown }],
+        album: {
+          images: expect.arrayContaining([
+            { url: 'https://i.scdn.co/image/ab67616d0000b273abd814fa96253f96aaf8781f' }
+          ]) as unknown
+        }
+      });
+      expect(queueAsks(socket)).toBe(1);
+    });
+
+    it('asks again for a pushed change, and takes the queue_changed that answers as the answer, as recorded', async () => {
+      const { on, socket } = await ready();
+      socket.receive(queueChanged([]));
+      on.onQueue.mockClear();
+      answerAsRecorded(socket);
+      const answer = recordedReplies('get_queue').find(message => message['type'] === 'queue_changed');
+      // A pushed change lists ten at most; the recorded answer to a get_queue (with a limit of 5) lists five.
+      socket.receive(recordedQueue());
+      expect(queueAsks(socket)).toBe(2);
+      expect(on.onQueue).toHaveBeenCalledExactlyOnceWith(
+        tracksOf(defined(answer)['upcoming'] as Record<string, unknown>[])
+      );
+      // The answer asks nothing more.
+      expect(queueAsks(socket)).toBe(2);
+    });
+
+    it('asks once for a burst of changes, and takes a longer list than Soloist pushes as an answer', async () => {
+      const { on, socket } = await ready();
+      const songs = recordedSongs();
+      // The first change arrives while the get_queue sent on connecting waits: it is taken as its answer.
+      socket.receive(queueChanged(songs.slice(0, 10)));
+      expect(on.onQueue).toHaveBeenCalledExactlyOnceWith(tracksOf(songs.slice(0, 10)));
+      socket.receive(queueChanged(songs.slice(1, 10)));
+      socket.receive(queueChanged(songs.slice(2, 10)));
+      expect(queueAsks(socket)).toBe(2);
+      // That answer was taken: the next asks again.
+      socket.receive(queueChanged(songs.slice(3, 10)));
+      expect(queueAsks(socket)).toBe(3);
+      // An answer the player has stopped waiting for is still known by its length.
+      await vi.advanceTimersByTimeAsync(8000);
+      socket.receive(queueChanged(songs));
+      expect(on.onQueue).toHaveBeenLastCalledWith(tracksOf(songs));
+      expect(queueAsks(socket)).toBe(3);
+    });
+
+    it('asks again once an answer never came', async () => {
+      const { socket } = await ready();
+      socket.receive(queueChanged([]));
+      socket.receive(queueChanged(recordedSongs().slice(0, 3)));
+      expect(queueAsks(socket)).toBe(2);
+      await vi.advanceTimersByTimeAsync(8000);
+      socket.receive(queueChanged(recordedSongs().slice(0, 2)));
+      expect(queueAsks(socket)).toBe(3);
+    });
+
+    it('ignores a queue holding stand-ins, and has nothing to show for songs that lack their details', async () => {
+      const { on, socket } = await ready();
+      // The answer to the get_queue sent on connecting.
+      socket.receive(queueChanged([PLACEHOLDER, ...recordedSongs()]));
+      socket.receive({ type: 'queue_changed', upcoming: [PLACEHOLDER] });
+      expect(on.onQueue).not.toHaveBeenCalled();
+      expect(queueAsks(socket)).toBe(1);
+      // The recorded push has songs without their details yet.
+      socket.receive(recordedQueue());
+      expect(queueAsks(socket)).toBe(2);
+      socket.receive(recordedQueue());
+      expect(on.onQueue).toHaveBeenCalledExactlyOnceWith(null);
+    });
+
+    it('says the queue changed, without asking for it, while another device plays', async () => {
+      const { on, socket } = await ready(false);
+      socket.receive(recordedQueue());
+      socket.receive(queueChanged(recordedSongs()));
+      expect(on.onQueue.mock.calls).toEqual([[null], [null]]);
+      expect(queueAsks(socket)).toBe(0);
+      // Taking playback over reads it whole.
+      socket.receive({ type: 'device_changed', is_active: true, device_name: RECORDED_DEVICE_NAME });
+      expect(queueAsks(socket)).toBe(1);
+      socket.receive({ type: 'device_changed', is_active: true, device_name: RECORDED_DEVICE_NAME });
+      expect(queueAsks(socket)).toBe(1);
+    });
+
+    it('is not held back by the gate on control commands', async () => {
+      const { socket } = await ready(false);
+      socket.receive({ type: 'playback_state', is_active: true, status: 'playing' });
+      expect(socket.sent.at(-1)).toEqual({ type: 'command', command: 'get_queue' });
+    });
   });
 
   it.each([
@@ -273,7 +385,7 @@ describe('SoloistPlayer', () => {
         : [];
     const sent = socket.sent.length;
     await player.play();
-    expect(commandsSent(socket).slice(sent)).toEqual(['play']);
+    expect(socket.sent.slice(sent)).toEqual([{ type: 'command', command: 'play' }]);
     socket.receive({ type: 'volume_changed', volume: 5 });
     socket.receive({ type: 'playback_changed', status: 'playing' });
     expect(socket.sent.slice(sent + 1)).toEqual([{ type: 'command', command: 'set_volume', volume: 4 }]);
