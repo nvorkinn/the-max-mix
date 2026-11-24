@@ -22,8 +22,10 @@
   notify: Reload systemd
 
 # Chromium needed Widevine (Spotify's DRM module) while the Web Playback SDK played the music; Spotify Soloist plays it
-# now, so the units that restarted the kiosk after Chromium's Widevine download go. Prints what it removed.
-- name: full | units | Remove the Widevine units
+# now, so Widevine goes: the units that restarted the kiosk after Chromium's Widevine download, the package, and the
+# copy Chromium downloaded into the kiosk profile. A one-off: removed again once every kiosk has run it. Prints what it
+# removed.
+- name: full | units | Remove Widevine
   ansible.builtin.shell:
     cmd: |
       set -euo pipefail
@@ -31,11 +33,25 @@
         systemctl disable --now --quiet kiosk-widevine.path 2>/dev/null || true
         rm -f /etc/systemd/system/kiosk-widevine.path /etc/systemd/system/kiosk-widevine.service \
           /var/lib/the-max-mix/widevine-loaded
-        echo removed
+        echo removed the units
+      fi
+      # Only when nothing else installed needs it, so Chromium is never taken out with it.
+      if dpkg-query -W -f='${Status}' libwidevinecdm0 2>/dev/null | grep -q 'ok installed'; then
+        if apt-get -s purge libwidevinecdm0 | grep '^Purg ' | grep -qv '^Purg libwidevinecdm0 '; then
+          echo kept libwidevinecdm0, as other packages need it
+        else
+          DEBIAN_FRONTEND=noninteractive apt-get purge -y -qq libwidevinecdm0 > /dev/null
+          echo removed libwidevinecdm0
+        fi
+      fi
+      cdm=~{{ kiosk_user }}/.config/chromium/WidevineCdm
+      if [[ -e $cdm ]]; then
+        rm -rf "$cdm"
+        echo removed the Widevine download in the kiosk profile
       fi
     executable: /bin/bash
   register: kiosk_widevine_removed
-  changed_when: kiosk_widevine_removed.stdout | length > 0
+  changed_when: "'removed' in kiosk_widevine_removed.stdout"
   notify: Reload systemd
 
 # The units must be known to systemd before they are enabled and started.
