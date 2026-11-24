@@ -56,7 +56,8 @@ export class FakeWebSocket {
   send(text: string): void {
     const frame: unknown = JSON.parse(text);
     this.sent.push(frame);
-    for (const answer of this.reply?.(frame) ?? []) this.receive(answer);
+    const answers = this.reply?.(frame) ?? [];
+    for (const answer of answers) this.receive(answer);
   }
 
   /** The server (or the network) ends the connection. */

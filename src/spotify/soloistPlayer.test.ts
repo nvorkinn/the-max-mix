@@ -147,15 +147,13 @@ describe('SoloistPlayer', () => {
     const { on, socket } = await ready(false);
     expect(on.onState).toHaveBeenLastCalledWith(null);
     socket.receive({ type: 'device_changed', is_active: true, device_name: RECORDED_DEVICE_NAME });
-    expect(on.onState).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        paused: false,
-        duration: 205_049,
-        shuffle: false,
-        repeat: 'off',
-        track: expect.objectContaining({ id: '342fawASzRGGLF1oFqfhtK' })
-      })
-    );
+    expect(on.onState.mock.lastCall?.[0]).toMatchObject({
+      paused: false,
+      duration: 205_049,
+      shuffle: false,
+      repeat: 'off',
+      track: { id: '342fawASzRGGLF1oFqfhtK' }
+    });
   });
 
   it('follows the position, the status, the song and the options as they change', async () => {
@@ -231,9 +229,10 @@ describe('SoloistPlayer', () => {
     // An error nothing waits for changes nothing.
     socket.receive({ type: 'error', message: 'late' });
     const third = player.pause();
-    const failed = expect(third).rejects.toThrow('Spotify did not answer. Try again.');
-    await vi.advanceTimersByTimeAsync(8000);
-    await failed;
+    await Promise.all([
+      expect(third).rejects.toThrow('Spotify did not answer. Try again.'),
+      vi.advanceTimersByTimeAsync(8000)
+    ]);
     socket.receive({ type: 'command_result', command: 'pause' });
   });
 

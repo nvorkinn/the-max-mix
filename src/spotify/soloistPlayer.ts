@@ -66,8 +66,8 @@ const text = (value: unknown): string | undefined => (typeof value === 'string' 
 const finite = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
-const nameOf = (entity: unknown): string | undefined =>
-  text(recordOf(recordOf(recordOf(entity)['decorations'])['identity'])['name']);
+const decorationsOf = (entity: unknown) => recordOf(recordOf(entity)['decorations']);
+const nameOf = (entity: unknown): string | undefined => text(recordOf(decorationsOf(entity)['identity'])['name']);
 const isGoing = (status: string) => status === 'playing' || status === 'buffering';
 /** Where a cover's size comes in COVER_SIZES; an unknown size goes last. */
 function coverRank(cover: Record<string, unknown>): number {
@@ -79,8 +79,9 @@ function positionOf(value: unknown): Position | null {
   const record = recordOf(value);
   const position = finite(record['position_ms']);
   const timestamp = finite(record['timestamp_ms']);
-  if (position === undefined || timestamp === undefined) return null;
-  return { position_ms: position, timestamp_ms: timestamp, speed: finite(record['speed']) ?? 0 };
+  return position === undefined || timestamp === undefined
+    ? null
+    : { position_ms: position, timestamp_ms: timestamp, speed: finite(record['speed']) ?? 0 };
 }
 
 /** A song as Soloist describes it, as the app's track; undefined until its details have arrived. */
@@ -96,11 +97,11 @@ export function soloistTrack(item: unknown): Track | undefined {
     .toSorted((a, b) => coverRank(a) - coverRank(b))
     .flatMap(cover => {
       const url = text(cover['url']);
-      return url === undefined ? [] : [{ url }];
+      return url === undefined ? [] : { url };
     });
   const artists = list(decorations['creators']).flatMap(creator => {
     const artist = nameOf(recordOf(creator)['entity']);
-    return artist === undefined ? [] : [{ name: artist }];
+    return artist === undefined ? [] : { name: artist };
   });
   const track: Track = { id: uri.split(':').at(-1) ?? uri, uri, name, artists, album: { images } };
   const duration = finite(recordOf(decorations['playback'])['duration_ms']);
@@ -142,25 +143,6 @@ export class SoloistPlayer {
   /** Whether Soloist is the account's active device, which is when its commands reach it. */
   get isActive(): boolean {
     return this.#isActive;
-  }
-
-  #open(): void {
-    this.#reconnect = undefined;
-    const socket = new WebSocket(this.#url);
-    this.#socket = socket;
-    socket.addEventListener('open', () => {
-      if (this.#socket === socket) this.#isOpen = true;
-    });
-    socket.addEventListener('message', message => {
-      if (this.#socket === socket) this.#receive(message.data);
-    });
-    socket.addEventListener('close', () => {
-      if (this.#socket !== socket) return;
-      this.#socket = null;
-      this.#isOpen = false;
-      this.#lost();
-      if (!this.#isStopped) this.#reconnect = setTimeout(() => this.#open(), RECONNECT_MS);
-    });
   }
 
   /** Starts connecting. */
@@ -227,6 +209,25 @@ export class SoloistPlayer {
     const volume = Math.min(100, Math.max(0, Math.round(percent)));
     this.#volume = volume;
     return this.#control('set_volume', { volume });
+  }
+
+  #open(): void {
+    this.#reconnect = undefined;
+    const socket = new WebSocket(this.#url);
+    this.#socket = socket;
+    socket.addEventListener('open', () => {
+      if (this.#socket === socket) this.#isOpen = true;
+    });
+    socket.addEventListener('message', message => {
+      if (this.#socket === socket) this.#receive(message.data);
+    });
+    socket.addEventListener('close', () => {
+      if (this.#socket !== socket) return;
+      this.#socket = null;
+      this.#isOpen = false;
+      this.#lost();
+      if (!this.#isStopped) this.#reconnect = setTimeout(() => this.#open(), RECONNECT_MS);
+    });
   }
 
   /** Sends a command without waiting for its result: get_state and the like answer with events, not a result. */
@@ -332,7 +333,7 @@ export class SoloistPlayer {
     if (volume === undefined) return;
     const wanted = this.#volume;
     // Starting playback can raise the volume by one: the volume it had is set again, once.
-    if (this.#isActive && wanted !== null && volume !== wanted && Date.now() - this.#startedAt < VOLUME_HOLD_MS) {
+    if (wanted !== null && this.#isActive && volume !== wanted && Date.now() - this.#startedAt < VOLUME_HOLD_MS) {
       this.#startedAt = 0;
       this.#ask('set_volume', { volume: wanted });
       return;

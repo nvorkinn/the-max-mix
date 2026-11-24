@@ -44,8 +44,9 @@ export const authState = (isActive: boolean, deviceName = RECORDED_DEVICE_NAME):
  */
 export function recordedReplies(command: string): Message[] {
   const first = new Map<number, unknown>();
-  for (const entry of recorded)
+  for (const entry of recorded) {
     if (entry.dir === 'sent' && !first.has(entry.conn)) first.set(entry.conn, entry.message);
+  }
   const conn = [...first].findLast(([, message]) => isMessage(message) && message['command'] === command)?.[0];
   if (conn === undefined) throw new Error(`No recorded connection began with ${command}`);
   return recorded
