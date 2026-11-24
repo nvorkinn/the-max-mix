@@ -18,6 +18,8 @@ enable kiosk-update.timer
 enable kiosk-restart.timer
 enable kiosk-health.service
 enable run-autoboot.mount
+# The booted slot's boot partition at /boot/firmware, where the screen setup writes the screen's mode
+enable kiosk-boot-firmware.service
 
 # Network, Bluetooth (phones and speakers) and Avahi (AirPlay speakers)
 enable NetworkManager.service

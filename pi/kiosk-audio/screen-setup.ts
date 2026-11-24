@@ -144,8 +144,15 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   });
   console.log(`${setup.name ?? 'Screen'}: rotation ${setup.rotation}, scale ${setup.scale}`);
   if (values.cmdline) {
-    const line = await writeCmdlineMode(values.cmdline, { setting: values['video-mode'], drm: values.drm });
-    if (line) console.log(`Kernel command line, from the next boot: ${line}`);
+    try {
+      const line = await writeCmdlineMode(values.cmdline, { setting: values['video-mode'], drm: values.drm });
+      if (line) console.log(`Kernel command line, from the next boot: ${line}`);
+    } catch (error) {
+      // The rotation and the touch matrix below still apply.
+      console.error(
+        `Could not write the kernel command line: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
   await didUpdate(values.env, environmentFile(setup));
   if (await didUpdate(values.rule, touchRule(setup))) {
