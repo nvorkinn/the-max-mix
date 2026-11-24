@@ -77,7 +77,39 @@ mod linux {
             request.allow();
             true
         });
+        grant_wake_lock(webview);
         one_finger(webview);
+    }
+
+    /// Answers WebKit's permission check for the wake lock with granted. Without an answer WebKit takes it as "ask", and
+    /// refuses the lock unless someone has just touched the screen: the app's request as it loads or wakes for music was
+    /// refused, and the screen slept 10 s later.
+    fn grant_wake_lock(webview: &WebView) {
+        use gtk::glib::{gobject_ffi, prelude::*, translate::ToGlibPtr};
+        use std::ffi::{c_char, c_int, c_void, CStr};
+
+        // WebKitPermissionStateQuery has no Rust binding yet.
+        extern "C" {
+            fn webkit_permission_state_query_get_name(query: *mut c_void) -> *const c_char;
+            fn webkit_permission_state_query_finish(query: *mut c_void, state: c_int);
+        }
+        const GRANTED: c_int = 0;
+
+        webview.connect_local("query-permission-state", false, |args| {
+            let value = args.get(1)?;
+            // SAFETY: the signal's second argument is the WebKitPermissionStateQuery, alive while the handler runs.
+            let handled = unsafe {
+                let query = gobject_ffi::g_value_get_boxed(value.to_glib_none().0) as *mut c_void;
+                let name = CStr::from_ptr(webkit_permission_state_query_get_name(query));
+                if name.to_bytes() == b"screen-wake-lock" {
+                    webkit_permission_state_query_finish(query, GRANTED);
+                    true
+                } else {
+                    false
+                }
+            };
+            Some(handled.to_value())
+        });
     }
 
     /// Passes WebKit one finger at a time. WebKitGTK zooms the page on a two-finger pinch, whatever the page does with

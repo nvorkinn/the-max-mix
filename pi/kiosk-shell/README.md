@@ -24,7 +24,9 @@ place of Chromium.
 - Keeps the screen on while the app holds a wake lock. WebKitGTK sends the wake lock to the session bus's
   `org.freedesktop.ScreenSaver`, which nothing provides under Cage, so the shell owns that name and holds a Wayland idle
   inhibitor on its window while any inhibit is held (`src/awake.rs`). swayidle in kiosk-session then leaves the screen
-  on, as it did for Chromium. The kiosk user's session bus must be running (it is, with `PAMName=login`).
+  on, as it did for Chromium. The kiosk user's session bus must be running (it is, with `PAMName=login`). The shell
+  also answers WebKit's permission check for the wake lock with granted: otherwise WebKit refuses the lock unless the
+  screen was just touched, as when the app loads or wakes for music.
 - WebKit keeps the app's storage under `~/.local/share/org.vorkinn.the-max-mix.kiosk/`.
 
 ## Building
