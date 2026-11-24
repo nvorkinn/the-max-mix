@@ -19,16 +19,16 @@ export function kioskPost(path: string, body?: unknown): void {
     .catch((error: unknown) => console.warn(`The kiosk did not answer ${path}`, error));
 }
 
-type UpdateState = 'pulling' | 'installing' | 'installed' | 'restarting' | 'done' | 'failed';
+type UpdateState = 'installing' | 'installed' | 'restarting' | 'done' | 'failed';
 
 /**
- * What the kiosk sends while it updates (pi/kiosk-audio/update.ts): the journal's lines, and the steps it is at. An
- * image Pi sends installing, then installed (its message is the version waiting for a restart) or done.
+ * What the kiosk sends while it updates (pi/kiosk-audio/update.ts): the journal's lines, and the steps it is at:
+ * installing, then installed (its message is the version waiting for a restart) or done.
  */
 export type UpdateEvent =
   { type: 'log' | 'error'; line: string } | { type: 'status'; state: UpdateState; message?: string };
 
-const STATES = new Set<string>(['pulling', 'installing', 'installed', 'restarting', 'done', 'failed']);
+const STATES = new Set<string>(['installing', 'installed', 'restarting', 'done', 'failed']);
 
 /** A frame from the kiosk as an event, or null for anything that is not one. */
 export function parseUpdateEvent(data: unknown): UpdateEvent | null {
@@ -114,10 +114,7 @@ export function parseImageCheck(body: unknown): ImageUpdateCheck | null {
   };
 }
 
-/**
- * Asks an image Pi what its update channel has. Null on a Pi Ansible installed (the service answers 404), and when the
- * service does not answer: the app then follows the Pi's version the old way.
- */
+/** Asks the Pi what its update channel has; null when the service does not answer. */
 export async function checkImageUpdate(signal: AbortSignal | null = null): Promise<ImageUpdateCheck | null> {
   try {
     const response = await fetch(`${KIOSK_SERVICE}/update/check`, { method: 'POST', signal });

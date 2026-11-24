@@ -72,8 +72,8 @@ export function factoryReset(): void {
 }
 
 /**
- * What the Pi runs, at the kiosk's last start: the release tag it pulled (v1.2.3, when it follows the latest release) or
- * the branch or tag it is pinned to (kiosk_pull_ref), and the commit its playbook ran from.
+ * What the Pi runs, at the kiosk's last start: the release tag (v1.2.3) or the channel (dev, branch-<name>) its image
+ * was built for, and the commit it was built from (kiosk-session puts both in the app's address).
  */
 export interface PiVersion {
   ref: string;
@@ -135,68 +135,9 @@ export function setDismissedUpdate(version: string): void {
   }
 }
 
-/** The repository the Pi pulls (kiosk_pull_repo). */
-const PI_REPO = 'nvorkinn/the-max-mix';
-
 const RELEASE_PATTERN = /^v[0-9A-Za-z][0-9A-Za-z._-]*$/;
 
 /** True when the Pi's ref is a release tag (v1.2.3), so a newer version is a newer release rather than a newer commit. */
 export function isRelease(ref: string): boolean {
   return RELEASE_PATTERN.test(ref);
-}
-
-/**
- * The Pi bundle the Release workflow uploads to a release as its last step (ansible/roles/kiosk/files/bin/kiosk-pull). A
- * Pi installs a release only once it is there, so a release without it is not ready yet.
- */
-const PI_BUNDLE = 'the-max-mix-pi.tar.gz';
-
-/** The repository's latest GitHub release, and whether a Pi can install it yet (its Pi bundle is there). */
-export interface LatestRelease {
-  tag: string;
-  ready: boolean;
-}
-
-/** The repository's latest GitHub release, or null when GitHub cannot be asked (offline, rate limited). */
-export async function latestRelease(signal: AbortSignal | null = null): Promise<LatestRelease | null> {
-  try {
-    const response = await fetch(`https://api.github.com/repos/${PI_REPO}/releases/latest`, {
-      headers: { Accept: 'application/vnd.github+json' },
-      signal
-    });
-    if (!response.ok) return null;
-    const body: unknown = await response.json();
-    if (typeof body !== 'object' || body === null) return null;
-    const tag = 'tag_name' in body ? body.tag_name : null;
-    if (typeof tag !== 'string' || !isRelease(tag)) return null;
-    const assets = 'assets' in body && Array.isArray(body.assets) ? (body.assets as unknown[]) : [];
-    const ready = assets.some(
-      asset =>
-        typeof asset === 'object' &&
-        asset !== null &&
-        'name' in asset &&
-        asset.name === PI_BUNDLE &&
-        'state' in asset &&
-        asset.state === 'uploaded'
-    );
-    return { tag, ready };
-  } catch {
-    return null;
-  }
-}
-
-/** The commit `ref` points at on GitHub now, or null when GitHub cannot be asked (offline, rate limited). */
-export async function latestCommit(ref: string, signal: AbortSignal | null = null): Promise<string | null> {
-  try {
-    const response = await fetch(`https://api.github.com/repos/${PI_REPO}/commits/${encodeURIComponent(ref)}`, {
-      headers: { Accept: 'application/vnd.github.sha' },
-      signal
-    });
-    if (!response.ok) return null;
-    const body = await response.text();
-    const sha = body.trim();
-    return /^[0-9a-f]{40}$/.test(sha) ? sha : null;
-  } catch {
-    return null;
-  }
 }

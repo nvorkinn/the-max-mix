@@ -1,16 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getPlaybackMode } from '../spotify/settings';
-import {
-  currentWifi,
-  factoryReset,
-  isKiosk,
-  isRelease,
-  latestCommit,
-  latestRelease,
-  piVersion,
-  rebootPi,
-  restartKiosk
-} from './kiosk';
+import { currentWifi, factoryReset, isKiosk, isRelease, piVersion, rebootPi, restartKiosk } from './kiosk';
 
 // eslint-disable-next-line sonarjs/no-hardcoded-ip -- a made-up address of the Pi on a home network
 const PI_ADDRESS = '192.168.1.42';
@@ -178,66 +168,5 @@ describe('currentWifi', () => {
     await expect(currentWifi()).resolves.toBeUndefined();
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('no kiosk')));
     await expect(currentWifi()).resolves.toBeUndefined();
-  });
-});
-
-describe('latestRelease', () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  const bundle = { name: 'the-max-mix-pi.tar.gz', state: 'uploaded' };
-
-  it("asks GitHub for the latest release's tag", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(Response.json({ tag_name: 'v1.12.0', name: 'v1.12.0', assets: [bundle] }));
-    vi.stubGlobal('fetch', fetchMock);
-    await expect(latestRelease()).resolves.toEqual({ tag: 'v1.12.0', ready: true });
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.github.com/repos/nvorkinn/the-max-mix/releases/latest',
-      expect.objectContaining({ headers: { Accept: 'application/vnd.github+json' } })
-    );
-  });
-
-  it('is not ready until the Release workflow has uploaded the Pi bundle', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ tag_name: 'v1.12.0', assets: [] })));
-    await expect(latestRelease()).resolves.toEqual({ tag: 'v1.12.0', ready: false });
-    const uploading = { ...bundle, state: 'starter' };
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ tag_name: 'v1.12.0', assets: [uploading] })));
-    await expect(latestRelease()).resolves.toEqual({ tag: 'v1.12.0', ready: false });
-  });
-
-  it('is null when GitHub fails or answers something else', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('rate limited', { status: 403 })));
-    await expect(latestRelease()).resolves.toBeNull();
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ tag_name: 'stable' })));
-    await expect(latestRelease()).resolves.toBeNull();
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>')));
-    await expect(latestRelease()).resolves.toBeNull();
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
-    await expect(latestRelease()).resolves.toBeNull();
-  });
-});
-
-describe('latestCommit', () => {
-  afterEach(() => vi.unstubAllGlobals());
-  const sha = '0123456789abcdef0123456789abcdef01234567';
-
-  it("asks GitHub for the ref's commit", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(`${sha}\n`));
-    vi.stubGlobal('fetch', fetchMock);
-    await expect(latestCommit('stable')).resolves.toBe(sha);
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.github.com/repos/nvorkinn/the-max-mix/commits/stable',
-      expect.objectContaining({ headers: { Accept: 'application/vnd.github.sha' } })
-    );
-  });
-
-  it('is null when GitHub fails or answers something else', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('rate limited', { status: 403 })));
-    await expect(latestCommit('stable')).resolves.toBeNull();
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>')));
-    await expect(latestCommit('stable')).resolves.toBeNull();
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
-    await expect(latestCommit('stable')).resolves.toBeNull();
   });
 });

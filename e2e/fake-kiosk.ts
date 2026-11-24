@@ -40,7 +40,6 @@ export const airPlayOutput = (name: string, volume: number | null = null): FakeO
 export async function fakeKioskOutputs(page: Page, outputs: FakeOutput[]) {
   const routes: string[][] = [];
   const volumes: { output: string; volume: number }[] = [];
-  await page.route('https://api.github.com/**', route => route.fulfill({ status: 404 }));
   await page.route('http://127.0.0.1:7341/**', async route => {
     const request: Request = route.request();
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });

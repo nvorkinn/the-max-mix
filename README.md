@@ -277,14 +277,17 @@ midnight) the screen sleeps a minute after the last touch, on any tab. Music pla
 quiet hours too, and music starting brings it back. The tap that brightens or wakes the screen presses nothing
 behind it.
 
-When the kiosk finds that a newer release is out (or, for a Pi pinned to a branch, a newer commit), a popup asks whether to
-**Update now** or **Not now**; it asks once for each new version, and not while the screen sleeps or the speakers or debug dialog is open (it does show over Settings). The kiosk asks GitHub when it starts and again every time Settings opens, so
-the answer shown there is fresh (an answer that cannot be had, offline or rate limited, keeps the last one found).
+When the kiosk finds that a newer version is on its update channel (a newer release, or for a Pi following a branch a
+newer commit), a popup asks whether to **Update now** or **Not now**; it asks once for each new version, and not while
+the screen sleeps or the speakers or debug dialog is open (it does show over Settings). The app asks the kiosk service
+(`POST http://127.0.0.1:7341/update/check`) when it starts, when the screen wakes and every time Settings opens, so the
+answer shown there is fresh (an answer that cannot be had, offline or with the service down, keeps the last one found).
 Updating, from the popup or from Settings, opens a full-screen update console. The app connects a WebSocket to the
-kiosk service (`ws://127.0.0.1:7341/power/update`); connecting starts the update, and the service sends the journal of
-the pull and then of the restart (`journalctl -u kiosk-pull`, `-u kiosk-restart`, with the journal's timestamps) as the
-lines are written. The console has no way back while the update runs, because the kiosk restarts by itself when the
-update needs it (which ends the connection); if nothing needed a restart, or the update failed, it can be closed.
+kiosk service (`ws://127.0.0.1:7341/power/update`); connecting starts `kiosk-update.service`, and the service sends its
+journal (`journalctl -u kiosk-update`, with the journal's timestamps) as the lines are written. RAUC's
+`Update progress: N%` lines drive the console's bar instead of being shown. Once the bundle is installed in the other
+slot, the console and the About page offer **Restart now**; the update console can be closed whenever the update has
+ended.
 
 While the screen sleeps the app asks Spotify about playback every 45 seconds instead of every 4 and stops reading the
 queue, so an idle tablet does not use up the account's rate limit.

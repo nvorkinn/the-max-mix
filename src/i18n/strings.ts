@@ -309,16 +309,12 @@ export const STRINGS = {
     nb: 'Pi-en sa ikke hvilken versjon den kjører.'
   },
   'about.checking': {
-    en: 'Checking GitHub for a newer {what}…',
-    nb: '{what, select, release {Ser etter en nyere utgivelse på GitHub …} other {Ser etter en nyere {what} på GitHub …}}'
+    en: 'Checking for a newer {what}…',
+    nb: '{what, select, release {Ser etter en nyere utgivelse …} other {Ser etter en nyere {what} …}}'
   },
   'about.check_failed': {
-    en: 'Could not check GitHub for a newer {what}.',
-    nb: '{what, select, release {Kunne ikke se etter en nyere utgivelse på GitHub.} other {Kunne ikke se etter en nyere {what} på GitHub.}}'
-  },
-  'about.newer': {
-    en: '{newer}. Tap the button to install it now, or the Pi picks it up within 6 hours and applies it at 04:30.',
-    nb: '{newer}. Trykk på knappen for å installere nå, ellers henter Pi-en den innen 6 timer og tar den i bruk kl. 04:30.'
+    en: 'Could not check for a newer {what}.',
+    nb: '{what, select, release {Kunne ikke se etter en nyere utgivelse.} other {Kunne ikke se etter en nyere {what}.}}'
   },
   'about.up_to_date': { en: 'Up to date.', nb: 'Oppdatert.' },
   'about.install': { en: 'Install', nb: 'Installer' },
@@ -526,7 +522,6 @@ export const STRINGS = {
   'update.title': { en: 'Updating the Pi', nb: 'Oppdaterer Pi-en' },
   'update.close': { en: 'Close update console', nb: 'Lukk oppdateringskonsollen' },
   'update.updating': { en: 'Updating… this can take a few minutes.', nb: 'Oppdaterer … dette kan ta noen minutter.' },
-  'update.task': { en: 'Task {done} of {total}', nb: 'Oppgave {done} av {total}' },
   'update.percent': { en: '{percent}% installed', nb: '{percent} % installert' },
   'update.output': { en: 'Update output', nb: 'Utdata fra oppdateringen' },
   'update.starting': { en: 'Starting the update…', nb: 'Starter oppdateringen …' },

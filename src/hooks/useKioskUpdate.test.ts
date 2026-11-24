@@ -5,8 +5,6 @@ import { useKioskUpdate } from './useKioskUpdate';
 
 const kiosk = vi.hoisted(() => ({
   piVersion: vi.fn(),
-  latestCommit: vi.fn(),
-  latestRelease: vi.fn(),
   isRelease: (ref: string) => /^v\d/.test(ref),
   getDismissedUpdate: vi.fn(),
   setDismissedUpdate: vi.fn()
@@ -17,100 +15,148 @@ vi.mock('../utils/debugLog', () => debug);
 
 const flush = () => act(async () => {});
 
+const STABLE = { channel: 'stable', current: 'v1.12.0+5a39e9a0', installed: null, failed: null, busy: false };
+/** The kiosk service's answer to POST /update/check from now on; null for a service that does not answer. */
+const channel = (body: Record<string, unknown> | null) => {
+  const fetch = vi.fn(() =>
+    body ? Promise.resolve(Response.json({ ...STABLE, ...body })) : Promise.reject(new TypeError('Failed to fetch'))
+  );
+  vi.stubGlobal('fetch', fetch);
+  return fetch;
+};
+const NEWER = { result: 'available', latest: 'v1.13.0+bbbbbbb2' };
+
 describe('useKioskUpdate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetFakeSockets();
     vi.stubGlobal('WebSocket', FakeWebSocket);
-    // A Pi Ansible installed: its service has no POST /update/check.
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.resolve(new Response(null, { status: 404 })))
-    );
+    channel(NEWER);
     kiosk.piVersion.mockReturnValue({ ref: 'v1.12.0', commit: '5a39e9a' });
     kiosk.getDismissedUpdate.mockReturnValue(null);
-    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
   });
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
-  it('asks about a newer version, and not before GitHub has answered', async () => {
+  it('asks its own service what the channel has, and asks about a newer version once it has answered', async () => {
     const { result } = renderHook(() => useKioskUpdate(true));
-    expect(result.current.prompting).toBe(false);
+    expect(result.current).toMatchObject({ prompting: false, latest: { state: 'checking' }, isChecking: true });
     await flush();
-    expect(result.current.newer).toBe('v1.13.0 is out');
-    expect(result.current.prompting).toBe(true);
+    expect(fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:7341/update/check',
+      expect.objectContaining({ method: 'POST' })
+    );
+    expect(result.current).toMatchObject({
+      version: { ref: 'v1.12.0', commit: '5a39e9a' },
+      release: true,
+      latest: { state: 'known', value: 'v1.13.0+bbbbbbb2' },
+      newer: 'v1.13.0 is out',
+      prompting: true,
+      isChecking: false
+    });
   });
 
-  it('does not ask when up to date, when GitHub cannot be asked, or off the kiosk', async () => {
-    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.12.0', ready: true });
+  it('names a branch Pi by its commit', async () => {
+    kiosk.piVersion.mockReturnValue(null);
+    channel({ channel: 'dev', current: 'dev+aaaaaaa111', result: 'available', latest: 'dev+bbbbbbb222' });
+    const { result } = renderHook(() => useKioskUpdate(true));
+    await flush();
+    expect(result.current).toMatchObject({
+      version: { ref: 'dev', commit: 'aaaaaaa' },
+      release: false,
+      what: 'dev',
+      newer: 'dev is now bbbbbbb'
+    });
+  });
+
+  it('does not ask when up to date, when the channel cannot be read, or off the kiosk', async () => {
+    channel({ result: 'up-to-date', latest: 'v1.12.0+5a39e9a0' });
     const upToDate = renderHook(() => useKioskUpdate(true));
     await flush();
     expect(upToDate.result.current).toMatchObject({ newer: null, prompting: false });
 
-    kiosk.latestRelease.mockResolvedValue(null);
-    const unknown = renderHook(() => useKioskUpdate(true));
+    channel({ result: 'unreachable', latest: null });
+    const unreachable = renderHook(() => useKioskUpdate(true));
     await flush();
-    expect(unknown.result.current).toMatchObject({ newer: null, prompting: false });
+    expect(unreachable.result.current).toMatchObject({ latest: { state: 'unknown' }, newer: null, prompting: false });
 
-    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
+    channel(null);
+    const silent = renderHook(() => useKioskUpdate(true));
+    await flush();
+    expect(silent.result.current).toMatchObject({ latest: { state: 'unknown' }, newer: null, prompting: false });
+
+    const fetch = channel(NEWER);
     const off = renderHook(() => useKioskUpdate(false));
     await flush();
     expect(off.result.current).toMatchObject({ version: null, newer: null, prompting: false });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('does not offer a release whose Pi bundle is not uploaded yet', async () => {
-    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: false });
-    const { result } = renderHook(() => useKioskUpdate(true));
-    await flush();
-    expect(result.current).toMatchObject({
-      latest: { state: 'known', value: 'v1.12.0' },
-      newer: null,
-      prompting: false
-    });
+  it('says what waits for a restart, and what failed here before', async () => {
+    channel({ installed: 'v1.13.0+bbb', result: 'installed', latest: 'v1.13.0+bbb' });
+    const installed = renderHook(() => useKioskUpdate(true));
+    await waitFor(() => expect(installed.result.current.installed).toBe('v1.13.0+bbb'));
+    expect(installed.result.current).toMatchObject({ newer: null, prompting: false, release: true });
+
+    channel({ result: 'failed', latest: 'v1.13.0+bbb' });
+    const failed = renderHook(() => useKioskUpdate(true));
+    await waitFor(() => expect(failed.result.current.failed).toBe('v1.13.0+bbb'));
+    expect(failed.result.current.newer).toBeNull();
   });
 
   it('remembers "Not now" for that version only', async () => {
     const { result, rerender } = renderHook(() => useKioskUpdate(true));
     await flush();
     act(() => result.current.dismissPrompt());
-    expect(kiosk.setDismissedUpdate).toHaveBeenCalledWith('v1.13.0');
+    expect(kiosk.setDismissedUpdate).toHaveBeenCalledWith('v1.13.0+bbbbbbb2');
     expect(result.current.prompting).toBe(false);
     // The settings still say a newer version is out.
     expect(result.current.newer).toBe('v1.13.0 is out');
     rerender();
 
     // Another visit: the stored answer is for the same version, so no question; a newer one asks again.
-    kiosk.getDismissedUpdate.mockReturnValue('v1.13.0');
+    kiosk.getDismissedUpdate.mockReturnValue('v1.13.0+bbbbbbb2');
     const again = renderHook(() => useKioskUpdate(true));
     await flush();
     expect(again.result.current.prompting).toBe(false);
-    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.14.0', ready: true });
+    channel({ result: 'available', latest: 'v1.14.0+ccccccc3' });
     const newest = renderHook(() => useKioskUpdate(true));
     await flush();
     expect(newest.result.current.prompting).toBe(true);
   });
 
-  it('asks GitHub again on checkNow, and keeps the last answer when it cannot be had', async () => {
-    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.12.0', ready: true });
+  it('asks again after "Not now" when the person checks themselves', async () => {
+    kiosk.getDismissedUpdate.mockReturnValue('v1.13.0+bbbbbbb2');
+    const { result } = renderHook(() => useKioskUpdate(true));
+    await flush();
+    expect(result.current.prompting).toBe(false);
+    act(() => result.current.checkNow(true));
+    await flush();
+    expect(result.current.prompting).toBe(true);
+  });
+
+  it('asks again on checkNow, and keeps the last answer when it cannot be had', async () => {
+    const fetch = channel({ result: 'up-to-date', latest: 'v1.12.0+5a39e9a0' });
     const { result } = renderHook(() => useKioskUpdate(true));
     await flush();
     expect(result.current.newer).toBeNull();
-    expect(kiosk.latestRelease).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(1);
 
-    kiosk.latestRelease.mockResolvedValue({ tag: 'v1.13.0', ready: true });
+    channel(NEWER);
     act(() => result.current.checkNow());
     await flush();
-    expect(kiosk.latestRelease).toHaveBeenCalledTimes(2);
     expect(result.current.newer).toBe('v1.13.0 is out');
 
-    // GitHub cannot be asked (offline, rate limited): the version already found stays.
-    kiosk.latestRelease.mockResolvedValue(null);
+    // The internet or the service cannot be reached: the version already found stays.
+    channel({ result: 'unreachable', latest: null });
     act(() => result.current.checkNow());
     await flush();
-    expect(kiosk.latestRelease).toHaveBeenCalledTimes(3);
+    expect(result.current.newer).toBe('v1.13.0 is out');
+    channel(null);
+    act(() => result.current.checkNow());
+    await flush();
     expect(result.current.newer).toBe('v1.13.0 is out');
   });
 
@@ -118,11 +164,14 @@ describe('useKioskUpdate', () => {
     const { result } = renderHook(() => useKioskUpdate(false));
     act(() => result.current.checkNow());
     await flush();
-    expect(kiosk.latestRelease).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('ignores "Not now" until GitHub has said what is newer', () => {
-    kiosk.latestRelease.mockReturnValue(new Promise(() => {}));
+  it('ignores "Not now" until the service has said what is newer', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise(() => {}))
+    );
     const { result } = renderHook(() => useKioskUpdate(true));
     act(() => result.current.dismissPrompt());
     expect(kiosk.setDismissedUpdate).not.toHaveBeenCalled();
@@ -149,17 +198,20 @@ describe('useKioskUpdate', () => {
 
     it('collects the lines, writes each to the debug console, and ends when the kiosk says it is done', async () => {
       const { result } = await begin();
-      act(() => latestFakeSocket().receive({ type: 'status', state: 'pulling' }));
+      act(() => latestFakeSocket().receive({ type: 'status', state: 'installing' }));
       act(() =>
-        latestFakeSocket().receive({ type: 'log', line: '2026-11-04T20:00:00+0000 kiosk-pull[1]: TASK [kiosk]' })
+        latestFakeSocket().receive({
+          type: 'log',
+          line: '2026-11-04T20:00:00+0000 kiosk-update[1]: Installing dev+bbbbbbb222'
+        })
       );
       act(() => latestFakeSocket().receive({ type: 'error', line: 'No journal files were opened.' }));
       expect(result.current.output).toEqual([
-        '2026-11-04T20:00:00+0000 kiosk-pull[1]: TASK [kiosk]',
+        '2026-11-04T20:00:00+0000 kiosk-update[1]: Installing dev+bbbbbbb222',
         'No journal files were opened.'
       ]);
       expect(debug.debugLog.mock.calls).toEqual([
-        ['info', 'update', '2026-11-04T20:00:00+0000 kiosk-pull[1]: TASK [kiosk]'],
+        ['info', 'update', '2026-11-04T20:00:00+0000 kiosk-update[1]: Installing dev+bbbbbbb222'],
         ['error', 'update', 'No journal files were opened.']
       ]);
       expect(result.current.isUpdating).toBe(true);
@@ -185,12 +237,12 @@ describe('useKioskUpdate', () => {
     it('says when the update failed', async () => {
       const { result } = await begin();
       act(() =>
-        latestFakeSocket().receive({ type: 'status', state: 'failed', message: 'The pull ended with status 1.' })
+        latestFakeSocket().receive({ type: 'status', state: 'failed', message: 'rauc install ended with status 1.' })
       );
       act(() => latestFakeSocket().end());
       expect(result.current).toMatchObject({
         isUpdating: false,
-        progress: 'The update failed. The pull ended with status 1.'
+        progress: 'The update failed. rauc install ended with status 1.'
       });
     });
 
@@ -236,63 +288,21 @@ describe('useKioskUpdate', () => {
     });
   });
 
-  describe('on an image Pi', () => {
-    const channel = (body: Record<string, unknown>) => {
-      const fetch = vi.fn(() => Promise.resolve(Response.json(body)));
-      vi.stubGlobal('fetch', fetch);
-      return fetch;
-    };
-    const DEV = { channel: 'dev', current: 'dev+aaaaaaa111', installed: null, failed: null, busy: false };
-
-    it('asks its own service what the channel has, instead of GitHub', async () => {
-      kiosk.piVersion.mockReturnValue(null);
-      const fetch = channel({ ...DEV, result: 'available', latest: 'dev+bbbbbbb222' });
-      const { result } = renderHook(() => useKioskUpdate(true));
-      await waitFor(() => expect(result.current.isImage).toBe(true));
-      expect(fetch).toHaveBeenCalledWith(
-        'http://127.0.0.1:7341/update/check',
-        expect.objectContaining({ method: 'POST' })
-      );
-      expect(result.current).toMatchObject({
-        version: { ref: 'dev', commit: 'aaaaaaa' },
-        release: false,
-        newer: 'dev is now bbbbbbb',
-        prompting: true,
-        installed: null,
-        failed: null,
-        isChecking: false
-      });
-    });
-
-    it('says what waits for a restart, and what failed here before', async () => {
-      channel({ ...DEV, current: 'v1.12.0+aaa', installed: 'v1.13.0+bbb', result: 'installed', latest: 'v1.13.0+bbb' });
-      const installed = renderHook(() => useKioskUpdate(true));
-      await waitFor(() => expect(installed.result.current.installed).toBe('v1.13.0+bbb'));
-      expect(installed.result.current).toMatchObject({ newer: null, prompting: false, release: true });
-
-      channel({ ...DEV, current: 'v1.12.0+aaa', result: 'failed', latest: 'v1.13.0+bbb' });
-      const failed = renderHook(() => useKioskUpdate(true));
-      await waitFor(() => expect(failed.result.current.failed).toBe('v1.13.0+bbb'));
-      expect(failed.result.current.newer).toBeNull();
-    });
-
-    it('installs with a bar in percent, then waits for a restart', async () => {
-      channel({ ...DEV, result: 'available', latest: 'dev+bbbbbbb222' });
-      const { result } = renderHook(() => useKioskUpdate(true));
-      await waitFor(() => expect(result.current.isImage).toBe(true));
-      act(() => result.current.start());
-      act(() => latestFakeSocket().open());
-      act(() => latestFakeSocket().receive({ type: 'status', state: 'installing' }));
-      expect(result.current.progress).toBe('Installing the update…');
-      act(() => latestFakeSocket().receive({ type: 'log', line: '… kiosk-update[1]: Update progress: 40% Copying' }));
-      expect(result.current).toMatchObject({ tasks: { done: 40, total: 100 }, output: [] });
-      act(() => latestFakeSocket().receive({ type: 'status', state: 'installed', message: 'dev+bbbbbbb222' }));
-      act(() => latestFakeSocket().end());
-      expect(result.current).toMatchObject({
-        isUpdating: false,
-        installed: 'dev+bbbbbbb222',
-        progress: 'dev bbbbbbb is installed. Restart to finish.'
-      });
+  it('installs with a bar in percent, then waits for a restart', async () => {
+    const { result } = renderHook(() => useKioskUpdate(true));
+    await flush();
+    act(() => result.current.start());
+    act(() => latestFakeSocket().open());
+    act(() => latestFakeSocket().receive({ type: 'status', state: 'installing' }));
+    expect(result.current.progress).toBe('Installing the update…');
+    act(() => latestFakeSocket().receive({ type: 'log', line: '… kiosk-update[1]: Update progress: 40% Copying' }));
+    expect(result.current).toMatchObject({ percent: 40, output: [] });
+    act(() => latestFakeSocket().receive({ type: 'status', state: 'installed', message: 'v1.13.0+bbbbbbb2' }));
+    act(() => latestFakeSocket().end());
+    expect(result.current).toMatchObject({
+      isUpdating: false,
+      installed: 'v1.13.0+bbbbbbb2',
+      progress: 'v1.13.0 is installed. Restart to finish.'
     });
   });
 });

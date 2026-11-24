@@ -156,8 +156,8 @@ export default function SettingsPanel({
   // Appearance, Spotify and About always show, so there is always a first page.
   const current = sections.find(choice => choice.id === section) ?? sections[0] ?? SETTINGS_SECTIONS[0];
 
-  // Showing the settings (they mount each time the tab comes up) asks GitHub again whether a newer version is out, so the
-  // answer is never the one from hours ago.
+  // Showing the settings (they mount each time the tab comes up) checks the update channel again for a newer version, so
+  // the answer is never the one from hours ago.
   const checkForUpdate = kioskUpdate?.checkNow;
   useEffect(() => {
     checkForUpdate?.();
