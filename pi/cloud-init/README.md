@@ -105,7 +105,7 @@ The playbook also sets, among other things:
 - SSH for the `admin` account only, by key only, with `sudo`, and Tailscale for SSH from anywhere (see "Maintenance
   over SSH");
 - `kiosk` manages NetworkManager connections without sudo through `/etc/polkit-1/rules.d/50-kiosk-networkmanager.rules`;
-- PipeWire, `pipewire-pulse` and WirePlumber, and AirPlay speakers through Avahi;
+- PipeWire and WirePlumber, and AirPlay speakers through Avahi;
 - `unattended-upgrades` for Debian security updates and the Raspberry Pi archive (Chromium, kernel);
 - `config.txt` and the kernel command line for the screen, a quiet boot and no cursor. The mode is forced on both HDMI
   ports: the screen's own mode from its EDID (1280x800 on a 10.1-inch screen), or 1024x600 for a screen that sends

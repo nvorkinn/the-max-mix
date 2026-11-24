@@ -200,7 +200,6 @@ kiosk_packages:
   - libspa-0.2-bluetooth
   - rfkill
   - pipewire
-  - pipewire-pulse
   - wireplumber
   # AirPlay: PipeWire's RAOP modules find speakers over mDNS (Avahi); pw-dump and pw-link route the sound to them.
   - avahi-daemon
