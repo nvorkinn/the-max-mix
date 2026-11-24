@@ -578,6 +578,16 @@ describe('SettingsPanel', () => {
         vi.restoreAllMocks();
       });
 
+      it('closes the code with Back', async () => {
+        auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true)]);
+        vi.spyOn(soloistKeys, 'soloistKeyPeople').mockResolvedValue([]);
+        render(<SettingsPanel {...base} initialSection="spotify" />);
+        await userEvent.click(await screen.findByRole('button', { name: 'Add Soloist key' }));
+        const dialog = screen.getByRole('dialog', { name: 'Nikolai’s Soloist key' });
+        await userEvent.click(within(dialog).getByRole('button', { name: 'Back' }));
+        expect(screen.queryByRole('dialog', { name: 'Nikolai’s Soloist key' })).not.toBeInTheDocument();
+      });
+
       it("shows the code for a person's Soloist key while they have none, and neither once it is saved", async () => {
         auth.peopleOnKiosk.mockReturnValue([person('Nikolai', true), person('Friend')]);
         const list = vi.spyOn(soloistKeys, 'soloistKeyPeople').mockResolvedValue(['Friend']);

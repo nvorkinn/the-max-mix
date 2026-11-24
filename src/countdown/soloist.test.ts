@@ -4,7 +4,7 @@ import * as auth from '../spotify/auth';
 import type { PersonOnKiosk } from '../spotify/auth';
 import { KIOSK_SERVICE } from '../utils/kioskService';
 import * as registration from './registration';
-import { tellSoloistPerson } from './soloist';
+import { startSoloistPerson, tellSoloistPerson } from './soloist';
 
 const SECRET = fixture.registration.secret;
 const PERSON = fixture.soloist_key_query.person;
@@ -94,5 +94,26 @@ describe('tellSoloistPerson', () => {
     signIn();
     answer({ body: { state: 'no-key' } });
     await expect(tellSoloistPerson()).resolves.toBe('no-key');
+  });
+});
+
+describe('startSoloistPerson', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('says who is active now, then again every 10 minutes until stopped', async () => {
+    vi.useFakeTimers();
+    register();
+    signIn();
+    const fetch = answer();
+    const stop = startSoloistPerson();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    stop();
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
