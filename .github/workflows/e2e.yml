@@ -1,7 +1,7 @@
 name: E2E
 
-# Browser tests of the built app with Spotify faked, served by `vite preview`, using the Google Chrome that ships on
-# ubuntu-latest, so no browser download is needed. tests.yml calls this on every pull request and push to main; it runs
+# Browser tests of the built app with Spotify faked, served by `vite preview`, in Playwright's WebKit: the kiosk shows
+# the app in WebKitGTK, so CI tests the engine the Pi runs. tests.yml calls this on every pull request and push to main; it runs
 # as part of that run, so all-checks.yml waits for it through Tests. Each test runs once and no test is traced, because
 # tracing every test took a third or more of the run; dispatch this workflow on a branch (`gh workflow run e2e.yml --ref <branch>`)
 # for a report with a trace of every test, in the run's playwright-report artifact.
@@ -38,10 +38,6 @@ jobs:
     env:
       E2E_TRACE: ${{ inputs.trace && 'on' || '' }}
     steps:
-      # The runner's disk is read in lazily, so Chrome's first start takes about ten seconds. Starting it once in the
-      # background lets that happen while the dependencies install, instead of before the first test.
-      - name: Warm up Chrome
-        run: (google-chrome --headless --disable-gpu --dump-dom about:blank > /dev/null 2>&1 &)
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -62,6 +58,22 @@ jobs:
         run: |
           node scripts/e2e-package.ts
           npm install --ignore-scripts --no-audit --no-fund
+      # Playwright's WebKit build, cached for the locked Playwright version; the system libraries it needs come from apt
+      # on every run, since the cache cannot hold them.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-webkit-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install WebKit
+        env:
+          CACHED: ${{ steps.browsers.outputs.cache-hit }}
+        run: |
+          if [ "$CACHED" = 'true' ]; then
+            npx playwright install-deps webkit
+          else
+            npx playwright install --with-deps webkit
+          fi
       - run: npm run build
       - name: Run Playwright shard
         env:
