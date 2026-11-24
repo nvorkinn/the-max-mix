@@ -14,7 +14,7 @@ describe('perform', () => {
     await perform('reset', { run });
     await perform('wake', { run });
     expect(commands).toEqual([
-      ['/usr/bin/systemctl', 'restart', '--no-block', 'kiosk.service'],
+      ['/usr/bin/systemctl', 'start', '--no-block', 'kiosk-restart.service'],
       ['/usr/bin/systemctl', 'reboot'],
       ['/usr/bin/systemctl', 'start', '--no-block', 'kiosk-reset.service'],
       ['/usr/local/bin/kiosk-display', 'on']

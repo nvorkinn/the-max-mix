@@ -1,0 +1,10 @@
+# Makes the folders in memory that /var/lib's overlay (/etc/fstab) keeps its changes in, before it mounts.
+[Unit]
+Description=THE MAX MIX folders for /var/lib's changes
+DefaultDependencies=no
+Before=var-lib.mount
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/mkdir -p /run/var-lib/upper /run/var-lib/work

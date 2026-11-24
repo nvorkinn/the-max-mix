@@ -18,7 +18,7 @@ trim_trailing_whitespace = false
 indent_size = unset
 
 # A binary X cursor file (one transparent pixel), and Tailscale's binary signing key.
-[{ansible/roles/kiosk/files/icons/left_ptr,image/rootfs/usr/share/icons/blank/cursors/*,image/rootfs/usr/share/keyrings/tailscale-archive-keyring.gpg}]
+[{image/rootfs/usr/share/icons/blank/cursors/*,image/rootfs/etc/apt/keyrings/tailscale.gpg}]
 charset = unset
 end_of_line = unset
 insert_final_newline = unset

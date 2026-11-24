@@ -10,7 +10,7 @@ afterEach(async () => {
   await Promise.all(folders.splice(0).map(folder => rm(folder, { recursive: true, force: true })));
 });
 
-/** A release folder with an index.html and one hashed script, and a `current` link to it, as the Ansible role makes. */
+/** A release folder with an index.html and one hashed script, and a `current` link to it. */
 async function release(): Promise<{ current: string; folder: string }> {
   const root = await mkdtemp(path.join(tmpdir(), 'app-files-'));
   folders.push(root);

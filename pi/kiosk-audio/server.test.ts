@@ -128,7 +128,7 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
       beats += 1;
     },
     heartbeatAge: () => (beats === 0 ? null : 12_000),
-    imageUpdates: null,
+    updates: { check: () => Promise.reject(new Error('no check expected')) },
     log: entry => {
       logged.push(entry);
     },
@@ -658,17 +658,12 @@ describe('POST /update/check', () => {
     latest: 'dev+bbb'
   };
 
-  it('answers what the channel has on an image Pi, to the app only', async () => {
-    const base = await start(fakes({ imageUpdates: { check: () => Promise.resolve(checked) } }).deps);
+  it('answers what the channel has, to the app only', async () => {
+    const base = await start(fakes({ updates: { check: () => Promise.resolve(checked) } }).deps);
     const response = await post(base, '/update/check');
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual(checked);
     expect((await post(base, '/update/check', { origin: 'https://evil.example' })).status).toBe(403);
-  });
-
-  it('is not there on a Pi Ansible installed', async () => {
-    const base = await start(fakes().deps);
-    expect((await post(base, '/update/check')).status).toBe(404);
   });
 });
 

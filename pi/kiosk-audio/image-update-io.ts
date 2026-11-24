@@ -8,8 +8,9 @@ import { STATE_FILE } from './image-update.ts';
 import type { UpdateIO, UpdateState } from './image-update.ts';
 import type { Rauc } from './rauc.ts';
 
-const HEAD_TIMEOUT_MS = 30_000;
+const FETCH_TIMEOUT_MS = 30_000;
 const TRYBOOT = '/proc/device-tree/chosen/bootloader/tryboot';
+const REBOOT_PARAM = '/run/systemd/reboot-param';
 
 export async function readText(file: string): Promise<string | null> {
   try {
@@ -27,16 +28,12 @@ export async function replaceFile(file: string, content: string, mode = 0o644): 
   await rename(temporary, file);
 }
 
-/**
- * A fingerprint of a release asset: where GitHub's download redirect ends (its path names the uploaded file) with its
- * ETag and size, so a replaced bundle on a rolling pre-release reads as new. Null for 404.
- */
-async function headFingerprint(url: string): Promise<string | null> {
-  const response = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(HEAD_TIMEOUT_MS) });
+/** A small file's text (a release's bundle.txt); null for 404. */
+async function fetchText(url: string): Promise<string | null> {
+  const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`${url} answered ${response.status}.`);
-  const final = new URL(response.url || url);
-  return [final.pathname, response.headers.get('etag') ?? '', response.headers.get('content-length') ?? ''].join(' ');
+  return response.text();
 }
 
 /** Runs a program with fixed arguments (no shell); rejects when it fails. */
@@ -49,6 +46,15 @@ export function runProgram([file = '', ...args]: string[]): Promise<void> {
       else resolve();
     });
   });
+}
+
+/**
+ * Reboots with the firmware's tryboot flag: "0 tryboot" in the reboot parameter, which systemd passes to the kernel at
+ * the very end. Written here rather than through `systemctl reboot '0 tryboot'`, which failed on the Pi 5.
+ */
+async function tryboot(): Promise<void> {
+  await writeFile(REBOOT_PARAM, '0 tryboot\n');
+  await runProgram(['/usr/bin/systemctl', 'reboot']);
 }
 
 /** Whether the firmware started this boot with tryboot. */
@@ -69,8 +75,9 @@ export function updateIO(rauc: Rauc, log: (line: string) => void = print): Updat
     rauc,
     readText,
     writeState: (state: UpdateState) => replaceFile(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`),
-    head: headFingerprint,
+    fetchText,
     run: runProgram,
+    tryboot,
     isTrialBoot,
     now: () => Date.now(),
     log

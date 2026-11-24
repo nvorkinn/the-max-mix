@@ -19,13 +19,12 @@ app on `127.0.0.1:7341`. It does two jobs:
 
 ## The web app
 
-The release's Pi bundle carries the built web app (`app/`), and the Ansible role installs each release in
-`/opt/the-max-mix/app/releases/<commit>`. When the kiosk starts, `kiosk-app-switch` makes the newest one
-`/opt/the-max-mix/app/current` and removes the others, so a page that is already open never loses a file to a newer
-release. This service serves `current` (`KIOSK_APP_DIR`, `app-files.ts`) on `http://127.0.0.1:7341/`, which lets the
-kiosk start the app with no internet: `index.html` and the top-level files are checked again on every load, and the
-hashed files under `assets/` are kept for good. Every file goes out with `X-Content-Type-Options`, `Referrer-Policy`
-and `X-Frame-Options`. A Pi following a branch serves the latest release's app, which `kiosk-pull` fetches for it.
+The built web app is part of the Pi's image, at `/opt/the-max-mix/app`, and a new one comes only with a reboot into a
+new slot, so a page that is already open never loses a file to a newer release. This service serves it
+(`KIOSK_APP_DIR`, `app-files.ts`) on `http://127.0.0.1:7341/`, which lets the kiosk start the app with no internet:
+`index.html` and the top-level files are checked again on every load, and the hashed files under `assets/` are kept
+for good. Every file goes out with `X-Content-Type-Options`, `Referrer-Policy` and `X-Frame-Options`. A dev or branch
+Pi serves the app built from its own commit.
 
 When the app is this local copy, its own GETs are same-origin and Chromium sends no `Origin` with them, so the checks
 that answer only the app also take `Sec-Fetch-Site: same-origin` (`isFromApp` in `server.ts`).
@@ -49,21 +48,20 @@ round: 1920x1200 for a 1200x1920 panel.
 
 How the kiosk shows the screen is worked out as it starts (`screen-setup.ts`, run as root by `kiosk.service`): a screen
 in its `KNOWN_SCREENS` table gets its own rotation and scale (the 10.1 inch Raspberry Pi Touch Display 2: 90 degrees,
-1.5), any other is shown as it is, and the role's `kiosk_screen_rotation` and `kiosk_screen_scale` win when set. It
+1.5), any other is shown as it is, and `KIOSK_ROTATION` and `KIOSK_SCALE` in `kiosk.env` win when set. It
 writes `KIOSK_SCREEN_ROTATION` and `KIOSK_SCREEN_SCALE` to `/run/kiosk/screen.env`, which `kiosk.service` and this
 service read, and the touch screen's rotation to `/run/udev/rules.d/90-kiosk-touch-rotation.rules`. So a fresh Pi with a
-known screen registers with its landscape size from the first start, with no `kiosk-vars.yml`.
+known screen registers with its landscape size from the first start, with no settings.
 `brightness_control` is true when `/sys/class/backlight` has an entry: a DSI panel's driver makes one, HDMI never
 does. 503 with no screen connected.
 
 The screen mode on the kernel command line (`video=HDMI-A-1:1280x800@60`, which sets the console's mode and the one an
-HDMI screen with no EDID gets) is the Ansible role's on today's Pis. On an image-based Pi, whose boot partition comes
-from the image, `screen-setup.ts --cmdline=/boot/firmware/cmdline.txt` writes it at every kiosk start: `KIOSK_VIDEO_MODE`
+HDMI screen with no EDID gets): the boot partition comes from the image, so `screen-setup.ts --cmdline=/boot/firmware/cmdline.txt` writes it at every kiosk start: `KIOSK_VIDEO_MODE`
 from `/data/the-max-mix/kiosk.env` (`--video-mode`) if set, else the screen's own (`screen-mode.ts`), else the mode
 already there, else 1024x600. It takes effect at the next boot, so an update writes it into the new slot's boot
 partition too (`node screen-mode.ts --cmdline <file> [--mode <mode>]`).
 
-## First boot and factory reset (image-based Pis)
+## First boot and factory reset
 
 `kiosk-first-boot.ts` runs as root on every boot, before `/data` is mounted
 (`image/rootfs/etc/systemd/system/kiosk-first-boot.service`). It grows the data partition to the end of the card and
@@ -108,7 +106,7 @@ The app reaches everything else about Sonos here too:
   with the GETs above. For this the Pi subscribes to the speakers' own events (UPnP): the household's grouping on one
   speaker, and play state and volume on each group's leading speaker, following new leaders as the grouping changes. The
   speakers send those events to a listener the sonos-ts library opens on the Pi's home network address, on
-  `SONOS_LISTENER_PORT` (6329, `kiosk_sonos_events_port` in Ansible). The subscriptions end when the last app goes away.
+  `SONOS_LISTENER_PORT` (6329). The subscriptions end when the last app goes away.
   The app keeps a slow read (once a minute) as a fallback, and reads as before when the stream is not there.
 
 ## Bluetooth monitor
@@ -286,47 +284,45 @@ The service's own error messages stay in English in the code; the app shows them
 | `speakers.ts`      | Checking speaker lists, the saved choice, and routing to it.            |
 | `pipewire.ts`      | `pw-dump` parsing, the link plan, `pw-link` and `wpctl set-volume`.     |
 
-It is TypeScript that Node runs directly, so Ansible copies the `.ts` files as they are and nothing is built. Its one npm
-package is `ws` (the WebSocket server): the playbook installs it on the Pi with `npm ci` from
-`ansible/roles/kiosk/files/kiosk-audio/package-lock.json` (so only the reviewed version; Dependabot watches that lockfile). That needs Node 22.18 or later, so the role installs Node
-`kiosk_nodejs_major` (24, as in `.nvmrc`) from NodeSource's archive, since Debian trixie has Node 20. Its signing key is
-pinned by checksum and unattended upgrades cover it.
+It is TypeScript that Node runs directly, so the image build copies the `.ts` files as they are and nothing is built.
+Its npm packages are installed with `npm ci` from `image/kiosk-audio/package-lock.json` (so only the reviewed versions;
+Dependabot watches that lockfile). That needs Node 22.18 or later, so the image has Node 24 (as in `.nvmrc`) from
+NodeSource's archive, since Debian trixie has Node 20.
 
 ## The update stream
 
 `WS /power/update` is a WebSocket on the same port. Connecting to it starts an update, and the service sends JSON text
 frames: `{"type":"log","line":"…"}` for each line of the journal (`journalctl --output short-iso`, so each carries its
 timestamp), `{"type":"error","line":"…"}` for journalctl's own complaints, and `{"type":"status","state":…}` with state
-`pulling`, `restarting`, `done` or `failed` (and a `message`). It then closes the connection.
+`installing`, `installed` (with the version), `restarting`, `done` or `failed` (and a `message`). It then closes
+the connection.
 
-1. It starts `journalctl --unit kiosk-pull.service --follow` (from the second before, so nothing is missed), then
-   `systemctl start kiosk-pull.service`, which returns when the pull is done, and stops the journalctl.
-2. If the pull left the restart marker (`/run/kiosk/restart-needed`), the same for `kiosk-restart.service`. That restarts
-   the browser the app runs in, so the connection most likely ends there; that is expected.
-3. Every journalctl is stopped when its step ends, when the app goes away, after 35 minutes, and when the service stops
-   (a failed pull stops everything). If the app goes away during the pull, the pull goes on by itself and the kiosk
-   restarts at the usual quiet time. Only one update runs at a time.
+It starts `journalctl --unit kiosk-update.service --follow` (from the second before, so nothing is missed), then
+`systemctl start kiosk-update.service`, which returns when the check and any install are done. On a dev or branch Pi the
+unit reboots into the update straight away, which ends the connection; that is expected. The journalctl is stopped when
+the unit ends, when the app goes away, after 35 minutes, and when the service stops. If the app goes away, the update
+goes on by itself. Only one update runs at a time.
 
-It needs the `kiosk` user to read the journal (the `systemd-journal` group, `kiosk_groups`) and to start those two units
-(`50-kiosk-power.rules`). The group applies when the user's session next starts, so the first update after a deploy may
-show journalctl's "no permission" instead of the lines; the pull and restart still run.
+It needs the `kiosk` user to read the journal (the `systemd-journal` group) and to start the unit
+(`50-kiosk-power.rules`).
 
-## Updates on image Pis
+## Updates
 
-A Pi flashed with the A/B image (it has `/etc/rauc/system.conf`) updates as a whole: the OS, this service and the web app
+Every Pi updates as a whole: the OS, this service and the web app
 are one signed RAUC bundle on GitHub, installed into the slot the Pi does not run from. `image-update.ts` holds the one
 code path the timer, the screen and `kiosk-rollback` share:
 
 - **Channels.** `KIOSK_UPDATE_CHANNEL` in `/data/the-max-mix/kiosk.env`: `stable` (the default; the latest release,
   checked every 6 hours), `dev` (the rolling `dev` pre-release, checked every 2 minutes) or `branch-<name>` (that
-  pre-release, also every 2 minutes). The bundle is `the-max-mix.raucb` on each.
-- **Check.** A HEAD of the bundle's URL (not the rate-limited API); only when the file changed is its manifest read
+  pre-release, also every 2 minutes). Each release has `bundle.txt`, which names its bundle: each build's has a name of
+  its own (`the-max-mix-<tag or commit>.raucb`) and is never replaced, so a Pi in the middle of an install keeps
+  streaming the file it started on.
+- **Check.** It reads `bundle.txt` (not the rate-limited API); only when that names another bundle is its manifest read
   (RAUC's `InspectBundle`, a few range requests). Its version (`<ref>+<commit>`) is compared with the running one
   (`/usr/lib/the-max-mix/release.env`), the one waiting for a restart and the ones that failed here.
 - **Install.** `kiosk-update.service` (root) runs `rauc install` over D-Bus, streaming from the URL, and logs
-  `Update progress: N% …` lines. `WS /power/update` starts that unit and streams its journal, as for the Ansible pull, and
-  ends with `installed` (with the version) or `done`. `POST /update/check` answers what the channel has (404 on a Pi
-  Ansible installed).
+  `Update progress: N% …` lines. `WS /power/update` starts that unit and streams its journal (above), and ends with
+  `installed` (with the version) or `done`. `POST /update/check` answers what the channel has.
 - **Apply.** At 04:30 and on Restart (`kiosk-restart.service`) the Pi reboots with `tryboot` into the new slot, once.
   Dev and branch Pis do that straight after the install.
 - **Health.** `kiosk-health.service` gives each boot 5 minutes: this service answers, Cage and Chromium run and the app

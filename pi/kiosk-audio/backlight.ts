@@ -1,7 +1,7 @@
 // The screen's backlight, for the app's brightness setting and for dimming an idle screen (POST /display/brightness).
 // A DSI panel's driver makes a folder in /sys/class/backlight with `max_brightness` and `brightness`; an HDMI screen
 // has none, so there is nothing to set and the app dims by darkening its page instead. The kernel lets only root write
-// `brightness`: a udev rule from the Ansible role (90-kiosk-backlight.rules) gives it to the video group, which the
+// `brightness`: a udev rule in the image (90-kiosk-backlight.rules) gives it to the video group, which the
 // kiosk user is in.
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
