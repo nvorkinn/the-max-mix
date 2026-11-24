@@ -3,9 +3,12 @@
 
 use tauri::{Url, WebviewUrl, WebviewWindowBuilder};
 
+#[cfg(target_os = "linux")]
+mod awake;
+
 /// Sites the view may leave the app for, besides the app's own origin: Spotify's sign-in (with its challenge pages) and
-/// the Web Playback SDK's frame, and countdown-server's pages (device registration, the settings site).
-const ALLOWED_DOMAINS: &[&str] = &["spotify.com", "scdn.co", "countdown.run", "countdown.build"];
+/// countdown-server's pages (device registration, the settings site).
+const ALLOWED_DOMAINS: &[&str] = &["spotify.com", "countdown.run", "countdown.build"];
 
 fn allowed(app: &Url, to: &Url) -> bool {
     if to.origin() == app.origin() || to.scheme() == "about" || to.scheme() == "blob" || to.scheme() == "data" {
@@ -13,7 +16,9 @@ fn allowed(app: &Url, to: &Url) -> bool {
     }
     to.scheme() == "https"
         && to.host_str().is_some_and(|host| {
-            ALLOWED_DOMAINS.iter().any(|domain| host == *domain || host.ends_with(&format!(".{domain}")))
+            ALLOWED_DOMAINS
+                .iter()
+                .any(|domain| host == *domain || host.ends_with(&format!(".{domain}")))
         })
 }
 
@@ -42,7 +47,10 @@ fn main() {
                 })
                 .build()?;
             #[cfg(target_os = "linux")]
-            window.with_webview(|webview| linux::configure(&webview.inner()))?;
+            {
+                window.with_webview(|webview| linux::configure(&webview.inner()))?;
+                awake::start(window.gtk_window()?);
+            }
             #[cfg(not(target_os = "linux"))]
             let _ = window;
             Ok(())

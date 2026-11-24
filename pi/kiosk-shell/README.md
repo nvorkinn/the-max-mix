@@ -15,10 +15,14 @@ place of Chromium.
 
 ## What it does besides showing the page
 
-- Refuses navigation away from the app's origin, except to Spotify (`*.spotify.com`, `*.scdn.co`) and countdown-server
+- Refuses navigation away from the app's origin, except to Spotify (`*.spotify.com`) and countdown-server
   (`*.countdown.run`, `*.countdown.build`) over https.
 - No context menu, no back/forward swipe; media plays without a tap first; permission requests (location,
   notifications, the wake lock) are granted, since only those sites load.
+- Keeps the screen on while the app holds a wake lock. WebKitGTK sends the wake lock to the session bus's
+  `org.freedesktop.ScreenSaver`, which nothing provides under Cage, so the shell owns that name and holds a Wayland idle
+  inhibitor on its window while any inhibit is held (`src/awake.rs`). swayidle in kiosk-session then leaves the screen
+  on, as it did for Chromium. The kiosk user's session bus must be running (it is, with `PAMName=login`).
 - WebKit keeps the app's storage under `~/.local/share/org.vorkinn.the-max-mix.kiosk/`.
 
 ## Building
