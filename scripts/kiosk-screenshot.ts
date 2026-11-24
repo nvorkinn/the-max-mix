@@ -17,7 +17,9 @@ async function screenshot(): Promise<Buffer> {
     stdio: ['ignore', 'pipe', 'inherit']
   });
   const chunks: Buffer[] = [];
-  ssh.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
+  ssh.stdout.on('data', (chunk: Buffer) => {
+    chunks.push(chunk);
+  });
   const timer = setTimeout(() => ssh.kill(), 30_000);
   return new Promise((resolve, reject) => {
     ssh.once('error', error => {
