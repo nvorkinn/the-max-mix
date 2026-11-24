@@ -93,8 +93,16 @@ async function hasPanel(drm: string): Promise<boolean> {
   } catch {
     return false;
   }
-  const states = await Promise.all(names.map(name => readFile(path.join(drm, name, 'status'), 'utf8').catch(() => '')));
-  return states.some(state => state.trim() === 'connected');
+  const states = await Promise.all(
+    names.map(async name => {
+      try {
+        return (await readFile(path.join(drm, name, 'status'), 'utf8')).trim();
+      } catch {
+        return '';
+      }
+    })
+  );
+  return states.includes('connected');
 }
 
 /** The mode of the first HDMI screen in `drm` (HDMI-A-1 before HDMI-A-2) with a valid EDID. */
