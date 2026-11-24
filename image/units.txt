@@ -1,0 +1,36 @@
+# What the image build tells systemd to start at boot, and what it keeps from ever starting. Format: ACTION UNIT, where
+# ACTION is enable (a system unit), enable-global (a user unit, for every user: systemctl --global enable) or mask. Every
+# unit in rootfs/etc/systemd that has an [Install] section is listed here; scripts/check-image.ts checks that, and the
+# format.
+
+# The kiosk: Cage and Chromium on tty7. It brings up the kiosk user's session, which starts kiosk-audio.
+enable kiosk.service
+enable-global kiosk-audio.service
+# The kiosk takes the display on tty7; tty1 shows nothing.
+mask getty@tty1.service
+
+# First boot: grows /data, imports Raspberry Pi Imager's settings
+enable kiosk-first-boot.service
+
+# Updates: the A/B update check and install, the health check that keeps a new slot or falls back, and the partition
+# that says which slot boots
+enable kiosk-update.timer
+enable kiosk-health.service
+enable boot-autoboot.mount
+
+# Network, Bluetooth (phones and speakers) and Avahi (AirPlay speakers)
+enable NetworkManager.service
+enable bluetooth.service
+enable avahi-daemon.service
+enable systemd-timesyncd.service
+
+# Maintenance over SSH (KIOSK_SSH and KIOSK_TAILSCALE in kiosk.env turn them off), and the admin's keys from GitHub
+enable ssh.service
+enable tailscaled.service
+enable kiosk-ssh-keys.timer
+
+# Package upkeep for a writable system: here each release is a new image, and /var/lib/apt and /var/backups are
+# read-only.
+mask apt-daily.timer
+mask apt-daily-upgrade.timer
+mask dpkg-db-backup.timer

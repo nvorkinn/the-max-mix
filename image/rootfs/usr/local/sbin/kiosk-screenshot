@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Writes a PNG of what the touchscreen shows to standard output, taken by grim from Cage, so it works whatever app Cage
+# runs. Usage: sudo kiosk-screenshot > screen.png
+# From your computer, `npm run kiosk-screenshot -- <host>` runs this over SSH and saves the PNG (scripts/kiosk-screenshot.ts).
+set -euo pipefail
+
+kiosk_user=${KIOSK_USER:-kiosk}
+if ((EUID != 0)); then
+  echo "kiosk-screenshot: run it with sudo (Cage's Wayland socket belongs to the $kiosk_user user)." >&2
+  exit 1
+fi
+if [[ -t 1 ]]; then
+  echo "kiosk-screenshot: send the PNG to a file: sudo kiosk-screenshot > screen.png" >&2
+  exit 2
+fi
+
+uid=$(id -u "$kiosk_user")
+runtime=/run/user/$uid
+# Cage names its socket wayland-0 unless that is taken; take the one there is.
+socket=
+for candidate in "$runtime"/wayland-[0-9]*; do
+  [[ -S $candidate ]] || continue
+  socket=${candidate##*/}
+  break
+done
+if [[ -z $socket ]]; then
+  echo "kiosk-screenshot: no Wayland socket in $runtime; is the kiosk running?" >&2
+  exit 1
+fi
+
+# grim asks Cage for the screen as the kiosk user, and writes the PNG to standard output.
+exec runuser -u "$kiosk_user" -- env XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY="$socket" grim -t png -

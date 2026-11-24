@@ -1,0 +1,17 @@
+#!/bin/bash
+# Usage: kiosk-ssh-host-keys
+# Makes each SSH host key sshd_config.d/10-kiosk.conf names that is missing. ssh.service runs it before sshd starts. The
+# keys live on /data (image/persist.list), so they are made once per Pi and kept across updates.
+set -euo pipefail
+
+dir=/etc/ssh/host-keys
+install -d -m 0755 "$dir"
+for type in ed25519 ecdsa rsa; do
+  key=$dir/ssh_host_${type}_key
+  if [[ ! -s $key ]]; then
+    # A half-written pair from an interrupted run: ssh-keygen would ask before overwriting it.
+    rm -f -- "$key" "$key.pub"
+    ssh-keygen -q -t "$type" -N '' -C "root@$(hostname)" -f "$key"
+    echo "kiosk-ssh-host-keys: made $key"
+  fi
+done

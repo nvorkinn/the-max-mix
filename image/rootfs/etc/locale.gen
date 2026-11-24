@@ -1,0 +1,2 @@
+# The only locale the kiosk uses (/etc/default/locale). The image build runs locale-gen after copying this file.
+en_GB.UTF-8 UTF-8
