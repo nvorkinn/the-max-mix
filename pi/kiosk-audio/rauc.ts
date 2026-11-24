@@ -101,13 +101,20 @@ export async function raucOverDbus(given?: MessageBus): Promise<Rauc> {
       })
     );
 
+  const slots = async (): Promise<Slot[]> => {
+    const status = dbus.toPlain<[string, Plain][]>(await call('GetSlotStatus'));
+    return status.map(([name, properties]) => toSlot(name, properties));
+  };
+
   return {
-    bootSlot: async () => String(await property('BootSlot')),
-    operation: async () => String(await property('Operation')),
-    slots: async () => {
-      const status = dbus.toPlain<[string, Plain][]>(await call('GetSlotStatus'));
-      return status.map(([name, properties]) => toSlot(name, properties));
+    // RAUC's BootSlot is rauc.slot= from the kernel command line, or else the root device (/dev/mmcblk0p4), which is no
+    // bootname: the root slot it calls booted has the bootname.
+    bootSlot: async () => {
+      const booted = (await slots()).find(slot => slot.class === 'rootfs' && slot.state === 'booted');
+      return booted?.bootname ?? String(await property('BootSlot'));
     },
+    operation: async () => String(await property('Operation')),
+    slots,
     inspect: async source =>
       inspectedVersion(dbus.toPlain<Plain>(await call('InspectBundle', 'sa{sv}', [source, {}], INSPECT_TIMEOUT_MS))),
     install: async (source, onProgress) => {

@@ -43,15 +43,15 @@ function listen(url: string, origin: string | null = ORIGIN) {
 describe('the update WebSocket', () => {
   it('streams what the update sends, then closes', async () => {
     const url = await start((send: Send) => {
-      send({ type: 'status', state: 'pulling' });
-      send({ type: 'log', line: '2026-11-04T20:00:00+0000 kiosk-pull[1]: TASK [kiosk]' });
+      send({ type: 'status', state: 'installing' });
+      send({ type: 'log', line: '2026-11-04T20:00:00+0000 kiosk-update[1]: Update progress: 10% Checking' });
       send({ type: 'status', state: 'done', message: 'Nothing needed a restart.' });
       return Promise.resolve();
     });
     const { messages, code } = await listen(`${url}/power/update`);
     expect(messages).toEqual([
-      { type: 'status', state: 'pulling' },
-      { type: 'log', line: '2026-11-04T20:00:00+0000 kiosk-pull[1]: TASK [kiosk]' },
+      { type: 'status', state: 'installing' },
+      { type: 'log', line: '2026-11-04T20:00:00+0000 kiosk-update[1]: Update progress: 10% Checking' },
       { type: 'status', state: 'done', message: 'Nothing needed a restart.' }
     ]);
     expect(code).toBe(1000);
@@ -94,7 +94,7 @@ describe('the update WebSocket', () => {
   it('runs one update at a time, and says so to the next', async () => {
     const release = Promise.withResolvers<undefined>();
     const url = await start(async send => {
-      send({ type: 'status', state: 'pulling' });
+      send({ type: 'status', state: 'installing' });
       await release.promise;
     });
     const first = new WebSocket(`${url}/power/update`, { origin: ORIGIN });

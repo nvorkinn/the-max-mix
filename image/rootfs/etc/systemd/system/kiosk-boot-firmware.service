@@ -1,0 +1,18 @@
+# Mounts the booted slot's boot partition at /boot/firmware (boot-firmware-mount), for the screen setup in kiosk.service.
+# Which partition that is depends on the slot, so it can't be a line in /etc/fstab.
+[Unit]
+Description=THE MAX MIX booted slot's boot partition
+DefaultDependencies=no
+Requires=dev-disk-by\x2dpartlabel-boot\x2da.device dev-disk-by\x2dpartlabel-boot\x2db.device
+After=dev-disk-by\x2dpartlabel-boot\x2da.device dev-disk-by\x2dpartlabel-boot\x2db.device systemd-remount-fs.service
+Before=local-fs.target umount.target
+Conflicts=umount.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/lib/the-max-mix/boot-firmware-mount
+ExecStop=/usr/bin/umount /boot/firmware
+
+[Install]
+WantedBy=local-fs.target

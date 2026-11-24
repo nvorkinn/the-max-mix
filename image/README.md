@@ -4,7 +4,7 @@ What the A/B image is made of, as plain files: the image build reads them, and n
 release replaces the whole root file system, so a file removed here is gone from every Pi after its next update. Only
 what [persist.list](persist.list) names outlives an update.
 
-Today's Pis still run Ansible (`ansible/`); nothing here is used until the Release workflow builds images.
+Every bundle is built from this folder: `dev` on each merge to `main`, and a release's from its tag.
 
 | File                         | What the build does with it                                                                                                               |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
@@ -23,7 +23,8 @@ KIOSK_RELEASE_COMMIT=<the full commit>
 ```
 
 It drops in the built artefacts: the web app at `/opt/the-max-mix/app`, `pi/kiosk-audio` (without its tests) with its
-`node_modules` at `/opt/the-max-mix/kiosk-audio`. Spotify Soloist is not in the image: its terms do not allow passing it
+`node_modules` (installed from [kiosk-audio/package-lock.json](kiosk-audio/package-lock.json)) at
+`/opt/the-max-mix/kiosk-audio`. Spotify Soloist is not in the image: its terms do not allow passing it
 on, and each build expires after 90 days, so `kiosk-soloist-update.timer` fetches it onto `/data/soloist`, where
 `/usr/local/bin/soloist` links (the build makes the link).
 
@@ -44,7 +45,7 @@ on, and each build expires after 90 days, so `kiosk-soloist-update.timer` fetche
 
 ## From Ansible
 
-Where each part of `ansible/roles/kiosk` went:
+Where each part of the Ansible role that set up the first Pis went:
 
 - Values from `defaults/main.yml` are written into the files (the kiosk and admin accounts, ports, timer intervals,
   the journal cap, the AirPlay latency), except the ones above, which each Pi reads from `kiosk.env`.
@@ -57,12 +58,18 @@ Where each part of `ansible/roles/kiosk` went:
 
 Left out, because the image replaces them:
 
-- `kiosk-pull`, the restart marker, the package and part stamps, `install-files.ts`, `task_progress.py`: updates are
+- `kiosk-pull`, the release tarball, the restart marker, the package and part stamps, `install-files.ts`, `task_progress.py`: updates are
   `kiosk-update` and RAUC.
 - `kiosk-app-switch` and the app's `releases/`, `next` and `current`: the app is part of the image, and the reboot into
   the new slot is the switch.
 - unattended-upgrades and its settings: security fixes ship as image releases.
 
-Still to prove on a Pi (the spike): that `/etc/hostname` and `/etc/machine-id` from `/data` are in place before
-systemd reads them early in boot, that `root=PARTLABEL=` boots, and that the read-only root needs nothing else
-to write to (`/var/log` besides the journal, `/var/lib/systemd`).
+The read-only root: `/tmp`, `/var/tmp` and `/var/cache` are in memory, and `/var/lib` is an overlay whose changes stay
+in memory (logind, the backlight level, udisks2), with `persist.list`'s binds from `/data` on top. Swap is zram only
+(`/etc/rpi/swap.conf.d`), and the radios' rfkill state is not restored, so Wi-Fi is never left blocked.
+
+Proven on a Pi 5 with the Touch Display 2 (the spike, 2026-11-24): booting from either slot on the read-only root with
+Wi-Fi, SSH, Cage, Chromium and kiosk-audio up; adaptive installs that download under a tenth of the bundle; a healthy
+trial slot kept, and a failed one marked bad with the Pi back on its old slot. After a fallback, the firmware's
+[tryboot] section points at the good slot again, so a plain `reboot '0 tryboot'` does not retry the bad one: only a
+new install, or `rauc status mark-active other`, makes it the slot to try.

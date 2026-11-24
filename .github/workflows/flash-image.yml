@@ -49,7 +49,11 @@ jobs:
       - name: Download the bundle
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release download "$FROM" --pattern the-max-mix.raucb --dir "$RUNNER_TEMP"
+        # bundle.txt names the release's bundle.
+        run: |
+          gh release download "$FROM" --pattern bundle.txt --output "$RUNNER_TEMP/bundle.txt"
+          gh release download "$FROM" --pattern "$(basename "$(< "$RUNNER_TEMP/bundle.txt")")" \
+            --output "$RUNNER_TEMP/the-max-mix.raucb"
       # The folder is made first, as the runner user, so that the step can still write to it after the root build.
       - name: Build the card
         run: |

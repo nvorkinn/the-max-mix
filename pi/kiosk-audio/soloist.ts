@@ -27,8 +27,8 @@ const MAX_TEXT = 512;
 
 /**
  * The name Soloist goes by in Spotify Connect, which must differ between kiosks on one account: the app finds its own
- * Soloist in Spotify's device list by it, and people pick it on their phone by it. A configured name (kiosk_name in
- * /etc/the-max-mix/kiosk-vars.yml, KIOSK_NAME to this service) comes first; otherwise the host name says which kiosk
+ * Soloist in Spotify's device list by it, and people pick it on their phone by it. A configured name (KIOSK_NAME in
+ * kiosk.env) comes first; otherwise the host name says which kiosk
  * it is: the-max-mix-4 is "The Max Mix 4", and any other host name is put in brackets after "The Max Mix".
  */
 export function soloistDeviceName(configured: string | undefined, host: string): string {

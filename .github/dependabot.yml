@@ -23,16 +23,9 @@ updates:
       - dependency-name: '@types/node'
         update-types: [version-update:semver-major]
 
-  # ws, the kiosk-audio service's one package on the Pi: installed there from this lockfile by the playbook (npm ci).
+  # The kiosk-audio service's packages on the Pi: the image build installs them from this lockfile (npm ci).
   - package-ecosystem: npm
-    directory: /ansible/roles/kiosk/files/kiosk-audio
-    patterns: ['*']
-    multi-ecosystem-group: dependencies
-
-  # ansible-core and ansible-lint, which CI uses to lint the playbook. Unpinned in ansible/pyproject.toml, so the lockfile
-  # is the only record of their versions.
-  - package-ecosystem: uv
-    directory: /ansible
+    directory: /image/kiosk-audio
     patterns: ['*']
     multi-ecosystem-group: dependencies
 

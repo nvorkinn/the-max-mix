@@ -4,7 +4,7 @@
 // sets and Cage runs at, so it holds for a DSI panel, which has no EDID, as for an HDMI one. Brightness is there when
 // the screen has a backlight in /sys/class/backlight: a DSI panel's driver makes one, an HDMI screen never has one.
 // The kernel knows the panel's own mode only: a screen the kiosk shows turned by 90 or 270 degrees (KIOSK_SCREEN_ROTATION,
-// kiosk_screen_rotation in the Ansible role) has its width and height the other way round.
+// from KIOSK_ROTATION in kiosk.env) has its width and height the other way round.
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 

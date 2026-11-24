@@ -1,11 +1,9 @@
-// The app's Update now: pull the playbook, then restart the kiosk if the pull asked for it, while the journal lines of both
-// steps are sent to the app (through the WebSocket in update-socket.ts) as they are written. On an image Pi it runs
-// kiosk-update.service instead (runImageUpdate), the timer's own path, whose journal carries RAUC's progress. Each step follows its unit's
-// journal with a journalctl child process, which is always stopped again: when the step ends, when the app goes away,
-// after a time limit, and when this service stops.
+// The app's Install: run kiosk-update.service, the timer's own path, while its journal lines, RAUC's progress among them,
+// are sent to the app (through the WebSocket in update-socket.ts) as they are written. The journal is followed with a
+// journalctl child process, which is always stopped again: when the unit ends, when the app goes away, after a time
+// limit, and when this service stops.
 import { spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
-import { access } from 'node:fs/promises';
 import { RESTART_LINE } from './image-update.ts';
 
 /** What the app is sent, as JSON text frames. */
@@ -13,7 +11,7 @@ export type UpdateMessage =
   | { type: 'log' | 'error'; line: string }
   | {
       type: 'status';
-      state: 'pulling' | 'installing' | 'installed' | 'restarting' | 'done' | 'failed';
+      state: 'installing' | 'installed' | 'restarting' | 'done' | 'failed';
       message?: string;
     };
 
@@ -21,18 +19,15 @@ export type Send = (message: UpdateMessage) => void;
 
 const JOURNALCTL = '/usr/bin/journalctl';
 const SYSTEMCTL = '/usr/bin/systemctl';
-/** Left by a pull that changed kiosk files (kiosk_restart_marker); kiosk-restart.service only runs when it exists. */
-const RESTART_MARKER = '/run/kiosk/restart-needed';
 /** journald hands a unit's last lines over a moment after the unit exits, so a follower is stopped a little later. */
 const DRAIN_MS = 500;
 const KILL_GRACE_MS = 2000;
-/** kiosk-pull.service gives up after 30 minutes; this is a little more than that and its restart. */
+/** Longer than a whole bundle takes to stream in on a slow connection. */
 const OVERALL_MS = 35 * 60 * 1000;
 
 /** What an update needs from the machine; tests pass fakes. */
 export interface UpdateIO {
   spawn: (file: string, args: string[]) => ChildProcess;
-  markerExists: () => Promise<boolean>;
   now: () => number;
   sleep: (ms: number) => Promise<void>;
 }
@@ -41,14 +36,6 @@ const defaultIO: UpdateIO = {
   spawn: (file, args) =>
     // The callers pass the absolute paths above and fixed arguments: no shell, nothing from a request.
     spawn(file, args, { stdio: ['ignore', 'pipe', 'pipe'], env: { PATH: '/usr/bin:/bin', LC_ALL: 'C.UTF-8' } }),
-  markerExists: async () => {
-    try {
-      await access(RESTART_MARKER);
-      return true;
-    } catch {
-      return false;
-    }
-  },
   now: () => Date.now(),
   sleep: ms => new Promise(resolve => setTimeout(resolve, ms))
 };
@@ -148,58 +135,12 @@ function systemctl(io: UpdateIO, args: string[]): Promise<number | null> {
 }
 
 /**
- * Pulls, then restarts the kiosk when the pull asked for it. `send` gets the journal lines and the steps; `signal`
- * aborts the streaming (the app went away): a pull already started goes on by itself, and the kiosk then restarts at the
- * usual quiet time. The restart most likely ends the app's connection: it restarts the browser the app runs in.
+ * Runs kiosk-update.service (check, then install anything newer, as the timer does) while its journal goes to the app,
+ * RAUC's progress lines among them. `installed` then says what waits for a restart; on the dev and branch channels the
+ * unit restarts the Pi into it at once, which ends the connection. `signal` aborts the streaming (the app went away):
+ * the unit goes on by itself.
  */
-export async function runUpdate(send: Send, signal: AbortSignal, io: UpdateIO = defaultIO): Promise<void> {
-  const stopped = AbortSignal.any([signal, AbortSignal.timeout(OVERALL_MS)]);
-  let follower: ReturnType<typeof follow> | undefined;
-  const isAborted = () => stopped.aborted;
-  const onAbort = () => void follower?.stop(false);
-  stopped.addEventListener('abort', onAbort);
-
-  // Follows one unit's journal while `systemctl start` runs it to its end (they are Type=oneshot).
-  const step = async (unit: string): Promise<number | null> => {
-    follower = follow(io, send, unit, Math.floor(io.now() / 1000));
-    const current = follower;
-    const code = await systemctl(io, ['start', unit]);
-    await current.stop(!isAborted());
-    return code;
-  };
-
-  try {
-    send({ type: 'status', state: 'pulling' });
-    const pulled = await step('kiosk-pull.service');
-    if (isAborted()) return;
-    if (pulled !== 0) {
-      send({ type: 'status', state: 'failed', message: `The pull ended with status ${pulled ?? 'unknown'}.` });
-      return;
-    }
-    if (!(await io.markerExists())) {
-      send({ type: 'status', state: 'done', message: 'Nothing needed a restart.' });
-      return;
-    }
-    send({ type: 'status', state: 'restarting' });
-    const restarted = await step('kiosk-restart.service');
-    if (isAborted()) return;
-    send(
-      restarted === 0
-        ? { type: 'status', state: 'done', message: 'The kiosk restarted.' }
-        : { type: 'status', state: 'failed', message: `The restart ended with status ${restarted ?? 'unknown'}.` }
-    );
-  } finally {
-    stopped.removeEventListener('abort', onAbort);
-    await follower?.stop(false);
-  }
-}
-
-/**
- * On an image Pi: runs kiosk-update.service (check, then install anything newer, as the timer does) while its journal
- * goes to the app, RAUC's progress lines among them. `installed` then says what waits for a restart; on the dev and
- * branch channels the unit restarts the Pi into it at once, which ends the connection.
- */
-export async function runImageUpdate(
+export async function runUpdate(
   send: Send,
   signal: AbortSignal,
   installed: () => Promise<string | null>,

@@ -197,6 +197,11 @@ assemble() {
 
   step "Accounts, locale and units"
   bind_system "$root"
+  # Pi OS's own account holds UID 1000, which would push admin onto a different spare UID each build, and /data keeps
+  # admin's home from one build to the next.
+  if in_root "$root" id pi > /dev/null 2>&1; then
+    in_root "$root" userdel --remove pi
+  fi
   in_root "$root" systemd-sysusers
   in_root "$root" locale-gen
   local action unit

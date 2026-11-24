@@ -16,7 +16,8 @@ function fakeRauc(completed = 0) {
   const handlers: Record<string, (...args: unknown[]) => void> = {};
   const removed: string[] = [];
   const properties: Record<string, unknown> = {
-    BootSlot: 'a',
+    // As RAUC gives it with no rauc.slot= on the kernel command line.
+    BootSlot: '/dev/mmcblk0p4',
     Operation: 'idle',
     LastError: 'Failed to download bundle: 404'
   };

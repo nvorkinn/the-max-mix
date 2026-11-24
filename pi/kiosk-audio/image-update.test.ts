@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   afterBoot,
   apply,
-  bundleUrl,
   check,
   giveUp,
   cmdlineWithRoot,
@@ -13,6 +12,8 @@ import {
   keep,
   parseChannel,
   parseEnv,
+  parsePointer,
+  pointerUrl,
   RELEASE_ENV,
   restart,
   rollback,
@@ -23,7 +24,8 @@ import {
 import type { UpdateIO, UpdateState } from './image-update.ts';
 import type { Progress, Rauc, Slot } from './rauc.ts';
 
-const DEV = 'https://github.com/nvorkinn/the-max-mix/releases/download/dev/the-max-mix.raucb';
+const RELEASES = 'https://github.com/nvorkinn/the-max-mix/releases';
+const DEV = `${RELEASES}/download/dev/the-max-mix-bbb.raucb`;
 
 /** A Pi on slot a running dev+aaa, with RAUC and GitHub faked: the test sets what the channel has. */
 function pi(options: { channel?: string; state?: Partial<UpdateState>; trial?: boolean; booted?: string } = {}) {
@@ -36,7 +38,8 @@ function pi(options: { channel?: string; state?: Partial<UpdateState>; trial?: b
       [RELEASE_ENV]: 'KIOSK_RELEASE_REF=dev\nKIOSK_RELEASE_COMMIT=aaa\n'
     } as Record<string, string>,
     state,
-    remote: { fingerprint: 'asset-1' as string | null, version: 'dev+bbb', isOffline: false },
+    remote: { pointer: `${DEV}\n` as string | null, version: 'dev+bbb', isOffline: false },
+    fetched: [] as string[],
     inspected: [] as string[],
     installed: [] as string[],
     marks: [] as string[],
@@ -48,7 +51,8 @@ function pi(options: { channel?: string; state?: Partial<UpdateState>; trial?: b
       { name: 'rootfs.1', class: 'rootfs', bootname: 'b', state: 'inactive', bundleVersion: 'dev+old' },
       { name: 'boot.0', class: 'boot', bootname: null, state: 'booted', bundleVersion: null }
     ] as Slot[],
-    now: 1_000_000_000
+    now: 1_000_000_000,
+    isTrybootBroken: false
   };
   const rauc: Rauc = {
     bootSlot: () => Promise.resolve(booted),
@@ -81,10 +85,17 @@ function pi(options: { channel?: string; state?: Partial<UpdateState>; trial?: b
       world.state = next;
       return Promise.resolve();
     },
-    head: () =>
-      world.remote.isOffline ? Promise.reject(new Error('offline')) : Promise.resolve(world.remote.fingerprint),
+    fetchText: url => {
+      world.fetched.push(url);
+      return world.remote.isOffline ? Promise.reject(new Error('offline')) : Promise.resolve(world.remote.pointer);
+    },
     run: argv => {
       world.ran.push(argv);
+      return Promise.resolve();
+    },
+    tryboot: () => {
+      if (world.isTrybootBroken) return Promise.reject(new Error('reboot failed'));
+      world.ran.push(['tryboot']);
       return Promise.resolve();
     },
     isTrialBoot: () => Promise.resolve(options.trial ?? false),
@@ -114,14 +125,22 @@ describe('settings', () => {
     expect(parseChannel('nightly')).toBe('stable');
   });
 
-  it('finds the latest release’s bundle, or the channel’s pre-release', () => {
-    expect(bundleUrl('stable')).toBe(
-      'https://github.com/nvorkinn/the-max-mix/releases/latest/download/the-max-mix.raucb'
+  it('reads the latest release’s bundle.txt, or the channel’s pre-release’s', () => {
+    expect(pointerUrl('stable')).toBe(`${RELEASES}/latest/download/bundle.txt`);
+    expect(pointerUrl('dev')).toBe(`${RELEASES}/download/dev/bundle.txt`);
+    expect(pointerUrl('branch-x')).toBe(`${RELEASES}/download/branch-x/bundle.txt`);
+  });
+
+  it('follows bundle.txt only to a bundle on one of the repository’s releases', () => {
+    expect(parsePointer(`${DEV}\n`)).toBe(DEV);
+    expect(parsePointer(`${RELEASES}/download/v2.53.0/the-max-mix-v2.53.0.raucb`)).toBe(
+      `${RELEASES}/download/v2.53.0/the-max-mix-v2.53.0.raucb`
     );
-    expect(bundleUrl('dev')).toBe(DEV);
-    expect(bundleUrl('branch-x')).toBe(
-      'https://github.com/nvorkinn/the-max-mix/releases/download/branch-x/the-max-mix.raucb'
-    );
+    expect(parsePointer('https://example.test/download/dev/the-max-mix.raucb')).toBeNull();
+    expect(parsePointer(`${RELEASES}/download/dev/../x/the-max-mix.raucb`)).toBeNull();
+    expect(parsePointer(`${RELEASES}/download/../the-max-mix.raucb`)).toBeNull();
+    expect(parsePointer(`${RELEASES}/download/dev/notes.txt`)).toBeNull();
+    expect(parsePointer('')).toBeNull();
   });
 });
 
@@ -139,7 +158,8 @@ describe('check', () => {
     });
     await check(io, true);
     expect(world.inspected).toEqual([DEV]);
-    world.remote.fingerprint = 'asset-2';
+    expect(world.fetched).toEqual([`${RELEASES}/download/dev/bundle.txt`, `${RELEASES}/download/dev/bundle.txt`]);
+    world.remote.pointer = `${RELEASES}/download/dev/the-max-mix-ccc.raucb`;
     await check(io, true);
     expect(world.inspected).toHaveLength(2);
   });
@@ -159,7 +179,7 @@ describe('check', () => {
     expect((await check(io)).result).toBe('installed');
     world.state = { ...world.state, pending: null, failed: ['dev+bbb'] };
     expect(await check(io)).toMatchObject({ result: 'failed', failed: 'dev+bbb' });
-    world.remote.fingerprint = null;
+    world.remote.pointer = null;
     expect((await check(io)).result).toBe('none');
     world.remote.isOffline = true;
     expect(await check(io)).toMatchObject({ result: 'unreachable', latest: null });
@@ -180,7 +200,19 @@ describe('run', () => {
       'Restarting into the update.'
     ]);
     expect(world.state.pending).toEqual({ version: 'dev+bbb', slot: 'b', tried: true });
-    expect(world.ran).toEqual([['/usr/bin/systemctl', 'reboot', '0 tryboot']]);
+    expect(world.ran).toEqual([['tryboot']]);
+  });
+
+  it('keeps an install waiting when the reboot into it fails, and does not install it again', async () => {
+    const { io, world } = pi();
+    world.isTrybootBroken = true;
+    await expect(run(io, true)).rejects.toThrow('reboot failed');
+    expect(world.state.pending).toEqual({ version: 'dev+bbb', slot: 'b', tried: false });
+    world.isTrybootBroken = false;
+    world.now += 2 * 60 * 1000;
+    await run(io, true);
+    expect(world.installed).toEqual([DEV]);
+    expect(world.ran).toEqual([['tryboot']]);
   });
 
   it('leaves a stable Pi’s install for the next restart, and checks it every 6 hours only', async () => {
@@ -191,7 +223,7 @@ describe('run', () => {
     expect(world.state.pending).toEqual({ version: 'v1.1.0+bbb', slot: 'b', tried: false });
     expect(world.ran).toEqual([]);
 
-    world.remote.fingerprint = 'asset-2';
+    world.remote.pointer = `${RELEASES}/download/v1.1.0/the-max-mix-v1.1.0.raucb`;
     world.now += STABLE_EVERY_MS - 1;
     await expect(run(io, true)).resolves.toBeNull();
     expect(world.inspected).toHaveLength(1);
@@ -215,10 +247,7 @@ describe('restart', () => {
     const { io, world } = pi({ state: { pending: { version: 'v2+bbb', slot: 'b', tried: false } } });
     await restart(io);
     await restart(io);
-    expect(world.ran).toEqual([
-      ['/usr/bin/systemctl', 'reboot', '0 tryboot'],
-      ['/usr/bin/systemctl', 'restart', 'kiosk.service']
-    ]);
+    expect(world.ran).toEqual([['tryboot'], ['/usr/bin/systemctl', 'restart', 'kiosk.service']]);
     await expect(apply(io)).resolves.toBe('none');
   });
 });
@@ -256,6 +285,15 @@ describe('after a boot', () => {
     expect(world.state).toMatchObject({ pending: null, failed: ['dev+bbb'] });
   });
 
+  it('gives up on a trial boot it has no note for, such as an install by hand', async () => {
+    const { io, world } = pi({ booted: 'b', trial: true });
+    const boot = await afterBoot(io);
+    expect(boot).toBe('trial');
+    await giveUp(io, boot, 'Cage is not running.');
+    expect(world.marks).toEqual(['bad booted']);
+    expect(world.ran).toEqual([['/usr/bin/systemctl', 'reboot']]);
+  });
+
   it('only marks an ordinary boot good, and never reboots it', async () => {
     const { io, world } = pi({ state: { pending: { version: 'v2+bbb', slot: 'b', tried: false } } });
     const boot = await afterBoot(io);
@@ -273,7 +311,7 @@ describe('rollback', () => {
     await rollback(io);
     expect(world.marks).toEqual(['active other']);
     expect(world.state).toMatchObject({ pending: { version: 'dev+old', slot: 'b', tried: true }, failed: ['dev+aaa'] });
-    expect(world.ran).toEqual([['/usr/bin/systemctl', 'reboot', '0 tryboot']]);
+    expect(world.ran).toEqual([['tryboot']]);
   });
 });
 
