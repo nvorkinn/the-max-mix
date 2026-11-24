@@ -344,9 +344,8 @@ test.describe('Layout', { tag: '@layout' }, () => {
           .map(face => face.weight);
       });
       expect(loaded.length).toBeGreaterThan(0);
-      // WebKit writes the family without the quotes Chromium adds.
       expect(await page.locator('body').evaluate(body => getComputedStyle(body).fontFamily)).toMatch(
-        /^"?Plus Jakarta Sans"?,/
+        /^"Plus Jakarta Sans"/
       );
       expect(fontRequests.length).toBeGreaterThan(0);
       for (const url of fontRequests) expect(new URL(url).origin).toBe(origin);
