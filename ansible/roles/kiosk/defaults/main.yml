@@ -81,14 +81,9 @@ kiosk_admin_keys_interval: 6h
 # installs it; join your tailnet once by hand with `sudo tailscale up` (pi/cloud-init/README.md). Turning this off later
 # leaves Tailscale installed: run `sudo tailscale logout` and `sudo apt purge tailscale` on the Pi.
 kiosk_tailscale_enabled: true
-# Spotify Soloist, Spotify's headless Spotify Connect player (kiosk-soloist.service), which runs beside the app's own
-# player for now. The name it has in the Spotify app, how much of the SD card its cache may use (100 at least), and the
-# port of its WebSocket control API on 127.0.0.1. kiosk-soloist-update.timer installs the latest build this long after
-# boot and then this long after each run, well inside the 90 days a build works for. It plays once its API key is stored
-# by kiosk-audio, which gets it from countdown-server through the app (pi/kiosk-audio/soloist.ts).
-kiosk_soloist_device_name: The Max Mix Soloist
-kiosk_soloist_cache_mb: 200
-kiosk_soloist_ws_port: 7342
+# Spotify Soloist, Spotify's headless Spotify Connect player, which kiosk-audio runs for whoever is active, with their own
+# API key from countdown-server (pi/kiosk-audio/soloist.ts). kiosk-soloist-update.timer installs the latest build this
+# long after boot and then this long after each run, well inside the 90 days a build works for.
 kiosk_soloist_update_boot_delay: 5min
 kiosk_soloist_update_interval: 1w
 # The parts of the setup (tasks/full/<name>.yml) and, besides its task file, what each one installs from the repository:
@@ -114,7 +109,6 @@ kiosk_sections:
       - ansible/roles/kiosk/templates/kiosk-journald.conf.j2
       - ansible/roles/kiosk/templates/50-kiosk-raop.conf.j2
       - ansible/roles/kiosk/templates/kiosk-audio.service.j2
-      - ansible/roles/kiosk/templates/kiosk-soloist.service.j2
       - ansible/roles/kiosk/templates/kiosk-policy.json.j2
       - ansible/roles/kiosk/templates/50-kiosk-networkmanager.rules.j2
       - ansible/roles/kiosk/templates/50-kiosk-power.rules.j2

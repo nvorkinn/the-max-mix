@@ -60,6 +60,9 @@
 //   POST /bluetooth/pair-phone/stop   stop looking
 //   POST /display/brightness   {"percent": 1-100, "fade"?: true}   set the screen's backlight, fading to it over 1.5 s
 //                           with "fade" (backlight.ts): 204, or 404 for a screen with none (GET /screen says which: "brightness_control")
+//   POST /soloist/person   {"person", "server", "secret"}   run Spotify Soloist for the active person (their Spotify ID),
+//                           with their key from countdown-server (soloist.ts): 200 {"state"}
+//   POST /soloist/stop      stop it, when nobody is signed in on the kiosk: 204
 //   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
 //                           (update-socket.ts)
 //   WS   /soloist           Spotify Soloist's events, and the app's commands to it (soloist-socket.ts)
@@ -98,7 +101,8 @@ import type { PresenceStatus } from './presence.ts';
 import { screenInfo } from './screen.ts';
 import type { ScreenInfo } from './screen.ts';
 import { SOLOIST_PATH, SoloistBridge } from './soloist-socket.ts';
-import { storeSoloistKey, validSoloistKey } from './soloist.ts';
+import { SoloistPlayer, validSoloistRequest } from './soloist.ts';
+import type { SoloistRequest, SoloistState } from './soloist.ts';
 import { SonosEventHub } from './sonos-events.ts';
 import type { SonosChange } from './sonos-events.ts';
 import { libraryEvents } from './sonos-library.ts';
@@ -168,8 +172,10 @@ export interface Deps {
   /** Sets the screen's backlight, in percent; returns how many backlights it set (none: the screen has none). */
   /** Sets the backlight in percent, fading to it when asked; returns how many it set (none: no backlight). */
   setBrightness: (percent: number, isFaded: boolean) => Promise<number>;
-  /** Stores Spotify Soloist's API key and restarts the player (soloist.ts); rejects when it could not. */
-  soloistKey: (key: string) => Promise<'stored' | 'unchanged'>;
+  /** Runs Spotify Soloist for the person asked for, with their own key (soloist.ts). */
+  soloist: (request: SoloistRequest) => Promise<SoloistState>;
+  /** Stops Spotify Soloist until someone is asked for again. */
+  stopSoloist: () => Promise<void>;
   hotspot: {
     start: () => Promise<HotspotInfo>;
     stop: () => Promise<void>;
@@ -300,20 +306,14 @@ async function presenceStatus(request: IncomingMessage, deps: Deps): Promise<num
   return 204;
 }
 
-/** POST /soloist/key: stores the API key countdown-server gave the app for the Soloist player. */
-async function postSoloistKey(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
-  const key = validSoloistKey(JSON.parse(await readBody(request)));
-  if (key === null) {
+/** POST /soloist/person: runs Soloist for the person now active on the kiosk; answers its state. */
+async function postSoloistPerson(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
+  const soloistRequest = validSoloistRequest(JSON.parse(await readBody(request)));
+  if (soloistRequest === null) {
     response.writeHead(400).end();
     return;
   }
-  try {
-    sendJson(response, 200, { state: await deps.soloistKey(key) });
-  } catch (error) {
-    // Its words never carry the key (soloist.ts).
-    console.warn(String(error));
-    sendJson(response, 503, { error: error instanceof Error ? error.message : 'Soloist failed.' });
-  }
+  sendJson(response, 200, { state: await deps.soloist(soloistRequest) });
 }
 
 /** Sets the screen's backlight from the body of POST /display/brightness; the status to answer with. */
@@ -516,9 +516,13 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
       status = await brightnessStatus(request, deps);
       break;
     }
-    case '/soloist/key': {
-      await postSoloistKey(request, response, deps);
+    case '/soloist/person': {
+      await postSoloistPerson(request, response, deps);
       return;
+    }
+    case '/soloist/stop': {
+      await deps.stopSoloist();
+      break;
     }
     case '/sonos/play':
     case '/sonos/control':
@@ -862,9 +866,8 @@ export function serveSpeakers(
     appFolder: string;
     /** Where the hosted app's saved data waits for the local copy (handover.ts). */
     handoverFile: string;
-    /** The Soloist player's state folder, and where the digest of the key stored there is noted (soloist.ts). */
+    /** The folder that holds Soloist's data folder for each person (soloist.ts). */
     soloistStateDir: string;
-    soloistDigestFile: string;
   },
   update: Update = runUpdate
 ): Server {
@@ -898,6 +901,7 @@ export function serveSpeakers(
       bluetoothMonitor.note(message);
     }
   });
+  const soloistPlayer = new SoloistPlayer({ stateDir: deps.soloistStateDir });
   const handler = handleRequest(origin, {
     ...deps,
     perform,
@@ -914,7 +918,8 @@ export function serveSpeakers(
     presence,
     screen: () => screenInfo(),
     setBrightness: (percent, isFaded) => setBrightness(percent, undefined, isFaded ? FADE_MS : 0),
-    soloistKey: key => storeSoloistKey(key, { stateDir: deps.soloistStateDir, digestFile: deps.soloistDigestFile }),
+    soloist: request => soloistPlayer.play(request),
+    stopSoloist: () => soloistPlayer.stop(),
     phonePairing: new PhonePairing({
       discover: onCode => discoverPhones(onCode),
       nearby: () => bluetoothMonitor.nearbyNamed(),

@@ -40,8 +40,6 @@ ExecStartPre=-+/usr/local/sbin/kiosk-app-switch {{ kiosk_app_dir }}
 # files again and restart it (the - ignores a failure, as when the kiosk user's manager is not running yet).
 ExecStartPre=-+/usr/bin/systemctl --user -M {{ kiosk_user }}@ daemon-reload
 ExecStartPre=-+/usr/bin/systemctl --user -M {{ kiosk_user }}@ try-restart kiosk-audio.service
-# The same for Spotify Soloist, which also picks up a build kiosk-soloist-update installed while it played.
-ExecStartPre=-+/usr/bin/systemctl --user -M {{ kiosk_user }}@ try-restart kiosk-soloist.service
 # PAMName=login puts Cage and its children in the login session scope, so systemd signals only Cage, which then waits for
 # kiosk-session to exit. Tell kiosk-session to stop first (the + runs this as root, the - ignores a failure), and wait
 # for it: it waits for Chromium to quit, and Cage must keep the display until then. Chromium that loses its display

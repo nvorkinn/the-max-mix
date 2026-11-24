@@ -67,7 +67,6 @@ for file in /usr/local/bin/kiosk-session \
   /etc/systemd/system/kiosk-ssh-keys.service /etc/systemd/system/kiosk-ssh-keys.timer \
   /usr/local/sbin/kiosk-soloist-update \
   /etc/systemd/system/kiosk-soloist-update.service /etc/systemd/system/kiosk-soloist-update.timer \
-  /etc/systemd/user/kiosk-soloist.service /etc/systemd/user/default.target.wants/kiosk-soloist.service \
   /etc/systemd/system/kiosk-widevine.path \
   /etc/systemd/system/kiosk-widevine.service \
   /etc/tmpfiles.d/kiosk.conf \

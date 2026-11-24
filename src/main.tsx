@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { kioskScreen, needsRegistration } from './countdown/registration';
 import type { KioskScreen } from './countdown/registration';
-import { startSoloistKey } from './countdown/soloist';
+import { startSoloistPerson } from './countdown/soloist';
 import { completeSignIn } from './spotify/auth';
 import { captureBrowserErrors } from './utils/debugLog';
 import { installHttpLog } from './utils/httpLog';
@@ -25,8 +25,8 @@ if (isKiosk()) {
   startKioskWatch();
   // The hosted app hands its saved data to the Pi, for the copy the Pi serves itself (utils/handover.ts).
   startHandover();
-  // The Pi's Soloist player gets its API key from countdown-server through the app (countdown/soloist.ts).
-  startSoloistKey();
+  // The Pi runs Spotify Soloist for whoever is active, with their own key from countdown-server (countdown/soloist.ts).
+  startSoloistPerson();
 }
 
 /** Starts the app, once a Spotify sign-in it came back from (Spotify sends the browser back to / with ?code=) is done. */

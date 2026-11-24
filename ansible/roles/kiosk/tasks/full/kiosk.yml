@@ -75,7 +75,6 @@
         ('kiosk-journald.conf', '/etc/systemd/journald.conf.d/kiosk.conf'),
         ('50-kiosk-raop.conf', '/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf'),
         ('kiosk-audio.service', '/etc/systemd/user/kiosk-audio.service'),
-        ('kiosk-soloist.service', '/etc/systemd/user/kiosk-soloist.service'),
         ('kiosk-policy.json', '/etc/chromium/policies/managed/kiosk.json'),
         ('50-kiosk-networkmanager.rules', '/etc/polkit-1/rules.d/50-kiosk-networkmanager.rules'),
         ('50-kiosk-power.rules', '/etc/polkit-1/rules.d/50-kiosk-power.rules'),
@@ -101,7 +100,6 @@
   when: >-
     kiosk_settings_installed.stdout_lines
     | intersect(['/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf', '/etc/systemd/user/kiosk-audio.service',
-    '/etc/systemd/user/kiosk-soloist.service',
     '/etc/chromium/policies/managed/kiosk.json'])
     | length > 0
   changed_when: true
@@ -132,7 +130,13 @@
         fi
       }
       link ../kiosk-audio.service /etc/systemd/user/default.target.wants/kiosk-audio.service
-      link ../kiosk-soloist.service /etc/systemd/user/default.target.wants/kiosk-soloist.service
+      # Spotify Soloist ran as its own user unit until kiosk-audio started running it for each person (soloist.ts): stop
+      # it, so it frees its port, and remove it.
+      if [[ -e /etc/systemd/user/kiosk-soloist.service ]]; then
+        systemctl --user -M "$KIOSK_USER@" stop kiosk-soloist.service 2>/dev/null || true
+        rm -f /etc/systemd/user/default.target.wants/kiosk-soloist.service /etc/systemd/user/kiosk-soloist.service
+        echo /etc/systemd/user/kiosk-soloist.service
+      fi
       link /usr/share/icons/blank /usr/share/kiosk-cursors/default
       link /dev/null /etc/systemd/system/getty@tty1.service
       for name in $CURSOR_NAMES; do
@@ -140,6 +144,7 @@
       done
     executable: /bin/bash
   environment:
+    KIOSK_USER: '{{ kiosk_user }}'
     CURSOR_NAMES: >-
       default arrow text xterm pointer hand1 hand2 grab grabbing crosshair wait watch progress not-allowed
   register: kiosk_links
@@ -148,7 +153,10 @@
 - name: full | kiosk | Restart the kiosk for the audio routing
   ansible.builtin.debug:
     msg: The audio routing's link changed.
-  when: "'/etc/systemd/user/default.target.wants/kiosk-audio.service' in kiosk_links.stdout_lines"
+  when: >-
+    kiosk_links.stdout_lines
+    | intersect(['/etc/systemd/user/default.target.wants/kiosk-audio.service', '/etc/systemd/user/kiosk-soloist.service'])
+    | length > 0
   changed_when: true
   notify: Ask for a kiosk restart
 

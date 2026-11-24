@@ -1,82 +1,173 @@
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+// @vitest-environment node
+/* eslint-disable unicorn/prefer-event-target -- A child process is an EventEmitter, so the stand-in is one. */
+import type { ChildProcess } from 'node:child_process';
+import { EventEmitter } from 'node:events';
+import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { SOLOIST, storeSoloistKey, SYSTEMCTL, validSoloistKey } from './soloist.ts';
-import type { RunWithInput } from './soloist.ts';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fetchSoloistKey, SoloistPlayer, validSoloistRequest } from './soloist.ts';
+import type { FetchKey, KeyResult, SoloistRequest } from './soloist.ts';
 
-const KEY = 'soloist-test-key-1234';
+const REQUEST: SoloistRequest = { person: 'nikolai', server: 'https://api.countdown.build', secret: 'device-secret' };
 
-async function setUp() {
-  const folder = await mkdtemp(path.join(tmpdir(), 'soloist-'));
-  const stateDir = path.join(folder, 'soloist');
-  const digestFile = path.join(folder, 'the-max-mix', 'soloist-key.sha256');
-  const calls: { argv: string[]; input: string; env: NodeJS.ProcessEnv }[] = [];
-  let setupCode = 0;
-  const run: RunWithInput = async (argv, input, env) => {
-    calls.push({ argv, input, env });
-    if (setupCode === 0 && argv[0] === SOLOIST && argv[1] === 'setup-api-key') {
-      await mkdir(path.join(stateDir, 'credentials'), { recursive: true });
-      await writeFile(path.join(stateDir, 'credentials', 'key'), input);
-    }
-    return { code: argv[0] === SOLOIST ? setupCode : 0, stderr: setupCode === 0 ? '' : 'bad key' };
-  };
-  return {
-    options: { stateDir, digestFile, run },
-    calls,
-    digestFile,
-    failSetup: () => {
-      setupCode = 1;
-    }
-  };
+/** Stands in for a running Soloist: it exits when killed, or when a test says so. */
+class FakeChild extends EventEmitter {
+  exitCode: number | null = null;
+  readonly signals: string[] = [];
+  kill(signal: string): boolean {
+    this.signals.push(signal);
+    this.end(null);
+    return true;
+  }
+  end(code: number | null): void {
+    if (this.exitCode !== null) return;
+    this.exitCode = code ?? 0;
+    this.emit('exit', code);
+  }
 }
 
-describe('validSoloistKey', () => {
-  it('takes a key and nothing else', () => {
-    expect(validSoloistKey({ api_key: KEY })).toBe(KEY);
-    expect(validSoloistKey({ api_key: '' })).toBeNull();
-    expect(validSoloistKey({ api_key: 'two words' })).toBeNull();
-    expect(validSoloistKey({ api_key: 'x'.repeat(513) })).toBeNull();
-    expect(validSoloistKey({ api_key: 42 })).toBeNull();
-    expect(validSoloistKey(null)).toBeNull();
+const KEYS: Record<string, KeyResult> = { nikolai: { key: 'key-n' }, ola: { key: 'key-o' } };
+const stateDirs: string[] = [];
+
+afterEach(async () => {
+  vi.unstubAllGlobals();
+  await Promise.all(stateDirs.splice(0).map(folder => rm(folder, { recursive: true, force: true })));
+});
+
+async function player() {
+  const stateDir = await mkdtemp(path.join(tmpdir(), 'soloist-'));
+  stateDirs.push(stateDir);
+  const children: FakeChild[] = [];
+  const runs: string[][] = [];
+  const fetchKey = vi.fn<FetchKey>(request => Promise.resolve(KEYS[request.person] ?? { error: 'no-key' }));
+  const soloist = new SoloistPlayer({
+    stateDir,
+    fetchKey,
+    restartMs: 5,
+    log: () => {
+      // Quiet in tests.
+    },
+    spawn: args => {
+      runs.push(args);
+      const child = new FakeChild();
+      children.push(child);
+      return child as unknown as ChildProcess;
+    }
+  });
+  return { soloist, children, runs, fetchKey, stateDir };
+}
+
+const argument = (args: string[] | undefined, flag: string) => args?.[args.indexOf(flag) + 1];
+
+describe('validSoloistRequest', () => {
+  it('takes a Spotify ID, an https server and a secret', () => {
+    expect(validSoloistRequest({ ...REQUEST, server: 'https://api.countdown.build/some/path' })).toEqual(REQUEST);
+  });
+
+  it('refuses anything else', () => {
+    for (const person of ['', '../x', '.hidden', 'a/b', 'with space', 'x'.repeat(129), 7]) {
+      expect(validSoloistRequest({ ...REQUEST, person })).toBeNull();
+    }
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols, unicorn/prefer-https -- plain http is what it refuses
+    expect(validSoloistRequest({ ...REQUEST, server: 'http://api.countdown.build' })).toBeNull();
+    expect(validSoloistRequest({ ...REQUEST, server: 'not a url' })).toBeNull();
+    expect(validSoloistRequest({ ...REQUEST, secret: 'has space' })).toBeNull();
+    expect(validSoloistRequest(null)).toBeNull();
   });
 });
 
-describe('storeSoloistKey', () => {
-  it('stores the key on standard input in the state folder and restarts the player', async () => {
-    const { options, calls, digestFile } = await setUp();
-
-    expect(await storeSoloistKey(KEY, options)).toBe('stored');
-
-    expect(calls.map(call => call.argv)).toEqual([
-      [SYSTEMCTL, '--user', 'stop', 'kiosk-soloist.service'],
-      [SOLOIST, 'setup-api-key'],
-      [SYSTEMCTL, '--user', 'start', 'kiosk-soloist.service']
-    ]);
-    const setup = calls[1];
-    expect(setup?.input).toBe(`${KEY}\n`);
-    expect(setup?.env['STATE_DIRECTORY']).toBe(options.stateDir);
-    expect(calls.flatMap(call => call.argv).join(' ')).not.toContain(KEY);
-    expect(await readFile(digestFile, 'utf8')).not.toContain(KEY);
+describe('SoloistPlayer', () => {
+  it("runs Soloist with the person's key and their own data folder", async () => {
+    const { soloist, runs, fetchKey, stateDir } = await player();
+    expect(await soloist.play(REQUEST)).toBe('playing');
+    expect(fetchKey).toHaveBeenCalledWith(REQUEST);
+    expect(argument(runs[0], '--api-key')).toBe('key-n');
+    expect(argument(runs[0], '--ws')).toBe('127.0.0.1:7342');
+    const dataDir = argument(runs[0], '--data-dir') ?? '';
+    expect(dataDir).toBe(path.join(stateDir, 'people', 'nikolai'));
+    expect((await stat(dataDir)).mode & 0o777).toBe(0o700);
   });
 
-  it('leaves the same key alone, and stores a new one', async () => {
-    const { options, calls } = await setUp();
-    await storeSoloistKey(KEY, options);
-    calls.length = 0;
-
-    expect(await storeSoloistKey(KEY, options)).toBe('unchanged');
-    expect(calls).toEqual([]);
-
-    expect(await storeSoloistKey(`${KEY}-new`, options)).toBe('stored');
-    expect(calls).toHaveLength(3);
+  it('changes nothing when asked for the same person again', async () => {
+    const { soloist, runs } = await player();
+    await soloist.play(REQUEST);
+    expect(await soloist.play({ ...REQUEST })).toBe('playing');
+    expect(runs).toHaveLength(1);
   });
 
-  it('fails without the key in its error, and notes nothing, when Soloist refuses it', async () => {
-    const { options, failSetup, digestFile } = await setUp();
-    failSetup();
+  it('stops one person’s Soloist before starting the next one’s', async () => {
+    const { soloist, runs, children, stateDir } = await player();
+    await soloist.play(REQUEST);
+    await soloist.play({ ...REQUEST, person: 'ola' });
+    expect(children[0]?.signals).toEqual(['SIGTERM']);
+    expect(argument(runs[1], '--api-key')).toBe('key-o');
+    expect(argument(runs[1], '--data-dir')).toBe(path.join(stateDir, 'people', 'ola'));
+  });
 
-    await expect(storeSoloistKey(KEY, options)).rejects.toThrow('soloist setup-api-key failed (1): bad key');
-    await expect(readFile(digestFile, 'utf8')).rejects.toThrow();
+  it('starts nothing for someone with no key', async () => {
+    const { soloist, runs } = await player();
+    expect(await soloist.play({ ...REQUEST, person: 'nobody' })).toBe('no-key');
+    expect(runs).toEqual([]);
+  });
+
+  it('starts Soloist again, with a fresh key, when it stops by itself', async () => {
+    const { soloist, runs, children, fetchKey } = await player();
+    await soloist.play(REQUEST);
+    children[0]?.end(1);
+    expect(soloist.state).toBe('failed');
+    await vi.waitFor(() => {
+      expect(runs).toHaveLength(2);
+    });
+    expect(fetchKey).toHaveBeenCalledTimes(2);
+    expect(soloist.state).toBe('playing');
+  });
+
+  it('waits for a new build when this one has expired', async () => {
+    const { soloist, runs, children } = await player();
+    await soloist.play(REQUEST);
+    children[0]?.end(10);
+    expect(soloist.state).toBe('expired');
+    await new Promise(resolve => setTimeout(resolve, 30));
+    expect(runs).toHaveLength(1);
+    await soloist.stop();
+  });
+
+  it('stops', async () => {
+    const { soloist, children, runs } = await player();
+    await soloist.play(REQUEST);
+    await soloist.stop();
+    expect(children[0]?.signals).toEqual(['SIGTERM']);
+    expect(soloist.state).toBe('stopped');
+    await new Promise(resolve => setTimeout(resolve, 30));
+    expect(runs).toHaveLength(1);
+  });
+});
+
+describe('fetchSoloistKey', () => {
+  it("asks countdown-server for the person's key with the device secret", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(() => Promise.resolve(Response.json({ api_key: 'key-n' })));
+    vi.stubGlobal('fetch', fetch);
+    expect(await fetchSoloistKey(REQUEST)).toEqual({ key: 'key-n' });
+    const [url = '', init] = fetch.mock.calls[0] ?? [];
+    expect(new Request(url).url).toBe('https://api.countdown.build/api/devices/soloist/key?person=nikolai');
+    expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer device-secret');
+  });
+
+  it('says why there is no key', async () => {
+    const answers: [number, KeyResult][] = [
+      [404, { error: 'no-key' }],
+      [409, { error: 'not-paired' }],
+      [401, { error: 'unknown-device' }],
+      [500, { error: 'failed' }]
+    ];
+    for (const [status, result] of answers) {
+      vi.stubGlobal('fetch', () => Promise.resolve(new Response(null, { status })));
+      // Each answer is checked on its own.
+      // eslint-disable-next-line no-await-in-loop
+      expect(await fetchSoloistKey(REQUEST)).toEqual(result);
+    }
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('offline')));
+    expect(await fetchSoloistKey(REQUEST)).toEqual({ error: 'failed' });
   });
 });
