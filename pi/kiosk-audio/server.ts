@@ -62,6 +62,7 @@
 //                           with "fade" (backlight.ts): 204, or 404 for a screen with none (GET /screen says which: "brightness_control")
 //   WS   /power/update      pull the playbook now, restart the kiosk if that asks for it, and stream the journal of both
 //                           (update-socket.ts)
+//   WS   /soloist           Spotify Soloist's events, and the app's commands to it (soloist-socket.ts)
 // Only the app's origin is answered (CORS, and every POST and WebSocket is refused without its Origin header, so no other
 // web page can trigger one). A request carries no command, only the name of one of the fixed actions in actions.ts.
 // The Wi-Fi requests are for the app's Settings > Wi-Fi, which opens by itself when the kiosk starts with no network: the
@@ -96,6 +97,7 @@ import { Presence, scanLe } from './presence.ts';
 import type { PresenceStatus } from './presence.ts';
 import { screenInfo } from './screen.ts';
 import type { ScreenInfo } from './screen.ts';
+import { SOLOIST_PATH, SoloistBridge } from './soloist-socket.ts';
 import { storeSoloistKey, validSoloistKey } from './soloist.ts';
 import { SonosEventHub } from './sonos-events.ts';
 import type { SonosChange } from './sonos-events.ts';
@@ -930,6 +932,7 @@ export function serveSpeakers(
     })
   });
   const server = createServer((request, response) => void handler(request, response));
-  attachUpdateSocket(server, origin, update);
+  const soloist = new SoloistBridge();
+  attachUpdateSocket(server, origin, update, { [SOLOIST_PATH]: connection => soloist.add(connection) });
   return server.listen(SPEAKERS_PORT, '127.0.0.1');
 }
