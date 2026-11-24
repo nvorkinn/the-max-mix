@@ -73,7 +73,7 @@ describe('lyrics/kiosk', () => {
     const first = kioskLyrics(query, skipped.signal);
     await vi.advanceTimersByTimeAsync(200);
     skipped.abort();
-    await expect(first).rejects.toThrow();
+    await expect(first).rejects.toThrow('aborted');
     const kept = kioskLyrics(query, signal());
     await vi.advanceTimersByTimeAsync(399);
     expect(fetchMock).not.toHaveBeenCalled();
