@@ -158,19 +158,20 @@ function withPlaying(state: PlaybackState, playing: boolean): PlaybackState {
 }
 
 /**
- * The device to show with a report from the kiosk's player, which names no other device: the kiosk while it is the
- * active device, otherwise the one last known, unless that was the kiosk.
+ * The device to show with a report from the kiosk's player, which names no other device: the kiosk (by the name its
+ * Soloist reports) while it is the active device, otherwise the one last known, unless that was the kiosk.
  */
 function deviceFor(
   state: NonNullable<KioskPlaybackState>,
   kioskId: string | null,
+  kioskName: string | null,
   known: SpotifyDevice | undefined
 ): SpotifyDevice | undefined {
   if (!kioskId) return known;
   if (state.isActive) {
     return {
       id: kioskId,
-      name: KIOSK_DEVICE_NAME,
+      name: kioskName ?? known?.name ?? '',
       type: 'Speaker',
       is_active: true,
       ...(state.volume !== undefined && { volume_percent: state.volume })
@@ -449,9 +450,10 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       holdPlaying(!state.paused);
       const { track } = state;
       const kioskId = deviceIdRef.current;
+      const kioskName = playerRef.current?.deviceName ?? null;
       setPlayback(current => {
         const { device, ...rest } = withPlaying(current ?? {}, !state.paused);
-        const shown = deviceFor(state, kioskId, device);
+        const shown = deviceFor(state, kioskId, kioskName, device);
         return {
           ...rest,
           ...(shown && { device: shown }),
