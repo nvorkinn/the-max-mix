@@ -314,8 +314,10 @@ code path the timer, the screen and `kiosk-rollback` share:
 
 - **Channels.** `KIOSK_UPDATE_CHANNEL` in `/data/the-max-mix/kiosk.env`: `stable` (the default; the latest release,
   checked every 6 hours), `dev` (the rolling `dev` pre-release, checked every 2 minutes) or `branch-<name>` (that
-  pre-release, also every 2 minutes). The bundle is `the-max-mix.raucb` on each.
-- **Check.** A HEAD of the bundle's URL (not the rate-limited API); only when the file changed is its manifest read
+  pre-release, also every 2 minutes). Each release has `bundle.txt`, which names its bundle: each build's has a name of
+  its own (`the-max-mix-<tag or commit>.raucb`) and is never replaced, so a Pi in the middle of an install keeps
+  streaming the file it started on.
+- **Check.** It reads `bundle.txt` (not the rate-limited API); only when that names another bundle is its manifest read
   (RAUC's `InspectBundle`, a few range requests). Its version (`<ref>+<commit>`) is compared with the running one
   (`/usr/lib/the-max-mix/release.env`), the one waiting for a restart and the ones that failed here.
 - **Install.** `kiosk-update.service` (root) runs `rauc install` over D-Bus, streaming from the URL, and logs

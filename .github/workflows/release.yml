@@ -6,10 +6,11 @@ name: Release
 # Releases happen here and only here. Create a release for a new v* tag on main (GitHub's New release form, which also
 # writes the notes) or push a version tag from main (git tag v1.2.3 && git push origin v1.2.3) to build the app, copy it
 # to the server over Tailscale and then publish the GitHub release for the tag (notes generated from the merged pull
-# requests when it has none yet). The very last step uploads the Pis' signed A/B update bundle (the-max-mix.raucb,
-# built by bundle.yml) to the release. Stable Pis install releases/latest/download/the-max-mix.raucb
-# (pi/kiosk-audio/image-update.ts), so a release made with the form, which is the latest from the start, reaches them
-# only once the deploy has worked and its bundle is there, and the Pis and the web app move together.
+# requests when it has none yet). The very last steps upload the Pis' signed A/B update bundle (built by bundle.yml)
+# to the release as the-max-mix-<tag>.raucb, then bundle.txt, which names it. Stable Pis read
+# releases/latest/download/bundle.txt (pi/kiosk-audio/image-update.ts), so a release made with the form, which is the
+# latest from the start, reaches them only once the deploy has worked and its bundle is there, and the Pis and the web
+# app move together.
 #
 # Run it by hand with an existing tag to redeploy that release and mark it as the latest one again, which also rolls the
 # Pis back (or forward) to its bundle at their next update. The runner joins the tailnet with its GitHub identity (id-token); the
@@ -143,12 +144,13 @@ jobs:
           name: bundle
       # A new tag gets a new release; a tag that already has one (made with the New release form, a redeploy or a
       # rollback) only becomes the latest again. A new bundle goes up last: the Pis install a release only once it is
-      # there. A run by hand needs the bundle the release already has.
+      # there, and bundle.txt, which the Pis read first, goes up after it. A run by hand needs the bundle the release
+      # already has.
       - name: Publish the GitHub release
         run: |
           if [[ ! -f the-max-mix.raucb ]] \
-            && ! gh release view "$TAG" --json assets --jq '.assets[].name' 2> /dev/null | grep -qx the-max-mix.raucb; then
-            echo "::error::$TAG has no the-max-mix.raucb, so the Pis could not install it. Push a new tag instead."
+            && ! gh release view "$TAG" --json assets --jq '.assets[].name' 2> /dev/null | grep -qx bundle.txt; then
+            echo "::error::$TAG has no bundle, so the Pis could not install it. Push a new tag instead."
             exit 1
           fi
           if gh release view "$TAG" > /dev/null 2>&1; then
@@ -157,5 +159,9 @@ jobs:
             gh release create "$TAG" --verify-tag --generate-notes --latest --title "$TAG"
           fi
           if [[ -f the-max-mix.raucb ]]; then
-            gh release upload "$TAG" the-max-mix.raucb --clobber
+            name="the-max-mix-$TAG.raucb"
+            mv the-max-mix.raucb "$name"
+            gh release upload "$TAG" "$name" --clobber
+            echo "https://github.com/$GH_REPO/releases/download/$TAG/$name" > bundle.txt
+            gh release upload "$TAG" bundle.txt --clobber
           fi

@@ -241,7 +241,7 @@ Pi's own settings in `/data/the-max-mix/kiosk.env` ([image/README.md](image/READ
 `image/`, not the device.
 
 - **A/B slots:** the card has two boot and two root partitions. [RAUC](https://rauc.io) installs an update into the
-  slot the Pi is not running from, streaming the signed bundle (`the-max-mix.raucb`) from GitHub and downloading only
+  slot the Pi is not running from, streaming the signed bundle from GitHub and downloading only
   the blocks that changed. The next boot tries the new slot once (the Pi firmware's `tryboot`); `kiosk-health` keeps it
   only when kiosk-audio, Cage and the app are up within 5 minutes, and otherwise the Pi boots its old slot again and
   never retries that version.

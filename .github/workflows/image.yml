@@ -93,7 +93,10 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: bundle
-      # The tag moves to the bundle's commit, so the pre-release's page says what it holds.
+      # The tag moves to the bundle's commit, so the pre-release's page says what it holds. Each build's bundle has a
+      # name of its own and is never replaced: RAUC streams it with range requests, so a Pi in the middle of an install
+      # keeps reading the file it started on. bundle.txt, which the Pis read first, then names the new one, and bundles
+      # more than 6 hours old go.
       - name: Publish to the channel
         run: |
           gh api --method PATCH "repos/$GH_REPO/git/refs/tags/$CHANNEL" -f sha="$SHA" -F force=true > /dev/null 2>&1 \
@@ -102,7 +105,17 @@ jobs:
             gh release create "$CHANNEL" --prerelease --latest=false --title "$CHANNEL" \
               --notes "Rolling A/B update bundle for Pis on the $CHANNEL channel (KIOSK_UPDATE_CHANNEL=$CHANNEL)."
           fi
-          gh release upload "$CHANNEL" the-max-mix.raucb --clobber
+          name="the-max-mix-${SHA:0:12}.raucb"
+          mv the-max-mix.raucb "$name"
+          gh release upload "$CHANNEL" "$name" --clobber
+          echo "https://github.com/$GH_REPO/releases/download/$CHANNEL/$name" > bundle.txt
+          gh release upload "$CHANNEL" bundle.txt --clobber
+          oldest=$(date --utc --date='6 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+          gh api "repos/$GH_REPO/releases/tags/$CHANNEL" --jq ".assets[]
+            | select((.name | test(\"[.]raucb$\")) and .name != \"$name\" and .created_at < \"$oldest\") | .id" \
+            | while read -r id; do
+              gh api --method DELETE "repos/$GH_REPO/releases/assets/$id"
+            done
 
   # A deleted branch takes its channel's pre-release with it.
   forget:

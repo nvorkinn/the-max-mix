@@ -2,8 +2,9 @@
 // tried once on the next boot (boot-slots.ts). One code path does it for the timer, for Check for updates and Install
 // on the screen (kiosk-audio), and for kiosk-rollback (kiosk-update.ts):
 //
-//   check    HEAD the channel's bundle URL (cheap, not the rate-limited API), read its version from the manifest only
-//            when the file changed, and compare it with the booted version, the installed one and the failed ones.
+//   check    read the channel's bundle.txt (cheap, not the rate-limited API), which names its bundle, read the bundle's
+//            version from its manifest only when that changed, and compare it with the booted version, the installed one
+//            and the failed ones.
 //   install  rauc install, streaming from the URL, with its progress as journal lines the app turns into its bar.
 //   apply    reboot with tryboot into the installed slot (04:30, Restart, or at once on the dev and branch channels).
 //   health   kiosk-health.ts decides after each boot; a tried slot that is not kept is a failed version, never retried.
@@ -13,8 +14,13 @@
 import type { Rauc } from './rauc.ts';
 
 const REPO = 'nvorkinn/the-max-mix';
-/** The bundle's file name on every release and pre-release. */
-const BUNDLE = 'the-max-mix.raucb';
+/**
+ * On every release and pre-release, the file that names its bundle (its download URL). Each build's bundle has a name of
+ * its own and is never replaced, because RAUC streams it with range requests: a Pi in the middle of an install keeps
+ * reading the file it started on while the channel moves to a newer one (.github/workflows/image.yml).
+ */
+const POINTER = 'bundle.txt';
+const DOWNLOADS = `https://github.com/${REPO}/releases/download/`;
 /** Per-device settings (KIOSK_UPDATE_CHANNEL among them). */
 export const KIOSK_ENV = '/data/the-max-mix/kiosk.env';
 /** Written by the image build: KIOSK_RELEASE_REF and KIOSK_RELEASE_COMMIT of the running slot. */
@@ -53,11 +59,17 @@ export function parseChannel(value: string | undefined): Channel {
   return 'stable';
 }
 
-/** Where the channel's bundle is: the latest release, or the rolling pre-release named after the channel. */
-export function bundleUrl(channel: Channel): string {
+/** Where the channel's bundle.txt is: on the latest release, or the rolling pre-release named after the channel. */
+export function pointerUrl(channel: Channel): string {
   return channel === 'stable'
-    ? `https://github.com/${REPO}/releases/latest/download/${BUNDLE}`
-    : `https://github.com/${REPO}/releases/download/${channel}/${BUNDLE}`;
+    ? `https://github.com/${REPO}/releases/latest/download/${POINTER}`
+    : `${DOWNLOADS}${channel}/${POINTER}`;
+}
+
+/** The bundle a bundle.txt names: a .raucb on one of this repository's releases, or null for anything else. */
+export function parsePointer(text: string): string | null {
+  const url = text.trim();
+  return url.startsWith(DOWNLOADS) && /^\w[\w.-]*\/\w[\w.-]*\.raucb$/.test(url.slice(DOWNLOADS.length)) ? url : null;
 }
 
 export interface UpdateState {
@@ -65,8 +77,8 @@ export interface UpdateState {
   pending: { version: string; slot: string; tried: boolean } | null;
   /** Versions that did not pass their first boot, newest last: never installed again. */
   failed: string[];
-  /** The bundle last inspected, so an unchanged file is not read again. */
-  seen: { url: string; fingerprint: string; version: string | null } | null;
+  /** The bundle last inspected, so it is not read again. */
+  seen: { url: string; version: string | null } | null;
   /** When the timer last checked (ms since the epoch). */
   checkedAt: number | null;
 }
@@ -80,8 +92,8 @@ export interface UpdateIO {
   readText: (file: string) => Promise<string | null>;
   /** Saves the state (root only: kiosk-audio never calls it). */
   writeState: (state: UpdateState) => Promise<void>;
-  /** A fingerprint of the file at `url`, which changes when it is replaced; null for none (404). Rejects offline. */
-  head: (url: string) => Promise<string | null>;
+  /** The text of a small file at `url`; null for none (404). Rejects offline. */
+  fetchText: (url: string) => Promise<string | null>;
   /** Runs a program; rejects when it fails. */
   run: (argv: string[]) => Promise<void>;
   /** Whether the firmware started this boot as a tryboot. */
@@ -155,45 +167,49 @@ export interface Checked extends UpdateStatus {
   latest: string | null;
 }
 
-/** Looks at the channel's bundle. `shouldRemember` keeps its fingerprint and version for the next check (root only). */
+/** Looks at the channel's bundle. `shouldRemember` keeps its version for the next check (root only). */
 export async function check(io: UpdateIO, shouldRemember = false): Promise<Checked> {
+  return (await look(io, shouldRemember)).checked;
+}
+
+async function look(io: UpdateIO, shouldRemember: boolean): Promise<{ checked: Checked; url: string | null }> {
   const now = await status(io);
-  const url = bundleUrl(now.channel);
-  let fingerprint: string | null;
+  let url: string | null;
   try {
-    fingerprint = await io.head(url);
+    const pointer = await io.fetchText(pointerUrl(now.channel));
+    url = pointer === null ? null : parsePointer(pointer);
   } catch {
-    return { ...now, result: 'unreachable', latest: null };
+    return { checked: { ...now, result: 'unreachable', latest: null }, url: null };
   }
-  if (fingerprint === null) return { ...now, result: 'none', latest: null };
+  if (url === null) return { checked: { ...now, result: 'none', latest: null }, url };
   const state = await readState(io);
   let latest: string | null;
-  if (state.seen?.url === url && state.seen.fingerprint === fingerprint) {
+  if (state.seen?.url === url) {
     latest = state.seen.version;
   } else {
     latest = await io.rauc.inspect(url);
-    if (shouldRemember) await io.writeState({ ...state, seen: { url, fingerprint, version: latest } });
+    if (shouldRemember) await io.writeState({ ...state, seen: { url, version: latest } });
   }
   let result: CheckResult = 'available';
   if (latest === null) result = 'none';
   else if (latest === now.current) result = 'up-to-date';
   else if (latest === now.installed) result = 'installed';
   else if (state.failed.includes(latest)) result = 'failed';
-  return { ...now, result, latest };
+  return { checked: { ...now, result, latest }, url };
 }
 
 /** Installs the channel's bundle into the other slot when it is newer; the progress goes to the log as it comes. */
 async function install(io: UpdateIO): Promise<Checked> {
-  const checked = await check(io, true);
-  if (checked.result !== 'available' || checked.latest === null) return checked;
+  const { checked, url } = await look(io, true);
+  if (checked.result !== 'available' || checked.latest === null || url === null) return checked;
   io.log(`Installing ${checked.latest}.`);
   let shown = -1;
-  await io.rauc.install(bundleUrl(checked.channel), ({ percent, message }) => {
+  await io.rauc.install(url, ({ percent, message }) => {
     if (percent === shown) return;
     shown = percent;
     io.log(`Update progress: ${percent}% ${message}`.trimEnd());
   });
-  // The rolling dev bundle may have been replaced since the check: RAUC knows what it put in.
+  // RAUC knows what it put in.
   const booted = await io.rauc.bootSlot();
   const slot = (await io.rauc.slots()).find(found => found.bootname !== null && found.bootname !== booted);
   if (!slot?.bootname) throw new Error('RAUC installed the update into no other slot.');
