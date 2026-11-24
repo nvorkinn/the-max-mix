@@ -150,21 +150,40 @@ jobs:
         with:
           name: artefacts
           path: ${{ runner.temp }}
-      # Signed with the real key only when the bundle is published; a check build signs with a throwaway one.
+      # Signed with the real key only when the bundle is published: Vaultwarden's the-max-mix/ci collection holds it, as
+      # base64 on one line, and the shared action reads it as deploy-bot, as countdown-server's deploys do. A check build
+      # signs with a throwaway one.
+      - name: Fetch the signing key from Vaultwarden
+        if: needs.plan.outputs.publish == 'true'
+        uses: nvorkinn/.github/actions/vaultwarden-secrets@1b00d2394ad1b431ccd01e54e8075dc97244936e # v1.0.0
+        with:
+          map: image/secrets-map.json
+          target: bundle
+          collection: the-max-mix/ci
+          export-env: "true"
+          bw-clientid: ${{ secrets.BW_CLIENTID }}
+          bw-clientsecret: ${{ secrets.BW_CLIENTSECRET }}
+          bw-password: ${{ secrets.BW_PASSWORD }}
       - name: Build the bundle
         env:
-          RAUC_SIGNING_KEY: ${{ needs.plan.outputs.publish == 'true' && secrets.RAUC_SIGNING_KEY || '' }}
           CHANNEL: ${{ needs.plan.outputs.channel }}
+          PUBLISH: ${{ needs.plan.outputs.publish }}
         run: |
+          rm -rf "$RUNNER_TEMP/secrets"
           mkdir "$RUNNER_TEMP/artefacts"
           tar --extract --zstd --file="$RUNNER_TEMP/artefacts.tar.zst" --directory="$RUNNER_TEMP/artefacts"
           key=$RUNNER_TEMP/signing.key.pem
-          if [[ -n $RAUC_SIGNING_KEY ]]; then
+          if [[ $PUBLISH == true ]]; then
+            if [[ -z ${RAUC_SIGNING_KEY_B64:-} ]]; then
+              echo "::error::Vaultwarden gave no RAUC_SIGNING_KEY_B64 (collection the-max-mix/ci)"
+              exit 1
+            fi
             if [[ ! -f image/rootfs/etc/rauc/keyring.pem ]]; then
               echo "::error::image/rootfs/etc/rauc/keyring.pem is missing: the Pis could not check a signed bundle"
               exit 1
             fi
-            (umask 077 && printf '%s\n' "$RAUC_SIGNING_KEY" > "$key")
+            (umask 077 && base64 --decode <<< "$RAUC_SIGNING_KEY_B64" > "$key")
+            unset RAUC_SIGNING_KEY_B64
           else
             openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 1 \
               -subj '/CN=THE MAX MIX check build' -keyout "$key" -out "$RUNNER_TEMP/check.cert.pem" 2> /dev/null
