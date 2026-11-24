@@ -23,6 +23,10 @@ export class FakeWebSocket {
   private readonly listeners = new Map<string, ((event: unknown) => void)[]>();
   readonly url: string;
   isClosed = false;
+  /** What the page sent, each frame parsed from JSON, oldest first. */
+  readonly sent: unknown[] = [];
+  /** Answers each frame the page sends with these frames, at once; nothing answers while it is null. */
+  reply: ((frame: unknown) => readonly unknown[]) | null = null;
 
   constructor(url: string) {
     this.url = url;
@@ -46,6 +50,13 @@ export class FakeWebSocket {
   /** The server sends a frame (an object is sent as JSON). */
   receive(frame: unknown): void {
     this.emit('message', { data: typeof frame === 'string' ? frame : JSON.stringify(frame) });
+  }
+
+  /** The page sends a frame. */
+  send(text: string): void {
+    const frame: unknown = JSON.parse(text);
+    this.sent.push(frame);
+    for (const answer of this.reply?.(frame) ?? []) this.receive(answer);
   }
 
   /** The server (or the network) ends the connection. */
