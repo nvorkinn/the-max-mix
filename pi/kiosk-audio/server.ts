@@ -88,13 +88,13 @@ import type { MonitorSnapshot } from './bluetooth-monitor.ts';
 import { Bluetooth, BluetoothError, parseAddress } from './bluetooth.ts';
 import type { BluetoothDevice, ConnectResult as BluetoothConnectResult } from './bluetooth.ts';
 import { handoverFile, MAX_HANDOVER, parseHandover } from './handover.ts';
-import { check as checkForUpdate, RAUC_CONFIG, readState } from './image-update.ts';
-import type { Checked } from './image-update.ts';
-import { readText, updateIO } from './image-update-io.ts';
 import type { HandoverStore } from './handover.ts';
 import { isLoopback, listenForHotspot } from './hotspot-portal.ts';
 import { Hotspot, HotspotError } from './hotspot.ts';
 import type { HotspotInfo, HotspotStatus } from './hotspot.ts';
+import { readText, updateIO } from './image-update-io.ts';
+import { check as checkForUpdate, RAUC_CONFIG, readState } from './image-update.ts';
+import type { Checked } from './image-update.ts';
 import type { LyricsQuery } from './lyrics-sources.ts';
 import { lyricsLookup, parseLyricsQuery } from './lyrics.ts';
 import type { LyricsHit } from './lyrics.ts';
@@ -569,8 +569,7 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
       return;
     }
     case '/update/check': {
-      if (deps.imageUpdates) sendJson(response, 200, await deps.imageUpdates.check());
-      else response.writeHead(404).end();
+      await postUpdateCheck(response, deps);
       return;
     }
     case '/bluetooth/pair-phone/stop': {
@@ -594,6 +593,21 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
 const sendJson = (response: ServerResponse, status: number, body: unknown): void => {
   response.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(body));
 };
+
+/** POST /update/check: what an image Pi's update channel has; 404 on a Pi Ansible installed. */
+async function postUpdateCheck(response: ServerResponse, deps: Deps): Promise<void> {
+  if (deps.imageUpdates) sendJson(response, 200, await deps.imageUpdates.check());
+  else response.writeHead(404).end();
+}
+
+/** Nothing of the check is logged when the screen asks: the app shows it. */
+const quiet = (): void => undefined;
+
+/** The version an image Pi installed and has not tried yet, which waits for a restart. */
+async function installedUpdate(): Promise<string | null> {
+  const { pending } = await readState({ readText });
+  return pending && !pending.tried ? pending.version : null;
+}
 
 async function listNetworks(response: ServerResponse, wifi: Wifi): Promise<void> {
   try {
@@ -906,17 +920,13 @@ export function serveSpeakers(
         check: async () => {
           const rauc = await raucOverDbus();
           try {
-            return await checkForUpdate(updateIO(rauc, () => {}));
+            return await checkForUpdate(updateIO(rauc, quiet));
           } finally {
             await rauc.close();
           }
         }
       }
     : null;
-  const installedUpdate = async () => {
-    const { pending } = await readState({ readText });
-    return pending && !pending.tried ? pending.version : null;
-  };
   const runAnUpdate: Update =
     update ?? (isImage ? (send, signal) => runImageUpdate(send, signal, installedUpdate) : runUpdate);
   let lastBeat: number | null = null;

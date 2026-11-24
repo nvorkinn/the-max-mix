@@ -4,8 +4,8 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { waitForHealth } from './health.ts';
-import { afterBoot, giveUp, keep } from './image-update.ts';
 import { updateIO } from './image-update-io.ts';
+import { afterBoot, giveUp, keep } from './image-update.ts';
 import { raucOverDbus } from './rauc.ts';
 import { chromiumPid } from './watchdog.ts';
 
@@ -23,7 +23,8 @@ async function audio(): Promise<{ heartbeatAgeMs: number | null } | null> {
 }
 
 async function isRunning(name: string): Promise<boolean> {
-  for (const entry of await readdir('/proc')) {
+  const entries = await readdir('/proc');
+  for (const entry of entries) {
     if (!/^\d+$/.test(entry)) continue;
     try {
       // One small read per process, in turn.

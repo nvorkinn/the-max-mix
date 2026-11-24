@@ -10,8 +10,8 @@
 //                                            slot's cmdline.txt
 import { mkdtemp, rmdir } from 'node:fs/promises';
 import path from 'node:path';
-import { apply, check, installedBootDevice, KIOSK_ENV, parseEnv, restart, rollback, run } from './image-update.ts';
 import { readText, runProgram, updateIO } from './image-update-io.ts';
+import { apply, check, installedBootDevice, KIOSK_ENV, parseEnv, restart, rollback, run } from './image-update.ts';
 import { raucOverDbus } from './rauc.ts';
 
 const USAGE = 'Usage: kiosk-update.ts run [--scheduled] | check | apply | restart | rollback | post-install';
@@ -60,7 +60,7 @@ async function main(command: string | undefined, option: string | undefined): Pr
         break;
       }
       case 'apply': {
-        if (!(await apply(io))) console.log('No installed update is waiting.');
+        if ((await apply(io)) === 'none') console.log('No installed update is waiting.');
         break;
       }
       case 'restart': {

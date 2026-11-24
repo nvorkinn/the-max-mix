@@ -27,12 +27,13 @@ const DEV = 'https://github.com/nvorkinn/the-max-mix/releases/download/dev/the-m
 function pi(options: { channel?: string; state?: Partial<UpdateState>; trial?: boolean; booted?: string } = {}) {
   const booted = options.booted ?? 'a';
   const other = booted === 'a' ? 'b' : 'a';
+  const state: UpdateState = { pending: null, failed: [], seen: null, checkedAt: null, ...options.state };
   const world = {
     files: {
       [KIOSK_ENV]: `# This Pi\nKIOSK_NAME=Kitchen\nKIOSK_UPDATE_CHANNEL="${options.channel ?? 'dev'}"\n`,
       [RELEASE_ENV]: 'KIOSK_RELEASE_REF=dev\nKIOSK_RELEASE_COMMIT=aaa\n'
     } as Record<string, string>,
-    state: { pending: null, failed: [], seen: null, checkedAt: null, ...options.state } as UpdateState,
+    state,
     remote: { fingerprint: 'asset-1' as string | null, version: 'dev+bbb', isOffline: false },
     inspected: [] as string[],
     installed: [] as string[],
@@ -216,7 +217,7 @@ describe('restart', () => {
       ['/usr/bin/systemctl', 'reboot', '0 tryboot'],
       ['/usr/bin/systemctl', 'restart', 'kiosk.service']
     ]);
-    await expect(apply(io)).resolves.toBe(false);
+    await expect(apply(io)).resolves.toBe('none');
   });
 });
 

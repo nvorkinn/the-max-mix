@@ -89,14 +89,16 @@ describe('raucOverDbus', () => {
     const { bus, removed } = fakeRauc();
     const rauc = await raucOverDbus(bus);
     const progress: Progress[] = [];
-    await rauc.install('https://example.test/b.raucb', step => progress.push(step));
+    await rauc.install('https://example.test/b.raucb', step => {
+      progress.push(step);
+    });
     expect(progress).toEqual([{ percent: 40, message: 'Copying image' }]);
-    expect(removed.toSorted()).toEqual(['Completed', 'PropertiesChanged']);
+    expect(removed.toSorted((a, b) => a.localeCompare(b))).toEqual(['Completed', 'PropertiesChanged']);
   });
 
   it('rejects with RAUC’s own error when the install fails', async () => {
     const rauc = await raucOverDbus(fakeRauc(1).bus);
-    await expect(rauc.install('https://example.test/b.raucb', () => {})).rejects.toThrow(
+    await expect(rauc.install('https://example.test/b.raucb', () => undefined)).rejects.toThrow(
       'Failed to download bundle: 404'
     );
   });

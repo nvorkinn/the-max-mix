@@ -53,7 +53,7 @@ const text = (value: unknown): string | null => (typeof value === 'string' && va
 export function toSlot(name: string, properties: Plain): Slot {
   return {
     name,
-    class: text(properties['class']) ?? name.split('.')[0] ?? '',
+    class: text(properties['class']) ?? name.split('.', 1)[0] ?? '',
     bootname: text(properties['bootname']),
     state: text(properties['state']) ?? '',
     bundleVersion: text(properties['bundle.version'])
@@ -63,8 +63,9 @@ export function toSlot(name: string, properties: Plain): Slot {
 /** The version in InspectBundle's answer (`update.version`), or in the older flat shape. */
 export function inspectedVersion(info: Plain): string | null {
   const update = info['update'];
-  if (typeof update === 'object' && update !== null && 'version' in update) return text(update.version);
-  return text(info['version']);
+  return typeof update === 'object' && update !== null && 'version' in update
+    ? text(update.version)
+    : text(info['version']);
 }
 
 /** RAUC's Progress property, (percentage, message, depth). */
@@ -86,7 +87,7 @@ export async function raucOverDbus(given?: MessageBus): Promise<Rauc> {
         path: '/',
         interface: INSTALLER,
         member,
-        ...(signature === undefined ? {} : { signature, body })
+        ...(signature !== undefined && { signature, body })
       },
       timeout === undefined ? undefined : { timeout }
     );
@@ -114,10 +115,7 @@ export async function raucOverDbus(given?: MessageBus): Promise<Rauc> {
     install: async (source, onProgress) => {
       const installer = await bus.proxy(SERVICE, '/', { interface: INSTALLER });
       const properties = await bus.proxy(SERVICE, '/', { interface: PROPERTIES });
-      let finish: (code: number) => void = () => {};
-      const completed = new Promise<number>(resolve => {
-        finish = resolve;
-      });
+      const { promise: completed, resolve: finish } = Promise.withResolvers<number>();
       const watches = [
         await installer.$watch('Completed', (code: number) => {
           finish(code);

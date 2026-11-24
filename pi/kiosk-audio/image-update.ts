@@ -37,10 +37,13 @@ type Channel = 'stable' | 'dev' | `branch-${string}`;
 export function parseEnv(content: string): Record<string, string> {
   const values: Record<string, string> = {};
   for (const raw of content.split('\n')) {
-    const match = /^\s*([A-Za-z_]\w*)\s*=\s*(.*?)\s*$/.exec(raw);
-    if (!match || raw.trimStart().startsWith('#')) continue;
-    const [, key = '', value = ''] = match;
-    values[key] = /^(["']).*\1$/.test(value) ? value.slice(1, -1) : value;
+    const line = raw.trim();
+    const equals = line.indexOf('=');
+    const key = line.slice(0, Math.max(equals, 0)).trim();
+    if (line.startsWith('#') || !/^[A-Za-z_]\w*$/.test(key)) continue;
+    const value = line.slice(equals + 1).trim();
+    const isQuoted = value.length >= 2 && (value[0] === '"' || value[0] === "'") && value.at(-1) === value[0];
+    values[key] = isQuoted ? value.slice(1, -1) : value;
   }
   return values;
 }
@@ -154,8 +157,8 @@ export interface Checked extends UpdateStatus {
   latest: string | null;
 }
 
-/** Looks at the channel's bundle. `remember` keeps its fingerprint and version for the next check (root only). */
-export async function check(io: UpdateIO, remember = false): Promise<Checked> {
+/** Looks at the channel's bundle. `shouldRemember` keeps its fingerprint and version for the next check (root only). */
+export async function check(io: UpdateIO, shouldRemember = false): Promise<Checked> {
   const now = await status(io);
   const url = bundleUrl(now.channel);
   let fingerprint: string | null;
@@ -171,7 +174,7 @@ export async function check(io: UpdateIO, remember = false): Promise<Checked> {
     latest = state.seen.version;
   } else {
     latest = await io.rauc.inspect(url);
-    if (remember) await io.writeState({ ...state, seen: { url, fingerprint, version: latest } });
+    if (shouldRemember) await io.writeState({ ...state, seen: { url, fingerprint, version: latest } });
   }
   let result: CheckResult = 'available';
   if (latest === null) result = 'none';
@@ -202,28 +205,28 @@ async function install(io: UpdateIO): Promise<Checked> {
   return { ...checked, result: 'installed', installed: version };
 }
 
-/** Reboots once into the installed slot (tryboot) when one waits; false when none does. */
-export async function apply(io: UpdateIO): Promise<boolean> {
+/** Reboots once into the installed slot (tryboot) when one waits: 'restarting', or 'none' when none waits. */
+export async function apply(io: UpdateIO): Promise<'restarting' | 'none'> {
   const state = await readState(io);
-  if (!state.pending || state.pending.tried) return false;
+  if (!state.pending || state.pending.tried) return 'none';
   await io.writeState({ ...state, pending: { ...state.pending, tried: true } });
   io.log(RESTART_LINE);
   await io.run([SYSTEMCTL, 'reboot', '0 tryboot']);
-  return true;
+  return 'restarting';
 }
 
 /** 04:30 and the Restart button: into the installed update when one waits, otherwise a restart of the kiosk. */
 export async function restart(io: UpdateIO): Promise<void> {
-  if (!(await apply(io))) await io.run([SYSTEMCTL, 'restart', 'kiosk.service']);
+  if ((await apply(io)) === 'none') await io.run([SYSTEMCTL, 'restart', 'kiosk.service']);
 }
 
 /**
- * The timer (`scheduled`) and the screen's Install: check, install anything newer, and on the dev and branch channels
+ * The timer (`isScheduled`) and the screen's Install: check, install anything newer, and on the dev and branch channels
  * restart into it at once. A stable Pi's timer checks every 6 hours only.
  */
-export async function run(io: UpdateIO, scheduled: boolean): Promise<Checked | null> {
+export async function run(io: UpdateIO, isScheduled: boolean): Promise<Checked | null> {
   const channel = await readChannel(io);
-  if (scheduled) {
+  if (isScheduled) {
     const state = await readState(io);
     if (channel === 'stable' && state.checkedAt !== null && io.now() - state.checkedAt < STABLE_EVERY_MS) return null;
     await io.writeState({ ...state, checkedAt: io.now() });
@@ -234,8 +237,9 @@ export async function run(io: UpdateIO, scheduled: boolean): Promise<Checked | n
   }
   const done = await install(io);
   if (done.result === 'up-to-date') io.log(`Up to date (${done.current ?? 'unknown version'}).`);
-  if (done.result === 'failed') io.log(`${done.latest ?? ''} failed on this Pi before, so it is not installed again.`);
-  if (done.result === 'installed' && channel !== 'stable') await apply(io);
+  else if (done.result === 'failed')
+    io.log(`${done.latest ?? ''} failed on this Pi before, so it is not installed again.`);
+  else if (channel !== 'stable' && done.result === 'installed') await apply(io);
   return done;
 }
 
@@ -303,7 +307,8 @@ export async function rollback(io: UpdateIO): Promise<void> {
 
 /** The boot slot RAUC just wrote, from its post-install handler's environment; null when it wrote none. */
 export function installedBootDevice(env: Readonly<Record<string, string | undefined>>): string | null {
-  for (const number of (env['RAUC_TARGET_SLOTS'] ?? '').split(/\s+/)) {
+  const targets = (env['RAUC_TARGET_SLOTS'] ?? '').split(/\s+/);
+  for (const number of targets) {
     if (number !== '' && env[`RAUC_SLOT_CLASS_${number}`] === 'boot') return env[`RAUC_SLOT_DEVICE_${number}`] ?? null;
   }
   return null;

@@ -32,11 +32,7 @@ export async function replaceFile(file: string, content: string, mode = 0o644): 
  * ETag and size, so a replaced bundle on a rolling pre-release reads as new. Null for 404.
  */
 async function headFingerprint(url: string): Promise<string | null> {
-  const response = await fetch(url, {
-    method: 'HEAD',
-    redirect: 'follow',
-    signal: AbortSignal.timeout(HEAD_TIMEOUT_MS)
-  });
+  const response = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(HEAD_TIMEOUT_MS) });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`${url} answered ${response.status}.`);
   const final = new URL(response.url || url);
