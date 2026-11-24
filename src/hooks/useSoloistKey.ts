@@ -52,7 +52,8 @@ export function useSoloistKey(person: string, isAsking: boolean): SoloistKey {
       }
       if (!code || Date.now() >= code.expiresAt) {
         const fresh = await newSoloistKeyCode(client, site, person, signal);
-        if (signal.aborted) return;
+        // Asked again: the page may have gone while the code was on its way.
+        if (controller.signal.aborted) return;
         if (fresh === 'unpaired') {
           setKey('unavailable');
           return;

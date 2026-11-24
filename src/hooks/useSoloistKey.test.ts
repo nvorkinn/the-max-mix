@@ -3,6 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as config from '../countdown/config';
 import * as soloistKeys from '../countdown/soloistKeys';
 import { SOLOIST_KEY_POLL_MS, useSoloistKey } from './useSoloistKey';
+import type { SoloistKey } from './useSoloistKey';
+
+/** The page a code opens, or '' while there is no code. */
+const pageUrl = (key: SoloistKey) => (typeof key === 'object' ? key.pageUrl : '');
 
 const PERSON = 'someone';
 /** How long a code lasts (countdown-api's expires_in, 600 seconds). */
@@ -112,9 +116,14 @@ describe('useSoloistKey', () => {
 
     rerender({ isAsking: true });
     await waitFor(() => {
-      expect(result.current).toEqual(expect.objectContaining({ pageUrl: expect.stringContaining('code=code-1') }));
+      expect(pageUrl(result.current)).toContain('code=code-1');
     });
-    expect(code).toHaveBeenCalledWith(expect.anything(), 'https://app.countdown.build', PERSON, expect.anything());
+    expect(code).toHaveBeenCalledExactlyOnceWith(
+      expect.anything(),
+      'https://app.countdown.build',
+      PERSON,
+      expect.anything()
+    );
 
     // Asked again every few seconds, with the same code until it lapses, and through a missed answer.
     list.mockResolvedValue(null);
@@ -126,14 +135,14 @@ describe('useSoloistKey', () => {
       await vi.advanceTimersByTimeAsync(SOLOIST_KEY_POLL_MS);
     });
     expect(list).toHaveBeenCalledTimes(4);
-    expect(code).toHaveBeenCalledOnce();
-    expect(result.current).toEqual(expect.objectContaining({ pageUrl: expect.stringContaining('code=code-1') }));
+    expect(code).toHaveBeenCalledTimes(1);
+    expect(pageUrl(result.current)).toContain('code=code-1');
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(CODE_MS);
     });
     expect(code).toHaveBeenCalledTimes(2);
-    expect(result.current).toEqual(expect.objectContaining({ pageUrl: expect.stringContaining('code=code-2') }));
+    expect(pageUrl(result.current)).toContain('code=code-2');
 
     // The key is pasted on the phone: the code goes, and nothing more is asked.
     list.mockResolvedValue([PERSON]);
@@ -157,7 +166,7 @@ describe('useSoloistKey', () => {
       initialProps: { isAsking: true }
     });
     await waitFor(() => {
-      expect(result.current).toEqual(expect.objectContaining({ pageUrl: expect.any(String) }));
+      expect(pageUrl(result.current)).not.toBe('');
     });
     rerender({ isAsking: false });
     await waitFor(() => {
@@ -172,7 +181,7 @@ describe('useSoloistKey', () => {
     codes();
     const { result, unmount } = renderHook(() => useSoloistKey(PERSON, true));
     await waitFor(() => {
-      expect(result.current).toEqual(expect.objectContaining({ pageUrl: expect.any(String) }));
+      expect(pageUrl(result.current)).not.toBe('');
     });
     unmount();
     await act(async () => {

@@ -29,8 +29,7 @@ export interface SoloistKeyCode {
 export async function soloistKeyPeople(client: Client, signal: AbortSignal): Promise<readonly string[] | Unanswered> {
   try {
     const { data, response } = await listSoloistKeys(client, { signal });
-    if (response.status === 409) return 'unpaired';
-    return data?.people ?? null;
+    return response.status === 409 ? 'unpaired' : (data?.people ?? null);
   } catch {
     return null;
   }
@@ -62,5 +61,5 @@ export async function newSoloistKeyCode(
  */
 export function forgetSoloistKey(person: string, client: Client | null = serverClient()): void {
   if (!client) return;
-  void deleteSoloistKey(client, { person }).catch(() => undefined);
+  void deleteSoloistKey(client, { person }).catch(() => null);
 }
