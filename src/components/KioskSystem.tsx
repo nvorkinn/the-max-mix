@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Power, RefreshCw, RotateCw } from 'lucide-react';
+import { versionLabel } from '../hooks/useKioskUpdate';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import { rebootPi, restartKiosk } from '../utils/kiosk';
 import { useT } from '../i18n/translate';
@@ -16,9 +17,11 @@ const formatTime = (ms: number) =>
  * The kiosk's own section of the settings: which release (or pinned ref and commit) the Pi runs, whether a newer one is
  * out, restart and reboot. The button beside the version asks GitHub again; a newer version it finds is asked about in
  * the update popup (UpdatePrompt), which is where an update starts, so after "Not now" the same button offers it again.
+ * An image Pi checks its own update channel instead, and the row itself offers Install, then Restart now.
  */
 export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }>) {
   const { version, release, what = '', latest, newer, isChecking, checkedAt, isUpdating, progress, checkNow } = update;
+  const { isImage, installed, failed, start } = update;
   const [pressed, setPressed] = useState(false);
   const spinTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(spinTimerRef.current), []);
@@ -31,7 +34,11 @@ export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }
     status = newer ? t('about.newer', { newer }) : t('about.up_to_date');
     if (!newer && checkedAt !== null) status = t('about.up_to_date_at', { time: formatTime(checkedAt) });
   }
+  if (isImage && newer) status = `${newer}.`;
+  if (isImage && failed) status = t('about.failed', { version: versionLabel(failed) });
+  if (isImage && installed) status = t('about.installed', { version: versionLabel(installed) });
   if (progress) status = progress;
+  const offer = isImage && !isUpdating && (installed !== null || newer !== null);
 
   const look = SOFTWARE_LOOK[softwareState(update)];
   const StatusIcon = look.icon;
@@ -51,6 +58,15 @@ export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }
             <span>{status}</span>
           </p>
         </div>
+        {offer && (
+          <button
+            type="button"
+            onClick={installed ? restartKiosk : start}
+            className="modal-option settings-action shrink-0 rounded-2xl border font-bold active:scale-98 transition-all"
+          >
+            {installed ? t('about.restart_now') : t('about.install')}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => {

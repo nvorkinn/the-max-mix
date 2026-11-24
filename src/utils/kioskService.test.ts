@@ -1,12 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeWebSocket, latestFakeSocket, resetFakeSockets } from '../test/fakeWebSocket';
-import { openUpdateStream, parseUpdateEvent } from './kioskService';
+import { checkImageUpdate, openUpdateStream, parseImageCheck, parseUpdateEvent } from './kioskService';
 
 describe('parseUpdateEvent', () => {
   it('reads the frames the kiosk sends', () => {
     expect(parseUpdateEvent('{"type":"log","line":"a"}')).toEqual({ type: 'log', line: 'a' });
     expect(parseUpdateEvent('{"type":"error","line":"b"}')).toEqual({ type: 'error', line: 'b' });
     expect(parseUpdateEvent('{"type":"status","state":"pulling"}')).toEqual({ type: 'status', state: 'pulling' });
+    expect(parseUpdateEvent('{"type":"status","state":"installed","message":"v2+abc"}')).toEqual({
+      type: 'status',
+      state: 'installed',
+      message: 'v2+abc'
+    });
     expect(parseUpdateEvent('{"type":"status","state":"done","message":"Nothing needed a restart."}')).toEqual({
       type: 'status',
       state: 'done',
@@ -67,5 +72,38 @@ describe('openUpdateStream', () => {
     expect(h.onOpen).not.toHaveBeenCalled();
     expect(h.onEvent).not.toHaveBeenCalled();
     expect(h.onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('checkImageUpdate', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('reads what an image Pi’s channel has', async () => {
+    const body = { channel: 'dev', current: 'dev+a', installed: '', busy: false, result: 'available', latest: 'dev+b' };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(Response.json(body)))
+    );
+    await expect(checkImageUpdate()).resolves.toEqual({
+      current: 'dev+a',
+      installed: null,
+      result: 'available',
+      latest: 'dev+b'
+    });
+  });
+
+  it('is null on a Pi Ansible installed, when the service does not answer, and for anything else', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response(null, { status: 404 })))
+    );
+    await expect(checkImageUpdate()).resolves.toBeNull();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('Failed to fetch')))
+    );
+    await expect(checkImageUpdate()).resolves.toBeNull();
+    expect(parseImageCheck({ result: 'maybe' })).toBeNull();
+    expect(parseImageCheck(null)).toBeNull();
   });
 });

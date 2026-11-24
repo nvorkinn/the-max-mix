@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { Download, LoaderCircle, X } from 'lucide-react';
+import { Download, LoaderCircle, RotateCw, X } from 'lucide-react';
 import type { KioskUpdate } from '../hooks/useKioskUpdate';
 import { useT } from '../i18n/translate';
+import { restartKiosk } from '../utils/kiosk';
 import Modal from './Modal';
 
 const noop = () => {};
@@ -12,7 +13,7 @@ const noop = () => {};
  * once the update has finished, failed or been given up on.
  */
 export default function UpdateConsole({ update }: Readonly<{ update: KioskUpdate }>) {
-  const { consoleOpen, isUpdating, progress, tasks, output, closeConsole } = update;
+  const { consoleOpen, isUpdating, progress, tasks, output, closeConsole, isImage, installed } = update;
   const outputRef = useRef<HTMLPreElement>(null);
   const t = useT();
 
@@ -56,8 +57,22 @@ export default function UpdateConsole({ update }: Readonly<{ update: KioskUpdate
           className="update-console-progress"
           max={tasks.total}
           value={tasks.done}
-          aria-label={t('update.task', { done: tasks.done, total: tasks.total })}
+          aria-label={
+            isImage
+              ? t('update.percent', { percent: tasks.done })
+              : t('update.task', { done: tasks.done, total: tasks.total })
+          }
         />
+      )}
+      {!isUpdating && installed && (
+        <button
+          type="button"
+          onClick={restartKiosk}
+          className="modal-option settings-action flex items-center justify-center gap-2 rounded-2xl border font-bold active:scale-98 transition-all"
+        >
+          <RotateCw className="w-5 h-5 shrink-0" aria-hidden="true" />
+          {t('about.restart_now')}
+        </button>
       )}
       <pre ref={outputRef} aria-label={t('update.output')} className="update-console-output">
         {output.length > 0 ? output.join('\n') : t('update.starting')}
