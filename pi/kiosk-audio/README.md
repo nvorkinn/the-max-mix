@@ -11,7 +11,7 @@ app on `127.0.0.1:7341`. It does two jobs:
 
 ## The two playback modes
 
-- **Spotify Connect** (the default): Spotify plays on the kiosk's Spotify Soloist player, or on any Spotify Connect
+- **Spotify Connect** (the default): Spotify plays on the kiosk's own player (Spotify Soloist), or on any Spotify Connect
   speaker it is moved to under Speakers. Switching to it sends `POST /audio/route` with no speakers, which hands the sound back to the
   Pi's default output.
 - **AirPlay**: playback stays on the kiosk's own player, and the Pi links Soloist's PipeWire stream to every speaker

@@ -26,8 +26,7 @@ const player = vi.hoisted(() => {
         | 'setSlowPolling'
         | 'transferPlayback'
         | 'retryPlayback'
-        | 'reconnectPlayer'
-        | 'allowBrowserAudio',
+        | 'reconnectPlayer',
         Mock
       >
     >;
@@ -152,7 +151,6 @@ function setPlayer(overrides: Record<string, unknown> = {}) {
     transferPlayback: vi.fn().mockResolvedValue(undefined),
     retryPlayback: vi.fn().mockResolvedValue(true),
     reconnectPlayer: vi.fn(),
-    allowBrowserAudio: vi.fn().mockResolvedValue(true),
     ...overrides
   };
 }
@@ -376,7 +374,7 @@ describe('TabletView', () => {
 
     it('pauses this tablet’s own music first, then switches and reloads', async () => {
       setPlayer({
-        sdkActive: true,
+        isPlayerActive: true,
         playbackState: { is_playing: true, item: track, device: { name: 'Kitchen' } },
         togglePlay: vi.fn().mockResolvedValue(true)
       });
@@ -414,7 +412,10 @@ describe('TabletView', () => {
     });
 
     it('leaves music playing elsewhere alone', async () => {
-      setPlayer({ sdkActive: false, playbackState: { is_playing: true, item: track, device: { name: 'Kitchen' } } });
+      setPlayer({
+        isPlayerActive: false,
+        playbackState: { is_playing: true, item: track, device: { name: 'Kitchen' } }
+      });
       await switchToAnna();
       expect(player.current.togglePlay).not.toHaveBeenCalled();
       expect(people.switchPerson).toHaveBeenCalledWith('anna');
@@ -697,8 +698,7 @@ describe('TabletView', () => {
 
   it.each([
     ['refresh', 'Refresh playback', 'retryPlayback'],
-    ['reconnect', 'Reconnect player', 'reconnectPlayer'],
-    ['enable-audio', 'Allow browser audio', 'allowBrowserAudio']
+    ['reconnect', 'Reconnect player', 'reconnectPlayer']
   ] as const)('wires %s recovery without reissuing transport commands', async (recovery, label, method) => {
     setPlayer({ error: 'Playback failed', problem: { message: 'Playback failed', recovery } });
     renderOnSpotifyTab(<TabletView />);
@@ -874,15 +874,15 @@ describe('TabletView', () => {
     ).toBeGreaterThan(0);
   });
 
-  it('re-reads the queue when the player says it changed, without polling while the SDK is active', async () => {
+  it('re-reads the queue when the player says it changed, without polling while the kiosk player is active', async () => {
     vi.useFakeTimers();
-    setPlayer({ sdkActive: true, queueVersion: 1, playbackState: playing });
+    setPlayer({ isPlayerActive: true, queueVersion: 1, playbackState: playing });
     const { rerender } = renderOnSpotifyTab(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
     expect(api.getQueue).toHaveBeenCalledTimes(1);
-    // The remote-mode rate (10 s) is not used while the SDK reports changes; the safety net is 20 s.
+    // The remote-mode rate (10 s) is not used while the kiosk player reports changes; the safety net is 20 s.
     await act(async () => {
       await vi.advanceTimersByTimeAsync(19_000);
     });
@@ -892,7 +892,7 @@ describe('TabletView', () => {
     });
     expect(api.getQueue).toHaveBeenCalledTimes(2);
 
-    setPlayer({ sdkActive: true, queueVersion: 2, playbackState: playing });
+    setPlayer({ isPlayerActive: true, queueVersion: 2, playbackState: playing });
     rerender(<TabletView />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
@@ -900,7 +900,7 @@ describe('TabletView', () => {
     expect(api.getQueue).toHaveBeenCalledTimes(3);
   });
 
-  it('polls the queue every 10 seconds when no SDK events arrive', async () => {
+  it('polls the queue every 10 seconds when no player events arrive', async () => {
     vi.useFakeTimers();
     setPlayer({ playbackState: playing });
     renderOnSpotifyTab(<TabletView />);

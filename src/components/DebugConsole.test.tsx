@@ -6,9 +6,8 @@ import { HTTP_GROUPS } from '../utils/httpLog';
 import DebugConsole from './DebugConsole';
 
 vi.mock('./BluetoothDebug', () => ({ default: () => <p>The Pi’s Bluetooth</p> }));
-vi.mock('../utils/widevine', () => ({ widevineProblem: vi.fn(() => Promise.resolve('Widevine is not available')) }));
 
-/** Lets the Widevine check answer. */
+/** Lets pending updates land. */
 const settle = () => act(() => Promise.resolve());
 const showStatus = () => fireEvent.click(screen.getByRole('button', { name: 'Status' }));
 
@@ -20,13 +19,12 @@ describe('DebugConsole', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('shows the status, the Widevine check and the log newest first, live', async () => {
+  it('shows the status and the log newest first, live', () => {
     debugLog('info', 'sdk', 'first');
     render(<DebugConsole isOpen onClose={vi.fn()} status={[['Signed in', 'Yes']]} />);
     expect(screen.queryByText('Signed in')).not.toBeInTheDocument();
     showStatus();
     expect(screen.getByText('Signed in').nextSibling).toHaveTextContent('Yes');
-    expect(await screen.findByText('Widevine is not available')).toBeInTheDocument();
     act(() => {
       debugLog('error', 'player', 'second');
       debugLog('error', 'player', 'second');
@@ -131,7 +129,7 @@ describe('DebugConsole', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('on the kiosk, Register again forgets the device ID, secret and config and starts again', async () => {
+  it('on the kiosk, Register again forgets the device ID, secret and config and starts again', () => {
     history.replaceState(null, '', '/?kiosk=1');
     localStorage.setItem('maxmix.deviceSecret', 'not-a-real-secret');
     localStorage.setItem('maxmix.deviceId', '0a1b2c3d4e5f');
@@ -139,7 +137,6 @@ describe('DebugConsole', () => {
     const onReload = vi.fn();
     render(<DebugConsole isOpen onClose={vi.fn()} status={[]} onReload={onReload} />);
     showStatus();
-    await screen.findByText('Widevine is not available');
     expect(screen.getByText('Device ID').nextSibling).toHaveTextContent('0a1b2c3d4e5f');
     fireEvent.click(screen.getByRole('button', { name: /register again/i }));
     expect(localStorage.getItem('maxmix.deviceId')).toBeNull();
@@ -150,10 +147,9 @@ describe('DebugConsole', () => {
     history.replaceState(null, '', '/');
   });
 
-  it('offers Register again only on the kiosk', async () => {
+  it('offers Register again only on the kiosk', () => {
     render(<DebugConsole isOpen onClose={vi.fn()} status={[]} />);
     showStatus();
-    await screen.findByText('Widevine is not available');
     expect(screen.getByText('Device ID').nextSibling).toHaveTextContent('Not registered');
     expect(screen.queryByRole('button', { name: /register again/i })).not.toBeInTheDocument();
   });

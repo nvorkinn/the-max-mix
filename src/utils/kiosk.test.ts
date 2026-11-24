@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getRedirectUri, leaveFor } from '../spotify/settings';
+import { getPlaybackMode, getRedirectUri, leaveFor } from '../spotify/settings';
 import {
   currentWifi,
   forgetSignIns,
@@ -18,6 +18,21 @@ const PI_ADDRESS = '192.168.1.42';
 function visit(search: string) {
   history.replaceState(null, '', `/${search}`);
 }
+
+describe('getPlaybackMode', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    visit('');
+  });
+
+  it('plays on the kiosk itself only on the kiosk, unless the stored mode says remote', () => {
+    expect(getPlaybackMode()).toBe('remote');
+    visit('?kiosk=1');
+    expect(getPlaybackMode()).toBe('browser');
+    localStorage.setItem('maxmix.playbackMode', 'remote');
+    expect(getPlaybackMode()).toBe('remote');
+  });
+});
 
 describe('isKiosk', () => {
   beforeEach(() => {

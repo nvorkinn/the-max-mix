@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { X, Bug, RotateCw, Trash2, KeyRound, ChevronDown, ChevronRight } from 'lucide-react';
 import { forgetDeviceConfig } from '../countdown/config';
@@ -10,7 +10,6 @@ import type { HttpLogMode } from '../utils/httpLog';
 import { useSpotifyPolling } from '../hooks/useSpotifyPolling';
 import { setPollSpotify } from '../spotify/polling';
 import { isKiosk } from '../utils/kiosk';
-import { widevineProblem } from '../utils/widevine';
 import BluetoothDebug from './BluetoothDebug';
 import Modal from './Modal';
 
@@ -38,25 +37,6 @@ function EntryRow({ entry }: Readonly<{ entry: DebugEntry }>) {
       </span>
     </li>
   );
-}
-
-/** Asks the browser whether Widevine works each time the console opens; the answer can change after an update. */
-function useWidevineStatus(): string {
-  const [status, setStatus] = useState('Checking…');
-  useEffect(() => {
-    let cancelled = false;
-    widevineProblem()
-      .then(problem => {
-        if (!cancelled) setStatus(problem ?? 'Available');
-      })
-      .catch(() => {
-        if (!cancelled) setStatus('Could not check');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  return status;
 }
 
 const STATUS_OPEN_KEY = 'maxmix.debugStatusOpen';
@@ -196,12 +176,10 @@ function DebugConsolePanel({
   onRegisterAgain
 }: Readonly<{ onClose: () => void; status: DebugStatus; onReload: () => void; onRegisterAgain: () => void }>) {
   const entries = useSyncExternalStore(subscribeDebugLog, getDebugEntries);
-  const widevine = useWidevineStatus();
   const [tab, setTab] = useState<DebugTab>('log');
   const rows: DebugStatus = [
     ['Version', APP_VERSION],
     ...status,
-    ['Widevine', widevine],
     ['Device ID', deviceCredentials()?.deviceId ?? 'Not registered'],
     ['Browser', navigator.userAgent]
   ];

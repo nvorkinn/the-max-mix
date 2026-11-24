@@ -1,16 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import type {
-  MusicChoice,
-  PlaybackState,
-  RepeatMode,
-  SdkPlaybackState,
-  SpotifyDevice,
-  SpotifySdk,
-  SpotifyPlayer,
-  Track
-} from '../types';
+import type { MusicChoice, PlaybackState, RepeatMode, SpotifyDevice } from '../types';
 import * as spotify from '../spotify/api';
-import { getAccessToken, isSignedIn } from '../spotify/auth';
+import { isSignedIn } from '../spotify/auth';
 import {
   checkSpotifyRetryWindow,
   getSpotifyRetryDelay,
@@ -20,55 +11,42 @@ import {
   SpotifyApiError
 } from '../spotify/http';
 import { getPlaybackMode } from '../spotify/settings';
+import { SoloistPlayer } from '../spotify/soloistPlayer';
+import type { KioskPlaybackState } from '../spotify/soloistPlayer';
 import { errorMessage } from '../utils/errorMessage';
-import { loadSpotifySDK } from '../utils/spotifySdk';
-import { widevineProblem } from '../utils/widevine';
 import { debugLog } from '../utils/debugLog';
 import { useSpotifyPolling } from './useSpotifyPolling';
 
 // Spotify's playback state lags a play/pause command by a second or more, so a read right after one still reports the
 // old state. For this long after a command the button keeps the state the command asked for.
 const EXPECTED_PLAYING_MS = 5000;
-// The same for the device: right after playback is started on, or moved to, this page, a read still names the device
-// that played before. For this long the page keeps showing itself as the device (and reads again once to check).
+// The same for the device: right after playback is started on, or moved to, the kiosk's player, a read still names the
+// device that played before. For this long the page keeps showing the kiosk as the device (and reads again once to check).
 const EXPECTED_DEVICE_MS = 8000;
-const THIS_DEVICE_NAME = 'The Max Mix';
+// The name the Pi's service gives Spotify Soloist (pi/kiosk-audio/soloist.ts).
+const KIOSK_DEVICE_NAME = 'The Max Mix Soloist';
 const DEVICE_CHECK_MS = 3000;
 // The same for shuffle and repeat: a tap shows its result at once and keeps it this long against reads that predate it.
 const EXPECTED_SETTING_MS = 5000;
-// While another device plays there are no SDK events, so the state is read this often.
+// While another device plays the kiosk's player reports nothing, so the state is read this often.
 const REMOTE_POLL_MS = 4000;
 // While the kiosk's screen sleeps nobody is watching, so the state is read this seldom: a sleeping tablet that kept
 // polling every 4 s used up Spotify's rate limit for everyone else on the account. Music started elsewhere wakes it late.
 const ASLEEP_POLL_MS = 45_000;
-// While this page is the active SDK player the events carry the changes; this is only a safety net.
-const SDK_POLL_MS = 30_000;
-// An SDK command that has not answered by now is given up on, so one lost reply cannot leave the buttons dead.
-const SDK_COMMAND_TIMEOUT_MS = 8000;
-// A player that has just connected again can take a moment to appear in Spotify's device list; one more try waits this.
+// While the kiosk's player is the active device its events carry the changes; this is only a safety net.
+const PLAYER_POLL_MS = 30_000;
+// Soloist starts with the page (countdown/soloist.ts) and signs in; a player that has not come up by then is reported,
+// and keeps trying.
+const PLAYER_START_MS = 20_000;
+// Spotify can take a moment to answer for a player it has just listed again; one more try waits this.
 const REREGISTER_RETRY_MS = 1500;
-// The SDK numbers the repeat modes; the Web API names them.
-const SDK_REPEAT_MODES: readonly RepeatMode[] = ['off', 'context', 'track'];
 const NEXT_REPEAT: Record<RepeatMode, RepeatMode> = { off: 'context', context: 'track', track: 'off' };
-
-/** Rejects when `promise` has not settled within `ms`. */
-async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => reject(new Error(message)), ms);
-  });
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 type PlaybackOrNull = PlaybackState | null;
 
 export interface PlaybackProblem {
   message: string;
-  recovery: 'sign-in' | 'choose-speaker' | 'settings' | 'reconnect' | 'refresh' | 'enable-audio' | 'wait' | 'quota';
+  recovery: 'sign-in' | 'choose-speaker' | 'settings' | 'reconnect' | 'refresh' | 'wait' | 'quota';
 }
 
 /** Spotify's answer when it does not know the device a command named. */
@@ -112,7 +90,8 @@ export interface UseSpotifyPlayer {
   isLoading: boolean;
   isConnecting: boolean;
   isReady: boolean;
-  sdkActive: boolean;
+  /** Whether the kiosk's own player is the active device, and so reports every change itself. */
+  isPlayerActive: boolean;
   queueVersion: number;
   error: string | null;
   problem: PlaybackProblem | null;
@@ -127,16 +106,15 @@ export interface UseSpotifyPlayer {
   toggleShuffle: () => Promise<boolean>;
   cycleRepeat: () => Promise<boolean>;
   transferPlayback: (deviceId: string) => Promise<boolean>;
-  /** Playback was moved off this page outside Spotify Connect (a Sonos started the song itself): follow it remotely. */
+  /** Playback was moved off the kiosk outside Spotify Connect (a Sonos started the song itself): follow it remotely. */
   handOff: () => Promise<void>;
-  /** Starts a playlist, Liked Songs or a track: on the device that is playing, otherwise on this page's player. */
+  /** Starts a playlist, Liked Songs or a track: on the device that is playing, otherwise on the kiosk's player. */
   playMusic: (choice: MusicChoice) => Promise<boolean>;
   refreshPlayback: () => Promise<void>;
   /** Reads playback seldom (instead of every 4 s) while another device plays and nobody is watching the screen. */
   setSlowPolling: (slow: boolean) => void;
   retryPlayback: () => Promise<boolean>;
   reconnectPlayer: () => void;
-  allowBrowserAudio: () => Promise<boolean>;
 }
 
 /**
@@ -152,7 +130,7 @@ function project(state: PlaybackOrNull, at: number, now: number): PlaybackOrNull
 
 /**
  * `state` with a new playing flag. Spotify's `actions.disallows` says "resuming" while playing and "pausing" while
- * paused, so after the flag is changed here (by a press or an SDK event) those two are out of date and are dropped;
+ * paused, so after the flag is changed here (by a press or a player event) those two are out of date and are dropped;
  * left in, they would keep the Play button disabled until the next read from Spotify.
  */
 function withPlaying(state: PlaybackState, playing: boolean): PlaybackState {
@@ -162,14 +140,9 @@ function withPlaying(state: PlaybackState, playing: boolean): PlaybackState {
   return { ...state, is_playing: playing, actions: { ...state.actions, disallows } };
 }
 
-function nextTracksKey(state: SdkPlaybackState): string {
-  return (state?.track_window?.next_tracks ?? []).map(track => track.id ?? track.uri ?? '').join(',');
-}
-
 export function useSpotifyPlayer(): UseSpotifyPlayer {
-  // Settings change only through a reload, so they are read once. The one exception: a browser that cannot play
-  // (no Widevine) drops to remote mode for this page, without changing the stored setting.
-  const [playbackMode, setPlaybackMode] = useState(getPlaybackMode);
+  // Settings change only through a reload, so they are read once.
+  const [playbackMode] = useState(getPlaybackMode);
   const [isAuthenticated, setIsAuthenticated] = useState(isSignedIn);
   const [snapshot, setSnapshot] = useState<{ state: PlaybackOrNull; at: number }>({ state: null, at: 0 });
   const [now, setNow] = useState(Date.now);
@@ -177,16 +150,10 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   const [browserDeviceId, setBrowserDeviceId] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<PlaybackProblem | null>(null);
   const [actionError, setActionError] = useState<PlaybackProblem | null>(null);
-  const [sdkError, setSdkError] = useState<PlaybackProblem | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [playerError, setPlayerError] = useState<PlaybackProblem | null>(null);
   const [connectionVersion, setConnectionVersion] = useState(0);
-  // The browser player failed to start (its SDK did not load, or its token could not be fetched): 'failed', then
-  // 'unreachable' once a read finds Spotify unreachable too. Nothing else retries the player, and its network problem
-  // would stay, so it is connected again when a read gets through after that. A player that fails while Spotify answers
-  // (the SDK blocked, say) is not retried on every read.
-  const sdkFailureRef = useRef<'none' | 'failed' | 'unreachable'>('none');
-  // True while the SDK reports this player as the active device (it reports null once another device takes over).
-  const [sdkActive, setSdkActive] = useState(false);
+  // True while the kiosk's player reports itself as the active device (it reports null once another device takes over).
+  const [playerActive, setPlayerActive] = useState(false);
   const [slowPolling, setSlowPolling] = useState(false);
   const { enabled: pollEnabled, quotaExceeded } = useSpotifyPolling();
   // True once a different device was picked under Speakers: play/pause then go to that device through the Web API.
@@ -198,16 +165,10 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   const expectedDeviceRef = useRef<{ device: SpotifyDevice; until: number } | null>(null);
   const deviceCheckRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const playPauseInFlightRef = useRef(false);
-  // The Web Playback SDK player this page runs ("The Max Mix"), once it is connected.
-  const playerRef = useRef<SpotifyPlayer | null>(null);
-  const sdkActiveRef = useRef(false);
+  // The kiosk's own player (Spotify Soloist on the Pi), while the page is in browser mode.
+  const playerRef = useRef<SoloistPlayer | null>(null);
   const lastTrackIdRef = useRef<string | null>(null);
-  const lastNextTracksRef = useRef<string | null>(null);
   const deviceIdRef = useRef<string | null>(null);
-  // Brings the SDK player back in step after the page was in the background (set while the player exists).
-  const resumeRef = useRef<(() => void) | null>(null);
-  // Waiting for the player, connected again, to report ready with its new device id.
-  const readyWaitersRef = useRef<((deviceId: string) => void)[]>([]);
 
   const problemForApi = useCallback((error: unknown) => {
     if (error instanceof SpotifyApiError) recordSpotifyRetryAfter(error);
@@ -232,10 +193,6 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     return () => clearInterval(timer);
   }, [isPlayingNow]);
 
-  const markSdkActive = useCallback((active: boolean) => {
-    sdkActiveRef.current = active;
-    setSdkActive(active);
-  }, []);
   const bumpQueue = useCallback(() => setQueueVersion(version => version + 1), []);
 
   // Bumping the counter makes any in-flight playback request discard its result.
@@ -273,8 +230,8 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     return held.mode;
   }, []);
 
-  // The device a read should show: while playback is settling onto this page, a read that still names the previous
-  // device is shown as this page instead. Spotify agreeing, or the window passing, ends the hold.
+  // The device a read should show: while playback is settling onto the kiosk's player, a read that still names the
+  // previous device is shown as the kiosk instead. Spotify agreeing, or the window passing, ends the hold.
   const heldDevice = useCallback((state: PlaybackOrNull): PlaybackOrNull => {
     const held = expectedDeviceRef.current;
     if (!held || !state) return state;
@@ -301,10 +258,6 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     setActionError(current =>
       current?.message === NETWORK_ERROR_MESSAGE || current?.recovery === 'wait' ? null : current
     );
-    if (sdkFailureRef.current === 'unreachable') {
-      sdkFailureRef.current = 'none';
-      setConnectionVersion(version => version + 1);
-    }
     const expected = expectedPlayingRef.current;
     if (expected && state) {
       // Spotify agreeing, or the window passing, ends the hold; until then a stale read must not flip the button back.
@@ -319,11 +272,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
 
   const reportConnectionError = useCallback(
     (error: unknown) => {
-      const problem = problemForApi(error);
-      setConnectionError(problem);
-      if (problem.message === NETWORK_ERROR_MESSAGE && sdkFailureRef.current === 'failed') {
-        sdkFailureRef.current = 'unreachable';
-      }
+      setConnectionError(problemForApi(error));
       if (error instanceof SpotifyApiError && error.status === 401 && !isSignedIn()) {
         setIsAuthenticated(false);
         setPlayback(null);
@@ -349,12 +298,12 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   };
 
   // Reads playback from Spotify: at once, then every 4 s while another device plays, and only as a slow safety
-  // net while this page's SDK player is active and tells us about every change itself.
-  // Not while Spotify says another device plays (another device took over, or this page's player has not yet): the
+  // net while the kiosk's player is active and tells us about every change itself.
+  // Not while Spotify says another device plays (another device took over, or the kiosk's player has not yet): the
   // events then cannot be trusted to carry the changes, so the state is read every few seconds until it agrees.
   const readDeviceId = snapshot.state?.device?.id;
-  const sdkDriven =
-    sdkActive && !remoteSelected && (!readDeviceId || !browserDeviceId || readDeviceId === browserDeviceId);
+  const playerDriven =
+    playerActive && !remoteSelected && (!readDeviceId || !browserDeviceId || readDeviceId === browserDeviceId);
   useEffect(() => {
     // Once Spotify's quota is used up nothing reads it again until the app is restarted.
     if (!isAuthenticated || quotaExceeded) return;
@@ -365,7 +314,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     let failures = 0;
     const poll = async () => {
       let base = REMOTE_POLL_MS;
-      if (sdkDriven) base = SDK_POLL_MS;
+      if (playerDriven) base = PLAYER_POLL_MS;
       else if (slowPolling) base = ASLEEP_POLL_MS;
       let delay = base;
       try {
@@ -392,7 +341,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     isAuthenticated,
     quotaExceeded,
     pollEnabled,
-    sdkDriven,
+    playerDriven,
     slowPolling,
     refreshPlayback,
     invalidatePlayback,
@@ -407,7 +356,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       if (document.visibilityState === 'hidden') return;
       refreshPlayback().catch(() => {});
       bumpQueue();
-      resumeRef.current?.();
+      playerRef.current?.refresh();
     };
     document.addEventListener('visibilitychange', wake);
     window.addEventListener('focus', wake);
@@ -419,205 +368,75 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     };
   }, [isAuthenticated, quotaExceeded, refreshPlayback, bumpQueue]);
 
+  // The kiosk's own player: Spotify Soloist, which the Pi's service runs for the active person. Its events show every
+  // change at once, which the Web API's state endpoint only does a second or so later.
   useEffect(() => {
     if (!isAuthenticated || playbackMode !== 'browser') return;
-    let cancelled = false;
-    // Read through a function: TypeScript narrows the flag to `false` and cannot see the cleanup flip it mid-await.
-    const isCancelled = () => cancelled;
-    let player: SpotifyPlayer | undefined;
-
-    const applySdkState = (state: SdkPlaybackState) => {
-      if (isCancelled()) return;
-      markSdkActive(Boolean(state));
+    const applyPlayerState = (state: KioskPlaybackState) => {
+      setPlayerActive(Boolean(state));
       if (!state) return;
       holdPlaying(!state.paused);
-      if (!state.paused) setSdkError(null);
-      const track: Track | undefined = state.track_window?.current_track;
-      const trackId = track?.id ?? null;
-      const repeat = state.repeat_mode === undefined ? undefined : SDK_REPEAT_MODES[state.repeat_mode];
+      const { track } = state;
       setPlayback(current => ({
         ...withPlaying(current ?? {}, !state.paused),
         progress_ms: state.position,
         ...(state.duration !== undefined && { duration: state.duration }),
         ...(state.shuffle !== undefined && { shuffle_state: heldShuffle(state.shuffle) }),
-        ...(repeat && { repeat_state: heldRepeat(repeat) }),
-        // The Web API's track has more detail than the SDK's, so it is only replaced when the track changed.
+        ...(state.repeat && { repeat_state: heldRepeat(state.repeat) }),
+        // The Web API's track has more detail than the player's, so it is only replaced when the track changed.
         ...(track && current?.item?.id !== track.id && { item: track })
       }));
+      const trackId = track?.id ?? null;
       if (trackId !== lastTrackIdRef.current) {
         lastTrackIdRef.current = trackId;
         // The device and the rest of the details come from the Web API; read them now, not at the next safety poll.
         refreshPlayback().catch(() => {});
       }
-      const key = nextTracksKey(state);
-      if (key !== lastNextTracksRef.current) {
-        lastNextTracksRef.current = key;
+    };
+
+    const startTimer = setTimeout(() => {
+      setPlayerError({ message: 'The kiosk player did not start. Try reconnecting.', recovery: 'reconnect' });
+    }, PLAYER_START_MS);
+    const player = new SoloistPlayer({
+      onReady: deviceId => {
+        clearTimeout(startTimer);
+        debugLog('info', 'soloist', `Kiosk player ready as device ${deviceId}`);
+        deviceIdRef.current = deviceId;
+        setBrowserDeviceId(deviceId);
+        setPlayerError(null);
+        refreshPlayback().catch(() => {});
         bumpQueue();
-      }
-    };
-
-    const disconnect = () => {
-      cancelled = true;
-      player?.disconnect();
+      },
+      onNotReady: () => {
+        debugLog('warn', 'soloist', 'Kiosk player went offline');
+        deviceIdRef.current = null;
+        setBrowserDeviceId(null);
+        setPlayerError({
+          message: 'The tablet player disconnected. Check the connection or select another speaker.',
+          recovery: 'reconnect'
+        });
+      },
+      onState: applyPlayerState,
+      onQueue: bumpQueue
+    });
+    playerRef.current = player;
+    debugLog('info', 'soloist', 'Connecting the kiosk player');
+    player.connect();
+    return () => {
+      clearTimeout(startTimer);
+      player.disconnect();
       playerRef.current = null;
-      resumeRef.current = null;
       deviceIdRef.current = null;
-      sdkActiveRef.current = false;
       lastTrackIdRef.current = null;
-      lastNextTracksRef.current = null;
-      setSdkActive(false);
+      setPlayerActive(false);
       setBrowserDeviceId(null);
-      setIsConnecting(false);
     };
-
-    const initialize = async () => {
-      setIsConnecting(true);
-      setSdkError(null);
-      sdkFailureRef.current = 'none';
-      let sdk: SpotifySdk;
-      try {
-        sdk = await loadSpotifySDK();
-      } catch (error) {
-        if (!isCancelled()) {
-          disconnect();
-          sdkFailureRef.current = 'failed';
-          setSdkError({ message: errorMessage(error), recovery: 'reconnect' });
-        }
-        return;
-      }
-      try {
-        if (isCancelled()) return;
-        player = new sdk.Player({
-          name: 'The Max Mix',
-          getOAuthToken: callback => {
-            getAccessToken()
-              .then(token => {
-                if (token) callback(token);
-                else if (!isCancelled()) {
-                  setIsConnecting(false);
-                  setSdkError({ message: 'Spotify login expired. Sign in again in Settings.', recovery: 'sign-in' });
-                }
-              })
-              .catch((error: unknown) => {
-                if (!isCancelled()) {
-                  setIsConnecting(false);
-                  const problem = apiProblem(error);
-                  if (problem.message === NETWORK_ERROR_MESSAGE) sdkFailureRef.current = 'failed';
-                  setSdkError({ ...problem, recovery: problem.recovery === 'sign-in' ? 'sign-in' : 'reconnect' });
-                }
-              });
-          },
-          // Every kiosk start begins quiet; the volume slider takes it from there.
-          volume: 0.2
-        });
-        // The SDK reports every change at once, which the Web API's state endpoint only does a second or so later.
-        player.addListener('player_state_changed', applySdkState);
-        player.addListener('ready', ({ device_id }: { device_id: string }) => {
-          if (isCancelled()) return;
-          debugLog('info', 'sdk', `Browser player ready as device ${device_id}`);
-          deviceIdRef.current = device_id;
-          setBrowserDeviceId(device_id);
-          for (const resolve of readyWaitersRef.current.splice(0)) resolve(device_id);
-          setIsConnecting(false);
-          setSdkError(null);
-          refreshPlayback().catch(() => {});
-          bumpQueue();
-          // No state only means this page is not the active device yet; it must not undo what an event said.
-          player
-            ?.getCurrentState()
-            .then(state => {
-              if (state) applySdkState(state);
-            })
-            .catch(() => {});
-        });
-        player.addListener('not_ready', () => {
-          if (isCancelled()) return;
-          debugLog('warn', 'sdk', 'Browser player went offline (not_ready)');
-          deviceIdRef.current = null;
-          setBrowserDeviceId(null);
-          markSdkActive(false);
-          setIsConnecting(false);
-          setSdkError({
-            message: 'The tablet player disconnected. Check the connection or select another speaker.',
-            recovery: 'reconnect'
-          });
-        });
-        player.addListener('autoplay_failed', () => {
-          if (!isCancelled()) {
-            setIsConnecting(false);
-            setSdkError({
-              message: 'The browser blocked autoplay. Tap Play on the screen to start the music.',
-              recovery: 'enable-audio'
-            });
-          }
-        });
-        for (const event of ['initialization_error', 'authentication_error', 'account_error', 'playback_error']) {
-          player.addListener(event, ({ message }: { message: string }) => {
-            if (isCancelled()) return;
-            debugLog('error', 'sdk', `${event}: ${message}`);
-            setIsConnecting(false);
-            let recovery: PlaybackProblem['recovery'] = 'settings';
-            if (event === 'authentication_error') recovery = 'sign-in';
-            else if (event === 'playback_error') recovery = 'reconnect';
-            const showError = (reason: string | null, hint: string, action: PlaybackProblem['recovery'] = recovery) =>
-              setSdkError({
-                message: [`Browser playback: ${message}`, reason, hint].filter(Boolean).join(' '),
-                recovery: action
-              });
-            showError(null, '');
-            // A player that cannot start is nearly always missing Widevine; ask the browser and say so if it is. This
-            // browser then cannot be the speaker, so the page only controls another Spotify Connect device.
-            if (event === 'initialization_error') {
-              void widevineProblem().then(reason => {
-                if (!reason || isCancelled()) return;
-                showError(
-                  reason,
-                  'Switched to remote playback: choose a Spotify device under Speakers.',
-                  'choose-speaker'
-                );
-                setPlaybackMode('remote');
-              });
-            }
-          });
-        }
-        debugLog('info', 'sdk', 'Connecting the browser player');
-        const connected = await withTimeout(
-          player.connect(),
-          SDK_COMMAND_TIMEOUT_MS,
-          'The tablet player did not connect. Try reconnecting.'
-        );
-        if (isCancelled()) return;
-        resumeRef.current = () => {
-          // A dropped player registers again by connecting; a live one only needs its current state read.
-          if (!deviceIdRef.current) player?.connect().catch(() => {});
-          player
-            ?.getCurrentState()
-            .then(state => {
-              if (state) applySdkState(state);
-            })
-            .catch(() => {});
-        };
-        if (connected) playerRef.current = player;
-        else if (!isCancelled()) {
-          setIsConnecting(false);
-          setSdkError({ message: 'Could not connect the tablet player to Spotify.', recovery: 'reconnect' });
-        }
-      } catch (error) {
-        if (!isCancelled()) {
-          disconnect();
-          setSdkError(current => current ?? { message: errorMessage(error), recovery: 'reconnect' });
-        }
-      }
-    };
-    void initialize();
-    return disconnect;
   }, [
     isAuthenticated,
     playbackMode,
     holdPlaying,
     refreshPlayback,
     setPlayback,
-    markSdkActive,
     bumpQueue,
     heldShuffle,
     heldRepeat,
@@ -640,24 +459,23 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     [refreshPlayback, checkRetryWindow, problemForApi]
   );
 
-  // The SDK player is the one to drive while this page is the player: browser mode, connected, and no other device
-  // picked under Speakers. Otherwise commands go to the active device through the Web API.
-  const sdkPlayer = () => (browserDeviceId && !remoteSelected ? playerRef.current : null);
-  const isThisPlayerActive = () =>
-    sdkActiveRef.current || Boolean(browserDeviceId && playbackState?.device?.id === browserDeviceId);
+  // The kiosk's player is the one to drive unless another device was picked under Speakers. Soloist's commands act on
+  // whichever device is active, so they only go to it while it reports itself active; otherwise commands go to the
+  // active device through the Web API.
+  const kioskPlayer = () => (remoteSelected ? null : playerRef.current);
 
-  /** Runs an SDK transport command; its state change arrives as a `player_state_changed` event. */
-  const runSdkCommand = async (command: (player: SpotifyPlayer) => Promise<void>) => {
-    const player = sdkPlayer();
-    if (!player || !isThisPlayerActive()) return null;
+  /** Runs a command on the kiosk's player; its state change arrives as an event. Null when the player is not active. */
+  const runPlayerCommand = async (command: (player: SoloistPlayer) => Promise<void>) => {
+    const player = kioskPlayer();
+    if (!player?.isActive) return null;
     try {
-      await withTimeout(command(player), SDK_COMMAND_TIMEOUT_MS, 'Spotify did not answer. Try again.');
+      await command(player);
       setActionError(null);
       return true;
     } catch (error) {
       setActionError(problemForApi(error));
-      // The player may have dropped; reconnect it and read where it really is.
-      resumeRef.current?.();
+      // The player may have dropped; read where it really is.
+      player.refresh();
       return false;
     }
   };
@@ -665,13 +483,13 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   useEffect(() => () => clearTimeout(deviceCheckRef.current), []);
 
   /**
-   * Playback is being started on, or moved to, this page's player: show it as the device until Spotify says so too
+   * Playback is being started on, or moved to, the kiosk's player: show it as the device until Spotify says so too
    * (its state lags by seconds and would name the previous device), and read once more shortly to check.
    */
   const holdThisDevice = useCallback(() => {
     const id = deviceIdRef.current ?? browserDeviceId;
     if (!id) return;
-    const device: SpotifyDevice = { id, name: THIS_DEVICE_NAME, type: 'Computer', is_active: true };
+    const device: SpotifyDevice = { id, name: KIOSK_DEVICE_NAME, type: 'Speaker', is_active: true };
     expectedDeviceRef.current = { device, until: Date.now() + EXPECTED_DEVICE_MS };
     clearTimeout(deviceCheckRef.current);
     deviceCheckRef.current = setTimeout(() => {
@@ -684,26 +502,18 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
   }, []);
 
   /**
-   * Spotify can forget this page's player while the SDK still holds it as connected (no `not_ready` event comes), and
-   * then refuses every command naming it with 404. The player is connected again, which registers a new device, and
-   * this resolves with its id, or null when it does not come back in time.
+   * Spotify can answer 404 for the kiosk's player under the id it was listed with (Soloist started again, or Spotify
+   * listed it anew). The player is looked up in Spotify's device list again, and this resolves with its id, or null
+   * when Spotify does not list it.
    */
   const reregister = useCallback(async (): Promise<string | null> => {
-    debugLog('warn', 'sdk', 'Spotify does not know the browser player any more; connecting it again');
-    const ready = new Promise<string>(resolve => {
-      readyWaitersRef.current.push(resolve);
-    });
-    setConnectionVersion(version => version + 1);
-    try {
-      return await withTimeout(ready, SDK_COMMAND_TIMEOUT_MS, 'The tablet player did not connect again.');
-    } catch {
-      return null;
-    }
+    debugLog('warn', 'soloist', 'Spotify does not know the kiosk player under its id any more; looking it up again');
+    return (await playerRef.current?.refreshDevice()) ?? null;
   }, []);
 
   /**
-   * Runs a command that names this page's player. When Spotify answers that it does not know the player, the player is
-   * connected again and the command runs once more on its new id (and once after a short wait, while Spotify catches up).
+   * Runs a command that names the kiosk's player. When Spotify answers that it does not know the player, it is looked
+   * up again and the command runs once more on its id (and once after a short wait, while Spotify catches up).
    */
   const onThisPlayer = useCallback(
     async <T>(deviceId: string, run: (id: string) => Promise<T>): Promise<T> => {
@@ -737,10 +547,10 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       if (toThisPage) await onThisPlayer(deviceId, id => spotify.transferPlayback(id, play));
       else await spotify.transferPlayback(deviceId, play);
       setRemoteSelected(!toThisPage);
-      // This page's player is now the active device: later presses use the SDK, not another transfer.
+      // The kiosk's player is now the active device: later presses go to it, not into another transfer.
       if (toThisPage) {
         holdThisDevice();
-        markSdkActive(true);
+        setPlayerActive(true);
       } else {
         releaseDevice();
       }
@@ -748,16 +558,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       bumpQueue();
       setActionError(null);
     },
-    [
-      browserDeviceId,
-      markSdkActive,
-      refreshPlayback,
-      bumpQueue,
-      checkRetryWindow,
-      holdThisDevice,
-      releaseDevice,
-      onThisPlayer
-    ]
+    [browserDeviceId, refreshPlayback, bumpQueue, checkRetryWindow, holdThisDevice, releaseDevice, onThisPlayer]
   );
 
   // Flips the button at once and holds that state against stale reads; a second press while the first command is still
@@ -770,13 +571,12 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     holdPlaying(playing);
     setPlayback(current => (current ? withPlaying(current, playing) : current));
     try {
-      const player = sdkPlayer();
-      // Browsers only start audio from a user gesture, and this press is one.
-      player?.activateElement().catch(() => {});
+      const player = kioskPlayer();
       let ok: boolean;
-      if (player && isThisPlayerActive()) ok = (await runSdkCommand(active => active.togglePlay())) === true;
-      else if (player && playing && browserDeviceId) {
-        // Not the active device yet: the first Play makes this page the player (on a press, so loading the page
+      if (player?.isActive) {
+        ok = (await runPlayerCommand(active => (playing ? active.play() : active.pause()))) === true;
+      } else if (player && playing && browserDeviceId) {
+        // Not the active device yet: the first Play makes the kiosk the player (on a press, so loading the page
         // never takes over what is playing elsewhere).
         try {
           await transferTo(browserDeviceId, true);
@@ -796,8 +596,8 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     }
   };
 
-  const transport = async (command: (player: SpotifyPlayer) => Promise<void>, apiCommand: () => Promise<unknown>) =>
-    (await runSdkCommand(command)) ?? runCommand(apiCommand);
+  const transport = async (command: (player: SoloistPlayer) => Promise<void>, apiCommand: () => Promise<unknown>) =>
+    (await runPlayerCommand(command)) ?? runCommand(apiCommand);
 
   /**
    * Sends a shuffle or repeat change. The button shows the new setting at once and keeps it against reads that predate
@@ -854,12 +654,12 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     }
   };
 
-  // The account now plays somewhere this page did not send it through Spotify (a Sonos playing the song itself). This
-  // page stops treating its own player as the active one and follows playback through the Web API, as after moving to
-  // a Connect speaker, so the tablet going quiet is not reported as a problem.
+  // The account now plays somewhere this page did not send it through Spotify (a Sonos playing the song itself). The
+  // page stops treating the kiosk's player as the active one and follows playback through the Web API, as after moving
+  // to a Connect speaker, so the kiosk going quiet is not reported as a problem.
   const handOff = async () => {
     setRemoteSelected(true);
-    markSdkActive(false);
+    setPlayerActive(false);
     releaseDevice();
     expectedPlayingRef.current = null;
     setActionError(null);
@@ -871,26 +671,6 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     bumpQueue();
   };
 
-  const allowBrowserAudio = async () => {
-    const player = playerRef.current;
-    if (!player) {
-      setSdkError({ message: 'The browser player is not connected.', recovery: 'reconnect' });
-      return false;
-    }
-    try {
-      await withTimeout(
-        player.activateElement(),
-        SDK_COMMAND_TIMEOUT_MS,
-        'The browser did not enable audio. Try again.'
-      );
-      setSdkError(null);
-      return true;
-    } catch (error) {
-      setSdkError({ message: errorMessage(error), recovery: 'enable-audio' });
-      return false;
-    }
-  };
-
   const nextTrack = () =>
     transport(
       player => player.nextTrack(),
@@ -898,9 +678,6 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     );
 
   const playMusic = async (choice: MusicChoice) => {
-    const player = sdkPlayer();
-    // Browsers only start audio from a user gesture, and the tap on the choice is one.
-    player?.activateElement().catch(() => {});
     const activeId = playbackState?.device?.id ?? null;
     const deviceId = remoteSelected && activeId ? activeId : (browserDeviceId ?? activeId);
     const toThisPage = Boolean(deviceId) && deviceId === browserDeviceId;
@@ -915,7 +692,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     if (ok) {
       if (toThisPage) {
         setRemoteSelected(false);
-        markSdkActive(true);
+        setPlayerActive(true);
       }
       bumpQueue();
     } else {
@@ -924,7 +701,9 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     return ok;
   };
 
-  const problem = actionError ?? connectionError ?? sdkError;
+  const problem = actionError ?? connectionError ?? playerError;
+  // The kiosk's player is on its way until it is ready or has a problem to report.
+  const isConnecting = isAuthenticated && playbackMode === 'browser' && !browserDeviceId && !playerError;
   return {
     playbackState,
     browserDeviceId,
@@ -933,7 +712,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     isLoading: isAuthenticated && !loaded,
     isConnecting,
     isReady: Boolean(playbackState?.device),
-    sdkActive: sdkDriven,
+    isPlayerActive: playerDriven,
     queueVersion,
     error: problem?.message ?? null,
     problem,
@@ -960,7 +739,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
       ),
     setVolume: (volume: number) =>
       transport(
-        player => player.setVolume(volume),
+        player => player.setVolume(volume * 100),
         () => spotify.setVolume(Math.round(volume * 100))
       ),
     toggleShuffle: () => {
@@ -977,7 +756,9 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     refreshPlayback,
     setSlowPolling,
     retryPlayback,
-    allowBrowserAudio,
-    reconnectPlayer: () => setConnectionVersion(version => version + 1)
+    reconnectPlayer: () => {
+      setPlayerError(null);
+      setConnectionVersion(version => version + 1);
+    }
   };
 }

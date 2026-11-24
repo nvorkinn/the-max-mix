@@ -2,7 +2,8 @@ import { expect, test, type Page, type Locator } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
 import type { PlaybackState } from '../src/types.ts';
 import { advance } from './clock.ts';
-import { fakeSpotifySdk } from './fake-spotify-sdk.ts';
+import { fakeKioskOutputs } from './fake-kiosk.ts';
+import { fakeSoloist } from './fake-soloist.ts';
 import { countPlaybackReads, fakeSpotify, noLyrics, PIXEL } from './fake-spotify.ts';
 import { openSpotifyTab } from './spotify-tab.ts';
 
@@ -396,59 +397,23 @@ test.describe('Playback status and recovery', { tag: '@status' }, () => {
   });
 
   test.describe("when this tablet's own player has trouble", () => {
-    test.beforeEach(async ({ page }) => {
-      await fakeSpotify(page);
-    });
-
-    test('a player that drops offline offers Reconnect, and a fresh player clears the problem', async ({ page }) => {
-      const sdk = await fakeSpotifySdk(page);
+    test('a player that drops offline offers Reconnect, and a player back again clears the problem', async ({
+      page
+    }) => {
+      const spotify = await fakeSpotify(page);
+      await fakeKioskOutputs(page, []);
+      const soloist = await fakeSoloist(page, spotify);
       await openSpotifyTab(page);
       await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-      await expect.poll(() => sdk.players()).toBe(1);
+      await expect.poll(() => soloist.connections()).toBe(1);
 
-      await sdk.emit('not_ready');
+      soloist.lose();
       const problem = page.locator('.player-problem');
       await expect(problem).toContainText('Tablet player disconnected');
 
       await problem.getByRole('button', { name: 'Reconnect player' }).click();
-      await expect.poll(() => sdk.players()).toBe(2);
+      await expect.poll(() => soloist.connections()).toBe(2);
       await expect(problem).toHaveCount(0);
-    });
-
-    test('blocked autoplay offers Allow browser audio, which asks the browser and clears the problem', async ({
-      page
-    }) => {
-      const sdk = await fakeSpotifySdk(page);
-      await openSpotifyTab(page);
-      await expect.poll(() => sdk.players()).toBe(1);
-
-      await sdk.emit('autoplay_failed');
-      const problem = page.locator('.player-problem');
-      await expect(problem).toContainText('Audio blocked');
-      expect(await sdk.activations()).toBe(0);
-
-      await problem.getByRole('button', { name: 'Allow browser audio' }).click();
-      await expect.poll(() => sdk.activations()).toBe(1);
-      await expect(problem).toHaveCount(0);
-    });
-
-    test('a browser that cannot play protected music falls back to controlling a Spotify speaker', async ({ page }) => {
-      // The browser has no Widevine, which is what Spotify's player needs.
-      await page.addInitScript(() => {
-        Object.defineProperty(navigator, 'requestMediaKeySystemAccess', { value: undefined, configurable: true });
-      });
-      const sdk = await fakeSpotifySdk(page);
-      await openSpotifyTab(page);
-      await expect.poll(() => sdk.players()).toBe(1);
-
-      await sdk.emit('initialization_error', { message: 'Failed to initialize player' });
-      const problem = page.locator('.player-problem');
-      await expect(problem).toContainText('No speaker available');
-      await problem.getByRole('button', { name: 'Choose speaker' }).click();
-      const view = page.getByRole('region', { name: 'Speakers' });
-      await expect(view.getByRole('checkbox', { name: 'Test speaker' })).toBeVisible();
-      // This tablet is not offered as a speaker any more.
-      await expect(view.getByRole('checkbox', { name: 'This tablet' })).toHaveCount(0);
     });
   });
 });
