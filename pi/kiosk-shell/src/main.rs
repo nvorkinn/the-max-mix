@@ -77,6 +77,12 @@ mod linux {
             request.allow();
             true
         });
+        // A crashed or killed page process leaves the window blank: load the app again at once, rather than wait for the
+        // kiosk-audio watchdog to miss heartbeats and restart the whole shell.
+        webview.connect_web_process_terminated(|webview, reason| {
+            eprintln!("kiosk-shell: the page process ended ({reason:?}); loading the app again");
+            webview.reload();
+        });
         grant_wake_lock(webview);
         one_finger(webview);
     }
