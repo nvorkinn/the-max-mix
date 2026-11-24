@@ -51,15 +51,18 @@ export function usePhoneSignIn(onSignedIn: () => void, as = ''): PhoneSignInStat
         later();
         return;
       }
+      const { verifier } = signIn;
       const reply = await phoneSignInReply(client, signIn, signal);
       if (signal.aborted) return;
-      if (reply === 'gone') signIn = null;
-      if (reply === null || reply === 'waiting' || reply === 'gone') {
+      if (reply === null || reply === 'waiting') {
         later();
         return;
       }
-      const { verifier } = signIn;
       signIn = null;
+      if (reply === 'gone') {
+        later();
+        return;
+      }
       const result = await finishSignIn(reply, verifier, as);
       if (signal.aborted) return;
       if (result.ok) {
