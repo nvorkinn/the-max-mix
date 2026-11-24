@@ -16,6 +16,7 @@ function handlers() {
   return {
     onReady: vi.fn<SoloistHandlers['onReady']>(),
     onNotReady: vi.fn<SoloistHandlers['onNotReady']>(),
+    onSignedOut: vi.fn<SoloistHandlers['onSignedOut']>(),
     onState: vi.fn<SoloistHandlers['onState']>(),
     onQueue: vi.fn<SoloistHandlers['onQueue']>()
   };
@@ -285,6 +286,23 @@ describe('SoloistPlayer', () => {
     await settle();
     expect(on.onNotReady).toHaveBeenCalledOnce();
     expect(on.onReady).toHaveBeenLastCalledWith('soloist-2');
+  });
+
+  it('says when Soloist waits to be signed in, and looks it up once someone does', async () => {
+    const on = handlers();
+    const player = new SoloistPlayer(on);
+    player.connect();
+    const socket = latestFakeSocket();
+    socket.open();
+    socket.receive({ type: 'bridge', connected: true });
+    socket.receive({ ...authState(false), logged_in: false });
+    await settle();
+    expect(on.onSignedOut).toHaveBeenCalledOnce();
+    expect(getDevices).not.toHaveBeenCalled();
+    socket.receive(authState(false));
+    await settle();
+    expect(on.onReady).toHaveBeenCalledExactlyOnceWith('soloist-1');
+    expect(on.onSignedOut).toHaveBeenCalledOnce();
   });
 
   it('drops a lookup that Soloist went away during', async () => {

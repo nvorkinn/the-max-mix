@@ -148,6 +148,25 @@ describe('useSpotifyPlayer with the kiosk player', () => {
     expect(result.current.problem).toBeNull();
   });
 
+  it('asks for Soloist to be picked on a phone while it waits to be signed in, and clears that once it is', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useSpotifyPlayer());
+    await advance(0);
+    const socket = joinSoloist(false);
+    await advance(0);
+    act(() => {
+      socket.receive({ ...authState(false), logged_in: false });
+    });
+    await advance(30_000);
+    expect(result.current.error).toBe('To sign the kiosk in, pick The Max Mix Soloist in Spotify on your phone.');
+    act(() => {
+      socket.receive(authState(false));
+    });
+    await advance(0);
+    expect(result.current.browserDeviceId).toBe('soloist-1');
+    expect(result.current.problem).toBeNull();
+  });
+
   it('closes the connection on unmount', async () => {
     const { unmount, socket } = await ready();
     unmount();
