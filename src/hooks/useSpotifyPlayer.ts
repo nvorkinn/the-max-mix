@@ -438,7 +438,9 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         clearTimeout(startTimer);
         clearTimeout(signInTimer);
         debugLog('info', 'soloist', 'Kiosk player waits to be signed in');
-        // Soloist says it is signed out for a moment as it starts, before it restores the person's session.
+        // Soloist says it is signed out for a moment as it starts, before it restores the person's session, so neither
+        // that nor the disconnect it causes is reported unless it lasts.
+        setPlayerError(null);
         signInTimer = setTimeout(() => {
           setPlayerError({
             message: `To sign the kiosk in, pick ${KIOSK_DEVICE_NAME} in Spotify on your phone.`,
