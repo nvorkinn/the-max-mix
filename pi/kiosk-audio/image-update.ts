@@ -252,7 +252,8 @@ export async function run(io: UpdateIO, isScheduled: boolean): Promise<Checked |
 export async function afterBoot(io: UpdateIO): Promise<'trial' | 'normal'> {
   const state = await readState(io);
   const pending = state.pending;
-  if (!pending?.tried) return 'normal';
+  // A trial boot counts even with no note, e.g. after an install by hand with `rauc install`.
+  if (!pending?.tried) return (await io.isTrialBoot()) ? 'trial' : 'normal';
   const booted = await io.rauc.bootSlot();
   if (booted === pending.slot && (await io.isTrialBoot())) return 'trial';
   if (booted === pending.slot) {

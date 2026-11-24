@@ -256,6 +256,15 @@ describe('after a boot', () => {
     expect(world.state).toMatchObject({ pending: null, failed: ['dev+bbb'] });
   });
 
+  it('gives up on a trial boot it has no note for, such as an install by hand', async () => {
+    const { io, world } = pi({ booted: 'b', trial: true });
+    const boot = await afterBoot(io);
+    expect(boot).toBe('trial');
+    await giveUp(io, boot, 'Cage is not running.');
+    expect(world.marks).toEqual(['bad booted']);
+    expect(world.ran).toEqual([['/usr/bin/systemctl', 'reboot']]);
+  });
+
   it('only marks an ordinary boot good, and never reboots it', async () => {
     const { io, world } = pi({ state: { pending: { version: 'v2+bbb', slot: 'b', tried: false } } });
     const boot = await afterBoot(io);

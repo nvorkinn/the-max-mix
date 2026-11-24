@@ -64,6 +64,9 @@ Left out, because the image replaces them:
   the new slot is the switch.
 - unattended-upgrades and its settings: security fixes ship as image releases.
 
+The read-only root: `/tmp`, `/var/tmp` and `/var/cache` are in memory, and `/var/lib` is an overlay whose changes stay
+in memory (logind, the backlight level, udisks2), with `persist.list`'s binds from `/data` on top. Swap is zram only
+(`/etc/rpi/swap.conf.d`), and the radios' rfkill state is not restored, so Wi-Fi is never left blocked.
+
 Still to prove on a Pi (the spike): that `/etc/hostname` and `/etc/machine-id` from `/data` are in place before
-systemd reads them early in boot, that `root=PARTLABEL=` boots, and that the read-only root needs nothing else
-to write to (`/var/log` besides the journal, `/var/lib/systemd`).
+systemd reads them early in boot, and that nothing else needs to write to the root.
