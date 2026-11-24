@@ -160,7 +160,7 @@ the kiosk's page under Remote Target (add `localhost:9222` under Configure if it
 ## Spotify Soloist
 
 Each Pi also runs [Spotify Soloist](https://developer.spotify.com/documentation/soloist), Spotify's headless Spotify
-Connect player, as **The Max Mix Soloist**, beside the app's own player for now. Its sound follows the speakers picked in
+Connect player, under the kiosk's own name, beside the app's own player for now. Its sound follows the speakers picked in
 the app, like the app's own player (kiosk-audio routes its `soloist` stream). `kiosk-soloist-update.timer` installs the
 latest build to `/usr/local/bin/soloist` five minutes after boot and then weekly, because a build stops working 90 days
 after it was built; a new build takes over at the next kiosk start. Spotify does not allow passing the program on, so
@@ -175,7 +175,12 @@ person's key, holds it in memory only and runs Soloist with it and the person's 
 `~kiosk/.local/state/soloist/people/<Spotify ID>` (`pi/kiosk-audio/soloist.ts`). Switching person restarts it with the
 other key and folder. A person without a key gets no Soloist.
 
-The first time, the person picks **The Max Mix Soloist** in the Spotify app on a phone on the same network; it signs in
+Every kiosk on one Spotify account needs a name of its own, because the app finds its Soloist in Spotify's device list
+by name. It is `kiosk_name` in `/etc/the-max-mix/kiosk-vars.yml` (such as `kiosk_name: Kitchen`) or, without one, comes
+from the host name: `the-max-mix-4` is **The Max Mix 4**, and any other host name goes in brackets, as in
+**The Max Mix (kitchen-pi)**. The app shows whatever name Soloist reports.
+
+The first time, the person picks the kiosk's name in the Spotify app on a phone on the same network; it signs in
 and keeps that session in their folder. Its WebSocket control API listens on `127.0.0.1:7342` only. Check it with
 `sudo journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service | grep Soloist`, `journalctl -u kiosk-soloist-update` and
 `sudo -u kiosk env STATE_DIRECTORY=/home/kiosk/.local/state/soloist/people/<Spotify ID> soloist ctl now`.

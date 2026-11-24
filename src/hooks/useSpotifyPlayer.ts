@@ -24,8 +24,6 @@ const EXPECTED_PLAYING_MS = 5000;
 // The same for the device: right after playback is started on, or moved to, the kiosk's player, a read still names the
 // device that played before. For this long the page keeps showing the kiosk as the device (and reads again once to check).
 const EXPECTED_DEVICE_MS = 8000;
-// The name the Pi's service gives Spotify Soloist (pi/kiosk-audio/soloist.ts).
-const KIOSK_DEVICE_NAME = 'The Max Mix Soloist';
 const DEVICE_CHECK_MS = 3000;
 // The same for shuffle and repeat: a tap shows its result at once and keeps it this long against reads that predate it.
 const EXPECTED_SETTING_MS = 5000;
@@ -49,6 +47,8 @@ type PlaybackOrNull = PlaybackState | null;
 
 export interface PlaybackProblem {
   message: string;
+  /** For pick-on-phone: the name the kiosk's Soloist goes by in Spotify Connect, as it reported it. */
+  device?: string;
   recovery:
     | 'sign-in'
     | 'choose-speaker'
@@ -507,9 +507,12 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         // that nor the disconnect it causes is reported unless it lasts.
         setPlayerError(null);
         signInTimer = setTimeout(() => {
+          // The name Soloist reported, which kiosk-audio picks for each kiosk (pi/kiosk-audio/soloist.ts).
+          const device = playerRef.current?.deviceName ?? undefined;
           setPlayerError({
-            message: `To sign the kiosk in, pick ${KIOSK_DEVICE_NAME} in Spotify on your phone.`,
-            recovery: 'pick-on-phone'
+            message: `To sign the kiosk in, pick ${device ?? 'it'} in Spotify on your phone.`,
+            recovery: 'pick-on-phone',
+            ...(device && { device })
           });
         }, SIGN_IN_GRACE_MS);
       },
@@ -580,8 +583,10 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
    */
   const holdThisDevice = useCallback(() => {
     const id = deviceIdRef.current ?? browserDeviceId;
-    if (!id) return;
-    const device: SpotifyDevice = { id, name: KIOSK_DEVICE_NAME, type: 'Speaker', is_active: true };
+    // Its id was found by this name, so it is there whenever the id is.
+    const name = playerRef.current?.deviceName;
+    if (!id || !name) return;
+    const device: SpotifyDevice = { id, name, type: 'Speaker', is_active: true };
     expectedDeviceRef.current = { device, until: Date.now() + EXPECTED_DEVICE_MS };
     clearTimeout(deviceCheckRef.current);
     deviceCheckRef.current = setTimeout(() => {

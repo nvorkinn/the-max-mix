@@ -186,11 +186,12 @@ describe('useSpotifyPlayer with the kiosk player', () => {
     const socket = joinSoloist(false);
     await advance(0);
     act(() => {
-      socket.receive({ ...authState(false), logged_in: false });
+      socket.receive({ ...authState(false, 'The Max Mix 4'), logged_in: false });
     });
     await advance(30_000);
-    expect(result.current.error).toBe('To sign the kiosk in, pick The Max Mix Soloist in Spotify on your phone.');
-    expect(result.current.problem?.recovery).toBe('pick-on-phone');
+    // The name Soloist reported, which kiosk-audio picks for each kiosk.
+    expect(result.current.error).toBe('To sign the kiosk in, pick The Max Mix 4 in Spotify on your phone.');
+    expect(result.current.problem).toMatchObject({ recovery: 'pick-on-phone', device: 'The Max Mix 4' });
     act(() => {
       socket.receive(authState(false));
     });
@@ -495,7 +496,7 @@ describe('useSpotifyPlayer drives the kiosk player', () => {
     expect(mocks.api.playChoice).toHaveBeenCalledWith(choice, 'soloist-1');
     expect(result.current.isPlayerActive).toBe(true);
     // Spotify still names the phone; the kiosk is shown while it catches up.
-    expect(result.current.playbackState?.device).toMatchObject({ id: 'soloist-1', name: 'The Max Mix Soloist' });
+    expect(result.current.playbackState?.device).toMatchObject({ id: 'soloist-1', name: RECORDED_DEVICE_NAME });
   });
 
   it('looks the player up again and retries when Spotify no longer knows it', async () => {

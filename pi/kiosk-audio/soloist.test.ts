@@ -6,7 +6,7 @@ import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchSoloistKey, SoloistPlayer, validSoloistRequest } from './soloist.ts';
+import { fetchSoloistKey, SoloistPlayer, soloistDeviceName, validSoloistRequest } from './soloist.ts';
 import type { FetchKey, KeyResult, SoloistRequest } from './soloist.ts';
 
 const REQUEST: SoloistRequest = { person: 'nikolai', server: 'https://api.countdown.build', secret: 'device-secret' };
@@ -43,6 +43,7 @@ async function player() {
   const fetchKey = vi.fn<FetchKey>(request => Promise.resolve(KEYS[request.person] ?? { error: 'no-key' }));
   const soloist = new SoloistPlayer({
     stateDir,
+    deviceName: 'The Max Mix 4',
     fetchKey,
     restartMs: 5,
     log: () => {
@@ -77,6 +78,30 @@ describe('validSoloistRequest', () => {
   });
 });
 
+describe('soloistDeviceName', () => {
+  it('takes the kiosk’s configured name first', () => {
+    expect(soloistDeviceName('Kitchen', 'the-max-mix-4')).toBe('Kitchen');
+    expect(soloistDeviceName('  Living room \n', 'the-max-mix-1')).toBe('Living room');
+  });
+
+  it('names the kiosk after its host name otherwise', () => {
+    expect(soloistDeviceName(undefined, 'the-max-mix-4')).toBe('The Max Mix 4');
+    expect(soloistDeviceName('', 'the-max-mix-1')).toBe('The Max Mix 1');
+    expect(soloistDeviceName(' '.repeat(3), 'The-Max-Mix-12')).toBe('The Max Mix 12');
+    expect(soloistDeviceName(undefined, 'the-max-mix')).toBe('The Max Mix');
+  });
+
+  it('keeps a host name that is not the-max-mix-<n> whole, in brackets', () => {
+    expect(soloistDeviceName(undefined, 'living-room')).toBe('The Max Mix (living-room)');
+    expect(soloistDeviceName(undefined, 'kitchen-pi')).toBe('The Max Mix (kitchen-pi)');
+    expect(soloistDeviceName(undefined, '')).toBe('The Max Mix');
+  });
+
+  it('keeps a long name within what Spotify shows', () => {
+    expect(soloistDeviceName('x'.repeat(100), 'the-max-mix-4')).toHaveLength(64);
+  });
+});
+
 describe('SoloistPlayer', () => {
   it("runs Soloist with the person's key and their own data folder", async () => {
     const { soloist, runs, fetchKey, stateDir } = await player();
@@ -84,6 +109,7 @@ describe('SoloistPlayer', () => {
     expect(fetchKey).toHaveBeenCalledWith(REQUEST);
     expect(argument(runs[0], '--api-key')).toBe('key-n');
     expect(argument(runs[0], '--ws')).toBe('127.0.0.1:7342');
+    expect(argument(runs[0], '--device-name')).toBe('The Max Mix 4');
     const dataDir = argument(runs[0], '--data-dir') ?? '';
     expect(dataDir).toBe(path.join(stateDir, 'people', 'nikolai'));
     expect((await stat(dataDir)).mode & 0o777).toBe(0o700);
