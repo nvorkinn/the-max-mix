@@ -39,7 +39,7 @@ const behind = bus('LX11AVD', '35', 'Clapham Junction', '09:29:00');
 const ahead = { ...behind, expected_at: '2026-11-17T09:27:30Z' };
 
 /**
- * Records the property of every transition that starts, and the properties the keyframes of every animation change on
+ * Records the property of every transition that runs, and the properties the keyframes of every animation change on
  * the Dashboard's rows and notices, read as the animation is given (the page's clock runs far faster than the screen's).
  */
 async function recordMotion(page: Page) {
@@ -50,8 +50,10 @@ async function recordMotion(page: Page) {
       const root = document.documentElement;
       root.dataset['motion'] = `${root.dataset['motion'] ?? ''} ${kind}`;
     };
+    // transitionrun, not transitionstart: the faked clock can end a row's fade (its timer removes the row) before the
+    // engine draws a frame, and WebKit then cancels the transition without ever sending transitionstart.
     document.addEventListener(
-      'transitionstart',
+      'transitionrun',
       event => {
         note(`transition:${event.propertyName}`);
       },

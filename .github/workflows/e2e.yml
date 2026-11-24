@@ -66,6 +66,8 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-webkit-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install WebKit
+        # It takes half a minute; a stalled apt download must not hold the job for its full 20 minutes.
+        timeout-minutes: 4
         env:
           CACHED: ${{ steps.browsers.outputs.cache-hit }}
         run: |
