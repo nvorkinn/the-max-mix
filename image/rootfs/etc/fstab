@@ -1,0 +1,8 @@
+# The data partition, where everything in image/persist.list lives. kiosk-first-boot.service grows and formats it
+# before this mounts (Before=data.mount) on the first boot. The root file system is mounted read-only from the kernel
+# command line (image/boot/cmdline.txt), and each slot's boot partition only when an update needs it.
+PARTLABEL=data  /data      ext4   defaults,noatime                  0  2
+# What programs write as they run, kept in memory: the root file system is read-only.
+tmpfs           /tmp       tmpfs  mode=1777,nosuid,nodev            0  0
+tmpfs           /var/tmp   tmpfs  mode=1777,nosuid,nodev            0  0
+tmpfs           /var/cache tmpfs  mode=0755,nosuid,nodev            0  0

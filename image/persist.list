@@ -1,0 +1,35 @@
+# Everything on the Pi that outlives an update. The root file system is read-only and replaced whole by each release;
+# each line here is bind-mounted from the data partition (/data) over a path in it, so that path keeps the Pi's own
+# state. Anything not listed is lost at the next update, which is the point: config removed from the repository is
+# removed from every Pi.
+#
+# Format: KIND PATH SOURCE, where KIND is dir or file, PATH is the absolute path in the image (the image has it, empty)
+# and SOURCE is the path under /data. Checked by scripts/check-image.ts. A file's format only ever grows (new keys,
+# never renamed ones), so the previous image can still read /data after a newer one wrote it.
+#
+# The Pi's own settings, /data/the-max-mix/kiosk.env, are read from /data directly and need no line.
+
+# Wi-Fi: NetworkManager's connections, kept as netplan on Pi OS, and its own state (leases, Wi-Fi on or off)
+dir  /etc/NetworkManager/system-connections  network/system-connections
+dir  /etc/netplan                            network/netplan
+dir  /var/lib/NetworkManager                 network/state
+# Bluetooth pairings (phones and speakers)
+dir  /var/lib/bluetooth                      bluetooth
+# The kiosk user's home: Chromium's profile (people, Spotify sign-ins, the countdown device), PipeWire's and
+# WirePlumber's state, and ~/.local/state/the-max-mix (the Soloist key, speakers, phones)
+dir  /home/kiosk                             home/kiosk
+# The admin account's SSH keys (from GitHub and Raspberry Pi Imager's wizard)
+dir  /home/admin                             home/admin
+# The Pi's SSH identity (sshd_config.d/10-kiosk.conf)
+dir  /etc/ssh/host-keys                      ssh
+# Tailscale's login
+dir  /var/lib/tailscale                      tailscale
+# The Pi's identity: host name and machine ID
+file /etc/hostname                           identity/hostname
+file /etc/machine-id                         identity/machine-id
+# The journal (64 MB at most, journald.conf.d/kiosk.conf) and when each timer last ran
+dir  /var/log/journal                        journal
+dir  /var/lib/systemd/timers                 timers
+# The last time the clock was set: the Pi 4 has no clock of its own, and without it boots in the past until it reaches
+# a time server.
+dir  /var/lib/systemd/timesync               timesync

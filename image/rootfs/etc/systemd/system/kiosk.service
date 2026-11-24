@@ -1,0 +1,68 @@
+[Unit]
+Description=THE MAX MIX kiosk (Cage on tty7)
+# Based on Cage's own systemd example.
+After=systemd-user-sessions.service systemd-logind.service dbus.socket getty@tty7.service
+Wants=dbus.socket systemd-logind.service
+Conflicts=getty@tty7.service
+ConditionPathExists=/dev/tty0
+
+[Service]
+Type=simple
+User=kiosk
+# PAMName=login gives Cage a proper logind session, which the user's PipeWire services need.
+PAMName=login
+UtmpIdentifier=tty7
+UtmpMode=user
+TTYPath=/dev/tty7
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+# The Pi's own settings (KIOSK_ROTATION, KIOSK_SCALE and KIOSK_VIDEO_MODE for screen-setup.ts below), and the release
+# this image was built from (KIOSK_RELEASE_REF and KIOSK_RELEASE_COMMIT, written by the image build), which
+# kiosk-session puts in the app's address for its settings to show.
+EnvironmentFile=-/data/the-max-mix/kiosk.env
+EnvironmentFile=-/usr/lib/the-max-mix/release.env
+# A screen whose own mode has an odd horizontal timing, which the Pi 4 cannot send, is left with the other modes it lists
+# (1920x1080 on a 1280x800 panel). This gives the kernel that mode with even timings before Cage chooses one; it does
+# nothing for any other screen (the + runs it as root, the - ignores a failure). See pi/kiosk-audio/screen-mode.ts.
+ExecStartPre=-+/usr/bin/node /opt/the-max-mix/kiosk-audio/screen-mode.ts --correct
+# How to show the screen that is plugged in (KIOSK_ROTATION and KIOSK_SCALE, or the screen's own settings when they are
+# empty), and its mode on the boot partition's kernel command line (KIOSK_VIDEO_MODE, or the screen's own): writes
+# /run/kiosk/screen.env, read below and by kiosk-audio, and the touch screen's rotation (the + runs it as root, the -
+# ignores a failure, which leaves the screen as it is). See pi/kiosk-audio/screen-setup.ts.
+ExecStartPre=-+/usr/bin/node /opt/the-max-mix/kiosk-audio/screen-setup.ts --rotation=${KIOSK_ROTATION} --scale=${KIOSK_SCALE} --video-mode=${KIOSK_VIDEO_MODE} --cmdline=/boot/firmware/cmdline.txt
+# Show VT 7 (the + runs this as root). Cage cannot take the display while another VT is in front.
+ExecStartPre=+/usr/bin/chvt 7
+# The kiosk-audio user unit outlives a restart of this service, so it would keep the screen settings it read before:
+# restart it, now that screen-setup.ts wrote them (the - ignores a failure, as when the kiosk user's manager is not
+# running yet).
+ExecStartPre=-+/usr/bin/systemctl --user -M kiosk@ try-restart kiosk-audio.service
+# PAMName=login puts Cage and its children in the login session scope, so systemd signals only Cage, which then waits for
+# kiosk-session to exit. Tell kiosk-session to stop first (the + runs this as root, the - ignores a failure), and wait
+# for it: it waits for Chromium to quit, and Cage must keep the display until then. Chromium that loses its display
+# crashes before writing what it last saved (a device ID saved seconds before an update's restart was lost that way).
+ExecStop=-+/usr/bin/pkill -TERM -f "^bash /usr/local/bin/kiosk-session"
+ExecStop=-+/usr/bin/timeout 15 /usr/bin/pidwait -f "^bash /usr/local/bin/kiosk-session"
+Environment=WLR_LIBINPUT_NO_DEVICES=1
+# No mouse pointer on the touch screen. Cage draws the pointer itself (its own default, and the shapes Chromium asks for
+# over the cursor-shape protocol) from the theme called "default" and ignores XCURSOR_THEME, so the folder first in
+# XCURSOR_PATH holds a "default" that is the blank theme of one transparent pixel. XCURSOR_THEME covers the apps.
+Environment=XCURSOR_PATH=/usr/share/kiosk-cursors:/usr/share/icons
+Environment=XCURSOR_THEME=blank
+# Screen sleep. The app decides when the screen may sleep and shows a black sleep screen; this many seconds later
+# without a touch, swayidle turns the output off (kiosk-session), which also switches a DSI panel's backlight off.
+Environment=KIOSK_SCREEN_OFF_AFTER=10
+# The app, which kiosk-audio serves from the image, so it starts with no internet.
+Environment=KIOSK_APP_ORIGIN=http://127.0.0.1:7341
+# KIOSK_SCREEN_ROTATION and KIOSK_SCREEN_SCALE, from screen-setup.ts above, for kiosk-session and kiosk-display, which
+# turn the output and have Cage draw everything bigger. systemd reads the file when it starts Cage, after it was written.
+EnvironmentFile=-/run/kiosk/screen.env
+ExecStart=/usr/bin/cage -d -- /usr/local/bin/kiosk-session
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

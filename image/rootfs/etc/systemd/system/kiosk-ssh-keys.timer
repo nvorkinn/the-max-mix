@@ -1,0 +1,12 @@
+# Independent of the updates: a key added or removed on GitHub reaches the Pi within this time even when no release
+# comes out.
+[Unit]
+Description=Fetch the admin user's SSH keys regularly
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=6h
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target
