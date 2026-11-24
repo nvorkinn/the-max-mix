@@ -128,15 +128,14 @@ async function fakeSoloistKeys(page: Page, isOwned: () => boolean): Promise<Set<
   return soloistKeys;
 }
 
-/** What a phone that scanned the kiosk's code brings back from Spotify: its code, or its error. */
-type PhoneReply = { code: string } | { error: string };
-
 /**
  * The Spotify sign-ins the kiosk hands to phones: a new one each time it asks, waiting until a test has the phone come
  * back (`phoneComesBack`, for the newest one), then answered once. Answered whoever owns the kiosk, as the real server
  * answers any touchscreen. `started` is each request's body, so a test sees the challenge the kiosk sent.
  */
 async function fakeSpotifySignIns(page: Page) {
+  /** What a phone that scanned the kiosk's code brings back from Spotify: its code, or its error. */
+  type PhoneReply = { code: string } | { error: string };
   const started: Record<string, unknown>[] = [];
   const replies = new Map<string, PhoneReply | null>();
   await page.route(`${SPOTIFY_SIGN_INS}**`, route => {
@@ -167,8 +166,8 @@ async function fakeSpotifySignIns(page: Page) {
   return {
     started,
     phoneComesBack: (reply: PhoneReply) => {
-      const newest = [...replies.keys()].at(-1);
-      if (newest) replies.set(newest, reply);
+      const newest = String(started.length).padStart(32, '0');
+      if (replies.has(newest)) replies.set(newest, reply);
     }
   };
 }

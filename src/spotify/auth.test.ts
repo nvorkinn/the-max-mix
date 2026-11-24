@@ -89,7 +89,8 @@ describe('spotify/auth', () => {
     it('makes a new verifier every time', async () => {
       const { newVerifier } = await load();
       const first = await newVerifier();
-      expect((await newVerifier()).verifier).not.toBe(first.verifier);
+      const second = await newVerifier();
+      expect(second.verifier).not.toBe(first.verifier);
     });
   });
 

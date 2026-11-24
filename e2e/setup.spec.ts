@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { PIXEL } from './fake-spotify.ts';
-import { fakeCountdownServer, SPOTIFY_REDIRECT } from './fake-countdown.ts';
 import { getClientId } from '../src/spotify/settings.ts';
+import { fakeCountdownServer, SPOTIFY_REDIRECT } from './fake-countdown.ts';
+import { PIXEL } from './fake-spotify.ts';
 import { openSpotifyTab } from './spotify-tab.ts';
 
 test.describe('Setup and signing in', { tag: '@setup' }, () => {

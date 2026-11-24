@@ -57,7 +57,7 @@ describe('startPhoneSignIn', () => {
     expect(request.method).toBe('POST');
     expect(request.headers.get('Authorization')).toBe(`Bearer ${SECRET}`);
     const body = (await request.json()) as Record<string, string>;
-    expect(Object.keys(body).sort()).toEqual(['client_id', 'code_challenge', 'scope']);
+    expect(Object.keys(body).toSorted((a, b) => a.localeCompare(b))).toEqual(['client_id', 'code_challenge', 'scope']);
     expect(body['scope']).toContain('user-modify-playback-state');
     expect(started).toEqual({
       id: STARTED.id,
