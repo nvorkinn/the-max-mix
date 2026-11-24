@@ -11,7 +11,7 @@ const PERSON = fixture.soloist_key_query.person;
 
 const someone: PersonOnKiosk = {
   spotifyId: PERSON,
-  name: 'Wizzler',
+  name: 'Someone',
   imageUrl: '',
   phoneAddress: '',
   active: true,
