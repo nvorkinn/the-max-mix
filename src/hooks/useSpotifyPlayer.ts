@@ -47,7 +47,16 @@ type PlaybackOrNull = PlaybackState | null;
 
 export interface PlaybackProblem {
   message: string;
-  recovery: 'sign-in' | 'choose-speaker' | 'settings' | 'reconnect' | 'refresh' | 'wait' | 'quota';
+  recovery:
+    | 'sign-in'
+    | 'choose-speaker'
+    | 'settings'
+    | 'soloist-key'
+    | 'pick-on-phone'
+    | 'reconnect'
+    | 'refresh'
+    | 'wait'
+    | 'quota';
 }
 
 /** Spotify's answer when it does not know the device a command named. */
@@ -398,7 +407,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     const startTimer = setTimeout(() => {
       setPlayerError(
         lastSoloistState() === 'no-key'
-          ? { message: 'To play on the kiosk, add your Soloist key under Settings.', recovery: 'settings' }
+          ? { message: 'To play on the kiosk, add your Soloist key under Settings.', recovery: 'soloist-key' }
           : { message: 'The kiosk player did not start. Try reconnecting.', recovery: 'reconnect' }
       );
     }, PLAYER_START_MS);
@@ -426,7 +435,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         debugLog('info', 'soloist', 'Kiosk player waits to be signed in');
         setPlayerError({
           message: `To sign the kiosk in, pick ${KIOSK_DEVICE_NAME} in Spotify on your phone.`,
-          recovery: 'wait'
+          recovery: 'pick-on-phone'
         });
       },
       onState: applyPlayerState,

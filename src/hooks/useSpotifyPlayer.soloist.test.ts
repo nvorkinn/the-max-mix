@@ -160,6 +160,7 @@ describe('useSpotifyPlayer with the kiosk player', () => {
     });
     await advance(30_000);
     expect(result.current.error).toBe('To sign the kiosk in, pick The Max Mix Soloist in Spotify on your phone.');
+    expect(result.current.problem?.recovery).toBe('pick-on-phone');
     act(() => {
       socket.receive(authState(false));
     });
@@ -176,7 +177,7 @@ describe('useSpotifyPlayer with the kiosk player', () => {
     await advance(0);
     await advance(20_000);
     expect(result.current.error).toBe('To play on the kiosk, add your Soloist key under Settings.');
-    expect(result.current.problem?.recovery).toBe('settings');
+    expect(result.current.problem?.recovery).toBe('soloist-key');
   });
 
   it('closes the connection on unmount', async () => {
