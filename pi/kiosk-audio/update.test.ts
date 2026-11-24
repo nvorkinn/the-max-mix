@@ -3,7 +3,7 @@
 import type { ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { runUpdate, stopFollowers } from './update.ts';
+import { runImageUpdate, runUpdate, stopFollowers } from './update.ts';
 import type { UpdateIO, UpdateMessage } from './update.ts';
 
 /** A stand-in for a child process: the test decides what it prints and when it exits. */
@@ -217,5 +217,59 @@ describe('runUpdate', () => {
     const journal = h.journalFor('kiosk-pull.service')?.child;
     stopFollowers();
     expect(journal?.killed).toEqual(['SIGKILL']);
+  });
+});
+
+describe('runImageUpdate', () => {
+  it('runs kiosk-update.service while its journal streams, and says what waits for a restart', async () => {
+    const h = harness();
+    const finished = runImageUpdate(h.send, new AbortController().signal, () => Promise.resolve('dev+bbb'), h.io);
+    await tick();
+    expect(h.order).toEqual([
+      'journalctl --unit kiosk-update.service --follow --since=@1700000000 --output short-iso --no-hostname --no-pager',
+      'systemctl start kiosk-update.service'
+    ]);
+    h.journalFor('kiosk-update.service')?.child.print('… kiosk-update[1]: Update progress: 40% Copying image\n');
+    h.systemctlFor('kiosk-update.service')?.child.exit(0);
+    await finished;
+    expect(h.messages).toEqual([
+      { type: 'status', state: 'installing' },
+      { type: 'log', line: '… kiosk-update[1]: Update progress: 40% Copying image' },
+      { type: 'status', state: 'installed', message: 'dev+bbb' }
+    ]);
+  });
+
+  it('is done when nothing newer was installed, and reports a failed unit', async () => {
+    const h = harness();
+    const finished = runImageUpdate(h.send, new AbortController().signal, () => Promise.resolve(null), h.io);
+    await tick();
+    h.systemctlFor('kiosk-update.service')?.child.exit(0);
+    await finished;
+    expect(h.messages.at(-1)).toEqual({ type: 'status', state: 'done' });
+
+    const failing = harness();
+    const failed = runImageUpdate(failing.send, new AbortController().signal, () => Promise.resolve(null), failing.io);
+    await tick();
+    failing.systemctlFor('kiosk-update.service')?.child.exit(1);
+    await failed;
+    expect(failing.messages.at(-1)).toEqual({
+      type: 'status',
+      state: 'failed',
+      message: 'The update ended with status 1.'
+    });
+  });
+
+  it('says the Pi is restarting when the unit restarts it into the update', async () => {
+    const h = harness();
+    const finished = runImageUpdate(h.send, new AbortController().signal, () => Promise.resolve('dev+bbb'), h.io);
+    await tick();
+    h.journalFor('kiosk-update.service')?.child.print('… kiosk-update[1]: Restarting into the update.\n');
+    // The reboot ends systemctl (and this service) without a status.
+    h.systemctlFor('kiosk-update.service')?.child.emit('exit', null, 'SIGTERM');
+    await finished;
+    expect(h.messages.filter(message => message.type === 'status')).toEqual([
+      { type: 'status', state: 'installing' },
+      { type: 'status', state: 'restarting' }
+    ]);
   });
 });

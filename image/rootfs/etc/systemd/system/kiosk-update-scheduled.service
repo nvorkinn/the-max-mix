@@ -1,0 +1,9 @@
+# The timer's check: every 2 minutes on the dev and branch channels, every 6 hours on stable (kiosk-update.ts decides).
+[Unit]
+Description=Check for THE MAX MIX updates on schedule
+Wants=network-online.target
+After=network-online.target rauc.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/kiosk-update run --scheduled

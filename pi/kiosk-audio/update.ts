@@ -1,15 +1,21 @@
 // The app's Update now: pull the playbook, then restart the kiosk if the pull asked for it, while the journal lines of both
-// steps are sent to the app (through the WebSocket in update-socket.ts) as they are written. Each step follows its unit's
+// steps are sent to the app (through the WebSocket in update-socket.ts) as they are written. On an image Pi it runs
+// kiosk-update.service instead (runImageUpdate), the timer's own path, whose journal carries RAUC's progress. Each step follows its unit's
 // journal with a journalctl child process, which is always stopped again: when the step ends, when the app goes away,
 // after a time limit, and when this service stops.
 import { spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 import { access } from 'node:fs/promises';
+import { RESTART_LINE } from './image-update.ts';
 
 /** What the app is sent, as JSON text frames. */
 export type UpdateMessage =
   | { type: 'log' | 'error'; line: string }
-  | { type: 'status'; state: 'pulling' | 'restarting' | 'done' | 'failed'; message?: string };
+  | {
+      type: 'status';
+      state: 'pulling' | 'installing' | 'installed' | 'restarting' | 'done' | 'failed';
+      message?: string;
+    };
 
 export type Send = (message: UpdateMessage) => void;
 
@@ -74,7 +80,7 @@ function lineBuffer(emit: (line: string) => void) {
 }
 
 /** Starts a journalctl that follows `unit` from `since` (epoch seconds, so lines written before it started are kept). */
-function follow(io: UpdateIO, send: Send, unit: string, since: number) {
+function follow(io: UpdateIO, send: Send, unit: string, since: number, onLine?: (line: string) => void) {
   const child = io.spawn(JOURNALCTL, [
     '--unit',
     unit,
@@ -88,6 +94,7 @@ function follow(io: UpdateIO, send: Send, unit: string, since: number) {
   live.add(child);
   const lines = lineBuffer(line => {
     send({ type: 'log', line });
+    onLine?.(line);
   });
   const problems = lineBuffer(line => {
     send({ type: 'error', line });
@@ -127,10 +134,10 @@ function follow(io: UpdateIO, send: Send, unit: string, since: number) {
   };
 }
 
-/** Runs a program to its end; resolves to its exit status (null when it could not run, or was killed). */
-function run(io: UpdateIO, file: string, args: string[]): Promise<number | null> {
+/** Runs systemctl to its end; resolves to its exit status (null when it could not run, or was killed). */
+function systemctl(io: UpdateIO, args: string[]): Promise<number | null> {
   return new Promise(resolve => {
-    const child = io.spawn(file, args);
+    const child = io.spawn(SYSTEMCTL, args);
     child.on('error', () => {
       resolve(null);
     });
@@ -156,7 +163,7 @@ export async function runUpdate(send: Send, signal: AbortSignal, io: UpdateIO = 
   const step = async (unit: string): Promise<number | null> => {
     follower = follow(io, send, unit, Math.floor(io.now() / 1000));
     const current = follower;
-    const code = await run(io, SYSTEMCTL, ['start', unit]);
+    const code = await systemctl(io, ['start', unit]);
     await current.stop(!isAborted());
     return code;
   };
@@ -184,5 +191,45 @@ export async function runUpdate(send: Send, signal: AbortSignal, io: UpdateIO = 
   } finally {
     stopped.removeEventListener('abort', onAbort);
     await follower?.stop(false);
+  }
+}
+
+/**
+ * On an image Pi: runs kiosk-update.service (check, then install anything newer, as the timer does) while its journal
+ * goes to the app, RAUC's progress lines among them. `installed` then says what waits for a restart; on the dev and
+ * branch channels the unit restarts the Pi into it at once, which ends the connection.
+ */
+export async function runImageUpdate(
+  send: Send,
+  signal: AbortSignal,
+  installed: () => Promise<string | null>,
+  io: UpdateIO = defaultIO
+): Promise<void> {
+  const stopped = AbortSignal.any([signal, AbortSignal.timeout(OVERALL_MS)]);
+  // Set by the follower's callback, so kept in an object TypeScript does not narrow.
+  const seen = { isRestarting: false };
+  const follower = follow(io, send, 'kiosk-update.service', Math.floor(io.now() / 1000), line => {
+    if (seen.isRestarting || !line.includes(RESTART_LINE)) return;
+    seen.isRestarting = true;
+    send({ type: 'status', state: 'restarting' });
+  });
+  const onAbort = () => void follower.stop(false);
+  stopped.addEventListener('abort', onAbort);
+  try {
+    send({ type: 'status', state: 'installing' });
+    const code = await systemctl(io, ['start', 'kiosk-update.service']);
+    await follower.stop(!stopped.aborted);
+    if (seen.isRestarting || stopped.aborted) return;
+    if (code !== 0) {
+      send({ type: 'status', state: 'failed', message: `The update ended with status ${code ?? 'unknown'}.` });
+      return;
+    }
+    const version = await installed();
+    send(
+      version === null ? { type: 'status', state: 'done' } : { type: 'status', state: 'installed', message: version }
+    );
+  } finally {
+    stopped.removeEventListener('abort', onAbort);
+    await follower.stop(false);
   }
 }

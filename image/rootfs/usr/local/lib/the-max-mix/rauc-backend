@@ -1,0 +1,3 @@
+#!/bin/sh
+# RAUC's custom bootloader backend over autoboot.txt and the firmware's tryboot (pi/kiosk-audio/boot-slots.ts).
+exec /usr/bin/node /opt/the-max-mix/kiosk-audio/rauc-backend.ts "$@"

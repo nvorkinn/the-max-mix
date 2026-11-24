@@ -1,0 +1,12 @@
+# The card's first partition, which holds only autoboot.txt: RAUC's backend switches slots there (rauc-backend).
+[Unit]
+Description=THE MAX MIX autoboot partition
+
+[Mount]
+What=/dev/disk/by-partlabel/autoboot
+Where=/run/autoboot
+Type=vfat
+Options=noatime,umask=0077
+
+[Install]
+WantedBy=local-fs.target

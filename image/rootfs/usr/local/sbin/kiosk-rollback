@@ -1,0 +1,4 @@
+#!/bin/sh
+# Goes back to the version in the other slot now: reboots into it, keeps it once it is healthy, and does not install the
+# version left behind again.
+exec /usr/local/sbin/kiosk-update rollback
