@@ -274,7 +274,8 @@ export function canGrow(place: PartitionPlace): boolean {
 export async function partitionPlace(device: string, sys = '/sys/class/block'): Promise<PartitionPlace> {
   const name = path.basename(await realpath(device));
   // /sys/class/block/<partition> links into its card's folder.
-  const disk = path.basename(path.dirname(await realpath(path.join(sys, name))));
+  const partitionFolder = await realpath(path.join(sys, name));
+  const disk = path.basename(path.dirname(partitionFolder));
   const read = async (...parts: string[]) => {
     const content = await readFile(path.join(sys, ...parts), 'utf8');
     return Number(content.trim());
