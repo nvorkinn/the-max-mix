@@ -13,7 +13,8 @@
 //    so --card defaults to it. The card's copies are then deleted, as they hold the Wi-Fi password, so the next boot
 //    finds nothing to take in.
 // 4. The Pi's identity: a machine ID the first time, and the host name from /data, which the kernel gets here because
-//    systemd set it from the image's /etc/hostname before /data was there.
+//    systemd set it from the image's /etc/hostname before /data was there. A Pi flashed without Imager's settings names
+//    itself the-max-mix-<the last 4 hex digits of its serial number>, so every Pi has its own name with nothing set up.
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { Stats } from 'node:fs';
 import { chown, mkdir, mkdtemp, readFile, realpath, rename, rm, rmdir, stat, writeFile } from 'node:fs/promises';
@@ -51,6 +52,10 @@ const IMAGER_FILES = ['user-data', 'network-config', 'meta-data'] as const;
  * the end of the card has nothing left to grow into. */
 const GROW_SLACK_SECTORS = 2048;
 const FORMAT_TIMEOUT_MS = 180_000;
+/** The Pi's serial number, from the firmware's device tree (16 hex digits, ending in a NUL). */
+const SERIAL_NUMBER = '/sys/firmware/devicetree/base/serial-number';
+/** What a Pi is called when nobody named it: this, a hyphen and the end of its serial number. */
+const HOSTNAME_PREFIX = 'the-max-mix';
 
 /** What Imager's user-data asks for. Anything left empty in Imager is missing. */
 interface UserData {
@@ -241,18 +246,31 @@ export async function importImager(
 }
 
 /**
- * The machine ID and the host name: a machine ID is made the first time (`current`, the one systemd made up for this boot
- * while /data was not there, so the first boot's journal keeps its ID), and the host name on /data is returned for the
- * kernel. Undefined when /data has none, and the image's stays.
+ * The name a Pi with no name of its own gets: the-max-mix-<the last 4 hex digits of its serial number>, or plain
+ * the-max-mix when the serial number cannot be read.
  */
-export async function ensureIdentity(data: string, current?: string): Promise<string | undefined> {
+export function defaultHostname(serial: string | undefined): string {
+  const digits = (serial ?? '').replaceAll('\0', '').trim().toLowerCase();
+  return /^[0-9a-f]{4,}$/.test(digits) ? `${HOSTNAME_PREFIX}-${digits.slice(-4)}` : HOSTNAME_PREFIX;
+}
+
+/**
+ * The machine ID and the host name, kept on /data: a machine ID is made the first time (`current`, the one systemd made up
+ * for this boot while /data was not there, so the first boot's journal keeps its ID), and so is a host name when /data has
+ * none (Imager's, taken in before this, comes first), from `serial`. Returns the host name, for the kernel.
+ */
+export async function ensureIdentity(data: string, current?: string, serial?: string): Promise<string> {
   const machineId = path.join(data, DATA_PATHS.machineId);
   if (!isMachineId((await readOptional(machineId))?.trim() ?? '')) {
     const now = current?.trim() ?? '';
     await writeAtomic(machineId, `${isMachineId(now) ? now : randomBytes(16).toString('hex')}\n`, 0o444);
   }
-  const hostname = (await readOptional(path.join(data, DATA_PATHS.hostname)))?.trim() ?? '';
-  return isHostname(hostname) ? hostname : undefined;
+  const hostnameFile = path.join(data, DATA_PATHS.hostname);
+  const hostname = (await readOptional(hostnameFile))?.trim() ?? '';
+  if (isHostname(hostname)) return hostname;
+  const made = defaultHostname(serial);
+  await writeAtomic(hostnameFile, `${made}\n`, 0o644);
+  return made;
 }
 
 /** Where a partition sits on its card, in 512-byte sectors (from /sys/class/block). */
@@ -410,8 +428,13 @@ async function main(): Promise<void> {
       );
     }
 
-    const hostname = await ensureIdentity(mountpoint, await readOptional('/etc/machine-id'));
-    if (hostname) await writeFile('/proc/sys/kernel/hostname', hostname);
+    const hostname = await ensureIdentity(
+      mountpoint,
+      await readOptional('/etc/machine-id'),
+      await readOptional(SERIAL_NUMBER)
+    );
+    await writeFile('/proc/sys/kernel/hostname', hostname);
+    console.log(`Host name ${hostname}`);
   } finally {
     // rmdir, never rm -r: a folder that did not unmount still holds the partition's files.
     await Promise.all(

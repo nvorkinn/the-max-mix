@@ -7,6 +7,7 @@ import { describe, expect, it, onTestFinished } from 'vitest';
 import {
   connectionFileName,
   DATA_PATHS,
+  defaultHostname,
   ensureIdentity,
   importImager,
   keyFileValue,
@@ -201,17 +202,35 @@ describe('importImager', () => {
   });
 });
 
+describe('defaultHostname', () => {
+  it('ends in the last 4 hex digits of the serial number', () => {
+    expect(defaultHostname('100000003a9b7c2d\0')).toBe('the-max-mix-7c2d');
+  });
+
+  it('is plain the-max-mix without a serial number', () => {
+    expect(defaultHostname(undefined)).toBe('the-max-mix');
+    expect(defaultHostname('')).toBe('the-max-mix');
+  });
+});
+
 describe('ensureIdentity', () => {
   it('keeps the machine ID systemd made up for the first boot, and returns the name on /data', async () => {
     const data = await folder();
     const id = '0123456789abcdef0123456789abcdef';
-    expect(await ensureIdentity(data, `${id}\n`)).toBeUndefined();
+    await writeFile(path.join(data, DATA_PATHS.hostname), 'kitchen\n');
+    expect(await ensureIdentity(data, `${id}\n`, '10000000abcd1234\0')).toBe('kitchen');
     expect(await readFile(path.join(data, DATA_PATHS.machineId), 'utf8')).toBe(`${id}\n`);
 
-    await writeFile(path.join(data, DATA_PATHS.hostname), 'kitchen\n');
     expect(await ensureIdentity(data, 'ffffffffffffffffffffffffffffffff')).toBe('kitchen');
     // Made once only.
     expect(await readFile(path.join(data, DATA_PATHS.machineId), 'utf8')).toBe(`${id}\n`);
+  });
+
+  it('names a Pi nobody named after its serial number, once', async () => {
+    const data = await folder();
+    expect(await ensureIdentity(data, '', '10000000abcd1E2f\0')).toBe('the-max-mix-1e2f');
+    expect(await readFile(path.join(data, DATA_PATHS.hostname), 'utf8')).toBe('the-max-mix-1e2f\n');
+    expect(await ensureIdentity(data, '', '10000000ffffffff\0')).toBe('the-max-mix-1e2f');
   });
 
   it('makes a machine ID up when systemd has none', async () => {

@@ -69,7 +69,10 @@ formats it when it holds no filesystem, then takes in what Raspberry Pi Imager's
 partition: the host name (`/data/identity/hostname`), the SSH keys (the `admin` account's, whatever account name was
 typed), and the Wi-Fi as a NetworkManager profile (`/data/network/system-connections`). It then deletes Imager's
 `user-data`, `network-config` and `meta-data` from the card, as they hold the Wi-Fi password. The tests read Imager's
-files from `imager-fixtures/`.
+files from `imager-fixtures/`. None of that is needed: a card flashed with no Imager settings names the Pi
+`the-max-mix-<last 4 hex digits of its serial number>`, the app opens its Wi-Fi setup as it has no network, and the
+first network it joins fetches the admin account's SSH keys from GitHub and Soloist at once
+(`image/rootfs/etc/NetworkManager/dispatcher.d/50-kiosk-online`).
 
 `sudo kiosk-reset` over SSH, or **Factory reset** in the debug console (`POST /power/reset`, which starts
 `kiosk-reset.service`), logs out of Tailscale, marks `/data` and reboots. The next boot formats `/data`, keeping only

@@ -1,0 +1,19 @@
+#!/bin/sh
+# NetworkManager runs this as root whenever a connection comes up (NetworkManager-dispatcher, image/units.txt). A Pi
+# flashed with no Wi-Fi is offline when its timers first fire, and would otherwise wait for their next turn: hours for
+# the admin's SSH keys, a week for Soloist. So the first network it joins (in the app's Wi-Fi setup) fetches both at once.
+# Arguments: INTERFACE ACTION.
+case $2 in
+  up) ;;
+  *) exit 0 ;;
+esac
+case $1 in
+  lo | tailscale*) exit 0 ;;
+esac
+
+# The keys are a small download, so every time: a key added on GitHub also arrives with the next connection.
+systemctl start --no-block kiosk-ssh-keys.service
+# Soloist only when the Pi has none yet; its timer keeps it up to date.
+if [ ! -x /data/soloist/soloist ]; then
+  systemctl start --no-block kiosk-soloist-update.service
+fi
