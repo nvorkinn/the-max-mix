@@ -79,7 +79,7 @@ function persistLineProblems({ number, target, source }: PersistEntry, kind: str
   return problems;
 }
 
-const overlap = (a: string, b: string) => isWithin(a, b) || isWithin(b, a);
+const doOverlap = (a: string, b: string) => isWithin(a, b) || isWithin(b, a);
 
 // Two lines for one place, or one inside the other: which bind mount wins would depend on their order.
 function overlapProblems(entries: PersistEntry[]): string[] {
@@ -87,10 +87,10 @@ function overlapProblems(entries: PersistEntry[]): string[] {
     entries
       .slice(0, index)
       .flatMap(earlier => [
-        ...(overlap(entry.target, earlier.target)
+        ...(doOverlap(entry.target, earlier.target)
           ? [`line ${entry.number}: ${entry.target} overlaps ${earlier.target} on line ${earlier.number}`]
           : []),
-        ...(overlap(entry.source, earlier.source)
+        ...(doOverlap(entry.source, earlier.source)
           ? [`line ${entry.number}: ${entry.source} overlaps ${earlier.source} on line ${earlier.number}`]
           : [])
       ])
