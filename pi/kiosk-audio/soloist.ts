@@ -49,9 +49,9 @@ export function validSoloistRequest(body: unknown): SoloistRequest | null {
   const { person, server, secret } = body as Record<string, unknown>;
   // A Spotify ID, which also names a folder: letters, digits, '.', '_' and '-', not starting with a dot.
   if (
+    typeof server !== 'string' ||
     typeof person !== 'string' ||
     !/^[\w-][\w.-]{0,127}$/.test(person) ||
-    typeof server !== 'string' ||
     !isToken(secret)
   ) {
     return null;
@@ -130,7 +130,11 @@ export class SoloistPlayer {
     this.#fetchKey = options.fetchKey ?? fetchSoloistKey;
     this.#spawn = options.spawn ?? spawnSoloist;
     this.#restartMs = options.restartMs ?? RESTART_MS;
-    this.#log = options.log ?? (line => console.info(line));
+    this.#log =
+      options.log ??
+      (line => {
+        console.info(line);
+      });
   }
 
   #later(ms: number): void {

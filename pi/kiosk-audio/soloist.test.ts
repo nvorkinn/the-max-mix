@@ -149,8 +149,8 @@ describe('fetchSoloistKey', () => {
     const fetch = vi.fn<typeof globalThis.fetch>(() => Promise.resolve(Response.json({ api_key: 'key-n' })));
     vi.stubGlobal('fetch', fetch);
     expect(await fetchSoloistKey(REQUEST)).toEqual({ key: 'key-n' });
-    const [url, init] = fetch.mock.calls[0] ?? [];
-    expect(new Request(url ?? '').url).toBe('https://api.countdown.build/api/devices/soloist/key?person=nikolai');
+    const [url = '', init] = fetch.mock.calls[0] ?? [];
+    expect(new Request(url).url).toBe('https://api.countdown.build/api/devices/soloist/key?person=nikolai');
     expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer device-secret');
   });
 
