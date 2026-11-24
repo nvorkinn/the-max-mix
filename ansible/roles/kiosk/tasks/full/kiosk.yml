@@ -105,6 +105,16 @@
   changed_when: true
   notify: Ask for a kiosk restart
 
+# PipeWire and WirePlumber run in the kiosk user's session and outlive a kiosk restart, so they only read a new
+# 50-kiosk-raop.conf (the AirPlay speakers and the silent default output) when restarted. Sound stops for a moment and
+# Soloist joins again; a failure (no user session yet, as on a first boot or an image build) is ignored.
+- name: full | kiosk | Restart PipeWire for its new settings
+  ansible.builtin.command:
+    argv: [systemctl, --user, -M, '{{ kiosk_user }}@', try-restart, pipewire.service, wireplumber.service]
+  when: "'/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf' in kiosk_settings_installed.stdout_lines"
+  changed_when: true
+  failed_when: false
+
 - name: full | kiosk | Create /run/kiosk
   ansible.builtin.debug:
     msg: The run directory's settings changed.
