@@ -7,9 +7,9 @@ import { WebSocket } from 'ws';
 
 export const SOLOIST_PATH = '/soloist';
 // kiosk_soloist_ws_port in ansible/roles/kiosk/defaults/main.yml.
-export const SOLOIST_URL = 'ws://127.0.0.1:7342';
+const SOLOIST_URL = 'ws://127.0.0.1:7342';
 /** How long to wait before connecting to Soloist again once it went away (or was not running). */
-export const SOLOIST_RETRY_MS = 3000;
+const SOLOIST_RETRY_MS = 3000;
 
 // The commands of Soloist's WebSocket API (developer.spotify.com/documentation/soloist/reference/websocket-api).
 const COMMANDS = new Set([
