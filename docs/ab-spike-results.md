@@ -5,14 +5,15 @@ with a spare 64 GB card; the Pi's own card was not touched. The probe is
 [`pi/tools/ab-probe.mts`](../pi/tools/ab-probe.mts). It builds a test card in an arm64 Debian container on a Mac, from
 the published flash image re-laid out as the plan's six partitions with RAUC added, and drives the Pi over SSH. Slot A
 ran that spike system; slot B then got main's real image (`dev` bundle, main 96f7f4b), installed by RAUC from slot A,
-and slot A in turn got #674's image, installed by main's `kiosk-update` from slot B.
+and from then on the two slots took turns with #674's builds. The last round ran end to end with no help: `kiosk-update
+run` on B installed 2ed38ef into A, rebooted into it with tryboot, and A's health check kept it.
 
 ## Results
 
 | #   | Question                                             | Result                                                          |
 | --- | ---------------------------------------------------- | --------------------------------------------------------------- |
 | 1   | Six-partition GPT card boots                         | Yes on Pi 5 (EEPROM 2026-10-30), first try. Pi 4B not tried     |
-| 2   | tryboot: B once, fallback to A, commit               | Yes, all three. Fallback on a failed health check: _pending_    |
+| 2   | tryboot: B once, fallback to A, commit               | Yes, all of it, plus fallback on a failed health check          |
 | 3   | Where Imager's wizard writes                         | Partition 1 (`autoboot`), not `boot-a`                          |
 | 4   | Read-only root with /data binds, kiosk works         | Yes on #674's image, after 12 bugs found here (below)           |
 | 5   | `rauc install` streaming from a GitHub release asset | Yes, through the redirect, with a shell tryboot backend         |
@@ -48,6 +49,19 @@ From stock Pi OS, an image must:
 (flag 0), so a slot that hangs costs one power cycle at worst, or none with the hardware watchdog. On B, `rauc status
 mark-good` through main's `rauc-backend.ts` rewrote `[all] boot_partition=3`, and a plain reboot then came back on B:
 the commit works.
+
+With #674's code (6ba5ac5) on B, the health check does the rest:
+
+- **Unhealthy:** with `kiosk.service` stopped on a trial boot of B, `kiosk-health` logged "Not healthy: kiosk-audio
+  does not answer. Going back to the previous version; … is not installed again." at the 5-minute mark. The Pi rebooted
+  to A by itself, with B marked bad.
+- **Healthy:** on the next trial boot of B (re-armed with `rauc status mark-active rootfs.1`), it logged "Kept the
+  update." 41 s after start, and `autoboot.txt` defaulted to B.
+- **The whole loop:** `kiosk-update run` on B installed the next build into A, rebooted with `0 tryboot` (14:06:52),
+  and A logged "Kept …" 41 s after boot.
+
+After a fallback the backend points `[tryboot]` at the good slot too, so a stray tryboot can't retry a bad one. That is
+on purpose.
 
 RAUC runs the backend in its own mount namespace, so a partition the backend mounts stays mounted there (rw) and the
 rest of the system cannot mount it read-only ("would change RO state"). The backend should unmount after each write.
@@ -97,10 +111,12 @@ main's bundle; a system post-install handler pointed `boot-b`'s `cmdline.txt` at
 
 ## 6. Sizes
 
-| Install                                           | Bundle  | Downloaded     | Time (Wi-Fi) |
-| ------------------------------------------------- | ------- | -------------- | ------------ |
-| main's `dev` into slot B, from the spike's slot A | 1.15 GB | 359 MiB        | 10 min 15 s  |
-| #674 (packages added, fixes) into slot A, from B  | 1.15 GB | 89.6 MB (7.8%) | about 2 min  |
+| Install                                                       | Bundle  | Downloaded     | Time (Wi-Fi)             |
+| ------------------------------------------------------------- | ------- | -------------- | ------------------------ |
+| main's `dev` into slot B, from the spike's slot A             | 1.15 GB | 359 MiB        | 10 min 15 s              |
+| #674 (packages added, fixes) into slot A, from B              | 1.15 GB | 89.6 MB (7.8%) | about 2 min              |
+| #674 6ba5ac5 into slot B, from A (older main on B)            | 1.15 GB | 100 MiB (8.7%) | 3 min 23 s               |
+| #674 2ed38ef (code-only change) into A, by `kiosk-update run` | 1.15 GB | 92 MiB (8.0%)  | about 5 min, then reboot |
 
 The first install already reused most of the root: 381,782 of the 1,048,576 4 KiB chunks were zero, and slot A's Pi OS
 blocks matched many more. Building the hash indexes for the target and active slots took one minute each.
@@ -115,5 +131,7 @@ blocks matched many more. Building the hash indexes for the target and active sl
   `bundle.txt`), and old files kept a while for Pis mid-install.
 - **Trust the firmware, not a state file,** for "is this a trial boot" (`/proc/device-tree/chosen/bootloader/tryboot`),
   so a bad state file can't commit or fail the wrong slot (d, l).
+- **Pointer caching:** after `bundle.txt` was replaced, GitHub served the old one for about 90 s. That is harmless with
+  unique bundle names; a Pi just finds the build on its next check.
 - **A delta is small:** about 90 MB for a release that adds packages, so the dev channel's 2-minute loop is realistic on
   Wi-Fi.
