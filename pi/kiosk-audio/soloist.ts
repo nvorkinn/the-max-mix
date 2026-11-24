@@ -92,14 +92,7 @@ const spawnSoloist: Spawn = args =>
   spawn(SOLOIST, args, { stdio: ['ignore', 'inherit', 'inherit'] });
 
 export type SoloistState =
-  | 'stopped'
-  | 'starting'
-  | 'playing'
-  | 'no-key'
-  | 'not-paired'
-  | 'unknown-device'
-  | 'failed'
-  | 'expired';
+  'stopped' | 'starting' | 'playing' | 'no-key' | 'not-paired' | 'unknown-device' | 'failed' | 'expired';
 
 interface SoloistOptions {
   /** The folder that holds a data folder per person. */

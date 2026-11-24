@@ -82,7 +82,10 @@ describe('tellSoloistPerson', () => {
   it("is null when the kiosk's service does not answer", async () => {
     register();
     signIn();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('Failed to fetch')))
+    );
     await expect(tellSoloistPerson()).resolves.toBeNull();
   });
 

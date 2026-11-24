@@ -38,9 +38,7 @@ afterEach(async () => {
 function player(keys: Record<string, KeyResult> = { nikolai: { key: 'key-n' }, ola: { key: 'key-o' } }) {
   const children: FakeChild[] = [];
   const runs: string[][] = [];
-  const fetchKey = vi.fn<FetchKey>(request =>
-    Promise.resolve(keys[request.person] ?? { error: 'no-key' })
-  );
+  const fetchKey = vi.fn<FetchKey>(request => Promise.resolve(keys[request.person] ?? { error: 'no-key' }));
   const soloist = new SoloistPlayer({
     stateDir,
     fetchKey,
