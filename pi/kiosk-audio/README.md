@@ -12,8 +12,8 @@ app on `127.0.0.1:7341`. It does two jobs:
 ## The two playback modes
 
 - **Spotify Connect** (the default): Spotify plays on the kiosk's own player (Spotify Soloist), or on any Spotify Connect
-  speaker it is moved to under Speakers. Switching to it sends `POST /audio/route` with no speakers, which hands the sound back to the
-  Pi's default output.
+  speaker it is moved to under Speakers. Switching to it sends `POST /audio/route` with no speakers, which sends Soloist's sound to the
+  silent sink, `kiosk_silent`: the kiosk has no speaker of its own, so no speaker plays that nobody chose.
 - **AirPlay**: playback stays on the kiosk's own player, and the Pi links Soloist's PipeWire stream to every speaker
   picked in the app, all at once, and off the Pi's own output. Speakers can be added and removed while the music plays.
 
@@ -121,7 +121,9 @@ while it is connected or was heard in the last two minutes; for the first 8 s of
 
 1. **Discovery.** `libpipewire-module-raop-discover` (enabled by `/etc/pipewire/pipewire.conf.d/50-kiosk-raop.conf`)
    finds RAOP speakers through Avahi and makes a PipeWire sink for each, with `raop.latency.ms = 500`
-   (`kiosk_raop_latency_ms`) so play, pause and skip reach the speakers quickly. The audio service
+   (`kiosk_raop_latency_ms`) so play, pause and skip reach the speakers quickly. The same file makes `kiosk_silent`, a
+   null sink with a high session priority, so it is the default sink and Soloist's stream joins it at start without
+   making a sound; it is not listed as a speaker. The audio service
    also answers `GET http://127.0.0.1:7341/speakers` (`server.ts`, localhost only, readable by the app's origin alone) with
    the names of those sinks and of connected Bluetooth speakers' sinks, and the app lists them every 5 seconds. Its
    `outputs` list gives each sink by PipeWire's node name (its `id`), its `kind` (`airplay` for `raop_sink.*`,
@@ -228,11 +230,14 @@ song whose title, artist and length match. Lyrics that time each word come first
 five asked in turn for line-timed lyrics (text with several timed lines), and after that for plain ones, which only
 LRCLIB keeps. A song LRCLIB knows as instrumental and has no synced lyrics for is answered as instrumental. QRC comes
 encrypted with QQ's own variant of Triple DES, which `qrc-cipher.ts` undoes. The service remembers the synced lyrics it
-found, and for an hour anything less (plain lyrics, an instrumental song, nothing).
+found, and for an hour anything less (plain lyrics, an instrumental song, nothing). A song it does not remember is only
+looked up after a pause of 1.5 s, and the lookup stops asking the sources once the app hangs up (the app cancels the
+request when it moves on to the next song), so songs skipped in a row cost (almost) no requests.
 
 LRCLIB has a documented API (<https://lrclib.net/docs>): the service names itself in `User-Agent`, searches with the
-search that sends no lyrics and then fetches the one record it wants, and after an error with `Retry-After` does not
-call LRCLIB again until that time has passed. Musixmatch is called through the API its desktop app uses: the service
+search that sends no lyrics and then fetches the one record it wants, one request at a time. After a 429, or an error
+with `Retry-After`, it does not call LRCLIB again until that time has passed (a minute for a 429 that does not say),
+logging that once rather than for each lookup it fails meanwhile. Musixmatch is called through the API its desktop app uses: the service
 asks it for a user token (`token.get`) and keeps it until Musixmatch stops taking it; when Musixmatch hands out a token
 of only zeros (it does for addresses it will not serve, such as cloud servers), the source is skipped for five minutes.
 KuGou's search host is called over plain http because its https certificate is for another domain. QQ Music's search

@@ -66,6 +66,23 @@ describe('lyrics/kiosk', () => {
     await expect(kioskLyrics(query, signal())).resolves.toBeNull();
   });
 
+  it('asks only once the song has stayed on for a moment, and not at all when it is skipped before', async () => {
+    vi.useFakeTimers();
+    fetchMock.mockResolvedValue(new Response(null, { status: 404 }));
+    const skipped = new AbortController();
+    const first = kioskLyrics(query, skipped.signal);
+    await vi.advanceTimersByTimeAsync(200);
+    skipped.abort();
+    await expect(first).rejects.toThrow('aborted');
+    const kept = kioskLyrics(query, signal());
+    await vi.advanceTimersByTimeAsync(399);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(kept).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    vi.useRealTimers();
+  });
+
   it('fails when the service could not look, and passes a cancellation on', async () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 502 }));
     await expect(kioskLyrics(query, signal())).rejects.toThrow('The kiosk could not look up lyrics (502).');
