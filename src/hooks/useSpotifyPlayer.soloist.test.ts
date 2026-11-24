@@ -454,6 +454,21 @@ describe('useSpotifyPlayer drives the kiosk player', () => {
     expect(commandsSent(socket)).toHaveLength(1);
   });
 
+  it("sets the kiosk player's volume again once the first Play has moved playback to it and it plays", async () => {
+    mocks.api.getPlaybackState.mockResolvedValue(webState('phone', false));
+    const { result, socket } = await ready();
+    await act(async () => {
+      expect(await result.current.togglePlay()).toBe(true);
+    });
+    socket.reply = null;
+    act(() => {
+      socket.receive({ type: 'device_changed', is_active: true, device_name: RECORDED_DEVICE_NAME });
+      socket.receive({ type: 'playback_changed', status: 'playing' });
+    });
+    expect(socket.sent.at(-1)).toEqual({ type: 'command', command: 'set_volume', volume: 6 });
+    expect(commandsSent(socket)).toEqual(['set_volume']);
+  });
+
   it('reports a failed first-Play transfer and puts the button back', async () => {
     mocks.api.getPlaybackState.mockResolvedValue(webState('phone', false));
     mocks.api.transferPlayback.mockRejectedValue(new Error('No premium'));
