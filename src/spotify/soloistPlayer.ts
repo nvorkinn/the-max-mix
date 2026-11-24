@@ -159,77 +159,6 @@ export class SoloistPlayer {
     });
   }
 
-  /** Whether Soloist is the account's active device, which is when its commands reach it. */
-  get isActive(): boolean {
-    return this.#isActive;
-  }
-
-  /** Starts connecting. */
-  connect(): void {
-    this.#isStopped = false;
-    if (!this.#socket && this.#reconnect === undefined) this.#open();
-  }
-
-  /** Closes the connection for good; nothing is reported after this. */
-  disconnect(): void {
-    this.#isStopped = true;
-    clearTimeout(this.#reconnect);
-    this.#reconnect = undefined;
-    clearTimeout(this.#lookup);
-    const socket = this.#socket;
-    this.#socket = null;
-    this.#isOpen = false;
-    this.#failPending('The kiosk player disconnected.');
-    socket?.close();
-  }
-
-  /** Brings the state up to date: asks Soloist again, or connects at once when the connection is down. */
-  refresh(): void {
-    if (this.#isStopped) return;
-    if (this.#socket) {
-      this.#ask('get_state');
-      return;
-    }
-    clearTimeout(this.#reconnect);
-    this.#open();
-  }
-
-  /** Looks Soloist up in Spotify's device list again (its id went stale); resolves with its id, or null. */
-  refreshDevice(): Promise<string | null> {
-    clearTimeout(this.#lookup);
-    this.#lookup = undefined;
-    this.#deviceId = null;
-    this.#lookupWait = DEVICE_RETRY_MS;
-    return this.#findDevice();
-  }
-
-  play(): Promise<void> {
-    return this.#control('play');
-  }
-
-  pause(): Promise<void> {
-    return this.#control('pause');
-  }
-
-  nextTrack(): Promise<void> {
-    return this.#control('skip_next');
-  }
-
-  previousTrack(): Promise<void> {
-    return this.#control('skip_prev');
-  }
-
-  seek(positionMs: number): Promise<void> {
-    return this.#control('seek', { position_ms: Math.max(0, Math.round(positionMs)) });
-  }
-
-  /** Sets the volume, in percent. */
-  setVolume(percent: number): Promise<void> {
-    const volume = Math.min(100, Math.max(0, Math.round(percent)));
-    this.#volume = volume;
-    return this.#control('set_volume', { volume });
-  }
-
   /** Sends a command without waiting for its result: get_state and the like answer with events, not a result. */
   #ask(command: string, fields?: Record<string, unknown>): void {
     if (this.#isOpen) this.#socket?.send(JSON.stringify({ type: 'command', command, ...fields }));
@@ -442,5 +371,76 @@ export class SoloistPlayer {
       }
     }
     this.#handlers.onState(this.#state());
+  }
+
+  /** Whether Soloist is the account's active device, which is when its commands reach it. */
+  get isActive(): boolean {
+    return this.#isActive;
+  }
+
+  /** Starts connecting. */
+  connect(): void {
+    this.#isStopped = false;
+    if (!this.#socket && this.#reconnect === undefined) this.#open();
+  }
+
+  /** Closes the connection for good; nothing is reported after this. */
+  disconnect(): void {
+    this.#isStopped = true;
+    clearTimeout(this.#reconnect);
+    this.#reconnect = undefined;
+    clearTimeout(this.#lookup);
+    const socket = this.#socket;
+    this.#socket = null;
+    this.#isOpen = false;
+    this.#failPending('The kiosk player disconnected.');
+    socket?.close();
+  }
+
+  /** Brings the state up to date: asks Soloist again, or connects at once when the connection is down. */
+  refresh(): void {
+    if (this.#isStopped) return;
+    if (this.#socket) {
+      this.#ask('get_state');
+      return;
+    }
+    clearTimeout(this.#reconnect);
+    this.#open();
+  }
+
+  /** Looks Soloist up in Spotify's device list again (its id went stale); resolves with its id, or null. */
+  refreshDevice(): Promise<string | null> {
+    clearTimeout(this.#lookup);
+    this.#lookup = undefined;
+    this.#deviceId = null;
+    this.#lookupWait = DEVICE_RETRY_MS;
+    return this.#findDevice();
+  }
+
+  play(): Promise<void> {
+    return this.#control('play');
+  }
+
+  pause(): Promise<void> {
+    return this.#control('pause');
+  }
+
+  nextTrack(): Promise<void> {
+    return this.#control('skip_next');
+  }
+
+  previousTrack(): Promise<void> {
+    return this.#control('skip_prev');
+  }
+
+  seek(positionMs: number): Promise<void> {
+    return this.#control('seek', { position_ms: Math.max(0, Math.round(positionMs)) });
+  }
+
+  /** Sets the volume, in percent. */
+  setVolume(percent: number): Promise<void> {
+    const volume = Math.min(100, Math.max(0, Math.round(percent)));
+    this.#volume = volume;
+    return this.#control('set_volume', { volume });
   }
 }
