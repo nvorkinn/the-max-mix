@@ -104,9 +104,9 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
           body: await page.screenshot(),
           contentType: 'image/png'
         });
-      let online = false;
+      let isOnline = false;
       await page.route('http://127.0.0.1:7341/wifi/status', route =>
-        route.fulfill({ json: online ? { ssid: 'Home', address: '192.168.0.42' } : { ssid: null, address: null } })
+        route.fulfill({ json: isOnline ? { ssid: 'Home', address: 'kiosk.local' } : { ssid: null, address: null } })
       );
       const server = await fakePairing(page);
       await page.goto('/?kiosk=1');
@@ -118,7 +118,7 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       await expect(page.getByRole('button', { name: 'Next' })).toHaveCount(0);
       await shot('1-wifi');
       expect(server.registrations).toHaveLength(0);
-      online = true;
+      isOnline = true;
 
       // One QR code from here on. The kiosk registers and waits for its owner.
       const code = page.getByRole('img', { name: 'QR code to set up this screen on your phone' });
