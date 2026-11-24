@@ -1,0 +1,47 @@
+name: Flutter proof
+
+# Builds pi/flutter-proof (the flutter-pi experiment) into an arm64 bundle for a Raspberry Pi 5, with the flutter-pi
+# binary in it. Not part of the kiosk or of all-checks.
+on:
+  push:
+    paths: [pi/flutter-proof/**, .github/workflows/flutter-proof.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # flutterpi_tool 0.13 does not yet build with Flutter 3.50 (flutter_tools moved part of itself into a package).
+  FLUTTER_VERSION: 3.47.9
+  FLUTTERPI_TOOL_VERSION: 0.13.0
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: pi/flutter-proof
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Flutter and flutterpi_tool
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -fsSL "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" | tar xJ
+          echo "$PWD/flutter/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+          "$PWD/flutter/bin/flutter" config --no-analytics
+          "$PWD/flutter/bin/flutter" pub global activate flutterpi_tool "$FLUTTERPI_TOOL_VERSION"
+      - run: flutter analyze
+      # flutterpi_tool downloads the engine and the flutter-pi binary from GitHub releases.
+      - run: flutterpi_tool build --arch=arm64 --cpu=pi5 --release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - run: ls -la build/flutter-pi/*
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: flutter-proof-pi5-arm64
+          path: pi/flutter-proof/build/flutter-pi/
+          retention-days: 7

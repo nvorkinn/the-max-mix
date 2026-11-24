@@ -1,0 +1,20 @@
+name: flutter_proof
+description: Proof of one Dashboard panel in Flutter, run on the Pi with flutter-pi. Not part of the kiosk.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  uses-material-design: false
+  assets:
+    - assets/backdrop.jpg
+  fonts:
+    - family: Plus Jakarta Sans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans.ttf
