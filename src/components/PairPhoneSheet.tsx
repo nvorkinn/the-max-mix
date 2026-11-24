@@ -100,9 +100,7 @@ export default function PairPhoneSheet({
         )}
       </div>
       <div className="pair-phone-body">
-        {!error && (
-          <PhonePairingView pairing={pairing} onPick={pick} />
-        )}
+        {!error && <PhonePairingView pairing={pairing} onPick={pick} />}
         {error && (
           <p role="alert" className="settings-error status-danger">
             {error}
@@ -111,11 +109,7 @@ export default function PairPhoneSheet({
       </div>
       <div className="pair-phone-actions">
         {error && (
-          <button
-            type="button"
-            className="spotify-sign-in pair-phone-button font-extrabold rounded-xl"
-            onClick={retry}
-          >
+          <button type="button" className="spotify-sign-in pair-phone-button font-extrabold rounded-xl" onClick={retry}>
             {t('common.try_again')}
           </button>
         )}

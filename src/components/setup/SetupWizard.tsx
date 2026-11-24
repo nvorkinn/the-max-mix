@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AudioLines, Bluetooth, Check, KeyRound, LoaderCircle, UserRound, Wifi } from 'lucide-react';
-import { deviceCredentials, deviceSecret, finishSetup, pairingPageUrl, pairingToken } from '../../countdown/registration';
+import {
+  deviceCredentials,
+  deviceSecret,
+  finishSetup,
+  pairingPageUrl,
+  pairingToken
+} from '../../countdown/registration';
 import { countdownServer } from '../../countdown/server';
 import { usePhonePairing } from '../../hooks/usePhonePairing';
 import { usePhoneSignIn } from '../../hooks/usePhoneSignIn';
@@ -19,7 +25,7 @@ import WifiSettings from '../settings/WifiSettings';
 import { useRegistration } from './useRegistration';
 
 /** How often the Wi-Fi chapter asks the Pi which network it is on, so it moves on once the Pi has joined one. */
-export const NETWORK_POLL_MS = 3000;
+const NETWORK_POLL_MS = 3000;
 
 const CHAPTERS = ['wifi', 'account', 'spotify', 'soloist', 'presence'] as const;
 type Chapter = (typeof CHAPTERS)[number];
@@ -194,7 +200,10 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
 
   return (
     <div className="tablet-container" data-colour={loadThemeColour()}>
-      <main className="app-modal-panel settings-panel setup-wizard text-left select-none" aria-label={t('pairing.title')}>
+      <main
+        className="app-modal-panel settings-panel setup-wizard text-left select-none"
+        aria-label={t('pairing.title')}
+      >
         <nav className="settings-nav" aria-label={t('pairing.title')}>
           <div className="setup-wizard-brand">
             <span className="setup-wizard-mark" aria-hidden="true">

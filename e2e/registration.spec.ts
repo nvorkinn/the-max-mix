@@ -58,7 +58,16 @@ async function fakePhonePairing(page: Page) {
       return route.fulfill({ status: 200, json: {} });
     }
     return route.fulfill({
-      json: { adapter: null, phones: [], presenceChecking: false, devices: [], nearby: 0, verbose: false, log: [], ...report }
+      json: {
+        adapter: null,
+        phones: [],
+        presenceChecking: false,
+        devices: [],
+        nearby: 0,
+        verbose: false,
+        log: [],
+        ...report
+      }
     });
   });
   return { report, asked };

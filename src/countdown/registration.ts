@@ -107,7 +107,9 @@ export function pairingPageUrl(server: string, token: string): string {
  * storage that can keep the secret (without it, every start would be a new screen).
  */
 export function needsSetup(): boolean {
-  return isKiosk() && countdownServer() !== null && countdownApi() !== null && read(SETUP_DONE_KEY) === null && canStore();
+  return (
+    isKiosk() && countdownServer() !== null && countdownApi() !== null && read(SETUP_DONE_KEY) === null && canStore()
+  );
 }
 
 /** The wizard is done: the next start opens the app. */
