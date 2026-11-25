@@ -12,12 +12,13 @@ import { KIOSK_SERVICE } from '../utils/kioskService';
 import { getDevices } from './api';
 import { isRecord, recordOf } from './parse';
 
-const SOLOIST_SOCKET = `${KIOSK_SERVICE.replace(/^http/, 'ws')}/soloist`;
+/** The service's WebSocket that joins the page to Soloist (pi/kiosk-audio/soloist-socket.ts). */
+export const SOLOIST_SOCKET = `${KIOSK_SERVICE.replace(/^http/, 'ws')}/soloist`;
 // Soloist answers a command within about 50 ms; one that has not answered by now is given up on, so one lost answer
 // cannot leave the buttons dead.
 const COMMAND_TIMEOUT_MS = 8000;
-// The service restarts with an update; the page connects again after this.
-const RECONNECT_MS = 3000;
+/** The service restarts with an update; the page connects again after this. */
+export const RECONNECT_MS = 3000;
 // Spotify lists a Connect device a moment after it signs in, so a lookup that does not find Soloist is tried again,
 // waiting twice as long each time up to the longest wait.
 const DEVICE_RETRY_MS = 3000;

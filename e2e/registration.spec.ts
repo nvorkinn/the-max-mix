@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page, Route } from '@playwright/test';
 import { fakeCountdownServer } from './fake-countdown.ts';
+import { fakeSignedOutSoloist } from './fake-soloist.ts';
 import { PIXEL } from './fake-spotify.ts';
 
 // countdown-server's screens' API, as the build names it (.env.production).
@@ -147,11 +148,19 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       );
       owned.spotifySignIns.phoneComesBack({ code: 'the-code' });
 
-      // Signed in: the phone goes on to the Soloist key, which ticks once it's saved.
+      // Signed in: the phone goes on to the Soloist key.
+      const soloist = await fakeSignedOutSoloist(page);
       await expect(page.getByRole('region', { name: 'Soloist' })).toBeVisible();
       await expect(code).toBeVisible();
       await shot('4-soloist');
       owned.soloistKeys.add('max');
+
+      // The key starts Soloist, which signs in once they pick the kiosk in Spotify on their phone: the chapter waits.
+      await expect(page.getByText('pick The Max Mix 1 in the device list')).toBeVisible({ timeout: 15_000 });
+      await expect(code).toHaveCount(0);
+      await expect(page.getByRole('region', { name: 'Soloist' })).toBeVisible();
+      await shot('4b-spotify-pick');
+      soloist.signIn();
 
       // Presence: the scan only starts once they have Bluetooth open and tap OK.
       const bluetooth = await fakePhonePairing(page);
