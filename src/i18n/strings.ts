@@ -538,8 +538,8 @@ export const STRINGS = {
   'setup.chapter_presence': { en: 'Presence', nb: 'Tilstedeværelse' },
   'setup.welcome': { en: 'Welcome', nb: 'Velkommen' },
   'setup.welcome_text': {
-    en: 'It needs internet, so first you’ll connect it to Wi-Fi. Then scan the QR code on screen with your phone to sign in or register with our backend services. Next you’ll give access to your Spotify account, and an API key for Spotify Soloist, the standalone Spotify player The Max Mix uses. Last, you’ll pair your phone over Bluetooth so it knows when you’re home.',
-    nb: 'Den trenger internett, så først kobler du den til Wi-Fi. Så skanner du QR-koden på skjermen med telefonen for å logge inn eller registrere deg hos våre tjenester. Deretter gir du tilgang til Spotify-kontoen din, og en API-nøkkel for Spotify Soloist, den frittstående Spotify-spilleren The Max Mix bruker. Til slutt parer du telefonen over Bluetooth, så den vet når du er hjemme.'
+    en: 'The app needs internet, so first you’ll connect it to Wi-Fi. Then scan the QR code on screen with your phone to sign in or register with our backend services. Next you’ll give access to your Spotify account, and an API key for Spotify Soloist, the standalone Spotify player the app uses. Last, you’ll pair your phone over Bluetooth so the app knows when you’re home.',
+    nb: 'Appen trenger internett, så først kobler du den til Wi-Fi. Så skanner du QR-koden på skjermen med telefonen for å logge inn eller registrere deg hos våre tjenester. Deretter gir du tilgang til Spotify-kontoen din, og en API-nøkkel for Spotify Soloist, den frittstående Spotify-spilleren appen bruker. Til slutt parer du telefonen over Bluetooth, så appen vet når du er hjemme.'
   },
   'setup.start': { en: 'Start', nb: 'Start' },
   'setup.complete': { en: 'Setup complete', nb: 'Oppsettet er ferdig' }
