@@ -3720,11 +3720,6 @@ input:disabled {
   flex-direction: column;
   gap: 20px;
 }
-.setup-wizard-title {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 800;
-}
 .setup-wizard-center {
   display: flex;
   flex: 1;
@@ -3783,6 +3778,14 @@ input:disabled {
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
+/* The one line a chapter says about itself, over its QR code or steps. */
+.app-modal-panel .setup-wizard-lead {
+  max-width: 640px;
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.4;
+  text-align: center;
+}
 .app-modal-panel .setup-wizard-complete {
   margin: 0;
   font-size: 32px;
@@ -3827,7 +3830,7 @@ input:disabled {
   letter-spacing: -0.02em;
 }
 .app-modal-panel .setup-welcome-text {
-  max-width: 920px;
+  max-width: 640px;
   margin: 0;
   color: var(--muted);
   font-size: 22px;

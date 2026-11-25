@@ -538,8 +538,17 @@ export const STRINGS = {
   'setup.chapter_presence': { en: 'Presence', nb: 'Tilstedeværelse' },
   'setup.welcome': { en: 'Welcome', nb: 'Velkommen' },
   'setup.welcome_text': {
-    en: 'The app needs internet, so first you’ll connect it to Wi-Fi. Then scan the QR code on screen with your phone to sign in or register with our backend services. Next you’ll give access to your Spotify account, and an API key for Spotify Soloist, the standalone Spotify player the app uses. Last, you’ll pair your phone over Bluetooth so the app knows when you’re home.',
-    nb: 'Appen trenger internett, så først kobler du den til Wi-Fi. Så skanner du QR-koden på skjermen med telefonen for å logge inn eller registrere deg hos våre tjenester. Deretter gir du tilgang til Spotify-kontoen din, og en API-nøkkel for Spotify Soloist, den frittstående Spotify-spilleren appen bruker. Til slutt parer du telefonen over Bluetooth, så appen vet når du er hjemme.'
+    en: 'This wizard sets up The Max Mix, including registering it with our backend services and giving it access to your Spotify account.',
+    nb: 'Denne veiviseren setter opp The Max Mix, blant annet registrerer den hos våre tjenester og gir den tilgang til Spotify-kontoen din.'
+  },
+  'setup.scan': { en: 'Scan to proceed.', nb: 'Skann for å fortsette.' },
+  'setup.soloist': {
+    en: 'The app uses Spotify Soloist to play music from your Spotify account. Soloist needs an API key from you. Enter it on your phone, and we’ll store it securely.',
+    nb: 'Appen bruker Spotify Soloist til å spille musikk fra Spotify-kontoen din. Soloist trenger en API-nøkkel fra deg. Skriv den inn på telefonen, så lagrer vi den sikkert.'
+  },
+  'setup.presence': {
+    en: 'Next, the app pairs with your phone over Bluetooth, so it knows when you’re home and can switch to your account.',
+    nb: 'Nå pares appen med telefonen din over Bluetooth, så den vet når du er hjemme og kan bytte til kontoen din.'
   },
   'setup.start': { en: 'Start', nb: 'Start' },
   'setup.complete': { en: 'Setup complete', nb: 'Oppsettet er ferdig' }
