@@ -20,6 +20,13 @@ function soloist() {
   return { stop, says: (isSignedIn: boolean) => act(() => tell?.({ isSignedIn, deviceName: NAME })) };
 }
 
+/** Lets `ms` pass. */
+function advance(ms: number) {
+  act(() => {
+    vi.advanceTimersByTime(ms);
+  });
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
 });
@@ -48,9 +55,9 @@ describe('useSoloistSignIn', () => {
     const { says } = soloist();
     const { result } = renderHook(() => useSoloistSignIn(true));
     says(false);
-    act(() => vi.advanceTimersByTime(SIGNED_OUT_AFTER_MS - 1));
+    advance(SIGNED_OUT_AFTER_MS - 1);
     expect(result.current).toEqual(UNKNOWN);
-    act(() => vi.advanceTimersByTime(1));
+    advance(1);
     expect(result.current).toEqual({ isSignedIn: false, deviceName: NAME });
   });
 
@@ -59,7 +66,7 @@ describe('useSoloistSignIn', () => {
     const { result } = renderHook(() => useSoloistSignIn(true));
     says(false);
     says(true);
-    act(() => vi.advanceTimersByTime(SIGNED_OUT_AFTER_MS));
+    advance(SIGNED_OUT_AFTER_MS);
     expect(result.current).toEqual({ isSignedIn: true, deviceName: NAME });
   });
 
@@ -71,7 +78,7 @@ describe('useSoloistSignIn', () => {
     says(false);
     rerender({ isWatching: false });
     expect(stop).toHaveBeenCalledOnce();
-    act(() => vi.advanceTimersByTime(SIGNED_OUT_AFTER_MS));
+    advance(SIGNED_OUT_AFTER_MS);
     expect(result.current).toEqual(UNKNOWN);
   });
 });

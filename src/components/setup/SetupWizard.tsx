@@ -206,7 +206,7 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
   // The key starts Soloist; it is signed in once they have picked the kiosk in Spotify on their phone.
   const [soloistSignedIn, setSoloistSignedIn] = useState(false);
   const soloist = useSoloistSignIn(key === 'saved' && !soloistSignedIn);
-  if (soloist.isSignedIn === true && !soloistSignedIn) setSoloistSignedIn(true);
+  if (!soloistSignedIn && soloist.isSignedIn === true) setSoloistSignedIn(true);
   const [phonePaired, setPhonePaired] = useState(person !== undefined && person.phoneAddress !== '');
   const markPaired = useCallback(() => setPhonePaired(true), []);
   const address = useSetupAddress();
