@@ -11,10 +11,12 @@ import {
 import { countdownServer } from '../../countdown/server';
 import { usePhonePairing } from '../../hooks/usePhonePairing';
 import { usePhoneSignIn } from '../../hooks/usePhoneSignIn';
+import { useScreenSleep } from '../../hooks/useScreenSleep';
 import { useSoloistKey } from '../../hooks/useSoloistKey';
 import { useT } from '../../i18n/translate';
 import { peopleOnKiosk, takePhoneToPair } from '../../spotify/auth';
 import type { PersonOnKiosk } from '../../spotify/auth';
+import { isKiosk } from '../../utils/kiosk';
 import { loadThemeColour } from '../../utils/themeColour';
 import PersonFace from '../PersonFace';
 import PhonePairingView, { PairPhoneSteps } from '../PhonePairingView';
@@ -142,6 +144,8 @@ function Presence({
  */
 export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFinished?: () => void }>) {
   const t = useT();
+  // The screen stays on throughout: the Pi turns it off seconds after the last touch otherwise, mid-scan.
+  useScreenSleep({ enabled: isKiosk(), keepAwake: true, onDashboard: false, sleepMs: null, quiet: false });
   const [registered] = useState(() => deviceCredentials() !== null);
   const [wifiDone, setWifiDone] = useState(registered);
   const [wifi, recheckWifi] = useWifi(!wifiDone);

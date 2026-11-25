@@ -4,6 +4,7 @@ import userEvent from '../../test/user';
 import { deviceCredentials, finishSetup } from '../../countdown/registration';
 import { usePhonePairing } from '../../hooks/usePhonePairing';
 import { usePhoneSignIn } from '../../hooks/usePhoneSignIn';
+import { useScreenSleep } from '../../hooks/useScreenSleep';
 import { useSoloistKey } from '../../hooks/useSoloistKey';
 import { peopleOnKiosk, takePhoneToPair } from '../../spotify/auth';
 import type { PersonOnKiosk } from '../../spotify/auth';
@@ -21,6 +22,7 @@ vi.mock('../../countdown/registration', async importOriginal => ({
 vi.mock('../../countdown/server', () => ({ countdownServer: () => 'https://countdown.build' }));
 vi.mock('../../hooks/usePhonePairing', () => ({ usePhonePairing: vi.fn() }));
 vi.mock('../../hooks/usePhoneSignIn', () => ({ usePhoneSignIn: vi.fn() }));
+vi.mock('../../hooks/useScreenSleep', () => ({ useScreenSleep: vi.fn() }));
 vi.mock('../../hooks/useSoloistKey', () => ({ useSoloistKey: vi.fn() }));
 vi.mock('../../spotify/auth', () => ({ peopleOnKiosk: vi.fn(), takePhoneToPair: vi.fn() }));
 vi.mock('../settings/wifi', () => ({ useWifi: vi.fn() }));
@@ -85,6 +87,7 @@ describe('SetupWizard', () => {
     expect(chapter('Wi-Fi')).toHaveTextContent('wifi-settings');
     expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument();
     expect(useRegistration).toHaveBeenLastCalledWith(false, expect.any(Function));
+    expect(useScreenSleep).toHaveBeenLastCalledWith(expect.objectContaining({ keepAwake: true }));
   });
 
   it('asks the Pi again about its network until it is on one, then registers', async () => {
