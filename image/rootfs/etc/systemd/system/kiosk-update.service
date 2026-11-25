@@ -8,4 +8,7 @@ After=network-online.target rauc.service
 
 [Service]
 Type=oneshot
+# On the Pi's own setup hotspot there is no internet (NetworkManager still counts it as up), so the job is skipped
+# cleanly rather than failing; joining a real network starts it again (50-kiosk-online).
+ExecCondition=/bin/sh -c 'ip route show default | grep -q .'
 ExecStart=/usr/local/sbin/kiosk-update run
