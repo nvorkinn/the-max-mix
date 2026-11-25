@@ -5,24 +5,20 @@ import App from './App';
 vi.mock('./components/TabletView', () => ({
   default: () => <div>tablet-view</div>
 }));
-vi.mock('./components/PairingScreen', () => ({
-  default: ({ screen: pi }: { screen: { width: number; height: number } }) => (
-    <div>
-      pairing {pi.width}x{pi.height}
-    </div>
-  )
+vi.mock('./components/setup/SetupWizard', () => ({
+  default: () => <div>setup-wizard</div>
 }));
 
 describe('App', () => {
   it('renders the tablet view', () => {
     render(<App />);
     expect(screen.getByText('tablet-view')).toBeInTheDocument();
-    expect(screen.queryByText(/pairing/)).not.toBeInTheDocument();
+    expect(screen.queryByText('setup-wizard')).not.toBeInTheDocument();
   });
 
-  it('covers the tablet view with the pairing QR code while the kiosk has no owner', () => {
-    render(<App pairScreen={{ width: 1280, height: 800, brightness_control: false }} />);
-    expect(screen.getByText('tablet-view')).toBeInTheDocument();
-    expect(screen.getByText('pairing 1280x800')).toBeInTheDocument();
+  it('shows only the setup wizard while the kiosk is being set up', () => {
+    render(<App isSettingUp />);
+    expect(screen.getByText('setup-wizard')).toBeInTheDocument();
+    expect(screen.queryByText('tablet-view')).not.toBeInTheDocument();
   });
 });

@@ -1,8 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { kioskScreen, needsRegistration } from './countdown/registration';
-import type { KioskScreen } from './countdown/registration';
+import { needsSetup } from './countdown/registration';
 import { startSoloistPerson } from './countdown/soloist';
 import { captureBrowserErrors } from './utils/debugLog';
 import { installHttpLog } from './utils/httpLog';
@@ -27,28 +26,16 @@ if (isKiosk()) {
   startSoloistPerson();
 }
 
-/** Starts the app. */
-function startApp(pairScreen: KioskScreen | null = null): void {
+/** Starts the app, or the first-time setup wizard on a kiosk that hasn't been through it. */
+function startApp(): void {
   const root = document.querySelector('#root');
   if (!root) throw new Error('Missing #root element');
   ReactDOM.createRoot(root).render(
     <React.StrictMode>
-      <App pairScreen={pairScreen} />
+      <App isSettingUp={needsSetup()} />
     </React.StrictMode>
   );
 }
 
 // The copy the Pi serves takes the hosted app's saved data first, so it starts signed in and registered as before.
-void (isKiosk() ? takeHandover() : Promise.resolve()).then(() => {
-  if (needsRegistration()) {
-    // A kiosk with no device ID shows a QR code to add it to countdown-server over the app, until someone has (the
-    // sign-in is on their phone, so none waits on the kiosk). When the Pi cannot say what its screen is, the app starts
-    // unregistered, and the next start tries again.
-    void kioskScreen().then(screen => {
-      if (!screen) console.warn('The kiosk did not say what its screen is, so it is not registered yet');
-      startApp(screen);
-    });
-  } else {
-    startApp();
-  }
-});
+void (isKiosk() ? takeHandover() : Promise.resolve()).then(startApp);

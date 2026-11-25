@@ -30,11 +30,11 @@ export const AREAS: Area[] = [
   },
   {
     tag: 'registration',
-    title: 'Registering with countdown-server',
+    title: 'First-time setup',
     sources: [
       /^src\/countdown\//,
       /^src\/hooks\/useDeviceConfig/,
-      /^src\/components\/(PairingScreen|GetStarted)/,
+      /^src\/components\/setup\//,
       /^\.env\.(production|development)$/
     ]
   },
@@ -64,7 +64,8 @@ export const AREAS: Area[] = [
     sources: [
       /^src\/components\/SettingsPanel/,
       /^src\/components\/settings\//,
-      /^src\/components\/(KioskSystem|ConfirmButton|PhonePicker|PairPhoneSheet)/,
+      /^src\/components\/(KioskSystem|ConfirmButton|PhonePicker|PairPhoneSheet|PhonePairingView)/,
+      /^src\/hooks\/usePhonePairing/,
       /^src\/hooks\/(useSavedPhones|useAutoSwitch)/,
       /^src\/utils\/(themeColour|clockFormat|phoneLinks)/,
       /^src\/sonos\//

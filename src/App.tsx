@@ -1,14 +1,7 @@
-import PairingScreen from './components/PairingScreen';
+import SetupWizard from './components/setup/SetupWizard';
 import TabletView from './components/TabletView';
-import type { KioskScreen } from './countdown/registration';
 
-// pairScreen: the Pi's screen, while the kiosk still has to be added to countdown-server (the pairing QR code covers the
-// app until someone owns it).
-export default function App({ pairScreen = null }: Readonly<{ pairScreen?: KioskScreen | null }>) {
-  return (
-    <>
-      <TabletView />
-      {pairScreen && <PairingScreen screen={pairScreen} />}
-    </>
-  );
+// isSettingUp: a kiosk still going through its first-time setup, which the wizard covers until it is done.
+export default function App({ isSettingUp = false }: Readonly<{ isSettingUp?: boolean }>) {
+  return isSettingUp ? <SetupWizard /> : <TabletView />;
 }

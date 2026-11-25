@@ -2,17 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   deviceCredentials,
   deviceSecret,
-  forgetGetStarted,
+  finishSetup,
   forgetRegistration,
   keepDeviceId,
   kioskScreen,
-  needsRegistration,
+  needsSetup,
   pairingPageUrl,
   pairingState,
   pairingToken,
   registerScreen,
-  secretHash,
-  wantsGetStarted
+  secretHash
 } from './registration';
 import { countdownServer } from './server';
 
@@ -60,24 +59,26 @@ describe('the server setting', () => {
   });
 });
 
-describe('needsRegistration', () => {
-  it('is true on a kiosk with no device ID', () => {
+describe('needsSetup', () => {
+  it('is true on a kiosk that has not finished its setup, even once registered', () => {
     visit('?kiosk=1');
-    expect(needsRegistration()).toBe(true);
-  });
-
-  it('is false away from the kiosk, without the server or its API, or once registered', () => {
-    expect(needsRegistration()).toBe(false);
-    visit('?kiosk=1');
-    vi.stubEnv('VITE_COUNTDOWN_SERVER', '');
-    expect(needsRegistration()).toBe(false);
-    vi.stubEnv('VITE_COUNTDOWN_SERVER', 'https://countdown.build');
-    vi.stubEnv('VITE_COUNTDOWN_API', '');
-    expect(needsRegistration()).toBe(false);
-    vi.stubEnv('VITE_COUNTDOWN_API', 'https://api.countdown.build');
+    expect(needsSetup()).toBe(true);
     localStorage.setItem('maxmix.deviceSecret', EXAMPLE_SECRET);
     localStorage.setItem('maxmix.deviceId', '0a1b2c3d4e5f');
-    expect(needsRegistration()).toBe(false);
+    expect(needsSetup()).toBe(true);
+  });
+
+  it('is false away from the kiosk, without the server or its API, or once the setup is finished', () => {
+    expect(needsSetup()).toBe(false);
+    visit('?kiosk=1');
+    vi.stubEnv('VITE_COUNTDOWN_SERVER', '');
+    expect(needsSetup()).toBe(false);
+    vi.stubEnv('VITE_COUNTDOWN_SERVER', 'https://countdown.build');
+    vi.stubEnv('VITE_COUNTDOWN_API', '');
+    expect(needsSetup()).toBe(false);
+    vi.stubEnv('VITE_COUNTDOWN_API', 'https://api.countdown.build');
+    finishSetup();
+    expect(needsSetup()).toBe(false);
   });
 });
 
@@ -172,20 +173,14 @@ describe('keeping the device', () => {
     expect(deviceCredentials()).toEqual({ deviceId: '0a1b2c3d4e5f', secret });
   });
 
-  it('asks for Get started once the kiosk is paired, until someone deals with it', () => {
-    expect(wantsGetStarted()).toBe(false);
-    keepDeviceId('0a1b2c3d4e5f');
-    expect(wantsGetStarted()).toBe(true);
-    forgetGetStarted();
-    expect(wantsGetStarted()).toBe(false);
-  });
-
-  it('forgets the device ID and the secret', () => {
+  it('forgets the device ID, the secret and the finished setup', () => {
     localStorage.setItem('maxmix.deviceSecret', '0123abcd');
     localStorage.setItem('maxmix.deviceId', '0a1b2c3d4e5f');
+    finishSetup();
     forgetRegistration();
     expect(deviceCredentials()).toBeNull();
     expect(localStorage.getItem('maxmix.deviceSecret')).toBeNull();
+    expect(localStorage.getItem('maxmix.setupDone')).toBeNull();
   });
 });
 
@@ -199,7 +194,7 @@ describe('without storage', () => {
       throw new Error('blocked');
     });
     expect(deviceCredentials()).toBeNull();
-    expect(needsRegistration()).toBe(false);
+    expect(needsSetup()).toBe(false);
     expect(keepDeviceId('0a1b2c3d4e5f')).toBe(false);
   });
 
