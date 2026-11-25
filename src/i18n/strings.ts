@@ -543,8 +543,8 @@ export const STRINGS = {
   },
   'setup.scan': { en: 'Scan to proceed.', nb: 'Skann for å fortsette.' },
   'setup.soloist': {
-    en: 'Spotify Soloist is the part of the app that plays music from your Spotify account. It needs an API key of your own: your phone asks for it now, and it is kept for this screen only.',
-    nb: 'Spotify Soloist er den delen av appen som spiller musikk fra Spotify-kontoen din. Den trenger en egen API-nøkkel fra deg: telefonen ber om den nå, og den lagres bare for denne skjermen.'
+    en: 'The app uses Spotify Soloist to play music from your Spotify account. Soloist needs an API key from you. Enter it on your phone, and we’ll store it securely.',
+    nb: 'Appen bruker Spotify Soloist til å spille musikk fra Spotify-kontoen din. Soloist trenger en API-nøkkel fra deg. Skriv den inn på telefonen, så lagrer vi den sikkert.'
   },
   'setup.presence': {
     en: 'Next, the app pairs with your phone over Bluetooth, so it knows when you’re home and can switch to your account.',
