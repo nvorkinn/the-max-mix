@@ -6,6 +6,7 @@ import { usePhonePairing } from '../../hooks/usePhonePairing';
 import { usePhoneSignIn } from '../../hooks/usePhoneSignIn';
 import { useScreenSleep } from '../../hooks/useScreenSleep';
 import { useSoloistKey } from '../../hooks/useSoloistKey';
+import { useSoloistSignIn } from '../../hooks/useSoloistSignIn';
 import { peopleOnKiosk, takePhoneToPair } from '../../spotify/auth';
 import type { PersonOnKiosk } from '../../spotify/auth';
 import { useWifi } from '../settings/wifi';
@@ -24,6 +25,7 @@ vi.mock('../../hooks/usePhonePairing', () => ({ usePhonePairing: vi.fn() }));
 vi.mock('../../hooks/usePhoneSignIn', () => ({ usePhoneSignIn: vi.fn() }));
 vi.mock('../../hooks/useScreenSleep', () => ({ useScreenSleep: vi.fn() }));
 vi.mock('../../hooks/useSoloistKey', () => ({ useSoloistKey: vi.fn() }));
+vi.mock('../../hooks/useSoloistSignIn', () => ({ useSoloistSignIn: vi.fn() }));
 vi.mock('../../spotify/auth', () => ({ peopleOnKiosk: vi.fn(), takePhoneToPair: vi.fn() }));
 vi.mock('../settings/wifi', () => ({ useWifi: vi.fn() }));
 vi.mock('../settings/WifiSettings', () => ({ default: () => <div>wifi-settings</div> }));
@@ -42,6 +44,8 @@ const MAX: PersonOnKiosk = {
 };
 const PHONE = { address: '1C:3C:78:F2:61:1D', name: 'Max’s iPhone' };
 const CREDENTIALS = { deviceId: '0a1b2c3d4e5f', secret: 'a-secret' };
+const KIOSK = 'The Max Mix 4';
+const CODE = 'QR code to set up this screen on your phone';
 
 const pairing = {
   pairing: { state: 'idle' } as const,
@@ -61,6 +65,7 @@ beforeEach(() => {
   vi.mocked(deviceCredentials).mockReturnValue(CREDENTIALS);
   vi.mocked(peopleOnKiosk).mockReturnValue([MAX]);
   vi.mocked(useSoloistKey).mockReturnValue('saved');
+  vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: true, deviceName: KIOSK });
   vi.mocked(usePhonePairing).mockReturnValue(pairing);
   onWifi({ state: 'connected', ssid: 'Home', address: 'an address' });
 });
@@ -106,7 +111,7 @@ describe('SetupWizard', () => {
     onWifi({ state: 'connected', ssid: 'Home', address: 'an address' });
     rerender(<SetupWizard />);
     expect(current()).toBe('Account');
-    expect(await screen.findByRole('img', { name: 'QR code to set up this screen on your phone' })).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: CODE })).toBeInTheDocument();
     expect(useRegistration).toHaveBeenLastCalledWith(true, expect.any(Function));
   });
 
@@ -115,7 +120,7 @@ describe('SetupWizard', () => {
     render(<SetupWizard />);
     expect(current()).toBe('Spotify');
     expect(usePhoneSignIn).toHaveBeenCalled();
-    expect(await screen.findByRole('img', { name: 'QR code to set up this screen on your phone' })).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: CODE })).toBeInTheDocument();
     expect(useSoloistKey).toHaveBeenLastCalledWith('', false);
   });
 
@@ -124,8 +129,42 @@ describe('SetupWizard', () => {
     render(<SetupWizard />);
     expect(current()).toBe('Soloist');
     expect(useSoloistKey).toHaveBeenLastCalledWith('max', true);
-    expect(await screen.findByRole('img', { name: 'QR code to set up this screen on your phone' })).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: CODE })).toBeInTheDocument();
     expect(usePhoneSignIn).not.toHaveBeenCalled();
+    // Soloist only starts once the key is there.
+    expect(useSoloistSignIn).toHaveBeenLastCalledWith(false);
+  });
+
+  it('has them pick the kiosk in Spotify once the key is saved, and moves on once Soloist is signed in', () => {
+    vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: false, deviceName: KIOSK });
+    const { rerender } = render(<SetupWizard />);
+    expect(current()).toBe('Soloist');
+    expect(useSoloistSignIn).toHaveBeenLastCalledWith(true);
+    expect(chapter('Soloist')).toHaveTextContent(`Open Spotify on your phone and pick ${KIOSK} in the device list.`);
+    expect(screen.queryByRole('img', { name: CODE })).not.toBeInTheDocument();
+
+    vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: true, deviceName: KIOSK });
+    rerender(<SetupWizard />);
+    expect(current()).toBe('Presence');
+    // Signed in is signed in: a Soloist that restarts later doesn't bring the chapter back.
+    expect(useSoloistSignIn).toHaveBeenLastCalledWith(false);
+    vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: false, deviceName: KIOSK });
+    rerender(<SetupWizard />);
+    expect(current()).toBe('Presence');
+  });
+
+  it('only waits, with nothing to do, until Soloist has said whether it is signed in', () => {
+    vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: null, deviceName: null });
+    render(<SetupWizard />);
+    expect(current()).toBe('Soloist');
+    expect(chapter('Soloist')).toHaveTextContent('');
+    expect(screen.queryByRole('img', { name: CODE })).not.toBeInTheDocument();
+  });
+
+  it('calls the kiosk The Max Mix when Soloist gave no name', () => {
+    vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: false, deviceName: null });
+    render(<SetupWizard />);
+    expect(chapter('Soloist')).toHaveTextContent('pick The Max Mix in the device list.');
   });
 
   it('shows the steps on Presence, and only looks for phones once they are OKd', async () => {

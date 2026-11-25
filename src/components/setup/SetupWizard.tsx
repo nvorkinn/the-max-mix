@@ -13,6 +13,7 @@ import { usePhonePairing } from '../../hooks/usePhonePairing';
 import { usePhoneSignIn } from '../../hooks/usePhoneSignIn';
 import { useScreenSleep } from '../../hooks/useScreenSleep';
 import { useSoloistKey } from '../../hooks/useSoloistKey';
+import { useSoloistSignIn } from '../../hooks/useSoloistSignIn';
 import { useT } from '../../i18n/translate';
 import { peopleOnKiosk, takePhoneToPair } from '../../spotify/auth';
 import type { PersonOnKiosk } from '../../spotify/auth';
@@ -24,6 +25,7 @@ import QrCode from '../QrCode';
 import SpotifyIcon from '../SpotifyIcon';
 import { useWifi } from '../settings/wifi';
 import WifiSettings from '../settings/WifiSettings';
+import PickInSpotify from './PickInSpotify';
 import { useRegistration } from './useRegistration';
 
 /** How often the Wi-Fi chapter asks the Pi which network it is on, so it moves on once the Pi has joined one. */
@@ -39,6 +41,11 @@ const CHAPTER_ICONS: Record<Chapter, ReactNode> = {
   soloist: <KeyRound className="w-6 h-6 shrink-0" aria-hidden="true" />,
   presence: <Bluetooth className="w-6 h-6 shrink-0" aria-hidden="true" />
 };
+
+/** Stands in for the kiosk's name in a line, which is then set in bold where it stood. */
+const DEVICE_MARK = '\u{E000}';
+/** What a kiosk's player is called in Spotify until the Pi's service has said (pi/kiosk-audio/soloist.ts). */
+const KIOSK_NAME = 'The Max Mix';
 
 const reloadPage = () => location.reload();
 
@@ -66,6 +73,32 @@ function useSetupAddress(): string | null {
 function SpotifySignIn({ onSignedIn }: Readonly<{ onSignedIn: () => void }>) {
   usePhoneSignIn(onSignedIn);
   return null;
+}
+
+/**
+ * The Soloist chapter once the key is saved: Soloist signs in to the person's Spotify account the first time they pick
+ * the kiosk in Spotify on their phone, which the drawing shows. Until Soloist has said where it stands, only a spinner.
+ */
+function SpotifyPick({ device }: Readonly<{ device: string | null }>) {
+  const t = useT();
+  if (device === null) {
+    return (
+      <div className="setup-wizard-center">
+        <LoaderCircle className="w-10 h-10 animate-spin text-accent" aria-hidden="true" />
+      </div>
+    );
+  }
+  const [before = '', after = ''] = t('setup.pick_in_spotify', { device: DEVICE_MARK }).split(DEVICE_MARK);
+  return (
+    <div className="setup-wizard-center setup-wizard-pick">
+      <p className="setup-wizard-lead">
+        {before}
+        <b>{device}</b>
+        {after}
+      </p>
+      <PickInSpotify device={device} />
+    </div>
+  );
 }
 
 /** The Presence chapter: what to do on the phone, then (once OK'd) the phones the Pi hears, then Done. */
@@ -139,6 +172,8 @@ function Presence({
  *   their phone goes through all three (countdown-server's /device/setup): signing in to Countdown makes the kiosk
  *   theirs, then Spotify signs them in, then they save their Soloist key. Meanwhile the kiosk registers and waits for
  *   an owner, then starts the Spotify sign-in, then asks for the key code, and ticks each chapter as it lands.
+ * - Soloist has a second page: the key only starts it, and it signs in to their Spotify account the first time they
+ *   pick the kiosk in Spotify's device list on their phone. The chapter is ticked once Soloist says it is signed in.
  * - Presence: the phone is paired over Bluetooth, the scan starting only once they have Bluetooth open and tap OK.
  *
  * Pairing and signing in reload the page, so every chapter's state is read from what the kiosk keeps. Done marks the
@@ -168,6 +203,10 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
   const [people] = useState(peopleOnKiosk);
   const person = people.find(someone => someone.active) ?? people[0];
   const key = useSoloistKey(person?.spotifyId ?? '', registered && person !== undefined);
+  // The key starts Soloist; it is signed in once they have picked the kiosk in Spotify on their phone.
+  const [soloistSignedIn, setSoloistSignedIn] = useState(false);
+  const soloist = useSoloistSignIn(key === 'saved' && !soloistSignedIn);
+  if (!soloistSignedIn && soloist.isSignedIn === true) setSoloistSignedIn(true);
   const [phonePaired, setPhonePaired] = useState(person !== undefined && person.phoneAddress !== '');
   const markPaired = useCallback(() => setPhonePaired(true), []);
   const address = useSetupAddress();
@@ -176,7 +215,7 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
     wifi: wifiDone,
     account: registered,
     spotify: person !== undefined,
-    soloist: key === 'saved',
+    soloist: key === 'saved' && soloistSignedIn,
     presence: phonePaired
   };
   const current = CHAPTERS.find(chapter => !done[chapter]) ?? 'presence';
@@ -194,6 +233,8 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
     page = <WifiSettings wifi={wifi} onJoined={recheckWifi} />;
   } else if (current === 'presence' && person) {
     page = <Presence person={person} isPaired={phonePaired} onPaired={markPaired} onDone={finish} />;
+  } else if (current === 'soloist' && key === 'saved') {
+    page = <SpotifyPick device={soloist.isSignedIn === false ? (soloist.deviceName ?? KIOSK_NAME) : null} />;
   } else {
     page = (
       <div className="setup-wizard-center">

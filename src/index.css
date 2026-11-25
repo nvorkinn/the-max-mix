@@ -3791,6 +3791,221 @@ input:disabled {
   font-size: 32px;
   font-weight: 800;
 }
+.setup-wizard-pick {
+  gap: 24px;
+}
+/*
+  The drawing of what to do in Spotify on the phone (components/setup/PickInSpotify.tsx): a phone with the bar of what
+  plays and its devices button, a tap on that, the list of devices coming up, and a tap on the kiosk. Without its
+  animations it shows the end, the list with the kiosk picked, which is what reduced motion leaves.
+*/
+.spotify-pick {
+  --pick-loop: 7s;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 14px;
+  width: 260px;
+  height: 400px;
+  padding: 14px;
+  overflow: hidden;
+  border: 3px solid var(--border);
+  border-radius: 36px;
+  background: var(--page);
+}
+.spotify-pick::before {
+  content: '';
+  align-self: center;
+  width: 64px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+}
+.spotify-pick-tiles {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 1fr 1fr;
+  align-content: start;
+  gap: 10px;
+}
+.spotify-pick-tiles span {
+  aspect-ratio: 3 / 2;
+  border-radius: 10px;
+  background: var(--surface);
+}
+.spotify-pick-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px 8px 8px;
+  border-radius: 14px;
+  background: var(--surface-raised);
+}
+.spotify-pick-cover {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--track);
+}
+.spotify-pick-song {
+  flex: 1;
+  height: 10px;
+  margin-right: 28px;
+  border-radius: 5px;
+  background: var(--track);
+}
+.spotify-pick-devices {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: var(--accent);
+  animation: spotify-pick-devices var(--pick-loop) infinite;
+}
+.spotify-pick-sheet {
+  position: absolute;
+  inset: auto 0 0;
+  display: grid;
+  gap: 6px;
+  padding: 18px 12px;
+  border-top: 2px solid var(--border);
+  border-radius: 22px 22px 0 0;
+  background: var(--surface);
+  animation: spotify-pick-sheet var(--pick-loop) infinite;
+}
+.spotify-pick-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 0 12px;
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 650;
+  text-align: left;
+}
+.spotify-pick-row svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.spotify-pick-row span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.spotify-pick-kiosk {
+  background: var(--accent-soft);
+  color: var(--accent);
+  animation: spotify-pick-kiosk var(--pick-loop) infinite;
+}
+.spotify-pick-tick {
+  animation: spotify-pick-tick var(--pick-loop) infinite;
+}
+/* Where a finger lands: a ring that closes in on the button, then lets go. */
+.spotify-pick-tap {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 30%, transparent);
+  opacity: 0;
+}
+.spotify-pick-tap-devices {
+  right: 18px;
+  bottom: 18px;
+  animation: spotify-pick-tap-devices var(--pick-loop) infinite;
+}
+.spotify-pick-tap-kiosk {
+  right: 64px;
+  bottom: 21px;
+  animation: spotify-pick-tap-kiosk var(--pick-loop) infinite;
+}
+@keyframes spotify-pick-devices {
+  0%,
+  17% {
+    color: var(--muted);
+  }
+  19%,
+  100% {
+    color: var(--accent);
+  }
+}
+@keyframes spotify-pick-tap-devices {
+  0%,
+  10% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  16%,
+  19% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  26%,
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+@keyframes spotify-pick-sheet {
+  0%,
+  21% {
+    transform: translateY(100%);
+  }
+  29%,
+  93% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+@keyframes spotify-pick-tap-kiosk {
+  0%,
+  44% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  50%,
+  53% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  60%,
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+@keyframes spotify-pick-kiosk {
+  0%,
+  52% {
+    background: transparent;
+    color: var(--muted);
+  }
+  54%,
+  100% {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+}
+@keyframes spotify-pick-tick {
+  0%,
+  52% {
+    opacity: 0;
+  }
+  54%,
+  100% {
+    opacity: 1;
+  }
+}
 /* The welcome before the chapters: the mark large, what setup involves, and Start. */
 .setup-welcome {
   display: flex;
@@ -3836,8 +4051,12 @@ input:disabled {
   font-size: 22px;
   line-height: 1.45;
 }
-/* The 7" screen: a smaller logo and text, so all of it fits above Start. */
+/* The 7" screen: a smaller logo, text and drawn phone, so all of it fits. */
 @media (height < 760px) {
+  .spotify-pick {
+    width: 230px;
+    height: 330px;
+  }
   .setup-welcome-mark {
     width: 72px;
     height: 72px;

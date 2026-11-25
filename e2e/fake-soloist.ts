@@ -58,3 +58,33 @@ export async function fakeSoloist(page: Page, spotify: { devices: SpotifyDevice[
     }
   };
 }
+
+/**
+ * Soloist as a new kiosk has it once its owner's key is saved: running, but signed out until they pick the kiosk in
+ * Spotify on their phone, which `signIn` stands in for.
+ */
+export async function fakeSignedOutSoloist(page: Page) {
+  const connections: WebSocketRoute[] = [];
+  let isSignedIn = false;
+  const authState = () => ({
+    type: 'auth_state',
+    logged_in: isSignedIn,
+    is_active: false,
+    device_name: SOLOIST_DEVICE.name
+  });
+  await page.routeWebSocket(SOLOIST_SOCKET, ws => {
+    connections.push(ws);
+    send(ws, { type: 'bridge', connected: true });
+    ws.onMessage(text => {
+      const { command } = JSON.parse(String(text)) as { command?: string };
+      if (command === 'get_auth_state' || command === 'get_state') send(ws, authState());
+    });
+  });
+  return {
+    /** They pick the kiosk in Spotify on their phone, and Soloist says it is signed in. */
+    signIn: () => {
+      isSignedIn = true;
+      for (const ws of connections) send(ws, authState());
+    }
+  };
+}
