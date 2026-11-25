@@ -260,7 +260,6 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
         </nav>
         <section className="settings-content" aria-label={t(`setup.chapter_${current}`)}>
           <div className="settings-content-body setup-wizard-body" key={current}>
-            <h2 className="setup-wizard-title">{t(`setup.chapter_${current}`)}</h2>
             {page}
           </div>
         </section>

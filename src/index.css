@@ -3720,11 +3720,6 @@ input:disabled {
   flex-direction: column;
   gap: 20px;
 }
-.setup-wizard-title {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 800;
-}
 .setup-wizard-center {
   display: flex;
   flex: 1;
