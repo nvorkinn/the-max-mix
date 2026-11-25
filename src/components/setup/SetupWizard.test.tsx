@@ -71,11 +71,15 @@ afterEach(() => {
 });
 
 describe('SetupWizard', () => {
-  it('lists the chapters, the one on now lit, and starts on Wi-Fi with no Next button', () => {
+  it('welcomes first, then lists the chapters, the one on now lit, and starts on Wi-Fi with no Next button', async () => {
     vi.mocked(deviceCredentials).mockReturnValue(null);
     vi.mocked(peopleOnKiosk).mockReturnValue([]);
     onWifi({ state: 'disconnected', address: null });
     render(<SetupWizard />);
+    // A kiosk nobody owns opens on the welcome.
+    expect(screen.getByRole('heading', { name: 'Welcome' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Start' }));
     expect(screen.getAllByRole('listitem').map(item => item.textContent)).toEqual([
       'Wi-Fi',
       'Account',
@@ -95,6 +99,7 @@ describe('SetupWizard', () => {
     vi.mocked(peopleOnKiosk).mockReturnValue([]);
     onWifi({ state: 'disconnected', address: null });
     const { rerender } = render(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'Start' }));
     await act(() => vi.advanceTimersByTimeAsync(NETWORK_POLL_MS));
     expect(recheck).toHaveBeenCalled();
 
@@ -160,6 +165,7 @@ describe('SetupWizard', () => {
     });
     const onFinished = vi.fn();
     render(<SetupWizard onFinished={onFinished} />);
+    expect(screen.getByText('Setup complete')).toBeInTheDocument();
     await userEvent.click(await screen.findByRole('button', { name: 'Done' }));
     expect(takePhoneToPair).toHaveBeenCalled();
     expect(finishSetup).toHaveBeenCalled();

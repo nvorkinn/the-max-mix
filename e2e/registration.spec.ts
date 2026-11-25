@@ -110,6 +110,10 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       );
       const server = await fakePairing(page);
       await page.goto('/?kiosk=1');
+      // The welcome says what is coming, and Start opens the chapters.
+      await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
+      await shot('0-welcome');
+      await page.getByRole('button', { name: 'Start' }).click();
       const chapters = page.getByRole('navigation', { name: 'Set up this screen' }).getByRole('listitem');
       await expect(chapters).toHaveText(['Wi-Fi', 'Account', 'Spotify', 'Soloist', 'Presence']);
 
@@ -163,6 +167,7 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       await page.getByRole('button', { name: PHONE.name }).click();
       bluetooth.report.pairing = { state: 'paired', name: PHONE.name, address: PHONE.address };
       await expect(page.getByRole('button', { name: 'Done' })).toBeVisible();
+      await expect(page.getByText('Setup complete')).toBeVisible();
       await shot('7-done');
 
       // Done opens the app, and the next start doesn't come back to the wizard.

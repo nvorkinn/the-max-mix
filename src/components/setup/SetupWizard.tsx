@@ -89,6 +89,7 @@ function Presence({
           <PersonFace name={person.name} imageUrl={person.imageUrl} className="pair-phone-face-picture" />
           <Check className="pair-phone-face-tick" aria-hidden="true" />
         </div>
+        <p className="setup-wizard-complete">{t('setup.complete')}</p>
         <button type="button" className="button search-dialog-confirm setup-wizard-button" onClick={onDone}>
           {t('common.done')}
         </button>
@@ -147,6 +148,9 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
   // The screen stays on throughout: the Pi turns it off seconds after the last touch otherwise, mid-scan.
   useScreenSleep({ enabled: isKiosk(), keepAwake: true, onDashboard: false, sleepMs: null, quiet: false });
   const [registered] = useState(() => deviceCredentials() !== null);
+  // A kiosk nobody owns yet opens on the welcome, which says what is coming; once owned (the page reloads on the way),
+  // it goes straight to the chapter it is on.
+  const [isWelcoming, setIsWelcoming] = useState(!registered);
   const [wifiDone, setWifiDone] = useState(registered);
   const [wifi, recheckWifi] = useWifi(!wifiDone);
   // Off the Pi's service (it can't say), there is no Wi-Fi to set up here.
@@ -198,6 +202,30 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
         ) : (
           <LoaderCircle className="w-10 h-10 animate-spin text-accent" aria-hidden="true" />
         )}
+      </div>
+    );
+  }
+
+  if (isWelcoming) {
+    return (
+      <div className="tablet-container" data-colour={loadThemeColour()}>
+        <main className="app-modal-panel setup-welcome select-none" aria-label={t('setup.welcome')}>
+          <div className="setup-welcome-logo" aria-hidden="true">
+            <span className="setup-wizard-mark setup-welcome-mark">
+              <AudioLines className="lucide" />
+            </span>
+            <span className="setup-wizard-name setup-welcome-name">The Max Mix.</span>
+          </div>
+          <h1 className="setup-welcome-title">{t('setup.welcome')}</h1>
+          <p className="setup-welcome-text">{t('setup.welcome_text')}</p>
+          <button
+            type="button"
+            className="button search-dialog-confirm setup-wizard-button"
+            onClick={() => setIsWelcoming(false)}
+          >
+            {t('setup.start')}
+          </button>
+        </main>
       </div>
     );
   }
