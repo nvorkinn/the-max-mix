@@ -99,6 +99,7 @@ function Presence({
   if (!isLooking) {
     return (
       <div className="setup-wizard-center">
+        <p className="setup-wizard-lead">{t('setup.presence')}</p>
         <PairPhoneSteps />
         <button
           type="button"
@@ -197,6 +198,7 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
     page = (
       <div className="setup-wizard-center">
         {current === 'spotify' && <SpotifySignIn onSignedIn={reloadPage} />}
+        <p className="setup-wizard-lead">{t(current === 'soloist' ? 'setup.soloist' : 'setup.scan')}</p>
         {address ? (
           <QrCode text={address} className="setup-wizard-code" label={t('pairing.code')} />
         ) : (
