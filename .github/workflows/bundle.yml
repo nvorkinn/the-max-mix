@@ -123,7 +123,7 @@ jobs:
       # signs with a throwaway one.
       - name: Fetch the signing key from Vaultwarden
         if: inputs.sign
-        uses: nvorkinn/.github/actions/vaultwarden-secrets@1b00d2394ad1b431ccd01e54e8075dc97244936e # v1.0.0
+        uses: nvorkinn/.github/actions/vaultwarden-secrets@706ad073f62d54c4887a6d1317205881c6422cf1 # v1.1.0
         with:
           map: image/secrets-map.json
           target: bundle
