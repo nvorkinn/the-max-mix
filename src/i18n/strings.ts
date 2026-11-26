@@ -578,6 +578,8 @@ export const STRINGS = {
   },
   'setup.wifi_passwords': { en: 'Passwords', nb: 'Passord' },
   'setup.wifi_show_code': { en: 'Show Network QR Code', nb: 'Vis QR-kode for nettverket' },
+  'setup.wifi_connected': { en: 'Successfully connected to {ssid}.', nb: 'Koblet til {ssid}.' },
+  'setup.continue': { en: 'Continue', nb: 'Fortsett' },
   'setup.wifi_hold': { en: 'Hold the code up to the camera.', nb: 'Hold koden opp mot kameraet.' },
   'setup.wifi_other': { en: 'Set up Wi-Fi another way', nb: 'Sett opp Wi-Fi på en annen måte' },
   'setup.presence': {

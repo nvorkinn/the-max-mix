@@ -14,11 +14,13 @@ import { usePhoneSignIn } from '../../hooks/usePhoneSignIn';
 import { useScreenSleep } from '../../hooks/useScreenSleep';
 import { useSoloistKey } from '../../hooks/useSoloistKey';
 import { useSoloistSignIn } from '../../hooks/useSoloistSignIn';
+import { useLanguage } from '../../i18n/language';
 import { useT } from '../../i18n/translate';
 import { peopleOnKiosk, takePhoneToPair } from '../../spotify/auth';
 import type { PersonOnKiosk } from '../../spotify/auth';
 import { isKiosk } from '../../utils/kiosk';
 import { hasCamera } from '../../utils/kioskCamera';
+import { joinWifi } from '../../utils/kioskWifi';
 import { loadThemeColour } from '../../utils/themeColour';
 import PersonFace from '../PersonFace';
 import PhonePairingView, { PairPhoneSteps } from '../PhonePairingView';
@@ -27,6 +29,7 @@ import SpotifyIcon from '../SpotifyIcon';
 import { useWifi } from '../settings/wifi';
 import type { WifiState } from '../settings/wifi';
 import WifiScanView from '../settings/WifiScanView';
+import type { ReadNetwork } from '../settings/WifiScanView';
 import WifiSettings from '../settings/WifiSettings';
 import PickInSpotify from './PickInSpotify';
 import ShareWifiCode from './ShareWifiCode';
@@ -46,7 +49,13 @@ const CHAPTER_ICONS: Record<Chapter, ReactNode> = {
   presence: <Bluetooth className="w-6 h-6 shrink-0" aria-hidden="true" />
 };
 
-/** Stands in for the kiosk's name in a line, which is then set in bold where it stood. */
+/** A network the camera's chapter read from its code, and whether Continue has been tapped once the kiosk is on it. */
+interface ScannedNetwork {
+  ssid: string;
+  isConfirmed: boolean;
+}
+
+/** Stands in for a name in a line (the kiosk's, a network's), which is then set in bold where it stood. */
 const DEVICE_MARK = '\u{E000}';
 /** What a kiosk's player is called in Spotify until the Pi's service has said (pi/kiosk-audio/soloist.ts). */
 const KIOSK_NAME = 'The Max Mix';
@@ -107,14 +116,92 @@ function SpotifyPick({ device }: Readonly<{ device: string | null }>) {
 
 /**
  * The Wi-Fi chapter on a kiosk with a camera: how a phone shows its network as a QR code (an iPhone's way in the
- * drawing and the lead, Android's in the line under it), then (once
- * OK'd) what the camera sees, until the kiosk has read a code and joined its network. Every other way to join one
- * (Settings › Wi-Fi's page) is behind the line at the bottom, and from there on the chapter stays on that page.
+ * drawing and the lead, Android's in the line under it), then (once OK'd) what the camera sees until it has read a
+ * code. The page then changes at once, so nobody keeps holding their phone up: a spinner while the kiosk joins that
+ * network (`scanned`), which turns into a tick with the network's name, and setup goes on at Continue. A network it
+ * could not join gets the kiosk's reason and Try again, back at the camera. Every other way to join one (Settings ›
+ * Wi-Fi's page) is behind the line at the bottom, and from there on the chapter stays on that page.
  */
-function WifiByCamera({ wifi, onJoined }: Readonly<{ wifi: WifiState; onJoined: () => void }>) {
+function WifiByCamera({
+  wifi,
+  scanned,
+  onJoined,
+  onRead,
+  onFailed,
+  onContinue
+}: Readonly<{
+  wifi: WifiState;
+  scanned: ScannedNetwork | null;
+  onJoined: () => void;
+  onRead: (ssid: string) => void;
+  onFailed: () => void;
+  onContinue: () => void;
+}>) {
   const t = useT();
+  const language = useLanguage();
   const [step, setStep] = useState<'show' | 'scan' | 'other'>('show');
+  const [joining, setJoining] = useState<{ isJoined: boolean; error?: string }>({ isJoined: false });
+  if (scanned?.isConfirmed) {
+    // Continue is tapped; the Pi may still be getting its address.
+    return (
+      <div className="setup-wizard-center">
+        <LoaderCircle className="w-10 h-10 animate-spin text-accent" aria-hidden="true" />
+      </div>
+    );
+  }
+  if (scanned && joining.error !== undefined) {
+    return (
+      <div className="setup-wizard-center">
+        <p role="alert" className="settings-error status-danger">
+          {joining.error}
+        </p>
+        <button type="button" className="button search-dialog-confirm setup-wizard-button" onClick={onFailed}>
+          {t('common.try_again')}
+        </button>
+      </div>
+    );
+  }
+  if (scanned) {
+    const line = t(joining.isJoined ? 'setup.wifi_connected' : 'wifi.connecting', { ssid: DEVICE_MARK });
+    const [before = '', after = ''] = line.split(DEVICE_MARK);
+    return (
+      <div className="setup-wizard-center">
+        <span className="setup-wizard-tick">
+          {joining.isJoined ? (
+            <Check aria-hidden="true" />
+          ) : (
+            <LoaderCircle className="animate-spin" aria-hidden="true" />
+          )}
+        </span>
+        <p className="setup-wizard-lead" role="status">
+          {before}
+          <b>{scanned.ssid}</b>
+          {after}
+        </p>
+        {/* There from the start, so the page does not shift when the kiosk has joined. */}
+        <button
+          type="button"
+          className={`button search-dialog-confirm setup-wizard-button${joining.isJoined ? '' : ' invisible'}`}
+          disabled={!joining.isJoined}
+          onClick={onContinue}
+        >
+          {t('setup.continue')}
+        </button>
+      </div>
+    );
+  }
   if (step === 'other') return <WifiSettings wifi={wifi} onJoined={onJoined} />;
+  const join = async (network: ReadNetwork) => {
+    onRead(network.ssid);
+    setJoining({ isJoined: false });
+    const result = await joinWifi(network, language);
+    if (result.ok) {
+      setJoining({ isJoined: true });
+      onJoined();
+    } else {
+      setJoining({ isJoined: false, error: result.error ?? t('wifi.unreachable') });
+    }
+  };
   return (
     <div className="setup-wizard-center setup-wizard-wifi">
       <p className="setup-wizard-lead">
@@ -134,7 +221,7 @@ function WifiByCamera({ wifi, onJoined }: Readonly<{ wifi: WifiState; onJoined: 
         </>
       ) : (
         <div className="setup-wizard-camera">
-          <WifiScanView onJoined={onJoined} />
+          <WifiScanView onRead={network => void join(network)} />
         </div>
       )}
       <button type="button" className="setup-wizard-other" onClick={() => setStep('other')}>
@@ -233,8 +320,15 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
   const [isWelcoming, setIsWelcoming] = useState(!registered);
   const [wifiDone, setWifiDone] = useState(registered);
   const [wifi, recheckWifi] = useWifi(!wifiDone);
+  // A network read from its code by the camera is joined and named on a page of its own; the chapter ends at Continue.
+  const [scanned, setScanned] = useState<ScannedNetwork | null>(null);
+  const isWaitingForContinue = scanned !== null && !scanned.isConfirmed;
   // Off the Pi's service (it can't say), there is no Wi-Fi to set up here.
-  if (!wifiDone && ((wifi.state === 'connected' && wifi.address !== null) || wifi.state === 'unknown')) {
+  if (
+    !wifiDone &&
+    !isWaitingForContinue &&
+    ((wifi.state === 'connected' && wifi.address !== null) || wifi.state === 'unknown')
+  ) {
     setWifiDone(true);
   }
   // The Pi may join a saved network by itself (as at boot) while the chapter is open.
@@ -292,7 +386,14 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
     );
   } else if (current === 'wifi') {
     page = hasKioskCamera ? (
-      <WifiByCamera wifi={wifi} onJoined={recheckWifi} />
+      <WifiByCamera
+        wifi={wifi}
+        scanned={scanned}
+        onJoined={recheckWifi}
+        onRead={ssid => setScanned({ ssid, isConfirmed: false })}
+        onFailed={() => setScanned(null)}
+        onContinue={() => setScanned(joined => joined && { ...joined, isConfirmed: true })}
+      />
     ) : (
       <WifiSettings wifi={wifi} onJoined={recheckWifi} />
     );
