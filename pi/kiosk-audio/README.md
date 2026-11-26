@@ -76,7 +76,8 @@ first network it joins fetches the admin account's SSH keys from GitHub and Solo
 
 `sudo kiosk-reset` over SSH, or **Factory reset** in the debug console (`POST /power/reset`, which starts
 `kiosk-reset.service`), logs out of Tailscale, marks `/data` and reboots. The next boot formats `/data`, keeping only
-the Pi's name and `kiosk.env`, so the Pi starts as a new kiosk with the Wi-Fi step and the QR code.
+the Pi's name, `kiosk.env` and its own `config.txt` lines, so the Pi starts as a new kiosk with the Wi-Fi step and the
+QR code.
 
 `POST /display/brightness` sets that backlight (`backlight.ts`): `{"percent": 40}` is 40% of the panel's own full
 brightness, and never off, which is `kiosk-display`'s. With `"fade": true` it gets there in steps over 1.5 s, and a

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Factory reset of an image-based kiosk, for handing it to someone else: logs out of Tailscale (which takes the Pi off
 # the tailnet), marks /data to be wiped and reboots. The next boot formats /data before anything uses it
-# (kiosk-first-boot.ts), keeping only the Pi's name and its settings (identity/hostname, the-max-mix/kiosk.env), so the
+# (kiosk-first-boot.ts), keeping only the Pi's name and its settings (identity/hostname, the-max-mix/kiosk.env and
+# the-max-mix/config.txt), so the
 # Wi-Fi, the people, their Spotify logins, the Bluetooth pairings, the countdown device ID and the SSH host keys go. The
 # Pi then starts as a new kiosk: the Wi-Fi step and the QR code. The image itself, on its read-only slots, stays.
 #   sudo kiosk-reset          asks first
