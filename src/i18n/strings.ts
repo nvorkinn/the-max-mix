@@ -512,6 +512,8 @@ export const STRINGS = {
   'pair.searching': { en: 'Searching', nb: 'Søker' },
   'pair.pairing': { en: 'Pairing', nb: 'Kobler sammen' },
   'pair.accept': { en: 'Accept the pairing request on your phone.', nb: 'Godta paringsforespørselen på telefonen.' },
+  'pair.settings': { en: 'Settings', nb: 'Innstillinger' },
+  'pair.bluetooth': { en: 'Bluetooth', nb: 'Bluetooth' },
   'pair.step_settings': { en: 'Open Settings', nb: 'Åpne Innstillinger' },
   'pair.step_bluetooth': { en: 'Open Bluetooth', nb: 'Åpne Bluetooth' },
   'pair.step_ok': { en: 'Tap OK', nb: 'Trykk OK' },
@@ -589,6 +591,10 @@ export const STRINGS = {
   'setup.presence': {
     en: 'Next, the app pairs with your phone over Bluetooth, so it knows when you’re home and can switch to your account.',
     nb: 'Nå pares appen med telefonen din over Bluetooth, så den vet når du er hjemme og kan bytte til kontoen din.'
+  },
+  'setup.presence_open': {
+    en: 'Open Settings, then Bluetooth, on your phone, and tap OK.',
+    nb: 'Åpne Innstillinger og så Bluetooth på telefonen, og trykk OK.'
   },
   'setup.start': { en: 'Start', nb: 'Start' },
   'setup.complete': { en: 'Setup complete', nb: 'Oppsettet er ferdig' }

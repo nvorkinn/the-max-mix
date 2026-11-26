@@ -335,15 +335,10 @@ describe('SetupWizard', () => {
     expect(chapter('Soloist')).toHaveTextContent('pick The Max Mix in the device list.');
   });
 
-  it('shows the steps on Presence, and only looks for phones once they are OKd', async () => {
+  it('says what to do on the phone on Presence, and only looks for phones once it is OKd', async () => {
     render(<SetupWizard />);
     expect(current()).toBe('Presence');
-    expect(
-      screen
-        .getAllByRole('listitem')
-        .slice(5)
-        .map(item => item.textContent)
-    ).toEqual(['Open Settings', 'Open Bluetooth', 'Tap OK']);
+    expect(chapter('Presence')).toHaveTextContent('Open Settings, then Bluetooth, on your phone, and tap OK.');
     expect(usePhonePairing).toHaveBeenLastCalledWith('max', false);
 
     vi.mocked(usePhonePairing).mockReturnValue({

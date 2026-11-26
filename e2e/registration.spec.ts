@@ -169,7 +169,7 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       const bluetooth = await fakePhonePairing(page);
       await page.getByRole('button', { name: 'Continue' }).click();
       await expect(page.getByRole('region', { name: 'Presence' })).toBeVisible({ timeout: 10_000 });
-      await expect(page.getByRole('listitem').filter({ hasText: 'Tap OK' })).toBeVisible();
+      await expect(page.getByText('Open Settings, then Bluetooth, on your phone, and tap OK.')).toBeVisible();
       await shot('5-presence');
       expect(bluetooth.asked).toEqual([]);
       bluetooth.report.pairing = { state: 'scanning', secondsLeft: 100, nearby: [PHONE] };

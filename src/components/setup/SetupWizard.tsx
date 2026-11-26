@@ -23,7 +23,7 @@ import { hasCamera } from '../../utils/kioskCamera';
 import { joinWifi } from '../../utils/kioskWifi';
 import { loadThemeColour } from '../../utils/themeColour';
 import PersonFace from '../PersonFace';
-import PhonePairingView, { PairPhoneSteps } from '../PhonePairingView';
+import PhonePairingView from '../PhonePairingView';
 import QrCode from '../QrCode';
 import SpotifyIcon from '../SpotifyIcon';
 import { useWifi } from '../settings/wifi';
@@ -32,6 +32,7 @@ import WifiJoinProgress from '../settings/WifiJoinProgress';
 import WifiScanView from '../settings/WifiScanView';
 import type { ReadNetwork } from '../settings/WifiScanView';
 import WifiSettings from '../settings/WifiSettings';
+import OpenBluetooth from './OpenBluetooth';
 import PickInSpotify from './PickInSpotify';
 import ShareWifiCode from './ShareWifiCode';
 import { useRegistration } from './useRegistration';
@@ -209,7 +210,10 @@ function WifiByCamera({
   );
 }
 
-/** The Presence chapter: what to do on the phone, then (once OK'd) the phones the Pi hears, then Done. */
+/**
+ * The Presence chapter: what to do on the phone, with a drawing of it, then (once OK'd) the phones the Pi hears, then
+ * Done.
+ */
 function Presence({
   person,
   isPaired,
@@ -240,8 +244,11 @@ function Presence({
   if (!isLooking) {
     return (
       <div className="setup-wizard-center">
-        <p className="setup-wizard-lead">{t('setup.presence')}</p>
-        <PairPhoneSteps />
+        <p className="setup-wizard-lead">
+          {t('setup.presence')}
+          <span className="setup-wizard-aside">{t('setup.presence_open')}</span>
+        </p>
+        <OpenBluetooth />
         <button
           type="button"
           className="button search-dialog-confirm setup-wizard-button"
