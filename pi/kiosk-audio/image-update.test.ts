@@ -6,6 +6,7 @@ import {
   check,
   giveUp,
   cmdlineWithRoot,
+  configWithOwn,
   installedBootDevice,
   installedRootLabel,
   KIOSK_ENV,
@@ -342,6 +343,32 @@ describe('installedRootLabel', () => {
       })
     ).toBe('root-b');
     expect(installedRootLabel({})).toBeNull();
+  });
+});
+
+describe('configWithOwn', () => {
+  const IMAGE = "# The image's settings\ndtoverlay=vc4-kms-v3d\n\n[pi5]\nkernel=kernel8.img\n\n[all]\n";
+  const OWN = '# The Waveshare screen\ndtoverlay=vc4-kms-dsi-waveshare-panel,10_1_inch,dsi0\n';
+
+  it("puts the Pi's own lines at the end, for every model", () => {
+    const config = configWithOwn(IMAGE, OWN);
+    expect(config.startsWith(IMAGE.trimEnd())).toBe(true);
+    expect(config).toMatch(
+      /\n\n# The Pi's own settings.*\n\[all\]\n# The Waveshare screen\ndtoverlay=vc4-kms-dsi-waveshare-panel,10_1_inch,dsi0\n# The end of the Pi's own settings\.\n$/
+    );
+  });
+
+  it('writes the same file again, and replaces the lines written before', () => {
+    const config = configWithOwn(IMAGE, OWN);
+    expect(configWithOwn(config, OWN)).toBe(config);
+    const changed = configWithOwn(config, 'camera_auto_detect=1\r\n\r\n');
+    expect(changed).toContain('[all]\ncamera_auto_detect=1\n# The end');
+    expect(changed).not.toContain('waveshare');
+  });
+
+  it("leaves only the image's settings when the Pi has none of its own", () => {
+    expect(configWithOwn(configWithOwn(IMAGE, OWN), '')).toBe(IMAGE);
+    expect(configWithOwn(IMAGE, '\n  \n')).toBe(IMAGE);
   });
 });
 

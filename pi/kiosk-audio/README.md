@@ -48,7 +48,7 @@ round: 1920x1200 for a 1200x1920 panel.
 
 How the kiosk shows the screen is worked out as it starts (`screen-setup.ts`, run as root by `kiosk.service`): a screen
 in its `KNOWN_SCREENS` table gets its own rotation and scale (the 10.1 inch Raspberry Pi Touch Display 2: 90 degrees,
-1.5), any other is shown as it is, and `KIOSK_ROTATION` and `KIOSK_SCALE` in `kiosk.env` win when set. It
+1.5; the 10.1 inch Waveshare RPI-HMI-101D: 180 degrees, 1), any other is shown as it is, and `KIOSK_ROTATION` and `KIOSK_SCALE` in `kiosk.env` win when set. It
 writes `KIOSK_SCREEN_ROTATION` and `KIOSK_SCREEN_SCALE` to `/run/kiosk/screen.env`, which `kiosk.service` and this
 service read, and the touch screen's rotation to `/run/udev/rules.d/90-kiosk-touch-rotation.rules`. So a fresh Pi with a
 known screen registers with its landscape size from the first start, with no settings.

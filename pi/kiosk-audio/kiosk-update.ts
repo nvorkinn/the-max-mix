@@ -7,17 +7,22 @@
 //                                            (04:30, Restart)
 //   node kiosk-update.ts rollback            go back to the other slot's version now (kiosk-rollback)
 //   node kiosk-update.ts post-install        RAUC's post-install handler: points the new slot's cmdline.txt at its
-//                                            own root partition and writes the screen's video= into it
+//                                            own root partition, and writes the screen's video= and the Pi's own
+//                                            config.txt lines (/data/the-max-mix/config.txt) into the slot
+//   node kiosk-update.ts boot-config         write the Pi's own config.txt lines into the slot it runs from, after
+//                                            they changed; they count from the next boot
 import { mkdtemp, rmdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { readText, runProgram, updateIO } from './image-update-io.ts';
+import { readText, replaceFile, runProgram, updateIO } from './image-update-io.ts';
 import {
   apply,
   check,
   cmdlineWithRoot,
+  configWithOwn,
   installedBootDevice,
   installedRootLabel,
   KIOSK_ENV,
+  OWN_CONFIG,
   parseEnv,
   restart,
   rollback,
@@ -25,7 +30,24 @@ import {
 } from './image-update.ts';
 import { raucOverDbus } from './rauc.ts';
 
-const USAGE = 'Usage: kiosk-update.ts run [--scheduled] | check | apply | restart | rollback | post-install';
+const USAGE =
+  'Usage: kiosk-update.ts run [--scheduled] | check | apply | restart | rollback | post-install | boot-config';
+/** The boot partition of the slot the Pi runs from. */
+const BOOTED_FIRMWARE = '/boot/firmware';
+
+/**
+ * Writes the Pi's own config.txt lines into the boot partition mounted at `folder`. Says whether it changed the file.
+ * A Pi whose screen needs them shows nothing without them, and then fails the new slot's health check.
+ */
+async function didWriteOwnConfig(folder: string): Promise<boolean> {
+  const file = path.join(folder, 'config.txt');
+  const config = await readText(file);
+  if (config === null) throw new Error(`${file} is missing.`);
+  const next = configWithOwn(config, (await readText(OWN_CONFIG)) ?? '');
+  if (next === config) return false;
+  await replaceFile(file, next);
+  return true;
+}
 
 /**
  * Points the boot slot RAUC just installed at its own root partition, and writes the screen's video= mode into it, so its
@@ -49,6 +71,11 @@ async function postInstall(): Promise<void> {
     throw error;
   }
   try {
+    await didWriteOwnConfig(mountPoint);
+  } catch (error) {
+    console.warn(`Could not write the Pi's own config.txt lines into the new slot: ${String(error)}`);
+  }
+  try {
     // An empty --mode is the screen's own (EDID) mode; screen-mode.ts rewrites only the video= words.
     await runProgram([
       process.execPath,
@@ -70,6 +97,13 @@ async function postInstall(): Promise<void> {
 async function main(command: string | undefined, option: string | undefined): Promise<void> {
   if (command === 'post-install') {
     await postInstall();
+    return;
+  }
+  if (command === 'boot-config') {
+    const isChanged = await didWriteOwnConfig(BOOTED_FIRMWARE);
+    console.log(
+      isChanged ? `Wrote ${OWN_CONFIG} into this slot's config.txt. Reboot to use it.` : 'Nothing to change.'
+    );
     return;
   }
   const rauc = await raucOverDbus();

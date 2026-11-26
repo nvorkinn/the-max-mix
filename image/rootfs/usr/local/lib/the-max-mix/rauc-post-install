@@ -1,3 +1,4 @@
 #!/bin/sh
-# RAUC's post-install handler: writes the screen's video= mode into the new slot's cmdline.txt.
+# RAUC's post-install handler: points the new slot's cmdline.txt at its root, and writes the screen's video= mode and
+# the Pi's own config.txt lines (/data/the-max-mix/config.txt) into the slot.
 exec /usr/local/sbin/kiosk-update post-install

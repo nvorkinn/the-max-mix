@@ -23,6 +23,11 @@ const POINTER = 'bundle.txt';
 const DOWNLOADS = `https://github.com/${REPO}/releases/download/`;
 /** Per-device settings (KIOSK_UPDATE_CHANNEL among them). */
 export const KIOSK_ENV = '/data/the-max-mix/kiosk.env';
+/**
+ * The Pi's own lines for the boot firmware's config.txt, such as the dtoverlay of a screen the firmware does not find by
+ * itself. Every slot's config.txt comes from the image, so they are written into it (configWithOwn).
+ */
+export const OWN_CONFIG = '/data/the-max-mix/config.txt';
 /** Written by the image build: KIOSK_RELEASE_REF and KIOSK_RELEASE_COMMIT of the running slot. */
 export const RELEASE_ENV = '/usr/lib/the-max-mix/release.env';
 /** The updater's own state, on /data so both slots share it. Root writes it; kiosk-audio only reads it. */
@@ -353,6 +358,30 @@ export function installedRootLabel(env: Readonly<Record<string, string | undefin
     return label ?? null;
   }
   return null;
+}
+
+const OWN_START = `# The Pi's own settings, from ${OWN_CONFIG}. Edit them there: kiosk-update writes them here.`;
+const OWN_END = "# The end of the Pi's own settings.";
+
+/**
+ * The boot firmware's config.txt with the Pi's own lines (`own`, OWN_CONFIG's content) at its end, under [all], in
+ * place of the ones written there before; without any when `own` has none.
+ */
+export function configWithOwn(config: string, own: string): string {
+  const kept: string[] = [];
+  let isOwn = false;
+  for (const line of config.replaceAll('\r\n', '\n').split('\n')) {
+    if (line === OWN_START) isOwn = true;
+    else if (line === OWN_END) isOwn = false;
+    else if (!isOwn) kept.push(line);
+  }
+  const image = kept.join('\n').trimEnd();
+  const lines = own
+    .replaceAll('\r\n', '\n')
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line !== '');
+  return lines.length === 0 ? `${image}\n` : `${image}\n\n${OWN_START}\n[all]\n${lines.join('\n')}\n${OWN_END}\n`;
 }
 
 /**
