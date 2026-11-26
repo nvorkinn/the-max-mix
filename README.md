@@ -72,6 +72,14 @@ kiosk joins it, and the tablet shows the new network. The hotspot replaces the k
 itself after 10 minutes, and shows its own random password under the first code. How it works is in
 [pi/kiosk-audio](pi/kiosk-audio/README.md).
 
+### Wi-Fi from a QR code (camera)
+
+On a kiosk whose screen has a camera, Settings > Wi-Fi has a **Scan code** button, which leads the page while the kiosk
+is on no network. Show the Wi-Fi's QR code on a phone (its Wi-Fi settings share the network as one) and hold it up to
+the camera: the tablet shows what the camera sees, reads the code and joins the network, a hidden one too, with nothing
+to type. The Pi's service reads the camera with `rpicam-vid` and the page reads the code out of the picture
+([pi/kiosk-audio](pi/kiosk-audio/README.md)); the camera is on only while that dialog is open.
+
 ### Bluetooth speakers
 
 On the kiosk, the Speakers drawer has a Bluetooth section below AirPlay. Put the speaker in pairing mode and tap **Find
