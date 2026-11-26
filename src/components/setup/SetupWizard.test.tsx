@@ -31,8 +31,8 @@ vi.mock('../../spotify/auth', () => ({ peopleOnKiosk: vi.fn(), takePhoneToPair: 
 vi.mock('../../utils/kioskCamera', () => ({ hasCamera: vi.fn() }));
 vi.mock('../settings/wifi', () => ({ useWifi: vi.fn() }));
 vi.mock('../settings/WifiScanView', () => ({
-  default: ({ onJoined }: { onJoined: () => void }) => (
-    <button type="button" onClick={onJoined}>
+  default: ({ onJoined }: { onJoined: (ssid: string) => void }) => (
+    <button type="button" onClick={() => onJoined('Attic')}>
       camera-view
     </button>
   )
@@ -126,6 +126,27 @@ describe('SetupWizard', () => {
     expect(screen.getByText('Hold the code up to the camera.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'camera-view' }));
     expect(recheck).toHaveBeenCalled();
+    expect(screen.getByRole('status')).toHaveTextContent('Successfully connected to Attic.');
+  });
+
+  it('stays on the confirmation of a network joined from its code until Continue', async () => {
+    vi.mocked(deviceCredentials).mockReturnValue(null);
+    vi.mocked(peopleOnKiosk).mockReturnValue([]);
+    vi.mocked(hasCamera).mockResolvedValue(true);
+    onWifi({ state: 'disconnected', address: null });
+    const { rerender } = render(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'OK' }));
+    await userEvent.click(screen.getByRole('button', { name: 'camera-view' }));
+    // The Pi is on the network with its address, and the chapter still waits to be let go.
+    onWifi({ state: 'connected', ssid: 'Attic', address: 'an address' });
+    rerender(<SetupWizard />);
+    expect(current()).toBe('Wi-Fi');
+    expect(screen.getByRole('status')).toHaveTextContent('Successfully connected to Attic.');
+    expect(useRegistration).toHaveBeenLastCalledWith(false, expect.any(Function));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(current()).toBe('Account');
+    expect(useRegistration).toHaveBeenLastCalledWith(true, expect.any(Function));
   });
 
   it('keeps every other way to join a network behind the line at the bottom', async () => {

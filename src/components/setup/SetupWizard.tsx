@@ -46,7 +46,13 @@ const CHAPTER_ICONS: Record<Chapter, ReactNode> = {
   presence: <Bluetooth className="w-6 h-6 shrink-0" aria-hidden="true" />
 };
 
-/** Stands in for the kiosk's name in a line, which is then set in bold where it stood. */
+/** A network the camera's chapter joined from its code, and whether Continue has been tapped on its confirmation. */
+interface ScannedNetwork {
+  ssid: string;
+  isConfirmed: boolean;
+}
+
+/** Stands in for a name in a line (the kiosk's, a network's), which is then set in bold where it stood. */
 const DEVICE_MARK = '\u{E000}';
 /** What a kiosk's player is called in Spotify until the Pi's service has said (pi/kiosk-audio/soloist.ts). */
 const KIOSK_NAME = 'The Max Mix';
@@ -110,10 +116,50 @@ function SpotifyPick({ device }: Readonly<{ device: string | null }>) {
  * drawing and the lead, Android's in the line under it), then (once
  * OK'd) what the camera sees, until the kiosk has read a code and joined its network. Every other way to join one
  * (Settings › Wi-Fi's page) is behind the line at the bottom, and from there on the chapter stays on that page.
+ * A network joined from its code is named (`scanned`), so the chapter does not just vanish under the phone held up
+ * to it: setup goes on at Continue.
  */
-function WifiByCamera({ wifi, onJoined }: Readonly<{ wifi: WifiState; onJoined: () => void }>) {
+function WifiByCamera({
+  wifi,
+  scanned,
+  onJoined,
+  onScanned,
+  onContinue
+}: Readonly<{
+  wifi: WifiState;
+  scanned: ScannedNetwork | null;
+  onJoined: () => void;
+  onScanned: (ssid: string) => void;
+  onContinue: () => void;
+}>) {
   const t = useT();
   const [step, setStep] = useState<'show' | 'scan' | 'other'>('show');
+  if (scanned?.isConfirmed) {
+    // Continue is tapped; the Pi may still be getting its address.
+    return (
+      <div className="setup-wizard-center">
+        <LoaderCircle className="w-10 h-10 animate-spin text-accent" aria-hidden="true" />
+      </div>
+    );
+  }
+  if (scanned) {
+    const [before = '', after = ''] = t('setup.wifi_connected', { ssid: DEVICE_MARK }).split(DEVICE_MARK);
+    return (
+      <div className="setup-wizard-center">
+        <span className="setup-wizard-tick">
+          <Check aria-hidden="true" />
+        </span>
+        <p className="setup-wizard-lead" role="status">
+          {before}
+          <b>{scanned.ssid}</b>
+          {after}
+        </p>
+        <button type="button" className="button search-dialog-confirm setup-wizard-button" onClick={onContinue}>
+          {t('setup.continue')}
+        </button>
+      </div>
+    );
+  }
   if (step === 'other') return <WifiSettings wifi={wifi} onJoined={onJoined} />;
   return (
     <div className="setup-wizard-center setup-wizard-wifi">
@@ -134,7 +180,7 @@ function WifiByCamera({ wifi, onJoined }: Readonly<{ wifi: WifiState; onJoined: 
         </>
       ) : (
         <div className="setup-wizard-camera">
-          <WifiScanView onJoined={onJoined} />
+          <WifiScanView onJoined={onScanned} />
         </div>
       )}
       <button type="button" className="setup-wizard-other" onClick={() => setStep('other')}>
@@ -233,8 +279,15 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
   const [isWelcoming, setIsWelcoming] = useState(!registered);
   const [wifiDone, setWifiDone] = useState(registered);
   const [wifi, recheckWifi] = useWifi(!wifiDone);
+  // A network joined by showing its code to the camera is named first; the chapter ends at Continue.
+  const [scanned, setScanned] = useState<ScannedNetwork | null>(null);
+  const isWaitingForContinue = scanned !== null && !scanned.isConfirmed;
   // Off the Pi's service (it can't say), there is no Wi-Fi to set up here.
-  if (!wifiDone && ((wifi.state === 'connected' && wifi.address !== null) || wifi.state === 'unknown')) {
+  if (
+    !wifiDone &&
+    !isWaitingForContinue &&
+    ((wifi.state === 'connected' && wifi.address !== null) || wifi.state === 'unknown')
+  ) {
     setWifiDone(true);
   }
   // The Pi may join a saved network by itself (as at boot) while the chapter is open.
@@ -292,7 +345,16 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
     );
   } else if (current === 'wifi') {
     page = hasKioskCamera ? (
-      <WifiByCamera wifi={wifi} onJoined={recheckWifi} />
+      <WifiByCamera
+        wifi={wifi}
+        scanned={scanned}
+        onJoined={recheckWifi}
+        onScanned={ssid => {
+          setScanned({ ssid, isConfirmed: false });
+          recheckWifi();
+        }}
+        onContinue={() => setScanned(joined => joined && { ...joined, isConfirmed: true })}
+      />
     ) : (
       <WifiSettings wifi={wifi} onJoined={recheckWifi} />
     );

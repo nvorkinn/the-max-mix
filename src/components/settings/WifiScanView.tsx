@@ -13,10 +13,10 @@ const RETRY_MS = 10_000;
 /**
  * What the kiosk's camera sees, searched a few times a second for the QR code a phone shows to share its Wi-Fi network;
  * the kiosk joins the network of the first one it reads. Mirrored, so that moving the phone moves the picture the same
- * way. Calls `onJoined` once the kiosk is on the network; says the kiosk's reason under the picture when it is not,
+ * way. Calls `onJoined` with the network's name once the kiosk is on it; says the kiosk's reason under the picture when it is not,
  * and keeps looking. The camera is on only while this is shown.
  */
-export default function WifiScanView({ onJoined }: Readonly<{ onJoined: () => void }>) {
+export default function WifiScanView({ onJoined }: Readonly<{ onJoined: (ssid: string) => void }>) {
   const t = useT();
   const language = useLanguage();
   const pictureRef = useRef<HTMLImageElement>(null);
@@ -50,7 +50,7 @@ export default function WifiScanView({ onJoined }: Readonly<{ onJoined: () => vo
       const result = await joinWifi({ ...network, security: network.security }, languageRef.current);
       if (isOver) return;
       if (result.ok) {
-        onJoinedRef.current();
+        onJoinedRef.current(network.ssid);
       } else {
         setNote({ kind: 'alert', text: result.error ?? say('wifi.unreachable') });
         refused = { text, until: Date.now() + RETRY_MS };
