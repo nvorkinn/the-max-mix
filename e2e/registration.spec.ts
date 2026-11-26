@@ -133,11 +133,13 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       expect(server.registrations[0]).toMatchObject({ type: 'touchscreen', width: 1280, height: 800 });
       await shot('2-account');
 
-      // Paired on the phone: the kiosk starts the Spotify sign-in the phone goes on to, under the same code.
+      // Paired on the phone: the kiosk starts the Spotify sign-in the phone goes on to.
       const owned = await fakeCountdownServer(page, {});
       server.pair();
       await expect(page.getByRole('region', { name: 'Spotify' })).toBeVisible();
-      await expect(code).toBeVisible();
+      // The phone was sent on, so the code is not shown again, only what happens there.
+      await expect(page.getByText('Sign in to Spotify on your phone.')).toBeVisible();
+      await expect(code).toHaveCount(0);
       await expect.poll(() => owned.spotifySignIns.started.length).toBe(1);
       await shot('3-spotify');
       await page.route('https://accounts.spotify.com/api/token', route =>
@@ -151,8 +153,11 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       // Signed in: the phone goes on to the Soloist key.
       const soloist = await fakeSignedOutSoloist(page);
       await expect(page.getByRole('region', { name: 'Soloist' })).toBeVisible();
-      await expect(code).toBeVisible();
+      await expect(code).toHaveCount(0);
       await shot('4-soloist');
+      // Whoever lost the page on their phone can have the code back.
+      await page.getByRole('button', { name: 'Lost the page on your phone? Show the code again' }).click();
+      await expect(code).toBeVisible();
       owned.soloistKeys.add('max');
 
       // The key starts Soloist, which signs in once they pick the kiosk in Spotify on their phone: the chapter waits.
