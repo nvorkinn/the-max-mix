@@ -170,6 +170,7 @@ export const STRINGS = {
   'common.close': { en: 'Close', nb: 'Lukk' },
   'common.ok': { en: 'OK', nb: 'OK' },
   'common.done': { en: 'Done', nb: 'Ferdig' },
+  'common.continue': { en: 'Continue', nb: 'Fortsett' },
 
   // Settings › Parcels.
   'parcels.notice_board': { en: 'Notice board', nb: 'Oppslagstavle' },
@@ -251,6 +252,7 @@ export const STRINGS = {
     en: 'On your phone, open the Wi-Fi settings and share the network as a QR code. Hold it up to the camera.',
     nb: 'Åpne Wi-Fi-innstillingene på telefonen og del nettverket som QR-kode. Hold den opp mot kameraet.'
   },
+  'wifi.scan_connected': { en: 'Successfully connected to {ssid}.', nb: 'Koblet til {ssid}.' },
   'wifi.scan_preview': { en: 'What the camera sees', nb: 'Det kameraet ser' },
   'wifi.scan_not_wifi': { en: 'That is not a Wi-Fi code.', nb: 'Det er ikke en Wi-Fi-kode.' },
   'wifi.scan_unsupported': {
@@ -578,8 +580,6 @@ export const STRINGS = {
   },
   'setup.wifi_passwords': { en: 'Passwords', nb: 'Passord' },
   'setup.wifi_show_code': { en: 'Show Network QR Code', nb: 'Vis QR-kode for nettverket' },
-  'setup.wifi_connected': { en: 'Successfully connected to {ssid}.', nb: 'Koblet til {ssid}.' },
-  'setup.continue': { en: 'Continue', nb: 'Fortsett' },
   'setup.wifi_hold': { en: 'Hold the code up to the camera.', nb: 'Hold koden opp mot kameraet.' },
   'setup.wifi_other': { en: 'Set up Wi-Fi another way', nb: 'Sett opp Wi-Fi på en annen måte' },
   'setup.presence': {

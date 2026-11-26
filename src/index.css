@@ -2907,6 +2907,47 @@ body:has(.app-dialog[open]) {
   /* Mirrored, so that moving the phone to the left moves its picture to the left. */
   transform: scaleX(-1);
 }
+/*
+  How joining the network read from a code goes (WifiJoinProgress.tsx), in setup's Wi-Fi chapter and in Scan code's
+  dialog: a circle with a spinner that becomes a tick, the line with the network's name, and Continue. The line keeps
+  its height and Continue its place while unseen, so nothing moves when the kiosk has joined.
+*/
+.wifi-join-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  padding: 24px 0;
+}
+.wifi-join-progress-mark {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.wifi-join-progress-mark svg {
+  width: 64px;
+  height: 64px;
+}
+.app-modal-panel .wifi-join-progress-line {
+  max-width: 640px;
+  min-height: 1.4em;
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.4;
+  text-align: center;
+}
+/* Over the dialogs' own button sizes, which are narrower. */
+.app-modal-panel .wifi-join-progress .wifi-join-progress-button {
+  min-width: 240px;
+  min-height: 60px;
+  border-radius: 16px;
+  font-size: 20px;
+  font-weight: 700;
+}
 /* Hotspot: the codes a phone scans, what to type when it can't, and how the kiosk is getting on. */
 .wifi-setup-qr {
   flex-shrink: 0;
@@ -4053,24 +4094,6 @@ input:disabled {
 */
 .setup-wizard-wifi {
   gap: 24px;
-}
-/* The circle over the network the camera read: a spinner while the kiosk joins it, a tick once it has. */
-.setup-wizard-tick {
-  display: grid;
-  place-items: center;
-  width: 112px;
-  height: 112px;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-.setup-wizard-tick svg {
-  width: 64px;
-  height: 64px;
-}
-/* Joining and joined keep the line in one place: the name is long or short, the circle and Continue do not move. */
-.setup-wizard-tick + .setup-wizard-lead {
-  min-height: 1.4em;
 }
 .setup-wizard-aside {
   display: block;
