@@ -36,6 +36,10 @@
 //                           or 503 {"error"}   POST /wifi/hotspot/stop  end it
 //                           GET /wifi/hotspot  {"state": "idle" | "running" | "connected" | "joining" | "joined" | "failed", "error"?,
 //                           "ssid"? (the network being joined)}
+//   GET  /camera            {"available": true}: whether the screen has a camera (camera.ts; the app's origin only)
+//   GET  /camera/stream     the camera's picture while the request is open, as multipart/x-mixed-replace JPEG frames, for
+//                           reading a Wi-Fi QR code held up to it; the camera is on only meanwhile, three minutes at
+//                           most. 404 without a camera (the app's origin only)
 //   GET  /lyrics?title=&artist=&duration=   lyrics from LRCLIB, Musixmatch, NetEase, QQ Music or KuGou (lyrics.ts):
 //                           {"source"} and "lrc" (synced, timed word by word when a source has that), "plain" (text
 //                           only) or "instrumental": true; the duration in ms is optional;
@@ -87,6 +91,8 @@ import { BluetoothMonitor, UNAVAILABLE as BLUETOOTH_UNAVAILABLE } from './blueto
 import type { MonitorSnapshot } from './bluetooth-monitor.ts';
 import { Bluetooth, BluetoothError, parseAddress } from './bluetooth.ts';
 import type { BluetoothDevice, ConnectResult as BluetoothConnectResult } from './bluetooth.ts';
+import { Camera } from './camera.ts';
+import type { Viewer } from './camera.ts';
 import { handoverFile, MAX_HANDOVER, parseHandover } from './handover.ts';
 import type { HandoverStore } from './handover.ts';
 import { isLoopback, listenForHotspot } from './hotspot-portal.ts';
@@ -180,6 +186,8 @@ export interface Deps {
   };
   /** Whether each saved phone is nearby, for the person switcher and the debug console. */
   presence: { status: () => Promise<PresenceStatus>; watch: () => void; unwatch: () => void };
+  /** The camera built into the screen (camera.ts). */
+  camera: { available: () => Promise<boolean>; watch: (viewer: Viewer) => () => void };
   /** The screen's size and whether its brightness can be set, for registering with countdown-server; null for none. */
   screen: () => Promise<ScreenInfo | null>;
   /** Sets the screen's backlight, in percent; returns how many backlights it set (none: the screen has none). */
@@ -804,6 +812,35 @@ async function handleHandover(
   }
 }
 
+const FRAME_BOUNDARY = 'frame';
+
+/** GET /camera/stream: sends the camera's frames until the app goes away or the camera stops. */
+async function streamCamera(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
+  if (!(await deps.camera.available())) {
+    response.writeHead(404).end();
+    return;
+  }
+  response.writeHead(200, {
+    'Content-Type': `multipart/x-mixed-replace; boundary=${FRAME_BOUNDARY}`,
+    'Cache-Control': 'no-store'
+  });
+  // The page learns that the stream is open before the first frame comes.
+  response.flushHeaders();
+  const stop = deps.camera.watch({
+    frame: jpeg => {
+      // A page that is behind gets the next frame instead of a queue of old ones.
+      if (response.writableNeedDrain) return;
+      response.write(`--${FRAME_BOUNDARY}\r\nContent-Type: image/jpeg\r\nContent-Length: ${jpeg.length}\r\n\r\n`);
+      response.write(jpeg);
+      response.write('\r\n');
+    },
+    end: () => {
+      response.end();
+    }
+  });
+  request.on('close', stop);
+}
+
 /** The GETs that answer the app's origin only (they make the Pi call out), and the rest (get). */
 async function handleGet(
   request: IncomingMessage,
@@ -838,6 +875,13 @@ function appOnlyGet(
       return Promise.resolve();
     };
   }
+  // What the camera sees is for the app's Wi-Fi settings, not for any page that asks.
+  if (url === '/camera') {
+    return async () => {
+      sendJson(response, 200, { available: await deps.camera.available() });
+    };
+  }
+  if (url === '/camera/stream') return () => streamCamera(request, response, deps);
   // Each makes the Pi talk to the speakers on the home network, so only the app may ask.
   if (/^\/sonos\/(groups|now|art)(\?|$)/.test(url)) return () => getSonos(request, response, deps);
   return null;
@@ -977,6 +1021,7 @@ export function serveSpeakers(
     bluetooth,
     bluetoothMonitor,
     presence,
+    camera: new Camera(),
     screen: () => screenInfo(),
     setBrightness: (percent, isFaded) => setBrightness(percent, undefined, isFaded ? FADE_MS : 0),
     soloist: request => soloistPlayer.play(request),
