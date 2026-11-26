@@ -8,7 +8,7 @@ import type { Run } from './nmcli.ts';
 
 const LIST_TIMEOUT_MS = 10_000;
 /** The camera goes off after this long however many are watching, so it is never left on. */
-export const MAX_WATCH_MS = 3 * 60_000;
+const MAX_WATCH_MS = 3 * 60_000;
 /** A frame is some hundred kilobytes; more than this without the end of one is not a JPEG stream. */
 const MAX_FRAME_BYTES = 8 * 1024 * 1024;
 
@@ -62,7 +62,7 @@ export function hasCamera(output: string): boolean {
 
 /** Cuts a stream of JPEGs, one after another, into frames. */
 export class FrameSplitter {
-  private pending = Buffer.alloc(0);
+  private pending: Buffer = Buffer.alloc(0);
 
   /** The frames `chunk` completes, in order. */
   push(chunk: Buffer): Buffer[] {

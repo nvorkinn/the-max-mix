@@ -8,7 +8,6 @@ const LISTED = `Available cameras
 -----------------
 0 : ov5647 [2592x1944 10-bit GBRG] (/base/axi/pcie@1000120000/rp1/i2c@80000/ov5647@36)
     Modes: 'SGBRG10_CSI2P' : 640x480 [62.50 fps - (16, 0)/2560x1920 crop]
-                             1296x972 [46.34 fps - (0, 0)/2592x1944 crop]
 `;
 
 const jpeg = (...body: number[]) => Buffer.from([0xff, 0xd8, ...body, 0xff, 0xd9]);
