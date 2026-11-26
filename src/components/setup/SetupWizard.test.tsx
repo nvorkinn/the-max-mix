@@ -263,6 +263,25 @@ describe('SetupWizard', () => {
     expect(current()).toBe('Presence');
   });
 
+  it('says that Soloist is set up once it has signed in here, and opens Presence at Continue', async () => {
+    vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: false, deviceName: KIOSK });
+    const { rerender } = render(<SetupWizard />);
+    expect(current()).toBe('Soloist');
+    // They pick the kiosk in Spotify on their phone.
+    vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: true, deviceName: KIOSK });
+    rerender(<SetupWizard />);
+    expect(current()).toBe('Soloist');
+    expect(screen.getByRole('status')).toHaveTextContent('Soloist is set up and signed in to Spotify.');
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(current()).toBe('Presence');
+  });
+
+  it('goes straight to Presence when Soloist was set up before', () => {
+    render(<SetupWizard />);
+    expect(current()).toBe('Presence');
+    expect(screen.queryByText('Soloist is set up and signed in to Spotify.')).not.toBeInTheDocument();
+  });
+
   it('shows the one setup QR code on Account, Spotify and Soloist, and runs the Spotify sign-in on Spotify', async () => {
     vi.mocked(peopleOnKiosk).mockReturnValue([]);
     render(<SetupWizard />);
@@ -283,7 +302,7 @@ describe('SetupWizard', () => {
     expect(useSoloistSignIn).toHaveBeenLastCalledWith(false);
   });
 
-  it('has them pick the kiosk in Spotify once the key is saved, and moves on once Soloist is signed in', () => {
+  it('has them pick the kiosk in Spotify once the key is saved, and moves on once Soloist is signed in', async () => {
     vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: false, deviceName: KIOSK });
     const { rerender } = render(<SetupWizard />);
     expect(current()).toBe('Soloist');
@@ -293,6 +312,7 @@ describe('SetupWizard', () => {
 
     vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: true, deviceName: KIOSK });
     rerender(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(current()).toBe('Presence');
     // Signed in is signed in: a Soloist that restarts later doesn't bring the chapter back.
     expect(useSoloistSignIn).toHaveBeenLastCalledWith(false);

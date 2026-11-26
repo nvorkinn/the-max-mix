@@ -565,6 +565,10 @@ export const STRINGS = {
     en: 'The app uses Spotify Soloist to play music from your Spotify account. Soloist needs an API key from you. Enter it on your phone, and we’ll store it securely.',
     nb: 'Appen bruker Spotify Soloist til å spille musikk fra Spotify-kontoen din. Soloist trenger en API-nøkkel fra deg. Skriv den inn på telefonen, så lagrer vi den sikkert.'
   },
+  'setup.soloist_set': {
+    en: 'Soloist is set up and signed in to Spotify.',
+    nb: 'Soloist er satt opp og logget inn på Spotify.'
+  },
   'setup.pick_in_spotify': {
     en: 'The tablet now needs to sign in to Spotify for the first time. Open Spotify on your phone and pick {device} in the device list.',
     nb: 'Nettbrettet må nå logge inn på Spotify for første gang. Åpne Spotify på telefonen og velg {device} i enhetslisten.'
