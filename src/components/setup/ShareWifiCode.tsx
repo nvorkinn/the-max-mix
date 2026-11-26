@@ -1,11 +1,49 @@
-import { Check, KeyRound, QrCode, Wifi } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+  KeyRound,
+  LockKeyhole,
+  QrCode,
+  Trash2,
+  UserRoundKey,
+  Wifi
+} from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useT } from '../../i18n/translate';
+
+/** One of the Passwords app's groups: its round icon over its name, which the drawing leaves as a bar. */
+function Group({ icon, name }: Readonly<{ icon: ReactNode; name?: string }>) {
+  return (
+    <div className={`wifi-share-group${name === undefined ? '' : ' wifi-share-group-wifi'}`}>
+      {icon}
+      <span>{name}</span>
+      {name !== undefined && <i className="wifi-share-tap wifi-share-tap-wifi" />}
+    </div>
+  );
+}
+
+/** One network in the Passwords app's Wi-Fi list: its icon, its name and kind as bars, and the way in. */
+function Network({ isCurrent = false }: Readonly<{ isCurrent?: boolean }>) {
+  return (
+    <div className={`wifi-share-net${isCurrent ? ' wifi-share-net-current' : ''}`}>
+      <Wifi />
+      <div>
+        <span />
+        <span />
+      </div>
+      <ChevronRight />
+      {isCurrent && <i className="wifi-share-tap wifi-share-tap-network" />}
+    </div>
+  );
+}
 
 /**
  * A drawing of how an iPhone shows its Wi-Fi network as a QR code, played over and over: open the Passwords app, tap
- * Wi-Fi, tap the network (the one it is on comes first), then Show Network QR Code, and the code comes up. It is drawn
- * in the app's own style, not a picture of the phone's apps. With reduced motion it stays on the end: the code. The
- * lines over it say the same in words, so the drawing is hidden from screen readers.
+ * Wi-Fi among its groups, tap the network (the one it is on comes first), then Show Network QR Code under the
+ * network's details, and the code comes up. It follows the layout of the phone's screens in the app's own style, with
+ * bars for what does not matter. With reduced motion it stays on the end: the code. The lines over it say the same in
+ * words, so the drawing is hidden from screen readers. Each tap's ring sits in the thing it taps.
  */
 export default function ShareWifiCode() {
   const t = useT();
@@ -22,55 +60,49 @@ export default function ShareWifiCode() {
       </div>
       <div className="wifi-share-screen wifi-share-passwords">
         <div className="wifi-share-title">{t('setup.wifi_passwords')}</div>
-        <div className="wifi-share-row wifi-share-row-named">
-          <Wifi />
-          <span>{t('setup.chapter_wifi')}</span>
-        </div>
-        <div className="wifi-share-row">
-          <KeyRound />
-          <span />
-        </div>
-        <div className="wifi-share-row">
-          <KeyRound />
-          <span />
+        <div className="wifi-share-groups">
+          <Group icon={<KeyRound />} />
+          <Group icon={<UserRoundKey />} />
+          <Group icon={<LockKeyhole />} />
+          <Group icon={<Wifi />} name={t('setup.chapter_wifi')} />
+          <Group icon={<CircleAlert />} />
+          <Group icon={<Trash2 />} />
         </div>
       </div>
       <div className="wifi-share-screen wifi-share-networks">
-        <div className="wifi-share-title">{t('setup.chapter_wifi')}</div>
-        <div className="wifi-share-row wifi-share-row-current">
-          <Wifi />
-          <span />
-          <Check />
+        <div className="wifi-share-bar">
+          <ChevronLeft />
+          <b>{t('setup.chapter_wifi')}</b>
         </div>
-        <div className="wifi-share-row">
-          <Wifi />
-          <span />
-        </div>
-        <div className="wifi-share-row">
-          <Wifi />
-          <span />
-        </div>
+        <Network isCurrent />
+        <Network />
+        <Network />
+        <Network />
+        <Network />
       </div>
       <div className="wifi-share-screen wifi-share-network">
-        <div className="wifi-share-title wifi-share-title-bar">
+        <div className="wifi-share-bar">
+          <ChevronLeft />
+        </div>
+        <div className="wifi-share-details">
+          <Wifi />
+          <span className="wifi-share-details-name" />
+          <span />
+          <span />
           <span />
         </div>
-        <div className="wifi-share-row wifi-share-row-named wifi-share-row-show">
-          <QrCode />
-          <span>{t('setup.wifi_show_code')}</span>
+        <div className="wifi-share-action wifi-share-action-show">
+          {t('setup.wifi_show_code')}
+          <i className="wifi-share-tap wifi-share-tap-show" />
         </div>
-        <div className="wifi-share-row">
-          <KeyRound />
+        <div className="wifi-share-action wifi-share-action-forget">
           <span />
         </div>
       </div>
       <div className="wifi-share-screen wifi-share-code">
         <QrCode />
       </div>
-      <span className="wifi-share-tap wifi-share-tap-app" />
-      <span className="wifi-share-tap wifi-share-tap-wifi" />
-      <span className="wifi-share-tap wifi-share-tap-network" />
-      <span className="wifi-share-tap wifi-share-tap-show" />
+      <i className="wifi-share-tap wifi-share-tap-app" />
     </div>
   );
 }
