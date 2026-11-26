@@ -4047,6 +4047,12 @@ input:disabled {
 .setup-wizard-wifi {
   gap: 24px;
 }
+.setup-wizard-aside {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.7em;
+}
 .setup-wizard-camera {
   width: min(70vh, 520px);
   text-align: center;
@@ -4063,39 +4069,115 @@ input:disabled {
   text-underline-offset: 4px;
 }
 /*
-  The drawing of how a phone shows its Wi-Fi network as a QR code (components/setup/ShareWifiCode.tsx): a phone with its
-  Wi-Fi settings, a tap on the network it is on, Share coming up, a tap on that, and the code. Without its animations it
-  shows the end, the code, which is what reduced motion leaves.
+  The drawing of how an iPhone shows its Wi-Fi network as a QR code (components/setup/ShareWifiCode.tsx): a phone with its
+  home screen and a tap on the Passwords app, its list and a tap on Wi-Fi, the networks and a tap on the one it is on,
+  that network's page and a tap on Show Network QR Code, and the code. Without its animations it shows the end, the
+  code, which is what reduced motion leaves.
 */
 .wifi-share {
-  --share-loop: 8s;
+  --share-loop: 12s;
 
   position: relative;
-  display: flex;
-  flex-direction: column;
   flex-shrink: 0;
-  gap: 10px;
   width: 240px;
   height: 340px;
-  padding: 14px;
   overflow: hidden;
   border: 3px solid var(--border);
   border-radius: 36px;
   background: var(--page);
 }
-.wifi-share::before {
+/* The phone's earpiece, over every screen. */
+.wifi-share::after {
   content: '';
-  align-self: center;
+  position: absolute;
+  top: 14px;
+  left: 50%;
   width: 64px;
   height: 6px;
+  margin-left: -32px;
   border-radius: 3px;
   background: var(--border);
 }
+/* One screen of the phone over the one before it: each comes in at its turn and they all go at the loop's end. */
+.wifi-share-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 30px 14px 14px;
+  background: var(--page);
+}
+.wifi-share-home {
+  display: grid;
+  grid-template-columns: repeat(4, 44px);
+  place-content: start space-between;
+  gap: 4px 0;
+  padding: 44px 16px 14px;
+}
+.wifi-share-app {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+.wifi-share-app-passwords {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.wifi-share-app svg {
+  width: 24px;
+  height: 24px;
+}
+.wifi-share-app-name {
+  width: 44px;
+  overflow: visible;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  text-align: center;
+  white-space: nowrap;
+  transform: translateX(-8px);
+}
+.wifi-share-passwords {
+  animation: wifi-share-passwords var(--share-loop) infinite;
+}
+.wifi-share-networks {
+  animation: wifi-share-networks var(--share-loop) infinite;
+}
+.wifi-share-network {
+  animation: wifi-share-network var(--share-loop) infinite;
+}
+.wifi-share-code {
+  display: grid;
+  place-items: center;
+  animation: wifi-share-code var(--share-loop) infinite;
+}
+.wifi-share-code svg {
+  width: 150px;
+  height: 150px;
+  padding: 14px;
+  border-radius: 20px;
+  background: #fff;
+  color: #000;
+}
 .wifi-share-title {
-  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 6px;
   font-size: 20px;
   font-weight: 800;
   text-align: left;
+}
+/* A network's own page is headed by its name, which the drawing leaves as a bar. */
+.wifi-share-title-bar span {
+  width: 55%;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--track);
 }
 .wifi-share-row {
   display: flex;
@@ -4119,138 +4201,117 @@ input:disabled {
   border-radius: 5px;
   background: var(--track);
 }
-.wifi-share-network {
-  background: var(--accent-soft);
-  color: var(--accent);
-  animation: wifi-share-network var(--share-loop) infinite;
+.wifi-share-row-named span {
+  height: auto;
+  margin: 0;
+  background: none;
+  color: var(--ink);
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.wifi-share-network span {
+.wifi-share-row-current {
+  color: var(--accent);
+}
+.wifi-share-row-current span {
   margin-right: 10%;
 }
-.wifi-share-sheet {
-  position: absolute;
-  inset: auto 0 0;
-  padding: 18px 12px;
-  border-top: 2px solid var(--border);
-  border-radius: 22px 22px 0 0;
-  background: var(--surface);
-  animation: wifi-share-sheet var(--share-loop) infinite;
-}
-.wifi-share-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 50px;
-  border-radius: 14px;
-  background: var(--accent-soft);
+.wifi-share-row-show,
+.wifi-share-row-show span {
   color: var(--accent);
-  font-size: 17px;
-  font-weight: 650;
 }
-.wifi-share-button svg {
-  width: 22px;
-  height: 22px;
-}
-.wifi-share-code {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: var(--page);
-  animation: wifi-share-code var(--share-loop) infinite;
-}
-.wifi-share-code svg {
-  width: 150px;
-  height: 150px;
-  padding: 14px;
-  border-radius: 20px;
-  background: #fff;
-  color: #000;
-}
-/* Where a finger lands: a ring that closes in on the button, then lets go. */
+/* Where a finger lands: a ring that closes in on the button, then lets go. They share one animation, each at its turn. */
 .wifi-share-tap {
   position: absolute;
+  top: 71px;
+  left: 166px;
   width: 44px;
   height: 44px;
   border: 3px solid var(--ink);
   border-radius: 50%;
   background: color-mix(in srgb, var(--ink) 30%, transparent);
   opacity: 0;
+  animation: wifi-share-tap var(--share-loop) infinite;
+}
+.wifi-share-tap-app {
+  top: 44px;
+  left: 16px;
+  animation-delay: calc(var(--share-loop) * 0.04);
+}
+.wifi-share-tap-wifi {
+  animation-delay: calc(var(--share-loop) * 0.2);
 }
 .wifi-share-tap-network {
-  top: 76px;
-  left: 98px;
-  animation: wifi-share-tap-network var(--share-loop) infinite;
+  animation-delay: calc(var(--share-loop) * 0.36);
 }
-.wifi-share-tap-share {
-  top: 21px;
-  left: 98px;
-  animation: wifi-share-tap-share var(--share-loop) infinite;
+.wifi-share-tap-show {
+  animation-delay: calc(var(--share-loop) * 0.52);
 }
-@keyframes wifi-share-tap-network {
-  0%,
-  8% {
+@keyframes wifi-share-tap {
+  0% {
     opacity: 0;
     transform: scale(1.6);
   }
-  14%,
-  17% {
+  4%,
+  6% {
     opacity: 1;
     transform: scale(1);
   }
-  24%,
+  11%,
   100% {
     opacity: 0;
     transform: scale(1.6);
+  }
+}
+@keyframes wifi-share-passwords {
+  0%,
+  11% {
+    opacity: 0;
+  }
+  15%,
+  96% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes wifi-share-networks {
+  0%,
+  27% {
+    opacity: 0;
+  }
+  31%,
+  96% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }
 @keyframes wifi-share-network {
   0%,
-  15% {
-    background: var(--surface);
-    color: var(--muted);
-  }
-  17%,
-  100% {
-    background: var(--accent-soft);
-    color: var(--accent);
-  }
-}
-@keyframes wifi-share-sheet {
-  0%,
-  19% {
-    transform: translateY(100%);
-  }
-  27%,
-  100% {
-    transform: translateY(0);
-  }
-}
-@keyframes wifi-share-tap-share {
-  0%,
-  36% {
+  43% {
     opacity: 0;
-    transform: scale(1.6);
   }
-  42%,
-  45% {
+  47%,
+  96% {
     opacity: 1;
-    transform: scale(1);
   }
-  52%,
   100% {
     opacity: 0;
-    transform: scale(1.6);
   }
 }
 @keyframes wifi-share-code {
   0%,
-  46% {
+  59% {
     opacity: 0;
   }
-  52%,
-  94% {
+  63%,
+  96% {
     opacity: 1;
   }
   100% {

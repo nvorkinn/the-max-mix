@@ -106,7 +106,8 @@ function SpotifyPick({ device }: Readonly<{ device: string | null }>) {
 }
 
 /**
- * The Wi-Fi chapter on a kiosk with a camera: a drawing of how a phone shows its network as a QR code, then (once
+ * The Wi-Fi chapter on a kiosk with a camera: how a phone shows its network as a QR code (an iPhone's way in the
+ * drawing and the lead, Android's in the line under it), then (once
  * OK'd) what the camera sees, until the kiosk has read a code and joined its network. Every other way to join one
  * (Settings › Wi-Fi's page) is behind the line at the bottom, and from there on the chapter stays on that page.
  */
@@ -116,7 +117,10 @@ function WifiByCamera({ wifi, onJoined }: Readonly<{ wifi: WifiState; onJoined: 
   if (step === 'other') return <WifiSettings wifi={wifi} onJoined={onJoined} />;
   return (
     <div className="setup-wizard-center setup-wizard-wifi">
-      <p className="setup-wizard-lead">{t(step === 'show' ? 'setup.wifi_show' : 'setup.wifi_hold')}</p>
+      <p className="setup-wizard-lead">
+        {t(step === 'show' ? 'setup.wifi_show' : 'setup.wifi_hold')}
+        {step === 'show' && <span className="setup-wizard-aside">{t('setup.wifi_show_android')}</span>}
+      </p>
       {step === 'show' ? (
         <>
           <ShareWifiCode />

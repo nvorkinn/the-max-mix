@@ -569,10 +569,15 @@ export const STRINGS = {
   },
   'setup.this_phone': { en: 'This phone', nb: 'Denne telefonen' },
   'setup.wifi_show': {
-    en: 'Open the Wi-Fi settings on your phone, tap your network and share it as a QR code.',
-    nb: 'Åpne Wi-Fi-innstillingene på telefonen, trykk på nettverket ditt og del det som QR-kode.'
+    en: 'On your iPhone, open the Passwords app, tap Wi-Fi, then your network, then Show Network QR Code.',
+    nb: 'Åpne Passord-appen på iPhonen, trykk på Wi-Fi, så nettverket ditt, så Vis QR-kode for nettverket.'
   },
-  'setup.wifi_share': { en: 'Share', nb: 'Del' },
+  'setup.wifi_show_android': {
+    en: 'On Android, open the Wi-Fi settings, tap your network, then Share.',
+    nb: 'På Android åpner du Wi-Fi-innstillingene, trykker på nettverket ditt og så Del.'
+  },
+  'setup.wifi_passwords': { en: 'Passwords', nb: 'Passord' },
+  'setup.wifi_show_code': { en: 'Show Network QR Code', nb: 'Vis QR-kode for nettverket' },
   'setup.wifi_hold': { en: 'Hold the code up to the camera.', nb: 'Hold koden opp mot kameraet.' },
   'setup.wifi_other': { en: 'Set up Wi-Fi another way', nb: 'Sett opp Wi-Fi på en annen måte' },
   'setup.presence': {

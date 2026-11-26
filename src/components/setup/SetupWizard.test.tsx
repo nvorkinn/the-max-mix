@@ -117,7 +117,8 @@ describe('SetupWizard', () => {
     onWifi({ state: 'disconnected', address: null });
     render(<SetupWizard />);
     await userEvent.click(screen.getByRole('button', { name: 'Start' }));
-    expect(await screen.findByText(/share it as a QR code/)).toBeInTheDocument();
+    expect(await screen.findByText(/open the Passwords app/)).toBeInTheDocument();
+    expect(screen.getByText(/On Android/)).toBeInTheDocument();
     // The camera stays off, and the other ways out of sight, until asked for.
     expect(screen.queryByText('camera-view')).not.toBeInTheDocument();
     expect(screen.queryByText('wifi-settings')).not.toBeInTheDocument();
