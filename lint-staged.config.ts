@@ -31,7 +31,9 @@ const tasks = {
   '{*.{js,mjs,ts},{src,scripts,e2e,pi}/**/*.{js,mjs,ts,tsx}}': [prettier, lint],
   '{image/build.sh,image/rootfs/usr/local/lib/the-max-mix/*,image/rootfs/usr/local/bin/*,image/rootfs/usr/local/sbin/*}':
     shellcheck,
-  '*.md': [prettier, (files: string[]) => `markdownlint-cli2 ${quote(files)}`],
+  // --no-globs: only the staged files, not every Markdown file .markdownlint-cli2.jsonc's globs name, so a file that is
+  // not part of the commit (an untracked note, say) cannot fail it.
+  '*.md': [prettier, (files: string[]) => `markdownlint-cli2 --no-globs ${quote(files)}`],
   '*.{yml,yaml}': prettier,
   '*.css': [prettier, (files: string[]) => `stylelint --max-warnings 0 ${quote(files)}`],
   '*.{json,html}': formatAndLintData
