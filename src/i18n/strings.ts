@@ -568,6 +568,13 @@ export const STRINGS = {
     nb: 'Nettbrettet må nå logge inn på Spotify for første gang. Åpne Spotify på telefonen og velg {device} i enhetslisten.'
   },
   'setup.this_phone': { en: 'This phone', nb: 'Denne telefonen' },
+  'setup.wifi_show': {
+    en: 'Open the Wi-Fi settings on your phone, tap your network and share it as a QR code.',
+    nb: 'Åpne Wi-Fi-innstillingene på telefonen, trykk på nettverket ditt og del det som QR-kode.'
+  },
+  'setup.wifi_share': { en: 'Share', nb: 'Del' },
+  'setup.wifi_hold': { en: 'Hold the code up to the camera.', nb: 'Hold koden opp mot kameraet.' },
+  'setup.wifi_other': { en: 'Set up Wi-Fi another way', nb: 'Sett opp Wi-Fi på en annen måte' },
   'setup.presence': {
     en: 'Next, the app pairs with your phone over Bluetooth, so it knows when you’re home and can switch to your account.',
     nb: 'Nå pares appen med telefonen din over Bluetooth, så den vet når du er hjemme og kan bytte til kontoen din.'

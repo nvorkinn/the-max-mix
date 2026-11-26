@@ -4040,6 +4040,223 @@ input:disabled {
     opacity: 1;
   }
 }
+/*
+  The Wi-Fi chapter on a kiosk with a camera (SetupWizard.tsx's WifiByCamera): the drawing or what the camera sees, and
+  under it the quiet way out to every other way of joining a network.
+*/
+.setup-wizard-wifi {
+  gap: 24px;
+}
+.setup-wizard-camera {
+  width: min(70vh, 520px);
+  text-align: center;
+}
+.setup-wizard-camera .wifi-scan-picture {
+  margin: 0 0 12px;
+}
+.setup-wizard-other {
+  min-height: 48px;
+  padding: 0 16px;
+  color: var(--muted);
+  font-size: 18px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+/*
+  The drawing of how a phone shows its Wi-Fi network as a QR code (components/setup/ShareWifiCode.tsx): a phone with its
+  Wi-Fi settings, a tap on the network it is on, Share coming up, a tap on that, and the code. Without its animations it
+  shows the end, the code, which is what reduced motion leaves.
+*/
+.wifi-share {
+  --share-loop: 8s;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 10px;
+  width: 240px;
+  height: 340px;
+  padding: 14px;
+  overflow: hidden;
+  border: 3px solid var(--border);
+  border-radius: 36px;
+  background: var(--page);
+}
+.wifi-share::before {
+  content: '';
+  align-self: center;
+  width: 64px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+}
+.wifi-share-title {
+  padding: 4px 6px;
+  font-size: 20px;
+  font-weight: 800;
+  text-align: left;
+}
+.wifi-share-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--muted);
+}
+.wifi-share-row svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.wifi-share-row span {
+  flex: 1;
+  height: 10px;
+  margin-right: 30%;
+  border-radius: 5px;
+  background: var(--track);
+}
+.wifi-share-network {
+  background: var(--accent-soft);
+  color: var(--accent);
+  animation: wifi-share-network var(--share-loop) infinite;
+}
+.wifi-share-network span {
+  margin-right: 10%;
+}
+.wifi-share-sheet {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 18px 12px;
+  border-top: 2px solid var(--border);
+  border-radius: 22px 22px 0 0;
+  background: var(--surface);
+  animation: wifi-share-sheet var(--share-loop) infinite;
+}
+.wifi-share-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 50px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 17px;
+  font-weight: 650;
+}
+.wifi-share-button svg {
+  width: 22px;
+  height: 22px;
+}
+.wifi-share-code {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--page);
+  animation: wifi-share-code var(--share-loop) infinite;
+}
+.wifi-share-code svg {
+  width: 150px;
+  height: 150px;
+  padding: 14px;
+  border-radius: 20px;
+  background: #fff;
+  color: #000;
+}
+/* Where a finger lands: a ring that closes in on the button, then lets go. */
+.wifi-share-tap {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 30%, transparent);
+  opacity: 0;
+}
+.wifi-share-tap-network {
+  top: 76px;
+  left: 98px;
+  animation: wifi-share-tap-network var(--share-loop) infinite;
+}
+.wifi-share-tap-share {
+  top: 21px;
+  left: 98px;
+  animation: wifi-share-tap-share var(--share-loop) infinite;
+}
+@keyframes wifi-share-tap-network {
+  0%,
+  8% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  14%,
+  17% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  24%,
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+@keyframes wifi-share-network {
+  0%,
+  15% {
+    background: var(--surface);
+    color: var(--muted);
+  }
+  17%,
+  100% {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+}
+@keyframes wifi-share-sheet {
+  0%,
+  19% {
+    transform: translateY(100%);
+  }
+  27%,
+  100% {
+    transform: translateY(0);
+  }
+}
+@keyframes wifi-share-tap-share {
+  0%,
+  36% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  42%,
+  45% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  52%,
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+@keyframes wifi-share-code {
+  0%,
+  46% {
+    opacity: 0;
+  }
+  52%,
+  94% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
 /* The welcome before the chapters: the mark large, what setup involves, and Start. */
 .setup-welcome {
   display: flex;
