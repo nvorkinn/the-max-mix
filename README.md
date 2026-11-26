@@ -1,8 +1,7 @@
 # THE MAX MIX
 
-A music-first Spotify touchscreen for a Raspberry Pi, including the Waveshare
-7-inch 1024x600 display. It is designed for tablet-sized touch screens only;
-phone and desktop layouts are not supported.
+A music-first Spotify touchscreen for a Raspberry Pi. It runs on whatever touch screen the Pi has, whatever its size,
+resolution, shape or way round, so long as it is tablet-sized; phone and desktop layouts are not supported.
 
 ## Contents
 
@@ -42,8 +41,8 @@ API key, saved on countdown-server's settings site.
 
 ### The screen
 
-The player is laid out for the 1024x600 panel and stretches to a bigger one, such as a 10.1-inch 1280x800 screen, whose
-bigger pixels keep every control at least as large as on the 7-inch screen. A square artwork sits on the left, as wide as the room is tall minus the
+The layout fits whatever screen the kiosk has: a 7-inch 1024x600 panel is the smallest it is designed
+for, and a bigger screen, such as a 10.1-inch 1280x800 one, gets more room with every control at least as large. A square artwork sits on the left, as wide as the room is tall minus the
 control bar, so the cover is never stretched into a strip. The song title and artist and the upcoming queue are beside
 it. One bar across the bottom holds the seek bar with the elapsed and total time, the previous, play/pause and next
 buttons, the volume slider, and, at the bottom left, the device that is playing. Tap that to open the speakers drawer
@@ -247,8 +246,10 @@ louder. There is no Sonos sign-in: everything stays on the home network, so Sono
 
 ## Raspberry Pi kiosk
 
-The kiosk is a Raspberry Pi 4 or 5 with the Waveshare 7-inch 1024x600 touch screen, running the app in Chromium under the
-Cage kiosk compositor; with no connection, the app opens its Wi-Fi settings. Flash it with Raspberry Pi Imager from the
+The kiosk is a Raspberry Pi 4 or 5 with a touch screen, running the app in Chromium under the Cage kiosk compositor. The
+screen can be a DSI panel or an HDMI one, of any size, resolution or aspect ratio, landscape or turned on its side (such
+as the Raspberry Pi Touch Display 2, a 1200x1920 portrait panel); the Pi reads the screen's mode from its EDID at each
+start, and the kiosk's settings can rotate or scale it. With no connection, the app opens its Wi-Fi settings. Flash it with Raspberry Pi Imager from the
 list at `https://github.com/nvorkinn/the-max-mix/releases/download/flash-image/the-max-mix.rpi-imager-manifest` and power
 on.
 
