@@ -3780,6 +3780,13 @@ input:disabled {
   font-size: 20px;
   font-weight: 700;
 }
+/* Start is the welcome's one thing to tap, so it is larger than the chapters' buttons. */
+.setup-welcome .setup-wizard-button {
+  min-width: 340px;
+  min-height: 84px;
+  border-radius: 22px;
+  font-size: 28px;
+}
 /* The phones the Pi hears and the code to accept: a centred column, not stretched across the page. */
 .setup-wizard-presence {
   display: flex;
@@ -4477,7 +4484,8 @@ input:disabled {
 }
 .app-modal-panel .setup-welcome-text {
   max-width: 640px;
-  margin: 0;
+  /* Room above and below, on top of the page's own gap, so the words stand apart from the title and Start. */
+  margin: 20px 0 28px;
   color: var(--muted);
   font-size: 22px;
   line-height: 1.45;

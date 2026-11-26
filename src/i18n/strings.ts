@@ -555,8 +555,8 @@ export const STRINGS = {
   'setup.chapter_presence': { en: 'Presence', nb: 'Tilstedeværelse' },
   'setup.welcome': { en: 'Welcome', nb: 'Velkommen' },
   'setup.welcome_text': {
-    en: 'This wizard sets up The Max Mix, including registering it with our backend services and giving it access to your Spotify account.',
-    nb: 'Denne veiviseren setter opp The Max Mix, blant annet registrerer den hos våre tjenester og gir den tilgang til Spotify-kontoen din.'
+    en: 'This wizard sets up this device, including registering it with our backend services and giving it access to your Spotify account.',
+    nb: 'Denne veiviseren setter opp denne enheten, blant annet registrerer den hos våre tjenester og gir den tilgang til Spotify-kontoen din.'
   },
   'setup.scan': { en: 'Scan to proceed.', nb: 'Skann for å fortsette.' },
   'setup.soloist': {
