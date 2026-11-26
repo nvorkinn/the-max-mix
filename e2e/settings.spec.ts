@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
 import { advance } from './clock.ts';
-import { wifiAnswer } from './fake-kiosk.ts';
+import { cameraAnswer, wifiAnswer } from './fake-kiosk.ts';
 import { countPlaybackReads, fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSettings, showSection } from './settings.ts';
 import { openSpotifyTab, showSpotifyTab } from './spotify-tab.ts';
@@ -219,6 +219,28 @@ test.describe('Settings', { tag: '@settings' }, () => {
       await join.getByRole('button', { name: 'Connect' }).click();
       await expect(join).toBeHidden();
       expect(joined).toEqual([{ ssid: 'Neighbour', password: 'secret123', hidden: false, security: 'psk' }]);
+    });
+
+    test('Wi-Fi joins the network whose QR code is held up to the camera', async ({ page }) => {
+      const joined: unknown[] = [];
+      await page.route('http://127.0.0.1:7341/**', route => {
+        const request = route.request();
+        if (request.method() === 'POST' && new URL(request.url()).pathname === '/wifi/connect') {
+          joined.push(request.postDataJSON());
+          return route.fulfill({ headers: { 'Access-Control-Allow-Origin': '*' }, json: { ok: true } });
+        }
+        const answer = cameraAnswer(request, 'WIFI:T:WPA;S:Attic;P:battery staple;H:true;;');
+        return route.fulfill(answer ?? wifiAnswer(request, 'Home network') ?? { status: 204 });
+      });
+      await openSpotifyTab(page);
+      const dialog = await openSettings(page);
+      await showSection(dialog, 'Wi-Fi');
+      await dialog.getByRole('button', { name: 'Scan code' }).click();
+      const scan = page.getByRole('dialog', { name: 'Show the Wi-Fi’s QR code' });
+      await expect(scan.getByRole('img', { name: 'What the camera sees' })).toBeVisible();
+      // The page reads the code out of the picture itself, with the decoder it ships.
+      await expect(scan).toBeHidden();
+      expect(joined).toEqual([{ ssid: 'Attic', password: 'battery staple', hidden: true, security: 'psk' }]);
     });
 
     test('Restart kiosk and Reboot Pi ask the kiosk service, only on a second tap', async ({ page }) => {

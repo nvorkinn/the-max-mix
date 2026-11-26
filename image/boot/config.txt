@@ -5,6 +5,8 @@
 dtoverlay=vc4-kms-v3d
 max_framebuffers=2
 display_auto_detect=1
+# A camera on a CAM/DISP connector, such as the one built into a screen, found by itself too.
+camera_auto_detect=1
 # Leaves the screen mode to video= on the kernel command line, which screen-setup.ts writes.
 disable_fw_kms_setup=1
 disable_overscan=1

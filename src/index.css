@@ -2873,6 +2873,40 @@ body:has(.app-dialog[open]) {
 .wifi-join .music-search {
   font-size: 20px;
 }
+/* Scan code: an invitation while the kiosk is on no network, and the dialog with what the camera sees. */
+.wifi-scan-lead {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 18px 18px 20px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+  border-radius: 22px;
+  background: var(--surface-raised);
+  font-size: 18px;
+}
+.wifi-scan-lead p {
+  flex: 1;
+  min-width: 0;
+}
+.wifi-scan-lead .button {
+  min-height: 60px;
+  padding: 0 22px;
+  font-size: 18px;
+}
+.wifi-scan {
+  width: min(680px, 92vw);
+}
+.wifi-scan-picture {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  margin: 12px 0;
+  border-radius: 16px;
+  background: var(--surface);
+  object-fit: cover;
+  /* Mirrored, so that moving the phone to the left moves its picture to the left. */
+  transform: scaleX(-1);
+}
 /* Hotspot: the codes a phone scans, what to type when it can't, and how the kiosk is getting on. */
 .wifi-setup-qr {
   flex-shrink: 0;

@@ -241,6 +241,23 @@ export const STRINGS = {
   'wifi.connect': { en: 'Connect', nb: 'Koble til' },
   'wifi.connecting': { en: 'Connecting to {ssid}…', nb: 'Kobler til {ssid} …' },
   'wifi.hotspot': { en: 'Hotspot', nb: 'Hotspot' },
+  'wifi.scan': { en: 'Scan code', nb: 'Skann kode' },
+  'wifi.scan_lead': {
+    en: 'Have the Wi-Fi’s QR code on your phone? Show it to the camera to join without typing.',
+    nb: 'Har du QR-koden til Wi-Fi-nettverket på telefonen? Vis den til kameraet, så slipper du å skrive.'
+  },
+  'wifi.scan_title': { en: 'Show the Wi-Fi’s QR code', nb: 'Vis QR-koden til Wi-Fi-nettverket' },
+  'wifi.scan_hint': {
+    en: 'On your phone, open the Wi-Fi settings and share the network as a QR code. Hold it up to the camera.',
+    nb: 'Åpne Wi-Fi-innstillingene på telefonen og del nettverket som QR-kode. Hold den opp mot kameraet.'
+  },
+  'wifi.scan_preview': { en: 'What the camera sees', nb: 'Det kameraet ser' },
+  'wifi.scan_not_wifi': { en: 'That is not a Wi-Fi code.', nb: 'Det er ikke en Wi-Fi-kode.' },
+  'wifi.scan_unsupported': {
+    en: 'This kind of network is not supported.',
+    nb: 'Denne typen nettverk støttes ikke.'
+  },
+  'wifi.scan_no_camera': { en: 'The camera did not start.', nb: 'Kameraet startet ikke.' },
   'wifi.back': { en: 'Back', nb: 'Tilbake' },
   'wifi.starting': { en: 'Starting…', nb: 'Starter …' },
   'wifi.waiting_for_phone': { en: 'Waiting for your phone…', nb: 'Venter på telefonen …' },

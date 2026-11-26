@@ -185,28 +185,30 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 
 ## The requests
 
-| Request                                | What it does                                                                         |
-| -------------------------------------- | ------------------------------------------------------------------------------------ |
-| `GET /speakers`                        | `{"speakers": [...], "volumes": {"Kitchen": 40}}`                                    |
-| `POST /audio/route`                    | Routes the sound to the speakers in the JSON body                                    |
-| `POST /audio/volume`                   | Sets one speaker's volume (404: not on the network)                                  |
-| `WS /power/update`                     | Connecting starts the update and streams it (below)                                  |
-| `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                                                          |
-| `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)                                             |
-| `POST /display/brightness`             | Sets the backlight to `{"percent": 1-100, "fade"?: true}` (404: the screen has none) |
-| `POST /heartbeat`                      | The app is alive (the watchdog, below)                                               |
-| `POST /log`                            | An app error, written to the journal                                                 |
-| `GET /lyrics?title=&artist=&duration=` | Lyrics: `{"source"}` with `"lrc"`, `"plain"` or `"instrumental"` (404, 502)          |
-| `GET /bluetooth/devices`               | `{"devices": [{"address", "name", "paired", "connected"}]}`                          |
-| `POST /bluetooth/scan`                 | Looks for speakers for 8 seconds; the same answer                                    |
-| `POST /bluetooth/connect`              | Pairs, trusts and connects `{"address"}`                                             |
-| `POST /bluetooth/remove`               | Forgets `{"address"}`                                                                |
-| `POST /wifi/hotspot`                   | Starts the setup hotspot: name, password, address, QR codes                          |
-| `POST /wifi/hotspot/stop`              | Ends it and puts the earlier network back                                            |
-| `GET /wifi/hotspot`                    | `{"state": "running" \| "connected" \| "joining" \| "joined" \| "failed" \| "idle"}` |
-| `GET /wifi/status`                     | `{"ssid"}`: the network the Wi-Fi is on, or null (the app only)                      |
-| `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                                         |
-| `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)                             |
+| Request                                | What it does                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------- |
+| `GET /speakers`                        | `{"speakers": [...], "volumes": {"Kitchen": 40}}`                                     |
+| `POST /audio/route`                    | Routes the sound to the speakers in the JSON body                                     |
+| `POST /audio/volume`                   | Sets one speaker's volume (404: not on the network)                                   |
+| `WS /power/update`                     | Connecting starts the update and streams it (below)                                   |
+| `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                                                           |
+| `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)                                              |
+| `POST /display/brightness`             | Sets the backlight to `{"percent": 1-100, "fade"?: true}` (404: the screen has none)  |
+| `POST /heartbeat`                      | The app is alive (the watchdog, below)                                                |
+| `POST /log`                            | An app error, written to the journal                                                  |
+| `GET /lyrics?title=&artist=&duration=` | Lyrics: `{"source"}` with `"lrc"`, `"plain"` or `"instrumental"` (404, 502)           |
+| `GET /bluetooth/devices`               | `{"devices": [{"address", "name", "paired", "connected"}]}`                           |
+| `POST /bluetooth/scan`                 | Looks for speakers for 8 seconds; the same answer                                     |
+| `POST /bluetooth/connect`              | Pairs, trusts and connects `{"address"}`                                              |
+| `POST /bluetooth/remove`               | Forgets `{"address"}`                                                                 |
+| `POST /wifi/hotspot`                   | Starts the setup hotspot: name, password, address, QR codes                           |
+| `POST /wifi/hotspot/stop`              | Ends it and puts the earlier network back                                             |
+| `GET /wifi/hotspot`                    | `{"state": "running" \| "connected" \| "joining" \| "joined" \| "failed" \| "idle"}`  |
+| `GET /camera`                          | `{"available": true}`: whether the screen has a camera (the app's origin only)        |
+| `GET /camera/stream`                   | The camera's picture as JPEG frames while the request is open (the app's origin only) |
+| `GET /wifi/status`                     | `{"ssid"}`: the network the Wi-Fi is on, or null (the app only)                       |
+| `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                                          |
+| `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)                              |
 
 ## Bluetooth speakers
 
