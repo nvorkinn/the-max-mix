@@ -4047,7 +4047,7 @@ input:disabled {
 .setup-wizard-wifi {
   gap: 24px;
 }
-/* The tick over "Successfully connected to …", once the camera has read a code and the kiosk has joined its network. */
+/* The circle over the network the camera read: a spinner while the kiosk joins it, a tick once it has. */
 .setup-wizard-tick {
   display: grid;
   place-items: center;
@@ -4060,6 +4060,10 @@ input:disabled {
 .setup-wizard-tick svg {
   width: 64px;
   height: 64px;
+}
+/* Joining and joined keep the line in one place: the name is long or short, the circle and Continue do not move. */
+.setup-wizard-tick + .setup-wizard-lead {
+  min-height: 1.4em;
 }
 .setup-wizard-aside {
   display: block;

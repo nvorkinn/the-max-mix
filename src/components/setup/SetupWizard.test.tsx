@@ -10,6 +10,7 @@ import { useSoloistSignIn } from '../../hooks/useSoloistSignIn';
 import { peopleOnKiosk, takePhoneToPair } from '../../spotify/auth';
 import type { PersonOnKiosk } from '../../spotify/auth';
 import { hasCamera } from '../../utils/kioskCamera';
+import { joinWifi } from '../../utils/kioskWifi';
 import { useWifi } from '../settings/wifi';
 import type { WifiState } from '../settings/wifi';
 import SetupWizard, { NETWORK_POLL_MS } from './SetupWizard';
@@ -29,10 +30,14 @@ vi.mock('../../hooks/useSoloistKey', () => ({ useSoloistKey: vi.fn() }));
 vi.mock('../../hooks/useSoloistSignIn', () => ({ useSoloistSignIn: vi.fn() }));
 vi.mock('../../spotify/auth', () => ({ peopleOnKiosk: vi.fn(), takePhoneToPair: vi.fn() }));
 vi.mock('../../utils/kioskCamera', () => ({ hasCamera: vi.fn() }));
+vi.mock('../../utils/kioskWifi', () => ({ joinWifi: vi.fn() }));
 vi.mock('../settings/wifi', () => ({ useWifi: vi.fn() }));
 vi.mock('../settings/WifiScanView', () => ({
-  default: ({ onJoined }: { onJoined: (ssid: string) => void }) => (
-    <button type="button" onClick={() => onJoined('Attic')}>
+  default: ({ onRead }: { onRead: (network: object) => void }) => (
+    <button
+      type="button"
+      onClick={() => onRead({ ssid: 'Attic', password: 'battery staple', hidden: false, security: 'psk' })}
+    >
       camera-view
     </button>
   )
@@ -77,6 +82,7 @@ beforeEach(() => {
   vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: true, deviceName: KIOSK });
   vi.mocked(usePhonePairing).mockReturnValue(pairing);
   vi.mocked(hasCamera).mockResolvedValue(false);
+  vi.mocked(joinWifi).mockResolvedValue({ ok: true });
   onWifi({ state: 'connected', ssid: 'Home', address: 'an address' });
 });
 
@@ -124,9 +130,17 @@ describe('SetupWizard', () => {
     expect(screen.queryByText('wifi-settings')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'OK' }));
     expect(screen.getByText('Hold the code up to the camera.')).toBeInTheDocument();
+    // The code is read: the camera's page goes at once, for a spinner while the kiosk joins the network.
+    // This join never ends, so the page stays on the spinner.
+    vi.mocked(joinWifi).mockReturnValue(new Promise<never>(() => {}));
     await userEvent.click(screen.getByRole('button', { name: 'camera-view' }));
-    expect(recheck).toHaveBeenCalled();
-    expect(screen.getByRole('status')).toHaveTextContent('Successfully connected to Attic.');
+    expect(screen.queryByRole('button', { name: 'camera-view' })).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Connecting to Attic…');
+    expect(screen.getByRole('button', { name: 'Continue', hidden: true })).toBeDisabled();
+    expect(joinWifi).toHaveBeenCalledExactlyOnceWith(
+      { ssid: 'Attic', password: 'battery staple', hidden: false, security: 'psk' },
+      'en'
+    );
   });
 
   it('stays on the confirmation of a network joined from its code until Continue', async () => {
@@ -142,11 +156,27 @@ describe('SetupWizard', () => {
     onWifi({ state: 'connected', ssid: 'Attic', address: 'an address' });
     rerender(<SetupWizard />);
     expect(current()).toBe('Wi-Fi');
-    expect(screen.getByRole('status')).toHaveTextContent('Successfully connected to Attic.');
+    expect(await screen.findByRole('status')).toHaveTextContent('Successfully connected to Attic.');
+    expect(recheck).toHaveBeenCalled();
     expect(useRegistration).toHaveBeenLastCalledWith(false, expect.any(Function));
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(current()).toBe('Account');
     expect(useRegistration).toHaveBeenLastCalledWith(true, expect.any(Function));
+  });
+
+  it('says why the kiosk could not join the network it read, and goes back to the camera at Try again', async () => {
+    vi.mocked(deviceCredentials).mockReturnValue(null);
+    vi.mocked(peopleOnKiosk).mockReturnValue([]);
+    vi.mocked(hasCamera).mockResolvedValue(true);
+    vi.mocked(joinWifi).mockResolvedValue({ ok: false, error: 'Wrong password.' });
+    onWifi({ state: 'disconnected', address: null });
+    render(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'OK' }));
+    await userEvent.click(screen.getByRole('button', { name: 'camera-view' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Wrong password.');
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(screen.getByRole('button', { name: 'camera-view' })).toBeInTheDocument();
   });
 
   it('keeps every other way to join a network behind the line at the bottom', async () => {
