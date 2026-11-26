@@ -5,6 +5,7 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Action } from './actions.ts';
 import { BluetoothError } from './bluetooth.ts';
+import type { Viewer } from './camera.ts';
 import { dump, exchange } from './fixtures.ts';
 import { HotspotError } from './hotspot.ts';
 import type { Checked } from './image-update.ts';
@@ -80,6 +81,7 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
   const pairingCalls: string[] = [];
   const presenceCalls: string[] = [];
   const hotspotCalls: string[] = [];
+  const cameraViewers = new Set<Viewer>();
   const connected: string[] = [];
   const removed: string[] = [];
   const performed: Action[] = [];
@@ -173,6 +175,13 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
         return Promise.resolve();
       }
     },
+    camera: {
+      available: () => Promise.resolve(true),
+      watch: viewer => {
+        cameraViewers.add(viewer);
+        return () => cameraViewers.delete(viewer);
+      }
+    },
     screen: () => Promise.resolve({ width: 1280, height: 800, brightness_control: false }),
     setBrightness: (percent, isFaded) => {
       brightnesses.push(isFaded ? { percent, fade: isFaded } : percent);
@@ -257,6 +266,7 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
     joined,
     forgotten,
     listeners,
+    cameraViewers,
     beats: () => beats
   };
 }
@@ -547,6 +557,49 @@ describe('POST', () => {
     await vi.waitFor(() => {
       expect(listeners.size).toBe(0);
     });
+  });
+
+  it('tells the app, and only the app, whether the screen has a camera', async () => {
+    const base = await start(fakes().deps);
+    const response = await fetch(`${base}/camera`, { headers: { Origin: ORIGIN } });
+    await expect(response.json()).resolves.toEqual({ available: true });
+    expect((await fetch(`${base}/camera`)).status).toBe(403);
+    const none = { available: () => Promise.resolve(false), watch: vi.fn() };
+    const without = await start(fakes({ camera: none }).deps);
+    await expect((await fetch(`${without}/camera`, { headers: { Origin: ORIGIN } })).json()).resolves.toEqual({
+      available: false
+    });
+    expect((await fetch(`${without}/camera/stream`, { headers: { Origin: ORIGIN } })).status).toBe(404);
+    expect(none.watch).not.toHaveBeenCalled();
+  });
+
+  it('streams the camera to the app while it watches, and to the app only', async () => {
+    const { deps, cameraViewers } = fakes();
+    const base = await start(deps);
+    expect((await fetch(`${base}/camera/stream`, { headers: { Origin: 'https://evil.example' } })).status).toBe(403);
+    expect(cameraViewers.size).toBe(0);
+    const controller = new AbortController();
+    const stream = await fetch(`${base}/camera/stream`, { headers: { Origin: ORIGIN }, signal: controller.signal });
+    expect(stream.headers.get('content-type')).toBe('multipart/x-mixed-replace; boundary=frame');
+    expect(cameraViewers.size).toBe(1);
+    for (const viewer of cameraViewers) viewer.frame(Buffer.from([0xff, 0xd8, 0x01, 0xff, 0xd9]));
+    const reader = (stream.body as ReadableStream<Uint8Array>).getReader();
+    const { value } = await reader.read();
+    expect(Buffer.from(value ?? []).toString('latin1')).toContain(
+      '--frame\r\nContent-Type: image/jpeg\r\nContent-Length: 5\r\n\r\n'
+    );
+    controller.abort();
+    await vi.waitFor(() => {
+      expect(cameraViewers.size).toBe(0);
+    });
+  });
+
+  it('ends the stream when the camera stops by itself', async () => {
+    const { deps, cameraViewers } = fakes();
+    const base = await start(deps);
+    const stream = await fetch(`${base}/camera/stream`, { headers: { Origin: ORIGIN } });
+    for (const viewer of cameraViewers) viewer.end();
+    await expect(stream.arrayBuffer()).resolves.toHaveProperty('byteLength', 0);
   });
 
   it('says what a room plays, and gives its artwork', async () => {
