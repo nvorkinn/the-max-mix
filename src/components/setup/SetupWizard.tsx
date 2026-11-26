@@ -284,6 +284,7 @@ function Presence({
  *   an owner, then starts the Spotify sign-in, then asks for the key code, and ticks each chapter as it lands.
  * - Soloist has a second page: the key only starts it, and it signs in to their Spotify account the first time they
  *   pick the kiosk in Spotify's device list on their phone. The chapter is ticked once Soloist says it is signed in.
+ *   Having got there, the chapter says so, and Presence opens at Continue.
  * - Presence: the phone is paired over Bluetooth, the scan starting only once they have Bluetooth open and tap OK.
  *
  * Pairing and signing in reload the page, so every chapter's state is read from what the kiosk keeps. Done marks the
@@ -343,6 +344,15 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
   const [soloistSignedIn, setSoloistSignedIn] = useState(false);
   const soloist = useSoloistSignIn(key === 'saved' && !soloistSignedIn);
   if (!soloistSignedIn && soloist.isSignedIn === true) setSoloistSignedIn(true);
+  // Soloist was seen being set up here (its key still to come, or it still to be signed in), not found done already:
+  // then the chapter says that it is done, and goes on to Presence at Continue, not under the phone in their hand.
+  const [soloistWaited, setSoloistWaited] = useState(false);
+  const isSoloistWaiting =
+    (key !== 'saved' && key !== 'unavailable') || (key === 'saved' && soloist.isSignedIn === false);
+  if (!soloistWaited && isSoloistWaiting) setSoloistWaited(true);
+  const [soloistAcknowledged, setSoloistAcknowledged] = useState(false);
+  const isSoloistSet = key === 'saved' && soloistSignedIn;
+  const isSayingSoloistSet = isSoloistSet && soloistWaited && !soloistAcknowledged;
   const [phonePaired, setPhonePaired] = useState(person !== undefined && person.phoneAddress !== '');
   const markPaired = useCallback(() => setPhonePaired(true), []);
   const address = useSetupAddress();
@@ -351,7 +361,7 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
     wifi: wifiDone,
     account: registered,
     spotify: person !== undefined,
-    soloist: key === 'saved' && soloistSignedIn,
+    soloist: isSoloistSet && !isSayingSoloistSet,
     presence: phonePaired
   };
   // Account, Spotify and Soloist all happen over the network. Off it, they would wait for ever, so setup goes back
@@ -393,6 +403,26 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
     );
   } else if (current === 'presence' && person) {
     page = <Presence person={person} isPaired={phonePaired} onPaired={markPaired} onDone={finish} />;
+  } else if (current === 'soloist' && isSayingSoloistSet) {
+    page = (
+      <div className="setup-wizard-center">
+        <div className="wifi-join-progress">
+          <span className="wifi-join-progress-mark">
+            <Check aria-hidden="true" />
+          </span>
+          <p className="wifi-join-progress-line" role="status">
+            {t('setup.soloist_set')}
+          </p>
+          <button
+            type="button"
+            className="button search-dialog-confirm wifi-join-progress-button"
+            onClick={() => setSoloistAcknowledged(true)}
+          >
+            {t('common.continue')}
+          </button>
+        </div>
+      </div>
+    );
   } else if (current === 'soloist' && key === 'saved') {
     page = <SpotifyPick device={soloist.isSignedIn === false ? (soloist.deviceName ?? KIOSK_NAME) : null} />;
   } else {

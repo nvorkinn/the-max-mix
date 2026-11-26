@@ -161,9 +161,13 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       await expect(page.getByRole('region', { name: 'Soloist' })).toBeVisible();
       await shot('4b-spotify-pick');
       soloist.signIn();
+      // The chapter says that Soloist is set up, and Presence opens at Continue.
+      await expect(page.getByText('Soloist is set up and signed in to Spotify.')).toBeVisible({ timeout: 10_000 });
+      await shot('4c-soloist-set');
 
       // Presence: the scan only starts once they have Bluetooth open and tap OK.
       const bluetooth = await fakePhonePairing(page);
+      await page.getByRole('button', { name: 'Continue' }).click();
       await expect(page.getByRole('region', { name: 'Presence' })).toBeVisible({ timeout: 10_000 });
       await expect(page.getByRole('listitem').filter({ hasText: 'Tap OK' })).toBeVisible();
       await shot('5-presence');
