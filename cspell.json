@@ -241,6 +241,7 @@
     "rootfs",
     "rootfstype",
     "rootwait",
+    "rpicam",
     "rptl",
     "rssi",
     "rstrip",
