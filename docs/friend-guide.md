@@ -8,6 +8,8 @@ account. The words in bold are what you'll see on the screen.
 1. Plug it in. It opens on **Wi-Fi**.
 2. Tap your network, type the password on the on-screen keyboard and tap **Connect**. Or tap **Hotspot** and
    follow the screen to send the Wi-Fi from your phone instead.
+   If the screen has a camera, there is also **Scan code**: show your Wi-Fi's QR code on your phone (in the phone's
+   Wi-Fi settings, share the network) and hold it up to the camera.
 3. Your network isn't listed? Tap **Refresh**, or **Other network** to type its name.
 4. Once it's on your network, tap **Next**.
 

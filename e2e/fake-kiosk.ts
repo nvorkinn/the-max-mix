@@ -1,4 +1,5 @@
 import type { Page, Request } from '@playwright/test';
+import qrcode from 'qrcode-generator';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -85,6 +86,34 @@ export function wifiAnswer(request: Request, ssid: string | null) {
   };
   const json = request.method() === 'GET' ? answers[new URL(request.url()).pathname] : undefined;
   return json && { headers: CORS, json };
+}
+
+/** A QR code of `text` as an SVG picture, dark on white with a margin, as a camera would see one held up to it. */
+function qrPicture(text: string): string {
+  const code = qrcode(0, 'M');
+  code.addData(text);
+  code.make();
+  const count = code.getModuleCount();
+  const size = (count + 8) * 8;
+  let modules = '';
+  for (let row = 0; row < count; row++) {
+    for (let column = 0; column < count; column++) {
+      if (code.isDark(row, column)) modules += `M${column + 4} ${row + 4}h1v1h-1z`;
+    }
+  }
+  const box = `0 0 ${count + 8} ${count + 8}`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${box}"><rect width="100%" height="100%" fill="#fff"/><path d="${modules}"/></svg>`;
+}
+
+/**
+ * What the Pi answers about its screen's camera (pi/kiosk-audio/camera.ts): that it has one, and as its picture a QR
+ * code of `code`, standing still. Undefined for any other request.
+ */
+export function cameraAnswer(request: Request, code: string) {
+  if (request.method() !== 'GET') return;
+  const path = new URL(request.url()).pathname;
+  if (path === '/camera') return { headers: CORS, json: { available: true } };
+  return path === '/camera/stream' ? { headers: CORS, contentType: 'image/svg+xml', body: qrPicture(code) } : undefined;
 }
 
 /** How a phone joins the Pi's setup hotspot (pi/kiosk-audio/hotspot.ts), as POST /wifi/hotspot answers. */

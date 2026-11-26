@@ -181,6 +181,7 @@
     "nologo",
     "nonexistent",
     "noninteractive",
+    "nopass",
     "NOPASSWD",
     "nopreview",
     "norsk",
@@ -207,6 +208,7 @@
     "partuuid",
     "partx",
     "pavucontrol",
+    "peap",
     "pengutronix",
     "pidwait",
     "pios",
@@ -318,6 +320,7 @@
     "xterm",
     "zoneinfo",
     "zram",
-    "zstd"
+    "zstd",
+    "zxing"
   ]
 }
