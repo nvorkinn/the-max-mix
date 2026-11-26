@@ -49,6 +49,16 @@ const KNOWN_SCREENS: readonly KnownScreen[] = [
     height: 1920,
     rotation: 90,
     scale: 1.5
+  },
+  {
+    // Waveshare RPI-HMI-101D, 10.1 inch (the-max-mix-max, 2026-11-26): landscape 1280x800 on DSI, which is the page the
+    // app is laid out for, but upside down in its case.
+    name: 'Waveshare RPI-HMI-101D, 10.1 inch',
+    connector: 'DSI',
+    width: 1280,
+    height: 800,
+    rotation: 180,
+    scale: 1
   }
 ];
 

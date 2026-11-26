@@ -60,6 +60,8 @@ describe('knownScreen', () => {
   it('needs the connector type and the mode to match', () => {
     expect(knownScreen({ connector: 'DSI-1', width: 1200, height: 1920 })?.rotation).toBe(90);
     expect(knownScreen({ connector: 'HDMI-A-1', width: 1200, height: 1920 })).toBeUndefined();
+    expect(knownScreen({ connector: 'DSI-1', width: 1280, height: 800 })).toMatchObject({ rotation: 180, scale: 1 });
+    expect(knownScreen({ connector: 'HDMI-A-1', width: 1280, height: 800 })).toBeUndefined();
     expect(knownScreen({ connector: 'DSI-1', width: 1920, height: 1200 })).toBeUndefined();
     expect(knownScreen(null)).toBeUndefined();
   });
