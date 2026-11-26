@@ -43,6 +43,19 @@ on, and each build expires after 90 days, so `kiosk-soloist-update.timer` fetche
 | `KIOSK_VIDEO_MODE`     | kiosk.service, `screen-setup.ts --video-mode` | Such as 1280x800@60, for a screen with a wrong EDID         |
 | `KIOSK_UPDATE_CHANNEL` | kiosk-update                                  | `stable`, `dev` or `branch-<name>`                          |
 
+A Pi's own lines for the boot firmware go in `/data/the-max-mix/config.txt`, such as the `dtoverlay` of a screen the
+firmware does not find by itself:
+
+```ini
+# Waveshare RPI-HMI-101D on DSI0
+dtoverlay=vc4-kms-dsi-waveshare-panel,10_1_inch,dsi0
+```
+
+Every slot's `config.txt` comes from the image, so the updater writes these lines into the end of it, under `[all]`:
+into each new slot as it is installed (RAUC's post-install handler), and into the slot the Pi runs from with
+`sudo kiosk-update boot-config` after the file changed, which counts from the next boot. Without them such a Pi
+shows nothing after an update, the app sends no heartbeat, and `kiosk-health` goes back to the old slot.
+
 ## From Ansible
 
 Where each part of the Ansible role that set up the first Pis went:
