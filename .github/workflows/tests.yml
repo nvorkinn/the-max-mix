@@ -54,7 +54,7 @@ jobs:
           path: coverage
           if-no-files-found: ignore
 
-  # Browser tests of the built app, split over three machines and run in parallel with `tests` (see e2e.yml, which can
+  # Browser tests of the built app, split over four machines and run in parallel with `tests` (see e2e.yml, which can
   # also be dispatched on its own for a report with a trace of every test).
   e2e:
     uses: ./.github/workflows/e2e.yml
