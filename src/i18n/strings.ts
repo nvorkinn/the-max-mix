@@ -569,8 +569,8 @@ export const STRINGS = {
   },
   'setup.this_phone': { en: 'This phone', nb: 'Denne telefonen' },
   'setup.wifi_show': {
-    en: 'On your iPhone, open the Passwords app, tap Wi-Fi, then your network, then Show Network QR Code.',
-    nb: 'Åpne Passord-appen på iPhonen, trykk på Wi-Fi, så nettverket ditt, så Vis QR-kode for nettverket.'
+    en: 'Open the QR code for your Wi-Fi in the Passwords app.',
+    nb: 'Åpne QR-koden til Wi-Fi-nettverket ditt i Passord-appen.'
   },
   'setup.wifi_show_android': {
     en: 'On Android, open the Wi-Fi settings, tap your network, then Share.',
