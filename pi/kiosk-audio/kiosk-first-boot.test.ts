@@ -332,13 +332,14 @@ describe('prepareData', () => {
     ]);
   });
 
-  it('formats it again after a reset, keeping the name and kiosk.env', async () => {
+  it('formats it again after a reset, keeping the name, kiosk.env and config.txt', async () => {
     const devices = await blockDevices({ ...FLASHED, size: SECTORS_16_GB - FLASHED.start - 33 });
     const data = devices.mountpoint;
     const files = {
       [RESET_FLAG]: '',
       [DATA_PATHS.hostname]: 'kitchen\n',
       [DATA_PATHS.kioskEnv]: 'KIOSK_VIDEO_MODE=1280x800@60\n',
+      [DATA_PATHS.ownConfig]: 'dtoverlay=vc4-kms-dsi-waveshare-panel,10_1_inch,dsi0\n',
       [DATA_PATHS.machineId]: '0123456789abcdef0123456789abcdef\n',
       'network/system-connections/Home.nmconnection': '[connection]\n'
     };
@@ -364,6 +365,9 @@ describe('prepareData', () => {
     expect((await readdir(data)).toSorted((a, b) => a.localeCompare(b))).toEqual(['identity', 'the-max-mix']);
     expect(await readdir(path.join(data, 'identity'))).toEqual(['hostname']);
     expect(await readFile(path.join(data, DATA_PATHS.kioskEnv), 'utf8')).toBe('KIOSK_VIDEO_MODE=1280x800@60\n');
+    expect(await readFile(path.join(data, DATA_PATHS.ownConfig), 'utf8')).toBe(
+      'dtoverlay=vc4-kms-dsi-waveshare-panel,10_1_inch,dsi0\n'
+    );
   });
 
   it('grows the filesystem of a partition that grew', async () => {

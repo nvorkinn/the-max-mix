@@ -6,7 +6,8 @@
 // 1. The partition grows to the end of the card: a flashed image ends where the image did. Once only, as it then reaches
 //    the end.
 // 2. It is formatted (ext4, label data) when it holds no filesystem: the first boot, and the boot after kiosk-reset,
-//    which leaves RESET_FLAG on it. A reset keeps the Pi's name and its kiosk.env (RESET_KEEPS), and wipes the rest.
+//    which leaves RESET_FLAG on it. A reset keeps the Pi's name, its kiosk.env and its config.txt lines (RESET_KEEPS),
+//    and wipes the rest.
 // 3. Imager's user-data and network-config (cloud-init's format, which the flash image's Imager list asks for) become
 //    the Pi's own: the host name, the admin account's SSH keys, and the Wi-Fi as a NetworkManager profile. Imager writes
 //    them to the card's first partition (rpi-imager's downloadthread.cpp), the autoboot one, which nothing else mounts,
@@ -36,13 +37,18 @@ export const DATA_PATHS = {
   /** /home/admin */
   adminHome: 'home/admin',
   /** /data/the-max-mix/kiosk.env, the Pi's own settings (KIOSK_NAME, KIOSK_VIDEO_MODE and so on) */
-  kioskEnv: 'the-max-mix/kiosk.env'
+  kioskEnv: 'the-max-mix/kiosk.env',
+  /** /data/the-max-mix/config.txt, the Pi's own lines for the boot firmware's config.txt (image-update.ts OWN_CONFIG) */
+  ownConfig: 'the-max-mix/config.txt'
 } as const;
 
 /** kiosk-reset leaves this on /data; the next boot formats it again. */
 export const RESET_FLAG = '.kiosk-reset';
-/** What a reset keeps: the Pi's name and its settings, which belong to the Pi and its screen, not to its owner. */
-const RESET_KEEPS = [DATA_PATHS.hostname, DATA_PATHS.kioskEnv] as const;
+/**
+ * What a reset keeps: the Pi's name and its settings, which belong to the Pi and its screen, not to its owner. Its
+ * config.txt lines are among them: without a screen's dtoverlay the Pi shows nothing after its next update.
+ */
+const RESET_KEEPS = [DATA_PATHS.hostname, DATA_PATHS.kioskEnv, DATA_PATHS.ownConfig] as const;
 
 /** The admin account (sysusers.d in the image), whose SSH keys Imager's are. */
 const ADMIN = { uid: 1000, gid: 1000 } as const;
@@ -410,8 +416,9 @@ async function main(): Promise<void> {
   try {
     const prepared = await prepareData(values.data, mountpoint, { run });
     if (prepared.isGrown) console.log('Grew the data partition to the end of the card');
-    if (prepared.isReset) console.log('Reset: formatted the data partition, keeping the name and kiosk.env');
-    else if (prepared.isFormatted) console.log('Formatted the data partition');
+    if (prepared.isReset) {
+      console.log('Reset: formatted the data partition, keeping the name, kiosk.env and config.txt');
+    } else if (prepared.isFormatted) console.log('Formatted the data partition');
 
     for (const card of values.card) {
       // One card at a time, in the order given: each may mount a partition.
