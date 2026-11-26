@@ -567,6 +567,14 @@ export const STRINGS = {
     en: 'The app uses Spotify Soloist to play music from your Spotify account. Soloist needs an API key from you. Enter it on your phone, and we’ll store it securely.',
     nb: 'Appen bruker Spotify Soloist til å spille musikk fra Spotify-kontoen din. Soloist trenger en API-nøkkel fra deg. Skriv den inn på telefonen, så lagrer vi den sikkert.'
   },
+  'setup.spotify_on_phone': {
+    en: 'Sign in to Spotify on your phone.',
+    nb: 'Logg inn på Spotify på telefonen.'
+  },
+  'setup.show_code': {
+    en: 'Lost the page on your phone? Show the code again',
+    nb: 'Mistet siden på telefonen? Vis koden igjen'
+  },
   'setup.soloist_set': {
     en: 'Soloist is set up and signed in to Spotify.',
     nb: 'Soloist er satt opp og logget inn på Spotify.'
@@ -595,6 +603,10 @@ export const STRINGS = {
   'setup.presence_open': {
     en: 'Open Settings, then Bluetooth, on your phone, and tap OK.',
     nb: 'Åpne Innstillinger og så Bluetooth på telefonen, og trykk OK.'
+  },
+  'setup.presence_pick': {
+    en: 'Select your phone when it appears.',
+    nb: 'Velg telefonen din når den dukker opp.'
   },
   'setup.start': { en: 'Start', nb: 'Start' },
   'setup.complete': { en: 'Setup complete', nb: 'Oppsettet er ferdig' }

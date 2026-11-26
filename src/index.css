@@ -3832,6 +3832,11 @@ input:disabled {
   width: min(100%, 640px);
   min-height: 0;
 }
+/* What to do with the list, over it. */
+.app-modal-panel .setup-wizard-presence .setup-wizard-lead {
+  align-self: center;
+  margin-bottom: 20px;
+}
 /* The list's outline shows from the start, so the page isn't blank while the Pi listens; the spinner sits in it. */
 .setup-wizard-presence .pair-phone-nearby {
   position: relative;
@@ -4103,13 +4108,14 @@ input:disabled {
 .setup-wizard-camera .wifi-scan-picture {
   margin: 0 0 12px;
 }
+/* Small on purpose: a way out for the few who need it, not something the page asks of everyone. */
 .setup-wizard-other {
   min-height: 48px;
   padding: 0 16px;
   color: var(--muted);
-  font-size: 18px;
+  font-size: 13px;
   text-decoration: underline;
-  text-underline-offset: 4px;
+  text-underline-offset: 3px;
 }
 /*
   The drawing of how an iPhone shows its Wi-Fi network as a QR code (components/setup/ShareWifiCode.tsx): a phone with its

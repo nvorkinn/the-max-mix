@@ -93,6 +93,31 @@ function SpotifySignIn({ onSignedIn }: Readonly<{ onSignedIn: () => void }>) {
 }
 
 /**
+ * A chapter done on the phone, which was sent on to it from the one before (Spotify, the Soloist key): what happens
+ * there, and that the kiosk is waiting. The setup code is not shown again, as if it had to be scanned again; it is
+ * behind a small line at the bottom, for whoever lost the page on their phone.
+ */
+function OnPhone({ lead, address }: Readonly<{ lead: string; address: string | null }>) {
+  const t = useT();
+  const [isShowingCode, setIsShowingCode] = useState(false);
+  return (
+    <div className="setup-wizard-center">
+      <p className="setup-wizard-lead">{lead}</p>
+      {isShowingCode && address ? (
+        <QrCode text={address} className="setup-wizard-code" label={t('pairing.code')} />
+      ) : (
+        <LoaderCircle className="w-10 h-10 animate-spin text-accent" aria-hidden="true" />
+      )}
+      {!isShowingCode && (
+        <button type="button" className="setup-wizard-other" onClick={() => setIsShowingCode(true)}>
+          {t('setup.show_code')}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
  * The Soloist chapter once the key is saved: Soloist signs in to the person's Spotify account the first time they pick
  * the kiosk in Spotify on their phone, which the drawing shows. Until Soloist has said where it stands, only a spinner.
  */
@@ -273,7 +298,9 @@ function Presence({
   }
   return (
     <div className="setup-wizard-presence">
-      <PhonePairingView pairing={pairing} onPick={pick} />
+      <PhonePairingView pairing={pairing} onPick={pick}>
+        <p className="setup-wizard-lead">{t('setup.presence_pick')}</p>
+      </PhonePairingView>
     </div>
   );
 }
@@ -285,8 +312,9 @@ function Presence({
  * - Wi-Fi: on a kiosk with a camera, showing it the QR code a phone shares its network with; otherwise, or from the
  *   line under that, every way to join a network (Settings › Wi-Fi's page). It moves on once the Pi is on one.
  *   Setup comes back to it if the kiosk loses its network before Soloist is done.
- * - Account, Spotify and Soloist share one QR code, of countdown-server's pairing page. The owner scans it once and
- *   their phone goes through all three (countdown-server's /device/setup): signing in to Countdown makes the kiosk
+ * - Account, Spotify and Soloist share one QR code, of countdown-server's pairing page. The owner scans it once, on
+ *   Account; Spotify and Soloist only say what happens on the phone, with the code behind a line for whoever lost the
+ *   page (OnPhone). Once it is scanned, their phone goes through all three (countdown-server's /device/setup): signing in to Countdown makes the kiosk
  *   theirs, then Spotify signs them in, then they save their Soloist key. Meanwhile the kiosk registers and waits for
  *   an owner, then starts the Spotify sign-in, then asks for the key code, and ticks each chapter as it lands.
  * - Soloist has a second page: the key only starts it, and it signs in to their Spotify account the first time they
@@ -432,17 +460,23 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
     );
   } else if (current === 'soloist' && key === 'saved') {
     page = <SpotifyPick device={soloist.isSignedIn === false ? (soloist.deviceName ?? KIOSK_NAME) : null} />;
-  } else {
+  } else if (current === 'account') {
     page = (
       <div className="setup-wizard-center">
-        {current === 'spotify' && <SpotifySignIn onSignedIn={reloadPage} />}
-        <p className="setup-wizard-lead">{t(current === 'soloist' ? 'setup.soloist' : 'setup.scan')}</p>
+        <p className="setup-wizard-lead">{t('setup.scan')}</p>
         {address ? (
           <QrCode text={address} className="setup-wizard-code" label={t('pairing.code')} />
         ) : (
           <LoaderCircle className="w-10 h-10 animate-spin text-accent" aria-hidden="true" />
         )}
       </div>
+    );
+  } else {
+    page = (
+      <>
+        {current === 'spotify' && <SpotifySignIn onSignedIn={reloadPage} />}
+        <OnPhone lead={t(current === 'soloist' ? 'setup.soloist' : 'setup.spotify_on_phone')} address={address} />
+      </>
     );
   }
 

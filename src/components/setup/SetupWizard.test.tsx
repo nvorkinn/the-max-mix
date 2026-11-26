@@ -282,11 +282,15 @@ describe('SetupWizard', () => {
     expect(screen.queryByText('Soloist is set up and signed in to Spotify.')).not.toBeInTheDocument();
   });
 
-  it('shows the one setup QR code on Account, Spotify and Soloist, and runs the Spotify sign-in on Spotify', async () => {
+  it('says to sign in on the phone on Spotify, runs the sign-in, and keeps the code for whoever lost the page', async () => {
     vi.mocked(peopleOnKiosk).mockReturnValue([]);
     render(<SetupWizard />);
     expect(current()).toBe('Spotify');
     expect(usePhoneSignIn).toHaveBeenCalled();
+    expect(chapter('Spotify')).toHaveTextContent('Sign in to Spotify on your phone.');
+    // The phone was sent on from Account, so the code is not asked for again.
+    expect(screen.queryByRole('img', { name: CODE })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Lost the page on your phone? Show the code again' }));
     expect(await screen.findByRole('img', { name: CODE })).toBeInTheDocument();
     expect(useSoloistKey).toHaveBeenLastCalledWith('', false);
   });
@@ -296,6 +300,9 @@ describe('SetupWizard', () => {
     render(<SetupWizard />);
     expect(current()).toBe('Soloist');
     expect(useSoloistKey).toHaveBeenLastCalledWith('max', true);
+    expect(chapter('Soloist')).toHaveTextContent('Soloist needs an API key from you.');
+    expect(screen.queryByRole('img', { name: CODE })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Lost the page on your phone? Show the code again' }));
     expect(await screen.findByRole('img', { name: CODE })).toBeInTheDocument();
     expect(usePhoneSignIn).not.toHaveBeenCalled();
     // Soloist only starts once the key is there.
@@ -347,6 +354,7 @@ describe('SetupWizard', () => {
     });
     await userEvent.click(screen.getByRole('button', { name: 'OK' }));
     expect(usePhonePairing).toHaveBeenLastCalledWith('max', true);
+    expect(chapter('Presence')).toHaveTextContent('Select your phone when it appears.');
     await userEvent.click(screen.getByRole('button', { name: PHONE.name }));
     expect(pairing.pick).toHaveBeenCalledWith(PHONE.address, PHONE.name);
   });
