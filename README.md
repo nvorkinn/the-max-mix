@@ -4,6 +4,25 @@ A music-first Spotify touchscreen for a Raspberry Pi, including the Waveshare
 7-inch 1024x600 display. It is designed for tablet-sized touch screens only;
 phone and desktop layouts are not supported.
 
+## Contents
+
+- [What works](#what-works)
+  - [The screen](#the-screen)
+  - [The speakers drawer](#the-speakers-drawer)
+  - [How playback is controlled](#how-playback-is-controlled)
+  - [Wi-Fi from any phone (hotspot)](#wi-fi-from-any-phone-hotspot)
+  - [Bluetooth speakers](#bluetooth-speakers)
+  - [Native Spotify Jam limitations](#native-spotify-jam-limitations)
+  - [Choosing music](#choosing-music)
+  - [Lyrics](#lyrics)
+  - [Debug console](#debug-console)
+- [Hosting and releases](#hosting-and-releases)
+- [Local development](#local-development)
+  - [Checks and Git hooks](#checks-and-git-hooks)
+- [Spotify configuration](#spotify-configuration)
+- [Sonos](#sonos)
+- [Raspberry Pi kiosk](#raspberry-pi-kiosk)
+
 ## What works
 
 - Display the active Spotify track, progress, device, and upcoming queue.
