@@ -75,7 +75,7 @@ describe('Settings › Wi-Fi with a camera', () => {
     expect(screen.getAllByRole('button', { name: 'Scan code' })).toHaveLength(1);
   });
 
-  it('joins the network whose code is held up to the camera', async () => {
+  it('joins the network whose code is held up to the camera, and says so before it closes', async () => {
     const onJoined = renderWifi();
     await openScan();
     expect(screen.getByRole('img', { name: 'What the camera sees' })).toHaveAttribute(
@@ -90,8 +90,23 @@ describe('Settings › Wi-Fi with a camera', () => {
       { ssid: 'Attic', password: 'battery staple', hidden: true, security: 'psk' },
       'en'
     );
-    expect(onJoined).toHaveBeenCalledOnce();
+    // The camera's picture goes once the code is read; the dialog stays to say how it went.
     expect(screen.queryByRole('img', { name: 'What the camera sees' })).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Successfully connected to Attic.');
+    expect(onJoined).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(onJoined).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('shows a spinner with the network while the kiosk joins it', async () => {
+    renderWifi();
+    await openScan();
+    kiosk.joinWifi.mockReturnValue(new Promise<never>(() => {}));
+    kiosk.decodeQr.mockResolvedValue(HOME_CODE);
+    await look();
+    expect(screen.getByRole('status')).toHaveTextContent('Connecting to Attic…');
+    expect(screen.getByRole('button', { name: 'Continue', hidden: true })).toBeDisabled();
   });
 
   it('says so when the code is not a Wi-Fi code, or for a network it cannot join', async () => {
@@ -106,7 +121,7 @@ describe('Settings › Wi-Fi with a camera', () => {
     expect(kiosk.joinWifi).not.toHaveBeenCalled();
   });
 
-  it('says why the kiosk could not join, and does not try the same code again at once', async () => {
+  it('says why the kiosk could not join, and goes back to the camera at Try again', async () => {
     const onJoined = renderWifi();
     await openScan();
     kiosk.joinWifi.mockResolvedValue({ ok: false, error: 'Wrong password.' });
@@ -115,8 +130,9 @@ describe('Settings › Wi-Fi with a camera', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Wrong password.');
     expect(kiosk.joinWifi).toHaveBeenCalledOnce();
     expect(onJoined).not.toHaveBeenCalled();
-    await look(25);
-    expect(kiosk.joinWifi).toHaveBeenCalledTimes(2);
+    kiosk.decodeQr.mockResolvedValue(null);
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(screen.getByRole('img', { name: 'What the camera sees' })).toBeInTheDocument();
   });
 
   it('stops looking when it is closed', async () => {

@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLanguage } from '../../i18n/language';
 import { useT } from '../../i18n/translate';
 import { CAMERA_STREAM } from '../../utils/kioskCamera';
-import { joinWifi } from '../../utils/kioskWifi';
 import { parseWifiQr } from '../../utils/wifiQr';
 import type { WifiQr } from '../../utils/wifiQr';
 
 /** How often the picture is searched for a code. */
 const SCAN_MS = 400;
-/** A code the kiosk could not join is not tried again for this long, so its message stays readable. */
+/** A code that is no use is not read again for this long, so its message stays readable. */
 const RETRY_MS = 10_000;
 
 /** A network read from a code that the kiosk can join: an open one, or one with a password. */
@@ -18,26 +16,18 @@ export type ReadNetwork = WifiQr & { security: 'open' | 'psk' };
  * What the kiosk's camera sees, searched a few times a second for the QR code a phone shows to share its Wi-Fi network.
  * Mirrored, so that moving the phone moves the picture the same way. The camera is on only while this is shown.
  *
- * With `onRead`, the first network read is handed over and the looking stops: whoever shows this joins it and says how
- * that went. Otherwise the kiosk joins it here, with "Connecting…" and the kiosk's reason for a failure under the
- * picture, keeps looking after one, and calls `onJoined` with the network's name once it is on it.
+ * The first network read is handed to `onRead`, and the looking stops: whoever shows this joins it and says how that
+ * went (WifiJoinProgress). A code that is not a Wi-Fi code, or names a network the kiosk cannot join, is said so under
+ * the picture, and the looking goes on.
  */
-export default function WifiScanView({
-  onJoined,
-  onRead
-}: Readonly<{ onJoined?: (ssid: string) => void; onRead?: (network: ReadNetwork) => void }>) {
+export default function WifiScanView({ onRead }: Readonly<{ onRead: (network: ReadNetwork) => void }>) {
   const t = useT();
-  const language = useLanguage();
   const pictureRef = useRef<HTMLImageElement>(null);
   const [note, setNote] = useState<{ kind: 'status' | 'alert'; text: string } | null>(null);
   const tRef = useRef(t);
-  const languageRef = useRef(language);
-  const onJoinedRef = useRef(onJoined);
   const onReadRef = useRef(onRead);
   useEffect(() => {
     tRef.current = t;
-    languageRef.current = language;
-    onJoinedRef.current = onJoined;
     onReadRef.current = onRead;
   });
 
@@ -49,7 +39,7 @@ export default function WifiScanView({
     let isOver = false;
     let refused: { text: string; until: number } | null = null;
 
-    const join = async (text: string) => {
+    const read = (text: string) => {
       const say = tRef.current;
       const network = parseWifiQr(text);
       if (network === null || network.security === 'unsupported') {
@@ -57,21 +47,8 @@ export default function WifiScanView({
         refused = { text, until: Date.now() + RETRY_MS };
         return;
       }
-      const { security } = network;
-      if (onReadRef.current) {
-        isOver = true;
-        onReadRef.current({ ...network, security });
-        return;
-      }
-      setNote({ kind: 'status', text: say('wifi.connecting', { ssid: network.ssid }) });
-      const result = await joinWifi({ ...network, security }, languageRef.current);
-      if (isOver) return;
-      if (result.ok) {
-        onJoinedRef.current?.(network.ssid);
-      } else {
-        setNote({ kind: 'alert', text: result.error ?? say('wifi.unreachable') });
-        refused = { text, until: Date.now() + RETRY_MS };
-      }
+      isOver = true;
+      onReadRef.current({ ...network, security: network.security });
     };
 
     const look = async () => {
@@ -86,7 +63,7 @@ export default function WifiScanView({
         const { decodeQr } = await import('../../utils/qrDecode');
         const text = await decodeQr(context.getImageData(0, 0, canvas.width, canvas.height));
         const isRefused = refused !== null && refused.text === text && Date.now() < refused.until;
-        if (text !== null && !isRefused && !isOver) await join(text);
+        if (text !== null && !isRefused && !isOver) read(text);
       } catch {
         // A frame that could not be read; the next one may.
       } finally {

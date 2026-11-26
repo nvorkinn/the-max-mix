@@ -29,12 +29,15 @@ const BARS = [WifiZero, WifiZero, WifiLow, WifiHigh, Wifi] as const;
 export default function WifiSettings({
   wifi,
   onJoined,
-  onPhoneSetup
+  onPhoneSetup,
+  onScanSetup
 }: Readonly<{
   wifi: WifiState;
   onJoined: () => void;
   /** Whether a setup from a phone is under way, so the kiosk does not leave Settings while the phone is used. */
   onPhoneSetup?: ((isActive: boolean) => void) | undefined;
+  /** Whether Scan code's dialog is open, so setup does not move on under it before it has said how the join went. */
+  onScanSetup?: ((isActive: boolean) => void) | undefined;
 }>) {
   const t = useT();
   const language = useLanguage();
@@ -65,6 +68,15 @@ export default function WifiSettings({
     onPhoneSetupRef.current?.(true);
     return () => onPhoneSetupRef.current?.(false);
   }, [isPhoneSetup]);
+  const onScanSetupRef = useRef(onScanSetup);
+  useEffect(() => {
+    onScanSetupRef.current = onScanSetup;
+  });
+  useEffect(() => {
+    if (!isScanning) return;
+    onScanSetupRef.current?.(true);
+    return () => onScanSetupRef.current?.(false);
+  }, [isScanning]);
 
   const search = useCallback(() => {
     scanRef.current?.abort();

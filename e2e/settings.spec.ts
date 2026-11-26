@@ -237,8 +237,9 @@ test.describe('Settings', { tag: '@settings' }, () => {
       await showSection(dialog, 'Wi-Fi');
       await dialog.getByRole('button', { name: 'Scan code' }).click();
       const scan = page.getByRole('dialog', { name: 'Show the Wi-Fi’s QR code' });
-      await expect(scan.getByRole('img', { name: 'What the camera sees' })).toBeVisible();
-      // The page reads the code out of the picture itself, with the decoder it ships.
+      // The page reads the code out of the picture itself, with the decoder it ships, and says how the join went.
+      await expect(scan.getByRole('status')).toHaveText('Successfully connected to Attic.');
+      await scan.getByRole('button', { name: 'Continue' }).click();
       await expect(scan).toBeHidden();
       expect(joined).toEqual([{ ssid: 'Attic', password: 'battery staple', hidden: true, security: 'psk' }]);
     });

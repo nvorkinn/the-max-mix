@@ -42,7 +42,19 @@ vi.mock('../settings/WifiScanView', () => ({
     </button>
   )
 }));
-vi.mock('../settings/WifiSettings', () => ({ default: () => <div>wifi-settings</div> }));
+vi.mock('../settings/WifiSettings', () => ({
+  default: ({ onScanSetup }: { onScanSetup?: (isActive: boolean) => void }) => (
+    <div>
+      <span>wifi-settings</span>
+      <button type="button" onClick={() => onScanSetup?.(true)}>
+        open-scan-dialog
+      </button>
+      <button type="button" onClick={() => onScanSetup?.(false)}>
+        close-scan-dialog
+      </button>
+    </div>
+  )
+}));
 vi.mock('./useRegistration', async importOriginal => ({
   ...(await importOriginal<typeof import('./useRegistration')>()),
   useRegistration: vi.fn()
@@ -189,6 +201,23 @@ describe('SetupWizard', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Set up Wi-Fi another way' }));
     expect(chapter('Wi-Fi')).toHaveTextContent('wifi-settings');
     expect(screen.queryByRole('button', { name: 'OK' })).not.toBeInTheDocument();
+  });
+
+  it('does not move on under the other page’s Scan code dialog', async () => {
+    vi.mocked(deviceCredentials).mockReturnValue(null);
+    vi.mocked(peopleOnKiosk).mockReturnValue([]);
+    vi.mocked(hasCamera).mockResolvedValue(true);
+    onWifi({ state: 'disconnected', address: null });
+    const { rerender } = render(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Set up Wi-Fi another way' }));
+    await userEvent.click(screen.getByRole('button', { name: 'open-scan-dialog' }));
+    // The dialog has joined a network and is saying so.
+    onWifi({ state: 'connected', ssid: 'Attic', address: 'an address' });
+    rerender(<SetupWizard />);
+    expect(current()).toBe('Wi-Fi');
+    await userEvent.click(screen.getByRole('button', { name: 'close-scan-dialog' }));
+    expect(current()).toBe('Account');
   });
 
   it('asks the Pi again about its network until it is on one, then registers', async () => {

@@ -28,6 +28,7 @@ import QrCode from '../QrCode';
 import SpotifyIcon from '../SpotifyIcon';
 import { useWifi } from '../settings/wifi';
 import type { WifiState } from '../settings/wifi';
+import WifiJoinProgress from '../settings/WifiJoinProgress';
 import WifiScanView from '../settings/WifiScanView';
 import type { ReadNetwork } from '../settings/WifiScanView';
 import WifiSettings from '../settings/WifiSettings';
@@ -128,7 +129,8 @@ function WifiByCamera({
   onJoined,
   onRead,
   onFailed,
-  onContinue
+  onContinue,
+  onScanSetup
 }: Readonly<{
   wifi: WifiState;
   scanned: ScannedNetwork | null;
@@ -136,6 +138,8 @@ function WifiByCamera({
   onRead: (ssid: string) => void;
   onFailed: () => void;
   onContinue: () => void;
+  /** Whether the other page's Scan code dialog is open, which says how its own join went before the chapter ends. */
+  onScanSetup: (isActive: boolean) => void;
 }>) {
   const t = useT();
   const language = useLanguage();
@@ -149,48 +153,20 @@ function WifiByCamera({
       </div>
     );
   }
-  if (scanned && joining.error !== undefined) {
-    return (
-      <div className="setup-wizard-center">
-        <p role="alert" className="settings-error status-danger">
-          {joining.error}
-        </p>
-        <button type="button" className="button search-dialog-confirm setup-wizard-button" onClick={onFailed}>
-          {t('common.try_again')}
-        </button>
-      </div>
-    );
-  }
   if (scanned) {
-    const line = t(joining.isJoined ? 'setup.wifi_connected' : 'wifi.connecting', { ssid: DEVICE_MARK });
-    const [before = '', after = ''] = line.split(DEVICE_MARK);
     return (
       <div className="setup-wizard-center">
-        <span className="setup-wizard-tick">
-          {joining.isJoined ? (
-            <Check aria-hidden="true" />
-          ) : (
-            <LoaderCircle className="animate-spin" aria-hidden="true" />
-          )}
-        </span>
-        <p className="setup-wizard-lead" role="status">
-          {before}
-          <b>{scanned.ssid}</b>
-          {after}
-        </p>
-        {/* There from the start, so the page does not shift when the kiosk has joined. */}
-        <button
-          type="button"
-          className={`button search-dialog-confirm setup-wizard-button${joining.isJoined ? '' : ' invisible'}`}
-          disabled={!joining.isJoined}
-          onClick={onContinue}
-        >
-          {t('setup.continue')}
-        </button>
+        <WifiJoinProgress
+          ssid={scanned.ssid}
+          isJoined={joining.isJoined}
+          error={joining.error}
+          onContinue={onContinue}
+          onRetry={onFailed}
+        />
       </div>
     );
   }
-  if (step === 'other') return <WifiSettings wifi={wifi} onJoined={onJoined} />;
+  if (step === 'other') return <WifiSettings wifi={wifi} onJoined={onJoined} onScanSetup={onScanSetup} />;
   const join = async (network: ReadNetwork) => {
     onRead(network.ssid);
     setJoining({ isJoined: false });
@@ -322,7 +298,8 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
   const [wifi, recheckWifi] = useWifi(!wifiDone);
   // A network read from its code by the camera is joined and named on a page of its own; the chapter ends at Continue.
   const [scanned, setScanned] = useState<ScannedNetwork | null>(null);
-  const isWaitingForContinue = scanned !== null && !scanned.isConfirmed;
+  const [isScanDialogOpen, setIsScanDialogOpen] = useState(false);
+  const isWaitingForContinue = (scanned !== null && !scanned.isConfirmed) || isScanDialogOpen;
   // Off the Pi's service (it can't say), there is no Wi-Fi to set up here.
   if (
     !wifiDone &&
@@ -393,6 +370,7 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
         onRead={ssid => setScanned({ ssid, isConfirmed: false })}
         onFailed={() => setScanned(null)}
         onContinue={() => setScanned(joined => joined && { ...joined, isConfirmed: true })}
+        onScanSetup={setIsScanDialogOpen}
       />
     ) : (
       <WifiSettings wifi={wifi} onJoined={recheckWifi} />
