@@ -236,6 +236,33 @@ describe('SetupWizard', () => {
     expect(useRegistration).toHaveBeenLastCalledWith(true, expect.any(Function));
   });
 
+  it('goes back to Wi-Fi when the kiosk loses its network, and on again once it is back', async () => {
+    vi.mocked(peopleOnKiosk).mockReturnValue([]);
+    const { rerender } = render(<SetupWizard />);
+    expect(current()).toBe('Spotify');
+    // One answer may be a blip.
+    onWifi({ state: 'disconnected', address: null });
+    rerender(<SetupWizard />);
+    expect(current()).toBe('Spotify');
+    onWifi({ state: 'disconnected', address: null });
+    rerender(<SetupWizard />);
+    expect(current()).toBe('Wi-Fi');
+    expect(await screen.findByText('wifi-settings')).toBeInTheDocument();
+    onWifi({ state: 'connected', ssid: 'Home', address: 'an address' });
+    rerender(<SetupWizard />);
+    expect(current()).toBe('Spotify');
+  });
+
+  it('stays on Presence without a network, which it does not need', () => {
+    const { rerender } = render(<SetupWizard />);
+    expect(current()).toBe('Presence');
+    onWifi({ state: 'disconnected', address: null });
+    rerender(<SetupWizard />);
+    onWifi({ state: 'disconnected', address: null });
+    rerender(<SetupWizard />);
+    expect(current()).toBe('Presence');
+  });
+
   it('shows the one setup QR code on Account, Spotify and Soloist, and runs the Spotify sign-in on Spotify', async () => {
     vi.mocked(peopleOnKiosk).mockReturnValue([]);
     render(<SetupWizard />);

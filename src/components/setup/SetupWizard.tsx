@@ -38,6 +38,8 @@ import { useRegistration } from './useRegistration';
 
 /** How often the Wi-Fi chapter asks the Pi which network it is on, so it moves on once the Pi has joined one. */
 export const NETWORK_POLL_MS = 3000;
+/** The kiosk counts as off its network once it has said so this many times running: one answer may be a blip. */
+const LOST_AFTER = 2;
 
 const CHAPTERS = ['wifi', 'account', 'spotify', 'soloist', 'presence'] as const;
 type Chapter = (typeof CHAPTERS)[number];
@@ -275,6 +277,7 @@ function Presence({
  *
  * - Wi-Fi: on a kiosk with a camera, showing it the QR code a phone shares its network with; otherwise, or from the
  *   line under that, every way to join a network (Settings › Wi-Fi's page). It moves on once the Pi is on one.
+ *   Setup comes back to it if the kiosk loses its network before Soloist is done.
  * - Account, Spotify and Soloist share one QR code, of countdown-server's pairing page. The owner scans it once and
  *   their phone goes through all three (countdown-server's /device/setup): signing in to Countdown makes the kiosk
  *   theirs, then Spotify signs them in, then they save their Soloist key. Meanwhile the kiosk registers and waits for
@@ -295,7 +298,15 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
   // it goes straight to the chapter it is on.
   const [isWelcoming, setIsWelcoming] = useState(!registered);
   const [wifiDone, setWifiDone] = useState(registered);
-  const [wifi, recheckWifi] = useWifi(!wifiDone);
+  // Asked all through setup, not just in its chapter: the chapters after it need the network too.
+  const [wifi, recheckWifi] = useWifi(true);
+  // How many answers in a row said the kiosk is on no network.
+  const [answer, setAnswer] = useState(wifi);
+  const [missed, setMissed] = useState(0);
+  if (answer !== wifi) {
+    setAnswer(wifi);
+    setMissed(wifi.state === 'disconnected' ? missed + 1 : 0);
+  }
   // A network read from its code by the camera is joined and named on a page of its own; the chapter ends at Continue.
   const [scanned, setScanned] = useState<ScannedNetwork | null>(null);
   const [isScanDialogOpen, setIsScanDialogOpen] = useState(false);
@@ -308,12 +319,11 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
   ) {
     setWifiDone(true);
   }
-  // The Pi may join a saved network by itself (as at boot) while the chapter is open.
+  // The Pi may join a saved network by itself (as at boot) while the chapter is open, or lose its network later on.
   useEffect(() => {
-    if (wifiDone) return;
     const timer = setInterval(recheckWifi, NETWORK_POLL_MS);
     return () => clearInterval(timer);
-  }, [wifiDone, recheckWifi]);
+  }, [recheckWifi]);
 
   // Undefined until the Pi's service has said whether the screen has a camera, which decides how the chapter opens.
   const [hasKioskCamera, setHasKioskCamera] = useState<boolean | undefined>();
@@ -344,6 +354,12 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
     soloist: key === 'saved' && soloistSignedIn,
     presence: phonePaired
   };
+  // Account, Spotify and Soloist all happen over the network. Off it, they would wait for ever, so setup goes back
+  // to the Wi-Fi chapter, and picks up where it was once the kiosk is on a network again. Presence needs none.
+  if (wifiDone && missed >= LOST_AFTER && !(done.account && done.spotify && done.soloist)) {
+    setWifiDone(false);
+    setScanned(null);
+  }
   const current = CHAPTERS.find(chapter => !done[chapter]) ?? 'presence';
   useRegistration(wifiDone && !registered, reloadPage);
 
