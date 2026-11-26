@@ -18,14 +18,18 @@ import { useT } from '../../i18n/translate';
 import { peopleOnKiosk, takePhoneToPair } from '../../spotify/auth';
 import type { PersonOnKiosk } from '../../spotify/auth';
 import { isKiosk } from '../../utils/kiosk';
+import { hasCamera } from '../../utils/kioskCamera';
 import { loadThemeColour } from '../../utils/themeColour';
 import PersonFace from '../PersonFace';
 import PhonePairingView, { PairPhoneSteps } from '../PhonePairingView';
 import QrCode from '../QrCode';
 import SpotifyIcon from '../SpotifyIcon';
 import { useWifi } from '../settings/wifi';
+import type { WifiState } from '../settings/wifi';
+import WifiScanView from '../settings/WifiScanView';
 import WifiSettings from '../settings/WifiSettings';
 import PickInSpotify from './PickInSpotify';
+import ShareWifiCode from './ShareWifiCode';
 import { useRegistration } from './useRegistration';
 
 /** How often the Wi-Fi chapter asks the Pi which network it is on, so it moves on once the Pi has joined one. */
@@ -101,6 +105,45 @@ function SpotifyPick({ device }: Readonly<{ device: string | null }>) {
   );
 }
 
+/**
+ * The Wi-Fi chapter on a kiosk with a camera: how a phone shows its network as a QR code (an iPhone's way in the
+ * drawing and the lead, Android's in the line under it), then (once
+ * OK'd) what the camera sees, until the kiosk has read a code and joined its network. Every other way to join one
+ * (Settings › Wi-Fi's page) is behind the line at the bottom, and from there on the chapter stays on that page.
+ */
+function WifiByCamera({ wifi, onJoined }: Readonly<{ wifi: WifiState; onJoined: () => void }>) {
+  const t = useT();
+  const [step, setStep] = useState<'show' | 'scan' | 'other'>('show');
+  if (step === 'other') return <WifiSettings wifi={wifi} onJoined={onJoined} />;
+  return (
+    <div className="setup-wizard-center setup-wizard-wifi">
+      <p className="setup-wizard-lead">
+        {t(step === 'show' ? 'setup.wifi_show' : 'setup.wifi_hold')}
+        {step === 'show' && <span className="setup-wizard-aside">{t('setup.wifi_show_android')}</span>}
+      </p>
+      {step === 'show' ? (
+        <>
+          <ShareWifiCode />
+          <button
+            type="button"
+            className="button search-dialog-confirm setup-wizard-button"
+            onClick={() => setStep('scan')}
+          >
+            {t('common.ok')}
+          </button>
+        </>
+      ) : (
+        <div className="setup-wizard-camera">
+          <WifiScanView onJoined={onJoined} />
+        </div>
+      )}
+      <button type="button" className="setup-wizard-other" onClick={() => setStep('other')}>
+        {t('setup.wifi_other')}
+      </button>
+    </div>
+  );
+}
+
 /** The Presence chapter: what to do on the phone, then (once OK'd) the phones the Pi hears, then Done. */
 function Presence({
   person,
@@ -167,7 +210,8 @@ function Presence({
  * A new kiosk's first-time setup, over the whole app, laid out like Settings: the chapters down the left, each ticked
  * once it is done, and the current one on the right. It can't be left half done.
  *
- * - Wi-Fi: every way to join a network (Settings › Wi-Fi's page). It moves on once the Pi is on one.
+ * - Wi-Fi: on a kiosk with a camera, showing it the QR code a phone shares its network with; otherwise, or from the
+ *   line under that, every way to join a network (Settings › Wi-Fi's page). It moves on once the Pi is on one.
  * - Account, Spotify and Soloist share one QR code, of countdown-server's pairing page. The owner scans it once and
  *   their phone goes through all three (countdown-server's /device/setup): signing in to Countdown makes the kiosk
  *   theirs, then Spotify signs them in, then they save their Soloist key. Meanwhile the kiosk registers and waits for
@@ -200,6 +244,17 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
     return () => clearInterval(timer);
   }, [wifiDone, recheckWifi]);
 
+  // Undefined until the Pi's service has said whether the screen has a camera, which decides how the chapter opens.
+  const [hasKioskCamera, setHasKioskCamera] = useState<boolean | undefined>();
+  useEffect(() => {
+    if (wifiDone) return;
+    const controller = new AbortController();
+    void hasCamera(controller.signal).then(found => {
+      if (!controller.signal.aborted) setHasKioskCamera(found);
+    });
+    return () => controller.abort();
+  }, [wifiDone]);
+
   const [people] = useState(peopleOnKiosk);
   const person = people.find(someone => someone.active) ?? people[0];
   const key = useSoloistKey(person?.spotifyId ?? '', registered && person !== undefined);
@@ -229,8 +284,18 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
   };
 
   let page: ReactNode;
-  if (current === 'wifi') {
-    page = <WifiSettings wifi={wifi} onJoined={recheckWifi} />;
+  if (current === 'wifi' && hasKioskCamera === undefined) {
+    page = (
+      <div className="setup-wizard-center">
+        <LoaderCircle className="w-10 h-10 animate-spin text-accent" aria-hidden="true" />
+      </div>
+    );
+  } else if (current === 'wifi') {
+    page = hasKioskCamera ? (
+      <WifiByCamera wifi={wifi} onJoined={recheckWifi} />
+    ) : (
+      <WifiSettings wifi={wifi} onJoined={recheckWifi} />
+    );
   } else if (current === 'presence' && person) {
     page = <Presence person={person} isPaired={phonePaired} onPaired={markPaired} onDone={finish} />;
   } else if (current === 'soloist' && key === 'saved') {

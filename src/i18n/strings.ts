@@ -568,6 +568,18 @@ export const STRINGS = {
     nb: 'Nettbrettet må nå logge inn på Spotify for første gang. Åpne Spotify på telefonen og velg {device} i enhetslisten.'
   },
   'setup.this_phone': { en: 'This phone', nb: 'Denne telefonen' },
+  'setup.wifi_show': {
+    en: 'Open the QR code for your Wi-Fi in the Passwords app.',
+    nb: 'Åpne QR-koden til Wi-Fi-nettverket ditt i Passord-appen.'
+  },
+  'setup.wifi_show_android': {
+    en: 'On Android, open the Wi-Fi settings, tap your network, then Share.',
+    nb: 'På Android åpner du Wi-Fi-innstillingene, trykker på nettverket ditt og så Del.'
+  },
+  'setup.wifi_passwords': { en: 'Passwords', nb: 'Passord' },
+  'setup.wifi_show_code': { en: 'Show Network QR Code', nb: 'Vis QR-kode for nettverket' },
+  'setup.wifi_hold': { en: 'Hold the code up to the camera.', nb: 'Hold koden opp mot kameraet.' },
+  'setup.wifi_other': { en: 'Set up Wi-Fi another way', nb: 'Sett opp Wi-Fi på en annen måte' },
   'setup.presence': {
     en: 'Next, the app pairs with your phone over Bluetooth, so it knows when you’re home and can switch to your account.',
     nb: 'Nå pares appen med telefonen din over Bluetooth, så den vet når du er hjemme og kan bytte til kontoen din.'

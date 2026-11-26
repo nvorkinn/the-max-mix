@@ -9,6 +9,7 @@ import { useSoloistKey } from '../../hooks/useSoloistKey';
 import { useSoloistSignIn } from '../../hooks/useSoloistSignIn';
 import { peopleOnKiosk, takePhoneToPair } from '../../spotify/auth';
 import type { PersonOnKiosk } from '../../spotify/auth';
+import { hasCamera } from '../../utils/kioskCamera';
 import { useWifi } from '../settings/wifi';
 import type { WifiState } from '../settings/wifi';
 import SetupWizard, { NETWORK_POLL_MS } from './SetupWizard';
@@ -27,7 +28,15 @@ vi.mock('../../hooks/useScreenSleep', () => ({ useScreenSleep: vi.fn() }));
 vi.mock('../../hooks/useSoloistKey', () => ({ useSoloistKey: vi.fn() }));
 vi.mock('../../hooks/useSoloistSignIn', () => ({ useSoloistSignIn: vi.fn() }));
 vi.mock('../../spotify/auth', () => ({ peopleOnKiosk: vi.fn(), takePhoneToPair: vi.fn() }));
+vi.mock('../../utils/kioskCamera', () => ({ hasCamera: vi.fn() }));
 vi.mock('../settings/wifi', () => ({ useWifi: vi.fn() }));
+vi.mock('../settings/WifiScanView', () => ({
+  default: ({ onJoined }: { onJoined: () => void }) => (
+    <button type="button" onClick={onJoined}>
+      camera-view
+    </button>
+  )
+}));
 vi.mock('../settings/WifiSettings', () => ({ default: () => <div>wifi-settings</div> }));
 vi.mock('./useRegistration', async importOriginal => ({
   ...(await importOriginal<typeof import('./useRegistration')>()),
@@ -67,6 +76,7 @@ beforeEach(() => {
   vi.mocked(useSoloistKey).mockReturnValue('saved');
   vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: true, deviceName: KIOSK });
   vi.mocked(usePhonePairing).mockReturnValue(pairing);
+  vi.mocked(hasCamera).mockResolvedValue(false);
   onWifi({ state: 'connected', ssid: 'Home', address: 'an address' });
 });
 
@@ -93,10 +103,41 @@ describe('SetupWizard', () => {
       'Presence'
     ]);
     expect(current()).toBe('Wi-Fi');
+    expect(await screen.findByText('wifi-settings')).toBeInTheDocument();
     expect(chapter('Wi-Fi')).toHaveTextContent('wifi-settings');
     expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument();
     expect(useRegistration).toHaveBeenLastCalledWith(false, expect.any(Function));
     expect(useScreenSleep).toHaveBeenLastCalledWith(expect.objectContaining({ keepAwake: true }));
+  });
+
+  it('on a kiosk with a camera, shows how to share the Wi-Fi as a QR code, then reads it at OK', async () => {
+    vi.mocked(deviceCredentials).mockReturnValue(null);
+    vi.mocked(peopleOnKiosk).mockReturnValue([]);
+    vi.mocked(hasCamera).mockResolvedValue(true);
+    onWifi({ state: 'disconnected', address: null });
+    render(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(await screen.findByText(/in the Passwords app/)).toBeInTheDocument();
+    expect(screen.getByText(/On Android/)).toBeInTheDocument();
+    // The camera stays off, and the other ways out of sight, until asked for.
+    expect(screen.queryByText('camera-view')).not.toBeInTheDocument();
+    expect(screen.queryByText('wifi-settings')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'OK' }));
+    expect(screen.getByText('Hold the code up to the camera.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'camera-view' }));
+    expect(recheck).toHaveBeenCalled();
+  });
+
+  it('keeps every other way to join a network behind the line at the bottom', async () => {
+    vi.mocked(deviceCredentials).mockReturnValue(null);
+    vi.mocked(peopleOnKiosk).mockReturnValue([]);
+    vi.mocked(hasCamera).mockResolvedValue(true);
+    onWifi({ state: 'disconnected', address: null });
+    render(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Set up Wi-Fi another way' }));
+    expect(chapter('Wi-Fi')).toHaveTextContent('wifi-settings');
+    expect(screen.queryByRole('button', { name: 'OK' })).not.toBeInTheDocument();
   });
 
   it('asks the Pi again about its network until it is on one, then registers', async () => {
