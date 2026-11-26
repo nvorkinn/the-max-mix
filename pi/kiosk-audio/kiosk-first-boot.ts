@@ -416,9 +416,9 @@ async function main(): Promise<void> {
   try {
     const prepared = await prepareData(values.data, mountpoint, { run });
     if (prepared.isGrown) console.log('Grew the data partition to the end of the card');
-    if (prepared.isReset)
+    if (prepared.isReset) {
       console.log('Reset: formatted the data partition, keeping the name, kiosk.env and config.txt');
-    else if (prepared.isFormatted) console.log('Formatted the data partition');
+    } else if (prepared.isFormatted) console.log('Formatted the data partition');
 
     for (const card of values.card) {
       // One card at a time, in the order given: each may mount a partition.
