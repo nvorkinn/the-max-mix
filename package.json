@@ -38,7 +38,8 @@
     "lucide-react": "^1.77.0",
     "qrcode-generator": "2.0.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "zxing-wasm": "^3.1.8"
   },
   "devDependencies": {
     "@eslint-react/eslint-plugin": "^5.30.6",

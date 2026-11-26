@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Lock, RefreshCw, Trash2, Wifi, WifiHigh, WifiLow, WifiOff, WifiZero } from 'lucide-react';
+import { Lock, QrCode, RefreshCw, Trash2, Wifi, WifiHigh, WifiLow, WifiOff, WifiZero } from 'lucide-react';
 import { useLanguage } from '../../i18n/language';
 import { useT } from '../../i18n/translate';
+import { hasCamera } from '../../utils/kioskCamera';
 import { forgetWifi, joinWifi, scanWifi } from '../../utils/kioskWifi';
 import type { WifiNetwork, WifiScan } from '../../utils/kioskWifi';
 import ConfirmButton from '../ConfirmButton';
@@ -12,14 +13,16 @@ import WifiJoinDialog from './WifiJoinDialog';
 import type { WifiTarget } from './WifiJoinDialog';
 import { WifiHotspotDialog } from './WifiPhoneDialogs';
 import type { SetupEnd } from './WifiPhoneDialogs';
+import WifiScanDialog from './WifiScanDialog';
 
 const BARS = [WifiZero, WifiZero, WifiLow, WifiHigh, Wifi] as const;
 
 /**
  * The network the kiosk is on, large at the top with its signal, its address and Forget (on a second tap, since it drops
  * the connection); under it the other networks in range, strongest first, and joining one: an open one at a tap, one
- * with a password (or a hidden one, Other network) in a dialog with the on-screen keyboard, or one a phone sends over
- * the kiosk's own Hotspot. The kiosk keeps only the network it is on, so there is no list of saved ones. `onJoined`
+ * with a password (or a hidden one, Other network) in a dialog with the on-screen keyboard, one a phone sends over
+ * the kiosk's own Hotspot, or, on a kiosk with a camera, the one whose QR code is held up to it (Scan code, which leads
+ * the page while the kiosk is on no network). The kiosk keeps only the network it is on, so there is no list of saved ones. `onJoined`
  * follows every join and every forget, so the network shown is asked again. The kiosk's service lists, joins and
  * forgets them (utils/kioskWifi.ts).
  */
@@ -39,6 +42,15 @@ export default function WifiSettings({
   const [scan, setScan] = useState<WifiScan | undefined>();
   const [target, setTarget] = useState<WifiTarget | null>(null);
   const [phoneSetup, setPhoneSetup] = useState<'hotspot' | null>(null);
+  const [canScan, setCanScan] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    void hasCamera(controller.signal).then(found => {
+      if (!controller.signal.aborted) setCanScan(found);
+    });
+    return () => controller.abort();
+  }, []);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
   const forgettingRef = useRef(false);
@@ -73,6 +85,7 @@ export default function WifiSettings({
 
   const joined = () => {
     setTarget(null);
+    setIsScanning(false);
     onJoined();
   };
   const forget = async (ssid: string) => {
@@ -109,6 +122,11 @@ export default function WifiSettings({
     else setJoinError(result.error ?? t('wifi.unreachable'));
   };
 
+  const scanCode = () => {
+    setJoinError(null);
+    setIsScanning(true);
+  };
+
   const current = wifi.state === 'connected' ? wifi.ssid : null;
   const scanError = scan?.error === undefined ? null : (scan.error ?? t('wifi.unreachable'));
   const error = joinError ?? scanError;
@@ -118,12 +136,31 @@ export default function WifiSettings({
   return (
     <div className="settings-stack">
       <CurrentNetwork wifi={wifi} scan={scan} onForget={ssid => void forget(ssid)} />
+      {canScan && wifi.state === 'disconnected' && (
+        <section className="wifi-scan-lead" aria-label={t('wifi.scan')}>
+          <QrCode className="w-9 h-9 shrink-0" aria-hidden="true" />
+          <p>{t('wifi.scan_lead')}</p>
+          <button type="button" disabled={connecting !== null} onClick={scanCode} className="button shrink-0">
+            {t('wifi.scan')}
+          </button>
+        </section>
+      )}
       <SettingsSection
         id="wifi-others-label"
         title={t('wifi.others')}
         className="wifi-others"
         aside={
           <div className="wifi-others-actions">
+            {canScan && wifi.state !== 'disconnected' && (
+              <button
+                type="button"
+                disabled={connecting !== null}
+                onClick={scanCode}
+                className="button button-secondary"
+              >
+                {t('wifi.scan')}
+              </button>
+            )}
             <button
               type="button"
               disabled={connecting !== null}
@@ -207,6 +244,7 @@ export default function WifiSettings({
         )}
       </SettingsSection>
       {target && <WifiJoinDialog target={target} onJoined={joined} onClose={() => setTarget(null)} />}
+      {isScanning && <WifiScanDialog onJoined={joined} onClose={() => setIsScanning(false)} />}
       {phoneSetup === 'hotspot' && (
         <WifiHotspotDialog
           onEnd={phoneSetupEnded}

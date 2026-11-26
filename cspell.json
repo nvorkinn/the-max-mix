@@ -314,6 +314,7 @@
     "xterm",
     "zoneinfo",
     "zram",
-    "zstd"
+    "zstd",
+    "zxing"
   ]
 }
