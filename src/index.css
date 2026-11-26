@@ -3832,6 +3832,11 @@ input:disabled {
   width: min(100%, 640px);
   min-height: 0;
 }
+/* What to do with the list, over it. */
+.app-modal-panel .setup-wizard-presence .setup-wizard-lead {
+  align-self: center;
+  margin-bottom: 20px;
+}
 /* The list's outline shows from the start, so the page isn't blank while the Pi listens; the spinner sits in it. */
 .setup-wizard-presence .pair-phone-nearby {
   position: relative;

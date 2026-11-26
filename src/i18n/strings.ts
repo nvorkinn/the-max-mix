@@ -596,6 +596,10 @@ export const STRINGS = {
     en: 'Open Settings, then Bluetooth, on your phone, and tap OK.',
     nb: 'Åpne Innstillinger og så Bluetooth på telefonen, og trykk OK.'
   },
+  'setup.presence_pick': {
+    en: 'Select your phone when it appears.',
+    nb: 'Velg telefonen din når den dukker opp.'
+  },
   'setup.start': { en: 'Start', nb: 'Start' },
   'setup.complete': { en: 'Setup complete', nb: 'Oppsettet er ferdig' }
 } as const satisfies Record<string, Readonly<Record<Language, string>>>;

@@ -273,7 +273,9 @@ function Presence({
   }
   return (
     <div className="setup-wizard-presence">
-      <PhonePairingView pairing={pairing} onPick={pick} />
+      <PhonePairingView pairing={pairing} onPick={pick}>
+        <p className="setup-wizard-lead">{t('setup.presence_pick')}</p>
+      </PhonePairingView>
     </div>
   );
 }

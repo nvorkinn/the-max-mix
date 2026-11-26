@@ -347,6 +347,7 @@ describe('SetupWizard', () => {
     });
     await userEvent.click(screen.getByRole('button', { name: 'OK' }));
     expect(usePhonePairing).toHaveBeenLastCalledWith('max', true);
+    expect(chapter('Presence')).toHaveTextContent('Select your phone when it appears.');
     await userEvent.click(screen.getByRole('button', { name: PHONE.name }));
     expect(pairing.pick).toHaveBeenCalledWith(PHONE.address, PHONE.name);
   });
