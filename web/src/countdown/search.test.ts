@@ -254,7 +254,7 @@ describe('learnStopNames', () => {
     const [input, init] = fetch.mock.calls[0] ?? [''];
     expect(new Request(input, init).url).toBe('https://api.countdown.build/api/devices/arrivals');
     expect(describeStop({ source: 'tfl', id: '940GZZLUKNG' })).toEqual({
-      name: 'Kennington Underground Station',
+      name: 'Kennington',
       detail: 'TfL'
     });
     expect(describeStop({ source: 'tfl', id: '490000123W' })).toEqual({
