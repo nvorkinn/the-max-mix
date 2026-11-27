@@ -1,7 +1,7 @@
 // Tests whether a kiosk can find its own postcode from the Wi-Fi around it: `sudo node locate-probe.mts [postcode]
 // [--max N] [--google]` on a Pi that is already online. It starts its own scan (setup by QR code never lists
-// networks), asks BeaconDB where those access points are, and prints the six nearest postcodes, which are what the
-// setup wizard would offer. With the Pi's real postcode it also says whether that one is among the six.
+// networks), asks BeaconDB where those access points are, and prints the ten nearest postcodes, which are what the
+// setup wizard would offer. With the Pi's real postcode it also says whether that one is among the ten.
 // Two scans are sent: one with only what nmcli reports (what kiosk-server could do as the kiosk user), and one with
 // the kernel's own readings from `iw` (real dBm and age), to see whether the better data changes the answer.
 // --google also asks Google's Geolocation API. Its key comes from GOOGLE_GEOLOCATION_KEY, or from
@@ -17,7 +17,7 @@ const GOOGLE = 'https://www.googleapis.com/geolocation/v1/geolocate';
 const POSTCODES = 'https://api.postcodes.io/postcodes';
 const HEADERS = { 'User-Agent': 'THE MAX MIX (https://github.com/nvorkinn/the-max-mix)' };
 const SETUP_HOTSPOT = 'THE MAX MIX setup';
-const CANDIDATES = 6;
+const CANDIDATES = 10;
 const TIMEOUT_MS = 10_000;
 
 interface AccessPoint {
