@@ -13,6 +13,7 @@ import {
   stopsNear
 } from '../../../vendor/countdown-api/src/countdown_api/client';
 import type { Client, Result } from '../../../vendor/countdown-api/src/countdown_api/client';
+import { placeName } from '../dashboard/arrivals';
 import { serverClient } from './config';
 import { mockLocation } from './location';
 import type { Position } from './location';
@@ -189,14 +190,15 @@ export function rememberStop(result: StopResult): void {
 
 /**
  * A saved stop's name, the line under it and (a London bus stop's) letter, when this kiosk added it or learnt its name;
- * otherwise its id stands in for the name.
+ * otherwise its id stands in for the name. The name is without the kind of station ("Kennington", not "Kennington
+ * Underground Station"), as the search lists it.
  */
 export function describeStop(stop: DepartureStop): { name: string; detail: string; letter?: string } {
   const source = stop.source === 'tfl' ? 'TfL' : 'Entur';
   const known = storedStopNames()[stopKey(stop)];
   if (!known) return { name: stop.id, detail: source };
   return {
-    name: known.name,
+    name: placeName(known.name),
     detail: known.detail ? `${known.detail} · ${source}` : source,
     ...(known.letter && { letter: known.letter })
   };
