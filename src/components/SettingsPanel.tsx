@@ -212,6 +212,7 @@ export default function SettingsPanel({
           onThemeColourChange={onThemeColourChange}
           dynamicColour={dynamicColour}
           onDynamicColourChange={onDynamicColourChange}
+          onLyricsChange={owned ? lyrics => onDeviceConfigSave('lyrics', lyrics) : undefined}
         />
       );
       break;
@@ -234,7 +235,6 @@ export default function SettingsPanel({
         <SpotifySettings
           signInError={signInError}
           onReload={onReload}
-          onLyricsChange={owned ? lyrics => onDeviceConfigSave('lyrics', lyrics) : undefined}
         />
       );
       break;

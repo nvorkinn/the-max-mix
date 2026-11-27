@@ -109,32 +109,35 @@ export default function GeneralSettings({
         </div>
       </SettingsSection>
 
-      <ValueSection
-        id="location-label"
-        title={t('general.location')}
-        caption={t('general.location_caption')}
-        value={config.weather.key ? config.weather.location : t('general.no_place')}
-        muted={!config.weather.key}
-        onChange={() => setDialog('place')}
-      />
+      {/* The place and the postcode side by side: both are a value set in a dialog. */}
+      <div className="settings-pair">
+        <ValueSection
+          id="location-label"
+          title={t('general.location')}
+          caption={t('general.location_caption')}
+          value={config.weather.key ? config.weather.location : t('general.no_place')}
+          muted={!config.weather.key}
+          onChange={() => setDialog('place')}
+        />
 
-      <ValueSection
-        id="postcode-label"
-        title={t('general.postcode')}
-        caption={t('general.postcode_caption')}
-        value={
-          notices ? (
-            <>
-              <CountryFlag country={notices.country} />
-              {notices.postcode}
-            </>
-          ) : (
-            t('common.off')
-          )
-        }
-        muted={!notices}
-        onChange={() => setDialog('notices')}
-      />
+        <ValueSection
+          id="postcode-label"
+          title={t('general.postcode')}
+          caption={t('general.postcode_caption')}
+          value={
+            notices ? (
+              <>
+                <CountryFlag country={notices.country} />
+                {notices.postcode}
+              </>
+            ) : (
+              t('common.off')
+            )
+          }
+          muted={!notices}
+          onChange={() => setDialog('notices')}
+        />
+      </div>
 
       {dialog === 'place' && (
         <SearchDialog

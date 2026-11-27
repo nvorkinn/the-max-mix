@@ -20,7 +20,7 @@ const SAMPLE_LINES = ['lyrics.sample_1', 'lyrics.sample_2', 'lyrics.sample_3'] a
 const GLYPH_PX: Record<LyricsStyle['size'], number> = { small: 15, medium: 18, large: 22, 'x-large': 26 };
 
 /**
- * How synced lyrics look, on the Spotify page: a few lines drawn the way the lyrics panel draws them (the classes are
+ * How synced lyrics look, on the Appearance page: a few lines drawn the way the lyrics panel draws them (the classes are
  * the panel's own, so the preview is what plays), then their type size and alignment, each applied as soon as it is
  * tapped. `onChange` saves them where the kiosk keeps them (countdown-server, once someone owns it); without it they
  * are this tablet's own.

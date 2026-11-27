@@ -2155,6 +2155,19 @@ body:has(.app-dialog[open]) {
   font-size: 16px;
   font-weight: 650;
 }
+/* Two settings on one row (General's place and postcode), each half the page's width. */
+.settings-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 24px;
+}
+/* Its headings, captions and values each line up across the row, however many lines a caption takes. */
+.settings-pair > .settings-section {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  gap: inherit;
+}
 /* A value chosen in a dialog (the weather's place, the postcode): the value as it is, its Change button beside it. */
 .settings-value {
   display: flex;

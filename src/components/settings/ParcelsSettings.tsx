@@ -120,8 +120,8 @@ export default function ParcelsSettings({
   return (
     <div className="settings-stack">
       <SettingsToggle
-        id="parcels-notices-label"
-        title={t('parcels.notice_board')}
+        id="parcels-enabled-label"
+        title={t('parcels.enabled')}
         on={current.enabled}
         onChange={enabled => onChange({ ...current, enabled })}
       />

@@ -2,7 +2,9 @@ import type { CSSProperties } from 'react';
 import { Check, Disc3, Play } from 'lucide-react';
 import { swatchOf, THEME_COLOURS } from '../../utils/themeColour';
 import type { ThemeColour } from '../../utils/themeColour';
+import type { LyricsStyle } from '../../utils/lyricsStyle';
 import { useT } from '../../i18n/translate';
+import LyricsSettings from './LyricsSettings';
 import SettingsSection from './SettingsSection';
 import SettingsToggle from './SettingsToggle';
 
@@ -69,18 +71,21 @@ function ColourSample({ paint, caption }: Readonly<{ paint: SamplePaint; caption
 /**
  * The Appearance page: the colour of the track title, player controls and highlights, shown on a sample of the player as
  * it is picked; and Dynamic, which while music plays takes the colours from the album art instead (and fades back once
- * it stops), shown on a second sample beside the first while it is on.
+ * it stops), shown on a second sample beside the first while it is on. Then how synced lyrics look; `onLyricsChange` saves
+ * that where the kiosk keeps it.
  */
 export default function AppearanceSettings({
   themeColour,
   onThemeColourChange,
   dynamicColour,
-  onDynamicColourChange
+  onDynamicColourChange,
+  onLyricsChange
 }: Readonly<{
   themeColour: ThemeColour | undefined;
   onThemeColourChange: ((colour: ThemeColour) => void) | undefined;
   dynamicColour?: boolean | undefined;
   onDynamicColourChange?: ((on: boolean) => void) | undefined;
+  onLyricsChange?: ((style: LyricsStyle) => void) | undefined;
 }>) {
   const t = useT();
   const hasDynamic = dynamicColour !== undefined && onDynamicColourChange !== undefined;
@@ -121,6 +126,7 @@ export default function AppearanceSettings({
           onChange={onDynamicColourChange}
         />
       )}
+      <LyricsSettings onChange={onLyricsChange} />
     </div>
   );
 }

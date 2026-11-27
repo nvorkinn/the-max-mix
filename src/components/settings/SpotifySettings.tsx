@@ -17,8 +17,6 @@ import SpotifyIcon from '../SpotifyIcon';
 import SpotifySignInDialog from '../SpotifySignInDialog';
 import { useT } from '../../i18n/translate';
 import type { StringId } from '../../i18n/strings';
-import type { LyricsStyle } from '../../utils/lyricsStyle';
-import LyricsSettings from './LyricsSettings';
 import SettingsSection from './SettingsSection';
 import SoloistKeyButton from './SoloistKeyButton';
 
@@ -47,17 +45,14 @@ function Face({ person }: Readonly<{ person: PersonOnKiosk }>) {
 /**
  * The Spotify page. Everyone signed in on this kiosk as a row of faces, each with a dot for whether their login works
  * (asked of Spotify when the page opens) and a mark on the one playing; then the chosen face's login, phone, Soloist
- * key and removal; then adding a person, or the first sign-in when nobody is signed in. Under them, how synced lyrics
- * look, shown on a few lines as they will play. `onLyricsChange` saves that where the kiosk keeps it.
+ * key and removal; then adding a person, or the first sign-in when nobody is signed in.
  */
 export default function SpotifySettings({
   signInError,
-  onReload,
-  onLyricsChange
+  onReload
 }: Readonly<{
   signInError: string | null;
   onReload: () => void;
-  onLyricsChange?: ((style: LyricsStyle) => void) | undefined;
 }>) {
   const t = useT();
   // Who is signing in on a phone: '' for someone new, a person's Spotify ID to sign them in again, null for nobody.
@@ -171,7 +166,6 @@ export default function SpotifySettings({
         <SpotifySignInDialog as={signingInAs} onSignedIn={onReload} onClose={() => setSigningInAs(null)} />
       )}
 
-      <LyricsSettings onChange={onLyricsChange} />
     </div>
   );
 }

@@ -85,7 +85,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
       await expect.poll(() => server.saves.length).toBe(saves + 1);
     };
 
-    const notices = settings.getByRole('switch', { name: 'Notice board' });
+    const notices = settings.getByRole('switch', { name: 'Enabled' });
     await expect(notices).toHaveAttribute('aria-checked', 'false');
     await notices.click();
     await expect(notices).toHaveAttribute('aria-checked', 'true');
