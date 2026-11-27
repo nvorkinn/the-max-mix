@@ -11,6 +11,8 @@ const GIVE_UP_MS = 20 * 60 * 1000;
 const MAX_LINES = 500;
 /** Logged by the Pi's updater (pi/kiosk-audio/image-update.ts) as RAUC installs. */
 const INSTALL_PROGRESS = /Update progress: (\d+)%/;
+/** How long the percentage may stand still before the bar shows only that the install is still at work. */
+export const STALLED_AFTER_MS = 8000;
 
 /** The Pi's version, `<ref>+<commit>`, as the ref and commit the settings show. */
 function parseVersion(value: string | null): PiVersion | null {
@@ -42,6 +44,11 @@ export interface KioskUpdate {
   progress: string | null;
   /** How far the install has got, in percent, for the progress bar; null until said. */
   percent: number | null;
+  /**
+   * The percentage has stood still for a while: the kiosk reports none while it copies the system image, the longest
+   * step of an install, so the bar shows that it is still at work rather than how far it is.
+   */
+  isStalled: boolean;
   /** A version installed and waiting for a restart (`<ref>+<commit>`), or null. */
   installed: string | null;
   /** The newest version on the channel, when it failed to start here before and so is not installed. */
@@ -77,6 +84,8 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const [percent, setPercent] = useState<number | null>(null);
+  // The percentage that stood still for STALLED_AFTER_MS; it counts only while it is still the one shown.
+  const [stalledAt, setStalledAt] = useState<number | null>(null);
   const [output, setOutput] = useState<string[]>([]);
   const [dismissed, setDismissed] = useState(getDismissedUpdate);
   // The kiosk service's answer to POST /update/check; null until it has given one.
@@ -91,6 +100,16 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
     },
     []
   );
+
+  useEffect(() => {
+    if (!isUpdating || percent === null) return;
+    const timer = setTimeout(() => {
+      setStalledAt(percent);
+    }, STALLED_AFTER_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [isUpdating, percent]);
 
   // Gives up waiting for an update that never ends.
   useEffect(() => {
@@ -140,6 +159,7 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
     streamRef.current?.();
     setProgress(null);
     setPercent(null);
+    setStalledAt(null);
     setOutput([]);
     setIsUpdating(true);
     setConsoleOpen(true);
@@ -225,6 +245,7 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
     isUpdating,
     progress,
     percent,
+    isStalled: isUpdating && percent !== null && stalledAt === percent,
     installed: answer?.installed ?? null,
     failed: answer?.result === 'failed' ? answer.latest : null,
     output,
