@@ -5,9 +5,11 @@
 //
 // 1. The partition grows to the end of the card: a flashed image ends where the image did. Once only, as it then reaches
 //    the end.
-// 2. It is formatted (ext4, label data) when it holds no filesystem: the first boot, and the boot after kiosk-reset,
-//    which leaves RESET_FLAG on it. A reset keeps the Pi's name, its kiosk.env and its config.txt lines (RESET_KEEPS),
-//    and wipes the rest.
+// 2. It is formatted (ext4, label data) when it holds no filesystem, on a card just flashed (the flash image puts
+//    FRESH_CARD on the card's first partition), and on the boot after kiosk-reset, which leaves RESET_FLAG on it. Imager
+//    writes only the image, which ends before the data partition, so a card that was a kiosk before still holds its old
+//    one: FRESH_CARD has it formatted all the same, so that every card starts as a new kiosk. A reset keeps the Pi's
+//    name, its kiosk.env and its config.txt lines (RESET_KEEPS), and wipes the rest.
 // 3. Imager's user-data and network-config (cloud-init's format, which the flash image's Imager list asks for) become
 //    the Pi's own: the host name, the admin account's SSH keys, and the Wi-Fi as a NetworkManager profile. Imager writes
 //    them to the card's first partition (rpi-imager's downloadthread.cpp), the autoboot one, which nothing else mounts,
@@ -44,6 +46,11 @@ export const DATA_PATHS = {
 
 /** kiosk-reset leaves this on /data; the next boot formats it again. */
 export const RESET_FLAG = '.kiosk-reset';
+/**
+ * The flash image (image/build.sh card) puts this on the card's first partition, which Imager writes afresh with each
+ * flash; the first boot takes it off before it formats the data partition, so the next boot formats nothing.
+ */
+export const FRESH_CARD = 'the-max-mix-fresh-card';
 /**
  * What a reset keeps: the Pi's name and its settings, which belong to the Pi and its screen, not to its owner. Its
  * config.txt lines are among them: without a screen's dtoverlay the Pi shows nothing after its next update.
@@ -346,6 +353,27 @@ async function keptFiles(data: string): Promise<[file: string, content: string][
   });
 }
 
+/**
+ * Whether any of the card folders has FRESH_CARD on it, taking it off: the card was just flashed. It counts only once it
+ * is off, so a card it can't be taken off is never formatted at every boot.
+ */
+export async function wasJustFlashed(folders: readonly string[]): Promise<boolean> {
+  let isFresh = false;
+  for (const folder of folders) {
+    const mark = path.join(folder, FRESH_CARD);
+    // eslint-disable-next-line no-await-in-loop -- one card at a time
+    if (!(await statOrNull(mark))) continue;
+    try {
+      // eslint-disable-next-line no-await-in-loop -- one card at a time
+      await rm(mark);
+      isFresh = true;
+    } catch (error) {
+      console.error(`Could not take ${FRESH_CARD} off ${folder}, so the data partition is kept: ${String(error)}`);
+    }
+  }
+  return isFresh;
+}
+
 /** What prepareData did, for the journal. */
 interface Prepared {
   isGrown: boolean;
@@ -355,12 +383,13 @@ interface Prepared {
 
 /**
  * Grows and formats the data partition as needed, and mounts it at `mountpoint` for the import; the caller unmounts it,
- * and systemd then mounts it at /data as usual.
+ * and systemd then mounts it at /data as usual. `isFreshCard`: the card was just flashed, so whatever the partition
+ * holds is a kiosk's from before, and it is formatted.
  */
 export async function prepareData(
   partition: string,
   mountpoint: string,
-  { run = runCommand, sys }: { run?: Run; sys?: string } = {}
+  { run = runCommand, sys, isFreshCard = false }: { run?: Run; sys?: string; isFreshCard?: boolean } = {}
 ): Promise<Prepared> {
   const place = await partitionPlace(partition, sys);
   const isGrown = canGrow(place);
@@ -370,7 +399,7 @@ export async function prepareData(
 
   let isFormatted = false;
   let isReset = false;
-  if ((await filesystemOf(run, partition)) === '') {
+  if (isFreshCard || (await filesystemOf(run, partition)) === '') {
     await format(run, partition);
     isFormatted = true;
     await mount();
@@ -414,18 +443,25 @@ async function main(): Promise<void> {
   const mountpoint = await mkdtemp('/run/kiosk-first-boot-data-');
   const mounted = [mountpoint];
   try {
-    const prepared = await prepareData(values.data, mountpoint, { run });
-    if (prepared.isGrown) console.log('Grew the data partition to the end of the card');
-    if (prepared.isReset) {
-      console.log('Reset: formatted the data partition, keeping the name, kiosk.env and config.txt');
-    } else if (prepared.isFormatted) console.log('Formatted the data partition');
-
+    const cards: [card: string, folder: string][] = [];
     for (const card of values.card) {
       // One card at a time, in the order given: each may mount a partition.
       // eslint-disable-next-line no-await-in-loop
       const folder = await cardFolder(card, run, mounted);
+      if (folder) cards.push([card, folder]);
+    }
+    const isFreshCard = await wasJustFlashed(cards.map(([, folder]) => folder));
+    const prepared = await prepareData(values.data, mountpoint, { run, isFreshCard });
+    if (prepared.isGrown) console.log('Grew the data partition to the end of the card');
+    if (prepared.isReset) {
+      console.log('Reset: formatted the data partition, keeping the name, kiosk.env and config.txt');
+    } else if (prepared.isFormatted) {
+      console.log(isFreshCard ? 'Formatted the data partition of a card just flashed' : 'Formatted the data partition');
+    }
+
+    for (const [card, folder] of cards) {
       // eslint-disable-next-line no-await-in-loop
-      const imported = folder ? await importImager(folder, mountpoint) : undefined;
+      const imported = await importImager(folder, mountpoint);
       if (!imported) continue;
       // Never the Wi-Fi password: only what was taken in.
       const wifi = imported.wifi.length > 0 ? imported.wifi.join(', ') : 'none';
