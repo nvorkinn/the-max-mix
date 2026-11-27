@@ -25,7 +25,7 @@ const MOST_POSTCODES = 10;
  * How near the background lookup's position a chosen postcode must be for the stops found there to be used, not asked
  * for again: near enough for every postcode it suggested, not for one typed from across town.
  */
-export const SAME_PLACE_METRES = 250;
+const SAME_PLACE_METRES = 250;
 
 function Spinner() {
   return (
