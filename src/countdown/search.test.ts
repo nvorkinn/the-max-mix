@@ -1,3 +1,4 @@
+// cspell:ignore Drammen
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/search.json';
 import touchscreen from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
@@ -58,6 +59,17 @@ describe('searchStops', () => {
       { key: 'tfl:490000077E', name: 'Oval Station', indent: false }
     ]);
     expect(results[1]?.value).toEqual({ source: 'entur', id: 'NSR:Quay:7333' });
+  });
+
+  it('gives a London bus stop its letter, for its disc, and only its routes under it', async () => {
+    register();
+    answer(200, fixture.stops);
+    const results = await searchStops(fixture.stops_query);
+    expect(results.map(({ letter, detail }) => ({ letter, detail }))).toEqual([
+      { letter: undefined, detail: 'Train & Metro • All platforms • L1, R10, 1, 2 (+12 more)' },
+      { letter: undefined, detail: 'Platform 4 • towards Drammen • L1' },
+      { letter: 'E', detail: '36, 185, 436' }
+    ]);
   });
 
   it("fails when the kiosk isn't registered, or the server refuses or can't be reached", async () => {
@@ -187,7 +199,8 @@ describe('learnStopNames', () => {
     rememberStop({
       key: 'tfl:490000123W',
       name: 'Elephant & Castle',
-      detail: 'Stop W • 12, 35',
+      detail: '12, 35',
+      letter: 'W',
       indent: false,
       value: { source: 'tfl', id: '490000123W' }
     });
@@ -199,7 +212,11 @@ describe('learnStopNames', () => {
       name: 'Kennington Underground Station',
       detail: 'TfL'
     });
-    expect(describeStop({ source: 'tfl', id: '490000123W' }).detail).toBe('Stop W • 12, 35 · TfL');
+    expect(describeStop({ source: 'tfl', id: '490000123W' })).toEqual({
+      name: 'Elephant & Castle',
+      detail: '12, 35 · TfL',
+      letter: 'W'
+    });
     await expect(learnStopNames()).resolves.toBe(false);
   });
 

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import type { SearchResult } from '../../countdown/search';
 import { useT } from '../../i18n/translate';
+import StopLetter from './StopLetter';
 
 /** How long typing must pause before the search runs, so each key press does not send one. */
 const SEARCH_DELAY_MS = 300;
@@ -26,7 +27,10 @@ export function ResultButton<R extends SearchResult>({
       className="modal-option search-result w-full px-4 py-2 flex gap-3 items-center text-left rounded-xl border"
     >
       <span className="flex-1 min-w-0">
-        <span className="block text-sm font-semibold truncate">{result.name}</span>
+        <span className="stop-name text-sm font-semibold">
+          <span className="truncate">{result.name}</span>
+          {result.letter && <StopLetter letter={result.letter} />}
+        </span>
         <span className="block text-xs text-muted truncate">{result.detail}</span>
       </span>
       {end}

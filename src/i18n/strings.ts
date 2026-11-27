@@ -153,7 +153,7 @@ export const STRINGS = {
     en: 'A board with a row for each route and its next departures',
     nb: 'En tavle med én rad for hver linje og dens neste avganger'
   },
-  'countdown.transition': { en: 'Changing stops', nb: 'Bytte av stopp' },
+  'countdown.transition': { en: 'Animation style', nb: 'Animasjonsstil' },
   'countdown.transition.flip': { en: 'Flip', nb: 'Vend' },
   'countdown.transition.slide': { en: 'Slide', nb: 'Skyv' },
   'countdown.transition.sinkRise': { en: 'Sink and rise', nb: 'Synk og stig' },
