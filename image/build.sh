@@ -333,7 +333,10 @@ EOF
   mkdir -p "$out"
   rm -f "$out/the-max-mix.raucb"
   step "Signing the bundle ($version)"
-  rauc bundle --cert="${RAUC_CERT:-$here/rootfs/etc/rauc/keyring.pem}" --key="$RAUC_KEY" "$contents" "$out/the-max-mix.raucb"
+  # zstd packs the bundle's squashfs several times faster than mksquashfs's gzip; the Pis' kernel reads both
+  # (CONFIG_SQUASHFS_ZSTD).
+  rauc bundle --cert="${RAUC_CERT:-$here/rootfs/etc/rauc/keyring.pem}" --key="$RAUC_KEY" \
+    --mksquashfs-args="-comp zstd -Xcompression-level 6" "$contents" "$out/the-max-mix.raucb"
   step "Built $out/the-max-mix.raucb ($(mib "$out/the-max-mix.raucb"))"
 
   # The app alone, as the bundle has it, with the release.env that names it. The signed the-max-mix.app.json says which
