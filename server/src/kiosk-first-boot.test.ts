@@ -9,6 +9,7 @@ import {
   DATA_PATHS,
   defaultHostname,
   ensureIdentity,
+  FRESH_CARD,
   importImager,
   keyFileValue,
   canGrow,
@@ -17,7 +18,8 @@ import {
   parseUserData,
   partitionPlace,
   prepareData,
-  RESET_FLAG
+  RESET_FLAG,
+  wasJustFlashed
 } from './kiosk-first-boot.ts';
 import type { Result } from './nmcli.ts';
 
@@ -370,6 +372,24 @@ describe('prepareData', () => {
     );
   });
 
+  it("formats a card just flashed over the kiosk it was before, whatever that one's data partition holds", async () => {
+    // Imager wrote only the image, which ends before the data partition: the old kiosk's is still there, grown already.
+    const devices = await blockDevices({ ...FLASHED, size: SECTORS_16_GB - FLASHED.start - 33 });
+    const data = devices.mountpoint;
+    await mkdir(path.join(data, 'home/kiosk/.cache'), { recursive: true });
+    await mkdir(path.join(data, 'identity'));
+    await writeFile(path.join(data, DATA_PATHS.hostname), 'the-max-mix-4\n');
+    const { run, calls } = fakeCommands(data, 'ext4');
+
+    expect(await prepareData(devices.partition, data, { run, sys: devices.sys, isFreshCard: true })).toEqual({
+      isGrown: false,
+      isFormatted: true,
+      isReset: false
+    });
+    expect(calls).toEqual([`mkfs.ext4 -F -q -L data ${devices.partition}`, `mount -t ext4 ${devices.partition} MNT`]);
+    expect(await readdir(data)).toEqual([]);
+  });
+
   it('grows the filesystem of a partition that grew', async () => {
     const devices = await blockDevices(FLASHED);
     await mkdir(devices.mountpoint);
@@ -385,5 +405,24 @@ describe('prepareData', () => {
     await expect(prepared).rejects.toThrow(
       'sfdisk --relocate gpt-bak-std /dev/mmcblk0 failed (1): sfdisk: device busy'
     );
+  });
+});
+
+describe('wasJustFlashed', () => {
+  it("says a card was just flashed, taking the flash image's mark off it, so the next boot formats nothing", async () => {
+    const [empty, flashed] = await Promise.all([folder(), folder()]);
+    await writeFile(path.join(flashed, FRESH_CARD), 'Flashed with THE MAX MIX dev\n');
+    await writeFile(path.join(flashed, 'autoboot.txt'), '[all]\n');
+
+    await expect(wasJustFlashed([empty, flashed])).resolves.toBe(true);
+    expect(await readdir(flashed)).toEqual(['autoboot.txt']);
+    await expect(wasJustFlashed([empty, flashed])).resolves.toBe(false);
+  });
+
+  it('says nothing was flashed when the mark could not be taken off, so a card is never formatted at every boot', async () => {
+    const flashed = await folder();
+    // A folder where the mark should be: rm without recursive refuses it, as it would a read-only card.
+    await mkdir(path.join(flashed, FRESH_CARD));
+    await expect(wasJustFlashed([flashed])).resolves.toBe(false);
   });
 });

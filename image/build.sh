@@ -391,12 +391,19 @@ card() {
   mkfs.vfat -n bootfs -i 4d4d4941 "${loop}p1" > /dev/null
   printf '[all]\ntryboot_a_b=1\nboot_partition=2\n[tryboot]\nboot_partition=2\n' > "$work/autoboot.txt"
   MTOOLS_SKIP_CHECK=1 mcopy -i "${loop}p1" "$work/autoboot.txt" ::/autoboot.txt
+  # Imager writes the file and no more, so a card that was a kiosk before keeps its old data partition: this says the
+  # card was just flashed, and the first boot formats the data partition and takes it off (kiosk-first-boot.ts
+  # FRESH_CARD).
+  printf 'Flashed with THE MAX MIX %s: the first boot formats the data partition, then deletes this file.\n' \
+    "$version" > "$work/the-max-mix-fresh-card"
+  MTOOLS_SKIP_CHECK=1 mcopy -i "${loop}p1" "$work/the-max-mix-fresh-card" ::/the-max-mix-fresh-card
   dd if="$work/bundle/boot.vfat" of="${loop}p2" bs=4M conv=fsync status=none
   dd if="$work/bundle/rootfs.ext4" of="${loop}p4" bs=4M conv=fsync status=none
   losetup --detach "$loop"
   loops=()
   # Imager writes the file and no more, so it ends after root-a: slot B is filled by the first update, and
-  # kiosk-first-boot.ts moves the GPT backup header to the card's end and formats data over the rest.
+  # kiosk-first-boot.ts moves the GPT backup header to the card's end and formats data over the rest, whatever a card
+  # used before still has there.
   truncate --size=$((end_of_file * 512)) "$card"
 
   step "Hashing and compressing the card"
