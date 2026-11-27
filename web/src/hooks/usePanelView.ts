@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 /** What the panel between the artwork and the right-hand buttons shows. */
 export type PanelView = 'queue' | 'lyrics' | 'speakers';
@@ -35,5 +35,7 @@ export function usePanelView(lyrics: LyricsAvailability, playing: boolean, track
   const suits = SUITS[lyrics];
   if (suits && suits !== settled) setSettled(suits);
   const view: PanelView = picked ?? suits ?? settled ?? 'lyrics';
-  return { view, show: (next: PanelView) => setPicked(next) };
+  /** Drops the view tapped, so the panel shows the song's own view again: its lyrics, or the queue when it has none. */
+  const showDefault = useCallback(() => setPicked(null), []);
+  return { view, show: (next: PanelView) => setPicked(next), showDefault };
 }

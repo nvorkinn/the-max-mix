@@ -288,8 +288,9 @@ export function useSpeakerSelection({
     return sameChoice(confirmedRef.current, target);
   };
 
-  const save = async () => {
-    if (!draft || saving) return;
+  /** Carries out the draft. Answers whether it was saved: false when nothing was, or the speakers refused it. */
+  const save = async (): Promise<boolean> => {
+    if (!draft || saving) return false;
     const target = draft;
     setSaving(true);
     setError(null);
@@ -299,9 +300,11 @@ export function useSpeakerSelection({
       const stopped = target.family === 'sonos' && target.rooms.length === 0;
       if (!stopped && !(await confirm(target))) throw new Error(NOT_CONFIRMED);
       setDraft(null);
+      return true;
     } catch (caught) {
       if (caught instanceof SpotifyApiError) recordSpotifyRetryAfter(caught);
       setError(errorMessage(caught));
+      return false;
     } finally {
       setSaving(false);
       void readDevices();
