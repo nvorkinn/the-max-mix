@@ -518,6 +518,22 @@ describe('a release that changed only the app', () => {
     await expect(check(io)).resolves.toMatchObject({ result: 'failed', current: 'dev+aaa' });
   });
 
+  it('goes back as well when the kiosk does not restart with the new app', async () => {
+    const { io, world } = appPi();
+    const realRun = io.run;
+    let restarts = 0;
+    io.run = argv => {
+      const isKioskRestart = argv.join(' ') === '/usr/bin/systemctl restart kiosk.service';
+      return isKioskRestart && restarts++ === 0
+        ? Promise.reject(new Error('kiosk.service failed to start.'))
+        : realRun(argv);
+    };
+    await run(io, false);
+    expect(world.apps).toMatchObject({ inUse: null, isTrial: false });
+    expect(world.state).toMatchObject({ pending: null, failed: ['dev+bbb'] });
+    expect(world.log).toContain('Not healthy: kiosk.service failed to start.');
+  });
+
   it('leaves a stable Pi’s app for the next restart', async () => {
     const { io, world } = appPi({ channel: 'stable' });
     world.remote.pointer = `${RELEASES}/download/v2/the-max-mix-v2.raucb`;

@@ -359,8 +359,14 @@ async function applyApp(
   await io.writeState({ ...state, pending: { ...pending, tried: true } });
   io.log(RESTART_LINE);
   await io.apps.setTrial(true);
-  await changeOver(io, next, before);
-  const wrong = await io.health();
+  let wrong: string | null;
+  try {
+    await changeOver(io, next, before);
+    wrong = await io.health();
+  } catch (error) {
+    // A kiosk that does not even restart is not healthy either.
+    wrong = error instanceof Error ? error.message : String(error);
+  }
   if (wrong === null) {
     await io.apps.setTrial(false);
     await io.apps.prune([next, before].filter(version => version !== null));
