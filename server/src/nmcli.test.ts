@@ -7,7 +7,9 @@ import {
   friendlyError,
   HOTSPOT_SSID,
   isValidPsk,
+  MAX_ACCESS_POINTS,
   Nmcli,
+  parseAccessPoints,
   parseActiveSsid,
   parseConnectRequest,
   parseForgetRequest,
@@ -29,6 +31,20 @@ const SCAN = [
   String.raw`Back\\slash:20:WPA1 WPA2`,
   'Broken line',
   'Odd:abc:WPA2'
+].join('\n');
+
+/** `nmcli -t -f BSSID,SSID,CHAN,FREQ,SIGNAL device wifi list` output. */
+const ACCESS_POINTS = [
+  String.raw`AA\:BB\:CC\:00\:00\:01:Home:36:5180 MHz:96`,
+  String.raw`AA\:BB\:CC\:00\:00\:02:Home:6:2437 MHz:59`,
+  String.raw`AA\:BB\:CC\:00\:00\:03:Cafe\:Guest:11:2462 MHz:40`,
+  String.raw`AA\:BB\:CC\:00\:00\:04::1:2412 MHz:90`,
+  String.raw`AA\:BB\:CC\:00\:00\:05:Neighbour_nomap:1:2412 MHz:88`,
+  String.raw`AA\:BB\:CC\:00\:00\:06:${HOTSPOT_SSID}:6:2437 MHz:100`,
+  String.raw`AA\:BB\:CC\:00\:00\:07:Odd:x:2412 MHz:50`,
+  String.raw`AA\:BB\:CC\:00\:00\:08:Quiet:1:2412 MHz:`,
+  'Broken line',
+  ''
 ].join('\n');
 
 const WIFI_ROWS = 'aaaa-1:802-11-wireless\nbbbb-2:802-3-ethernet\ncccc-3:802-11-wireless\n';
@@ -143,6 +159,77 @@ describe('scan', () => {
     );
     const disabled = stub([[['nmcli'], { code: 1, stdout: '', stderr: 'Error: Wi-Fi is disabled' }]]);
     await expect(new Nmcli(disabled.run).scan()).rejects.toThrow(ERRORS.disabled);
+  });
+});
+
+describe('locate', () => {
+  it('lists every access point but those that may not be used, strongest first, in dBm', () => {
+    expect(parseAccessPoints(ACCESS_POINTS)).toEqual([
+      { macAddress: 'aa:bb:cc:00:00:01', signalStrength: -52, channel: 36 },
+      { macAddress: 'aa:bb:cc:00:00:02', signalStrength: -70, channel: 6 },
+      { macAddress: 'aa:bb:cc:00:00:03', signalStrength: -80, channel: 11 }
+    ]);
+  });
+
+  it('answers the strongest 30', () => {
+    const lines = Array.from({ length: 40 }, (_, index) => {
+      const last = index.toString(16).padStart(2, '0');
+      return String.raw`AA\:BB\:CC\:00\:00\:${last}:Net${index}:1:2412 MHz:${index + 50}`;
+    });
+    const points = parseAccessPoints(lines.join('\n'));
+    expect(points).toHaveLength(MAX_ACCESS_POINTS);
+    expect(points[0]).toEqual({ macAddress: 'aa:bb:cc:00:00:27', signalStrength: -55, channel: 1 });
+    expect(points.at(-1)?.signalStrength).toBe(-70);
+  });
+
+  it('turns the radio on and scans, without leaving the network', async () => {
+    const { run, calls } = stub([[['nmcli', '-t'], ok(ACCESS_POINTS)]]);
+    const points = await new Nmcli(run).locate();
+    expect(points).toHaveLength(3);
+    expect(calls.map(call => call.argv)).toEqual([
+      ['nmcli', 'radio', 'wifi', 'on'],
+      ['nmcli', '-t', '-f', 'BSSID,SSID,CHAN,FREQ,SIGNAL', 'device', 'wifi', 'list', '--rescan', 'yes']
+    ]);
+  });
+
+  it('never scans at the same time as the Wi-Fi settings', async () => {
+    let running = 0;
+    let most = 0;
+    const run: Run = async argv => {
+      running += 1;
+      most = Math.max(most, running);
+      await new Promise(resolve => setTimeout(resolve, 5));
+      running -= 1;
+      return ok(argv.includes('BSSID,SSID,CHAN,FREQ,SIGNAL') ? ACCESS_POINTS : SCAN);
+    };
+    const nmcli = new Nmcli(run);
+    const [networks, points, again] = await Promise.all([nmcli.scan(), nmcli.locate(), nmcli.locate()]);
+    expect(most).toBe(1);
+    expect(networks[0]?.ssid).toBe('Office');
+    expect(points).toHaveLength(3);
+    expect(again).toBe(points);
+  });
+
+  it('still scans after a scan failed', async () => {
+    vi.spyOn(console, 'info').mockReturnValue();
+    let isFirst = true;
+    const run: Run = argv => {
+      if (argv[1] !== '-t') return Promise.resolve(ok());
+      const reply = isFirst ? { code: 1, stdout: '', stderr: 'boom' } : ok(ACCESS_POINTS);
+      isFirst = false;
+      return Promise.resolve(reply);
+    };
+    const nmcli = new Nmcli(run);
+    await expect(nmcli.scan()).rejects.toThrow(new ScanError(ERRORS.scan));
+    await expect(nmcli.locate()).resolves.toHaveLength(3);
+  });
+
+  it('fails with a message that is safe to show', async () => {
+    vi.spyOn(console, 'info').mockReturnValue();
+    const failed = stub([[['nmcli', '-t'], { code: 1, stdout: '', stderr: 'boom' }]]);
+    await expect(new Nmcli(failed.run).locate()).rejects.toThrow(new ScanError(ERRORS.scan));
+    const disabled = stub([[['nmcli'], { code: 1, stdout: '', stderr: 'Error: Wi-Fi is disabled' }]]);
+    await expect(new Nmcli(disabled.run).locate()).rejects.toThrow(ERRORS.disabled);
   });
 });
 
