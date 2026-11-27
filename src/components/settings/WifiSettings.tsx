@@ -1,5 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Keyboard, Lock, QrCode, RefreshCw, Smartphone, Trash2, Wifi, WifiHigh, WifiLow, WifiOff, WifiZero } from 'lucide-react';
+import {
+  Keyboard,
+  Lock,
+  QrCode,
+  RefreshCw,
+  Smartphone,
+  Trash2,
+  Wifi,
+  WifiHigh,
+  WifiLow,
+  WifiOff,
+  WifiZero
+} from 'lucide-react';
 import { useLanguage } from '../../i18n/language';
 import { useT } from '../../i18n/translate';
 import { hasCamera } from '../../utils/kioskCamera';
