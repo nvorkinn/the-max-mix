@@ -4,11 +4,11 @@
 [Unit]
 Description=Keep a THE MAX MIX update only if the kiosk comes up
 Wants=rauc.service
-After=rauc.service kiosk.service
+After=rauc.service kiosk.service kiosk-app.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/node /opt/the-max-mix/kiosk-audio/kiosk-health.ts
+ExecStart=/usr/local/lib/the-max-mix/app-node kiosk-health.ts
 
 [Install]
 WantedBy=multi-user.target

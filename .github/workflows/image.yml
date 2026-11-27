@@ -96,7 +96,8 @@ jobs:
       # The tag moves to the bundle's commit, so the pre-release's page says what it holds. Each build's bundle has a
       # name of its own and is never replaced: RAUC streams it with range requests, so a Pi in the middle of an install
       # keeps reading the file it started on. bundle.txt, which the Pis read first, then names the new one, and bundles
-      # more than 6 hours old go.
+      # more than 6 hours old go. The app on its own goes up with each bundle under the same name (.app.tar.gz,
+      # .app.json, .app.json.sig), for a Pi that needs only that.
       - name: Publish to the channel
         run: |
           gh api --method PATCH "repos/$GH_REPO/git/refs/tags/$CHANNEL" -f sha="$SHA" -F force=true > /dev/null 2>&1 \
@@ -105,14 +106,18 @@ jobs:
             gh release create "$CHANNEL" --prerelease --latest=false --title "$CHANNEL" \
               --notes "Rolling A/B update bundle for Pis on the $CHANNEL channel (KIOSK_UPDATE_CHANNEL=$CHANNEL)."
           fi
-          name="the-max-mix-${SHA:0:12}.raucb"
-          mv the-max-mix.raucb "$name"
-          gh release upload "$CHANNEL" "$name" --clobber
+          stem="the-max-mix-${SHA:0:12}"
+          name="$stem.raucb"
+          for kind in raucb app.tar.gz app.json app.json.sig; do
+            mv "the-max-mix.$kind" "$stem.$kind"
+          done
+          gh release upload "$CHANNEL" "$stem".* --clobber
           echo "https://github.com/$GH_REPO/releases/download/$CHANNEL/$name" > bundle.txt
           gh release upload "$CHANNEL" bundle.txt --clobber
           oldest=$(date --utc --date='6 hours ago' +%Y-%m-%dT%H:%M:%SZ)
           gh api "repos/$GH_REPO/releases/tags/$CHANNEL" --jq ".assets[]
-            | select((.name | test(\"[.]raucb$\")) and .name != \"$name\" and .created_at < \"$oldest\") | .id" \
+            | select((.name | test(\"[.](raucb|app[.]tar[.]gz|app[.]json|app[.]json[.]sig)$\"))
+              and (.name | startswith(\"$stem.\") | not) and .created_at < \"$oldest\") | .id" \
             | while read -r id; do
               gh api --method DELETE "repos/$GH_REPO/releases/assets/$id"
             done

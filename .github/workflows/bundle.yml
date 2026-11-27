@@ -2,7 +2,8 @@ name: Build bundle
 
 # Builds THE MAX MIX's A/B update bundle (image/build.sh bundle, the-max-mix.raucb) for image.yml (dev and branch
 # channels, and check builds on pull requests) and release.yml (stable releases). A signed build leaves it as the bundle
-# artifact for the caller to publish; a check build publishes nothing.
+# artifact for the caller to publish, with the app on its own beside it (the-max-mix.app.tar.gz, .app.json and
+# .app.json.sig) for Pis that need nothing else; a check build publishes nothing.
 #
 # Fast on purpose: the slow part, Raspberry Pi OS with image/packages.txt installed, is a cached base layer rebuilt only
 # when its inputs change or once a week, on GitHub's arm64 runners (no QEMU). The web app and kiosk-audio are built in
@@ -164,6 +165,10 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: bundle
-          path: ${{ runner.temp }}/out/the-max-mix.raucb
+          path: |
+            ${{ runner.temp }}/out/the-max-mix.raucb
+            ${{ runner.temp }}/out/the-max-mix.app.tar.gz
+            ${{ runner.temp }}/out/the-max-mix.app.json
+            ${{ runner.temp }}/out/the-max-mix.app.json.sig
           if-no-files-found: error
           retention-days: 1

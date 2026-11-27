@@ -17,6 +17,8 @@ enable kiosk-first-boot.service
 enable kiosk-update.timer
 enable kiosk-restart.timer
 enable kiosk-health.service
+# Which app this boot uses: the image's own, or a newer one on /data from a release that changed only the app
+enable kiosk-app.service
 enable run-autoboot.mount
 # The booted slot's boot partition at /boot/firmware, where the screen setup writes the screen's mode
 enable kiosk-boot-firmware.service
