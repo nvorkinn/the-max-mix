@@ -604,7 +604,7 @@ export default function TabletView() {
   // Adjusted during render, like the panel's own view (usePanelView), not in an effect.
   if (speakersSaved && (!speakersShown || speakers.dirty)) setSpeakersSaved(false);
   useEffect(() => {
-    if (!speakersSaved) return undefined;
+    if (!speakersSaved) return;
     const timer = setTimeout(() => {
       setSpeakersSaved(false);
       showDefaultPanel();

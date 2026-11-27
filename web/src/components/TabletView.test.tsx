@@ -1052,19 +1052,22 @@ describe('TabletView', () => {
     expect(document.querySelector('.side-panel')).not.toHaveAttribute('data-showing', 'speakers');
   });
 
-  it('stays on the speakers after a save when another change is ticked meanwhile', async () => {
+  it('stays on the speakers when they are opened again after a save', async () => {
     vi.useFakeTimers();
     const { rerender } = renderOnSpotifyTab(<TabletView />);
     await act(() => vi.advanceTimersByTimeAsync(0));
     fireEvent.click(screen.getByRole('button', { name: /^Speakers:/ }));
     await act(() => vi.advanceTimersByTimeAsync(0));
+    const nav = screen.getByRole('navigation', { name: 'Beside the artwork' });
     fireEvent.click(screen.getByRole('checkbox', { name: 'Soundbar' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(within(nav).getByRole('button', { name: 'Save' }));
     await act(() => vi.advanceTimersByTimeAsync(0));
     setPlayer({ playbackState: { is_playing: true, item: track, device: { id: 'dev1', name: 'Soundbar' } } });
     rerender(<TabletView />);
     await act(() => vi.advanceTimersByTimeAsync(1000));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Soundbar' }));
+    // Another view tapped before the panel goes back calls that off, so the speakers opened again stay.
+    fireEvent.click(within(nav).getByRole('button', { name: 'Queue' }));
+    fireEvent.click(within(nav).getByRole('button', { name: 'Speakers' }));
     await act(() => vi.advanceTimersByTimeAsync(10_000));
     expect(document.querySelector('.side-panel')).toHaveAttribute('data-showing', 'speakers');
   });
