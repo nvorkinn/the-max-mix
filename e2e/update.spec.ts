@@ -118,11 +118,15 @@ test.describe('Software update', { tag: '@update' }, () => {
   });
 
   test('Update now streams the update into a full-screen console until it finishes', async ({ page }) => {
+    const moveOn = Promise.withResolvers<undefined>();
     const finish = Promise.withResolvers<undefined>();
     await page.routeWebSocket(UPDATE_SOCKET, ws => {
       send(ws, { type: 'status', state: 'installing' });
       send(ws, logLine('Installing v1.13.0+bbbbbbb0'));
       send(ws, logLine('Update progress: 30% Copying slot'));
+      void moveOn.promise.then(() => {
+        send(ws, logLine('Update progress: 70% Copying slot done.'));
+      });
       void finish.promise.then(() => {
         send(ws, { type: 'status', state: 'done', message: 'Nothing needed a restart.' });
         void ws.close({ code: 1000 });
@@ -144,6 +148,13 @@ test.describe('Software update', { tag: '@update' }, () => {
     await expect(updating.getByRole('button', { name: 'Close update console' })).toHaveCount(0);
     await page.keyboard.press('Escape');
     await expect(updating).toBeVisible();
+    // A percentage that stands still (the kiosk reports none while it copies the system image) gives way to a bar that
+    // only shows the install is at work, until the next percentage comes.
+    const working = updating.getByRole('progressbar', { name: 'Still installing' });
+    await expect(working).toBeVisible({ timeout: 15_000 });
+    await expect(working).not.toHaveAttribute('value');
+    moveOn.resolve(undefined);
+    await expect(updating.getByRole('progressbar', { name: '70% installed' })).toHaveAttribute('value', '70');
 
     finish.resolve(undefined);
     await expect(updating.getByRole('status')).toContainText('Update finished. Nothing needed a restart.');
