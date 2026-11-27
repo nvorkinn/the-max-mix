@@ -3,7 +3,10 @@
 import { execFile } from 'node:child_process';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { appsOnData } from './app-store.ts';
 import { deviceTreeNumber } from './boot-slots.ts';
+import { healthIO } from './health-io.ts';
+import { waitForHealth } from './health.ts';
 import { STATE_FILE } from './image-update.ts';
 import type { UpdateIO, UpdateState } from './image-update.ts';
 import type { Rauc } from './rauc.ts';
@@ -34,6 +37,14 @@ async function fetchText(url: string): Promise<string | null> {
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`${url} answered ${response.status}.`);
   return response.text();
+}
+
+/** A small binary file (a signature); null for 404. */
+async function fetchBytes(url: string): Promise<Buffer | null> {
+  const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`${url} answered ${response.status}.`);
+  return Buffer.from(await response.arrayBuffer());
 }
 
 /** Runs a program with fixed arguments (no shell); rejects when it fails. */
@@ -76,6 +87,9 @@ export function updateIO(rauc: Rauc, log: (line: string) => void = print): Updat
     readText,
     writeState: (state: UpdateState) => replaceFile(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`),
     fetchText,
+    fetchBytes,
+    apps: appsOnData(runProgram),
+    health: () => waitForHealth(healthIO),
     run: runProgram,
     tryboot,
     isTrialBoot,

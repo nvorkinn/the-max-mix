@@ -2,10 +2,12 @@
 //   node kiosk-update.ts run [--scheduled]   check, install anything newer, and on dev and branch Pis restart into it
 //                                            (kiosk-update.service; the timer passes --scheduled)
 //   node kiosk-update.ts check               print what the channel has, as JSON
-//   node kiosk-update.ts apply               reboot into an installed update now, if one waits
+//   node kiosk-update.ts apply               reboot into an installed update now, if one waits (one that changed
+//                                            only the app: change over to it and restart the kiosk, with no reboot)
 //   node kiosk-update.ts restart             into an installed update when one waits, else restart the kiosk
 //                                            (04:30, Restart)
-//   node kiosk-update.ts rollback            go back to the other slot's version now (kiosk-rollback)
+//   node kiosk-update.ts rollback            go back to the other slot's version now, or to the app before this one
+//                                            when the running app came on its own (kiosk-rollback)
 //   node kiosk-update.ts post-install        RAUC's post-install handler: points the new slot's cmdline.txt at its
 //                                            own root partition, and writes the screen's video= and the Pi's own
 //                                            config.txt lines (/data/the-max-mix/config.txt) into the slot
