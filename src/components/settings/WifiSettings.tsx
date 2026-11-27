@@ -20,7 +20,7 @@ const BARS = [WifiZero, WifiZero, WifiLow, WifiHigh, Wifi] as const;
 /**
  * The network the kiosk is on, large at the top with its signal, its address and Forget (on a second tap, since it drops
  * the connection); under it the other networks in range, strongest first, with Refresh beside their heading, and
- * joining one: an open one at a tap, one with a password in a dialog with the on-screen keyboard. After the list, the
+ * joining one: an open one at a tap, one with a password in a dialog with the on-screen keyboard. Above the list, the
  * other ways to join, as tiles: Scan code on a kiosk with a camera (the QR code held up to it; it leads the page while
  * the kiosk is on no network), Type a network (a hidden network) and Use your phone (sent over the kiosk's own hotspot). The kiosk keeps only the network it is on, so there is no list of saved ones. `onJoined`
  * follows every join and every forget, so the network shown is asked again. The kiosk's service lists, joins and
@@ -157,6 +157,40 @@ export default function WifiSettings({
           </button>
         </section>
       )}
+      <SettingsSection id="wifi-ways-label" title={t('wifi.ways')}>
+        <div className="wifi-ways">
+          {canScan && wifi.state !== 'disconnected' && (
+            <button type="button" disabled={connecting !== null} onClick={scanCode} className="wifi-network wifi-way">
+              <QrCode className="w-6 h-6 shrink-0" aria-hidden="true" />
+              <span className="wifi-network-name">{t('wifi.scan')}</span>
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={connecting !== null}
+            onClick={() => {
+              setJoinError(null);
+              setTarget({ hidden: true });
+            }}
+            className="wifi-network wifi-way"
+          >
+            <Keyboard className="w-6 h-6 shrink-0" aria-hidden="true" />
+            <span className="wifi-network-name">{t('wifi.type_network')}</span>
+          </button>
+          <button
+            type="button"
+            disabled={connecting !== null}
+            onClick={() => {
+              setJoinError(null);
+              setPhoneSetup('hotspot');
+            }}
+            className="wifi-network wifi-way"
+          >
+            <Smartphone className="w-6 h-6 shrink-0" aria-hidden="true" />
+            <span className="wifi-network-name">{t('wifi.use_phone')}</span>
+          </button>
+        </div>
+      </SettingsSection>
       <SettingsSection
         id="wifi-others-label"
         title={t('wifi.others')}
@@ -220,38 +254,6 @@ export default function WifiSettings({
             })}
           </ul>
         )}
-        <div className="wifi-ways">
-          {canScan && wifi.state !== 'disconnected' && (
-            <button type="button" disabled={connecting !== null} onClick={scanCode} className="wifi-network wifi-way">
-              <QrCode className="w-6 h-6 shrink-0" aria-hidden="true" />
-              <span className="wifi-network-name">{t('wifi.scan')}</span>
-            </button>
-          )}
-          <button
-            type="button"
-            disabled={connecting !== null}
-            onClick={() => {
-              setJoinError(null);
-              setTarget({ hidden: true });
-            }}
-            className="wifi-network wifi-way"
-          >
-            <Keyboard className="w-6 h-6 shrink-0" aria-hidden="true" />
-            <span className="wifi-network-name">{t('wifi.type_name')}</span>
-          </button>
-          <button
-            type="button"
-            disabled={connecting !== null}
-            onClick={() => {
-              setJoinError(null);
-              setPhoneSetup('hotspot');
-            }}
-            className="wifi-network wifi-way"
-          >
-            <Smartphone className="w-6 h-6 shrink-0" aria-hidden="true" />
-            <span className="wifi-network-name">{t('wifi.from_phone')}</span>
-          </button>
-        </div>
       </SettingsSection>
       {target && <WifiJoinDialog target={target} onJoined={joined} onClose={() => setTarget(null)} />}
       {isScanning && <WifiScanDialog onJoined={joined} onClose={() => setIsScanning(false)} />}

@@ -2845,13 +2845,12 @@ body:has(.app-dialog[open]) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* The other ways to join, after the list: one row of tiles drawn like the networks, their icons in the accent. */
+/* The other ways to join, above the list: one row of tiles drawn like the networks, their icons in the accent. */
 .wifi-ways {
   display: grid;
   grid-auto-columns: minmax(0, 1fr);
   grid-auto-flow: column;
   gap: 10px;
-  margin-top: 16px;
 }
 .wifi-way svg {
   color: var(--accent);
