@@ -68,9 +68,9 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       await page.goto('/?kiosk=1&pi_ref=v1.12.0&pi_commit=5a39e9a');
       const settings = await openSettings(page);
       for (const [section, name] of [
+        ['Wi-Fi', 'settings-wifi'],
         ['Screen', 'settings-screen'],
         ['Appearance', 'settings-appearance'],
-        ['Wi-Fi', 'settings-wifi'],
         ['Spotify', 'settings-spotify'],
         ['About', 'settings-about']
       ] as const) {

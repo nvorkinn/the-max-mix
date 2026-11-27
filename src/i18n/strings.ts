@@ -14,7 +14,7 @@ export const STRINGS = {
   'settings.appearance': { en: 'Appearance', nb: 'Utseende' },
   'settings.wifi': { en: 'Wi-Fi', nb: 'Wi-Fi' },
   'settings.spotify': { en: 'Spotify', nb: 'Spotify' },
-  'settings.lyrics': { en: 'Lyrics', nb: 'Sangtekster' },
+  'settings.lyrics': { en: 'Synced lyrics', nb: 'Synkroniserte sangtekster' },
   'settings.about': { en: 'About', nb: 'Om' },
   'settings.saved': { en: 'Saved', nb: 'Lagret' },
   'settings.not_saved': { en: 'Not saved', nb: 'Ikke lagret' },
@@ -38,13 +38,13 @@ export const STRINGS = {
   'general.location': { en: 'Location', nb: 'Sted' },
   'general.no_place': { en: 'No place', nb: 'Ikke valgt' },
   'general.location_caption': {
-    en: 'Drives the weather forecast and background.',
-    nb: 'Styrer værmeldingen og bakgrunnen.'
+    en: 'Determines the weather forecast and background.',
+    nb: 'Bestemmer værmeldingen og bakgrunnen.'
   },
   'general.postcode': { en: 'Postcode', nb: 'Postnummer' },
   'general.postcode_caption': {
-    en: 'Drives the local notices on the notice board.',
-    nb: 'Styrer de lokale oppslagene på oppslagstavlen.'
+    en: 'Determines the local notices on the notice board.',
+    nb: 'Bestemmer de lokale oppslagene på oppslagstavlen.'
   },
   'general.postcode_hint': {
     en: 'A UK or Norwegian postcode. Leave it empty for none.',
@@ -173,7 +173,7 @@ export const STRINGS = {
   'common.continue': { en: 'Continue', nb: 'Fortsett' },
 
   // Settings › Parcels.
-  'parcels.notice_board': { en: 'Notice board', nb: 'Oppslagstavle' },
+  'parcels.enabled': { en: 'Enabled', nb: 'Aktivert' },
   'parcels.arriving_by': { en: 'Arriving by', nb: 'Kommer innen' },
   'parcels.today': { en: 'Today', nb: 'I dag' },
   'parcels.tomorrow': { en: 'Tomorrow', nb: 'I morgen' },

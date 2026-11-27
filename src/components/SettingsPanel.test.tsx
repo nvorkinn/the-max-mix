@@ -114,12 +114,9 @@ describe('SettingsPanel', () => {
   it('offers the first sign-in, and nothing else of the people, while nobody is signed in', () => {
     render(<SettingsPanel {...base} initialSection="spotify" />);
     const page = screen.getByRole('region', { name: 'Spotify' });
-    // Under it, only the lyrics' look.
-    const lyrics = screen.getByRole('region', { name: 'Lyrics' });
     expect(
       within(page)
         .getAllByRole('button')
-        .filter(button => !lyrics.contains(button))
         .map(button => button.textContent)
     ).toEqual(['Log in with Spotify']);
     expect(screen.queryByRole('list', { name: 'People' })).not.toBeInTheDocument();
@@ -421,13 +418,14 @@ describe('SettingsPanel', () => {
       history.replaceState(null, '', '/?kiosk=0');
     });
 
-    it('opens on Screen on a kiosk no one owns yet, with screen sleep there, which changes it', async () => {
+    it('opens on Wi-Fi on a kiosk no one owns yet, with screen sleep on Screen, which changes it', async () => {
       const onScreenSleepChange = vi.fn();
       render(<SettingsPanel {...base} screenSleep={5} onScreenSleepChange={onScreenSleepChange} />);
       const nav = screen.getByRole('navigation', { name: 'Settings' });
       expect(within(nav).queryByRole('button', { name: 'General' })).not.toBeInTheDocument();
       expect(within(nav).queryByRole('button', { name: 'Countdown' })).not.toBeInTheDocument();
-      expect(within(nav).getByRole('button', { name: 'Screen' })).toHaveAttribute('aria-current', 'page');
+      expect(within(nav).getByRole('button', { name: 'Wi-Fi' })).toHaveAttribute('aria-current', 'page');
+      await userEvent.click(within(nav).getByRole('button', { name: 'Screen' }));
       const choices = screen.getByRole('group', { name: 'Screen sleep' });
       expect(within(choices).getByRole('button', { name: '5 min' })).toHaveAttribute('aria-pressed', 'true');
       await userEvent.click(within(choices).getByRole('button', { name: 'Never' }));
@@ -462,6 +460,7 @@ describe('SettingsPanel', () => {
           {...base}
           themeColour="navy"
           onThemeColourChange={vi.fn()}
+          initialSection="appearance"
           dynamicColour
           onDynamicColourChange={vi.fn()}
         />
@@ -666,7 +665,7 @@ describe('SettingsPanel', () => {
       within(nav)
         .getAllByRole('button')
         .map(button => button.textContent)
-    ).toEqual(['General', 'Countdown', 'Parcels', 'Appearance', 'Spotify', 'About']);
+    ).toEqual(['General', 'Countdown', 'Appearance', 'Spotify', 'Parcels', 'About']);
     await userEvent.click(within(nav).getByRole('button', { name: 'Countdown' }));
     expect(screen.getByRole('region', { name: 'Countdown' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add a station or stop' })).toBeInTheDocument();
@@ -683,7 +682,7 @@ describe('SettingsPanel', () => {
       within(screen.getByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Parcels' })
     );
 
-    const notices = screen.getByRole('switch', { name: 'Notice board' });
+    const notices = screen.getByRole('switch', { name: 'Enabled' });
     const arriving = within(screen.getByRole('group', { name: 'Arriving by' }));
     const kept = within(screen.getByRole('group', { name: 'Delivered ones stay' }));
     expect(notices).not.toBeChecked();
@@ -739,9 +738,9 @@ describe('SettingsPanel', () => {
     try {
       render(<SettingsPanel {...props} />);
       // Neither page until the server has said which.
-      expect(screen.queryByRole('switch', { name: 'Notice board' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('switch', { name: 'Enabled' })).not.toBeInTheDocument();
       expect(await screen.findByRole('heading', { name: 'Set up Parcel' })).toBeInTheDocument();
-      expect(screen.queryByRole('switch', { name: 'Notice board' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('switch', { name: 'Enabled' })).not.toBeInTheDocument();
       expect(onShow).toHaveBeenCalledOnce();
 
       // The key is pasted on the phone: the settings come up, and the config is read again.
@@ -749,7 +748,7 @@ describe('SettingsPanel', () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(PARCEL_LINK_POLL_MS);
       });
-      expect(screen.getByRole('switch', { name: 'Notice board' })).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'Enabled' })).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: 'Set up Parcel' })).not.toBeInTheDocument();
       expect(onShow).toHaveBeenCalledTimes(2);
     } finally {
@@ -770,7 +769,7 @@ describe('SettingsPanel', () => {
         onDeviceConfigSave={onDeviceConfigSave}
       />
     );
-    const notices = screen.getByRole('switch', { name: 'Notice board' });
+    const notices = screen.getByRole('switch', { name: 'Enabled' });
     expect(notices).not.toBeChecked();
     expect(screen.getByRole('button', { name: 'Any day' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: '4 hours' })).toHaveAttribute('aria-pressed', 'true');
@@ -803,7 +802,8 @@ describe('SettingsPanel', () => {
 
   it('saves the lyrics look to the server once someone owns the kiosk, and on the tablet before that', async () => {
     const onDeviceConfigSave = vi.fn();
-    const { rerender } = render(<SettingsPanel {...base} initialSection="spotify" />);
+    const { rerender } = render(<SettingsPanel {...base} initialSection="appearance" />);
+    expect(screen.getByRole('region', { name: 'Synced lyrics' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Right' }));
     expect(getLyricsStyle()).toEqual({ size: 'medium', align: 'right' });
     expect(screen.getByRole('button', { name: 'Right' })).toHaveAttribute('aria-pressed', 'true');
@@ -811,7 +811,7 @@ describe('SettingsPanel', () => {
     rerender(
       <SettingsPanel
         {...base}
-        initialSection="spotify"
+        initialSection="appearance"
         deviceConfig={fixture.config as TouchscreenConfig}
         onDeviceConfigSave={onDeviceConfigSave}
       />
