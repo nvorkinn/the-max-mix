@@ -11,8 +11,9 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await fakeSpotify(page);
   });
 
-  // The Spotify and Settings tabs lie on the Dashboard's photo: warm white words, and cards a faint white tint on it.
-  const PHOTO = { surface: 'rgba(255, 255, 255, 0.08)', ink: 'rgb(247, 244, 236)', scheme: 'dark' };
+  // The Spotify and Settings tabs lie on the Dashboard's photo, in the app's navy seen through: its near-white words,
+  // and cards a faint blue tint on it.
+  const PHOTO = { surface: 'rgba(118, 146, 226, 0.11)', ink: 'rgb(245, 246, 255)', scheme: 'dark' };
   const PHOTO_INK = PHOTO.ink;
 
   test('The photo tabs keep their dark look for settings, status and kiosk controls', async ({ page }) => {
