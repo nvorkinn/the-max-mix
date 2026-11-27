@@ -347,6 +347,8 @@ code path the timer, the screen and `kiosk-rollback` share:
   again. Anything else (another OS, no manifest, a bad signature) takes the whole bundle. An app on `/data` counts
   only over the slot release it was installed on (`over`), so a new slot starts with its own app; the image's
   `app-select` decides that at each boot. `kiosk-rollback` goes back to the app before, or to the image's own.
+  On a Pi 5 the download, unpack and change-over took 4 seconds and the kiosk was back about 5 seconds later; the whole
+  bundle took 3 minutes 39 seconds and a reboot.
 
 State lives in `/data/the-max-mix/update/state.json`; `sudo kiosk-update check` prints what the channel has.
 
