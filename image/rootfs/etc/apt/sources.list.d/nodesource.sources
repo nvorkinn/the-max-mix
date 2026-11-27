@@ -1,4 +1,4 @@
-# Node.js for the kiosk-audio service, which runs TypeScript directly and needs Node 22.18 or later; Debian trixie has
+# Node.js for the kiosk server, which runs TypeScript directly and needs Node 22.18 or later; Debian trixie has
 # 20. The same major version as .nvmrc. The signing key it names was checked against the checksum Ansible pinned.
 Types: deb
 URIs: https://deb.nodesource.com/node_24.x

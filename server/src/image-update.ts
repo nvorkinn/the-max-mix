@@ -1,6 +1,6 @@
 // Updates on image Pis: the whole OS is one RAUC bundle on GitHub, installed into the slot the Pi does not run from and
 // tried once on the next boot (boot-slots.ts). One code path does it for the timer, for Check for updates and Install
-// on the screen (kiosk-audio), and for kiosk-rollback (kiosk-update.ts):
+// on the screen (kiosk-server), and for kiosk-rollback (kiosk-update.ts):
 //
 //   check    read the channel's bundle.txt (cheap, not the rate-limited API), which names its bundle, read the bundle's
 //            version from its manifest only when that changed, and compare it with the booted version, the installed one
@@ -9,7 +9,7 @@
 //   apply    reboot with tryboot into the installed slot (04:30, Restart, or at once on the dev and branch channels).
 //   health   kiosk-health.ts decides after each boot; a tried slot that is not kept is a failed version, never retried.
 //
-// A release that changed only the app (the web app and kiosk-audio) skips all that. Each bundle has the app on its own
+// A release that changed only the app (the web app and kiosk-server) skips all that. Each bundle has the app on its own
 // beside it, with a signed manifest that names the OS it goes with (image/build.sh, KIOSK_RELEASE_OS). When that is the
 // running slot's, install only downloads and unpacks the app onto /data (app-store.ts), and apply changes over to it
 // and restarts the kiosk, with no reboot: the health check runs at once, and a failed one changes back.
@@ -37,7 +37,7 @@ export const OWN_CONFIG = '/data/the-max-mix/config.txt';
 export const RELEASE_ENV = '/usr/lib/the-max-mix/release.env';
 /** The same of the app in use, when that is a newer one on /data; the image's own app has none. */
 export const APP_RELEASE_ENV = '/run/the-max-mix/app/release.env';
-/** The updater's own state, on /data so both slots share it. Root writes it; kiosk-audio only reads it. */
+/** The updater's own state, on /data so both slots share it. Root writes it; kiosk-server only reads it. */
 export const STATE_FILE = '/data/the-max-mix/update/state.json';
 /** The timer runs every 2 minutes; a Pi on the stable channel checks only this often. */
 export const STABLE_EVERY_MS = 6 * 60 * 60 * 1000;
@@ -94,7 +94,7 @@ export interface AppManifest {
   size: number;
 }
 
-/** The apps on /data (app-store.ts); tests pass fakes. Only `inUse` is for kiosk-audio; the rest needs root. */
+/** The apps on /data (app-store.ts); tests pass fakes. Only `inUse` is for kiosk-server; the rest needs root. */
 export interface Apps {
   /** Where `version` is unpacked. */
   folder: (version: string) => string;
@@ -142,7 +142,7 @@ export interface UpdateIO {
   rauc: Rauc;
   /** A file's text, or null when there is none. */
   readText: (file: string) => Promise<string | null>;
-  /** Saves the state (root only: kiosk-audio never calls it). */
+  /** Saves the state (root only: kiosk-server never calls it). */
   writeState: (state: UpdateState) => Promise<void>;
   /** The text of a small file at `url`; null for none (404). Rejects offline. */
   fetchText: (url: string) => Promise<string | null>;
@@ -320,20 +320,20 @@ async function installApp(
     await io.apps.fetch(app.url, app.manifest, version, over);
     io.log('Update progress: 80% Checking the app');
     // The updater is part of the app: one that cannot even look for updates would leave the Pi with no way forward.
-    await io.run([NODE, `${io.apps.folder(version)}/kiosk-audio/kiosk-update.ts`, 'check']);
+    await io.run([NODE, `${io.apps.folder(version)}/server/src/kiosk-update.ts`, 'check']);
   }
   io.log('Update progress: 100% Installing done.');
   await io.writeState({ ...(await readState(io)), pending: { version, slot: '', tried: false, over } });
   io.log(`Installed ${version}. It starts with the next restart.`);
 }
 
-/** Changes over to an app (null: the image's own) and restarts what runs it: kiosk-audio and the kiosk. */
+/** Changes over to an app (null: the image's own) and restarts what runs it: kiosk-server and the kiosk. */
 async function changeOver(io: UpdateIO, version: string | null, previous: string | null): Promise<void> {
   await io.apps.use(version, previous);
   try {
-    await io.run([SYSTEMCTL, '--user', '--machine=kiosk@', 'restart', 'kiosk-audio.service']);
+    await io.run([SYSTEMCTL, '--user', '--machine=kiosk@', 'restart', 'kiosk-server.service']);
   } catch {
-    // The kiosk user's session is not up: kiosk.service starts it, and kiosk-audio with it.
+    // The kiosk user's session is not up: kiosk.service starts it, and kiosk-server with it.
   }
   await io.run([SYSTEMCTL, 'restart', 'kiosk.service']);
 }

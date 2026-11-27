@@ -160,7 +160,7 @@ export async function readBluetoothReport(): Promise<BluetoothReport> {
   try {
     response = await fetch(`${KIOSK_SERVICE}/bluetooth/monitor`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
   } catch (error) {
-    throw new Error(`The kiosk’s audio service did not answer: ${errorMessage(error)}`, { cause: error });
+    throw new Error(`The kiosk’s server did not answer: ${errorMessage(error)}`, { cause: error });
   }
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {

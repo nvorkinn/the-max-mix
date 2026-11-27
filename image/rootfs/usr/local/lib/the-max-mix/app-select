@@ -1,6 +1,6 @@
 #!/bin/sh
 # Run by kiosk-app.service at each boot: points /run/the-max-mix/app at the app this boot uses (the web app and
-# kiosk-audio). That is the one the image has at /opt/the-max-mix, unless a release that changed only the app was put
+# the server). That is the one the image has at /opt/the-max-mix, unless a release that changed only the app was put
 # on /data since (server/src/image-update.ts): /data/the-max-mix/apps/current, when its `over` file names this
 # slot's own release. So a newly installed slot starts with its own app, and the slot it replaced finds its app again
 # after a rollback. A `trial` file means the Pi went down while a new app was still being tried: that one is not
@@ -16,7 +16,7 @@ slot="$(value KIOSK_RELEASE_REF)+$(value KIOSK_RELEASE_COMMIT)"
 # Prints the folder $apps/$1 links to, when it holds an app put over this slot's release.
 layered() {
   dir=$(readlink -f "$apps/$1" 2> /dev/null) || return 1
-  [ -f "$dir/kiosk-audio/kiosk-audio.ts" ] && [ -d "$dir/app" ] || return 1
+  [ -f "$dir/server/src/kiosk-server.ts" ] && [ -d "$dir/app" ] || return 1
   [ "$(cat "$dir/over" 2> /dev/null)" = "$slot" ] || return 1
   echo "$dir"
 }

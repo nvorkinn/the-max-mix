@@ -23,7 +23,7 @@ updates:
       - dependency-name: '@types/node'
         update-types: [version-update:semver-major]
 
-  # The kiosk-audio service's packages on the Pi: the image build installs them from this lockfile (npm ci).
+  # The kiosk server's packages on the Pi: the image build installs them from this lockfile (npm ci).
   - package-ecosystem: npm
     directory: /server
     patterns: ['*']

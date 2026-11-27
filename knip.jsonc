@@ -4,11 +4,11 @@
   // Vitest configs, ESLint, Playwright (e2e/*.spec.ts), lint-staged and husky.
   // Files those do not reach directly (scripts/*.ts) are entries via package.json scripts.
   // ShellCheck and editorconfig-checker are system binaries installed separately (apt/brew/CI download), not npm dependencies.
-  // The Pi's services are started by their systemd units (image/rootfs): kiosk-audio, the updater, the health check,
+  // The Pi's services are started by their systemd units (image/rootfs): kiosk-server, the updater, the health check,
   // RAUC's boot backend and the first-boot setup. The updater runs screen-mode.ts itself. scripts/pi/*.mts are run by hand
   // on a Pi over SSH.
   "entry": [
-    "server/src/kiosk-audio.ts",
+    "server/src/kiosk-server.ts",
     "server/src/screen-mode.ts",
     "server/src/kiosk-update.ts",
     "server/src/kiosk-health.ts",

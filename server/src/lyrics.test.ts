@@ -43,7 +43,7 @@ const withPlain = (candidates: Candidate[], plain: string | null): LyricsSource 
 });
 const get = () => Promise.reject(new Error('unused'));
 
-describe('kiosk-audio/lyrics', () => {
+describe('server/lyrics', () => {
   it('reads the request', () => {
     expect(parseLyricsQuery(new URLSearchParams('title= A &artist=B&duration=1500'))).toEqual({
       title: 'A',

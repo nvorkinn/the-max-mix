@@ -16,8 +16,8 @@ fi
 
 since="$days days ago"
 heading() { printf '\n== %s ==\n' "$1"; }
-# The kiosk user's services (kiosk-audio) log under this match, not under -u.
-audio_journal() { journalctl --quiet --no-pager --output=short-iso _SYSTEMD_USER_UNIT=kiosk-audio.service "$@"; }
+# The kiosk user's services (kiosk-server) log under this match, not under -u.
+server_journal() { journalctl --quiet --no-pager --output=short-iso _SYSTEMD_USER_UNIT=kiosk-server.service "$@"; }
 
 heading Version
 # Written by the image build: the release (or channel) and commit the running slot was built from. An app on /data
@@ -50,10 +50,10 @@ heading Services
 for unit in kiosk kiosk-update.timer kiosk-health ssh tailscaled; do
   printf '%-22s %s\n' "$unit" "$(systemctl is-active "$unit" 2> /dev/null)"
 done
-printf '%-22s %s\n' kiosk-audio "$(systemctl --user --machine=kiosk@ is-active kiosk-audio 2> /dev/null)"
+printf '%-22s %s\n' kiosk-server "$(systemctl --user --machine=kiosk@ is-active kiosk-server 2> /dev/null)"
 
 heading "Chromium restarts by the watchdog (last $days days)"
-restarts=$(audio_journal --since "$since" --grep 'No heartbeat from the app')
+restarts=$(server_journal --since "$since" --grep 'No heartbeat from the app')
 if [[ -n $restarts ]]; then
   echo "$(wc -l <<< "$restarts") restart(s), the latest:"
   tail -n 5 <<< "$restarts"
@@ -62,7 +62,7 @@ else
 fi
 
 heading "Recent app errors and warnings (last $days days)"
-errors=$(audio_journal --since "$since" --grep '^app (error|warn)')
+errors=$(server_journal --since "$since" --grep '^app (error|warn)')
 if [[ -n $errors ]]; then
   echo "$(wc -l <<< "$errors") line(s), the latest:"
   tail -n 10 <<< "$errors"
@@ -74,4 +74,4 @@ heading "Kiosk warnings (last $days days)"
 journalctl --quiet --no-pager --output=short-iso -u kiosk -u kiosk-update -u kiosk-health --since "$since" \
   --priority warning | tail -n 10 | grep . || echo None
 echo
-echo "More: journalctl -u kiosk -u kiosk-update -u kiosk-health, and journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service"
+echo "More: journalctl -u kiosk -u kiosk-update -u kiosk-health, and journalctl _SYSTEMD_USER_UNIT=kiosk-server.service"

@@ -52,7 +52,7 @@ async function overHotspot(hotspot: Hotspot, method: string, url: string, body?:
 }
 const commands = (calls: string[][]) => calls.map(call => call.slice(1, 4).join(' '));
 
-describe('kiosk-audio/hotspot helpers', () => {
+describe('server/hotspot helpers', () => {
   it('makes a readable random password', () => {
     expect(makePassword(() => 0)).toBe('AAAAAAAAAA');
     // cspell:disable-next-line
@@ -72,7 +72,7 @@ describe('kiosk-audio/hotspot helpers', () => {
   });
 });
 
-describe('kiosk-audio/hotspot', () => {
+describe('server/hotspot', () => {
   it('starts a hotspot with a password of its own and a page for the phone', async () => {
     const { hotspot, calls, listen } = setup(base);
     const info = await hotspot.start();

@@ -114,7 +114,7 @@ describe('the saved speakers', () => {
   let file: string;
 
   beforeEach(async () => {
-    directory = await mkdtemp(path.join(tmpdir(), 'kiosk-audio-'));
+    directory = await mkdtemp(path.join(tmpdir(), 'kiosk-server-'));
     file = path.join(directory, 'state', 'speakers.json');
   });
 

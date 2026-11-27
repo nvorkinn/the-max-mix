@@ -250,14 +250,14 @@ describe('useSonosPlayer', () => {
 
   it('finds the group again after a failed read, and says so after several', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    pi.getSonosNow.mockRejectedValue(new Error('The kiosk’s audio service did not answer.'));
+    pi.getSonosNow.mockRejectedValue(new Error('The kiosk’s server did not answer.'));
     const { result } = renderHook(() => useSonosPlayer());
     act(() => setKioskSonosLeader('Kitchen'));
     await waitFor(() => expect(pi.getSonosNow).toHaveBeenCalledTimes(1));
     expect(result.current.error).toBeNull();
     await act(() => vi.advanceTimersByTimeAsync(5000));
     await act(() => vi.advanceTimersByTimeAsync(10_000));
-    await waitFor(() => expect(result.current.error).toBe('The kiosk’s audio service did not answer.'));
+    await waitFor(() => expect(result.current.error).toBe('The kiosk’s server did not answer.'));
     expect(pi.findSonosOnPi).toHaveBeenCalledTimes(3);
     pi.getSonosNow.mockResolvedValue(NOW);
     act(() => result.current.refresh());

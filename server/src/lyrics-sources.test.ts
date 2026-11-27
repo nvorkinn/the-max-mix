@@ -35,7 +35,7 @@ const ENCRYPTED_QRC =
   'B3D5DFFA6771D01C92959A8E87B843EEF98125F181E767F85866913E77B6C0EF1ACBD15E48987F803A1675911ACE6D92082BCDBB6E1ABEA4' +
   '64E93205A1FB2E2137D1B9115CB77EB5';
 
-describe('kiosk-audio/lyrics-sources', () => {
+describe('server/lyrics-sources', () => {
   it('NetEase: searches, then reads the lyrics of a song', async () => {
     const get = answering({
       'https://music.163.com/api/search/get?': {

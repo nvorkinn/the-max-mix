@@ -1,5 +1,5 @@
 # Check the update channel now and install anything newer; on the dev and branch channels restart into it at once.
-# The screen's Install starts this (kiosk-audio, as the kiosk user: 50-kiosk-power.rules); the timer runs the same with
+# The screen's Install starts this (kiosk-server, as the kiosk user: 50-kiosk-power.rules); the timer runs the same with
 # --scheduled (kiosk-update-scheduled.service).
 [Unit]
 Description=Install THE MAX MIX's newest update

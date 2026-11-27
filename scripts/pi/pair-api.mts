@@ -1,13 +1,13 @@
-// Drives the kiosk-audio pairing API on the Pi the way the app's pairing sheet does, for checking a branch build before
+// Drives the kiosk-server pairing API on the Pi the way the app's pairing sheet does, to check a branch build before
 // the app that goes with it is released: `node pair-api.mts` over SSH (no sudo). It starts looking for phones, prints
 // what the Pi hears every 2 s, pairs with the number typed + Enter, and prints how pairing went and the saved phones.
 import { readFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 
 const SERVICE = 'http://127.0.0.1:7341';
-const unit = readFileSync('/etc/systemd/user/kiosk-audio.service', 'utf8');
+const unit = readFileSync('/etc/systemd/user/kiosk-server.service', 'utf8');
 const origin = /KIOSK_APP_ORIGIN=(\S+)/.exec(unit)?.[1] ?? '';
-if (!origin) throw new Error('No KIOSK_APP_ORIGIN in kiosk-audio.service');
+if (!origin) throw new Error('No KIOSK_APP_ORIGIN in kiosk-server.service');
 
 type Fields = Record<string, unknown>;
 const post = async (path: string, body?: unknown) => {

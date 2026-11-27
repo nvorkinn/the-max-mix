@@ -85,7 +85,7 @@ describe('settings', () => {
 });
 
 describe('files', () => {
-  it('writes the environment kiosk.service and kiosk-audio read', () => {
+  it('writes the environment kiosk.service and kiosk-server read', () => {
     expect(environmentFile({ rotation: 90, scale: 1.5 })).toBe('KIOSK_SCREEN_ROTATION=90\nKIOSK_SCREEN_SCALE=1.5\n');
   });
 

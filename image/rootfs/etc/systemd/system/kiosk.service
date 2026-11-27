@@ -33,15 +33,15 @@ EnvironmentFile=-/run/the-max-mix/app/release.env
 ExecStartPre=-+/usr/local/lib/the-max-mix/app-node screen-mode.ts --correct
 # How to show the screen that is plugged in (KIOSK_ROTATION and KIOSK_SCALE, or the screen's own settings when they are
 # empty), and its mode on the boot partition's kernel command line (KIOSK_VIDEO_MODE, or the screen's own): writes
-# /run/kiosk/screen.env, read below and by kiosk-audio, and the touch screen's rotation (the + runs it as root, the -
+# /run/kiosk/screen.env, read below and by kiosk-server, and the touch screen's rotation (the + runs it as root, the -
 # ignores a failure, which leaves the screen as it is). See server/src/screen-setup.ts.
 ExecStartPre=-+/usr/local/lib/the-max-mix/app-node screen-setup.ts --rotation=${KIOSK_ROTATION} --scale=${KIOSK_SCALE} --video-mode=${KIOSK_VIDEO_MODE} --cmdline=/boot/firmware/cmdline.txt
 # Show VT 7 (the + runs this as root). Cage cannot take the display while another VT is in front.
 ExecStartPre=+/usr/bin/chvt 7
-# The kiosk-audio user unit outlives a restart of this service, so it would keep the screen settings it read before:
+# The kiosk-server user unit outlives a restart of this service, so it would keep the screen settings it read before:
 # restart it, now that screen-setup.ts wrote them (the - ignores a failure, as when the kiosk user's manager is not
 # running yet).
-ExecStartPre=-+/usr/bin/systemctl --user -M kiosk@ try-restart kiosk-audio.service
+ExecStartPre=-+/usr/bin/systemctl --user -M kiosk@ try-restart kiosk-server.service
 # PAMName=login puts Cage and its children in the login session scope, so systemd signals only Cage, which then waits for
 # kiosk-session to exit. Tell kiosk-session to stop first (the + runs this as root, the - ignores a failure), and wait
 # for it: it waits for Chromium to quit, and Cage must keep the display until then. Chromium that loses its display
@@ -57,7 +57,7 @@ Environment=XCURSOR_THEME=blank
 # Screen sleep. The app decides when the screen may sleep and shows a black sleep screen; this many seconds later
 # without a touch, swayidle turns the output off (kiosk-session), which also switches a DSI panel's backlight off.
 Environment=KIOSK_SCREEN_OFF_AFTER=10
-# The app, which kiosk-audio serves from the image, so it starts with no internet.
+# The app, which kiosk-server serves from the image, so it starts with no internet.
 Environment=KIOSK_APP_ORIGIN=http://127.0.0.1:7341
 # KIOSK_SCREEN_ROTATION and KIOSK_SCREEN_SCALE, from screen-setup.ts above, for kiosk-session and kiosk-display, which
 # turn the output and have Cage draw everything bigger. systemd reads the file when it starts Cage, after it was written.

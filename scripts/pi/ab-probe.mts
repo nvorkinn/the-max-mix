@@ -160,7 +160,7 @@ parent=rootfs.1
 
 // `pi adopt-main`: lets the spike's slot A install main's real bundles (compatible the-max-mix-pi, signed with
 // image/rootfs/etc/rauc/keyring.pem, bootnames a and b, cmdline root=PARTLABEL=root-a). Slot A has no node or
-// kiosk-audio, so it keeps this probe's shell backend and stands in for main's post-install handler: point the new
+// kiosk-server, so it keeps this probe's shell backend and stands in for main's post-install handler: point the new
 // boot slot's cmdline.txt at its own root, which is what kiosk-update post-install does on an image Pi.
 const MAIN_SYSTEM_CONF = RAUC_SYSTEM_CONF.replace('compatible=the-max-mix-ab-spike', 'compatible=the-max-mix-pi')
   .replace('statusfile=/data/ab/rauc.status', 'data-directory=/data/rauc')

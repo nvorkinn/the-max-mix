@@ -1,5 +1,5 @@
 // The tablet's speaker outputs on the kiosk: AirPlay speakers and connected Bluetooth speakers. PipeWire makes an output
-// for each; the kiosk's audio service (server/src/server.ts) lists them over http://127.0.0.1 and routes the sound
+// for each; the kiosk's server (server/src/server.ts) lists them over http://127.0.0.1 and routes the sound
 // to the chosen ones (POST /audio/route). It also says which ones the sound really goes to (`linked`). A Pi still on an
 // older service lists names only and cannot say where the sound goes, so the page remembers its own last choice.
 import { errorMessage } from '../utils/errorMessage';
@@ -58,9 +58,9 @@ export async function listAudioOutputs(): Promise<{ outputs: AudioOutput[]; lega
   try {
     response = await fetch(`${KIOSK_SERVICE}/speakers`, { cache: 'no-store' });
   } catch (error) {
-    throw new Error(`The kiosk’s audio service did not answer: ${errorMessage(error)}`, { cause: error });
+    throw new Error(`The kiosk’s server did not answer: ${errorMessage(error)}`, { cause: error });
   }
-  if (!response.ok) throw new Error(`The kiosk’s audio service could not read PipeWire (${response.status}).`);
+  if (!response.ok) throw new Error(`The kiosk’s server could not read PipeWire (${response.status}).`);
   const body = (await response.json()) as { speakers?: unknown; volumes?: unknown; outputs?: unknown };
   const legacy = !Array.isArray(body.outputs);
   const outputs = Array.isArray(body.outputs)

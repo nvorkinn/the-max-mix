@@ -63,7 +63,7 @@ describe('audio/bluetooth', () => {
     fetchMock.mockResolvedValueOnce(new Response('nope', { status: 500 }));
     await expect(listBluetoothSpeakers()).rejects.toThrow('The kiosk could not do that (500).');
     fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
-    await expect(listBluetoothSpeakers()).rejects.toThrow('The kiosk’s audio service did not answer: Failed to fetch');
+    await expect(listBluetoothSpeakers()).rejects.toThrow('The kiosk’s server did not answer: Failed to fetch');
   });
 
   it('forgets a speaker, even when the answer has no body', async () => {

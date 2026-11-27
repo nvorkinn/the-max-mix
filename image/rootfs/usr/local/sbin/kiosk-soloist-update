@@ -4,7 +4,7 @@
 # /usr/local/bin/soloist links to. Run by kiosk-soloist-update.timer. Spotify only publishes the latest build, and a
 # build stops working 90 days after it was built (it exits with 10), so the Pi fetches it again regularly. The terms do
 # not allow passing the binary on, so it is never part of the image: it lives on /data, outside the slots, and outlives
-# every update. A failed download, or a build that does not run, leaves the one that is there. kiosk-audio runs it
+# every update. A failed download, or a build that does not run, leaves the one that is there. kiosk-server runs it
 # (server/src/soloist.ts): a running player keeps its old copy until the kiosk next starts, so music is not cut
 # off, and one that had expired is started again within the hour.
 set -euo pipefail

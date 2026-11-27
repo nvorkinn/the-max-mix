@@ -2,7 +2,7 @@
 # Turns the screen off and on, inside the Cage session (it needs Cage's WAYLAND_DISPLAY):
 #   kiosk-display off                  from swayidle (kiosk-session), once the app let the screen sleep and nobody
 #                                      touched it; DSI outputs only
-#   kiosk-display on                   from swayidle at the first touch after that, from the kiosk-audio service when the
+#   kiosk-display on                   from swayidle at the first touch after that, from the kiosk server when the
 #                                      app wakes the screen for music that starts while it sleeps, and from
 #                                      kiosk-session when the kiosk starts with a rotated screen
 # Cage has no output power protocol, so the output is disabled and enabled again through wlr-randr. A DSI panel's driver

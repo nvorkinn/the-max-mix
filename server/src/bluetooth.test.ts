@@ -24,7 +24,7 @@ function fake(answers: Record<string, ReturnType<typeof ok>>) {
 /** A Bluetooth over a fake bluetoothctl that gives these answers. */
 const withAnswers = (answers: Record<string, ReturnType<typeof ok>>) => new Bluetooth(fake(answers).run);
 
-describe('kiosk-audio/bluetooth', () => {
+describe('server/bluetooth', () => {
   it('checks an address', () => {
     expect(parseAddress('aa:bb:cc:dd:ee:ff')).toBe(SPEAKER);
     expect(parseAddress(` ${SPEAKER} `)).toBe(SPEAKER);

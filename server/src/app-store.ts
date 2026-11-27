@@ -1,8 +1,8 @@
-// The apps on /data, for image-update.ts's Apps: a release that changed only the app (the web app and kiosk-audio)
+// The apps on /data, for image-update.ts's Apps: a release that changed only the app (the web app and kiosk-server)
 // reaches a Pi as a small signed archive instead of a whole bundle. Each lives in /data/the-max-mix/apps/<version>, with
 // an `over` file naming the slot release it was put over. `current` and `previous` link to the one in use and the one
 // before it, and a `trial` file is there while a new one is being tried. /run/the-max-mix/app names the app in use:
-// the image's app-select sets it at boot from these, and the updater changes it (root only; kiosk-audio only reads).
+// the image's app-select sets it at boot from these, and the updater changes it (root only; kiosk-server only reads).
 import { createHash, verify, X509Certificate } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
 import { mkdir, readdir, readFile, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises';

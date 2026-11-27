@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { qrRows, wifiQrText } from './qr.ts';
 
-describe('kiosk-audio/qr', () => {
+describe('server/qr', () => {
   it('writes the text a phone camera joins a network from', () => {
     expect(wifiQrText('THE MAX MIX setup', 'ABCD2345EF')).toBe('WIFI:T:WPA;S:THE MAX MIX setup;P:ABCD2345EF;;');
   });

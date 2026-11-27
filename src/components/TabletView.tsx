@@ -172,7 +172,7 @@ export default function TabletView() {
   const goToScreen = (next: TabId) => crossfade(() => setScreen(next));
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const [queueError, setQueueError] = useState<string | null>(null);
-  // AirPlay, Bluetooth and Sonos need the Pi's audio service, so they are offered on the kiosk only.
+  // AirPlay, Bluetooth and Sonos need the Pi's server, so they are offered on the kiosk only.
   const [onKiosk] = useState(isKiosk);
   // Someone who has just signed in with no phone linked: the kiosk offers to pair theirs straight away.
   const [pairingFor] = useState(() => (onKiosk ? takePhoneToPair() : null));

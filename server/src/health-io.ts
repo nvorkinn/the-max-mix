@@ -5,11 +5,11 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import type { HealthIO } from './health.ts';
 import { chromiumPid, monotonicNow } from './watchdog.ts';
 
-const AUDIO_HEALTH = 'http://127.0.0.1:7341/health';
+const SERVER_HEALTH = 'http://127.0.0.1:7341/health';
 
-async function audio(): Promise<{ heartbeatAgeMs: number | null } | null> {
+async function server(): Promise<{ heartbeatAgeMs: number | null } | null> {
   try {
-    const response = await fetch(AUDIO_HEALTH, { signal: AbortSignal.timeout(3000) });
+    const response = await fetch(SERVER_HEALTH, { signal: AbortSignal.timeout(3000) });
     if (!response.ok) return null;
     const body = (await response.json()) as { heartbeatAgeMs?: unknown };
     return { heartbeatAgeMs: typeof body.heartbeatAgeMs === 'number' ? body.heartbeatAgeMs : null };
@@ -34,7 +34,7 @@ async function isRunning(name: string): Promise<boolean> {
 }
 
 export const healthIO: HealthIO = {
-  audio,
+  server,
   isRunning,
   isChromiumRunning: async () => (await chromiumPid()) !== null,
   now: monotonicNow,

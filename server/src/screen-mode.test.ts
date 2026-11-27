@@ -53,7 +53,7 @@ const IMAGE_CMDLINE =
   'console=serial0,115200 console=tty3 root=PARTLABEL=root-a rootfstype=ext4 ro rootwait quiet logo.nologo loglevel=3';
 const sumOf = (block: Uint8Array) => block.reduce((total, byte) => total + byte, 0) % 256;
 
-describe('kiosk-audio/screen-mode', () => {
+describe('server/screen-mode', () => {
   it('reads the preferred mode and rounds its refresh rate', () => {
     expect(preferredMode(TEN_INCH)).toBe('1280x800@60');
     expect(preferredMode(SEVEN_INCH)).toBe('1024x600@60');

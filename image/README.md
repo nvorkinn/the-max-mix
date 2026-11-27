@@ -25,18 +25,18 @@ KIOSK_RELEASE_OS=<names everything but the app: the base layer and image/>
 
 It drops in the built artefacts: the web app at `/opt/the-max-mix/app`, `server/src` (without its tests) with its
 `node_modules` (installed from [server/package-lock.json](../server/package-lock.json)) at
-`/opt/the-max-mix/kiosk-audio`. Spotify Soloist is not in the image: its terms do not allow passing it
+`/opt/the-max-mix/server`. Spotify Soloist is not in the image: its terms do not allow passing it
 on, and each build expires after 90 days, so `kiosk-soloist-update.timer` fetches it onto `/data/soloist`, where
 `/usr/local/bin/soloist` links (the build makes the link).
 
-Beside the bundle, the build packs the app on its own: `the-max-mix.app.tar.gz` (`app`, `kiosk-audio` and that
+Beside the bundle, the build packs the app on its own: `the-max-mix.app.tar.gz` (`app`, `server` and that
 `release.env`), `the-max-mix.app.json` (its version, `KIOSK_RELEASE_OS`, and the archive's size and SHA-256) and
 `the-max-mix.app.json.sig`, the signature of that file by the bundle's key. A release whose `KIOSK_RELEASE_OS` is the
 running slot's changed only the app, so a Pi can take the archive alone, onto `/data/the-max-mix/apps`, with no reboot.
 
 Nothing on the Pi names `/opt/the-max-mix` itself, apart from the first boot. `kiosk-app.service` points
 `/run/the-max-mix/app` at the app each boot uses (`app-select`): the image's own, or the newer one on `/data` when it
-was put over this slot's release. The units and wrappers run kiosk-audio's programs through
+was put over this slot's release. The units and wrappers run kiosk-server's programs through
 `/usr/local/lib/the-max-mix/app-node`, which follows that link.
 
 ## The Pi's own settings
@@ -46,7 +46,7 @@ was put over this slot's release. The units and wrappers run kiosk-audio's progr
 
 | Key                    | Read by                                       | Meaning                                                     |
 | ---------------------- | --------------------------------------------- | ----------------------------------------------------------- |
-| `KIOSK_NAME`           | kiosk-audio.service                           | The name Soloist goes by in Spotify Connect; else host name |
+| `KIOSK_NAME`           | kiosk-server.service                          | The name Soloist goes by in Spotify Connect; else host name |
 | `KIOSK_SSH`            | ssh.service (drop-in)                         | `off` keeps sshd from starting                              |
 | `KIOSK_TAILSCALE`      | tailscaled.service (drop-in)                  | `off` keeps Tailscale from starting                         |
 | `KIOSK_ROTATION`       | kiosk.service, `screen-setup.ts --rotation`   | 0, 90, 180 or 270, for a screen it does not know            |
@@ -78,7 +78,7 @@ Where each part of the Ansible role that set up the first Pis went:
 - The kernel command line and `config.txt` are whole files in `boot/` instead of edits to Pi OS's. `video=` is written
   at kiosk start by `screen-setup.ts`.
 - SSH host keys live on `/data` (`/etc/ssh/host-keys`); `kiosk-ssh-host-keys` makes missing ones before sshd starts.
-- The cursor links, the tty1 mask and the kiosk-audio link are symlinks in `rootfs/` or lines in `units.txt`.
+- The cursor links, the tty1 mask and the kiosk-server link are symlinks in `rootfs/` or lines in `units.txt`.
 
 Left out, because the image replaces them:
 
@@ -93,7 +93,7 @@ in memory (logind, the backlight level, udisks2), with `persist.list`'s binds fr
 (`/etc/rpi/swap.conf.d`), and the radios' rfkill state is not restored, so Wi-Fi is never left blocked.
 
 Proven on a Pi 5 with the Touch Display 2 (the spike, 2026-11-24): booting from either slot on the read-only root with
-Wi-Fi, SSH, Cage, Chromium and kiosk-audio up; adaptive installs that download under a tenth of the bundle; a healthy
+Wi-Fi, SSH, Cage, Chromium and kiosk-server up; adaptive installs that download under a tenth of the bundle; a healthy
 trial slot kept, and a failed one marked bad with the Pi back on its old slot. After a fallback, the firmware's
 [tryboot] section points at the good slot again, so a plain `reboot '0 tryboot'` does not retry the bad one: only a
 new install, or `rauc status mark-active other`, makes it the slot to try.

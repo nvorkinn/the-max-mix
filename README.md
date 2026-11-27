@@ -79,7 +79,7 @@ or Spotify moves playback to a Connect speaker. **AirPlay** keeps playback on th
 to the AirPlay speakers you pick (Sonos included), several at once, through PipeWire. The AirPlay speakers stay disabled
 until this tablet is the device that is playing, so choose This tablet first. The speakers are the audio
 AirPlay sinks PipeWire made; picking them asks the Pi's local
-[audio service](server/README.md) (127.0.0.1, answering only the app) to route the sound.
+[server](server/README.md) (127.0.0.1, answering only the app) to route the sound.
 
 ### Wi-Fi from any phone (hotspot)
 
@@ -262,7 +262,7 @@ list at `https://github.com/nvorkinn/the-max-mix/releases/download/flash-image/t
 on.
 
 **The whole OS is one image**, built from [`image/`](image/README.md): the packages, the files over the root file
-system, the systemd units, the accounts, the boot settings, the web app and the kiosk-audio service. The root file system
+system, the systemd units, the accounts, the boot settings, the web app and the kiosk server. The root file system
 is read-only and every update replaces it whole, so a file removed from `image/` is gone from every Pi after its next
 update. Only what [`image/persist.list`](image/persist.list) names lives on `/data` and outlives updates, with the
 Pi's own settings in `/data/the-max-mix/kiosk.env` ([image/README.md](image/README.md#the-pis-own-settings)). Change
@@ -271,7 +271,7 @@ Pi's own settings in `/data/the-max-mix/kiosk.env` ([image/README.md](image/READ
 - **A/B slots:** the card has two boot and two root partitions. [RAUC](https://rauc.io) installs an update into the
   slot the Pi is not running from, streaming the signed bundle from GitHub and downloading only
   the blocks that changed. The next boot tries the new slot once (the Pi firmware's `tryboot`); `kiosk-health` keeps it
-  only when kiosk-audio, Cage and the app are up within 5 minutes, and otherwise the Pi boots its old slot again and
+  only when kiosk-server, Cage and the app are up within 5 minutes, and otherwise the Pi boots its old slot again and
   never retries that version.
 - **Channels:** `KIOSK_UPDATE_CHANNEL` in `kiosk.env` picks what a Pi follows. `stable` (the default) is the latest
   release; `dev` is every merge to `main`; `branch-<name>` is a branch built by hand (Actions > Image bundle > Run
@@ -289,7 +289,7 @@ Pi's own settings in `/data/the-max-mix/kiosk.env` ([image/README.md](image/READ
   already has, as the latest again, and the Pis install it as an ordinary update. On a Pi over SSH, `sudo kiosk-rollback`
   boots the other slot at once, since it still holds the previous version.
 - **Check an update:** `journalctl -u kiosk-update -n 100`, `sudo rauc status`, and `sudo node
-/opt/the-max-mix/kiosk-audio/kiosk-update.ts check` for what the channel has.
+/opt/the-max-mix/server/src/kiosk-update.ts check` for what the channel has.
 
 The kiosk opens the app with `?kiosk=1` (remembered across the Spotify sign-in redirect; `?kiosk=0` forgets it), which
 adds kiosk-only entries to Settings: **Wi-Fi** (the networks in range, and joining one; it opens by itself when the kiosk starts with no network), the release the Pi runs and whether
