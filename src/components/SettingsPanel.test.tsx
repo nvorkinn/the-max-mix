@@ -418,13 +418,14 @@ describe('SettingsPanel', () => {
       history.replaceState(null, '', '/?kiosk=0');
     });
 
-    it('opens on Screen on a kiosk no one owns yet, with screen sleep there, which changes it', async () => {
+    it('opens on Wi-Fi on a kiosk no one owns yet, with screen sleep on Screen, which changes it', async () => {
       const onScreenSleepChange = vi.fn();
       render(<SettingsPanel {...base} screenSleep={5} onScreenSleepChange={onScreenSleepChange} />);
       const nav = screen.getByRole('navigation', { name: 'Settings' });
       expect(within(nav).queryByRole('button', { name: 'General' })).not.toBeInTheDocument();
       expect(within(nav).queryByRole('button', { name: 'Countdown' })).not.toBeInTheDocument();
-      expect(within(nav).getByRole('button', { name: 'Screen' })).toHaveAttribute('aria-current', 'page');
+      expect(within(nav).getByRole('button', { name: 'Wi-Fi' })).toHaveAttribute('aria-current', 'page');
+      await userEvent.click(within(nav).getByRole('button', { name: 'Screen' }));
       const choices = screen.getByRole('group', { name: 'Screen sleep' });
       expect(within(choices).getByRole('button', { name: '5 min' })).toHaveAttribute('aria-pressed', 'true');
       await userEvent.click(within(choices).getByRole('button', { name: 'Never' }));
@@ -459,6 +460,7 @@ describe('SettingsPanel', () => {
           {...base}
           themeColour="navy"
           onThemeColourChange={vi.fn()}
+          initialSection="appearance"
           dynamicColour
           onDynamicColourChange={vi.fn()}
         />

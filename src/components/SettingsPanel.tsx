@@ -231,12 +231,7 @@ export default function SettingsPanel({
       break;
     }
     case 'spotify': {
-      page = (
-        <SpotifySettings
-          signInError={signInError}
-          onReload={onReload}
-        />
-      );
+      page = <SpotifySettings signInError={signInError} onReload={onReload} />;
       break;
     }
     default: {

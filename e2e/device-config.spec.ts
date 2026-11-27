@@ -50,13 +50,13 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     });
   });
 
-  test("the lyrics look is the server's, and saves there from the Spotify page", async ({ page }) => {
+  test("the lyrics look is the server's, and saves there from the Appearance page", async ({ page }) => {
     const server = await fakeCountdownServer(page, {
       ...DEVICE_CONFIGS.owned,
       lyrics: { size: 'large', align: 'center' }
     });
     await openSpotifyTab(page, '/?kiosk=1');
-    const settings = await openSettings(page, 'Spotify');
+    const settings = await openSettings(page, 'Appearance');
 
     await expect(settings.getByRole('button', { name: 'Large', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(settings.getByRole('button', { name: 'Centre' })).toHaveAttribute('aria-pressed', 'true');

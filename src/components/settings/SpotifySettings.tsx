@@ -165,7 +165,6 @@ export default function SpotifySettings({
       {signingInAs !== null && (
         <SpotifySignInDialog as={signingInAs} onSignedIn={onReload} onClose={() => setSigningInAs(null)} />
       )}
-
     </div>
   );
 }

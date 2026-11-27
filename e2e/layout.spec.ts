@@ -154,7 +154,7 @@ test.describe('Layout', { tag: '@layout' }, () => {
       expect(await nav.evaluate(element => element.scrollHeight <= element.clientHeight)).toBe(true);
       const sections = await nav.getByRole('button').allTextContents();
       expect(sections).toHaveLength(5);
-      expect(sections[0]).toBe('Screen');
+      expect(sections[0]).toBe('Wi-Fi');
       for (const section of sections) {
         // eslint-disable-next-line no-await-in-loop -- one page after another
         await showSection(settings, section);
