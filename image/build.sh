@@ -10,6 +10,9 @@
 #                                         base + rootfs/, units, accounts, persist.list, release.env and the built
 #                                         artefacts -> <out>/the-max-mix.raucb, signed with $RAUC_KEY (a file) for
 #                                         rootfs/etc/rauc/keyring.pem (or $RAUC_CERT, for a throwaway check build).
+#                                         Beside it, the app on its own for a Pi whose slot differs from this bundle
+#                                         in nothing else: the-max-mix.app.tar.gz, and the-max-mix.app.json, which
+#                                         names it, with its signature by the same key (the-max-mix.app.json.sig).
 #                                         <artefacts> holds app/ (the built web app) and
 #                                         kiosk-audio/ (pi/kiosk-audio with its node_modules); <ref> is the tag or the
 #                                         channel (dev, branch-<name>). Nothing is compiled here.
@@ -158,7 +161,7 @@ base() {
 
 # Fills <root> (a copy of the base layer) with everything image/ says, and the artefacts.
 assemble() {
-  local root=$1 artefacts=$2 ref=$3 commit=$4
+  local root=$1 artefacts=$2 ref=$3 commit=$4 os=$5
 
   step "Copying image/rootfs"
   # As root:root, keeping symlinks and the executable bit: programs 0755, other files 0644.
@@ -188,7 +191,7 @@ assemble() {
   # Spotify Soloist lives on /data (kiosk-soloist-update): its terms keep it out of the image.
   ln -sfn /data/soloist/soloist "$root/usr/local/bin/soloist"
 
-  printf 'KIOSK_RELEASE_REF=%s\nKIOSK_RELEASE_COMMIT=%s\n' "$ref" "$commit" \
+  printf 'KIOSK_RELEASE_REF=%s\nKIOSK_RELEASE_COMMIT=%s\nKIOSK_RELEASE_OS=%s\n' "$ref" "$commit" "$os" \
     | install -D -m 0644 /dev/stdin "$root/usr/lib/the-max-mix/release.env"
 
   step "Binding persist.list over /data"
@@ -278,6 +281,17 @@ vfat_image() {
   MTOOLS_SKIP_CHECK=1 mcopy -s -m -i "$file" "$dir"/* ::/
 }
 
+# Names everything in a bundle but the app (/opt/the-max-mix) and release.env: the base layer and what the build reads
+# from image/ (image/kiosk-audio lists the app's packages, so it is the app's). Two builds with the same answer differ
+# only in the app, and a Pi that runs one can take the other's app alone (pi/kiosk-audio/image-update.ts).
+os_fingerprint() {
+  local base_tar=$1
+  {
+    sha256sum < "$base_tar"
+    git -c safe.directory="$repo" -C "$repo" ls-tree -r HEAD -- image | grep -v $'\timage/kiosk-audio/'
+  } | sha256sum | cut -d' ' -f1
+}
+
 bundle() {
   local base_tar=$1 artefacts=$2 ref=$3 out=$4
   local commit
@@ -289,7 +303,9 @@ bundle() {
   mkdir -p "$root" "$contents"
   step "Unpacking the base layer"
   zstd --quiet --decompress --stdout "$base_tar" | tar --extract --numeric-owner --xattrs --acls --directory "$root"
-  assemble "$root" "$artefacts" "$ref" "$commit"
+  local os
+  os=$(os_fingerprint "$base_tar")
+  assemble "$root" "$artefacts" "$ref" "$commit" "$os"
 
   step "Making the boot and root file systems"
   mv "$root/boot/firmware" "$work/boot"
@@ -319,6 +335,19 @@ EOF
   step "Signing the bundle ($version)"
   rauc bundle --cert="${RAUC_CERT:-$here/rootfs/etc/rauc/keyring.pem}" --key="$RAUC_KEY" "$contents" "$out/the-max-mix.raucb"
   step "Built $out/the-max-mix.raucb ($(mib "$out/the-max-mix.raucb"))"
+
+  # The app alone, as the bundle has it, with the release.env that names it. The signed the-max-mix.app.json says which
+  # version it is, which OS it goes with and what the archive must hash to.
+  step "Packing the app on its own"
+  local app=$out/the-max-mix.app
+  tar --create --gzip --sort=name --numeric-owner --owner=0 --group=0 --mtime="@$SOURCE_DATE_EPOCH" \
+    --file="$app.tar.gz" --directory="$root/opt/the-max-mix" app kiosk-audio \
+    --directory="$root/usr/lib/the-max-mix" release.env
+  jq --null-input --arg version "$version" --arg os "$os" \
+    --arg sha256 "$(sha256sum < "$app.tar.gz" | cut -d' ' -f1)" --argjson size "$(stat --format=%s "$app.tar.gz")" \
+    '{version: $version, os: $os, sha256: $sha256, size: $size}' > "$app.json"
+  openssl dgst -sha256 -sign "$RAUC_KEY" -out "$app.json.sig" "$app.json"
+  step "Built $app.tar.gz ($(mib "$app.tar.gz")) for OS $os"
 }
 
 card() {

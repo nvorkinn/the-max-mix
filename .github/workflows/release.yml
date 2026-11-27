@@ -159,9 +159,12 @@ jobs:
             gh release create "$TAG" --verify-tag --generate-notes --latest --title "$TAG"
           fi
           if [[ -f the-max-mix.raucb ]]; then
-            name="the-max-mix-$TAG.raucb"
-            mv the-max-mix.raucb "$name"
-            gh release upload "$TAG" "$name" --clobber
+            stem="the-max-mix-$TAG"
+            name="$stem.raucb"
+            for kind in raucb app.tar.gz app.json app.json.sig; do
+              mv "the-max-mix.$kind" "$stem.$kind"
+            done
+            gh release upload "$TAG" "$stem".* --clobber
             echo "https://github.com/$GH_REPO/releases/download/$TAG/$name" > bundle.txt
             gh release upload "$TAG" bundle.txt --clobber
           fi

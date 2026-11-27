@@ -20,6 +20,7 @@ writes `/usr/lib/the-max-mix/release.env`:
 ```sh
 KIOSK_RELEASE_REF=v2.53.0   # the tag, or the channel (dev, branch-<name>)
 KIOSK_RELEASE_COMMIT=<the full commit>
+KIOSK_RELEASE_OS=<names everything but the app: the base layer and image/ without image/kiosk-audio>
 ```
 
 It drops in the built artefacts: the web app at `/opt/the-max-mix/app`, `pi/kiosk-audio` (without its tests) with its
@@ -27,6 +28,16 @@ It drops in the built artefacts: the web app at `/opt/the-max-mix/app`, `pi/kios
 `/opt/the-max-mix/kiosk-audio`. Spotify Soloist is not in the image: its terms do not allow passing it
 on, and each build expires after 90 days, so `kiosk-soloist-update.timer` fetches it onto `/data/soloist`, where
 `/usr/local/bin/soloist` links (the build makes the link).
+
+Beside the bundle, the build packs the app on its own: `the-max-mix.app.tar.gz` (`app`, `kiosk-audio` and that
+`release.env`), `the-max-mix.app.json` (its version, `KIOSK_RELEASE_OS`, and the archive's size and SHA-256) and
+`the-max-mix.app.json.sig`, the signature of that file by the bundle's key. A release whose `KIOSK_RELEASE_OS` is the
+running slot's changed only the app, so a Pi can take the archive alone, onto `/data/the-max-mix/apps`, with no reboot.
+
+Nothing on the Pi names `/opt/the-max-mix` itself, apart from the first boot. `kiosk-app.service` points
+`/run/the-max-mix/app` at the app each boot uses (`app-select`): the image's own, or the newer one on `/data` when it
+was put over this slot's release. The units and wrappers run kiosk-audio's programs through
+`/usr/local/lib/the-max-mix/app-node`, which follows that link.
 
 ## The Pi's own settings
 

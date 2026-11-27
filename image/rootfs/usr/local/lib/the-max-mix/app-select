@@ -1,0 +1,32 @@
+#!/bin/sh
+# Run by kiosk-app.service at each boot: points /run/the-max-mix/app at the app this boot uses (the web app and
+# kiosk-audio). That is the one the image has at /opt/the-max-mix, unless a release that changed only the app was put
+# on /data since (pi/kiosk-audio/image-update.ts): /data/the-max-mix/apps/current, when its `over` file names this
+# slot's own release. So a newly installed slot starts with its own app, and the slot it replaced finds its app again
+# after a rollback. A `trial` file means the Pi went down while a new app was still being tried: that one is not
+# trusted, so the one before it (`previous`) runs, and kiosk-health settles the rest.
+set -u
+apps=/data/the-max-mix/apps
+link=/run/the-max-mix/app
+release=/usr/lib/the-max-mix/release.env
+
+value() { sed -n -e "s/^$1=//p" "$release" 2> /dev/null; }
+slot="$(value KIOSK_RELEASE_REF)+$(value KIOSK_RELEASE_COMMIT)"
+
+# Prints the folder $apps/$1 links to, when it holds an app put over this slot's release.
+layered() {
+  dir=$(readlink -f "$apps/$1" 2> /dev/null) || return 1
+  [ -f "$dir/kiosk-audio/kiosk-audio.ts" ] && [ -d "$dir/app" ] || return 1
+  [ "$(cat "$dir/over" 2> /dev/null)" = "$slot" ] || return 1
+  echo "$dir"
+}
+
+name=current
+if [ -e "$apps/trial" ]; then
+  name=previous
+fi
+app=$(layered "$name") || app=/opt/the-max-mix
+mkdir -p "$(dirname "$link")"
+ln -sfn "$app" "$link.new"
+mv -T "$link.new" "$link"
+echo "The app in use: $app"

@@ -1,0 +1,13 @@
+#!/bin/sh
+# Runs one of kiosk-audio's programs with Node, from the app in use: app-node kiosk-health.ts [ARGUMENT...]
+# /run/the-max-mix/app names that app (app-select, kiosk-app.service); before it is there, early in a boot, it is the
+# image's own. The link is followed once, here, so a program that is running keeps its files (and the web app it
+# serves, KIOSK_APP_DIR) when the updater switches the link to a newer app.
+app=$(readlink -f /run/the-max-mix/app 2> /dev/null)
+if [ -z "$app" ] || [ ! -d "$app/kiosk-audio" ]; then
+  app=/opt/the-max-mix
+fi
+program=$1
+shift
+export KIOSK_APP_DIR="$app/app"
+exec /usr/bin/node "$app/kiosk-audio/$program" "$@"

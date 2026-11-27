@@ -1,0 +1,15 @@
+# Chooses the app this boot uses (app-select): the image's own at /opt/the-max-mix, or a newer one on /data from a
+# release that changed only the app. Everything that runs the app goes through /run/the-max-mix/app (app-node).
+[Unit]
+Description=THE MAX MIX app in use
+Wants=data.mount
+After=data.mount
+Before=kiosk.service kiosk-health.service rauc.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/lib/the-max-mix/app-select
+
+[Install]
+WantedBy=multi-user.target
