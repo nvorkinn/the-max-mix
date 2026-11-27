@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import { getClientId } from '../src/spotify/settings.ts';
 import { fakeCountdownServer, SPOTIFY_REDIRECT } from './fake-countdown.ts';
@@ -57,19 +58,23 @@ test.describe('Setup and signing in', { tag: '@setup' }, () => {
     expect(asked).not.toHaveProperty('code_verifier');
 
     spotifySignIns.phoneComesBack({ code: 'the-code' });
-    await expect.poll(() => page.evaluate(() => localStorage.getItem('maxmix.people'))).toContain('"max"');
+    // The app reloads once it has signed in. A read that lands in the reload is thrown out, and the next one answers.
+    await expect
+      .poll(async () => {
+        try {
+          return await page.evaluate(() => localStorage.getItem('maxmix.people'));
+        } catch {
+          return null;
+        }
+      })
+      .toContain('"max"');
     const [exchange] = exchanges;
     expect(exchange?.get('code')).toBe('the-code');
     expect(exchange?.get('redirect_uri')).toBe(SPOTIFY_REDIRECT);
     // The verifier the kiosk kept is the one its challenge was made from.
     const verifier = exchange?.get('code_verifier') ?? '';
-    const challenge = await page.evaluate(async text => {
-      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-      return btoa(String.fromCodePoint(...new Uint8Array(digest)))
-        .replaceAll('+', '-')
-        .replaceAll('/', '_')
-        .replaceAll('=', '');
-    }, verifier);
+    // Worked out here, not in the page, which may be in the middle of that reload.
+    const challenge = createHash('sha256').update(verifier).digest('base64url');
     expect(challenge).toBe(asked?.['code_challenge']);
   });
 
