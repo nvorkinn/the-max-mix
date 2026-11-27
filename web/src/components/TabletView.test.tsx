@@ -24,6 +24,7 @@ const player = vi.hoisted(() => {
         | 'seek'
         | 'refreshPlayback'
         | 'setSlowPolling'
+        | 'describeCurrentTrack'
         | 'transferPlayback'
         | 'retryPlayback'
         | 'reconnectPlayer',
@@ -122,6 +123,7 @@ function setSonos(overrides: Record<string, unknown> = {}) {
     play: vi.fn().mockResolvedValue(true),
     refresh: vi.fn(),
     leave: vi.fn().mockResolvedValue(undefined),
+    describeCurrentTrack: vi.fn(),
     setSlowPolling: vi.fn(),
     ...overrides
   };
@@ -139,6 +141,7 @@ function setPlayer(overrides: Record<string, unknown> = {}) {
     error: null,
     problem: typeof overrides['error'] === 'string' ? { message: overrides['error'], recovery: 'refresh' } : null,
     refreshPlayback: vi.fn().mockResolvedValue(undefined),
+    describeCurrentTrack: vi.fn(),
     setSlowPolling: vi.fn(),
     togglePlay: vi.fn(),
     nextTrack: vi.fn(),

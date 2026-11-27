@@ -38,6 +38,9 @@ const CONTROL_COMMANDS = new Set([
   'set_repeat_track',
   'add_to_queue'
 ]);
+// Soloist names a new song at once or a moment later. One still without its name after this is asked for again, as the
+// name does not always follow by itself.
+export const DETAILS_WAIT_MS = 2000;
 // Soloist's queue can briefly hold these stand-ins while it works out what comes next.
 const PLACEHOLDER_PREFIX = 'spotify:meta:';
 // Soloist's own queue_changed lists at most this many songs coming up; its answer to a get_queue without a limit lists
@@ -196,6 +199,9 @@ export class SoloistPlayer {
   #volumeOnStart: { volume: number; until: number; isPlaying: boolean } | null = null;
   // Running while a get_queue waits for its answer, which comes as a queue_changed of its own.
   #queueAsk: ReturnType<typeof setTimeout> | undefined;
+  // The song whose details are waited for, or were asked for again (once a song), and the wait while it runs.
+  #detailsFor: string | null = null;
+  #detailsWait: ReturnType<typeof setTimeout> | undefined;
 
   constructor(handlers: SoloistHandlers, url = SOLOIST_SOCKET) {
     this.#handlers = handlers;
@@ -286,6 +292,28 @@ export class SoloistPlayer {
     else this.#askQueue();
   }
 
+  /** Asks Soloist for its state again, once, when the song it named has not got its details after a moment. */
+  #awaitDetails(): void {
+    const uri = text(recordOf(this.#item)['uri']);
+    if (!uri || soloistTrack(this.#item)) {
+      this.#forgetDetails();
+      return;
+    }
+    if (this.#detailsFor === uri) return;
+    clearTimeout(this.#detailsWait);
+    this.#detailsFor = uri;
+    this.#detailsWait = setTimeout(() => {
+      this.#detailsWait = undefined;
+      this.#ask('get_state');
+    }, DETAILS_WAIT_MS);
+  }
+
+  #forgetDetails(): void {
+    clearTimeout(this.#detailsWait);
+    this.#detailsWait = undefined;
+    this.#detailsFor = null;
+  }
+
   #failPending(message: string): void {
     for (const pending of this.#pending.splice(0)) {
       clearTimeout(pending.timer);
@@ -321,6 +349,7 @@ export class SoloistPlayer {
     this.#status = '';
     this.#volumeOnStart = null;
     this.#forgetQueueAsk();
+    this.#forgetDetails();
     this.#failPending('The kiosk player disconnected.');
     if (this.#isStopped) return;
     if (wasReady) this.#handlers.onNotReady();
@@ -505,6 +534,7 @@ export class SoloistPlayer {
     // On connecting, signing in or taking over playback, the queue is read whole once.
     if (!wasActive && this.#isActive && this.#isLoggedIn) this.#askQueue();
     this.#applyVolumeOnStart();
+    this.#awaitDetails();
     this.#handlers.onState(this.#state());
   }
 
@@ -531,6 +561,7 @@ export class SoloistPlayer {
     this.#reconnect = undefined;
     clearTimeout(this.#lookup);
     this.#forgetQueueAsk();
+    this.#forgetDetails();
     const socket = this.#socket;
     this.#socket = null;
     this.#isOpen = false;

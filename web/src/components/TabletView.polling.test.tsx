@@ -28,6 +28,7 @@ const player = (overrides?: Record<string, unknown>) => ({
   isReady: false,
   playbackState: null,
   isAuthenticated: false,
+  describeCurrentTrack: vi.fn(),
   setSlowPolling: vi.fn(),
   ...overrides
 });
@@ -48,6 +49,15 @@ describe('TabletView', () => {
     renderOnSpotifyTab(<TabletView />);
     expect(api.getQueue).not.toHaveBeenCalled();
     expect(screen.queryByTestId('queue')).not.toBeInTheDocument();
+  });
+
+  it("hands the player the song the queue's reply says plays", async () => {
+    const playing = { id: 'now', name: 'Playing' };
+    api.getQueue.mockResolvedValue({ currently_playing: playing, queue: [{ id: '1', name: 'Song' }] });
+    const describeCurrentTrack = vi.fn();
+    state.player = player({ isAuthenticated: true, describeCurrentTrack });
+    renderOnSpotifyTab(<TabletView />);
+    await waitFor(() => expect(describeCurrentTrack).toHaveBeenCalledWith(playing));
   });
 
   it('clears the queue and error when polling stops', async () => {

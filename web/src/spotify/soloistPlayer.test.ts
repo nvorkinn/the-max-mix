@@ -13,7 +13,7 @@ import {
 } from '../test/soloistFixtures';
 import type { SpotifyDevice } from '../types';
 import { getDevices } from './api';
-import { SoloistPlayer, soloistTrack } from './soloistPlayer';
+import { DETAILS_WAIT_MS, SoloistPlayer, soloistTrack } from './soloistPlayer';
 import type { SoloistHandlers } from './soloistPlayer';
 
 vi.mock('./api', () => ({ getDevices: vi.fn() }));
@@ -203,6 +203,36 @@ describe('SoloistPlayer', () => {
     expect(on.onState).toHaveBeenLastCalledWith(expect.objectContaining({ volume: 9 }));
     socket.receive({ type: 'playback_state', status: 'idle', is_active: true, item: { uri: '' } });
     expect(on.onState).toHaveBeenLastCalledWith({ isActive: true, paused: true, position: 0, volume: 9 });
+  });
+
+  describe('a song without its details', () => {
+    const BARE = { uri: 'spotify:track:bare', decorations: { playback: { duration_ms: 1000 } } };
+    const stateAsks = (socket: FakeWebSocket) =>
+      socket.sent.filter(frame => (frame as { command?: unknown }).command === 'get_state').length;
+
+    it('is asked for again after a moment, once', async () => {
+      const { socket } = await ready(false);
+      const before = stateAsks(socket);
+      socket.receive({ type: 'track_changed', item: BARE });
+      await vi.advanceTimersByTimeAsync(DETAILS_WAIT_MS - 1);
+      expect(stateAsks(socket)).toBe(before);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(stateAsks(socket)).toBe(before + 1);
+      // The answer lacks them too: the same song is not asked for a second time.
+      socket.receive({ ...recordedNow(false), item: BARE });
+      await vi.advanceTimersByTimeAsync(DETAILS_WAIT_MS * 3);
+      expect(stateAsks(socket)).toBe(before + 1);
+    });
+
+    it('is not asked for when its details follow in time, or the song changed', async () => {
+      const { socket } = await ready(false);
+      const before = stateAsks(socket);
+      socket.receive({ type: 'track_changed', item: BARE });
+      await vi.advanceTimersByTimeAsync(DETAILS_WAIT_MS - 1);
+      socket.receive(recordedNow(false));
+      await vi.advanceTimersByTimeAsync(DETAILS_WAIT_MS * 3);
+      expect(stateAsks(socket)).toBe(before);
+    });
   });
 
   it('reports nothing while another device is the active one and no song is known', async () => {

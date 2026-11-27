@@ -407,7 +407,8 @@ describe('useSpotifyPlayer follows another device from the kiosk player', () => 
     });
     expect(result.current.playbackState?.item).toMatchObject({ uri: next?.item.uri });
     expect(result.current.playbackState?.item?.name).toBeUndefined();
-    expect(result.current.playbackState?.progress_ms).toBe(0);
+    // The clock runs on while the report is taken in, so not always exactly 0.
+    expect(result.current.playbackState?.progress_ms).toBeLessThan(1000);
     act(() => socket.receive({ ...recordedNow(false), item: next?.item }));
     expect(result.current.playbackState?.item?.name).toBe(nextName);
 
@@ -436,6 +437,27 @@ describe('useSpotifyPlayer follows another device from the kiosk player', () => 
     const uri = result.current.playbackState?.item?.uri;
     act(() => socket.receive({ type: 'track_changed', item: { uri } }));
     expect(result.current.playbackState?.item?.name).toBe('Henda mot himmelen');
+  });
+});
+
+describe('useSpotifyPlayer names a song the kiosk player left without its name', () => {
+  it("takes the name from Spotify's own answer, for that song only", async () => {
+    const { result, socket } = await ready(false);
+    await waitFor(() => expect(result.current.playbackState?.item?.name).toBe('Henda mot himmelen'));
+    act(() => socket.receive({ type: 'track_changed', item: { uri: 'spotify:track:bare' } }));
+    expect(result.current.playbackState?.item).toEqual({ id: 'bare', uri: 'spotify:track:bare' });
+
+    act(() => result.current.describeCurrentTrack(null));
+    act(() => result.current.describeCurrentTrack({ id: 'bare' }));
+    act(() => result.current.describeCurrentTrack({ id: 'another', name: 'Another' }));
+    expect(result.current.playbackState?.item?.name).toBeUndefined();
+
+    act(() => result.current.describeCurrentTrack({ id: 'bare', name: 'Bare', artists: [{ name: 'Someone' }] }));
+    expect(result.current.playbackState?.item).toEqual({ id: 'bare', name: 'Bare', artists: [{ name: 'Someone' }] });
+
+    // A song that has its name keeps what it shows.
+    act(() => result.current.describeCurrentTrack({ id: 'bare', name: 'Renamed' }));
+    expect(result.current.playbackState?.item?.name).toBe('Bare');
   });
 });
 

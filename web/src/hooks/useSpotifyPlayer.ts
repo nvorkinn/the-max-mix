@@ -106,6 +106,11 @@ export interface UseSpotifyPlayer {
   isPlayerActive: boolean;
   queueVersion: number;
   /**
+   * The song Spotify's Web API says plays, as a read of the queue brings it: it gives the song on screen its name and
+   * cover when the kiosk's player reported it without them, and changes nothing otherwise.
+   */
+  describeCurrentTrack: (track: Track | null) => void;
+  /**
    * Every song coming up, as the kiosk's player (Soloist) lists it, while it is the active device and has a list to show;
    * null otherwise, when the queue is read from the Web API.
    */
@@ -240,6 +245,17 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [isPlayingNow]);
+
+  const describeCurrentTrack = useCallback((track: Track | null) => {
+    if (!track?.id || track.name === undefined) return;
+    setSnapshot(previous => {
+      const shown = previous.state?.item;
+      // Only the song on screen, and only while it has no name: the kiosk's player otherwise has the last word.
+      return shown !== undefined && shown.id === track.id && shown.name === undefined
+        ? { ...previous, state: { ...previous.state, item: track } }
+        : previous;
+    });
+  }, []);
 
   const bumpQueue = useCallback(() => setQueueVersion(version => version + 1), []);
 
@@ -815,6 +831,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     isReady: Boolean(playbackState?.device),
     isPlayerActive: playerDriven,
     queueVersion,
+    describeCurrentTrack,
     kioskQueue: playerDriven ? playerQueue : null,
     error: problem?.message ?? null,
     problem,
