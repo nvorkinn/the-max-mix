@@ -1,0 +1,1229 @@
+/*
+  The Dashboard tab: the daily photo full screen with the tab bar, weather, notices and departures laid straight on it.
+  It is laid out at 1280×800 and scaled to fit the screen by whichever of width or height is tighter, so every size
+  below is in that panel's pixels. It follows public/dashboard-mockup/index.html, which stays as the reference.
+  Geist (SIL OFL 1.1, assets/fonts/geist/OFL.txt) is bundled so nothing loads from a CDN.
+*/
+/* Metropolitan Line: an open (OFL) digitisation of Edward Johnston's 1916 Underground type, for the Tube status. */
+@font-face {
+  font-family: 'Metropolitan Line';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('../../assets/fonts/metropolitan-line/MetropolitanLine-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: Geist;
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('../../assets/fonts/geist/geist-latin-ext-wght-normal.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: Geist;
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('../../assets/fonts/geist/geist-latin-wght-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* What fills the screen: black bars show where the scaled panel doesn't reach. */
+.dashboard {
+  --text: #f7f4ec;
+  --muted: rgb(247 244 236 / 70%);
+  --faint: rgb(247 244 236 / 14%);
+  --forest: #2f5a3c;
+  --soon: #8fe39a;
+  --red: #d6362b;
+  --scrim: 9 12 16;
+  /* Notice icons by severity: severe red, disruption amber, planned and info blue, everyday white. */
+  --severe: #ff7b6e;
+  --disruption: #f4c04a;
+  --planned: #7cc0f5;
+  --info: #7cc0f5;
+  --everyday: var(--text);
+
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #000;
+  font-family: Geist, system-ui, sans-serif;
+  line-height: normal;
+  -webkit-font-smoothing: antialiased;
+}
+.dashboard-scaler {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1280px;
+  height: 800px;
+  transform-origin: 0 0;
+}
+.dashboard svg.lucide {
+  /* Inline, as in the static page: a lone icon in a row then sits on the text's baseline like it does there. */
+  display: inline;
+  vertical-align: baseline;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.dashboard-panel {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  width: 1280px;
+  height: 800px;
+  overflow: hidden;
+  color: var(--text);
+  background: #1c2230;
+}
+/* The photo, under the fades. A new day's photo fades in over the old one (Backdrop). */
+.dashboard-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+}
+.dashboard-backdrop-photo {
+  position: absolute;
+  inset: 0;
+  background: var(--photo) center 30% / cover no-repeat;
+}
+.dashboard-backdrop-photo[data-arriving] {
+  animation: dashboard-fade-in 4000ms ease-in-out both;
+  will-change: opacity;
+}
+.dashboard-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgb(var(--scrim) / 55%) 0, rgb(var(--scrim) / 0%) 120px),
+    linear-gradient(90deg, rgb(var(--scrim) / 82%) 0, rgb(var(--scrim) / 66%) 300px, rgb(var(--scrim) / 0%) 520px);
+}
+.dashboard .shadowed {
+  text-shadow: 0 1px 14px rgb(0 0 0 / 45%);
+}
+
+/* The tab bar, floating on the photo */
+/* Logo, tabs and the rest in three columns, the outer two equal, so the tabs sit in the middle of the screen. */
+.dashboard-bar {
+  height: 64px;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+  padding: 0 16px;
+}
+.dashboard-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dashboard-brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--forest);
+  display: grid;
+  place-items: center;
+}
+.dashboard-brand-name {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+}
+.dashboard-tabs {
+  display: flex;
+  gap: var(--tab-gap);
+}
+.dashboard-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 19px;
+  font-weight: 500;
+  color: var(--text);
+}
+.dashboard-tab[aria-selected='true'] {
+  background: rgb(255 255 255 / 16%);
+  backdrop-filter: blur(12px);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%);
+}
+
+.dashboard-tabs-place {
+  --tab-gap: 5px;
+}
+
+/*
+  The song playing, in a dark card under the clock and lined up with its right edge, in the plain band of sky the
+  backdrop keeps along its top. It floats over the photo, so nothing below it moves.
+*/
+.dashboard-now-playing {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 3;
+  width: 380px;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 10px 0 12px;
+  overflow: hidden;
+  border-radius: 22px;
+  background: rgb(9 12 16 / 58%);
+  text-shadow: none;
+}
+.dashboard-now-playing-art {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  object-fit: cover;
+}
+.dashboard-now-playing-art.image-placeholder {
+  display: grid;
+  place-items: center;
+  background: rgb(255 255 255 / 10%);
+  color: var(--muted);
+}
+.dashboard-now-playing-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.15;
+}
+.dashboard-now-playing-title-text,
+.dashboard-now-playing-artist {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* The box that cuts a long title off: its words show whole while they roll across (rollAcross.ts). */
+.dashboard-now-playing-title {
+  display: block;
+  overflow: hidden;
+  font-size: 20px;
+  font-weight: 600;
+}
+.dashboard-now-playing-title-text {
+  display: block;
+}
+.dashboard-now-playing-title[data-rolling] .dashboard-now-playing-title-text {
+  width: max-content;
+  overflow: visible;
+}
+.dashboard-now-playing-artist {
+  font-size: 15px;
+  color: var(--muted);
+}
+.dashboard-now-playing-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.dashboard-now-playing-controls button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--text);
+  cursor: pointer;
+}
+.dashboard-now-playing-controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.dashboard-now-playing-controls .dashboard-now-playing-play {
+  width: 48px;
+  height: 48px;
+  background: var(--mark-fill);
+  color: var(--mark-ink);
+}
+.dashboard-now-playing-controls svg.lucide {
+  width: 22px;
+  height: 22px;
+}
+.dashboard-now-playing-progress {
+  position: absolute;
+  inset: auto 22px 7px 12px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 18%);
+}
+.dashboard-now-playing-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--mark-fill);
+  transform-origin: 0 50%;
+}
+.dashboard-bar-end {
+  position: relative;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.dashboard-icon-button {
+  color: var(--text);
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.dashboard-problems {
+  color: var(--warning);
+}
+.dashboard-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgb(255 255 255 / 70%);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-size: 19px;
+  font-weight: 600;
+}
+.dashboard-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dashboard-clock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 24px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+  The same bar floating on the Spotify and Settings tabs (TabletView), over the photo, which runs up behind it, looking
+  as it does on the Dashboard. On the 7 inch screen it is drawn at 0.75, the size the Dashboard's scaling gives it there.
+*/
+.floating-bar {
+  --text: #f7f4ec;
+  --forest: #2f5a3c;
+
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 30;
+  color: var(--text);
+  font-family: Geist, system-ui, sans-serif;
+  line-height: normal;
+  -webkit-font-smoothing: antialiased;
+}
+.floating-bar svg.lucide {
+  display: inline;
+  vertical-align: baseline;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+/* The logo's tile takes the chosen colour as the play button shows it, and the cover's gradient with Dynamic on (web/src/index.css). */
+.tablet-container .dashboard-brand-mark {
+  background: var(--mark-fill);
+  color: var(--mark-ink);
+}
+.floating-bar .shadowed {
+  text-shadow: 0 1px 14px rgb(0 0 0 / 45%);
+}
+@media (height <= 640px) {
+  .floating-bar {
+    zoom: 0.75;
+  }
+  /*
+    Drawn at 0.75 the tabs and search would be 33px tall, under the 44px a finger needs. Their buttons grow to 59px
+    (44 on screen) without moving anything, and the selected tab's pill is drawn behind at the Dashboard's size.
+  */
+  .floating-bar .dashboard-tab,
+  .floating-bar .dashboard-icon-button {
+    position: relative;
+    isolation: isolate;
+    height: 59px;
+  }
+  .floating-bar .dashboard-icon-button {
+    width: 59px;
+    margin: 0 -7.5px;
+  }
+  .floating-bar .dashboard-tab[aria-selected='true'] {
+    background: none;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .floating-bar .dashboard-tab[aria-selected='true']::before {
+    content: '';
+    position: absolute;
+    inset: 7.5px 0;
+    z-index: -1;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 16%);
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%);
+  }
+}
+
+.dashboard-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* Left rail: weather and notices, sitting directly on the photo */
+.dashboard-rail {
+  width: 344px;
+  flex-shrink: 0;
+  padding: 12px 16px 16px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-weather {
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+.dashboard-wx-view {
+  display: block;
+  transition: opacity 350ms ease;
+}
+.dashboard-weather.fading .dashboard-wx-view,
+.dashboard-wx-trend.fading {
+  opacity: 0;
+}
+.dashboard-weather:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+/* The periods the weather moves through, the one on show filled. */
+.dashboard-wx-pills {
+  display: flex;
+  gap: 6px;
+  min-height: 32px;
+  margin-bottom: 14px;
+}
+.dashboard-wx-pill {
+  position: relative;
+  isolation: isolate;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--muted);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent);
+  text-shadow: none;
+}
+/* The fill fades in and out (only its opacity changes, which the Pi's GPU composites); the words change at once. */
+.dashboard-wx-pill::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--text);
+  opacity: 0;
+  transition: opacity 350ms ease;
+}
+.dashboard-wx-pill[aria-current='true'] {
+  color: #111;
+  box-shadow: none;
+}
+.dashboard-wx-pill[aria-current='true']::before {
+  opacity: 1;
+}
+.dashboard-wx-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.dashboard svg.lucide.dashboard-wx-icon {
+  width: 92px;
+  height: 92px;
+  stroke-width: 1.5;
+}
+.dashboard-wx-temp {
+  display: block;
+  font-size: 132px;
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.07em;
+  margin: 4px 0 4px -6px;
+}
+/*
+  The tight tracking is for the digits. Letter spacing goes after every character, the last digit too, so it would pull
+  the degree sign 0.07em into the digit before it (the top of a 7 ran into it). The sign gets that space back and a
+  little more.
+*/
+.dashboard-wx-degree {
+  margin-left: 0.09em;
+}
+.dashboard-wx-condition {
+  display: block;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* While there is room, the next days under the weather, a row each (RailPages.tsx's OUTLOOK_ sizes). */
+.dashboard-outlook {
+  flex: none;
+  list-style: none;
+  padding: 0;
+  margin-bottom: 26px;
+}
+.dashboard-outlook li {
+  height: 42px;
+  display: grid;
+  grid-template-columns: 52px 30px 40px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+  font-size: 19px;
+}
+.dashboard-outlook-day {
+  font-weight: 600;
+}
+.dashboard .dashboard-outlook svg.lucide {
+  width: 26px;
+  height: 26px;
+}
+.dashboard-outlook-low {
+  color: var(--muted);
+  text-align: right;
+}
+.dashboard-outlook strong {
+  font-weight: 700;
+}
+.dashboard-outlook-range {
+  position: relative;
+  height: 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text) 18%, transparent);
+}
+.dashboard-outlook-range span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  background: var(--text);
+}
+
+/* Right under the weather, the view's hourly trend in one row; it fades with the view. */
+.dashboard-wx-trend {
+  transition: opacity 350ms ease;
+}
+.dashboard-trend {
+  flex: none;
+  margin-top: 8px;
+}
+.dashboard-hours {
+  display: flex;
+  gap: 28px;
+  min-height: 46px;
+}
+.dashboard-hour {
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 6px;
+  align-items: center;
+}
+.dashboard-hour time {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--muted);
+}
+.dashboard .dashboard-hour svg.lucide {
+  width: 24px;
+  height: 24px;
+}
+.dashboard-hour strong {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/*
+  Under the weather, the notices with the Tube's status under them, built up from the bottom. When they don't fit, they
+  page through: the page on show (--slot 0) slides out to the left (-1) as the next
+  comes in from the right (1), cut off at the rail's edges.
+*/
+.dashboard-rail-body {
+  flex: 1;
+  min-height: 0;
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-rail-pages {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.dashboard-rail-page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 24px;
+  transform: translateX(calc(var(--slot) * (100% + 28px)));
+  opacity: 0;
+  transition:
+    transform 700ms ease-in-out,
+    opacity 700ms ease-in-out;
+}
+.dashboard-rail-page[data-slot='0'] {
+  opacity: 1;
+}
+/* Out of sight, a page that has left moves round to wait on the right at once. */
+.dashboard-rail-page[data-slot='1'] {
+  transition: none;
+}
+.dashboard-notices {
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--faint);
+}
+.dashboard-eyebrow-count {
+  margin-left: auto;
+  letter-spacing: 0.04em;
+}
+/* Rows have a fixed height, so the number that fit a page is known. */
+.dashboard-notice-list {
+  list-style: none;
+  padding: 0;
+}
+.dashboard-notice-list li {
+  height: 68px;
+  border-bottom: 1px solid var(--faint);
+  display: flex;
+}
+.dashboard-notice-list li:last-child {
+  border-bottom: 0;
+}
+/* A notice new to the board fades in. */
+.dashboard-notice-list li[data-arriving] .dashboard-notice {
+  animation: dashboard-fade-in 600ms ease both;
+}
+.dashboard-notice {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 2px;
+  text-align: left;
+}
+button.dashboard-notice {
+  cursor: pointer;
+}
+.dashboard-notice:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.dashboard-notice-icon {
+  color: var(--icon, var(--text));
+}
+.dashboard-notice-body {
+  flex: 1;
+  min-width: 0;
+}
+.dashboard-notice-title-text,
+.dashboard-notice-summary {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The box that cuts a long title off: its words show whole while they roll across (rollAcross.ts). */
+.dashboard-notice-title {
+  display: block;
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+.dashboard-notice-title[data-rolling] .dashboard-notice-title-text {
+  width: max-content;
+  overflow: visible;
+}
+.dashboard-notice-summary {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.3;
+  margin-top: 2px;
+}
+.dashboard svg.dashboard-notice-chevron {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+/*
+  The Tube status panel, at the bottom of the rail: a row per line with a status of its own, and
+  one per status lines share, its lines' colours side by side. Rows are as tall as twelve lines' would be.
+*/
+.dashboard-line-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-auto-rows: 34px;
+}
+/* The Tube's status in the Underground's own lettering, which has only the one weight. */
+.dashboard-tube-status {
+  font-family: 'Metropolitan Line', Geist, system-ui, sans-serif;
+  font-synthesis: none;
+}
+.dashboard-tube-status .dashboard-line-name,
+.dashboard-tube-status .dashboard-line[data-health] .dashboard-line-status {
+  font-weight: 400;
+}
+/* The roundel, as quiet as the heading's words. */
+.dashboard-eyebrow-roundel {
+  width: 18px;
+  opacity: 0.7;
+}
+.dashboard-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 2px;
+  font-size: 16px;
+  line-height: 1.2;
+}
+/* The line's colour. */
+.dashboard-line-swatch {
+  width: 6px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+.dashboard-line-swatches {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+}
+.dashboard-line-swatches .dashboard-line-swatch {
+  width: 10px;
+  height: 22px;
+}
+.dashboard-line-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dashboard-line-status {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.dashboard-line[data-health='disruption'] .dashboard-line-status {
+  color: var(--disruption);
+  font-weight: 600;
+}
+.dashboard-line[data-health='severe'] .dashboard-line-status {
+  color: var(--severe);
+  font-weight: 600;
+}
+
+/*
+  The incidents panel, in the Tube status panel's place for a kiosk with Norwegian stops: only what's wrong, each the
+  operator's summary under its lines' route boxes, as tall as two of the Tube panel's rows.
+*/
+.dashboard-eyebrow-ruter {
+  height: 14px;
+  opacity: 0.8;
+}
+.dashboard-incident-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-auto-rows: 68px;
+}
+.dashboard-incident {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 2px;
+}
+.dashboard-incident-lines {
+  display: flex;
+  gap: 3px;
+  overflow: hidden;
+}
+.dashboard-route-ruter.dashboard-incident-route {
+  width: 30px;
+  min-width: 30px;
+  height: 22px;
+  padding: 0;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.dashboard-route-ruter.dashboard-incident-route:is([data-length='3'], [data-length='4']) {
+  width: 40px;
+  font-size: 13px;
+}
+.dashboard-route-ruter.dashboard-incident-route:is([data-length='5'], [data-length='6']) {
+  width: 48px;
+  font-size: 12px;
+}
+.dashboard-incident-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.25;
+}
+.dashboard-incident[data-health='severe'] .dashboard-incident-text {
+  color: var(--severe);
+}
+
+/* A notice's full text, over the whole panel; a tap anywhere closes it. */
+.dashboard-sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  background: rgb(var(--scrim) / 55%);
+  backdrop-filter: blur(10px);
+}
+.dashboard-sheet-card {
+  position: relative;
+  width: 640px;
+  padding: 32px 36px 36px;
+  border-radius: 20px;
+  background: rgb(var(--scrim) / 82%);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 14%),
+    0 24px 70px rgb(0 0 0 / 45%);
+}
+.dashboard-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 52px;
+}
+.dashboard .dashboard-sheet-head svg.lucide {
+  width: 30px;
+  height: 30px;
+  color: var(--icon, var(--text));
+}
+.dashboard-sheet-head h2 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.dashboard-sheet-card p {
+  margin-top: 18px;
+  font-size: 21px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.dashboard-sheet-card .dashboard-icon-button {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+}
+
+/* Right: open sky, then the departure board fading up from the bottom */
+.dashboard-stage {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-sky {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  padding: 4px 24px 0;
+}
+/* Four rows per board. */
+.dashboard-departures {
+  position: relative;
+  height: 360px;
+  flex-shrink: 0;
+  padding: 48px 24px 12px 8px;
+}
+/*
+  The two places along the bottom, left (--slot 0) and right (1), each a stop's board. When a place changes stop, the
+  old board lies under the new one while their lines change over (boardTransitions.ts), each line in its own row.
+*/
+.dashboard-departures-track {
+  position: absolute;
+  inset: 48px 24px 12px 8px;
+}
+.dashboard-departures-slot {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc((100% - 28px) / 2);
+  display: grid;
+  transform: translateX(calc(var(--slot) * (100% + 28px)));
+}
+.dashboard-board-layer {
+  grid-area: 1 / 1;
+  min-width: 0;
+  display: flex;
+}
+/* While the lines change over, each is cut off at its own row, so a line sliding or sinking shows only in its row. */
+.dashboard-departures-slot[data-turning] :is(.dashboard-board-head, .dashboard-rows > li) {
+  overflow: hidden;
+}
+/* The rules between the lines are the new board's alone, so the leaving board's don't show doubled or linger. */
+.dashboard-board-layer[data-leaving] :is(.dashboard-board-head, .dashboard-rows > li) {
+  border-bottom-color: transparent;
+}
+.dashboard-departures::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 0 -344px;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgb(var(--scrim) / 0%) 0,
+    rgb(var(--scrim) / 62%) 70px,
+    rgb(var(--scrim) / 80%) 100%
+  );
+  backdrop-filter: blur(18px) saturate(1.2);
+  mask-image: linear-gradient(180deg, transparent 0, #000 80px);
+}
+.dashboard-board {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-board-head {
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgb(255 255 255 / 28%);
+  padding-bottom: 8px;
+}
+.dashboard-board-head h2 {
+  min-width: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The letter on a bus stop's flag: white on a red disc, as on the street. */
+.dashboard-stop-letter {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--red);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+/* TfL's roundel, in white like the words, heading every London stop's board. */
+.dashboard-roundel {
+  width: 34px;
+  height: auto;
+  flex-shrink: 0;
+}
+/* Ruter's hash (its logo without the name), in its red, heading every Norwegian stop's board. */
+.dashboard-ruter {
+  width: auto;
+  height: 30px;
+  flex-shrink: 0;
+}
+
+.dashboard-rows {
+  position: relative;
+  list-style: none;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-rows[data-stale='true'] {
+  opacity: 0.55;
+}
+.dashboard-rows li {
+  /* The rows share the board, a quarter at most each (the borders take a quarter pixel more), so a short board leaves a gap instead of stretching. */
+  flex: 1;
+  max-height: calc(25% + 0.25px);
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid var(--faint);
+}
+.dashboard-rows li:last-child {
+  border-bottom: 0;
+}
+/* Animations change only opacity and transforms, which the Pi's GPU composites without laying the page out again. */
+/* A departing row fades where it is, then the rows below slide up (AnimatedRows sets their transforms); a new one fades in. */
+.dashboard-rows li[data-row='leaving'] {
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+.dashboard-rows li[data-row='entering'] {
+  animation: dashboard-fade-in 400ms ease both;
+}
+@keyframes dashboard-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+/* A Tube line's letter in a square as tall and round-cornered as a route box; a short form ("H&C", "Lion") is set smaller to fit. */
+.dashboard-line-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.dashboard-line-mark[data-length='3'] {
+  font-size: 13px;
+  letter-spacing: -0.03em;
+}
+.dashboard-line-mark[data-length='4'] {
+  font-size: 11px;
+  letter-spacing: -0.04em;
+}
+.dashboard-route {
+  min-width: 62px;
+  height: 38px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: var(--red);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 700;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+/* Norway's lines, coloured by mode as Ruter signs them, one width whatever the number: a long one is squeezed instead. */
+.dashboard-route-ruter {
+  width: 64px;
+  background: #de2c28;
+  padding: 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.dashboard-route-ruter[data-mode='metro'] {
+  background: #e26920;
+}
+.dashboard-route-ruter[data-mode='tram'] {
+  background: #3082e9;
+}
+.dashboard-route-ruter[data-mode='rail'] {
+  background: #162779;
+}
+.dashboard-route-ruter[data-length='4'] {
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+.dashboard-route-ruter[data-length='5'] {
+  font-size: 16px;
+  letter-spacing: -0.04em;
+}
+.dashboard-route-ruter[data-length='6'] {
+  font-size: 14px;
+  letter-spacing: -0.04em;
+}
+.dashboard-dest {
+  flex: 1;
+  min-width: 0;
+}
+.dashboard-dest strong {
+  display: block;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dashboard-dest > span {
+  display: block;
+  font-size: 14px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dashboard-mins {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 72px;
+  justify-content: flex-end;
+}
+.dashboard-mins small {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+.dashboard-mins.soon {
+  color: var(--soon);
+}
+.dashboard-mins.soon small {
+  color: var(--soon);
+  opacity: 0.8;
+}
+/*
+  A route's row (grouped by route): its next time big on the right, as on any row, and the ones after it queued to its
+  left as on a rolodex, in the same lettering, each a little smaller, dimmer and turned to face the front. Where each
+  sits, and its moves, are set by EtaStack.tsx; only transforms and opacity change.
+*/
+.dashboard-stack {
+  position: relative;
+  /* The room the destination leaves, but at least the front time and the next (EtaStack.tsx sets it). */
+  flex: 1 1 0;
+  height: 100%;
+  overflow: hidden;
+  /* Over the gap between two times (EtaStack.tsx's GAP), so a time is either in sight or hidden under the destination. */
+  mask-image: linear-gradient(90deg, transparent 0, #000 10px);
+}
+/* A route's destination takes only its own width, so a short one leaves the queue in sight and a long one covers it. */
+.dashboard-dest[data-over-queue] {
+  flex: 0 1 auto;
+}
+/* A name cut short with "…", which while it rolls across (rollAcross.ts) shows whole, the box cutting it off. */
+.dashboard-dest-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dashboard-dest strong[data-rolling] .dashboard-dest-name {
+  width: max-content;
+  overflow: visible;
+}
+.dashboard-stack-item {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform-origin: right center;
+  z-index: 4;
+}
+.dashboard-stack-face {
+  display: block;
+}
+.dashboard-stack .dashboard-mins {
+  min-width: 0;
+}
+.dashboard-stack-item[data-slot='queued1'] {
+  z-index: 3;
+}
+.dashboard-stack-item[data-slot='queued2'] {
+  z-index: 2;
+}
+.dashboard-stack-item[data-slot='queued3'] {
+  z-index: 1;
+}
+/* A changed minute rolls up into place, the old one rolling away above it. */
+.dashboard-stack-face[data-roll='in'] {
+  animation: dashboard-roll-in 350ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.dashboard-stack-face[data-roll='out'] {
+  position: absolute;
+  right: 0;
+  top: 0;
+  animation: dashboard-roll-out 350ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+@keyframes dashboard-roll-in {
+  from {
+    opacity: 0;
+    transform: translateY(40%);
+  }
+}
+@keyframes dashboard-roll-out {
+  to {
+    opacity: 0;
+    transform: translateY(-40%);
+  }
+}
+/* One that has left fades where it was, under the one moving up to take its place. */
+.dashboard-stack-item[data-slot='gone'] {
+  z-index: 0;
+  animation: dashboard-fade-out 400ms ease both;
+}
+@keyframes dashboard-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+/* Only the timetable's time, with no live prediction (the first trains while the Tube is shut): a clock time, dimmed. */
+.dashboard-mins.scheduled {
+  color: var(--muted);
+  font-size: 28px;
+  font-weight: 600;
+}

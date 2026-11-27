@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { getClientId } from '../src/spotify/settings.ts';
+import { getClientId } from '../web/src/spotify/settings.ts';
 import { wifiAnswer } from './fake-kiosk.ts';
 import { fakeSpotify, PIXEL } from './fake-spotify.ts';
 import { openSettings, showSection } from './settings.ts';

@@ -159,7 +159,7 @@ heartbeat, lyrics, other kiosk calls, everything else); untick a kind to mute it
 
 THE MAX MIX is plain static files on a self-hosted server. Production deploys happen only from a release:
 [`release.yml`](.github/workflows/release.yml) runs when a version tag is pushed (or by hand for an existing tag), builds
-the app on the GitHub runner, joins the tailnet and copies `dist/` to the server with `rsync`, into
+the app on the GitHub runner, joins the tailnet and copies `web/dist/` to the server with `rsync`, into
 `/srv/releases/the-max-mix/<commit>`, and then points `/srv/sites/the-max-mix` at it, which
 [home-stack](https://github.com/nvorkinn/home-stack)'s Caddy serves as `https://the-max-mix.countdown.build` (its DNS
 record is in countdown-server's `infra/cloudflare`). The same build goes into the release's Pi update bundle, and each kiosk
@@ -209,7 +209,7 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 1. Create an app in the [Spotify developer dashboard](https://developer.spotify.com/dashboard).
 2. Register countdown-server's callback as the redirect URI, **exactly**:
    `https://app.countdown.build/spotify/sign-in/callback` and `https://app.countdown.run/spotify/sign-in/callback`.
-3. The client ID is a constant in `src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
+3. The client ID is a constant in `web/src/spotify/settings.ts`; users never type it in. To use another Spotify app, change
    it there.
 4. Choose **Connect Spotify** on the kiosk and scan the code with your phone. Spotify's sign-in opens on the phone; the
    kiosk signs in once the phone is back. The kiosk must be added to countdown-server first.
@@ -218,7 +218,7 @@ skipped automatically when there is no `.git` directory or when dev dependencies
 
 There is no client secret. Sign-in uses the Authorization Code flow with PKCE, which Spotify provides for apps that
 cannot keep a secret: the kiosk creates a one-time code verifier for each sign-in and keeps it, and countdown-server
-(`src/countdown/spotifySignIn.ts`) passes only its SHA-256 hash to the phone, which takes it to Spotify. Spotify sends
+(`web/src/countdown/spotifySignIn.ts`) passes only its SHA-256 hash to the phone, which takes it to Spotify. Spotify sends
 the phone back to countdown-server, which hands Spotify's code to the kiosk; the kiosk proves it holds the verifier
 when it exchanges the code. countdown-server never sees the verifier or a token. The client ID is public by design, so
 building it into the site is fine.
@@ -246,7 +246,7 @@ to a Sonos, so tapping a room has the Pi start the song on screen there, from th
 queue after it, through the Spotify account linked in the Sonos app. While that group plays, tapping another room adds it to the group; tapping a room in the group again takes it out,
 and taking out the last one pauses it. The change shows at once, and the drawer reads the rooms again until Sonos shows
 it too. From then on the tablet shows the group's song, progress and artwork and sends its controls (play, pause, skip,
-seek, volume, and music picked in Choose music) to the group through the Pi (`src/hooks/useSonosPlayer.ts`), until
+seek, volume, and music picked in Choose music) to the group through the Pi (`web/src/hooks/useSonosPlayer.ts`), until
 another speaker is picked, which pauses the Sonos. The Pi follows the speakers' own events (on port 6329 on the home
 network), so a song change, pause, volume change or regrouping, from the kiosk or the Sonos app, shows on the tablet
 straight away. A room is turned down to 25% before music starts on it, if it was

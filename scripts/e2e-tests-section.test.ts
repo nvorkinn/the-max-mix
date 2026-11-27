@@ -51,7 +51,7 @@ describe('readTests', () => {
 describe('testsSection', () => {
   it('lists the tests of the areas a change touches, with links into the report', () => {
     const text = testsSection({
-      files: ['src/components/AlbumArtPlayer.tsx'],
+      files: ['web/src/components/AlbumArtPlayer.tsx'],
       tests: [test({}), test({ id: 'id-2', title: 'other', tags: ['queue'], path: ['Queue'], file: 'queue.spec.ts' })],
       reportUrl: REPORT
     }).join('\n');
@@ -64,7 +64,7 @@ describe('testsSection', () => {
 
   it('shows failures, and says plainly when no browser test covers an area', () => {
     const text = testsSection({
-      files: ['src/hooks/useScreenSleep.ts', 'src/components/AlbumArtPlayer.tsx'],
+      files: ['web/src/hooks/useScreenSleep.ts', 'web/src/components/AlbumArtPlayer.tsx'],
       tests: [test({ status: 'unexpected' })],
       reportUrl: REPORT
     }).join('\n');
@@ -97,11 +97,11 @@ describe('testsSection', () => {
   it('names changed app files that no area owns, and shortens a long list', () => {
     const many = Array.from({ length: 45 }, (_, index) => test({ id: `t${index}`, title: `t${index}` }));
     const text = testsSection({
-      files: ['src/components/AlbumArtPlayer.tsx', 'src/components/Brand.tsx'],
+      files: ['web/src/components/AlbumArtPlayer.tsx', 'web/src/components/Brand.tsx'],
       tests: many,
       reportUrl: REPORT
     }).join('\n');
-    expect(text).toContain('`src/components/Brand.tsx`');
+    expect(text).toContain('`web/src/components/Brand.tsx`');
     expect(text).toContain('… and 5 more in the report');
   });
 });

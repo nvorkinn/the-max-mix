@@ -109,7 +109,7 @@ jobs:
           rel="/srv/releases/$APP/$(git rev-parse HEAD)"
           # shellcheck disable=SC2029 # the paths are meant to be filled in here, on the runner
           ssh "${ssh_opts[@]}" "$HOST" "mkdir -p $rel"
-          rsync -az --delete -e "ssh ${ssh_opts[*]}" dist/ "$HOST:$rel/"
+          rsync -az --delete -e "ssh ${ssh_opts[*]}" web/dist/ "$HOST:$rel/"
           # shellcheck disable=SC2029 # the paths are meant to be filled in here, on the runner
           ssh "${ssh_opts[@]}" "$HOST" "ln -sfn $rel /srv/sites/$APP.tmp && mv -T /srv/sites/$APP.tmp /srv/sites/$APP"
 

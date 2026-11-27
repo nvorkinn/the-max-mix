@@ -17,7 +17,7 @@ Spotify refresh token). You can expect an initial reply within a few days.
 THE MAX MIX is a client-only app: static files that run in the browser. The kiosk is Chromium opening the deployed site. There is no backend of ours and no server-side secret.
 
 - **No client secret.** Sign-in uses the Authorization Code flow with PKCE, which Spotify provides for apps that cannot
-  keep a secret. The Spotify client ID is public by design and is a constant in the code (`src/spotify/settings.ts`).
+  keep a secret. The Spotify client ID is public by design and is a constant in the code (`web/src/spotify/settings.ts`).
 - **The refresh tokens live in the browser.** One per person who signed in on the kiosk is stored in the browser's
   `localStorage` (key `maxmix.people`, with their Spotify ID, name and picture) and the page calls the Spotify Web API
   directly. Anyone who can use the kiosk's browser profile, or read its files, has the

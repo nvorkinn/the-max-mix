@@ -1,5 +1,5 @@
 {
-  "//": "Solution file: `tsc -b` checks the app (tsconfig.app.json) and the repository tooling (tsconfig.node.json). Nothing is emitted. ESLint's type-aware rules read the same projects.",
+  "//": "Solution file: `tsc -b` checks the web app (web/tsconfig.json) and the repository tooling (tsconfig.node.json). Nothing is emitted. ESLint's type-aware rules read the same projects.",
   "files": [],
-  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+  "references": [{ "path": "./web" }, { "path": "./tsconfig.node.json" }]
 }

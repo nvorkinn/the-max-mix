@@ -19,7 +19,7 @@ export interface AudioGraph {
 }
 
 /**
- * The loudest a speaker is when the music starts going to it, as the app's SAFE_START_VOLUME (src/audio/safeVolume.ts).
+ * The loudest a speaker is when the music starts going to it, as the app's SAFE_START_VOLUME (web/src/audio/safeVolume.ts).
  * PipeWire forgets AirPlay speakers' volumes when it restarts and makes them again at 100%, and the watcher links the
  * saved choice again by itself, with no app to turn them down first.
  */

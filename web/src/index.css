@@ -1,0 +1,4751 @@
+@import 'tailwindcss';
+
+/*
+  Plus Jakarta Sans is bundled (web/src/assets/fonts, SIL OFL 1.1, see OFL.txt there) so the kiosk renders the intended
+  typeface without reaching Google Fonts. One variable file per subset covers every weight the UI uses (500 to 850,
+  where 850 clamps to the font's 800 maximum). Only the latin and latin-ext subsets ship: they cover English UI text and
+  accented track and artist names. The browser downloads a subset only when the page contains one of its characters.
+  font-display: swap keeps text readable in the fallback stack while the file loads.
+*/
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url('./assets/fonts/plus-jakarta-sans-latin-ext-wght-normal.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url('./assets/fonts/plus-jakarta-sans-latin-wght-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+/*
+  Colour tokens: dark navy. Every colour in the app comes from these, so components never pick a colour of their own;
+  the colour choice below changes --accent.
+*/
+:root {
+  --page: #090e1f;
+  --surface: #101a33;
+  --surface-raised: #202b49;
+  --ink: #f5f6ff;
+  --muted: #aab5d0;
+  /* Quiet labels: times, queue numbers, the clock. */
+  --faint: #7785a8;
+  --border: #33405f;
+  --accent: #4a9d5e;
+  --accent-ink: #fff;
+  --accent-soft: color-mix(in srgb, #4a9d5e 14%, transparent);
+  --focus: color-mix(in srgb, #4a9d5e 60%, #fff);
+  --track: #354260;
+  --success: #57d3b4;
+  --warning: #f0b64c;
+  --amber: #f0b64c;
+  --danger: #ff7b8a;
+  --shadow: #000;
+  --scrim: rgb(0 0 0 / 40%);
+  --backdrop: rgb(0 0 0 / 85%);
+  --glow: none;
+  --spotify-brand: #1db954;
+  --spotify-brand-ink: #000;
+  color-scheme: dark;
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    margin: 0;
+    background: var(--page);
+    font-family: 'Plus Jakarta Sans', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  }
+  button,
+  input,
+  a {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button {
+    font: inherit;
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 4px;
+  }
+}
+
+.tablet-container {
+  /* The height of the tab bar floating on the Spotify and Settings tabs (.app-tab-panel below). */
+  --float-bar: 64px;
+
+  width: 100%;
+  min-height: 100svh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  isolation: isolate;
+  user-select: none;
+  background: var(--page);
+  color: var(--ink);
+  color-scheme: dark;
+  /* Synced lyrics still to come; set here so it follows the theme's own muted and page colours. */
+  --lyric-ahead: color-mix(in srgb, var(--muted) 55%, var(--page));
+  transition:
+    --dynamic-accent 1.5s ease,
+    --dynamic-from 1.5s ease,
+    --dynamic-to 1.5s ease,
+    --dynamic-mark-from 1.5s ease,
+    --dynamic-mark-to 1.5s ease,
+    --dynamic-mark-ink 1.5s ease;
+}
+/*
+  Colour choices from the settings (web/src/utils/themeColour.ts), each bright enough to read on the navy, with a white icon
+  on the play button unless it is light. Each has a gradient (--colour-fill) for what it fills: the play button, the
+  logo's tile and the selected choices; words and thin lines keep the flat colour. Forest is the default in :root.
+*/
+.tablet-container[data-colour='forest'] {
+  --colour-fill: linear-gradient(135deg, #6cc070, #2e8b6e);
+}
+.tablet-container[data-colour='navy'] {
+  --accent: #5b8def;
+  --colour-fill: linear-gradient(135deg, #6fa8ff, #4a5fd9);
+}
+.tablet-container[data-colour='teal'] {
+  --accent: #2a9d9d;
+  --colour-fill: linear-gradient(135deg, #3cc0b0, #1f7fa0);
+}
+.tablet-container[data-colour='plum'] {
+  --accent: #c25ea8;
+  --colour-fill: linear-gradient(135deg, #e070b8, #9a4a9e);
+}
+.tablet-container[data-colour='terracotta'] {
+  --accent: #dd6b3d;
+  --colour-fill: linear-gradient(135deg, #f0894a, #c9483a);
+}
+.tablet-container[data-colour='pink'] {
+  --accent: #ff69b4;
+  --accent-ink: #3b1a2a;
+  --colour-fill: linear-gradient(135deg, #ff8cc6, #ff4f9a);
+}
+.tablet-container[data-colour='yellow'] {
+  --accent: #e0b020;
+  --accent-ink: #1f1a05;
+  --colour-fill: linear-gradient(135deg, #f5c842, #e09a1a);
+}
+/* Black would vanish on the navy, so it is a silver. */
+.tablet-container[data-colour='black'] {
+  --accent: #dfe3ee;
+  --accent-ink: #111;
+  --colour-fill: linear-gradient(135deg, #f0f2f7, #aab3c5);
+}
+/*
+  Dynamic, when it is on, follows the album art: TabletView sets these colours from the cover's two dominant colours
+  while music plays (dynamicPalette in web/src/utils/themeColour.ts), and from the chosen colour once the music has stopped
+  for a while (basePalette). Registered as colours so they cross-fade, with Forest's as their initial values.
+*/
+@property --dynamic-accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #4a9d5e;
+}
+@property --dynamic-from {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #4a9d5e;
+}
+@property --dynamic-to {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #4a9d5e;
+}
+@property --dynamic-accent-ink {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #fff;
+}
+/* The Max Mix logo's tile (.dashboard-brand-mark) with Dynamic on: the cover's gradient, else the chosen colour. */
+@property --dynamic-mark-from {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #4a9d5e;
+}
+@property --dynamic-mark-to {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #4a9d5e;
+}
+@property --dynamic-mark-ink {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #fff;
+}
+.tablet-container[data-colour] {
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --focus: color-mix(in srgb, var(--accent) 60%, #fff);
+  --play-fill: var(--colour-fill, var(--accent));
+  --glow: 0 0 14px color-mix(in srgb, var(--accent) 30%, transparent);
+  /*
+    The Max Mix logo's tile (.dashboard-brand-mark): the chosen colour as the play button shows it, set on the container
+    so the photo tabs' own highlights don't reach it. With Dynamic on (next rule) it runs the cover's gradient instead
+    and fades back to the chosen colour (basePalette).
+  */
+  --mark-fill: var(--play-fill);
+  --mark-ink: var(--accent-ink);
+}
+/* Violet: the title and highlights in violet, the play button running pink to violet, and its own focus and glow. */
+.tablet-container[data-colour='violet'] {
+  --accent: #a95be8;
+  --colour-fill: linear-gradient(135deg, #e94dae, #913fcb);
+  --focus: #de9eff;
+  --glow: 0 0 14px rgb(193 77 225 / 30%);
+}
+.tablet-container[data-colour][data-dynamic] {
+  --mark-fill: linear-gradient(135deg, var(--dynamic-mark-from), var(--dynamic-mark-to));
+  --mark-ink: var(--dynamic-mark-ink);
+}
+/*
+  Dynamic: the cover's colours as TabletView works them out for the dark (lighter, softened shades), after the colours
+  so it wins over them. The play button runs a gradient between the cover's two colours, as Violet's runs pink to violet.
+*/
+.tablet-container[data-dynamic] {
+  --accent: var(--dynamic-accent);
+  --accent-ink: var(--dynamic-accent-ink);
+  --accent-soft: color-mix(in srgb, var(--dynamic-accent) 14%, transparent);
+  --focus: color-mix(in srgb, var(--dynamic-accent) 60%, #fff);
+  --play-fill: linear-gradient(135deg, var(--dynamic-from), var(--dynamic-to));
+  --glow: 0 0 14px color-mix(in srgb, var(--dynamic-accent) 30%, transparent);
+}
+
+/*
+  What a tab shows fills the screen; the hidden ones keep their state but take no room. No tab has a header band: the
+  tab bar floats over each (.floating-bar), and what the tab shows is pushed down by --float-bar, so its background runs
+  up behind the bar.
+*/
+.app-tab-panel {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.app-tab-panel[hidden] {
+  display: none;
+}
+@media (height <= 640px) {
+  .tablet-container {
+    --float-bar: 48px;
+  }
+}
+/*
+  The Spotify and Settings tabs lie on the Dashboard's photo (TabBackdrop); on the Spotify tab the controls are laid
+  straight on it. The glass and the panels on it are the app's navy, seen through, and the words its near-white, so
+  they read on any photo; the controls and highlights
+  keep the chosen colour, or Dynamic's. Where controls lie over the photo it is blurred and darkened, as under the
+  Dashboard's boards: behind the column beside the artwork, behind the control bar, and a fade behind the tab bar.
+*/
+.app-tab-panel.on-photo {
+  /* The page's navy (--page), as the glass the photo is darkened with, so these tabs are of a piece with setup. */
+  --glass: 9 14 31;
+  --page: rgb(var(--glass));
+  --surface: rgb(118 146 226 / 11%);
+  --surface-raised: rgb(118 146 226 / 19%);
+  --ink: #f5f6ff;
+  --muted: rgb(213 221 245 / 76%);
+  --faint: rgb(213 221 245 / 58%);
+  --border: rgb(140 166 240 / 22%);
+  --track: rgb(140 166 240 / 30%);
+  --glow: none;
+  --lyric-ahead: rgb(245 246 255 / 45%);
+
+  isolation: isolate;
+  background: #101a33;
+  color: var(--ink);
+}
+.app-tab-panel.on-photo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgb(var(--glass) / 55%) 0, rgb(var(--glass) / 0%) 120px),
+    linear-gradient(0deg, rgb(var(--glass) / 45%) 0, rgb(var(--glass) / 0%) 260px);
+}
+/*
+  The column after the artwork is wider to make room for the artwork reaching out as far as the glass panes (below).
+*/
+.app-tab-panel.on-photo .listening-room:not(.is-setup) {
+  grid-template-columns: var(--art-size) 40px minmax(0, 1fr);
+  background: none;
+}
+/* The two panes of blurred, darkened photo: one behind the title, panel and its pills, one behind the control bar. */
+.app-tab-panel.on-photo .listening-room:not(.is-setup)::before,
+.app-tab-panel.on-photo .listening-room:not(.is-setup)::after {
+  content: '';
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 20px;
+  background: rgb(var(--glass) / 70%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+.app-tab-panel.on-photo .listening-room:not(.is-setup)::before {
+  grid-area: details-start / details-start / nav-end / details-end;
+  margin: -12px -16px -12px -14px;
+}
+.app-tab-panel.on-photo .listening-room:not(.is-setup)::after {
+  grid-area: bar;
+  margin: -6px -16px -8px;
+}
+/*
+  The artwork's frame is a pane of the same darkened glass, so with nothing playing it matches the panel beside it. It
+  reaches out as far as the glass panes do, so it is as tall as the panel beside it and its left edge lines up with the
+  control bar's, the screen's margin then the same on both sides. It grows by the panes' 12px above and below and stays
+  square, so the column after it is wider, keeping the gap to the panel the same as the gap above the control bar.
+*/
+.app-tab-panel.on-photo .listening-room:not(.is-setup) .album-art {
+  width: auto;
+  height: auto;
+  margin: -12px -8px -12px -16px;
+}
+.app-tab-panel.on-photo .album-art {
+  border-color: rgb(255 255 255 / 10%);
+  border-radius: 20px;
+  background: rgb(var(--glass) / 70%);
+  box-shadow: 0 24px 60px -20px rgb(0 0 0 / 70%);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+.app-tab-panel.on-photo .album-art .image-placeholder {
+  background: none;
+}
+/* The setup card is words on the photo too, so it gets the darker glass. */
+.app-tab-panel.on-photo .spotify-setup {
+  background: rgb(var(--glass) / 72%);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+/*
+  The Settings tab: its pages on the photo, blurred and darkened under the tab bar as it is under the Dashboard's
+  boards. Its cards, rows and choices take the Spotify tab's look on the photo (the tokens above): warm white words,
+  a faint white tint with a hairline edge, and the panes' 20px corners; selections keep the chosen colour.
+*/
+.app-tab-panel.on-photo .settings-panel.settings-tab {
+  --glow: none;
+
+  position: relative;
+  isolation: isolate;
+}
+.app-tab-panel.on-photo .settings-tab :is(.settings-nav-item, .settings-box, .settings-value) {
+  border-radius: 20px;
+}
+.app-tab-panel.on-photo .settings-panel.settings-tab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: rgb(var(--glass) / 62%);
+  backdrop-filter: blur(18px) saturate(1.2);
+  mask-image: linear-gradient(180deg, transparent 0, #000 var(--float-bar));
+}
+/* Changing tab fades the whole screen (see utils/crossfade.ts). The overlay lets taps through, so a quick second tap
+  starts the next fade at once instead of being swallowed by the first. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 500ms;
+}
+/* Search shows on the Spotify tab only. It is lifted out of the fade, and when a tab change takes it away it slides up
+  out of the top of the screen; when one brings it back it slides down into place, in the fade's 500 ms. Between two
+  tabs that both have it, it stays put. */
+.floating-bar .dashboard-search {
+  view-transition-name: tab-search;
+}
+::view-transition-group(tab-search) {
+  animation-duration: 500ms;
+}
+/* Opening the face picker: the tab bar's picture flies down into the sheet and grows into the active person's face,
+  and flies back on close (see PersonSwitcher and flyAcross), while the rest of the screen fades. */
+::view-transition-group(person-face) {
+  animation-duration: 500ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* stylelint-disable selector-no-unmatchable -- :only-child does match a view-transition image with no partner */
+::view-transition-old(tab-search):only-child {
+  animation: tab-search-out 500ms ease-in both;
+}
+::view-transition-new(tab-search):only-child {
+  animation: tab-search-in 500ms ease-out both;
+}
+/* stylelint-enable selector-no-unmatchable */
+@keyframes tab-search-out {
+  to {
+    transform: translateY(-80px);
+  }
+}
+@keyframes tab-search-in {
+  from {
+    transform: translateY(-80px);
+  }
+}
+.button,
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 650;
+  transition:
+    background 160ms,
+    transform 160ms;
+}
+.button {
+  padding: 0 15px;
+  white-space: nowrap;
+}
+.button-secondary {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+}
+.button-secondary:hover {
+  background: var(--surface-raised);
+}
+.button:active,
+.icon-button:active,
+.transport-play:active {
+  transform: scale(0.96);
+}
+.icon-button {
+  width: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.icon-button:hover {
+  color: var(--ink);
+}
+.room-frame {
+  flex: 1;
+  min-height: 0;
+  container-type: size;
+}
+.listening-room {
+  position: relative;
+  z-index: 20;
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 28px;
+  padding: calc(24px + var(--float-bar)) 30px 18px;
+}
+/* The kiosk's touch screen (?kiosk=1, see utils/kiosk.ts): no mouse pointer, whatever an element asks for. */
+.hide-cursor,
+.hide-cursor * {
+  /* stylelint-disable-next-line declaration-no-important -- must beat every element's own cursor rule */
+  cursor: none !important;
+}
+
+.player-section,
+.queue-section {
+  min-width: 0;
+  min-height: 0;
+}
+/*
+  Playing layout: a square art column on the left (as wide as the room is tall, minus the control bar), the track
+  details and the panel (queue, lyrics) beside it, the panel's buttons down the right-hand edge, and one control bar
+  across the bottom. The two narrow columns are the gaps: 28px after the artwork, 16px before the buttons. The player section and now-playing wrapper only
+  group markup, so their children join this grid directly. Container query units make the art column exactly as wide as
+  the room is tall, which keeps the artwork square on any kiosk height.
+*/
+.listening-room:not(.is-setup) {
+  --bar-height: 112px;
+  --row-gap: 14px;
+  /* Top and bottom padding together; the top one leaves room for the floating tab bar. */
+  --room-padding-y: calc(28px + var(--float-bar));
+  /* The square artwork: 560px on the 10.1 inch screen, leaving a little room above the control bar. */
+  --art-size: calc(100cqh - 50px - var(--float-bar) - var(--bar-height) - var(--row-gap));
+  /* Where the artwork's right edge falls: the room's 30px side padding plus the square art column. */
+  --art-edge: calc(30px + var(--art-size));
+  padding-block: calc(12px + var(--float-bar)) 16px;
+  /*
+    Beside the artwork, top to bottom: the title, the panel (queue, lyrics or speakers) and the Queue/Lyrics/Speakers
+    pill, as tall together as the artwork. The short row under them is what is left over above the control bar.
+  */
+  grid-template:
+    'art . details' auto
+    'art . queue' minmax(0, 1fr)
+    'art . nav' auto
+    '. . .' calc(22px - var(--row-gap))
+    'bar bar bar' var(--bar-height) / var(--art-size) 28px minmax(0, 1fr);
+  gap: var(--row-gap) 0;
+}
+.listening-room:not(.is-setup) .player-section,
+.listening-room:not(.is-setup) .now-playing {
+  display: contents;
+}
+.listening-room:not(.is-setup) .album-art {
+  grid-area: art;
+  height: 100%;
+}
+.listening-room:not(.is-setup) .track-details {
+  grid-area: details;
+  padding: 0;
+}
+/* The title takes the column's whole width and wraps, the panel below giving way; only a title past reason scrolls. */
+.listening-room:not(.is-setup) .track-copy {
+  max-height: 30dvh;
+}
+.listening-room:not(.is-setup) .side-panel {
+  grid-area: queue;
+}
+/* The queue shares the right column with the track details and sits straight on the page, with no card around it. */
+.listening-room:not(.is-setup) .queue-panel {
+  padding: 0;
+}
+.listening-room:not(.is-setup) .queue-track {
+  min-height: 52px;
+  scroll-snap-align: start;
+}
+/*
+  Only whole rows show: TrackQueue cuts the list's height to its last whole row, and scrolling snaps to a row, so there
+  is no fade at the foot.
+*/
+.listening-room:not(.is-setup) .queue-list {
+  padding-bottom: 0;
+  mask-image: none;
+  scroll-snap-type: y mandatory;
+  /* The list's own top padding, so the first row snaps to where it starts rather than 4px up. */
+  scroll-padding-top: 4px;
+}
+.listening-room:not(.is-setup) .player-controls {
+  grid-area: bar;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: auto 1fr;
+  align-items: center;
+  column-gap: 16px;
+}
+.listening-room:not(.is-setup) .seek-control {
+  grid-column: 1 / -1;
+}
+.listening-room:not(.is-setup) .player-device {
+  grid-column: 1;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: -10px;
+  padding: 0 12px 0 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.listening-room:not(.is-setup) .player-device span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.player-device b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.player-device.is-open {
+  background: var(--surface);
+  border-color: var(--border);
+}
+.player-device-chevron {
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: transform 160ms;
+}
+.player-device.is-open .player-device-chevron {
+  transform: rotate(180deg);
+}
+/*
+  The Speakers view, in the panel beside the artwork: joined tabs (straight inner joins, rounded outer corners), then
+  speakers two to a row under hairlines, as the queue's rows are. Four rows fit; more scroll inside the grid. Only the
+  large selector on the left of each speaker does anything.
+*/
+.speakers-view {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.speaker-tabs-row {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.speaker-tabs {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.speaker-tab {
+  min-width: 0;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 6px;
+  border-radius: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.1;
+  /* Three equal tabs: a label too long for its third (Spotify Connect) takes two lines. */
+  text-align: center;
+}
+.speaker-tab + .speaker-tab {
+  border-left: 1px solid var(--border);
+}
+.speaker-tab svg {
+  flex-shrink: 0;
+}
+.speaker-tab[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--ink);
+}
+.speaker-tab[aria-disabled='true'] {
+  opacity: 0.45;
+}
+.speaker-volumes-button {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--muted);
+}
+.speaker-volumes-button[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--ink);
+}
+.speaker-refresh-button:disabled {
+  opacity: 0.6;
+}
+.speaker-error {
+  flex-shrink: 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+.speaker-find {
+  flex-shrink: 0;
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+.speaker-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 61px;
+  align-content: start;
+  column-gap: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+}
+.speaker-grid.is-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+.speaker-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.speaker-select {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+}
+.speaker-select-box {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--muted);
+  border-radius: 8px;
+  color: var(--accent-ink);
+}
+.speaker-select[aria-checked='true'] .speaker-select-box {
+  border-color: var(--accent);
+  background: var(--play-fill);
+}
+.speaker-select:disabled .speaker-select-box {
+  opacity: 0.35;
+}
+/* AirPlay or Bluetooth tapped before this tablet plays: the tab and This tablet glow amber twice, with no words. */
+.speaker-tab.is-flashing,
+.speaker-select.is-flashing {
+  animation: speaker-amber 400ms ease-in-out 2;
+}
+@keyframes speaker-amber {
+  50% {
+    box-shadow: inset 0 0 0 3px var(--amber);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .speaker-tab.is-flashing,
+  .speaker-select.is-flashing {
+    animation: none;
+    box-shadow: inset 0 0 0 3px var(--amber);
+  }
+}
+.speaker-row-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.speaker-row-name {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.speaker-row-status {
+  color: var(--muted);
+  font-size: 12px;
+}
+.speaker-row-volume {
+  width: 100%;
+}
+.speaker-row-actions {
+  display: flex;
+  gap: 8px;
+}
+.speaker-row-action {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.listening-room:not(.is-setup) .transport-row {
+  grid-column: 2;
+  margin: 0;
+}
+.listening-room:not(.is-setup) .volume-control {
+  grid-column: 3;
+  justify-self: end;
+  width: 240px;
+  margin: 0;
+}
+.listening-room.is-setup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+}
+.listening-room.is-setup .player-section {
+  width: 100%;
+  max-width: 640px;
+  margin-block: auto;
+}
+.spotify-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+}
+.spotify-setup h2 {
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+.spotify-setup p {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.spotify-setup .text-danger {
+  color: var(--danger);
+}
+.spotify-setup .button {
+  width: 100%;
+  min-height: 60px;
+  font-size: 18px;
+}
+.spotify-setup .button + p {
+  margin-top: 6px;
+  font-size: 15px;
+}
+.now-playing {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.album-art {
+  position: relative;
+  flex: 1;
+  min-height: 100px;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 36px -26px var(--shadow);
+  text-align: left;
+}
+/*
+  The queue and the lyrics share the panel beside the artwork, stacked in one grid cell, and cross-fade as the buttons
+  beside the panel flip between them. Visibility follows the fade so the hidden one cannot be scrolled or tapped.
+*/
+.side-panel {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+}
+.side-panel-view {
+  grid-area: 1 / 1;
+  min-height: 0;
+  transition:
+    opacity 280ms ease,
+    visibility 280ms;
+}
+.side-panel[data-showing='queue'] > .side-panel-view:not([data-view='queue']),
+.side-panel[data-showing='lyrics'] > .side-panel-view:not([data-view='lyrics']),
+.side-panel[data-showing='speakers'] > .side-panel-view:not([data-view='speakers']) {
+  opacity: 0;
+  visibility: hidden;
+}
+.lyrics-panel {
+  height: 100%;
+  container-type: size;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/*
+  Queue, Lyrics and Speakers: one pill switch at the foot of the column beside the artwork, centred in that column, its
+  bottom level with the artwork's. Its pills are the tab bar's, the one showing filled with the theme colour.
+*/
+.panel-nav {
+  grid-area: nav;
+  justify-self: center;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent);
+  font-family: Geist, system-ui, sans-serif;
+}
+.panel-nav-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 500;
+  transition:
+    background 200ms,
+    color 200ms,
+    box-shadow 200ms;
+}
+.panel-nav-button svg {
+  width: 22px;
+  height: 22px;
+}
+/* The blank in place of Queue while a speaker choice waits: it keeps the pill's width so nothing shifts. */
+.panel-nav-button:empty {
+  width: 104px;
+  visibility: hidden;
+}
+.panel-nav-button[aria-pressed='true'],
+.panel-nav-button.is-save {
+  background: var(--play-fill);
+  color: var(--accent-ink);
+}
+/* Lyrics in sync mode: a ring round the filled pill. */
+.panel-nav-button.is-syncing {
+  background: var(--play-fill);
+  color: var(--accent-ink);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.album-cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.image-placeholder {
+  display: grid;
+  place-items: center;
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+.image-placeholder svg {
+  width: 45%;
+  height: 45%;
+  max-width: 80px;
+  max-height: 80px;
+}
+.track-details {
+  padding: 16px 0 10px;
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.track-copy {
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+  max-height: 20dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.track-copy h2 {
+  font-size: clamp(26px, 2.8vw, 36px);
+  line-height: 1.2;
+  letter-spacing: -1px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+.track-copy p {
+  color: var(--muted);
+  font-size: 15px;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+.player-controls {
+  margin-top: auto;
+  flex-shrink: 0;
+}
+/* A playback problem, in the speaker indicator's place under the seek bar: the warning, a few words and the fix. */
+.player-problem {
+  grid-column: 1;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+.player-problem > svg {
+  color: var(--warning);
+  flex-shrink: 0;
+}
+.player-problem strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.player-problem .button {
+  flex-shrink: 0;
+  min-height: 44px;
+}
+/* The list under the tab bar's warning: what is wrong now, one row each with its fix. */
+.app-dialog.problems-sheet {
+  width: min(560px, calc(100% - 32px));
+  padding: 24px 28px 28px;
+  border-radius: 28px;
+}
+.problems-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.problems-sheet-header h3 {
+  font-size: 20px;
+  font-weight: 600;
+}
+.problems-sheet-close {
+  width: 60px;
+  height: 60px;
+  margin: -8px -14px -8px 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+.problems-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  border-bottom: 1px solid var(--border);
+  font-size: 16px;
+  font-weight: 600;
+}
+.problems-list li > svg {
+  color: var(--warning);
+  flex-shrink: 0;
+}
+.problems-list li > span {
+  flex: 1;
+  min-width: 0;
+}
+.problems-list .button,
+.problems-details {
+  flex-shrink: 0;
+  min-height: 52px;
+}
+.problems-details {
+  margin-top: 16px;
+}
+.queue-status {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.queue-retry {
+  align-self: start;
+  margin-bottom: 8px;
+}
+.range-control {
+  appearance: none;
+  display: block;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+  min-width: 44px;
+  min-height: 44px;
+}
+.range-control::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--accent) var(--range-progress), var(--track) var(--range-progress));
+}
+.range-control::-moz-range-track {
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--accent) var(--range-progress), var(--track) var(--range-progress));
+}
+.range-control::-webkit-slider-thumb {
+  appearance: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-top: -3px;
+}
+.range-control::-moz-range-thumb {
+  width: 9px;
+  height: 9px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+}
+/* Slim sliders, larger touch areas: padding grows what answers a tap, an equal negative margin keeps the layout. */
+/* The seek bar stops just short of the artwork and the volume slider fills the transport row, clear of other controls. */
+.seek-range {
+  width: 100%;
+  height: 56px;
+  padding-top: 12px;
+  margin-top: -12px;
+}
+.seek-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.seek-control .seek-range {
+  flex: 1;
+  min-width: 0;
+}
+.track-time {
+  min-width: 3ch;
+  font-size: 12px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.transport-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 4px;
+}
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 4px;
+  color: var(--accent);
+  min-width: 0;
+}
+.volume-control svg {
+  flex-shrink: 0;
+}
+/* The speaker icon fades with the slider when the device has no volume to set. */
+.volume-control:has(:disabled) svg {
+  opacity: 0.4;
+}
+.volume-range {
+  flex: 1;
+  min-width: 0;
+  height: 68px;
+  padding-block: 12px;
+  margin-block: -12px;
+}
+.volume-range::-webkit-slider-thumb {
+  width: 26px;
+  height: 26px;
+  margin-top: -11px;
+}
+.volume-range::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+}
+.transport-buttons {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.transport-skip {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  border-radius: 50%;
+  transition: background 160ms;
+}
+.transport-skip:hover {
+  background: var(--surface-raised);
+}
+/* Shuffle and repeat: muted while off, full colour with a dot underneath while on. */
+.transport-mode {
+  position: relative;
+  color: var(--muted);
+}
+.transport-mode.is-on {
+  color: var(--ink);
+}
+.transport-mode.is-on::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentcolor;
+}
+/* Rewind and fast-forward 15 seconds: the turning arrow with the number over its middle. */
+.transport-seek {
+  position: relative;
+}
+.transport-seek span {
+  position: absolute;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+}
+.transport-play {
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--play-fill);
+  color: var(--accent-ink);
+  transition: transform 160ms;
+}
+.queue-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 8px 0 0;
+}
+/*
+  The queue is typeset directly on the page: no card, rows separated by hairlines, the next song set larger with an
+  accent rule, and the list dissolving into the page at the bottom so it feels like it trails off into the distance.
+*/
+.queue-heading {
+  margin: 0 0 2px 12px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--muted);
+}
+.queue-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  overscroll-behavior: contain;
+  padding: 4px 0 44px;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent);
+}
+.queue-track {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 68px;
+  position: relative;
+  padding: 8px 8px 8px 12px;
+  border-radius: 12px;
+  transition:
+    background 160ms,
+    opacity 160ms;
+}
+.queue-track-button {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  color: inherit;
+}
+/* A flat hairline under each row; a bottom border would curve with the row's rounded corners. */
+.queue-track::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 8px;
+  bottom: 0;
+  height: 1px;
+  background: var(--border);
+}
+.queue-track:last-child::after {
+  display: none;
+}
+.queue-track:hover {
+  background: var(--accent-soft);
+}
+/* Songs further down the queue recede, so the eye lands on what plays next. */
+.queue-track:nth-child(n + 3) .queue-track-button {
+  opacity: 0.82;
+}
+.queue-track:nth-child(n + 5) .queue-track-button {
+  opacity: 0.66;
+}
+.queue-play {
+  position: relative;
+  width: 24px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  border-radius: 5px;
+}
+.is-next .queue-number {
+  color: var(--accent);
+}
+/*
+  The handle a song is dragged by, where the queue can be reordered (a Sonos's). It takes the touch, so dragging it does
+  not scroll the list.
+*/
+.queue-move {
+  width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--muted);
+  border-radius: 8px;
+  touch-action: none;
+  cursor: grab;
+}
+/* While a song is dragged the songs it passes slide out of its way; the dragged one follows the finger, lifted. */
+.queue-list.is-reordering .queue-track {
+  transition: transform 160ms ease;
+}
+.queue-list.is-reordering .queue-track.is-dragged {
+  z-index: 1;
+  transition: none;
+  background: var(--surface-raised);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--shadow) 18%, transparent);
+  cursor: grabbing;
+}
+.queue-art {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  object-fit: cover;
+}
+.queue-track-copy {
+  flex: 1;
+  min-width: 0;
+}
+.queue-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.queue-title h3 {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.queue-track-copy p {
+  font-size: 12px;
+  margin-top: 5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.next-label {
+  color: var(--accent);
+  font-size: 7px;
+  letter-spacing: 0.6px;
+  font-weight: 650;
+  flex-shrink: 0;
+}
+.queue-empty {
+  flex: 1;
+  min-height: 130px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+}
+.empty-record {
+  width: 62px;
+  height: 62px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.queue-search {
+  width: 160px;
+  height: 160px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--accent);
+  background: var(--accent-soft);
+  cursor: pointer;
+}
+.queue-search .lucide {
+  width: 80px;
+  height: 80px;
+}
+.queue-empty h3 {
+  font-size: 14px;
+  font-weight: 550;
+}
+.queue-empty p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.app-dialog.person-sheet {
+  width: fit-content;
+  max-width: calc(100% - 32px);
+  padding: 28px;
+  border-radius: 28px;
+}
+.person-sheet-faces {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+.person-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 120px;
+  min-height: 60px;
+  padding: 10px;
+  border-radius: 20px;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 650;
+}
+.person-choice[data-away] .person-face-choice,
+.person-choice[data-away] .person-choice-name {
+  opacity: 0.35;
+}
+.song-proof {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+.song-proof-loading {
+  width: 560px;
+  max-width: 100%;
+  height: 220px;
+}
+.song-proof-art {
+  width: 220px;
+  height: 220px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  object-fit: cover;
+}
+.song-proof-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 220px;
+  min-width: 0;
+}
+.song-proof-title {
+  font-size: 24px;
+  font-weight: 750;
+  color: var(--ink);
+}
+.song-proof-artist {
+  font-size: 18px;
+  color: var(--muted);
+}
+.song-proof-qr {
+  width: 220px;
+  height: 220px;
+  flex-shrink: 0;
+  border-radius: 12px;
+}
+@media (width >= 1200px) and (height >= 760px) {
+  .song-proof-art,
+  .song-proof-qr {
+    width: 280px;
+    height: 280px;
+  }
+}
+.person-choice:active {
+  transform: scale(0.96);
+}
+/* A person's picture, or their initial when there is none: round, as everywhere else a face shows. */
+.person-face {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface-raised);
+  color: var(--accent);
+  font-weight: 800;
+}
+.person-face-choice {
+  width: 96px;
+  height: 96px;
+  font-size: 42px;
+}
+.person-choice[aria-pressed='true'] .person-face-choice {
+  box-shadow: 0 0 0 4px var(--accent);
+}
+.person-choice-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A fixed size, so the sheet stays put while phones come and go; the list scrolls inside it. */
+.app-dialog.pair-phone-sheet {
+  width: min(680px, calc(100% - 32px));
+  height: min(520px, calc(100dvh - 32px - var(--keyboard-height, 0px)));
+  padding: 28px;
+  border-radius: 28px;
+  overflow: hidden;
+}
+.app-dialog.pair-phone-sheet[open] {
+  display: flex;
+  flex-direction: column;
+}
+.pair-phone-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 26px;
+  font-weight: 750;
+}
+.pair-phone-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pair-phone-spinner {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.pair-phone-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.pair-phone-steps {
+  display: grid;
+  gap: 6px;
+  margin: 22px 0 16px;
+  padding-left: 1.4em;
+  font-size: 22px;
+  font-weight: 650;
+  list-style: decimal;
+}
+.pair-phone-intro {
+  justify-content: center;
+  gap: 20px;
+}
+.pair-phone-done {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  min-height: 0;
+  margin-bottom: 24px;
+  text-align: center;
+}
+.pair-phone-big-title {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.pair-phone-big-text {
+  font-size: 32px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.pair-phone-face {
+  position: relative;
+}
+.pair-phone-face-picture {
+  width: 140px;
+  height: 140px;
+  font-size: 60px;
+}
+.pair-phone-face-tick {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 44px;
+  height: 44px;
+  padding: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  stroke-width: 3;
+}
+.pair-phone-confirm {
+  color: var(--muted);
+  font-size: 18px;
+}
+.pair-phone-nearby {
+  flex: 1;
+  align-content: start;
+  min-height: 0;
+  margin-bottom: 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.pair-phone-device {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pair-phone-pairing {
+  display: grid;
+  flex: 1;
+  align-content: center;
+  gap: 8px;
+  margin: 22px 0 24px;
+  text-align: center;
+}
+.pair-phone-pairing-name {
+  font-size: 22px;
+  font-weight: 650;
+}
+.pair-phone-code {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  height: 132px;
+  margin-top: 16px;
+}
+.pair-phone-digit {
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 84px;
+  font-weight: 750;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.pair-phone-confirmed-spinner {
+  grid-column: 1 / -1;
+  place-self: center;
+  width: 88px;
+  height: 88px;
+  color: var(--accent);
+}
+.pair-phone-actions {
+  display: flex;
+  gap: 12px;
+}
+.pair-phone-button {
+  flex: 1;
+  min-height: 60px;
+  font-size: 18px;
+}
+.phone-picker-pair {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--accent);
+}
+.phone-picker-button {
+  flex-shrink: 0;
+  min-height: 60px;
+  max-width: 34%;
+}
+.phone-picker-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A person's Soloist key: the button beside their phone, and the dialog with the code their phone scans. The
+ * Spotify sign-in's dialog is the same. */
+.soloist-key-button {
+  flex-shrink: 0;
+  min-height: 60px;
+}
+.app-dialog.search-dialog.soloist-key-dialog,
+.app-dialog.search-dialog.spotify-sign-in-dialog {
+  max-width: 420px;
+}
+.soloist-key-qr,
+.spotify-sign-in-qr {
+  display: block;
+  width: 240px;
+  height: 240px;
+  margin: 16px auto 0;
+  border-radius: 12px;
+}
+.app-dialog.phone-picker-sheet {
+  max-width: 460px;
+  padding: 24px;
+  border-radius: 24px;
+}
+.phone-picker-title {
+  margin-bottom: 14px;
+  font-size: 20px;
+  font-weight: 700;
+}
+.phone-picker-options {
+  display: grid;
+  gap: 10px;
+}
+.phone-picker-option {
+  width: 100%;
+  min-height: 60px;
+  padding: 0 18px;
+  border: 1px solid;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 650;
+  text-align: left;
+}
+.app-dialog {
+  margin: auto;
+  width: calc(100% - 32px);
+  /* The kiosk's on-screen keyboard (web/src/keyboard) sets --keyboard-height while it shows; the dialog sits above it. */
+  bottom: var(--keyboard-height, 0);
+  max-height: calc(100dvh - 32px - var(--keyboard-height, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.app-dialog:not([open]) {
+  display: none;
+}
+.app-dialog::backdrop {
+  background: var(--backdrop);
+  backdrop-filter: blur(12px);
+}
+body:has(.app-dialog[open]) {
+  overflow: hidden;
+}
+.app-modal-panel .modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 calc(var(--spacing) * -6) 12px;
+  padding: calc(var(--spacing) * 6) calc(var(--spacing) * 6) 12px;
+  border-radius: 23px 23px 0 0;
+  background: var(--surface);
+}
+.app-modal-panel {
+  /*
+    Sized for fingers on the 7-inch kiosk, where 60 px is about 9 mm. Every modal builds on Tailwind's spacing and type
+    steps, so scaling those here enlarges padding, gaps, icons, row heights and text in all of them together.
+  */
+  --spacing: 5px;
+  --text-xs: 16px;
+  --text-sm: 18px;
+  --text-lg: 24px;
+  max-width: 680px;
+  /* The sticky header carries the top padding, so scrolled content never shows in a gap above it. */
+  padding-top: 0;
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+  color-scheme: inherit;
+}
+.text-muted {
+  color: var(--muted);
+}
+.text-accent {
+  color: var(--accent);
+}
+.modal-icon-button {
+  background: var(--surface-raised);
+  border-color: var(--border);
+}
+.modal-option {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+}
+.modal-option:hover,
+.modal-icon-button:hover {
+  background: var(--surface-raised);
+}
+.modal-option[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.colour-swatch {
+  background: var(--swatch);
+}
+.music-choice-art {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+}
+.music-search {
+  background: var(--surface-raised);
+  border-color: var(--border);
+  color: var(--ink);
+}
+.music-search:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+/*
+  A fixed size on every tab, so the dialog stays put while results come and go; only the results scroll. Pinned to the
+  top, so the results stay put under a finger when the on-screen keyboard closes and the dialog grows.
+*/
+.app-dialog.music-picker {
+  height: min(680px, calc(100dvh - 32px - var(--keyboard-height, 0px)));
+  margin-top: 16px;
+  overflow: hidden;
+}
+.app-dialog.music-picker[open] {
+  display: flex;
+  flex-direction: column;
+}
+.music-picker-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.music-choice-liked {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.colour-swatch[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 3px var(--surface),
+    0 0 0 5px var(--swatch-ring);
+}
+.status-success {
+  color: var(--success);
+}
+.status-warning {
+  color: var(--warning);
+}
+.status-danger,
+.modal-option.modal-confirm-armed {
+  color: var(--danger);
+}
+.modal-status,
+.modal-option.modal-confirm-armed {
+  background: color-mix(in srgb, currentcolor 8%, var(--surface));
+  border-color: color-mix(in srgb, currentcolor 40%, var(--surface));
+}
+.spotify-sign-in {
+  background: var(--spotify-brand);
+  color: var(--spotify-brand-ink);
+}
+.spotify-sign-in:hover {
+  filter: brightness(0.95);
+}
+.app-modal-panel button {
+  min-width: 60px;
+  min-height: 60px;
+}
+.app-modal-panel p {
+  font-size: 16px;
+  line-height: 1.5;
+}
+.app-modal-panel .button {
+  font-size: var(--text-sm);
+}
+
+/*
+  Settings: a wide two-column dialog, the sections on the left and the chosen one's page on the right. The navigation
+  always fits the 1024x600 screen; only the page scrolls. A real 1280x800 window (not the kiosk, which scales its page)
+  gets the roomier sizes in the media query below.
+*/
+.settings-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 28%) minmax(0, 1fr);
+  max-width: 960px;
+  height: min(640px, calc(100dvh - 32px - var(--keyboard-height, 0px)));
+  padding: 0;
+  overflow: hidden;
+}
+/* In the Settings tab the same two columns fill the screen under the header, with no dialog frame around them. */
+.settings-panel.settings-tab {
+  flex: 1;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  min-height: 0;
+  padding-top: var(--float-bar);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+/* One plain page under the floating tab bar: the navigation has no column of its own. */
+.settings-tab .settings-nav {
+  border-right: 0;
+  background: none;
+}
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 20px 16px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-raised) 50%, var(--surface));
+}
+.settings-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* On an owned kiosk (General and Countdown too), seven pages fit the 7" screen's 534px under the header: 60px rows, 4px
+  apart, 12px above and below. */
+@media (width < 1200px), (height < 760px) {
+  .settings-nav:has(li:nth-child(7)) {
+    padding-block: 12px;
+  }
+  .settings-nav-list:has(> li:nth-child(7)) {
+    gap: 4px;
+  }
+}
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 650;
+  text-align: left;
+  transition:
+    background 160ms,
+    border-color 160ms;
+}
+.settings-nav-item svg {
+  color: var(--muted);
+}
+.settings-nav-item[aria-current='page'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  box-shadow: var(--glow);
+  font-weight: 750;
+}
+.settings-nav-item[aria-current='page'] svg {
+  color: var(--accent);
+}
+.settings-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+/* The page has no header (the navigation names it), so the Saved tick floats in its top corner, over the page. */
+.settings-save-note {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 1;
+  font-size: 16px;
+  pointer-events: none;
+}
+.settings-save-note:empty {
+  display: none;
+}
+.settings-save-note > * {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow) 14%, transparent);
+}
+.settings-content-body {
+  flex: 1;
+  min-height: 0;
+  padding: 20px 36px 24px 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/*
+  A page that runs past the bottom shows a wide bar in the chosen colour, so it is plain there is more below; a page
+  that fits shows none. Drawn with the -webkit- scrollbar rules, as the standard scrollbar-width tops out at a thin
+  square bar (and setting it would make Chromium ignore these).
+*/
+.settings-content-body::-webkit-scrollbar {
+  width: 20px;
+}
+.settings-content-body::-webkit-scrollbar-track {
+  margin: 12px 0;
+  border: 4px solid transparent;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 12%);
+  background-clip: padding-box;
+}
+.settings-content-body::-webkit-scrollbar-thumb {
+  min-height: 60px;
+  border: 4px solid transparent;
+  border-radius: 999px;
+  background: var(--accent);
+  background-clip: padding-box;
+}
+.settings-stack,
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* A page: its sections one under another, far enough apart to read as separate settings, no wider than reads well. */
+.settings-stack {
+  gap: 32px;
+  max-width: 760px;
+}
+.settings-group {
+  gap: 10px;
+}
+.settings-group-title,
+.settings-box-title {
+  font-size: 17px;
+  font-weight: 700;
+}
+/*
+  A setting's section (SettingsSection): its heading, with a switch or small button straight after the words, the line
+  saying what it does, and its own control. Pages are columns of these, no wider than reads well.
+*/
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.settings-section-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 48px;
+}
+.settings-section-title {
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -0.2px;
+}
+.settings-section-caption {
+  max-width: 36em;
+  margin-top: -8px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.35;
+}
+/* A short list of values as pills (SettingsChips). */
+.settings-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.settings-panel .settings-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 60px;
+  padding: 0 22px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 650;
+  transition:
+    background 160ms,
+    border-color 160ms;
+}
+.settings-chip[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--play-fill);
+  box-shadow: var(--glow);
+  color: var(--accent-ink);
+  font-weight: 750;
+}
+/*
+  Two large choices side by side (General's language and time format), each showing what it gives: the language's flag
+  and name, or the clock as that format writes it with the format's name under it.
+*/
+.settings-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.settings-panel .settings-choice {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 88px;
+  padding: 14px 22px;
+  border: 2px solid var(--border);
+  border-radius: 22px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  text-align: left;
+  transition:
+    background 160ms,
+    border-color 160ms;
+}
+.settings-panel .settings-choice.is-stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+}
+.settings-choice[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: var(--glow);
+}
+.settings-choice .settings-choice-flag {
+  width: 48px;
+  border-radius: 6px;
+}
+.settings-choice-name {
+  font-size: 22px;
+  font-weight: 750;
+}
+.settings-choice-clock {
+  font-size: 32px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+.settings-choice[aria-pressed='true'] .settings-choice-clock {
+  color: var(--accent);
+}
+.settings-choice-note {
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 650;
+}
+/* Two settings on one row (General's place and postcode), each half the page's width. */
+.settings-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 24px;
+}
+/* Its headings, captions and values each line up across the row, however many lines a caption takes. */
+.settings-pair > .settings-section {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  gap: inherit;
+}
+/* A value chosen in a dialog (the weather's place, the postcode): the value as it is, its Change button beside it. */
+.settings-value {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 520px;
+  padding: 8px 8px 8px 20px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface-raised);
+}
+.settings-value-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.settings-value-text .country-flag {
+  margin-right: 12px;
+  vertical-align: -2px;
+}
+/* A country's flag (CountryFlag): 32px wide in a row's icon box, text-sized beside words. */
+.country-flag {
+  display: inline-flex;
+  flex-shrink: 0;
+  overflow: hidden;
+  width: 32px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 20%);
+}
+.country-flag-art {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+/* The postcode's field, with its country's flag at its start once the postcode tells it. */
+.postcode-field {
+  position: relative;
+}
+.postcode-field-flag {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.postcode-field:has(.postcode-field-flag) input {
+  padding-left: 58px;
+}
+.settings-box {
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface-raised);
+}
+.settings-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.settings-status-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 0.15em;
+}
+/* The About page fills the page's height, so the Debug console button sits at its bottom. */
+.about-page {
+  min-height: 100%;
+}
+.about-debug {
+  margin-top: auto;
+}
+/* The Parcels page while the owner has no Parcel API key: the steps, and the code for the settings site's account page. */
+.parcels-setup {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+}
+.parcels-setup-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+}
+.parcels-setup-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+}
+.parcels-setup-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 1.4em;
+  font-size: 17px;
+  list-style: decimal;
+}
+.parcels-setup-qr {
+  flex-shrink: 0;
+  width: 168px;
+  height: 168px;
+  border-radius: 12px;
+}
+/* Eight 60px swatches fit one row on the 7" screen with this gap. */
+.settings-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 4px;
+}
+.settings-swatches .colour-swatch {
+  display: grid;
+  place-items: center;
+}
+/*
+  The Appearance page's samples of the player (AppearanceSettings): a cover, the title in the accent, the progress bar
+  and the play button in the fill, each painted with its own colours; with Dynamic on, the album art's beside it.
+*/
+.colour-samples {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 6px;
+}
+.colour-sample {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+.colour-sample-player {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+.colour-sample-art {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+.colour-sample-art.has-art {
+  background: var(--sample-art);
+}
+.colour-sample-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.colour-sample-title {
+  color: var(--sample-accent);
+  font-size: 17px;
+  font-weight: 750;
+}
+.colour-sample-artist {
+  color: var(--muted);
+  font-size: 14px;
+}
+.colour-sample-bar {
+  height: 5px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--border);
+}
+.colour-sample-progress {
+  display: block;
+  width: 42%;
+  height: 100%;
+  background: var(--sample-fill);
+}
+.colour-sample-play {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--sample-fill);
+  color: var(--sample-ink);
+}
+.colour-sample-caption {
+  padding-left: 4px;
+  color: var(--muted);
+  font-size: 15px;
+}
+.colour-swatch-tick {
+  width: 28px;
+  height: 28px;
+  color: #fff;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 2px rgb(0 0 0 / 60%));
+}
+/* The button is the 60px touch target; the track drawn inside it is slimmer. */
+.settings-panel .settings-switch {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 84px;
+  min-width: 84px;
+  height: 60px;
+  min-height: 60px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.settings-switch-track {
+  position: relative;
+  width: 84px;
+  height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--surface-raised);
+  transition:
+    background 160ms,
+    border-color 160ms;
+}
+.settings-switch-thumb {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition:
+    transform 160ms,
+    background 160ms;
+}
+.settings-switch[aria-checked='true'] .settings-switch-track {
+  border-color: transparent;
+  background: var(--play-fill);
+  box-shadow: var(--glow);
+}
+.settings-switch[aria-checked='true'] .settings-switch-thumb {
+  background: var(--accent-ink);
+  transform: translateX(36px);
+}
+/* The Screen page: the brightness column on the left, from top to bottom, beside quiet hours over the sleep delay. */
+.screen-settings {
+  display: flex;
+  align-items: stretch;
+  gap: 40px;
+  max-width: 760px;
+}
+.screen-settings > .settings-stack {
+  flex: 1;
+  min-width: 0;
+}
+/*
+  Brightness as a tall column that fills from the bottom as it brightens. The range input lies over all of it, unseen
+  and upright, so a touch anywhere on the column sets it and a drag follows the finger.
+*/
+.brightness-setting {
+  display: flex;
+  flex-shrink: 0;
+}
+.brightness-column {
+  position: relative;
+  width: 104px;
+  min-height: 168px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 26px;
+  background: var(--surface-raised);
+}
+.brightness-column:has(.brightness-range:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+.brightness-fill {
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--brightness);
+  background: var(--play-fill);
+  box-shadow: var(--glow);
+}
+.brightness-sun {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  transform: translateX(-50%);
+  color: var(--ink);
+}
+.brightness-value {
+  position: absolute;
+  inset: auto 0 14px;
+  color: var(--accent-ink);
+  font-size: 20px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.brightness-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  touch-action: none;
+  writing-mode: vertical-lr;
+  direction: rtl;
+}
+/*
+  The quiet hours on the day (QuietHoursTimeline): the band from one end to the other, wrapping past midnight, a mark at
+  the time now, and a handle at each end with its time above it. The day is clipped to its rounded track; the handles
+  and their times stand out of it.
+*/
+.quiet-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 38px;
+}
+.quiet-timeline-track {
+  position: relative;
+  height: 64px;
+  cursor: pointer;
+  touch-action: none;
+}
+.quiet-timeline-day {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface-raised);
+}
+.quiet-timeline-tick {
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  width: 1px;
+  background: var(--border);
+}
+.quiet-timeline-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.quiet-timeline-now {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--ink);
+}
+.quiet-timeline-handle {
+  position: absolute;
+  top: 50%;
+  left: var(--at);
+  width: 22px;
+  height: 52px;
+  margin: -26px 0 0 -11px;
+  border-radius: 11px;
+  background: var(--play-fill);
+  box-shadow: var(--glow);
+}
+/* A finger-sized grip round the slim handle. */
+.quiet-timeline-handle::before {
+  content: '';
+  position: absolute;
+  inset: -6px -16px;
+}
+.quiet-timeline-handle-time {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.quiet-timeline-hours {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.quiet-timeline-readout {
+  font-size: 17px;
+}
+.settings-wide-button {
+  width: 100%;
+  padding: 0 20px;
+  font-size: 18px;
+}
+/*
+  The Spotify page's people as faces (SpotifySettings): a ring round the chosen one, a dot for whether their login
+  works, a tick on the one playing, and a dashed face to add someone. The chosen person's login, phone and removal sit
+  under the row.
+*/
+.person-faces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+}
+.settings-panel .person-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+}
+.person-face:disabled {
+  opacity: 0.4;
+}
+.person-face-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  padding: 4px;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  transition: border-color 160ms;
+}
+.person-face[aria-pressed='true'] .person-face-ring {
+  border-color: var(--accent);
+  box-shadow: var(--glow);
+}
+.person-face-picture {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.person-face-blank {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+.person-face-add {
+  border: 2px dashed var(--border);
+  color: var(--muted);
+}
+.person-face-dot {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: currentcolor;
+  box-shadow: 0 0 0 3px var(--surface);
+}
+.person-face-active {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 28px;
+  height: 28px;
+  padding: 2px;
+  border-radius: 50%;
+  background: var(--play-fill);
+  color: var(--accent-ink);
+  stroke-width: 2.5;
+}
+.person-face-name {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.person-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 20px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface-raised);
+}
+.person-detail-about {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 8em;
+}
+.person-detail-name {
+  max-width: 100%;
+  font-size: 18px;
+  font-weight: 750;
+}
+/*
+  The lyrics' look, previewed with the lyrics panel's own classes: three lines at the size the panel gives a large
+  screen, two sung and one to come, aligned as chosen.
+*/
+.lyrics-preview {
+  padding: 14px 24px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+.lyrics-preview .lyrics-list {
+  overflow: hidden;
+  padding: 0;
+  mask-image: none;
+}
+.lyrics-preview .lyrics-list.is-synced .lyrics-line {
+  font-size: calc(38px * var(--lyrics-scale, 0.7));
+}
+.lyrics-look {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 28px;
+}
+.lyrics-size-glyph {
+  font-weight: 750;
+  line-height: 1;
+}
+.settings-person-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.settings-person-sign-in {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 60px;
+  padding: 0 16px;
+  border-radius: 16px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.settings-error {
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, currentcolor 40%, var(--surface));
+  border-radius: 14px;
+  background: color-mix(in srgb, currentcolor 8%, var(--surface));
+  overflow-wrap: anywhere;
+}
+/* The About page's facts about the screen: a name and its value on each line, divided by hairlines. */
+.about-facts {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 16px;
+}
+.about-fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  padding: 12px 0;
+  font-size: 17px;
+}
+.about-fact + .about-fact {
+  border-top: 1px solid var(--border);
+}
+.about-fact dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+/*
+  Settings › Wi-Fi: the network the kiosk is on, large, with its signal, address and Forget; then the other networks in
+  range as a grid of two columns (one when the page is narrow), with Other network, Hotspot and Refresh by their heading.
+*/
+.wifi-current {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 18px 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--surface-raised);
+}
+.wifi-current.is-connected {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+.wifi-current-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--muted);
+}
+.wifi-current.is-connected .wifi-current-icon {
+  color: var(--accent);
+}
+.wifi-current-about {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.wifi-current-name {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+}
+.wifi-current-status {
+  color: var(--muted);
+  font-size: 16px;
+}
+.wifi-others {
+  container: wifi-others / inline-size;
+}
+/* Refresh, beside the Other networks heading: as tall as Settings' touch targets (60px). */
+.wifi-others .wifi-refresh {
+  width: 60px;
+  min-height: 60px;
+  padding: 0;
+}
+.wifi-networks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@container wifi-others (width < 700px) {
+  .wifi-networks {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.wifi-network {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-raised);
+  font-size: 18px;
+  text-align: left;
+}
+.wifi-network:disabled {
+  color: var(--muted);
+}
+.wifi-network-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The other ways to join, above the list: one row of tiles drawn like the networks, their icons in the accent. */
+.wifi-ways {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 10px;
+}
+.wifi-way svg {
+  color: var(--accent);
+}
+.wifi-way .wifi-network-name {
+  font-weight: 600;
+}
+.wifi-way:disabled svg {
+  color: inherit;
+}
+.wifi-network-note {
+  font-size: 14px;
+}
+/* The join dialog: the network's name (a hidden one only), its password and Show, then the buttons. */
+.wifi-join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+.wifi-join-password {
+  display: flex;
+  gap: 8px;
+}
+.wifi-join-password .button {
+  min-width: 96px;
+  font-size: 18px;
+}
+.wifi-join .music-search {
+  font-size: 20px;
+}
+/* Scan code: an invitation while the kiosk is on no network, and the dialog with what the camera sees. */
+.wifi-scan-lead {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 18px 18px 20px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+  border-radius: 22px;
+  background: var(--surface-raised);
+  font-size: 18px;
+}
+.wifi-scan-lead p {
+  flex: 1;
+  min-width: 0;
+}
+.wifi-scan-lead .button {
+  min-height: 60px;
+  padding: 0 22px;
+  font-size: 18px;
+}
+.wifi-scan {
+  width: min(680px, 92vw);
+}
+.wifi-scan-picture {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  margin: 12px 0;
+  border-radius: 16px;
+  background: var(--surface);
+  object-fit: cover;
+  /* Mirrored, so that moving the phone to the left moves its picture to the left. */
+  transform: scaleX(-1);
+}
+/*
+  How joining the network read from a code goes (WifiJoinProgress.tsx), in setup's Wi-Fi chapter and in Scan code's
+  dialog: a circle with a spinner that becomes a tick, the line with the network's name, and Continue. The line keeps
+  its height and Continue its place while unseen, so nothing moves when the kiosk has joined.
+*/
+.wifi-join-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  padding: 24px 0;
+}
+.wifi-join-progress-mark {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.wifi-join-progress-mark svg {
+  width: 64px;
+  height: 64px;
+}
+.app-modal-panel .wifi-join-progress-line {
+  max-width: 640px;
+  min-height: 1.4em;
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.4;
+  text-align: center;
+}
+/* Over the dialogs' own button sizes, which are narrower. */
+.app-modal-panel .wifi-join-progress .wifi-join-progress-button {
+  min-width: 240px;
+  min-height: 60px;
+  border-radius: 16px;
+  font-size: 20px;
+  font-weight: 700;
+}
+/* Hotspot: the codes a phone scans, what to type when it can't, and how the kiosk is getting on. */
+.wifi-setup-qr {
+  flex-shrink: 0;
+  width: 180px;
+  height: 180px;
+  border-radius: 12px;
+}
+.app-dialog.wifi-setup.wifi-hotspot {
+  max-width: 900px;
+}
+/* The hotspot's two steps side by side: the open one takes the room, the other is only its heading, dimmed. */
+.wifi-hotspot-steps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 16px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+.wifi-hotspot-step {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 16px 20px;
+  border: 2px solid transparent;
+  border-radius: 20px;
+  background: rgb(255 255 255 / 6%);
+  opacity: 0.5;
+}
+.wifi-hotspot-steps:has(> :last-child[data-open='true']) {
+  grid-template-columns: 240px minmax(0, 1fr);
+}
+.wifi-hotspot-step[data-open='true'] {
+  border-color: var(--accent);
+  opacity: 1;
+}
+.wifi-hotspot-step-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+.wifi-hotspot-step-number {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 12%);
+  font-size: 18px;
+}
+.wifi-hotspot-step[data-open='true'] .wifi-hotspot-step-number {
+  background: var(--accent);
+}
+.wifi-hotspot-step-number .lucide {
+  width: 20px;
+  height: 20px;
+}
+/* The open step's code, and beside step 1's the hotspot's name and password. */
+/* Beside step 2's code, the network the phone chose while the kiosk joins it. */
+.wifi-hotspot-joining {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+}
+.wifi-hotspot-joining-name {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.wifi-hotspot-joining-spinner {
+  width: 48px;
+  height: 48px;
+  color: var(--accent);
+}
+.wifi-hotspot-step-body {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+/* The hotspot's name and password, for a phone whose camera does not join it. */
+.wifi-hotspot-login {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+.wifi-hotspot-login dt {
+  font-size: 16px;
+  color: var(--muted);
+}
+.wifi-hotspot-login dd {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+@media (width >= 1200px) and (height >= 760px) {
+  .wifi-setup-qr {
+    width: 220px;
+    height: 220px;
+  }
+}
+/* The Countdown page's search box, which opens the stop search over the whole screen. */
+.countdown-search-button {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 0 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: 18px;
+  text-align: left;
+}
+/* The boards Group by route gives, under its switch: the 2x GIF at a quarter of its width, a third on the 10" screen. */
+.countdown-grouping-preview {
+  display: block;
+  width: 242px;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+@media (width >= 1200px) and (height >= 760px) {
+  .countdown-grouping-preview {
+    width: 322px;
+  }
+}
+/*
+  How a board changes stop (ArrivalsTransitionSettings): each choice a panel playing that change on a real board, its
+  name under it, two to a row; the chosen one ringed in the accent.
+*/
+.transition-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.settings-panel .transition-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 6px 10px;
+  border: 2px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  transition:
+    background 160ms,
+    border-color 160ms;
+}
+.transition-choice[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: var(--glow);
+}
+.transition-choice-picture {
+  display: contents;
+}
+.transition-choice-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 400 / 161;
+  border-radius: 14px;
+}
+.transition-choice-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+.transition-choice[aria-pressed='true'] .transition-choice-name {
+  color: var(--accent);
+}
+/*
+  The stop search fills the screen above the on-screen keyboard, so nothing it shows is hidden behind it: the search
+  box and Done along the top, and the results scrolling under them.
+*/
+.app-dialog.stop-search {
+  inset: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: none;
+  height: calc(100dvh - var(--keyboard-height, 0px));
+  max-height: none;
+  margin: 0;
+  padding: 12px 16px 0;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+}
+.app-dialog.stop-search:not([open]) {
+  display: none;
+}
+.stop-search-bar {
+  display: flex;
+  flex-shrink: 0;
+  gap: 12px;
+}
+.stop-search-field {
+  position: relative;
+  flex: 1;
+}
+.stop-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  width: 22px;
+  height: 22px;
+  color: var(--muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.stop-search-field .music-search {
+  height: 56px;
+  padding: 0 16px 0 50px;
+  font-size: 20px;
+}
+.stop-search .stop-search-done {
+  flex-shrink: 0;
+  min-width: 120px;
+  min-height: 56px;
+  border-radius: 14px;
+  font-size: 18px;
+}
+.stop-search-results {
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.stop-search-results .search-dialog-results {
+  margin-top: 0;
+}
+.search-result:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.search-result-added {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-weight: 700;
+}
+.countdown-saved {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* A stop's name with, for a London bus stop, its letter after it: white on a red disc, as on the stop's flag. */
+.stop-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.stop-letter {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #d6362b;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  /* Centred on the letter itself (its cap height), not on the font's line box, whatever the font's metrics. */
+  text-box: trim-both cap alphabetic;
+}
+.countdown-stop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 64px;
+  padding: 4px;
+}
+.countdown-stop-handle,
+.countdown-stop-remove {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 52px;
+  border-radius: 12px;
+  color: var(--muted);
+}
+.countdown-stop-handle {
+  touch-action: none;
+  cursor: grab;
+}
+.countdown-stop-handle:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.countdown-stop-remove:active {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+/* While a stop is dragged the stops it passes slide out of its way; the dragged one follows the finger, lifted. */
+.countdown-saved.is-reordering .countdown-stop {
+  transition: transform 160ms ease;
+}
+.countdown-saved.is-reordering .countdown-stop.is-dragged {
+  z-index: 1;
+  transition: none;
+  background: var(--surface-raised);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--shadow) 18%, transparent);
+}
+/* The settings' small dialogs (a weather place, the notice board's postcode), kept above the on-screen keyboard. */
+.app-dialog.search-dialog {
+  max-width: 560px;
+  margin-top: 16px;
+}
+.search-dialog .music-search {
+  font-size: 20px;
+}
+.search-dialog-results {
+  margin-top: 12px;
+}
+/* A platform of the station listed before it. */
+.search-result-indent {
+  margin-left: 24px;
+}
+.search-dialog-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+.search-dialog-actions .button {
+  flex: 1;
+  min-height: 60px;
+  font-size: 18px;
+}
+.search-dialog-locate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.search-dialog-confirm {
+  background: var(--play-fill);
+  color: var(--accent-ink);
+}
+.search-dialog-confirm:disabled {
+  opacity: 0.4;
+}
+.settings-panel .settings-action {
+  min-height: 64px;
+  padding: 0 16px;
+  font-size: 17px;
+}
+@media (width >= 1200px) and (height >= 760px) {
+  .settings-panel {
+    grid-template-columns: minmax(260px, 27%) minmax(0, 1fr);
+    max-width: 1180px;
+    height: min(760px, calc(100dvh - 32px - var(--keyboard-height, 0px)));
+  }
+  .settings-nav {
+    gap: 16px;
+    padding: 28px 20px;
+  }
+  .settings-nav-list {
+    gap: 10px;
+  }
+  .settings-panel .settings-nav-item {
+    min-height: 68px;
+    font-size: 19px;
+  }
+  .settings-content-body {
+    padding: 28px 46px 32px 26px;
+  }
+  .settings-stack {
+    gap: 36px;
+  }
+  .settings-group-title,
+  .settings-box-title {
+    font-size: 19px;
+  }
+  .settings-swatches {
+    gap: 14px;
+  }
+  .settings-swatches .colour-swatch {
+    width: 68px;
+    height: 68px;
+  }
+}
+.lyrics-list {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  mask-image: linear-gradient(transparent, #000 10%, #000 85%, transparent);
+  padding: 8px 4px 40%;
+  list-style: none;
+}
+.lyrics-line {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: -0.3px;
+  padding: 5px 0;
+  overflow-wrap: anywhere;
+  transition: color 300ms;
+}
+/*
+  Synced lyrics fill the panel with about three lines either side of the current one, so the type is sized from the
+  panel's height, and from its width so that a wide panel does not wrap every line. Every line keeps that size; a line lights up when it is reached and stays lit, so the next line is
+  always where the eye left it.
+*/
+.lyrics-list.is-synced .lyrics-line {
+  font-size: calc(clamp(20px, min(8.4cqh, 6.4cqw), 40px) * var(--lyrics-scale, 0.7));
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+  padding: 0.2em 0;
+  color: var(--lyric-ahead);
+}
+.lyrics-list[data-following='false'] {
+  scroll-behavior: auto;
+}
+/*
+  Sung lines take the play button's own fill, the chosen colour's gradient or Dynamic's from the album art, so they are
+  as rich as the button rather than the lighter flat shade the title uses; lines still to come stay faint.
+*/
+.lyrics-list.is-synced .lyrics-line.is-reached,
+.lyrics-list.is-synced .lyrics-word.is-reached {
+  background: var(--play-fill);
+  background-clip: text;
+  color: transparent;
+}
+/* Sync mode (the Lyrics button tapped again): every line is a button; tapping the one being sung moves the song's timing to match. */
+.lyrics-sync-line {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+}
+.lyrics-sync-line:active {
+  color: var(--accent);
+}
+/* Where the source times each word, the line being sung lights up word by word. */
+.lyrics-word {
+  transition: color 150ms;
+}
+.queue-error {
+  color: var(--danger);
+  font-size: 13px;
+  padding: 8px 0;
+}
+button:disabled,
+input:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+@media (height <= 640px) {
+  .person-face-choice {
+    width: 80px;
+    height: 80px;
+    font-size: 36px;
+  }
+  .listening-room {
+    padding-top: calc(18px + var(--float-bar));
+    padding-bottom: 14px;
+    gap: 24px;
+  }
+  .queue-track {
+    min-height: 62px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+  .track-details {
+    padding-top: 12px;
+    padding-bottom: 6px;
+  }
+  .track-copy h2 {
+    font-size: 26px;
+  }
+}
+
+/* The technical debug console stays dark regardless of appearance. */
+.debug-console {
+  --focus: #b9d879;
+  height: calc(100dvh - 32px);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 16px;
+  background: #0b0d0b;
+  color: #e5e7e1;
+  color-scheme: dark;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  user-select: text;
+}
+.debug-console-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.debug-console-header h2 {
+  font-size: 13px;
+  font-weight: 700;
+}
+.debug-console-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.debug-console-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 60px;
+  min-width: 60px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 8%);
+}
+.debug-console-actions button:disabled {
+  opacity: 0.4;
+}
+.debug-console-actions .debug-console-close {
+  padding: 0 12px;
+}
+.debug-console-tabs {
+  display: flex;
+  gap: 4px;
+  margin-left: 16px;
+}
+.debug-console-tabs button {
+  min-height: 60px;
+  min-width: 60px;
+  padding: 0 18px;
+  border-radius: 10px;
+  color: #9aa194;
+  font-weight: 700;
+}
+.debug-console-tabs button[aria-selected='true'] {
+  background: rgb(255 255 255 / 8%);
+  box-shadow: inset 0 -3px 0 var(--focus);
+  color: #e5e7e1;
+}
+/* What one tab shows, filling the console under the header so its log takes whatever the rows above leave. */
+.debug-console-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.update-console {
+  font-size: 18px;
+}
+.update-console .debug-console-header h2 {
+  font-size: 22px;
+}
+.update-console-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 22px;
+  font-weight: 700;
+}
+.update-console-progress {
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 5px;
+  background: rgb(255 255 255 / 15%);
+  appearance: none;
+}
+.update-console-progress::-webkit-progress-bar {
+  background: transparent;
+}
+.update-console-progress::-webkit-progress-value {
+  border-radius: 5px;
+  background: var(--focus);
+  transition: width 0.3s ease;
+}
+/* No percentage to show (the kiosk reports none while it copies the system image): a band that runs along the bar. */
+.update-console-progress:indeterminate {
+  background:
+    linear-gradient(90deg, transparent, var(--focus), transparent) no-repeat,
+    rgb(255 255 255 / 15%);
+  background-size:
+    40% 100%,
+    auto;
+  animation: update-console-working 1.6s ease-in-out infinite;
+}
+@keyframes update-console-working {
+  from {
+    background-position:
+      -70% 0,
+      0 0;
+  }
+  to {
+    background-position:
+      170% 0,
+      0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .update-console-progress:indeterminate {
+    background-position:
+      50% 0,
+      0 0;
+    animation: none;
+  }
+}
+.update-console-output {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  line-height: 1.45;
+}
+.update-console-hint {
+  color: #9ca3a0;
+  font-size: 15px;
+}
+.debug-status {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 4px 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
+.debug-status div {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.debug-status .debug-status-wide {
+  grid-column: 1 / -1;
+}
+.debug-status dt {
+  flex-shrink: 0;
+  color: #9aa194;
+}
+.debug-status dd {
+  overflow-wrap: anywhere;
+}
+.debug-empty {
+  color: #9aa194;
+}
+.debug-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 24px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
+.debug-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+.debug-options input {
+  width: 22px;
+  height: 22px;
+}
+.debug-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px 0 8px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 8%);
+}
+.debug-options-alert {
+  color: #fcd34d;
+}
+.debug-http-groups {
+  gap: 0 24px;
+}
+.debug-options label:has(input:disabled) {
+  opacity: 0.4;
+}
+.debug-bluetooth {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.debug-bluetooth-error {
+  color: #fda4af;
+}
+.debug-bluetooth-button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 8px;
+}
+.debug-bluetooth-button:disabled {
+  opacity: 0.4;
+}
+.debug-bluetooth-devices {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.debug-bluetooth-devices th {
+  color: #9aa194;
+  font-weight: normal;
+}
+.debug-bluetooth-devices th,
+.debug-bluetooth-devices td {
+  padding: 3px 12px 3px 0;
+  overflow-wrap: anywhere;
+}
+.debug-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.debug-entry {
+  display: grid;
+  grid-template-columns: 64px 64px 1fr;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgb(255 255 255 / 4%);
+}
+.debug-entry-time,
+.debug-entry-source,
+.debug-entry-count {
+  color: #9aa194;
+}
+.debug-entry-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.debug-entry-warn .debug-entry-message {
+  color: #fcd34d;
+}
+.debug-entry-error .debug-entry-message {
+  color: #fda4af;
+}
+
+/* stylelint-disable declaration-no-important -- reduced motion has to beat every component's own durations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+/* stylelint-enable declaration-no-important */
+
+/* The kiosk's sleep screen (components/SleepScreen.tsx): black over everything, catching the tap that wakes it. */
+.sleep-screen {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  background: #000;
+  touch-action: none;
+}
+.sleep-screen::backdrop {
+  background: #000;
+}
+.sleep-screen-button {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+/* Dimmed: half black over the page, faded in; going on to sleep turns it fully black. */
+.sleep-screen,
+.sleep-screen::backdrop {
+  transition: background 600ms;
+}
+.sleep-screen-dimmed {
+  background: rgb(0 0 0 / 50%);
+  animation: sleep-screen-dim 1s ease-out;
+}
+.sleep-screen-dimmed::backdrop,
+.sleep-screen-clear::backdrop {
+  background: transparent;
+}
+/* Dimmed by the backlight: the layer only takes the tap that wakes the screen. */
+.sleep-screen-clear {
+  background: transparent;
+}
+@keyframes sleep-screen-dim {
+  from {
+    background: transparent;
+  }
+}
+/*
+  The first-time setup wizard (components/setup/SetupWizard.tsx): Settings' two columns over the whole screen, the
+  chapters on the left (ticked once done, the current one lit like Settings' current page) and the chapter on the right.
+*/
+.setup-wizard.settings-panel {
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  border: 0;
+  border-radius: 0;
+}
+.setup-wizard-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 4px 12px;
+}
+.setup-wizard-mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.setup-wizard-mark .lucide {
+  width: 26px;
+  height: 26px;
+}
+.setup-wizard-name {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.setup-wizard-chapter {
+  min-height: 60px;
+  font-size: 19px;
+}
+.setup-wizard-chapter[aria-current='step'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  box-shadow: var(--glow);
+  font-weight: 750;
+}
+.setup-wizard-chapter:is([aria-current='step'], .is-done) svg {
+  color: var(--accent);
+}
+.setup-wizard-chapter.is-done {
+  color: var(--muted);
+}
+.setup-wizard-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.setup-wizard-center {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  min-height: 0;
+}
+.setup-wizard-code {
+  width: min(60vh, 440px);
+  height: min(60vh, 440px);
+  border-radius: 24px;
+}
+:is(.setup-wizard, .setup-welcome) .setup-wizard-button {
+  min-width: 240px;
+  min-height: 60px;
+  border-radius: 16px;
+  font-size: 20px;
+  font-weight: 700;
+}
+/* Start is the welcome's one thing to tap, so it is larger than the chapters' buttons. */
+.setup-welcome .setup-wizard-button {
+  min-width: 340px;
+  min-height: 84px;
+  border-radius: 22px;
+  font-size: 28px;
+}
+/* The phones the Pi hears and the code to accept: a centred column, not stretched across the page. */
+.setup-wizard-presence {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-self: center;
+  width: min(100%, 640px);
+  min-height: 0;
+}
+/* What to do with the list, over it. */
+.app-modal-panel .setup-wizard-presence .setup-wizard-lead {
+  align-self: center;
+  margin-bottom: 20px;
+}
+/* The list's outline shows from the start, so the page isn't blank while the Pi listens; the spinner sits in it. */
+.setup-wizard-presence .pair-phone-nearby {
+  position: relative;
+  flex: 0 1 auto;
+  min-height: 240px;
+  margin: 0;
+  padding: 12px;
+  border: 2px solid var(--border);
+  border-radius: 20px;
+}
+.setup-wizard-presence .pair-phone-nearby[aria-busy='true']::before,
+.setup-wizard-presence .pair-phone-nearby:empty::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 44px;
+  height: 44px;
+  margin: auto;
+  border: 4px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+/* The one line a chapter says about itself, over its QR code or steps. */
+.app-modal-panel .setup-wizard-lead {
+  max-width: 640px;
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.4;
+  text-align: center;
+}
+.app-modal-panel .setup-wizard-complete {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 800;
+}
+.setup-wizard-pick {
+  gap: 24px;
+}
+/*
+  The drawing of what to do in Spotify on the phone (components/setup/PickInSpotify.tsx): a phone with the bar of what
+  plays and its devices button, a tap on that, the list of devices coming up, and a tap on the kiosk. Without its
+  animations it shows the end, the list with the kiosk picked, which is what reduced motion leaves.
+*/
+.spotify-pick {
+  --pick-loop: 7s;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 14px;
+  width: 260px;
+  height: 400px;
+  padding: 14px;
+  overflow: hidden;
+  border: 3px solid var(--border);
+  border-radius: 36px;
+  background: var(--page);
+}
+.spotify-pick::before {
+  content: '';
+  align-self: center;
+  width: 64px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+}
+.spotify-pick-tiles {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 1fr 1fr;
+  align-content: start;
+  gap: 10px;
+}
+.spotify-pick-tiles span {
+  aspect-ratio: 3 / 2;
+  border-radius: 10px;
+  background: var(--surface);
+}
+.spotify-pick-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px 8px 8px;
+  border-radius: 14px;
+  background: var(--surface-raised);
+}
+.spotify-pick-cover {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--track);
+}
+.spotify-pick-song {
+  flex: 1;
+  height: 10px;
+  margin-right: 28px;
+  border-radius: 5px;
+  background: var(--track);
+}
+.spotify-pick-devices {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: var(--accent);
+  animation: spotify-pick-devices var(--pick-loop) infinite;
+}
+.spotify-pick-sheet {
+  position: absolute;
+  inset: auto 0 0;
+  display: grid;
+  gap: 6px;
+  padding: 18px 12px;
+  border-top: 2px solid var(--border);
+  border-radius: 22px 22px 0 0;
+  background: var(--surface);
+  animation: spotify-pick-sheet var(--pick-loop) infinite;
+}
+.spotify-pick-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 0 12px;
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 650;
+  text-align: left;
+}
+.spotify-pick-row svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.spotify-pick-row span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.spotify-pick-kiosk {
+  background: var(--accent-soft);
+  color: var(--accent);
+  animation: spotify-pick-kiosk var(--pick-loop) infinite;
+}
+.spotify-pick-tick {
+  animation: spotify-pick-tick var(--pick-loop) infinite;
+}
+/* Where a finger lands: a ring that closes in on the button, then lets go. */
+.spotify-pick-tap {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 30%, transparent);
+  opacity: 0;
+}
+.spotify-pick-tap-devices {
+  right: 18px;
+  bottom: 18px;
+  animation: spotify-pick-tap-devices var(--pick-loop) infinite;
+}
+.spotify-pick-tap-kiosk {
+  right: 64px;
+  bottom: 21px;
+  animation: spotify-pick-tap-kiosk var(--pick-loop) infinite;
+}
+@keyframes spotify-pick-devices {
+  0%,
+  17% {
+    color: var(--muted);
+  }
+  19%,
+  100% {
+    color: var(--accent);
+  }
+}
+@keyframes spotify-pick-tap-devices {
+  0%,
+  10% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  16%,
+  19% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  26%,
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+@keyframes spotify-pick-sheet {
+  0%,
+  21% {
+    transform: translateY(100%);
+  }
+  29%,
+  93% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+@keyframes spotify-pick-tap-kiosk {
+  0%,
+  44% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  50%,
+  53% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  60%,
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+@keyframes spotify-pick-kiosk {
+  0%,
+  52% {
+    background: transparent;
+    color: var(--muted);
+  }
+  54%,
+  100% {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+}
+@keyframes spotify-pick-tick {
+  0%,
+  52% {
+    opacity: 0;
+  }
+  54%,
+  100% {
+    opacity: 1;
+  }
+}
+/*
+  The Wi-Fi chapter on a kiosk with a camera (SetupWizard.tsx's WifiByCamera): the drawing or what the camera sees, and
+  under it the quiet way out to every other way of joining a network.
+*/
+.setup-wizard-wifi {
+  gap: 24px;
+}
+.setup-wizard-aside {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.7em;
+}
+.setup-wizard-camera {
+  width: min(70vh, 520px);
+  text-align: center;
+}
+.setup-wizard-camera .wifi-scan-picture {
+  margin: 0 0 12px;
+}
+/* Small on purpose: a way out for the few who need it, not something the page asks of everyone. */
+.setup-wizard-other {
+  min-height: 48px;
+  padding: 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/*
+  The drawing of how an iPhone shows its Wi-Fi network as a QR code (components/setup/ShareWifiCode.tsx): a phone with its
+  home screen and a tap on the Passwords app, its groups and a tap on Wi-Fi, the networks and a tap on the one it is
+  on, that network's page and a tap on Show Network QR Code, and the code. Without its animations it shows the end, the
+  code, which is what reduced motion leaves.
+*/
+.wifi-share {
+  --share-loop: 12s;
+
+  position: relative;
+  flex-shrink: 0;
+  width: 240px;
+  height: 340px;
+  overflow: hidden;
+  border: 3px solid var(--border);
+  border-radius: 36px;
+  background: var(--page);
+}
+/* On a short screen (1024x600) the phone is drawn smaller, so the button under it stays on the page. */
+@media (height <= 640px) {
+  .wifi-share {
+    zoom: 0.7;
+  }
+}
+/* The phone's earpiece, over every screen. */
+.wifi-share::after {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  width: 64px;
+  height: 6px;
+  margin-left: -32px;
+  border-radius: 3px;
+  background: var(--border);
+}
+/* One screen of the phone over the one before it: each comes in at its turn and they all go at the loop's end. */
+.wifi-share-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 30px 14px 14px;
+  background: var(--page);
+}
+.wifi-share-home {
+  display: grid;
+  grid-template-columns: repeat(4, 44px);
+  place-content: start space-between;
+  gap: 4px 0;
+  padding: 44px 16px 14px;
+}
+.wifi-share-app {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+.wifi-share-app-passwords {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.wifi-share-app svg {
+  width: 24px;
+  height: 24px;
+}
+.wifi-share-app-name {
+  width: 44px;
+  overflow: visible;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  text-align: center;
+  white-space: nowrap;
+  transform: translateX(-8px);
+}
+.wifi-share-passwords {
+  animation: wifi-share-passwords var(--share-loop) infinite;
+}
+.wifi-share-networks {
+  animation: wifi-share-networks var(--share-loop) infinite;
+}
+.wifi-share-network {
+  animation: wifi-share-network var(--share-loop) infinite;
+}
+.wifi-share-code {
+  display: grid;
+  place-items: center;
+  animation: wifi-share-code var(--share-loop) infinite;
+}
+.wifi-share-code svg {
+  width: 150px;
+  height: 150px;
+  padding: 14px;
+  border-radius: 20px;
+  background: #fff;
+  color: #000;
+}
+.wifi-share-title {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 4px;
+  font-size: 22px;
+  font-weight: 800;
+  text-align: left;
+}
+/* The Passwords app's groups, two across: a round icon over a name. Only Wi-Fi, the one to tap, is in colour. */
+.wifi-share-groups {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.wifi-share-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  height: 62px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--muted);
+}
+.wifi-share-group svg {
+  width: 26px;
+  height: 26px;
+  padding: 5px;
+  border-radius: 50%;
+  background: var(--track);
+}
+.wifi-share-group span {
+  width: 60%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--track);
+}
+.wifi-share-group-wifi svg {
+  background: var(--accent);
+  color: var(--page);
+}
+.wifi-share-group-wifi span {
+  width: auto;
+  height: auto;
+  background: none;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1;
+}
+/* The top of a page inside the app: the way back, and the page's name in the middle when it has one. */
+.wifi-share-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  font-size: 15px;
+}
+.wifi-share-bar svg {
+  position: absolute;
+  left: 0;
+  width: 28px;
+  height: 28px;
+  padding: 6px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+}
+.wifi-share-net {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--surface);
+  color: var(--muted);
+}
+.wifi-share-net > svg:first-child {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  padding: 6px;
+  border-radius: 8px;
+  background: var(--surface);
+}
+.wifi-share-net > svg:last-child {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.wifi-share-net div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+.wifi-share-net span {
+  width: 70%;
+  height: 9px;
+  border-radius: 5px;
+  background: var(--track);
+}
+.wifi-share-net span + span {
+  width: 45%;
+  height: 6px;
+  opacity: 0.6;
+}
+.wifi-share-net-current > svg:first-child {
+  background: var(--accent);
+  color: var(--page);
+}
+.wifi-share-net-current span:first-child {
+  width: 85%;
+  background: var(--muted);
+}
+/* A network's own page: its icon and name over its details, then what can be done with it. */
+.wifi-share-details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 16px;
+  border-radius: 18px;
+  background: var(--surface);
+}
+.wifi-share-details svg {
+  width: 38px;
+  height: 38px;
+  padding: 8px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--page);
+}
+.wifi-share-details span {
+  align-self: stretch;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--track);
+}
+.wifi-share-details .wifi-share-details-name {
+  align-self: center;
+  width: 60%;
+  height: 11px;
+  margin-bottom: 4px;
+  background: var(--muted);
+}
+.wifi-share-action {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 20px;
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.wifi-share-action-show {
+  color: var(--accent);
+}
+.wifi-share-action-forget span {
+  width: 55%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--danger);
+  opacity: 0.7;
+}
+/* Where a finger lands: a ring that closes in on the button, then lets go. They share one animation, each at its turn. */
+.wifi-share-tap {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 30%, transparent);
+  opacity: 0;
+  animation: wifi-share-tap var(--share-loop) infinite;
+}
+.wifi-share-tap-app {
+  top: 44px;
+  left: 16px;
+  animation-delay: calc(var(--share-loop) * 0.04);
+}
+.wifi-share-tap-wifi,
+.wifi-share-tap-network,
+.wifi-share-tap-show {
+  top: 50%;
+  right: 8px;
+  margin-top: -22px;
+}
+.wifi-share-tap-wifi {
+  animation-delay: calc(var(--share-loop) * 0.2);
+}
+.wifi-share-tap-network {
+  right: 28px;
+  animation-delay: calc(var(--share-loop) * 0.36);
+}
+.wifi-share-tap-show {
+  animation-delay: calc(var(--share-loop) * 0.52);
+}
+/*
+  The drawing of getting a phone ready to be paired (components/setup/OpenBluetooth.tsx), on the Wi-Fi drawing's phone:
+  the home screen and a tap on Settings, its list and a tap on Bluetooth, and the Bluetooth page, on and looking.
+  Its screens come in on the Wi-Fi drawing's first two beats. Without its animations it shows the end, that page.
+*/
+.phone-bluetooth {
+  --share-loop: 9s;
+}
+.phone-bluetooth-settings {
+  animation: wifi-share-passwords var(--share-loop) infinite;
+}
+.phone-bluetooth-page {
+  animation: wifi-share-networks var(--share-loop) infinite;
+}
+/* A row of the phone's Settings: an icon and a name, or a bar for a name that does not matter. */
+.phone-bluetooth-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--muted);
+}
+.phone-bluetooth-item svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.phone-bluetooth-item span {
+  flex: 1;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 650;
+  text-align: left;
+}
+.phone-bluetooth-item-bar span {
+  flex: none;
+  width: 50%;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--track);
+}
+.phone-bluetooth-row {
+  position: relative;
+}
+.phone-bluetooth-row svg,
+.phone-bluetooth-on svg {
+  color: var(--accent);
+}
+.phone-bluetooth-tap {
+  top: 50%;
+  right: 8px;
+  margin-top: -22px;
+  animation-delay: calc(var(--share-loop) * 0.2);
+}
+/* The switch at the end of the Bluetooth row, on. */
+.phone-bluetooth-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 38px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--accent);
+}
+.phone-bluetooth-switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+/* Under it, the phone looking for devices. */
+.phone-bluetooth-looking {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  color: var(--muted);
+}
+.phone-bluetooth-looking svg {
+  width: 18px;
+  height: 18px;
+}
+.phone-bluetooth-looking span {
+  width: 45%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--track);
+}
+@keyframes wifi-share-tap {
+  0% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  4%,
+  6% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  11%,
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+@keyframes wifi-share-passwords {
+  0%,
+  11% {
+    opacity: 0;
+  }
+  15%,
+  96% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes wifi-share-networks {
+  0%,
+  27% {
+    opacity: 0;
+  }
+  31%,
+  96% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes wifi-share-network {
+  0%,
+  43% {
+    opacity: 0;
+  }
+  47%,
+  96% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes wifi-share-code {
+  0%,
+  59% {
+    opacity: 0;
+  }
+  63%,
+  96% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* The welcome before the chapters: the mark large, what setup involves, and Start. */
+.setup-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  padding: 24px 48px;
+  border: 0;
+  border-radius: 0;
+  text-align: center;
+}
+.setup-welcome-logo {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+.setup-welcome-name {
+  font-size: 64px;
+}
+.setup-welcome-mark {
+  width: 120px;
+  height: 120px;
+  border-radius: 32px;
+}
+.setup-welcome-mark .lucide {
+  width: 72px;
+  height: 72px;
+}
+.setup-welcome-title {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.app-modal-panel .setup-welcome-text {
+  max-width: 640px;
+  /* Room above and below, on top of the page's own gap, so the words stand apart from the title and Start. */
+  margin: 20px 0 28px;
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1.45;
+}
+/* The 7" screen: a smaller logo, text and drawn phone, so all of it fits. */
+@media (height < 760px) {
+  .spotify-pick {
+    width: 230px;
+    height: 330px;
+  }
+  .setup-welcome-mark {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+  }
+  .setup-welcome-mark .lucide {
+    width: 44px;
+    height: 44px;
+  }
+  .setup-welcome-name {
+    font-size: 40px;
+  }
+  .setup-welcome-title {
+    font-size: 30px;
+  }
+  .app-modal-panel .setup-welcome-text {
+    font-size: 18px;
+  }
+}
+.setup-wizard-presence .phone-picker-option {
+  min-height: 72px;
+  font-size: 20px;
+}
+.setup-wizard-presence .pair-phone-pairing-name {
+  font-size: 26px;
+}
+/* Settings › People sizes its faces as buttons; the paired face here is a picture. */
+.setup-wizard .pair-phone-face .person-face {
+  display: inline-grid;
+  width: 160px;
+  height: 160px;
+  background: var(--surface-raised);
+  color: var(--accent);
+  font-size: 68px;
+}

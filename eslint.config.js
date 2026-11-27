@@ -1,5 +1,5 @@
 // One flat config for the whole repository, in two parts. The repository's own tooling (scripts/, e2e/, the config
-// files at the root) gets the strict Node rule set; the app in src/ gets the React, accessibility and Vitest rule set.
+// files at the root) gets the strict Node rule set; the app in web/src/ gets the React, accessibility and Vitest rule set.
 // Each part is scoped to its own files, so the rules never leak from one into the other.
 import js from '@eslint/js';
 import eslintReact from '@eslint-react/eslint-plugin';
@@ -17,11 +17,11 @@ import unicorn from 'eslint-plugin-unicorn';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-// The app lives in src/; everything else (scripts, e2e, the config files) is repository tooling.
-const APP_FILES = ['src/**/*.{ts,tsx}'];
-const APP_TEST_FILES = ['src/**/*.test.{ts,tsx}'];
+// The app lives in web/src/; everything else (scripts, e2e, the config files) is repository tooling.
+const APP_FILES = ['web/src/**/*.{ts,tsx}'];
+const APP_TEST_FILES = ['web/src/**/*.test.{ts,tsx}'];
 const TOOLING_FILES = ['**/*.{js,mjs,cjs,ts}'];
-const TOOLING_IGNORES = ['src/**'];
+const TOOLING_IGNORES = ['web/src/**'];
 
 // The test runners expose these; a call to any of them with `.only`, `.skip` or `.todo`, or with that option, would
 // silently disable other tests once merged.
@@ -93,7 +93,7 @@ export default defineConfig([
   {
     ignores: [
       'node_modules/**',
-      'dist/**',
+      'web/dist/**',
       'vendor/**',
       'coverage/**',
       'e2e/playwright-report/**',
@@ -167,7 +167,7 @@ export default defineConfig([
   },
   {
     // Leftover `.only` / `.skip` / `.todo` would silently disable the rest of a suite.
-    files: ['src/test/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
+    files: ['web/src/test/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
     rules: {
       'no-restricted-syntax': [
         'error',
@@ -201,8 +201,8 @@ export default defineConfig([
     rules: { 'n/no-unsupported-features/node-builtins': 'off' }
   },
 
-  // Part 2: the app in src/ (React, browser, Vitest).
-  // Type-aware typescript-eslint over the app, using tsconfig.app.json.
+  // Part 2: the app in web/src/ (React, browser, Vitest).
+  // Type-aware typescript-eslint over the app, using web/tsconfig.json.
   {
     files: APP_FILES,
     extends: [tseslint.configs.strictTypeChecked, tseslint.configs.stylisticTypeChecked],
@@ -284,7 +284,7 @@ export default defineConfig([
     rules: { ...IMPORT_RULES, 'import-x/order': ['error', IMPORT_ORDER] }
   },
   {
-    files: [...APP_TEST_FILES, 'src/test/**'],
+    files: [...APP_TEST_FILES, 'web/src/test/**'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
     rules: {
       'sonarjs/no-clear-text-protocols': 'off', // http://localhost and example URLs are fixtures.
