@@ -12,6 +12,7 @@ import { useT } from '../../i18n/translate';
 import ArrivalsTransitionSettings from './ArrivalsTransitionSettings';
 import SettingsSection from './SettingsSection';
 import SettingsToggle from './SettingsToggle';
+import StopLetter from './StopLetter';
 import StopSearch from './StopSearch';
 
 /**
@@ -71,7 +72,7 @@ export default function CountdownSettings({
             aria-labelledby="saved-stops-label"
           >
             {stops.map((stop, index) => {
-              const { name, detail } = described[index] ?? describeStop(stop);
+              const { name, detail, letter } = described[index] ?? describeStop(stop);
               const { style, isDragged } = reorder.rowStyle(index);
               return (
                 <li
@@ -90,7 +91,10 @@ export default function CountdownSettings({
                     <GripVertical className="w-5 h-5" aria-hidden="true" />
                   </button>
                   <span className="min-w-0 flex-1">
-                    <span className="settings-box-title block truncate">{name}</span>
+                    <span className="settings-box-title stop-name">
+                      <span className="truncate">{name}</span>
+                      {letter && <StopLetter letter={letter} />}
+                    </span>
                     {detail && <span className="block text-muted truncate">{detail}</span>}
                   </span>
                   <button

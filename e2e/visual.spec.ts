@@ -131,7 +131,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
               name: 'Oslo S',
               detail: 'Train & Metro • All platforms • L1, R10, 1, 2 (+12 more)'
             },
-            'tfl:490000077E': { name: 'Oval Station', detail: 'Stop E • 36, 185, 436' }
+            'tfl:490000077E': { name: 'Oval Station', detail: '36, 185, 436', letter: 'E' }
           })
         );
       });

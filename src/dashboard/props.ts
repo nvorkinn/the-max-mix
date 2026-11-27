@@ -159,8 +159,13 @@ export interface Departure extends DepartureBase {
   line: string;
   /** TfL's line id ("northern", "bakerloo"), which picks a Tube line's colour. */
   lineId: string;
-  /** Under the destination: "Platform 1 · Northbound", "Stop E", or null when there's nothing to say. */
+  /** Under the destination: "Platform 1 · Northbound", Norway's "Plattform C", or null when there's nothing to say. */
   detail: string | null;
+  /**
+   * A London bus's stop letter ("E") where it isn't the board's own, as at a hub of several stops: shown in a red disc
+   * by its destination, as on the stop's flag.
+   */
+  stopLetter?: string;
   /**
    * Its clock time ("05:42") when it is only the timetable's, with no live prediction (the first trains while the
    * Tube is shut): the board shows that, dimmed, instead of counting down. Absent for a live departure.

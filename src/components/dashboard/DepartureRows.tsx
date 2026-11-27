@@ -97,8 +97,9 @@ export function ScheduledTime({ time }: Readonly<{ time: string }>) {
 export function Destination({
   name,
   detail,
+  stopLetter,
   overQueue = false
-}: Readonly<{ name: string; detail: ReactNode; overQueue?: boolean }>) {
+}: Readonly<{ name: string; detail: ReactNode; stopLetter?: string | undefined; overQueue?: boolean }>) {
   const nameRef = useRollAcross(overQueue);
   return (
     <span className="dashboard-dest" data-over-queue={overQueue || undefined}>
@@ -106,6 +107,7 @@ export function Destination({
         <span ref={nameRef} className="dashboard-dest-name">
           {name}
         </span>
+        {stopLetter && <span className="dashboard-stop-letter dashboard-row-letter">{stopLetter}</span>}
       </strong>
       <span>{detail}</span>
     </span>

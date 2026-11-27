@@ -3216,6 +3216,26 @@ body:has(.app-dialog[open]) {
   flex-direction: column;
   gap: 8px;
 }
+/* A stop's name with, for a London bus stop, its letter after it: white on a red disc, as on the stop's flag. */
+.stop-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.stop-letter {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #d6362b;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
 .countdown-stop {
   display: flex;
   align-items: center;

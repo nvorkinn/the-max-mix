@@ -69,20 +69,24 @@ const soonestFirst = (a: Departure, b: Departure) => Date.parse(a.expected_at) -
 const STOP_POLE_MODES = new Set(['bus', 'tram', 'coach', 'water']);
 
 /**
- * What a departure's row says under its destination: a train's platform; a bus's (or Entur's tram's) stop letter
- * where it isn't the stop's own, as at a hub whose departures leave from its several stops.
+ * Where at the stop a departure leaves from, when its row should say: a train's platform; a bus's (or Entur's tram's)
+ * stop letter where it isn't the stop's own, as at a hub whose departures leave from its several stops. London's letter
+ * goes in a red disc (stopLetter), as on its flag; Norway's is written under the destination (detail).
  */
-function detailOf(
+function whereOf(
   stop: StopDepartures,
   mode: string,
   network: Network,
   platform: string | null,
   language: Language
-): string | null {
+): Pick<BoardDeparture, 'detail' | 'stopLetter'> {
   const isPole = mode === 'bus' || (network === 'entur' && STOP_POLE_MODES.has(mode));
-  if (!isPole) return platformOf(platform, language);
+  if (!isPole) return { detail: platformOf(platform, language) };
   const letter = platform ?? stop.stop_letter;
-  return letter && letter !== stop.stop_letter ? translate('board.stop', language, { letter }) : null;
+  if (!letter || letter === stop.stop_letter) return { detail: null };
+  return network === 'tfl'
+    ? { detail: null, stopLetter: letter }
+    : { detail: translate('board.stop', language, { letter }) };
 }
 
 function board(
@@ -111,7 +115,7 @@ function board(
         lineId: lineIdOf(departure.line),
         destination: departure.destination,
         expectedAt: departure.expected_at,
-        detail: detailOf(stop, mode, network, departure.platform, language),
+        ...whereOf(stop, mode, network, departure.platform, language),
         ...(departure.scheduled && { scheduledAt: formatClockTime(new Date(departure.expected_at), clockFormat) })
       };
     })
