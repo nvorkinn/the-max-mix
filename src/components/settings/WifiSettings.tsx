@@ -1,5 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Lock, QrCode, RefreshCw, Trash2, Wifi, WifiHigh, WifiLow, WifiOff, WifiZero } from 'lucide-react';
+import {
+  Keyboard,
+  Lock,
+  QrCode,
+  RefreshCw,
+  Smartphone,
+  Trash2,
+  Wifi,
+  WifiHigh,
+  WifiLow,
+  WifiOff,
+  WifiZero
+} from 'lucide-react';
 import { useLanguage } from '../../i18n/language';
 import { useT } from '../../i18n/translate';
 import { hasCamera } from '../../utils/kioskCamera';
@@ -19,10 +31,10 @@ const BARS = [WifiZero, WifiZero, WifiLow, WifiHigh, Wifi] as const;
 
 /**
  * The network the kiosk is on, large at the top with its signal, its address and Forget (on a second tap, since it drops
- * the connection); under it the other networks in range, strongest first, and joining one: an open one at a tap, one
- * with a password (or a hidden one, Other network) in a dialog with the on-screen keyboard, one a phone sends over
- * the kiosk's own Hotspot, or, on a kiosk with a camera, the one whose QR code is held up to it (Scan code, which leads
- * the page while the kiosk is on no network). The kiosk keeps only the network it is on, so there is no list of saved ones. `onJoined`
+ * the connection); under it the other networks in range, strongest first, with Refresh beside their heading, and
+ * joining one: an open one at a tap, one with a password in a dialog with the on-screen keyboard. Above the list, the
+ * other ways to join, as tiles: Scan code on a kiosk with a camera (the QR code held up to it; it leads the page while
+ * the kiosk is on no network), Type a network (a hidden network) and Use your phone (sent over the kiosk's own hotspot). The kiosk keeps only the network it is on, so there is no list of saved ones. `onJoined`
  * follows every join and every forget, so the network shown is asked again. The kiosk's service lists, joins and
  * forgets them (utils/kioskWifi.ts).
  */
@@ -157,57 +169,57 @@ export default function WifiSettings({
           </button>
         </section>
       )}
+      <SettingsSection id="wifi-ways-label" title={t('wifi.ways')}>
+        <div className="wifi-ways">
+          {canScan && wifi.state !== 'disconnected' && (
+            <button type="button" disabled={connecting !== null} onClick={scanCode} className="wifi-network wifi-way">
+              <QrCode className="w-6 h-6 shrink-0" aria-hidden="true" />
+              <span className="wifi-network-name">{t('wifi.scan')}</span>
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={connecting !== null}
+            onClick={() => {
+              setJoinError(null);
+              setTarget({ hidden: true });
+            }}
+            className="wifi-network wifi-way"
+          >
+            <Keyboard className="w-6 h-6 shrink-0" aria-hidden="true" />
+            <span className="wifi-network-name">{t('wifi.type_network')}</span>
+          </button>
+          <button
+            type="button"
+            disabled={connecting !== null}
+            onClick={() => {
+              setJoinError(null);
+              setPhoneSetup('hotspot');
+            }}
+            className="wifi-network wifi-way"
+          >
+            <Smartphone className="w-6 h-6 shrink-0" aria-hidden="true" />
+            <span className="wifi-network-name">{t('wifi.use_phone')}</span>
+          </button>
+        </div>
+      </SettingsSection>
       <SettingsSection
         id="wifi-others-label"
         title={t('wifi.others')}
         className="wifi-others"
         aside={
-          <div className="wifi-others-actions">
-            {canScan && wifi.state !== 'disconnected' && (
-              <button
-                type="button"
-                disabled={connecting !== null}
-                onClick={scanCode}
-                className="button button-secondary"
-              >
-                {t('wifi.scan')}
-              </button>
-            )}
-            <button
-              type="button"
-              disabled={connecting !== null}
-              onClick={() => {
-                setJoinError(null);
-                setTarget({ hidden: true });
-              }}
-              className="button button-secondary"
-            >
-              {t('wifi.other')}
-            </button>
-            <button
-              type="button"
-              disabled={connecting !== null}
-              onClick={() => {
-                setJoinError(null);
-                setPhoneSetup('hotspot');
-              }}
-              className="button button-secondary"
-            >
-              {t('wifi.hotspot')}
-            </button>
-            <button
-              type="button"
-              disabled={scan === undefined || connecting !== null}
-              aria-label={t('wifi.refresh')}
-              onClick={() => {
-                setJoinError(null);
-                refresh();
-              }}
-              className="button button-secondary wifi-refresh"
-            >
-              <RefreshCw className="w-5 h-5 shrink-0" aria-hidden="true" />
-            </button>
-          </div>
+          <button
+            type="button"
+            disabled={scan === undefined || connecting !== null}
+            aria-label={t('wifi.refresh')}
+            onClick={() => {
+              setJoinError(null);
+              refresh();
+            }}
+            className="button button-secondary wifi-refresh"
+          >
+            <RefreshCw className="w-5 h-5 shrink-0" aria-hidden="true" />
+          </button>
         }
       >
         {error !== null && (

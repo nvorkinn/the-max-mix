@@ -98,7 +98,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       const settings = await openSettings(page, 'Wi-Fi');
 
       // Step 1 open, then step 2 once a phone is on the hotspot.
-      await settings.getByRole('button', { name: 'Hotspot', exact: true }).click();
+      await settings.getByRole('button', { name: 'Use your phone', exact: true }).click();
       const hotspot = page.getByRole('dialog', { name: 'Hotspot' });
       const steps = hotspot.getByRole('listitem');
       await expect(steps.first()).toHaveAttribute('aria-current', 'step');
