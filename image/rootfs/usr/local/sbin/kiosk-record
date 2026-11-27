@@ -4,9 +4,11 @@
 #   sudo kiosk-record [SECONDS] > screen.mp4      SECONDS: 1 to 120, 10 if left out
 # From your computer, `npm run kiosk-record -- <host> [seconds]` runs this over SSH and saves the MP4
 # (scripts/kiosk-record.ts).
-# A frame is taken each time Cage draws one, so the video's frame times are the screen's own, and a stutter shows as a
-# frame that stays up too long. The Pi's hardware H.264 encoder does the work where there is one (Pi 4); elsewhere (Pi 5
-# has none) libx264 does, at low priority on two threads, so the recording takes as little as it can from Chromium.
+# Frames are taken one after another as fast as Cage hands them over (about 14 a second on a Pi 5), whether the screen
+# changes or not, so a still screen still makes a video of SECONDS. Each one is copied back from the GPU, which holds
+# Cage up: Chromium draws about half as many frames while it records, so this shows what the screen looks like, not how
+# smoothly it runs. The Pi's hardware H.264 encoder does the work where there is one (Pi 4); elsewhere (Pi 5 has none)
+# libx264 does, at low priority on two threads.
 set -euo pipefail
 
 kiosk_user=${KIOSK_USER:-kiosk}
@@ -62,7 +64,8 @@ record() {
   rm -f "$work/screen.mp4"
   timeout --signal=INT --kill-after=10 "$seconds" \
     nice -n 10 runuser -u "$kiosk_user" -- env XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY="$socket" \
-    wf-recorder --overwrite --file "$work/screen.mp4" "${filters[@]}" "$@" > "$work/log" 2>&1 || status=$?
+    wf-recorder --no-damage --overwrite --file "$work/screen.mp4" "${filters[@]}" "$@" > "$work/log" 2>&1 \
+    || status=$?
   [[ ($status == 0 || $status == 124) && -s $work/screen.mp4 ]]
 }
 
