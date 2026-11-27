@@ -189,6 +189,12 @@ export default defineConfig([
     rules: { 'sonarjs/no-nested-template-literals': 'off' }
   },
   {
+    // The Pi's server has a package.json of its own (server/), which lists only what runs on the Pi. Its tests run from
+    // the root, with the root's Vitest, so that is not a package the server is missing.
+    files: ['server/**/*.test.ts', 'server/src/fixtures.ts'],
+    rules: { 'n/no-extraneous-import': ['error', { allowModules: ['vitest'] }] }
+  },
+  {
     // The e2e specs hand Playwright init scripts that run in the browser, where localStorage and navigator are not the
     // experimental Node globals this rule warns about.
     files: ['e2e/**/*.ts'],

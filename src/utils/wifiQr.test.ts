@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { wifiQrText } from '../../pi/kiosk-audio/qr';
+import { wifiQrText } from '../../server/src/qr';
 import { parseWifiQr } from './wifiQr';
 
 describe('parseWifiQr', () => {

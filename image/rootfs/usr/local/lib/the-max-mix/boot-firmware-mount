@@ -1,7 +1,7 @@
 #!/bin/sh
 # Run by kiosk-boot-firmware.service: mounts the boot partition this boot started from at /boot/firmware, so the screen
 # setup can write the screen's mode into its cmdline.txt. The firmware says which partition in the device tree (a u32):
-# 2 is slot a's, 3 is slot b's (pi/kiosk-audio/boot-slots.ts).
+# 2 is slot a's, 3 is slot b's (server/src/boot-slots.ts).
 set -eu
 partition=$(od -An -tx1 -N4 /proc/device-tree/chosen/bootloader/partition | tr -d ' \n')
 case $((0x$partition)) in

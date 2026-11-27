@@ -1,5 +1,5 @@
 // Carries the app's saved data over when the kiosk moves from the hosted app to the copy the Pi serves itself
-// (pi/kiosk-audio/handover.ts). The browser keeps localStorage per origin, so the people, their Spotify logins and the
+// (server/src/handover.ts). The browser keeps localStorage per origin, so the people, their Spotify logins and the
 // countdown device secret would otherwise stay on the hosted origin. On the kiosk, the hosted app hands its items to the
 // kiosk service at every start and then every few minutes; the local copy takes them once, before anything reads them.
 import { KIOSK_SERVICE } from './kioskService';

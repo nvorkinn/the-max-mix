@@ -1,7 +1,7 @@
 name: Image bundle
 
 # Builds the A/B update bundle (image/build.sh bundle, the-max-mix.raucb) and publishes it to a channel's rolling
-# pre-release, which Pis on that channel install (pi/kiosk-audio/image-update.ts):
+# pre-release, which Pis on that channel install (server/src/image-update.ts):
 #   dev             every push to main
 #   branch-<name>   by hand on a branch (Run workflow), or a pull request with the pi-bundle label; the pre-release goes
 #                   when the branch is deleted

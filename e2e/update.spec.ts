@@ -4,7 +4,7 @@ import { showSection } from './settings.ts';
 
 const UPDATE_SOCKET = 'ws://127.0.0.1:7341/power/update';
 
-/** What the kiosk service sends while it updates (pi/kiosk-audio/update.ts). */
+/** What the kiosk service sends while it updates (server/src/update.ts). */
 const send = (ws: WebSocketRoute, message: object) => {
   ws.send(JSON.stringify(message));
 };

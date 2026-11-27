@@ -1,6 +1,6 @@
 // The kiosk's own Spotify player: Spotify Soloist, the headless Spotify Connect player that the Pi's service runs for the
-// active person (pi/kiosk-audio/soloist.ts). The page reaches it through the service's WebSocket at /soloist
-// (pi/kiosk-audio/soloist-socket.ts), which passes Soloist's events on, only Soloist's commands back, and says with
+// active person (server/src/soloist.ts). The page reaches it through the service's WebSocket at /soloist
+// (server/src/soloist-socket.ts), which passes Soloist's events on, only Soloist's commands back, and says with
 // {"type": "bridge"} whether Soloist is there at all. While it is signed in, Soloist follows the account's playback
 // whichever device plays and pushes every change as it happens; the app takes playback from these events alone.
 // Soloist's commands act on the Spotify account's active device, whichever that is, so the control commands here are only sent while Soloist itself is the active device: otherwise a
@@ -12,7 +12,7 @@ import { KIOSK_SERVICE } from '../utils/kioskService';
 import { getDevices } from './api';
 import { isRecord, recordOf } from './parse';
 
-/** The service's WebSocket that joins the page to Soloist (pi/kiosk-audio/soloist-socket.ts). */
+/** The service's WebSocket that joins the page to Soloist (server/src/soloist-socket.ts). */
 export const SOLOIST_SOCKET = `${KIOSK_SERVICE.replace(/^http/, 'ws')}/soloist`;
 // Soloist answers a command within about 50 ms; one that has not answered by now is given up on, so one lost answer
 // cannot leave the buttons dead.

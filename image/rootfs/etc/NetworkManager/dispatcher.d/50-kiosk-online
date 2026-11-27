@@ -10,7 +10,7 @@ esac
 case $1 in
   lo | tailscale*) exit 0 ;;
 esac
-# The Pi's own setup hotspot (pi/kiosk-audio/hotspot.ts) has no internet: the jobs wait for the network joined through it.
+# The Pi's own setup hotspot (server/src/hotspot.ts) has no internet: the jobs wait for the network joined through it.
 ip route show default | grep -q . || exit 0
 
 # The keys are a small download, so every time: a key added on GitHub also arrives with the next connection.

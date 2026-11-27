@@ -7,7 +7,7 @@ export default defineConfig({
     // in a context of its own.
     pool: 'vmThreads',
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}', 'pi/**/*.test.ts', 'scripts/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}', 'server/**/*.test.ts', 'scripts/**/*.test.ts'],
     restoreMocks: true,
     coverage: {
       provider: 'v8',

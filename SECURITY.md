@@ -41,7 +41,7 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
 - **The app is public static code.** Anyone who runs it can sign in with their own Spotify account, and each browser
   keeps its own login; a shared browser profile is a shared login. Only addresses registered as redirect URIs in the
   Spotify dashboard can sign in.
-- **The kiosk's local service.** `pi/kiosk-audio/` runs as the `kiosk` user and listens on 127.0.0.1:7341 only (the unit
+- **The kiosk's local service.** `server/` runs as the `kiosk` user and listens on 127.0.0.1:7341 only (the unit
   also denies every other address). It answers the app's origin alone: CORS names that origin, and every POST and every
   WebSocket without its `Origin` header is refused (browsers do not apply CORS to a WebSocket), so no other web page can
   trigger an action. A request names one of a few fixed actions and carries no command: update (a WebSocket that streams
@@ -53,11 +53,11 @@ THE MAX MIX is a client-only app: static files that run in the browser. The kios
   holds the output of the updater, not secrets). A page on the app's origin can therefore restart or reboot the kiosk, which is a nuisance at worst. Node comes
   from NodeSource's apt archive (Debian's is too old to run TypeScript), whose signing key is committed with the image (`image/rootfs/etc/apt/keyrings`);
   that archive is trusted like Debian's and Raspberry Pi's. The service's one npm package, `ws`, is installed with
-  `npm ci` from a committed lockfile (`image/kiosk-audio/package-lock.json`, integrity-checked and
+  `npm ci` from a committed lockfile (`server/package-lock.json`, integrity-checked and
   watched by Dependabot) with install scripts off.
 - **Wi-Fi.** The app's Settings > Wi-Fi joins networks through the local service above, which runs `nmcli` as the
   non-root `kiosk` user; a polkit rule (`50-kiosk-networkmanager.rules`, in the image) lets only that
   user manage NetworkManager connections. Joining a network (`POST /wifi/connect`), and starting the phone setups,
   answers only the app's origin, not any other web page's. The password reaches `nmcli` on stdin, never in argv, and
   is not logged; every call is an argument list with no shell. A kiosk
-  has no password for any account, and SSH only by key for `admin`. See [`pi/kiosk-audio/README.md`](pi/kiosk-audio/README.md).
+  has no password for any account, and SSH only by key for `admin`. See [`server/README.md`](server/README.md).

@@ -17,7 +17,7 @@ export interface PhonePairing {
 }
 
 /**
- * Pairs a person's phone with the kiosk (pi/kiosk-audio/phone-pairing.ts) while `isLooking`: the Pi looks for phones
+ * Pairs a person's phone with the kiosk (server/src/phone-pairing.ts) while `isLooking`: the Pi looks for phones
  * with Settings › Bluetooth open, and the one tapped is paired and linked to the person (setPersonPhone), so the
  * switcher knows when they are here. Stopping before a phone is paired (or unmounting) stops the Pi looking.
  */

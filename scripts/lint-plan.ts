@@ -29,8 +29,8 @@ const isRunAllFile = paths(
   'scripts/lint-plan.ts'
 );
 
-// The root package.json and lockfile run everything; the Pi's kiosk-audio ones only need the two package checks.
-const isKioskAudioPackageFile = paths('image/kiosk-audio/package.json', 'image/kiosk-audio/package-lock.json');
+// The root package.json and lockfile run everything; the Pi's server/ ones only need the two package checks.
+const isServerPackageFile = paths('server/package.json', 'server/package-lock.json');
 
 // A bump of the countdown-api submodule (its commit, listed as the folder) can change the types the app imports.
 const isCountdownApi = paths('vendor/countdown-api', '.gitmodules');
@@ -48,11 +48,8 @@ const CHECKS: Record<string, Matcher[]> = {
   'lint:md': [ext('md'), paths('.markdownlint.jsonc', '.markdownlint-cli2.jsonc')],
   'lint:css': [paths(/^src\/.*\.css$/, 'stylelint.config.mjs')],
   'lint:unused-css': [paths(/^src\/.*\.(css|tsx?)$/, 'scripts/check-unused-css.ts')],
-  'lint:package-json': [
-    paths('.npmpackagejsonlintrc.json', 'scripts/check-version-ranges.ts'),
-    isKioskAudioPackageFile
-  ],
-  'lint:lockfiles': [isKioskAudioPackageFile],
+  'lint:package-json': [paths('.npmpackagejsonlintrc.json', 'scripts/check-version-ranges.ts'), isServerPackageFile],
+  'lint:lockfiles': [isServerPackageFile],
   'lint:image': [paths(/^image\//, 'scripts/check-image.ts', 'scripts/image-lists.ts')],
   shellcheck: [paths('image/build.sh', /^image\/rootfs\/usr\/local\/(s?bin|lib\/the-max-mix)\//)],
   actionlint: [paths(/^\.github\/workflows\//)],

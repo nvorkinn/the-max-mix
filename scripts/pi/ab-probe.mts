@@ -1,16 +1,16 @@
 // A throwaway probe for the image-based A/B update plan (chunk 0, the Pi spike). It runs on a Mac with Docker and SSH
 // access to a test Pi, and never touches a Pi's live card: everything goes onto a spare card.
 //
-//   node pi/tools/ab-probe.mts image
+//   node scripts/pi/ab-probe.mts image
 //       Builds ~/ab-spike/out/ab-spike.img.zst in an arm64 Debian container: the published flash image
 //       (the-max-mix.img.zst) re-laid out as the plan's six-partition GPT card, plus an Imager list that offers it.
-//   node pi/tools/ab-probe.mts card [disk]
+//   node scripts/pi/ab-probe.mts card [disk]
 //       After Raspberry Pi Imager has written the card: lists what is on each FAT partition (where Imager's wizard
 //       put user-data and network-config), and with --fix copies those files into boot-a, where cloud-init reads them.
-//   node pi/tools/ab-probe.mts pi <command> [args]     (PI=admin@host, default admin@192.168.0.150)
+//   node scripts/pi/ab-probe.mts pi <command> [args]     (PI=admin@host, default admin@192.168.0.150)
 //       status | tryboot | reboot | break <A|B> | mend <A|B> | readonly <on|off> | grow-data | rootfs <file.tar.zst>
 //       | install <url> | rauc <args...>
-//   node pi/tools/ab-probe.mts bundle <rootfs.tar.zst> <version> [out.raucb]
+//   node scripts/pi/ab-probe.mts bundle <rootfs.tar.zst> <version> [out.raucb]
 //       Builds a signed RAUC bundle (verity format, block-hash-index for adaptive updates) from a root tarball.
 //
 // Results go in docs/ab-spike-results.md. Work files live in ~/ab-spike (cache, keys, out).

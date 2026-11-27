@@ -4,7 +4,7 @@
 // bluetooth-monitor.ts), and when one is picked stops scanning and asks BlueZ to pair. The phone asks its person to
 // confirm a code; an agent registered here says yes on the kiosk's side (the person picked their phone on the kiosk,
 // which is the check) and passes the code on to show. A Classic pairing also gives BlueZ the phone's LE identity key,
-// so presence.ts can tell its changing LE adverts are that phone. Checked on the Pi with pi/tools/bt-probe.mts.
+// so presence.ts can tell its changing LE adverts are that phone. Checked on the Pi with scripts/pi/bt-probe.mts.
 import type * as DBus from 'dbus-native';
 import type { MessageBus } from 'dbus-native';
 import { ignoreFailure, untilConnected } from './system-bus.ts';

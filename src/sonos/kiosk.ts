@@ -1,4 +1,4 @@
-// The kiosk's Sonos speakers, through the Pi's local service (pi/kiosk-audio/sonos.ts), which talks to them on the home
+// The kiosk's Sonos speakers, through the Pi's local service (server/src/sonos.ts), which talks to them on the home
 // network. Spotify will not move its playback to a Sonos from this app (the Web API hides Sonos as a restricted device),
 // so the Pi starts the song on the speaker itself: it goes into the room's Sonos queue and plays through the Spotify
 // account linked in the Sonos app. The Pi does that, and everything else here, with the sonos-ts library. Rooms are named

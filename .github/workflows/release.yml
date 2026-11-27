@@ -8,7 +8,7 @@ name: Release
 # to the server over Tailscale and then publish the GitHub release for the tag (notes generated from the merged pull
 # requests when it has none yet). The very last steps upload the Pis' signed A/B update bundle (built by bundle.yml)
 # to the release as the-max-mix-<tag>.raucb, then bundle.txt, which names it. Stable Pis read
-# releases/latest/download/bundle.txt (pi/kiosk-audio/image-update.ts), so a release made with the form, which is the
+# releases/latest/download/bundle.txt (server/src/image-update.ts), so a release made with the form, which is the
 # latest from the start, reaches them only once the deploy has worked and its bundle is there, and the Pis and the web
 # app move together.
 #

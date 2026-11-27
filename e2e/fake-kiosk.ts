@@ -14,7 +14,7 @@ const EMPTY_LISTS: Record<string, object | undefined> = {
   '/sonos/groups': { groups: [], ms: 0 }
 };
 
-/** A speaker output as the Pi lists it (pi/kiosk-audio/speakers.ts). */
+/** A speaker output as the Pi lists it (server/src/speakers.ts). */
 interface FakeOutput {
   id: string;
   name: string;
@@ -34,7 +34,7 @@ export const airPlayOutput = (name: string, volume: number | null = null): FakeO
 });
 
 /**
- * The Pi as the app sees it (pi/kiosk-audio/server.ts) on the kiosk: it lists these outputs, and a route request links
+ * The Pi as the app sees it (server/src/server.ts) on the kiosk: it lists these outputs, and a route request links
  * the sound to exactly the ones it names, as the real one reports afterwards. Sonos and Bluetooth find nothing. Returns
  * the route and volume requests the page sends, as they arrive.
  */
@@ -67,7 +67,7 @@ export async function fakeKioskOutputs(page: Page, outputs: FakeOutput[]) {
   return { routes, volumes };
 }
 
-/** The networks the Pi's Wi-Fi sees (pi/kiosk-audio/nmcli.ts), the one it is on first. */
+/** The networks the Pi's Wi-Fi sees (server/src/nmcli.ts), the one it is on first. */
 const FAKE_NETWORKS = [
   { ssid: 'Home network', bars: 4, security: 'psk' },
   { ssid: 'Neighbour', bars: 3, security: 'psk' },
@@ -106,7 +106,7 @@ function qrPicture(text: string): string {
 }
 
 /**
- * What the Pi answers about its screen's camera (pi/kiosk-audio/camera.ts): that it has one, and as its picture a QR
+ * What the Pi answers about its screen's camera (server/src/camera.ts): that it has one, and as its picture a QR
  * code of `code`, standing still. Undefined for any other request.
  */
 export function cameraAnswer(request: Request, code: string) {
@@ -116,7 +116,7 @@ export function cameraAnswer(request: Request, code: string) {
   return path === '/camera/stream' ? { headers: CORS, contentType: 'image/svg+xml', body: qrPicture(code) } : undefined;
 }
 
-/** How a phone joins the Pi's setup hotspot (pi/kiosk-audio/hotspot.ts), as POST /wifi/hotspot answers. */
+/** How a phone joins the Pi's setup hotspot (server/src/hotspot.ts), as POST /wifi/hotspot answers. */
 const FAKE_HOTSPOT = {
   ssid: 'THE MAX MIX setup',
   // eslint-disable-next-line sonarjs/no-hardcoded-passwords -- a made-up hotspot password, as hotspot.ts makes them
