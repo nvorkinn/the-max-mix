@@ -174,7 +174,7 @@ describe('LyricsPanel', () => {
         Object.defineProperties(line, { offsetTop: { value: index * 100 }, clientHeight: { value: 20 } });
       }
       rerender(<LyricsPanel track={track} progressMs={2500} provider={provider} />);
-      expect(list.scrollTop).toBe(160);
+      expect(list.scrollTop).toBe(140);
       expect(list).toHaveAttribute('tabindex', '0');
       if (input === 'wheel') fireEvent.wheel(list, { deltaY: -100 });
       else if (input === 'touch' || input === 'scrollbar') {
@@ -191,7 +191,7 @@ describe('LyricsPanel', () => {
         vi.advanceTimersByTime(8000);
       });
       expect(list).toHaveAttribute('data-following', 'true');
-      expect(list.scrollTop).toBe(260);
+      expect(list.scrollTop).toBe(240);
     }
   );
 

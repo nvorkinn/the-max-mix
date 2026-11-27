@@ -130,14 +130,15 @@ function LyricsPanelContent({
     };
   }, [lyrics]);
 
-  // The list is positioned, so a line's offsetTop is measured from the list's top.
+  // The line being sung sits one line above the middle, so one more of the lines still to come shows below it. The list is
+  // positioned, so a line's offsetTop is measured from the list's top.
   useEffect(() => {
     const list = listRef.current;
     const line = list?.children[Math.max(0, active)];
     if (!isFollowing || !list || !followingRef.current || lyrics?.kind !== 'synced' || !(line instanceof HTMLElement)) {
       return;
     }
-    list.scrollTop = line.offsetTop - list.clientHeight / 2 + line.clientHeight / 2;
+    list.scrollTop = line.offsetTop - list.clientHeight / 2 - line.clientHeight / 2;
   }, [active, lyrics, isFollowing]);
 
   /** Sync mode: the tapped line is the one being sung now, so the timing moves to match, and the mode ends. */

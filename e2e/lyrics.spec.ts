@@ -25,15 +25,16 @@ test.describe('Lyrics', { tag: '@lyrics' }, () => {
     const panel = page.getByRole('region', { name: 'Lyrics', exact: true });
     const list = panel.getByRole('list');
     const active = list.locator('[aria-current="true"]');
-    const centerOffset = () =>
+    // How far the line being sung is from its place, one line above the middle of the list.
+    const followOffset = () =>
       list.evaluate(element => {
         const line = element.querySelector('[aria-current="true"]');
         if (!(line instanceof HTMLElement)) throw new TypeError('Missing active lyric line');
-        return Math.abs(line.offsetTop - element.scrollTop - element.clientHeight / 2 + line.clientHeight / 2);
+        return Math.abs(line.offsetTop - element.scrollTop - element.clientHeight / 2 - line.clientHeight / 2);
       });
     await expect(list).toBeVisible();
     await list.scrollIntoViewIfNeeded();
-    await expect.poll(centerOffset).toBeLessThan(2);
+    await expect.poll(followOffset).toBeLessThan(2);
     await page.clock.install();
     const initialTop = await list.evaluate(element => element.scrollTop);
     // A finger on the list pauses the following, and the reader drags it up to read. Dragged here at once: a wheel's
@@ -56,7 +57,7 @@ test.describe('Lyrics', { tag: '@lyrics' }, () => {
     expect(await page.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     await page.clock.fastForward(9000);
     await expect(list).toHaveAttribute('data-following', 'true');
-    await expect.poll(centerOffset).toBeLessThan(2);
+    await expect.poll(followOffset).toBeLessThan(2);
 
     await list.focus();
     await page.keyboard.press('Home');
