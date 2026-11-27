@@ -55,7 +55,7 @@ describe('Settings › Wi-Fi over the hotspot', () => {
     const onPhoneSetup = vi.fn();
     renderWifi({ onJoined, onPhoneSetup });
     expect(onPhoneSetup).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('button', { name: 'Hotspot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Use your phone' }));
     // Settings stays up while the phone is used, however long nobody touches the screen.
     expect(onPhoneSetup).toHaveBeenLastCalledWith(true);
     const dialog = screen.getByRole('dialog', { name: 'Hotspot' });
@@ -93,7 +93,7 @@ describe('Settings › Wi-Fi over the hotspot', () => {
   it('closes when the kiosk could not join, says why on the page, and looks for networks again', async () => {
     const onJoined = vi.fn();
     renderWifi({ onJoined });
-    await userEvent.click(screen.getByRole('button', { name: 'Hotspot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Use your phone' }));
     const dialog = screen.getByRole('dialog', { name: 'Hotspot' });
     await within(dialog).findByTestId('hotspot-name');
     wifi.scanWifi.mockClear();
@@ -112,7 +112,7 @@ describe('Settings › Wi-Fi over the hotspot', () => {
 
   it('closes when the hotspot ended by itself', async () => {
     renderWifi();
-    await userEvent.click(screen.getByRole('button', { name: 'Hotspot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Use your phone' }));
     await within(screen.getByRole('dialog', { name: 'Hotspot' })).findByTestId('hotspot-name');
     wifi.hotspotStatus.mockResolvedValue({ state: 'ended' });
     await poll();
@@ -125,7 +125,7 @@ describe('Settings › Wi-Fi over the hotspot', () => {
     wifi.stopHotspot.mockImplementationOnce(() => new Promise<void>(resolve => (stopped = resolve)));
     renderWifi();
     expect(wifi.scanWifi).toHaveBeenCalledOnce();
-    await userEvent.click(screen.getByRole('button', { name: 'Hotspot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Use your phone' }));
     const dialog = screen.getByRole('dialog', { name: 'Hotspot' });
     await within(dialog).findByTestId('hotspot-name');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Back' }));
@@ -141,7 +141,7 @@ describe('Settings › Wi-Fi over the hotspot', () => {
   it("says the kiosk's reason when the hotspot would not start", async () => {
     wifi.startHotspot.mockResolvedValue({ ok: false, error: 'There is no Wi-Fi adapter to make a hotspot with.' });
     renderWifi();
-    await userEvent.click(screen.getByRole('button', { name: 'Hotspot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Use your phone' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('There is no Wi-Fi adapter to make a hotspot with.');
     expect(screen.queryByTestId('hotspot-name')).not.toBeInTheDocument();
   });
@@ -150,7 +150,7 @@ describe('Settings › Wi-Fi over the hotspot', () => {
     let started: (result: unknown) => void = () => {};
     wifi.startHotspot.mockImplementationOnce(() => new Promise(resolve => (started = resolve)));
     renderWifi();
-    await userEvent.click(screen.getByRole('button', { name: 'Hotspot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Use your phone' }));
     await userEvent.click(
       within(screen.getByRole('dialog', { name: 'Hotspot' })).getByRole('button', { name: 'Back' })
     );

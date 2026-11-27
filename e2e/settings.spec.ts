@@ -308,7 +308,7 @@ test.describe('Settings', { tag: '@settings' }, () => {
     await showSection(dialog, 'Spotify');
     await expect(dialog.getByRole('button', { name: 'Remove' })).toBeVisible();
     await expect(dialog.getByRole('button', { name: /phone/ })).toHaveCount(0);
-    const kioskOnly = ['Other network', 'Restart kiosk', 'Reboot Pi', 'Check for updates'];
+    const kioskOnly = ['Type a network', 'Restart kiosk', 'Reboot Pi', 'Check for updates'];
     await Promise.all(kioskOnly.map(name => expect(dialog.getByRole('button', { name })).toHaveCount(0)));
   });
 });

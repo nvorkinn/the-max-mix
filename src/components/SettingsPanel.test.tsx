@@ -151,7 +151,7 @@ describe('SettingsPanel', () => {
 
   describe('Wi-Fi setting', () => {
     const JOINED = { ok: true };
-    const wifi = () => screen.queryByRole('button', { name: 'Other network' });
+    const wifi = () => screen.queryByRole('button', { name: 'Type a network' });
     /**
      * The kiosk service: GET /wifi/status answers `status`, GET /wifi/networks lists `networks`, and POST /wifi/connect
      * and /wifi/forget answer `joined`.

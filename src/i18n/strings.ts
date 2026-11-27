@@ -153,7 +153,7 @@ export const STRINGS = {
     en: 'A board with a row for each route and its next departures',
     nb: 'En tavle med én rad for hver linje og dens neste avganger'
   },
-  'countdown.transition': { en: 'Changing stops', nb: 'Bytte av stopp' },
+  'countdown.transition': { en: 'Animation style', nb: 'Animasjonsstil' },
   'countdown.transition.flip': { en: 'Flip', nb: 'Vend' },
   'countdown.transition.slide': { en: 'Slide', nb: 'Skyv' },
   'countdown.transition.sinkRise': { en: 'Sink and rise', nb: 'Synk og stig' },
@@ -242,6 +242,9 @@ export const STRINGS = {
   'wifi.connect': { en: 'Connect', nb: 'Koble til' },
   'wifi.connecting': { en: 'Connecting to {ssid}…', nb: 'Kobler til {ssid} …' },
   'wifi.hotspot': { en: 'Hotspot', nb: 'Hotspot' },
+  'wifi.ways': { en: 'Join another way', nb: 'Koble til på en annen måte' },
+  'wifi.type_network': { en: 'Type a network', nb: 'Skriv inn nettverk' },
+  'wifi.use_phone': { en: 'Use your phone', nb: 'Bruk telefonen' },
   'wifi.scan': { en: 'Scan code', nb: 'Skann kode' },
   'wifi.scan_lead': {
     en: 'Have the Wi-Fi’s QR code on your phone? Show it to the camera to join without typing.',

@@ -23,6 +23,8 @@ export interface SearchResult<V = unknown> {
   name: string;
   /** The line under it: what stops there, or the place's region and country. */
   detail: string;
+  /** A London bus stop's letter ("K"), shown in a red disc by its name as on the stop's flag. */
+  letter?: string;
   /** A platform of the station before it, listed under it. */
   indent: boolean;
   value: V;
@@ -43,11 +45,19 @@ function stopKey(stop: DepartureStop): string {
   return `${stop.source}:${stop.id}`;
 }
 
+/** A London bus stop's letter, which its flag shows in a red disc; nothing for any other stop. */
+function flagLetter(source: DepartureStop['source'], mode: string, letter: string | null | undefined) {
+  return source === 'tfl' && mode === 'bus' && letter ? letter : undefined;
+}
+
 function fromStop(result: StopSearchResult): StopResult {
+  const letter = flagLetter(result.source, result.mode, result.letter);
   return {
     key: stopKey(result.value),
     name: result.name,
-    detail: result.subtitle,
+    // The letter shows in its disc, so the line under it is just the routes, not the server's "Stop K • 12, 35".
+    detail: letter ? result.lines.join(', ') : result.subtitle,
+    ...(letter && { letter }),
     indent: result.indent,
     value: result.value
   };
@@ -128,7 +138,7 @@ export async function locatePlace(): Promise<PlaceResult | null> {
   return here ? fromPlace(here) : null;
 }
 
-type StopNames = Record<string, { name: string; detail: string }>;
+type StopNames = Record<string, { name: string; detail: string; letter?: string }>;
 
 function storedStopNames(): StopNames {
   try {
@@ -143,20 +153,26 @@ function storedStopNames(): StopNames {
 export function rememberStop(result: StopResult): void {
   try {
     const names = storedStopNames();
-    names[result.key] = { name: result.name, detail: result.detail };
+    names[result.key] = { name: result.name, detail: result.detail, ...(result.letter && { letter: result.letter }) };
     localStorage.setItem(STOP_NAMES_KEY, JSON.stringify(names));
   } catch {
     // Storage is unavailable: the stop shows its id instead.
   }
 }
 
-/** A saved stop's name and the line under it, when this kiosk added it; otherwise its id stands in for the name. */
-export function describeStop(stop: DepartureStop): { name: string; detail: string } {
+/**
+ * A saved stop's name, the line under it and (a London bus stop's) letter, when this kiosk added it or learnt its name;
+ * otherwise its id stands in for the name.
+ */
+export function describeStop(stop: DepartureStop): { name: string; detail: string; letter?: string } {
   const source = stop.source === 'tfl' ? 'TfL' : 'Entur';
   const known = storedStopNames()[stopKey(stop)];
-  return known
-    ? { name: known.name, detail: known.detail ? `${known.detail} · ${source}` : source }
-    : { name: stop.id, detail: source };
+  if (!known) return { name: stop.id, detail: source };
+  return {
+    name: known.name,
+    detail: known.detail ? `${known.detail} · ${source}` : source,
+    ...(known.letter && { letter: known.letter })
+  };
 }
 
 /**
@@ -175,11 +191,12 @@ export async function learnStopNames(): Promise<boolean> {
   for (const stop of answer.data.stops) {
     const key = stopKey(stop);
     if (!stop.departures || Object.hasOwn(known, key)) continue;
-    const letter = stop.departures.stop_letter;
+    const letter = flagLetter(stop.source, stop.departures.mode, stop.departures.stop_letter);
     rememberStop({
       key,
       name: stop.departures.name,
-      detail: letter ? `Stop ${letter}` : '',
+      detail: '',
+      ...(letter && { letter }),
       indent: false,
       value: stop
     });

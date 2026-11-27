@@ -2419,14 +2419,16 @@ body:has(.app-dialog[open]) {
   background: var(--accent-ink);
   transform: translateX(36px);
 }
-/* The Screen page's day: the sleep delay, with the brightness column standing beside it. */
-.screen-day {
+/* The Screen page: the brightness column on the left, from top to bottom, beside quiet hours over the sleep delay. */
+.screen-settings {
   display: flex;
   align-items: stretch;
-  gap: 28px;
+  gap: 40px;
+  max-width: 760px;
 }
-.screen-day > .settings-section {
+.screen-settings > .settings-stack {
   flex: 1;
+  min-width: 0;
 }
 /*
   Brightness as a tall column that fills from the bottom as it brightens. The range input lies over all of it, unseen
@@ -2819,19 +2821,10 @@ body:has(.app-dialog[open]) {
 .wifi-others {
   container: wifi-others / inline-size;
 }
-.wifi-others-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-/* Compact across, but as tall as Settings' touch targets (60px). */
-.wifi-others-actions .button {
-  min-height: 60px;
-  padding: 0 18px;
-  font-size: 17px;
-}
-.wifi-others-actions .wifi-refresh {
+/* Refresh, beside the Other networks heading: as tall as Settings' touch targets (60px). */
+.wifi-others .wifi-refresh {
   width: 60px;
+  min-height: 60px;
   padding: 0;
 }
 .wifi-networks {
@@ -2866,6 +2859,22 @@ body:has(.app-dialog[open]) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* The other ways to join, above the list: one row of tiles drawn like the networks, their icons in the accent. */
+.wifi-ways {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 10px;
+}
+.wifi-way svg {
+  color: var(--accent);
+}
+.wifi-way .wifi-network-name {
+  font-weight: 600;
+}
+.wifi-way:disabled svg {
+  color: inherit;
 }
 .wifi-network-note {
   font-size: 14px;
@@ -3228,6 +3237,28 @@ body:has(.app-dialog[open]) {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+/* A stop's name with, for a London bus stop, its letter after it: white on a red disc, as on the stop's flag. */
+.stop-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.stop-letter {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #d6362b;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  /* Centred on the letter itself (its cap height), not on the font's line box, whatever the font's metrics. */
+  text-box: trim-both cap alphabetic;
 }
 .countdown-stop {
   display: flex;

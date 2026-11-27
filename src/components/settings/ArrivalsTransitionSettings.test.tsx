@@ -9,7 +9,7 @@ describe('ArrivalsTransitionSettings', () => {
 
   it('offers each change of stop as a panel playing it, Slide until another is tapped, and keeps the one tapped', async () => {
     render(<ArrivalsTransitionSettings />);
-    const choices = screen.getByRole('group', { name: 'Changing stops' });
+    const choices = screen.getByRole('group', { name: 'Animation style' });
     const panels = within(choices).getAllByRole('button');
     expect(panels.map(panel => panel.textContent)).toEqual(['Flip', 'Slide', 'Sink and rise', 'None']);
     // Each panel shows its own recording, named by the words under it.
