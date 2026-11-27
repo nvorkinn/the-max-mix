@@ -58,6 +58,7 @@ function setUp(following: boolean, spotify: Record<string, unknown> = {}) {
     isReady: true,
     isAuthenticated: true,
     playbackState: { is_playing: true, item: SONG, progress_ms: 61_000 },
+    describeCurrentTrack: vi.fn(),
     setSlowPolling: vi.fn(),
     togglePlay: vi.fn().mockResolvedValue(true),
     handOff: vi.fn().mockResolvedValue(undefined),
@@ -82,6 +83,7 @@ function setUp(following: boolean, spotify: Record<string, unknown> = {}) {
     moveSong: vi.fn().mockResolvedValue(true),
     play: vi.fn().mockResolvedValue(true),
     leave: vi.fn().mockResolvedValue(undefined),
+    describeCurrentTrack: vi.fn(),
     setSlowPolling: vi.fn()
   };
   return renderOnSpotifyTab(<TabletView />);

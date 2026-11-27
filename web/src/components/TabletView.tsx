@@ -120,6 +120,7 @@ export default function TabletView() {
     browserDeviceId,
     isPlayerActive,
     queueVersion,
+    describeCurrentTrack,
     kioskQueue: playerQueue,
     error: playerError,
     problem: playerProblem,
@@ -428,6 +429,8 @@ export default function TabletView() {
         const data = await getQueue();
         if (isCancelled()) return;
         setQueue(data.queue);
+        // The reply names the song that plays too, which the kiosk's player can leave without its name.
+        describeCurrentTrack(data.currently_playing ?? null);
         setQueueStatus('ready');
         setQueueError(null);
         failures = 0;
@@ -457,7 +460,8 @@ export default function TabletView() {
     isPlayerActive,
     isPlaying,
     queueVersion,
-    queueRequestVersion
+    queueRequestVersion,
+    describeCurrentTrack
   ]);
 
   const artUrl = currentTrack?.album?.images?.[0]?.url;

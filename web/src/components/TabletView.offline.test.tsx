@@ -38,6 +38,7 @@ describe('offline state in TabletView', () => {
       playbackState: null,
       isAuthenticated: false,
       isLoading: false,
+      describeCurrentTrack: vi.fn(),
       setSlowPolling: vi.fn()
     };
   });
