@@ -2806,19 +2806,10 @@ body:has(.app-dialog[open]) {
 .wifi-others {
   container: wifi-others / inline-size;
 }
-.wifi-others-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-/* Compact across, but as tall as Settings' touch targets (60px). */
-.wifi-others-actions .button {
-  min-height: 60px;
-  padding: 0 18px;
-  font-size: 17px;
-}
-.wifi-others-actions .wifi-refresh {
+/* Refresh, beside the Other networks heading: as tall as Settings' touch targets (60px). */
+.wifi-others .wifi-refresh {
   width: 60px;
+  min-height: 60px;
   padding: 0;
 }
 .wifi-networks {
@@ -2853,6 +2844,23 @@ body:has(.app-dialog[open]) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* The other ways to join, after the list: one row of tiles drawn like the networks, their icons in the accent. */
+.wifi-ways {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+.wifi-way svg {
+  color: var(--accent);
+}
+.wifi-way .wifi-network-name {
+  font-weight: 600;
+}
+.wifi-way:disabled svg {
+  color: inherit;
 }
 .wifi-network-note {
   font-size: 14px;

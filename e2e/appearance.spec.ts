@@ -27,7 +27,7 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await expect(settings.locator('.settings-panel')).toHaveCSS('color', PHOTO.ink);
     await expect(settings.locator('.settings-panel')).toHaveCSS('color-scheme', PHOTO.scheme);
     await showSection(settings, 'Wi-Fi');
-    await expect(settings.getByRole('button', { name: 'Other network' })).toHaveCSS('color', PHOTO.ink);
+    await expect(settings.getByRole('button', { name: 'Type a network' })).toHaveCSS('color', PHOTO.ink);
     await showSection(settings, 'About');
     await expect(settings.getByRole('button', { name: 'Restart kiosk' })).toHaveCSS('color', PHOTO.ink);
 

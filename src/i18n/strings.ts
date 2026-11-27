@@ -242,6 +242,8 @@ export const STRINGS = {
   'wifi.connect': { en: 'Connect', nb: 'Koble til' },
   'wifi.connecting': { en: 'Connecting to {ssid}…', nb: 'Kobler til {ssid} …' },
   'wifi.hotspot': { en: 'Hotspot', nb: 'Hotspot' },
+  'wifi.type_name': { en: 'Type a network', nb: 'Skriv inn nettverk' },
+  'wifi.from_phone': { en: 'Use your phone', nb: 'Bruk telefonen' },
   'wifi.scan': { en: 'Scan code', nb: 'Skann kode' },
   'wifi.scan_lead': {
     en: 'Have the Wi-Fi’s QR code on your phone? Show it to the camera to join without typing.',
