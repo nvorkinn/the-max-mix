@@ -1,3 +1,4 @@
+// cspell:ignore Drammen
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../../vendor/countdown-api/src/countdown_api/fixtures/search.json';
 import touchscreen from '../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';

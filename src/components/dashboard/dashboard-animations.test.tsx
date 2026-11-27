@@ -36,7 +36,7 @@ describe('the departure boards', () => {
   const destinations = () =>
     within(screen.getByRole('region', { name: /^TfL / }))
       .getAllByRole('listitem')
-      .map(row => row.querySelector('strong')?.textContent);
+      .map(row => row.querySelector('.dashboard-dest-name')?.textContent);
 
   it('fades a departed bus out where it is, then brings the rest up and fades the next one in', () => {
     const { rerender } = render(buses(at(2)));
