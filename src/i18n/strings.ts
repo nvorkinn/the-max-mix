@@ -538,6 +538,7 @@ export const STRINGS = {
   'update.close': { en: 'Close update console', nb: 'Lukk oppdateringskonsollen' },
   'update.updating': { en: 'Updating… this can take a few minutes.', nb: 'Oppdaterer … dette kan ta noen minutter.' },
   'update.percent': { en: '{percent}% installed', nb: '{percent} % installert' },
+  'update.working': { en: 'Still installing', nb: 'Installerer fortsatt' },
   'update.output': { en: 'Update output', nb: 'Utdata fra oppdateringen' },
   'update.starting': { en: 'Starting the update…', nb: 'Starter oppdateringen …' },
   'update.leave_on': {

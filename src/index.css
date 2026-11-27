@@ -3540,6 +3540,36 @@ input:disabled {
   background: var(--focus);
   transition: width 0.3s ease;
 }
+/* No percentage to show (the kiosk reports none while it copies the system image): a band that runs along the bar. */
+.update-console-progress:indeterminate {
+  background:
+    linear-gradient(90deg, transparent, var(--focus), transparent) no-repeat,
+    rgb(255 255 255 / 15%);
+  background-size:
+    40% 100%,
+    auto;
+  animation: update-console-working 1.6s ease-in-out infinite;
+}
+@keyframes update-console-working {
+  from {
+    background-position:
+      -70% 0,
+      0 0;
+  }
+  to {
+    background-position:
+      170% 0,
+      0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .update-console-progress:indeterminate {
+    background-position:
+      50% 0,
+      0 0;
+    animation: none;
+  }
+}
 .update-console-output {
   flex: 1;
   min-height: 0;

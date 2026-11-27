@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { FakeWebSocket, fakeSocketCount, latestFakeSocket, resetFakeSockets } from '../test/fakeWebSocket';
-import { useKioskUpdate } from './useKioskUpdate';
+import { STALLED_AFTER_MS, useKioskUpdate } from './useKioskUpdate';
 
 const kiosk = vi.hoisted(() => ({
   piVersion: vi.fn(),
@@ -286,6 +286,25 @@ describe('useKioskUpdate', () => {
       expect(result.current.progress).toBe('Stopped waiting for the update. It may still be running.');
       expect(socket.isClosed).toBe(true);
     });
+  });
+
+  it('says the percentage has stood still after a while, until it moves again', async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() => useKioskUpdate(true));
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      act(() => result.current.start());
+      act(() => latestFakeSocket().open());
+      act(() => latestFakeSocket().receive({ type: 'status', state: 'installing' }));
+      act(() => latestFakeSocket().receive({ type: 'log', line: '… kiosk-update[1]: Update progress: 43% Checking' }));
+      expect(result.current.isStalled).toBe(false);
+      await act(() => vi.advanceTimersByTimeAsync(STALLED_AFTER_MS));
+      expect(result.current).toMatchObject({ percent: 43, isStalled: true });
+      act(() => latestFakeSocket().receive({ type: 'log', line: '… kiosk-update[1]: Update progress: 70% Copying' }));
+      expect(result.current).toMatchObject({ percent: 70, isStalled: false });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('installs with a bar in percent, then waits for a restart', async () => {

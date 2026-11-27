@@ -13,7 +13,7 @@ const noop = () => {};
  * once the update has finished, failed or been given up on.
  */
 export default function UpdateConsole({ update }: Readonly<{ update: KioskUpdate }>) {
-  const { consoleOpen, isUpdating, progress, percent, output, closeConsole, installed } = update;
+  const { consoleOpen, isUpdating, progress, percent, isStalled, output, closeConsole, installed } = update;
   const outputRef = useRef<HTMLPreElement>(null);
   const t = useT();
 
@@ -53,11 +53,12 @@ export default function UpdateConsole({ update }: Readonly<{ update: KioskUpdate
         {progress ?? t('update.updating')}
       </p>
       {isUpdating && percent !== null && (
+        // With no value the bar is indeterminate: it moves, to show the install is at work, and says no percentage.
         <progress
           className="update-console-progress"
           max={100}
-          value={percent}
-          aria-label={t('update.percent', { percent })}
+          value={isStalled ? undefined : percent}
+          aria-label={isStalled ? t('update.working') : t('update.percent', { percent })}
         />
       )}
       {!isUpdating && installed && (
