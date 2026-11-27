@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
-import { getClientId } from '../src/spotify/settings.ts';
-import type { PlaybackState, SpotifyDevice, Track } from '../src/types.ts';
-import { KIOSK_SERVICE } from '../src/utils/kioskService.ts';
+import { getClientId } from '../web/src/spotify/settings.ts';
+import type { PlaybackState, SpotifyDevice, Track } from '../web/src/types.ts';
+import { KIOSK_SERVICE } from '../web/src/utils/kioskService.ts';
 import { fakeCountdownServer } from './fake-countdown.ts';
 
 /** An opaque black 1x1 GIF that stands in for every album cover and playlist image in the tests. */

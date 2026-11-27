@@ -23,6 +23,7 @@ const isAnyFile: Matcher = () => true;
 // A change to any of these can change every check's result: tool versions, the Node version, or this plan.
 const isRunAllFile = paths(
   'package.json',
+  'web/package.json',
   'package-lock.json',
   '.nvmrc',
   '.github/workflows/lint.yml',
@@ -42,12 +43,12 @@ const CHECKS: Record<string, Matcher[]> = {
     ext(...CODE, 'json', 'jsonc', 'md', 'yml', 'yaml', 'css', 'html'),
     paths('.prettierrc.json', '.prettierignore', '.editorconfig')
   ],
-  knip: [ext(...CODE), paths('index.html', 'knip.jsonc')],
+  knip: [ext(...CODE), paths('web/index.html', 'knip.jsonc')],
   // Every file can hold a typo or break .editorconfig, so these two always run.
   'lint:spelling': [isAnyFile],
   'lint:md': [ext('md'), paths('.markdownlint.jsonc', '.markdownlint-cli2.jsonc')],
-  'lint:css': [paths(/^src\/.*\.css$/, 'stylelint.config.mjs')],
-  'lint:unused-css': [paths(/^src\/.*\.(css|tsx?)$/, 'scripts/check-unused-css.ts')],
+  'lint:css': [paths(/^web\/src\/.*\.css$/, 'stylelint.config.mjs')],
+  'lint:unused-css': [paths(/^web\/src\/.*\.(css|tsx?)$/, 'scripts/check-unused-css.ts')],
   'lint:package-json': [paths('.npmpackagejsonlintrc.json', 'scripts/check-version-ranges.ts'), isServerPackageFile],
   'lint:lockfiles': [isServerPackageFile],
   'lint:image': [paths(/^image\//, 'scripts/check-image.ts', 'scripts/image-lists.ts')],

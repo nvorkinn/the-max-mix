@@ -1,6 +1,6 @@
 import type { Page, WebSocketRoute } from '@playwright/test';
-import type { SpotifyDevice } from '../src/types.ts';
-import { KIOSK_SERVICE } from '../src/utils/kioskService.ts';
+import type { SpotifyDevice } from '../web/src/types.ts';
+import { KIOSK_SERVICE } from '../web/src/utils/kioskService.ts';
 
 const SOLOIST_SOCKET = `${KIOSK_SERVICE.replace(/^http/, 'ws')}/soloist`;
 

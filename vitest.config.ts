@@ -6,13 +6,13 @@ export default defineConfig({
     // One jsdom per worker instead of one per test file (creating them was half the run's time), with each file still
     // in a context of its own.
     pool: 'vmThreads',
-    setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}', 'server/**/*.test.ts', 'shared/**/*.test.ts', 'scripts/**/*.test.ts'],
+    setupFiles: ['./web/src/test/setup.ts'],
+    include: ['web/src/**/*.test.{ts,tsx}', 'server/**/*.test.ts', 'shared/**/*.test.ts', 'scripts/**/*.test.ts'],
     restoreMocks: true,
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/types.ts'],
+      include: ['web/src/**/*.{ts,tsx}'],
+      exclude: ['web/src/**/*.test.{ts,tsx}', 'web/src/test/**', 'web/src/types.ts'],
       reporter: ['text-summary', 'lcov', 'json-summary'],
       reportsDirectory: './coverage',
       thresholds: {

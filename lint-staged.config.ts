@@ -28,7 +28,7 @@ const formatAndLintData = (files: string[]) => {
 };
 
 const tasks = {
-  '{*.{js,mjs,ts},{src,scripts,e2e,server,shared}/**/*.{js,mjs,ts,tsx}}': [prettier, lint],
+  '{*.{js,mjs,ts},{web,scripts,e2e,server,shared}/**/*.{js,mjs,ts,tsx}}': [prettier, lint],
   '{image/build.sh,image/rootfs/usr/local/lib/the-max-mix/*,image/rootfs/usr/local/bin/*,image/rootfs/usr/local/sbin/*}':
     shellcheck,
   // --no-globs: only the staged files, not every Markdown file .markdownlint-cli2.jsonc's globs name, so a file that is

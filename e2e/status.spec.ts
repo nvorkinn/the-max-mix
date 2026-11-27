@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Locator } from '@playwright/test';
-import { getClientId } from '../src/spotify/settings.ts';
-import type { PlaybackState } from '../src/types.ts';
+import { getClientId } from '../web/src/spotify/settings.ts';
+import type { PlaybackState } from '../web/src/types.ts';
 import { advance } from './clock.ts';
 import { fakeKioskOutputs } from './fake-kiosk.ts';
 import { fakeSoloist } from './fake-soloist.ts';

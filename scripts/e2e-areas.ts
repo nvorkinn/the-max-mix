@@ -19,94 +19,107 @@ export const AREAS: Area[] = [
     tag: 'player',
     title: 'Player',
     sources: [
-      /^src\/components\/AlbumArtPlayer/,
-      /^src\/components\/(Person(Face|Switcher)|SongProof|QrCode)/,
-      /^src\/spotify\/songProof/,
-      /^src\/hooks\/use(Spotify|Sonos)Player/,
-      /^src\/spotify\/api\.ts$/,
-      /^src\/utils\/colorExtractor\.ts$/,
-      /^src\/hooks\/useLingers/
+      /^web\/src\/components\/AlbumArtPlayer/,
+      /^web\/src\/components\/(Person(Face|Switcher)|SongProof|QrCode)/,
+      /^web\/src\/spotify\/songProof/,
+      /^web\/src\/hooks\/use(Spotify|Sonos)Player/,
+      /^web\/src\/spotify\/api\.ts$/,
+      /^web\/src\/utils\/colorExtractor\.ts$/,
+      /^web\/src\/hooks\/useLingers/
     ]
   },
   {
     tag: 'registration',
     title: 'First-time setup',
     sources: [
-      /^src\/countdown\//,
-      /^src\/hooks\/useDeviceConfig/,
-      /^src\/components\/setup\//,
-      /^src\/hooks\/useSoloistSignIn/,
-      /^src\/spotify\/soloistSignIn/,
+      /^web\/src\/countdown\//,
+      /^web\/src\/hooks\/useDeviceConfig/,
+      /^web\/src\/components\/setup\//,
+      /^web\/src\/hooks\/useSoloistSignIn/,
+      /^web\/src\/spotify\/soloistSignIn/,
       /^\.env\.(production|development)$/
     ]
   },
   {
     tag: 'music',
     title: 'Choose music',
-    sources: [/^src\/components\/MusicPicker/, /^src\/hooks\/useOnScreenKeyboard/]
+    sources: [/^web\/src\/components\/MusicPicker/, /^web\/src\/hooks\/useOnScreenKeyboard/]
   },
   {
     tag: 'queue',
     title: 'Queue',
     sources: [
-      /^src\/components\/TrackQueue/,
-      /^src\/hooks\/useDragToReorder/,
-      /^src\/hooks\/useWholeRows/,
-      /^src\/components\/TrackImages/
+      /^web\/src\/components\/TrackQueue/,
+      /^web\/src\/hooks\/useDragToReorder/,
+      /^web\/src\/hooks\/useWholeRows/,
+      /^web\/src\/components\/TrackImages/
     ]
   },
   {
     tag: 'lyrics',
     title: 'Lyrics',
-    sources: [/^src\/components\/LyricsPanel/, /^src\/hooks\/useLyrics/, /^src\/lyrics\//, /^src\/utils\/lyricsStyle/]
+    sources: [
+      /^web\/src\/components\/LyricsPanel/,
+      /^web\/src\/hooks\/useLyrics/,
+      /^web\/src\/lyrics\//,
+      /^web\/src\/utils\/lyricsStyle/
+    ]
   },
   {
     tag: 'settings',
     title: 'Settings',
     sources: [
-      /^src\/components\/SettingsPanel/,
-      /^src\/components\/settings\//,
-      /^src\/components\/(KioskSystem|ConfirmButton|PhonePicker|PairPhoneSheet|PhonePairingView)/,
-      /^src\/hooks\/usePhonePairing/,
-      /^src\/hooks\/(useSavedPhones|useAutoSwitch)/,
-      /^src\/utils\/(themeColour|clockFormat|phoneLinks)/,
-      /^src\/sonos\//
+      /^web\/src\/components\/SettingsPanel/,
+      /^web\/src\/components\/settings\//,
+      /^web\/src\/components\/(KioskSystem|ConfirmButton|PhonePicker|PairPhoneSheet|PhonePairingView)/,
+      /^web\/src\/hooks\/usePhonePairing/,
+      /^web\/src\/hooks\/(useSavedPhones|useAutoSwitch)/,
+      /^web\/src\/utils\/(themeColour|clockFormat|phoneLinks)/,
+      /^web\/src\/sonos\//
     ]
   },
   {
     tag: 'speakers',
     title: 'Speakers',
-    sources: [/^src\/components\/SpeakersView/, /^src\/speakers\//, /^src\/spotify\/knownDevices/, /^src\/audio\//]
+    sources: [
+      /^web\/src\/components\/SpeakersView/,
+      /^web\/src\/speakers\//,
+      /^web\/src\/spotify\/knownDevices/,
+      /^web\/src\/audio\//
+    ]
   },
   {
     tag: 'update',
     title: 'Software update',
     sources: [
-      /^src\/components\/Update(Prompt|Console)/,
-      /^src\/hooks\/useKioskUpdate/,
-      /^src\/utils\/kiosk(Service)?\.ts$/,
+      /^web\/src\/components\/Update(Prompt|Console)/,
+      /^web\/src\/hooks\/useKioskUpdate/,
+      /^web\/src\/utils\/kiosk(Service)?\.ts$/,
       /^server\/src\/update/
     ]
   },
   {
     tag: 'setup',
     title: 'Setup and signing in',
-    sources: [/^src\/components\/SpotifySetup/, /^src\/spotify\/(auth|settings)\.ts$/]
+    sources: [/^web\/src\/components\/SpotifySetup/, /^web\/src\/spotify\/(auth|settings)\.ts$/]
   },
   {
     tag: 'status',
     title: 'Playback status and recovery',
     sources: [
-      /^src\/components\/(PlaybackNotice|OfflineBanner)/,
-      /^src\/hooks\/(useOnlineStatus|useSpotifyCooldown|useSpotifyPolling)/,
-      /^src\/spotify\/(http|polling)\.ts$/
+      /^web\/src\/components\/(PlaybackNotice|OfflineBanner)/,
+      /^web\/src\/hooks\/(useOnlineStatus|useSpotifyCooldown|useSpotifyPolling)/,
+      /^web\/src\/spotify\/(http|polling)\.ts$/
     ]
   },
-  { tag: 'dialogs', title: 'Dialogs', sources: [/^src\/components\/Modal/] },
+  { tag: 'dialogs', title: 'Dialogs', sources: [/^web\/src\/components\/Modal/] },
   {
     tag: 'debug',
     title: 'Debug console',
-    sources: [/^src\/components\/(DebugConsole|BluetoothDebug)/, /^src\/utils\/(debugLog|httpLog|bluetoothMonitor)/]
+    sources: [
+      /^web\/src\/components\/(DebugConsole|BluetoothDebug)/,
+      /^web\/src\/utils\/(debugLog|httpLog|bluetoothMonitor)/
+    ]
   },
   // No source file is only about these: the tests are found through the files they change, or through the areas above.
   { tag: 'appearance', title: 'Appearance of dialogs', sources: [] },
@@ -115,29 +128,29 @@ export const AREAS: Area[] = [
     tag: 'sleep',
     title: 'Screen sleep',
     sources: [
-      /^src\/components\/Sleep(Screen|Icon)/,
-      /^src\/hooks\/useScreenSleep/,
-      /^src\/hooks\/useIdle/,
-      /^src\/utils\/screenSleep/,
-      /^src\/utils\/quietHours/
+      /^web\/src\/components\/Sleep(Screen|Icon)/,
+      /^web\/src\/hooks\/useScreenSleep/,
+      /^web\/src\/hooks\/useIdle/,
+      /^web\/src\/utils\/screenSleep/,
+      /^web\/src\/utils\/quietHours/
     ]
   },
   {
     tag: 'layout',
     title: 'Layout',
     sources: [
-      /^src\/.*\.css$/,
+      /^web\/src\/.*\.css$/,
       /^index\.html$/,
-      /^src\/components\/PanelNav/,
-      /^src\/components\/AppTabs/,
-      /^src\/components\/Dashboard/,
-      /^src\/components\/dashboard\//,
-      /^src\/dashboard\//,
-      /^src\/assets\/dashboard\//,
-      /^src\/assets\/fonts\//,
-      /^src\/hooks\/usePanelView/,
-      /^src\/hooks\/useHold/,
-      /^src\/utils\/arrivalsTransition/
+      /^web\/src\/components\/PanelNav/,
+      /^web\/src\/components\/AppTabs/,
+      /^web\/src\/components\/Dashboard/,
+      /^web\/src\/components\/dashboard\//,
+      /^web\/src\/dashboard\//,
+      /^web\/src\/assets\/dashboard\//,
+      /^web\/src\/assets\/fonts\//,
+      /^web\/src\/hooks\/usePanelView/,
+      /^web\/src\/hooks\/useHold/,
+      /^web\/src\/utils\/arrivalsTransition/
     ],
     alsoAffects: ['visual', 'appearance']
   },
@@ -145,7 +158,11 @@ export const AREAS: Area[] = [
   {
     tag: 'app',
     title: 'The app as a whole',
-    sources: [/^src\/components\/(TabletView|TabBackdrop)\.tsx$/, /^src\/(main|App)\.tsx$/, /^vite\.config\.ts$/],
+    sources: [
+      /^web\/src\/components\/(TabletView|TabBackdrop)\.tsx$/,
+      /^web\/src\/(main|App)\.tsx$/,
+      /^web\/vite\.config\.ts$/
+    ],
     alsoAffects: ['player', 'queue', 'settings', 'update', 'status', 'dialogs', 'visual']
   }
 ];
@@ -157,12 +174,12 @@ export function areasFor(files: readonly string[]): Area[] {
   return AREAS.filter(area => tags.has(area.tag));
 }
 
-const isTestFile = (file: string) => /\.test\.(ts|tsx)$/.test(file) || file.startsWith('src/test/');
+const isTestFile = (file: string) => /\.test\.(ts|tsx)$/.test(file) || file.startsWith('web/src/test/');
 const isMapped = (file: string) => AREAS.some(area => area.sources.some(source => source.test(file)));
 
-/** Changed files under src/ that belong to no area, so no browser test is known to be about them. */
+/** Changed files under web/src/ that belong to no area, so no browser test is known to be about them. */
 export function unmappedSources(files: readonly string[]): string[] {
-  return files.filter(file => file.startsWith('src/') && !isTestFile(file) && !isMapped(file));
+  return files.filter(file => file.startsWith('web/src/') && !isTestFile(file) && !isMapped(file));
 }
 
 const SPEC = /^e2e\/([^/]+\.spec\.ts)$/;

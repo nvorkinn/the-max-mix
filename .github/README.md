@@ -31,7 +31,7 @@ the workflow or the plan runs them all); a push to `main` runs every check. The 
 against a SHA-256 before running. It is listed in `all-checks.yml` too.
 
 `release.yml` runs on a version tag (`v*`) or by hand with an existing tag: it builds the app on the runner, joins the
-tailnet, copies `dist/` to the server with `rsync`, builds the Pis' signed update bundle from the tag (`bundle.yml`)
+tailnet, copies `web/dist/` to the server with `rsync`, builds the Pis' signed update bundle from the tag (`bundle.yml`)
 and then publishes the GitHub release with the bundle on it. It is the only way production is deployed. The runner joins
 the tailnet with its GitHub identity (`id-token: write`); the bundle's signing key comes from Vaultwarden through the
 `BW_*` secrets. It does not run on pull requests, so it is not in `all-checks.yml`.

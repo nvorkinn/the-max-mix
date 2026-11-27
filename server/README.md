@@ -39,7 +39,7 @@ hosted app saved stay on its origin. While the kiosk still opens the hosted app,
 this service at every start and every ten minutes (`POST /handover`, the hosted origin only), which keeps them in
 `~/.local/state/the-max-mix/handover.json` (readable by the kiosk user only, `handover.ts`). Once the kiosk opens the
 local copy, that copy takes them on its first start (`GET /handover`, same-origin only), keeping any it already has, and
-has the file deleted (`POST /handover/done`). See `src/utils/handover.ts`.
+has the file deleted (`POST /handover/done`). See `web/src/utils/handover.ts`.
 
 ## Screen
 

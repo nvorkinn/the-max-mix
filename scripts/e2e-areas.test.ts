@@ -7,14 +7,17 @@ const tagsOf = (files: string[]) => areasFor(files).map(area => area.tag);
 
 describe('areasFor', () => {
   it('maps a source file to the area it belongs to', () => {
-    expect(tagsOf(['src/components/UpdatePrompt.tsx'])).toEqual(['update']);
-    expect(tagsOf(['src/hooks/useScreenSleep.ts'])).toEqual(['sleep']);
-    expect(tagsOf(['src/hooks/useSpotifyPlayer.ts', 'src/components/LyricsPanel.tsx'])).toEqual(['player', 'lyrics']);
+    expect(tagsOf(['web/src/components/UpdatePrompt.tsx'])).toEqual(['update']);
+    expect(tagsOf(['web/src/hooks/useScreenSleep.ts'])).toEqual(['sleep']);
+    expect(tagsOf(['web/src/hooks/useSpotifyPlayer.ts', 'web/src/components/LyricsPanel.tsx'])).toEqual([
+      'player',
+      'lyrics'
+    ]);
   });
 
   it('adds the areas a change can also reach', () => {
-    expect(tagsOf(['src/index.css'])).toEqual(expect.arrayContaining(['layout', 'visual']));
-    expect(tagsOf(['src/components/TabletView.tsx'])).toEqual(
+    expect(tagsOf(['web/src/index.css'])).toEqual(expect.arrayContaining(['layout', 'visual']));
+    expect(tagsOf(['web/src/components/TabletView.tsx'])).toEqual(
       expect.arrayContaining(['app', 'player', 'queue', 'settings', 'update', 'status', 'dialogs'])
     );
   });
@@ -28,13 +31,13 @@ describe('unmappedSources', () => {
   it('lists changed app files that no area owns, but not tests or other folders', () => {
     expect(
       unmappedSources([
-        'src/components/Brand.tsx',
-        'src/components/Brand.test.tsx',
-        'src/test/fakeWebSocket.ts',
-        'src/components/Modal.tsx',
+        'web/src/components/Brand.tsx',
+        'web/src/components/Brand.test.tsx',
+        'web/src/test/fakeWebSocket.ts',
+        'web/src/components/Modal.tsx',
         'README.md'
       ])
-    ).toEqual(['src/components/Brand.tsx']);
+    ).toEqual(['web/src/components/Brand.tsx']);
   });
 });
 

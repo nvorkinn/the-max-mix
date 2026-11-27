@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { expect, test } from '@playwright/test';
-import { getClientId } from '../src/spotify/settings.ts';
+import { getClientId } from '../web/src/spotify/settings.ts';
 import { fakeCountdownServer, SPOTIFY_REDIRECT } from './fake-countdown.ts';
 import { PIXEL } from './fake-spotify.ts';
 import { openSpotifyTab } from './spotify-tab.ts';

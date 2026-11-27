@@ -67,7 +67,7 @@ jobs:
         run: |
           out=$RUNNER_TEMP/artefacts
           mkdir -p "$out/server/src" "$out/shared/src"
-          cp -r dist "$out/app"
+          cp -r web/dist "$out/app"
           git ls-files -z server/src | grep -zv -e '\.test\.ts$' -e '/imager-fixtures/' -e '/fixtures\.ts$' \
             | xargs -0 cp --target-directory="$out/server/src"
           cp server/package.json server/package-lock.json "$out/server/"

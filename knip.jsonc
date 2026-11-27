@@ -7,15 +7,21 @@
   // The Pi's services are started by their systemd units (image/rootfs): kiosk-server, the updater, the health check,
   // RAUC's boot backend and the first-boot setup. The updater runs screen-mode.ts itself. scripts/pi/*.mts are run by hand
   // on a Pi over SSH.
-  "entry": [
-    "server/src/kiosk-server.ts",
-    "server/src/screen-mode.ts",
-    "server/src/kiosk-update.ts",
-    "server/src/kiosk-health.ts",
-    "server/src/rauc-backend.ts",
-    "server/src/kiosk-first-boot.ts",
-    "scripts/pi/*.mts"
-  ],
+  "workspaces": {
+    ".": {
+      "entry": [
+        "server/src/kiosk-server.ts",
+        "server/src/screen-mode.ts",
+        "server/src/kiosk-update.ts",
+        "server/src/kiosk-health.ts",
+        "server/src/rauc-backend.ts",
+        "server/src/kiosk-first-boot.ts",
+        "scripts/pi/*.mts"
+      ]
+    },
+    // The web app's tests run from the root's Vitest config, so they are named here.
+    "web": { "entry": ["src/**/*.test.{ts,tsx}"] }
+  },
   // The countdown-api submodule is its own project; the app only imports its types and generated client.
   "ignore": ["vendor/**"],
   "ignoreBinaries": ["shellcheck", "editorconfig-checker", "diskutil"]

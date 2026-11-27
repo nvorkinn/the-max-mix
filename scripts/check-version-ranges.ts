@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 
 const ROOT = 'package.json';
 const SERVER = 'server/package.json';
-const manifests = [ROOT, SERVER];
+const manifests = [ROOT, SERVER, 'web/package.json'];
 const sections = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
 const floating = new Set(['', '*', 'x', 'latest', 'next', '>=0', '>=0.0.0']);
 

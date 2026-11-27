@@ -1,10 +1,10 @@
-// Fails when src/index.css styles a class that no source file mentions, which means dead CSS.
-// A class counts as used when its name appears in any non-test file under src/, or when it starts with the fixed prefix
+// Fails when web/src/index.css styles a class that no source file mentions, which means dead CSS.
+// A class counts as used when its name appears in any non-test file under web/src/, or when it starts with the fixed prefix
 // of a template literal such as `debug-entry-${level}`, which builds its variants at run time.
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-const srcDir = new URL('../src/', import.meta.url).pathname;
+const srcDir = new URL('../web/src/', import.meta.url).pathname;
 
 function sourceFiles(dir: string): string[] {
   const files: string[] = [];
@@ -45,6 +45,6 @@ const isUsed = (name: string) => source.includes(name) || prefixes.some(prefix =
 const unused = [...classes].filter(name => !isUsed(name)).toSorted((a, b) => a.localeCompare(b));
 if (unused.length > 0) {
   const list = unused.map(name => `  .${name}`).join('\n');
-  console.error(`Unused CSS classes in src/index.css:\n${list}`);
+  console.error(`Unused CSS classes in web/src/index.css:\n${list}`);
   process.exit(1);
 }
