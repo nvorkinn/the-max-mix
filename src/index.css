@@ -2406,7 +2406,7 @@ body:has(.app-dialog[open]) {
   background: var(--accent-ink);
   transform: translateX(36px);
 }
-/* The Screen page: quiet hours over the sleep delay, with the brightness column beside them from top to bottom. */
+/* The Screen page: the brightness column on the left, from top to bottom, beside quiet hours over the sleep delay. */
 .screen-settings {
   display: flex;
   align-items: stretch;

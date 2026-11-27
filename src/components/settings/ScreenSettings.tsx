@@ -26,18 +26,18 @@ export default function ScreenSettings({
   onQuietHoursChange?: ((hours: QuietHours) => void) | undefined;
   clockFormat: ClockFormat;
 }>) {
-  // The night and the day read top to bottom on the left; brightness stands beside them both as one tall column.
+  // Brightness stands as one tall column on the left, beside the night and the day reading top to bottom.
   return (
     <div className="screen-settings">
+      {brightness !== undefined && onBrightnessChange && (
+        <BrightnessSettings percent={brightness} onChange={onBrightnessChange} />
+      )}
       <div className="settings-stack">
         {quietHours && onQuietHoursChange && (
           <QuietHoursSettings hours={quietHours} clockFormat={clockFormat} onChange={onQuietHoursChange} />
         )}
         <ScreenSleepSettings minutes={screenSleep} onChange={onScreenSleepChange} />
       </div>
-      {brightness !== undefined && onBrightnessChange && (
-        <BrightnessSettings percent={brightness} onChange={onBrightnessChange} />
-      )}
     </div>
   );
 }
