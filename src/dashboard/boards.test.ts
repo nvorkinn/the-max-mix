@@ -124,24 +124,14 @@ describe('toBoards', () => {
     ]);
   });
 
-  it("gives a London bus's stop letter only where it isn't the board's own, as at a hub", () => {
+  it("says a bus's stop only where it isn't the board's own, as at a hub", () => {
     const answer: DeviceArrivals = {
       stops: [stop('490000077E', 'bus', [departure('12', 'A', 2), departure('35', 'B', 3, { platform: 'F' })], 'E')]
     };
 
-    expect(toBoards(answer, NOW)[0]?.departures.map(d => [d.detail, d.stopLetter])).toEqual([
-      [null, undefined],
-      [null, 'F']
-    ]);
-  });
-
-  it("writes a Norwegian bus's stop under its destination, in the kiosk's language", () => {
-    const hub = stop('NSR:StopPlace:1', 'bus', [departure('31', 'A', 2, { platform: 'C' })]);
-    const answer: DeviceArrivals = { stops: [{ ...hub, source: 'entur' }] };
-
-    expect(toBoards(answer, NOW)[0]?.departures[0]).toMatchObject({ detail: 'Stop C' });
-    expect(toBoards(answer, NOW, '24h', 'nb')[0]?.departures[0]?.detail).toBe(
-      translate('board.stop', 'nb', { letter: 'C' })
+    expect(toBoards(answer, NOW)[0]?.departures.map(d => d.detail)).toEqual([null, 'Stop F']);
+    expect(toBoards(answer, NOW, '24h', 'nb')[0]?.departures[1]?.detail).toBe(
+      translate('board.stop', 'nb', { letter: 'F' })
     );
   });
 

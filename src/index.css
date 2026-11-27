@@ -3235,6 +3235,8 @@ body:has(.app-dialog[open]) {
   font-size: 13px;
   font-weight: 700;
   line-height: 1;
+  /* Centred on the letter itself (its cap height), not on the font's line box, whatever the font's metrics. */
+  text-box: trim-both cap alphabetic;
 }
 .countdown-stop {
   display: flex;

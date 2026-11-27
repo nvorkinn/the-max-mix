@@ -215,8 +215,7 @@ export const SAMPLE = {
         line: '12',
         lineId: '12',
         destination: 'Oxford Circus',
-        detail: null,
-        stopLetter: 'E',
+        detail: 'Stop E',
         expectedAt: minutesOn(2)
       },
       {
@@ -225,8 +224,7 @@ export const SAMPLE = {
         line: '343',
         lineId: '343',
         destination: 'New Cross',
-        detail: null,
-        stopLetter: 'F',
+        detail: 'Stop F',
         expectedAt: minutesOn(6)
       },
       {
@@ -235,8 +233,7 @@ export const SAMPLE = {
         line: '148',
         lineId: '148',
         destination: 'White City',
-        detail: null,
-        stopLetter: 'D',
+        detail: 'Stop D',
         expectedAt: minutesOn(8)
       },
       {
@@ -245,8 +242,7 @@ export const SAMPLE = {
         line: '35',
         lineId: '35',
         destination: 'Clapham Junction',
-        detail: null,
-        stopLetter: 'G',
+        detail: 'Stop G',
         expectedAt: minutesOn(10)
       },
       {
@@ -255,8 +251,7 @@ export const SAMPLE = {
         line: '40',
         lineId: '40',
         destination: 'Aldgate',
-        detail: null,
-        stopLetter: 'B',
+        detail: 'Stop B',
         expectedAt: minutesOn(13)
       },
       {
@@ -265,8 +260,7 @@ export const SAMPLE = {
         line: '363',
         lineId: '363',
         destination: 'Crystal Palace',
-        detail: null,
-        stopLetter: 'H',
+        detail: 'Stop H',
         expectedAt: minutesOn(16)
       }
     ],

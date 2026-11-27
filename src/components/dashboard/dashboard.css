@@ -1160,7 +1160,6 @@ button.dashboard-notice {
 /* A name cut short with "…", which while it rolls across (rollAcross.ts) shows whole, the box cutting it off. */
 .dashboard-dest-name {
   display: block;
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -1227,15 +1226,4 @@ button.dashboard-notice {
   color: var(--muted);
   font-size: 28px;
   font-weight: 600;
-}
-/* A hub's bus leaving from another of its stops: that stop's letter by the destination, a smaller disc. */
-.dashboard-dest strong:has(.dashboard-row-letter) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.dashboard-row-letter {
-  width: 24px;
-  height: 24px;
-  font-size: 14px;
 }

@@ -85,7 +85,7 @@ export default function DepartureBoard({
             render={({ next, later }) => (
               <>
                 <Line departure={next} network={network} />
-                <Destination name={next.destination} detail={next.detail} stopLetter={next.stopLetter} overQueue />
+                <Destination name={next.destination} detail={next.detail} overQueue />
                 <EtaStack
                   departures={[next, ...later]}
                   now={now}
@@ -104,7 +104,7 @@ export default function DepartureBoard({
             render={departure => (
               <>
                 <Line departure={departure} network={network} />
-                <Destination name={departure.destination} detail={departure.detail} stopLetter={departure.stopLetter} />
+                <Destination name={departure.destination} detail={departure.detail} />
                 <Time departure={departure} now={now} />
               </>
             )}
