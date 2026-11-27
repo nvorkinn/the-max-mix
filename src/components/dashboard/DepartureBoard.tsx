@@ -104,11 +104,7 @@ export default function DepartureBoard({
             render={departure => (
               <>
                 <Line departure={departure} network={network} />
-                <Destination
-                  name={departure.destination}
-                  detail={departure.detail}
-                  stopLetter={departure.stopLetter}
-                />
+                <Destination name={departure.destination} detail={departure.detail} stopLetter={departure.stopLetter} />
                 <Time departure={departure} now={now} />
               </>
             )}
