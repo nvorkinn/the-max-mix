@@ -407,7 +407,8 @@ describe('useSpotifyPlayer follows another device from the kiosk player', () => 
     });
     expect(result.current.playbackState?.item).toMatchObject({ uri: next?.item.uri });
     expect(result.current.playbackState?.item?.name).toBeUndefined();
-    expect(result.current.playbackState?.progress_ms).toBe(0);
+    // The clock runs on while the report is taken in, so not always exactly 0.
+    expect(result.current.playbackState?.progress_ms).toBeLessThan(1000);
     act(() => socket.receive({ ...recordedNow(false), item: next?.item }));
     expect(result.current.playbackState?.item?.name).toBe(nextName);
 

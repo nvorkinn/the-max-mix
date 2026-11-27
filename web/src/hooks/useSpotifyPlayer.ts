@@ -251,7 +251,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
     setSnapshot(previous => {
       const shown = previous.state?.item;
       // Only the song on screen, and only while it has no name: the kiosk's player otherwise has the last word.
-      return shown?.id === track.id && shown.name === undefined
+      return shown !== undefined && shown.id === track.id && shown.name === undefined
         ? { ...previous, state: { ...previous.state, item: track } }
         : previous;
     });
