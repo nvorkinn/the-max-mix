@@ -25,11 +25,12 @@ KIOSK_RELEASE_OS=<names everything but the app: the base layer and image/>
 
 It drops in the built artefacts: the web app at `/opt/the-max-mix/app`, `server/src` (without its tests) with its
 `node_modules` (installed from [server/package-lock.json](../server/package-lock.json)) at
-`/opt/the-max-mix/server`. Spotify Soloist is not in the image: its terms do not allow passing it
+`/opt/the-max-mix/server`, and `shared/src` beside it at `/opt/the-max-mix/shared`, so the server's imports of it
+resolve as they do in the repository. Spotify Soloist is not in the image: its terms do not allow passing it
 on, and each build expires after 90 days, so `kiosk-soloist-update.timer` fetches it onto `/data/soloist`, where
 `/usr/local/bin/soloist` links (the build makes the link).
 
-Beside the bundle, the build packs the app on its own: `the-max-mix.app.tar.gz` (`app`, `server` and that
+Beside the bundle, the build packs the app on its own: `the-max-mix.app.tar.gz` (`app`, `server`, `shared` and that
 `release.env`), `the-max-mix.app.json` (its version, `KIOSK_RELEASE_OS`, and the archive's size and SHA-256) and
 `the-max-mix.app.json.sig`, the signature of that file by the bundle's key. A release whose `KIOSK_RELEASE_OS` is the
 running slot's changed only the app, so a Pi can take the archive alone, onto `/data/the-max-mix/apps`, with no reboot.

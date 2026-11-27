@@ -278,7 +278,8 @@ password reaches nmcli on stdin, never in argv or the journal, and a failed atte
 brings back the Wi-Fi that was on. Joining a network restarts nothing: the app stays up and sees the new network.
 
 The service's own error messages stay in English in the code; the app shows them in its language with `localize` from
-`words.ts`. The hotspot's page for a phone follows the phone's `Accept-Language`, with its words in `words.ts` too.
+`shared/src/words.ts`. The hotspot's page for a phone follows the phone's `Accept-Language`, with its words in that
+file too. `shared/` holds what the server and the app both import; it is packed beside the server on the Pi.
 
 | File               | What it is                                                              |
 | ------------------ | ----------------------------------------------------------------------- |
@@ -288,7 +289,6 @@ The service's own error messages stay in English in the code; the app shows them
 | `update.ts`        | The update: follows the journal, runs the pull and the restart.         |
 | `actions.ts`       | The fixed commands behind the power and screen requests.                |
 | `nmcli.ts`         | Wi-Fi through nmcli: scanning, joining, and the messages for errors.    |
-| `words.ts`         | The hotspot page's words and the service's messages, in two languages.  |
 | `watchdog.ts`      | Restarts Chromium when the app's heartbeats stop.                       |
 | `speakers.ts`      | Checking speaker lists, the saved choice, and routing to it.            |
 | `pipewire.ts`      | `pw-dump` parsing, the link plan, `pw-link` and `wpctl set-volume`.     |

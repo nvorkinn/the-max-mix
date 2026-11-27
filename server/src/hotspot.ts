@@ -5,11 +5,12 @@
 // first, and the earlier network comes back when the hotspot ends without a new one being joined.
 import { randomInt } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { wifiQrText } from '../../shared/src/wifi-qr.ts';
 import { handlePortalRequest, refusePortalRequest } from './hotspot-portal.ts';
 import type { Portal } from './hotspot-portal.ts';
 import { HOTSPOT_SSID, runCommand } from './nmcli.ts';
 import type { ConnectRequest, ConnectResult, Network, Run } from './nmcli.ts';
-import { qrRows, wifiQrText } from './qr.ts';
+import { qrRows } from './qr.ts';
 
 const CONNECTION = 'kiosk-setup';
 // What NetworkManager gives a hotspot's own address, unless it says otherwise.

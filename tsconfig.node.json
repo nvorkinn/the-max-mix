@@ -25,5 +25,13 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["scripts/*.ts", "e2e/*.ts", "server/src/*.ts", "lint-staged.config.ts", "*.config.js", "*.config.mjs"]
+  "include": [
+    "scripts/*.ts",
+    "e2e/*.ts",
+    "server/src/*.ts",
+    "shared/src/*.ts",
+    "lint-staged.config.ts",
+    "*.config.js",
+    "*.config.mjs"
+  ]
 }
