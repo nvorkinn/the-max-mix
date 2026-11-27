@@ -1,17 +1,23 @@
 // Tests whether a kiosk can find its own postcode from the Wi-Fi around it: `sudo node locate-probe.mts [postcode]
-// [--max N]` on a Pi that is already online. It starts its own scan (setup by QR code never lists networks), asks
-// BeaconDB where those access points are, and prints the six nearest postcodes, which are what the setup wizard would
-// offer. With the Pi's real postcode it also says whether that one is among the six.
-// Two requests are sent: one with only what nmcli reports (what kiosk-server could do as the kiosk user), and one with
+// [--max N] [--google]` on a Pi that is already online. It starts its own scan (setup by QR code never lists
+// networks), asks BeaconDB where those access points are, and prints the ten nearest postcodes, which are what the
+// setup wizard would offer. With the Pi's real postcode it also says whether that one is among the ten.
+// Two scans are sent: one with only what nmcli reports (what kiosk-server could do as the kiosk user), and one with
 // the kernel's own readings from `iw` (real dBm and age), to see whether the better data changes the answer.
-// Nearby networks' MAC addresses and names go to BeaconDB, and the position it answers goes to postcodes.io.
+// --google also asks Google's Geolocation API. Its key comes from GOOGLE_GEOLOCATION_KEY, or from
+// ~/.google-geolocation-key of the user who ran sudo, so it never has to be typed on the command line.
+// Nearby networks' MAC addresses (and, for BeaconDB, names) go to the services asked, and the positions they answer
+// go to postcodes.io.
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 
 const BEACONDB = 'https://api.beacondb.net/v1/geolocate';
+const GOOGLE = 'https://www.googleapis.com/geolocation/v1/geolocate';
 const POSTCODES = 'https://api.postcodes.io/postcodes';
 const HEADERS = { 'User-Agent': 'THE MAX MIX (https://github.com/nvorkinn/the-max-mix)' };
 const SETUP_HOTSPOT = 'THE MAX MIX setup';
-const CANDIDATES = 6;
+const CANDIDATES = 10;
 const TIMEOUT_MS = 10_000;
 
 interface AccessPoint {
@@ -139,22 +145,58 @@ async function getJson(url: string, init?: RequestInit): Promise<{ status: numbe
   }
 }
 
-async function locate(points: AccessPoint[]): Promise<Position | null> {
-  const { status, body } = await getJson(BEACONDB, {
+interface Service {
+  name: string;
+  url: string;
+  body: (points: AccessPoint[]) => unknown;
+}
+
+/** BeaconDB takes every field, SSID included; with both fallbacks off, an answer is a Wi-Fi position. */
+const beaconDb: Service = {
+  name: 'BeaconDB',
+  url: BEACONDB,
+  body: points => ({ wifiAccessPoints: points, considerIp: false, fallbacks: { lacf: false, ipf: false } })
+};
+
+/** Google takes no SSID or frequency, and refuses fields it does not know. */
+const google = (key: string): Service => ({
+  name: 'Google',
+  url: `${GOOGLE}?key=${encodeURIComponent(key)}`,
+  body: points => ({
+    considerIp: false,
+    wifiAccessPoints: points.map(({ macAddress, signalStrength, channel, age }) => ({
+      macAddress,
+      signalStrength,
+      channel,
+      ...(age === undefined ? {} : { age })
+    }))
+  })
+});
+
+function googleKey(): string {
+  const fromEnv = process.env['GOOGLE_GEOLOCATION_KEY']?.trim();
+  if (fromEnv) return fromEnv;
+  const home = process.env['SUDO_USER'] ? `/home/${process.env['SUDO_USER']}` : homedir();
+  try {
+    return readFileSync(`${home}/.google-geolocation-key`, 'utf8').trim();
+  } catch {
+    return '';
+  }
+}
+
+async function locate(service: Service, points: AccessPoint[]): Promise<Position | null> {
+  const { status, body } = await getJson(service.url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      wifiAccessPoints: points,
-      considerIp: false,
-      fallbacks: { lacf: false, ipf: false }
-    })
+    body: JSON.stringify(service.body(points))
   });
   const answer = body as { location?: { lat: number; lng: number }; accuracy?: number; fallback?: string };
   if (status !== 200 || !answer.location) {
-    console.log(`  BeaconDB answered ${status}: ${JSON.stringify(body).slice(0, 300)}`);
+    console.log(`  ${service.name} answered ${status}: ${JSON.stringify(body).slice(0, 300)}`);
     return null;
   }
-  if (answer.fallback) console.log(`  (BeaconDB fell back to "${answer.fallback}", so this is not a Wi-Fi position)`);
+  if (answer.fallback)
+    console.log(`  (${service.name} fell back to "${answer.fallback}", so this is not a Wi-Fi position)`);
   return { ...answer.location, accuracy: answer.accuracy ?? Number.NaN };
 }
 
@@ -168,13 +210,19 @@ function metresBetween(a: { lat: number; lng: number }, b: { lat: number; lng: n
 
 const spaceless = (postcode: string) => postcode.replace(/\s+/g, '').toUpperCase();
 
-async function report(label: string, points: AccessPoint[], home: Place | null, wanted: string): Promise<void> {
-  console.log(`\n== ${label}: ${points.length} access points sent ==`);
+async function report(
+  service: Service,
+  label: string,
+  points: AccessPoint[],
+  home: Place | null,
+  wanted: string
+): Promise<void> {
+  console.log(`\n== ${service.name}, ${label}: ${points.length} access points sent ==`);
   if (points.length < 2) {
-    console.log('  BeaconDB needs at least two.');
+    console.log('  At least two are needed.');
     return;
   }
-  const position = await locate(points);
+  const position = await locate(service, points);
   if (!position) return;
   console.log(`  Position: ${position.lat}, ${position.lng}, accurate to ${Math.round(position.accuracy)} m`);
   console.log(
@@ -203,10 +251,23 @@ async function report(label: string, points: AccessPoint[], home: Place | null, 
 }
 
 const args = process.argv.slice(2);
+const askGoogle = args.includes('--google');
 const maxAt = args.indexOf('--max');
 const max = maxAt === -1 ? Number.POSITIVE_INFINITY : Number(args[maxAt + 1]);
-const typed = args.filter((_, index) => maxAt === -1 || (index !== maxAt && index !== maxAt + 1)).join(' ');
+const typed = args
+  .filter((arg, index) => arg !== '--google' && (maxAt === -1 || (index !== maxAt && index !== maxAt + 1)))
+  .join(' ');
 const wanted = spaceless(typed);
+
+const services = [beaconDb];
+if (askGoogle) {
+  const key = googleKey();
+  if (!key) {
+    console.log('--google needs GOOGLE_GEOLOCATION_KEY or ~/.google-geolocation-key.');
+    process.exit(1);
+  }
+  services.push(google(key));
+}
 
 let home: Place | null = null;
 if (wanted) {
@@ -229,5 +290,7 @@ for (const point of sent.slice(0, 15))
     `  ${point.macAddress}  ${String(point.signalStrength).padStart(4)} dBm  ch ${String(point.channel).padStart(3)}  ${point.ssid}`
   );
 
-await report('nmcli only', sent, home, wanted);
-if (fromIw) await report('iw (real dBm and age)', usable(fromIw, max), home, wanted);
+for (const service of services) {
+  await report(service, 'nmcli only', sent, home, wanted);
+  if (fromIw) await report(service, 'iw (real dBm and age)', usable(fromIw, max), home, wanted);
+}
