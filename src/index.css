@@ -2406,14 +2406,16 @@ body:has(.app-dialog[open]) {
   background: var(--accent-ink);
   transform: translateX(36px);
 }
-/* The Screen page's day: the sleep delay, with the brightness column standing beside it. */
-.screen-day {
+/* The Screen page: the brightness column on the left, from top to bottom, beside quiet hours over the sleep delay. */
+.screen-settings {
   display: flex;
   align-items: stretch;
-  gap: 28px;
+  gap: 40px;
+  max-width: 760px;
 }
-.screen-day > .settings-section {
+.screen-settings > .settings-stack {
   flex: 1;
+  min-width: 0;
 }
 /*
   Brightness as a tall column that fills from the bottom as it brightens. The range input lies over all of it, unseen
